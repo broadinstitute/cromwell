@@ -8,7 +8,7 @@ import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.{FqnIndex, Ru
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{apply => _, _}
 import wdl4s.wdl._
 import wdl4s.wom.callable.WorkflowDefinition
-import wdl4s.wom.graph.{GraphNode, TaskCallNode}
+import wdl4s.wom.graph.{GraphNode, ScatterNode, TaskCallNode}
 
 
 object ExecutionStore {
@@ -72,7 +72,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
 
   def hasActiveJob: Boolean = {
     def upstreamFailed(scope: GraphNode): Boolean = scope match {
-      case node: WdlGraphNode => node.upstreamAncestry exists hasFailedScope
+      case node: GraphNode => node.upstreamAncestry exists hasFailedScope
     }
 
     keysWithStatus(QueuedInCromwell).nonEmpty ||
@@ -89,7 +89,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
     }
   }
 
-  private def hasFailedScope(s: WdlGraphNode): Boolean = keysWithStatus(Failed).exists(_.scope == s)
+  private def hasFailedScope(s: GraphNode): Boolean = keysWithStatus(Failed).exists(_.scope == s)
 
   def hasFailedJob: Boolean = keysWithStatus(Failed).nonEmpty
 
@@ -109,7 +109,8 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
     val scopesToStartPlusOne = readyToStart.take(ExecutionStore.MaxJobsToStartPerTick + 1).toList
     // Only take the first ExecutionStore.MaxJobsToStartPerTick from the above list.
     // Use the fact that we took one more to determine whether or not we truncated the result.
-    RunnableScopes(scopesToStartPlusOne.take(ExecutionStore.MaxJobsToStartPerTick), scopesToStartPlusOne.size > ExecutionStore.MaxJobsToStartPerTick)
+    val res = RunnableScopes(scopesToStartPlusOne.take(ExecutionStore.MaxJobsToStartPerTick), scopesToStartPlusOne.size > ExecutionStore.MaxJobsToStartPerTick)
+    res 
   }
 
   def findCompletedShardsForOutput(key: CollectorKey): List[JobKey] = doneKeys.values.toList collect {
@@ -126,7 +127,8 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
 
   private def arePrerequisitesDone(key: JobKey): Boolean = {
     lazy val upstreamAreDone = key.scope.upstream forall {
-      case n @ (_: WdlCall | _: Scatter | _: Declaration) => upstreamIsDone(key, n)
+      // TODO WOM: Declaration ??
+      case n @ (_: TaskCallNode | _: ScatterNode | _: Declaration) => upstreamIsDone(key, n)
       case _ => true
     }
 

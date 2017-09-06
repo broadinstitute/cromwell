@@ -11,6 +11,7 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import wdl4s.wdl._
 import wdl4s.wdl.values.WdlValue
+import wdl4s.wom.WomEvaluatedCallInputs
 
 import scala.util.Random
 
@@ -41,14 +42,14 @@ trait CallMetadataHelper {
     serviceRegistryActor ! PutMetadataAction(statusChange)
   }
 
-  def pushRunningCallMetadata(key: CallKey, evaluatedInputs: EvaluatedTaskInputs) = {
+  def pushRunningCallMetadata(key: CallKey, evaluatedInputs: WomEvaluatedCallInputs) = {
     val inputEvents = evaluatedInputs match {
       case empty if empty.isEmpty =>
         List(MetadataEvent.empty(metadataKeyForCall(key, s"${CallMetadataKeys.Inputs}")))
       case inputs =>
         inputs flatMap {
           case (inputName, inputValue) =>
-            wdlValueToMetadataEvents(metadataKeyForCall(key, s"${CallMetadataKeys.Inputs}:${inputName.unqualifiedName}"), inputValue)
+            wdlValueToMetadataEvents(metadataKeyForCall(key, s"${CallMetadataKeys.Inputs}:${inputName.name}"), inputValue)
         }
     }
 

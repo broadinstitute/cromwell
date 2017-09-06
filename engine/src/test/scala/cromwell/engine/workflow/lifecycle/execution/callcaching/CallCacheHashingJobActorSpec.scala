@@ -14,17 +14,19 @@ import org.scalatest.concurrent.Eventually
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
 import wdl4s.wdl.values.{WdlFile, WdlInteger, WdlString, WdlValue}
-import wdl4s.wdl.{WdlTask, WdlTaskCall}
+import wdl4s.wom.callable.Callable.OutputDefinition
+import wdl4s.wom.callable.TaskDefinition
+import wdl4s.wom.graph.TaskCallNode
 
 class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with BackendSpec with Matchers with Eventually with TableDrivenPropertyChecks {
   behavior of "CallCacheReadingJobActor"
 
   def templateJobDescriptor(inputs: Map[LocallyQualifiedName, WdlValue] = Map.empty) = {
-    val task = mock[WdlTask]
-    val call = mock[WdlTaskCall]
+    val task = mock[TaskDefinition]
+    val call = mock[TaskCallNode]
     when(task.commandTemplateString).thenReturn("Do the stuff... now!!")
-    when(task.outputs).thenReturn(List.empty)
-    when(call.task).thenReturn(task)
+    when(task.outputs).thenReturn(Set.empty[OutputDefinition])
+    when(call.callable).thenReturn(task)
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
     val runtimeAttributes = Map(
       "cpu" -> WdlInteger(1),

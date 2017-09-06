@@ -11,6 +11,7 @@ import wdl4s.wdl.values.WdlValue
 import wdl4s.wom.callable.WorkflowDefinition
 import wdl4s.wom.graph.TaskCallNode
 import cromwell.core.CromwellGraphNode._
+import wdl4s.wom.WomEvaluatedCallInputs
 
 import scala.util.Try
 
@@ -30,7 +31,7 @@ case class BackendJobDescriptorKey(call: TaskCallNode, index: Option[Int], attem
 case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                                 key: BackendJobDescriptorKey,
                                 runtimeAttributes: Map[LocallyQualifiedName, WdlValue],
-                                inputDeclarations: Map[String, WdlValue],
+                                inputDeclarations: WomEvaluatedCallInputs,
                                 maybeCallCachingEligible: MaybeCallCachingEligible,
                                 prefetchedKvStoreEntries: Map[String, KvResponse]) {
   val fullyQualifiedInputs = inputDeclarations map { case (declaration, value) => 

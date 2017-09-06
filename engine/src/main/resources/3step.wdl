@@ -8,7 +8,7 @@ task ps {
 }
 
 task cgrep {
-  String pattern
+  String pattern = "*"
   File in_file
   command {
     grep '${pattern}' ${in_file} | wc -l

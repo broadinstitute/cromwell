@@ -1,9 +1,9 @@
 package cromwell.backend.wdl
 
 import cromwell.backend.BackendJobDescriptor
-import wdl4s.wdl.EvaluatedTaskInputs
 import wdl4s.wdl.expression.NoFunctions
 import wdl4s.wdl.values.WdlValue
+import wdl4s.wom.WomEvaluatedCallInputs
 import wdl4s.wom.expression.IoFunctionSet
 
 import scala.util.{Success, Try}
@@ -23,7 +23,7 @@ object Command {
     */
   def instantiate(jobDescriptor: BackendJobDescriptor,
                   callEngineFunction: IoFunctionSet,
-                  inputsPreProcessor: Map[String, WdlValue] => Try[Map[String, WdlValue]] = (i: Map[String, WdlValue]) => Success(i),
+                  inputsPreProcessor: WomEvaluatedCallInputs => Try[WomEvaluatedCallInputs] = (i: WomEvaluatedCallInputs) => Success(i),
                   valueMapper: WdlValue => WdlValue = identity): Try[String] = {
     inputsPreProcessor(jobDescriptor.inputDeclarations) flatMap { mappedInputs =>
       // TODO WOM: instantiate command should take an IoFunctionSet now

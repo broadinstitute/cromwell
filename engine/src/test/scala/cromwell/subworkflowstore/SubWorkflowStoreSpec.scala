@@ -14,6 +14,8 @@ import cromwell.subworkflowstore.SubWorkflowStoreSpec._
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
 import wdl4s.wdl.{WdlExpression, WdlTaskCall}
+import cromwell.core.CromwellGraphNode._
+import wdl4s.wom.graph.GraphNode
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -38,7 +40,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with Matchers with Mo
       val call = mock[WdlTaskCall]
       call.fullyQualifiedName returns "foo.bar"
       val jobKey = new JobKey {
-        override def scope = call
+        override def scope: GraphNode = null//call
         override def index: Option[Int] = None
         override def attempt: Int = 0
         override def tag: String = "foobar"

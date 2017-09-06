@@ -3,7 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution.preparation
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.TestProbe
 import cromwell.backend._
-import cromwell.core.WorkflowId
+import cromwell.core.{NoIoFunctionSet, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.{OutputStore, WorkflowExecutionActorData}
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, ScopedKey}
@@ -12,9 +12,8 @@ import wdl4s.wdl._
 import wdl4s.wdl.values.WdlValue
 
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Try
+import scala.util.{Failure, Try}
 import JobPreparationTestHelper._
-import wdl4s.wdl.expression.NoFunctions
 
 class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito {
   val executionData = mock[WorkflowExecutionActorData]
@@ -73,13 +72,14 @@ private[preparation] class TestJobPreparationActor(kvStoreKeysForPrefetch: List[
 
   override lazy val kvStoreKeysToPrefetch = kvStoreKeysForPrefetch
 
-  override private[preparation] lazy val expressionLanguageFunctions = NoFunctions
+  override private[preparation] lazy val expressionLanguageFunctions = NoIoFunctionSet
   override private[preparation] lazy val dockerHashCredentials = dockerHashCredentialsInput
   override private[preparation] lazy val noResponseTimeout = dockerNoResponseTimeoutInput
   override private[preparation] lazy val hasDockerDefinition = true
 
   override def scopedKey(key: String) = scopedKeyMaker.apply(key)
-  override def evaluateInputsAndAttributes(outputStore: OutputStore) = inputsAndAttributes
+  // TODO WOM: fix
+  override def evaluateInputsAndAttributes(outputStore: OutputStore) = Failure(new Exception("boom"))//inputsAndAttributes
 
   override private[preparation] def jobExecutionProps(jobDescriptor: BackendJobDescriptor,
                                                       initializationData: Option[BackendInitializationData],

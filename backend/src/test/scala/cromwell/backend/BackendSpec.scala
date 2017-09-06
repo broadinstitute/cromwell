@@ -13,6 +13,7 @@ import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsValue}
 import wdl4s.wdl._
 import wdl4s.wdl.values.WdlValue
+import wdl4s.wom.callable.Callable.InputDefinition
 
 trait BackendSpec extends ScalaFutures with Matchers with Mockito {
 
@@ -35,12 +36,13 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     )
   }
 
-  def fqnMapToDeclarationMap(m: Map[String, WdlValue]): Map[Declaration, WdlValue] = {
+  def fqnMapToDeclarationMap(m: Map[String, WdlValue]): Map[InputDefinition, WdlValue] = {
     m map {
       case (fqn, v) =>
-        val mockDeclaration = mock[Declaration]
-        mockDeclaration.fullyQualifiedName returns fqn
-        mockDeclaration.unqualifiedName returns fqn.split('.').lastOption.getOrElse(fqn)
+        val mockDeclaration = mock[InputDefinition]
+        // TODO WOM: FIXME
+//        mockDeclaration.fullyQualifiedName returns fqn
+        mockDeclaration.name returns fqn.split('.').lastOption.getOrElse(fqn)
         mockDeclaration -> v
     }
   }

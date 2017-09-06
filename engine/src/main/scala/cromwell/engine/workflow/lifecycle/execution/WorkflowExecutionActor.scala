@@ -24,7 +24,7 @@ import org.apache.commons.lang3.StringUtils
 import wdl4s.wdl._
 import wdl4s.wdl.values.{WdlOptionalValue, WdlString, WdlValue}
 import wdl4s.wom.expression.{IoFunctionSet, WomExpression}
-import wdl4s.wom.graph.{ExpressionNode, GraphNode, ScatterNode, TaskCallNode}
+import wdl4s.wom.graph._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -722,12 +722,13 @@ object WorkflowExecutionActor {
     override val tag = s"Collector-${scope.unqualifiedName}"
   }
 
-  case class SubWorkflowKey(scope: WdlWorkflowCall, index: ExecutionIndex, attempt: Int) extends CallKey {
+  case class SubWorkflowKey(scope: WorkflowCallNode, index: ExecutionIndex, attempt: Int) extends CallKey {
     override val tag = s"SubWorkflow-${scope.unqualifiedName}:${index.fromIndex}:$attempt"
   }
 
-  case class ConditionalKey(scope: If, index: ExecutionIndex) extends JobKey {
-
+  case class ConditionalKey(ifScope: If, index: ExecutionIndex) extends JobKey {
+    // TODO WOM: fixme
+    override val scope: GraphNode = null
     override val tag = scope.unqualifiedName
     override val attempt = 1
 

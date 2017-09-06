@@ -82,7 +82,7 @@ class StandardInitializationActor(val standardParams: StandardInitializationActo
   override def validate(): Future[Unit] = {
     Future.fromTry(Try {
       calls foreach { call =>
-        val runtimeAttributeKeys = call.callable.runtimeAttributes.attrs.keys.toList
+        val runtimeAttributeKeys = call.callable.runtimeAttributes.attributes.keys.toList
         val notSupportedAttributes = runtimeAttributesBuilder.unsupportedKeys(runtimeAttributeKeys).toList
 
         if (notSupportedAttributes.nonEmpty) {

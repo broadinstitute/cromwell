@@ -6,10 +6,12 @@ import cromwell.backend.BackendJobDescriptor
 import cromwell.core.CromwellGraphNode._
 import cromwell.core.{CallKey, JobKey}
 import cromwell.engine.EngineWorkflowDescriptor
-import cromwell.engine.workflow.lifecycle.execution.OutputStore
-import lenthall.validation.ErrorOr.ErrorOr
-import wdl4s.wdl.values.WdlValue
-import wdl4s.wom.expression.IoFunctionSet
+import cromwell.engine.workflow.lifecycle.execution.{OutputStore, WomOutputStore}
+import wdl4s.wdl.types.WdlType
+import wdl4s.wdl.values.{WdlOptionalValue, WdlValue}
+import wdl4s.wom.WomEvaluatedCallInputs
+import wdl4s.wom.callable.Callable._
+import wdl4s.wom.expression.{IoFunctionSet, WomExpression}
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -28,32 +30,71 @@ object CallPreparation {
   def resolveAndEvaluateInputs(callKey: CallKey,
                                workflowDescriptor: EngineWorkflowDescriptor,
                                expressionLanguageFunctions: IoFunctionSet,
-                               outputStore: OutputStore): Try[Map[String, WdlValue]] = {
+                               outputStore: OutputStore): Try[WomEvaluatedCallInputs] = {
     import cats.instances.list._
     import cats.syntax.traverse._
+    import cats.syntax.validated._
+    import lenthall.validation.ErrorOr._
+    import lenthall.validation.Validation._
     val call = callKey.scope
-    val womOutputStore = outputStore.toWomOutputStore
+    val womOutputStore: WomOutputStore = outputStore.toWomOutputStore
 
-    val inputMappingsFromPreviousCalls: Map[String, WdlValue] = call.inputPorts.map { inputPort =>
+    val inputMappingsFromPreviousCalls: Map[String, WdlValue] = call.inputPorts collect {
+      case inputPort if womOutputStore.get(inputPort.upstream).isDefined =>
       val outputPort = inputPort.upstream
       // TODO WOM: scatters ?
-      outputPort.unqualifiedName -> womOutputStore.get(outputPort).getOrElse(throw new IllegalStateException(s"Can't find output value for $outputPort"))
+      // TODO WOM: clean up
+      outputPort.fullyQualifiedName -> womOutputStore.get(outputPort).get
     } toMap
     
-    // Note to self: maybe what we want is all portBasedInputs + expressionBasedInput
-    // Expression based we have already, we could add portBasedInputs by finding the corresponding value of their upstream output port
-    // We still have a Map[String, WdlValue] though because expressionBasedInput only gives us Strings
-    // Note to self 2: looks like all inputs is actually call.callable.inputs
-    // Should we map those to either expressionBasedInputs or portBased, and if no match error ? (which I think couldn't happen since wom validated that already?)
-    // Should the final type be Map[InputDefinition, WdlValue] ? Will need to coerce to the InputDefinition declared type too.
-    // We might lose the ability to get an FQN for the inputs then. Does it matter ?
-    
     val allInputMappings = inputMappingsFromPreviousCalls ++ workflowDescriptor.backendDescriptor.knownValues
-    val evaluated: Map[String, ErrorOr[WdlValue]] = call.expressionBasedInputs map {
-      case (name, expr) => name -> expr.expression.evaluateValue(allInputMappings, expressionLanguageFunctions)
+    
+    def resolveAsExpression(inputDefinition: InputDefinition): Option[ErrorOr[WdlValue]] = {
+      call.expressionBasedInputs.get(inputDefinition.name) map { instantiatedExpression =>
+        evaluateAndCoerce(instantiatedExpression.expression, inputDefinition.womType)
+      }
     }
+    
+    def evaluateAndCoerce(expression: WomExpression, coerceTo: WdlType): ErrorOr[WdlValue] = {
+      expression.evaluateValue(allInputMappings, expressionLanguageFunctions) flatMap {
+        coerceTo.coerceRawValue(_).toErrorOr
+      }
+    }
+    
+    def resolveAsInputPort(inputDefinition: InputDefinition): Option[ErrorOr[WdlValue]] = {
+      call.portBasedInputs.find(_.name == inputDefinition.name) map { inputPort =>
+        womOutputStore.get(inputPort.upstream) match {
+          case Some(value) => value.validNel
+          case None => s"Can't find output value for ${inputPort.upstream}".invalidNel
+        }
+      }
+    }
+    
+    def resolveFromInputs(inputDefinition: InputDefinition) = {
+      resolveAsInputPort(inputDefinition).orElse(resolveAsExpression(inputDefinition))
+    }
+    
+    def resolveInputDefinition(inputDefinition: InputDefinition): ErrorOr[WdlValue] = inputDefinition match {
+      case DeclaredInputDefinition(_, womType, expression) => 
+        evaluateAndCoerce(expression, womType)
+      case optionalWithDefault @ OptionalInputDefinitionWithDefault(_, womType, default) =>
+        resolveFromInputs(optionalWithDefault).getOrElse(evaluateAndCoerce(default, womType))
+      case optional @ OptionalInputDefinition(_, womType) =>
+        resolveFromInputs(optional).getOrElse(WdlOptionalValue.none(womType).validNel)
+      case required: RequiredInputDefinition =>
+        resolveFromInputs(required).getOrElse(s"Cannot find a value for ${inputDefinition.name}".invalidNel)
+    }
+    
+    val evaluatedInputs: Map[InputDefinition, ErrorOr[WdlValue]] = (for {
+      // TODO WOM: Should inputs be a Seq instead of Set ?
+      // The issue is inputs can depend on each other, which means they need to be evaluated in "some" order
+      // If it's a Set, order needs to be inferred and circular dependencies checked, a Seq would make it easier
+      // Also WDL currently enforces the evaluation order based on the declaration order
+      inputDefinition <- call.callable.inputs
+    } yield inputDefinition -> resolveInputDefinition(inputDefinition)).toMap[InputDefinition, ErrorOr[WdlValue]]
 
-    evaluated.toList.traverse[ErrorOr, (String, WdlValue)]({case (a, b) => b.map(c => (a,c))}).map(_.toMap) match {
+    // TODO WOM: cleanup
+    evaluatedInputs.toList.traverse[ErrorOr, (InputDefinition, WdlValue)]({case (a, b) => b.map(c => (a,c))}).map(_.toMap) match {
       case Valid(res) => Success(res)
       case Invalid(f) => Failure(new Exception(f.toList.mkString(", ")))
     }

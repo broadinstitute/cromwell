@@ -2,9 +2,9 @@ package cromwell.core.simpleton
 
 import cromwell.core.simpleton.WdlValueSimpleton._
 import cromwell.core.{CallOutputs, JobOutput}
-import wdl4s.wdl.TaskOutput
 import wdl4s.wdl.types._
 import wdl4s.wdl.values.{WdlArray, WdlMap, WdlOptionalValue, WdlPair, WdlValue}
+import wdl4s.wom.callable.Callable.OutputDefinition
 
 import scala.language.postfixOps
 
@@ -129,11 +129,11 @@ object WdlValueBuilder {
     */
   private case class SimpletonComponent(path: String, value: WdlValue)
 
-  def toJobOutputs(taskOutputs: Traversable[TaskOutput], simpletons: Traversable[WdlValueSimpleton]): CallOutputs = {
+  def toJobOutputs(taskOutputs: Traversable[OutputDefinition], simpletons: Traversable[WdlValueSimpleton]): CallOutputs = {
     toWdlValues(taskOutputs, simpletons) mapValues JobOutput.apply
   }
 
-  def toWdlValues(taskOutputs: Traversable[TaskOutput], simpletons: Traversable[WdlValueSimpleton]): Map[String, WdlValue] = {
+  def toWdlValues(taskOutputs: Traversable[OutputDefinition], simpletons: Traversable[WdlValueSimpleton]): Map[String, WdlValue] = {
 
     def simpletonToComponent(name: String)(simpleton: WdlValueSimpleton): SimpletonComponent = {
       SimpletonComponent(simpleton.simpletonKey.drop(name.length), simpleton.simpletonValue)
@@ -141,7 +141,7 @@ object WdlValueBuilder {
 
     // This is meant to "rehydrate" simpletonized WdlValues back to WdlValues.  It is assumed that these WdlValues were
     // "dehydrated" to WdlValueSimpletons correctly. This code is not robust to corrupt input whatsoever.
-    val types = taskOutputs map { o => o.unqualifiedName -> o.wdlType } toMap
+    val types = taskOutputs map { o => o.name -> o.womType } toMap
     val simpletonsByOutputName = simpletons groupBy { _.simpletonKey match { case IdentifierAndPathPattern(i, _) => i } }
     val simpletonComponentsByOutputName = simpletonsByOutputName map { case (name, ss) => name -> (ss map simpletonToComponent(name)) }
     types map { case (name, outputType) => name -> toWdlValue(outputType, simpletonComponentsByOutputName(name))}

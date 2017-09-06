@@ -4,9 +4,9 @@ name := "lenthall"
 
 organization := "org.broadinstitute"
 
-scalaVersion := "2.12.1"
+scalaVersion := "2.12.3"
 
-crossScalaVersions := Seq("2.11.8", "2.12.1")
+crossScalaVersions := Seq("2.11.11", "2.12.3")
 
 lazy val versionSettings = Seq(
   // Upcoming release, or current if we're on the master branch
@@ -33,15 +33,7 @@ libraryDependencies ++= Seq(
   "org.slf4j" % "slf4j-api" % "1.7.24",
   "com.iheart" %% "ficus" % "1.4.0",
   //---------- Provided libraries -------------------//
-  /*
-  Exclude test framework cats-laws and its transitive dependency scalacheck.
-  If sbt detects scalacheck, it tries to run it.
-  Explicitly excluding the two problematic artifacts instead of including the three (or four?).
-  https://github.com/typelevel/cats/tree/v0.7.2#getting-started
-   */
-  "org.typelevel" %% "cats-core" % "1.0.0-MF" % Provided
-    exclude("org.typelevel", "cats-laws_2.11")
-    exclude("org.typelevel", "cats-kernel-laws_2.11"),
+  "org.typelevel" %% "cats-core" % "1.0.0-MF" % Provided,
   "ch.qos.logback" % "logback-classic" % "1.2.1" % Provided,
   "com.typesafe.akka" %% "akka-actor" % akkaV % Provided,
   "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,

@@ -16,8 +16,8 @@ If you have any questions, suggestions or support issues please send them to thi
 
 The following is the toolchain used for development of Lenthall.  Other versions may work, but these are recommended.
 
-* [Scala 2.11.7](http://www.scala-lang.org/news/2.11.7)
-* [SBT 0.13.8](https://github.com/sbt/sbt/releases/tag/v0.13.8)
+* [Scala 2.12.3](https://www.scala-lang.org/download/2.12.3.html)
+* [SBT 0.13.16](https://github.com/sbt/sbt/releases/tag/v0.13.16)
 * [Java 8](http://www.oracle.com/technetwork/java/javase/overview/java8-2100321.html)
 
 # Building

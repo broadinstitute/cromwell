@@ -6,7 +6,7 @@ import wdl4s.wdl.RuntimeAttributes
 import wdl4s.wdl.types.{WdlFileType, WdlIntegerType, WdlStringType}
 import wdl4s.wom.callable.Callable.{OutputDefinition, RequiredInputDefinition}
 import wdl4s.wom.callable.{TaskDefinition, WorkflowDefinition}
-import wdl4s.wom.graph.CallNode.CallWithInputs
+import wdl4s.wom.graph.CallNode.CallNodeAndNewInputs
 
 class GraphSpec extends FlatSpec with Matchers {
   behavior of "Graph"
@@ -45,11 +45,11 @@ class GraphSpec extends FlatSpec with Matchers {
       declarations = List.empty
     )
 
-    val CallWithInputs(psCall, psGraphInputs) = CallNode.callWithInputs("ps", taskDefinition_ps, Map.empty, Set.empty).getOrElse(fail("Unable to call ps"))
+    val CallNodeAndNewInputs(psCall, psGraphInputs) = CallNode.callWithInputs("ps", taskDefinition_ps, Map.empty, Set.empty).getOrElse(fail("Unable to call ps"))
     val ps_procsOutputPort = psCall.outputByName("procs").getOrElse(fail("Unexpectedly unable to find 'procs' output"))
 
-    val CallWithInputs(cgrepCall, cgrepGraphInputs) = CallNode.callWithInputs("cgrep", taskDefinition_cgrep, Map("in_file" -> ps_procsOutputPort), Set.empty).getOrElse(fail("Unable to call cgrep"))
-    val CallWithInputs(wcCall, wcGraphInputs) = CallNode.callWithInputs("wc", taskDefinition_wc, Map("in_file" -> ps_procsOutputPort), Set.empty).getOrElse(fail("Unable to call wc"))
+    val CallNodeAndNewInputs(cgrepCall, cgrepGraphInputs) = CallNode.callWithInputs("cgrep", taskDefinition_cgrep, Map("in_file" -> ps_procsOutputPort), Set.empty).getOrElse(fail("Unable to call cgrep"))
+    val CallNodeAndNewInputs(wcCall, wcGraphInputs) = CallNode.callWithInputs("wc", taskDefinition_wc, Map("in_file" -> ps_procsOutputPort), Set.empty).getOrElse(fail("Unable to call wc"))
 
     val graphNodes: Set[GraphNode] =
       Set[GraphNode](psCall, cgrepCall, wcCall)
@@ -73,7 +73,7 @@ class GraphSpec extends FlatSpec with Matchers {
 
   it should "be able to represent calls to sub-workflows" in {
     val threeStepWorkflow = WorkflowDefinition("three_step", makeThreeStep, Map.empty, Map.empty, List.empty)
-    val CallWithInputs(threeStepCall, threeStepInputs) = CallNode.callWithInputs("three_step", threeStepWorkflow, Map.empty, Set.empty).getOrElse(fail("Unable to call three_step"))
+    val CallNodeAndNewInputs(threeStepCall, threeStepInputs) = CallNode.callWithInputs("three_step", threeStepWorkflow, Map.empty, Set.empty).getOrElse(fail("Unable to call three_step"))
 
     val workflowGraph = Graph.validateAndConstruct(Set[GraphNode](threeStepCall).union(threeStepInputs.toSet[GraphNode])) match {
       case Valid(wg) => wg.withDefaultOutputs

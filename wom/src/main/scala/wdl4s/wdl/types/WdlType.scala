@@ -65,7 +65,7 @@ trait WdlType {
     ast.wdlValue(this, wdlSyntaxErrorFormatter)
   }
 
-  def invalid(operation: String) = Failure(new WdlExpressionException(s"Cannot perform operation: $operation"))
+  def invalid(operation: String) = Failure(new WdlExpressionException(s"Type evaluation cannot determine type from expression: $operation"))
   def add(rhs: WdlType): Try[WdlType] = invalid(s"$this + $rhs")
   def subtract(rhs: WdlType): Try[WdlType] = invalid(s"$this - $rhs")
   def multiply(rhs: WdlType): Try[WdlType] = invalid(s"$this * $rhs")

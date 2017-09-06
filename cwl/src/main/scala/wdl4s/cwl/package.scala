@@ -3,10 +3,12 @@ package wdl4s
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string._
 import eu.timepit.refined._
+import lenthall.validation.ErrorOr.ErrorOr
 import wdl4s.cwl.CwlType.CwlType
 import wdl4s.cwl.CwlType._
 import wdl4s.wdl.types._
 import shapeless._
+import wdl4s.wom.executable.Executable
 
 /**
  * This package is intended to parse all CWL files.
@@ -72,4 +74,12 @@ package object cwl extends TypeAliases {
 
   type WdlTypeMap = Map[String, WdlType]
 
+  object CwlToWomExecutable extends Poly1 {
+    implicit def caseClt = at[CommandLineTool](clt => clt.womExecutable)
+    implicit def caseWf = at[Workflow](wf => wf.womExecutable)
+  }
+
+  implicit class CwlHelper(val cwl: Cwl) extends AnyVal {
+    def womExecutable: ErrorOr[Executable] = cwl.fold(CwlToWomExecutable)
+  }
 }

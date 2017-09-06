@@ -10,7 +10,6 @@ import wdl4s.wdl.exception.{ValidationException, VariableLookupException, Variab
 import wdl4s.wdl.expression.WdlFunctions
 import wdl4s.wdl.types.WdlOptionalType
 import wdl4s.wdl.values.{WdlOptionalValue, WdlValue}
-import wdl4s.wom.graph.CallNode.CallWithInputs
 import wdl4s.wom.graph._
 
 import scala.language.postfixOps
@@ -50,15 +49,13 @@ object WdlCall {
     } toMap
   }
 
-  private def buildWomNodeAndInputs(wdlCall: WdlCall): ErrorOr[CallWithInputs] = {
-
+  private[wdl] def buildWomNodeAndInputs(wdlCall: WdlCall, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort]) = {
     val graphNodeInputExpressionValidation: ErrorOr[List[GraphNodeInputExpression]] = {
       val graphNodeInputExpression: ((String, WdlExpression)) => ErrorOr[GraphNodeInputExpression] = {
-        case ((inputName, wdlExpression)) => WdlWomExpression.graphNodeInputExpression(inputName, WdlWomExpression(wdlExpression, None), wdlCall)
+        case ((inputName, wdlExpression)) => WdlWomExpression.findInputsforExpression(inputName, WdlWomExpression(wdlExpression, None), localLookup, outerLookup)
       }
       wdlCall.inputMappings.toList traverse graphNodeInputExpression
     }
-
     for {
       combined <- (graphNodeInputExpressionValidation, wdlCall.callable.womDefinition).tupled
       (inputToOutputPort, callable) = combined
@@ -86,12 +83,6 @@ sealed abstract class WdlCall(val alias: Option[String],
   val unqualifiedName: String = alias getOrElse callable.unqualifiedName
 
   def callType: String
-
-  private lazy val womCallNodeWithInputs = WdlCall.buildWomNodeAndInputs(this)
-
-  lazy val womCallNode: ErrorOr[CallNode] = womCallNodeWithInputs.map(_.call)
-  lazy val womGraphInputNodes: ErrorOr[Set[GraphInputNode]] = womCallNodeWithInputs.map(_.inputs)
-  lazy val womGraphOutputPorts: ErrorOr[Set[GraphNodePort.OutputPort]] = womCallNode.map(_.outputPorts)
 
   def toCallOutput(output: Output) = output match {
     case taskOutput: TaskOutput => CallOutput(this, taskOutput.copy(parent = Option(this)))

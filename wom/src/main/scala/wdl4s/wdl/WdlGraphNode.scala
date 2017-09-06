@@ -1,11 +1,15 @@
 package wdl4s.wdl
 
-import cats.syntax.option._
+import cats.data.Validated.Valid
 import cats.syntax.validated._
+import lenthall.collections.EnhancedCollections._
 import lenthall.validation.ErrorOr.ErrorOr
-import wdl4s.parser.WdlParser.Terminal
+import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
 import wdl4s.wdl.AstTools.{EnhancedAstNode, VariableReference}
-import wdl4s.wom.graph.GraphNodePort
+import wdl4s.wom.graph.{Graph, GraphNode, GraphNodePort, OuterGraphInputNode}
+import wdl4s.wom.graph.CallNode.CallNodeAndNewInputs
+import wdl4s.wom.graph.ScatterNode.ScatterNodeWithInputs
+
 
 sealed trait WdlGraphNode extends Scope {
 
@@ -37,6 +41,10 @@ sealed trait WdlGraphNode extends Scope {
       if node.upstream.contains(this)
     } yield node
   }
+
+  def isUpstreamFrom(other: WdlGraphNode): Boolean = {
+    other.upstreamAncestry.contains(this) || (other.childGraphNodes exists isUpstreamFrom)
+  }
 }
 
 object WdlGraphNode {
@@ -46,22 +54,61 @@ object WdlGraphNode {
     updatesNeeded.foldLeft(setWithUpstream)(calculateUpstreamAncestry)
   }
 
-  private[wdl] def outputPortFromNode(node: WdlGraphNode, terminal: Option[Terminal]): ErrorOr[GraphNodePort.OutputPort] = {
+  /**
+    * Build a Wom Graph from a Scope in WDL.
+    * - Looks at the children of the Scope and converts them into GraphNodes.
+    * - Adds in any extras from 'includeGraphNode' which the call knows should also be in the Graph (eg the Scatter variable's InputGraphNode which this method doesn't know exists)
+    * - Builds them all together into a Graph
+    */
+  private[wdl] def buildWomGraph(from: Scope, includeGraphNodes: Set[GraphNode], outerLookup: Map[String, GraphNodePort.OutputPort]): ErrorOr[Graph] = {
 
-    def findNamedOutputPort(name: String, graphOutputPorts: Set[GraphNodePort.OutputPort], terminalName: String): ErrorOr[GraphNodePort.OutputPort] = {
-      graphOutputPorts.find(_.name == name).toValidNel(s"Cannot find an output port $name in $terminalName")
+    final case class FoldState(nodes: Set[GraphNode], availableInputs: Map[String, GraphNodePort.OutputPort])
+
+    val initialFoldState = FoldState(
+      Set.empty,
+      includeGraphNodes.flatMap { gn =>
+        gn.outputPorts map { p => p.name -> p }
+      }.toMap
+    )
+
+    def foldFunction(acc: ErrorOr[FoldState], node: WdlGraphNode): ErrorOr[FoldState] = acc flatMap { goodAcc =>  buildNode(goodAcc, node) }
+
+    def buildNode(acc: FoldState, node: WdlGraphNode): ErrorOr[FoldState] = node match {
+      case wdlCall: WdlCall => WdlCall.buildWomNodeAndInputs(wdlCall, acc.availableInputs, outerLookup) map { case CallNodeAndNewInputs(call, inputs) =>
+        val newCallOutputPorts = (call.outputPorts map { p => s"${call.name}.${p.name}" -> p }).toMap
+        val newInputOutputPorts = (inputs map { i => i.name -> i.singleOutputPort }).toMap
+
+        FoldState(acc.nodes + call ++ inputs, acc.availableInputs ++ newCallOutputPorts ++ newInputOutputPorts)
+      }
+      case decl: Declaration => Declaration.buildWomNode(decl, acc.availableInputs, outerLookup) map { declNode =>
+        FoldState(acc.nodes + declNode.toGraphNode, acc.availableInputs + (declNode.toGraphNode.name -> declNode.singleOutputPort))
+      }
+
+      case scatter: Scatter => Scatter.womScatterNode(scatter, acc.availableInputs) map { case ScatterNodeWithInputs(scatterNode, inputs) =>
+        val newScatterOutputPorts = (scatterNode.outputPorts map { p => p.name -> p }).toMap
+        val newInputOutputPorts = (inputs map { i => i.name -> i.singleOutputPort }).toMap
+
+        FoldState(acc.nodes + scatterNode ++ inputs, acc.availableInputs ++ newScatterOutputPorts ++ newInputOutputPorts)
+      }
+
+      case _ => s"Cannot process WdlGraphNodes of type ${node.getClass.getSimpleName} yet!".invalidNel
+    }
+
+    val nodeList = from.childGraphNodesSorted
+    val nodeAccumulator: ErrorOr[FoldState] = nodeList.foldLeft[ErrorOr[FoldState]](Valid(initialFoldState))(foldFunction)
+
+    def outerLinkInputs(nodes: Set[GraphNode]): Set[OuterGraphInputNode] = nodes flatMap {
+      _.inputPorts.map(_.upstream.graphNode).filterByType[OuterGraphInputNode]
     }
 
     import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
-    (node, terminal) match {
-      case (wdlCall: WdlCall, Some(subTerminal)) =>
-        for {
-          graphOutputPorts <- wdlCall.womGraphOutputPorts
-          namedPort <- findNamedOutputPort(subTerminal.sourceString, graphOutputPorts, "call " + wdlCall.unqualifiedName)
-        } yield namedPort
-      case (declaration: Declaration, None) => declaration.womExpressionNode.map(_.singleOutputPort)
-      case _ => s"Unsupported node $node and terminal $terminal".invalidNel
-    }
+    for {
+      foldState <- nodeAccumulator
+      graphNodes = foldState.nodes
+      outerLinks = outerLinkInputs(graphNodes)
+      g <- Graph.validateAndConstruct(graphNodes ++ outerLinks ++ includeGraphNodes)
+      withOutputs = g.withDefaultOutputs
+    } yield withOutputs
   }
 }
 

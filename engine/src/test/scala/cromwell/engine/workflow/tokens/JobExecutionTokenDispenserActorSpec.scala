@@ -279,7 +279,7 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
   var actorRefUnderTest: TestActorRef[JobExecutionTokenDispenserActor] = _
 
   before {
-    actorRefUnderTest = TestActorRef(new JobExecutionTokenDispenserActor())
+    actorRefUnderTest = TestActorRef(new JobExecutionTokenDispenserActor(TestProbe().ref))
 
   }
   after {

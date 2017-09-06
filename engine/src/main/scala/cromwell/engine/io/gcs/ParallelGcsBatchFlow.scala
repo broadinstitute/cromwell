@@ -4,13 +4,14 @@ import akka.actor.Scheduler
 import akka.stream.FlowShape
 import akka.stream.scaladsl.{Balance, GraphDSL, Merge}
 import cromwell.engine.io.IoActor.IoResult
+import cromwell.engine.io.IoCommandContext
 
 import scala.concurrent.ExecutionContext
 
 /**
   * Balancer that distributes requests to multiple batch flows in parallel
   */
-class ParallelGcsBatchFlow(parallelism: Int, batchSize: Int, scheduler: Scheduler)(implicit ec: ExecutionContext) {
+class ParallelGcsBatchFlow(parallelism: Int, batchSize: Int, scheduler: Scheduler, onRetry: IoCommandContext[_] => Throwable => Unit)(implicit ec: ExecutionContext) {
   
   val flow = GraphDSL.create() { implicit builder =>
     import GraphDSL.Implicits._
@@ -18,7 +19,7 @@ class ParallelGcsBatchFlow(parallelism: Int, batchSize: Int, scheduler: Schedule
     val merge = builder.add(Merge[IoResult](parallelism))
 
     for (_ <- 1 to parallelism) {
-      val workerFlow = new GcsBatchFlow(batchSize, scheduler).flow
+      val workerFlow = new GcsBatchFlow(batchSize, scheduler, onRetry).flow
       // for each worker, add an edge from the balancer to the worker, then wire
       // it to the merge element
       balancer ~> workerFlow.async ~> merge

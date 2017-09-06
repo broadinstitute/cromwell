@@ -11,10 +11,11 @@ import cromwell.backend.standard.StandardAsyncJob
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
 
-private[statuspolling] trait RunCreation { this: JesPollingActor =>
+private[statuspolling] trait RunCreation extends PapiInstrumentation { this: JesPollingActor =>
 
   private def runCreationResultHandler(originalRequest: JesApiQuery, completionPromise: Promise[Try[Unit]]) = new JsonBatchCallback[Operation] {
     override def onSuccess(operation: Operation, responseHeaders: HttpHeaders): Unit = {
+      runSuccess()
       originalRequest.requester ! getJob(operation)
       completionPromise.trySuccess(Success(()))
       ()

@@ -44,4 +44,6 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
     * Deletes a workflow from the database, returning the number of rows affected.
     */
   def removeWorkflowStoreEntry(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Int]
+  
+  def stats(implicit ec: ExecutionContext): Future[Map[String, Int]]
 }

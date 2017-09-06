@@ -4,23 +4,35 @@ import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
 import cromwell.core.WorkflowId
+import cromwell.engine.instrumentation.WorkflowInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{WorkflowStoreActorState, _}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
+import cromwell.services.instrumentation.CromwellInstrumentationScheduler
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceRegistryActor: ActorRef)
-  extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging {
+  extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging with WorkflowInstrumentation with CromwellInstrumentationScheduler {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
   startWith(Unstarted, WorkflowStoreActorData(None, List.empty))
   self ! InitializerCommand
+
+  scheduleInstrumentation {
+    store.stats map { (stats: Map[String, Int]) =>
+      // Update the count for Submitted and Running workflows, defaulting to 0
+      val statesMap = stats.withDefault(_ => 0)
+      updateWorkflowsQueued(statesMap(WorkflowStoreState.Submitted.toString))
+      updateWorkflowsRunning(statesMap(WorkflowStoreState.Running.toString))
+    }
+    ()
+  }
 
   when(Unstarted) {
     case Event(InitializerCommand, _) =>

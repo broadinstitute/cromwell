@@ -42,6 +42,8 @@ class InMemoryWorkflowStore extends WorkflowStore {
   }
 
   override def initialize(implicit ec: ExecutionContext): Future[Unit] = Future.successful(())
+
+  override def stats(implicit ec: ExecutionContext): Future[Map[String, Int]] = Future.successful(Map("Submitted" -> workflowStore.size))
 }
 
 final case class SubmittedWorkflow(id: WorkflowId, sources: WorkflowSourceFilesCollection, state: WorkflowStoreState) {

@@ -47,7 +47,7 @@ case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor
     Option(classOf[JesBackendCacheHitCopyingActor])
   }
 
-  override def backendSingletonActorProps = Option(JesBackendSingletonActor.props(jesConfiguration.qps))
+  override def backendSingletonActorProps(serviceRegistryActor: ActorRef) = Option(JesBackendSingletonActor.props(jesConfiguration.qps, serviceRegistryActor))
 
   override lazy val fileHashingActorClassOption: Option[Class[_ <: StandardFileHashingActor]] = Option(classOf[JesBackendFileHashingActor])
   

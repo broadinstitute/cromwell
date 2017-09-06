@@ -20,10 +20,11 @@ import scala.concurrent.{Future, Promise}
 import scala.language.postfixOps
 import scala.util.{Failure, Try, Success => TrySuccess}
 
-private[statuspolling] trait StatusPolling { this: JesPollingActor =>
+private[statuspolling] trait StatusPolling extends PapiInstrumentation{ this: JesPollingActor =>
 
   private [statuspolling] def statusPollResultHandler(originalRequest: JesStatusPollQuery, completionPromise: Promise[Try[Unit]]) = new JsonBatchCallback[Operation] {
     override def onSuccess(operation: Operation, responseHeaders: HttpHeaders): Unit = {
+      pollSuccess()
       originalRequest.requester ! interpretOperationStatus(operation)
       completionPromise.trySuccess(TrySuccess(()))
       ()

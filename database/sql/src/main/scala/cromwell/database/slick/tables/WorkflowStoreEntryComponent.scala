@@ -69,6 +69,15 @@ trait WorkflowStoreEntryComponent {
   )
 
   /**
+    * Useful for counting workflows in a given state.
+    */
+  val workflowStoreStats = Compiled(
+    for {
+      (state, entry) <- workflowStoreEntries groupBy (_.workflowState)
+    } yield state -> entry.size
+  )
+
+  /**
     * Useful for updating state for all entries matching a given UUID
     */
   val workflowStateForWorkflowExecutionUuid = Compiled(

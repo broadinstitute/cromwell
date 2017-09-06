@@ -8,6 +8,7 @@ import com.google.api.services.genomics.Genomics
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager._
 import cromwell.backend.impl.jes.statuspolling.JesPollingActor._
 import cromwell.core.Dispatcher.BackendDispatcher
+import cromwell.services.instrumentation.CromwellInstrumentation
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric._
 
@@ -19,8 +20,8 @@ import scala.collection.JavaConverters._
 /**
   * Sends batched requests to JES as a worker to the JesApiQueryManager
   */
-class JesPollingActor(val pollingManager: ActorRef, val qps: Int Refined Positive) extends Actor with ActorLogging
-  with StatusPolling with RunCreation {
+class JesPollingActor(val pollingManager: ActorRef, val qps: Int Refined Positive, override val serviceRegistryActor: ActorRef) extends Actor with ActorLogging
+  with StatusPolling with RunCreation with CromwellInstrumentation {
   // The interval to delay between submitting each batch
   lazy val batchInterval = determineBatchInterval(qps)
   log.debug("JES batch polling interval is {}", batchInterval)
@@ -95,7 +96,9 @@ class JesPollingActor(val pollingManager: ActorRef, val qps: Int Refined Positiv
 }
 
 object JesPollingActor {
-  def props(pollingManager: ActorRef, qps: Int Refined Positive) = Props(new JesPollingActor(pollingManager, qps)).withDispatcher(BackendDispatcher)
+  def props(pollingManager: ActorRef, qps: Int Refined Positive, serviceRegistryActor: ActorRef) = {
+    Props(new JesPollingActor(pollingManager, qps, serviceRegistryActor)).withDispatcher(BackendDispatcher)
+  }
 
   // The Batch API limits us to 100 at a time
   val MaxBatchSize = 100

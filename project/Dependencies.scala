@@ -5,7 +5,7 @@ object Dependencies {
 
   val sprayJsonV = "1.3.2"
   val circeVersion = "0.8.0"
-  val lenthallV = "0.28-9b7fe69-SNAP"
+  val lenthallV = "0.28-b666cad-SNAP"
 
   // Internal collections of dependencies
 
@@ -37,7 +37,7 @@ object Dependencies {
 
   val cwlDependencies = List(
     "io.circe" %% "circe-yaml" % "0.6.1",
-    "eu.timepit" %% "refined"            % "0.8.2",
+    "eu.timepit" %% "refined" % "0.8.3",
     "com.lihaoyi" %% "ammonite-ops" % "1.0.1",
     "org.typelevel" %% "cats-effect" % "0.4",
     "org.pegdown" % "pegdown" % "1.6.0" % Test,

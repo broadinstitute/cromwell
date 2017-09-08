@@ -53,13 +53,17 @@ class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActo
                                               newOutputs: CallOutputs,
                                               originalDetritus:  Map[String, String],
                                               newDetritus: Map[String, Path]): List[Set[IoCommand[_]]] = {
-    val content =
-      s"""
-         |This directory does not contain any output files because this job matched an identical job that was previously run, thus it was a cache-hit.
-         |Cromwell is configured to not copy outputs during call caching. To change this, edit the filesystems.gcs.caching.duplication-strategy field in your backend configuration.
-         |The original outputs can be found at this location: ${sourceCallRootPath.pathAsString}
+    cachingStrategy match {
+      case UseOriginalCachedOutputs =>
+        val content =
+          s"""
+             |This directory does not contain any output files because this job matched an identical job that was previously run, thus it was a cache-hit.
+             |Cromwell is configured to not copy outputs during call caching. To change this, edit the filesystems.gcs.caching.duplication-strategy field in your backend configuration.
+             |The original outputs can be found at this location: ${sourceCallRootPath.pathAsString}
       """.stripMargin
 
-    List(Set(writeCommand(jobPaths.callExecutionRoot / "call_caching_placeholder.txt", content, Seq(CloudStorageOptions.withMimeType("text/plain")))))
+        List(Set(writeCommand(jobPaths.callExecutionRoot / "call_caching_placeholder.txt", content, Seq(CloudStorageOptions.withMimeType("text/plain")))))
+      case CopyCachedOutputs => List.empty
+    }
   }
 }

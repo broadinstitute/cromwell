@@ -2,6 +2,7 @@ sudo: required
 dist: trusty
 services:
   - docker
+  - mysql
 language: scala
 scala:
   - 2.12.2
@@ -20,6 +21,8 @@ before_cache:
 before_install:
   # https://github.com/travis-ci/travis-ci/issues/7940#issuecomment-310759657
   - sudo rm -f /etc/boto.cfg
+  - mysql -u root -e "SET GLOBAL sql_mode = 'STRICT_ALL_TABLES';"
+  - mysql -u root -e "CREATE DATABASE IF NOT EXISTS cromwell_test;"
 env:
   global:
     - CENTAUR_BRANCH=e0fbe8b676cb6ebcf815969c5b632f0f8041400e

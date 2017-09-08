@@ -116,3 +116,5 @@ lazy val root = (project in file("."))
   .dependsOn(sparkBackend)
   // Dependencies for tests
   .dependsOn(engine % "test->test")
+
+  //Noop

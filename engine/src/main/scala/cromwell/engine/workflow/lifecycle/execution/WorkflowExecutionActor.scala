@@ -687,7 +687,7 @@ object WorkflowExecutionActor {
       * @return ExecutionStore of scattered children.
       */
     def populate(count: Int, workflowCoercedInputs: WorkflowCoercedInputs): Map[JobKey, ExecutionStatus.Value] = {
-      val keys = this.scope.graph.nodes flatMap {
+      val keys = this.scope.innerGraph.nodes flatMap {
         explode(_, count, workflowCoercedInputs)
       }
       keys map {

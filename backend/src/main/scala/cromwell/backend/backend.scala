@@ -21,7 +21,7 @@ import scala.util.Try
 case class BackendJobDescriptorKey(call: TaskCallNode, index: Option[Int], attempt: Int) extends CallKey {
   def scope = call
   private val indexString = index map { _.toString } getOrElse "NA"
-  val tag = s"${call.name}:$indexString:$attempt"
+  val tag = s"${call.name.split("#").last}:$indexString:$attempt"
   def mkTag(workflowId: WorkflowId) = s"$workflowId:$this"
 }
 

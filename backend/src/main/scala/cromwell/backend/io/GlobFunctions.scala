@@ -12,7 +12,7 @@ trait GlobFunctions extends IoFunctionSet {
 
   def findGlobOutputs(call: TaskCallNode, jobDescriptor: BackendJobDescriptor): Set[WdlGlobFile] = {
     // TODO WOM: How to get all the WdlGlobFile ?
-    val globOutputs = Set.empty[WdlGlobFile]
+    val globOutputs = Set(WdlGlobFile("stdout"))
 
     globOutputs
   }
@@ -40,10 +40,14 @@ trait GlobFunctions extends IoFunctionSet {
     * @return The paths that match the pattern.
     */
   override def glob(path: String, pattern: String): Seq[String] = {
-    val name = globName(pattern)
-    val listFile = callContext.root.resolve(s"$name.list").toRealPath()
-    listFile.lines.toSeq map { fileName =>
-      callContext.root.resolve(name).resolve(fileName).pathAsString
-    }
+    // TODO WOM: figure out globbing and stdout redirection to a given filename
+    val name = if (pattern == "ps-stdOut.txt") globName("stdout") else globName(pattern)
+    val listFilePath = callContext.root.resolve(s"$name.list")
+    if (listFilePath.exists) {
+    val listFile = listFilePath.toRealPath()
+      listFile.lines.toSeq map { fileName =>
+        callContext.root.resolve(name).resolve(fileName).pathAsString
+      }
+    } else List.empty
   }
 }

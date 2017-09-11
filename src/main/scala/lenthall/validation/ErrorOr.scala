@@ -3,6 +3,8 @@ package lenthall.validation
 import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.apply._
+import cats.syntax.traverse._
+import cats.instances.list._
 
 object ErrorOr {
   type ErrorOr[A] = Validated[NonEmptyList[String], A]
@@ -16,9 +18,18 @@ object ErrorOr {
     def flatMap[B](f: A => ErrorOr[B]): ErrorOr[B] = {
       fa match {
         case Valid(v) => f(v)
-        case i@Invalid(_) => i
+        case i @ Invalid(_) => i
       }
     }
+  }
+
+  implicit class MapErrorOrRhs[A, B](val m: Map[A, ErrorOr[B]]) extends AnyVal {
+    def sequence: ErrorOr[Map[A, B]] = m.traverseValues(identity)
+  }
+
+  implicit class MapTraversal[A, B](val m: Map[A, B]) extends AnyVal {
+    def traverse[C,D](f: ((A,B)) => ErrorOr[(C,D)]): ErrorOr[Map[C,D]] = m.toList.traverse(f).map(_.toMap)
+    def traverseValues[C](f: B => ErrorOr[C]): ErrorOr[Map[A,C]] = m.traverse { case (a, b) => f(b).map(c => (a,c)) }
   }
 
   // Note! See the bottom of this file for a generator function for 2 through 22 of these near-identical ShortCircuitingFlatMapTupleNs...

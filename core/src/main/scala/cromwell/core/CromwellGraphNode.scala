@@ -7,8 +7,8 @@ import wdl4s.wom.graph.GraphNodePort.OutputPort
 
 object CromwellGraphNode {
   implicit class CromwellEnhancedGraphNode(val graphNode: GraphNode) extends AnyVal {
-    def unqualifiedName = graphNode.name
-    def fullyQualifiedName = graphNode.name
+    def unqualifiedName = graphNode.name.split("#").last
+    def fullyQualifiedName = graphNode.name.split("#").last
     // TODO WOM: implement for realz
     def relativeWdlType(node: GraphNode): WdlType = WdlAnyType
   }

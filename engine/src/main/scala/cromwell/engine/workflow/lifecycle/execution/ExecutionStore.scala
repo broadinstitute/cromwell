@@ -109,8 +109,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
     val scopesToStartPlusOne = readyToStart.take(ExecutionStore.MaxJobsToStartPerTick + 1).toList
     // Only take the first ExecutionStore.MaxJobsToStartPerTick from the above list.
     // Use the fact that we took one more to determine whether or not we truncated the result.
-    val res = RunnableScopes(scopesToStartPlusOne.take(ExecutionStore.MaxJobsToStartPerTick), scopesToStartPlusOne.size > ExecutionStore.MaxJobsToStartPerTick)
-    res 
+    RunnableScopes(scopesToStartPlusOne.take(ExecutionStore.MaxJobsToStartPerTick), scopesToStartPlusOne.size > ExecutionStore.MaxJobsToStartPerTick)
   }
 
   def findCompletedShardsForOutput(key: CollectorKey): List[JobKey] = doneKeys.values.toList collect {

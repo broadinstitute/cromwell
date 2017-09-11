@@ -1,7 +1,7 @@
 package cromwell.backend.wdl
 
 import cromwell.backend.BackendJobDescriptor
-import wdl4s.wdl.expression.NoFunctions
+import cromwell.core.NoIoFunctionSet
 import wdl4s.wdl.values.WdlValue
 import wdl4s.wom.WomEvaluatedCallInputs
 import wdl4s.wom.expression.IoFunctionSet
@@ -26,8 +26,7 @@ object Command {
                   inputsPreProcessor: WomEvaluatedCallInputs => Try[WomEvaluatedCallInputs] = (i: WomEvaluatedCallInputs) => Success(i),
                   valueMapper: WdlValue => WdlValue = identity): Try[String] = {
     inputsPreProcessor(jobDescriptor.inputDeclarations) flatMap { mappedInputs =>
-      // TODO WOM: instantiate command should take an IoFunctionSet now
-      jobDescriptor.call.callable.instantiateCommand(mappedInputs, NoFunctions, valueMapper)
+      jobDescriptor.call.callable.instantiateCommand(mappedInputs, NoIoFunctionSet, valueMapper)
     }
   }
 }

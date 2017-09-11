@@ -14,7 +14,7 @@ import cromwell.database.sql.joins.JobStoreJoin
 import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry}
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
 import org.slf4j.LoggerFactory
-import wdl4s.wdl.TaskOutput
+import wdl4s.wom.callable.Callable.OutputDefinition
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -64,7 +64,7 @@ class SqlJobStore(sqlDatabase: EngineSqlDatabase) extends JobStore {
     }
   }
 
-  override def readJobResult(jobStoreKey: JobStoreKey, taskOutputs: Seq[TaskOutput])(implicit ec: ExecutionContext): Future[Option[JobResult]] = {
+  override def readJobResult(jobStoreKey: JobStoreKey, taskOutputs: Seq[OutputDefinition])(implicit ec: ExecutionContext): Future[Option[JobResult]] = {
     sqlDatabase.queryJobStores(jobStoreKey.workflowId.toString, jobStoreKey.callFqn, jobStoreKey.index.fromIndex,
       jobStoreKey.attempt) map {
       _ map { case JobStoreJoin(entry, simpletonEntries) =>

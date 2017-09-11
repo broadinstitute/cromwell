@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props, Status}
 import akka.pattern.pipe
 import cats.data.NonEmptyList
 import cromwell.backend.BackendJobDescriptorKey
+import cromwell.core.CromwellGraphNode._
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowId
 import cromwell.core.callcaching.HashResult

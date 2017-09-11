@@ -3,12 +3,12 @@ package cromwell.backend
 import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
 import cromwell.backend.io.WorkflowPathsWithDocker
-import cromwell.core.CallOutputs
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.path.Path
-import wdl4s.wdl.WdlTaskCall
-import wdl4s.wdl.expression.{PureStandardLibraryFunctions, WdlStandardLibraryFunctions}
+import cromwell.core.{CallOutputs, NoIoFunctionSet}
 import net.ceedubs.ficus.Ficus._
+import wdl4s.wom.expression.IoFunctionSet
+import wdl4s.wom.graph.TaskCallNode
 
 trait BackendLifecycleActorFactory {
 
@@ -36,7 +36,7 @@ trait BackendLifecycleActorFactory {
 
   def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                        ioActor: ActorRef,
-                                       calls: Set[WdlTaskCall],
+                                       calls: Set[TaskCallNode],
                                        serviceRegistryActor: ActorRef,
                                        restarting: Boolean): Option[Props] = None
 
@@ -61,7 +61,7 @@ trait BackendLifecycleActorFactory {
 
   def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                      ioActor: ActorRef,
-                                     calls: Set[WdlTaskCall],
+                                     calls: Set[TaskCallNode],
                                      jobExecutionMap: JobExecutionMap,
                                      workflowOutputs: CallOutputs,
                                      initializationData: Option[BackendInitializationData]): Option[Props] = None
@@ -91,7 +91,7 @@ trait BackendLifecycleActorFactory {
 
   def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                   jobKey: BackendJobDescriptorKey,
-                                  initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = PureStandardLibraryFunctions
+                                  initializationData: Option[BackendInitializationData]): IoFunctionSet = NoIoFunctionSet
 
   def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config, initializationData: Option[BackendInitializationData]): Path = {
     new WorkflowPathsWithDocker(workflowDescriptor, backendConfig).executionRoot

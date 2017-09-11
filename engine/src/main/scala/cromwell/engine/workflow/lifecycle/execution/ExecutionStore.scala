@@ -1,11 +1,14 @@
 package cromwell.engine.workflow.lifecycle.execution
 
 import cromwell.backend.BackendJobDescriptorKey
+import cromwell.core.CromwellGraphNode._
 import cromwell.core.ExecutionStatus._
 import cromwell.core.{CallKey, JobKey}
 import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.{FqnIndex, RunnableScopes}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{apply => _, _}
 import wdl4s.wdl._
+import wdl4s.wom.callable.WorkflowDefinition
+import wdl4s.wom.graph.{GraphNode, ScatterNode, TaskCallNode}
 
 
 object ExecutionStore {
@@ -15,15 +18,19 @@ object ExecutionStore {
 
   def empty = ExecutionStore(Map.empty[JobKey, ExecutionStatus], hasNewRunnables = false)
 
-  def apply(workflow: WdlWorkflow, workflowCoercedInputs: WorkflowCoercedInputs) = {
+  def apply(workflow: WorkflowDefinition, workflowCoercedInputs: WorkflowCoercedInputs) = {
     // Only add direct children to the store, the rest is dynamically created when necessary
-    val keys = workflow.children map {
-      case call: WdlTaskCall => Option(BackendJobDescriptorKey(call, None, 1))
-      case call: WdlWorkflowCall => Option(SubWorkflowKey(call, None, 1))
-      case scatter: Scatter => Option(ScatterKey(scatter))
-      case conditional: If => Option(ConditionalKey(conditional, None))
-      case declaration: Declaration => Option(DeclarationKey(declaration, None, workflowCoercedInputs))
-      case _ => None
+//    val keys = workflow.children map {
+//      case call: WdlTaskCall => Option(BackendJobDescriptorKey(call, None, 1))
+//      case call: WdlWorkflowCall => Option(SubWorkflowKey(call, None, 1))
+//      case scatter: Scatter => Option(ScatterKey(scatter))
+//      case conditional: If => Option(ConditionalKey(conditional, None))
+//      case declaration: Declaration => Option(DeclarationKey(declaration, None, workflowCoercedInputs))
+//      case _ => None
+//    }
+    
+    val keys = workflow.innerGraph.nodes collect {
+      case call: TaskCallNode => Option(BackendJobDescriptorKey(call, None, 1))
     }
 
     new ExecutionStore(keys.flatten.map(_ -> NotStarted).toMap, keys.nonEmpty)
@@ -64,8 +71,8 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
   }
 
   def hasActiveJob: Boolean = {
-    def upstreamFailed(scope: Scope): Boolean = scope match {
-      case node: WdlGraphNode => node.upstreamAncestry exists hasFailedScope
+    def upstreamFailed(scope: GraphNode): Boolean = scope match {
+      case node: GraphNode => node.upstreamAncestry exists hasFailedScope
     }
 
     keysWithStatus(QueuedInCromwell).nonEmpty ||
@@ -82,7 +89,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
     }
   }
 
-  private def hasFailedScope(s: WdlGraphNode): Boolean = keysWithStatus(Failed).exists(_.scope == s)
+  private def hasFailedScope(s: GraphNode): Boolean = keysWithStatus(Failed).exists(_.scope == s)
 
   def hasFailedJob: Boolean = keysWithStatus(Failed).nonEmpty
 
@@ -119,7 +126,8 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
 
   private def arePrerequisitesDone(key: JobKey): Boolean = {
     lazy val upstreamAreDone = key.scope.upstream forall {
-      case n @ (_: WdlCall | _: Scatter | _: Declaration) => upstreamIsDone(key, n)
+      // TODO WOM: Declaration ??
+      case n @ (_: TaskCallNode | _: ScatterNode | _: Declaration) => upstreamIsDone(key, n)
       case _ => true
     }
 
@@ -131,24 +139,26 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
     shardEntriesForCollectorAreTerminal && upstreamAreDone
   }
 
-  private def upstreamIsDone(entry: JobKey, prerequisiteScope: Scope): Boolean = {
-    prerequisiteScope.closestCommonAncestor(entry.scope) match {
-      /*
-        * If this entry refers to a Scope which has a common ancestor with prerequisiteScope
-        * and that common ancestor is a Scatter block, then find the shard with the same index
-        * as 'entry'.  In other words, if you're in the same scatter block as your pre-requisite
-        * scope, then depend on the shard (with same index).
-        *
-        * NOTE: this algorithm was designed for ONE-LEVEL of scattering and probably does not
-        * work as-is for nested scatter blocks
-        */
-      case Some(_: Scatter) => doneKeys.contains(prerequisiteScope.fullyQualifiedName -> entry.index)
-
-      /*
-        * Otherwise, simply refer to the collector entry.  This means that 'entry' depends
-        * on every shard of the pre-requisite scope to finish.
-        */
-      case _ => doneKeys.contains(prerequisiteScope.fullyQualifiedName -> None)
-    }
+  private def upstreamIsDone(entry: JobKey, prerequisiteScope: GraphNode): Boolean = {
+//    prerequisiteScope.closestCommonAncestor(entry.scope) match {
+//      /*
+//        * If this entry refers to a Scope which has a common ancestor with prerequisiteScope
+//        * and that common ancestor is a Scatter block, then find the shard with the same index
+//        * as 'entry'.  In other words, if you're in the same scatter block as your pre-requisite
+//        * scope, then depend on the shard (with same index).
+//        *
+//        * NOTE: this algorithm was designed for ONE-LEVEL of scattering and probably does not
+//        * work as-is for nested scatter blocks
+//        */
+//      case Some(_: Scatter) => doneKeys.contains(prerequisiteScope.fullyQualifiedName -> entry.index)
+//
+//      /*
+//        * Otherwise, simply refer to the collector entry.  This means that 'entry' depends
+//        * on every shard of the pre-requisite scope to finish.
+//        */
+//      case _ => doneKeys.contains(prerequisiteScope.fullyQualifiedName -> None)
+//    }
+    // TODO WOM: fix scatter
+    doneKeys.contains(prerequisiteScope.fullyQualifiedName -> None)
   }
 }

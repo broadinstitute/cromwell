@@ -10,6 +10,7 @@ import cromwell.backend.io.TestWorkflows._
 import cromwell.backend.io.{JobPathsWithDocker, TestWorkflows}
 import cromwell.backend.sfs.TestLocalAsyncJobExecutionActor._
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
+import cromwell.core.CromwellGraphNode._
 import cromwell.core.Tags._
 import cromwell.core._
 import cromwell.core.callcaching.NoDocker
@@ -19,8 +20,10 @@ import lenthall.exception.AggregatedException
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Assertion, FlatSpecLike, OptionValues}
+import wdl4s.wdl.LocallyQualifiedName
 import wdl4s.wdl.types._
 import wdl4s.wdl.values._
+import wdl4s.wom.graph.TaskCallNode
 
 import scala.concurrent.duration._
 
@@ -226,14 +229,14 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
   it should "execute shards from a scatter" in {
     val workflowDescriptor = buildWorkflowDescriptor(TestWorkflows.Scatter)
 
-    val call = workflowDescriptor.workflow.taskCalls.head
+    val call: TaskCallNode = null// workflowDescriptor.workflow.taskCalls.head
 
     0 to 2 foreach { shard =>
       // This assumes that engine will give us the evaluated value of the scatter item at the correct index
       // If this is not the case, more context/logic will need to be moved to the backend so it can figure it out by itself
       val symbolMaps: Map[LocallyQualifiedName, WdlInteger] = Map("scattering.intNumber" -> WdlInteger(shard))
 
-      val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, WorkflowOptions.empty)(call.task.runtimeAttributes.attrs)
+      val runtimeAttributes: Map[LocallyQualifiedName, WdlValue] = Map.empty//RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, WorkflowOptions.empty)(call.task.runtimeAttributes.attrs)
 
       val jobDescriptor: BackendJobDescriptor =
         BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, Option(shard), 1), runtimeAttributes, fqnMapToDeclarationMap(symbolMaps), NoDocker, Map.empty)

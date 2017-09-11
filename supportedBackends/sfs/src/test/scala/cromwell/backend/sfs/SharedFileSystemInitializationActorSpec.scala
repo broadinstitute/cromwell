@@ -1,16 +1,11 @@
 package cromwell.backend.sfs
 
-import akka.actor.Props
+import akka.actor.ActorRef
 import akka.testkit.{EventFilter, ImplicitSender, TestDuration}
-import com.typesafe.config.ConfigFactory
-import cromwell.backend.BackendSpec._
 import cromwell.backend.BackendWorkflowInitializationActor.Initialize
-import cromwell.backend.standard.DefaultInitializationActorParams
-import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, TestConfig}
 import cromwell.core.TestKitSuite
 import cromwell.core.logging.LoggingTest._
 import org.scalatest.{Matchers, WordSpecLike}
-import wdl4s.wdl.WdlTaskCall
 
 import scala.concurrent.duration._
 
@@ -37,19 +32,19 @@ class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSy
       |}
     """.stripMargin
 
-  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[WdlTaskCall],
-                          conf: BackendConfigurationDescriptor) = {
-    val params = DefaultInitializationActorParams(workflowDescriptor, emptyActor, calls, emptyActor, conf, restarting = false)
-    val props = Props(new SharedFileSystemInitializationActor(params))
-    system.actorOf(props, "SharedFileSystemInitializationActor")
-  }
+//  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[WdlTaskCall],
+//                          conf: BackendConfigurationDescriptor) = {
+//    val params = DefaultInitializationActorParams(workflowDescriptor, emptyActor, calls, emptyActor, conf, restarting = false)
+//    val props = Props(new SharedFileSystemInitializationActor(params))
+//    system.actorOf(props, "SharedFileSystemInitializationActor")
+//  }
 
   "SharedFileSystemInitializationActor" should {
     "log a warning message when there are unsupported runtime attributes" in {
       within(Timeout) {
-        val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { unsupported: 1 }""")
-        val conf = BackendConfigurationDescriptor(TestConfig.sampleBackendRuntimeConfig, ConfigFactory.empty())
-        val backend = getActorRef(workflowDescriptor, workflowDescriptor.workflow.taskCalls, conf)
+//        val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { unsupported: 1 }""")
+//        val conf = BackendConfigurationDescriptor(TestConfig.sampleBackendRuntimeConfig, ConfigFactory.empty())
+        val backend: ActorRef = null//getActorRef(workflowDescriptor, workflowDescriptor.workflow.taskCalls, conf)
         val pattern = "Key/s [unsupported] is/are not supported by backend. " +
           "Unsupported attributes will not be part of job executions."
         EventFilter.warning(pattern = escapePattern(pattern), occurrences = 1) intercept {

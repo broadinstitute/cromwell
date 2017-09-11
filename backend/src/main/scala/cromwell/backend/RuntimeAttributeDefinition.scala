@@ -1,13 +1,16 @@
 package cromwell.backend
 
-import cromwell.core.WorkflowOptions
+import cats.data.Validated.{Invalid, Valid}
+import cromwell.core.{NoIoFunctionSet, WorkflowOptions}
 import cromwell.util.JsonFormatting.WdlValueJsonFormatter
-import lenthall.util.TryUtil
-import wdl4s.wdl.{WdlExpressionException, _}
-import wdl4s.wdl.expression.WdlStandardLibraryFunctions
+import lenthall.validation.ErrorOr.ErrorOr
 import wdl4s.wdl.values.WdlValue
+import wdl4s.wdl.{WdlExpressionException, _}
+import wdl4s.wom.RuntimeAttributes
+import wdl4s.wom.callable.Callable.InputDefinition
+import wdl4s.wom.expression.IoFunctionSet
 
-import scala.util.{Success, Try}
+import scala.util.{Failure, Success, Try}
 
 /**
   * @param name Attribute name (LHS of name: "value" in the runtime section).
@@ -19,19 +22,24 @@ case class RuntimeAttributeDefinition(name: String, factoryDefault: Option[WdlVa
 object RuntimeAttributeDefinition {
 
   def evaluateRuntimeAttributes(unevaluated: RuntimeAttributes,
-                                wdlFunctions: WdlStandardLibraryFunctions,
-                                evaluatedInputs: Map[Declaration, WdlValue]): Try[Map[String, WdlValue]] = {
-    val tryInputs = evaluatedInputs map { case (x, y) => x.unqualifiedName -> Success(y) }
-    val mapBasedLookup = buildMapBasedLookup(tryInputs) _
-    val mapOfTries = unevaluated.attrs mapValues {
-      expr => expr.evaluate(mapBasedLookup, wdlFunctions)
+                                wdlFunctions: IoFunctionSet,
+                                evaluatedInputs: Map[InputDefinition, WdlValue]): Try[Map[String, WdlValue]] = {
+    import cats.instances.list._
+    import cats.syntax.traverse._
+    val tryInputs = evaluatedInputs map { case (x, y) => x.name -> y }
+    val mapOfTries = unevaluated.attributes mapValues {
+      expr => expr.evaluateValue(tryInputs, NoIoFunctionSet)
     }
-    TryUtil.sequenceMap(mapOfTries)
+    // TODO WOM: cleanup
+    mapOfTries.toList.traverse[ErrorOr, (String, WdlValue)]({case (a, b) => b.map(c => (a,c))}).map(_.toMap) match {
+      case Valid(attrs) => Success(attrs)
+      case Invalid(failures) => Failure(new Exception(failures.toList.mkString(", ")))
+    }
   }
 
-  def buildMapBasedLookup(evaluatedDeclarations: Map[LocallyQualifiedName, Try[WdlValue]])(identifier: String): WdlValue = {
+  def buildMapBasedLookup(evaluatedDeclarations: Map[InputDefinition, Try[WdlValue]])(identifier: String): WdlValue = {
     val successfulEvaluations = evaluatedDeclarations collect {
-      case (k, v) if v.isSuccess => k -> v.get
+      case (k, v) if v.isSuccess => k.name -> v.get
     }
     successfulEvaluations.getOrElse(identifier, throw new WdlExpressionException(s"Could not resolve variable $identifier as a task input"))
   }

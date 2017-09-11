@@ -8,7 +8,7 @@ import cromwell.backend._
 import cromwell.backend.standard.callcaching._
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.callcaching._
-import cromwell.core.{CallOutputs, JobExecutionToken, WorkflowId}
+import cromwell.core.{CallOutputs, JobExecutionToken, NoIoFunctionSet, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{EJEAData, EngineJobExecutionActorState}
@@ -19,8 +19,11 @@ import cromwell.util.AkkaTestUtil._
 import org.specs2.mock.Mockito
 import wdl4s.parser.WdlParser.Ast
 import wdl4s.wdl._
-import wdl4s.wdl.expression.{NoFunctions, WdlStandardLibraryFunctions}
 import wdl4s.wdl.types.{WdlIntegerType, WdlStringType}
+import wdl4s.wom.callable.Callable.OutputDefinition
+import wdl4s.wom.callable.WorkflowDefinition
+import wdl4s.wom.expression.IoFunctionSet
+import wdl4s.wom.graph.TaskCallNode
 
 import scala.util.Success
 
@@ -49,14 +52,14 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
     meta = Map.empty,
     parameterMeta = Map.empty,
     ast = mock[Ast])
-  val call: WdlTaskCall = WdlTaskCall(None, task, Map.empty, mock[Ast])
-  call.parent_=(workflow)
+  val call: TaskCallNode = null//WdlTaskCall(None, task, Map.empty, mock[Ast])
+//  call.parent_=(workflow)
   val jobDescriptorKey = BackendJobDescriptorKey(call, jobIndex, jobAttempt)
 
   val backendWorkflowDescriptor = BackendWorkflowDescriptor(workflowId, null, null, null, null)
   val backendJobDescriptor = BackendJobDescriptor(backendWorkflowDescriptor, jobDescriptorKey, runtimeAttributes = Map.empty, inputDeclarations = Map.empty, FloatingDockerTagWithoutHash("ubuntu:latest"), Map.empty)
 
-  var fetchCachedResultsActorCreations: ExpectOne[(CallCachingEntryId, Seq[TaskOutput])] = NothingYet
+  var fetchCachedResultsActorCreations: ExpectOne[(CallCachingEntryId, Seq[OutputDefinition])] = NothingYet
   var jobHashingInitializations: ExpectOne[(BackendJobDescriptor, CallCachingActivity)] = NothingYet
   var invalidateCacheActorCreations: ExpectOne[CallCachingEntryId] = NothingYet
 
@@ -90,8 +93,8 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
 
     override def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef) => Props] = Option((_, _, _, _) => callCacheHitCopyingProbe.props)
 
-    override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor, jobKey: BackendJobDescriptorKey, initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = {
-      NoFunctions
+    override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor, jobKey: BackendJobDescriptorKey, initializationData: Option[BackendInitializationData]): IoFunctionSet = {
+      NoIoFunctionSet
     }
 
     override def fileHashingActorProps:
@@ -110,13 +113,13 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
     // These two factory methods should never be called from EJEA or any of its descendants:
     override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 ioActor: ActorRef,
-                                                calls: Set[WdlTaskCall],
+                                                calls: Set[TaskCallNode],
                                                 jobExecutionMap: JobExecutionMap,
                                                 workflowOutputs: CallOutputs,
                                                 initializationData: Option[BackendInitializationData]): Option[Props] = throw new UnsupportedOperationException("Unexpected finalization actor creation!")
     override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                   ioActor: ActorRef,
-                                                  calls: Set[WdlTaskCall],
+                                                  calls: Set[TaskCallNode],
                                                   serviceRegistryActor: ActorRef,
                                                   restarting: Boolean): Option[Props] = throw new UnsupportedOperationException("Unexpected finalization actor creation!")
   }
@@ -126,7 +129,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
                (implicit startingState: EngineJobExecutionActorState): TestFSMRef[EngineJobExecutionActorState, EJEAData, MockEjea] = {
 
     val factory: BackendLifecycleActorFactory = buildFactory()
-    val descriptor = EngineWorkflowDescriptor(mock[WdlNamespaceWithWorkflow], backendWorkflowDescriptor, null, null, null, callCachingMode)
+    val descriptor = EngineWorkflowDescriptor(mock[WorkflowDefinition], backendWorkflowDescriptor, null, null, null, callCachingMode)
 
     val myBrandNewEjea = new TestFSMRef[EngineJobExecutionActorState, EJEAData, MockEjea](system, Props(new MockEjea(
       helper = this,
@@ -172,7 +175,7 @@ private[ejea] class MockEjea(helper: PerTestHelper,
                              callCachingMode: CallCachingMode) extends EngineJobExecutionActor(replyTo, jobDescriptorKey, workflowDescriptor, factory, initializationData, restarting, serviceRegistryActor, ioActor, jobStoreActor, callCacheReadActor, callCacheWriteActor, dockerHashActor, jobTokenDispenserActor, None, backendName, callCachingMode) {
 
   implicit val system = context.system
-  override def makeFetchCachedResultsActor(cacheId: CallCachingEntryId, taskOutputs: Seq[TaskOutput]) = helper.fetchCachedResultsActorCreations = helper.fetchCachedResultsActorCreations.foundOne((cacheId, taskOutputs))
+  override def makeFetchCachedResultsActor(cacheId: CallCachingEntryId) = helper.fetchCachedResultsActorCreations = helper.fetchCachedResultsActorCreations.foundOne((cacheId, null))
   override def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity, callCachingEligible: CallCachingEligible) = {
     helper.jobHashingInitializations = helper.jobHashingInitializations.foundOne((jobDescriptor, activity))
     Success(helper.ejhaProbe.ref)

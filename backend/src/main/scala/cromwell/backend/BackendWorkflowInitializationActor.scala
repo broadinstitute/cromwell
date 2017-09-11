@@ -4,7 +4,7 @@ import akka.actor.{ActorLogging, ActorRef}
 import akka.event.LoggingReceive
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.BackendWorkflowInitializationActor._
-import cromwell.backend.async.{RuntimeAttributeValidationFailure, RuntimeAttributeValidationFailures}
+import cromwell.backend.async.RuntimeAttributeValidationFailures
 import cromwell.backend.validation.ContinueOnReturnCodeValidation
 import cromwell.core.{WorkflowMetadataKeys, WorkflowOptions}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
@@ -13,6 +13,8 @@ import wdl4s.wdl._
 import wdl4s.wdl.expression.PureStandardLibraryFunctions
 import wdl4s.wdl.types._
 import wdl4s.wdl.values.WdlValue
+import wdl4s.wom.callable.TaskDefinition
+import wdl4s.wom.graph.TaskCallNode
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -38,7 +40,7 @@ object BackendWorkflowInitializationActor {
 trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor with ActorLogging {
   def serviceRegistryActor: ActorRef
 
-  def calls: Set[WdlTaskCall]
+  def calls: Set[TaskCallNode]
 
   /**
     * This method is meant only as a "pre-flight check" validation of runtime attribute expressions during workflow
@@ -119,22 +121,24 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
   private def validateRuntimeAttributes: Future[Unit] = {
 
     coerceDefaultRuntimeAttributes(workflowDescriptor.workflowOptions) match {
-      case Success(defaultRuntimeAttributes) =>
+      case Success(_) =>
 
-        def defaultRuntimeAttribute(name: String): Option[WdlValue] = {
-          defaultRuntimeAttributes.get(name)
+//        def defaultRuntimeAttribute(name: String): Option[WdlValue] = {
+//          defaultRuntimeAttributes.get(name)
+//        }
+
+        def badRuntimeAttrsForTask(task: TaskDefinition) = {
+          // TODO WOM: fixme
+//          runtimeAttributeValidators map { case (attributeName, validator) =>
+//            val value = task.runtimeAttributes.attributes.get(attributeName) orElse defaultRuntimeAttribute(attributeName)
+//            attributeName -> ((value, validator(value)))
+//          } collect {
+//            case (name, (value, false)) => RuntimeAttributeValidationFailure(task.name, name, value)
+//          }
+          Seq.empty
         }
 
-        def badRuntimeAttrsForTask(task: WdlTask) = {
-          runtimeAttributeValidators map { case (attributeName, validator) =>
-            val value = task.runtimeAttributes.attrs.get(attributeName) orElse defaultRuntimeAttribute(attributeName)
-            attributeName -> ((value, validator(value)))
-          } collect {
-            case (name, (value, false)) => RuntimeAttributeValidationFailure(task.name, name, value)
-          }
-        }
-
-        calls map { _.task } flatMap badRuntimeAttrsForTask match {
+        calls map { _.callable } flatMap badRuntimeAttrsForTask match {
           case errors if errors.isEmpty => Future.successful(())
           case errors => Future.failed(RuntimeAttributeValidationFailures(errors.toList))
         }

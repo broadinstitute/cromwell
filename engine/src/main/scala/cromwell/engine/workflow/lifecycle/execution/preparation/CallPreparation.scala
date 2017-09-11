@@ -1,16 +1,21 @@
 package cromwell.engine.workflow.lifecycle.execution.preparation
 
 import akka.actor.Props
+import cats.data.NonEmptyList
+import cats.data.Validated.Valid
 import cromwell.backend.BackendJobDescriptor
+import cromwell.core.CromwellGraphNode._
 import cromwell.core.{CallKey, JobKey}
 import cromwell.engine.EngineWorkflowDescriptor
-import cromwell.engine.workflow.lifecycle.execution.OutputStore
-import wdl4s.wdl.exception.VariableLookupException
-import wdl4s.wdl.expression.WdlStandardLibraryFunctions
-import wdl4s.wdl.values.WdlValue
-import wdl4s.wdl.{Declaration, Scatter}
+import cromwell.engine.workflow.lifecycle.execution.{OutputStore, WomOutputStore}
+import lenthall.validation.ErrorOr._
+import wdl4s.wdl.types.WdlType
+import wdl4s.wdl.values.{WdlOptionalValue, WdlValue}
+import wdl4s.wom.WomEvaluatedCallInputs
+import wdl4s.wom.callable.Callable._
+import wdl4s.wom.expression.{IoFunctionSet, WomExpression}
 
-import scala.util.{Failure, Try}
+import scala.language.postfixOps
 
 object CallPreparation {
   sealed trait CallPreparationActorCommands
@@ -25,21 +30,68 @@ object CallPreparation {
 
   def resolveAndEvaluateInputs(callKey: CallKey,
                                workflowDescriptor: EngineWorkflowDescriptor,
-                               expressionLanguageFunctions: WdlStandardLibraryFunctions,
-                               outputStore: OutputStore): Try[Map[Declaration, WdlValue]] = {
+                               expressionLanguageFunctions: IoFunctionSet,
+                               outputStore: OutputStore): ErrorOr[WomEvaluatedCallInputs] = {
+    import cats.syntax.validated._
+    import lenthall.validation.ErrorOr._
+    import lenthall.validation.Validation._
     val call = callKey.scope
-    val scatterMap = callKey.index flatMap { i =>
-      // Will need update for nested scatters
-      call.ancestry collectFirst { case s: Scatter => Map(s -> i) }
-    } getOrElse Map.empty[Scatter, Int]
+    val womOutputStore: WomOutputStore = outputStore.toWomOutputStore
 
-    call.evaluateTaskInputs(
-      workflowDescriptor.backendDescriptor.knownValues,
-      expressionLanguageFunctions,
-      outputStore.fetchNodeOutputEntries,
-      scatterMap
-    ) recoverWith {
-      case t: Throwable => Failure[Map[Declaration, WdlValue]](new VariableLookupException(s"Couldn't resolve all inputs for ${callKey.scope.fullyQualifiedName} at index ${callKey.index}.", List(t)))
+    val inputMappingsFromPreviousCalls: Map[String, WdlValue] = {
+      call.inputPorts.flatMap({ inputPort =>
+        val outputPort = inputPort.upstream
+        // TODO WOM: scatters ?
+        womOutputStore.get(outputPort) map { outputPort.fullyQualifiedName -> _ }
+      }) toMap
     }
+
+    // Previous calls outputs and known workflow level values
+    val externalInputMappings = inputMappingsFromPreviousCalls ++ workflowDescriptor.backendDescriptor.knownValues
+
+    def resolveInputDefinitionFold(accumulatedInputsSoFar: Map[InputDefinition, ErrorOr[WdlValue]],
+                                   inputDefinition: InputDefinition): Map[InputDefinition, ErrorOr[WdlValue]] = {
+
+      val validInputsAccumulated: Map[String, WdlValue] = accumulatedInputsSoFar.collect({
+        case (input, Valid(errorOrWdlValue)) => input.name -> errorOrWdlValue
+      }) ++ externalInputMappings
+
+      def evaluateAndCoerce(expression: WomExpression, coerceTo: WdlType): ErrorOr[WdlValue] = {
+        expression.evaluateValue(validInputsAccumulated, expressionLanguageFunctions) flatMap {
+          coerceTo.coerceRawValue(_).toErrorOr
+        }
+      }
+
+      def resolveFromKnownValues: ErrorOr[WdlValue] = validInputsAccumulated.get(inputDefinition.name) match {
+        case Some(value) => value.validNel
+        case None => s"Can't find a known value for ${inputDefinition.name}".invalidNel
+      }
+
+      def resolveAsExpression: ErrorOr[WdlValue] = {
+        call.expressionBasedInputs.get(inputDefinition.name) map { instantiatedExpression =>
+          evaluateAndCoerce(instantiatedExpression.expression, inputDefinition.womType)
+        } getOrElse s"Can't find an expression to evaluate for ${inputDefinition.name}".invalidNel
+      }
+
+      def resolveAsInputPort: ErrorOr[WdlValue] = (for {
+        inputPort <- call.portBasedInputs.find(_.name == inputDefinition.name)
+        valueFromUpstream <- womOutputStore.get(inputPort.upstream)
+      } yield valueFromUpstream) match {
+        case Some(value) => value.validNel
+        case None => s"Can't find upstream value for ${inputDefinition.name}".invalidNel
+      }
+
+      def resolve: ErrorOr[WdlValue] = resolveFromKnownValues.orElse(resolveAsInputPort).orElse(resolveAsExpression)
+
+      val evaluated = inputDefinition match {
+        case OptionalInputDefinitionWithDefault(_, womType, default) => resolve.orElse(evaluateAndCoerce(default, womType))
+        case OptionalInputDefinition(_, womType) => resolve.getOrElse(WdlOptionalValue.none(womType)).validNel
+        case _: RequiredInputDefinition => resolve.leftMap(_ => NonEmptyList.of(s"Can't find an input value for ${inputDefinition.name}"))
+      }
+
+      accumulatedInputsSoFar + (inputDefinition -> evaluated)
+    }
+
+    call.callable.inputs.foldLeft(Map.empty[InputDefinition, ErrorOr[WdlValue]])(resolveInputDefinitionFold).sequence
   }
 }

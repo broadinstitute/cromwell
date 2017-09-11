@@ -2,6 +2,7 @@ package cromwell.subworkflowstore
 
 import akka.testkit.TestProbe
 import cromwell.CromwellTestKitWordSpec
+import cromwell.core.CromwellGraphNode._
 import cromwell.core.ExecutionIndex._
 import cromwell.core.{JobKey, WorkflowId, WorkflowSourceFilesWithoutImports}
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
@@ -13,7 +14,8 @@ import cromwell.subworkflowstore.SubWorkflowStoreActor._
 import cromwell.subworkflowstore.SubWorkflowStoreSpec._
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
-import wdl4s.wdl.{WdlExpression, WdlTaskCall}
+import wdl4s.wdl.WdlExpression
+import wdl4s.wom.graph.{GraphNode, TaskCallNode}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -35,10 +37,10 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with Matchers with Mo
       val parentWorkflowId = WorkflowId.randomId()
       val subWorkflowId = WorkflowId.randomId()
       val subSubWorkflowId = WorkflowId.randomId()
-      val call = mock[WdlTaskCall]
+      val call = mock[TaskCallNode]
       call.fullyQualifiedName returns "foo.bar"
       val jobKey = new JobKey {
-        override def scope = call
+        override def scope: GraphNode = call
         override def index: Option[Int] = None
         override def attempt: Int = 0
         override def tag: String = "foobar"

@@ -1,30 +1,41 @@
 package cromwell.engine.workflow.lifecycle.execution
 
+import cromwell.core.CromwellGraphNode._
 import cromwell.core.ExecutionIndex._
 import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.OutputStore.{OutputCallKey, OutputEntry}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.CollectorKey
 import lenthall.util.TryUtil
+import wdl4s.wdl._
 import wdl4s.wdl.types.{WdlArrayType, WdlType}
 import wdl4s.wdl.values.{WdlArray, WdlCallOutputsObject, WdlValue}
-import wdl4s.wdl._
+import wdl4s.wom.graph.{ExpressionNode, GraphNode, ScatterNode, TaskCallNode}
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object OutputStore {
   case class OutputEntry(name: String, wdlType: WdlType, wdlValue: Option[WdlValue])
-  case class OutputCallKey(call: Scope with WdlGraphNode, index: ExecutionIndex)
+  case class OutputCallKey(call: GraphNode, index: ExecutionIndex)
   def empty = OutputStore(Map.empty)
 }
 
 case class OutputStore(store: Map[OutputCallKey, List[OutputEntry]]) {
 
+  // TODO WOM: temporary conversion until WomOutputStore becomes THE OutputStore
+  def toWomOutputStore: WomOutputStore = {
+    val nodeMap = store.flatMap {
+      case (key, values) =>
+        key.call.outputPorts map { outputPort => outputPort -> values.find(_.name == outputPort.name).get.wdlValue.get }
+    }
+    WomOutputStore(nodeMap)
+  }
+  
   override def toString = store.map { case (k, l) => s"$k -> ${l.mkString(" ")}" } mkString System.lineSeparator
 
   def add(values: Map[OutputCallKey, List[OutputEntry]]) = this.copy(store = store ++ values)
 
-  def fetchNodeOutputEntries(node: WdlGraphNode, index: ExecutionIndex): Try[WdlValue] = {
+  def fetchNodeOutputEntries(node: GraphNode, index: ExecutionIndex): Try[WdlValue] = {
     def outputEntriesToMap(outputs: List[OutputEntry]): Map[String, Try[WdlValue]] = {
       outputs map { output =>
         output.wdlValue match {
@@ -58,7 +69,7 @@ case class OutputStore(store: Map[OutputCallKey, List[OutputEntry]]) {
     }
   }
   
-  def collectCall(call: WdlCall, scatter: Scatter, sortedShards: Seq[JobKey]) = Try {
+  def collectCall(call: TaskCallNode, scatter: ScatterNode, sortedShards: Seq[JobKey]) = Try {
     val shardsOutputs = sortedShards map { e =>
       fetchNodeOutputEntries(call, e.index) map {
         case callOutputs: WdlCallOutputsObject => callOutputs.outputs
@@ -66,7 +77,7 @@ case class OutputStore(store: Map[OutputCallKey, List[OutputEntry]]) {
       } getOrElse(throw new RuntimeException(s"Could not retrieve output for shard ${e.scope} #${e.index}"))
     }
     
-    call.outputs map { taskOutput =>
+    call.callable.outputs map { taskOutput =>
       val wdlValues = shardsOutputs.map(
         _.getOrElse(taskOutput.unqualifiedName, throw new RuntimeException(s"Could not retrieve output ${taskOutput.unqualifiedName}")))
       val arrayType = taskOutput.relativeWdlType(scatter).asInstanceOf[WdlArrayType]
@@ -75,7 +86,7 @@ case class OutputStore(store: Map[OutputCallKey, List[OutputEntry]]) {
     } toMap
   }
   
-  def collectDeclaration(declaration: Declaration, scatter: Scatter, sortedShards: Seq[JobKey]) = Try {
+  def collectDeclaration(declaration: ExpressionNode, scatter: ScatterNode, sortedShards: Seq[JobKey]) = Try {
     val shardsOutputs = sortedShards map { e =>
       fetchNodeOutputEntries(declaration, e.index) getOrElse {
         throw new RuntimeException(s"Could not retrieve output for shard ${e.scope} #${e.index}")
@@ -94,8 +105,8 @@ case class OutputStore(store: Map[OutputCallKey, List[OutputEntry]]) {
     lazy val sortedShards = shards.toSeq sortBy { _.index.fromIndex }
     
     collector.scope match {
-      case call: WdlCall => collectCall(call, collector.scatter, sortedShards)
-      case declaration: Declaration => collectDeclaration(declaration, collector.scatter, sortedShards)
+      case call: TaskCallNode => collectCall(call, collector.scatter, sortedShards)
+      case declaration: ExpressionNode => collectDeclaration(declaration, collector.scatter, sortedShards)
       case other => Failure(new RuntimeException(s"Cannot retrieve outputs for ${other.fullyQualifiedName}")) 
     }
   }

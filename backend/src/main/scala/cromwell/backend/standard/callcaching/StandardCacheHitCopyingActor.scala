@@ -14,11 +14,12 @@ import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor}
+import cromwell.core.CromwellGraphNode._
 import cromwell.core._
 import cromwell.core.io._
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.{Path, PathCopier}
-import cromwell.core.simpleton.{WdlValueBuilder, WdlValueSimpleton}
+import cromwell.core.simpleton.WdlValueSimpleton
 import wdl4s.wdl.values.WdlFile
 
 import scala.util.{Failure, Success, Try}
@@ -251,7 +252,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     * Returns a pair of the list of simpletons with copied paths, and copy commands necessary to perform those copies. 
     */
   protected def processSimpletons(wdlValueSimpletons: Seq[WdlValueSimpleton], sourceCallRootPath: Path): Try[(CallOutputs, Set[IoCommand[_]])] = Try {
-    val (destinationSimpletons, ioCommands): (List[WdlValueSimpleton], Set[IoCommand[_]]) = wdlValueSimpletons.toList.foldMap({
+    val (_, ioCommands): (List[WdlValueSimpleton], Set[IoCommand[_]]) = wdlValueSimpletons.toList.foldMap({
       case WdlValueSimpleton(key, wdlFile: WdlFile) =>
         val sourcePath = getPath(wdlFile.value).get
         val destinationPath = PathCopier.getDestinationFilePath(sourceCallRootPath, sourcePath, destinationCallRootPath)
@@ -262,7 +263,8 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       case nonFileSimpleton => (List(nonFileSimpleton), Set.empty[IoCommand[_]])
     })
 
-    (WdlValueBuilder.toJobOutputs(jobDescriptor.call.task.outputs, destinationSimpletons), ioCommands)
+//    (WdlValueBuilder.toJobOutputs(jobDescriptor.call.task.outputs, destinationSimpletons), ioCommands)
+    (Map.empty, ioCommands)
   }
 
   /**

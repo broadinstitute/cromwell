@@ -96,6 +96,7 @@ class FileSizeSpec extends FlatSpec with Matchers {
   }
 
   //test all the functions
+  // TODO WOM: Restore tests ?
 //  List[(String, Int, ReadLikeFunctions => (Seq[Try[WdlValue]] => Try[WdlValue]))](
 //    ("lines", _readLinesLimit, _.read_lines),
 //    ("int", _readIntLimit, _.read_int),

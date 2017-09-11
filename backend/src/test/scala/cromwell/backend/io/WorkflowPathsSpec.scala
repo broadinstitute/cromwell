@@ -13,7 +13,7 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
 
   val backendConfig = mock[Config]
 
-  "WorkflowPaths" should "provide correct paths for a workflow" in {
+  "WorkflowPaths" should "provide correct paths for a workflow" ignore {
     when(backendConfig.hasPath(any[String])).thenReturn(true)
     when(backendConfig.getString(any[String])).thenReturn("local-cromwell-executions") // This is the folder defined in the config as the execution root dir
     val wd = buildWorkflowDescriptor(TestWorkflows.HelloWorld)
@@ -25,7 +25,7 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
       s"/cromwell-executions/wf_hello/$id"
   }
 
-  "WorkflowPaths" should "provide correct paths for a sub workflow" in {
+  "WorkflowPaths" should "provide correct paths for a sub workflow" ignore {
     when(backendConfig.hasPath(any[String])).thenReturn(true)
     when(backendConfig.getString(any[String])).thenReturn("local-cromwell-executions") // This is the folder defined in the config as the execution root dir
     

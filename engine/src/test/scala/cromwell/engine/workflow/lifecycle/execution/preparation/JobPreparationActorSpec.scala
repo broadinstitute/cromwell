@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution.preparation
 
 import akka.testkit.{ImplicitSender, TestActorRef}
+import cats.syntax.validated._
 import cromwell.core.callcaching.{DockerWithHash, FloatingDockerTagWithoutHash}
 import cromwell.core.{LocallyQualifiedName, TestKitSuite}
 import cromwell.docker.DockerHashActor.DockerHashSuccessResponse
@@ -11,12 +12,11 @@ import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvKeyLookupFailed, KvPair}
 import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
-import wdl4s.wdl.Declaration
 import wdl4s.wdl.values.{WdlString, WdlValue}
+import wdl4s.wom.callable.Callable.InputDefinition
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
 
 class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") with FlatSpecLike with Matchers with ImplicitSender with BeforeAndAfter with Mockito {
 
@@ -24,26 +24,26 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
 
   // Generated fresh for each test case in 'before'
   var helper: JobPreparationTestHelper = _
-  var inputs: Map[Declaration, WdlValue] = _
+  var inputs: Map[InputDefinition, WdlValue] = _
 
   before {
     helper = new JobPreparationTestHelper()
-    inputs = Map.empty[Declaration, WdlValue]
+    inputs = Map.empty[InputDefinition, WdlValue]
   }
 
   it should "fail preparation if it can't evaluate inputs or runtime attributes" in {
-    val exception = new Exception("Failed to prepare inputs/attributes - part of test flow")
-    val failure = Failure(exception)
-    val expectedResponse = CallPreparationFailed(helper.jobKey, exception)
-    val actor = TestActorRef(helper.buildTestJobPreparationActor(null, null, null, failure, List.empty), self)
+    val error = "Failed to prepare inputs/attributes - part of test flow"
+    val actor = TestActorRef(helper.buildTestJobPreparationActor(null, null, null, error.invalidNel, List.empty), self)
     actor ! Start(OutputStore.empty)
-    expectMsg(expectedResponse)
+    expectMsgPF(1.second) {
+      case CallPreparationFailed(_, ex) => ex.getMessage shouldBe "Call input and runtime attributes evaluation failed:\nFailed to prepare inputs/attributes - part of test flow"
+    }
     helper.workflowDockerLookupActor.expectNoMsg(100 millis)
   }
 
   it should "prepare successfully a job without docker attribute" in {
     val attributes = Map.empty[LocallyQualifiedName, WdlValue]
-    val inputsAndAttributes = Success((inputs, attributes))
+    val inputsAndAttributes = (inputs, attributes).validNel
     val actor = TestActorRef(helper.buildTestJobPreparationActor(null, null, null, inputsAndAttributes, List.empty), self)
     actor ! Start(OutputStore.empty)
     expectMsgPF(5 seconds) {
@@ -58,7 +58,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     val attributes = Map(
       "docker" -> WdlString(dockerValue)
     )
-    val inputsAndAttributes = Success((inputs, attributes))
+    val inputsAndAttributes = (inputs, attributes).validNel
     val actor = TestActorRef(helper.buildTestJobPreparationActor(null, null, null, inputsAndAttributes, List.empty), self)
     actor ! Start(OutputStore.empty)
     expectMsgPF(5 seconds) {
@@ -75,7 +75,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
       "docker" -> WdlString(dockerValue)
     )
     val hashResult = DockerHashResult("sha256", "71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950")
-    val inputsAndAttributes = Success((inputs, attributes))
+    val inputsAndAttributes = (inputs, attributes).validNel
     val prefetchedKey1 = "hello"
     val prefetchedVal1 = KvPair(helper.scopedKeyMaker(prefetchedKey1), Some("world"))
     val prefetchedKey2 = "bonjour"
@@ -111,7 +111,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
       "docker" -> WdlString(dockerValue)
     )
     val hashResult = DockerHashResult("sha256", "71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950")
-    val inputsAndAttributes = Success((inputs, attributes))
+    val inputsAndAttributes = (inputs, attributes).validNel
     val finalValue = "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
     val actor = TestActorRef(helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List.empty), self)
     actor ! Start(OutputStore.empty)
@@ -130,7 +130,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     val attributes = Map (
       "docker" -> WdlString(dockerValue)
     )
-    val inputsAndAttributes = Success((inputs, attributes))
+    val inputsAndAttributes = (inputs, attributes).validNel
     val actor = TestActorRef(helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List.empty), self)
     actor ! Start(OutputStore.empty)
     helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerHashRequest])

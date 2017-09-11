@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution.preparation
 
 import akka.actor.{ActorRef, FSM, Props}
+import cats.data.Validated.{Invalid, Valid}
 import cromwell.backend._
 import cromwell.backend.validation.{DockerValidation, RuntimeAttributesKeys}
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -14,6 +15,8 @@ import cromwell.engine.workflow.lifecycle.execution.OutputStore
 import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation._
 import cromwell.engine.workflow.lifecycle.execution.preparation.JobPreparationActor._
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvResponse, ScopedKey}
+import lenthall.exception.MessageAggregation
+import lenthall.validation.ErrorOr.ErrorOr
 import wdl4s.wdl._
 import wdl4s.wdl.values.WdlValue
 import wdl4s.wom.WomEvaluatedCallInputs
@@ -21,7 +24,7 @@ import wdl4s.wom.callable.Callable.InputDefinition
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 /**
   * Prepares a job for the backend. The goal of this actor is to build a BackendJobDescriptor.
@@ -56,10 +59,11 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   when(Idle) {
     case Event(Start(outputStore), JobPreparationActorNoData) =>
       evaluateInputsAndAttributes(outputStore) match {
-        case Success((inputs, attributes)) => 
-          fetchDockerHashesIfNecessary(inputs, attributes)
-        case Failure(failure) => 
-          sendFailureAndStop(failure)
+        case Valid((inputs, attributes)) => fetchDockerHashesIfNecessary(inputs, attributes)
+        case Invalid(failure) => sendFailureAndStop(new MessageAggregation {
+          override def exceptionContext: String = "Call input and runtime attributes evaluation failed"
+          override def errorMessages: Traversable[String] = failure.toList
+        })
       }
   }
 
@@ -98,7 +102,8 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     goto(FetchingKeyValueStoreEntries) using JobPreparationKeyLookupData(PartialKeyValueLookups(Map.empty, keysToLookup), maybeCallCachingEligible, inputs, attributes)
   }
 
-  private [preparation] def evaluateInputsAndAttributes(outputStore: OutputStore) = {
+  private [preparation] def evaluateInputsAndAttributes(outputStore: OutputStore): ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WdlValue])] = {
+    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
     for {
       evaluatedInputs <- resolveAndEvaluateInputs(jobKey, workflowDescriptor, expressionLanguageFunctions, outputStore)
       runtimeAttributes <- prepareRuntimeAttributes(evaluatedInputs)
@@ -181,14 +186,12 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     BackendJobPreparationSucceeded(jobDescriptor, jobExecutionProps(jobDescriptor, initializationData, serviceRegistryActor, ioActor, backendSingletonActor))
   }
 
-  private [preparation] def prepareRuntimeAttributes(inputEvaluation: Map[InputDefinition, WdlValue]): Try[Map[LocallyQualifiedName, WdlValue]] = {
+  private [preparation] def prepareRuntimeAttributes(inputEvaluation: Map[InputDefinition, WdlValue]): ErrorOr[Map[LocallyQualifiedName, WdlValue]] = {
     import RuntimeAttributeDefinition.{addDefaultsToAttributes, evaluateRuntimeAttributes}
+    import lenthall.validation.Validation._
     val curriedAddDefaultsToAttributes = addDefaultsToAttributes(runtimeAttributeDefinitions, workflowDescriptor.backendDescriptor.workflowOptions) _
-
-    for {
-      unevaluatedRuntimeAttributes <- Try(jobKey.call.callable.runtimeAttributes)
-      evaluatedRuntimeAttributes <- evaluateRuntimeAttributes(unevaluatedRuntimeAttributes, expressionLanguageFunctions, inputEvaluation)
-    } yield curriedAddDefaultsToAttributes(evaluatedRuntimeAttributes)
+    val unevaluatedRuntimeAttributes = jobKey.call.callable.runtimeAttributes
+    evaluateRuntimeAttributes(unevaluatedRuntimeAttributes, expressionLanguageFunctions, inputEvaluation).toErrorOr map curriedAddDefaultsToAttributes
   }
 }
 

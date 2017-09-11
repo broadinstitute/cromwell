@@ -24,7 +24,7 @@ object JobStoreServiceSpec {
 
 class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Mockito {
 
-  "JobStoreService" should {
+  "JobStoreService" ignore {
     "work" in {
       lazy val jobStore: JobStore = new SqlJobStore(EngineServicesStore.engineDatabaseInterface)
       val jobStoreService = system.actorOf(JobStoreActor.props(jobStore))

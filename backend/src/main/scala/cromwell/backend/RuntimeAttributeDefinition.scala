@@ -6,7 +6,7 @@ import cromwell.util.JsonFormatting.WdlValueJsonFormatter
 import lenthall.validation.ErrorOr.ErrorOr
 import wdl4s.wdl.values.WdlValue
 import wdl4s.wdl.{WdlExpressionException, _}
-import wdl4s.wom.WomRuntimeAttributes
+import wdl4s.wom.RuntimeAttributes
 import wdl4s.wom.callable.Callable.InputDefinition
 import wdl4s.wom.expression.IoFunctionSet
 
@@ -21,7 +21,7 @@ case class RuntimeAttributeDefinition(name: String, factoryDefault: Option[WdlVa
 
 object RuntimeAttributeDefinition {
 
-  def evaluateRuntimeAttributes(unevaluated: WomRuntimeAttributes,
+  def evaluateRuntimeAttributes(unevaluated: RuntimeAttributes,
                                 wdlFunctions: IoFunctionSet,
                                 evaluatedInputs: Map[InputDefinition, WdlValue]): Try[Map[String, WdlValue]] = {
     import cats.instances.list._

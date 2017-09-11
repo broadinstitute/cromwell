@@ -2,14 +2,14 @@ package cromwell.engine.workflow.mocks
 
 import cromwell.engine.workflow.mocks.DeclarationMock.DeclarationMockType
 import org.specs2.mock.Mockito
-import wdl4s.wdl._
 import wdl4s.parser.WdlParser.Ast
+import wdl4s.wdl._
 
 trait TaskMock extends Mockito {
   
   def mockTask(name: String,
                declarations: Seq[Declaration] = Seq.empty,
-               runtimeAttributes: RuntimeAttributes = new RuntimeAttributes(Map.empty),
+               runtimeAttributes: WdlRuntimeAttributes = new WdlRuntimeAttributes(Map.empty),
                commandTemplateString: String = "!!shazam!!",
                outputs: Seq[DeclarationMockType] = Seq.empty
               ) = {

@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution.preparation
 
 import akka.actor.{Actor, Props}
+import cats.data.Validated.{Invalid, Valid}
 import cromwell.backend.BackendJobBreadCrumb
 import cromwell.core.Dispatcher._
 import cromwell.core.WorkflowId
@@ -9,6 +10,7 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.SubWo
 import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.{CallPreparationFailed, Start, _}
 import cromwell.engine.workflow.lifecycle.execution.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
+import lenthall.exception.MessageAggregation
 import wdl4s.wom.WomEvaluatedCallInputs
 
 class SubWorkflowPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
@@ -23,7 +25,6 @@ class SubWorkflowPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
 
     val newBackendDescriptor = oldBackendDescriptor.copy(
       id = subWorkflowId,
-      // TODO WOM: clean up
       workflow = callKey.scope.callable,
       // TODO WOM: need FQN for input definitions somehow ? For now don't worry about subWF
       knownValues = Map.empty,//workflowDescriptor.knownValues ++ (inputEvaluation map { case (k, v) => k.fullyQualifiedName -> v }),
@@ -36,8 +37,13 @@ class SubWorkflowPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   override def receive = {
     case Start(outputStore) =>
       val evaluatedInputs = resolveAndEvaluateInputs(callKey, workflowDescriptor, expressionLanguageFunctions, outputStore)
-      val response = evaluatedInputs map { prepareExecutionActor }
-      context.parent ! (response recover { case f => CallPreparationFailed(callKey, f) }).get
+      evaluatedInputs map { prepareExecutionActor } match {
+        case Valid(response) => context.parent ! response
+        case Invalid(f) => context.parent ! CallPreparationFailed(callKey, new MessageAggregation {
+          override def exceptionContext: String = "Failed to evaluate inputs for sub workflow"
+          override def errorMessages: Traversable[String] = f.toList
+        })
+      }
       context stop self
 
     case unhandled => workflowLogger.warn(self.path.name + " received an unhandled message: " + unhandled)

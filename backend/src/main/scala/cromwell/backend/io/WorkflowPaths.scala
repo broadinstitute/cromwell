@@ -24,7 +24,7 @@ trait WorkflowPaths extends PathFactory {
   protected def workflowPathBuilder(root: Path): Path = {
     workflowDescriptor.breadCrumbs.foldLeft(root)((acc, breadCrumb) => {
       breadCrumb.toPath(acc)
-    }).resolve("Cwl3Step").resolve(workflowDescriptor.id.toString + "/")
+    }).resolve(workflowDescriptor.workflow.name).resolve(workflowDescriptor.id.toString + "/")
   }
 
   lazy val executionRoot: Path = PathFactory.buildPath(executionRootString, pathBuilders).toAbsolutePath

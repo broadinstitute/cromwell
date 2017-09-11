@@ -215,9 +215,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       workflowOptions: WorkflowOptions,
                                       pathBuilders: List[PathBuilder]): ErrorOr[EngineWorkflowDescriptor] = {
     val namespaceValidation: ErrorOr[ValidatedWomNamespace] = sourceFiles.workflowType match {
-      case Some("WDL") => validateWdlNamespace(sourceFiles, workflowOptions, pathBuilders)
-      case Some("CWL") => validateCwlNamespace(sourceFiles, workflowOptions, pathBuilders)
-      case Some(other) => s"What's this ?? $other".invalidNel
+      case Some(wdl) if wdl.equalsIgnoreCase("wdl") => validateWdlNamespace(sourceFiles, workflowOptions, pathBuilders)
+      case Some(cwl) if cwl.equalsIgnoreCase("cwl") => validateCwlNamespace(sourceFiles, workflowOptions, pathBuilders)
+      case Some(other) => s"Unknown workflow type: $other".invalidNel
       case None => "Need a workflow type here !".invalidNel
     }
     val labelsValidation = validateLabels(sourceFiles.labelsJson)

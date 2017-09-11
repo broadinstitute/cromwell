@@ -41,8 +41,8 @@ trait GlobFunctions extends IoFunctionSet {
     */
   override def glob(path: String, pattern: String): Seq[String] = {
     // TODO WOM: figure out globbing and stdout redirection to a given filename
-    val name = if (pattern == "ps-stdOut.txt") globName("stdout") else globName(pattern)
-    val listFilePath = callContext.root.resolve(s"$name.list")
+    val name = globName(pattern)
+    val listFilePath = callContext.root.resolve(s"${globName(pattern)}.list")
     if (listFilePath.exists) {
     val listFile = listFilePath.toRealPath()
       listFile.lines.toSeq map { fileName =>

@@ -89,12 +89,18 @@ object JesAttributes {
     } }
 
 
-    (project, executionBucket, endpointUrl, genomicsAuthName, genomicsRestrictMetadataAccess, gcsFilesystemAuthName, qpsValidation, duplicationStrategy).tupled flatMap {
-      case (p, b, u, genomicsName, restrictMetadata, gcsName, qps, cachingStrategy) =>
-      (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN { case (genomicsAuth, gcsAuth) =>
-        JesAttributes(p, computeServiceAccount, JesAuths(genomicsAuth, gcsAuth), restrictMetadata, b, u, maxPollingInterval, qps, cachingStrategy)
-      }
-    } match {
+    def authGoogleConfigForJesAttributes(project: String,
+                          bucket: String,
+                          endpointUrl: URL,
+                          genomicsName: String,
+                          restrictMetadata: Boolean,
+                          gcsName: String,
+                          qps: Int Refined Positive,
+                          cachingStrategy: JesCacheHitDuplicationStrategy): ErrorOr[JesAttributes] = (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
+      (genomicsAuth, gcsAuth) => JesAttributes(project, computeServiceAccount, JesAuths(genomicsAuth, gcsAuth), restrictMetadata, bucket, endpointUrl, maxPollingInterval, qps, cachingStrategy)
+    }
+
+    (project, executionBucket, endpointUrl, genomicsAuthName, genomicsRestrictMetadataAccess, gcsFilesystemAuthName, qpsValidation, duplicationStrategy) flatMapN authGoogleConfigForJesAttributes match {
       case Valid(r) => r
       case Invalid(f) =>
         throw new IllegalArgumentException with MessageAggregation {

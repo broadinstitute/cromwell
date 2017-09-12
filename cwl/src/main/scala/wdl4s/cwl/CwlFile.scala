@@ -144,7 +144,7 @@ case class CommandLineTool(
   def graphNodes: ErrorOr[Set[GraphNode]] = {
     CallNode.
       callWithInputs(id.getOrElse("this is a made up call node name"), taskDefinition, Map.empty, Set.empty).
-      map(cwi => Set.empty[GraphNode] ++ cwi.inputs + cwi.call)
+      map(cwi => Set.empty[GraphNode] ++ cwi.newInputs + cwi.node)
   }
 
   def asCwl = Coproduct[Cwl](this)

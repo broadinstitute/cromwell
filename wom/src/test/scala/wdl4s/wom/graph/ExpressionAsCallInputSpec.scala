@@ -34,8 +34,8 @@ class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
     val ijExpression = PlaceholderWomExpression(Set("i", "j"), WdlIntegerType)
 
     def validateCallResult(callWithInputs: CallNodeAndNewInputs) = {
-      callWithInputs.inputs should be(Set.empty)
-      callWithInputs.call.upstream should be(Set(iInputNode, jInputNode))
+      callWithInputs.newInputs should be(Set.empty)
+      callWithInputs.node.upstream should be(Set(iInputNode, jInputNode))
     }
 
     // Use that as an input to a one-input task:
@@ -43,7 +43,7 @@ class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
     val graph = for {
       callNode <- CallNode.callWithInputs("foo", TaskDefinitionSpec.oneInputTask, Map.empty, Set(GraphNodeInputExpression("bar", ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))))
       _ = validateCallResult(callNode)
-      g <- Graph.validateAndConstruct(Set(iInputNode, jInputNode, callNode.call))
+      g <- Graph.validateAndConstruct(Set(iInputNode, jInputNode, callNode.node))
     } yield g
 
     graph match {

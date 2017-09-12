@@ -102,4 +102,12 @@ object GraphNode {
       case gin: GraphInputNode => RequiredInputDefinition(gin.name, gin.womType)
     }
   }
+
+  /**
+    * This pattern is used when new Nodes are wired into a set of Graph nodes, and potentially end up creating new input nodes.
+    */
+  trait GeneratedNodeAndNewInputs {
+    def node: GraphNode
+    def newInputs: Set[GraphInputNode]
+  }
 }

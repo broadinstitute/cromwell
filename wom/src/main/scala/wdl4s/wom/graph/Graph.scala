@@ -15,10 +15,12 @@ import wdl4s.wom.graph.GraphNodePort.InputPort
 final case class Graph private(nodes: Set[GraphNode]) {
   // FIXME: this actually seems pretty WDL specific, and even then specific to the case of a WDL that doesn't have
   // an explicit outputs block.  I'd remove this but the WDL/WOM test relies on it.
+  // ChrisL: I agree, this should be part of the WDL -> WOM conversion.
   def withDefaultOutputs: Graph = {
     val defaultOutputs: Set[GraphNode] = (nodes collect {
       case node: CallNode => node.outputPorts.map(op => PortBasedGraphOutputNode(s"${node.name}.${op.name}", op.womType, op))
       case node: ScatterNode => node.outputPorts.map(op => PortBasedGraphOutputNode(s"${op.name}", op.womType, op))
+      case node: ConditionalNode => node.outputPorts.map(op => PortBasedGraphOutputNode(s"${op.name}", op.womType, op))
     }).flatten
     Graph(nodes.union(defaultOutputs))
   }

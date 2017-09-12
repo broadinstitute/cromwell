@@ -72,7 +72,7 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
     } yield graph
 
     (workflowGraphValidation, scatterNodeValidation).tupled match {
-      case Valid((wg, sn)) => validate(wg, sn.scatter)
+      case Valid((wg, sn)) => validate(wg, sn.node)
       case Invalid(es) => fail("Failed to make workflow graph: " + es.toList.mkString(", "))
     }
 

@@ -1,6 +1,6 @@
 package cromwell.backend.impl.spark
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, Props}
 import cromwell.backend._
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
@@ -8,7 +8,7 @@ import cromwell.core.CallContext
 import wdl4s.wdl.WdlTaskCall
 import wdl4s.wdl.expression.WdlStandardLibraryFunctions
 
-case class SparkBackendFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor, actorSystem: ActorSystem) extends BackendLifecycleActorFactory {
+case class SparkBackendFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor) extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef,
                                                 calls: Set[WdlTaskCall], serviceRegistryActor: ActorRef, restarting: Boolean): Option[Props] = {
     Option(SparkInitializationActor.props(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor))

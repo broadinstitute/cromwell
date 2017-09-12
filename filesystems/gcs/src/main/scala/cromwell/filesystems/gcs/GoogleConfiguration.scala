@@ -4,7 +4,6 @@ import java.io.IOException
 
 import cats.data.Validated._
 import cats.instances.list._
-import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
@@ -118,7 +117,7 @@ object GoogleConfiguration {
       }
     }
 
-    (appName, errorOrAuthList).tupled flatMap { case (name, list) =>
+    (appName, errorOrAuthList) flatMapN { (name, list) =>
       uniqueAuthNames(list) map { _ =>
         GoogleConfiguration(name, list map { a => a.name -> a } toMap)
       }

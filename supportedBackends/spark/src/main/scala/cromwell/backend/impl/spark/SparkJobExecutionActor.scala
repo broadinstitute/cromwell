@@ -12,7 +12,6 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, B
 import cromwell.core.path.JavaWriterImplicits._
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}
-import lenthall.util.TryUtil
 import wdl4s.parser.MemoryUnit
 
 import scala.concurrent.{Future, Promise}
@@ -58,18 +57,12 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private lazy val SubmitJobJson = "%s.json"
   private lazy val isClusterMode = isSparkClusterMode(sparkDeployMode, sparkMaster)
 
-  private val call = jobDescriptor.key.call
   private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, DefaultPathBuilders)
-
-  private val lookup = jobDescriptor.fullyQualifiedInputs.apply _
 
   private val executionResponse = Promise[BackendJobExecutionResponse]()
 
   private val runtimeAttributes = {
-    val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues (_.evaluate(lookup, callEngineFunction))
-    // Fail the call if runtime attributes can't be evaluated
-    val runtimeMap = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
-    SparkRuntimeAttributes(runtimeMap, jobDescriptor.workflowDescriptor.workflowOptions)
+    SparkRuntimeAttributes(jobDescriptor.runtimeAttributes, jobDescriptor.workflowDescriptor.workflowOptions)
   }
 
   /**
@@ -109,7 +102,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     (jobReturnCode, failedOnStderr) match {
       case (Success(0), true) if File(jobPaths.stderr).lines.toList.nonEmpty =>
         Future.successful(JobFailedNonRetryableResponse(jobDescriptor.key,
-        new IllegalStateException(s"Execution process failed although return code is zero but stderr is not empty"), Option(0)))
+          new IllegalStateException(s"Execution process failed although return code is zero but stderr is not empty"), Option(0)))
       case (Success(0), _) => resolveExecutionProcess
       case (Success(rc), _) => Future.successful(JobFailedNonRetryableResponse(jobDescriptor.key,
         new IllegalStateException(s"Execution process failed. Spark returned non zero status code: $rc"), Option(rc)))

@@ -2,11 +2,10 @@ package wdl4s.wom.graph
 
 import cats.syntax.traverse._
 import cats.instances.list._
-
 import lenthall.validation.ErrorOr.ErrorOr
 import wdl4s.wom.callable.Callable.OutputDefinition
 import wdl4s.wom.callable.{Callable, TaskDefinition, WorkflowDefinition}
-import wdl4s.wom.graph.GraphNode.LinkedInputPort
+import wdl4s.wom.graph.GraphNode.{GeneratedNodeAndNewInputs, LinkedInputPort}
 import wdl4s.wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 
 sealed abstract class CallNode extends GraphNode {
@@ -42,9 +41,9 @@ object TaskCall {
 
     for {
       callWithInputs <- CallNode.callWithInputs(taskDefinition.name, taskDefinition, Map.empty, Set.empty)
-      outputs <- taskDefinition.outputs.toList.traverse(linkOutput(callWithInputs.call) _)
-      callSet = Set[GraphNode](callWithInputs.call)
-      inputsSet = callWithInputs.inputs.toSet[GraphNode]
+      outputs <- taskDefinition.outputs.toList.traverse(linkOutput(callWithInputs.node) _)
+      callSet = Set[GraphNode](callWithInputs.node)
+      inputsSet = callWithInputs.newInputs.toSet[GraphNode]
       outputsSet = outputs.toSet[GraphNode]
       graph <- Graph.validateAndConstruct(callSet ++ inputsSet ++ outputsSet)
     } yield graph
@@ -53,8 +52,8 @@ object TaskCall {
 
 object CallNode {
 
-  final case class CallNodeAndNewInputs(call: CallNode, inputs: Set[GraphInputNode]) {
-    def nodes: Set[GraphNode] = Set(call) ++ inputs
+  final case class CallNodeAndNewInputs(node: CallNode, newInputs: Set[GraphInputNode]) extends GeneratedNodeAndNewInputs {
+    def nodes: Set[GraphNode] = Set(node) ++ newInputs
   }
 
   /**
@@ -77,7 +76,7 @@ object CallNode {
 
     val graphNodeSetter = new GraphNode.GraphNodeSetter()
 
-    val instantiatedExpressionInputsAttempt: ErrorOr[Map[String, InstantiatedExpression]] = expressionInputs.toList traverse { _.instantiateExpression(graphNodeSetter) } map { _.toMap }
+    val instantiatedExpressionInputsAttempt: ErrorOr[Map[String, InstantiatedExpression]] = expressionInputs.toList traverse { _.instantiateExpressionWithInputName(graphNodeSetter) } map { _.toMap }
 
     instantiatedExpressionInputsAttempt map { instantiatedExpressionInputs =>
       val inputPortLinker = GraphNode.linkInputPort(callable.name + ".", portInputs, graphNodeSetter.get) _

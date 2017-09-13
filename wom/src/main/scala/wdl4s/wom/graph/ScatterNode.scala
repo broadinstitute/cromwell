@@ -8,7 +8,7 @@ import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
 import wdl4s.wom.graph.GraphNodePort.{InputPort, OutputPort, ScatterGathererPort}
 import wdl4s.wom.graph.ScatterNode.ScatterVariableMapping
 import wdl4s.wdl.types.{WdlArrayType, WdlMapType}
-import wdl4s.wom.graph.GraphNode.LinkedInputPort
+import wdl4s.wom.graph.GraphNode.{GeneratedNodeAndNewInputs, LinkedInputPort}
 
 /**
   *
@@ -28,8 +28,6 @@ final case class ScatterNode private(innerGraph: Graph,
 
   override val name: String = "ScatterNode"
 
-  def innerGraphInputs: Set[GraphInputNode] = innerGraph.nodes.collect { case gin: GraphInputNode => gin }
-
   // NB if you find yourself calling .filter on this set of inputPorts, you probably just wanted to access either
   // the scatterVariableMapping or otherInputPorts fields directly.
   override val inputPorts: Set[InputPort] = scatterVariableMapping.scatterInstantiatedExpression.inputPorts ++ otherInputPorts
@@ -44,7 +42,7 @@ object ScatterNode {
     */
   case class ScatterVariableMapping(scatterInstantiatedExpression: InstantiatedExpression, graphInputNode: GraphInputNode)
 
-  final case class ScatterNodeWithInputs(scatter: ScatterNode, inputs: Set[GraphInputNode])
+  final case class ScatterNodeWithInputs(node: ScatterNode, newInputs: Set[GraphInputNode]) extends GeneratedNodeAndNewInputs
 
   /**
     * Creates a ScatterNode that's been connected to the inputs provided.
@@ -67,9 +65,7 @@ object ScatterNode {
       case other => s"Cannot scatter over non-array type ${other.toWdlString}".invalidNel
     }
 
-    val scatterVariableMappingValidation: ErrorOr[ScatterVariableMapping] = scatterVariableSource.instantiateExpression(graphNodeSetter) map {
-      case (_, scatterInstantiatedExpression) => ScatterVariableMapping(scatterInstantiatedExpression, scatterVariableInput)
-    }
+    val scatterVariableMappingValidation: ErrorOr[ScatterVariableMapping] = scatterVariableSource.instantiateExpression(graphNodeSetter) map { ScatterVariableMapping(_, scatterVariableInput) }
 
     // Filter because we don't want to re-link the scatter variable...
     val linkedInputPortsAndGraphInputNodes: Set[LinkedInputPort] = (innerGraph.nodes - scatterVariableInput).inputDefinitions.map(inputPortLinker)

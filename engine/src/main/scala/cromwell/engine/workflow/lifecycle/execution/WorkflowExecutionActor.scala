@@ -13,6 +13,7 @@ import cromwell.core._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.RunnableScopes
+import cromwell.engine.workflow.lifecycle.execution.OutputStore.OutputKey
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor}
@@ -272,10 +273,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
 
     // TODO WOM: workflow outputs ? Just dump the outputStore for now...
        // For logging and metadata
-       val unscopedOutputs: Map[String, WdlValue] = data.outputStore.store flatMap {
-         case (outputCallKey, values) => values map { value =>
-           s"${outputCallKey.call.unqualifiedName}.${value.name}" -> value.wdlValue.get
-         }
+       val unscopedOutputs: Map[String, WdlValue] = data.outputStore.store map {
+         case (OutputKey(outputPort, _), value) => s"${outputPort.fullyQualifiedName}" -> value
        }
     
        val workflowScopeOutputs: Map[String, WdlValue] = unscopedOutputs map {
@@ -360,7 +359,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     */
   private def startRunnableScopes(data: WorkflowExecutionActorData): WorkflowExecutionActorData = {
     val RunnableScopes(runnableScopes, truncated) = data.executionStore.runnableScopes
-    val runnableCalls = runnableScopes.view collect { case k if k.scope.isInstanceOf[WdlCall] => k } sortBy { k =>
+    val runnableCalls = runnableScopes.view collect { case k if k.scope.isInstanceOf[CallNode] => k } sortBy { k =>
       (k.scope.fullyQualifiedName, k.index.getOrElse(-1)) } map { _.tag }
 
     if (runnableCalls.nonEmpty) workflowLogger.info("Starting calls: " + runnableCalls.mkString(", "))

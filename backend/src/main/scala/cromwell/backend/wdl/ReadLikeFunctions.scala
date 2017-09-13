@@ -12,13 +12,13 @@ import scala.util.{Failure, Success, Try}
 
 trait ReadLikeFunctions extends PathFactory with IoFunctionSet {
 
-  // TODO WOM: integrate this limitation into WOM somehow
+  // TODO WOM: https://github.com/broadinstitute/cromwell/issues/2611
   val fileSizeLimitationConfig =  FileSizeLimitationConfig.fileSizeLimitationConfig
 
   def fileSize: WdlValue=> Try[Long] = 
     w => Try(buildPath(w.valueString).size)
 
-  // TODO WOM: Run this through the I/O Actor
+  // TODO WOM: https://github.com/broadinstitute/cromwell/issues/2612
   override def readFile(path: String): Future[String] = Future.successful(buildPath(path).contentAsString)
 
   protected def size(file: WdlValue): Try[Double] = Try(buildPath(file.valueString).size.toDouble)

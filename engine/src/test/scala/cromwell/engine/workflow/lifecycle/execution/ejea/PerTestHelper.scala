@@ -16,12 +16,12 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntry
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
 import cromwell.engine.workflow.mocks.{DeclarationMock, TaskMock, WdlExpressionMock}
 import cromwell.util.AkkaTestUtil._
+import cromwell.util.WomMocks
 import org.specs2.mock.Mockito
 import wdl4s.parser.WdlParser.Ast
 import wdl4s.wdl._
 import wdl4s.wdl.types.{WdlIntegerType, WdlStringType}
 import wdl4s.wom.callable.Callable.OutputDefinition
-import wdl4s.wom.callable.WorkflowDefinition
 import wdl4s.wom.expression.IoFunctionSet
 import wdl4s.wom.graph.TaskCallNode
 
@@ -52,8 +52,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
     meta = Map.empty,
     parameterMeta = Map.empty,
     ast = mock[Ast])
-  val call: TaskCallNode = null//WdlTaskCall(None, task, Map.empty, mock[Ast])
-//  call.parent_=(workflow)
+  val call: TaskCallNode = WomMocks.mockTaskCall(taskName)
   val jobDescriptorKey = BackendJobDescriptorKey(call, jobIndex, jobAttempt)
 
   val backendWorkflowDescriptor = BackendWorkflowDescriptor(workflowId, null, null, null, null)
@@ -129,7 +128,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
                (implicit startingState: EngineJobExecutionActorState): TestFSMRef[EngineJobExecutionActorState, EJEAData, MockEjea] = {
 
     val factory: BackendLifecycleActorFactory = buildFactory()
-    val descriptor = EngineWorkflowDescriptor(mock[WorkflowDefinition], backendWorkflowDescriptor, null, null, null, callCachingMode)
+    val descriptor = EngineWorkflowDescriptor(WomMocks.mockWorkflowDefinition(workflowName), backendWorkflowDescriptor, null, null, null, callCachingMode)
 
     val myBrandNewEjea = new TestFSMRef[EngineJobExecutionActorState, EJEAData, MockEjea](system, Props(new MockEjea(
       helper = this,

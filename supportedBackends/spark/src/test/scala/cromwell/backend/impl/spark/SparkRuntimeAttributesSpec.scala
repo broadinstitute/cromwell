@@ -1,8 +1,9 @@
 package cromwell.backend.impl.spark
 
-import cromwell.backend.MemorySize
 import cromwell.backend.validation.RuntimeAttributesKeys._
-import cromwell.core.WorkflowOptions
+import cromwell.backend.{BackendWorkflowDescriptor, MemorySize}
+import cromwell.core.labels.Labels
+import cromwell.core.{NoIoFunctionSet, WorkflowId, WorkflowOptions}
 import org.scalatest.{Matchers, WordSpecLike}
 import spray.json.{JsBoolean, JsNumber, JsObject, JsValue}
 import wdl4s.wdl._
@@ -80,34 +81,30 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
     }
 
   }
-//
-//  private def buildWorkflowDescriptor(wdl: WorkflowSource,
-//                                      inputs: Map[String, WdlValue] = Map.empty,
-//                                      options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
-//                                      runtime: String) = {
-//    BackendWorkflowDescriptor(
-//      WorkflowId.randomId(),
-//      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime.format("appMainClass", "com.test.spark")), Seq.empty[ImportResolver]).get.workflow,
-//      inputs,
-//      options,
-//      Labels.empty
-//    )
-//  }
+
+  private def buildWorkflowDescriptor(wdl: WorkflowSource,
+                                      inputs: Map[String, WdlValue] = Map.empty,
+                                      options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
+                                      runtime: String) = {
+    BackendWorkflowDescriptor(
+      WorkflowId.randomId(),
+      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime.format("appMainClass", "com.test.spark")), Seq.empty[ImportResolver])
+        .get.workflow.womDefinition.getOrElse(fail("Cannot build Wom Workflow")),
+      inputs,
+      options,
+      Labels.empty
+    )
+  }
 
   private def createRuntimeAttributes(workflowSource: WorkflowSource, runtimeAttributes: String): List[Map[String, WdlValue]] = {
-//    val workflowDescriptor = buildWorkflowDescriptor(workflowSource, runtime = runtimeAttributes)
-//
-//    def createLookup(call: WdlCall): ScopedLookupFunction = {
-//      val knownInputs = workflowDescriptor.knownValues
-//      call.lookupFunction(knownInputs, NoFunctions)
-//    }
-//
-//    workflowDescriptor.workflow.taskCalls map {
-//      call =>
-//        val ra = call.task.runtimeAttributes.attrs mapValues { _.evaluate(createLookup(call), NoFunctions) }
-//        TryUtil.sequenceMap(ra, "Runtime attributes evaluation").get
-//    }
-    null
+    import lenthall.validation.ErrorOr._  
+    val workflowDescriptor = buildWorkflowDescriptor(workflowSource, runtime = runtimeAttributes)
+
+    workflowDescriptor.workflow.taskCallNodes.toList map {
+      call =>
+        val ra = call.callable.runtimeAttributes.attributes mapValues { _.evaluateValue(workflowDescriptor.knownValues, NoIoFunctionSet) }
+        ra.sequence.getOrElse(fail("Failed to evaluate runtime attributes"))
+    }
   }
 
   private def assertSparkRuntimeAttributes(runtimeAttributes: Map[String, WdlValue], workflowOptions: WorkflowOptions, expectedRuntimeAttributes: SparkRuntimeAttributes): Unit = {

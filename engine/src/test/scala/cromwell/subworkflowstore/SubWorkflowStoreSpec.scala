@@ -12,10 +12,11 @@ import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowStoreAc
 import cromwell.services.EngineServicesStore
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
 import cromwell.subworkflowstore.SubWorkflowStoreSpec._
+import cromwell.util.WomMocks
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
 import wdl4s.wdl.WdlExpression
-import wdl4s.wom.graph.{GraphNode, TaskCallNode}
+import wdl4s.wom.graph.GraphNode
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -37,8 +38,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with Matchers with Mo
       val parentWorkflowId = WorkflowId.randomId()
       val subWorkflowId = WorkflowId.randomId()
       val subSubWorkflowId = WorkflowId.randomId()
-      val call = mock[TaskCallNode]
-      call.fullyQualifiedName returns "foo.bar"
+      val call = WomMocks.mockTaskCall("foo.bar")
       val jobKey = new JobKey {
         override def scope: GraphNode = call
         override def index: Option[Int] = None

@@ -7,7 +7,7 @@ import cromwell.backend.BackendJobDescriptor
 import cromwell.core.CromwellGraphNode._
 import cromwell.core.{CallKey, JobKey}
 import cromwell.engine.EngineWorkflowDescriptor
-import cromwell.engine.workflow.lifecycle.execution.{OutputStore, WomOutputStore}
+import cromwell.engine.workflow.lifecycle.execution.OutputStore
 import lenthall.validation.ErrorOr._
 import wdl4s.wdl.types.WdlType
 import wdl4s.wdl.values.{WdlOptionalValue, WdlValue}
@@ -28,6 +28,8 @@ object CallPreparation {
   case class JobCallPreparationFailed(jobKey: JobKey, throwable: Throwable) extends CallPreparationActorResponse
   case class CallPreparationFailed(jobKey: JobKey, throwable: Throwable) extends CallPreparationActorResponse
 
+  // TODO WOM: This will be much simpler once wom gives us InputDefinition -> OutputPort / Expression mappings
+  // Hopefully we shouldn't have to do any "string lookup" anymore
   def resolveAndEvaluateInputs(callKey: CallKey,
                                workflowDescriptor: EngineWorkflowDescriptor,
                                expressionLanguageFunctions: IoFunctionSet,
@@ -36,13 +38,12 @@ object CallPreparation {
     import lenthall.validation.ErrorOr._
     import lenthall.validation.Validation._
     val call = callKey.scope
-    val womOutputStore: WomOutputStore = outputStore.toWomOutputStore
 
     val inputMappingsFromPreviousCalls: Map[String, WdlValue] = {
       call.inputPorts.flatMap({ inputPort =>
         val outputPort = inputPort.upstream
         // TODO WOM: scatters ?
-        womOutputStore.get(outputPort) map { outputPort.fullyQualifiedName -> _ }
+        outputStore.get(outputPort, None) map { outputPort.fullyQualifiedName -> _ }
       }) toMap
     }
 
@@ -56,32 +57,34 @@ object CallPreparation {
         case (input, Valid(errorOrWdlValue)) => input.name -> errorOrWdlValue
       }) ++ externalInputMappings
 
+      // Tries to evaluate a WomExpression and coerce it to the desired type
       def evaluateAndCoerce(expression: WomExpression, coerceTo: WdlType): ErrorOr[WdlValue] = {
         expression.evaluateValue(validInputsAccumulated, expressionLanguageFunctions) flatMap {
           coerceTo.coerceRawValue(_).toErrorOr
         }
       }
 
-      def resolveFromKnownValues: ErrorOr[WdlValue] = validInputsAccumulated.get(inputDefinition.name) match {
-        case Some(value) => value.validNel
-        case None => s"Can't find a known value for ${inputDefinition.name}".invalidNel
+      // Tries to find the current input definition in the map of known values
+      def resolveFromKnownValues: ErrorOr[WdlValue] = {
+        validInputsAccumulated.get(inputDefinition.name)
+          // FullyQualified names are not working so make one up ourselves. Again this will be unnecessary when wom give us mappings
+          .orElse(validInputsAccumulated.get(workflowDescriptor.workflow.name + "." + call.unqualifiedName + "." + inputDefinition.name)) match {
+          case Some(value) => value.validNel
+          case None => s"Can't find a known value for ${inputDefinition.name}".invalidNel
+        }
       }
 
+      // Tries to find the current input definition in the list of expression based inputs, and if so evaluates it
       def resolveAsExpression: ErrorOr[WdlValue] = {
         call.expressionBasedInputs.get(inputDefinition.name) map { instantiatedExpression =>
           evaluateAndCoerce(instantiatedExpression.expression, inputDefinition.womType)
         } getOrElse s"Can't find an expression to evaluate for ${inputDefinition.name}".invalidNel
       }
 
-      def resolveAsInputPort: ErrorOr[WdlValue] = (for {
-        inputPort <- call.portBasedInputs.find(_.name == inputDefinition.name)
-        valueFromUpstream <- womOutputStore.get(inputPort.upstream)
-      } yield valueFromUpstream) match {
-        case Some(value) => value.validNel
-        case None => s"Can't find upstream value for ${inputDefinition.name}".invalidNel
-      }
-
-      def resolve: ErrorOr[WdlValue] = resolveFromKnownValues.orElse(resolveAsInputPort).orElse(resolveAsExpression)
+      // Tries to resolve the input definition by first looking in the known values, otherwise evaluate the associated
+      // expression, if any. The order is important because we want to prioritize a value passed through workflow input over
+      // an expression. This effectively allows to "override" the expression.
+      def resolve: ErrorOr[WdlValue] = resolveFromKnownValues.orElse(resolveAsExpression)
 
       val evaluated = inputDefinition match {
         case OptionalInputDefinitionWithDefault(_, womType, default) => resolve.orElse(evaluateAndCoerce(default, womType))

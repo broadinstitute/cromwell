@@ -477,7 +477,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       coercedValidatedFileInputs <- validateWdlFiles(coercedInputs)
       evaluatedWorkflowsDeclarations <- validateDeclarations(wdlNamespace, workflowOptions, coercedValidatedFileInputs, pathBuilders)
       declarationsAndInputs <- checkTypes(wdlNamespace, evaluatedWorkflowsDeclarations ++ coercedValidatedFileInputs)
-      _ = pushWfInputsToMetadataService(evaluatedWorkflowsDeclarations)
+      _ = pushWfInputsToMetadataService(coercedValidatedFileInputs)
       // TODO WOM: Validate that the evaluatedWorkflowsDeclarations fulfill the wom executable required inputs ?
       womExecutable <- wdlNamespace.womExecutable
       graph <- womExecutable.graph

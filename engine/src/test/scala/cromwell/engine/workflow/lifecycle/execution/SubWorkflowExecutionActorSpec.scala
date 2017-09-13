@@ -17,6 +17,7 @@ import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.
 import cromwell.engine.workflow.lifecycle.execution.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
 import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor, WdlFunctions}
 import cromwell.subworkflowstore.SubWorkflowStoreActor.{QuerySubWorkflow, SubWorkflowFound, SubWorkflowNotFound}
+import cromwell.util.WomMocks
 import org.scalatest.concurrent.Eventually
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
@@ -45,20 +46,16 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   val parentWorkflowId: WorkflowId = WorkflowId.randomId()
   parentBackendDescriptor.id returns parentWorkflowId
   val parentWorkflowDescriptor = EngineWorkflowDescriptor(
-//    mock[WdlNamespaceWithWorkflow],
-    null,
+    WomMocks.mockWorkflowDefinition("workflow"),
     parentBackendDescriptor,
     Map.empty,
     ContinueWhilePossible,
     List.empty,
     CallCachingOff
   )
-  val subWorkflow = mock[WdlWorkflow]
-  subWorkflow.unqualifiedName returns "sub_wf"
-  val subWorkflowCall = mock[WdlWorkflowCall]
-  subWorkflowCall.fullyQualifiedName returns "foo.bar"
-  subWorkflowCall.callable returns subWorkflow
-  val subKey: SubWorkflowKey = null//SubWorkflowKey(subWorkflowCall, None, 1)
+  val subWorkflow = WomMocks.mockWorkflowDefinition("sub_wf")
+  val subWorkflowCall = WomMocks.mockWorkflowCall("workflow", definition = subWorkflow)
+  val subKey: SubWorkflowKey = SubWorkflowKey(subWorkflowCall, None, 1)
   
   val awaitTimeout: FiniteDuration = 10 seconds
 
@@ -150,8 +147,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
     val subBackendDescriptor = mock[BackendWorkflowDescriptor]
     subBackendDescriptor.id returns subWorkflowId
     val subWorkflowDescriptor = EngineWorkflowDescriptor(
-//      mock[WdlNamespaceWithWorkflow],
-      null,
+      WomMocks.mockWorkflowDefinition("workflow"),
       subBackendDescriptor,
       Map.empty,
       ContinueWhilePossible,

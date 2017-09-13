@@ -3,9 +3,8 @@ package cromwell.backend.impl.tes
 import better.files._
 import cromwell.backend.{BackendJobBreadCrumb, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.core.{JobKey, WorkflowId}
+import cromwell.util.WomMocks
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wom.callable.WorkflowDefinition
-import wdl4s.wom.graph.TaskCallNode
 
 class TesWorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
 
@@ -21,23 +20,18 @@ class TesWorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
 
   "WorkflowPaths" should "provide correct paths for a sub workflow" in {
     val rootWd = mock[BackendWorkflowDescriptor]
-    val rootWorkflow = mock[WorkflowDefinition]
+    val rootWorkflow = WomMocks.mockWorkflowDefinition("rootWorkflow")
     val rootWorkflowId = WorkflowId.randomId()
-    rootWorkflow.name returns "rootWorkflow"
     rootWd.workflow returns rootWorkflow
     rootWd.id returns rootWorkflowId
 
     val subWd = mock[BackendWorkflowDescriptor]
-    val subWorkflow = mock[WorkflowDefinition]
+    val subWorkflow = WomMocks.mockWorkflowDefinition("subWorkflow")
     val subWorkflowId = WorkflowId.randomId()
-    subWorkflow.name returns "subWorkflow"
     subWd.workflow returns subWorkflow
     subWd.id returns subWorkflowId
     
-    val call1 = mock[TaskCallNode]
-    call1.name returns "call1"
-    val call2 = mock[TaskCallNode]
-    call2.name returns "call2"
+    val call1 = WomMocks.mockTaskCall("call1")
     
     val jobKey = new JobKey {
       override def scope = call1
@@ -49,7 +43,7 @@ class TesWorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
     subWd.breadCrumbs returns List(BackendJobBreadCrumb(rootWorkflow, rootWorkflowId, jobKey))
     subWd.id returns subWorkflowId
     
-    val workflowPaths = new TesWorkflowPaths(subWd, TesTestConfig.backendConfig)
+    val workflowPaths = TesWorkflowPaths(subWd, TesTestConfig.backendConfig)
     workflowPaths.workflowRoot.toString shouldBe File(s"local-cromwell-executions/rootWorkflow/$rootWorkflowId/call-call1/shard-1/attempt-2/subWorkflow/$subWorkflowId").pathAsString
     workflowPaths.dockerWorkflowRoot.toString shouldBe s"/cromwell-executions/rootWorkflow/$rootWorkflowId/call-call1/shard-1/attempt-2/subWorkflow/$subWorkflowId"
   }

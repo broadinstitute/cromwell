@@ -10,12 +10,12 @@ import cromwell.backend.async.RuntimeAttributeValidationFailures
 import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthObject}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.core.Dispatcher.BackendDispatcher
-import cromwell.core.Tags.IntegrationTest
-import cromwell.core.TestKitSuite
+import cromwell.core.Tags.{IntegrationTest, PostWomTest}
+import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.core.logging.LoggingTest._
 import cromwell.filesystems.gcs.GoogleConfiguration
 import cromwell.filesystems.gcs.auth.{GoogleAuthModeSpec, RefreshTokenMode, SimpleClientSecrets}
-import cromwell.util.EncryptionSpec
+import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
 import spray.json._
@@ -190,7 +190,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
     within(Timeout) {
       val workflowDescriptor = buildWorkflowDescriptor(HelloWorld,
         runtime = """runtime { docker: "ubuntu/latest" test: true }""")
-      val backend = getJesBackend(workflowDescriptor, null,
+      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflow.taskCallNodes,
         defaultBackendConfig)
       val eventPattern =
         "Key/s [test] is/are not supported by backend. Unsupported attributes will not be part of job executions."
@@ -204,10 +204,11 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
     }
   }
 
-  it should "return InitializationFailed when docker runtime attribute key is not present" in {
+  // Depends on https://github.com/broadinstitute/cromwell/issues/2606
+  it should "return InitializationFailed when docker runtime attribute key is not present" taggedAs PostWomTest ignore {
     within(Timeout) {
       val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
-      val backend = getJesBackend(workflowDescriptor, null,
+      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflow.taskCallNodes,
         defaultBackendConfig)
       backend ! Initialize
       expectMsgPF() {
@@ -224,17 +225,16 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   private case class TestingBits(actorRef: TestActorRef[JesInitializationActor], jesConfiguration: JesConfiguration)
 
   private def buildJesInitializationTestingBits(backendConfig: Config = dockerBackendConfig): TestingBits = {
-//    val workflowOptions = WorkflowOptions.fromMap(Map("refresh_token" -> "mytoken")).get
-//    val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.workflowSource(), options = workflowOptions)
-//    val calls = workflowDescriptor.workflow.taskCalls
-//    val backendConfigurationDescriptor = BackendConfigurationDescriptor(backendConfig, globalConfig)
-//    val jesConfiguration = new JesConfiguration(backendConfigurationDescriptor)
-//
-//    val actorRef = TestActorRef[JesInitializationActor](
-//      getJesBackendProps(workflowDescriptor, calls, jesConfiguration),
-//      "TestableJesInitializationActor-" + UUID.randomUUID)
-//    TestingBits(actorRef, jesConfiguration)
-    null
+    val workflowOptions = WorkflowOptions.fromMap(Map("refresh_token" -> "mytoken")).get
+    val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.workflowSource(), options = workflowOptions)
+    val calls = workflowDescriptor.workflow.taskCallNodes
+    val backendConfigurationDescriptor = BackendConfigurationDescriptor(backendConfig, globalConfig)
+    val jesConfiguration = new JesConfiguration(backendConfigurationDescriptor)
+
+    val actorRef = TestActorRef[JesInitializationActor](
+      getJesBackendProps(workflowDescriptor, calls, jesConfiguration),
+      "TestableJesInitializationActor-" + UUID.randomUUID)
+    TestingBits(actorRef, jesConfiguration)
   }
 
   it should "create a GcsLocalizing instance" in {

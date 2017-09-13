@@ -18,11 +18,8 @@ trait WriteFunctions extends IoFunctionSet {
 
   override def writeFile(path: String, content: String): Future[WdlFile] = {
     val file = _writeDirectory / path
-    Future.fromTry(Try {
-      if (file.notExists) file.write(content)
-    } map { _ =>
-      WdlFile(file.pathAsString)
-    }
+    Future.fromTry(
+      Try(if (file.notExists) file.write(content)) map { _ => WdlFile(file.pathAsString) }
     )
   }
 }

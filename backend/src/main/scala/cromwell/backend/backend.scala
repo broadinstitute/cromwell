@@ -21,7 +21,7 @@ import scala.util.Try
 case class BackendJobDescriptorKey(call: TaskCallNode, index: Option[Int], attempt: Int) extends CallKey {
   def scope = call
   private val indexString = index map { _.toString } getOrElse "NA"
-  val tag = s"${call.name.split("#").last}:$indexString:$attempt"
+  val tag = s"${call.fullyQualifiedName}:$indexString:$attempt"
   def mkTag(workflowId: WorkflowId) = s"$workflowId:$this"
 }
 
@@ -34,7 +34,7 @@ case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                                 inputDeclarations: WomEvaluatedCallInputs,
                                 maybeCallCachingEligible: MaybeCallCachingEligible,
                                 prefetchedKvStoreEntries: Map[String, KvResponse]) {
-  val fullyQualifiedInputs = inputDeclarations map { case (declaration, value) => 
+  val fullyQualifiedInputs = inputDeclarations map { case (declaration, value) =>
     key.call.fullyQualifiedName + "." + declaration -> value 
   }
   val call = key.call

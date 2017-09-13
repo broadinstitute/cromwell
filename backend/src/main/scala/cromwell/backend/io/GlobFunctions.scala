@@ -11,10 +11,8 @@ trait GlobFunctions extends IoFunctionSet {
   def callContext: CallContext
 
   def findGlobOutputs(call: TaskCallNode, jobDescriptor: BackendJobDescriptor): Set[WdlGlobFile] = {
-    // TODO WOM: How to get all the WdlGlobFile ?
-    val globOutputs = Set(WdlGlobFile("stdout"))
-
-    globOutputs
+    // TODO WOM: https://github.com/broadinstitute/wdl4s/issues/197
+    Set.empty
   }
 
   def globDirectory(glob: String): String = globName(glob) + "/"
@@ -40,14 +38,11 @@ trait GlobFunctions extends IoFunctionSet {
     * @return The paths that match the pattern.
     */
   override def glob(path: String, pattern: String): Seq[String] = {
-    // TODO WOM: figure out globbing and stdout redirection to a given filename
-    val name = globName(pattern)
+    val globPatternName = globName(pattern)
     val listFilePath = callContext.root.resolve(s"${globName(pattern)}.list")
-    if (listFilePath.exists) {
-    val listFile = listFilePath.toRealPath()
-      listFile.lines.toSeq map { fileName =>
-        callContext.root.resolve(name).resolve(fileName).pathAsString
-      }
-    } else List.empty
+    // This "lines" is technically a read file and hence should use the readFile IO method
+    listFilePath.toRealPath().lines.toList map { fileName =>
+      (callContext.root /  globPatternName  / fileName).pathAsString
+    }
   }
 }

@@ -1,5 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
+import cromwell.core.Tags.PostWomTest
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobStarting
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.RequestOutputStore
@@ -27,7 +28,7 @@ class EjeaRequestingExecutionTokenSpec extends EngineJobExecutionActorSpec with 
     }
 
     CallCachingModes foreach { mode =>
-      s"check against the Job Store if restarting is true ($mode)" in {
+      s"check against the Job Store if restarting is true ($mode)" taggedAs PostWomTest ignore {
         ejea = helper.buildEJEA(restarting = true)
         ejea ! JobExecutionTokenDispensed(helper.executionToken)
 

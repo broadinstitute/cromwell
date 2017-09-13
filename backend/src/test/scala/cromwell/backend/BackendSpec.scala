@@ -12,8 +12,8 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsValue}
 import wdl4s.wdl._
-import wdl4s.wdl.values.WdlValue
-import wdl4s.wom.callable.Callable.InputDefinition
+import wdl4s.wdl.values.{WdlOptionalValue, WdlValue}
+import wdl4s.wom.callable.Callable.{InputDefinition, OptionalInputDefinition, OptionalInputDefinitionWithDefault, RequiredInputDefinition}
 import wdl4s.wom.graph.TaskCallNode
 
 import scala.language.postfixOps
@@ -43,10 +43,8 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
   def fqnMapToDeclarationMap(m: Map[String, WdlValue]): Map[InputDefinition, WdlValue] = {
     m map {
       case (fqn, v) =>
-        val mockDeclaration = mock[InputDefinition]
         // TODO WOM: FIXME
-//        mockDeclaration.fullyQualifiedName returns fqn
-        mockDeclaration.name returns fqn.split('.').lastOption.getOrElse(fqn)
+        val mockDeclaration = RequiredInputDefinition(fqn, v.wdlType)
         mockDeclaration -> v
     }
   }
@@ -57,8 +55,16 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
                                           runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition]): BackendJobDescriptor = {
     val call = workflowDescriptor.workflow.innerGraph.nodes.collectFirst({ case t: TaskCallNode => t}).get
     val jobKey = BackendJobDescriptorKey(call, None, 1)
-    val inputDeclarations: Map[InputDefinition, WdlValue] = call.callable.inputs map { inputDefinition => inputDefinition -> inputs(inputDefinition.name) } toMap
-    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.callable.runtimeAttributes, NoIoFunctionSet, Map.empty).get // .get is OK here because this is a test
+    val inputDeclarations: Map[InputDefinition, WdlValue] = call.callable.inputs map {
+      case required: RequiredInputDefinition => required -> inputs(required.name)
+      case optionalWithDefault: OptionalInputDefinitionWithDefault => 
+        val value: WdlValue = inputs.getOrElse(
+          optionalWithDefault.name, optionalWithDefault.default.evaluateValue(inputs, NoIoFunctionSet)
+          .getOrElse(fail(s"Can't evaluate input ${optionalWithDefault.name}")))
+        optionalWithDefault -> value
+      case optional: OptionalInputDefinition => optional -> inputs.getOrElse(optional.name, WdlOptionalValue.none(optional.womType))
+    } toMap
+    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.callable.runtimeAttributes, NoIoFunctionSet, Map.empty).getOrElse(fail("Failed to evaluate runtime attributes")) // .get is OK here because this is a test
     val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
     BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, NoDocker, Map.empty)
   }
@@ -70,7 +76,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     val call = workflowDescriptor.workflow.innerGraph.nodes.collectFirst({ case t: TaskCallNode => t}).get
     val jobKey = BackendJobDescriptorKey(call, None, 1)
     val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.knownValues)
-    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.callable.runtimeAttributes, NoIoFunctionSet, inputDeclarations).get // .get is OK here because this is a test
+    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.callable.runtimeAttributes, NoIoFunctionSet, inputDeclarations).getOrElse(fail("Failed to evaluate runtime attributes")) // .get is OK here because this is a test
     val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
     BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, NoDocker, Map.empty)
   }
@@ -84,7 +90,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     val call = workflowDescriptor.workflow.innerGraph.nodes.collectFirst({ case t: TaskCallNode => t}).get
     val jobKey = BackendJobDescriptorKey(call, None, attempt)
     val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.knownValues)
-    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.callable.runtimeAttributes, NoIoFunctionSet, inputDeclarations).get // .get is OK here because this is a test
+    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.callable.runtimeAttributes, NoIoFunctionSet, inputDeclarations).getOrElse(fail("Failed to evaluate runtime attributes")) // .get is OK here because this is a test
     val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
     BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, NoDocker, Map.empty)
   }

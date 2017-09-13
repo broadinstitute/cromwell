@@ -78,7 +78,6 @@ private[preparation] class TestJobPreparationActor(kvStoreKeysForPrefetch: List[
   override private[preparation] lazy val hasDockerDefinition = true
 
   override def scopedKey(key: String) = scopedKeyMaker.apply(key)
-  // TODO WOM: fix
   override def evaluateInputsAndAttributes(outputStore: OutputStore) = inputsAndAttributes
 
   override private[preparation] def jobExecutionProps(jobDescriptor: BackendJobDescriptor,

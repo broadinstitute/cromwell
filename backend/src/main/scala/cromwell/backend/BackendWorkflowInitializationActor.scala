@@ -128,7 +128,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
 //        }
 
         def badRuntimeAttrsForTask(task: TaskDefinition) = {
-          // TODO WOM: fixme
+          // TODO WOM: https://github.com/broadinstitute/cromwell/issues/2606
 //          runtimeAttributeValidators map { case (attributeName, validator) =>
 //            val value = task.runtimeAttributes.attributes.get(attributeName) orElse defaultRuntimeAttribute(attributeName)
 //            attributeName -> ((value, validator(value)))

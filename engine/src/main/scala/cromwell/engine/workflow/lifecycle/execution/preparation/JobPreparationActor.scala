@@ -188,10 +188,9 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   private [preparation] def prepareRuntimeAttributes(inputEvaluation: Map[InputDefinition, WdlValue]): ErrorOr[Map[LocallyQualifiedName, WdlValue]] = {
     import RuntimeAttributeDefinition.{addDefaultsToAttributes, evaluateRuntimeAttributes}
-    import lenthall.validation.Validation._
     val curriedAddDefaultsToAttributes = addDefaultsToAttributes(runtimeAttributeDefinitions, workflowDescriptor.backendDescriptor.workflowOptions) _
     val unevaluatedRuntimeAttributes = jobKey.call.callable.runtimeAttributes
-    evaluateRuntimeAttributes(unevaluatedRuntimeAttributes, expressionLanguageFunctions, inputEvaluation).toErrorOr map curriedAddDefaultsToAttributes
+    evaluateRuntimeAttributes(unevaluatedRuntimeAttributes, expressionLanguageFunctions, inputEvaluation) map curriedAddDefaultsToAttributes
   }
 }
 

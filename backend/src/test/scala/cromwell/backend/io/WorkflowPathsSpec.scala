@@ -4,16 +4,15 @@ import com.typesafe.config.Config
 import cromwell.backend.{BackendJobBreadCrumb, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.core.{JobKey, WorkflowId}
+import cromwell.util.WomMocks
 import org.mockito.Mockito._
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.WdlCall
-import wdl4s.wom.callable.WorkflowDefinition
 
 class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
 
   val backendConfig = mock[Config]
 
-  "WorkflowPaths" should "provide correct paths for a workflow" ignore {
+  "WorkflowPaths" should "provide correct paths for a workflow" in {
     when(backendConfig.hasPath(any[String])).thenReturn(true)
     when(backendConfig.getString(any[String])).thenReturn("local-cromwell-executions") // This is the folder defined in the config as the execution root dir
     val wd = buildWorkflowDescriptor(TestWorkflows.HelloWorld)
@@ -25,31 +24,26 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
       s"/cromwell-executions/wf_hello/$id"
   }
 
-  "WorkflowPaths" should "provide correct paths for a sub workflow" ignore {
+  "WorkflowPaths" should "provide correct paths for a sub workflow" in {
     when(backendConfig.hasPath(any[String])).thenReturn(true)
     when(backendConfig.getString(any[String])).thenReturn("local-cromwell-executions") // This is the folder defined in the config as the execution root dir
     
     val rootWd = mock[BackendWorkflowDescriptor]
-    val rootWorkflow = mock[WorkflowDefinition]
+    val rootWorkflow = WomMocks.mockWorkflowDefinition("rootWorkflow")
     val rootWorkflowId = WorkflowId.randomId()
-    rootWorkflow.name returns "rootWorkflow"
     rootWd.workflow returns rootWorkflow
     rootWd.id returns rootWorkflowId
 
     val subWd = mock[BackendWorkflowDescriptor]
-    val subWorkflow = mock[WorkflowDefinition]
+    val subWorkflow = WomMocks.mockWorkflowDefinition("subWorkflow")
     val subWorkflowId = WorkflowId.randomId()
-    subWorkflow.name returns "subWorkflow"
     subWd.workflow returns subWorkflow
     subWd.id returns subWorkflowId
     
-    val call1 = mock[WdlCall]
-    call1.unqualifiedName returns "call1"
-    val call2 = mock[WdlCall]
-    call2.unqualifiedName returns "call2"
+    val call1 = WomMocks.mockTaskCall("call1")
     
     val jobKey = new JobKey {
-      override def scope = null//call1
+      override def scope = call1
       override def tag: String = "tag1"
       override def index: Option[Int] = Option(1)
       override def attempt: Int = 2

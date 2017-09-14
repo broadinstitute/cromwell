@@ -6,9 +6,10 @@ import lenthall.collections.EnhancedCollections._
 import lenthall.validation.ErrorOr.ErrorOr
 import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
 import wdl4s.wdl.AstTools.{EnhancedAstNode, VariableReference}
-import wdl4s.wom.graph.{Graph, GraphNode, GraphNodePort, OuterGraphInputNode}
+import wdl4s.wom.graph._
 import wdl4s.wom.graph.CallNode.CallNodeAndNewInputs
 import wdl4s.wom.graph.GraphNode.GeneratedNodeAndNewInputs
+import wdl4s.wom.graph.GraphNodePort.OutputPort
 
 
 sealed trait WdlGraphNode extends Scope {
@@ -87,8 +88,8 @@ object WdlGraphNode {
         foldInGeneratedNodeAndNewInputs(acc, call.name + ".")(cnani)
       }
 
-      case decl: Declaration => Declaration.buildWomNode(decl, acc.availableInputs, outerLookup) map { declNode =>
-        FoldState(acc.nodes + declNode.toGraphNode, acc.availableInputs + (declNode.toGraphNode.name -> declNode.singleOutputPort))
+      case decl: DeclarationInterface => Declaration.buildWomNode(decl, acc.availableInputs, outerLookup) map { declNode =>
+        FoldState(acc.nodes + declNode.toGraphNode, acc.availableInputs ++ declNode.singleOutputPort.collect { case sop: OutputPort => declNode.toGraphNode.name -> sop })
       }
 
       case scatter: Scatter => Scatter.womScatterNode(scatter, acc.availableInputs) map { foldInGeneratedNodeAndNewInputs(acc, "")(_) }
@@ -101,7 +102,17 @@ object WdlGraphNode {
     val nodeAccumulator: ErrorOr[FoldState] = nodeList.foldLeft[ErrorOr[FoldState]](Valid(initialFoldState))(foldFunction)
 
     def outerLinkInputs(nodes: Set[GraphNode]): Set[OuterGraphInputNode] = nodes flatMap {
-      _.inputPorts.map(_.upstream.graphNode).filterByType[OuterGraphInputNode]
+      // NB: this curious type annotation just gives intelliJ a hand:
+      _.inputPorts.map(_.upstream.graphNode).filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode]
+    }
+
+    def withDefaultOutputs(g: Graph): Graph = if (g.nodes.exists(_.isInstanceOf[GraphOutputNode])) { g } else {
+      Graph(g.nodes.union((g.nodes collect {
+          case node: ExpressionNode => node.outputPorts.map(op => PortBasedGraphOutputNode(op.name, op.womType, op))
+          case node: CallNode => node.outputPorts.map(op => PortBasedGraphOutputNode(s"${node.name}.${op.name}", op.womType, op))
+          case node: ScatterNode => node.outputPorts.map(op => PortBasedGraphOutputNode(op.name, op.womType, op))
+          case node: ConditionalNode => node.outputPorts.map(op => PortBasedGraphOutputNode(op.name, op.womType, op))
+        }).flatten))
     }
 
     import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
@@ -110,7 +121,7 @@ object WdlGraphNode {
       graphNodes = foldState.nodes
       outerLinks = outerLinkInputs(graphNodes)
       g <- Graph.validateAndConstruct(graphNodes ++ outerLinks ++ includeGraphNodes)
-      withOutputs = g.withDefaultOutputs
+      withOutputs = withDefaultOutputs(g)
     } yield withOutputs
   }
 }

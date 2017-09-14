@@ -50,8 +50,9 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
 
     val x_inputNode = RequiredGraphInputNode("x", WdlIntegerType)
     val CallNodeAndNewInputs(foo_callNode, _) = CallNode.callWithInputs("foo", task_foo, Map("i" -> x_inputNode.singleOutputPort), Set.empty).getOrElse(fail("Unable to call foo_callNode"))
-    val scatterGraph = Graph.validateAndConstruct(Set(foo_callNode, x_inputNode)) match {
-      case Valid(sg) => sg.withDefaultOutputs
+    val foo_call_outNode = PortBasedGraphOutputNode("foo.out", WdlStringType, foo_callNode.outputByName("out").getOrElse(fail("foo CallNode didn't contain the expected 'out' output")))
+    val scatterGraph = Graph.validateAndConstruct(Set(foo_callNode, x_inputNode, foo_call_outNode)) match {
+      case Valid(sg) => sg
       case Invalid(es) => fail("Failed to make scatter graph: " + es.toList.mkString(", "))
     }
 

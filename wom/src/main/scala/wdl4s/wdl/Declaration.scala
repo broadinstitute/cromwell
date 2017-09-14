@@ -87,14 +87,17 @@ object Declaration {
     def toGraphNode = this match {
       case InputDeclarationNode(graphInputNode) => graphInputNode
       case IntermediateValueDeclarationNode(expressionNode) => expressionNode
+      case GraphOutputDeclarationNode(graphOutputNode) => graphOutputNode
     }
-    def singleOutputPort = this match {
-      case InputDeclarationNode(graphInputNode) => graphInputNode.singleOutputPort
-      case IntermediateValueDeclarationNode(expressionNode) => expressionNode.singleExpressionOutputPort
+    def singleOutputPort: Option[GraphNodePort.OutputPort] = this match {
+      case InputDeclarationNode(graphInputNode) => Option(graphInputNode.singleOutputPort)
+      case IntermediateValueDeclarationNode(expressionNode) => Option(expressionNode.singleExpressionOutputPort)
+      case GraphOutputDeclarationNode(_) => None
     }
   }
   final case class InputDeclarationNode(graphInputNode: GraphInputNode) extends DeclarationNode
   final case class IntermediateValueDeclarationNode(expressionNode: ExpressionNode) extends DeclarationNode
+  final case class GraphOutputDeclarationNode(graphOutputNode: GraphOutputNode) extends DeclarationNode
 
   def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter, parent: Option[Scope]): Declaration = {
     Declaration(
@@ -109,7 +112,7 @@ object Declaration {
     )
   }
 
-  def buildWomNode(decl: Declaration, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort]): ErrorOr[DeclarationNode] = {
+  def buildWomNode(decl: DeclarationInterface, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort]): ErrorOr[DeclarationNode] = {
 
     val inputName = decl.unqualifiedName
 
@@ -121,11 +124,20 @@ object Declaration {
       } yield IntermediateValueDeclarationNode(expressionNode)
     }
 
+    def workflowOutputAsGraphOutputNode(wdlExpression: WdlExpression) = {
+      val womExpression = WdlWomExpression(wdlExpression, None)
+      for {
+        uninstantiatedExpression <- WdlWomExpression.findInputsforExpression(inputName, womExpression, localLookup, outerLookup)
+        graphOutputNode <- ExpressionBasedGraphOutputNode.linkWithInputs(inputName, womExpression, uninstantiatedExpression.inputMapping)
+      } yield GraphOutputDeclarationNode(graphOutputNode)
+    }
+
     decl match {
       case Declaration(opt: WdlOptionalType, _, None, _, _) => Valid(InputDeclarationNode(OptionalGraphInputNode(inputName, opt)))
       case Declaration(_, _, None, _, _) => Valid(InputDeclarationNode(RequiredGraphInputNode(inputName, decl.wdlType)))
       case Declaration(_, _, Some(expr), _, _) if expr.variableReferences.isEmpty => Valid(InputDeclarationNode(OptionalGraphInputNodeWithDefault(inputName, decl.wdlType, WdlWomExpression(expr, None))))
       case Declaration(_, _, Some(expr), _, _) => declarationAsExpressionNode(expr)
+      case WorkflowOutput(_, _, expr, _, _) => workflowOutputAsGraphOutputNode(expr)
     }
   }
 }

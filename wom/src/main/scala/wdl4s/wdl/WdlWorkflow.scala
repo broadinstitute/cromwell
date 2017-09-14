@@ -50,13 +50,15 @@ object WdlWorkflow {
   /**
     * Convert this WdlWorkflow into a wom.components.Workflow
     */
-  def womWorkflowDefinition(wdlWorkflow: WdlWorkflow): ErrorOr[WorkflowDefinition] = WdlGraphNode.buildWomGraph(wdlWorkflow, Set.empty, Map.empty) map { wg =>
-    WorkflowDefinition(
-      wdlWorkflow.unqualifiedName,
-      wg,
-      wdlWorkflow.meta,
-      wdlWorkflow.parameterMeta,
-      List.empty)
+  def womWorkflowDefinition(wdlWorkflow: WdlWorkflow): ErrorOr[WorkflowDefinition] = {
+    WdlGraphNode.buildWomGraph(wdlWorkflow, Set.empty, Map.empty) map { wg =>
+      WorkflowDefinition(
+        wdlWorkflow.unqualifiedName,
+        wg,
+        wdlWorkflow.meta,
+        wdlWorkflow.parameterMeta,
+        List.empty)
+    }
   }
 }
 

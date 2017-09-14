@@ -1,15 +1,13 @@
 package wdl4s.cwl
 
-import cats.syntax.foldable._
-import cats.syntax.traverse._
+import cats.data.Validated._
 import cats.instances.list._
 import cats.syntax.option._
-import CwlType._
-import shapeless._
-import CwlVersion._
-import cats.data.Validated._
+import cats.syntax.traverse._
 import lenthall.validation.ErrorOr._
+import shapeless._
 import wdl4s.cwl.CwlType.CwlType
+import wdl4s.cwl.CwlVersion._
 import wdl4s.wdl.types._
 import wdl4s.wom.callable.WorkflowDefinition
 import wdl4s.wom.executable.Executable
@@ -61,10 +59,10 @@ case class Workflow(
     val workflowInputs: Map[String, GraphNodeOutputPort] =
       graphFromInputs.map {
         workflowInput =>
-          workflowInput.name -> GraphNodeOutputPort(workflowInput.name, workflowInput.womType, workflowInput)
+          workflowInput.name -> workflowInput.singleOutputPort
       }.toMap
 
-    val graphFromSteps =
+    val graphFromSteps: Set[GraphNode] =
       steps.
         toList.
         foldLeft(Set.empty[GraphNode] ++ graphFromInputs)(
@@ -76,13 +74,14 @@ case class Workflow(
 
           val wdlType = cwlTypeToWdlType(output.`type`.flatMap(_.select[CwlType]).get)
 
-          def lookupOutputSource(source: String): ErrorOr[OutputPort] =
-            graphFromSteps.
-              flatMap(_.outputPorts).
-              find(_.name == source).
-              toValidNel(s"unable to find upstream port corresponding to $source")
+          def lookupOutputSource(outputId: WorkflowOutputId): ErrorOr[OutputPort] = {
+            (for {
+              call <- graphFromSteps.collectFirst { case callNode: CallNode if callNode.name == outputId.stepId => callNode }
+              output <- call.outputPorts.find(_.name == outputId.outputId)
+            } yield output).toValidNel(s"unable to find upstream port corresponding to ${outputId.stepId}/${outputId.outputId}")
+          }
 
-          lookupOutputSource(output.outputSource.flatMap(_.select[String]).get).
+          lookupOutputSource(WorkflowOutputId(output.outputSource.flatMap(_.select[String]).get)).
             map(PortBasedGraphOutputNode(output.id, wdlType, _))
       }.map(_.toSet)
 
@@ -90,7 +89,8 @@ case class Workflow(
   }
 
   def womDefinition: ErrorOr[WorkflowDefinition] = {
-    val name: String = "workflow Id"
+    // TODO: need to find a way to get a meaningful name here
+    val name: String = "MyCwlWorkflow"
     val meta: Map[String, String] = Map.empty
     val paramMeta: Map[String, String] = Map.empty
     val declarations: List[(String, WomExpression)] = List.empty

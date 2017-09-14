@@ -3,13 +3,11 @@ package wdl4s.cwl
 import shapeless._
 import wdl4s.cwl.ScatterMethod._
 import wdl4s.cwl.WorkflowStep.{Outputs, Run}
-import wdl4s.wdl.command.CommandPart
-import wdl4s.wdl.{RuntimeAttributes, WdlExpression}
-import wdl4s.wom.callable.Callable.RequiredInputDefinition
-import wdl4s.wom.callable.{Callable, TaskDefinition}
-import wdl4s.wom.expression.WomExpression
 import wdl4s.wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 import wdl4s.wom.graph.{CallNode, GraphNode, TaskCallNode}
+
+import scala.language.postfixOps
+import scala.util.Try
 
 /**
   * An individual job to run.
@@ -33,146 +31,136 @@ case class WorkflowStep(
 
   def fileName: Option[String] = run.select[String]
 
-  def taskDefinitionInputs(typeMap: WdlTypeMap): Set[_ <: Callable.InputDefinition] =
-    in.map { workflowStepInput =>
-
-      val _source: String = workflowStepInput.source.flatMap(_.select[String]).get
-
-      val mungedTypeMap = typeMap map {
-        case (i, t) => RunOutputsToTypeMap.mungeId(i) -> t
-      }
-
-      val value = FullyQualifiedName(_source) match {
-        case WorkflowStepOutputIdReference(_, stepOutputId, _) => stepOutputId
-        case WorkflowInputId(_, inputId) => inputId
-      }
-
-      val tpe = mungedTypeMap(value)
-      RequiredInputDefinition(_source, tpe)
-    }.toSet
-
-
-  def taskDefinitionOutputs: Set[Callable.OutputDefinition] = {
-
-    //this map will only match on the "id" field of the fully qualified name
-    val idMap = typedOutputs map {
-      case (id, tpe) => RunOutputId(id).outputId -> tpe
-    }
-
-    out.fold(WorkflowOutputsToOutputDefinition).apply(idMap)
-  }
-
-  def taskDefinition(typeMap: WdlTypeMap): TaskDefinition = {
-
-    val id = this.id
-
-    val commandTemplate: Seq[CommandPart] =
-    //TODO: turn this select into a fold that supports other types of runnables
-      run.select[CommandLineTool].map {
-        clt =>
-          clt.baseCommand.map(_.fold(BaseCommandToCommandParts)).toSeq.flatten ++
-            clt.arguments.map(_.map(_.fold(ArgumentToCommandPart)).toSeq).toSeq.flatten
-      }.toSeq.flatten
-
-    val runtimeAttributes: RuntimeAttributes = RuntimeAttributes(Map.empty[String, WdlExpression])
-
-    val meta: Map[String, String] = Map.empty
-    val parameterMeta: Map[String, String] = Map.empty
-
-    val declarations: List[(String, WomExpression)] = List.empty
-
-    TaskDefinition(
-      id,
-      commandTemplate,
-      runtimeAttributes,
-      meta,
-      parameterMeta,
-      taskDefinitionOutputs,
-      taskDefinitionInputs(typeMap),
-      declarations
-    )
-  }
+  val unqualifiedStepId = Try(WorkflowStepId(id)).map(_.stepId).getOrElse(id)
 
   /**
-    * In order to produce a map to lookup workflow
-    * @param typeMap
-    * @param workflow
-    * @return
+    * Generates all GraphNodes necessary to represent call nodes and input nodes
+    * Recursive because dependencies are discovered as we iterate through inputs and corresponding
+    * upstream nodes need to be generated on the fly.
     */
   def callWithInputs(typeMap: WdlTypeMap,
                      workflow: Workflow,
                      knownNodes: Set[GraphNode],
                      workflowInputs: Map[String, GraphNodeOutputPort]): Set[GraphNode] = {
-    def foldInputs(mapAndNodes: (Map[String, OutputPort], Set[GraphNode]), workflowStepInput: WorkflowStepInput): (Map[String, OutputPort], Set[GraphNode]) =
-      mapAndNodes match {
+
+    // To avoid duplicating nodes, return immediately if we've already covered this node
+    val haveWeSeenThisStep: Boolean = knownNodes.collect { case TaskCallNode(name, _, _, _) => name }.contains(unqualifiedStepId)
+
+    if (haveWeSeenThisStep) knownNodes
+    else {
+      // Create a task definition for the underlying run.
+      // For sub workflows, we'll need to handle the case where this could be a workflow definition
+      //TODO: turn this select into a fold that supports other types of runnables
+      val taskDefinition = run.select[CommandLineTool].map { _.taskDefinition } get
+
+      /**
+        * Method used to fold over the list of inputs declared by this step.
+        * Note that because we work on saladed CWL, all ids are fully qualified at this point (e.g: file:///path/to/file/r.cwl#cgrep/pattern
+        * The goal of this method is two fold (pardon the pun):
+        *   1) link each input of the step to an output port (which at this point can be from a different step or from a workflow input)
+        *   2) accumulate the nodes created along the way to achieve 1)
+        */
+      def foldInputs(mapAndNodes: (Map[String, OutputPort], Set[GraphNode]),
+                     workflowStepInput: WorkflowStepInput): (Map[String, OutputPort], Set[GraphNode]) = mapAndNodes match {
         case ((map, knownNodes)) => //shadowing knownNodes on purpose to avoid accidentally referencing the outer one
 
-          val inputSource = workflowStepInput.source.flatMap(_.select[String]).get
+          // The source from which we expect to satisfy this input (output from other step or workflow input)
+          // TODO: this can be None in which case we should look if the "default" field is defined
+          val inputSource: String = workflowStepInput.source.flatMap(_.select[String]).get
 
-          def findThisInputInSet(set: Set[GraphNode]) ={
-
-            val lookupSet: Set[OutputPort] =
-              for {
-                node <- set
-                outputPort <- node.outputPorts
-              } yield outputPort
-
-            lookupSet.find(_.name == inputSource)
+          /*
+            * Try to find in the given set an output port named stepOutputId in a call node named stepId
+            * This is useful when we've determined that the input points to an output of a different step and we want
+            * to get the corresponding output port.
+           */
+          def findThisInputInSet(set: Set[GraphNode], stepId: String, stepOutputId: String): Option[OutputPort] = {
+            for {
+            // We only care for outputPorts of call nodes
+              call <- set.collectFirst { case callNode: CallNode if callNode.name == stepId => callNode }
+              output <- call.outputPorts.find(_.name == stepOutputId)
+            } yield output
           }
 
-          def lookupUpstreamNodes(nodeId: String):Option[(Set[GraphNode], OutputPort)] = {
+          /*
+            * Build a wom node for the given step and return the newly created nodes
+            * This is useful when we've determined that the input belongs to an upstream step that we haven't covered yet
+           */
+          def buildUpstreamNodes(upstreamStepId: String): Set[GraphNode] = {
             //TODO: Option get!
-            val step  =
-              workflow.steps.find { step =>
-                val lookup = WorkflowStepId(step.id).stepId
-                lookup == nodeId
-              }.get
+            // Find the step corresponding to this upstreamStepId in the set of all the steps of this workflow
+            val step: WorkflowStep = workflow.steps.find { step => WorkflowStepId(step.id).stepId == upstreamStepId }.get
 
-            val upstreamNodesForFoundStep:Set[GraphNode] = step.callWithInputs(typeMap, workflow, knownNodes, workflowInputs)
-
-            findThisInputInSet(upstreamNodesForFoundStep).map(upstreamNodesForFoundStep -> _)
+            step.callWithInputs(typeMap, workflow, knownNodes, workflowInputs)
           }
 
+          // Parse the workflowStepInput to be able to access its components separately
+          val parsedStepInputId = WorkflowStepInputOrOutputId(workflowStepInput.id)
+          /*
+            * Attempt to find the task definition input that corresponds to the workflow step input
+            * Note that the Ids might be largely different (including the file name part)
+            * We look for a task definition input that has the same name.
+            * We assume here that workflow step inputs map 1 to 1 with definition (run) inputs and that they have the same name (last bit of the id)
+            * e.g:
+            * workflow step input could be: file:///Users/danb/wdl4s/r.cwl#cgrep/pattern
+            * with a task description input: file:///Users/danb/wdl4s/r.cwl#cgrep/09f8bcac-a91a-49d5-afb6-2f1b1294e875/pattern
+            * 
+            * The file name part could even be different if they have been saladed at a different time / place
+           */
+          val taskDefinitionInput = taskDefinition.inputs.map(_.name).find(_ == parsedStepInputId.ioId).getOrElse {
+            throw new Exception(s"Can't find a corresponding input in the run section of ${parsedStepInputId.stepId} for ${parsedStepInputId.ioId}")
+          }
+
+          /*
+            * Parse the inputSource (what this input is pointing to)
+            * 2 cases: 
+            *   - points to a workflow input
+            *   - points to an upstream step
+           */
           FullyQualifiedName(inputSource) match {
+            // The source points to a workflow input, which means it should be in the workflowInputs map
             case _: WorkflowInputId =>
 
-              val foundInSeenNodes = findThisInputInSet(knownNodes)
+              // Try to find it in the workflow inputs map, if we can't it's an error 
+              // TODO: (at least for now, it's possible to provide a default value but we don't support it yet)
+              val outputPortMapping: (String, OutputPort) = workflowInputs collectFirst {
+                case (inputId, port) if inputSource == inputId => taskDefinitionInput -> port
+              } getOrElse (throw new Exception(s"Can't find workflow input for $inputSource"))
 
-              val newNodesAndOutputPort: Option[OutputPort] =
-                foundInSeenNodes
+              (map + outputPortMapping, knownNodes)
 
-              val outputPort = newNodesAndOutputPort.get
-
-              (map + (inputSource -> outputPort), knownNodes)
-            case WorkflowStepOutputIdReference(_, _, stepId) =>
-
-              val foundInSeenNodes: Option[OutputPort] = findThisInputInSet(knownNodes)
-
-              val newNodesAndOutputPort: Option[(Set[GraphNode],OutputPort)] = foundInSeenNodes.map(Set.empty[GraphNode] -> _) orElse lookupUpstreamNodes(stepId)
+            // The source points to an output from a different step
+            case WorkflowStepInputOrOutputId(_, stepId, stepOutputId) =>
+              val newNodesAndOutputPort: Option[(Set[GraphNode], OutputPort)] =
+                // First check if we've already built the WOM node for this step, and if so return the associated output port
+                findThisInputInSet(knownNodes, stepId, stepOutputId).map(Set.empty[GraphNode] -> _)
+                .orElse {
+                  // Otherwise build the upstream nodes
+                  val newNodes = buildUpstreamNodes(stepId)
+                  // And look again in those newly created nodes
+                  findThisInputInSet(newNodes, stepId, stepOutputId) map { newNodes -> _ }
+                }
 
               //TODO: Option . get makes kittens sad
               val (newNodes, outputPort) = newNodesAndOutputPort.get
 
-              (map + (inputSource -> outputPort), knownNodes ++ newNodes)
+              // Note that the key is the taskDefinitionInput (which in our previous example would be "pattern")
+              // This is because WOM is going to use this map to link input ports to output ports
+              // and will use the taskDefinition input port names to do so.
+              // So we need to make sure that the keys in this map match the task definition input names (and not the workflow step input names !)
+              (map + (taskDefinitionInput -> outputPort), knownNodes ++ newNodes)
             case _ => (map, knownNodes) //TODO: This should "fail fast" as Invalid here as it won't pass validation
           }
       }
-
-    val haveWeSeenThisStep = knownNodes.flatMap{_ match {
-      case TaskCallNode(name, _, _, _) => Set(name)
-      case _ => Set.empty[String]
-    }}.contains(id)
-
-    if (haveWeSeenThisStep)
-      knownNodes
-    else {
+      
+      // We fold over inputs for this step and build an input -> output port lookup map as well as nodes created along the way
       val workflowOutputsMap: (Map[String, OutputPort], Set[GraphNode]) =
         in.foldLeft((Map.empty[String, OutputPort], knownNodes)) (foldInputs)
 
-      val td = taskDefinition(typeMap)
-
-      // TODO: Fixme!
-      CallNode.callWithInputs(id, td, workflowInputs ++ workflowOutputsMap._1, Set.empty).getOrElse(???).nodes ++ workflowOutputsMap._2
+      // TODO: getOrElse(???) nooooooooo
+      // Use what we've got to generate a call node and required input nodes
+      // However here we expect WOM NOT to return any required input nodes because it would mean that some task definition inputs
+      // have not been linked to either a workflow input or an upstream output, in which case they have no other way to be satisfied ( <- is that true ?)
+      CallNode.callWithInputs(unqualifiedStepId, taskDefinition, workflowInputs ++ workflowOutputsMap._1, Set.empty, prefixSeparator = "#").getOrElse(???).nodes ++ workflowOutputsMap._2
     }
   }
 }

@@ -114,7 +114,7 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
     }
   }
 
-  private def formatRuntimeSection(runtimeAttributes: RuntimeAttributes, level: Int): String = {
+  private def formatRuntimeSection(runtimeAttributes: WdlRuntimeAttributes, level: Int): String = {
     runtimeAttributes.attrs match {
       case m if m.nonEmpty =>
         val attrs = m map { case (k, v) => indent(s"$k: ${v.toWdlString}", level) }

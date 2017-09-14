@@ -34,13 +34,11 @@ object ParameterCommandPart {
   }
 }
 
-case class ParameterCommandPart(attributes: Map[String, String], expression: WdlExpression) extends CommandPart {
+case class ParameterCommandPart(attributes: Map[String, String], expression: WdlExpression) extends WdlCommandPart {
   def attributesToString: String = if (attributes.nonEmpty) attributes.map({case (k,v) => s"$k=${WdlString(v).toWdlString}"}).mkString(" ") + " " else ""
   override def toString: String = "${" + s"$attributesToString${expression.toWdlString}" + "}"
 
-  override def instantiate(declarations: Seq[Declaration], inputsMap: EvaluatedTaskInputs, functions: WdlFunctions[WdlValue], valueMapper: (WdlValue) => WdlValue): String = {
-    val inputs = inputsMap map { case (d, v) => d.unqualifiedName -> v }
-
+  override def instantiate(declarations: Seq[Declaration], inputs: Map[String, WdlValue], functions: WdlFunctions[WdlValue], valueMapper: (WdlValue) => WdlValue): String = {
     // This is a safety net.
     // In Cromwell's production code, optional declarations are always passed to instantiate, as WdlOptionalValue.none(type) if necessary.
     def lookupDeclaration(s: String) = declarations.collectFirst {

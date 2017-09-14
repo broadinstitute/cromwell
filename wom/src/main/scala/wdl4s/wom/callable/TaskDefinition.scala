@@ -2,23 +2,24 @@ package wdl4s.wom.callable
 
 import lenthall.validation.ErrorOr.ErrorOr
 import wdl4s.wdl._
-import wdl4s.wdl.command.CommandPart
 import wdl4s.wdl.expression.WdlFunctions
 import wdl4s.wdl.util.StringUtil
 import wdl4s.wdl.values.WdlValue
-import wdl4s.wom.expression.WomExpression
+import wdl4s.wom.expression.IoFunctionSet
 import wdl4s.wom.graph.{Graph, TaskCall}
+import wdl4s.wom.{CommandPart, WomEvaluatedCallInputs, RuntimeAttributes}
 
 import scala.util.Try
 
 case class TaskDefinition(name: String,
-               commandTemplate: Seq[CommandPart],
-               runtimeAttributes: RuntimeAttributes,
-               meta: Map[String, String],
-               parameterMeta: Map[String, String],
-               outputs: Set[Callable.OutputDefinition],
-               inputs: Set[_ <: Callable.InputDefinition],
-               declarations: List[(String, WomExpression)]) extends Callable {
+                          commandTemplate: Seq[CommandPart],
+                          runtimeAttributes: RuntimeAttributes,
+                          meta: Map[String, String],
+                          parameterMeta: Map[String, String],
+                          outputs: Set[Callable.OutputDefinition],
+                          inputs: List[_ <: Callable.InputDefinition],
+                          prefixSeparator: String = ".",
+                          commandPartSeparator: String = "") extends Callable {
 
   val unqualifiedName: LocallyQualifiedName = name
 
@@ -30,11 +31,13 @@ case class TaskDefinition(name: String,
                      shards: Map[Scatter, Int] = Map.empty[Scatter, Int],
                      relativeTo: Scope = null): String => WdlValue = ???
 
-  def instantiateCommand(taskInputs: EvaluatedTaskInputs,
-                         functions: WdlFunctions[WdlValue],
-                         valueMapper: WdlValue => WdlValue = (v) => v): Try[String] = {
+  def instantiateCommand(taskInputs: WomEvaluatedCallInputs,
+                         functions: IoFunctionSet,
+                         valueMapper: WdlValue => WdlValue = identity[WdlValue],
+                         separate: Boolean = false): Try[String] = {
+    val mappedInputs = taskInputs.map({case (k, v) => k.name -> v})
     // TODO: Bring back inputs: Try(StringUtil.normalize(commandTemplate.map(_.instantiate(declarations, taskInputs, functions, valueMapper)).mkString("")))
-    Try(StringUtil.normalize(commandTemplate.map(_.instantiate(Seq.empty, taskInputs, functions, valueMapper)).mkString("")))
+    Try(StringUtil.normalize(commandTemplate.map(_.instantiate(mappedInputs, functions, valueMapper)).mkString(commandPartSeparator)))
   }
 
   def commandTemplateString: String = StringUtil.normalize(commandTemplate.map(_.toString).mkString)

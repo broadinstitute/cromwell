@@ -40,7 +40,7 @@ object TaskCall {
     import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
 
     for {
-      callWithInputs <- CallNode.callWithInputs(taskDefinition.name, taskDefinition, Map.empty, Set.empty)
+      callWithInputs <- CallNode.callWithInputs(taskDefinition.name, taskDefinition, Map.empty, Set.empty, prefixSeparator = taskDefinition.prefixSeparator)
       outputs <- taskDefinition.outputs.toList.traverse(linkOutput(callWithInputs.node) _)
       callSet = Set[GraphNode](callWithInputs.node)
       inputsSet = callWithInputs.newInputs.toSet[GraphNode]
@@ -72,14 +72,17 @@ object CallNode {
     * If an input is not supplied, it gets created as a GraphInputNode.
     *
     */
-  def callWithInputs(name: String, callable: Callable, portInputs: Map[String, OutputPort], expressionInputs: Set[GraphNodeInputExpression]): ErrorOr[CallNodeAndNewInputs] = {
+  def callWithInputs(name: String, callable: Callable,
+                     portInputs: Map[String, OutputPort],
+                     expressionInputs: Set[GraphNodeInputExpression],
+                     prefixSeparator: String = "."): ErrorOr[CallNodeAndNewInputs] = {
 
     val graphNodeSetter = new GraphNode.GraphNodeSetter()
 
     val instantiatedExpressionInputsAttempt: ErrorOr[Map[String, InstantiatedExpression]] = expressionInputs.toList traverse { _.instantiateExpressionWithInputName(graphNodeSetter) } map { _.toMap }
 
     instantiatedExpressionInputsAttempt map { instantiatedExpressionInputs =>
-      val inputPortLinker = GraphNode.linkInputPort(callable.name + ".", portInputs, graphNodeSetter.get) _
+      val inputPortLinker = GraphNode.linkInputPort(callable.name + prefixSeparator, portInputs, graphNodeSetter.get) _
 
       // Filter out the inputs we already have from expressions:
       val asYetUnsuppliedInputs = callable.inputs.filterNot(inputDef => instantiatedExpressionInputs.contains(inputDef.name))
@@ -88,10 +91,10 @@ object CallNode {
       val linkedInputPorts = linkedInputPortsAndGraphInputNodes.map(_.newInputPort)
       val graphInputNodes = linkedInputPortsAndGraphInputNodes collect { case LinkedInputPort(_, Some(gin)) => gin }
 
-      val callNode = CallNode(name, callable, linkedInputPorts, instantiatedExpressionInputs)
+      val callNode = CallNode(name, callable, linkedInputPorts.toSet, instantiatedExpressionInputs)
 
       graphNodeSetter._graphNode = callNode
-      CallNodeAndNewInputs(callNode, graphInputNodes)
+      CallNodeAndNewInputs(callNode, graphInputNodes.toSet)
     }
   }
 }

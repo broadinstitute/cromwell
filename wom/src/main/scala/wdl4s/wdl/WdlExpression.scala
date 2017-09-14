@@ -207,6 +207,16 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Option[Sco
   override def inputs: Set[String] = wdlExpression.variableReferences map { _.fullVariableReferenceString } toSet
 
   override def evaluateValue(variableValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue] = {
+    lazy val wdlFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(ioFunctionSet)
+    wdlExpression.evaluate(variableValues.apply, wdlFunctions).toErrorOr
+  }
+
+  override def evaluateType(inputTypes: Map[String, WdlType]): ErrorOr[WdlType] =
+    // All current usages of WdlExpression#evaluateType trace back to WdlNamespace, but this is not the
+    // case in the brave new WOM-world.
+    wdlExpression.evaluateType(inputTypes.apply, new WdlStandardLibraryFunctionsType, from).toErrorOr
+
+  override def evaluateFiles(inputTypes: Map[String, WdlValue], ioFunctionSet: IoFunctionSet, coerceTo: WdlType): ErrorOr[Set[WdlFile]] ={
     lazy val wdlFunctions = new WdlStandardLibraryFunctions {
       override def readFile(path: String): String = Await.result(ioFunctionSet.readFile(path), Duration.Inf)
 
@@ -220,13 +230,8 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Option[Sco
 
       override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = ioFunctionSet.size(params)
     }
-    wdlExpression.evaluate(variableValues.apply, wdlFunctions).toErrorOr
+    wdlExpression.evaluateFiles(inputTypes.apply, wdlFunctions, coerceTo).toErrorOr.map(_.toSet[WdlFile])
   }
-
-  override def evaluateType(inputTypes: Map[String, WdlType]): ErrorOr[WdlType] =
-    // All current usages of WdlExpression#evaluateType trace back to WdlNamespace, but this is not the
-    // case in the brave new WOM-world.
-    wdlExpression.evaluateType(inputTypes.apply, new WdlStandardLibraryFunctionsType, from).toErrorOr
 }
 
 object WdlWomExpression {

@@ -12,11 +12,13 @@ trait WomExpression {
   def inputs: Set[String]
   def evaluateValue(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue]
   def evaluateType(inputTypes: Map[String, WdlType]): ErrorOr[WdlType]
+  def evaluateFiles(inputTypes: Map[String, WdlValue], ioFunctionSet: IoFunctionSet, coerceTo: WdlType): ErrorOr[Set[WdlFile]]
 }
 
 final case class PlaceholderWomExpression(inputs: Set[String], fixedWomType: WdlType) extends WomExpression {
   override def evaluateValue(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue] = Valid(WdlString("42"))
   override def evaluateType(inputTypes: Map[String, WdlType]): ErrorOr[WdlType] = Valid(fixedWomType)
+  override def evaluateFiles(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet, coerceTo: WdlType): ErrorOr[Set[WdlFile]] = Valid(Set.empty)
 }
 
 // TODO: Flesh this out (https://github.com/broadinstitute/cromwell/issues/2521)

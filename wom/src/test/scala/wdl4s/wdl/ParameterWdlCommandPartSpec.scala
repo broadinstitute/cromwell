@@ -9,7 +9,7 @@ import wdl4s.wdl.values.{WdlOptionalValue, WdlString}
 
 import scala.util.{Failure, Success}
 
-class ParameterCommandPartSpec extends WdlTest {
+class ParameterWdlCommandPartSpec extends WdlTest {
   val commandParameterWdl = "src/test/cases/command_parameters/test.wdl"
 
   commandParameterWdl should {

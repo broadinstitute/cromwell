@@ -7,7 +7,10 @@ import wdl4s.wdl.expression.WdlStandardLibraryFunctions.{crossProduct => stdLibC
 import wdl4s.wdl.types._
 import wdl4s.wdl.values._
 import wdl4s.wdl.{TsvSerializable, WdlExpressionException}
+import wdl4s.wom.expression.IoFunctionSet
 
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
 
 trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
@@ -296,6 +299,20 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
 }
 
 object WdlStandardLibraryFunctions {
+  def fromIoFunctionSet(ioFunctionSet: IoFunctionSet) = new WdlStandardLibraryFunctions {
+    override def readFile(path: String): String = Await.result(ioFunctionSet.readFile(path), Duration.Inf)
+
+    override def writeFile(path: String, content: String): Try[WdlFile] = Try(Await.result(ioFunctionSet.writeFile(path, content), Duration.Inf))
+
+    override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = ioFunctionSet.stdout(params)
+
+    override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = ioFunctionSet.stderr(params)
+
+    override def glob(path: String, pattern: String): Seq[String] = ioFunctionSet.glob(path, pattern)
+
+    override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = ioFunctionSet.size(params)
+  }
+  
   def crossProduct[A, B](as: Seq[A], bs: Seq[B]): Seq[(A, B)] = for {
     a <- as
     b <- bs

@@ -22,6 +22,17 @@ object WorkflowInputId {
   }
 }
 
+case class WorkflowOutputId private (fileName: String, stepId: String, outputId: String) extends FullyQualifiedName
+
+object WorkflowOutputId {
+  def apply(in: String): WorkflowOutputId = {
+    val Array(fileName, id) = in.split("#")
+    val Array(stepId, outputId) = id.split("/")
+
+    WorkflowOutputId(fileName, stepId, outputId)
+  }
+}
+
 case class WorkflowStepId private (fileName: String, stepId: String) extends FullyQualifiedName
 
 object WorkflowStepId {
@@ -32,41 +43,28 @@ object WorkflowStepId {
   }
 }
 
-case class WorkflowStepOutputId private (fileName: String, stepId: String, outputId: String) extends FullyQualifiedName
+case class WorkflowStepInputOrOutputId private(fileName: String, stepId: String, ioId: String) extends FullyQualifiedName
 
-object WorkflowStepOutputId {
-  def apply(in: String): WorkflowStepOutputId = {
+object WorkflowStepInputOrOutputId {
+  def apply(in: String): WorkflowStepInputOrOutputId = {
     val Array(fileName, id) = in.split("#")
+    val Array(stepId, fieldId) = id.split("/")
 
-    val Array(stepId, outputId) = id.split("/")
-
-    WorkflowStepOutputId(fileName, stepId, outputId)
+    WorkflowStepInputOrOutputId(fileName, stepId, fieldId)
   }
 }
 
-
-case class WorkflowStepOutputIdReference(fileName: String, stepOutputId: String, stepId: String) extends FullyQualifiedName
-
-object WorkflowStepOutputIdReference {
-  def apply(in: String): WorkflowStepOutputIdReference = {
-    val Array(fileName, stepAndid) = in.split("#")
-    val Array(step, id) = stepAndid.split("/")
-
-    WorkflowStepOutputIdReference(fileName, id, step)
-  }
-}
-
-sealed trait RunOutputId {
+sealed trait RunId {
   def fileName: String
-  def outputId: String
+  def variableId: String
 }
 
-case class SameFileRunOutputId(fileName: String, outputId: String, uuid: String, stepId: String) extends RunOutputId
+case class SameFileRunOutputId(fileName: String, variableId: String, uuid: String, stepId: String) extends RunId
 
-case class DifferentFileRunOutputId(fileName: String, outputId: String) extends RunOutputId
+case class DifferentFileRunOutputId(fileName: String, variableId: String) extends RunId
 
-object RunOutputId {
-  def apply(in: String): RunOutputId = {
+object RunId {
+  def apply(in: String): RunId = {
     val Array(fileName, stepAndid) = in.split("#")
 
     if (stepAndid.contains("/")) {
@@ -82,7 +80,7 @@ object FullyQualifiedName {
    val Array(_, after) = in.split("#")
 
    if (after.contains("/"))
-     WorkflowStepOutputIdReference(in)
+     WorkflowStepInputOrOutputId(in)
     else
      WorkflowInputId(in)
   }

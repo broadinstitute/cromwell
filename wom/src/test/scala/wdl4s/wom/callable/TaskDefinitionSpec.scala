@@ -58,8 +58,7 @@ object TaskDefinitionSpec {
     meta = Map.empty,
     parameterMeta = Map.empty,
     outputs = Set.empty,
-    inputs = Set.empty,
-    declarations = List.empty)
+    inputs = List.empty)
 
   val oneInputTask = TaskDefinition(
     name = "foo",
@@ -68,8 +67,7 @@ object TaskDefinitionSpec {
     meta = Map.empty,
     parameterMeta = Map.empty,
     outputs = Set.empty,
-    inputs = Set(Callable.RequiredInputDefinition("bar", WdlIntegerType)),
-    declarations = List.empty)
+    inputs = List(Callable.RequiredInputDefinition("bar", WdlIntegerType)))
 
   val oneOutputTask = TaskDefinition(
     name = "foo",
@@ -78,6 +76,5 @@ object TaskDefinitionSpec {
     meta = Map.empty,
     parameterMeta = Map.empty,
     outputs = Set(Callable.OutputDefinition("bar", WdlStringType, null)),
-    inputs = Set(),
-    declarations = List.empty)
+    inputs = List.empty)
 }

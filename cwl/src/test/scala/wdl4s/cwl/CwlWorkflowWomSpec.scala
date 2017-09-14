@@ -3,12 +3,12 @@ package wdl4s.cwl
 import cats.data.Validated.Valid
 import cats.syntax.either._
 import org.scalatest.{FlatSpec, Matchers}
+import wdl4s.cwl.CwlDecoder._
 import wdl4s.wdl.types.{WdlFileType, WdlStringType}
 import wdl4s.wom.callable.Callable.RequiredInputDefinition
 import wdl4s.wom.callable.{TaskDefinition, WorkflowDefinition}
 import wdl4s.wom.executable.Executable
 import wdl4s.wom.graph._
-import CwlDecoder._
 
 class CwlWorkflowWomSpec extends FlatSpec with Matchers {
   import TestSetup._
@@ -32,11 +32,11 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers {
     val validateWom: Executable => Unit =
       _.entryPoint match {
         case taskDefinition: TaskDefinition =>
-          taskDefinition.inputs shouldBe Set(RequiredInputDefinition(s"file://$rootPath/1st-tool.cwl#message", WdlStringType))
+          taskDefinition.inputs shouldBe List(RequiredInputDefinition(s"message", WdlStringType))
 
           taskDefinition.graph.map {
             graph =>
-              graph.nodes.collect { case gin: GraphInputNode => gin.name } should be(Set(s"file://$rootPath/1st-tool.cwl.file://$rootPath/1st-tool.cwl#message"))
+              graph.nodes.collect { case gin: GraphInputNode => gin.name } should be(Set(s"file://$rootPath/1st-tool.cwl#message"))
               graph.nodes collect { case cn: CallNode => cn.name } should be(Set(s"file://$rootPath/1st-tool.cwl"))
           }
           ()
@@ -74,10 +74,10 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers {
 
           nodes collect {
             case cn: CallNode => cn.name
-          } should be(Set(s"file://$rootPath/1st-workflow.cwl#compile", s"file://$rootPath/1st-workflow.cwl#untar"))
+          } should be(Set("compile", "untar"))
 
           nodes.collectFirst {
-            case tarParam: CallNode if tarParam.name == s"file://$rootPath/1st-workflow.cwl#untar" => tarParam
+            case tarParam: CallNode if tarParam.name == s"untar" => tarParam
           }.get.
             upstream shouldBe Set(
             RequiredGraphInputNode(s"file://$rootPath/1st-workflow.cwl#ex", WdlStringType),
@@ -85,8 +85,8 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers {
 
 
           nodes.collectFirst {
-            case compile: CallNode if compile.name == s"file://$rootPath/1st-workflow.cwl#compile" => compile
-          }.get.inputPorts.map(_.upstream).head.name shouldBe s"file://$rootPath/1st-workflow.cwl#untar/example_out"
+            case compile: CallNode if compile.name == s"compile" => compile
+          }.get.inputPorts.map(_.upstream).head.name shouldBe s"example_out"
 
           nodes.collect {
             case c: PortBasedGraphOutputNode => c
@@ -116,16 +116,12 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers {
       "file:///Users/danb/wdl4s/r.cwl#wc-count"
     ))
 
-    nodes collect { case cn: CallNode => cn.name } should be(
-      Set(
-        "file:///Users/danb/wdl4s/r.cwl#ps",
-        "file:///Users/danb/wdl4s/r.cwl#cgrep",
-        "file:///Users/danb/wdl4s/r.cwl#wc"))
+    nodes collect { case cn: CallNode => cn.name } should be(Set("ps", "cgrep", "wc"))
 
-    val ps = nodes.collectFirst({ case ps: CallNode if ps.name == "file:///Users/danb/wdl4s/r.cwl#ps" => ps }).get
-    val cgrep = nodes.collectFirst({ case cgrep: CallNode if cgrep.name == "file:///Users/danb/wdl4s/r.cwl#cgrep" => cgrep }).get
+    val ps = nodes.collectFirst({ case ps: CallNode if ps.name == "ps" => ps }).get
+    val cgrep = nodes.collectFirst({ case cgrep: CallNode if cgrep.name == "cgrep" => cgrep }).get
     val cgrepPatternInput = nodes.collectFirst({ case cgrepInput: GraphInputNode if cgrepInput.name == "file:///Users/danb/wdl4s/r.cwl#pattern" => cgrepInput }).get
-    val wc = nodes.collectFirst({ case wc: CallNode if wc.name == "file:///Users/danb/wdl4s/r.cwl#wc" => wc }).get
+    val wc = nodes.collectFirst({ case wc: CallNode if wc.name == "wc" => wc }).get
 
     ps.upstream shouldBe empty
     cgrep.upstream.filter(_ eq ps).size shouldBe 1

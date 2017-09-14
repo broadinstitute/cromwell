@@ -2,8 +2,8 @@ package wdl4s.wom.graph
 
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.RuntimeAttributes
 import wdl4s.wdl.types.{WdlFileType, WdlIntegerType, WdlStringType}
+import wdl4s.wom.RuntimeAttributes
 import wdl4s.wom.callable.Callable.{OutputDefinition, RequiredInputDefinition}
 import wdl4s.wom.callable.{TaskDefinition, WorkflowDefinition}
 import wdl4s.wom.graph.CallNode.CallNodeAndNewInputs
@@ -15,34 +15,31 @@ class GraphSpec extends FlatSpec with Matchers {
     val taskDefinition_ps = TaskDefinition(
       name = "ps",
       commandTemplate = null,
-      runtimeAttributes = new RuntimeAttributes(attrs = Map.empty),
+      runtimeAttributes = RuntimeAttributes(attributes = Map.empty),
       meta = Map.empty,
       parameterMeta = Map.empty,
       outputs = Set(OutputDefinition("procs", WdlFileType, null)),
-      inputs = Set.empty,
-      declarations = List.empty
+      inputs = List.empty
     )
 
     val taskDefinition_cgrep = TaskDefinition(
       name = "cgrep",
       commandTemplate = null,
-      runtimeAttributes = new RuntimeAttributes(attrs = Map.empty),
+      runtimeAttributes = RuntimeAttributes(attributes = Map.empty),
       meta = Map.empty,
       parameterMeta = Map.empty,
       outputs = Set(OutputDefinition("count", WdlIntegerType, null)),
-      inputs = Set(RequiredInputDefinition("pattern", WdlStringType), RequiredInputDefinition("in_file", WdlFileType)),
-      declarations = List.empty
+      inputs = List(RequiredInputDefinition("pattern", WdlStringType), RequiredInputDefinition("in_file", WdlFileType))
     )
 
     val taskDefinition_wc = TaskDefinition(
       name = "wc",
       commandTemplate = null,
-      runtimeAttributes = new RuntimeAttributes(attrs = Map.empty),
+      runtimeAttributes = RuntimeAttributes(attributes = Map.empty),
       meta = Map.empty,
       parameterMeta = Map.empty,
       outputs = Set(OutputDefinition("count", WdlIntegerType, null)),
-      inputs = Set(RequiredInputDefinition("in_file", WdlFileType)),
-      declarations = List.empty
+      inputs = List(RequiredInputDefinition("in_file", WdlFileType))
     )
 
     val CallNodeAndNewInputs(psCall, psGraphInputs) = CallNode.callWithInputs("ps", taskDefinition_ps, Map.empty, Set.empty).getOrElse(fail("Unable to call ps"))

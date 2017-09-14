@@ -9,7 +9,7 @@ organization := "org.broadinstitute"
 scalaVersion := "2.12.1"
 
 val catsV = "1.0.0-MF"
-val wdl4sV = "0.16-87308d0-SNAP"
+val wdl4sV = "0.16-8b84d1f-SNAP"
 
 lazy val versionSettings = Seq(
   // Upcoming release, or current if we're on the master branch

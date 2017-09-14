@@ -91,6 +91,8 @@ class WomGraph(graphName: String, graph: Graph) {
 
   private def internalNodesAndLinks(graphNode: GraphNode): NodesAndLinks = graphNode match {
     case scatter: ScatterNode => internalScatterNodesAndLinks(scatter)
+    case conditional: ConditionalNode => internalConditionalNodesAndLinks(conditional)
+    case subworkflow: WorkflowCallNode => internalSubworkflowNodesAndLinks(subworkflow)
     case _ => NodesAndLinks.empty
   }
 
@@ -117,12 +119,49 @@ class WomGraph(graphName: String, graph: Graph) {
          """.stripMargin
 
       val scatterVariableInputLink = s"$scatterVariableExpressionId -> ${scatter.scatterVariableMapping.graphInputNode.singleOutputPort.graphId} [style=dashed ltail=$scatterVariableClusterName arrowhead=none]"
-      val outputLinks = scatter.outputMapping map { outputPort => s"${outputPort.outputToGather.singleInputPort.graphId} -> ${outputPort.graphId} [style=dashed arrowhead=none]" }
-      val links: Set[String] = outputLinks + scatterVariableInputLink
 
-      NodesAndLinks(Set(node), links)
+      NodesAndLinks(Set(node), Set(scatterVariableInputLink))
     }
-    innerGraph |+| scatterVariableNodesAndLinks
+    val outputLinks = scatter.outputMapping map { outputPort => s"${outputPort.outputToGather.singleInputPort.graphId} -> ${outputPort.graphId} [style=dashed arrowhead=none]" }
+    (innerGraph |+| scatterVariableNodesAndLinks).withLinks(outputLinks)
+  }
+
+  def internalConditionalNodesAndLinks(conditional: ConditionalNode): NodesAndLinks = {
+    val innerGraph = listAllGraphNodes(conditional.innerGraph) wrapNodes { n =>
+      s"""
+         |subgraph $nextCluster {
+         |  style=filled;
+         |  fillcolor=lightgray;
+         |${indentAndCombine(n)}
+         |}
+         |""".stripMargin
+    }
+
+    // A box (subgraph) for the condition (i.e. the if(x == 5) expression) and the links to and from it
+    val conditionNodesAndLinks = {
+      val node = s"""
+                    |subgraph $nextCluster {
+                    |  style=filled;
+                    |  fillcolor=${conditional.graphFillColor};
+                    |  "${UUID.randomUUID}" [shape=plaintext label="if(...)"]
+                    |${indentAndCombine(conditional.condition.inputPorts map portLine)}
+                    |}
+         """.stripMargin
+
+      NodesAndLinks(Set(node), Set.empty)
+    }
+    val outputLinks = conditional.outputMapping map { outputPort => s"${outputPort.outputToExpose.singleInputPort.graphId} -> ${outputPort.graphId} [style=dashed arrowhead=none]" }
+    (innerGraph |+| conditionNodesAndLinks).withLinks(outputLinks)
+  }
+
+  def internalSubworkflowNodesAndLinks(subworkflow: WorkflowCallNode): NodesAndLinks = listAllGraphNodes(subworkflow.callable.innerGraph) wrapNodes { n =>
+    s"""
+       |subgraph $nextCluster {
+       |  style=filled;
+       |  fillcolor=lightgray;
+       |${indentAndCombine(n)}
+       |}
+       |""".stripMargin
   }
 
   private def nextCluster: String = "cluster_" + clusterCount.getAndIncrement()
@@ -133,6 +172,7 @@ object WomGraph {
   final case class WorkflowDigraph(workflowName: String, digraph: NodesAndLinks)
   final case class NodesAndLinks(nodes: Set[String], links: Set[String]) {
     def wrapNodes(f: Set[String] => String) = this.copy(Set(f(nodes)), links)
+    def withLinks(ls: Set[String]) = this.copy(links = links ++ ls)
   }
 
   object NodesAndLinks {

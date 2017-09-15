@@ -2,17 +2,23 @@ package wdl4s.cwl
 
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct
-import shapeless.syntax.singleton._
 import wdl4s.cwl.CommandLineTool.{BaseCommand, StringOrExpression}
 import wdl4s.cwl.WorkflowStepInput.InputSource
 
-class ExportCwlSamplesSpec extends FlatSpec with Matchers {
-  def assertCorrectJson(cwl: Cwl, expectedYaml: String) = CwlCodecs.cwlToYaml(cwl) shouldBe expectedYaml
 
-  it should "encode sample CWL command line tool" in {
+  /**
+   * BROKEN
+   *
+   * (DB)Ability to write JSON removed due to conflicting circe-yaml cats dependency.
+   * See issue https://github.com/broadinstitute/wdl4s/issues/216 for more information.
+   */
+class ExportCwlSamplesSpec extends FlatSpec with Matchers {
+
+  def assertCorrectJson(cwl: Cwl, expectedYaml: String) = ??? // shouldBe expectedYaml
+
+  it should "encode sample CWL command line tool" ignore {
     val tool =
       CommandLineTool(
-        `class` = "CommandLineTool".narrow,
         inputs =  Array(CommandInputParameter(
           id = "message",
           inputBinding = Option(CommandLineBinding(
@@ -34,7 +40,7 @@ baseCommand: echo
     assertCorrectJson(tool.asCwl, expectedToolJsonString)
   }
 
-  it should "encode sample CWL workflow" in {
+  it should "encode sample CWL workflow" ignore {
     val workflow = Workflow(
       inputs = Array(
           InputParameter(id = "inp", `type` = Option(Coproduct[MyriadInputType](CwlType.File))),
@@ -102,9 +108,8 @@ steps:
     assertCorrectJson(workflow.asCwl, expectedWorkflowJsonString)
   }
 
-  it should "encode sample CWL env" in {
+  it should "encode sample CWL env" ignore {
     val tool = CommandLineTool(
-      `class` = "CommandLineTool".narrow,
       baseCommand = Option(Coproduct[BaseCommand]("env")),
       requirements = Option(Array(Coproduct[Requirement](EnvVarRequirement(
         envDef = Array(EnvironmentDef("HELLO", Coproduct[StringOrExpression]("$(inputs.message)")))

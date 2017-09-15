@@ -32,12 +32,7 @@ object CwlCodecs {
 
   def encodeCwl(cwl: Cwl): Json = cwl.fold(CwlEncoder)
 
-  val jsonPrettyPrinter = io.circe.Printer.spaces2.copy(dropNullKeys = true, preserveOrder = true)
-
-  val yamlPrettyPrinter = io.circe.yaml.Printer.spaces2.copy(dropNullKeys = true, preserveOrder = true)
+  val jsonPrettyPrinter = io.circe.Printer.spaces2.copy(dropNullValues = true, preserveOrder = true)
 
   def cwlToJson(cwl: Cwl): String = jsonPrettyPrinter.pretty(encodeCwl(cwl))
-
-  def cwlToYaml(cwl: Cwl): String = yamlPrettyPrinter.pretty(encodeCwl(cwl))
-
 }

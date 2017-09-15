@@ -33,28 +33,28 @@ import wdl4s.wom.{CommandPart, RuntimeAttributes}
   * @param temporaryFailCodes
   * @param permanentFailCodes
   */
-case class CommandLineTool(
-                            inputs: Array[CommandInputParameter] = Array.empty,
-                            outputs: Array[CommandOutputParameter] = Array.empty,
-                            `class`: Witness.`"CommandLineTool"`.T = "CommandLineTool".narrow,
-                            id: Option[String] = None,
-                            requirements: Option[Array[Requirement]] = None,
+case class CommandLineTool private(
+                                   inputs: Array[CommandInputParameter],
+                                   outputs: Array[CommandOutputParameter],
+                                   `class`: Witness.`"CommandLineTool"`.T,
+                                   id: Option[String],
+                                   requirements: Option[Array[Requirement]],
 
-                            //TODO: Fix this when CwlAny parses correctly
-                            //hints: Option[Array[CwlAny]] = None,
-                            hints: Option[Array[Map[String, String]]] = None,
+                                   //TODO: Fix this when CwlAny parses correctly
+                                   //hints: Option[Array[CwlAny]] = None,
+                                   hints: Option[Array[Map[String, String]]],
 
-                            label: Option[String] = None,
-                            doc: Option[String] = None,
-                            cwlVersion: Option[CwlVersion] = Option(CwlVersion.Version1),
-                            baseCommand: Option[BaseCommand] = None,
-                            arguments: Option[Array[CommandLineTool.Argument]] = None,
-                            stdin: Option[StringOrExpression] = None,
-                            stderr: Option[StringOrExpression] = None,
-                            stdout: Option[StringOrExpression] = None,
-                            successCodes: Option[Array[Int]] = None,
-                            temporaryFailCodes: Option[Array[Int]] = None,
-                            permanentFailCodes: Option[Array[Int]] = None) {
+                                   label: Option[String],
+                                   doc: Option[String],
+                                   cwlVersion: Option[CwlVersion],
+                                   baseCommand: Option[BaseCommand],
+                                   arguments: Option[Array[CommandLineTool.Argument]],
+                                   stdin: Option[StringOrExpression],
+                                   stderr: Option[StringOrExpression],
+                                   stdout: Option[StringOrExpression],
+                                   successCodes: Option[Array[Int]],
+                                   temporaryFailCodes: Option[Array[Int]],
+                                   permanentFailCodes: Option[Array[Int]]) {
 
   def womExecutable: ErrorOr[Executable] =
     Valid(Executable(taskDefinition))
@@ -139,6 +139,25 @@ case class CommandLineTool(
 }
 
 object CommandLineTool {
+
+  def apply(inputs: Array[CommandInputParameter] = Array.empty,
+            outputs: Array[CommandOutputParameter] = Array.empty,
+            id: Option[String] = None,
+            requirements: Option[Array[Requirement]] = None,
+            hints: Option[Array[Map[String, String]]] = None,
+            label: Option[String] = None,
+            doc: Option[String] = None,
+            cwlVersion: Option[CwlVersion] = Option(CwlVersion.Version1),
+            baseCommand: Option[BaseCommand] = None,
+            arguments: Option[Array[CommandLineTool.Argument]] = None,
+            stdin: Option[StringOrExpression] = None,
+            stderr: Option[StringOrExpression] = None,
+            stdout: Option[StringOrExpression] = None,
+            successCodes: Option[Array[Int]] = None,
+            temporaryFailCodes: Option[Array[Int]] = None,
+            permanentFailCodes: Option[Array[Int]] = None): CommandLineTool  =
+              CommandLineTool(inputs, outputs, "CommandLineTool".narrow, id, requirements, hints, label, doc, cwlVersion, baseCommand, arguments, stdin, stderr, stdout, successCodes, temporaryFailCodes, permanentFailCodes)
+
 
   type StringOrExpression = ECMAScriptExpression :+: String :+: CNil
 

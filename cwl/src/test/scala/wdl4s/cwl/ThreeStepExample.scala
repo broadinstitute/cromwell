@@ -1,11 +1,9 @@
 package wdl4s.cwl
 
 import shapeless._
-import syntax.singleton._
 import wdl4s.cwl.CommandLineTool.{Argument, BaseCommand, StringOrExpression}
 import wdl4s.cwl.CommandOutputBinding.Glob
 import wdl4s.cwl.WorkflowStep.{Outputs, Run}
-import CwlCodecs._
 
 /*
  This example calls `ps` , then counts the number of processes that match a pattern input.
@@ -26,7 +24,6 @@ object ThreeStepExample extends App {
       outputBinding = Option(psOutputBinding))
 
   val psClt = CommandLineTool(
-    `class` = "CommandLineTool".narrow,
     outputs = Array(psOutputParameter),
     baseCommand = Option(Coproduct[BaseCommand]("ps")),
     stdout = Option(Coproduct[StringOrExpression]("ps-stdOut.txt")))
@@ -52,7 +49,6 @@ object ThreeStepExample extends App {
   val cgrepClt = CommandLineTool(
     inputs = Array(patternInput, fileInput),
     outputs = Array(cgrepOutputParameter),
-    `class` = "CommandLineTool".narrow,
     arguments = cgrepArgs,
     stdout = Option(Coproduct[StringOrExpression]("cgrep-stdOut.txt")),
     requirements = inlineJScriptRequirements)
@@ -80,7 +76,6 @@ object ThreeStepExample extends App {
 
   val wcClt =
     CommandLineTool(
-      `class` = "CommandLineTool".narrow,
       stdout = Option(Coproduct[StringOrExpression]("wc-stdOut.txt")),
       inputs = Array(wcFileCommandInput),
       outputs = Array(wcCltOutput),
@@ -116,12 +111,9 @@ object ThreeStepExample extends App {
   val _inputs = Array(workflowPatternInput)
 
   val threeStepWorkflow =
-    new Workflow(
+    Workflow(
       inputs = _inputs,
       outputs = _outputs,
       steps = Array(psWfStep, grepWfStep, wcWorkflowStep))
 
-  val yaml = cwlToYaml(threeStepWorkflow.asCwl)
-
-  println(yaml)
 }

@@ -4,6 +4,11 @@ import cats.data.Validated._
 import cats.instances.list._
 import cats.syntax.option._
 import cats.syntax.traverse._
+import CwlType._
+import shapeless._
+import shapeless.syntax.singleton._
+import CwlVersion._
+import cats.data.Validated._
 import lenthall.validation.ErrorOr._
 import shapeless._
 import wdl4s.cwl.CwlType.CwlType
@@ -15,11 +20,11 @@ import wdl4s.wom.expression.WomExpression
 import wdl4s.wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 import wdl4s.wom.graph._
 
-case class Workflow(
-                     cwlVersion: Option[CwlVersion] = Option(CwlVersion.Version1),
-                     `class`: Workflow.ClassType = Workflow.`class`,
-                     inputs: Array[InputParameter] = Array.empty,
-                     outputs: Array[WorkflowOutputParameter] = Array.empty,
+case class Workflow private(
+                     cwlVersion: Option[CwlVersion],
+                     `class`: Witness.`"Workflow"`.T,
+                     inputs: Array[InputParameter],
+                     outputs: Array[WorkflowOutputParameter],
                      steps: Array[WorkflowStep]) {
 
   def womExecutable: ErrorOr[Executable] = womDefinition map Executable.apply
@@ -110,7 +115,9 @@ case class Workflow(
 }
 object Workflow {
 
-  type ClassType = Witness.`"Workflow"`.T
-
-  val `class`: ClassType = "Workflow".asInstanceOf[ClassType]
+  def apply(cwlVersion: Option[CwlVersion] = Option(CwlVersion.Version1),
+            inputs: Array[InputParameter] = Array.empty,
+            outputs: Array[WorkflowOutputParameter] = Array.empty,
+            steps: Array[WorkflowStep] = Array.empty): Workflow  =
+              Workflow(cwlVersion, "Workflow".narrow, inputs, outputs, steps)
 }

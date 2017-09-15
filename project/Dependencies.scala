@@ -4,7 +4,7 @@ object Dependencies {
   val catsV = "1.0.0-MF"
 
   val sprayJsonV = "1.3.2"
-  val circeVersion = "0.8.0"
+  val circeVersion = "0.9.0-M1"
   val lenthallV = "0.28-7e90b62-SNAP"
 
   // Internal collections of dependencies
@@ -28,6 +28,8 @@ object Dependencies {
   val wdlDependencies = List() ++ womDependencies
 
   private val circeDependencies = List(
+    "core",
+    "parser",
     "generic",
     "generic-extras",
     "shapes",
@@ -36,7 +38,6 @@ object Dependencies {
   ).map(m => "io.circe" %% s"circe-$m" % circeVersion)
 
   val cwlDependencies = List(
-    "io.circe" %% "circe-yaml" % "0.6.1",
     "eu.timepit" %% "refined" % "0.8.3",
     "com.lihaoyi" %% "ammonite-ops" % "1.0.1",
     "org.typelevel" %% "cats-effect" % "0.4",

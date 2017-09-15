@@ -9,22 +9,19 @@ import cromwell.core.callcaching.{HashingFailedMessage, _}
 import cromwell.core.{LocallyQualifiedName, TestKitSuite}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{CCHJAFileHashResponse, CallCacheHashingJobActorData, CompleteFileHashingResult, HashingFiles, InitialHashingResult, NextBatchOfFileHashesRequest, NoFileHashesResult, PartialFileHashingResult, WaitingForHashFileRequest}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CacheMiss
-import org.mockito.Mockito._
+import cromwell.util.WomMocks
 import org.scalatest.concurrent.Eventually
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
+import wdl4s.wdl.command.StringCommandPart
 import wdl4s.wdl.values.{WdlFile, WdlInteger, WdlString, WdlValue}
-import wdl4s.wdl.{WdlTask, WdlTaskCall}
 
 class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with BackendSpec with Matchers with Eventually with TableDrivenPropertyChecks {
   behavior of "CallCacheReadingJobActor"
 
   def templateJobDescriptor(inputs: Map[LocallyQualifiedName, WdlValue] = Map.empty) = {
-    val task = mock[WdlTask]
-    val call = mock[WdlTaskCall]
-    when(task.commandTemplateString).thenReturn("Do the stuff... now!!")
-    when(task.outputs).thenReturn(List.empty)
-    when(call.task).thenReturn(task)
+    val task = WomMocks.mockTaskDefinition("task").copy(commandTemplate = List(StringCommandPart("Do the stuff... now!!")))
+    val call = WomMocks.mockTaskCall("call", definition = task)
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
     val runtimeAttributes = Map(
       "cpu" -> WdlInteger(1),

@@ -10,16 +10,16 @@ import cromwell.backend.async.RuntimeAttributeValidationFailures
 import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthObject}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.core.Dispatcher.BackendDispatcher
-import cromwell.core.Tags.IntegrationTest
-import cromwell.core.logging.LoggingTest._
+import cromwell.core.Tags.{IntegrationTest, PostWomTest}
 import cromwell.core.{TestKitSuite, WorkflowOptions}
+import cromwell.core.logging.LoggingTest._
 import cromwell.filesystems.gcs.GoogleConfiguration
 import cromwell.filesystems.gcs.auth.{GoogleAuthModeSpec, RefreshTokenMode, SimpleClientSecrets}
 import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
 import spray.json._
-import wdl4s.wdl.WdlTaskCall
+import wdl4s.wom.graph.TaskCallNode
 
 import scala.concurrent.duration._
 
@@ -170,14 +170,14 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   val refreshTokenConfig: Config = ConfigFactory.parseString(refreshTokenConfigTemplate)
 
   private def getJesBackendProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                 calls: Set[WdlTaskCall],
+                                 calls: Set[TaskCallNode],
                                  jesConfiguration: JesConfiguration): Props = {
     val ioActor = mockIoActor
     val params = JesInitializationActorParams(workflowDescriptor, ioActor, calls, jesConfiguration, emptyActor, restarting = false)
     Props(new JesInitializationActor(params)).withDispatcher(BackendDispatcher)
   }
 
-  private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[WdlTaskCall], conf: BackendConfigurationDescriptor) = {
+  private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCallNode], conf: BackendConfigurationDescriptor) = {
     val props = getJesBackendProps(workflowDescriptor, calls, new JesConfiguration(conf))
     system.actorOf(props, "TestableJesInitializationActor-" + UUID.randomUUID)
   }
@@ -190,7 +190,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
     within(Timeout) {
       val workflowDescriptor = buildWorkflowDescriptor(HelloWorld,
         runtime = """runtime { docker: "ubuntu/latest" test: true }""")
-      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflow.taskCalls,
+      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflow.taskCallNodes,
         defaultBackendConfig)
       val eventPattern =
         "Key/s [test] is/are not supported by backend. Unsupported attributes will not be part of job executions."
@@ -204,10 +204,11 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
     }
   }
 
-  it should "return InitializationFailed when docker runtime attribute key is not present" in {
+  // Depends on https://github.com/broadinstitute/cromwell/issues/2606
+  it should "return InitializationFailed when docker runtime attribute key is not present" taggedAs PostWomTest ignore {
     within(Timeout) {
       val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
-      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflow.taskCalls,
+      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflow.taskCallNodes,
         defaultBackendConfig)
       backend ! Initialize
       expectMsgPF() {
@@ -226,7 +227,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   private def buildJesInitializationTestingBits(backendConfig: Config = dockerBackendConfig): TestingBits = {
     val workflowOptions = WorkflowOptions.fromMap(Map("refresh_token" -> "mytoken")).get
     val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.workflowSource(), options = workflowOptions)
-    val calls = workflowDescriptor.workflow.taskCalls
+    val calls = workflowDescriptor.workflow.taskCallNodes
     val backendConfigurationDescriptor = BackendConfigurationDescriptor(backendConfig, globalConfig)
     val jesConfiguration = new JesConfiguration(backendConfigurationDescriptor)
 

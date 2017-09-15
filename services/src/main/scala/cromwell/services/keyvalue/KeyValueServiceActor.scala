@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorRef}
 import cromwell.core.{JobKey, MonitoringCompanionHelper, WorkflowId}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import cromwell.services.keyvalue.KeyValueServiceActor._
+import cromwell.core.CromwellGraphNode._
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success}
@@ -11,7 +12,7 @@ import scala.util.{Failure, Success}
 object KeyValueServiceActor {
   final case class KvJobKey(callFqn: String, callIndex: Option[Int], callAttempt: Int)
   object KvJobKey {
-    def apply(jobKey: JobKey): KvJobKey = KvJobKey(jobKey.scope.fullyQualifiedName, jobKey.index, jobKey.attempt)
+    def apply(jobKey: JobKey): KvJobKey = KvJobKey(jobKey.node.fullyQualifiedName, jobKey.index, jobKey.attempt)
   }
 
   final case class ScopedKey(workflowId: WorkflowId, jobKey: KvJobKey, key: String)

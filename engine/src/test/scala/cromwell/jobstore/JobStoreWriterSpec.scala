@@ -8,7 +8,7 @@ import cromwell.core.actor.BatchingDbWriter.{BatchingDbWriterState, WritingToDb}
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, RegisterJobCompleted, RegisterWorkflowCompleted}
 import org.scalatest.{BeforeAndAfter, Matchers}
-import wdl4s.wdl.TaskOutput
+import wdl4s.wom.callable.Callable.OutputDefinition
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -130,7 +130,7 @@ class WriteCountingJobStore(var totalWritesCalled: Int, var jobCompletionsRecord
     writePromise.future
   }
 
-  override def readJobResult(jobStoreKey: JobStoreKey, taskOutputs: Seq[TaskOutput])(implicit ec: ExecutionContext): Future[Option[JobResult]] = throw new NotImplementedError()
+  override def readJobResult(jobStoreKey: JobStoreKey, taskOutputs: Seq[OutputDefinition])(implicit ec: ExecutionContext): Future[Option[JobResult]] = throw new NotImplementedError()
 }
 
 object WriteCountingJobStore {

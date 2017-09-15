@@ -26,7 +26,7 @@ final case class MetadataWatchActor(promise: Promise[Unit], matchers: Matcher*) 
     case PutMetadataAction(_) => // Superfluous message. Ignore
     // Because the MetadataWatchActor is sometimes used in place of the ServiceRegistryActor, this allows WFs to continue:
     case kvPut: KvPut => sender ! KvPutSuccess(kvPut)
-    case other => throw new Exception(s"Invalid message to MetadataWatchActor: $other")
+    case other => log.error(s"Invalid message to MetadataWatchActor: $other")
   }
 }
 

@@ -3,14 +3,11 @@ package cromwell.backend.impl.spark
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendWorkflowDescriptor, MemorySize}
 import cromwell.core.labels.Labels
-import cromwell.core.{WorkflowId, WorkflowOptions}
-import lenthall.util.TryUtil
+import cromwell.core.{NoIoFunctionSet, WorkflowId, WorkflowOptions}
 import org.scalatest.{Matchers, WordSpecLike}
 import spray.json.{JsBoolean, JsNumber, JsObject, JsValue}
-import wdl4s.wdl.WdlExpression._
-import wdl4s.wdl.expression.NoFunctions
-import wdl4s.wdl.values.WdlValue
 import wdl4s.wdl._
+import wdl4s.wdl.values.WdlValue
 
 class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
@@ -91,25 +88,22 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
                                       runtime: String) = {
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime.format("appMainClass", "com.test.spark")), Seq.empty[ImportResolver]).get.workflow,
+      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime.format("appMainClass", "com.test.spark")), Seq.empty[ImportResolver])
+        .get.workflow.womDefinition.getOrElse(fail("Cannot build Wom Workflow")),
       inputs,
       options,
       Labels.empty
     )
   }
 
-  private def createRuntimeAttributes(workflowSource: WorkflowSource, runtimeAttributes: String) = {
+  private def createRuntimeAttributes(workflowSource: WorkflowSource, runtimeAttributes: String): List[Map[String, WdlValue]] = {
+    import lenthall.validation.ErrorOr._  
     val workflowDescriptor = buildWorkflowDescriptor(workflowSource, runtime = runtimeAttributes)
 
-    def createLookup(call: WdlCall): ScopedLookupFunction = {
-      val knownInputs = workflowDescriptor.knownValues
-      call.lookupFunction(knownInputs, NoFunctions)
-    }
-
-    workflowDescriptor.workflow.taskCalls map {
+    workflowDescriptor.workflow.taskCallNodes.toList map {
       call =>
-        val ra = call.task.runtimeAttributes.attrs mapValues { _.evaluate(createLookup(call), NoFunctions) }
-        TryUtil.sequenceMap(ra, "Runtime attributes evaluation").get
+        val ra = call.callable.runtimeAttributes.attributes mapValues { _.evaluateValue(workflowDescriptor.knownValues, NoIoFunctionSet) }
+        ra.sequence.getOrElse(fail("Failed to evaluate runtime attributes"))
     }
   }
 

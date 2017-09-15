@@ -1,8 +1,8 @@
 import sbt._
 
 object Dependencies {
-  lazy val lenthallV = "0.28-b666cad-SNAP"
-  lazy val wdl4sV = "0.16-ba89da9-SNAP"
+  lazy val lenthallV = "0.28-7e90b62-SNAP"
+  lazy val wdl4sV = "0.16-f63dc02-SNAP"
 
   lazy val akkaV = "2.5.4"
   lazy val akkaHttpV = "10.0.10"
@@ -127,6 +127,7 @@ object Dependencies {
   val coreDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % "3.6.0",
     "org.broadinstitute" %% "wdl4s-wdl" % wdl4sV,
+    "org.broadinstitute" %% "wdl4s-cwl" % wdl4sV,
     "org.apache.commons" % "commons-lang3" % "3.6",
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
     "com.typesafe" % "config" % "1.3.1",

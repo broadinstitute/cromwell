@@ -3,14 +3,14 @@ package cromwell.core.simpleton
 import cromwell.core.simpleton.WdlValueBuilderSpec._
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
-import wdl4s.parser.WdlParser.Ast
 import wdl4s.wdl.types.{WdlArrayType, WdlIntegerType, WdlMapType, WdlStringType}
 import wdl4s.wdl.values.{WdlArray, WdlInteger, WdlMap, WdlPair, WdlString, WdlValue}
-import wdl4s.wdl.{TaskOutput, WdlExpression}
+import wdl4s.wom.callable.Callable.OutputDefinition
+import wdl4s.wom.expression.PlaceholderWomExpression
 
 object WdlValueBuilderSpec {
   // WdlValueBuilder doesn't care about this expression, but something needs to be passed to the TaskOutput constructor.
-  val IgnoredExpression = WdlExpression.fromString(""" "" """)
+  val IgnoredExpression = PlaceholderWomExpression(Set.empty, WdlStringType)
 }
 
 class WdlValueBuilderSpec extends FlatSpec with Matchers with Mockito {
@@ -104,7 +104,7 @@ class WdlValueBuilderSpec extends FlatSpec with Matchers with Mockito {
 
     it should s"build simpletons back into WdlValues ($name)" in {
       // The task output is used to tell us the type of output we're expecting:
-      val taskOutputs = List(TaskOutput(name, wdlValue.wdlType, IgnoredExpression, mock[Ast], None))
+      val taskOutputs = List(OutputDefinition(name, wdlValue.wdlType, IgnoredExpression))
       val rebuiltValues = WdlValueBuilder.toWdlValues(taskOutputs, simpletons)
       rebuiltValues.size should be(1)
       rebuiltValues(name) should be(wdlValue)
@@ -116,7 +116,7 @@ class WdlValueBuilderSpec extends FlatSpec with Matchers with Mockito {
   it should "round trip everything together with no losses" in {
 
     val wdlValues = (simpletonConversions map { case SimpletonConversion(name, wdlValue, _) => name -> wdlValue }).toMap
-    val taskOutputs = wdlValues map { case (k, wv) => TaskOutput(k, wv.wdlType, IgnoredExpression, mock[Ast], None) }
+    val taskOutputs = wdlValues map { case (k, wv) => OutputDefinition(k, wv.wdlType, IgnoredExpression) }
     val allSimpletons = simpletonConversions flatMap { case SimpletonConversion(_, _, simpletons) => simpletons }
 
     import WdlValueSimpleton._

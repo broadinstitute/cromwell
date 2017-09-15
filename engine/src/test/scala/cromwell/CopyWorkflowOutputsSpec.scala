@@ -1,6 +1,7 @@
 package cromwell
 
 import akka.testkit.EventFilter
+import cromwell.core.Tags.PostWomTest
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.SampleWdl
 import org.scalatest.prop.TableDrivenPropertyChecks._
@@ -11,7 +12,7 @@ import scala.language.postfixOps
 class CopyWorkflowOutputsSpec extends CromwellTestKitWordSpec {
 
   "CopyWorkflowOutputsCall" should {
-    "copy workflow outputs" in {
+    "copy workflow outputs" taggedAs PostWomTest ignore {
       val workflowOutputsPath = "copy-workflow-outputs"
 
       val tmpDir = DefaultPathBuilder.createTempDirectory(workflowOutputsPath).toAbsolutePath
@@ -41,7 +42,7 @@ class CopyWorkflowOutputsSpec extends CromwellTestKitWordSpec {
       path.toFile shouldNot exist
     }
 
-    "copy scattered workflow outputs" in {
+    "copy scattered workflow outputs" taggedAs PostWomTest ignore {
       val workflowOutputsPath = "copy-workflow-outputs"
 
       val tmpDir = DefaultPathBuilder.createTempDirectory(workflowOutputsPath).toAbsolutePath

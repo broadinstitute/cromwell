@@ -5,6 +5,7 @@ import akka.actor.{ActorInitializationException, ActorRef, LoggingFSM, OneForOne
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory}
+import cromwell.core.CromwellGraphNode._
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core._
@@ -31,7 +32,6 @@ import cromwell.jobstore._
 import cromwell.services.EngineServicesStore
 import cromwell.services.metadata.CallMetadataKeys.CallCachingKeys
 import cromwell.services.metadata.{CallMetadataKeys, MetadataJobKey, MetadataKey}
-import wdl4s.wdl.TaskOutput
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
@@ -115,7 +115,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       replyTo ! JobStarting(jobDescriptorKey)
       if (restarting) {
         val jobStoreKey = jobDescriptorKey.toJobStoreKey(workflowIdForLogging)
-        jobStoreActor ! QueryJobCompletion(jobStoreKey, jobDescriptorKey.call.task.outputs)
+        jobStoreActor ! QueryJobCompletion(jobStoreKey, jobDescriptorKey.call.callable.outputs.toList)
         goto(CheckingJobStore)
       } else {
         requestOutputStore()
@@ -199,7 +199,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(hashes: CallCacheHashes, data: ResponsePendingData) =>
       addHashesAndStay(data, hashes)
     case Event(hit: CacheHit, data: ResponsePendingData) =>
-      fetchCachedResults(jobDescriptorKey.call.task.outputs, hit.cacheResultId, data.withCacheHit(hit))
+      fetchCachedResults(hit.cacheResultId, data.withCacheHit(hit))
     case Event(HashError(t), data: ResponsePendingData) =>
       writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Hashing Error: ${t.getMessage}"))
       disableCallCaching(Option(t))
@@ -471,14 +471,14 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     }
   }
 
-  def makeFetchCachedResultsActor(callCachingEntryId: CallCachingEntryId, taskOutputs: Seq[TaskOutput]): Unit = {
+  def makeFetchCachedResultsActor(callCachingEntryId: CallCachingEntryId): Unit = {
     context.actorOf(FetchCachedResultsActor.props(callCachingEntryId, self,
       new CallCache(EngineServicesStore.engineDatabaseInterface)))
     ()
   }
 
-  private def fetchCachedResults(taskOutputs: Seq[TaskOutput], callCachingEntryId: CallCachingEntryId, data: ResponsePendingData) = {
-    makeFetchCachedResultsActor(callCachingEntryId, taskOutputs)
+  private def fetchCachedResults( callCachingEntryId: CallCachingEntryId, data: ResponsePendingData) = {
+    makeFetchCachedResultsActor(callCachingEntryId)
     goto(FetchingCachedOutputsFromDatabase) using data
   }
 

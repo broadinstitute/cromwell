@@ -82,7 +82,7 @@ object CallNode {
     val instantiatedExpressionInputsAttempt: ErrorOr[Map[String, InstantiatedExpression]] = expressionInputs.toList traverse { _.instantiateExpressionWithInputName(graphNodeSetter) } map { _.toMap }
 
     instantiatedExpressionInputsAttempt map { instantiatedExpressionInputs =>
-      val inputPortLinker = GraphNode.linkInputPort(callable.name + prefixSeparator, portInputs, graphNodeSetter.get) _
+      val inputPortLinker = GraphNode.linkInputPort(name + prefixSeparator, portInputs, graphNodeSetter.get) _
 
       // Filter out the inputs we already have from expressions:
       val asYetUnsuppliedInputs = callable.inputs.filterNot(inputDef => instantiatedExpressionInputs.contains(inputDef.name))

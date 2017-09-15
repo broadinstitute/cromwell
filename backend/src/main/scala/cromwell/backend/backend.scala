@@ -19,7 +19,7 @@ import scala.util.Try
   * For uniquely identifying a job which has been or will be sent to the backend.
   */
 case class BackendJobDescriptorKey(call: TaskCallNode, index: Option[Int], attempt: Int) extends CallKey {
-  def scope = call
+  def node = call
   private val indexString = index map { _.toString } getOrElse "NA"
   val tag = s"${call.fullyQualifiedName}:$indexString:$attempt"
   def mkTag(workflowId: WorkflowId) = s"$workflowId:$this"

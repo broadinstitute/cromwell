@@ -123,7 +123,7 @@ object CallCache {
       new CallCacheHashBundle(
         workflowId = workflowId,
         callCacheHashes = callCacheHashes,
-        fullyQualifiedName = jobFailedNonRetryableResponse.jobKey.scope.fullyQualifiedName,
+        fullyQualifiedName = jobFailedNonRetryableResponse.jobKey.node.fullyQualifiedName,
         jobIndex = jobFailedNonRetryableResponse.jobKey.index,
         jobAttempt = Option(jobFailedNonRetryableResponse.jobKey.attempt),
         returnCode = None,

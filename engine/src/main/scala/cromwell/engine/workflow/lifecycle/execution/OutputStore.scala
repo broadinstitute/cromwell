@@ -33,7 +33,7 @@ case class OutputStore(store: Map[OutputKey, WdlValue]) {
                               shards: Iterable[JobKey]): Try[CallOutputs] = {
     //lazy val sortedShards = shards.toSeq sortBy { _.index.fromIndex }
     
-    collector.scope match {
+    collector.node match {
       case _: CallNode => Failure(new NotImplementedError("Scatters are not working in WOMland yet"))
       case _: ExpressionNode => Failure(new NotImplementedError("Scatters are not working in WOMland yet"))
       case other => Failure(new RuntimeException(s"Cannot retrieve outputs for ${other.fullyQualifiedName}")) 

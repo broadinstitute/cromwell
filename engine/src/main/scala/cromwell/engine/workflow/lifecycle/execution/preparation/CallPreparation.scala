@@ -3,12 +3,14 @@ package cromwell.engine.workflow.lifecycle.execution.preparation
 import akka.actor.Props
 import cats.data.NonEmptyList
 import cats.data.Validated.Valid
+import cats.syntax.validated._
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.CromwellGraphNode._
 import cromwell.core.{CallKey, JobKey}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.OutputStore
 import lenthall.validation.ErrorOr._
+import lenthall.validation.Validation._
 import wdl4s.wdl.types.WdlType
 import wdl4s.wdl.values.{WdlOptionalValue, WdlValue}
 import wdl4s.wom.WomEvaluatedCallInputs
@@ -34,10 +36,7 @@ object CallPreparation {
                                workflowDescriptor: EngineWorkflowDescriptor,
                                expressionLanguageFunctions: IoFunctionSet,
                                outputStore: OutputStore): ErrorOr[WomEvaluatedCallInputs] = {
-    import cats.syntax.validated._
-    import lenthall.validation.ErrorOr._
-    import lenthall.validation.Validation._
-    val call = callKey.scope
+    val call = callKey.node
 
     val inputMappingsFromPreviousCalls: Map[String, WdlValue] = {
       call.inputPorts.flatMap({ inputPort =>

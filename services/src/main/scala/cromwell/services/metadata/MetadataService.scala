@@ -41,7 +41,7 @@ object MetadataService {
   object implicits {
     implicit class MetadataAutoPutter(serviceRegistryActor: ActorRef) {
       def putMetadata(workflowId: WorkflowId, jobKey: Option[JobKey], keyValue: Map[String, Any]) = {
-        val metadataJobKey = jobKey map { jk => MetadataJobKey(jk.scope.fullyQualifiedName, jk.index, jk.attempt) }
+        val metadataJobKey = jobKey map { jk => MetadataJobKey(jk.node.fullyQualifiedName, jk.index, jk.attempt) }
 
         val events = keyValue map { case (key, value) =>
           val metadataKey = MetadataKey(workflowId, metadataJobKey, key)

@@ -47,7 +47,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
   // This allows for quicker lookup (by hash) instead of traversing the whole list and yields
   // significant improvements at large scale (run ExecutionStoreBenchmark)
   lazy val (doneKeys, terminalKeys) = {
-    def toMapEntry(key: JobKey) = (key.scope.fullyQualifiedName, key.index) -> key
+    def toMapEntry(key: JobKey) = (key.node.fullyQualifiedName, key.index) -> key
 
     store.foldLeft((Map.empty[FqnIndex, JobKey], Map.empty[FqnIndex, JobKey]))({
       case ((done, terminal), (status, keys))  =>
@@ -64,7 +64,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
   def isBypassedConditional(jobKey: JobKey, conditional: If): Boolean = {
     keysWithStatus(Bypassed).exists {
       case key: ConditionalKey =>
-        key.scope.fullyQualifiedName.equals(conditional.fullyQualifiedName) &&
+        key.node.fullyQualifiedName.equals(conditional.fullyQualifiedName) &&
           key.index.equals(jobKey.index)
       case _ => false
     }
@@ -78,7 +78,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
     keysWithStatus(QueuedInCromwell).nonEmpty ||
       keysWithStatus(Starting).nonEmpty ||
       keysWithStatus(Running).nonEmpty ||
-      keysWithStatus(NotStarted).exists(jobKey => !upstreamFailed(jobKey.scope))
+      keysWithStatus(NotStarted).exists(jobKey => !upstreamFailed(jobKey.node))
   }
 
   def jobStatus(jobKey: JobKey): Option[ExecutionStatus] = statusStore.get(jobKey)
@@ -89,7 +89,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
     }
   }
 
-  private def hasFailedScope(s: GraphNode): Boolean = keysWithStatus(Failed).exists(_.scope == s)
+  private def hasFailedScope(s: GraphNode): Boolean = keysWithStatus(Failed).exists(_.node == s)
 
   def hasFailedJob: Boolean = keysWithStatus(Failed).nonEmpty
 
@@ -113,11 +113,11 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
   }
 
   def findCompletedShardsForOutput(key: CollectorKey): List[JobKey] = doneKeys.values.toList collect {
-    case k @ (_: CallKey | _:DynamicDeclarationKey) if k.scope == key.scope && k.isShard => k
+    case k @ (_: CallKey | _:DynamicDeclarationKey) if k.node == key.node && k.isShard => k
   }
 
   private def emulateShardEntries(key: CollectorKey): Set[FqnIndex] = {
-    (0 until key.scatterWidth).toSet map { i: Int => key.scope match {
+    (0 until key.scatterWidth).toSet map { i: Int => key.node match {
       case c: WdlCall => c.fullyQualifiedName -> Option(i)
       case d: Declaration => d.fullyQualifiedName -> Option(i)
       case _ => throw new RuntimeException("Don't collect that.")
@@ -125,7 +125,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
   }
 
   private def arePrerequisitesDone(key: JobKey): Boolean = {
-    lazy val upstreamAreDone = key.scope.upstream forall {
+    lazy val upstreamAreDone = key.node.upstream forall {
       // TODO WOM: Declaration ??
       case n @ (_: TaskCallNode | _: ScatterNode | _: Declaration) => upstreamIsDone(key, n)
       case _ => true

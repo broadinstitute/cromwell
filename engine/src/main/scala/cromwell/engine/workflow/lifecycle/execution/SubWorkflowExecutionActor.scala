@@ -188,11 +188,11 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
 
   private def pushWorkflowRunningMetadata(subWorkflowDescriptor: BackendWorkflowDescriptor, workflowInputs: WomEvaluatedCallInputs) = {
     val subWorkflowId = subWorkflowDescriptor.id
-    val parentWorkflowMetadataKey = MetadataKey(parentWorkflow.id, Option(MetadataJobKey(key.scope.fullyQualifiedName, key.index, key.attempt)), CallMetadataKeys.SubWorkflowId)
+    val parentWorkflowMetadataKey = MetadataKey(parentWorkflow.id, Option(MetadataJobKey(key.node.fullyQualifiedName, key.index, key.attempt)), CallMetadataKeys.SubWorkflowId)
 
     val events = List(
       MetadataEvent(parentWorkflowMetadataKey, MetadataValue(subWorkflowId)),
-      MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.Name), MetadataValue(key.scope.callable.name)),
+      MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.Name), MetadataValue(key.node.callable.name)),
       MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.ParentWorkflowId), MetadataValue(parentWorkflow.id))
     )
 

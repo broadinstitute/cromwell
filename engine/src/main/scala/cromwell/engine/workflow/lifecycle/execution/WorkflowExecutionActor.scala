@@ -114,7 +114,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     case Event(BypassedCallResults(callOutputs), stateData) =>
       handleCallBypassed(callOutputs, stateData)
     case Event(BypassedDeclaration(declKey), stateData) =>
-      handleDeclarationEvaluationSuccessful(declKey, WdlOptionalValue.none(declKey.scope.womType), stateData)
+      handleDeclarationEvaluationSuccessful(declKey, WdlOptionalValue.none(declKey.node.womType), stateData)
 
     // Failure
     // Initialization
@@ -273,11 +273,11 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
 
     // TODO WOM: workflow outputs ? Just dump the outputStore for now...
        // For logging and metadata
-       val unscopedOutputs: Map[String, WdlValue] = data.outputStore.store map {
+       val outputs: Map[String, WdlValue] = data.outputStore.store map {
          case (OutputKey(outputPort, _), value) => s"${outputPort.fullyQualifiedName}" -> value
        }
     
-       val workflowScopeOutputs: Map[String, WdlValue] = unscopedOutputs map {
+       val workflowScopeOutputs: Map[String, WdlValue] = outputs map {
          case (key, value) => s"${workflowDescriptor.workflow.name}.$key" -> value
        }
     
@@ -288,7 +288,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
        pushWorkflowOutputMetadata(workflowScopeOutputs)
 
        // For cromwell internal storage of outputs
-       val unqualifiedWorkflowOutputs = unscopedOutputs map {
+       val unqualifiedWorkflowOutputs = outputs map {
          // JobOutput is poorly named here - a WorkflowOutput type would be better
          case (output, value) => output -> JobOutput(value)
        }
@@ -359,8 +359,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     */
   private def startRunnableScopes(data: WorkflowExecutionActorData): WorkflowExecutionActorData = {
     val RunnableScopes(runnableScopes, truncated) = data.executionStore.runnableScopes
-    val runnableCalls = runnableScopes.view collect { case k if k.scope.isInstanceOf[CallNode] => k } sortBy { k =>
-      (k.scope.fullyQualifiedName, k.index.getOrElse(-1)) } map { _.tag }
+    val runnableCalls = runnableScopes.view collect { case k if k.node.isInstanceOf[CallNode] => k } sortBy { k =>
+      (k.node.fullyQualifiedName, k.index.getOrElse(-1)) } map { _.tag }
 
     if (runnableCalls.nonEmpty) workflowLogger.info("Starting calls: " + runnableCalls.mkString(", "))
 
@@ -673,11 +673,11 @@ object WorkflowExecutionActor {
     * Internal ADTs
     */
   case class ScatterKey(scatter: ScatterNode) extends JobKey {
-    override val scope = scatter
+    override val node = scatter
     override val index = None
     // When scatters are nested, this might become Some(_)
     override val attempt = 1
-    override val tag = scope.unqualifiedName
+    override val tag = node.unqualifiedName
 
     /**
       * Creates a sub-ExecutionStore with Starting entries for each of the scoped children.
@@ -686,7 +686,7 @@ object WorkflowExecutionActor {
       * @return ExecutionStore of scattered children.
       */
     def populate(count: Int, workflowCoercedInputs: WorkflowCoercedInputs): Map[JobKey, ExecutionStatus.Value] = {
-      val keys = this.scope.innerGraph.nodes flatMap {
+      val keys = this.node.innerGraph.nodes flatMap {
         explode(_, count, workflowCoercedInputs)
       }
       keys map {
@@ -715,20 +715,20 @@ object WorkflowExecutionActor {
   }
 
   // Represents a scatter collection for a call in the execution store
-  case class CollectorKey(scope: GraphNode, scatter: ScatterNode, scatterWidth: Int) extends JobKey {
+  case class CollectorKey(node: GraphNode, scatter: ScatterNode, scatterWidth: Int) extends JobKey {
     override val index = None
     override val attempt = 1
-    override val tag = s"Collector-${scope.unqualifiedName}"
+    override val tag = s"Collector-${node.unqualifiedName}"
   }
 
-  case class SubWorkflowKey(scope: WorkflowCallNode, index: ExecutionIndex, attempt: Int) extends CallKey {
-    override val tag = s"SubWorkflow-${scope.unqualifiedName}:${index.fromIndex}:$attempt"
+  case class SubWorkflowKey(node: WorkflowCallNode, index: ExecutionIndex, attempt: Int) extends CallKey {
+    override val tag = s"SubWorkflow-${node.unqualifiedName}:${index.fromIndex}:$attempt"
   }
 
   case class ConditionalKey(ifScope: If, index: ExecutionIndex) extends JobKey {
     // TODO WOM: fixme
-    override val scope: GraphNode = null
-    override val tag = scope.unqualifiedName
+    override val node: GraphNode = null
+    override val tag = node.unqualifiedName
     override val attempt = 1
 
     /**
@@ -771,18 +771,18 @@ object WorkflowExecutionActor {
   }
     
   sealed trait DeclarationKey extends JobKey {
-    override val scope: ExpressionNode
+    override val node: ExpressionNode
     override val attempt = 1
-    override val tag = s"Declaration-${scope.unqualifiedName}:${index.fromIndex}:$attempt"
+    override val tag = s"Declaration-${node.unqualifiedName}:${index.fromIndex}:$attempt"
   }
   
-  case class StaticDeclarationKey(scope: ExpressionNode, index: ExecutionIndex, value: WdlValue) extends DeclarationKey
+  case class StaticDeclarationKey(node: ExpressionNode, index: ExecutionIndex, value: WdlValue) extends DeclarationKey
   
-  case class DynamicDeclarationKey(scope: ExpressionNode, index: ExecutionIndex, requiredExpression: WomExpression) extends DeclarationKey {
+  case class DynamicDeclarationKey(node: ExpressionNode, index: ExecutionIndex, requiredExpression: WomExpression) extends DeclarationKey {
     import lenthall.validation.ErrorOr._
     import lenthall.validation.Validation._
     def evaluate(lookup: Map[String, WdlValue], wdlFunctions: IoFunctionSet) = {
-      requiredExpression.evaluateValue(lookup, wdlFunctions) flatMap { evaluated => scope.womType.coerceRawValue(evaluated).toErrorOr }
+      requiredExpression.evaluateValue(lookup, wdlFunctions) flatMap { evaluated => node.womType.coerceRawValue(evaluated).toErrorOr }
     }
   }
 

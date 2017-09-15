@@ -136,7 +136,7 @@ trait CallMetadataHelper {
     ) ++ returnCodeEvent.getOrElse(List.empty)
   }
   
-  def metadataKeyForCall(jobKey: JobKey, myKey: String) = MetadataKey(workflowIdForCallMetadata, Option(MetadataJobKey(jobKey.scope.fullyQualifiedName, jobKey.index, jobKey.attempt)), myKey)
+  def metadataKeyForCall(jobKey: JobKey, myKey: String) = MetadataKey(workflowIdForCallMetadata, Option(MetadataJobKey(jobKey.node.fullyQualifiedName, jobKey.index, jobKey.attempt)), myKey)
 
   private def randomNumberString: String = Random.nextInt.toString.stripPrefix("-")
 

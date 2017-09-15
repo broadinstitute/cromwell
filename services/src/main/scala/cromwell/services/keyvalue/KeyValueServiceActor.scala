@@ -12,7 +12,7 @@ import scala.util.{Failure, Success}
 object KeyValueServiceActor {
   final case class KvJobKey(callFqn: String, callIndex: Option[Int], callAttempt: Int)
   object KvJobKey {
-    def apply(jobKey: JobKey): KvJobKey = KvJobKey(jobKey.scope.fullyQualifiedName, jobKey.index, jobKey.attempt)
+    def apply(jobKey: JobKey): KvJobKey = KvJobKey(jobKey.node.fullyQualifiedName, jobKey.index, jobKey.attempt)
   }
 
   final case class ScopedKey(workflowId: WorkflowId, jobKey: KvJobKey, key: String)

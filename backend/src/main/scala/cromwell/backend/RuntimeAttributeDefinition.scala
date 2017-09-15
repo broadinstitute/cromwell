@@ -25,8 +25,7 @@ object RuntimeAttributeDefinition {
                                 evaluatedInputs: Map[InputDefinition, WdlValue]): ErrorOr[Map[String, WdlValue]] = {
     import lenthall.validation.ErrorOr._
     val inputsMap = evaluatedInputs map { case (x, y) => x.name -> y }
-    unevaluated.attributes
-      .traverse({ case (key, expression) => expression.evaluateValue(inputsMap, NoIoFunctionSet) map { key -> _ } })
+    unevaluated.attributes.traverseValues(_.evaluateValue(inputsMap, NoIoFunctionSet))
   }
 
   def buildMapBasedLookup(evaluatedDeclarations: Map[InputDefinition, Try[WdlValue]])(identifier: String): WdlValue = {

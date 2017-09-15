@@ -188,6 +188,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   
   private val outputWdlFiles: Seq[WdlFile] = {
     Seq.empty
+    // TODO WOM: fix
 //    jobDescriptor.call.task
 //      .findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions)
 //      .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)

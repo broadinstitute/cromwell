@@ -34,7 +34,7 @@ class TesWorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
     val call1 = WomMocks.mockTaskCall("call1")
     
     val jobKey = new JobKey {
-      override def scope = call1
+      override def node = call1
       override def tag: String = "tag1"
       override def index: Option[Int] = Option(1)
       override def attempt: Int = 2

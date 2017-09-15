@@ -60,7 +60,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   }
 
   def declarationEvaluationSuccess(declarationKey: DeclarationKey, value: WdlValue) = {
-    val outputStoreKey = OutputKey(declarationKey.scope.singleExpressionOutputPort, declarationKey.index)
+    val outputStoreKey = OutputKey(declarationKey.node.singleExpressionOutputPort, declarationKey.index)
     this.copy(
       executionStore = executionStore.add(Map(declarationKey -> Done)),
       outputStore = outputStore.add(Map(outputStoreKey -> value))
@@ -71,7 +71,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
 
   /** Add the outputs for the specified `JobKey` to the symbol cache. */
   private def updateSymbolStoreEntry(jobKey: JobKey, outputs: CallOutputs): Map[OutputKey, WdlValue] = {
-    jobKey.scope.outputPorts flatMap { outputPort =>
+    jobKey.node.outputPorts flatMap { outputPort =>
       outputs.collectFirst { 
         case (name, JobOutput(value)) if name == outputPort.name => value
       } map { OutputKey(outputPort, jobKey.index) -> _ }

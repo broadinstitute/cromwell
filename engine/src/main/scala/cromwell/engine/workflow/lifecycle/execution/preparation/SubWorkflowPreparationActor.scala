@@ -25,7 +25,7 @@ class SubWorkflowPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
 
     val newBackendDescriptor = oldBackendDescriptor.copy(
       id = subWorkflowId,
-      workflow = callKey.scope.callable,
+      workflow = callKey.node.callable,
       // TODO WOM: need FQN for input definitions somehow ? For now don't worry about subWF
       knownValues = Map.empty,//workflowDescriptor.knownValues ++ (inputEvaluation map { case (k, v) => k.fullyQualifiedName -> v }),
       breadCrumbs = oldBackendDescriptor.breadCrumbs :+ BackendJobBreadCrumb(workflowDescriptor.workflow, workflowDescriptor.id, callKey)

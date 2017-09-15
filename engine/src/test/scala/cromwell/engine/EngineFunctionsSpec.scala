@@ -3,7 +3,7 @@ package cromwell.engine
 import org.scalatest.{FlatSpec, Matchers}
 
 class EngineFunctionsSpec extends FlatSpec with Matchers {
-
+// TODO WOM: move to wdl4s ?
 //  trait WdlStandardLibraryImpl extends  ReadLikeFunctions with WriteFunctions with PureStandardLibraryFunctionsLike {
 //    private def fail(name: String) = Failure(new NotImplementedError(s"$name() not implemented yet"))
 //

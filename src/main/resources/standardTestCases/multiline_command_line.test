@@ -1,3 +1,4 @@
+ignore: true
 name: multiline_command_line
 testFormat: workflowsuccess
 

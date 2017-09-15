@@ -1,3 +1,4 @@
+ignore: true
 name: referencingpreviousinputsandoutputs
 testFormat: workflowsuccess
 

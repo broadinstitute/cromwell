@@ -1,3 +1,4 @@
+ignore: true
 name: test_file_outputs_from_input
 testFormat: workflowsuccess
 

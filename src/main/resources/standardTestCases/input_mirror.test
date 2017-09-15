@@ -1,3 +1,4 @@
+ignore: true
 name: input_mirror
 testFormat: workflowsuccess
 

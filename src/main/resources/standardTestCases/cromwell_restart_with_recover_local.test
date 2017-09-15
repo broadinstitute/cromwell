@@ -1,3 +1,4 @@
+ignore: true
 name: cromwell_restart_with_recover_local
 testFormat: CromwellRestartWithRecover
 backendsMode: "only"

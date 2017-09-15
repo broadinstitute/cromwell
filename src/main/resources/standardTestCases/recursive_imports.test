@@ -1,6 +1,7 @@
+ignore: true
 name: recursive_imports
 testFormat: workflowsuccess
-ignore: false
+
 
 files {
   wdl: recursive_imports/recursive_imports.wdl

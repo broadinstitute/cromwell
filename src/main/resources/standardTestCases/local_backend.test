@@ -1,8 +1,9 @@
+ignore: true
 # Test against a different functional backend in the future
 
 name: local_backend
 testFormat: workflowsuccess
-ignore: false
+
 backends: [Local]
 
 files {

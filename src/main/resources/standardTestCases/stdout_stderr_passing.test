@@ -1,3 +1,4 @@
+ignore: true
 name: stdout_stderr_passing
 testFormat: workflowsuccess
 

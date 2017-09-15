@@ -1,3 +1,4 @@
+ignore: true
 name: bad_docker_name
 testFormat: workflowfailure
 

@@ -1,3 +1,4 @@
+ignore: true
 name: workflow_output_declarations
 testFormat: workflowsuccess
 

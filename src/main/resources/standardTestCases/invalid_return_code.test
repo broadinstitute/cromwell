@@ -1,3 +1,4 @@
+ignore: true
 name: invalid_return_code
 testFormat: workflowfailure
 

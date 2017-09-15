@@ -1,3 +1,4 @@
+ignore: true
 name: dont_strip_line_prefix
 testFormat: workflowsuccess
 

@@ -1,3 +1,4 @@
+ignore: true
 name: aliased_subworkflows
 testFormat: workflowsuccess
 tags: [import, subworkflow, alias]

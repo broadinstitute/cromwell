@@ -1,3 +1,4 @@
+ignore: true
 name: multiplesourcedarray
 testFormat: workflowsuccess
 

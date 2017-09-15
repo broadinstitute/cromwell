@@ -1,6 +1,7 @@
+ignore: true
 name: circular_dependencies
 testFormat: workflowfailure
-ignore: true
+
 
 files {
   wdl: circular_dependencies/circular_dependencies.wdl

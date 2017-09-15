@@ -1,3 +1,4 @@
+ignore: true
 name: docker_hash_gcr
 testFormat: workflowsuccess
 

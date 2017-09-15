@@ -1,3 +1,4 @@
+ignore: true
 name: invalid_inputs_json
 testFormat: submitfailure
 

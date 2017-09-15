@@ -1,3 +1,4 @@
+ignore: true
 # Tests that the select_all and select_first functions work in a variety of situations.
 
 name: select_functions

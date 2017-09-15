@@ -1,3 +1,4 @@
+ignore: true
 name: array_and_map_indexing
 testFormat: workflowsuccess
 

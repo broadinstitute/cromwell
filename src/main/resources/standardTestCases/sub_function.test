@@ -1,3 +1,4 @@
+ignore: true
 # Tests the usage of the sub() engine function
 
 name: sub_function

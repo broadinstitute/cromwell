@@ -1,3 +1,4 @@
+ignore: true
 name: cont_while_possible_scatter
 testFormat: workflowfailure
 backends: [Local]

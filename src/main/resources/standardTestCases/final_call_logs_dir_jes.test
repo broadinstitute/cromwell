@@ -1,3 +1,4 @@
+ignore: true
 # Tests that a runtime option to save call logs is copying said logs appropriately.
 
 name: final_call_logs_dir_jes

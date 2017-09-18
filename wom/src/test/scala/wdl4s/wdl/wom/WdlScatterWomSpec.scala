@@ -158,8 +158,6 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
         |  scatter (s in range(x)) {
         |    call foo { input: i = s } # nb: foo.j is missing!
         |  }
-        |
-        |  Array[String] str_outs = foo.str_out
         |}
         |""".stripMargin
 

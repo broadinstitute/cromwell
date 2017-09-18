@@ -7,23 +7,19 @@ import cats.syntax.functor._
 import cats.syntax.traverse._
 
 import lenthall.validation.ErrorOr.ErrorOr
+import lenthall.collections.EnhancedCollections._
 import wdl4s.wom.graph.GraphNodePort.InputPort
 
 /**
   * A sealed set of graph nodes.
   */
 final case class Graph private(nodes: Set[GraphNode]) {
-  // FIXME: this actually seems pretty WDL specific, and even then specific to the case of a WDL that doesn't have
-  // an explicit outputs block.  I'd remove this but the WDL/WOM test relies on it.
-  // ChrisL: I agree, this should be part of the WDL -> WOM conversion.
-  def withDefaultOutputs: Graph = {
-    val defaultOutputs: Set[GraphNode] = (nodes collect {
-      case node: CallNode => node.outputPorts.map(op => PortBasedGraphOutputNode(s"${node.name}.${op.name}", op.womType, op))
-      case node: ScatterNode => node.outputPorts.map(op => PortBasedGraphOutputNode(s"${op.name}", op.womType, op))
-      case node: ConditionalNode => node.outputPorts.map(op => PortBasedGraphOutputNode(s"${op.name}", op.womType, op))
-    }).flatten
-    Graph(nodes.union(defaultOutputs))
-  }
+  lazy val inputNodes: Set[GraphInputNode] = nodes.filterByType[GraphInputNode]
+  lazy val outputNodes: Set[GraphOutputNode] = nodes.filterByType[GraphOutputNode]
+  lazy val calls: Set[CallNode] = nodes.filterByType[CallNode]
+  lazy val scatters: Set[ScatterNode] = nodes.filterByType[ScatterNode]
+
+  def outputByName(name: String): Option[GraphOutputNode] = outputNodes.find(_.name == name)
 }
 
 object Graph {

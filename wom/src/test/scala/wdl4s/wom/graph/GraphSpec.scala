@@ -43,19 +43,24 @@ class GraphSpec extends FlatSpec with Matchers {
     )
 
     val CallNodeAndNewInputs(psCall, psGraphInputs) = CallNode.callWithInputs("ps", taskDefinition_ps, Map.empty, Set.empty).getOrElse(fail("Unable to call ps"))
-    val ps_procsOutputPort = psCall.outputByName("procs").getOrElse(fail("Unexpectedly unable to find 'procs' output"))
-
+    val ps_procsOutputPort = psCall.outputByName("procs").getOrElse(fail("Unexpectedly unable to find 'ps.procs' output"))
     val CallNodeAndNewInputs(cgrepCall, cgrepGraphInputs) = CallNode.callWithInputs("cgrep", taskDefinition_cgrep, Map("in_file" -> ps_procsOutputPort), Set.empty).getOrElse(fail("Unable to call cgrep"))
+    val cgrep_countOutputPort = cgrepCall.outputByName("count").getOrElse(fail("Unexpectedly unable to find 'cgrep.count' output"))
     val CallNodeAndNewInputs(wcCall, wcGraphInputs) = CallNode.callWithInputs("wc", taskDefinition_wc, Map("in_file" -> ps_procsOutputPort), Set.empty).getOrElse(fail("Unable to call wc"))
+    val wc_countOutputPort = wcCall.outputByName("count").getOrElse(fail("Unexpectedly unable to find 'wc.count' output"))
+
+    val psProcsOutputNode = PortBasedGraphOutputNode("ps.procs", WdlFileType, ps_procsOutputPort)
+    val cgrepCountOutputNode = PortBasedGraphOutputNode("cgrep.count", WdlIntegerType, cgrep_countOutputPort)
+    val wcCountOutputNode = PortBasedGraphOutputNode("wc.count", WdlIntegerType, wc_countOutputPort)
 
     val graphNodes: Set[GraphNode] =
-      Set[GraphNode](psCall, cgrepCall, wcCall)
+      Set[GraphNode](psCall, cgrepCall, wcCall, psProcsOutputNode, cgrepCountOutputNode, wcCountOutputNode)
         .union(psGraphInputs.toSet[GraphNode])
         .union(cgrepGraphInputs.toSet[GraphNode])
         .union(wcGraphInputs.toSet[GraphNode])
 
     Graph.validateAndConstruct(graphNodes) match {
-      case Valid(wg) => wg.withDefaultOutputs
+      case Valid(wg) => wg
       case Invalid(errors) => fail(s"Unable to validate graph: ${errors.toList.mkString("\n", "\n", "\n")}")
     }
   }
@@ -72,13 +77,18 @@ class GraphSpec extends FlatSpec with Matchers {
     val threeStepWorkflow = WorkflowDefinition("three_step", makeThreeStep, Map.empty, Map.empty, List.empty)
     val CallNodeAndNewInputs(threeStepCall, threeStepInputs) = CallNode.callWithInputs("three_step", threeStepWorkflow, Map.empty, Set.empty).getOrElse(fail("Unable to call three_step"))
 
-    val workflowGraph = Graph.validateAndConstruct(Set[GraphNode](threeStepCall).union(threeStepInputs.toSet[GraphNode])) match {
-      case Valid(wg) => wg.withDefaultOutputs
+    // This is painful manually, but it's not up to WOM to decide which subworkflow outputs are forwarded through:
+    val psProcsOutputNode = PortBasedGraphOutputNode("three_step.ps.procs", WdlFileType, threeStepCall.outputByName("ps.procs").getOrElse(fail("Subworkflow didn't expose the ps.procs output")))
+    val cgrepCountOutputNode = PortBasedGraphOutputNode("three_step.cgrep.count", WdlIntegerType, threeStepCall.outputByName("cgrep.count").getOrElse(fail("Subworkflow didn't expose the cgrep.count output")))
+    val wcCountOutputNode = PortBasedGraphOutputNode("three_step.wc.count", WdlIntegerType, threeStepCall.outputByName("wc.count").getOrElse(fail("Subworkflow didn't expose the wc.count output")))
+
+    val workflowGraph = Graph.validateAndConstruct(Set[GraphNode](threeStepCall, psProcsOutputNode, cgrepCountOutputNode, wcCountOutputNode).union(threeStepInputs.toSet[GraphNode])) match {
+      case Valid(wg) => wg
       case Invalid(errors) => fail(s"Unable to validate graph: ${errors.toList.mkString("\n", "\n", "\n")}")
     }
 
     workflowGraph.nodes collect { case gin: GraphInputNode => gin.name } should be(Set("three_step.cgrep.pattern"))
-    workflowGraph.nodes collect { case gon: PortBasedGraphOutputNode => gon.name } should be(Set("three_step.wc.count", "three_step.cgrep.count", "three_step.ps.procs"))
+    workflowGraph.nodes collect { case gon: GraphOutputNode => gon.name } should be(Set("three_step.wc.count", "three_step.cgrep.count", "three_step.ps.procs"))
     workflowGraph.nodes collect { case cn: CallNode => cn.name } should be(Set("three_step"))
   }
 }

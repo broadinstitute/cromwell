@@ -1,15 +1,15 @@
 package wdl4s.cwl
 
-import cats.data.Validated._
 import cats.instances.list._
-import cats.syntax.option._
+import cats.syntax.either._
 import cats.syntax.traverse._
 import CwlType._
 import shapeless._
 import shapeless.syntax.singleton._
 import CwlVersion._
-import cats.data.Validated._
+import cats.data.NonEmptyList
 import lenthall.validation.ErrorOr._
+import lenthall.Checked
 import shapeless._
 import wdl4s.cwl.CwlType.CwlType
 import wdl4s.cwl.CwlVersion._
@@ -27,7 +27,7 @@ case class Workflow private(
                      outputs: Array[WorkflowOutputParameter],
                      steps: Array[WorkflowStep]) {
 
-  def womExecutable: ErrorOr[Executable] = womDefinition map Executable.apply
+  def womExecutable: Checked[Executable] = womDefinition map Executable.apply
 
   val fileNames: List[String] = steps.toList.flatMap(_.run.select[String].toList)
 
@@ -40,7 +40,7 @@ case class Workflow private(
 
   lazy val stepById: Map[String, WorkflowStep] = steps.map(ws => ws.id -> ws).toMap
 
-  def womGraph: ErrorOr[Graph] = {
+  def womGraph: Checked[Graph] = {
 
     def cwlTypeForInputParameter(input: InputParameter): Option[CwlType] = input.`type`.flatMap(_.select[CwlType])
 
@@ -67,33 +67,39 @@ case class Workflow private(
           workflowInput.name -> workflowInput.singleOutputPort
       }.toMap
 
-    val graphFromSteps: Set[GraphNode] =
+    val graphFromSteps: Checked[Set[GraphNode]] =
       steps.
         toList.
-        foldLeft(Set.empty[GraphNode] ++ graphFromInputs)(
-          (nodes, step) => step.callWithInputs(typeMap,  this, nodes, workflowInputs))
+        foldLeft((Set.empty[GraphNode] ++ graphFromInputs).asRight[NonEmptyList[String]])(
+          (nodes, step) => nodes.flatMap(step.callWithInputs(typeMap,  this, _, workflowInputs)))
 
-    val graphFromOutputs: ErrorOr[Set[GraphNode]] =
+    val graphFromOutputs: Checked[Set[GraphNode]] =
       outputs.toList.traverse[ErrorOr, GraphNode] {
         output =>
 
           val wdlType = cwlTypeToWdlType(output.`type`.flatMap(_.select[CwlType]).get)
 
-          def lookupOutputSource(outputId: WorkflowOutputId): ErrorOr[OutputPort] = {
-            (for {
-              call <- graphFromSteps.collectFirst { case callNode: CallNode if callNode.name == outputId.stepId => callNode }
-              output <- call.outputPorts.find(_.name == outputId.outputId)
-            } yield output).toValidNel(s"unable to find upstream port corresponding to ${outputId.stepId}/${outputId.outputId}")
-          }
+          def lookupOutputSource(outputId: WorkflowOutputId): Checked[OutputPort] =
+            for {
+              set <- graphFromSteps
+              call <- set.collectFirst { case callNode: CallNode if callNode.name == outputId.stepId => callNode }.
+                toRight(NonEmptyList.one(s"Call Node by name ${outputId.stepId} was not found in set $set"))
+              output <- call.outputPorts.find(_.name == outputId.outputId).
+                          toRight(NonEmptyList.one(s"looking for ${outputId.outputId} in call $call output ports ${call.outputPorts}"))
+            } yield output
 
           lookupOutputSource(WorkflowOutputId(output.outputSource.flatMap(_.select[String]).get)).
-            map(PortBasedGraphOutputNode(output.id, wdlType, _))
-      }.map(_.toSet)
+            map(PortBasedGraphOutputNode(output.id, wdlType, _)).toValidated
+      }.map(_.toSet).toEither
 
-    graphFromOutputs.flatMap(outputs => Graph.validateAndConstruct(graphFromSteps ++ graphFromInputs ++ outputs))
+    for {
+      outputs <- graphFromOutputs
+      steps <- graphFromSteps
+      ret <- Graph.validateAndConstruct(steps ++ graphFromInputs ++ outputs).toEither
+    } yield ret
   }
 
-  def womDefinition: ErrorOr[WorkflowDefinition] = {
+  def womDefinition: Checked[WorkflowDefinition] = {
     // TODO: need to find a way to get a meaningful name here
     val name: String = "MyCwlWorkflow"
     val meta: Map[String, String] = Map.empty

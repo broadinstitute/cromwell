@@ -1,6 +1,5 @@
 package wdl4s.cwl
 
-import cats.data.Validated.Valid
 import cats.syntax.either._
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.cwl.CwlDecoder._
@@ -49,7 +48,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers {
               map(_.select[CommandLineTool].get).
               value.
               unsafeRunSync
-      wom <-  clt.womExecutable.toEither
+      wom <- clt.womExecutable
     } yield validateWom(wom)).leftMap(e => throw new RuntimeException(s"error! $e"))
   }
 
@@ -60,7 +59,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers {
               unsafeRunSync.
               map(_.select[Workflow].get)
 
-      ex <- wf.womExecutable.toEither
+      ex <- wf.womExecutable
     } yield validateWom(ex)).leftMap(e => throw new RuntimeException(s"error! $e"))
 
     def validateWom(ex: Executable) = {
@@ -103,8 +102,9 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers {
     }.value.unsafeRunSync.fold(error => throw new RuntimeException(s"broken parse! msg was $error"), identity)
 
     val wfd = wf.womExecutable match {
-      case Valid(Executable(wf: WorkflowDefinition)) => wf
-      case o => fail(s"invalid executable $o")
+      case Right(Executable(wf: WorkflowDefinition)) => wf
+      case Left(o) => fail(s"Workflow definition was not produced correctly: ${o.toList.mkString(", ")}")
+      case Right(Executable(callable)) => fail(s"produced $callable when a Workflow Definition was expected!")
     }
 
     val nodes = wfd.innerGraph.nodes

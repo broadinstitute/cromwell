@@ -1,7 +1,5 @@
 package wdl4s.cwl
 
-import cats.data.Validated._
-import lenthall.validation.ErrorOr._
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil, Poly1, Witness, _}
 import wdl4s.cwl.CommandLineTool.{BaseCommand, StringOrExpression}
@@ -12,6 +10,7 @@ import wdl4s.wom.callable.{Callable, TaskDefinition}
 import wdl4s.wom.executable.Executable
 import wdl4s.wom.expression.WomExpression
 import wdl4s.wom.{CommandPart, RuntimeAttributes}
+import lenthall.Checked
 
 /**
   *
@@ -56,8 +55,8 @@ case class CommandLineTool private(
                                    temporaryFailCodes: Option[Array[Int]],
                                    permanentFailCodes: Option[Array[Int]]) {
 
-  def womExecutable: ErrorOr[Executable] =
-    Valid(Executable(taskDefinition))
+  def womExecutable: Checked[Executable] =
+    Right(Executable(taskDefinition))
 
 
   object BaseCommandToString extends Poly1 {
@@ -106,7 +105,7 @@ case class CommandLineTool private(
     //TODO: This output does _not_ capture expressions from the output.outputBinding
     //The implementation must include the expression evaluation pieces as detailed in:
     //http://www.commonwl.org/v1.0/CommandLineTool.html#CommandOutputBinding
-    
+
     // For inputs and outputs, we only keep the variable name in the definition
     val outputs: Set[Callable.OutputDefinition] = this.outputs.map {
       output =>

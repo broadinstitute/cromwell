@@ -5,7 +5,7 @@ object Dependencies {
 
   val sprayJsonV = "1.3.2"
   val circeVersion = "0.9.0-M1"
-  val lenthallV = "0.28-7e90b62-SNAP"
+  val lenthallV = "0.28-f5f7f86-SNAP"
 
   // Internal collections of dependencies
 

@@ -44,7 +44,7 @@ trait SamClient {
   }
 
   private lazy val SamBaseUri = s"${configuration.samConfig.scheme}://${configuration.samConfig.interface}:${configuration.samConfig.port}/api/resource"
-  private def samBaseUriForWorkflow(workflowId: String) = s"$SamBaseUri/workflow/$workflowId"
+  private def samBaseUriForWorkflow(workflowId: String) = s"$SamBaseUri/workflow-collection/$workflowId"
   private def samRegisterUri(workflowId: String) = Uri(samBaseUriForWorkflow(workflowId))
   private def samAuthorizeActionUri(authorizationRequest: WorkflowAuthorizationRequest) =
     Uri(s"${samBaseUriForWorkflow(authorizationRequest.workflowId)}/action/${authorizationRequest.action}")

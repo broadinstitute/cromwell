@@ -54,7 +54,7 @@ steps:
     arguments:
     - valueFrom: grep
       shellQuote: false
-    - valueFrom: $(inputs.pattern).
+    - valueFrom: $(inputs.pattern)
       shellQuote: false
     - valueFrom: $(inputs.file)
       shellQuote: false

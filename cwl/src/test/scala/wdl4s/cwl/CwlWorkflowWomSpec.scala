@@ -1,15 +1,18 @@
 package wdl4s.cwl
 
 import cats.syntax.either._
+import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
+import shapeless._
 import wdl4s.cwl.CwlDecoder._
 import wdl4s.wdl.types.{WdlFileType, WdlStringType}
 import wdl4s.wom.callable.Callable.RequiredInputDefinition
 import wdl4s.wom.callable.{TaskDefinition, WorkflowDefinition}
 import wdl4s.wom.executable.Executable
 import wdl4s.wom.graph._
+import eu.timepit.refined._
 
-class CwlWorkflowWomSpec extends FlatSpec with Matchers {
+class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
   import TestSetup._
 
   "munging the runnable id" should "remove the filename" in {
@@ -95,6 +98,56 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers {
     }
   }
 
+  behavior of "A decoded CWL 3step"
+
+  private val stringOrExpressionTests = Table(
+    ("index", "result"),
+    (0, Coproduct[CommandLineTool.StringOrExpression]("grep")),
+    (1, Coproduct[CommandLineTool.StringOrExpression](refineMV[MatchesECMAScriptExpression]("$(inputs.pattern)"))),
+    (2, Coproduct[CommandLineTool.StringOrExpression](refineMV[MatchesECMAScriptExpression]("$(inputs.file)"))),
+    (3, Coproduct[CommandLineTool.StringOrExpression]("|")),
+    (4, Coproduct[CommandLineTool.StringOrExpression]("wc")),
+    (5, Coproduct[CommandLineTool.StringOrExpression]("-l"))
+  )
+
+  private def getTestName(stringOrExpression: CommandLineTool.StringOrExpression): String = {
+    object StringOrExpressionToTestName extends Poly1 {
+      implicit def caseECMAScriptExpression: Case.Aux[ECMAScriptExpression, String] = {
+        at[ECMAScriptExpression] { ecmaScriptExpression => s"expression ${ecmaScriptExpression.value}" }
+      }
+
+      implicit def caseString: Case.Aux[String, String] = {
+        at[String] { string => s"string $string" }
+      }
+    }
+
+    stringOrExpression.fold(StringOrExpressionToTestName)
+  }
+
+  private lazy val commandLineTool: CommandLineTool = {
+    val wf = decodeAllCwl(rootPath / "three_step.cwl").map {
+      _.select[Workflow].get
+    }.value.unsafeRunSync.fold(error => throw new RuntimeException(s"broken parse! msg was $error"), identity)
+
+    // The second step (aka 1) step should be cgrep
+    val run: WorkflowStep.Run = wf.steps.apply(1).run
+    val commandLineTool: CommandLineTool = run.select[CommandLineTool].getOrElse(fail(s"$run wasn't a CommandLineTool"))
+
+    commandLineTool.id.get should include("cgrep")
+    commandLineTool
+  }
+
+  forAll(stringOrExpressionTests) { (index, expected) =>
+    it should s"correctly identify the ${getTestName(expected)}" in {
+      val argument: CommandLineTool.Argument = commandLineTool.arguments.get.apply(index)
+      val commandLineBinding: CommandLineBinding = argument.select[CommandLineBinding]
+        .getOrElse(fail(s"$argument wasn't a CommandLineBinding"))
+      val stringOrExpression: CommandLineTool.StringOrExpression = commandLineBinding.valueFrom
+        .getOrElse(fail(s"valueFrom missing in $commandLineBinding"))
+      stringOrExpression should be(expected)
+    }
+  }
+
   "A WdlNamespace for 3step" should "provide conversion to WOM" in {
 
     val wf = decodeAllCwl(rootPath/"three_step.cwl").map {
@@ -124,10 +177,13 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers {
     val wc = nodes.collectFirst({ case wc: CallNode if wc.name == "wc" => wc }).get
 
     ps.upstream shouldBe empty
-    cgrep.upstream.filter(_ eq ps).size shouldBe 1
-    cgrep.upstream.filter(_ eq cgrepPatternInput).size shouldBe 1
+    // Testing reference equality as we were creating duplicate equivalent instances
+    cgrep.upstream.count(_ eq ps) shouldBe 1
+    cgrep.upstream.count(_ eq cgrepPatternInput) shouldBe 1
+    cgrep.upstream.size should be(2)
 
-    wc.upstream.filter(_ eq ps).size shouldBe 1
+    wc.upstream.count(_ eq ps) shouldBe 1
+    wc.upstream.size should be(1)
   }
 
 }

@@ -6,7 +6,7 @@ import cromwell.backend.io.WorkflowPaths
 import cromwell.core.CallOutputs
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.path.{Path, PathCopier}
-import wdl4s.wom.graph.TaskCallNode
+import wom.graph.TaskCallNode
 
 import scala.concurrent.Future
 

@@ -15,7 +15,7 @@ import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExec
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import lenthall.validation.ErrorOr.ErrorOr
-import wdl4s.wdl.values.WdlFile
+import wdl.values.WdlFile
 
 import scala.concurrent.Future
 import scala.concurrent.duration._

@@ -11,7 +11,7 @@ import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.
 import cromwell.engine.workflow.lifecycle.execution.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
 import lenthall.exception.MessageAggregation
-import wdl4s.wom.WomEvaluatedCallInputs
+import wom.WomEvaluatedCallInputs
 
 class SubWorkflowPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
                                   expressionLanguageFunctions: WdlFunctions,

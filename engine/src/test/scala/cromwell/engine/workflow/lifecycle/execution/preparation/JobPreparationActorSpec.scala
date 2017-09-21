@@ -12,8 +12,8 @@ import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvKeyLookupFailed, KvPair}
 import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
-import wdl4s.wdl.values.{WdlString, WdlValue}
-import wdl4s.wom.callable.Callable.InputDefinition
+import wdl.values.{WdlString, WdlValue}
+import wom.callable.Callable.InputDefinition
 
 import scala.concurrent.duration._
 import scala.language.postfixOps

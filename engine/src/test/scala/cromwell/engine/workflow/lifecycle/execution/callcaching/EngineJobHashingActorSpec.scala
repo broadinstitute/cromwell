@@ -13,8 +13,8 @@ import cromwell.util.WomMocks
 import org.scalatest.concurrent.Eventually
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
-import wdl4s.wdl.command.StringCommandPart
-import wdl4s.wdl.values.WdlValue
+import _root_.wdl.command.StringCommandPart
+import _root_.wdl.values.WdlValue
 
 class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matchers with BackendSpec with TableDrivenPropertyChecks with Eventually {
   behavior of "EngineJobHashingActor"
@@ -26,7 +26,7 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
     val call = WomMocks.mockTaskCall("workflow.hello").copy(callable = task)
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
     workflowDescriptor.id returns WorkflowId.randomId()
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, fqnMapToDeclarationMap(inputs), NoDocker, Map.empty)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
     jobDescriptor
   }
   

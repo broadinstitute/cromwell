@@ -6,8 +6,8 @@ import cromwell.core.CromwellGraphNode._
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.Path
 import wdl4s.parser.MemoryUnit
-import wdl4s.wdl.FullyQualifiedName
-import wdl4s.wdl.values.{WdlFile, WdlGlobFile, WdlSingleFile, WdlValue}
+import wdl.FullyQualifiedName
+import wdl.values.{WdlFile, WdlGlobFile, WdlSingleFile, WdlValue}
 
 final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          configurationDescriptor: BackendConfigurationDescriptor,

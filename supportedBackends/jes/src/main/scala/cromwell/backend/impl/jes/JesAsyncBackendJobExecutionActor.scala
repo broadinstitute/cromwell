@@ -26,8 +26,8 @@ import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import lenthall.validation.ErrorOr.ErrorOr
 import org.slf4j.LoggerFactory
-import wdl4s.wdl._
-import wdl4s.wdl.values._
+import _root_.wdl._
+import _root_.wdl.values._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.Future

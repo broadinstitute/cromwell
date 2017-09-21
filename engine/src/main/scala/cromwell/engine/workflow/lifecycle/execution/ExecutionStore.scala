@@ -6,9 +6,10 @@ import cromwell.core.ExecutionStatus._
 import cromwell.core.{CallKey, JobKey}
 import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.{FqnIndex, RunnableScopes}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{apply => _, _}
-import wdl4s.wdl._
-import wdl4s.wom.callable.WorkflowDefinition
-import wdl4s.wom.graph.{GraphNode, ScatterNode, TaskCallNode}
+import wdl._
+import wom.callable.WorkflowDefinition
+import wom.executable.Executable.ResolvedExecutableInputs
+import wom.graph._
 
 
 object ExecutionStore {
@@ -18,7 +19,7 @@ object ExecutionStore {
 
   def empty = ExecutionStore(Map.empty[JobKey, ExecutionStatus], hasNewRunnables = false)
 
-  def apply(workflow: WorkflowDefinition, workflowCoercedInputs: WorkflowCoercedInputs) = {
+  def apply(workflow: WorkflowDefinition, workflowCoercedInputs: ResolvedExecutableInputs) = {
     // Only add direct children to the store, the rest is dynamically created when necessary
 //    val keys = workflow.children map {
 //      case call: WdlTaskCall => Option(BackendJobDescriptorKey(call, None, 1))
@@ -31,8 +32,14 @@ object ExecutionStore {
     
     val keys = workflow.innerGraph.nodes collect {
       case call: TaskCallNode => Option(BackendJobDescriptorKey(call, None, 1))
+      case declaration: ExpressionNode => Option(ExpressionKey(declaration, None))
     }
-
+    
+    // There are potentially resolved workflow inputs that are default WomExpressions.
+    // For now assume that those are call inputs that will be evaluated in the CallPreparation.
+    // If they are actually workflow declarations then we would need to add them to the ExecutionStore so they can be evaluated.
+    // In that case we would want InstantiatedExpressions so we can create an InstantiatedExpressionNode and add a DeclarationKey
+    
     new ExecutionStore(keys.flatten.map(_ -> NotStarted).toMap, keys.nonEmpty)
   }
   
@@ -118,16 +125,15 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
 
   private def emulateShardEntries(key: CollectorKey): Set[FqnIndex] = {
     (0 until key.scatterWidth).toSet map { i: Int => key.node match {
-      case c: WdlCall => c.fullyQualifiedName -> Option(i)
-      case d: Declaration => d.fullyQualifiedName -> Option(i)
+      case c: CallNode => c.fullyQualifiedName -> Option(i)
+      case d: ExpressionNode => d.fullyQualifiedName -> Option(i)
       case _ => throw new RuntimeException("Don't collect that.")
     }}
   }
 
   private def arePrerequisitesDone(key: JobKey): Boolean = {
     lazy val upstreamAreDone = key.node.upstream forall {
-      // TODO WOM: Declaration ??
-      case n @ (_: TaskCallNode | _: ScatterNode | _: Declaration) => upstreamIsDone(key, n)
+      case n @ (_: TaskCallNode | _: ScatterNode | _: ExpressionNode) => upstreamIsDone(key, n)
       case _ => true
     }
 

@@ -10,7 +10,7 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescript
 import cromwell.core.TestKitSuite
 import cromwell.core.logging.LoggingTest._
 import org.scalatest.{Matchers, WordSpecLike}
-import wdl4s.wom.graph.TaskCallNode
+import wom.graph.TaskCallNode
 
 import scala.concurrent.duration._
 
@@ -47,7 +47,7 @@ class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSy
   "SharedFileSystemInitializationActor" should {
     "log a warning message when there are unsupported runtime attributes" in {
       within(Timeout) {
-        val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { unsupported: 1 }""")
+        val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { unsupported: 1 }""")
         val conf = BackendConfigurationDescriptor(TestConfig.sampleBackendRuntimeConfig, ConfigFactory.empty())
         val backend: ActorRef = getActorRef(workflowDescriptor, workflowDescriptor.workflow.taskCallNodes, conf)
         val pattern = "Key/s [unsupported] is/are not supported by backend. " +

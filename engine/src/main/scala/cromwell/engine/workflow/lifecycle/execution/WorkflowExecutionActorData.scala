@@ -5,9 +5,9 @@ import cromwell.backend._
 import cromwell.core.ExecutionStatus._
 import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.OutputStore.OutputKey
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{DeclarationKey, SubWorkflowKey}
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{ExpressionKey, SubWorkflowKey}
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
-import wdl4s.wdl.values.WdlValue
+import _root_.wdl.values.WdlValue
 
 import scala.language.postfixOps
 
@@ -59,7 +59,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     )
   }
 
-  def declarationEvaluationSuccess(declarationKey: DeclarationKey, value: WdlValue) = {
+  def declarationEvaluationSuccess(declarationKey: ExpressionKey, value: WdlValue) = {
     val outputStoreKey = OutputKey(declarationKey.node.singleExpressionOutputPort, declarationKey.index)
     this.copy(
       executionStore = executionStore.add(Map(declarationKey -> Done)),

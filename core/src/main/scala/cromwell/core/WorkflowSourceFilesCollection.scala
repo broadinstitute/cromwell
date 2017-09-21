@@ -1,6 +1,6 @@
 package cromwell.core
 
-import wdl4s.wdl.{WorkflowJson, WorkflowSource}
+import wdl.{WorkflowJson, WorkflowSource}
 
 /**
   * Represents the collection of source files that a user submits to run a workflow

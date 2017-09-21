@@ -8,8 +8,8 @@ import cromwell.backend.wdl.OutputEvaluator
 import cromwell.core.CromwellGraphNode._
 import cromwell.core.path.Path
 import cromwell.core.{CallOutputs, ExecutionEvent, JobKey}
-import wdl4s.wdl.values.WdlValue
-import wdl4s.wom.expression.IoFunctionSet
+import _root_.wdl.values.WdlValue
+import wom.expression.IoFunctionSet
 
 import scala.concurrent.Future
 import scala.util.{Success, Try}

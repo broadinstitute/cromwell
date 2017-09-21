@@ -2,13 +2,14 @@ package cromwell.backend.wdl
 
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.JobOutput
-import wdl4s.wdl.LocallyQualifiedName
-import wdl4s.wdl.values.WdlValue
-import wdl4s.wom.expression.IoFunctionSet
+import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+import lenthall.validation.Validation._
+import wdl.LocallyQualifiedName
+import wdl.values.WdlValue
+import wom.expression.IoFunctionSet
 
 import scala.language.postfixOps
 import scala.util.{Success, Try}
-
 object OutputEvaluator {
   def evaluateOutputs(jobDescriptor: BackendJobDescriptor,
                       ioFunctions: IoFunctionSet,
@@ -20,7 +21,11 @@ object OutputEvaluator {
     jobDescriptor.call.callable.outputs map { output =>
       // TODO WOM: Should evaluateValue return a Future ?
       // TODO WOM: Aggregate failures
-      output.name -> JobOutput(output.expression.evaluateValue(knownValues, ioFunctions).getOrElse(throw new Exception("Output evaluation failed")))
+      output.name -> 
+        JobOutput(
+          output.expression.evaluateValue(knownValues, ioFunctions).flatMap(value => postMapper(value).toErrorOr)  
+          .getOrElse(throw new Exception("Output evaluation failed"))
+        )
     } toMap
   }
 }

@@ -12,7 +12,7 @@ import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.filesystems.gcs.GcsPathBuilderFactory
 import lenthall.exception.MessageAggregation
 import net.ceedubs.ficus.Ficus._
-import wdl4s.wom.graph.TaskCallNode
+import wom.graph.TaskCallNode
 
 import scala.concurrent.Future
 

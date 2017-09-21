@@ -7,7 +7,7 @@ import cromwell.core.WorkflowId
 import cromwell.jobstore.JobStore.{Completion, JobCompletion, WorkflowCompletion}
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
-import wdl4s.wom.callable.Callable.OutputDefinition
+import wom.callable.Callable.OutputDefinition
 
 import scala.concurrent.duration._
 import scala.language.postfixOps

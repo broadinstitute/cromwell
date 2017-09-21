@@ -34,8 +34,8 @@ import org.scalatest._
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Millis, Seconds, Span}
 import spray.json._
-import wdl4s.wdl.types._
-import wdl4s.wdl.values._
+import wdl.types._
+import wdl.values._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}

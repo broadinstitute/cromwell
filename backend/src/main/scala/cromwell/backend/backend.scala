@@ -1,17 +1,18 @@
 package cromwell.backend
 
 import com.typesafe.config.Config
+import cromwell.core.CromwellGraphNode._
 import cromwell.core.WorkflowOptions.WorkflowOption
 import cromwell.core.callcaching.MaybeCallCachingEligible
 import cromwell.core.labels.Labels
 import cromwell.core.{CallKey, WorkflowId, WorkflowOptions}
 import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
-import wdl4s.wdl._
-import wdl4s.wdl.values.WdlValue
-import wdl4s.wom.callable.WorkflowDefinition
-import wdl4s.wom.graph.TaskCallNode
-import cromwell.core.CromwellGraphNode._
-import wdl4s.wom.WomEvaluatedCallInputs
+import _root_.wdl._
+import _root_.wdl.values.WdlValue
+import wom.WomEvaluatedCallInputs
+import wom.callable.WorkflowDefinition
+import wom.executable.Executable.ResolvedExecutableInputs
+import wom.graph.TaskCallNode
 
 import scala.util.Try
 
@@ -44,7 +45,7 @@ case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
 object BackendWorkflowDescriptor {
   def apply(id: WorkflowId,
             workflow: WorkflowDefinition,
-            knownValues: Map[FullyQualifiedName, WdlValue],
+            knownValues: ResolvedExecutableInputs,
             workflowOptions: WorkflowOptions,
             customLabels: Labels) = {
     new BackendWorkflowDescriptor(id, workflow, knownValues, workflowOptions, customLabels, List.empty)
@@ -56,7 +57,7 @@ object BackendWorkflowDescriptor {
   */
 case class BackendWorkflowDescriptor(id: WorkflowId,
                                      workflow: WorkflowDefinition,
-                                     knownValues: Map[FullyQualifiedName, WdlValue],
+                                     knownValues: ResolvedExecutableInputs,
                                      workflowOptions: WorkflowOptions,
                                      customLabels: Labels,
                                      breadCrumbs: List[BackendJobBreadCrumb]) {

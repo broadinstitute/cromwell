@@ -12,9 +12,10 @@ import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{Ma
 import cromwell.util.SampleWdl.HelloWorld
 import org.scalatest.BeforeAndAfter
 import org.scalatest.mockito.MockitoSugar
+import shapeless.Inl
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-import wdl4s.wdl.values.WdlString
+import wdl.values.WdlString
 
 import scala.concurrent.duration._
 
@@ -75,8 +76,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
             wfDesc.id shouldBe workflowId
             wfDesc.name shouldBe "wf_hello"
             wfDesc.namespace.taskCallNodes.size shouldBe 1
-            wfDesc.knownValues.head shouldBe (("wf_hello.hello.addressee", WdlString("world")))
-            wfDesc.backendDescriptor.knownValues.head shouldBe (("wf_hello.hello.addressee", WdlString("world")))
+            wfDesc.knownValues.head._1.name shouldBe "wf_hello.hello.addressee"
+            wfDesc.knownValues.head._2 shouldBe Inl(WdlString("world"))
             wfDesc.getWorkflowOption(WorkflowOptions.WriteToCache) shouldBe Option("true")
             wfDesc.getWorkflowOption(WorkflowOptions.ReadFromCache) shouldBe None
             wfDesc.backendDescriptor.customLabels shouldBe Labels("label1" -> "value1", "label2" -> "value2")
@@ -372,7 +373,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       within(Timeout) {
         expectMsgPF() {
           case MaterializeWorkflowDescriptorFailureResponse(reason) =>
-            reason.getMessage should startWith("Workflow input processing failed:\nWorkflow contains invalid inputs JSON")
+            reason.getMessage should startWith("Workflow input processing failed:\n")
           case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
           case unknown =>
             fail(s"Unexpected materialization response: $unknown")
@@ -467,8 +468,9 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       within(Timeout) {
         expectMsgPF() {
           case MaterializeWorkflowDescriptorFailureResponse(reason) =>
-            reason.getMessage should equal("Workflow input processing failed:\nInvalid value for File input 'foo.bad_one': \"gs://this/is/a/bad/gcs/path.txt starts with a '\"' " +
-              "\nInvalid value for File input 'foo.bad_two': \"gs://another/bad/gcs/path.txt starts with a '\"' ")
+            reason.getMessage should startWith("Workflow input processing failed:\n")
+            reason.getMessage should include("Invalid value for File input 'foo.bad_one': \"gs://this/is/a/bad/gcs/path.txt starts with a '\"' ")
+            reason.getMessage should include("Invalid value for File input 'foo.bad_two': \"gs://another/bad/gcs/path.txt starts with a '\"' ")
           case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
           case unknown => fail(s"Unexpected materialization response: $unknown")
         }

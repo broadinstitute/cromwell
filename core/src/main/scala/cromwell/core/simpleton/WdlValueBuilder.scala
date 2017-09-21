@@ -2,9 +2,9 @@ package cromwell.core.simpleton
 
 import cromwell.core.simpleton.WdlValueSimpleton._
 import cromwell.core.{CallOutputs, JobOutput}
-import wdl4s.wdl.types._
-import wdl4s.wdl.values.{WdlArray, WdlMap, WdlOptionalValue, WdlPair, WdlValue}
-import wdl4s.wom.callable.Callable.OutputDefinition
+import wdl.types._
+import wdl.values.{WdlArray, WdlMap, WdlOptionalValue, WdlPair, WdlValue}
+import wom.callable.Callable.OutputDefinition
 
 import scala.language.postfixOps
 

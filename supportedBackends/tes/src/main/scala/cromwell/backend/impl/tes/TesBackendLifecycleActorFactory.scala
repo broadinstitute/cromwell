@@ -3,7 +3,7 @@ package cromwell.backend.impl.tes
 import akka.actor.ActorRef
 import cromwell.backend._
 import cromwell.backend.standard._
-import wdl4s.wom.graph.TaskCallNode
+import wom.graph.TaskCallNode
 
 case class TesBackendLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
   extends StandardLifecycleActorFactory {

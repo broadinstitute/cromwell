@@ -3,8 +3,8 @@ package cromwell.engine.backend.mock
 import akka.actor.{ActorRef, Props}
 import cromwell.backend._
 import cromwell.core.NoIoFunctionSet
-import wdl4s.wom.expression.IoFunctionSet
-import wdl4s.wom.graph.TaskCallNode
+import wom.expression.IoFunctionSet
+import wom.graph.TaskCallNode
 
 class RetryableBackendLifecycleActorFactory(val name: String,
                                             val configurationDescriptor: BackendConfigurationDescriptor)

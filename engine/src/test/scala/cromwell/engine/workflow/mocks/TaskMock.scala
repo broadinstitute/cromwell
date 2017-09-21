@@ -3,7 +3,7 @@ package cromwell.engine.workflow.mocks
 import cromwell.engine.workflow.mocks.DeclarationMock.DeclarationMockType
 import org.specs2.mock.Mockito
 import wdl4s.parser.WdlParser.Ast
-import wdl4s.wdl._
+import wdl._
 
 trait TaskMock extends Mockito {
   

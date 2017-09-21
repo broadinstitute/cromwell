@@ -17,7 +17,7 @@ import cromwell.core.CromwellFatalException
 import cromwell.core.io.AsyncIo
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import spray.json.{JsObject, JsTrue}
-import wdl4s.wom.graph.TaskCallNode
+import wom.graph.TaskCallNode
 
 import scala.concurrent.Future
 

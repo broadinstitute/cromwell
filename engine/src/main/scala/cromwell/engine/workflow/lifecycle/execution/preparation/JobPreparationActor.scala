@@ -17,10 +17,10 @@ import cromwell.engine.workflow.lifecycle.execution.preparation.JobPreparationAc
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvResponse, ScopedKey}
 import lenthall.exception.MessageAggregation
 import lenthall.validation.ErrorOr.ErrorOr
-import wdl4s.wdl._
-import wdl4s.wdl.values.WdlValue
-import wdl4s.wom.WomEvaluatedCallInputs
-import wdl4s.wom.callable.Callable.InputDefinition
+import _root_.wdl._
+import _root_.wdl.values.WdlValue
+import wom.WomEvaluatedCallInputs
+import wom.callable.Callable.InputDefinition
 
 import scala.concurrent.duration._
 import scala.language.postfixOps

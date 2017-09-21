@@ -1,8 +1,8 @@
 package cromwell.core
 
-import wdl4s.wom.callable.Callable.OutputDefinition
-import wdl4s.wom.graph.GraphNode
-import wdl4s.wom.graph.GraphNodePort.{InputPort, OutputPort}
+import wom.callable.Callable.OutputDefinition
+import wom.graph.GraphNode
+import wom.graph.GraphNodePort.{InputPort, OutputPort}
 
 // TODO WOM: https://github.com/broadinstitute/wdl4s/issues/193
 object CromwellGraphNode {

@@ -8,7 +8,7 @@ import cromwell.backend.validation.{RuntimeAttributesValidation, ValidatedRuntim
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.Path
 import cromwell.services.metadata.CallMetadataKeys
-import wdl4s.wom.graph.TaskCallNode
+import wom.graph.TaskCallNode
 
 import scala.util.Try
 

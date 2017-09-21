@@ -5,9 +5,9 @@ import java.util.UUID
 import cromwell.core.WorkflowSourceFilesWithoutImports
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import spray.json._
-import wdl4s.wdl.types.{WdlArrayType, WdlStringType}
-import wdl4s.wdl.values._
-import wdl4s.wdl.{WorkflowJson, WorkflowRawInputs, WorkflowSource}
+import wdl.types.{WdlArrayType, WdlStringType}
+import wdl.values._
+import wdl.{ExecutableInputMap, WorkflowJson, WorkflowSource}
 
 import scala.language.postfixOps
 
@@ -28,7 +28,7 @@ trait SampleWdl extends TestFileUtil {
       warnings = Vector.empty)
   }
 
-  val rawInputs: WorkflowRawInputs
+  val rawInputs: ExecutableInputMap
 
   def name = getClass.getSimpleName.stripSuffix("$")
 
@@ -61,8 +61,8 @@ trait SampleWdl extends TestFileUtil {
     def read(value: JsValue) = throw new NotImplementedError(s"Reading JSON not implemented: $value")
   }
 
-  implicit object RawInputsJsonFormat extends JsonFormat[WorkflowRawInputs] {
-    def write(inputs: WorkflowRawInputs) = JsObject(inputs map { case (k, v) => k -> v.toJson })
+  implicit object RawInputsJsonFormat extends JsonFormat[ExecutableInputMap] {
+    def write(inputs: ExecutableInputMap) = JsObject(inputs map { case (k, v) => k -> v.toJson })
     def read(value: JsValue) = throw new NotImplementedError(s"Reading JSON not implemented: $value")
   }
 
@@ -215,7 +215,7 @@ object SampleWdl {
       """.stripMargin
     }
 
-    override val rawInputs: WorkflowRawInputs = Map("test1.bfile" -> "data/example1")
+    override val rawInputs: ExecutableInputMap = Map("test1.bfile" -> "data/example1")
   }
 
   trait ThreeStepTemplate extends SampleWdl {
@@ -444,7 +444,7 @@ object SampleWdl {
           |third line
        """.stripMargin
 
-    override val rawInputs: WorkflowRawInputs = Map(
+    override val rawInputs: ExecutableInputMap = Map(
       "two_step.cgrep.pattern" -> "first",
       "two_step.cgrep.str_decl" -> "foobar",
       "two_step.cat.file" -> createCannedFile("canned", fileContents),
@@ -879,7 +879,7 @@ object SampleWdl {
 
     private val fileContents = s"foo bar baz"
 
-    override val rawInputs: WorkflowRawInputs = Map(
+    override val rawInputs: ExecutableInputMap = Map(
       "file_passing.f" -> createCannedFile("canned", fileContents).pathAsString
     )
   }
@@ -923,7 +923,7 @@ object SampleWdl {
 
     private val fileContents = s"foo bar baz"
 
-    override val rawInputs: WorkflowRawInputs = Map(
+    override val rawInputs: ExecutableInputMap = Map(
       "file_passing.f" -> createCannedFile("canned", fileContents).pathAsString,
       "file_passing.a.salt" -> salt,
       "file_passing.b.salt" -> salt

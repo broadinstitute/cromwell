@@ -4,8 +4,8 @@ import akka.actor.{ActorRef, Props}
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobSucceededResponse}
 import cromwell.backend._
 import cromwell.core.NoIoFunctionSet
-import wdl4s.wom.expression.IoFunctionSet
-import wdl4s.wom.graph.TaskCallNode
+import wom.expression.IoFunctionSet
+import wom.graph.TaskCallNode
 
 import scala.concurrent.Future
 

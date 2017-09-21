@@ -7,7 +7,7 @@ import cromwell.backend.impl.jes.callcaching.{JesBackendCacheHitCopyingActor, Je
 import cromwell.backend.standard._
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardFileHashingActor}
 import cromwell.core.CallOutputs
-import wdl4s.wom.graph.TaskCallNode
+import wom.graph.TaskCallNode
 
 import scala.util.{Success, Try}
 

@@ -13,8 +13,8 @@ import cromwell.util.WomMocks
 import org.scalatest.concurrent.Eventually
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
-import wdl4s.wdl.command.StringCommandPart
-import wdl4s.wdl.values.{WdlFile, WdlInteger, WdlString, WdlValue}
+import _root_.wdl.command.StringCommandPart
+import _root_.wdl.values.{WdlFile, WdlInteger, WdlString, WdlValue}
 
 class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with BackendSpec with Matchers with Eventually with TableDrivenPropertyChecks {
   behavior of "CallCacheReadingJobActor"
@@ -29,7 +29,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
       "continueOnReturnCode" -> WdlInteger(0),
       "docker" -> WdlString("ubuntu:latest")
     )
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), runtimeAttributes, fqnMapToDeclarationMap(inputs), NoDocker, Map.empty)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
     jobDescriptor
   }
 

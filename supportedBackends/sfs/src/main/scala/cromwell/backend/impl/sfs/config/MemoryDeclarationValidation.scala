@@ -2,11 +2,11 @@ package cromwell.backend.impl.sfs.config
 
 import cromwell.backend.MemorySize
 import cromwell.backend.validation._
-import wdl4s.wdl.expression.NoFunctions
+import wdl.expression.NoFunctions
 import wdl4s.parser.MemoryUnit
-import wdl4s.wdl.types._
-import wdl4s.wdl.values.{WdlFloat, WdlInteger, WdlOptionalValue, WdlValue}
-import wdl4s.wdl.{Declaration, NoLookup, WdlExpression}
+import wdl.types._
+import wdl.values.{WdlFloat, WdlInteger, WdlOptionalValue, WdlValue}
+import wdl.{Declaration, NoLookup, WdlExpression}
 
 /**
   * Maps declarations of memory in WDL runtime attributes to the commands used to submit.

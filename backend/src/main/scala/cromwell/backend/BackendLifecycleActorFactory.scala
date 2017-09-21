@@ -7,8 +7,8 @@ import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.path.Path
 import cromwell.core.{CallOutputs, NoIoFunctionSet}
 import net.ceedubs.ficus.Ficus._
-import wdl4s.wom.expression.IoFunctionSet
-import wdl4s.wom.graph.TaskCallNode
+import wom.expression.IoFunctionSet
+import wom.graph.TaskCallNode
 
 trait BackendLifecycleActorFactory {
 

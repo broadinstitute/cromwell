@@ -7,8 +7,8 @@ import cromwell.backend.standard.callcaching._
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.path.Path
 import cromwell.core.{CallOutputs, Dispatcher}
-import wdl4s.wdl.WdlTaskCall
-import wdl4s.wdl.expression.WdlStandardLibraryFunctions
+import wdl4s.wom.expression.IoFunctionSet
+import wdl4s.wom.graph.TaskCallNode
 
 /**
   * May be extended for using the standard sync/async backend pattern.
@@ -73,14 +73,14 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
     */
   lazy val finalizationActorClassOption: Option[Class[_ <: StandardFinalizationActor]] = Option(classOf[StandardFinalizationActor])
 
-  override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[WdlTaskCall],
+  override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[TaskCallNode],
                                                 serviceRegistryActor: ActorRef, restart: Boolean): Option[Props] = {
     val params = workflowInitializationActorParams(workflowDescriptor, ioActor, calls, serviceRegistryActor, restart)
     val props = Props(initializationActorClass, params).withDispatcher(Dispatcher.BackendDispatcher)
     Option(props)
   }
 
-  def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[WdlTaskCall],
+  def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[TaskCallNode],
                                         serviceRegistryActor: ActorRef, restarting: Boolean): StandardInitializationActorParams = {
     DefaultInitializationActorParams(workflowDescriptor, ioActor, calls, serviceRegistryActor, configurationDescriptor, restarting)
   }
@@ -152,7 +152,7 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
       jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor, configurationDescriptor)
   }
 
-  override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[WdlTaskCall],
+  override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[TaskCallNode],
                                               jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs,
                                               initializationData: Option[BackendInitializationData]): Option[Props] = {
     finalizationActorClassOption map { finalizationActorClass =>
@@ -162,7 +162,7 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
     }
   }
 
-  def workflowFinalizationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[WdlTaskCall],
+  def workflowFinalizationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[TaskCallNode],
                                       jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs,
                                       initializationDataOption: Option[BackendInitializationData]):
   StandardFinalizationActorParams = {
@@ -173,7 +173,7 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                            jobKey: BackendJobDescriptorKey,
                                            initializationDataOption: Option[BackendInitializationData]):
-  WdlStandardLibraryFunctions = {
+  IoFunctionSet = {
     val standardInitializationData = BackendInitializationData.as[StandardInitializationData](initializationDataOption)
     val jobPaths = standardInitializationData.workflowPaths.toJobPaths(jobKey, workflowDescriptor)
     standardInitializationData.expressionFunctions(jobPaths)

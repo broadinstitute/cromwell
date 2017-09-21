@@ -5,12 +5,12 @@ import cromwell.backend._
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
 import cromwell.core.CallContext
-import wdl4s.wdl.WdlTaskCall
-import wdl4s.wdl.expression.WdlStandardLibraryFunctions
+import wdl4s.wom.expression.IoFunctionSet
+import wdl4s.wom.graph.TaskCallNode
 
 case class SparkBackendFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor) extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef,
-                                                calls: Set[WdlTaskCall], serviceRegistryActor: ActorRef, restarting: Boolean): Option[Props] = {
+                                                calls: Set[TaskCallNode], serviceRegistryActor: ActorRef, restarting: Boolean): Option[Props] = {
     Option(SparkInitializationActor.props(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor))
   }
 
@@ -23,7 +23,7 @@ case class SparkBackendFactory(name: String, configurationDescriptor: BackendCon
   }
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor, jobKey: BackendJobDescriptorKey,
-                                           initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = {
+                                           initializationData: Option[BackendInitializationData]): IoFunctionSet = {
     val jobPaths = JobPathsWithDocker(jobKey, workflowDescriptor, configurationDescriptor.backendConfig)
     val callContext = CallContext(
       jobPaths.callExecutionRoot,

@@ -7,9 +7,10 @@ import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCo
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
+import wdl4s.wdl.WdlExpression
 import wdl4s.wdl.types._
 import wdl4s.wdl.values.{WdlArray, WdlBoolean, WdlFloat, WdlInteger, WdlString, WdlValue}
-import wdl4s.wdl.{WdlTaskCall, WdlExpression}
+import wdl4s.wom.graph.TaskCallNode
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -183,7 +184,7 @@ class TestPredicateBackendWorkflowInitializationActor extends BackendWorkflowIni
 
   override val serviceRegistryActor: ActorRef = context.system.deadLetters
 
-  override def calls: Set[WdlTaskCall] = throw new NotImplementedError("calls")
+  override def calls: Set[TaskCallNode] = throw new NotImplementedError("calls")
 
   override protected def runtimeAttributeValidators: Map[String, (Option[WdlValue]) => Boolean] =
     throw new NotImplementedError("runtimeAttributeValidators")

@@ -2,6 +2,7 @@ package cromwell.subworkflowstore
 
 import akka.testkit.TestProbe
 import cromwell.CromwellTestKitWordSpec
+import cromwell.core.CromwellGraphNode._
 import cromwell.core.ExecutionIndex._
 import cromwell.core.{JobKey, WorkflowId, WorkflowSourceFilesWithoutImports}
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
@@ -11,9 +12,11 @@ import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowStoreAc
 import cromwell.services.EngineServicesStore
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
 import cromwell.subworkflowstore.SubWorkflowStoreSpec._
+import cromwell.util.WomMocks
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
-import wdl4s.wdl.{WdlExpression, WdlTaskCall}
+import wdl4s.wdl.WdlExpression
+import wdl4s.wom.graph.GraphNode
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -35,10 +38,9 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with Matchers with Mo
       val parentWorkflowId = WorkflowId.randomId()
       val subWorkflowId = WorkflowId.randomId()
       val subSubWorkflowId = WorkflowId.randomId()
-      val call = mock[WdlTaskCall]
-      call.fullyQualifiedName returns "foo.bar"
+      val call = WomMocks.mockTaskCall("foo.bar")
       val jobKey = new JobKey {
-        override def scope = call
+        override def node: GraphNode = call
         override def index: Option[Int] = None
         override def attempt: Int = 0
         override def tag: String = "foobar"
@@ -65,7 +67,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with Matchers with Mo
 
       // Query for sub workflow
       subWorkflowStoreService ! QuerySubWorkflow(parentWorkflowId, jobKey)
-      val subWorkflowEntry = SubWorkflowStoreEntry(Option(0), parentWorkflowId.toString, jobKey.scope.fullyQualifiedName, jobKey.index.fromIndex, jobKey.attempt, subWorkflowId.toString, Some(0))
+      val subWorkflowEntry = SubWorkflowStoreEntry(Option(0), parentWorkflowId.toString, jobKey.node.fullyQualifiedName, jobKey.index.fromIndex, jobKey.attempt, subWorkflowId.toString, Some(0))
       expectMsg[SubWorkflowFound](SubWorkflowFound(subWorkflowEntry))
 
       // Register sub sub workflow
@@ -74,7 +76,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with Matchers with Mo
 
       // Query for sub sub workflow
       subWorkflowStoreService ! QuerySubWorkflow(subWorkflowId, jobKey)
-      val subSubWorkflowEntry = SubWorkflowStoreEntry(Option(0), subWorkflowId.toString, jobKey.scope.fullyQualifiedName, jobKey.index.fromIndex, jobKey.attempt, subSubWorkflowId.toString, Some(1))
+      val subSubWorkflowEntry = SubWorkflowStoreEntry(Option(0), subWorkflowId.toString, jobKey.node.fullyQualifiedName, jobKey.index.fromIndex, jobKey.attempt, subSubWorkflowId.toString, Some(1))
       expectMsg[SubWorkflowFound](SubWorkflowFound(subSubWorkflowEntry))
       
       // Delete root workflow

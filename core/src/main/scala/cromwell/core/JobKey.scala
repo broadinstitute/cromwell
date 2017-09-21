@@ -1,16 +1,17 @@
 package cromwell.core
 
-import wdl4s.wdl.{Scope, WdlGraphNode}
+import cromwell.core.CromwellGraphNode._
+import wdl4s.wom.graph.GraphNode
 
 trait JobKey {
-  def scope: Scope with WdlGraphNode
+  def node: GraphNode
   def index: Option[Int]
   def attempt: Int
   def tag: String
 
   override def toString = {
     import ExecutionIndex.IndexEnhancedIndex
-    s"${scope.fullyQualifiedName}:${index.fromIndex}:$attempt"
+    s"${node.fullyQualifiedName}:${index.fromIndex}:$attempt"
   }
   
  def isShard = index.isDefined

@@ -8,6 +8,7 @@ import cromwell.core.{FullyQualifiedName, JobKey, WorkflowId, WorkflowState}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import lenthall.exception.{MessageAggregation, ThrowableAggregation}
 import wdl4s.wdl.values._
+import cromwell.core.CromwellGraphNode._
 
 import scala.util.Random
 
@@ -40,7 +41,7 @@ object MetadataService {
   object implicits {
     implicit class MetadataAutoPutter(serviceRegistryActor: ActorRef) {
       def putMetadata(workflowId: WorkflowId, jobKey: Option[JobKey], keyValue: Map[String, Any]) = {
-        val metadataJobKey = jobKey map { jk => MetadataJobKey(jk.scope.fullyQualifiedName, jk.index, jk.attempt) }
+        val metadataJobKey = jobKey map { jk => MetadataJobKey(jk.node.fullyQualifiedName, jk.index, jk.attempt) }
 
         val events = keyValue map { case (key, value) =>
           val metadataKey = MetadataKey(workflowId, metadataJobKey, key)

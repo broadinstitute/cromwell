@@ -2,20 +2,17 @@ package cromwell.backend.io
 
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.CallContext
-import wdl4s.wdl.WdlTaskCall
-import wdl4s.wdl.expression.{NoFunctions, WdlStandardLibraryFunctions}
 import wdl4s.wdl.values._
+import wdl4s.wom.expression.IoFunctionSet
+import wdl4s.wom.graph.TaskCallNode
 
-trait GlobFunctions extends WdlStandardLibraryFunctions {
+trait GlobFunctions extends IoFunctionSet {
 
   def callContext: CallContext
 
-  def findGlobOutputs(call: WdlTaskCall, jobDescriptor: BackendJobDescriptor): Set[WdlGlobFile] = {
-    val globOutputs = call.task.findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions) collect {
-      case glob: WdlGlobFile => glob
-    }
-
-    globOutputs.distinct.toSet
+  def findGlobOutputs(call: TaskCallNode, jobDescriptor: BackendJobDescriptor): Set[WdlGlobFile] = {
+    // TODO WOM: https://github.com/broadinstitute/wdl4s/issues/197
+    Set.empty
   }
 
   def globDirectory(glob: String): String = globName(glob) + "/"
@@ -29,7 +26,7 @@ trait GlobFunctions extends WdlStandardLibraryFunctions {
     * @param glob The glob. This is the same "pattern" passed to glob() below.
     * @return The path.
     */
-  override def globPath(glob: String): String = callContext.root.resolve(globDirectory(glob)).pathAsString
+  def globPath(glob: String): String = callContext.root.resolve(globDirectory(glob)).pathAsString
 
   /**
     * Returns a list of path from the glob.
@@ -41,10 +38,11 @@ trait GlobFunctions extends WdlStandardLibraryFunctions {
     * @return The paths that match the pattern.
     */
   override def glob(path: String, pattern: String): Seq[String] = {
-    val name = globName(pattern)
-    val listFile = callContext.root.resolve(s"$name.list").toRealPath()
-    listFile.lines.toSeq map { fileName =>
-      callContext.root.resolve(name).resolve(fileName).pathAsString
+    val globPatternName = globName(pattern)
+    val listFilePath = callContext.root.resolve(s"${globName(pattern)}.list")
+    // This "lines" is technically a read file and hence should use the readFile IO method
+    listFilePath.toRealPath().lines.toList map { fileName =>
+      (callContext.root /  globPatternName  / fileName).pathAsString
     }
   }
 }

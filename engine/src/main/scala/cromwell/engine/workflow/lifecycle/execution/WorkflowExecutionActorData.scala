@@ -4,10 +4,12 @@ import akka.actor.ActorRef
 import cromwell.backend._
 import cromwell.core.ExecutionStatus._
 import cromwell.core._
-import cromwell.engine.workflow.lifecycle.execution.OutputStore.{OutputCallKey, OutputEntry}
+import cromwell.engine.workflow.lifecycle.execution.OutputStore.OutputKey
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{DeclarationKey, SubWorkflowKey}
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
 import wdl4s.wdl.values.WdlValue
+
+import scala.language.postfixOps
 
 object WorkflowExecutionDiff {
   def empty = WorkflowExecutionDiff(Map.empty)
@@ -58,23 +60,22 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   }
 
   def declarationEvaluationSuccess(declarationKey: DeclarationKey, value: WdlValue) = {
-    val outputStoreKey = OutputCallKey(declarationKey.scope, declarationKey.index)
-    val outputStoreValue = OutputEntry(declarationKey.scope.unqualifiedName, value.wdlType, Option(value))
+    val outputStoreKey = OutputKey(declarationKey.node.singleExpressionOutputPort, declarationKey.index)
     this.copy(
       executionStore = executionStore.add(Map(declarationKey -> Done)),
-      outputStore = outputStore.add(Map(outputStoreKey -> List(outputStoreValue)))
+      outputStore = outputStore.add(Map(outputStoreKey -> value))
     )
   }
 
   def executionFailed(jobKey: JobKey) = mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
 
   /** Add the outputs for the specified `JobKey` to the symbol cache. */
-  private def updateSymbolStoreEntry(jobKey: JobKey, outputs: CallOutputs) = {
-    val newOutputEntries = outputs map {
-      case (name, value) => OutputEntry(name, value.wdlValue.wdlType, Option(value.wdlValue))
-    }
-
-    Map(OutputCallKey(jobKey.scope, jobKey.index) -> newOutputEntries.toList)
+  private def updateSymbolStoreEntry(jobKey: JobKey, outputs: CallOutputs): Map[OutputKey, WdlValue] = {
+    jobKey.node.outputPorts flatMap { outputPort =>
+      outputs.collectFirst { 
+        case (name, JobOutput(value)) if name == outputPort.name => value
+      } map { OutputKey(outputPort, jobKey.index) -> _ }
+    } toMap
   }
 
   /** Checks if the workflow is completed.

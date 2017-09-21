@@ -3,18 +3,17 @@ package cromwell.engine.workflow.lifecycle.execution.preparation
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.TestProbe
 import cromwell.backend._
-import cromwell.core.WorkflowId
+import cromwell.core.{NoIoFunctionSet, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
+import cromwell.engine.workflow.lifecycle.execution.preparation.JobPreparationTestHelper._
 import cromwell.engine.workflow.lifecycle.execution.{OutputStore, WorkflowExecutionActorData}
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, ScopedKey}
+import lenthall.validation.ErrorOr.ErrorOr
 import org.specs2.mock.Mockito
-import wdl4s.wdl._
 import wdl4s.wdl.values.WdlValue
+import wdl4s.wom.WomEvaluatedCallInputs
 
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Try
-import JobPreparationTestHelper._
-import wdl4s.wdl.expression.NoFunctions
 
 class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito {
   val executionData = mock[WorkflowExecutionActorData]
@@ -34,7 +33,7 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
   def buildTestJobPreparationActor(backpressureTimeout: FiniteDuration,
                                    noResponseTimeout: FiniteDuration,
                                    dockerHashCredentials: List[Any],
-                                   inputsAndAttributes: Try[(Map[Declaration, WdlValue], Map[wdl4s.wdl.LocallyQualifiedName, WdlValue])],
+                                   inputsAndAttributes: ErrorOr[(WomEvaluatedCallInputs, Map[wdl4s.wdl.LocallyQualifiedName, WdlValue])],
                                    kvStoreKeysForPrefetch: List[String]) = {
 
     Props(new TestJobPreparationActor(
@@ -56,7 +55,7 @@ private[preparation] class TestJobPreparationActor(kvStoreKeysForPrefetch: List[
                                                    dockerHashCredentialsInput: List[Any],
                                                    backpressureWaitTimeInput: FiniteDuration,
                                                    dockerNoResponseTimeoutInput: FiniteDuration,
-                                                   inputsAndAttributes: Try[(Map[Declaration, WdlValue], Map[wdl4s.wdl.LocallyQualifiedName, WdlValue])],
+                                                   inputsAndAttributes: ErrorOr[(WomEvaluatedCallInputs, Map[wdl4s.wdl.LocallyQualifiedName, WdlValue])],
                                                    workflowDescriptor: EngineWorkflowDescriptor,
                                                    jobKey: BackendJobDescriptorKey,
                                                    workflowDockerLookupActor: ActorRef,
@@ -73,7 +72,7 @@ private[preparation] class TestJobPreparationActor(kvStoreKeysForPrefetch: List[
 
   override lazy val kvStoreKeysToPrefetch = kvStoreKeysForPrefetch
 
-  override private[preparation] lazy val expressionLanguageFunctions = NoFunctions
+  override private[preparation] lazy val expressionLanguageFunctions = NoIoFunctionSet
   override private[preparation] lazy val dockerHashCredentials = dockerHashCredentialsInput
   override private[preparation] lazy val noResponseTimeout = dockerNoResponseTimeoutInput
   override private[preparation] lazy val hasDockerDefinition = true

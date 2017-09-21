@@ -14,6 +14,7 @@ import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor}
+import cromwell.core.CromwellGraphNode._
 import cromwell.core._
 import cromwell.core.io._
 import cromwell.core.logging.JobLogging
@@ -262,7 +263,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       case nonFileSimpleton => (List(nonFileSimpleton), Set.empty[IoCommand[_]])
     })
 
-    (WdlValueBuilder.toJobOutputs(jobDescriptor.call.task.outputs, destinationSimpletons), ioCommands)
+    (WdlValueBuilder.toJobOutputs(jobDescriptor.call.callable.outputs, destinationSimpletons), ioCommands)
   }
 
   /**

@@ -3,22 +3,21 @@ package cromwell.backend.impl.tes
 import java.nio.file.FileAlreadyExistsException
 
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
+import akka.stream.ActorMaterializer
 import cromwell.backend.BackendJobLifecycleActor
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import wdl4s.wdl.expression.NoFunctions
 import wdl4s.wdl.values.WdlFile
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.marshalling.Marshal
-import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
-import akka.stream.ActorMaterializer
 
-import scala.concurrent.duration._
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
@@ -187,9 +186,13 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
   
-  private val outputWdlFiles: Seq[WdlFile] = jobDescriptor.call.task
-    .findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions)
-    .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
+  private val outputWdlFiles: Seq[WdlFile] = {
+    Seq.empty
+    // TODO WOM: fix
+//    jobDescriptor.call.task
+//      .findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions)
+//      .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
+  }
 
   override def mapOutputWdlFile(wdlFile: WdlFile): WdlFile = {
     val absPath: Path = tesJobPaths.callExecutionRoot.resolve(wdlFile.valueString)

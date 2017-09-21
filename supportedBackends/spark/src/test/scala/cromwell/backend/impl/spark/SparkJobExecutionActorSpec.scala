@@ -8,6 +8,7 @@ import cromwell.backend.BackendJobExecutionActor.{JobFailedNonRetryableResponse,
 import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.backend.io._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendSpec}
+import cromwell.core.Tags.PostWomTest
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.{Path, PathWriter, TailedWriter, UntailedWriter}
 import cromwell.core.{TestKitSuite, WorkflowOptions}
@@ -149,7 +150,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
   }
 
   "executeTask method in cluster deploy mode " should {
-    "return succeed response when the spark cluster process monitor method returns finished status" in {
+    "return succeed response when the spark cluster process monitor method returns finished status" taggedAs PostWomTest ignore {
       val jobDescriptor = prepareJob(helloWorldClusterWdl, passOnStderr, isCluster = true)
       val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
       val stubProcess = mock[Process]
@@ -179,7 +180,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       cleanUpJob(jobPaths)
     }
 
-    "return failed non-retryable response when the spark monitor function returns failed status" in {
+    "return failed non-retryable response when the spark monitor function returns failed status" taggedAs PostWomTest ignore {
       val jobDescriptor = prepareJob(helloWorldClusterWdl, passOnStderr, isCluster = true)
       val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
       val stubProcess = mock[Process]
@@ -210,7 +211,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       cleanUpJob(jobPaths)
     }
 
-    "return failed non-retryable response when the spark monitor function throws an exception" in {
+    "return failed non-retryable response when the spark monitor function throws an exception" taggedAs PostWomTest ignore {
       val jobDescriptor = prepareJob(helloWorldClusterWdl, passOnStderr, isCluster = true)
       val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
       val stubProcess = mock[Process]
@@ -241,7 +242,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       cleanUpJob(jobPaths)
     }
 
-    "return failed non-retryable response when there's a zero exit code but stderr is  not empty" in {
+    "return failed non-retryable response when there's a zero exit code but stderr is  not empty" taggedAs PostWomTest ignore {
       val jobDescriptor = prepareJob(helloWorldClusterWdl, failedOnStderr, isCluster = true)
       val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
       val stubProcess = mock[Process]
@@ -271,7 +272,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       cleanUpJob(jobPaths)
     }
 
-    "return failed non-retryable response when non zero exit code is received for submitting job" in {
+    "return failed non-retryable response when non zero exit code is received for submitting job" taggedAs PostWomTest ignore {
       val jobDescriptor = prepareJob(helloWorldClusterWdl, passOnStderr, isCluster = true)
       val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
       val stubProcess = mock[Process]
@@ -297,7 +298,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       cleanUpJob(jobPaths)
     }
 
-    "return failed non-retryable response when submit job process exit with failure response" in {
+    "return failed non-retryable response when submit job process exit with failure response" taggedAs PostWomTest ignore {
       val jobDescriptor = prepareJob(helloWorldClusterWdl, passOnStderr, isCluster = true)
       val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
       val stubProcess = mock[Process]
@@ -325,7 +326,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
   }
 
   "executeTask method in Spark client and Yarn client, cluster mode" should {
-    "return succeeded task status with stdout" in {
+    "return succeeded task status with stdout" taggedAs PostWomTest ignore {
       val jobDescriptor = prepareJob()
       val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
       val stubProcess = mock[Process]
@@ -355,7 +356,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       cleanUpJob(jobPaths)
     }
 
-    "return failed task status on non-zero process exit" in {
+    "return failed task status on non-zero process exit" taggedAs PostWomTest ignore {
       val jobDescriptor = prepareJob()
       val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
 
@@ -382,7 +383,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       cleanUpJob(jobPaths)
     }
 
-    "return failed task status when stderr is non-empty but process exit with zero return code" in {
+    "return failed task status when stderr is non-empty but process exit with zero return code" taggedAs PostWomTest ignore {
       val jobDescriptor = prepareJob(runtimeString = failedOnStderr)
       val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
 
@@ -408,7 +409,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       cleanUpJob(jobPaths)
     }
 
-    "return succeeded task status when stderr is non-empty but process exit with zero return code" in {
+    "return succeeded task status when stderr is non-empty but process exit with zero return code" taggedAs PostWomTest ignore {
       val jobDescriptor = prepareJob()
       val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
 

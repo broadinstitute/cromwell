@@ -7,6 +7,7 @@ import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.Path
 import cromwell.services.metadata.CallMetadataKeys
+import cromwell.core.CromwellGraphNode._
 
 import scala.language.postfixOps
 
@@ -42,19 +43,19 @@ trait JesJobCachingActorHelper extends StandardCachingActorHelper {
     val call = jobDescriptor.call
     val subWorkflow = workflow.workflow
     val subWorkflowLabels = if (!subWorkflow.equals(workflow.rootWorkflow))
-      Labels("cromwell-sub-workflow-name" -> subWorkflow.unqualifiedName)
+      Labels("cromwell-sub-workflow-name" -> subWorkflow.name)
     else
       Labels.empty
 
     val alias = call.unqualifiedName
-    val aliasLabels = if (!alias.equals(call.task.name))
+    val aliasLabels = if (!alias.equals(call.callable.name))
       Labels("wdl-call-alias" -> alias)
     else
       Labels.empty
 
     Labels(
       "cromwell-workflow-id" -> s"cromwell-${workflow.rootWorkflowId}",
-      "wdl-task-name" -> call.task.name
+      "wdl-task-name" -> call.callable.name
     ) ++ subWorkflowLabels ++ aliasLabels
   }
 

@@ -6,12 +6,12 @@ import wdl4s.wom.graph.{Graph, TaskCallNode, WorkflowCallNode}
 
 object WomMocks {
   val EmptyTaskDefinition = TaskDefinition("emptyTask", List.empty, RuntimeAttributes(Map.empty),
-    Map.empty, Map.empty, Set.empty, List.empty)
+    Map.empty, Map.empty, Set.empty, List.empty, globFiles = x => ???)
 
   val EmptyWorkflowDefinition = mockWorkflowDefinition("emptyWorkflow")
 
   def mockTaskCall(name: String, definition: TaskDefinition = EmptyTaskDefinition) = {
-    TaskCallNode(name, definition, Set.empty, Map.empty)
+    TaskCallNode(name, definition, Set.empty, Map.empty, globFiles = x => ???)
   }
   
   def mockWorkflowCall(name: String, definition: WorkflowDefinition = EmptyWorkflowDefinition) = {
@@ -24,6 +24,6 @@ object WomMocks {
 
   def mockTaskDefinition(name: String) = {
     TaskDefinition(name, List.empty, RuntimeAttributes(Map.empty),
-      Map.empty, Map.empty, Set.empty, List.empty)
+      Map.empty, Map.empty, Set.empty, List.empty, globFiles = x => ???)
   }
 }

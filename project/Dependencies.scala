@@ -1,8 +1,7 @@
 import sbt._
 
 object Dependencies {
-  lazy val lenthallV = "0.28-7e90b62-SNAP"
-  lazy val wdl4sV = "0.16-f63dc02-SNAP"
+  lazy val wdl4sV = "0.16-1696b1e-SNAP"
 
   lazy val akkaV = "2.5.4"
   lazy val akkaHttpV = "10.0.10"
@@ -23,8 +22,7 @@ object Dependencies {
   private val fs2Test = "co.fs2" %% "fs2-io" % fs2V % "test"
 
   private val catsDependencies = List(
-    "org.typelevel" %% "cats-core" % catsV,
-    "com.github.benhutchison" %% "mouse" % "0.9"
+    "org.typelevel" %% "cats-core" % catsV
   ) map (_
     /*
     Exclude test framework cats-laws and its transitive dependency scalacheck.
@@ -40,7 +38,6 @@ object Dependencies {
     )
 
   private val baseDependencies = List(
-    "org.broadinstitute" %% "lenthall" % lenthallV,
     "com.iheart" %% "ficus" % "1.4.1",
     "org.scalatest" %% "scalatest" % scalatestV % Test,
     "org.pegdown" % "pegdown" % pegdownV % Test,

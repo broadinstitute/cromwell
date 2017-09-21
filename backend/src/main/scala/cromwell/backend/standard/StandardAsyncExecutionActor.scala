@@ -182,7 +182,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     val rcPath = cwd./(jobPaths.returnCodeFilename)
     val rcTmpPath = rcPath.plusExt("tmp")
 
-    val globFiles = backendEngineFunctions.findGlobOutputs(call, jobDescriptor)
+    val globFiles: Set[WdlGlobFile] = call.globFiles(jobDescriptor.fullyQualifiedInputs)
 
     s"""|#!/bin/bash
         |tmpDir=$$(mktemp -d $cwd/tmp.XXXXXX)

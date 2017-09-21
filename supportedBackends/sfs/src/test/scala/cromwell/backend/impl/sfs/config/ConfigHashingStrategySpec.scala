@@ -37,7 +37,7 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
   private def randomName(): String = UUID.randomUUID().toString
 
   def mockRequest(withSibling: Boolean, symlink: Boolean) = {
-    if (withSibling && md5File.notExists) md5File.write(md5FileHash)
+    if (withSibling && md5File.notExists) md5File.write(md5FileHash + System.lineSeparator())
     val requestFile = if (symlink) {
       val symLink: Path = symLinksDir./(s"symlink-${randomName()}")
       symLink.symbolicLinkTo(file)

@@ -11,8 +11,8 @@ import cromwell.backend.wdl.WdlFileMapper
 import cromwell.core.CromwellFatalExceptionMarker
 import cromwell.core.path.{DefaultPath, DefaultPathBuilder, Path, PathFactory}
 import lenthall.util.TryUtil
-import wdl4s.wdl.values._
-import wdl4s.wom.WomEvaluatedCallInputs
+import wdl.values._
+import wom.WomEvaluatedCallInputs
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps

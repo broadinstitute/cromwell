@@ -2,13 +2,13 @@ package cromwell.backend.io
 
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.CallContext
-import wdl4s.wdl.values._
+import wdl.values._
 import cats.syntax.traverse._
 import cats.instances.list._
 import lenthall.validation.ErrorOr.ErrorOr
-import wdl4s.wdl.types.WdlAnyType
-import wdl4s.wom.expression.IoFunctionSet
-import wdl4s.wom.graph.TaskCallNode
+import wdl.types.WdlAnyType
+import wom.expression.IoFunctionSet
+import wom.graph.TaskCallNode
 
 trait GlobFunctions extends IoFunctionSet {
 

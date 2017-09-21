@@ -7,8 +7,8 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.Colle
 import cromwell.util.SampleWdl
 import org.scalameter.api._
 import org.scalameter.picklers.Implicits._
-import wdl4s.wdl.WdlNamespaceWithWorkflow
-import wdl4s.wom.graph.{ScatterNode, TaskCallNode}
+import wdl.WdlNamespaceWithWorkflow
+import wom.graph.{ScatterNode, TaskCallNode}
 
 /**
   * Benchmarks the performance of the execution store using ScalaMeter (http://scalameter.github.io/)

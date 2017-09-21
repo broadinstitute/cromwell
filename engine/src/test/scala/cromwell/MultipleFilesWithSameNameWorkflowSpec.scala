@@ -3,7 +3,7 @@ package cromwell
 import akka.testkit._
 import cromwell.core.Tags.PostWomTest
 import cromwell.util.SampleWdl
-import wdl4s.wdl.values.WdlString
+import wdl.values.WdlString
 
 
 class MultipleFilesWithSameNameWorkflowSpec extends CromwellTestKitWordSpec {

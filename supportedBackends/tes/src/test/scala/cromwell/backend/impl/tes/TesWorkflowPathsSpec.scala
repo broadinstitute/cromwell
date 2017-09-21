@@ -9,7 +9,7 @@ import org.scalatest.{FlatSpec, Matchers}
 class TesWorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
 
   "WorkflowPaths" should "provide correct paths for a workflow" in {
-    val wd = buildWorkflowDescriptor(TestWorkflows.HelloWorld)
+    val wd = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld)
     val workflowPaths = TesWorkflowPaths(wd, TesTestConfig.backendConfig)
     val id = wd.id
     workflowPaths.workflowRoot.toString shouldBe

@@ -4,10 +4,10 @@ import akka.testkit._
 import cromwell.core.Tags.PostWomTest
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.SampleWdl
-import wdl4s.wdl.expression.NoFunctions
-import wdl4s.wdl.types.{WdlArrayType, WdlFileType, WdlStringType}
-import wdl4s.wdl.values.{WdlArray, WdlFile, WdlString}
-import wdl4s.wdl.{ImportResolver, WdlNamespaceWithWorkflow}
+import wdl.expression.NoFunctions
+import wdl.types.{WdlArrayType, WdlFileType, WdlStringType}
+import wdl.values.{WdlArray, WdlFile, WdlString}
+import wdl.{ImportResolver, WdlNamespaceWithWorkflow}
 
 class ArrayWorkflowSpec extends CromwellTestKitWordSpec {
   val tmpDir = DefaultPathBuilder.createTempDirectory("ArrayWorkflowSpec")

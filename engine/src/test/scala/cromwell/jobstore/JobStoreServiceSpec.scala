@@ -9,10 +9,10 @@ import cromwell.services.EngineServicesStore
 import cromwell.util.WomMocks
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
-import wdl4s.wdl.types.WdlStringType
-import wdl4s.wdl.values.WdlString
-import wdl4s.wom.callable.Callable.OutputDefinition
-import wdl4s.wom.expression.PlaceholderWomExpression
+import wdl.types.WdlStringType
+import wdl.values.WdlString
+import wom.callable.Callable.OutputDefinition
+import wom.expression.PlaceholderWomExpression
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -31,7 +31,7 @@ class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Moc
 
       val workflowId = WorkflowId.randomId()
       val mockTask = WomMocks.mockTaskDefinition("bar")
-      .copy(outputs = Set(OutputDefinition("baz", WdlStringType, EmptyExpression))) 
+      .copy(outputs = List(OutputDefinition("baz", WdlStringType, EmptyExpression))) 
       val successCall = WomMocks.mockTaskCall("bar", definition = mockTask)
 
       val successKey = BackendJobDescriptorKey(successCall, None, 1).toJobStoreKey(workflowId)
@@ -44,7 +44,7 @@ class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Moc
       jobStoreService ! RegisterJobCompleted(successKey, JobResultSuccess(Option(0), outputs))
       expectMsgType[JobStoreWriteSuccess](MaxWait)
 
-      jobStoreService ! QueryJobCompletion(successKey, mockTask.outputs.toSeq)
+      jobStoreService ! QueryJobCompletion(successKey, mockTask.outputs)
       expectMsgPF(MaxWait) {
         case JobComplete(JobResultSuccess(Some(0), os)) if os == outputs =>
       }
@@ -52,13 +52,13 @@ class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Moc
       val failureCall = WomMocks.mockTaskCall("qux")
       val failureKey = BackendJobDescriptorKey(failureCall, None, 1).toJobStoreKey(workflowId)
 
-      jobStoreService ! QueryJobCompletion(failureKey, mockTask.outputs.toSeq)
+      jobStoreService ! QueryJobCompletion(failureKey, mockTask.outputs)
       expectMsgType[JobNotComplete.type](MaxWait)
 
       jobStoreService ! RegisterJobCompleted(failureKey, JobResultFailure(Option(11), new IllegalArgumentException("Insufficient funds"), retryable = false))
       expectMsgType[JobStoreWriteSuccess](MaxWait)
 
-      jobStoreService ! QueryJobCompletion(failureKey, mockTask.outputs.toSeq)
+      jobStoreService ! QueryJobCompletion(failureKey, mockTask.outputs)
       expectMsgPF(MaxWait) {
         case JobComplete(JobResultFailure(Some(11), _, false)) =>
       }

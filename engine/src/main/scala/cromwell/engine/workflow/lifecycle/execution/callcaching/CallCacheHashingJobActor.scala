@@ -15,7 +15,7 @@ import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.CallCacheHashingJobActorData._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CacheMiss
-import wdl4s.wdl.values.WdlFile
+import wdl.values.WdlFile
 
 /**
   * Actor responsible for calculating individual as well as aggregated hashes for a job.

@@ -21,7 +21,7 @@ import cromwell.util.WomMocks
 import org.scalatest.concurrent.Eventually
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
-import wdl4s.wdl._
+import wdl._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps

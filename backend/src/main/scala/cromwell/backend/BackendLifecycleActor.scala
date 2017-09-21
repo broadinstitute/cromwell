@@ -3,7 +3,7 @@ package cromwell.backend
 import akka.actor.{Actor, ActorRef}
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.core.logging.{JobLogging, WorkflowLogging}
-import wdl4s.wom.graph.TaskCallNode
+import wom.graph.TaskCallNode
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}

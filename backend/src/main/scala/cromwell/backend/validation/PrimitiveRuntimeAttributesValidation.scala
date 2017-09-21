@@ -2,8 +2,8 @@ package cromwell.backend.validation
 
 import cats.syntax.validated._
 import lenthall.validation.ErrorOr.ErrorOr
-import wdl4s.wdl.types._
-import wdl4s.wdl.values._
+import wdl.types._
+import wdl.values._
 
 /**
   * Validates one of the wdl primitive types: Boolean, Float, Integer, or String. WdlFile is not supported.

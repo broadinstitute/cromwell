@@ -90,7 +90,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
     }
 
     "fail to construct with missing inputs" in {
-      val expectedError = "Required workflow input 'wf_hello.hello.addressee' not specified."
+      val expectedError = "Required workflow input 'wf_hello.hello.addressee' not specified"
       val failureMatcher = FailureMatcher(expectedError)
       val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.HelloWorld, "{}", workflowId, failureMatcher)
       val probe = TestProbe()
@@ -107,7 +107,8 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
     }
 
     "fail to construct with inputs of the wrong type" in {
-      val expectedError = "Could not coerce JsNumber value for 'wf_hello.hello.addressee' (3) into: WdlStringType"
+      // TODO WOM: restore offending offensive input name
+      val expectedError = "No coercion defined from '3' of type 'spray.json.JsNumber' to 'String'."
       val failureMatcher = FailureMatcher(expectedError)
       val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.HelloWorld, s""" { "$Addressee" : 3} """,
         workflowId, failureMatcher)
@@ -150,8 +151,8 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
       }
     }
 
-    "gracefully handle malformed WDL" taggedAs PostWomTest ignore {
-      val expectedError = "Variable 'bfile' not found"
+    "gracefully handle malformed WDL" taggedAs PostWomTest in {
+      val expectedError = "No input bfile found evaluating inputs for expression bfile"
       val failureMatcher = FailureMatcher(expectedError)
       val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.CoercionNotDefined, SampleWdl.CoercionNotDefined.workflowJson, workflowId, failureMatcher)
       val probe = TestProbe()

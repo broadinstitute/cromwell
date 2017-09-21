@@ -19,11 +19,11 @@ import cromwell.util.AkkaTestUtil._
 import cromwell.util.WomMocks
 import org.specs2.mock.Mockito
 import wdl4s.parser.WdlParser.Ast
-import wdl4s.wdl._
-import wdl4s.wdl.types.{WdlIntegerType, WdlStringType}
-import wdl4s.wom.callable.Callable.OutputDefinition
-import wdl4s.wom.expression.IoFunctionSet
-import wdl4s.wom.graph.TaskCallNode
+import _root_.wdl._
+import _root_.wdl.types.{WdlIntegerType, WdlStringType}
+import wom.callable.Callable.OutputDefinition
+import wom.expression.IoFunctionSet
+import wom.graph.TaskCallNode
 
 import scala.util.Success
 

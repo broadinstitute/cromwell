@@ -5,8 +5,8 @@ import cromwell.backend._
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
 import cromwell.core.CallContext
-import wdl4s.wom.expression.IoFunctionSet
-import wdl4s.wom.graph.TaskCallNode
+import wom.expression.IoFunctionSet
+import wom.graph.TaskCallNode
 
 case class SparkBackendFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor) extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef,

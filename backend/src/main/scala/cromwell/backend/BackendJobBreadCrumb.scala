@@ -3,7 +3,7 @@ package cromwell.backend
 import cromwell.backend.io.JobPaths
 import cromwell.core.path.Path
 import cromwell.core.{JobKey, WorkflowId}
-import wdl4s.wom.callable.WorkflowDefinition
+import wom.callable.WorkflowDefinition
 
 case class BackendJobBreadCrumb(workflow: WorkflowDefinition, id: WorkflowId, jobKey: JobKey) {
   def toPath(root: Path): Path = {

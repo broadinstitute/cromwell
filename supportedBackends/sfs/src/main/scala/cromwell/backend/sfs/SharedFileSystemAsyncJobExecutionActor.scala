@@ -7,10 +7,10 @@ import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandl
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncJob}
 import cromwell.backend.validation._
+import cromwell.core.CromwellGraphNode._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import wdl4s.wdl.values.WdlFile
-import cromwell.core.CromwellGraphNode._
+import _root_.wdl.values.WdlFile
 
 import scala.concurrent.duration._
 

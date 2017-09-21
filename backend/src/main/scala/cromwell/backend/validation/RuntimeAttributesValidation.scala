@@ -6,10 +6,10 @@ import com.typesafe.config.Config
 import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
 import lenthall.validation.ErrorOr._
 import org.slf4j.Logger
-import wdl4s.wdl.expression.PureStandardLibraryFunctions
-import wdl4s.wdl.types.{WdlBooleanType, WdlIntegerType, WdlStringType, WdlType}
-import wdl4s.wdl.values._
-import wdl4s.wdl.{NoLookup, WdlExpression}
+import wdl.expression.PureStandardLibraryFunctions
+import wdl.types.{WdlBooleanType, WdlIntegerType, WdlStringType, WdlType}
+import wdl.values._
+import wdl.{NoLookup, WdlExpression}
 
 import scala.util.{Failure, Success}
 

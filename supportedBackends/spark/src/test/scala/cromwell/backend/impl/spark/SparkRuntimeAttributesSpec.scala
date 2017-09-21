@@ -4,10 +4,12 @@ import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendWorkflowDescriptor, MemorySize}
 import cromwell.core.labels.Labels
 import cromwell.core.{NoIoFunctionSet, WorkflowId, WorkflowOptions}
+import lenthall.validation.ErrorOr._
 import org.scalatest.{Matchers, WordSpecLike}
 import spray.json.{JsBoolean, JsNumber, JsObject, JsValue}
-import wdl4s.wdl._
-import wdl4s.wdl.values.WdlValue
+import wdl._
+import wdl.values.WdlValue
+import wom.executable.Executable.ResolvedExecutableInputs
 
 class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
@@ -83,7 +85,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
   }
 
   private def buildWorkflowDescriptor(wdl: WorkflowSource,
-                                      inputs: Map[String, WdlValue] = Map.empty,
+                                      inputs: ResolvedExecutableInputs = Map.empty,
                                       options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
                                       runtime: String) = {
     BackendWorkflowDescriptor(
@@ -96,13 +98,15 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
     )
   }
 
-  private def createRuntimeAttributes(workflowSource: WorkflowSource, runtimeAttributes: String): List[Map[String, WdlValue]] = {
-    import lenthall.validation.ErrorOr._  
+  private def createRuntimeAttributes(workflowSource: WorkflowSource, runtimeAttributes: String): List[Map[String, WdlValue]] = {  
     val workflowDescriptor = buildWorkflowDescriptor(workflowSource, runtime = runtimeAttributes)
 
     workflowDescriptor.workflow.taskCallNodes.toList map {
       call =>
-        val ra = call.callable.runtimeAttributes.attributes mapValues { _.evaluateValue(workflowDescriptor.knownValues, NoIoFunctionSet) }
+        val staticValues = workflowDescriptor.knownValues.flatMap {
+          case (outputPort, resolvedInput) => resolvedInput.select[WdlValue] map { outputPort.name -> _ }
+        }
+        val ra = call.callable.runtimeAttributes.attributes mapValues { _.evaluateValue(staticValues, NoIoFunctionSet) }
         ra.sequence.getOrElse(fail("Failed to evaluate runtime attributes"))
     }
   }

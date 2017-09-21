@@ -7,9 +7,9 @@ import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.WorkflowOptions
-import wdl4s.wdl.types.{WdlBooleanType, WdlIntegerType, WdlStringType}
-import wdl4s.wdl.values.WdlValue
-import wdl4s.wom.graph.TaskCallNode
+import wdl.types.{WdlBooleanType, WdlIntegerType, WdlStringType}
+import wdl.values.WdlValue
+import wom.graph.TaskCallNode
 
 import scala.concurrent.Future
 import scala.util.Try

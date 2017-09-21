@@ -3,9 +3,9 @@ package cromwell.backend.wdl
 import cromwell.backend.MemorySize
 import cromwell.core.path.PathFactory
 import wdl4s.parser.MemoryUnit
-import wdl4s.wdl.types._
-import wdl4s.wdl.values._
-import wdl4s.wom.expression.IoFunctionSet
+import wdl.types._
+import wdl.values._
+import wom.expression.IoFunctionSet
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}

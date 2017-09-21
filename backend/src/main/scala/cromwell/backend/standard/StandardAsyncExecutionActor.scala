@@ -21,8 +21,8 @@ import cromwell.services.metadata.CallMetadataKeys
 import lenthall.util.TryUtil
 import lenthall.validation.ErrorOr.ErrorOr
 import net.ceedubs.ficus.Ficus._
-import wdl4s.wdl.values._
-import wdl4s.wom.WomEvaluatedCallInputs
+import wdl.values._
+import wom.WomEvaluatedCallInputs
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}
 import scala.util.{Failure, Success, Try}

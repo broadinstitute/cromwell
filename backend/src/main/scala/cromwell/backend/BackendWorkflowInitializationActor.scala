@@ -9,12 +9,12 @@ import cromwell.backend.validation.ContinueOnReturnCodeValidation
 import cromwell.core.{WorkflowMetadataKeys, WorkflowOptions}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
-import wdl4s.wdl._
-import wdl4s.wdl.expression.PureStandardLibraryFunctions
-import wdl4s.wdl.types._
-import wdl4s.wdl.values.WdlValue
-import wdl4s.wom.callable.TaskDefinition
-import wdl4s.wom.graph.TaskCallNode
+import _root_.wdl._
+import _root_.wdl.expression.PureStandardLibraryFunctions
+import _root_.wdl.types._
+import _root_.wdl.values.WdlValue
+import wom.callable.TaskDefinition
+import wom.graph.TaskCallNode
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}

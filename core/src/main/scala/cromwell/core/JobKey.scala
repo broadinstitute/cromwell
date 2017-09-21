@@ -1,7 +1,7 @@
 package cromwell.core
 
 import cromwell.core.CromwellGraphNode._
-import wdl4s.wom.graph.GraphNode
+import wom.graph.GraphNode
 
 trait JobKey {
   def node: GraphNode

@@ -3,7 +3,7 @@ package cromwell
 import akka.testkit._
 import cromwell.core.Tags.PostWomTest
 import cromwell.util.SampleWdl
-import wdl4s.wdl.values.{WdlFile, WdlString}
+import wdl.values.{WdlFile, WdlString}
 
 import scala.concurrent.duration._
 

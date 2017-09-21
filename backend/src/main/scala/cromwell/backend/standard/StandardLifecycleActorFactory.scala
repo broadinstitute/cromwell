@@ -7,8 +7,8 @@ import cromwell.backend.standard.callcaching._
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.path.Path
 import cromwell.core.{CallOutputs, Dispatcher}
-import wdl4s.wom.expression.IoFunctionSet
-import wdl4s.wom.graph.TaskCallNode
+import wom.expression.IoFunctionSet
+import wom.graph.TaskCallNode
 
 /**
   * May be extended for using the standard sync/async backend pattern.

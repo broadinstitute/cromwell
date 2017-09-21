@@ -6,7 +6,7 @@ import cromwell.backend.BackendWorkflowInitializationActor.Initialize
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, TestConfig}
 import cromwell.core.TestKitSuite
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-import wdl4s.wom.graph.TaskCallNode
+import wom.graph.TaskCallNode
 
 import scala.concurrent.duration._
 
@@ -41,7 +41,7 @@ class SparkInitializationActorSpec  extends  TestKitSuite("SparkInitializationAc
     "log a warning message when there are unsupported runtime attributes" in {
       within(Timeout) {
         EventFilter.warning(message = s"Key/s [memory] is/are not supported by SparkBackend. Unsupported attributes will not be part of jobs executions.", occurrences = 1) intercept {
-          val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { memory: 1 %s: "%s"}""".format("appMainClass", "test"))
+          val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { memory: 1 %s: "%s"}""".format("appMainClass", "test"))
           val backend = getSparkBackend(workflowDescriptor, workflowDescriptor.workflow.taskCallNodes, TestConfig.emptyBackendConfigDescriptor)
           backend ! Initialize
         }

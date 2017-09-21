@@ -3,8 +3,8 @@ package cromwell
 import akka.testkit._
 import cromwell.core.Tags.PostWomTest
 import cromwell.util.SampleWdl
-import wdl4s.wdl.types.{WdlMapType, WdlStringType}
-import wdl4s.wdl.values.{WdlMap, WdlString}
+import wdl.types.{WdlMapType, WdlStringType}
+import wdl.values.{WdlMap, WdlString}
 
 
 class WdlFunctionsAtWorkflowLevelSpec extends CromwellTestKitWordSpec {

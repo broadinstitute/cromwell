@@ -2,8 +2,8 @@ package cromwell
 
 import akka.testkit._
 import cromwell.core.Tags.{DockerTest, PostWomTest}
-import wdl4s.wdl.types.{WdlArrayType, WdlFileType, WdlIntegerType, WdlStringType}
-import wdl4s.wdl.values.{WdlArray, WdlFile, WdlInteger, WdlString}
+import wdl.types.{WdlArrayType, WdlFileType, WdlIntegerType, WdlStringType}
+import wdl.values.{WdlArray, WdlFile, WdlInteger, WdlString}
 import cromwell.util.SampleWdl
 
 // TODO WOM: need scatter support

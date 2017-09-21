@@ -4,7 +4,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, BackendSpec, TestConfig}
 import cromwell.core.path.DefaultPathBuilder
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wom.graph.TaskCallNode
+import wom.graph.TaskCallNode
 
 class JobPathsSpec extends FlatSpec with Matchers with BackendSpec {
 
@@ -28,7 +28,7 @@ class JobPathsSpec extends FlatSpec with Matchers with BackendSpec {
 
   "JobPaths" should "provide correct paths for a job" in {
 
-    val wd = buildWorkflowDescriptor(TestWorkflows.HelloWorld)
+    val wd = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld)
     val call: TaskCallNode = wd.workflow.taskCallNodes.head
     val jobKey: BackendJobDescriptorKey = BackendJobDescriptorKey(call, None, 1)
     val workflowPaths = new WorkflowPathsWithDocker(wd, backendConfig)

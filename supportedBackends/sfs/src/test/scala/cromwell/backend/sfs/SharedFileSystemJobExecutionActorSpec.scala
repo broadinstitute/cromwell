@@ -20,10 +20,10 @@ import lenthall.exception.AggregatedException
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Assertion, FlatSpecLike, OptionValues}
-import wdl4s.wdl.LocallyQualifiedName
-import wdl4s.wdl.types._
-import wdl4s.wdl.values._
-import wdl4s.wom.graph.TaskCallNode
+import _root_.wdl.LocallyQualifiedName
+import _root_.wdl.types._
+import _root_.wdl.values._
+import wom.graph.TaskCallNode
 
 import scala.concurrent.duration._
 
@@ -41,7 +41,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     )
     val expectedResponse = JobSucceededResponse(mock[BackendJobDescriptorKey], Some(0), expectedOutputs, None, Seq.empty, None)
     val runtime = if (docker) """runtime { docker: "ubuntu:latest" }""" else ""
-    val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = runtime)
+    val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = runtime)
     val workflow = TestWorkflow(workflowDescriptor, TestConfig.backendRuntimeConfigDescriptor, expectedResponse)
     val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions), workflow.config)
     testWorkflow(workflow, backend)
@@ -58,7 +58,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
   it should "send back an execution failure if the task fails" taggedAs PostWomTest ignore {
     val expectedResponse =
       JobFailedNonRetryableResponse(mock[BackendJobDescriptorKey], WrongReturnCode("wf_goodbye.goodbye:NA:1", 1, None), Option(1))
-    val workflow = TestWorkflow(buildWorkflowDescriptor(GoodbyeWorld), TestConfig.backendRuntimeConfigDescriptor, expectedResponse)
+    val workflow = TestWorkflow(buildWdlWorkflowDescriptor(GoodbyeWorld), TestConfig.backendRuntimeConfigDescriptor, expectedResponse)
     val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions), workflow.config)
     testWorkflow(workflow, backend)
   }
@@ -111,7 +111,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
     forAll(localizers) { (conf, isSymlink) =>
       val runtime = if (docker) """runtime { docker: "ubuntu:latest" } """ else ""
-      val workflowDescriptor = buildWorkflowDescriptor(InputFiles, inputs, runtime = runtime)
+      val workflowDescriptor = buildWdlWorkflowDescriptor(InputFiles, inputs, runtime = runtime)
       val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflowDescriptor, inputs, WorkflowOptions.empty, runtimeAttributeDefinitions), conf)
       val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, inputs, WorkflowOptions.empty, runtimeAttributeDefinitions)
       val expectedResponse = JobSucceededResponse(jobDescriptor.key, Some(0), expectedOutputs, None, Seq.empty, None)
@@ -145,7 +145,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
   }
 
   it should "abort a job and kill a process" in {
-    val workflowDescriptor = buildWorkflowDescriptor(Sleep10)
+    val workflowDescriptor = buildWdlWorkflowDescriptor(Sleep10)
     val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions)
     val backendRef = createBackendRef(jobDescriptor, TestConfig.backendRuntimeConfigDescriptor)
     val backend = backendRef.underlyingActor
@@ -159,7 +159,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
   }
 
   def recoverSpec(completed: Boolean, writeReturnCode: Boolean = true): Assertion = {
-    val workflowDescriptor = buildWorkflowDescriptor(HelloWorld)
+    val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld)
     val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions)
     val backendRef = createBackendRef(jobDescriptor, TestConfig.backendRuntimeConfigDescriptor)
     val backend = backendRef.underlyingActor
@@ -227,7 +227,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
   }
 
   it should "execute shards from a scatter" taggedAs PostWomTest ignore {
-    val workflowDescriptor = buildWorkflowDescriptor(TestWorkflows.Scatter)
+    val workflowDescriptor = buildWdlWorkflowDescriptor(TestWorkflows.Scatter)
 
     val call: TaskCallNode = workflowDescriptor.workflow.taskCallNodes.head
 
@@ -239,7 +239,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
       val runtimeAttributes: Map[LocallyQualifiedName, WdlValue] = Map.empty//RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, WorkflowOptions.empty)(call.callable.runtimeAttributes.attributes)
 
       val jobDescriptor: BackendJobDescriptor =
-        BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, Option(shard), 1), runtimeAttributes, fqnMapToDeclarationMap(symbolMaps), NoDocker, Map.empty)
+        BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, Option(shard), 1), runtimeAttributes, fqnWdlMapToDeclarationMap(symbolMaps), NoDocker, Map.empty)
       val backend = createBackend(jobDescriptor, TestConfig.backendRuntimeConfigDescriptor)
       val response =
         JobSucceededResponse(mock[BackendJobDescriptorKey], Some(0), Map("out" -> JobOutput(WdlInteger(shard))), None, Seq.empty, None)
@@ -252,7 +252,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val inputs = Map {
       "wf_localize.localize.inputFile" -> WdlFile(inputFile)
     }
-    val workflowDescriptor = buildWorkflowDescriptor(OutputProcess, inputs)
+    val workflowDescriptor = buildWdlWorkflowDescriptor(OutputProcess, inputs)
     val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, inputs, WorkflowOptions.empty, runtimeAttributeDefinitions)
     val backend = createBackend(jobDescriptor, TestConfig.backendRuntimeConfigDescriptor)
     val jobPaths = JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, TestConfig.backendRuntimeConfigDescriptor.backendConfig)
@@ -271,7 +271,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
   it should "fail post processing if an output file is not found" taggedAs PostWomTest ignore {
     val expectedResponse = JobFailedNonRetryableResponse(mock[BackendJobDescriptorKey],
       AggregatedException("Could not process output, file not found:", Seq.empty), Option(0))
-    val workflow = TestWorkflow(buildWorkflowDescriptor(MissingOutputProcess), TestConfig.backendRuntimeConfigDescriptor, expectedResponse)
+    val workflow = TestWorkflow(buildWdlWorkflowDescriptor(MissingOutputProcess), TestConfig.backendRuntimeConfigDescriptor, expectedResponse)
     val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions), workflow.config)
     testWorkflow(workflow, backend)
   }

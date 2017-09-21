@@ -19,7 +19,7 @@ import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
 import spray.json._
-import wdl4s.wom.graph.TaskCallNode
+import wom.graph.TaskCallNode
 
 import scala.concurrent.duration._
 
@@ -188,7 +188,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
     GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
 
     within(Timeout) {
-      val workflowDescriptor = buildWorkflowDescriptor(HelloWorld,
+      val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld,
         runtime = """runtime { docker: "ubuntu/latest" test: true }""")
       val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflow.taskCallNodes,
         defaultBackendConfig)
@@ -207,7 +207,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   // Depends on https://github.com/broadinstitute/cromwell/issues/2606
   it should "return InitializationFailed when docker runtime attribute key is not present" taggedAs PostWomTest ignore {
     within(Timeout) {
-      val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
+      val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
       val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflow.taskCallNodes,
         defaultBackendConfig)
       backend ! Initialize
@@ -226,7 +226,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
 
   private def buildJesInitializationTestingBits(backendConfig: Config = dockerBackendConfig): TestingBits = {
     val workflowOptions = WorkflowOptions.fromMap(Map("refresh_token" -> "mytoken")).get
-    val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.workflowSource(), options = workflowOptions)
+    val workflowDescriptor = buildWdlWorkflowDescriptor(SampleWdl.HelloWorld.workflowSource(), options = workflowOptions)
     val calls = workflowDescriptor.workflow.taskCallNodes
     val backendConfigurationDescriptor = BackendConfigurationDescriptor(backendConfig, globalConfig)
     val jesConfiguration = new JesConfiguration(backendConfigurationDescriptor)

@@ -10,7 +10,7 @@ import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor._
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
-import wdl4s.wom.graph.TaskCallNode
+import wom.graph.TaskCallNode
 
 import scala.util.{Failure, Success, Try}
 

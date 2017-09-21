@@ -9,9 +9,9 @@ import cromwell.core.ExecutionStatus._
 import cromwell.core._
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
-import wdl4s.wdl._
-import wdl4s.wdl.values.WdlValue
-import wdl4s.wom.WomEvaluatedCallInputs
+import wdl._
+import wdl.values.WdlValue
+import wom.WomEvaluatedCallInputs
 
 import scala.util.Random
 

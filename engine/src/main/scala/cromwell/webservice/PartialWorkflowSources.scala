@@ -2,7 +2,7 @@ package cromwell.webservice
 
 import akka.util.ByteString
 import cromwell.core.{WorkflowOptions, WorkflowOptionsJson, WorkflowSourceFilesCollection}
-import wdl4s.wdl.{WorkflowJson, WorkflowSource}
+import wdl.{WorkflowJson, WorkflowSource}
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
 import cats.syntax.apply._

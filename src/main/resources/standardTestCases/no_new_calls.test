@@ -1,9 +1,10 @@
+ignore: true
 #Currently failing since the workflow fails without completing task 'shouldSucceed'
 #and no information about tasks that weren't started.
 
 name: no_new_calls
 testFormat: workflowfailure
-ignore: true
+
 
 files {
   wdl: no_new_calls/no_new_calls.wdl

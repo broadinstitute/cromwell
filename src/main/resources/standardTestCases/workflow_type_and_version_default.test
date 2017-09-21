@@ -1,3 +1,4 @@
+ignore: true
 name: workflow_type_and_version_default
 testFormat: workflowsuccess
 

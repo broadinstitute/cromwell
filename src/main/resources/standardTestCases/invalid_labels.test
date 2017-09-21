@@ -1,3 +1,4 @@
+ignore: true
 name: invalid_labels
 testFormat: workflowfailure
 tags: [ labels ]

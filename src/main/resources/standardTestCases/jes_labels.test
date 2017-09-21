@@ -1,3 +1,4 @@
+ignore: true
 name: jes_labels
 testFormat: workflowsuccess
 tags: [ labels ]

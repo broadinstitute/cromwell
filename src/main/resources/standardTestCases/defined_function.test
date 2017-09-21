@@ -1,3 +1,4 @@
+ignore: true
 name: defined_function
 testFormat: workflowsuccess
 

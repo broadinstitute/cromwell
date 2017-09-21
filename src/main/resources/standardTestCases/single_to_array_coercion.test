@@ -1,3 +1,4 @@
+ignore: true
 # Tests that we can pass a single element in to an array as an input
 name: single_to_array_coercion
 testFormat: workflowsuccess

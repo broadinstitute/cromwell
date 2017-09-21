@@ -1,3 +1,4 @@
+ignore: true
 name: missing_optional_output
 testFormat: workflowfailure
 

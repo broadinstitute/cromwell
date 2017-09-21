@@ -1,3 +1,4 @@
+ignore: true
 name: subworkflows_in_ifs
 testFormat: workflowsuccess
 tags: [ conditionals ]

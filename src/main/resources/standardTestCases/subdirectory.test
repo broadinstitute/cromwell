@@ -1,3 +1,4 @@
+ignore: true
 name: subdirectory
 testFormat: workflowsuccess
 

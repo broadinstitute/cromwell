@@ -220,19 +220,19 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       workflowOptions: WorkflowOptions,
                                       pathBuilders: List[PathBuilder]): Parse[EngineWorkflowDescriptor] = {
     val namespaceValidation: Parse[ValidatedWomNamespace] = sourceFiles.workflowType match {
-      case Some(wdl) if wdl.equalsIgnoreCase("wdl") => EitherT{IO {validateWdlNamespace(sourceFiles, workflowOptions, pathBuilders).toEither}}
+      case Some(wdl) if wdl.equalsIgnoreCase("wdl") => EitherT{ IO{ validateWdlNamespace(sourceFiles, workflowOptions, pathBuilders).toEither }}
       case Some(cwl) if cwl.equalsIgnoreCase("cwl") => validateCwlNamespace(sourceFiles, workflowOptions, pathBuilders)
-      case Some(other) => EitherT{ IO{s"Unknown workflow type: $other".invalidNelCheck[ValidatedWomNamespace] }}
-      case None => EitherT{ IO { "Need a workflow type here !".invalidNelCheck[ValidatedWomNamespace] }}
+      case Some(other) => EitherT{ IO{ s"Unknown workflow type: $other".invalidNelCheck[ValidatedWomNamespace] }}
+      case None => EitherT{ IO{ "Need a workflow type here !".invalidNelCheck[ValidatedWomNamespace] }}
     }
-    val labelsValidation: Parse[Labels] = EitherT { IO { validateLabels(sourceFiles.labelsJson).toEither }}
+    val labelsValidation: Parse[Labels] = EitherT{ IO{ validateLabels(sourceFiles.labelsJson).toEither }}
 
     for {
       validatedNamespace <- namespaceValidation
       labels <- labelsValidation
        _ <- pushWfNameMetadataService(validatedNamespace.executable.entryPoint.name)
       _ <- publishLabelsToMetadata(id, validatedNamespace.executable.entryPoint.name, labels)
-      ewd <- EitherT { IO { buildWorkflowDescriptor(id, sourceFiles, validatedNamespace, workflowOptions, labels, conf, pathBuilders).toEither }}
+      ewd <- EitherT{ IO{ buildWorkflowDescriptor(id, sourceFiles, validatedNamespace, workflowOptions, labels, conf, pathBuilders).toEither }}
     } yield ewd
   }
 
@@ -434,9 +434,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     try {
       for {
         cwl <- CwlDecoder.decodeAllCwl(cwlFile)
-        wf <- EitherT{ IO{cwl.select[Workflow].toRight(NonEmptyList.one(s"expected a workflow but got a $cwl"))}}
-        executable <- EitherT{IO {wf.womExecutable}}
-        graph <- EitherT{IO {executable.graph.toEither }}
+        wf <- EitherT{ IO{ cwl.select[Workflow].toRight(NonEmptyList.one(s"expected a workflow but got a $cwl")) }}
+        executable <- EitherT{ IO{ wf.womExecutable }}
+        graph <- EitherT{ IO{ executable.graph.toEither }}
       } yield ValidatedWomNamespace(executable, graph, Map.empty)
     } finally {
       cwlFile.delete(swallowIOExceptions = true)

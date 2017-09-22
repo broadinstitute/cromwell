@@ -339,10 +339,22 @@ object WdlNamespace {
         )
     }
 
+    /*
+     * Used to filter task declaration nodes whose parents are subworkflow calls. Subworkflows will cause task declarations to appear twice among
+     * the namespace's descendants: once with a parent that is the containing static workflow and again with a parent that is the dynamic workflow
+     * call. Looking for variable references when the parent is a workflow call will fail if the variable references a call output since only
+     * declarations are made children of workflow calls. This variable reference check is also redundant to the check that will happen with the
+     * copy of the declaration that has a static workflow parent.
+     */
+    def parentIsNotAWorkflowCall(declaration: DeclarationInterface): Boolean = declaration.parent match {
+      case Some(_: WdlWorkflowCall) => false
+      case _ => true
+    }
+
     val declarationErrors = for {
       descendant <- namespace.descendants
       declaration <- getDecls(descendant)
-      error <- validateDeclaration(declaration, wdlSyntaxErrorFormatter)
+      error <- validateDeclaration(declaration, wdlSyntaxErrorFormatter) if parentIsNotAWorkflowCall(declaration)
     } yield error
 
     val scatterErrors = for {

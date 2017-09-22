@@ -1,8 +1,8 @@
 import sbt._
 
 object Dependencies {
-  lazy val lenthallV = "0.28-7e90b62-SNAP"
-  lazy val wdl4sV = "0.16-f63dc02-SNAP"
+  lazy val lenthallV = "0.28-9d9a747-SNAP"
+  lazy val wdl4sV = "0.16-d4ad7df-SNAP"
 
   lazy val akkaV = "2.5.4"
   lazy val akkaHttpV = "10.0.10"

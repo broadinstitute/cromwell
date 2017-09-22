@@ -26,6 +26,7 @@ import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.MaterializeWorkflowDescriptorActorState
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import lenthall.Checked
 import lenthall.exception.{AggregatedMessageException, MessageAggregation}
 import lenthall.validation.ErrorOr._
 import net.ceedubs.ficus.Ficus._
@@ -214,9 +215,10 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       conf: Config,
                                       workflowOptions: WorkflowOptions,
                                       pathBuilders: List[PathBuilder]): ErrorOr[EngineWorkflowDescriptor] = {
+    import cats.syntax.either._
     val namespaceValidation: ErrorOr[ValidatedWomNamespace] = sourceFiles.workflowType match {
       case Some(wdl) if wdl.equalsIgnoreCase("wdl") => validateWdlNamespace(sourceFiles, workflowOptions, pathBuilders)
-      case Some(cwl) if cwl.equalsIgnoreCase("cwl") => validateCwlNamespace(sourceFiles, workflowOptions, pathBuilders)
+      case Some(cwl) if cwl.equalsIgnoreCase("cwl") => validateCwlNamespace(sourceFiles, workflowOptions, pathBuilders).toValidated
       case Some(other) => s"Unknown workflow type: $other".invalidNel
       case None => "Need a workflow type here !".invalidNel
     }
@@ -418,10 +420,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
   private def validateCwlNamespace(source: WorkflowSourceFilesCollection,
                                    workflowOptions: WorkflowOptions,
-                                   pathBuilders: List[PathBuilder]): ErrorOr[ValidatedWomNamespace] = {
+                                   pathBuilders: List[PathBuilder]): Checked[ValidatedWomNamespace] = {
     // TODO WOM: CwlDecoder takes a file so write it to disk for now
     import better.files._
-    import cats.syntax.either._
 
     val cwlFile = File.newTemporaryFile(prefix = workflowIdForLogging.toString).write(source.workflowSource)
 
@@ -429,9 +430,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       for {
         wf <- CwlDecoder.decodeAllCwl(cwlFile).map {
           _.select[Workflow].get
-        }.value.unsafeRunSync.toValidated
+        }.value.unsafeRunSync
         executable <- wf.womExecutable
-        graph <- executable.graph
+        graph <- executable.graph.toEither
       } yield ValidatedWomNamespace(executable, graph, Map.empty)
     } finally {
       cwlFile.delete(swallowIOExceptions = true)

@@ -2,8 +2,11 @@ package cromwell.engine.workflow.lifecycle
 
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
 import akka.pattern.pipe
-import cats.data.NonEmptyList
+import cats.Monad
+import cats.data.{EitherT, NonEmptyList}
 import cats.data.Validated._
+import cats.syntax.either._
+import cats.effect.IO
 import cats.instances.list._
 import cats.instances.vector._
 import cats.syntax.apply._
@@ -26,10 +29,12 @@ import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.MaterializeWorkflowDescriptorActorState
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import lenthall.validation.Checked._
 import lenthall.exception.{AggregatedMessageException, MessageAggregation}
 import lenthall.validation.ErrorOr._
 import net.ceedubs.ficus.Ficus._
 import spray.json._
+import wdl4s.cwl.CwlDecoder.Parse
 import wdl4s.cwl.{CwlDecoder, Workflow}
 import wdl4s.wdl._
 import wdl4s.wdl.expression.NoFunctions
@@ -143,8 +148,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
       workflowOptionsAndPathBuilders(workflowSourceFiles) match {
         case Valid((workflowOptions, pathBuilders)) =>
-          val futureDescriptor = pathBuilders map {
-            buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf, workflowOptions, _)
+          val futureDescriptor: Future[ErrorOr[EngineWorkflowDescriptor]] = pathBuilders flatMap {
+            buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf, workflowOptions, _).value.unsafeToFuture().map(_.toValidated)
           }
 
           // Pipe the response to self, but make it look like it comes from the sender of the command
@@ -213,34 +218,36 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       sourceFiles: WorkflowSourceFilesCollection,
                                       conf: Config,
                                       workflowOptions: WorkflowOptions,
-                                      pathBuilders: List[PathBuilder]): ErrorOr[EngineWorkflowDescriptor] = {
-    val namespaceValidation: ErrorOr[ValidatedWomNamespace] = sourceFiles.workflowType match {
-      case Some(wdl) if wdl.equalsIgnoreCase("wdl") => validateWdlNamespace(sourceFiles, workflowOptions, pathBuilders)
+                                      pathBuilders: List[PathBuilder]): Parse[EngineWorkflowDescriptor] = {
+    val namespaceValidation: Parse[ValidatedWomNamespace] = sourceFiles.workflowType match {
+      case Some(wdl) if wdl.equalsIgnoreCase("wdl") => EitherT{IO {validateWdlNamespace(sourceFiles, workflowOptions, pathBuilders).toEither}}
       case Some(cwl) if cwl.equalsIgnoreCase("cwl") => validateCwlNamespace(sourceFiles, workflowOptions, pathBuilders)
-      case Some(other) => s"Unknown workflow type: $other".invalidNel
-      case None => "Need a workflow type here !".invalidNel
+      case Some(other) => EitherT{ IO{s"Unknown workflow type: $other".invalidNelCheck[ValidatedWomNamespace] }}
+      case None => EitherT{ IO { "Need a workflow type here !".invalidNelCheck[ValidatedWomNamespace] }}
     }
-    val labelsValidation = validateLabels(sourceFiles.labelsJson)
+    val labelsValidation: Parse[Labels] = EitherT { IO { validateLabels(sourceFiles.labelsJson).toEither }}
 
-    (namespaceValidation, labelsValidation) flatMapN { case (validatedNamespace, labels) =>
-      pushWfNameMetadataService(validatedNamespace.executable.entryPoint.name)
-      publishLabelsToMetadata(id, validatedNamespace.executable.entryPoint.name, labels)
-      buildWorkflowDescriptor(id, sourceFiles, validatedNamespace, workflowOptions, labels, conf, pathBuilders)
-    }
+    for {
+      validatedNamespace <- namespaceValidation
+      labels <- labelsValidation
+       _ <- pushWfNameMetadataService(validatedNamespace.executable.entryPoint.name)
+      _ <- publishLabelsToMetadata(id, validatedNamespace.executable.entryPoint.name, labels)
+      ewd <- EitherT { IO { buildWorkflowDescriptor(id, sourceFiles, validatedNamespace, workflowOptions, labels, conf, pathBuilders).toEither }}
+    } yield ewd
   }
 
 
-  private def pushWfNameMetadataService(name: String): Unit = {
+  private def pushWfNameMetadataService(name: String): Parse[Unit] = {
     // Workflow name:
     val nameEvent = MetadataEvent(MetadataKey(workflowIdForLogging, None, WorkflowMetadataKeys.Name), MetadataValue(name))
 
-    serviceRegistryActor ! PutMetadataAction(nameEvent)
+    Monad[Parse].pure(serviceRegistryActor ! PutMetadataAction(nameEvent))
   }
 
-  private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, unqualifiedName: String, labels: Labels): Unit = {
+  private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, unqualifiedName: String, labels: Labels): Parse[Unit] = {
     val defaultLabel = "cromwell-workflow-id" -> s"cromwell-$rootWorkflowId"
     val customLabels = labels.asMap
-    labelsToMetadata(customLabels + defaultLabel, rootWorkflowId)
+    Monad[Parse].pure(labelsToMetadata(customLabels + defaultLabel, rootWorkflowId))
   }
 
   protected def labelsToMetadata(labels: Map[String, String], workflowId: WorkflowId): Unit = {
@@ -418,21 +425,18 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
   private def validateCwlNamespace(source: WorkflowSourceFilesCollection,
                                    workflowOptions: WorkflowOptions,
-                                   pathBuilders: List[PathBuilder]): ErrorOr[ValidatedWomNamespace] = {
+                                   pathBuilders: List[PathBuilder]): Parse[ValidatedWomNamespace] = {
     // TODO WOM: CwlDecoder takes a file so write it to disk for now
     import better.files._
-    import cats.syntax.either._
 
     val cwlFile = File.newTemporaryFile(prefix = workflowIdForLogging.toString).write(source.workflowSource)
 
     try {
       for {
-        wf <- CwlDecoder.decodeAllCwl(cwlFile).map {
-          _.select[Workflow].get
-          //TODO move this unsafeRunSync to the fringe so as to leave more power to the caller
-        }.value.unsafeRunSync.toValidated
-        executable <- wf.womExecutable.toValidated
-        graph <- executable.graph
+        cwl <- CwlDecoder.decodeAllCwl(cwlFile)
+        wf <- EitherT{ IO{cwl.select[Workflow].toRight(NonEmptyList.one(s"expected a workflow but got a $cwl"))}}
+        executable <- EitherT{IO {wf.womExecutable}}
+        graph <- EitherT{IO {executable.graph.toEither }}
       } yield ValidatedWomNamespace(executable, graph, Map.empty)
     } finally {
       cwlFile.delete(swallowIOExceptions = true)

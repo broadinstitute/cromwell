@@ -12,9 +12,12 @@ sealed trait GraphInputNode extends GraphNode {
   override val outputPorts: Set[GraphNodePort.OutputPort] = Set(singleOutputPort)
 }
 
-final case class RequiredGraphInputNode(override val name: String, womType: WdlType) extends GraphInputNode
-final case class OptionalGraphInputNode(override val name: String, womType: WdlOptionalType) extends GraphInputNode
-final case class OptionalGraphInputNodeWithDefault(override val name: String, womType: WdlType, default: WomExpression) extends GraphInputNode
+sealed trait ExternalGraphInputNode extends GraphInputNode
+
+final case class RequiredGraphInputNode(override val name: String, womType: WdlType) extends ExternalGraphInputNode
+final case class OptionalGraphInputNode(override val name: String, womType: WdlOptionalType) extends ExternalGraphInputNode
+// If we want to allow defaults to be "complex" expressions with dependencies we may need to make it an InstantiatedExpression here instead
+final case class OptionalGraphInputNodeWithDefault(override val name: String, womType: WdlType, default: WomExpression) extends ExternalGraphInputNode
 
 /**
   * Used to represent an input to any GraphNode's inner graph which is a link to a value somewhere in the outer graph.

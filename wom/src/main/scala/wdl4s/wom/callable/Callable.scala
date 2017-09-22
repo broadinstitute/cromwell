@@ -20,9 +20,9 @@ object Callable {
     def womType: WdlType
   }
 
-  final case class OptionalInputDefinition(name: String, womType: WdlOptionalType) extends InputDefinition
-  final case class OptionalInputDefinitionWithDefault(name: String, womType: WdlType, default: WomExpression) extends InputDefinition
   final case class RequiredInputDefinition(name: String, womType: WdlType) extends InputDefinition
-
-  case class OutputDefinition(name: String, womType: WdlType, expression: WomExpression)
+  final case class InputDefinitionWithDefault(name: String, womType: WdlType, default: WomExpression) extends InputDefinition
+  final case class OptionalInputDefinition(name: String, womType: WdlOptionalType) extends InputDefinition
+  
+  final case class OutputDefinition(name: String, womType: WdlType, expression: WomExpression)
 }

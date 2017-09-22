@@ -30,7 +30,9 @@ final case class ConditionalNode private(innerGraph: Graph,
 
 object ConditionalNode  {
 
-  final case class ConditionalNodeWithInputs(node: ConditionalNode, newInputs: Set[GraphInputNode]) extends GeneratedNodeAndNewInputs
+  final case class ConditionalNodeWithInputs(node: ConditionalNode, newInputs: Set[GraphInputNode]) extends GeneratedNodeAndNewInputs {
+    override val newExpressions = Set.empty[ExpressionNode]
+  }
 
   def wireInConditional(innerGraph: Graph, condition: GraphNodeInputExpression, inputMapping: Map[String, OutputPort]): ErrorOr[ConditionalNodeWithInputs] = {
     val graphNodeSetter = new GraphNode.GraphNodeSetter()

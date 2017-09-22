@@ -4,24 +4,27 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.apply._
 import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
 import org.scalatest.{FlatSpec, Matchers}
+import shapeless.Coproduct
 import wdl4s.wdl.types.{WdlArrayType, WdlIntegerType, WdlStringType}
 import wdl4s.wom.RuntimeAttributes
 import wdl4s.wom.callable.Callable.{OutputDefinition, RequiredInputDefinition}
 import wdl4s.wom.callable.TaskDefinition
 import wdl4s.wom.expression.PlaceholderWomExpression
-import wdl4s.wom.graph.CallNode.CallNodeAndNewInputs
+import wdl4s.wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
+import wdl4s.wom.graph.GraphNodePort.OutputPort
 import wdl4s.wom.graph.ScatterNode.ScatterNodeWithInputs
 
 class ScatterNodeSpec extends FlatSpec with Matchers {
   behavior of "ScatterNode"
 
+  val fooInputDef = RequiredInputDefinition("i", WdlIntegerType)
   val task_foo = TaskDefinition(name = "foo",
     commandTemplate = null,
     runtimeAttributes = RuntimeAttributes(Map.empty),
     meta = Map.empty,
     parameterMeta = Map.empty,
-    outputs = Set(OutputDefinition("out", WdlStringType, PlaceholderWomExpression(Set.empty, WdlStringType))),
-    inputs = List(RequiredInputDefinition("i", WdlIntegerType))
+    outputs = List(OutputDefinition("out", WdlStringType, PlaceholderWomExpression(Set.empty, WdlStringType))),
+    inputs = List(fooInputDef)
   )
 
   /**
@@ -49,7 +52,17 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
     val xs_inputNode = RequiredGraphInputNode("xs", WdlArrayType(WdlIntegerType))
 
     val x_inputNode = RequiredGraphInputNode("x", WdlIntegerType)
-    val CallNodeAndNewInputs(foo_callNode, _) = CallNode.callWithInputs("foo", task_foo, Map("i" -> x_inputNode.singleOutputPort), Set.empty).getOrElse(fail("Unable to call foo_callNode"))
+    val fooNodeBuilder = new CallNodeBuilder()
+    val fooInputFold = InputDefinitionFold(
+      mappings = Map(
+        fooInputDef -> Coproduct[InputDefinitionPointer](x_inputNode.singleOutputPort: OutputPort)
+      ),
+      callInputPorts = Set(
+        fooNodeBuilder.makeInputPort(fooInputDef, x_inputNode.singleOutputPort)
+      ),
+      newGraphInputNodes = Set.empty
+    )
+    val CallNodeAndNewNodes(foo_callNode, _, _) = fooNodeBuilder.build("foo", task_foo, fooInputFold)
     val foo_call_outNode = PortBasedGraphOutputNode("foo.out", WdlStringType, foo_callNode.outputByName("out").getOrElse(fail("foo CallNode didn't contain the expected 'out' output")))
     val scatterGraph = Graph.validateAndConstruct(Set(foo_callNode, x_inputNode, foo_call_outNode)) match {
       case Valid(sg) => sg

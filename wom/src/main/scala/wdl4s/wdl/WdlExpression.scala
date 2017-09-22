@@ -15,7 +15,7 @@ import wdl4s.wdl.formatter.{NullSyntaxHighlighter, SyntaxHighlighter}
 import wdl4s.wdl.types._
 import wdl4s.wdl.values._
 import wdl4s.wom.expression.{IoFunctionSet, WomExpression}
-import wdl4s.wom.graph.{GraphNodeInputExpression, GraphNodePort, OuterGraphInputNode}
+import wdl4s.wom.graph.{ExpressionNode, GraphNodeInputExpression, GraphNodePort, OuterGraphInputNode}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.Await
@@ -256,6 +256,18 @@ object WdlWomExpression {
     for {
       resolvedVariables <- expression.wdlExpression.variableReferences.toList traverse resolveVariable
     } yield GraphNodeInputExpression(name, expression, resolvedVariables.toMap)
+  }
+  
+  def toExpressionNode(name: String,
+                       expression: WdlWomExpression,
+                       innerLookup: Map[String, GraphNodePort.OutputPort],
+                       outerLookup: Map[String, GraphNodePort.OutputPort]) = {
+    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    
+    findInputsforExpression(name, expression, innerLookup, outerLookup) flatMap {
+      case GraphNodeInputExpression(_, _, resolvedVariables) => 
+        ExpressionNode.linkWithInputs(name, expression, resolvedVariables)
+    }
   }
 }
 

@@ -14,6 +14,7 @@ lazy val wdl = (project in file("wdl"))
 lazy val cwl = (project in file("cwl"))
   .settings(cwlSettings: _*)
   .dependsOn(wom)
+  .dependsOn(wom % "test->test")
 
 lazy val root = (project in file("."))
   .settings(rootSettings: _*)

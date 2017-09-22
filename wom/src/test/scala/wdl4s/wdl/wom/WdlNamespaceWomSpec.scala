@@ -1,10 +1,11 @@
 package wdl4s.wdl.wom
 
-import lenthall.collections.EnhancedCollections._
 import cats.data.Validated.{Invalid, Valid}
+import lenthall.collections.EnhancedCollections._
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
-import wdl4s.wom.graph.{CallNode, GraphInputNode, PortBasedGraphOutputNode, TaskCallNode}
+import wdl4s.wdl.{WdlNamespace, WdlNamespaceWithWorkflow, WdlWomExpression}
+import wdl4s.wom.graph.GraphNodePort.OutputPort
+import wdl4s.wom.graph._
 
 class WdlNamespaceWomSpec extends FlatSpec with Matchers {
   
@@ -61,23 +62,47 @@ class WdlNamespaceWomSpec extends FlatSpec with Matchers {
       case Valid(g) => g
       case Invalid(errors) => fail(s"Unable to build wom version of 3step from WDL: ${errors.toList.mkString("\n", "\n", "\n")}")
     }
-    
-    workflowGraph.nodes collect { case gin: GraphInputNode => gin.name } should be(Set("cgrep.pattern"))
+
+    val graphInputNodes = workflowGraph.nodes collect { case gin: GraphInputNode => gin }
+    graphInputNodes should have size 1
+    val patternInputNode = graphInputNodes.head
+    patternInputNode.name should be("three_step.cgrep.pattern")
+
     workflowGraph.nodes collect { case gon: PortBasedGraphOutputNode => gon.name } should be(Set("wc.count", "cgrep.count", "ps.procs"))
     
     val ps: TaskCallNode = workflowGraph.nodes.collectFirst({ case ps: TaskCallNode if ps.name == "ps" => ps }).get
     val cgrep: TaskCallNode = workflowGraph.nodes.collectFirst({ case cgrep: TaskCallNode if cgrep.name == "cgrep" => cgrep }).get
-    val cgrepPatternInput = workflowGraph.nodes.collectFirst({ case cgrepInput: GraphInputNode if cgrepInput.name == "cgrep.pattern" => cgrepInput }).get
+    val cgrepInFileExpression = {
+      workflowGraph.nodes.collectFirst({ case cgrepInFile: ExpressionNode if cgrepInFile.name == "three_step.cgrep.in_file" => cgrepInFile }).get
+    }
     val wc: TaskCallNode = workflowGraph.nodes.collectFirst({ case wc: TaskCallNode if wc.name == "wc" => wc }).get
+    val wcInFileExpression = {
+      workflowGraph.nodes.collectFirst({ case wcInFile: ExpressionNode if wcInFile.name == "three_step.wc.in_file" => wcInFile }).get
+    }
 
     workflowGraph.nodes.filterByType[CallNode] should be(Set(ps, cgrep, wc))
     ps.inputPorts.map(_.name) should be(Set.empty)
-    cgrep.inputPorts.map(_.name) should be(Set("pattern", "ps.procs"))
-    wc.inputPorts.map(_.name) should be(Set("ps.procs"))
+    cgrep.inputPorts.map(_.name) should be(Set("pattern", "in_file"))
+    wc.inputPorts.map(_.name) should be(Set("in_file"))
 
     ps.upstream shouldBe empty
-    cgrep.upstream shouldBe Set(ps, cgrepPatternInput)
-    wc.upstream shouldBe Set(ps)
+    cgrep.upstream shouldBe Set(cgrepInFileExpression, patternInputNode)
+    wc.upstream shouldBe Set(wcInFileExpression)
+
+    ps.inputDefinitionMappings shouldBe empty
+    cgrep.inputDefinitionMappings should have size 2
+
+    val cgrepFileInputDef = cgrep.callable.inputs.find(_.name == "in_file").get
+    val inFileMapping = cgrep.inputDefinitionMappings(cgrepFileInputDef)
+    inFileMapping.select[OutputPort].isDefined shouldBe true
+    // This should be less ugly when we can access a string value from a womexpression
+    inFileMapping.select[OutputPort].get
+    .graphNode.asInstanceOf[ExpressionNode]
+    .instantiatedExpression.expression.asInstanceOf[WdlWomExpression]  
+    .wdlExpression.valueString shouldBe "ps.procs"
+    
+    val cgrepPatternInputDef = cgrep.callable.inputs.find(_.name == "pattern").get
+    cgrep.inputDefinitionMappings(cgrepPatternInputDef).select[OutputPort].get eq patternInputNode.singleOutputPort shouldBe true
   }
 
 }

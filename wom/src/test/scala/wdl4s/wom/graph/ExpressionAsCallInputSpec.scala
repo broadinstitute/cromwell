@@ -5,7 +5,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.wdl.types.WdlIntegerType
 import wdl4s.wom.callable.TaskDefinitionSpec
 import wdl4s.wom.expression._
-import wdl4s.wom.graph.CallNode.CallNodeAndNewInputs
+import wdl4s.wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold}
 
 class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
 
@@ -33,18 +33,35 @@ class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
     // Declare an expression that needs both an "i" and a "j":
     val ijExpression = PlaceholderWomExpression(Set("i", "j"), WdlIntegerType)
 
-    def validateCallResult(callWithInputs: CallNodeAndNewInputs) = {
-      callWithInputs.newInputs should be(Set.empty)
-      callWithInputs.node.upstream should be(Set(iInputNode, jInputNode))
-    }
-
     // Use that as an input to a one-input task:
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
-    val graph = for {
-      callNode <- CallNode.callWithInputs("foo", TaskDefinitionSpec.oneInputTask, Map.empty, Set(GraphNodeInputExpression("bar", ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))))
-      _ = validateCallResult(callNode)
-      g <- Graph.validateAndConstruct(Set(iInputNode, jInputNode, callNode.node))
-    } yield g
+    val expressionNode = ExpressionNode
+      .linkWithInputs("bar", ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))
+      .getOrElse(fail("Failed to build expression node"))
+
+    val callNodeBuilder = new CallNodeBuilder()
+
+    val inputDefinition = TaskDefinitionSpec.oneInputTask.inputs.head
+    
+    val inputDefinitionFold = InputDefinitionFold(
+      mappings = Map(inputDefinition -> expressionNode.inputDefinitionPointer),
+      callInputPorts = Set(callNodeBuilder.makeInputPort(inputDefinition, expressionNode.singleExpressionOutputPort)),
+      newExpressionNodes = Set(expressionNode)
+    )
+    
+    val callNodeWithInputs = callNodeBuilder.build(
+      "foo",
+      TaskDefinitionSpec.oneInputTask,
+      inputDefinitionFold
+    )
+
+    def validateCallResult(callWithInputs: CallNodeAndNewNodes) = {
+      callWithInputs.newInputs should be(Set.empty)
+      callWithInputs.node.upstream should be(Set(expressionNode))
+    }
+    
+    validateCallResult(callNodeWithInputs)
+    
+    val graph = Graph.validateAndConstruct(Set(iInputNode, jInputNode, callNodeWithInputs.node, expressionNode))
 
     graph match {
       case Valid(_) => // Great!

@@ -2,15 +2,19 @@ package wdl4s.wdl
 
 import cats.instances.list._
 import cats.syntax.apply._
-import cats.syntax.traverse._
-import lenthall.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
+import cats.syntax.foldable._
+import shapeless.Coproduct
 import wdl4s.parser.WdlParser.{Ast, SyntaxError, Terminal}
 import wdl4s.wdl.AstTools.EnhancedAstNode
 import wdl4s.wdl.exception.{ValidationException, VariableLookupException, VariableNotFoundException}
 import wdl4s.wdl.expression.WdlFunctions
 import wdl4s.wdl.types.WdlOptionalType
-import wdl4s.wdl.values.{WdlOptionalValue, WdlValue}
-import wdl4s.wom.graph._
+import wdl4s.wdl.values._
+import wdl4s.wom.callable.Callable
+import wdl4s.wom.callable.Callable._
+import wdl4s.wom.graph.CallNode._
+import wdl4s.wom.graph.GraphNodePort.OutputPort
+import wdl4s.wom.graph.{ExpressionNode, _}
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -50,32 +54,91 @@ object WdlCall {
   }
 
   private[wdl] def buildWomNodeAndInputs(wdlCall: WdlCall, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort]) = {
-    val graphNodeInputExpressionValidation: ErrorOr[List[GraphNodeInputExpression]] = {
-      val graphNodeInputExpression: ((String, WdlExpression)) => ErrorOr[GraphNodeInputExpression] = {
-        case ((inputName, wdlExpression)) => WdlWomExpression.findInputsforExpression(inputName, WdlWomExpression(wdlExpression, None), localLookup, outerLookup)
-      }
-      wdlCall.inputMappings.toList traverse graphNodeInputExpression
+    import lenthall.validation.ErrorOr._
+
+    val callNamePrefix = s"${wdlCall.fullyQualifiedName}."
+    val callNodeBuilder = new CallNode.CallNodeBuilder()
+
+    /*
+      * Each input mapping gets its own ExpressionNode:
+      * 
+      * call my_task { input:
+      *   input1 = "hi!"                -> ExpressionNode with no input port
+      *   input3 = other_task.out + 2   -> ExpressionNode with an input port pointing to the output port of other_task.out
+      * }
+     */
+    def expressionNodeMappings: ErrorOr[Map[String, ExpressionNode]] = wdlCall.inputMappings traverse {
+      case (inputName, wdlExpression) =>
+        WdlWomExpression.toExpressionNode(s"$callNamePrefix$inputName", WdlWomExpression(wdlExpression, None), localLookup, outerLookup) map {
+          inputName -> _
+        }
     }
-    for {
-      combined <- (graphNodeInputExpressionValidation, wdlCall.callable.womDefinition).tupled
-      (inputToOutputPort, callable) = combined
-      callWithInputs <- CallNode.callWithInputs(wdlCall.alias.getOrElse(wdlCall.callable.unqualifiedName), callable, Map.empty, inputToOutputPort.toSet)
-    } yield callWithInputs
+
+    /*
+      * Fold over the input definitions and
+      * 1) assign each input definition its InputDefinitionPointer
+      * 2) if necessary, create a graph input node and assign its output port to the input definition
+      * 
+      * The InputDefinitionFold accumulates the input definition mappings, the create graph input nodes, and the expression nodes.
+     */
+    def foldInputDefinitions(expressionNodes: Map[String, ExpressionNode], callable: Callable): InputDefinitionFold = {
+      // Updates the fold with a new graph input node. Happens when an optional or required undefined input without an
+      // expression node mapping is found
+      def withGraphInputNode(inputDefinition: InputDefinition, graphInputNode: GraphInputNode) = {
+        InputDefinitionFold(
+          mappings = Map(inputDefinition -> Coproduct[InputDefinitionPointer](graphInputNode.singleOutputPort: OutputPort)),
+          callInputPorts = Set(callNodeBuilder.makeInputPort(inputDefinition, graphInputNode.singleOutputPort)),
+          newGraphInputNodes = Set(graphInputNode)
+        )
+      }
+
+      callable.inputs.foldMap {
+        // If there is an input mapping for this input definition, use that
+        case inputDefinition if expressionNodes.contains(inputDefinition.name) =>
+          val expressionNode = expressionNodes(inputDefinition.name)
+          InputDefinitionFold(
+            mappings = Map(inputDefinition -> expressionNode.inputDefinitionPointer),
+            callInputPorts = Set(callNodeBuilder.makeInputPort(inputDefinition, expressionNode.singleExpressionOutputPort)),
+            newExpressionNodes = Set(expressionNode)
+          )
+
+        // No input mapping, use the default expression
+        case withDefault @ InputDefinitionWithDefault(_, _, expression) =>
+          InputDefinitionFold(
+            mappings = Map(withDefault -> Coproduct[InputDefinitionPointer](expression))
+          )
+
+        // No input mapping, required and we don't have a default value, create a new RequiredGraphInputNode
+        // so that it can be satisfied via workflow inputs
+        case required @ RequiredInputDefinition(n, womType) =>
+          withGraphInputNode(required, RequiredGraphInputNode(s"$callNamePrefix$n", womType))
+
+        // No input mapping, no default value but optional, create a OptionalGraphInputNode
+        // so that it can be satisfied via workflow inputs
+        case optional @ OptionalInputDefinition(n, womType) =>
+          withGraphInputNode(optional, OptionalGraphInputNode(s"$callNamePrefix$n", womType))
+      }
+    }
+
+    (expressionNodeMappings, wdlCall.callable.womDefinition) mapN {
+      case (mappings, callable) =>
+        callNodeBuilder.build(wdlCall.unqualifiedName, callable, foldInputDefinitions(mappings, callable))
+    }
   }
 }
 
 /**
- * Represents a `call` block in a WDL workflow.  Calls wrap tasks
- * and optionally provide a subset of the inputs for the task (as inputMappings member).
- * All remaining inputs to the task that are not declared in the `input` section
- * of the `call` block are called unsatisfiedInputs
- *
- * @param alias The alias for this call.  If two calls in a workflow use the same task
- *              then one of them needs to be aliased to a different name
- * @param callable The callable that this `call` will invoke
- * @param inputMappings A map of task-local input names and corresponding expression for the
- *                      value of those inputs
- */
+  * Represents a `call` block in a WDL workflow.  Calls wrap tasks
+  * and optionally provide a subset of the inputs for the task (as inputMappings member).
+  * All remaining inputs to the task that are not declared in the `input` section
+  * of the `call` block are called unsatisfiedInputs
+  *
+  * @param alias The alias for this call.  If two calls in a workflow use the same task
+  *              then one of them needs to be aliased to a different name
+  * @param callable The callable that this `call` will invoke
+  * @param inputMappings A map of task-local input names and corresponding expression for the
+  *                      value of those inputs
+  */
 sealed abstract class WdlCall(val alias: Option[String],
                               val callable: WdlCallable,
                               val inputMappings: Map[String, WdlExpression],
@@ -95,10 +158,10 @@ sealed abstract class WdlCall(val alias: Option[String],
   override def children: Seq[Scope] = super.children ++ outputs
 
   /**
-   * Returns a Seq[WorkflowInput] representing the inputs to the call that are
-   * needed before its command can be constructed. This excludes inputs that
-   * are satisfied via the 'input' section of the Call definition.
-   */
+    * Returns a Seq[WorkflowInput] representing the inputs to the call that are
+    * needed before its command can be constructed. This excludes inputs that
+    * are satisfied via the 'input' section of the Call definition.
+    */
   def unsatisfiedInputs: Seq[WorkflowInput] = for {
     i <- declarations if !inputMappings.contains(i.unqualifiedName) && i.expression.isEmpty
   } yield WorkflowInput(i.fullyQualifiedName, i.wdlType)

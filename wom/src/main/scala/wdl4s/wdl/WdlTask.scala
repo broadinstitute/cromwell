@@ -6,12 +6,12 @@ import cats.data.Validated.Valid
 import lenthall.util.TryUtil
 import wdl4s.parser.WdlParser._
 import wdl4s.wdl.AstTools._
-import wdl4s.wdl.command.{WdlCommandPart, ParameterCommandPart, StringCommandPart}
+import wdl4s.wdl.command.{ParameterCommandPart, StringCommandPart, WdlCommandPart}
 import wdl4s.wdl.expression.{WdlFunctions, WdlStandardLibraryFunctions}
 import wdl4s.wdl.types.WdlOptionalType
 import wdl4s.wdl.util.StringUtil
 import wdl4s.wdl.values.{WdlFile, WdlValue}
-import wdl4s.wom.callable.Callable.{OptionalInputDefinition, OptionalInputDefinitionWithDefault, RequiredInputDefinition}
+import wdl4s.wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
 import wdl4s.wom.callable.{Callable, TaskDefinition}
 
 import scala.collection.JavaConverters._
@@ -67,7 +67,7 @@ case class WdlTask(name: String,
                    meta: Map[String, String],
                    parameterMeta: Map[String, String],
                    ast: Ast) extends WdlCallable {
-  
+
   override lazy val womDefinition = Valid(buildWomTaskDefinition)
 
   override val unqualifiedName: LocallyQualifiedName = name
@@ -153,7 +153,7 @@ case class WdlTask(name: String,
       expression -> value
     } toMap
 
-    evaluatedExpressionMap collect { 
+    evaluatedExpressionMap collect {
       case (k, Success(file: WdlFile)) => k -> file
     }
   }
@@ -217,7 +217,7 @@ case class WdlTask(name: String,
     runtimeAttributes.toWomRuntimeAttributes,
     meta,
     parameterMeta,
-    outputs.map(_.womOutputDefinition).toSet,
+    outputs.map(_.womOutputDefinition).toList,
     buildWomInputs
   )
 
@@ -227,6 +227,6 @@ case class WdlTask(name: String,
     case d if d.expression.isEmpty && d.wdlType.isInstanceOf[WdlOptionalType] =>
       OptionalInputDefinition(d.unqualifiedName, d.wdlType.asInstanceOf[WdlOptionalType])
     case d if d.expression.nonEmpty =>
-      OptionalInputDefinitionWithDefault(d.unqualifiedName, d.wdlType, WdlWomExpression(d.expression.get, Option(this)))
+      InputDefinitionWithDefault(d.unqualifiedName, d.wdlType, WdlWomExpression(d.expression.get, Option(this)))
   } toList
 }

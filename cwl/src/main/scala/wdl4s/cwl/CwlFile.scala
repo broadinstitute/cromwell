@@ -107,11 +107,11 @@ case class CommandLineTool private(
     //http://www.commonwl.org/v1.0/CommandLineTool.html#CommandOutputBinding
 
     // For inputs and outputs, we only keep the variable name in the definition
-    val outputs: Set[Callable.OutputDefinition] = this.outputs.map {
+    val outputs: List[Callable.OutputDefinition] = this.outputs.map {
       output =>
         val wdlType = output.`type`.flatMap(_.select[CwlType]).map(cwlTypeToWdlType).get //<-- here be `get` dragons
         OutputDefinition(RunId(output.id).variableId, wdlType, CwlWomExpression(output, wdlType))
-    }.toSet
+    }.toList
 
     val inputs: List[_ <: Callable.InputDefinition] =
       this.inputs.map { cip =>

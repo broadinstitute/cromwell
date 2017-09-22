@@ -8,6 +8,8 @@ import wdl4s.wdl.values.WdlArray.WdlArrayLike
 import wdl4s.wdl.values.WdlValue
 
 import scala.util.{Failure, Success, Try}
+import scalax.collection.Graph
+import scalax.collection.GraphEdge.DiEdge
 
 trait Scope {
   def unqualifiedName: LocallyQualifiedName
@@ -36,7 +38,15 @@ trait Scope {
   }
 
   lazy val childGraphNodes: Set[WdlGraphNode] = children.toSet.filterByType[WdlGraphNode]
-  lazy val childGraphNodesSorted: List[WdlGraphNode] = childGraphNodes.toList.sortWith((first, second) => first.isUpstreamFrom(second))
+  lazy val childGraphNodesSorted: List[WdlGraphNode] = {
+    // We can't use a classic ordering because the upstream / downstream order is not total over the set of nodes
+    // Instead we use topological sorting to guarantee that we process the nodes top to bottom
+    val edges = childGraphNodes flatMap { child => child.upstreamAncestry map { upstreamNode => DiEdge(upstreamNode, child) } }
+    Graph.from[WdlGraphNode, DiEdge](childGraphNodes, edges).topologicalSort match {
+      case Left(cycleNode) => throw new RuntimeException(s"This workflow contains a cyclic dependency on ${cycleNode.value.fullyQualifiedName}")
+      case Right(topologicalOrder) => topologicalOrder.toList.map(_.value).filter(childGraphNodes.contains)
+    }
+  }
 
   /**
     * Containing namespace
@@ -64,7 +74,7 @@ trait Scope {
     case Some(p) => Seq(p) ++ p.ancestrySafe
     case None => Seq.empty[Scope]
   }
-  
+
   /**
     * All children ++ children's children ++ etc
     */
@@ -74,9 +84,9 @@ trait Scope {
     * Descendants that are Calls
     */
   lazy val calls: Set[WdlCall] = descendants.collect({ case c: WdlCall => c })
-  
+
   lazy val taskCalls: Set[WdlTaskCall] = calls collect { case c: WdlTaskCall => c }
-  
+
   lazy val workflowCalls: Set[WdlWorkflowCall] = calls collect { case c: WdlWorkflowCall => c }
 
   /**
@@ -102,7 +112,7 @@ trait Scope {
     * Workflow w
     *   Call a
     *     Output o
-    *     
+    *
     * o.locallyQualified(a) = "a.o"
     * o.locallyQualified(w) = o.fullyQualifiedName = "w.a.o"
     */
@@ -122,7 +132,7 @@ trait Scope {
       // Concatenate all of this
       .mkString(".")
   }
-  
+
   /**
     * String identifier for this scope, with hidden scope information.
     *
@@ -156,7 +166,7 @@ trait Scope {
     */
   def resolveVariable(name: String, relativeTo: Scope = this): Option[WdlGraphNode] = {
     val siblingScopes = if (children.contains(relativeTo))
-      // For declarations, only resolve to declarations that are lexically before this declaration
+    // For declarations, only resolve to declarations that are lexically before this declaration
       children.dropRight(children.size - children.indexOf(relativeTo) )
     else children
 
@@ -217,7 +227,7 @@ trait Scope {
           Failure(new VariableLookupException(s"Could not find a shard for scatter block with expression (${scatter.collection.toWdlString})"))
       }
     }
-    
+
     def fromOutputs(node: WdlGraphNode) = {
       def withShard(s: Scatter) = {
         shards.get(s) map { shard =>
@@ -260,7 +270,7 @@ trait Scope {
     def lookup(name: String): WdlValue = {
       val scopeResolvedValue = resolveVariable(name, relativeTo) map {
         // First check if the variable has been provided in the known values
-        case scope if knownInputs.contains(scope.fullyQualifiedName) => 
+        case scope if knownInputs.contains(scope.fullyQualifiedName) =>
           knownInputs.get(scope.fullyQualifiedName) map Success.apply getOrElse {
             Failure(new VariableLookupException(s"Could not find value in inputs map."))
           }

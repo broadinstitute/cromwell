@@ -42,7 +42,9 @@ object ScatterNode {
     */
   case class ScatterVariableMapping(scatterInstantiatedExpression: InstantiatedExpression, graphInputNode: GraphInputNode)
 
-  final case class ScatterNodeWithInputs(node: ScatterNode, newInputs: Set[GraphInputNode]) extends GeneratedNodeAndNewInputs
+  final case class ScatterNodeWithInputs(node: ScatterNode, newInputs: Set[GraphInputNode]) extends GeneratedNodeAndNewInputs {
+    override val newExpressions = Set.empty[ExpressionNode]
+  }
 
   /**
     * Creates a ScatterNode that's been connected to the inputs provided.

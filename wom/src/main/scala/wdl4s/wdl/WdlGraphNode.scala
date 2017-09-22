@@ -7,7 +7,7 @@ import lenthall.validation.ErrorOr.ErrorOr
 import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
 import wdl4s.wdl.AstTools.{EnhancedAstNode, VariableReference}
 import wdl4s.wom.graph._
-import wdl4s.wom.graph.CallNode.CallNodeAndNewInputs
+import wdl4s.wom.graph.CallNode.CallNodeAndNewNodes
 import wdl4s.wom.graph.GraphNode.GeneratedNodeAndNewInputs
 import wdl4s.wom.graph.GraphNodePort.OutputPort
 
@@ -80,11 +80,11 @@ object WdlGraphNode {
       // The output ports from newly created GraphInputNodes:
       val newInputOutputPorts = (gnani.newInputs map { i => i.name -> i.singleOutputPort }).toMap
 
-      FoldState(acc.nodes + gnani.node ++ gnani.newInputs, acc.availableInputs ++ newCallOutputPorts ++ newInputOutputPorts)
+      FoldState(acc.nodes + gnani.node ++ gnani.newInputs ++ gnani.newExpressions, acc.availableInputs ++ newCallOutputPorts ++ newInputOutputPorts)
     }
 
     def buildNode(acc: FoldState, node: WdlGraphNode): ErrorOr[FoldState] = node match {
-      case wdlCall: WdlCall => WdlCall.buildWomNodeAndInputs(wdlCall, acc.availableInputs, outerLookup) map { case cnani @ CallNodeAndNewInputs(call, _) =>
+      case wdlCall: WdlCall => WdlCall.buildWomNodeAndInputs(wdlCall, acc.availableInputs, outerLookup) map { case cnani @ CallNodeAndNewNodes(call, _, _) =>
         foldInGeneratedNodeAndNewInputs(acc, call.name + ".")(cnani)
       }
 
@@ -108,7 +108,6 @@ object WdlGraphNode {
 
     def withDefaultOutputs(g: Graph): Graph = if (g.nodes.exists(_.isInstanceOf[GraphOutputNode])) { g } else {
       Graph(g.nodes.union((g.nodes collect {
-          case node: ExpressionNode => node.outputPorts.map(op => PortBasedGraphOutputNode(op.name, op.womType, op))
           case node: CallNode => node.outputPorts.map(op => PortBasedGraphOutputNode(s"${node.name}.${op.name}", op.womType, op))
           case node: ScatterNode => node.outputPorts.map(op => PortBasedGraphOutputNode(op.name, op.womType, op))
           case node: ConditionalNode => node.outputPorts.map(op => PortBasedGraphOutputNode(op.name, op.womType, op))

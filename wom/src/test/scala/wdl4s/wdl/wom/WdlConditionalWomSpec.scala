@@ -48,7 +48,7 @@ class WdlConditionalWomSpec extends FlatSpec with Matchers {
 
         val b_inputNode = inputNodes.find(_.name == "b").getOrElse(fail("Resulting graph did not contain the 'b' GraphInputNode"))
         b_inputNode.womType should be(WdlBooleanType)
-        val foo_i_inputNode = inputNodes.find(_.name == "foo.i").getOrElse(fail("Resulting graph did not contain the 'foo.i' GraphInputNode"))
+        val foo_i_inputNode = inputNodes.find(_.name == "conditional_test.foo.i").getOrElse(fail("Resulting graph did not contain the 'foo.i' GraphInputNode"))
         foo_i_inputNode.womType should be(WdlIntegerType)
 
         val foo_out_output = workflowGraph.nodes.collectFirst {
@@ -63,7 +63,7 @@ class WdlConditionalWomSpec extends FlatSpec with Matchers {
       case class InnerGraphValidations(foo_out_innerOutput: GraphOutputNode)
       def validateInnerGraph(validatedOuterGraph: OuterGraphValidations): InnerGraphValidations = {
         val foo_i_innerInput = validatedOuterGraph.conditionalNode.innerGraph.nodes.collectFirst {
-          case gin: GraphInputNode if gin.name == "foo.i" => gin
+          case gin: GraphInputNode if gin.name == "conditional_test.foo.i" => gin
         }.getOrElse(fail("Conditional inner graph did not contain a GraphInputNode 'foo.i'"))
 
         val foo_callNode = validatedOuterGraph.conditionalNode.innerGraph.nodes.collectFirst {

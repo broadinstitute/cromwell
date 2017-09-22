@@ -7,7 +7,7 @@ import wdl4s.wdl.util.StringUtil
 import wdl4s.wdl.values.WdlValue
 import wdl4s.wom.expression.IoFunctionSet
 import wdl4s.wom.graph.{Graph, TaskCall}
-import wdl4s.wom.{CommandPart, WomEvaluatedCallInputs, RuntimeAttributes}
+import wdl4s.wom.{CommandPart, RuntimeAttributes, WomEvaluatedCallInputs}
 
 import scala.util.Try
 
@@ -16,7 +16,7 @@ case class TaskDefinition(name: String,
                           runtimeAttributes: RuntimeAttributes,
                           meta: Map[String, String],
                           parameterMeta: Map[String, String],
-                          outputs: Set[Callable.OutputDefinition],
+                          outputs: List[Callable.OutputDefinition],
                           inputs: List[_ <: Callable.InputDefinition],
                           prefixSeparator: String = ".",
                           commandPartSeparator: String = "") extends Callable {

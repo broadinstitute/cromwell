@@ -37,7 +37,7 @@ class WdlAliasWomSpec extends FlatSpec with Matchers {
     def validateGraph(workflowGraph: Graph) = {
 
       val inputNodes: Set[GraphInputNode] = workflowGraph.nodes.filterByType[GraphInputNode]
-      inputNodes.map(_.name) should be(Set("foo1.i", "foo2.i"))
+      inputNodes.map(_.name) should be(Set("conditional_test.foo1.i", "conditional_test.foo2.i"))
 
       val callNodes: Set[CallNode] = workflowGraph.nodes.filterByType[CallNode]
       callNodes.map(_.name) should be(Set("foo1", "foo2"))

@@ -4,7 +4,7 @@ import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.wdl.types.{WdlArrayType, WdlIntegerType, WdlStringType}
 import wdl4s.wdl.{ImportResolver, WdlNamespace, WdlNamespaceWithWorkflow}
-import wdl4s.wom.graph.{Graph, TaskCallNode, WorkflowCallNode}
+import wdl4s.wom.graph.{ExpressionNode, Graph, TaskCallNode, WorkflowCallNode}
 
 class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
 
@@ -68,7 +68,7 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
       // One workflow call, "inner"
       val innerCall = calls.head.asInstanceOf[WorkflowCallNode]
       innerCall.name should be("inner")
-      innerCall.upstream should be(Set(workflowGraph.inputNodes.head))
+      innerCall.upstream.head.asInstanceOf[ExpressionNode].inputPorts.map(_.upstream.graphNode) should be(Set(workflowGraph.inputNodes.head))
 
       // One output, "out"
       workflowGraph.outputNodes.map(_.name) should be(Set("out"))
@@ -84,7 +84,7 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
       calls.map(_.name) should be(Set("foo"))
 
       val fooCall = calls.head.asInstanceOf[TaskCallNode]
-      fooCall.upstream should be(Set(innerGraph.inputNodes.head))
+      fooCall.upstream.head.asInstanceOf[ExpressionNode].inputPorts.map(_.upstream.graphNode) should be(Set(innerGraph.inputNodes.head))
 
       innerGraph.outputNodes.map(_.name) should be(Set("out", "x"))
       val outOutput = innerGraph.outputNodes.find(_.name == "out").get

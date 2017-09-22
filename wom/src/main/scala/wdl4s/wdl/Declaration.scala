@@ -135,7 +135,6 @@ object Declaration {
     decl match {
       case Declaration(opt: WdlOptionalType, _, None, _, _) => Valid(InputDeclarationNode(OptionalGraphInputNode(inputName, opt)))
       case Declaration(_, _, None, _, _) => Valid(InputDeclarationNode(RequiredGraphInputNode(inputName, decl.wdlType)))
-      case Declaration(_, _, Some(expr), _, _) if expr.variableReferences.isEmpty => Valid(InputDeclarationNode(OptionalGraphInputNodeWithDefault(inputName, decl.wdlType, WdlWomExpression(expr, None))))
       case Declaration(_, _, Some(expr), _, _) => declarationAsExpressionNode(expr)
       case WorkflowOutput(_, _, expr, _, _) => workflowOutputAsGraphOutputNode(expr)
     }

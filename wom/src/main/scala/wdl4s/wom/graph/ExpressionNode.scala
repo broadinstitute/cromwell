@@ -2,13 +2,17 @@ package wdl4s.wom.graph
 
 
 import lenthall.validation.ErrorOr.ErrorOr
+import shapeless.Coproduct
 import wdl4s.wom.expression.WomExpression
+import wdl4s.wom.graph.CallNode.InputDefinitionPointer
 import wdl4s.wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 
-final case class ExpressionNode private(override val name: String, instantiatedExpression: InstantiatedExpression) extends GraphNode {
+final case class ExpressionNode(override val name: String, instantiatedExpression: InstantiatedExpression) extends GraphNode {
 
   val womType = instantiatedExpression.womReturnType
   val singleExpressionOutputPort = GraphNodeOutputPort(name, womType, this)
+
+  private [wdl4s] lazy val inputDefinitionPointer = Coproduct[InputDefinitionPointer](singleExpressionOutputPort: OutputPort)
 
   override val inputPorts = instantiatedExpression.inputPorts
   override val outputPorts: Set[GraphNodePort.OutputPort] = Set(singleExpressionOutputPort)

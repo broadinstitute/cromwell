@@ -71,7 +71,11 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
           case gon: GraphOutputNode if gon.name == "foo.out" => gon
         }.getOrElse(fail("Scatter inner graph did not contain a GraphOutputNode 'foo.out'"))
 
-        validatedOuterGraph.scatterNode.innerGraph.nodes should be(Set(x_scatterCollectionInput, foo_callNode, foo_out_innerOutput))
+        val foo_out_i_expressionNode = validatedOuterGraph.scatterNode.innerGraph.nodes.collectFirst {
+          case expr: ExpressionNode if expr.name == "scatter_test.foo.i" => expr
+        }.getOrElse(fail("Scatter inner graph did not contain a ExpressionNode 'scatter_test.foo.i'"))
+
+        validatedOuterGraph.scatterNode.innerGraph.nodes should be(Set(x_scatterCollectionInput, foo_callNode, foo_out_innerOutput, foo_out_i_expressionNode))
         InnerGraphValidations(x_scatterCollectionInput, foo_out_innerOutput)
       }
 
@@ -174,7 +178,7 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
 
       // Find the inputs:
       val inputNodes: Set[GraphInputNode] = workflowGraph.nodes.filterByType[GraphInputNode]
-      inputNodes.map {_.name} should be(Set("x", "foo.j"))
+      inputNodes.map {_.name} should be(Set("scatter_test.foo.j"))
 
       // Find that scatter:
       val scatterNode = workflowGraph.nodes.collectFirst {
@@ -182,8 +186,8 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
       }.getOrElse(fail("Resulting graph did not contain a ScatterNode"))
 
       val scatterInnerInputs: Set[GraphInputNode] = scatterNode.innerGraph.nodes.filterByType[GraphInputNode]
-      scatterInnerInputs map {_.name} should be(Set("s", "foo.j"))
-      (scatterInnerInputs.find(_.name == "foo.j").get, inputNodes.find(_.name == "foo.j").get) match {
+      scatterInnerInputs map {_.name} should be(Set("s", "scatter_test.foo.j"))
+      (scatterInnerInputs.find(_.name == "scatter_test.foo.j").get, inputNodes.find(_.name == "scatter_test.foo.j").get) match {
         case (fooj1, fooj2) if fooj1 eq fooj2 => fail("Scatter has used the inner graph input Node as an outer graph input")
         case _ => // fine
       }

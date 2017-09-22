@@ -1,0 +1,15 @@
+name: sub_workflow_var_refs
+testFormat: workflowsuccess
+ignore: false
+
+files {
+  wdl: sub_workflow_var_refs/sub_workflow_var_refs.wdl
+  imports: [
+    sub_workflow_var_refs/sub_workflow_var_refs_import.wdl
+  ]
+}
+
+metadata {
+  workflowName: top_level_workflow
+  status: Succeeded
+}

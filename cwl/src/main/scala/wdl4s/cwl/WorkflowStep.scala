@@ -1,17 +1,19 @@
 package wdl4s.cwl
 
+import cats.Monoid
 import cats.data.NonEmptyList
-import cats.syntax.either._
-import cats.instances.list._
-import cats.syntax.validated._
 import cats.data.Validated._
+import cats.instances.list._
+import cats.syntax.either._
 import cats.syntax.foldable._
+import cats.syntax.monoid._
+import cats.syntax.validated._
 import lenthall.Checked
 import lenthall.validation.Checked._
 import lenthall.validation.ErrorOr.ErrorOr
 import shapeless._
 import wdl4s.cwl.ScatterMethod._
-import wdl4s.cwl.WorkflowStep.{Outputs, Run, WorkflowStepInputFold, _}
+import wdl4s.cwl.WorkflowStep._
 import wdl4s.wdl.types.WdlAnyType
 import wdl4s.wdl.values.WdlValue
 import wdl4s.wom.callable.Callable._
@@ -138,9 +140,10 @@ case class WorkflowStep(
           def updateFold(outputPort: OutputPort, newCallNodes: Set[GraphNode] = Set.empty): Checked[WorkflowStepInputFold] = {
             // TODO for now we only handle a single input source, but there may be several
             workflowStepInput.toExpressionNode(Map(inputSource -> outputPort)).map({ expressionNode =>
-              fold
-                .withMapping(stepInputName, expressionNode)
-                .withNewNodes(newCallNodes + expressionNode)
+              fold |+| WorkflowStepInputFold(
+                stepInputMapping = Map(stepInputName -> expressionNode),
+                generatedNodes = newCallNodes + expressionNode
+              )
             }).toEither
           }
 
@@ -157,39 +160,39 @@ case class WorkflowStep(
             case WorkflowStepInputOrOutputId(_, stepId, stepOutputId) => fromStepOutput(stepId, stepOutputId)
           }
       }
-      
+
       /*
         * Folds over input definitions and build an InputDefinitionFold
        */
       def foldInputDefinition(expressionNodes: Map[String, ExpressionNode])
                              (inputDefinition: InputDefinition): ErrorOr[InputDefinitionFold] = {
-          inputDefinition match {
-            // We got an expression node, meaning there was a workflow step input for this input definition
-            // Add the mapping, create an input port from the expression node and add the expression node to the fold
-            case _ if expressionNodes.contains(inputDefinition.name) =>
-              val expressionNode = expressionNodes(inputDefinition.name)
-              InputDefinitionFold(
-                mappings = Map(inputDefinition -> expressionNode.inputDefinitionPointer),
-                callInputPorts = Set(callNodeBuilder.makeInputPort(inputDefinition, expressionNode.singleExpressionOutputPort)),
-                newExpressionNodes = Set(expressionNode)
-              ).validNel
+        inputDefinition match {
+          // We got an expression node, meaning there was a workflow step input for this input definition
+          // Add the mapping, create an input port from the expression node and add the expression node to the fold
+          case _ if expressionNodes.contains(inputDefinition.name) =>
+            val expressionNode = expressionNodes(inputDefinition.name)
+            InputDefinitionFold(
+              mappings = Map(inputDefinition -> expressionNode.inputDefinitionPointer),
+              callInputPorts = Set(callNodeBuilder.makeInputPort(inputDefinition, expressionNode.singleExpressionOutputPort)),
+              newExpressionNodes = Set(expressionNode)
+            ).validNel
 
-            // No expression node mapping, use the default
-            case withDefault @ InputDefinitionWithDefault(_, _, expression) =>
-              InputDefinitionFold(
-                mappings = Map(withDefault -> Coproduct[InputDefinitionPointer](expression))
-              ).validNel
+          // No expression node mapping, use the default
+          case withDefault @ InputDefinitionWithDefault(_, _, expression) =>
+            InputDefinitionFold(
+              mappings = Map(withDefault -> Coproduct[InputDefinitionPointer](expression))
+            ).validNel
 
-            // Required input without default value and without mapping, this is a validation error
-            case RequiredInputDefinition(requiredName, _) =>
-              s"Input $requiredName is required and is not bound to any value".invalidNel
+          // Required input without default value and without mapping, this is a validation error
+          case RequiredInputDefinition(requiredName, _) =>
+            s"Input $requiredName is required and is not bound to any value".invalidNel
 
-            // Optional input without mapping, defaults to empty value
-            case optional: OptionalInputDefinition =>
-              InputDefinitionFold(
-                mappings = Map(optional -> Coproduct[InputDefinitionPointer](optional.womType.none: WdlValue))
-              ).validNel
-          }
+          // Optional input without mapping, defaults to empty value
+          case optional: OptionalInputDefinition =>
+            InputDefinitionFold(
+              mappings = Map(optional -> Coproduct[InputDefinitionPointer](optional.womType.none: WdlValue))
+            ).validNel
+        }
       }
 
       /*
@@ -220,14 +223,23 @@ case class WorkflowStepOutput(id: String)
 
 object WorkflowStep {
 
+  // A monoid can't be derived automatically for this class because it contains a Map[String, ExpressionNode],
+  // and there's no monoid defined over ExpressionNode
+  implicit val workflowStepInputFoldMonoid: Monoid[WorkflowStepInputFold] = new Monoid[WorkflowStepInputFold] {
+    override def empty: WorkflowStepInputFold = WorkflowStepInputFold()
+    override def combine(x: WorkflowStepInputFold, y: WorkflowStepInputFold): WorkflowStepInputFold = {
+      WorkflowStepInputFold(
+        stepInputMapping = x.stepInputMapping ++ y.stepInputMapping,
+        generatedNodes = x.generatedNodes ++ y.generatedNodes
+      )
+    }
+  }
+
   private [cwl] object WorkflowStepInputFold {
-    private [cwl] def emptyRight = WorkflowStepInputFold(Map.empty, Set.empty).asRight[NonEmptyList[String]]
+    private [cwl] def emptyRight = workflowStepInputFoldMonoid.empty.asRight[NonEmptyList[String]]
   }
-  private [cwl] case class WorkflowStepInputFold(stepInputMapping: Map[String, ExpressionNode], generatedNodes: Set[GraphNode]) {
-    def withMapping(stepInput: String, value: ExpressionNode) = this.copy(stepInputMapping = stepInputMapping + (stepInput -> value))
-    def withNewNodes(newNodes: Set[GraphNode]) = this.copy(generatedNodes = generatedNodes ++ newNodes)
-    def withNewNode(newNode: GraphNode) = this.copy(generatedNodes = generatedNodes + newNode)
-  }
+  private [cwl] case class WorkflowStepInputFold(stepInputMapping: Map[String, ExpressionNode] = Map.empty,
+                                                 generatedNodes: Set[GraphNode] = Set.empty)
 
   val emptyOutputs: Outputs = Coproduct[Outputs](Array.empty[String])
 

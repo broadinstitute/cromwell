@@ -429,8 +429,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       for {
         wf <- CwlDecoder.decodeAllCwl(cwlFile).map {
           _.select[Workflow].get
+          //TODO move this unsafeRunSync to the fringe so as to leave more power to the caller
         }.value.unsafeRunSync.toValidated
-        executable <- wf.womExecutable
+        executable <- wf.womExecutable.toValidated
         graph <- executable.graph
       } yield ValidatedWomNamespace(executable, graph, Map.empty)
     } finally {

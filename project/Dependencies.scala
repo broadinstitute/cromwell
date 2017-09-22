@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  lazy val wdl4sV = "0.16-f63dc02-SNAP"
+  lazy val wdl4sV = "0.16-1696b1e-SNAP"
 
   lazy val akkaV = "2.5.4"
   lazy val akkaHttpV = "10.0.10"
@@ -23,19 +23,7 @@ object Dependencies {
 
   private val catsDependencies = List(
     "org.typelevel" %% "cats-core" % catsV
-  ) map (_
-    /*
-    Exclude test framework cats-laws and its transitive dependency scalacheck.
-    If sbt detects scalacheck, it tries to run it.
-    Explicitly excluding the two problematic artifacts instead of including the three (or four?).
-    https://github.com/typelevel/cats/tree/v0.7.2#getting-started
-    Re "_2.12", see also: https://github.com/sbt/sbt/issues/1518
-     */
-    exclude("org.typelevel", "cats-laws_2.11")
-    exclude("org.typelevel", "cats-kernel-laws_2.11")
-    exclude("org.typelevel", "cats-laws_2.12")
-    exclude("org.typelevel", "cats-kernel-laws_2.12")
-    )
+  ) 
 
   private val baseDependencies = List(
     "com.iheart" %% "ficus" % "1.4.1",

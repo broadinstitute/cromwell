@@ -45,14 +45,19 @@ package object cwl extends TypeAliases {
     case CwlType.Directory => ???
   }
 
-  type MatchesECMAScriptExpression = MatchesRegex[W.`"""\\$\\([^)]*\\)"""`.T]
+  type MatchesECMAScript = MatchesRegex[W.`"""\\$\\(.*\\)"""`.T]
+  type MatchesECMAFunction = MatchesRegex[W.`"""\\$\\{.*\\}"""`.T]
 
   /**
     *
     * These are supposed to be valid ECMAScript Expressions.
     * See http://www.commonwl.org/v1.0/Workflow.html#Expressions
     */
-  type ECMAScriptExpression = String Refined MatchesECMAScriptExpression
+  type ECMAScript = String Refined MatchesECMAScript
+  type ECMAFunction = String Refined MatchesECMAFunction
+
+  type StringOrExpression = ECMAScript :+: ECMAFunction :+: String :+: CNil
+
 
   type WdlTypeMap = Map[String, WdlType]
 

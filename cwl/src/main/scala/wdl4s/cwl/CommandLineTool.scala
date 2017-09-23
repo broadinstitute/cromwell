@@ -7,8 +7,8 @@ import wdl4s.cwl.CwlType._
 case class CommandInputParameter(
                                   id: String,
                                   label: Option[String] = None,
-                                  secondaryFiles: Option[Array[ECMAScriptExpression :+: String :+: CNil]] = None,
-                                  format: Option[ECMAScriptExpression :+: Array[String] :+: String :+: CNil] = None, //only valid when type: File
+                                  secondaryFiles: Option[Array[ECMAScript :+: ECMAFunction :+: String :+: CNil]] = None,
+                                  format: Option[ECMAScript :+: ECMAFunction :+: Array[String] :+: String :+: CNil] = None, //only valid when type: File
                                   streamable: Option[Boolean] = None, //only valid when type: File
                                   doc: Option[String :+: Array[String] :+: CNil] = None,
                                   inputBinding: Option[CommandLineBinding] = None,
@@ -56,8 +56,8 @@ case class CommandInputArraySchema(
 case class CommandOutputParameter(
                                    id: String,
                                    label: Option[String] = None,
-                                   secondaryFiles: Option[ECMAScriptExpression :+: String :+: Array[ECMAScriptExpression :+: String :+: CNil] :+: CNil] = None,
-                                   format: Option[ECMAScriptExpression :+: Array[String] :+: String :+: CNil] = None, //only valid when type: File
+                                   secondaryFiles: Option[ECMAScript :+: ECMAFunction :+: String :+: Array[ECMAScript :+: ECMAFunction :+: String :+: CNil] :+: CNil] = None,
+                                   format: Option[ECMAScript :+: ECMAFunction :+: Array[String] :+: String :+: CNil] = None, //only valid when type: File
                                    streamable: Option[Boolean] = None, //only valid when type: File
                                    doc: Option[String :+: Array[String] :+: CNil] = None,
                                    outputBinding: Option[CommandOutputBinding] = None,

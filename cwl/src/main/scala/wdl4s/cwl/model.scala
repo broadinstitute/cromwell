@@ -3,7 +3,6 @@ package wdl4s.cwl
 import eu.timepit.refined._
 import shapeless.{:+:, CNil, Witness}
 import shapeless.syntax.singleton._
-import wdl4s.cwl.CommandLineTool.StringOrExpression
 import wdl4s.cwl.CommandOutputBinding.Glob
 import wdl4s.cwl.LinkMergeMethod.LinkMergeMethod
 import wdl4s.cwl.WorkflowStepInput.InputSource
@@ -13,7 +12,7 @@ case class WorkflowStepInput(
   source: Option[InputSource] = None,
   linkMerge: Option[LinkMergeMethod] = None,
   default: Option[CwlAny] = None,
-  valueFrom: Option[ECMAScriptExpression :+: String :+: CNil] = None)
+  valueFrom: Option[ECMAScript :+: ECMAFunction :+: String :+: CNil] = None)
 
 object WorkflowStepInput {
   type InputSource = String :+: Array[String] :+: CNil
@@ -24,16 +23,16 @@ case class InputParameter(
                            label: Option[String] = None,
                            secondaryFiles:
                              Option[
-                               ECMAScriptExpression :+:
+                               ECMAScript :+: ECMAFunction :+:
                                String :+:
                                Array[
-                                 ECMAScriptExpression :+:
+                                 ECMAScript :+: ECMAFunction :+:
                                  String :+:
                                  CNil] :+:
                                CNil] = None,
                            format:
                              Option[
-                               ECMAScriptExpression :+:
+                               ECMAScript :+: ECMAFunction :+:
                                String :+:
                                Array[String] :+:
                                CNil] = None,
@@ -85,14 +84,14 @@ case class WorkflowOutputParameter(
                                     label: Option[String] = None,
                                     secondaryFiles:
                                       Option[
-                                        ECMAScriptExpression :+:
+                                        ECMAScript :+: ECMAFunction :+:
                                         String :+:
                                         Array[
-                                          ECMAScriptExpression :+:
+                                          ECMAScript :+: ECMAFunction :+:
                                           String :+:
                                           CNil] :+:
                                         CNil] = None,
-                                    format: Option[ECMAScriptExpression :+: String :+: Array[String] :+: CNil] = None,
+                                    format: Option[ECMAScript :+: ECMAFunction :+: String :+: Array[String] :+: CNil] = None,
                                     streamable: Option[Boolean] = None,
                                     doc: Option[String :+: Array[String] :+: CNil] = None,
                                     outputBinding: Option[CommandOutputBinding] = None,
@@ -129,9 +128,9 @@ case class OutputEnumSchema(
 case class CommandOutputBinding(
                                  glob: Option[Glob] = None,
                                  loadContents: Option[Boolean] = None,
-                                 outputEval: Option[ECMAScriptExpression :+: String :+: CNil] = None)
+                                 outputEval: Option[ECMAScript :+: ECMAFunction :+: String :+: CNil] = None)
 object CommandOutputBinding {
-  type Glob = ECMAScriptExpression :+: String :+: Array[String] :+: CNil
+  type Glob = ECMAScript :+: ECMAFunction :+: String :+: Array[String] :+: CNil
 
 }
 
@@ -183,11 +182,11 @@ case class InitialWorkDirRequirement(
       File :+:
       Directory :+:
       Dirent :+:
-      ECMAScriptExpression :+:
+      ECMAScript :+: ECMAFunction :+:
       String :+:
       CNil
     ] :+:
-    ECMAScriptExpression :+:
+    ECMAScript :+: ECMAFunction :+:
     String :+:
     CNil)
 
@@ -196,8 +195,8 @@ case class InitialWorkDirRequirement(
  *  @see <a href="http://www.commonwl.org/v1.0/CommandLineTool.html#Dirent">Dirent Specification</a>
  */
 case class Dirent(
-                   entry: ECMAScriptExpression :+: String :+: CNil,
-                   entryName: Option[ECMAScriptExpression :+: String :+: CNil],
+                   entry: ECMAScript :+: ECMAFunction :+: String :+: CNil,
+                   entryName: Option[ECMAScript :+: ECMAFunction :+: String :+: CNil],
                    writable: Option[Boolean])
 
 
@@ -222,14 +221,14 @@ case class ShellCommandRequirement(`class`: W.`"ShellCommandRequirement"`.T = "S
 
 case class ResourceRequirement(
                                 `class`: W.`"ResourceRequirement"`.T,
-                                coresMin: Long :+: ECMAScriptExpression :+: String :+: CNil,
-                                coresMax: Int :+: ECMAScriptExpression :+: String :+: CNil,
-                                ramMin: Long :+: ECMAScriptExpression :+: String :+: CNil,
-                                ramMax: Long :+: ECMAScriptExpression :+: String :+: CNil,
-                                tmpdirMin: Long :+: ECMAScriptExpression :+: String :+: CNil,
-                                tmpdirMax: Long :+: ECMAScriptExpression :+: String :+: CNil,
-                                outdirMin: Long :+: ECMAScriptExpression :+: String :+: CNil,
-                                outdirMax: Long :+: ECMAScriptExpression :+: String :+: CNil)
+                                coresMin: Long :+: ECMAScript :+: ECMAFunction :+: String :+: CNil,
+                                coresMax: Int :+: ECMAScript :+: ECMAFunction :+: String :+: CNil,
+                                ramMin: Long :+: ECMAScript :+: ECMAFunction :+: String :+: CNil,
+                                ramMax: Long :+: ECMAScript :+: ECMAFunction :+: String :+: CNil,
+                                tmpdirMin: Long :+: ECMAScript :+: ECMAFunction :+: String :+: CNil,
+                                tmpdirMax: Long :+: ECMAScript :+: ECMAFunction :+: String :+: CNil,
+                                outdirMin: Long :+: ECMAScript :+: ECMAFunction :+: String :+: CNil,
+                                outdirMax: Long :+: ECMAScript :+: ECMAFunction :+: String :+: CNil)
 
 case class SubworkflowFeatureRequirement(
   `class`: W.`"SubworkflowFeatureRequirement"`.T)

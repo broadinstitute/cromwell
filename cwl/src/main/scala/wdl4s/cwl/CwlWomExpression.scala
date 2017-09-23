@@ -2,67 +2,75 @@ package wdl4s.cwl
 
 import cats.syntax.validated._
 import lenthall.validation.ErrorOr.ErrorOr
-import wdl4s.wdl.types.WdlType
-import wdl4s.wdl.values.{WdlFile, WdlGlobFile, WdlInteger, WdlSingleFile, WdlValue}
+import lenthall.validation.Validation._
+import wdl4s.cwl.CwlWomExpression.EnhancedParameterContextInputs
+import wdl4s.wdl.types.{WdlMapType, WdlNothingType, WdlStringType, WdlType}
+import wdl4s.wdl.values.{WdlFile, WdlMap, WdlString, WdlValue}
 import wdl4s.wom.expression.{IoFunctionSet, WomExpression}
 
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+sealed trait CwlWomExpression extends WomExpression {
+
+  def cwlExpressionType: WdlType
+
+  override def evaluateType(inputTypes: Map[String, WdlType]): ErrorOr[WdlType] = cwlExpressionType.validNel
+
+  override def evaluateFiles(inputTypes: Map[String, WdlValue],
+                             ioFunctionSet: IoFunctionSet,
+                             coerceTo: WdlType): ErrorOr[Set[WdlFile]] = {
+    ???
+  }
+
+  // TODO WOM oh geez
+  override def inputs: Set[String] = ???
+}
+
+case class CommandOutputExpression(commandOutputParameter: CommandOutputParameter,
+                                   override val cwlExpressionType: WdlType) extends CwlWomExpression {
+  override def evaluateValue(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue] = {
+    val parameterContext = ParameterContext.Empty.withInputs(inputValues, ioFunctionSet)
+
+    commandOutputParameter.outputBinding match {
+      case Some(outputBindingValue) =>
+        val wdlValue = CommandOutputBindingEvaluator.commandOutputBindingToWdlValue(
+          outputBindingValue,
+          parameterContext,
+          ioFunctionSet
+        )
+        cwlExpressionType.coerceRawValue(wdlValue).toErrorOr
+      case None =>
+        s"outputBinding not specified in $commandOutputParameter".invalidNel
+    }
+  }
+}
+
+case class StringExpression(expression: String) extends CwlWomExpression {
+  override val cwlExpressionType = WdlStringType
+  override def evaluateValue(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet) = {
+    val parameterContext = ParameterContext.Empty.withInputs(inputValues, ioFunctionSet)
+    // TODO: WOM: Instead of letting exceptions fly, catch and convert to ErrorOr
+    ExpressionEvaluator.evalExpression(expression, parameterContext).valid
+  }
+}
 
 object CwlWomExpression {
-  // FIXME This implementation is obviously a joke only designed as a placeholder for real expression evaluation
-  // so that we get 3step.wdl and 3step.cwl running
   def apply(commandOutputParameter: CommandOutputParameter, wdlType: WdlType): WomExpression = {
-    val globFileName = for {
-      outputBinding <- commandOutputParameter.outputBinding
-      glob <- outputBinding.glob
-      fileName <- glob.select[String]
-    } yield fileName
-
-    val outputEval = for {
-      outputBinding <- commandOutputParameter.outputBinding
-      outputEval <- outputBinding.outputEval
-      expr <- outputEval.select[String]
-    } yield expr
-
-    new WomExpression {
-      def evaluateGlob(globName: String, ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue] = {
-        WdlSingleFile(ioFunctionSet.glob("", globName).head).validNel
-      }
-
-      def evaluateOutputEval(expr: String, glob: WdlValue, ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue] = {
-        if (expr == "$(self[0].contents.toInt)") {
-          val content = Await.result(ioFunctionSet.readFile(glob.valueString), Duration.Inf)
-          WdlInteger(content.trim.toInt).validNel
-        } else s"Can't evaluate $expr".invalidNel
-      }
-
-      override def evaluateValue(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue] = {
-        val globResult = globFileName map {fileName => evaluateGlob(fileName, ioFunctionSet) }
-        outputEval.map(evaluateOutputEval(_, globResult.get.getOrElse(???), ioFunctionSet)).getOrElse(globResult.get)
-      }
-
-      override def evaluateType(inputTypes: Map[String, WdlType]): ErrorOr[WdlType] = ???
-
-      override def evaluateFiles(inputTypes: Map[String, WdlValue], ioFunctionSet: IoFunctionSet, coerceTo: WdlType): ErrorOr[Set[WdlFile]] = {
-        globFileName.map(WdlGlobFile).toSet[WdlFile].validNel
-      }
-      override def inputs: Set[String] = ???
-    }
+    CommandOutputExpression(commandOutputParameter, wdlType)
   }
 
   def apply(expression: String): WomExpression = {
-    new WomExpression {
-      override def evaluateValue(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue] = {
-        expression.split('.').toList match {
-          case "inputs" :: value :: Nil => inputValues(value).validNel
-          case _ => s"Can't find value for $expression".invalidNel
-        }
+    StringExpression(expression)
+  }
 
-      }
-      override def evaluateType(inputTypes: Map[String, WdlType]): ErrorOr[WdlType] = ???
-      override def evaluateFiles(inputTypes: Map[String, WdlValue], ioFunctionSet: IoFunctionSet, coerceTo: WdlType): ErrorOr[Set[WdlFile]] = ???
-      override def inputs: Set[String] = ???
+  implicit class EnhancedParameterContextInputs(val parameterContext: ParameterContext) extends AnyVal {
+    def withInputs(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ParameterContext = {
+      val wdlValueType = inputValues.values.headOption.map(_.wdlType).getOrElse(WdlNothingType)
+      parameterContext.copy(
+        inputs = WdlMap(
+          WdlMapType(WdlStringType, wdlValueType),
+          // TODO: WOM: convert inputValues (including WdlFile?) to inputs using the ioFunctionSet
+          inputValues map { case (name, wdlValue) => WdlString(name) -> wdlValue }
+        )
+      )
     }
   }
 }

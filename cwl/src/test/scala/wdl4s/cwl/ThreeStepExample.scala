@@ -1,7 +1,7 @@
 package wdl4s.cwl
 
 import shapeless._
-import wdl4s.cwl.CommandLineTool.{Argument, BaseCommand, StringOrExpression}
+import wdl4s.cwl.CommandLineTool.{Argument, BaseCommand}
 import wdl4s.cwl.CommandOutputBinding.Glob
 import wdl4s.cwl.WorkflowStep.{Outputs, Run}
 

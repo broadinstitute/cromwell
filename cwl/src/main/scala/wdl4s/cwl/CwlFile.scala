@@ -2,7 +2,7 @@ package wdl4s.cwl
 
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil, Poly1, Witness, _}
-import wdl4s.cwl.CommandLineTool.{BaseCommand, StringOrExpression}
+import wdl4s.cwl.CommandLineTool.BaseCommand
 import wdl4s.cwl.CwlType.CwlType
 import wdl4s.cwl.CwlVersion._
 import wdl4s.wom.callable.Callable.{OutputDefinition, RequiredInputDefinition}
@@ -70,7 +70,11 @@ case class CommandLineTool private(
   }
 
   object ArgumentToId extends Poly1 {
-    implicit def ecmaScript = at[ECMAScriptExpression] {
+    implicit def ecmaScript = at[ECMAScript] {
+      _.value
+    }
+
+    implicit def ecmaFunction = at[ECMAFunction] {
       _.value
     }
 
@@ -157,11 +161,8 @@ object CommandLineTool {
             permanentFailCodes: Option[Array[Int]] = None): CommandLineTool  =
               CommandLineTool(inputs, outputs, "CommandLineTool".narrow, id, requirements, hints, label, doc, cwlVersion, baseCommand, arguments, stdin, stderr, stdout, successCodes, temporaryFailCodes, permanentFailCodes)
 
-
-  type StringOrExpression = ECMAScriptExpression :+: String :+: CNil
-
   type BaseCommand = String :+: Array[String] :+: CNil
 
-  type Argument = ECMAScriptExpression :+: CommandLineBinding :+: String :+: CNil
+  type Argument = ECMAScript :+: ECMAFunction :+: CommandLineBinding :+: String :+: CNil
 }
 

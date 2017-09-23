@@ -109,18 +109,22 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
 
   private val stringOrExpressionTests = Table(
     ("index", "result"),
-    (0, Coproduct[CommandLineTool.StringOrExpression]("grep")),
-    (1, Coproduct[CommandLineTool.StringOrExpression](refineMV[MatchesECMAScriptExpression]("$(inputs.pattern)"))),
-    (2, Coproduct[CommandLineTool.StringOrExpression](refineMV[MatchesECMAScriptExpression]("$(inputs.file)"))),
-    (3, Coproduct[CommandLineTool.StringOrExpression]("|")),
-    (4, Coproduct[CommandLineTool.StringOrExpression]("wc")),
-    (5, Coproduct[CommandLineTool.StringOrExpression]("-l"))
+    (0, Coproduct[StringOrExpression]("grep")),
+    (1, Coproduct[StringOrExpression](refineMV[MatchesECMAScript]("$(inputs.pattern)"))),
+    (2, Coproduct[StringOrExpression](refineMV[MatchesECMAFunction]("$" + "{return inputs.file}"))),
+    (3, Coproduct[StringOrExpression]("|")),
+    (4, Coproduct[StringOrExpression]("wc")),
+    (5, Coproduct[StringOrExpression]("-l"))
   )
 
-  private def getTestName(stringOrExpression: CommandLineTool.StringOrExpression): String = {
+  private def getTestName(stringOrExpression: StringOrExpression): String = {
     object StringOrExpressionToTestName extends Poly1 {
-      implicit def caseECMAScriptExpression: Case.Aux[ECMAScriptExpression, String] = {
-        at[ECMAScriptExpression] { ecmaScriptExpression => s"expression ${ecmaScriptExpression.value}" }
+      implicit def caseECMAScript: Case.Aux[ECMAScript, String] = {
+        at[ECMAScript] { script => s"expression ${script.value}" }
+      }
+
+      implicit def caseECMAFunction: Case.Aux[ECMAFunction, String] = {
+        at[ECMAFunction] { fun => s"expression ${fun.value}" }
       }
 
       implicit def caseString: Case.Aux[String, String] = {
@@ -149,7 +153,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
       val argument: CommandLineTool.Argument = commandLineTool.arguments.get.apply(index)
       val commandLineBinding: CommandLineBinding = argument.select[CommandLineBinding]
         .getOrElse(fail(s"$argument wasn't a CommandLineBinding"))
-      val stringOrExpression: CommandLineTool.StringOrExpression = commandLineBinding.valueFrom
+      val stringOrExpression: StringOrExpression = commandLineBinding.valueFrom
         .getOrElse(fail(s"valueFrom missing in $commandLineBinding"))
       stringOrExpression should be(expected)
     }

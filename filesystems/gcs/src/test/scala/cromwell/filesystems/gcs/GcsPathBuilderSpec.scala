@@ -2,9 +2,9 @@ package cromwell.filesystems.gcs
 
 import com.google.cloud.NoCredentials
 import com.google.cloud.storage.contrib.nio.CloudStorageConfiguration
+import cromwell.cloudSupport.gcp.auth.GoogleAuthModeSpec
 import cromwell.core.path._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
-import cromwell.filesystems.gcs.auth.GoogleAuthModeSpec
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpecLike, Matchers}
 

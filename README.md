@@ -100,6 +100,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [GET /api/workflows/:version/callcaching/diff](#get-apiworkflowsversioncallcachingdiff)
   * [GET /engine/:version/stats](#get-engineversionstats)
   * [GET /engine/:version/version](#get-engineversionversion)
+  * [GET /engine/:version/status](#get-engineversionstatus)
   * [Error handling](#error-handling)
 * [Developer](#developer)
   * [Generating table of contents on Markdown files](#generating-table-of-contents-on-markdown-files)
@@ -4034,6 +4035,31 @@ Response:
   "cromwell": 23-8be799a-SNAP
 }
 ```
+
+## GET /engine/:version/status
+
+Cromwell will track the status of underlying systems on which it depends, typically connectivity to the database and to Dockerhub. The `status` endpoint will return the current status of these systems. 
+
+Response:
+
+This endpoint will return an `Internal Server Error` if any systems are marked as failing or `OK` otherwise. The exact response will vary based on what is being monitored but adheres to the following pattern. Each system has a boolean `ok` field and an optional array field named `messages` which will be populated with any known errors if the `ok` status is `false`:
+
+```
+{
+  "System Name 1": {
+    "ok": false,
+    "messages": [
+      "Unknown status"
+    ]
+  },
+  "System Name 2": {
+    "ok": true
+  }
+}
+
+```
+ 
+
 
 ## Error handling
 Requests that Cromwell can't process return a failure in the form of a JSON response respecting the following JSON schema:

@@ -1,4 +1,4 @@
-package cromwell.backend.impl.jes
+package cromwell.cloudSupport.gcp.genomics
 
 import java.net.URL
 
@@ -6,11 +6,10 @@ import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.services.genomics.Genomics
 import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
-import cromwell.filesystems.gcs.auth.GoogleAuthMode
+import cromwell.cloudSupport.gcp.auth.GoogleAuthMode
 
 
 case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, endpointUrl: URL) {
-
   def fromCredentials(credentials: Credentials) = {
     val httpRequestInitializer = {
       val delegate = new HttpCredentialsAdapter(credentials)

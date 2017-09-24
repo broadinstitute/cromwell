@@ -203,6 +203,11 @@ object Settings {
     libraryDependencies ++= engineDependencies
   ) ++ commonSettings ++ versionConfCompileSettings
 
+  val cloudSupportSettings = List(
+    name := "cromwell-cloud-support",
+    libraryDependencies ++= gcsFileSystemDependencies
+  ) ++ commonSettings
+
   val rootSettings = List(
     name := "cromwell",
     libraryDependencies ++= rootDependencies

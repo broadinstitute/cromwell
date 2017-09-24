@@ -4,10 +4,10 @@ import java.util.UUID
 
 import akka.stream.ActorMaterializer
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
+import cromwell.cloudSupport.gcp.auth.ApplicationDefaultMode
 import cromwell.core.Tags.IntegrationTest
 import cromwell.core.io._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
-import cromwell.filesystems.gcs.auth.ApplicationDefaultMode
 import cromwell.filesystems.gcs.batch.{GcsBatchCopyCommand, GcsBatchCrc32Command, GcsBatchDeleteCommand, GcsBatchSizeCommand}
 import cromwell.filesystems.gcs.{GcsPathBuilder, GcsPathBuilderFactory}
 import org.scalatest.concurrent.Eventually

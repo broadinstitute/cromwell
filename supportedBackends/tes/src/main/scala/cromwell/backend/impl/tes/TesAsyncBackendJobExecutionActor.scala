@@ -14,6 +14,7 @@ import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
+import lenthall.validation.ErrorOr.ErrorOr
 import wdl4s.wdl.values.WdlFile
 
 import scala.concurrent.Future
@@ -93,12 +94,21 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
-  def createTaskMessage(): Task = {
-    val task = TesTask(jobDescriptor, configurationDescriptor, jobLogger, tesJobPaths,
-      runtimeAttributes, commandDirectory, commandScriptContents, backendEngineFunctions,
-      realDockerImageUsed)
+  def createTaskMessage(): ErrorOr[Task] = {
+    val task =
+      commandScriptContents.map(
+        TesTask(
+          jobDescriptor,
+          configurationDescriptor,
+          jobLogger,
+          tesJobPaths,
+          runtimeAttributes,
+          commandDirectory,
+          _,
+          backendEngineFunctions,
+          realDockerImageUsed))
 
-    Task(
+    task.map(task => Task(
       None,
       None,
       Option(task.name),
@@ -111,15 +121,18 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       None,
       None,
       None
-    )
+    ))
   }
 
   override def executeAsync(): Future[ExecutionHandle] = {
     // create call exec dir
     tesJobPaths.callExecutionRoot.createPermissionedDirectories()
-    val taskMessage = createTaskMessage()
+    val taskMessageFuture = createTaskMessage().fold(
+      errors => Future.failed(new RuntimeException(errors.toList.mkString(", "))),
+      Future.successful)
 
     for {
+      taskMessage <- taskMessageFuture
       entity <- Marshal(taskMessage).to[RequestEntity]
       ctr <- makeRequest[CreateTaskResponse](HttpRequest(method = HttpMethods.POST, uri = tesEndpoint, entity = entity))
     } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(ctr.id), None, previousStatus = None)

@@ -19,6 +19,7 @@ import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
 import lenthall.util.TryUtil
+import lenthall.validation.ErrorOr.ErrorOr
 import net.ceedubs.ficus.Ficus._
 import wdl4s.wdl.values._
 import wdl4s.wom.WomEvaluatedCallInputs
@@ -175,15 +176,16 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def commandScriptPreamble: String = ""
 
   /** A bash script containing the custom preamble, the instantiated command, and output globbing behavior. */
-  def commandScriptContents: String = {
+  def commandScriptContents: ErrorOr[String] = {
     jobLogger.info(s"`$instantiatedCommand`")
 
     val cwd = commandDirectory
     val rcPath = cwd./(jobPaths.returnCodeFilename)
     val rcTmpPath = rcPath.plusExt("tmp")
 
-    val globFiles = backendEngineFunctions.findGlobOutputs(call, jobDescriptor)
+    val globFiles: ErrorOr[List[WdlGlobFile]] = backendEngineFunctions.findGlobOutputs(call, jobDescriptor)
 
+    globFiles.map(globFiles =>
     s"""|#!/bin/bash
         |tmpDir=$$(mktemp -d $cwd/tmp.XXXXXX)
         |chmod 777 $$tmpDir

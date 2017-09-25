@@ -3,6 +3,10 @@ package cromwell.backend.io
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.CallContext
 import wdl4s.wdl.values._
+import cats.syntax.traverse._
+import cats.instances.list._
+import lenthall.validation.ErrorOr.ErrorOr
+import wdl4s.wdl.types.WdlAnyType
 import wdl4s.wom.expression.IoFunctionSet
 import wdl4s.wom.graph.TaskCallNode
 
@@ -10,10 +14,12 @@ trait GlobFunctions extends IoFunctionSet {
 
   def callContext: CallContext
 
-  def findGlobOutputs(call: TaskCallNode, jobDescriptor: BackendJobDescriptor): Set[WdlGlobFile] = {
-    // TODO WOM: https://github.com/broadinstitute/wdl4s/issues/197
-    Set.empty
-  }
+  def findGlobOutputs(call: TaskCallNode, jobDescriptor: BackendJobDescriptor): ErrorOr[List[WdlGlobFile]] =
+    call.callable.outputs.toList.flatTraverse[ErrorOr, WdlGlobFile] {
+      _.expression.evaluateFiles(jobDescriptor.fullyQualifiedInputs, this, WdlAnyType) map {
+        _.toList collect { case glob: WdlGlobFile => glob }
+      }
+    }
 
   def globDirectory(glob: String): String = globName(glob) + "/"
   def globName(glob: String) = s"glob-${glob.md5Sum}"

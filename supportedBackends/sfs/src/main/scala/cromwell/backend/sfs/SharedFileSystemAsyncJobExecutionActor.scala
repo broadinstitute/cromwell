@@ -121,22 +121,26 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   override def execute(): ExecutionHandle = {
     jobPaths.callExecutionRoot.createPermissionedDirectories()
-    writeScriptContents()
-    val runner = makeProcessRunner()
-    val exitValue = runner.run()
-    if (exitValue != 0) {
-      FailedNonRetryableExecutionHandle(new RuntimeException("Unable to start job. " +
-        s"Check the stderr file for possible errors: ${runner.stderrPath}"))
-    } else {
-      val runningJob = getJob(exitValue, runner.stdoutPath, runner.stderrPath)
-      PendingExecutionHandle(jobDescriptor, runningJob, None, None)
+    writeScriptContents().fold(
+      identity,
+      { _ =>
+        val runner = makeProcessRunner()
+        val exitValue = runner.run()
+        if (exitValue != 0) {
+          FailedNonRetryableExecutionHandle(new RuntimeException("Unable to start job. " +
+            s"Check the stderr file for possible errors: ${runner.stderrPath}"))
+        } else {
+          val runningJob = getJob(exitValue, runner.stdoutPath, runner.stderrPath)
+          PendingExecutionHandle(jobDescriptor, runningJob, None, None)
+        }
     }
+    )
   }
 
-  def writeScriptContents(): Unit = {
-    jobPaths.script.write(commandScriptContents)
-    ()
-  }
+  def writeScriptContents(): Either[ExecutionHandle, Unit] =
+    commandScriptContents.fold(
+      errors => Left(FailedNonRetryableExecutionHandle(new RuntimeException("Unable to start job due to: " + errors.toList.mkString(", ")))),
+      {script => jobPaths.script.write(script); Right(())} )
 
   /**
     * Creates a script to submit the script for asynchronous processing. The default implementation assumes the

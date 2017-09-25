@@ -203,7 +203,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |)
         |SCRIPT_EPILOGUE
         |mv $rcTmpPath $rcPath
-        |""".stripMargin.replace("INSTANTIATED_COMMAND", instantiatedCommand).replace("SCRIPT_EPILOGUE", scriptEpilogue)
+        |""".stripMargin.replace("INSTANTIATED_COMMAND", instantiatedCommand).replace("SCRIPT_EPILOGUE", scriptEpilogue))
   }
 
   /** The instantiated command. */

@@ -45,7 +45,7 @@ steps:
       outputBinding:
         glob: cgrep-stdOut.txt
         loadContents: true
-        outputEval: $(self[0].contents.toInt)
+        outputEval: $(parseInt(self[0].contents))
       type: int
     class: CommandLineTool
     requirements:
@@ -81,7 +81,7 @@ steps:
       outputBinding:
         glob: wc-stdOut.txt
         loadContents: true
-        outputEval: $(self[0].contents.toInt)
+        outputEval: $(parseInt(self[0].contents))
       type: int
     class: CommandLineTool
     requirements:

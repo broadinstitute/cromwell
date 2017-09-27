@@ -1,5 +1,5 @@
 [![Build Status](https://travis-ci.org/broadinstitute/lenthall.svg?branch=develop)](https://travis-ci.org/broadinstitute/lenthall?branch=develop)
-[![Coverage Status](https://coveralls.io/repos/broadinstitute/lenthall/badge.svg?branch=develop)](https://coveralls.io/r/broadinstitute/lenthall?branch=develop)
+[![codecov](https://codecov.io/gh/broadinstitute/lenthall/branch/develop/graph/badge.svg)](https://codecov.io/gh/broadinstitute/lenthall)
 
 Lenthall
 ========

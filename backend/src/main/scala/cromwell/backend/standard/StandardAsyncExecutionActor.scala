@@ -98,6 +98,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   lazy val scriptEpilogue = configurationDescriptor.backendConfig.as[Option[String]]("script-epilogue").getOrElse("sync")
 
+  lazy val temporaryDirectory = configurationDescriptor.backendConfig
+    .as[Option[String]]("temporary-directory").getOrElse("""$(mktemp -d "$PWD"/tmp.XXXXXX)""")
+
   /**
     * Maps WdlFile objects for use in the commandLinePreProcessor.
     *
@@ -187,7 +190,12 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
     globFiles.map(globFiles =>
     s"""|#!/bin/bash
-        |tmpDir=$$(mktemp -d $cwd/tmp.XXXXXX)
+        |tmpDir=$$(
+        |  set -e
+        |  cd $cwd
+        |  tmpDir="$temporaryDirectory"
+        |  echo "$$tmpDir"
+        |)
         |chmod 777 $$tmpDir
         |export _JAVA_OPTIONS=-Djava.io.tmpdir=$$tmpDir
         |export TMPDIR=$$tmpDir

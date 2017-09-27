@@ -56,7 +56,7 @@ steps:
       shellQuote: false
     - valueFrom: $(inputs.pattern)
       shellQuote: false
-    - valueFrom: $(inputs.file)
+    - valueFrom: ${return inputs.file}
       shellQuote: false
     - valueFrom: '|'
       shellQuote: false

@@ -1,10 +1,13 @@
 package wdl4s.cwl
 
+import scala.Function._
 import shapeless._
 import wdl4s.wdl.command.StringCommandPart
 
 object ArgumentToCommandPart extends Poly1 {
-  implicit def expr = at[ECMAScriptExpression] { _ => StringCommandPart(null) }
+  implicit def script = at[ECMAScript] { const(StringCommandPart(null)) }
+
+  implicit def fun = at[ECMAFunction] { const(StringCommandPart(null)) }
 
   implicit def clb = at[CommandLineBinding] {
       //TODO: This option.get will not hold up under scrutiny

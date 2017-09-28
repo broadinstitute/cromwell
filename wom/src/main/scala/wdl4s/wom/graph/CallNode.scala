@@ -91,7 +91,7 @@ object CallNode {
     }
   }
 
-  private [wdl4s] final case class InputDefinitionFold(mappings: InputDefinitionMappings = Map.empty,
+  final case class InputDefinitionFold(mappings: InputDefinitionMappings = Map.empty,
                                                        callInputPorts: Set[InputPort] = Set.empty,
                                                        newGraphInputNodes: Set[GraphInputNode] = Set.empty,
                                                        newExpressionNodes: Set[ExpressionNode] = Set.empty)
@@ -118,7 +118,7 @@ object CallNode {
     * Helper class to build call nodes.
     * Helps making input ports and building the node while making sure node references are set properly.
     */
-  private [wdl4s] class CallNodeBuilder {
+  class CallNodeBuilder {
     private val graphNodeSetter = new GraphNode.GraphNodeSetter()
 
     /**

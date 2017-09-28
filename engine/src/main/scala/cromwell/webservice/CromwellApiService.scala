@@ -160,7 +160,12 @@ trait CromwellApiService extends HttpInstrumentation {
           onComplete(response) {
             case Success(WorkflowStoreEngineActor.WorkflowAborted(id)) =>
             complete(ToResponseMarshallable(WorkflowAbortResponse(id.toString, WorkflowAborted.toString)))
-            case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: IllegalStateException)) => e.errorRequest(StatusCodes.Forbidden)
+            case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: IllegalStateException)) =>
+              /*
+                  Note that this is currently impossible to reach but was left as-is during the transition to akka http.
+                  When aborts get fixed, this should be looked at.
+                */
+              e.errorRequest(StatusCodes.Forbidden)
             case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: WorkflowNotFoundException)) => e.errorRequest(StatusCodes.NotFound)
             case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e)) => e.errorRequest(StatusCodes.InternalServerError)
             case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse

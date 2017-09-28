@@ -15,6 +15,7 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{AbortWorkflow,
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.WorkflowAbortFailed
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
+import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse, SubsystemStatus}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.util.SampleWdl.HelloWorld
@@ -54,6 +55,17 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         val cromwellVersion = resp.fields("cromwell").asInstanceOf[JsString].value
         cromwellVersion should fullyMatch regex """\d+-([0-9a-f]){7}(-SNAP)?"""
       }
+  }
+
+  "REST ENGINE /status endpoint" should "return 200 for status when all is well" in {
+    Get(s"/engine/$version/status") ~>
+      akkaHttpService.engineRoutes ~>
+        check {
+          status should be(StatusCodes.OK)
+          val resp = responseAs[JsObject]
+          val db = resp.fields("Engine Database").asJsObject
+          db.fields("ok").asInstanceOf[JsBoolean].value should be(true)
+        }
   }
 
     behavior of "REST API /status endpoint"
@@ -566,6 +578,7 @@ object CromwellApiServiceSpec {
       case ValidateWorkflowId(id) =>
         if (RecognizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId
         else sender ! MetadataService.UnrecognizedWorkflowId
+      case GetCurrentStatus => sender ! StatusCheckResponse(true, Map("Engine Database" -> SubsystemStatus(true, None)))
       case GetStatus(id) => sender ! StatusLookupResponse(id, WorkflowSubmitted)
       case WorkflowOutputs(id) =>
         val event = Vector(MetadataEvent(MetadataKey(id, None, "outputs:test.hello.salutation"), MetadataValue("Hello foo!", MetadataString)))

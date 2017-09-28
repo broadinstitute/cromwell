@@ -27,6 +27,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheDiffAc
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.WorkflowStoreEngineAbortResponse
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
 import cromwell.server.CromwellShutdown
+import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse}
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.LabelsManagerActor._
 import cromwell.webservice.WorkflowJsonSupport._
@@ -63,9 +64,16 @@ trait CromwellApiService extends HttpInstrumentation {
         }
       }
     },
-
     path("engine" / Segment / "version") { _ =>
       get { complete(versionResponse) }
+    },
+    path("engine" / Segment / "status") { version =>
+      onComplete(serviceRegistryActor.ask(GetCurrentStatus).mapTo[StatusCheckResponse]) {
+        case Success(status) =>
+          val httpCode = if (status.ok) StatusCodes.OK else StatusCodes.InternalServerError
+          complete((httpCode, status.systems))
+        case Failure(_) => new RuntimeException("Unable to gather engine status").failRequest(StatusCodes.InternalServerError)
+      }
     }
   )
 

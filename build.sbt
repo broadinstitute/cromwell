@@ -10,6 +10,8 @@ lazy val gcsFileSystem = (project in file("filesystems/gcs"))
   .withTestSettings
   .dependsOn(core)
   .dependsOn(core % "test->test")
+  .dependsOn(cloudSupport)
+  .dependsOn(cloudSupport % "test->test")
 
 lazy val databaseSql = (project in file("database/sql"))
   .settings(databaseSqlSettings:_*)
@@ -36,6 +38,8 @@ lazy val services = (project in file("services"))
   .dependsOn(core)
   .dependsOn(databaseSql)
   .dependsOn(databaseMigration)
+  .dependsOn(cloudSupport)
+  .dependsOn(dockerHashing)
   .dependsOn(core % "test->test")
 
 lazy val backendRoot = Path("supportedBackends")
@@ -72,6 +76,7 @@ lazy val jesBackend = (project in backendRoot / "jes")
   .withTestSettings
   .dependsOn(backend)
   .dependsOn(gcsFileSystem)
+  .dependsOn(cloudSupport)
   .dependsOn(backend % "test->test")
   .dependsOn(gcsFileSystem % "test->test")
   .dependsOn(services % "test->test")
@@ -90,6 +95,12 @@ lazy val engine = (project in file("engine"))
   // For now, all the engine tests run on the "Local" backend, an implementation of an impl.sfs.config backend.
   .dependsOn(sfsBackend % "test->compile")
   .dependsOn(gcsFileSystem % "test->test")
+
+lazy val cloudSupport = (project in file("cloudSupport"))
+    .settings(cloudSupportSettings: _*)
+    .withTestSettings
+    .dependsOn(core)
+    .dependsOn(core % "test->test")
 
 lazy val root = (project in file("."))
   .settings(rootSettings: _*)

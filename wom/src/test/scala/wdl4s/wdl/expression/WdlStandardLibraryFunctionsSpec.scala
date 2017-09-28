@@ -1,10 +1,10 @@
-package wdl4s.wdl.expression
+package wdl.expression
 
 import org.apache.commons.lang3.NotImplementedException
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.types.{WdlArrayType, WdlIntegerType, WdlOptionalType}
-import wdl4s.wdl.values.{WdlArray, WdlFile, WdlFloat, WdlInteger, WdlOptionalValue, WdlString, WdlValue}
+import wdl.types.{WdlArrayType, WdlIntegerType, WdlOptionalType}
+import wdl.values.{WdlArray, WdlFile, WdlFloat, WdlInteger, WdlOptionalValue, WdlString, WdlValue}
 
 import scala.util.{Success, Try}
 

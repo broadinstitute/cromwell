@@ -1,4 +1,4 @@
-package wdl4s.wdl
+package wdl
 
 import java.nio.file.{Files, Path}
 

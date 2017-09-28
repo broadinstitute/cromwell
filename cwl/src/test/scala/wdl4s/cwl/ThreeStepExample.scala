@@ -1,9 +1,9 @@
-package wdl4s.cwl
+package cwl
 
 import shapeless._
-import wdl4s.cwl.CommandLineTool.{Argument, BaseCommand}
-import wdl4s.cwl.CommandOutputBinding.Glob
-import wdl4s.cwl.WorkflowStep.{Outputs, Run}
+import cwl.CommandLineTool.{Argument, BaseCommand}
+import cwl.CommandOutputBinding.Glob
+import cwl.WorkflowStep.{Outputs, Run}
 
 /*
  This example calls `ps` , then counts the number of processes that match a pattern input.

@@ -1,18 +1,18 @@
-package wdl4s.wom.graph
+package wom.graph
 
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct
-import wdl4s.wdl.types.{WdlFileType, WdlIntegerType, WdlOptionalType, WdlStringType}
-import wdl4s.wdl.values.{WdlOptionalValue, WdlString, WdlValue}
-import wdl4s.wom.RuntimeAttributes
-import wdl4s.wom.callable.Callable.{OutputDefinition, RequiredInputDefinition}
-import wdl4s.wom.callable.{TaskDefinition, WorkflowDefinition}
-import wdl4s.wom.expression.{PlaceholderWomExpression, WomExpression}
-import wdl4s.wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
-import wdl4s.wom.graph.Graph.ResolvedWorkflowInput
-import wdl4s.wom.graph.GraphNodePort.OutputPort
+import wdl.types.{WdlFileType, WdlIntegerType, WdlOptionalType, WdlStringType}
+import wdl.values.{WdlOptionalValue, WdlString, WdlValue}
+import wom.RuntimeAttributes
+import wom.callable.Callable.{OutputDefinition, RequiredInputDefinition}
+import wom.callable.{TaskDefinition, WorkflowDefinition}
+import wom.expression.{PlaceholderWomExpression, WomExpression}
+import wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
+import wom.graph.Graph.ResolvedWorkflowInput
+import wom.graph.GraphNodePort.OutputPort
 
 class GraphSpec extends FlatSpec with Matchers {
   behavior of "Graph"

@@ -1,6 +1,6 @@
-package wdl4s.wdl.types
+package wdl.types
 
-import wdl4s.wdl.values._
+import wdl.values._
 import wdl4s.parser.WdlParser.SyntaxError
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
@@ -65,8 +65,8 @@ class WdlTypeSpec extends FlatSpec with Matchers {
       WdlBooleanType,
       classOf[IllegalArgumentException],
       "No coercion defined from" +
-        """ 'wdl4s.wdl.types.WdlTypeSpec\$\$anon\$(.*)@.*' of type""" +
-        """ 'wdl4s.wdl.types.WdlTypeSpec\$\$anon\$\1' to 'Boolean'."""
+        """ 'wdl.types.WdlTypeSpec\$\$anon\$(.*)@.*' of type""" +
+        """ 'wdl.types.WdlTypeSpec\$\$anon\$\1' to 'Boolean'."""
     ),
     (
       WdlArray(WdlArrayType(WdlOptionalType(WdlIntegerType)), Seq(

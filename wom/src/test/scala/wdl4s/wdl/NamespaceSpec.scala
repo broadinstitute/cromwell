@@ -1,7 +1,7 @@
-package wdl4s.wdl
+package wdl
 
 import better.files._
-import wdl4s.wdl.values.WdlString
+import wdl.values.WdlString
 
 import scala.util.{Failure, Success, Try}
 

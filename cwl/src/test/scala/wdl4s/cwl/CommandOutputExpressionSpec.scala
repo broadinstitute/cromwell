@@ -1,12 +1,12 @@
-package wdl4s.cwl
+package cwl
 
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct
-import wdl4s.cwl.CommandOutputBinding.Glob
-import wdl4s.wdl.types.WdlIntegerType
+import cwl.CommandOutputBinding.Glob
+import wdl.types.WdlIntegerType
 import eu.timepit.refined._
-import wdl4s.wdl.values.{WdlInteger, WdlString}
-import wdl4s.wom.expression.PlaceholderIoFunctionSet
+import wdl.values.{WdlInteger, WdlString}
+import wom.expression.PlaceholderIoFunctionSet
 import cats.implicits._
 
 class CommandOutputExpressionSpec extends FlatSpec with Matchers {

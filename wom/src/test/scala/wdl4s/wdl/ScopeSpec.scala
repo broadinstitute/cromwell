@@ -1,7 +1,7 @@
-package wdl4s.wdl
+package wdl
 
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.AstTools.AstNodeName
+import wdl.AstTools.AstNodeName
 import wdl4s.parser.WdlParser.Ast
 
 class ScopeSpec extends FlatSpec with Matchers {

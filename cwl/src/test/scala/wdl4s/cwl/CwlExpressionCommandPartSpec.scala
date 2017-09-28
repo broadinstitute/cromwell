@@ -1,8 +1,8 @@
-package wdl4s.cwl
+package cwl
 
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.values.WdlString
-import wdl4s.wom.expression.PlaceholderIoFunctionSet
+import wdl.values.WdlString
+import wom.expression.PlaceholderIoFunctionSet
 
 class CwlExpressionCommandPartSpec extends FlatSpec with Matchers {
 

@@ -1,7 +1,7 @@
-package wdl4s.wom
+package wom
 
 import org.scalactic.Equality
-import wdl4s.wom.graph.GraphNode
+import wom.graph.GraphNode
 
 trait WomMatchers {
   // This will take precedence when comparing graph nodes or collections of graph nodes 

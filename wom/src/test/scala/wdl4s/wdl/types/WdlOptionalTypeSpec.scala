@@ -1,8 +1,8 @@
-package wdl4s.wdl.types
+package wdl.types
 
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.values.{WdlArray, WdlFile, WdlInteger, WdlMap, WdlOptionalValue, WdlString}
+import wdl.values.{WdlArray, WdlFile, WdlInteger, WdlMap, WdlOptionalValue, WdlString}
 
 import scala.util.{Failure, Success}
 

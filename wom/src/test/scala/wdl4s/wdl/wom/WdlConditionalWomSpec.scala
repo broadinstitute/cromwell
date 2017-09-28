@@ -1,12 +1,12 @@
-package wdl4s.wdl.wom
+package wdl.wom
 
 import cats.data.Validated.{Invalid, Valid}
 import lenthall.collections.EnhancedCollections._
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.types._
-import wdl4s.wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
-import wdl4s.wom.graph._
-import wdl4s.wom.graph.GraphNodePort.ConditionalOutputPort
+import wdl.types._
+import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
+import wom.graph._
+import wom.graph.GraphNodePort.ConditionalOutputPort
 
 class WdlConditionalWomSpec extends FlatSpec with Matchers {
 

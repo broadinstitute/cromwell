@@ -1,12 +1,12 @@
-package wdl4s.wdl.wom
+package wdl.wom
 
 import lenthall.collections.EnhancedCollections._
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.types.{WdlArrayType, WdlIntegerType, WdlStringType}
-import wdl4s.wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
-import wdl4s.wom.graph.GraphNodePort.ScatterGathererPort
-import wdl4s.wom.graph.{GraphInputNode, ScatterNode, _}
+import wdl.types.{WdlArrayType, WdlIntegerType, WdlStringType}
+import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
+import wom.graph.GraphNodePort.ScatterGathererPort
+import wom.graph.{GraphInputNode, ScatterNode, _}
 
 class WdlScatterWomSpec extends FlatSpec with Matchers {
 

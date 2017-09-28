@@ -1,4 +1,4 @@
-package wdl4s.wdl
+package wdl
 
 import better.files.File
 import org.scalatest.{FlatSpec, Matchers}

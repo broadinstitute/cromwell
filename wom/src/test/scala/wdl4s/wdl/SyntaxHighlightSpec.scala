@@ -1,6 +1,6 @@
-package wdl4s.wdl
+package wdl
 
-import wdl4s.wdl.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
+import wdl.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
 import org.scalatest.{Matchers, WordSpec}
 
 class SyntaxHighlightSpec extends WordSpec with Matchers {

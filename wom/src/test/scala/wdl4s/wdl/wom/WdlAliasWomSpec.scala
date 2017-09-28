@@ -1,10 +1,10 @@
-package wdl4s.wdl.wom
+package wdl.wom
 
 import cats.data.Validated.{Invalid, Valid}
 import lenthall.collections.EnhancedCollections._
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
-import wdl4s.wom.graph._
+import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
+import wom.graph._
 
 class WdlAliasWomSpec extends FlatSpec with Matchers {
 

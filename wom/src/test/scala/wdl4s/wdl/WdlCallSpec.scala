@@ -1,10 +1,10 @@
-package wdl4s.wdl
+package wdl
 
 import org.scalatest.{Matchers, WordSpec}
-import wdl4s.wdl.exception.ValidationException
-import wdl4s.wdl.expression.{NoFunctions, PureStandardLibraryFunctionsLike}
-import wdl4s.wdl.types.{WdlArrayType, WdlFileType, WdlIntegerType, WdlStringType}
-import wdl4s.wdl.values._
+import wdl.exception.ValidationException
+import wdl.expression.{NoFunctions, PureStandardLibraryFunctionsLike}
+import wdl.types.{WdlArrayType, WdlFileType, WdlIntegerType, WdlStringType}
+import wdl.values._
 
 import scala.util.{Failure, Success, Try}
 

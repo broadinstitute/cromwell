@@ -1,9 +1,9 @@
-package wdl4s.wdl.values
+package wdl.values
 
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.types.{WdlArrayType, WdlMapType, WdlStringType}
-import wdl4s.wdl.{SampleWdl, WdlExpression, WdlNamespaceWithWorkflow}
+import wdl.types.{WdlArrayType, WdlMapType, WdlStringType}
+import wdl.{SampleWdl, WdlExpression, WdlNamespaceWithWorkflow}
 
 class WdlValueSpec extends FlatSpec with Matchers {
 

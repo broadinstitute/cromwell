@@ -1,6 +1,6 @@
-package wdl4s.wdl.expression
+package wdl.expression
 
-import wdl4s.wdl.WdlExpression
+import wdl.WdlExpression
 import org.scalatest.{FlatSpec, Matchers}
 
 class WdlExpressionSpec extends FlatSpec with Matchers {

@@ -1,11 +1,11 @@
-package wdl4s.wom.graph
+package wom.graph
 
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.types.WdlIntegerType
-import wdl4s.wom.callable.TaskDefinitionSpec
-import wdl4s.wom.expression._
-import wdl4s.wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold}
+import wdl.types.WdlIntegerType
+import wom.callable.TaskDefinitionSpec
+import wom.expression._
+import wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold}
 
 class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
 

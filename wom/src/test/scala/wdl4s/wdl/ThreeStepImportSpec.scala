@@ -1,7 +1,7 @@
-package wdl4s.wdl
+package wdl
 
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.exception.ValidationException
+import wdl.exception.ValidationException
 
 import scala.util.Failure
 

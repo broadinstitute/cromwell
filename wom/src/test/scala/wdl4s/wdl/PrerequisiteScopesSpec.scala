@@ -1,6 +1,6 @@
-package wdl4s.wdl
+package wdl
 
-import wdl4s.wdl.SampleWdl.ScatterWdl
+import wdl.SampleWdl.ScatterWdl
 import org.scalatest.{FlatSpec, Matchers}
 
 class PrerequisiteScopesSpec extends FlatSpec with Matchers {

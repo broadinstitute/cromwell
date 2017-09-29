@@ -251,7 +251,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   private val DockerMonitoringLogPath: Path = JesWorkingDisk.MountPoint.resolve(jesCallPaths.jesMonitoringLogFilename)
   private val DockerMonitoringScriptPath: Path = JesWorkingDisk.MountPoint.resolve(jesCallPaths.jesMonitoringScriptFilename)
 
-  override def commandScriptPreamble: String = {
+  override def scriptPreamble: String = {
     if (monitoringOutput.isDefined) {
       s"""|touch $DockerMonitoringLogPath
           |chmod u+x $DockerMonitoringScriptPath

@@ -1,9 +1,9 @@
-package wdl4s.wdl
+package wdl
 
 import better.files._
-import wdl4s.wdl.expression.NoFunctions
-import wdl4s.wdl.types._
-import wdl4s.wdl.values._
+import wdl.expression.NoFunctions
+import wdl.types._
+import wdl.values._
 
 import scala.util.{Failure, Success}
 

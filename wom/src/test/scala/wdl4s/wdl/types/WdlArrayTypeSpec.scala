@@ -1,11 +1,11 @@
-package wdl4s.wdl.types
+package wdl.types
 
-import wdl4s.wdl.values.{WdlArray, WdlInteger, WdlMap, WdlOptionalValue, WdlPair, WdlString, WdlValue}
+import wdl.values.{WdlArray, WdlInteger, WdlMap, WdlOptionalValue, WdlPair, WdlString, WdlValue}
 import wdl4s.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
 import spray.json.{JsArray, JsNumber}
-import wdl4s.wdl.WdlExpression
-import wdl4s.wdl.expression.NoFunctions
+import wdl.WdlExpression
+import wdl.expression.NoFunctions
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success}

@@ -1,11 +1,11 @@
-package wdl4s.wdl.expression
+package wdl.expression
 
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.WdlExpression
-import wdl4s.wdl.exception.OptionalNotSuppliedException
-import wdl4s.wdl.types._
-import wdl4s.wdl.values._
+import wdl.WdlExpression
+import wdl.exception.OptionalNotSuppliedException
+import wdl.types._
+import wdl.values._
 
 import scala.util.{Failure, Success, Try}
 

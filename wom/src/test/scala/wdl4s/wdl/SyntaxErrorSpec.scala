@@ -1,10 +1,10 @@
-package wdl4s.wdl
+package wdl
 
 import wdl4s.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
-import wdl4s.wdl.util.StringUtil
+import wdl.util.StringUtil
 
 import scala.util.{Failure, Success}
 

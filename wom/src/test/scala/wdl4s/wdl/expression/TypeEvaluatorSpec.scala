@@ -1,8 +1,8 @@
-package wdl4s.wdl.expression
+package wdl.expression
 
-import wdl4s.wdl.types._
-import wdl4s.wdl.values._
-import wdl4s.wdl.{SampleWdl, WdlNamespaceWithWorkflow, WdlExpression}
+import wdl.types._
+import wdl.values._
+import wdl.{SampleWdl, WdlNamespaceWithWorkflow, WdlExpression}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.{FlatSpec, Matchers}
 

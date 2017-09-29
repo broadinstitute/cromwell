@@ -1,11 +1,11 @@
-package wdl4s.wdl
+package wdl
 
 import better.files._
-import wdl4s.wdl.command.ParameterCommandPart
-import wdl4s.wdl.expression.NoFunctions
+import wdl.command.ParameterCommandPart
+import wdl.expression.NoFunctions
 import wdl4s.parser.WdlParser.SyntaxError
-import wdl4s.wdl.types.WdlStringType
-import wdl4s.wdl.values.{WdlOptionalValue, WdlString}
+import wdl.types.WdlStringType
+import wdl.values.{WdlOptionalValue, WdlString}
 
 import scala.util.{Failure, Success}
 

@@ -1,17 +1,17 @@
-package wdl4s.cwl
+package cwl
 
 import cats.syntax.either._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless._
-import wdl4s.cwl.CwlDecoder._
-import wdl4s.wdl.types.{WdlFileType, WdlStringType}
-import wdl4s.wom.WomMatchers._
-import wdl4s.wom.callable.Callable.RequiredInputDefinition
-import wdl4s.wom.callable.{TaskDefinition, WorkflowDefinition}
-import wdl4s.wom.executable.Executable
-import wdl4s.wom.graph.GraphNodePort.OutputPort
-import wdl4s.wom.graph._
+import cwl.CwlDecoder._
+import wdl.types.{WdlFileType, WdlStringType}
+import wom.WomMatchers._
+import wom.callable.Callable.RequiredInputDefinition
+import wom.callable.{TaskDefinition, WorkflowDefinition}
+import wom.executable.Executable
+import wom.graph.GraphNodePort.OutputPort
+import wom.graph._
 import eu.timepit.refined._
 
 class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {

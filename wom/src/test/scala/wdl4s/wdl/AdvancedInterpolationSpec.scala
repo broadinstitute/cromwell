@@ -1,8 +1,8 @@
-package wdl4s.wdl
+package wdl
 
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.expression.NoFunctions
-import wdl4s.wdl.values._
+import wdl.expression.NoFunctions
+import wdl.values._
 
 import scala.util.Try
 

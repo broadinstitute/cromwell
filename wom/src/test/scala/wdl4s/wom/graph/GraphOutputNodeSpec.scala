@@ -1,9 +1,9 @@
-package wdl4s.wom.graph
+package wom.graph
 
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.types.WdlIntegerType
-import wdl4s.wom.expression._
+import wdl.types.WdlIntegerType
+import wom.expression._
 
 class GraphOutputNodeSpec extends FlatSpec with Matchers {
 

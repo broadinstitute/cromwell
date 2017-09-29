@@ -1,9 +1,9 @@
-package wdl4s.wdl.values
+package wdl.values
 
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.expression.NoFunctions
-import wdl4s.wdl.types.{WdlArrayType, WdlIntegerType}
-import wdl4s.wdl.{NoLookup, WdlExpression}
+import wdl.expression.NoFunctions
+import wdl.types.{WdlArrayType, WdlIntegerType}
+import wdl.{NoLookup, WdlExpression}
 import scala.util.Success
 
 class LargeArraySpec extends FlatSpec with Matchers {

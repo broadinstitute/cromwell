@@ -1,4 +1,4 @@
-package wdl4s.cwl
+package cwl
 
 import better.files.File.currentWorkingDirectory
 

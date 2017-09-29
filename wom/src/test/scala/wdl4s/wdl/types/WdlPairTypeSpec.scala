@@ -1,10 +1,10 @@
-package wdl4s.wdl.types
+package wdl.types
 
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.{FlatSpec, Matchers}
 import spray.json._
-import wdl4s.wdl.WdlNamespaceWithWorkflow
-import wdl4s.wdl.values.{WdlArray, WdlInteger, WdlMap, WdlPair, WdlString}
+import wdl.WdlNamespaceWithWorkflow
+import wdl.values.{WdlArray, WdlInteger, WdlMap, WdlPair, WdlString}
 
 import scala.util.{Failure, Success}
 

@@ -1,9 +1,9 @@
-package wdl4s.cwl
+package cwl
 
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct
-import wdl4s.cwl.CommandLineTool.BaseCommand
-import wdl4s.cwl.WorkflowStepInput.InputSource
+import cwl.CommandLineTool.BaseCommand
+import cwl.WorkflowStepInput.InputSource
 
 
   /**

@@ -1,4 +1,4 @@
-package wdl4s.wdl.util
+package wdl.util
 
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}

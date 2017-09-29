@@ -1,8 +1,8 @@
-package wdl4s.wdl.util
+package wdl.util
 
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.types._
-import wdl4s.wdl.values._
+import wdl.types._
+import wdl.values._
 
 class JsUtilSpec extends FlatSpec with Matchers {
 

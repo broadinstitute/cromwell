@@ -1,6 +1,6 @@
-package wdl4s.wdl.values
+package wdl.values
 
-import wdl4s.wdl.types.{WdlArrayType, WdlObjectType}
+import wdl.types.{WdlArrayType, WdlObjectType}
 import org.scalatest.{FlatSpec, Matchers, TryValues}
 
 object WdlObjectSpec {

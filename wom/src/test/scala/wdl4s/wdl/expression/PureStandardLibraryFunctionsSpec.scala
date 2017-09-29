@@ -1,8 +1,8 @@
-package wdl4s.wdl.expression
+package wdl.expression
 
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.types.{WdlArrayType, WdlIntegerType, WdlStringType}
-import wdl4s.wdl.values.{WdlArray, WdlInteger, WdlString}
+import wdl.types.{WdlArrayType, WdlIntegerType, WdlStringType}
+import wdl.values.{WdlArray, WdlInteger, WdlString}
 
 import scala.util.Success
 

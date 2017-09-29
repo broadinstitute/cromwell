@@ -1,6 +1,6 @@
-package wdl4s.wdl.types
+package wdl.types
 
-import wdl4s.wdl.values.{WdlMap, WdlObject, WdlString}
+import wdl.values.{WdlMap, WdlObject, WdlString}
 import wdl4s.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
 

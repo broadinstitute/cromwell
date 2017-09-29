@@ -1,4 +1,4 @@
-package wdl4s.cwl
+package cwl
 
 import org.scalacheck.Properties
 import org.scalacheck.Prop.BooleanOperators

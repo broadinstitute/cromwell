@@ -7,4 +7,4 @@ docker pull ubuntu:latest
 
 sbt -Dbackend.providers.Local.config.filesystems.local.localization.0=copy clean coverage nointegration:test coverageReport
 sbt coverageAggregate
-sbt coveralls
+# Disabling broken coveralls on 29_hotfix. develop already using codecov instead.

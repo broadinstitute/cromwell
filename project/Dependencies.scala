@@ -215,4 +215,6 @@ object Dependencies {
   val jesBackendDependencies = refinedTypeDependenciesList
   val tesBackendDependencies = akkaHttpDependencies
   val sparkBackendDependencies = akkaHttpDependencies
+
+  val serviceDependencies = coreDependencies ++ List("com.lightbend.akka" %% "akka-stream-alpakka-google-cloud-pub-sub" % "0.13")
 }

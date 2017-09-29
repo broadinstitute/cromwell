@@ -7,6 +7,11 @@ object StreamIntegration {
   trait StreamContext {
     def replyTo: ActorRef
     def request: Any
+    /*
+      clientContext way of attaching some information to the request which will get handed back at the end. In
+        a sense, this could be viewed as the moral equivalent of the client keeping its own Map tracking requests to
+        this information.
+      */
     def clientContext: Option[Any] = None
   }
   case class EnqueueResponse(response: QueueOfferResult, request: StreamContext)

@@ -176,7 +176,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   }
 
   /** Any custom code that should be run within commandScriptContents before the instantiated command. */
-  def commandScriptPreamble: String = ""
+  def scriptPreamble: String = ""
 
   /** A bash script containing the custom preamble, the instantiated command, and output globbing behavior. */
   def commandScriptContents: ErrorOr[String] = {
@@ -199,7 +199,10 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |chmod 777 $$tmpDir
         |export _JAVA_OPTIONS=-Djava.io.tmpdir=$$tmpDir
         |export TMPDIR=$$tmpDir
-        |$commandScriptPreamble
+        |(
+        |cd $cwd
+        |SCRIPT_PREAMBLE
+        |)
         |(
         |cd $cwd
         |INSTANTIATED_COMMAND
@@ -209,9 +212,15 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |cd $cwd
         |${globManipulations(globFiles)}
         |)
+        |(
+        |cd $cwd
         |SCRIPT_EPILOGUE
+        |)
         |mv $rcTmpPath $rcPath
-        |""".stripMargin.replace("INSTANTIATED_COMMAND", instantiatedCommand).replace("SCRIPT_EPILOGUE", scriptEpilogue))
+        |""".stripMargin
+      .replace("SCRIPT_PREAMBLE", scriptPreamble)
+      .replace("INSTANTIATED_COMMAND", instantiatedCommand)
+      .replace("SCRIPT_EPILOGUE", scriptEpilogue))
   }
 
   /** The instantiated command. */

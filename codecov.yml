@@ -1,2 +1,13 @@
-comment:
-  layout: "header, diff, changes, sunburst, uncovered, tree"
+coverage:
+  notify:
+    slack:
+      default:
+        url: secret:5UELKPiiPFBCsKEe0bZTh6/8abNFShmwWu9eol4lyiyzHvAAI1fKP+aBv/M2K6wxGnW1iiOA879Bj4mXclM0XRDSdEDfzH+r6pEYlBVG/GabsUQ5PicPuu51Vgp8L7tcBEmrZh5MRH71AxWxgwQK/77UKXDGkPVD0hFHQdWnKjM=
+        threshold: null
+        attachments: "header, diff, changes, sunburst, uncovered, tree"
+  status:
+    project:
+      default:
+        threshold: 20%
+
+comment: false

@@ -7,7 +7,7 @@ import cats.syntax.traverse._
 import cats.instances.list._
 
 object ErrorOr {
-  type ErrorOr[A] = Validated[NonEmptyList[String], A]
+  type ErrorOr[+A] = Validated[NonEmptyList[String], A]
 
   implicit class ShortCircuitingFlatMap[A](val fa: ErrorOr[A]) extends AnyVal {
     /**

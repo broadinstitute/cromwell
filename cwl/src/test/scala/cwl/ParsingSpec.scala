@@ -1,10 +1,10 @@
 package cwl
 
-import org.scalacheck.Properties
 import io.circe.parser._
 import io.circe.refined._
 import io.circe.literal._
 import CwlCodecs._
+import org.scalacheck.Properties
 
 class WorkflowParsingSpec extends Properties("Workflow Json Parser") {
 

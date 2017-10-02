@@ -1,13 +1,13 @@
 package cwl
 
+import cats.implicits._
+import cwl.CommandOutputBinding.Glob
+import eu.timepit.refined._
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct
-import cwl.CommandOutputBinding.Glob
 import wdl.types.WdlIntegerType
-import eu.timepit.refined._
 import wdl.values.{WdlInteger, WdlString}
 import wom.expression.PlaceholderIoFunctionSet
-import cats.implicits._
 
 class CommandOutputExpressionSpec extends FlatSpec with Matchers {
 
@@ -26,5 +26,4 @@ class CommandOutputExpressionSpec extends FlatSpec with Matchers {
     val result = commandOutputExpression.evaluateValue(inputValues, PlaceholderIoFunctionSet)
     result should be(WdlInteger(42).valid)
   }
-
 }

@@ -3,6 +3,7 @@ package wdl
 import java.nio.file.{Path, Paths}
 
 import better.files._
+import lenthall.Checked
 import lenthall.util.TryUtil
 import wdl4s.parser.WdlParser._
 import wdl.AstTools.{AstNodeName, EnhancedAstNode}
@@ -38,7 +39,7 @@ sealed trait WdlNamespace extends WdlValue with Scope {
     (descendants + this).find(d => d.fullyQualifiedName == fqn || d.fullyQualifiedNameWithIndexScopes == fqn)
   }
   def resolveCallOrOutputOrDeclaration(fqn: FullyQualifiedName): Option[Scope] = {
-    val callsAndOutputs = descendants collect { 
+    val callsAndOutputs = descendants collect {
       case c: WdlCall => c
       case d: Declaration => d
       case o: TaskOutput => o
@@ -73,7 +74,9 @@ case class WdlNamespaceWithWorkflow(importedAs: Option[String],
                                     wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter,
                                     ast: Ast) extends WdlNamespace {
 
-  lazy val womExecutable = workflow.womDefinition.map(Executable)
+  def womExecutable(inputFile: Option[String] = None): Checked[Executable] = {
+    WdlInputParsing.buildWomExecutable(workflow, inputFile)
+  }
 
   override val workflows = Seq(workflow)
 
@@ -84,7 +87,7 @@ case class WdlNamespaceWithWorkflow(importedAs: Option[String],
     * This can fail if required raw inputs are missing or if the values for a specified raw input
     * cannot be coerced to the target type of the input as specified in the namespace.
     */
-  def coerceRawInputs(rawInputs: WorkflowRawInputs): Try[WorkflowCoercedInputs] = {
+  def coerceRawInputs(rawInputs: ExecutableInputMap): Try[WorkflowCoercedInputs] = {
     def coerceRawInput(input: WorkflowInput): Try[WdlValue] = input.fqn match {
       case _ if rawInputs.contains(input.fqn) =>
         val rawValue = rawInputs(input.fqn)
@@ -120,7 +123,7 @@ case class WdlNamespaceWithWorkflow(importedAs: Option[String],
     */
   def staticDeclarationsRecursive(userInputs: WorkflowCoercedInputs, wdlFunctions: WdlStandardLibraryFunctions): Try[WorkflowCoercedInputs] = {
     import lenthall.exception.Aggregation._
-    
+
     def evalDeclaration(accumulated: Map[FullyQualifiedName, Try[WdlValue]], current: Declaration): Map[FullyQualifiedName, Try[WdlValue]] = {
       current.expression match {
         case Some(expr) =>
@@ -138,7 +141,7 @@ case class WdlNamespaceWithWorkflow(importedAs: Option[String],
     }
 
     val filteredExceptions: Set[Class[_ <: Throwable]] = Set(classOf[OutputVariableLookupException], classOf[ScatterIndexNotFound])
-    
+
     // Filter out declarations for which evaluation failed because a call output variable could not be resolved, or a shard could not be found,
     // as this method is meant for pre-execution validation
     val filtered = evalScope filterNot {
@@ -148,7 +151,7 @@ case class WdlNamespaceWithWorkflow(importedAs: Option[String],
       case (name, Failure(f)) => name -> Failure(ValidationException(name, List(f)))
       case other => other
     }
-    
+
     TryUtil.sequenceMap(filtered, "Could not evaluate workflow declarations")
   }
 }
@@ -329,9 +332,9 @@ object WdlNamespace {
     val callInputSectionErrors = namespace.descendants.collect({ case c: WdlTaskCall => c }).flatMap(
       validateCallInputSection(_, wdlSyntaxErrorFormatter)
     )
-    
+
     val workflowOutputErrors = workflows flatMap { _.workflowCalls map { _.calledWorkflow } } collect {
-      case calledWorkflow if calledWorkflow.workflowOutputWildcards.nonEmpty => 
+      case calledWorkflow if calledWorkflow.workflowOutputWildcards.nonEmpty =>
         new SyntaxError(
           s"""Workflow ${calledWorkflow.unqualifiedName} is used as a sub workflow but has outputs declared with a deprecated syntax not compatible with sub workflows.
              |To use this workflow as a sub workflow please update the workflow outputs section to the latest WDL specification.
@@ -457,7 +460,7 @@ object WdlNamespace {
       case _ => throw new VariableLookupException(s"Could not resolve $n from scope ${from.fullyQualifiedName}")
     }
   }
-  
+
   private def typeCheckDeclaration(decl: DeclarationInterface, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Option[SyntaxError] = {
     decl.expression flatMap { expr =>
       expr.evaluateType(lookupType(decl), new WdlStandardLibraryFunctionsType, Option(decl)) match {
@@ -509,7 +512,7 @@ object WdlNamespace {
           case Some(c: WdlCall) if c.outputs.exists(_.unqualifiedName == requestedValue) => None
           case Some(c: WdlCall) =>
             Option(new SyntaxError(wdlSyntaxErrorFormatter.memberAccessReferencesAbsentCallOutput(memberAccessAst, c)))
-          case Some(s: Scatter) => 
+          case Some(s: Scatter) =>
             s.collection.evaluateType(lookupType(s), new WdlStandardLibraryFunctionsType) map {
               case WdlArrayType(WdlObjectType) => None
               case WdlArrayType(_: WdlPairType) if memberAccess.rhs == "left" || memberAccess.rhs == "right" => None

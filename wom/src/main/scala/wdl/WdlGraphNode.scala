@@ -8,7 +8,7 @@ import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
 import wdl.AstTools.{EnhancedAstNode, VariableReference}
 import wom.graph._
 import wom.graph.CallNode.CallNodeAndNewNodes
-import wom.graph.GraphNode.GeneratedNodeAndNewInputs
+import wom.graph.GraphNode.GeneratedNodeAndNewNodes
 import wom.graph.GraphNodePort.OutputPort
 
 
@@ -74,7 +74,7 @@ object WdlGraphNode {
 
     def foldFunction(acc: ErrorOr[FoldState], node: WdlGraphNode): ErrorOr[FoldState] = acc flatMap { goodAcc =>  buildNode(goodAcc, node) }
 
-    def foldInGeneratedNodeAndNewInputs(acc: FoldState, outputPortPrefix: String)(gnani: GeneratedNodeAndNewInputs): FoldState = {
+    def foldInGeneratedNodeAndNewInputs(acc: FoldState, outputPortPrefix: String)(gnani: GeneratedNodeAndNewNodes): FoldState = {
       // The output ports from the new node
       val newCallOutputPorts = (gnani.node.outputPorts map { p => s"$outputPortPrefix${p.name}" -> p }).toMap
       // The output ports from newly created GraphInputNodes:

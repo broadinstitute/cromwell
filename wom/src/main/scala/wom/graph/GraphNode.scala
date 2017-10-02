@@ -106,9 +106,9 @@ object GraphNode {
   /**
     * This pattern is used when new Nodes are wired into a set of Graph nodes, and potentially end up creating new input nodes.
     */
-  trait GeneratedNodeAndNewInputs {
+  trait GeneratedNodeAndNewNodes {
     def node: GraphNode
-    def newInputs: Set[GraphInputNode]
+    def newInputs: Set[_ <: GraphInputNode]
     def newExpressions: Set[ExpressionNode]
   }
 }

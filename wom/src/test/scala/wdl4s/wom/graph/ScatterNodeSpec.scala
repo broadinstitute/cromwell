@@ -1,7 +1,6 @@
-package wom.graph
+package wdl4s.wom.graph
 
 import cats.data.Validated.{Invalid, Valid}
-import cats.syntax.apply._
 import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct
@@ -12,7 +11,7 @@ import wom.callable.TaskDefinition
 import wom.expression.PlaceholderWomExpression
 import wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNodePort.OutputPort
-import wom.graph.ScatterNode.ScatterNodeWithInputs
+import wom.graph._
 
 class ScatterNodeSpec extends FlatSpec with Matchers {
   behavior of "ScatterNode"
@@ -51,7 +50,12 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
   it should "be able to wrap a single task call" in {
     val xs_inputNode = RequiredGraphInputNode("xs", WdlArrayType(WdlIntegerType))
 
-    val x_inputNode = RequiredGraphInputNode("x", WdlIntegerType)
+    val xsExpression = PlaceholderWomExpression(Set("xs"), WdlArrayType(WdlIntegerType))
+    val xsExpressionAsInput = ExpressionNode
+      .linkWithInputs("x", xsExpression, Map("xs" -> xs_inputNode.singleOutputPort))
+      .valueOr(failures => fail(s"Failed to create expression node: ${failures.toList.mkString(", ")}"))
+    
+    val x_inputNode = OuterGraphInputNode("x", xsExpressionAsInput.singleExpressionOutputPort)
     val fooNodeBuilder = new CallNodeBuilder()
     val fooInputFold = InputDefinitionFold(
       mappings = Map(
@@ -69,23 +73,23 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
       case Invalid(es) => fail("Failed to make scatter graph: " + es.toList.mkString(", "))
     }
 
-    val xsExpression = PlaceholderWomExpression(Set("xs"), WdlArrayType(WdlIntegerType))
-    val xsExpressionAsInput = GraphNodeInputExpression("x", xsExpression, Map("xs" -> xs_inputNode.singleOutputPort))
-
-    val scatterNodeValidation = ScatterNode.scatterOverGraph(scatterGraph, xsExpressionAsInput, x_inputNode, Map.empty)
-
+    val scatterNodeWithInputs = ScatterNode.scatterOverGraph(
+      scatterGraph,
+      xsExpressionAsInput,
+      x_inputNode
+    )
+    
+    val scatterNode = scatterNodeWithInputs.node
+    scatterNodeWithInputs.newInputs.size should be(0)
+    
     val workflowGraphValidation = for {
-      scatterNodeWithInputs <- scatterNodeValidation
-      ScatterNodeWithInputs(scatterNode, unsuppliedScatterInputNodes) = scatterNodeWithInputs
-
-      _ = unsuppliedScatterInputNodes.size should be(0)
       foo_scatterOutput <- scatterNode.outputByName("foo.out")
       z_workflowOutput = PortBasedGraphOutputNode("z", WdlArrayType(WdlStringType), foo_scatterOutput)
-      graph <- Graph.validateAndConstruct(Set(scatterNode, xs_inputNode, z_workflowOutput))
+      graph <- Graph.validateAndConstruct(scatterNode.nodes ++ Set(xs_inputNode, z_workflowOutput))
     } yield graph
 
-    (workflowGraphValidation, scatterNodeValidation).tupled match {
-      case Valid((wg, sn)) => validate(wg, sn.node)
+    workflowGraphValidation match {
+      case Valid(wg) => validate(wg, scatterNode)
       case Invalid(es) => fail("Failed to make workflow graph: " + es.toList.mkString(", "))
     }
 

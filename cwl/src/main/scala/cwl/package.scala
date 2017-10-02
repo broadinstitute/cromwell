@@ -61,8 +61,8 @@ package object cwl extends TypeAliases {
   type WdlTypeMap = Map[String, WdlType]
 
   object CwlToWomExecutable extends Poly1 {
-    implicit def caseClt = at[CommandLineTool](clt => clt.womExecutable)
-    implicit def caseWf = at[Workflow](wf => wf.womExecutable)
+    implicit def caseClt = at[CommandLineTool](clt => clt.womExecutable())
+    implicit def caseWf = at[Workflow](wf => wf.womExecutable())
   }
 
   implicit class CwlHelper(val cwl: Cwl) extends AnyVal {

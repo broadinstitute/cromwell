@@ -117,11 +117,11 @@ case class WorkflowStep(
               call <- step.callWithInputs(typeMap, workflow, accumulatedNodes, workflowInputs)
             } yield call
 
-          def fromWorkflowInput: Checked[WorkflowStepInputFold] = {
+          def fromWorkflowInput(inputName: String): Checked[WorkflowStepInputFold] = {
             // Try to find it in the workflow inputs map, if we can't it's an error
             workflowInputs.collectFirst {
-              case (inputId, port) if inputSource == inputId => updateFold(port)
-            } getOrElse s"Can't find workflow input for $inputSource".invalidNelCheck[WorkflowStepInputFold]
+              case (inputId, port) if inputName == inputId => updateFold(port)
+            } getOrElse s"Can't find workflow input for $inputName".invalidNelCheck[WorkflowStepInputFold]
           }
 
           def fromStepOutput(stepId: String, stepOutputId: String): Checked[WorkflowStepInputFold] = {
@@ -155,7 +155,7 @@ case class WorkflowStep(
            */
           FullyQualifiedName(inputSource) match {
             // The source points to a workflow input, which means it should be in the workflowInputs map
-            case _: WorkflowInputId => fromWorkflowInput
+            case WorkflowInputId(_, inputId) => fromWorkflowInput(inputId)
             // The source points to an output from a different step
             case WorkflowStepInputOrOutputId(_, stepId, stepOutputId) => fromStepOutput(stepId, stepOutputId)
           }

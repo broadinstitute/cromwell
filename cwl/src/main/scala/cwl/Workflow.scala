@@ -1,22 +1,19 @@
 package cwl
 
+import cats.data.NonEmptyList
 import cats.instances.list._
 import cats.syntax.either._
 import cats.syntax.traverse._
-import CwlType._
+import lenthall.Checked
+import lenthall.validation.ErrorOr._
 import shapeless._
 import shapeless.syntax.singleton._
+import CwlType.CwlType
 import CwlVersion._
-import cats.data.NonEmptyList
-import lenthall.validation.ErrorOr._
-import lenthall.Checked
-import shapeless._
-import cwl.CwlType.CwlType
-import cwl.CwlVersion._
 import wdl.types._
 import wom.callable.WorkflowDefinition
 import wom.executable.Executable
-import wom.expression.WomExpression
+import wom.expression.{PlaceholderWomExpression, WomExpression}
 import wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 import wom.graph._
 
@@ -26,8 +23,9 @@ case class Workflow private(
                      inputs: Array[InputParameter],
                      outputs: Array[WorkflowOutputParameter],
                      steps: Array[WorkflowStep]) {
-
-  def womExecutable: Checked[Executable] = womDefinition map Executable.apply
+  def womExecutable(inputFile: Option[String] = None): Checked[Executable] = {
+    CwlExecutableValidation.builWomExecutable(womDefinition, inputFile)
+  }
 
   val fileNames: List[String] = steps.toList.flatMap(_.run.select[String].toList)
 
@@ -57,8 +55,17 @@ case class Workflow private(
           wdlTypeForInputParameter(i).map(i.id -> _).toList
         }.toMap
 
-    val graphFromInputs: Set[RequiredGraphInputNode] = inputs.map {
-      input => RequiredGraphInputNode(input.id, wdlTypeForInputParameter(input).get)
+    val graphFromInputs: Set[ExternalGraphInputNode] = inputs.map {
+      // TODO WOM: need to be able to transform this default value to a WomExpression
+      case inputParameter if inputParameter.default.isDefined =>
+        val parsedInputId = WorkflowInputId(inputParameter.id).inputId
+        val womType = wdlTypeForInputParameter(inputParameter).get
+
+        OptionalGraphInputNodeWithDefault(parsedInputId, womType, PlaceholderWomExpression(Set.empty, womType))
+      case input =>
+        val parsedInputId = WorkflowInputId(input.id).inputId
+
+        RequiredGraphInputNode(parsedInputId, wdlTypeForInputParameter(input).get)
     }.toSet
 
     val workflowInputs: Map[String, GraphNodeOutputPort] =

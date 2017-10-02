@@ -8,7 +8,7 @@ import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 
 class WdlNamespaceWomSpec extends FlatSpec with Matchers {
-  
+
   "A WdlNamespace for 3step" should "provide conversion to WOM" in {
     val threeStep =
       """
@@ -56,20 +56,21 @@ class WdlNamespaceWomSpec extends FlatSpec with Matchers {
 
     val namespace = WdlNamespace.loadUsingSource(threeStep, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
     import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
-    val wom3Step = namespace.womExecutable.flatMap(_.graph)
-    
+    val wom3Step = namespace.workflow.womDefinition.flatMap(_.graph)
+
     val workflowGraph = wom3Step match {
       case Valid(g) => g
       case Invalid(errors) => fail(s"Unable to build wom version of 3step from WDL: ${errors.toList.mkString("\n", "\n", "\n")}")
     }
 
-    val graphInputNodes = workflowGraph.nodes collect { case gin: GraphInputNode => gin }
+    val graphInputNodes = workflowGraph.nodes collect { case gin: ExternalGraphInputNode => gin }
     graphInputNodes should have size 1
     val patternInputNode = graphInputNodes.head
-    patternInputNode.name should be("three_step.cgrep.pattern")
+    patternInputNode.name should be("cgrep.pattern")
+    patternInputNode.fullyQualifiedIdentifier should be("three_step.cgrep.pattern")
 
     workflowGraph.nodes collect { case gon: PortBasedGraphOutputNode => gon.name } should be(Set("wc.count", "cgrep.count", "ps.procs"))
-    
+
     val ps: TaskCallNode = workflowGraph.nodes.collectFirst({ case ps: TaskCallNode if ps.name == "ps" => ps }).get
     val cgrep: TaskCallNode = workflowGraph.nodes.collectFirst({ case cgrep: TaskCallNode if cgrep.name == "cgrep" => cgrep }).get
     val cgrepInFileExpression = {
@@ -97,10 +98,10 @@ class WdlNamespaceWomSpec extends FlatSpec with Matchers {
     inFileMapping.select[OutputPort].isDefined shouldBe true
     // This should be less ugly when we can access a string value from a womexpression
     inFileMapping.select[OutputPort].get
-    .graphNode.asInstanceOf[ExpressionNode]
-    .instantiatedExpression.expression.asInstanceOf[WdlWomExpression]  
-    .wdlExpression.valueString shouldBe "ps.procs"
-    
+      .graphNode.asInstanceOf[ExpressionNode]
+      .instantiatedExpression.expression.asInstanceOf[WdlWomExpression]
+      .wdlExpression.valueString shouldBe "ps.procs"
+
     val cgrepPatternInputDef = cgrep.callable.inputs.find(_.name == "pattern").get
     cgrep.inputDefinitionMappings(cgrepPatternInputDef).select[OutputPort].get eq patternInputNode.singleOutputPort shouldBe true
   }

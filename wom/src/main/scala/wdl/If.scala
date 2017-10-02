@@ -1,12 +1,15 @@
 package wdl
 
 import cats.data.Validated.Valid
+import cats.syntax.apply._
 import cats.syntax.validated._
 import lenthall.validation.ErrorOr._
 import wdl4s.parser.WdlParser.Ast
 import wdl.types.WdlBooleanType
-import wom.graph.ConditionalNode.ConditionalNodeWithInputs
-import wom.graph.{ConditionalNode, Graph, GraphNodePort}
+import wom.graph.GraphNodePort
+import wom.graph.Graph
+import wom.graph.ConditionalNode.ConditionalNodeWithNewNodes
+import wom.graph.ConditionalNode
 
 /**
   * Represents an If block in WDL
@@ -33,9 +36,9 @@ object If {
     new If(index, WdlExpression(ast.getAttribute("expression")), ast)
   }
 
-  def womConditionalNode(ifBlock: If, localLookup: Map[String, GraphNodePort.OutputPort]): ErrorOr[ConditionalNodeWithInputs] = {
+  def womConditionalNode(ifBlock: If, localLookup: Map[String, GraphNodePort.OutputPort]): ErrorOr[ConditionalNodeWithNewNodes] = {
     val ifConditionExpression = WdlWomExpression(ifBlock.condition, Option(ifBlock))
-    val ifConditionGraphInputExpressionValidation = WdlWomExpression.findInputsforExpression("conditional", ifConditionExpression, localLookup, Map.empty)
+    val ifConditionGraphInputExpressionValidation = WdlWomExpression.toExpressionNode("conditional", ifConditionExpression, localLookup, Map.empty)
     val ifConditionTypeValidation = ifConditionExpression.evaluateType(localLookup.map { case (k, v) => k -> v.womType }) flatMap {
       case WdlBooleanType => Valid(())
       case other => s"An if block must be given a boolean expression but instead got '${ifBlock.condition.toWdlString}' (a ${other.toWdlString})".invalidNel
@@ -43,8 +46,8 @@ object If {
 
     val innerGraphValidation: ErrorOr[Graph] = WdlGraphNode.buildWomGraph(ifBlock, Set.empty, localLookup)
 
-    (ifConditionGraphInputExpressionValidation, ifConditionTypeValidation, innerGraphValidation) flatMapN { (ifConditionGraphInputExpression, _, innerGraph) =>
-      ConditionalNode.wireInConditional(innerGraph, ifConditionGraphInputExpression, localLookup)
+    (ifConditionGraphInputExpressionValidation, ifConditionTypeValidation, innerGraphValidation) mapN { (ifConditionGraphInputExpression, _, innerGraph) =>
+      ConditionalNode.wireInConditional(innerGraph, ifConditionGraphInputExpression)
     }
   }
 }

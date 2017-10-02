@@ -1,9 +1,8 @@
 package cwl
 
-
+import cwl.CwlDecoder._
+import cwl.TestSetup._
 import org.scalatest._
-import CwlDecoder._
-import TestSetup._
 
 
 class ParseBigThreeSpec extends FlatSpec with Matchers {

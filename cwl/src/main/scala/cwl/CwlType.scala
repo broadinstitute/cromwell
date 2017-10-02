@@ -1,9 +1,10 @@
 package cwl
 
+import cats.syntax.validated._
 import eu.timepit.refined._
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.string._
+import lenthall.validation.ErrorOr.ErrorOr
 import shapeless.{:+:, CNil}
+import wdl.values.{WdlSingleFile, WdlValue}
 
 object CwlType extends Enumeration {
   type CwlType = Value
@@ -20,7 +21,7 @@ object CwlType extends Enumeration {
 }
 
 case class File(
-  `class`: String Refined MatchesRegex[W.`"File"`.T],
+  `class`: W.`"File"`.T,
   location: Option[String], //TODO refine w/ regex  of IRI
   path: Option[String],
   basename: Option[String],
@@ -29,12 +30,21 @@ case class File(
   nameext: Option[String],
   checksum: Option[String],
   size: Option[Long],
-  secondaryFiles: Array[File :+: Directory :+: CNil],
+  secondaryFiles: Option[Array[File :+: Directory :+: CNil]],
   format: Option[String],
-  contents: Option[String])
+  contents: Option[String]) {
+
+  lazy val asWdlValue: ErrorOr[WdlValue] = {
+    // TODO WOM: needs to handle basename and maybe other fields. We might need to augment WdlFile, or have a smarter WomFile
+    path.orElse(location) match {
+      case Some(value) => WdlSingleFile(value).validNel
+      case None => "Cannot convert CWL File to WdlValue without either a location or a path".invalidNel
+    }
+  }
+}
 
 case class Directory(
-  `class`: String Refined MatchesRegex[W.`"Directory"`.T],
+  `class`: W.`"Directory"`.T,
   location: Option[String],
   path: Option[String],
   basename: Option[String],

@@ -6,7 +6,7 @@ import java.nio.file.{Files, Path}
 
 trait SampleWdl extends TestFileUtil {
   def workflowSource(runtime: String = ""): WorkflowSource
-  def rawInputs: WorkflowRawInputs
+  def rawInputs: ExecutableInputMap
 
   def createFileArray(base: Path): Unit = {
     createFile("f1", base, "line1\nline2\n")

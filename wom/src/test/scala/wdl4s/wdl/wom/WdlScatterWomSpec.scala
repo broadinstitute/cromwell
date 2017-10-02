@@ -31,7 +31,7 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
 
     val namespace = WdlNamespace.loadUsingSource(scatterTest, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
     import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
-    val scatterTestGraph = namespace.womExecutable.flatMap(_.graph)
+    val scatterTestGraph = namespace.workflow.womDefinition.flatMap(_.graph)
 
     scatterTestGraph match {
       case Valid(g) => validateGraph(g)
@@ -48,12 +48,16 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
           case gin: GraphInputNode if gin.name == "xs" => gin
         }.getOrElse(fail("Resulting graph did not contain the 'xs' GraphInputNode"))
 
+        val scatterExpressionNode = workflowGraph.nodes.collectFirst {
+          case expr: ExpressionNode if expr.name == "x" => expr
+        }.getOrElse(fail("Resulting graph did not contain the 'x' ExpressionNode"))
+
         val foo_out_output = workflowGraph.nodes.collectFirst {
           case gon: GraphOutputNode if gon.name == "foo.out" => gon
         }.getOrElse(fail("Resulting graph did not contain the 'foo.out' GraphOutputNode"))
         foo_out_output.womType should be(WdlArrayType(WdlStringType))
 
-        workflowGraph.nodes should be(Set(scatterNode, xs_inputNode, foo_out_output))
+        workflowGraph.nodes should be(Set(scatterNode, xs_inputNode, foo_out_output, scatterExpressionNode))
         OuterGraphValidations(scatterNode, xs_inputNode)
       }
 
@@ -81,10 +85,10 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
 
       def validateConnections(validatedOuterGraph: OuterGraphValidations, validatedInnerGraph: InnerGraphValidations) = {
         // The scatter collection links to its predecessor
-        validatedOuterGraph.scatterNode.scatterVariableMapping.scatterInstantiatedExpression.inputPorts.map(_.upstream.graphNode) should be(Set(validatedOuterGraph.xs_inputNode))
+        validatedOuterGraph.scatterNode.scatterCollectionExpressionNode.inputPorts.map(_.upstream.graphNode) should be(Set(validatedOuterGraph.xs_inputNode))
 
         // The ScatterNode's "scatter variable mapping" links to the innerGraph's scatter variable input Node:
-        validatedOuterGraph.scatterNode.scatterVariableMapping.graphInputNode eq validatedInnerGraph.x_scatterCollectionInput should be(true)
+        validatedOuterGraph.scatterNode.scatterVariableInnerGraphInputNode eq validatedInnerGraph.x_scatterCollectionInput should be(true)
 
         // The ScatterNode's output port links to the inner graph's GraphOutputNode:
         validatedOuterGraph.scatterNode.outputMapping.toList match {
@@ -124,7 +128,7 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
 
     val namespace = WdlNamespace.loadUsingSource(scatterTest, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
     import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
-    val scatterTestGraph = namespace.womExecutable.flatMap(_.graph)
+    val scatterTestGraph = namespace.workflow.womDefinition.flatMap(_.graph)
 
     scatterTestGraph match {
       case Valid(g) => validateGraph(g)
@@ -133,8 +137,8 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
 
     def validateGraph(workflowGraph: Graph) = {
 
-      // Three inputs, a scatter node and two outputs:
-      workflowGraph.nodes.size should be(6)
+      // Three inputs, a scatter node, the expression node for the scatter collection, and two outputs:
+      workflowGraph.nodes.size should be(7)
 
       // Find that scatter:
       workflowGraph.nodes.collectFirst {
@@ -167,7 +171,7 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
 
     val namespace = WdlNamespace.loadUsingSource(scatterTest, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
     import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
-    val scatterTestGraph = namespace.womExecutable.flatMap(_.graph)
+    val scatterTestGraph = namespace.workflow.womDefinition.flatMap(_.graph)
 
     scatterTestGraph match {
       case Valid(g) => validateGraph(g)
@@ -177,20 +181,19 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
     def validateGraph(workflowGraph: Graph) = {
 
       // Find the inputs:
-      val inputNodes: Set[GraphInputNode] = workflowGraph.nodes.filterByType[GraphInputNode]
-      inputNodes.map {_.name} should be(Set("scatter_test.foo.j"))
+      val inputNodes: Set[ExternalGraphInputNode] = workflowGraph.nodes.filterByType[ExternalGraphInputNode]
+      inputNodes.map {_.name} should be(Set("foo.j"))
+      inputNodes.map {_.fullyQualifiedIdentifier} should be(Set("scatter_test.foo.j"))
 
       // Find that scatter:
       val scatterNode = workflowGraph.nodes.collectFirst {
         case s: ScatterNode => s
       }.getOrElse(fail("Resulting graph did not contain a ScatterNode"))
 
-      val scatterInnerInputs: Set[GraphInputNode] = scatterNode.innerGraph.nodes.filterByType[GraphInputNode]
-      scatterInnerInputs map {_.name} should be(Set("s", "scatter_test.foo.j"))
-      (scatterInnerInputs.find(_.name == "scatter_test.foo.j").get, inputNodes.find(_.name == "scatter_test.foo.j").get) match {
-        case (fooj1, fooj2) if fooj1 eq fooj2 => fail("Scatter has used the inner graph input Node as an outer graph input")
-        case _ => // fine
-      }
+      val scatterInnerInputs: Set[ExternalGraphInputNode] = scatterNode.innerGraph.nodes.filterByType[ExternalGraphInputNode]
+      scatterInnerInputs map {_.fullyQualifiedIdentifier} should be(Set("scatter_test.foo.j"))
+      val scatterInnerItemInput: Set[OuterGraphInputNode] = scatterNode.innerGraph.nodes.filterByType[OuterGraphInputNode]
+      scatterInnerItemInput map {_.name} should be(Set("s"))
 
       // Find the outputs:
       val outputNodes = workflowGraph.nodes.collect {

@@ -6,58 +6,28 @@ import cats.syntax.functor._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import lenthall.collections.EnhancedCollections._
-import lenthall.validation.ErrorOr.{ErrorOr, _}
-import lenthall.validation.Validation._
-import shapeless.{:+:, CNil, Coproduct}
-import wdl.WorkflowRawInputs
+import lenthall.validation.ErrorOr.ErrorOr
+import shapeless.{:+:, CNil}
 import wdl.values.WdlValue
 import wom.expression.WomExpression
-import wom.graph.Graph.ResolvedWorkflowInput
-import wom.graph.GraphNodePort.{InputPort, OutputPort}
+import wom.graph.GraphNodePort.InputPort
 
 /**
   * A sealed set of graph nodes.
   */
 final case class Graph private(nodes: Set[GraphNode]) {
   lazy val inputNodes: Set[GraphInputNode] = nodes.filterByType[GraphInputNode]
+  lazy val externalInputNodes: Set[ExternalGraphInputNode] = nodes.filterByType[ExternalGraphInputNode]
   lazy val outputNodes: Set[GraphOutputNode] = nodes.filterByType[GraphOutputNode]
   lazy val calls: Set[CallNode] = nodes.filterByType[CallNode]
   lazy val scatters: Set[ScatterNode] = nodes.filterByType[ScatterNode]
 
   def outputByName(name: String): Option[GraphOutputNode] = outputNodes.find(_.name == name)
-
-  /**
-    * Maps GraphInputNode to their final value / expression using workflow inputs. Validate all required inputs are satisfied.
-    * @param inputsMapping workflow inputs in the form of Map[FQN, Any]
-    * @return validated mappings from GraphInputPort to ResolvedWorkflowInput, which can be a WdlValue or an expression
-    */
-  def validateWorkflowInputs(inputsMapping: WorkflowRawInputs): ErrorOr[Map[OutputPort, ResolvedWorkflowInput]] = {
-
-    def coerceRawValue(value: Any, gin: ExternalGraphInputNode): ErrorOr[WdlValue] = {
-      gin.womType.coerceRawValue(value).toErrorOr
-    }
-    
-    def fromInputMapping(gin: ExternalGraphInputNode): Option[ErrorOr[ResolvedWorkflowInput]] = {
-      inputsMapping.get(s"${gin.name}").map(coerceRawValue(_, gin).map(Coproduct[ResolvedWorkflowInput](_)))
-    }
-
-    def fallBack(gin: ExternalGraphInputNode): ErrorOr[ResolvedWorkflowInput] = gin match {
-      case required: RequiredGraphInputNode => s"Cannot find an input value for ${required.name}".invalidNel
-      case optionalWithDefault: OptionalGraphInputNodeWithDefault => Coproduct[ResolvedWorkflowInput](optionalWithDefault.default).validNel
-      case optional: OptionalGraphInputNode => Coproduct[ResolvedWorkflowInput](optional.womType.none: WdlValue).validNel
-    }
-
-    nodes.collect({
-      case gin: ExternalGraphInputNode => 
-        // The compiler needs the type ascription for some reason
-        (gin.singleOutputPort: OutputPort) -> fromInputMapping(gin).getOrElse(fallBack(gin))
-    }).toMap.sequence
-  }
 }
 
 object Graph {
 
-  type ResolvedWorkflowInput = WdlValue :+: WomExpression :+: CNil
+  type ResolvedExecutableInput = WdlValue :+: WomExpression :+: CNil
 
   /**
     * Checks that every input port for every node in the graph references an upstream node that is also in the graph.

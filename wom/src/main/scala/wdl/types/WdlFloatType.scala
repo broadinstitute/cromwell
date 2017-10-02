@@ -9,6 +9,7 @@ case object WdlFloatType extends WdlPrimitiveType {
   val toWdlString: String = "Float"
 
   override protected def coercion = {
+    case f: Float => WdlFloat(f.toDouble)
     case d: Double => WdlFloat(d)
     case n: JsNumber => WdlFloat(n.value.doubleValue())
     case f: WdlFloat => f

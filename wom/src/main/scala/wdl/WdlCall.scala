@@ -56,7 +56,8 @@ object WdlCall {
   private[wdl] def buildWomNodeAndInputs(wdlCall: WdlCall, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort]) = {
     import lenthall.validation.ErrorOr._
 
-    val callNamePrefix = s"${wdlCall.fullyQualifiedName}."
+    val unqualifiedCallNamePrefix = s"${wdlCall.unqualifiedName}."
+    val fullyQualifiedCallNamePrefix = s"${wdlCall.fullyQualifiedName}."
     val callNodeBuilder = new CallNode.CallNodeBuilder()
 
     /*
@@ -69,7 +70,7 @@ object WdlCall {
      */
     def expressionNodeMappings: ErrorOr[Map[String, ExpressionNode]] = wdlCall.inputMappings traverse {
       case (inputName, wdlExpression) =>
-        WdlWomExpression.toExpressionNode(s"$callNamePrefix$inputName", WdlWomExpression(wdlExpression, None), localLookup, outerLookup) map {
+        WdlWomExpression.toExpressionNode(s"$fullyQualifiedCallNamePrefix$inputName", WdlWomExpression(wdlExpression, None), localLookup, outerLookup) map {
           inputName -> _
         }
     }
@@ -111,12 +112,12 @@ object WdlCall {
         // No input mapping, required and we don't have a default value, create a new RequiredGraphInputNode
         // so that it can be satisfied via workflow inputs
         case required @ RequiredInputDefinition(n, womType) =>
-          withGraphInputNode(required, RequiredGraphInputNode(s"$callNamePrefix$n", womType))
+          withGraphInputNode(required, RequiredGraphInputNode(s"$unqualifiedCallNamePrefix$n", womType, s"$fullyQualifiedCallNamePrefix$n"))
 
         // No input mapping, no default value but optional, create a OptionalGraphInputNode
         // so that it can be satisfied via workflow inputs
         case optional @ OptionalInputDefinition(n, womType) =>
-          withGraphInputNode(optional, OptionalGraphInputNode(s"$callNamePrefix$n", womType))
+          withGraphInputNode(optional, OptionalGraphInputNode(s"$unqualifiedCallNamePrefix$n", womType, s"$fullyQualifiedCallNamePrefix$n"))
       }
     }
 

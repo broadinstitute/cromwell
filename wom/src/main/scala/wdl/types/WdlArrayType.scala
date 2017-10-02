@@ -69,10 +69,10 @@ case class WdlNonEmptyArrayType(memberType: WdlType) extends WdlArrayType {
 }
 
 object WdlArrayType {
-
   def apply(memberType: WdlType, guaranteedNonEmpty: Boolean = false): WdlArrayType =
     if (guaranteedNonEmpty) WdlNonEmptyArrayType(memberType)
     else WdlMaybeEmptyArrayType(memberType)
+
   def unapply(wdlType: WdlType): Option[WdlType] = {
     wdlType match {
       case arrayType: WdlArrayType => Option(arrayType.memberType)

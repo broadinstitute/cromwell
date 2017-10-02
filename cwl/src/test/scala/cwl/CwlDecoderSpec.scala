@@ -1,8 +1,8 @@
 package cwl
 
-import org.scalacheck.Properties
+import cwl.CwlDecoder._
 import org.scalacheck.Prop.BooleanOperators
-import CwlDecoder._
+import org.scalacheck.Properties
 
 class CwlDecoderSpec extends Properties("cwl decoder") {
 

@@ -15,7 +15,7 @@ trait GlobFunctions extends IoFunctionSet {
   def callContext: CallContext
 
   def findGlobOutputs(call: TaskCallNode, jobDescriptor: BackendJobDescriptor): ErrorOr[List[WdlGlobFile]] =
-    call.callable.outputs.toList.flatTraverse[ErrorOr, WdlGlobFile] {
+    call.callable.outputs.flatTraverse[ErrorOr, WdlGlobFile] {
       _.expression.evaluateFiles(jobDescriptor.fullyQualifiedInputs, this, WdlAnyType) map {
         _.toList collect { case glob: WdlGlobFile => glob }
       }

@@ -444,7 +444,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
         wf <- fromEither[IO](cwl.select[Workflow].toRight(NonEmptyList.one(s"expected a workflow but got a $cwl")))
         executable <-  fromEither[IO](wf.womExecutable(Option(source.inputsJson)))
         graph <- fromEither[IO](executable.graph.toEither)
-      } yield ValidatedWomNamespace(executable, graph, Map.empty)
+        validatedWomNamespace <- fromEither[IO](validateWomNamespace(executable))
+      } yield validatedWomNamespace
     } finally {
       cwlFile.delete(swallowIOExceptions = true)
     }
@@ -490,13 +491,13 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     (for {
       wdlNamespace <- wdlNamespaceValidation.toEither
       womExecutable <- wdlNamespace.womExecutable(Option(source.inputsJson))
-      validatedWomNamespace <- validateWomNamespace(womExecutable, source.inputsJson)
+      validatedWomNamespace <- validateWomNamespace(womExecutable)
       _ <- checkTypes(wdlNamespace, validatedWomNamespace.wdlValueInputs)
       _ = pushWfInputsToMetadataService(validatedWomNamespace.wdlValueInputs)
     } yield validatedWomNamespace).toValidated
   }
 
-  private def validateWomNamespace(womExecutable: Executable, workflowInputContent: WorkflowJson): Checked[ValidatedWomNamespace] = for {
+  private def validateWomNamespace(womExecutable: Executable): Checked[ValidatedWomNamespace] = for {
     graph <- womExecutable.graph.toEither
     validatedWomNamespace = ValidatedWomNamespace(womExecutable, graph, womExecutable.resolvedExecutableInputs)
     _ <- validateWdlFiles(validatedWomNamespace.wdlValueInputs)

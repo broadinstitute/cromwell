@@ -1,6 +1,6 @@
 package cromwell.cloudsupport.gcp.auth
 
-import java.io.FileNotFoundException
+import java.io.{ByteArrayInputStream, FileNotFoundException}
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes
@@ -34,6 +34,8 @@ object GoogleAuthMode {
   }
 
   val RefreshTokenOptionKey = "refresh_token"
+  val UserServiceAccountKey = "user_service_account_json"
+
   val GcsScopes = List(
     StorageScopes.DEVSTORAGE_FULL_CONTROL,
     StorageScopes.DEVSTORAGE_READ_WRITE
@@ -49,7 +51,7 @@ object GoogleAuthMode {
       Future.successful(NoCredentials.getInstance())
     }
   }
-  
+
   def isFatal(ex: Throwable) = {
     // We wrap the actual exception in a RuntimeException so get the cause
     ex.getCause match {
@@ -117,6 +119,22 @@ final case class ServiceAccountMode(override val name: String,
     Future.successful(_credential)
   }
 }
+
+final case class UserServiceAccountMode(override val name: String, scopes: java.util.List[String]) extends GoogleAuthMode {
+  import GoogleAuthMode.UserServiceAccountKey
+
+  private def extractServiceAccount(options: WorkflowOptions): String = {
+    options.get(UserServiceAccountKey) getOrElse {
+      throw new IllegalArgumentException(s"Missing parameters in workflow options: $UserServiceAccountKey")
+    }
+  }
+  override def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = {
+    Future {
+      ServiceAccountCredentials.fromStream(new ByteArrayInputStream(extractServiceAccount(options).getBytes("UTF-8"))).createScoped(scopes)
+    }
+  }
+}
+
 
 final case class UserMode(override val name: String,
                           user: String,

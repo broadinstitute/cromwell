@@ -94,6 +94,10 @@ object GoogleConfiguration {
 
       def applicationDefaultAuth(name: String): ErrorOr[GoogleAuthMode] = ApplicationDefaultMode(name).validNel
 
+      def userServiceAccountAuth(name: String): ErrorOr[GoogleAuthMode] = validate {
+        UserServiceAccountMode(name, GoogleScopes)
+      }
+
       val name = authConfig.getString("name")
       val scheme = authConfig.getString("scheme")
       scheme match {
@@ -101,6 +105,7 @@ object GoogleConfiguration {
         case "user_account" => userAccountAuth(authConfig, name)
         case "refresh_token" => refreshTokenAuth(authConfig, name)
         case "application_default" => applicationDefaultAuth(name)
+        case "user_service_account" => userServiceAccountAuth(name)
         case wut => s"Unsupported authentication scheme: $wut".invalidNel
       }
     }

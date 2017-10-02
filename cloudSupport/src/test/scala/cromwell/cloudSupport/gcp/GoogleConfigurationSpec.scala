@@ -4,7 +4,7 @@ import better.files.File
 import com.typesafe.config.{ConfigException, ConfigFactory}
 import cromwell.cloudsupport.gcp.GoogleConfiguration.GoogleConfigurationException
 import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.{JsonFileFormat, PemFileFormat}
-import cromwell.cloudsupport.gcp.auth.{ApplicationDefaultMode, RefreshTokenMode, ServiceAccountMode, UserMode}
+import cromwell.cloudsupport.gcp.auth._
 import org.scalatest.{FlatSpec, Matchers}
 
 
@@ -49,6 +49,10 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |      name = "name-json-service"
         |      scheme = "service_account"
         |      json-file = "${jsonMockFile.pathAsString}"
+        |    },
+        |    {
+        |      name = "name-user-service-account"
+        |      scheme = "user_service_account"
         |    }
         |  ]
         |}
@@ -69,6 +73,9 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
     refreshToken.name shouldBe "name-refresh"
     refreshToken.clientSecret shouldBe "secret_secret"
     refreshToken.clientId shouldBe "secret_id"
+
+    val userServiceAccount = (auths collectFirst { case a: UserServiceAccountMode => a }).get
+    userServiceAccount.name shouldBe "name-user-service-account"
 
     val user = (auths collectFirst { case a: UserMode => a }).get
     user.name shouldBe "name-user"

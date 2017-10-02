@@ -184,8 +184,7 @@ object Settings {
   ) ++ sharedSettings
 
   val servicesSettings = List(
-    name := "cromwell-services",
-    libraryDependencies ++= serviceDependencies
+    name := "cromwell-services"
   ) ++ sharedSettings
 
   val gcsFileSystemSettings = List(
@@ -252,7 +251,7 @@ object Settings {
 
   val cloudSupportSettings = List(
     name := "cromwell-cloud-support",
-    libraryDependencies ++= gcsFileSystemDependencies
+    libraryDependencies ++= cloudSupportDependencies
   ) ++ sharedSettings
 
   val rootSettings = List(

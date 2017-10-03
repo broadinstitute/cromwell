@@ -21,8 +21,10 @@ object TestActorSystem {
       f(system)
     } finally {
       system.terminate()
-      if (awaitTermination)
+      if (awaitTermination) {
         Await.ready(system.whenTerminated, Duration.Inf)
+        ()
+      }
     }
   }
 }

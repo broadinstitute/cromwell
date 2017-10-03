@@ -23,7 +23,7 @@ class TestLogger(slf4jLogger: Slf4jLogger) {
   private val logger = slf4jLogger.asInstanceOf[Logger]
 
   private val streamAppender = new OutputStreamAppender[ILoggingEvent] {
-    override def start() {
+    override def start(): Unit = {
       logByteStream.reset()
       setOutputStream(logByteStream)
       super.start()
@@ -44,7 +44,7 @@ class TestLogger(slf4jLogger: Slf4jLogger) {
 
   def messages = logByteStream.toString
 
-  def cleanup() {
+  def cleanup(): Unit = {
     logger.detachAppender(streamAppender)
     logger.setLevel(originalLevel)
   }

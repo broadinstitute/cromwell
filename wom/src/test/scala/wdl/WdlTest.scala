@@ -1,10 +1,12 @@
 package wdl
 
 import better.files.File
+import better.files.File.currentWorkingDirectory
 import org.scalatest.{Matchers, WordSpecLike}
 
 trait WdlTest extends Matchers with WordSpecLike {
   def resolver(root: File)(relPath: String): String = (root / relPath).contentAsString
+  def loadWdl(path: String) = loadWdlFile(currentWorkingDirectory/"wom"/"src"/"test"/"resources"/path)
   def loadWdlFile(wdlFile: File) =
     WdlNamespaceWithWorkflow.load(wdlFile.contentAsString, Seq(resolver(wdlFile / "..") _)).get
   def getTask(ns: WdlNamespace, name: String): WdlTask = ns.tasks.find(_.unqualifiedName == name).get

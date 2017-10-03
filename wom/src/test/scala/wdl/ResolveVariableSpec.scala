@@ -1,14 +1,12 @@
 package wdl
 
-import better.files._
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 
 class ResolveVariableSpec extends WdlTest {
-  val ifStatementWdl = "src/test/cases/if_statement/test.wdl"
 
-  ifStatementWdl should {
-    val namespace = loadWdlFile(File(ifStatementWdl))
+  "If statement WDL" should {
+    val namespace = loadWdl("if_statement/test.wdl")
 
     val lookupVarTable = Table(
       ("node", "variable", "resolution"),

@@ -1,6 +1,5 @@
 package wdl
 
-import better.files._
 import wdl.expression.NoFunctions
 import wdl.types._
 import wdl.values._
@@ -8,11 +7,11 @@ import wdl.values._
 import scala.util.{Failure, Success}
 
 class TaskSpec extends WdlTest {
-  val threeStepWdl = "src/test/cases/three_step/test.wdl"
-  val commandParameterWdl = "src/test/cases/command_parameters/test.wdl"
+  val threeStepWdl = "three_step/test.wdl"
+  val commandParameterWdl = "command_parameters/test.wdl"
 
   threeStepWdl should {
-    val namespace = loadWdlFile(File(threeStepWdl))
+    val namespace = loadWdl(threeStepWdl)
     val wcTask = getTask(namespace, "wc")
     val cgrepTask = getTask(namespace, "cgrep")
     val psTask = getTask(namespace, "ps")
@@ -49,7 +48,7 @@ class TaskSpec extends WdlTest {
   }
 
   commandParameterWdl should {
-    val namespace = loadWdlFile(File(commandParameterWdl))
+    val namespace = loadWdl(commandParameterWdl)
     val paramTestTask = getTask(namespace, "param_test")
 
     s"instantiate command (0)" in {

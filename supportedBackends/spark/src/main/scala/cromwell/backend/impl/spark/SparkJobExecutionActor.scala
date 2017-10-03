@@ -9,11 +9,9 @@ import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
 import cromwell.backend.wdl.Command
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
-import cromwell.core.CromwellGraphNode._
 import cromwell.core.path.JavaWriterImplicits._
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}
-import wdl4s.parser.MemoryUnit
 
 import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger
@@ -70,7 +68,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     * Restart or resume a previously-started job.
     */
   override def recover: Future[BackendJobExecutionResponse] = {
-    log.warning("{} Spark backend currently doesn't support recovering jobs. Starting {} again.", tag, jobDescriptor.key.call.fullyQualifiedName)
+    log.warning("{} Spark backend currently doesn't support recovering jobs. Starting {} again.", tag, jobDescriptor.key.call.name)
     taskLauncher
     executionResponse.future
   }
@@ -160,17 +158,18 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
       log.debug("{} Creating bash script for executing command: {}", tag, command)
       // TODO: we should use shapeless Heterogeneous list here not good to have generic map
       val attributes: Map[String, Any] = Map(
-        SparkCommands.AppMainClass -> runtimeAttributes.appMainClass,
+        SparkCommands.AppMainClass -> runtimeAttributes.appMainClass.getOrElse(""),
         SparkCommands.Master -> sparkMaster,
         SparkCommands.ExecutorCores -> runtimeAttributes.executorCores,
-        SparkCommands.ExecutorMemory -> runtimeAttributes.executorMemory.to(MemoryUnit.GB).amount.toLong,
+        SparkCommands.ExecutorMemory -> runtimeAttributes.executorMemory.toString.replaceAll("\\s","").toLowerCase,
+        SparkCommands.AdditionalArgs -> runtimeAttributes.additionalArgs.getOrElse(""),
         SparkCommands.SparkAppWithArgs -> command.get,
         SparkCommands.DeployMode -> sparkDeployMode
       )
 
       val sparkSubmitCmd = cmds.sparkSubmitCommand(attributes)
       val sparkCommand = if (isClusterMode) {
-        sparkSubmitCmd.concat(" %s %s".format("&>", SubmitJobJson.format(sparkDeployMode)))
+        sparkSubmitCmd.concat(" %s %s 2>&1".format(">", SubmitJobJson.format(sparkDeployMode)))
       } else {
         sparkSubmitCmd
       }

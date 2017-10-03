@@ -14,6 +14,7 @@ object SparkCommands {
   val ExecutorMemory = "executor-memory"
   val AppMainClass = "class"
   val Master = "master"
+  val AdditionalArgs = "additionalArgs"
   val DeployMode = "deploy-mode"
   val SparkAppWithArgs = "spark_app_with_args"
   val MemoryUnit = "G" //Accepts only GB
@@ -59,13 +60,13 @@ echo $$? > rc
       }
     }
 
-    val mapWithoutSparkAppKey = attributes - SparkAppWithArgs
+    val mapWithoutSparkAppKey = attributes - SparkAppWithArgs - AdditionalArgs
 
     val partialSparkCmd = mapWithoutSparkAppKey.foldLeft(s"$sparkSubmit "){
       (acc, pair) => s"$acc $Separator${pair._1} ${mapWithoutSparkAppKey(pair._1)} "
     }
 
-    val cmdWithSparkApp = s"$partialSparkCmd ${attributes(SparkAppWithArgs)}"
+    val cmdWithSparkApp = s"$partialSparkCmd ${attributes(AdditionalArgs)} ${attributes(SparkAppWithArgs)}"
 
     logger.debug(s"spark command is : $cmdWithSparkApp")
     cmdWithSparkApp

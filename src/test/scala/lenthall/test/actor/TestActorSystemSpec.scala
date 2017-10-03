@@ -17,6 +17,7 @@ class TestActorSystemSpec extends FlatSpec with Matchers with Assertions {
       system.name should be("test-system")
       lentSystem = system
       assert(!system.whenTerminated.isCompleted)
+      ()
     }
     // Should always be completed
     assert(lentSystem.whenTerminated.isCompleted)
@@ -30,6 +31,7 @@ class TestActorSystemSpec extends FlatSpec with Matchers with Assertions {
       timeout = 1.second.dilated(system)
       lentSystem = system
       assert(!system.whenTerminated.isCompleted)
+      ()
     }
     // As we told the block not to wait, we're going to wait a bit for this termination
     Await.ready(lentSystem.whenTerminated, timeout)

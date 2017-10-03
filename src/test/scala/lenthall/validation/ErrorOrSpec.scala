@@ -226,7 +226,7 @@ class ErrorOrSpec extends FlatSpec with Matchers {
          |}
          |
          |""".stripMargin)
-
+    result
   }
 
 }

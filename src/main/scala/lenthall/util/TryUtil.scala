@@ -10,7 +10,10 @@ object TryUtil {
   private def stringifyFailure[T](failure: Try[T]): String = {
     val stringWriter = new StringWriter()
     val writer = new PrintWriter(stringWriter)
-    failure recover { case e => e.printStackTrace(writer) }
+    failure match {
+      case Failure(e) => e.printStackTrace(writer)
+      case Success(_) =>
+    }
     writer.flush()
     writer.close()
     stringWriter.toString

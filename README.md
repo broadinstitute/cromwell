@@ -1590,7 +1590,7 @@ task sparkjob_with_yarn_cluster {
 
 ### Spark Environment
 
-The Spark backend assumes Spark is already installed, and it constructs the spark submit command with the `SPARK_HOME` environment variable if set. Otherwise backend creates command `spark-submit` without a fully qualified path to `spark-submit`.Also, it is an important to set environment variable `HOSTNAME` to master machine ip or hostname, that is accessbile by spark backend.That can be done by setting either in `~/.bashrc or profile like "export HOSTNAME=<machine ip>" `
+The Spark backend assumes Spark is already installed, and it constructs the spark submit command with the `SPARK_HOME` environment variable if set. Otherwise backend creates command `spark-submit` without a fully qualified path to `spark-submit`.Also, it is an important to set environment variable `HOSTNAME` to master machine ip or hostname, that is accessible by spark backend. That can be done by setting either in `~/.bashrc or profile like "export HOSTNAME=<machine ip>" `
 
 Supported File Systems as follows: 
 

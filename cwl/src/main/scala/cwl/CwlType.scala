@@ -4,6 +4,7 @@ import cats.syntax.validated._
 import eu.timepit.refined._
 import lenthall.validation.ErrorOr.ErrorOr
 import shapeless.{:+:, CNil}
+import shapeless.syntax.singleton._
 import wdl.values.{WdlSingleFile, WdlValue}
 
 object CwlType extends Enumeration {
@@ -20,7 +21,7 @@ object CwlType extends Enumeration {
   val Directory = Value("Directory")
 }
 
-case class File(
+case class File private(
   `class`: W.`"File"`.T,
   location: Option[String], //TODO refine w/ regex  of IRI
   path: Option[String],
@@ -41,6 +42,35 @@ case class File(
       case None => "Cannot convert CWL File to WdlValue without either a location or a path".invalidNel
     }
   }
+}
+
+object File {
+  def apply(
+             location: Option[String] = None, //TODO refine w/ regex  of IRI
+             path: Option[String] = None,
+             basename: Option[String] = None,
+             dirname: Option[String] = None,
+             nameroot: Option[String] = None,
+             nameext: Option[String] = None,
+             checksum: Option[String] = None,
+             size: Option[Long] = None,
+             secondaryFiles: Option[Array[File :+: Directory :+: CNil]] = None,
+             format: Option[String] = None,
+             contents: Option[String] = None): File =
+    new cwl.File(
+       "File".narrow,
+       location,
+       path,
+       basename,
+       dirname,
+       nameroot,
+       nameext,
+       checksum,
+       size,
+      secondaryFiles,
+      format,
+      contents
+    )
 }
 
 case class Directory(

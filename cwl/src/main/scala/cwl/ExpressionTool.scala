@@ -8,8 +8,7 @@ case class ExpressionTool(
                            outputs: Array[ExpressionToolOutputParameter] = Array.empty,
                            `class`: String,
                            expression:
-                             ECMAScript :+:
-                             ECMAFunction :+:
+                             Expression :+:
                              String :+:
                              CNil,
                            id: Option[String] = None,
@@ -23,19 +22,16 @@ case class ExpressionToolOutputParameter(
                                           id: String,
                                           label: Option[String] = None,
                                           secondaryFiles:
-                                            Option[ECMAScript :+:
-                                            ECMAFunction :+:
+                                            Option[Expression :+:
                                             String :+:
                                             Array[
-                                              ECMAScript :+:
-                                              ECMAFunction :+:
+                                              Expression :+:
                                               String :+:
                                               CNil] :+:
                                             CNil] = None,
                                           format:
                                             Option[
-                                              ECMAScript :+:
-                                              ECMAFunction :+:
+                                              Expression :+:
                                               String :+:
                                               Array[String] :+:
                                               CNil] = None,

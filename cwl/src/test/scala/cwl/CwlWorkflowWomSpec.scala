@@ -12,6 +12,7 @@ import wom.callable.{Callable, TaskDefinition, WorkflowDefinition}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import eu.timepit.refined._
+import ExpressionEvaluator._
 
 class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
   import TestSetup._
@@ -107,28 +108,14 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
   private val stringOrExpressionTests = Table(
     ("index", "result"),
     (0, Coproduct[StringOrExpression]("grep")),
-    (1, Coproduct[StringOrExpression](refineMV[MatchesECMAScript]("$(inputs.pattern)"))),
-    (2, Coproduct[StringOrExpression](refineMV[MatchesECMAFunction]("$" + "{return inputs.file}"))),
+    (1, Coproduct[StringOrExpression](Coproduct[Expression](refineMV[MatchesECMAScript]("$(inputs.pattern)")))),
+    (2, Coproduct[StringOrExpression](Coproduct[Expression](refineMV[MatchesECMAFunction]("$" + "{return inputs.file}")))),
     (3, Coproduct[StringOrExpression]("|")),
     (4, Coproduct[StringOrExpression]("wc")),
     (5, Coproduct[StringOrExpression]("-l"))
   )
 
   private def getTestName(stringOrExpression: StringOrExpression): String = {
-    object StringOrExpressionToTestName extends Poly1 {
-      implicit def caseECMAScript: Case.Aux[ECMAScript, String] = {
-        at[ECMAScript] { script => s"expression ${script.value}" }
-      }
-
-      implicit def caseECMAFunction: Case.Aux[ECMAFunction, String] = {
-        at[ECMAFunction] { fun => s"expression ${fun.value}" }
-      }
-
-      implicit def caseString: Case.Aux[String, String] = {
-        at[String] { string => s"string $string" }
-      }
-    }
-
     stringOrExpression.fold(StringOrExpressionToTestName)
   }
 
@@ -209,4 +196,21 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
     val cgrepPatternInputDef = cgrep.callable.inputs.find(_.name == "pattern").get
     cgrep.inputDefinitionMappings(cgrepPatternInputDef).select[OutputPort].get should be theSameInstanceAs cgrepPatternExpression.singleExpressionOutputPort
   }
+
 }
+object ExpressionTestValue extends Poly1 {
+  implicit def script = at[ECMAScriptExpression] {_.value}
+  implicit def function = at[ECMAScriptFunction] {_.value}
+}
+
+object StringOrExpressionToTestName extends Poly1 {
+  implicit def caseECMAScript: Case.Aux[Expression, String] = {
+    at[Expression] { _.fold(ExpressionTestValue) }
+  }
+
+  implicit def caseString: Case.Aux[String, String] = {
+    at[String] { string => s"string $string" }
+  }
+
+}
+

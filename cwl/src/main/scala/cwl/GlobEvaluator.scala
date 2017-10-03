@@ -4,6 +4,7 @@ import scala.Function._
 import shapeless._
 import wdl.types.{WdlArrayType, WdlStringType}
 import wdl.values.{WdlArray, WdlString}
+import wdl4s.cwl.EvaluateExpression
 import wom.expression.IoFunctionSet
 
 /*
@@ -18,6 +19,8 @@ http://www.commonwl.org/v1.0/CommandLineTool.html#CommandOutputBinding
 object GlobEvaluator {
 
   private type GlobHandler = ParameterContext => Seq[String]
+
+  type Glob[A] = String
 
   def globPaths(glob: CommandOutputBinding.Glob,
                 parameterContext: ParameterContext,
@@ -40,30 +43,14 @@ object GlobEvaluator {
   }
 
   object GlobToPaths extends Poly1 {
-    implicit def caseECMAScript: Case.Aux[ECMAScript, GlobHandler] = {
-      at[ECMAScript] { ecmaScript =>
+    implicit def caseECMAScript: Case.Aux[Expression, GlobHandler] = {
+      at[Expression] { ecmaScript =>
         (parameterContext: ParameterContext) => {
-          val result = ExpressionEvaluator.evalExpression(ecmaScript.value, parameterContext)
-          result match {
+          ecmaScript.fold(EvaluateExpression).apply(parameterContext) match {
             case WdlArray(_, values) if values.isEmpty => Vector.empty
             case WdlString(value) => Vector(value)
             case WdlArray(WdlArrayType(WdlStringType), values) => values.map(_.valueString)
-            case _ =>
-              throw new RuntimeException(s"TODO: WOM: Placeholder exception: unexpected expression result: $result")
-          }
-        }
-      }
-    }
-
-    implicit def caseECMAFunction: Case.Aux[ECMAFunction, GlobHandler] = {
-      at[ECMAFunction] { ecmaFunction =>
-        (parameterContext: ParameterContext) => {
-          val result = ExpressionEvaluator.evalExpression(ecmaFunction.value, parameterContext)
-          result match {
-            case WdlArray(_, values) if values.isEmpty => Vector.empty
-            case WdlString(value) => Vector(value)
-            case WdlArray(WdlArrayType(WdlStringType), values) => values.map(_.valueString)
-            case _ =>
+            case result =>
               throw new RuntimeException(s"TODO: WOM: Placeholder exception: unexpected expression result: $result")
           }
         }

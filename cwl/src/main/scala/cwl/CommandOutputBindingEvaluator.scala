@@ -3,6 +3,7 @@ package cwl
 import scala.Function._
 import shapeless._
 import wdl.values._
+import wdl4s.cwl.EvaluateExpression
 import wom.expression.IoFunctionSet
 
 /*
@@ -16,15 +17,10 @@ http://www.commonwl.org/v1.0/CommandLineTool.html#CommandOutputBinding
  */
 object CommandOutputBindingEvaluator {
 
-  private type OutputEvalHandler = ParameterContext => WdlValue
 
   def commandOutputBindingToWdlValue(commandOutputBinding: CommandOutputBinding,
                                      parameterContext: ParameterContext,
                                      ioFunctionSet: IoFunctionSet): WdlValue = {
-    /*
-    TODO: WOM: If the file cwl.outputs.json is present in the output, outputBinding is ignored.
-    - http://www.commonwl.org/v1.0/CommandLineTool.html#File
-     */
 
     val paths: Seq[String] = commandOutputBinding.glob map { globValue =>
       GlobEvaluator.globPaths(globValue, parameterContext, ioFunctionSet)
@@ -47,23 +43,22 @@ object CommandOutputBindingEvaluator {
     }
   }
 
-  object OutputEvalToWdlValue extends Poly1 {
-    implicit def caseECMAScript: Case.Aux[ECMAScript, OutputEvalHandler] = {
-      at[ECMAScript] { ecmaScript =>
-        (parameterContext: ParameterContext) =>
-          ExpressionEvaluator.evalExpression(ecmaScript.value, parameterContext)
-      }
-    }
+}
 
-    implicit def caseECMAFunction: Case.Aux[ECMAFunction, OutputEvalHandler] = {
-      at[ECMAFunction] { ecmaFunction =>
-        (parameterContext: ParameterContext) =>
-          ExpressionEvaluator.evalExpression(ecmaFunction.value, parameterContext)
-      }
-    }
+object OutputEvalToWdlValue extends Poly1 {
 
-    implicit def caseString: Case.Aux[String, OutputEvalHandler] = {
-      at[String] { string => const(WdlString(string)) }
+  private type OutputEvalHandler = ParameterContext => WdlValue
+
+  implicit def caseECMAScript: Case.Aux[Expression, OutputEvalHandler] = {
+    at[Expression] { ecmaScript =>
+      (parameterContext: ParameterContext) =>
+        ecmaScript.fold(EvaluateExpression).apply(parameterContext)
     }
   }
+
+  implicit def caseString: Case.Aux[String, OutputEvalHandler] = {
+    at[String] { string => const(WdlString(string)) }
+  }
 }
+
+

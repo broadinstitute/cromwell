@@ -1,6 +1,5 @@
 package wdl
 
-import better.files._
 import wdl.command.ParameterCommandPart
 import wdl.expression.NoFunctions
 import wdl4s.parser.WdlParser.SyntaxError
@@ -12,8 +11,8 @@ import scala.util.{Failure, Success}
 class ParameterWdlCommandPartSpec extends WdlTest {
   val commandParameterWdl = "src/test/cases/command_parameters/test.wdl"
 
-  commandParameterWdl should {
-    val namespace = loadWdlFile(File(commandParameterWdl))
+  "Command parameter WDL" should {
+    val namespace = loadWdl("command_parameters/test.wdl")
     val task = namespace.tasks.find(_.name == "param_test") getOrElse {
       fail("task 'param_test' not found")
     }

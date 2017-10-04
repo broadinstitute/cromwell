@@ -17,30 +17,31 @@ object Settings {
     "Broad Artifactory Snapshots" at "https://broadinstitute.jfrog.io/broadinstitute/libs-snapshot/"
   )
 
-  /*
-    The reason why -Xmax-classfile-name is set is because this will fail
-    to build on Docker otherwise.  The reason why it's 200 is because it
-    fails if the value is too close to 256 (even 254 fails).  For more info:
+  /* The reason why -Xmax-classfile-name is set is because this will fail
+     to build on Docker otherwise.  The reason why it's 200 is because it
+     fails if the value is too close to 256 (even 254 fails).  For more info:
 
-    https://github.com/sbt/sbt-assembly/issues/69
-    https://github.com/scala/pickling/issues/10
+     https://github.com/sbt/sbt-assembly/issues/69
+     https://github.com/scala/pickling/issues/10
 
-    Other fancy flags from https://tpolecat.github.io/2017/04/25/scalac-flags.html.
+     Other fancy flags from https://tpolecat.github.io/2017/04/25/scalac-flags.html.
 
-    The following isn't used (yet), and in general is an exercise in pain for 2.12 with Cromwell.
-    It'd certainly be nice to have, but params causes a world of hurt. Interested parties are encouraged
-    to take a stab at it.
+     Per JG's work in Cromwell, the following can't be turned on without causing piles of errors in wdl4s.  Many of the
+     constructs that are flagged look suspicious and probably warrant further scrutiny, but no time for that now.
 
-    "-Ywarn-unused:params"              // Warn if a value parameter is unused.
+     "-Ywarn-unused:params"              // Warn if a value parameter is unused.
   */
-  val compilerSettings = List(
-    "-explaintypes",
-    "-feature",
-    "-Xmax-classfile-name", "200",
-    "-target:jvm-1.8",
-    "-encoding", "UTF-8",
+  val baseSettings = List(
     "-unchecked",
     "-deprecation",
+    "-feature",
+    "-explaintypes",
+    "-Xmax-classfile-name", "200",
+    "-target:jvm-1.8",
+    "-encoding", "UTF-8"
+  )
+
+  val warningSettings = List(
     "-Xfuture",
     "-Xlint:adapted-args",
     "-Xlint:by-name-right-associative",
@@ -75,10 +76,9 @@ object Settings {
     "-Xfatal-warnings"       // makes those warnings fatal.
   )
 
-  val docSettings = List(
-    // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874
-    "-no-link-warnings"
-  )
+  addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+
+  testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDSI", "-h", "target/test-reports")
 
   lazy val assemblySettings = Seq(
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar",
@@ -86,6 +86,36 @@ object Settings {
     test in assembly := {},
     logLevel in assembly := Level.Info,
     assemblyMergeStrategy in assembly := customMergeStrategy
+  )
+
+  val ScalaVersion = "2.12.3"
+  val commonSettings = ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
+    dockerSettings ++ cromwellVersionWithGit ++ publishingSettings ++ List(
+    organization := "org.broadinstitute",
+    scalaVersion := ScalaVersion,
+    resolvers ++= commonResolvers,
+    parallelExecution := false,
+    scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 12)) =>
+        // The default scalacOptions includes console-hostile options.  These options are overridden specifically below
+        // for the `console` target.
+        baseSettings ++ warningSettings ++ consoleHostileSettings
+      case Some((2, 11)) =>
+        // Scala 2.11 takes a simplified set of options
+        baseSettings
+      case wut => throw new NotImplementedError(s"Found unsupported Scala version $wut. wdl4s does not support versions of Scala other than 2.11 or 2.12.")
+    }),
+    // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874
+    scalacOptions in(Compile, doc) := (baseSettings ++ List("-no-link-warnings")),
+    // No console-hostile options, otherwise the console is effectively unusable.
+    // https://github.com/sbt/sbt/issues/1815
+    scalacOptions in(Compile, console) := (baseSettings ++ warningSettings),
+    crossScalaVersions := List("2.11.11", "2.12.3")
+  )
+
+  val docSettings = List(
+    // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874
+    "-no-link-warnings"
   )
 
   lazy val dockerSettings = Seq(
@@ -123,17 +153,25 @@ object Settings {
     )
   )
 
-  val ScalaVersion = "2.12.3"
-  val commonSettings = ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
-    dockerSettings ++ cromwellVersionWithGit ++ publishingSettings ++ List(
-    organization := "org.broadinstitute",
-    scalaVersion := ScalaVersion,
-    resolvers ++= commonResolvers,
-    scalacOptions ++= (compilerSettings ++ consoleHostileSettings),
-    scalacOptions in (Compile, doc) ++= docSettings,
-    scalacOptions in (Compile, console) := compilerSettings,
-    parallelExecution := false
-  )
+  val lenthallSettings = List(
+    name := "cromwell-lenthall",
+    libraryDependencies ++= lenthallDependencies
+  ) ++ commonSettings
+
+  val womSettings = List(
+    name := "cromwell-wom",
+    libraryDependencies ++= womDependencies
+  ) ++ commonSettings
+
+  val wdlSettings = List(
+    name := "cromwell-wdl",
+    libraryDependencies ++= wdlDependencies
+  ) ++ commonSettings
+
+  val cwlSettings = List(
+    name := "cromwell-cwl",
+    libraryDependencies ++= cwlDependencies
+  ) ++ commonSettings
 
   val coreSettings = List(
     name := "cromwell-core",
@@ -164,11 +202,9 @@ object Settings {
     libraryDependencies ++= cromwellApiClientDependencies,
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,
-    scalacOptions ++= (compilerSettings ++ consoleHostileSettings),
     scalacOptions in (Compile, doc) ++= docSettings,
-    scalacOptions in (Compile, console) := compilerSettings,
     resolvers ++= commonResolvers
-  ) ++ ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
+  ) ++ commonSettings ++ ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
     cromwellVersionWithGit ++ publishingSettings
 
   val dockerHashingSettings = List(

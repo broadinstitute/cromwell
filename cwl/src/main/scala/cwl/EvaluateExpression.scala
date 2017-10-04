@@ -1,7 +1,6 @@
-package wdl4s.cwl
+package cwl
 
 import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
-import cwl.{ExpressionEvaluator, ParameterContext}
 import shapeless.Poly1
 
 object EvaluateExpression extends Poly1 {

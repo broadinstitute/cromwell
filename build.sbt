@@ -1,8 +1,29 @@
 import Settings._
 import Testing._
 
+lazy val lenthall = (project in file("lenthall"))
+  .settings(lenthallSettings:_*)
+  .withTestSettings
+
+lazy val wom = (project in file("wom"))
+  .settings(womSettings:_*)
+  .dependsOn(lenthall)
+  .withTestSettings
+
+lazy val wdl = (project in file("wdl"))
+  .settings(wdlSettings:_*)
+  .dependsOn(wom)
+  .withTestSettings
+
+lazy val cwl = (project in file("cwl"))
+  .settings(cwlSettings:_*)
+  .dependsOn(wom)
+  .dependsOn(wom % "test->test")
+  .withTestSettings
+
 lazy val core = (project in file("core"))
   .settings(coreSettings:_*)
+  .dependsOn(wom)
   .withTestSettings
 
 lazy val gcsFileSystem = (project in file("filesystems/gcs"))
@@ -89,6 +110,8 @@ lazy val engine = (project in file("engine"))
   .dependsOn(services)
   .dependsOn(backend)
   .dependsOn(gcsFileSystem)
+  .dependsOn(wdl)
+  .dependsOn(cwl)
   .dependsOn(core % "test->test")
   .dependsOn(backend % "test->test")
   // In the future we may have a dedicated test backend like the `TestLocalAsyncJobExecutionActor`.
@@ -107,6 +130,10 @@ lazy val root = (project in file("."))
   .enablePlugins(DockerPlugin)
   .withTestSettings
   // Full list of all sub-projects to build with the root (ex: include in `sbt test`)
+  .aggregate(lenthall)
+  .aggregate(wom)
+  .aggregate(wdl)
+  .aggregate(cwl)
   .aggregate(core)
   .aggregate(dockerHashing)
   .aggregate(gcsFileSystem)
@@ -125,5 +152,7 @@ lazy val root = (project in file("."))
   .dependsOn(jesBackend)
   .dependsOn(tesBackend)
   .dependsOn(sparkBackend)
+  .dependsOn(wdl)
+  .dependsOn(cwl)
   // Dependencies for tests
   .dependsOn(engine % "test->test")

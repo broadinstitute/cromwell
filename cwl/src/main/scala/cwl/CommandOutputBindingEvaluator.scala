@@ -3,7 +3,6 @@ package cwl
 import scala.Function._
 import shapeless._
 import wdl.values._
-import wdl4s.cwl.EvaluateExpression
 import wom.expression.IoFunctionSet
 
 /*

@@ -72,13 +72,13 @@ case class WorkflowStep(
 
       val callNodeBuilder = new CallNode.CallNodeBuilder()
 
-      /**
-        * Method used to fold over the list of inputs declared by this step.
-        * Note that because we work on saladed CWL, all ids are fully qualified at this point (e.g: file:///path/to/file/r.cwl#cgrep/pattern
-        * The goal of this method is two fold (pardon the pun):
-        *   1) link each input of the step to an output port (which at this point can be from a different step or from a workflow input)
-        *   2) accumulate the nodes created along the way to achieve 1)
-        */
+      /*
+       * Method used to fold over the list of inputs declared by this step.
+       * Note that because we work on saladed CWL, all ids are fully qualified at this point (e.g: file:///path/to/file/r.cwl#cgrep/pattern
+       * The goal of this method is two fold (pardon the pun):
+       *   1) link each input of the step to an output port (which at this point can be from a different step or from a workflow input)
+       *   2) accumulate the nodes created along the way to achieve 1)
+       */
       def foldStepInput(currentFold: Checked[WorkflowStepInputFold], workflowStepInput: WorkflowStepInput): Checked[WorkflowStepInputFold] = currentFold flatMap {
         fold =>
           // The source from which we expect to satisfy this input (output from other step or workflow input)
@@ -106,8 +106,8 @@ case class WorkflowStep(
           }
 
           /*
-            * Build a wom node for the given step and return the newly created nodes
-            * This is useful when we've determined that the input belongs to an upstream step that we haven't covered yet
+           * Build a wom node for the given step and return the newly created nodes
+           * This is useful when we've determined that the input belongs to an upstream step that we haven't covered yet
            */
           def buildUpstreamNodes(upstreamStepId: String): Checked[Set[GraphNode]] =
           // Find the step corresponding to this upstreamStepId in the set of all the steps of this workflow
@@ -148,10 +148,10 @@ case class WorkflowStep(
           }
 
           /*
-            * Parse the inputSource (what this input is pointing to)
-            * 2 cases:
-            *   - points to a workflow input
-            *   - points to an upstream step
+           * Parse the inputSource (what this input is pointing to)
+           * 2 cases:
+           *   - points to a workflow input
+           *   - points to an upstream step
            */
           FullyQualifiedName(inputSource) match {
             // The source points to a workflow input, which means it should be in the workflowInputs map
@@ -162,7 +162,7 @@ case class WorkflowStep(
       }
 
       /*
-        * Folds over input definitions and build an InputDefinitionFold
+       * Folds over input definitions and build an InputDefinitionFold
        */
       def foldInputDefinition(expressionNodes: Map[String, ExpressionNode])
                              (inputDefinition: InputDefinition): ErrorOr[InputDefinitionFold] = {

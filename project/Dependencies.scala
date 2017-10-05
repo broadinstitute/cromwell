@@ -25,7 +25,10 @@ object Dependencies {
     "com.github.pathikrit" %% "better-files" % "2.17.1",
     "org.scalatest" %% "scalatest" % "3.0.2" % "test",
     "org.scala-graph" %% "graph-core" % "1.12.0",
-    "com.chuusai" %% "shapeless" % "2.3.2"
+    "com.chuusai" %% "shapeless" % "2.3.2",
+    "com.softwaremill.sttp" %% "core" % "0.0.2",
+    "com.softwaremill.sttp" %% "async-http-client-backend-cats" % "0.0.16",
+    "org.mock-server" % "mockserver-netty" % "3.10.2" % "test"
   ) ++ catsDependencies
 
   val wdlDependencies = List() ++ womDependencies

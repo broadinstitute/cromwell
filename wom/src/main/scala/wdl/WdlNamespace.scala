@@ -3,6 +3,7 @@ package wdl
 import java.nio.file.{Path, Paths}
 
 import better.files._
+import cats.effect.IO
 import lenthall.Checked
 import lenthall.util.TryUtil
 import wdl4s.parser.WdlParser._
@@ -17,6 +18,13 @@ import wom.executable.Executable
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
+import com.softwaremill.sttp._
+import com.softwaremill.sttp.asynchttpclient.cats.AsyncHttpClientCatsBackend
+
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.language.postfixOps
+
 
 /**
   * Represents a parsed WDL file
@@ -561,6 +569,23 @@ object WdlNamespace {
       fileResolver(absolutePathToFile.toString)
     } else {
       throw new IllegalArgumentException(s"$str is not a valid import")
+    }
+  }
+
+  def httpResolver(str: String): WorkflowSource =
+    httpResolverWithHeaders(Map.empty[String,String])(str)
+
+  def httpResolverWithHeaders(headers: Map[String,String])(str: String): WorkflowSource = {
+    implicit val sttpBackend = AsyncHttpClientCatsBackend[IO]()
+
+    val responseIO : IO[Response[String]] =
+      sttp.get(uri"$str").headers(headers)send()
+
+    // temporary situation to get functionality working before
+    // starting in on async-ifying the entire WdlNamespace flow
+    Await.result(responseIO.unsafeToFuture, 15 seconds).body match {
+      case Left(ex)   => throw new IllegalArgumentException(ex)
+      case Right(wdl) => wdl
     }
   }
 }

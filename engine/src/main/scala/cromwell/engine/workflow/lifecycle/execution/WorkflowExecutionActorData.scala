@@ -59,10 +59,10 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     )
   }
 
-  def declarationEvaluationSuccess(declarationKey: ExpressionKey, value: WdlValue) = {
-    val outputStoreKey = OutputKey(declarationKey.node.singleExpressionOutputPort, declarationKey.index)
+  def expressionEvaluationSuccess(expressionKey: ExpressionKey, value: WdlValue) = {
+    val outputStoreKey = OutputKey(expressionKey.singleOutputPort, expressionKey.index)
     this.copy(
-      executionStore = executionStore.add(Map(declarationKey -> Done)),
+      executionStore = executionStore.add(Map(expressionKey -> Done)),
       outputStore = outputStore.add(Map(outputStoreKey -> value))
     )
   }

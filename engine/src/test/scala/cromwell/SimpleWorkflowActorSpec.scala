@@ -7,7 +7,6 @@ import akka.testkit._
 import com.typesafe.config.ConfigFactory
 import cromwell.MetadataWatchActor.{FailureMatcher, Matcher}
 import cromwell.SimpleWorkflowActorSpec._
-import cromwell.core.Tags.PostWomTest
 import cromwell.core.{SimpleIoActor, WorkflowId, WorkflowSourceFilesWithoutImports}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor
@@ -75,7 +74,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
   }
 
   "A WorkflowActor" should {
-    "start, run, succeed and die" taggedAs PostWomTest ignore {
+    "start, run, succeed and die" in {
       val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, _) = buildWorkflowActor(SampleWdl.HelloWorld, SampleWdl.HelloWorld.workflowJson, workflowId)
       val probe = TestProbe()
       probe watch workflowActor
@@ -132,7 +131,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
       }
     }
 
-    "fail when a call fails" taggedAs PostWomTest ignore {
+    "fail when a call fails" in {
       val expectedError = "Job wf_goodbye.goodbye:NA:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details." 
       val failureMatcher = FailureMatcher(expectedError)
       val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.GoodbyeWorld, SampleWdl.GoodbyeWorld.workflowJson, workflowId, failureMatcher)
@@ -151,7 +150,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
       }
     }
 
-    "gracefully handle malformed WDL" taggedAs PostWomTest in {
+    "gracefully handle malformed WDL" in {
       val expectedError = "No input bfile found evaluating inputs for expression bfile"
       val failureMatcher = FailureMatcher(expectedError)
       val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.CoercionNotDefined, SampleWdl.CoercionNotDefined.workflowJson, workflowId, failureMatcher)

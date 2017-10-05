@@ -1,6 +1,5 @@
 package cromwell.engine.workflow.lifecycle.execution
 
-import cromwell.core.CromwellGraphNode._
 import cromwell.core.ExecutionIndex._
 import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.OutputStore.OutputKey

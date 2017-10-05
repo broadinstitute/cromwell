@@ -10,7 +10,6 @@ import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestKitSpec._
 import cromwell._
-import cromwell.core.Tags.PostWomTest
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.{SimpleIoActor, WorkflowSourceFilesCollection}
 import cromwell.engine.backend.BackendSingletonCollection
@@ -167,7 +166,7 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
 
   "A SingleWorkflowRunnerActor" should {
     // TODO WOM: needs FQNs
-    "successfully run a workflow outputting metadata" taggedAs PostWomTest ignore {
+    "successfully run a workflow outputting metadata" in {
       val expectedCalls = Table(
         ("callName", "numInputs", "numOutputs"),
         ("three_step.wc", 1L, 1L),
@@ -176,7 +175,7 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
 
       doTheTest(ThreeStep, expectedCalls, 1L, 3L)
     }
-    "run a workflow outputting metadata with no remaining input expressions" taggedAs PostWomTest ignore {
+    "run a workflow outputting metadata with no remaining input expressions" in {
       val expectedCalls = Table(
         ("callName", "numInputs", "numOutputs"),
         ("wf.echo", 1L, 1L),
@@ -195,7 +194,7 @@ class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowR
   }
 
   "A SingleWorkflowRunnerActor" should {
-    "fail to run a workflow and still output metadata" taggedAs PostWomTest ignore {
+    "fail to run a workflow and still output metadata" in {
       val testStart = OffsetDateTime.now
       within(TimeoutDuration) {
         singleWorkflowActor(sampleWdl = GoodbyeWorld, outputFile = Option(metadataFile))

@@ -14,7 +14,6 @@ import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor}
-import cromwell.core.CromwellGraphNode._
 import cromwell.core._
 import cromwell.core.io._
 import cromwell.core.logging.JobLogging

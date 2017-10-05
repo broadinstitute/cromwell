@@ -7,7 +7,6 @@ import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.Path
 import cromwell.services.metadata.CallMetadataKeys
-import cromwell.core.CromwellGraphNode._
 
 import scala.language.postfixOps
 
@@ -47,7 +46,7 @@ trait JesJobCachingActorHelper extends StandardCachingActorHelper {
     else
       Labels.empty
 
-    val alias = call.unqualifiedName
+    val alias = call.localName
     val aliasLabels = if (!alias.equals(call.callable.name))
       Labels("wdl-call-alias" -> alias)
     else

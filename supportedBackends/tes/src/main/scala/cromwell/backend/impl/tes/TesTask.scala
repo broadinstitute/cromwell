@@ -2,12 +2,15 @@ package cromwell.backend.impl.tes
 
 import cromwell.backend.standard.StandardExpressionFunctions
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
-import cromwell.core.CromwellGraphNode._
+import cromwell.core.NoIoFunctionSet
 import cromwell.core.logging.JobLogger
-import cromwell.core.path.Path
-import wdl4s.parser.MemoryUnit
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import wdl.FullyQualifiedName
 import wdl.values.{WdlFile, WdlGlobFile, WdlSingleFile, WdlValue}
+import wdl4s.parser.MemoryUnit
+import wom.callable.Callable.OutputDefinition
+
+import scala.util.Try
 
 final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          configurationDescriptor: BackendConfigurationDescriptor,
@@ -46,6 +49,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   )
 
   private def writeFunctionFiles(commandLineValueMapper: WdlValue => WdlValue): Map[FullyQualifiedName, Seq[WdlFile]] = {
+    // TODO WOM :fix !
 //    val commandLineMappedInputs = jobDescriptor.inputDeclarations map {
 //      case (declaration, value) => declaration.fullyQualifiedName -> commandLineValueMapper(value)
 //    }
@@ -104,10 +108,20 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   // extract output files
   // if output paths are absolute we will ignore them here and assume they are redirects
   private val outputWdlFiles: Seq[WdlFile] = {
-    Seq.empty
-//    jobDescriptor.call.task
-//      .findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions)
-//      .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
+    import cats.syntax.validated._
+    // TODO WOM: this should be pushed back into WOM.
+    // It's also a mess, evaluateFiles returns an ErrorOr but can still throw. We might want to use an EitherT, although
+    // if it fails we just want to fallback to an empty list anyway...
+    def evaluateFiles(output: OutputDefinition): List[WdlFile] = {
+      Try (
+        output.expression.evaluateFiles(jobDescriptor.unqualifiedInputs, NoIoFunctionSet, output.womType).map(_.toList)
+      ).getOrElse(List.empty[WdlFile].validNel)
+       .getOrElse(List.empty)
+    }
+    
+    jobDescriptor.call.callable.outputs
+      .flatMap(evaluateFiles)
+      .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
   }
 
   private val wdlOutputs = outputWdlFiles

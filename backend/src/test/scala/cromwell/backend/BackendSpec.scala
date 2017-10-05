@@ -1,5 +1,7 @@
 package cromwell.backend
 
+import _root_.wdl._
+import _root_.wdl.values.WdlValue
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.backend.io.TestWorkflows._
 import cromwell.core.callcaching.NoDocker
@@ -10,18 +12,12 @@ import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.specs2.mock.Mockito
-import shapeless.Coproduct
 import spray.json.{JsObject, JsValue}
-import _root_.wdl._
-import _root_.wdl.types.WdlAnyType
-import _root_.wdl.values.{WdlOptionalValue, WdlValue}
-import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
+import wom.callable.Callable.{InputDefinition, RequiredInputDefinition}
 import wom.executable.Executable.ResolvedExecutableInputs
-import wom.graph.Graph.ResolvedExecutableInput
-import wom.graph.GraphNodePort.GraphNodeOutputPort
+import wom.expression.WomExpression
+import wom.graph.GraphNodePort.OutputPort
 import wom.graph.TaskCallNode
-
-import scala.language.postfixOps
 
 trait BackendSpec extends ScalaFutures with Matchers with Mockito {
 
@@ -32,28 +28,31 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
   }
 
   def buildWorkflowDescriptor(workflowSource: WorkflowSource,
-                                 inputs: ResolvedExecutableInputs = Map.empty,
-                                 options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
-                                 runtime: String = "") = {
+                              inputFileAsJson: Option[String],
+                              options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
+                              runtime: String = "") = {
+    val wdlNamespace = WdlNamespaceWithWorkflow.load(workflowSource.replaceAll("RUNTIME", runtime),
+      Seq.empty[ImportResolver]).get
+    val executable = wdlNamespace.womExecutable(inputFileAsJson) match {
+      case Left(errors) => fail(s"Fail to build wom executable: ${errors.toList.mkString(", ")}")
+      case Right(e) => e
+    }
+    
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      WdlNamespaceWithWorkflow.load(workflowSource.replaceAll("RUNTIME", runtime),
-        Seq.empty[ImportResolver]).get.workflow.womDefinition.getOrElse(fail("Cannot convert WdlWorkflow to WomDefinition")),
-      inputs,
+      wdlNamespace.workflow.womDefinition.getOrElse(fail("Cannot convert WdlWorkflow to WomDefinition")),
+      executable.resolvedExecutableInputs,
       options,
       Labels.empty
     )
   }
 
   def buildWdlWorkflowDescriptor(workflowSource: WorkflowSource,
-                              inputs: Map[FullyQualifiedName, WdlValue] = Map.empty,
+                              inputFileAsJson: Option[String] = None,
                               options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
                               runtime: String = "") = {
-    val womInputs: ResolvedExecutableInputs = inputs map {
-      case (fqn, wdlValue) => GraphNodeOutputPort(fqn, WdlAnyType, null) -> Coproduct[ResolvedExecutableInput](wdlValue)
-    }
     
-    buildWorkflowDescriptor(workflowSource, womInputs, options, runtime)
+    buildWorkflowDescriptor(workflowSource, inputFileAsJson, options, runtime)
   }
 
   def fqnWdlMapToDeclarationMap(m: Map[String, WdlValue]): Map[InputDefinition, WdlValue] = {
@@ -83,15 +82,23 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
                                           runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition]): BackendJobDescriptor = {
     val call = workflowDescriptor.workflow.innerGraph.nodes.collectFirst({ case t: TaskCallNode => t}).get
     val jobKey = BackendJobDescriptorKey(call, None, 1)
-    val inputDeclarations: Map[InputDefinition, WdlValue] = call.callable.inputs map {
-      case required: RequiredInputDefinition => required -> inputs(required.name)
-      case optionalWithDefault: InputDefinitionWithDefault => 
-        val value: WdlValue = inputs.getOrElse(
-          optionalWithDefault.name, optionalWithDefault.default.evaluateValue(inputs, NoIoFunctionSet)
-          .getOrElse(fail(s"Can't evaluate input ${optionalWithDefault.name}")))
-        optionalWithDefault -> value
-      case optional: OptionalInputDefinition => optional -> inputs.getOrElse(optional.name, WdlOptionalValue.none(optional.womType))
-    } toMap
+    
+    val inputDeclarations: Map[InputDefinition, WdlValue] = call.inputDefinitionMappings.map {
+      case (inputDef, resolved) => inputDef -> 
+        resolved.select[WdlValue].orElse(
+          resolved.select[WomExpression]
+            .map(
+              _.evaluateValue(inputs, NoIoFunctionSet).getOrElse(fail("Can't evaluate input"))
+            )
+        ).orElse(
+        workflowDescriptor.knownValues
+          .get(resolved.select[OutputPort].get)
+          .map(_.select[WdlValue].get)
+        )
+        .getOrElse {
+          inputs(inputDef.name) 
+        }
+    }
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.callable.runtimeAttributes, NoIoFunctionSet, Map.empty).getOrElse(fail("Failed to evaluate runtime attributes")) // .get is OK here because this is a test
     val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
     BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, NoDocker, Map.empty)

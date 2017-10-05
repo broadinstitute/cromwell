@@ -1,7 +1,6 @@
 package cromwell
 
 import akka.testkit._
-import cromwell.core.Tags.PostWomTest
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.SampleWdl
 import wdl.expression.{NoFunctions, WdlFunctions}
@@ -24,7 +23,7 @@ class MapWorkflowSpec extends CromwellTestKitWordSpec {
 
   // TODO WOM: Fails because of input evaluation
   "A task which contains a parameter " should {
-    "accept an array for the value" taggedAs PostWomTest ignore {
+    "accept an array for the value" in {
       val sampleWdl = SampleWdl.MapLiteral(pwd)
       val callDir = "<<PWD>>/cromwell-executions/wf/<<UUID>>/call-write_map/inputs<<PWD>>"
       runWdlAndAssertOutputs(
@@ -44,7 +43,7 @@ class MapWorkflowSpec extends CromwellTestKitWordSpec {
   }
 
   "A static Map[File, String] declaration" should {
-    "be a valid declaration" taggedAs PostWomTest ignore {
+    "be a valid declaration" in {
       val declaration = ns.workflow.declarations.find {_.unqualifiedName == "map"}.getOrElse {
         fail("Expected declaration 'map' to be found")
       }
@@ -56,7 +55,7 @@ class MapWorkflowSpec extends CromwellTestKitWordSpec {
       }
       expectedMap.wdlType.coerceRawValue(value).get shouldEqual expectedMap
     }
-    "be usable as an input" taggedAs PostWomTest ignore {
+    "be usable as an input" in {
       val writeMapTask = ns.findTask("write_map").getOrElse {
         fail("Expected to find task 'write_map'")
       }
@@ -72,7 +71,7 @@ class MapWorkflowSpec extends CromwellTestKitWordSpec {
       }
       command shouldEqual "cat /test/map/path"
     }
-    "Coerce Map[String, String] to Map[String, Int] when running the workflow" taggedAs PostWomTest ignore {
+    "Coerce Map[String, String] to Map[String, Int] when running the workflow" in {
       val sampleWdl = SampleWdl.MapLiteral(pwd)
       runWdlAndAssertOutputs(
         sampleWdl,

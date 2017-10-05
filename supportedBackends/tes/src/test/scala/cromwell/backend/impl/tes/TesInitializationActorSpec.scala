@@ -77,7 +77,7 @@ class TesInitializationActorSpec extends TestKitSuite("TesInitializationActorSpe
 
   // TODO WOM: needs runtime attributes validation working again
   "TesInitializationActor" should {
-    "log a warning message when there are unsupported runtime attributes" taggedAs PostWomTest ignore {
+    "log a warning message when there are unsupported runtime attributes" in {
       within(Timeout) {
         val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld,
           runtime = """runtime { docker: "ubuntu/latest" test: true }""")

@@ -1,28 +1,11 @@
 package cromwell.core
 
-import wom.callable.Callable.OutputDefinition
-import wom.graph.GraphNode
-import wom.graph.GraphNodePort.{InputPort, OutputPort}
+import wom.graph.GraphNodePort.OutputPort
 
-// TODO WOM: https://github.com/broadinstitute/wdl4s/issues/193
 object CromwellGraphNode {
-  implicit class CromwellEnhancedGraphNode(val graphNode: GraphNode) extends AnyVal {
-    def unqualifiedName = graphNode.name
-    def fullyQualifiedName = graphNode.name
-  }
-
-  implicit class CromwellEnhancedOutputDefinition(val outputDefinition: OutputDefinition) extends AnyVal {
-    def unqualifiedName = outputDefinition.name
-    def fullyQualifiedName = outputDefinition.name
-  }
-
+  // TODO WOM: we could move this into WOM as it's already there for GraphNodes
   implicit class CromwellEnhancedOutputPort(val outputPort: OutputPort) extends AnyVal {
-    def unqualifiedName = outputPort.name
-    def fullyQualifiedName = outputPort.graphNode.fullyQualifiedName + "." + outputPort.unqualifiedName
-  }
-
-  implicit class CromwellEnhancedInputPort(val inputPort: InputPort) extends AnyVal {
-    def unqualifiedName = inputPort.name
-    def fullyQualifiedName = inputPort.graphNode.fullyQualifiedName + "." + inputPort.unqualifiedName
+    def unqualifiedName = outputPort.identifier.localName.value
+    def fullyQualifiedName = outputPort.identifier.fullyQualifiedName.value
   }
 }

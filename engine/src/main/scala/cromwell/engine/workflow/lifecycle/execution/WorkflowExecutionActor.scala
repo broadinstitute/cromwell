@@ -7,7 +7,6 @@ import cats.syntax.validated._
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.{AllBackendInitializationData, BackendJobDescriptorKey, JobExecutionMap}
-import cromwell.core.CromwellGraphNode._
 import cromwell.core.Dispatcher._
 import cromwell.core.ExecutionIndex._
 import cromwell.core.ExecutionStatus._
@@ -15,20 +14,20 @@ import cromwell.core._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.RunnableScopes
-import cromwell.engine.workflow.lifecycle.execution.OutputStore.OutputKey
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor}
 import cromwell.util.StopAndLogSupervisor
 import cromwell.webservice.EngineStatsActor
-import lenthall.exception.ThrowableAggregation
+import lenthall.exception.{MessageAggregation, ThrowableAggregation}
 import lenthall.util.TryUtil
 import lenthall.validation.ErrorOr.ErrorOr
 import org.apache.commons.lang3.StringUtils
 import wdl._
+import wdl.types.WdlType
 import wdl.values.{WdlOptionalValue, WdlString, WdlValue}
 import wom.expression.IoFunctionSet
-import wom.graph.GraphNodePort.{GraphNodeOutputPort, InputPort, OutputPort}
+import wom.graph.GraphNodePort.{InputPort, OutputPort}
 import wom.graph._
 
 import scala.concurrent.duration._
@@ -79,6 +78,13 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   when(WorkflowExecutionPendingState) {
     case Event(ExecuteWorkflowCommand, _) =>
+      // TODO WOM: Remove this when conditional and scatters are supported. It prevents the workflow from hanging
+      if(workflowDescriptor.namespace.innerGraph.nodes.collect({
+        case _: ScatterNode | _: ConditionalNode | _: WorkflowCallNode => true
+      }).nonEmpty) {
+        context.parent ! WorkflowExecutionFailedResponse(Map.empty, new Exception("Scatter and Conditional not supported yet"))
+        goto(WorkflowExecutionFailedState)
+      }
       scheduleStartRunnableCalls()
       goto(WorkflowExecutionInProgressState)
   }
@@ -111,14 +117,14 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     // Scatter
     case Event(ScatterCollectionSucceededResponse(jobKey, callOutputs), stateData) =>
       handleCallSuccessful(jobKey, callOutputs, stateData, Map.empty)
-    // Declaration
-    case Event(DeclarationEvaluationSucceededResponse(jobKey, callOutputs), stateData) =>
+    // Expression
+    case Event(ExpressionEvaluationSucceededResponse(jobKey, callOutputs), stateData) =>
       handleDeclarationEvaluationSuccessful(jobKey, callOutputs, stateData)
     // Conditional
     case Event(BypassedCallResults(callOutputs), stateData) =>
       handleCallBypassed(callOutputs, stateData)
     case Event(BypassedDeclaration(declKey), stateData) =>
-      handleDeclarationEvaluationSuccessful(declKey, WdlOptionalValue.none(declKey.node.womType), stateData)
+      handleDeclarationEvaluationSuccessful(declKey, WdlOptionalValue.none(declKey.womType), stateData)
 
     // Failure
     // Initialization
@@ -146,7 +152,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     case Event(SubWorkflowFailedResponse(jobKey, descendantJobKeys, reason), stateData) =>
       pushFailedCallMetadata(jobKey, None, reason, retryableFailure = false)
       handleNonRetryableFailure(stateData, jobKey, reason, descendantJobKeys)
-    case Event(DeclarationEvaluationFailedResponse(jobKey, reason), stateData) =>
+    case Event(ExpressionEvaluationFailedResponse(jobKey, reason), stateData) =>
       handleDeclarationEvaluationFailure(jobKey, reason, stateData)
   }
 
@@ -268,54 +274,47 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def handleWorkflowSuccessful(data: WorkflowExecutionActorData) = {
-    import WorkflowExecutionActor.EnhancedWorkflowOutputs
+    import cats.instances.list._
+    import cats.syntax.traverse._
     import cromwell.util.JsonFormatting.WdlValueJsonFormatter._
     import spray.json._
-
-    case class ResponseAndFinalState(response: WorkflowExecutionActorResponse,
-                                     finalState: WorkflowExecutionActorTerminalState)
-
-    def shouldFilterOutputPort(outputPort: OutputPort): Boolean = {
-      outputPort match {
-        case gnop: GraphNodeOutputPort =>
-          gnop.graphNode match {
-            case _: RequiredGraphInputNode => true // Yes RequiredGraphInputNodes have output ports, but we don't want
-                                                   // to recycle them back to outputs.
-            case _: ExpressionNode => true // Expressions whose output ports feed into other nodes.
-            case _ => false // Default to not filtering.
-          }
-        case _ => false // Default to not filtering.
+    import WorkflowExecutionActor.EnhancedWorkflowOutputs
+    
+    def handleSuccessfulWorkflowOutputs(outputs: Map[WomIdentifier, WdlValue]) = {
+      val fullyQualifiedOutputs = outputs map {
+        case (identifier, value) => identifier.fullyQualifiedName.value -> value
       }
+      // Publish fully qualified workflow outputs to log and metadata
+      workflowLogger.info(
+        s"""Workflow ${workflowDescriptor.workflow.name} complete. Final Outputs:
+           |${fullyQualifiedOutputs.stripLarge.toJson.prettyPrint}""".stripMargin
+      )
+      pushWorkflowOutputMetadata(fullyQualifiedOutputs)
+      
+      // Use local names so they can be used in outer workfows if this is a sub workflow
+      val localOutputs = outputs map {
+        case (identifier, value) => identifier.localName.value -> JobOutput(value)
+      }
+
+      context.parent ! WorkflowExecutionSucceededResponse(data.jobExecutionMap, localOutputs)
+      goto(WorkflowExecutionSuccessfulState) using data
     }
 
-    // TODO WOM: workflow outputs ? Just dump the outputStore for now...
-    // For logging and metadata
-    val outputs: Map[String, WdlValue] = data.outputStore.store collect {
-      case (OutputKey(outputPort, _), value) if !shouldFilterOutputPort(outputPort) => s"${outputPort.fullyQualifiedName}" -> value
-    }
-
-    val workflowScopeOutputs: Map[String, WdlValue] = outputs map {
-      case (key, value) => s"${workflowDescriptor.workflow.name}.$key" -> value
-    }
-
-    workflowLogger.info(
-      s"""Workflow ${workflowDescriptor.workflow.name} complete. Final Outputs:
-         |${workflowScopeOutputs.stripLarge.toJson.prettyPrint}""".stripMargin
-    )
-    pushWorkflowOutputMetadata(workflowScopeOutputs)
-
-    // For cromwell internal storage of outputs
-    val unqualifiedWorkflowOutputs = outputs map {
-      // JobOutput is poorly named here - a WorkflowOutput type would be better
-      case (output, value) => output -> JobOutput(value)
-    }
-    val responseAndState = ResponseAndFinalState(
-      WorkflowExecutionSucceededResponse(data.jobExecutionMap, unqualifiedWorkflowOutputs),
-      WorkflowExecutionSuccessfulState)
-
-
-    context.parent ! responseAndState.response
-    goto(responseAndState.finalState) using data
+    workflowDescriptor.namespace.innerGraph.outputNodes
+      .flatMap(_.outputPorts)
+      .map(op => op.identifier -> data.outputStore.get(op, None)).toList  
+      .traverse[ErrorOr, (WomIdentifier, WdlValue)]({  
+        case (name, Some(value)) => (name -> value).validNel
+        case (name, None) => s"Cannot find an output value for ${name.fullyQualifiedName.value}".invalidNel
+      }).map(validOutputs => handleSuccessfulWorkflowOutputs(validOutputs.toMap))
+    .valueOr { errors =>
+      val exception = new MessageAggregation {
+        override def exceptionContext: String = "Workflow output evaluation failed"
+        override def errorMessages: Traversable[String] = errors.toList
+      }
+      context.parent ! WorkflowExecutionFailedResponse(data.jobExecutionMap, exception)
+      goto(WorkflowExecutionFailedState)
+    }  
   }
 
   private def handleRetryableFailure(jobKey: BackendJobDescriptorKey, reason: Throwable, returnCode: Option[Int]) = {
@@ -333,7 +332,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def handleDeclarationEvaluationSuccessful(key: ExpressionKey, value: WdlValue, data: WorkflowExecutionActorData) = {
-    stay() using data.declarationEvaluationSuccess(key, value)
+    stay() using data.expressionEvaluationSuccess(key, value)
   }
 
   private def handleCallBypassed(callOutputs: Map[CallKey, CallOutputs], data: WorkflowExecutionActorData) = {
@@ -391,7 +390,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
         case k: ConditionalKey => processRunnableConditional(k, data)
         case k: CollectorKey => processRunnableCollector(k, data, isInBypassedScope(k, data))
         case k: SubWorkflowKey => processRunnableSubWorkflow(k, data)
-        case k: DynamicDeclarationKey => processRunnableDynamicDeclaration(k, data)
+        case k: ExpressionKey => processRunnableExpression(k, data)
         case k => Failure(new UnsupportedOperationException(s"Unknown entry in execution store: ${k.tag}"))
       }).flatten
     } map {
@@ -455,19 +454,19 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     throw new RuntimeException("Only calls and declarations might generate results when Bypassed")
   }
 
-  def processRunnableDynamicDeclaration(declaration: DynamicDeclarationKey, data: WorkflowExecutionActorData) = {
+  def processRunnableExpression(expression: ExpressionKey, data: WorkflowExecutionActorData) = {
     import lenthall.validation.ErrorOr._
 
-    declaration.upstreamPorts.traverseValues(resolve(declaration, data)) map { lookup =>
-      declaration.evaluate(lookup, data.expressionLanguageFunctions) match {
-        case Valid(result) => self ! DeclarationEvaluationSucceededResponse(declaration, result)
-        case Invalid(f) => self ! DeclarationEvaluationFailedResponse(declaration, new RuntimeException(f.toList.mkString(", ")))
+    expression.upstreamPorts.traverseValues(resolve(expression, data)) map { lookup =>
+      expression.evaluate(lookup, data.expressionLanguageFunctions) match {
+        case Valid(result) => self ! ExpressionEvaluationSucceededResponse(expression, result)
+        case Invalid(f) => self ! ExpressionEvaluationFailedResponse(expression, new RuntimeException(f.toList.mkString(", ")))
       }
     } valueOr { f =>
-      self ! DeclarationEvaluationFailedResponse(declaration, new RuntimeException(f.toList.mkString(", ")))
+      self ! ExpressionEvaluationFailedResponse(expression, new RuntimeException(f.toList.mkString(", ")))
     }
 
-    Success(WorkflowExecutionDiff(Map(declaration -> ExecutionStatus.Running)))
+    Success(WorkflowExecutionDiff(Map(expression -> ExecutionStatus.Running)))
   }
 
   /**
@@ -669,7 +668,7 @@ object WorkflowExecutionActor {
 
   private case class ScatterCollectionSucceededResponse(collectorKey: CollectorKey, outputs: CallOutputs)
 
-  private case class DeclarationEvaluationSucceededResponse(declarationKey: ExpressionKey, value: WdlValue)
+  private case class ExpressionEvaluationSucceededResponse(declarationKey: ExpressionKey, value: WdlValue)
 
   private case object CheckRunnable
 
@@ -678,7 +677,7 @@ object WorkflowExecutionActor {
   private case class BypassedCallResults(callOutputs: Map[CallKey, CallOutputs]) extends BypassedScopeResults
   private case class BypassedDeclaration(declaration: ExpressionKey) extends BypassedScopeResults
 
-  private case class DeclarationEvaluationFailedResponse(declarationKey: ExpressionKey, reason: Throwable)
+  private case class ExpressionEvaluationFailedResponse(declarationKey: ExpressionKey, reason: Throwable)
 
   case class SubWorkflowSucceededResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap, outputs: CallOutputs)
 
@@ -694,7 +693,7 @@ object WorkflowExecutionActor {
     override val index = None
     // When scatters are nested, this might become Some(_)
     override val attempt = 1
-    override val tag = node.unqualifiedName
+    override val tag = node.localName
 
     /**
       * Creates a sub-ExecutionStore with Starting entries for each of the scoped children.
@@ -735,17 +734,17 @@ object WorkflowExecutionActor {
   case class CollectorKey(node: GraphNode, scatter: ScatterNode, scatterWidth: Int) extends JobKey {
     override val index = None
     override val attempt = 1
-    override val tag = s"Collector-${node.unqualifiedName}"
+    override val tag = s"Collector-${node.localName}"
   }
 
   case class SubWorkflowKey(node: WorkflowCallNode, index: ExecutionIndex, attempt: Int) extends CallKey {
-    override val tag = s"SubWorkflow-${node.unqualifiedName}:${index.fromIndex}:$attempt"
+    override val tag = s"SubWorkflow-${node.localName}:${index.fromIndex}:$attempt"
   }
 
   case class ConditionalKey(ifScope: If, index: ExecutionIndex) extends JobKey {
     // TODO WOM: fixme
     override val node: GraphNode = null
-    override val tag = node.unqualifiedName
+    override val tag = node.localName
     override val attempt = 1
 
     /**
@@ -780,28 +779,45 @@ object WorkflowExecutionActor {
 
   object ExpressionKey {
     def apply(declaration: ExpressionNode, index: ExecutionIndex): ExpressionKey = {
-      DynamicDeclarationKey(declaration, index)
+      IntermediateValueKey(declaration, index)
+    }
+    def apply(declaration: ExpressionBasedGraphOutputNode): ExpressionKey = {
+      ExpressionBasedWorkflowOutputKey(declaration)
     }
   }
 
   sealed trait ExpressionKey extends JobKey {
-    override val node: ExpressionNode
-    override val attempt = 1
-    override val tag = s"Expression-${node.unqualifiedName}:${index.fromIndex}:$attempt"
-  }
-
-  case class DynamicDeclarationKey(node: ExpressionNode, index: ExecutionIndex) extends ExpressionKey {
     import lenthall.validation.ErrorOr._
     import lenthall.validation.Validation._
 
-    lazy val inputs: Map[String, InputPort] = node.instantiatedExpression.inputMapping
+    override val attempt = 1
+    override lazy val tag = s"Expression-${node.localName}:${index.fromIndex}:$attempt"
+    
+    protected def instantiatedExpression: InstantiatedExpression
+    def womType: WdlType
+    def singleOutputPort: OutputPort
+    
+    private lazy val inputs: Map[String, InputPort] = instantiatedExpression.inputMapping
     lazy val upstreamPorts: Map[String, OutputPort] = inputs map {
       case (key, input) => key -> input.upstream
     }
 
-    def evaluate(lookup: Map[String, WdlValue], wdlFunctions: IoFunctionSet) = {
-      node.instantiatedExpression.expression.evaluateValue(lookup, wdlFunctions) flatMap { node.womType.coerceRawValue(_).toErrorOr }
+    def evaluate(lookup: Map[String, WdlValue], ioFunctions: IoFunctionSet) = {
+      instantiatedExpression.expression.evaluateValue(lookup, ioFunctions) flatMap { womType.coerceRawValue(_).toErrorOr }
     }
+  }
+
+  case class IntermediateValueKey(node: ExpressionNode, index: ExecutionIndex) extends ExpressionKey {
+    override val instantiatedExpression = node.instantiatedExpression
+    override val womType = node.womType
+    override val singleOutputPort: OutputPort = node.singleExpressionOutputPort
+  }
+
+  case class ExpressionBasedWorkflowOutputKey(node: ExpressionBasedGraphOutputNode) extends ExpressionKey {
+    override val index = None
+    override val instantiatedExpression = node.instantiatedExpression
+    override val womType = node.womType
+    override val singleOutputPort: OutputPort = node.singleOutputPort
   }
 
   case class WorkflowExecutionException[T <: Throwable](exceptions: NonEmptyList[T]) extends ThrowableAggregation {

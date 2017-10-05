@@ -2,7 +2,6 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import cats.data.NonEmptyList
 import cromwell.backend.BackendJobExecutionActor.{JobFailedNonRetryableResponse, JobSucceededResponse}
-import cromwell.core.CromwellGraphNode._
 import cromwell.core.ExecutionIndex.{ExecutionIndex, IndexEnhancedIndex}
 import cromwell.core.callcaching.HashResult
 import cromwell.core.path.Path

@@ -4,7 +4,6 @@ import akka.actor.{Actor, ActorRef}
 import cromwell.core.{JobKey, MonitoringCompanionHelper, WorkflowId}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import cromwell.services.keyvalue.KeyValueServiceActor._
-import cromwell.core.CromwellGraphNode._
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success}

@@ -8,7 +8,6 @@ import cats.data.NonEmptyList
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.{FileHashResponse, SingleFileHashRequest}
 import cromwell.backend.validation.RuntimeAttributesKeys
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, RuntimeAttributeDefinition}
-import cromwell.core.CromwellGraphNode._
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
 import cromwell.core.simpleton.WdlValueSimpleton
@@ -164,9 +163,8 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
       case WdlValueSimpleton(name, value) => HashResult(HashKey("input", s"${value.wdlType.toWdlString} $name"),  value.toWdlString.md5HashValue)
     }
 
-    // TODO WOM: need to expose the expression value string
     val outputExpressionHashResults = jobDescriptor.call.callable.outputs map { output =>
-      HashResult(HashKey("output expression", s"${output.womType.toWdlString} ${output.unqualifiedName}"), output.expression.toString.md5HashValue)
+      HashResult(HashKey("output expression", s"${output.womType.toWdlString} ${output.name}"), output.expression.sourceString.md5HashValue)
     }
 
     // Build these all together for the final set of initial hashes:

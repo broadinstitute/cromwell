@@ -14,21 +14,21 @@ import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{EJEAData, EngineJobExecutionActorState}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
-import cromwell.engine.workflow.mocks.{DeclarationMock, TaskMock, WdlExpressionMock}
+import cromwell.engine.workflow.mocks.{DeclarationMock, TaskMock, WdlWomExpressionMock}
 import cromwell.util.AkkaTestUtil._
 import cromwell.util.WomMocks
 import org.specs2.mock.Mockito
 import wdl4s.parser.WdlParser.Ast
 import _root_.wdl._
 import _root_.wdl.types.{WdlIntegerType, WdlStringType}
-import wom.callable.Callable.OutputDefinition
+import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition}
 import wom.expression.IoFunctionSet
-import wom.graph.TaskCallNode
+import wom.graph.{TaskCallNode, WomIdentifier}
 
 import scala.util.Success
 
 
-private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mockito with TaskMock with WdlExpressionMock with DeclarationMock {
+private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mockito with TaskMock with WdlWomExpressionMock with DeclarationMock {
 
   val workflowId = WorkflowId.randomId()
   val workflowName = "wf"
@@ -39,10 +39,9 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
 
   val executionToken = JobExecutionToken(JobExecutionTokenType("test", None), UUID.randomUUID())
 
-  val task = mockTask(
-    taskName,
-    declarations = Seq(mockDeclaration("inInt", WdlIntegerType, mockIntExpression(543))),
-    outputs = Seq(("outString", WdlStringType, mockStringExpression("hello")))
+  val task = WomMocks.mockTaskDefinition(taskName).copy(
+    inputs = List(InputDefinitionWithDefault("inInt", WdlIntegerType, mockIntExpression(543))),
+    outputs = List(OutputDefinition("outString", WdlStringType, mockStringExpression("hello")))
   )
 
   val workflow = new WdlWorkflow(
@@ -52,7 +51,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
     meta = Map.empty,
     parameterMeta = Map.empty,
     ast = mock[Ast])
-  val call: TaskCallNode = WomMocks.mockTaskCall(taskName)
+  val call: TaskCallNode = WomMocks.mockTaskCall(WomIdentifier(taskName, jobFqn), task)
   val jobDescriptorKey = BackendJobDescriptorKey(call, jobIndex, jobAttempt)
 
   val backendWorkflowDescriptor = BackendWorkflowDescriptor(workflowId, null, null, null, null)

@@ -1,14 +1,14 @@
 package cromwell.engine.workflow.mocks
 
 import org.specs2.mock.Mockito
-import wdl.WdlExpression
+import wdl.{WdlExpression, WdlWomExpression}
 import wdl.WdlExpression._
 import wdl.expression.WdlFunctions
 import wdl.values.{WdlInteger, WdlString, WdlValue}
 
 import scala.util.Success
 
-trait WdlExpressionMock extends Mockito {
+trait WdlWomExpressionMock extends Mockito {
   val helloStringExpression = {
     val expression = mock[WdlExpression]
     expression.valueString returns "hello"
@@ -16,17 +16,17 @@ trait WdlExpressionMock extends Mockito {
     expression
   }
   
-  def mockStringExpression(value: String) = {
+  def mockStringExpression(value: String): WdlWomExpression = {
     val expression = mock[WdlExpression]
     expression.valueString returns value
     expression.evaluate(any[ScopedLookupFunction], any[ WdlFunctions[WdlValue]]) returns Success(WdlString(value))
-    expression
+    WdlWomExpression(expression, None)
   }
 
-  def mockIntExpression(value: Int) = {
+  def mockIntExpression(value: Int): WdlWomExpression = {
     val expression = mock[WdlExpression]
     expression.valueString returns value.toString
     expression.evaluate(any[ScopedLookupFunction], any[ WdlFunctions[WdlValue]]) returns Success(WdlInteger(value))
-    expression
+    WdlWomExpression(expression, None)
   }
 }

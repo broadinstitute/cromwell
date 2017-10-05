@@ -5,10 +5,10 @@ import akka.event.LoggingReceive
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.wdl.OutputEvaluator
-import cromwell.core.CromwellGraphNode._
 import cromwell.core.path.Path
-import cromwell.core.{CallOutputs, ExecutionEvent, JobKey}
+import cromwell.core.{CallOutputs, ExecutionEvent, JobKey, JobOutput}
 import _root_.wdl.values.WdlValue
+import cromwell.backend.wdl.OutputEvaluator.OutputResult
 import wom.expression.IoFunctionSet
 
 import scala.concurrent.Future
@@ -73,7 +73,7 @@ trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLoggin
   }
 
   def evaluateOutputs(wdlFunctions: IoFunctionSet,
-                      postMapper: WdlValue => Try[WdlValue] = v => Success(v)) = {
+                      postMapper: WdlValue => Try[WdlValue] = v => Success(v)): OutputResult[Map[String, JobOutput]] = {
     OutputEvaluator.evaluateOutputs(jobDescriptor, wdlFunctions, postMapper)
   }
 }

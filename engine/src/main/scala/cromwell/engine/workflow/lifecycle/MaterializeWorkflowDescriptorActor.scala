@@ -295,7 +295,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       case empty if empty.isEmpty =>
         List(MetadataEvent.empty(MetadataKey(workflowIdForLogging, None,WorkflowMetadataKeys.Inputs)))
       case inputs =>
-        inputs flatMap { case (inputName, wdlValue) =>
+        inputs flatMap { case (outputPort, wdlValue) =>
+          val inputName = outputPort.fullyQualifiedName
           wdlValueToMetadataEvents(MetadataKey(workflowIdForLogging, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), wdlValue)
         }
     }
@@ -523,7 +524,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
   private def validateWdlFiles(workflowInputs: Map[OutputPort, WdlValue]): Checked[Unit] = {
     val failedFiles = workflowInputs collect {
-      case (port , WdlSingleFile(value)) if value.startsWith("\"gs://") => s"""Invalid value for File input '${port.name}': $value starts with a '\"' """
+      case (port , WdlSingleFile(value)) if value.startsWith("\"gs://") => s"""Invalid value for File input '${port.fullyQualifiedName}': $value starts with a '\"' """
     }
 
     NonEmptyList.fromList(failedFiles.toList) match {

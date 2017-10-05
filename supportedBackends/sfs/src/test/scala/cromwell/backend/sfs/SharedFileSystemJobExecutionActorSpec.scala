@@ -55,7 +55,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     executeSpec(docker = true)
   }
 
-  it should "send back an execution failure if the task fails" taggedAs PostWomTest ignore {
+  it should "send back an execution failure if the task fails" in {
     val expectedResponse =
       JobFailedNonRetryableResponse(mock[BackendJobDescriptorKey], WrongReturnCode("wf_goodbye.goodbye:NA:1", 1, None), Option(1))
     val workflow = TestWorkflow(buildWdlWorkflowDescriptor(GoodbyeWorld), TestConfig.backendRuntimeConfigDescriptor, expectedResponse)
@@ -88,10 +88,10 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
     val jsonInputFile = createCannedFile("localize", "content from json inputs").pathAsString
     val callInputFile = createCannedFile("localize", "content from call inputs").pathAsString
-    val inputs = Map(
-      "wf_localize.localize.inputFileFromCallInputs" -> WdlFile(callInputFile),
-      "wf_localize.localize.inputFileFromJson" -> WdlFile(jsonInputFile)
-    )
+    val inputs = Option(s"""{
+      "wf_localize.workflowFile": "$callInputFile",
+      "wf_localize.localize.inputFileFromJson": "$jsonInputFile"
+    }""")
 
     val expectedOutputs: CallOutputs = Map(
       "out" -> JobOutput(WdlArray(WdlArrayType(WdlStringType),
@@ -112,8 +112,17 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     forAll(localizers) { (conf, isSymlink) =>
       val runtime = if (docker) """runtime { docker: "ubuntu:latest" } """ else ""
       val workflowDescriptor = buildWdlWorkflowDescriptor(InputFiles, inputs, runtime = runtime)
-      val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflowDescriptor, inputs, WorkflowOptions.empty, runtimeAttributeDefinitions), conf)
-      val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, inputs, WorkflowOptions.empty, runtimeAttributeDefinitions)
+      val callInputs = Map(
+        "inputFileFromCallInputs" -> workflowDescriptor.knownValues.collectFirst({
+          case (outputPort, resolvedValue) if outputPort.fullyQualifiedName == "wf_localize.workflowFile" => resolvedValue.select[WdlValue].get
+        }).get,
+        "inputFileFromJson" -> workflowDescriptor.knownValues.collectFirst({
+          case (outputPort, resolvedValue) if outputPort.fullyQualifiedName == "wf_localize.localize.inputFileFromJson" => resolvedValue.select[WdlValue].get
+        }).get
+      )
+
+      val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflowDescriptor, callInputs, WorkflowOptions.empty, runtimeAttributeDefinitions), conf)
+      val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, callInputs, WorkflowOptions.empty, runtimeAttributeDefinitions)
       val expectedResponse = JobSucceededResponse(jobDescriptor.key, Some(0), expectedOutputs, None, Seq.empty, None)
 
       val jobPaths = JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, conf.backendConfig)
@@ -136,11 +145,11 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     }
   }
 
-  it should "execute calls with input files and localize them appropriately" taggedAs PostWomTest ignore {
+  it should "execute calls with input files and localize them appropriately" in {
     localizationSpec(docker = false)
   }
 
-  it should "execute calls with input files and localize them appropriately (in Docker)" taggedAs (DockerTest, PostWomTest) ignore {
+  it should "execute calls with input files and localize them appropriately (in Docker)" taggedAs DockerTest in {
     localizationSpec(docker = true)
   }
 
@@ -247,13 +256,13 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     }
   }
 
-  it should "post process outputs" taggedAs PostWomTest ignore {
+  it should "post process outputs" in {
     val inputFile = createCannedFile("localize", "content from json inputs").pathAsString
-    val inputs = Map {
-      "wf_localize.localize.inputFile" -> WdlFile(inputFile)
-    }
+    val inputs = Option(s"""{
+      "wf_localize.localize.inputFile": "$inputFile"
+    }""")
     val workflowDescriptor = buildWdlWorkflowDescriptor(OutputProcess, inputs)
-    val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, inputs, WorkflowOptions.empty, runtimeAttributeDefinitions)
+    val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions)
     val backend = createBackend(jobDescriptor, TestConfig.backendRuntimeConfigDescriptor)
     val jobPaths = JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, TestConfig.backendRuntimeConfigDescriptor.backendConfig)
     val expectedA = WdlFile(jobPaths.callExecutionRoot.resolve("a").toAbsolutePath.pathAsString)

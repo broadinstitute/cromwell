@@ -46,7 +46,7 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike w
 
   behavior of "WorkflowExecutionActor"
 
-  it should "allow a backend to tell it to retry... up to a point" taggedAs PostWomTest ignore {
+  it should "allow a backend to tell it to retry... up to a point" in {
     import MetadataWatchActor.metadataKeyAttemptChecker
     val metadataSuccessPromise = Promise[Unit]()
     val requiredMetadataMatchers: Seq[MetadataWatchActor.Matcher] = List(

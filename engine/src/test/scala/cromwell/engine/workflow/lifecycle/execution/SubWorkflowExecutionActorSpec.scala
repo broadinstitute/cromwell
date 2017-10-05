@@ -5,7 +5,6 @@ import java.util.UUID
 import akka.actor.Props
 import akka.testkit.{TestFSMRef, TestProbe}
 import cromwell.backend.{AllBackendInitializationData, BackendWorkflowDescriptor, JobExecutionMap}
-import cromwell.core.CromwellGraphNode._
 import cromwell.core._
 import cromwell.core.callcaching.CallCachingOff
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
@@ -22,6 +21,7 @@ import org.scalatest.concurrent.Eventually
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
 import wdl._
+import wom.graph.WomIdentifier
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -54,7 +54,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
     CallCachingOff
   )
   val subWorkflow = WomMocks.mockWorkflowDefinition("sub_wf")
-  val subWorkflowCall = WomMocks.mockWorkflowCall("workflow", definition = subWorkflow)
+  val subWorkflowCall = WomMocks.mockWorkflowCall(WomIdentifier("workflow"), definition = subWorkflow)
   val subKey: SubWorkflowKey = SubWorkflowKey(subWorkflowCall, None, 1)
   
   val awaitTimeout: FiniteDuration = 10 seconds

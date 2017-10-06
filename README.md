@@ -752,34 +752,34 @@ cromwell-executions/
 └── three_step
     └── a59651fc-4d9a-4fed-99ba-f5e2c9d84bb4
         ├── call-cgrep
-        │   ├── Users
-        │   │   └── jdoe
-        │   │       └── projects
-        │   │           └── cromwell
-        │   │               └── cromwell-executions
-        │   │                   └── three_step
-        │   │                       └── a59651fc-4d9a-4fed-99ba-f5e2c9d84bb4
-        │   │                           └── call-ps
-        │   │                               └── stdout
-        │   ├── rc
-        │   ├── script
-        │   ├── stderr
-        │   └── stdout
+        │   ├── Users
+        │   │   └── jdoe
+        │   │       └── projects
+        │   │           └── cromwell
+        │   │               └── cromwell-executions
+        │   │                   └── three_step
+        │   │                       └── a59651fc-4d9a-4fed-99ba-f5e2c9d84bb4
+        │   │                           └── call-ps
+        │   │                               └── stdout
+        │   ├── rc
+        │   ├── script
+        │   ├── stderr
+        │   └── stdout
         ├── call-ps
-        │   ├── rc
-        │   ├── script
-        │   ├── stderr
-        │   └── stdout
+        │   ├── rc
+        │   ├── script
+        │   ├── stderr
+        │   └── stdout
         └── call-wc
             ├── Users
-            │   └── jdoe
-            │       └── projects
-            │           └── cromwell
-            │               └── cromwell-executions
-            │                   └── three_step
-            │                       └── a59651fc-4d9a-4fed-99ba-f5e2c9d84bb4
-            │                           └── call-ps
-            │                               └── stdout
+            │   └── jdoe
+            │       └── projects
+            │           └── cromwell
+            │               └── cromwell-executions
+            │                   └── three_step
+            │                       └── a59651fc-4d9a-4fed-99ba-f5e2c9d84bb4
+            │                           └── call-ps
+            │                               └── stdout
             ├── rc
             ├── script
             ├── stderr
@@ -1566,9 +1566,10 @@ However to use Spark in standalone cluster mode change `master: spark://hostname
 Supported runtime attributes for a Spark Job is as follows:
 	
 * executorCores (default value is 1)
-* executorMemory (default value is "1 GB")
+* executorMemory (default value is "1GB", `Unit in MB or GB or TB.. ` )
 * appMainClass ( Spark app/job entry point)
 * numberOfExecutors ( Specific to cluster deploy mode)
+* additionalArgs ( i.e to add additional configuration or parameters to spark-submit)
 
 Sample usage:
 
@@ -1578,8 +1579,9 @@ task sparkjob_with_yarn_cluster {
         
         runtime {
                 appMainClass: "${entry_point}"
-                executorMemory: "4G"
+                executorMemory: "4GB"
                 executorCores: "2"
+                additionalArgs: "--conf '-Dsamjdk.compression_level=1 -Dsnappy.disable=true' ...."
         }
         
         .....
@@ -1588,7 +1590,7 @@ task sparkjob_with_yarn_cluster {
 
 ### Spark Environment
 
-The Spark backend assumes Spark is already installed, and it constructs the spark submit command with the `SPARK_HOME` environment variable if set. Otherwise backend creates command `spark-submit` without a fully qualified path to `spark-submit`.
+The Spark backend assumes Spark is already installed, and it constructs the spark submit command with the `SPARK_HOME` environment variable if set. Otherwise backend creates command `spark-submit` without a fully qualified path to `spark-submit`.Also, it is important to set environment variable `HOSTNAME` to master machine ip or hostname, that is accessible by spark backend. That can be done by setting either in `~/.bashrc or profile like "export HOSTNAME=<machine ip>" `
 
 Supported File Systems as follows: 
 
@@ -2248,15 +2250,15 @@ cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd/ <- main 
     └── hello_and_goodbye <- name of the sub workflow 
         └── a6365f91-c807-465a-9186-a5d3da98fe11 <- sub workflow id
             ├── call-goodbye
-            │   └── execution
-            │       ├── rc
-            │       ├── script
-            │       ├── script.background
-            │       ├── script.submit
-            │       ├── stderr
-            │       ├── stderr.background
-            │       ├── stdout
-            │       └── stdout.background
+            │   └── execution
+            │       ├── rc
+            │       ├── script
+            │       ├── script.background
+            │       ├── script.submit
+            │       ├── stderr
+            │       ├── stderr.background
+            │       ├── stdout
+            │       └── stdout.background
             └── call-hello
                 └── execution
                     ├── rc

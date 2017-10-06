@@ -572,14 +572,22 @@ object WdlNamespace {
     }
   }
 
+  /**
+    * Given a string representing an http(s) url, retrieve the contents
+    */
   def httpResolver(str: String): WorkflowSource =
     httpResolverWithHeaders(Map.empty[String,String])(str)
 
+  /**
+    * Given a string representing an http(s) url, retrieve the contents
+    * using the supplied headers (which can be an empty map)
+    */
   def httpResolverWithHeaders(headers: Map[String,String])(str: String): WorkflowSource = {
+
     implicit val sttpBackend = AsyncHttpClientCatsBackend[IO]()
 
     val responseIO : IO[Response[String]] =
-      sttp.get(uri"$str").headers(headers)send()
+      sttp.get(uri"$str").headers(headers).send()
 
     // temporary situation to get functionality working before
     // starting in on async-ifying the entire WdlNamespace flow

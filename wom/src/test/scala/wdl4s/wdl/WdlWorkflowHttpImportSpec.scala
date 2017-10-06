@@ -35,9 +35,11 @@ class WdlWorkflowHttpImportSpec extends FlatSpec with BeforeAndAfterAll with Mat
   val httpResolver: Seq[ImportResolver] = Seq(WdlNamespace.httpResolver)
 
   var mockServer: ClientAndServer = _
+  var host: String = _
 
   override def beforeAll() = {
     mockServer = startClientAndServer(PortFactory.findFreePort())
+    host = "http://localhost:" + mockServer.getPort
 
     mockServer.when(
       request().withPath("/hello.wdl")
@@ -71,7 +73,6 @@ class WdlWorkflowHttpImportSpec extends FlatSpec with BeforeAndAfterAll with Mat
     () // explicitly return unit
   }
 
-
   "The httpResolver" should "not resolve an invalid URL " in {
     val wf = tinyWorkflow("ht://foobar")
     val ns = WdlNamespaceWithWorkflow.load(wf, httpResolver)
@@ -79,19 +80,19 @@ class WdlWorkflowHttpImportSpec extends FlatSpec with BeforeAndAfterAll with Mat
   }
 
   it should "resolve an http URL" in {
-    val wf = tinyWorkflow( "http://localhost:" + mockServer.getPort + "/hello.wdl")
+    val wf = tinyWorkflow( s"$host/hello.wdl")
     val ns = WdlNamespaceWithWorkflow.load(wf, httpResolver)
     ns.isFailure shouldBe false
   }
 
   it should "fail with a 404" in {
-    val wf = tinyWorkflow( "http://localhost:" + mockServer.getPort + "/none.wdl")
+    val wf = tinyWorkflow( s"$host/none.wdl")
     val ns = WdlNamespaceWithWorkflow.load(wf, httpResolver)
     ns.isFailure shouldBe true
   }
 
   it should "follow a redirect" in {
-    val wf = tinyWorkflow( "http://localhost:" + mockServer.getPort + "/redirect.wdl")
+    val wf = tinyWorkflow( s"$host/redirect.wdl")
     val ns = WdlNamespaceWithWorkflow.load(wf, httpResolver)
     ns.isFailure shouldBe false
   }
@@ -100,7 +101,7 @@ class WdlWorkflowHttpImportSpec extends FlatSpec with BeforeAndAfterAll with Mat
     val auth = Map("Authorization" -> "Bearer my-token-value")
     val authHttpResolver : Seq[ImportResolver] = Seq(WdlNamespace.httpResolverWithHeaders(auth))
 
-    val wf = tinyWorkflow( "http://localhost:" + mockServer.getPort + "/protected.wdl")
+    val wf = tinyWorkflow( s"$host/protected.wdl")
     val ns = WdlNamespaceWithWorkflow.load(wf, authHttpResolver)
     ns.isFailure shouldBe false
   }

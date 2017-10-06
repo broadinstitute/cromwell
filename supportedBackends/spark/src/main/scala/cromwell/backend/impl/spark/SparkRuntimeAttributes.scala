@@ -50,10 +50,10 @@ object SparkRuntimeAttributes {
     val executorCores = validateCpu(withDefaultValues.get(ExecutorCoresKey), noValueFoundFor(ExecutorCoresKey))
     val executorMemory = validateMemory(withDefaultValues.get(ExecutorMemoryKey), noValueFoundFor(ExecutorMemoryKey))
     val numberOfExecutors = validateNumberOfExecutors(withDefaultValues.get(NumberOfExecutorsKey), None.validNel)
-    val appMainCLass = validateAppEntryPoint(withDefaultValues.get(AppMainClassKey), None.validNel)
+    val appMainClass = validateAppEntryPoint(withDefaultValues.get(AppMainClassKey), None.validNel)
     val additionalArgs = validateAdditionalArgs(withDefaultValues.get(AdditionalArgsKey), None.validNel)
 
-    (executorCores, executorMemory, numberOfExecutors, appMainCLass, additionalArgs, failOnStderr) mapN  {SparkRuntimeAttributes.apply} match {
+    (executorCores, executorMemory, numberOfExecutors, appMainClass, additionalArgs, failOnStderr) mapN  {SparkRuntimeAttributes.apply} match {
       case Valid(x) => x
       case Invalid(nel) => throw new RuntimeException with MessageAggregation {
         override def exceptionContext: String = "Runtime attribute validation failed"
@@ -64,7 +64,7 @@ object SparkRuntimeAttributes {
 
   private def validateNumberOfExecutors(numOfExecutors: Option[WdlValue], onMissingKey: => ErrorOr[Option[Int]]): ErrorOr[Option[Int]] = {
     numOfExecutors match {
-      case Some(i: WdlInteger) => Some(i.value.intValue()).validNel
+      case Some(i: WdlInteger) => Option(i.value.intValue()).validNel
       case None => onMissingKey
       case _ => s"Expecting $NumberOfExecutorsKey runtime attribute to be an Integer".invalidNel
     }
@@ -72,7 +72,7 @@ object SparkRuntimeAttributes {
 
   private def validateAppEntryPoint(mainClass:  Option[WdlValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
     mainClass match {
-      case Some(WdlString(s)) => Some(s).validNel
+      case Some(WdlString(s)) => Option(s).validNel
       case None => onMissingKey
       case _ => s"Expecting $AppMainClassKey runtime attribute to be a String".invalidNel
     }
@@ -80,7 +80,7 @@ object SparkRuntimeAttributes {
 
   private def validateAdditionalArgs(additionalArgs:  Option[WdlValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
     additionalArgs match {
-      case Some(WdlString(s)) => Some(s).validNel
+      case Some(WdlString(s)) => Option(s).validNel
       case None => onMissingKey
       case _ => s"Expecting $AdditionalArgsKey runtime attribute to be a String".invalidNel
     }

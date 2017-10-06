@@ -169,7 +169,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
       val sparkSubmitCmd = cmds.sparkSubmitCommand(attributes)
       val sparkCommand = if (isClusterMode) {
-        sparkSubmitCmd.concat(" %s %s 2>&1".format(">", SubmitJobJson.format(sparkDeployMode)))
+        sparkSubmitCmd.concat(" > %s 2>&1".format(SubmitJobJson.format(sparkDeployMode)))
       } else {
         sparkSubmitCmd
       }

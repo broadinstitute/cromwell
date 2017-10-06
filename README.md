@@ -1569,7 +1569,7 @@ Supported runtime attributes for a Spark Job is as follows:
 * executorMemory (default value is "1GB", `Unit in MB or GB or TB.. ` )
 * appMainClass ( Spark app/job entry point)
 * numberOfExecutors ( Specific to cluster deploy mode)
-* additionArgs ( i.e to add additional configuration or parameters to spark-submit)
+* additionalArgs ( i.e to add additional configuration or parameters to spark-submit)
 
 Sample usage:
 

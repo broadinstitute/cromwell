@@ -6,7 +6,7 @@ import cromwell.core.labels.Labels
 import cromwell.core.{NoIoFunctionSet, WorkflowId, WorkflowOptions}
 import lenthall.validation.ErrorOr._
 import org.scalatest.{Matchers, WordSpecLike}
-import spray.json.{JsBoolean, JsNumber, JsObject, JsValue}
+import spray.json.{JsBoolean, JsNumber, JsObject, JsString, JsValue}
 import wdl._
 import wdl.values.WdlValue
 import wom.executable.Executable.ResolvedExecutableInputs
@@ -85,7 +85,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
     "return an instance of itself when tries to validate a valid appMainClass entry" in {
       val expectedRuntimeAttributes = staticDefaults.copy(appMainClass = Some("com.test.spark"))
       val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { appMainClass: "com.test.spark"}""").head
-      val shouldBeIgnored = workflowOptionsWithDefaultRA(Map(AppMainClassKey -> JsString("com.test.spark")))
+      val shouldBeIgnored = workflowOptionsWithDefaultRA(Map(SparkRuntimeAttributes.AppMainClassKey -> JsString("com.test.spark")))
       assertSparkRuntimeAttributes(runtimeAttributes, shouldBeIgnored, expectedRuntimeAttributes)
     }
 

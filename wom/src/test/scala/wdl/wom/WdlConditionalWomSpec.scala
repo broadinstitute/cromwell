@@ -46,18 +46,19 @@ class WdlConditionalWomSpec extends FlatSpec with Matchers {
 
         val inputNodes: Set[GraphInputNode] = workflowGraph.nodes.filterByType[GraphInputNode]
 
-        val b_inputNode = inputNodes.find(_.name == "b").getOrElse(fail("Resulting graph did not contain the 'b' GraphInputNode"))
+        val b_inputNode = inputNodes.find(_.localName == "b").getOrElse(fail("Resulting graph did not contain the 'b' GraphInputNode"))
         b_inputNode.womType should be(WdlBooleanType)
-        val foo_i_inputNode = inputNodes.find(_.name == "foo.i").getOrElse(fail("Resulting graph did not contain the 'foo.i' GraphInputNode"))
+        val foo_i_inputNode = inputNodes.find(_.localName == "foo.i").getOrElse(fail("Resulting graph did not contain the 'foo.i' GraphInputNode"))
         foo_i_inputNode.womType should be(WdlIntegerType)
 
         val foo_out_output = workflowGraph.nodes.collectFirst {
-          case gon: GraphOutputNode if gon.name == "foo.out" => gon
+          case gon: GraphOutputNode if gon.localName == "foo.out" => gon
         }.getOrElse(fail("Resulting graph did not contain the 'foo.out' GraphOutputNode"))
         foo_out_output.womType should be(WdlOptionalType(WdlStringType))
+        foo_out_output.identifier.fullyQualifiedName.value shouldBe "conditional_test.foo.out"
         
         val expressionNode = workflowGraph.nodes.collectFirst {
-          case expr: ExpressionNode if expr.name == "conditional" => expr
+          case expr: ExpressionNode if expr.localName == "conditional" => expr
         }.getOrElse(fail("Resulting graph did not contain the 'conditional' ExpressionNode"))
 
         workflowGraph.nodes should be(Set(conditionalNode, foo_i_inputNode, b_inputNode, foo_out_output, expressionNode))
@@ -67,15 +68,17 @@ class WdlConditionalWomSpec extends FlatSpec with Matchers {
       case class InnerGraphValidations(foo_out_innerOutput: GraphOutputNode)
       def validateInnerGraph(validatedOuterGraph: OuterGraphValidations): InnerGraphValidations = {
         val foo_i_innerInput = validatedOuterGraph.conditionalNode.innerGraph.nodes.collectFirst {
-          case gin: ExternalGraphInputNode if gin.fullyQualifiedIdentifier == "conditional_test.foo.i" => gin
+          case gin: ExternalGraphInputNode if gin.identifier.fullyQualifiedName.value == "conditional_test.foo.i" => gin
         }.getOrElse(fail("Conditional inner graph did not contain a GraphInputNode 'foo.i'"))
 
         val foo_callNode = validatedOuterGraph.conditionalNode.innerGraph.nodes.collectFirst {
-          case c: TaskCallNode if c.name == "foo" => c
+          case c: TaskCallNode if c.localName == "foo" => c
         }.getOrElse(fail("Conditional inner graph did not contain a call to 'foo'"))
 
+        foo_callNode.identifier.fullyQualifiedName.value shouldBe "conditional_test.foo"
+
         val foo_out_innerOutput = validatedOuterGraph.conditionalNode.innerGraph.nodes.collectFirst {
-          case gon: GraphOutputNode if gon.name == "foo.out" => gon
+          case gon: GraphOutputNode if gon.localName == "foo.out" => gon
         }.getOrElse(fail("Conditional inner graph did not contain a GraphOutputNode 'foo.out'"))
 
         validatedOuterGraph.conditionalNode.innerGraph.nodes should be(Set(foo_i_innerInput, foo_callNode, foo_out_innerOutput))
@@ -85,8 +88,8 @@ class WdlConditionalWomSpec extends FlatSpec with Matchers {
       def validateConnections(validatedOuterGraph: OuterGraphValidations, validatedInnerGraph: InnerGraphValidations) = {
         // The ConditionalNode's output port is correctly associated with the inner graph's GraphOutputNode:
         validatedOuterGraph.conditionalNode.conditionalOutputPorts.toList match {
-          case ConditionalOutputPort(name, womType, outputToGather, _) :: Nil =>
-            name should be("foo.out")
+          case (port @ ConditionalOutputPort(womType, outputToGather, _)) :: Nil =>
+            port.name should be("foo.out")
             womType should be(WdlOptionalType(WdlStringType))
             outputToGather eq validatedInnerGraph.foo_out_innerOutput should be(true)
           case other => fail("Expected exactly one output to be gathered in this conditional but got:" + other.mkString("\n", "\n", "\n"))

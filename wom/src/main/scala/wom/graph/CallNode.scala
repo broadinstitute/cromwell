@@ -21,7 +21,7 @@ sealed abstract class CallNode extends GraphNode {
   def inputDefinitionMappings: InputDefinitionMappings
 }
 
-final case class TaskCallNode private(override val name: String,
+final case class TaskCallNode private(override val identifier: WomIdentifier,
                                       callable: TaskDefinition,
                                       override val inputPorts: Set[GraphNodePort.InputPort],
                                       inputDefinitionMappings: InputDefinitionMappings) extends CallNode {
@@ -31,29 +31,38 @@ final case class TaskCallNode private(override val name: String,
   }
 }
 
-final case class WorkflowCallNode private(override val name: String,
+final case class WorkflowCallNode private(override val identifier: WomIdentifier,
                                           callable: WorkflowDefinition,
                                           override val inputPorts: Set[GraphNodePort.InputPort],
                                           inputDefinitionMappings: InputDefinitionMappings) extends CallNode {
   val callType: String = "workflow"
   override val outputPorts: Set[GraphNodePort.OutputPort] = {
-    callable.innerGraph.nodes.collect { case gon: GraphOutputNode => GraphNodeOutputPort(gon.name, gon.womType, this) }
+    callable.innerGraph.nodes.collect { case gon: GraphOutputNode => GraphNodeOutputPort(gon.localName, gon.womType, this) }
   }
 }
 
 object TaskCall {
   def graphFromDefinition(taskDefinition: TaskDefinition): ErrorOr[Graph] = {
-    def linkOutput(call: GraphNode)(output: OutputDefinition): ErrorOr[GraphNode] = call.outputByName(output.name).map(out => PortBasedGraphOutputNode(output.name, output.womType, out))
+    val taskDefinitionLocalName = LocalName(taskDefinition.name)
+    
+    // Creates an identifier for an input or an output
+    // The localName is the name of the input or output
+    // The FQN combines the name of the task to the name of the input or output
+    def identifier(name: LocalName) = WomIdentifier(name, taskDefinitionLocalName.combineToFullyQualifiedName(name))
+
+    def linkOutput(call: GraphNode)(output: OutputDefinition): ErrorOr[GraphNode] = call.outputByName(output.name).map(out => PortBasedGraphOutputNode(
+      identifier(output.localName), output.womType, out
+    ))
     import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
 
     val callNodeBuilder = new CallNodeBuilder()
-
+    
     val inputDefinitionFold = taskDefinition.inputs.foldMap({ inputDef =>
     {
       val newNode = inputDef match {
-        case RequiredInputDefinition(name, womType) => RequiredGraphInputNode(name, womType)
-        case InputDefinitionWithDefault(name, womType, default) => OptionalGraphInputNodeWithDefault(name, womType, default)
-        case OptionalInputDefinition(name, womType) => OptionalGraphInputNode(name, womType)
+        case RequiredInputDefinition(name, womType) => RequiredGraphInputNode(identifier(name), womType)
+        case InputDefinitionWithDefault(name, womType, default) => OptionalGraphInputNodeWithDefault(identifier(name), womType, default)
+        case OptionalInputDefinition(name, womType) => OptionalGraphInputNode(identifier(name), womType)
       }
 
       InputDefinitionFold(
@@ -64,7 +73,8 @@ object TaskCall {
     }
     })(inputDefinitionFoldMonoid)
 
-    val callWithInputs = callNodeBuilder.build(taskDefinition.name, taskDefinition, inputDefinitionFold)
+    val uniqueIdentifier = WomIdentifier(taskDefinition.name)
+    val callWithInputs = callNodeBuilder.build(uniqueIdentifier, taskDefinition, inputDefinitionFold)
 
     for {
       outputs <- taskDefinition.outputs.traverse(linkOutput(callWithInputs.node) _)
@@ -106,12 +116,12 @@ object CallNode {
   /**
     * Don't use this directly; go via callWithInputs to make sure everything's in order when constructing a CallNode.
     */
-  private[graph] def apply(name: String,
+  private[graph] def apply(nodeIdentifier: WomIdentifier,
                            callable: Callable,
                            inputPorts: Set[GraphNodePort.InputPort],
                            inputDefinitionMappings: InputDefinitionMappings): CallNode = callable match {
-    case t: TaskDefinition => TaskCallNode(name, t, inputPorts, inputDefinitionMappings)
-    case w: WorkflowDefinition => WorkflowCallNode(name, w, inputPorts, inputDefinitionMappings)
+    case t: TaskDefinition => TaskCallNode(nodeIdentifier, t, inputPorts, inputDefinitionMappings)
+    case w: WorkflowDefinition => WorkflowCallNode(nodeIdentifier, w, inputPorts, inputDefinitionMappings)
   }
 
   /**
@@ -129,10 +139,10 @@ object CallNode {
       ConnectedInputPort(inputDefinition.name, inputDefinition.womType, outputPort, graphNodeSetter.get)
     }
 
-    def build(name: String,
+    def build(nodeIdentifier: WomIdentifier,
               callable: Callable,
               inputDefinitionFold: InputDefinitionFold): CallNodeAndNewNodes = {
-      val callNode = CallNode(name, callable, inputDefinitionFold.callInputPorts, inputDefinitionFold.mappings)
+      val callNode = CallNode(nodeIdentifier, callable, inputDefinitionFold.callInputPorts, inputDefinitionFold.mappings)
       graphNodeSetter._graphNode = callNode
       CallNodeAndNewNodes(callNode, inputDefinitionFold.newGraphInputNodes, inputDefinitionFold.newExpressionNodes)
     }

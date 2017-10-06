@@ -9,6 +9,7 @@ import scala.concurrent.Future
 import scala.util.Try
 
 trait WomExpression {
+  def sourceString: String
   def inputs: Set[String]
   def evaluateValue(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue]
   def evaluateType(inputTypes: Map[String, WdlType]): ErrorOr[WdlType]
@@ -16,6 +17,7 @@ trait WomExpression {
 }
 
 final case class PlaceholderWomExpression(inputs: Set[String], fixedWomType: WdlType) extends WomExpression {
+  override def sourceString: String = "placeholder"
   override def evaluateValue(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue] = Valid(WdlString("42"))
   override def evaluateType(inputTypes: Map[String, WdlType]): ErrorOr[WdlType] = Valid(fixedWomType)
   override def evaluateFiles(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet, coerceTo: WdlType): ErrorOr[Set[WdlFile]] = Valid(Set.empty)

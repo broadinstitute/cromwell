@@ -61,17 +61,17 @@ case class Workflow private(
         val parsedInputId = WorkflowInputId(inputParameter.id).inputId
         val womType = wdlTypeForInputParameter(inputParameter).get
 
-        OptionalGraphInputNodeWithDefault(parsedInputId, womType, PlaceholderWomExpression(Set.empty, womType))
+        OptionalGraphInputNodeWithDefault(WomIdentifier(parsedInputId), womType, PlaceholderWomExpression(Set.empty, womType))
       case input =>
         val parsedInputId = WorkflowInputId(input.id).inputId
 
-        RequiredGraphInputNode(parsedInputId, wdlTypeForInputParameter(input).get)
+        RequiredGraphInputNode(WomIdentifier(parsedInputId), wdlTypeForInputParameter(input).get)
     }.toSet
 
     val workflowInputs: Map[String, GraphNodeOutputPort] =
       graphFromInputs.map {
         workflowInput =>
-          workflowInput.name -> workflowInput.singleOutputPort
+          workflowInput.localName -> workflowInput.singleOutputPort
       }.toMap
 
     val graphFromSteps: Checked[Set[GraphNode]] =
@@ -89,14 +89,14 @@ case class Workflow private(
           def lookupOutputSource(outputId: WorkflowOutputId): Checked[OutputPort] =
             for {
               set <- graphFromSteps
-              call <- set.collectFirst { case callNode: CallNode if callNode.name == outputId.stepId => callNode }.
+              call <- set.collectFirst { case callNode: CallNode if callNode.localName == outputId.stepId => callNode }.
                 toRight(NonEmptyList.one(s"Call Node by name ${outputId.stepId} was not found in set $set"))
               output <- call.outputPorts.find(_.name == outputId.outputId).
                           toRight(NonEmptyList.one(s"looking for ${outputId.outputId} in call $call output ports ${call.outputPorts}"))
             } yield output
 
           lookupOutputSource(WorkflowOutputId(output.outputSource.flatMap(_.select[String]).get)).
-            map(PortBasedGraphOutputNode(output.id, wdlType, _)).toValidated
+            map(PortBasedGraphOutputNode(WomIdentifier(output.id), wdlType, _)).toValidated
       }.map(_.toSet).toEither
 
     for {

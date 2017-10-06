@@ -65,31 +65,31 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
           val nodes = wf.innerGraph.nodes
 
           nodes collect {
-            case gin: GraphInputNode => gin.name
+            case gin: GraphInputNode => gin.localName
           } should be(Set("ex", "inp"))
 
           nodes collect {
-            case cn: CallNode => cn.name
+            case cn: CallNode => cn.localName
           } should be(Set("compile", "untar"))
 
           val untarUpstream = nodes.collectFirst {
-            case tarParam: CallNode if tarParam.name == s"untar" => tarParam
+            case tarParam: CallNode if tarParam.localName == s"untar" => tarParam
           }.get.
             upstream
           
           untarUpstream should have size 2
           untarUpstream.collectFirst({
-            case exprNode: ExpressionNode if exprNode.name == s"file://$rootPath/1st-workflow.cwl#untar/extractfile" =>
-              exprNode.inputPorts.head.upstream.graphNode shouldBe RequiredGraphInputNode("ex", WdlStringType)
+            case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/extractfile" =>
+              exprNode.inputPorts.head.upstream.graphNode shouldBe RequiredGraphInputNode(WomIdentifier("ex"), WdlStringType)
           }).getOrElse(fail("Can't find expression node for ex"))
           
           untarUpstream.collectFirst({
-            case exprNode: ExpressionNode if exprNode.name == s"file://$rootPath/1st-workflow.cwl#untar/tarfile" =>
-              exprNode.inputPorts.head.upstream.graphNode shouldBe RequiredGraphInputNode("inp", WdlFileType)
+            case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/tarfile" =>
+              exprNode.inputPorts.head.upstream.graphNode shouldBe RequiredGraphInputNode(WomIdentifier("inp"), WdlFileType)
           }).getOrElse(fail("Can't find expression node for inp"))
 
           val compileUpstreamExpressionPort = nodes.collectFirst {
-            case compile: CallNode if compile.name == s"compile" => compile
+            case compile: CallNode if compile.localName == s"compile" => compile
           }.get.inputPorts.map(_.upstream).head
 
           compileUpstreamExpressionPort.name shouldBe s"file://$rootPath/1st-workflow.cwl#compile/src"
@@ -97,7 +97,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
 
           nodes.collect {
             case c: PortBasedGraphOutputNode => c
-          }.map(_.name) shouldBe Set(s"file://$rootPath/1st-workflow.cwl#classout")
+          }.map(_.localName) shouldBe Set(s"file://$rootPath/1st-workflow.cwl#classout")
         case wth: Any => fail(s"Parsed unexpected Callable: $wth")
       }
     }
@@ -160,21 +160,21 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
     val graphInputNodes = nodes collect { case gin: GraphInputNode => gin }
     graphInputNodes should have size 1
     val patternInputNode = graphInputNodes.head
-    patternInputNode.name should be("pattern")
+    patternInputNode.localName should be("pattern")
 
-    nodes collect { case gon: GraphOutputNode => gon.name } should be(Set(
+    nodes collect { case gon: GraphOutputNode => gon.localName } should be(Set(
       "file:///Users/danb/wdl4s/r.cwl#cgrep-count",
       "file:///Users/danb/wdl4s/r.cwl#wc-count"
     ))
 
-    nodes collect { case cn: CallNode => cn.name } should be(Set("ps", "cgrep", "wc"))
+    nodes collect { case cn: CallNode => cn.localName } should be(Set("ps", "cgrep", "wc"))
 
-    val ps = nodes.collectFirst({ case ps: CallNode if ps.name == "ps" => ps }).get
-    val cgrep = nodes.collectFirst({ case cgrep: CallNode if cgrep.name == "cgrep" => cgrep }).get
-    val cgrepFileExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if cgrepInput.name == "file:///Users/danb/wdl4s/r.cwl#cgrep/file" => cgrepInput }).get
-    val cgrepPatternExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if cgrepInput.name == "file:///Users/danb/wdl4s/r.cwl#cgrep/pattern" => cgrepInput }).get
-    val wc = nodes.collectFirst({ case wc: CallNode if wc.name == "wc" => wc }).get
-    val wcFileExpression = nodes.collectFirst({ case wcInput: ExpressionNode if wcInput.name == "file:///Users/danb/wdl4s/r.cwl#wc/file" => wcInput }).get
+    val ps = nodes.collectFirst({ case ps: CallNode if ps.localName == "ps" => ps }).get
+    val cgrep = nodes.collectFirst({ case cgrep: CallNode if cgrep.localName == "cgrep" => cgrep }).get
+    val cgrepFileExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if cgrepInput.localName == "file:///Users/danb/wdl4s/r.cwl#cgrep/file" => cgrepInput }).get
+    val cgrepPatternExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if cgrepInput.localName == "file:///Users/danb/wdl4s/r.cwl#cgrep/pattern" => cgrepInput }).get
+    val wc = nodes.collectFirst({ case wc: CallNode if wc.localName == "wc" => wc }).get
+    val wcFileExpression = nodes.collectFirst({ case wcInput: ExpressionNode if wcInput.localName == "file:///Users/danb/wdl4s/r.cwl#wc/file" => wcInput }).get
 
     ps.upstream shouldBe empty
 

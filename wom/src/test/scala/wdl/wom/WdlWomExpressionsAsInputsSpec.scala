@@ -60,7 +60,7 @@ class WdlWomExpressionsAsInputsSpec extends FlatSpec with Matchers {
       case Invalid(errors) => fail(s"Unable to build wom graph from WDL: ${errors.toList.mkString("\n", "\n", "\n")}")
     }
 
-    val callNodes = workflowGraph.nodes.toList collect { case callNode: TaskCallNode => callNode.name -> callNode } toMap
+    val callNodes = workflowGraph.nodes.toList collect { case callNode: TaskCallNode => callNode.localName -> callNode } toMap
 
     val a = callNodes("a")
     val b = callNodes("b")
@@ -78,7 +78,7 @@ class WdlWomExpressionsAsInputsSpec extends FlatSpec with Matchers {
       val upstream = connectedInputPort.upstream
       upstream.name shouldBe "int_out"
       val upstreamTaskCallNode = upstream.graphNode.asInstanceOf[TaskCallNode]
-      upstreamTaskCallNode.name shouldBe x
+      upstreamTaskCallNode.localName shouldBe x
       // Instance equality test
       (upstreamTaskCallNode eq callNodes(x)) shouldBe true
     }

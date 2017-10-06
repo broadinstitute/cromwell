@@ -15,12 +15,12 @@ class InstantiatedExpression private(val expression: WomExpression, val womRetur
 
 object InstantiatedExpression {
 
-  private[graph] def instantiateExpressionForNode[ExpressionBasedNode <: GraphNode](nodeConstructor: (String, InstantiatedExpression) => ExpressionBasedNode)(name: String, expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[ExpressionBasedNode] = {
+  private[graph] def instantiateExpressionForNode[ExpressionBasedNode <: GraphNode, Identifier <: WomIdentifier](nodeConstructor: (Identifier, InstantiatedExpression) => ExpressionBasedNode)(nodeIdentifier: Identifier, expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[ExpressionBasedNode] = {
     val graphNodeSetter = new GraphNode.GraphNodeSetter()
 
     for {
       linkedInputs <- InstantiatedExpression.linkWithInputs(graphNodeSetter, expression, inputMapping)
-      expressionNode = nodeConstructor(name, linkedInputs)
+      expressionNode = nodeConstructor(nodeIdentifier, linkedInputs)
       _ = graphNodeSetter._graphNode = expressionNode
     } yield expressionNode
   }

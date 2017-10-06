@@ -48,7 +48,7 @@ case class WorkflowStep(
 
   def fileName: Option[String] = run.select[String]
 
-  val unqualifiedStepId = Try(WorkflowStepId(id)).map(_.stepId).getOrElse(id)
+  val unqualifiedStepId = WomIdentifier(Try(WorkflowStepId(id)).map(_.stepId).getOrElse(id))
 
   /**
     * Generates all GraphNodes necessary to represent call nodes and input nodes
@@ -61,7 +61,7 @@ case class WorkflowStep(
                      workflowInputs: Map[String, GraphNodeOutputPort]): Checked[Set[GraphNode]] = {
 
     // To avoid duplicating nodes, return immediately if we've already covered this node
-    val haveWeSeenThisStep: Boolean = knownNodes.collect { case TaskCallNode(name, _, _, _) => name }.contains(unqualifiedStepId)
+    val haveWeSeenThisStep: Boolean = knownNodes.collect { case TaskCallNode(identifier, _, _, _) => identifier }.contains(unqualifiedStepId)
 
     if (haveWeSeenThisStep) Right(knownNodes)
     else {
@@ -98,7 +98,7 @@ case class WorkflowStep(
           def findThisInputInSet(set: Set[GraphNode], stepId: String, stepOutputId: String): Checked[OutputPort] = {
             for {
             // We only care for outputPorts of call nodes
-              call <- set.collectFirst { case callNode: CallNode if callNode.name == stepId => callNode }.
+              call <- set.collectFirst { case callNode: CallNode if callNode.localName == stepId => callNode }.
                 toRight(NonEmptyList.one(s"stepId $stepId not found in known Nodes $set"))
               output <- call.outputPorts.find(_.name == stepOutputId).
                 toRight(NonEmptyList.one(s"step output id $stepOutputId not found in ${call.outputPorts}"))
@@ -246,7 +246,8 @@ object WorkflowStep {
   implicit class EnhancedWorkflowStepInput(val workflowStepInput: WorkflowStepInput) extends AnyVal {
     def toExpressionNode(sourceMappings: Map[String, OutputPort]): ErrorOr[ExpressionNode] = {
       val womExpression = PlaceholderWomExpression(sourceMappings.keySet, WdlAnyType)
-      ExpressionNode.linkWithInputs(workflowStepInput.id, womExpression, sourceMappings)
+      val identifier = WomIdentifier(workflowStepInput.id)
+      ExpressionNode.linkWithInputs(identifier, womExpression, sourceMappings)
     }
   }
 

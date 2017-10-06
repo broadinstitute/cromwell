@@ -203,7 +203,7 @@ case class WdlExpression(ast: AstNode) extends WdlValue {
   *             conditionals (wrapped in optionals) or scatters (wrapped in arrays).
   */
 final case class WdlWomExpression(wdlExpression: WdlExpression, from: Option[Scope]) extends WomExpression {
-
+  override def sourceString = wdlExpression.valueString
   override def inputs: Set[String] = wdlExpression.variableReferences map { _.fullVariableReferenceString } toSet
 
   override def evaluateValue(variableValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue] = {
@@ -247,9 +247,9 @@ object WdlWomExpression {
       val name = v.fullVariableReferenceString
       (innerLookup.get(name), outerLookup.get(name)) match {
         case (Some(port), None) => Valid(name -> port)
-        case (None, Some(port)) => Valid(name -> OuterGraphInputNode(name, port).singleOutputPort)
+        case (None, Some(port)) => Valid(name -> OuterGraphInputNode(WomIdentifier(name), port).singleOutputPort)
         case (None, None) => s"No input $name found evaluating inputs for expression ${expression.wdlExpression.toWdlString}".invalidNel
-        case (Some(innerPort), Some(outerPort)) => s"Two inputs called '$name' found evaluating inputs for expression ${expression.wdlExpression.toWdlString}: on ${innerPort.graphNode.name} and ${outerPort.graphNode.name}".invalidNel
+        case (Some(innerPort), Some(outerPort)) => s"Two inputs called '$name' found evaluating inputs for expression ${expression.wdlExpression.toWdlString}: on ${innerPort.graphNode.localName} and ${outerPort.graphNode.localName}".invalidNel
       }
     }
 
@@ -258,15 +258,15 @@ object WdlWomExpression {
     } yield GraphNodeInputExpression(name, expression, resolvedVariables.toMap)
   }
   
-  def toExpressionNode(name: String,
+  def toExpressionNode(nodeIdentifier: WomIdentifier,
                        expression: WdlWomExpression,
                        innerLookup: Map[String, GraphNodePort.OutputPort],
                        outerLookup: Map[String, GraphNodePort.OutputPort]) = {
     import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
     
-    findInputsforExpression(name, expression, innerLookup, outerLookup) flatMap {
+    findInputsforExpression(nodeIdentifier.localName.value, expression, innerLookup, outerLookup) flatMap {
       case GraphNodeInputExpression(_, _, resolvedVariables) => 
-        ExpressionNode.linkWithInputs(name, expression, resolvedVariables)
+        ExpressionNode.linkWithInputs(nodeIdentifier, expression, resolvedVariables)
     }
   }
 }

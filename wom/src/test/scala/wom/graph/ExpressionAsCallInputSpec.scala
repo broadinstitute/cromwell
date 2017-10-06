@@ -27,15 +27,15 @@ class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
     */
   it should "create and wire in InstantiatedExpressions where appropriate" in {
     // Two inputs:
-    val iInputNode = RequiredGraphInputNode("i", WdlIntegerType)
-    val jInputNode = RequiredGraphInputNode("j", WdlIntegerType)
+    val iInputNode = RequiredGraphInputNode(WomIdentifier("i"), WdlIntegerType)
+    val jInputNode = RequiredGraphInputNode(WomIdentifier("j"), WdlIntegerType)
 
     // Declare an expression that needs both an "i" and a "j":
     val ijExpression = PlaceholderWomExpression(Set("i", "j"), WdlIntegerType)
 
     // Use that as an input to a one-input task:
     val expressionNode = ExpressionNode
-      .linkWithInputs("bar", ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))
+      .linkWithInputs(WomIdentifier("bar"), ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))
       .getOrElse(fail("Failed to build expression node"))
 
     val callNodeBuilder = new CallNodeBuilder()
@@ -49,7 +49,7 @@ class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
     )
     
     val callNodeWithInputs = callNodeBuilder.build(
-      "foo",
+      WomIdentifier("foo"),
       TaskDefinitionSpec.oneInputTask,
       inputDefinitionFold
     )

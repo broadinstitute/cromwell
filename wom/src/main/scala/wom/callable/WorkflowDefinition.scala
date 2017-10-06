@@ -1,10 +1,10 @@
 package wom.callable
 
-import lenthall.validation.ErrorOr.ErrorOr
-import wom.graph.{Graph, TaskCallNode}
 import cats.syntax.validated._
+import lenthall.validation.ErrorOr.ErrorOr
 import wom.expression.WomExpression
 import wom.graph.GraphNode._
+import wom.graph.{Graph, TaskCallNode}
 
 final case class WorkflowDefinition(name: String,
                                     innerGraph: Graph,

@@ -41,12 +41,12 @@ class WdlInputValidationSpec extends FlatSpec with Matchers with BeforeAndAfterA
     .getOrElse(fail("Failed to build a wom definition"))
     .graph.valueOr(errors => fail(s"Failed to build a wom graph: ${errors.toList.mkString(", ")}"))
 
-  val w1OutputPort = graph.externalInputNodes.find(_.fullyQualifiedIdentifier == "w.w1").getOrElse(fail("Failed to find an input node for w1")).singleOutputPort
-  val w2OutputPort = graph.externalInputNodes.find(_.fullyQualifiedIdentifier == "w.w2").getOrElse(fail("Failed to find an input node for w2")).singleOutputPort
-  val t1OutputPort = graph.externalInputNodes.find(_.fullyQualifiedIdentifier == "w.t.t1").getOrElse(fail("Failed to find an input node for t1")).singleOutputPort
-  val t2OutputPort = graph.externalInputNodes.find(_.fullyQualifiedIdentifier == "w.t.t2").getOrElse(fail("Failed to find an input node for t2")).singleOutputPort
-  val u1OutputPort = graph.externalInputNodes.find(_.fullyQualifiedIdentifier == "w.u.t1").getOrElse(fail("Failed to find an input node for u1")).singleOutputPort
-  val u2OutputPort = graph.externalInputNodes.find(_.fullyQualifiedIdentifier == "w.u.t2").getOrElse(fail("Failed to find an input node for u2")).singleOutputPort
+  val w1OutputPort = graph.externalInputNodes.find(_.fullyQualifiedName == "w.w1").getOrElse(fail("Failed to find an input node for w1")).singleOutputPort
+  val w2OutputPort = graph.externalInputNodes.find(_.fullyQualifiedName == "w.w2").getOrElse(fail("Failed to find an input node for w2")).singleOutputPort
+  val t1OutputPort = graph.externalInputNodes.find(_.fullyQualifiedName == "w.t.t1").getOrElse(fail("Failed to find an input node for t1")).singleOutputPort
+  val t2OutputPort = graph.externalInputNodes.find(_.fullyQualifiedName == "w.t.t2").getOrElse(fail("Failed to find an input node for t2")).singleOutputPort
+  val u1OutputPort = graph.externalInputNodes.find(_.fullyQualifiedName == "w.u.t1").getOrElse(fail("Failed to find an input node for u1")).singleOutputPort
+  val u2OutputPort = graph.externalInputNodes.find(_.fullyQualifiedName == "w.u.t2").getOrElse(fail("Failed to find an input node for u2")).singleOutputPort
 
   def validate(inputFile: String): Checked[ResolvedExecutableInputs] = {
     import lenthall.validation.Checked._

@@ -47,14 +47,14 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
     *
     */
   it should "be able to wrap a single task call" in {
-    val xs_inputNode = RequiredGraphInputNode("xs", WdlArrayType(WdlIntegerType))
+    val xs_inputNode = RequiredGraphInputNode(WomIdentifier("xs"), WdlArrayType(WdlIntegerType))
 
     val xsExpression = PlaceholderWomExpression(Set("xs"), WdlArrayType(WdlIntegerType))
     val xsExpressionAsInput = ExpressionNode
-      .linkWithInputs("x", xsExpression, Map("xs" -> xs_inputNode.singleOutputPort))
+      .linkWithInputs(WomIdentifier("x"), xsExpression, Map("xs" -> xs_inputNode.singleOutputPort))
       .valueOr(failures => fail(s"Failed to create expression node: ${failures.toList.mkString(", ")}"))
     
-    val x_inputNode = OuterGraphInputNode("x", xsExpressionAsInput.singleExpressionOutputPort)
+    val x_inputNode = OuterGraphInputNode(WomIdentifier("x"), xsExpressionAsInput.singleExpressionOutputPort)
     val fooNodeBuilder = new CallNodeBuilder()
     val fooInputFold = InputDefinitionFold(
       mappings = Map(
@@ -65,8 +65,8 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
       ),
       newGraphInputNodes = Set.empty
     )
-    val CallNodeAndNewNodes(foo_callNode, _, _) = fooNodeBuilder.build("foo", task_foo, fooInputFold)
-    val foo_call_outNode = PortBasedGraphOutputNode("foo.out", WdlStringType, foo_callNode.outputByName("out").getOrElse(fail("foo CallNode didn't contain the expected 'out' output")))
+    val CallNodeAndNewNodes(foo_callNode, _, _) = fooNodeBuilder.build(WomIdentifier("foo"), task_foo, fooInputFold)
+    val foo_call_outNode = PortBasedGraphOutputNode(WomIdentifier("foo.out"), WdlStringType, foo_callNode.outputByName("out").getOrElse(fail("foo CallNode didn't contain the expected 'out' output")))
     val scatterGraph = Graph.validateAndConstruct(Set(foo_callNode, x_inputNode, foo_call_outNode)) match {
       case Valid(sg) => sg
       case Invalid(es) => fail("Failed to make scatter graph: " + es.toList.mkString(", "))
@@ -83,7 +83,7 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
     
     val workflowGraphValidation = for {
       foo_scatterOutput <- scatterNode.outputByName("foo.out")
-      z_workflowOutput = PortBasedGraphOutputNode("z", WdlArrayType(WdlStringType), foo_scatterOutput)
+      z_workflowOutput = PortBasedGraphOutputNode(WomIdentifier("z"), WdlArrayType(WdlStringType), foo_scatterOutput)
       graph <- Graph.validateAndConstruct(scatterNode.nodes ++ Set(xs_inputNode, z_workflowOutput))
     } yield graph
 
@@ -96,9 +96,9 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
       * WDL -> WOM conversion has succeeded, now let's check we built it right!
       */
     def validate(workflowGraph: Graph, scatterNode: ScatterNode) = {
-      workflowGraph.nodes collect { case gin: GraphInputNode => gin.name } should be(Set("xs"))
-      workflowGraph.nodes collect { case gon: PortBasedGraphOutputNode => gon.name } should be(Set("z"))
-      workflowGraph.nodes collect { case cn: CallNode => cn.name } should be(Set.empty)
+      workflowGraph.nodes collect { case gin: GraphInputNode => gin.localName } should be(Set("xs"))
+      workflowGraph.nodes collect { case gon: PortBasedGraphOutputNode => gon.localName } should be(Set("z"))
+      workflowGraph.nodes collect { case cn: CallNode => cn.localName } should be(Set.empty)
       (workflowGraph.nodes collect { case sn: ScatterNode => sn }).size should be(1)
 
       // The output links back to the scatter:
@@ -113,7 +113,7 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
       innerGraphFooOutNode.womType should be(WdlStringType)
       innerGraphFooOutNode.upstream.size should be(1)
       innerGraphFooOutNode.upstream.head match {
-        case c: CallNode => c.name should be("foo")
+        case c: CallNode => c.localName should be("foo")
         case _ => fail("Expected the inner graph to have a Call Node!")
       }
     }

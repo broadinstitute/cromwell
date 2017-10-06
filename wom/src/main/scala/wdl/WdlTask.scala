@@ -13,6 +13,7 @@ import wdl.util.StringUtil
 import wdl.values.{WdlFile, WdlValue}
 import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, TaskDefinition}
+import wom.graph.LocalName
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
@@ -223,10 +224,10 @@ case class WdlTask(name: String,
 
   private def buildWomInputs: List[Callable.InputDefinition] = declarations collect {
     case d if d.expression.isEmpty && !d.wdlType.isInstanceOf[WdlOptionalType] =>
-      RequiredInputDefinition(d.unqualifiedName, d.wdlType)
+      RequiredInputDefinition(LocalName(d.unqualifiedName), d.wdlType)
     case d if d.expression.isEmpty && d.wdlType.isInstanceOf[WdlOptionalType] =>
-      OptionalInputDefinition(d.unqualifiedName, d.wdlType.asInstanceOf[WdlOptionalType])
+      OptionalInputDefinition(LocalName(d.unqualifiedName), d.wdlType.asInstanceOf[WdlOptionalType])
     case d if d.expression.nonEmpty =>
-      InputDefinitionWithDefault(d.unqualifiedName, d.wdlType, WdlWomExpression(d.expression.get, Option(this)))
+      InputDefinitionWithDefault(LocalName(d.unqualifiedName), d.wdlType, WdlWomExpression(d.expression.get, Option(this)))
   } toList
 }

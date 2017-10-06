@@ -53,14 +53,14 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
     case Right(womDef) => womDef.graph.getOrElse(fail("Failed to build wom graph"))
   }
 
-  lazy val w0OutputPort = graph.inputNodes.find(_.name == "w0").getOrElse(fail("Failed to find an input node for w0")).singleOutputPort
-  lazy val w1OutputPort = graph.inputNodes.find(_.name == "w1").getOrElse(fail("Failed to find an input node for w1")).singleOutputPort
-  lazy val w2OutputPort = graph.inputNodes.find(_.name == "w2").getOrElse(fail("Failed to find an input node for w2")).singleOutputPort
-  lazy val w3OutputPort = graph.inputNodes.find(_.name == "w3").getOrElse(fail("Failed to find an input node for w3")).singleOutputPort
-  lazy val w4OutputPort = graph.inputNodes.find(_.name == "w4").getOrElse(fail("Failed to find an input node for w4")).singleOutputPort
-  lazy val w5OutputPort = graph.inputNodes.find(_.name == "w5").getOrElse(fail("Failed to find an input node for w5")).singleOutputPort
-  lazy val w6OutputPort = graph.inputNodes.find(_.name == "w6").getOrElse(fail("Failed to find an input node for w6")).singleOutputPort
-  lazy val w7OutputPort = graph.inputNodes.find(_.name == "w7").getOrElse(fail("Failed to find an input node for w7")).singleOutputPort
+  lazy val w0OutputPort = graph.inputNodes.find(_.localName == "w0").getOrElse(fail("Failed to find an input node for w0")).singleOutputPort
+  lazy val w1OutputPort = graph.inputNodes.find(_.localName == "w1").getOrElse(fail("Failed to find an input node for w1")).singleOutputPort
+  lazy val w2OutputPort = graph.inputNodes.find(_.localName == "w2").getOrElse(fail("Failed to find an input node for w2")).singleOutputPort
+  lazy val w3OutputPort = graph.inputNodes.find(_.localName == "w3").getOrElse(fail("Failed to find an input node for w3")).singleOutputPort
+  lazy val w4OutputPort = graph.inputNodes.find(_.localName == "w4").getOrElse(fail("Failed to find an input node for w4")).singleOutputPort
+  lazy val w5OutputPort = graph.inputNodes.find(_.localName == "w5").getOrElse(fail("Failed to find an input node for w5")).singleOutputPort
+  lazy val w6OutputPort = graph.inputNodes.find(_.localName == "w6").getOrElse(fail("Failed to find an input node for w6")).singleOutputPort
+  lazy val w7OutputPort = graph.inputNodes.find(_.localName == "w7").getOrElse(fail("Failed to find an input node for w7")).singleOutputPort
   
   def validate(inputFile: String): Map[GraphNodePort.OutputPort, ResolvedExecutableInput] = {
     cwlWorkflow.womExecutable(Option(inputFile)) match {

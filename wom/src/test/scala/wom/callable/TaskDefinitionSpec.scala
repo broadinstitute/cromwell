@@ -3,7 +3,7 @@ package wom.callable
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.types.{WdlIntegerType, WdlStringType}
-import wom.graph.{CallNode, GraphInputNode, PortBasedGraphOutputNode}
+import wom.graph.{CallNode, GraphInputNode, LocalName, PortBasedGraphOutputNode}
 import wom.callable.TaskDefinitionSpec._
 
 class TaskDefinitionSpec extends FlatSpec with Matchers {
@@ -47,6 +47,13 @@ class TaskDefinitionSpec extends FlatSpec with Matchers {
       case Invalid(l) => fail(s"Failed to construct a one-input TaskCall graph: ${l.toList.mkString(", ")}")
     }
   }
+  
+  it should "fail to build a graph with duplicates fqns" in {
+    duplicateFqns.graph match {
+      case Valid(_) => fail("The graph should be invalid")
+      case Invalid(_) =>
+    }
+  }
 }
 
 object TaskDefinitionSpec {
@@ -67,7 +74,7 @@ object TaskDefinitionSpec {
     meta = Map.empty,
     parameterMeta = Map.empty,
     outputs = List.empty,
-    inputs = List(Callable.RequiredInputDefinition("bar", WdlIntegerType)))
+    inputs = List(Callable.RequiredInputDefinition(LocalName("bar"), WdlIntegerType)))
 
   val oneOutputTask = TaskDefinition(
     name = "foo",
@@ -75,6 +82,16 @@ object TaskDefinitionSpec {
     runtimeAttributes = null,
     meta = Map.empty,
     parameterMeta = Map.empty,
-    outputs = List(Callable.OutputDefinition("bar", WdlStringType, null)),
+    outputs = List(Callable.OutputDefinition(LocalName("bar"), WdlStringType, null)),
     inputs = List.empty)
+  
+  val duplicateFqns = TaskDefinition(
+    name = "foo",
+    commandTemplate = Seq.empty,
+    runtimeAttributes = null,
+    meta = Map.empty,
+    parameterMeta = Map.empty,
+    outputs = List(Callable.OutputDefinition(LocalName("bar"), WdlStringType, null)),
+    inputs = List(Callable.RequiredInputDefinition(LocalName("bar"), WdlStringType))
+  )
 }

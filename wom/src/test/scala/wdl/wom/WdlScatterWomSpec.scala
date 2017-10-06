@@ -45,17 +45,18 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
         val scatterNode = workflowGraph.nodes.firstByType[ScatterNode].getOrElse(fail("Resulting graph did not contain a ScatterNode"))
 
         val xs_inputNode = workflowGraph.nodes.collectFirst {
-          case gin: GraphInputNode if gin.name == "xs" => gin
+          case gin: GraphInputNode if gin.localName == "xs" => gin
         }.getOrElse(fail("Resulting graph did not contain the 'xs' GraphInputNode"))
 
         val scatterExpressionNode = workflowGraph.nodes.collectFirst {
-          case expr: ExpressionNode if expr.name == "x" => expr
+          case expr: ExpressionNode if expr.localName == "x" => expr
         }.getOrElse(fail("Resulting graph did not contain the 'x' ExpressionNode"))
 
         val foo_out_output = workflowGraph.nodes.collectFirst {
-          case gon: GraphOutputNode if gon.name == "foo.out" => gon
+          case gon: GraphOutputNode if gon.localName == "foo.out" => gon
         }.getOrElse(fail("Resulting graph did not contain the 'foo.out' GraphOutputNode"))
         foo_out_output.womType should be(WdlArrayType(WdlStringType))
+        foo_out_output.identifier.fullyQualifiedName.value shouldBe "scatter_test.foo.out"
 
         workflowGraph.nodes should be(Set(scatterNode, xs_inputNode, foo_out_output, scatterExpressionNode))
         OuterGraphValidations(scatterNode, xs_inputNode)
@@ -64,19 +65,21 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
       case class InnerGraphValidations(x_scatterCollectionInput: GraphInputNode, foo_out_innerOutput: GraphOutputNode)
       def validateInnerGraph(validatedOuterGraph: OuterGraphValidations): InnerGraphValidations = {
         val x_scatterCollectionInput = validatedOuterGraph.scatterNode.innerGraph.nodes.collectFirst {
-          case gin: GraphInputNode if gin.name == "x" => gin
+          case gin: GraphInputNode if gin.localName == "x" => gin
         }.getOrElse(fail("Scatter inner graph did not contain a GraphInputNode 'x'"))
 
         val foo_callNode = validatedOuterGraph.scatterNode.innerGraph.nodes.collectFirst {
-          case c: TaskCallNode if c.name == "foo" => c
+          case c: TaskCallNode if c.localName == "foo" => c
         }.getOrElse(fail("Scatter inner graph did not contain a call to 'foo'"))
+        
+        foo_callNode.identifier.fullyQualifiedName.value shouldBe "scatter_test.foo"
 
         val foo_out_innerOutput = validatedOuterGraph.scatterNode.innerGraph.nodes.collectFirst {
-          case gon: GraphOutputNode if gon.name == "foo.out" => gon
+          case gon: GraphOutputNode if gon.localName == "foo.out" => gon
         }.getOrElse(fail("Scatter inner graph did not contain a GraphOutputNode 'foo.out'"))
 
         val foo_out_i_expressionNode = validatedOuterGraph.scatterNode.innerGraph.nodes.collectFirst {
-          case expr: ExpressionNode if expr.name == "scatter_test.foo.i" => expr
+          case expr: ExpressionNode if expr.localName == "foo.i" => expr
         }.getOrElse(fail("Scatter inner graph did not contain a ExpressionNode 'scatter_test.foo.i'"))
 
         validatedOuterGraph.scatterNode.innerGraph.nodes should be(Set(x_scatterCollectionInput, foo_callNode, foo_out_innerOutput, foo_out_i_expressionNode))
@@ -92,8 +95,8 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
 
         // The ScatterNode's output port links to the inner graph's GraphOutputNode:
         validatedOuterGraph.scatterNode.outputMapping.toList match {
-          case ScatterGathererPort(name, womType, outputToGather, _) :: Nil =>
-            name should be("foo.out")
+          case (port @ ScatterGathererPort(womType, outputToGather, _)) :: Nil =>
+            port.name should be("foo.out")
             womType should be(WdlArrayType(WdlStringType))
             outputToGather eq validatedInnerGraph.foo_out_innerOutput should be(true)
           case other => fail("Expected exactly one output to be gathered in this scatter but got:" + other.mkString("\n", "\n", "\n"))
@@ -182,8 +185,8 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
 
       // Find the inputs:
       val inputNodes: Set[ExternalGraphInputNode] = workflowGraph.nodes.filterByType[ExternalGraphInputNode]
-      inputNodes.map {_.name} should be(Set("foo.j"))
-      inputNodes.map {_.fullyQualifiedIdentifier} should be(Set("scatter_test.foo.j"))
+      inputNodes.map {_.localName} should be(Set("foo.j"))
+      inputNodes.map {_.identifier.fullyQualifiedName.value} should be(Set("scatter_test.foo.j"))
 
       // Find that scatter:
       val scatterNode = workflowGraph.nodes.collectFirst {
@@ -191,15 +194,15 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
       }.getOrElse(fail("Resulting graph did not contain a ScatterNode"))
 
       val scatterInnerInputs: Set[ExternalGraphInputNode] = scatterNode.innerGraph.nodes.filterByType[ExternalGraphInputNode]
-      scatterInnerInputs map {_.fullyQualifiedIdentifier} should be(Set("scatter_test.foo.j"))
+      scatterInnerInputs map {_.identifier.fullyQualifiedName.value} should be(Set("scatter_test.foo.j"))
       val scatterInnerItemInput: Set[OuterGraphInputNode] = scatterNode.innerGraph.nodes.filterByType[OuterGraphInputNode]
-      scatterInnerItemInput map {_.name} should be(Set("s"))
+      scatterInnerItemInput map {_.localName} should be(Set("s"))
 
       // Find the outputs:
       val outputNodes = workflowGraph.nodes.collect {
         case output: GraphOutputNode => output
       }
-      outputNodes map { on => (on.name, on.womType) } should be(Set(("foo.int_out", WdlArrayType(WdlIntegerType)), ("foo.str_out", WdlArrayType(WdlStringType))))
+      outputNodes map { on => (on.localName, on.womType) } should be(Set(("foo.int_out", WdlArrayType(WdlIntegerType)), ("foo.str_out", WdlArrayType(WdlStringType))))
 
     }
   }

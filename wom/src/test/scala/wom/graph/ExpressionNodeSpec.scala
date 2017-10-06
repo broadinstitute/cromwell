@@ -25,8 +25,8 @@ class ExpressionNodeSpec extends FlatSpec with Matchers {
     */
   it should "construct an ExpressionNode if inputs are available" in {
     // Two inputs:
-    val iInputNode = RequiredGraphInputNode("i", WdlIntegerType)
-    val jInputNode = RequiredGraphInputNode("j", WdlIntegerType)
+    val iInputNode = RequiredGraphInputNode(WomIdentifier("i"), WdlIntegerType)
+    val jInputNode = RequiredGraphInputNode(WomIdentifier("j"), WdlIntegerType)
 
     // Declare an expression that needs both an "i" and a "j":
     val ijExpression = PlaceholderWomExpression(Set("i", "j"), WdlIntegerType)
@@ -34,8 +34,8 @@ class ExpressionNodeSpec extends FlatSpec with Matchers {
     // Declare the expression node using both i and j:
     import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
     val graph = for {
-      xDeclarationNode <- ExpressionNode.linkWithInputs("x", ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))
-      xOutputNode = PortBasedGraphOutputNode("x_out", WdlIntegerType, xDeclarationNode.singleExpressionOutputPort)
+      xDeclarationNode <- ExpressionNode.linkWithInputs(WomIdentifier("x"), ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))
+      xOutputNode = PortBasedGraphOutputNode(WomIdentifier("x_out"), WdlIntegerType, xDeclarationNode.singleExpressionOutputPort)
       g <- Graph.validateAndConstruct(Set(iInputNode, jInputNode, xDeclarationNode, xOutputNode))
     } yield g
 
@@ -46,13 +46,13 @@ class ExpressionNodeSpec extends FlatSpec with Matchers {
 
     def validate(graph: Graph) = {
       val x_outGraphOutputNode = graph.nodes.find {
-        case g: GraphOutputNode => g.name == "x_out"
+        case g: GraphOutputNode => g.localName == "x_out"
         case _ => false
       }.getOrElse(fail("No 'x_out' GraphOutputNode in the graph"))
 
       x_outGraphOutputNode.upstream.size should be(1)
       val xExpressionNode = x_outGraphOutputNode.upstream.head.asInstanceOf[ExpressionNode]
-      xExpressionNode.name should be("x")
+      xExpressionNode.localName should be("x")
       xExpressionNode.womType should be(WdlIntegerType)
 
       xExpressionNode.upstream should be(Set(iInputNode, jInputNode))

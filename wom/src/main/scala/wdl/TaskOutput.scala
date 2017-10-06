@@ -4,6 +4,7 @@ import wdl4s.parser.WdlParser.Ast
 import wdl.AstTools.EnhancedAstNode
 import wdl.types.WdlType
 import wom.callable.Callable.OutputDefinition
+import wom.graph._
 
 object TaskOutput {
   def apply(ast: Ast, syntaxErrorFormatter: WdlSyntaxErrorFormatter, parent: Option[Scope]): TaskOutput = {
@@ -14,7 +15,7 @@ object TaskOutput {
   }
 
   def buildWomOutputDefinition(taskOutput: TaskOutput) = {
-    OutputDefinition(taskOutput.unqualifiedName, taskOutput.wdlType, WdlWomExpression(taskOutput.requiredExpression, from = taskOutput.parent))
+    OutputDefinition(LocalName(taskOutput.unqualifiedName), taskOutput.wdlType, WdlWomExpression(taskOutput.requiredExpression, from = taskOutput.parent))
   }
 }
 

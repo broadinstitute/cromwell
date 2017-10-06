@@ -14,8 +14,7 @@ import wom.callable.Callable
 import wom.callable.Callable._
 import wom.graph.CallNode._
 import wom.graph.GraphNodePort.OutputPort
-import wom.graph.{ExpressionNode, _}
-
+import wom.graph._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -56,8 +55,6 @@ object WdlCall {
   private[wdl] def buildWomNodeAndInputs(wdlCall: WdlCall, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort]) = {
     import lenthall.validation.ErrorOr._
 
-    val unqualifiedCallNamePrefix = s"${wdlCall.unqualifiedName}."
-    val fullyQualifiedCallNamePrefix = s"${wdlCall.fullyQualifiedName}."
     val callNodeBuilder = new CallNode.CallNodeBuilder()
 
     /*
@@ -68,10 +65,11 @@ object WdlCall {
       *   input3 = other_task.out + 2   -> ExpressionNode with an input port pointing to the output port of other_task.out
       * }
      */
-    def expressionNodeMappings: ErrorOr[Map[String, ExpressionNode]] = wdlCall.inputMappings traverse {
+    def expressionNodeMappings: ErrorOr[Map[LocalName, ExpressionNode]] = wdlCall.inputMappings traverse {
       case (inputName, wdlExpression) =>
-        WdlWomExpression.toExpressionNode(s"$fullyQualifiedCallNamePrefix$inputName", WdlWomExpression(wdlExpression, None), localLookup, outerLookup) map {
-          inputName -> _
+        val identifier = wdlCall.womIdentifier.combine(inputName)
+        WdlWomExpression.toExpressionNode(identifier, WdlWomExpression(wdlExpression, None), localLookup, outerLookup) map {
+          LocalName(inputName) -> _
         }
     }
 
@@ -82,7 +80,7 @@ object WdlCall {
       * 
       * The InputDefinitionFold accumulates the input definition mappings, the create graph input nodes, and the expression nodes.
      */
-    def foldInputDefinitions(expressionNodes: Map[String, ExpressionNode], callable: Callable): InputDefinitionFold = {
+    def foldInputDefinitions(expressionNodes: Map[LocalName, ExpressionNode], callable: Callable): InputDefinitionFold = {
       // Updates the fold with a new graph input node. Happens when an optional or required undefined input without an
       // expression node mapping is found
       def withGraphInputNode(inputDefinition: InputDefinition, graphInputNode: GraphInputNode) = {
@@ -95,8 +93,8 @@ object WdlCall {
 
       callable.inputs.foldMap {
         // If there is an input mapping for this input definition, use that
-        case inputDefinition if expressionNodes.contains(inputDefinition.name) =>
-          val expressionNode = expressionNodes(inputDefinition.name)
+        case inputDefinition if expressionNodes.contains(inputDefinition.localName) =>
+          val expressionNode = expressionNodes(inputDefinition.localName)
           InputDefinitionFold(
             mappings = Map(inputDefinition -> expressionNode.inputDefinitionPointer),
             callInputPorts = Set(callNodeBuilder.makeInputPort(inputDefinition, expressionNode.singleExpressionOutputPort)),
@@ -112,18 +110,20 @@ object WdlCall {
         // No input mapping, required and we don't have a default value, create a new RequiredGraphInputNode
         // so that it can be satisfied via workflow inputs
         case required @ RequiredInputDefinition(n, womType) =>
-          withGraphInputNode(required, RequiredGraphInputNode(s"$unqualifiedCallNamePrefix$n", womType, s"$fullyQualifiedCallNamePrefix$n"))
+          val identifier = wdlCall.womIdentifier.combine(n)
+          withGraphInputNode(required, RequiredGraphInputNode(identifier, womType))
 
         // No input mapping, no default value but optional, create a OptionalGraphInputNode
         // so that it can be satisfied via workflow inputs
         case optional @ OptionalInputDefinition(n, womType) =>
-          withGraphInputNode(optional, OptionalGraphInputNode(s"$unqualifiedCallNamePrefix$n", womType, s"$fullyQualifiedCallNamePrefix$n"))
+          val identifier = wdlCall.womIdentifier.combine(n)
+          withGraphInputNode(optional, OptionalGraphInputNode(identifier, womType))
       }
     }
 
     (expressionNodeMappings, wdlCall.callable.womDefinition) mapN {
       case (mappings, callable) =>
-        callNodeBuilder.build(wdlCall.unqualifiedName, callable, foldInputDefinitions(mappings, callable))
+        callNodeBuilder.build(wdlCall.womIdentifier, callable, foldInputDefinitions(mappings, callable))
     }
   }
 }

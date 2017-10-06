@@ -15,7 +15,7 @@ final case class ConditionalNode private(innerGraph: Graph,
                                          condition: ExpressionNode,
                                          conditionalOutputPorts: Set[ConditionalOutputPort]) extends GraphNode {
 
-  override val name: String = "ConditionalNode"
+  override val identifier: WomIdentifier = WomIdentifier("ConditionalNode")
 
   override val inputPorts: Set[InputPort] = condition.inputPorts
   override val outputPorts: Set[GraphNodePort.OutputPort] = conditionalOutputPorts.toSet[OutputPort]
@@ -32,7 +32,7 @@ object ConditionalNode  {
     val graphNodeSetter = new GraphNode.GraphNodeSetter()
 
     val outputPorts: Set[ConditionalOutputPort] = innerGraph.nodes.collect { case gon: PortBasedGraphOutputNode =>
-      ConditionalOutputPort(gon.name, WdlOptionalType(gon.womType), gon, graphNodeSetter.get)
+      ConditionalOutputPort(WdlOptionalType(gon.womType), gon, graphNodeSetter.get)
     }
 
     val conditionalNode: ConditionalNode = ConditionalNode(innerGraph, expressionNode, outputPorts)

@@ -1,5 +1,6 @@
 package wom.graph
 
+import cats.data.NonEmptyList
 import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.functor._
@@ -22,7 +23,7 @@ final case class Graph private(nodes: Set[GraphNode]) {
   lazy val calls: Set[CallNode] = nodes.filterByType[CallNode]
   lazy val scatters: Set[ScatterNode] = nodes.filterByType[ScatterNode]
 
-  def outputByName(name: String): Option[GraphOutputNode] = outputNodes.find(_.name == name)
+  def outputByName(name: String): Option[GraphOutputNode] = outputNodes.find(_.localName == name)
 }
 
 object Graph {
@@ -39,7 +40,7 @@ object Graph {
 
     def upstreamNodeInGraph(port: InputPort): ErrorOr[Unit] = {
       val upstreamOutputPort = port.upstream
-      boolToErrorOr(nodes.exists(_ eq upstreamOutputPort.graphNode), s"The input link ${port.name} on ${port.graphNode.name} is linked to a node outside the graph set (${upstreamOutputPort.name})")
+      boolToErrorOr(nodes.exists(_ eq upstreamOutputPort.graphNode), s"The input link ${port.name} on ${port.graphNode.localName} is linked to a node outside the graph set (${upstreamOutputPort.name})")
     }
 
     def portProperlyEmbedded(port: GraphNodePort, portFinder: GraphNode => Set[_ <: GraphNodePort]): ErrorOr[Unit] = {
@@ -58,6 +59,26 @@ object Graph {
       node.inputPorts.toList.traverse(goodLink).void
     }
 
-    nodes.toList.traverse(validateNode).map(_ => Graph(nodes))
+    // from https://stackoverflow.com/a/24729587/1498572
+    def fqnUniqueness: ErrorOr[Unit] = nodes
+      .collect({
+        case callNode: CallNode => callNode
+        case gin: GraphInputNode => gin
+        case gon: GraphOutputNode => gon
+      })  
+      .toList // Important since nodes is a Set, we don't want duplicates to disappear automatically when mapping to FQN
+      .map(_.identifier.fullyQualifiedName)
+      .groupBy(identity)
+      .collect({
+        case (fqn, list) if list.lengthCompare(1) > 0 => fqn
+      }).toList match {
+      case Nil => ().validNel
+      case head :: tail =>
+        NonEmptyList.of(head, tail: _*).map(fqn => s"Two or more nodes have the same FullyQualifiedName: ${fqn.value}").invalid
+    }
+
+    (fqnUniqueness, nodes.toList.traverse(validateNode)) mapN { case (_, _) =>
+      Graph(nodes)
+    }
   }
 }

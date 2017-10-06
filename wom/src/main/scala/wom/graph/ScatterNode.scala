@@ -16,7 +16,7 @@ final case class ScatterNode private(innerGraph: Graph,
                                      scatterVariableInnerGraphInputNode: GraphInputNode,
                                      outputMapping: Set[ScatterGathererPort]) extends GraphNode {
 
-  override val name: String = "ScatterNode"
+  override val identifier: WomIdentifier = WomIdentifier("ScatterNode")
 
   // NB if you find yourself calling .filter on this set of inputPorts, you probably just wanted to access either
   // the scatterVariableMapping or otherInputPorts fields directly.
@@ -49,7 +49,7 @@ object ScatterNode {
     val graphNodeSetter = new GraphNode.GraphNodeSetter()
 
     val outputPorts: Set[ScatterGathererPort] = innerGraph.nodes.collect { case gon: PortBasedGraphOutputNode =>
-      ScatterGathererPort(gon.name, WdlArrayType(gon.womType), gon, graphNodeSetter.get)
+      ScatterGathererPort(WdlArrayType(gon.womType), gon, graphNodeSetter.get)
     }
 
     val scatterNode = ScatterNode(

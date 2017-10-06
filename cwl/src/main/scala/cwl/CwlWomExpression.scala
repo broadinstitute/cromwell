@@ -18,6 +18,8 @@ sealed trait CwlWomExpression extends WomExpression {
 case class CommandOutputExpression(outputBinding: CommandOutputBinding,
                                    override val cwlExpressionType: WdlType) extends CwlWomExpression {
 
+  // TODO WOM: outputBinding.toString is probably not be the best representation of the outputBinding
+  override def sourceString = outputBinding.toString
   override def evaluateValue(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue] = {
     val parameterContext = ParameterContext.Empty.withInputs(inputValues, ioFunctionSet)
 

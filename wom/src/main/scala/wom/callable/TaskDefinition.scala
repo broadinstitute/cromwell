@@ -35,7 +35,7 @@ case class TaskDefinition(name: String,
                          functions: IoFunctionSet,
                          valueMapper: WdlValue => WdlValue = identity[WdlValue],
                          separate: Boolean = false): Try[String] = {
-    val mappedInputs = taskInputs.map({case (k, v) => k.name -> v})
+    val mappedInputs = taskInputs.map({case (k, v) => k.localName -> v})
     // TODO: Bring back inputs: Try(StringUtil.normalize(commandTemplate.map(_.instantiate(declarations, taskInputs, functions, valueMapper)).mkString("")))
     Try(StringUtil.normalize(commandTemplate.map(_.instantiate(mappedInputs, functions, valueMapper)).mkString(commandPartSeparator)))
   }

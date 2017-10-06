@@ -6,6 +6,7 @@ import wdl.exception.{ScatterIndexNotFound, VariableLookupException, VariableNot
 import wdl.expression.WdlFunctions
 import wdl.values.WdlArray.WdlArrayLike
 import wdl.values.WdlValue
+import wom.graph.WomIdentifier
 
 import scala.util.{Failure, Success, Try}
 import scalax.collection.Graph
@@ -104,6 +105,19 @@ trait Scope {
     */
   lazy val fullyQualifiedName = {
     (ancestry.filter(_.appearsInFqn).map(_.unqualifiedName).reverse :+ unqualifiedName).mkString(".")
+  }
+  
+  lazy val womIdentifier = {
+    /* Limit the fully qualified name to the parent workflow, if it exists.
+     * The reason for this is if this scope comes from an imported namespace,
+     * the name of the namespace will be part of the FQN. While useful to construct the hierarchy and dependencies,
+     * this is not desirable when being used by underlying engines.
+    */
+    val womFullyQualifiedName = ancestry.collectFirst {
+      case workflow: WdlWorkflow => locallyQualifiedName(workflow)
+    } getOrElse fullyQualifiedName
+
+    WomIdentifier(unqualifiedName, womFullyQualifiedName)
   }
 
   /**

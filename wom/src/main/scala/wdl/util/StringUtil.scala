@@ -33,7 +33,10 @@ object StringUtil {
   def normalize(s: String): String = {
     val trimmed = stripAll(s, "\r\n", "\r\n \t")
     val parts = trimmed.split("\\r?\\n")
-    val indent = parts.filterNot(_.trim.isEmpty).map(leadingWhitespaceCount).min
+    val indent = parts.filterNot(_.trim.isEmpty).map(leadingWhitespaceCount).toList match {
+      case Nil => 0
+      case nonEmpty => nonEmpty.min
+    }
     parts.map(_.drop(indent)).mkString("\n")
   }
 

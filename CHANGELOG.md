@@ -19,6 +19,9 @@ Abort of Dockerized tasks on the Local backend should now work as expected as `d
 * **StatsD**
 Added initial support for StatsD instrumentation. See the [README](https://github.com/broadinstitute/cromwell#statsd) for details on how to use it.
 
+* **User Service Account auth mode for Google**
+Added a new authentication mode for Google Cloud Platform which will allow a user to supply the JSON key file in their workflow options to allow for per-workflow authentication via service account. This is analogous to the previously existing refresh token authentication scheme. As with the refresh token scheme it is encouraged that the **user_service_account_json** workflow option field is added to the **encrypted-fields** list in the configuration.
+
 ## 29 Release Notes
 
 ### Breaking Changes

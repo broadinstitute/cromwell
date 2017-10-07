@@ -37,6 +37,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
       * [Application Default Credentials](#application-default-credentials)
       * [Service Account](#service-account)
       * [Refresh Token](#refresh-token)
+      * [User Service Account](#user-service-account)
     * [Docker](#docker)
     * [Monitoring](#monitoring)
   * [GA4GH TES Backend](#ga4gh-tes-backend)
@@ -948,7 +949,8 @@ authentication schemes that might be used:
 * `application_default` - (default, recommended) Use [application default](https://developers.google.com/identity/protocols/application-default-credentials) credentials.
 * `service_account` - Use a specific service account and key file (in PEM format) to authenticate.
 * `user_account` - Authenticate as a user.
-* `refresh_token` - Authenticate using a refresh token supplied in the workflow options.
+* `refresh_token` - Authenticate each individual workflow using a refresh token supplied in the workflow options.
+* `user_service_account` - Authenticate each individual workflow using service account credentials supplied in the workflow options.
 
 The `auths` block in the `google` stanza defines the authorization schemes within a Cromwell deployment:
 
@@ -971,6 +973,10 @@ google {
       scheme = "service_account"
       service-account-id = "my-service-account"
       pem-file = "/path/to/file.pem"
+    },
+    {
+      name = "user-service-account"
+      scheme = "user_service_account"
     }
   ]
 }
@@ -1017,13 +1023,19 @@ Creating the account will cause the JSON file to be downloaded.  The structure o
 Most importantly, the value of the `client_email` field should go into the `service-account-id` field in the configuration (see below).  The
 `private_key` portion needs to be pulled into its own file (e.g. `my-key.pem`).  The `\n`s in the string need to be converted to newline characters.
 
-While technically not part of Service Account authorization mode, one can also override the default service account that the compute VM is started with via the configuration option `JES.config.genomics.compute-service-account` or through the workflow options parameter `google_compute_service_account`.  It's important that this service account, and the service account specified in `JES.config.genomics.auth` can both read/write the location specified by `JES.config.root`
+While technically not part of Service Account authorization mode, one can also override the default service account that the compute VM is started with via the configuration option `JES.config.genomics.compute-service-account` or through the workflow options parameter `google_compute_service_account`.  The service account you provide must have been granted Service Account Actor role to Cromwell's primary service account. As this only affects Google Pipelines API and not GCS, it's important that this service account, and the service account specified in `JES.config.genomics.auth` can both read/write the location specified by `JES.config.root`
 
 #### Refresh Token
 
 A **refresh_token** field must be specified in the [workflow options](#workflow-options) when submitting the job.  Omitting this field will cause the workflow to fail.
 
 The refresh token is passed to JES along with the `client-id` and `client-secret` pair specified in the corresponding entry in `auths`.
+
+#### User Service Account
+
+A [JSON key file for the service account](####service-acocunt) must be passed in via the **user_service_account_json** field in the [workflow options](#workflow-options) when submitting the job. Omitting this field will cause the workflow to fail. The JSON should be passed as a string and will need to have no newlines and all instances of *"* and *\n* escaped. 
+
+In the likely event that this service account does not have access to Cromwell's default google project the **google_project** workflow option must be set. In the similarly likely case that this service account can not access Cromwell's default google bucket, the **jes_gcs_root** workflow option should be set appropriately.
 
 
 ### Docker

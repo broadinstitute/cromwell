@@ -8,6 +8,7 @@ import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
 import cromwell.backend.wdl.Command
+import cromwell.backend.wdl.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
 import cromwell.core.path.JavaWriterImplicits._
 import cromwell.core.path.Obsolete._
@@ -125,15 +126,15 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   }
 
   private def processSuccess(rc: Int) = {
-    evaluateOutputs(callEngineFunction, outputMapper(jobPaths)).value match {
-      case Success(Right(outputs)) => JobSucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty, dockerImageUsed = None)
-      case Success(Left(evaluationErrors)) =>
+    evaluateOutputs(callEngineFunction, outputMapper(jobPaths)) match {
+      case ValidJobOutputs(outputs) => JobSucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty, dockerImageUsed = None)
+      case InvalidJobOutputs(evaluationErrors) =>
         val exception = new MessageAggregation {
           override def exceptionContext: String = "Failed post processing of outputs"
           override def errorMessages: Traversable[String] = evaluationErrors.toList
         }
         JobFailedNonRetryableResponse(jobDescriptor.key, exception, Option(rc))
-      case Failure(evaluationException) =>
+      case JobOutputsEvaluationException(evaluationException) =>
         val message = Option(evaluationException.getMessage) map {
           ": " + _
         } getOrElse ""

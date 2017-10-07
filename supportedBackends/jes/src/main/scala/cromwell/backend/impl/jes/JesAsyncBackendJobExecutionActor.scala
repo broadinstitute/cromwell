@@ -199,12 +199,12 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     import cats.syntax.validated._
     def evaluateFiles(output: OutputDefinition): List[WdlFile] = {
       Try (
-        output.expression.evaluateFiles(jobDescriptor.unqualifiedInputs, NoIoFunctionSet, output.womType).map(_.toList)
+        output.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, output.womType).map(_.toList)
       ).getOrElse(List.empty[WdlFile].validNel)
         .getOrElse(List.empty)
     }
 
-    val wdlFileOutputs = jobDescriptor.call.callable.outputs.flatMap(evaluateFiles)
+    val wdlFileOutputs = jobDescriptor.call.callable.outputs.flatMap(evaluateFiles) map relativeLocalizationPath
     
     val outputs = wdlFileOutputs.distinct flatMap { wdlFile =>
       wdlFile match {

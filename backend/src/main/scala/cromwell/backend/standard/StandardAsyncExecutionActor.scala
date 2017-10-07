@@ -9,12 +9,12 @@ import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{ExecutionMode, JobId, Recover}
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle, ReturnCodeIsNotAnInt, StderrNonEmpty, SuccessfulExecutionHandle, WrongReturnCode}
 import cromwell.backend.validation._
-import cromwell.backend.wdl.OutputEvaluator.OutputResult
+import cromwell.backend.wdl.OutputEvaluator._
 import cromwell.backend.wdl.{Command, OutputEvaluator, WdlFileMapper}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobLifecycleActor}
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.core.path.Path
-import cromwell.core.{CallOutputs, CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent}
+import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
@@ -426,7 +426,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     *
     * @return A Try wrapping evaluated outputs.
     */
-  def evaluateOutputs: OutputResult[CallOutputs] = {
+  def evaluateOutputs: EvaluatedJobOutputs = {
     OutputEvaluator.evaluateOutputs(jobDescriptor, backendEngineFunctions, outputValueMapper)
   }
 
@@ -479,19 +479,19 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def handleExecutionSuccess(runStatus: StandardAsyncRunStatus,
                              handle: StandardAsyncPendingExecutionHandle,
                              returnCode: Int): ExecutionHandle = {
-    evaluateOutputs.value match {
-      case Success(Right(outputs)) =>
+    evaluateOutputs match {
+      case ValidJobOutputs(outputs) =>
         SuccessfulExecutionHandle(outputs, returnCode, jobPaths.detritusPaths, getTerminalEvents(runStatus))
-      case Success(Left(errors)) =>
+      case InvalidJobOutputs(errors) =>
         val exception = new MessageAggregation {
           override def exceptionContext: String = "Failed to evaluate job outputs"
           override def errorMessages: Traversable[String] = errors.toList
         }
         FailedNonRetryableExecutionHandle(exception)
-      case Failure(exception: Exception) if retryEvaluateOutputsAggregated(exception) =>
+      case JobOutputsEvaluationException(exception: Exception) if retryEvaluateOutputsAggregated(exception) =>
         // Return the execution handle in this case to retry the operation
         handle
-      case Failure(ex) => FailedNonRetryableExecutionHandle(ex)
+      case JobOutputsEvaluationException(ex) => FailedNonRetryableExecutionHandle(ex)
     }
   }
 

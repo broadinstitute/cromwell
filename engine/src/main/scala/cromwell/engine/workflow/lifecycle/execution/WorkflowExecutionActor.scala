@@ -78,8 +78,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   when(WorkflowExecutionPendingState) {
     case Event(ExecuteWorkflowCommand, _) =>
-      // TODO WOM: Remove this when conditional and scatters are supported. It prevents the workflow from hanging
-      if(workflowDescriptor.namespace.innerGraph.nodes.collect({
+      // TODO WOM: Remove this when conditional and scatters and sub workflows are supported. It prevents the workflow from hanging
+      if(workflowDescriptor.namespace.innerGraph.nodes.collectFirst({
         case _: ScatterNode | _: ConditionalNode | _: WorkflowCallNode => true
       }).nonEmpty) {
         context.parent ! WorkflowExecutionFailedResponse(Map.empty, new Exception("Scatter and Conditional not supported yet"))
@@ -807,12 +807,18 @@ object WorkflowExecutionActor {
     }
   }
 
+  /**
+    * Key for an Expression Node that is not a Workflow Output
+    */
   case class IntermediateValueKey(node: ExpressionNode, index: ExecutionIndex) extends ExpressionKey {
     override val instantiatedExpression = node.instantiatedExpression
     override val womType = node.womType
     override val singleOutputPort: OutputPort = node.singleExpressionOutputPort
   }
 
+  /**
+    * Key for an Expression based Graph Output Node
+    */
   case class ExpressionBasedWorkflowOutputKey(node: ExpressionBasedGraphOutputNode) extends ExpressionKey {
     override val index = None
     override val instantiatedExpression = node.instantiatedExpression

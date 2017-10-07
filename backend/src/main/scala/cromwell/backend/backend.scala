@@ -37,7 +37,7 @@ case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
   val fullyQualifiedInputs = inputDeclarations map { case (declaration, value) =>
     key.call.identifier.combine(declaration.name).fullyQualifiedName.value -> value 
   }
-  val unqualifiedInputs = inputDeclarations map { case (declaration, value) =>
+  val localInputs = inputDeclarations map { case (declaration, value) =>
     declaration.name -> value
   }
   val call = key.call

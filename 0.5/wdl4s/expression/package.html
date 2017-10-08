@@ -1,0 +1,267 @@
+<!DOCTYPE html >
+<html>
+        <head>
+          <title>expression - wdl4s.expression</title>
+          <meta name="description" content="expression - wdl4s.expression" />
+          <meta name="keywords" content="expression wdl4s.expression" />
+          <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+          
+      <link href="../../lib/template.css" media="screen" type="text/css" rel="stylesheet" />
+      <link href="../../lib/diagrams.css" media="screen" type="text/css" rel="stylesheet" id="diagrams-css" />
+      <script type="text/javascript" src="../../lib/jquery.js" id="jquery-js"></script>
+      <script type="text/javascript" src="../../lib/jquery-ui.js"></script>
+      <script type="text/javascript" src="../../lib/template.js"></script>
+      <script type="text/javascript" src="../../lib/tools.tooltip.js"></script>
+      
+      <script type="text/javascript">
+         if(top === self) {
+            var url = '../../index.html';
+            var hash = 'wdl4s.expression.package';
+            var anchor = window.location.hash;
+            var anchor_opt = '';
+            if (anchor.length >= 1)
+              anchor_opt = '@' + anchor.substring(1);
+            window.location.href = url + '#' + hash + anchor_opt;
+         }
+   	  </script>
+    
+        </head>
+        <body class="value">
+      <div id="definition">
+        <img alt="Package" src="../../lib/package_big.png" />
+        <p id="owner"><a href="../package.html" class="extype" name="wdl4s">wdl4s</a></p>
+        <h1>expression</h1><span class="permalink">
+      <a href="../../index.html#wdl4s.expression.package" title="Permalink" target="_top">
+        <img src="../../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      </div>
+
+      <h4 id="signature" class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <span class="name">expression</span>
+      </span>
+      </h4>
+      
+          <div id="comment" class="fullcommenttop"></div>
+        
+
+      <div id="mbrsel">
+        <div id="textfilter"><span class="pre"></span><span class="input"><input id="mbrsel-input" type="text" accesskey="/" /></span><span class="post"></span></div>
+        
+        
+        <div id="visbl">
+            <span class="filtertype">Visibility</span>
+            <ol><li class="public in"><span>Public</span></li><li class="all out"><span>All</span></li></ol>
+          </div>
+      </div>
+
+      <div id="template">
+        <div id="allMembers">
+        
+
+        <div id="types" class="types members">
+              <h3>Type Members</h3>
+              <ol><li name="wdl4s.expression.Evaluator" visbl="pub" data-isabs="true" fullComment="no" group="Ungrouped">
+      <a id="EvaluatorextendsAnyRef"></a>
+      <a id="Evaluator:Evaluator"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">trait</span>
+      </span>
+      <span class="symbol">
+        <a href="Evaluator.html"><span class="name">Evaluator</span></a><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../../index.html#wdl4s.expression.package@EvaluatorextendsAnyRef" title="Permalink" target="_top">
+        <img src="../../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="wdl4s.expression.FileEvaluator" visbl="pub" data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="FileEvaluatorextendsEvaluatorwithProductwithSerializable"></a>
+      <a id="FileEvaluator:FileEvaluator"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="FileEvaluator.html"><span class="name">FileEvaluator</span></a><span class="params">(<span name="valueEvaluator">valueEvaluator: <a href="ValueEvaluator.html" class="extype" name="wdl4s.expression.ValueEvaluator">ValueEvaluator</a></span>, <span name="coerceTo">coerceTo: <a href="../types/WdlType.html" class="extype" name="wdl4s.types.WdlType">WdlType</a> = <span class="symbol"><span class="name"><a href="../package.html">WdlAnyType</a></span></span></span>)</span><span class="result"> extends <a href="Evaluator.html" class="extype" name="wdl4s.expression.Evaluator">Evaluator</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../../index.html#wdl4s.expression.package@FileEvaluatorextendsEvaluatorwithProductwithSerializable" title="Permalink" target="_top">
+        <img src="../../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      <p class="shortcomment cmt">This evaluator will take a WdlExpression and determine all of the static files that
+are referenced in this expression.</p><div class="fullcomment"><div class="comment cmt"><p>This evaluator will take a WdlExpression and determine all of the static files that
+are referenced in this expression.</p><p>This utilizes a ValueEvaluator to try to statically evaluate parts of the expression
+into WdlValues.  See the evalValueToWdlFile() function.</p><p>The coerceTo parameter is for the case where an output might be coerceable to a File.
+Consider the following output section for a task:</p><p>output {
+  File a = &quot;a.txt&quot;
+  String b = &quot;b.txt&quot;
+}</p><p>In the first case, the coerceTo would be WdlFileType and the calling evaluate(&quot;a.txt&quot;) would
+return a Seq(WdlFile(&quot;a.txt&quot;)).  In the second case, coerceTo would be WdlStringType and
+evaluate(&quot;b.txt&quot;) would return Seq().
+</p></div></div>
+    </li><li name="wdl4s.expression.FileEvaluatorWdlFunctions" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="FileEvaluatorWdlFunctionsextendsWdlFunctions[Seq[wdl4s.values.WdlFile]]"></a>
+      <a id="FileEvaluatorWdlFunctions:FileEvaluatorWdlFunctions"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">class</span>
+      </span>
+      <span class="symbol">
+        <a href="FileEvaluatorWdlFunctions.html"><span class="name">FileEvaluatorWdlFunctions</span></a><span class="result"> extends <a href="WdlFunctions.html" class="extype" name="wdl4s.expression.WdlFunctions">WdlFunctions</a>[<span class="extype" name="scala.Seq">Seq</span>[<a href="../values/WdlFile.html" class="extype" name="wdl4s.values.WdlFile">WdlFile</a>]]</span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../../index.html#wdl4s.expression.package@FileEvaluatorWdlFunctionsextendsWdlFunctions[Seq[wdl4s.values.WdlFile]]" title="Permalink" target="_top">
+        <img src="../../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="wdl4s.expression.TypeEvaluator" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="TypeEvaluatorextendsEvaluatorwithProductwithSerializable"></a>
+      <a id="TypeEvaluator:TypeEvaluator"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="TypeEvaluator.html"><span class="name">TypeEvaluator</span></a><span class="params">(<span name="lookup">lookup: (<span class="extype" name="scala.Predef.String">String</span>) ⇒ <a href="../types/WdlType.html" class="extype" name="wdl4s.types.WdlType">WdlType</a></span>, <span name="functions">functions: <a href="WdlFunctions.html" class="extype" name="wdl4s.expression.WdlFunctions">WdlFunctions</a>[<a href="../types/WdlType.html" class="extype" name="wdl4s.types.WdlType">WdlType</a>]</span>)</span><span class="result"> extends <a href="Evaluator.html" class="extype" name="wdl4s.expression.Evaluator">Evaluator</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../../index.html#wdl4s.expression.package@TypeEvaluatorextendsEvaluatorwithProductwithSerializable" title="Permalink" target="_top">
+        <img src="../../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="wdl4s.expression.ValueEvaluator" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="ValueEvaluatorextendsEvaluatorwithProductwithSerializable"></a>
+      <a id="ValueEvaluator:ValueEvaluator"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="ValueEvaluator.html"><span class="name">ValueEvaluator</span></a><span class="params">(<span name="lookup">lookup: (<span class="extype" name="scala.Predef.String">String</span>) ⇒ <a href="../values/WdlValue.html" class="extype" name="wdl4s.values.WdlValue">WdlValue</a></span>, <span name="functions">functions: <a href="WdlFunctions.html" class="extype" name="wdl4s.expression.WdlFunctions">WdlFunctions</a>[<a href="../values/WdlValue.html" class="extype" name="wdl4s.values.WdlValue">WdlValue</a>]</span>)</span><span class="result"> extends <a href="Evaluator.html" class="extype" name="wdl4s.expression.Evaluator">Evaluator</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../../index.html#wdl4s.expression.package@ValueEvaluatorextendsEvaluatorwithProductwithSerializable" title="Permalink" target="_top">
+        <img src="../../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="wdl4s.expression.WdlFunctions" visbl="pub" data-isabs="true" fullComment="no" group="Ungrouped">
+      <a id="WdlFunctions[T]extendsAnyRef"></a>
+      <a id="WdlFunctions[T]:WdlFunctions[T]"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">trait</span>
+      </span>
+      <span class="symbol">
+        <a href="WdlFunctions.html"><span class="name">WdlFunctions</span></a><span class="tparams">[<span name="T">T</span>]</span><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../../index.html#wdl4s.expression.package@WdlFunctions[T]extendsAnyRef" title="Permalink" target="_top">
+        <img src="../../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="wdl4s.expression.WdlStandardLibraryFunctions" visbl="pub" data-isabs="true" fullComment="no" group="Ungrouped">
+      <a id="WdlStandardLibraryFunctionsextendsWdlFunctions[wdl4s.values.WdlValue]"></a>
+      <a id="WdlStandardLibraryFunctions:WdlStandardLibraryFunctions"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">trait</span>
+      </span>
+      <span class="symbol">
+        <a href="WdlStandardLibraryFunctions.html"><span class="name">WdlStandardLibraryFunctions</span></a><span class="result"> extends <a href="WdlFunctions.html" class="extype" name="wdl4s.expression.WdlFunctions">WdlFunctions</a>[<a href="../values/WdlValue.html" class="extype" name="wdl4s.values.WdlValue">WdlValue</a>]</span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../../index.html#wdl4s.expression.package@WdlStandardLibraryFunctionsextendsWdlFunctions[wdl4s.values.WdlValue]" title="Permalink" target="_top">
+        <img src="../../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="wdl4s.expression.WdlStandardLibraryFunctionsType" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="WdlStandardLibraryFunctionsTypeextendsWdlFunctions[wdl4s.types.WdlType]"></a>
+      <a id="WdlStandardLibraryFunctionsType:WdlStandardLibraryFunctionsType"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">class</span>
+      </span>
+      <span class="symbol">
+        <a href="WdlStandardLibraryFunctionsType.html"><span class="name">WdlStandardLibraryFunctionsType</span></a><span class="result"> extends <a href="WdlFunctions.html" class="extype" name="wdl4s.expression.WdlFunctions">WdlFunctions</a>[<a href="../types/WdlType.html" class="extype" name="wdl4s.types.WdlType">WdlType</a>]</span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../../index.html#wdl4s.expression.package@WdlStandardLibraryFunctionsTypeextendsWdlFunctions[wdl4s.types.WdlType]" title="Permalink" target="_top">
+        <img src="../../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li></ol>
+            </div>
+
+        
+
+        <div id="values" class="values members">
+              <h3>Value Members</h3>
+              <ol><li name="wdl4s.expression.NoFunctions" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="NoFunctions"></a>
+      <a id="NoFunctions:NoFunctions"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="NoFunctions$.html"><span class="name">NoFunctions</span></a><span class="result"> extends <a href="WdlStandardLibraryFunctions.html" class="extype" name="wdl4s.expression.WdlStandardLibraryFunctions">WdlStandardLibraryFunctions</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../../index.html#wdl4s.expression.package@NoFunctions" title="Permalink" target="_top">
+        <img src="../../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li></ol>
+            </div>
+
+        
+
+        
+        </div>
+
+        <div id="inheritedMembers">
+        
+        
+        </div>
+
+        <div id="groupedMembers">
+        <div class="group" name="Ungrouped">
+              <h3>Ungrouped</h3>
+              
+            </div>
+        </div>
+
+      </div>
+
+      <div id="tooltip"></div>
+
+      <div id="footer">  </div>
+
+
+    </body>
+      </html>

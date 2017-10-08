@@ -1,0 +1,13 @@
+{
+  "a.o": [],
+  "b.ints": [],
+  "b.o": [],
+  "w.a0": ["w.a0.o", "w.ints"],
+  "w.a0.o": [],
+  "w.a1": ["w.a1.o", "w.ints"],
+  "w.a1.o": [],
+  "w.b": ["w.b.ints", "w.b.o"],
+  "w.b.ints": [],
+  "w.b.o": [],
+  "w.ints": ["w.b"]
+}

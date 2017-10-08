@@ -1,0 +1,17 @@
+{
+  "cgrep.cgrep.count": [],
+  "cgrep.cgrep.in_file": [],
+  "cgrep.cgrep.pattern": [],
+  "ps.ps.procs": [],
+  "three_step.cgrep": ["three_step.ps"],
+  "three_step.cgrep.count": ["three_step.cgrep", "three_step.ps"],
+  "three_step.cgrep.in_file": ["three_step.cgrep", "three_step.ps"],
+  "three_step.cgrep.pattern": ["three_step.cgrep", "three_step.ps"],
+  "three_step.ps": [],
+  "three_step.ps.procs": ["three_step.ps"],
+  "three_step.wc": ["three_step.ps"],
+  "three_step.wc.count": ["three_step.ps", "three_step.wc"],
+  "three_step.wc.in_file": ["three_step.ps", "three_step.wc"],
+  "wc.wc.count": [],
+  "wc.wc.in_file": []
+}

@@ -1,4 +1,3 @@
-ignore: true
 name: output_redirection
 testFormat: workflowsuccess
 

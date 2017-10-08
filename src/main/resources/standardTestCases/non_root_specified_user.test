@@ -1,4 +1,3 @@
-ignore: true
 name: non_root_specified_user
 testFormat: workflowsuccess
 backends: [Local]

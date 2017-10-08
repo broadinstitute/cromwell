@@ -1,4 +1,3 @@
-ignore: true
 name: bad_workflow_failure_mode
 testFormat: workflowfailure
 

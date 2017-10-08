@@ -1,4 +1,3 @@
-ignore: true
 name: variable_scoping
 testFormat: workflowsuccess
 

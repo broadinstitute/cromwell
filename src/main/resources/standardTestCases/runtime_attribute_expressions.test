@@ -1,4 +1,3 @@
-ignore: true
 name: runtime_attribute_expressions
 testFormat: workflowsuccess
 

@@ -1,4 +1,3 @@
-ignore: true
 name: empty_string
 testFormat: workflowsuccess
 

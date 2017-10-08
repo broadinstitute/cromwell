@@ -1,4 +1,3 @@
-ignore: true
 name: read_tsv
 testFormat: workflowsuccess
 

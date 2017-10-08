@@ -1,4 +1,3 @@
-ignore: true
 name: continue_on_return_code
 testFormat: workflowsuccess
 

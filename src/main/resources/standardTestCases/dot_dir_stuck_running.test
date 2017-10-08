@@ -1,4 +1,3 @@
-ignore: true
 name: dot_dir_stuck_running
 testFormat: workflowsuccess
 

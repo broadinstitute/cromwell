@@ -1,4 +1,3 @@
-ignore: true
 name: docker_hash_quay
 testFormat: workflowsuccess
 

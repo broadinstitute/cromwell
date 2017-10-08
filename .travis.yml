@@ -1,0 +1,15 @@
+sudo: false
+language: scala
+scala:
+  - 2.12.3
+jdk:
+  - oraclejdk8
+script: sbt clean +coverage +test coverageReport
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
+  - src/bin/publish_snapshot.sh
+deploy:
+  provider: script
+  script: src/bin/publish_release.sh
+  on:
+    tags: true

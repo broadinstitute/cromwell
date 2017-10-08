@@ -226,7 +226,11 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
 
   private def buildJesInitializationTestingBits(backendConfig: Config = dockerBackendConfig): TestingBits = {
     val workflowOptions = WorkflowOptions.fromMap(Map("refresh_token" -> "mytoken")).get
-    val workflowDescriptor = buildWdlWorkflowDescriptor(SampleWdl.HelloWorld.workflowSource(), options = workflowOptions)
+    val workflowDescriptor = buildWdlWorkflowDescriptor(
+      SampleWdl.HelloWorld.workflowSource(),
+      inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.mapValues(JsString.apply)).compactPrint),
+      options = workflowOptions
+    )
     val calls = workflowDescriptor.workflow.taskCallNodes
     val backendConfigurationDescriptor = BackendConfigurationDescriptor(backendConfig, globalConfig)
     val jesConfiguration = new JesConfiguration(backendConfigurationDescriptor)

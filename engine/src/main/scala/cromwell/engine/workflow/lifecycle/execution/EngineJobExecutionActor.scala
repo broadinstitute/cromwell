@@ -5,7 +5,6 @@ import akka.actor.{ActorInitializationException, ActorRef, LoggingFSM, OneForOne
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory}
-import cromwell.core.CromwellGraphNode._
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core._
@@ -115,7 +114,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       replyTo ! JobStarting(jobDescriptorKey)
       if (restarting) {
         val jobStoreKey = jobDescriptorKey.toJobStoreKey(workflowIdForLogging)
-        jobStoreActor ! QueryJobCompletion(jobStoreKey, jobDescriptorKey.call.callable.outputs.toList)
+        jobStoreActor ! QueryJobCompletion(jobStoreKey, jobDescriptorKey.call.callable.outputs)
         goto(CheckingJobStore)
       } else {
         requestOutputStore()

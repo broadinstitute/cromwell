@@ -3,7 +3,6 @@ package cromwell.backend.io
 import cromwell.core.path.Path
 import cromwell.core.{CallContext, JobKey}
 import cromwell.services.metadata.CallMetadataKeys
-import cromwell.core.CromwellGraphNode._
 
 object JobPaths {
   val CallPrefix = "call"
@@ -17,7 +16,7 @@ object JobPaths {
   val DockerCidPathKey = "dockerCidPath"
 
   def callPathBuilder(root: Path, jobKey: JobKey) = {
-    val callName = jobKey.node.unqualifiedName
+    val callName = jobKey.node.localName
     val call = s"$CallPrefix-$callName"
     val shard = jobKey.index map { s => s"$ShardPrefix-$s" } getOrElse ""
     val retry = if (jobKey.attempt > 1) s"$AttemptPrefix-${jobKey.attempt}" else ""

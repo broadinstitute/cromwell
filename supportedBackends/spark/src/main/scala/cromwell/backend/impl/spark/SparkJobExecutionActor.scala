@@ -8,10 +8,12 @@ import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
 import cromwell.backend.wdl.Command
+import cromwell.backend.wdl.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
 import cromwell.core.path.JavaWriterImplicits._
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}
+import lenthall.exception.MessageAggregation
 
 import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger
@@ -68,7 +70,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     * Restart or resume a previously-started job.
     */
   override def recover: Future[BackendJobExecutionResponse] = {
-    log.warning("{} Spark backend currently doesn't support recovering jobs. Starting {} again.", tag, jobDescriptor.key.call.name)
+    log.warning("{} Spark backend currently doesn't support recovering jobs. Starting {} again.", tag, jobDescriptor.key.call.localName)
     taskLauncher
     executionResponse.future
   }
@@ -125,12 +127,18 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   private def processSuccess(rc: Int) = {
     evaluateOutputs(callEngineFunction, outputMapper(jobPaths)) match {
-      case Success(outputs) => JobSucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty, dockerImageUsed = None)
-      case Failure(e) =>
-        val message = Option(e.getMessage) map {
+      case ValidJobOutputs(outputs) => JobSucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty, dockerImageUsed = None)
+      case InvalidJobOutputs(evaluationErrors) =>
+        val exception = new MessageAggregation {
+          override def exceptionContext: String = "Failed post processing of outputs"
+          override def errorMessages: Traversable[String] = evaluationErrors.toList
+        }
+        JobFailedNonRetryableResponse(jobDescriptor.key, exception, Option(rc))
+      case JobOutputsEvaluationException(evaluationException) =>
+        val message = Option(evaluationException.getMessage) map {
           ": " + _
         } getOrElse ""
-        JobFailedNonRetryableResponse(jobDescriptor.key, new Throwable("Failed post processing of outputs" + message, e), Option(rc))
+        JobFailedNonRetryableResponse(jobDescriptor.key, new Throwable("Failed post processing of outputs" + message, evaluationException), Option(rc))
     }
   }
 

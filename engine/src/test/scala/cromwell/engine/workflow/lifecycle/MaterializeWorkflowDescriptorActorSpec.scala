@@ -4,7 +4,7 @@ import akka.actor.Props
 import akka.testkit.TestDuration
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestKitWordSpec
-import cromwell.core.Tags.PostWomTest
+import cromwell.core.CromwellGraphNode._
 import cromwell.core.labels.{Label, Labels}
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesWithoutImports}
 import cromwell.engine.backend.{BackendConfigurationEntry, CromwellBackends}
@@ -76,7 +76,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
             wfDesc.id shouldBe workflowId
             wfDesc.name shouldBe "wf_hello"
             wfDesc.namespace.taskCallNodes.size shouldBe 1
-            wfDesc.knownValues.head._1.name shouldBe "wf_hello.hello.addressee"
+            wfDesc.knownValues.head._1.fullyQualifiedName shouldBe "wf_hello.hello.addressee"
             wfDesc.knownValues.head._2 shouldBe Inl(WdlString("world"))
             wfDesc.getWorkflowOption(WorkflowOptions.WriteToCache) shouldBe Option("true")
             wfDesc.getWorkflowOption(WorkflowOptions.ReadFromCache) shouldBe None
@@ -148,8 +148,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       system.stop(materializeWfActor)
     }
 
-    // TODO WOM: fails because fullyQualifiedName is wrong
-    "reject backend assignment to non-existent backends" taggedAs PostWomTest ignore {
+    "reject backend assignment to non-existent backends" in {
       val wdl =
         """
           |task a {

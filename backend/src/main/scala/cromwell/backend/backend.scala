@@ -1,7 +1,6 @@
 package cromwell.backend
 
 import com.typesafe.config.Config
-import cromwell.core.CromwellGraphNode._
 import cromwell.core.WorkflowOptions.WorkflowOption
 import cromwell.core.callcaching.MaybeCallCachingEligible
 import cromwell.core.labels.Labels
@@ -36,7 +35,10 @@ case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                                 maybeCallCachingEligible: MaybeCallCachingEligible,
                                 prefetchedKvStoreEntries: Map[String, KvResponse]) {
   val fullyQualifiedInputs = inputDeclarations map { case (declaration, value) =>
-    key.call.fullyQualifiedName + "." + declaration -> value 
+    key.call.identifier.combine(declaration.name).fullyQualifiedName.value -> value 
+  }
+  val localInputs = inputDeclarations map { case (declaration, value) =>
+    declaration.name -> value
   }
   val call = key.call
   override val toString = s"${key.mkTag(workflowDescriptor.id)}"

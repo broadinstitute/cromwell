@@ -4,7 +4,6 @@ import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{Res
 import cromwell.jobstore.JobResultFailure
 import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
 import EngineJobExecutionActorSpec.EnhancedTestEJEA
-import cromwell.core.Tags.PostWomTest
 import cromwell.core.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.HashError
 import org.scalatest.concurrent.Eventually
@@ -21,7 +20,7 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
   "A 'RunningJob' EJEA" should {
     CallCachingModes foreach { mode =>
       val andMaybeCallCacheHashes = if (mode.writeToCache) "then CallCacheHashes " else ""
-      s"Handle receiving a SucceededResponse ${andMaybeCallCacheHashes}correctly in $mode mode" taggedAs PostWomTest ignore {
+      s"Handle receiving a SucceededResponse ${andMaybeCallCacheHashes}correctly in $mode mode" in {
         ejea = ejeaInRunningState(mode)
         ejea ! successResponse
 
@@ -39,7 +38,7 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
       }
 
       if (mode.writeToCache) {
-        s"Handle receiving CallCacheHashes then SuccessResponse correctly in $mode mode" taggedAs PostWomTest ignore {
+        s"Handle receiving CallCacheHashes then SuccessResponse correctly in $mode mode" in {
           ejea = ejeaInRunningState(mode)
           ejea ! SuccessfulCallCacheHashes
           eventually { ejea.stateData should be(initialData.copy(hashes = Some(Success(SuccessfulCallCacheHashes)))) }
@@ -48,7 +47,7 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
           expectCacheWrite(successResponse, SuccessfulCallCacheHashes)
         }
 
-        s"Handle receiving SuccessResponse then HashError correctly in $mode mode" taggedAs PostWomTest ignore {
+        s"Handle receiving SuccessResponse then HashError correctly in $mode mode" in {
           ejea = ejeaInRunningState(mode)
           ejea ! successResponse
           eventually { ejea.stateData should be(SucceededResponseData(successResponse, None)) }
@@ -57,7 +56,7 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
           expectJobStoreWrite(SucceededResponseData(successResponse, Some(Failure(hashError.reason))))
         }
 
-        s"Handle receiving HashError then SuccessResponse correctly in $mode mode" taggedAs PostWomTest ignore {
+        s"Handle receiving HashError then SuccessResponse correctly in $mode mode" in {
           ejea = ejeaInRunningState(mode)
           ejea ! hashError
           eventually { ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, Some(Failure(hashError.reason)))) }
@@ -73,7 +72,7 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
     List(("FailedRetryableResponse", failureRetryableResponse _, true),
          ("FailedNonRetryableResponse", failureNonRetryableResponse _, false)
     ) foreach { case (name, responseMaker, retryable) =>
-      s"register '$name's with the JobStore" taggedAs PostWomTest ignore {
+      s"register '$name's with the JobStore" in {
         ejea = ejeaInRunningState()
         val response = responseMaker.apply
         ejea.underlyingActor.receive.isDefinedAt(response) should be(true)

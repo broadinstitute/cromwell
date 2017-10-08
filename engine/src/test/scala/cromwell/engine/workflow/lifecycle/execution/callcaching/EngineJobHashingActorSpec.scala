@@ -15,6 +15,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
 import _root_.wdl.command.StringCommandPart
 import _root_.wdl.values.WdlValue
+import wom.graph.WomIdentifier
 
 class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matchers with BackendSpec with TableDrivenPropertyChecks with Eventually {
   behavior of "EngineJobHashingActor"
@@ -23,7 +24,7 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
     val task = WomMocks.mockTaskDefinition("hello").copy(
       commandTemplate = List(StringCommandPart("Do the stuff... now!!"))
     )
-    val call = WomMocks.mockTaskCall("workflow.hello").copy(callable = task)
+    val call = WomMocks.mockTaskCall(WomIdentifier("hello", "workflow.hello")).copy(callable = task)
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
     workflowDescriptor.id returns WorkflowId.randomId()
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)

@@ -1,7 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution
 
 import cromwell.backend.BackendJobDescriptorKey
-import cromwell.core.CromwellGraphNode._
 import cromwell.core.ExecutionStatus._
 import cromwell.core.{CallKey, JobKey}
 import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.{FqnIndex, RunnableScopes}
@@ -33,6 +32,10 @@ object ExecutionStore {
     val keys = workflow.innerGraph.nodes collect {
       case call: TaskCallNode => Option(BackendJobDescriptorKey(call, None, 1))
       case declaration: ExpressionNode => Option(ExpressionKey(declaration, None))
+        // Note that PortBasedGraphOutputNodes don't need to be added in the store.
+        // They simply act as a proxy for another output port in the graph.
+        // When we reach the end of the workflow, we'll simply look for the source output port in the output store
+      case expressionOutputNode: ExpressionBasedGraphOutputNode => Option(ExpressionKey(expressionOutputNode))
     }
     
     // There are potentially resolved workflow inputs that are default WomExpressions.
@@ -120,7 +123,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
   }
 
   def findCompletedShardsForOutput(key: CollectorKey): List[JobKey] = doneKeys.values.toList collect {
-    case k @ (_: CallKey | _:DynamicDeclarationKey) if k.node == key.node && k.isShard => k
+    case k @ (_: CallKey | _:IntermediateValueKey) if k.node == key.node && k.isShard => k
   }
 
   private def emulateShardEntries(key: CollectorKey): Set[FqnIndex] = {
@@ -132,7 +135,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
   }
 
   private def arePrerequisitesDone(key: JobKey): Boolean = {
-    lazy val upstreamAreDone = key.node.upstream forall {
+    val upstreamAreDone = key.node.upstream forall {
       case n @ (_: TaskCallNode | _: ScatterNode | _: ExpressionNode) => upstreamIsDone(key, n)
       case _ => true
     }

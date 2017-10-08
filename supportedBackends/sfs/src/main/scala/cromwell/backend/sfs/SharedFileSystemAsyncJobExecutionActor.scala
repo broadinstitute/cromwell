@@ -7,7 +7,6 @@ import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandl
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncJob}
 import cromwell.backend.validation._
-import cromwell.core.CromwellGraphNode._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import _root_.wdl.values.WdlFile
@@ -95,7 +94,7 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   lazy val jobPathsWithDocker: JobPathsWithDocker = jobPaths.asInstanceOf[JobPathsWithDocker]
 
-  def jobName: String = s"cromwell_${jobDescriptor.workflowDescriptor.id.shortString}_${jobDescriptor.call.unqualifiedName}"
+  def jobName: String = s"cromwell_${jobDescriptor.workflowDescriptor.id.shortString}_${jobDescriptor.call.localName}"
 
   lazy val isDockerRun: Boolean = RuntimeAttributesValidation.extractOption(
     DockerValidation.instance, validatedRuntimeAttributes).isDefined

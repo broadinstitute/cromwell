@@ -15,13 +15,14 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
 import _root_.wdl.command.StringCommandPart
 import _root_.wdl.values.{WdlFile, WdlInteger, WdlString, WdlValue}
+import wom.graph.WomIdentifier
 
 class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with BackendSpec with Matchers with Eventually with TableDrivenPropertyChecks {
   behavior of "CallCacheReadingJobActor"
 
   def templateJobDescriptor(inputs: Map[LocallyQualifiedName, WdlValue] = Map.empty) = {
     val task = WomMocks.mockTaskDefinition("task").copy(commandTemplate = List(StringCommandPart("Do the stuff... now!!")))
-    val call = WomMocks.mockTaskCall("call", definition = task)
+    val call = WomMocks.mockTaskCall(WomIdentifier("call"), definition = task)
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
     val runtimeAttributes = Map(
       "cpu" -> WdlInteger(1),

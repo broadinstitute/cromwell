@@ -7,6 +7,7 @@ import cromwell.core.{JobKey, WorkflowId}
 import cromwell.util.WomMocks
 import org.mockito.Mockito._
 import org.scalatest.{FlatSpec, Matchers}
+import wom.graph.WomIdentifier
 
 class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
 
@@ -40,7 +41,7 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
     subWd.workflow returns subWorkflow
     subWd.id returns subWorkflowId
     
-    val call1 = WomMocks.mockTaskCall("call1")
+    val call1 = WomMocks.mockTaskCall(WomIdentifier("call1"))
     
     val jobKey = new JobKey {
       override def node = call1

@@ -2,7 +2,6 @@ package cromwell.subworkflowstore
 
 import akka.testkit.TestProbe
 import cromwell.CromwellTestKitWordSpec
-import cromwell.core.CromwellGraphNode._
 import cromwell.core.ExecutionIndex._
 import cromwell.core.{JobKey, WorkflowId, WorkflowSourceFilesWithoutImports}
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
@@ -16,7 +15,7 @@ import cromwell.util.WomMocks
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
 import wdl.WdlExpression
-import wom.graph.GraphNode
+import wom.graph.{GraphNode, WomIdentifier}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -38,7 +37,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with Matchers with Mo
       val parentWorkflowId = WorkflowId.randomId()
       val subWorkflowId = WorkflowId.randomId()
       val subSubWorkflowId = WorkflowId.randomId()
-      val call = WomMocks.mockTaskCall("foo.bar")
+      val call = WomMocks.mockTaskCall(WomIdentifier("bar", "foo.bar"))
       val jobKey = new JobKey {
         override def node: GraphNode = call
         override def index: Option[Int] = None

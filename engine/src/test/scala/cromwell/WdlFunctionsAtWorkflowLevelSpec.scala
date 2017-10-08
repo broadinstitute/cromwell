@@ -1,7 +1,6 @@
 package cromwell
 
 import akka.testkit._
-import cromwell.core.Tags.PostWomTest
 import cromwell.util.SampleWdl
 import wdl.types.{WdlMapType, WdlStringType}
 import wdl.values.{WdlMap, WdlString}
@@ -15,7 +14,7 @@ class WdlFunctionsAtWorkflowLevelSpec extends CromwellTestKitWordSpec {
   ))
 
   "A workflow with a read_lines() and read_map() at the workflow level" should {
-    "execute those functions properly" taggedAs PostWomTest ignore {
+    "execute those functions properly" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.WdlFunctionsAtWorkflowLevel,
         eventFilter = EventFilter.info(pattern = "Starting calls: w.a", occurrences = 1),

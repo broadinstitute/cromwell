@@ -1,6 +1,5 @@
 package cromwell.core
 
-import cromwell.core.CromwellGraphNode._
 import wom.graph.GraphNode
 
 trait JobKey {

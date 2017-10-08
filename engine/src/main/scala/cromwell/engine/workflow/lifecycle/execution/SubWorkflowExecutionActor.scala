@@ -3,7 +3,6 @@ package cromwell.engine.workflow.lifecycle.execution
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor.{ActorRef, FSM, LoggingFSM, OneForOneStrategy, Props, SupervisorStrategy}
 import cromwell.backend.{AllBackendInitializationData, BackendLifecycleActorFactory, BackendWorkflowDescriptor}
-import cromwell.core.CromwellGraphNode._
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core._
 import cromwell.core.logging.JobLogging

@@ -4,7 +4,6 @@ import cromwell.backend.BackendJobDescriptorKey
 import cromwell.backend.io.JobPaths
 import cromwell.core.path.Path
 import cromwell.services.metadata.CallMetadataKeys
-import cromwell.core.CromwellGraphNode._
 
 object JesJobPaths {
   val JesLogPathKey = "jesLog"
@@ -16,7 +15,7 @@ final case class JesJobPaths(override val workflowPaths: JesWorkflowPaths, jobKe
 
   val jesLogBasename = {
     val index = jobKey.index.map(s => s"-$s").getOrElse("")
-    s"${jobKey.node.unqualifiedName}$index"
+    s"${jobKey.node.localName}$index"
   }
 
   override val returnCodeFilename: String = s"$jesLogBasename-rc.txt"

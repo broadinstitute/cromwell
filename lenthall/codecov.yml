@@ -1,9 +1,0 @@
-coverage:
-  notify:
-    slack:
-      default:
-        url: secret:PITns2QZUY+jp4Fbi47Kna3HGy88GrsWLoIQ7eJYRgy80kskLNEHqzozJ3nCTejuQ1kjaPCfRIkUJ9USjnPMj0kTd9zM+Nrx8/kCX43DvU0vOfxlCtvz2gwbY91KwbtJQETnUWm2WFkoELMBePfFC5iM/+ne2P82r47YaGHvnQc=
-        threshold: null
-        attachments: "header, diff, changes, sunburst, uncovered, tree"
-
-comment: false

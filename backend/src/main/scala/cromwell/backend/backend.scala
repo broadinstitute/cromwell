@@ -41,7 +41,7 @@ case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
     declaration.name -> value
   }
   val call = key.call
-  override val toString = s"${key.mkTag(workflowDescriptor.id)}"
+  override lazy val toString = s"${key.mkTag(workflowDescriptor.id)}"
 }
 
 object BackendWorkflowDescriptor {

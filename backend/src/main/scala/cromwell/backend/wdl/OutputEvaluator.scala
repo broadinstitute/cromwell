@@ -11,6 +11,7 @@ import cromwell.backend.BackendJobDescriptor
 import cromwell.core.{CallOutputs, JobOutput}
 import lenthall.validation.ErrorOr.ErrorOr
 import lenthall.validation.Validation._
+import lenthall.validation.Checked._
 import wdl.types.WdlType
 import wdl.values.WdlValue
 import wom.callable.Callable.OutputDefinition
@@ -55,12 +56,14 @@ object OutputEvaluator {
         * Transform the result to a validated Try[ErrorOr[(String, WdlValue)]] with toValidated
         * If we have a valid pair, add it to the previously accumulated outputs, otherwise combine the Nels of errors
        */
-      (for {
+      val evaluated = for {
         evaluated <- evaluateOutputExpression
         coerced <- coerceOutputValue(evaluated, output.womType)
-        postProcessed <- fromEither[Try](postMapper(coerced).toErrorOr.toEither)
+        postProcessed <- EitherT { postMapper(coerced).map(_.validNelCheck) }: OutputResult[WdlValue]
         pair = output.name -> postProcessed
-      } yield pair).toValidated map { evaluatedOutput: ErrorOr[(String, WdlValue)] =>
+      } yield pair
+
+      evaluated.toValidated map { evaluatedOutput: ErrorOr[(String, WdlValue)] =>
         (accumulated, evaluatedOutput) mapN { _ :+ _ }
       }
     }

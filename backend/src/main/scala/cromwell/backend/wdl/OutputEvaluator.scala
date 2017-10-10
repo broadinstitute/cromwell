@@ -10,7 +10,6 @@ import cats.syntax.validated._
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.{CallOutputs, JobOutput}
 import lenthall.validation.ErrorOr.ErrorOr
-import lenthall.validation.Validation._
 import lenthall.validation.Checked._
 import wdl.types.WdlType
 import wdl.values.WdlValue

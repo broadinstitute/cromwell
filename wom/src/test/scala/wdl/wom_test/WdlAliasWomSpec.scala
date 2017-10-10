@@ -1,4 +1,4 @@
-package wdl.wom
+package wdl.wom_test
 
 import cats.data.Validated.{Invalid, Valid}
 import lenthall.collections.EnhancedCollections._

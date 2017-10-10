@@ -28,7 +28,7 @@ object OutputEvaluator {
   def evaluateOutputs(jobDescriptor: BackendJobDescriptor,
                       ioFunctions: IoFunctionSet,
                       postMapper: WdlValue => Try[WdlValue] = v => Success(v)): EvaluatedJobOutputs = {
-    val knownValues = jobDescriptor.localInputs
+    val knownValues: Map[String, WdlValue] = jobDescriptor.localInputs
     
     def foldFunction(accumulatedOutputs: Try[ErrorOr[List[(String, WdlValue)]]], output: OutputDefinition) = accumulatedOutputs flatMap { accumulated =>
       // Extract the valid pairs from the job outputs accumulated so far, and add to it the inputs (outputs can also reference inputs)

@@ -61,9 +61,7 @@ object OutputEvaluator {
         postProcessed <- fromEither[Try](postMapper(coerced).toErrorOr.toEither)
         pair = output.name -> postProcessed
       } yield pair).toValidated map { evaluatedOutput: ErrorOr[(String, WdlValue)] =>
-        (accumulated, evaluatedOutput) mapN {
-          case (validValues, validOutput) => validValues :+ validOutput
-        }
+        (accumulated, evaluatedOutput) mapN { _ :+ _ }
       }
     }
     

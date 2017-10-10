@@ -241,7 +241,7 @@ object WdlWomExpression {
     *
     * If the input is found in an outer scope, we also make a new input node in the inner graph to represent it.
     */
-  def findInputsforExpression(name: String, expression: WdlWomExpression, innerLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort]): ErrorOr[GraphNodeInputExpression] = {
+  def findInputsforExpression(expression: WdlWomExpression, innerLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort]): ErrorOr[Map[String, GraphNodePort.OutputPort]] = {
 
     def resolveVariable(v: AstTools.VariableReference): ErrorOr[(String, GraphNodePort.OutputPort)] = {
       val name = v.fullVariableReferenceString
@@ -255,18 +255,17 @@ object WdlWomExpression {
 
     for {
       resolvedVariables <- expression.wdlExpression.variableReferences.toList traverse resolveVariable
-    } yield GraphNodeInputExpression(name, expression, resolvedVariables.toMap)
+    } yield resolvedVariables.toMap
   }
   
   def toExpressionNode(nodeIdentifier: WomIdentifier,
                        expression: WdlWomExpression,
                        innerLookup: Map[String, GraphNodePort.OutputPort],
-                       outerLookup: Map[String, GraphNodePort.OutputPort]) = {
+                       outerLookup: Map[String, GraphNodePort.OutputPort]): ErrorOr[ExpressionNode] = {
     import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
     
-    findInputsforExpression(nodeIdentifier.localName.value, expression, innerLookup, outerLookup) flatMap {
-      case GraphNodeInputExpression(_, _, resolvedVariables) => 
-        ExpressionNode.linkWithInputs(nodeIdentifier, expression, resolvedVariables)
+    findInputsforExpression(expression, innerLookup, outerLookup) flatMap { resolvedVariables => 
+       ExpressionNode.fromInputMapping(nodeIdentifier, expression, resolvedVariables)
     }
   }
 }

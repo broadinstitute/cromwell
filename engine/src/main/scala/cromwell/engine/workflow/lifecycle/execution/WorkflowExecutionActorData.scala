@@ -1,13 +1,13 @@
 package cromwell.engine.workflow.lifecycle.execution
 
+import _root_.wdl.values.WdlValue
 import akka.actor.ActorRef
 import cromwell.backend._
 import cromwell.core.ExecutionStatus._
 import cromwell.core._
-import cromwell.engine.workflow.lifecycle.execution.OutputStore.OutputKey
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{ExpressionKey, SubWorkflowKey}
+import cromwell.engine.workflow.lifecycle.execution.ValueStore.OutputKey
+import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
-import _root_.wdl.values.WdlValue
 
 import scala.language.postfixOps
 
@@ -16,12 +16,15 @@ object WorkflowExecutionDiff {
 }
 /** Data differential between current execution data, and updates performed in a method that needs to be merged. */
 final case class WorkflowExecutionDiff(executionStoreChanges: Map[JobKey, ExecutionStatus],
-                                       engineJobExecutionActorAdditions: Map[ActorRef, JobKey] = Map.empty) {
-  def containsNewEntry = executionStoreChanges.exists(esc => esc._2 == NotStarted)
+                                       engineJobExecutionActorAdditions: Map[ActorRef, JobKey] = Map.empty,
+                                       valueStoreAdditions: Map[OutputKey, WdlValue] = Map.empty) {
+  def containsNewEntry: Boolean = {
+    executionStoreChanges.exists(esc => esc._2 == NotStarted) || valueStoreAdditions.nonEmpty
+  }
 }
 
 object WorkflowExecutionActorData {
-  def empty(workflowDescriptor: EngineWorkflowDescriptor) = {
+  def empty(workflowDescriptor: EngineWorkflowDescriptor): WorkflowExecutionActorData = {
     new WorkflowExecutionActorData(
       workflowDescriptor,
       ExecutionStore.empty,
@@ -29,7 +32,7 @@ object WorkflowExecutionActorData {
       Map.empty,
       Map.empty,
       Map.empty,
-      OutputStore.empty
+      ValueStore.empty
     )
   }
 }
@@ -40,11 +43,11 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
                                       engineCallExecutionActors: Map[ActorRef, JobKey],
                                       subWorkflowExecutionActors: Map[SubWorkflowKey, ActorRef],
                                       downstreamExecutionMap: JobExecutionMap,
-                                      outputStore: OutputStore) {
+                                      valueStore: ValueStore) {
 
   val expressionLanguageFunctions = new WdlFunctions(workflowDescriptor.pathBuilders)
 
-  def callExecutionSuccess(jobKey: JobKey, outputs: CallOutputs) = {
+  def callExecutionSuccess(jobKey: JobKey, outputs: CallOutputs): WorkflowExecutionActorData = {
     val (newJobExecutionActors, newSubWorkflowExecutionActors) = jobKey match {
       case jobKey: BackendJobDescriptorKey => (backendJobExecutionActors - jobKey, subWorkflowExecutionActors)
       case swKey: SubWorkflowKey => (backendJobExecutionActors, subWorkflowExecutionActors - swKey)
@@ -55,19 +58,19 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
       executionStore = executionStore.add(Map(jobKey -> Done)),
       backendJobExecutionActors = newJobExecutionActors,
       subWorkflowExecutionActors = newSubWorkflowExecutionActors,
-      outputStore = outputStore.add(updateSymbolStoreEntry(jobKey, outputs))
+      valueStore = valueStore.add(updateSymbolStoreEntry(jobKey, outputs))
     )
   }
 
-  def expressionEvaluationSuccess(expressionKey: ExpressionKey, value: WdlValue) = {
-    val outputStoreKey = OutputKey(expressionKey.singleOutputPort, expressionKey.index)
+  final def expressionEvaluationSuccess(expressionKey: ExpressionKey, value: WdlValue): WorkflowExecutionActorData = {
+    val valueStoreKey = OutputKey(expressionKey.singleOutputPort, expressionKey.index)
     this.copy(
       executionStore = executionStore.add(Map(expressionKey -> Done)),
-      outputStore = outputStore.add(Map(outputStoreKey -> value))
+      valueStore = valueStore.add(Map(valueStoreKey -> value))
     )
   }
 
-  def executionFailed(jobKey: JobKey) = mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
+  def executionFailed(jobKey: JobKey): WorkflowExecutionActorData = mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
 
   /** Add the outputs for the specified `JobKey` to the symbol cache. */
   private def updateSymbolStoreEntry(jobKey: JobKey, outputs: CallOutputs): Map[OutputKey, WdlValue] = {
@@ -88,7 +91,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     }
   }
 
-  def removeEngineJobExecutionActor(actorRef: ActorRef) = {
+  def removeEngineJobExecutionActor(actorRef: ActorRef): WorkflowExecutionActorData = {
     this.copy(engineCallExecutionActors = engineCallExecutionActors - actorRef)
   }
 
@@ -117,6 +120,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   def mergeExecutionDiff(diff: WorkflowExecutionDiff): WorkflowExecutionActorData = {
     this.copy(
       executionStore = executionStore.add(diff.executionStoreChanges),
+      valueStore = valueStore.add(diff.valueStoreAdditions),
       engineCallExecutionActors = engineCallExecutionActors ++ diff.engineJobExecutionActorAdditions
     )
   }
@@ -125,13 +129,13 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     diffs.foldLeft(this)((newData, diff) => newData.mergeExecutionDiff(diff))
   }
   
-  def resetCheckRunnable = this.copy(executionStore = executionStore.copy(hasNewRunnables = false))
+  def resetCheckRunnable: WorkflowExecutionActorData = this.copy(executionStore = executionStore.copy(hasNewRunnables = false))
   
-  def hasNewRunnables = executionStore.hasNewRunnables
+  def hasNewRunnables: Boolean = executionStore.hasNewRunnables
   
   def jobExecutionMap: JobExecutionMap = {
     downstreamExecutionMap updated (workflowDescriptor.backendDescriptor, executionStore.startedJobs)
   }
   
-  def hasRunningActors = backendJobExecutionActors.nonEmpty || subWorkflowExecutionActors.nonEmpty
+  def hasRunningActors: Boolean = backendJobExecutionActors.nonEmpty || subWorkflowExecutionActors.nonEmpty
 }

@@ -21,7 +21,18 @@ final case class Graph private(nodes: Set[GraphNode]) {
   lazy val externalInputNodes: Set[ExternalGraphInputNode] = nodes.filterByType[ExternalGraphInputNode]
   lazy val outputNodes: Set[GraphOutputNode] = nodes.filterByType[GraphOutputNode]
   lazy val calls: Set[CallNode] = nodes.filterByType[CallNode]
+  lazy val workflowCalls = calls.filterByType[WorkflowCallNode]: Set[WorkflowCallNode]
   lazy val scatters: Set[ScatterNode] = nodes.filterByType[ScatterNode]
+  lazy val conditionals: Set[ConditionalNode] = nodes.filterByType[ConditionalNode]
+
+  /**
+    * Returns all nodes contained in this graph (recursively, i.e nodes in a scatter, conditional or workflow call will
+    * recursively be included)
+    */
+  def allNodes: Set[GraphNode] = nodes ++
+    scatters.flatMap(_.innerGraph.allNodes) ++
+    conditionals.flatMap(_.innerGraph.allNodes) ++
+    workflowCalls.flatMap(_.callable.innerGraph.allNodes)
 
   def outputByName(name: String): Option[GraphOutputNode] = outputNodes.find(_.localName == name)
 }

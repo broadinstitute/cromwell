@@ -3,7 +3,6 @@ package cromwell
 import akka.testkit._
 import cromwell.util.SampleWdl
 import cromwell.CromwellTestKitSpec.AnyValueIsFine
-import cromwell.core.Tags.PostWomTest
 
 
 class WorkflowOutputsSpec extends CromwellTestKitWordSpec {
@@ -22,7 +21,7 @@ class WorkflowOutputsSpec extends CromwellTestKitWordSpec {
       )
     }
 
-    "Respect the workflow output section" taggedAs PostWomTest ignore {
+    "Respect the workflow output section" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.ThreeStepWithOutputsSection,
         eventFilter = EventFilter.info(pattern = s"is in a terminal state: WorkflowSucceededState", occurrences = 1),
@@ -35,7 +34,7 @@ class WorkflowOutputsSpec extends CromwellTestKitWordSpec {
       )
     }
 
-    "Not list scatter shards" taggedAs PostWomTest ignore {
+    "Not list scatter shards" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.SimpleScatterWdl,
         eventFilter = EventFilter.info(pattern = s"is in a terminal state: WorkflowSucceededState", occurrences = 1),
@@ -48,7 +47,7 @@ class WorkflowOutputsSpec extends CromwellTestKitWordSpec {
       )
     }
 
-    "Not list scatter shards, even for wildcards" taggedAs PostWomTest ignore {
+    "Not list scatter shards, even for wildcards" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.SimpleScatterWdlWithOutputs,
         eventFilter = EventFilter.info(pattern = s"is in a terminal state: WorkflowSucceededState", occurrences = 1),

@@ -69,7 +69,7 @@ class WdlNamespaceWomSpec extends FlatSpec with Matchers {
     patternInputNode.localName should be("cgrep.pattern")
     patternInputNode.fullyQualifiedName should be("three_step.cgrep.pattern")
 
-    workflowGraph.nodes collect { case gon: PortBasedGraphOutputNode => gon.localName } should be(Set("wc.count", "cgrep.count", "ps.procs"))
+    workflowGraph.nodes collect { case gon: ExpressionBasedGraphOutputNode => gon.localName } should be(Set("wc.count", "cgrep.count", "ps.procs"))
 
     val ps: TaskCallNode = workflowGraph.nodes.collectFirst({ case ps: TaskCallNode if ps.localName == "ps" => ps }).get
     val cgrep: TaskCallNode = workflowGraph.nodes.collectFirst({ case cgrep: TaskCallNode if cgrep.localName == "cgrep" => cgrep }).get
@@ -99,7 +99,7 @@ class WdlNamespaceWomSpec extends FlatSpec with Matchers {
     // This should be less ugly when we can access a string value from a womexpression
     inFileMapping.select[OutputPort].get
       .graphNode.asInstanceOf[ExpressionNode]
-      .instantiatedExpression.expression.asInstanceOf[WdlWomExpression]
+      .womExpression.asInstanceOf[WdlWomExpression]
       .wdlExpression.valueString shouldBe "ps.procs"
 
     val cgrepPatternInputDef = cgrep.callable.inputs.find(_.name == "pattern").get

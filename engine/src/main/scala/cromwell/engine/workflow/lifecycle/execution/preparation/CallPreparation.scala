@@ -5,7 +5,7 @@ import cats.data.Validated.Valid
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.{CallKey, JobKey}
 import cromwell.engine.EngineWorkflowDescriptor
-import cromwell.engine.workflow.lifecycle.execution.OutputStore
+import cromwell.engine.workflow.lifecycle.execution.ValueStore
 import lenthall.validation.ErrorOr._
 import lenthall.validation.Validation._
 import wdl.values.WdlValue
@@ -15,7 +15,7 @@ import wom.expression.IoFunctionSet
 
 object CallPreparation {
   sealed trait CallPreparationActorCommands
-  case class Start(outputStore: OutputStore) extends CallPreparationActorCommands
+  case class Start(valueStore: ValueStore) extends CallPreparationActorCommands
 
   trait CallPreparationActorResponse
 
@@ -27,7 +27,7 @@ object CallPreparation {
   def resolveAndEvaluateInputs(callKey: CallKey,
                                workflowDescriptor: EngineWorkflowDescriptor,
                                expressionLanguageFunctions: IoFunctionSet,
-                               outputStore: OutputStore): ErrorOr[WomEvaluatedCallInputs] = {
+                               valueStore: ValueStore): ErrorOr[WomEvaluatedCallInputs] = {
 
     callKey.node.inputDefinitionMappings.foldLeft(Map.empty[InputDefinition, ErrorOr[WdlValue]]) {
       case (accumulatedInputsSoFar, (inputDefinition, pointer)) =>
@@ -37,7 +37,7 @@ object CallPreparation {
         })
         
         val coercedValue = pointer.fold(InputPointerToWdlValue).apply(
-          validInputsAccumulated, expressionLanguageFunctions, outputStore, callKey.index
+          callKey.node, validInputsAccumulated, expressionLanguageFunctions, valueStore, callKey.index
         ) flatMap(inputDefinition.womType.coerceRawValue(_).toErrorOr)
 
         accumulatedInputsSoFar + (inputDefinition -> coercedValue)

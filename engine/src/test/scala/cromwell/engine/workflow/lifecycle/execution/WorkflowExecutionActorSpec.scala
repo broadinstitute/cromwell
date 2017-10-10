@@ -5,7 +5,6 @@ import akka.testkit.{EventFilter, TestActorRef, TestDuration, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell._
 import cromwell.backend.AllBackendInitializationData
-import cromwell.core.Tags.PostWomTest
 import cromwell.core.{SimpleIoActor, WorkflowId}
 import cromwell.engine.backend.{BackendConfigurationEntry, BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
@@ -102,7 +101,7 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike w
     system.stop(serviceRegistryActor)
   }
 
-  it should "execute a workflow with scatters" taggedAs PostWomTest ignore {
+  it should "execute a workflow with scatters" in {
     val serviceRegistry = mockServiceRegistryActor
     val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
     val subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)

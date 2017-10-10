@@ -2,7 +2,7 @@ package wom.graph
 
 import wdl.types.WdlArrayType
 import wom.graph.GraphNode.GeneratedNodeAndNewNodes
-import wom.graph.GraphNodePort.{InputPort, OutputPort, ScatterGathererPort}
+import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort, ScatterGathererPort}
 
 /**
   *
@@ -20,7 +20,12 @@ final case class ScatterNode private(innerGraph: Graph,
 
   // NB if you find yourself calling .filter on this set of inputPorts, you probably just wanted to access either
   // the scatterVariableMapping or otherInputPorts fields directly.
-  override val inputPorts: Set[InputPort] = scatterCollectionExpressionNode.inputPorts
+  override val inputPorts: Set[InputPort] = Set(ConnectedInputPort(
+    scatterCollectionExpressionNode.identifier.localName.value,
+    scatterCollectionExpressionNode.womType,
+    scatterCollectionExpressionNode.singleExpressionOutputPort,
+    _ => this
+  ))
   override val outputPorts: Set[GraphNodePort.OutputPort] = outputMapping.toSet[OutputPort]
 
   lazy val nodes: Set[GraphNode] = Set(this, scatterCollectionExpressionNode)
@@ -45,7 +50,7 @@ object ScatterNode {
     */
   def scatterOverGraph(innerGraph: Graph,
                        scatterCollectionExpressionNode: ExpressionNode,
-                       scatterVariableInnerGraphInputNode: GraphInputNode): ScatterNodeWithNewNodes = {
+                       scatterVariableInnerGraphInputNode: ScatterVariableNode): ScatterNodeWithNewNodes = {
     val graphNodeSetter = new GraphNode.GraphNodeSetter()
 
     val outputPorts: Set[ScatterGathererPort] = innerGraph.nodes.collect { case gon: PortBasedGraphOutputNode =>

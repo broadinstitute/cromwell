@@ -1,16 +1,14 @@
 package cromwell
 
 import akka.testkit._
-import cromwell.core.Tags.PostWomTest
+import cromwell.util.SampleWdl
 import wdl.types.{WdlArrayType, WdlStringType}
 import wdl.values.{WdlArray, WdlString}
-import cromwell.util.SampleWdl
 
 
 class ArrayOfArrayCoercionSpec extends CromwellTestKitWordSpec {
   "A workflow that has an Array[Array[File]] input " should {
-    // TODO WOM: Scatter workflow
-    "accept an Array[Array[String]] as the value for the input" taggedAs PostWomTest ignore {
+    "accept an Array[Array[String]] as the value for the input" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.ArrayOfArrays,
         eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),

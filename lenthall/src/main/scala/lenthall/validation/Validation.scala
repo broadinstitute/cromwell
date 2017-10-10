@@ -2,8 +2,10 @@ package lenthall.validation
 
 import java.net.{URI, URL}
 
-import cats.data.Validated._
+import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
+import cats.syntax.either._
+import lenthall.Checked
 import lenthall.validation.ErrorOr.ErrorOr
 import net.ceedubs.ficus.readers.{StringReader, ValueReader}
 import org.slf4j.Logger
@@ -11,7 +13,7 @@ import org.slf4j.Logger
 import scala.util.{Failure, Success, Try}
 
 object Validation {
-  def warnNotRecognized(keys: Set[String], reference: Set[String], context: String, logger: Logger) = {
+  def warnNotRecognized(keys: Set[String], reference: Set[String], context: String, logger: Logger): Unit = {
     val unrecognizedKeys = keys.diff(reference)
     if (unrecognizedKeys.nonEmpty) {
       logger.warn(s"Unrecognized configuration key(s) for $context: ${unrecognizedKeys.mkString(", ")}")
@@ -27,7 +29,11 @@ object Validation {
 
   implicit class TryValidation[A](val t: Try[A]) extends AnyVal {
     def toErrorOr: ErrorOr[A] = {
-      fromTry(t).leftMap(_.getMessage).toValidatedNel[String, A] 
+      Validated.fromTry(t).leftMap(_.getMessage).toValidatedNel[String, A] 
+    }
+
+    def toChecked: Checked[A] = {
+      Either.fromTry(t).leftMap(ex => NonEmptyList.of(ex.getMessage))
     }
   }
 }

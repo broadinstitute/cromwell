@@ -3,10 +3,11 @@ package cromwell.engine.workflow.lifecycle.execution
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionStatus.{apply => _, _}
 import cromwell.core.{ExecutionStatus, JobKey}
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.CollectorKey
+import cromwell.engine.workflow.lifecycle.execution.keys.ScatterCollectorKey
 import cromwell.util.SampleWdl
 import org.scalameter.api._
 import org.scalameter.picklers.Implicits._
+import spray.json.DefaultJsonProtocol
 import wdl.WdlNamespaceWithWorkflow
 import wom.graph.{ScatterNode, TaskCallNode}
 
@@ -16,26 +17,30 @@ import wom.graph.{ScatterNode, TaskCallNode}
   * sbt "project engine"  "benchmark:test-only cromwell.engine.workflow.lifecycle.execution.ExecutionStoreBenchmark"
   * sbt benchmark:test will run all ScalaMeter tests
   */
-object ExecutionStoreBenchmark extends Bench[Double] {
+object ExecutionStoreBenchmark extends Bench[Double] with DefaultJsonProtocol {
 
+  import spray.json._
   /* Benchmark configuration */
   lazy val measurer = new Measurer.Default
   lazy val executor = SeparateJvmsExecutor(new Executor.Warmer.Default, Aggregator.average, measurer)
   lazy val reporter = new LoggingReporter[Double]
   lazy val persistor = Persistor.None
   
+  val inputJson = Option(SampleWdl.PrepareScatterGatherWdl().rawInputs.toJson.compactPrint)
   val wdl = WdlNamespaceWithWorkflow.load(SampleWdl.PrepareScatterGatherWdl().workflowSource(), Seq.empty).get
-  val prepareCall: TaskCallNode = null// wdl.workflow.findCallByName("do_prepare").get.asInstanceOf[WdlTaskCall]
-  val scatterCall: TaskCallNode = null//wdl.workflow.findCallByName("do_scatter").get.asInstanceOf[WdlTaskCall]
-  val scatter: ScatterNode = null //wdl.workflow.namespace.scatters.head
+  val graph = wdl.womExecutable(inputJson).getOrElse(throw new Exception("Failed to build womExecutable"))
+    .graph.getOrElse(throw new Exception("Failed to build wom graph"))
+  val prepareCall: TaskCallNode = graph.calls.find(_.localName == "do_prepare").get.asInstanceOf[TaskCallNode]
+  val scatterCall: TaskCallNode = graph.allNodes.find(_.localName == "do_scatter").get.asInstanceOf[TaskCallNode]
+  val scatter: ScatterNode = graph.scatters.head
   
-  def makeKey(call: TaskCallNode, executionStatus: ExecutionStatus)(index: Int) = {
+  private def makeKey(call: TaskCallNode, executionStatus: ExecutionStatus)(index: Int) = {
     BackendJobDescriptorKey(call, Option(index), 1) -> executionStatus
   }
   
   // Generates numbers from 1000 to 10000 with 1000 gap:
   // 1000, 2000, ..., 10000
-  val sizes: Gen[Int] = Gen.range("size")(10000, 100000, 10000)
+  val sizes: Gen[Int] = Gen.range("size")(1000, 10000, 1000)
   
   // Generates executionStores using the given above sizes
   // Each execution store contains X simulated shards of "prepareCall" in status Done and X simulated shards of "scatterCall" in status NotStarted
@@ -44,7 +49,7 @@ object ExecutionStoreBenchmark extends Bench[Double] {
   val executionStores: Gen[ExecutionStore] = for {
     size <- sizes
     doneMap = (0 until size map makeKey(prepareCall, ExecutionStatus.Done)).toMap
-    collectorKey = Map(CollectorKey(scatterCall, scatter, size) -> ExecutionStatus.NotStarted)
+    collectorKey = Map(ScatterCollectorKey(scatterCall, scatter.outputMapping, scatter, size) -> ExecutionStatus.NotStarted)
     notStartedMap = (0 until size map makeKey(scatterCall, ExecutionStatus.NotStarted)).toMap ++ collectorKey
     finalMap: Map[JobKey, ExecutionStatus] = doneMap ++ notStartedMap
   } yield new ExecutionStore(finalMap, true)

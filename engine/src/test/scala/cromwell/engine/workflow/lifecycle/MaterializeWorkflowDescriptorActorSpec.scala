@@ -12,7 +12,6 @@ import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{Ma
 import cromwell.util.SampleWdl.HelloWorld
 import org.scalatest.BeforeAndAfter
 import org.scalatest.mockito.MockitoSugar
-import shapeless.Inl
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import wdl.values.WdlString
@@ -77,7 +76,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
             wfDesc.name shouldBe "wf_hello"
             wfDesc.namespace.taskCallNodes.size shouldBe 1
             wfDesc.knownValues.head._1.fullyQualifiedName shouldBe "wf_hello.hello.addressee"
-            wfDesc.knownValues.head._2 shouldBe Inl(WdlString("world"))
+            wfDesc.knownValues.head._2 shouldBe WdlString("world")
             wfDesc.getWorkflowOption(WorkflowOptions.WriteToCache) shouldBe Option("true")
             wfDesc.getWorkflowOption(WorkflowOptions.ReadFromCache) shouldBe None
             wfDesc.backendDescriptor.customLabels shouldBe Labels("label1" -> "value1", "label2" -> "value2")

@@ -1,5 +1,8 @@
 package cromwell.backend.sfs
 
+import _root_.wdl.LocallyQualifiedName
+import _root_.wdl.types._
+import _root_.wdl.values._
 import akka.testkit.{TestDuration, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
@@ -16,13 +19,9 @@ import cromwell.core._
 import cromwell.core.callcaching.NoDocker
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.services.keyvalue.KeyValueServiceActor._
-import lenthall.exception.AggregatedException
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Assertion, FlatSpecLike, OptionValues}
-import _root_.wdl.LocallyQualifiedName
-import _root_.wdl.types._
-import _root_.wdl.values._
 import wom.graph.TaskCallNode
 
 import scala.concurrent.duration._
@@ -114,10 +113,10 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
       val workflowDescriptor = buildWdlWorkflowDescriptor(InputFiles, inputs, runtime = runtime)
       val callInputs = Map(
         "inputFileFromCallInputs" -> workflowDescriptor.knownValues.collectFirst({
-          case (outputPort, resolvedValue) if outputPort.fullyQualifiedName == "wf_localize.workflowFile" => resolvedValue.select[WdlValue].get
+          case (outputPort, resolvedValue) if outputPort.fullyQualifiedName == "wf_localize.workflowFile" => resolvedValue
         }).get,
         "inputFileFromJson" -> workflowDescriptor.knownValues.collectFirst({
-          case (outputPort, resolvedValue) if outputPort.fullyQualifiedName == "wf_localize.localize.inputFileFromJson" => resolvedValue.select[WdlValue].get
+          case (outputPort, resolvedValue) if outputPort.fullyQualifiedName == "wf_localize.localize.inputFileFromJson" => resolvedValue
         }).get
       )
 
@@ -235,7 +234,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     recoverSpec(completed = true, writeReturnCode = false)
   }
 
-  it should "execute shards from a scatter" taggedAs PostWomTest ignore {
+  it should "execute shards from a scatter" in {
     val workflowDescriptor = buildWdlWorkflowDescriptor(TestWorkflows.Scatter)
 
     val call: TaskCallNode = workflowDescriptor.workflow.taskCallNodes.head
@@ -243,9 +242,10 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     0 to 2 foreach { shard =>
       // This assumes that engine will give us the evaluated value of the scatter item at the correct index
       // If this is not the case, more context/logic will need to be moved to the backend so it can figure it out by itself
-      val symbolMaps: Map[LocallyQualifiedName, WdlInteger] = Map("scattering.intNumber" -> WdlInteger(shard))
+      val symbolMaps: Map[LocallyQualifiedName, WdlInteger] = Map("intNumber" -> WdlInteger(shard))
 
-      val runtimeAttributes: Map[LocallyQualifiedName, WdlValue] = Map.empty//RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, WorkflowOptions.empty)(call.callable.runtimeAttributes.attributes)
+      val evaluatedAttributes = call.callable.runtimeAttributes.attributes.mapValues(_.evaluateValue(Map.empty, NoIoFunctionSet).getOrElse(fail("Can't evaluate runtime attribute")))
+      val runtimeAttributes: Map[LocallyQualifiedName, WdlValue] = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, WorkflowOptions.empty)(evaluatedAttributes)
 
       val jobDescriptor: BackendJobDescriptor =
         BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, Option(shard), 1), runtimeAttributes, fqnWdlMapToDeclarationMap(symbolMaps), NoDocker, Map.empty)
@@ -277,9 +277,9 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     executeJobAndAssertOutputs(backend, expectedResponse)
   }
 
-  it should "fail post processing if an output file is not found" taggedAs PostWomTest ignore {
+  it should "fail post processing if an output file is not found" in {
     val expectedResponse = JobFailedNonRetryableResponse(mock[BackendJobDescriptorKey],
-      AggregatedException("Could not process output, file not found:", Seq.empty), Option(0))
+      new RuntimeException("Could not process output, file not found:"), Option(0))
     val workflow = TestWorkflow(buildWdlWorkflowDescriptor(MissingOutputProcess), TestConfig.backendRuntimeConfigDescriptor, expectedResponse)
     val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions), workflow.config)
     testWorkflow(workflow, backend)

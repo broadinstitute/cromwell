@@ -14,7 +14,6 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsValue}
 import wom.callable.Callable.{InputDefinition, RequiredInputDefinition}
-import wom.executable.Executable.ResolvedExecutableInputs
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.TaskCallNode
@@ -41,7 +40,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
       wdlNamespace.workflow.womDefinition.getOrElse(fail("Cannot convert WdlWorkflow to WomDefinition")),
-      executable.resolvedExecutableInputs,
+      executable.resolvedExecutableInputs.flatMap({case (port, v) => v.select[WdlValue] map { port -> _ }}),
       options,
       Labels.empty
     )
@@ -58,21 +57,14 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
   def fqnWdlMapToDeclarationMap(m: Map[String, WdlValue]): Map[InputDefinition, WdlValue] = {
     m map {
       case (fqn, v) =>
-        // TODO WOM: FIXME
         val mockDeclaration = RequiredInputDefinition(fqn, v.wdlType)
         mockDeclaration -> v
     }
   }
 
-  def fqnMapToDeclarationMap(m: ResolvedExecutableInputs): Map[InputDefinition, WdlValue] = {
+  def fqnMapToDeclarationMap(m: Map[OutputPort, WdlValue]): Map[InputDefinition, WdlValue] = {
     m map {
-      case (outputPort, v) =>
-        // TODO WOM: FIXME
-        v.select[WdlValue] map { wdlValue => 
-          RequiredInputDefinition(outputPort.name, wdlValue.wdlType) -> wdlValue 
-        } getOrElse {
-          throw new IllegalArgumentException("Test doesn't support input expressions, give a WdlValue instead !")
-        }
+      case (outputPort, wdlValue) => RequiredInputDefinition(outputPort.name, wdlValue.wdlType) -> wdlValue 
     }
   }
 
@@ -93,7 +85,6 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
         ).orElse(
         workflowDescriptor.knownValues
           .get(resolved.select[OutputPort].get)
-          .map(_.select[WdlValue].get)
         )
         .getOrElse {
           inputs(inputDef.name) 

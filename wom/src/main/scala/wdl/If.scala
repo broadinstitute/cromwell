@@ -41,7 +41,12 @@ object If {
       case other => s"An if block must be given a boolean expression but instead got '${ifBlock.condition.toWdlString}' (a ${other.toWdlString})".invalidNel
     }
 
-    val innerGraphValidation: ErrorOr[Graph] = WdlGraphNode.buildWomGraph(ifBlock, Set.empty, localLookup)
+    val innerGraphValidation: ErrorOr[Graph] = WdlGraphNode.buildWomGraph(
+      ifBlock,
+      Set.empty,
+      // That's right, the local lookup at the If level becomes an outer lookup inside the If
+      outerLookup = localLookup
+    )
 
     (ifConditionGraphInputExpressionValidation, ifConditionTypeValidation, innerGraphValidation) mapN { (ifConditionGraphInputExpression, _, innerGraph) =>
       ConditionalNode.wireInConditional(innerGraph, ifConditionGraphInputExpression)

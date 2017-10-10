@@ -34,8 +34,7 @@ class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
     val ijExpression = PlaceholderWomExpression(Set("i", "j"), WdlIntegerType)
 
     // Use that as an input to a one-input task:
-    val expressionNode = ExpressionNode
-      .linkWithInputs(WomIdentifier("bar"), ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))
+    val expressionNode = ExpressionNode.fromInputMapping(WomIdentifier("bar"), ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))
       .getOrElse(fail("Failed to build expression node"))
 
     val callNodeBuilder = new CallNodeBuilder()

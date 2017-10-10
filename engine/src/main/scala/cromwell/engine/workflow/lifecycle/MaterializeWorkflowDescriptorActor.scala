@@ -5,7 +5,7 @@ import akka.pattern.pipe
 import cats.Monad
 import cats.data.NonEmptyList
 import cats.data.EitherT._
-import cats.data.Validated.{Valid, Invalid}
+import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.either._
 import cats.effect.IO
 import cats.instances.vector._
@@ -42,7 +42,7 @@ import wdl.values.{WdlSingleFile, WdlString, WdlValue}
 import wom.callable.WorkflowDefinition
 import wom.executable.Executable
 import wom.executable.Executable.ResolvedExecutableInputs
-import wom.expression.WomExpression
+import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.{Graph, TaskCallNode}
 
@@ -58,7 +58,7 @@ object MaterializeWorkflowDescriptorActor {
   // then initialization hasn't happened as we expected. As an indication that this is ok, previously
   // we might have called CromwellBackends.evaluateIfInitialized() which would have thrown a similar
   // exception if not initialized yet.
-  def cromwellBackends = CromwellBackends.instance.get
+  private def cromwellBackends = CromwellBackends.instance.get
 
   def props(serviceRegistryActor: ActorRef, workflowId: WorkflowId, cromwellBackends: => CromwellBackends = cromwellBackends, importLocalFilesystem: Boolean): Props = {
     Props(new MaterializeWorkflowDescriptorActor(serviceRegistryActor, workflowId, cromwellBackends, importLocalFilesystem)).withDispatcher(EngineDispatcher)
@@ -97,12 +97,7 @@ object MaterializeWorkflowDescriptorActor {
   /*
     * Internal ADT
    */
-  private case class ValidatedWomNamespace(executable: Executable, graph: Graph, evaluatedWorkflowValues: ResolvedExecutableInputs) {
-    
-    lazy val wdlValueInputs: Map[OutputPort, WdlValue] = evaluatedWorkflowValues flatMap {
-      case (outputPort, resolvedInput) => resolvedInput.select[WdlValue] map { outputPort -> _ }
-    }
-  }
+  private case class ValidatedWomNamespace(executable: Executable, graph: Graph, wdlValueInputs: Map[OutputPort, WdlValue])
 
   private[lifecycle] def validateCallCachingMode(workflowOptions: WorkflowOptions, conf: Config): ErrorOr[CallCachingMode] = {
 
@@ -270,7 +265,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       labels: Labels,
                                       conf: Config,
                                       pathBuilders: List[PathBuilder]): ErrorOr[EngineWorkflowDescriptor] = {
-    val taskCalls = womNamespace.graph.nodes collect { case taskNode: TaskCallNode => taskNode }
+    val taskCalls = womNamespace.graph.allNodes collect { case taskNode: TaskCallNode => taskNode }
     val defaultBackendName = conf.as[Option[String]]("backend.default")
 
     val failureModeValidation = validateWorkflowFailureMode(workflowOptions, conf)
@@ -282,7 +277,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       case (failureMode, backendAssignments, callCachingMode) =>
         womNamespace.executable.entryPoint match {
           case workflowDefinition: WorkflowDefinition =>
-            val backendDescriptor = BackendWorkflowDescriptor(id, workflowDefinition, womNamespace.evaluatedWorkflowValues, workflowOptions, labels)
+            val backendDescriptor = BackendWorkflowDescriptor(id, workflowDefinition, womNamespace.wdlValueInputs, workflowOptions, labels)
             EngineWorkflowDescriptor(workflowDefinition, backendDescriptor, backendAssignments, failureMode, pathBuilders, callCachingMode)
           case _ => throw new NotImplementedError("Only workflows are valid entry points currently.")
         }
@@ -445,7 +440,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
         wf <- fromEither[IO](cwl.select[Workflow].toRight(NonEmptyList.one(s"expected a workflow but got a $cwl")))
         executable <-  fromEither[IO](wf.womExecutable(Option(source.inputsJson)))
         graph <- fromEither[IO](executable.graph.toEither)
-        validatedWomNamespace <- fromEither[IO](validateWomNamespace(executable))
+        ioFunctions = new WdlFunctions(pathBuilders)
+        validatedWomNamespace <- fromEither[IO](validateWomNamespace(executable, ioFunctions))
       } yield validatedWomNamespace
     } finally {
       cwlFile.delete(swallowIOExceptions = true)
@@ -492,17 +488,34 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     (for {
       wdlNamespace <- wdlNamespaceValidation.toEither
       womExecutable <- wdlNamespace.womExecutable(Option(source.inputsJson))
-      validatedWomNamespace <- validateWomNamespace(womExecutable)
+      ioFunctions = new WdlFunctions(pathBuilders)
+      validatedWomNamespace <- validateWomNamespace(womExecutable, ioFunctions)
       _ <- checkTypes(wdlNamespace, validatedWomNamespace.wdlValueInputs)
       _ = pushWfInputsToMetadataService(validatedWomNamespace.wdlValueInputs)
     } yield validatedWomNamespace).toValidated
   }
 
-  private def validateWomNamespace(womExecutable: Executable): Checked[ValidatedWomNamespace] = for {
+  private def validateWomNamespace(womExecutable: Executable, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = for {
     graph <- womExecutable.graph.toEither
-    validatedWomNamespace = ValidatedWomNamespace(womExecutable, graph, womExecutable.resolvedExecutableInputs)
+    evaluatedInputs <- validateExecutableInputs(womExecutable.resolvedExecutableInputs, ioFunctions).toEither
+    validatedWomNamespace = ValidatedWomNamespace(womExecutable, graph, evaluatedInputs)
     _ <- validateWdlFiles(validatedWomNamespace.wdlValueInputs)
   } yield validatedWomNamespace
+  
+  /*
+    * At this point input values are either a WdlValue (if it was provided through the input file)
+    * or a WomExpression (if we fell back to the default).
+    * We assume that default expressions do NOT reference any "variables" (other inputs, call outputs ...)
+    * Should this assumption prove not sufficient InstantiatedExpressions or ExpressionNodes would need to be provided
+    * instead so that they can be evaluated JIT.
+    * Note that the ioFunctions use engine level pathBuilders. This means that their credentials come from the engine section
+    * of the configuration, and are not backend specific.
+   */
+  private def validateExecutableInputs(inputs: ResolvedExecutableInputs, ioFunctions: IoFunctionSet): ErrorOr[Map[OutputPort, WdlValue]] = {
+    inputs.traverse[OutputPort, WdlValue] {
+      case (key, value) => value.fold(ResolvedExecutableInputsPoly).apply(ioFunctions) map { key -> _ }
+    }
+  }
 
   private def validateLabels(json: WorkflowJson): ErrorOr[Labels] = {
 

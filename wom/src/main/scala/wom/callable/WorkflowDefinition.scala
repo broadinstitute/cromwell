@@ -17,8 +17,10 @@ final case class WorkflowDefinition(name: String,
 
   // FIXME: how to get a meaningful order from the node set ?
   override lazy val inputs: List[_ <: Callable.InputDefinition] = innerGraph.nodes.inputDefinitions.toList
+  
+  override lazy val outputs: List[_ <: Callable.OutputDefinition] = innerGraph.nodes.outputDefinitions.toList
 
-  lazy val taskCallNodes: Set[TaskCallNode] = innerGraph.nodes collect {
+  lazy val taskCallNodes: Set[TaskCallNode] = innerGraph.allNodes collect {
     case taskNode: TaskCallNode => taskNode
   }
 }

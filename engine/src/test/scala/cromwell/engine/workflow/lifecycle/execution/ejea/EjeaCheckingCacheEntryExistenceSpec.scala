@@ -2,7 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import cromwell.core.callcaching.CallCachingOff
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.RequestOutputStore
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.RequestValueStore
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec.EnhancedTestEJEA
 
@@ -15,8 +15,8 @@ class EjeaCheckingCacheEntryExistenceSpec extends EngineJobExecutionActorSpec {
       createCheckingCacheEntryExistenceEjea()
       
       ejea ! HasCallCacheEntry(CallCacheEntryForCall(helper.workflowId, helper.jobDescriptorKey))
-      helper.replyToProbe.expectMsg(RequestOutputStore)
-      ejea.stateName should be(WaitingForOutputStore)
+      helper.replyToProbe.expectMsg(RequestValueStore)
+      ejea.stateName should be(WaitingForvalueStore)
       
       ejea.underlyingActor.effectiveCallCachingMode shouldBe CallCachingOff
     }
@@ -25,16 +25,16 @@ class EjeaCheckingCacheEntryExistenceSpec extends EngineJobExecutionActorSpec {
       createCheckingCacheEntryExistenceEjea()
 
       ejea ! NoCallCacheEntry(CallCacheEntryForCall(helper.workflowId, helper.jobDescriptorKey))
-      helper.replyToProbe.expectMsg(RequestOutputStore)
-      ejea.stateName should be(WaitingForOutputStore)
+      helper.replyToProbe.expectMsg(RequestValueStore)
+      ejea.stateName should be(WaitingForvalueStore)
     }
 
     "prepare job if cache entry existence lookup fails" in {
       createCheckingCacheEntryExistenceEjea()
 
       ejea ! CacheResultLookupFailure(new Exception("[TEST] Failed to lookup cache entry existence"))
-      helper.replyToProbe.expectMsg(RequestOutputStore)
-      ejea.stateName should be(WaitingForOutputStore)
+      helper.replyToProbe.expectMsg(RequestValueStore)
+      ejea.stateName should be(WaitingForvalueStore)
     }
   }
 

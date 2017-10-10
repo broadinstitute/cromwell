@@ -112,6 +112,9 @@ object WdlGraphNode {
             val identifier = node.identifier.combine(op.name)
             PortBasedGraphOutputNode(identifier, op.womType, op)
           })
+          case node: DeclarationNode => node.outputPorts.map(op => {
+            PortBasedGraphOutputNode(WomIdentifier(op.name), op.womType, op)
+          })
           case node: ScatterNode => node.outputMapping.map(op => {
             PortBasedGraphOutputNode(op.identifier, op.womType, op)
           })

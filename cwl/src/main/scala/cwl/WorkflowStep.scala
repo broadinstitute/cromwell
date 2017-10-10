@@ -247,7 +247,7 @@ object WorkflowStep {
     def toExpressionNode(sourceMappings: Map[String, OutputPort]): ErrorOr[ExpressionNode] = {
       val womExpression = PlaceholderWomExpression(sourceMappings.keySet, WdlAnyType)
       val identifier = WomIdentifier(workflowStepInput.id)
-      ExpressionNode.linkWithInputs(identifier, womExpression, sourceMappings)
+      ExpressionNode.fromInputMapping(identifier, womExpression, sourceMappings)
     }
   }
 

@@ -9,7 +9,7 @@ import org.scalatest.{Matchers, WordSpecLike}
 import spray.json.{JsBoolean, JsNumber, JsObject, JsString, JsValue}
 import wdl._
 import wdl.values.WdlValue
-import wom.executable.Executable.ResolvedExecutableInputs
+import wom.graph.GraphNodePort.OutputPort
 
 class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
@@ -121,7 +121,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
   }
 
   private def buildWorkflowDescriptor(wdl: WorkflowSource,
-                                      inputs: ResolvedExecutableInputs = Map.empty,
+                                      inputs: Map[OutputPort, WdlValue] = Map.empty,
                                       options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
                                       runtime: String) = {
     BackendWorkflowDescriptor(
@@ -139,8 +139,8 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
     workflowDescriptor.workflow.taskCallNodes.toList map {
       call =>
-        val staticValues = workflowDescriptor.knownValues.flatMap {
-          case (outputPort, resolvedInput) => resolvedInput.select[WdlValue] map { outputPort.name -> _ }
+        val staticValues = workflowDescriptor.knownValues.map {
+          case (outputPort, resolvedInput) => outputPort.name -> resolvedInput
         }
         val ra = call.callable.runtimeAttributes.attributes mapValues { _.evaluateValue(staticValues, NoIoFunctionSet) }
         ra.sequence.getOrElse(fail("Failed to evaluate runtime attributes"))

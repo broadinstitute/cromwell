@@ -1,4 +1,4 @@
-package wdl.wom
+package wdl.wom_test
 
 import cats.syntax.either._
 import lenthall.Checked

@@ -1,8 +1,8 @@
-package wdl.wom
+package wdl.wom_test
 
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.wom.WdlWomExpressionsAsInputsSpec.Wdl
+import wdl.wom_test.WdlWomExpressionsAsInputsSpec.Wdl
 import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.{ExpressionNode, TaskCallNode}

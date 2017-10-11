@@ -25,7 +25,7 @@ class CommandOutputExpressionSpec extends FlatSpec with Matchers {
     val glob = Coproduct[Glob](globExpression)
     val outputEval = Coproduct[StringOrExpression](outputEvalExpression)
     val outputBinding = CommandOutputBinding(Option(glob), Option(true), Option(outputEval))
-    val commandOutputExpression = CommandOutputExpression(outputBinding, WdlIntegerType)
+    val commandOutputExpression = CommandOutputExpression(outputBinding, WdlIntegerType, Set.empty)
     val inputValues = Map("myTempFile" -> WdlString(tempFile.pathAsString))
     val result = commandOutputExpression.evaluateValue(inputValues, PlaceholderIoFunctionSet)
     result should be(WdlInteger(42).valid)
@@ -34,7 +34,7 @@ class CommandOutputExpressionSpec extends FlatSpec with Matchers {
   it should "figure out stdout" in {
     val glob = Coproduct[Glob]("stdout")
     val outputBinding = CommandOutputBinding(Option(glob))
-    val commandOutputExpression = CommandOutputExpression(outputBinding, WdlIntegerType)
+    val commandOutputExpression = CommandOutputExpression(outputBinding, WdlIntegerType, Set.empty)
     val result = commandOutputExpression.evaluateFiles(Map.empty, PlaceholderIoFunctionSet, WdlIntegerType)
     result shouldBe(Valid(Set(WdlGlobFile("stdout"))))
   }

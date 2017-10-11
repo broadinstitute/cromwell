@@ -26,6 +26,7 @@ object InstantiatedExpression {
   }
 
   def linkWithInputs(graphNodeSetter: GraphNode.GraphNodeSetter, expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[InstantiatedExpression] = {
+
     def linkInput(input: String): ErrorOr[(String, InputPort)] = if (inputMapping.contains(input)) {
       val upstreamPort = inputMapping(input)
       Valid((input, ConnectedInputPort(input, upstreamPort.womType, upstreamPort, graphNodeSetter.get)))

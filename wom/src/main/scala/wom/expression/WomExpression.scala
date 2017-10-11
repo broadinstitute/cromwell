@@ -1,9 +1,10 @@
 package wom.expression
 
-import cats.data.Validated.Valid
+import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
 import lenthall.validation.ErrorOr.ErrorOr
 import wdl.types.WdlType
-import wdl.values.{WdlFile, WdlFloat, WdlString, WdlValue}
+import wdl.values.{WdlFile, WdlFloat, WdlValue}
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -18,9 +19,12 @@ trait WomExpression {
 
 final case class PlaceholderWomExpression(inputs: Set[String], fixedWomType: WdlType) extends WomExpression {
   override def sourceString: String = "placeholder"
-  override def evaluateValue(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue] = Valid(WdlString("42"))
-  override def evaluateType(inputTypes: Map[String, WdlType]): ErrorOr[WdlType] = Valid(fixedWomType)
-  override def evaluateFiles(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet, coerceTo: WdlType): ErrorOr[Set[WdlFile]] = Valid(Set.empty)
+  override def evaluateValue(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue] =
+    Invalid(NonEmptyList.one(s"couldn't evaluate value from inputs $inputs\tfixedWomType\t$fixedWomType\tinputValues\t$inputValues"))
+  override def evaluateType(inputTypes: Map[String, WdlType]): ErrorOr[WdlType] =
+    Valid(fixedWomType)
+  override def evaluateFiles(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet, coerceTo: WdlType): ErrorOr[Set[WdlFile]] =
+    Valid(Set.empty)
 }
 
 // TODO: Flesh this out (https://github.com/broadinstitute/cromwell/issues/2521)

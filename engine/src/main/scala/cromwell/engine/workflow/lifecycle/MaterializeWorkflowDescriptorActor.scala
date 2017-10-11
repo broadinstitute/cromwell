@@ -3,15 +3,16 @@ package cromwell.engine.workflow.lifecycle
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
 import akka.pattern.pipe
 import cats.Monad
-import cats.data.NonEmptyList
+import cats.data.{EitherT, NonEmptyList}
 import cats.data.EitherT._
-import cats.data.Validated.{Valid, Invalid}
+import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.either._
 import cats.effect.IO
 import cats.instances.vector._
 import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.syntax.either._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.BackendWorkflowDescriptor
@@ -155,9 +156,22 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
       workflowOptionsAndPathBuilders(workflowSourceFiles) match {
         case Valid((workflowOptions, pathBuilders)) =>
+          /*
           val futureDescriptor: Future[ErrorOr[EngineWorkflowDescriptor]] = pathBuilders flatMap {
-            buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf, workflowOptions, _).value.unsafeToFuture().map(_.toValidated)
+            buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf, workflowOptions, _).
+              value.
+              unsafeToFuture().
+              map(_.toValidated)
           }
+          */
+          val x: Parse[List[PathBuilder]] = EitherT{ IO.fromFuture(cats.Eval.now(pathBuilders)).map(_.asRight[NonEmptyList[String]])}
+          val value: Either[NonEmptyList[String], EngineWorkflowDescriptor] =
+          x.flatMap(
+            buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf, workflowOptions, _)).
+            value.
+            unsafeRunSync()
+
+          val futureDescriptor: Future[ErrorOr[EngineWorkflowDescriptor]] = Future.successful(value.toValidated)
 
           // Pipe the response to self, but make it look like it comes from the sender of the command
           // This way we can access it through sender() in the next state and don't have to store the value
@@ -180,7 +194,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       workflowInitializationFailed(error, sender())
       goto(MaterializationFailedState)
     case Event(Status.Failure(failure), _) =>
-      workflowInitializationFailed(NonEmptyList.of(failure.getMessage), sender())
+      workflowInitializationFailed(NonEmptyList.of(failure.getMessage, failure.getStackTrace.map(_.toString):_*), sender())
       goto(MaterializationFailedState)
   }
 

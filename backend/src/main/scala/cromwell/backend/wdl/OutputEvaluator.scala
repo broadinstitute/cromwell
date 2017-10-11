@@ -32,7 +32,7 @@ object OutputEvaluator {
     
     def foldFunction(accumulatedOutputs: Try[ErrorOr[List[(String, WdlValue)]]], output: OutputDefinition) = accumulatedOutputs flatMap { accumulated =>
       // Extract the valid pairs from the job outputs accumulated so far, and add to it the inputs (outputs can also reference inputs)
-      val allKnownValues = accumulated match {
+      val allKnownValues: Map[String, WdlValue] = accumulated match {
         case Valid(outputs) => outputs.toMap[String, WdlValue] ++ knownValues
         case Invalid(_) => knownValues
       }

@@ -81,6 +81,11 @@ case class WdlOptionalValue(innerType: WdlType, value: Option[WdlValue]) extends
   override def collectAsSeq[T <: WdlValue](filterFn: PartialFunction[WdlValue, T]): Seq[T] = {
     value.toList flatMap { _.collectAsSeq(filterFn) }
   }
+
+  override final lazy val valueString: String = value match {
+    case Some(v) => v.valueString
+    case None => ""
+  }
 }
 
 object WdlOptionalValue {

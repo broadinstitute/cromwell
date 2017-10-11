@@ -3,9 +3,8 @@ package cwl
 import cats.syntax.validated._
 import lenthall.validation.ErrorOr.ErrorOr
 import lenthall.validation.Validation._
-import cwl.CwlWomExpression.EnhancedParameterContextInputs
-import wdl.types.{WdlMapType, WdlNothingType, WdlStringType, WdlType}
-import wdl.values.{WdlFile, WdlMap, WdlString, WdlValue}
+import wdl.types._
+import wdl.values.{WdlArray, WdlFile, WdlGlobFile, WdlMap, WdlString, WdlValue}
 import wom.expression.{IoFunctionSet, WomExpression}
 
 sealed trait CwlWomExpression extends WomExpression {
@@ -23,34 +22,30 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
   override def evaluateValue(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue] = {
     val parameterContext = ParameterContext.Empty.withInputs(inputValues, ioFunctionSet)
 
-    outputBinding match {
-      case outputBindingValue =>
-        val wdlValue = CommandOutputBindingEvaluator.commandOutputBindingToWdlValue(
-          outputBindingValue,
-          parameterContext,
-          ioFunctionSet
-        )
-        cwlExpressionType.coerceRawValue(wdlValue).toErrorOr
-    }
+    val wdlValue = outputBinding.commandOutputBindingToWdlValue(parameterContext, ioFunctionSet)
+    cwlExpressionType.coerceRawValue(wdlValue).toErrorOr
   }
 
   override def inputs: Set[String] = ???
 
-  override def evaluateFiles(inputTypes: Map[String, WdlValue], ioFunctionSet: IoFunctionSet, coerceTo: WdlType): ErrorOr[Set[WdlFile]] = ???
-}
+  /*
+  TODO:
+   DB: It doesn't make sense to me that this function returns type WdlFile but accepts a type to which it coerces.
+   Wouldn't coerceTo always == WdlFileType, and if not then what?
+   */
+  override def evaluateFiles(inputTypes: Map[String, WdlValue], ioFunctionSet: IoFunctionSet, coerceTo: WdlType): ErrorOr[Set[WdlFile]] ={
 
-object CwlWomExpression {
+    val pc = ParameterContext.Empty.withInputs(inputTypes, ioFunctionSet)
+    val wdlValue = outputBinding.commandOutputBindingToWdlValue(pc, ioFunctionSet)
 
-  implicit class EnhancedParameterContextInputs(val parameterContext: ParameterContext) extends AnyVal {
-    def withInputs(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ParameterContext = {
-      val wdlValueType = inputValues.values.headOption.map(_.wdlType).getOrElse(WdlNothingType)
-      parameterContext.copy(
-        inputs = WdlMap(
-          WdlMapType(WdlStringType, wdlValueType),
-          // TODO: WOM: convert inputValues (including WdlFile?) to inputs using the ioFunctionSet
-          inputValues map { case (name, wdlValue) => WdlString(name) -> wdlValue }
-        )
-      )
+    wdlValue match {
+
+      case WdlArray(WdlMaybeEmptyArrayType(WdlMapType(WdlStringType, WdlStringType)), seq: Seq[WdlValue]) =>
+        seq.map {
+          case WdlMap(WdlMapType(WdlStringType, WdlStringType), map) => WdlGlobFile(map(WdlString("location")).valueString): WdlFile
+        }.toSet.validNel
+
+      case other =>s":( we saw $other and couldn't convert to a globfile type: ${other.wdlType} coerceTo: $coerceTo".invalidNel[Set[WdlFile]]
     }
   }
 }

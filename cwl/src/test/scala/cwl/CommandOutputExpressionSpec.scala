@@ -9,8 +9,9 @@ import eu.timepit.refined._
 import cats.implicits._
 import eu.timepit.refined.string.MatchesRegex
 import ExpressionEvaluator._
+import cats.data.Validated.Valid
 import wdl.types.WdlIntegerType
-import wdl.values.{WdlInteger, WdlString}
+import wdl.values.{WdlGlobFile, WdlInteger, WdlString}
 import wom.expression.PlaceholderIoFunctionSet
 
 class CommandOutputExpressionSpec extends FlatSpec with Matchers {
@@ -28,5 +29,13 @@ class CommandOutputExpressionSpec extends FlatSpec with Matchers {
     val inputValues = Map("myTempFile" -> WdlString(tempFile.pathAsString))
     val result = commandOutputExpression.evaluateValue(inputValues, PlaceholderIoFunctionSet)
     result should be(WdlInteger(42).valid)
+  }
+
+  it should "figure out stdout" in {
+    val glob = Coproduct[Glob]("stdout")
+    val outputBinding = CommandOutputBinding(Option(glob))
+    val commandOutputExpression = CommandOutputExpression(outputBinding, WdlIntegerType)
+    val result = commandOutputExpression.evaluateFiles(Map.empty, PlaceholderIoFunctionSet, WdlIntegerType)
+    result shouldBe(Valid(Set(WdlGlobFile("stdout"))))
   }
 }

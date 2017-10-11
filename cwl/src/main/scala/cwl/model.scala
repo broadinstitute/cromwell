@@ -3,7 +3,6 @@ package cwl
 import eu.timepit.refined._
 import shapeless.{:+:, CNil, Witness}
 import shapeless.syntax.singleton._
-import cwl.CommandOutputBinding.Glob
 import cwl.LinkMergeMethod.LinkMergeMethod
 import cwl.WorkflowStepInput.InputSource
 
@@ -124,15 +123,7 @@ case class OutputEnumSchema(
   label: Option[String],
   outputBinding: Option[CommandOutputBinding])
 
-/** @see <a href="http://www.commonwl.org/v1.0/Workflow.html#CommandOutputBinding">CommandOutputBinding</a> */
-case class CommandOutputBinding(
-                                 glob: Option[Glob] = None,
-                                 loadContents: Option[Boolean] = None,
-                                 outputEval: Option[StringOrExpression] = None)
-object CommandOutputBinding {
-  type Glob = Expression :+: String :+: Array[String] :+: CNil
 
-}
 
 case class OutputArraySchema(
   items: MyriadOutputType,

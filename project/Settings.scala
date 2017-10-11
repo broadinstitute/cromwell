@@ -71,8 +71,7 @@ object Settings {
   )
 
   val consoleHostileSettings = List(
-    "-Ywarn-unused:imports", // warns about every unused import on every command.
-    "-Xfatal-warnings"       // makes those warnings fatal.
+    "-Ywarn-unused:imports" // warns about every unused import on every command.
   )
 
   val docSettings = List(

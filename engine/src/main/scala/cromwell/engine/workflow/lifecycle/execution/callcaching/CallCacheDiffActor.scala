@@ -295,7 +295,7 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
     * Create a Metadata query from a CallCacheDiffQueryCall
     */
   private def makeMetadataQuery(call: CallCacheDiffQueryCall) = MetadataQuery(
-    WorkflowId.fromString(call.workflowId),
+    call.workflowId,
     // jobAttempt None will return keys for all attempts
     Option(MetadataQueryJobKey(call.callFqn, call.jobIndex, None)),
     None,

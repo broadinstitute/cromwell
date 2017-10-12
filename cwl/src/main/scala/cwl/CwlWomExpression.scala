@@ -4,9 +4,10 @@ import cats.data.NonEmptyList
 import cats.data.Validated.Invalid
 import cats.syntax.validated._
 import cats.syntax.option._
+import cwl.WorkflowStepInput.InputSource
 import lenthall.validation.ErrorOr.ErrorOr
 import lenthall.validation.Validation._
-import shapeless.Inl
+import shapeless.{Inl, Poly1}
 import wdl.types._
 import wdl.values.{WdlArray, WdlFile, WdlGlobFile, WdlMap, WdlString, WdlValue}
 import wom.expression.{IoFunctionSet, WomExpression}
@@ -51,16 +52,30 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
   }
 }
 
-case class WorkflowStepInputExpression(input: WorkflowStepInput, override val cwlExpressionType: WdlType, override val inputs: Set[String]) extends CwlWomExpression {
+case class WorkflowStepInputExpression(input: WorkflowStepInput, override val cwlExpressionType: WdlType, val graphInputs: Set[String]) extends CwlWomExpression {
 
   override def sourceString = input.toString
 
   override def evaluateValue(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet) = {
     (input.valueFrom, input.source) match {
-      case (None, Some(Inl(id: String))) => inputValues.get(id).toValidNel(s"could not find id $id in typeMap $inputValues")
+      case (None, Some(Inl(id: String))) =>
+        inputValues.
+          get(id).
+          toValidNel(s"could not find id $id in typeMap ${inputValues.foreach(println)}\twhen evaluating $input")
       case _ => Invalid(NonEmptyList.one("could not decipher evaluateValue, most likely has not been implemented yet"))
     }
   }
 
   override def evaluateFiles(inputTypes: Map[String, WdlValue], ioFunctionSet: IoFunctionSet, coerceTo: WdlType) = ???
+
+  object InputSourceToFileNames extends Poly1{
+
+    implicit def string = at[String]{s => Set(s)}
+
+    implicit def array = at[Array[String]]{_.toSet}
+  }
+
+  override def inputs = graphInputs ++ input.source.toSet.flatMap{(_:InputSource).fold(InputSourceToFileNames)}
 }
+
+

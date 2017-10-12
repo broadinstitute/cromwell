@@ -460,9 +460,14 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     expression.upstreamPorts.traverseValues(resolve(expression, data)) map { lookup =>
       expression.evaluate(lookup, data.expressionLanguageFunctions) match {
         case Valid(result) => self ! ExpressionEvaluationSucceededResponse(expression, result)
-        case Invalid(f) => self ! ExpressionEvaluationFailedResponse(expression, new RuntimeException(f.toList.mkString(", ")))
+        case Invalid(f) =>
+          val x = ExpressionEvaluationFailedResponse(expression, new RuntimeException(f.toList.mkString(", ")))
+          println(s"evaluate: got expression evaluation error: $x")
+          self ! ExpressionEvaluationFailedResponse(expression, new RuntimeException(f.toList.mkString(", ")))
       }
     } valueOr { f =>
+      val x =  ExpressionEvaluationFailedResponse(expression, new RuntimeException(f.toList.mkString(", ")))
+      println(s"valueOr: got expression evaluation error: $x")
       self ! ExpressionEvaluationFailedResponse(expression, new RuntimeException(f.toList.mkString(", ")))
     }
 
@@ -476,7 +481,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   private def resolve(jobKey: JobKey, data: WorkflowExecutionActorData)(outputPort: OutputPort): ErrorOr[WdlValue] = {
     data.outputStore.get(outputPort, jobKey.index).map(_.validNel) orElse {
       workflowDescriptor.defaultExpressions.get(outputPort) map {
-        case expr if expr.inputs.isEmpty => expr.evaluateValue(Map.empty, data.expressionLanguageFunctions)
+        case expr if expr.inputs.isEmpty => println("\n\nexpression inputs are empty!!!\n\n"); expr.evaluateValue(Map.empty, data.expressionLanguageFunctions)
         case _ => "Cannot evaluate default expression with node dependencies".invalidNel
       }
     } getOrElse s"Can't find a value for ${outputPort.name}".invalidNel

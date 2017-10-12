@@ -2,9 +2,13 @@ package cwl
 
 import cwl.CommandOutputBinding.Glob
 import shapeless.{:+:, CNil}
-import wdl.types.{WdlArrayType, WdlMapType,  WdlStringType}
+import wdl.types.{WdlArrayType, WdlMapType, WdlStringType}
 import wdl.values.{WdlArray, WdlMap, WdlString, WdlValue}
 import wom.expression.IoFunctionSet
+import scala.language.postfixOps
+
+import scala.concurrent.Await
+import scala.concurrent.duration._
 
 /** @see <a href="http://www.commonwl.org/v1.0/Workflow.html#CommandOutputBinding">CommandOutputBinding</a> */
 case class CommandOutputBinding(
@@ -63,9 +67,9 @@ case class CommandOutputBinding(
 
   private def load64KiB(path: String, ioFunctionSet: IoFunctionSet): String = {
     // This suggests the IoFunctionSet should have a length-limited read API as both CWL and WDL support this concept.
-    // val content = ioFunctionSet.readFile(path)
-    val content = better.files.File(path).bytes.take(64 * 1024).toArray
-    new String(content)
+    val content = ioFunctionSet.readFile(path)
+    Await.result(content, 5 seconds)
+
   }
 }
 

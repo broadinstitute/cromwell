@@ -38,7 +38,6 @@ case class FileStepUUID(fileName: String, id: String, uuid: String, stepId: Stri
 
 object FullyQualifiedName {
   def apply(in: String): FullyQualifiedName = {
-    println(s"formatting $in")
 
     val Array(file, after) = in.split("#")
 

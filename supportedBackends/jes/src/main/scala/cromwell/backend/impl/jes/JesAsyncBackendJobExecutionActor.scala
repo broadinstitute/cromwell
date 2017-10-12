@@ -56,8 +56,18 @@ object JesAsyncBackendJobExecutionActor {
   val JesUnexpectedTermination = 13
   val JesPreemption = 14
 
-  def StandardException(errorCode: Status, message: String, jobTag: String) = {
-    new Exception(s"Task $jobTag failed. JES error code ${errorCode.getCode.value}. $message")
+  def StandardException(errorCode: Status,
+                        message: String,
+                        jobTag: String,
+                        returnCodeOption: Option[Int],
+                        stderrPath: Path) = {
+    val returnCodeMessage = returnCodeOption match {
+      case Some(returnCode) if returnCode == 0 => "Job exited without an error, exit code 0."
+      case Some(returnCode) => s"Job exit code $returnCode. Check $stderrPath for more information."
+      case None => "The job was stopped before the command finished."
+    }
+
+    new Exception(s"Task $jobTag failed. $returnCodeMessage JES error code ${errorCode.getCode.value}. $message")
   }
 }
 
@@ -425,7 +435,8 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         case (Status.CANCELLED, None) => Future.successful(AbortedExecutionHandle)
         case (Status.NOT_FOUND, Some(JesFailedToDelocalize)) => Future.successful(FailedNonRetryableExecutionHandle(FailedToDelocalizeFailure(runStatus.prettyPrintedError, jobTag, Option(jobPaths.stderr))))
         case (Status.ABORTED, Some(JesUnexpectedTermination)) => handleUnexpectedTermination(runStatus.errorCode, runStatus.prettyPrintedError, returnCode)
-        case _ => Future.successful(FailedNonRetryableExecutionHandle(StandardException(runStatus.errorCode, runStatus.prettyPrintedError, jobTag), returnCode))
+        case _ => Future.successful(FailedNonRetryableExecutionHandle(StandardException(
+            runStatus.errorCode, runStatus.prettyPrintedError, jobTag, returnCode, jobPaths.stderr), returnCode))
       }
     }
 
@@ -455,14 +466,17 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         if (thisUnexpectedRetry <= maxUnexpectedRetries) {
           // Increment unexpected retry count and preemption count stays the same
           writeFuturePreemptedAndUnexpectedRetryCounts(p, thisUnexpectedRetry).map { _ =>
-            FailedRetryableExecutionHandle(StandardException(errorCode, msg, jobTag), jobReturnCode)
+            FailedRetryableExecutionHandle(StandardException(
+              errorCode, msg, jobTag, jobReturnCode, jobPaths.stderr), jobReturnCode)
           }
         }
         else {
-          Future.successful(FailedNonRetryableExecutionHandle(StandardException(errorCode, errorMessage, jobTag), jobReturnCode))
+          Future.successful(FailedNonRetryableExecutionHandle(StandardException(
+            errorCode, errorMessage, jobTag, jobReturnCode, jobPaths.stderr), jobReturnCode))
         }
       case Invalid(_) =>
-        Future.successful(FailedNonRetryableExecutionHandle(StandardException(errorCode, errorMessage, jobTag), jobReturnCode))
+        Future.successful(FailedNonRetryableExecutionHandle(StandardException(
+          errorCode, errorMessage, jobTag, jobReturnCode, jobPaths.stderr), jobReturnCode))
     }
   }
 
@@ -481,15 +495,18 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           if (thisPreemption < maxPreemption) {
             // Increment preemption count and unexpectedRetryCount stays the same
             val msg = s"""$baseMsg The call will be restarted with another preemptible VM (max preemptible attempts number is $maxPreemption). Error code $errorCode.$prettyPrintedError""".stripMargin
-            FailedRetryableExecutionHandle(StandardException(errorCode, msg, jobTag), jobReturnCode)
+            FailedRetryableExecutionHandle(StandardException(
+              errorCode, msg, jobTag, jobReturnCode, jobPaths.stderr), jobReturnCode)
           }
           else {
             val msg = s"""$baseMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The call will be restarted with a non-preemptible VM. Error code $errorCode.$prettyPrintedError)""".stripMargin
-            FailedRetryableExecutionHandle(StandardException(errorCode, msg, jobTag), jobReturnCode)
+            FailedRetryableExecutionHandle(StandardException(
+              errorCode, msg, jobTag, jobReturnCode, jobPaths.stderr), jobReturnCode)
           }
         }
       case Invalid(_) =>
-        Future.successful(FailedNonRetryableExecutionHandle(StandardException(errorCode, prettyPrintedError, jobTag), jobReturnCode))
+        Future.successful(FailedNonRetryableExecutionHandle(StandardException(
+          errorCode, prettyPrintedError, jobTag, jobReturnCode, jobPaths.stderr), jobReturnCode))
     }
   }
 

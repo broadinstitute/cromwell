@@ -361,10 +361,13 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     (""" append("a", "b", "c", "d") """, WdlString("abcd")),
 
     // String Interpolation
+    // NB: have to use s"..." interpolation and $$ for these to avoid the "possible missing interpolator" warnings. Sigh...
     (s""""prefix.$${a}.suffix"""", WdlString("prefix.1.suffix")),
     (s""""prefix.$${a}$${a}.suffix$${a}"""", WdlString("prefix.11.suffix1")),
     (s""""$${b}prefix.$${b}$${a}$${a}.suffix$${a}"""", WdlString("2prefix.211.suffix1")),
     (s""""$${s}...$${s}"""", WdlString("s...s")),
+    (s""""$${someStr}"""", WdlString("someStr")),
+    (s""""$${noneStr}"""", WdlString("")),
 
     // Array Indexing
     ("array_str[0]", WdlString("foo")),

@@ -352,7 +352,7 @@ For many examples on how to use WDL see [the WDL site](https://github.com/openwd
 
 :pig2: Cromwell supports the following subset of WDL features:
 
-* [Language Specification](https://github.com/openwdl/wdl/blob/master/versions/draft-2/SPEC.mdlanguage-specification)
+* [Language Specification](ohttps://github.com/openwdl/wdl/blob/master/versions/draft-2/SPEC.mdlanguage-specification)
   * [Whitespace, Strings, Identifiers, Constants](https://github.com/openwdl/wdl/blob/master/versions/draft-2/SPEC.mdwhitespace-strings-identifiers-constants)
   * [Types](https://github.com/openwdl/wdl/blob/master/versions/draft-2/SPEC.mdtypes)
   * [Fully Qualified Names & Namespaced Identifiers](https://github.com/openwdl/wdl/blob/master/versions/draft-2/SPEC.mdfully-qualified-names--namespaced-identifiers)

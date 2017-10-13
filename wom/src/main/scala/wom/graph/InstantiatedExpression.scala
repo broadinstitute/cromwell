@@ -5,9 +5,9 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import cats.data.Validated.Valid
 import lenthall.validation.ErrorOr.ErrorOr
-import wdl.types.WdlType
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort}
+import wom.types.WdlType
 
 class InstantiatedExpression private(val expression: WomExpression, val womReturnType: WdlType, val inputMapping: Map[String, InputPort]) {
   val inputPorts = inputMapping.values.toSet

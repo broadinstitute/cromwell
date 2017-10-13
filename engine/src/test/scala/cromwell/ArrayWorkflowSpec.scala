@@ -5,9 +5,9 @@ import cromwell.core.Tags.PostWomTest
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.SampleWdl
 import wdl.expression.NoFunctions
-import wdl.types.{WdlArrayType, WdlFileType, WdlStringType}
-import wdl.values.{WdlArray, WdlFile, WdlString}
 import wdl.{ImportResolver, WdlNamespaceWithWorkflow}
+import wom.types._
+import wom.values._
 
 class ArrayWorkflowSpec extends CromwellTestKitWordSpec {
   val tmpDir = DefaultPathBuilder.createTempDirectory("ArrayWorkflowSpec")

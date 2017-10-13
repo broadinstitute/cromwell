@@ -1,7 +1,7 @@
 package cwl
 
+import cwl.command.StringCommandPart
 import shapeless.Poly1
-import wdl.command.StringCommandPart
 import wom.CommandPart
 
 object BaseCommandToCommandParts extends Poly1 {

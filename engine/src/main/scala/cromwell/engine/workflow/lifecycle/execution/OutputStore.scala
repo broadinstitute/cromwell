@@ -4,11 +4,12 @@ import cromwell.core.ExecutionIndex._
 import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.OutputStore.OutputKey
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.CollectorKey
-import wdl.types.WdlType
-import wdl.values.WdlValue
+import wom.core.CallOutputs
 import wom.executable.Executable.ResolvedExecutableInputs
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
+import wom.types.WdlType
+import wom.values.WdlValue
 
 import scala.util.{Failure, Try}
 

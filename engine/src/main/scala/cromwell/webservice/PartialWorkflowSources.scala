@@ -1,15 +1,16 @@
 package cromwell.webservice
 
 import akka.util.ByteString
-import cromwell.core.{WorkflowOptions, WorkflowOptionsJson, WorkflowSourceFilesCollection}
-import wdl.{WorkflowJson, WorkflowSource}
 import cats.data.Validated.{Invalid, Valid}
-import cats.syntax.validated._
 import cats.syntax.apply._
-import lenthall.validation.ErrorOr.ErrorOr
+import cats.syntax.validated._
 import cromwell.core._
+import lenthall.validation.ErrorOr.ErrorOr
+import lenthall.validation.Validation._
 import org.slf4j.LoggerFactory
 import spray.json.{JsObject, JsValue}
+import wdl.WorkflowJson
+import wom.core._
 
 import scala.util.Try
 
@@ -69,7 +70,7 @@ object PartialWorkflowSources {
       }
     }
 
-    partialSourcesToSourceCollections(partialSources.tryToErrorOr, allowNoInputs).errorOrToTry
+    partialSourcesToSourceCollections(partialSources.toErrorOr, allowNoInputs).toTry
   }
 
   private def workflowInputs(data: String): Vector[WorkflowJson] = {
@@ -93,7 +94,7 @@ object PartialWorkflowSources {
       }
 
     def validateOptions(options: Option[WorkflowOptionsJson]): ErrorOr[WorkflowOptions] =
-      WorkflowOptions.fromJsonString(options.getOrElse("{}")).tryToErrorOr leftMap { _ map { i => s"Invalid workflow options provided: $i" } }
+      WorkflowOptions.fromJsonString(options.getOrElse("{}")).toErrorOr leftMap { _ map { i => s"Invalid workflow options provided: $i" } }
 
     def validateWorkflowSource(partialSource: PartialWorkflowSources): ErrorOr[WorkflowJson] = partialSource.workflowSource match {
       case Some(src) => src.validNel

@@ -1,7 +1,7 @@
 package cromwell.backend.validation
 
 import com.typesafe.config.Config
-import wdl.values.{WdlBoolean, WdlValue}
+import wom.values._
 
 /**
   * Validates the "failOnStderr" runtime attribute as a Boolean or a String 'true' or 'false', returning the value as a

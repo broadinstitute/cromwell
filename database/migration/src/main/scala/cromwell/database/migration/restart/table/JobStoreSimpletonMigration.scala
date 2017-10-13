@@ -3,8 +3,9 @@ package cromwell.database.migration.restart.table
 import cromwell.core.simpleton.WdlValueSimpleton._
 import cromwell.database.migration.WdlTransformation._
 import liquibase.database.jvm.JdbcConnection
-import wdl.types.WdlType
-import wdl.values.WdlValue
+import wdl.types._
+import wom.types.WdlType
+import wom.values.WdlValue
 
 
 class JobStoreSimpletonMigration extends AbstractRestartMigration {
@@ -57,7 +58,7 @@ class JobStoreSimpletonMigration extends AbstractRestartMigration {
     }
 
     while (results.next()) {
-      val wdlType = WdlType.fromWdlString(results.getString(4))
+      val wdlType = WdlFlavoredWomType.fromDisplayString(results.getString(4))
       val rawValue = results.getString(3)
       val inflated = inflate(rawValue).get
       val wdlValue = coerceStringToWdl(inflated, wdlType)

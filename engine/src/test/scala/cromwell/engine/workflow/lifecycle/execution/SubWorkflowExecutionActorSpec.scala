@@ -21,6 +21,8 @@ import org.scalatest.concurrent.Eventually
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
 import wdl._
+import wom.JobOutput
+import wom.core.CallOutputs
 import wom.graph.WomIdentifier
 
 import scala.concurrent.duration._

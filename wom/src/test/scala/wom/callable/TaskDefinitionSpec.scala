@@ -2,9 +2,9 @@ package wom.callable
 
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.types.{WdlIntegerType, WdlStringType}
 import wom.graph.{CallNode, GraphInputNode, LocalName, PortBasedGraphOutputNode}
 import wom.callable.TaskDefinitionSpec._
+import wom.types.{WdlIntegerType, WdlStringType}
 
 class TaskDefinitionSpec extends FlatSpec with Matchers {
 

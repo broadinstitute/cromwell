@@ -6,13 +6,13 @@ import cats.syntax.foldable._
 import cats.syntax.traverse._
 import lenthall.validation.ErrorOr.ErrorOr
 import shapeless.{:+:, CNil, Coproduct}
-import wdl.values.WdlValue
 import wom.callable.Callable._
 import wom.callable.{Callable, TaskDefinition, WorkflowDefinition}
 import wom.expression.WomExpression
 import wom.graph.CallNode._
 import wom.graph.GraphNode.GeneratedNodeAndNewNodes
 import wom.graph.GraphNodePort.{ConnectedInputPort, GraphNodeOutputPort, InputPort, OutputPort}
+import wom.values.WdlValue
 
 sealed abstract class CallNode extends GraphNode {
   def callable: Callable

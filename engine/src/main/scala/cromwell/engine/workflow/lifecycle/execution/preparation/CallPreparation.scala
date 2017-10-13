@@ -8,10 +8,9 @@ import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.OutputStore
 import lenthall.validation.ErrorOr._
 import lenthall.validation.Validation._
-import wdl.values.WdlValue
-import wom.WomEvaluatedCallInputs
 import wom.callable.Callable._
 import wom.expression.IoFunctionSet
+import wom.values.{WdlValue, WomEvaluatedCallInputs}
 
 object CallPreparation {
   sealed trait CallPreparationActorCommands

@@ -24,11 +24,13 @@ import lenthall.util.TryUtil
 import lenthall.validation.ErrorOr.ErrorOr
 import org.apache.commons.lang3.StringUtils
 import wdl._
-import wdl.types.WdlType
-import wdl.values.{WdlOptionalValue, WdlString, WdlValue}
+import wom.JobOutput
+import wom.core.CallOutputs
 import wom.expression.IoFunctionSet
 import wom.graph.GraphNodePort.{InputPort, OutputPort}
 import wom.graph._
+import wom.types.WdlType
+import wom.values._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -274,11 +276,11 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def handleWorkflowSuccessful(data: WorkflowExecutionActorData) = {
+    import WorkflowExecutionActor.EnhancedWorkflowOutputs
     import cats.instances.list._
     import cats.syntax.traverse._
     import cromwell.util.JsonFormatting.WdlValueJsonFormatter._
     import spray.json._
-    import WorkflowExecutionActor.EnhancedWorkflowOutputs
     
     def handleSuccessfulWorkflowOutputs(outputs: Map[WomIdentifier, WdlValue]) = {
       val fullyQualifiedOutputs = outputs map {

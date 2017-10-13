@@ -15,7 +15,7 @@ import org.scalatest.mockito.MockitoSugar
 import shapeless.Inl
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-import wdl.values.WdlString
+import wom.values.WdlString
 
 import scala.concurrent.duration._
 

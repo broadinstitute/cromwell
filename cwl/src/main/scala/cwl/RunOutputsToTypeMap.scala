@@ -2,7 +2,7 @@ package cwl
 
 import shapeless.Poly1
 import cwl.CwlType.CwlType
-import wdl.types.WdlType
+import wom.types.WdlType
 
 object RunOutputsToTypeMap extends Poly1 {
   def mungeId(fullyQualifiedId: String): String = {

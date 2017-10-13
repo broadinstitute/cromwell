@@ -1,6 +1,6 @@
 package cromwell.core.simpleton
 
-import wdl.values._
+import wom.values._
 
 case class WdlValueSimpleton(simpletonKey: String, simpletonValue: WdlPrimitive)
 

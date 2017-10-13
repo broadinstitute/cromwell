@@ -4,9 +4,9 @@ import cats.syntax.validated._
 import lenthall.validation.ErrorOr.ErrorOr
 import lenthall.validation.Validation._
 import shapeless.Poly1
-import wdl.types.{WdlArrayType, WdlFileType, WdlType}
-import wdl.values.{WdlArray, WdlValue}
 import wom.executable.Executable.DelayedCoercionFunction
+import wom.types.{WdlArrayType, WdlFileType, WdlType}
+import wom.values._
 
 private [cwl] object CwlInputCoercion extends Poly1 {
   implicit def cwlFileToWdlValue: Case.Aux[MyriadInputValuePrimitives, DelayedCoercionFunction] = at[MyriadInputValuePrimitives] {

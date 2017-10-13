@@ -41,6 +41,7 @@ lazy val databaseSql = (project in file("database/sql"))
 lazy val databaseMigration = (project in file("database/migration"))
   .settings(databaseMigrationSettings: _*)
   .dependsOn(core)
+  .dependsOn(wdl)
   .withTestSettings
 
 lazy val dockerHashing = (project in file("dockerHashing"))

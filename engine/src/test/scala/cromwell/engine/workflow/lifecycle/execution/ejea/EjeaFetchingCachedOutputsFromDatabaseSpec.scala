@@ -10,7 +10,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.FetchCachedResul
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
 import cromwell.engine.workflow.lifecycle.execution.ejea.HasJobSuccessResponse.SuccessfulCallCacheHashes
-import wdl.values.WdlString
+import wom.values.WdlString
 
 import scala.util.{Failure, Success}
 

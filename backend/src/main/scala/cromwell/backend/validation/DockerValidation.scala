@@ -2,7 +2,7 @@ package cromwell.backend.validation
 
 import cats.syntax.validated._
 import lenthall.validation.ErrorOr.ErrorOr
-import wdl.values.{WdlString, WdlValue}
+import wom.values._
 
 /**
   * Validates the "docker" runtime attribute as a String, returning it as `String`.

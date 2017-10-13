@@ -1,8 +1,9 @@
 package cwl
 
+import cwl.command.StringCommandPart
+
 import scala.Function._
 import shapeless._
-import wdl.command.StringCommandPart
 
 object ArgumentToCommandPart extends Poly1 {
   implicit def script = at[Expression] { const(StringCommandPart(null)) }

@@ -8,10 +8,10 @@ import cromwell.backend.validation.RuntimeAttributesDefault._
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.core._
-import lenthall.validation.ErrorOr._
 import lenthall.exception.MessageAggregation
-import wdl.types.{WdlBooleanType, WdlIntegerType, WdlStringType, WdlType}
-import wdl.values.{WdlBoolean, WdlInteger, WdlString, WdlValue}
+import lenthall.validation.ErrorOr._
+import wom.types._
+import wom.values._
 
 object SparkRuntimeAttributes {
   private val FailOnStderrDefaultValue = false

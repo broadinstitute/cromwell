@@ -3,10 +3,10 @@ package cromwell.core.simpleton
 import cromwell.core.simpleton.WdlValueBuilderSpec._
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
-import wdl.types.{WdlArrayType, WdlIntegerType, WdlMapType, WdlStringType}
-import wdl.values.{WdlArray, WdlInteger, WdlMap, WdlPair, WdlString, WdlValue}
 import wom.callable.Callable.OutputDefinition
 import wom.expression.PlaceholderWomExpression
+import wom.types._
+import wom.values._
 
 object WdlValueBuilderSpec {
   // WdlValueBuilder doesn't care about this expression, but something needs to be passed to the TaskOutput constructor.

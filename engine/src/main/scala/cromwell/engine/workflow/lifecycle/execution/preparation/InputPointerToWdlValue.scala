@@ -5,9 +5,9 @@ import cromwell.core.ExecutionIndex.ExecutionIndex
 import cromwell.engine.workflow.lifecycle.execution.OutputStore
 import lenthall.validation.ErrorOr.ErrorOr
 import shapeless.Poly1
-import wdl.values.WdlValue
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
+import wom.values.WdlValue
 
 object InputPointerToWdlValue extends Poly1 {
   // Function that can transform any of the coproduct types to an ErrorOr[WdlValue]

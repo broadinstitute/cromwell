@@ -2,6 +2,8 @@ package cromwell.backend.impl.jes
 
 import java.util.UUID
 
+import _root_.io.grpc.Status
+import _root_.wdl._
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
 import com.google.cloud.NoCredentials
@@ -15,28 +17,26 @@ import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.DoPoll
 import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardExpressionFunctionsParams}
 import cromwell.backend.wdl.WdlFileMapper
+import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.Tags.PostWomTest
 import cromwell.core._
 import cromwell.core.callcaching.NoDocker
 import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
+import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
 import cromwell.services.keyvalue.InMemoryKvServiceActor
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
 import cromwell.util.JsonFormatting.WdlValueJsonFormatter._
 import cromwell.util.SampleWdl
-import _root_.io.grpc.Status
-import cromwell.cloudsupport.gcp.gcs.GcsStorage
-import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
 import org.scalatest._
 import org.scalatest.prop.Tables.Table
 import org.slf4j.Logger
 import org.specs2.mock.Mockito
 import spray.json._
-import _root_.wdl._
-import _root_.wdl.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
-import _root_.wdl.values.{WdlArray, WdlFile, WdlMap, WdlString, WdlValue}
 import wom.graph.TaskCallNode
+import wom.types._
+import wom.values._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}

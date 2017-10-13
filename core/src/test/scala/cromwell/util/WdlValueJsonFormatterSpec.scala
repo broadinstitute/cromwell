@@ -3,8 +3,8 @@ package cromwell.util
 import cromwell.util.JsonFormatting.WdlValueJsonFormatter.WdlValueJsonFormat
 import org.scalatest.{FlatSpec, Matchers}
 import spray.json.{JsObject, pimpString}
-import wdl.types.{WdlArrayType, WdlStringType}
-import wdl.values.{WdlArray, WdlPair, WdlString}
+import wom.types._
+import wom.values._
 
 class WdlValueJsonFormatterSpec extends FlatSpec with Matchers {
 

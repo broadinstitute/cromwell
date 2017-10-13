@@ -30,4 +30,11 @@ object Validation {
       fromTry(t).leftMap(_.getMessage).toValidatedNel[String, A] 
     }
   }
+
+  implicit class ValidationTry[A](val e: ErrorOr[A]) extends AnyVal {
+    def toTry: Try[A] = e match {
+      case Valid(options) => Success(options)
+      case Invalid(err) => Failure(new RuntimeException(s"Error(s): ${err.toList.mkString(",")}"))
+    }
+  }
 }

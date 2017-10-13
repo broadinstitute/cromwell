@@ -16,7 +16,7 @@ import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
-import wom.WomEvaluatedCallInputs
+import wom.values.WomEvaluatedCallInputs
 
 class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 parentWorkflow: EngineWorkflowDescriptor,

@@ -9,7 +9,7 @@ import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncJob}
 import cromwell.backend.validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import _root_.wdl.values.WdlFile
+import wom.values.WdlFile
 
 import scala.concurrent.duration._
 

@@ -10,8 +10,8 @@ import org.slf4j.helpers.NOPLogger
 import org.specs2.mock.Mockito
 import spray.json._
 import wdl4s.parser.MemoryUnit
-import wdl.types.{WdlArrayType, WdlIntegerType, WdlStringType}
-import wdl.values.{WdlArray, WdlBoolean, WdlInteger, WdlString, WdlValue}
+import wom.types._
+import wom.values._
 
 class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
 

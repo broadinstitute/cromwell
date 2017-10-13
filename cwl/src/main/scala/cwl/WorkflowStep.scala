@@ -14,13 +14,13 @@ import lenthall.validation.ErrorOr.ErrorOr
 import shapeless._
 import cwl.ScatterMethod._
 import cwl.WorkflowStep._
-import wdl.types.WdlAnyType
-import wdl.values.WdlValue
 import wom.callable.Callable._
 import wom.expression.PlaceholderWomExpression
 import wom.graph.CallNode._
 import wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 import wom.graph._
+import wom.types.WdlAnyType
+import wom.values.WdlValue
 
 import scala.language.postfixOps
 import scala.util.Try

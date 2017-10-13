@@ -1,16 +1,16 @@
 package cromwell.backend.impl.jes
 
-import cats.syntax.validated._
 import cats.data.Validated._
 import cats.syntax.apply._
+import cats.syntax.validated._
 import com.typesafe.config.Config
 import cromwell.backend.MemorySize
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation.{BooleanRuntimeAttributesValidation, _}
 import lenthall.validation.ErrorOr._
-import wdl.types._
-import wdl.values._
+import wom.types._
+import wom.values._
 
 
 case class JesRuntimeAttributes(cpu: Int,

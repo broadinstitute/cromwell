@@ -3,13 +3,13 @@ package cromwell.engine.workflow.lifecycle
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
 import akka.pattern.pipe
 import cats.Monad
-import cats.data.NonEmptyList
 import cats.data.EitherT._
-import cats.data.Validated.{Valid, Invalid}
-import cats.syntax.either._
+import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
 import cats.effect.IO
 import cats.instances.vector._
 import cats.syntax.apply._
+import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.typesafe.config.Config
@@ -29,22 +29,22 @@ import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.MaterializeWorkflowDescriptorActorState
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
-import lenthall.validation.Checked._
+import cwl.CwlDecoder.Parse
+import cwl.{CwlDecoder, Workflow}
 import lenthall.Checked
 import lenthall.exception.{AggregatedMessageException, MessageAggregation}
+import lenthall.validation.Checked._
 import lenthall.validation.ErrorOr._
 import net.ceedubs.ficus.Ficus._
 import spray.json._
-import cwl.CwlDecoder.Parse
-import cwl.{CwlDecoder, Workflow}
 import wdl._
-import wdl.values.{WdlSingleFile, WdlString, WdlValue}
 import wom.callable.WorkflowDefinition
 import wom.executable.Executable
 import wom.executable.Executable.ResolvedExecutableInputs
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.{Graph, TaskCallNode}
+import wom.values._
 
 import scala.concurrent.Future
 import scala.language.postfixOps
@@ -455,8 +455,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   private def validateWdlNamespace(source: WorkflowSourceFilesCollection,
                                    workflowOptions: WorkflowOptions,
                                    pathBuilders: List[PathBuilder]): ErrorOr[ValidatedWomNamespace] = {
-    import cats.instances.list._
     import cats.instances.either._
+    import cats.instances.list._
     import cats.syntax.either._
     import cats.syntax.functor._
     import cats.syntax.validated._

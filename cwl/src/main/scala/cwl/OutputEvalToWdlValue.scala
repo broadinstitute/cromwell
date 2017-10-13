@@ -1,8 +1,9 @@
 package cwl
 
-import scala.Function._
 import shapeless._
-import wdl.values._
+import wom.values.{WdlString, WdlValue}
+
+import scala.Function._
 
 object OutputEvalToWdlValue extends Poly1 {
 

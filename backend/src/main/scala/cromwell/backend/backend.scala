@@ -7,11 +7,10 @@ import cromwell.core.labels.Labels
 import cromwell.core.{CallKey, WorkflowId, WorkflowOptions}
 import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
 import _root_.wdl._
-import _root_.wdl.values.WdlValue
-import wom.WomEvaluatedCallInputs
 import wom.callable.WorkflowDefinition
 import wom.executable.Executable.ResolvedExecutableInputs
 import wom.graph.TaskCallNode
+import wom.values.{WdlValue, WomEvaluatedCallInputs}
 
 import scala.util.Try
 

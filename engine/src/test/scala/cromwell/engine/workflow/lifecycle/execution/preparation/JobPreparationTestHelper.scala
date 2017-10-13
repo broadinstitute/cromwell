@@ -10,8 +10,7 @@ import cromwell.engine.workflow.lifecycle.execution.{OutputStore, WorkflowExecut
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, ScopedKey}
 import lenthall.validation.ErrorOr.ErrorOr
 import org.specs2.mock.Mockito
-import _root_.wdl.values.WdlValue
-import wom.WomEvaluatedCallInputs
+import wom.values.{WdlValue, WomEvaluatedCallInputs}
 
 import scala.concurrent.duration.FiniteDuration
 

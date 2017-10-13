@@ -2,9 +2,9 @@ package cromwell
 
 import akka.testkit._
 import cromwell.core.Tags.{DockerTest, PostWomTest}
-import wdl.types.{WdlArrayType, WdlFileType, WdlIntegerType, WdlStringType}
-import wdl.values.{WdlArray, WdlFile, WdlInteger, WdlString}
 import cromwell.util.SampleWdl
+import wom.types._
+import wom.values._
 
 // TODO WOM: need scatter support
 class ScatterWorkflowSpec extends CromwellTestKitWordSpec {

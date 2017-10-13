@@ -1,8 +1,8 @@
 package wom
 
-import wdl.values.WdlValue
 import wom.expression.IoFunctionSet
 import wom.graph.LocalName
+import wom.values.WdlValue
 
 trait CommandPart {
   def instantiate(inputsMap: Map[LocalName, WdlValue],

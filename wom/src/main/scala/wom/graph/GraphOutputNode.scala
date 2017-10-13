@@ -1,9 +1,9 @@
 package wom.graph
 
 import lenthall.validation.ErrorOr.ErrorOr
-import wdl.types.WdlType
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.{ConnectedInputPort, GraphNodeOutputPort, OutputPort}
+import wom.types.WdlType
 
 sealed trait GraphOutputNode extends GraphNode {
   def womType: WdlType

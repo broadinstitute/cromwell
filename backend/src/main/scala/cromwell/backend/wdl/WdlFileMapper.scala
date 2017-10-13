@@ -1,7 +1,7 @@
 package cromwell.backend.wdl
 
 import lenthall.util.TryUtil
-import wdl.values._
+import wom.values._
 
 import scala.util.{Success, Try}
 

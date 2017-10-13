@@ -1,7 +1,6 @@
 package cromwell.backend
 
 import _root_.wdl._
-import _root_.wdl.values.WdlValue
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.backend.io.TestWorkflows._
 import cromwell.core.callcaching.NoDocker
@@ -14,10 +13,12 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsValue}
 import wom.callable.Callable.{InputDefinition, RequiredInputDefinition}
+import wom.core.WorkflowSource
 import wom.executable.Executable.ResolvedExecutableInputs
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.TaskCallNode
+import wom.values.WdlValue
 
 trait BackendSpec extends ScalaFutures with Matchers with Mockito {
 

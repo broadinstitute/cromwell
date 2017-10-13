@@ -2,8 +2,8 @@ package wom.expression
 
 import cats.data.Validated.Valid
 import lenthall.validation.ErrorOr.ErrorOr
-import wdl.types.WdlType
-import wdl.values.{WdlFile, WdlFloat, WdlString, WdlValue}
+import wom.types.WdlType
+import wom.values.{WdlFile, WdlFloat, WdlString, WdlValue}
 
 import scala.concurrent.Future
 import scala.util.Try

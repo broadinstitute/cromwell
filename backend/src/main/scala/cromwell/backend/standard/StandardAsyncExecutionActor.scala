@@ -22,8 +22,7 @@ import lenthall.exception.MessageAggregation
 import lenthall.util.TryUtil
 import lenthall.validation.ErrorOr.ErrorOr
 import net.ceedubs.ficus.Ficus._
-import wdl.values._
-import wom.WomEvaluatedCallInputs
+import wom.values._
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}
 import scala.util.{Failure, Success, Try}

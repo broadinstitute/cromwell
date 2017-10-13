@@ -1,6 +1,7 @@
 package cromwell.jobstore
 
-import cromwell.core.{WorkflowId, _}
+import cromwell.core.WorkflowId
+import wom.core.CallOutputs
 
 case class JobStoreKey(workflowId: WorkflowId, callFqn: String, index: Option[Int], attempt: Int) {
   private lazy val indexString = index map { _.toString } getOrElse "NA"

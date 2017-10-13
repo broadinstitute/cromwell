@@ -1,7 +1,7 @@
 package cromwell.core
 
-import wdl.values.{WdlFile, WdlFloat, WdlValue}
 import wom.expression.IoFunctionSet
+import wom.values.{WdlFile, WdlFloat, WdlValue}
 
 import scala.concurrent.Future
 import scala.util.{Failure, Try}

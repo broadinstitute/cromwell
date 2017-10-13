@@ -2,9 +2,9 @@ package cromwell.backend.wdl
 
 import cromwell.core.Tags.PostWomTest
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.types.{WdlFileType, WdlIntegerType, WdlOptionalType}
-import wdl.values.{WdlFile, WdlFloat, WdlInteger, WdlOptionalValue, WdlSingleFile, WdlString, WdlValue}
 import wom.expression.IoFunctionSet
+import wom.types._
+import wom.values._
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}

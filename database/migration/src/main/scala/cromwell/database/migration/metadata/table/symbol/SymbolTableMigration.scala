@@ -6,8 +6,8 @@ import cromwell.core.simpleton.WdlValueSimpleton._
 import cromwell.database.migration.WdlTransformation
 import cromwell.database.migration.custom.BatchedTaskChange
 import wdl.WdlExpression
-import wdl.types.WdlType
-import wdl.values.WdlValue
+import wdl.types.WdlFlavoredWomType
+import wom.values.WdlValue
 
 import scala.util.{Failure, Success, Try}
 
@@ -46,7 +46,7 @@ trait SymbolTableMigration extends BatchedTaskChange {
     val statement = statements.head
     // Try to coerce the value to a WdlValue
     val value = for {
-      wdlType <- Try(WdlType.fromWdlString(row.getString("WDL_TYPE")))
+      wdlType <- Try(WdlFlavoredWomType.fromDisplayString(row.getString("WDL_TYPE")))
       inflated <- row.getString("WDL_VALUE") match {
         case null => Success("") // Empty Strings are null in the DB
         case nonNull @ _ => inflate(row.getString("WDL_VALUE"))

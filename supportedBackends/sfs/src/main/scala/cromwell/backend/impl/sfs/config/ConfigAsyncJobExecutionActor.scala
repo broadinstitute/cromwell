@@ -7,7 +7,7 @@ import cromwell.backend.validation.DockerValidation
 import cromwell.core.path.Path
 import wdl._
 import wdl.expression.NoFunctions
-import wdl.values.{WdlString, WdlValue}
+import wom.values.{WdlString, WdlValue}
 
 /**
   * Base ConfigAsyncJobExecutionActor that reads the config and generates an outer script to submit an inner script

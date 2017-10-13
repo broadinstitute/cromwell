@@ -2,8 +2,8 @@ package cromwell.engine.workflow.lifecycle.execution.preparation
 
 import akka.testkit.{ImplicitSender, TestActorRef}
 import cats.syntax.validated._
+import cromwell.core.TestKitSuite
 import cromwell.core.callcaching.{DockerWithHash, FloatingDockerTagWithoutHash}
-import cromwell.core.{LocallyQualifiedName, TestKitSuite}
 import cromwell.docker.DockerHashActor.DockerHashSuccessResponse
 import cromwell.docker.{DockerHashRequest, DockerHashResult, DockerImageIdentifier, DockerImageIdentifierWithoutHash}
 import cromwell.engine.workflow.WorkflowDockerLookupActor.WorkflowDockerLookupFailure
@@ -12,8 +12,9 @@ import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvKeyLookupFailed, KvPair}
 import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
-import wdl.values.{WdlString, WdlValue}
 import wom.callable.Callable.InputDefinition
+import wom.core.LocallyQualifiedName
+import wom.values.{WdlString, WdlValue}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps

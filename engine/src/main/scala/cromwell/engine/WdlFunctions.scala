@@ -2,7 +2,7 @@ package cromwell.engine
 
 import cromwell.backend.wdl.ReadLikeFunctions
 import cromwell.core.path.PathBuilder
-import wdl.values.{WdlFile, WdlValue}
+import wom.values.{WdlFile, WdlValue}
 
 import scala.concurrent.Future
 import scala.util.{Failure, Try}

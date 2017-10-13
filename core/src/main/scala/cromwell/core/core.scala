@@ -2,11 +2,10 @@ package cromwell.core
 
 import cromwell.core.path.Path
 import lenthall.exception.ThrowableAggregation
-import wdl.values.WdlValue
 
 
 case class CallContext(root: Path, stdout: String, stderr: String)
-case class JobOutput(wdlValue: WdlValue)
+
 /**  Marker trait for Cromwell exceptions that are to be treated as fatal (non-retryable) */
 trait CromwellFatalExceptionMarker { this: Throwable => }
 

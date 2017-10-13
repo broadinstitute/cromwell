@@ -4,9 +4,10 @@ import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
 import cromwell.backend.io.WorkflowPathsWithDocker
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
+import cromwell.core.NoIoFunctionSet
 import cromwell.core.path.Path
-import cromwell.core.{CallOutputs, NoIoFunctionSet}
 import net.ceedubs.ficus.Ficus._
+import wom.core.CallOutputs
 import wom.expression.IoFunctionSet
 import wom.graph.TaskCallNode
 

@@ -165,19 +165,21 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
     val patternInputNode = graphInputNodes.head
     patternInputNode.localName should be("pattern")
 
-    nodes collect { case gon: GraphOutputNode => gon.localName } should be(Set(
-      "file:///Users/danb/wdl4s/r.cwl#cgrep-count",
-      "file:///Users/danb/wdl4s/r.cwl#wc-count"
+    nodes collect { case gon: GraphOutputNode => FullyQualifiedName(gon.localName).id } should be(Set(
+      "cgrep-count",
+      "wc-count"
     ))
 
     nodes collect { case cn: CallNode => cn.localName } should be(Set("ps", "cgrep", "wc"))
 
+    //def stepAndId(in: String) = s"${FileStepAndId(in).stepId}/${FileStepAndId(in).id}"
+
     val ps = nodes.collectFirst({ case ps: CallNode if ps.localName == "ps" => ps }).get
     val cgrep = nodes.collectFirst({ case cgrep: CallNode if cgrep.localName == "cgrep" => cgrep }).get
-    val cgrepFileExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if cgrepInput.localName == "file:///Users/danb/wdl4s/r.cwl#cgrep/file" => cgrepInput }).get
-    val cgrepPatternExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if cgrepInput.localName == "file:///Users/danb/wdl4s/r.cwl#cgrep/pattern" => cgrepInput }).get
+    val cgrepFileExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if s"${FileStepAndId(cgrepInput.localName).stepId}/${FileStepAndId(cgrepInput.localName).id}" == "cgrep/file" => cgrepInput }).get
+    val cgrepPatternExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if s"${FileStepAndId(cgrepInput.localName).stepId}/${FileStepAndId(cgrepInput.localName).id}" == "cgrep/pattern" => cgrepInput }).get
     val wc = nodes.collectFirst({ case wc: CallNode if wc.localName == "wc" => wc }).get
-    val wcFileExpression = nodes.collectFirst({ case wcInput: ExpressionNode if wcInput.localName == "file:///Users/danb/wdl4s/r.cwl#wc/file" => wcInput }).get
+    val wcFileExpression = nodes.collectFirst({ case wcInput: ExpressionNode if s"${FileStepAndId(wcInput.localName).stepId}/${FileStepAndId(wcInput.localName).id}" == "wc/file" => wcInput }).get
 
     ps.upstream shouldBe empty
 
@@ -186,8 +188,8 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
 
     // Check that expressions input ports point to the right output port
     cgrepPatternExpression.inputPorts.head.upstream should be theSameInstanceAs patternInputNode.singleOutputPort
-    cgrepFileExpression.inputPorts.head.upstream should be theSameInstanceAs ps.outputPorts.head
-    wcFileExpression.inputPorts.head.upstream should be theSameInstanceAs ps.outputPorts.head
+    cgrepFileExpression.inputPorts.map(_.upstream).filter(_ eq ps.outputPorts.head).size shouldBe 1
+    wcFileExpression.inputPorts.map(_.upstream).filter(_ eq ps.outputPorts.head).size shouldBe 1
     
     // Check that the inputDefinitionMappings are correct
     ps.inputDefinitionMappings shouldBe empty

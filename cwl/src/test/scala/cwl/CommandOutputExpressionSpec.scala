@@ -11,15 +11,34 @@ import eu.timepit.refined.string.MatchesRegex
 import ExpressionEvaluator._
 import cats.data.Validated.Valid
 import wdl.types.WdlIntegerType
-import wdl.values.{WdlGlobFile, WdlInteger, WdlString}
-import wom.expression.PlaceholderIoFunctionSet
+import wdl.values.{WdlGlobFile, WdlInteger, WdlString, WdlValue}
+import wom.expression.{IoFunctionSet, PlaceholderIoFunctionSet}
+
+import scala.concurrent.Future
+import scala.util.Try
 
 class CommandOutputExpressionSpec extends FlatSpec with Matchers {
 
   behavior of "CommandOutputExpression"
 
+  def ioFunctionSet(data: String) =
+    new IoFunctionSet {
+      override def readFile(path: String) = Future.successful(data)
+
+      override def writeFile(path: String, content: String) = ???
+
+      override def stdout(params: Seq[Try[WdlValue]]) = ???
+
+      override def stderr(params: Seq[Try[WdlValue]]) = ???
+
+      override def glob(path: String, pattern: String) = ???
+
+      override def size(params: Seq[Try[WdlValue]]) = ???
+    }
+
   it should "evaluateValue" in {
-    val tempFile = better.files.File.newTemporaryFile("glob.", ".txt").write("41.1")
+    val data = "41.1"
+    val tempFile = better.files.File.newTemporaryFile("glob.", ".txt").write(data)
     val globExpression = Coproduct[Expression](refineMV[MatchesRegex[ECMAScriptExpressionWitness.T]]("$(inputs.myTempFile)"))
     val outputEvalExpression = Coproduct[Expression](refineMV[MatchesRegex[ECMAScriptExpressionWitness.T]]("$((parseInt(self[0].contents) + 1).toFixed())"))
     val glob = Coproduct[Glob](globExpression)
@@ -27,7 +46,7 @@ class CommandOutputExpressionSpec extends FlatSpec with Matchers {
     val outputBinding = CommandOutputBinding(Option(glob), Option(true), Option(outputEval))
     val commandOutputExpression = CommandOutputExpression(outputBinding, WdlIntegerType, Set.empty)
     val inputValues = Map("myTempFile" -> WdlString(tempFile.pathAsString))
-    val result = commandOutputExpression.evaluateValue(inputValues, PlaceholderIoFunctionSet)
+    val result = commandOutputExpression.evaluateValue(inputValues, ioFunctionSet(data))
     result should be(WdlInteger(42).valid)
   }
 

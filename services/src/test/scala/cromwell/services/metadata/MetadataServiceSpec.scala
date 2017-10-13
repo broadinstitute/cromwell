@@ -7,8 +7,8 @@ import lenthall.exception.AggregatedException
 import org.scalactic.Equality
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.types.{WdlArrayType, WdlMapType, WdlStringType}
-import wdl.values._
+import wom.types._
+import wom.values._
 
 class MetadataServiceSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
 

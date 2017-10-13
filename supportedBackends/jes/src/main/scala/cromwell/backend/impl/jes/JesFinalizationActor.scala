@@ -3,9 +3,9 @@ package cromwell.backend.impl.jes
 import akka.actor.ActorRef
 import cromwell.backend._
 import cromwell.backend.standard.{StandardFinalizationActor, StandardFinalizationActorParams}
-import cromwell.core.CallOutputs
 import cromwell.core.io.AsyncIo
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
+import wom.core.CallOutputs
 import wom.graph.TaskCallNode
 
 import scala.concurrent.Future

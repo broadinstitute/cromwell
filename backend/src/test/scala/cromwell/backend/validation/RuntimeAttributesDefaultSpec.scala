@@ -4,8 +4,8 @@ import cromwell.backend.validation.RuntimeAttributesDefault._
 import cromwell.core.WorkflowOptions
 import org.scalatest.{FlatSpec, Matchers}
 import spray.json._
-import wdl.types._
-import wdl.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}
+import wom.types._
+import wom.values._
 
 class RuntimeAttributesDefaultSpec extends FlatSpec with Matchers {
 

@@ -6,8 +6,8 @@ import cromwell.backend.RuntimeAttributeDefinition
 import lenthall.exception.MessageAggregation
 import lenthall.validation.ErrorOr._
 import org.slf4j.Logger
-import wdl.types.WdlType
-import wdl.values.WdlValue
+import wom.types.WdlType
+import wom.values.WdlValue
 
 final case class ValidatedRuntimeAttributes(attributes: Map[String, Any])
 

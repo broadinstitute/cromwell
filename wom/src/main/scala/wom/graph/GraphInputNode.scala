@@ -1,8 +1,8 @@
 package wom.graph
 
-import wdl.types.{WdlOptionalType, WdlType}
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.GraphNodeOutputPort
+import wom.types.{WdlOptionalType, WdlType}
 
 sealed trait GraphInputNode extends GraphNode {
   def womType: WdlType

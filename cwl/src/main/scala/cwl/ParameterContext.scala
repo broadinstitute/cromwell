@@ -1,8 +1,8 @@
 package cwl
 
-import wdl.types._
-import wdl.values._
 import wom.expression.IoFunctionSet
+import wom.types.{WdlMapType, WdlNothingType, WdlStringType}
+import wom.values.{WdlMap, WdlOptionalValue, WdlString, WdlValue}
 
 object ParameterContext {
   val Empty = ParameterContext(

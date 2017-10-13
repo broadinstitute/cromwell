@@ -3,7 +3,7 @@ package cromwell.webservice
 import lenthall.exception.MessageAggregation
 import spray.json._
 import wdl.FullyQualifiedName
-import wdl.values.WdlValue
+import wom.values.WdlValue
 
 
 case class WorkflowStatusResponse(id: String, status: String)

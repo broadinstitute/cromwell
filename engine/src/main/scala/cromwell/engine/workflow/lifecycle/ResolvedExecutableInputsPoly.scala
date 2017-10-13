@@ -3,8 +3,8 @@ package cromwell.engine.workflow.lifecycle
 import cats.syntax.validated._
 import lenthall.validation.ErrorOr.ErrorOr
 import shapeless.Poly1
-import wdl.values.WdlValue
 import wom.expression.{IoFunctionSet, WomExpression}
+import wom.values.WdlValue
 
 object ResolvedExecutableInputsPoly extends Poly1 {
   implicit def fromWdlValue: Case.Aux[WdlValue, IoFunctionSet => ErrorOr[WdlValue]] = at[WdlValue] { wdlValue =>

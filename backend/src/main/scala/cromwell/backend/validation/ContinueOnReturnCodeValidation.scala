@@ -7,8 +7,8 @@ import cats.syntax.validated._
 import com.typesafe.config.Config
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import lenthall.validation.ErrorOr._
-import wdl.types._
-import wdl.values._
+import wom.types._
+import wom.values._
 
 import scala.util.Try
 

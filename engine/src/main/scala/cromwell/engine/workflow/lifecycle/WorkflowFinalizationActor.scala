@@ -5,11 +5,12 @@ import akka.actor.{ActorRef, FSM, OneForOneStrategy, Props}
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationFailed, FinalizationSuccess, Finalize}
 import cromwell.backend._
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.{CallOutputs, WorkflowId}
+import cromwell.core.WorkflowId
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor._
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
+import wom.core.CallOutputs
 import wom.graph.TaskCallNode
 
 import scala.util.{Failure, Success, Try}

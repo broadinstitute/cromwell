@@ -3,6 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution
 import akka.actor.{Scope => _, _}
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
+import cats.syntax.option._
 import cats.syntax.validated._
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
@@ -26,10 +27,12 @@ import lenthall.util.TryUtil
 import lenthall.validation.ErrorOr.ErrorOr
 import org.apache.commons.lang3.StringUtils
 import wdl._
-import wdl.values.WdlArray.WdlArrayLike
+import wom.JobOutput
+import wom.core.CallOutputs
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
-import wdl.values.{WdlBoolean, WdlOptionalValue, WdlString, WdlValue}
+import wom.values.WdlArray.WdlArrayLike
+import wom.values._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -475,7 +478,6 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     * Curried for convenience.
     */
   private def resolve(jobKey: JobKey, data: WorkflowExecutionActorData)(outputPort: OutputPort): ErrorOr[WdlValue] = {
-    import cats.syntax.option._
     
     // If the node this port belongs to is a ScatterVariableNode then we want the item at the right index in the array
     def forScatterVariable: ErrorOr[WdlValue] = data.valueStore.get(outputPort, None) match {

@@ -7,12 +7,12 @@ import lenthall.Checked
 import lenthall.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import lenthall.validation.Validation._
 import shapeless.Coproduct
-import wdl.types.WdlType
-import wdl.values.WdlValue
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.CallNode.InputDefinitionPointer
 import wom.graph.GraphNodePort.{ConnectedInputPort, GraphNodeOutputPort, InputPort, OutputPort}
 import wom.graph.{GraphNode, GraphNodePort, WomIdentifier}
+import wom.types.WdlType
+import wom.values.WdlValue
 
 /**
   * Encapsulates a WomExpression with input ports connected to the expression's dependencies.

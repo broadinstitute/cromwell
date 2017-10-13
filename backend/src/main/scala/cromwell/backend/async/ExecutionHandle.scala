@@ -2,8 +2,9 @@ package cromwell.backend.async
 
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.async.AsyncBackendJobExecutionActor.JobId
+import cromwell.core.ExecutionEvent
 import cromwell.core.path.Path
-import cromwell.core.{CallOutputs, ExecutionEvent}
+import wom.core.CallOutputs
 
 /**
  * Trait to encapsulate whether an execution is complete and if so provide a result.  Useful in conjunction

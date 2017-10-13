@@ -2,9 +2,9 @@ package cwl
 
 import cwl.CommandOutputBinding.Glob
 import shapeless.{:+:, CNil}
-import wdl.types.{WdlArrayType, WdlMapType,  WdlStringType}
-import wdl.values.{WdlArray, WdlMap, WdlString, WdlValue}
 import wom.expression.IoFunctionSet
+import wom.types._
+import wom.values._
 
 /** @see <a href="http://www.commonwl.org/v1.0/Workflow.html#CommandOutputBinding">CommandOutputBinding</a> */
 case class CommandOutputBinding(

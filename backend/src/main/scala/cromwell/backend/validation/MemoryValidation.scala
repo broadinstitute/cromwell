@@ -5,8 +5,8 @@ import com.typesafe.config.Config
 import cromwell.backend.MemorySize
 import lenthall.validation.ErrorOr._
 import wdl4s.parser.MemoryUnit
-import wdl.types.{WdlIntegerType, WdlStringType}
-import wdl.values.{WdlInteger, WdlString, WdlValue}
+import wom.types.{WdlIntegerType, WdlStringType}
+import wom.values.{WdlInteger, WdlString, WdlValue}
 
 import scala.util.{Failure, Success}
 

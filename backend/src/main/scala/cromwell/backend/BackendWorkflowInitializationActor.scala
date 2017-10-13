@@ -1,5 +1,7 @@
 package cromwell.backend
 
+import _root_.wdl._
+import _root_.wdl.expression.PureStandardLibraryFunctions
 import akka.actor.{ActorLogging, ActorRef}
 import akka.event.LoggingReceive
 import cromwell.backend.BackendLifecycleActor._
@@ -9,12 +11,10 @@ import cromwell.backend.validation.ContinueOnReturnCodeValidation
 import cromwell.core.{WorkflowMetadataKeys, WorkflowOptions}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
-import _root_.wdl._
-import _root_.wdl.expression.PureStandardLibraryFunctions
-import _root_.wdl.types._
-import _root_.wdl.values.WdlValue
 import wom.callable.TaskDefinition
 import wom.graph.TaskCallNode
+import wom.types.WdlType
+import wom.values.WdlValue
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}

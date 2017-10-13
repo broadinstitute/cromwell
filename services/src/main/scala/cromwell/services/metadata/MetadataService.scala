@@ -4,10 +4,11 @@ import java.time.OffsetDateTime
 
 import akka.actor.ActorRef
 import cats.data.NonEmptyList
-import cromwell.core.{FullyQualifiedName, JobKey, WorkflowId, WorkflowState}
+import cromwell.core.{JobKey, WorkflowId, WorkflowState}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import lenthall.exception.{MessageAggregation, ThrowableAggregation}
-import wdl.values._
+import wom.core._
+import wom.values._
 
 import scala.util.Random
 

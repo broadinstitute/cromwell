@@ -1,11 +1,11 @@
 package cwl
 
 import shapeless._
-import wdl.types.{WdlArrayType, WdlStringType}
-import wdl.values.{WdlArray, WdlString}
 import wom.expression.IoFunctionSet
+import wom.types.{WdlArrayType, WdlStringType}
 
 import scala.Function._
+import wom.values._
 
 /*
 CommandOutputBinding.glob:

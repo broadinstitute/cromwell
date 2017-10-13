@@ -1,9 +1,9 @@
 package wom.graph
 
-import wdl.types.{WdlBooleanType, WdlOptionalType}
 import wom.graph.GraphNode.GeneratedNodeAndNewNodes
 import wom.graph.GraphNodePort.{ConditionalOutputPort, ConnectedInputPort, InputPort, OutputPort}
 import wom.graph.expression.ExpressionNode
+import wom.types.{WdlBooleanType, WdlOptionalType}
 
 /**
   * Currently only WDL has the concept of conditional executions:

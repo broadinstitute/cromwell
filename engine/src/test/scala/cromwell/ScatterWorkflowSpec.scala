@@ -3,8 +3,8 @@ package cromwell
 import akka.testkit._
 import cromwell.core.Tags.DockerTest
 import cromwell.util.SampleWdl
-import wdl.types.{WdlArrayType, WdlFileType, WdlIntegerType, WdlStringType}
-import wdl.values.{WdlArray, WdlFile, WdlInteger, WdlString}
+import wom.types._
+import wom.values._
 
 class ScatterWorkflowSpec extends CromwellTestKitWordSpec {
   "A workflow with a stand-alone scatter block in it" should {

@@ -18,6 +18,7 @@ import cromwell.engine.workflow.lifecycle.{CopyWorkflowLogsActor, EngineLifecycl
 import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
+import wom.core.CallOutputs
 
 import scala.concurrent.duration._
 

@@ -1,10 +1,8 @@
 package cromwell.util.JsonFormatting
 
 import spray.json._
-import wdl.WdlExpression
-import wdl.types._
-import wdl.values._
-import wdl.values.{WdlBoolean, WdlFloat, WdlInteger, WdlString, WdlValue}
+import wom.types._
+import wom.values._
 
 object WdlValueJsonFormatter extends DefaultJsonProtocol {
   implicit object WdlValueJsonFormat extends RootJsonFormat[WdlValue] {
@@ -17,10 +15,12 @@ object WdlValueJsonFormatter extends DefaultJsonProtocol {
       case o: WdlObject => new JsObject(o.value map {case(k, v) => k -> write(v)})
       case a: WdlArray => new JsArray(a.value.map(write).toVector)
       case m: WdlMap => new JsObject(m.value map {case(k,v) => k.valueString -> write(v)})
-      case e: WdlExpression => JsString(e.toWdlString)
       case q: WdlPair => new JsObject(Map("left" -> write(q.left), "right" -> write(q.right)))
       case WdlOptionalValue(_, Some(innerValue)) => write(innerValue)
       case WdlOptionalValue(_, None) => JsNull
+        // handles WdlExpression
+      case v: WdlValue => JsString(v.toWdlString)
+
     }
 
     // NOTE: This assumes a map's keys are strings. Since we're coming from JSON this is fine.

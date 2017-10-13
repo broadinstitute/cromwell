@@ -1,11 +1,10 @@
 
-import cwl.CwlType.CwlType
-import cwl.CwlType._
-import wdl.types._
+import cwl.CwlType.{CwlType, _}
+import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
+import lenthall.Checked
 import shapeless._
 import wom.executable.Executable
-import lenthall.Checked
-import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
+import wom.types._
 
 /**
  * This package is intended to parse all CWL files.

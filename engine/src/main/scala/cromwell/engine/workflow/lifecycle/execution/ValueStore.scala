@@ -8,10 +8,10 @@ import cromwell.engine.workflow.lifecycle.execution.ValueStore.ValueKey
 import cromwell.engine.workflow.lifecycle.execution.keys.{ConditionalCollectorKey, ScatterCollectorKey}
 import lenthall.collections.Table
 import lenthall.validation.ErrorOr.ErrorOr
-import wdl.values.{WdlArray, WdlOptionalValue, WdlValue}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.graph.expression.ExpressionNode
+import wom.values.{WdlArray, WdlOptionalValue, WdlValue}
 
 object ValueStore {
   def initialize(knownValues: Map[OutputPort, WdlValue]): ValueStore = {

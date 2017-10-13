@@ -2,8 +2,8 @@ package cromwell
 
 import akka.testkit._
 import cromwell.util.SampleWdl
-import wdl.types.{WdlArrayType, WdlStringType}
-import wdl.values.{WdlArray, WdlString}
+import wom.types._
+import wom.values._
 
 
 class ArrayOfArrayCoercionSpec extends CromwellTestKitWordSpec {

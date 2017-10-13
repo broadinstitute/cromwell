@@ -21,6 +21,7 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActor, WorkflowMetadataHelper}
 import cromwell.subworkflowstore.SubWorkflowStoreActor.WorkflowComplete
 import cromwell.webservice.EngineStatsActor
+import wom.core.CallOutputs
 
 import scala.concurrent.Future
 import scala.concurrent.duration._

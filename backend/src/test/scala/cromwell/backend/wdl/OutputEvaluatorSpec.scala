@@ -4,16 +4,17 @@ import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
 import cromwell.backend.wdl.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey}
-import cromwell.core.{JobOutput, NoIoFunctionSet}
+import cromwell.core.NoIoFunctionSet
 import cromwell.util.WomMocks
 import lenthall.validation.ErrorOr.ErrorOr
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
-import wdl.types.{WdlIntegerType, WdlType}
-import wdl.values.{WdlFile, WdlInteger, WdlValue}
+import wom.JobOutput
 import wom.callable.Callable.{InputDefinition, OutputDefinition, RequiredInputDefinition}
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.WomIdentifier
+import wom.types.{WdlIntegerType, WdlType}
+import wom.values.{WdlFile, WdlInteger, WdlValue}
 
 class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
   behavior of "OutputEvaluator"

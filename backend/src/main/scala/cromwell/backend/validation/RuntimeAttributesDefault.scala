@@ -2,10 +2,11 @@ package cromwell.backend.validation
 
 import cats.data.ValidatedNel
 import cats.syntax.validated._
-import cromwell.core.{EvaluatedRuntimeAttributes, OptionNotFoundException, WorkflowOptions}
+import cromwell.core.{OptionNotFoundException, WorkflowOptions}
 import lenthall.util.TryUtil
-import wdl.types.WdlType
-import wdl.values.WdlValue
+import wom.core.EvaluatedRuntimeAttributes
+import wom.types.WdlType
+import wom.values.WdlValue
 
 import scala.util.{Failure, Try}
 

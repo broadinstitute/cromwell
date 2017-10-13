@@ -9,7 +9,7 @@ import cromwell.core.callcaching.HashingFailedMessage
 import cromwell.core.io.{DefaultIoCommandBuilder, IoHashCommand}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import org.scalatest.{FlatSpecLike, Matchers}
-import wdl.values.WdlFile
+import wom.values.WdlFile
 
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._

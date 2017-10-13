@@ -1,6 +1,6 @@
 package wom.graph
 
-import wdl.types.{WdlArrayType, WdlOptionalType, WdlType}
+import wom.types.{WdlArrayType, WdlOptionalType, WdlType}
 
 sealed trait GraphNodePort {
   def name: String

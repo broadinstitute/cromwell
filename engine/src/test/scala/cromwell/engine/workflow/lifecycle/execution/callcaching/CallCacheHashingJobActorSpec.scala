@@ -1,21 +1,22 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
+import _root_.wdl.command.StringCommandPart
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{TestFSMRef, TestProbe}
 import cats.data.NonEmptyList
 import cromwell.backend._
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.{FileHashResponse, SingleFileHashRequest}
+import cromwell.core.TestKitSuite
 import cromwell.core.callcaching.{HashingFailedMessage, _}
-import cromwell.core.{LocallyQualifiedName, TestKitSuite}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{CCHJAFileHashResponse, CallCacheHashingJobActorData, CompleteFileHashingResult, HashingFiles, InitialHashingResult, NextBatchOfFileHashesRequest, NoFileHashesResult, PartialFileHashingResult, WaitingForHashFileRequest}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CacheMiss
 import cromwell.util.WomMocks
 import org.scalatest.concurrent.Eventually
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
-import _root_.wdl.command.StringCommandPart
-import _root_.wdl.values.{WdlFile, WdlInteger, WdlString, WdlValue}
+import wom.core.LocallyQualifiedName
 import wom.graph.WomIdentifier
+import wom.values.{WdlFile, WdlInteger, WdlString, WdlValue}
 
 class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with BackendSpec with Matchers with Eventually with TableDrivenPropertyChecks {
   behavior of "CallCacheReadingJobActor"

@@ -2,7 +2,6 @@ package cromwell.engine.workflow.lifecycle.execution
 
 import java.util.UUID
 
-import _root_.wom.graph.WomIdentifier
 import akka.actor.Props
 import akka.testkit.{TestFSMRef, TestProbe}
 import cromwell.backend.{AllBackendInitializationData, BackendWorkflowDescriptor, JobExecutionMap}
@@ -23,6 +22,9 @@ import org.scalatest.concurrent.Eventually
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
 import wdl._
+import wom.JobOutput
+import wom.core.CallOutputs
+import wom.graph.WomIdentifier
 
 import scala.concurrent.duration._
 import scala.language.postfixOps

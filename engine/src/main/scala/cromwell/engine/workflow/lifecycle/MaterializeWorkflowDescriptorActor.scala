@@ -3,7 +3,7 @@ package cromwell.engine.workflow.lifecycle
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
 import akka.pattern.pipe
 import cats.Monad
-import cats.data.{EitherT, NonEmptyList}
+import cats.data.NonEmptyList
 import cats.data.EitherT._
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.either._

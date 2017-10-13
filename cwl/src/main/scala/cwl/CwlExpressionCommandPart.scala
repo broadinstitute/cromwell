@@ -1,9 +1,9 @@
 package cwl
 
-import wdl.values.WdlValue
 import wom.CommandPart
 import wom.expression.IoFunctionSet
 import wom.graph.LocalName
+import wom.values.WdlValue
 
 
 case class CwlExpressionCommandPart(expr: Expression) extends CommandPart {

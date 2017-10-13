@@ -8,20 +8,22 @@ import cats.syntax.either._
 import cats.syntax.foldable._
 import cats.syntax.monoid._
 import cats.syntax.validated._
+import cwl.ScatterMethod._
+import cwl.WorkflowStep._
 import lenthall.Checked
 import lenthall.validation.Checked._
 import lenthall.validation.ErrorOr.ErrorOr
 import shapeless._
 import cwl.ScatterMethod._
 import cwl.WorkflowStep._
-import wdl.types.WdlAnyType
-import wdl.values.WdlValue
 import wom.callable.Callable._
 import wom.expression.PlaceholderWomExpression
 import wom.graph.CallNode._
 import wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 import wom.graph._
 import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode}
+import wom.types.WdlAnyType
+import wom.values.WdlValue
 
 import scala.language.postfixOps
 import scala.util.Try

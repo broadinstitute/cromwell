@@ -6,9 +6,9 @@ import cromwell.core.NoIoFunctionSet
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import wdl.FullyQualifiedName
-import wdl.values.{WdlFile, WdlGlobFile, WdlSingleFile, WdlValue}
 import wdl4s.parser.MemoryUnit
 import wom.callable.Callable.OutputDefinition
+import wom.values.{WdlFile, WdlGlobFile, WdlSingleFile, WdlValue}
 
 import scala.util.Try
 

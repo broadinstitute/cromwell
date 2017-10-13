@@ -1,9 +1,8 @@
 package cromwell.backend.wdl
 
 import cromwell.backend.BackendJobDescriptor
-import wdl.values.WdlValue
-import wom.WomEvaluatedCallInputs
 import wom.expression.IoFunctionSet
+import wom.values.{WdlValue, WomEvaluatedCallInputs}
 
 import scala.util.{Success, Try}
 

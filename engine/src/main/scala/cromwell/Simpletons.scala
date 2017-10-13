@@ -3,8 +3,8 @@ package cromwell
 import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.tables.{CallCachingSimpletonEntry, JobStoreSimpletonEntry}
-import wdl.types.{WdlBooleanType, WdlFloatType, WdlIntegerType, WdlStringType}
-import wdl.values.{WdlPrimitive, WdlSingleFile, WdlValue}
+import wom.types.{WdlBooleanType, WdlFloatType, WdlIntegerType, WdlStringType}
+import wom.values.{WdlPrimitive, WdlSingleFile, WdlValue}
 
 import scala.util.Try
 

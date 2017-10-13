@@ -2,18 +2,19 @@ package cromwell.jobstore
 
 import cromwell.CromwellTestKitWordSpec
 import cromwell.backend.BackendJobDescriptorKey
-import cromwell.core.{JobOutput, WorkflowId}
+import cromwell.core.WorkflowId
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.JobStoreServiceSpec._
 import cromwell.services.EngineServicesStore
 import cromwell.util.WomMocks
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
-import wdl.types.WdlStringType
-import wdl.values.WdlString
+import wom.JobOutput
 import wom.callable.Callable.OutputDefinition
 import wom.expression.PlaceholderWomExpression
 import wom.graph.WomIdentifier
+import wom.types.WdlStringType
+import wom.values.WdlString
 
 import scala.concurrent.duration._
 import scala.language.postfixOps

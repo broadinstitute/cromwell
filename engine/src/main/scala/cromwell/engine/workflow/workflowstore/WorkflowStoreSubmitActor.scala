@@ -15,6 +15,7 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmitFailed, WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import wom.core.WorkflowOptionsJson
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}

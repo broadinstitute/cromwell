@@ -6,7 +6,8 @@ import java.util.zip.GZIPInputStream
 
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.io.IOUtils
-import wdl.types.{WdlPrimitiveType, WdlType}
+import wdl.types.WdlFlavoredWomType._
+import wom.types.{WdlPrimitiveType, WdlType}
 
 import scala.util.Try
 
@@ -24,6 +25,6 @@ private [migration] object WdlTransformation {
   def coerceStringToWdl(wdlString: String, wdlType: WdlType) = wdlType match {
     case _ if wdlString == null => null
     case p: WdlPrimitiveType => p.coerceRawValue(wdlString).get
-    case o => o.fromWdlString(wdlString)
+    case o => o.fromWorkflowSource(wdlString)
   }
 }

@@ -2,7 +2,6 @@ package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
-import cromwell.core.JobOutput
 import cromwell.core.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{EJEAData, SucceededResponseData, UpdatingCallCache, UpdatingJobStore}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
@@ -10,7 +9,8 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashing
 import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
 import cromwell.jobstore.{JobResultSuccess, JobStoreKey}
 import org.scalatest.concurrent.Eventually
-import wdl.values.{WdlInteger, WdlString}
+import wom.JobOutput
+import wom.values.{WdlInteger, WdlString}
 
 import scala.util.Success
 

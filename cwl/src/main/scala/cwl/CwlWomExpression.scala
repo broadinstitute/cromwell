@@ -3,9 +3,9 @@ package cwl
 import cats.syntax.validated._
 import lenthall.validation.ErrorOr.ErrorOr
 import lenthall.validation.Validation._
-import wdl.types._
-import wdl.values.{WdlArray, WdlFile, WdlGlobFile, WdlMap, WdlString, WdlValue}
 import wom.expression.{IoFunctionSet, WomExpression}
+import wom.types._
+import wom.values._
 
 sealed trait CwlWomExpression extends WomExpression {
 

@@ -2,7 +2,7 @@ package cromwell
 
 import akka.testkit._
 import cromwell.util.SampleWdl
-import wdl.values.{WdlFile, WdlString}
+import wom.values.{WdlFile, WdlString}
 
 import scala.concurrent.duration._
 

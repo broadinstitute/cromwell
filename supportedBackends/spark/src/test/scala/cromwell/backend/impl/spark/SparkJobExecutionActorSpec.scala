@@ -16,7 +16,7 @@ import org.mockito.Mockito._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfter, Matchers, WordSpecLike}
-import wdl._
+import wom.core.WorkflowSource
 
 import scala.concurrent.Future
 import scala.concurrent.duration._

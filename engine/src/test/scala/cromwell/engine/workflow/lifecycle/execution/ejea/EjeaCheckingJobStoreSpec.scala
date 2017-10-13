@@ -1,12 +1,12 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import cromwell.backend.BackendJobExecutionActor.{JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
-import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{CheckingCacheEntryExistence, CheckingJobStore, NoData}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.CallCacheEntryForCall
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec.EnhancedTestEJEA
 import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete}
 import cromwell.jobstore.{JobResultFailure, JobResultSuccess}
+import wom.core.CallOutputs
 
 class EjeaCheckingJobStoreSpec extends EngineJobExecutionActorSpec {
 

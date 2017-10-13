@@ -3,7 +3,7 @@ package cromwell
 import org.scalatest.{Matchers, WordSpecLike}
 import wdl.WdlNamespace
 import wdl.expression.NoFunctions
-import wdl.values.{WdlFile, WdlString}
+import wom.values.{WdlFile, WdlString}
 
 
 class OptionalParamWorkflowSpec extends Matchers with WordSpecLike {

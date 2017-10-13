@@ -1,13 +1,13 @@
 package cromwell.backend
 
+import _root_.wdl._
 import cromwell.core.{NoIoFunctionSet, WorkflowOptions}
 import cromwell.util.JsonFormatting.WdlValueJsonFormatter
 import lenthall.validation.ErrorOr.ErrorOr
-import _root_.wdl.values.WdlValue
-import _root_.wdl.{WdlExpressionException, _}
-import wom.RuntimeAttributes
 import wom.callable.Callable.InputDefinition
 import wom.expression.IoFunctionSet
+import wom.values.WdlValue
+import wom.{RuntimeAttributes, WdlExpressionException}
 
 import scala.util.{Success, Try}
 

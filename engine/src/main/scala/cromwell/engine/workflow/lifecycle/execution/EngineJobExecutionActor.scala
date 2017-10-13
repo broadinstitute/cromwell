@@ -31,6 +31,7 @@ import cromwell.jobstore._
 import cromwell.services.EngineServicesStore
 import cromwell.services.metadata.CallMetadataKeys.CallCachingKeys
 import cromwell.services.metadata.{CallMetadataKeys, MetadataJobKey, MetadataKey}
+import wom.core.CallOutputs
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext

@@ -4,9 +4,9 @@ import akka.testkit._
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.SampleWdl
 import wdl.expression.{NoFunctions, WdlFunctions}
-import wdl.types.{WdlFileType, WdlIntegerType, WdlMapType, WdlStringType}
-import wdl.values._
 import wdl.{ImportResolver, WdlNamespaceWithWorkflow}
+import wom.types.{WdlFileType, WdlIntegerType, WdlMapType, WdlStringType}
+import wom.values._
 
 import scala.util.{Success, Try}
 

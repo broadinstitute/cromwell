@@ -4,7 +4,8 @@ import org.specs2.mock.Mockito
 import wdl.{WdlExpression, WdlWomExpression}
 import wdl.WdlExpression._
 import wdl.expression.WdlFunctions
-import wdl.values.{WdlInteger, WdlString, WdlValue}
+import wom.values.{WdlString, WdlValue}
+import wom.values.{WdlInteger, WdlString, WdlValue}
 
 import scala.util.Success
 

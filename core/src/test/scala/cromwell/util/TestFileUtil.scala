@@ -3,7 +3,7 @@ package cromwell.util
 import java.nio.file.attribute.PosixFilePermission
 
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import wdl.values._
+import wom.values._
 
 trait TestFileUtil {
   def createCannedFile(prefix: String, contents: String, dir: Option[Path] = None): Path = {

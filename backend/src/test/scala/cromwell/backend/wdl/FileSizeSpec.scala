@@ -10,7 +10,7 @@ import cromwell.core.Tags.PostWomTest
 import cromwell.core.path.DefaultPathBuilder
 import fs2.{Stream, Task}
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.values._
+import wom.values._
 
 import scala.util.{Failure, Success, Try}
 

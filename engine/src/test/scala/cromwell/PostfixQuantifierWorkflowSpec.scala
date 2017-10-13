@@ -1,8 +1,8 @@
 package cromwell
 
 import akka.testkit._
-import wdl.values.WdlString
 import cromwell.util.SampleWdl
+import wom.values.WdlString
 
 
 class PostfixQuantifierWorkflowSpec extends CromwellTestKitWordSpec {

@@ -2,9 +2,9 @@ package wom.graph
 
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.types.WdlIntegerType
 import wom.expression._
 import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode}
+import wom.types.WdlIntegerType
 
 class ExpressionNodeSpec extends FlatSpec with Matchers {
 

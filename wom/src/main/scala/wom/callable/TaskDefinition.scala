@@ -1,13 +1,12 @@
 package wom.callable
 
+import wom.core._
 import lenthall.validation.ErrorOr.ErrorOr
-import wdl._
-import wdl.expression.WdlFunctions
 import wdl.util.StringUtil
-import wdl.values.WdlValue
 import wom.expression.IoFunctionSet
 import wom.graph.{Graph, TaskCall}
-import wom.{CommandPart, RuntimeAttributes, WomEvaluatedCallInputs}
+import wom.values.{WdlValue, WomEvaluatedCallInputs}
+import wom.{CommandPart, RuntimeAttributes}
 
 import scala.util.Try
 
@@ -25,11 +24,11 @@ case class TaskDefinition(name: String,
 
   override lazy val graph: ErrorOr[Graph] = TaskCall.graphFromDefinition(this)
 
-  def lookupFunction(knownInputs: WorkflowCoercedInputs,
-                     wdlFunctions: WdlFunctions[WdlValue],
-                     outputResolver: OutputResolver = NoOutputResolver,
-                     shards: Map[Scatter, Int] = Map.empty[Scatter, Int],
-                     relativeTo: Scope = null): String => WdlValue = ???
+//  def lookupFunction(knownInputs: WorkflowCoercedInputs,
+//                     wdlFunctions: WdlFunctions[WdlValue],
+//                     outputResolver: OutputResolver = NoOutputResolver,
+//                     shards: Map[Scatter, Int] = Map.empty[Scatter, Int],
+//                     relativeTo: Scope = null): String => WdlValue = ???
 
   def instantiateCommand(taskInputs: WomEvaluatedCallInputs,
                          functions: IoFunctionSet,
@@ -37,6 +36,7 @@ case class TaskDefinition(name: String,
                          separate: Boolean = false): Try[String] = {
     val mappedInputs = taskInputs.map({case (k, v) => k.localName -> v})
     // TODO: Bring back inputs: Try(StringUtil.normalize(commandTemplate.map(_.instantiate(declarations, taskInputs, functions, valueMapper)).mkString("")))
+    // TODO WOM this is super WDL specific and doesn't belong here.
     Try(StringUtil.normalize(commandTemplate.map(_.instantiate(mappedInputs, functions, valueMapper)).mkString(commandPartSeparator)))
   }
 
@@ -75,12 +75,12 @@ case class TaskDefinition(name: String,
     * }
     * inputMap = Map("t.s" -> WdlString("hello"))
     */
-  def inputsFromMap(suppliedInputs: Map[FullyQualifiedName, WdlValue]): EvaluatedTaskInputs = {
+//  def inputsFromMap(suppliedInputs: Map[FullyQualifiedName, WdlValue]): EvaluatedTaskInputs = {
     // TODO: Reinstate:
 //    inputs flatMap { i =>
 //      suppliedInputs collectFirst {
 //        case (fqn, value) if fqn == i.name => i -> value }
 //    } toMap
-    Map.empty
-  }
+//    Map.empty
+//  }
 }

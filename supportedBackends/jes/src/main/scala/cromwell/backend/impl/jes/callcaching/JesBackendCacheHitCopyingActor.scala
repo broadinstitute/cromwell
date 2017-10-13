@@ -5,13 +5,13 @@ import cromwell.backend.BackendInitializationData
 import cromwell.backend.impl.jes.JesBackendInitializationData
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardCacheHitCopyingActorParams}
-import cromwell.core.CallOutputs
 import cromwell.core.io.{IoCommand, IoTouchCommand}
 import cromwell.core.path.Path
 import cromwell.core.simpleton.{WdlValueBuilder, WdlValueSimpleton}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import lenthall.util.TryUtil
-import wdl.values.WdlFile
+import wom.core.CallOutputs
+import wom.values.WdlFile
 
 import scala.language.postfixOps
 import scala.util.Try

@@ -1,8 +1,6 @@
 package cromwell.backend.sfs
 
 import _root_.wdl.LocallyQualifiedName
-import _root_.wdl.types._
-import _root_.wdl.values._
 import akka.testkit.{TestDuration, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
@@ -22,7 +20,11 @@ import cromwell.services.keyvalue.KeyValueServiceActor._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Assertion, FlatSpecLike, OptionValues}
+import wom.JobOutput
+import wom.core.CallOutputs
 import wom.graph.TaskCallNode
+import wom.types._
+import wom.values._
 
 import scala.concurrent.duration._
 

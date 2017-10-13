@@ -2,6 +2,7 @@ package lenthall.validation
 
 import java.net.{URI, URL}
 
+import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
 import cats.syntax.either._
@@ -34,6 +35,13 @@ object Validation {
 
     def toChecked: Checked[A] = {
       Either.fromTry(t).leftMap(ex => NonEmptyList.of(ex.getMessage))
+    }
+  }
+
+  implicit class ValidationTry[A](val e: ErrorOr[A]) extends AnyVal {
+    def toTry: Try[A] = e match {
+      case Valid(options) => Success(options)
+      case Invalid(err) => Failure(new RuntimeException(s"Error(s): ${err.toList.mkString(",")}"))
     }
   }
 }

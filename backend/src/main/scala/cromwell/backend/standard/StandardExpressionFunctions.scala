@@ -4,7 +4,7 @@ import cromwell.backend.io.GlobFunctions
 import cromwell.backend.wdl.{ReadLikeFunctions, WriteFunctions}
 import cromwell.core.CallContext
 import cromwell.core.path.{Path, PathBuilder}
-import wdl.values.{WdlFile, WdlValue}
+import wom.values.{WdlFile, WdlValue}
 
 import scala.util.{Success, Try}
 

@@ -1,18 +1,16 @@
 package cwl
 
+import cats.data.Validated.Valid
 import cats.implicits._
 import cwl.CommandOutputBinding.Glob
+import cwl.ExpressionEvaluator._
 import eu.timepit.refined._
+import eu.timepit.refined.string.MatchesRegex
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct
-import eu.timepit.refined._
-import cats.implicits._
-import eu.timepit.refined.string.MatchesRegex
-import ExpressionEvaluator._
-import cats.data.Validated.Valid
-import wdl.types.WdlIntegerType
-import wdl.values.{WdlGlobFile, WdlInteger, WdlString}
 import wom.expression.PlaceholderIoFunctionSet
+import wom.types.WdlIntegerType
+import wom.values.{WdlGlobFile, WdlInteger, WdlString}
 
 class CommandOutputExpressionSpec extends FlatSpec with Matchers {
 

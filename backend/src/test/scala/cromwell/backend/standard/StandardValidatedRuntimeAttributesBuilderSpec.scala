@@ -1,14 +1,14 @@
 package cromwell.backend.standard
 
-import cromwell.backend.{RuntimeAttributeDefinition, TestConfig}
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation._
+import cromwell.backend.{RuntimeAttributeDefinition, TestConfig}
 import cromwell.core.WorkflowOptions
 import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.{Logger, LoggerFactory}
 import org.specs2.mock.Mockito
 import spray.json.{JsArray, JsBoolean, JsNumber, JsObject, JsValue}
-import wdl.values.{WdlBoolean, WdlInteger, WdlString, WdlValue}
+import wom.values._
 
 class StandardValidatedRuntimeAttributesBuilderSpec extends WordSpecLike with Matchers with Mockito {
 

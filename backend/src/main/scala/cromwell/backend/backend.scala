@@ -1,17 +1,16 @@
 package cromwell.backend
 
 import _root_.wdl._
-import _root_.wdl.values.WdlValue
 import com.typesafe.config.Config
 import cromwell.core.WorkflowOptions.WorkflowOption
 import cromwell.core.callcaching.MaybeCallCachingEligible
 import cromwell.core.labels.Labels
 import cromwell.core.{CallKey, WorkflowId, WorkflowOptions}
 import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
-import wom.WomEvaluatedCallInputs
 import wom.callable.WorkflowDefinition
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.TaskCallNode
+import wom.values.{WdlValue, WomEvaluatedCallInputs}
 
 import scala.util.Try
 

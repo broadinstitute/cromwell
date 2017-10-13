@@ -1,6 +1,5 @@
 package cromwell.engine.workflow.lifecycle.execution
 
-import _root_.wdl.values.WdlValue
 import akka.actor.ActorRef
 import cromwell.backend._
 import cromwell.core.ExecutionStatus._
@@ -8,6 +7,9 @@ import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.ValueStore.ValueKey
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
+import wom.JobOutput
+import wom.core.CallOutputs
+import wom.values.WdlValue
 
 import scala.language.postfixOps
 

@@ -2,13 +2,14 @@ package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import java.util.UUID
 
+import _root_.wdl._
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{TestFSMRef, TestProbe}
 import cromwell.backend._
 import cromwell.backend.standard.callcaching._
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.callcaching._
-import cromwell.core.{CallOutputs, JobExecutionToken, NoIoFunctionSet, WorkflowId}
+import cromwell.core.{JobExecutionToken, NoIoFunctionSet, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{EJEAData, EngineJobExecutionActorState}
@@ -19,11 +20,11 @@ import cromwell.util.AkkaTestUtil._
 import cromwell.util.WomMocks
 import org.specs2.mock.Mockito
 import wdl4s.parser.WdlParser.Ast
-import _root_.wdl._
-import _root_.wdl.types.{WdlIntegerType, WdlStringType}
 import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition}
+import wom.core.CallOutputs
 import wom.expression.IoFunctionSet
 import wom.graph.{TaskCallNode, WomIdentifier}
+import wom.types.{WdlIntegerType, WdlStringType}
 
 import scala.util.Success
 

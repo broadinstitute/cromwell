@@ -1,10 +1,10 @@
 package wom.graph.expression
 
 import lenthall.validation.ErrorOr.ErrorOr
-import wdl.types.WdlType
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.{InputPort, OutputPort}
 import wom.graph.WomIdentifier
+import wom.types.WdlType
 
 object ExposedExpressionNode {
   def fromInputMapping(identifier: WomIdentifier,

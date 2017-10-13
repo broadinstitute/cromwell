@@ -1,5 +1,7 @@
 package cromwell.backend
 
+import _root_.wdl.WdlExpression
+import _root_.wdl.types._
 import akka.actor.ActorRef
 import akka.testkit.TestActorRef
 import com.typesafe.config.ConfigFactory
@@ -7,10 +9,9 @@ import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCo
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
-import _root_.wdl.WdlExpression
-import _root_.wdl.types._
-import _root_.wdl.values.{WdlArray, WdlBoolean, WdlFloat, WdlInteger, WdlString, WdlValue}
 import wom.graph.TaskCallNode
+import wom.types._
+import wom.values._
 
 import scala.concurrent.Future
 import scala.util.Try

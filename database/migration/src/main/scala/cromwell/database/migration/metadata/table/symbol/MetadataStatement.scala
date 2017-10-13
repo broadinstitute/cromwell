@@ -5,7 +5,7 @@ import java.time.format.DateTimeFormatter
 import java.time.{OffsetDateTime, ZoneId, ZoneOffset}
 
 import org.slf4j.LoggerFactory
-import wdl.values._
+import wom.values._
 
 object MetadataStatement {
   val WorkflowIdIdx = 1

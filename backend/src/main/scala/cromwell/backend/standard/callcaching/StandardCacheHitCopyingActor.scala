@@ -14,12 +14,12 @@ import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor}
-import cromwell.core._
 import cromwell.core.io._
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.{Path, PathCopier}
 import cromwell.core.simpleton.{WdlValueBuilder, WdlValueSimpleton}
-import wdl.values.WdlFile
+import wom.core.CallOutputs
+import wom.values.WdlFile
 
 import scala.util.{Failure, Success, Try}
 

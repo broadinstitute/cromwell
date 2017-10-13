@@ -461,13 +461,9 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       expression.evaluate(lookup, data.expressionLanguageFunctions) match {
         case Valid(result) => self ! ExpressionEvaluationSucceededResponse(expression, result)
         case Invalid(f) =>
-          val x = ExpressionEvaluationFailedResponse(expression, new RuntimeException(f.toList.mkString(", ")))
-          println(s"evaluate: got expression evaluation error: $x")
           self ! ExpressionEvaluationFailedResponse(expression, new RuntimeException(f.toList.mkString(", ")))
       }
     } valueOr { f =>
-      val x =  ExpressionEvaluationFailedResponse(expression, new RuntimeException(f.toList.mkString(", ")))
-      println(s"valueOr: got expression evaluation error: $x")
       self ! ExpressionEvaluationFailedResponse(expression, new RuntimeException(f.toList.mkString(", ")))
     }
 

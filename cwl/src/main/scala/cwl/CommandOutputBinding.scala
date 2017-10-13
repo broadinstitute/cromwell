@@ -68,8 +68,9 @@ case class CommandOutputBinding(
   private def load64KiB(path: String, ioFunctionSet: IoFunctionSet): String = {
     // This suggests the IoFunctionSet should have a length-limited read API as both CWL and WDL support this concept.
     val content = ioFunctionSet.readFile(path)
-    Await.result(content, 5 seconds)
 
+    //TODO: propagate IO, Try, or Future or something all the way out via "commandOutputBindingtoWdlValue" signature
+    Await.result(content, 5 seconds)
   }
 }
 

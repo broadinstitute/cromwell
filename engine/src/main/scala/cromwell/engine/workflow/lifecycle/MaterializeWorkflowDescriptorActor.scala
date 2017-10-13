@@ -156,22 +156,12 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
       workflowOptionsAndPathBuilders(workflowSourceFiles) match {
         case Valid((workflowOptions, pathBuilders)) =>
-          /*
           val futureDescriptor: Future[ErrorOr[EngineWorkflowDescriptor]] = pathBuilders flatMap {
             buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf, workflowOptions, _).
               value.
               unsafeToFuture().
               map(_.toValidated)
           }
-          */
-          val x: Parse[List[PathBuilder]] = EitherT{ IO.fromFuture(cats.Eval.now(pathBuilders)).map(_.asRight[NonEmptyList[String]])}
-          val value: Either[NonEmptyList[String], EngineWorkflowDescriptor] =
-          x.flatMap(
-            buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf, workflowOptions, _)).
-            value.
-            unsafeRunSync()
-
-          val futureDescriptor: Future[ErrorOr[EngineWorkflowDescriptor]] = Future.successful(value.toValidated)
 
           // Pipe the response to self, but make it look like it comes from the sender of the command
           // This way we can access it through sender() in the next state and don't have to store the value

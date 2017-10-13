@@ -45,7 +45,6 @@ object CwlDecoder {
   def decodeAllCwl(fileName: BFile): Parse[Cwl] =
     for {
       jsonString <- preprocess(fileName)
-      _ = println(jsonString)
       unmodifiedCwl <- parseJson(jsonString)
       cwlWithEmbeddedCwl <- unmodifiedCwl.fold(AddEmbeddedCwl)
     } yield cwlWithEmbeddedCwl

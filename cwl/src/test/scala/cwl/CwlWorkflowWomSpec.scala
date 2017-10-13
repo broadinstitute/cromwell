@@ -56,8 +56,6 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
               unsafeRunSync.
               map(_.select[Workflow].get)
 
-    _ = println(wf)
-
       womDefinition <- wf.womDefinition
     } yield validateWom(womDefinition)).leftMap(e => throw new RuntimeException(s"error! ${e.toList.mkString("\n")}"))
 
@@ -87,7 +85,6 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
           
           untarUpstream.collectFirst({
             case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/tarfile" =>
-              println(s"number of input ports: ${exprNode.inputPorts.size}")
               exprNode.inputPorts.map(_.upstream.graphNode).filter(_ == RequiredGraphInputNode(WomIdentifier("inp"), WdlFileType)).size  shouldBe 1
           }).getOrElse(fail("Can't find expression node for inp"))
 

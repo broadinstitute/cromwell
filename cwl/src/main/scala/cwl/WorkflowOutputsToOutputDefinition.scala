@@ -7,16 +7,9 @@ import wom.expression.WomExpression
 object WorkflowOutputsToOutputDefinition extends Poly1 {
 
   def fullIdToOutputDefintition(fullyQualifiedName: String, typeMap: WdlTypeMap, expression: Map[String, WomExpression]) = {
-    println()
 
     //we want to only look at the id, not the filename
     val lookupId = FullyQualifiedName(fullyQualifiedName).id
-
-    if (!expression.get(lookupId).isDefined)
-      println(s"expression not found! $lookupId in\n${expression.mkString("\n")}")
-
-    if (!typeMap.get(lookupId).isDefined)
-      println(s"expression not found! $lookupId in\n${typeMap.mkString("\n")}")
 
     OutputDefinition(fullyQualifiedName, typeMap(lookupId), expression(lookupId))
   }

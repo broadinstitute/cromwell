@@ -34,6 +34,7 @@ object ExpressionBasedGraphOutputNode {
     val nodeConstructor = (identifier: WomIdentifier, instantiatedExpression: InstantiatedExpression) => {
       ExpressionBasedGraphOutputNode(identifier, womType, instantiatedExpression)
     }
+    println("calling from Expression based output node")
     InstantiatedExpression.instantiateExpressionForNode(nodeConstructor)(nodeIdentifier, expression, inputMapping)
   }
 }

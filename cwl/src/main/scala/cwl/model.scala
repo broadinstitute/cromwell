@@ -23,7 +23,6 @@ case class WorkflowStepInput(
                        outputTypeMap: Map[String, WdlType],
                        inputs: Set[String]
                       ): ErrorOr[ExpressionNode] = {
-    //val lookupId = WorkflowStepInputOrOutputId(id).ioId
     val source = this.source.flatMap(_.select[String]).get
     val lookupId = FullyQualifiedName(source).id
 

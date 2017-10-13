@@ -1,7 +1,7 @@
 package cwl
 
 import cats.data.NonEmptyList
-import cats.data.Validated.Invalid
+import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
 import cats.syntax.option._
 import cwl.WorkflowStepInput.InputSource
@@ -11,12 +11,41 @@ import shapeless.{Inl, Poly1}
 import wdl.types._
 import wdl.values.{WdlArray, WdlFile, WdlGlobFile, WdlMap, WdlString, WdlValue}
 import wom.expression.{IoFunctionSet, WomExpression}
+import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort}
+import wom.graph.{GraphNode, InstantiatedExpression}
+import cats.syntax.validated._
+import cats.instances.list._
+import cats.syntax.traverse._
 
 sealed trait CwlWomExpression extends WomExpression {
 
   def cwlExpressionType: WdlType
 
   override def evaluateType(inputTypes: Map[String, WdlType]): ErrorOr[WdlType] = cwlExpressionType.validNel
+
+  override def linkWithInputs(graphNodeSetter: GraphNode.GraphNodeSetter, fullyQualifiedInputMapping: Map[String, OutputPort]): ErrorOr[InstantiatedExpression] = {
+
+//    val inputMapping = fullyQualifiedInputMapping.map { case (key, value) => FullyQualifiedName(key).id -> value}
+    val inputMapping = fullyQualifiedInputMapping
+
+    println(s"input mpaping is $inputMapping")
+
+
+    def linkInput(input: String): ErrorOr[(String, InputPort)] = if (inputMapping.contains(input)) {
+      val upstreamPort = inputMapping(input)
+      Valid((input, ConnectedInputPort(input, upstreamPort.womType, upstreamPort, graphNodeSetter.get)))
+    } else {
+      s"Expression cannot be connected without the input $input (provided:\n${inputMapping.mkString("\n")})".invalidNel
+    }
+
+    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    for {
+      linkedInputList <- inputs.toList traverse linkInput
+      linkedInputs = linkedInputList.toMap
+      inputTypes = linkedInputs map { case (k, v) => k -> v.womType }
+      evaluatedType <- evaluateType(inputTypes)
+    } yield new InstantiatedExpression(this, evaluatedType, linkedInputs)
+  }
 }
 
 case class CommandOutputExpression(outputBinding: CommandOutputBinding,
@@ -70,9 +99,9 @@ case class WorkflowStepInputExpression(input: WorkflowStepInput, override val cw
 
   object InputSourceToFileNames extends Poly1{
 
-    implicit def string = at[String]{s => Set(s)}
+    implicit def string = at[String]{s => Set(FullyQualifiedName(s).id)}
 
-    implicit def array = at[Array[String]]{_.toSet}
+    implicit def array = at[Array[String]]{_.map(FullyQualifiedName(_).id).toSet}
   }
 
   override def inputs = graphInputs ++ input.source.toSet.flatMap{(_:InputSource).fold(InputSourceToFileNames)}

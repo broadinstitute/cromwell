@@ -84,7 +84,6 @@ case class WorkflowStep(
           val inputSource: String = workflowStepInput.source.flatMap(_.select[String]).get
 
           // Name of the step input
-          val stepInputName = FullyQualifiedName(workflowStepInput.id).id
 
           val accumulatedNodes = fold.generatedNodes ++ knownNodes
 
@@ -110,7 +109,7 @@ case class WorkflowStep(
           def buildUpstreamNodes(upstreamStepId: String): Checked[Set[GraphNode]] =
           // Find the step corresponding to this upstreamStepId in the set of all the steps of this workflow
             for {
-              step <- workflow.steps.find { step => FileStepAndId(step.id).id == upstreamStepId }.
+              step <- workflow.steps.find { step => FullyQualifiedName(step.id).id == upstreamStepId }.
                 toRight(NonEmptyList.one(s"no step of id $upstreamStepId found in ${workflow.steps.map(_.id)}"))
               call <- step.callWithInputs(typeMap, workflow, accumulatedNodes, workflowInputs)
             } yield call
@@ -137,9 +136,9 @@ case class WorkflowStep(
 
           def updateFold(outputPort: OutputPort, newCallNodes: Set[GraphNode] = Set.empty): Checked[WorkflowStepInputFold] = {
             // TODO for now we only handle a single input source, but there may be several
-            workflowStepInput.toExpressionNode(Map(inputSource -> outputPort), typeMap, workflowInputs.keySet).map({ expressionNode =>
+            workflowStepInput.toExpressionNode(Map(FullyQualifiedName(inputSource).id -> outputPort) ++ workflowInputs, typeMap, workflowInputs.keySet).map({ expressionNode =>
               fold |+| WorkflowStepInputFold(
-                stepInputMapping = Map(stepInputName -> expressionNode),
+                stepInputMapping = Map(FullyQualifiedName(workflowStepInput.id).id -> expressionNode),
                 generatedNodes = newCallNodes + expressionNode
               )
             }).toEither

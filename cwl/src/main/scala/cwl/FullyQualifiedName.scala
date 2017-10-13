@@ -39,13 +39,16 @@ case class FileStepUUID(fileName: String, id: String, uuid: String, stepId: Stri
 object FullyQualifiedName {
   def apply(in: String): FullyQualifiedName = {
 
-    val Array(file, after) = in.split("#")
+     in.split("#") match {
+       case Array(file, after) =>
+        (after.split("/").toList) match {
+          case step :: uuid :: id :: Nil => FileStepUUID(file, id, uuid, step)
+          case step :: id :: Nil => FileStepAndId(file, step, id)
+          case id :: Nil => FileAndId(file, id)
+          case _ => throw new RuntimeException(s"malformed FQN: $in")
+        }
+       case _ => throw new RuntimeException(s"malformed FQN: $in")
+     }
 
-    (after.split("/").toList) match {
-      case step :: uuid :: id :: Nil => FileStepUUID(file, id, uuid, step)
-      case step :: id :: Nil => FileStepAndId(file, step, id)
-      case id :: Nil => FileAndId(file, id)
-      case _ => throw new RuntimeException(s"malformed FQN: $in")
-    }
   }
 }

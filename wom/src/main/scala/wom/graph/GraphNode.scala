@@ -65,7 +65,7 @@ object GraphNode {
     * Allows a level of indirection, so that GraphNodePorts can be constructed before their associated GraphNode is
     * constructed. If used, the _graphNode must be set before anything tries to apply 'get'.
     */
-  private[graph] class GraphNodeSetter {
+  class GraphNodeSetter {
     var _graphNode: GraphNode = _
     private def getGraphNode = _graphNode
     def get: Unit => GraphNode = _ => getGraphNode

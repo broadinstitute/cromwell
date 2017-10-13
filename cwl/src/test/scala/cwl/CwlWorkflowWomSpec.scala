@@ -56,8 +56,10 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
               unsafeRunSync.
               map(_.select[Workflow].get)
 
+    _ = println(wf)
+
       womDefinition <- wf.womDefinition
-    } yield validateWom(womDefinition)).leftMap(e => throw new RuntimeException(s"error! $e"))
+    } yield validateWom(womDefinition)).leftMap(e => throw new RuntimeException(s"error! ${e.toList.mkString("\n")}"))
 
     def validateWom(callable: Callable) = {
       callable match {
@@ -85,7 +87,8 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
           
           untarUpstream.collectFirst({
             case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/tarfile" =>
-              exprNode.inputPorts.head.upstream.graphNode shouldBe RequiredGraphInputNode(WomIdentifier("inp"), WdlFileType)
+              println(s"number of input ports: ${exprNode.inputPorts.size}")
+              exprNode.inputPorts.map(_.upstream.graphNode).filter(_ == RequiredGraphInputNode(WomIdentifier("inp"), WdlFileType)).size  shouldBe 1
           }).getOrElse(fail("Can't find expression node for inp"))
 
           val compileUpstreamExpressionPort = nodes.collectFirst {
@@ -93,7 +96,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
           }.get.inputPorts.map(_.upstream).head
 
           compileUpstreamExpressionPort.name shouldBe s"file://$rootPath/1st-workflow.cwl#compile/src"
-          compileUpstreamExpressionPort.graphNode.asInstanceOf[ExpressionNode].inputPorts.head.upstream.name shouldBe s"example_out"
+          compileUpstreamExpressionPort.graphNode.asInstanceOf[ExpressionNode].inputPorts.map(_.upstream.name).filter(_ == "example_out").size shouldBe 1
 
           nodes.collect {
             case c: PortBasedGraphOutputNode => c

@@ -19,6 +19,9 @@ final case class ExpressionNode(override val identifier: WomIdentifier, instanti
 }
 
 object ExpressionNode {
-  def linkWithInputs(nodeIdentifier: WomIdentifier, expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[ExpressionNode] =
+  def linkWithInputs(nodeIdentifier: WomIdentifier, expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[ExpressionNode] = {
+
+    println("calling form expression node")
     InstantiatedExpression.instantiateExpressionForNode(ExpressionNode.apply)(nodeIdentifier, expression, inputMapping)
+  }
 }

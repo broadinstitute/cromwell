@@ -5,7 +5,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless._
 import cwl.CwlDecoder._
-import wdl.types.{WdlFileType, WdlStringType}
+import wdl.types.{WdlFileType, WdlStringType, WdlType}
 import wom.WomMatchers._
 import wom.callable.Callable.RequiredInputDefinition
 import wom.callable.{Callable, TaskDefinition, WorkflowDefinition}
@@ -59,6 +59,14 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
       womDefinition <- wf.womDefinition
     } yield validateWom(womDefinition)).leftMap(e => throw new RuntimeException(s"error! $e"))
 
+    def shouldBeRequiredGraphInputNode(node: GraphNode, localName: String, wdlType: WdlType): Unit = {
+      node.isInstanceOf[RequiredGraphInputNode] shouldBe true
+      val requiredGraphInputNode = node.asInstanceOf[RequiredGraphInputNode]
+      requiredGraphInputNode.localName shouldBe localName
+      requiredGraphInputNode.womType shouldBe wdlType
+      ()
+    }
+
     def validateWom(callable: Callable) = {
       callable match {
         case wf: WorkflowDefinition =>
@@ -80,12 +88,12 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
           untarUpstream should have size 2
           untarUpstream.collectFirst({
             case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/extractfile" =>
-              exprNode.inputPorts.head.upstream.graphNode shouldBe RequiredGraphInputNode(WomIdentifier("ex"), WdlStringType)
+              shouldBeRequiredGraphInputNode(exprNode.inputPorts.head.upstream.graphNode, "ex", WdlStringType)
           }).getOrElse(fail("Can't find expression node for ex"))
           
           untarUpstream.collectFirst({
             case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/tarfile" =>
-              exprNode.inputPorts.head.upstream.graphNode shouldBe RequiredGraphInputNode(WomIdentifier("inp"), WdlFileType)
+              shouldBeRequiredGraphInputNode(exprNode.inputPorts.head.upstream.graphNode, "inp", WdlFileType)
           }).getOrElse(fail("Can't find expression node for inp"))
 
           val compileUpstreamExpressionPort = nodes.collectFirst {

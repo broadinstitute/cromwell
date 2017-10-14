@@ -60,8 +60,8 @@ case class WorkflowStepInputExpression(input: WorkflowStepInput, override val cw
     (input.valueFrom, input.source) match {
       case (None, Some(Inl(id: String))) =>
         inputValues.
-          get(id).
-          toValidNel(s"could not find id $id in typeMap ${inputValues.foreach(println)}\twhen evaluating $input")
+          get(FullyQualifiedName(id).id).
+          toValidNel(s"could not find id $id in typeMap\n${inputValues.mkString("\n")}\nwhen evaluating $input.  Graph Inputs were ${graphInputs.mkString("\n")}")
       case _ => Invalid(NonEmptyList.one("could not decipher evaluateValue, most likely has not been implemented yet"))
     }
   }

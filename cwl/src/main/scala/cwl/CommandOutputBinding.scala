@@ -6,7 +6,6 @@ import wdl.types.{WdlArrayType, WdlMapType, WdlStringType}
 import wdl.values.{WdlArray, WdlMap, WdlString, WdlValue}
 import wom.expression.IoFunctionSet
 import scala.language.postfixOps
-
 import scala.concurrent.Await
 import scala.concurrent.duration._
 

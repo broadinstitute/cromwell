@@ -20,7 +20,8 @@ sealed trait CwlWomExpression extends WomExpression {
 }
 
 case class CommandOutputExpression(outputBinding: CommandOutputBinding,
-                                   override val cwlExpressionType: WdlType, override val inputs: Set[String]) extends CwlWomExpression {
+                                   override val cwlExpressionType: WdlType,
+                                   override val inputs: Set[String]) extends CwlWomExpression {
 
   // TODO WOM: outputBinding.toString is probably not be the best representation of the outputBinding
   override def sourceString = outputBinding.toString
@@ -46,9 +47,13 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
 
     val pc = ParameterContext.Empty.withInputs(inputs, ioFunctionSet)
 
-    outputBinding.glob.toList.flatMap { globValue =>
-      GlobEvaluator.globPaths(globValue, pc, ioFunctionSet).toList
-    }.map{s:String => WdlGlobFile(s): WdlFile}.toSet.validNel[String]
+    outputBinding.glob.toList.flatMap {
+      globValue =>
+        GlobEvaluator.globPaths(globValue, pc, ioFunctionSet).toList
+    }.map{
+      s:String =>
+        WdlGlobFile(s): WdlFile
+    }.toSet.validNel[String]
   }
 }
 

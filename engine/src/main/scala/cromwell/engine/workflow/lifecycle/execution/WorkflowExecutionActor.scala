@@ -1,10 +1,5 @@
 package cromwell.engine.workflow.lifecycle.execution
 
-<<<<<<< HEAD
-=======
-import _root_.wom.graph.GraphNodePort.OutputPort
-import _root_.wom.graph._
->>>>>>> e439414... wip
 import akka.actor.{Scope => _, _}
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
@@ -32,8 +27,6 @@ import lenthall.validation.ErrorOr.ErrorOr
 import org.apache.commons.lang3.StringUtils
 import wdl._
 import wdl.values.WdlArray.WdlArrayLike
-import wdl.values.{WdlOptionalValue, WdlString, WdlValue}
-import wom.expression.IoFunctionSet
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wdl.values.{WdlBoolean, WdlOptionalValue, WdlString, WdlValue}

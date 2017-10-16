@@ -5,6 +5,7 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import lenthall.Checked
 import lenthall.validation.ErrorOr.ErrorOr
+import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
 import lenthall.validation.Validation._
 import shapeless.Coproduct
 import wdl.types.WdlType
@@ -29,14 +30,15 @@ class ExpressionNode(override val identifier: WomIdentifier,
     */
   lazy val inputDefinitionPointer = Coproduct[InputDefinitionPointer](singleExpressionOutputPort: OutputPort)
 
+  // Again an instance of not so pretty flatMapping with mix of ErrorOrs, Eithers and Tries..
   // TODO: This should return an EitherT or whatever we decide we want to use to package Exceptions + Nel[String]
   /**
     * Evaluates the expression and coerces it.
     */
-  def evaluateAndCoerce(inputs: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): Checked[WdlValue] = for {
-    evaluated <- womExpression.evaluateValue(inputs, ioFunctionSet).toEither
-    coerced <- womType.coerceRawValue(evaluated).toChecked
-  } yield coerced
+  def evaluateAndCoerce(inputs: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): Checked[WdlValue] = (for {
+    evaluated <- womExpression.evaluateValue(inputs, ioFunctionSet)
+    coerced <- womType.coerceRawValue(evaluated).toErrorOr
+  } yield coerced).toEither
 }
 
 object ExpressionNode {

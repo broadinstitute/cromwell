@@ -286,6 +286,9 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   whenUnhandled {
     case Event(AbortWorkflowCommand, WorkflowActorData(Some(actor), _, _, _)) =>
+      backendSingletonCollection.backendSingletonActors.values.flatten foreach {
+        _ ! AbortWorkflow(workflowId)
+      }
       actor ! EngineLifecycleActorAbortCommand
       goto(WorkflowAbortingState)
     case Event(EngineStatsActor.JobCountQuery, _) =>

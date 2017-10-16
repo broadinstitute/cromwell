@@ -8,9 +8,10 @@ import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.{HttpHeaders, HttpRequest}
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.RunPipelineRequest
+import cromwell.backend.AbortWorkflow
 import cromwell.backend.impl.jes.Run
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesApiException, _}
-import cromwell.core.CromwellFatalExceptionMarker
+import cromwell.core.{CromwellFatalExceptionMarker, WorkflowId}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
 import cromwell.util.StopAndLogSupervisor
@@ -75,9 +76,13 @@ class JesApiQueryManager(val qps: Int Refined Positive) extends Actor with Actor
   resetWorker()
 
   override def receive = {
+    case AbortWorkflow(id) => workQueue = workQueue.filterNot({
+      case run: JesRunCreationQuery => run.id == id
+      case _ => false
+    })
     case DoPoll(run) => workQueue :+= makePollQuery(sender, run)
-    case DoCreateRun(genomics, rpr) =>
-      val creationQuery = makeCreateQuery(sender, genomics, rpr)
+    case DoCreateRun(id, genomics, rpr) =>
+      val creationQuery = makeCreateQuery(id, sender, genomics, rpr)
 
       if (creationQuery.contentLength > maxBatchRequestSize) {
         creationQuery.requester ! JesApiRunCreationQueryFailed(creationQuery, requestTooLargeException)
@@ -91,8 +96,8 @@ class JesApiQueryManager(val qps: Int Refined Positive) extends Actor with Actor
     case other => log.error(s"Unexpected message to JesPollingManager: $other")
   }
 
-  private [statuspolling] def makeCreateQuery(replyTo: ActorRef, genomics: Genomics, rpr: RunPipelineRequest) = {
-    JesRunCreationQuery(replyTo, genomics, rpr)
+  private [statuspolling] def makeCreateQuery(id: WorkflowId, replyTo: ActorRef, genomics: Genomics, rpr: RunPipelineRequest) = {
+    JesRunCreationQuery(id, replyTo, genomics, rpr)
   }
 
   private [statuspolling] def makePollQuery(replyTo: ActorRef, run: Run) = {
@@ -207,7 +212,7 @@ object JesApiQueryManager {
   /**
     * Create an ephemeral pipeline and run it in JES.
     */
-  final case class DoCreateRun(genomicsInterface: Genomics, rpr: RunPipelineRequest) extends JesApiQueryManagerRequest
+  final case class DoCreateRun(workflow: WorkflowId, genomicsInterface: Genomics, rpr: RunPipelineRequest) extends JesApiQueryManagerRequest
 
   private[statuspolling] trait JesApiQuery {
     val failedAttempts: Int
@@ -229,7 +234,7 @@ object JesApiQueryManager {
     override def withFailedAttempt = this.copy(failedAttempts = failedAttempts + 1, backoff = backoff.next)
   }
 
-  private[statuspolling] case class JesRunCreationQuery(requester: ActorRef, genomicsInterface: Genomics, rpr: RunPipelineRequest, failedAttempts: Int = 0, backoff: Backoff = JesApiQuery.backoff) extends JesApiQuery {
+  private[statuspolling] case class JesRunCreationQuery(id: WorkflowId, requester: ActorRef, genomicsInterface: Genomics, rpr: RunPipelineRequest, failedAttempts: Int = 0, backoff: Backoff = JesApiQuery.backoff) extends JesApiQuery {
     override def withFailedAttempt = this.copy(failedAttempts = failedAttempts + 1, backoff = backoff.next)
     override lazy val httpRequest = genomicsInterface.pipelines().run(rpr).buildHttpRequest()
   }

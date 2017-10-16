@@ -3,8 +3,9 @@ package cromwell.backend.impl.jes.statuspolling
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.RunPipelineRequest
-import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesApiRunCreationQueryFailed}
+import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.JesApiRunCreationQueryFailed
 import cromwell.backend.standard.StandardAsyncJob
+import cromwell.core.WorkflowId
 
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
@@ -32,12 +33,12 @@ trait JesRunCreationClient { this: Actor with ActorLogging =>
     runCreationClientPromise = None
   }
 
-  def runPipeline(genomicsInterface: Genomics, rpr: RunPipelineRequest): Future[StandardAsyncJob] = {
+  def runPipeline(id: WorkflowId, genomicsInterface: Genomics, rpr: RunPipelineRequest): Future[StandardAsyncJob] = {
     runCreationClientPromise match {
       case Some(p) =>
         p.future
       case None =>
-        pollingActor ! JesApiQueryManager.DoCreateRun(genomicsInterface, rpr)
+        pollingActor ! JesApiQueryManager.DoCreateRun(id, genomicsInterface, rpr)
         val newPromise = Promise[StandardAsyncJob]()
         runCreationClientPromise = Option(newPromise)
         newPromise.future

@@ -5,17 +5,17 @@ import wdl._
 import wom.CommandPart
 import wom.graph.LocalName
 import wom.expression.IoFunctionSet
-import wom.values.WdlValue
+import wom.values.WomValue
 
 trait WdlCommandPart extends CommandPart {
   def instantiate(declarations: Seq[Declaration],
-                  inputsMap: Map[String, WdlValue],
-                  functions: WdlFunctions[WdlValue],
-                  valueMapper: WdlValue => WdlValue): String
+                  inputsMap: Map[String, WomValue],
+                  functions: WdlFunctions[WomValue],
+                  valueMapper: WomValue => WomValue): String
 
-  override def instantiate(inputsMap: Map[LocalName, WdlValue],
-                  functions: IoFunctionSet,
-                  valueMapper: WdlValue => WdlValue): String = {
+  override def instantiate(inputsMap: Map[LocalName, WomValue],
+                           functions: IoFunctionSet,
+                           valueMapper: WomValue => WomValue): String = {
     val wdlFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(functions)
     instantiate(Seq.empty, inputsMap.map({case (localName, value) => localName.value -> value}), wdlFunctions, valueMapper)
   }

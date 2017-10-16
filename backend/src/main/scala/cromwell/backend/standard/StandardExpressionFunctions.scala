@@ -4,7 +4,7 @@ import cromwell.backend.io.GlobFunctions
 import cromwell.backend.wdl.{ReadLikeFunctions, WriteFunctions}
 import cromwell.core.CallContext
 import cromwell.core.path.{Path, PathBuilder}
-import wom.values.{WdlFile, WdlValue}
+import wom.values.{WomFile, WomValue}
 
 import scala.util.{Success, Try}
 
@@ -28,7 +28,7 @@ class StandardExpressionFunctions(val standardParams: StandardExpressionFunction
 
   val writeDirectory: Path = callContext.root
 
-  override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = Success(WdlFile(callContext.stdout))
+  override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = Success(WomFile(callContext.stdout))
 
-  override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = Success(WdlFile(callContext.stderr))
+  override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = Success(WomFile(callContext.stderr))
 }

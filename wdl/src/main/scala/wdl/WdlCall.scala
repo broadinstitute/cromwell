@@ -15,8 +15,8 @@ import wom.graph.CallNode._
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.graph.expression.ExpressionNode
-import wom.types.WdlOptionalType
-import wom.values.{WdlOptionalValue, WdlValue}
+import wom.types.WomOptionalType
+import wom.values.{WomOptionalValue, WomValue}
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -168,24 +168,24 @@ sealed abstract class WdlCall(val alias: Option[String],
     */
   def unsatisfiedInputs: Seq[WorkflowInput] = for {
     i <- declarations if !inputMappings.contains(i.unqualifiedName) && i.expression.isEmpty
-  } yield WorkflowInput(i.fullyQualifiedName, i.wdlType)
+  } yield WorkflowInput(i.fullyQualifiedName, i.womType)
 
   override def toString: String = s"[Call $fullyQualifiedName]"
 
   /**
     * The call is responsible for evaluating runtime inputs for its underlying task,
     * as the input value are provided for a specific call.
-    * The returned value is a map from Declaration to WdlValue.
+    * The returned value is a map from Declaration to WomValue.
     * The keys int the return value are the task's declarations,
     * not the call's, as they will be used later for command instantiation
     * as well as output evaluation, which will both be performed by the task.
     */
   def evaluateTaskInputs(inputs: WorkflowCoercedInputs,
-                         wdlFunctions: WdlFunctions[WdlValue],
+                         wdlFunctions: WdlFunctions[WomValue],
                          outputResolver: OutputResolver = NoOutputResolver,
                          shards: Map[Scatter, Int] = Map.empty[Scatter, Int]): Try[EvaluatedTaskInputs] = {
 
-    type EvaluatedDeclarations = Map[Declaration, Try[WdlValue]]
+    type EvaluatedDeclarations = Map[Declaration, Try[WomValue]]
     def doDeclaration(currentInputs: EvaluatedDeclarations, declaration: Declaration): EvaluatedDeclarations = {
       val newInputs = inputs ++ currentInputs.collect{
         case (decl, Success(value)) => decl.fullyQualifiedName -> value
@@ -193,11 +193,11 @@ sealed abstract class WdlCall(val alias: Option[String],
       val lookup = lookupFunction(newInputs, wdlFunctions, outputResolver, shards, relativeTo = declaration)
       val evaluatedDeclaration = Try(lookup(declaration.unqualifiedName))
 
-      val coercedDeclaration: Try[WdlValue] = evaluatedDeclaration match {
-        case Success(ed) => declaration.wdlType.coerceRawValue(ed)
-        case Failure(_: VariableNotFoundException) if declaration.wdlType.isInstanceOf[WdlOptionalType] =>
-          val innerType = declaration.wdlType.asInstanceOf[WdlOptionalType].memberType
-          Success(WdlOptionalValue(innerType, None))
+      val coercedDeclaration: Try[WomValue] = evaluatedDeclaration match {
+        case Success(ed) => declaration.womType.coerceRawValue(ed)
+        case Failure(_: VariableNotFoundException) if declaration.womType.isInstanceOf[WomOptionalType] =>
+          val innerType = declaration.womType.asInstanceOf[WomOptionalType].memberType
+          Success(WomOptionalValue(innerType, None))
         case Failure(f) => Failure(f)
       }
 
@@ -223,11 +223,11 @@ sealed abstract class WdlCall(val alias: Option[String],
     * Overrides the default lookup function to provide call specific resolution.
     */
   override def lookupFunction(inputs: WorkflowCoercedInputs,
-                              wdlFunctions: WdlFunctions[WdlValue],
+                              wdlFunctions: WdlFunctions[WomValue],
                               outputResolver: OutputResolver = NoOutputResolver,
                               shards: Map[Scatter, Int] = Map.empty[Scatter, Int],
-                              relativeTo: Scope = this): String => WdlValue = {
-    def lookup(name: String): WdlValue = {
+                              relativeTo: Scope = this): String => WomValue = {
+    def lookup(name: String): WomValue = {
       val inputMappingsWithMatchingName = Try(
         inputMappings.getOrElse(name, throw new Exception(s"Could not find $name in input section of call $fullyQualifiedName"))
       )
@@ -242,11 +242,11 @@ sealed abstract class WdlCall(val alias: Option[String],
         evaluatedExpr <- inputExpr.evaluate(parent.lookupFunction(inputs, wdlFunctions, outputResolver, shards, relativeTo), wdlFunctions)
         // Coerce the input into the declared type:
         declaration <- declarationsWithMatchingName
-        coerced <- declaration.wdlType.coerceRawValue(evaluatedExpr)
+        coerced <- declaration.womType.coerceRawValue(evaluatedExpr)
       } yield coerced
 
-      def unsuppliedDeclarationValue(declaration: Declaration) = declaration.wdlType match {
-        case opt: WdlOptionalType => opt.none
+      def unsuppliedDeclarationValue(declaration: Declaration) = declaration.womType match {
+        case opt: WomOptionalType => opt.none
         case _ => throw VariableNotFoundException(declaration)
       }
 

@@ -8,7 +8,7 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationDa
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import wom.graph.TaskCallNode
-import wom.values.WdlValue
+import wom.values.WomValue
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -71,11 +71,11 @@ class StandardInitializationActor(val standardParams: StandardInitializationActo
   def runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
       StandardValidatedRuntimeAttributesBuilder.default(configurationDescriptor.backendRuntimeConfig)
 
-  override protected lazy val runtimeAttributeValidators: Map[String, (Option[WdlValue]) => Boolean] = {
+  override protected lazy val runtimeAttributeValidators: Map[String, (Option[WomValue]) => Boolean] = {
     runtimeAttributesBuilder.validatorMap
   }
 
-  override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WdlValue]] = {
+  override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WomValue]] = {
     RuntimeAttributesDefault.workflowOptionsDefault(options, runtimeAttributesBuilder.coercionMap)
   }
 

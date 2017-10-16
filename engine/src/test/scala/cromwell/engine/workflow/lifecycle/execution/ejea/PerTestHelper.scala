@@ -24,7 +24,7 @@ import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition}
 import wom.core.CallOutputs
 import wom.expression.IoFunctionSet
 import wom.graph.{TaskCallNode, WomIdentifier}
-import wom.types.{WdlIntegerType, WdlStringType}
+import wom.types.{WomIntegerType, WomStringType}
 
 import scala.util.Success
 
@@ -41,8 +41,8 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   val executionToken = JobExecutionToken(JobExecutionTokenType("test", None), UUID.randomUUID())
 
   val task = WomMocks.mockTaskDefinition(taskName).copy(
-    inputs = List(InputDefinitionWithDefault("inInt", WdlIntegerType, mockIntExpression(543))),
-    outputs = List(OutputDefinition("outString", WdlStringType, mockStringExpression("hello")))
+    inputs = List(InputDefinitionWithDefault("inInt", WomIntegerType, mockIntExpression(543))),
+    outputs = List(OutputDefinition("outString", WomStringType, mockStringExpression("hello")))
   )
 
   val workflow = new WdlWorkflow(

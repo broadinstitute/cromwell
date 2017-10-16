@@ -2,7 +2,7 @@ package wdl
 
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.expression.NoFunctions
-import wom.values.WdlString
+import wom.values.WomString
 
 import scala.util.Try
 
@@ -35,7 +35,7 @@ class AdvancedInterpolationSpec extends FlatSpec with Matchers {
     val testCall = namespace.workflow.taskCalls.find(_.unqualifiedName == "test") getOrElse {
       fail("call 'test' not found")
     }
-    val inputs = testCall.evaluateTaskInputs(Map("testWF.test.eval_this" -> WdlString("${var}")), NoFunctions)
+    val inputs = testCall.evaluateTaskInputs(Map("testWF.test.eval_this" -> WomString("${var}")), NoFunctions)
     val testCmd = testCall.task.instantiateCommand(inputs.get, NoFunctions)
     testCmd shouldEqual Try("echo 'inside inside inside'")
   }

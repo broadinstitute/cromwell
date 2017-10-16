@@ -14,7 +14,7 @@ import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import wom.core.CallOutputs
-import wom.values.{WdlArray, WdlMap, WdlSingleFile, WdlValue}
+import wom.values.{WomArray, WomMap, WomSingleFile, WomValue}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -61,11 +61,11 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
     Future.sequence(copies)
   }
 
-  private def findFiles(values: Seq[WdlValue]): Seq[WdlSingleFile] = {
+  private def findFiles(values: Seq[WomValue]): Seq[WomSingleFile] = {
     values flatMap {
-      case file: WdlSingleFile => Seq(file)
-      case array: WdlArray => findFiles(array.value)
-      case map: WdlMap => findFiles(map.value.values.toSeq)
+      case file: WomSingleFile => Seq(file)
+      case array: WomArray => findFiles(array.value)
+      case map: WomMap => findFiles(map.value.values.toSeq)
       case _ => Seq.empty
     }
   }
@@ -76,7 +76,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
       backend <- workflowDescriptor.backendAssignments.values.toSeq
       config <- BackendConfiguration.backendConfigurationDescriptor(backend).toOption.toSeq
       rootPath <- getBackendRootPath(backend, config).toSeq
-      outputFiles = findFiles(workflowOutputs.values.map(_.wdlValue).toSeq).map(_.value)
+      outputFiles = findFiles(workflowOutputs.values.map(_.womValue).toSeq).map(_.value)
     } yield (rootPath, outputFiles)
     
     val outputFileDestinations = rootAndFiles flatMap {

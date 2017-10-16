@@ -6,7 +6,7 @@ import lenthall.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import wdl4s.parser.WdlParser.{Ast, Terminal}
 import wom.graph.ScatterNode.ScatterNodeWithNewNodes
 import wom.graph._
-import wom.types.WdlArrayType
+import wom.types.WomArrayType
 
 /**
   * Scatter class.
@@ -20,7 +20,7 @@ case class Scatter(index: Int, item: String, collection: WdlExpression, ast: Ast
 
   final val upstreamReferences = collection.variableReferences
 
-  override def toString: String = s"[Scatter fqn=$fullyQualifiedName, item=$item, collection=${collection.toWdlString}]"
+  override def toString: String = s"[Scatter fqn=$fullyQualifiedName, item=$item, collection=${collection.toWomString}]"
 }
 
 object Scatter {
@@ -41,8 +41,8 @@ object Scatter {
     val scatterCollectionExpressionNode = WdlWomExpression.toExpressionNode(WomIdentifier(scatter.item), scatterCollectionExpression, localLookup, Map.empty)
     // Validate the collection evaluates to a traversable type
     val scatterItemTypeValidation = scatterCollectionExpression.evaluateType(localLookup.map { case (k, v) => k -> v.womType }) flatMap {
-      case WdlArrayType(itemType) => Valid(itemType) // Covers maps because this is a custom unapply (see WdlArrayType)
-      case other => s"Cannot scatter over a non-traversable type ${other.toWdlString}".invalidNel
+      case WomArrayType(itemType) => Valid(itemType) // Covers maps because this is a custom unapply (see WdlArrayType)
+      case other => s"Cannot scatter over a non-traversable type ${other.toDisplayString}".invalidNel
     }
 
     for {

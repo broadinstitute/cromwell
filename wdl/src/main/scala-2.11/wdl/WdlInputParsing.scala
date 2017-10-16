@@ -7,7 +7,7 @@ import scala.util.Try
 import wom.executable.Executable.InputParsingFunction
 import wom.executable.Executable.ParsedInputMap
 import wom.executable.Executable
-import wom.types.WdlType
+import wom.types.WomType
 
 private [wdl] object WdlInputParsing {
 
@@ -18,7 +18,7 @@ private [wdl] object WdlInputParsing {
 
     Try(inputString.parseJson).toErrorOr.toEither flatMap {
       case JsObject(fields) => fields.map({
-        case (key, jsValue) => key -> { womType: WdlType => womType.coerceRawValue(jsValue).toErrorOr }
+        case (key, jsValue) => key -> { womType: WomType => womType.coerceRawValue(jsValue).toErrorOr }
       }).validNelCheck
       case other => s"WDL input file must be a valid Json object. Found a ${other.getClass.getSimpleName}".invalidNelCheck[ParsedInputMap]
     }

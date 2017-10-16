@@ -4,7 +4,7 @@ import lenthall.validation.ErrorOr.ErrorOr
 import wom.expression.WomExpression
 import wom.graph.GraphNode.GraphNodeSetter
 import wom.graph.GraphNodePort.OutputPort
-import wom.types.WdlType
+import wom.types.WomType
 
 /**
   * This is enough information for a GraphNode to build an InstantiatedExpression for an input.
@@ -19,5 +19,5 @@ case class GraphNodeInputExpression(inputName: String, expression: WomExpression
     */
   private[graph] def instantiateExpression(graphNodeSetter: GraphNodeSetter): ErrorOr[InstantiatedExpression] = InstantiatedExpression.linkWithInputs(graphNodeSetter, expression, inputMapping)
 
-  private[graph] lazy val evaluateType: ErrorOr[WdlType] = expression.evaluateType(inputMapping.map { case (name, port) => (name, port.womType) })
+  private[graph] lazy val evaluateType: ErrorOr[WomType] = expression.evaluateType(inputMapping.map { case (name, port) => (name, port.womType) })
 }

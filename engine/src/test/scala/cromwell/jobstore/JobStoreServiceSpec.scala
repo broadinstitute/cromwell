@@ -13,15 +13,15 @@ import wom.JobOutput
 import wom.callable.Callable.OutputDefinition
 import wom.expression.PlaceholderWomExpression
 import wom.graph.WomIdentifier
-import wom.types.WdlStringType
-import wom.values.WdlString
+import wom.types.WomStringType
+import wom.values.WomString
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object JobStoreServiceSpec {
   val MaxWait = 5 seconds
-  val EmptyExpression = PlaceholderWomExpression(Set.empty, WdlStringType)
+  val EmptyExpression = PlaceholderWomExpression(Set.empty, WomStringType)
 }
 
 class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Mockito {
@@ -33,7 +33,7 @@ class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Moc
 
       val workflowId = WorkflowId.randomId()
       val mockTask = WomMocks.mockTaskDefinition("bar")
-      .copy(outputs = List(OutputDefinition("baz", WdlStringType, EmptyExpression))) 
+      .copy(outputs = List(OutputDefinition("baz", WomStringType, EmptyExpression)))
       val successCall = WomMocks.mockTaskCall(WomIdentifier("bar"), definition = mockTask)
 
       val successKey = BackendJobDescriptorKey(successCall, None, 1).toJobStoreKey(workflowId)
@@ -41,7 +41,7 @@ class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Moc
       jobStoreService ! QueryJobCompletion(successKey, mockTask.outputs)
       expectMsgType[JobNotComplete.type](MaxWait)
 
-      val outputs = Map("baz" -> JobOutput(WdlString("qux")))
+      val outputs = Map("baz" -> JobOutput(WomString("qux")))
 
       jobStoreService ! RegisterJobCompleted(successKey, JobResultSuccess(Option(0), outputs))
       expectMsgType[JobStoreWriteSuccess](MaxWait)

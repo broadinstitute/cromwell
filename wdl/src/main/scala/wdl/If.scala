@@ -7,7 +7,7 @@ import lenthall.validation.ErrorOr._
 import wdl4s.parser.WdlParser.Ast
 import wom.graph.ConditionalNode.ConditionalNodeWithNewNodes
 import wom.graph._
-import wom.types.WdlBooleanType
+import wom.types.WomBooleanType
 /**
   * Represents an If block in WDL
   *
@@ -20,7 +20,7 @@ case class If(index: Int, condition: WdlExpression, ast: Ast) extends WdlGraphNo
 
   final val upstreamReferences = condition.variableReferences
 
-  override def toString: String = s"[If fqn=$fullyQualifiedName, condition=${condition.toWdlString}]"
+  override def toString: String = s"[If fqn=$fullyQualifiedName, condition=${condition.toWomString}]"
 }
 
 object If {
@@ -37,8 +37,8 @@ object If {
     val ifConditionExpression = WdlWomExpression(ifBlock.condition, Option(ifBlock))
     val ifConditionGraphInputExpressionValidation = WdlWomExpression.toExpressionNode(WomIdentifier("conditional"), ifConditionExpression, localLookup, Map.empty)
     val ifConditionTypeValidation = ifConditionExpression.evaluateType(localLookup.map { case (k, v) => k -> v.womType }) flatMap {
-      case WdlBooleanType => Valid(())
-      case other => s"An if block must be given a boolean expression but instead got '${ifBlock.condition.toWdlString}' (a ${other.toWdlString})".invalidNel
+      case WomBooleanType => Valid(())
+      case other => s"An if block must be given a boolean expression but instead got '${ifBlock.condition.toWomString}' (a ${other.toDisplayString})".invalidNel
     }
 
     val innerGraphValidation: ErrorOr[Graph] = WdlGraphNode.buildWomGraph(

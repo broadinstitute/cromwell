@@ -2,10 +2,10 @@ package wom.graph
 
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.GraphNodeOutputPort
-import wom.types.{WdlOptionalType, WdlType}
+import wom.types.{WomOptionalType, WomType}
 
 sealed trait GraphInputNode extends GraphNode {
-  def womType: WdlType
+  def womType: WomType
   lazy val singleOutputPort: GraphNodeOutputPort = GraphNodeOutputPort(localName, womType, this)
 
   override val inputPorts: Set[GraphNodePort.InputPort] = Set.empty
@@ -41,14 +41,14 @@ sealed trait ExternalGraphInputNode extends GraphInputNode {
 }
 
 final case class RequiredGraphInputNode(override val identifier: WomIdentifier,
-                                        womType: WdlType) extends ExternalGraphInputNode
+                                        womType: WomType) extends ExternalGraphInputNode
 
 final case class OptionalGraphInputNode(override val identifier: WomIdentifier,
-                                        womType: WdlOptionalType) extends ExternalGraphInputNode
+                                        womType: WomOptionalType) extends ExternalGraphInputNode
 
 // If we want to allow defaults to be "complex" expressions with dependencies we may need to make it an InstantiatedExpression here instead
 final case class OptionalGraphInputNodeWithDefault(override val identifier: WomIdentifier,
-                                                   womType: WdlType,
+                                                   womType: WomType,
                                                    default: WomExpression) extends ExternalGraphInputNode
 
 object OuterGraphInputNode {
@@ -61,9 +61,9 @@ object OuterGraphInputNode {
   * Used to represent an input to any GraphNode's inner graph which is a link to a value somewhere in the outer graph.
   */
 class OuterGraphInputNode(override val identifier: WomIdentifier, linkToOuterGraph: GraphNodePort.OutputPort) extends GraphInputNode {
-  override def womType: WdlType = linkToOuterGraph.womType
+  override def womType: WomType = linkToOuterGraph.womType
 }
 
 final case class ScatterVariableNode(override val identifier: WomIdentifier,
                                      scatterExpressionOutputPort: GraphNodePort.OutputPort,
-                                     override val womType: WdlType) extends OuterGraphInputNode(identifier, scatterExpressionOutputPort)
+                                     override val womType: WomType) extends OuterGraphInputNode(identifier, scatterExpressionOutputPort)

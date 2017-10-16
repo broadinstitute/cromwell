@@ -2,8 +2,8 @@ package wdl.examples
 
 import wdl.WdlNamespaceWithWorkflow
 import wdl.expression.WdlFunctions
-import wom.types.{WdlArrayType, WdlIntegerType}
-import wom.values.{WdlArray, WdlFile, WdlInteger, WdlString, WdlValue}
+import wom.types.{WomArrayType, WomIntegerType}
+import wom.values.{WomArray, WomFile, WomInteger, WomString, WomValue}
 
 import scala.util.{Success, Try}
 
@@ -23,14 +23,14 @@ object ex7 {
 
     val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
     val inputs = Map(
-      "prefix" -> WdlString("some_prefix"),
-      "ints" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(1,2,3,4,5).map(WdlInteger(_)))
+      "prefix" -> WomString("some_prefix"),
+      "ints" -> WomArray(WomArrayType(WomIntegerType), Seq(1,2,3,4,5).map(WomInteger(_)))
     )
 
-    class CustomFunctions extends WdlFunctions[WdlValue] {
-      def write_lines(params: Seq[Try[WdlValue]]): Try[WdlValue] = {
+    class CustomFunctions extends WdlFunctions[WomValue] {
+      def write_lines(params: Seq[Try[WomValue]]): Try[WomValue] = {
         // Validate `params`, write the result to a file, return file path
-        Success(WdlFile("/tmp/array.txt"))
+        Success(WomFile("/tmp/array.txt"))
       }
     }
 

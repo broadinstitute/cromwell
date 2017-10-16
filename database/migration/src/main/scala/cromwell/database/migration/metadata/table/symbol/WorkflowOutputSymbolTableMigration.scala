@@ -2,7 +2,7 @@ package cromwell.database.migration.metadata.table.symbol
 
 import java.sql.PreparedStatement
 
-import wom.values.WdlValue
+import wom.values.WomValue
 
 class WorkflowOutputSymbolTableMigration extends SymbolTableMigration {
 
@@ -12,9 +12,9 @@ class WorkflowOutputSymbolTableMigration extends SymbolTableMigration {
                              symbolScope: String,
                              symbolIndex: Option[Int],
                              symbolAttempt: Option[Int],
-                             wdlValue: WdlValue): Int = {
+                             womValue: WomValue): Int = {
     val metadataStatementForWorkflow = new MetadataStatementForWorkflow(statement, workflowUuid)
-    addWdlValue(s"outputs:$symbolScope.$symbolName", wdlValue, metadataStatementForWorkflow)
+    addWdlValue(s"outputs:$symbolScope.$symbolName", womValue, metadataStatementForWorkflow)
   }
 
   override def getConfirmationMessage: String = "Workflow outputs from Symbol Table migration complete."

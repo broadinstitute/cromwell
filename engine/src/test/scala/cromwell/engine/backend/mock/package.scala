@@ -11,14 +11,14 @@ package object mock {
   def taskOutputToJobOutput(taskOutput: OutputDefinition) =
     taskOutput.name -> JobOutput(sampleValue(taskOutput.womType))
 
-  private def sampleValue(wdlType: WdlType): WdlValue = wdlType match {
-    case WdlIntegerType => WdlInteger(3)
-    case WdlFloatType => WdlFloat(55.55)
-    case WdlStringType => WdlString("The rain in Spain falls mainly in the plain")
-    case WdlBooleanType => WdlBoolean(true)
-    case WdlFileType => WdlFile("/root/of/all/evil")
-    case WdlArrayType(memberType) => WdlArray(WdlArrayType(memberType), List(sampleValue(memberType)))
-    case WdlObjectType => WdlObject(Map("a" -> WdlString("1"), "b" -> WdlString("2")))
-    case WdlMapType(keyType, valueType) => WdlMap(WdlMapType(keyType, valueType), Map(sampleValue(keyType) -> sampleValue(valueType)))
+  private def sampleValue(womType: WomType): WomValue = womType match {
+    case WomIntegerType => WomInteger(3)
+    case WomFloatType => WomFloat(55.55)
+    case WomStringType => WomString("The rain in Spain falls mainly in the plain")
+    case WomBooleanType => WomBoolean(true)
+    case WomFileType => WomFile("/root/of/all/evil")
+    case WomArrayType(memberType) => WomArray(WomArrayType(memberType), List(sampleValue(memberType)))
+    case WomObjectType => WomObject(Map("a" -> WomString("1"), "b" -> WomString("2")))
+    case WomMapType(keyType, valueType) => WomMap(WomMapType(keyType, valueType), Map(sampleValue(keyType) -> sampleValue(valueType)))
   }
 }

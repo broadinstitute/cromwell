@@ -6,7 +6,7 @@ import cromwell.core.WorkflowSourceFilesWithoutImports
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import spray.json._
 import wom.core.{ExecutableInputMap, WorkflowJson, WorkflowSource}
-import wom.types.{WdlArrayType, WdlStringType}
+import wom.types.{WomArrayType, WomStringType}
 import wom.values._
 
 import scala.language.postfixOps
@@ -51,11 +51,11 @@ trait SampleWdl extends TestFileUtil {
       case s: String => JsString(s)
       case b: Boolean => if(b) JsTrue else JsFalse
       case s: Seq[Any] => JsArray(s map {_.toJson} toVector)
-      case a: WdlArray => write(a.value)
-      case s: WdlString => JsString(s.value)
-      case i: WdlInteger => JsNumber(i.value)
-      case f: WdlFloat => JsNumber(f.value)
-      case f: WdlFile => JsString(f.value)
+      case a: WomArray => write(a.value)
+      case s: WomString => JsString(s.value)
+      case i: WomInteger => JsNumber(i.value)
+      case f: WomFloat => JsNumber(f.value)
+      case f: WomFile => JsString(f.value)
       case p: Path => JsString(p.pathAsString)
     }
     def read(value: JsValue) = throw new NotImplementedError(s"Reading JSON not implemented: $value")
@@ -175,8 +175,8 @@ object SampleWdl {
 
     val rawInputs = Map.empty[String, Any]
     val outputMap = Map(
-      "hello.hello.empty" -> WdlString(""),
-      "hello.goodbye.empty" -> WdlString("")
+      "hello.hello.empty" -> WomString(""),
+      "hello.goodbye.empty" -> WomString("")
     )
   }
 
@@ -1011,10 +1011,10 @@ object SampleWdl {
 
     override val rawInputs = Map(
       "wf.nested_file" ->
-        WdlArray(WdlArrayType(WdlArrayType(WdlStringType)),
+        WomArray(WomArrayType(WomArrayType(WomStringType)),
         Seq(
-          WdlArray(WdlArrayType(WdlStringType), Seq(firstFile.pathAsString, secondFile.pathAsString).map(WdlString)),
-          WdlArray(WdlArrayType(WdlStringType), Seq(thirdFile.pathAsString, fourthFile.pathAsString).map(WdlString))
+          WomArray(WomArrayType(WomStringType), Seq(firstFile.pathAsString, secondFile.pathAsString).map(WomString)),
+          WomArray(WomArrayType(WomStringType), Seq(thirdFile.pathAsString, fourthFile.pathAsString).map(WomString))
         )
       )
     )
@@ -1051,10 +1051,10 @@ object SampleWdl {
     val tempDir = DefaultPathBuilder.createTempDirectory("CallCachingHashingWdl")
     val cannedFile = createCannedFile(prefix = "canned", contents = "file contents", dir = Option(tempDir))
     override val rawInputs = Map(
-      "w.t.a" -> WdlInteger(1),
-      "w.t.b" -> WdlFloat(1.1),
-      "w.t.c" -> WdlString("foobar"),
-      "w.t.d" -> WdlFile(cannedFile.pathAsString)
+      "w.t.a" -> WomInteger(1),
+      "w.t.b" -> WomFloat(1.1),
+      "w.t.c" -> WomString("foobar"),
+      "w.t.d" -> WomFile(cannedFile.pathAsString)
     )
   }
 
@@ -1083,8 +1083,8 @@ object SampleWdl {
         |}
       """.stripMargin
     override val rawInputs = Map(
-      "wf.a1" -> WdlString("hello"),
-      "wf.a2" -> WdlString("world")
+      "wf.a1" -> WomString("hello"),
+      "wf.a2" -> WomString("world")
     )
   }
 

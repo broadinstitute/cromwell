@@ -3,15 +3,13 @@ package cromwell.engine.workflow.lifecycle
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
 import akka.pattern.pipe
 import cats.Monad
+import cats.data.NonEmptyList
 import cats.data.EitherT._
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.either._
-import cats.data.NonEmptyList
-import cats.data.Validated.{Invalid, Valid}
 import cats.effect.IO
 import cats.instances.vector._
 import cats.syntax.apply._
-import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.typesafe.config.Config
@@ -31,14 +29,14 @@ import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.MaterializeWorkflowDescriptorActorState
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
-import cwl.CwlDecoder.Parse
-import cwl.{CwlDecoder, Workflow}
+import lenthall.validation.Checked._
 import lenthall.Checked
 import lenthall.exception.{AggregatedMessageException, MessageAggregation}
-import lenthall.validation.Checked._
 import lenthall.validation.ErrorOr._
 import net.ceedubs.ficus.Ficus._
 import spray.json._
+import cwl.CwlDecoder.Parse
+import cwl.{CwlDecoder, Workflow}
 import wdl._
 import wom.callable.WorkflowDefinition
 import wom.executable.Executable
@@ -46,7 +44,7 @@ import wom.executable.Executable.ResolvedExecutableInputs
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.{Graph, TaskCallNode}
-import wom.values._
+import wom.values.{WomSingleFile, WomString, WomValue}
 
 import scala.concurrent.Future
 import scala.language.postfixOps
@@ -99,7 +97,7 @@ object MaterializeWorkflowDescriptorActor {
   /*
     * Internal ADT
    */
-  private case class ValidatedWomNamespace(executable: Executable, graph: Graph, wdlValueInputs: Map[OutputPort, WdlValue])
+  private case class ValidatedWomNamespace(executable: Executable, graph: Graph, womValueInputs: Map[OutputPort, WomValue])
 
   private[lifecycle] def validateCallCachingMode(workflowOptions: WorkflowOptions, conf: Config): ErrorOr[CallCachingMode] = {
 
@@ -234,7 +232,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     for {
       validatedNamespace <- namespaceValidation
       labels <- labelsValidation
-       _ <- pushWfNameMetadataService(validatedNamespace.executable.entryPoint.name)
+      _ <- pushWfNameMetadataService(validatedNamespace.executable.entryPoint.name)
       _ <- publishLabelsToMetadata(id, validatedNamespace.executable.entryPoint.name, labels)
       ewd <- fromEither[IO](buildWorkflowDescriptor(id, sourceFiles, validatedNamespace, workflowOptions, labels, conf, pathBuilders).toEither)
     } yield ewd
@@ -279,22 +277,22 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       case (failureMode, backendAssignments, callCachingMode) =>
         womNamespace.executable.entryPoint match {
           case workflowDefinition: WorkflowDefinition =>
-            val backendDescriptor = BackendWorkflowDescriptor(id, workflowDefinition, womNamespace.wdlValueInputs, workflowOptions, labels)
+            val backendDescriptor = BackendWorkflowDescriptor(id, workflowDefinition, womNamespace.womValueInputs, workflowOptions, labels)
             EngineWorkflowDescriptor(workflowDefinition, backendDescriptor, backendAssignments, failureMode, pathBuilders, callCachingMode)
           case _ => throw new NotImplementedError("Only workflows are valid entry points currently.")
         }
     }
   }
 
-  private def pushWfInputsToMetadataService(workflowInputs: Map[OutputPort, WdlValue]): Unit = {
+  private def pushWfInputsToMetadataService(workflowInputs: Map[OutputPort, WomValue]): Unit = {
     // Inputs
     val inputEvents = workflowInputs match {
       case empty if empty.isEmpty =>
         List(MetadataEvent.empty(MetadataKey(workflowIdForLogging, None,WorkflowMetadataKeys.Inputs)))
       case inputs =>
-        inputs flatMap { case (outputPort, wdlValue) =>
+        inputs flatMap { case (outputPort, womValue) =>
           val inputName = outputPort.fullyQualifiedName
-          wdlValueToMetadataEvents(MetadataKey(workflowIdForLogging, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), wdlValue)
+          womValueToMetadataEvents(MetadataKey(workflowIdForLogging, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), womValue)
         }
     }
 
@@ -337,8 +335,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
   private def evaluateBackendNameExpression(callName: String, backendNameAsExp: WomExpression): String = {
     backendNameAsExp.evaluateValue(Map.empty, NoIoFunctionSet) match {
-      case Valid(runtimeString: WdlString) => runtimeString.valueString
-      case Valid(x: WdlValue) =>
+      case Valid(runtimeString: WomString) => runtimeString.valueString
+      case Valid(x: WomValue) =>
         throw new Exception(s"Non-string values are not currently supported for backends! Cannot use backend '${x.valueString}' to backend to Call: $callName")
       case Invalid(errors) =>
         // TODO WOM: need access to a "source string" for WomExpressions
@@ -453,19 +451,19 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   private def validateWdlNamespace(source: WorkflowSourceFilesCollection,
                                    workflowOptions: WorkflowOptions,
                                    pathBuilders: List[PathBuilder]): ErrorOr[ValidatedWomNamespace] = {
-    import cats.instances.either._
     import cats.instances.list._
+    import cats.instances.either._
     import cats.syntax.either._
     import cats.syntax.functor._
     import cats.syntax.validated._
     import lenthall.validation.Checked._
 
-    def checkTypes(namespace: WdlNamespaceWithWorkflow, inputs: Map[OutputPort, WdlValue]): Checked[Unit] = {
+    def checkTypes(namespace: WdlNamespaceWithWorkflow, inputs: Map[OutputPort, WomValue]): Checked[Unit] = {
       val allDeclarations = namespace.workflow.declarations ++ namespace.workflow.calls.flatMap(_.declarations)
       val list: List[Checked[Unit]] = inputs.map({ case (k, v) =>
         allDeclarations.find(_.fullyQualifiedName == k) match {
-          case Some(decl) if decl.wdlType.coerceRawValue(v).isFailure =>
-            s"Invalid right-side type of '$k'.  Expecting ${decl.wdlType.toWdlString}, got ${v.wdlType.toWdlString}".invalidNelCheck[Unit]
+          case Some(decl) if decl.womType.coerceRawValue(v).isFailure =>
+            s"Invalid right-side type of '$k'.  Expecting ${decl.womType.toDisplayString}, got ${v.womType.toDisplayString}".invalidNelCheck[Unit]
           case _ => ().validNelCheck
         }
       }).toList
@@ -492,8 +490,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       womExecutable <- wdlNamespace.womExecutable(Option(source.inputsJson))
       ioFunctions = new WdlFunctions(pathBuilders)
       validatedWomNamespace <- validateWomNamespace(womExecutable, ioFunctions)
-      _ <- checkTypes(wdlNamespace, validatedWomNamespace.wdlValueInputs)
-      _ = pushWfInputsToMetadataService(validatedWomNamespace.wdlValueInputs)
+      _ <- checkTypes(wdlNamespace, validatedWomNamespace.womValueInputs)
+      _ = pushWfInputsToMetadataService(validatedWomNamespace.womValueInputs)
     } yield validatedWomNamespace).toValidated
   }
 
@@ -501,11 +499,11 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     graph <- womExecutable.graph.toEither
     evaluatedInputs <- validateExecutableInputs(womExecutable.resolvedExecutableInputs, ioFunctions).toEither
     validatedWomNamespace = ValidatedWomNamespace(womExecutable, graph, evaluatedInputs)
-    _ <- validateWdlFiles(validatedWomNamespace.wdlValueInputs)
+    _ <- validateWdlFiles(validatedWomNamespace.womValueInputs)
   } yield validatedWomNamespace
-  
+
   /*
-    * At this point input values are either a WdlValue (if it was provided through the input file)
+    * At this point input values are either a WomValue (if it was provided through the input file)
     * or a WomExpression (if we fell back to the default).
     * We assume that default expressions do NOT reference any "variables" (other inputs, call outputs ...)
     * Should this assumption prove not sufficient InstantiatedExpressions or ExpressionNodes would need to be provided
@@ -513,8 +511,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     * Note that the ioFunctions use engine level pathBuilders. This means that their credentials come from the engine section
     * of the configuration, and are not backend specific.
    */
-  private def validateExecutableInputs(inputs: ResolvedExecutableInputs, ioFunctions: IoFunctionSet): ErrorOr[Map[OutputPort, WdlValue]] = {
-    inputs.traverse[OutputPort, WdlValue] {
+  private def validateExecutableInputs(inputs: ResolvedExecutableInputs, ioFunctions: IoFunctionSet): ErrorOr[Map[OutputPort, WomValue]] = {
+    inputs.traverse[OutputPort, WomValue] {
       case (key, value) => value.fold(ResolvedExecutableInputsPoly).apply(ioFunctions) map { key -> _ }
     }
   }
@@ -537,9 +535,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     }
   }
 
-  private def validateWdlFiles(workflowInputs: Map[OutputPort, WdlValue]): Checked[Unit] = {
+  private def validateWdlFiles(workflowInputs: Map[OutputPort, WomValue]): Checked[Unit] = {
     val failedFiles = workflowInputs collect {
-      case (port , WdlSingleFile(value)) if value.startsWith("\"gs://") => s"""Invalid value for File input '${port.fullyQualifiedName}': $value starts with a '\"' """
+      case (port , WomSingleFile(value)) if value.startsWith("\"gs://") => s"""Invalid value for File input '${port.fullyQualifiedName}': $value starts with a '\"' """
     }
 
     NonEmptyList.fromList(failedFiles.toList) match {

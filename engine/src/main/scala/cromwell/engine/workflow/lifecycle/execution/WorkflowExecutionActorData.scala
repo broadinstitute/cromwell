@@ -9,7 +9,7 @@ import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
 import wom.JobOutput
 import wom.core.CallOutputs
-import wom.values.WdlValue
+import wom.values.WomValue
 
 import scala.language.postfixOps
 
@@ -19,7 +19,7 @@ object WorkflowExecutionDiff {
 /** Data differential between current execution data, and updates performed in a method that needs to be merged. */
 final case class WorkflowExecutionDiff(executionStoreChanges: Map[JobKey, ExecutionStatus],
                                        engineJobExecutionActorAdditions: Map[ActorRef, JobKey] = Map.empty,
-                                       valueStoreAdditions: Map[ValueKey, WdlValue] = Map.empty) {
+                                       valueStoreAdditions: Map[ValueKey, WomValue] = Map.empty) {
   def containsNewEntry: Boolean = {
     executionStoreChanges.exists(esc => esc._2 == NotStarted) || valueStoreAdditions.nonEmpty
   }
@@ -54,7 +54,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     )
   }
 
-  final def expressionEvaluationSuccess(expressionKey: ExpressionKey, value: WdlValue): WorkflowExecutionActorData = {
+  final def expressionEvaluationSuccess(expressionKey: ExpressionKey, value: WomValue): WorkflowExecutionActorData = {
     val valueStoreKey = ValueKey(expressionKey.singleOutputPort, expressionKey.index)
     this.copy(
       executionStore = executionStore.add(Map(expressionKey -> Done)),
@@ -65,7 +65,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   def executionFailed(jobKey: JobKey): WorkflowExecutionActorData = mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
 
   /** Add the outputs for the specified `JobKey` to the symbol cache. */
-  private def updateSymbolStoreEntry(jobKey: JobKey, outputs: CallOutputs): Map[ValueKey, WdlValue] = {
+  private def updateSymbolStoreEntry(jobKey: JobKey, outputs: CallOutputs): Map[ValueKey, WomValue] = {
     jobKey.node.outputPorts flatMap { outputPort =>
       outputs.collectFirst { 
         case (name, JobOutput(value)) if name == outputPort.name => value

@@ -11,18 +11,18 @@ import wom.expression.PlaceholderWomExpression
 import wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.expression.AnonymousExpressionNode
-import wom.types.{WdlArrayType, WdlIntegerType, WdlStringType}
+import wom.types.{WomArrayType, WomIntegerType, WomStringType}
 
 class ScatterNodeSpec extends FlatSpec with Matchers {
   behavior of "ScatterNode"
 
-  val fooInputDef = RequiredInputDefinition("i", WdlIntegerType)
+  val fooInputDef = RequiredInputDefinition("i", WomIntegerType)
   val task_foo = TaskDefinition(name = "foo",
     commandTemplate = null,
     runtimeAttributes = RuntimeAttributes(Map.empty),
     meta = Map.empty,
     parameterMeta = Map.empty,
-    outputs = List(OutputDefinition("out", WdlStringType, PlaceholderWomExpression(Set.empty, WdlStringType))),
+    outputs = List(OutputDefinition("out", WomStringType, PlaceholderWomExpression(Set.empty, WomStringType))),
     inputs = List(fooInputDef)
   )
 
@@ -48,14 +48,14 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
     *
     */
   it should "be able to wrap a single task call" in {
-    val xs_inputNode = RequiredGraphInputNode(WomIdentifier("xs"), WdlArrayType(WdlIntegerType))
+    val xs_inputNode = RequiredGraphInputNode(WomIdentifier("xs"), WomArrayType(WomIntegerType))
 
-    val xsExpression = PlaceholderWomExpression(Set("xs"), WdlArrayType(WdlIntegerType))
+    val xsExpression = PlaceholderWomExpression(Set("xs"), WomArrayType(WomIntegerType))
     val xsExpressionAsInput = AnonymousExpressionNode
       .fromInputMapping(WomIdentifier("x"), xsExpression, Map("xs" -> xs_inputNode.singleOutputPort))
       .valueOr(failures => fail(s"Failed to create expression node: ${failures.toList.mkString(", ")}"))
     
-    val x_inputNode = ScatterVariableNode(WomIdentifier("x"), xsExpressionAsInput.singleExpressionOutputPort, WdlArrayType(WdlIntegerType))
+    val x_inputNode = ScatterVariableNode(WomIdentifier("x"), xsExpressionAsInput.singleExpressionOutputPort, WomArrayType(WomIntegerType))
     val fooNodeBuilder = new CallNodeBuilder()
     val fooInputFold = InputDefinitionFold(
       mappings = Map(
@@ -67,7 +67,7 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
       newGraphInputNodes = Set.empty
     )
     val CallNodeAndNewNodes(foo_callNode, _, _) = fooNodeBuilder.build(WomIdentifier("foo"), task_foo, fooInputFold)
-    val foo_call_outNode = PortBasedGraphOutputNode(WomIdentifier("foo.out"), WdlStringType, foo_callNode.outputByName("out").getOrElse(fail("foo CallNode didn't contain the expected 'out' output")))
+    val foo_call_outNode = PortBasedGraphOutputNode(WomIdentifier("foo.out"), WomStringType, foo_callNode.outputByName("out").getOrElse(fail("foo CallNode didn't contain the expected 'out' output")))
     val scatterGraph = Graph.validateAndConstruct(Set(foo_callNode, x_inputNode, foo_call_outNode)) match {
       case Valid(sg) => sg
       case Invalid(es) => fail("Failed to make scatter graph: " + es.toList.mkString(", "))
@@ -84,7 +84,7 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
     
     val workflowGraphValidation = for {
       foo_scatterOutput <- scatterNode.outputByName("foo.out")
-      z_workflowOutput = PortBasedGraphOutputNode(WomIdentifier("z"), WdlArrayType(WdlStringType), foo_scatterOutput)
+      z_workflowOutput = PortBasedGraphOutputNode(WomIdentifier("z"), WomArrayType(WomStringType), foo_scatterOutput)
       graph <- Graph.validateAndConstruct(scatterNode.nodes ++ Set(xs_inputNode, z_workflowOutput))
     } yield graph
 
@@ -111,7 +111,7 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
 
       // foo.out links back to the correct output in the inner graph:
       val innerGraphFooOutNode = scatterNode.outputMapping.find(_.name == "foo.out").getOrElse(fail("Scatter couldn't link back the foo.out output.")).outputToGather
-      innerGraphFooOutNode.womType should be(WdlStringType)
+      innerGraphFooOutNode.womType should be(WomStringType)
       innerGraphFooOutNode.upstream.size should be(1)
       innerGraphFooOutNode.upstream.head match {
         case c: CallNode => c.localName should be("foo")

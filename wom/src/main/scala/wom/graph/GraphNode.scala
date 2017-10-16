@@ -59,8 +59,8 @@ object GraphNode {
 
   def inputPortNamesMatch(required: Set[InputPort], provided: Set[InputPort]): ErrorOr[Unit] = {
     def requiredInputFound(r: InputPort): ErrorOr[Unit] = provided.find(_.name == r.name) match {
-      case Some(p) => if (r.womType.isCoerceableFrom(p.womType)) ().validNel else s"Cannot link a ${p.womType.toWdlString} to the input ${r.name}: ${r.womType}".invalidNel
-      case None => s"The required input ${r.name}: ${r.womType.toWdlString} was not provided.".invalidNel
+      case Some(p) => if (r.womType.isCoerceableFrom(p.womType)) ().validNel else s"Cannot link a ${p.womType.toDisplayString} to the input ${r.name}: ${r.womType}".invalidNel
+      case None => s"The required input ${r.name}: ${r.womType.toDisplayString} was not provided.".invalidNel
     }
 
     required.toList.traverse(requiredInputFound).void

@@ -69,53 +69,53 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
         |}
       """.stripMargin
 
-    val workflowInputs = Map("main_workflow.workflow_input" -> WdlString("workflow_input"))
+    val workflowInputs = Map("main_workflow.workflow_input" -> WomString("workflow_input"))
 
     def outputResolverForWorkflow(workflow: WdlWorkflow)(call: WdlGraphNode, index: Option[Int])= {
       call match {
         // Main Task
         case c: WdlCall if c == workflow.findCallByName("main_task").get =>
           Success(WdlCallOutputsObject(c, Map(
-            "task_o1" -> WdlString("MainTaskOutputString"),
-            "task_o2" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(8)))
+            "task_o1" -> WomString("MainTaskOutputString"),
+            "task_o2" -> WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(8)))
           )))
         case c: WdlCall if c == workflow.findCallByName("main_task2").get =>
           Success(WdlCallOutputsObject(c, Map(
-            "task_o1" -> WdlString("MainTask2OutputString"),
-            "task_o2" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(16)))
+            "task_o1" -> WomString("MainTask2OutputString"),
+            "task_o2" -> WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(16)))
           )))
         case c: WdlCall if c == workflow.findCallByName("main_task_in_scatter").get =>
           Success(WdlCallOutputsObject(c, Map(
-            "task_o1" -> WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("MainTaskOutputString")))
+            "task_o1" -> WomArray(WomArrayType(WomStringType), Seq(WomString("MainTaskOutputString")))
           )))
 
         //Sub Task
         case c: WdlCall if c == workflow.findCallByName("sub_task").get =>
           Success(WdlCallOutputsObject(c, Map(
-            "sub_task_o1" -> WdlString("SubTaskOutputString")
+            "sub_task_o1" -> WomString("SubTaskOutputString")
           )))
         case c: WdlCall if c == workflow.findCallByName("sub_task2").get =>
           Success(WdlCallOutputsObject(c, Map(
-            "sub_task_o1" -> WdlString("SubTask2OutputString")
+            "sub_task_o1" -> WomString("SubTask2OutputString")
           )))
 
         // Workflow Task
         case c: WdlCall if c == workflow.findCallByName("sub_workflow").get =>
           Success(WdlCallOutputsObject(c, Map(
-            "sub_sub_workflow_sub_task_sub_task_o1" -> WdlString("SubWorkflowSubTaskOutputString"),
-            "sub_o1" -> WdlString("SubWorkflowOutputString")
+            "sub_sub_workflow_sub_task_sub_task_o1" -> WomString("SubWorkflowSubTaskOutputString"),
+            "sub_o1" -> WomString("SubWorkflowOutputString")
           )))
         case c: WdlCall if c == workflow.findCallByName("sub_workflow2").get =>
           Success(WdlCallOutputsObject(c, Map(
-            "sub_sub_workflow_sub_task_sub_task_o1" -> WdlString("SubWorkflow2SubTaskOutputString"),
-            "sub_o1" -> WdlString("SubWorkflow2OutputString")
+            "sub_sub_workflow_sub_task_sub_task_o1" -> WomString("SubWorkflow2SubTaskOutputString"),
+            "sub_o1" -> WomString("SubWorkflow2OutputString")
           )))
         case c: WdlCall => fail(s"No output found for call ${c.unqualifiedName}")
         case _ => Failure(new Exception())
       }
     }
 
-    case class WorkflowOutputExpectation(unqualifiedName: FullyQualifiedName, wdlType: WdlType, sourceString: String)
+    case class WorkflowOutputExpectation(unqualifiedName: FullyQualifiedName, womType: WomType, sourceString: String)
 
     implicit val workflowOutputEquality = new Equality[WorkflowOutput] {
       override def areEqual(src: WorkflowOutput, expectation: Any): Boolean = {
@@ -123,8 +123,8 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
           case output: WorkflowOutputExpectation =>
             output.unqualifiedName == src.unqualifiedName &&
             "main_workflow." + output.unqualifiedName == src.locallyQualifiedName(src.parent.get) &&
-              output.wdlType.toWdlString == src.wdlType.toWdlString &&
-              output.sourceString == src.requiredExpression.toWdlString
+              output.womType.toDisplayString == src.womType.toDisplayString &&
+              output.sourceString == src.requiredExpression.toWomString
           case _ => false
         }
       }
@@ -132,7 +132,7 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
 
     def verifyOutputsForNamespace(ns: WdlNamespaceWithWorkflow,
                                   declarationExpectations: Seq[WorkflowOutputExpectation],
-                                  evaluationExpectations: Map[String, WdlValue],
+                                  evaluationExpectations: Map[String, WomValue],
                                   outputResolver: OutputResolver) = {
       val outputs = ns.workflow.outputs
       outputs should contain theSameElementsAs declarationExpectations
@@ -144,7 +144,7 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
       }
     }
     
-    def verifyOutputs(outputString: String, declarationExpectations: Seq[WorkflowOutputExpectation], evaluationExpectations: Map[String, WdlValue]) = {
+    def verifyOutputs(outputString: String, declarationExpectations: Seq[WorkflowOutputExpectation], evaluationExpectations: Map[String, WomValue]) = {
       val ns = WdlNamespaceWithWorkflow.load(
         wdl.replace("<<OUTPUTS>>", outputString), Seq((uri: String) => subWorkflow)).get
       verifyOutputsForNamespace(ns, declarationExpectations, evaluationExpectations, outputResolverForWorkflow(ns.workflow))
@@ -152,7 +152,7 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
 
     case class WorkflowOutputTestCase(description: String, output: String,
                                       declarationExpectation: Seq[WorkflowOutputExpectation],
-                                      evaluatedOutputExpectation: Map[String, WdlValue])
+                                      evaluatedOutputExpectation: Map[String, WomValue])
     
     Seq(
       /*  WILDCARD OUTPUTS  */
@@ -170,37 +170,37 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
         "task wildcard",
         "main_task.*",
         Seq(
-          WorkflowOutputExpectation("main_task.task_o1", WdlStringType, "main_task.task_o1"),
-          WorkflowOutputExpectation("main_task.task_o2", WdlArrayType(WdlIntegerType), "main_task.task_o2")
+          WorkflowOutputExpectation("main_task.task_o1", WomStringType, "main_task.task_o1"),
+          WorkflowOutputExpectation("main_task.task_o2", WomArrayType(WomIntegerType), "main_task.task_o2")
         ),
         Map(
-          "main_task.task_o1" -> WdlString("MainTaskOutputString"),
-          "main_task.task_o2" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(8)))
+          "main_task.task_o1" -> WomString("MainTaskOutputString"),
+          "main_task.task_o2" -> WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(8)))
         )
       ),
       WorkflowOutputTestCase(
         "aliased task wildcard",
         "main_task2.*",
         Seq(
-          WorkflowOutputExpectation("main_task2.task_o1", WdlStringType, "main_task2.task_o1"),
-          WorkflowOutputExpectation("main_task2.task_o2", WdlArrayType(WdlIntegerType), "main_task2.task_o2")
+          WorkflowOutputExpectation("main_task2.task_o1", WomStringType, "main_task2.task_o1"),
+          WorkflowOutputExpectation("main_task2.task_o2", WomArrayType(WomIntegerType), "main_task2.task_o2")
         ),
         Map(
-          "main_task2.task_o1" -> WdlString("MainTask2OutputString"),
-          "main_task2.task_o2" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(16)))
+          "main_task2.task_o1" -> WomString("MainTask2OutputString"),
+          "main_task2.task_o2" -> WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(16)))
         )
       ),
       WorkflowOutputTestCase(
         "sub task wildcard",
         "sub_task.*",
-        Seq(WorkflowOutputExpectation("sub_task.sub_task_o1", WdlStringType, "sub_task.sub_task_o1")),
-        Map("sub_task.sub_task_o1" -> WdlString("SubTaskOutputString"))
+        Seq(WorkflowOutputExpectation("sub_task.sub_task_o1", WomStringType, "sub_task.sub_task_o1")),
+        Map("sub_task.sub_task_o1" -> WomString("SubTaskOutputString"))
       ),
       WorkflowOutputTestCase(
         "aliased sub task wildcard",
         "sub_task2.*",
-        Seq(WorkflowOutputExpectation("sub_task2.sub_task_o1", WdlStringType, "sub_task2.sub_task_o1")),
-        Map("sub_task2.sub_task_o1" -> WdlString("SubTask2OutputString"))
+        Seq(WorkflowOutputExpectation("sub_task2.sub_task_o1", WomStringType, "sub_task2.sub_task_o1")),
+        Map("sub_task2.sub_task_o1" -> WomString("SubTask2OutputString"))
       ),
       
       /*  DIRECT OUTPUT REFERENCES  */
@@ -218,44 +218,44 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
       WorkflowOutputTestCase(
         "task output",
         "main_task.task_o1",
-        Seq(WorkflowOutputExpectation("main_task.task_o1", WdlStringType, "main_task.task_o1")),
-        Map("main_task.task_o1" -> WdlString("MainTaskOutputString"))
+        Seq(WorkflowOutputExpectation("main_task.task_o1", WomStringType, "main_task.task_o1")),
+        Map("main_task.task_o1" -> WomString("MainTaskOutputString"))
       ),
       WorkflowOutputTestCase(
         "aliased task output",
         "main_task2.task_o2",
-        Seq(WorkflowOutputExpectation("main_task2.task_o2", WdlArrayType(WdlIntegerType), "main_task2.task_o2")),
-        Map("main_task2.task_o2" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(16))))
+        Seq(WorkflowOutputExpectation("main_task2.task_o2", WomArrayType(WomIntegerType), "main_task2.task_o2")),
+        Map("main_task2.task_o2" -> WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(16))))
       ),
       WorkflowOutputTestCase(
         "task output in scatter",
         "main_task_in_scatter.task_o1",
-        Seq(WorkflowOutputExpectation("main_task_in_scatter.task_o1", WdlArrayType(WdlStringType), "main_task_in_scatter.task_o1")),
-        Map("main_task_in_scatter.task_o1" -> WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("MainTaskOutputString"))))
+        Seq(WorkflowOutputExpectation("main_task_in_scatter.task_o1", WomArrayType(WomStringType), "main_task_in_scatter.task_o1")),
+        Map("main_task_in_scatter.task_o1" -> WomArray(WomArrayType(WomStringType), Seq(WomString("MainTaskOutputString"))))
       ),
       WorkflowOutputTestCase(
         "sub task output",
         "sub_task.sub_task_o1",
-        Seq(WorkflowOutputExpectation("sub_task.sub_task_o1", WdlStringType, "sub_task.sub_task_o1")),
-        Map("sub_task.sub_task_o1" -> WdlString("SubTaskOutputString"))
+        Seq(WorkflowOutputExpectation("sub_task.sub_task_o1", WomStringType, "sub_task.sub_task_o1")),
+        Map("sub_task.sub_task_o1" -> WomString("SubTaskOutputString"))
         ),
       WorkflowOutputTestCase(
         "aliased sub task output",
         "sub_task2.sub_task_o1",
-        Seq(WorkflowOutputExpectation("sub_task2.sub_task_o1", WdlStringType, "sub_task2.sub_task_o1")),
-        Map("sub_task2.sub_task_o1" -> WdlString("SubTask2OutputString"))
+        Seq(WorkflowOutputExpectation("sub_task2.sub_task_o1", WomStringType, "sub_task2.sub_task_o1")),
+        Map("sub_task2.sub_task_o1" -> WomString("SubTask2OutputString"))
       ),
       WorkflowOutputTestCase(
         "sub workflow output",
         "sub_workflow.sub_o1",
-        Seq(WorkflowOutputExpectation("sub_workflow.sub_o1", WdlStringType, "sub_workflow.sub_o1")),
-        Map("sub_workflow.sub_o1" -> WdlString("SubWorkflowOutputString"))
+        Seq(WorkflowOutputExpectation("sub_workflow.sub_o1", WomStringType, "sub_workflow.sub_o1")),
+        Map("sub_workflow.sub_o1" -> WomString("SubWorkflowOutputString"))
       ),
       WorkflowOutputTestCase(
         "aliased sub workflow output",
         "sub_workflow2.sub_o1",
-        Seq(WorkflowOutputExpectation("sub_workflow2.sub_o1", WdlStringType, "sub_workflow2.sub_o1")),
-        Map("sub_workflow2.sub_o1" -> WdlString("SubWorkflow2OutputString"))
+        Seq(WorkflowOutputExpectation("sub_workflow2.sub_o1", WomStringType, "sub_workflow2.sub_o1")),
+        Map("sub_workflow2.sub_o1" -> WomString("SubWorkflow2OutputString"))
       ),
 
       /*  DECLARATIVE SYNTAX  */
@@ -284,38 +284,38 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
       WorkflowOutputTestCase(
         "declarative task output",
         "String o1 = main_task.task_o1",
-        Seq(WorkflowOutputExpectation("o1", WdlStringType, "main_task.task_o1")),
-        Map("o1" -> WdlString("MainTaskOutputString"))
+        Seq(WorkflowOutputExpectation("o1", WomStringType, "main_task.task_o1")),
+        Map("o1" -> WomString("MainTaskOutputString"))
       ),
       WorkflowOutputTestCase(
         "declarative aliased task output",
         "Array[Int] o2 = main_task2.task_o2",
-        Seq(WorkflowOutputExpectation("o2", WdlArrayType(WdlIntegerType), "main_task2.task_o2")),
-        Map("o2" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(16))))
+        Seq(WorkflowOutputExpectation("o2", WomArrayType(WomIntegerType), "main_task2.task_o2")),
+        Map("o2" -> WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(16))))
       ),
       WorkflowOutputTestCase(
         "declarative sub task output",
         "String o3 = sub_task.sub_task_o1",
-        Seq(WorkflowOutputExpectation("o3", WdlStringType, "sub_task.sub_task_o1")),
-        Map("o3" -> WdlString("SubTaskOutputString"))
+        Seq(WorkflowOutputExpectation("o3", WomStringType, "sub_task.sub_task_o1")),
+        Map("o3" -> WomString("SubTaskOutputString"))
       ),
       WorkflowOutputTestCase(
         "declarative aliased sub task output",
         "String o4 = sub_task2.sub_task_o1",
-        Seq(WorkflowOutputExpectation("o4", WdlStringType, "sub_task2.sub_task_o1")),
-        Map("o4" -> WdlString("SubTask2OutputString"))
+        Seq(WorkflowOutputExpectation("o4", WomStringType, "sub_task2.sub_task_o1")),
+        Map("o4" -> WomString("SubTask2OutputString"))
       ),
       WorkflowOutputTestCase(
         "declarative sub workflow output",
         "String o5 = sub_workflow.sub_o1",
-        Seq(WorkflowOutputExpectation("o5", WdlStringType, "sub_workflow.sub_o1")),
-        Map("o5" -> WdlString("SubWorkflowOutputString"))
+        Seq(WorkflowOutputExpectation("o5", WomStringType, "sub_workflow.sub_o1")),
+        Map("o5" -> WomString("SubWorkflowOutputString"))
       ),
       WorkflowOutputTestCase(
         "declarative aliased sub workflow output",
         "String o6 = sub_workflow2.sub_o1",
-        Seq(WorkflowOutputExpectation("o6", WdlStringType, "sub_workflow2.sub_o1")),
-        Map("o6" -> WdlString("SubWorkflow2OutputString"))
+        Seq(WorkflowOutputExpectation("o6", WomStringType, "sub_workflow2.sub_o1")),
+        Map("o6" -> WomString("SubWorkflow2OutputString"))
       ),
       WorkflowOutputTestCase(
         "declarative reference to previous output",
@@ -323,61 +323,61 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
           |String o7 = o1
         """.stripMargin,
         Seq(
-          WorkflowOutputExpectation("o1", WdlStringType, "\"hey\""),
-          WorkflowOutputExpectation("o7", WdlStringType, "o1")
+          WorkflowOutputExpectation("o1", WomStringType, "\"hey\""),
+          WorkflowOutputExpectation("o7", WomStringType, "o1")
         ),
         Map(
-          "o1" -> WdlString("hey"),
-          "o7" -> WdlString("hey")
+          "o1" -> WomString("hey"),
+          "o7" -> WomString("hey")
         )
       ),
       WorkflowOutputTestCase(
         "declarative reference to empty input declaration",
         "String o8 = workflow_input",
-        Seq(WorkflowOutputExpectation("o8", WdlStringType, "workflow_input")),
-        Map("o8" -> WdlString("workflow_input"))
+        Seq(WorkflowOutputExpectation("o8", WomStringType, "workflow_input")),
+        Map("o8" -> WomString("workflow_input"))
       ),
       WorkflowOutputTestCase(
         "declarative reference to provided input declaration",
         "String o9 = workflow_input2",
-        Seq(WorkflowOutputExpectation("o9", WdlStringType, "workflow_input2")),
-        Map("o9" -> WdlString("workflow_input2"))
+        Seq(WorkflowOutputExpectation("o9", WomStringType, "workflow_input2")),
+        Map("o9" -> WomString("workflow_input2"))
       ),
       WorkflowOutputTestCase(
         "declarative coercion",
         "File o10 = workflow_input2",
-        Seq(WorkflowOutputExpectation("o10", WdlFileType, "workflow_input2")),
-        Map("o10" -> WdlSingleFile("workflow_input2"))
+        Seq(WorkflowOutputExpectation("o10", WomFileType, "workflow_input2")),
+        Map("o10" -> WomSingleFile("workflow_input2"))
       ),
       WorkflowOutputTestCase(
         "declarative complex type",
         "Array[Int] o11 = main_task2.task_o2",
-        Seq(WorkflowOutputExpectation("o11", WdlArrayType(WdlIntegerType), "main_task2.task_o2")),
-        Map("o11" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(16))))
+        Seq(WorkflowOutputExpectation("o11", WomArrayType(WomIntegerType), "main_task2.task_o2")),
+        Map("o11" -> WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(16))))
       ),
       WorkflowOutputTestCase(
         "inline declaration with complex type",
         "Map[Int, String] o12 = {1: \"1\"}",
-        Seq(WorkflowOutputExpectation("o12", WdlMapType(WdlIntegerType, WdlStringType), "{1:\"1\"}")),
-        Map("o12" -> WdlMap(WdlMapType(WdlIntegerType,WdlStringType), Map(WdlInteger(1) -> WdlString("1"))))
+        Seq(WorkflowOutputExpectation("o12", WomMapType(WomIntegerType, WomStringType), "{1:\"1\"}")),
+        Map("o12" -> WomMap(WomMapType(WomIntegerType,WomStringType), Map(WomInteger(1) -> WomString("1"))))
       ),
       WorkflowOutputTestCase(
         "simple expression",
         """String o13 = "hello" + " " + "world !"""",
-        Seq(WorkflowOutputExpectation("o13", WdlStringType, """"hello" + " " + "world !"""")),
-        Map("o13" -> WdlString("hello world !"))
+        Seq(WorkflowOutputExpectation("o13", WomStringType, """"hello" + " " + "world !"""")),
+        Map("o13" -> WomString("hello world !"))
       ),
       WorkflowOutputTestCase(
         "declarative task output in scatter",
         "Array[String] o14 = main_task_in_scatter.task_o1",
-        Seq(WorkflowOutputExpectation("o14", WdlArrayType(WdlStringType), "main_task_in_scatter.task_o1")),
-        Map("o14" -> WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("MainTaskOutputString"))))
+        Seq(WorkflowOutputExpectation("o14", WomArrayType(WomStringType), "main_task_in_scatter.task_o1")),
+        Map("o14" -> WomArray(WomArrayType(WomStringType), Seq(WomString("MainTaskOutputString"))))
       ),
       WorkflowOutputTestCase(
         "optional value",
         "String? o15 = optionalValue",
-        Seq(WorkflowOutputExpectation("o15", WdlOptionalType(WdlStringType), "optionalValue")),
-        Map("o15" -> WdlOptionalValue(WdlString("optional")))
+        Seq(WorkflowOutputExpectation("o15", WomOptionalType(WomStringType), "optionalValue")),
+        Map("o15" -> WomOptionalValue(WomString("optional")))
       ),
       
       /* LEGACY SYNTAX FOLLOWED BY NEW SYNTAX */
@@ -386,14 +386,14 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
         """main_task.*
           |String o1 = main_task.task_o1""".stripMargin,
         Seq(
-          WorkflowOutputExpectation("main_task.task_o1", WdlStringType, "main_task.task_o1"),
-          WorkflowOutputExpectation("main_task.task_o2", WdlArrayType(WdlIntegerType), "main_task.task_o2"),
-          WorkflowOutputExpectation("o1", WdlStringType, "main_task.task_o1")
+          WorkflowOutputExpectation("main_task.task_o1", WomStringType, "main_task.task_o1"),
+          WorkflowOutputExpectation("main_task.task_o2", WomArrayType(WomIntegerType), "main_task.task_o2"),
+          WorkflowOutputExpectation("o1", WomStringType, "main_task.task_o1")
         ),
         Map(
-          "main_task.task_o1" -> WdlString("MainTaskOutputString"),
-          "main_task.task_o2" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(8))),
-          "o1" -> WdlString("MainTaskOutputString")
+          "main_task.task_o1" -> WomString("MainTaskOutputString"),
+          "main_task.task_o2" -> WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(8))),
+          "o1" -> WomString("MainTaskOutputString")
         )
       )
     ) foreach { test =>
@@ -430,13 +430,13 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
         """.stripMargin
 
       val expectedDeclarations = Seq(
-        WorkflowOutputExpectation("t.o1", WdlStringType, "t.o1"),
-        WorkflowOutputExpectation("t.o2", WdlStringType, "t.o2")
+        WorkflowOutputExpectation("t.o1", WomStringType, "t.o1"),
+        WorkflowOutputExpectation("t.o2", WomStringType, "t.o2")
       )
       
       val expectedEvaluatedOutputs = Map(
-        "t.o1" -> WdlString("o1"),
-        "t.o2" -> WdlString("o2")
+        "t.o1" -> WomString("o1"),
+        "t.o2" -> WomString("o2")
       )
 
       val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
@@ -445,8 +445,8 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
         call match {
           case c: WdlCall if c == ns.workflow.findCallByName("t").get =>
             Success(WdlCallOutputsObject(c, Map(
-              "o1" -> WdlString("o1"),
-              "o2" -> WdlString("o2")
+              "o1" -> WomString("o1"),
+              "o2" -> WomString("o2")
               )
             ))
           case _ => Failure(new Exception())

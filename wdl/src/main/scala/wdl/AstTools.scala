@@ -104,16 +104,16 @@ object AstTools {
     def findTopLevelMemberAccesses(): Iterable[Ast] = AstTools.findTopLevelMemberAccesses(astNode)
     def sourceString: String = astNode.asInstanceOf[Terminal].getSourceString
     def astListAsVector: Seq[AstNode] = astNode.asInstanceOf[AstList].asScala.toVector
-    def wdlType(wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): WdlType = {
+    def womType(wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): WomType = {
       astNode match {
         case t: Terminal =>
           t.getSourceString match {
-            case WdlFileType.toWdlString => WdlFileType
-            case WdlStringType.toWdlString => WdlStringType
-            case WdlIntegerType.toWdlString => WdlIntegerType
-            case WdlFloatType.toWdlString => WdlFloatType
-            case WdlBooleanType.toWdlString => WdlBooleanType
-            case WdlObjectType.toWdlString => WdlObjectType
+            case WomFileType.`toDisplayString` => WomFileType
+            case WomStringType.`toDisplayString` => WomStringType
+            case WomIntegerType.`toDisplayString` => WomIntegerType
+            case WomFloatType.`toDisplayString` => WomFloatType
+            case WomBooleanType.`toDisplayString` => WomBooleanType
+            case WomObjectType.`toDisplayString` => WomObjectType
             case "Array" => throw new SyntaxError(wdlSyntaxErrorFormatter.arrayMustHaveATypeParameter(t))
           }
         case a: Ast if isOptionalType(a) => optionalType(a, wdlSyntaxErrorFormatter)
@@ -124,91 +124,91 @@ object AstTools {
           a.getAttribute("name").sourceString match {
             case "Pair" =>
               if (subtypes.size != 2) throw new SyntaxError(wdlSyntaxErrorFormatter.pairMustHaveExactlyTwoTypeParameters(typeTerminal))
-              val leftType = subtypes.head.wdlType(wdlSyntaxErrorFormatter)
-              val rightType = subtypes.tail.head.wdlType(wdlSyntaxErrorFormatter)
-              WdlPairType(leftType, rightType)
+              val leftType = subtypes.head.womType(wdlSyntaxErrorFormatter)
+              val rightType = subtypes.tail.head.womType(wdlSyntaxErrorFormatter)
+              WomPairType(leftType, rightType)
             case "Array" =>
               if (subtypes.size != 1) throw new SyntaxError(wdlSyntaxErrorFormatter.arrayMustHaveOnlyOneTypeParameter(typeTerminal))
-              val member = subtypes.head.wdlType(wdlSyntaxErrorFormatter)
-              WdlArrayType(member)
+              val member = subtypes.head.womType(wdlSyntaxErrorFormatter)
+              WomArrayType(member)
             case "Map" =>
               if (subtypes.size != 2) throw new SyntaxError(wdlSyntaxErrorFormatter.mapMustHaveExactlyTwoTypeParameters(typeTerminal))
-              val keyType = subtypes.head.wdlType(wdlSyntaxErrorFormatter)
-              val valueType = subtypes.tail.head.wdlType(wdlSyntaxErrorFormatter)
-              WdlMapType(keyType, valueType)
+              val keyType = subtypes.head.womType(wdlSyntaxErrorFormatter)
+              val valueType = subtypes.tail.head.womType(wdlSyntaxErrorFormatter)
+              WomMapType(keyType, valueType)
           }
         case _ => throw new UnsupportedOperationException(s"Unexpected WDL type AST: ${astNode.sourceString}")
       }
     }
 
     def isOptionalType(a: Ast) = a.getName.equals("OptionalType")
-    def optionalType(a: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter) = WdlOptionalType(a.getAttribute("innerType").wdlType(wdlSyntaxErrorFormatter))
+    def optionalType(a: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter) = WomOptionalType(a.getAttribute("innerType").womType(wdlSyntaxErrorFormatter))
 
     def isNonEmptyType(a: Ast) = a.getName.equals("NonEmptyType")
     def nonEmptyType(a: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter) = {
-      val innerType = a.getAttribute("innerType").wdlType(wdlSyntaxErrorFormatter)
+      val innerType = a.getAttribute("innerType").womType(wdlSyntaxErrorFormatter)
       innerType match {
-        case arrayType: WdlArrayType => arrayType.asNonEmptyArrayType
+        case arrayType: WomArrayType => arrayType.asNonEmptyArrayType
         case _ => throw new UnsupportedOperationException("Currently the only supported non-empty types are Array[X]+")
       }
     }
 
-    def wdlValue(wdlType: WdlType, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): WdlValue = {
+    def womValue(womType: WomType, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): WomValue = {
 
       def astToMap(ast: Ast) = {
-        val mapType = wdlType.asInstanceOf[WdlMapType]
+        val mapType = womType.asInstanceOf[WomMapType]
         val elements = ast.getAttribute("map").asInstanceOf[AstList].asScala.toVector.map({ kvnode =>
-          val k = kvnode.asInstanceOf[Ast].getAttribute("key").wdlValue(mapType.keyType, wdlSyntaxErrorFormatter)
-          val v = kvnode.asInstanceOf[Ast].getAttribute("value").wdlValue(mapType.valueType, wdlSyntaxErrorFormatter)
+          val k = kvnode.asInstanceOf[Ast].getAttribute("key").womValue(mapType.keyType, wdlSyntaxErrorFormatter)
+          val v = kvnode.asInstanceOf[Ast].getAttribute("value").womValue(mapType.valueType, wdlSyntaxErrorFormatter)
           k -> v
         }).toMap
 
-        WdlMap(mapType, elements)
+        WomMap(mapType, elements)
       }
 
       def astToObject(ast: Ast) = {
         val elements = ast.getAttribute("map").asInstanceOf[AstList].asScala.toVector.map({ kvnode =>
           val k = kvnode.asInstanceOf[Ast].getAttribute("key").sourceString
-          val v = kvnode.asInstanceOf[Ast].getAttribute("value").wdlValue(WdlStringType, wdlSyntaxErrorFormatter)
+          val v = kvnode.asInstanceOf[Ast].getAttribute("value").womValue(WomStringType, wdlSyntaxErrorFormatter)
           k -> v
         }).toMap
 
-        WdlObject(elements)
+        WomObject(elements)
       }
 
-      def astTupleToValue(a: Ast): WdlValue = {
+      def astTupleToValue(a: Ast): WomValue = {
         val subElements = a.getAttribute("values").astListAsVector
         if (subElements.size == 1) {
           // Tuple 1 is equivalent to the value inside it. Enables nesting parens, e.g. (1 + 2) + 3
-          a.wdlValue(wdlType, wdlSyntaxErrorFormatter)
-        } else if (subElements.size == 2 && wdlType.isInstanceOf[WdlPairType]) {
-          val pairType = wdlType.asInstanceOf[WdlPairType]
-          WdlPair(subElements.head.wdlValue(pairType.leftType, wdlSyntaxErrorFormatter), subElements(1).wdlValue(pairType.rightType, wdlSyntaxErrorFormatter))
+          a.womValue(womType, wdlSyntaxErrorFormatter)
+        } else if (subElements.size == 2 && womType.isInstanceOf[WomPairType]) {
+          val pairType = womType.asInstanceOf[WomPairType]
+          WomPair(subElements.head.womValue(pairType.leftType, wdlSyntaxErrorFormatter), subElements(1).womValue(pairType.rightType, wdlSyntaxErrorFormatter))
         } else {
-          throw new SyntaxError(s"Could not convert AST to a $wdlType (${Option(astNode).getOrElse("No AST").toString})")
+          throw new SyntaxError(s"Could not convert AST to a $womType (${Option(astNode).getOrElse("No AST").toString})")
         }
       }
 
       astNode match {
-        case t: Terminal if t.getTerminalStr == "string" && wdlType == WdlStringType => WdlString(t.getSourceString)
-        case t: Terminal if t.getTerminalStr == "string" && wdlType == WdlFileType => WdlFile(t.getSourceString)
-        case t: Terminal if t.getTerminalStr == "integer" && wdlType == WdlIntegerType => WdlInteger(t.getSourceString.toInt)
-        case t: Terminal if t.getTerminalStr == "float" && wdlType == WdlFloatType => WdlFloat(t.getSourceString.toDouble)
-        case t: Terminal if t.getTerminalStr == "boolean" && wdlType == WdlBooleanType => t.getSourceString.toLowerCase match {
-          case "true" => WdlBoolean.True
-          case "false" => WdlBoolean.False
+        case t: Terminal if t.getTerminalStr == "string" && womType == WomStringType => WomString(t.getSourceString)
+        case t: Terminal if t.getTerminalStr == "string" && womType == WomFileType => WomFile(t.getSourceString)
+        case t: Terminal if t.getTerminalStr == "integer" && womType == WomIntegerType => WomInteger(t.getSourceString.toInt)
+        case t: Terminal if t.getTerminalStr == "float" && womType == WomFloatType => WomFloat(t.getSourceString.toDouble)
+        case t: Terminal if t.getTerminalStr == "boolean" && womType == WomBooleanType => t.getSourceString.toLowerCase match {
+          case "true" => WomBoolean.True
+          case "false" => WomBoolean.False
         }
-        // TODO: The below cases, ArrayLiteral and MapLiteral, ObjectLiteral are brittle. They recursively call this wdlValue().
+        // TODO: The below cases, ArrayLiteral and MapLiteral, ObjectLiteral are brittle. They recursively call this womValue().
         // However, those recursive calls might contain full-on expressions instead of just other literals.  This
         // whole thing ought to be part of the regular expression evaluator, though I imagine that's non-trivial.
-        case a: Ast if a.getName == "ArrayLiteral" && wdlType.isInstanceOf[WdlArrayType] =>
-          val arrType = wdlType.asInstanceOf[WdlArrayType]
-          val elements = a.getAttribute("values").astListAsVector map {node => node.wdlValue(arrType.memberType, wdlSyntaxErrorFormatter)}
-          WdlArray(arrType, elements)
+        case a: Ast if a.getName == "ArrayLiteral" && womType.isInstanceOf[WomArrayType] =>
+          val arrType = womType.asInstanceOf[WomArrayType]
+          val elements = a.getAttribute("values").astListAsVector map {node => node.womValue(arrType.memberType, wdlSyntaxErrorFormatter)}
+          WomArray(arrType, elements)
         case a: Ast if a.getName == "TupleLiteral" => astTupleToValue(a)
-        case a: Ast if a.getName == "MapLiteral" && wdlType.isInstanceOf[WdlMapType] => astToMap(a)
-        case a: Ast if a.getName == "ObjectLiteral" && wdlType == WdlObjectType => astToObject(a)
-        case _ => throw new SyntaxError(s"Could not convert AST to a $wdlType (${Option(astNode).getOrElse("No AST").toString})")
+        case a: Ast if a.getName == "MapLiteral" && womType.isInstanceOf[WomMapType] => astToMap(a)
+        case a: Ast if a.getName == "ObjectLiteral" && womType == WomObjectType => astToObject(a)
+        case _ => throw new SyntaxError(s"Could not convert AST to a $womType (${Option(astNode).getOrElse("No AST").toString})")
       }
     }
   }

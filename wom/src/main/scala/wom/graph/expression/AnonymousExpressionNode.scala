@@ -4,7 +4,7 @@ import lenthall.validation.ErrorOr.ErrorOr
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.{InputPort, OutputPort}
 import wom.graph.WomIdentifier
-import wom.types.WdlType
+import wom.types.WomType
 
 object AnonymousExpressionNode {
   def fromInputMapping(identifier: WomIdentifier,
@@ -12,7 +12,7 @@ object AnonymousExpressionNode {
                        inputMapping: Map[String, OutputPort]): ErrorOr[ExpressionNode] = {
     def constructor(identifier: WomIdentifier,
                     expression: WomExpression,
-                    evaluatedType: WdlType,
+                    evaluatedType: WomType,
                     inputPorts: Map[String, InputPort]) = {
       new ExpressionNode(identifier, expression, evaluatedType, inputPorts) with AnonymousExpressionNode
     }

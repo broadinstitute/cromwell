@@ -1,34 +1,34 @@
 package cromwell
 
-import cromwell.core.simpleton.WdlValueSimpleton
+import cromwell.core.simpleton.WomValueSimpleton
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.tables.{CallCachingSimpletonEntry, JobStoreSimpletonEntry}
-import wom.types.{WdlBooleanType, WdlFloatType, WdlIntegerType, WdlStringType}
-import wom.values.{WdlPrimitive, WdlSingleFile, WdlValue}
+import wom.types.{WomBooleanType, WomFloatType, WomIntegerType, WomStringType}
+import wom.values.{WomPrimitive, WomSingleFile, WomValue}
 
 import scala.util.Try
 
-/** Converts database simpletons to `WdlValueSimpleton`s, explicitly instantiating objects of "File" type
+/** Converts database simpletons to `WomValueSimpleton`s, explicitly instantiating objects of "File" type
   * to `WdlSingleFile` instances.
   */
 object Simpletons {
-  def toSimpleton(entry: CallCachingSimpletonEntry): WdlValueSimpleton = {
+  def toSimpleton(entry: CallCachingSimpletonEntry): WomValueSimpleton = {
     toSimpleton(entry.wdlType, entry.simpletonKey, entry.simpletonValue.toRawString)
   }
 
-  def toSimpleton(entry: JobStoreSimpletonEntry): WdlValueSimpleton = {
+  def toSimpleton(entry: JobStoreSimpletonEntry): WomValueSimpleton = {
     toSimpleton(entry.wdlType, entry.simpletonKey, entry.simpletonValue.toRawString)
   }
 
-  private def toSimpleton(wdlType: String, simpletonKey: String, simpletonValue: String): WdlValueSimpleton = {
-    val wdlValue: String => Try[WdlValue] = wdlType match {
-      case "String" => WdlStringType.coerceRawValue
-      case "Int" => WdlIntegerType.coerceRawValue
-      case "Float" => WdlFloatType.coerceRawValue
-      case "Boolean" => WdlBooleanType.coerceRawValue
-      case "File" => s => Try(WdlSingleFile(s))
-      case _ => throw new RuntimeException(s"unrecognized WDL type: $wdlType")
+  private def toSimpleton(womType: String, simpletonKey: String, simpletonValue: String): WomValueSimpleton = {
+    val womValue: String => Try[WomValue] = womType match {
+      case "String" => WomStringType.coerceRawValue
+      case "Int" => WomIntegerType.coerceRawValue
+      case "Float" => WomFloatType.coerceRawValue
+      case "Boolean" => WomBooleanType.coerceRawValue
+      case "File" => s => Try(WomSingleFile(s))
+      case _ => throw new RuntimeException(s"unrecognized simpleton WOM type: $womType")
     }
-    WdlValueSimpleton(simpletonKey, wdlValue(simpletonValue).get.asInstanceOf[WdlPrimitive])
+    WomValueSimpleton(simpletonKey, womValue(simpletonValue).get.asInstanceOf[WomPrimitive])
   }
 }

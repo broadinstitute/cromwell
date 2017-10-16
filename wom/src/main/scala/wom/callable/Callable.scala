@@ -4,7 +4,7 @@ import lenthall.validation.ErrorOr.ErrorOr
 import wom.callable.Callable._
 import wom.expression.WomExpression
 import wom.graph.{Graph, LocalName}
-import wom.types.{WdlOptionalType, WdlType}
+import wom.types.{WomOptionalType, WomType}
 
 
 trait Callable {
@@ -18,7 +18,7 @@ trait Callable {
 object Callable {
   sealed trait InputDefinition {
     def localName: LocalName
-    def womType: WdlType
+    def womType: WomType
 
     /**
       * Alias for localName.asString
@@ -27,32 +27,32 @@ object Callable {
   }
 
   object RequiredInputDefinition {
-    def apply(name: String, womType: WdlType): RequiredInputDefinition = {
+    def apply(name: String, womType: WomType): RequiredInputDefinition = {
       RequiredInputDefinition(LocalName(name), womType)
     }
   }
-  final case class RequiredInputDefinition(localName: LocalName, womType: WdlType) extends InputDefinition
+  final case class RequiredInputDefinition(localName: LocalName, womType: WomType) extends InputDefinition
 
   object InputDefinitionWithDefault {
-    def apply(name: String, womType: WdlType, default: WomExpression): InputDefinitionWithDefault = {
+    def apply(name: String, womType: WomType, default: WomExpression): InputDefinitionWithDefault = {
       InputDefinitionWithDefault(LocalName(name), womType, default)
     }
   }
-  final case class InputDefinitionWithDefault(localName: LocalName, womType: WdlType, default: WomExpression) extends InputDefinition
+  final case class InputDefinitionWithDefault(localName: LocalName, womType: WomType, default: WomExpression) extends InputDefinition
 
   object OptionalInputDefinition {
-    def apply(name: String, womType: WdlOptionalType): OptionalInputDefinition = {
+    def apply(name: String, womType: WomOptionalType): OptionalInputDefinition = {
       OptionalInputDefinition(LocalName(name), womType)
     }
   }
-  final case class OptionalInputDefinition(localName: LocalName, womType: WdlOptionalType) extends InputDefinition
+  final case class OptionalInputDefinition(localName: LocalName, womType: WomOptionalType) extends InputDefinition
 
   object OutputDefinition {
-    def apply(name: String, womType: WdlType, expression: WomExpression): OutputDefinition = {
+    def apply(name: String, womType: WomType, expression: WomExpression): OutputDefinition = {
       OutputDefinition(LocalName(name), womType, expression)
     }
   }
-  final case class OutputDefinition(localName: LocalName, womType: WdlType, expression: WomExpression) {
+  final case class OutputDefinition(localName: LocalName, womType: WomType, expression: WomExpression) {
     /**
       * Alias for localName.asString
       */

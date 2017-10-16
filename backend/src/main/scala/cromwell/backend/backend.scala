@@ -10,7 +10,7 @@ import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
 import wom.callable.WorkflowDefinition
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.TaskCallNode
-import wom.values.{WdlValue, WomEvaluatedCallInputs}
+import wom.values.{WomValue, WomEvaluatedCallInputs}
 
 import scala.util.Try
 
@@ -29,7 +29,7 @@ case class BackendJobDescriptorKey(call: TaskCallNode, index: Option[Int], attem
   */
 case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                                 key: BackendJobDescriptorKey,
-                                runtimeAttributes: Map[LocallyQualifiedName, WdlValue],
+                                runtimeAttributes: Map[LocallyQualifiedName, WomValue],
                                 inputDeclarations: WomEvaluatedCallInputs,
                                 maybeCallCachingEligible: MaybeCallCachingEligible,
                                 prefetchedKvStoreEntries: Map[String, KvResponse]) {
@@ -46,7 +46,7 @@ case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
 object BackendWorkflowDescriptor {
   def apply(id: WorkflowId,
             workflow: WorkflowDefinition,
-            knownValues: Map[OutputPort, WdlValue],
+            knownValues: Map[OutputPort, WomValue],
             workflowOptions: WorkflowOptions,
             customLabels: Labels) = {
     new BackendWorkflowDescriptor(id, workflow, knownValues, workflowOptions, customLabels, List.empty)
@@ -58,7 +58,7 @@ object BackendWorkflowDescriptor {
   */
 case class BackendWorkflowDescriptor(id: WorkflowId,
                                      workflow: WorkflowDefinition,
-                                     knownValues: Map[OutputPort, WdlValue],
+                                     knownValues: Map[OutputPort, WomValue],
                                      workflowOptions: WorkflowOptions,
                                      customLabels: Labels,
                                      breadCrumbs: List[BackendJobBreadCrumb]) {
@@ -79,6 +79,6 @@ case class BackendConfigurationDescriptor(backendConfig: Config, globalConfig: C
     Option(backendConfig.getConfig("default-runtime-attributes")) else None
 }
 
-final case class AttemptedLookupResult(name: String, value: Try[WdlValue]) {
+final case class AttemptedLookupResult(name: String, value: Try[WomValue]) {
   def toPair = name -> value
 }

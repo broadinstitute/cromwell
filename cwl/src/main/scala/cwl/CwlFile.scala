@@ -11,7 +11,7 @@ import wom.callable.Callable.{OutputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, TaskDefinition}
 import wom.executable.Executable
 import wom.expression.WomExpression
-import wom.types.WdlFileType
+import wom.types.WomFileType
 import wom.{CommandPart, RuntimeAttributes}
 
 /**
@@ -111,10 +111,10 @@ case class CommandLineTool private(
 
     val outputs: List[Callable.OutputDefinition] = this.outputs.map {
       case CommandOutputParameter(id, _, _, _, _, _, Some(outputBinding), Some(tpe)) if tpe.select[CwlType].filter(_ == CwlType.File).isDefined =>
-        OutputDefinition(RunId(id).variableId, WdlFileType, CommandOutputExpression(outputBinding, WdlFileType))
+        OutputDefinition(RunId(id).variableId, WomFileType, CommandOutputExpression(outputBinding, WomFileType))
       case CommandOutputParameter(id, _, _, _, _, _, Some(outputBinding), Some(tpe)) =>
-        val wdlType = tpe.select[CwlType].map(cwlTypeToWdlType).get //<-- here be `get` dragons
-        OutputDefinition(RunId(id).variableId, wdlType, CommandOutputExpression(outputBinding, wdlType))
+        val womType = tpe.select[CwlType].map(cwlTypeToWdlType).get //<-- here be `get` dragons
+        OutputDefinition(RunId(id).variableId, womType, CommandOutputExpression(outputBinding, womType))
     }.toList
 
     val inputs: List[_ <: Callable.InputDefinition] =

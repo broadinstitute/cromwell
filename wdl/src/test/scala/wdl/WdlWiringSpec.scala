@@ -25,11 +25,11 @@ class WdlWiringSpec extends FlatSpec with Matchers {
       }
     }
 
-    expectedInputs(testDir, namespace) foreach { case (fqn, wdlType) =>
-      it should s"have $fqn (of type $wdlType) as an input in WDL file $wdlFileRelPath" in {
+    expectedInputs(testDir, namespace) foreach { case (fqn, womType) =>
+      it should s"have $fqn (of type $womType) as an input in WDL file $wdlFileRelPath" in {
         val input = namespace.workflow.inputs.get(fqn)
         input should not be None
-        input.map(_.wdlType.toWdlString) shouldEqual Option(wdlType)
+        input.map(_.womType.toDisplayString) shouldEqual Option(womType)
       }
     }
 
@@ -86,7 +86,7 @@ class WdlWiringSpec extends FlatSpec with Matchers {
 
     if (!expectedWorkflowInputsFile.exists) {
       val workflowInputs = namespace.workflow.inputs map { case (fqn, input) =>
-        fqn -> JsString(input.wdlType.toWdlString)
+        fqn -> JsString(input.womType.toDisplayString)
       }
       val jsObject = JsObject(ListMap(workflowInputs.toSeq.sortBy(_._1): _*))
       expectedWorkflowInputsFile.write(jsObject.prettyPrint + "\n")

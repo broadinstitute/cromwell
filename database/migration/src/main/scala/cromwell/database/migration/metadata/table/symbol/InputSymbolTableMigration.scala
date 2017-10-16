@@ -2,7 +2,7 @@ package cromwell.database.migration.metadata.table.symbol
 
 import java.sql.PreparedStatement
 
-import wom.values.WdlValue
+import wom.values.WomValue
 
 class InputSymbolTableMigration extends SymbolTableMigration {
 
@@ -12,7 +12,7 @@ class InputSymbolTableMigration extends SymbolTableMigration {
                              symbolScope: String,
                              symbolIndex: Option[Int],
                              symbolAttempt: Option[Int],
-                             wdlValue: WdlValue): Int = {
+                             womValue: WomValue): Int = {
 
     (symbolIndex, symbolAttempt) match {
       case (Some(index) , Some(attempt)) =>
@@ -24,10 +24,10 @@ class InputSymbolTableMigration extends SymbolTableMigration {
           attempt
         )
 
-        addWdlValue(s"inputs:$symbolName", wdlValue, metadataStatementForCall)
+        addWdlValue(s"inputs:$symbolName", womValue, metadataStatementForCall)
       case (None, None) if !symbolScope.contains('.') =>
         val metadataStatementForWorkflow = new MetadataStatementForWorkflow(statement, workflowUuid)
-        addWdlValue(s"inputs:$symbolScope.$symbolName", wdlValue, metadataStatementForWorkflow)
+        addWdlValue(s"inputs:$symbolScope.$symbolName", womValue, metadataStatementForWorkflow)
       case _ =>
         0
     }

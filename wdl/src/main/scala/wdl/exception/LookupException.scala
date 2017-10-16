@@ -2,7 +2,7 @@ package wdl.exception
 
 import lenthall.exception.ThrowableAggregation
 import wdl.{Declaration, WdlGraphNode}
-import wom.types.WdlType
+import wom.types.WomType
 
 sealed trait LookupException { this: Exception => }
 
@@ -13,8 +13,8 @@ sealed abstract case class VariableNotFoundException(variable: String, quoteName
 
 object VariableNotFoundException {
   def apply(variable: String): VariableNotFoundException = new VariableNotFoundException(s"'$variable'") {}
-  def apply(variable: String, variableType: WdlType): VariableNotFoundException= new VariableNotFoundException(s"'$variable': ${variableType.toWdlString}") {}
-  def apply(declaration: Declaration): VariableNotFoundException = VariableNotFoundException.apply(declaration.fullyQualifiedName, declaration.wdlType)
+  def apply(variable: String, variableType: WomType): VariableNotFoundException= new VariableNotFoundException(s"'$variable': ${variableType.toDisplayString}") {}
+  def apply(declaration: Declaration): VariableNotFoundException = VariableNotFoundException.apply(declaration.fullyQualifiedName, declaration.womType)
 }
 
 /**

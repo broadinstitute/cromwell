@@ -19,29 +19,29 @@ import scala.util.Try
   * `instance` returns an validation that errors when no attribute is specified.
   *
   * `configDefaultWdlValue` returns the value of the attribute as specified by the
-  * reference.conf file, coerced into a WdlValue.
+  * reference.conf file, coerced into a WomValue.
   *
   * `default` a validation with the default value specified by the reference.conf file.
   */
 object ContinueOnReturnCodeValidation {
   lazy val instance: RuntimeAttributesValidation[ContinueOnReturnCode] = new ContinueOnReturnCodeValidation
   def default(runtimeConfig: Option[Config]): RuntimeAttributesValidation[ContinueOnReturnCode] = instance.withDefault(
-    configDefaultWdlValue(runtimeConfig) getOrElse WdlInteger(0))
-  def configDefaultWdlValue(runtimeConfig: Option[Config]): Option[WdlValue] = instance.configDefaultWdlValue(runtimeConfig)
+    configDefaultWdlValue(runtimeConfig) getOrElse WomInteger(0))
+  def configDefaultWdlValue(runtimeConfig: Option[Config]): Option[WomValue] = instance.configDefaultWdlValue(runtimeConfig)
 }
 
 class ContinueOnReturnCodeValidation extends RuntimeAttributesValidation[ContinueOnReturnCode] {
 
   override def key: String = RuntimeAttributesKeys.ContinueOnReturnCodeKey
 
-  override def coercion: Set[WdlType] = ContinueOnReturnCode.validWdlTypes
+  override def coercion: Set[WomType] = ContinueOnReturnCode.validWdlTypes
 
-  override def validateValue: PartialFunction[WdlValue, ErrorOr[ContinueOnReturnCode]] = {
-    case WdlBoolean(value) => ContinueOnReturnCodeFlag(value).validNel
-    case WdlString(value) if Try(value.toBoolean).isSuccess => ContinueOnReturnCodeFlag(value.toBoolean).validNel
-    case WdlString(value) if Try(value.toInt).isSuccess => ContinueOnReturnCodeSet(Set(value.toInt)).validNel
-    case WdlInteger(value) => ContinueOnReturnCodeSet(Set(value)).validNel
-    case value@WdlArray(_, seq) =>
+  override def validateValue: PartialFunction[WomValue, ErrorOr[ContinueOnReturnCode]] = {
+    case WomBoolean(value) => ContinueOnReturnCodeFlag(value).validNel
+    case WomString(value) if Try(value.toBoolean).isSuccess => ContinueOnReturnCodeFlag(value.toBoolean).validNel
+    case WomString(value) if Try(value.toInt).isSuccess => ContinueOnReturnCodeSet(Set(value.toInt)).validNel
+    case WomInteger(value) => ContinueOnReturnCodeSet(Set(value)).validNel
+    case value@WomArray(_, seq) =>
       val errorOrInts: ErrorOr[List[Int]] = (seq.toList map validateInt).sequence[ErrorOr, Int]
       errorOrInts match {
         case Valid(ints) => ContinueOnReturnCodeSet(ints.toSet).validNel
@@ -49,16 +49,16 @@ class ContinueOnReturnCodeValidation extends RuntimeAttributesValidation[Continu
       }
   }
 
-  override def validateExpression: PartialFunction[WdlValue, Boolean] = {
-    case WdlBoolean(_) => true
-    case WdlString(value) if Try(value.toInt).isSuccess => true
-    case WdlString(value) if Try(value.toBoolean).isSuccess => true
-    case WdlInteger(_) => true
-    case WdlArray(WdlArrayType(WdlStringType), elements) =>
+  override def validateExpression: PartialFunction[WomValue, Boolean] = {
+    case WomBoolean(_) => true
+    case WomString(value) if Try(value.toInt).isSuccess => true
+    case WomString(value) if Try(value.toBoolean).isSuccess => true
+    case WomInteger(_) => true
+    case WomArray(WomArrayType(WomStringType), elements) =>
       elements forall {
         value => Try(value.valueString.toInt).isSuccess
       }
-    case WdlArray(WdlArrayType(WdlIntegerType), _) => true
+    case WomArray(WomArrayType(WomIntegerType), _) => true
   }
 
   override protected def missingValueMessage: String = s"Expecting $key" +

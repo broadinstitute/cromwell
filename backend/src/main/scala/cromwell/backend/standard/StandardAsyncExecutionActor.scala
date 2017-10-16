@@ -111,7 +111,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param wdlFile The wdlFile.
     * @return The updated wdlFile.
     */
-  def preProcessWdlFile(wdlFile: WdlFile): WdlFile = wdlFile
+  def preProcessWdlFile(wdlFile: WomFile): WomFile = wdlFile
 
   /** @see [[Command.instantiate]] */
   final lazy val commandLinePreProcessor: WomEvaluatedCallInputs => Try[WomEvaluatedCallInputs] = {
@@ -126,12 +126,12 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param wdlFile The wdlFile.
     * @return The updated wdlFile.
     */
-  def mapCommandLineWdlFile(wdlFile: WdlFile): WdlFile =
-    WdlSingleFile(workflowPaths.buildPath(wdlFile.value).pathAsString)
+  def mapCommandLineWdlFile(wdlFile: WomFile): WomFile =
+    WomSingleFile(workflowPaths.buildPath(wdlFile.value).pathAsString)
 
   /** @see [[Command.instantiate]] */
-  final lazy val commandLineValueMapper: WdlValue => WdlValue = {
-    wdlValue => WdlFileMapper.mapWdlFiles(mapCommandLineWdlFile)(wdlValue).get
+  final lazy val commandLineValueMapper: WomValue => WomValue = {
+    womValue => WdlFileMapper.mapWdlFiles(mapCommandLineWdlFile)(womValue).get
   }
 
   /**
@@ -147,7 +147,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param wdlGlobFile The glob.
     * @return The parent directory for writing the wdl glob.
     */
-  def globParentDirectory(wdlGlobFile: WdlGlobFile): Path = commandDirectory
+  def globParentDirectory(wdlGlobFile: WomGlobFile): Path = commandDirectory
 
   /**
     * Returns the shell scripting for hard linking the glob results using ln.
@@ -155,7 +155,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param globFiles The globs.
     * @return The shell scripting.
     */
-  def globManipulations(globFiles: Traversable[WdlGlobFile]): String = globFiles map globManipulation mkString "\n"
+  def globManipulations(globFiles: Traversable[WomGlobFile]): String = globFiles map globManipulation mkString "\n"
 
   /**
     * Returns the shell scripting for hard linking a glob results using ln.
@@ -163,7 +163,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param globFile The glob.
     * @return The shell scripting.
     */
-  def globManipulation(globFile: WdlGlobFile): String = {
+  def globManipulation(globFile: WomGlobFile): String = {
     val parentDirectory = globParentDirectory(globFile)
     val globDir = backendEngineFunctions.globName(globFile.value)
     val globDirectory = parentDirectory./(globDir)
@@ -186,7 +186,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     val rcPath = cwd./(jobPaths.returnCodeFilename)
     val rcTmpPath = rcPath.plusExt("tmp")
 
-    val globFiles: ErrorOr[List[WdlGlobFile]] = backendEngineFunctions.findGlobOutputs(call, jobDescriptor)
+    val globFiles: ErrorOr[List[WomGlobFile]] = backendEngineFunctions.findGlobOutputs(call, jobDescriptor)
 
     globFiles.map(globFiles =>
     s"""|#!/bin/bash
@@ -403,11 +403,11 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   /**
     * Output value mapper.
     *
-    * @param wdlValue The original wdl value.
+    * @param womValue The original wdl value.
     * @return The Try wrapped and mapped wdl value.
     */
-  final def outputValueMapper(wdlValue: WdlValue): Try[WdlValue] = {
-    WdlFileMapper.mapWdlFiles(mapOutputWdlFile)(wdlValue)
+  final def outputValueMapper(womValue: WomValue): Try[WomValue] = {
+    WdlFileMapper.mapWdlFiles(mapOutputWdlFile)(womValue)
   }
 
   /**
@@ -416,7 +416,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param wdlFile The original file.
     * @return The mapped output file.
     */
-  def mapOutputWdlFile(wdlFile: WdlFile): WdlFile = wdlFile
+  def mapOutputWdlFile(wdlFile: WomFile): WomFile = wdlFile
 
   /**
     * Tries to evaluate the outputs.

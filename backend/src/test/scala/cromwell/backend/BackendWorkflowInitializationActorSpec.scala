@@ -29,7 +29,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
     TestPredicateBackendWorkflowInitializationActor =
     testPredicateBackendWorkflowInitializationActorRef.underlyingActor
 
-  val testContinueOnReturnCode: (Option[WdlValue]) => Boolean = {
+  val testContinueOnReturnCode: (Option[WomValue]) => Boolean = {
     testPredicateBackendWorkflowInitializationActor.continueOnReturnCodePredicate(valueRequired = false)
   }
 
@@ -59,118 +59,118 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
     )
 
     val invalidWdlValueRows = Table(
-      "wdlValue",
-      WdlString(""),
-      WdlString("z"),
-      WdlFloat(0.0D),
-      WdlArray(WdlArrayType(WdlBooleanType), Seq(WdlBoolean(true))),
-      WdlArray(WdlArrayType(WdlFloatType), Seq(WdlFloat(0.0D)))
+      "womValue",
+      WomString(""),
+      WomString("z"),
+      WomFloat(0.0D),
+      WomArray(WomArrayType(WomBooleanType), Seq(WomBoolean(true))),
+      WomArray(WomArrayType(WomFloatType), Seq(WomFloat(0.0D)))
     )
 
     forAll(booleanRows) { value =>
-      val wdlValue = WdlBoolean(value)
+      val womValue = WomBoolean(value)
       val result = true
-      testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      testContinueOnReturnCode(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
       val valid =
-        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
+        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
       valid.toEither.right.get should be(ContinueOnReturnCodeFlag(value))
     }
 
     forAll(booleanRows) { value =>
-      val wdlValue = WdlString(value.toString)
+      val womValue = WomString(value.toString)
       val result = true
-      testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      testContinueOnReturnCode(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
       val valid =
-        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
+        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
       valid.toEither.right.get should be(ContinueOnReturnCodeFlag(value))
     }
 
     forAll(booleanRows) { value =>
-      val wdlValue = WdlExpression.fromString(value.toString)
+      val womValue = WdlExpression.fromString(value.toString)
       val result = true
-      testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      testContinueOnReturnCode(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
       // NOTE: expressions are never valid to validate
     }
 
     forAll(integerRows) { value =>
-      val wdlValue = WdlInteger(value)
+      val womValue = WomInteger(value)
       val result = true
-      testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      testContinueOnReturnCode(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
       val valid =
-        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
+        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
       valid.toEither.right.get should be(ContinueOnReturnCodeSet(Set(value)))
     }
 
     forAll(integerRows) { value =>
-      val wdlValue = WdlString(value.toString)
+      val womValue = WomString(value.toString)
       val result = true
-      testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      testContinueOnReturnCode(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
       val valid =
-        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
+        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
       valid.toEither.right.get should be(ContinueOnReturnCodeSet(Set(value)))
     }
 
     forAll(integerRows) { value =>
-      val wdlValue = WdlExpression.fromString(value.toString)
+      val womValue = WdlExpression.fromString(value.toString)
       val result = true
-      testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      testContinueOnReturnCode(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
       // NOTE: expressions are never valid to validate
     }
 
     forAll(integerRows) { value =>
-      val wdlValue = WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(value)))
+      val womValue = WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(value)))
       val result = true
-      testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      testContinueOnReturnCode(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
       val valid =
-        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
+        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
       valid.toEither.right.get should be(ContinueOnReturnCodeSet(Set(value)))
     }
 
     forAll(integerRows) { value =>
-      val wdlValue = WdlArray(WdlArrayType(WdlStringType), Seq(WdlString(value.toString)))
+      val womValue = WomArray(WomArrayType(WomStringType), Seq(WomString(value.toString)))
       val result = true
-      testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      testContinueOnReturnCode(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
       val valid =
-        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
+        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
       valid.toEither.right.get should be(ContinueOnReturnCodeSet(Set(value)))
     }
 
     forAll(integerRows) { value =>
-      val wdlValue = WdlArray(WdlArrayType(WdlExpressionType), Seq(WdlExpression.fromString(value.toString)))
+      val womValue = WomArray(WomArrayType(WdlExpressionType), Seq(WdlExpression.fromString(value.toString)))
       val result = false
-      testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      testContinueOnReturnCode(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
       // NOTE: expressions are never valid to validate
     }
 
     forAll(expressionRows) { expression =>
-      val wdlValue = WdlExpression.fromString(expression)
+      val womValue = WdlExpression.fromString(expression)
       val result = true
-      testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      testContinueOnReturnCode(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
       // NOTE: expressions are never valid to validate
     }
 
-    forAll(invalidWdlValueRows) { wdlValue =>
+    forAll(invalidWdlValueRows) { womValue =>
       val result = false
-      testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      testContinueOnReturnCode(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
       val valid =
-        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
+        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
       valid.toEither.left.get.toList should contain theSameElementsAs List(
         "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
@@ -187,10 +187,10 @@ class TestPredicateBackendWorkflowInitializationActor extends BackendWorkflowIni
 
   override def calls: Set[TaskCallNode] = throw new NotImplementedError("calls")
 
-  override protected def runtimeAttributeValidators: Map[String, (Option[WdlValue]) => Boolean] =
+  override protected def runtimeAttributeValidators: Map[String, (Option[WomValue]) => Boolean] =
     throw new NotImplementedError("runtimeAttributeValidators")
 
-  override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WdlValue]] =
+  override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WomValue]] =
     throw new NotImplementedError("coerceDefaultRuntimeAttributes")
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = throw new NotImplementedError("beforeAll")
@@ -203,7 +203,7 @@ class TestPredicateBackendWorkflowInitializationActor extends BackendWorkflowIni
   override protected def configurationDescriptor: BackendConfigurationDescriptor = BackendConfigurationDescriptor(TestConfig.sampleBackendRuntimeConfig, ConfigFactory.empty())
 
   override def continueOnReturnCodePredicate(valueRequired: Boolean)
-                                            (wdlExpressionMaybe: Option[WdlValue]): Boolean = {
+                                            (wdlExpressionMaybe: Option[WomValue]): Boolean = {
     super.continueOnReturnCodePredicate(valueRequired)(wdlExpressionMaybe)
   }
 }

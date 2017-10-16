@@ -3,7 +3,7 @@ package wom.graph
 import wom.graph.GraphNode.GeneratedNodeAndNewNodes
 import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort, ScatterGathererPort}
 import wom.graph.expression.ExpressionNode
-import wom.types.WdlArrayType
+import wom.types.WomArrayType
 
 /**
   *
@@ -55,7 +55,7 @@ object ScatterNode {
     val graphNodeSetter = new GraphNode.GraphNodeSetter()
 
     val outputPorts: Set[ScatterGathererPort] = innerGraph.nodes.collect { case gon: PortBasedGraphOutputNode =>
-      ScatterGathererPort(WdlArrayType(gon.womType), gon, graphNodeSetter.get)
+      ScatterGathererPort(WomArrayType(gon.womType), gon, graphNodeSetter.get)
     }
 
     val scatterNode = ScatterNode(

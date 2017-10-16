@@ -357,7 +357,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           jesParameters <- generateJesParameters
           _ <- uploadScriptFile
           rpr <- makeRpr(jesParameters)
-          runId <- runPipeline(initializationData.genomics, rpr)
+          runId <- runPipeline(workflowId, initializationData.genomics, rpr)
           run = Run(runId, initializationData.genomics)
         } yield PendingExecutionHandle(jobDescriptor, runId, Option(run), previousStatus = None)
     }

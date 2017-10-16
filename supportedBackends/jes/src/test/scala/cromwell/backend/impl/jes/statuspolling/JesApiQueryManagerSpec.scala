@@ -4,11 +4,12 @@ import akka.actor.{ActorRef, Props}
 import akka.testkit.{TestActorRef, TestProbe, _}
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.RunPipelineRequest
+import cromwell.backend.AbortWorkflow
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesApiRunCreationQueryFailed, JesRunCreationQuery, JesStatusPollQuery}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManagerSpec._
 import cromwell.backend.impl.jes.{JesConfiguration, Run}
 import cromwell.backend.standard.StandardAsyncJob
-import cromwell.core.TestKitSuite
+import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.util.AkkaTestUtil
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric._
@@ -78,7 +79,7 @@ class JesApiQueryManagerSpec extends TestKitSuite("JesApiQueryManagerSpec") with
     val statusRequester = TestProbe()
     
     // Send a create request
-    jaqmActor.tell(msg = JesApiQueryManager.DoCreateRun(null, null), sender = statusRequester.ref)
+    jaqmActor.tell(msg = JesApiQueryManager.DoCreateRun(null, null, null), sender = statusRequester.ref)
 
     statusRequester.expectMsgClass(classOf[JesApiRunCreationQueryFailed])
 
@@ -93,7 +94,7 @@ class JesApiQueryManagerSpec extends TestKitSuite("JesApiQueryManagerSpec") with
     val statusRequester = TestProbe()
 
     // Enqueue 3 create requests
-    1 to 3 foreach { _ => jaqmActor.tell(msg = JesApiQueryManager.DoCreateRun(null, null), sender = statusRequester.ref) }
+    1 to 3 foreach { _ => jaqmActor.tell(msg = JesApiQueryManager.DoCreateRun(null, null, null), sender = statusRequester.ref) }
 
     // ask for a batch
     jaqmActor.tell(msg = JesApiQueryManager.RequestJesPollingWork(BatchSize), sender = statusPoller.ref)
@@ -106,6 +107,28 @@ class JesApiQueryManagerSpec extends TestKitSuite("JesApiQueryManagerSpec") with
     
     // There should be 1 left in the queue
     jaqmActor.underlyingActor.queueSize shouldBe 1
+  }
+
+  it should "remove run requests from queue when receiving an abort message" in {
+    val statusPoller = TestProbe(name = "StatusPoller")
+    // maxBatchSize is 14MB, which mean we can take 2 queries of 5MB but not 3
+    val jaqmActor: TestActorRef[TestJesApiQueryManager] = TestActorRef(TestJesApiQueryManager.props(5 * 1024 * 1024, registryProbe, statusPoller.ref))
+
+    // Enqueue 3 create requests
+    val workflowIdA = WorkflowId.randomId()
+    val workflowIdB = WorkflowId.randomId()
+    jaqmActor ! JesApiQueryManager.DoCreateRun(workflowIdA, null, null)
+    jaqmActor ! JesApiQueryManager.DoCreateRun(workflowIdA, null, null)
+    jaqmActor ! JesApiQueryManager.DoCreateRun(workflowIdB, null, null)
+
+    // abort workflow A
+    jaqmActor ! AbortWorkflow(workflowIdA)
+
+    // It should remove all and only run requests for workflow A 
+    eventually {
+      jaqmActor.underlyingActor.queueSize shouldBe 1
+      jaqmActor.underlyingActor.workQueue.head.asInstanceOf[JesApiQueryManager.JesRunCreationQuery].id shouldBe workflowIdB
+    }
   }
 
   AkkaTestUtil.actorDeathMethods(system) foreach { case (name, stopMethod) =>
@@ -161,8 +184,8 @@ class TestJesApiQueryManager(qps: Int Refined Positive, createRequestSize: Long,
     testPollerCreations = 0
   }
 
-  override private[statuspolling] def makeCreateQuery(replyTo: ActorRef, genomics: Genomics, rpr: RunPipelineRequest) = {
-    new JesRunCreationQuery(replyTo, genomics, rpr) {
+  override private[statuspolling] def makeCreateQuery(id: WorkflowId, replyTo: ActorRef, genomics: Genomics, rpr: RunPipelineRequest) = {
+    new JesRunCreationQuery(id, replyTo, genomics, rpr) {
       override def contentLength = createRequestSize
     }
   }

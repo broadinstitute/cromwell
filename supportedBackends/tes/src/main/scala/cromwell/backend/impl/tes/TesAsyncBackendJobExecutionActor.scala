@@ -15,7 +15,7 @@ import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExec
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import lenthall.validation.ErrorOr.ErrorOr
-import wom.values.WdlFile
+import wom.values.WomFile
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -70,20 +70,20 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override lazy val jobTag: String = jobDescriptor.key.tag
 
-  // Utility for converting a WdlValue so that the path is localized to the
+  // Utility for converting a WomValue so that the path is localized to the
   // container's filesystem.
-  override def mapCommandLineWdlFile(wdlFile: WdlFile): WdlFile = {
+  override def mapCommandLineWdlFile(wdlFile: WomFile): WomFile = {
     val localPath = DefaultPathBuilder.get(wdlFile.valueString).toAbsolutePath
     localPath match {
       case p if p.startsWith(tesJobPaths.workflowPaths.DockerRoot) =>
         val containerPath = p.pathAsString
-        WdlFile(containerPath)
+        WomFile(containerPath)
       case p if p.startsWith(tesJobPaths.callExecutionRoot) =>
         val containerPath = tesJobPaths.containerExec(commandDirectory, localPath.getFileName.pathAsString)
-        WdlFile(containerPath)
+        WomFile(containerPath)
       case p =>
         val containerPath = tesJobPaths.containerInput(p.pathAsString)
-        WdlFile(containerPath)
+        WomFile(containerPath)
     }
   }
 
@@ -199,7 +199,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
   
-  private val outputWdlFiles: Seq[WdlFile] = {
+  private val outputWdlFiles: Seq[WomFile] = {
     Seq.empty
     // TODO WOM: fix
 //    jobDescriptor.call.task
@@ -207,13 +207,13 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 //      .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
   }
 
-  override def mapOutputWdlFile(wdlFile: WdlFile): WdlFile = {
+  override def mapOutputWdlFile(wdlFile: WomFile): WomFile = {
     val absPath: Path = tesJobPaths.callExecutionRoot.resolve(wdlFile.valueString)
     wdlFile match {
       case fileNotFound if !absPath.exists && outputWdlFiles.contains(fileNotFound) =>
         throw new RuntimeException("Could not process output, file not found: " +
           s"${absPath.pathAsString}")
-      case _ => WdlFile(absPath.pathAsString)
+      case _ => WomFile(absPath.pathAsString)
     }
   }
 

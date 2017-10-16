@@ -17,13 +17,13 @@ import wom.core.WorkflowSource
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.TaskCallNode
-import wom.values.WdlValue
+import wom.values.WomValue
 
 trait BackendSpec extends ScalaFutures with Matchers with Mockito {
 
   implicit val defaultPatience = PatienceConfig(timeout = Span(10, Seconds), interval = Span(500, Millis))
 
-  def testWorkflow(workflow: TestWorkflow, backend: BackendJobExecutionActor, inputs: Map[String, WdlValue] = Map.empty) = {
+  def testWorkflow(workflow: TestWorkflow, backend: BackendJobExecutionActor, inputs: Map[String, WomValue] = Map.empty) = {
     executeJobAndAssertOutputs(backend, workflow.expectedResponse)
   }
 
@@ -41,7 +41,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
       wdlNamespace.workflow.womDefinition.getOrElse(fail("Cannot convert WdlWorkflow to WomDefinition")),
-      executable.resolvedExecutableInputs.flatMap({case (port, v) => v.select[WdlValue] map { port -> _ }}),
+      executable.resolvedExecutableInputs.flatMap({case (port, v) => v.select[WomValue] map { port -> _ }}),
       options,
       Labels.empty
     )
@@ -55,30 +55,30 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     buildWorkflowDescriptor(workflowSource, inputFileAsJson, options, runtime)
   }
 
-  def fqnWdlMapToDeclarationMap(m: Map[String, WdlValue]): Map[InputDefinition, WdlValue] = {
+  def fqnWdlMapToDeclarationMap(m: Map[String, WomValue]): Map[InputDefinition, WomValue] = {
     m map {
       case (fqn, v) =>
-        val mockDeclaration = RequiredInputDefinition(fqn, v.wdlType)
+        val mockDeclaration = RequiredInputDefinition(fqn, v.womType)
         mockDeclaration -> v
     }
   }
 
-  def fqnMapToDeclarationMap(m: Map[OutputPort, WdlValue]): Map[InputDefinition, WdlValue] = {
+  def fqnMapToDeclarationMap(m: Map[OutputPort, WomValue]): Map[InputDefinition, WomValue] = {
     m map {
-      case (outputPort, wdlValue) => RequiredInputDefinition(outputPort.name, wdlValue.wdlType) -> wdlValue 
+      case (outputPort, womValue) => RequiredInputDefinition(outputPort.name, womValue.womType) -> womValue 
     }
   }
 
   def jobDescriptorFromSingleCallWorkflow(workflowDescriptor: BackendWorkflowDescriptor,
-                                          inputs: Map[String, WdlValue],
+                                          inputs: Map[String, WomValue],
                                           options: WorkflowOptions,
                                           runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition]): BackendJobDescriptor = {
     val call = workflowDescriptor.workflow.innerGraph.nodes.collectFirst({ case t: TaskCallNode => t}).get
     val jobKey = BackendJobDescriptorKey(call, None, 1)
     
-    val inputDeclarations: Map[InputDefinition, WdlValue] = call.inputDefinitionMappings.map {
+    val inputDeclarations: Map[InputDefinition, WomValue] = call.inputDefinitionMappings.map {
       case (inputDef, resolved) => inputDef -> 
-        resolved.select[WdlValue].orElse(
+        resolved.select[WomValue].orElse(
           resolved.select[WomExpression]
             .map(
               _.evaluateValue(inputs, NoIoFunctionSet).getOrElse(fail("Can't evaluate input"))
@@ -130,7 +130,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
           case (fqn, out) =>
             val expectedOut = expectedOutputs.get(fqn)
             expectedOut.isDefined shouldBe true
-            expectedOut.get.wdlValue.valueString shouldBe out.wdlValue.valueString
+            expectedOut.get.womValue.valueString shouldBe out.womValue.valueString
         }
       case (JobFailedNonRetryableResponse(_, failure, _), JobFailedNonRetryableResponse(_, expectedFailure, _)) =>
         failure.getClass shouldBe expectedFailure.getClass

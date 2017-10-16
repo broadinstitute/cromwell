@@ -2,10 +2,10 @@ package wom
 
 import wom.expression.IoFunctionSet
 import wom.graph.LocalName
-import wom.values.WdlValue
+import wom.values.WomValue
 
 trait CommandPart {
-  def instantiate(inputsMap: Map[LocalName, WdlValue],
+  def instantiate(inputsMap: Map[LocalName, WomValue],
                   functions: IoFunctionSet,
-                  valueMapper: WdlValue => WdlValue): String
+                  valueMapper: WomValue => WomValue): String
 }

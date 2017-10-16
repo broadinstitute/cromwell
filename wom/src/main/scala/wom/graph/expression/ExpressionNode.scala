@@ -11,15 +11,15 @@ import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.CallNode.InputDefinitionPointer
 import wom.graph.GraphNodePort.{ConnectedInputPort, GraphNodeOutputPort, InputPort, OutputPort}
 import wom.graph.{GraphNode, GraphNodePort, WomIdentifier}
-import wom.types.WdlType
-import wom.values.WdlValue
+import wom.types.WomType
+import wom.values.WomValue
 
 /**
   * Encapsulates a WomExpression with input ports connected to the expression's dependencies.
   */
 abstract class ExpressionNode(override val identifier: WomIdentifier,
                      val womExpression: WomExpression,
-                     val womType: WdlType,
+                     val womType: WomType,
                      val inputMapping: Map[String, InputPort]) extends GraphNode {
   val singleExpressionOutputPort = GraphNodeOutputPort(identifier, womType, this)
   override val outputPorts: Set[GraphNodePort.OutputPort] = Set(singleExpressionOutputPort)
@@ -35,7 +35,7 @@ abstract class ExpressionNode(override val identifier: WomIdentifier,
   /**
     * Evaluates the expression and coerces it.
     */
-  def evaluateAndCoerce(inputs: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): Checked[WdlValue] = (for {
+  def evaluateAndCoerce(inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): Checked[WomValue] = (for {
     evaluated <- womExpression.evaluateValue(inputs, ioFunctionSet)
     coerced <- womType.coerceRawValue(evaluated).toErrorOr
   } yield coerced).toEither
@@ -44,9 +44,9 @@ abstract class ExpressionNode(override val identifier: WomIdentifier,
 object ExpressionNode {
   /**
     * Constructs an ExpressionNode or a subclass of an expression node.
-    * Note: the WdlType is the evaluated type derived from the expression.
+    * Note: the WomType is the evaluated type derived from the expression.
     */
-  type ExpressionNodeConstructor[E <: ExpressionNode] = (WomIdentifier, WomExpression, WdlType, Map[String, InputPort]) => E
+  type ExpressionNodeConstructor[E <: ExpressionNode] = (WomIdentifier, WomExpression, WomType, Map[String, InputPort]) => E
 
   /**
     * Using the passed constructor, attempts to build an expression node from input mappings by linking variable references to other
@@ -67,7 +67,7 @@ object ExpressionNode {
   /**
     * Attempts to find an output port for all referenced variables in the expression, and created input ports to connect them together.
     */
-  private def linkWithInputs(graphNodeSetter: GraphNode.GraphNodeSetter, expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[(WdlType, Map[String, InputPort])] = {
+  private def linkWithInputs(graphNodeSetter: GraphNode.GraphNodeSetter, expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[(WomType, Map[String, InputPort])] = {
     def linkInput(input: String): ErrorOr[(String, InputPort)] = inputMapping.get(input) match {
       case Some(upstreamPort) => (input, ConnectedInputPort(input, upstreamPort.womType, upstreamPort, graphNodeSetter.get)).validNel
       case None => s"Expression cannot be connected without the input $input (provided: ${inputMapping.toString})".invalidNel

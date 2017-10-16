@@ -22,7 +22,7 @@ case class CommandOutputBinding(
   http://www.commonwl.org/v1.0/CommandLineTool.html#CommandOutputBinding
    */
   def commandOutputBindingToWdlValue(parameterContext: ParameterContext,
-                                     ioFunctionSet: IoFunctionSet): WdlValue = {
+                                     ioFunctionSet: IoFunctionSet): WomValue = {
 
     val paths: Seq[String] = glob map { globValue =>
       GlobEvaluator.globPaths(globValue, parameterContext, ioFunctionSet)
@@ -32,21 +32,21 @@ case class CommandOutputBinding(
 
     val loadContents: Boolean = this.loadContents getOrElse false
 
-    val wdlMapType = WdlMapType(WdlStringType, WdlStringType)
+    val wdlMapType = WomMapType(WomStringType, WomStringType)
     val wdlMaps = paths map { path =>
       // TODO: WOM: basename/dirname/size/checksum/etc.
 
-      val contents: Map[WdlValue, WdlValue] =
-        if (loadContents) Map(WdlString("contents") -> WdlString(load64KiB(path, ioFunctionSet))) else Map.empty
+      val contents: Map[WomValue, WomValue] =
+        if (loadContents) Map(WomString("contents") -> WomString(load64KiB(path, ioFunctionSet))) else Map.empty
 
-      val wdlKeyValues: Map[WdlValue, WdlValue] = Map(
-        WdlString("location") -> WdlString(path)
+      val wdlKeyValues: Map[WomValue, WomValue] = Map(
+        WomString("location") -> WomString(path)
       ) ++ contents
 
-      WdlMap(wdlMapType, wdlKeyValues)
+      WomMap(wdlMapType, wdlKeyValues)
     }
 
-    val arrayOfCwlFileMaps = WdlArray(WdlArrayType(wdlMapType), wdlMaps)
+    val arrayOfCwlFileMaps = WomArray(WomArrayType(wdlMapType), wdlMaps)
 
     val outputEvalParameterContext = parameterContext.copy(self = arrayOfCwlFileMaps)
 

@@ -38,7 +38,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
   def executeSpec(docker: Boolean): Any = {
     val expectedOutputs: CallOutputs = Map(
-      "salutation" -> JobOutput(WdlString("Hello you !"))
+      "salutation" -> JobOutput(WomString("Hello you !"))
     )
     val expectedResponse = JobSucceededResponse(mock[BackendJobDescriptorKey], Some(0), expectedOutputs, None, Seq.empty, None)
     val runtime = if (docker) """runtime { docker: "ubuntu:latest" }""" else ""
@@ -95,10 +95,10 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     }""")
 
     val expectedOutputs: CallOutputs = Map(
-      "out" -> JobOutput(WdlArray(WdlArrayType(WdlStringType),
+      "out" -> JobOutput(WomArray(WomArrayType(WomStringType),
         Array(
-          WdlString("content from json inputs"),
-          WdlString("content from call inputs")))))
+          WomString("content from json inputs"),
+          WomString("content from call inputs")))))
 
     val confs = List(
       (hardConf, false),
@@ -212,7 +212,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
         executionResponse should be(a[JobSucceededResponse])
         val succeededResponse = executionResponse.asInstanceOf[JobSucceededResponse]
         succeededResponse.returnCode.value should be(0)
-        succeededResponse.jobOutputs should be(Map("salutation" -> JobOutput(WdlString("Hello stubby !"))))
+        succeededResponse.jobOutputs should be(Map("salutation" -> JobOutput(WomString("Hello stubby !"))))
       } else {
         executionResponse should be(a[JobFailedNonRetryableResponse])
         val failedResponse = executionResponse.asInstanceOf[JobFailedNonRetryableResponse]
@@ -244,16 +244,16 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     0 to 2 foreach { shard =>
       // This assumes that engine will give us the evaluated value of the scatter item at the correct index
       // If this is not the case, more context/logic will need to be moved to the backend so it can figure it out by itself
-      val symbolMaps: Map[LocallyQualifiedName, WdlInteger] = Map("intNumber" -> WdlInteger(shard))
+      val symbolMaps: Map[LocallyQualifiedName, WomInteger] = Map("intNumber" -> WomInteger(shard))
 
       val evaluatedAttributes = call.callable.runtimeAttributes.attributes.mapValues(_.evaluateValue(Map.empty, NoIoFunctionSet).getOrElse(fail("Can't evaluate runtime attribute")))
-      val runtimeAttributes: Map[LocallyQualifiedName, WdlValue] = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, WorkflowOptions.empty)(evaluatedAttributes)
+      val runtimeAttributes: Map[LocallyQualifiedName, WomValue] = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, WorkflowOptions.empty)(evaluatedAttributes)
 
       val jobDescriptor: BackendJobDescriptor =
         BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, Option(shard), 1), runtimeAttributes, fqnWdlMapToDeclarationMap(symbolMaps), NoDocker, Map.empty)
       val backend = createBackend(jobDescriptor, TestConfig.backendRuntimeConfigDescriptor)
       val response =
-        JobSucceededResponse(mock[BackendJobDescriptorKey], Some(0), Map("out" -> JobOutput(WdlInteger(shard))), None, Seq.empty, None)
+        JobSucceededResponse(mock[BackendJobDescriptorKey], Some(0), Map("out" -> JobOutput(WomInteger(shard))), None, Seq.empty, None)
       executeJobAndAssertOutputs(backend, response)
     }
   }
@@ -267,12 +267,12 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions)
     val backend = createBackend(jobDescriptor, TestConfig.backendRuntimeConfigDescriptor)
     val jobPaths = JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, TestConfig.backendRuntimeConfigDescriptor.backendConfig)
-    val expectedA = WdlFile(jobPaths.callExecutionRoot.resolve("a").toAbsolutePath.pathAsString)
-    val expectedB = WdlFile(jobPaths.callExecutionRoot.resolve("dir").toAbsolutePath.resolve("b").pathAsString)
+    val expectedA = WomFile(jobPaths.callExecutionRoot.resolve("a").toAbsolutePath.pathAsString)
+    val expectedB = WomFile(jobPaths.callExecutionRoot.resolve("dir").toAbsolutePath.resolve("b").pathAsString)
     val expectedOutputs = Map(
       "o1" -> JobOutput(expectedA),
-      "o2" -> JobOutput(WdlArray(WdlArrayType(WdlFileType), Seq(expectedA, expectedB))),
-      "o3" -> JobOutput(WdlFile(inputFile))
+      "o2" -> JobOutput(WomArray(WomArrayType(WomFileType), Seq(expectedA, expectedB))),
+      "o3" -> JobOutput(WomFile(inputFile))
     )
     val expectedResponse = JobSucceededResponse(jobDescriptor.key, Some(0), expectedOutputs, None, Seq.empty, None)
 

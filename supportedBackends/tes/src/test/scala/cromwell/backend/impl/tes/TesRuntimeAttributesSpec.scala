@@ -32,106 +32,106 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
   "TesRuntimeAttributes" should {
 
     "throw an exception when there are no runtime attributes defined." in {
-      val runtimeAttributes = Map.empty[String, WdlValue]
+      val runtimeAttributes = Map.empty[String, WomValue]
       assertFailure(runtimeAttributes, "Can't find an attribute value for key docker")
     }
 
     "validate a valid Docker entry" in {
-      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"))
       val expectedRuntimeAttributes = expectedDefaults.copy(dockerImage = "ubuntu:latest")
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate an invalid Docker entry" in {
-      val runtimeAttributes = Map("docker" -> WdlInteger(1))
+      val runtimeAttributes = Map("docker" -> WomInteger(1))
       assertFailure(runtimeAttributes, "Expecting docker runtime attribute to be a String")
     }
 
     "validate a valid failOnStderr entry" in {
-      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "failOnStderr" -> WdlBoolean(true))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "failOnStderr" -> WomBoolean(true))
       val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(failOnStderr = true)
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate an invalid failOnStderr entry" in {
-      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "failOnStderr" -> WdlString("yes"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "failOnStderr" -> WomString("yes"))
       assertFailure(runtimeAttributes, "Expecting failOnStderr runtime attribute to be a Boolean or a String with values of 'true' or 'false'")
     }
 
     "validate a valid continueOnReturnCode entry" in {
-      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "continueOnReturnCode" -> WdlInteger(1))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomInteger(1))
       val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1)))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "validate a valid continueOnReturnCode array entry" in {
-      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "continueOnReturnCode" -> WdlArray(WdlArrayType(WdlIntegerType), Array(WdlInteger(1), WdlInteger(2))))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomArray(WomArrayType(WomIntegerType), Array(WomInteger(1), WomInteger(2))))
       val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2)))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "coerce then validate a valid continueOnReturnCode array entry" in {
-      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "continueOnReturnCode" -> WdlArray(WdlArrayType(WdlStringType), Array(WdlString("1"), WdlString("2"))))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomArray(WomArrayType(WomStringType), Array(WomString("1"), WomString("2"))))
       val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2)))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate an invalid continueOnReturnCode entry" in {
-      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "continueOnReturnCode" -> WdlString("value"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomString("value"))
       assertFailure(runtimeAttributes, "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]")
     }
 
     "validate a valid cpu entry" in assertSuccess(
-      Map("docker" -> WdlString("ubuntu:latest"), "cpu" -> WdlInteger(2)),
+      Map("docker" -> WomString("ubuntu:latest"), "cpu" -> WomInteger(2)),
       expectedDefaultsPlusUbuntuDocker.copy(cpu = Option(2))
     )
 
     "validate a valid cpu string entry" in {
-      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "cpu" -> WdlString("2"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "cpu" -> WomString("2"))
       val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(cpu = Option(2))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate an invalid cpu entry" in {
-      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "cpu" -> WdlString("value"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "cpu" -> WomString("value"))
       assertFailure(runtimeAttributes, "Expecting cpu runtime attribute to be an Integer")
     }
 
     "validate a valid memory entry" in {
-      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "memory" -> WdlString("1 GB"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "memory" -> WomString("1 GB"))
       val expectedRuntimeAttributes = expectedDefaults.copy(memory = Option(MemorySize.parse("1 GB").get))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate an invalid memory entry" in {
-      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "memory" -> WdlString("blah"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "memory" -> WomString("blah"))
       assertFailure(runtimeAttributes, "Expecting memory runtime attribute to be an Integer or String with format '8 GB'")
     }
 
     "validate a valid disk entry" in {
-      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "disk" -> WdlString("1 GB"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disk" -> WomString("1 GB"))
       val expectedRuntimeAttributes = expectedDefaults.copy(disk = Option(MemorySize.parse("1 GB").get))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate an invalid disk entry" in {
-      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "disk" -> WdlString("blah"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disk" -> WomString("blah"))
       assertFailure(runtimeAttributes, "Expecting disk runtime attribute to be an Integer or String with format '8 GB'")
     }
 
     "validate a valid dockerWorkingDir entry" in {
-      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "dockerWorkingDir" -> WdlString("/tmp"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "dockerWorkingDir" -> WomString("/tmp"))
       val expectedRuntimeAttributes = expectedDefaults.copy(dockerWorkingDir = Option("/tmp"))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate an invalid dockerWorkingDir entry" in {
-      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "dockerWorkingDir" -> WdlInteger(1))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "dockerWorkingDir" -> WomInteger(1))
       assertFailure(runtimeAttributes, "Expecting dockerWorkingDir runtime attribute to be a String")
     }
 
     "use reasonable default values" in assertSuccess(
-      Map("docker" -> WdlString("ubuntu:latest")),
+      Map("docker" -> WomString("ubuntu:latest")),
       expectedDefaultsPlusUbuntuDocker
     )
   }
@@ -139,7 +139,7 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
   private val mockConfigurationDescriptor = BackendConfigurationDescriptor(TesTestConfig.backendConfig, TestConfig.globalConfig)
   private val mockTesConfiguration = new TesConfiguration(mockConfigurationDescriptor)
 
-  private def assertSuccess(runtimeAttributes: Map[String, WdlValue],
+  private def assertSuccess(runtimeAttributes: Map[String, WomValue],
                             expectedRuntimeAttributes: TesRuntimeAttributes,
                             workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
 
@@ -152,7 +152,7 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
     ()
   }
 
-  private def assertFailure(runtimeAttributes: Map[String, WdlValue],
+  private def assertFailure(runtimeAttributes: Map[String, WomValue],
                             exMsg: String,
                             workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
     try {
@@ -169,7 +169,7 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
     TesRuntimeAttributes.runtimeAttributesBuilder(mockTesConfiguration.runtimeConfig).definitions.toSet
 
 
-  private def toTesRuntimeAttributes(runtimeAttributes: Map[String, WdlValue],
+  private def toTesRuntimeAttributes(runtimeAttributes: Map[String, WomValue],
                                      workflowOptions: WorkflowOptions,
                                      tesConfiguration: TesConfiguration): TesRuntimeAttributes = {
     val runtimeAttributesBuilder = TesRuntimeAttributes.runtimeAttributesBuilder(tesConfiguration.runtimeConfig)

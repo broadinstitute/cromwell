@@ -1,5 +1,5 @@
 package wdl
 
-import wom.types.WdlType
+import wom.types.WomType
 
-case class TaskInput(name: String, wdlType: WdlType, postfixQuantifier: Option[String] = None)
+case class TaskInput(name: String, womType: WomType, postfixQuantifier: Option[String] = None)

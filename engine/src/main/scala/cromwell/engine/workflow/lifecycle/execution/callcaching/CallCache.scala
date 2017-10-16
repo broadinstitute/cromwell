@@ -6,8 +6,8 @@ import cromwell.core.ExecutionIndex.{ExecutionIndex, IndexEnhancedIndex}
 import cromwell.core.WorkflowId
 import cromwell.core.callcaching.HashResult
 import cromwell.core.path.Path
-import cromwell.core.simpleton.WdlValueSimpleton
-import cromwell.core.simpleton.WdlValueSimpleton._
+import cromwell.core.simpleton.WomValueSimpleton
+import cromwell.core.simpleton.WomValueSimpleton._
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql._
 import cromwell.database.sql.joins.CallCachingJoin
@@ -34,7 +34,7 @@ class CallCache(database: CallCachingSqlDatabase) {
         jobAttempt = b.jobAttempt,
         returnCode = b.returnCode,
         allowResultReuse = b.allowResultReuse)
-      val result = b.callOutputs.mapValues(_.wdlValue).simplify
+      val result = b.callOutputs.mapValues(_.womValue).simplify
       val jobDetritus = b.jobDetritusFiles.getOrElse(Map.empty)
       buildCallCachingJoin(metaInfo, b.callCacheHashes, result, jobDetritus)
     }
@@ -43,7 +43,7 @@ class CallCache(database: CallCachingSqlDatabase) {
   }
 
   private def buildCallCachingJoin(callCachingEntry: CallCachingEntry, callCacheHashes: CallCacheHashes,
-                                   result: Iterable[WdlValueSimpleton], jobDetritus: Map[String, Path]): CallCachingJoin = {
+                                   result: Iterable[WomValueSimpleton], jobDetritus: Map[String, Path]): CallCachingJoin = {
 
     val hashesToInsert: Iterable[CallCachingHashEntry] = {
       callCacheHashes.hashes map { hash => CallCachingHashEntry(hash.hashKey.key, hash.hashValue.value) }
@@ -58,8 +58,8 @@ class CallCache(database: CallCachingSqlDatabase) {
 
     val resultToInsert: Iterable[CallCachingSimpletonEntry] = {
       result map {
-        case WdlValueSimpleton(simpletonKey, wdlPrimitive) =>
-          CallCachingSimpletonEntry(simpletonKey, wdlPrimitive.valueString.toClobOption, wdlPrimitive.wdlType.toWdlString)
+        case WomValueSimpleton(simpletonKey, wdlPrimitive) =>
+          CallCachingSimpletonEntry(simpletonKey, wdlPrimitive.valueString.toClobOption, wdlPrimitive.womType.toDisplayString)
       }
     }
 

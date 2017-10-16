@@ -1,10 +1,10 @@
 package wom.graph
 
-import wom.types.{WdlArrayType, WdlOptionalType, WdlType}
+import wom.types.{WomArrayType, WomOptionalType, WomType}
 
 sealed trait GraphNodePort {
   def name: String
-  def womType: WdlType
+  def womType: WomType
 
   /**
     * The GraphNode which owns this port.
@@ -14,8 +14,8 @@ sealed trait GraphNodePort {
 
 object GraphNodePort {
 
-  // TODO: It'd be really cool if these could be typed (eg InputPort[WdlString], OutputPort[WdlInteger] but
-  // TODO: we'd have to think about coercion... maybe some sort of implicit CoercionSocket[WdlString, WdlInteger]...?
+  // TODO: It'd be really cool if these could be typed (eg InputPort[WomString], OutputPort[WomInteger] but
+  // TODO: we'd have to think about coercion... maybe some sort of implicit CoercionSocket[WomString, WomInteger]...?
   sealed trait InputPort extends GraphNodePort {
     def upstream: OutputPort
   }
@@ -39,22 +39,22 @@ object GraphNodePort {
     override lazy val graphNode = g.apply(())
   }
 
-  final case class ConnectedInputPort(name: String, womType: WdlType, upstream: OutputPort, g: Unit => GraphNode) extends InputPort with DelayedGraphNodePort
+  final case class ConnectedInputPort(name: String, womType: WomType, upstream: OutputPort, g: Unit => GraphNode) extends InputPort with DelayedGraphNodePort
 
   /**
     * For any graph node that uses a declarations to produce outputs (e.g. call, declaration):
     */
   object GraphNodeOutputPort {
-    def apply(name: String, womType: WdlType, graphNode: GraphNode): GraphNodeOutputPort = {
+    def apply(name: String, womType: WomType, graphNode: GraphNode): GraphNodeOutputPort = {
       GraphNodeOutputPort(WomIdentifier(LocalName(name), graphNode.identifier.fullyQualifiedName.combine(name)), womType, graphNode)
     }
   }
-  case class GraphNodeOutputPort(override val identifier: WomIdentifier, womType: WdlType, graphNode: GraphNode) extends OutputPort
+  case class GraphNodeOutputPort(override val identifier: WomIdentifier, womType: WomType, graphNode: GraphNode) extends OutputPort
 
   /**
     * Represents the gathered output from a call/declaration in a ScatterNode.
     */
-  final case class ScatterGathererPort(womType: WdlArrayType, outputToGather: PortBasedGraphOutputNode, g: Unit => GraphNode) extends OutputPort with DelayedGraphNodePort {
+  final case class ScatterGathererPort(womType: WomArrayType, outputToGather: PortBasedGraphOutputNode, g: Unit => GraphNode) extends OutputPort with DelayedGraphNodePort {
     // Since this port just wraps a PortBasedGraphOutputNode which itself wraps an output port, we can re-use the same identifier
     override def identifier: WomIdentifier = outputToGather.identifier
   }
@@ -62,7 +62,7 @@ object GraphNodePort {
   /**
     * Represents the conditional output from a call or declaration in a ConditionalNode
     */
-  final case class ConditionalOutputPort(womType: WdlOptionalType, outputToExpose: PortBasedGraphOutputNode, g: Unit => GraphNode) extends OutputPort with DelayedGraphNodePort {
+  final case class ConditionalOutputPort(womType: WomOptionalType, outputToExpose: PortBasedGraphOutputNode, g: Unit => GraphNode) extends OutputPort with DelayedGraphNodePort {
     // Since this port just wraps a PortBasedGraphOutputNode which itself wraps an output port, we can re-use the same identifier
     override def identifier: WomIdentifier = outputToExpose.identifier
   }

@@ -13,8 +13,8 @@ import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import wom.callable.TaskDefinition
 import wom.graph.TaskCallNode
-import wom.types.WdlType
-import wom.values.WdlValue
+import wom.types.WomType
+import wom.values.WomValue
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -53,15 +53,15 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     * declarations will fail evaluation and return `true` from this predicate, even if the type could be determined
     * to be wrong with consideration of task declarations or inputs.
     */
-  protected def wdlTypePredicate(valueRequired: Boolean, predicate: WdlType => Boolean)(wdlExpressionMaybe: Option[WdlValue]): Boolean = {
+  protected def wdlTypePredicate(valueRequired: Boolean, predicate: WomType => Boolean)(wdlExpressionMaybe: Option[WomValue]): Boolean = {
     wdlExpressionMaybe match {
       case None => !valueRequired
       case Some(wdlExpression: WdlExpression) =>
-        wdlExpression.evaluate(NoLookup, PureStandardLibraryFunctions) map (_.wdlType) match {
-          case Success(wdlType) => predicate(wdlType)
+        wdlExpression.evaluate(NoLookup, PureStandardLibraryFunctions) map (_.womType) match {
+          case Success(womType) => predicate(womType)
           case Failure(_) => true // If we can't evaluate it, we'll let it pass for now...
         }
-      case Some(wdlValue) => predicate(wdlValue.wdlType)
+      case Some(womValue) => predicate(womValue.womType)
     }
   }
 
@@ -70,11 +70,11 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     * between evaluation failures due to missing call inputs or evaluation failures due to malformed expressions, and will
     * return `true` in both cases.
     */
-  protected def continueOnReturnCodePredicate(valueRequired: Boolean)(wdlExpressionMaybe: Option[WdlValue]): Boolean = {
+  protected def continueOnReturnCodePredicate(valueRequired: Boolean)(wdlExpressionMaybe: Option[WomValue]): Boolean = {
     ContinueOnReturnCodeValidation.default(configurationDescriptor.backendRuntimeConfig).validateOptionalExpression(wdlExpressionMaybe)
   }
 
-  protected def runtimeAttributeValidators: Map[String, Option[WdlValue] => Boolean]
+  protected def runtimeAttributeValidators: Map[String, Option[WomValue] => Boolean]
 
   // FIXME: If a workflow executes jobs using multiple backends,
   // each backend will try to write its own workflow root and override any previous one.
@@ -83,7 +83,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     serviceRegistryActor ! PutMetadataAction(MetadataEvent(MetadataKey(workflowDescriptor.id, None, WorkflowMetadataKeys.WorkflowRoot), MetadataValue(workflowRoot)))
   }
 
-  protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WdlValue]]
+  protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WomValue]]
 
   /**
     * This method calls into `runtimeAttributeValidators` to validate runtime attribute expressions.
@@ -105,7 +105,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     *   {{{
     *     val task: Task = ???
     *     val expression: WdlExpression = ???
-    *     def lookup(name: String): WdlType = task.declarations.find(_.name == name).get.wdlType
+    *     def lookup(name: String): WomType = task.declarations.find(_.name == name).get.womType
     *     val expressionType = expression.evaluateType(lookup, OnlyPureFunctions)
     *   }}}
     *
@@ -123,7 +123,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     coerceDefaultRuntimeAttributes(workflowDescriptor.workflowOptions) match {
       case Success(_) =>
 
-//        def defaultRuntimeAttribute(name: String): Option[WdlValue] = {
+//        def defaultRuntimeAttribute(name: String): Option[WomValue] = {
 //          defaultRuntimeAttributes.get(name)
 //        }
 

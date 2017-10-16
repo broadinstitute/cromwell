@@ -1,0 +1,50 @@
+package wom.types
+
+import org.scalatest.{FlatSpec, Matchers}
+import wom.values.{WomMap, WomObject, WomString}
+
+import scala.util.{Failure, Success}
+
+class WomObjectTypeSpec extends FlatSpec with Matchers {
+  val abcObject = WomObject(Map(
+    "a" -> WomString("one"),
+    "b" -> WomString("two"),
+    "c" -> WomString("three")
+  ))
+
+  val coerceableMap = WomMap(WomMapType(WomStringType, WomStringType), Map(
+    WomString("a") -> WomString("one"),
+    WomString("b") -> WomString("two"),
+    WomString("c") -> WomString("three"))
+  )
+
+  val nonCoerceableMap = WomMap(WomMapType(WomStringType, WomObjectType), Map(
+    WomString("a") -> WomObject(Map.empty),
+    WomString("b") -> WomObject(Map.empty),
+    WomString("c") -> WomObject(Map.empty))
+  )
+
+  "WomObject" should "stringify its value" in {
+    abcObject.toWomString shouldEqual "object {a: \"one\", b: \"two\", c: \"three\"}"
+  }
+
+  it should "stringify its type" in {
+    abcObject.womType.toDisplayString shouldEqual "Object"
+  }
+
+  it should "coerce a coerceable map into a WomObject" in {
+    WomObjectType.coerceRawValue(coerceableMap) match {
+      case Success(v) =>
+        v.womType shouldEqual WomObjectType
+        v.toWomString shouldEqual abcObject.toWomString
+      case Failure(_) => fail("Failed to coerce a map to an object")
+    }
+  }
+
+  it should "NOT successfully coerce a NON coerceable map into a WomObject" in {
+    WomObjectType.coerceRawValue(nonCoerceableMap) match {
+      case Success(_) => fail("should not have succeeded")
+      case Failure(_) => // expected
+    }
+  }
+}

@@ -1,0 +1,90 @@
+package wom.values
+
+import lenthall.util.TryUtil
+import wom.TsvSerializable
+import wom.types._
+import wom.util.FileUtil
+import wom.values.WomArray.WomArrayLike
+
+import scala.util.{Failure, Success, Try}
+
+object WomMap {
+  def coerceMap(m: Map[_, _], womMapType: WomMapType): WomMap = {
+    val coerced: Map[Try[WomValue], Try[WomValue]] = m map { case(k, v) => womMapType.keyType.coerceRawValue(k) -> womMapType.valueType.coerceRawValue(v) }
+    val failures = coerced flatMap { case(k,v) => Seq(k,v) } collect { case f:Failure[_] => f }
+    failures match {
+      case f: Iterable[Failure[_]] if f.nonEmpty =>
+        throw new UnsupportedOperationException(s"Failed to coerce one or more keys or values for creating a ${womMapType.toDisplayString}:\n${TryUtil.stringifyFailures(f)}}")
+      case _ =>
+        val mapCoerced = coerced map { case (k, v) => k.get -> v.get }
+
+        val keyType = WomType.homogeneousTypeFromValues(mapCoerced map { case (k, _) => k })
+        val valueType = WomType.homogeneousTypeFromValues(mapCoerced map { case (_, v) => v })
+
+        WomMap(WomMapType(keyType, valueType), mapCoerced)
+    }
+  }
+
+  def fromTsv(tsv: String, womMapType: WomMapType = WomMapType(WomAnyType, WomAnyType)): Try[WomMap] = {
+    FileUtil.parseTsv(tsv) match {
+      case Success(table) if table.isEmpty => Success(WomMap(womMapType, Map.empty[WomValue, WomValue]))
+      case Success(table) if table.head.length != 2 => Failure(new UnsupportedOperationException("TSV must be 2 columns to convert to a Map"))
+      case Success(table) => Try(coerceMap(table.map(row => row(0) -> row(1)).toMap, womMapType))
+      case Failure(e) => Failure(e)
+    }
+  }
+
+  def apply(m: Map[WomValue, WomValue]): WomMap = {
+    val keyType = WomType.lowestCommonSubtype(m.keys.map(_.womType))
+    val valueType = WomType.lowestCommonSubtype(m.keys.map(_.womType))
+    WomMap(WomMapType(keyType, valueType), m)
+  }
+}
+
+case class WomMap(womType: WomMapType, value: Map[WomValue, WomValue]) extends WomValue with WomArrayLike with TsvSerializable {
+  val typesUsedInKey = value.map { case (k, _) => k.womType }.toSet
+
+  if (typesUsedInKey.size == 1 && typesUsedInKey.head != womType.keyType)
+    throw new UnsupportedOperationException(s"Could not construct a $womType as this value: $value")
+
+  if (typesUsedInKey.size > 1)
+    throw new UnsupportedOperationException(s"Cannot construct $womType with mixed types: $value")
+
+  val typesUsedInValue = value.map { case (_, v) => v.womType }.toSet
+
+  if (typesUsedInValue.size == 1 && typesUsedInValue.head != womType.valueType)
+    throw new UnsupportedOperationException(s"Could not construct a $womType as this value: $value")
+
+  if (typesUsedInValue.size > 1)
+    throw new UnsupportedOperationException(s"Cannot construct $womType with mixed types: $value")
+
+  override def toWomString: String =
+    "{" + value.map {case (k,v) => s"${k.toWomString}: ${v.toWomString}"}.mkString(", ") + "}"
+
+  def tsvSerialize: Try[String] = {
+    (womType.keyType, womType.valueType) match {
+      case (_: WomPrimitiveType, _: WomPrimitiveType) =>
+        Success(value.map({case (k, v) => s"${k.valueString}\t${v.valueString}"}).mkString("\n"))
+      case _ =>
+        Failure(new UnsupportedOperationException("Can only TSV serialize a Map[Primitive, Primitive]"))
+    }
+  }
+
+  def map(f: PartialFunction[((WomValue, WomValue)), (WomValue, WomValue)]): WomMap = {
+    value map f match {
+      case m: Map[WomValue, WomValue] if m.nonEmpty => WomMap(WomMapType(m.head._1.womType, m.head._2.womType), m)
+      case _ => this
+    }
+  }
+
+  override def collectAsSeq[T <: WomValue](filterFn: PartialFunction[WomValue, T]): Seq[T] = {
+    val collected = value flatMap {
+      case (k, v) => Seq(k.collectAsSeq(filterFn), v.collectAsSeq(filterFn))
+    }
+    collected.flatten.toSeq
+  }
+
+  // For WomArrayLike:
+  override lazy val arrayType: WomArrayType = WomArrayType(WomPairType(womType.keyType, womType.valueType))
+  override lazy val asArray: WomArray = WomArray(arrayType, value.toSeq map { case (k, v) => WomPair(k, v) })
+}

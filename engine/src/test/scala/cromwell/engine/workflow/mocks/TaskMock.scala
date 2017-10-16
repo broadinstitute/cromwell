@@ -20,7 +20,7 @@ trait TaskMock extends Mockito {
     task.name returns name
     task.unqualifiedName returns name
     task.outputs returns (outputs map {
-      case (outputName, wdlType, expression) => TaskOutput(outputName, wdlType, expression, mock[Ast], Option(task))
+      case (outputName, womType, expression) => TaskOutput(outputName, womType, expression, mock[Ast], Option(task))
     })
     task
   }

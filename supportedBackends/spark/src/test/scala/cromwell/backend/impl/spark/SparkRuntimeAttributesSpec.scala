@@ -1,7 +1,7 @@
 package cromwell.backend.impl.spark
 
-import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendWorkflowDescriptor, MemorySize}
+import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.core.labels.Labels
 import cromwell.core.{NoIoFunctionSet, WorkflowId, WorkflowOptions}
 import lenthall.validation.ErrorOr._
@@ -10,7 +10,7 @@ import spray.json.{JsBoolean, JsNumber, JsObject, JsString, JsValue}
 import wdl._
 import wom.core.WorkflowSource
 import wom.graph.GraphNodePort.OutputPort
-import wom.values.WdlValue
+import wom.values.WomValue
 
 class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
@@ -122,7 +122,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
   }
 
   private def buildWorkflowDescriptor(wdl: WorkflowSource,
-                                      inputs: Map[OutputPort, WdlValue] = Map.empty,
+                                      inputs: Map[OutputPort, WomValue] = Map.empty,
                                       options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
                                       runtime: String) = {
     BackendWorkflowDescriptor(
@@ -135,7 +135,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
     )
   }
 
-  private def createRuntimeAttributes(workflowSource: WorkflowSource, runtimeAttributes: String): List[Map[String, WdlValue]] = {
+  private def createRuntimeAttributes(workflowSource: WorkflowSource, runtimeAttributes: String): List[Map[String, WomValue]] = {
     val workflowDescriptor = buildWorkflowDescriptor(workflowSource, runtime = runtimeAttributes)
 
     workflowDescriptor.workflow.taskCallNodes.toList map {
@@ -148,7 +148,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
     }
   }
 
-  private def assertSparkRuntimeAttributes(runtimeAttributes: Map[String, WdlValue], workflowOptions: WorkflowOptions, expectedRuntimeAttributes: SparkRuntimeAttributes): Unit = {
+  private def assertSparkRuntimeAttributes(runtimeAttributes: Map[String, WomValue], workflowOptions: WorkflowOptions, expectedRuntimeAttributes: SparkRuntimeAttributes): Unit = {
     try {
       assert(SparkRuntimeAttributes(runtimeAttributes, workflowOptions) == expectedRuntimeAttributes)
     } catch {
@@ -157,7 +157,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
     ()
   }
 
-  private def assertSparkRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WdlValue], exMsg: String): Unit = {
+  private def assertSparkRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WomValue], exMsg: String): Unit = {
     try {
       SparkRuntimeAttributes(runtimeAttributes, emptyWorkflowOptions)
       fail("A RuntimeException was expected.")

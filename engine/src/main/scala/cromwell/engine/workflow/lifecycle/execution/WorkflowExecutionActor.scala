@@ -31,7 +31,7 @@ import wom.JobOutput
 import wom.core.CallOutputs
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
-import wom.values.WdlArray.WdlArrayLike
+import wom.values.WomArray.WomArrayLike
 import wom.values._
 
 import scala.concurrent.duration._
@@ -125,7 +125,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     case Event(BypassedCallResults(callOutputs), stateData) =>
       handleCallBypassed(callOutputs, stateData)
     case Event(BypassedDeclaration(declKey), stateData) =>
-      handleDeclarationEvaluationSuccessful(declKey, WdlOptionalValue.none(declKey.womType), stateData)
+      handleDeclarationEvaluationSuccessful(declKey, WomOptionalValue.none(declKey.womType), stateData)
 
     // Failure
     // Initialization
@@ -281,7 +281,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     import cromwell.util.JsonFormatting.WdlValueJsonFormatter._
     import spray.json._
 
-    def handleSuccessfulWorkflowOutputs(outputs: Map[WomIdentifier, WdlValue]) = {
+    def handleSuccessfulWorkflowOutputs(outputs: Map[WomIdentifier, WomValue]) = {
       val fullyQualifiedOutputs = outputs map {
         case (identifier, value) => identifier.fullyQualifiedName.value -> value
       }
@@ -315,7 +315,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     val workflowOutputValuesValidation = workflowOutputPorts
       // Try to find a value for each port in the value store
       .map(op => op.identifier -> data.valueStore.get(op, None))
-      .toList.traverse[ErrorOr, (WomIdentifier, WdlValue)]({
+      .toList.traverse[ErrorOr, (WomIdentifier, WomValue)]({
         case (name, Some(value)) => (name -> value).validNel
         case (name, None) => s"Cannot find an output value for ${name.fullyQualifiedName.value}".invalidNel
     })
@@ -341,7 +341,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     stay() using data.callExecutionSuccess(jobKey, outputs).addExecutions(jobExecutionMap)
   }
 
-  private def handleDeclarationEvaluationSuccessful(key: ExpressionKey, value: WdlValue, data: WorkflowExecutionActorData) = {
+  private def handleDeclarationEvaluationSuccessful(key: ExpressionKey, value: WomValue, data: WorkflowExecutionActorData) = {
     stay() using data.expressionEvaluationSuccess(key, value)
   }
 
@@ -450,10 +450,11 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     )
   }
 
-  private def bypassedScopeResults(jobKey: JobKey): Map[ValueKey, WdlOptionalValue] = {
+  private def bypassedScopeResults(jobKey: JobKey): Map[ValueKey, WomOptionalValue] = {
     jobKey.node.outputPorts.map({ outputPort =>
-      ValueKey(outputPort, jobKey.index) ->  WdlOptionalValue.none(outputPort.womType)
+      ValueKey(outputPort, jobKey.index) ->  WomOptionalValue.none(outputPort.womType)
     }).toMap
+
   }
 
   private def processRunnableExpression(expression: ExpressionKey, data: WorkflowExecutionActorData) = {
@@ -477,19 +478,19 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     * Attempts to resolve an output port to a known value.
     * Curried for convenience.
     */
-  private def resolve(jobKey: JobKey, data: WorkflowExecutionActorData)(outputPort: OutputPort): ErrorOr[WdlValue] = {
+  private def resolve(jobKey: JobKey, data: WorkflowExecutionActorData)(outputPort: OutputPort): ErrorOr[WomValue] = {
     
     // If the node this port belongs to is a ScatterVariableNode then we want the item at the right index in the array
-    def forScatterVariable: ErrorOr[WdlValue] = data.valueStore.get(outputPort, None) match {
+    def forScatterVariable: ErrorOr[WomValue] = data.valueStore.get(outputPort, None) match {
       // Try to find the element at "jobIndex" in the array value stored for the outputPort, any other case is a failure
-      case Some(wdlValue: WdlArrayLike) =>
+      case Some(womValue: WomArrayLike) =>
         jobKey.index match {
           case Some(jobIndex) =>
-            wdlValue.asArray.value.lift(jobIndex)
-              .toValidNel(s"Shard index $jobIndex exceeds scatter array length: ${wdlValue.asArray.value.size}")
+            womValue.asArray.value.lift(jobIndex)
+              .toValidNel(s"Shard index $jobIndex exceeds scatter array length: ${womValue.asArray.value.size}")
           case None => s"Unsharded execution key ${jobKey.tag} references a scatter variable: ${outputPort.identifier.fullyQualifiedName}".invalidNel
         }
-      case Some(other) => s"Value for scatter collection ${outputPort.identifier.fullyQualifiedName} is not an array: ${other.wdlType.toWdlString}".invalidNel
+      case Some(other) => s"Value for scatter collection ${outputPort.identifier.fullyQualifiedName} is not an array: ${other.womType.toDisplayString}".invalidNel
       case None => s"Can't find a value for scatter collection ${outputPort.identifier.fullyQualifiedName} (looking for index ${jobKey.index})".invalidNel
     }
     
@@ -571,11 +572,11 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     val conditionOutputPort = conditionalKey.node.conditionExpression.singleExpressionOutputPort
 
     data.valueStore.get(conditionOutputPort, conditionalKey.index) match {
-      case Some(b: WdlBoolean) =>
+      case Some(b: WomBoolean) =>
         val conditionalStatus = if (b.value) ExecutionStatus.Done else ExecutionStatus.Bypassed
         Success(WorkflowExecutionDiff(conditionalKey.populate + (conditionalKey -> conditionalStatus)))
-      case Some(v: WdlValue) => Failure(new RuntimeException(
-        s"'if' condition ${conditionalKey.node.conditionExpression.womExpression.sourceString} must evaluate to a boolean but instead got ${v.wdlType.toWdlString}"))
+      case Some(v: WomValue) => Failure(new RuntimeException(
+        s"'if' condition ${conditionalKey.node.conditionExpression.womExpression.sourceString} must evaluate to a boolean but instead got ${v.womType.toDisplayString}"))
       case None => Failure(
         new RuntimeException(s"Could not find the boolean value for conditional ${conditionalKey.tag}. Missing boolean should have come from expression ${conditionalKey.node.conditionExpression.womExpression.sourceString}")
       )
@@ -589,7 +590,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       val collectionOutputPort = scatterKey.node.scatterCollectionExpressionNode.singleExpressionOutputPort
 
       data.valueStore.get(collectionOutputPort, None) map {
-        case WdlArrayLike(arrayLike) =>
+        case WomArrayLike(arrayLike) =>
           Success(
             WorkflowExecutionDiff(
               // Add the new shards + collectors, and set the scatterVariable and scatterKey to Done
@@ -603,8 +604,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
               )
             )
           )
-        case v: WdlValue =>
-          Failure(new RuntimeException(s"Scatter collection ${scatterKey.node.scatterCollectionExpressionNode.womExpression.sourceString} must evaluate to an array but instead got ${v.wdlType.toWdlString}"))
+        case v: WomValue =>
+          Failure(new RuntimeException(s"Scatter collection ${scatterKey.node.scatterCollectionExpressionNode.womExpression.sourceString} must evaluate to an array but instead got ${v.womType.toDisplayString}"))
       } getOrElse {
         Failure(new RuntimeException(s"Could not find an array value for scatter ${scatterKey.tag}. Missing array should have come from expression ${scatterKey.node.scatterCollectionExpressionNode.womExpression.sourceString}"))
       }
@@ -624,7 +625,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
         // TODO WOM: fix
         //        val adjustedOutputs: CallOutputs = if (isInBypassed) {
         //          outputs map {
-        //            case (outputKey, value) => outputKey -> WdlOptionalValue.none(output._2.wdlValue.wdlType
+        //            case (outputKey, value) => outputKey -> WomOptionalValue.none(output._2.womValue.womType
         //          }
         //        } else outputs
         Success(WorkflowExecutionDiff(
@@ -710,7 +711,7 @@ object WorkflowExecutionActor {
     */
   private case class JobInitializationFailed(jobKey: JobKey, throwable: Throwable)
 
-  private case class ExpressionEvaluationSucceededResponse(declarationKey: ExpressionKey, value: WdlValue)
+  private case class ExpressionEvaluationSucceededResponse(declarationKey: ExpressionKey, value: WomValue)
 
   private case object CheckRunnable
 
@@ -756,13 +757,13 @@ object WorkflowExecutionActor {
       backendSingletonCollection, initializationData, restarting)).withDispatcher(EngineDispatcher)
   }
 
-  implicit class EnhancedWorkflowOutputs(val outputs: Map[LocallyQualifiedName, WdlValue]) extends AnyVal {
+  implicit class EnhancedWorkflowOutputs(val outputs: Map[LocallyQualifiedName, WomValue]) extends AnyVal {
     def maxStringLength = 1000
 
     def stripLarge = outputs map { case (k, v) =>
-      val wdlString = v.toWdlString
+      val wdlString = v.toWomString
 
-      if (wdlString.length > maxStringLength) (k, WdlString(StringUtils.abbreviate(wdlString, maxStringLength)))
+      if (wdlString.length > maxStringLength) (k, WomString(StringUtils.abbreviate(wdlString, maxStringLength)))
       else (k, v)
     }
   }

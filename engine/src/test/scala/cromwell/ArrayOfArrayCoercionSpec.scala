@@ -13,9 +13,9 @@ class ArrayOfArrayCoercionSpec extends CromwellTestKitWordSpec {
         sampleWdl = SampleWdl.ArrayOfArrays,
         eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         expectedOutputs = Map(
-          "wf.subtask.concatenated" -> WdlArray(WdlArrayType(WdlStringType), Seq(
-            WdlString("foo\nbar\nbaz"),
-            WdlString("third\nfourth")
+          "wf.subtask.concatenated" -> WomArray(WomArrayType(WomStringType), Seq(
+            WomString("foo\nbar\nbaz"),
+            WomString("third\nfourth")
           ))
         )
       )

@@ -10,7 +10,7 @@ import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
 import cromwell.jobstore.{JobResultSuccess, JobStoreKey}
 import org.scalatest.concurrent.Eventually
 import wom.JobOutput
-import wom.values.{WdlInteger, WdlString}
+import wom.values.{WomInteger, WomString}
 
 import scala.util.Success
 
@@ -77,7 +77,7 @@ private[ejea] trait CanExpectCacheInvalidation extends Eventually { self: Engine
 
 private[ejea] trait HasJobSuccessResponse { self: EngineJobExecutionActorSpec =>
   val successRc = Option(171)
-  val successOutputs = Map("a" -> JobOutput(WdlInteger(3)), "b" -> JobOutput(WdlString("bee")))
+  val successOutputs = Map("a" -> JobOutput(WomInteger(3)), "b" -> JobOutput(WomString("bee")))
   def successResponse = JobSucceededResponse(helper.jobDescriptorKey, successRc, successOutputs, None, Seq.empty, None)
 }
 private[ejea] object HasJobSuccessResponse {

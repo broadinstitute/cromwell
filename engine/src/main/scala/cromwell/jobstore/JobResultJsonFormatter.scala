@@ -11,7 +11,7 @@ object JobResultJsonFormatter extends DefaultJsonProtocol {
   }
 
   implicit object JobOutputFormat extends RootJsonFormat[JobOutput] {
-    def write(value: JobOutput) = value.wdlValue.toJson
+    def write(value: JobOutput) = value.womValue.toJson
     def read(value: JsValue): JobOutput = JobOutput(WdlValueJsonFormat.read(value))
   }
 

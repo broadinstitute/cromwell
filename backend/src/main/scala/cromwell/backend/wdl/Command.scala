@@ -2,7 +2,7 @@ package cromwell.backend.wdl
 
 import cromwell.backend.BackendJobDescriptor
 import wom.expression.IoFunctionSet
-import wom.values.{WdlValue, WomEvaluatedCallInputs}
+import wom.values.{WomValue, WomEvaluatedCallInputs}
 
 import scala.util.{Success, Try}
 
@@ -22,7 +22,7 @@ object Command {
   def instantiate(jobDescriptor: BackendJobDescriptor,
                   callEngineFunction: IoFunctionSet,
                   inputsPreProcessor: WomEvaluatedCallInputs => Try[WomEvaluatedCallInputs] = (i: WomEvaluatedCallInputs) => Success(i),
-                  valueMapper: WdlValue => WdlValue = identity): Try[String] = {
+                  valueMapper: WomValue => WomValue = identity): Try[String] = {
     inputsPreProcessor(jobDescriptor.inputDeclarations) flatMap { mappedInputs =>
       jobDescriptor.call.callable.instantiateCommand(mappedInputs, callEngineFunction, valueMapper)
     }

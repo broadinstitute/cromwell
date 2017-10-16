@@ -15,18 +15,18 @@ case class EngineWorkflowDescriptor(namespace: WorkflowDefinition,
                                     pathBuilders: List[PathBuilder],
                                     callCachingMode: CallCachingMode,
                                     parentWorkflow: Option[EngineWorkflowDescriptor] = None) {
-  
+
   val rootWorkflow: EngineWorkflowDescriptor = parentWorkflow match {
     case Some(parent) => parent.rootWorkflow
     case None => this
   }
 
   def isRootWorkflow: Boolean = rootWorkflow.parentWorkflow.isEmpty
-  
+
   lazy val id = backendDescriptor.id
   lazy val workflow = backendDescriptor.workflow
   lazy val name = workflow.name
   lazy val knownValues = backendDescriptor.knownValues
-  
+
   def getWorkflowOption(key: WorkflowOption): Option[String] = backendDescriptor.getWorkflowOption(key)
 }

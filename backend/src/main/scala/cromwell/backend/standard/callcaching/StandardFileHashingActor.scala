@@ -11,7 +11,7 @@ import cromwell.core.JobKey
 import cromwell.core.callcaching._
 import cromwell.core.io._
 import cromwell.core.logging.JobLogging
-import wom.values.WdlFile
+import wom.values.WomFile
 
 import scala.util.{Failure, Success, Try}
 
@@ -48,7 +48,7 @@ object StandardFileHashingActor {
   case class FileHashingFunction(work: (SingleFileHashRequest, LoggingAdapter) => Try[String])
 
   sealed trait BackendSpecificHasherCommand { def jobKey: JobKey }
-  final case class SingleFileHashRequest(jobKey: JobKey, hashKey: HashKey, file: WdlFile, initializationData: Option[BackendInitializationData]) extends BackendSpecificHasherCommand
+  final case class SingleFileHashRequest(jobKey: JobKey, hashKey: HashKey, file: WomFile, initializationData: Option[BackendInitializationData]) extends BackendSpecificHasherCommand
 
   sealed trait BackendSpecificHasherResponse extends SuccessfulHashResultMessage
   case class FileHashResponse(hashResult: HashResult) extends BackendSpecificHasherResponse { override def hashes = Set(hashResult) }

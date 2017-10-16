@@ -29,15 +29,15 @@ package object cwl extends TypeAliases {
 
   type Cwl = Workflow :+: CommandLineTool :+: CNil
 
-  def cwlTypeToWdlType : CwlType => WdlType = {
-    case Null => WdlNothingType
-    case Boolean => WdlBooleanType
-    case Int => WdlIntegerType
-    case Long => WdlIntegerType
-    case Float => WdlFloatType
-    case Double => WdlFloatType
-    case String => WdlStringType
-    case CwlType.File => WdlFileType
+  def cwlTypeToWdlType : CwlType => WomType = {
+    case Null => WomNothingType
+    case Boolean => WomBooleanType
+    case Int => WomIntegerType
+    case Long => WomIntegerType
+    case Float => WomFloatType
+    case Double => WomFloatType
+    case String => WomStringType
+    case CwlType.File => WomFileType
     case CwlType.Directory => ???
   }
 
@@ -53,7 +53,7 @@ package object cwl extends TypeAliases {
   type Expression = ECMAScriptExpression :+: ECMAScriptFunction :+: CNil
 
 
-  type WdlTypeMap = Map[String, WdlType]
+  type WdlTypeMap = Map[String, WomType]
 
   object CwlToWomExecutable extends Poly1 {
     implicit def caseClt = at[CommandLineTool](clt => clt.womExecutable())

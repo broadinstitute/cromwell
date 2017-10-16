@@ -16,20 +16,20 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
 import wom.core.LocallyQualifiedName
 import wom.graph.WomIdentifier
-import wom.values.{WdlFile, WdlInteger, WdlString, WdlValue}
+import wom.values.{WomFile, WomInteger, WomString, WomValue}
 
 class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with BackendSpec with Matchers with Eventually with TableDrivenPropertyChecks {
   behavior of "CallCacheReadingJobActor"
 
-  def templateJobDescriptor(inputs: Map[LocallyQualifiedName, WdlValue] = Map.empty) = {
+  def templateJobDescriptor(inputs: Map[LocallyQualifiedName, WomValue] = Map.empty) = {
     val task = WomMocks.mockTaskDefinition("task").copy(commandTemplate = List(StringCommandPart("Do the stuff... now!!")))
     val call = WomMocks.mockTaskCall(WomIdentifier("call"), definition = task)
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
     val runtimeAttributes = Map(
-      "cpu" -> WdlInteger(1),
-      "memory" -> WdlString("3 GB"),
-      "continueOnReturnCode" -> WdlInteger(0),
-      "docker" -> WdlString("ubuntu:latest")
+      "cpu" -> WomInteger(1),
+      "memory" -> WomString("3 GB"),
+      "continueOnReturnCode" -> WomInteger(0),
+      "docker" -> WomString("ubuntu:latest")
     )
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
     jobDescriptor
@@ -56,8 +56,8 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
   it should "send a correct InitialHashingResult upon starting" in {
     val parent = TestProbe()
     val inputs = Map(
-      "stringInput" -> WdlString("hello"),
-      "fileInput" -> WdlFile("world")
+      "stringInput" -> WomString("hello"),
+      "fileInput" -> WomFile("world")
     )
     // Do not include "memory" on purpose, even though it's in the map of runtime attributes.
     // This way we can verify that only attributes with a RuntimeAttributeDefinition are used for hashing
@@ -66,7 +66,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
     val runtimeAttributeDefinitions = Set(
       RuntimeAttributeDefinition("docker", None, usedInCallCaching = true),
       RuntimeAttributeDefinition("failOnStderr", None, usedInCallCaching = true),
-      RuntimeAttributeDefinition("continueOnReturnCode", Option(WdlInteger(0)), usedInCallCaching = true),
+      RuntimeAttributeDefinition("continueOnReturnCode", Option(WomInteger(0)), usedInCallCaching = true),
       RuntimeAttributeDefinition("cpu", None, usedInCallCaching = false)
     )
     val callCacheRead = TestProbe()
@@ -107,7 +107,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
     callCacheRead.expectMsg(expectedInitialHashResult)
     actorUnderTest.stateName shouldBe WaitingForHashFileRequest
     actorUnderTest.stateData shouldBe CallCacheHashingJobActorData(
-      List(SingleFileHashRequest(jobDescriptor.key, HashKey("input", "File fileInput"), WdlFile("world"), None)),
+      List(SingleFileHashRequest(jobDescriptor.key, HashKey("input", "File fileInput"), WomFile("world"), None)),
       Option(callCacheRead.ref)
     )
   }

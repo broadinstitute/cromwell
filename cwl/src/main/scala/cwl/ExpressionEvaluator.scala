@@ -4,7 +4,7 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.MatchesRegex
 import shapeless.Witness
 import wom.util.JsUtil
-import wom.values.WdlValue
+import wom.values.WomValue
 
 // http://www.commonwl.org/v1.0/CommandLineTool.html#Expressions
 object ExpressionEvaluator {
@@ -20,7 +20,7 @@ object ExpressionEvaluator {
   type MatchesECMAFunction = MatchesRegex[ECMAScriptFunctionWitness.T]
 
 
-  def evalExpression(expression: ECMAScriptExpression, parameterContext: ParameterContext): WdlValue = {
+  def evalExpression(expression: ECMAScriptExpression, parameterContext: ParameterContext): WomValue = {
     val ECMAScriptExpressionRegex = ECMAScriptExpressionWitness.value.r
     expression.value match {
       case ECMAScriptExpressionRegex(script) => JsUtil.eval(script, paramValues(parameterContext))
@@ -28,7 +28,7 @@ object ExpressionEvaluator {
     }
   }
 
-  def evalFunction(function: ECMAScriptFunction, parameterContext: ParameterContext): WdlValue = {
+  def evalFunction(function: ECMAScriptFunction, parameterContext: ParameterContext): WomValue = {
     val ECMAScriptFunctionRegex = ECMAScriptFunctionWitness.value.r
     function.value match {
       case ECMAScriptFunctionRegex(script) =>

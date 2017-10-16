@@ -19,13 +19,13 @@ import scala.util.{Failure, Success, Try}
 
 object SharedFileSystem extends StrictLogging {
 
-  final case class AttemptedLookupResult(name: String, value: Try[WdlValue]) {
-    def toPair: (String, Try[WdlValue]) = name -> value
+  final case class AttemptedLookupResult(name: String, value: Try[WomValue]) {
+    def toPair: (String, Try[WomValue]) = name -> value
   }
 
   object AttemptedLookupResult {
     implicit class AugmentedAttemptedLookupSequence(s: Seq[AttemptedLookupResult]) {
-      def toLookupMap: Map[String, WdlValue] = s collect {
+      def toLookupMap: Map[String, WomValue] = s collect {
         case AttemptedLookupResult(name, Success(value)) => (name, value)
       } toMap
     }
@@ -132,16 +132,16 @@ trait SharedFileSystem extends PathFactory {
     }
   }
 
-  def outputMapper(job: JobPaths)(wdlValue: WdlValue): Try[WdlValue] = {
-    WdlFileMapper.mapWdlFiles(mapJobWdlFile(job))(wdlValue)
+  def outputMapper(job: JobPaths)(womValue: WomValue): Try[WomValue] = {
+    WdlFileMapper.mapWdlFiles(mapJobWdlFile(job))(womValue)
   }
 
-  def mapJobWdlFile(job: JobPaths)(wdlFile: WdlFile): WdlFile = {
+  def mapJobWdlFile(job: JobPaths)(wdlFile: WomFile): WomFile = {
     wdlFile match {
-      case fileNotFound: WdlFile if !hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).exists =>
+      case fileNotFound: WomFile if !hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).exists =>
         throw new RuntimeException("Could not process output, file not found: " +
           s"${hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).pathAsString}")
-      case _ => WdlFile(hostAbsoluteFilePath(job.callExecutionRoot, wdlFile.valueString).pathAsString)
+      case _ => WomFile(hostAbsoluteFilePath(job.callExecutionRoot, wdlFile.valueString).pathAsString)
     }
   }
 
@@ -162,7 +162,7 @@ trait SharedFileSystem extends PathFactory {
     }
   }
 
-  def localizeWdlFile(inputsRoot: Path, docker: Boolean)(value: WdlFile): WdlFile = {
+  def localizeWdlFile(inputsRoot: Path, docker: Boolean)(value: WomFile): WomFile = {
     val strategies = if (docker) DockerLocalizers else Localizers
 
     // Strip the protocol scheme
@@ -199,10 +199,10 @@ trait SharedFileSystem extends PathFactory {
     * @return localized wdl file
     */
   private def localizeWdlFile(toDestPath: (String => Try[PairOfFiles]), strategies: Stream[DuplicationStrategy])
-                             (wdlFile: WdlFile): WdlFile = {
+                             (wdlFile: WomFile): WomFile = {
     val path = wdlFile.value
     val result = toDestPath(path) flatMap {
-      case PairOfFiles(src, dst) => duplicate("localize", src, dst, strategies) map { _ => WdlFile(dst.pathAsString) }
+      case PairOfFiles(src, dst) => duplicate("localize", src, dst, strategies) map { _ => WomFile(dst.pathAsString) }
     }
     result.get
   }

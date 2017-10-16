@@ -16,12 +16,12 @@ import org.scalatest.{FlatSpecLike, Matchers}
 import _root_.wdl.command.StringCommandPart
 import wom.core.LocallyQualifiedName
 import wom.graph.WomIdentifier
-import wom.values.WdlValue
+import wom.values.WomValue
 
 class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matchers with BackendSpec with TableDrivenPropertyChecks with Eventually {
   behavior of "EngineJobHashingActor"
 
-  def templateJobDescriptor(inputs: Map[LocallyQualifiedName, WdlValue] = Map.empty) = {
+  def templateJobDescriptor(inputs: Map[LocallyQualifiedName, WomValue] = Map.empty) = {
     val task = WomMocks.mockTaskDefinition("hello").copy(
       commandTemplate = List(StringCommandPart("Do the stuff... now!!"))
     )

@@ -2,7 +2,7 @@ package cromwell.backend.async
 
 import cromwell.core.path.Path
 import lenthall.exception.ThrowableAggregation
-import wom.values.WdlValue
+import wom.values.WomValue
 
 abstract class KnownJobFailureException extends Exception {
   def stderrPath: Option[Path]
@@ -29,13 +29,13 @@ final case class StderrNonEmpty(jobTag: String, stderrLength: Long, stderrPath: 
 object RuntimeAttributeValidationFailure {
   def apply(jobTag: String,
             runtimeAttributeName: String,
-            runtimeAttributeValue: Option[WdlValue]): RuntimeAttributeValidationFailure = RuntimeAttributeValidationFailure(jobTag, runtimeAttributeName, runtimeAttributeValue, None)
+            runtimeAttributeValue: Option[WomValue]): RuntimeAttributeValidationFailure = RuntimeAttributeValidationFailure(jobTag, runtimeAttributeName, runtimeAttributeValue, None)
 }
 
 final case class RuntimeAttributeValidationFailure private (jobTag: String,
-                                                   runtimeAttributeName: String,
-                                                   runtimeAttributeValue: Option[WdlValue],
-                                                   stderrPath: Option[Path]) extends KnownJobFailureException {
+                                                            runtimeAttributeName: String,
+                                                            runtimeAttributeValue: Option[WomValue],
+                                                            stderrPath: Option[Path]) extends KnownJobFailureException {
   override def getMessage = s"Task $jobTag has an invalid runtime attribute $runtimeAttributeName = ${runtimeAttributeValue map { _.valueString} getOrElse "!! NOT FOUND !!"}"
 }
 

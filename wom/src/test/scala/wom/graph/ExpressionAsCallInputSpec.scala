@@ -6,7 +6,7 @@ import wom.callable.TaskDefinitionSpec
 import wom.expression._
 import wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold}
 import wom.graph.expression.AnonymousExpressionNode
-import wom.types.WdlIntegerType
+import wom.types.WomIntegerType
 
 class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
 
@@ -28,11 +28,11 @@ class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
     */
   it should "create and wire in InstantiatedExpressions where appropriate" in {
     // Two inputs:
-    val iInputNode = RequiredGraphInputNode(WomIdentifier("i"), WdlIntegerType)
-    val jInputNode = RequiredGraphInputNode(WomIdentifier("j"), WdlIntegerType)
+    val iInputNode = RequiredGraphInputNode(WomIdentifier("i"), WomIntegerType)
+    val jInputNode = RequiredGraphInputNode(WomIdentifier("j"), WomIntegerType)
 
     // Declare an expression that needs both an "i" and a "j":
-    val ijExpression = PlaceholderWomExpression(Set("i", "j"), WdlIntegerType)
+    val ijExpression = PlaceholderWomExpression(Set("i", "j"), WomIntegerType)
 
     // Use that as an input to a one-input task:
     val expressionNode = AnonymousExpressionNode.fromInputMapping(WomIdentifier("bar"), ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))

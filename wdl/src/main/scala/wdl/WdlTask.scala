@@ -12,8 +12,8 @@ import wdl4s.parser.WdlParser._
 import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, TaskDefinition}
 import wom.graph.LocalName
-import wom.types.WdlOptionalType
-import wom.values.{WdlFile, WdlValue}
+import wom.types.WomOptionalType
+import wom.values.{WomFile, WomValue}
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
@@ -104,15 +104,15 @@ case class WdlTask(name: String,
     *
     * {{{sh script.sh foo -o bar}}}
     *
-    * @param taskInputs  Map[String, WdlValue] of inputs to this call, keys should be declarations
+    * @param taskInputs  Map[String, WomValue] of inputs to this call, keys should be declarations
     * @param functions   Implementation of the WDL standard library functions to evaluate functions in expressions
-    * @param valueMapper Optional WdlValue => WdlValue function that is called on the result of each expression
+    * @param valueMapper Optional WomValue => WomValue function that is called on the result of each expression
     *                    evaluation (i.e. evaluation of $${...} blocks).
     * @return String instantiation of the command
     */
   def instantiateCommand(taskInputs: EvaluatedTaskInputs,
-                         functions: WdlFunctions[WdlValue],
-                         valueMapper: WdlValue => WdlValue = (v) => v): Try[String] = {
+                         functions: WdlFunctions[WomValue],
+                         valueMapper: WomValue => WomValue = (v) => v): Try[String] = {
     val mappedInputs = taskInputs.map({case (k, v) => k.unqualifiedName -> v})
     Try(StringUtil.normalize(commandTemplate.map(_.instantiate(declarations, mappedInputs, functions, valueMapper)).mkString("")))
   }
@@ -125,8 +125,8 @@ case class WdlTask(name: String,
     * A lookup function that restricts known task values to input declarations
     */
   def inputsLookupFunction(inputs: WorkflowCoercedInputs,
-                           wdlFunctions: WdlFunctions[WdlValue],
-                           shards: Map[Scatter, Int] = Map.empty[Scatter, Int]): String => WdlValue = {
+                           wdlFunctions: WdlFunctions[WomValue],
+                           shards: Map[Scatter, Int] = Map.empty[Scatter, Int]): String => WomValue = {
     outputs.toList match {
       case head :: _ => super.lookupFunction(inputs, wdlFunctions, NoOutputResolver, shards, relativeTo = head)
       case _ => super.lookupFunction(inputs, wdlFunctions, NoOutputResolver, shards, this)
@@ -138,7 +138,7 @@ case class WdlTask(name: String,
     * and return the corresponding created file for them.
     */
   def evaluateFilesFromCommand(inputs: WorkflowCoercedInputs,
-                               functions: WdlFunctions[WdlValue]) = {
+                               functions: WdlFunctions[WomValue]) = {
     val commandExpressions = commandTemplate.collect({
       case x: ParameterCommandPart => x.expression
     })
@@ -155,7 +155,7 @@ case class WdlTask(name: String,
     } toMap
 
     evaluatedExpressionMap collect {
-      case (k, Success(file: WdlFile)) => k -> file
+      case (k, Success(file: WomFile)) => k -> file
     }
   }
 
@@ -163,13 +163,13 @@ case class WdlTask(name: String,
     * Tries to determine files that will be created by the outputs of this task.
     */
   def findOutputFiles(inputs: WorkflowCoercedInputs,
-                      functions: WdlFunctions[WdlValue],
-                      silenceEvaluationErrors: Boolean = true): Seq[WdlFile] = {
+                      functions: WdlFunctions[WomValue],
+                      silenceEvaluationErrors: Boolean = true): Seq[WomFile] = {
     val outputFiles = outputs flatMap { taskOutput =>
       val lookup = lookupFunction(inputs, functions, relativeTo = taskOutput)
-      taskOutput.requiredExpression.evaluateFiles(lookup, functions, taskOutput.wdlType) match {
+      taskOutput.requiredExpression.evaluateFiles(lookup, functions, taskOutput.womType) match {
         case Success(wdlFiles) => wdlFiles
-        case Failure(ex) => if (silenceEvaluationErrors) Seq.empty[WdlFile] else throw ex
+        case Failure(ex) => if (silenceEvaluationErrors) Seq.empty[WomFile] else throw ex
       }
     }
 
@@ -178,17 +178,17 @@ case class WdlTask(name: String,
 
   def evaluateOutputs(inputs: EvaluatedTaskInputs,
                       wdlFunctions: WdlStandardLibraryFunctions,
-                      postMapper: WdlValue => Try[WdlValue] = v => Success(v)): Try[Map[TaskOutput, WdlValue]] = {
+                      postMapper: WomValue => Try[WomValue] = v => Success(v)): Try[Map[TaskOutput, WomValue]] = {
     val fqnInputs = inputs map { case (d, v) => d.fullyQualifiedName -> v }
-    val evaluatedOutputs = outputs.foldLeft(Map.empty[TaskOutput, Try[WdlValue]])((outputMap, output) => {
+    val evaluatedOutputs = outputs.foldLeft(Map.empty[TaskOutput, Try[WomValue]])((outputMap, output) => {
       val currentOutputs = outputMap collect {
         case (outputName, value) if value.isSuccess => outputName.fullyQualifiedName -> value.get
       }
       def knownValues = currentOutputs ++ fqnInputs
       val lookup = lookupFunction(knownValues, wdlFunctions, relativeTo = output)
-      val coerced = output.requiredExpression.evaluate(lookup, wdlFunctions) flatMap output.wdlType.coerceRawValue
+      val coerced = output.requiredExpression.evaluate(lookup, wdlFunctions) flatMap output.womType.coerceRawValue
       val jobOutput = output -> (coerced flatMap postMapper).recoverWith {
-        case t: Throwable => Failure(new RuntimeException(s"Could not evaluate ${output.fullyQualifiedName} = ${output.requiredExpression.toWdlString}", t))
+        case t: Throwable => Failure(new RuntimeException(s"Could not evaluate ${output.fullyQualifiedName} = ${output.requiredExpression.toWomString}", t))
       }
       outputMap + jobOutput
     }) map { case (k, v) => k -> v }
@@ -205,7 +205,7 @@ case class WdlTask(name: String,
     * }
     * inputMap = Map("t.s" -> WdlString("hello"))
     */
-  def inputsFromMap(inputs: Map[FullyQualifiedName, WdlValue]): EvaluatedTaskInputs = {
+  def inputsFromMap(inputs: Map[FullyQualifiedName, WomValue]): EvaluatedTaskInputs = {
     declarations flatMap { declaration =>
       inputs collectFirst {
         case (fqn, value) if fqn == declaration.fullyQualifiedName => declaration -> value }
@@ -223,11 +223,11 @@ case class WdlTask(name: String,
   )
 
   private def buildWomInputs: List[Callable.InputDefinition] = declarations collect {
-    case d if d.expression.isEmpty && !d.wdlType.isInstanceOf[WdlOptionalType] =>
-      RequiredInputDefinition(LocalName(d.unqualifiedName), d.wdlType)
-    case d if d.expression.isEmpty && d.wdlType.isInstanceOf[WdlOptionalType] =>
-      OptionalInputDefinition(LocalName(d.unqualifiedName), d.wdlType.asInstanceOf[WdlOptionalType])
+    case d if d.expression.isEmpty && !d.womType.isInstanceOf[WomOptionalType] =>
+      RequiredInputDefinition(LocalName(d.unqualifiedName), d.womType)
+    case d if d.expression.isEmpty && d.womType.isInstanceOf[WomOptionalType] =>
+      OptionalInputDefinition(LocalName(d.unqualifiedName), d.womType.asInstanceOf[WomOptionalType])
     case d if d.expression.nonEmpty =>
-      InputDefinitionWithDefault(LocalName(d.unqualifiedName), d.wdlType, WdlWomExpression(d.expression.get, Option(this)))
+      InputDefinitionWithDefault(LocalName(d.unqualifiedName), d.womType, WdlWomExpression(d.expression.get, Option(this)))
   } toList
 }

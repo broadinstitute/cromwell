@@ -4,6 +4,8 @@ import java.util.regex.Pattern
 
 import scala.annotation.tailrec
 
+/** This is under a `wdl` package because it exists purely to do WDLy stuff, but it's currently being called from the
+  * WOMmy TaskDefinition. That should get straightened out. */
 object StringUtil {
   val Ws = Pattern.compile("[\\ \\t]+")
 

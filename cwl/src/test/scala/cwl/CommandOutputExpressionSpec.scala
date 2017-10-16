@@ -9,8 +9,8 @@ import eu.timepit.refined.string.MatchesRegex
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct
 import wom.expression.PlaceholderIoFunctionSet
-import wom.types.WdlIntegerType
-import wom.values.{WdlGlobFile, WdlInteger, WdlString}
+import wom.types.WomIntegerType
+import wom.values.{WomGlobFile, WomInteger, WomString}
 
 class CommandOutputExpressionSpec extends FlatSpec with Matchers {
 
@@ -23,17 +23,17 @@ class CommandOutputExpressionSpec extends FlatSpec with Matchers {
     val glob = Coproduct[Glob](globExpression)
     val outputEval = Coproduct[StringOrExpression](outputEvalExpression)
     val outputBinding = CommandOutputBinding(Option(glob), Option(true), Option(outputEval))
-    val commandOutputExpression = CommandOutputExpression(outputBinding, WdlIntegerType)
-    val inputValues = Map("myTempFile" -> WdlString(tempFile.pathAsString))
+    val commandOutputExpression = CommandOutputExpression(outputBinding, WomIntegerType)
+    val inputValues = Map("myTempFile" -> WomString(tempFile.pathAsString))
     val result = commandOutputExpression.evaluateValue(inputValues, PlaceholderIoFunctionSet)
-    result should be(WdlInteger(42).valid)
+    result should be(WomInteger(42).valid)
   }
 
   it should "figure out stdout" in {
     val glob = Coproduct[Glob]("stdout")
     val outputBinding = CommandOutputBinding(Option(glob))
-    val commandOutputExpression = CommandOutputExpression(outputBinding, WdlIntegerType)
-    val result = commandOutputExpression.evaluateFiles(Map.empty, PlaceholderIoFunctionSet, WdlIntegerType)
-    result shouldBe(Valid(Set(WdlGlobFile("stdout"))))
+    val commandOutputExpression = CommandOutputExpression(outputBinding, WomIntegerType)
+    val result = commandOutputExpression.evaluateFiles(Map.empty, PlaceholderIoFunctionSet, WomIntegerType)
+    result shouldBe(Valid(Set(WomGlobFile("stdout"))))
   }
 }

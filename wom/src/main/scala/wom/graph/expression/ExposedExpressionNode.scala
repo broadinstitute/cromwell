@@ -4,17 +4,17 @@ import lenthall.validation.ErrorOr.ErrorOr
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.{InputPort, OutputPort}
 import wom.graph.WomIdentifier
-import wom.types.WdlType
+import wom.types.WomType
 
 object ExposedExpressionNode {
   def fromInputMapping(identifier: WomIdentifier,
                        expression: WomExpression,
-                       explicitWomType: WdlType, 
+                       explicitWomType: WomType, 
                        inputMapping: Map[String, OutputPort]): ErrorOr[ExpressionNode] = {
     // This constructor ignores the evaluated type and uses the explicit type instead
     def constructor(identifier: WomIdentifier,
                     expression: WomExpression,
-                    evaluatedType: WdlType,
+                    evaluatedType: WomType,
                     inputPorts: Map[String, InputPort]) = {
       new ExpressionNode(identifier, expression, explicitWomType, inputPorts) with AnonymousExpressionNode
     }

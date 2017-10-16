@@ -9,21 +9,21 @@ import wom.values._
 
 sealed trait CwlWomExpression extends WomExpression {
 
-  def cwlExpressionType: WdlType
+  def cwlExpressionType: WomType
 
-  override def evaluateType(inputTypes: Map[String, WdlType]): ErrorOr[WdlType] = cwlExpressionType.validNel
+  override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = cwlExpressionType.validNel
 }
 
 case class CommandOutputExpression(outputBinding: CommandOutputBinding,
-                                   override val cwlExpressionType: WdlType) extends CwlWomExpression {
+                                   override val cwlExpressionType: WomType) extends CwlWomExpression {
 
   // TODO WOM: outputBinding.toString is probably not be the best representation of the outputBinding
   override def sourceString = outputBinding.toString
-  override def evaluateValue(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue] = {
+  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
     val parameterContext = ParameterContext.Empty.withInputs(inputValues, ioFunctionSet)
 
-    val wdlValue = outputBinding.commandOutputBindingToWdlValue(parameterContext, ioFunctionSet)
-    cwlExpressionType.coerceRawValue(wdlValue).toErrorOr
+    val womValue = outputBinding.commandOutputBindingToWdlValue(parameterContext, ioFunctionSet)
+    cwlExpressionType.coerceRawValue(womValue).toErrorOr
   }
 
   override def inputs: Set[String] = ???
@@ -33,19 +33,19 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
    DB: It doesn't make sense to me that this function returns type WdlFile but accepts a type to which it coerces.
    Wouldn't coerceTo always == WdlFileType, and if not then what?
    */
-  override def evaluateFiles(inputTypes: Map[String, WdlValue], ioFunctionSet: IoFunctionSet, coerceTo: WdlType): ErrorOr[Set[WdlFile]] ={
+  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] ={
 
     val pc = ParameterContext.Empty.withInputs(inputTypes, ioFunctionSet)
-    val wdlValue = outputBinding.commandOutputBindingToWdlValue(pc, ioFunctionSet)
+    val womValue = outputBinding.commandOutputBindingToWdlValue(pc, ioFunctionSet)
 
-    wdlValue match {
+    womValue match {
 
-      case WdlArray(WdlMaybeEmptyArrayType(WdlMapType(WdlStringType, WdlStringType)), seq: Seq[WdlValue]) =>
+      case WomArray(WomMaybeEmptyArrayType(WomMapType(WomStringType, WomStringType)), seq: Seq[WomValue]) =>
         seq.map {
-          case WdlMap(WdlMapType(WdlStringType, WdlStringType), map) => WdlGlobFile(map(WdlString("location")).valueString): WdlFile
+          case WomMap(WomMapType(WomStringType, WomStringType), map) => WomGlobFile(map(WomString("location")).valueString): WomFile
         }.toSet.validNel
 
-      case other =>s":( we saw $other and couldn't convert to a globfile type: ${other.wdlType} coerceTo: $coerceTo".invalidNel[Set[WdlFile]]
+      case other =>s":( we saw $other and couldn't convert to a globfile type: ${other.womType} coerceTo: $coerceTo".invalidNel[Set[WomFile]]
     }
   }
 }

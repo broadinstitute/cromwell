@@ -12,101 +12,101 @@ import scala.util.{Failure, Success, Try}
 class ValueEvaluatorSpec extends FlatSpec with Matchers {
   val expr: String => WdlExpression = WdlExpression.fromString
 
-  def noLookup(String: String): WdlValue = fail("No identifiers should be looked up in this test")
+  def noLookup(String: String): WomValue = fail("No identifiers should be looked up in this test")
 
-  def noTypeLookup(String: String): WdlType = fail("No identifiers should be looked up in this test")
+  def noTypeLookup(String: String): WomType = fail("No identifiers should be looked up in this test")
 
-  def identifierLookup(name: String): WdlValue = name match {
-    case "a" => WdlInteger(1)
-    case "b" => WdlInteger(2)
-    case "s" => WdlString("s")
-    case "array_str" => WdlArray(WdlArrayType(WdlStringType), Seq("foo", "bar", "baz").map(WdlString))
-    case "map_str_int" => WdlMap(WdlMapType(WdlStringType, WdlIntegerType), Map(
-      WdlString("a") -> WdlInteger(0),
-      WdlString("b") -> WdlInteger(1),
-      WdlString("c") -> WdlInteger(2)
+  def identifierLookup(name: String): WomValue = name match {
+    case "a" => WomInteger(1)
+    case "b" => WomInteger(2)
+    case "s" => WomString("s")
+    case "array_str" => WomArray(WomArrayType(WomStringType), Seq("foo", "bar", "baz").map(WomString))
+    case "map_str_int" => WomMap(WomMapType(WomStringType, WomIntegerType), Map(
+      WomString("a") -> WomInteger(0),
+      WomString("b") -> WomInteger(1),
+      WomString("c") -> WomInteger(2)
     ))
-    case "o" => WdlObject(Map("key1" -> WdlString("value1"), "key2" -> WdlInteger(9)))
-    case "myPair" => WdlPair(WdlInteger(3), WdlString("hello"))
-    case "etc_f" => WdlFile("/etc")
-    case "etc2_f" => WdlFile("/etc2")
-    case "etc_s" => WdlString("/etc")
-    case "sudoers_f" => WdlFile("/sudoers")
-    case "sudoers_s" => WdlString("/sudoers")
-    case "f" => WdlFloat(0.5F)  
-    case "t" => WdlBoolean(true)  
-    case "someIntAsString" => WdlOptionalValue(WdlString("1"))  
-    case "someFloatAsString" => WdlOptionalValue(WdlString("0.5"))  
-    case "someStr" => WdlOptionalValue(WdlString("someStr"))
-    case "someInt" => WdlOptionalValue(WdlInteger(1))
-    case "someBoolean" => WdlOptionalValue(WdlBoolean(false))
-    case "someFloat" => WdlOptionalValue(WdlFloat(0.5F))
-    case "someFile" => WdlOptionalValue(WdlFile("file"))
-    case "noneStr" => WdlOptionalValue.none(WdlStringType)
-    case "noneInt" => WdlOptionalValue.none(WdlIntegerType)
-    case "noneBool" => WdlOptionalValue.none(WdlBooleanType)
-    case "noneFloat" => WdlOptionalValue.none(WdlFloatType)
-    case "noneFile" => WdlOptionalValue.none(WdlFileType)
+    case "o" => WomObject(Map("key1" -> WomString("value1"), "key2" -> WomInteger(9)))
+    case "myPair" => WomPair(WomInteger(3), WomString("hello"))
+    case "etc_f" => WomFile("/etc")
+    case "etc2_f" => WomFile("/etc2")
+    case "etc_s" => WomString("/etc")
+    case "sudoers_f" => WomFile("/sudoers")
+    case "sudoers_s" => WomString("/sudoers")
+    case "f" => WomFloat(0.5F)
+    case "t" => WomBoolean(true)
+    case "someIntAsString" => WomOptionalValue(WomString("1"))
+    case "someFloatAsString" => WomOptionalValue(WomString("0.5"))
+    case "someStr" => WomOptionalValue(WomString("someStr"))
+    case "someInt" => WomOptionalValue(WomInteger(1))
+    case "someBoolean" => WomOptionalValue(WomBoolean(false))
+    case "someFloat" => WomOptionalValue(WomFloat(0.5F))
+    case "someFile" => WomOptionalValue(WomFile("file"))
+    case "noneStr" => WomOptionalValue.none(WomStringType)
+    case "noneInt" => WomOptionalValue.none(WomIntegerType)
+    case "noneBool" => WomOptionalValue.none(WomBooleanType)
+    case "noneFloat" => WomOptionalValue.none(WomFloatType)
+    case "noneFile" => WomOptionalValue.none(WomFileType)
   }
 
 
-  def identifierTypeLookup(name: String): WdlType = identifierLookup(name).wdlType
+  def identifierTypeLookup(name: String): WomType = identifierLookup(name).womType
 
   class TestValueFunctions extends WdlStandardLibraryFunctions {
     override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedError()
 
     override def readFile(path: String): String = throw new NotImplementedError()
 
-    override def writeFile(path: String, content: String): Try[WdlFile] = Failure(new NotImplementedError())
+    override def writeFile(path: String, content: String): Try[WomFile] = Failure(new NotImplementedError())
 
-    override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError())
+    override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError())
 
-    override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError())
+    override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError())
 
-    override def read_json(params: Seq[Try[WdlValue]]): Try[WdlValue] = Failure(new NotImplementedError())
+    override def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = Failure(new NotImplementedError())
 
-    override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError())
+    override def write_tsv(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError())
 
-    override def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError())
+    override def write_json(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError())
 
-    override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = Failure(new NotImplementedError())
+    override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new NotImplementedError())
 
-    override def length(params: Seq[Try[WdlValue]]): Try[WdlInteger] = Failure(new NotImplementedError())
+    override def length(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new NotImplementedError())
 
-    override def sub(params: Seq[Try[WdlValue]]): Try[WdlString] = Failure(new NotImplementedError())
+    override def sub(params: Seq[Try[WomValue]]): Try[WomString] = Failure(new NotImplementedError())
 
-    override def range(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new NotImplementedError())
+    override def range(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new NotImplementedError())
 
-    override def transpose(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new NotImplementedError())
+    override def transpose(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new NotImplementedError())
 
-    def b(params: Seq[Try[WdlValue]]): Try[WdlValue] =
-      Success(WdlInteger(params.head.asInstanceOf[Try[WdlInteger]].get.value + 1))
+    def b(params: Seq[Try[WomValue]]): Try[WomValue] =
+      Success(WomInteger(params.head.asInstanceOf[Try[WomInteger]].get.value + 1))
 
-    def append(params: Seq[Try[WdlValue]]): Try[WdlValue] =
-      Success(WdlString(params.map(_.asInstanceOf[Try[WdlString]].get.value).mkString))
+    def append(params: Seq[Try[WomValue]]): Try[WomValue] =
+      Success(WomString(params.map(_.asInstanceOf[Try[WomString]].get.value).mkString))
   }
 
   class TestTypeFunctions extends WdlStandardLibraryFunctionsType {
-    def b(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlIntegerType)
+    def b(params: Seq[Try[WomType]]): Try[WomType] = Success(WomIntegerType)
 
-    def append(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlStringType)
+    def append(params: Seq[Try[WomType]]): Try[WomType] = Success(WomStringType)
   }
 
-  def constEval(exprStr: String): WdlValue = expr(exprStr).evaluate(noLookup, new TestValueFunctions()).get
+  def constEval(exprStr: String): WomValue = expr(exprStr).evaluate(noLookup, new TestValueFunctions()).get
 
-  def constEvalType(exprStr: String): WdlType = expr(exprStr).evaluateType(identifierTypeLookup, new TestTypeFunctions).get
+  def constEvalType(exprStr: String): WomType = expr(exprStr).evaluateType(identifierTypeLookup, new TestTypeFunctions).get
 
   def constEvalError(exprStr: String): Throwable = {
-    expr(exprStr).evaluate(noLookup, new TestValueFunctions()).asInstanceOf[Try[WdlPrimitive]] match {
+    expr(exprStr).evaluate(noLookup, new TestValueFunctions()).asInstanceOf[Try[WomPrimitive]] match {
       case Failure(ex) => ex
       case Success(v) => fail(s"Operation was supposed to fail, instead I got value: $v")
     }
   }
 
-  def identifierEval(exprStr: String): WdlPrimitive = expr(exprStr).evaluate(identifierLookup, new TestValueFunctions()).asInstanceOf[Try[WdlPrimitive]].get
+  def identifierEval(exprStr: String): WomPrimitive = expr(exprStr).evaluate(identifierLookup, new TestValueFunctions()).asInstanceOf[Try[WomPrimitive]].get
 
   def identifierEvalError(exprStr: String): Unit = {
-    expr(exprStr).evaluate(identifierLookup, new TestValueFunctions()).asInstanceOf[Try[WdlPrimitive]] match {
+    expr(exprStr).evaluate(identifierLookup, new TestValueFunctions()).asInstanceOf[Try[WomPrimitive]] match {
       case Failure(_) => // Expected
       case Success(v) => fail(s"Operation was supposed to fail, instead I got value: $v")
     }
@@ -116,117 +116,117 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     ("expression", "value"),
 
     // Integers
-    ("1+2", WdlInteger(3)),
-    (""" 1 + "String" """, WdlString("1String")),
-    ("1+2.3", WdlFloat(3.3)),
-    ("3-5", WdlInteger(-2)),
-    ("10-6.7", WdlFloat(3.3)),
-    ("8 * 7", WdlInteger(56)),
-    ("5 * 7.2", WdlFloat(36.toDouble)),
-    ("80 / 6", WdlInteger(13)),
-    ("25/2.0", WdlFloat(12.5)),
-    ("10 % 3", WdlInteger(1)),
-    ("10 % 3.5", WdlFloat(3.0)),
-    (" 24 == 24 ", WdlBoolean.True),
-    (" 24 == 26 ", WdlBoolean.False),
-    (" 1 != 0 ", WdlBoolean.True),
-    (" 1 != 1 ", WdlBoolean.False),
-    ("4 < 3", WdlBoolean.False),
-    ("3 < 4", WdlBoolean.True),
-    ("4 < 5.0", WdlBoolean.True),
-    ("3 <= 4", WdlBoolean.True),
-    ("3 <= 3.0", WdlBoolean.True),
-    ("4 > 3", WdlBoolean.True),
-    ("4 > 3.0", WdlBoolean.True),
-    ("4 >= 4", WdlBoolean.True),
-    ("4 >= 4.0", WdlBoolean.True),
-    ("-1 + -3", WdlInteger(-4)),
-    ("+1", WdlInteger(1)),
+    ("1+2", WomInteger(3)),
+    (""" 1 + "String" """, WomString("1String")),
+    ("1+2.3", WomFloat(3.3)),
+    ("3-5", WomInteger(-2)),
+    ("10-6.7", WomFloat(3.3)),
+    ("8 * 7", WomInteger(56)),
+    ("5 * 7.2", WomFloat(36.toDouble)),
+    ("80 / 6", WomInteger(13)),
+    ("25/2.0", WomFloat(12.5)),
+    ("10 % 3", WomInteger(1)),
+    ("10 % 3.5", WomFloat(3.0)),
+    (" 24 == 24 ", WomBoolean.True),
+    (" 24 == 26 ", WomBoolean.False),
+    (" 1 != 0 ", WomBoolean.True),
+    (" 1 != 1 ", WomBoolean.False),
+    ("4 < 3", WomBoolean.False),
+    ("3 < 4", WomBoolean.True),
+    ("4 < 5.0", WomBoolean.True),
+    ("3 <= 4", WomBoolean.True),
+    ("3 <= 3.0", WomBoolean.True),
+    ("4 > 3", WomBoolean.True),
+    ("4 > 3.0", WomBoolean.True),
+    ("4 >= 4", WomBoolean.True),
+    ("4 >= 4.0", WomBoolean.True),
+    ("-1 + -3", WomInteger(-4)),
+    ("+1", WomInteger(1)),
 
     // Floats
-    ("1.0+2", WdlFloat(3.toDouble)),
-    (""" 1.0 + "String" """, WdlString("1.0String")),
-    ("1.0+2.3", WdlFloat(3.3)),
-    ("3.0-5", WdlFloat(-2.toDouble)),
-    ("10.0-6.7", WdlFloat(3.3)),
-    ("8.0 * 7", WdlFloat(56.toDouble)),
-    ("5.0 * 7.2", WdlFloat(36.toDouble)),
-    ("25.0 / 4", WdlFloat(6.25)),
-    ("25.0/2.0", WdlFloat(12.5)),
-    ("10.0 % 3", WdlFloat(1.toDouble)),
-    ("10.0 % 3.5", WdlFloat(3.0)),
-    ("24.0 == 24 ", WdlBoolean.True),
-    ("24.0 == 24.0 ", WdlBoolean.True),
-    ("24.0 == 26 ", WdlBoolean.False),
-    ("1.0 != 0 ", WdlBoolean.True),
-    ("1.0 != 0.0 ", WdlBoolean.True),
-    ("1.0 != 1 ", WdlBoolean.False),
-    ("4.0 < 3", WdlBoolean.False),
-    ("4.0 < 3.0", WdlBoolean.False),
-    ("3.0 < 4", WdlBoolean.True),
-    ("4.0 < 5.0", WdlBoolean.True),
-    ("3.0 <= 4", WdlBoolean.True),
-    ("3.0 <= 3.0", WdlBoolean.True),
-    ("4.0 > 3", WdlBoolean.True),
-    ("4.0 > 3.0", WdlBoolean.True),
-    ("4.0 >= 4", WdlBoolean.True),
-    ("4.0 >= 4.0", WdlBoolean.True),
-    ("+1.0", WdlFloat(1.0)),
-    ("-1.0", WdlFloat(-1.0)),
+    ("1.0+2", WomFloat(3.toDouble)),
+    (""" 1.0 + "String" """, WomString("1.0String")),
+    ("1.0+2.3", WomFloat(3.3)),
+    ("3.0-5", WomFloat(-2.toDouble)),
+    ("10.0-6.7", WomFloat(3.3)),
+    ("8.0 * 7", WomFloat(56.toDouble)),
+    ("5.0 * 7.2", WomFloat(36.toDouble)),
+    ("25.0 / 4", WomFloat(6.25)),
+    ("25.0/2.0", WomFloat(12.5)),
+    ("10.0 % 3", WomFloat(1.toDouble)),
+    ("10.0 % 3.5", WomFloat(3.0)),
+    ("24.0 == 24 ", WomBoolean.True),
+    ("24.0 == 24.0 ", WomBoolean.True),
+    ("24.0 == 26 ", WomBoolean.False),
+    ("1.0 != 0 ", WomBoolean.True),
+    ("1.0 != 0.0 ", WomBoolean.True),
+    ("1.0 != 1 ", WomBoolean.False),
+    ("4.0 < 3", WomBoolean.False),
+    ("4.0 < 3.0", WomBoolean.False),
+    ("3.0 < 4", WomBoolean.True),
+    ("4.0 < 5.0", WomBoolean.True),
+    ("3.0 <= 4", WomBoolean.True),
+    ("3.0 <= 3.0", WomBoolean.True),
+    ("4.0 > 3", WomBoolean.True),
+    ("4.0 > 3.0", WomBoolean.True),
+    ("4.0 >= 4", WomBoolean.True),
+    ("4.0 >= 4.0", WomBoolean.True),
+    ("+1.0", WomFloat(1.0)),
+    ("-1.0", WomFloat(-1.0)),
 
     // Booleans
-    ("false == false ", WdlBoolean.True),
-    ("false == true ", WdlBoolean.False),
-    ("true != false ", WdlBoolean.True),
-    ("true != true ", WdlBoolean.False),
-    ("true < false", WdlBoolean.False),
-    ("false <= false ", WdlBoolean.True),
-    ("true <= false", WdlBoolean.False),
-    ("true > false", WdlBoolean.True),
-    ("false >= false ", WdlBoolean.True),
-    ("false >= true ", WdlBoolean.False),
-    ("false || true ", WdlBoolean.True),
-    ("false || false ", WdlBoolean.False),
-    ("false && true ", WdlBoolean.False),
-    ("true && true ", WdlBoolean.True),
-    ("!true", WdlBoolean.False),
-    ("!false", WdlBoolean.True),
+    ("false == false ", WomBoolean.True),
+    ("false == true ", WomBoolean.False),
+    ("true != false ", WomBoolean.True),
+    ("true != true ", WomBoolean.False),
+    ("true < false", WomBoolean.False),
+    ("false <= false ", WomBoolean.True),
+    ("true <= false", WomBoolean.False),
+    ("true > false", WomBoolean.True),
+    ("false >= false ", WomBoolean.True),
+    ("false >= true ", WomBoolean.False),
+    ("false || true ", WomBoolean.True),
+    ("false || false ", WomBoolean.False),
+    ("false && true ", WomBoolean.False),
+    ("true && true ", WomBoolean.True),
+    ("!true", WomBoolean.False),
+    ("!false", WomBoolean.True),
 
     // Strings
-    (""" "String" + 456 """, WdlString("String456")),
-    (""" "hello" + " world" """, WdlString("hello world")),
-    (""" "hello" + 2.1 """, WdlString("hello2.1")),
-    (""" "hello" == "hello" """, WdlBoolean.True),
-    (""" "hello" == "hello2" """, WdlBoolean.False),
-    (""" "hello" != "hello" """, WdlBoolean.False),
-    (""" "hello" != "hello2" """, WdlBoolean.True),
-    (""" "abc" < "def" """, WdlBoolean.True),
-    (""" "abc" <= "def" """, WdlBoolean.True),
-    (""" "abc" > "def" """, WdlBoolean.False),
-    (""" "abc" >= "def" """, WdlBoolean.False),
+    (""" "String" + 456 """, WomString("String456")),
+    (""" "hello" + " world" """, WomString("hello world")),
+    (""" "hello" + 2.1 """, WomString("hello2.1")),
+    (""" "hello" == "hello" """, WomBoolean.True),
+    (""" "hello" == "hello2" """, WomBoolean.False),
+    (""" "hello" != "hello" """, WomBoolean.False),
+    (""" "hello" != "hello2" """, WomBoolean.True),
+    (""" "abc" < "def" """, WomBoolean.True),
+    (""" "abc" <= "def" """, WomBoolean.True),
+    (""" "abc" > "def" """, WomBoolean.False),
+    (""" "abc" >= "def" """, WomBoolean.False),
 
     // Order of Operations
-    ("1+2*3", WdlInteger(7)),
-    ("1+2==3", WdlBoolean.True),
-    ("(1+2)*3", WdlInteger(9)),
+    ("1+2*3", WomInteger(7)),
+    ("1+2==3", WomBoolean.True),
+    ("(1+2)*3", WomInteger(9)),
 
     // Simple pair:
-    ("(1, \"apple\")", WdlPair(WdlInteger(1), WdlString("apple"))),
+    ("(1, \"apple\")", WomPair(WomInteger(1), WomString("apple"))),
 
     // 1-tuple equivalent to a simple value:
-    ("(1)", WdlInteger(1)),
+    ("(1)", WomInteger(1)),
 
     // Array in pair:
-    ("(\"hello\", [ 1, 2, 3 ])", WdlPair(WdlString("hello"), WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(1), WdlInteger(2), WdlInteger(3))))),
+    ("(\"hello\", [ 1, 2, 3 ])", WomPair(WomString("hello"), WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(1), WomInteger(2), WomInteger(3))))),
 
     // Map to pairs:
     ("""{
     | 1: (1, 2),
     | 2: (2, 3)
     |}
-    """.stripMargin, WdlMap(WdlMapType(WdlIntegerType, WdlPairType(WdlIntegerType, WdlIntegerType)), Map(
-      WdlInteger(1) -> WdlPair(WdlInteger(1), WdlInteger(2)),
-      WdlInteger(2) -> WdlPair(WdlInteger(2), WdlInteger(3))
+    """.stripMargin, WomMap(WomMapType(WomIntegerType, WomPairType(WomIntegerType, WomIntegerType)), Map(
+      WomInteger(1) -> WomPair(WomInteger(1), WomInteger(2)),
+      WomInteger(2) -> WomPair(WomInteger(2), WomInteger(3))
     )))
   )
 
@@ -345,134 +345,134 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     ("expression", "value"),
 
     // Lookup Variables
-    ("a", WdlInteger(1)),
-    ("a + 10", WdlInteger(11)),
-    ("a + b", WdlInteger(3)),
-    ("s + a", WdlString("s1")),
-    ("o.key1", WdlString("value1")),
-    ("o.key2", WdlInteger(9)),
-    ("myPair.left", WdlInteger(3)),
-    ("myPair.right", WdlString("hello")),
+    ("a", WomInteger(1)),
+    ("a + 10", WomInteger(11)),
+    ("a + b", WomInteger(3)),
+    ("s + a", WomString("s1")),
+    ("o.key1", WomString("value1")),
+    ("o.key2", WomInteger(9)),
+    ("myPair.left", WomInteger(3)),
+    ("myPair.right", WomString("hello")),
 
     // Call Functions
-    ("b(1)", WdlInteger(2)),
-    ("b(1) + 10", WdlInteger(12)),
-    (""" append("hello ", "world") """, WdlString("hello world")),
-    (""" append("a", "b", "c", "d") """, WdlString("abcd")),
+    ("b(1)", WomInteger(2)),
+    ("b(1) + 10", WomInteger(12)),
+    (""" append("hello ", "world") """, WomString("hello world")),
+    (""" append("a", "b", "c", "d") """, WomString("abcd")),
 
     // String Interpolation
     // NB: have to use s"..." interpolation and $$ for these to avoid the "possible missing interpolator" warnings. Sigh...
-    (s""""prefix.$${a}.suffix"""", WdlString("prefix.1.suffix")),
-    (s""""prefix.$${a}$${a}.suffix$${a}"""", WdlString("prefix.11.suffix1")),
-    (s""""$${b}prefix.$${b}$${a}$${a}.suffix$${a}"""", WdlString("2prefix.211.suffix1")),
-    (s""""$${s}...$${s}"""", WdlString("s...s")),
-    (s""""$${someStr}"""", WdlString("someStr")),
-    (s""""$${noneStr}"""", WdlString("")),
+    (s""""prefix.$${a}.suffix"""", WomString("prefix.1.suffix")),
+    (s""""prefix.$${a}$${a}.suffix$${a}"""", WomString("prefix.11.suffix1")),
+    (s""""$${b}prefix.$${b}$${a}$${a}.suffix$${a}"""", WomString("2prefix.211.suffix1")),
+    (s""""$${s}...$${s}"""", WomString("s...s")),
+    (s""""$${someStr}"""", WomString("someStr")),
+    (s""""$${noneStr}"""", WomString("")),
 
     // Array Indexing
-    ("array_str[0]", WdlString("foo")),
-    ("array_str[1]", WdlString("bar")),
-    ("array_str[2]", WdlString("baz")),
+    ("array_str[0]", WomString("foo")),
+    ("array_str[1]", WomString("bar")),
+    ("array_str[2]", WomString("baz")),
 
     // Map Indexing
-    ("""map_str_int["a"]""", WdlInteger(0)),
-    ("""map_str_int["b"]""", WdlInteger(1)),
-    ("""map_str_int["c"]""", WdlInteger(2)),
+    ("""map_str_int["a"]""", WomInteger(0)),
+    ("""map_str_int["b"]""", WomInteger(1)),
+    ("""map_str_int["c"]""", WomInteger(2)),
 
     // Files -- 'etc_f', 'etc2_f', and 'sudoers_f' are all variables that resolve to WdlFile
-    ("etc_f + sudoers_s", WdlFile("/etc/sudoers")),
-    (""" "/foo" + etc_f """, WdlString("/foo/etc")),
-    ("etc_f == etc_f", WdlBoolean.True),
-    ("etc_f == etc2_f", WdlBoolean.False),
-    ("etc_f != etc2_f", WdlBoolean.True),
-    ("etc_f == etc_s", WdlBoolean.True),
+    ("etc_f + sudoers_s", WomFile("/etc/sudoers")),
+    (""" "/foo" + etc_f """, WomString("/foo/etc")),
+    ("etc_f == etc_f", WomBoolean.True),
+    ("etc_f == etc2_f", WomBoolean.False),
+    ("etc_f != etc2_f", WomBoolean.True),
+    ("etc_f == etc_s", WomBoolean.True),
 
     // String escaping
-    (""" "abc" """, WdlString("abc")),
-    (""" "a\nb" """, WdlString("a\nb")),
-    (""" "a\nb\t" """, WdlString("a\nb\t")),
-    (""" "a\n\"b\t\"" """, WdlString("a\n\"b\t\"")),
-    (""" "be \u266f or be \u266e, just don't be \u266d" """, WdlString("be \u266f or be \u266e, just don't be \u266d")),
+    (""" "abc" """, WomString("abc")),
+    (""" "a\nb" """, WomString("a\nb")),
+    (""" "a\nb\t" """, WomString("a\nb\t")),
+    (""" "a\n\"b\t\"" """, WomString("a\n\"b\t\"")),
+    (""" "be \u266f or be \u266e, just don't be \u266d" """, WomString("be \u266f or be \u266e, just don't be \u266d")),
 
     // Optional types
     // String
-    ("s + someStr", WdlString("ssomeStr")),
-    ("s + someInt", WdlString("s1")),
-    ("s + someFloat", WdlString("s0.5")),
-    ("s + someFile", WdlString("sfile")),
-    ("s == someStr", WdlBoolean(false)),
-    ("s < someStr", WdlBoolean(true)),
-    ("s > someStr", WdlBoolean(false)),
+    ("s + someStr", WomString("ssomeStr")),
+    ("s + someInt", WomString("s1")),
+    ("s + someFloat", WomString("s0.5")),
+    ("s + someFile", WomString("sfile")),
+    ("s == someStr", WomBoolean(false)),
+    ("s < someStr", WomBoolean(true)),
+    ("s > someStr", WomBoolean(false)),
     
-    ("someStr + s", WdlString("someStrs")),
-    ("someInt + s", WdlString("1s")),
-    ("someFloat + s", WdlString("0.5s")),
-    ("someFile + s", WdlFile("files")),
-    ("someStr == s", WdlBoolean(false)),
-    ("someStr < s", WdlBoolean(false)),
-    ("someStr > s", WdlBoolean(true)),
+    ("someStr + s", WomString("someStrs")),
+    ("someInt + s", WomString("1s")),
+    ("someFloat + s", WomString("0.5s")),
+    ("someFile + s", WomFile("files")),
+    ("someStr == s", WomBoolean(false)),
+    ("someStr < s", WomBoolean(false)),
+    ("someStr > s", WomBoolean(true)),
 
     // Integer
-    ("a + someIntAsString", WdlString("11")),
-    ("a + someInt", WdlInteger(2)),
-    ("a * someInt", WdlInteger(1)),
-    ("a / someInt", WdlInteger(1)),
-    ("a == someInt", WdlBoolean(true)),
-    ("a > someInt", WdlBoolean(false)),
-    ("a < someInt", WdlBoolean(false)),
+    ("a + someIntAsString", WomString("11")),
+    ("a + someInt", WomInteger(2)),
+    ("a * someInt", WomInteger(1)),
+    ("a / someInt", WomInteger(1)),
+    ("a == someInt", WomBoolean(true)),
+    ("a > someInt", WomBoolean(false)),
+    ("a < someInt", WomBoolean(false)),
 
-    ("someIntAsString + a", WdlString("11")),
-    ("someInt + a", WdlInteger(2)),
-    ("someInt * a", WdlInteger(1)),
-    ("someInt / a", WdlInteger(1)),
-    ("someInt == a", WdlBoolean(true)),
-    ("someInt > a", WdlBoolean(false)),
-    ("someInt < a", WdlBoolean(false)),
+    ("someIntAsString + a", WomString("11")),
+    ("someInt + a", WomInteger(2)),
+    ("someInt * a", WomInteger(1)),
+    ("someInt / a", WomInteger(1)),
+    ("someInt == a", WomBoolean(true)),
+    ("someInt > a", WomBoolean(false)),
+    ("someInt < a", WomBoolean(false)),
 
-    ("-someInt", WdlInteger(-1)),
-    ("+someInt", WdlInteger(1)),
+    ("-someInt", WomInteger(-1)),
+    ("+someInt", WomInteger(1)),
 
     // Float
-    ("f + someFloatAsString", WdlString("0.50.5")),
-    ("f + someFloat", WdlFloat(1)),
-    ("f * someFloat", WdlFloat(0.25)),
-    ("f / someFloat", WdlFloat(1)),
-    ("f == someFloat", WdlBoolean(true)),
-    ("f > someFloat", WdlBoolean(false)),
-    ("f < someFloat", WdlBoolean(false)),
+    ("f + someFloatAsString", WomString("0.50.5")),
+    ("f + someFloat", WomFloat(1)),
+    ("f * someFloat", WomFloat(0.25)),
+    ("f / someFloat", WomFloat(1)),
+    ("f == someFloat", WomBoolean(true)),
+    ("f > someFloat", WomBoolean(false)),
+    ("f < someFloat", WomBoolean(false)),
 
-    ("someFloatAsString + f", WdlString("0.50.5")),
-    ("someFloat + f", WdlFloat(1)),
-    ("someFloat * f", WdlFloat(0.25)),
-    ("someFloat / f", WdlFloat(1)),
-    ("someFloat == f", WdlBoolean(true)),
-    ("someFloat > f", WdlBoolean(false)),
-    ("someFloat < f", WdlBoolean(false)),
+    ("someFloatAsString + f", WomString("0.50.5")),
+    ("someFloat + f", WomFloat(1)),
+    ("someFloat * f", WomFloat(0.25)),
+    ("someFloat / f", WomFloat(1)),
+    ("someFloat == f", WomBoolean(true)),
+    ("someFloat > f", WomBoolean(false)),
+    ("someFloat < f", WomBoolean(false)),
 
-    ("-someFloat", WdlFloat(-0.5)),
-    ("+someFloat", WdlFloat(0.5)),
+    ("-someFloat", WomFloat(-0.5)),
+    ("+someFloat", WomFloat(0.5)),
 
     // Boolean
-    ("t == someBoolean", WdlBoolean(false)),
-    ("t > someBoolean", WdlBoolean(true)),
-    ("t < someBoolean", WdlBoolean(false)),
-    ("t && someBoolean", WdlBoolean(false)),
-    ("t || someBoolean", WdlBoolean(true)),
+    ("t == someBoolean", WomBoolean(false)),
+    ("t > someBoolean", WomBoolean(true)),
+    ("t < someBoolean", WomBoolean(false)),
+    ("t && someBoolean", WomBoolean(false)),
+    ("t || someBoolean", WomBoolean(true)),
 
-    ("someBoolean == t", WdlBoolean(false)),
-    ("someBoolean > t", WdlBoolean(false)),
-    ("someBoolean < t", WdlBoolean(true)),
-    ("someBoolean && t", WdlBoolean(false)),
-    ("someBoolean || t", WdlBoolean(true)),
+    ("someBoolean == t", WomBoolean(false)),
+    ("someBoolean > t", WomBoolean(false)),
+    ("someBoolean < t", WomBoolean(true)),
+    ("someBoolean && t", WomBoolean(false)),
+    ("someBoolean || t", WomBoolean(true)),
 
-    ("!someBoolean", WdlBoolean(true)),
+    ("!someBoolean", WomBoolean(true)),
 
     // File
-    ("etc_f + someStr", WdlFile("/etcsomeStr")),
-    ("etc_f == someStr", WdlBoolean(false)),
-    ("etc_f == someFile", WdlBoolean(false)),
+    ("etc_f + someStr", WomFile("/etcsomeStr")),
+    ("etc_f == someStr", WomBoolean(false)),
+    ("etc_f == someFile", WomBoolean(false)),
 
-    ("someFile == etc_f", WdlBoolean(false))
+    ("someFile == etc_f", WomBoolean(false))
   )
 
   val badIdentifierExpressions = Table(
@@ -485,27 +485,27 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
   )
 
   forAll (constantExpressions) { (expression, value) =>
-    it should s"evaluate $expression into ${value.valueString} (${value.wdlType.toWdlString})" in {
+    it should s"evaluate $expression into ${value.valueString} (${value.womType.toDisplayString})" in {
       constEval(expression) shouldEqual value
     }
   }
 
   forAll (constantExpressions) { (expression, value) =>
-    it should s"evaluate $expression into type ${value.wdlType.toWdlString}" in {
-      constEvalType(expression) shouldEqual value.wdlType
+    it should s"evaluate $expression into type ${value.womType.toDisplayString}" in {
+      constEvalType(expression) shouldEqual value.womType
     }
   }
 
   forAll (identifierLookupExpressions) { (expression, value) =>
-    it should s"evaluate $expression into ${value.valueString} (${value.wdlType.toWdlString})" in {
+    it should s"evaluate $expression into ${value.valueString} (${value.womType.toDisplayString})" in {
       identifierEval(expression) shouldEqual value
     }
   }
 
   forAll (identifierLookupExpressions) { (expression, value) =>
-    it should s"evaluate $expression into type ${value.wdlType.toWdlString}" in {
+    it should s"evaluate $expression into type ${value.womType.toDisplayString}" in {
       // need to skip the object expressions because we don't know the types of sub-objects
-      if (!expression.startsWith("o.key")) constEvalType(expression) shouldEqual value.wdlType
+      if (!expression.startsWith("o.key")) constEvalType(expression) shouldEqual value.womType
     }
   }
 
@@ -522,23 +522,23 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
   }
 
   "A string with special characters in it" should "convert to escape sequences when converted to WDL" in {
-    WdlString("a\nb").toWdlString shouldEqual "\"a\\nb\""
-    WdlString("a\nb\t").toWdlString shouldEqual "\"a\\nb\\t\""
-    WdlString("be \u266f or be \u266e, just don't be \u266d").toWdlString shouldEqual "\"be \\u266F or be \\u266E, just don't be \\u266D\""
+    WomString("a\nb").toWomString shouldEqual "\"a\\nb\""
+    WomString("a\nb\t").toWomString shouldEqual "\"a\\nb\\t\""
+    WomString("be \u266f or be \u266e, just don't be \u266d").toWomString shouldEqual "\"be \\u266F or be \\u266E, just don't be \\u266D\""
   }
 
   "Optional values" should "fail to perform addition with the + operator if the argument is None" in {
-    val hello = WdlString("hello ")
-    val noneWorld = WdlOptionalValue.none(WdlStringType)
+    val hello = WomString("hello ")
+    val noneWorld = WomOptionalValue.none(WomStringType)
     hello.add(noneWorld) should be(Failure(OptionalNotSuppliedException("+")))
   }
 
   "Ternary if blocks" should "evaluate only the LHS if the condition is true" in {
-    constEval(""" if (5 == 4 + 1) then 6 + 7 else fail() """) should be(WdlInteger(13))
+    constEval(""" if (5 == 4 + 1) then 6 + 7 else fail() """) should be(WomInteger(13))
   }
 
   "Ternary if blocks" should "evaluate only the RHS if the condition is false" in {
-    constEval(""" if 5 + 6 == 7 then fail() else 14 * 15 """) should be(WdlInteger(210))
+    constEval(""" if 5 + 6 == 7 then fail() else 14 * 15 """) should be(WomInteger(210))
   }
 
   "Ternary if blocks" should "fail to evaluate if the condition is not a boolean" in {
@@ -553,15 +553,15 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     constEvalError(""" if (5 == 6 + 1) then 13 else fail() """).getClass.getSimpleName should be("NoSuchMethodException")
   }
 
-  "WdlMaps" should "be coerced to their lowest common WdlType" in {
+  "WdlMaps" should "be coerced to their lowest common WomType" in {
     def lookup(str: String) = str match {
-      case "hello" => WdlOptionalValue(WdlString("bonjour"))
+      case "hello" => WomOptionalValue(WomString("bonjour"))
       case _ => fail("Au revoir !")
     }
 
     val exp = WdlExpression.fromString("""{ "hello": hello, "goodbye": "goodbye" }""")
     val evaluated = exp.evaluate(lookup, NoFunctions)
     evaluated.isSuccess shouldBe true
-    evaluated.get.wdlType shouldBe WdlMapType(WdlStringType, WdlOptionalType(WdlStringType))
+    evaluated.get.womType shouldBe WomMapType(WomStringType, WomOptionalType(WomStringType))
   }
 }

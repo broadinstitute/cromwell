@@ -9,58 +9,58 @@ import wom.values._
 
 class FileEvaluatorSpec extends FlatSpec with Matchers {
   val expressions = Table(
-    ("expression", "files", "wdlType"),
-    ("1 + 1", Seq.empty[WdlFile], WdlIntegerType),
-    ("stdout() + stderr()", Seq.empty[WdlFile], WdlFileType),
-    ("""read_int("myfile.txt")""", Seq(WdlSingleFile("myfile.txt")), WdlIntegerType),
-    ("""read_int("/bin/bash/" + "myfile.txt")""", Seq(WdlSingleFile("/bin/bash/myfile.txt")), WdlIntegerType),
-    ("read_int(stdout())", Seq.empty[WdlFile], WdlIntegerType),
-    ("read_int(stdout() + 3)", Seq.empty[WdlFile], WdlIntegerType),
-    ("""read_int("/etc/" + read_int("somefile") + ".txt"))""", Seq(WdlSingleFile("somefile")), WdlIntegerType),
-    ("""-read_int("/etc/file1")""", Seq(WdlSingleFile("/etc/file1")), WdlIntegerType),
-    ("""read_int("/etc/file1") + read_string("/bin/file2")""", Seq(WdlSingleFile("/etc/file1"), WdlSingleFile("/bin/file2")), WdlStringType),
+    ("expression", "files", "womType"),
+    ("1 + 1", Seq.empty[WomFile], WomIntegerType),
+    ("stdout() + stderr()", Seq.empty[WomFile], WomFileType),
+    ("""read_int("myfile.txt")""", Seq(WomSingleFile("myfile.txt")), WomIntegerType),
+    ("""read_int("/bin/bash/" + "myfile.txt")""", Seq(WomSingleFile("/bin/bash/myfile.txt")), WomIntegerType),
+    ("read_int(stdout())", Seq.empty[WomFile], WomIntegerType),
+    ("read_int(stdout() + 3)", Seq.empty[WomFile], WomIntegerType),
+    ("""read_int("/etc/" + read_int("somefile") + ".txt"))""", Seq(WomSingleFile("somefile")), WomIntegerType),
+    ("""-read_int("/etc/file1")""", Seq(WomSingleFile("/etc/file1")), WomIntegerType),
+    ("""read_int("/etc/file1") + read_string("/bin/file2")""", Seq(WomSingleFile("/etc/file1"), WomSingleFile("/bin/file2")), WomStringType),
     ("""read_int("/etc/file1") + read_string("/bin/file2") + read_string("/bin/file3") + read_string("/bin/file4") + read_string("/bin/file5")""", Seq(
-      WdlSingleFile("/etc/file1"),
-      WdlSingleFile("/bin/file2"),
-      WdlSingleFile("/bin/file3"),
-      WdlSingleFile("/bin/file4"),
-      WdlSingleFile("/bin/file5")
-    ), WdlStringType),
-    (""" "foo" + "bar" """, Seq(WdlSingleFile("foobar")), WdlFileType),
-    (""" "foo" + "bar" """, Seq.empty[WdlFile], WdlStringType),
-    (""" ["a", "b", "c"] """, Seq(WdlSingleFile("a"), WdlSingleFile("b"), WdlSingleFile("c")), WdlArrayType(WdlFileType)),
-    (""" ["a", "b", "c"] """, Seq.empty[WdlFile], WdlArrayType(WdlStringType)),
+      WomSingleFile("/etc/file1"),
+      WomSingleFile("/bin/file2"),
+      WomSingleFile("/bin/file3"),
+      WomSingleFile("/bin/file4"),
+      WomSingleFile("/bin/file5")
+    ), WomStringType),
+    (""" "foo" + "bar" """, Seq(WomSingleFile("foobar")), WomFileType),
+    (""" "foo" + "bar" """, Seq.empty[WomFile], WomStringType),
+    (""" ["a", "b", "c"] """, Seq(WomSingleFile("a"), WomSingleFile("b"), WomSingleFile("c")), WomArrayType(WomFileType)),
+    (""" ["a", "b", "c"] """, Seq.empty[WomFile], WomArrayType(WomStringType)),
     (""" {"a": "1", "b": "2", "c":"3"} """, Seq(
-      WdlSingleFile("a"),
-      WdlSingleFile("1"),
-      WdlSingleFile("b"),
-      WdlSingleFile("2"),
-      WdlSingleFile("c"),
-      WdlSingleFile("3")
-    ), WdlMapType(WdlFileType, WdlFileType)),
-    (""" [read_string("x"), read_string("y")] """, Seq(WdlSingleFile("x"), WdlSingleFile("y")), WdlArrayType(WdlStringType)),
-    (""" [fileNameAsStringInput, "${fileNameAsStringInput}.bai"] """, Seq(WdlSingleFile("sommat.bam"), WdlSingleFile("sommat.bam.bai")), WdlArrayType(WdlFileType)),
-    (""" [ fileNameAsStringInput, mapToFileName["Chris"] ] """, Seq(WdlSingleFile("sommat.bam"), WdlSingleFile("sommatStupid.bam")), WdlArrayType(WdlFileType)),
-    (""" {read_int("a"): read_string("x"), 4: read_string("y")} """, Seq(WdlSingleFile("a"), WdlSingleFile("x"), WdlSingleFile("y")), WdlMapType(WdlIntegerType, WdlStringType)),
-    (""" glob("out-*.txt") """, Seq(WdlGlobFile("out-*.txt")), WdlFileType),
-    (""" glob("out-*.txt")[0] """, Seq(WdlGlobFile("out-*.txt")), WdlFileType),
-    (""" read_tsv("my_file") """, Seq(WdlSingleFile("my_file")), WdlFileType),
-    (""" if read_int("i.txt") == 10 then "a.txt" else "b.txt" """, Seq(WdlSingleFile("a.txt"), WdlSingleFile("b.txt"), WdlSingleFile("i.txt")), WdlFileType),
-    (""" if "a" == "b" then "a.txt" else "b.txt" """, Seq(WdlSingleFile("b.txt")), WdlFileType),
-    (""" if b then read_string("t") else "nope" """, Seq(WdlSingleFile("t")), WdlStringType),
-    (""" read_string(basename(fileInput, ".txt") + ".bam") """, Seq(WdlSingleFile("input.bam")), WdlStringType),
-    (""" size("foo.txt") """, Seq(WdlSingleFile("foo.txt")), WdlFloatType),
-    (""" round(size("foo.txt")) """, Seq(WdlSingleFile("foo.txt")), WdlIntegerType),
-    (""" size("foo.txt", "GB") """, Seq(WdlSingleFile("foo.txt")), WdlIntegerType),
-    (""" round(size("foo.txt", "GB")) """, Seq(WdlSingleFile("foo.txt")), WdlIntegerType)
+      WomSingleFile("a"),
+      WomSingleFile("1"),
+      WomSingleFile("b"),
+      WomSingleFile("2"),
+      WomSingleFile("c"),
+      WomSingleFile("3")
+    ), WomMapType(WomFileType, WomFileType)),
+    (""" [read_string("x"), read_string("y")] """, Seq(WomSingleFile("x"), WomSingleFile("y")), WomArrayType(WomStringType)),
+    (""" [fileNameAsStringInput, "${fileNameAsStringInput}.bai"] """, Seq(WomSingleFile("sommat.bam"), WomSingleFile("sommat.bam.bai")), WomArrayType(WomFileType)),
+    (""" [ fileNameAsStringInput, mapToFileName["Chris"] ] """, Seq(WomSingleFile("sommat.bam"), WomSingleFile("sommatStupid.bam")), WomArrayType(WomFileType)),
+    (""" {read_int("a"): read_string("x"), 4: read_string("y")} """, Seq(WomSingleFile("a"), WomSingleFile("x"), WomSingleFile("y")), WomMapType(WomIntegerType, WomStringType)),
+    (""" glob("out-*.txt") """, Seq(WomGlobFile("out-*.txt")), WomFileType),
+    (""" glob("out-*.txt")[0] """, Seq(WomGlobFile("out-*.txt")), WomFileType),
+    (""" read_tsv("my_file") """, Seq(WomSingleFile("my_file")), WomFileType),
+    (""" if read_int("i.txt") == 10 then "a.txt" else "b.txt" """, Seq(WomSingleFile("a.txt"), WomSingleFile("b.txt"), WomSingleFile("i.txt")), WomFileType),
+    (""" if "a" == "b" then "a.txt" else "b.txt" """, Seq(WomSingleFile("b.txt")), WomFileType),
+    (""" if b then read_string("t") else "nope" """, Seq(WomSingleFile("t")), WomStringType),
+    (""" read_string(basename(fileInput, ".txt") + ".bam") """, Seq(WomSingleFile("input.bam")), WomStringType),
+    (""" size("foo.txt") """, Seq(WomSingleFile("foo.txt")), WomFloatType),
+    (""" round(size("foo.txt")) """, Seq(WomSingleFile("foo.txt")), WomIntegerType),
+    (""" size("foo.txt", "GB") """, Seq(WomSingleFile("foo.txt")), WomIntegerType),
+    (""" round(size("foo.txt", "GB")) """, Seq(WomSingleFile("foo.txt")), WomIntegerType)
 
   )
 
   val lookupFunction = Map(
-    "b" -> WdlBoolean(true),
-    "fileInput" -> WdlSingleFile("gs://bucket/path/to/input.txt"),
-    "fileNameAsStringInput" -> WdlString("sommat.bam"),
-    "mapToFileName" -> WdlMap(Map(WdlString("Chris") -> WdlString("sommatStupid.bam")))
+    "b" -> WomBoolean(true),
+    "fileInput" -> WomSingleFile("gs://bucket/path/to/input.txt"),
+    "fileNameAsStringInput" -> WomString("sommat.bam"),
+    "mapToFileName" -> WomMap(Map(WomString("Chris") -> WomString("sommatStupid.bam")))
   )
 
   forAll (expressions) { (expression, files, anticipatedType) =>

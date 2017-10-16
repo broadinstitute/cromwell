@@ -3,7 +3,7 @@ package wdl.values
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.{SampleWdl, WdlExpression, WdlNamespaceWithWorkflow}
-import wom.types.{WdlArrayType, WdlMapType, WdlStringType}
+import wom.types.{WomArrayType, WomMapType, WomStringType}
 import wom.values._
 import wdl.types.WdlFlavoredWomType._
 
@@ -11,41 +11,41 @@ class WdlValueSpec extends FlatSpec with Matchers {
 
   import TableDrivenPropertyChecks._
 
-  behavior of "WdlValue"
+  behavior of "WomValue"
 
   val wdlValueRawStrings = Table(
-    ("wdlValue", "rawString"),
-    (WdlBoolean.False, "false"),
-    (WdlBoolean.True, "true"),
-    (WdlFile("hello/world/path"), "\"hello/world/path\""),
-    (WdlFile("hello/world/string"), "\"hello/world/string\""),
-    (WdlFloat(0.0), "0.0"),
-    (WdlFloat(-0.0), "-0.0"),
-    (WdlFloat(Double.PositiveInfinity), "Infinity"),
-    (WdlFloat(Double.NegativeInfinity), "-Infinity"),
-    (WdlInteger(0), "0"),
-    (WdlInteger(Int.MaxValue), "2147483647"),
-    (WdlInteger(Int.MinValue), "-2147483648"),
-    (WdlString(""), "\"\""),
-    (WdlObject(Map("one" -> WdlString("two"))), "object {one: \"two\"}"),
-    (WdlMap(WdlMapType(WdlStringType, WdlStringType), Map(WdlString("one") -> WdlString("two"))), "{\"one\": \"two\"}"),
-    (WdlPair(WdlInteger(1), WdlInteger(2)), "(1, 2)")
+    ("womValue", "rawString"),
+    (WomBoolean.False, "false"),
+    (WomBoolean.True, "true"),
+    (WomFile("hello/world/path"), "\"hello/world/path\""),
+    (WomFile("hello/world/string"), "\"hello/world/string\""),
+    (WomFloat(0.0), "0.0"),
+    (WomFloat(-0.0), "-0.0"),
+    (WomFloat(Double.PositiveInfinity), "Infinity"),
+    (WomFloat(Double.NegativeInfinity), "-Infinity"),
+    (WomInteger(0), "0"),
+    (WomInteger(Int.MaxValue), "2147483647"),
+    (WomInteger(Int.MinValue), "-2147483648"),
+    (WomString(""), "\"\""),
+    (WomObject(Map("one" -> WomString("two"))), "object {one: \"two\"}"),
+    (WomMap(WomMapType(WomStringType, WomStringType), Map(WomString("one") -> WomString("two"))), "{\"one\": \"two\"}"),
+    (WomPair(WomInteger(1), WomInteger(2)), "(1, 2)")
   )
 
-  forAll(wdlValueRawStrings) { (wdlValue, rawString) =>
-    it should s"exactly convert a ${wdlValue.typeName} to/from WDL source '$rawString'" in {
-      val valueAsWdlSource = wdlValue.toWdlString
+  forAll(wdlValueRawStrings) { (womValue, rawString) =>
+    it should s"exactly convert a ${womValue.typeName} to/from WDL source '$rawString'" in {
+      val valueAsWdlSource = womValue.toWomString
       valueAsWdlSource should be(rawString)
 
-      val wdlType = wdlValue.wdlType
-      val wdlSourceAsValue = wdlType.fromWorkflowSource(valueAsWdlSource)
-      wdlSourceAsValue should be(wdlValue)
-      wdlSourceAsValue.wdlType should be(wdlType)
+      val womType = womValue.womType
+      val wdlSourceAsValue = womType.fromWorkflowSource(valueAsWdlSource)
+      wdlSourceAsValue should be(womValue)
+      wdlSourceAsValue.womType should be(womType)
     }
   }
 
   val wdlExpressionRawStrings = Table(
-    ("wdlValue", "rawString"),
+    ("womValue", "rawString"),
     (WdlExpression.fromString(" 1 != 0 "), "1 != 0"),
     (WdlExpression.fromString("10 % 3.5"), "10 % 3.5"),
     (WdlExpression.fromString("10 % 3"), "10 % 3"),
@@ -56,16 +56,16 @@ class WdlValueSpec extends FlatSpec with Matchers {
     (WdlExpression.fromString("\"a\" + \"b\""), "\"a\" + \"b\""),
     (WdlExpression.fromString("a.b.c"), "a.b.c"))
 
-  forAll(wdlExpressionRawStrings) { (wdlValue, rawString) =>
-    it should s"resemble a ${wdlValue.typeName} to/from raw string '$rawString'" in {
-      val toRawString = wdlValue.toWdlString
+  forAll(wdlExpressionRawStrings) { (womValue, rawString) =>
+    it should s"resemble a ${womValue.typeName} to/from raw string '$rawString'" in {
+      val toRawString = womValue.toWomString
       toRawString should be(rawString)
 
-      val wdlType = wdlValue.wdlType
-      val fromRawString = wdlType.fromWorkflowSource(toRawString)
-      fromRawString shouldNot be(wdlValue)
-      fromRawString.toWdlString should be(wdlValue.toWdlString)
-      fromRawString.wdlType should be(wdlType)
+      val womType = womValue.womType
+      val fromRawString = womType.fromWorkflowSource(toRawString)
+      fromRawString shouldNot be(womValue)
+      fromRawString.toWomString should be(womValue.toWomString)
+      fromRawString.womType should be(womType)
     }
   }
 
@@ -75,108 +75,108 @@ class WdlValueSpec extends FlatSpec with Matchers {
   }
 
   val wdlValueMaxedElements = Table(
-    ("wdlValue", "maxedElements"),
-    (WdlBoolean.False, WdlBoolean.False),
-    (WdlFile("hello/world/path"), WdlFile("hello/world/path")),
-    (WdlFile("*.txt", isGlob = true), WdlFile("*.txt", isGlob = true)),
-    (WdlFloat(0.0), WdlFloat(0.0)),
-    (WdlInteger(0), WdlInteger(0)),
-    (WdlString(""), WdlString("")),
-    (WdlPair(WdlInteger(1), WdlInteger(2)), WdlPair(WdlInteger(1), WdlInteger(2))),
-    (WdlOptionalValue(WdlStringType, None), WdlOptionalValue(WdlStringType, None)),
+    ("womValue", "maxedElements"),
+    (WomBoolean.False, WomBoolean.False),
+    (WomFile("hello/world/path"), WomFile("hello/world/path")),
+    (WomFile("*.txt", isGlob = true), WomFile("*.txt", isGlob = true)),
+    (WomFloat(0.0), WomFloat(0.0)),
+    (WomInteger(0), WomInteger(0)),
+    (WomString(""), WomString("")),
+    (WomPair(WomInteger(1), WomInteger(2)), WomPair(WomInteger(1), WomInteger(2))),
+    (WomOptionalValue(WomStringType, None), WomOptionalValue(WomStringType, None)),
     (
-      WdlOptionalValue(WdlStringType, Option(WdlString("optional"))),
-      WdlOptionalValue(WdlStringType, Option(WdlString("optional")))
+      WomOptionalValue(WomStringType, Option(WomString("optional"))),
+      WomOptionalValue(WomStringType, Option(WomString("optional")))
     ),
     (
-      WdlObject(Map("0" -> WdlString("zero"))),
-      WdlObject(Map("0" -> WdlString("zero")))
+      WomObject(Map("0" -> WomString("zero"))),
+      WomObject(Map("0" -> WomString("zero")))
     ),
     (
-      WdlObject(Map(
-        "0" -> WdlString("zero"), "1" -> WdlString("one"), "2" -> WdlString("two"), "3" -> WdlString("three")
+      WomObject(Map(
+        "0" -> WomString("zero"), "1" -> WomString("one"), "2" -> WomString("two"), "3" -> WomString("three")
       )),
-      WdlObject(Map(
-        "0" -> WdlString("zero"), "1" -> WdlString("one"), "2" -> WdlString("two")
+      WomObject(Map(
+        "0" -> WomString("zero"), "1" -> WomString("one"), "2" -> WomString("two")
       ))
     ),
     (
-      WdlCallOutputsObject(testCall, Map("0" -> WdlString("zero"))),
-      WdlCallOutputsObject(testCall, Map("0" -> WdlString("zero")))
+      WdlCallOutputsObject(testCall, Map("0" -> WomString("zero"))),
+      WdlCallOutputsObject(testCall, Map("0" -> WomString("zero")))
     ),
     (
       WdlCallOutputsObject(testCall, Map(
-        "0" -> WdlString("zero"), "1" -> WdlString("one"), "2" -> WdlString("two"), "3" -> WdlString("three")
+        "0" -> WomString("zero"), "1" -> WomString("one"), "2" -> WomString("two"), "3" -> WomString("three")
       )),
       WdlCallOutputsObject(testCall, Map(
-        "0" -> WdlString("zero"), "1" -> WdlString("one"), "2" -> WdlString("two")
+        "0" -> WomString("zero"), "1" -> WomString("one"), "2" -> WomString("two")
       ))
     ),
     (
-      WdlMap(WdlMapType(WdlStringType, WdlStringType), Map(WdlString("0") -> WdlString("zero"))),
-      WdlMap(WdlMapType(WdlStringType, WdlStringType), Map(WdlString("0") -> WdlString("zero")))
+      WomMap(WomMapType(WomStringType, WomStringType), Map(WomString("0") -> WomString("zero"))),
+      WomMap(WomMapType(WomStringType, WomStringType), Map(WomString("0") -> WomString("zero")))
     ),
     (
-      WdlMap(WdlMapType(WdlStringType, WdlStringType), Map(
-        WdlString("0") -> WdlString("zero"),
-        WdlString("1") -> WdlString("one"),
-        WdlString("2") -> WdlString("two"),
-        WdlString("3") -> WdlString("three")
+      WomMap(WomMapType(WomStringType, WomStringType), Map(
+        WomString("0") -> WomString("zero"),
+        WomString("1") -> WomString("one"),
+        WomString("2") -> WomString("two"),
+        WomString("3") -> WomString("three")
       )),
-      WdlMap(WdlMapType(WdlStringType, WdlStringType), Map(
-        WdlString("0") -> WdlString("zero"),
-        WdlString("1") -> WdlString("one"),
-        WdlString("2") -> WdlString("two")
+      WomMap(WomMapType(WomStringType, WomStringType), Map(
+        WomString("0") -> WomString("zero"),
+        WomString("1") -> WomString("one"),
+        WomString("2") -> WomString("two")
       ))
     ),
     (
-      WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("0"))),
-      WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("0")))
+      WomArray(WomArrayType(WomStringType), Seq(WomString("0"))),
+      WomArray(WomArrayType(WomStringType), Seq(WomString("0")))
     ),
     (
-      WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("0"), WdlString("1"), WdlString("2"), WdlString("3"))),
-      WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("0"), WdlString("1"), WdlString("2")))
+      WomArray(WomArrayType(WomStringType), Seq(WomString("0"), WomString("1"), WomString("2"), WomString("3"))),
+      WomArray(WomArrayType(WomStringType), Seq(WomString("0"), WomString("1"), WomString("2")))
     ),
     (
-      WdlArray(
-        WdlArrayType(WdlArrayType(WdlStringType)),
+      WomArray(
+        WomArrayType(WomArrayType(WomStringType)),
         Seq(
-          WdlArray(WdlArrayType(WdlStringType), Seq(
-            WdlString("a0"), WdlString("a1"), WdlString("a2"), WdlString("a3")
+          WomArray(WomArrayType(WomStringType), Seq(
+            WomString("a0"), WomString("a1"), WomString("a2"), WomString("a3")
           )),
-          WdlArray(WdlArrayType(WdlStringType), Seq(
-            WdlString("b0"), WdlString("b1"), WdlString("b2"), WdlString("b3")
+          WomArray(WomArrayType(WomStringType), Seq(
+            WomString("b0"), WomString("b1"), WomString("b2"), WomString("b3")
           )),
-          WdlArray(WdlArrayType(WdlStringType), Seq(
-            WdlString("c0"), WdlString("c1"), WdlString("c2"), WdlString("c3")
+          WomArray(WomArrayType(WomStringType), Seq(
+            WomString("c0"), WomString("c1"), WomString("c2"), WomString("c3")
           )),
-          WdlArray(WdlArrayType(WdlStringType), Seq(
-            WdlString("d0"), WdlString("d1"), WdlString("d2"), WdlString("d3")
+          WomArray(WomArrayType(WomStringType), Seq(
+            WomString("d0"), WomString("d1"), WomString("d2"), WomString("d3")
           ))
         )
       ),
-      WdlArray(
-        WdlArrayType(WdlArrayType(WdlStringType)),
+      WomArray(
+        WomArrayType(WomArrayType(WomStringType)),
         Seq(
-          WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("a0"), WdlString("a1"), WdlString("a2"))),
-          WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("b0"), WdlString("b1"), WdlString("b2"))),
-          WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("c0"), WdlString("c1"), WdlString("c2")))
+          WomArray(WomArrayType(WomStringType), Seq(WomString("a0"), WomString("a1"), WomString("a2"))),
+          WomArray(WomArrayType(WomStringType), Seq(WomString("b0"), WomString("b1"), WomString("b2"))),
+          WomArray(WomArrayType(WomStringType), Seq(WomString("c0"), WomString("c1"), WomString("c2")))
         )
       )
     )
   )
 
-  private def describe(wdlValue: WdlValue): String = {
-    wdlValue match {
+  private def describe(womValue: WomValue): String = {
+    womValue match {
       case WdlCallOutputsObject(call, outputs) =>
-        s"WdlCallOutputsObject(${call.unqualifiedName}, ${outputs.mapValues(_.toWdlString)})"
-      case _ => wdlValue.toWdlString
+        s"WdlCallOutputsObject(${call.unqualifiedName}, ${outputs.mapValues(_.toWomString)})"
+      case _ => womValue.toWomString
     }
   }
 
-  forAll(wdlValueMaxedElements) { (wdlValue, expected) =>
-    it should s"take max elements for ${describe(wdlValue)}" in {
-      val actual = WdlValue.takeMaxElements(wdlValue, 3)
+  forAll(wdlValueMaxedElements) { (womValue, expected) =>
+    it should s"take max elements for ${describe(womValue)}" in {
+      val actual = WomValue.takeMaxElements(womValue, 3)
       actual should be(expected)
     }
   }

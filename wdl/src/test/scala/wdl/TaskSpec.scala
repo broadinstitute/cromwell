@@ -19,10 +19,10 @@ class TaskSpec extends WdlTest {
     s"have a task with name 'wc'" in {
       wcTask.name shouldEqual "wc"
       wcTask.declarations.map(_.toWdlString) shouldEqual Vector("File in_file")
-      wcTask.instantiateCommand(wcTask.inputsFromMap(Map("wc.in_file" -> WdlFile("/path/to/file"))), NoFunctions).get shouldEqual "cat /path/to/file | wc -l"
+      wcTask.instantiateCommand(wcTask.inputsFromMap(Map("wc.in_file" -> WomFile("/path/to/file"))), NoFunctions).get shouldEqual "cat /path/to/file | wc -l"
       wcTask.outputs.size shouldEqual 1
       wcTask.outputs.head.unqualifiedName shouldEqual "count"
-      wcTask.outputs.head.wdlType shouldEqual WdlIntegerType
+      wcTask.outputs.head.womType shouldEqual WomIntegerType
     }
 
     s"have a task with name 'cgrep'" in {
@@ -31,10 +31,10 @@ class TaskSpec extends WdlTest {
         "String pattern",
         "File in_file"
       )
-      cgrepTask.instantiateCommand(cgrepTask.inputsFromMap(Map("cgrep.pattern" -> WdlString("^...$"), "cgrep.in_file" -> WdlFile("/path/to/file"))), NoFunctions).get shouldEqual "grep '^...$' /path/to/file | wc -l"
+      cgrepTask.instantiateCommand(cgrepTask.inputsFromMap(Map("cgrep.pattern" -> WomString("^...$"), "cgrep.in_file" -> WomFile("/path/to/file"))), NoFunctions).get shouldEqual "grep '^...$' /path/to/file | wc -l"
       cgrepTask.outputs.size shouldEqual 1
       cgrepTask.outputs.head.unqualifiedName shouldEqual "count"
-      cgrepTask.outputs.head.wdlType shouldEqual WdlIntegerType
+      cgrepTask.outputs.head.womType shouldEqual WomIntegerType
     }
 
     s"have a task with name 'ps'" in {
@@ -43,7 +43,7 @@ class TaskSpec extends WdlTest {
       psTask.instantiateCommand(Map(), NoFunctions).get shouldEqual "ps"
       psTask.outputs.size shouldEqual 1
       psTask.outputs.head.unqualifiedName shouldEqual "procs"
-      psTask.outputs.head.wdlType shouldEqual WdlFileType
+      psTask.outputs.head.womType shouldEqual WomFileType
     }
   }
 
@@ -53,53 +53,53 @@ class TaskSpec extends WdlTest {
 
     s"instantiate command (0)" in {
       val inputs = Map(
-        "param_test.a" -> WdlString("a_val"),
-        "param_test.b" -> WdlString("b_val"),
-        "param_test.c" -> WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("c0"), WdlString("c1"), WdlString("c2"))),
-        "param_test.d" -> WdlInteger(1),
-        "param_test.e" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(0, 1, 2) map WdlInteger.apply),
-        "param_test.f" -> WdlBoolean.False
+        "param_test.a" -> WomString("a_val"),
+        "param_test.b" -> WomString("b_val"),
+        "param_test.c" -> WomArray(WomArrayType(WomStringType), Seq(WomString("c0"), WomString("c1"), WomString("c2"))),
+        "param_test.d" -> WomInteger(1),
+        "param_test.e" -> WomArray(WomArrayType(WomIntegerType), Seq(0, 1, 2) map WomInteger.apply),
+        "param_test.f" -> WomBoolean.False
       )
       paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions).get shouldEqual "./binary a_val -p b_val c0,c1,c2 1 0\t1\t2 --false"
     }
 
     s"instantiate command (1)" in {
       val inputs = Map(
-        "param_test.a" -> WdlString("a_val"),
-        "param_test.b" -> WdlString("b_val"),
-        "param_test.c" -> WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("c0"), WdlString("c1"), WdlString("c2"))),
-        "param_test.e" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(0, 1, 2) map WdlInteger.apply),
-        "param_test.f" -> WdlBoolean.True
+        "param_test.a" -> WomString("a_val"),
+        "param_test.b" -> WomString("b_val"),
+        "param_test.c" -> WomArray(WomArrayType(WomStringType), Seq(WomString("c0"), WomString("c1"), WomString("c2"))),
+        "param_test.e" -> WomArray(WomArrayType(WomIntegerType), Seq(0, 1, 2) map WomInteger.apply),
+        "param_test.f" -> WomBoolean.True
       )
       paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions).get shouldEqual "./binary a_val -p b_val c0,c1,c2 9 0\t1\t2 --true"
     }
 
     s"instantiate command (2)" in {
       val inputs = Map(
-        "param_test.a" -> WdlString("a_val"),
-        "param_test.b" -> WdlString("b_val"),
-        "param_test.c" -> WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("c0"))),
-        "param_test.d" -> WdlInteger(1),
-        "param_test.e" -> WdlArray(WdlArrayType(WdlIntegerType), Seq()),
-        "param_test.f" -> WdlBoolean.True
+        "param_test.a" -> WomString("a_val"),
+        "param_test.b" -> WomString("b_val"),
+        "param_test.c" -> WomArray(WomArrayType(WomStringType), Seq(WomString("c0"))),
+        "param_test.d" -> WomInteger(1),
+        "param_test.e" -> WomArray(WomArrayType(WomIntegerType), Seq()),
+        "param_test.f" -> WomBoolean.True
       )
       paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions).get shouldEqual "./binary a_val -p b_val c0 1  --true"
     }
 
     s"instantiate command (3)" in {
       val inputs = Map(
-        "param_test.a" -> WdlString("a_val"),
-        "param_test.b" -> WdlString("b_val"),
-        "param_test.c" -> WdlArray(WdlArrayType(WdlStringType), Seq()),
-        "param_test.d" -> WdlInteger(1),
-        "param_test.e" -> WdlArray(WdlArrayType(WdlIntegerType), Seq()),
-        "param_test.f" -> WdlBoolean.True
+        "param_test.a" -> WomString("a_val"),
+        "param_test.b" -> WomString("b_val"),
+        "param_test.c" -> WomArray(WomArrayType(WomStringType), Seq()),
+        "param_test.d" -> WomInteger(1),
+        "param_test.e" -> WomArray(WomArrayType(WomIntegerType), Seq()),
+        "param_test.f" -> WomBoolean.True
       )
       paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions).get shouldEqual "./binary a_val -p b_val  1  --true"
     }
 
     s"fail to instantiate command if missing a required input" in {
-      paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(Map("param_test.a" -> WdlString("a_val"))), NoFunctions) match {
+      paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(Map("param_test.a" -> WomString("a_val"))), NoFunctions) match {
         case Failure(_) => // expected
         case _ => fail("Expected an exception")
       }
@@ -107,11 +107,11 @@ class TaskSpec extends WdlTest {
 
     s"fail to instantiate command if an input is an expression" in {
       val inputs = Map(
-        "param_test.a" -> WdlString("a_val"),
+        "param_test.a" -> WomString("a_val"),
         "param_test.b" -> WdlExpression.fromString("'a'+'b'"),
-        "param_test.c" -> WdlArray(WdlArrayType(WdlStringType), Seq()),
-        "param_test.d" -> WdlInteger(1),
-        "param_test.e" -> WdlArray(WdlArrayType(WdlIntegerType), Seq())
+        "param_test.c" -> WomArray(WomArrayType(WomStringType), Seq()),
+        "param_test.d" -> WomInteger(1),
+        "param_test.e" -> WomArray(WomArrayType(WomIntegerType), Seq())
       )
       paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions) match {
         case Failure(_) => // expected
@@ -140,14 +140,14 @@ class TaskSpec extends WdlTest {
 
       val namespace = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
       val callT = namespace.taskCalls.find(_.unqualifiedName == "t").get
-      val callInputs = Map(callT.task.declarations.head -> WdlString("input"))
+      val callInputs = Map(callT.task.declarations.head -> WomString("input"))
       val outputs = callT.task.evaluateOutputs(callInputs, NoFunctions)
       outputs.isSuccess shouldBe true
       val successfulOutputs = outputs.get
       successfulOutputs.size shouldBe 3
-      successfulOutputs.find(_._1.unqualifiedName == "o").get._2 shouldBe WdlString("input")
-      successfulOutputs.find(_._1.unqualifiedName == "o2").get._2 shouldBe WdlString("input")
-      successfulOutputs.find(_._1.unqualifiedName == "o3").get._2 shouldBe WdlString("o3")
+      successfulOutputs.find(_._1.unqualifiedName == "o").get._2 shouldBe WomString("input")
+      successfulOutputs.find(_._1.unqualifiedName == "o2").get._2 shouldBe WomString("input")
+      successfulOutputs.find(_._1.unqualifiedName == "o3").get._2 shouldBe WomString("o3")
     }
 
     "instantiate command (4)" in {
@@ -155,14 +155,14 @@ class TaskSpec extends WdlTest {
       val callV = namespace.taskCalls.find(_.unqualifiedName == "v").get
       val inputs = callV.task.inputsFromMap(
         Map(
-          "u.a" -> WdlString("a"),
-          "u.b" -> WdlString("b"),
-          "u.c" -> WdlString("c"),
-          "u.d" -> WdlString("d"),
-          "u.e" -> WdlString("e"),
-          "u.f" -> WdlString("f"),
-          "u.g" -> WdlString("g"),
-          "u.i" -> WdlString("b")
+          "u.a" -> WomString("a"),
+          "u.b" -> WomString("b"),
+          "u.c" -> WomString("c"),
+          "u.d" -> WomString("d"),
+          "u.e" -> WomString("e"),
+          "u.f" -> WomString("f"),
+          "u.g" -> WomString("g"),
+          "u.i" -> WomString("b")
         )
       )
       val command = callV.task.instantiateCommand(inputs, NoFunctions)

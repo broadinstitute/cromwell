@@ -7,11 +7,11 @@ import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardCacheHitCopyingActorParams}
 import cromwell.core.io.{IoCommand, IoTouchCommand}
 import cromwell.core.path.Path
-import cromwell.core.simpleton.{WdlValueBuilder, WdlValueSimpleton}
+import cromwell.core.simpleton.{WomValueBuilder, WomValueSimpleton}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import lenthall.util.TryUtil
 import wom.core.CallOutputs
-import wom.values.WdlFile
+import wom.values.WomFile
 
 import scala.language.postfixOps
 import scala.util.Try
@@ -22,15 +22,15 @@ class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActo
     .as[JesBackendInitializationData](standardParams.backendInitializationDataOption)
     .jesConfiguration.jesAttributes.duplicationStrategy
   
-  override def processSimpletons(wdlValueSimpletons: Seq[WdlValueSimpleton], sourceCallRootPath: Path) = cachingStrategy match {
-    case CopyCachedOutputs => super.processSimpletons(wdlValueSimpletons, sourceCallRootPath)
+  override def processSimpletons(womValueSimpletons: Seq[WomValueSimpleton], sourceCallRootPath: Path) = cachingStrategy match {
+    case CopyCachedOutputs => super.processSimpletons(womValueSimpletons, sourceCallRootPath)
     case UseOriginalCachedOutputs =>
-      val touchCommands: Seq[Try[IoTouchCommand]] = wdlValueSimpletons collect {
-        case WdlValueSimpleton(_, wdlFile: WdlFile) => getPath(wdlFile.value) map touchCommand
+      val touchCommands: Seq[Try[IoTouchCommand]] = womValueSimpletons collect {
+        case WomValueSimpleton(_, wdlFile: WomFile) => getPath(wdlFile.value) map touchCommand
       }
       
       TryUtil.sequence(touchCommands) map {
-        WdlValueBuilder.toJobOutputs(jobDescriptor.call.callable.outputs, wdlValueSimpletons) -> _.toSet
+        WomValueBuilder.toJobOutputs(jobDescriptor.call.callable.outputs, womValueSimpletons) -> _.toSet
       }
   }
   
@@ -49,7 +49,7 @@ class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActo
   }
 
   override protected def additionalIoCommands(sourceCallRootPath: Path,
-                                              originalSimpletons: Seq[WdlValueSimpleton],
+                                              originalSimpletons: Seq[WomValueSimpleton],
                                               newOutputs: CallOutputs,
                                               originalDetritus:  Map[String, String],
                                               newDetritus: Map[String, Path]): List[Set[IoCommand[_]]] = {

@@ -6,8 +6,8 @@ import cats.syntax.traverse._
 import cromwell.Simpletons._
 import cromwell.backend.async.JobAlreadyFailedInJobStore
 import cromwell.core.ExecutionIndex._
-import cromwell.core.simpleton.WdlValueBuilder
-import cromwell.core.simpleton.WdlValueSimpleton._
+import cromwell.core.simpleton.WomValueBuilder
+import cromwell.core.simpleton.WomValueSimpleton._
 import cromwell.database.sql.EngineSqlDatabase
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.JobStoreJoin
@@ -44,10 +44,10 @@ class SqlJobStore(sqlDatabase: EngineSqlDatabase) extends JobStore {
           None,
           None)
         val jobStoreResultSimpletons =
-          jobOutputs.mapValues(_.wdlValue).simplify.map {
-            wdlValueSimpleton => JobStoreSimpletonEntry(
-              wdlValueSimpleton.simpletonKey, wdlValueSimpleton.simpletonValue.valueString.toClobOption,
-              wdlValueSimpleton.simpletonValue.wdlType.toWdlString)
+          jobOutputs.mapValues(_.womValue).simplify.map {
+            womValueSimpleton => JobStoreSimpletonEntry(
+              womValueSimpleton.simpletonKey, womValueSimpleton.simpletonValue.valueString.toClobOption,
+              womValueSimpleton.simpletonValue.womType.toDisplayString)
           }
         JobStoreJoin(entry, jobStoreResultSimpletons.toSeq)
       case JobCompletion(key, JobResultFailure(returnCode, throwable, retryable)) =>
@@ -71,7 +71,7 @@ class SqlJobStore(sqlDatabase: EngineSqlDatabase) extends JobStore {
         entry match {
           case JobStoreEntry(_, _, _, _, true, returnCode, None, None, _) =>
             val simpletons = simpletonEntries map toSimpleton
-            val jobOutputs = WdlValueBuilder.toJobOutputs(taskOutputs, simpletons)
+            val jobOutputs = WomValueBuilder.toJobOutputs(taskOutputs, simpletons)
             JobResultSuccess(returnCode, jobOutputs)
           case JobStoreEntry(_, _, _, _, false, returnCode, Some(_), Some(retryable), _) =>
             JobResultFailure(returnCode,

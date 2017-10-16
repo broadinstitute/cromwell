@@ -5,8 +5,8 @@ import wdl4s.parser.WdlParser.Ast
 import wdl.exception.{ScatterIndexNotFound, VariableLookupException, VariableNotFoundException}
 import wdl.expression.WdlFunctions
 import wom.graph.WomIdentifier
-import wom.values.WdlArray.WdlArrayLike
-import wom.values.WdlValue
+import wom.values.WomArray.WomArrayLike
+import wom.values.WomValue
 
 import scala.util.{Failure, Success, Try}
 import scalax.collection.Graph
@@ -209,36 +209,36 @@ trait Scope {
     * @param knownInputs All known values of FQNs
     * @param wdlFunctions Implementation of WDL functions for expression evaluation
     * @param shards For resolving specific shards of scatter blocks
-    * @return String => WdlValue lookup function rooted at `scope`
+    * @return String => WomValue lookup function rooted at `scope`
     * @throws VariableNotFoundException If no errors occurred, but also `name` didn't resolve to any value
     * @throws VariableLookupException if anything else goes wrong in looking up a value for `name`
     */
   def lookupFunction(knownInputs: WorkflowCoercedInputs,
-                     wdlFunctions: WdlFunctions[WdlValue],
+                     wdlFunctions: WdlFunctions[WomValue],
                      outputResolver: OutputResolver = NoOutputResolver,
                      shards: Map[Scatter, Int] = Map.empty[Scatter, Int],
-                     relativeTo: Scope = this): String => WdlValue = {
+                     relativeTo: Scope = this): String => WomValue = {
 
-    def handleScatterResolution(scatter: Scatter): Try[WdlValue] = {
+    def handleScatterResolution(scatter: Scatter): Try[WomValue] = {
       // This case will happen if `name` references a Scatter.item (i.e. `x` in expression scatter(x in y) {...})
       val evaluatedCollection = scatter.collection.evaluate(scatter.lookupFunction(knownInputs, wdlFunctions, outputResolver, shards), wdlFunctions)
       val scatterShard = shards.get(scatter)
 
       (evaluatedCollection, scatterShard) match {
-        case (Success(WdlArrayLike(array)), Some(shard)) if 0 <= shard && shard < array.value.size =>
+        case (Success(WomArrayLike(array)), Some(shard)) if 0 <= shard && shard < array.value.size =>
           array.value.lift(shard) match {
             case Some(v) => Success(v)
             case None => Failure(new VariableLookupException(s"Could not find value for shard index $shard in scatter collection $array"))
           }
-        case (Success(WdlArrayLike(array)), Some(shard)) =>
-          Failure(new VariableLookupException(s"Scatter expression (${scatter.collection.toWdlString}) evaluated to an array of ${array.value.size} elements, but element $shard was requested."))
-        case (Success(_: WdlArrayLike), None) =>
+        case (Success(WomArrayLike(array)), Some(shard)) =>
+          Failure(new VariableLookupException(s"Scatter expression (${scatter.collection.toWomString}) evaluated to an array of ${array.value.size} elements, but element $shard was requested."))
+        case (Success(_: WomArrayLike), None) =>
           Failure(ScatterIndexNotFound(s"Could not find the shard mapping to this scatter ${scatter.fullyQualifiedName}"))
-        case (Success(value: WdlValue), _) =>
-          Failure(new VariableLookupException(s"Expected scatter expression (${scatter.collection.toWdlString}) to evaluate to an Array.  Instead, got a $value"))
+        case (Success(value: WomValue), _) =>
+          Failure(new VariableLookupException(s"Expected scatter expression (${scatter.collection.toWomString}) to evaluate to an Array.  Instead, got a $value"))
         case (failure @ Failure(_), _) => failure
         case (_, None) =>
-          Failure(new VariableLookupException(s"Could not find a shard for scatter block with expression (${scatter.collection.toWdlString})"))
+          Failure(new VariableLookupException(s"Could not find a shard for scatter block with expression (${scatter.collection.toWomString})"))
       }
     }
 
@@ -247,7 +247,7 @@ trait Scope {
         shards.get(s) map { shard =>
           outputResolver(node, Option(shard))
         } getOrElse {
-          Failure(ScatterIndexNotFound(s"Could not find a shard for scatter block with expression (${s.collection.toWdlString})"))
+          Failure(ScatterIndexNotFound(s"Could not find a shard for scatter block with expression (${s.collection.toWomString})"))
         }
       }
 
@@ -261,8 +261,8 @@ trait Scope {
       }
     }
 
-    def handleDeclarationEvaluation(declaration: DeclarationInterface): Try[WdlValue] = {
-      def declarationExcludingLookup(lookup: String => WdlValue): String => WdlValue = name => {
+    def handleDeclarationEvaluation(declaration: DeclarationInterface): Try[WomValue] = {
+      def declarationExcludingLookup(lookup: String => WomValue): String => WomValue = name => {
         if (name.equals(declaration.unqualifiedName)) throw new IllegalArgumentException(s"Declaration for '$name' refers to its own value")
         else lookup(name)
       }
@@ -279,9 +279,9 @@ trait Scope {
       fromOutputs(declaration) recoverWith { case _ => evaluate }
     }
 
-    def handleCallEvaluation(call: WdlCall): Try[WdlValue] = fromOutputs(call)
+    def handleCallEvaluation(call: WdlCall): Try[WomValue] = fromOutputs(call)
 
-    def lookup(name: String): WdlValue = {
+    def lookup(name: String): WomValue = {
       val scopeResolvedValue = resolveVariable(name, relativeTo) map {
         // First check if the variable has been provided in the known values
         case scope if knownInputs.contains(scope.fullyQualifiedName) =>

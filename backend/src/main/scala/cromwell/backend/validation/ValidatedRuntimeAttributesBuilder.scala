@@ -6,8 +6,8 @@ import cromwell.backend.RuntimeAttributeDefinition
 import lenthall.exception.MessageAggregation
 import lenthall.validation.ErrorOr._
 import org.slf4j.Logger
-import wom.types.WdlType
-import wom.values.WdlValue
+import wom.types.WomType
+import wom.values.WomValue
 
 final case class ValidatedRuntimeAttributes(attributes: Map[String, Any])
 
@@ -35,7 +35,7 @@ trait ValidatedRuntimeAttributesBuilder {
   /**
     * Returns validators suitable for BackendWorkflowInitializationActor.runtimeAttributeValidators.
     */
-  final lazy val validatorMap: Map[String, (Option[WdlValue]) => Boolean] = {
+  final lazy val validatorMap: Map[String, (Option[WomValue]) => Boolean] = {
     validations.map(validation =>
       validation.key -> validation.validateOptionalExpression _
     ).toMap
@@ -44,7 +44,7 @@ trait ValidatedRuntimeAttributesBuilder {
   /**
     * Returns a map of coercions suitable for RuntimeAttributesDefault.workflowOptionsDefault.
     */
-  final lazy val coercionMap: Map[String, Traversable[WdlType]] = {
+  final lazy val coercionMap: Map[String, Traversable[WomType]] = {
     validations.map(validation => validation.key -> validation.coercion).toMap
   }
 
@@ -52,7 +52,7 @@ trait ValidatedRuntimeAttributesBuilder {
 
   private lazy val validationKeys = validations.map(_.key)
 
-  def build(attrs: Map[String, WdlValue], logger: Logger): ValidatedRuntimeAttributes = {
+  def build(attrs: Map[String, WomValue], logger: Logger): ValidatedRuntimeAttributes = {
     RuntimeAttributesValidation.warnUnrecognized(attrs.keySet, validationKeys.toSet, logger)
 
     val runtimeAttributesErrorOr: ErrorOr[ValidatedRuntimeAttributes] = validate(attrs)
@@ -66,7 +66,7 @@ trait ValidatedRuntimeAttributesBuilder {
     }
   }
 
-  private def validate(values: Map[String, WdlValue]): ErrorOr[ValidatedRuntimeAttributes] = {
+  private def validate(values: Map[String, WomValue]): ErrorOr[ValidatedRuntimeAttributes] = {
     val listOfKeysToErrorOrAnys: List[(String, ErrorOr[Any])] =
       validations.map(validation => validation.key -> validation.validate(values)).toList
 

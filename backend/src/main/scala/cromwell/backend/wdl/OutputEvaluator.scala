@@ -14,8 +14,8 @@ import wom.JobOutput
 import wom.callable.Callable.OutputDefinition
 import wom.core.CallOutputs
 import wom.expression.IoFunctionSet
-import wom.types.WdlType
-import wom.values.WdlValue
+import wom.types.WomType
+import wom.values.WomValue
 
 import scala.util.{Failure, Success, Try}
 object OutputEvaluator {
@@ -28,54 +28,54 @@ object OutputEvaluator {
 
   def evaluateOutputs(jobDescriptor: BackendJobDescriptor,
                       ioFunctions: IoFunctionSet,
-                      postMapper: WdlValue => Try[WdlValue] = v => Success(v)): EvaluatedJobOutputs = {
-    val knownValues: Map[String, WdlValue] = jobDescriptor.localInputs
+                      postMapper: WomValue => Try[WomValue] = v => Success(v)): EvaluatedJobOutputs = {
+    val knownValues: Map[String, WomValue] = jobDescriptor.localInputs
     
-    def foldFunction(accumulatedOutputs: Try[ErrorOr[List[(String, WdlValue)]]], output: OutputDefinition) = accumulatedOutputs flatMap { accumulated =>
+    def foldFunction(accumulatedOutputs: Try[ErrorOr[List[(String, WomValue)]]], output: OutputDefinition) = accumulatedOutputs flatMap { accumulated =>
       // Extract the valid pairs from the job outputs accumulated so far, and add to it the inputs (outputs can also reference inputs)
-      val allKnownValues: Map[String, WdlValue] = accumulated match {
-        case Valid(outputs) => outputs.toMap[String, WdlValue] ++ knownValues
+      val allKnownValues: Map[String, WomValue] = accumulated match {
+        case Valid(outputs) => outputs.toMap[String, WomValue] ++ knownValues
         case Invalid(_) => knownValues
       }
 
       // Attempt to evaluate the expression using all known values
-      def evaluateOutputExpression: OutputResult[WdlValue] = {
+      def evaluateOutputExpression: OutputResult[WomValue] = {
         EitherT { Try(output.expression.evaluateValue(allKnownValues, ioFunctions)).map(_.toEither) }
       }
 
-      // Attempt to coerce the wdlValue to the desired output type
-      def coerceOutputValue(wdlValue: WdlValue, coerceTo: WdlType): OutputResult[WdlValue] = {
+      // Attempt to coerce the womValue to the desired output type
+      def coerceOutputValue(womValue: WomValue, coerceTo: WomType): OutputResult[WomValue] = {
         fromEither[Try](
           // TODO WOM: coerceRawValue should return an ErrorOr
-          coerceTo.coerceRawValue(wdlValue).toEither.leftMap(t => NonEmptyList.one(t.getMessage))
+          coerceTo.coerceRawValue(womValue).toEither.leftMap(t => NonEmptyList.one(t.getMessage))
         )
       }
 
       /*
         * Go through evaluation, coercion and post processing.
-        * Transform the result to a validated Try[ErrorOr[(String, WdlValue)]] with toValidated
+        * Transform the result to a validated Try[ErrorOr[(String, WomValue)]] with toValidated
         * If we have a valid pair, add it to the previously accumulated outputs, otherwise combine the Nels of errors
        */
       val evaluated = for {
         evaluated <- evaluateOutputExpression
         coerced <- coerceOutputValue(evaluated, output.womType)
-        postProcessed <- EitherT { postMapper(coerced).map(_.validNelCheck) }: OutputResult[WdlValue]
+        postProcessed <- EitherT { postMapper(coerced).map(_.validNelCheck) }: OutputResult[WomValue]
         pair = output.name -> postProcessed
       } yield pair
 
-      evaluated.toValidated map { evaluatedOutput: ErrorOr[(String, WdlValue)] =>
+      evaluated.toValidated map { evaluatedOutput: ErrorOr[(String, WomValue)] =>
         (accumulated, evaluatedOutput) mapN { _ :+ _ }
       }
     }
     
-    val emptyValue = Success(List.empty[(String, WdlValue)].validNel): Try[ErrorOr[List[(String, WdlValue)]]]
+    val emptyValue = Success(List.empty[(String, WomValue)].validNel): Try[ErrorOr[List[(String, WomValue)]]]
 
     // Fold over the outputs to evaluate them in order, map the result to an EvaluatedJobOutputs
     jobDescriptor.call.callable.outputs.foldLeft(emptyValue)(foldFunction) match {
       case Success(Valid(outputs)) => ValidJobOutputs(
         // Wrap the wdlValues in JobOutput objects
         outputs.toMap map {
-          case (name, wdlValue) => name -> JobOutput(wdlValue)
+          case (name, womValue) => name -> JobOutput(womValue)
         }
       )
       case Success(Invalid(errors)) => InvalidJobOutputs(errors)

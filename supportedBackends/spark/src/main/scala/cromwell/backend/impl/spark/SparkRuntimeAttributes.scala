@@ -26,21 +26,21 @@ object SparkRuntimeAttributes {
   val AdditionalArgsKey = "additionalArgs"
 
   val staticDefaults = Map(
-    FailOnStderrKey -> WdlBoolean(FailOnStderrDefaultValue),
-    ExecutorCoresKey -> WdlInteger(ExecutorCoresDefaultValue),
-    ExecutorMemoryKey -> WdlString(ExecutorMemoryDefaultValue)
+    FailOnStderrKey -> WomBoolean(FailOnStderrDefaultValue),
+    ExecutorCoresKey -> WomInteger(ExecutorCoresDefaultValue),
+    ExecutorMemoryKey -> WomString(ExecutorMemoryDefaultValue)
   )
 
-  val coercionMap: Map[String, Set[WdlType]] = Map(
-    FailOnStderrKey -> Set[WdlType](WdlBooleanType),
-    ExecutorCoresKey -> Set(WdlIntegerType),
-    ExecutorMemoryKey -> Set(WdlStringType),
-    AppMainClassKey -> Set(WdlStringType),
-    NumberOfExecutorsKey -> Set(WdlIntegerType),
-    AdditionalArgsKey -> Set(WdlStringType)
+  val coercionMap: Map[String, Set[WomType]] = Map(
+    FailOnStderrKey -> Set[WomType](WomBooleanType),
+    ExecutorCoresKey -> Set(WomIntegerType),
+    ExecutorMemoryKey -> Set(WomStringType),
+    AppMainClassKey -> Set(WomStringType),
+    NumberOfExecutorsKey -> Set(WomIntegerType),
+    AdditionalArgsKey -> Set(WomStringType)
   )
 
-  def apply(attrs: Map[String, WdlValue], options: WorkflowOptions): SparkRuntimeAttributes = {
+  def apply(attrs: Map[String, WomValue], options: WorkflowOptions): SparkRuntimeAttributes = {
     // Fail now if some workflow options are specified but can't be parsed correctly
     val defaultFromOptions = workflowOptionsDefault(options, coercionMap).get
     val withDefaultValues = withDefaults(attrs, List(defaultFromOptions, staticDefaults))
@@ -62,25 +62,25 @@ object SparkRuntimeAttributes {
     }
   }
 
-  private def validateNumberOfExecutors(numOfExecutors: Option[WdlValue], onMissingKey: => ErrorOr[Option[Int]]): ErrorOr[Option[Int]] = {
+  private def validateNumberOfExecutors(numOfExecutors: Option[WomValue], onMissingKey: => ErrorOr[Option[Int]]): ErrorOr[Option[Int]] = {
     numOfExecutors match {
-      case Some(i: WdlInteger) => Option(i.value.intValue()).validNel
+      case Some(i: WomInteger) => Option(i.value.intValue()).validNel
       case None => onMissingKey
       case _ => s"Expecting $NumberOfExecutorsKey runtime attribute to be an Integer".invalidNel
     }
   }
 
-  private def validateAppEntryPoint(mainClass:  Option[WdlValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
+  private def validateAppEntryPoint(mainClass:  Option[WomValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
     mainClass match {
-      case Some(WdlString(s)) => Option(s).validNel
+      case Some(WomString(s)) => Option(s).validNel
       case None => onMissingKey
       case _ => s"Expecting $AppMainClassKey runtime attribute to be a String".invalidNel
     }
   }
 
-  private def validateAdditionalArgs(additionalArgs:  Option[WdlValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
+  private def validateAdditionalArgs(additionalArgs:  Option[WomValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
     additionalArgs match {
-      case Some(WdlString(s)) => Option(s).validNel
+      case Some(WomString(s)) => Option(s).validNel
       case None => onMissingKey
       case _ => s"Expecting $AdditionalArgsKey runtime attribute to be a String".invalidNel
     }

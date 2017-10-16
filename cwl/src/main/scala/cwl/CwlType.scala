@@ -5,7 +5,7 @@ import eu.timepit.refined._
 import lenthall.validation.ErrorOr.ErrorOr
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil}
-import wom.values.{WdlSingleFile, WdlValue}
+import wom.values.{WomSingleFile, WomValue}
 
 object CwlType extends Enumeration {
   type CwlType = Value
@@ -35,11 +35,11 @@ case class File private(
   format: Option[String],
   contents: Option[String]) {
 
-  lazy val asWdlValue: ErrorOr[WdlValue] = {
+  lazy val asWdlValue: ErrorOr[WomValue] = {
     // TODO WOM: needs to handle basename and maybe other fields. We might need to augment WdlFile, or have a smarter WomFile
     path.orElse(location) match {
-      case Some(value) => WdlSingleFile(value).validNel
-      case None => "Cannot convert CWL File to WdlValue without either a location or a path".invalidNel
+      case Some(value) => WomSingleFile(value).validNel
+      case None => "Cannot convert CWL File to WomValue without either a location or a path".invalidNel
     }
   }
 }

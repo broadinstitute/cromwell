@@ -5,7 +5,7 @@ import wdl.AstTools.EnhancedAstNode
 import wdl.TernaryIf
 import wdl.WdlExpression._
 import wdl4s.parser.WdlParser.{Ast, AstNode}
-import wom.WdlExpressionException
+import wom.WomExpressionException
 import wom.types._
 import wom.values._
 
@@ -33,36 +33,36 @@ class FileEvaluatorWdlFunctions
  * return a Seq(WdlFile("a.txt")).  In the second case, coerceTo would be WdlStringType and
  * evaluate("b.txt") would return Seq().
  */
-case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WdlType = WdlAnyType) {
-  type T = Seq[WdlFile]
-  def lookup = (s:String) => Seq.empty[WdlFile]
+case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WomType = WomAnyType) {
+  type T = Seq[WomFile]
+  def lookup = (s:String) => Seq.empty[WomFile]
 
 
-  private def evalValue(ast: AstNode): Try[WdlValue] = valueEvaluator.evaluate(ast)
+  private def evalValue(ast: AstNode): Try[WomValue] = valueEvaluator.evaluate(ast)
 
-  private def evalValueToWdlFile(ast: AstNode): Try[WdlFile] = {
+  private def evalValueToWdlFile(ast: AstNode): Try[WomFile] = {
     evalValue(ast) match {
-      case Success(p: WdlPrimitive) => Success(WdlFile(p.valueString))
-      case Success(_) => Failure(new WdlExpressionException(s"Expecting a primitive type from AST:\n${ast.toPrettyString}"))
+      case Success(p: WomPrimitive) => Success(WomFile(p.valueString))
+      case Success(_) => Failure(new WomExpressionException(s"Expecting a primitive type from AST:\n${ast.toPrettyString}"))
       case Failure(e) => Failure(e)
     }
   }
 
-  private def findWdlFiles(value: WdlValue, coerce: Boolean = true): Seq[WdlFile] = {
+  private def findWdlFiles(value: WomValue, coerce: Boolean = true): Seq[WomFile] = {
     val coercedValue = if (coerce) coerceTo.coerceRawValue(value) else Success(value)
     coercedValue match {
-      case Success(f: WdlFile) => Seq(f)
-      case Success(a: WdlArray) =>
+      case Success(f: WomFile) => Seq(f)
+      case Success(a: WomArray) =>
         a.value.flatMap(findWdlFiles(_, coerce=false))
-      case Success(m: WdlMap) =>
+      case Success(m: WomMap) =>
         m.value flatMap { case (k, v) => Seq(k, v) } flatMap(findWdlFiles(_, coerce=false)) toSeq
-      case Success(WdlOptionalValue(_, Some(v))) => findWdlFiles(v, coerce=false)
-      case Success(WdlPair(l, r)) => findWdlFiles(l, coerce = false) ++ findWdlFiles(r, coerce = false)
-      case _ => Seq.empty[WdlFile]
+      case Success(WomOptionalValue(_, Some(v))) => findWdlFiles(v, coerce=false)
+      case Success(WomPair(l, r)) => findWdlFiles(l, coerce = false) ++ findWdlFiles(r, coerce = false)
+      case _ => Seq.empty[WomFile]
     }
   }
 
-  def evaluate(ast: AstNode, anticipatedType: WdlType = coerceTo): Try[Seq[WdlFile]] = {
+  def evaluate(ast: AstNode, anticipatedType: WomType = coerceTo): Try[Seq[WomFile]] = {
     valueEvaluator.evaluate(ast) match {
         // If the ast can successfully be evaluated, then just find the WdlFiles that it contains
       case Success(v) => Success(findWdlFiles(v))
@@ -86,10 +86,10 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WdlType = Wdl
     * Because we know that read_string takes a file parameter, WdlString("out") is transformed to a WdlFile (see evalValueToWdlFile)
     * We can now deduce that this task is expected to produce a WdlFile called "out"
     */
-  private def evaluateRecursive(ast: AstNode, anticipatedType: WdlType): Try[Seq[WdlFile]] = {
+  private def evaluateRecursive(ast: AstNode, anticipatedType: WomType): Try[Seq[WomFile]] = {
     ast match {
       case a: Ast if a.isGlobFunctionCall =>
-        evalValueToWdlFile(a.params.head) map { wdlFile => Seq(WdlGlobFile(wdlFile.value)) }
+        evalValueToWdlFile(a.params.head) map { wdlFile => Seq(WomGlobFile(wdlFile.value)) }
       case a: Ast if a.isFunctionCallWithFirstParameterBeingFile =>
         evalValueToWdlFile(a.params.head) match {
           case Success(v) => Success(Seq(v))
@@ -99,7 +99,7 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WdlType = Wdl
         TryUtil.sequence(a.params map { p => evaluateRecursive(p, anticipatedType) }) map { _.flatten }
       case a: Ast if a.isBinaryOperator =>
         evalValueToWdlFile(a) match {
-          case Success(f: WdlFile) => Success(Seq(f))
+          case Success(f: WomFile) => Success(Seq(f))
           case _ => for {
             left <- evaluateRecursive(a.getAttribute("lhs"), anticipatedType)
             right <- evaluateRecursive(a.getAttribute("rhs"), anticipatedType)
@@ -107,22 +107,22 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WdlType = Wdl
         }
       case a: Ast if a.isUnaryOperator =>
         evalValueToWdlFile(a) match {
-          case Success(f: WdlFile) => Success(Seq(f))
+          case Success(f: WomFile) => Success(Seq(f))
           case _ =>
             evaluateRecursive(a.getAttribute("expression"), anticipatedType) match {
-              case Success(a:Seq[WdlFile]) => Success(a)
-              case _ => Failure(new WdlExpressionException(s"Could not evaluate:\n${a.toPrettyString}"))
+              case Success(a:Seq[WomFile]) => Success(a)
+              case _ => Failure(new WomExpressionException(s"Could not evaluate:\n${a.toPrettyString}"))
             }
         }
       case TernaryIf(condition, ifTrue, ifFalse) =>
         for {
-          filesInCondition <- evaluate(condition, WdlBooleanType)
+          filesInCondition <- evaluate(condition, WomBooleanType)
           filesIfTrue <- evaluate(ifTrue)
           filesIfFalse <- evaluate(ifFalse)
         } yield filesInCondition ++ filesIfTrue ++ filesIfFalse
       case a: Ast if a.isArrayOrMapLookup =>
         evalValue(a) match {
-          case Success(f: WdlFile) => Success(Seq(f))
+          case Success(f: WomFile) => Success(Seq(f))
           case _ => for {
             left <- evaluateRecursive(a.getAttribute("lhs"), anticipatedType)
             right <- evaluateRecursive(a.getAttribute("rhs"), anticipatedType)
@@ -130,18 +130,18 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WdlType = Wdl
         }
       case a: Ast if a.isMemberAccess =>
         evalValue(a) match {
-          case Success(f: WdlFile) => Success(Seq(f))
-          case _ => Success(Seq.empty[WdlFile])
+          case Success(f: WomFile) => Success(Seq(f))
+          case _ => Success(Seq.empty[WomFile])
         }
       case a: Ast if a.isArrayLiteral =>
         anticipatedType match {
-          case WdlArrayType(memberType) =>
+          case WomArrayType(memberType) =>
             val values = a.getAttribute("values").astListAsVector.map(x => evaluate(x, memberType))
             TryUtil.sequence(values) match {
               case Success(v) => Success(v.flatten)
               case f => f.map(_.flatten)
             }
-          case _ => Failure(new WdlExpressionException(s"Failed to parse $a for files. Found an unexpected Array literal but anticipated a ${anticipatedType.toWdlString}"))
+          case _ => Failure(new WomExpressionException(s"Failed to parse $a for files. Found an unexpected Array literal but anticipated a ${anticipatedType.toDisplayString}"))
         }
       case a: Ast if a.isTupleLiteral =>
         val unevaluatedElements = a.getAttribute("values").astListAsVector
@@ -149,20 +149,20 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WdlType = Wdl
           evaluateRecursive(unevaluatedElements.head, anticipatedType)
         } else if (unevaluatedElements.size == 2) {
           anticipatedType match {
-            case WdlPairType(leftType, rightType) =>
+            case WomPairType(leftType, rightType) =>
               for {
                 left <- evaluate(unevaluatedElements.head, leftType)
                 right <- evaluate(unevaluatedElements(1), rightType)
               } yield left ++ right
-            case _ => Failure(new WdlExpressionException(s"Failed to parse $a for files. Found an unexpected Pair literal but anticipated a ${anticipatedType.toWdlString}"))
+            case _ => Failure(new WomExpressionException(s"Failed to parse $a for files. Found an unexpected Pair literal but anticipated a ${anticipatedType.toDisplayString}"))
           }
 
         } else {
-          Failure(new WdlExpressionException(s"WDL does not currently support tuples with n > 2: ${a.toPrettyString}"))
+          Failure(new WomExpressionException(s"WDL does not currently support tuples with n > 2: ${a.toPrettyString}"))
         }
       case a: Ast if a.isMapLiteral =>
         anticipatedType match {
-          case WdlMapType(keyType, valueType) =>
+          case WomMapType(keyType, valueType) =>
             val evaluatedMap = a.getAttribute("map").astListAsVector map { kv =>
               val key = evaluate(kv.asInstanceOf[Ast].getAttribute("key"), keyType)
               val value = evaluate(kv.asInstanceOf[Ast].getAttribute("value"), valueType)
@@ -173,15 +173,15 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WdlType = Wdl
             flattenedTries partition {_.isSuccess} match {
               case (_, failures) if failures.nonEmpty =>
                 val message = failures.collect { case f: Failure[_] => f.exception.getMessage }.mkString("\n")
-                Failure(new WdlExpressionException(s"Could not evaluate expression:\n$message"))
+                Failure(new WomExpressionException(s"Could not evaluate expression:\n$message"))
               case (successes, _) =>
                 Success(successes.flatMap(_.get))
             }
-          case _ => Failure(new WdlExpressionException(s"Failed to parse $a for files. Found an unexpected Map literal but anticipated a ${anticipatedType.toWdlString}"))
+          case _ => Failure(new WomExpressionException(s"Failed to parse $a for files. Found an unexpected Map literal but anticipated a ${anticipatedType.toDisplayString}"))
         }
 
 
-      case _ => Success(Seq.empty[WdlFile])
+      case _ => Success(Seq.empty[WomFile])
     }
   }
 }

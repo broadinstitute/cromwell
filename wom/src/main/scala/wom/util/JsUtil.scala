@@ -3,7 +3,7 @@ package wom.util
 import javax.script.{ScriptContext, SimpleScriptContext}
 
 import jdk.nashorn.api.scripting.{ClassFilter, NashornScriptEngineFactory, ScriptObjectMirror}
-import wom.types.{WdlArrayType, WdlMapType, WdlNothingType, WdlStringType}
+import wom.types.{WomArrayType, WomMapType, WomNothingType, WomStringType}
 import wom.values._
 
 import scala.collection.JavaConverters._
@@ -14,23 +14,23 @@ object JsUtil {
     * Evaluates a javascript expression.
     *
     * Inputs, and returned output must be one of:
-    * - WdlString
-    * - WdlBoolean
-    * - WdlFloat
-    * - WdlInteger
-    * - WdlMap
-    * - WdlArray
-    * - A "WdlNull" equal to WdlOptionalValue(WdlNothingType, None)
+    * - WomString
+    * - WomBoolean
+    * - WomFloat
+    * - WomInteger
+    * - WomMap
+    * - WomArray
+    * - A "WomNull" equal to WomOptionalValue(WomNothingType, None)
     *
-    * The WdlMap keys and values, and WdlArray elements must be the one of the above, recursively.
+    * The WomMap keys and values, and WomArray elements must be the one of the above, recursively.
     *
-    * WdlSingleFile and WdlGlobFile are not permitted, and must be already converted to one of the above types.
+    * WomSingleFile and WomGlobFile are not permitted, and must be already converted to one of the above types.
     *
     * @param expr   The javascript expression.
-    * @param values A map filled with WDL values.
+    * @param values A map filled with WOM values.
     * @return The result of the expression.
     */
-  def eval(expr: String, values: Map[String, WdlValue] = Map.empty): WdlValue = {
+  def eval(expr: String, values: Map[String, WomValue] = Map.empty): WomValue = {
     val engine = ScriptEngineFactory.getScriptEngine(nashornStrictArgs, getNashornClassLoader, noJavaClassFilter)
 
     val bindings = engine.createBindings()
@@ -72,15 +72,15 @@ object JsUtil {
     }
   }
 
-  private def toJavascript(value: WdlValue): AnyRef = {
+  private def toJavascript(value: WomValue): AnyRef = {
     value match {
-      case WdlOptionalValue(WdlNothingType, None) => null
-      case WdlString(string) => string
-      case WdlInteger(int) => int.asInstanceOf[java.lang.Integer]
-      case WdlFloat(double) => double.asInstanceOf[java.lang.Double]
-      case WdlBoolean(boolean) => boolean.asInstanceOf[java.lang.Boolean]
-      case WdlArray(_, array) => array.map(toJavascript).toArray
-      case WdlMap(_, map) =>
+      case WomOptionalValue(WomNothingType, None) => null
+      case WomString(string) => string
+      case WomInteger(int) => int.asInstanceOf[java.lang.Integer]
+      case WomFloat(double) => double.asInstanceOf[java.lang.Double]
+      case WomBoolean(boolean) => boolean.asInstanceOf[java.lang.Boolean]
+      case WomArray(_, array) => array.map(toJavascript).toArray
+      case WomMap(_, map) =>
         map.map({
           case (mapKey, mapValue) => toJavascript(mapKey) -> toJavascript(mapValue)
         }).asJava
@@ -88,34 +88,33 @@ object JsUtil {
     }
   }
 
-  private def fromJavascript(value: AnyRef): WdlValue = {
+  private def fromJavascript(value: AnyRef): WomValue = {
     value match {
-      case null => WdlOptionalValue(WdlNothingType, None)
-      case string: String => WdlString(string)
-      case int: java.lang.Integer => WdlInteger(int)
-      case double: java.lang.Double => WdlFloat(double)
-      case boolean: java.lang.Boolean => WdlBoolean(boolean)
+      case null => WomOptionalValue(WomNothingType, None)
+      case string: String => WomString(string)
+      case int: java.lang.Integer => WomInteger(int)
+      case double: java.lang.Double => WomFloat(double)
+      case boolean: java.lang.Boolean => WomBoolean(boolean)
       case scriptObjectMirror: ScriptObjectMirror if scriptObjectMirror.isArray =>
-        val wdlValues = (0 until scriptObjectMirror.size).toArray map { index =>
+        val womValues = (0 until scriptObjectMirror.size).toArray map { index =>
           fromJavascript(scriptObjectMirror.getSlot(index))
         }
-        val wdlArrayType = if (wdlValues.isEmpty) WdlArrayType(WdlNothingType) else WdlArrayType(wdlValues.head.wdlType)
-        WdlArray(wdlArrayType, wdlValues)
+        val womArrayType = if (womValues.isEmpty) WomArrayType(WomNothingType) else WomArrayType(womValues.head.womType)
+        WomArray(womArrayType, womValues)
       case scriptObjectMirror: ScriptObjectMirror if scriptObjectMirror.isFunction =>
         throw new IllegalArgumentException(s"Unexpected function value: $value")
       case scriptObjectMirror: ScriptObjectMirror =>
         val keys = scriptObjectMirror.getOwnKeys(true)
-        val wdlMap: Map[WdlString, WdlValue] = keys.map(key =>
-          WdlString(key) -> fromJavascript(scriptObjectMirror.get(key))
+        val womMap: Map[WomString, WomValue] = keys.map(key =>
+          WomString(key) -> fromJavascript(scriptObjectMirror.get(key))
         ).toMap
-        val wdlValues = wdlMap.values
-        val wdlValueType = if (wdlValues.isEmpty) WdlArrayType(WdlNothingType) else WdlArrayType(wdlValues.head.wdlType)
-        val wdlMapType = WdlMapType(WdlStringType, wdlValueType)
-        WdlMap(wdlMapType, keys.map(key =>
-          WdlString(key) -> fromJavascript(scriptObjectMirror.get(key))
+        val womValues = womMap.values
+        val womValueType = if (womValues.isEmpty) WomArrayType(WomNothingType) else WomArrayType(womValues.head.womType)
+        val womMapType = WomMapType(WomStringType, womValueType)
+        WomMap(womMapType, keys.map(key =>
+          WomString(key) -> fromJavascript(scriptObjectMirror.get(key))
         ).toMap)
       case _ => throw new IllegalArgumentException(s"Unexpected value: $value")
     }
   }
-
 }

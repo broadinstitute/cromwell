@@ -5,7 +5,7 @@ import wdl.AstTools.EnhancedAstNode
 import wdl.{WdlWorkflow, _}
 import wdl.command.StringCommandPart
 import wdl4s.parser.WdlParser.{Ast, AstList, AstNode}
-import wom.types.WdlType
+import wom.types.WomType
 
 import scala.collection.JavaConverters._
 
@@ -13,7 +13,7 @@ trait SyntaxHighlighter {
   def keyword(s: String): String = s
   def name(s: String): String = s
   def section(s: String): String = s
-  def wdlType(t: WdlType): String = t.toWdlString
+  def womType(t: WomType): String = t.toDisplayString
   def variable(s: String): String = s
   def alias(s: String): String = s
   def command(s: String): String = s
@@ -26,7 +26,7 @@ object AnsiSyntaxHighlighter extends SyntaxHighlighter {
   override def keyword(s: String): String = TerminalUtil.highlight(214, s)
   override def name(s: String): String = TerminalUtil.highlight(253, s)
   override def section(s: String): String = keyword(s)
-  override def wdlType(t: WdlType): String = TerminalUtil.highlight(33, t.toWdlString)
+  override def womType(t: WomType): String = TerminalUtil.highlight(33, t.toDisplayString)
   override def variable(s: String): String = TerminalUtil.highlight(112, s)
   override def alias(s: String): String = s
   override def command(s: String): String = s
@@ -38,7 +38,7 @@ object HtmlSyntaxHighlighter extends SyntaxHighlighter {
   override def keyword(s: String): String = wrap(s, "keyword")
   override def name(s: String): String = wrap(s, "name")
   override def section(s: String): String = wrap(s, "section")
-  override def wdlType(t: WdlType): String = wrap(t.toWdlString, "type")
+  override def womType(t: WomType): String = wrap(t.toDisplayString, "type")
   override def variable(s: String): String = wrap(s, "variable")
   override def alias(s: String): String = wrap(s, "alias")
   override def command(s: String): String = wrap(s, "command")
@@ -117,7 +117,7 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
   private def formatRuntimeSection(runtimeAttributes: WdlRuntimeAttributes, level: Int): String = {
     runtimeAttributes.attrs match {
       case m if m.nonEmpty =>
-        val attrs = m map { case (k, v) => indent(s"$k: ${v.toWdlString}", level) }
+        val attrs = m map { case (k, v) => indent(s"$k: ${v.toWomString}", level) }
         indent(
           s"""${highlighter.keyword("runtime")} {
              |${attrs.mkString("\n")}
@@ -145,7 +145,7 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
   }
 
   private def formatOutput(output: TaskOutput, level:Int): String = {
-    indent(s"${highlighter.wdlType(output.wdlType)} ${highlighter.variable(output.unqualifiedName)} = ${output.requiredExpression.toString(highlighter)}", level)
+    indent(s"${highlighter.womType(output.womType)} ${highlighter.variable(output.unqualifiedName)} = ${output.requiredExpression.toString(highlighter)}", level)
   }
 
   private def formatWorkflow(workflow: WdlWorkflow): String = {
@@ -181,8 +181,8 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
   private def formatWorkflowOutputFqn(fqn: String) = fqn.replaceFirst("[a-zA-Z0-9]+\\.", "")
 
   private def formatDeclaration(decl: DeclarationInterface, level: Int): String = {
-    val expression = decl.expression.map(e => s" = ${e.toWdlString}").getOrElse("")
-    indent(s"${highlighter.wdlType(decl.wdlType)} ${highlighter.variable(decl.unqualifiedName)}$expression", level)
+    val expression = decl.expression.map(e => s" = ${e.toWomString}").getOrElse("")
+    indent(s"${highlighter.womType(decl.womType)} ${highlighter.variable(decl.unqualifiedName)}$expression", level)
   }
 
   private def formatScope(scope: Scope, level: Int): String = scope match {

@@ -7,7 +7,7 @@ import cromwell.backend.validation.DockerValidation
 import cromwell.core.path.Path
 import wdl._
 import wdl.expression.NoFunctions
-import wom.values.{WdlString, WdlValue}
+import wom.values.{WomString, WomValue}
 
 /**
   * Base ConfigAsyncJobExecutionActor that reads the config and generates an outer script to submit an inner script
@@ -64,12 +64,12 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     */
   private lazy val standardInputs: WorkflowCoercedInputs = {
     Map(
-      JobNameInput -> WdlString(jobName),
-      CwdInput -> WdlString(jobPaths.callRoot.pathAsString)
+      JobNameInput -> WomString(jobName),
+      CwdInput -> WomString(jobPaths.callRoot.pathAsString)
     )
   }
 
-  private [config] def dockerCidInputValue: WdlString = WdlString(jobPaths.callExecutionRoot.resolve(jobPaths.dockerCid).pathAsString)
+  private [config] def dockerCidInputValue: WomString = WomString(jobPaths.callExecutionRoot.resolve(jobPaths.dockerCid).pathAsString)
 
   /**
     * The inputs that are not specified by the config, that will be passed into a command for either submit or
@@ -78,17 +78,17 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
   private lazy val dockerizedInputs: WorkflowCoercedInputs = {
     if (isDockerRun) {
       Map(
-        DockerCwdInput -> WdlString(jobPathsWithDocker.callDockerRoot.pathAsString),
+        DockerCwdInput -> WomString(jobPathsWithDocker.callDockerRoot.pathAsString),
         DockerCidInput -> dockerCidInputValue,
-        StdoutInput -> WdlString(jobPathsWithDocker.toDockerPath(jobPaths.stdout).pathAsString),
-        StderrInput -> WdlString(jobPathsWithDocker.toDockerPath(jobPaths.stderr).pathAsString),
-        ScriptInput -> WdlString(jobPathsWithDocker.toDockerPath(jobPaths.script).pathAsString)
+        StdoutInput -> WomString(jobPathsWithDocker.toDockerPath(jobPaths.stdout).pathAsString),
+        StderrInput -> WomString(jobPathsWithDocker.toDockerPath(jobPaths.stderr).pathAsString),
+        ScriptInput -> WomString(jobPathsWithDocker.toDockerPath(jobPaths.script).pathAsString)
       )
     } else {
       Map(
-        StdoutInput -> WdlString(jobPaths.stdout.pathAsString),
-        StderrInput -> WdlString(jobPaths.stderr.pathAsString),
-        ScriptInput -> WdlString(jobPaths.script.pathAsString)
+        StdoutInput -> WomString(jobPaths.stdout.pathAsString),
+        StderrInput -> WomString(jobPaths.stderr.pathAsString),
+        ScriptInput -> WomString(jobPaths.script.pathAsString)
       )
     }
   }
@@ -103,10 +103,10 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
       // Is it always the right thing to pass the Docker hash to a config backend?  What if it can't use hashes?
       case declarationValidation if declarationValidation.key == DockerValidation.instance.key && jobDescriptor.maybeCallCachingEligible.dockerHash.isDefined =>
         val dockerHash = jobDescriptor.maybeCallCachingEligible.dockerHash.get
-        Option(declarationValidation.key -> WdlString(dockerHash))
+        Option(declarationValidation.key -> WomString(dockerHash))
       case declarationValidation =>
-        declarationValidation.extractWdlValueOption(validatedRuntimeAttributes) map { wdlValue =>
-          declarationValidation.key -> wdlValue
+        declarationValidation.extractWdlValueOption(validatedRuntimeAttributes) map { womValue =>
+          declarationValidation.key -> womValue
         }
     }
     inputOptions.flatten.toMap
@@ -123,9 +123,9 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     * @param task   The config task that defines the command.
     * @return A runnable command.
     */
-  protected def jobScriptArgs(job: StandardAsyncJob, suffix: String, task: String, extraInputs: Map[String, WdlValue] = Map.empty): SharedFileSystemCommand = {
+  protected def jobScriptArgs(job: StandardAsyncJob, suffix: String, task: String, extraInputs: Map[String, WomValue] = Map.empty): SharedFileSystemCommand = {
     val script = jobPaths.script.plusExt(suffix)
-    writeTaskScript(script, task, Map(JobIdInput -> WdlString(job.jobId)) ++ extraInputs)
+    writeTaskScript(script, task, Map(JobIdInput -> WomString(job.jobId)) ++ extraInputs)
     SharedFileSystemCommand("/bin/bash", script)
   }
 }

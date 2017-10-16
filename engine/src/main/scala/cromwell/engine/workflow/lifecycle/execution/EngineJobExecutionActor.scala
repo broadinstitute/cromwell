@@ -10,7 +10,7 @@ import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core._
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
-import cromwell.core.simpleton.WdlValueSimpleton
+import cromwell.core.simpleton.WomValueSimpleton
 import cromwell.database.sql.tables.CallCachingEntry
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.instrumentation.JobInstrumentation
@@ -207,12 +207,12 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   when(FetchingCachedOutputsFromDatabase) {
-    case Event(CachedOutputLookupSucceeded(wdlValueSimpletons, jobDetritus, returnCode, cacheResultId, cacheHitDetails), data: ResponsePendingData) =>
+    case Event(CachedOutputLookupSucceeded(womValueSimpletons, jobDetritus, returnCode, cacheResultId, cacheHitDetails), data: ResponsePendingData) =>
       writeToMetadata(Map(
         callCachingHitResultMetadataKey -> true,
         callCachingReadResultMetadataKey -> s"Cache Hit: $cacheHitDetails"))
       log.debug("Cache hit for {}! Fetching cached result {}", jobTag, cacheResultId)
-      makeBackendCopyCacheHit(wdlValueSimpletons, jobDetritus, returnCode, data, cacheResultId) using data.withCacheDetails(cacheHitDetails)
+      makeBackendCopyCacheHit(womValueSimpletons, jobDetritus, returnCode, data, cacheResultId) using data.withCacheDetails(cacheHitDetails)
     case Event(CachedOutputLookupFailed(_, error), data: ResponsePendingData) =>
       log.warning("Can't make a copy of the cached job outputs for {} due to {}. Running job.", jobTag, error)
       runJob(data)
@@ -482,12 +482,12 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     goto(FetchingCachedOutputsFromDatabase) using data
   }
 
-  private def makeBackendCopyCacheHit(wdlValueSimpletons: Seq[WdlValueSimpleton], jobDetritusFiles: Map[String,String], returnCode: Option[Int], data: ResponsePendingData, cacheResultId: CallCachingEntryId) = {
+  private def makeBackendCopyCacheHit(womValueSimpletons: Seq[WomValueSimpleton], jobDetritusFiles: Map[String,String], returnCode: Option[Int], data: ResponsePendingData, cacheResultId: CallCachingEntryId) = {
     factory.cacheHitCopyingActorProps match {
       case Some(propsMaker) =>
         val backendCacheHitCopyingActorProps = propsMaker(data.jobDescriptor, initializationData, serviceRegistryActor, ioActor)
         val cacheHitCopyActor = context.actorOf(backendCacheHitCopyingActorProps, buildCacheHitCopyingActorName(data.jobDescriptor, cacheResultId))
-        cacheHitCopyActor ! CopyOutputsCommand(wdlValueSimpletons, jobDetritusFiles, returnCode)
+        cacheHitCopyActor ! CopyOutputsCommand(womValueSimpletons, jobDetritusFiles, returnCode)
         replyTo ! JobRunning(data.jobDescriptor.key, data.jobDescriptor.inputDeclarations, None)
         goto(BackendIsCopyingCachedOutputs)
       case None =>

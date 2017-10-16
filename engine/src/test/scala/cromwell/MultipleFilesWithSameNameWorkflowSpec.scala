@@ -2,7 +2,7 @@ package cromwell
 
 import akka.testkit._
 import cromwell.util.SampleWdl
-import wom.values.WdlString
+import wom.values.WomString
 
 
 class MultipleFilesWithSameNameWorkflowSpec extends CromwellTestKitWordSpec {
@@ -12,8 +12,8 @@ class MultipleFilesWithSameNameWorkflowSpec extends CromwellTestKitWordSpec {
         sampleWdl = SampleWdl.FileClobber,
         EventFilter.info(pattern = "Starting calls: two.x:NA:1, two.y:NA:1", occurrences = 1),
         expectedOutputs = Map(
-          "two.x.out" -> WdlString("first file.txt"),
-          "two.y.out" -> WdlString("second file.txt")
+          "two.x.out" -> WomString("first file.txt"),
+          "two.y.out" -> WomString("second file.txt")
         )
       )
     }

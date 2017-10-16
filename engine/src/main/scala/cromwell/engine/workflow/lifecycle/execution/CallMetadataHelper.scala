@@ -10,7 +10,7 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import wdl._
 import wom.core.CallOutputs
-import wom.values.{WdlValue, WomEvaluatedCallInputs}
+import wom.values.{WomValue, WomEvaluatedCallInputs}
 
 import scala.util.Random
 
@@ -57,7 +57,7 @@ trait CallMetadataHelper {
     serviceRegistryActor ! PutMetadataAction(runningEvent ++ inputEvents)
   }
 
-  def pushWorkflowOutputMetadata(outputs: Map[LocallyQualifiedName, WdlValue]) = {
+  def pushWorkflowOutputMetadata(outputs: Map[LocallyQualifiedName, WomValue]) = {
     val events = outputs match {
       case empty if empty.isEmpty => List(MetadataEvent.empty(MetadataKey(workflowIdForCallMetadata, None, WorkflowMetadataKeys.Outputs)))
       case _ => outputs flatMap {
@@ -76,7 +76,7 @@ trait CallMetadataHelper {
       case empty if empty.isEmpty =>
         List(MetadataEvent.empty(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Outputs}")))
       case _ =>
-        outputs flatMap { case (lqn, outputValue) => wdlValueToMetadataEvents(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Outputs}:$lqn"), outputValue.wdlValue) }
+        outputs flatMap { case (lqn, outputValue) => wdlValueToMetadataEvents(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Outputs}:$lqn"), outputValue.womValue) }
     }
 
     serviceRegistryActor ! PutMetadataAction(completionEvents ++ outputEvents)

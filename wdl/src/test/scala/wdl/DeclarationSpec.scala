@@ -16,23 +16,23 @@ class DeclarationSpec extends FlatSpec with Matchers {
 
     val foo = namespace.workflow.declarations.head
     foo.unqualifiedName shouldEqual "foo"
-    foo.wdlType shouldEqual WdlStringType
-    foo.expression.map(_.toWdlString) shouldEqual Option(""" "foo" """.trim)
+    foo.womType shouldEqual WomStringType
+    foo.expression.map(_.toWomString) shouldEqual Option(""" "foo" """.trim)
 
     val bar = namespace.workflow.declarations(1)
     bar.unqualifiedName shouldEqual "bar"
-    bar.wdlType shouldEqual WdlStringType
-    bar.expression.map(_.toWdlString) shouldEqual Option(""" "bar" """.trim)
+    bar.womType shouldEqual WomStringType
+    bar.expression.map(_.toWomString) shouldEqual Option(""" "bar" """.trim)
 
     val foobar = namespace.workflow.declarations(2)
     foobar.unqualifiedName shouldEqual "foobar"
-    foobar.wdlType shouldEqual WdlStringType
-    foobar.expression.map(_.toWdlString) shouldEqual Option(""" foo + bar """.trim)
+    foobar.womType shouldEqual WomStringType
+    foobar.expression.map(_.toWomString) shouldEqual Option(""" foo + bar """.trim)
 
     val baz = namespace.workflow.declarations(3)
     baz.unqualifiedName shouldEqual "baz"
-    baz.wdlType shouldEqual WdlOptionalType(WdlStringType)
-    baz.expression.map(_.toWdlString) shouldEqual Option(""" "baz" """.trim)
+    baz.womType shouldEqual WomOptionalType(WomStringType)
+    baz.expression.map(_.toWomString) shouldEqual Option(""" "baz" """.trim)
   }
 
   it should "have scoped declarations defined properly" in {
@@ -120,25 +120,25 @@ class DeclarationSpec extends FlatSpec with Matchers {
     val cFoo = c.declarations.head
     cFoo.parent shouldEqual Option(c)
     cFoo.fullyQualifiedName shouldEqual "w.c.foo"
-    cFoo.wdlType should be(WdlOptionalType(WdlIntegerType))
+    cFoo.womType should be(WomOptionalType(WomIntegerType))
     cFoo.toWdlString shouldEqual "Int? foo = 3"
 
     val cBar = c.declarations(1)
     cBar.parent shouldEqual Option(c)
     cBar.fullyQualifiedName shouldEqual "w.c.bar"
-    cBar.wdlType should be(WdlNonEmptyArrayType(WdlIntegerType))
+    cBar.womType should be(WomNonEmptyArrayType(WomIntegerType))
     cBar.toWdlString shouldEqual "Array[Int]+ bar = [1,2,3]"
   }
 
   "A workflow" should "Be able to evaluate static declarations" in {
-    namespace.staticDeclarationsRecursive(Map.empty[String, WdlValue], NoFunctions) match {
+    namespace.staticDeclarationsRecursive(Map.empty[String, WomValue], NoFunctions) match {
       case Failure(ex) => fail("Expected all declarations to be statically evaluable", ex)
       case Success(values) =>
         values shouldEqual Map(
-          "w.foo" -> WdlString("foo"),
-          "w.bar" -> WdlString("bar"),
-          "w.foobar" -> WdlString("foobar"),
-          "w.baz" -> WdlOptionalValue(WdlString("baz"))
+          "w.foo" -> WomString("foo"),
+          "w.bar" -> WomString("bar"),
+          "w.foobar" -> WomString("foobar"),
+          "w.baz" -> WomOptionalValue(WomString("baz"))
         )
     }
   }
@@ -184,7 +184,7 @@ class DeclarationSpec extends FlatSpec with Matchers {
                  |}
             """.stripMargin
     val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
-    ns.staticDeclarationsRecursive(Map.empty[String, WdlValue], NoFunctions) match {
+    ns.staticDeclarationsRecursive(Map.empty[String, WomValue], NoFunctions) match {
       case Failure(ex) => fail("Expected all declarations to be statically evaluable", ex)
       case Success(values) =>
         values shouldEqual Map.empty
@@ -192,7 +192,7 @@ class DeclarationSpec extends FlatSpec with Matchers {
   }
   
   "A namespace" should "Be able to coerce inputs" in {
-    namespace.coerceRawInputs(Map.empty).get shouldEqual Map.empty[FullyQualifiedName, WdlValue]
+    namespace.coerceRawInputs(Map.empty).get shouldEqual Map.empty[FullyQualifiedName, WomValue]
   }
 }
 

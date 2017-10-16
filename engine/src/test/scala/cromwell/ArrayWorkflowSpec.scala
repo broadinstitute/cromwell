@@ -12,7 +12,7 @@ import wom.values._
 class ArrayWorkflowSpec extends CromwellTestKitWordSpec {
   val tmpDir = DefaultPathBuilder.createTempDirectory("ArrayWorkflowSpec")
   val ns = WdlNamespaceWithWorkflow.load(SampleWdl.ArrayLiteral(tmpDir).workflowSource(), Seq.empty[ImportResolver]).get
-  val expectedArray = WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile("f1"), WdlFile("f2"), WdlFile("f3")))
+  val expectedArray = WomArray(WomArrayType(WomFileType), Seq(WomFile("f1"), WomFile("f2"), WomFile("f3")))
 
   "A static Array[File] declaration" should {
     "be a valid declaration" in {
@@ -25,7 +25,7 @@ class ArrayWorkflowSpec extends CromwellTestKitWordSpec {
       val value = expression.evaluate((_: String) => fail("No lookups"), NoFunctions).getOrElse {
         fail("Expected expression for 'arr' to evaluate")
       }
-      value shouldEqual WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("f1"), WdlString("f2"), WdlString("f3")))
+      value shouldEqual WomArray(WomArrayType(WomStringType), Seq(WomString("f1"), WomString("f2"), WomString("f3")))
     }
     "be usable as an input" in {
       val catTask = ns.findTask("cat").getOrElse {
@@ -39,12 +39,12 @@ class ArrayWorkflowSpec extends CromwellTestKitWordSpec {
     // TODO WOM: should be fixed once call input evaluation is properly implemented
     "Coerce Array[String] to Array[File] when running the workflow" taggedAs PostWomTest ignore {
       val outputs = Map(
-        "wf.cat.lines" -> WdlArray(WdlArrayType(WdlStringType), Seq(
-            WdlString("line1"),
-            WdlString("line2"),
-            WdlString("line3"),
-            WdlString("line4"),
-            WdlString("line5")
+        "wf.cat.lines" -> WomArray(WomArrayType(WomStringType), Seq(
+            WomString("line1"),
+            WomString("line2"),
+            WomString("line3"),
+            WomString("line4"),
+            WomString("line5")
           )
         )
       )

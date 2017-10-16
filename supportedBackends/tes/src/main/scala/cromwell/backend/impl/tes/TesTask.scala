@@ -8,7 +8,7 @@ import cromwell.core.path.{DefaultPathBuilder, Path}
 import wdl.FullyQualifiedName
 import wdl4s.parser.MemoryUnit
 import wom.callable.Callable.OutputDefinition
-import wom.values.{WdlFile, WdlGlobFile, WdlSingleFile, WdlValue}
+import wom.values.{WomFile, WomGlobFile, WomSingleFile, WomValue}
 
 import scala.util.Try
 
@@ -48,7 +48,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     contents = None
   )
 
-  private def writeFunctionFiles(commandLineValueMapper: WdlValue => WdlValue): Map[FullyQualifiedName, Seq[WdlFile]] = {
+  private def writeFunctionFiles(commandLineValueMapper: WomValue => WomValue): Map[FullyQualifiedName, Seq[WomFile]] = {
     // TODO WOM :fix !
 //    val commandLineMappedInputs = jobDescriptor.inputDeclarations map {
 //      case (declaration, value) => declaration.fullyQualifiedName -> commandLineValueMapper(value)
@@ -64,13 +64,13 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     Map.empty
   }
 
-  private val callInputFiles: Map[FullyQualifiedName, Seq[WdlFile]] = jobDescriptor
+  private val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor
     .fullyQualifiedInputs
     .mapValues {
-      _.collectAsSeq { case w: WdlFile => w }
+      _.collectAsSeq { case w: WomFile => w }
     }
 
-  def inputs(commandLineValueMapper: WdlValue => WdlValue): Seq[TaskParameter] = (callInputFiles ++ writeFunctionFiles(commandLineValueMapper))
+  def inputs(commandLineValueMapper: WomValue => WomValue): Seq[TaskParameter] = (callInputFiles ++ writeFunctionFiles(commandLineValueMapper))
     .flatMap {
       case (fullyQualifiedName, files) => files.zipWithIndex.map {
         case (f, index) => TaskParameter(
@@ -102,20 +102,20 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   // thus we can't directly match the names returned here to the files returned below. Also we have to consider Arrays
   //
   //  private val outputFileNames = jobDescriptor.call.task.outputs
-  //    .filter(o => o.wdlType.toWdlString == "Array[File]" || o.wdlType.toWdlString == "File")
+  //    .filter(o => o.womType.toWdlString == "Array[File]" || o.womType.toWdlString == "File")
   //    .map(_.unqualifiedName)
 
   // extract output files
   // if output paths are absolute we will ignore them here and assume they are redirects
-  private val outputWdlFiles: Seq[WdlFile] = {
+  private val outputWdlFiles: Seq[WomFile] = {
     import cats.syntax.validated._
     // TODO WOM: this should be pushed back into WOM.
     // It's also a mess, evaluateFiles returns an ErrorOr but can still throw. We might want to use an EitherT, although
     // if it fails we just want to fallback to an empty list anyway...
-    def evaluateFiles(output: OutputDefinition): List[WdlFile] = {
+    def evaluateFiles(output: OutputDefinition): List[WomFile] = {
       Try (
         output.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, output.womType).map(_.toList)
-      ).getOrElse(List.empty[WdlFile].validNel)
+      ).getOrElse(List.empty[WomFile].validNel)
        .getOrElse(List.empty)
     }
     
@@ -127,7 +127,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   private val wdlOutputs = outputWdlFiles
     .zipWithIndex
     .flatMap {
-      case (f: WdlSingleFile, index) =>
+      case (f: WomSingleFile, index) =>
         val outputFile = f.value
         Seq(
           TaskParameter(
@@ -139,7 +139,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
             None
           )
         )
-      case (g: WdlGlobFile, index) =>
+      case (g: WomGlobFile, index) =>
         val globName = backendEngineFunctions.globName(g.value)
         val globDirName = "globDir." + index
         val globDirectory = globName + "/"

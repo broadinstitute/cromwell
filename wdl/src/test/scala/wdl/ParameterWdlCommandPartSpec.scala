@@ -58,7 +58,7 @@ class ParameterWdlCommandPartSpec extends WdlTest {
 
       val ns = WdlNamespace.loadUsingSource(wdl, None, None).get
       val task: WdlTask = ns.findTask("t").get
-      val command = task.instantiateCommand(Map(task.declarations.head -> WdlString("world")), NoFunctions)
+      val command = task.instantiateCommand(Map(task.declarations.head -> WomString("world")), NoFunctions)
       command shouldBe Success("echo hello world")
     }
     
@@ -75,7 +75,7 @@ class ParameterWdlCommandPartSpec extends WdlTest {
       
       val ns = WdlNamespace.loadUsingSource(wdl, None, None).get
       val task = ns.findTask("t").get
-      val command = task.instantiateCommand(Map(task.declarations.head -> WdlOptionalValue.none(WdlStringType)), NoFunctions)
+      val command = task.instantiateCommand(Map(task.declarations.head -> WomOptionalValue.none(WomStringType)), NoFunctions)
       command.get shouldBe "echo"
     }
   }

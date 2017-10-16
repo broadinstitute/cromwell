@@ -9,7 +9,7 @@ import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncJob}
 import cromwell.backend.validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import wom.values.WdlFile
+import wom.values.WomFile
 
 import scala.concurrent.duration._
 
@@ -102,16 +102,16 @@ trait SharedFileSystemAsyncJobExecutionActor
   /**
     * Localizes the file, run outside of docker.
     */
-  override def preProcessWdlFile(wdlFile: WdlFile): WdlFile = {
+  override def preProcessWdlFile(wdlFile: WomFile): WomFile = {
     sharedFileSystem.localizeWdlFile(jobPathsWithDocker.callInputsRoot, isDockerRun)(wdlFile)
   }
 
   /**
     * Returns the paths to the file, inside of docker.
     */
-  override def mapCommandLineWdlFile(wdlFile: WdlFile): WdlFile = {
+  override def mapCommandLineWdlFile(wdlFile: WomFile): WomFile = {
     val cleanPath = DefaultPathBuilder.build(wdlFile.valueString).get
-    WdlFile(if (isDockerRun) jobPathsWithDocker.toDockerPath(cleanPath).pathAsString else cleanPath.pathAsString)
+    WomFile(if (isDockerRun) jobPathsWithDocker.toDockerPath(cleanPath).pathAsString else cleanPath.pathAsString)
   }
 
   override lazy val commandDirectory: Path = {
@@ -213,7 +213,7 @@ trait SharedFileSystemAsyncJobExecutionActor
     runStatus.returnCodeFileExists
   }
 
-  override def mapOutputWdlFile(wdlFile: WdlFile): WdlFile = {
+  override def mapOutputWdlFile(wdlFile: WomFile): WomFile = {
     sharedFileSystem.mapJobWdlFile(jobPaths)(wdlFile)
   }
 }

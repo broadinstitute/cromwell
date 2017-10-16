@@ -4,7 +4,7 @@ import org.scalatest.{Matchers, WordSpec}
 import wdl.exception.ValidationException
 import wdl.expression.{NoFunctions, PureStandardLibraryFunctionsLike}
 import wdl.values.WdlCallOutputsObject
-import wom.types.{WdlArrayType, WdlFileType, WdlIntegerType, WdlStringType}
+import wom.types.{WomArrayType, WomFileType, WomIntegerType, WomStringType}
 import wom.values._
 
 import scala.util.{Failure, Success, Try}
@@ -20,12 +20,12 @@ class WdlCallSpec extends WordSpec with Matchers {
 
     val inputs = namespace.coerceRawInputs(SampleWdl.TaskDeclarationsWdl.rawInputs).get
     
-    def outputResolver(call: WdlGraphNode, index: Option[Int]): Try[WdlValue] = {
+    def outputResolver(call: WdlGraphNode, index: Option[Int]): Try[WomValue] = {
       (call, index) match {
-        case (c, Some(2)) if c == callT => Success(WdlCallOutputsObject(callT, Map("o" -> WdlString(s"c ${index.getOrElse(-1)}"))))
-        case (c, Some(2)) if c == callT3 => Success(WdlCallOutputsObject(callT, Map("o" -> WdlString(s"c ${index.getOrElse(-1)}"))))
+        case (c, Some(2)) if c == callT => Success(WdlCallOutputsObject(callT, Map("o" -> WomString(s"c ${index.getOrElse(-1)}"))))
+        case (c, Some(2)) if c == callT3 => Success(WdlCallOutputsObject(callT, Map("o" -> WomString(s"c ${index.getOrElse(-1)}"))))
         case (c, None) if c == callT2 => Success(WdlCallOutputsObject(callT2, Map(
-          "outputArray" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(0), WdlInteger(1), WdlInteger(2)))
+          "outputArray" -> WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(0), WomInteger(1), WomInteger(2)))
         )))
         case _ => Failure(new Exception(s"no output found for call ${call.fullyQualifiedName}"))
       }
@@ -35,18 +35,18 @@ class WdlCallSpec extends WordSpec with Matchers {
 
     val declarations = callV.evaluateTaskInputs(inputs, NoFunctions, outputResolver, shardMap).get
     declarations.size shouldBe 12
-    declarations.find(_._1.unqualifiedName == "a").get._2 shouldBe WdlString("a")
-    declarations.find(_._1.unqualifiedName == "b").get._2 shouldBe WdlString("b")
-    declarations.find(_._1.unqualifiedName == "c").get._2 shouldBe WdlString("c 2")
-    declarations.find(_._1.unqualifiedName == "d").get._2 shouldBe WdlInteger(2)
-    declarations.find(_._1.unqualifiedName == "e").get._2 shouldBe WdlString("e")
-    declarations.find(_._1.unqualifiedName == "f").get._2 shouldBe WdlString("f")
-    declarations.find(_._1.unqualifiedName == "g").get._2 shouldBe WdlOptionalValue(WdlString("g"))
-    declarations.find(_._1.unqualifiedName == "h").get._2 shouldBe WdlOptionalValue(WdlStringType, None)
-    declarations.find(_._1.unqualifiedName == "i").get._2 shouldBe WdlString("b")
-    declarations.find(_._1.unqualifiedName == "j").get._2 shouldBe WdlFile("j")
-    declarations.find(_._1.unqualifiedName == "k").get._2 shouldBe WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile("a"), WdlFile("b"), WdlFile("c")))
-    declarations.find(_._1.unqualifiedName == "l").get._2 shouldBe WdlOptionalValue(WdlString("c 2"))
+    declarations.find(_._1.unqualifiedName == "a").get._2 shouldBe WomString("a")
+    declarations.find(_._1.unqualifiedName == "b").get._2 shouldBe WomString("b")
+    declarations.find(_._1.unqualifiedName == "c").get._2 shouldBe WomString("c 2")
+    declarations.find(_._1.unqualifiedName == "d").get._2 shouldBe WomInteger(2)
+    declarations.find(_._1.unqualifiedName == "e").get._2 shouldBe WomString("e")
+    declarations.find(_._1.unqualifiedName == "f").get._2 shouldBe WomString("f")
+    declarations.find(_._1.unqualifiedName == "g").get._2 shouldBe WomOptionalValue(WomString("g"))
+    declarations.find(_._1.unqualifiedName == "h").get._2 shouldBe WomOptionalValue(WomStringType, None)
+    declarations.find(_._1.unqualifiedName == "i").get._2 shouldBe WomString("b")
+    declarations.find(_._1.unqualifiedName == "j").get._2 shouldBe WomFile("j")
+    declarations.find(_._1.unqualifiedName == "k").get._2 shouldBe WomArray(WomArrayType(WomFileType), Seq(WomFile("a"), WomFile("b"), WomFile("c")))
+    declarations.find(_._1.unqualifiedName == "l").get._2 shouldBe WomOptionalValue(WomString("c 2"))
   }
   
   "accumulate input evaluation errors and throw an exception" in {
@@ -158,13 +158,13 @@ class WdlCallSpec extends WordSpec with Matchers {
 
     val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
     val exception = intercept[ValidationException] {
-        ns.workflow.findCallByName("hello2").get.evaluateTaskInputs(Map("wf_hello.wf_hello_input" -> WdlFile("/do/not/exist")), functionsWithRead).get
+        ns.workflow.findCallByName("hello2").get.evaluateTaskInputs(Map("wf_hello.wf_hello_input" -> WomFile("/do/not/exist")), functionsWithRead).get
     }
     exception.getMessage shouldBe "Input evaluation for Call wf_hello.hello2 failed.:\naddressee:\n\tFile not found /do/not/exist"
 
     val staticEvaluation = ns.staticDeclarationsRecursive(Map(
-      "wf_hello.wf_hello_input" -> WdlFile("/do/not/exist"),
-      "wf_hello.wf_hello_input2" -> WdlFile("/do/not/exist2")
+      "wf_hello.wf_hello_input" -> WomFile("/do/not/exist"),
+      "wf_hello.wf_hello_input2" -> WomFile("/do/not/exist2")
     ), functionsWithRead)
     
     staticEvaluation.isFailure shouldBe true

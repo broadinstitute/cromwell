@@ -2,7 +2,7 @@ package cromwell
 
 import wdl._
 import wom.JobOutput
-import wom.values.WdlValue
+import wom.values.WomValue
 
 package object engine {
 
@@ -14,8 +14,8 @@ package object engine {
   }
 
   implicit class EnhancedCallOutputMap[A](val m: Map[A, JobOutput]) extends AnyVal {
-    def mapToValues: Map[A, WdlValue] = m map {
-      case (k, JobOutput(wdlValue)) => (k, wdlValue)
+    def mapToValues: Map[A, WomValue] = m map {
+      case (k, JobOutput(womValue)) => (k, womValue)
     }
   }
 

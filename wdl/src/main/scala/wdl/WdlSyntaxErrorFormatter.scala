@@ -3,7 +3,7 @@ package wdl
 import wdl4s.parser.WdlParser._
 import wdl.AstTools.InterpolatedTerminal
 import wom.core._
-import wom.types.WdlType
+import wom.types.WomType
 
 import scala.collection.JavaConverters._
 
@@ -254,15 +254,15 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) e
      """.stripMargin
   }
 
-  def taskOutputExpressionTypeDoesNotMatchDeclaredType(outputName: Terminal, outputType: WdlType, expressionType: WdlType) = {
-    s"""ERROR: ${outputName.getSourceString} is declared as a ${outputType.toWdlString} but the expression evaluates to a ${expressionType.toWdlString}:
+  def taskOutputExpressionTypeDoesNotMatchDeclaredType(outputName: Terminal, outputType: WomType, expressionType: WomType) = {
+    s"""ERROR: ${outputName.getSourceString} is declared as a ${outputType.toDisplayString} but the expression evaluates to a ${expressionType.toDisplayString}:
        |
        |${pointToSource(outputName)}
      """.stripMargin
   }
 
-  def declarationExpressionNotCoerceableToTargetType(declName: Terminal, declType: WdlType) = {
-    s"""ERROR: Value for ${declName.getSourceString} is not coerceable into a ${declType.toWdlString}:
+  def declarationExpressionNotCoerceableToTargetType(declName: Terminal, declType: WomType) = {
+    s"""ERROR: Value for ${declName.getSourceString} is not coerceable into a ${declType.toDisplayString}:
         |
        |${pointToSource(declName)}
      """.stripMargin

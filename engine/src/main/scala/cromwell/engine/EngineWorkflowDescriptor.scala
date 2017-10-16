@@ -30,7 +30,7 @@ case class EngineWorkflowDescriptor(namespace: WorkflowDefinition,
   lazy val name = workflow.name
   lazy val knownValues = backendDescriptor.knownValues
   /**
-    * OutputPorts that could not be mapped to a WdlValue 
+    * OutputPorts that could not be mapped to a WomValue
     */
   lazy val defaultExpressions: Map[OutputPort, WomExpression] = knownValues flatMap {
     case (port, resolvedInput) => resolvedInput.select[WomExpression] map { port -> _ }

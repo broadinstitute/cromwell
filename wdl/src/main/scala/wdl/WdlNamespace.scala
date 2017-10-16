@@ -18,7 +18,7 @@ import wom.WorkflowInput
 import wom.core._
 import wom.executable.Executable
 import wom.types._
-import wom.values.{WdlOptionalValue, WdlValue}
+import wom.values.{WomOptionalValue, WomValue}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -31,8 +31,8 @@ import scala.util.{Failure, Success, Try}
 /**
   * Represents a parsed WDL file
   */
-sealed trait WdlNamespace extends WdlValue with Scope {
-  final val wdlType = WdlNamespaceType
+sealed trait WdlNamespace extends WomValue with Scope {
+  final val womType = WdlNamespaceType
   def ast: Ast
   def resource = ast.findFirstTerminal.map(_.getResource).getOrElse("NONE")
   def importedAs: Option[String] // Used when imported with `as`
@@ -93,21 +93,21 @@ case class WdlNamespaceWithWorkflow(importedAs: Option[String],
   override def toString: String = s"[WdlNamespace importedAs=$importedAs]"
 
   /**
-    * Confirm all required inputs are present and attempt to coerce raw inputs to `WdlValue`s.
+    * Confirm all required inputs are present and attempt to coerce raw inputs to `WomValue`s.
     * This can fail if required raw inputs are missing or if the values for a specified raw input
     * cannot be coerced to the target type of the input as specified in the namespace.
     */
   def coerceRawInputs(rawInputs: ExecutableInputMap): Try[WorkflowCoercedInputs] = {
-    def coerceRawInput(input: WorkflowInput): Try[WdlValue] = input.fqn match {
+    def coerceRawInput(input: WorkflowInput): Try[WomValue] = input.fqn match {
       case _ if rawInputs.contains(input.fqn) =>
         val rawValue = rawInputs(input.fqn)
-        input.wdlType.coerceRawValue(rawValue) match {
+        input.womType.coerceRawValue(rawValue) match {
           case Success(value) => Success(value)
-          case _ => Failure(new UnsatisfiedInputException(s"Could not coerce ${rawValue.getClass.getSimpleName} value for '${input.fqn}' ($rawValue) into: ${input.wdlType}"))
+          case _ => Failure(new UnsatisfiedInputException(s"Could not coerce ${rawValue.getClass.getSimpleName} value for '${input.fqn}' ($rawValue) into: ${input.womType}"))
         }
       case _ =>
         if (input.optional) {
-          Success(WdlOptionalValue(input.wdlType.asInstanceOf[WdlOptionalType].memberType, None))
+          Success(WomOptionalValue(input.womType.asInstanceOf[WomOptionalType].memberType, None))
         } else {
           Failure(new UnsatisfiedInputException(s"Required workflow input '${input.fqn}' not specified."))
         }
@@ -134,20 +134,20 @@ case class WdlNamespaceWithWorkflow(importedAs: Option[String],
   def staticDeclarationsRecursive(userInputs: WorkflowCoercedInputs, wdlFunctions: WdlStandardLibraryFunctions): Try[WorkflowCoercedInputs] = {
     import lenthall.exception.Aggregation._
 
-    def evalDeclaration(accumulated: Map[FullyQualifiedName, Try[WdlValue]], current: Declaration): Map[FullyQualifiedName, Try[WdlValue]] = {
+    def evalDeclaration(accumulated: Map[FullyQualifiedName, Try[WomValue]], current: Declaration): Map[FullyQualifiedName, Try[WomValue]] = {
       current.expression match {
         case Some(expr) =>
           val successfulAccumulated = accumulated.collect({ case (k, v) if v.isSuccess => k -> v.get })
           val value = expr.evaluate(current.lookupFunction(successfulAccumulated ++ userInputs, wdlFunctions, NoOutputResolver, Map.empty[Scatter, Int]), wdlFunctions)
-          val correctlyCoerced = value flatMap current.wdlType.coerceRawValue
+          val correctlyCoerced = value flatMap current.womType.coerceRawValue
           accumulated + (current.fullyQualifiedName -> correctlyCoerced)
         case None => accumulated
       }
     }
 
-    def evalScope: Map[FullyQualifiedName, Try[WdlValue]] = {
+    def evalScope: Map[FullyQualifiedName, Try[WomValue]] = {
       val workflowDeclarations = children.collect({ case w: WdlWorkflow => w.declarations }).flatten
-      (declarations ++ workflowDeclarations).foldLeft(Map.empty[FullyQualifiedName, Try[WdlValue]])(evalDeclaration)
+      (declarations ++ workflowDeclarations).foldLeft(Map.empty[FullyQualifiedName, Try[WomValue]])(evalDeclaration)
     }
 
     val filteredExceptions: Set[Class[_ <: Throwable]] = Set(classOf[OutputVariableLookupException], classOf[ScatterIndexNotFound])
@@ -457,13 +457,13 @@ object WdlNamespace {
     invalidVariableReferences ++ typeMismatches
   }
 
-  private def lookupType(from: Scope)(n: String): WdlType = {
+  private def lookupType(from: Scope)(n: String): WomType = {
     val resolved = from.resolveVariable(n)
     resolved match {
       case Some(d: DeclarationInterface) => d.relativeWdlType(from)
       case Some(c: WdlCall) => WdlCallOutputsObjectType(c)
       case Some(s: Scatter) => s.collection.evaluateType(lookupType(s), new WdlStandardLibraryFunctionsType, Option(from)) match {
-        case Success(a: WdlArrayType) => a.memberType
+        case Success(a: WomArrayType) => a.memberType
         case _ => throw new VariableLookupException(s"Variable $n references a scatter block ${s.fullyQualifiedName}, but the collection does not evaluate to an array")
       }
       case Some(_: WdlNamespace) => WdlNamespaceType
@@ -474,16 +474,16 @@ object WdlNamespace {
   private def typeCheckDeclaration(decl: DeclarationInterface, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Option[SyntaxError] = {
     decl.expression flatMap { expr =>
       expr.evaluateType(lookupType(decl), new WdlStandardLibraryFunctionsType, Option(decl)) match {
-        case Success(wdlType) =>
-          if (!decl.wdlType.isCoerceableFrom(wdlType)) {
+        case Success(womType) =>
+          if (!decl.womType.isCoerceableFrom(womType)) {
             Option(new SyntaxError(wdlSyntaxErrorFormatter.taskOutputExpressionTypeDoesNotMatchDeclaredType(
-              declarationName(decl.ast), decl.wdlType, wdlType
+              declarationName(decl.ast), decl.womType, womType
             )))
           } else {
             expr.evaluate(NoLookup, NoFunctions) match {
-              case Success(value) if decl.wdlType.coerceRawValue(value).isFailure =>
+              case Success(value) if decl.womType.coerceRawValue(value).isFailure =>
                 Option(new SyntaxError(wdlSyntaxErrorFormatter.declarationExpressionNotCoerceableToTargetType(
-                  declarationName(decl.ast), decl.wdlType
+                  declarationName(decl.ast), decl.womType
                 )))
               case _ => None
             }
@@ -524,14 +524,14 @@ object WdlNamespace {
             Option(new SyntaxError(wdlSyntaxErrorFormatter.memberAccessReferencesAbsentCallOutput(memberAccessAst, c)))
           case Some(s: Scatter) =>
             s.collection.evaluateType(lookupType(s), new WdlStandardLibraryFunctionsType) map {
-              case WdlArrayType(WdlObjectType) => None
-              case WdlArrayType(_: WdlPairType) if memberAccess.rhs == "left" || memberAccess.rhs == "right" => None
+              case WomArrayType(WomObjectType) => None
+              case WomArrayType(_: WomPairType) if memberAccess.rhs == "left" || memberAccess.rhs == "right" => None
               // Maps get coerced into arrays of pairs, so this is also ok:
-              case _: WdlMapType if memberAccess.rhs == "left" || memberAccess.rhs == "right" => None
+              case _: WomMapType if memberAccess.rhs == "left" || memberAccess.rhs == "right" => None
               case _ => Option(new SyntaxError(wdlSyntaxErrorFormatter.variableIsNotAnObject(memberAccessAst)))
             } getOrElse None
-          case Some(d: Declaration) => d.wdlType match {
-            case _: WdlPairType => None
+          case Some(d: Declaration) => d.womType match {
+            case _: WomPairType => None
             case _ => Option(new SyntaxError(wdlSyntaxErrorFormatter.variableIsNotAnObject(memberAccessAst)))
           }
           case None =>

@@ -12,7 +12,7 @@ import wom.expression.WomExpression
 import wom.graph.CallNode._
 import wom.graph.GraphNode.GeneratedNodeAndNewNodes
 import wom.graph.GraphNodePort.{ConnectedInputPort, GraphNodeOutputPort, InputPort, OutputPort}
-import wom.values.WdlValue
+import wom.values.WomValue
 
 sealed abstract class CallNode extends GraphNode {
   def callable: Callable
@@ -106,7 +106,7 @@ object CallNode {
                                                        newGraphInputNodes: Set[GraphInputNode] = Set.empty,
                                                        newExpressionNodes: Set[ExpressionNode] = Set.empty)
 
-  type InputDefinitionPointer = OutputPort :+: WomExpression :+: WdlValue :+: CNil
+  type InputDefinitionPointer = OutputPort :+: WomExpression :+: WomValue :+: CNil
   type InputDefinitionMappings = Map[InputDefinition, InputDefinitionPointer]
 
   final case class CallNodeAndNewNodes(node: CallNode, newInputs: Set[GraphInputNode], newExpressions: Set[ExpressionNode]) extends GeneratedNodeAndNewNodes {

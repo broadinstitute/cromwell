@@ -2,7 +2,7 @@ package cwl
 
 import shapeless._
 import wom.expression.IoFunctionSet
-import wom.types.{WdlArrayType, WdlStringType}
+import wom.types.{WomArrayType, WomStringType}
 
 import scala.Function._
 import wom.values._
@@ -47,9 +47,9 @@ object GlobEvaluator {
       at[Expression] { ecmaScript =>
         (parameterContext: ParameterContext) => {
           ecmaScript.fold(EvaluateExpression).apply(parameterContext) match {
-            case WdlArray(_, values) if values.isEmpty => Vector.empty
-            case WdlString(value) => Vector(value)
-            case WdlArray(WdlArrayType(WdlStringType), values) => values.map(_.valueString)
+            case WomArray(_, values) if values.isEmpty => Vector.empty
+            case WomString(value) => Vector(value)
+            case WomArray(WomArrayType(WomStringType), values) => values.map(_.valueString)
             case result =>
               throw new RuntimeException(s"TODO: WOM: Placeholder exception: unexpected expression result: $result")
           }

@@ -116,23 +116,23 @@ object MetadataService {
   final case class WorkflowQuerySuccess(response: WorkflowQueryResponse, meta: Option[QueryMetadata]) extends MetadataQueryResponse
   final case class WorkflowQueryFailure(reason: Throwable) extends MetadataQueryResponse
 
-  def wdlValueToMetadataEvents(metadataKey: MetadataKey, wdlValue: WdlValue): Iterable[MetadataEvent] = wdlValue match {
-    case WdlArray(_, valueSeq) =>
+  def wdlValueToMetadataEvents(metadataKey: MetadataKey, womValue: WomValue): Iterable[MetadataEvent] = womValue match {
+    case WomArray(_, valueSeq) =>
       if (valueSeq.isEmpty) {
         List(MetadataEvent.empty(metadataKey.copy(key = s"${metadataKey.key}[]")))
       } else {
         val zippedSeq = valueSeq.zipWithIndex
         zippedSeq.toList flatMap { case (value, index) => wdlValueToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}[$index]"), value) }
       }
-    case WdlMap(_, valueMap) =>
+    case WomMap(_, valueMap) =>
       if (valueMap.isEmpty) {
         List(MetadataEvent.empty(metadataKey))
       } else {
         valueMap.toList flatMap { case (key, value) => wdlValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":${key.valueString}"), value) }
       }
-    case WdlOptionalValue(_, Some(value)) =>
+    case WomOptionalValue(_, Some(value)) =>
       wdlValueToMetadataEvents(metadataKey, value)
-    case WdlPair(left, right) =>
+    case WomPair(left, right) =>
       wdlValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":left"), left) ++
         wdlValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":right"), right)
     case value =>

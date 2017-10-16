@@ -11,17 +11,17 @@ class JsUtilSpec extends FlatSpec with Matchers {
 
   it should "eval" in {
     val values = Map(
-      "myName" -> WdlMap(
-        WdlMapType(WdlBooleanType, WdlArrayType(WdlStringType)),
-        Map(WdlBoolean(true) -> WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("myValue"))))
+      "myName" -> WomMap(
+        WomMapType(WomBooleanType, WomArrayType(WomStringType)),
+        Map(WomBoolean(true) -> WomArray(WomArrayType(WomStringType), Seq(WomString("myValue"))))
       )
     )
 
     val expr = "myName[true][0] + 'Plus'"
 
-    val result: WdlValue = JsUtil.eval(expr, values)
+    val result: WomValue = JsUtil.eval(expr, values)
 
-    result should be(WdlString("myValuePlus"))
+    result should be(WomString("myValuePlus"))
   }
 
 }

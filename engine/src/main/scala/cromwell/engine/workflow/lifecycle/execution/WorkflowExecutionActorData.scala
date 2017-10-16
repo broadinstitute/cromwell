@@ -9,7 +9,7 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{Expr
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
 import wom.JobOutput
 import wom.core.CallOutputs
-import wom.values.WdlValue
+import wom.values.WomValue
 
 import scala.language.postfixOps
 
@@ -61,7 +61,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     )
   }
 
-  def expressionEvaluationSuccess(expressionKey: ExpressionKey, value: WdlValue) = {
+  def expressionEvaluationSuccess(expressionKey: ExpressionKey, value: WomValue) = {
     val outputStoreKey = OutputKey(expressionKey.singleOutputPort, expressionKey.index)
     this.copy(
       executionStore = executionStore.add(Map(expressionKey -> Done)),
@@ -72,7 +72,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   def executionFailed(jobKey: JobKey) = mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
 
   /** Add the outputs for the specified `JobKey` to the symbol cache. */
-  private def updateSymbolStoreEntry(jobKey: JobKey, outputs: CallOutputs): Map[OutputKey, WdlValue] = {
+  private def updateSymbolStoreEntry(jobKey: JobKey, outputs: CallOutputs): Map[OutputKey, WomValue] = {
     jobKey.node.outputPorts flatMap { outputPort =>
       outputs.collectFirst { 
         case (name, JobOutput(value)) if name == outputPort.name => value

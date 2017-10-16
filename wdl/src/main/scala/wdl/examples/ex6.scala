@@ -2,7 +2,7 @@ package wdl.examples
 
 import wdl.WdlNamespaceWithWorkflow
 import wdl.expression.NoFunctions
-import wom.values.{WdlString, WdlValue}
+import wom.values.{WomString, WomValue}
 
 object ex6 {
   def main(args: Array[String]): Unit = {
@@ -14,9 +14,9 @@ object ex6 {
       |}""".stripMargin
 
     val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
-    def lookup(name: String): WdlValue = {
+    def lookup(name: String): WomValue = {
       name match {
-        case "variable" => WdlString("world")
+        case "variable" => WomString("world")
         case _ => throw new NoSuchElementException
       }
     }

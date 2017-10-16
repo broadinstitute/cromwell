@@ -99,8 +99,8 @@ object MaterializeWorkflowDescriptorActor {
    */
   private case class ValidatedWomNamespace(executable: Executable, graph: Graph, evaluatedWorkflowValues: ResolvedExecutableInputs) {
     
-    lazy val wdlValueInputs: Map[OutputPort, WdlValue] = evaluatedWorkflowValues flatMap {
-      case (outputPort, resolvedInput) => resolvedInput.select[WdlValue] map { outputPort -> _ }
+    lazy val wdlValueInputs: Map[OutputPort, WomValue] = evaluatedWorkflowValues flatMap {
+      case (outputPort, resolvedInput) => resolvedInput.select[WomValue] map { outputPort -> _ }
     }
   }
 
@@ -289,15 +289,15 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     }
   }
 
-  private def pushWfInputsToMetadataService(workflowInputs: Map[OutputPort, WdlValue]): Unit = {
+  private def pushWfInputsToMetadataService(workflowInputs: Map[OutputPort, WomValue]): Unit = {
     // Inputs
     val inputEvents = workflowInputs match {
       case empty if empty.isEmpty =>
         List(MetadataEvent.empty(MetadataKey(workflowIdForLogging, None,WorkflowMetadataKeys.Inputs)))
       case inputs =>
-        inputs flatMap { case (outputPort, wdlValue) =>
+        inputs flatMap { case (outputPort, womValue) =>
           val inputName = outputPort.fullyQualifiedName
-          wdlValueToMetadataEvents(MetadataKey(workflowIdForLogging, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), wdlValue)
+          wdlValueToMetadataEvents(MetadataKey(workflowIdForLogging, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), womValue)
         }
     }
 
@@ -340,8 +340,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
   private def evaluateBackendNameExpression(callName: String, backendNameAsExp: WomExpression): String = {
     backendNameAsExp.evaluateValue(Map.empty, NoIoFunctionSet) match {
-      case Valid(runtimeString: WdlString) => runtimeString.valueString
-      case Valid(x: WdlValue) =>
+      case Valid(runtimeString: WomString) => runtimeString.valueString
+      case Valid(x: WomValue) =>
         throw new Exception(s"Non-string values are not currently supported for backends! Cannot use backend '${x.valueString}' to backend to Call: $callName")
       case Invalid(errors) =>
         // TODO WOM: need access to a "source string" for WomExpressions
@@ -462,12 +462,12 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     import cats.syntax.validated._
     import lenthall.validation.Checked._
 
-    def checkTypes(namespace: WdlNamespaceWithWorkflow, inputs: Map[OutputPort, WdlValue]): Checked[Unit] = {
+    def checkTypes(namespace: WdlNamespaceWithWorkflow, inputs: Map[OutputPort, WomValue]): Checked[Unit] = {
       val allDeclarations = namespace.workflow.declarations ++ namespace.workflow.calls.flatMap(_.declarations)
       val list: List[Checked[Unit]] = inputs.map({ case (k, v) =>
         allDeclarations.find(_.fullyQualifiedName == k) match {
-          case Some(decl) if decl.wdlType.coerceRawValue(v).isFailure =>
-            s"Invalid right-side type of '$k'.  Expecting ${decl.wdlType.toWdlString}, got ${v.wdlType.toWdlString}".invalidNelCheck[Unit]
+          case Some(decl) if decl.womType.coerceRawValue(v).isFailure =>
+            s"Invalid right-side type of '$k'.  Expecting ${decl.womType.toDisplayString}, got ${v.womType.toDisplayString}".invalidNelCheck[Unit]
           case _ => ().validNelCheck
         }
       }).toList
@@ -522,9 +522,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     }
   }
 
-  private def validateWdlFiles(workflowInputs: Map[OutputPort, WdlValue]): Checked[Unit] = {
+  private def validateWdlFiles(workflowInputs: Map[OutputPort, WomValue]): Checked[Unit] = {
     val failedFiles = workflowInputs collect {
-      case (port , WdlSingleFile(value)) if value.startsWith("\"gs://") => s"""Invalid value for File input '${port.fullyQualifiedName}': $value starts with a '\"' """
+      case (port , WomSingleFile(value)) if value.startsWith("\"gs://") => s"""Invalid value for File input '${port.fullyQualifiedName}': $value starts with a '\"' """
     }
 
     NonEmptyList.fromList(failedFiles.toList) match {

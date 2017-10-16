@@ -5,7 +5,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import spray.json._
 import wdl.WdlNamespaceWithWorkflow
 import wom.types._
-import wom.values.{WdlInteger, WdlMap, WdlPair, WdlString, _}
+import wom.values.{WomInteger, WomMap, WomPair, WomString, _}
 
 import scala.util.{Failure, Success}
 
@@ -13,57 +13,57 @@ class WdlPairTypeSpec extends FlatSpec with Matchers {
 
   behavior of "WdlPairType"
 
-  val simplePair = WdlPair(WdlString("a"), WdlInteger(1))
+  val simplePair = WomPair(WomString("a"), WomInteger(1))
 
-  val stringIntMap = WdlMap(WdlMapType(WdlStringType, WdlIntegerType), Map(
-    WdlString("a") -> WdlInteger(1),
-    WdlString("b") -> WdlInteger(2),
-    WdlString("c") -> WdlInteger(3)
+  val stringIntMap = WomMap(WomMapType(WomStringType, WomIntegerType), Map(
+    WomString("a") -> WomInteger(1),
+    WomString("b") -> WomInteger(2),
+    WomString("c") -> WomInteger(3)
   ))
 
-  val arrayOfPairs = WdlArray(WdlArrayType(WdlPairType(WdlStringType, WdlIntegerType)), Seq(
-    WdlPair(WdlString("a"),WdlInteger(1)),
-    WdlPair(WdlString("b"),WdlInteger(2)),
-    WdlPair(WdlString("c"),WdlInteger(3))
+  val arrayOfPairs = WomArray(WomArrayType(WomPairType(WomStringType, WomIntegerType)), Seq(
+    WomPair(WomString("a"),WomInteger(1)),
+    WomPair(WomString("b"),WomInteger(2)),
+    WomPair(WomString("c"),WomInteger(3))
   ))
 
-  val arrayOfPairsOfArrays = WdlArray(WdlArrayType(WdlPairType(WdlArrayType(WdlStringType), WdlArrayType(WdlIntegerType))),
+  val arrayOfPairsOfArrays = WomArray(WomArrayType(WomPairType(WomArrayType(WomStringType), WomArrayType(WomIntegerType))),
     Seq(
-    WdlPair(WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("a"), WdlString("b"))),
-      WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(1), WdlInteger(11)))),
-    WdlPair(WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("c"), WdlString("d"))),
-      WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(2), WdlInteger(21)))),
-    WdlPair(WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("e"), WdlString("f"))),
-      WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(3), WdlInteger(31))))
+    WomPair(WomArray(WomArrayType(WomStringType), Seq(WomString("a"), WomString("b"))),
+      WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(1), WomInteger(11)))),
+    WomPair(WomArray(WomArrayType(WomStringType), Seq(WomString("c"), WomString("d"))),
+      WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(2), WomInteger(21)))),
+    WomPair(WomArray(WomArrayType(WomStringType), Seq(WomString("e"), WomString("f"))),
+      WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(3), WomInteger(31))))
     )
   )
 
   val coerceables = Table(
     ("fromValue", "toType", "coercedValue"),
     (
-      WdlPair(WdlInteger(1), WdlInteger(2)),
-      WdlPairType(WdlStringType, WdlStringType),
-      Some(WdlPair(WdlString("1"), WdlString("2")))
+      WomPair(WomInteger(1), WomInteger(2)),
+      WomPairType(WomStringType, WomStringType),
+      Some(WomPair(WomString("1"), WomString("2")))
     ),
 
     (
-      WdlPair(WdlMap(WdlMapType(WdlIntegerType, WdlStringType), Map(
-      WdlInteger(1) -> WdlString("100"),
-      WdlInteger(2) -> WdlString("200")
-      )), WdlString("300")),
-      WdlPairType(WdlMapType(WdlStringType, WdlIntegerType), WdlIntegerType),
-      Some(WdlPair(WdlMap(WdlMapType(WdlStringType, WdlIntegerType), Map(
-        WdlString("1") -> WdlInteger(100),
-        WdlString("2") -> WdlInteger(200)
-      )), WdlInteger(300)))
+      WomPair(WomMap(WomMapType(WomIntegerType, WomStringType), Map(
+      WomInteger(1) -> WomString("100"),
+      WomInteger(2) -> WomString("200")
+      )), WomString("300")),
+      WomPairType(WomMapType(WomStringType, WomIntegerType), WomIntegerType),
+      Some(WomPair(WomMap(WomMapType(WomStringType, WomIntegerType), Map(
+        WomString("1") -> WomInteger(100),
+        WomString("2") -> WomInteger(200)
+      )), WomInteger(300)))
     ),
 
     (
-      WdlPair(WdlMap(WdlMapType(WdlIntegerType, WdlStringType), Map(
-        WdlInteger(1) -> WdlString("100"),
-        WdlInteger(2) -> WdlString("200")
-      )), WdlString("300")),
-      WdlPairType(WdlArrayType(WdlStringType), WdlStringType),
+      WomPair(WomMap(WomMapType(WomIntegerType, WomStringType), Map(
+        WomInteger(1) -> WomString("100"),
+        WomInteger(2) -> WomString("200")
+      )), WomString("300")),
+      WomPairType(WomArrayType(WomStringType), WomStringType),
       None)
 
   )
@@ -73,11 +73,11 @@ class WdlPairTypeSpec extends FlatSpec with Matchers {
     val notString = coercedValue map { _ => "" } getOrElse "not "
     val coercionDefined = coercedValue.isDefined
 
-    it should s"${notString}allow coercion from ${fromValue.wdlType.toWdlString} to ${toType.toWdlString}" in {
-      toType.isCoerceableFrom(fromValue.wdlType) should be(coercionDefined)
+    it should s"${notString}allow coercion from ${fromValue.womType.toDisplayString} to ${toType.toDisplayString}" in {
+      toType.isCoerceableFrom(fromValue.womType) should be(coercionDefined)
     }
 
-    it should s"generate the expected result when converting from ${fromValue.toWdlString} to ${toType.toWdlString}" in {
+    it should s"generate the expected result when converting from ${fromValue.toWomString} to ${toType.toDisplayString}" in {
       val actual = toType.coerceRawValue(fromValue)
       (actual, coercedValue) match {
         case (Success(actualValue), Some(expectedValue)) => actualValue should be(expectedValue)
@@ -136,7 +136,7 @@ class WdlPairTypeSpec extends FlatSpec with Matchers {
         |]
       """.stripMargin.parseJson
 
-    WdlArrayType(WdlPairType(WdlStringType, WdlIntegerType)).coerceRawValue(jsArray) match {
+    WomArrayType(WomPairType(WomStringType, WomIntegerType)).coerceRawValue(jsArray) match {
       case Success(array) => array shouldEqual arrayOfPairs
       case Failure(f) => fail(s"exception while coercing JsObject: $f")
     }
@@ -151,7 +151,7 @@ class WdlPairTypeSpec extends FlatSpec with Matchers {
         |]
       """.stripMargin.parseJson
 
-    WdlArrayType(WdlPairType(WdlArrayType(WdlStringType), WdlArrayType(WdlIntegerType))).coerceRawValue(complexJsArray) match {
+    WomArrayType(WomPairType(WomArrayType(WomStringType), WomArrayType(WomIntegerType))).coerceRawValue(complexJsArray) match {
       case Success(array) => array shouldEqual arrayOfPairsOfArrays
       case Failure(f) => fail(s"exception while coercing JsObject to WdlPair: $f")
     }
@@ -163,7 +163,7 @@ class WdlPairTypeSpec extends FlatSpec with Matchers {
         |{ "Left": "a" }
       """.stripMargin.parseJson
 
-    val results = WdlPairType(WdlStringType, WdlIntegerType).coerceRawValue(invalidPair)
+    val results = WomPairType(WomStringType, WomIntegerType).coerceRawValue(invalidPair)
     results match {
       case Failure(ex) =>
         ex.getMessage should (startWith("No coercion defined from") and endWith("to 'Pair[String, Int]'."))
@@ -177,7 +177,7 @@ class WdlPairTypeSpec extends FlatSpec with Matchers {
         |{ "Left": "a", "Middle": "notAllowed", "Right": 1 }
       """.stripMargin.parseJson
 
-    val results = WdlPairType(WdlStringType, WdlIntegerType).coerceRawValue(invalidPair)
+    val results = WomPairType(WomStringType, WomIntegerType).coerceRawValue(invalidPair)
     results match {
       case Failure(ex) =>
         ex.getMessage should (startWith("No coercion defined from") and endWith("to 'Pair[String, Int]'."))
@@ -191,7 +191,7 @@ class WdlPairTypeSpec extends FlatSpec with Matchers {
         |{ "notLeft": "a", "notRight": 1 }
       """.stripMargin.parseJson
 
-    val results = WdlPairType(WdlStringType, WdlIntegerType).coerceRawValue(invalidPair)
+    val results = WomPairType(WomStringType, WomIntegerType).coerceRawValue(invalidPair)
     results match {
       case Failure(ex) =>
         ex.getMessage should (startWith("Failed to coerce") and endWith("requires for Right/Left value(s) to be defined.)"))
@@ -205,14 +205,14 @@ class WdlPairTypeSpec extends FlatSpec with Matchers {
         |{ "LefT": "a", "right": 1 }
       """.stripMargin.parseJson
 
-    WdlPairType(WdlStringType, WdlIntegerType).coerceRawValue(validCaps) match {
+    WomPairType(WomStringType, WomIntegerType).coerceRawValue(validCaps) match {
       case Success(array) => array shouldEqual simplePair
       case Failure(f) => fail(s"exception while coercing JsObject to WdlPair: $f")
     }
   }
 
   it should "return an error if pair types can't be coerced" in {
-    val results = WdlPairType(WdlIntegerType, WdlIntegerType).coerceRawValue(JsObject("Left" -> JsString("a")))
+    val results = WomPairType(WomIntegerType, WomIntegerType).coerceRawValue(JsObject("Left" -> JsString("a")))
     results match {
       case Failure(ex) =>
         ex.getMessage should (startWith("No coercion defined from") and endWith("to 'Pair[Int, Int]'."))

@@ -10,7 +10,7 @@ import cromwell.core.path.Path
 import cromwell.core.{ExecutionEvent, JobKey}
 import wom.core.CallOutputs
 import wom.expression.IoFunctionSet
-import wom.values.WdlValue
+import wom.values.WomValue
 
 import scala.concurrent.Future
 import scala.util.{Success, Try}
@@ -74,7 +74,7 @@ trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLoggin
   }
 
   def evaluateOutputs(wdlFunctions: IoFunctionSet,
-                      postMapper: WdlValue => Try[WdlValue] = v => Success(v)): EvaluatedJobOutputs = {
+                      postMapper: WomValue => Try[WomValue] = v => Success(v)): EvaluatedJobOutputs = {
     OutputEvaluator.evaluateOutputs(jobDescriptor, wdlFunctions, postMapper)
   }
 }

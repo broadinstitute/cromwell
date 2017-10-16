@@ -15,7 +15,7 @@ import wom.executable.Executable
 import wom.expression.{PlaceholderWomExpression, WomExpression}
 import wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 import wom.graph._
-import wom.types.WdlType
+import wom.types.WomType
 
 case class Workflow private(
                      cwlVersion: Option[CwlVersion],
@@ -29,8 +29,8 @@ case class Workflow private(
 
   val fileNames: List[String] = steps.toList.flatMap(_.run.select[String].toList)
 
-  def outputsTypeMap: WdlTypeMap = steps.foldLeft(Map.empty[String, WdlType]) {
-    // Not implemented as a `foldMap` because there is no semigroup instance for `WdlType`s.  `foldMap` doesn't know that
+  def outputsTypeMap: WdlTypeMap = steps.foldLeft(Map.empty[String, WomType]) {
+    // Not implemented as a `foldMap` because there is no semigroup instance for `WomType`s.  `foldMap` doesn't know that
     // we don't need a semigroup instance since the map keys should be unique and therefore map values would never need
     // to be combined under the same key.
     (acc, s) => acc ++ s.typedOutputs
@@ -42,7 +42,7 @@ case class Workflow private(
 
     def cwlTypeForInputParameter(input: InputParameter): Option[CwlType] = input.`type`.flatMap(_.select[CwlType])
 
-    def wdlTypeForInputParameter(input: InputParameter): Option[WdlType] = {
+    def wdlTypeForInputParameter(input: InputParameter): Option[WomType] = {
       cwlTypeForInputParameter(input) map cwlTypeToWdlType
     }
 
@@ -84,7 +84,7 @@ case class Workflow private(
       outputs.toList.traverse[ErrorOr, GraphNode] {
         output =>
 
-          val wdlType = cwlTypeToWdlType(output.`type`.flatMap(_.select[CwlType]).get)
+          val womType = cwlTypeToWdlType(output.`type`.flatMap(_.select[CwlType]).get)
 
           def lookupOutputSource(outputId: WorkflowOutputId): Checked[OutputPort] =
             for {
@@ -96,7 +96,7 @@ case class Workflow private(
             } yield output
 
           lookupOutputSource(WorkflowOutputId(output.outputSource.flatMap(_.select[String]).get)).
-            map(PortBasedGraphOutputNode(WomIdentifier(output.id), wdlType, _)).toValidated
+            map(PortBasedGraphOutputNode(WomIdentifier(output.id), womType, _)).toValidated
       }.map(_.toSet).toEither
 
     for {

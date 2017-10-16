@@ -14,7 +14,7 @@ import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
 import wom.callable.Callable.InputDefinition
 import wom.core.LocallyQualifiedName
-import wom.values.{WdlString, WdlValue}
+import wom.values.{WomString, WomValue}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -25,11 +25,11 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
 
   // Generated fresh for each test case in 'before'
   var helper: JobPreparationTestHelper = _
-  var inputs: Map[InputDefinition, WdlValue] = _
+  var inputs: Map[InputDefinition, WomValue] = _
 
   before {
     helper = new JobPreparationTestHelper()
-    inputs = Map.empty[InputDefinition, WdlValue]
+    inputs = Map.empty[InputDefinition, WomValue]
   }
 
   it should "fail preparation if it can't evaluate inputs or runtime attributes" in {
@@ -43,7 +43,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
   }
 
   it should "prepare successfully a job without docker attribute" in {
-    val attributes = Map.empty[LocallyQualifiedName, WdlValue]
+    val attributes = Map.empty[LocallyQualifiedName, WomValue]
     val inputsAndAttributes = (inputs, attributes).validNel
     val actor = TestActorRef(helper.buildTestJobPreparationActor(null, null, null, inputsAndAttributes, List.empty), self)
     actor ! Start(OutputStore.empty)
@@ -57,7 +57,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
   it should "not ask for the docker hash if the attribute already contains a hash" in {
     val dockerValue = "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
     val attributes = Map(
-      "docker" -> WdlString(dockerValue)
+      "docker" -> WomString(dockerValue)
     )
     val inputsAndAttributes = (inputs, attributes).validNel
     val actor = TestActorRef(helper.buildTestJobPreparationActor(null, null, null, inputsAndAttributes, List.empty), self)
@@ -73,7 +73,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
   it should "lookup any requested key/value prefetches after (not) performing a docker hash lookup" in {
     val dockerValue = "ubuntu:latest"
     val attributes = Map (
-      "docker" -> WdlString(dockerValue)
+      "docker" -> WomString(dockerValue)
     )
     val hashResult = DockerHashResult("sha256", "71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950")
     val inputsAndAttributes = (inputs, attributes).validNel
@@ -109,7 +109,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
   it should "leave the docker attribute as is and provide a DockerWithHash value" in {
     val dockerValue = "ubuntu:latest"
     val attributes = Map (
-      "docker" -> WdlString(dockerValue)
+      "docker" -> WomString(dockerValue)
     )
     val hashResult = DockerHashResult("sha256", "71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950")
     val inputsAndAttributes = (inputs, attributes).validNel
@@ -129,7 +129,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     val dockerValue = "ubuntu:latest"
     val request = DockerHashRequest(DockerImageIdentifier.fromString(dockerValue).get.asInstanceOf[DockerImageIdentifierWithoutHash])
     val attributes = Map (
-      "docker" -> WdlString(dockerValue)
+      "docker" -> WomString(dockerValue)
     )
     val inputsAndAttributes = (inputs, attributes).validNel
     val actor = TestActorRef(helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List.empty), self)

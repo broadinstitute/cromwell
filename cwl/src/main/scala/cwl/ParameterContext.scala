@@ -1,25 +1,25 @@
 package cwl
 
 import wom.expression.IoFunctionSet
-import wom.types.{WdlMapType, WdlNothingType, WdlStringType}
-import wom.values.{WdlMap, WdlOptionalValue, WdlString, WdlValue}
+import wom.types.{WomMapType, WomNothingType, WomStringType}
+import wom.values.{WomMap, WomOptionalValue, WomString, WomValue}
 
 object ParameterContext {
   val Empty = ParameterContext(
-    inputs = WdlOptionalValue(WdlNothingType, None),
-    self = WdlOptionalValue(WdlNothingType, None),
-    runtime = WdlOptionalValue(WdlNothingType, None)
+    inputs = WomOptionalValue(WomNothingType, None),
+    self = WomOptionalValue(WomNothingType, None),
+    runtime = WomOptionalValue(WomNothingType, None)
   )
 }
 
-case class ParameterContext(inputs: WdlValue, self: WdlValue, runtime: WdlValue) {
-  def withInputs(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ParameterContext = {
-    val wdlValueType = inputValues.values.headOption.map(_.wdlType).getOrElse(WdlNothingType)
+case class ParameterContext(inputs: WomValue, self: WomValue, runtime: WomValue) {
+  def withInputs(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ParameterContext = {
+    val wdlValueType = inputValues.values.headOption.map(_.womType).getOrElse(WomNothingType)
     copy(
-      inputs = WdlMap(
-        WdlMapType(WdlStringType, wdlValueType),
+      inputs = WomMap(
+        WomMapType(WomStringType, wdlValueType),
         // TODO: WOM: convert inputValues (including WdlFile?) to inputs using the ioFunctionSet
-        inputValues map { case (name, wdlValue) => WdlString(name) -> wdlValue }
+        inputValues map { case (name, womValue) => WomString(name) -> womValue }
       )
     )
   }

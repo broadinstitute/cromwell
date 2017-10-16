@@ -10,7 +10,7 @@ import lenthall.validation.ErrorOr._
 import lenthall.validation.Validation._
 import wom.callable.Callable._
 import wom.expression.IoFunctionSet
-import wom.values.{WdlValue, WomEvaluatedCallInputs}
+import wom.values.{WomValue, WomEvaluatedCallInputs}
 
 object CallPreparation {
   sealed trait CallPreparationActorCommands
@@ -28,10 +28,10 @@ object CallPreparation {
                                expressionLanguageFunctions: IoFunctionSet,
                                outputStore: OutputStore): ErrorOr[WomEvaluatedCallInputs] = {
 
-    callKey.node.inputDefinitionMappings.foldLeft(Map.empty[InputDefinition, ErrorOr[WdlValue]]) {
+    callKey.node.inputDefinitionMappings.foldLeft(Map.empty[InputDefinition, ErrorOr[WomValue]]) {
       case (accumulatedInputsSoFar, (inputDefinition, pointer)) =>
         // We could have a lenthall method for this kind of "filtering valid values"
-        val validInputsAccumulated: Map[String, WdlValue] = accumulatedInputsSoFar.collect({
+        val validInputsAccumulated: Map[String, WomValue] = accumulatedInputsSoFar.collect({
           case (input, Valid(errorOrWdlValue)) => input.name -> errorOrWdlValue
         })
         

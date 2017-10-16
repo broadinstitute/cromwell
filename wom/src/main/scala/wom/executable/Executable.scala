@@ -10,8 +10,8 @@ import wom.executable.ExecutableValidation._
 import wom.graph.Graph.ResolvedExecutableInput
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
-import wom.types.WdlType
-import wom.values.WdlValue
+import wom.types.WomType
+import wom.values.WomValue
 
 object Executable {
 
@@ -19,14 +19,14 @@ object Executable {
     * Function provided by each language, that takes the raw input file as a String and returns a Checked[ParsedInputMap]
     * Each entry of the map is an input found in the file.
     * The key is a string representation of the input. It must be be equal to the name of the matching GraphInputNode.
-    * The value is a function which given a WdlType, attempts to coerce the input value to that type.
+    * The value is a function which given a WomType, attempts to coerce the input value to that type.
     * Thanks to this level of indirection, the logic that links graph input nodes to input values still resides in WOM,
     * which 1) abstracts it away and 2) guarantees that the linking mechanism is the same regardless of the language.
     * At the same time each language can parse the input file however it wants.
    */
   type InputParsingFunction = String => Checked[ParsedInputMap]
   type ParsedInputMap = Map[String, DelayedCoercionFunction]
-  type DelayedCoercionFunction = WdlType => ErrorOr[WdlValue]
+  type DelayedCoercionFunction = WomType => ErrorOr[WomValue]
   
   /*
     * Maps output ports from graph input nodes to ResolvedExecutableInput
@@ -48,7 +48,7 @@ object Executable {
     def fallBack(gin: ExternalGraphInputNode): ErrorOr[ResolvedExecutableInput] = gin match {
       case required: RequiredGraphInputNode => s"Required workflow input '${required.identifier.fullyQualifiedName.value}' not specified".invalidNel
       case optionalWithDefault: OptionalGraphInputNodeWithDefault => Coproduct[ResolvedExecutableInput](optionalWithDefault.default).validNel
-      case optional: OptionalGraphInputNode => Coproduct[ResolvedExecutableInput](optional.womType.none: WdlValue).validNel
+      case optional: OptionalGraphInputNode => Coproduct[ResolvedExecutableInput](optional.womType.none: WomValue).validNel
     }
 
     graph.inputNodes.collect({

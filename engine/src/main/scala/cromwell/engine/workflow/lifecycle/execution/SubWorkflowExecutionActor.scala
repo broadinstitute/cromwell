@@ -199,8 +199,8 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
       case empty if empty.isEmpty =>
         List(MetadataEvent.empty(MetadataKey(subWorkflowId, None,WorkflowMetadataKeys.Inputs)))
       case inputs =>
-        inputs flatMap { case (inputName, wdlValue) =>
-          wdlValueToMetadataEvents(MetadataKey(subWorkflowId, None, s"${WorkflowMetadataKeys.Inputs}:${inputName.name}"), wdlValue)
+        inputs flatMap { case (inputName, womValue) =>
+          wdlValueToMetadataEvents(MetadataKey(subWorkflowId, None, s"${WorkflowMetadataKeys.Inputs}:${inputName.name}"), womValue)
         }
     }
 

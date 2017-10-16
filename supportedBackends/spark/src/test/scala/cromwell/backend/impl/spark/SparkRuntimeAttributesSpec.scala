@@ -10,7 +10,7 @@ import spray.json.{JsBoolean, JsNumber, JsObject, JsString, JsValue}
 import wdl._
 import wom.core.WorkflowSource
 import wom.executable.Executable.ResolvedExecutableInputs
-import wom.values.WdlValue
+import wom.values.WomValue
 
 class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
@@ -135,20 +135,20 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
     )
   }
 
-  private def createRuntimeAttributes(workflowSource: WorkflowSource, runtimeAttributes: String): List[Map[String, WdlValue]] = {
+  private def createRuntimeAttributes(workflowSource: WorkflowSource, runtimeAttributes: String): List[Map[String, WomValue]] = {
     val workflowDescriptor = buildWorkflowDescriptor(workflowSource, runtime = runtimeAttributes)
 
     workflowDescriptor.workflow.taskCallNodes.toList map {
       call =>
         val staticValues = workflowDescriptor.knownValues.flatMap {
-          case (outputPort, resolvedInput) => resolvedInput.select[WdlValue] map { outputPort.name -> _ }
+          case (outputPort, resolvedInput) => resolvedInput.select[WomValue] map { outputPort.name -> _ }
         }
         val ra = call.callable.runtimeAttributes.attributes mapValues { _.evaluateValue(staticValues, NoIoFunctionSet) }
         ra.sequence.getOrElse(fail("Failed to evaluate runtime attributes"))
     }
   }
 
-  private def assertSparkRuntimeAttributes(runtimeAttributes: Map[String, WdlValue], workflowOptions: WorkflowOptions, expectedRuntimeAttributes: SparkRuntimeAttributes): Unit = {
+  private def assertSparkRuntimeAttributes(runtimeAttributes: Map[String, WomValue], workflowOptions: WorkflowOptions, expectedRuntimeAttributes: SparkRuntimeAttributes): Unit = {
     try {
       assert(SparkRuntimeAttributes(runtimeAttributes, workflowOptions) == expectedRuntimeAttributes)
     } catch {
@@ -157,7 +157,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
     ()
   }
 
-  private def assertSparkRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WdlValue], exMsg: String): Unit = {
+  private def assertSparkRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WomValue], exMsg: String): Unit = {
     try {
       SparkRuntimeAttributes(runtimeAttributes, emptyWorkflowOptions)
       fail("A RuntimeException was expected.")

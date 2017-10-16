@@ -3,7 +3,7 @@ package wom.graph
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
 import wom.expression._
-import wom.types.WdlIntegerType
+import wom.types.WomIntegerType
 
 class ExpressionNodeSpec extends FlatSpec with Matchers {
 
@@ -25,17 +25,17 @@ class ExpressionNodeSpec extends FlatSpec with Matchers {
     */
   it should "construct an ExpressionNode if inputs are available" in {
     // Two inputs:
-    val iInputNode = RequiredGraphInputNode(WomIdentifier("i"), WdlIntegerType)
-    val jInputNode = RequiredGraphInputNode(WomIdentifier("j"), WdlIntegerType)
+    val iInputNode = RequiredGraphInputNode(WomIdentifier("i"), WomIntegerType)
+    val jInputNode = RequiredGraphInputNode(WomIdentifier("j"), WomIntegerType)
 
     // Declare an expression that needs both an "i" and a "j":
-    val ijExpression = PlaceholderWomExpression(Set("i", "j"), WdlIntegerType)
+    val ijExpression = PlaceholderWomExpression(Set("i", "j"), WomIntegerType)
 
     // Declare the expression node using both i and j:
     import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
     val graph = for {
       xDeclarationNode <- ExpressionNode.linkWithInputs(WomIdentifier("x"), ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))
-      xOutputNode = PortBasedGraphOutputNode(WomIdentifier("x_out"), WdlIntegerType, xDeclarationNode.singleExpressionOutputPort)
+      xOutputNode = PortBasedGraphOutputNode(WomIdentifier("x_out"), WomIntegerType, xDeclarationNode.singleExpressionOutputPort)
       g <- Graph.validateAndConstruct(Set(iInputNode, jInputNode, xDeclarationNode, xOutputNode))
     } yield g
 
@@ -53,7 +53,7 @@ class ExpressionNodeSpec extends FlatSpec with Matchers {
       x_outGraphOutputNode.upstream.size should be(1)
       val xExpressionNode = x_outGraphOutputNode.upstream.head.asInstanceOf[ExpressionNode]
       xExpressionNode.localName should be("x")
-      xExpressionNode.womType should be(WdlIntegerType)
+      xExpressionNode.womType should be(WomIntegerType)
 
       xExpressionNode.upstream should be(Set(iInputNode, jInputNode))
     }

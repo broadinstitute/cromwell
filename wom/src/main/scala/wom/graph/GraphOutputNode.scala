@@ -3,16 +3,16 @@ package wom.graph
 import lenthall.validation.ErrorOr.ErrorOr
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.{ConnectedInputPort, GraphNodeOutputPort, OutputPort}
-import wom.types.WdlType
+import wom.types.WomType
 
 sealed trait GraphOutputNode extends GraphNode {
-  def womType: WdlType
+  def womType: WomType
 }
 
 /**
   * Exposes an existing output port as a graph output.
   */
-final case class PortBasedGraphOutputNode(override val identifier: WomIdentifier, womType: WdlType, source: OutputPort) extends GraphOutputNode {
+final case class PortBasedGraphOutputNode(override val identifier: WomIdentifier, womType: WomType, source: OutputPort) extends GraphOutputNode {
   val singleInputPort = ConnectedInputPort(localName, womType, source, _ => this)
   override val inputPorts: Set[GraphNodePort.InputPort] = Set(singleInputPort)
   override val outputPorts: Set[GraphNodePort.OutputPort] = Set(source)
@@ -23,14 +23,14 @@ final case class PortBasedGraphOutputNode(override val identifier: WomIdentifier
   *
   * NB: Construct this via ExpressionBasedGraphOutputNode.linkWithInputs(...)
   */
-final case class ExpressionBasedGraphOutputNode private(override val identifier: WomIdentifier, womType: WdlType, instantiatedExpression: InstantiatedExpression) extends GraphOutputNode {
+final case class ExpressionBasedGraphOutputNode private(override val identifier: WomIdentifier, womType: WomType, instantiatedExpression: InstantiatedExpression) extends GraphOutputNode {
   override val inputPorts = instantiatedExpression.inputPorts
   val singleOutputPort = GraphNodeOutputPort(identifier, womType, this)
   override val outputPorts: Set[GraphNodePort.OutputPort] = Set(singleOutputPort)
 }
 
 object ExpressionBasedGraphOutputNode {
-  def linkWithInputs(nodeIdentifier: WomIdentifier, womType: WdlType, expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[ExpressionBasedGraphOutputNode] = {
+  def linkWithInputs(nodeIdentifier: WomIdentifier, womType: WomType, expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[ExpressionBasedGraphOutputNode] = {
     val nodeConstructor = (identifier: WomIdentifier, instantiatedExpression: InstantiatedExpression) => {
       ExpressionBasedGraphOutputNode(identifier, womType, instantiatedExpression)
     }

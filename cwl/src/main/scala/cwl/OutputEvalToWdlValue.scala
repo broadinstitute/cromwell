@@ -1,13 +1,13 @@
 package cwl
 
 import shapeless._
-import wom.values.{WdlString, WdlValue}
+import wom.values.{WomString, WomValue}
 
 import scala.Function._
 
 object OutputEvalToWdlValue extends Poly1 {
 
-  type OutputEvalHandler = ParameterContext => WdlValue
+  type OutputEvalHandler = ParameterContext => WomValue
 
   implicit def caseECMAScript: Case.Aux[Expression, OutputEvalHandler] = {
     at[Expression] { ecmaScript =>
@@ -17,7 +17,7 @@ object OutputEvalToWdlValue extends Poly1 {
   }
 
   implicit def caseString: Case.Aux[String, OutputEvalHandler] = {
-    at[String] { string => const(WdlString(string)) }
+    at[String] { string => const(WomString(string)) }
   }
 }
 

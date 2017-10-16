@@ -160,12 +160,12 @@ object CromwellTestKitSpec {
     * Special case for validating outputs. Used when the test wants to check that an output exists, but doesn't care what
     * the actual value was.
     */
-  lazy val AnyValueIsFine: WdlValue = WdlString("Today you are you! That is truer than true! There is no one alive who is you-er than you!")
+  lazy val AnyValueIsFine: WomValue = WomString("Today you are you! That is truer than true! There is no one alive who is you-er than you!")
 
-  def replaceVariables(wdlValue: WdlValue, workflowId: WorkflowId): WdlValue = {
-    wdlValue match {
-      case WdlString(value) => WdlString(replaceVariables(value, workflowId))
-      case _ => wdlValue
+  def replaceVariables(womValue: WomValue, workflowId: WorkflowId): WomValue = {
+    womValue match {
+      case WomString(value) => WomString(replaceVariables(value, workflowId))
+      case _ => womValue
     }
   }
 
@@ -280,33 +280,33 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
   val dummyLogCopyRouter = system.actorOf(Props.empty)
 
   // Allow to use shouldEqual between 2 WdlTypes while acknowledging for edge cases
-  implicit val wdlTypeSoftEquality = new Equality[WdlType] {
-    override def areEqual(a: WdlType, b: Any): Boolean = (a, b) match {
-      case (WdlStringType | WdlFileType, WdlFileType | WdlStringType) => true
-      case (arr1: WdlArrayType, arr2: WdlArrayType) => areEqual(arr1.memberType, arr2.memberType)
-      case (map1: WdlMapType, map2: WdlMapType) => areEqual(map1.valueType, map2.valueType)
+  implicit val wdlTypeSoftEquality = new Equality[WomType] {
+    override def areEqual(a: WomType, b: Any): Boolean = (a, b) match {
+      case (WomStringType | WomFileType, WomFileType | WomStringType) => true
+      case (arr1: WomArrayType, arr2: WomArrayType) => areEqual(arr1.memberType, arr2.memberType)
+      case (map1: WomMapType, map2: WomMapType) => areEqual(map1.valueType, map2.valueType)
       case _ => a == b
     }
   }
 
-  // Allow to use shouldEqual between 2 WdlValues while acknowledging for edge cases and checking for WdlType compatibility
-  implicit val wdlEquality = new Equality[WdlValue] {
+  // Allow to use shouldEqual between 2 WdlValues while acknowledging for edge cases and checking for WomType compatibility
+  implicit val wdlEquality = new Equality[WomValue] {
     def fileEquality(f1: String, f2: String) =
       DefaultPathBuilder.get(f1).getFileName == DefaultPathBuilder.get(f2).getFileName
 
-    override def areEqual(a: WdlValue, b: Any): Boolean = {
+    override def areEqual(a: WomValue, b: Any): Boolean = {
       val typeEquality = b match {
-        case v: WdlValue => wdlTypeSoftEquality.areEqual(a.wdlType, v.wdlType)
+        case v: WomValue => wdlTypeSoftEquality.areEqual(a.womType, v.womType)
         case _ => false
       }
 
       val valueEquality = (a, b) match {
-        case (_: WdlFile, expectedFile: WdlFile) => fileEquality(a.valueString, expectedFile.valueString)
-        case (_: WdlString, expectedFile: WdlFile) => fileEquality(a.valueString, expectedFile.valueString)
-        case (array: WdlArray, expectedArray: WdlArray) =>
+        case (_: WomFile, expectedFile: WomFile) => fileEquality(a.valueString, expectedFile.valueString)
+        case (_: WomString, expectedFile: WomFile) => fileEquality(a.valueString, expectedFile.valueString)
+        case (array: WomArray, expectedArray: WomArray) =>
           (array.value.length == expectedArray.value.length) &&
             array.value.zip(expectedArray.value).map(Function.tupled(areEqual)).forall(identity)
-        case (map: WdlMap, expectedMap: WdlMap) =>
+        case (map: WomMap, expectedMap: WomMap) =>
           val mapped = map.value.map {
             case (k, v) => expectedMap.value.get(k).isDefined && areEqual(v, expectedMap.value(k))
           }
@@ -329,7 +329,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
              customLabels: String = "{}",
              terminalState: WorkflowState = WorkflowSucceeded,
              config: Config = DefaultConfig,
-             patienceConfig: PatienceConfig = defaultPatience)(implicit ec: ExecutionContext): Map[FullyQualifiedName, WdlValue] = {
+             patienceConfig: PatienceConfig = defaultPatience)(implicit ec: ExecutionContext): Map[FullyQualifiedName, WomValue] = {
     val rootActor = buildCromwellRootActor(config)
     val sources = WorkflowSourceFilesWithoutImports(
       workflowSource = sampleWdl.workflowSource(runtime),
@@ -349,7 +349,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
 
   def runWdlAndAssertOutputs(sampleWdl: SampleWdl,
                              eventFilter: EventFilter,
-                             expectedOutputs: Map[FullyQualifiedName, WdlValue],
+                             expectedOutputs: Map[FullyQualifiedName, WomValue],
                              runtime: String = "",
                              workflowOptions: String = "{}",
                              allowOtherOutputs: Boolean = true,
@@ -398,7 +398,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
     ()
   }
 
-  private def getWorkflowOutputsFromMetadata(id: WorkflowId, serviceRegistryActor: ActorRef): Map[FullyQualifiedName, WdlValue] = {
+  private def getWorkflowOutputsFromMetadata(id: WorkflowId, serviceRegistryActor: ActorRef): Map[FullyQualifiedName, WomValue] = {
     val mba = system.actorOf(MetadataBuilderActor.props(serviceRegistryActor))
     val response = mba.ask(WorkflowOutputs(id)).mapTo[MetadataBuilderActorResponse] collect {
       case BuiltMetadataResponse(r) => r
@@ -414,21 +414,21 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
     }
   }
 
-  private def jsValueToWdlValue(jsValue: JsValue): WdlValue = {
+  private def jsValueToWdlValue(jsValue: JsValue): WomValue = {
     jsValue match {
-      case str: JsString => WdlString(str.value)
-      case JsNumber(number) if number.scale == 0 => WdlInteger(number.intValue)
-      case JsNumber(number) => WdlFloat(number.doubleValue)
-      case JsBoolean(bool) => WdlBoolean(bool)
+      case str: JsString => WomString(str.value)
+      case JsNumber(number) if number.scale == 0 => WomInteger(number.intValue)
+      case JsNumber(number) => WomFloat(number.doubleValue)
+      case JsBoolean(bool) => WomBoolean(bool)
       case array: JsArray =>
         val valuesArray = array.elements.map(jsValueToWdlValue)
-        if (valuesArray.isEmpty) WdlArray(WdlArrayType(WdlStringType), Seq.empty)
-        else WdlArray(WdlArrayType(valuesArray.head.wdlType), valuesArray)
+        if (valuesArray.isEmpty) WomArray(WomArrayType(WomStringType), Seq.empty)
+        else WomArray(WomArrayType(valuesArray.head.womType), valuesArray)
       case map: JsObject =>
         // TODO: currently assuming all keys are String. But that's not WDL-complete...
-        val valuesMap: Map[WdlValue, WdlValue] = map.fields.map { case (fieldName, fieldValue) => (WdlString(fieldName), jsValueToWdlValue(fieldValue)) }
-        if (valuesMap.isEmpty) WdlMap(WdlMapType(WdlStringType, WdlStringType), Map.empty)
-        else WdlMap(WdlMapType(WdlStringType, valuesMap.head._2.wdlType), valuesMap)
+        val valuesMap: Map[WomValue, WomValue] = map.fields.map { case (fieldName, fieldValue) => (WomString(fieldName), jsValueToWdlValue(fieldValue)) }
+        if (valuesMap.isEmpty) WomMap(WomMapType(WomStringType, WomStringType), Map.empty)
+        else WomMap(WomMapType(WomStringType, valuesMap.head._2.womType), valuesMap)
     }
   }
 }

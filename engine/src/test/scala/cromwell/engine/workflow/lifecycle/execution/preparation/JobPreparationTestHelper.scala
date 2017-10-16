@@ -10,7 +10,7 @@ import cromwell.engine.workflow.lifecycle.execution.{OutputStore, WorkflowExecut
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, ScopedKey}
 import lenthall.validation.ErrorOr.ErrorOr
 import org.specs2.mock.Mockito
-import wom.values.{WdlValue, WomEvaluatedCallInputs}
+import wom.values.{WomValue, WomEvaluatedCallInputs}
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -32,7 +32,7 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
   def buildTestJobPreparationActor(backpressureTimeout: FiniteDuration,
                                    noResponseTimeout: FiniteDuration,
                                    dockerHashCredentials: List[Any],
-                                   inputsAndAttributes: ErrorOr[(WomEvaluatedCallInputs, Map[_root_.wdl.LocallyQualifiedName, WdlValue])],
+                                   inputsAndAttributes: ErrorOr[(WomEvaluatedCallInputs, Map[_root_.wdl.LocallyQualifiedName, WomValue])],
                                    kvStoreKeysForPrefetch: List[String]) = {
 
     Props(new TestJobPreparationActor(
@@ -54,7 +54,7 @@ private[preparation] class TestJobPreparationActor(kvStoreKeysForPrefetch: List[
                                                    dockerHashCredentialsInput: List[Any],
                                                    backpressureWaitTimeInput: FiniteDuration,
                                                    dockerNoResponseTimeoutInput: FiniteDuration,
-                                                   inputsAndAttributes: ErrorOr[(WomEvaluatedCallInputs, Map[_root_.wdl.LocallyQualifiedName, WdlValue])],
+                                                   inputsAndAttributes: ErrorOr[(WomEvaluatedCallInputs, Map[_root_.wdl.LocallyQualifiedName, WomValue])],
                                                    workflowDescriptor: EngineWorkflowDescriptor,
                                                    jobKey: BackendJobDescriptorKey,
                                                    workflowDockerLookupActor: ActorRef,

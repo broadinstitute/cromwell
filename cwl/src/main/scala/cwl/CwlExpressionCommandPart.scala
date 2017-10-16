@@ -3,19 +3,19 @@ package cwl
 import wom.CommandPart
 import wom.expression.IoFunctionSet
 import wom.graph.LocalName
-import wom.values.WdlValue
+import wom.values.WomValue
 
 
 case class CwlExpressionCommandPart(expr: Expression) extends CommandPart {
-  override def instantiate(inputsMap: Map[LocalName, WdlValue],
+  override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
-                           valueMapper: (WdlValue) => WdlValue): String = {
+                           valueMapper: (WomValue) => WomValue): String = {
 
     val pc = ParameterContext.Empty.withInputs(inputsMap.map({ case (LocalName(localName), value) => localName -> value }), functions)
 
-    val wdlValue: WdlValue = expr.fold(EvaluateExpression).apply(pc)
+    val womValue: WomValue = expr.fold(EvaluateExpression).apply(pc)
 
-    wdlValue.valueString
+    womValue.valueString
   }
 }
 

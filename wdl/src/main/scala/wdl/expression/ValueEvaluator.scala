@@ -6,8 +6,8 @@ import wdl.AstTools.EnhancedAstNode
 import wdl.WdlExpression._
 import wdl._
 import wdl.values.WdlCallOutputsObject
-import wom.WdlExpressionException
-import wom.types.{WdlArrayType, WdlMapType, WdlObjectType, WdlType}
+import wom.WomExpressionException
+import wom.types.{WomArrayType, WomMapType, WomObjectType, WomType}
 import wom.values._
 
 import scala.util.{Failure, Success, Try}
@@ -16,42 +16,42 @@ object ValueEvaluator {
   val InterpolationTagPattern = "\\$\\{\\s*([^\\}]*)\\s*\\}".r
 }
 
-case class ValueEvaluator(override val lookup: String => WdlValue, override val functions: WdlFunctions[WdlValue]) extends Evaluator {
-  override type T = WdlValue
+case class ValueEvaluator(override val lookup: String => WomValue, override val functions: WdlFunctions[WomValue]) extends Evaluator {
+  override type T = WomValue
 
   private val InterpolationTagPattern = "\\$\\{\\s*([^\\}]*)\\s*\\}".r
 
-  private def replaceInterpolationTag(string: Try[WdlString], tag: String): Try[WdlString] = {
+  private def replaceInterpolationTag(string: Try[WomString], tag: String): Try[WomString] = {
     val expr = WdlExpression.fromString(tag.substring(2, tag.length - 1))
     (expr.evaluate(lookup, functions), string) match {
       case (Success(value), Success(str)) =>
         value match {
-          case s: WdlString if InterpolationTagPattern.anchored.findFirstIn(s.valueString).isDefined =>
-            replaceInterpolationTag(Success(WdlString(str.value.replace(tag, s.valueString))), s.valueString)
-          case v => Success(WdlString(str.value.replace(tag, v.valueString)))
+          case s: WomString if InterpolationTagPattern.anchored.findFirstIn(s.valueString).isDefined =>
+            replaceInterpolationTag(Success(WomString(str.value.replace(tag, s.valueString))), s.valueString)
+          case v => Success(WomString(str.value.replace(tag, v.valueString)))
         }
       case (Failure(ex), _) => Failure(ex)
       case (_, Failure(ex)) => Failure(ex)
     }
   }
 
-  private def interpolate(str: String): Try[WdlString] = {
-    InterpolationTagPattern.findAllIn(str).foldLeft(Try(WdlString(str)))(replaceInterpolationTag)
+  private def interpolate(str: String): Try[WomString] = {
+    InterpolationTagPattern.findAllIn(str).foldLeft(Try(WomString(str)))(replaceInterpolationTag)
   }
 
-  private def interpolate(value: WdlValue): Try[WdlValue] = {
+  private def interpolate(value: WomValue): Try[WomValue] = {
     value match {
-      case s: WdlString => interpolate(s.valueString)
+      case s: WomString => interpolate(s.valueString)
       case _ => Try(value)
     }
   }
 
-  override def evaluate(ast: AstNode): Try[WdlValue] = {
+  override def evaluate(ast: AstNode): Try[WomValue] = {
     ast match {
       case t: Terminal if t.getTerminalStr == "identifier" => Try(lookup(t.getSourceString)).flatMap(interpolate)
-      case t: Terminal if t.getTerminalStr == "integer" => Success(WdlInteger(t.getSourceString.toInt))
-      case t: Terminal if t.getTerminalStr == "float" => Success(WdlFloat(t.getSourceString.toDouble))
-      case t: Terminal if t.getTerminalStr == "boolean" => Success(WdlBoolean(t.getSourceString == "true"))
+      case t: Terminal if t.getTerminalStr == "integer" => Success(WomInteger(t.getSourceString.toInt))
+      case t: Terminal if t.getTerminalStr == "float" => Success(WomFloat(t.getSourceString.toDouble))
+      case t: Terminal if t.getTerminalStr == "boolean" => Success(WomBoolean(t.getSourceString == "true"))
       case t: Terminal if t.getTerminalStr == "string" => interpolate(t.getSourceString)
       case a: Ast if a.isBinaryOperator =>
         val lhs = evaluate(a.getAttribute("lhs"))
@@ -70,7 +70,7 @@ case class ValueEvaluator(override val lookup: String => WdlValue, override val 
           case "GreaterThanOrEqual" => for(l <- lhs; r <- rhs) yield l.greaterThanOrEqual(r).get
           case "LogicalOr" => for(l <- lhs; r <- rhs) yield l.or(r).get
           case "LogicalAnd" => for(l <- lhs; r <- rhs) yield l.and(r).get
-          case _ => Failure(new WdlExpressionException(s"Invalid operator: ${a.getName}"))
+          case _ => Failure(new WomExpressionException(s"Invalid operator: ${a.getName}"))
         }
       case a: Ast if a.isUnaryOperator =>
         val expression = evaluate(a.getAttribute("expression"))
@@ -78,21 +78,21 @@ case class ValueEvaluator(override val lookup: String => WdlValue, override val 
           case "LogicalNot" => for(e <- expression) yield e.not.get
           case "UnaryPlus" => for(e <- expression) yield e.unaryPlus.get
           case "UnaryNegation" => for(e <- expression) yield e.unaryMinus.get
-          case _ => Failure(new WdlExpressionException(s"Invalid operator: ${a.getName}"))
+          case _ => Failure(new WomExpressionException(s"Invalid operator: ${a.getName}"))
         }
       case TernaryIf(condition, ifTrue, ifFalse) =>
         evaluate(condition) flatMap {
-          case WdlBoolean(true) => evaluate(ifTrue)
-          case WdlBoolean(false) => evaluate(ifFalse)
-          case other => Failure(new WdlExpressionException("'if' expression must be given a boolean argument but got: " + other.toWdlString))
+          case WomBoolean(true) => evaluate(ifTrue)
+          case WomBoolean(false) => evaluate(ifFalse)
+          case other => Failure(new WomExpressionException("'if' expression must be given a boolean argument but got: " + other.toWomString))
         }
       case a: Ast if a.isArrayLiteral =>
         val evaluatedElements = a.getAttribute("values").astListAsVector map evaluate
         for {
           elements <- TryUtil.sequence(evaluatedElements)
-          subtype = WdlType.homogeneousTypeFromValues(elements)
+          subtype = WomType.homogeneousTypeFromValues(elements)
           isEmpty = elements.isEmpty
-        } yield WdlArray(WdlArrayType(subtype), elements.map(subtype.coerceRawValue(_).get))
+        } yield WomArray(WomArrayType(subtype), elements.map(subtype.coerceRawValue(_).get))
       case a: Ast if a.isTupleLiteral =>
         val unevaluatedElements = a.getAttribute("values").astListAsVector
         if (unevaluatedElements.size == 1) {
@@ -101,9 +101,9 @@ case class ValueEvaluator(override val lookup: String => WdlValue, override val 
           for {
             left <- evaluate(unevaluatedElements.head)
             right <- evaluate(unevaluatedElements(1))
-          } yield WdlPair(left, right)
+          } yield WomPair(left, right)
         } else {
-          Failure(new WdlExpressionException(s"WDL does not currently support tuples with n > 2: ${a.toPrettyString}"))
+          Failure(new WomExpressionException(s"WDL does not currently support tuples with n > 2: ${a.toPrettyString}"))
         }
       case a: Ast if a.isMapLiteral =>
         val evaluatedMap = a.getAttribute("map").astListAsVector map { kv =>
@@ -112,9 +112,9 @@ case class ValueEvaluator(override val lookup: String => WdlValue, override val 
           key -> value
         }
         TryUtil.sequence(evaluatedMap map { tuple => TryUtil.sequenceTuple(tuple) }) flatMap { pairs =>
-          WdlMapType(
-            WdlType.homogeneousTypeFromValues(pairs.map(_._1)),
-            WdlType.homogeneousTypeFromValues(pairs.map(_._2))
+          WomMapType(
+            WomType.homogeneousTypeFromValues(pairs.map(_._1)),
+            WomType.homogeneousTypeFromValues(pairs.map(_._2))
           ).coerceRawValue(pairs.toMap)
         }
       case a: Ast if a.isMemberAccess =>
@@ -124,9 +124,9 @@ case class ValueEvaluator(override val lookup: String => WdlValue, override val 
             Try(lookup(memberAccessAsString)).flatMap(interpolate).recoverWith {
               case _ =>
                 evaluate(a.getAttribute("lhs")).flatMap {
-                  case o: WdlObjectLike =>
+                  case o: WomObjectLike =>
                     o.value.get(rhs.getSourceString) match {
-                      case Some(v:WdlValue) => Success(v)
+                      case Some(v:WomValue) => Success(v)
                       case None =>
                         o match {
                           // o is a CallOutputsObject which means we failed to find an output value for rhs
@@ -134,25 +134,25 @@ case class ValueEvaluator(override val lookup: String => WdlValue, override val 
                           case callOutputObject: WdlCallOutputsObject =>
                             callOutputObject.call match {
                               case workflowCall: WdlWorkflowCall =>
-                                Failure(new WdlExpressionException(
+                                Failure(new WomExpressionException(
                                   s"""${rhs.getSourceString} is not declared as an output of the sub workflow ${workflowCall.calledWorkflow.fullyQualifiedName}.
                                      |If you want to use workflow ${workflowCall.calledWorkflow.fullyQualifiedName} as a sub workflow, make sure that its output section is up to date with the latest syntax.
                                      |See the WDL specification for how to write outputs: https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#outputs""".stripMargin
                                 ))
                               case taskCall: WdlTaskCall =>
-                                Failure(new WdlExpressionException(
+                                Failure(new WomExpressionException(
                                   s"""${rhs.getSourceString} is not declared as an output of the task ${taskCall.task.fullyQualifiedName}.
                                      |Make sure to declare it as an output to be able to use it in the workflow.""".stripMargin
                                 ))
                               case unknownCall =>
-                                Failure(new WdlExpressionException(
+                                Failure(new WomExpressionException(
                                   s"Could not find key ${rhs.getSourceString} in Call ${unknownCall.fullyQualifiedName} of unknown type."
                                 ))
                             }
-                          case _ => Failure(new WdlExpressionException(s"Could not find key ${rhs.getSourceString} in WdlObject"))
+                          case _ => Failure(new WomExpressionException(s"Could not find key ${rhs.getSourceString} in WdlObject"))
                         }
                     }
-                  case array: WdlArray if array.wdlType == WdlArrayType(WdlObjectType) =>
+                  case array: WomArray if array.womType == WomArrayType(WomObjectType) =>
                     /*
                      * This case is for slicing an Array[Object], used mainly for scatter-gather.
                      * For example, if 'call foo' was in a scatter block, foo's outputs (e.g. Int x)
@@ -160,35 +160,35 @@ case class ValueEvaluator(override val lookup: String => WdlValue, override val 
                      * then 'foo' would evaluate to an Array[Objects] and foo.x would result in an
                      * Array[Int]
                      */
-                    Success(array map {_.asInstanceOf[WdlObject].value.get(rhs.sourceString).get})
-                  case p: WdlPair =>
+                    Success(array map {_.asInstanceOf[WomObject].value.get(rhs.sourceString).get})
+                  case p: WomPair =>
                     val identifier = rhs.getSourceString
                     if (identifier.equals("left")) Success(p.left)
                     else if (identifier.equals("right")) Success(p.right)
-                    else Failure(new WdlExpressionException("A pair only has the members: 'left' and 'right'"))
+                    else Failure(new WomExpressionException("A pair only has the members: 'left' and 'right'"))
                   case ns: WdlNamespace => Success(lookup(ns.importedAs.map{ n => s"$n.${rhs.getSourceString}" }.getOrElse(rhs.getSourceString)))
-                  case _ => Failure(new WdlExpressionException("Left-hand side of expression must be a WdlObject or Namespace"))
+                  case _ => Failure(new WomExpressionException("Left-hand side of expression must be a WdlObject or Namespace"))
                 }
             }
-          case _ => Failure(new WdlExpressionException("Right-hand side of expression must be identifier"))
+          case _ => Failure(new WomExpressionException("Right-hand side of expression must be identifier"))
         }
       case a: Ast if a.isArrayOrMapLookup =>
         val index = evaluate(a.getAttribute("rhs"))
         val mapOrArray = evaluate(a.getAttribute("lhs"))
         (mapOrArray, index) match {
-          case (Success(a: WdlArray), Success(i: WdlInteger)) =>
+          case (Success(a: WomArray), Success(i: WomInteger)) =>
             Try(a.value(i.value)) match {
-              case s:Success[WdlValue] => s
-              case Failure(ex) => Failure(new WdlExpressionException(s"Failed to find index $index on array:\n\n$mapOrArray\n\n${ex.getMessage}"))
+              case s:Success[WomValue] => s
+              case Failure(ex) => Failure(new WomExpressionException(s"Failed to find index $index on array:\n\n$mapOrArray\n\n${ex.getMessage}"))
             }
-          case (Success(m: WdlMap), Success(v: WdlValue)) =>
+          case (Success(m: WomMap), Success(v: WomValue)) =>
             m.value.get(v) match {
               case Some(value) => Success(value)
-              case _ => Failure(new WdlExpressionException(s"Failed to find a key '$index' on a map:\n\n$mapOrArray"))
+              case _ => Failure(new WomExpressionException(s"Failed to find a key '$index' on a map:\n\n$mapOrArray"))
             }
           case (Failure(ex), _) => Failure(ex)
           case (_, Failure(ex)) => Failure(ex)
-          case (_, _) => Failure(new WdlExpressionException(s"Can't index $mapOrArray with index $index"))
+          case (_, _) => Failure(new WomExpressionException(s"Can't index $mapOrArray with index $index"))
         }
       case a: Ast if a.isFunctionCall =>
         val name = a.getAttribute("name").sourceString

@@ -1,46 +1,49 @@
 package wdl.types
 
-import scala.collection.JavaConverters._
-import wdl.{WdlExpression, WdlSyntaxErrorFormatter}
 import wdl.AstTools.EnhancedAstNode
+import wdl.{WdlExpression, WdlSyntaxErrorFormatter}
+import wdl4s.parser.WdlParser
 import wom.core.WorkflowSource
-import wom.types.{WdlBooleanType, WdlFloatType, WdlIntegerType, WdlType}
-import wom.types.WdlType.parser
-import wom.values.{WdlBoolean, WdlFloat, WdlInteger, WdlValue}
+import wom.types.{WomBooleanType, WomFloatType, WomIntegerType, WomType}
+import wom.values.{WomBoolean, WomFloat, WomInteger, WomValue}
+
+import scala.collection.JavaConverters._
 
 object WdlFlavoredWomType {
-  implicit class FromString(val wdlType: WdlType) extends AnyVal {
+  private val parser = new WdlParser()
+
+  implicit class FromString(val womType: WomType) extends AnyVal {
     /**
-      * Converts WDL source into a WdlValue of this type, if possible.
+      * Converts WDL source into a WomValue of this type, if possible.
       *
-      * @param workflowSource source code representing the WdlValue
-      * @return The WdlValue
+      * @param workflowSource source code representing the WomValue
+      * @return The WomValue
       */
     //TODO: return a Try ?
-    def fromWorkflowSource(workflowSource: WorkflowSource): WdlValue = {
-      wdlType match {
-        case WdlFloatType => WdlFloat(workflowSource.toDouble)
-        case WdlIntegerType => WdlInteger(workflowSource.toInt)
+    def fromWorkflowSource(workflowSource: WorkflowSource): WomValue = {
+      womType match {
+        case WomFloatType => WomFloat(workflowSource.toDouble)
+        case WomIntegerType => WomInteger(workflowSource.toInt)
         case WdlExpressionType => WdlExpression.fromString(workflowSource)
-        case WdlBooleanType => WdlBoolean(workflowSource.toBoolean)
+        case WomBooleanType => WomBoolean(workflowSource.toBoolean)
         case WdlNamespaceType => ??? // This is what the original code was doing and clearly this is right.
         case _ =>
-          val tokens = WdlType.parser.lex(workflowSource, "string")
+          val tokens = parser.lex(workflowSource, "string")
           val terminalMap = tokens.asScala.toVector.map {(_, workflowSource)}.toMap
           val wdlSyntaxErrorFormatter = WdlSyntaxErrorFormatter(terminalMap)
 
           /* Parsing as an expression is not sufficient... only a subset of these
            * ASTs are valid as WdlValues and this distinction is done in the
-           * .wdlValue() method.
+           * .womValue() method.
            */
-          val ast = WdlType.parser.parse_e(tokens, wdlSyntaxErrorFormatter).toAst
+          val ast = parser.parse_e(tokens, wdlSyntaxErrorFormatter).toAst
 
-          ast.wdlValue(wdlType, wdlSyntaxErrorFormatter)
+          ast.womValue(womType, wdlSyntaxErrorFormatter)
       }
     }
   }
 
-  def fromDisplayString(wdlString: String): WdlType = {
+  def fromDisplayString(wdlString: String): WomType = {
     wdlString match {
       case "Expression" => WdlExpressionType
       case _ =>
@@ -51,7 +54,7 @@ object WdlFlavoredWomType {
         /* parse_type_e() is the parse function for the $type_e nonterminal in grammar.hgr */
         val ast = parser.parse_type_e(tokens, wdlSyntaxErrorFormatter).toAst
 
-        ast.wdlType(wdlSyntaxErrorFormatter)
+        ast.womType(wdlSyntaxErrorFormatter)
     }
   }
 }

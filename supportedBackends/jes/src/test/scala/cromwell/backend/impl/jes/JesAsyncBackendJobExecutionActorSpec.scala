@@ -76,7 +76,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       |}
     """.stripMargin
 
-  val Inputs: Map[FullyQualifiedName, WdlValue] = Map("wf_sup.sup.addressee" -> WdlString("dog"))
+  val Inputs: Map[FullyQualifiedName, WomValue] = Map("wf_sup.sup.addressee" -> WomString("dog"))
 
   val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
 
@@ -337,13 +337,13 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   it should "map GCS paths and *only* GCS paths to local" taggedAs PostWomTest ignore {
     val stringKey = "abc"
-    val stringVal = WdlString("abc")
+    val stringVal = WomString("abc")
     val localFileKey = "lf"
-    val localFileVal = WdlFile("/blah/abc")
+    val localFileVal = WomFile("/blah/abc")
     val gcsFileKey = "gcsf"
-    val gcsFileVal = WdlFile("gs://blah/abc")
+    val gcsFileVal = WomFile("gs://blah/abc")
 
-    val inputs: Map[String, WdlValue] = Map(
+    val inputs: Map[String, WomValue] = Map(
       stringKey -> stringVal,
       localFileKey -> localFileVal,
       gcsFileKey -> gcsFileVal
@@ -372,24 +372,24 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
           props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
 
-        def gcsPathToLocal(wdlValue: WdlValue): WdlValue = {
-          WdlFileMapper.mapWdlFiles(testActorRef.underlyingActor.mapCommandLineWdlFile)(wdlValue).get
+        def gcsPathToLocal(womValue: WomValue): WomValue = {
+          WdlFileMapper.mapWdlFiles(testActorRef.underlyingActor.mapCommandLineWdlFile)(womValue).get
         }
 
         val mappedInputs = jobDescriptor.fullyQualifiedInputs mapValues gcsPathToLocal
 
         mappedInputs(stringKey) match {
-          case WdlString(v) => assert(v.equalsIgnoreCase(stringVal.value))
+          case WomString(v) => assert(v.equalsIgnoreCase(stringVal.value))
           case _ => fail("test setup error")
         }
 
         mappedInputs(localFileKey) match {
-          case wdlFile: WdlFile => assert(wdlFile.value.equalsIgnoreCase(localFileVal.value))
+          case wdlFile: WomFile => assert(wdlFile.value.equalsIgnoreCase(localFileVal.value))
           case _ => fail("test setup error")
         }
 
         mappedInputs(gcsFileKey) match {
-          case wdlFile: WdlFile => assert(wdlFile.value.equalsIgnoreCase("/cromwell_root/blah/abc"))
+          case wdlFile: WomFile => assert(wdlFile.value.equalsIgnoreCase("/cromwell_root/blah/abc"))
           case _ => fail("test setup error")
         }
       case Left(badtimes) => fail(badtimes.toList.mkString(", "))
@@ -400,22 +400,22 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     Seq.empty[ImportResolver]).get
   
   it should "generate correct JesFileInputs from a WdlMap" taggedAs PostWomTest ignore {
-    val inputs: Map[String, WdlValue] = Map(
-      "stringToFileMap" -> WdlMap(WdlMapType(WdlStringType, WdlFileType), Map(
-        WdlString("stringTofile1") -> WdlFile("gs://path/to/stringTofile1"),
-        WdlString("stringTofile2") -> WdlFile("gs://path/to/stringTofile2")
+    val inputs: Map[String, WomValue] = Map(
+      "stringToFileMap" -> WomMap(WomMapType(WomStringType, WomFileType), Map(
+        WomString("stringTofile1") -> WomFile("gs://path/to/stringTofile1"),
+        WomString("stringTofile2") -> WomFile("gs://path/to/stringTofile2")
       )),
-      "fileToStringMap" -> WdlMap(WdlMapType(WdlFileType, WdlStringType), Map(
-        WdlFile("gs://path/to/fileToString1") -> WdlString("fileToString1"),
-        WdlFile("gs://path/to/fileToString2") -> WdlString("fileToString2")
+      "fileToStringMap" -> WomMap(WomMapType(WomFileType, WomStringType), Map(
+        WomFile("gs://path/to/fileToString1") -> WomString("fileToString1"),
+        WomFile("gs://path/to/fileToString2") -> WomString("fileToString2")
       )),
-      "fileToFileMap" -> WdlMap(WdlMapType(WdlFileType, WdlFileType), Map(
-        WdlFile("gs://path/to/fileToFile1Key") -> WdlFile("gs://path/to/fileToFile1Value"),
-        WdlFile("gs://path/to/fileToFile2Key") -> WdlFile("gs://path/to/fileToFile2Value")
+      "fileToFileMap" -> WomMap(WomMapType(WomFileType, WomFileType), Map(
+        WomFile("gs://path/to/fileToFile1Key") -> WomFile("gs://path/to/fileToFile1Value"),
+        WomFile("gs://path/to/fileToFile2Key") -> WomFile("gs://path/to/fileToFile2Value")
       )),
-      "stringToString" -> WdlMap(WdlMapType(WdlStringType, WdlStringType), Map(
-        WdlString("stringToString1") -> WdlString("path/to/stringToString1"),
-        WdlString("stringToString2") -> WdlString("path/to/stringToString2")
+      "stringToString" -> WomMap(WomMapType(WomStringType, WomStringType), Map(
+        WomString("stringToString1") -> WomString("path/to/stringToString1"),
+        WomString("stringToString2") -> WomString("path/to/stringToString2")
       ))
     )
 
@@ -462,7 +462,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     }
   }
 
-  def makeJesActorRef(sampleWdl: SampleWdl, callName: LocallyQualifiedName, inputs: Map[FullyQualifiedName, WdlValue],
+  def makeJesActorRef(sampleWdl: SampleWdl, callName: LocallyQualifiedName, inputs: Map[FullyQualifiedName, WomValue],
                       functions: JesExpressionFunctions = TestableJesExpressionFunctions):
   TestActorRef[TestableJesJobExecutionActor] = {
     val womWorkflow = WdlNamespaceWithWorkflow.load(sampleWdl.asWorkflowSources(DockerAndDiskRuntime).workflowSource,
@@ -490,7 +490,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   it should "generate correct JesOutputs" taggedAs PostWomTest ignore {
     val inputs = Map(
-      "in" -> WdlFile("gs://blah/b/c.txt")
+      "in" -> WomFile("gs://blah/b/c.txt")
     )
     val jesBackend = makeJesActorRef(SampleWdl.FilePassingWorkflow, "a", inputs).underlyingActor
     val jobDescriptor = jesBackend.jobDescriptor
@@ -506,12 +506,12 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   it should "generate correct JesInputs when a command line contains a write_lines call in it" taggedAs PostWomTest ignore {
     val inputs = Map(
-      "strs" -> WdlArray(WdlArrayType(WdlStringType), Seq("A", "B", "C").map(WdlString))
+      "strs" -> WomArray(WomArrayType(WomStringType), Seq("A", "B", "C").map(WomString))
     )
 
     class TestJesExpressionFunctions extends JesExpressionFunctions(TestableStandardExpressionFunctionsParams) {
-      override def writeFile(path: String, content: String): Future[WdlFile] = {
-        Future.fromTry(Success(WdlFile(s"gs://some/path/file.txt")))
+      override def writeFile(path: String, content: String): Future[WomFile] = {
+        Future.fromTry(Success(WomFile(s"gs://some/path/file.txt")))
       }
     }
 
@@ -527,9 +527,9 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   }
 
   it should "generate correct JesFileInputs from a WdlArray" taggedAs PostWomTest ignore {
-    val inputs: Map[String, WdlValue] = Map(
+    val inputs: Map[String, WomValue] = Map(
       "fileArray" ->
-        WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile("gs://path/to/file1"), WdlFile("gs://path/to/file2")))
+        WomArray(WomArrayType(WomFileType), Seq(WomFile("gs://path/to/file1"), WomFile("gs://path/to/file2")))
     )
 
     val womWorkflow = dockerAndDiskWdlNamespace.workflow.womDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
@@ -561,9 +561,9 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   }
 
   it should "generate correct JesFileInputs from a WdlFile" taggedAs PostWomTest ignore {
-    val inputs: Map[String, WdlValue] = Map(
-      "file1" -> WdlFile("gs://path/to/file1"),
-      "file2" -> WdlFile("gs://path/to/file2")
+    val inputs: Map[String, WomValue] = Map(
+      "file1" -> WomFile("gs://path/to/file1"),
+      "file2" -> WomFile("gs://path/to/file2")
     )
 
     val womWorkflow = dockerAndDiskWdlNamespace.workflow.womDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
@@ -609,11 +609,11 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
         DefaultPathBuilder.get("/cromwell_root/path/to/file5"), workingDisk)
     )
     val outputValues = Seq(
-      WdlFile("/cromwell_root/path/to/file1"),
-      WdlArray(WdlArrayType(WdlFileType), Seq(
-        WdlFile("/cromwell_root/path/to/file2"), WdlFile("/cromwell_root/path/to/file3"))),
-      WdlMap(WdlMapType(WdlFileType, WdlFileType), Map(
-        WdlFile("/cromwell_root/path/to/file4") -> WdlFile("/cromwell_root/path/to/file5")
+      WomFile("/cromwell_root/path/to/file1"),
+      WomArray(WomArrayType(WomFileType), Seq(
+        WomFile("/cromwell_root/path/to/file2"), WomFile("/cromwell_root/path/to/file3"))),
+      WomMap(WomMapType(WomFileType, WomFileType), Map(
+        WomFile("/cromwell_root/path/to/file4") -> WomFile("/cromwell_root/path/to/file5")
       ))
     )
 
@@ -635,18 +635,18 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
-    def wdlValueToGcsPath(jesOutputs: Set[JesFileOutput])(wdlValue: WdlValue): WdlValue = {
-      WdlFileMapper.mapWdlFiles(testActorRef.underlyingActor.wdlFileToGcsPath(jesOutputs))(wdlValue).get
+    def wdlValueToGcsPath(jesOutputs: Set[JesFileOutput])(womValue: WomValue): WomValue = {
+      WdlFileMapper.mapWdlFiles(testActorRef.underlyingActor.wdlFileToGcsPath(jesOutputs))(womValue).get
     }
 
     val result = outputValues map wdlValueToGcsPath(jesOutputs)
     result should have size 3
-    result should contain(WdlFile("gs://path/to/file1"))
-    result should contain(WdlArray(WdlArrayType(WdlFileType),
-      Seq(WdlFile("gs://path/to/file2"), WdlFile("gs://path/to/file3")))
+    result should contain(WomFile("gs://path/to/file1"))
+    result should contain(WomArray(WomArrayType(WomFileType),
+      Seq(WomFile("gs://path/to/file2"), WomFile("gs://path/to/file3")))
     )
-    result should contain(WdlMap(WdlMapType(WdlFileType, WdlFileType),
-      Map(WdlFile("gs://path/to/file4") -> WdlFile("gs://path/to/file5")))
+    result should contain(WomMap(WomMapType(WomFileType, WomFileType),
+      Map(WomFile("gs://path/to/file4") -> WomFile("gs://path/to/file5")))
     )
   }
 

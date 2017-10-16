@@ -12,7 +12,7 @@ import wom.callable.Callable.RequiredInputDefinition
 import wom.callable.{Callable, TaskDefinition, WorkflowDefinition}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
-import wom.types.{WdlFileType, WdlStringType, WdlType}
+import wom.types.{WomFileType, WomStringType, WomType}
 
 class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
   import TestSetup._
@@ -35,7 +35,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
   "A Cwl object for 1st-tool" should "convert to WOM" in {
     def validateWom(callable: Callable) = callable match {
       case taskDefinition: TaskDefinition =>
-        taskDefinition.inputs shouldBe List(RequiredInputDefinition(s"message", WdlStringType))
+        taskDefinition.inputs shouldBe List(RequiredInputDefinition(s"message", WomStringType))
         ()
 
       case _ => fail("not a task definition")
@@ -59,11 +59,11 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
       womDefinition <- wf.womDefinition
     } yield validateWom(womDefinition)).leftMap(e => throw new RuntimeException(s"error! $e"))
 
-    def shouldBeRequiredGraphInputNode(node: GraphNode, localName: String, wdlType: WdlType): Unit = {
+    def shouldBeRequiredGraphInputNode(node: GraphNode, localName: String, womType: WomType): Unit = {
       node.isInstanceOf[RequiredGraphInputNode] shouldBe true
       val requiredGraphInputNode = node.asInstanceOf[RequiredGraphInputNode]
       requiredGraphInputNode.localName shouldBe localName
-      requiredGraphInputNode.womType shouldBe wdlType
+      requiredGraphInputNode.womType shouldBe womType
       ()
     }
 
@@ -88,12 +88,12 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
           untarUpstream should have size 2
           untarUpstream.collectFirst({
             case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/extractfile" =>
-              shouldBeRequiredGraphInputNode(exprNode.inputPorts.head.upstream.graphNode, "ex", WdlStringType)
+              shouldBeRequiredGraphInputNode(exprNode.inputPorts.head.upstream.graphNode, "ex", WomStringType)
           }).getOrElse(fail("Can't find expression node for ex"))
           
           untarUpstream.collectFirst({
             case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/tarfile" =>
-              shouldBeRequiredGraphInputNode(exprNode.inputPorts.head.upstream.graphNode, "inp", WdlFileType)
+              shouldBeRequiredGraphInputNode(exprNode.inputPorts.head.upstream.graphNode, "inp", WomFileType)
           }).getOrElse(fail("Can't find expression node for inp"))
 
           val compileUpstreamExpressionPort = nodes.collectFirst {

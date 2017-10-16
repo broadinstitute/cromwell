@@ -13,8 +13,8 @@ import wom.JobOutput
 import wom.callable.Callable.{InputDefinition, OutputDefinition, RequiredInputDefinition}
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.WomIdentifier
-import wom.types.{WdlIntegerType, WdlType}
-import wom.values.{WdlFile, WdlInteger, WdlValue}
+import wom.types.{WomIntegerType, WomType}
+import wom.values.{WomFile, WomInteger, WomValue}
 
 class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
   behavior of "OutputEvaluator"
@@ -23,34 +23,34 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
   def o1Expression = new WomExpression {
     override def sourceString: String = "o1"
     override def inputs: Set[String] = Set("input")
-    override def evaluateValue(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue] = {
+    override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
       Validated.fromOption(inputValues.get("input"), NonEmptyList.one("Can't find a value for 'input'"))
     }
-    override def evaluateType(inputTypes: Map[String, WdlType]): ErrorOr[WdlType] = ???
-    override def evaluateFiles(inputTypes: Map[String, WdlValue], ioFunctionSet: IoFunctionSet, coerceTo: WdlType): ErrorOr[Set[WdlFile]] = ???
+    override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = ???
+    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = ???
   }
 
   // Depends on a previous output
   def o2Expression = new WomExpression {
     override def sourceString: String = "o2"
     override def inputs: Set[String] = Set("o1")
-    override def evaluateValue(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue] = {
+    override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
       Validated.fromOption(inputValues.get("o1"), NonEmptyList.one("Can't find a value for 'o1'"))
     }
-    override def evaluateType(inputTypes: Map[String, WdlType]): ErrorOr[WdlType] = ???
-    override def evaluateFiles(inputTypes: Map[String, WdlValue], ioFunctionSet: IoFunctionSet, coerceTo: WdlType): ErrorOr[Set[WdlFile]] = ???
+    override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = ???
+    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = ???
   }
 
   def invalidWomExpression1 = new WomExpression {
     override def sourceString: String = "invalid1"
     override def inputs: Set[String] = Set.empty
-    override def evaluateValue(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue] = {
+    override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
       "Invalid expression 1".invalidNel
     }
-    override def evaluateType(inputTypes: Map[String, WdlType]): ErrorOr[WdlType] = {
+    override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = {
       "Invalid expression 1".invalidNel
     }
-    override def evaluateFiles(inputTypes: Map[String, WdlValue], ioFunctionSet: IoFunctionSet, coerceTo: WdlType): ErrorOr[Set[WdlFile]] = {
+    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = {
       "Invalid expression 1".invalidNel
     }
   }
@@ -58,13 +58,13 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
   def invalidWomExpression2 = new WomExpression {
     override def sourceString: String = "invalid2"
     override def inputs: Set[String] = Set.empty
-    override def evaluateValue(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue] = {
+    override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
       "Invalid expression 2".invalidNel
     }
-    override def evaluateType(inputTypes: Map[String, WdlType]): ErrorOr[WdlType] = {
+    override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = {
       "Invalid expression 2".invalidNel
     }
-    override def evaluateFiles(inputTypes: Map[String, WdlValue], ioFunctionSet: IoFunctionSet, coerceTo: WdlType): ErrorOr[Set[WdlFile]] = {
+    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = {
       "Invalid expression 2".invalidNel
     }
   }
@@ -74,25 +74,25 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
   def throwingWomExpression = new WomExpression {
     override def sourceString: String = "throwing"
     override def inputs: Set[String] = Set.empty
-    override def evaluateValue(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ErrorOr[WdlValue] = {
+    override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
       throw exception
     }
-    override def evaluateType(inputTypes: Map[String, WdlType]): ErrorOr[WdlType] = {
+    override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = {
       throw exception
     }
-    override def evaluateFiles(inputTypes: Map[String, WdlValue], ioFunctionSet: IoFunctionSet, coerceTo: WdlType): ErrorOr[Set[WdlFile]] = {
+    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = {
       throw exception
     }
   }
 
-  val mockInputs: Map[InputDefinition, WdlValue] = Map(
-    RequiredInputDefinition("input", WdlIntegerType) -> WdlInteger(5)
+  val mockInputs: Map[InputDefinition, WomValue] = Map(
+    RequiredInputDefinition("input", WomIntegerType) -> WomInteger(5)
   )
   
   it should "evaluate valid jobs outputs" in {
     val mockOutputs = List (
-      OutputDefinition("o1", WdlIntegerType, o1Expression),
-      OutputDefinition("o2", WdlIntegerType, o2Expression)
+      OutputDefinition("o1", WomIntegerType, o1Expression),
+      OutputDefinition("o2", WomIntegerType, o2Expression)
     )
     
     val call = WomMocks.mockTaskCall(WomIdentifier("call"), WomMocks.EmptyTaskDefinition.copy(outputs = mockOutputs))
@@ -101,8 +101,8 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     
     OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet) match {
       case ValidJobOutputs(outputs) => outputs shouldBe Map(
-        "o1" -> JobOutput(WdlInteger(5)),
-        "o2" -> JobOutput(WdlInteger(5))
+        "o1" -> JobOutput(WomInteger(5)),
+        "o2" -> JobOutput(WomInteger(5))
       )
       case _ => fail("Failed to evaluate outputs")
     }
@@ -110,9 +110,9 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
 
   it should "return an InvalidJobOutputs if the evaluation returns ErrorOrs" in {
     val mockOutputs = List (
-      OutputDefinition("o1", WdlIntegerType, o1Expression),
-      OutputDefinition("invalid1", WdlIntegerType, invalidWomExpression1),
-      OutputDefinition("invalid2", WdlIntegerType, invalidWomExpression2)
+      OutputDefinition("o1", WomIntegerType, o1Expression),
+      OutputDefinition("invalid1", WomIntegerType, invalidWomExpression1),
+      OutputDefinition("invalid2", WomIntegerType, invalidWomExpression2)
     )
 
     val call = WomMocks.mockTaskCall(WomIdentifier("call"), WomMocks.EmptyTaskDefinition.copy(outputs = mockOutputs))
@@ -129,8 +129,8 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
 
   it should "return an JobOutputsEvaluationException if the evaluation throws an exception" in {
     val mockOutputs = List (
-      OutputDefinition("o1", WdlIntegerType, o1Expression),
-      OutputDefinition("invalid1", WdlIntegerType, throwingWomExpression)
+      OutputDefinition("o1", WomIntegerType, o1Expression),
+      OutputDefinition("invalid1", WomIntegerType, throwingWomExpression)
     )
 
     val call = WomMocks.mockTaskCall(WomIdentifier("call"), WomMocks.EmptyTaskDefinition.copy(outputs = mockOutputs))

@@ -27,22 +27,22 @@ case class JesRuntimeAttributes(cpu: Int,
 object JesRuntimeAttributes {
 
   val ZonesKey = "zones"
-  private val ZonesDefaultValue = WdlString("us-central1-b")
+  private val ZonesDefaultValue = WomString("us-central1-b")
 
   val PreemptibleKey = "preemptible"
   private val preemptibleValidationInstance = new IntRuntimeAttributesValidation(PreemptibleKey)
-  private val PreemptibleDefaultValue = WdlInteger(0)
+  private val PreemptibleDefaultValue = WomInteger(0)
 
   val BootDiskSizeKey = "bootDiskSizeGb"
   private val bootDiskValidationInstance = new IntRuntimeAttributesValidation(BootDiskSizeKey)
-  private val BootDiskDefaultValue = WdlInteger(10)
+  private val BootDiskDefaultValue = WomInteger(10)
 
   val NoAddressKey = "noAddress"
   private val noAddressValidationInstance = new BooleanRuntimeAttributesValidation(NoAddressKey)
-  private val NoAddressDefaultValue = WdlBoolean(false)
+  private val NoAddressDefaultValue = WomBoolean(false)
 
   val DisksKey = "disks"
-  private val DisksDefaultValue = WdlString(s"${JesWorkingDisk.Name} 10 SSD")
+  private val DisksDefaultValue = WomString(s"${JesWorkingDisk.Name} 10 SSD")
 
   private val MemoryDefaultValue = "2 GB"
 
@@ -120,11 +120,11 @@ object JesRuntimeAttributes {
 object ZonesValidation extends RuntimeAttributesValidation[Vector[String]] {
   override def key: String = JesRuntimeAttributes.ZonesKey
 
-  override def coercion: Traversable[WdlType] = Set(WdlStringType, WdlArrayType(WdlStringType))
+  override def coercion: Traversable[WomType] = Set(WomStringType, WomArrayType(WomStringType))
 
-  override protected def validateValue: PartialFunction[WdlValue, ErrorOr[Vector[String]]] = {
-    case WdlString(s) => s.split("\\s+").toVector.validNel
-    case WdlArray(wdlType, value) if wdlType.memberType == WdlStringType =>
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Vector[String]]] = {
+    case WomString(s) => s.split("\\s+").toVector.validNel
+    case WomArray(womType, value) if womType.memberType == WomStringType =>
       value.map(_.valueString).toVector.validNel
   }
 
@@ -135,11 +135,11 @@ object ZonesValidation extends RuntimeAttributesValidation[Vector[String]] {
 object DisksValidation extends RuntimeAttributesValidation[Seq[JesAttachedDisk]] {
   override def key: String = JesRuntimeAttributes.DisksKey
 
-  override def coercion: Traversable[WdlType] = Set(WdlStringType, WdlArrayType(WdlStringType))
+  override def coercion: Traversable[WomType] = Set(WomStringType, WomArrayType(WomStringType))
 
-  override protected def validateValue: PartialFunction[WdlValue, ErrorOr[Seq[JesAttachedDisk]]] = {
-    case WdlString(value) => validateLocalDisks(value.split(",\\s*").toSeq)
-    case WdlArray(wdlType, values) if wdlType.memberType == WdlStringType =>
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Seq[JesAttachedDisk]]] = {
+    case WomString(value) => validateLocalDisks(value.split(",\\s*").toSeq)
+    case WomArray(womType, values) if womType.memberType == WomStringType =>
       validateLocalDisks(values.map(_.valueString))
   }
 

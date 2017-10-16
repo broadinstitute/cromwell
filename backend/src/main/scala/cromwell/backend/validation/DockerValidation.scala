@@ -22,10 +22,10 @@ class DockerValidation extends StringRuntimeAttributesValidation(RuntimeAttribut
 
   override protected def missingValueMessage: String = "Can't find an attribute value for key docker"
 
-  override protected def invalidValueMessage(value: WdlValue): String = super.missingValueMessage
+  override protected def invalidValueMessage(value: WomValue): String = super.missingValueMessage
 
   // NOTE: Docker's current test specs don't like WdlInteger, etc. auto converted to WdlString.
-  override protected def validateValue: PartialFunction[WdlValue, ErrorOr[String]] = {
-    case WdlString(value) => value.validNel
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[String]] = {
+    case WomString(value) => value.validNel
   }
 }

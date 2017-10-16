@@ -6,7 +6,7 @@ import wdl.AstTools.EnhancedAstNode
 import wdl4s.parser.WdlParser.{Ast, AstNode}
 import wom.WorkflowInput
 import wom.graph._
-import wom.types.{WdlArrayType, WdlOptionalType, WdlType}
+import wom.types.{WomArrayType, WomOptionalType, WomType}
 
 object DeclarationInterface {
   /**
@@ -27,14 +27,14 @@ object DeclarationInterface {
     *   Array[String] s2 = a.o # Outside the scatter it's an Array[String]
     * }
     */
-  def relativeWdlType(from: Scope, target: DeclarationInterface, wdlType: WdlType): WdlType = {
+  def relativeWdlType(from: Scope, target: DeclarationInterface, womType: WomType): WomType = {
     target.closestCommonAncestor(from) map { ancestor =>
-      target.ancestrySafe.takeWhile(_ != ancestor).foldLeft(wdlType){
-        case (acc, _: Scatter) => WdlArrayType(acc)
-        case (acc, _: If) => WdlOptionalType(acc)
+      target.ancestrySafe.takeWhile(_ != ancestor).foldLeft(womType){
+        case (acc, _: Scatter) => WomArrayType(acc)
+        case (acc, _: If) => WomOptionalType(acc)
         case (acc, _) => acc
       }
-    } getOrElse wdlType
+    } getOrElse womType
   }
 }
 
@@ -54,31 +54,31 @@ object DeclarationInterface {
   * Both the definition of test_file and wf_string are declarations
   */
 trait DeclarationInterface extends WdlGraphNodeWithUpstreamReferences {
-  def wdlType: WdlType
+  def womType: WomType
   def expression: Option[WdlExpression]
   def ast: Ast
 
-  def relativeWdlType(from: Scope): WdlType = DeclarationInterface.relativeWdlType(from, this, wdlType)
+  def relativeWdlType(from: Scope): WomType = DeclarationInterface.relativeWdlType(from, this, womType)
 
   def asTaskInput: Option[TaskInput] = expression match {
     case Some(_) => None
-    case None => Option(TaskInput(unqualifiedName, wdlType))
+    case None => Option(TaskInput(unqualifiedName, womType))
   }
 
   def asWorkflowInput: Option[WorkflowInput] = expression match {
     case Some(_) => None
-    case None => Some(WorkflowInput(fullyQualifiedName, wdlType))
+    case None => Some(WorkflowInput(fullyQualifiedName, womType))
   }
 
   def toWdlString: String = {
-    val expr = expression.map(e => s" = ${e.toWdlString}").getOrElse("")
-    s"${wdlType.toWdlString} $unqualifiedName$expr"
+    val expr = expression.map(e => s" = ${e.toWomString}").getOrElse("")
+    s"${womType.toDisplayString} $unqualifiedName$expr"
   }
 
   final lazy val upstreamReferences = expression.toSeq.flatMap(_.variableReferences)
 
   override def toString: String = {
-    s"[Declaration type=${wdlType.toWdlString} name=$unqualifiedName expr=${expression.map(_.toWdlString)}]"
+    s"[Declaration type=${womType.toDisplayString} name=$unqualifiedName expr=${expression.map(_.toWomString)}]"
   }
 }
 
@@ -102,7 +102,7 @@ object Declaration {
 
   def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter, parent: Option[Scope]): Declaration = {
     Declaration(
-      ast.getAttribute("type").wdlType(wdlSyntaxErrorFormatter),
+      ast.getAttribute("type").womType(wdlSyntaxErrorFormatter),
       ast.getAttribute("name").sourceString,
       ast.getAttribute("expression") match {
         case a: AstNode => Option(WdlExpression(a))
@@ -129,20 +129,20 @@ object Declaration {
       val womExpression = WdlWomExpression(wdlExpression, None)
       for {
         uninstantiatedExpression <- WdlWomExpression.findInputsforExpression(inputName, womExpression, localLookup, outerLookup)
-        graphOutputNode <- ExpressionBasedGraphOutputNode.linkWithInputs(decl.womIdentifier, decl.wdlType, womExpression, uninstantiatedExpression.inputMapping)
+        graphOutputNode <- ExpressionBasedGraphOutputNode.linkWithInputs(decl.womIdentifier, decl.womType, womExpression, uninstantiatedExpression.inputMapping)
       } yield GraphOutputDeclarationNode(graphOutputNode)
     }
 
     decl match {
-      case Declaration(opt: WdlOptionalType, _, None, _, _) => Valid(InputDeclarationNode(OptionalGraphInputNode(decl.womIdentifier, opt)))
-      case Declaration(_, _, None, _, _) => Valid(InputDeclarationNode(RequiredGraphInputNode(decl.womIdentifier, decl.wdlType)))
+      case Declaration(opt: WomOptionalType, _, None, _, _) => Valid(InputDeclarationNode(OptionalGraphInputNode(decl.womIdentifier, opt)))
+      case Declaration(_, _, None, _, _) => Valid(InputDeclarationNode(RequiredGraphInputNode(decl.womIdentifier, decl.womType)))
       case Declaration(_, _, Some(expr), _, _) => declarationAsExpressionNode(expr)
       case WorkflowOutput(_, _, expr, _, _) => workflowOutputAsGraphOutputNode(expr)
     }
   }
 }
 
-case class Declaration(wdlType: WdlType,
+case class Declaration(womType: WomType,
                        unqualifiedName: String,
                        expression: Option[WdlExpression],
                        override val parent: Option[Scope],

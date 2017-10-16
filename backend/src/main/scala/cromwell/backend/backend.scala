@@ -10,7 +10,7 @@ import _root_.wdl._
 import wom.callable.WorkflowDefinition
 import wom.executable.Executable.ResolvedExecutableInputs
 import wom.graph.TaskCallNode
-import wom.values.{WdlValue, WomEvaluatedCallInputs}
+import wom.values.{WomValue, WomEvaluatedCallInputs}
 
 import scala.util.Try
 
@@ -29,7 +29,7 @@ case class BackendJobDescriptorKey(call: TaskCallNode, index: Option[Int], attem
   */
 case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                                 key: BackendJobDescriptorKey,
-                                runtimeAttributes: Map[LocallyQualifiedName, WdlValue],
+                                runtimeAttributes: Map[LocallyQualifiedName, WomValue],
                                 inputDeclarations: WomEvaluatedCallInputs,
                                 maybeCallCachingEligible: MaybeCallCachingEligible,
                                 prefetchedKvStoreEntries: Map[String, KvResponse]) {
@@ -79,6 +79,6 @@ case class BackendConfigurationDescriptor(backendConfig: Config, globalConfig: C
     Option(backendConfig.getConfig("default-runtime-attributes")) else None
 }
 
-final case class AttemptedLookupResult(name: String, value: Try[WdlValue]) {
+final case class AttemptedLookupResult(name: String, value: Try[WomValue]) {
   def toPair = name -> value
 }

@@ -10,11 +10,11 @@ import cromwell.backend.validation.RuntimeAttributesKeys
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, RuntimeAttributeDefinition}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
-import cromwell.core.simpleton.WdlValueSimpleton
+import cromwell.core.simpleton.WomValueSimpleton
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.CallCacheHashingJobActorData._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CacheMiss
-import wom.values.WdlFile
+import wom.values.WomFile
 
 /**
   * Actor responsible for calculating individual as well as aggregated hashes for a job.
@@ -117,20 +117,20 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
   }
 
   private def initializeCCHJA() = {
-    import cromwell.core.simpleton.WdlValueSimpleton._
+    import cromwell.core.simpleton.WomValueSimpleton._
 
     val unqualifiedInputs = jobDescriptor.inputDeclarations map { case (declaration, value) => declaration.name -> value }
 
     val inputSimpletons = unqualifiedInputs.simplify
     val (fileInputSimpletons, nonFileInputSimpletons) = inputSimpletons partition {
-      case WdlValueSimpleton(_, _: WdlFile) => true
+      case WomValueSimpleton(_, _: WomFile) => true
       case _ => false
     }
 
     val initialHashes = calculateInitialHashes(nonFileInputSimpletons, fileInputSimpletons)
 
     val fileHashRequests = fileInputSimpletons collect {
-      case WdlValueSimpleton(name, x: WdlFile) => SingleFileHashRequest(jobDescriptor.key, HashKey(true, "input", s"File $name"), x, initializationData)
+      case WomValueSimpleton(name, x: WomFile) => SingleFileHashRequest(jobDescriptor.key, HashKey(true, "input", s"File $name"), x, initializationData)
     }
 
     val hashingJobActorData = CallCacheHashingJobActorData(fileHashRequests.toList, callCacheReadingJobActor)
@@ -145,7 +145,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
     if (hashingJobActorData.callCacheReadingJobActor.isEmpty) self ! NextBatchOfFileHashesRequest
   }
 
-  private def calculateInitialHashes(nonFileInputs: Iterable[WdlValueSimpleton], fileInputs: Iterable[WdlValueSimpleton]): Set[HashResult] = {
+  private def calculateInitialHashes(nonFileInputs: Iterable[WomValueSimpleton], fileInputs: Iterable[WomValueSimpleton]): Set[HashResult] = {
 
     val commandTemplateHash = HashResult(HashKey("command template"), jobDescriptor.call.callable.commandTemplateString.md5HashValue)
     val backendNameHash = HashResult(HashKey("backend name"), backendName.md5HashValue)
@@ -155,16 +155,16 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
     val runtimeAttributeHashes = runtimeAttributeDefinitions map { definition => jobDescriptor.runtimeAttributes.get(definition.name) match {
       case Some(_) if definition.name == RuntimeAttributesKeys.DockerKey && callCachingEligible.dockerHash.isDefined =>
         HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name), callCachingEligible.dockerHash.get.md5HashValue)
-      case Some(wdlValue) => HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name), wdlValue.valueString.md5HashValue)
+      case Some(womValue) => HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name), womValue.valueString.md5HashValue)
       case None => HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name), UnspecifiedRuntimeAttributeHashValue)
     }}
 
     val inputHashResults = nonFileInputs map {
-      case WdlValueSimpleton(name, value) => HashResult(HashKey("input", s"${value.wdlType.toWdlString} $name"),  value.toWdlString.md5HashValue)
+      case WomValueSimpleton(name, value) => HashResult(HashKey("input", s"${value.womType.toDisplayString} $name"),  value.toWomString.md5HashValue)
     }
 
     val outputExpressionHashResults = jobDescriptor.call.callable.outputs map { output =>
-      HashResult(HashKey("output expression", s"${output.womType.toWdlString} ${output.name}"), output.expression.sourceString.md5HashValue)
+      HashResult(HashKey("output expression", s"${output.womType.toDisplayString} ${output.name}"), output.expression.sourceString.md5HashValue)
     }
 
     // Build these all together for the final set of initial hashes:

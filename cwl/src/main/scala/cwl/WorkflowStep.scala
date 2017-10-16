@@ -19,8 +19,8 @@ import wom.expression.PlaceholderWomExpression
 import wom.graph.CallNode._
 import wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 import wom.graph._
-import wom.types.WdlAnyType
-import wom.values.WdlValue
+import wom.types.WomAnyType
+import wom.values.WomValue
 
 import scala.language.postfixOps
 import scala.util.Try
@@ -190,7 +190,7 @@ case class WorkflowStep(
           // Optional input without mapping, defaults to empty value
           case optional: OptionalInputDefinition =>
             InputDefinitionFold(
-              mappings = Map(optional -> Coproduct[InputDefinitionPointer](optional.womType.none: WdlValue))
+              mappings = Map(optional -> Coproduct[InputDefinitionPointer](optional.womType.none: WomValue))
             ).validNel
         }
       }
@@ -245,7 +245,7 @@ object WorkflowStep {
 
   implicit class EnhancedWorkflowStepInput(val workflowStepInput: WorkflowStepInput) extends AnyVal {
     def toExpressionNode(sourceMappings: Map[String, OutputPort]): ErrorOr[ExpressionNode] = {
-      val womExpression = PlaceholderWomExpression(sourceMappings.keySet, WdlAnyType)
+      val womExpression = PlaceholderWomExpression(sourceMappings.keySet, WomAnyType)
       val identifier = WomIdentifier(workflowStepInput.id)
       ExpressionNode.linkWithInputs(identifier, womExpression, sourceMappings)
     }

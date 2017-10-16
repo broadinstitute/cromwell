@@ -49,9 +49,9 @@ class FileSizeSpec extends FlatSpec with Matchers {
   val tempDir = Files.createTempDir
   tempDir.deleteOnExit
 
-  def testOverUnder(command: String, n: Int, f: ReadLikeFunctions => (Seq[Try[WdlValue]] => Try[WdlValue])) = {
+  def testOverUnder(command: String, n: Int, f: ReadLikeFunctions => (Seq[Try[WomValue]] => Try[WomValue])) = {
 
-    def testInner(n: Int, test: Try[WdlValue] => Unit) = {
+    def testInner(n: Int, test: Try[WomValue] => Unit) = {
 
       def createTempFileOfSize(size: Int): Path = {
 
@@ -66,7 +66,7 @@ class FileSizeSpec extends FlatSpec with Matchers {
       }
 
       val file = createTempFileOfSize(n)
-      val params = Seq(Try(WdlString(file.toString)))
+      val params = Seq(Try(WomString(file.toString)))
 
       f(rlf)(params) match {
         case t => test(t)
@@ -98,7 +98,7 @@ class FileSizeSpec extends FlatSpec with Matchers {
 
   //test all the functions
   // TODO WOM: Restore those tests. Should they be in wdl4s ? Hard to tell without https://github.com/broadinstitute/cromwell/issues/2611
-  List[(String, Int, ReadLikeFunctions => (Seq[Try[WdlValue]] => Try[WdlValue]))](
+  List[(String, Int, ReadLikeFunctions => (Seq[Try[WomValue]] => Try[WomValue]))](
 //    ("lines", _readLinesLimit, _.read_lines),
 //    ("int", _readIntLimit, _.read_int),
 //    ("map", _readMapLimit, _.read_map),

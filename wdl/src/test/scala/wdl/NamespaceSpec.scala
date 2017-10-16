@@ -1,6 +1,6 @@
 package wdl
 
-import wom.values.WdlString
+import wom.values.WomString
 
 import scala.util.{Failure, Success, Try}
 
@@ -11,7 +11,7 @@ class NamespaceSpec extends WdlTest {
 
     "coerceRawInputs (0)" in {
       namespace.coerceRawInputs(Map("three_step.cgrep.pattern" -> "abc")).get shouldEqual Map(
-        "three_step.cgrep.pattern" -> WdlString("abc")
+        "three_step.cgrep.pattern" -> WomString("abc")
       )
     }
 

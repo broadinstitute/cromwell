@@ -29,7 +29,7 @@ import wom.core.CallOutputs
 import wom.expression.IoFunctionSet
 import wom.graph.GraphNodePort.{InputPort, OutputPort}
 import wom.graph._
-import wom.types.WdlType
+import wom.types.WomType
 import wom.values._
 
 import scala.concurrent.duration._
@@ -126,7 +126,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     case Event(BypassedCallResults(callOutputs), stateData) =>
       handleCallBypassed(callOutputs, stateData)
     case Event(BypassedDeclaration(declKey), stateData) =>
-      handleDeclarationEvaluationSuccessful(declKey, WdlOptionalValue.none(declKey.womType), stateData)
+      handleDeclarationEvaluationSuccessful(declKey, WomOptionalValue.none(declKey.womType), stateData)
 
     // Failure
     // Initialization
@@ -282,7 +282,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     import cromwell.util.JsonFormatting.WdlValueJsonFormatter._
     import spray.json._
     
-    def handleSuccessfulWorkflowOutputs(outputs: Map[WomIdentifier, WdlValue]) = {
+    def handleSuccessfulWorkflowOutputs(outputs: Map[WomIdentifier, WomValue]) = {
       val fullyQualifiedOutputs = outputs map {
         case (identifier, value) => identifier.fullyQualifiedName.value -> value
       }
@@ -305,7 +305,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     workflowDescriptor.namespace.innerGraph.outputNodes
       .flatMap(_.outputPorts)
       .map(op => op.identifier -> data.outputStore.get(op, None)).toList  
-      .traverse[ErrorOr, (WomIdentifier, WdlValue)]({  
+      .traverse[ErrorOr, (WomIdentifier, WomValue)]({
         case (name, Some(value)) => (name -> value).validNel
         case (name, None) => s"Cannot find an output value for ${name.fullyQualifiedName.value}".invalidNel
       }).map(validOutputs => handleSuccessfulWorkflowOutputs(validOutputs.toMap))
@@ -333,7 +333,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     stay() using data.callExecutionSuccess(jobKey, outputs).addExecutions(jobExecutionMap)
   }
 
-  private def handleDeclarationEvaluationSuccessful(key: ExpressionKey, value: WdlValue, data: WorkflowExecutionActorData) = {
+  private def handleDeclarationEvaluationSuccessful(key: ExpressionKey, value: WomValue, data: WorkflowExecutionActorData) = {
     stay() using data.expressionEvaluationSuccess(key, value)
   }
 
@@ -449,7 +449,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   def bypassedScopeResults(jobKey: JobKey): BypassedScopeResults = {
     //    jobKey match {
     //      case callKey: CallKey => BypassedCallResults(
-    //        Map(callKey -> (callKey.scope.outputs map { callOutput => callOutput.unqualifiedName -> JobOutput(WdlOptionalValue.none(callOutput.wdlType)) } toMap)))
+    //        Map(callKey -> (callKey.scope.outputs map { callOutput => callOutput.unqualifiedName -> JobOutput(WdlOptionalValue.none(callOutput.womType)) } toMap)))
     //      case declKey: DeclarationKey => BypassedDeclaration(declKey)
     //      case _ => throw new RuntimeException("Only calls and declarations might generate results when Bypassed")
     //    }
@@ -475,7 +475,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     * Attempts to resolve an output port to a known value.
     * Curried for convenience.
     */
-  private def resolve(jobKey: JobKey, data: WorkflowExecutionActorData)(outputPort: OutputPort): ErrorOr[WdlValue] = {
+  private def resolve(jobKey: JobKey, data: WorkflowExecutionActorData)(outputPort: OutputPort): ErrorOr[WomValue] = {
     data.outputStore.get(outputPort, jobKey.index).map(_.validNel) orElse {
       workflowDescriptor.defaultExpressions.get(outputPort) map {
         case expr if expr.inputs.isEmpty => expr.evaluateValue(Map.empty, data.expressionLanguageFunctions)
@@ -562,8 +562,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     //        val conditionalStatus = if (b.value) ExecutionStatus.Done else ExecutionStatus.Bypassed
     //        val result = WorkflowExecutionDiff(conditionalKey.populate(workflowDescriptor.knownValues) + (conditionalKey -> conditionalStatus))
     //        result
-    //      case v: WdlValue => throw new RuntimeException(
-    //        s"'if' condition must evaluate to a boolean but instead got ${v.wdlType.toWdlString}")
+    //      case v: WomValue => throw new RuntimeException(
+    //        s"'if' condition must evaluate to a boolean but instead got ${v.womType.toWdlString}")
     //    }
     Failure(new Exception("BOOM"))
   }
@@ -581,8 +581,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
 //      scatterKey.scope.collection.evaluate(lookup, data.expressionLanguageFunctions) map {
 //        case WdlArrayLike(a) =>
 //          WorkflowExecutionDiff(scatterKey.populate(a.value.size, workflowDescriptor.knownValues) + (scatterKey -> ExecutionStatus.Done))
-//        case v: WdlValue => throw new RuntimeException(
-//          s"Scatter collection must evaluate to an array but instead got ${v.wdlType.toWdlString}")
+//        case v: WomValue => throw new RuntimeException(
+//          s"Scatter collection must evaluate to an array but instead got ${v.womType.toWdlString}")
 //      }
 //    }
     Failure(new Exception("BOOM"))
@@ -596,7 +596,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       case Failure(e) => Failure(new RuntimeException(s"Failed to collect output shards for call ${collector.tag}", e))
       case Success(outputs) =>
         val adjustedOutputs: CallOutputs = if (isInBypassed) {
-          outputs map { output => (output._1, JobOutput(WdlOptionalValue.none(output._2.wdlValue.wdlType) )) }
+          outputs map { output => (output._1, JobOutput(WomOptionalValue.none(output._2.womValue.womType) )) }
         } else outputs
         self ! ScatterCollectionSucceededResponse(collector, adjustedOutputs)
         Success(WorkflowExecutionDiff(Map(collector -> ExecutionStatus.Starting)))
@@ -670,7 +670,7 @@ object WorkflowExecutionActor {
 
   private case class ScatterCollectionSucceededResponse(collectorKey: CollectorKey, outputs: CallOutputs)
 
-  private case class ExpressionEvaluationSucceededResponse(declarationKey: ExpressionKey, value: WdlValue)
+  private case class ExpressionEvaluationSucceededResponse(declarationKey: ExpressionKey, value: WomValue)
 
   private case object CheckRunnable
 
@@ -796,7 +796,7 @@ object WorkflowExecutionActor {
     override lazy val tag = s"Expression-${node.localName}:${index.fromIndex}:$attempt"
     
     protected def instantiatedExpression: InstantiatedExpression
-    def womType: WdlType
+    def womType: WomType
     def singleOutputPort: OutputPort
     
     private lazy val inputs: Map[String, InputPort] = instantiatedExpression.inputMapping
@@ -804,7 +804,7 @@ object WorkflowExecutionActor {
       case (key, input) => key -> input.upstream
     }
 
-    def evaluate(lookup: Map[String, WdlValue], ioFunctions: IoFunctionSet) = {
+    def evaluate(lookup: Map[String, WomValue], ioFunctions: IoFunctionSet) = {
       instantiatedExpression.expression.evaluateValue(lookup, ioFunctions) flatMap { womType.coerceRawValue(_).toErrorOr }
     }
   }
@@ -857,13 +857,13 @@ object WorkflowExecutionActor {
       backendSingletonCollection, initializationData, restarting)).withDispatcher(EngineDispatcher)
   }
 
-  implicit class EnhancedWorkflowOutputs(val outputs: Map[LocallyQualifiedName, WdlValue]) extends AnyVal {
+  implicit class EnhancedWorkflowOutputs(val outputs: Map[LocallyQualifiedName, WomValue]) extends AnyVal {
     def maxStringLength = 1000
 
     def stripLarge = outputs map { case (k, v) =>
-      val wdlString = v.toWdlString
+      val wdlString = v.toWomString
 
-      if (wdlString.length > maxStringLength) (k, WdlString(StringUtils.abbreviate(wdlString, maxStringLength)))
+      if (wdlString.length > maxStringLength) (k, WomString(StringUtils.abbreviate(wdlString, maxStringLength)))
       else (k, v)
     }
   }

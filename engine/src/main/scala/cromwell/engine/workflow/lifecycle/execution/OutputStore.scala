@@ -8,8 +8,8 @@ import wom.core.CallOutputs
 import wom.executable.Executable.ResolvedExecutableInputs
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
-import wom.types.WdlType
-import wom.values.WdlValue
+import wom.types.WomType
+import wom.values.WomValue
 
 import scala.util.{Failure, Try}
 
@@ -17,25 +17,25 @@ object OutputStore {
   def initialize(knownValues: ResolvedExecutableInputs): OutputStore = {
     val wdlValues = knownValues flatMap {
       // Known wdl values can be added to the output store
-      case (port, resolvedValue) => resolvedValue.select[WdlValue] map { OutputKey(port, None) -> _ }
+      case (port, resolvedValue) => resolvedValue.select[WomValue] map { OutputKey(port, None) -> _ }
     }
     OutputStore(wdlValues)
   }
 
-  case class OutputEntry(name: String, wdlType: WdlType, wdlValue: Option[WdlValue])
+  case class OutputEntry(name: String, womType: WomType, womValue: Option[WomValue])
   case class OutputKey(port: OutputPort, index: ExecutionIndex)
   def empty = OutputStore(Map.empty)
 }
 
-case class OutputStore(store: Map[OutputKey, WdlValue]) {
+case class OutputStore(store: Map[OutputKey, WomValue]) {
 
   override def toString = store.map { case (k, l) => s"$k -> ${l.valueString}" } mkString System.lineSeparator
 
-  def add(values: Map[OutputKey, WdlValue]) = this.copy(store = store ++ values)
+  def add(values: Map[OutputKey, WomValue]) = this.copy(store = store ++ values)
 
-  def get(outputKey: OutputKey): Option[WdlValue] = store.get(outputKey)
+  def get(outputKey: OutputKey): Option[WomValue] = store.get(outputKey)
   
-  def get(outputPort: OutputPort, index: ExecutionIndex): Option[WdlValue] = store.get(OutputKey(outputPort, index))
+  def get(outputPort: OutputPort, index: ExecutionIndex): Option[WomValue] = store.get(OutputKey(outputPort, index))
 
   // TODO WOM: re-implement the OutputStore for WOM
   def generateCollectorOutput(collector: CollectorKey,

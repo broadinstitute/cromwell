@@ -2,7 +2,7 @@ package cwl
 
 import shapeless.Poly1
 import cwl.CwlType.CwlType
-import wom.types.WdlType
+import wom.types.WomType
 
 object RunOutputsToTypeMap extends Poly1 {
   def mungeId(fullyQualifiedId: String): String = {
@@ -12,8 +12,8 @@ object RunOutputsToTypeMap extends Poly1 {
     step.substring(step.lastIndexOf("/") + 1)
   }
 
-  def handleCommandLine(clt: CommandLineTool): Map[String, WdlType] = {
-    clt.outputs.toList.foldLeft(Map.empty[String, WdlType]) {
+  def handleCommandLine(clt: CommandLineTool): Map[String, WomType] = {
+    clt.outputs.toList.foldLeft(Map.empty[String, WomType]) {
       (acc, out) =>
         acc ++
           out.
@@ -34,12 +34,12 @@ object RunOutputsToTypeMap extends Poly1 {
 
   implicit def string = at[String] {
     fileName =>
-      Map.empty[String, WdlType]
+      Map.empty[String, WomType]
   }
 
   implicit def expressionTool = at[ExpressionTool] {
     _ =>
-        Map.empty[String, WdlType]
+        Map.empty[String, WomType]
   }
 
   implicit def workflow = at[Workflow] {

@@ -8,22 +8,22 @@ import wom.types._
 
 class WdlTypeSpec extends FlatSpec with Matchers {
 
-  val wdlValueRawStrings = Table(
-    ("WdlSource", "WdlType"),
-    ("String", WdlStringType),
-    ("Int", WdlIntegerType),
-    ("File", WdlFileType),
-    ("Boolean", WdlBooleanType),
-    ("Float", WdlFloatType),
-    ("Array[Int]", WdlArrayType(WdlIntegerType)),
-    ("Array[Array[String]]", WdlArrayType(WdlArrayType(WdlStringType))),
-    ("Pair[Int, String]", WdlPairType(WdlIntegerType, WdlStringType)),
-    ("Pair[Array[Int], String]", WdlPairType(WdlArrayType(WdlIntegerType), WdlStringType))
+  val womValueRawStrings = Table(
+    ("DisplayString", "WomType"),
+    ("String", WomStringType),
+    ("Int", WomIntegerType),
+    ("File", WomFileType),
+    ("Boolean", WomBooleanType),
+    ("Float", WomFloatType),
+    ("Array[Int]", WomArrayType(WomIntegerType)),
+    ("Array[Array[String]]", WomArrayType(WomArrayType(WomStringType))),
+    ("Pair[Int, String]", WomPairType(WomIntegerType, WomStringType)),
+    ("Pair[Array[Int], String]", WomPairType(WomArrayType(WomIntegerType), WomStringType))
   )
 
-  forAll(wdlValueRawStrings) { (wdlSource, wdlType) =>
-    it should s"return the WDL type $wdlType from WDL source string: $wdlSource" in {
-      WdlFlavoredWomType.fromDisplayString(wdlSource) shouldEqual wdlType
+  forAll(womValueRawStrings) { (displayString, womType) =>
+    it should s"return the WDL type $womType from WOM type display string: $displayString" in {
+      WdlFlavoredWomType.fromDisplayString(displayString) shouldEqual womType
     }
   }
 

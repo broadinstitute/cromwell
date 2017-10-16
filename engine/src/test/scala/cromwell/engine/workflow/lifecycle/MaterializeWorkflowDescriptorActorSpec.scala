@@ -15,7 +15,7 @@ import org.scalatest.mockito.MockitoSugar
 import shapeless.Inl
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-import wom.values.WdlString
+import wom.values.WomString
 
 import scala.concurrent.duration._
 
@@ -77,7 +77,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
             wfDesc.name shouldBe "wf_hello"
             wfDesc.namespace.taskCallNodes.size shouldBe 1
             wfDesc.knownValues.head._1.fullyQualifiedName shouldBe "wf_hello.hello.addressee"
-            wfDesc.knownValues.head._2 shouldBe Inl(WdlString("world"))
+            wfDesc.knownValues.head._2 shouldBe Inl(WomString("world"))
             wfDesc.getWorkflowOption(WorkflowOptions.WriteToCache) shouldBe Option("true")
             wfDesc.getWorkflowOption(WorkflowOptions.ReadFromCache) shouldBe None
             wfDesc.backendDescriptor.customLabels shouldBe Labels("label1" -> "value1", "label2" -> "value2")

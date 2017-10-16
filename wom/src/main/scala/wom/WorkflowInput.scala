@@ -1,8 +1,8 @@
 package wom
 
 import wom.core.FullyQualifiedName
-import wom.types.{WdlOptionalType, WdlType}
+import wom.types.{WomOptionalType, WomType}
 
-case class WorkflowInput(fqn: FullyQualifiedName, wdlType: WdlType) {
-  val optional = wdlType.isInstanceOf[WdlOptionalType]
+case class WorkflowInput(fqn: FullyQualifiedName, womType: WomType) {
+  val optional = womType.isInstanceOf[WomOptionalType]
 }

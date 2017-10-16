@@ -2,7 +2,7 @@ package wom.graph
 
 import wom.graph.GraphNode.GeneratedNodeAndNewNodes
 import wom.graph.GraphNodePort.{ConditionalOutputPort, InputPort, OutputPort}
-import wom.types.WdlOptionalType
+import wom.types.WomOptionalType
 
 /**
   * Currently only WDL has the concept of conditional executions:
@@ -32,7 +32,7 @@ object ConditionalNode  {
     val graphNodeSetter = new GraphNode.GraphNodeSetter()
 
     val outputPorts: Set[ConditionalOutputPort] = innerGraph.nodes.collect { case gon: PortBasedGraphOutputNode =>
-      ConditionalOutputPort(WdlOptionalType(gon.womType), gon, graphNodeSetter.get)
+      ConditionalOutputPort(WomOptionalType(gon.womType), gon, graphNodeSetter.get)
     }
 
     val conditionalNode: ConditionalNode = ConditionalNode(innerGraph, expressionNode, outputPorts)

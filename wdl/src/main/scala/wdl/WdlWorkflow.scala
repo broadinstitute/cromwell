@@ -7,8 +7,8 @@ import wdl.AstTools._
 import wdl.expression.WdlFunctions
 import wom.WorkflowInput
 import wom.callable.WorkflowDefinition
-import wom.types.WdlType
-import wom.values.WdlValue
+import wom.types.WomType
+import wom.values.WomValue
 
 import scala.language.postfixOps
 import scala.util.Try
@@ -153,17 +153,17 @@ case class WdlWorkflow(unqualifiedName: String,
   /**
    * All outputs for this workflow and their associated types
    *
-   * @return a Map[FullyQualifiedName, WdlType] representing the union
+   * @return a Map[FullyQualifiedName, WomType] representing the union
    *         of all outputs from all `call`s within this workflow
    */
   lazy val expandedWildcardOutputs: Seq[WorkflowOutput] = {
 
-    def toWorkflowOutput(output: DeclarationInterface, wdlType: WdlType) = {
+    def toWorkflowOutput(output: DeclarationInterface, womType: WomType) = {
       val locallyQualifiedName = output.parent map { parent => output.locallyQualifiedName(parent) } getOrElse {
         throw new RuntimeException(s"output ${output.fullyQualifiedName} has no parent Scope")
       }
 
-      new WorkflowOutput(locallyQualifiedName, wdlType, WdlExpression.fromString(locallyQualifiedName), output.ast, Option(this))
+      new WorkflowOutput(locallyQualifiedName, womType, WdlExpression.fromString(locallyQualifiedName), output.ast, Option(this))
     }
 
     def toWorkflowOutputs(scope: Scope) = {
@@ -203,17 +203,17 @@ case class WdlWorkflow(unqualifiedName: String,
   override def toString = s"[Workflow $fullyQualifiedName]"
 
   def evaluateOutputs(knownInputs: WorkflowCoercedInputs,
-                      wdlFunctions: WdlFunctions[WdlValue],
+                      wdlFunctions: WdlFunctions[WomValue],
                       outputResolver: OutputResolver = NoOutputResolver,
-                      shards: Map[Scatter, Int] = Map.empty[Scatter, Int]): Try[Map[WorkflowOutput, WdlValue]] = {
+                      shards: Map[Scatter, Int] = Map.empty[Scatter, Int]): Try[Map[WorkflowOutput, WomValue]] = {
 
-    val evaluatedOutputs = outputs.foldLeft(Map.empty[WorkflowOutput, Try[WdlValue]])((outputMap, output) => {
+    val evaluatedOutputs = outputs.foldLeft(Map.empty[WorkflowOutput, Try[WomValue]])((outputMap, output) => {
       val currentOutputs = outputMap collect {
         case (outputName, value) if value.isSuccess => outputName.fullyQualifiedName -> value.get
       }
       def knownValues = currentOutputs ++ knownInputs
       val lookup = lookupFunction(knownValues, wdlFunctions, outputResolver, shards, output)
-      val coerced = output.requiredExpression.evaluate(lookup, wdlFunctions) flatMap output.wdlType.coerceRawValue
+      val coerced = output.requiredExpression.evaluate(lookup, wdlFunctions) flatMap output.womType.coerceRawValue
       val workflowOutput = output -> coerced
 
       outputMap + workflowOutput
@@ -223,4 +223,4 @@ case class WdlWorkflow(unqualifiedName: String,
   }
 }
 
-case class ReportableSymbol(fullyQualifiedName: FullyQualifiedName, wdlType: WdlType)
+case class ReportableSymbol(fullyQualifiedName: FullyQualifiedName, womType: WomType)

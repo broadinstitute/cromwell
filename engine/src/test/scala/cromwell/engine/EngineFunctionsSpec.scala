@@ -7,11 +7,11 @@ class EngineFunctionsSpec extends FlatSpec with Matchers {
 //  trait WdlStandardLibraryImpl extends  ReadLikeFunctions with WriteFunctions with PureStandardLibraryFunctionsLike {
 //    private def fail(name: String) = Failure(new NotImplementedError(s"$name() not implemented yet"))
 //
-//    override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("stdout")
-//    override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("stderr")
+//    override def stdout(params: Seq[Try[WomValue]]): Try[WdlFile] = fail("stdout")
+//    override def stderr(params: Seq[Try[WomValue]]): Try[WdlFile] = fail("stderr")
 //  }
 //
-//  def expectFailure(value: Try[WdlValue]) = value match {
+//  def expectFailure(value: Try[WomValue]) = value match {
 //    case Success(s) => fail(s"$s: Expected this function invocation to fail")
 //    case Failure(_) => // expected
 //  }
@@ -22,7 +22,7 @@ class EngineFunctionsSpec extends FlatSpec with Matchers {
 //      "write_tsv", "write_map", "write_object", "write_objects", "write_json", "size", "sub"
 //    )
 //    stdFunctions.foreach {func =>
-//      expectFailure(NoFunctions.getFunction(func)(Seq.empty[Try[WdlValue]]))
+//      expectFailure(NoFunctions.getFunction(func)(Seq.empty[Try[WomValue]]))
 //    }
 //  }
 //

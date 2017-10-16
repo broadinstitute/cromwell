@@ -83,3 +83,5 @@ case class BackendConfigurationDescriptor(backendConfig: Config, globalConfig: C
 final case class AttemptedLookupResult(name: String, value: Try[WdlValue]) {
   def toPair = name -> value
 }
+
+final case class AbortWorkflow(workflowId: WorkflowId)

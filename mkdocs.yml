@@ -7,24 +7,24 @@ repo_url: https://github.com/broadinstitute/cromwell
 
 pages:
 - Welcome: index.md
-- Getting Started: Getting Help.md
+- Getting Started: GettingHelp.md
 - Requirements: Requirements.md
 - Building: Building.md
 - Installing: Installing.md
-- Command Line Usage: Command Line Usage.md
-- WDL: Getting Started with WDL.md
-- Configuration: Configuring Cromwell.md
+- Command Line Usage: CommandLine.md
+- WDL: StartWDL.md
+- Configuration: Configuring.md
 - Security: Security.md
 - Backends: Backends.md
-- Runtime Attributes: Runtime Attributes.md
+- Runtime Attributes: RuntimeAttributes.md
 - Logging: Logging.md
 - Instrumentation: Instrumentation.md
-- Workflow options: Workflow Options.md
+- Workflow options: WorkflowOptions.md
 - Labels: Labels.md
-- Call caching: Call Caching.md
-- Imports: Imports.md
-- Sub workflows: Sub Workflows.md
-- REST API: REST API.md
+- Call caching: CallCaching.md
+- Imports: Imports.mdf
+- Sub workflows: SubWorkflows.md
+- REST API: RESTAPI.md
 theme: readthedocs
 
 extra_css:

@@ -7,6 +7,6 @@ files {
 }
 
 metadata {
-  "calls.docker_hash_gcr.gcr.runtimeAttributes.docker": "gcr.io/google-containers/ubuntu:14.04",
-  "calls.docker_hash_gcr.gcr.dockerImageUsed": "gcr.io/google-containers/ubuntu@sha256:5746b3b4974d1bd3d4ddbac0373fb71b425f13583797414ffd9d8b547d241f75"
+  "calls.docker_hash_gcr.gcr.runtimeAttributes.docker": "gcr.io/google-containers/ubuntu-slim:0.14",
+  "calls.docker_hash_gcr.gcr.dockerImageUsed": "gcr.io/google-containers/ubuntu-slim@sha256:1d5c0118358fc7651388805e404fe491a80f489bf0e7c5f8ae4156250d6ec7d8"  
 }

@@ -14,12 +14,15 @@ object ParameterContext {
 
 case class ParameterContext(inputs: WdlValue, self: WdlValue, runtime: WdlValue) {
   def withInputs(inputValues: Map[String, WdlValue], ioFunctionSet: IoFunctionSet): ParameterContext = {
-    val wdlValueType = inputValues.values.headOption.map(_.wdlType).getOrElse(WdlNothingType)
+    val wdlValueType = WdlStringType
     copy(
       inputs = WdlMap(
         WdlMapType(WdlStringType, wdlValueType),
         // TODO: WOM: convert inputValues (including WdlFile?) to inputs using the ioFunctionSet
-        inputValues map { case (name, wdlValue) => WdlString(name) -> wdlValue }
+        inputValues map {
+          case (name, WdlSingleFile(path)) => WdlString(name) -> WdlString(path)
+          case (name, wdlValue) => WdlString(name) -> wdlValue
+        }
       )
     )
   }

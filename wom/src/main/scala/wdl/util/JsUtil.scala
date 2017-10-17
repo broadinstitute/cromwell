@@ -4,7 +4,7 @@ import javax.script.{ScriptContext, SimpleScriptContext}
 
 import jdk.nashorn.api.scripting.{ClassFilter, NashornScriptEngineFactory, ScriptObjectMirror}
 import wdl.types.{WdlArrayType, WdlMapType, WdlNothingType, WdlStringType}
-import wdl.values.{WdlArray, WdlBoolean, WdlFloat, WdlInteger, WdlMap, WdlOptionalValue, WdlString, WdlValue}
+import wdl.values.{WdlArray, WdlBoolean, WdlFloat, WdlInteger, WdlMap, WdlOptionalValue, WdlSingleFile, WdlString, WdlValue}
 
 import scala.collection.JavaConverters._
 
@@ -80,6 +80,7 @@ object JsUtil {
       case WdlFloat(double) => double.asInstanceOf[java.lang.Double]
       case WdlBoolean(boolean) => boolean.asInstanceOf[java.lang.Boolean]
       case WdlArray(_, array) => array.map(toJavascript).toArray
+      case WdlSingleFile(path) => path
       case WdlMap(_, map) =>
         map.map({
           case (mapKey, mapValue) => toJavascript(mapKey) -> toJavascript(mapValue)

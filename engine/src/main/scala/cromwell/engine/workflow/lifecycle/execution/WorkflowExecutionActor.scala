@@ -279,7 +279,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     import cromwell.util.JsonFormatting.WdlValueJsonFormatter._
     import spray.json._
     import WorkflowExecutionActor.EnhancedWorkflowOutputs
-    
+
     def handleSuccessfulWorkflowOutputs(outputs: Map[WomIdentifier, WdlValue]) = {
       val fullyQualifiedOutputs = outputs map {
         case (identifier, value) => identifier.fullyQualifiedName.value -> value
@@ -290,7 +290,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
            |${fullyQualifiedOutputs.stripLarge.toJson.prettyPrint}""".stripMargin
       )
       pushWorkflowOutputMetadata(fullyQualifiedOutputs)
-      
+
       // Use local names so they can be used in outer workfows if this is a sub workflow
       val localOutputs = outputs map {
         case (identifier, value) => identifier.localName.value -> JobOutput(value)
@@ -302,8 +302,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
 
     workflowDescriptor.namespace.innerGraph.outputNodes
       .flatMap(_.outputPorts)
-      .map(op => op.identifier -> data.outputStore.get(op, None)).toList  
-      .traverse[ErrorOr, (WomIdentifier, WdlValue)]({  
+      .map(op => op.identifier -> data.outputStore.get(op, None)).toList
+      .traverse[ErrorOr, (WomIdentifier, WdlValue)]({
         case (name, Some(value)) => (name -> value).validNel
         case (name, None) => s"Cannot find an output value for ${name.fullyQualifiedName.value}".invalidNel
       }).map(validOutputs => handleSuccessfulWorkflowOutputs(validOutputs.toMap))
@@ -314,7 +314,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       }
       context.parent ! WorkflowExecutionFailedResponse(data.jobExecutionMap, exception)
       goto(WorkflowExecutionFailedState)
-    }  
+    }
   }
 
   private def handleRetryableFailure(jobKey: BackendJobDescriptorKey, reason: Throwable, returnCode: Option[Int]) = {
@@ -460,7 +460,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     expression.upstreamPorts.traverseValues(resolve(expression, data)) map { lookup =>
       expression.evaluate(lookup, data.expressionLanguageFunctions) match {
         case Valid(result) => self ! ExpressionEvaluationSucceededResponse(expression, result)
-        case Invalid(f) => self ! ExpressionEvaluationFailedResponse(expression, new RuntimeException(f.toList.mkString(", ")))
+        case Invalid(f) =>
+          self ! ExpressionEvaluationFailedResponse(expression, new RuntimeException(f.toList.mkString(", ")))
       }
     } valueOr { f =>
       self ! ExpressionEvaluationFailedResponse(expression, new RuntimeException(f.toList.mkString(", ")))
@@ -792,11 +793,11 @@ object WorkflowExecutionActor {
 
     override val attempt = 1
     override lazy val tag = s"Expression-${node.localName}:${index.fromIndex}:$attempt"
-    
+
     protected def instantiatedExpression: InstantiatedExpression
     def womType: WdlType
     def singleOutputPort: OutputPort
-    
+
     private lazy val inputs: Map[String, InputPort] = instantiatedExpression.inputMapping
     lazy val upstreamPorts: Map[String, OutputPort] = inputs map {
       case (key, input) => key -> input.upstream

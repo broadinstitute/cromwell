@@ -58,12 +58,12 @@ case class Workflow private(
     val graphFromInputs: Set[ExternalGraphInputNode] = inputs.map {
       // TODO WOM: need to be able to transform this default value to a WomExpression
       case inputParameter if inputParameter.default.isDefined =>
-        val parsedInputId = WorkflowInputId(inputParameter.id).inputId
+        val parsedInputId = FileAndId(inputParameter.id).id
         val womType = wdlTypeForInputParameter(inputParameter).get
 
         OptionalGraphInputNodeWithDefault(WomIdentifier(parsedInputId), womType, PlaceholderWomExpression(Set.empty, womType))
       case input =>
-        val parsedInputId = WorkflowInputId(input.id).inputId
+        val parsedInputId = FileAndId(input.id).id
 
         RequiredGraphInputNode(WomIdentifier(parsedInputId), wdlTypeForInputParameter(input).get)
     }.toSet
@@ -86,16 +86,16 @@ case class Workflow private(
 
           val wdlType = cwlTypeToWdlType(output.`type`.flatMap(_.select[CwlType]).get)
 
-          def lookupOutputSource(outputId: WorkflowOutputId): Checked[OutputPort] =
+          def lookupOutputSource(outputId: FileStepAndId): Checked[OutputPort] =
             for {
               set <- graphFromSteps
               call <- set.collectFirst { case callNode: CallNode if callNode.localName == outputId.stepId => callNode }.
                 toRight(NonEmptyList.one(s"Call Node by name ${outputId.stepId} was not found in set $set"))
-              output <- call.outputPorts.find(_.name == outputId.outputId).
-                          toRight(NonEmptyList.one(s"looking for ${outputId.outputId} in call $call output ports ${call.outputPorts}"))
+              output <- call.outputPorts.find(_.name == outputId.id).
+                          toRight(NonEmptyList.one(s"looking for ${outputId.id} in call $call output ports ${call.outputPorts}"))
             } yield output
 
-          lookupOutputSource(WorkflowOutputId(output.outputSource.flatMap(_.select[String]).get)).
+          lookupOutputSource(FileStepAndId(output.outputSource.flatMap(_.select[String]).get)).
             map(PortBasedGraphOutputNode(WomIdentifier(output.id), wdlType, _)).toValidated
       }.map(_.toSet).toEither
 

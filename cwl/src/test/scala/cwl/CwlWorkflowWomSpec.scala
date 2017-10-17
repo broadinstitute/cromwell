@@ -84,16 +84,21 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
             case tarParam: CallNode if tarParam.localName == s"untar" => tarParam
           }.get.
             upstream
-          
+
           untarUpstream should have size 2
           untarUpstream.collectFirst({
             case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/extractfile" =>
               shouldBeRequiredGraphInputNode(exprNode.inputPorts.head.upstream.graphNode, "ex", WdlStringType)
           }).getOrElse(fail("Can't find expression node for ex"))
-          
+
           untarUpstream.collectFirst({
             case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/tarfile" =>
-              exprNode.inputPorts.map(_.upstream.graphNode).filter(_ == RequiredGraphInputNode(WomIdentifier("inp"), WdlFileType)).size  shouldBe 1
+              exprNode.inputPorts.map(_.upstream.graphNode).filter{
+                case rgin: RequiredGraphInputNode =>
+                  rgin.identifier == WomIdentifier("inp") &&
+                    rgin.womType == WdlFileType
+
+              }.size  shouldBe 1
           }).getOrElse(fail("Can't find expression node for inp"))
 
           val compileUpstreamExpressionPort = nodes.collectFirst {
@@ -195,14 +200,14 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
     cgrepPatternExpression.inputPorts.head.upstream should be theSameInstanceAs patternInputNode.singleOutputPort
     cgrepFileExpression.inputPorts.map(_.upstream).filter(_ eq ps.outputPorts.head).size shouldBe 1
     wcFileExpression.inputPorts.map(_.upstream).filter(_ eq ps.outputPorts.head).size shouldBe 1
-    
+
     // Check that the inputDefinitionMappings are correct
     ps.inputDefinitionMappings shouldBe empty
     cgrep.inputDefinitionMappings should have size 2
-    
+
     val cgrepFileInputDef = cgrep.callable.inputs.find(_.name == "file").get
     cgrep.inputDefinitionMappings(cgrepFileInputDef).select[OutputPort].get should be theSameInstanceAs cgrepFileExpression.singleExpressionOutputPort
-    
+
     val cgrepPatternInputDef = cgrep.callable.inputs.find(_.name == "pattern").get
     cgrep.inputDefinitionMappings(cgrepPatternInputDef).select[OutputPort].get should be theSameInstanceAs cgrepPatternExpression.singleExpressionOutputPort
   }

@@ -1,0 +1,37 @@
+site_name: Cromwell
+site_url: http://www.software.broadinstitute.org/WDL
+site_description: Cromwell documentation
+site_author: Red Team at Broad Institute
+
+repo_url: https://github.com/broadinstitute/cromwell
+
+pages:
+- Welcome: index.md
+- Getting Started: Getting Help.md
+- Requirements: Requirements.md
+- Building: Building.md
+- Installing: Installing.md
+- Command Line Usage: Command Line Usage.md
+- WDL: Getting Started with WDL.md
+- Configuration: Configuring Cromwell.md
+- Security: Security.md
+- Backends: Backends.md
+- Runtime Attributes: Runtime Attributes.md
+- Logging: Logging.md
+- Instrumentation: Instrumentation.md
+- Workflow options: Workflow Options.md
+- Labels: Labels.md
+- Call caching: Call Caching.md
+- Imports: Imports.md
+- Sub workflows: Sub Workflows.md
+- REST API: REST API.md
+theme: readthedocs
+
+extra_css:
+    - css/extra.css
+
+copyright: Copyright &copy; 2017 <a href="https://broadinstitute.org">Broad Institute</a>
+# google_analytics: ['identifierID', 'URL.org']
+
+plugins:
+    - search

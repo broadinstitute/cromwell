@@ -24,7 +24,7 @@ pages:
 - Workflow Options: WorkflowOptions.md
 - Labels: Labels.md
 - Call Caching: CallCaching.md
-- Imports: Imports.mdf
+- Imports: Imports.md
 - Sub-Workflows: SubWorkflows.md
 - REST API: RESTAPI.md
 theme: readthedocs

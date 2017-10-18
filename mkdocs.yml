@@ -10,14 +10,12 @@ pages:
 - Getting Started: GettingHelp.md
 - Requirements: Requirements.md
 - Building: Building.md
-- Installing: 
-    - Installing: Installing.md
+- Installing: Installing.md
     - Migration: MIGRATION.md
 - Command Line Usage: CommandLine.md
 - WDL: StartWDL.md
 - Configuration: Configuring.md
-- Security: 
-    - Security: Security.md
+- Security: Security.md
     - Recommendations: SecurityRecommendations.md
 - Backends: Backends.md
 - Runtime Attributes: RuntimeAttributes.md
@@ -36,6 +34,3 @@ extra_css:
 
 copyright: Copyright &copy; 2017 <a href="https://broadinstitute.org">Broad Institute</a>
 # google_analytics: ['identifierID', 'URL.org']
-
-plugins:
-    - search

@@ -1,3 +1,4 @@
+ignore: true
 name: public_http_import
 testFormat: workflowsuccess
 tags: [import, subworkflow, alias]

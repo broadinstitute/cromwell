@@ -3,7 +3,7 @@ task gcr {
         echo "hello"
     }
     runtime {
-        docker: "gcr.io/google-containers/ubuntu:14.04"
+        docker: "gcr.io/google-containers/ubuntu-slim:0.14"
     }
 }
 

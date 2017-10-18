@@ -173,6 +173,11 @@ object Settings {
     libraryDependencies ++= cwlDependencies
   ) ++ commonSettings
 
+  val womtoolSettings = List(
+    name := "cromwell-womtool",
+    libraryDependencies ++= womtoolDependencies
+  ) ++ commonSettings
+
   val coreSettings = List(
     name := "cromwell-core",
     libraryDependencies ++= coreDependencies

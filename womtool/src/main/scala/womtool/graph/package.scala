@@ -1,7 +1,8 @@
-package wdltool
+package womtool
 
-import wdl4s.wom.graph.GraphNodePort.{InputPort, OutputPort}
-import wdl4s.wom.graph._
+import wom.graph.GraphNodePort.{InputPort, OutputPort}
+import wom.graph._
+import wom.graph.expression.ExpressionNode
 
 package object graph {
 
@@ -15,15 +16,15 @@ package object graph {
     }
 
     def graphName: String = dotSafe(graphNode match {
-      case c: CallNode => s"call ${c.name}"
-      case s: ScatterNode => "scatter"
-      case c: ConditionalNode => "conditional"
-      case gin: OptionalGraphInputNodeWithDefault => s"${gin.womType.toWdlString} ${gin.name} = ..."
-      case gin: GraphInputNode => s"${gin.womType.toWdlString} ${gin.name}"
-      case gon: GraphOutputNode => s"${gon.womType.toWdlString} ${gon.name}"
+      case c: CallNode => s"call ${c.localName}"
+      case _: ScatterNode => "scatter"
+      case _: ConditionalNode => "conditional"
+      case gin: OptionalGraphInputNodeWithDefault => s"${gin.womType.toDisplayString} ${gin.localName} = ..."
+      case gin: GraphInputNode => s"${gin.womType.toDisplayString} ${gin.localName}"
+      case gon: GraphOutputNode => s"${gon.womType.toDisplayString} ${gon.localName}"
       case expr: ExpressionNode =>
-        val inputNames = expr.instantiatedExpression.expression.inputs.mkString(", ")
-        s"${expr.womType.toWdlString} ${expr.name} = f($inputNames)"
+        val inputNames = expr.womExpression.inputs.mkString(", ")
+        s"${expr.womType.toDisplayString} ${expr.localName} = f($inputNames)"
       case other =>
         throw new Exception(s"womgraph can't find a graphName for GraphNodes of type: ${other.getClass.getSimpleName}")
     })

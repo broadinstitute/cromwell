@@ -1,8 +1,8 @@
-package wdltool.graph
+package womtool.graph
 
 import java.util.concurrent.atomic.AtomicInteger
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wom.graph.Graph
+import wom.graph.Graph
 
 trait WomDotGraphTest extends FlatSpec with Matchers {
 

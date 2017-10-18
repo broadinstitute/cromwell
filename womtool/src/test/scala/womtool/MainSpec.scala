@@ -1,9 +1,9 @@
-package wdltool
+package womtool
 
 import better.files._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
-import wdltool.MainSpec._
-import wdltool.SampleWdl.{EmptyInvalid, EmptyTask, EmptyWorkflow, ThreeStep}
+import womtool.MainSpec._
+import womtool.SampleWdl.{EmptyInvalid, EmptyTask, EmptyWorkflow, ThreeStep}
 
 class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 

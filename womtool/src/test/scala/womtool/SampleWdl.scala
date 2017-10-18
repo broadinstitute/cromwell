@@ -1,11 +1,12 @@
-package wdltool
+package womtool
 
-import java.io.{FileWriter, File}
+import java.io.{File, FileWriter}
 import java.nio.file.{Files, Path}
-import spray.json._
 
-import wdl4s.wdl._
-import wdl4s.wdl.values._
+import spray.json._
+import wom.core._
+import wom.values._
+import womtool.SampleWdl._
 
 import scala.language.postfixOps
 
@@ -21,11 +22,11 @@ trait SampleWdl {
       case s: String => JsString(s)
       case b: Boolean => if(b) JsTrue else JsFalse
       case s: Seq[Any] => JsArray(s map {_.toJson} toVector)
-      case a: WdlArray => write(a.value)
-      case s: WdlString => JsString(s.value)
-      case i: WdlInteger => JsNumber(i.value)
-      case f: WdlFloat => JsNumber(f.value)
-      case f: WdlFile => JsString(f.value)
+      case a: WomArray => write(a.value)
+      case s: WomString => JsString(s.value)
+      case i: WomInteger => JsNumber(i.value)
+      case f: WomFloat => JsNumber(f.value)
+      case f: WomFile => JsString(f.value)
     }
     def read(value: JsValue) = throw new NotImplementedError(s"Reading JSON not implemented: $value")
   }
@@ -37,7 +38,7 @@ trait SampleWdl {
 
   def wdlJson: WorkflowJson = rawInputs.toJson.prettyPrint
 
-  def createFileArray(base: Path): Unit = {
+  def createFileArray(base: Path) = {
     createFile("f1", base, "line1\nline2\n")
     createFile("f2", base, "line3\nline4\n")
     createFile("f3", base, "line5\n")
@@ -66,6 +67,7 @@ trait SampleWdl {
 }
 
 object SampleWdl {
+  type WorkflowRawInputs = Map[String, Any]
   object ThreeStep extends SampleWdl {
     override def wdlSource(runtime: String = "") = sourceString()
 

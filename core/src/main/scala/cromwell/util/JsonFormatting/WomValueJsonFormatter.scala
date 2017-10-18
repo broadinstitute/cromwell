@@ -4,8 +4,8 @@ import spray.json._
 import wom.types._
 import wom.values._
 
-object WdlValueJsonFormatter extends DefaultJsonProtocol {
-  implicit object WdlValueJsonFormat extends RootJsonFormat[WomValue] {
+object WomValueJsonFormatter extends DefaultJsonProtocol {
+  implicit object WomValueJsonFormat extends RootJsonFormat[WomValue] {
     def write(value: WomValue): JsValue = value match {
       case s: WomString => JsString(s.value)
       case i: WomInteger => JsNumber(i.value)
@@ -24,7 +24,7 @@ object WdlValueJsonFormatter extends DefaultJsonProtocol {
     }
 
     // NOTE: This assumes a map's keys are strings. Since we're coming from JSON this is fine.
-    // This won't support a map with complex keys (e.g. WdlMapType(WdlMapType(WdlIntegerType, WdlIntegerType), WdlStringType)
+    // This won't support a map with complex keys (e.g. WomMapType(WomMapType(WomIntegerType, WomIntegerType), WomStringType)
     // That would require a more inventive JSON which splits out the key and value as full fields in their own right...
     // In addition, we make a lot of assumptions about what type of WomValue to create. Oh well... it should all fall out in the coercion (fingercrossed)!
     def read(value: JsValue): WomValue = value match {
@@ -42,8 +42,8 @@ object WdlValueJsonFormatter extends DefaultJsonProtocol {
   }
 }
 
-object WdlFileJsonFormatter extends DefaultJsonProtocol {
-  implicit object WdlFileJsonFormat extends RootJsonFormat[WomFile] {
+object WomFileJsonFormatter extends DefaultJsonProtocol {
+  implicit object WomFileJsonFormat extends RootJsonFormat[WomFile] {
     def write(value: WomFile) = JsString(value.value)
     def read(value: JsValue): WomFile = value match {
       case JsString(path) => WomFile(path)

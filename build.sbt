@@ -21,6 +21,12 @@ lazy val cwl = (project in file("cwl"))
   .dependsOn(wom % "test->test")
   .withTestSettings
 
+lazy val womtool = (project in file("womtool"))
+  .settings(womtoolSettings:_ *)
+  .dependsOn(wdl)
+  .dependsOn(cwl)
+  .withTestSettings
+
 lazy val core = (project in file("core"))
   .settings(coreSettings:_*)
   .dependsOn(wom)
@@ -136,6 +142,7 @@ lazy val root = (project in file("."))
   .aggregate(wom)
   .aggregate(wdl)
   .aggregate(cwl)
+  .aggregate(womtool)
   .aggregate(core)
   .aggregate(dockerHashing)
   .aggregate(gcsFileSystem)
@@ -156,5 +163,6 @@ lazy val root = (project in file("."))
   .dependsOn(sparkBackend)
   .dependsOn(wdl)
   .dependsOn(cwl)
+  .dependsOn(womtool)
   // Dependencies for tests
   .dependsOn(engine % "test->test")

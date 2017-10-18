@@ -1,20 +1,17 @@
-package wdltool.graph
+package womtool.graph
 
 import java.nio.file.{Files, Paths}
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
 import better.files.File
-import cats.data.Validated.{Invalid, Valid}
-import cats.derived.monoid._
-import cats.derived.monoid.legacy._
 import cats.implicits._
+import cwl.CwlDecoder
 import lenthall.validation.ErrorOr.ErrorOr
-import wdl4s.cwl.CwlDecoder
-import wdl4s.wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
-import wdl4s.wom.executable.Executable
-import wdl4s.wom.graph._
-import wdltool.graph.WomGraph._
+import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
+import wom.executable.Executable
+import wom.graph._
+import womtool.graph.WomGraph._
 
 import scala.collection.JavaConverters._
 
@@ -23,6 +20,7 @@ class WomGraph(graphName: String, graph: Graph) {
   def indent(s: String) = s.lines.map(x => s"  $x").mkString(System.lineSeparator)
   def combine(ss: Iterable[String]) = ss.mkString(start="", sep=System.lineSeparator, end=System.lineSeparator)
   def indentAndCombine(ss: Iterable[String]) = combine(ss.map(indent))
+  implicit val monoid = cats.derive.monoid[NodesAndLinks]
 
   val digraphDot: String = {
 
@@ -56,7 +54,7 @@ class WomGraph(graphName: String, graph: Graph) {
       // Don't include the scatter expression input port here since they're added later in `internalScatterNodesAndLinks`
       // Round up the gathered output ports so it's obvious they're being gathered.
       s"""
-        |${combine((s.inputPorts -- s.scatterVariableMapping.scatterInstantiatedExpression.inputPorts) map portLine)}
+        |${combine((s.inputPorts -- s.scatterCollectionExpressionNode.inputPorts) map portLine)}
         |subgraph $nextCluster {
         |  style=filled;
         |  fillcolor=${s.graphFillColor}
@@ -113,12 +111,12 @@ class WomGraph(graphName: String, graph: Graph) {
          |subgraph $scatterVariableClusterName {
          |  style=filled;
          |  fillcolor=${scatter.graphFillColor};
-         |  $scatterVariableExpressionId [shape=plaintext label="${scatter.scatterVariableMapping.graphInputNode.name} in ..."]
-         |${indentAndCombine(scatter.scatterVariableMapping.scatterInstantiatedExpression.inputPorts map portLine)}
+         |  $scatterVariableExpressionId [shape=plaintext label="${scatter.scatterVariableInnerGraphInputNode.localName} in ..."]
+         |${indentAndCombine(scatter.scatterCollectionExpressionNode.inputPorts map portLine)}
          |}
          """.stripMargin
 
-      val scatterVariableInputLink = s"$scatterVariableExpressionId -> ${scatter.scatterVariableMapping.graphInputNode.singleOutputPort.graphId} [style=dashed ltail=$scatterVariableClusterName arrowhead=none]"
+      val scatterVariableInputLink = s"$scatterVariableExpressionId -> ${scatter.scatterVariableInnerGraphInputNode.singleOutputPort.graphId} [style=dashed ltail=$scatterVariableClusterName arrowhead=none]"
 
       NodesAndLinks(Set(node), Set(scatterVariableInputLink))
     }
@@ -144,13 +142,13 @@ class WomGraph(graphName: String, graph: Graph) {
                     |  style=filled;
                     |  fillcolor=${conditional.graphFillColor};
                     |  "${UUID.randomUUID}" [shape=plaintext label="if(...)"]
-                    |${indentAndCombine(conditional.condition.inputPorts map portLine)}
+                    |${indentAndCombine(conditional.conditionExpression.inputPorts map portLine)}
                     |}
          """.stripMargin
 
       NodesAndLinks(Set(node), Set.empty)
     }
-    val outputLinks = conditional.outputMapping map { outputPort => s"${outputPort.outputToExpose.singleInputPort.graphId} -> ${outputPort.graphId} [style=dashed arrowhead=none]" }
+    val outputLinks = conditional.conditionalOutputPorts map { outputPort => s"${outputPort.outputToExpose.singleInputPort.graphId} -> ${outputPort.graphId} [style=dashed arrowhead=none]" }
     (innerGraph |+| conditionNodesAndLinks).withLinks(outputLinks)
   }
 
@@ -188,19 +186,19 @@ object WomGraph {
 
   private def womExecutableFromWdl(filePath: String): Executable = {
     val namespace = WdlNamespaceWithWorkflow.load(readFile(filePath), Seq(WdlNamespace.fileResolver _)).get
-    namespace.womExecutable match {
-      case Valid(wom) => wom
-      case Invalid(e) => throw new Exception(s"Can't build WOM executable from WDL namespace: ${e.toList.mkString("\n", "\n", "\n")}")
+    // TODO WOM don't think anything good is going to happen with a None inputs file.
+    namespace.womExecutable(None) match {
+      case Right(wom) => wom
+      case Left(e) => throw new Exception(s"Can't build WOM executable from WDL namespace: ${e.toList.mkString("\n", "\n", "\n")}")
     }
   }
 
   private def womExecutableFromCwl(filePath: String): Executable = {
-    val yaml: String = readFile(filePath)
     (for {
       clt <- CwlDecoder.decodeAllCwl(File(filePath)).
         value.
         unsafeRunSync
-      wom <- clt.womExecutable.toEither
+      wom <- clt.womExecutable
     } yield wom) match {
       case Right(womExecutable) => womExecutable
       case Left(e) => throw new Exception(s"Can't build WOM executable from CWL: ${e.toList.mkString("\n", "\n", "\n")}")

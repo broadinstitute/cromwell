@@ -13,6 +13,7 @@ object Dependencies {
   lazy val betterFilesV = "2.17.1"
   lazy val catsV = "1.0.0-MF"
   lazy val mouseV = "0.10-MF"
+  lazy val kittensV = "1.0.0-RC0"
   lazy val fs2V = "0.9.7"
 
   lazy val pegdownV = "1.6.0"
@@ -24,7 +25,8 @@ object Dependencies {
 
   private val catsDependencies = List(
     "org.typelevel" %% "cats-core" % catsV,
-    "com.github.benhutchison" %% "mouse" % mouseV
+    "com.github.benhutchison" %% "mouse" % mouseV,
+    "org.typelevel" %% "kittens" % kittensV
   ) 
 
   private val baseDependencies = List(
@@ -155,6 +157,8 @@ object Dependencies {
     "org.scalatest" %% "scalatest" % "3.0.2" % "test",
     "org.scalacheck" %% "scalacheck" % "1.13.4" % "test"
   ) ++ circeDependencies ++ womDependencies ++ refinedTypeDependenciesList
+
+  val womtoolDependencies = wdlDependencies ++ cwlDependencies ++ catsDependencies
 
   val coreDependencies = List(
     "com.typesafe" % "config" % "1.3.1",

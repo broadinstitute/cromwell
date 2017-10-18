@@ -24,9 +24,9 @@ import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{BuiltCallCacheDiffResponse, CachedCallNotFoundException, CallCacheDiffActorResponse, FailedCallCacheDiffResponse}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheDiffActor, CallCacheDiffQueryParameter}
-import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.WorkflowStatusRequest
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.WorkflowStoreEngineAbortResponse
-import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreState, WorkflowStoreSubmitActor}
+import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
 import cromwell.server.CromwellShutdown
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse}
 import cromwell.services.metadata.MetadataService._
@@ -89,9 +89,10 @@ trait CromwellApiService extends HttpInstrumentation {
           // that metadata is not updated yet
           def fallBack: PartialFunction[Throwable, Route] = {
             case UnrecognizedWorkflowException(id) =>
-              onComplete(workflowStoreActor.ask(WorkflowStatusRequest(id)).mapTo[Option[WorkflowStoreState]]) {
-                case Success(Some(state)) => complete(MetadataBuilderActor.processStatusResponse(id, state))
-                case Success(None) => UnrecognizedWorkflowException(id).failRequest(StatusCodes.NotFound)
+              onComplete(workflowStoreActor.ask(WorkflowStateRequest(id)).mapTo[WorkflowStateResponse]) {
+                case Success(WorkflowStateSuccessfulResponse(_, state)) => complete(MetadataBuilderActor.processStatusResponse(id, state))
+                case Success(WorkflowStateNotFoundResponse(_)) => UnrecognizedWorkflowException(id).failRequest(StatusCodes.NotFound)
+                case Success(WorkflowStateFailedResponse(_, f)) => f.failRequest(StatusCodes.InternalServerError)
                 case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
                 case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
               }

@@ -447,11 +447,17 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
           |  File bad_one
           |  File good_one
           |  File bad_two
+          |  File bad_three
           |
           |  call bar
           |}
         """.stripMargin
-      val jsonInput = Map("foo.bad_one" -> "\"gs://this/is/a/bad/gcs/path.txt", "foo.good_one" -> "\"/local/path/is/ok.txt", "foo.bad_two" -> "\"gs://another/bad/gcs/path.txt").toJson.toString
+      val jsonInput = Map(
+        "foo.bad_one" -> "\"gs://this/is/a/bad/gcs/path.txt",
+        "foo.good_one" -> "\"/local/path/is/ok.txt",
+        "foo.bad_two" -> "\"gs://another/bad/gcs/path.txt",
+        "foo.bad_three" -> ""
+      ).toJson.toString
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false))
       val sources = WorkflowSourceFilesWithoutImports(
         workflowSource = wdl,
@@ -467,8 +473,9 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         expectMsgPF() {
           case MaterializeWorkflowDescriptorFailureResponse(reason) =>
             reason.getMessage should startWith("Workflow input processing failed:\n")
-            reason.getMessage should include("Invalid value for File input 'foo.bad_one': \"gs://this/is/a/bad/gcs/path.txt starts with a '\"' ")
-            reason.getMessage should include("Invalid value for File input 'foo.bad_two': \"gs://another/bad/gcs/path.txt starts with a '\"' ")
+            reason.getMessage should include("Invalid value for File input 'foo.bad_one': \"gs://this/is/a/bad/gcs/path.txt starts with a '\"'")
+            reason.getMessage should include("Invalid value for File input 'foo.bad_two': \"gs://another/bad/gcs/path.txt starts with a '\"'")
+            reason.getMessage should include("Invalid value for File input 'foo.bad_three': empty value")
           case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
           case unknown => fail(s"Unexpected materialization response: $unknown")
         }

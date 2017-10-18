@@ -22,41 +22,56 @@ final case class WorkflowStoreActor private(store: WorkflowStore, serviceRegistr
 
   override def receive = {
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(workflowStoreSubmitActor))
-    case WorkflowStatusRequest(id) => statusOf(id, sender())
-    case ValidateWorkflowId(id) => checkWorkflowIdExistence(id, sender())
+    case WorkflowStateRequest(id) => 
+      pipe(statusOf(id)).to(sender())
+      ()
+    case ValidateWorkflowId(id) => 
+      pipe(checkWorkflowIdExistence(id)).to(sender())
+      ()
     case cmd: WorkflowStoreActorSubmitCommand => workflowStoreSubmitActor forward cmd
     case cmd: WorkflowStoreActorEngineCommand => workflowStoreEngineActor forward cmd
   }
 
-  private def statusOf(id: WorkflowId, replyTo: ActorRef): Unit = {
-    pipe(store.status(id)).to(replyTo)
-    ()
+  private def statusOf(id: WorkflowId): Future[WorkflowStateResponse] = {
+    store.status(id) map {
+      case Some(state) => WorkflowStateSuccessfulResponse(id, state)
+      case None => WorkflowStateNotFoundResponse(id)
+    } recover {
+      case failure => WorkflowStateFailedResponse(id, failure)
+    }
   }
 
-  private def checkWorkflowIdExistence(id: WorkflowId, replyTo: ActorRef): Unit = {
-    val validation: Future[WorkflowValidationResponse] = store.status(id) map {
-      case Some(_) => RecognizedWorkflowId
-      case None => UnrecognizedWorkflowId
-    } recover {
-      case failure => FailedToCheckWorkflowId(failure)
-    }
-
-    pipe(validation).to(replyTo)
-    ()
+  private def checkWorkflowIdExistence(id: WorkflowId): Future[WorkflowValidationResponse] = {
+    statusOf(id).map(_.toValidationResponse)
   }
 }
 
 object WorkflowStoreActor {
-  sealed trait WorkflowStoreActorEngineCommand
+  sealed trait WorkflowStoreCommand
+  sealed trait WorkflowStoreActorEngineCommand extends WorkflowStoreCommand
   final case class FetchRunnableWorkflows(n: Int) extends WorkflowStoreActorEngineCommand
   final case class AbortWorkflow(id: WorkflowId, manager: ActorRef) extends WorkflowStoreActorEngineCommand
   case object InitializerCommand extends WorkflowStoreActorEngineCommand
   case object WorkDone extends WorkflowStoreActorEngineCommand
 
-  sealed trait WorkflowStoreActorSubmitCommand
+  sealed trait WorkflowStoreActorSubmitCommand extends WorkflowStoreCommand
   final case class SubmitWorkflow(source: WorkflowSourceFilesCollection) extends WorkflowStoreActorSubmitCommand
   final case class BatchSubmitWorkflows(sources: NonEmptyList[WorkflowSourceFilesCollection]) extends WorkflowStoreActorSubmitCommand
-  final case class WorkflowStatusRequest(id: WorkflowId) extends WorkflowStoreActorSubmitCommand
+  
+  final case class WorkflowStateRequest(id: WorkflowId) extends WorkflowStoreCommand
+
+  sealed trait WorkflowStateResponse {
+    def toValidationResponse: WorkflowValidationResponse
+  }
+  final case class WorkflowStateSuccessfulResponse(id: WorkflowId, status: WorkflowStoreState) extends WorkflowStateResponse {
+    override def toValidationResponse: WorkflowValidationResponse = RecognizedWorkflowId
+  }
+  final case class WorkflowStateNotFoundResponse(id: WorkflowId) extends WorkflowStateResponse {
+    override def toValidationResponse: WorkflowValidationResponse = UnrecognizedWorkflowId
+  }
+  final case class WorkflowStateFailedResponse(id: WorkflowId, ex: Throwable) extends WorkflowStateResponse {
+    override def toValidationResponse: WorkflowValidationResponse = FailedToCheckWorkflowId(ex)
+  }
 
   def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef) = {
     Props(WorkflowStoreActor(workflowStoreDatabase, serviceRegistryActor)).withDispatcher(EngineDispatcher)

@@ -541,7 +541,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     
     val failedFiles = workflowInputs collect {
       case (port , WomSingleFile(value)) if value.startsWith("\"gs://") =>
-        s"${prefix(port)} $value starts with a '\'"
+        s"""${prefix(port)} $value starts with a '"'"""
       case (port , WomSingleFile(value)) if value.isEmpty =>
         s"${prefix(port)} empty value"
     }

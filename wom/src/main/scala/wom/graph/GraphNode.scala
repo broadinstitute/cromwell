@@ -6,6 +6,7 @@ import wom.callable.Callable
 import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, OutputDefinition, RequiredInputDefinition}
 import wom.graph.GraphNode._
 import wom.graph.GraphNodePort.{InputPort, OutputPort}
+import wom.graph.expression.ExpressionNode
 
 trait GraphNode {
   def identifier: WomIdentifier

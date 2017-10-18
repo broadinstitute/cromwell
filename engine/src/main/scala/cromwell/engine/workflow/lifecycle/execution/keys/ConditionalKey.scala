@@ -4,6 +4,7 @@ import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionIndex.ExecutionIndex
 import cromwell.core.{ExecutionStatus, JobKey}
 import wom.graph._
+import wom.graph.expression.ExpressionNode
 
 /**
   * Represents a conditional node in the execution store.

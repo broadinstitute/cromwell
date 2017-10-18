@@ -40,16 +40,16 @@ object Scatter {
     // Generate an ExpressionNode from the WdlWomExpression
     val scatterCollectionExpressionNode = WdlWomExpression.toExpressionNode(WomIdentifier(scatter.item), scatterCollectionExpression, localLookup, Map.empty)
     // Validate the collection evaluates to a traversable type
-    val scatterCollectionTypeValidation = scatterCollectionExpression.evaluateType(localLookup.map { case (k, v) => k -> v.womType }) flatMap {
-      case collectionType: WdlArrayType => Valid(collectionType) // Covers maps because this is a custom unapply (see WdlArrayType)
+    val scatterItemTypeValidation = scatterCollectionExpression.evaluateType(localLookup.map { case (k, v) => k -> v.womType }) flatMap {
+      case WdlArrayType(itemType) => Valid(itemType) // Covers maps because this is a custom unapply (see WdlArrayType)
       case other => s"Cannot scatter over a non-traversable type ${other.toWdlString}".invalidNel
     }
 
     for {
-      collectionType <- scatterCollectionTypeValidation
+      itemType <- scatterItemTypeValidation
       expressionNode <- scatterCollectionExpressionNode
       // Graph input node for the scatter variable in the inner graph. Note that the type is the array's member type
-      womInnerGraphScatterVariableInput = ScatterVariableNode(WomIdentifier(scatter.item), expressionNode.singleExpressionOutputPort, collectionType.memberType)
+      womInnerGraphScatterVariableInput = ScatterVariableNode(WomIdentifier(scatter.item), expressionNode.singleExpressionOutputPort, itemType)
       g <- WdlGraphNode.buildWomGraph(scatter, Set(womInnerGraphScatterVariableInput), localLookup)
     } yield ScatterNode.scatterOverGraph(g, expressionNode, womInnerGraphScatterVariableInput)
   }

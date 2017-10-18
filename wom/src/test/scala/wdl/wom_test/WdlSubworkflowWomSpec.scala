@@ -4,7 +4,8 @@ import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.types.{WdlArrayType, WdlIntegerType, WdlMaybeEmptyArrayType, WdlStringType}
 import wdl.{ImportResolver, WdlNamespace, WdlNamespaceWithWorkflow}
-import wom.graph.{ExpressionNode, Graph, TaskCallNode, WorkflowCallNode}
+import wom.graph.expression.ExpressionNode
+import wom.graph.{Graph, TaskCallNode, WorkflowCallNode}
 
 class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
 

@@ -2,8 +2,8 @@ package cromwell.engine.workflow.lifecycle.execution.keys
 
 import cromwell.core.ExecutionIndex._
 import cromwell.core.JobKey
-import wom.graph.ExpressionNode
 import wom.graph.GraphNodePort.OutputPort
+import wom.graph.expression.ExpressionNode
 
 /**
   * Key for expression nodes.

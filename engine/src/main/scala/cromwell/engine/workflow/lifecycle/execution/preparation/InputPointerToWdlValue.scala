@@ -21,6 +21,7 @@ object InputPointerToWdlValue extends Poly1 {
 
   implicit def fromOutputPort: Case.Aux[OutputPort, ToWdlValueFn] = at[OutputPort] {
     port => (node: GraphNode, _: Map[String, WdlValue], _: IoFunctionSet, valueStore: ValueStore, index : ExecutionIndex) =>
+      // TODO WOM: This is not right, we should be able to know which one to look at
       valueStore.get(port, index)
         .orElse(valueStore.get(port, None))  
         .map(_.validNel)

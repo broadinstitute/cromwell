@@ -3,8 +3,9 @@ package wom.graph
 import lenthall.validation.ErrorOr.ErrorOr
 import wdl.types.WdlType
 import wom.expression.WomExpression
-import wom.graph.ExpressionNode.buildFromConstructor
+import wom.graph.expression.ExpressionNode.buildFromConstructor
 import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort}
+import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode}
 
 sealed trait GraphOutputNode extends GraphNode {
   def womType: WdlType
@@ -38,4 +39,4 @@ object ExpressionBasedGraphOutputNode {
 /**
   * A graph output which is produced by evaluating an expression.
   */
-trait ExpressionBasedGraphOutputNode extends DeclarationNode with GraphOutputNode
+trait ExpressionBasedGraphOutputNode extends AnonymousExpressionNode with GraphOutputNode

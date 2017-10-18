@@ -6,6 +6,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import wdl.{WdlNamespace, WdlNamespaceWithWorkflow, WdlWomExpression}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
+import wom.graph.expression.ExpressionNode
 
 class WdlNamespaceWomSpec extends FlatSpec with Matchers {
 

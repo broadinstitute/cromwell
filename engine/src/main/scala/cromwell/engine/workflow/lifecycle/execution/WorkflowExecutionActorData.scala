@@ -5,7 +5,7 @@ import akka.actor.ActorRef
 import cromwell.backend._
 import cromwell.core.ExecutionStatus._
 import cromwell.core._
-import cromwell.engine.workflow.lifecycle.execution.ValueStore.OutputKey
+import cromwell.engine.workflow.lifecycle.execution.ValueStore.ValueKey
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
 
@@ -17,7 +17,7 @@ object WorkflowExecutionDiff {
 /** Data differential between current execution data, and updates performed in a method that needs to be merged. */
 final case class WorkflowExecutionDiff(executionStoreChanges: Map[JobKey, ExecutionStatus],
                                        engineJobExecutionActorAdditions: Map[ActorRef, JobKey] = Map.empty,
-                                       valueStoreAdditions: Map[OutputKey, WdlValue] = Map.empty) {
+                                       valueStoreAdditions: Map[ValueKey, WdlValue] = Map.empty) {
   def containsNewEntry: Boolean = {
     executionStoreChanges.exists(esc => esc._2 == NotStarted) || valueStoreAdditions.nonEmpty
   }
@@ -47,6 +47,10 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
 
   val expressionLanguageFunctions = new WdlFunctions(workflowDescriptor.pathBuilders)
 
+  def isInBypassedScope(jobKey: JobKey): Boolean = {
+    executionStore.isInBypassedConditional(jobKey)
+  }
+
   def callExecutionSuccess(jobKey: JobKey, outputs: CallOutputs): WorkflowExecutionActorData = {
     val (newJobExecutionActors, newSubWorkflowExecutionActors) = jobKey match {
       case jobKey: BackendJobDescriptorKey => (backendJobExecutionActors - jobKey, subWorkflowExecutionActors)
@@ -63,7 +67,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   }
 
   final def expressionEvaluationSuccess(expressionKey: ExpressionKey, value: WdlValue): WorkflowExecutionActorData = {
-    val valueStoreKey = OutputKey(expressionKey.singleOutputPort, expressionKey.index)
+    val valueStoreKey = ValueKey(expressionKey.singleOutputPort, expressionKey.index)
     this.copy(
       executionStore = executionStore.add(Map(expressionKey -> Done)),
       valueStore = valueStore.add(Map(valueStoreKey -> value))
@@ -73,11 +77,11 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   def executionFailed(jobKey: JobKey): WorkflowExecutionActorData = mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
 
   /** Add the outputs for the specified `JobKey` to the symbol cache. */
-  private def updateSymbolStoreEntry(jobKey: JobKey, outputs: CallOutputs): Map[OutputKey, WdlValue] = {
+  private def updateSymbolStoreEntry(jobKey: JobKey, outputs: CallOutputs): Map[ValueKey, WdlValue] = {
     jobKey.node.outputPorts flatMap { outputPort =>
       outputs.collectFirst { 
         case (name, JobOutput(value)) if name == outputPort.name => value
-      } map { OutputKey(outputPort, jobKey.index) -> _ }
+      } map { ValueKey(outputPort, jobKey.index) -> _ }
     } toMap
   }
 

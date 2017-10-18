@@ -117,7 +117,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         jobStoreActor ! QueryJobCompletion(jobStoreKey, jobDescriptorKey.call.callable.outputs)
         goto(CheckingJobStore)
       } else {
-        requestvalueStore()
+        requestValueStore()
       }
     case Event(JobExecutionTokenDenied(positionInQueue), NoData) =>
       log.debug("Token denied so cannot start yet. Currently position {} in the queue", positionInQueue)
@@ -156,13 +156,13 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(HasCallCacheEntry(_), NoData) =>
       // Disable call caching
       effectiveCallCachingMode = CallCachingOff
-      requestvalueStore()
+      requestValueStore()
     // No cache entry for this job - keep going
     case Event(NoCallCacheEntry(_), NoData) =>
-      requestvalueStore()
+      requestValueStore()
     case Event(CacheResultLookupFailure(reason), NoData) =>
       log.error(reason, "{}: Failure checking for cache entry existence: {}. Attempting to resume job anyway.", jobTag, reason.getMessage)
-      requestvalueStore()
+      requestValueStore()
   }
 
   /*
@@ -171,7 +171,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   * variable in this actor, which would prevent it from being garbage collected for the duration of the
   * job and would lead to memory leaks.
   */
-  when(WaitingForvalueStore) {
+  when(WaitingForValueStore) {
     case Event(valueStore: ValueStore, NoData) => prepareJob(valueStore)
   }
 
@@ -439,9 +439,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     goto(PreparingJob)
   }
   
-  def requestvalueStore() = {
+  def requestValueStore() = {
     replyTo ! RequestValueStore
-    goto(WaitingForvalueStore)
+    goto(WaitingForValueStore)
   }
 
   def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity, callCachingEligible: CallCachingEligible): Try[ActorRef] = {
@@ -644,7 +644,7 @@ object EngineJobExecutionActor {
   case object CheckingCallCache extends EngineJobExecutionActorState
   case object FetchingCachedOutputsFromDatabase extends EngineJobExecutionActorState
   case object BackendIsCopyingCachedOutputs extends EngineJobExecutionActorState
-  case object WaitingForvalueStore extends EngineJobExecutionActorState
+  case object WaitingForValueStore extends EngineJobExecutionActorState
   case object PreparingJob extends EngineJobExecutionActorState
   case object RunningJob extends EngineJobExecutionActorState
   case object UpdatingCallCache extends EngineJobExecutionActorState

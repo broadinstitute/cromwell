@@ -1,11 +1,10 @@
-package wom.graph
+package wom.graph.expression
 
 import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import lenthall.Checked
-import lenthall.validation.ErrorOr.ErrorOr
-import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+import lenthall.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import lenthall.validation.Validation._
 import shapeless.Coproduct
 import wdl.types.WdlType
@@ -13,11 +12,12 @@ import wdl.values.WdlValue
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.CallNode.InputDefinitionPointer
 import wom.graph.GraphNodePort.{ConnectedInputPort, GraphNodeOutputPort, InputPort, OutputPort}
+import wom.graph.{GraphNode, GraphNodePort, WomIdentifier}
 
 /**
   * Encapsulates a WomExpression with input ports connected to the expression's dependencies.
   */
-class ExpressionNode(override val identifier: WomIdentifier,
+abstract class ExpressionNode(override val identifier: WomIdentifier,
                      val womExpression: WomExpression,
                      val womType: WdlType,
                      val inputMapping: Map[String, InputPort]) extends GraphNode {
@@ -48,20 +48,6 @@ object ExpressionNode {
     */
   type ExpressionNodeConstructor[E <: ExpressionNode] = (WomIdentifier, WomExpression, WdlType, Map[String, InputPort]) => E
 
-  /**
-    * This is the normal apply method. Creates an ExpressionNode
-    */
-  private def defaultConstructor(identifier: WomIdentifier, womExpression: WomExpression, womType: WdlType, inputPorts: Map[String, InputPort]): ExpressionNode = {
-    new ExpressionNode(identifier, womExpression, womType, inputPorts)
-  }
-
-  /**
-    * Attempts to build an expression from the provided input mapping, the womType is the evaluated type derived from the expression.
-    */
-  def fromInputMapping(identifier: WomIdentifier, expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[ExpressionNode] = {
-    buildFromConstructor(defaultConstructor)(identifier, expression, inputMapping)
-  }
-  
   /**
     * Using the passed constructor, attempts to build an expression node from input mappings by linking variable references to other
     * output ports.

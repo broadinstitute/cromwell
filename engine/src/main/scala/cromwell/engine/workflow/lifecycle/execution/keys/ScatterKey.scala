@@ -3,6 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution.keys
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.{ExecutionStatus, JobKey}
 import wom.graph._
+import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode}
 
 import scala.language.postfixOps
 
@@ -28,10 +29,10 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
       * |      |- OutputPort A
       * |             ^
       * |             |
-      * |    * OutputToGather A (PortBasedGraphOutputNode) 
+      * |    * OutputToGather A (PortBasedGraphOutputNode) -> one per output per shard
       * |             ^
       * |             |
-      * |- ScatterGathererPort
+      * |- ScatterGathererPort -> CollectedValue (array) of all shards for a given output port
       * 
       * This represents a ScatterNode containing one call (CallNodeA) which itself exposes one output port (OutputPort A).
       * There could be multiple output ports for the same CallNode and multiple CallNodes (or Conditional or Declaration Nodes etc...) inside the scatter.
@@ -56,7 +57,7 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
       case (taskCallNode: CallNode, scatterGatherPorts) => List(ScatterCollectorKey(taskCallNode, scatterGatherPorts, node, count))
         // For other types of nodes we don't assume any time locality regarding the output ports availability and create
         // one collector per port
-      case (declarationNode: DeclarationNode, scatterGatherPorts) => scatterGatherPorts map { sgp => ScatterCollectorKey(declarationNode, Set(sgp), node, count) }
+      case (declarationNode: AnonymousExpressionNode, scatterGatherPorts) => scatterGatherPorts map { sgp => ScatterCollectorKey(declarationNode, Set(sgp), node, count) }
       case (_: ConditionalNode, scatterGatherPorts) => scatterGatherPorts map { sgp => ScatterCollectorKey(sgp.outputToGather, Set(sgp), node, count) }
       case _ => List.empty
     }
@@ -71,7 +72,6 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
     case _: GraphInputNode => List.empty
     case _: PortBasedGraphOutputNode => List.empty
     //        case call: WdlWorkflowCall => (0 until count) map { i => SubWorkflowKey(call, Option(i), 1) }
-    //        case conditional: If => (0 until count) map { i => ConditionalKey(conditional, Option(i)) }
     case _: ScatterNode =>
       throw new UnsupportedOperationException("Nested Scatters are not supported (yet) ... but you might try a sub workflow to achieve the same effect!")
     case e =>

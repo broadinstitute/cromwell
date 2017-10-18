@@ -16,6 +16,7 @@ import wdl.types._
 import wdl.values._
 import wom.expression._
 import wom.graph._
+import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.Await
@@ -265,7 +266,7 @@ object WdlWomExpression {
     import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
     
     findInputsforExpression(expression, innerLookup, outerLookup) flatMap { resolvedVariables => 
-       ExpressionNode.fromInputMapping(nodeIdentifier, expression, resolvedVariables)
+       AnonymousExpressionNode.fromInputMapping(nodeIdentifier, expression, resolvedVariables)
     }
   }
 }

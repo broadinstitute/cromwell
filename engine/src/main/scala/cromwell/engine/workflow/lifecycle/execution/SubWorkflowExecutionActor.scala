@@ -51,18 +51,18 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
         subWorkflowStoreActor ! QuerySubWorkflow(parentWorkflow.id, key)
         goto(SubWorkflowCheckingStoreState)
       } else {
-        requestvalueStore(createSubWorkflowId())
+        requestValueStore(createSubWorkflowId())
       }
   }
 
   when(SubWorkflowCheckingStoreState) {
     case Event(SubWorkflowFound(entry), _) =>
-      requestvalueStore(WorkflowId.fromString(entry.subWorkflowExecutionUuid))
+      requestValueStore(WorkflowId.fromString(entry.subWorkflowExecutionUuid))
     case Event(_: SubWorkflowNotFound, _) =>
-      requestvalueStore(createSubWorkflowId())
+      requestValueStore(createSubWorkflowId())
     case Event(SubWorkflowStoreFailure(command, reason), _) =>
       jobLogger.error(reason, s"SubWorkflowStore failure for command $command, starting sub workflow with fresh ID.")
-      requestvalueStore(createSubWorkflowId())
+      requestValueStore(createSubWorkflowId())
   }
 
   /*
@@ -71,7 +71,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     * variable in this actor, which would prevent it from being garbage collected for the duration of the
     * subworkflow and would lead to memory leaks.
     */
-  when(WaitingForvalueStore) {
+  when(WaitingForValueStore) {
     case Event(valueStore: ValueStore, SubWorkflowExecutionActorData(Some(subWorkflowId))) =>
       prepareSubWorkflow(subWorkflowId, valueStore)
     case Event(_: ValueStore, _) =>
@@ -154,9 +154,9 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     goto(SubWorkflowPreparingState) using SubWorkflowExecutionActorData(Option(subWorkflowId))
   }
 
-  private def requestvalueStore(workflowId: WorkflowId) = {
+  private def requestValueStore(workflowId: WorkflowId) = {
     context.parent ! RequestValueStore
-    goto(WaitingForvalueStore) using SubWorkflowExecutionActorData(Option(workflowId))
+    goto(WaitingForValueStore) using SubWorkflowExecutionActorData(Option(workflowId))
   }
 
   def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId) = {
@@ -250,7 +250,7 @@ object SubWorkflowExecutionActor {
   case object SubWorkflowRunningState extends SubWorkflowExecutionActorState {
     override val workflowState = WorkflowRunning
   }
-  case object WaitingForvalueStore extends SubWorkflowExecutionActorState {
+  case object WaitingForValueStore extends SubWorkflowExecutionActorState {
     override val workflowState = WorkflowRunning
   }
   case object SubWorkflowAbortingState extends SubWorkflowExecutionActorState {

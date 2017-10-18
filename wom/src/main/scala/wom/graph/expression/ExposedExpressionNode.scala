@@ -1,12 +1,12 @@
-package wom.graph
+package wom.graph.expression
 
 import lenthall.validation.ErrorOr.ErrorOr
 import wdl.types.WdlType
 import wom.expression.WomExpression
-import wom.graph.ExpressionNode.buildFromConstructor
 import wom.graph.GraphNodePort.{InputPort, OutputPort}
+import wom.graph.WomIdentifier
 
-object DeclarationNode {
+object ExposedExpressionNode {
   def fromInputMapping(identifier: WomIdentifier,
                        expression: WomExpression,
                        explicitWomType: WdlType, 
@@ -16,9 +16,9 @@ object DeclarationNode {
                     expression: WomExpression,
                     evaluatedType: WdlType,
                     inputPorts: Map[String, InputPort]) = {
-      new ExpressionNode(identifier, expression, explicitWomType, inputPorts) with DeclarationNode
+      new ExpressionNode(identifier, expression, explicitWomType, inputPorts) with AnonymousExpressionNode
     }
-    buildFromConstructor(constructor)(identifier, expression, inputMapping)
+    ExpressionNode.buildFromConstructor(constructor)(identifier, expression, inputMapping)
   }
 }
 
@@ -26,4 +26,4 @@ object DeclarationNode {
   * An expression node that has an explicit WomType, that could be different from the evaluated type of the expression.
   * Coercion to this explicit type should be applied when evaluating the expression
   */
-trait DeclarationNode extends ExpressionNode
+trait ExposedExpressionNode extends ExpressionNode

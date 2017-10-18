@@ -47,8 +47,8 @@ class EjeaRequestingExecutionTokenSpec extends EngineJobExecutionActorSpec with 
         ejea ! JobExecutionTokenDispensed(helper.executionToken)
 
         helper.replyToProbe.expectMsg(max = awaitTimeout, hint = "Awaiting JobStarting message", JobStarting(helper.jobDescriptorKey))
-        helper.replyToProbe.expectMsg(max = awaitTimeout, hint = "Awaiting RequestvalueStore message", RequestValueStore)
-        ejea.stateName should be(WaitingForvalueStore)
+        helper.replyToProbe.expectMsg(max = awaitTimeout, hint = "Awaiting RequestValueStore message", RequestValueStore)
+        ejea.stateName should be(WaitingForValueStore)
       }
     }
   }

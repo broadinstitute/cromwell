@@ -4,16 +4,31 @@ import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionIndex.ExecutionIndex
 import cromwell.core.ExecutionStatus._
 import cromwell.core.JobKey
-import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.RunnableScopes
+import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.{RunnableScopes, _}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{apply => _}
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import lenthall.collections.Table
 import wom.callable.WorkflowDefinition
-import wom.graph.GraphNodePort.{ConditionalOutputPort, ScatterGathererPort}
+import wom.graph.GraphNodePort.{ConditionalOutputPort, OutputPort, ScatterGathererPort}
 import wom.graph._
-
+import wom.graph.expression.ExpressionNode
 
 object ExecutionStore {
+  implicit class EnhancedOutputPort(val outputPort: OutputPort) extends AnyVal {
+    def executionNode: GraphNode = outputPort match {
+      case scatter: ScatterGathererPort => scatter.outputToGather.executionNode
+      case conditional: ConditionalOutputPort => conditional.outputToExpose.executionNode
+      case other => other.graphNode.executionNode
+    }
+  }
+
+  implicit class EnhancedGraphNode(val graphNode: GraphNode) extends AnyVal {
+    def executionNode: GraphNode = graphNode match {
+      case pbgon: PortBasedGraphOutputNode => pbgon.source.graphNode
+      case other => other
+    }
+  }
+  
   case class RunnableScopes(scopes: List[JobKey], truncated: Boolean)
 
   def empty = ExecutionStore(Map.empty[JobKey, ExecutionStatus], hasNewRunnables = false)
@@ -38,8 +53,6 @@ object ExecutionStore {
 }
 
 final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionStatus], hasNewRunnables: Boolean) {
-  import lenthall.collections.EnhancedCollections._
-
   // View of the statusStore more suited for lookup based on status
   lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).mapValues(_.keys.toList)
 
@@ -71,7 +84,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
   }
 
   def hasActiveJob: Boolean = {
-    def upstreamFailed(scope: GraphNode): Boolean = scope.upstreamAncestry exists hasFailedScope
+    def upstreamFailed(node: GraphNode): Boolean = node.upstreamAncestry exists hasFailedNode
 
     keysWithStatus(QueuedInCromwell).nonEmpty ||
       keysWithStatus(Starting).nonEmpty ||
@@ -87,7 +100,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
     }
   }
 
-  private def hasFailedScope(s: GraphNode): Boolean = keysWithStatus(Failed).exists(_.node == s)
+  private def hasFailedNode(node: GraphNode): Boolean = keysWithStatus(Failed).exists(_.node == node)
 
   def hasFailedJob: Boolean = keysWithStatus(Failed).nonEmpty
 
@@ -113,24 +126,22 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
   private def arePrerequisitesDone(key: JobKey): Boolean = {
     def calculateUpstreamDone(upstream: GraphNode, index: ExecutionIndex) = upstream match {
         // FIXME this won't hold conditionals in scatters for example
-        // OuterGraphInput node signals that an input comes from outside the graph.
-        // Depending on whether or not this input is outside of a scatter graph will change the index at which we need to look at
+        // OuterGraphInputNode signals that an input comes from outside the graph.
+        // Depending on whether or not this input is outside of a scatter graph will change the index which we need to look at
       case outerNode: OuterGraphInputNode => doneKeys.contains(outerNode, None)
-      case portBased: PortBasedGraphOutputNode => doneKeys.contains(portBased.source.graphNode, index)
       case _: CallNode | _: ScatterNode | _: ExpressionNode | _: ConditionalNode => doneKeys.contains(upstream, index)
       case _ => true
     }
 
     def upstreamAreDone = key.node.upstreamPorts forall {
       // The collector is at index None, so if this is a scatter gather port ignore the key index
-      case upstreamPort: ScatterGathererPort => calculateUpstreamDone(upstreamPort.outputToGather, None)
-      case upstreamPort: ConditionalOutputPort => doneKeys.contains(upstreamPort.outputToExpose, key.index)
-      case upstreamPort => calculateUpstreamDone(upstreamPort.graphNode, key.index)
+      case upstreamPort: ScatterGathererPort => calculateUpstreamDone(upstreamPort.executionNode, None)
+      case upstreamPort => calculateUpstreamDone(upstreamPort.executionNode, key.index)
     }
 
     val runnable = key match {
       case scatterCollector: ScatterCollectorKey => terminalKeys.row(scatterCollector.node).size == scatterCollector.scatterWidth
-      case conditionalCollector: ConditionalCollectorKey => terminalKeys.contains(conditionalCollector.node.source.graphNode, key.index)
+      case conditionalCollector: ConditionalCollectorKey => terminalKeys.contains(conditionalCollector.node.executionNode, key.index)
       case _ => upstreamAreDone
     }
 

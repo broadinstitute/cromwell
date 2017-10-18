@@ -16,7 +16,7 @@ class EjeaCheckingCacheEntryExistenceSpec extends EngineJobExecutionActorSpec {
       
       ejea ! HasCallCacheEntry(CallCacheEntryForCall(helper.workflowId, helper.jobDescriptorKey))
       helper.replyToProbe.expectMsg(RequestValueStore)
-      ejea.stateName should be(WaitingForvalueStore)
+      ejea.stateName should be(WaitingForValueStore)
       
       ejea.underlyingActor.effectiveCallCachingMode shouldBe CallCachingOff
     }
@@ -26,7 +26,7 @@ class EjeaCheckingCacheEntryExistenceSpec extends EngineJobExecutionActorSpec {
 
       ejea ! NoCallCacheEntry(CallCacheEntryForCall(helper.workflowId, helper.jobDescriptorKey))
       helper.replyToProbe.expectMsg(RequestValueStore)
-      ejea.stateName should be(WaitingForvalueStore)
+      ejea.stateName should be(WaitingForValueStore)
     }
 
     "prepare job if cache entry existence lookup fails" in {
@@ -34,7 +34,7 @@ class EjeaCheckingCacheEntryExistenceSpec extends EngineJobExecutionActorSpec {
 
       ejea ! CacheResultLookupFailure(new Exception("[TEST] Failed to lookup cache entry existence"))
       helper.replyToProbe.expectMsg(RequestValueStore)
-      ejea.stateName should be(WaitingForvalueStore)
+      ejea.stateName should be(WaitingForValueStore)
     }
   }
 

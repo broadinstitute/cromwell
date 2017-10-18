@@ -14,7 +14,7 @@ import cromwell.core._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.RunnableScopes
-import cromwell.engine.workflow.lifecycle.execution.ValueStore.OutputKey
+import cromwell.engine.workflow.lifecycle.execution.ValueStore.ValueKey
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
@@ -81,9 +81,9 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     case Event(ExecuteWorkflowCommand, _) =>
       // TODO WOM: Remove this when conditional and sub workflows are supported. It prevents the workflow from hanging
       if(workflowDescriptor.namespace.innerGraph.nodes.collectFirst({
-        case  _: WorkflowCallNode => true
+        case  _: ConditionalNode | _: WorkflowCallNode => true
       }).nonEmpty) {
-        context.parent ! WorkflowExecutionFailedResponse(Map.empty, new Exception("Scatter and Conditional not supported yet"))
+        context.parent ! WorkflowExecutionFailedResponse(Map.empty, new Exception("Conditional and Sub Workflows not supported yet"))
         goto(WorkflowExecutionFailedState)
       }
       scheduleStartRunnableCalls()
@@ -297,22 +297,31 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       context.parent ! WorkflowExecutionSucceededResponse(data.jobExecutionMap, localOutputs)
       goto(WorkflowExecutionSuccessfulState) using data
     }
-
-    workflowDescriptor.namespace.innerGraph.outputNodes
-      .flatMap(_.outputPorts)
-      .map(op => op.identifier -> data.valueStore.get(op, None)).toList
-      .traverse[ErrorOr, (WomIdentifier, WdlValue)]({
-      case (name, Some(value)) => (name -> value).validNel
-      case (name, None) => s"Cannot find an output value for ${name.fullyQualifiedName.value}".invalidNel
-    }).map(validOutputs => handleSuccessfulWorkflowOutputs(validOutputs.toMap))
-      .valueOr { errors =>
-        val exception = new MessageAggregation {
-          override def exceptionContext: String = "Workflow output evaluation failed"
-          override def errorMessages: Traversable[String] = errors.toList
-        }
-        context.parent ! WorkflowExecutionFailedResponse(data.jobExecutionMap, exception)
-        goto(WorkflowExecutionFailedState)
+    
+    def handleWorkflowOutputsFailure(errors: NonEmptyList[String]) = {
+      val exception = new MessageAggregation {
+        override def exceptionContext: String = "Workflow output evaluation failed"
+        override def errorMessages: Traversable[String] = errors.toList
       }
+      context.parent ! WorkflowExecutionFailedResponse(data.jobExecutionMap, exception)
+      goto(WorkflowExecutionFailedState)
+    }
+
+    val workflowOutputPorts = workflowDescriptor.namespace.innerGraph.outputNodes.flatMap(_.outputPorts)
+
+    val workflowOutputValuesValidation = workflowOutputPorts
+      // Try to find a value for each port in the value store
+      .map(op => op.identifier -> data.valueStore.get(op, None))
+      .toList.traverse[ErrorOr, (WomIdentifier, WdlValue)]({
+        case (name, Some(value)) => (name -> value).validNel
+        case (name, None) => s"Cannot find an output value for ${name.fullyQualifiedName.value}".invalidNel
+    })
+      // List of tuples to Map
+      .map(_.toMap)
+
+    workflowOutputValuesValidation
+      .map(handleSuccessfulWorkflowOutputs)
+      .valueOr(handleWorkflowOutputsFailure)
   }
 
   private def handleRetryableFailure(jobKey: BackendJobDescriptorKey, reason: Throwable, returnCode: Option[Int]) = {
@@ -381,13 +390,13 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     // Each process returns a Try[WorkflowExecutionDiff], which, upon success, contains potential changes to be made to the execution store.
     val diffs = runnableScopes map { scope =>
       scope -> Try(scope match {
-        case k: CallKey if isInBypassedScope(k, data) => processBypassedScope(k, data)
-        case k: ExpressionKey if isInBypassedScope(k, data) => processBypassedScope(k, data)
+        case k: CallKey if data.isInBypassedScope(k) => processBypassedScope(k, data)
+        case k: ExpressionKey if data.isInBypassedScope(k) => processBypassedScope(k, data)
         case k: BackendJobDescriptorKey => processRunnableJob(k, data)
-        case k: ScatterKey => processRunnableScatter(k, data, isInBypassedScope(k, data))
+        case k: ScatterKey => processRunnableScatter(k, data, data.isInBypassedScope(k))
         case k: ConditionalKey => processRunnableConditional(k, data)
-        case k: ScatterCollectorKey => processRunnableScatterCollector(k, data, isInBypassedScope(k, data))
-        case k: ConditionalCollectorKey => processRunnableConditionalCollector(k, data, isInBypassedScope(k, data))
+        case k: ScatterCollectorKey => processRunnableScatterCollector(k, data, data.isInBypassedScope(k))
+        case k: ConditionalCollectorKey => processRunnableConditionalCollector(k, data, data.isInBypassedScope(k))
         case k: SubWorkflowKey => processRunnableSubWorkflow(k, data)
         case k: ExpressionKey => processRunnableExpression(k, data)
         case k => Failure(new UnsupportedOperationException(s"Unknown entry in execution store: ${k.tag}"))
@@ -429,10 +438,6 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     if (truncated || diffs.exists(_.containsNewEntry)) newData else newData.resetCheckRunnable
   }
 
-  private def isInBypassedScope(jobKey: JobKey, data: WorkflowExecutionActorData) = {
-    data.executionStore.isInBypassedConditional(jobKey)
-  }
-
   private def processBypassedScope(jobKey: JobKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
     Success(
       WorkflowExecutionDiff(
@@ -442,9 +447,9 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     )
   }
 
-  private def bypassedScopeResults(jobKey: JobKey): Map[OutputKey, WdlOptionalValue] = {
+  private def bypassedScopeResults(jobKey: JobKey): Map[ValueKey, WdlOptionalValue] = {
     jobKey.node.outputPorts.map({ outputPort =>
-      OutputKey(outputPort, jobKey.index) ->  WdlOptionalValue.none(outputPort.womType)
+      ValueKey(outputPort, jobKey.index) ->  WdlOptionalValue.none(outputPort.womType)
     }).toMap
   }
 
@@ -470,6 +475,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     * Curried for convenience.
     */
   private def resolve(jobKey: JobKey, data: WorkflowExecutionActorData)(outputPort: OutputPort): ErrorOr[WdlValue] = {
+    import cats.syntax.option._
+    
     // If the node this port belongs to is a ScatterVariableNode then we want the item at the right index in the array
     def forScatterVariable: ErrorOr[WdlValue] = data.valueStore.get(outputPort, None) match {
       // Try to find the element at "jobIndex" in the array value stored for the outputPort, any other case is a failure
@@ -477,12 +484,11 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
         jobKey.index match {
           case Some(jobIndex) =>
             wdlValue.asArray.value.lift(jobIndex)
-              .map(_.validNel)
-              .getOrElse(s"Shard index $jobIndex exceeds scatter array length: ${wdlValue.asArray.value.size}".invalidNel)
+              .toValidNel(s"Shard index $jobIndex exceeds scatter array length: ${wdlValue.asArray.value.size}")
           case None => s"Unsharded execution key ${jobKey.tag} references a scatter variable: ${outputPort.identifier.fullyQualifiedName}".invalidNel
         }
       case Some(other) => s"Value for scatter collection ${outputPort.identifier.fullyQualifiedName} is not an array: ${other.wdlType.toWdlString}".invalidNel
-      case None => s"Can't find a value for scatter collection ${outputPort.identifier.fullyQualifiedName}".invalidNel
+      case None => s"Can't find a value for scatter collection ${outputPort.identifier.fullyQualifiedName} (looking for index ${jobKey.index})".invalidNel
     }
     
     // Just look it up in the store
@@ -567,9 +573,9 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
         val conditionalStatus = if (b.value) ExecutionStatus.Done else ExecutionStatus.Bypassed
         Success(WorkflowExecutionDiff(conditionalKey.populate + (conditionalKey -> conditionalStatus)))
       case Some(v: WdlValue) => Failure(new RuntimeException(
-        s"'if' condition must evaluate to a boolean but instead got ${v.wdlType.toWdlString}"))
+        s"'if' condition ${conditionalKey.node.conditionExpression.womExpression.sourceString} must evaluate to a boolean but instead got ${v.wdlType.toWdlString}"))
       case None => Failure(
-        new RuntimeException(s"Could not find the boolean value for conditional ${conditionalKey.tag}")
+        new RuntimeException(s"Could not find the boolean value for conditional ${conditionalKey.tag}. Missing boolean should have come from expression ${conditionalKey.node.conditionExpression.womExpression.sourceString}")
       )
     }
   }
@@ -591,14 +597,14 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
               ),
               // Add scatter variable arrayLike to the value store
               valueStoreAdditions = Map (
-                OutputKey(scatterKey.node.scatterVariableInnerGraphInputNode.singleOutputPort, None) -> arrayLike
+                ValueKey(scatterKey.node.scatterVariableInnerGraphInputNode.singleOutputPort, None) -> arrayLike
               )
             )
           )
         case v: WdlValue =>
-          Failure(new RuntimeException(s"Scatter collection must evaluate to an array but instead got ${v.wdlType.toWdlString}"))
+          Failure(new RuntimeException(s"Scatter collection ${scatterKey.node.scatterCollectionExpressionNode.womExpression.sourceString} must evaluate to an array but instead got ${v.wdlType.toWdlString}"))
       } getOrElse {
-        Failure(new RuntimeException(s"Could not find an array value for scatter ${scatterKey.tag}"))
+        Failure(new RuntimeException(s"Could not find an array value for scatter ${scatterKey.tag}. Missing array should have come from expression ${scatterKey.node.scatterCollectionExpressionNode.womExpression.sourceString}"))
       }
     }
   }

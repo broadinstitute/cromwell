@@ -6,6 +6,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import wdl.types.{WdlArrayType, WdlIntegerType, WdlStringType}
 import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.graph.GraphNodePort.ScatterGathererPort
+import wom.graph.expression.ExpressionNode
 import wom.graph.{GraphInputNode, ScatterNode, _}
 
 class WdlScatterWomSpec extends FlatSpec with Matchers {

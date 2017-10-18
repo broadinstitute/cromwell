@@ -15,6 +15,8 @@ import wom.callable.Callable._
 import wom.graph.CallNode._
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
+import wom.graph.expression.ExpressionNode
+
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 

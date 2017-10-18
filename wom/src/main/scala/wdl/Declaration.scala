@@ -2,10 +2,11 @@ package wdl
 
 import cats.data.Validated.Valid
 import lenthall.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
-import wdl4s.parser.WdlParser.{Ast, AstNode}
 import wdl.AstTools.EnhancedAstNode
 import wdl.types.{WdlArrayType, WdlOptionalType, WdlType}
+import wdl4s.parser.WdlParser.{Ast, AstNode}
 import wom.graph._
+import wom.graph.expression.{ExposedExpressionNode, ExpressionNode}
 
 object DeclarationInterface {
   /**
@@ -118,7 +119,7 @@ object Declaration {
       val womExpression = WdlWomExpression(wdlExpression, None)
       for {
         inputMapping <- WdlWomExpression.findInputsforExpression(womExpression, localLookup, outerLookup)
-        expressionNode <- DeclarationNode.fromInputMapping(decl.womIdentifier, womExpression, decl.wdlType, inputMapping)
+        expressionNode <- ExposedExpressionNode.fromInputMapping(decl.womIdentifier, womExpression, decl.wdlType, inputMapping)
       } yield IntermediateValueDeclarationNode(expressionNode)
     }
 

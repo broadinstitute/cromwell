@@ -5,7 +5,8 @@ import org.scalatest.{FlatSpec, Matchers}
 import wdl.wom_test.WdlWomExpressionsAsInputsSpec.Wdl
 import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.graph.GraphNodePort.OutputPort
-import wom.graph.{ExpressionNode, TaskCallNode}
+import wom.graph.TaskCallNode
+import wom.graph.expression.ExpressionNode
 
 import scala.language.postfixOps
 

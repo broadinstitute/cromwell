@@ -150,7 +150,12 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     wdlNamespace.womExecutable(Option(Inputs.toJson.compactPrint)) match {
       case Right(womExecutable) =>
-        val inputs = womExecutable.resolvedExecutableInputs.flatMap({case (port, v) => v.select[WdlValue] map { port -> _ }})
+        val inputs = for {
+          combined <- womExecutable.resolvedExecutableInputs
+          (port, resolvedInput) = combined
+          value <- resolvedInput.select[WdlValue]
+        } yield port -> value
+
         val workflowDescriptor = BackendWorkflowDescriptor(
           WorkflowId.randomId(),
           womDefinition,

@@ -13,6 +13,7 @@ import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import eu.timepit.refined._
 import ExpressionEvaluator._
+import wom.graph.expression.ExpressionNode
 
 class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
   import TestSetup._

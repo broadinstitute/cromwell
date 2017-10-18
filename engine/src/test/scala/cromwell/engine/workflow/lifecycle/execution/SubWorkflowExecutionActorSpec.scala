@@ -106,7 +106,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
     parentProbe.expectMsg(RequestValueStore)
     
     eventually {
-      ewea.stateName shouldBe WaitingForvalueStore
+      ewea.stateName shouldBe WaitingForValueStore
       ewea.stateData.subWorkflowId shouldBe Some(subWorkflowUuid)
     }
   }
@@ -119,7 +119,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
     parentProbe.expectMsg(RequestValueStore)
     
     eventually {
-      ewea.stateName shouldBe WaitingForvalueStore
+      ewea.stateName shouldBe WaitingForValueStore
       ewea.stateData.subWorkflowId should not be empty
     }
   }
@@ -127,7 +127,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   it should "Request output store" in {
     val ewea = buildEWEA()
     val subWorkflowId = WorkflowId.randomId()
-    ewea.setState(WaitingForvalueStore, SubWorkflowExecutionActorData(Option(subWorkflowId)))
+    ewea.setState(WaitingForValueStore, SubWorkflowExecutionActorData(Option(subWorkflowId)))
     val valueStore = ValueStore.empty
     
     ewea ! valueStore

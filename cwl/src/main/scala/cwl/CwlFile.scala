@@ -38,7 +38,7 @@ case class CommandLineTool private(
                                    inputs: Array[CommandInputParameter],
                                    outputs: Array[CommandOutputParameter],
                                    `class`: Witness.`"CommandLineTool"`.T,
-                                   id: Option[String],
+                                   id: String,
                                    requirements: Option[Array[Requirement]],
 
                                    //TODO: Fix this when CwlAny parses correctly
@@ -83,18 +83,9 @@ case class CommandLineTool private(
     }
   }
 
-  /**
-    * This is used in place of the id when id is None.
-    *
-    * @return
-    */
-  def taskDefinitionId: String =
-    baseCommand.map(_.fold(BaseCommandToString)).getOrElse(
-      arguments.map(_.map(_.fold(ArgumentToId)).mkString(" ")).get)
-
   def taskDefinition: TaskDefinition = {
 
-    val id = this.id.getOrElse(taskDefinitionId)
+    val id = this.id
 
     val commandTemplate: Seq[CommandPart] = baseCommand.toSeq.flatMap(_.fold(BaseCommandToCommandParts)) ++
       arguments.toSeq.flatMap(_.map(_.fold(ArgumentToCommandPart)))
@@ -154,7 +145,7 @@ object CommandLineTool {
 
   def apply(inputs: Array[CommandInputParameter] = Array.empty,
             outputs: Array[CommandOutputParameter] = Array.empty,
-            id: Option[String] = None,
+            id: String,
             requirements: Option[Array[Requirement]] = None,
             hints: Option[Array[Map[String, String]]] = None,
             label: Option[String] = None,

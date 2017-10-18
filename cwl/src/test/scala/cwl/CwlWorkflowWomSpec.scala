@@ -132,11 +132,13 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
       _.select[Workflow].get
     }.value.unsafeRunSync.fold(error => throw new RuntimeException(s"broken parse! msg was $error"), identity)
 
+    wf.id should include("three_step")
+
     // The second step (aka 1) step should be cgrep
     val run: WorkflowStep.Run = wf.steps.apply(1).run
     val commandLineTool: CommandLineTool = run.select[CommandLineTool].getOrElse(fail(s"$run wasn't a CommandLineTool"))
 
-    commandLineTool.id.get should include("cgrep")
+    commandLineTool.id should include("cgrep")
     commandLineTool
   }
 
@@ -157,6 +159,8 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
       _.select[Workflow].get
     }.value.unsafeRunSync.fold(error => throw new RuntimeException(s"broken parse! msg was $error"), identity)
 
+    wf.id should include("three_step")
+
     val wfd = wf.womDefinition match {
       case Right(wf: WorkflowDefinition) => wf
       case Left(o) => fail(s"Workflow definition was not produced correctly: ${o.toList.mkString(", ")}")
@@ -171,18 +175,18 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
     patternInputNode.localName should be("pattern")
 
     nodes collect { case gon: GraphOutputNode => gon.localName } should be(Set(
-      "file:///Users/danb/wdl4s/r.cwl#cgrep-count",
-      "file:///Users/danb/wdl4s/r.cwl#wc-count"
+      "file:///Users/danb/wdl4s/three_step.cwl#cgrep-count",
+      "file:///Users/danb/wdl4s/three_step.cwl#wc-count"
     ))
 
     nodes collect { case cn: CallNode => cn.localName } should be(Set("ps", "cgrep", "wc"))
 
     val ps = nodes.collectFirst({ case ps: CallNode if ps.localName == "ps" => ps }).get
     val cgrep = nodes.collectFirst({ case cgrep: CallNode if cgrep.localName == "cgrep" => cgrep }).get
-    val cgrepFileExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if cgrepInput.localName == "file:///Users/danb/wdl4s/r.cwl#cgrep/file" => cgrepInput }).get
-    val cgrepPatternExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if cgrepInput.localName == "file:///Users/danb/wdl4s/r.cwl#cgrep/pattern" => cgrepInput }).get
+    val cgrepFileExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if cgrepInput.localName == "file:///Users/danb/wdl4s/three_step.cwl#cgrep/file" => cgrepInput }).get
+    val cgrepPatternExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if cgrepInput.localName == "file:///Users/danb/wdl4s/three_step.cwl#cgrep/pattern" => cgrepInput }).get
     val wc = nodes.collectFirst({ case wc: CallNode if wc.localName == "wc" => wc }).get
-    val wcFileExpression = nodes.collectFirst({ case wcInput: ExpressionNode if wcInput.localName == "file:///Users/danb/wdl4s/r.cwl#wc/file" => wcInput }).get
+    val wcFileExpression = nodes.collectFirst({ case wcInput: ExpressionNode if wcInput.localName == "file:///Users/danb/wdl4s/three_step.cwl#wc/file" => wcInput }).get
 
     ps.upstream shouldBe empty
 

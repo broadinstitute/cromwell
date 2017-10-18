@@ -20,6 +20,7 @@ import wom.graph._
 case class Workflow private(
                      cwlVersion: Option[CwlVersion],
                      `class`: Witness.`"Workflow"`.T,
+                     id: String,
                      inputs: Array[InputParameter],
                      outputs: Array[WorkflowOutputParameter],
                      steps: Array[WorkflowStep]) {
@@ -107,8 +108,7 @@ case class Workflow private(
   }
 
   def womDefinition: Checked[WorkflowDefinition] = {
-    // TODO: need to find a way to get a meaningful name here
-    val name: String = "MyCwlWorkflow"
+    val name: String = id
     val meta: Map[String, String] = Map.empty
     val paramMeta: Map[String, String] = Map.empty
     val declarations: List[(String, WomExpression)] = List.empty
@@ -129,8 +129,9 @@ case class Workflow private(
 object Workflow {
 
   def apply(cwlVersion: Option[CwlVersion] = Option(CwlVersion.Version1),
+            id: String,
             inputs: Array[InputParameter] = Array.empty,
             outputs: Array[WorkflowOutputParameter] = Array.empty,
             steps: Array[WorkflowStep] = Array.empty): Workflow  =
-              Workflow(cwlVersion, "Workflow".narrow, inputs, outputs, steps)
+              Workflow(cwlVersion, "Workflow".narrow, id, inputs, outputs, steps)
 }

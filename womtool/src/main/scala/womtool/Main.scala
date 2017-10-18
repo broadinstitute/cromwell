@@ -1,12 +1,12 @@
-package wdltool
+package womtool
 
 import java.nio.file.Paths
 
 import cats.data.Validated.{Invalid, Valid}
-import wdl4s.wdl.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
-import wdl4s.wdl._
+import wdl.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
+import wdl._
 import spray.json._
-import wdltool.graph.{GraphPrint, WomGraph}
+import womtool.graph.{GraphPrint, WomGraph}
 
 import scala.util.{Failure, Success}
 
@@ -59,7 +59,7 @@ object Main extends App {
   def inputs(args: Seq[String]): Termination = {
     continueIf(args.length == 1) {
       loadWdl(args.head) { namespace =>
-        import wdl4s.wdl.types.WdlTypeJsonFormatter._
+        import wom.types.WomTypeJsonFormatter._
         val msg = namespace match {
           case x: WdlNamespaceWithWorkflow => x.workflow.inputs.toJson.prettyPrint
           case _ => "WDL does not have a local workflow"
@@ -125,7 +125,7 @@ object Main extends App {
   }
 
   val UsageMessage = """
-                       |java -jar wdltool.jar <action> <parameters>
+                       |java -jar /path/to/womtool.jar <action> <parameters>
                        |
                        |Actions:
                        |validate <WDL file>
@@ -177,5 +177,5 @@ object Main extends App {
     case BadUsageTermination => Console.err.println(UsageMessage)
   }
 
-  sys.exit(termination.returnCode)
+  System.exit(termination.returnCode)
 }

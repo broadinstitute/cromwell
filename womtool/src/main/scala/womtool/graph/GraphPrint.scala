@@ -1,12 +1,10 @@
-package wdltool.graph
+package womtool.graph
 
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicInteger
 
-import cats.derived.monoid._
-import cats.derived.monoid.legacy._
 import cats.implicits._
-import wdl4s.wdl.{CallOutput, Declaration, If, Scatter, WdlCall, WdlGraphNode, _}
+import wdl.{CallOutput, Declaration, If, Scatter, WdlCall, WdlGraphNode, _}
 
 import scala.collection.JavaConverters._
 
@@ -14,6 +12,7 @@ object GraphPrint {
 
   final case class WorkflowDigraph(workflowName: String, digraph: NodesAndLinks)
   final case class NodesAndLinks(nodes: Set[String], links: Set[String])
+  implicit val monoid = cats.derive.monoid[NodesAndLinks]
 
   def generateWorkflowDigraph(file: String): WorkflowDigraph = {
     // It's ok to use .get here, we're happy to throw an exception and crash the program!
@@ -81,15 +80,15 @@ object GraphPrint {
 
   private def graphName(g: WdlGraphNode): String = dotSafe(g match {
     case d: Declaration =>
-      s"${d.wdlType.toWdlString} ${d.unqualifiedName}"
+      s"${d.womType.toDisplayString} ${d.unqualifiedName}"
     case c: WdlCall =>
       s"call ${c.unqualifiedName}"
     case i: If =>
-      s"if (${i.condition.toWdlString})"
+      s"if (${i.condition.toWomString})"
     case s: Scatter =>
-      s"scatter (${s.collection.toWdlString})"
+      s"scatter (${s.collection.toWomString})"
     case c: CallOutput =>
-      val exprString = c.expression.map(e => " = " + e.toWdlString).getOrElse("")
+      val exprString = c.expression.map(e => " = " + e.toWomString).getOrElse("")
       s"output { ${c.fullyQualifiedName}$exprString }"
     case other => s"${other.getClass.getSimpleName}: ${other.fullyQualifiedName}"
   })

@@ -7,8 +7,8 @@ import cromwell.core._
 import cromwell.engine._
 import cromwell.services.metadata.MetadataService
 import MetadataService._
-import cromwell.util.JsonFormatting.WdlValueJsonFormatter
-import WdlValueJsonFormatter._
+import cromwell.util.JsonFormatting.WomValueJsonFormatter
+import WomValueJsonFormatter._
 import better.files.File
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.{StatusCheckResponse, SubsystemStatus}
 import cromwell.webservice.CromwellApiService.BackendResponse

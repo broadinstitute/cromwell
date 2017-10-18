@@ -7,6 +7,7 @@ import cromwell.webservice.metadata.MetadataComponent._
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.core.ExecutionIndex.ExecutionIndex
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreState
 import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
@@ -133,6 +134,21 @@ object MetadataBuilderActor {
   }
 
   def uniqueActorName: String = List("MetadataBuilderActor", UUID.randomUUID()).mkString("-")
+
+  private def processStatusResponse(workflowId: WorkflowId, status: String): JsObject = {
+    JsObject(Map(
+      WorkflowMetadataKeys.Status -> JsString(status.toString),
+      WorkflowMetadataKeys.Id -> JsString(workflowId.toString)
+    ))
+  }
+  
+  def processStatusResponse(workflowId: WorkflowId, status: WorkflowState): JsObject = {
+    processStatusResponse(workflowId, status.toString)
+  }
+
+  def processStatusResponse(workflowId: WorkflowId, status: WorkflowStoreState): JsObject = {
+    processStatusResponse(workflowId, status.toString)
+  }
 }
 
 class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[MetadataBuilderActorState, Option[MetadataBuilderActorData]]
@@ -253,13 +269,6 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
         case _ => MetadataBuilderActor.parse(eventsList, expandedValues)
       }
     }
-  }
-
-  def processStatusResponse(workflowId: WorkflowId, status: WorkflowState): JsObject = {
-    JsObject(Map(
-      WorkflowMetadataKeys.Status -> JsString(status.toString),
-      WorkflowMetadataKeys.Id -> JsString(workflowId.toString)
-    ))
   }
 
   private def workflowMetadataResponse(workflowId: WorkflowId,

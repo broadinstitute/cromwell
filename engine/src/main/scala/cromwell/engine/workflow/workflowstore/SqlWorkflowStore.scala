@@ -32,6 +32,17 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     sqlDatabase.removeWorkflowStoreEntry(id.toString).map(_ > 0) // i.e. did anything get deleted
   }
 
+  override def status(id: WorkflowId)(implicit ec: ExecutionContext): Future[Option[WorkflowStoreState]] = {
+    sqlDatabase.statusOfWorkflowStoreEntry(id.toString) map {
+      _ map {
+        case "Running" => WorkflowStoreState.Running
+        case "Submitted" => WorkflowStoreState.Submitted
+        case "Restartable" => WorkflowStoreState.Restartable
+        case other => throw new IllegalArgumentException(s"Unrecognized worklfow status: $other")
+      }
+    }
+  }
+
   /**
     * Retrieves up to n workflows which have not already been pulled into the engine and sets their pickedUp
     * flag to true

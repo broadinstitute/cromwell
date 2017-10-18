@@ -536,8 +536,14 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   }
 
   private def validateWdlFiles(workflowInputs: Map[OutputPort, WomValue]): Checked[Unit] = {
+    
+    def prefix(port: OutputPort) = s"Invalid value for File input '${port.fullyQualifiedName}':"
+    
     val failedFiles = workflowInputs collect {
-      case (port , WomSingleFile(value)) if value.startsWith("\"gs://") => s"""Invalid value for File input '${port.fullyQualifiedName}': $value starts with a '\"' """
+      case (port , WomSingleFile(value)) if value.startsWith("\"gs://") =>
+        s"${prefix(port)} $value starts with a '\'"
+      case (port , WomSingleFile(value)) if value.isEmpty =>
+        s"${prefix(port)} empty value"
     }
 
     NonEmptyList.fromList(failedFiles.toList) match {

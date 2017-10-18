@@ -89,7 +89,7 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
         store.remove(id) map { removed =>
           if (removed) {
             manager ! WorkflowManagerActor.AbortWorkflowCommand(id, sndr)
-            log.debug(s"Workflow $id removed from the workflow store, abort requested.")
+            log.info(s"Workflow $id removed from the workflow store, abort requested.")
           } else {
             sndr ! WorkflowAbortFailed(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
           }

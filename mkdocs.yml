@@ -6,16 +6,18 @@ site_author: Red Team at Broad Institute
 repo_url: https://github.com/broadinstitute/cromwell
 
 pages:
-- Welcome: index.md
+- Hello: index.md
 - Getting Started: GettingHelp.md
 - Requirements: Requirements.md
 - Building: Building.md
-- Installing: Installing.md
+- Installing: 
+    - Installation: Installing.md
     - Migration: MIGRATION.md
 - Command Line Usage: CommandLine.md
 - WDL: StartWDL.md
 - Configuration: Configuring.md
-- Security: Security.md
+- Security: 
+    - Security basics: Security.md
     - Recommendations: SecurityRecommendations.md
 - Backends: Backends.md
 - Runtime Attributes: RuntimeAttributes.md

@@ -2,7 +2,7 @@ import sbt._
 
 object Dependencies {
   lazy val lenthallV = "0.27"
-  lazy val wdl4sV = "0.15-26c1b63"
+  lazy val wdl4sV = "0.15-814d203" // Warning: 814d203 refers to the wrong cats-core/mouse versions. It requires 1.0.x!
 
   lazy val akkaV = "2.5.3"
   lazy val akkaHttpV = "10.0.9"
@@ -12,7 +12,7 @@ object Dependencies {
   lazy val googleClientApiV = "1.22.0"
   lazy val googleGenomicsServicesApiV = "1.22.0"
   lazy val betterFilesV = "2.17.1"
-  lazy val catsV = "0.9.0"
+  lazy val catsV = "1.0.0-MF"
   lazy val fs2V = "0.9.7"
 
   lazy val pegdownV = "1.6.0"
@@ -23,19 +23,9 @@ object Dependencies {
   private val fs2Test = "co.fs2" %% "fs2-io" % fs2V % "test"
 
   private val catsDependencies = List(
-    "org.typelevel" %% "cats" % catsV,
-    "com.github.benhutchison" %% "mouse" % "0.9"
-  ) map (_
-    /*
-    Exclude test framework cats-laws and its transitive dependency scalacheck.
-    If sbt detects scalacheck, it tries to run it.
-    Explicitly excluding the two problematic artifacts instead of including the three (or four?).
-    https://github.com/typelevel/cats/tree/v0.7.2#getting-started
-    Re "_2.12", see also: https://github.com/sbt/sbt/issues/1518
-     */
-    exclude("org.typelevel", "cats-laws_2.12")
-    exclude("org.typelevel", "cats-kernel-laws_2.12")
-    )
+    "org.typelevel" %% "cats-core" % catsV,
+    "com.github.benhutchison" %% "mouse" % "0.10-MF"
+  )
 
   private val baseDependencies = List(
     "org.broadinstitute" %% "lenthall" % lenthallV,

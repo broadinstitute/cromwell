@@ -2,7 +2,7 @@ package cromwell.backend
 
 import _root_.wdl._
 import cromwell.core.{NoIoFunctionSet, WorkflowOptions}
-import cromwell.util.JsonFormatting.WdlValueJsonFormatter
+import cromwell.util.JsonFormatting.WomValueJsonFormatter
 import lenthall.validation.ErrorOr.ErrorOr
 import wom.callable.Callable.InputDefinition
 import wom.expression.IoFunctionSet
@@ -37,7 +37,7 @@ object RuntimeAttributeDefinition {
 
   def addDefaultsToAttributes(runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition], workflowOptions: WorkflowOptions)
                              (specifiedAttributes: Map[LocallyQualifiedName, WomValue]): Map[LocallyQualifiedName, WomValue] = {
-    import WdlValueJsonFormatter._
+    import WomValueJsonFormatter._
 
     def isUnspecifiedAttribute(name: String) = !specifiedAttributes.contains(name)
 

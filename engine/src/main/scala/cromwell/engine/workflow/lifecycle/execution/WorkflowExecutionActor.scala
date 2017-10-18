@@ -278,7 +278,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     import WorkflowExecutionActor.EnhancedWorkflowOutputs
     import cats.instances.list._
     import cats.syntax.traverse._
-    import cromwell.util.JsonFormatting.WdlValueJsonFormatter._
+    import cromwell.util.JsonFormatting.WomValueJsonFormatter._
     import spray.json._
 
     def handleSuccessfulWorkflowOutputs(outputs: Map[WomIdentifier, WomValue]) = {

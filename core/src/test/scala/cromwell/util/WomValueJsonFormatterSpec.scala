@@ -1,6 +1,6 @@
 package cromwell.util
 
-import cromwell.util.JsonFormatting.WdlValueJsonFormatter.WdlValueJsonFormat
+import cromwell.util.JsonFormatting.WomValueJsonFormatter.WomValueJsonFormat
 import org.scalatest.{FlatSpec, Matchers}
 import spray.json.{JsObject, pimpString}
 import wom.types._
@@ -19,6 +19,6 @@ class WomValueJsonFormatterSpec extends FlatSpec with Matchers {
          |  "left": "sanders",
          |  "right": ["rubio", "carson", "cruz"]
          |}""".stripMargin.parseJson.asJsObject
-    WdlValueJsonFormat.write(wdlPair) should matchPattern { case ExpectedJson => }
+    WomValueJsonFormat.write(wdlPair) should matchPattern { case ExpectedJson => }
   }
 }

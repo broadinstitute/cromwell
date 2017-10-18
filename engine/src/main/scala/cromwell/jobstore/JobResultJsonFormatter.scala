@@ -1,6 +1,6 @@
 package cromwell.jobstore
 
-import cromwell.util.JsonFormatting.WdlValueJsonFormatter.WdlValueJsonFormat
+import cromwell.util.JsonFormatting.WomValueJsonFormatter.WomValueJsonFormat
 import spray.json.{DefaultJsonProtocol, JsValue, RootJsonFormat, _}
 import wom.JobOutput
 
@@ -12,7 +12,7 @@ object JobResultJsonFormatter extends DefaultJsonProtocol {
 
   implicit object JobOutputFormat extends RootJsonFormat[JobOutput] {
     def write(value: JobOutput) = value.womValue.toJson
-    def read(value: JsValue): JobOutput = JobOutput(WdlValueJsonFormat.read(value))
+    def read(value: JsValue): JobOutput = JobOutput(WomValueJsonFormat.read(value))
   }
 
   implicit val JobResultSuccessFormat = jsonFormat2(JobResultSuccess)

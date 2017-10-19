@@ -1,5 +1,7 @@
 package cwl
 
+import java.nio.file.Paths
+
 import cats.data.NonEmptyList
 import cats.instances.list._
 import cats.syntax.either._
@@ -12,7 +14,7 @@ import CwlType.CwlType
 import CwlVersion._
 import wom.callable.WorkflowDefinition
 import wom.executable.Executable
-import wom.expression.{PlaceholderWomExpression, WomExpression}
+import wom.expression.{ValueAsAnExpression, WomExpression}
 import wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 import wom.graph._
 import wom.types.WomType
@@ -59,12 +61,14 @@ case class Workflow private(
     val graphFromInputs: Set[ExternalGraphInputNode] = inputs.map {
       // TODO WOM: need to be able to transform this default value to a WomExpression
       case inputParameter if inputParameter.default.isDefined =>
-        val parsedInputId = WorkflowInputId(inputParameter.id).inputId
+        val parsedInputId = FileAndId(inputParameter.id).id
         val womType = wdlTypeForInputParameter(inputParameter).get
 
-        OptionalGraphInputNodeWithDefault(WomIdentifier(parsedInputId), womType, PlaceholderWomExpression(Set.empty, womType))
+        // TODO: Eurgh! But until we have something better ...
+        val womValue = womType.coerceRawValue(inputParameter.default.get).get
+        OptionalGraphInputNodeWithDefault(WomIdentifier(parsedInputId), womType, ValueAsAnExpression(womValue))
       case input =>
-        val parsedInputId = WorkflowInputId(input.id).inputId
+        val parsedInputId = FileAndId(input.id).id
 
         RequiredGraphInputNode(WomIdentifier(parsedInputId), wdlTypeForInputParameter(input).get)
     }.toSet
@@ -87,16 +91,16 @@ case class Workflow private(
 
           val womType = cwlTypeToWdlType(output.`type`.flatMap(_.select[CwlType]).get)
 
-          def lookupOutputSource(outputId: WorkflowOutputId): Checked[OutputPort] =
+          def lookupOutputSource(outputId: FileStepAndId): Checked[OutputPort] =
             for {
               set <- graphFromSteps
               call <- set.collectFirst { case callNode: CallNode if callNode.localName == outputId.stepId => callNode }.
                 toRight(NonEmptyList.one(s"Call Node by name ${outputId.stepId} was not found in set $set"))
-              output <- call.outputPorts.find(_.name == outputId.outputId).
-                          toRight(NonEmptyList.one(s"looking for ${outputId.outputId} in call $call output ports ${call.outputPorts}"))
+              output <- call.outputPorts.find(_.name == outputId.id).
+                          toRight(NonEmptyList.one(s"looking for ${outputId.id} in call $call output ports ${call.outputPorts}"))
             } yield output
 
-          lookupOutputSource(WorkflowOutputId(output.outputSource.flatMap(_.select[String]).get)).
+          lookupOutputSource(FileStepAndId(output.outputSource.flatMap(_.select[String]).get)).
             map(PortBasedGraphOutputNode(WomIdentifier(output.id), womType, _)).toValidated
       }.map(_.toSet).toEither
 
@@ -108,7 +112,7 @@ case class Workflow private(
   }
 
   def womDefinition: Checked[WorkflowDefinition] = {
-    val name: String = id
+    val name: String = Paths.get(id).getFileName.toString
     val meta: Map[String, String] = Map.empty
     val paramMeta: Map[String, String] = Map.empty
     val declarations: List[(String, WomExpression)] = List.empty

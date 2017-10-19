@@ -58,7 +58,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
               map(_.select[Workflow].get)
 
       womDefinition <- wf.womDefinition
-    } yield validateWom(womDefinition)).leftMap(e => throw new RuntimeException(s"error! $e"))
+    } yield validateWom(womDefinition)).leftMap(e => throw new RuntimeException(s"error! ${e.toList.mkString("\n")}"))
 
     def shouldBeRequiredGraphInputNode(node: GraphNode, localName: String, womType: WomType): Unit = {
       node.isInstanceOf[RequiredGraphInputNode] shouldBe true
@@ -85,16 +85,20 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
             case tarParam: CallNode if tarParam.localName == s"untar" => tarParam
           }.get.
             upstream
-          
+
           untarUpstream should have size 2
           untarUpstream.collectFirst({
             case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/extractfile" =>
               shouldBeRequiredGraphInputNode(exprNode.inputPorts.head.upstream.graphNode, "ex", WomStringType)
           }).getOrElse(fail("Can't find expression node for ex"))
-          
+
           untarUpstream.collectFirst({
             case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/tarfile" =>
-              shouldBeRequiredGraphInputNode(exprNode.inputPorts.head.upstream.graphNode, "inp", WomFileType)
+              exprNode.inputPorts.map(_.upstream.graphNode).count {
+                case rgin: RequiredGraphInputNode =>
+                  rgin.identifier == WomIdentifier("inp") &&
+                    rgin.womType == WomFileType
+              }  shouldBe 1
           }).getOrElse(fail("Can't find expression node for inp"))
 
           val compileUpstreamExpressionPort = nodes.collectFirst {
@@ -102,7 +106,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
           }.get.inputPorts.map(_.upstream).head
 
           compileUpstreamExpressionPort.name shouldBe s"file://$rootPath/1st-workflow.cwl#compile/src"
-          compileUpstreamExpressionPort.graphNode.asInstanceOf[ExpressionNode].inputPorts.head.upstream.name shouldBe s"example_out"
+          compileUpstreamExpressionPort.graphNode.asInstanceOf[ExpressionNode].inputPorts.map(_.upstream.name).count(_ == "example_out") shouldBe 1
 
           nodes.collect {
             case c: PortBasedGraphOutputNode => c
@@ -175,19 +179,19 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
     val patternInputNode = graphInputNodes.head
     patternInputNode.localName should be("pattern")
 
-    nodes collect { case gon: GraphOutputNode => gon.localName } should be(Set(
-      "file:///Users/danb/wdl4s/three_step.cwl#cgrep-count",
-      "file:///Users/danb/wdl4s/three_step.cwl#wc-count"
+    nodes collect { case gon: GraphOutputNode => FullyQualifiedName(gon.localName).id } should be(Set(
+      "cgrep-count",
+      "wc-count"
     ))
 
     nodes collect { case cn: CallNode => cn.localName } should be(Set("ps", "cgrep", "wc"))
 
     val ps = nodes.collectFirst({ case ps: CallNode if ps.localName == "ps" => ps }).get
     val cgrep = nodes.collectFirst({ case cgrep: CallNode if cgrep.localName == "cgrep" => cgrep }).get
-    val cgrepFileExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if cgrepInput.localName == "file:///Users/danb/wdl4s/three_step.cwl#cgrep/file" => cgrepInput }).get
-    val cgrepPatternExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if cgrepInput.localName == "file:///Users/danb/wdl4s/three_step.cwl#cgrep/pattern" => cgrepInput }).get
+    val cgrepFileExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if s"${FileStepAndId(cgrepInput.localName).stepId}/${FileStepAndId(cgrepInput.localName).id}" == "cgrep/file" => cgrepInput }).get
+    val cgrepPatternExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if s"${FileStepAndId(cgrepInput.localName).stepId}/${FileStepAndId(cgrepInput.localName).id}" == "cgrep/pattern" => cgrepInput }).get
     val wc = nodes.collectFirst({ case wc: CallNode if wc.localName == "wc" => wc }).get
-    val wcFileExpression = nodes.collectFirst({ case wcInput: ExpressionNode if wcInput.localName == "file:///Users/danb/wdl4s/three_step.cwl#wc/file" => wcInput }).get
+    val wcFileExpression = nodes.collectFirst({ case wcInput: ExpressionNode if s"${FileStepAndId(wcInput.localName).stepId}/${FileStepAndId(wcInput.localName).id}" == "wc/file" => wcInput }).get
 
     ps.upstream shouldBe empty
 
@@ -196,16 +200,16 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
 
     // Check that expressions input ports point to the right output port
     cgrepPatternExpression.inputPorts.head.upstream should be theSameInstanceAs patternInputNode.singleOutputPort
-    cgrepFileExpression.inputPorts.head.upstream should be theSameInstanceAs ps.outputPorts.head
-    wcFileExpression.inputPorts.head.upstream should be theSameInstanceAs ps.outputPorts.head
-    
+    cgrepFileExpression.inputPorts.map(_.upstream).count(_ eq ps.outputPorts.head) shouldBe 1
+    wcFileExpression.inputPorts.map(_.upstream).count(_ eq ps.outputPorts.head) shouldBe 1
+
     // Check that the inputDefinitionMappings are correct
     ps.inputDefinitionMappings shouldBe empty
     cgrep.inputDefinitionMappings should have size 2
-    
+
     val cgrepFileInputDef = cgrep.callable.inputs.find(_.name == "file").get
     cgrep.inputDefinitionMappings(cgrepFileInputDef).select[OutputPort].get should be theSameInstanceAs cgrepFileExpression.singleExpressionOutputPort
-    
+
     val cgrepPatternInputDef = cgrep.callable.inputs.find(_.name == "pattern").get
     cgrep.inputDefinitionMappings(cgrepPatternInputDef).select[OutputPort].get should be theSameInstanceAs cgrepPatternExpression.singleExpressionOutputPort
   }

@@ -2,7 +2,7 @@ package cwl
 
 import wom.expression.IoFunctionSet
 import wom.types.{WomMapType, WomNothingType, WomStringType}
-import wom.values.{WomMap, WomOptionalValue, WomString, WomValue}
+import wom.values.{WomMap, WomOptionalValue, WomSingleFile, WomString, WomValue}
 
 object ParameterContext {
   val Empty = ParameterContext(
@@ -14,12 +14,15 @@ object ParameterContext {
 
 case class ParameterContext(inputs: WomValue, self: WomValue, runtime: WomValue) {
   def withInputs(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ParameterContext = {
-    val wdlValueType = inputValues.values.headOption.map(_.womType).getOrElse(WomNothingType)
+    val wdlValueType = WomStringType
     copy(
       inputs = WomMap(
         WomMapType(WomStringType, wdlValueType),
         // TODO: WOM: convert inputValues (including WdlFile?) to inputs using the ioFunctionSet
-        inputValues map { case (name, womValue) => WomString(name) -> womValue }
+        inputValues map {
+          case (name, WomSingleFile(path)) => WomString(name) -> WomString(path)
+          case (name, womValue) => WomString(name) -> womValue
+        }
       )
     )
   }

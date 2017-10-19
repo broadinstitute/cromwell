@@ -281,6 +281,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     import cromwell.util.JsonFormatting.WdlValueJsonFormatter._
     import spray.json._
 
+
     def handleSuccessfulWorkflowOutputs(outputs: Map[WomIdentifier, WomValue]) = {
       val fullyQualifiedOutputs = outputs map {
         case (identifier, value) => identifier.fullyQualifiedName.value -> value
@@ -300,8 +301,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       context.parent ! WorkflowExecutionSucceededResponse(data.jobExecutionMap, localOutputs)
       goto(WorkflowExecutionSuccessfulState) using data
     }
-    
-    def handleWorkflowOutputsFailure(errors: NonEmptyList[String]) = {
+
+    def handleWorkflowOutputsFailure( errors: NonEmptyList[String]) ={
       val exception = new MessageAggregation {
         override def exceptionContext: String = "Workflow output evaluation failed"
         override def errorMessages: Traversable[String] = errors.toList
@@ -465,7 +466,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       // directly add the value to the value store in the execution diff
       expression.node.evaluateAndCoerce(lookup, data.expressionLanguageFunctions) match {
         case Right(result) => self ! ExpressionEvaluationSucceededResponse(expression, result)
-        case Left(f) => self ! ExpressionEvaluationFailedResponse(expression, new RuntimeException(f.toList.mkString(", ")))
+        case Left(f) =>
+          self ! ExpressionEvaluationFailedResponse(expression, new RuntimeException(f.toList.mkString(", ")))
       }
     } valueOr { f =>
       self ! ExpressionEvaluationFailedResponse(expression, new RuntimeException(f.toList.mkString(", ")))
@@ -479,7 +481,6 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     * Curried for convenience.
     */
   private def resolve(jobKey: JobKey, data: WorkflowExecutionActorData)(outputPort: OutputPort): ErrorOr[WomValue] = {
-    
     // If the node this port belongs to is a ScatterVariableNode then we want the item at the right index in the array
     def forScatterVariable: ErrorOr[WomValue] = data.valueStore.get(outputPort, None) match {
       // Try to find the element at "jobIndex" in the array value stored for the outputPort, any other case is a failure
@@ -493,7 +494,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       case Some(other) => s"Value for scatter collection ${outputPort.identifier.fullyQualifiedName} is not an array: ${other.womType.toDisplayString}".invalidNel
       case None => s"Can't find a value for scatter collection ${outputPort.identifier.fullyQualifiedName} (looking for index ${jobKey.index})".invalidNel
     }
-    
+
     // Just look it up in the store
     def forNormalNode(index: ExecutionIndex) = data.valueStore.get(outputPort, index) match {
       case Some(value) => value.validNel

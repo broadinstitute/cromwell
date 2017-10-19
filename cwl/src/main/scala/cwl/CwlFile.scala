@@ -108,20 +108,21 @@ case class CommandLineTool private(
       secondaryFiles
      */
 
+    val inputNames = this.inputs.map(_.id).toSet
 
     val outputs: List[Callable.OutputDefinition] = this.outputs.map {
-      case CommandOutputParameter(id, _, _, _, _, _, Some(outputBinding), Some(tpe)) if tpe.select[CwlType].filter(_ == CwlType.File).isDefined =>
-        OutputDefinition(RunId(id).variableId, WomFileType, CommandOutputExpression(outputBinding, WomFileType))
-      case CommandOutputParameter(id, _, _, _, _, _, Some(outputBinding), Some(tpe)) =>
+      case CommandOutputParameter(cop_id, _, _, _, _, _, Some(outputBinding), Some(outputType)) if outputType.select[CwlType].contains(CwlType.File) =>
+        OutputDefinition(FullyQualifiedName(cop_id).id, WomFileType, CommandOutputExpression(outputBinding, WomFileType, inputNames))
+      case CommandOutputParameter(cop_id, _, _, _, _, _, Some(outputBinding), Some(tpe)) =>
         val womType = tpe.select[CwlType].map(cwlTypeToWdlType).get //<-- here be `get` dragons
-        OutputDefinition(RunId(id).variableId, womType, CommandOutputExpression(outputBinding, womType))
+        OutputDefinition(FullyQualifiedName(cop_id).id, womType, CommandOutputExpression(outputBinding, womType, inputNames))
     }.toList
 
     val inputs: List[_ <: Callable.InputDefinition] =
       this.inputs.map { cip =>
         val tpe = cip.`type`.flatMap(_.select[CwlType]).map(cwlTypeToWdlType).get
 
-        RequiredInputDefinition(RunId(cip.id).variableId, tpe)
+        RequiredInputDefinition(FullyQualifiedName(cip.id).id, tpe)
       }.toList
 
     TaskDefinition(

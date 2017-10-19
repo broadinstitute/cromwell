@@ -1,35 +1,61 @@
 package cwl
 
 import io.circe.parser._
-import io.circe.refined._
-import io.circe.literal._
 import CwlCodecs._
-import org.scalacheck.Properties
+import org.scalatest.{FlatSpec, Matchers}
 
-class WorkflowParsingSpec extends Properties("Workflow Json Parser") {
+class WorkflowParsingSpec extends FlatSpec with Matchers {
 
-  def workflowJson(classValue: String) = s"""{"class":"$classValue", "inputs":[], "outputs":[], "steps":[]}"""
+  behavior of "Workflow Json Parser"
 
-  property("accepts the Workflow argument") =
-    decode[Workflow](workflowJson("Workflow")).isRight
+  def workflowJson(classValue: String) = s"""{"class":"$classValue", "id": "MyCwlWorkflow", "inputs":[], "outputs":[], "steps":[]}"""
 
-  property("doesn't parse w/something other than Workflow as class") =
-    decode[Workflow](workflowJson("wrong")).isLeft
+  it should "accept the Workflow argument" in {
+     decode[Workflow](workflowJson("Workflow")) match {
+       case Right(_) => // great!
+       case Left(e) => fail(s"Workflow rejected because: ${e.getMessage}")
+     }
+  }
 
-  property("doesn't parse when class argument is missing") =
-    decode[Workflow]("""{"inputs":[], "outputs":[], "steps":[]}""").isLeft
+  it should "not parse w/something other than Workflow as class" in {
+    decode[Workflow](workflowJson("wrong")) match {
+      case Left(_) => // great!
+      case Right(wf) => fail(s"workflow unexpectedly accepted: $wf")
+    }
+  }
+
+  it should "not parse when class argument is missing" in {
+    decode[Workflow]("""{"inputs":[], "outputs":[], "steps":[]}""") match {
+      case Left(_) => // great!
+      case Right(wf) => fail(s"workflow unexpectedly accepted: $wf")
+    }
+  }
 }
 
-class CommandLineToolParsingSpec extends Properties("CommandLineTool Json Parser") {
+class CommandLineToolParsingSpec extends FlatSpec with Matchers {
 
-  def commandLineToolJson(classValue: String) = s"""{"class":"$classValue", "inputs":[], "outputs":[]}"""
+  behavior of "CommandLineTool Json Parser"
 
-  property("accepts the CommandLineTool argument for class") =
-    decode[CommandLineTool](commandLineToolJson("CommandLineTool")).isRight
+  def commandLineToolJson(classValue: String) = s"""{"class":"$classValue", "id": "MyCwlTask", "inputs":[], "outputs":[]}"""
 
-  property("doesn't parse w/something other than") =
-    decode[CommandLineTool](commandLineToolJson("wrong")).isLeft
+  it should "accept the CommandLineTool argument for class" in {
+    decode[CommandLineTool](commandLineToolJson("CommandLineTool")) match {
+      case Right(_) => // great!
+      case Left(e) => fail(s"CommandLineTool rejected because: $e")
+    }
+  }
 
-  property("doesn't parse when class argument is missing") =
-    decode[CommandLineTool]("""{"inputs":[], "outputs":[]}""").isLeft
+  it should "not parse w/something other than CommandLineTool" in {
+    decode[CommandLineTool](commandLineToolJson("wrong")) match {
+      case Left(_) => // great!
+      case Right(clt) => fail(s"CommandLineTool unexpectedly accepted: $clt")
+    }
+  }
+
+  it should "doesn't parse when class argument is missing" in {
+    decode[CommandLineTool]("""{"inputs":[], "outputs":[]}""") match {
+      case Left(_) => // great!
+      case Right(clt) => fail(s"CommandLineTool unexpectedly accepted: $clt")
+    }
+  }
 }

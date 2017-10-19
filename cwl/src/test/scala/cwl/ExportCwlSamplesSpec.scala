@@ -19,6 +19,7 @@ class ExportCwlSamplesSpec extends FlatSpec with Matchers {
   it should "encode sample CWL command line tool" ignore {
     val tool =
       CommandLineTool(
+        id = "echo",
         inputs =  Array(CommandInputParameter(
           id = "message",
           inputBinding = Option(CommandLineBinding(
@@ -42,6 +43,7 @@ baseCommand: echo
 
   it should "encode sample CWL workflow" ignore {
     val workflow = Workflow(
+      id = "MyCwlWorkflow",
       inputs = Array(
           InputParameter(id = "inp", `type` = Option(Coproduct[MyriadInputType](CwlType.File))),
           InputParameter(id = "ex", `type` = Option(Coproduct[MyriadInputType](CwlType.String)))
@@ -110,6 +112,7 @@ steps:
 
   it should "encode sample CWL env" ignore {
     val tool = CommandLineTool(
+      id = "env",
       baseCommand = Option(Coproduct[BaseCommand]("env")),
       requirements = Option(Array(Coproduct[Requirement](EnvVarRequirement(
         envDef = Array(EnvironmentDef("HELLO", Coproduct[StringOrExpression]("$(inputs.message)")))

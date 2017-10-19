@@ -24,6 +24,7 @@ object ThreeStepExample extends App {
       outputBinding = Option(psOutputBinding))
 
   val psClt = CommandLineTool(
+    id = "ps",
     outputs = Array(psOutputParameter),
     baseCommand = Option(Coproduct[BaseCommand]("ps")),
     stdout = Option(Coproduct[StringOrExpression]("ps-stdOut.txt")))
@@ -47,6 +48,7 @@ object ThreeStepExample extends App {
   val cgrepOutputParameter = CommandOutputParameter(id = "cgrep-stdOut", `type` = Option(Coproduct(CwlType.File)), outputBinding = Option(cgrepOutputBinding))
 
   val cgrepClt = CommandLineTool(
+    id = "cgrep",
     inputs = Array(patternInput, fileInput),
     outputs = Array(cgrepOutputParameter),
     arguments = cgrepArgs,
@@ -76,6 +78,7 @@ object ThreeStepExample extends App {
 
   val wcClt =
     CommandLineTool(
+      id = "wc",
       stdout = Option(Coproduct[StringOrExpression]("wc-stdOut.txt")),
       inputs = Array(wcFileCommandInput),
       outputs = Array(wcCltOutput),
@@ -112,6 +115,7 @@ object ThreeStepExample extends App {
 
   val threeStepWorkflow =
     Workflow(
+      id = "threeStep",
       inputs = _inputs,
       outputs = _outputs,
       steps = Array(psWfStep, grepWfStep, wcWorkflowStep))

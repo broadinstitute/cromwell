@@ -406,9 +406,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       writeMetadatae(importsDir)
       val importsDirFile = better.files.File(importsDir.pathAsString) // For wdl4s better file compatibility
       val importResolvers: Seq[ImportResolver] = if (importLocalFilesystem) {
-        List(WdlNamespace.directoryResolver(importsDirFile), WdlNamespace.fileResolver)
+        List(WdlNamespace.directoryResolver(importsDirFile), WdlNamespace.fileResolver, WdlNamespace.httpResolver)
       } else {
-        List(WdlNamespace.directoryResolver(importsDirFile))
+        List(WdlNamespace.directoryResolver(importsDirFile), WdlNamespace.httpResolver)
       }
       val results = WdlNamespaceWithWorkflow.load(w.workflowSource, importResolvers)
       importsDir.delete(swallowIOExceptions = true)
@@ -479,9 +479,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       case w: WorkflowSourceFilesWithDependenciesZip => validateNamespaceWithImports(w)
       case w: WorkflowSourceFilesWithoutImports =>
         val importResolvers: Seq[ImportResolver] = if (importLocalFilesystem) {
-          List(WdlNamespace.fileResolver)
+          List(WdlNamespace.fileResolver, WdlNamespace.httpResolver)
         } else {
-          List.empty
+          List(WdlNamespace.httpResolver)
         }
         WdlNamespaceWithWorkflow.load(w.workflowSource, importResolvers) match {
           case Failure(e) => s"Unable to load namespace from workflow: ${e.getMessage}".invalidNel

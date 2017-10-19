@@ -23,20 +23,6 @@ final case class WorkflowExecutionDiff(executionStoreChanges: Map[JobKey, Execut
   }
 }
 
-object WorkflowExecutionActorData {
-  def empty(workflowDescriptor: EngineWorkflowDescriptor): WorkflowExecutionActorData = {
-    new WorkflowExecutionActorData(
-      workflowDescriptor,
-      ExecutionStore.empty,
-      Map.empty,
-      Map.empty,
-      Map.empty,
-      Map.empty,
-      ValueStore.empty
-    )
-  }
-}
-
 case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescriptor,
                                       executionStore: ExecutionStore,
                                       backendJobExecutionActors: Map[JobKey, ActorRef],

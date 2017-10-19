@@ -70,4 +70,12 @@ class ValidationSpec extends FlatSpec with Matchers {
     failure.toErrorOr shouldBe Invalid(NonEmptyList.of(":("))
   }
 
+  it should "convert a Try to a Checked" in {
+    val success = Success("yeah")
+    val failure = Failure(new Exception(":("))
+    import lenthall.validation.Validation._
+    success.toChecked shouldBe Right("yeah")
+    failure.toChecked shouldBe Left(NonEmptyList.of(":("))
+  }
+
 }

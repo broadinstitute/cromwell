@@ -1,4 +1,4 @@
-package cromwell.engine.workflow.lifecycle.execution.preparation
+package cromwell.engine.workflow.lifecycle.execution.job.preparation
 
 import _root_.wdl._
 import akka.actor.{ActorRef, FSM, Props}
@@ -12,9 +12,9 @@ import cromwell.docker.DockerHashActor.DockerHashSuccessResponse
 import cromwell.docker._
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.WorkflowDockerLookupActor.{WorkflowDockerLookupFailure, WorkflowDockerTerminalFailure}
-import cromwell.engine.workflow.lifecycle.execution.ValueStore
-import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation._
-import cromwell.engine.workflow.lifecycle.execution.preparation.JobPreparationActor._
+import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation._
+import cromwell.engine.workflow.lifecycle.execution.job.preparation.JobPreparationActor._
+import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvResponse, ScopedKey}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr.ErrorOr

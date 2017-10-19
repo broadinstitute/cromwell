@@ -1,9 +1,9 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
-import cromwell.engine.workflow.lifecycle.execution.ValueStore
+import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec.EnhancedTestEJEA
-import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation
+import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation
+import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 
 class EjeaWaitingForValueStoreSpec extends EngineJobExecutionActorSpec {
 

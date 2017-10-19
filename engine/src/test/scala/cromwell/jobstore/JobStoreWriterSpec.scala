@@ -2,13 +2,13 @@ package cromwell.jobstore
 
 import akka.testkit.TestFSMRef
 import cromwell.CromwellTestKitWordSpec
-import cromwell.core.WorkflowId
 import cromwell.core.actor.BatchingDbWriter
 import cromwell.core.actor.BatchingDbWriter.{BatchingDbWriterState, WritingToDb}
+import cromwell.core.{CallOutputs, WorkflowId}
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, RegisterJobCompleted, RegisterWorkflowCompleted}
 import org.scalatest.{BeforeAndAfter, Matchers}
-import wom.callable.Callable.OutputDefinition
+import wom.graph.GraphNodePort.OutputPort
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -19,7 +19,7 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with Matchers with Befo
   var database: WriteCountingJobStore = _
   var jobStoreWriter: TestFSMRef[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData, JobStoreWriterActor] = _
   var workflowId: WorkflowId = _
-  val successResult: JobResult = JobResultSuccess(Some(0), Map.empty)
+  val successResult: JobResult = JobResultSuccess(Some(0), CallOutputs.empty)
   val flushFrequency = 0.5 second
   val sleepMillis = flushFrequency.toMillis * 5
 
@@ -130,7 +130,7 @@ class WriteCountingJobStore(var totalWritesCalled: Int, var jobCompletionsRecord
     writePromise.future
   }
 
-  override def readJobResult(jobStoreKey: JobStoreKey, taskOutputs: Seq[OutputDefinition])(implicit ec: ExecutionContext): Future[Option[JobResult]] = throw new NotImplementedError()
+  override def readJobResult(jobStoreKey: JobStoreKey, taskOutputs: Seq[OutputPort])(implicit ec: ExecutionContext): Future[Option[JobResult]] = throw new NotImplementedError()
 }
 
 object WriteCountingJobStore {

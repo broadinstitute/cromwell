@@ -1,6 +1,7 @@
 package cromwell.jobstore
 
 import cromwell.util.JsonFormatting.WomValueJsonFormatter.WomValueJsonFormat
+import cromwell.core.CallOutputs
 import spray.json.{DefaultJsonProtocol, JsValue, RootJsonFormat, _}
 import wom.JobOutput
 
@@ -13,6 +14,11 @@ object JobResultJsonFormatter extends DefaultJsonProtocol {
   implicit object JobOutputFormat extends RootJsonFormat[JobOutput] {
     def write(value: JobOutput) = value.womValue.toJson
     def read(value: JsValue): JobOutput = JobOutput(WomValueJsonFormat.read(value))
+  }
+
+  implicit object CallOutputsFormat extends RootJsonFormat[CallOutputs] {
+    def write(value: CallOutputs) = value.outputs.map({case (port, v) => port.identifier.fullyQualifiedName.value -> v }).toJson
+    def read(value: JsValue): CallOutputs = throw new NotImplementedError("Cannot deserialize outputs to output ports")
   }
 
   implicit val JobResultSuccessFormat = jsonFormat2(JobResultSuccess)

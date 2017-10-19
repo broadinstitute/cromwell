@@ -1,9 +1,15 @@
 package cromwell.engine.workflow.lifecycle.execution.keys
 
+import cats.syntax.validated._
+import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.{ExecutionStatus, JobKey}
+import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore.ValueKey
+import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActorData, WorkflowExecutionDiff}
 import wom.graph._
 import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode}
+import wom.values.WomArray.WomArrayLike
+import wom.values.WomValue
 
 import scala.language.postfixOps
 
@@ -77,5 +83,31 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
     case e =>
       throw new UnsupportedOperationException(s"Scope ${e.getClass.getName} is not supported.")
   }
-}
 
+  def processRunnable(data: WorkflowExecutionActorData): ErrorOr[WorkflowExecutionDiff] = {
+    if (data.isInBypassedScope(this)) {
+      WorkflowExecutionDiff(populate(0) + (this -> ExecutionStatus.Bypassed)).validNel
+    } else {
+      val collectionOutputPort = node.scatterCollectionExpressionNode.singleExpressionOutputPort
+
+      data.valueStore.get(collectionOutputPort, None) map {
+        case WomArrayLike(arrayLike) =>
+          WorkflowExecutionDiff(
+            // Add the new shards + collectors, and set the scatterVariable and scatterKey to Done
+            executionStoreChanges = populate(arrayLike.value.size) ++ Map(
+              ScatterVariableInputKey(node.scatterVariableInnerGraphInputNode, arrayLike) -> ExecutionStatus.Done,
+              this -> ExecutionStatus.Done
+            ),
+            // Add scatter variable arrayLike to the value store
+            valueStoreAdditions = Map(
+              ValueKey(node.scatterVariableInnerGraphInputNode.singleOutputPort, None) -> arrayLike
+            )
+          ).validNel
+        case v: WomValue =>
+          s"Scatter collection ${node.scatterCollectionExpressionNode.womExpression.sourceString} must evaluate to an array but instead got ${v.womType.toDisplayString}".invalidNel
+      } getOrElse {
+        s"Could not find an array value for scatter $tag. Missing array should have come from expression ${node.scatterCollectionExpressionNode.womExpression.sourceString}".invalidNel
+      }
+    }
+  }
+}

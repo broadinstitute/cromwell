@@ -1,7 +1,9 @@
 package cromwell.engine.workflow.lifecycle.execution.keys
 
+import common.validation.ErrorOr.ErrorOr
 import cromwell.core.ExecutionIndex.ExecutionIndex
-import cromwell.core.JobKey
+import cromwell.core.{ExecutionStatus, JobKey}
+import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActorData, WorkflowExecutionDiff}
 import wom.graph.ConditionalNode
 import wom.graph.GraphNodePort.ConditionalOutputPort
 
@@ -15,4 +17,13 @@ private [execution] case class ConditionalCollectorKey(conditionalOutputPort: Co
   override val node = conditionalOutputPort.outputToExpose
   override val attempt = 1
   override val tag = s"Collector-${node.localName}"
+
+  def processRunnable(data: WorkflowExecutionActorData): ErrorOr[WorkflowExecutionDiff] = {
+    data.valueStore.collectConditional(this, data.isInBypassedScope(this)) map { outputs =>
+      WorkflowExecutionDiff(
+        executionStoreChanges = Map(this -> ExecutionStatus.Done),
+        valueStoreAdditions = outputs
+      )
+    }
+  }
 }

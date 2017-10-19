@@ -4,6 +4,7 @@ import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.WorkflowOptions
 import cromwell.core.callcaching.CallCachingMode
+import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor
 import org.scalatest.{Assertion, FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._

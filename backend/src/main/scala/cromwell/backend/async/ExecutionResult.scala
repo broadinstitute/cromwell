@@ -1,9 +1,8 @@
 package cromwell.backend.async
 
 import cromwell.backend.BackendJobDescriptor
-import cromwell.core.ExecutionEvent
 import cromwell.core.path.Path
-import wom.core.CallOutputs
+import cromwell.core.{CallOutputs, ExecutionEvent}
 
 /**
  * ADT representing the result of an execution of a BackendCall.

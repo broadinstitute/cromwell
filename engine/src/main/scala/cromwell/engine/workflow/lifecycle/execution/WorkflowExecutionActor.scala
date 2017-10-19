@@ -1,83 +1,68 @@
 package cromwell.engine.workflow.lifecycle.execution
 
+import _root_.wdl._
 import akka.actor.{Scope => _, _}
 import cats.data.NonEmptyList
-import cats.data.Validated.{Invalid, Valid}
-import cats.syntax.option._
+import cats.instances.list._
+import cats.syntax.traverse._
 import cats.syntax.validated._
-import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
-import cromwell.backend.BackendLifecycleActor.AbortJobCommand
-import cromwell.backend.{AllBackendInitializationData, BackendJobDescriptorKey, JobExecutionMap}
+import common.Checked
+import common.exception.{AggregatedException, AggregatedMessageException, MessageAggregation}
+import common.validation.ErrorOr.ErrorOr
+import cromwell.backend.BackendJobExecutionActor._
+import cromwell.backend._
 import cromwell.core.Dispatcher._
-import cromwell.core.ExecutionIndex._
 import cromwell.core.ExecutionStatus._
 import cromwell.core._
 import cromwell.core.logging.WorkflowLogging
+import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
-import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.RunnableScopes
-import cromwell.engine.workflow.lifecycle.execution.ValueStore.ValueKey
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData.DataStoreUpdate
+import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor
+import cromwell.engine.workflow.lifecycle.execution.keys.ExpressionKey.{ExpressionEvaluationFailedResponse, ExpressionEvaluationSucceededResponse}
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
-import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreState
+import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
+import cromwell.services.metadata.MetadataService.PutMetadataAction
+import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataValue}
 import cromwell.util.StopAndLogSupervisor
 import cromwell.webservice.EngineStatsActor
-import common.exception.{MessageAggregation, ThrowableAggregation}
-import common.util.TryUtil
-import common.validation.ErrorOr.ErrorOr
 import org.apache.commons.lang3.StringUtils
-import wdl._
-import wom.JobOutput
-import wom.core.CallOutputs
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
-import wom.values.WomArray.WomArrayLike
 import wom.values._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
 
-case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
-                                  ioActor: ActorRef,
-                                  serviceRegistryActor: ActorRef,
-                                  jobStoreActor: ActorRef,
-                                  subWorkflowStoreActor: ActorRef,
-                                  callCacheReadActor: ActorRef,
-                                  callCacheWriteActor: ActorRef,
-                                  workflowDockerLookupActor: ActorRef,
-                                  jobTokenDispenserActor: ActorRef,
-                                  backendSingletonCollection: BackendSingletonCollection,
-                                  initializationData: AllBackendInitializationData,
-                                  restarting: Boolean)
-  extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] with WorkflowLogging with CallMetadataHelper with StopAndLogSupervisor {
+case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
+  extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] with WorkflowLogging with CallMetadataHelper with StopAndLogSupervisor with Timers {
 
   implicit val ec = context.dispatcher
-
+  override val serviceRegistryActor = params.serviceRegistryActor
+  val workflowDescriptor = params.workflowDescriptor
   override val workflowIdForLogging = workflowDescriptor.id
   override val workflowIdForCallMetadata = workflowDescriptor.id
 
+  private val restarting = params.startState.isRestart
   private val tag = s"WorkflowExecutionActor [UUID(${workflowDescriptor.id.shortString})]"
 
-  private var checkRunnableCancellable: Option[Cancellable] = None
+  private val backendFactories: Map[String, BackendLifecycleActorFactory] = {
+    val factoriesValidation = workflowDescriptor.backendAssignments.values.toList
+      .traverse[ErrorOr, (String, BackendLifecycleActorFactory)] {
+      backendName => CromwellBackends.backendLifecycleFactoryActorByName(backendName) map { backendName -> _ }
+    }
 
-  private val backendFactories = TryUtil.sequenceMap(workflowDescriptor.backendAssignments.values.toSet[String] map { backendName =>
-    backendName -> CromwellBackends.backendLifecycleFactoryActorByName(backendName)
-  } toMap) recover {
-    case e => throw new RuntimeException("Could not instantiate backend factories", e)
-  } get
+    factoriesValidation
+      .map(_.toMap)
+      .valueOr(errors => throw AggregatedMessageException("Could not instantiate backend factories", errors.toList))
+  }
 
   startWith(
     WorkflowExecutionPendingState,
-    WorkflowExecutionActorData(
-      workflowDescriptor,
-      executionStore = ExecutionStore(workflowDescriptor.backendDescriptor.callable),
-      backendJobExecutionActors = Map.empty,
-      engineCallExecutionActors = Map.empty,
-      subWorkflowExecutionActors = Map.empty,
-      downstreamExecutionMap = Map.empty,
-      valueStore = ValueStore.initialize(workflowDescriptor.knownValues)
-    )
+    WorkflowExecutionActorData(workflowDescriptor)
   )
 
   when(WorkflowExecutionPendingState) {
@@ -89,35 +74,107 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
         context.parent ! WorkflowExecutionFailedResponse(Map.empty, new Exception("Conditional and Sub Workflows not supported yet"))
         goto(WorkflowExecutionFailedState)
       }
-      scheduleStartRunnableCalls()
-      goto(WorkflowExecutionInProgressState)
+
+      // Start HeartBeat
+      timers.startPeriodicTimer(ExecutionHeartBeatKey, ExecutionHeartBeat, ExecutionHeartBeatInterval)
+
+      /*
+        * Note that we don't record the fact that a workflow was failing, therefore we either restart in running or aborting state.
+        * If the workflow was failing, it means at least one job failed in which case it'll still be failed when we get to it.
+        * When that happens, we'll go to failing state.
+        * 
+        * An effect of that is that up until the moment when we come across the failed job,
+        * all backend jobs will be restarted with a Recover command which could potentially re-execute the job if the backend doesn't support
+        * job recovery. A better way would be to record that the workflow was failing an restart in failing mode. However there will always be a gap
+        * between when a job has failed and Cromwell is aware of it, or has time to persist that information.
+       */
+      params.startState match {
+        case WorkflowStoreState.RestartableAborting => goto(WorkflowExecutionAbortingState)
+        case _ => goto(WorkflowExecutionInProgressState)
+      }
   }
 
-  when(WorkflowExecutionInProgressState) {
-    case Event(RequestValueStore, data) =>
-      sender() ! data.valueStore
-      stay()
-    case Event(CheckRunnable, data) => handleCheckRunnable(data)
+  /* ********************* */
+  /* ****** Running ****** */
+  /* ********************* */
 
+  when(WorkflowExecutionInProgressState) {
+    // If we're done, the workflow is successful
+    case Event(ExecutionHeartBeat, data) if data.done => handleWorkflowSuccessful(data)
+  }
+
+  /* ********************* */
+  /* ****** Failing ****** */
+  /* ********************* */
+
+  when(WorkflowExecutionFailingState) {
+    // If we're done, aggregate all job failures and fail the workflow
+    case Event(ExecutionHeartBeat, data) if data.done =>
+      val workflowFailure = AggregatedException("Workflow failed", data.jobFailures.values)
+      context.parent ! WorkflowExecutionFailedResponse(data.jobExecutionMap, workflowFailure)
+      goto(WorkflowExecutionFailedState)
+
+    // A job not found here means we were trying to reconnect to a job that was likely never started. Indicate this in the message.
+    case Event(JobFailedNonRetryableResponse(jobKey, _: JobNotFoundException, _), _) if restarting =>
+      val benignException = new Exception("Cromwell server was restarted while this workflow was running. As part of the restart process, Cromwell attempted to reconnect to this job, however it was never started in the first place. This is a benign failure and not the cause of failure for this workflow, it can be safely ignored.")
+      handleNonRetryableFailure(stateData, jobKey, benignException)
+  }
+
+  /* ********************** */
+  /* ****** Aborting ****** */
+  /* ********************** */
+
+  when(WorkflowExecutionAbortingState) {
+    // If we're done, the workflow is aborted
+    case Event(ExecutionHeartBeat, data) if data.done =>
+      context.parent ! WorkflowExecutionAbortedResponse(data.jobExecutionMap)
+      goto(WorkflowExecutionAbortedState)
+
+    case Event(JobAbortedResponse(jobKey), stateData) =>
+      handleCallAborted(stateData, jobKey)
+
+    case Event(SubWorkflowAbortedResponse(jobKey, executedKeys), stateData) =>
+      handleCallAborted(stateData, jobKey, executedKeys)
+
+    // A JobNotFoundException here means we were trying to reconnect to a job that was likely never started, so just abort the key.
+    case Event(JobFailedNonRetryableResponse(jobKey, _: JobNotFoundException, _), _) if restarting =>
+      handleCallAborted(stateData, jobKey)
+
+    // Here we can't really know what the status of the job is. For now declare it aborted anyway but add some info in the metadata
+    case Event(JobFailedNonRetryableResponse(jobKey: BackendJobDescriptorKey, _: JobReconnectionNotSupportedException, _), _) if restarting =>
+      jobReconnectionNotSupported(jobKey)
+      handleCallAborted(stateData, jobKey)
+
+    // If we're already aborting there's nothing to do
+    case Event(EngineLifecycleActorAbortCommand, _) => stay()
+  }
+
+  when(WorkflowExecutionSuccessfulState) { FSM.NullFunction }
+  when(WorkflowExecutionFailedState) { FSM.NullFunction }
+  when(WorkflowExecutionAbortedState) { FSM.NullFunction }
+
+  // Most of the Event handling is common to all states, so put it here. Specific behavior is added / overridden in each state
+  whenUnhandled {
+    case Event(ExecutionHeartBeat, data) if data.executionStore.needsUpdate =>
+      stay() using startRunnableNodes(data)
+    case Event(ExecutionHeartBeat, _) =>
+      stay()
     case Event(JobStarting(jobKey), stateData) =>
       pushStartingCallMetadata(jobKey)
       stay() using stateData
         .mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Starting)))
-    case Event(JobRunning(key, inputs, callExecutionActor), stateData) =>
+    case Event(JobRunning(key, inputs), stateData) =>
       pushRunningCallMetadata(key, inputs)
       stay() using stateData
-        .addCallExecutionActor(key, callExecutionActor)
         .mergeExecutionDiff(WorkflowExecutionDiff(Map(key -> ExecutionStatus.Running)))
 
     //Success
     // Job
     case Event(r: JobSucceededResponse, stateData) =>
-      pushSuccessfulCallMetadata(r.jobKey, r.returnCode, r.jobOutputs)
-      handleCallSuccessful(r.jobKey, r.jobOutputs, stateData, Map.empty)
+      handleCallSuccessful(r.jobKey, r.jobOutputs, r.returnCode, stateData, Map.empty)
     // Sub Workflow
     case Event(SubWorkflowSucceededResponse(jobKey, descendantJobKeys, callOutputs), stateData) =>
-      pushSuccessfulCallMetadata(jobKey, None, callOutputs)
-      handleCallSuccessful(jobKey, callOutputs, stateData, descendantJobKeys)
+      handleCallSuccessful(jobKey, callOutputs, None, stateData, descendantJobKeys)
     // Expression
     case Event(ExpressionEvaluationSucceededResponse(jobKey, callOutputs), stateData) =>
       handleDeclarationEvaluationSuccessful(jobKey, callOutputs, stateData)
@@ -130,106 +187,41 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     // Failure
     // Initialization
     case Event(JobInitializationFailed(jobKey, reason), stateData) =>
-      pushFailedCallMetadata(jobKey, None, reason, retryableFailure = false)
-      handleNonRetryableFailure(stateData, jobKey, reason, Map.empty)
+      handleNonRetryableFailure(stateData, jobKey, reason)
     // Job Non Retryable
     case Event(JobFailedNonRetryableResponse(jobKey, reason, returnCode), stateData) =>
-      pushFailedCallMetadata(jobKey, returnCode, reason, retryableFailure = false)
-      handleNonRetryableFailure(stateData, jobKey, reason, Map.empty)
-    // Aborted? But we're outside of the AbortingState!?? Could happen if
-    // - The job was aborted by something external to Cromwell
-    // - The job lasted too long (eg JES 6 day timeout)
-    // - We've reconnected to an aborting job (some sort of shutdown race condition?)
-    // Treat it like any other non-retryable failure:
-    case Event(AbortedResponse(jobKey), stateData) =>
-      val cause = new Exception("The job was aborted from outside Cromwell")
-      pushFailedCallMetadata(jobKey, None, cause, retryableFailure = false)
-      handleNonRetryableFailure(stateData, jobKey, cause, Map.empty)
+      handleNonRetryableFailure(stateData, jobKey, reason, returnCode)
     // Job Retryable
     case Event(JobFailedRetryableResponse(jobKey, reason, returnCode), _) =>
-      pushFailedCallMetadata(jobKey, None, reason, retryableFailure = true)
       handleRetryableFailure(jobKey, reason, returnCode)
+    // Aborted? But we're outside of the AbortingState!?? Could happen if
+    // - The job was aborted by something external to Cromwell
+    // - The job lasted too long (eg PAPI 6 day timeout)
+    // Treat it like any other non-retryable failure:
+    case Event(JobAbortedResponse(jobKey), stateData) =>
+      val cause = new Exception("The job was aborted from outside Cromwell")
+      handleNonRetryableFailure(stateData, jobKey, cause)
     // Sub Workflow - sub workflow failures are always non retryable
     case Event(SubWorkflowFailedResponse(jobKey, descendantJobKeys, reason), stateData) =>
-      pushFailedCallMetadata(jobKey, None, reason, retryableFailure = false)
-      handleNonRetryableFailure(stateData, jobKey, reason, descendantJobKeys)
+      handleNonRetryableFailure(stateData, jobKey, reason, None, descendantJobKeys)
+    // Expression evaluation failure
     case Event(ExpressionEvaluationFailedResponse(jobKey, reason), stateData) =>
-      handleDeclarationEvaluationFailure(jobKey, reason, stateData)
-  }
+      handleNonRetryableFailure(stateData, jobKey, reason)
 
-  when(WorkflowExecutionAbortingState) {
-    case Event(AbortedResponse(jobKey), stateData) =>
-      pushAbortedCallMetadata(jobKey)
-      handleCallAborted(stateData, jobKey, Map.empty)
-    case Event(SubWorkflowAbortedResponse(jobKey, executedKeys), stateData) =>
-      pushAbortedCallMetadata(jobKey)
-      handleCallAborted(stateData, jobKey, executedKeys)
-    case Event(SubWorkflowSucceededResponse(subKey, executedKeys, _), stateData) =>
-      pushAbortedCallMetadata(subKey)
-      handleCallAborted(stateData, subKey, executedKeys)
-    case Event(r: JobSucceededResponse, stateData) =>
-      pushAbortedCallMetadata(r.jobKey)
-      handleCallAborted(stateData, r.jobKey, Map.empty)
-  }
-
-  when(WorkflowExecutionSuccessfulState) {
-    FSM.NullFunction
-  }
-  when(WorkflowExecutionFailedState) {
-    FSM.NullFunction
-  }
-  when(WorkflowExecutionAbortedState) {
-    FSM.NullFunction
-  }
-
-  private def scheduleStartRunnableCalls() = {
-    checkRunnableCancellable = Option(context.system.scheduler.scheduleOnce(SweepInterval, self, CheckRunnable))
-  }
-
-  override def postStop(): Unit = {
-    checkRunnableCancellable foreach { _.cancel() }
-    super.postStop()
-  }
-
-  private def handleTerminated(actorRef: ActorRef) = {
-    // Both of these Should Never Happen (tm), assuming the state data is set correctly on EJEA creation.
-    // If they do, it's a big programmer error and the workflow execution fails.
-    val jobKey = stateData.engineCallExecutionActors.getOrElse(actorRef, throw new RuntimeException("Programmer Error: An EJEA has terminated but was not assigned a jobKey"))
-    val jobStatus = stateData.executionStore.jobStatus(jobKey).getOrElse(throw new RuntimeException("Programmer Error: An EJEA representing a jobKey which this workflow is not running has sent up a terminated message."))
-
-    if (!jobStatus.isTerminalOrRetryable) {
-      val terminationException = getFailureCause(actorRef) match {
-        case Some(e) => new RuntimeException("Unexpected failure (or early exit) in EJEA.", e)
-        case None => new RuntimeException(s"Unexpected failure (or early exit) in EJEA $actorRef (root cause not captured).")
-      }
-      self ! JobFailedNonRetryableResponse(jobKey, terminationException, None)
-    }
-
-    stay
-  }
-
-  whenUnhandled {
-    case Event(CheckRunnable, _) => stay()
-    case Event(Terminated(actorRef), stateData) => handleTerminated(actorRef) using stateData.removeEngineJobExecutionActor(actorRef)
-    case Event(EngineLifecycleActorAbortCommand, stateData) =>
-      if (stateData.hasRunningActors) {
-        log.info(s"$tag: Abort received. " +
-          s"Aborting ${stateData.backendJobExecutionActors.size} Job Execution Actors" +
-          s" and ${stateData.subWorkflowExecutionActors.size} Sub Workflow Execution Actors"
-        )
-        stateData.backendJobExecutionActors.values foreach { _ ! AbortJobCommand }
-        stateData.subWorkflowExecutionActors.values foreach { _ ! EngineLifecycleActorAbortCommand }
-        goto(WorkflowExecutionAbortingState)
-      } else {
-        goto(WorkflowExecutionAbortedState)
-      }
-    case Event(EngineStatsActor.JobCountQuery, data) =>
-      sender ! EngineStatsActor.JobCount(data.backendJobExecutionActors.size)
-      data.subWorkflowExecutionActors.values foreach { _ forward EngineStatsActor.JobCountQuery }
+    // Abort command
+    case Event(EngineLifecycleActorAbortCommand, data) =>
+      handleAbortCommand(data)
+      
+    // Misc.  
+    case Event(RequestValueStore, data) =>
+      sender() ! data.valueStore
       stay()
-    case unhandledMessage =>
-      workflowLogger.warn(s"$tag received an unhandled message: ${unhandledMessage.event} in state: $stateName")
+    case Event(EngineStatsActor.JobCountQuery, _) =>
+      context.children foreach { _ forward EngineStatsActor.JobCountQuery }
       stay()
+    case Event(Terminated(actor), data) =>
+      onFailure(actor, new Exception("Actor stopped unexpectedly"))
+      stay() using data.removeJobKeyActor(actor)
   }
 
   onTransition {
@@ -240,38 +232,35 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       workflowLogger.debug(s"$tag transitioning from $fromState to $toState.")
   }
 
-  onTransition {
-    case _ -> WorkflowExecutionAbortedState =>
-      context.parent ! WorkflowExecutionAbortedResponse(nextStateData.jobExecutionMap)
-  }
+  /**
+    * This is called when a child of this actor throws or terminates. According to Akka, it is safe to access internal data here as long 
+    * as the supervisor strategy is declared inside the actor (which it is via the StopAndLogSupervisor trait)
+    * see https://doc.akka.io/docs/akka/2.5/scala/fault-tolerance.html#creating-a-supervisor-strategy
+    */
+  override protected def onFailure(actorRef: ActorRef, throwable: => Throwable) = {
+    // Both of these Should Never Happen (tm), assuming the state data is set correctly on EJEA creation.
+    // If they do, it's a big programmer error and the workflow execution fails.
+    val jobKey = stateData.jobKeyActorMappings.getOrElse(actorRef, throw new RuntimeException("Programmer Error: A job or sub workflow actor has terminated but was not assigned a jobKey"))
+    val jobStatus = stateData.executionStore.jobStatus(jobKey).getOrElse(throw new RuntimeException(s"Programmer Error: Ana ctor representing ${jobKey.tag} which this workflow is not running has sent up a terminated message."))
 
-  private def handleNonRetryableFailure(stateData: WorkflowExecutionActorData, failedJobKey: JobKey, reason: Throwable, jobExecutionMap: JobExecutionMap) = {
-    val newData = stateData
-      .removeCallExecutionActor(failedJobKey)
-      .addExecutions(jobExecutionMap)
-
-    handleExecutionFailure(failedJobKey, newData, reason, jobExecutionMap)
-  }
-
-  private def handleDeclarationEvaluationFailure(declarationKey: ExpressionKey, reason: Throwable, stateData: WorkflowExecutionActorData) = {
-    handleExecutionFailure(declarationKey, stateData, reason, Map.empty)
-  }
-
-  private def handleExecutionFailure(failedJobKey: JobKey, data: WorkflowExecutionActorData, reason: Throwable, jobExecutionMap: JobExecutionMap) = {
-    val newData = data.executionFailed(failedJobKey)
-
-    if (workflowDescriptor.failureMode == ContinueWhilePossible) {
-      newData.workflowCompletionStatus match {
-        case Some(completionStatus) if completionStatus == Failed =>
-          context.parent ! WorkflowExecutionFailedResponse(newData.jobExecutionMap, reason)
-          goto(WorkflowExecutionFailedState) using newData
-        case _ =>
-          stay() using newData
-      }
-    } else {
-      context.parent ! WorkflowExecutionFailedResponse(newData.jobExecutionMap, reason)
-      goto(WorkflowExecutionFailedState) using newData
+    if (!jobStatus.isTerminalOrRetryable) {
+      val terminationException = new RuntimeException(s"Unexpected failure or termination of the actor monitoring ${jobKey.tag}", throwable)
+      self ! JobFailedNonRetryableResponse(jobKey, terminationException, None)
     }
+  }
+
+  private def handleAbortCommand(data: WorkflowExecutionActorData) = {
+    workflowLogger.info(s"Aborting workflow")
+    // Send the abort to all children
+    context.children foreach { _ ! EngineLifecycleActorAbortCommand }
+    // As well as all backend singleton actors
+    params.backendSingletonCollection.backendSingletonActors.values.flatten.foreach { _ ! BackendSingletonActorAbortWorkflow(workflowIdForLogging) }
+    
+    // Only seal the execution store if we're not restarting, otherwise we could miss some jobs that have been started before the
+    // restart but are not started yet at this point
+    val newData = if (restarting) data else data.sealExecutionStore 
+
+    goto(WorkflowExecutionAbortingState) using newData
   }
 
   private def handleWorkflowSuccessful(data: WorkflowExecutionActorData) = {
@@ -281,10 +270,9 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     import cromwell.util.JsonFormatting.WomValueJsonFormatter._
     import spray.json._
 
-
-    def handleSuccessfulWorkflowOutputs(outputs: Map[WomIdentifier, WomValue]) = {
+    def handleSuccessfulWorkflowOutputs(outputs: Map[OutputPort, WomValue]) = {
       val fullyQualifiedOutputs = outputs map {
-        case (identifier, value) => identifier.fullyQualifiedName.value -> value
+        case (identifier, value) => identifier.identifier.fullyQualifiedName.value -> value
       }
       // Publish fully qualified workflow outputs to log and metadata
       workflowLogger.info(
@@ -293,16 +281,16 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       )
       pushWorkflowOutputMetadata(fullyQualifiedOutputs)
 
-      // Use local names so they can be used in outer workfows if this is a sub workflow
-      val localOutputs = outputs map {
-        case (identifier, value) => identifier.localName.value -> JobOutput(value)
-      }
+      // Use local names so they can be used in outer workflows if this is a sub workflow
+      val localOutputs = CallOutputs(outputs map {
+        case (outputPort, value) => outputPort -> value
+      })
 
       context.parent ! WorkflowExecutionSucceededResponse(data.jobExecutionMap, localOutputs)
       goto(WorkflowExecutionSuccessfulState) using data
     }
 
-    def handleWorkflowOutputsFailure( errors: NonEmptyList[String]) ={
+    def handleWorkflowOutputsFailure(errors: NonEmptyList[String]) = {
       val exception = new MessageAggregation {
         override def exceptionContext: String = "Workflow output evaluation failed"
         override def errorMessages: Traversable[String] = errors.toList
@@ -311,16 +299,17 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       goto(WorkflowExecutionFailedState)
     }
 
-    val workflowOutputPorts = workflowDescriptor.callable.graph.outputNodes.flatMap(_.outputPorts)
+    // Output ports for the workflow
+    val workflowOutputPorts: Set[OutputPort] = workflowDescriptor.callable.graph.outputNodes.flatMap(_.outputPorts)
 
     val workflowOutputValuesValidation = workflowOutputPorts
       // Try to find a value for each port in the value store
-      .map(op => op.identifier -> data.valueStore.get(op, None))
-      .toList.traverse[ErrorOr, (WomIdentifier, WomValue)]({
-        case (name, Some(value)) => (name -> value).validNel
-        case (name, None) => s"Cannot find an output value for ${name.fullyQualifiedName.value}".invalidNel
+      .map(op => op -> data.valueStore.get(op, None))
+      .toList.traverse[ErrorOr, (OutputPort, WomValue)]({
+      case (name, Some(value)) => (name -> value).validNel
+      case (name, None) => s"Cannot find an output value for ${name.identifier.fullyQualifiedName.value}".invalidNel
     })
-      // List of tuples to Map
+      // Convert the list of tuples to a Map
       .map(_.toMap)
 
     workflowOutputValuesValidation
@@ -328,17 +317,84 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       .valueOr(handleWorkflowOutputsFailure)
   }
 
-  private def handleRetryableFailure(jobKey: BackendJobDescriptorKey, reason: Throwable, returnCode: Option[Int]) = {
-    val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1)
-    workflowLogger.info(s"Retrying job execution for ${newJobKey.tag}")
-    /*  Currently, we update the status of the old key to RetryableFailure, and add a new entry (with the #attempts incremented by 1)
-      * to the execution store with status as NotStarted. This allows startRunnableCalls to re-execute this job */
-    val executionDiff = WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.RetryableFailure, newJobKey -> ExecutionStatus.NotStarted))
-    val newData = stateData.mergeExecutionDiff(executionDiff).removeCallExecutionActor(jobKey)
-    stay() using newData
+  private def handleNonRetryableFailure(stateData: WorkflowExecutionActorData,
+                                        failedJobKey: JobKey,
+                                        reason: Throwable,
+                                        returnCode: Option[Int] = None,
+                                        jobExecutionMap: JobExecutionMap = Map.empty) = {
+    pushFailedCallMetadata(failedJobKey, returnCode, reason, retryableFailure = false)
+
+    val dataWithFailure = stateData.executionFailure(failedJobKey, reason, jobExecutionMap)
+    /*
+     * If new calls are allowed don't seal the execution store as we want to go as far as possible.
+     * 
+     * Also, if this workflow is restarting, we need to leave all keys in the store to cover for some edge cases.
+     * For example, consider the following chain of events:
+     * 
+     * Given 3 calls: A, B and B1, where A and B are independent, and B1 depends on B
+     * 
+     * 1) Start A, Start B
+     * 2) B is Successful
+     * 3) Start B1
+     * 4) Cromwell stops
+     * 5) In the meantime, the job for A fails (Cromwell is still down)
+     * 5) Cromwell comes back up
+     * 6) Recover A, Recover B
+     * 7) We get a response saying that A has failed and we end up in this method to handle the failure.
+     * 
+     * At this point if we seal the execution store (remove all NotStarted keys), we'll never get a chance to try to reconnect
+     * to B1 which as far as we know might still be running. By leaving the keys in the store, the following can happen:
+     * 
+     * 8) We get a response saying that B was already successful
+     * 9) We try to reconnect to B1 (and only reconnect, not recover.
+     * We know to do that because we're in Failing state and restarting - see processRunnableJob method)
+     * 10) We reconnect to B1 and wait for a terminal status
+     * 11) If B1 had a dependency B2, then we'd try to reconnect to it as well, until we find a job that was never started
+     * and for which reconnection will fail. When that happens we'll fail the job (see failing state).
+     * 
+     * This guarantees that we'll try to reconnect to all potentially running jobs on restart.
+    */
+    val newData = if (workflowDescriptor.failureMode.allowNewCallsAfterFailure || restarting) {
+      dataWithFailure
+    } else {
+      dataWithFailure.sealExecutionStore
+    }
+
+    goto(WorkflowExecutionFailingState) using newData
   }
 
-  private def handleCallSuccessful(jobKey: JobKey, outputs: CallOutputs, data: WorkflowExecutionActorData, jobExecutionMap: JobExecutionMap) = {
+  private def handleCallAborted(data: WorkflowExecutionActorData, jobKey: JobKey, jobExecutionMap: JobExecutionMap = Map.empty) = {
+    pushAbortedCallMetadata(jobKey)
+    workflowLogger.info(s"$tag aborted: ${jobKey.tag}")
+    val newStateData = data
+      .mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Aborted)))
+      .addExecutions(jobExecutionMap)
+
+    stay() using newStateData
+  }
+  
+  private def jobReconnectionNotSupported(jobKey: BackendJobDescriptorKey): Unit = {
+    workflowDescriptor.backendAssignments.get(jobKey.call) foreach { backend =>
+      pushMiscEvent(jobKey, s"Cromwell was restarted while this job was running on $backend. This backend does not support reconnection to running jobs, therefore its backend status cannot be known.")
+      val unknownBackendStatus = MetadataEvent(metadataKeyForCall(jobKey, CallMetadataKeys.BackendStatus), MetadataValue("Unknown"))
+      serviceRegistryActor ! PutMetadataAction(unknownBackendStatus)
+    }
+  }
+
+  private def handleRetryableFailure(jobKey: BackendJobDescriptorKey, reason: Throwable, returnCode: Option[Int]) = {
+    pushFailedCallMetadata(jobKey, returnCode, reason, retryableFailure = true)
+
+    val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1)
+    workflowLogger.info(s"Retrying job execution for ${newJobKey.tag}")
+
+    // Update current key to RetryableFailure status and add new key with attempt incremented and NotStarted status
+    val executionDiff = WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.RetryableFailure, newJobKey -> ExecutionStatus.NotStarted))
+
+    stay() using stateData.mergeExecutionDiff(executionDiff)
+  }
+
+  private def handleCallSuccessful(jobKey: JobKey, outputs: CallOutputs, returnCode: Option[Int], data: WorkflowExecutionActorData, jobExecutionMap: JobExecutionMap) = {
+    pushSuccessfulCallMetadata(jobKey, returnCode, outputs)
     stay() using data.callExecutionSuccess(jobKey, outputs).addExecutions(jobExecutionMap)
   }
 
@@ -353,306 +409,163 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     stay() using updatedData
   }
 
-  private def handleCheckRunnable(data: WorkflowExecutionActorData) = {
-    data.workflowCompletionStatus match {
-      case Some(ExecutionStatus.Done) =>
-        handleWorkflowSuccessful(data)
-      case Some(_) =>
-        context.parent ! WorkflowExecutionFailedResponse(data.jobExecutionMap, new Exception("One or more jobs failed in ContinueWhilePossible mode"))
-        goto(WorkflowExecutionFailedState) using data
-      case _ =>
-        scheduleStartRunnableCalls()
-        if (data.hasNewRunnables) stay() using startRunnableScopes(data) else stay()
-    }
-  }
-
-  private def handleCallAborted(data: WorkflowExecutionActorData, jobKey: JobKey, jobExecutionMap: JobExecutionMap) = {
-    workflowLogger.info(s"$tag job aborted: ${jobKey.tag}")
-    val newStateData = data
-      .mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Aborted)))
-      .removeCallExecutionActor(jobKey)
-      .addExecutions(jobExecutionMap)
-    if (!newStateData.hasRunningActors) {
-      workflowLogger.info(s"$tag all jobs aborted")
-      goto(WorkflowExecutionAbortedState)
-    } else {
-      stay() using newStateData
-    }
-  }
-
   /**
-    * Attempt to start all runnable jobs and return updated state data.  This will create a new copy
+    * Attempt to start all runnable jobs and return updated state data. This will create a new copy
     * of the state data.
     */
-  private def startRunnableScopes(data: WorkflowExecutionActorData): WorkflowExecutionActorData = {
-    val RunnableScopes(runnableScopes, truncated) = data.executionStore.runnableScopes
-    val runnableCalls = runnableScopes.view collect { case k if k.node.isInstanceOf[CallNode] => k } sortBy { k =>
+  private def startRunnableNodes(data: WorkflowExecutionActorData): WorkflowExecutionActorData = {
+    import keys._
+
+    val DataStoreUpdate(runnableKeys, updatedData) = data.executionStoreUpdate
+    val runnableCalls = runnableKeys.view collect { case k if k.node.isInstanceOf[CallNode] => k } sortBy { k =>
       (k.node.fullyQualifiedName, k.index.getOrElse(-1)) } map { _.tag }
 
-    if (runnableCalls.nonEmpty) workflowLogger.info("Starting calls: " + runnableCalls.mkString(", "))
+    val mode = if (restarting) "Restarting" else "Starting"
+    if (runnableCalls.nonEmpty) workflowLogger.info(s"$mode calls: " + runnableCalls.mkString(", "))
 
-    // Each process returns a Try[WorkflowExecutionDiff], which, upon success, contains potential changes to be made to the execution store.
-    val diffs = runnableScopes map { scope =>
-      scope -> Try(scope match {
-        case k: CallKey if data.isInBypassedScope(k) => processBypassedScope(k, data)
-        case k: ExpressionKey if data.isInBypassedScope(k) => processBypassedScope(k, data)
-        case k: BackendJobDescriptorKey => processRunnableJob(k, data)
-        case k: ScatterKey => processRunnableScatter(k, data, data.isInBypassedScope(k))
-        case k: ConditionalKey => processRunnableConditional(k, data)
-        case k: ScatterCollectorKey => processRunnableScatterCollector(k, data, data.isInBypassedScope(k))
-        case k: ConditionalCollectorKey => processRunnableConditionalCollector(k, data, data.isInBypassedScope(k))
-        case k: SubWorkflowKey => processRunnableSubWorkflow(k, data)
-        case k: ExpressionKey => processRunnableExpression(k, data)
-        case k => Failure(new UnsupportedOperationException(s"Unknown entry in execution store: ${k.tag}"))
-      }).flatten
-    } map {
-      case (_, Success(value)) => Success(value)
-      case (scope, Failure(throwable)) =>
-        self ! JobInitializationFailed(scope, throwable)
-        Failure(throwable)
-    } collect {
-      /*
-      NOTE: This is filtering out all errors and only returning the successes, but only after the map above sent a
-      message that something is wrong.
+    val diffValidation = runnableKeys.traverse[ErrorOr, WorkflowExecutionDiff]({
+      case key: BackendJobDescriptorKey => processRunnableJob(key, data)
+      case key: SubWorkflowKey => processRunnableSubWorkflow(key, data)
+      case key: ConditionalCollectorKey => key.processRunnable(data)
+      case key: ExpressionKey => key.processRunnable(data, self)
+      case key: ScatterCollectorKey => key.processRunnable(data)
+      case key: ScatterKey => key.processRunnable(data)
+      case other =>
+        workflowLogger.error(s"${other.tag} is not a runnable key")
+        WorkflowExecutionDiff.empty.validNel
+    })
 
-      We used to throw an aggregation exception of all the collected errors, but _nothing_ in cromwell is actually
-      expecting that. Thus the workflows were being left in a Running state, jobs were left dispatched, etc.
+    // Merge the execution diffs upon success
+    diffValidation.map(updatedData.mergeExecutionDiffs).valueOr(errors =>
+      throw AggregatedMessageException("Workflow execution failure", errors.toList)
+    )
+  }
+  
+  /* 
+    * Job and Sub Workflow processing
+    * 
+    * Unlike other job keys, those methods are not embedded in the key class itself because they require creating a child actor.
+    * While it would be possible to extract those methods from the WEA as well and provide them with an actor factory, the majority of the objects needed to create
+    * the children actors are attributes of this class, so it makes more sense to keep the functions here.
+   */
 
-      Meanwhile this actor and its children died or restarted, and one couldn't even attempt to abort the other jobs.
+  private def processRunnableJob(key: BackendJobDescriptorKey, data: WorkflowExecutionActorData): ErrorOr[WorkflowExecutionDiff] = {
+    import cats.syntax.either._
+    import cats.syntax.option._
+    import common.validation.Checked._
 
-      Now, in the previous map, we send a message to ourselves about _every_ failure. But this method does not attempt
-      to further process the errors. The failures enqueue in the actor mailbox, and are handled by this actor's receive.
+    // Determines the run command to be sent to the BJEA when starting the job
+    def runCommand: Checked[BackendJobExecutionActorCommand] = stateName match {
+      // In running state, recover if restarting, execute otherwise
+      case WorkflowExecutionInProgressState =>
+        if (restarting) RecoverJobCommand.validNelCheck else ExecuteJobCommand.validNelCheck
 
-      At the moment, there is an issue in how this actor handles failure messages. That issue is tracked in:
-      https://github.com/broadinstitute/cromwell/issues/2029
+      // In failing state with allowNewCallsAfterFailure, behavior is the same as in running (except we'll fail the workflow at the end)
+      case WorkflowExecutionFailingState if workflowDescriptor.failureMode.allowNewCallsAfterFailure =>
+        if (restarting) RecoverJobCommand.validNelCheck else ExecuteJobCommand.validNelCheck
 
-      Separately, we may also want to institute better supervision of actors, in general. But just throwing an exception
-      here doesn't actually force the correct handling.
+      // In failing state without allowNewCallsAfterFailure, try to reconnect if we're restarting
+      case WorkflowExecutionFailingState if restarting =>
+        ReconnectJobCommand.validNelCheck
 
-      See also:
-      https://github.com/broadinstitute/cromwell/issues/1414
-      https://github.com/broadinstitute/cromwell/issues/1874
-      */
-      case Success(value) => value
+      // In aborting state, try to reconnectToAbort if we're restarting
+      case WorkflowExecutionAbortingState if restarting =>
+        ReconnectToAbortingJobCommand.validNelCheck
+
+      // Any other case is unexpected and is considered a failure (we should not be trying to start a job in any other state)
+      case other =>
+        s"Cannot start job ${key.tag} in $other state with restarting = $restarting".invalidNelCheck
     }
 
-    // Update the metadata for the jobs we just sent to EJEAs (they'll start off queued up waiting for tokens):
-    pushQueuedCallMetadata(diffs)
-    val newData = data.mergeExecutionDiffs(diffs)
-    if (truncated || diffs.exists(_.containsNewEntry)) newData else newData.resetCheckRunnable
+    if (data.isInBypassedScope(key)) {
+      processBypassedNode(key, data)
+    } else {
+      (for {
+        backendName <- workflowDescriptor
+          .backendAssignments.get(key.call).toValidNel(s"Cannot find an assigned backend for call ${key.call.fullyQualifiedName}").toEither
+        backendFactory <- backendFactories.get(backendName).toValidNel(s"Cannot find a backend factory for backend $backendName").toEither
+        command <- runCommand
+      } yield startEJEA(key, backendName, backendFactory, command)).toValidated
+    }
   }
 
-  private def processBypassedScope(jobKey: JobKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
-    Success(
-      WorkflowExecutionDiff(
-        executionStoreChanges = Map(jobKey -> ExecutionStatus.Bypassed),
-        valueStoreAdditions = bypassedScopeResults(jobKey)
-      )
+  private def startEJEA(jobKey: BackendJobDescriptorKey,
+                        backendName: String,
+                        backendFactory: BackendLifecycleActorFactory,
+                        command: BackendJobExecutionActorCommand): WorkflowExecutionDiff = {
+    val ejeaName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
+    val backendSingleton = params.backendSingletonCollection.backendSingletonActors(backendName)
+    val ejeaProps = EngineJobExecutionActor.props(
+      self,
+      jobKey,
+      workflowDescriptor,
+      backendFactory,
+      params.initializationData.get(backendName),
+      restarting = params.startState.isRestart,
+      serviceRegistryActor = serviceRegistryActor,
+      ioActor = params.ioActor,
+      jobStoreActor = params.jobStoreActor,
+      callCacheReadActor = params.callCacheReadActor,
+      callCacheWriteActor = params.callCacheWriteActor,
+      workflowDockerLookupActor = params.workflowDockerLookupActor,
+      jobTokenDispenserActor = params.jobTokenDispenserActor,
+      backendSingleton,
+      backendName,
+      workflowDescriptor.callCachingMode,
+      command
+     )
+
+    val ejeaRef = context.actorOf(ejeaProps, ejeaName)
+    context watch ejeaRef
+    pushNewCallMetadata(jobKey, Option(backendName), serviceRegistryActor)
+    ejeaRef ! EngineJobExecutionActor.Execute
+
+    WorkflowExecutionDiff(
+      executionStoreChanges = Map(jobKey -> ExecutionStatus.QueuedInCromwell),
+      jobKeyActorMappings = Map(ejeaRef -> jobKey)
     )
   }
 
-  private def bypassedScopeResults(jobKey: JobKey): Map[ValueKey, WomOptionalValue] = {
-    jobKey.node.outputPorts.map({ outputPort =>
-      ValueKey(outputPort, jobKey.index) ->  WomOptionalValue.none(outputPort.womType)
-    }).toMap
-
-  }
-
-  private def processRunnableExpression(expression: ExpressionKey, data: WorkflowExecutionActorData) = {
-    import common.validation.ErrorOr._
-
-    expression.upstreamPorts.traverseValues(resolve(expression, data)) map { lookup =>
-      // Send a message to self in case we decide to change evaluate to return asynchronously, if we don't we could
-      // directly add the value to the value store in the execution diff
-      expression.node.evaluateAndCoerce(lookup, data.expressionLanguageFunctions) match {
-        case Right(result) => self ! ExpressionEvaluationSucceededResponse(expression, result)
-        case Left(f) =>
-          self ! ExpressionEvaluationFailedResponse(expression, new RuntimeException(f.toList.mkString(", ")))
-      }
-    } valueOr { f =>
-      self ! ExpressionEvaluationFailedResponse(expression, new RuntimeException(f.toList.mkString(", ")))
-    }
-
-    Success(WorkflowExecutionDiff(Map(expression -> ExecutionStatus.Running)))
-  }
-
-  /**
-    * Attempts to resolve an output port to a known value.
-    * Curried for convenience.
-    */
-  private def resolve(jobKey: JobKey, data: WorkflowExecutionActorData)(outputPort: OutputPort): ErrorOr[WomValue] = {
-    // If the node this port belongs to is a ScatterVariableNode then we want the item at the right index in the array
-    def forScatterVariable: ErrorOr[WomValue] = data.valueStore.get(outputPort, None) match {
-      // Try to find the element at "jobIndex" in the array value stored for the outputPort, any other case is a failure
-      case Some(womValue: WomArrayLike) =>
-        jobKey.index match {
-          case Some(jobIndex) =>
-            womValue.asArray.value.lift(jobIndex)
-              .toValidNel(s"Shard index $jobIndex exceeds scatter array length: ${womValue.asArray.value.size}")
-          case None => s"Unsharded execution key ${jobKey.tag} references a scatter variable: ${outputPort.identifier.fullyQualifiedName}".invalidNel
-        }
-      case Some(other) => s"Value for scatter collection ${outputPort.identifier.fullyQualifiedName} is not an array: ${other.womType.toDisplayString}".invalidNel
-      case None => s"Can't find a value for scatter collection ${outputPort.identifier.fullyQualifiedName} (looking for index ${jobKey.index})".invalidNel
-    }
-
-    // Just look it up in the store
-    def forNormalNode(index: ExecutionIndex) = data.valueStore.get(outputPort, index) match {
-      case Some(value) => value.validNel
-      case None => s"Can't find a value for ${outputPort.name}".invalidNel
-    }
-
-    outputPort.graphNode match {
-      case _: ScatterVariableNode => forScatterVariable
-        // OuterGraphInputNodes are not indexed (even if this jobKey is a shard, the node is outside the scatter)
-      case _: OuterGraphInputNode => forNormalNode(None)
-      case _ => forNormalNode(jobKey.index)
-    }
-  }
-
-  private def processRunnableJob(jobKey: BackendJobDescriptorKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
-    workflowDescriptor.backendAssignments.get(jobKey.call) match {
-      case None =>
-        val message = s"Could not start call ${jobKey.tag} because it was not assigned a backend"
-        val exception = new IllegalStateException(s"$tag $message")
-        workflowLogger.error(exception, s"$tag $message")
-        throw exception
-      case Some(backendName) =>
-        backendFactories.get(backendName) match {
-          case Some(factory) =>
-            val ejeaName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
-            val backendSingleton = backendSingletonCollection.backendSingletonActors(backendName)
-            val ejeaProps = EngineJobExecutionActor.props(
-              self, jobKey, workflowDescriptor, factory, initializationData.get(backendName), restarting,
-              serviceRegistryActor = serviceRegistryActor,
-              ioActor = ioActor,
-              jobStoreActor = jobStoreActor,
-              callCacheReadActor = callCacheReadActor,
-              callCacheWriteActor = callCacheWriteActor,
-              workflowDockerLookupActor = workflowDockerLookupActor,
-              jobTokenDispenserActor = jobTokenDispenserActor,
-              backendSingleton, backendName, workflowDescriptor.callCachingMode)
-            val ejeaRef = context.actorOf(ejeaProps, ejeaName)
-            context watch ejeaRef
-            pushNewCallMetadata(jobKey, Option(backendName))
-            ejeaRef ! EngineJobExecutionActor.Execute
-            Success(WorkflowExecutionDiff(
-              executionStoreChanges = Map(jobKey -> ExecutionStatus.QueuedInCromwell),
-              engineJobExecutionActorAdditions = Map(ejeaRef -> jobKey)))
-          case None =>
-            throw WorkflowExecutionException(NonEmptyList.of(new Exception(s"Could not get BackendLifecycleActor for backend $backendName")))
-        }
-    }
-  }
-
-  private def processRunnableSubWorkflow(key: SubWorkflowKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
+  /*
+    * Creates another WEA to process the SubWorkflowKey
+   */
+  private def processRunnableSubWorkflow(key:SubWorkflowKey, data: WorkflowExecutionActorData): ErrorOr[WorkflowExecutionDiff] = {
     val sweaRef = context.actorOf(
-      SubWorkflowExecutionActor.props(key,
-        data.workflowDescriptor,
+      SubWorkflowExecutionActor.props(
+        key,
+        workflowDescriptor,
         data.expressionLanguageFunctions,
         backendFactories,
-        ioActor = ioActor,
-        serviceRegistryActor = serviceRegistryActor,
-        jobStoreActor = jobStoreActor,
-        subWorkflowStoreActor = subWorkflowStoreActor,
-        callCacheReadActor = callCacheReadActor,
-        callCacheWriteActor = callCacheWriteActor,
-        workflowDockerLookupActor = workflowDockerLookupActor,
-        jobTokenDispenserActor = jobTokenDispenserActor,
-        backendSingletonCollection, initializationData, restarting), s"SubWorkflowExecutionActor-${key.tag}"
+        ioActor = params.ioActor,
+        serviceRegistryActor = params.serviceRegistryActor,
+        jobStoreActor = params.jobStoreActor,
+        subWorkflowStoreActor = params.subWorkflowStoreActor,
+        callCacheReadActor = params.callCacheReadActor,
+        callCacheWriteActor = params.callCacheWriteActor,
+        workflowDockerLookupActor = params.workflowDockerLookupActor,
+        jobTokenDispenserActor = params.jobTokenDispenserActor,
+        params.backendSingletonCollection,
+        params.initializationData,
+        params.startState), s"SubWorkflowExecutionActor-${key.tag}"
     )
 
     context watch sweaRef
-    pushNewCallMetadata(key, None)
+    pushNewCallMetadata(key, None, serviceRegistryActor)
     sweaRef ! SubWorkflowExecutionActor.Execute
 
-    Success(WorkflowExecutionDiff(executionStoreChanges = Map(key -> ExecutionStatus.QueuedInCromwell),
-      engineJobExecutionActorAdditions = Map(sweaRef -> key)))
-  }
-
-  private def processRunnableConditional(conditionalKey: ConditionalKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
-    val conditionOutputPort = conditionalKey.node.conditionExpression.singleExpressionOutputPort
-
-    data.valueStore.get(conditionOutputPort, conditionalKey.index) match {
-      case Some(b: WomBoolean) =>
-        val conditionalStatus = if (b.value) ExecutionStatus.Done else ExecutionStatus.Bypassed
-        Success(WorkflowExecutionDiff(conditionalKey.populate + (conditionalKey -> conditionalStatus)))
-      case Some(v: WomValue) => Failure(new RuntimeException(
-        s"'if' condition ${conditionalKey.node.conditionExpression.womExpression.sourceString} must evaluate to a boolean but instead got ${v.womType.toDisplayString}"))
-      case None => Failure(
-        new RuntimeException(s"Could not find the boolean value for conditional ${conditionalKey.tag}. Missing boolean should have come from expression ${conditionalKey.node.conditionExpression.womExpression.sourceString}")
-      )
-    }
-  }
-
-  private def processRunnableScatter(scatterKey: ScatterKey, data: WorkflowExecutionActorData, bypassed: Boolean): Try[WorkflowExecutionDiff] = {
-    if (bypassed) {
-      Success(WorkflowExecutionDiff(scatterKey.populate(0) + (scatterKey -> ExecutionStatus.Bypassed)))
-    } else {
-      val collectionOutputPort = scatterKey.node.scatterCollectionExpressionNode.singleExpressionOutputPort
-
-      data.valueStore.get(collectionOutputPort, None) map {
-        case WomArrayLike(arrayLike) =>
-          Success(
-            WorkflowExecutionDiff(
-              // Add the new shards + collectors, and set the scatterVariable and scatterKey to Done
-              executionStoreChanges = scatterKey.populate(arrayLike.value.size) ++ Map (
-                ScatterVariableInputKey(scatterKey.node.scatterVariableInnerGraphInputNode, arrayLike) -> Done,
-                scatterKey -> Done
-              ),
-              // Add scatter variable arrayLike to the value store
-              valueStoreAdditions = Map (
-                ValueKey(scatterKey.node.scatterVariableInnerGraphInputNode.singleOutputPort, None) -> arrayLike
-              )
-            )
-          )
-        case v: WomValue =>
-          Failure(new RuntimeException(s"Scatter collection ${scatterKey.node.scatterCollectionExpressionNode.womExpression.sourceString} must evaluate to an array but instead got ${v.womType.toDisplayString}"))
-      } getOrElse {
-        Failure(new RuntimeException(s"Could not find an array value for scatter ${scatterKey.tag}. Missing array should have come from expression ${scatterKey.node.scatterCollectionExpressionNode.womExpression.sourceString}"))
-      }
-    }
-  }
-
-  /**
-    * Collects all shards and add them to the value store
-    */
-  private def processRunnableScatterCollector(collector: ScatterCollectorKey, data: WorkflowExecutionActorData, isInBypassed: Boolean): Try[WorkflowExecutionDiff] = {
-    data.valueStore.collectShards(collector) match {
-      case Invalid(e) => Failure(new RuntimeException with MessageAggregation {
-        override def exceptionContext: String = s"Failed to collect output shards for node ${collector.tag}"
-        override def errorMessages: Traversable[String] = e.toList
-      })
-      case Valid(outputs) =>
-        // TODO WOM: fix
-        //        val adjustedOutputs: CallOutputs = if (isInBypassed) {
-        //          outputs map {
-        //            case (outputKey, value) => outputKey -> WomOptionalValue.none(output._2.womValue.womType
-        //          }
-        //        } else outputs
-        Success(WorkflowExecutionDiff(
-          executionStoreChanges = Map(collector -> ExecutionStatus.Done),
-          valueStoreAdditions = outputs
-        ))
-    }
-  }
-
-  private def processRunnableConditionalCollector(collector: ConditionalCollectorKey, data: WorkflowExecutionActorData, isInBypassed: Boolean): Try[WorkflowExecutionDiff] = {
-    data.valueStore.collectConditional(collector, isInBypassed) match {
-      case Invalid(e) => Failure(new RuntimeException with MessageAggregation {
-        override def exceptionContext: String = s"Failed to collect conditional output value for node ${collector.tag}"
-        override def errorMessages: Traversable[String] = e.toList
-      })
-      case Valid(outputs) => Success(WorkflowExecutionDiff(
-        executionStoreChanges = Map(collector -> ExecutionStatus.Done),
-        valueStoreAdditions = outputs
-      ))
-    }
+    WorkflowExecutionDiff(
+      executionStoreChanges = Map(key -> ExecutionStatus.QueuedInCromwell),
+      jobKeyActorMappings = Map(sweaRef -> key)
+    ).validNel
   }
 }
 
 object WorkflowExecutionActor {
 
-  val SweepInterval = 1 second
+  /**
+    * Rate at which ExecutionHeartBeat events are sent to the the WEA 
+    */
+  val ExecutionHeartBeatInterval = 1 second
 
   /**
     * States
@@ -670,6 +583,8 @@ object WorkflowExecutionActor {
   case object WorkflowExecutionInProgressState extends WorkflowExecutionActorState
 
   case object WorkflowExecutionAbortingState extends WorkflowExecutionActorState
+
+  case object WorkflowExecutionFailingState extends WorkflowExecutionActorState
 
   case object WorkflowExecutionSuccessfulState extends WorkflowExecutionActorTerminalState
 
@@ -712,16 +627,23 @@ object WorkflowExecutionActor {
     */
   private case class JobInitializationFailed(jobKey: JobKey, throwable: Throwable)
 
-  private case class ExpressionEvaluationSucceededResponse(declarationKey: ExpressionKey, value: WomValue)
+  /**
+    * This message triggers the WEA to check for runnable nodes and start them.
+    * This operation happens when and only when this message is received.
+    * See https://doc.akka.io/docs/akka/2.5/scala/actors.html#timers-scheduled-messages
+    */
+  private case object ExecutionHeartBeat
 
-  private case object CheckRunnable
+  /**
+    * Key for the akka timer handling scheduling of the ExecutionHeartBeat
+    * See https://doc.akka.io/docs/akka/2.5/scala/actors.html#timers-scheduled-messages
+    */
+  private case object ExecutionHeartBeatKey
 
   private[execution] sealed trait BypassedScopeResults
 
   private case class BypassedCallResults(callOutputs: Map[CallKey, CallOutputs]) extends BypassedScopeResults
   private case class BypassedDeclaration(declaration: ExpressionKey) extends BypassedScopeResults
-
-  private case class ExpressionEvaluationFailedResponse(declarationKey: ExpressionKey, reason: Throwable)
 
   case class SubWorkflowSucceededResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap, outputs: CallOutputs)
 
@@ -729,10 +651,20 @@ object WorkflowExecutionActor {
 
   case class SubWorkflowAbortedResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap)
 
-  case class WorkflowExecutionException[T <: Throwable](exceptions: NonEmptyList[T]) extends ThrowableAggregation {
-    override val throwables = exceptions.toList
-    override val exceptionContext = s"WorkflowExecutionActor"
-  }
+  case class WorkflowExecutionActorParams(
+                                           workflowDescriptor: EngineWorkflowDescriptor,
+                                           ioActor: ActorRef,
+                                           serviceRegistryActor: ActorRef,
+                                           jobStoreActor: ActorRef,
+                                           subWorkflowStoreActor: ActorRef,
+                                           callCacheReadActor: ActorRef,
+                                           callCacheWriteActor: ActorRef,
+                                           workflowDockerLookupActor: ActorRef,
+                                           jobTokenDispenserActor: ActorRef,
+                                           backendSingletonCollection: BackendSingletonCollection,
+                                           initializationData: AllBackendInitializationData,
+                                           startState: StartableState
+                                         )
 
   def props(workflowDescriptor: EngineWorkflowDescriptor,
             ioActor: ActorRef,
@@ -745,17 +677,25 @@ object WorkflowExecutionActor {
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             initializationData: AllBackendInitializationData,
-            restarting: Boolean): Props = {
-    Props(WorkflowExecutionActor(workflowDescriptor,
-      ioActor = ioActor,
-      serviceRegistryActor = serviceRegistryActor,
-      jobStoreActor = jobStoreActor,
-      subWorkflowStoreActor = subWorkflowStoreActor,
-      callCacheReadActor = callCacheReadActor,
-      callCacheWriteActor = callCacheWriteActor,
-      workflowDockerLookupActor = workflowDockerLookupActor,
-      jobTokenDispenserActor = jobTokenDispenserActor,
-      backendSingletonCollection, initializationData, restarting)).withDispatcher(EngineDispatcher)
+            startState: StartableState): Props = {
+    Props(
+      WorkflowExecutionActor(
+        WorkflowExecutionActorParams(
+          workflowDescriptor,
+          ioActor = ioActor,
+          serviceRegistryActor = serviceRegistryActor,
+          jobStoreActor = jobStoreActor,
+          subWorkflowStoreActor = subWorkflowStoreActor,
+          callCacheReadActor = callCacheReadActor,
+          callCacheWriteActor = callCacheWriteActor,
+          workflowDockerLookupActor = workflowDockerLookupActor,
+          jobTokenDispenserActor = jobTokenDispenserActor,
+          backendSingletonCollection,
+          initializationData,
+          startState
+        )
+      )
+    ).withDispatcher(EngineDispatcher)
   }
 
   implicit class EnhancedWorkflowOutputs(val outputs: Map[LocallyQualifiedName, WomValue]) extends AnyVal {

@@ -1,7 +1,8 @@
-package cromwell.engine.workflow.lifecycle
+package cromwell.engine.workflow.lifecycle.materialization
 
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
 import akka.pattern.pipe
+import better.files.File
 import cats.Monad
 import cats.data.EitherT._
 import cats.data.{EitherT, NonEmptyList}
@@ -15,6 +16,10 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
+import common.Checked
+import common.exception.{AggregatedMessageException, MessageAggregation}
+import common.validation.Checked._
+import common.validation.ErrorOr._
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.CromwellGraphNode._
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -27,17 +32,14 @@ import cromwell.core.path.BetterFileMethods.OpenOptions
 import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder}
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
-import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.MaterializeWorkflowDescriptorActorState
+import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
+import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor._
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
-import common.validation.Checked._
-import common.Checked
-import common.exception.{AggregatedMessageException, MessageAggregation}
-import common.validation.ErrorOr._
+import cwl.CwlDecoder
+import cwl.CwlDecoder.Parse
 import net.ceedubs.ficus.Ficus._
 import spray.json._
-import cwl.CwlDecoder.Parse
-import cwl.CwlDecoder
 import wdl._
 import wom.executable.Executable
 import wom.executable.Executable.ResolvedExecutableInputs
@@ -45,7 +47,6 @@ import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.{Graph, TaskCallNode}
 import wom.values.{WomSingleFile, WomString, WomValue}
-import better.files.File
 
 import scala.concurrent.Future
 import scala.language.postfixOps

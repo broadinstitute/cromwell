@@ -12,6 +12,7 @@ import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
+import cromwell.engine.workflow.workflowstore.WorkflowStoreState.Submitted
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld.Addressee
 import org.scalatest.BeforeAndAfter
@@ -48,7 +49,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
     val watchActor = system.actorOf(MetadataWatchActor.props(promise, matchers: _*), s"service-registry-$workflowId-${UUID.randomUUID()}")
     val supervisor = TestProbe()
     val workflowActor = TestFSMRef(
-      factory = new WorkflowActor(workflowId, StartNewWorkflow, workflowSources, ConfigFactory.load(),
+      factory = new WorkflowActor(workflowId, Submitted, workflowSources, ConfigFactory.load(),
         ioActor = system.actorOf(SimpleIoActor.props),
         serviceRegistryActor = watchActor,
         workflowLogCopyRouter = system.actorOf(Props.empty, s"workflow-copy-log-router-$workflowId-${UUID.randomUUID()}"),
@@ -141,7 +142,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
         workflowActor ! StartWorkflowCommand
       }
       Await.result(promise.future, TestExecutionTimeout)
-      probe.expectTerminated(workflowActor, AwaitAlmostNothing)
+      probe.expectTerminated(workflowActor, 2.seconds)
       supervisor.expectMsgPF(AwaitAlmostNothing, "parent should get a failed response") {
         case x: WorkflowFailedResponse =>
           x.workflowId should be(workflowId)

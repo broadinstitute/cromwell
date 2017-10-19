@@ -1,10 +1,14 @@
 package cromwell.engine.workflow.lifecycle.execution.keys
 
+import cats.syntax.validated._
+import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionIndex.ExecutionIndex
 import cromwell.core.{ExecutionStatus, JobKey}
+import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActorData, WorkflowExecutionDiff}
 import wom.graph._
 import wom.graph.expression.ExpressionNode
+import wom.values.{WomBoolean, WomValue}
 
 /**
   * Represents a conditional node in the execution store.
@@ -44,5 +48,19 @@ private [execution] case class ConditionalKey(node: ConditionalNode, index: Exec
       throw new UnsupportedOperationException("Nested Scatters are not supported (yet) ... but you might try a sub workflow to achieve the same effect!")
     case e =>
       throw new UnsupportedOperationException(s"Scope ${e.getClass.getName} is not supported in an If block.")
+  }
+
+  def processRunnable(data: WorkflowExecutionActorData): ErrorOr[WorkflowExecutionDiff] = {
+    val conditionOutputPort = node.conditionExpression.singleExpressionOutputPort
+
+    data.valueStore.get(conditionOutputPort, index) match {
+      case Some(b: WomBoolean) =>
+        val conditionalStatus = if (b.value) ExecutionStatus.Done else ExecutionStatus.Bypassed
+        WorkflowExecutionDiff(populate + (this -> conditionalStatus)).validNel
+      case Some(v: WomValue) =>
+        s"'if' condition ${node.conditionExpression.womExpression.sourceString} must evaluate to a boolean but instead got ${v.womType.toDisplayString}".invalidNel
+      case None =>
+        s"Could not find the boolean value for conditional $tag. Missing boolean should have come from expression ${node.conditionExpression.womExpression.sourceString}".invalidNel
+    }
   }
 }

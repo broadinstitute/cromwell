@@ -1,4 +1,4 @@
-package cromwell.engine.workflow.lifecycle
+package cromwell.engine.workflow.lifecycle.materialization
 
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr

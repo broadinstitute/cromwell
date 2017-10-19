@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
+import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobStarting
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.RequestValueStore
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecutionTokenDenied, JobExecutionTokenDispensed}
@@ -34,7 +34,7 @@ class EjeaRequestingExecutionTokenSpec extends EngineJobExecutionActorSpec with 
         helper.jobStoreProbe.expectMsgPF(max = awaitTimeout, hint = "Awaiting job store lookup") {
           case QueryJobCompletion(jobKey, taskOutputs) =>
             validateJobStoreKey(jobKey)
-            taskOutputs should be(helper.task.outputs)
+            taskOutputs should be(helper.call.outputPorts.toSeq)
         }
         helper.bjeaProbe.expectNoMsg(awaitAlmostNothing)
         helper.jobHashingInitializations shouldBe NothingYet

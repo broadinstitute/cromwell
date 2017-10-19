@@ -1,4 +1,4 @@
-package cromwell.engine.workflow.lifecycle.execution.preparation
+package cromwell.engine.workflow.lifecycle.execution.job.preparation
 
 import akka.testkit.{ImplicitSender, TestActorRef}
 import cats.syntax.validated._
@@ -7,8 +7,8 @@ import cromwell.core.callcaching.{DockerWithHash, FloatingDockerTagWithoutHash}
 import cromwell.docker.DockerHashActor.DockerHashSuccessResponse
 import cromwell.docker.{DockerHashRequest, DockerHashResult, DockerImageIdentifier, DockerImageIdentifierWithoutHash}
 import cromwell.engine.workflow.WorkflowDockerLookupActor.WorkflowDockerLookupFailure
-import cromwell.engine.workflow.lifecycle.execution.ValueStore
-import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.{BackendJobPreparationSucceeded, CallPreparationFailed, Start}
+import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation.{BackendJobPreparationSucceeded, CallPreparationFailed, Start}
+import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvKeyLookupFailed, KvPair}
 import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito

@@ -2,7 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import akka.actor.Actor
 import akka.testkit.TestFSMRef
-import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
+import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
 import cromwell.CromwellTestKitWordSpec
 import cromwell.backend.BackendJobExecutionActor
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionActorCommand

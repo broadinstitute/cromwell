@@ -3,11 +3,11 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 import cats.data.NonEmptyList
 import cromwell.backend.BackendJobExecutionActor.{JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.core.ExecutionIndex.{ExecutionIndex, IndexEnhancedIndex}
-import cromwell.core.WorkflowId
 import cromwell.core.callcaching.HashResult
 import cromwell.core.path.Path
 import cromwell.core.simpleton.WomValueSimpleton
 import cromwell.core.simpleton.WomValueSimpleton._
+import cromwell.core.{CallOutputs, WorkflowId}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql._
 import cromwell.database.sql.joins.CallCachingJoin
@@ -15,7 +15,6 @@ import cromwell.database.sql.tables._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCacheHashBundle
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.AggregatedCallHashes
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
-import wom.JobOutput
 import wom.core._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -34,7 +33,7 @@ class CallCache(database: CallCachingSqlDatabase) {
         jobAttempt = b.jobAttempt,
         returnCode = b.returnCode,
         allowResultReuse = b.allowResultReuse)
-      val result = b.callOutputs.mapValues(_.womValue).simplify
+      val result = b.callOutputs.outputs.simplify
       val jobDetritus = b.jobDetritusFiles.getOrElse(Map.empty)
       buildCallCachingJoin(metaInfo, b.callCacheHashes, result, jobDetritus)
     }
@@ -129,7 +128,7 @@ object CallCache {
         jobAttempt = Option(jobFailedNonRetryableResponse.jobKey.attempt),
         returnCode = None,
         allowResultReuse = false,
-        callOutputs = Map.empty[LocallyQualifiedName, JobOutput],
+        callOutputs = CallOutputs.empty,
         jobDetritusFiles = None
       )
     }

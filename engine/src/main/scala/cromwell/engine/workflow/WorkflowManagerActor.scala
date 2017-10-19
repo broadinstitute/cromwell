@@ -11,7 +11,6 @@ import cromwell.core.{WorkflowAborted, WorkflowId}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
-import cromwell.engine.workflow.lifecycle.execution.WorkflowMetadataHelper
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreState}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.webservice.EngineStatsActor
@@ -36,7 +35,7 @@ object WorkflowManagerActor {
   case object PreventNewWorkflowsFromStarting extends WorkflowManagerActorMessage
   sealed trait WorkflowManagerActorCommand extends WorkflowManagerActorMessage
   case object RetrieveNewWorkflows extends WorkflowManagerActorCommand
-  final case class AbortWorkflowCommand(id: WorkflowId, replyTo: ActorRef) extends WorkflowManagerActorCommand
+  final case class AbortWorkflowCommand(id: WorkflowId) extends WorkflowManagerActorCommand
   case object AbortAllWorkflowsCommand extends WorkflowManagerActorCommand
   final case class SubscribeToWorkflowCommand(id: WorkflowId) extends WorkflowManagerActorCommand
   case object EngineStatsCommand extends WorkflowManagerActorCommand
@@ -115,7 +114,6 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   private val logger = Logging(context.system, this)
   private val tag = self.path.name
 
-  private var abortingWorkflowToReplyTo = Map.empty[WorkflowId, ActorRef]
   private var nextPollCancellable: Option[Cancellable] = None
 
   override def preStart(): Unit = {
@@ -147,19 +145,16 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     case Event(SubscribeToWorkflowCommand(id), data) =>
       data.workflows.get(id) foreach {_ ! SubscribeTransitionCallBack(sender())}
       stay()
-    case Event(WorkflowManagerActor.AbortWorkflowCommand(id, replyTo), stateData) =>
+    case Event(WorkflowManagerActor.AbortWorkflowCommand(id), stateData) =>
       val workflowActor = stateData.workflows.get(id)
       workflowActor match {
         case Some(actor) =>
           actor ! WorkflowActor.AbortWorkflowCommand
-          abortingWorkflowToReplyTo += id -> replyTo
-          // Wait until the workflow transitions to the aborted state to respond with `WorkflowAborted`.
           stay()
         case None =>
           // All cool, if we got this far the workflow ID was found in the workflow store so this workflow must have never
           // made it to the workflow manager.
           pushCurrentStateToMetadataService(id, WorkflowAborted)
-          replyTo ! WorkflowStoreEngineActor.WorkflowAborted(id)
           stay()
       }
     case Event(AbortAllWorkflowsCommand, data) if data.workflows.isEmpty =>
@@ -182,11 +177,6 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       // This silently fails if idFromActor is None, but data.without call right below will as well
       data.idFromActor(workflowActor) foreach { workflowId =>
         params.jobStoreActor ! RegisterWorkflowCompleted(workflowId)
-        if (toState.workflowState == WorkflowAborted) {
-          val replyTo = abortingWorkflowToReplyTo(workflowId)
-          replyTo ! WorkflowStoreEngineActor.WorkflowAborted(workflowId)
-          abortingWorkflowToReplyTo -= workflowId
-        }
       }
       stay using data.without(workflowActor)
   }
@@ -257,15 +247,13 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   private def submitWorkflow(workflow: workflowstore.WorkflowToStart): WorkflowIdToActorRef = {
     val workflowId = workflow.id
 
-    val startMode = if (workflow.state == WorkflowStoreState.Restartable) {
-      logger.info(s"$tag Restarting workflow UUID($workflowId)")
-      RestartExistingWorkflow
-    } else {
+    if (workflow.state == WorkflowStoreState.Submitted) {
       logger.info(s"$tag Starting workflow UUID($workflowId)")
-      StartNewWorkflow
+    } else {
+      logger.info(s"$tag Restarting workflow UUID($workflowId) in ${workflow.state} state")
     }
 
-    val wfProps = WorkflowActor.props(workflowId, startMode, workflow.sources, config, params.ioActor, params.serviceRegistryActor,
+    val wfProps = WorkflowActor.props(workflowId, workflow.state, workflow.sources, config, params.ioActor, params.serviceRegistryActor,
       params.workflowLogCopyRouter, params.jobStoreActor, params.subWorkflowStoreActor, params.callCacheReadActor, params.callCacheWriteActor,
       params.dockerHashActor, params.jobTokenDispenserActor,
       params.backendSingletonCollection, params.serverMode)

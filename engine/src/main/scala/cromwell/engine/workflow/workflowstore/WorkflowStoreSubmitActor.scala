@@ -10,7 +10,7 @@ import cats.syntax.traverse._
 import cromwell.core.Dispatcher._
 import cromwell.core._
 import cromwell.engine.instrumentation.WorkflowInstrumentation
-import cromwell.engine.workflow.lifecycle.execution.WorkflowMetadataHelper
+import cromwell.engine.workflow.WorkflowMetadataHelper
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmitFailed, WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.services.metadata.MetadataService.PutMetadataAction

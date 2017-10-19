@@ -12,7 +12,7 @@ import scala.concurrent.duration.FiniteDuration
 object JobInstrumentation {
   private def backendJobExecutionResponsePaths(response: BackendJobExecutionResponse) = response match {
     case _: JobSucceededResponse => SuccessKey
-    case _: AbortedResponse => AbortedKey
+    case _: JobAbortedResponse => AbortedKey
     case _: JobFailedNonRetryableResponse => FailureKey
     case _: JobFailedRetryableResponse => RetryKey
   }

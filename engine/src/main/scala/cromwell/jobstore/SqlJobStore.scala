@@ -14,7 +14,7 @@ import cromwell.database.sql.joins.JobStoreJoin
 import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry}
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
 import org.slf4j.LoggerFactory
-import wom.callable.Callable.OutputDefinition
+import wom.graph.GraphNodePort.OutputPort
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -44,7 +44,7 @@ class SqlJobStore(sqlDatabase: EngineSqlDatabase) extends JobStore {
           None,
           None)
         val jobStoreResultSimpletons =
-          jobOutputs.mapValues(_.womValue).simplify.map {
+          jobOutputs.outputs.simplify.map {
             womValueSimpleton => JobStoreSimpletonEntry(
               womValueSimpleton.simpletonKey, womValueSimpleton.simpletonValue.valueString.toClobOption,
               womValueSimpleton.simpletonValue.womType.toDisplayString)
@@ -64,7 +64,7 @@ class SqlJobStore(sqlDatabase: EngineSqlDatabase) extends JobStore {
     }
   }
 
-  override def readJobResult(jobStoreKey: JobStoreKey, taskOutputs: Seq[OutputDefinition])(implicit ec: ExecutionContext): Future[Option[JobResult]] = {
+  override def readJobResult(jobStoreKey: JobStoreKey, taskOutputs: Seq[OutputPort])(implicit ec: ExecutionContext): Future[Option[JobResult]] = {
     sqlDatabase.queryJobStores(jobStoreKey.workflowId.toString, jobStoreKey.callFqn, jobStoreKey.index.fromIndex,
       jobStoreKey.attempt) map {
       _ map { case JobStoreJoin(entry, simpletonEntries) =>

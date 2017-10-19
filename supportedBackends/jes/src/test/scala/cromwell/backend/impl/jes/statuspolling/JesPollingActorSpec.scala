@@ -54,11 +54,11 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
     managerProbe.expectMsgClass(max = TestExecutionTimeout, c = classOf[JesApiQueryManager.RequestJesPollingWork])
 
     val requester1 = TestProbe()
-    val query1 = JesStatusPollQuery(requester1.ref, Run(null, null))
+    val query1 = JesStatusPollQuery(null, requester1.ref, Run(null, null))
     val requester2 = TestProbe()
-    val query2 = JesStatusPollQuery(requester2.ref, Run(null, null))
+    val query2 = JesStatusPollQuery(null, requester2.ref, Run(null, null))
     val requester3 = TestProbe()
-    val query3 = JesStatusPollQuery(requester3.ref, Run(null, null))
+    val query3 = JesStatusPollQuery(null, requester3.ref, Run(null, null))
 
     // For two requests the callback succeeds (first with RunStatus.Success, then RunStatus.Failed). The third callback fails (simulating a network timeout, for example):
     jpActor.underlyingActor.callbackResponses :+= CallbackSuccess

@@ -30,6 +30,12 @@ object AsyncBackendJobExecutionActor {
   final case class Recover(recoveryId: JobId) extends ExecutionMode {
     override def jobId = Option(recoveryId)
   }
+  final case class ReconnectToAbort(recoveryId: JobId) extends ExecutionMode {
+    override def jobId = Option(recoveryId)
+  }
+  final case class Reconnect(recoveryId: JobId) extends ExecutionMode {
+    override def jobId = Option(recoveryId)
+  }
 }
 
 trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
@@ -46,6 +52,7 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
     case _ => false
   }
 
+  // This seems dangerous as any exception that is not one of the above (fatal) will trigger infinite retries !
   def isTransient(throwable: Throwable): Boolean = !isFatal(throwable)
 
   private def withRetry[A](work: () => Future[A], backOff: SimpleExponentialBackoff): Future[A] = {
@@ -94,7 +101,7 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
       completionPromise.success(JobFailedRetryableResponse(jobDescriptor.key, throwable, returnCode))
       context.stop(self)
     case Finish(cromwell.backend.async.AbortedExecutionHandle) =>
-      completionPromise.success(AbortedResponse(jobDescriptor.key))
+      completionPromise.success(JobAbortedResponse(jobDescriptor.key))
       context.stop(self)
     case FailAndStop(t) => failAndStop(t)
     case response: MetadataServiceResponse => handleMetadataServiceResponse(sender(), response)

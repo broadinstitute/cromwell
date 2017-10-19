@@ -1,16 +1,18 @@
-package cromwell.engine.workflow.lifecycle.execution
+package cromwell.engine.workflow.lifecycle.execution.stores
 
 import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import cromwell.core.ExecutionIndex._
-import cromwell.engine.workflow.lifecycle.execution.ValueStore.ValueKey
+import cromwell.core.JobKey
 import cromwell.engine.workflow.lifecycle.execution.keys.{ConditionalCollectorKey, ScatterCollectorKey}
 import common.collections.Table
 import common.validation.ErrorOr.ErrorOr
+import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore.ValueKey
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.graph.expression.ExpressionNode
+import wom.values.WomArray.WomArrayLike
 import wom.values.{WomArray, WomOptionalValue, WomValue}
 
 object ValueStore {
@@ -64,7 +66,7 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
               (ValueKey(scatterGatherPort, None) -> WomArray(scatterGatherPort.womType, collectedValue)).validNel
             } else {
               //If not something went really wrong and this collector was found "runnable" when it shouldn't have
-              s"Some shards are missing from the value store, expected ${collector.scatterWidth} shards but only got ${collectedValue.size}: ${collectedValue.mkString(", ")}".invalidNel
+              s"Some shards are missing from the value store for node ${collector.node.fullyQualifiedName}, expected ${collector.scatterWidth} shards but only got ${collectedValue.size}: ${collectedValue.mkString(", ")}".invalidNel
             }
           case None =>
             //If we don't something went really wrong and this collector was found "runnable" when it shouldn't have
@@ -88,6 +90,38 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
       case Some(womValue) if !isInBypassed  => Map(ValueKey(conditionalPort, collector.index) -> WomOptionalValue(womValue)).validNel
       case Some(_)  => s"Found a non empty value in a bypassed conditional node ${sourcePort.identifier.fullyQualifiedName.value}".invalidNel
       case None => s"Cannot find a value for output port ${sourcePort.identifier.fullyQualifiedName.value}".invalidNel
+    }
+  }
+
+  def resolve(jobKey: JobKey)(outputPort: OutputPort) = {
+    import cats.syntax.validated._
+    import cats.syntax.option._
+
+    // If the node this port belongs to is a ScatterVariableNode then we want the item at the right index in the array
+    def forScatterVariable: ErrorOr[WomValue] = get(outputPort, None) match {
+      // Try to find the element at "jobIndex" in the array value stored for the outputPort, any other case is a failure
+      case Some(womValue: WomArrayLike) =>
+        jobKey.index match {
+          case Some(jobIndex) =>
+            womValue.asArray.value.lift(jobIndex)
+              .toValidNel(s"Shard index $jobIndex exceeds scatter array length: ${womValue.asArray.value.size}")
+          case None => s"Unsharded execution key ${jobKey.tag} references a scatter variable: ${outputPort.identifier.fullyQualifiedName}".invalidNel
+        }
+      case Some(other) => s"Value for scatter collection ${outputPort.identifier.fullyQualifiedName} is not an array: ${other.womType.toDisplayString}".invalidNel
+      case None => s"Can't find a value for scatter collection ${outputPort.identifier.fullyQualifiedName} (looking for index ${jobKey.index})".invalidNel
+    }
+
+    // Just look it up in the store
+    def forNormalNode(index: ExecutionIndex) = get(outputPort, index) match {
+      case Some(value) => value.validNel
+      case None => s"Can't find a value for ${outputPort.name}".invalidNel
+    }
+
+    outputPort.graphNode match {
+      case _: ScatterVariableNode => forScatterVariable
+      // OuterGraphInputNodes are not indexed (even if this jobKey is a shard, the node is outside the scatter)
+      case _: OuterGraphInputNode => forNormalNode(None)
+      case _ => forNormalNode(jobKey.index)
     }
   }
 }

@@ -24,8 +24,11 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
 
    */
 
-  def updateWorkflowState(queryWorkflowState: String, updateWorkflowState: String)
-                         (implicit ec: ExecutionContext): Future[Unit]
+  def updateWorkflowsInState(updates: List[(String, String)])
+                            (implicit ec: ExecutionContext): Future[Unit]
+  
+  def updateWorkflowState(workflowId: String, newWorkflowState: String)
+                         (implicit ec: ExecutionContext): Future[Int]
 
   /**
     * Adds the requested WorkflowSourceFiles to the store.

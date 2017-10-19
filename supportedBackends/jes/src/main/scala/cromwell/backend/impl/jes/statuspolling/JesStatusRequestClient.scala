@@ -1,8 +1,9 @@
 package cromwell.backend.impl.jes.statuspolling
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
-import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesApiStatusQueryFailed}
+import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.JesApiStatusQueryFailed
 import cromwell.backend.impl.jes.{Run, RunStatus}
+import cromwell.core.WorkflowId
 
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
@@ -33,11 +34,11 @@ trait JesStatusRequestClient { this: Actor with ActorLogging =>
     pollingActorClientPromise = None
   }
 
-  def pollStatus(run: Run): Future[RunStatus] = {
+  def pollStatus(workflowId: WorkflowId, run: Run): Future[RunStatus] = {
     pollingActorClientPromise match {
       case Some(p) => p.future
       case None =>
-        pollingActor ! JesApiQueryManager.DoPoll(run)
+        pollingActor ! JesApiQueryManager.DoPoll(workflowId, run)
         val newPromise = Promise[RunStatus]()
         pollingActorClientPromise = Option(newPromise)
         newPromise.future

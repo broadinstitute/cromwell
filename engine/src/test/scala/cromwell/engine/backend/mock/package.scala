@@ -1,15 +1,13 @@
 package cromwell.engine.backend
 
-import wom.JobOutput
-import wom.callable.Callable.OutputDefinition
+import wom.graph.GraphNodePort.OutputPort
 import wom.types._
 import wom.values._
 
 package object mock {
 
   // This is used by stubbed backends that are to be used in tests to prepare dummy outputs for job
-  def taskOutputToJobOutput(taskOutput: OutputDefinition) =
-    taskOutput.name -> JobOutput(sampleValue(taskOutput.womType))
+  def taskOutputToJobOutput(taskOutput: OutputPort) = taskOutput -> sampleValue(taskOutput.womType)
 
   private def sampleValue(womType: WomType): WomValue = womType match {
     case WomIntegerType => WomInteger(3)

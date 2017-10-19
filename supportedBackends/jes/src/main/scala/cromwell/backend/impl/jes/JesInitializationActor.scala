@@ -87,7 +87,7 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
           Future.successful(())
         case CromwellFatalException(e: StorageException) if e.getCode == StatusCodes.PreconditionFailed.intValue =>
             Future.failed(new IOException(s"Failed to upload authentication file:" +
-              " there was already a file at the same location and this workflow was not being restarted."))
+              s" there was already a file at the same location and this workflow was not being restarted: ${e.getMessage}"))
         case failure => Future.failed(new IOException(s"Failed to upload authentication file", failure))
       }
     }

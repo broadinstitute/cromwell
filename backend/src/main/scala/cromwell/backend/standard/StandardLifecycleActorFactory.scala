@@ -4,10 +4,9 @@ import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
 import cromwell.backend._
 import cromwell.backend.standard.callcaching._
-import cromwell.core.Dispatcher
+import cromwell.core.{CallOutputs, Dispatcher}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.path.Path
-import wom.core.CallOutputs
 import wom.expression.IoFunctionSet
 import wom.graph.TaskCallNode
 

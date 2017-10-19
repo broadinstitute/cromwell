@@ -1,4 +1,4 @@
-package cromwell.engine.workflow.lifecycle
+package cromwell.engine.workflow.lifecycle.finalization
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.event.LoggingReceive
@@ -13,7 +13,6 @@ import cromwell.core.path.{Path, PathCopier, PathFactory}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
-import wom.core.CallOutputs
 import wom.values.{WomArray, WomMap, WomSingleFile, WomValue}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -76,7 +75,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
       backend <- workflowDescriptor.backendAssignments.values.toSeq
       config <- BackendConfiguration.backendConfigurationDescriptor(backend).toOption.toSeq
       rootPath <- getBackendRootPath(backend, config).toSeq
-      outputFiles = findFiles(workflowOutputs.values.map(_.womValue).toSeq).map(_.value)
+      outputFiles = findFiles(workflowOutputs.outputs.values.toSeq).map(_.value)
     } yield (rootPath, outputFiles)
     
     val outputFileDestinations = rootAndFiles flatMap {

@@ -210,7 +210,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val backend = executionActor(jobDescriptor, JesBackendConfigurationDescriptor, promise, statusPoller.ref, expectPreemptible)
     backend ! Execute
     statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") {
-      case DoPoll(_) => backend ! runStatus
+      case _: DoPoll => backend ! runStatus
     }
 
     Await.result(promise.future, Timeout)

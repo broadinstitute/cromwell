@@ -3,9 +3,8 @@ package cromwell.engine.workflow.workflowstore
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
-import cromwell.core.WorkflowId
+import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingResponse}
 import cromwell.engine.instrumentation.WorkflowInstrumentation
-import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{WorkflowStoreActorState, _}
@@ -85,22 +84,21 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
           }
           sndr ! nwm
         }
-      case AbortWorkflow(id, manager) =>
-        store.remove(id) map { removed =>
-          if (removed) {
-            manager ! WorkflowManagerActor.AbortWorkflowCommand(id, sndr)
-            log.info(s"Workflow $id removed from the workflow store, abort requested.")
+      case AbortWorkflowCommand(id) =>
+        store.aborting(id) map { aborting =>
+          if (aborting) {
+            sndr ! WorkflowAbortingResponse(id)
+            log.info(s"Abort requested for workflow $id.")
           } else {
-            sndr ! WorkflowAbortFailed(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
+            sndr ! WorkflowAbortFailureResponse(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
           }
         } recover {
           case t =>
-            val message = s"Error aborting workflow $id: could not remove from workflow store"
+            val message = s"Unable to update workflow store to abort $id"
             log.error(t, message)
             // A generic exception type like RuntimeException will produce a 500 at the API layer, which seems appropriate
             // given we don't know much about what went wrong here.  `t.getMessage` so the cause propagates to the client.
-            val e = new RuntimeException(s"$message: ${t.getMessage}", t)
-            sndr ! WorkflowAbortFailed(id, e)
+            sndr ! WorkflowAbortFailureResponse(id, new RuntimeException(s"$message: ${t.getMessage}", t))
         }
       case oops =>
         log.error("Unexpected type of start work command: {}", oops.getClass.getSimpleName)
@@ -133,9 +131,10 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
     }
 
     val runnableWorkflows = for {
-      restartableWorkflows <- fetchRunnableWorkflowsIfNeeded(maxWorkflows, WorkflowStoreState.Restartable)
+      restartableAbortingWorkflows <- fetchRunnableWorkflowsIfNeeded(maxWorkflows, WorkflowStoreState.RestartableAborting)
+      restartableWorkflows <- fetchRunnableWorkflowsIfNeeded(maxWorkflows, WorkflowStoreState.RestartableRunning)
       submittedWorkflows <- fetchRunnableWorkflowsIfNeeded(maxWorkflows - restartableWorkflows.size, WorkflowStoreState.Submitted)
-    } yield restartableWorkflows ++ submittedWorkflows
+    } yield restartableWorkflows ++ submittedWorkflows ++ restartableAbortingWorkflows
 
     runnableWorkflows map {
       case x :: xs => NewWorkflowsToStart(NonEmptyList.of(x, xs: _*))
@@ -157,10 +156,6 @@ object WorkflowStoreEngineActor {
   sealed trait WorkflowStoreEngineActorResponse
   case object NoNewWorkflowsToStart extends WorkflowStoreEngineActorResponse
   final case class NewWorkflowsToStart(workflows: NonEmptyList[WorkflowToStart]) extends WorkflowStoreEngineActorResponse
-  sealed abstract class WorkflowStoreEngineAbortResponse extends WorkflowStoreEngineActorResponse
-  final case class WorkflowAborted(workflowId: WorkflowId) extends WorkflowStoreEngineAbortResponse
-  final case class WorkflowAbortFailed(workflowId: WorkflowId, reason: Throwable) extends WorkflowStoreEngineAbortResponse
-
 
   final case class WorkflowStoreActorCommandWithSender(command: WorkflowStoreActorEngineCommand, sender: ActorRef)
 

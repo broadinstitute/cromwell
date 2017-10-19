@@ -3,9 +3,9 @@ package cromwell.engine.workflow.lifecycle.execution.ejea
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.BackendJobExecutionActor.JobFailedNonRetryableResponse
 import cromwell.core.callcaching.{CallCachingMode, DockerWithHash}
-import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
+import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
-import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.{BackendJobPreparationSucceeded, CallPreparationFailed}
+import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation.{BackendJobPreparationSucceeded, CallPreparationFailed}
 import org.scalatest.concurrent.Eventually
 
 class EjeaPreparingJobSpec extends EngineJobExecutionActorSpec with CanExpectHashingInitialization with Eventually {
@@ -29,7 +29,7 @@ class EjeaPreparingJobSpec extends EngineJobExecutionActorSpec with CanExpectHas
           ejea = ejeaInPreparingState(mode)
           ejea ! jobPrepSuccessResponse(helper.backendJobDescriptor)
           ejea.stateName should be(RunningJob)
-          ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, None))
+          ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, None, backendJobActor = Option(helper.bjeaProbe.ref)))
         }
       } else {
         RestartOrExecuteCommandTuples foreach { case RestartOrExecuteCommandTuple(operationName, restarting, expectedMessage) =>
@@ -38,7 +38,7 @@ class EjeaPreparingJobSpec extends EngineJobExecutionActorSpec with CanExpectHas
             ejea ! jobPrepSuccessResponse(helper.backendJobDescriptor)
             helper.bjeaProbe.expectMsg(awaitTimeout, "job preparation", expectedMessage)
             ejea.stateName should be(RunningJob)
-            ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, None))
+            ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, None, backendJobActor = Option(helper.bjeaProbe.ref)))
           }
         }
       }

@@ -3,9 +3,9 @@ package cromwell.backend.standard
 import akka.dispatch.MessageDispatcher
 import cromwell.backend._
 import cromwell.backend.io.WorkflowPaths
+import cromwell.core.CallOutputs
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.path.{Path, PathCopier}
-import wom.core.CallOutputs
 import wom.graph.TaskCallNode
 
 import scala.concurrent.Future

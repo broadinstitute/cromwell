@@ -13,10 +13,20 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
 
   import dataAccess.driver.api._
 
-  override def updateWorkflowState(queryWorkflowState: String, updateWorkflowState: String)
-                                  (implicit ec: ExecutionContext): Future[Unit] = {
-    val action = dataAccess.workflowStateForWorkflowState(queryWorkflowState).update(updateWorkflowState)
+  override def updateWorkflowsInState(updates: List[(String, String)])
+                                     (implicit ec: ExecutionContext): Future[Unit] = {
+    val updateQueries = updates.map({
+      case (oldState, newState) => dataAccess.workflowStateForWorkflowState(oldState).update(newState)
+    })
+
+    val action = DBIO.sequence(updateQueries)
     runTransaction(action) void
+  }
+
+  override def updateWorkflowState(workflowId: String, newWorkflowState: String)
+                                     (implicit ec: ExecutionContext): Future[Int] = {
+    val action = dataAccess.workflowStateForId(workflowId).update(newWorkflowState)
+    runTransaction(action)
   }
 
   override def addWorkflowStoreEntries(workflowStoreEntries: Iterable[WorkflowStoreEntry])

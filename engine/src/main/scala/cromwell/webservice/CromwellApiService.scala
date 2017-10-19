@@ -24,7 +24,6 @@ import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{BuiltCallCacheDiffResponse, CachedCallNotFoundException, CallCacheDiffActorResponse, FailedCallCacheDiffResponse}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheDiffActor, CallCacheDiffQueryParameter}
-import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.WorkflowStoreEngineAbortResponse
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
 import cromwell.server.CromwellShutdown
@@ -68,7 +67,7 @@ trait CromwellApiService extends HttpInstrumentation {
     path("engine" / Segment / "version") { _ =>
       get { complete(versionResponse) }
     },
-    path("engine" / Segment / "status") { _ =>
+    path("engine" / Segment / "status") { version =>
       onComplete(serviceRegistryActor.ask(GetCurrentStatus).mapTo[StatusCheckResponse]) {
         case Success(status) =>
           val httpCode = if (status.ok) StatusCodes.OK else StatusCodes.InternalServerError
@@ -83,24 +82,7 @@ trait CromwellApiService extends HttpInstrumentation {
       get { instrumentRequest { complete(ToResponseMarshallable(backendResponse)) } }
     } ~
     path("workflows" / Segment / Segment / "status") { (_, possibleWorkflowId) =>
-      get {  
-        instrumentRequest {
-          // If the workflow is not found in the metadata, try the workflow store as it's possible
-          // that metadata is not updated yet
-          def fallBack: PartialFunction[Throwable, Route] = {
-            case UnrecognizedWorkflowException(id) =>
-              onComplete(workflowStoreActor.ask(WorkflowStateRequest(id)).mapTo[WorkflowStateResponse]) {
-                case Success(WorkflowStateSuccessfulResponse(_, state)) => complete(MetadataBuilderActor.processStatusResponse(id, state))
-                case Success(WorkflowStateNotFoundResponse(_)) => UnrecognizedWorkflowException(id).failRequest(StatusCodes.NotFound)
-                case Success(WorkflowStateFailedResponse(_, f)) => f.failRequest(StatusCodes.InternalServerError)
-                case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
-                case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
-              }
-          }
-          
-          metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => GetStatus(w), fallBack = fallBack)
-        }
-      }
+      get {  instrumentRequest { metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => GetStatus(w)) } }
     } ~
     path("workflows" / Segment / Segment / "outputs") { (_, possibleWorkflowId) =>
       get {  instrumentRequest { metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => WorkflowOutputs(w)) } }
@@ -179,25 +161,28 @@ trait CromwellApiService extends HttpInstrumentation {
     path("workflows" / Segment / Segment / "abort") { (_, possibleWorkflowId) =>
       post {
         instrumentRequest {
-          val response = validateWorkflowId(possibleWorkflowId) flatMap { w =>
-            workflowStoreActor.ask(WorkflowStoreActor.AbortWorkflow(w, workflowManagerActor)).mapTo[WorkflowStoreEngineAbortResponse]
-          }
+          def sendAbort(workflowId: WorkflowId): Route = {
+            val response = workflowStoreActor.ask(WorkflowStoreActor.AbortWorkflow(workflowId, workflowManagerActor)).mapTo[WorkflowStoreEngineAbortResponse]
 
-          onComplete(response) {
-            case Success(WorkflowStoreEngineActor.WorkflowAborted(id)) =>
-            complete(ToResponseMarshallable(WorkflowAbortResponse(id.toString, WorkflowAborted.toString)))
-            case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: IllegalStateException)) =>
-              /*
-                  Note that this is currently impossible to reach but was left as-is during the transition to akka http.
-                  When aborts get fixed, this should be looked at.
-                */
-              e.errorRequest(StatusCodes.Forbidden)
-            case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: WorkflowNotFoundException)) => e.errorRequest(StatusCodes.NotFound)
-            case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e)) => e.errorRequest(StatusCodes.InternalServerError)
-            case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
-            case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
-            case Failure(e: InvalidWorkflowException) => e.failRequest(StatusCodes.BadRequest)
-            case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
+            onComplete(response) {
+              case Success(WorkflowStoreEngineActor.WorkflowAborted(id)) =>
+                complete(ToResponseMarshallable(WorkflowAbortResponse(id.toString, WorkflowAborted.toString)))
+              case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: IllegalStateException)) =>
+                /*
+                    Note that this is currently impossible to reach but was left as-is during the transition to akka http.
+                    When aborts get fixed, this should be looked at.
+                  */
+                e.errorRequest(StatusCodes.Forbidden)
+              case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: WorkflowNotFoundException)) => e.errorRequest(StatusCodes.NotFound)
+              case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e)) => e.errorRequest(StatusCodes.InternalServerError)
+              case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
+              case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
+            }
+          }
+          
+          Try(WorkflowId.fromString(possibleWorkflowId)) match {
+            case Success(workflowId) => sendAbort(workflowId)
+            case Failure(_) => InvalidWorkflowException(possibleWorkflowId).failRequest(StatusCodes.BadRequest)
           }
         }
       }
@@ -295,36 +280,24 @@ trait CromwellApiService extends HttpInstrumentation {
   }
 
   private def validateWorkflowId(possibleWorkflowId: String): Future[WorkflowId] = {
-    def processValidation(id: WorkflowId)(validation: WorkflowValidationResponse): WorkflowId = validation match {
-      case RecognizedWorkflowId => id
-      case UnrecognizedWorkflowId => throw UnrecognizedWorkflowException(id)
-      case FailedToCheckWorkflowId(t) => throw t
-    }
-    
     Try(WorkflowId.fromString(possibleWorkflowId)) match {
       case Success(w) =>
-        serviceRegistryActor.ask(ValidateWorkflowId(w)).mapTo[WorkflowValidationResponse]
-        .map(processValidation(w))  
-        .recoverWith {
-          // Try the workflow store before giving up
-          case _: UnrecognizedWorkflowException => 
-            workflowStoreActor.ask(ValidateWorkflowId(w))
-            .mapTo[WorkflowValidationResponse]
-            .map(processValidation(w))  
+        serviceRegistryActor.ask(ValidateWorkflowId(w)).mapTo[WorkflowValidationResponse] map {
+          case RecognizedWorkflowId => w
+          case UnrecognizedWorkflowId => throw UnrecognizedWorkflowException(w)
+          case FailedToCheckWorkflowId(t) => throw t
         }
       case Failure(_) => Future.failed(InvalidWorkflowException(possibleWorkflowId))
     }
   }
 
-  private def metadataBuilderRequest(possibleWorkflowId: String, request: WorkflowId => ReadAction,
-                                     fallBack: PartialFunction[Throwable, Route] = PartialFunction.empty): Route = {
+  private def metadataBuilderRequest(possibleWorkflowId: String, request: WorkflowId => ReadAction): Route = {
     val metadataBuilderActor = actorRefFactory.actorOf(MetadataBuilderActor.props(serviceRegistryActor).withDispatcher(ApiDispatcher), MetadataBuilderActor.uniqueActorName)
     val response = validateWorkflowId(possibleWorkflowId) flatMap { w => metadataBuilderActor.ask(request(w)).mapTo[MetadataBuilderActorResponse] }
 
     onComplete(response) {
       case Success(r: BuiltMetadataResponse) => complete(r.response)
       case Success(r: FailedMetadataResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)
-      case Failure(e) if fallBack.isDefinedAt(e) => fallBack.apply(e)
       case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
       case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
       case Failure(e: InvalidWorkflowException) => e.failRequest(StatusCodes.BadRequest)

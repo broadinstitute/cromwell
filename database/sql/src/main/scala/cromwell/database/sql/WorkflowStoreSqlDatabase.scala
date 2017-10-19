@@ -45,7 +45,5 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
     */
   def removeWorkflowStoreEntry(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Int]
   
-  def statusOfWorkflowStoreEntry(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Option[String]]
-  
   def stats(implicit ec: ExecutionContext): Future[Map[String, Int]]
 }

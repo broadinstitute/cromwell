@@ -25,6 +25,4 @@ trait WorkflowStore {
   def fetchRunnableWorkflows(n: Int, state: StartableState)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]]
 
   def remove(id: WorkflowId)(implicit ec: ExecutionContext): Future[Boolean]
-  
-  def status(id: WorkflowId)(implicit ec: ExecutionContext): Future[Option[WorkflowStoreState]]
 }

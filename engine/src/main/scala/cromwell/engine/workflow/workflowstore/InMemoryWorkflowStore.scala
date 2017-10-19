@@ -20,10 +20,6 @@ class InMemoryWorkflowStore extends WorkflowStore {
     Future.successful(submittedWorkflows map { _.id })
   }
 
-  override def status(id: WorkflowId)(implicit ec: ExecutionContext): Future[Option[WorkflowStoreState]] = {
-    Future.successful(workflowStore.collectFirst({ case s if s.id.toString == id.toString => s.state }))
-  }
-
   /**
     * Retrieves up to n workflows which have not already been pulled into the engine and sets their pickedUp
     * flag to true

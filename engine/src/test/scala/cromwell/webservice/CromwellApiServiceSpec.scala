@@ -11,8 +11,9 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowSubmitted, WorkflowSucceeded}
 import cromwell.engine.workflow.WorkflowManagerActor
-import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
-import cromwell.engine.workflow.workflowstore.{WorkflowStoreEngineActor, WorkflowStoreState}
+import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{AbortWorkflow, BatchSubmitWorkflows, SubmitWorkflow}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.WorkflowAbortFailed
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse, SubsystemStatus}
@@ -78,18 +79,6 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
             status should be(StatusCodes.OK)
             // Along w/ checking value, ensure it is valid JSON despite the requested content type
             responseAs[JsObject].fields(WorkflowMetadataKeys.Status) should be(JsString("Submitted"))
-        }
-    }
-
-    it should "return 200 for get of a known workflow id even if not in metadata yet" in {
-      val workflowId = CromwellApiServiceSpec.NewWorkflowId
-  
-      Get(s"/workflows/$version/$workflowId/status") ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          status should be(StatusCodes.OK)
-          // Along w/ checking value, ensure it is valid JSON despite the requested content type
-          responseAs[JsObject].fields(WorkflowMetadataKeys.Status) should be(JsString("Submitted"))
         }
     }
 
@@ -546,9 +535,7 @@ object CromwellApiServiceSpec {
   val ExistingWorkflowId = WorkflowId.fromString("c4c6339c-8cc9-47fb-acc5-b5cb8d2809f5")
   val AbortedWorkflowId = WorkflowId.fromString("0574111c-c7d3-4145-8190-7a7ed8e8324a")
   val UnrecognizedWorkflowId = WorkflowId.fromString("2bdd06cc-e794-46c8-a897-4c86cedb6a06")
-  // Workflow Id known by the workflow store but not the metadata
-  val NewWorkflowId = WorkflowId.fromString("2d11c08f-52f9-41a8-a2e9-80085a2b287e")
-  val RecognizedWorkflowIds = Set(ExistingWorkflowId, AbortedWorkflowId)
+  val RecognizedWorkflowIds = Set(ExistingWorkflowId)
 
   class MockApiService()(implicit val system: ActorSystem) extends CromwellApiService {
     override def actorRefFactory = system
@@ -612,10 +599,6 @@ object CromwellApiServiceSpec {
 
   class MockWorkflowStoreActor extends Actor {
     override def receive = {
-      case ValidateWorkflowId(id) if id == UnrecognizedWorkflowId => sender() ! MetadataService.UnrecognizedWorkflowId
-      case ValidateWorkflowId(id) if RecognizedWorkflowIds.contains(id) || id == NewWorkflowId => sender() ! MetadataService.RecognizedWorkflowId
-      case WorkflowStateRequest(id) if id == UnrecognizedWorkflowId => sender() ! WorkflowStateNotFoundResponse(id)
-      case WorkflowStateRequest(id) if id == NewWorkflowId => sender() ! WorkflowStateSuccessfulResponse(id, WorkflowStoreState.Submitted)
       case SubmitWorkflow(_) => sender ! WorkflowSubmittedToStore(ExistingWorkflowId)
       case BatchSubmitWorkflows(sources) =>
         val response = WorkflowsBatchSubmittedToStore(sources map { _ => ExistingWorkflowId })
@@ -623,6 +606,7 @@ object CromwellApiServiceSpec {
       case AbortWorkflow(id, _) =>
         val message = id match {
           case ExistingWorkflowId => WorkflowStoreEngineActor.WorkflowAborted(id)
+          case UnrecognizedWorkflowId => WorkflowStoreEngineActor.WorkflowAbortFailed(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
           case AbortedWorkflowId =>
             WorkflowAbortFailed(id, new IllegalStateException(s"Workflow ID '$id' is in terminal state 'Aborted' and cannot be aborted."))
           case WorkflowId(_) => throw new Exception("Something untoward happened")
@@ -630,7 +614,7 @@ object CromwellApiServiceSpec {
         sender ! message
     }
   }
-
+  
   class MockWorkflowManagerActor extends Actor with ActorLogging {
     override def receive: Receive = {
       case WorkflowManagerActor.EngineStatsCommand =>

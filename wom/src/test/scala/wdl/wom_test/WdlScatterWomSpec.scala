@@ -6,6 +6,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import wdl.types.{WdlArrayType, WdlIntegerType, WdlStringType}
 import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.graph.GraphNodePort.ScatterGathererPort
+import wom.graph.expression.ExpressionNode
 import wom.graph.{GraphInputNode, ScatterNode, _}
 
 class WdlScatterWomSpec extends FlatSpec with Matchers {
@@ -51,7 +52,9 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
         val scatterExpressionNode = workflowGraph.nodes.collectFirst {
           case expr: ExpressionNode if expr.localName == "x" => expr
         }.getOrElse(fail("Resulting graph did not contain the 'x' ExpressionNode"))
-
+        
+        scatterNode.inputPorts.map(_.upstream) shouldBe Set(scatterExpressionNode.singleExpressionOutputPort)
+        
         val foo_out_output = workflowGraph.nodes.collectFirst {
           case gon: GraphOutputNode if gon.localName == "foo.out" => gon
         }.getOrElse(fail("Resulting graph did not contain the 'foo.out' GraphOutputNode"))

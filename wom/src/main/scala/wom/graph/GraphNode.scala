@@ -3,9 +3,10 @@ package wom.graph
 import cats.implicits._
 import lenthall.validation.ErrorOr.ErrorOr
 import wom.callable.Callable
-import wom.callable.Callable.RequiredInputDefinition
+import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, OutputDefinition, RequiredInputDefinition}
 import wom.graph.GraphNode._
-import wom.graph.GraphNodePort.InputPort
+import wom.graph.GraphNodePort.{InputPort, OutputPort}
+import wom.graph.expression.ExpressionNode
 
 trait GraphNode {
   def identifier: WomIdentifier
@@ -44,7 +45,8 @@ trait GraphNode {
     * The set of all graph nodes which are (transitively) upstream from this one.
     */
   lazy val upstreamAncestry = calculateUpstreamAncestry(Set.empty, this)
-  lazy val upstream: Set[GraphNode] = inputPorts.map(_.upstream.graphNode)
+  lazy val upstreamPorts: Set[OutputPort] = inputPorts.map(_.upstream)
+  lazy val upstream: Set[GraphNode] = upstreamPorts.map(_.graphNode)
 }
 
 object GraphNode {
@@ -79,8 +81,14 @@ object GraphNode {
       * Interpret this graph's "GraphInputNode"s as "Callable.InputDefinition"s
       */
     def inputDefinitions: Set[_ <: Callable.InputDefinition] = nodes collect {
-      // TODO: FIXME: They might not be required!!
-      case gin: GraphInputNode => RequiredInputDefinition(gin.identifier.localName, gin.womType)
+      case required: RequiredGraphInputNode => RequiredInputDefinition(required.identifier.localName, required.womType)
+      case optional: OptionalGraphInputNode => OptionalInputDefinition(optional.identifier.localName, optional.womType)
+      case withDefault: OptionalGraphInputNodeWithDefault => InputDefinitionWithDefault(withDefault.identifier.localName, withDefault.womType, withDefault.default)
+    }
+
+    def outputDefinitions: Set[_ <: Callable.OutputDefinition] = nodes collect {
+      // TODO: FIXME: Do something for PortBasedGraphOutputNodes
+      case gin: ExpressionBasedGraphOutputNode => OutputDefinition(gin.identifier.localName, gin.womType, gin.womExpression)
     }
   }
 

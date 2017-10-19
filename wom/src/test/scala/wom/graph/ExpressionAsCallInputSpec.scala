@@ -6,6 +6,7 @@ import wdl.types.WdlIntegerType
 import wom.callable.TaskDefinitionSpec
 import wom.expression._
 import wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold}
+import wom.graph.expression.AnonymousExpressionNode
 
 class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
 
@@ -34,8 +35,7 @@ class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
     val ijExpression = PlaceholderWomExpression(Set("i", "j"), WdlIntegerType)
 
     // Use that as an input to a one-input task:
-    val expressionNode = ExpressionNode
-      .linkWithInputs(WomIdentifier("bar"), ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))
+    val expressionNode = AnonymousExpressionNode.fromInputMapping(WomIdentifier("bar"), ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))
       .getOrElse(fail("Failed to build expression node"))
 
     val callNodeBuilder = new CallNodeBuilder()

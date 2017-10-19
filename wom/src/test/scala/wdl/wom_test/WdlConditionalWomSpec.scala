@@ -7,6 +7,7 @@ import wdl.types._
 import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.graph._
 import wom.graph.GraphNodePort.ConditionalOutputPort
+import wom.graph.expression.ExpressionNode
 
 class WdlConditionalWomSpec extends FlatSpec with Matchers {
 

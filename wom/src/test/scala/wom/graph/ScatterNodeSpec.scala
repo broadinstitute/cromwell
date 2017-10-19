@@ -11,6 +11,7 @@ import wom.callable.TaskDefinition
 import wom.expression.PlaceholderWomExpression
 import wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNodePort.OutputPort
+import wom.graph.expression.AnonymousExpressionNode
 
 class ScatterNodeSpec extends FlatSpec with Matchers {
   behavior of "ScatterNode"
@@ -50,11 +51,11 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
     val xs_inputNode = RequiredGraphInputNode(WomIdentifier("xs"), WdlArrayType(WdlIntegerType))
 
     val xsExpression = PlaceholderWomExpression(Set("xs"), WdlArrayType(WdlIntegerType))
-    val xsExpressionAsInput = ExpressionNode
-      .linkWithInputs(WomIdentifier("x"), xsExpression, Map("xs" -> xs_inputNode.singleOutputPort))
+    val xsExpressionAsInput = AnonymousExpressionNode
+      .fromInputMapping(WomIdentifier("x"), xsExpression, Map("xs" -> xs_inputNode.singleOutputPort))
       .valueOr(failures => fail(s"Failed to create expression node: ${failures.toList.mkString(", ")}"))
     
-    val x_inputNode = OuterGraphInputNode(WomIdentifier("x"), xsExpressionAsInput.singleExpressionOutputPort)
+    val x_inputNode = ScatterVariableNode(WomIdentifier("x"), xsExpressionAsInput.singleExpressionOutputPort, WdlArrayType(WdlIntegerType))
     val fooNodeBuilder = new CallNodeBuilder()
     val fooInputFold = InputDefinitionFold(
       mappings = Map(

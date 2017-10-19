@@ -3,7 +3,9 @@ package wom.graph
 import lenthall.validation.ErrorOr.ErrorOr
 import wdl.types.WdlType
 import wom.expression.WomExpression
-import wom.graph.GraphNodePort.{ConnectedInputPort, GraphNodeOutputPort, OutputPort}
+import wom.graph.expression.ExpressionNode.buildFromConstructor
+import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort}
+import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode}
 
 sealed trait GraphOutputNode extends GraphNode {
   def womType: WdlType
@@ -18,22 +20,23 @@ final case class PortBasedGraphOutputNode(override val identifier: WomIdentifier
   override val outputPorts: Set[GraphNodePort.OutputPort] = Set(source)
 }
 
-/**
-  * A graph output which is produced by evaluating an expression.
-  *
-  * NB: Construct this via ExpressionBasedGraphOutputNode.linkWithInputs(...)
-  */
-final case class ExpressionBasedGraphOutputNode private(override val identifier: WomIdentifier, womType: WdlType, instantiatedExpression: InstantiatedExpression) extends GraphOutputNode {
-  override val inputPorts = instantiatedExpression.inputPorts
-  val singleOutputPort = GraphNodeOutputPort(identifier, womType, this)
-  override val outputPorts: Set[GraphNodePort.OutputPort] = Set(singleOutputPort)
-}
-
 object ExpressionBasedGraphOutputNode {
-  def linkWithInputs(nodeIdentifier: WomIdentifier, womType: WdlType, expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[ExpressionBasedGraphOutputNode] = {
-    val nodeConstructor = (identifier: WomIdentifier, instantiatedExpression: InstantiatedExpression) => {
-      ExpressionBasedGraphOutputNode(identifier, womType, instantiatedExpression)
+  def fromInputMapping(identifier: WomIdentifier,
+                       expression: WomExpression,
+                       explicitWomType: WdlType,
+                       inputMapping: Map[String, OutputPort]): ErrorOr[ExpressionBasedGraphOutputNode] = {
+    // This constructor ignores the evaluated type and uses the explicit type instead
+    def constructor(identifier: WomIdentifier,
+                    expression: WomExpression,
+                    evaluatedType: WdlType,
+                    inputPorts: Map[String, InputPort]) = {
+      new ExpressionNode(identifier, expression, explicitWomType, inputPorts) with ExpressionBasedGraphOutputNode
     }
-    InstantiatedExpression.instantiateExpressionForNode(nodeConstructor)(nodeIdentifier, expression, inputMapping)
+    buildFromConstructor(constructor)(identifier, expression, inputMapping)
   }
 }
+
+/**
+  * A graph output which is produced by evaluating an expression.
+  */
+trait ExpressionBasedGraphOutputNode extends AnonymousExpressionNode with GraphOutputNode

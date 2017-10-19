@@ -11,7 +11,7 @@ import cromwell.docker.DockerHashActor.DockerHashSuccessResponse
 import cromwell.docker._
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.WorkflowDockerLookupActor.{WorkflowDockerLookupFailure, WorkflowDockerTerminalFailure}
-import cromwell.engine.workflow.lifecycle.execution.OutputStore
+import cromwell.engine.workflow.lifecycle.execution.ValueStore
 import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation._
 import cromwell.engine.workflow.lifecycle.execution.preparation.JobPreparationActor._
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvResponse, ScopedKey}
@@ -57,8 +57,8 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   startWith(Idle, JobPreparationActorNoData)
 
   when(Idle) {
-    case Event(Start(outputStore), JobPreparationActorNoData) =>
-      evaluateInputsAndAttributes(outputStore) match {
+    case Event(Start(valueStore), JobPreparationActorNoData) =>
+      evaluateInputsAndAttributes(valueStore) match {
         case Valid((inputs, attributes)) => fetchDockerHashesIfNecessary(inputs, attributes)
         case Invalid(failure) => sendFailureAndStop(new MessageAggregation {
           override def exceptionContext: String = "Call input and runtime attributes evaluation failed"
@@ -102,10 +102,10 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     goto(FetchingKeyValueStoreEntries) using JobPreparationKeyLookupData(PartialKeyValueLookups(Map.empty, keysToLookup), maybeCallCachingEligible, inputs, attributes)
   }
 
-  private [preparation] def evaluateInputsAndAttributes(outputStore: OutputStore): ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WdlValue])] = {
+  private [preparation] def evaluateInputsAndAttributes(valueStore: ValueStore): ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WdlValue])] = {
     import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
     for {
-      evaluatedInputs <- resolveAndEvaluateInputs(jobKey, workflowDescriptor, expressionLanguageFunctions, outputStore)
+      evaluatedInputs <- resolveAndEvaluateInputs(jobKey, workflowDescriptor, expressionLanguageFunctions, valueStore)
       runtimeAttributes <- prepareRuntimeAttributes(evaluatedInputs)
     } yield (evaluatedInputs, runtimeAttributes)
   }

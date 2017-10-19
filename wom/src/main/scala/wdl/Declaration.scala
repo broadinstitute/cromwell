@@ -2,10 +2,11 @@ package wdl
 
 import cats.data.Validated.Valid
 import lenthall.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
-import wdl4s.parser.WdlParser.{Ast, AstNode}
 import wdl.AstTools.EnhancedAstNode
 import wdl.types.{WdlArrayType, WdlOptionalType, WdlType}
+import wdl4s.parser.WdlParser.{Ast, AstNode}
 import wom.graph._
+import wom.graph.expression.{ExposedExpressionNode, ExpressionNode}
 
 object DeclarationInterface {
   /**
@@ -83,8 +84,8 @@ trait DeclarationInterface extends WdlGraphNodeWithUpstreamReferences {
 
 object Declaration {
 
-  sealed trait DeclarationNode {
-    def toGraphNode = this match {
+  sealed trait WdlDeclarationNode {
+    def toGraphNode: GraphNode = this match {
       case InputDeclarationNode(graphInputNode) => graphInputNode
       case IntermediateValueDeclarationNode(expressionNode) => expressionNode
       case GraphOutputDeclarationNode(graphOutputNode) => graphOutputNode
@@ -95,9 +96,9 @@ object Declaration {
       case GraphOutputDeclarationNode(_) => None
     }
   }
-  final case class InputDeclarationNode(graphInputNode: GraphInputNode) extends DeclarationNode
-  final case class IntermediateValueDeclarationNode(expressionNode: ExpressionNode) extends DeclarationNode
-  final case class GraphOutputDeclarationNode(graphOutputNode: GraphOutputNode) extends DeclarationNode
+  final case class InputDeclarationNode(graphInputNode: GraphInputNode) extends WdlDeclarationNode
+  final case class IntermediateValueDeclarationNode(expressionNode: ExpressionNode) extends WdlDeclarationNode
+  final case class GraphOutputDeclarationNode(graphOutputNode: GraphOutputNode) extends WdlDeclarationNode
 
   def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter, parent: Option[Scope]): Declaration = {
     Declaration(
@@ -112,23 +113,21 @@ object Declaration {
     )
   }
 
-  def buildWomNode(decl: DeclarationInterface, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort]): ErrorOr[DeclarationNode] = {
-
-    val inputName = decl.unqualifiedName
+  def buildWomNode(decl: DeclarationInterface, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort]): ErrorOr[WdlDeclarationNode] = {
 
     def declarationAsExpressionNode(wdlExpression: WdlExpression) = {
       val womExpression = WdlWomExpression(wdlExpression, None)
       for {
-        uninstantiatedExpression <- WdlWomExpression.findInputsforExpression(inputName, womExpression, localLookup, outerLookup)
-        expressionNode <- ExpressionNode.linkWithInputs(decl.womIdentifier, womExpression, uninstantiatedExpression.inputMapping)
+        inputMapping <- WdlWomExpression.findInputsforExpression(womExpression, localLookup, outerLookup)
+        expressionNode <- ExposedExpressionNode.fromInputMapping(decl.womIdentifier, womExpression, decl.wdlType, inputMapping)
       } yield IntermediateValueDeclarationNode(expressionNode)
     }
 
     def workflowOutputAsGraphOutputNode(wdlExpression: WdlExpression) = {
       val womExpression = WdlWomExpression(wdlExpression, None)
       for {
-        uninstantiatedExpression <- WdlWomExpression.findInputsforExpression(inputName, womExpression, localLookup, outerLookup)
-        graphOutputNode <- ExpressionBasedGraphOutputNode.linkWithInputs(decl.womIdentifier, decl.wdlType, womExpression, uninstantiatedExpression.inputMapping)
+        inputMapping <- WdlWomExpression.findInputsforExpression(womExpression, localLookup, outerLookup)
+        graphOutputNode <- ExpressionBasedGraphOutputNode.fromInputMapping(decl.womIdentifier, womExpression, decl.wdlType, inputMapping)
       } yield GraphOutputDeclarationNode(graphOutputNode)
     }
 

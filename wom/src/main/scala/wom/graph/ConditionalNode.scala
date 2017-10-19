@@ -1,23 +1,24 @@
 package wom.graph
 
-import wdl.types.WdlOptionalType
+import wdl.types.{WdlBooleanType, WdlOptionalType}
 import wom.graph.GraphNode.GeneratedNodeAndNewNodes
-import wom.graph.GraphNodePort.{ConditionalOutputPort, InputPort, OutputPort}
+import wom.graph.GraphNodePort.{ConditionalOutputPort, ConnectedInputPort, InputPort, OutputPort}
+import wom.graph.expression.ExpressionNode
 
 /**
   * Currently only WDL has the concept of conditional executions:
   *
   * @param innerGraph Imagine that the contents of the conditional block were a self-contained workflow. That's this Graph
-  * @param condition The (boolean) expression on which the conditional is predicated.
+  * @param conditionExpression The (boolean) expression on which the conditional is predicated.
   * @param conditionalOutputPorts Output ports for the conditional node which link back to GraphOutputNodes of the inner graph.
   */
 final case class ConditionalNode private(innerGraph: Graph,
-                                         condition: ExpressionNode,
+                                         conditionExpression: ExpressionNode,
                                          conditionalOutputPorts: Set[ConditionalOutputPort]) extends GraphNode {
 
   override val identifier: WomIdentifier = WomIdentifier("ConditionalNode")
 
-  override val inputPorts: Set[InputPort] = condition.inputPorts
+  override val inputPorts: Set[InputPort] = Set(ConnectedInputPort("condition", WdlBooleanType, conditionExpression.singleExpressionOutputPort, _ => this))
   override val outputPorts: Set[GraphNodePort.OutputPort] = conditionalOutputPorts.toSet[OutputPort]
 }
 
@@ -25,7 +26,7 @@ object ConditionalNode  {
 
   final case class ConditionalNodeWithNewNodes(node: ConditionalNode) extends GeneratedNodeAndNewNodes {
     override val newInputs = node.innerGraph.externalInputNodes.toSet[GraphInputNode]
-    override val newExpressions = Set(node.condition)
+    override val newExpressions = Set(node.conditionExpression)
   }
 
   def wireInConditional(innerGraph: Graph, expressionNode: ExpressionNode): ConditionalNodeWithNewNodes = {

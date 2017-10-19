@@ -13,6 +13,7 @@ import wom.expression.WomExpression
 import wom.graph.CallNode._
 import wom.graph.GraphNode.GeneratedNodeAndNewNodes
 import wom.graph.GraphNodePort.{ConnectedInputPort, GraphNodeOutputPort, InputPort, OutputPort}
+import wom.graph.expression.ExpressionNode
 
 sealed abstract class CallNode extends GraphNode {
   def callable: Callable

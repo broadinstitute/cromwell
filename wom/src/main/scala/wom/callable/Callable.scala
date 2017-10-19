@@ -12,6 +12,7 @@ trait Callable {
 
   def graph: ErrorOr[Graph]
   def inputs: List[_ <: InputDefinition]
+  def outputs: List[_ <: OutputDefinition]
 }
 
 object Callable {

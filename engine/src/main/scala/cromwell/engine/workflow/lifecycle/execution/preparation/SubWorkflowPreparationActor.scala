@@ -6,7 +6,7 @@ import cromwell.backend.BackendJobBreadCrumb
 import cromwell.core.Dispatcher._
 import cromwell.core.WorkflowId
 import cromwell.core.logging.WorkflowLogging
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.SubWorkflowKey
+import cromwell.engine.workflow.lifecycle.execution.keys.SubWorkflowKey
 import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.{CallPreparationFailed, Start, _}
 import cromwell.engine.workflow.lifecycle.execution.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
@@ -35,8 +35,8 @@ class SubWorkflowPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   override def receive = {
-    case Start(outputStore) =>
-      val evaluatedInputs = resolveAndEvaluateInputs(callKey, workflowDescriptor, expressionLanguageFunctions, outputStore)
+    case Start(valueStore) =>
+      val evaluatedInputs = resolveAndEvaluateInputs(callKey, workflowDescriptor, expressionLanguageFunctions, valueStore)
       evaluatedInputs map { prepareExecutionActor } match {
         case Valid(response) => context.parent ! response
         case Invalid(f) => context.parent ! CallPreparationFailed(callKey, new MessageAggregation {

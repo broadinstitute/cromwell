@@ -26,4 +26,3 @@ object EnhancedCollections {
     def firstByType[T <: T2](implicit tag: ClassTag[T]): Option[T] = traversable collectFirst { case t: T => t }
   }
 }
-

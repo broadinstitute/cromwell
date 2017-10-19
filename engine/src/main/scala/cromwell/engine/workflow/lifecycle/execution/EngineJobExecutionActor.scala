@@ -15,7 +15,7 @@ import cromwell.database.sql.tables.CallCachingEntry
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.instrumentation.JobInstrumentation
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.RequestOutputStore
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.RequestValueStore
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCacheHashBundle
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
@@ -117,7 +117,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         jobStoreActor ! QueryJobCompletion(jobStoreKey, jobDescriptorKey.call.callable.outputs)
         goto(CheckingJobStore)
       } else {
-        requestOutputStore()
+        requestValueStore()
       }
     case Event(JobExecutionTokenDenied(positionInQueue), NoData) =>
       log.debug("Token denied so cannot start yet. Currently position {} in the queue", positionInQueue)
@@ -156,13 +156,13 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(HasCallCacheEntry(_), NoData) =>
       // Disable call caching
       effectiveCallCachingMode = CallCachingOff
-      requestOutputStore()
+      requestValueStore()
     // No cache entry for this job - keep going
     case Event(NoCallCacheEntry(_), NoData) =>
-      requestOutputStore()
+      requestValueStore()
     case Event(CacheResultLookupFailure(reason), NoData) =>
       log.error(reason, "{}: Failure checking for cache entry existence: {}. Attempting to resume job anyway.", jobTag, reason.getMessage)
-      requestOutputStore()
+      requestValueStore()
   }
 
   /*
@@ -171,8 +171,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   * variable in this actor, which would prevent it from being garbage collected for the duration of the
   * job and would lead to memory leaks.
   */
-  when(WaitingForOutputStore) {
-    case Event(outputStore: OutputStore, NoData) => prepareJob(outputStore)
+  when(WaitingForValueStore) {
+    case Event(valueStore: ValueStore, NoData) => prepareJob(valueStore)
   }
 
   // When PreparingJob, the FSM always has NoData
@@ -429,19 +429,19 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   def createJobPreparationActor(jobPrepProps: Props, name: String): ActorRef = context.actorOf(jobPrepProps, name)
-  def prepareJob(outputStore: OutputStore) = {
+  def prepareJob(valueStore: ValueStore) = {
     writeCallCachingModeToMetadata()
     val jobPreparationActorName = s"BackendPreparationActor_for_$jobTag"
     val jobPrepProps = JobPreparationActor.props(workflowDescriptor, jobDescriptorKey, factory, workflowDockerLookupActor = workflowDockerLookupActor,
       initializationData, serviceRegistryActor = serviceRegistryActor, ioActor = ioActor, backendSingletonActor = backendSingletonActor)
     val jobPreparationActor = createJobPreparationActor(jobPrepProps, jobPreparationActorName)
-    jobPreparationActor ! CallPreparation.Start(outputStore)
+    jobPreparationActor ! CallPreparation.Start(valueStore)
     goto(PreparingJob)
   }
   
-  def requestOutputStore() = {
-    replyTo ! RequestOutputStore
-    goto(WaitingForOutputStore)
+  def requestValueStore() = {
+    replyTo ! RequestValueStore
+    goto(WaitingForValueStore)
   }
 
   def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity, callCachingEligible: CallCachingEligible): Try[ActorRef] = {
@@ -644,7 +644,7 @@ object EngineJobExecutionActor {
   case object CheckingCallCache extends EngineJobExecutionActorState
   case object FetchingCachedOutputsFromDatabase extends EngineJobExecutionActorState
   case object BackendIsCopyingCachedOutputs extends EngineJobExecutionActorState
-  case object WaitingForOutputStore extends EngineJobExecutionActorState
+  case object WaitingForValueStore extends EngineJobExecutionActorState
   case object PreparingJob extends EngineJobExecutionActorState
   case object RunningJob extends EngineJobExecutionActorState
   case object UpdatingCallCache extends EngineJobExecutionActorState

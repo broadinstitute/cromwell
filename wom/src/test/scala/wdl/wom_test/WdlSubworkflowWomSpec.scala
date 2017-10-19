@@ -4,7 +4,8 @@ import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.types.{WdlArrayType, WdlIntegerType, WdlMaybeEmptyArrayType, WdlStringType}
 import wdl.{ImportResolver, WdlNamespace, WdlNamespaceWithWorkflow}
-import wom.graph.{ExpressionNode, Graph, TaskCallNode, WorkflowCallNode}
+import wom.graph.expression.ExpressionNode
+import wom.graph.{Graph, TaskCallNode, WorkflowCallNode}
 
 class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
 
@@ -155,7 +156,8 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
       workflowGraph.inputNodes.map(_.localName) should be(Set("xs"))
 
       val scatter = workflowGraph.scatters.head
-      scatter.upstream should be(Set(workflowGraph.inputNodes.head))
+      val scatterCollectionNode = workflowGraph.nodes.collectFirst({ case e: ExpressionNode if e.localName == "x" => e }).get
+      scatter.upstream should be(Set(scatterCollectionNode))
       scatter.outputPorts.map(_.name) should be(Set("inner.out"))
       scatter.outputPorts.head.womType should be(WdlArrayType(WdlStringType))
 

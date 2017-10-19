@@ -75,6 +75,14 @@ case class WdlWorkflow(unqualifiedName: String,
   override lazy val womDefinition: ErrorOr[WorkflowDefinition] = WdlWorkflow.womWorkflowDefinition(this)
 
   /**
+    * Also include workflow outputs which are not technically children but should be processed as such
+    */
+  override lazy val childGraphNodes: Set[WdlGraphNode] = {
+    import lenthall.collections.EnhancedCollections._
+    children.toSet.filterByType[WdlGraphNode] ++ outputs
+  }
+
+  /**
    * FQNs for all inputs to this workflow and their associated types and possible postfix quantifiers.
    *
    * @return a Map[FullyQualifiedName, WorkflowInput] representing the

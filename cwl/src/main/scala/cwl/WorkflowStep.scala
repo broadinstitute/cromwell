@@ -21,6 +21,7 @@ import wom.expression.PlaceholderWomExpression
 import wom.graph.CallNode._
 import wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 import wom.graph._
+import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode}
 
 import scala.language.postfixOps
 import scala.util.Try
@@ -247,7 +248,7 @@ object WorkflowStep {
     def toExpressionNode(sourceMappings: Map[String, OutputPort]): ErrorOr[ExpressionNode] = {
       val womExpression = PlaceholderWomExpression(sourceMappings.keySet, WdlAnyType)
       val identifier = WomIdentifier(workflowStepInput.id)
-      ExpressionNode.linkWithInputs(identifier, womExpression, sourceMappings)
+      AnonymousExpressionNode.fromInputMapping(identifier, womExpression, sourceMappings)
     }
   }
 

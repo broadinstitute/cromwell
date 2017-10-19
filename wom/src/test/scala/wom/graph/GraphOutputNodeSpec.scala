@@ -21,7 +21,7 @@ class GraphOutputNodeSpec extends FlatSpec with Matchers {
     val ijExpression = PlaceholderWomExpression(Set("i", "j"), WdlIntegerType)
 
     // Declare the expression output using both i and j:
-    val xOutputValidation = ExpressionBasedGraphOutputNode.linkWithInputs(WomIdentifier("x_out"), WdlStringType, ijExpression, Map(
+    val xOutputValidation = ExpressionBasedGraphOutputNode.fromInputMapping(WomIdentifier("x_out"), ijExpression, WdlStringType, Map(
       "i" -> iInputNode.singleOutputPort,
       "j" -> jInputNode.singleOutputPort))
 

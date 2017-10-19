@@ -6,7 +6,7 @@ import cromwell.backend._
 import cromwell.core.{NoIoFunctionSet, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.preparation.JobPreparationTestHelper._
-import cromwell.engine.workflow.lifecycle.execution.{OutputStore, WorkflowExecutionActorData}
+import cromwell.engine.workflow.lifecycle.execution.{ValueStore, WorkflowExecutionActorData}
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, ScopedKey}
 import lenthall.validation.ErrorOr.ErrorOr
 import org.specs2.mock.Mockito
@@ -78,7 +78,7 @@ private[preparation] class TestJobPreparationActor(kvStoreKeysForPrefetch: List[
   override private[preparation] lazy val hasDockerDefinition = true
 
   override def scopedKey(key: String) = scopedKeyMaker.apply(key)
-  override def evaluateInputsAndAttributes(outputStore: OutputStore) = inputsAndAttributes
+  override def evaluateInputsAndAttributes(valueStore: ValueStore) = inputsAndAttributes
 
   override private[preparation] def jobExecutionProps(jobDescriptor: BackendJobDescriptor,
                                                       initializationData: Option[BackendInitializationData],

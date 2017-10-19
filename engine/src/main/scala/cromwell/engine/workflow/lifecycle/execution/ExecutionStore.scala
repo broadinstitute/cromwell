@@ -1,69 +1,75 @@
 package cromwell.engine.workflow.lifecycle.execution
 
 import cromwell.backend.BackendJobDescriptorKey
+import cromwell.core.ExecutionIndex.ExecutionIndex
 import cromwell.core.ExecutionStatus._
-import cromwell.core.{CallKey, JobKey}
-import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.{FqnIndex, RunnableScopes}
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{apply => _, _}
-import wdl._
+import cromwell.core.JobKey
+import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.{RunnableScopes, _}
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{apply => _}
+import cromwell.engine.workflow.lifecycle.execution.keys._
+import lenthall.collections.Table
 import wom.callable.WorkflowDefinition
-import wom.executable.Executable.ResolvedExecutableInputs
+import wom.graph.GraphNodePort.{ConditionalOutputPort, OutputPort, ScatterGathererPort}
 import wom.graph._
-
+import wom.graph.expression.ExpressionNode
 
 object ExecutionStore {
-  case class RunnableScopes(scopes: List[JobKey], truncated: Boolean)
+  implicit class EnhancedOutputPort(val outputPort: OutputPort) extends AnyVal {
+    def executionNode: GraphNode = outputPort match {
+      case scatter: ScatterGathererPort => scatter.outputToGather.executionNode
+      case conditional: ConditionalOutputPort => conditional.outputToExpose.executionNode
+      case other => other.graphNode.executionNode
+    }
+  }
+
+  implicit class EnhancedGraphNode(val graphNode: GraphNode) extends AnyVal {
+    def executionNode: GraphNode = graphNode match {
+      case pbgon: PortBasedGraphOutputNode => pbgon.source.graphNode
+      case other => other
+    }
+  }
   
-  private type FqnIndex = (String, Option[Int])
+  case class RunnableScopes(scopes: List[JobKey], truncated: Boolean)
 
   def empty = ExecutionStore(Map.empty[JobKey, ExecutionStatus], hasNewRunnables = false)
 
-  def apply(workflow: WorkflowDefinition, workflowCoercedInputs: ResolvedExecutableInputs) = {
-    // Only add direct children to the store, the rest is dynamically created when necessary
-//    val keys = workflow.children map {
-//      case call: WdlTaskCall => Option(BackendJobDescriptorKey(call, None, 1))
-//      case call: WdlWorkflowCall => Option(SubWorkflowKey(call, None, 1))
-//      case scatter: Scatter => Option(ScatterKey(scatter))
-//      case conditional: If => Option(ConditionalKey(conditional, None))
-//      case declaration: Declaration => Option(DeclarationKey(declaration, None, workflowCoercedInputs))
-//      case _ => None
-//    }
-    
-    val keys = workflow.innerGraph.nodes collect {
-      case call: TaskCallNode => Option(BackendJobDescriptorKey(call, None, 1))
-      case declaration: ExpressionNode => Option(ExpressionKey(declaration, None))
-        // Note that PortBasedGraphOutputNodes don't need to be added in the store.
-        // They simply act as a proxy for another output port in the graph.
-        // When we reach the end of the workflow, we'll simply look for the source output port in the output store
-      case expressionOutputNode: ExpressionBasedGraphOutputNode => Option(ExpressionKey(expressionOutputNode))
+  def apply(workflow: WorkflowDefinition): ExecutionStore = {
+    // Keys that are added in a NotStarted Status
+    val notStartedKeys = workflow.innerGraph.nodes collect {
+      case call: TaskCallNode => List(BackendJobDescriptorKey(call, None, 1))
+      case expression: ExpressionNode => List(ExpressionKey(expression, None))
+      case scatterNode: ScatterNode => List(ScatterKey(scatterNode))
+      case conditionalNode: ConditionalNode => List(ConditionalKey(conditionalNode, None))
     }
-    
+
     // There are potentially resolved workflow inputs that are default WomExpressions.
     // For now assume that those are call inputs that will be evaluated in the CallPreparation.
     // If they are actually workflow declarations then we would need to add them to the ExecutionStore so they can be evaluated.
     // In that case we would want InstantiatedExpressions so we can create an InstantiatedExpressionNode and add a DeclarationKey
-    
-    new ExecutionStore(keys.flatten.map(_ -> NotStarted).toMap, keys.nonEmpty)
+    new ExecutionStore(notStartedKeys.flatten.map(_ -> NotStarted).toMap, notStartedKeys.nonEmpty)
   }
-  
+
   val MaxJobsToStartPerTick = 1000
 }
 
 final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionStatus], hasNewRunnables: Boolean) {
-
   // View of the statusStore more suited for lookup based on status
   lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).mapValues(_.keys.toList)
-  // Takes only keys that are done, and creates a map such that they're indexed by fqn and index
-  // This allows for quicker lookup (by hash) instead of traversing the whole list and yields
-  // significant improvements at large scale (run ExecutionStoreBenchmark)
-  lazy val (doneKeys, terminalKeys) = {
-    def toMapEntry(key: JobKey) = (key.node.fullyQualifiedName, key.index) -> key
 
-    store.foldLeft((Map.empty[FqnIndex, JobKey], Map.empty[FqnIndex, JobKey]))({
+  /*
+    * Create 2 Tables, one for keys in done status and one for keys in terminal status.
+    * A Table is nothing more than a Map[R, Map[C, V]], see Table trait for more details
+    * In this case, rows are GraphNodes, columns are ExecutionIndexes, and values are JobKeys
+    * This allows for quick lookup of all shards for a node, as well as accessing a specific key with a 
+    * (node, index) pair
+   */
+  lazy val (doneKeys, terminalKeys) = {
+    def toTableEntry(key: JobKey) = (key.node, key.index, key)
+    store.foldLeft((Table.empty[GraphNode, ExecutionIndex, JobKey], Table.empty[GraphNode, ExecutionIndex, JobKey]))({
       case ((done, terminal), (status, keys))  =>
-        lazy val newMapEntries = keys map toMapEntry
-        val newDone = if (status.isDoneOrBypassed) done ++ newMapEntries else done
-        val newTerminal = if (status.isTerminal) terminal ++ newMapEntries else terminal
+        lazy val newMapEntries = keys map toTableEntry
+        val newDone = if (status.isDoneOrBypassed) done.addAll(newMapEntries) else done
+        val newTerminal = if (status.isTerminal) terminal.addAll(newMapEntries) else terminal
 
         newDone -> newTerminal
     })
@@ -71,19 +77,14 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
 
   private def keysWithStatus(status: ExecutionStatus) = store.getOrElse(status, List.empty)
 
-  def isBypassedConditional(jobKey: JobKey, conditional: If): Boolean = {
-    keysWithStatus(Bypassed).exists {
-      case key: ConditionalKey =>
-        key.node.fullyQualifiedName.equals(conditional.fullyQualifiedName) &&
-          key.index.equals(jobKey.index)
-      case _ => false
-    }
+  def isInBypassedConditional(jobKey: JobKey): Boolean = keysWithStatus(Bypassed).exists {
+    case conditional: ConditionalKey if conditional.node.innerGraph.nodes.contains(jobKey.node)
+      && conditional.index.equals(jobKey.index) => true
+    case _ => false
   }
 
   def hasActiveJob: Boolean = {
-    def upstreamFailed(scope: GraphNode): Boolean = scope match {
-      case node: GraphNode => node.upstreamAncestry exists hasFailedScope
-    }
+    def upstreamFailed(node: GraphNode): Boolean = node.upstreamAncestry exists hasFailedNode
 
     keysWithStatus(QueuedInCromwell).nonEmpty ||
       keysWithStatus(Starting).nonEmpty ||
@@ -99,13 +100,13 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
     }
   }
 
-  private def hasFailedScope(s: GraphNode): Boolean = keysWithStatus(Failed).exists(_.node == s)
+  private def hasFailedNode(node: GraphNode): Boolean = keysWithStatus(Failed).exists(_.node == node)
 
   def hasFailedJob: Boolean = keysWithStatus(Failed).nonEmpty
 
-  override def toString = store.map { case (j, s) => s"$j -> $s" } mkString System.lineSeparator()
+  override def toString: String = store.map { case (j, s) => s"$j -> $s" } mkString System.lineSeparator()
 
-  def add(values: Map[JobKey, ExecutionStatus]) = {
+  def add(values: Map[JobKey, ExecutionStatus]): ExecutionStore = {
     this.copy(statusStore = statusStore ++ values, hasNewRunnables = hasNewRunnables || values.values.exists(_.isTerminalOrRetryable))
   }
 
@@ -122,52 +123,28 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
     RunnableScopes(scopesToStartPlusOne.take(ExecutionStore.MaxJobsToStartPerTick), scopesToStartPlusOne.size > ExecutionStore.MaxJobsToStartPerTick)
   }
 
-  def findCompletedShardsForOutput(key: CollectorKey): List[JobKey] = doneKeys.values.toList collect {
-    case k @ (_: CallKey | _:IntermediateValueKey) if k.node == key.node && k.isShard => k
-  }
-
-  private def emulateShardEntries(key: CollectorKey): Set[FqnIndex] = {
-    (0 until key.scatterWidth).toSet map { i: Int => key.node match {
-      case c: CallNode => c.fullyQualifiedName -> Option(i)
-      case d: ExpressionNode => d.fullyQualifiedName -> Option(i)
-      case _ => throw new RuntimeException("Don't collect that.")
-    }}
-  }
-
   private def arePrerequisitesDone(key: JobKey): Boolean = {
-    val upstreamAreDone = key.node.upstream forall {
-      case n @ (_: TaskCallNode | _: ScatterNode | _: ExpressionNode) => upstreamIsDone(key, n)
+    def calculateUpstreamDone(upstream: GraphNode, index: ExecutionIndex) = upstream match {
+        // FIXME this won't hold conditionals in scatters for example
+        // OuterGraphInputNode signals that an input comes from outside the graph.
+        // Depending on whether or not this input is outside of a scatter graph will change the index which we need to look at
+      case outerNode: OuterGraphInputNode => doneKeys.contains(outerNode, None)
+      case _: CallNode | _: ScatterNode | _: ExpressionNode | _: ConditionalNode => doneKeys.contains(upstream, index)
       case _ => true
     }
 
-    val shardEntriesForCollectorAreTerminal: Boolean = key match {
-      case collector: CollectorKey => emulateShardEntries(collector).diff(terminalKeys.keys.toSet).isEmpty
-      case _ => true
+    def upstreamAreDone = key.node.upstreamPorts forall {
+      // The collector is at index None, so if this is a scatter gather port ignore the key index
+      case upstreamPort: ScatterGathererPort => calculateUpstreamDone(upstreamPort.executionNode, None)
+      case upstreamPort => calculateUpstreamDone(upstreamPort.executionNode, key.index)
     }
 
-    shardEntriesForCollectorAreTerminal && upstreamAreDone
-  }
+    val runnable = key match {
+      case scatterCollector: ScatterCollectorKey => terminalKeys.row(scatterCollector.node).size == scatterCollector.scatterWidth
+      case conditionalCollector: ConditionalCollectorKey => terminalKeys.contains(conditionalCollector.node.executionNode, key.index)
+      case _ => upstreamAreDone
+    }
 
-  private def upstreamIsDone(entry: JobKey, prerequisiteScope: GraphNode): Boolean = {
-//    prerequisiteScope.closestCommonAncestor(entry.scope) match {
-//      /*
-//        * If this entry refers to a Scope which has a common ancestor with prerequisiteScope
-//        * and that common ancestor is a Scatter block, then find the shard with the same index
-//        * as 'entry'.  In other words, if you're in the same scatter block as your pre-requisite
-//        * scope, then depend on the shard (with same index).
-//        *
-//        * NOTE: this algorithm was designed for ONE-LEVEL of scattering and probably does not
-//        * work as-is for nested scatter blocks
-//        */
-//      case Some(_: Scatter) => doneKeys.contains(prerequisiteScope.fullyQualifiedName -> entry.index)
-//
-//      /*
-//        * Otherwise, simply refer to the collector entry.  This means that 'entry' depends
-//        * on every shard of the pre-requisite scope to finish.
-//        */
-//      case _ => doneKeys.contains(prerequisiteScope.fullyQualifiedName -> None)
-//    }
-    // TODO WOM: fix scatter
-    doneKeys.contains(prerequisiteScope.fullyQualifiedName -> None)
+    runnable
   }
 }

@@ -5,7 +5,8 @@ import org.scalatest.{FlatSpec, Matchers}
 import wdl.wom_test.WdlWomExpressionsAsInputsSpec.Wdl
 import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.graph.GraphNodePort.OutputPort
-import wom.graph.{ExpressionNode, TaskCallNode}
+import wom.graph.TaskCallNode
+import wom.graph.expression.ExpressionNode
 
 import scala.language.postfixOps
 
@@ -71,7 +72,7 @@ class WdlWomExpressionsAsInputsSpec extends FlatSpec with Matchers {
 
     val inputExpression = c.inputDefinitionMappings
       .head._2.select[OutputPort].get
-      .graphNode.asInstanceOf[ExpressionNode].instantiatedExpression  
+      .graphNode.asInstanceOf[ExpressionNode]  
 
     List("a", "b") foreach { x =>
       val connectedInputPort = inputExpression.inputMapping(s"$x.int_out")

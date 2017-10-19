@@ -1,13 +1,12 @@
 package wdl
 
 import cats.data.Validated.Valid
-import cats.syntax.apply._
 import cats.syntax.validated._
 import lenthall.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
+import wdl.types.WdlArrayType
 import wdl4s.parser.WdlParser.{Ast, Terminal}
 import wom.graph.ScatterNode.ScatterNodeWithNewNodes
 import wom.graph._
-import wdl.types.WdlArrayType
 
 /**
   * Scatter class.
@@ -46,16 +45,12 @@ object Scatter {
       case other => s"Cannot scatter over a non-traversable type ${other.toWdlString}".invalidNel
     }
 
-    val innerGraphAndScatterItemInputValidation: ErrorOr[(Graph, GraphInputNode)] = for {
-      _ <- scatterItemTypeValidation
+    for {
+      itemType <- scatterItemTypeValidation
       expressionNode <- scatterCollectionExpressionNode
-      // Graph input node for the scatter variable in the inner graph
-      womInnerGraphScatterVariableInput = OuterGraphInputNode(WomIdentifier(scatter.item), expressionNode.singleExpressionOutputPort)
+      // Graph input node for the scatter variable in the inner graph. Note that the type is the array's member type
+      womInnerGraphScatterVariableInput = ScatterVariableNode(WomIdentifier(scatter.item), expressionNode.singleExpressionOutputPort, itemType)
       g <- WdlGraphNode.buildWomGraph(scatter, Set(womInnerGraphScatterVariableInput), localLookup)
-    } yield (g, womInnerGraphScatterVariableInput)
-
-    (scatterCollectionExpressionNode, innerGraphAndScatterItemInputValidation) mapN { case (scatterVariableSource, (innerGraph, scatterItemInputNode)) =>
-      ScatterNode.scatterOverGraph(innerGraph, scatterVariableSource, scatterItemInputNode)
-    }
+    } yield ScatterNode.scatterOverGraph(g, expressionNode, womInnerGraphScatterVariableInput)
   }
 }

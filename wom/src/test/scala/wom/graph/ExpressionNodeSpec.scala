@@ -4,6 +4,7 @@ import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.types.WdlIntegerType
 import wom.expression._
+import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode}
 
 class ExpressionNodeSpec extends FlatSpec with Matchers {
 
@@ -34,7 +35,7 @@ class ExpressionNodeSpec extends FlatSpec with Matchers {
     // Declare the expression node using both i and j:
     import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
     val graph = for {
-      xDeclarationNode <- ExpressionNode.linkWithInputs(WomIdentifier("x"), ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))
+      xDeclarationNode <- AnonymousExpressionNode.fromInputMapping(WomIdentifier("x"), ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))
       xOutputNode = PortBasedGraphOutputNode(WomIdentifier("x_out"), WdlIntegerType, xDeclarationNode.singleExpressionOutputPort)
       g <- Graph.validateAndConstruct(Set(iInputNode, jInputNode, xDeclarationNode, xOutputNode))
     } yield g

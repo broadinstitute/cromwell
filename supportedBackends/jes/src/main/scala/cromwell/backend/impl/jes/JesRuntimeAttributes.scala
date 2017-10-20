@@ -8,7 +8,7 @@ import cromwell.backend.MemorySize
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation.{BooleanRuntimeAttributesValidation, _}
-import lenthall.validation.ErrorOr._
+import common.validation.ErrorOr._
 import wom.types._
 import wom.values._
 

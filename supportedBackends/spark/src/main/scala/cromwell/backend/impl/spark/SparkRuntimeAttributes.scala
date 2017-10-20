@@ -8,8 +8,8 @@ import cromwell.backend.validation.RuntimeAttributesDefault._
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.core._
-import lenthall.exception.MessageAggregation
-import lenthall.validation.ErrorOr._
+import common.exception.MessageAggregation
+import common.validation.ErrorOr._
 import wom.types._
 import wom.values._
 

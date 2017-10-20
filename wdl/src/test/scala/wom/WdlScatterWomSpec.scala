@@ -1,6 +1,6 @@
 package wom
 
-import lenthall.collections.EnhancedCollections._
+import common.collections.EnhancedCollections._
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
@@ -31,7 +31,7 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
         |}""".stripMargin
 
     val namespace = WdlNamespace.loadUsingSource(scatterTest, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    import common.validation.ErrorOr.ShortCircuitingFlatMap
     val scatterTestGraph = namespace.workflow.womDefinition.flatMap(_.graph)
 
     scatterTestGraph match {
@@ -133,7 +133,7 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
         |}""".stripMargin
 
     val namespace = WdlNamespace.loadUsingSource(scatterTest, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    import common.validation.ErrorOr.ShortCircuitingFlatMap
     val scatterTestGraph = namespace.workflow.womDefinition.flatMap(_.graph)
 
     scatterTestGraph match {
@@ -176,7 +176,7 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
         |""".stripMargin
 
     val namespace = WdlNamespace.loadUsingSource(scatterTest, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    import common.validation.ErrorOr.ShortCircuitingFlatMap
     val scatterTestGraph = namespace.workflow.womDefinition.flatMap(_.graph)
 
     scatterTestGraph match {

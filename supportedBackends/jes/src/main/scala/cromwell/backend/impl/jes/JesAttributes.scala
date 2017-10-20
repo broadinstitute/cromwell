@@ -11,9 +11,9 @@ import cromwell.backend.impl.jes.callcaching.{CopyCachedOutputs, JesCacheHitDupl
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
-import lenthall.exception.MessageAggregation
-import lenthall.validation.ErrorOr._
-import lenthall.validation.Validation._
+import common.exception.MessageAggregation
+import common.validation.ErrorOr._
+import common.validation.Validation._
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.{StringReader, ValueReader}
 import org.slf4j.{Logger, LoggerFactory}

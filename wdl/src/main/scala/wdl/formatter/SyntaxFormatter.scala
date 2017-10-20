@@ -1,6 +1,6 @@
 package wdl.formatter
 
-import lenthall.util.TerminalUtil
+import common.util.TerminalUtil
 import wdl.AstTools.EnhancedAstNode
 import wdl.{WdlWorkflow, _}
 import wdl.command.StringCommandPart

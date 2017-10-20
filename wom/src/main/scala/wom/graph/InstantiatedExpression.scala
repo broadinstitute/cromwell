@@ -4,7 +4,7 @@ import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import cats.data.Validated.Valid
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort}
 import wom.types.WomType
@@ -33,7 +33,7 @@ object InstantiatedExpression {
       s"Expression cannot be connected without the input $input (provided: ${inputMapping.toString})".invalidNel
     }
 
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    import common.validation.ErrorOr.ShortCircuitingFlatMap
     for {
       linkedInputList <- expression.inputs.toList traverse linkInput
       linkedInputs = linkedInputList.toMap

@@ -51,7 +51,7 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
       workflowSource = outerWdl,
       resource = None,
       importResolver = Some(Seq(innerResolver))).get.asInstanceOf[WdlNamespaceWithWorkflow]
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    import common.validation.ErrorOr.ShortCircuitingFlatMap
     
     val outerWorkflowGraph = namespace.workflow.womDefinition.flatMap(_.graph)
 
@@ -143,7 +143,7 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
       workflowSource = outerWdl,
       resource = None,
       importResolver = Some(Seq(innerResolver))).get.asInstanceOf[WdlNamespaceWithWorkflow]
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    import common.validation.ErrorOr.ShortCircuitingFlatMap
 
     val outerWorkflowGraph = namespace.workflow.womDefinition.flatMap(_.graph)
 
@@ -207,7 +207,7 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
       resource = None,
       importResolver = Some(Seq(innerResolver))).get.asInstanceOf[WdlNamespaceWithWorkflow]
 
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    import common.validation.ErrorOr.ShortCircuitingFlatMap
     val outerWorkflowGraph = namespace.workflow.womDefinition.flatMap(_.graph)
 
     outerWorkflowGraph match {

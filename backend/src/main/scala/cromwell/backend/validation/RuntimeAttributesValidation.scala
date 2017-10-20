@@ -4,7 +4,7 @@ import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
-import lenthall.validation.ErrorOr._
+import common.validation.ErrorOr._
 import org.slf4j.Logger
 import wdl.expression.PureStandardLibraryFunctions
 import wdl.{NoLookup, WdlExpression}

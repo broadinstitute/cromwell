@@ -3,7 +3,7 @@ package wdl
 import java.util.regex.Pattern
 
 import cats.data.Validated.Valid
-import lenthall.util.TryUtil
+import common.util.TryUtil
 import wdl.AstTools._
 import wdl.command.{ParameterCommandPart, StringCommandPart, WdlCommandPart}
 import wdl.expression.{WdlFunctions, WdlStandardLibraryFunctions}

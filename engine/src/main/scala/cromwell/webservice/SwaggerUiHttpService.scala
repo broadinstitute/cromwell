@@ -33,7 +33,7 @@ trait SwaggerUiHttpService {
    * The path to the actual swagger documentation in either yaml or json, to be rendered by the swagger UI html.
    *
    * @return The path to the api documentation to render in the swagger UI.
-   *         For example "api-docs" or "swagger/lenthall.yaml".
+   *         For example "api-docs" or "swagger/common.yaml".
    */
   def swaggerUiDocsPath: String = "api-docs"
 

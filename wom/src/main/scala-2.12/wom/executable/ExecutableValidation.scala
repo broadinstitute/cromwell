@@ -1,8 +1,8 @@
 package wom.executable
 
-import lenthall.Checked
-import lenthall.validation.ErrorOr.ErrorOr
-import lenthall.validation.Checked._
+import common.Checked
+import common.validation.ErrorOr.ErrorOr
+import common.validation.Checked._
 import wom.callable.Callable
 import wom.executable.Executable.{DelayedCoercionFunction, InputParsingFunction, ResolvedExecutableInputs}
 import wom.graph.Graph

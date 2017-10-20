@@ -14,7 +14,7 @@ import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import wom.values.WomFile
 
 import scala.concurrent.Future

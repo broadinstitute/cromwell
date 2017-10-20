@@ -3,7 +3,7 @@ package wdl
 import cats.data.Validated.Valid
 import cats.syntax.apply._
 import cats.syntax.validated._
-import lenthall.validation.ErrorOr._
+import common.validation.ErrorOr._
 import wdl4s.parser.WdlParser.Ast
 import wom.graph.ConditionalNode.ConditionalNodeWithNewNodes
 import wom.graph._

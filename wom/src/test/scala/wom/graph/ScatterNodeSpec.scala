@@ -1,7 +1,7 @@
 package wom.graph
 
 import cats.data.Validated.{Invalid, Valid}
-import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+import common.validation.ErrorOr.ShortCircuitingFlatMap
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct
 import wom.RuntimeAttributes

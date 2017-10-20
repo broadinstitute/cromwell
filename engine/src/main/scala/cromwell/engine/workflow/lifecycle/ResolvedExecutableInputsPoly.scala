@@ -1,7 +1,7 @@
 package cromwell.engine.workflow.lifecycle
 
 import cats.syntax.validated._
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import shapeless.Poly1
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.values.WomValue

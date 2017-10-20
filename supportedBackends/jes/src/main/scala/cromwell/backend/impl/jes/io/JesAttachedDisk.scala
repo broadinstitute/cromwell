@@ -5,8 +5,8 @@ import cats.syntax.apply._
 import cats.syntax.validated._
 import com.google.api.services.genomics.model.Disk
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import lenthall.exception.MessageAggregation
-import lenthall.validation.ErrorOr._
+import common.exception.MessageAggregation
+import common.validation.ErrorOr._
 import wom.values._
 
 import scala.util.Try

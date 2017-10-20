@@ -1,7 +1,7 @@
 package wom.graph
 
 import cats.implicits._
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import wom.callable.Callable
 import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, OutputDefinition, RequiredInputDefinition}
 import wom.graph.GraphNode._

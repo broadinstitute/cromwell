@@ -1,6 +1,6 @@
 package cromwell.webservice
 
-import lenthall.exception.MessageAggregation
+import common.exception.MessageAggregation
 import spray.json._
 import wdl.FullyQualifiedName
 import wom.values.WomValue

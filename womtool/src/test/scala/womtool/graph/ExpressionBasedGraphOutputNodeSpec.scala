@@ -24,7 +24,7 @@ class ExpressionBasedGraphOutputNodeSpec extends WomDotGraphTest {
       "i" -> iInputNode.singleOutputPort,
       "j" -> jInputNode.singleOutputPort))
 
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    import common.validation.ErrorOr.ShortCircuitingFlatMap
     val graph = xOutputValidation flatMap { xOutput => Graph.validateAndConstruct(Set(iInputNode, jInputNode, jOutput, xOutput)) }
 
     graph match {

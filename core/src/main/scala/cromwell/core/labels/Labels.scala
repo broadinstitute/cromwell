@@ -3,8 +3,8 @@ package cromwell.core.labels
 import cats.data.Validated._
 import cats.instances.vector._
 import cats.syntax.traverse._
-import lenthall.validation.ErrorOr
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 
 import scala.collection.JavaConverters._
 

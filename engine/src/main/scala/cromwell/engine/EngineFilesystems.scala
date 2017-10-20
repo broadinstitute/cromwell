@@ -11,8 +11,8 @@ import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.filesystems.gcs.GcsPathBuilderFactory
-import lenthall.exception.MessageAggregation
-import lenthall.validation.ErrorOr.ErrorOr
+import common.exception.MessageAggregation
+import common.validation.ErrorOr.ErrorOr
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.{ExecutionContext, Future}

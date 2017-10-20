@@ -1,13 +1,13 @@
 import Settings._
 import Testing._
 
-lazy val lenthall = (project in file("lenthall"))
-  .settings(lenthallSettings:_*)
+lazy val common = (project in file("common"))
+  .settings(commonSettings:_*)
   .withTestSettings
 
 lazy val wom = (project in file("wom"))
   .settings(womSettings:_*)
-  .dependsOn(lenthall)
+  .dependsOn(common)
   .withTestSettings
 
 lazy val wdl = (project in file("wdl"))
@@ -25,6 +25,7 @@ lazy val womtool = (project in file("womtool"))
   .settings(womtoolSettings:_ *)
   .dependsOn(wdl)
   .dependsOn(cwl)
+  .dependsOn(wom % "test->test")
   .withTestSettings
 
 lazy val core = (project in file("core"))
@@ -138,7 +139,7 @@ lazy val root = (project in file("."))
   .enablePlugins(DockerPlugin)
   .withTestSettings
   // Full list of all sub-projects to build with the root (ex: include in `sbt test`)
-  .aggregate(lenthall)
+  .aggregate(common)
   .aggregate(wom)
   .aggregate(wdl)
   .aggregate(cwl)

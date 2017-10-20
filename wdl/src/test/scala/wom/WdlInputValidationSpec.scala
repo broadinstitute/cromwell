@@ -1,8 +1,8 @@
 package wom
 
 import cats.syntax.either._
-import lenthall.Checked
-import lenthall.validation.Checked._
+import common.Checked
+import common.validation.Checked._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import shapeless.Coproduct
@@ -49,7 +49,7 @@ class WdlInputValidationSpec extends FlatSpec with Matchers with BeforeAndAfterA
   val u2OutputPort = graph.externalInputNodes.find(_.fullyQualifiedName == "w.u.t2").getOrElse(fail("Failed to find an input node for u2")).singleOutputPort
 
   def validate(inputFile: String): Checked[ResolvedExecutableInputs] = {
-    import lenthall.validation.Checked._
+    import common.validation.Checked._
     namespace.womExecutable(Option(inputFile)) match {
       case Left(errors) => Left(errors)
       case Right(e) => e.resolvedExecutableInputs.validNelCheck

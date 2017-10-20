@@ -1,7 +1,7 @@
 package wom
 
 import cats.data.Validated.{Invalid, Valid}
-import lenthall.collections.EnhancedCollections._
+import common.collections.EnhancedCollections._
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.graph._
@@ -26,7 +26,7 @@ class WdlAliasWomSpec extends FlatSpec with Matchers {
         |}""".stripMargin
 
     val namespace = WdlNamespace.loadUsingSource(conditionalTest, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    import common.validation.ErrorOr.ShortCircuitingFlatMap
     val conditionalTestGraph = namespace.workflow.womDefinition.flatMap(_.graph)
 
     conditionalTestGraph match {

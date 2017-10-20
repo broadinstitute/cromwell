@@ -56,7 +56,7 @@ object WdlCall {
   }
 
   private[wdl] def buildWomNodeAndInputs(wdlCall: WdlCall, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort]) = {
-    import lenthall.validation.ErrorOr._
+    import common.validation.ErrorOr._
 
     val callNodeBuilder = new CallNode.CallNodeBuilder()
 

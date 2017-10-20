@@ -1,7 +1,7 @@
 
 import cwl.CwlType.{CwlType, _}
 import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
-import lenthall.Checked
+import common.Checked
 import shapeless._
 import wom.executable.Executable
 import wom.types._

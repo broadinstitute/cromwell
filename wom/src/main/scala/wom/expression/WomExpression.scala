@@ -1,7 +1,7 @@
 package wom.expression
 
 import cats.data.Validated.Valid
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import wom.types.WomType
 import wom.values._
 

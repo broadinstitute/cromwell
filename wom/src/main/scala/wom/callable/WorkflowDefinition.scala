@@ -1,7 +1,7 @@
 package wom.callable
 
 import cats.syntax.validated._
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import wom.expression.WomExpression
 import wom.graph.GraphNode._
 import wom.graph.{Graph, TaskCallNode}

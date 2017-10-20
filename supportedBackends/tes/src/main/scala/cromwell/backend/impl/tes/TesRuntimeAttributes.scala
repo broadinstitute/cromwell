@@ -5,7 +5,7 @@ import com.typesafe.config.Config
 import cromwell.backend.MemorySize
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation._
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import wom.values._
 
 case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,

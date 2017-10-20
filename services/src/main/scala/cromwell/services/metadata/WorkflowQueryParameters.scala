@@ -8,7 +8,7 @@ import cats.syntax.validated._
 import cromwell.core.WorkflowId
 import cromwell.core.labels.Label
 import cromwell.services.metadata.WorkflowQueryKey._
-import lenthall.validation.ErrorOr._
+import common.validation.ErrorOr._
 
 case class WorkflowQueryParameters private(statuses: Set[String],
                                            names: Set[String],

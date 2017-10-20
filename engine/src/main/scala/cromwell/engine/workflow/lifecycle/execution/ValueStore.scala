@@ -6,8 +6,8 @@ import cats.syntax.validated._
 import cromwell.core.ExecutionIndex._
 import cromwell.engine.workflow.lifecycle.execution.ValueStore.ValueKey
 import cromwell.engine.workflow.lifecycle.execution.keys.{ConditionalCollectorKey, ScatterCollectorKey}
-import lenthall.collections.Table
-import lenthall.validation.ErrorOr.ErrorOr
+import common.collections.Table
+import common.validation.ErrorOr.ErrorOr
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.graph.expression.ExpressionNode

@@ -6,8 +6,8 @@ import cats.syntax.apply._
 import cats.syntax.functor._
 import cats.syntax.traverse._
 import cats.syntax.validated._
-import lenthall.collections.EnhancedCollections._
-import lenthall.validation.ErrorOr.ErrorOr
+import common.collections.EnhancedCollections._
+import common.validation.ErrorOr.ErrorOr
 import shapeless.{:+:, CNil}
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.InputPort

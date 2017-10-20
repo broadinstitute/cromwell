@@ -3,8 +3,8 @@ package cromwell.backend.validation
 import cats.data.Validated._
 import cats.instances.list._
 import cromwell.backend.RuntimeAttributeDefinition
-import lenthall.exception.MessageAggregation
-import lenthall.validation.ErrorOr._
+import common.exception.MessageAggregation
+import common.validation.ErrorOr._
 import org.slf4j.Logger
 import wom.types.WomType
 import wom.values.WomValue

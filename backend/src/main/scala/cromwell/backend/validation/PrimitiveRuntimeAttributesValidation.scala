@@ -1,7 +1,7 @@
 package cromwell.backend.validation
 
 import cats.syntax.validated._
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import wom.types._
 import wom.values._
 

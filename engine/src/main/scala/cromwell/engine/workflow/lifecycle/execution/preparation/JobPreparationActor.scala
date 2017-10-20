@@ -16,8 +16,8 @@ import cromwell.engine.workflow.lifecycle.execution.ValueStore
 import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation._
 import cromwell.engine.workflow.lifecycle.execution.preparation.JobPreparationActor._
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvResponse, ScopedKey}
-import lenthall.exception.MessageAggregation
-import lenthall.validation.ErrorOr.ErrorOr
+import common.exception.MessageAggregation
+import common.validation.ErrorOr.ErrorOr
 import wom.callable.Callable.InputDefinition
 import wom.values._
 
@@ -102,7 +102,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private [preparation] def evaluateInputsAndAttributes(valueStore: ValueStore): ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])] = {
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    import common.validation.ErrorOr.ShortCircuitingFlatMap
     for {
       evaluatedInputs <- resolveAndEvaluateInputs(jobKey, workflowDescriptor, expressionLanguageFunctions, valueStore)
       runtimeAttributes <- prepareRuntimeAttributes(evaluatedInputs)

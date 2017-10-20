@@ -6,7 +6,7 @@ import akka.actor.ActorRef
 import cats.data.NonEmptyList
 import cromwell.core.{JobKey, WorkflowId, WorkflowState}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
-import lenthall.exception.{MessageAggregation, ThrowableAggregation}
+import common.exception.{MessageAggregation, ThrowableAggregation}
 import wom.core._
 import wom.values._
 

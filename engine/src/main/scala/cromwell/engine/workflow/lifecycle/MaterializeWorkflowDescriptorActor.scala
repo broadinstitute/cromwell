@@ -30,10 +30,10 @@ import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.MaterializeWorkflowDescriptorActorState
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
-import lenthall.validation.Checked._
-import lenthall.Checked
-import lenthall.exception.{AggregatedMessageException, MessageAggregation}
-import lenthall.validation.ErrorOr._
+import common.validation.Checked._
+import common.Checked
+import common.exception.{AggregatedMessageException, MessageAggregation}
+import common.validation.ErrorOr._
 import net.ceedubs.ficus.Ficus._
 import spray.json._
 import cwl.CwlDecoder.Parse
@@ -460,7 +460,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     import cats.syntax.either._
     import cats.syntax.functor._
     import cats.syntax.validated._
-    import lenthall.validation.Checked._
+    import common.validation.Checked._
 
     def checkTypes(namespace: WdlNamespaceWithWorkflow, inputs: Map[OutputPort, WomValue]): Checked[Unit] = {
       val allDeclarations = namespace.workflow.declarations ++ namespace.workflow.calls.flatMap(_.declarations)

@@ -1,7 +1,7 @@
 package wdl
 
 import cats.data.Validated.Valid
-import lenthall.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
+import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import wdl.AstTools.EnhancedAstNode
 import wdl4s.parser.WdlParser.{Ast, AstNode}
 import wom.WorkflowInput

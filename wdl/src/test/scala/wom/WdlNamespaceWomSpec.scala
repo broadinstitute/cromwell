@@ -1,7 +1,7 @@
 package wom
 
 import cats.data.Validated.{Invalid, Valid}
-import lenthall.collections.EnhancedCollections._
+import common.collections.EnhancedCollections._
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.{WdlNamespace, WdlNamespaceWithWorkflow, WdlWomExpression}
 import wom.graph.GraphNodePort.OutputPort
@@ -56,7 +56,7 @@ class WdlNamespaceWomSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     val namespace = WdlNamespace.loadUsingSource(threeStep, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    import common.validation.ErrorOr.ShortCircuitingFlatMap
     val wom3Step = namespace.workflow.womDefinition.flatMap(_.graph)
 
     val workflowGraph = wom3Step match {

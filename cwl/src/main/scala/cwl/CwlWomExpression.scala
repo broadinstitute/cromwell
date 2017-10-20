@@ -1,14 +1,14 @@
 package cwl
 
 import cats.syntax.option._
+import cats.syntax.validated._
+import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import cwl.WorkflowStepInput.InputSource
-import lenthall.validation.ErrorOr.ErrorOr
-import lenthall.validation.Validation._
 import shapeless.{Inl, Poly1}
+import wom.expression.{IoFunctionSet, WomExpression}
 import wom.types._
 import wom.values._
-import wom.expression.{IoFunctionSet, WomExpression}
-import cats.syntax.validated._
 
 sealed trait CwlWomExpression extends WomExpression {
 

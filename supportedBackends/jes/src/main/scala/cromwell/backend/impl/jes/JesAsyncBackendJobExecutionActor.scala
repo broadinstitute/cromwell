@@ -23,7 +23,7 @@ import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import org.slf4j.LoggerFactory
 import wom.callable.Callable.OutputDefinition
 import wom.core.FullyQualifiedName
@@ -481,7 +481,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   private def handlePreemption(runStatus: RunStatus.Preempted, jobReturnCode: Option[Int]): Future[ExecutionHandle] = {
-    import lenthall.numeric.IntegerUtil._
+    import common.numeric.IntegerUtil._
 
     val errorCode: Status = runStatus.errorCode
     val prettyPrintedError: String = runStatus.prettyPrintedError

@@ -19,7 +19,15 @@ pages:
 - Security: 
     - Security basics: Security.md
     - Recommendations: SecurityRecommendations.md
-- Backends: Backends.md
+- Backends: 
+    - Backends overview: Backends.md
+    - Local: Local.md
+    - Shared Filesystem: SharedFilesystem.md
+    - Google Cloud: Google.md
+    - GA4GH TES: TES.md
+    - Sun GridEngine: SGE.md
+    - HdCondor: Hdcondor.md
+    - Spark: Spark.md
 - Runtime Attributes: RuntimeAttributes.md
 - Logging: Logging.md
 - Instrumentation: Instrumentation.md

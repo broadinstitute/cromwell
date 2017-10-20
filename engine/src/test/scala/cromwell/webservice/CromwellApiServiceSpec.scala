@@ -11,6 +11,7 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowSubmitted, WorkflowSucceeded}
 import cromwell.engine.workflow.WorkflowManagerActor
+import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{AbortWorkflow, BatchSubmitWorkflows, SubmitWorkflow}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.WorkflowAbortFailed
@@ -534,7 +535,7 @@ object CromwellApiServiceSpec {
   val ExistingWorkflowId = WorkflowId.fromString("c4c6339c-8cc9-47fb-acc5-b5cb8d2809f5")
   val AbortedWorkflowId = WorkflowId.fromString("0574111c-c7d3-4145-8190-7a7ed8e8324a")
   val UnrecognizedWorkflowId = WorkflowId.fromString("2bdd06cc-e794-46c8-a897-4c86cedb6a06")
-  val RecognizedWorkflowIds = Set(ExistingWorkflowId, AbortedWorkflowId)
+  val RecognizedWorkflowIds = Set(ExistingWorkflowId)
 
   class MockApiService()(implicit val system: ActorSystem) extends CromwellApiService {
     override def actorRefFactory = system
@@ -605,6 +606,7 @@ object CromwellApiServiceSpec {
       case AbortWorkflow(id, _) =>
         val message = id match {
           case ExistingWorkflowId => WorkflowStoreEngineActor.WorkflowAborted(id)
+          case UnrecognizedWorkflowId => WorkflowStoreEngineActor.WorkflowAbortFailed(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
           case AbortedWorkflowId =>
             WorkflowAbortFailed(id, new IllegalStateException(s"Workflow ID '$id' is in terminal state 'Aborted' and cannot be aborted."))
           case WorkflowId(_) => throw new Exception("Something untoward happened")
@@ -612,7 +614,7 @@ object CromwellApiServiceSpec {
         sender ! message
     }
   }
-
+  
   class MockWorkflowManagerActor extends Actor with ActorLogging {
     override def receive: Receive = {
       case WorkflowManagerActor.EngineStatsCommand =>

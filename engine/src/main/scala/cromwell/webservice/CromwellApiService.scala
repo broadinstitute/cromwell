@@ -161,25 +161,28 @@ trait CromwellApiService extends HttpInstrumentation {
     path("workflows" / Segment / Segment / "abort") { (_, possibleWorkflowId) =>
       post {
         instrumentRequest {
-          val response = validateWorkflowId(possibleWorkflowId) flatMap { w =>
-            workflowStoreActor.ask(WorkflowStoreActor.AbortWorkflow(w, workflowManagerActor)).mapTo[WorkflowStoreEngineAbortResponse]
-          }
+          def sendAbort(workflowId: WorkflowId): Route = {
+            val response = workflowStoreActor.ask(WorkflowStoreActor.AbortWorkflow(workflowId, workflowManagerActor)).mapTo[WorkflowStoreEngineAbortResponse]
 
-          onComplete(response) {
-            case Success(WorkflowStoreEngineActor.WorkflowAborted(id)) =>
-            complete(ToResponseMarshallable(WorkflowAbortResponse(id.toString, WorkflowAborted.toString)))
-            case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: IllegalStateException)) =>
-              /*
-                  Note that this is currently impossible to reach but was left as-is during the transition to akka http.
-                  When aborts get fixed, this should be looked at.
-                */
-              e.errorRequest(StatusCodes.Forbidden)
-            case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: WorkflowNotFoundException)) => e.errorRequest(StatusCodes.NotFound)
-            case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e)) => e.errorRequest(StatusCodes.InternalServerError)
-            case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
-            case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
-            case Failure(e: InvalidWorkflowException) => e.failRequest(StatusCodes.BadRequest)
-            case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
+            onComplete(response) {
+              case Success(WorkflowStoreEngineActor.WorkflowAborted(id)) =>
+                complete(ToResponseMarshallable(WorkflowAbortResponse(id.toString, WorkflowAborted.toString)))
+              case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: IllegalStateException)) =>
+                /*
+                    Note that this is currently impossible to reach but was left as-is during the transition to akka http.
+                    When aborts get fixed, this should be looked at.
+                  */
+                e.errorRequest(StatusCodes.Forbidden)
+              case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: WorkflowNotFoundException)) => e.errorRequest(StatusCodes.NotFound)
+              case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e)) => e.errorRequest(StatusCodes.InternalServerError)
+              case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
+              case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
+            }
+          }
+          
+          Try(WorkflowId.fromString(possibleWorkflowId)) match {
+            case Success(workflowId) => sendAbort(workflowId)
+            case Failure(_) => InvalidWorkflowException(possibleWorkflowId).failRequest(StatusCodes.BadRequest)
           }
         }
       }
@@ -281,10 +284,10 @@ trait CromwellApiService extends HttpInstrumentation {
       case Success(w) =>
         serviceRegistryActor.ask(ValidateWorkflowId(w)).mapTo[WorkflowValidationResponse] map {
           case RecognizedWorkflowId => w
-          case UnrecognizedWorkflowId => throw UnrecognizedWorkflowException(s"Unrecognized workflow ID: $w")
+          case UnrecognizedWorkflowId => throw UnrecognizedWorkflowException(w)
           case FailedToCheckWorkflowId(t) => throw t
         }
-      case Failure(_) => Future.failed(InvalidWorkflowException(s"Invalid workflow ID: '$possibleWorkflowId'."))
+      case Failure(_) => Future.failed(InvalidWorkflowException(possibleWorkflowId))
     }
   }
 
@@ -351,8 +354,9 @@ object CromwellApiService {
 
   final case class BackendResponse(supportedBackends: List[String], defaultBackend: String)
 
-  final case class UnrecognizedWorkflowException(message: String) extends Exception(message)
-  final case class InvalidWorkflowException(message: String) extends Exception(message)
+  final case class UnrecognizedWorkflowException(id: WorkflowId) extends Exception(s"Unrecognized workflow ID: $id")
+
+  final case class InvalidWorkflowException(possibleWorkflowId: String) extends Exception(s"Invalid workflow ID: '$possibleWorkflowId'.")
 
   val cromwellVersion = ConfigFactory.load("cromwell-version.conf").getConfig("version").getString("cromwell")
   val backendResponse = BackendResponse(BackendConfiguration.AllBackendEntries.map(_.name).sorted, BackendConfiguration.DefaultBackendEntry.name)

@@ -6,9 +6,17 @@ import java.util.UUID
 import cats.Monad
 import centaur._
 import centaur.api.CentaurCromwellClient
+import centaur.api.CentaurCromwellClient.sendReceiveFutureCompletion
 import centaur.test.metadata.WorkflowMetadata
 import centaur.test.submit.SubmitResponse
 import centaur.test.workflow.Workflow
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
+import com.google.api.client.json.jackson2.JacksonFactory
+import com.google.api.services.genomics.Genomics
+import com.google.api.services.genomics.model.Operation
+import com.google.auth.http.HttpCredentialsAdapter
+import com.google.auth.oauth2.GoogleCredentials
+import com.google.cloud.compute.{ComputeOptions, InstanceId}
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
 import cromwell.api.model.{Failed, SubmittedWorkflow, TerminalStatus, WorkflowStatus}
 import spray.json.JsString
@@ -16,7 +24,7 @@ import spray.json.JsString
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{Future, blocking}
+import scala.concurrent.{Await, Future, blocking}
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -30,8 +38,11 @@ sealed abstract class Test[A] {
 }
 
 object Test {
-  def successful[A](value: A) = testMonad.pure(value)
-  
+  def successful[A](value: A): Test[A] = testMonad.pure(value)
+  def failed[A](exception: Exception) = new Test[A] {
+    override def run = Failure(exception)
+  }
+
   implicit val testMonad: Monad[Test] = new Monad[Test] {
     override def flatMap[A, B](fa: Test[A])(f: A => Test[B]): Test[B] = {
       new Test[B] {
@@ -65,6 +76,18 @@ object Test {
   * be composed together via a for comprehension as a test formula and then run by some other entity.
   */
 object Operations {
+  lazy val jsonFactory = JacksonFactory.getDefaultInstance
+  lazy val httpTransport = GoogleNetHttpTransport.newTrustedTransport
+  lazy val genomics = new Genomics.Builder(
+    httpTransport,
+    jsonFactory,
+    new HttpCredentialsAdapter(GoogleCredentials.getApplicationDefault)
+  ).setApplicationName("centaur")
+    .setRootUrl("https://genomics.googleapis.com/")
+    .build()
+
+  val compute = ComputeOptions.getDefaultInstance.getService
+
   def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {
       override def run: Try[SubmittedWorkflow] = CentaurCromwellClient.submit(workflow)
@@ -94,6 +117,23 @@ object Operations {
             case Failure(unexpected) => throw unexpected
           }
         }
+      }
+    }
+  }
+
+  def abortWorkflow(workflow: SubmittedWorkflow) = {
+    new Test[WorkflowStatus] {
+      override def run: Try[WorkflowStatus] = CentaurCromwellClient.abort(workflow)
+    }
+  }
+  
+  def waitFor(duration: FiniteDuration) = {
+    import scala.concurrent.duration._
+
+    new Test[Unit] {
+      override def run = {
+        // Give some margin to the timeout
+        Try(Await.result(Future { Thread.sleep(duration.toMillis) }, duration.plus(2.seconds)))
       }
     }
   }
@@ -142,7 +182,66 @@ object Operations {
         }
       }
 
-      override def run: Try[Unit] = workflowLengthFutureCompletion(() => Future { doPerform() })
+      override def run: Try[Unit] = sendReceiveFutureCompletion(() => Future { doPerform() })
+    }
+  }
+
+  def validatePAPIAborted(jobId: String, workflow: SubmittedWorkflow): Test[Unit] = {
+    import scala.concurrent.duration._
+
+    def eventually(startTime: OffsetDateTime, timeout: FiniteDuration)(f: => Try[Unit]): Try[Unit] = {
+      f match {
+        case Failure(_) if OffsetDateTime.now().isBefore(startTime.plusSeconds(timeout.toSeconds)) =>
+          blocking { Thread.sleep(1.second.toMillis) }
+          eventually(startTime, timeout)(f)
+        case t => t
+      }
+    }
+    
+    new Test[Unit] {
+      def checkVMTerminated(): Unit = {
+          CentaurCromwellClient.metadata(workflow) match {
+            case Success(metadata) =>
+              // Note: this doesn't work as of now because Cromwell doesn't publish metadata values for instanceName and
+              // zone if the job gets cancelled
+              val instanceName = metadata.value.collectFirst({
+                case (key, value) if key.endsWith("jes.instanceName") => value.asInstanceOf[JsString].value
+              }).getOrElse(throw new Exception("Cannot find the instance name in metadata"))
+              
+              val zone = metadata.value.collectFirst({
+                case (key, value) if key.endsWith("jes.zone") => value.asInstanceOf[JsString].value
+              }).getOrElse(throw new Exception("Cannot find the zone in metadata"))
+              
+              val instanceId = InstanceId.of(zone, instanceName)
+
+              Try(compute.getInstance(instanceId)) match {
+                case Success(null) => // all good, couldn't find the instance
+                case Success(_) => throw new Exception("Underlying VM is still running")
+                case Failure(f) => throw f
+              }
+            case Failure(f) => throw f
+          }
+      }
+      
+      def checkPAPIAborted(): Unit = {
+        val operation: Operation = genomics.operations().get(jobId).execute()
+        val done = operation.getDone
+        val aborted = operation.getError.getCode == 1 && operation.getError.getMessage.startsWith("Operation canceled")
+        if (!(done && aborted)) {
+          throw new Exception("Underlying JES job was not aborted properly")
+        }
+      }
+
+      override def run: Try[Unit] = if (jobId.startsWith("operations/")) {
+        // The PAPI status should be aborted immediately
+        // Note: this doesn't work as of now because Cromwell considers the workflow aborted
+        // as soon as it has requested cancellation, not when PAPI says its cancelled
+        Try(checkPAPIAborted())
+        // Give some time to the VM to actually die (PAPI says it's cancelled before the VM is actually killed)
+        eventually(OffsetDateTime.now(), 1.minute) {
+          Try(checkVMTerminated())
+        }
+      } else Success(())
     }
   }
 
@@ -153,19 +252,19 @@ object Operations {
     // We want to keep this smaller than the runtime of the call we're polling for
     // For JES it should be fine but locally it can be quite fast
     def pollDelay() = blocking { Thread.sleep(5000) }
-    
+
     def findCallStatus(metadata: WorkflowMetadata): Option[(String, String)] = {
       for {
         status <- metadata.value.get(s"calls.$callFqn.executionStatus")
         jobId <- metadata.value.get(s"calls.$callFqn.jobId")
       } yield (status.asInstanceOf[JsString].value, jobId.asInstanceOf[JsString].value)
     }
-    
+
     new Test[String] {
       @tailrec
       def doPerform(allowed404s: Int = 2): String = {
         val metadata = for {
-          // We don't want to keep going forever if the workflow failed
+        // We don't want to keep going forever if the workflow failed
           status <- CentaurCromwellClient.status(workflow)
           _ <- status match {
             case Failed => Failure(new Exception("Workflow Failed"))
@@ -173,7 +272,7 @@ object Operations {
           }
           metadata <- CentaurCromwellClient.metadata(workflow)
         } yield metadata
-        
+
         metadata match {
           case Success(s) =>
             findCallStatus(s) match {
@@ -220,9 +319,16 @@ object Operations {
           }
         }
         cleanUpImports(workflow)
+        
+        def validateUnwantedMetadata(actualMetadata: WorkflowMetadata) = if (workflowSpec.notInMetadata.nonEmpty) {
+          // Check that none of the "notInMetadata" keys are in the actual metadata
+          val absentMdDif = workflowSpec.notInMetadata.toSet.diff(actualMetadata.value.keySet)
+          if (absentMdDif.isEmpty) throw new Exception(s"Found unwanted keys in metadata: ${absentMdDif.mkString(", ")}")
+        }
 
         for {
           actualMetadata <- CentaurCromwellClient.metadata(workflow)
+          _ = validateUnwantedMetadata(actualMetadata)
           diffs = expectedMetadata.diff(actualMetadata, workflow.id.id, cacheHitUUID)
           _ = checkDiff(diffs)
         } yield actualMetadata
@@ -233,7 +339,7 @@ object Operations {
           eventually(OffsetDateTime.now(), CentaurConfig.metadataConsistencyTimeout) {
             validateMetadata(submittedWorkflow, expectedMetadata, cacheHitUUID)
           }
-          // Nothing to wait for, so just return the first metadata we get back:
+        // Nothing to wait for, so just return the first metadata we get back:
         case None => CentaurCromwellClient.metadata(submittedWorkflow)
       }
     }

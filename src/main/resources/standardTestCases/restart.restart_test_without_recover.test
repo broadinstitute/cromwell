@@ -1,8 +1,8 @@
 ignore: true
-name: cromwell_restart_with_recover_local
-testFormat: CromwellRestartWithRecover
-backendsMode: "only"
-backends: [Local, LocalNoDocker]
+name: restart_tes_without_recover
+testFormat: CromwellRestartWithoutRecover
+callMark: cromwell_restart.cromwell_killer
+backends: [TES]
 tags: [localdockertest]
 
 files {

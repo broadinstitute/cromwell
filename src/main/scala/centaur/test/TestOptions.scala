@@ -5,6 +5,7 @@ import configs.syntax._
 import cats.data.Validated._
 import cats.Apply
 import com.typesafe.config.Config
+import lenthall.validation.ErrorOr.ErrorOr
 
 case class TestOptions(tags: List[String], ignore: Boolean)
 

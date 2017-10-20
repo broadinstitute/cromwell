@@ -4,11 +4,14 @@ import cats.syntax.flatMap._
 import cats.syntax.functor._
 import centaur.test.Operations._
 import centaur.test.Test.testMonad
+import centaur.test.markers.CallMarker
 import centaur.test.submit.SubmitResponse
 import centaur.test.workflow.Workflow
 import centaur.test.{Operations, Test}
 import centaur.{CentaurConfig, CromwellManager, ManagedCromwellServer}
-import cromwell.api.model.{Failed, SubmittedWorkflow, Succeeded, TerminalStatus}
+import cromwell.api.model.{Aborted, Failed, SubmittedWorkflow, Succeeded, TerminalStatus}
+
+import scala.concurrent.duration._
 
 /**
   * A collection of test formulas which can be used, building upon operations by chaining them together via a
@@ -67,23 +70,58 @@ object TestFormulas {
     } yield ()
   }
   
-  private def cromwellRestart(workflowDefinition: Workflow, testRecover: Boolean): Test[Unit] = CentaurConfig.runMode match {
+  private def cromwellRestart(workflowDefinition: Workflow, callMarker: CallMarker, testRecover: Boolean): Test[Unit] = CentaurConfig.runMode match {
     case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
       for {
         w <- submitWorkflow(workflowDefinition)
-        jobId <- pollUntilCallIsRunning(w, "cromwell_restart.cromwell_killer")
+        jobId <- pollUntilCallIsRunning(w, callMarker.callKey)
         _ = CromwellManager.stopCromwell()
         _ = CromwellManager.startCromwell(postRestart)
         _ <- pollUntilStatus(w, Succeeded)
         _ <- validateMetadata(w, workflowDefinition)
-        _ <- if(testRecover) validateRecovered(w, "cromwell_restart.cromwell_killer", jobId) else Test.successful(())
+        _ <- if(testRecover) validateRecovered(w, callMarker.callKey, jobId) else Test.successful(())
         _ <- validateDirectoryContentsCounts(workflowDefinition, w)
       } yield ()
     case _ => runSuccessfulWorkflowAndVerifyMetadata(workflowDefinition)
   }
-  
-  def cromwellRestartWithRecover(workflowDefinition: Workflow): Test[Unit] = cromwellRestart(workflowDefinition, testRecover = true)
-  def cromwellRestartWithoutRecover(workflowDefinition: Workflow): Test[Unit] = cromwellRestart(workflowDefinition, testRecover = false)
+
+  def instantAbort(workflowDefinition: Workflow): Test[Unit] = for {
+    w <- submitWorkflow(workflowDefinition)
+    _ <- abortWorkflow(w)
+    _ <- pollUntilStatus(w, Aborted)
+    _ <- validateMetadata(w, workflowDefinition)
+    _ <- validateDirectoryContentsCounts(workflowDefinition, w)
+  } yield ()
+
+  def scheduledAbort(workflowDefinition: Workflow, callMarker: CallMarker, restart: Boolean): Test[Unit] = {
+    def withRestart() = CentaurConfig.runMode match {
+      case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
+        CromwellManager.stopCromwell()
+        CromwellManager.startCromwell(postRestart)
+      case _ =>
+    }
+    
+    for {
+      w <- submitWorkflow(workflowDefinition)
+      jobId <- pollUntilCallIsRunning(w, callMarker.callKey)
+      _ <- abortWorkflow(w)
+      _ = if(restart) withRestart()
+      _ <- pollUntilStatus(w, Aborted)
+      _ <- validatePAPIAborted(jobId, w)
+      // Wait a little to make sure that if the abort didn't work and calls start running we see them in the metadata
+      _ <- waitFor(30.seconds)
+      _ <- validateMetadata(w, workflowDefinition)
+      _ <- validateDirectoryContentsCounts(workflowDefinition, w)
+    } yield ()
+  }
+
+  def cromwellRestartWithRecover(workflowDefinition: Workflow, callMarker: CallMarker): Test[Unit] = {
+    cromwellRestart(workflowDefinition, callMarker, testRecover = true)
+  }
+
+  def cromwellRestartWithoutRecover(workflowDefinition: Workflow, callMarker: CallMarker): Test[Unit] = {
+    cromwellRestart(workflowDefinition, callMarker, testRecover = false)
+  }
 
   def submitInvalidWorkflow(workflow: Workflow, expectedSubmitResponse: SubmitResponse): Test[Unit] = {
     for {

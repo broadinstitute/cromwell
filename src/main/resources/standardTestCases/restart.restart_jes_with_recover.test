@@ -1,8 +1,8 @@
 ignore: true
-name: cromwell_restart_without_recover
-testFormat: CromwellRestartWithoutRecover
-backends: [TES]
-tags: [localdockertest]
+name: restart_jes_with_recover
+testFormat: CromwellRestartWithRecover
+callMark: cromwell_restart.cromwell_killer
+backends: [Jes]
 
 files {
   wdl: cromwell_restart/cromwell_restart.wdl

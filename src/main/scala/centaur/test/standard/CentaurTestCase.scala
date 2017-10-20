@@ -10,6 +10,7 @@ import centaur.test.standard.CentaurTestFormat._
 import centaur.test.submit.SubmitResponse
 import centaur.test.workflow.{AllBackendsRequired, AnyBackendRequired, OnlyBackendsAllowed, Workflow}
 import com.typesafe.config.{Config, ConfigFactory}
+import lenthall.validation.ErrorOr.ErrorOr
 
 import scala.util.{Failure, Success, Try}
 
@@ -23,9 +24,13 @@ case class CentaurTestCase(workflow: Workflow,
     case RunTwiceExpectingCallCachingTest => TestFormulas.runWorkflowTwiceExpectingCaching(workflow)
     case RunTwiceExpectingNoCallCachingTest => TestFormulas.runWorkflowTwiceExpectingNoCaching(workflow)
     case RunFailingTwiceExpectingNoCallCachingTest => TestFormulas.runFailingWorkflowTwiceExpectingNoCaching(workflow)
-    case CromwellRestartWithRecover => TestFormulas.cromwellRestartWithRecover(workflow)
-    case CromwellRestartWithoutRecover => TestFormulas.cromwellRestartWithoutRecover(workflow)
     case SubmitFailureTest => TestFormulas.submitInvalidWorkflow(workflow, submitResponseOption.get)
+    case InstantAbort => TestFormulas.instantAbort(workflow)
+    case CromwellRestartWithRecover(callMarker)=> TestFormulas.cromwellRestartWithRecover(workflow, callMarker)
+    case CromwellRestartWithoutRecover(callMarker) => TestFormulas.cromwellRestartWithoutRecover(workflow, callMarker)
+    case ScheduledAbort(callMarker) => TestFormulas.scheduledAbort(workflow, callMarker, restart = false)
+    case ScheduledAbortWithRestart(callMarker) => TestFormulas.scheduledAbort(workflow, callMarker, restart = true)
+    case other => Test.failed(new Exception(s"Invalid test format $other"))
   }
 
   def isIgnored(supportedBackends: List[String]): Boolean = {
@@ -53,7 +58,7 @@ object CentaurTestCase {
 
   def fromConfig(conf: Config, configPath: Path): ErrorOr[CentaurTestCase] = {
     val workflow = Workflow.fromConfig(conf, configPath)
-    val format = CentaurTestFormat.fromConfig(conf)
+    val format = CentaurTestFormat.fromConfig(conf).toValidated
     val options = TestOptions.fromConfig(conf)
     val submit = SubmitResponse.fromConfig(conf)
     workflow |@| format |@| options |@| submit map {
@@ -71,7 +76,7 @@ object CentaurTestCase {
   private def validateSubmitFailure(workflow: Workflow, submitResponseOption: Option[SubmitResponse]): ErrorOr[Unit] = {
     submitResponseOption match {
       case None => invalidNel("No submit stanza included in test config")
-      case Some(submitResponse) => Valid(())
+      case Some(_) => Valid(())
     }
   }
 }

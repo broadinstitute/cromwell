@@ -2,10 +2,10 @@ package centaur.test.submit
 
 import cats.data.Validated._
 import cats.implicits._
-import centaur.test.ErrorOr
 import com.typesafe.config.Config
 import configs.Result
 import configs.syntax._
+import lenthall.validation.ErrorOr.ErrorOr
 
 case class SubmitResponse(statusCode: Int, message: String)
 

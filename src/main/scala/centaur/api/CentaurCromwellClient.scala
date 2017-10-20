@@ -37,6 +37,10 @@ object CentaurCromwellClient {
   def status(workflow: SubmittedWorkflow): Try[WorkflowStatus] = {
     sendReceiveFutureCompletion(() => cromwellClient.status(workflow.id))
   }
+  
+  def abort(workflow: SubmittedWorkflow): Try[WorkflowStatus] = {
+    sendReceiveFutureCompletion(() => cromwellClient.abort(workflow.id))
+  }
 
   /*
     Sends a quick ping to the Cromwell query endpoint. The query endpoint is the only one which both hits the

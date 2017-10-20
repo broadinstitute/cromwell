@@ -2,13 +2,13 @@ package centaur.test.metadata
 
 import java.util.UUID
 
-import centaur.test.ErrorOr
 import cats.data.Validated._
 import com.typesafe.config.Config
 import configs.syntax._
 import spray.json._
 import centaur.json.JsonUtils.EnhancedJsValue
 import configs.Result
+import lenthall.validation.ErrorOr.ErrorOr
 
 import scala.util.{Failure, Success, Try}
 

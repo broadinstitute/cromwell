@@ -1,12 +1,13 @@
 package centaur.test.workflow
 
-import centaur.test.{CheckFiles, ErrorOr, JesCheckFiles, LocalCheckFiles}
-import com.typesafe.config.Config
-import configs.syntax._
 import cats.data.Validated._
 import cats.syntax.cartesian._
+import centaur.test.{CheckFiles, JesCheckFiles, LocalCheckFiles}
 import com.google.cloud.storage.StorageOptions
+import com.typesafe.config.Config
 import configs.Result
+import configs.syntax._
+import lenthall.validation.ErrorOr.ErrorOr
 
 final case class DirectoryContentCountCheck(expectedDrectoryContentsCounts: Map[String, Int], checkFiles: CheckFiles)
 

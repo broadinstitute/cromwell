@@ -4,11 +4,11 @@ import java.nio.file.Path
 
 import better.files.File
 import cats.data.Validated._
-import centaur.test._
 import com.typesafe.config.Config
 import configs.Result.{Failure, Success}
 import configs.syntax._
 import cromwell.api.model.Label
+import lenthall.validation.ErrorOr.ErrorOr
 import spray.json._
 
 

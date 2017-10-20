@@ -1,7 +1,10 @@
 ignore: true
-name: cromwell_restart_with_recover_jes
+name: restart_local_with_recover
 testFormat: CromwellRestartWithRecover
-backends: [Jes]
+callMark: cromwell_restart.cromwell_killer
+backendsMode: "only"
+backends: [Local, LocalNoDocker]
+tags: [localdockertest]
 
 files {
   wdl: cromwell_restart/cromwell_restart.wdl

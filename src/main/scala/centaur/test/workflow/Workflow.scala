@@ -2,21 +2,23 @@ package centaur.test.workflow
 
 import java.nio.file.Path
 
-import cats.Apply
 import cats.data.Validated._
-import centaur.test._
+import cats.syntax.apply._
+import cats.syntax.validated._
 import centaur.test.metadata.WorkflowMetadata
 import com.typesafe.config.{Config, ConfigFactory}
 import configs.Result
 import configs.syntax._
 import cromwell.api.CromwellClient
 import cromwell.api.model.WorkflowSingleSubmission
+import lenthall.validation.ErrorOr.ErrorOr
 
 import scala.util.{Failure, Success, Try}
 
 final case class Workflow private(testName: String,
                                   data: WorkflowData,
                                   metadata: Option[WorkflowMetadata],
+                                  notInMetadata: List[String],
                                   directoryContentCounts: Option[DirectoryContentCountCheck],
                                   backends: BackendsRequirement) {
   def toWorkflowSubmission(refreshToken: Option[String]) = WorkflowSingleSubmission(
@@ -45,17 +47,23 @@ object Workflow {
         val backendsRequirement = BackendsRequirement.fromConfig(conf.get[String]("backendsMode").map(_.toLowerCase).valueOrElse("all"), conf.get[List[String]]("backends").valueOrElse(List.empty[String]).map(_.toLowerCase))
         // If basePath is provided it'll be used as basis for finding other files, otherwise use the dir the config was in
         val basePath = conf.get[Path]("basePath") valueOrElse configPath
-        val metadata = conf.get[Config]("metadata")
+        val metadata: ErrorOr[Option[WorkflowMetadata]] = conf.get[Config]("metadata") match {
+          case Result.Success(md) => WorkflowMetadata.fromConfig(md) map Option.apply
+          case Result.Failure(_) => None.validNel
+        }
+        val absentMetadata = conf.get[List[String]]("absent-metadata-keys") match {
+          case Result.Success(nmd) => nmd
+          case Result.Failure(_) => List.empty
+        }
 
-        val directoryContentCheckValidation = DirectoryContentCountCheck.forConfig(n, conf)
+        val directoryContentCheckValidation: ErrorOr[Option[DirectoryContentCountCheck]] = DirectoryContentCountCheck.forConfig(n, conf)
         val files = conf.get[Config]("files") match {
           case Result.Success(f) => WorkflowData.fromConfig(filesConfig = f, fullConfig = conf, basePath = basePath)
           case Result.Failure(_) => invalidNel(s"No 'files' block in $configPath")
         }
 
-        metadata match {
-          case Result.Success(a) => Apply[ErrorOr].map3(files, directoryContentCheckValidation, WorkflowMetadata.fromConfig(a))((f, d, m) => Workflow(n, f, Option(m), d, backendsRequirement))
-          case Result.Failure(_) => Apply[ErrorOr].map2(files, directoryContentCheckValidation)((f, d) => Workflow(n, f, None, d, backendsRequirement))
+        (files, directoryContentCheckValidation, metadata) mapN {
+          (f, d, m) => Workflow(n, f, m, absentMetadata, d, backendsRequirement)
         }
 
       case Result.Failure(_) => invalidNel(s"No name for: $configPath")

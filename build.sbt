@@ -38,7 +38,10 @@ libraryDependencies ++= Seq(
   //---------- Test libraries -------------------//
   "org.scalatest" %% "scalatest" % "3.0.3" % Test,
   "org.pegdown" % "pegdown" % "1.6.0" % Test,
-  "com.google.cloud" % "google-cloud-storage" % "1.3.1" exclude("com.google.guava", "guava-jdk5")
+  "com.google.cloud" % "google-cloud-storage" % "1.3.1" exclude("com.google.guava", "guava-jdk5"),
+  "com.google.cloud" % "google-cloud-compute" % "0.26.0-alpha",
+  "com.google.apis" % "google-api-services-genomics" % "v1alpha2-rev64-1.22.0",
+  "org.broadinstitute" %% "cromwell-lenthall" % "30-28ec0da-SNAP"
 )
 
 val circeVersion = "0.8.0"

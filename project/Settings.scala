@@ -88,7 +88,7 @@ object Settings {
     assemblyMergeStrategy in assembly := customMergeStrategy
   )
 
-  val ScalaVersion = "2.12.3"
+  val ScalaVersion = "2.12.4"
   val commonSettings = ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
     dockerSettings ++ cromwellVersionWithGit ++ publishingSettings ++ List(
     organization := "org.broadinstitute",
@@ -110,7 +110,7 @@ object Settings {
     // No console-hostile options, otherwise the console is effectively unusable.
     // https://github.com/sbt/sbt/issues/1815
     scalacOptions in(Compile, console) := (baseSettings ++ warningSettings),
-    crossScalaVersions := List("2.11.11", "2.12.3")
+    crossScalaVersions := List("2.11.11", "2.12.4")
   )
 
   val docSettings = List(

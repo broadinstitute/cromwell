@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import better.files.File
 import cats.implicits._
 import cwl.CwlDecoder
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.executable.Executable
 import wom.graph._

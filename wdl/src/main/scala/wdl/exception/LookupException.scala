@@ -1,6 +1,6 @@
 package wdl.exception
 
-import lenthall.exception.ThrowableAggregation
+import common.exception.ThrowableAggregation
 import wdl.{Declaration, WdlGraphNode}
 import wom.types.WomType
 

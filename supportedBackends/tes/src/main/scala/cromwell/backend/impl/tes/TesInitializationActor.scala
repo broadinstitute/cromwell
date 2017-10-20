@@ -10,7 +10,7 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationDa
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.filesystems.gcs.GcsPathBuilderFactory
-import lenthall.exception.MessageAggregation
+import common.exception.MessageAggregation
 import net.ceedubs.ficus.Ficus._
 import wom.graph.TaskCallNode
 

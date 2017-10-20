@@ -1,7 +1,7 @@
 package cromwell.core
 
 import com.typesafe.config.ConfigFactory
-import lenthall.util.TryUtil
+import common.util.TryUtil
 import spray.json._
 import net.ceedubs.ficus.Ficus._
 

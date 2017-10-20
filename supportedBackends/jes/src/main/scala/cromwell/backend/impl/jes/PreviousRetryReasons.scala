@@ -1,7 +1,7 @@
 package cromwell.backend.impl.jes
 
 import cromwell.services.keyvalue.KeyValueServiceActor._
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import cats.syntax.validated._
 import cats.syntax.apply._
 

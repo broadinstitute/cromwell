@@ -5,10 +5,10 @@ import com.typesafe.config.ConfigFactory
 import scala.concurrent.duration.FiniteDuration
 import cats.data.Validated._
 import cats.syntax.apply._
-import lenthall.exception.AggregatedMessageException
-import lenthall.validation.ErrorOr.ErrorOr
+import common.exception.AggregatedMessageException
+import common.validation.ErrorOr.ErrorOr
 import net.ceedubs.ficus.Ficus._
-import lenthall.validation.Validation._
+import common.validation.Validation._
 
 object DockerConfiguration {
   private lazy val dockerConfig = ConfigFactory.load().getConfig("docker")

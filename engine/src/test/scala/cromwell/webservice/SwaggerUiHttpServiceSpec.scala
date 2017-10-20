@@ -119,7 +119,7 @@ class OverriddenSwaggerUiConfigHttpServiceSpec extends SwaggerUiHttpServiceSpec 
   override def swaggerUiConfig = ConfigFactory.parseString(
     s"""
        |baseUrl = /base
-       |docsPath = swagger/lenthall.yaml
+       |docsPath = swagger/common.yaml
        |uiPath = ui/path
        |uiVersion = $TestSwaggerUiVersion
      """.stripMargin)
@@ -129,7 +129,7 @@ class OverriddenSwaggerUiConfigHttpServiceSpec extends SwaggerUiHttpServiceSpec 
   it should "redirect /ui/path to the index.html under /base" in {
     Get("/ui/path") ~> swaggerUiRoute ~> check {
       status should be(StatusCodes.TemporaryRedirect)
-      header("Location") should be(Option(Location(Uri("/base/ui/path/index.html?url=/base/swagger/lenthall.yaml"))))
+      header("Location") should be(Option(Location(Uri("/base/ui/path/index.html?url=/base/swagger/common.yaml"))))
     }
   }
 

@@ -1,8 +1,8 @@
 package cwl
 
 import cats.syntax.validated._
-import lenthall.validation.ErrorOr.ErrorOr
-import lenthall.validation.Validation._
+import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import shapeless.Poly1
 import wom.executable.Executable.DelayedCoercionFunction
 import wom.types.{WomArrayType, WomFileType, WomType}

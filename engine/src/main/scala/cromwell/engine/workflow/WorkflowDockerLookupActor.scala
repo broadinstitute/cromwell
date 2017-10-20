@@ -10,7 +10,7 @@ import cromwell.docker.{DockerClientHelper, DockerHashRequest, DockerHashResult,
 import cromwell.engine.workflow.WorkflowActor.{RestartExistingWorkflow, StartMode}
 import cromwell.engine.workflow.WorkflowDockerLookupActor._
 import cromwell.services.EngineServicesStore
-import lenthall.util.TryUtil
+import common.util.TryUtil
 
 import scala.concurrent.duration._
 import scala.language.postfixOps

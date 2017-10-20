@@ -2,7 +2,7 @@ package cwl
 
 import cats.syntax.validated._
 import eu.timepit.refined._
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil}
 import wom.values.{WomSingleFile, WomValue}

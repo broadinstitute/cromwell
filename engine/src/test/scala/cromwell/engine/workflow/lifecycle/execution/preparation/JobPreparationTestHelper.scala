@@ -8,7 +8,7 @@ import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.preparation.JobPreparationTestHelper._
 import cromwell.engine.workflow.lifecycle.execution.{ValueStore, WorkflowExecutionActorData}
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, ScopedKey}
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import org.specs2.mock.Mockito
 import wom.values.{WomValue, WomEvaluatedCallInputs}
 

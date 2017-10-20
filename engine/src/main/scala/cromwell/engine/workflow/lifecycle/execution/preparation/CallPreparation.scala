@@ -6,8 +6,8 @@ import cromwell.backend.BackendJobDescriptor
 import cromwell.core.{CallKey, JobKey}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.ValueStore
-import lenthall.validation.ErrorOr._
-import lenthall.validation.Validation._
+import common.validation.ErrorOr._
+import common.validation.Validation._
 import wom.callable.Callable._
 import wom.expression.IoFunctionSet
 import wom.values.{WomValue, WomEvaluatedCallInputs}
@@ -30,7 +30,7 @@ object CallPreparation {
 
     callKey.node.inputDefinitionMappings.foldLeft(Map.empty[InputDefinition, ErrorOr[WomValue]]) {
       case (accumulatedInputsSoFar, (inputDefinition, pointer)) =>
-        // We could have a lenthall method for this kind of "filtering valid values"
+        // We could have a commons method for this kind of "filtering valid values"
         val validInputsAccumulated: Map[String, WomValue] = accumulatedInputsSoFar.collect({
           case (input, Valid(errorOrWdlValue)) => input.name -> errorOrWdlValue
         })

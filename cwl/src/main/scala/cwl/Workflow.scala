@@ -4,8 +4,8 @@ import cats.data.NonEmptyList
 import cats.instances.list._
 import cats.syntax.either._
 import cats.syntax.traverse._
-import lenthall.Checked
-import lenthall.validation.ErrorOr._
+import common.Checked
+import common.validation.ErrorOr._
 import shapeless._
 import shapeless.syntax.singleton._
 import CwlType.CwlType

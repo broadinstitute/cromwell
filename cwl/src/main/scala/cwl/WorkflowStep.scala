@@ -10,9 +10,9 @@ import cats.syntax.monoid._
 import cats.syntax.validated._
 import cwl.ScatterMethod._
 import cwl.WorkflowStep._
-import lenthall.Checked
-import lenthall.validation.Checked._
-import lenthall.validation.ErrorOr.ErrorOr
+import common.Checked
+import common.validation.Checked._
+import common.validation.ErrorOr.ErrorOr
 import shapeless._
 import wom.callable.Callable._
 import wom.expression.PlaceholderWomExpression

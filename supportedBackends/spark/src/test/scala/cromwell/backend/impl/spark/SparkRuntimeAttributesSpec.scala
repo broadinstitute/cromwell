@@ -4,7 +4,7 @@ import cromwell.backend.{BackendWorkflowDescriptor, MemorySize}
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.core.labels.Labels
 import cromwell.core.{NoIoFunctionSet, WorkflowId, WorkflowOptions}
-import lenthall.validation.ErrorOr._
+import common.validation.ErrorOr._
 import org.scalatest.{Matchers, WordSpecLike}
 import spray.json.{JsBoolean, JsNumber, JsObject, JsString, JsValue}
 import wdl._

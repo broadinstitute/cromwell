@@ -7,7 +7,7 @@ import cromwell.core.JobKey
 import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.{RunnableScopes, _}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{apply => _}
 import cromwell.engine.workflow.lifecycle.execution.keys._
-import lenthall.collections.Table
+import common.collections.Table
 import wom.callable.WorkflowDefinition
 import wom.graph.GraphNodePort.{ConditionalOutputPort, OutputPort, ScatterGathererPort}
 import wom.graph._

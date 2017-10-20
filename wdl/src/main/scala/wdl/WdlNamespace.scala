@@ -6,8 +6,8 @@ import better.files._
 import cats.effect.IO
 import com.softwaremill.sttp._
 import com.softwaremill.sttp.asynchttpclient.cats.AsyncHttpClientCatsBackend
-import lenthall.Checked
-import lenthall.util.TryUtil
+import common.Checked
+import common.util.TryUtil
 import wdl.AstTools.{AstNodeName, EnhancedAstNode}
 import wdl.command.ParameterCommandPart
 import wdl.exception._
@@ -132,7 +132,7 @@ case class WdlNamespaceWithWorkflow(importedAs: Option[String],
     * and return the value. Only evaluates workflow level declarations. Other declarations will be evaluated at runtime.
     */
   def staticDeclarationsRecursive(userInputs: WorkflowCoercedInputs, wdlFunctions: WdlStandardLibraryFunctions): Try[WorkflowCoercedInputs] = {
-    import lenthall.exception.Aggregation._
+    import common.exception.Aggregation._
 
     def evalDeclaration(accumulated: Map[FullyQualifiedName, Try[WomValue]], current: Declaration): Map[FullyQualifiedName, Try[WomValue]] = {
       current.expression match {

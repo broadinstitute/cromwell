@@ -4,9 +4,9 @@ import cats.data.Validated._
 import cats.syntax.apply._
 import cats.syntax.validated._
 import com.typesafe.config.Config
-import lenthall.exception.MessageAggregation
-import lenthall.validation.ErrorOr.ErrorOr
-import lenthall.validation.Validation._
+import common.exception.MessageAggregation
+import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration.FiniteDuration

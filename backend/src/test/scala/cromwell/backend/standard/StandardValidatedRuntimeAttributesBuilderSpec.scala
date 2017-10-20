@@ -136,7 +136,7 @@ class StandardValidatedRuntimeAttributesBuilderSpec extends WordSpecLike with Ma
       * Captures warning log messages with a mock.
       *
       * TODO: A generic MockLogger (with all levels captured) may be an Slf4J+specs2 replacement for the Slf4J+Logback
-      * TestLogger in lenthall.
+      * TestLogger in commons.
       */
     class MockWarnings() {
       var warnings: Seq[String] = Seq.empty

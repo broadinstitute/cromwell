@@ -22,9 +22,9 @@ import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, Eng
 import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor}
 import cromwell.util.StopAndLogSupervisor
 import cromwell.webservice.EngineStatsActor
-import lenthall.exception.{MessageAggregation, ThrowableAggregation}
-import lenthall.util.TryUtil
-import lenthall.validation.ErrorOr.ErrorOr
+import common.exception.{MessageAggregation, ThrowableAggregation}
+import common.util.TryUtil
+import common.validation.ErrorOr.ErrorOr
 import org.apache.commons.lang3.StringUtils
 import wdl._
 import wom.JobOutput
@@ -458,7 +458,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def processRunnableExpression(expression: ExpressionKey, data: WorkflowExecutionActorData) = {
-    import lenthall.validation.ErrorOr._
+    import common.validation.ErrorOr._
 
     expression.upstreamPorts.traverseValues(resolve(expression, data)) map { lookup =>
       // Send a message to self in case we decide to change evaluate to return asynchronously, if we don't we could

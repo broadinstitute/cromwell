@@ -1,7 +1,7 @@
 package cwl
 
-import lenthall.Checked
-import lenthall.validation.Checked._
+import common.Checked
+import common.validation.Checked._
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil, Poly1, Witness, _}
 import CommandLineTool.BaseCommand

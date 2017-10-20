@@ -123,7 +123,7 @@ object Dependencies {
     "com.readytalk" % "metrics3-statsd" % "4.2.0"
   )
 
-  val lenthallDependencies = List(
+  val commonDependencies = List(
     "com.typesafe" % "config" % "1.3.1",
     "org.slf4j" % "slf4j-api" % "1.7.24",
     "com.iheart" %% "ficus" % "1.4.0",
@@ -145,7 +145,7 @@ object Dependencies {
     "com.softwaremill.sttp" %% "core" % "0.0.16",
     "com.softwaremill.sttp" %% "async-http-client-backend-cats" % "0.0.16",
     "org.mock-server" % "mockserver-netty" % "3.10.2" % "test"
-  ) ++ lenthallDependencies
+  ) ++ commonDependencies
 
   val wdlDependencies = List() ++ womDependencies
 

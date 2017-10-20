@@ -3,7 +3,7 @@ package cromwell.backend.validation
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import cromwell.backend.MemorySize
-import lenthall.validation.ErrorOr._
+import common.validation.ErrorOr._
 import wdl4s.parser.MemoryUnit
 import wom.types.{WomIntegerType, WomStringType}
 import wom.values.{WomInteger, WomString, WomValue}

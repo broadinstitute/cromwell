@@ -2,7 +2,7 @@ package wdl
 
 import cats.data.Validated.Valid
 import cats.syntax.validated._
-import lenthall.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
+import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import wdl4s.parser.WdlParser.{Ast, Terminal}
 import wom.graph.ScatterNode.ScatterNodeWithNewNodes
 import wom.graph._

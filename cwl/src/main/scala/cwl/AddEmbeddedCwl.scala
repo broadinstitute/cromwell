@@ -8,7 +8,7 @@ import CwlDecoder.Parse
 import cats.Monad
 import cats.data.EitherT._
 import cats.data.EitherT
-import lenthall.validation.ErrorOr._
+import common.validation.ErrorOr._
 
 object AddEmbeddedCwl extends Poly1 {
 

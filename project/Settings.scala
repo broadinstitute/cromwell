@@ -89,7 +89,7 @@ object Settings {
   )
 
   val ScalaVersion = "2.12.4"
-  val commonSettings = ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
+  val sharedSettings = ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
     dockerSettings ++ cromwellVersionWithGit ++ publishingSettings ++ List(
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,
@@ -140,7 +140,7 @@ object Settings {
         add(artifact, artifactTargetPath)
         runRaw(s"ln -s $artifactTargetPath /app/cromwell.jar")
 
-        // If you use the 'exec' form for an entry point, shell processing is not performed and 
+        // If you use the 'exec' form for an entry point, shell processing is not performed and
         // environment variable substitution does not occur.  Thus we have to /bin/bash here
         // and pass along any subsequent command line arguments
         // See https://docs.docker.com/engine/reference/builder/#/entrypoint
@@ -153,54 +153,54 @@ object Settings {
     )
   )
 
-  val lenthallSettings = List(
-    name := "cromwell-lenthall",
-    libraryDependencies ++= lenthallDependencies
-  ) ++ commonSettings
+  val commonSettings = List(
+    name := "cromwell-common",
+    libraryDependencies ++= commonDependencies
+  ) ++ sharedSettings
 
   val womSettings = List(
     name := "cromwell-wom",
     libraryDependencies ++= womDependencies
-  ) ++ commonSettings
+  ) ++ sharedSettings
 
   val wdlSettings = List(
     name := "cromwell-wdl",
     libraryDependencies ++= wdlDependencies
-  ) ++ commonSettings
+  ) ++ sharedSettings
 
   val cwlSettings = List(
     name := "cromwell-cwl",
     libraryDependencies ++= cwlDependencies
-  ) ++ commonSettings
+  ) ++ sharedSettings
 
   val womtoolSettings = List(
-    name := "cromwell-womtool",
+    name := "womtool",
     libraryDependencies ++= womtoolDependencies
-  ) ++ commonSettings
+  ) ++ sharedSettings
 
   val coreSettings = List(
     name := "cromwell-core",
     libraryDependencies ++= coreDependencies
-  ) ++ commonSettings
+  ) ++ sharedSettings
 
   val servicesSettings = List(
     name := "cromwell-services"
-  ) ++ commonSettings
+  ) ++ sharedSettings
 
   val gcsFileSystemSettings = List(
     name := "cromwell-gcsfilesystem",
     libraryDependencies ++= gcsFileSystemDependencies
-  ) ++ commonSettings
+  ) ++ sharedSettings
 
   val databaseSqlSettings = List(
     name := "cromwell-database-sql",
     libraryDependencies ++= databaseSqlDependencies
-  ) ++ commonSettings
+  ) ++ sharedSettings
 
   val databaseMigrationSettings = List(
     name := "cromwell-database-migration",
     libraryDependencies ++= databaseMigrationDependencies
-  ) ++ commonSettings
+  ) ++ sharedSettings
 
   val cromwellApiClientSettings = List(
     name := "cromwell-api-client",
@@ -209,49 +209,49 @@ object Settings {
     scalaVersion := ScalaVersion,
     scalacOptions in (Compile, doc) ++= docSettings,
     resolvers ++= commonResolvers
-  ) ++ commonSettings ++ ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
+  ) ++ sharedSettings ++ ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
     cromwellVersionWithGit ++ publishingSettings
 
   val dockerHashingSettings = List(
     name := "cromwell-docker-hashing"
-  ) ++ commonSettings
+  ) ++ sharedSettings
 
   val backendSettings = List(
     name := "cromwell-backend"
-  ) ++ commonSettings
+  ) ++ sharedSettings
 
   val sfsBackendSettings = List(
     name := "cromwell-sfs-backend"
-  ) ++ commonSettings
+  ) ++ sharedSettings
 
   val tesBackendSettings = List(
     name := "cromwell-tes-backend",
     libraryDependencies ++= tesBackendDependencies
-  ) ++ commonSettings
+  ) ++ sharedSettings
 
   val sparkBackendSettings = List(
     name := "cromwell-spark-backend",
     libraryDependencies ++= sparkBackendDependencies
-  ) ++ commonSettings
+  ) ++ sharedSettings
 
   val jesBackendSettings = List(
     name := "cromwell-jes-backend",
     libraryDependencies ++= jesBackendDependencies
-  ) ++ commonSettings
+  ) ++ sharedSettings
 
   val engineSettings = List(
     name := "cromwell-engine",
     libraryDependencies ++= engineDependencies
-  ) ++ commonSettings ++ versionConfCompileSettings
+  ) ++ sharedSettings ++ versionConfCompileSettings
 
   val cloudSupportSettings = List(
     name := "cromwell-cloud-support",
     libraryDependencies ++= gcsFileSystemDependencies
-  ) ++ commonSettings
+  ) ++ sharedSettings
 
   val rootSettings = List(
     name := "cromwell",
     libraryDependencies ++= rootDependencies
-  ) ++ commonSettings
+  ) ++ sharedSettings
 
 }

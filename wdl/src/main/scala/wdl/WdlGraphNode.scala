@@ -2,8 +2,8 @@ package wdl
 
 import cats.data.Validated.Valid
 import cats.syntax.validated._
-import lenthall.collections.EnhancedCollections._
-import lenthall.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
+import common.collections.EnhancedCollections._
+import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import wdl.AstTools.{EnhancedAstNode, VariableReference}
 import wom.graph.CallNode.CallNodeAndNewNodes
 import wom.graph.GraphNode.GeneratedNodeAndNewNodes
@@ -124,7 +124,7 @@ object WdlGraphNode {
         }).flatten))
     }
 
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    import common.validation.ErrorOr.ShortCircuitingFlatMap
     for {
       foldState <- nodeAccumulator
       graphNodes = foldState.nodes

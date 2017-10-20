@@ -4,7 +4,7 @@ import cats.instances.list._
 import cats.syntax.traverse._
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.CallContext
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import wom.values._
 import wom.expression.IoFunctionSet
 import wom.graph.TaskCallNode

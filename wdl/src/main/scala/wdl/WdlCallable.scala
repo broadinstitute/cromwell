@@ -1,6 +1,6 @@
 package wdl
 
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import wom.callable.Callable
 
 trait WdlCallable extends Scope {

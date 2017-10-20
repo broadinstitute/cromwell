@@ -5,8 +5,8 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.apply._
 import cats.syntax.validated._
 import cromwell.core._
-import lenthall.validation.ErrorOr.ErrorOr
-import lenthall.validation.Validation._
+import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import org.slf4j.LoggerFactory
 import spray.json.{JsObject, JsValue}
 import wdl.WorkflowJson

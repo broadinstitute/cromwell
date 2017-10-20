@@ -1,6 +1,6 @@
 package cromwell.core.labels
 
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import cats.data.Validated._
 import cats.syntax.apply._
 import cats.syntax.validated._

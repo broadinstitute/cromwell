@@ -12,9 +12,9 @@ import com.google.api.services.storage.StorageScopes
 import com.typesafe.config.{Config, ConfigException}
 import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.{JsonFileFormat, PemFileFormat}
 import cromwell.cloudsupport.gcp.auth._
-import lenthall.exception.MessageAggregation
-import lenthall.validation.ErrorOr._
-import lenthall.validation.Validation._
+import common.exception.MessageAggregation
+import common.validation.ErrorOr._
+import common.validation.Validation._
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.LoggerFactory
 

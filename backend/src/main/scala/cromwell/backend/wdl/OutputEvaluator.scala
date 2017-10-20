@@ -8,8 +8,8 @@ import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.validated._
 import cromwell.backend.BackendJobDescriptor
-import lenthall.validation.Checked._
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.Checked._
+import common.validation.ErrorOr.ErrorOr
 import wom.JobOutput
 import wom.callable.Callable.OutputDefinition
 import wom.core.CallOutputs

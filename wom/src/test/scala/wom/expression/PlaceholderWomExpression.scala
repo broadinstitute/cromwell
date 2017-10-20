@@ -2,7 +2,7 @@ package wom.expression
 
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import wom.types.WomType
 import wom.values.{WomFile, WomValue}
 

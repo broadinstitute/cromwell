@@ -9,7 +9,7 @@ import cromwell.core.io.{IoCommand, IoTouchCommand}
 import cromwell.core.path.Path
 import cromwell.core.simpleton.{WomValueBuilder, WomValueSimpleton}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
-import lenthall.util.TryUtil
+import common.util.TryUtil
 import wom.core.CallOutputs
 import wom.values.WomFile
 

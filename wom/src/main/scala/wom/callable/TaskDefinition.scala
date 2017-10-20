@@ -1,7 +1,7 @@
 package wom.callable
 
 import wom.core._
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import wdl.util.StringUtil
 import wom.expression.IoFunctionSet
 import wom.graph.{Graph, TaskCall}

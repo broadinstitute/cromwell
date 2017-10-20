@@ -123,7 +123,7 @@ object Dependencies {
     "com.readytalk" % "metrics3-statsd" % "4.2.0"
   )
 
-  val lenthallDependencies = List(
+  val commonDependencies = List(
     "com.typesafe" % "config" % "1.3.1",
     "org.slf4j" % "slf4j-api" % "1.7.24",
     "com.iheart" %% "ficus" % "1.4.0",
@@ -136,20 +136,22 @@ object Dependencies {
   val womDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % "3.6.0",
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
-    "commons-codec" % "commons-codec" % "1.10",
-    "commons-io" % "commons-io" % "2.5",
     "org.apache.commons" % "commons-lang3" % "3.6",
+    "commons-codec" % "commons-codec" % "1.10"
+  ) ++ commonDependencies
+
+  val wdlDependencies = List(
+    "commons-io" % "commons-io" % "2.5",
     "com.github.pathikrit" %% "better-files" % betterFilesV,
     "org.scala-graph" %% "graph-core" % "1.12.0",
     "com.chuusai" %% "shapeless" % "2.3.2",
     "com.softwaremill.sttp" %% "core" % "0.0.16",
     "com.softwaremill.sttp" %% "async-http-client-backend-cats" % "0.0.16",
     "org.mock-server" % "mockserver-netty" % "3.10.2" % "test"
-  ) ++ lenthallDependencies
-
-  val wdlDependencies = List() ++ womDependencies
+  ) ++ womDependencies
 
   val cwlDependencies = List(
+    "com.github.pathikrit" %% "better-files" % betterFilesV,
     "com.lihaoyi" %% "ammonite-ops" % "1.0.1",
     "org.typelevel" %% "cats-effect" % "0.4",
     "org.pegdown" % "pegdown" % pegdownV % Test,
@@ -169,7 +171,8 @@ object Dependencies {
     "com.google.auth" % "google-auth-library-oauth2-http" % "0.7.0",
     "com.typesafe.akka" %% "akka-stream-testkit" % akkaV,
     "com.chuusai" %% "shapeless" % "2.3.2",
-    "com.github.scopt" %% "scopt" % "3.6.0"
+    "com.github.scopt" %% "scopt" % "3.6.0",
+    "com.github.pathikrit" %% "better-files" % betterFilesV
   ) ++ baseDependencies ++ googleApiClientDependencies ++ statsDDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
     slf4jBindingDependencies ++ womDependencies

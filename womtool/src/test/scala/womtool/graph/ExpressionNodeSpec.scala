@@ -17,7 +17,7 @@ class ExpressionNodeSpec extends WomDotGraphTest {
     val ijExpression = PlaceholderWomExpression(Set("i", "j"), WomIntegerType)
 
     // Declare the expression node using both i and j:
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    import common.validation.ErrorOr.ShortCircuitingFlatMap
     val graph = for {
       xDeclarationNode <- ExposedExpressionNode.fromInputMapping(
         WomIdentifier("x"), ijExpression, WomIntegerType, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))

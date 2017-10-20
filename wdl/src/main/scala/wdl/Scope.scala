@@ -1,6 +1,6 @@
 package wdl
 
-import lenthall.collections.EnhancedCollections._
+import common.collections.EnhancedCollections._
 import wdl4s.parser.WdlParser.Ast
 import wdl.exception.{ScatterIndexNotFound, VariableLookupException, VariableNotFoundException}
 import wdl.expression.WdlFunctions

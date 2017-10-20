@@ -1,7 +1,7 @@
 package wdl
 
-import lenthall.util.TryUtil
-import lenthall.validation.ErrorOr.ErrorOr
+import common.util.TryUtil
+import common.validation.ErrorOr.ErrorOr
 import wdl4s.parser.WdlParser._
 import wdl.AstTools._
 import wdl.expression.WdlFunctions
@@ -79,7 +79,7 @@ case class WdlWorkflow(unqualifiedName: String,
     * Also include workflow outputs which are not technically children but should be processed as such
     */
   override lazy val childGraphNodes: Set[WdlGraphNode] = {
-    import lenthall.collections.EnhancedCollections._
+    import common.collections.EnhancedCollections._
     children.toSet.filterByType[WdlGraphNode] ++ outputs
   }
 

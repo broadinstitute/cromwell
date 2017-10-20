@@ -1,6 +1,6 @@
 package wom.graph
 
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import wom.expression.WomExpression
 import wom.graph.GraphNode.GraphNodeSetter
 import wom.graph.GraphNodePort.OutputPort

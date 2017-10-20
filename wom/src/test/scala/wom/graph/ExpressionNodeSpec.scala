@@ -33,7 +33,7 @@ class ExpressionNodeSpec extends FlatSpec with Matchers {
     val ijExpression = PlaceholderWomExpression(Set("i", "j"), WomIntegerType)
 
     // Declare the expression node using both i and j:
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    import common.validation.ErrorOr.ShortCircuitingFlatMap
     val graph = for {
       xDeclarationNode <- AnonymousExpressionNode.fromInputMapping(WomIdentifier("x"), ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))
       xOutputNode = PortBasedGraphOutputNode(WomIdentifier("x_out"), WomIntegerType, xDeclarationNode.singleExpressionOutputPort)

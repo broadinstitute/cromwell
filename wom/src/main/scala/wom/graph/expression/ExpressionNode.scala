@@ -3,9 +3,9 @@ package wom.graph.expression
 import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
-import lenthall.Checked
-import lenthall.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
-import lenthall.validation.Validation._
+import common.Checked
+import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
+import common.validation.Validation._
 import shapeless.Coproduct
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.CallNode.InputDefinitionPointer
@@ -73,7 +73,7 @@ object ExpressionNode {
       case None => s"Expression cannot be connected without the input $input (provided: ${inputMapping.toString})".invalidNel
     }
 
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    import common.validation.ErrorOr.ShortCircuitingFlatMap
     for {
       linkedInputList <- expression.inputs.toList traverse linkInput
       linkedInputs = linkedInputList.toMap

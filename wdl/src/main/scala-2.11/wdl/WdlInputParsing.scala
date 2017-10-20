@@ -1,7 +1,7 @@
 package wdl
 
 import cats.syntax.either._
-import lenthall.Checked
+import common.Checked
 
 import scala.util.Try
 import wom.executable.Executable.InputParsingFunction
@@ -12,8 +12,8 @@ import wom.types.WomType
 private [wdl] object WdlInputParsing {
 
   private [wdl] val inputCoercionFunction: InputParsingFunction = inputString => {
-    import lenthall.validation.Checked._
-    import lenthall.validation.Validation._
+    import common.validation.Checked._
+    import common.validation.Validation._
     import spray.json._
 
     Try(inputString.parseJson).toErrorOr.toEither flatMap {

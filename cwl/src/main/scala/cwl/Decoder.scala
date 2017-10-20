@@ -7,8 +7,8 @@ import cats.effect.IO
 import cats.syntax.either._
 import cats.Applicative
 import better.files.{File => BFile}
-import lenthall.validation.ErrorOr._
-import lenthall.legacy.TwoElevenSupport._
+import common.validation.ErrorOr._
+import common.legacy.TwoElevenSupport._
 
 import scala.util.Try
 

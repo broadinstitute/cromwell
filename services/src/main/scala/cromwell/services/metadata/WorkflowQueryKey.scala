@@ -7,7 +7,7 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import cromwell.core.labels.Label
 import cromwell.core.{WorkflowId, WorkflowState}
-import lenthall.validation.ErrorOr._
+import common.validation.ErrorOr._
 import cats.data.Validated._
 import cats.instances.list._
 

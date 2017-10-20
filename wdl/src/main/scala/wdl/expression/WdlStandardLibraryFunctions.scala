@@ -2,7 +2,7 @@ package wdl.expression
 
 import cats.instances.try_._
 import cats.syntax.apply._
-import lenthall.exception.AggregatedException
+import common.exception.AggregatedException
 import wom.WomExpressionException
 import wdl.expression.WdlStandardLibraryFunctions.{crossProduct => stdLibCrossProduct, _}
 import wom.TsvSerializable

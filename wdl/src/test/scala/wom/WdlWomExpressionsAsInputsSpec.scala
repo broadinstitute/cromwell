@@ -55,7 +55,7 @@ class WdlWomExpressionsAsInputsSpec extends FlatSpec with Matchers {
   it should "wire up input expressions for a WDL workflow" in {
 
     val namespace = WdlNamespace.loadUsingSource(Wdl, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    import common.validation.ErrorOr.ShortCircuitingFlatMap
     val workflowGraph = namespace.workflow.womDefinition.flatMap(_.graph) match {
       case Valid(g) => g
       case Invalid(errors) => fail(s"Unable to build wom graph from WDL: ${errors.toList.mkString("\n", "\n", "\n")}")

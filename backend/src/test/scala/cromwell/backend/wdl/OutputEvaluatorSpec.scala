@@ -6,7 +6,7 @@ import cromwell.backend.wdl.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvalua
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey}
 import cromwell.core.NoIoFunctionSet
 import cromwell.util.WomMocks
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import wom.JobOutput

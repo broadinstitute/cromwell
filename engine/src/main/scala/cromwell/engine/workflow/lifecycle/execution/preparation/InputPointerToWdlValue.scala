@@ -4,7 +4,7 @@ import cats.syntax.option._
 import cats.syntax.validated._
 import cromwell.core.ExecutionIndex.ExecutionIndex
 import cromwell.engine.workflow.lifecycle.execution.ValueStore
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import shapeless.Poly1
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.GraphNode

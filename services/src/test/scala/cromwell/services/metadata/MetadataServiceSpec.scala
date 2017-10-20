@@ -3,7 +3,7 @@ package cromwell.services.metadata
 import java.util.UUID
 
 import cromwell.core.WorkflowId
-import lenthall.exception.AggregatedException
+import common.exception.AggregatedException
 import org.scalactic.Equality
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}

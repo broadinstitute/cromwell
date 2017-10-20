@@ -3,7 +3,7 @@ package cromwell.backend
 import _root_.wdl._
 import cromwell.core.{NoIoFunctionSet, WorkflowOptions}
 import cromwell.util.JsonFormatting.WomValueJsonFormatter
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import wom.callable.Callable.InputDefinition
 import wom.expression.IoFunctionSet
 import wom.values.WomValue
@@ -23,7 +23,7 @@ object RuntimeAttributeDefinition {
   def evaluateRuntimeAttributes(unevaluated: RuntimeAttributes,
                                 wdlFunctions: IoFunctionSet,
                                 evaluatedInputs: Map[InputDefinition, WomValue]): ErrorOr[Map[String, WomValue]] = {
-    import lenthall.validation.ErrorOr._
+    import common.validation.ErrorOr._
     val inputsMap = evaluatedInputs map { case (x, y) => x.name -> y }
     unevaluated.attributes.traverseValues(_.evaluateValue(inputsMap, NoIoFunctionSet))
   }

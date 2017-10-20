@@ -5,7 +5,7 @@ import cats.syntax.apply._
 import cats.syntax.validated._
 import cromwell.core.WorkflowId
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter.CallCacheDiffQueryCall
-import lenthall.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
+import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 
 import scala.util.{Failure, Success, Try}
 

@@ -17,7 +17,7 @@ if [ "$BUILD_TYPE" == "sbt" ] && [ "$TRAVIS_PULL_REQUEST" == "false" ]; then
           publish \
           dockerBuildAndPush
 
-        for subproj in lenthall wom wdl cwl
+        for subproj in common wom wdl cwl
         do
           sbt \
             'set test in Test := {}' \

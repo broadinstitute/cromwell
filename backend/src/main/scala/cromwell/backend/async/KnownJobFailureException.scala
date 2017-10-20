@@ -1,7 +1,7 @@
 package cromwell.backend.async
 
 import cromwell.core.path.Path
-import lenthall.exception.ThrowableAggregation
+import common.exception.ThrowableAggregation
 import wom.values.WomValue
 
 abstract class KnownJobFailureException extends Exception {

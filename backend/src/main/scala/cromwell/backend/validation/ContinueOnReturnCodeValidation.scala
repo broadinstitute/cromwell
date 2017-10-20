@@ -6,7 +6,7 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import cromwell.backend.validation.RuntimeAttributesValidation._
-import lenthall.validation.ErrorOr._
+import common.validation.ErrorOr._
 import wom.types._
 import wom.values._
 

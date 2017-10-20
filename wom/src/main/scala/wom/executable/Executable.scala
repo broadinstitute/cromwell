@@ -1,8 +1,8 @@
 package wom.executable
 
 import cats.syntax.validated._
-import lenthall.Checked
-import lenthall.validation.ErrorOr._
+import common.Checked
+import common.validation.ErrorOr._
 import shapeless.Coproduct
 import wom.callable.Callable
 import wom.executable.Executable.ResolvedExecutableInputs

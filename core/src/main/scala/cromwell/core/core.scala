@@ -1,7 +1,7 @@
 package cromwell.core
 
 import cromwell.core.path.Path
-import lenthall.exception.ThrowableAggregation
+import common.exception.ThrowableAggregation
 
 
 case class CallContext(root: Path, stdout: String, stderr: String)

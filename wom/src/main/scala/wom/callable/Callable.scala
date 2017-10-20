@@ -1,6 +1,6 @@
 package wom.callable
 
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import wom.callable.Callable._
 import wom.expression.WomExpression
 import wom.graph.{Graph, LocalName}

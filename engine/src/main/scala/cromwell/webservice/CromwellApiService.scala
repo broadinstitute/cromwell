@@ -33,7 +33,7 @@ import cromwell.webservice.LabelsManagerActor._
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
 import cromwell.webservice.metadata.{MetadataBuilderActor, WorkflowQueryPagination}
-import lenthall.exception.AggregatedMessageException
+import common.exception.AggregatedMessageException
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._

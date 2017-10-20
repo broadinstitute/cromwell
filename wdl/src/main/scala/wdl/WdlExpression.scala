@@ -4,8 +4,8 @@ import cats.data.Validated.Valid
 import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
-import lenthall.validation.ErrorOr.ErrorOr
-import lenthall.validation.Validation._
+import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import wdl.AstTools.{EnhancedAstNode, VariableReference}
 import wdl.WdlExpression._
 import wdl.expression._
@@ -263,7 +263,7 @@ object WdlWomExpression {
                        expression: WdlWomExpression,
                        innerLookup: Map[String, GraphNodePort.OutputPort],
                        outerLookup: Map[String, GraphNodePort.OutputPort]): ErrorOr[ExpressionNode] = {
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    import common.validation.ErrorOr.ShortCircuitingFlatMap
     
     findInputsforExpression(expression, innerLookup, outerLookup) flatMap { resolvedVariables => 
        AnonymousExpressionNode.fromInputMapping(nodeIdentifier, expression, resolvedVariables)

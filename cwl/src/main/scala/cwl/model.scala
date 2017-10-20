@@ -7,7 +7,7 @@ import shapeless.{:+:, CNil, Witness}
 import shapeless.syntax.singleton._
 import cwl.LinkMergeMethod.LinkMergeMethod
 import cwl.WorkflowStepInput.InputSource
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import wom.types.WomType
 import wom.graph.WomIdentifier
 import wom.graph.GraphNodePort.OutputPort

@@ -15,7 +15,7 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowMetadataHelper
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreState}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.webservice.EngineStatsActor
-import lenthall.exception.ThrowableAggregation
+import common.exception.ThrowableAggregation
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.exception.ExceptionUtils
 

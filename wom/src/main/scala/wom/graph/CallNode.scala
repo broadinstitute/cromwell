@@ -4,7 +4,7 @@ import cats.instances.list._
 import cats.kernel.Monoid
 import cats.syntax.foldable._
 import cats.syntax.traverse._
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import shapeless.{:+:, CNil, Coproduct}
 import wom.callable.Callable._
 import wom.callable.{Callable, TaskDefinition, WorkflowDefinition}
@@ -54,7 +54,7 @@ object TaskCall {
     def linkOutput(call: GraphNode)(output: OutputDefinition): ErrorOr[GraphNode] = call.outputByName(output.name).map(out => PortBasedGraphOutputNode(
       identifier(output.localName), output.womType, out
     ))
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    import common.validation.ErrorOr.ShortCircuitingFlatMap
 
     val callNodeBuilder = new CallNodeBuilder()
     

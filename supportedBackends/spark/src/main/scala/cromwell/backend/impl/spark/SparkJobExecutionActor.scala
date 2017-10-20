@@ -13,7 +13,7 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, B
 import cromwell.core.path.JavaWriterImplicits._
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}
-import lenthall.exception.MessageAggregation
+import common.exception.MessageAggregation
 
 import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger

@@ -35,7 +35,7 @@ object JsonUtils {
         v.elements.zipWithIndex.foldLeft(acc) { case (accumulator, (element, idx)) =>
           val maybePrefix = if (prefix.isEmpty) "" else s"$prefix."
           element match {
-            case obj: JsObject => accumulator.mergeWith(element.flatten(s"$maybePrefix$k.$idx"))
+            case _: JsObject => accumulator.mergeWith(element.flatten(s"$maybePrefix$k.$idx"))
             case x: JsValue => accumulator + (s"$maybePrefix$k.$idx" -> x)
           }
         }

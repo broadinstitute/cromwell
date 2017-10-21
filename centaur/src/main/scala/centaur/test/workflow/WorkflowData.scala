@@ -8,7 +8,7 @@ import com.typesafe.config.Config
 import configs.Result.{Failure, Success}
 import configs.syntax._
 import cromwell.api.model.Label
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import spray.json._
 
 

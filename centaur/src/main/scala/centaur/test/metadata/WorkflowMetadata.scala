@@ -8,7 +8,7 @@ import configs.syntax._
 import spray.json._
 import centaur.json.JsonUtils.EnhancedJsValue
 import configs.Result
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 
 import scala.util.{Failure, Success, Try}
 

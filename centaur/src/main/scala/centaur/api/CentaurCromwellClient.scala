@@ -15,7 +15,6 @@ import cromwell.api.model.{CromwellBackends, SubmittedWorkflow, WorkflowStatus}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Await, ExecutionContext, Future, TimeoutException}
-import scala.language.postfixOps
 import scala.util.Try
 
 object CentaurCromwellClient {

@@ -3,18 +3,16 @@ package cromwell.engine.workflow.lifecycle
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
 import akka.pattern.pipe
 import cats.Monad
-import cats.data.{EitherT, NonEmptyList}
-import cats.data.NonEmptyList
 import cats.data.EitherT._
+import cats.data.{EitherT, NonEmptyList}
 import cats.data.Validated.{Invalid, Valid}
-import cats.syntax.either._
 import cats.effect.IO
 import cats.instances.vector._
 import cats.syntax.apply._
-import cats.syntax.traverse._
-import cats.syntax.validated._
 import cats.syntax.either._
 import cats.syntax.functor._
+import cats.syntax.traverse._
+import cats.syntax.validated._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.BackendWorkflowDescriptor
@@ -368,6 +366,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     def unZipFile(f: Path) = Try {
       val unzippedFile = f.unzipTo(parentPath)
       val unzippedFileContents = unzippedFile.list.toSeq.head
+      println(s"unzippedFileContents is ${unzippedFileContents.pathAsString} and is that a directory? ${unzippedFileContents.isDirectory}")
       if (unzippedFileContents.isDirectory) unzippedFileContents else unzippedFile
     }
 
@@ -455,8 +454,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   private def validateWdlNamespace(source: WorkflowSourceFilesCollection,
                                    workflowOptions: WorkflowOptions,
                                    pathBuilders: List[PathBuilder]): ErrorOr[ValidatedWomNamespace] = {
-    import cats.instances.list._
     import cats.instances.either._
+    import cats.instances.list._
     import cats.syntax.either._
     import cats.syntax.functor._
     import cats.syntax.validated._

@@ -11,7 +11,7 @@ import configs.Result
 import configs.syntax._
 import cromwell.api.CromwellClient
 import cromwell.api.model.WorkflowSingleSubmission
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 
 import scala.util.{Failure, Success, Try}
 

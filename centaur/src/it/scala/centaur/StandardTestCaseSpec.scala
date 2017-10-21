@@ -3,8 +3,6 @@ package centaur
 import centaur.test.standard.CentaurTestFormat.RestartFormat
 import org.scalatest._
 
-import scala.language.postfixOps
-
 @DoNotDiscover
 class StandardTestCaseSpec(cromwellBackends: List[String]) extends AbstractCentaurTestCaseSpec(cromwellBackends) with ParallelTestExecution {
   

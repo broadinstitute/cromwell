@@ -48,7 +48,7 @@ RUN_INTEGRATION_TESTS=0
 usage="
 $PROGNAME [-i ]
 
-Builds and runs specified branch of Cromwell and runs Centaur against it.
+Builds and runs Cromwell and runs Centaur against it.
 
 Arguments:
     -i    Flag that if supplied, will run centaur integration tests instead of standardtests
@@ -120,7 +120,10 @@ gcloud -q \
 echo "RUNNING TRAVIS CENTAUR"
 sbt assembly
 
-
+# This is some Travis goofiness. We want the feature branch in all cases, but Travis makes us jump through this hoop
+# depending on whether the build is for a PR or a push.
+CENTAUR_BRANCH=${TRAVIS_PULL_REQUEST_BRANCH:-${TRAVIS_BRANCH}}
+echo "Running with branch $CENTAUR_BRANCH"
 # Update the .inputs file with stuff specific to this run
 sed -i "s/CENTAUR_BRANCH/${CENTAUR_BRANCH}/g" src/bin/travis/resources/centaur.inputs
 CROMWELL_JAR=cromwell_${TRAVIS_BUILD_ID}.jar

@@ -2,9 +2,9 @@ package centaur.test.markers
 
 import cats.syntax.validated._
 import com.typesafe.config.Config
+import common.validation.ErrorOr.ErrorOr
 import configs.Result.{Failure, Success}
 import configs.syntax._
-import lenthall.validation.ErrorOr.ErrorOr
 
 object CallMarker {
   def fromConfig(config: Config): ErrorOr[Option[CallMarker]] = {

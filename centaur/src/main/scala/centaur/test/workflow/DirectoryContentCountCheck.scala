@@ -1,13 +1,13 @@
 package centaur.test.workflow
 
 import cats.data.Validated._
-import cats.syntax.cartesian._
+import cats.implicits._
 import centaur.test.{CheckFiles, JesCheckFiles, LocalCheckFiles}
 import com.google.cloud.storage.StorageOptions
 import com.typesafe.config.Config
 import configs.Result
 import configs.syntax._
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 
 final case class DirectoryContentCountCheck(expectedDrectoryContentsCounts: Map[String, Int], checkFiles: CheckFiles)
 
@@ -29,7 +29,7 @@ object DirectoryContentCountCheck {
         case Result.Failure(_) => invalidNel(s"Test '$name': Must specify a 'fileSystemCheck' value (must be either 'local' or 'gcs')")
       }
 
-      directoryContentCountsValidation |@| fileSystemChecker map { (d, f) => Option(DirectoryContentCountCheck(d, f)) }
+      (directoryContentCountsValidation, fileSystemChecker) mapN { (d, f) => Option(DirectoryContentCountCheck(d, f)) }
     }
   }
 }

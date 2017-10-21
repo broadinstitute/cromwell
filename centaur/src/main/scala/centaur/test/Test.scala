@@ -311,7 +311,7 @@ object Operations {
     }
 
     new Test[WorkflowMetadata] {
-      def validateMetadata(workflow: SubmittedWorkflow, expectedMetadata: WorkflowMetadata, cacheHitUUID: Option[UUID] = None): Try[WorkflowMetadata] = {
+      def validateMetadata(workflow: SubmittedWorkflow, expectedMetadata: WorkflowMetadata): Try[WorkflowMetadata] = {
         def checkDiff(diffs: Iterable[String]): Unit = {
           diffs match {
             case d if d.nonEmpty => throw new Exception(s"Invalid metadata response:\n -${d.mkString("\n -")}\n")
@@ -337,7 +337,7 @@ object Operations {
       override def run: Try[WorkflowMetadata] = workflowSpec.metadata match {
         case Some(expectedMetadata) =>
           eventually(OffsetDateTime.now(), CentaurConfig.metadataConsistencyTimeout) {
-            validateMetadata(submittedWorkflow, expectedMetadata, cacheHitUUID)
+            validateMetadata(submittedWorkflow, expectedMetadata)
           }
         // Nothing to wait for, so just return the first metadata we get back:
         case None => CentaurCromwellClient.metadata(submittedWorkflow)

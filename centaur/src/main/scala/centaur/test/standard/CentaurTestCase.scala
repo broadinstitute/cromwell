@@ -10,7 +10,7 @@ import centaur.test.standard.CentaurTestFormat._
 import centaur.test.submit.SubmitResponse
 import centaur.test.workflow.{AllBackendsRequired, AnyBackendRequired, OnlyBackendsAllowed, Workflow}
 import com.typesafe.config.{Config, ConfigFactory}
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 
 import scala.util.{Failure, Success, Try}
 
@@ -58,10 +58,10 @@ object CentaurTestCase {
 
   def fromConfig(conf: Config, configPath: Path): ErrorOr[CentaurTestCase] = {
     val workflow = Workflow.fromConfig(conf, configPath)
-    val format = CentaurTestFormat.fromConfig(conf).toValidated
+    val format: ErrorOr[CentaurTestFormat] = CentaurTestFormat.fromConfig(conf).toValidated
     val options = TestOptions.fromConfig(conf)
     val submit = SubmitResponse.fromConfig(conf)
-    workflow |@| format |@| options |@| submit map {
+    (workflow, format, options, submit) mapN {
       CentaurTestCase(_, _, _, _)
     }
   }

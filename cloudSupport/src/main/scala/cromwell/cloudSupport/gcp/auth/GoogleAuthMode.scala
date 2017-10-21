@@ -13,12 +13,14 @@ import com.google.auth.Credentials
 import com.google.auth.http.HttpTransportFactory
 import com.google.auth.oauth2.{GoogleCredentials, ServiceAccountCredentials, UserCredentials}
 import com.google.cloud.NoCredentials
+import cromwell.cloudsupport.gcp.auth.GoogleAuthMode.checkReadable
 import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.{CredentialFileFormat, JsonFileFormat, PemFileFormat}
-import GoogleAuthMode.checkReadable
 import cromwell.core.WorkflowOptions
 import cromwell.core.retry.Retry
 import org.slf4j.LoggerFactory
-
+import spray.json._
+import spray.json.DefaultJsonProtocol._
+import DefaultJsonProtocol._
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
@@ -185,10 +187,19 @@ final case class RefreshTokenMode(name: String,
 
   override def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = {
     val refreshToken = extractRefreshToken(options)
+    val json = Map(
+      "client_id" -> clientId,
+      "client_secret" -> clientSecret,
+      "refresh_token" -> refreshToken
+    ).toJson.prettyPrint
+
+    import java.io.ByteArrayInputStream
+    import java.nio.charset.StandardCharsets
+    val stream = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8.name))
+
     Retry.withRetry(
-      () => Future(validateCredential(
-        new UserCredentials(clientId, clientSecret, refreshToken, null, GoogleAuthMode.HttpTransportFactory, null)
-      )),
+      () => Future(validateCredential(UserCredentials.fromStream(stream, GoogleAuthMode.HttpTransportFactory))
+      ),
       isFatal = isFatal,
       maxRetries = Option(3)
     )

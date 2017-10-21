@@ -79,6 +79,7 @@ object Dependencies {
       exclude("com.google.api.grpc", "grpc-google-common-protos")
       exclude("com.google.cloud.datastore", "datastore-v1-protos")
       exclude("org.apache.httpcomponents", "httpclient"),
+    "com.google.cloud" % "google-cloud-compute" % "0.26.0-alpha",
     "org.apache.httpcomponents" % "httpclient" % "4.5.3"
   )
 
@@ -189,6 +190,11 @@ object Dependencies {
     "org.scalatest" %% "scalatest" % scalatestV % Test,
     "org.pegdown" % "pegdown" % pegdownV % Test
   ) ++ akkaHttpDependencies
+
+  val centaurDependencies = List(
+    "com.github.kxbmap" %% "configs" % "0.4.4",
+    "org.scalatest" %% "scalatest" % scalatestV % IntegrationTest
+  ) ++ cromwellApiClientDependencies ++ circeDependencies ++ googleCloudDependencies
 
   val engineDependencies = List(
     "commons-codec" % "commons-codec" % "1.10",

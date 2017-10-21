@@ -62,6 +62,13 @@ lazy val cromwellApiClient = (project in file("cromwellApiClient"))
   .settings(cromwellApiClientSettings: _*)
   .withTestSettings
 
+lazy val centaur = (project in file("centaur"))
+  .configs(IntegrationTest)
+  .settings(Defaults.itSettings ++ centaurSettings: _*)
+  .withTestSettings
+  .dependsOn(common)
+  .dependsOn(cromwellApiClient)
+
 lazy val services = (project in file("services"))
   .settings(servicesSettings:_*)
   .withTestSettings
@@ -157,6 +164,7 @@ lazy val root = (project in file("."))
   .aggregate(tesBackend)
   .aggregate(engine)
   .aggregate(cromwellApiClient)
+  .aggregate(centaur)
   // Next level of projects to include in the fat jar (their dependsOn will be transitively included)
   .dependsOn(engine)
   .dependsOn(jesBackend)
@@ -167,5 +175,3 @@ lazy val root = (project in file("."))
   .dependsOn(womtool)
   // Dependencies for tests
   .dependsOn(engine % "test->test")
-
-logLevel in ThisBuild := Level.Warn

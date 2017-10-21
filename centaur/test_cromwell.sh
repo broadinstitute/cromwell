@@ -89,6 +89,7 @@ if [[ -n ${CROMWELL_BRANCH} ]]; then
     fi
 
     cd cromwell
+    echo "Checking out CROMWELL_BRANCH $CROMWELL_BRANCH"
     git checkout "${CROMWELL_BRANCH}"
     git pull
     echo "Building Cromwell"
@@ -100,18 +101,10 @@ fi
 # Build and run centaur
 cd "${RUN_DIR}"
 
-if [[ ! -d "centaur" ]]; then
-    echo "Cloning Centaur"
-    git clone https://github.com/broadinstitute/centaur.git
-else
-    echo "Using an existing Centaur directory"
-fi
-
-cd centaur
 TEST_STATUS="failed"
 
-sbt test:compile
-CP=$(sbt "export test:dependency-classpath" --error)
+sbt centaur/it:compile
+CP=$(sbt "project centaur" "export it:dependency-classpath" --error)
 
 if [ -n "${TEST_CASE_DIR}" ]; then
     RUN_SPECIFIED_TEST_DIR_CMD="-Dcentaur.standardTestCasePath=${TEST_CASE_DIR}"
@@ -130,11 +123,13 @@ if [[ -n ${EXCLUDE_TAG[*]} ]]; then
     for val in "${EXCLUDE_TAG[@]}"; do 
         EXCLUDE="-l $val "$EXCLUDE
     done
-    TEST_COMMAND="java ${REFRESH_TOKEN} ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R target/scala-2.12/test-classes -oD -PS${TEST_THREAD_COUNT} "$EXCLUDE
+    TEST_COMMAND="java ${REFRESH_TOKEN} ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -PS${TEST_THREAD_COUNT} "$EXCLUDE
 else
     echo "Running Centaur with sbt test"
-    TEST_COMMAND="java ${REFRESH_TOKEN} ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R target/scala-2.12/test-classes -oD -PS${TEST_THREAD_COUNT}"
+    TEST_COMMAND="java ${REFRESH_TOKEN} ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -PS${TEST_THREAD_COUNT}"
 fi
+
+echo "TEST_COMMAND is ${TEST_COMMAND}"
 
 eval "${TEST_COMMAND} >> ${CENTAUR_LOG} 2>&1"
 

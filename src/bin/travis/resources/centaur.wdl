@@ -29,16 +29,14 @@ task centaur {
         
         mkdir -p /cromwell_root/tmp/ivy2
         export SBT_OPTS=-Dsbt.ivy.home=/cromwell_root/tmp/.ivy2
-        git clone https://github.com/broadinstitute/centaur.git
-        cd centaur
-        git checkout ${centaur_branch}
-        cd ..
-        centaur/test_cromwell.sh -j${cromwell_jar} -c${conf} -r/cromwell_root -t${token} -elocaldockertest -p100 ${ "-i" + integration_tests_dir}
+        echo "current directory $PWD"
+        git clone --branch=${centaur_branch} https://github.com/broadinstitute/cromwell.git
+        cromwell/centaur/test_cromwell.sh -j${cromwell_jar} -c${conf} -r/cromwell_root/cromwell -t${token} -elocaldockertest -p100 ${ "-i" + integration_tests_dir}
     >>>
 
     output {
-       File cromwell_log = "/cromwell_root/logs/cromwell.log"
-       File centaur_log_file = "/cromwell_root/logs/centaur.log"
+       File cromwell_log = "cromwell/logs/cromwell.log"
+       File centaur_log_file = "cromwell/logs/centaur.log"
     }
 
     runtime {

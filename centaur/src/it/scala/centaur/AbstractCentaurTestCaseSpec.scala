@@ -6,7 +6,7 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.instances.list._
 import cats.syntax.traverse._
 import centaur.test.standard.CentaurTestCase
-import lenthall.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.ErrorOr
 import org.scalatest.{DoNotDiscover, FlatSpec, Matchers, Tag}
 
 @DoNotDiscover
@@ -30,13 +30,13 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
 
   def executeStandardTest(testCase: CentaurTestCase): Unit = {
     def nameTest = s"${testCase.testFormat.testSpecString} ${testCase.workflow.testName}"
-    def runTest = testCase.testFunction.run.get
+    def runTest(): Unit = testCase.testFunction.run.get
 
     // Make tags, but enforce lowercase:
     val tags = (testCase.testOptions.tags :+ testCase.workflow.testName :+ testCase.testFormat.name) map { x => Tag(x.toLowerCase) }
     val isIgnored = testCase.isIgnored(cromwellBackends)
 
-    runOrDont(nameTest, tags, isIgnored, runTest)
+    runOrDont(nameTest, tags, isIgnored, runTest())
   }
 
   private def runOrDont(testName: String, tags: List[Tag], ignore: Boolean, runTest: => Any): Unit = {

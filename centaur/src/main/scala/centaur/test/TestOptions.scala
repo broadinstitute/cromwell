@@ -1,11 +1,11 @@
 package centaur.test
 
+import cats.Apply
+import cats.data.Validated._
+import com.typesafe.config.Config
+import common.validation.ErrorOr.ErrorOr
 import configs.Result.{Failure, Success}
 import configs.syntax._
-import cats.data.Validated._
-import cats.Apply
-import com.typesafe.config.Config
-import lenthall.validation.ErrorOr.ErrorOr
 
 case class TestOptions(tags: List[String], ignore: Boolean)
 

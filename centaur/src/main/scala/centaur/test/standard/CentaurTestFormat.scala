@@ -3,9 +3,9 @@ package centaur.test.standard
 import centaur.test.markers.CallMarker
 import centaur.test.standard.CentaurTestFormat._
 import com.typesafe.config.Config
+import common.Checked
 import configs.Result.{Failure, Success}
 import configs.syntax._
-import lenthall.Checked
 
 sealed abstract class CentaurTestFormat(val name: String) {
   val lowerCaseName = name.toLowerCase
@@ -27,7 +27,7 @@ sealed abstract class CentaurTestFormat(val name: String) {
 }
 
 object CentaurTestFormat {
-  import lenthall.validation.Checked._
+  import common.validation.Checked._
  
   sealed trait RestartFormat extends CentaurTestFormat
   sealed trait WithCallMarker { this: CentaurTestFormat => val build: CallMarker => CentaurTestFormat }

@@ -9,6 +9,9 @@ object Merging {
       MergeStrategy.concat
     case PathList(ps@_*) if Assembly.isReadme(ps.last) || Assembly.isLicenseFile(ps.last) =>
       MergeStrategy.rename
+    case PathList(ps@_*) if ps.last == "project.properties" =>
+      // Throw out some project.properties files from Google jars that otherwise collide at merge time.
+      MergeStrategy.filterDistinctLines
     case PathList("META-INF", path@_*) =>
       path map {
         _.toLowerCase

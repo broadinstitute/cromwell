@@ -3,9 +3,9 @@ package centaur.test.submit
 import cats.data.Validated._
 import cats.implicits._
 import com.typesafe.config.Config
+import common.validation.ErrorOr.ErrorOr
 import configs.Result
 import configs.syntax._
-import lenthall.validation.ErrorOr.ErrorOr
 
 case class SubmitResponse(statusCode: Int, message: String)
 
@@ -17,7 +17,7 @@ object SubmitResponse {
       case Result.Success(submitConf) =>
         val errorOrStatusCode: ErrorOr[Int] = toErrorOr(submitConf.get[Int]("statusCode"))
         val errorOrMessage: ErrorOr[String] = toErrorOr(submitConf.get[String]("message"))
-        errorOrStatusCode |@| errorOrMessage map {
+        (errorOrStatusCode, errorOrMessage) mapN {
           SubmitResponse(_, _)
         } map {
           Option(_)

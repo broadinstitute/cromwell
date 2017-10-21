@@ -212,6 +212,11 @@ object Settings {
   ) ++ sharedSettings ++ ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
     cromwellVersionWithGit ++ publishingSettings
 
+  val centaurSettings = List(
+    name := "centaur",
+    libraryDependencies ++= centaurDependencies
+  ) ++ sharedSettings
+
   val dockerHashingSettings = List(
     name := "cromwell-docker-hashing"
   ) ++ sharedSettings

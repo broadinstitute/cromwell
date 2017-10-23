@@ -39,6 +39,8 @@ pages:
     - GET /api/workflows/:version/query: api/GET_api_workflows_version_query.md
     - POST /api/workflows/:version/query: api/POST_api_workflows_version_query.md
     - PATCH /api/workflows/:version/:id/labels: api/PATCH_api_workflows_version_id_labels.md
+    - GET /api/workflows/:version/:id/status: api/GET_api_workflows_version_id_status.md
+    - GET /api/workflows/:version/:id/outputs: api/GET_api_workflows_version_id_outputs.md
 
 theme: readthedocs
 

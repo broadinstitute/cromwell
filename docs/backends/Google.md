@@ -1,4 +1,4 @@
-## Google Cloud Backend
+**Google Cloud Backend**
 
 Google Genomics Pipelines API is a Docker-as-a-service from Google. It was formerly called JES (Job Execution Service) so you will see references to JES in the configuration files and code.
 
@@ -187,3 +187,10 @@ In order to monitor metrics (CPU, Memory, Disk usage...) about the VM during Cal
 ```
 
 The output of this script will be written to a `monitoring.log` file that will be available in the call gcs bucket when the call completes.  This feature is meant to run a script in the background during long-running processes.  It's possible that if the task is very short that the log file does not flush before de-localization happens and you will end up with a zero byte file.
+
+### Google Cloud Storage Filesystem
+
+On the Google Pipelines backend the GCS (Google Cloud Storage) filesystem is used for the root of the workflow execution.
+On the Local, SGE, and associated backends any GCS URI will be downloaded locally.  For the Google backend the `jes_gcs_root` [workflow option](/workflowoptions) will take
+precedence over the `root` specified at `backend.providers.JES.config.root` in the configuration file. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
+workflows using the Google backend.

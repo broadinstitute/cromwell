@@ -1,4 +1,4 @@
-## Local Backend
+**Local Backend**
 
 The local backend will simply launch a subprocess for each task invocation and wait for it to produce its rc file.
 

@@ -1,4 +1,4 @@
-## Spark Backend
+**Spark Backend**
 
 This backend adds support for execution of spark jobs in a workflow.
 

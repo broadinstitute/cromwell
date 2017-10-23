@@ -49,9 +49,31 @@ package object cwl extends TypeAliases {
     */
 
   type StringOrExpression = Expression :+: String :+: CNil
-
   type Expression = ECMAScriptExpression :+: ECMAScriptFunction :+: CNil
 
+  object StringOrExpression {
+    object String {
+      def unapply(soe: StringOrExpression): Option[String] = soe.select[String]
+    }
+    object Expression {
+      def unapply(soe: StringOrExpression): Option[Expression] = soe.select[Expression]
+    }
+    object ECMAScriptExpression {
+      def unapply(soe: StringOrExpression): Option[ECMAScriptExpression] = soe.select[Expression].flatMap(_.select[ECMAScriptExpression])
+    }
+    object ECMAScriptFunction {
+      def unapply(soe: StringOrExpression): Option[ECMAScriptFunction] = soe.select[Expression].flatMap(_.select[ECMAScriptFunction])
+    }
+  }
+
+  object Expression {
+    object ECMAScriptExpression {
+      def unapply(soe: Expression): Option[ECMAScriptExpression] = soe.select[ECMAScriptExpression]
+    }
+    object ECMAScriptFunction {
+      def unapply(soe: Expression): Option[ECMAScriptFunction] = soe.select[ECMAScriptFunction]
+    }
+  }
 
   type WdlTypeMap = Map[String, WomType]
 

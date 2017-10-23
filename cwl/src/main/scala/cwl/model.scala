@@ -44,6 +44,15 @@ object WorkflowStepInput {
   type InputSource = String :+: Array[String] :+: CNil
 }
 
+object WorkflowStepInputSource {
+  object String {
+    def unapply(arg: InputSource): Option[String] = arg.select[String]
+  }
+  object StringArray {
+    def unapply(arg: InputSource): Option[Array[String]] = arg.select[Array[String]]
+  }
+}
+
 case class InputParameter(
                            id: String,
                            label: Option[String] = None,

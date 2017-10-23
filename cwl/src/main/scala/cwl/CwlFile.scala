@@ -60,17 +60,6 @@ case class CommandLineTool private(
   def womExecutable(inputFile: Option[String] = None): Checked[Executable] =
     CwlExecutableValidation.builWomExecutable(taskDefinition.validNelCheck, inputFile)
 
-
-  object BaseCommandToString extends Poly1 {
-    implicit def one = at[String] {
-      identity
-    }
-
-    implicit def many = at[Array[String]] {
-      _.mkString(" && ")
-    }
-  }
-
   object ArgumentToId extends Poly1 {
     implicit def ecmaScript:Case.Aux[Expression, String] = at[Expression] {
       _ => ???
@@ -166,4 +155,3 @@ object CommandLineTool {
 
   type Argument = Expression :+: CommandLineBinding :+: String :+: CNil
 }
-

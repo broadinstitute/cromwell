@@ -1,7 +1,5 @@
 package cwl
 
-// TODO WOM: these make us brittle:
-import shapeless.{Inl, Inr}
 import wom.CommandPart
 import wom.expression.IoFunctionSet
 import wom.graph.LocalName
@@ -33,9 +31,9 @@ case class CwlArgumentCommandPart(argument: CommandLineBinding) extends CommandP
     }), functions)
 
     val womValue: WomValue = argument match {
-      case CommandLineBinding(_, _, _, _, _, Some(Inl(expression: Expression)), Some(false)) =>
+      case CommandLineBinding(_, _, _, _, _, Some(StringOrExpression.Expression(expression)), Some(false)) =>
         expression.fold(EvaluateExpression).apply(pc)
-      case CommandLineBinding(_, _, _, _, _, Some(Inr(Inl(string: String))), Some(false)) =>
+      case CommandLineBinding(_, _, _, _, _, Some(StringOrExpression.String(string)), Some(false)) =>
         WomString(string)
       // There's a fair few other cases to add, but until then...
       case other => throw new NotImplementedError(s"As-yet-unsupported command line binding: $other")

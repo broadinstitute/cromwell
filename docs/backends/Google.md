@@ -1,6 +1,6 @@
-## Google JES Backend
+## Google Cloud Backend
 
-Google JES (Job Execution Service) is a Docker-as-a-service from Google.
+Google Genomics Pipelines API is a Docker-as-a-service from Google. It was formerly called JES (Job Execution Service) so you will see references to JES in the configuration files and code.
 
 ### Configuring Google Project
 
@@ -15,7 +15,7 @@ On your Google project, open up the [API Manager](https://console.developers.goo
 * Google Cloud Storage
 * Genomics API
 
-If your project is `my-project` your bucket is `gs://my-bucket/`, then update your [Cromwell configuration file](#configuring-cromwell) as follows:
+If your project is `my-project` your bucket is `gs://my-bucket/`, then update your [Cromwell configuration file](/configuring) as follows:
 
 ```hocon
 backend {
@@ -36,7 +36,7 @@ backend {
 }
 ```
 
-If your project has API quotas other than the defaults set the `genomics-api-queries-per-100-seconds` value to be the lesser of the `Queries per 100 seconds per user` and `Queries per 100 seconds` quotas. This value will be used to help tune Cromwell's rate of interaction with JES.
+If your project has API quotas other than the defaults set the `genomics-api-queries-per-100-seconds` value to be the lesser of the `Queries per 100 seconds per user` and `Queries per 100 seconds` quotas. This value will be used to help tune Cromwell's rate of interaction with Pipelines API.
 
 ### Configuring Authentication
 
@@ -80,8 +80,8 @@ google {
 ```
 
 These authorization schemes can be referenced by name within other portions of the configuration file.  For example, both
-the `genomics` and `filesystems.gcs` sections within a JES configuration block must reference an auth defined in this block.
-The auth for the `genomics` section governs the interactions with JES itself, while `filesystems.gcs` governs the localization
+the `genomics` and `filesystems.gcs` sections within a Google configuration block must reference an auth defined in this block.
+The auth for the `genomics` section governs the interactions with Google itself, while `filesystems.gcs` governs the localization
 of data into and out of GCE VMs.
 
 #### Application Default Credentials
@@ -124,20 +124,20 @@ While technically not part of Service Account authorization mode, one can also o
 
 #### Refresh Token
 
-A **refresh_token** field must be specified in the [workflow options](#workflow-options) when submitting the job.  Omitting this field will cause the workflow to fail.
+A **refresh_token** field must be specified in the [workflow options](/workflowoptions) when submitting the job.  Omitting this field will cause the workflow to fail.
 
-The refresh token is passed to JES along with the `client-id` and `client-secret` pair specified in the corresponding entry in `auths`.
+The refresh token is passed to Google along with the `client-id` and `client-secret` pair specified in the corresponding entry in `auths`.
 
 #### User Service Account
 
-A [JSON key file for the service account](####service-acocunt) must be passed in via the **user_service_account_json** field in the [workflow options](#workflow-options) when submitting the job. Omitting this field will cause the workflow to fail. The JSON should be passed as a string and will need to have no newlines and all instances of *"* and *\n* escaped. 
+A [JSON key file for the service account](####service-acocunt) must be passed in via the **user_service_account_json** field in the [workflow options](/workflowoptions) when submitting the job. Omitting this field will cause the workflow to fail. The JSON should be passed as a string and will need to have no newlines and all instances of *"* and *\n* escaped. 
 
 In the likely event that this service account does not have access to Cromwell's default google project the **google_project** workflow option must be set. In the similarly likely case that this service account can not access Cromwell's default google bucket, the **jes_gcs_root** workflow option should be set appropriately.
 
 
 ### Docker
 
-It is possible to reference private docker images in DockerHub to be run on JES.
+It is possible to reference private docker images in DockerHub to be run on Pipelines API.
 However, in order for the image to be pulled, the docker credentials with access to this image must be provided in the configuration file.
 
 

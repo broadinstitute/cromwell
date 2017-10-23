@@ -13,6 +13,6 @@ workflow-options {
 }
 ```
 
-The usual case of generating the temporary per workflow logs is to copy them to a remote directory, while deleting the local copy to preserve local disk space. To specify the remote directory to copy the logs to use the separate [workflow option](#workflow-options) `final_workflow_log_dir`.
+The usual case of generating the temporary per workflow logs is to copy them to a remote directory, while deleting the local copy to preserve local disk space. To specify the remote directory to copy the logs to use the separate [workflow option](/workflowoptions) `final_workflow_log_dir`.
 
 Cromwell supports [Sentry](https://docs.sentry.io), a service that can be used to monitor exceptions reported in an application's logs. To make use of this add `-Dsentry.dsn=DSN_URL` to your Java command line with your DSN URL.

@@ -52,11 +52,11 @@ task runtime_test {
 }
 ```
 
-SGE and similar backends may define other configurable runtime attributes beyond the five listed. See [Sun GridEngine](#sun-gridengine-backend) for more information.
+SGE and similar backends may define other configurable runtime attributes beyond the five listed. See [Sun GridEngine](/sge) for more information.
 
 ## Specifying Default Values
 
-Default values for runtime attributes can be specified via [workflow options](#workflow-options).  For example, consider this WDL file:
+Default values for runtime attributes can be specified via [workflow options](/workflowoptions).  For example, consider this WDL file:
 
 ```wdl
 task first {
@@ -247,7 +247,7 @@ Passed to JES: "If applicable, preemptible machines may be used for the run."
 
 Take an Int as a value that indicates the maximum number of times Cromwell should request a preemptible machine for this task before defaulting back to a non-preemptible one.
 eg. With a value of 1, Cromwell will request a preemptible VM, if the VM is preempted, the task will be retried with a non-preemptible VM.
-Note: If specified, this attribute overrides [workflow options](#workflow-options).
+Note: If specified, this attribute overrides [workflow options](/workflowoptions).
 
 ```
 runtime {

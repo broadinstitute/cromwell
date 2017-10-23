@@ -103,15 +103,15 @@ Each backend will utilize filesystems to store the directory structure of an exe
 
 The backend/filesystem pairings are as follows:
 
-* [Local Backend](#local-backend) and associated backends primarily use the [Shared Local Filesystem](#shared-local-filesystem).
-* [Google Backend](#google-jes-backend) uses the [Google Cloud Storage Filesystem](#google-cloud-storage-filesystem)
+* [Local Backend](/local) and associated backends primarily use the [Shared Local Filesystem](#shared-local-filesystem).
+* [Google Backend](/google) uses the [Google Cloud Storage Filesystem](#google-cloud-storage-filesystem)
 
 Note that while Local, SGE, LSF, etc. backends use the local or network filesystem for the directory structure of a workflow, they are able to localize inputs
 from GCS paths if configured to use a GCS filesystem.  See [Google Cloud Storage Filesystem](#google-cloud-storage-filesystem) for more details.
 
 ### Shared Local Filesystem
 
-For the [local](#local-backend) and [Sun GridEngine](#sun-gridengine-backend) backends, the following is required of the underlying filesystem:
+For the [local](/local) and [Sun GridEngine](/sge) backends, the following is required of the underlying filesystem:
 
 Cromwell is configured with a root execution directory which is set in the configuration file under `backend.providers.<backend_name>.config.root`.  This is called the `cromwell_root` and it is set to `./cromwell-executions` by default.  Relative paths are interpreted as relative to the current working directory of the Cromwell process.
 
@@ -227,6 +227,6 @@ filesystems {
 ### Google Cloud Storage Filesystem
 
 On the Google Pipelines backend the GCS (Google Cloud Storage) filesystem is used for the root of the workflow execution.
-On the Local, SGE, and associated backends any GCS URI will be downloaded locally.  For the Google backend the `jes_gcs_root` [workflow option](#workflow-options) will take
+On the Local, SGE, and associated backends any GCS URI will be downloaded locally.  For the Google backend the `jes_gcs_root` [workflow option](/workflowoptions) will take
 precedence over the `root` specified at `backend.providers.JES.config.root` in the configuration file. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
 workflows using the Google backend.

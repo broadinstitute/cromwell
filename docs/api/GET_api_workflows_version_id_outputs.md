@@ -1,5 +1,3 @@
-**GET /api/workflows/:version/:id/outputs**
-
 cURL:
 
 ```

@@ -41,6 +41,16 @@ pages:
     - PATCH /api/workflows/:version/:id/labels: api/PATCH_api_workflows_version_id_labels.md
     - GET /api/workflows/:version/:id/status: api/GET_api_workflows_version_id_status.md
     - GET /api/workflows/:version/:id/outputs: api/GET_api_workflows_version_id_outputs.md
+    - GET /api/workflows/:version/:id/timing: api/GET_api_workflows_version_id_timing.md
+    - GET /api/workflows/:version/:id/logs: api/GET_api_workflows_version_id_logs.md
+    - GET /api/workflows/:version/:id/metadata: api/GET_api_workflows_version_id_metadata.md
+    - POST /api/workflows/:version/:id/abort: api/POST_api_workflows_version_id_abort.md
+    - GET /api/workflows/:version/backends: api/GET_api_workflows_version_backends.md
+    - GET /api/workflows/:version/callcaching/diff: api/GET_api_workflows_version_callcaching_diff.md
+    - GET /engine/:version/stats: api/GET_engine_version_stats.md
+    - GET /engine/:version/version: api/GET_engine_version_version.md 
+    - GET /engine/:version/status: api/GET_engine_version_status.md
+    - Errors: api/ErrorHandling.md
 
 theme: readthedocs
 

@@ -103,8 +103,8 @@ Each backend will utilize filesystems to store the directory structure of an exe
 
 The backend/filesystem pairings are as follows:
 
-* [Local Backend](/local) and associated backends primarily use the [Shared Local Filesystem](SharedFilesystem).
-* [Google Backend](Google) uses the [Google Cloud Storage Filesystem](google).
+* [Local Backend](Local) and associated backends primarily use the [Shared Local Filesystem](SharedFilesystem).
+* [Google Backend](Google) uses the [Google Cloud Storage Filesystem](Google/#google-cloud-storage-filesystem).
 
 Note that while Local, SGE, LSF, etc. backends use the local or network filesystem for the directory structure of a workflow, they are able to localize inputs
-from GCS paths if configured to use a GCS filesystem.  See [Google Cloud Storage Filesystem](#google-cloud-storage-filesystem) for more details.
+from GCS paths if configured to use a GCS filesystem.  See [Google Storage Filesystem](Google/#google-cloud-storage-filesystem) for more details.

@@ -6,12 +6,12 @@ site_author: Red Team at Broad Institute
 repo_url: https://github.com/broadinstitute/cromwell/docs
 
 pages:
-- Hello: index.md
-- Getting Started: GettingHelp.md
-- Requirements: Requirements.md
-- Building: Building.md
-- Installing: Installing.md
-- Command Line Usage: CommandLine.md
+- Introduction: index.md
+- Getting started: GettingHelp.md
+- Development requirements: Requirements.md
+- How to Build: Building.md
+- Installation: Installing.md
+- Command Line: CommandLine.md
 - WDL: StartWDL.md
 - Configuration: Configuring.md
 - Security: Security.md

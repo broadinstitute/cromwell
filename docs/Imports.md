@@ -8,3 +8,7 @@ java -jar cromwell.jar wf.wdl wf.inputs - - WdlImports.zip
 ```
 
 In Server Mode, you pass in a zip file using the parameter `workflowDependencies` via the [POST /api/workflows/:version](/restapi#post-apiworkflowsversion) endpoint.
+
+## Imports via HTTPS
+
+TBC by Kcibul

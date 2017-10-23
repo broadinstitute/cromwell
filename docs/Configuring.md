@@ -69,7 +69,7 @@ system.io {
 }
 ```
 
-This is particularly useful when running Cromwell on a JES backend for example, as Google imposes a quota on the number of GCS queries that can be made.
+This is particularly useful when running Cromwell on a Pipelines API backend for example, as Google imposes a quota on the number of GCS queries that can be made.
 
 ### Resilience
 

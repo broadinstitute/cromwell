@@ -20,9 +20,9 @@ workflow jes_workflow {
 }
 ```
 
-This table lists the currently available runtime attributes for cromwell:
+This table lists the currently available runtime attributes for Cromwell:
 
-| Runtime Attribute    | LOCAL |  JES  |  SGE  |
+| Runtime Attribute    | LOCAL |  Pipelines API  |  SGE  |
 | -------------------- |:-----:|:-----:|:-----:|
 | continueOnReturnCode |   x   |   x   |   x   |
 | cpu                  |       |   x   |   x   |
@@ -133,7 +133,7 @@ Defaults to "0".
 
 ## cpu
 
-Passed to JES: "The minimum number of cores to use."
+Passed to Pipelines API: "The minimum number of cores to use."
 
 Passed to SGE, etc.: Configurable, but usually a reservation and/or limit of number of cores.
 
@@ -147,15 +147,15 @@ Defaults to "1".
 
 ## disks
 
-Passed to JES: "Disks to attach."
+Passed to Pipelines API: "Disks to attach."
 
 The disks are specified as a comma separated list of disks. Each disk is further separated as a space separated triplet of:
 
-1. Mount point (absolute path), or `local-disk` to reference the mount point where JES will localize files and the task's current working directory will be
+1. Mount point (absolute path), or `local-disk` to reference the mount point where Pipelines API will localize files and the task's current working directory will be
 2. Disk size in GB (ignored for disk type LOCAL)
 3. Disk type.  One of: "LOCAL", "SSD", or "HDD" ([documentation](https://cloud.google.com/compute/docs/disks/#overview))
 
-All tasks launched on JES *must* have a `local-disk`.  If one is not specified in the runtime section of the task, then a default of `local-disk 10 SSD` will be used.  The `local-disk` will be mounted to `/cromwell_root`.
+All tasks launched on Pipelines API *must* have a `local-disk`.  If one is not specified in the runtime section of the task, then a default of `local-disk 10 SSD` will be used.  The `local-disk` will be mounted to `/cromwell_root`.
 
 The Disk type must be one of "LOCAL", "SSD", or "HDD". When set to "LOCAL", the size of the drive is automatically provisioned by Google so any size specified in WDL will be ignored. All disks are set to auto-delete after the job completes.
 
@@ -176,7 +176,7 @@ runtime {
 ```
 
 ### Boot Disk
-In addition to working disks, JES allows specification of a boot disk size. This is the disk where the docker image itself is booted, **not the working directory of your task on the VM**.
+In addition to working disks, Pipelines API allows specification of a boot disk size. This is the disk where the docker image itself is booted, **not the working directory of your task on the VM**.
 Its primary purpose is to ensure that larger docker images can fit on the boot disk.
 ```
 runtime {
@@ -199,7 +199,7 @@ runtime {
 }
 ```
 
-Defaults to the configuration setting `genomics.default-zones` in the JES configuration block which in turn defaults to using `us-central1-b`
+Defaults to the configuration setting `genomics.default-zones` in the Pipelines API configuration block which in turn defaults to using `us-central1-b`
 
 ## docker
 
@@ -211,7 +211,7 @@ runtime {
 }
 ```
 
-This attribute is mandatory when submitting tasks to JES. When running on other backends, they default to not running the process within Docker.
+This attribute is mandatory when submitting tasks to Pipelines API. When running on other backends, they default to not running the process within Docker.
 
 ## failOnStderr
 
@@ -227,7 +227,7 @@ Defaults to "false".
 
 ## memory
 
-Passed to JES: "The minimum amount of RAM to use."
+Passed to Pipelines API: "The minimum amount of RAM to use."
 
 Passed to SGE, etc.: Configurable, but usually a reservation and/or limit of memory.
 
@@ -243,7 +243,7 @@ Defaults to "2G".
 
 ## preemptible
 
-Passed to JES: "If applicable, preemptible machines may be used for the run."
+Passed to Pipelines API: "If applicable, preemptible machines may be used for the run."
 
 Take an Int as a value that indicates the maximum number of times Cromwell should request a preemptible machine for this task before defaulting back to a non-preemptible one.
 eg. With a value of 1, Cromwell will request a preemptible VM, if the VM is preempted, the task will be retried with a non-preemptible VM.

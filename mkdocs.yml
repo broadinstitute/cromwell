@@ -16,14 +16,14 @@ pages:
 - Configuration: Configuring.md
 - Security: Security.md
 - Backends: 
-    - Backends overview: /backends/Backends.md
-    - Local: /backends/Local.md
-    - Shared Filesystem: /backends/SharedFilesystem.md
-    - Google Cloud: /backends/Google.md
-    - GA4GH TES: /backends/TES.md
-    - Sun GridEngine: /backends/SGE.md
-    - HdCondor: /backends/Hdcondor.md
-    - Spark: /backends/Spark.md
+    - Backends overview: backends/Backends.md
+    - Local: backends/Local.md
+    - Shared Filesystem: backends/SharedFilesystem.md
+    - Google Cloud: backends/Google.md
+    - GA4GH TES: backends/TES.md
+    - Sun GridEngine: backends/SGE.md
+    - HdCondor: backends/Hdcondor.md
+    - Spark: backends/Spark.md
 - Runtime Attributes: RuntimeAttributes.md
 - Logging: Logging.md
 - Instrumentation: Instrumentation.md

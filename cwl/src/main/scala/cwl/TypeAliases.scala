@@ -1,5 +1,6 @@
 package cwl
 
+import cwl.CommandLineTool._
 import shapeless.{:+:, CNil}
 import cwl.CwlType.CwlType
 

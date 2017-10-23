@@ -27,7 +27,7 @@ object CwlExecutableValidation {
       }
     }
 
-  def builWomExecutable(callable: Checked[Callable], inputFile: Option[String]): Checked[Executable] = {
+  def buildWomExecutable(callable: Checked[Callable], inputFile: Option[String]): Checked[Executable] = {
     for {
       womDefinition <- callable
       executable <- Executable.withInputs(womDefinition, inputCoercionFunction, inputFile)

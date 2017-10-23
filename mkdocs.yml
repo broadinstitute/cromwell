@@ -32,7 +32,12 @@ pages:
 - Call Caching: CallCaching.md
 - Imports: Imports.md
 - Sub-Workflows: SubWorkflows.md
-- REST API: RESTAPI.md
+- REST API: 
+    - Cromwell API: api/RESTAPI.md
+    - POST /api/workflows/:version: api/POST-api-workflows-version.md
+    - POST /api/workflows/:version/batch: api/POST-api-workflows-version-batch.md
+    - GET /api/workflows/:version/query: api/GET-api-workflows-version-query.md
+
 theme: readthedocs
 
 extra_css:

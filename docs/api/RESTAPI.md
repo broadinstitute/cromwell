@@ -6,7 +6,492 @@ The following sub-sections define which HTTP Requests the web server can accept 
 
 All web server requests include an API version in the url. The current version is `v1`.
 
+## POST /api/workflows/:version
 
+This endpoint accepts a POST request with a `multipart/form-data` encoded body.  The form fields that may be included are:
+
+* `workflowSource` - *Required* Contains the workflow source file to submit for execution.
+* `workflowType` - *Optional* The type of the `workflowSource`.
+   If not specified, returns the `workflow-options.default.workflow-type` configuration value with a default of `WDL`.
+* `workflowTypeVersion` - *Optional* The version of the `workflowType`, for example "draft-2".
+   If not specified, returns the `workflow-options.default.workflow-type-version` configuration value with no default.
+* `workflowInputs` - *Optional* JSON file containing the inputs.  For WDL workflows a skeleton file can be generated from [wdltool](https://github.com/broadinstitute/wdltool) using the "inputs" subcommand.
+* `workflowInputs_n` - *Optional* Where `n` is an integer. JSON file containing the 'n'th set of auxiliary inputs.
+* `workflowOptions` - *Optional* JSON file containing options for this workflow execution.  See the [run](#run) CLI sub-command for some more information about this.
+* `customLabels` - *Optional* JSON file containing a set of custom labels to apply to this workflow. See [Labels](/labels) for the expected format.
+* `workflowDependencies` - *Optional* ZIP file containing workflow source files that are used to resolve import statements.
+
+Regarding the workflowInputs parameter, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2.
+Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.
+
+Additionally, although Swagger has a limit of 5 JSON input files, the REST endpoint itself can accept an unlimited number of JSON input files.
+
+
+cURL:
+
+```
+$ curl -v "localhost:8000/api/workflows/v1" -F workflowSource=@src/main/resources/3step.wdl -F workflowInputs=@test.json
+```
+
+HTTPie:
+
+```
+$ http --print=hbHB --form POST localhost:8000/api/workflows/v1 workflowSource=@src/main/resources/3step.wdl workflowInputs@inputs.json
+```
+
+Request:
+
+```
+POST /api/workflows/v1 HTTP/1.1
+Accept: */*
+Accept-Encoding: gzip, deflate
+Connection: keep-alive
+Content-Length: 730
+Content-Type: multipart/form-data; boundary=64128d499e9e4616adea7d281f695dca
+Host: localhost:8000
+User-Agent: HTTPie/0.9.2
+
+--64128d499e9e4616adea7d281f695dca
+Content-Disposition: form-data; name="workflowSource"
+
+task ps {
+  command {
+    ps
+  }
+  output {
+    File procs = stdout()
+  }
+}
+
+task cgrep {
+  command {
+    grep '${pattern}' ${File in_file} | wc -l
+  }
+  output {
+    Int count = read_int(stdout())
+  }
+}
+
+task wc {
+  command {
+    cat ${File in_file} | wc -l
+  }
+  output {
+    Int count = read_int(stdout())
+  }
+}
+
+workflow three_step {
+  call ps
+  call cgrep {
+    input: in_file=ps.procs
+  }
+  call wc {
+    input: in_file=ps.procs
+  }
+}
+
+--64128d499e9e4616adea7d281f695dca
+Content-Disposition: form-data; name="workflowInputs"; filename="inputs.json"
+
+{
+    "three_step.cgrep.pattern": "..."
+}
+
+--64128d499e9e4616adea7d281f695dca--
+```
+
+Response:
+
+```
+HTTP/1.1 201 Created
+Content-Length: 74
+Content-Type: application/json; charset=UTF-8
+Date: Tue, 02 Jun 2015 18:06:28 GMT
+Server: spray-can/1.3.3
+
+{
+    "id": "69d1d92f-3895-4a7b-880a-82535e9a096e",
+    "status": "Submitted"
+}
+```
+
+To specify workflow options as well:
+
+
+cURL:
+
+```
+$ curl -v "localhost:8000/api/workflows/v1" -F workflowSource=@wdl/jes0.wdl -F workflowInputs=@wdl/jes0.json -F workflowOptions=@options.json
+```
+
+HTTPie:
+
+```
+http --print=HBhb --form POST http://localhost:8000/api/workflows/v1 workflowSource=@wdl/jes0.wdl workflowInputs@wdl/jes0.json workflowOptions@options.json
+```
+
+Request (some parts truncated for brevity):
+
+```
+POST /api/workflows/v1 HTTP/1.1
+Accept: */*
+Accept-Encoding: gzip, deflate
+Connection: keep-alive
+Content-Length: 1472
+Content-Type: multipart/form-data; boundary=f3fd038395644de596c460257626edd7
+Host: localhost:8000
+User-Agent: HTTPie/0.9.2
+
+--f3fd038395644de596c460257626edd7
+Content-Disposition: form-data; name="workflowSource"
+
+task x { ... }
+task y { ... }
+task z { ... }
+
+workflow myworkflow {
+  call x
+  call y
+  call z {
+    input: example="gs://my-bucket/cromwell-executions/myworkflow/example.txt", int=3000
+  }
+}
+
+--f3fd038395644de596c460257626edd7
+Content-Disposition: form-data; name="workflowInputs"; filename="jes0.json"
+
+{
+  "myworkflow.x.x": "100"
+}
+
+--f3fd038395644de596c460257626edd7
+Content-Disposition: form-data; name="workflowOptions"; filename="options.json"
+
+{
+  "jes_gcs_root": "gs://myworkflow-dev/workflows"
+}
+
+--f3fd038395644de596c460257626edd7--
+```
+
+## POST /api/workflows/:version/batch
+
+This endpoint accepts a POST request with a `multipart/form-data`
+encoded body.  The form fields that may be included are:
+
+* `workflowSource` - *Required* Contains the workflow source file to submit for
+execution.
+* `workflowInputs` - *Required* JSON file containing the inputs in a
+JSON array. For WDL workflows a skeleton file for a single inputs json element can be
+generated from [wdltool](https://github.com/broadinstitute/wdltool)
+using the "inputs" subcommand. The orderded endpoint responses will
+contain one workflow submission response for each input, respectively.
+* `workflowOptions` - *Optional* JSON file containing options for this
+workflow execution.  See the [run](#run) CLI sub-command for some more
+information about this.
+* `workflowDependencies` - *Optional* ZIP file containing workflow source files that are used to resolve import statements. Applied equally to all workflowInput sets.
+
+cURL:
+
+```
+$ curl -v "localhost:8000/api/workflows/v1/batch" -F workflowSource=@src/main/resources/3step.wdl -F workflowInputs=@test_array.json
+```
+
+HTTPie:
+
+```
+$ http --print=hbHB --form POST localhost:8000/api/workflows/v1/batch workflowSource=@src/main/resources/3step.wdl workflowInputs@inputs_array.json
+```
+
+Request:
+
+```
+POST /api/workflows/v1/batch HTTP/1.1
+Accept: */*
+Accept-Encoding: gzip, deflate
+Connection: keep-alive
+Content-Length: 750
+Content-Type: multipart/form-data; boundary=64128d499e9e4616adea7d281f695dcb
+Host: localhost:8000
+User-Agent: HTTPie/0.9.2
+
+--64128d499e9e4616adea7d281f695dcb
+Content-Disposition: form-data; name="workflowSource"
+
+task ps {
+  command {
+    ps
+  }
+  output {
+    File procs = stdout()
+  }
+}
+
+task cgrep {
+  command {
+    grep '${pattern}' ${File in_file} | wc -l
+  }
+  output {
+    Int count = read_int(stdout())
+  }
+}
+
+task wc {
+  command {
+    cat ${File in_file} | wc -l
+  }
+  output {
+    Int count = read_int(stdout())
+  }
+}
+
+workflow three_step {
+  call ps
+  call cgrep {
+    input: in_file=ps.procs
+  }
+  call wc {
+    input: in_file=ps.procs
+  }
+}
+
+--64128d499e9e4616adea7d281f695dcb
+Content-Disposition: form-data; name="workflowInputs"; filename="inputs_array.json"
+
+[
+    {
+        "three_step.cgrep.pattern": "..."
+    },
+    {
+        "three_step.cgrep.pattern": "..."
+    }
+]
+
+--64128d499e9e4616adea7d281f695dcb--
+```
+
+Response:
+
+```
+HTTP/1.1 201 Created
+Content-Length: 96
+Content-Type: application/json; charset=UTF-8
+Date: Tue, 02 Jun 2015 18:06:28 GMT
+Server: spray-can/1.3.3
+
+[
+    {
+        "id": "69d1d92f-3895-4a7b-880a-82535e9a096e",
+        "status": "Submitted"
+    },
+    {
+        "id": "69d1d92f-3895-4a7b-880a-82535e9a096f",
+        "status": "Submitted"
+    }
+]
+```
+
+To specify workflow options as well:
+
+
+cURL:
+
+```
+$ curl -v "localhost:8000/api/workflows/v1/batch" -F workflowSource=@wdl/jes0.wdl -F workflowInputs=@wdl/jes0_array.json -F workflowOptions=@options.json
+```
+
+HTTPie:
+
+```
+http --print=HBhb --form POST http://localhost:8000/api/workflows/v1/batch workflowSource=@wdl/jes0.wdl workflowInputs@wdl/jes0_array.json workflowOptions@options.json
+```
+
+Request (some parts truncated for brevity):
+
+```
+POST /api/workflows/v1/batch HTTP/1.1
+Accept: */*
+Accept-Encoding: gzip, deflate
+Connection: keep-alive
+Content-Length: 1492
+Content-Type: multipart/form-data; boundary=f3fd038395644de596c460257626edd8
+Host: localhost:8000
+User-Agent: HTTPie/0.9.2
+
+--f3fd038395644de596c460257626edd8
+Content-Disposition: form-data; name="workflowSource"
+
+task x { ... }
+task y { ... }
+task z { ... }
+
+workflow myworkflow {
+  call x
+  call y
+  call z {
+    input: example="gs://my-bucket/cromwell-executions/myworkflow/example.txt", int=3000
+  }
+}
+
+--f3fd038395644de596c460257626edd8
+Content-Disposition: form-data; name="workflowInputs"; filename="jes0_array.json"
+
+[
+  {
+    "myworkflow.x.x": "100"
+  }, {
+    "myworkflow.x.x": "101"
+  }
+]
+
+--f3fd038395644de596c460257626edd8
+Content-Disposition: form-data; name="workflowOptions"; filename="options.json"
+
+{
+  "jes_gcs_root": "gs://myworkflow-dev/workflows"
+}
+
+--f3fd038395644de596c460257626edd8--
+```
+
+
+## GET /api/workflows/:version/query
+
+This endpoint allows for querying workflows based on the following criteria:
+
+* `name`
+* `id`
+* `status`
+* `label`
+* `start` (start datetime with mandatory offset)
+* `end` (end datetime with mandatory offset)
+* `page` (page of results)
+* `pagesize` (# of results per page)
+
+Names, ids, and statuses can be given multiple times to include
+workflows with any of the specified names, ids, or statuses. When
+multiple names are specified, any workflow matching one of the names
+will be returned. The same is true for multiple ids or statuses. When
+more than one label is specified, only workflows associated to all of
+the given labels will be returned. 
+
+When a combination of criteria are specified, for example querying by 
+names and statuses, the results must return workflows that match one of 
+the specified names and one of the statuses. Using page and pagesize will
+enable server side pagination.
+
+Valid statuses are `Submitted`, `Running`, `Aborting`, `Aborted`, `Failed`, and `Succeeded`.  `start` and `end` should
+be in [ISO8601 datetime](https://en.wikipedia.org/wiki/ISO_8601) format with *mandatory offset* and `start` cannot be after `end`.
+
+cURL:
+
+```
+$ curl "http://localhost:8000/api/workflows/v1/query?start=2015-11-01T00%3A00%3A00-04%3A00&end=2015-11-04T00%3A00%3A00-04%3A00&status=Failed&status=Succeeded&page=1&pagesize=10"
+```
+
+HTTPie:
+
+```
+$ http "http://localhost:8000/api/workflows/v1/query?start=2015-11-01T00%3A00%3A00-04%3A00&end=2015-11-04T00%3A00%3A00-04%3A00&status=Failed&status=Succeeded&page=1&pagesize=10"
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 133
+Content-Type: application/json; charset=UTF-8
+Date: Tue, 02 Jun 2015 18:06:56 GMT
+Server: spray-can/1.3.3
+
+{
+  "results": [
+    {
+      "name": "w",
+      "id": "fdfa8482-e870-4528-b639-73514b0469b2",
+      "status": "Succeeded",
+      "end": "2015-11-01T07:45:52.000-05:00",
+      "start": "2015-11-01T07:38:57.000-05:00"
+    },
+    {
+      "name": "hello",
+      "id": "e69895b1-42ed-40e1-b42d-888532c49a0f",
+      "status": "Succeeded",
+      "end": "2015-11-01T07:45:30.000-05:00",
+      "start": "2015-11-01T07:38:58.000-05:00"
+    },
+    {
+      "name": "crasher",
+      "id": "ed44cce4-d21b-4c42-b76d-9d145e4d3607",
+      "status": "Failed",
+      "end": "2015-11-01T07:45:44.000-05:00",
+      "start": "2015-11-01T07:38:59.000-05:00"
+    }
+  ]
+}
+```
+
+Labels have to be queried in key and value pairs separated by a colon, i.e. `label-key:label-value`. For example, if a batch of workflows was submitted with the following labels JSON:
+```
+{
+  "label-key-1" : "label-value-1",
+  "label-key-2" : "label-value-2"
+}
+```
+
+A request to query for succeeded workflows with both labels would be:
+
+cURL:
+```
+$ curl "http://localhost:8000/api/workflows/v1/query?status=Succeeded&label=label-key-1:label-value-1&label=label-key-2:label-value-2
+```
+
+HTTPie:
+```
+$ http "http://localhost:8000/api/workflows/v1/query?status=Succeeded&label=label-key-1:label-value-1&label=label-key-2:label-value-2
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 608
+Content-Type: application/json; charset=UTF-8
+Date: Tue, 9 May 2017 20:24:33 GMT
+Server: spray-can/1.3.3
+
+{
+    "results": [
+        {
+            "end": "2017-05-09T16:07:30.515-04:00", 
+            "id": "83fc23d5-48d1-456e-997a-087e55cd2e06", 
+            "name": "wf_hello", 
+            "start": "2017-05-09T16:01:51.940-04:00", 
+            "status": "Succeeded"
+        }, 
+        {
+            "end": "2017-05-09T16:07:13.174-04:00", 
+            "id": "7620a5c6-a5c6-466c-994b-dd8dca917b9b", 
+            "name": "wf_goodbye", 
+            "start": "2017-05-09T16:01:51.939-04:00", 
+            "status": "Succeeded"
+        }
+    ]
+}
+```
+
+Query data is refreshed from raw data periodically according to the configuration value `services.MetadataService.metadata-summary-refresh-interval`.
+This interval represents the duration between the end of one summary refresh sweep and the beginning of the next sweep.  If not specified the
+refresh interval will default to 2 seconds.  To turn off metadata summary refresh, specify an infinite refresh interval value with "Inf".
+
+```
+services {
+  MetadataService {
+    config {
+      metadata-summary-refresh-interval = "10 seconds"
+    }
+  }
+}
+```
 
 ## POST /api/workflows/:version/query
 

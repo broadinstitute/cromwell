@@ -3,6 +3,7 @@ package cromwell.engine.workflow.lifecycle
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
 import akka.pattern.pipe
 import cats.Monad
+import cats.data.{EitherT, NonEmptyList}
 import cats.data.NonEmptyList
 import cats.data.EitherT._
 import cats.data.Validated.{Invalid, Valid}
@@ -360,20 +361,20 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   //    }
   //  }
 
-  private def validateImportsDirectory(zipContents: Array[Byte]): ErrorOr[Path] = {
+  private def validateImportsDirectory(zipContents: Array[Byte], parentPath: Option[Path] = None): ErrorOr[Path] = {
 
-    def makeZipFile(contents: Array[Byte]): Try[Path] = Try {
-      DefaultPathBuilder.createTempFile("", ".zip").writeByteArray(contents)(OpenOptions.default)
+    def makeZipFile: Try[Path] = Try {
+      DefaultPathBuilder.createTempFile("", ".zip", parentPath).writeByteArray(zipContents)(OpenOptions.default)
     }
 
     def unZipFile(f: Path) = Try {
-      val unzippedFile = f.unzip()
+      val unzippedFile = f.unzipTo(parentPath)
       val unzippedFileContents = unzippedFile.list.toSeq.head
       if (unzippedFileContents.isDirectory) unzippedFileContents else unzippedFile
     }
 
     val importsFile = for {
-      zipFile <- makeZipFile(zipContents)
+      zipFile <- makeZipFile
       unzipped <- unZipFile(zipFile)
       _ <- Try(zipFile.delete(swallowIOExceptions = true))
     } yield unzipped
@@ -436,20 +437,27 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     // TODO WOM: CwlDecoder takes a file so write it to disk for now
     import better.files._
 
-    val cwlFile = File.newTemporaryFile(prefix = workflowIdForLogging.toString).write(source.workflowSource)
+    val cwlFile: File = File.newTemporaryFile(prefix = workflowIdForLogging.toString).write(source.workflowSource)
 
-    try {
-      for {
-        cwl <- CwlDecoder.decodeAllCwl(cwlFile)
-        wf <- fromEither[IO](cwl.select[Workflow].toRight(NonEmptyList.one(s"expected a workflow but got a $cwl")))
-        executable <-  fromEither[IO](wf.womExecutable(Option(source.inputsJson)))
-        graph <- fromEither[IO](executable.graph.toEither)
-        ioFunctions = new WdlFunctions(pathBuilders)
-        validatedWomNamespace <- fromEither[IO](validateWomNamespace(executable, ioFunctions))
-      } yield validatedWomNamespace
-    } finally {
-      cwlFile.delete(swallowIOExceptions = true)
+    def unzipDependencies: Parse[Unit]  = source match {
+      case wsfwdz: WorkflowSourceFilesWithDependenciesZip =>
+        EitherT.
+          fromEither[IO]{validateImportsDirectory(wsfwdz.importsZip, Some(DefaultPathBuilder.build(cwlFile.parent.path))).toEither}.
+          map(_ => ())
+      case _ => Monad[Parse].unit
     }
+
+    println(s"exists: " + cwlFile.exists)
+
+    for {
+      _ <- unzipDependencies
+      cwl <- CwlDecoder.decodeAllCwl(cwlFile)
+      wf <- fromEither[IO](cwl.select[Workflow].toRight(NonEmptyList.one(s"expected a workflow but got a $cwl")))
+      executable <-  fromEither[IO](wf.womExecutable(Option(source.inputsJson)))
+      graph <- fromEither[IO](executable.graph.toEither)
+      ioFunctions = new WdlFunctions(pathBuilders)
+      validatedWomNamespace <- fromEither[IO](validateWomNamespace(executable, ioFunctions))
+    } yield validatedWomNamespace
   }
 
   private def validateWdlNamespace(source: WorkflowSourceFilesCollection,

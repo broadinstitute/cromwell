@@ -5,12 +5,6 @@ import cwl.CwlType.CwlType
 import wom.types.WomType
 
 object RunOutputsToTypeMap extends Poly1 {
-  def mungeId(fullyQualifiedId: String): String = {
-    val step = fullyQualifiedId.substring(fullyQualifiedId.lastIndexOf("#") + 1)
-    // Doesn't matter if the string actually contains '/' or not, this takes the whole string if it's absent
-    // which works out to be the right thing to do.
-    step.substring(step.lastIndexOf("/") + 1)
-  }
 
   def handleCommandLine(clt: CommandLineTool): Map[String, WomType] = {
     clt.outputs.toList.foldLeft(Map.empty[String, WomType]) {

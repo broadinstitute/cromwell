@@ -1,14 +1,13 @@
 package cwl
 
 import cats.syntax.option._
-import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
-import cwl.WorkflowStepInput.InputSource
-import shapeless.{Inl, Poly1}
-import wom.expression.{IoFunctionSet, WomExpression}
 import wom.types._
 import wom.values._
+import wom.expression.{IoFunctionSet, WomExpression}
+import cats.syntax.validated._
+import cwl.WorkflowStepInput.InputSource
 
 sealed trait CwlWomExpression extends WomExpression {
 
@@ -59,7 +58,7 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput, override 
 
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet) = {
     (input.valueFrom, input.source) match {
-      case (None, Some(Inl(id: String))) =>
+      case (None, Some(WorkflowStepInputSource.String(id))) =>
         inputValues.
           get(FullyQualifiedName(id).id).
           toValidNel(s"could not find id $id in typeMap\n${inputValues.mkString("\n")}\nwhen evaluating $input.  Graph Inputs were ${graphInputs.mkString("\n")}")
@@ -69,14 +68,10 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput, override 
 
   override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType) = ???
 
-  object InputSourceToFileNames extends Poly1{
-
-    implicit def string = at[String]{s => Set(FullyQualifiedName(s).id)}
-
-    implicit def array = at[Array[String]]{_.map(FullyQualifiedName(_).id).toSet}
-  }
-
-  override def inputs = graphInputs ++ input.source.toSet.flatMap{(_:InputSource).fold(InputSourceToFileNames)}
+  override def inputs = graphInputs ++ input.source.toSet.flatMap{ inputSource: InputSource => inputSource match {
+    case WorkflowStepInputSource.String(s) => Set(FullyQualifiedName(s).id)
+    case WorkflowStepInputSource.StringArray(sa) => sa.map(FullyQualifiedName(_).id).toSet
+  }}
 }
 
 

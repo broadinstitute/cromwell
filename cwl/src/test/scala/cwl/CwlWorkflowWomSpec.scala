@@ -128,8 +128,12 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
     (5, Coproduct[StringOrExpression]("-l"))
   )
 
-  private def getTestName(stringOrExpression: StringOrExpression): String = {
-    stringOrExpression.fold(StringOrExpressionToTestName)
+  private def getTestName(stringOrExpression: StringOrExpression): String = stringOrExpression match {
+    case StringOrExpression.String(s) => s"string $s"
+    // Although these two cases look the same, they're actually calling different 'value' functions. So we
+    // can't collapse this to a single "case StringOrExpression.Expression(e) => e.value":
+    case StringOrExpression.ECMAScriptExpression(e) => e.value
+    case StringOrExpression.ECMAScriptFunction(f) => f.value
   }
 
   private lazy val commandLineTool: CommandLineTool = {
@@ -215,19 +219,3 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
   }
 
 }
-object ExpressionTestValue extends Poly1 {
-  implicit def script = at[ECMAScriptExpression] {_.value}
-  implicit def function = at[ECMAScriptFunction] {_.value}
-}
-
-object StringOrExpressionToTestName extends Poly1 {
-  implicit def caseECMAScript: Case.Aux[Expression, String] = {
-    at[Expression] { _.fold(ExpressionTestValue) }
-  }
-
-  implicit def caseString: Case.Aux[String, String] = {
-    at[String] { string => s"string $string" }
-  }
-
-}
-

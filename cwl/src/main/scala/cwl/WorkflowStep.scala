@@ -243,11 +243,6 @@ object WorkflowStep {
 
   val emptyOutputs: Outputs = Coproduct[Outputs](Array.empty[String])
 
-  object InputSourcesFold extends Poly1 {
-    implicit def one: Case.Aux[String, Set[String]] = at[String] { Set(_) }
-    implicit def many: Case.Aux[Array[String], Set[String]] = at[Array[String]] { _.toSet }
-  }
-
   type Run =
     String :+:
       CommandLineTool :+:

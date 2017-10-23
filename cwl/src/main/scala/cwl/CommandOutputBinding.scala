@@ -56,7 +56,10 @@ case class CommandOutputBinding(
 
     outputEval match {
       case Some(outputEvalCoproduct) =>
-        outputEvalCoproduct.fold(OutputEvalToWdlValue).apply(outputEvalParameterContext)
+        outputEvalCoproduct match {
+          case StringOrExpression.String(s) => WomString(s)
+          case StringOrExpression.Expression(e) => e.fold(EvaluateExpression).apply(outputEvalParameterContext)
+        }
       case None =>
         // Return the WdlArray of file paths, three_step.ps needs this for stdout output.
         // There will be conversion required between this Array[File] output type and the requested File.

@@ -39,7 +39,7 @@ The `--help` option prints the full help text above and exits.
 ## server
 
 The `server` command runs Cromwell as a web server.  No arguments are accepted.
-See the documentation for Cromwell's REST endpoints [here](#rest-api).
+See the documentation for Cromwell's REST endpoints [here](/restapi).
 
 ## run
 
@@ -54,7 +54,7 @@ requirements rather than hardcoding inputs directly into a workflow source file.
 
 ### --options
 An optional file of workflow options.  Some options are global (supported by all backends), while others are backend-specific.
-See the [workflow options](#workflow-options) documentation for more details.
+See the [workflow options](/workflowoptions) documentation for more details.
 
 ### --type
 An optional parameter to specify the language for the workflow source.  Any value specified for this parameter is currently

@@ -18,7 +18,7 @@ This endpoint accepts a POST request with a `multipart/form-data` encoded body. 
 * `workflowInputs` - *Optional* JSON file containing the inputs.  For WDL workflows a skeleton file can be generated from [wdltool](https://github.com/broadinstitute/wdltool) using the "inputs" subcommand.
 * `workflowInputs_n` - *Optional* Where `n` is an integer. JSON file containing the 'n'th set of auxiliary inputs.
 * `workflowOptions` - *Optional* JSON file containing options for this workflow execution.  See the [run](#run) CLI sub-command for some more information about this.
-* `customLabels` - *Optional* JSON file containing a set of custom labels to apply to this workflow. See [Labels](#labels) for the expected format.
+* `customLabels` - *Optional* JSON file containing a set of custom labels to apply to this workflow. See [Labels](/labels) for the expected format.
 * `workflowDependencies` - *Optional* ZIP file containing workflow source files that are used to resolve import statements.
 
 Regarding the workflowInputs parameter, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2.
@@ -496,7 +496,7 @@ services {
 ## POST /api/workflows/:version/query
 
 This endpoint allows for querying workflows based on the same criteria
-as [GET /api/workflows/:version/query](#get-apiworkflowsversionquery).
+as [GET /api/workflows/:version/query](/restpi#get-apiworkflowsversionquery).
 
 Instead of specifying query parameters in the URL, the parameters
 must be sent via the POST body. The request content type must be
@@ -554,7 +554,7 @@ Server: spray-can/1.3.3
 
 This endpoint is used to update multiple labels for an existing workflow. When supplying a label with a key unique to the workflow submission, a new label key/value entry is appended to that workflow's metadata. When supplying a label with a key that is already associated to the workflow submission, the original label value is updated with the new value for that workflow's metadata.
 
-The [labels](#labels) must be a mapping of key/value pairs in JSON format that are sent via the PATCH body. The request content type must be
+The [labels](/labels) must be a mapping of key/value pairs in JSON format that are sent via the PATCH body. The request content type must be
 `application/json`.
 
 cURL:

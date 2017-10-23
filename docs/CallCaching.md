@@ -1,6 +1,6 @@
 Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  Cromwell searches the cache of previously run jobs for a one that has the exact same command and exact same inputs.  If a previously run job is found in the cache, Cromwell will **copy the results** of the previous job instead of re-running it.
 
-Cromwell's call cache is maintained in its database.  For best mileage with call caching, configure Cromwell to [point to a MySQL database](#database) instead of the default in-memory database.  This way any invocation of Cromwell (either with `run` or `server` subcommands) will be able to utilize results from all calls that are in that database.
+Cromwell's call cache is maintained in its database.  For best mileage with call caching, configure Cromwell to [point to a MySQL database](/configuring#database) instead of the default in-memory database.  This way any invocation of Cromwell (either with `run` or `server` subcommands) will be able to utilize results from all calls that are in that database.
 
 **Call Caching is disabled by default.**  Once enabled, Cromwell will search the call cache for every `call` statement invocation, assuming `read_from_cache` is enabled (see below):
 
@@ -10,7 +10,7 @@ Cromwell's call cache is maintained in its database.  For best mileage with call
 > **Note:** If call caching is enabled, be careful not to change the contents of the output directory for any previously run job.  Doing so might cause cache hits in Cromwell to copy over modified data and Cromwell currently does not check that the contents of the output directory changed.
 
 ## Configuring Call Caching
-To enable Call Caching, add the following to your Cromwell [configuration](#configuring-cromwell):
+To enable Call Caching, add the following to your Cromwell [configuration](/configuring):
 
 ```
 call-caching {
@@ -23,7 +23,7 @@ When `call-caching.enabled=true` (default: `false`), Cromwell will be able to to
 When `invalidate-bad-cache-results=true` (default: `true`), Cromwell will invalidate any cache results which fail to copy during a cache-hit. This is usually desired but might be unwanted if a cache might fail to copy for external reasons, such as a difference in user authentication.
 
 ## Call Caching Workflow Options
-Cromwell also accepts two [workflow option](#workflow-options) related to call caching:
+Cromwell also accepts two [workflow option](/workflowoptions) related to call caching:
 
 * If call caching is enabled, but one wishes to run a workflow but not add any of the calls into the call cache when they finish, the `write_to_cache` option can be set to `false`.  This value defaults to `true`.
 * If call caching is enabled, but you don't want to check the cache for any `call` invocations, set the option `read_from_cache` to `false`.  This value also defaults to `true`

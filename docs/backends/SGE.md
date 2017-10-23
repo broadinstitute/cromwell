@@ -1,4 +1,4 @@
-## Sun GridEngine Backend
+**Sun GridEngine Backend**
 
 The GridEngine and similar backends use programs such as `qsub` to launch a job and will poll the filesystem to determine if a job is completed.
 

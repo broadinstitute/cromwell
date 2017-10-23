@@ -1,4 +1,5 @@
-## GA4GH TES Backend
+**GA4GH TES Backend**
+
 The TES backend submits jobs to a server that complies with the protocol described by the [GA4GH schema](https://github.com/ga4gh/task-execution-schemas).
 
 This backend creates three files in the `<call_dir>`:

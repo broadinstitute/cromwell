@@ -1,17 +1,44 @@
 package cwl
 
+import cats.data.NonEmptyList
 import eu.timepit.refined._
+import cats.syntax.either._
 import shapeless.{:+:, CNil, Witness}
 import shapeless.syntax.singleton._
 import cwl.LinkMergeMethod.LinkMergeMethod
 import cwl.WorkflowStepInput.InputSource
+import lenthall.validation.ErrorOr.ErrorOr
+import wom.types.WomType
+import wom.graph.WomIdentifier
+import wom.graph.GraphNodePort.OutputPort
+import wom.graph.expression.ExposedExpressionNode
 
 case class WorkflowStepInput(
   id: String,
   source: Option[InputSource] = None,
   linkMerge: Option[LinkMergeMethod] = None,
   default: Option[CwlAny] = None,
-  valueFrom: Option[StringOrExpression] = None)
+  valueFrom: Option[StringOrExpression] = None) {
+
+  def toExpressionNode(sourceMappings: Map[String, OutputPort],
+                       outputTypeMap: Map[String, WomType],
+                       inputs: Set[String]
+                      ): ErrorOr[ExposedExpressionNode] = {
+    val source = this.source.flatMap(_.select[String]).get
+    val lookupId = FullyQualifiedName(source).id
+
+    val outputTypeMapWithIDs = outputTypeMap.map {
+      case (key, value) => FullyQualifiedName(key).id -> value
+    }
+    (for {
+      inputType <- outputTypeMapWithIDs.get(lookupId).
+        toRight(NonEmptyList.one(s"couldn't find $lookupId as derived from $source in map\n${outputTypeMapWithIDs.mkString("\n")}"))
+      womExpression = WorkflowStepInputExpression(this, inputType, inputs)
+      identifier = WomIdentifier(id)
+      ret <- ExposedExpressionNode.fromInputMapping(identifier, womExpression, inputType, sourceMappings).toEither
+    } yield ret).toValidated
+  }
+}
 
 object WorkflowStepInput {
   type InputSource = String :+: Array[String] :+: CNil

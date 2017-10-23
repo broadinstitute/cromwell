@@ -14,14 +14,14 @@ import lenthall.Checked
 import lenthall.validation.Checked._
 import lenthall.validation.ErrorOr.ErrorOr
 import shapeless._
+import cwl.ScatterMethod._
+import cwl.WorkflowStep._
+import wom.values.WomValue
 import wom.callable.Callable._
-import wom.expression.PlaceholderWomExpression
 import wom.graph.CallNode._
 import wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 import wom.graph._
-import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode}
-import wom.types.WomAnyType
-import wom.values.WomValue
+import wom.graph.expression.ExpressionNode
 
 import scala.language.postfixOps
 import scala.util.Try
@@ -49,7 +49,7 @@ case class WorkflowStep(
 
   def fileName: Option[String] = run.select[String]
 
-  val unqualifiedStepId = WomIdentifier(Try(WorkflowStepId(id)).map(_.stepId).getOrElse(id))
+  val unqualifiedStepId = WomIdentifier(Try(FullyQualifiedName(id)).map(_.id).getOrElse(id))
 
   /**
     * Generates all GraphNodes necessary to represent call nodes and input nodes
@@ -87,7 +87,6 @@ case class WorkflowStep(
           val inputSource: String = workflowStepInput.source.flatMap(_.select[String]).get
 
           // Name of the step input
-          val stepInputName = WorkflowStepInputOrOutputId(workflowStepInput.id).ioId
 
           val accumulatedNodes = fold.generatedNodes ++ knownNodes
 
@@ -113,7 +112,7 @@ case class WorkflowStep(
           def buildUpstreamNodes(upstreamStepId: String): Checked[Set[GraphNode]] =
           // Find the step corresponding to this upstreamStepId in the set of all the steps of this workflow
             for {
-              step <- workflow.steps.find { step => WorkflowStepId(step.id).stepId == upstreamStepId }.
+              step <- workflow.steps.find { step => FullyQualifiedName(step.id).id == upstreamStepId }.
                 toRight(NonEmptyList.one(s"no step of id $upstreamStepId found in ${workflow.steps.map(_.id)}"))
               call <- step.callWithInputs(typeMap, workflow, accumulatedNodes, workflowInputs)
             } yield call
@@ -140,9 +139,9 @@ case class WorkflowStep(
 
           def updateFold(outputPort: OutputPort, newCallNodes: Set[GraphNode] = Set.empty): Checked[WorkflowStepInputFold] = {
             // TODO for now we only handle a single input source, but there may be several
-            workflowStepInput.toExpressionNode(Map(inputSource -> outputPort)).map({ expressionNode =>
+            workflowStepInput.toExpressionNode(Map(FullyQualifiedName(inputSource).id -> outputPort) ++ workflowInputs, typeMap, workflowInputs.keySet).map({ expressionNode =>
               fold |+| WorkflowStepInputFold(
-                stepInputMapping = Map(stepInputName -> expressionNode),
+                stepInputMapping = Map(FullyQualifiedName(workflowStepInput.id).id -> expressionNode),
                 generatedNodes = newCallNodes + expressionNode
               )
             }).toEither
@@ -156,9 +155,9 @@ case class WorkflowStep(
            */
           FullyQualifiedName(inputSource) match {
             // The source points to a workflow input, which means it should be in the workflowInputs map
-            case WorkflowInputId(_, inputId) => fromWorkflowInput(inputId)
+            case FileAndId(_, inputId) => fromWorkflowInput(inputId)
             // The source points to an output from a different step
-            case WorkflowStepInputOrOutputId(_, stepId, stepOutputId) => fromStepOutput(stepId, stepOutputId)
+            case FileStepAndId(_, stepId, stepOutputId) => fromStepOutput(stepId, stepOutputId)
           }
       }
 
@@ -243,14 +242,6 @@ object WorkflowStep {
                                                  generatedNodes: Set[GraphNode] = Set.empty)
 
   val emptyOutputs: Outputs = Coproduct[Outputs](Array.empty[String])
-
-  implicit class EnhancedWorkflowStepInput(val workflowStepInput: WorkflowStepInput) extends AnyVal {
-    def toExpressionNode(sourceMappings: Map[String, OutputPort]): ErrorOr[ExpressionNode] = {
-      val womExpression = PlaceholderWomExpression(sourceMappings.keySet, WomAnyType)
-      val identifier = WomIdentifier(workflowStepInput.id)
-      AnonymousExpressionNode.fromInputMapping(identifier, womExpression, sourceMappings)
-    }
-  }
 
   object InputSourcesFold extends Poly1 {
     implicit def one: Case.Aux[String, Set[String]] = at[String] { Set(_) }

@@ -3,7 +3,7 @@ package wom.util
 import javax.script.{ScriptContext, SimpleScriptContext}
 
 import jdk.nashorn.api.scripting.{ClassFilter, NashornScriptEngineFactory, ScriptObjectMirror}
-import wom.types.{WomArrayType, WomMapType, WomNothingType, WomStringType}
+import wom.types._
 import wom.values._
 
 import scala.collection.JavaConverters._
@@ -80,6 +80,7 @@ object JsUtil {
       case WomFloat(double) => double.asInstanceOf[java.lang.Double]
       case WomBoolean(boolean) => boolean.asInstanceOf[java.lang.Boolean]
       case WomArray(_, array) => array.map(toJavascript).toArray
+      case WomSingleFile(path) => path
       case WomMap(_, map) =>
         map.map({
           case (mapKey, mapValue) => toJavascript(mapKey) -> toJavascript(mapValue)
@@ -89,10 +90,12 @@ object JsUtil {
   }
 
   private def fromJavascript(value: AnyRef): WomValue = {
+    def isWhole(d: Double) = (d == Math.floor(d)) && !java.lang.Double.isInfinite(d)
     value match {
       case null => WomOptionalValue(WomNothingType, None)
       case string: String => WomString(string)
       case int: java.lang.Integer => WomInteger(int)
+      case int: java.lang.Double if isWhole(int) => WomInteger(int.intValue()) // Because numbers in nashorn come back as 'Double's
       case double: java.lang.Double => WomFloat(double)
       case boolean: java.lang.Boolean => WomBoolean(boolean)
       case scriptObjectMirror: ScriptObjectMirror if scriptObjectMirror.isArray =>

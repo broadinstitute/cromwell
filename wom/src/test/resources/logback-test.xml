@@ -12,7 +12,7 @@
     <logger name="org.asynchttpclient.netty" level="INFO"/>
     <logger name="org.mockserver" level="WARN"/>
 
-    <root level="debug">
+    <root level="info">
         <appender-ref ref="STDOUT" />
     </root>
 </configuration>

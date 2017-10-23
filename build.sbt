@@ -24,6 +24,7 @@ lazy val cwl = (project in file("cwl"))
 lazy val core = (project in file("core"))
   .settings(coreSettings:_*)
   .dependsOn(wom)
+  .dependsOn(wom % "test->test")
   .withTestSettings
 
 lazy val gcsFileSystem = (project in file("filesystems/gcs"))

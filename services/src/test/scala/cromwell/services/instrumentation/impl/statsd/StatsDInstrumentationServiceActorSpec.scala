@@ -79,7 +79,7 @@ class StatsDInstrumentationServiceActorSpec extends TestKitSuite with FlatSpecLi
           case Udp.Received(data, _) => data.utf8String
         }
 
-        expectedPackets foreach { packet => received.contains(packet) shouldBe true }
+        expectedPackets foreach { packet => if (!received.contains(packet)) fail(s"Missing packet: $packet") }
       }
   }
   

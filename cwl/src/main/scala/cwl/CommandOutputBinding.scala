@@ -6,6 +6,10 @@ import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values._
 
+import scala.language.postfixOps
+import scala.concurrent.Await
+import scala.concurrent.duration._
+
 /** @see <a href="http://www.commonwl.org/v1.0/Workflow.html#CommandOutputBinding">CommandOutputBinding</a> */
 case class CommandOutputBinding(
                                  glob: Option[Glob] = None,
@@ -63,9 +67,13 @@ case class CommandOutputBinding(
 
   private def load64KiB(path: String, ioFunctionSet: IoFunctionSet): String = {
     // This suggests the IoFunctionSet should have a length-limited read API as both CWL and WDL support this concept.
-    // val content = ioFunctionSet.readFile(path)
-    val content = better.files.File(path).bytes.take(64 * 1024).toArray
-    new String(content)
+    // ChrisL: But remember that they are different (WDL => failure, CWL => truncate)
+    val content = ioFunctionSet.readFile(path)
+
+    // TODO: propagate IO, Try, or Future or something all the way out via "commandOutputBindingtoWdlValue" signature
+    // TODO: Stream only the first 64 KiB, this "read everything then ignore most of it" method is terrible
+    val initialResult = Await.result(content, 5 seconds)
+    initialResult.substring(0, Math.min(initialResult.length, 64 * 1024))
   }
 }
 

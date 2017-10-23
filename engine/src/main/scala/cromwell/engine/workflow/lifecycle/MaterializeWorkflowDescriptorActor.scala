@@ -12,6 +12,7 @@ import cats.instances.vector._
 import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.syntax.either._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.BackendWorkflowDescriptor
@@ -151,7 +152,10 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       workflowOptionsAndPathBuilders(workflowSourceFiles) match {
         case Valid((workflowOptions, pathBuilders)) =>
           val futureDescriptor: Future[ErrorOr[EngineWorkflowDescriptor]] = pathBuilders flatMap {
-            buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf, workflowOptions, _).value.unsafeToFuture().map(_.toValidated)
+            buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf, workflowOptions, _).
+              value.
+              unsafeToFuture().
+              map(_.toValidated)
           }
 
           // Pipe the response to self, but make it look like it comes from the sender of the command
@@ -175,7 +179,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       workflowInitializationFailed(error, sender())
       goto(MaterializationFailedState)
     case Event(Status.Failure(failure), _) =>
-      workflowInitializationFailed(NonEmptyList.of(failure.getMessage), sender())
+      workflowInitializationFailed(NonEmptyList.of(failure.getMessage, failure.getStackTrace.map(_.toString):_*), sender())
       goto(MaterializationFailedState)
   }
 

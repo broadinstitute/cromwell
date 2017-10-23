@@ -74,7 +74,7 @@ Cromwell provides 2 methods to lookup a docker hash from a docker tag:
     |       |       DockerHub    ||       GCR       ||
     |:-----:|:---------:|:-------:|:------:|:-------:|
     |       |   Public  | Private | Public | Private |
-    |  JES  |     X     |    X    |    X   |    X    |
+    | Pipelines API  |     X     |    X    |    X   |    X    |
     | Other |     X     |         |    X   |         |
 
 ## Local Filesystem Options

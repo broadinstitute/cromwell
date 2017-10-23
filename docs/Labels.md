@@ -1,4 +1,4 @@
-Every call run on the JES backend is given certain labels by default, so that Google resources can be queried by these labels later. The current default label set automatically applied is:
+Every call run on the Pipelines API backend is given certain labels by default, so that Google resources can be queried by these labels later. The current default label set automatically applied is:
 
 | Key | Value | Example | Notes |
 |-----|-------|---------|-------|

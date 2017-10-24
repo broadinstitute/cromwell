@@ -1,0 +1,225 @@
+diff --git a/build.sbt b/build.sbt
+index ae8d54b69..0026131d7 100644
+--- a/build.sbt
++++ b/build.sbt
+@@ -158,3 +158,5 @@ lazy val root = (project in file("."))
+   .dependsOn(cwl)
+   // Dependencies for tests
+   .dependsOn(engine % "test->test")
++
++logLevel in ThisBuild := Level.Warn
+diff --git a/core/src/main/scala/cromwell/core/path/BetterFileMethods.scala b/core/src/main/scala/cromwell/core/path/BetterFileMethods.scala
+index 94c780a84..7340a292a 100644
+--- a/core/src/main/scala/cromwell/core/path/BetterFileMethods.scala
++++ b/core/src/main/scala/cromwell/core/path/BetterFileMethods.scala
+@@ -474,6 +474,11 @@ trait BetterFileMethods {
+     destination
+   }
+ 
++  final def unzipTo(destination: Option[Path])(implicit codec: Codec): Path = destination match {
++    case Some(path) => unzipTo(path)
++    case None => unzip()
++  }
++
+   final def unzip()(implicit codec: Codec): Path = newPath(betterFile.unzip()(codec))
+ }
+ 
+diff --git a/core/src/main/scala/cromwell/core/path/DefaultPathBuilder.scala b/core/src/main/scala/cromwell/core/path/DefaultPathBuilder.scala
+index 09a9eed84..9fde6b34b 100644
+--- a/core/src/main/scala/cromwell/core/path/DefaultPathBuilder.scala
++++ b/core/src/main/scala/cromwell/core/path/DefaultPathBuilder.scala
+@@ -13,6 +13,9 @@ import scala.util.Try
+ case object DefaultPathBuilder extends PathBuilder {
+   override def name = "Default"
+ 
++  def build(path: java.nio.file.Path): DefaultPath =
++    DefaultPath(path)
++
+   override def build(pathAsString: String): Try[DefaultPath] = Try {
+     val uri = URI.create(UrlEscapers.urlFragmentEscaper().escape(pathAsString))
+     Option(uri.getScheme) match {
+diff --git a/cwl/src/main/scala/cwl/GlobEvaluator.scala b/cwl/src/main/scala/cwl/GlobEvaluator.scala
+index c2315a7c7..35307421b 100644
+--- a/cwl/src/main/scala/cwl/GlobEvaluator.scala
++++ b/cwl/src/main/scala/cwl/GlobEvaluator.scala
+@@ -51,7 +51,8 @@ object GlobEvaluator {
+             case WomString(value) => Vector(value)
+             case WomArray(WomArrayType(WomStringType), values) => values.map(_.valueString)
+             case result =>
+-              throw new RuntimeException(s"TODO: WOM: Placeholder exception: unexpected expression result: $result")
++              throw new RuntimeException(
++                s"TODO: WOM: Placeholder exception: unexpected expression result: $result on input $ecmaScript using inputs $parameterContext")
+           }
+         }
+       }
+diff --git a/cwl/src/main/scala/cwl/RunOutputsToTypeMap.scala b/cwl/src/main/scala/cwl/RunOutputsToTypeMap.scala
+index 8a55acf72..0bf26dc26 100644
+--- a/cwl/src/main/scala/cwl/RunOutputsToTypeMap.scala
++++ b/cwl/src/main/scala/cwl/RunOutputsToTypeMap.scala
+@@ -5,12 +5,6 @@ import cwl.CwlType.CwlType
+ import wom.types.WomType
+ 
+ object RunOutputsToTypeMap extends Poly1 {
+-  def mungeId(fullyQualifiedId: String): String = {
+-    val step = fullyQualifiedId.substring(fullyQualifiedId.lastIndexOf("#") + 1)
+-    // Doesn't matter if the string actually contains '/' or not, this takes the whole string if it's absent
+-    // which works out to be the right thing to do.
+-    step.substring(step.lastIndexOf("/") + 1)
+-  }
+ 
+   def handleCommandLine(clt: CommandLineTool): Map[String, WomType] = {
+     clt.outputs.toList.foldLeft(Map.empty[String, WomType]) {
+diff --git a/cwl/src/test/resources/tar-param.cwl b/cwl/src/test/resources/tar-param.cwl
+index ccf452667..39e9aa070 100644
+--- a/cwl/src/test/resources/tar-param.cwl
++++ b/cwl/src/test/resources/tar-param.cwl
+@@ -1,21 +1,17 @@
+ cwlVersion: "v1.0"
+ class: "CommandLineTool"
+-baseCommand: 
+-  - "tar"
+-  - "xf"
++baseCommand: ["tar", "xf"]
+ inputs: 
+   - type: "string"
+     inputBinding: 
+       position: 2
+-    id: "file:///home/dan/wdl4s/tar-param.cwl#extractfile"
++    id: "extractfile"
+   - type: "File"
+     inputBinding: 
+       position: 1
+-    id: "file:///home/dan/wdl4s/tar-param.cwl#tarfile"
++    id: "tarfile"
+ outputs: 
+   - type: "File"
+     outputBinding: 
+       glob: "$(inputs.extractfile)"
+-    id: "file:///home/dan/wdl4s/tar-param.cwl#example_out"
+-id: "file:///home/dan/wdl4s/tar-param.cwl"
+-name: "file:///home/dan/wdl4s/tar-param.cwl"
++    id: "example_out"
+diff --git a/cwl/src/test/scala/cwl/CwlWorkflowWomSpec.scala b/cwl/src/test/scala/cwl/CwlWorkflowWomSpec.scala
+index 196e9743f..4d60f0187 100644
+--- a/cwl/src/test/scala/cwl/CwlWorkflowWomSpec.scala
++++ b/cwl/src/test/scala/cwl/CwlWorkflowWomSpec.scala
+@@ -18,21 +18,6 @@ import wom.types.{WomFileType, WomStringType, WomType}
+ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+   import TestSetup._
+ 
+-  "munging the runnable id" should "remove the filename" in {
+-    val id = "file:///home/dan/common-workflow-language/v1.0/examples/tar-param.cwl#example_out"
+-    val out = RunOutputsToTypeMap.mungeId(id)
+-
+-    out shouldBe "example_out"
+-  }
+-
+-  "munging runnable output id " should "be able to skip the path args" in {
+-    val id = "file:///home/dan/common-workflow-language/v1.0/examples/tar-param.cwl#ps/0b4ba500-5584-4fed-a831-9fa6f914ad3f/ps-stdOut"
+-    val out = RunOutputsToTypeMap.mungeId(id)
+-
+-    out shouldBe "ps-stdOut"
+-  }
+-
+-
+   "A Cwl object for 1st-tool" should "convert to WOM" in {
+     def validateWom(callable: Callable) = callable match {
+       case taskDefinition: TaskDefinition =>
+diff --git a/engine/src/main/scala/cromwell/engine/workflow/lifecycle/MaterializeWorkflowDescriptorActor.scala b/engine/src/main/scala/cromwell/engine/workflow/lifecycle/MaterializeWorkflowDescriptorActor.scala
+index 08873bbcb..f49185c2f 100644
+--- a/engine/src/main/scala/cromwell/engine/workflow/lifecycle/MaterializeWorkflowDescriptorActor.scala
++++ b/engine/src/main/scala/cromwell/engine/workflow/lifecycle/MaterializeWorkflowDescriptorActor.scala
+@@ -3,6 +3,7 @@ package cromwell.engine.workflow.lifecycle
+ import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
+ import akka.pattern.pipe
+ import cats.Monad
++import cats.data.{EitherT, NonEmptyList}
+ import cats.data.NonEmptyList
+ import cats.data.EitherT._
+ import cats.data.Validated.{Invalid, Valid}
+@@ -46,7 +47,7 @@ import wom.expression.{IoFunctionSet, WomExpression}
+ import wom.graph.GraphNodePort.OutputPort
+ import wom.graph.{Graph, TaskCallNode}
+ import wom.values.{WomSingleFile, WomString, WomValue}
+-
++import better.files.File
+ import scala.concurrent.Future
+ import scala.language.postfixOps
+ import scala.util.{Failure, Success, Try}
+@@ -360,20 +361,20 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
+   //    }
+   //  }
+ 
+-  private def validateImportsDirectory(zipContents: Array[Byte]): ErrorOr[Path] = {
++  private def validateImportsDirectory(zipContents: Array[Byte], parentPath: Option[Path] = None): ErrorOr[Path] = {
+ 
+-    def makeZipFile(contents: Array[Byte]): Try[Path] = Try {
+-      DefaultPathBuilder.createTempFile("", ".zip").writeByteArray(contents)(OpenOptions.default)
++    def makeZipFile: Try[Path] = Try {
++      DefaultPathBuilder.createTempFile("", ".zip", parentPath).writeByteArray(zipContents)(OpenOptions.default)
+     }
+ 
+     def unZipFile(f: Path) = Try {
+-      val unzippedFile = f.unzip()
++      val unzippedFile = f.unzipTo(parentPath)
+       val unzippedFileContents = unzippedFile.list.toSeq.head
+       if (unzippedFileContents.isDirectory) unzippedFileContents else unzippedFile
+     }
+ 
+     val importsFile = for {
+-      zipFile <- makeZipFile(zipContents)
++      zipFile <- makeZipFile
+       unzipped <- unZipFile(zipFile)
+       _ <- Try(zipFile.delete(swallowIOExceptions = true))
+     } yield unzipped
+@@ -434,22 +435,26 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
+                                    workflowOptions: WorkflowOptions,
+                                    pathBuilders: List[PathBuilder]): Parse[ValidatedWomNamespace] = {
+     // TODO WOM: CwlDecoder takes a file so write it to disk for now
+-    import better.files._
+-
+-    val cwlFile = File.newTemporaryFile(prefix = workflowIdForLogging.toString).write(source.workflowSource)
+-
+-    try {
+-      for {
+-        cwl <- CwlDecoder.decodeAllCwl(cwlFile)
+-        wf <- fromEither[IO](cwl.select[Workflow].toRight(NonEmptyList.one(s"expected a workflow but got a $cwl")))
+-        executable <-  fromEither[IO](wf.womExecutable(Option(source.inputsJson)))
+-        graph <- fromEither[IO](executable.graph.toEither)
+-        ioFunctions = new WdlFunctions(pathBuilders)
+-        validatedWomNamespace <- fromEither[IO](validateWomNamespace(executable, ioFunctions))
+-      } yield validatedWomNamespace
+-    } finally {
+-      cwlFile.delete(swallowIOExceptions = true)
++
++    val cwlFile: File = File.newTemporaryFile(prefix = workflowIdForLogging.toString).write(source.workflowSource)
++
++    def unzipDependencies: Parse[Unit]  = source match {
++      case wsfwdz: WorkflowSourceFilesWithDependenciesZip =>
++        EitherT.
++          fromEither[IO]{validateImportsDirectory(wsfwdz.importsZip, Some(DefaultPathBuilder.build(cwlFile.parent.path))).toEither}.
++          map(_ => ())
++      case _ => Monad[Parse].unit
+     }
++
++    for {
++      _ <- unzipDependencies
++      cwl <- CwlDecoder.decodeAllCwl(cwlFile)
++      wf <- fromEither[IO](cwl.select[Workflow].toRight(NonEmptyList.one(s"expected a workflow but got a $cwl")))
++      executable <-  fromEither[IO](wf.womExecutable(Option(source.inputsJson)))
++      graph <- fromEither[IO](executable.graph.toEither)
++      ioFunctions = new WdlFunctions(pathBuilders)
++      validatedWomNamespace <- fromEither[IO](validateWomNamespace(executable, ioFunctions))
++    } yield validatedWomNamespace
+   }
+ 
+   private def validateWdlNamespace(source: WorkflowSourceFilesCollection,
+diff --git a/project/plugins.sbt b/project/plugins.sbt
+index 87aea9feb..b38d82a59 100644
+--- a/project/plugins.sbt
++++ b/project/plugins.sbt
+@@ -8,3 +8,4 @@ See https://github.com/broadinstitute/cromwell/issues/645
+ addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "0.7.1")
+ addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.3")
+ addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.5.0")
++addSbtPlugin("org.xerial.sbt" % "sbt-pack" % "0.9.1")

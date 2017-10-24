@@ -51,7 +51,8 @@ object GlobEvaluator {
             case WomString(value) => Vector(value)
             case WomArray(WomArrayType(WomStringType), values) => values.map(_.valueString)
             case result =>
-              throw new RuntimeException(s"TODO: WOM: Placeholder exception: unexpected expression result: $result")
+              throw new RuntimeException(
+                s"TODO: WOM: Placeholder exception: unexpected expression result: $result on input $ecmaScript using inputs $parameterContext")
           }
         }
       }

@@ -167,3 +167,5 @@ lazy val root = (project in file("."))
   .dependsOn(womtool)
   // Dependencies for tests
   .dependsOn(engine % "test->test")
+
+logLevel in ThisBuild := Level.Warn

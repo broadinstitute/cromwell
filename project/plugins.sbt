@@ -8,3 +8,4 @@ See https://github.com/broadinstitute/cromwell/issues/645
 addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "0.7.1")
 addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.3")
 addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.5.0")
+addSbtPlugin("org.xerial.sbt" % "sbt-pack" % "0.9.1")

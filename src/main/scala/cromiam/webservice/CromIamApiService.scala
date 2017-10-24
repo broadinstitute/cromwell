@@ -108,75 +108,85 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
 
   val allRoutes: Route = workflowRoutes ~ engineRoutes
 
-  private def handleRequest(f: (Authorization, HttpRequest) => ToResponseMarshallable): Route = {
-    headerValuePF { case a: Authorization => a } { authorization =>
-      toStrictEntity(300.millis) {
-        extractRequest { req =>
-          complete {
-            f.apply(authorization, req)
+  private def handleRequestWithAuthn(directive: Directive0)(f: (Authorization, HttpRequest) => ToResponseMarshallable): Route = {
+    directive {
+      headerValuePF { case a: Authorization => a } { authorization =>
+        toStrictEntity(Timeout) {
+          extractRequest { req =>
+            complete {
+              f.apply(authorization, req)
+            }
           }
         }
       }
     }
   }
 
-  private def handleRequest(directive: Directive0)(f: (Authorization, HttpRequest) => ToResponseMarshallable): Route = {
-    directive { handleRequest(f) }
+  private def handlePublicRequest(directive: Directive0)(f: (HttpRequest) => ToResponseMarshallable): Route = {
+    directive {
+      toStrictEntity(Timeout) {
+        extractRequest { req =>
+          complete {
+            f.apply(req)
+          }
+        }
+      }
+    }
   }
 
-  def workflowGetRoute(urlSuffix: String): Route = workflowRoute(urlSuffix, get)
+  /**
+    * Base route for endpoints in the `workflows` space which do not take a workflow id as an argument
+    */
+  def workflowGetRoute(urlSuffix: String): Route = path("api" / "workflows" / Segment / urlSuffix) { _ =>
+    handleRequestWithAuthn(get) { (_, req) => forwardToCromwell(req) }
+  }
+
+  /**
+    * Base route for endpoints in the `workflows` space which take a workflow id as an argument
+    */
+  def workflowGetRouteWithId(urlSuffix: String): Route = workflowRoute(urlSuffix, get)
 
   def workflowRoute(urlSuffix: String, method: Directive0): Route = path("api" / "workflows" / Segment / Segment / urlSuffix) { (_, workflowId) =>
-    handleRequest(method) { (userId, req) => authorizeReadThenForwardToCromwell(userId, List(workflowId), req) }
-  }
-
-  def generalGetRoute(urlSuffix: String): Route = path("api" / "workflows" / Segment / urlSuffix) { _ =>
-    handleRequest(get) { (_, req) => forwardToCromwell(req) }
+    handleRequestWithAuthn(method) { (userId, req) => authorizeReadThenForwardToCromwell(userId, List(workflowId), req) }
   }
 
   def abortRoute: Route = path("api" / "workflows" / Segment / Segment / "abort") { (_, workflowId) =>
-    handleRequest(post) { (userId, req) => authorizeAbortThenForwardToCromwell(userId, workflowId, req) }
+    handleRequestWithAuthn(post) { (userId, req) => authorizeAbortThenForwardToCromwell(userId, workflowId, req) }
   }
 
   def submitRoute: Route = path("api" / "workflows" / Segment) { _ =>
-    handleRequest(post) { (userId, req) => forwardSubmissionToCromwell(userId, req, batch = false) }
+    handleRequestWithAuthn(post) { (userId, req) => forwardSubmissionToCromwell(userId, req, batch = false) }
   }
   def submitBatchRoute: Route = path("api" / "workflows" / Segment / "batch") { _ =>
-    handleRequest(post) { (userId, req) => forwardSubmissionToCromwell(userId, req, batch = true) }
+    handleRequestWithAuthn(post) { (userId, req) => forwardSubmissionToCromwell(userId, req, batch = true) }
   }
 
-  def workflowOutputsRoute: Route = workflowGetRoute("outputs")
-  def workflowLogsRoute: Route = workflowGetRoute("logs")
-  def metadataRoute: Route = workflowGetRoute("metadata")
-  def timingRoute: Route = workflowGetRoute("metadata")
-  def statusRoute: Route = workflowGetRoute("status")
+  def workflowOutputsRoute: Route = workflowGetRouteWithId("outputs")
+  def workflowLogsRoute: Route = workflowGetRouteWithId("logs")
+  def metadataRoute: Route = workflowGetRouteWithId("metadata")
+  def timingRoute: Route = workflowGetRouteWithId("metadata")
+  def statusRoute: Route = workflowGetRouteWithId("status")
   def labelRoute: Route = workflowRoute("labels", patch)
 
-  def backendRoute: Route = generalGetRoute("backends")
+  def backendRoute: Route = workflowGetRoute("backends")
 
-  def versionRoute: Route =  path("engine" / Segment / "version") { _ =>
-    handleRequest(get) { (_, request) => forwardToCromwell(request) }
-  }
+  def versionRoute: Route =  path("engine" / Segment / "version") { _ => handlePublicRequest(get) { req => forwardToCromwell(req) } }
 
-  def statsRoute: Route = path("engine" / Segment / "stats") { _ =>
-    handleRequest(get) { (_, _) => CromIamStatsForbidden }
-  }
+  def statsRoute: Route = path("engine" / Segment / "stats") { _ => handlePublicRequest(get) { _ => CromIamStatsForbidden } }
 
   def queryRoute: Route = path("api" / "workflows" / Segment / "query") { _ =>
-    parameterSeq { _ =>
-      handleRequest(get) { (_, _) => CromIamQueryNotImplemented }
-    }
+    parameterSeq { _ =>  handleRequestWithAuthn(get) { (_, _) =>  CromIamQueryNotImplemented } }
   }
 
   def queryPostRoute: Route = path("api" / "workflows" / Segment / "query") { _ =>
     (post & entity(as[Seq[Map[String, String]]])) { _ =>
-      handleRequest { (_, _) => CromIamQueryNotImplemented }
+      handleRequestWithAuthn(post) { (_, _) => CromIamQueryNotImplemented }
     }
   }
 
   def callCacheDiffRoute: Route = path("api" / "workflows" / Segment / "callcaching" / "diff") { version =>
     parameterSeq { parameters =>
-      handleRequest(get) { (user, req) =>
+      handleRequestWithAuthn(get) { (user, req) =>
         val paramMap = parameters.toMap
         (paramMap.get("workflowA"), paramMap.get("workflowB")) match {
           case (Some(a), Some(b)) => authorizeReadThenForwardToCromwell(user, List(a, b), req)
@@ -194,4 +204,6 @@ object CromIamApiService {
 
   private[webservice] case class SamConnectionFailure(phase: String, f: Throwable) extends Exception(s"Unable to connect to Sam during $phase (${f.getMessage})", f)
   private[webservice] case class CromwellConnectionFailure(f: Throwable) extends Exception(s"Unable to connect to Cromwell (${f.getMessage})", f)
+
+  def Timeout = 300.millis
 }

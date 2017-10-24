@@ -1,7 +1,7 @@
 package cwl
 
 import shapeless._
-import cwl.CommandLineTool.{Argument, BaseCommand}
+import cwl.CommandLineTool._
 import cwl.CommandOutputBinding.Glob
 import cwl.WorkflowStep.{Outputs, Run}
 

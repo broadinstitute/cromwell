@@ -2,7 +2,7 @@ package cwl
 
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct
-import cwl.CommandLineTool.BaseCommand
+import cwl.CommandLineTool.{BaseCommand, CommandInputParameter}
 import cwl.WorkflowStepInput.InputSource
 
 

@@ -13,8 +13,7 @@ import scala.util.Try
 case object DefaultPathBuilder extends PathBuilder {
   override def name = "Default"
 
-  def build(path: java.nio.file.Path): DefaultPath =
-    DefaultPath(path)
+  def build(path: java.nio.file.Path): DefaultPath = DefaultPath(path)
 
   override def build(pathAsString: String): Try[DefaultPath] = Try {
     val uri = URI.create(UrlEscapers.urlFragmentEscaper().escape(pathAsString))

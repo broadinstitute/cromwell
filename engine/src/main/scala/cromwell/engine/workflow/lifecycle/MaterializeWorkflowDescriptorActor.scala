@@ -47,7 +47,7 @@ import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.{Graph, TaskCallNode}
 import wom.values.{WomSingleFile, WomString, WomValue}
-
+import better.files.File
 import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -435,7 +435,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                    workflowOptions: WorkflowOptions,
                                    pathBuilders: List[PathBuilder]): Parse[ValidatedWomNamespace] = {
     // TODO WOM: CwlDecoder takes a file so write it to disk for now
-    import better.files._
 
     val cwlFile: File = File.newTemporaryFile(prefix = workflowIdForLogging.toString).write(source.workflowSource)
 
@@ -446,8 +445,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
           map(_ => ())
       case _ => Monad[Parse].unit
     }
-
-    println(s"exists: " + cwlFile.exists)
 
     for {
       _ <- unzipDependencies

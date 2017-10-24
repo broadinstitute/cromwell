@@ -158,3 +158,5 @@ lazy val root = (project in file("."))
   .dependsOn(cwl)
   // Dependencies for tests
   .dependsOn(engine % "test->test")
+
+logLevel in ThisBuild := Level.Warn

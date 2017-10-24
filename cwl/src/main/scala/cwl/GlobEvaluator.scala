@@ -50,9 +50,9 @@ object GlobEvaluator {
             case WomArray(_, values) if values.isEmpty => Vector.empty
             case WomString(value) => Vector(value)
             case WomArray(WomArrayType(WomStringType), values) => values.map(_.valueString)
-            case result =>
+            case womValue =>
               throw new RuntimeException(
-                s"TODO: WOM: Placeholder exception: unexpected expression result: $result on input $ecmaScript using inputs $parameterContext")
+                s"Unexpected expression result: $womValue while evaluating expression '$ecmaScript' using inputs '${parameterContext.inputs}'")
           }
         }
       }

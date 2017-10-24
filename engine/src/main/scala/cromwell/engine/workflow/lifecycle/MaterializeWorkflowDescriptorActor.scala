@@ -14,6 +14,7 @@ import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import cats.syntax.either._
+import cats.syntax.functor._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.BackendWorkflowDescriptor
@@ -441,8 +442,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     def unzipDependencies: Parse[Unit]  = source match {
       case wsfwdz: WorkflowSourceFilesWithDependenciesZip =>
         EitherT.
-          fromEither[IO]{validateImportsDirectory(wsfwdz.importsZip, Some(DefaultPathBuilder.build(cwlFile.parent.path))).toEither}.
-          map(_ => ())
+          fromEither[IO]{validateImportsDirectory(wsfwdz.importsZip, Some(DefaultPathBuilder.build(cwlFile.parent.path))).void.toEither}
       case _ => Monad[Parse].unit
     }
 

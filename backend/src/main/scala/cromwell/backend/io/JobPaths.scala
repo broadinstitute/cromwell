@@ -1,5 +1,6 @@
 package cromwell.backend.io
 
+import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.path.Path
 import cromwell.core.{CallContext, JobKey}
 import cromwell.services.metadata.CallMetadataKeys
@@ -30,12 +31,15 @@ trait JobPaths {
 
   def workflowPaths: WorkflowPaths
   def returnCodeFilename: String = "rc"
-  def stdoutFilename: String = "stdout"
-  def stderrFilename: String = "stderr"
+  def defaultStdoutFilename = "stdout"
+  def defaultStderrFilename = "stderr"
+
+  final def stdoutFilename: String = jobKey.node.callable.stdoutRedirection.getOrElse(defaultStdoutFilename)
+  final def stderrFilename: String = jobKey.node.callable.stderrRedirection.getOrElse(defaultStderrFilename)
   def scriptFilename: String = "script"
   def dockerCidFilename: String = "docker_cid"
-  
-  def jobKey: JobKey
+
+  def jobKey: BackendJobDescriptorKey
   lazy val callRoot = callPathBuilder(workflowPaths.workflowRoot, jobKey)
   lazy val callExecutionRoot = callRoot
   lazy val stdout = callExecutionRoot.resolve(stdoutFilename)

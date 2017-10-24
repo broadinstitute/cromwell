@@ -86,6 +86,11 @@ case class CommandLineTool private(
         RequiredInputDefinition(FullyQualifiedName(cip.id).id, tpe)
       }.toList
 
+    def stringOrExpressionToString(soe: Option[StringOrExpression]): Option[String] = soe flatMap {
+      case StringOrExpression.String(str) => Some(str)
+      case StringOrExpression.Expression(_) => None // ... for now!
+    }
+
     TaskDefinition(
       id,
       commandTemplate,
@@ -96,7 +101,9 @@ case class CommandLineTool private(
       inputs,
       // TODO: This doesn't work in all cases and it feels clunky anyway - find a way to sort that out
       prefixSeparator = "#",
-      commandPartSeparator = " "
+      commandPartSeparator = " ",
+      stdoutRedirection = stringOrExpressionToString(stdout),
+      stderrRedirection = stringOrExpressionToString(stderr)
     )
   }
 

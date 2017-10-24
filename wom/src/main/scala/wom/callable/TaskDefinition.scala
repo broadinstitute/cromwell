@@ -18,7 +18,9 @@ case class TaskDefinition(name: String,
                           outputs: List[Callable.OutputDefinition],
                           inputs: List[_ <: Callable.InputDefinition],
                           prefixSeparator: String = ".",
-                          commandPartSeparator: String = "") extends Callable {
+                          commandPartSeparator: String = "",
+                          stdoutRedirection: Option[String] = None,
+                          stderrRedirection: Option[String] = None) extends Callable {
 
   val unqualifiedName: LocallyQualifiedName = name
 

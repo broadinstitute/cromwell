@@ -474,6 +474,11 @@ trait BetterFileMethods {
     destination
   }
 
+  final def unzipTo(destination: Option[Path])(implicit codec: Codec): Path = destination match {
+    case Some(path) => unzipTo(path)
+    case None => unzip()
+  }
+
   final def unzip()(implicit codec: Codec): Path = newPath(betterFile.unzip()(codec))
 }
 

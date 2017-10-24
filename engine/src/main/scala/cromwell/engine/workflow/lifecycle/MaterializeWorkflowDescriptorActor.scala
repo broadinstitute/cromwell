@@ -3,6 +3,7 @@ package cromwell.engine.workflow.lifecycle
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
 import akka.pattern.pipe
 import cats.Monad
+import cats.data.{EitherT, NonEmptyList}
 import cats.data.NonEmptyList
 import cats.data.EitherT._
 import cats.data.Validated.{Invalid, Valid}
@@ -13,6 +14,7 @@ import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import cats.syntax.either._
+import cats.syntax.functor._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.BackendWorkflowDescriptor
@@ -46,7 +48,7 @@ import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.{Graph, TaskCallNode}
 import wom.values.{WomSingleFile, WomString, WomValue}
-
+import better.files.File
 import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -360,20 +362,20 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   //    }
   //  }
 
-  private def validateImportsDirectory(zipContents: Array[Byte]): ErrorOr[Path] = {
+  private def validateImportsDirectory(zipContents: Array[Byte], parentPath: Option[Path] = None): ErrorOr[Path] = {
 
-    def makeZipFile(contents: Array[Byte]): Try[Path] = Try {
-      DefaultPathBuilder.createTempFile("", ".zip").writeByteArray(contents)(OpenOptions.default)
+    def makeZipFile: Try[Path] = Try {
+      DefaultPathBuilder.createTempFile("", ".zip", parentPath).writeByteArray(zipContents)(OpenOptions.default)
     }
 
     def unZipFile(f: Path) = Try {
-      val unzippedFile = f.unzip()
+      val unzippedFile = f.unzipTo(parentPath)
       val unzippedFileContents = unzippedFile.list.toSeq.head
       if (unzippedFileContents.isDirectory) unzippedFileContents else unzippedFile
     }
 
     val importsFile = for {
-      zipFile <- makeZipFile(zipContents)
+      zipFile <- makeZipFile
       unzipped <- unZipFile(zipFile)
       _ <- Try(zipFile.delete(swallowIOExceptions = true))
     } yield unzipped
@@ -434,22 +436,25 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                    workflowOptions: WorkflowOptions,
                                    pathBuilders: List[PathBuilder]): Parse[ValidatedWomNamespace] = {
     // TODO WOM: CwlDecoder takes a file so write it to disk for now
-    import better.files._
 
-    val cwlFile = File.newTemporaryFile(prefix = workflowIdForLogging.toString).write(source.workflowSource)
+    val cwlFile: File = File.newTemporaryFile(prefix = workflowIdForLogging.toString).write(source.workflowSource)
 
-    try {
-      for {
-        cwl <- CwlDecoder.decodeAllCwl(cwlFile)
-        wf <- fromEither[IO](cwl.select[Workflow].toRight(NonEmptyList.one(s"expected a workflow but got a $cwl")))
-        executable <-  fromEither[IO](wf.womExecutable(Option(source.inputsJson)))
-        graph <- fromEither[IO](executable.graph.toEither)
-        ioFunctions = new WdlFunctions(pathBuilders)
-        validatedWomNamespace <- fromEither[IO](validateWomNamespace(executable, ioFunctions))
-      } yield validatedWomNamespace
-    } finally {
-      cwlFile.delete(swallowIOExceptions = true)
+    def unzipDependencies: Parse[Unit]  = source match {
+      case wsfwdz: WorkflowSourceFilesWithDependenciesZip =>
+        EitherT.
+          fromEither[IO]{validateImportsDirectory(wsfwdz.importsZip, Some(DefaultPathBuilder.build(cwlFile.parent.path))).void.toEither}
+      case _ => Monad[Parse].unit
     }
+
+    for {
+      _ <- unzipDependencies
+      cwl <- CwlDecoder.decodeAllCwl(cwlFile)
+      wf <- fromEither[IO](cwl.select[Workflow].toRight(NonEmptyList.one(s"expected a workflow but got a $cwl")))
+      executable <-  fromEither[IO](wf.womExecutable(Option(source.inputsJson)))
+      graph <- fromEither[IO](executable.graph.toEither)
+      ioFunctions = new WdlFunctions(pathBuilders)
+      validatedWomNamespace <- fromEither[IO](validateWomNamespace(executable, ioFunctions))
+    } yield validatedWomNamespace
   }
 
   private def validateWdlNamespace(source: WorkflowSourceFilesCollection,

@@ -1,3 +1,22 @@
+_For the Doc-A-Thon_  
+**Questions to answer and things to consider:**
+
+1. Who is visiting the Runtime Attributes page?  
+
+2. What do they need to know first?  
+*Why would they want to customize tasks?*
+3. Is all the important information there? If not, add it!  
+
+4. Are there things that don't need to be there? Remove them.  
+
+5. Are the code and instructions accurate? Try it!
+
+---
+ **DELETE ABOVE ONCE COMPLETE**
+
+---
+
+
 Runtime attributes are used to customize tasks. Within a task one can specify runtime attributes to customize the environment for the call.
 
 For example:
@@ -52,11 +71,11 @@ task runtime_test {
 }
 ```
 
-SGE and similar backends may define other configurable runtime attributes beyond the five listed. See [Sun GridEngine](/sge) for more information.
+SGE and similar backends may define other configurable runtime attributes beyond the five listed. See [Sun GridEngine](backends/SGE) for more information.
 
-## Specifying Default Values
+**Specifying Default Values**
 
-Default values for runtime attributes can be specified via [workflow options](/workflowoptions).  For example, consider this WDL file:
+Default values for runtime attributes can be specified via [Workflow Options](WorkflowOptions).  For example, consider this WDL file:
 
 ```wdl
 task first {
@@ -103,7 +122,7 @@ And the effective runtime for `task second` is:
 ```
 Note how for task second, the WDL value for `docker` is used instead of the default provided in the workflow options.
 
-## continueOnReturnCode
+**`continueOnReturnCode`**
 
 When each task finishes it returns a code. Normally, a non-zero return code indicates a failure. However you can override this behavior by specifying the `continueOnReturnCode` attribute.
 
@@ -131,7 +150,7 @@ runtime {
 
 Defaults to "0".
 
-## cpu
+**`cpu`**
 
 Passed to Pipelines API: "The minimum number of cores to use."
 
@@ -145,7 +164,7 @@ runtime {
 
 Defaults to "1".
 
-## disks
+**`disks`**
 
 Passed to Pipelines API: "Disks to attach."
 
@@ -159,7 +178,7 @@ All tasks launched on Pipelines API *must* have a `local-disk`.  If one is not s
 
 The Disk type must be one of "LOCAL", "SSD", or "HDD". When set to "LOCAL", the size of the drive is automatically provisioned by Google so any size specified in WDL will be ignored. All disks are set to auto-delete after the job completes.
 
-**Example 1: Changing the Localization Disk**
+Example 1: Changing the Localization Disk
 
 ```
 runtime {
@@ -167,7 +186,7 @@ runtime {
 }
 ```
 
-**Example 2: Mounting an Additional Two Disks**
+Example 2: Mounting an Additional Two Disks
 
 ```
 runtime {
@@ -175,7 +194,8 @@ runtime {
 }
 ```
 
-### Boot Disk
+**Boot Disk**
+
 In addition to working disks, Pipelines API allows specification of a boot disk size. This is the disk where the docker image itself is booted, **not the working directory of your task on the VM**.
 Its primary purpose is to ensure that larger docker images can fit on the boot disk.
 ```
@@ -187,7 +207,7 @@ runtime {
 
 Since no `local-disk` entry is specified, Cromwell will automatically add `local-disk 10 SSD` to this list.
 
-## zones
+**`zones`**
 
 The ordered list of zone preference (see [Region and Zones](https://cloud.google.com/compute/docs/zones) documentation for specifics)
 
@@ -201,7 +221,7 @@ runtime {
 
 Defaults to the configuration setting `genomics.default-zones` in the Pipelines API configuration block which in turn defaults to using `us-central1-b`
 
-## docker
+**`docker`**
 
 When specified, cromwell will run your task within the specified Docker image.
 
@@ -213,7 +233,7 @@ runtime {
 
 This attribute is mandatory when submitting tasks to Pipelines API. When running on other backends, they default to not running the process within Docker.
 
-## failOnStderr
+**`failOnStderr`**
 
 Some programs write to the standard error stream when there is an error, but still return a zero exit code. Set `failOnStderr` to true for these tasks, and it will be considered a failure if anything is written to the standard error stream.
 
@@ -225,7 +245,7 @@ runtime {
 
 Defaults to "false".
 
-## memory
+**`memory`**
 
 Passed to Pipelines API: "The minimum amount of RAM to use."
 
@@ -241,7 +261,7 @@ runtime {
 
 Defaults to "2G".
 
-## preemptible
+**`preemptible`**
 
 Passed to Pipelines API: "If applicable, preemptible machines may be used for the run."
 

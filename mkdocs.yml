@@ -7,8 +7,8 @@ repo_url: https://github.com/broadinstitute/cromwell/docs
 
 pages:
 - Introduction: index.md
-- Getting started: GettingHelp.md
-- Development requirements: Requirements.md
+- Getting Started: GettingHelp.md
+- Requirements: Requirements.md
 - How to Build: Building.md
 - Installation: Installing.md
 - Command Line: CommandLine.md
@@ -16,13 +16,13 @@ pages:
 - Configuration: Configuring.md
 - Security: Security.md
 - Backends: 
-    - Backends overview: backends/Backends.md
+    - Overview: backends/Backends.md
     - Local: backends/Local.md
     - Shared Filesystem: backends/SharedFilesystem.md
     - Google Cloud: backends/Google.md
     - GA4GH TES: backends/TES.md
     - Sun GridEngine: backends/SGE.md
-    - HdCondor: backends/Hdcondor.md
+    - HTCondor: backends/HTcondor.md
     - Spark: backends/Spark.md
 - Runtime Attributes: RuntimeAttributes.md
 - Logging: Logging.md
@@ -33,7 +33,7 @@ pages:
 - Imports: Imports.md
 - Sub-Workflows: SubWorkflows.md
 - REST API: 
-    - Cromwell API: api/RESTAPI.md
+    - Overview: api/RESTAPI.md
     - POST /api/workflows/:version: api/POST_api_workflows_version.md
     - POST /api/workflows/:version/batch: api/POST_api_workflows_version_batch.md
     - GET /api/workflows/:version/query: api/GET_api_workflows_version_query.md

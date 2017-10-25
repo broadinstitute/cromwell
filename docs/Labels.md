@@ -1,3 +1,22 @@
+_For the Doc-A-Thon_  
+**Questions to answer and things to consider:**
+
+1. Who is visiting the Labels page?  
+*When would someone use labels?*
+2. What do they need to know first?  
+
+3. Is all the important information there? If not, add it!  
+*Was the person redirected from the API page? from the CLI page? What about if they're using HPC or their laptop? Can they use labels?*
+4. Are there things that don't need to be there? Remove them.  
+*Does a user care about P.API rules? Maybe those should be a separate section*
+5. Are the code and instructions accurate? Try it!
+
+---
+ **DELETE ABOVE ONCE COMPLETE**
+
+---
+
+
 Every call run on the Pipelines API backend is given certain labels by default, so that Google resources can be queried by these labels later. The current default label set automatically applied is:
 
 | Key | Value | Example | Notes |
@@ -7,7 +26,7 @@ Every call run on the Pipelines API backend is given certain labels by default, 
 | wdl-task-name | The name of the WDL task | my-task | |
 | wdl-call-alias | The alias of the WDL call that created this job | my-task-1 | Only present if the task was called with an alias. |
 
-## Custom Labels File
+**Custom Labels File**
 
 Custom labels can also be applied to every call in a workflow by specifying a custom labels file when the workflow is submitted. This file should be in JSON format and contain a set of fields: `"label-key": "label-value" `. For example:
 ```
@@ -18,7 +37,7 @@ Custom labels can also be applied to every call in a workflow by specifying a cu
 }
 ```
 
-## Label Format
+**Label Format**
 
 When labels are supplied to Cromwell, it will fail any request containing invalid label strings. Below are the requirements for a valid label key/value pair in Cromwell:
 - Label keys and values can't contain characters other than `[a-z]`, `[0-9]` or `-`.

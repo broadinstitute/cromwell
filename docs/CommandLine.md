@@ -1,3 +1,22 @@
+_For the Doc-A-Thon_  
+**Questions to answer and things to consider:**
+
+1. Who is visiting the Command Line page?  
+*Is it their first time using the CLI? Or are they looking for specific information? make it easy for both*
+2. What do they need to know first?  
+*Where do they get the Jar?*
+3. Is all the important information there? If not, add it!  
+*example responses for each command and each argument*
+4. Are there things that don't need to be there? Remove them.  
+*Should all the import information live in the [Import](Imports) section of the docs?*
+5. Are the code and instructions accurate? Try it!
+
+---
+ **DELETE ABOVE ONCE COMPLETE**
+
+---
+
+
 For built-in documentation of Cromwell command line usage, run the Cromwell JAR file with no arguments:
 
 ```
@@ -28,47 +47,43 @@ Run the workflow and print out the outputs in JSON format.
                            An optional directory path to output metadata.
 ```
 
-## --version
 
-The `--version` option prints the version of Cromwell and exits.
-
-## --help
-
-The `--help` option prints the full help text above and exits.
-
-## server
+**`server`**
 
 The `server` command runs Cromwell as a web server.  No arguments are accepted.
-See the documentation for Cromwell's REST endpoints [here](/restapi).
+See the documentation for [Cromwell's REST endpoints](/api/RESTAPI).
 
-## run
+**`run`**
 
 The `run` command executes a single workflow in Cromwell.
 
-### workflow-source
+**`workflow-source`**
+
 The `run` command requires a single argument for the workflow source file.
  
-### --inputs
+**`--inputs`**
 An optional file of workflow inputs.  Although optional, it is a best practice to use an inputs file to satisfy workflow
 requirements rather than hardcoding inputs directly into a workflow source file.
 
-### --options
+**`--options`**
 An optional file of workflow options.  Some options are global (supported by all backends), while others are backend-specific.
-See the [workflow options](/workflowoptions) documentation for more details.
+See the [Workflow Options](/workflowoptions) for more details.
 
-### --type
+**`--type`**
 An optional parameter to specify the language for the workflow source.  Any value specified for this parameter is currently
 ignored and internally the value `WDL` is used.
 
-### --type-version
+**`--type-version`**
 An optional parameter to specify the version of the language for the workflow source.  Currently any specified value is ignored.
 
-### --labels
+**`--labels`**
 An optional parameter to specify a file of JSON key-value label pairs to associate with the workflow.
 
-### --imports
+**`--imports`**
 You have the option of importing WDL workflows or tasks to use within your workflow, known as sub-workflows.
 If you use sub-workflows within your primary workflow then you must include a zip file with the WDL import files.
+
+See the documentation on [Imports](Imports) for more information.
 
 For example, say you have a directory of WDL files:
 
@@ -101,7 +116,7 @@ Then to run this WDL without any inputs, workflow options, or metadata files, yo
 
 `$ java -jar cromwell-<versionNumber>.jar run my_wf.wdl --imports /path/to/wdl_library.zip`
 
-### --metadata-output
+**`--metadata-output`**
 
 You can include a path where Cromwell will write the workflow metadata JSON, such as start/end timestamps, status, inputs, and outputs. By default, Cromwell does not write workflow metadata.
 
@@ -195,3 +210,11 @@ Again, Cromwell is very verbose. Here is the metadata output in my_wf.metadata:
   "start": "2017-04-19T10:53:23.535-04:00"
 }
 ```
+
+**`--version`**
+
+The `--version` option prints the version of Cromwell and exits.
+
+**`--help`**
+
+The `--help` option prints the full help text above and exits.

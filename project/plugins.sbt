@@ -1,11 +1,7 @@
-addSbtPlugin("se.marcuslonnberg" % "sbt-docker" % "1.4.1")
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.3")
-addSbtPlugin("io.spray" % "sbt-revolver" % "0.8.0")
-/*
-sbt-git 0.7.1 is the last version <= 0.8.5 that works with detached git submodules and our docker build.
-See https://github.com/broadinstitute/cromwell/issues/645
- */
-addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "0.7.1")
-addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.3")
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.5.0")
+addSbtPlugin("se.marcuslonnberg" % "sbt-docker" % "1.5.0")
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.5")
+addSbtPlugin("io.spray" % "sbt-revolver" % "0.9.0")
+addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "0.9.3")
+addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.6")
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.5.1")
 addSbtPlugin("org.xerial.sbt" % "sbt-pack" % "0.9.1")

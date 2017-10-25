@@ -1,4 +1,23 @@
-## StatsD
+_For the Doc-A-Thon_  
+**Questions to answer and things to consider:**
+
+1. Who is visiting the Instrumentation page?  
+*why do they care about instrumentation and metrics? what do they use it for?*
+2. What do they need to know first?  
+
+3. Is all the important information there? If not, add it!  
+
+4. Are there things that don't need to be there? Remove them.  
+
+5. Are the code and instructions accurate? Try it!
+
+---
+ **DELETE ABOVE ONCE COMPLETE**
+
+---
+
+
+**StatsD**
 
 Cromwell collects metrics while it's running and sends them to an internal service. By default this service ignores those metrics, but it can be configured to forward them to a [StatsD](https://github.com/etsy/statsd) server.
 To do so, simply add this snippet to your configuration file:
@@ -24,7 +43,7 @@ There is also an additional configuration value that can be set:
 system.instrumentation-rate = 5 seconds
 ```
 
-### Metrics
+**Metrics**
 
 The current StatsD implementation uses metrics-statsd to report instrumentation values.
 metrics-statsd reports all metrics with a gauge type.

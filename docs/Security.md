@@ -1,11 +1,29 @@
+_For the Doc-A-Thon_  
+**Questions to answer and things to consider:**
+
+1. Who is visiting the Security page?  
+
+2. What do they need to know first?  
+
+3. Is all the important information there? If not, add it!  
+
+4. Are there things that don't need to be there? Remove them.  
+
+5. Are the code and instructions accurate? Try it!
+
+---
+ **DELETE ABOVE ONCE COMPLETE**
+
+---
+
+
  - Cromwell is NOT on its own a security appliance!
  - Only YOU are responsible for your own security! 
  - Some recommendations and suggestions on security can be found below
 
- Security
-========
 
-# Security by sysadmin
+**Security by sysadmin**
+
 __Warning!__
 
 __This section is community-contributed. It is intended as helpful guidance only, and is not endorsed by the Broad Institute.__
@@ -28,7 +46,8 @@ Cromwell running in server mode accepts all connections on the configured webser
 
  1. That's it. Users now hit `http://my.proxy.org/cromwell` with authenticated requests, and they're forwarded to port 8000 on the cromwell server host.
 
-## Multi-tenant
+**Multi-tenant**
+
 The above scheme extends easily to multiple cromwell instances, for use by different groups within an organization for example. If the instances are running on the same host then each instance should be run as its own dedicated service account user, e.g. `cromwell1`, `cromwell2` etc. so that processes running under one cromwell instance cannot access the files of another; different webservice ports must also be configured. If persistent database storage is being used then each instance should be configured with its own database and database user. The proxy configuration above is extended simply by adding another `Location`:
 
 ```Apache

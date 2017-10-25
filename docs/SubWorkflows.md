@@ -1,7 +1,26 @@
+_For the Doc-A-Thon_  
+**Questions to answer and things to consider:**
+
+1. Who is visiting the Subworkflows page?  
+
+2. What do they need to know first?  
+
+3. Is all the important information there? If not, add it!  
+
+4. Are there things that don't need to be there? Remove them.  
+
+5. Are the code and instructions accurate? Try it!
+
+---
+ **DELETE ABOVE ONCE COMPLETE**
+
+---
+
+
 WDL allows the execution of an entire workflow as a step in a larger workflow (see WDL SPEC for more details), which is what will be referred to as a sub workflow going forward.
 Cromwell supports execution of such workflows. Note that sub workflows can themselves contain sub workflows, etc... There is no limitation as to how deeply workflows can be nested.
 
-## Execution
+**Execution**
 
 Sub workflows are executed exactly as a task would be.
 *This means that if another call depends on an output of a sub workflow, this call will run when the whole sub workflow completes (successfully).*
@@ -108,7 +127,8 @@ cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd/ <- main 
 
 ```
 
-## Metadata
+**Metadata**
+
 Each sub workflow will have its own workflow ID. This ID will appear in the metadata of the parent workflow, in the call section corresponding to the sub workflow, under the "subWorkflowId" attribute.
 For example, querying the `main_workflow` metadata above (minus the `myTask` call) , could result in something like this:
 

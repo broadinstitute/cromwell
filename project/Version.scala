@@ -30,7 +30,8 @@ object Version {
     Seq(file)
   }
 
-  val versionConfCompileSettings = List(resourceGenerators in Compile <+= writeVersionConf)
+  val versionConfCompileSettings = List(resourceGenerators in Compile += writeVersionConf)
+  //val versionConfCompileSettings = List(resourceGenerators in Compile =: { (resourceGenerators in Compile).value + writeVersionConf } )
 
   private def makeVersion(versionProperty: String,
                           baseVersion: Option[String],

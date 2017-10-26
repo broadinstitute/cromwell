@@ -1,4 +1,23 @@
-For the [local](/local) and [Sun GridEngine](/sge) backends, the following is required of the underlying filesystem:
+_For the Doc-A-Thon_  
+**Questions to answer and things to consider:**
+
+1. Who is visiting the Shared Filesystem page?  
+*Why do they care about a Shared Filesystem?*
+2. What do they need to know first?  
+
+3. Is all the important information there? If not, add it!  
+
+4. Are there things that don't need to be there? Remove them.  
+
+5. Are the code and instructions accurate? Try it!
+
+---
+ **DELETE ABOVE ONCE COMPLETE**
+
+---
+
+
+For the [local](local) and [Sun GridEngine](sge) backends, the following is required of the underlying filesystem:
 
 Cromwell is configured with a root execution directory which is set in the configuration file under `backend.providers.<backend_name>.config.root`.  This is called the `cromwell_root` and it is set to `./cromwell-executions` by default.  Relative paths are interpreted as relative to the current working directory of the Cromwell process.
 

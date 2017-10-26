@@ -1,3 +1,21 @@
+_For the Doc-A-Thon_  
+**Questions to answer and things to consider:**
+
+1. Who is visiting the API/Query page?  
+*Why aren't they visiting the GET API Query page? Maybe they came there from there* 
+2. What do they need to know first?  
+
+3. Is all the important information there? If not, add it!  
+
+4. Are there things that don't need to be there? Remove them.  
+
+5. Are the code and instructions accurate? Try it!
+
+---
+ **DELETE ABOVE ONCE COMPLETE**
+
+---
+
 This endpoint allows for querying workflows based on the same criteria
 as [GET /api/workflows/:version/query](/restpi#get-apiworkflowsversionquery).
 

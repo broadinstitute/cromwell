@@ -1,3 +1,22 @@
+_For the Doc-A-Thon_  
+**Questions to answer and things to consider:**
+
+1. Who is visiting the API/backends page?  
+
+2. What do they need to know first?  
+
+3. Is all the important information there? If not, add it!  
+
+4. Are there things that don't need to be there? Remove them.  
+
+5. Are the code and instructions accurate? Try it!
+
+---
+ **DELETE ABOVE ONCE COMPLETE**
+
+---
+
+
 This endpoint returns a list of the backends supported by the server as well as the default backend.
 
 cURL:

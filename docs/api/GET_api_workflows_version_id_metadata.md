@@ -1,4 +1,22 @@
-This endpoint returns a superset of the data from #get-workflowsversionidlogs in essentially the same format
+_For the Doc-A-Thon_  
+**Questions to answer and things to consider:**
+
+1. Who is visiting the API/metadata page?  
+
+2. What do they need to know first?  
+
+3. Is all the important information there? If not, add it!  
+
+4. Are there things that don't need to be there? Remove them.  
+
+5. Are the code and instructions accurate? Try it!
+
+---
+ **DELETE ABOVE ONCE COMPLETE**
+
+---
+
+This endpoint returns a superset of the data from [Get API/logs](api/GET_api_workflows_version_id_logs) in essentially the same format
 (i.e. shards are accounted for by an array of maps, in the same order as the shards). 
 In addition to shards, every attempt that was made for this call will have its own object as well, in the same order as the attempts.
 Workflow metadata includes submission, start, and end datetimes, as well as status, inputs and outputs.
@@ -429,7 +447,7 @@ The `call` and `workflow` may optionally contain failures shaped like this:
 ]
 ```
 
-### Compressing the metadata response
+**Compressing the metadata response**
 
 The response from the metadata endpoint can be quite large depending on the workflow. To help with this Cromwell supports gzip encoding the metadata prior to sending it back to the client. In order to enable this, make sure your client is sending the `Accept-Encoding: gzip` header.
 

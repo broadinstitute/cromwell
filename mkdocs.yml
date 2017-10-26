@@ -7,12 +7,13 @@ repo_url: https://github.com/broadinstitute/cromwell/docs
 
 pages:
 - Introduction: index.md
-- Getting Started: GettingHelp.md
-- Requirements: Requirements.md
-- How to Build: Building.md
-- Installation: Installing.md
+- Getting Started: 
+    - Requirements: Requirements.md
+    - How to Build: Building.md
+    - Installation: Installing.md
+    - WDL: StartWDL.md
+    - Other Resources: GettingHelp.md
 - Command Line: CommandLine.md
-- WDL: StartWDL.md
 - Configuration: Configuring.md
 - Security: Security.md
 - Backends: 

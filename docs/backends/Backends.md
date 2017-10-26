@@ -1,3 +1,22 @@
+_For the Doc-A-Thon_  
+**Questions to answer and things to consider:**
+
+1. Who is visiting the General Backends page?  
+*Do they know what a backend is?*
+2. What do they need to know first?  
+
+3. Is all the important information there? If not, add it!  
+
+4. Are there things that don't need to be there? Remove them.  
+
+5. Are the code and instructions accurate? Try it!
+
+---
+ **DELETE ABOVE ONCE COMPLETE**
+
+---
+
+
 A backend represents a way to run the user's command specified in the `task` section.  Cromwell allows for backends conforming to
 the Cromwell backend specification to be plugged into the Cromwell engine.  Additionally, backends are included with the
 Cromwell distribution:
@@ -82,7 +101,7 @@ backend {
 }
 ```
 
-## Backend Job Limits
+**Backend Job Limits**
 
 You can limit the number of concurrent jobs for a backend by specifying the following option in the backend's config
 stanza:
@@ -97,7 +116,7 @@ backend {
         concurrent-job-limit = 5
 ```
 
-## Backend Filesystems
+**Backend Filesystems**
 
 Each backend will utilize filesystems to store the directory structure of an executed workflow.  Currently, the backends and the type of filesystems that the backend use are tightly coupled.  In future versions of Cromwell, they may be more loosely coupled.
 

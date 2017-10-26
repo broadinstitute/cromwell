@@ -74,7 +74,7 @@ java -Dconfig.file=/path/to/yourOverrides.conf cromwell.jar ...
 A description of options and example stanzas may be found in the file
 [`cromwell.examples.conf`](cromwell.examples.conf).
 
-## I/O
+**I/O**
 
 Cromwell centralizes as many of its I/O operations as possible through a unique entry point. This allows users to effectively control and throttle the number of requests and resources allocated to those operations throughout the entire system.
 It is possible to configure this throttling behavior in the configuration:
@@ -88,7 +88,7 @@ system.io {
 
 This is particularly useful when running Cromwell on a Pipelines API backend for example, as Google imposes a quota on the number of GCS queries that can be made.
 
-### Resilience
+**Resilience**
 
 I/O operations can fail for a number of reason from network failures to server errors. Some of those errors are not fatal and can be retried.
 Cromwell will retry I/O operations on such retryable errors, up to a number of times. This number (more precisely the number of attempts that will be made) can be set using the following configuration option:
@@ -101,13 +101,13 @@ system.io {
 ```
 
 
-## Workflow Submission
+**Workflow Submission**
 
 Cromwell has a configurable cap on the number of workflows running at a time. To set this value provide an integer value to the `system.max-concurrent-workflows` config value.
 
 Cromwell will look for new workflows to start on a regular interval which can be modified by setting the `system.new-workflow-poll-rate` config value, which is the number of seconds between workflow launches. On every poll, Cromwell will take at most `system.max-workflow-launch-count` new submissions, provided there are new workflows to launch and the `system.max-concurrent-workflows` number has not been reached.
 
-## Database
+**Database**
 
 Cromwell uses either an in-memory or MySQL database to track the execution of workflows and store outputs of task invocations.
 
@@ -154,7 +154,7 @@ database {
 If no override is found for `metadata`, Cromwell falls back to using the settings under the root `database`
 configuration. This feature should be considered experimental and likely to change in the future.
 
-## SIGINT abort handler
+**SIGINT abort handler**
 
 For backends that support aborting task invocations, Cromwell can be configured to automatically try to abort all currently running calls (and set their status to `Aborted`) when a SIGINT is sent to the Cromwell process.  To turn this feature on, set the configuration option
 

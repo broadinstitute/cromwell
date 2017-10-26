@@ -1,3 +1,22 @@
+_For the Doc-A-Thon_  
+**Questions to answer and things to consider:**
+
+1. Who is visiting the Spark page?  
+
+2. What do they need to know first?  
+
+3. Is all the important information there? If not, add it!  
+*Include a one-sentence explanation of Spark, why it's great, why Cromwell is great with Spark, etc*
+4. Are there things that don't need to be there? Remove them.  
+
+5. Are the code and instructions accurate? Try it!
+
+---
+ **DELETE ABOVE ONCE COMPLETE**
+
+---
+
+
 **Spark Backend**
 
 This backend adds support for execution of spark jobs in a workflow.
@@ -9,7 +28,7 @@ It supports the following Spark deploy modes:
 *  Client deploy mode using Yarn resource manager
 *  Cluster deploy mode using Yarn resource manager
 
-### Configuring Spark Project
+**Configuring Spark Project**
 
 Cromwell's default configuration file is located at `core/src/main/resources/reference.conf`
 
@@ -50,7 +69,7 @@ backend {
   ....
 ```
 
-### Configuring Spark Master and Deploy Mode
+**Configuring Spark Master and Deploy Mode**
 
 Default configuration is as follows:
 
@@ -65,7 +84,7 @@ Spark {
 
 However to use Spark in standalone cluster mode change `master: spark://hostname:6066` and `deployMode: cluster` similarly, for yarn change `master: yarn` and `deployMode: cluster` or `deployMode: client` to run in cluster or client mode respectively. 
 
-### Spark runtime attributes
+**Spark runtime attributes**
 
 Supported runtime attributes for a Spark Job is as follows:
 	
@@ -92,7 +111,7 @@ task sparkjob_with_yarn_cluster {
 	}
 ```
 
-### Spark Environment
+**Spark Environment**
 
 The Spark backend assumes Spark is already installed, and it constructs the spark submit command with the `SPARK_HOME` environment variable if set. Otherwise backend creates command `spark-submit` without a fully qualified path to `spark-submit`.Also, it is important to set environment variable `HOSTNAME` to master machine ip or hostname, that is accessible by spark backend. That can be done by setting either in `~/.bashrc or profile like "export HOSTNAME=<machine ip>" `
 
@@ -102,7 +121,8 @@ Supported File Systems as follows:
 * Network File System
 * Distributed file system
 
-### Sample WDL
+**Sample WDL**
+
 Next, create a WDL, and its json input like so:
 
 ```wdl

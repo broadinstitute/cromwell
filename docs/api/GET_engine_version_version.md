@@ -1,3 +1,21 @@
+_For the Doc-A-Thon_  
+**Questions to answer and things to consider:**
+
+1. Who is visiting the API/Cromwell version page?  
+
+2. What do they need to know first?  
+*Right now we just have one version, right? Is this a useful endpoint?*
+3. Is all the important information there? If not, add it!  
+
+4. Are there things that don't need to be there? Remove them.  
+
+5. Are the code and instructions accurate? Try it!
+
+---
+ **DELETE ABOVE ONCE COMPLETE**
+
+---
+
 This endpoint returns the version of the Cromwell engine.
 
 cURL:

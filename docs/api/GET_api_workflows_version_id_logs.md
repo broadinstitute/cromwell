@@ -1,3 +1,21 @@
+_For the Doc-A-Thon_  
+**Questions to answer and things to consider:**
+
+1. Who is visiting the API/logs page?  
+
+2. What do they need to know first?  
+*When would someone need the logs?*
+3. Is all the important information there? If not, add it!  
+*What are some useful things to look for in the logs?*
+4. Are there things that don't need to be there? Remove them.  
+
+5. Are the code and instructions accurate? Try it!
+
+---
+ **DELETE ABOVE ONCE COMPLETE**
+
+---
+
 This will return paths to the standard out and standard error files that were generated during the execution of all calls in a workflow.
 
 A call has one or more standard out and standard error logs, depending on if the call was scattered or not. In the latter case, one log is provided for each instance of the call that has been run.

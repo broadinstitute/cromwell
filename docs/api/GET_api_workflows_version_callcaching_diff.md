@@ -1,3 +1,22 @@
+_For the Doc-A-Thon_  
+**Questions to answer and things to consider:**
+
+1. Who is visiting the API/Call caching page?  
+
+2. What do they need to know first?  
+
+3. Is all the important information there? If not, add it!  
+*Link to the Call Caching page where appropriate*
+4. Are there things that don't need to be there? Remove them.  
+
+5. Are the code and instructions accurate? Try it!
+
+---
+ **DELETE ABOVE ONCE COMPLETE**
+
+---
+
+
 **Disclaimer**: This endpoint depends on hash values being published to the metadata, which only happens as of Cromwell 28.
 Workflows run with prior versions of Cromwell cannot be used with this endpoint.
 A `404 NotFound` will be returned when trying to use this endpoint if either workflow has been run on a prior version.

@@ -1,3 +1,22 @@
+_For the Doc-A-Thon_  
+**Questions to answer and things to consider:**
+
+1. Who is visiting the API/Batch page?  
+
+2. What do they need to know first?  
+
+3. Is all the important information there? If not, add it!  
+*Why might they want to do submit via Batch versus normal API?*
+4. Are there things that don't need to be there? Remove them.  
+
+5. Are the code and instructions accurate? Try it!
+
+---
+ **DELETE ABOVE ONCE COMPLETE**
+
+---
+
+
 This endpoint accepts a POST request with a `multipart/form-data`
 encoded body.  The form fields that may be included are:
 

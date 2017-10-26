@@ -122,9 +122,9 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
   }
 
   private lazy val commandLineTool: CommandLineTool = {
-    val wf = decodeAllCwl(rootPath / "three_step.cwl").map {
-      _.select[Workflow].get
-    }.value.unsafeRunSync.fold(error => throw new RuntimeException(s"broken parse! msg was $error"), identity)
+    val wf = decodeAllCwl(rootPath / "three_step.cwl").map { wf =>
+      wf.select[Workflow].get
+    }.value.unsafeRunSync.fold(error => throw new RuntimeException(s"broken parse! msg was ${error.toList.mkString(", ")}"), identity)
 
     wf.id should include("three_step")
 

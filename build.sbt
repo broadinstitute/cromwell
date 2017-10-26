@@ -64,7 +64,6 @@ lazy val cromwellApiClient = (project in file("cromwellApiClient"))
 
 lazy val services = (project in file("services"))
   .settings(servicesSettings:_*)
-  .settings(parallelExecution in Test := false)
   .withTestSettings
   .dependsOn(core)
   .dependsOn(databaseSql)

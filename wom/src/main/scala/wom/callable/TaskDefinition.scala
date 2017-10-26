@@ -26,7 +26,9 @@ sealed trait TaskDefinition extends Callable {
   def instantiateCommand(taskInputs: WomEvaluatedCallInputs,
                          functions: IoFunctionSet,
                          valueMapper: WomValue => WomValue = identity[WomValue],
-                         separate: Boolean = false): Try[String] = {
+                        outputDirectory: String,
+                         separate: Boolean = false
+                         ): Try[String] = {
     val mappedInputs = taskInputs.map({case (k, v) => k.localName -> v})
     Try(StringUtil.normalize(commandTemplate.map(_.instantiate(mappedInputs, functions, valueMapper)).mkString(commandPartSeparator)))
   }

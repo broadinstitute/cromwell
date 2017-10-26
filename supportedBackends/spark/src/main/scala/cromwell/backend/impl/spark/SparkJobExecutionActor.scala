@@ -160,7 +160,8 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
       val command = Command.instantiate(
         jobDescriptor,
         callEngineFunction,
-        localizeInputs(jobPaths.callInputsRoot, docker = false)
+        localizeInputs(jobPaths.callInputsRoot, docker = false),
+        outputsDirectory = jobPaths.callRoot
       )
 
       log.debug("{} Creating bash script for executing command: {}", tag, command)

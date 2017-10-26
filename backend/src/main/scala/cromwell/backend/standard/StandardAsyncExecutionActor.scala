@@ -21,7 +21,9 @@ import cromwell.services.metadata.CallMetadataKeys
 import common.exception.MessageAggregation
 import common.util.TryUtil
 import common.validation.ErrorOr.ErrorOr
+import cromwell.backend.io.JobPaths
 import net.ceedubs.ficus.Ficus._
+import wom.callable.RuntimeEnvironment
 import wom.values._
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}
@@ -224,8 +226,13 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   }
 
   /** The instantiated command. */
-  lazy val instantiatedCommand: String = Command.instantiate(
-    jobDescriptor, backendEngineFunctions, commandLinePreProcessor, commandLineValueMapper).get
+  lazy val instantiatedCommand: String =  {
+
+    jobDescriptor.runtimeAttributes
+
+    Command.instantiate(
+      jobDescriptor, backendEngineFunctions, commandLinePreProcessor, commandLineValueMapper, jobPaths.callRoot).get
+  }
 
   /**
     * Redirect the stdout and stderr to the appropriate files. While not necessary, mark the job as not receiving any
@@ -725,3 +732,24 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   * @param jobId The job id.
   */
 final case class StandardAsyncJob(jobId: String) extends JobId
+
+object RuntimeEnvironmentBuilder {
+
+  /**
+    * Per the spec:
+    *
+    * "For cores, ram, outdirSize and tmpdirSize, if an implementation can't provide the actual number of reserved cores
+    * during the expression evaluation time, it should report back the minimal requested amount."
+    */
+  def apply(runtimeAttributes: Map[String, WomValue], jobPaths: JobPaths): RuntimeEnvironment = {
+
+    val cpus: Int = CpuValidation.instance.validate(runtimeAttributes).getOrElse(1)
+
+
+    val memory = MemoryValidation.instance().validate(runtimeAttributes).map(_.unit)
+
+    val runtimeEnvironment = RuntimeEnvironment(jobPaths.callRoot, jobPaths.callRoot, )
+
+
+  }
+}

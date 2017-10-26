@@ -71,7 +71,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     WorkflowExecutionPendingState,
     WorkflowExecutionActorData(
       workflowDescriptor,
-      executionStore = ExecutionStore(workflowDescriptor.backendDescriptor.workflow),
+      executionStore = ExecutionStore(workflowDescriptor.backendDescriptor.callable),
       backendJobExecutionActors = Map.empty,
       engineCallExecutionActors = Map.empty,
       subWorkflowExecutionActors = Map.empty,
@@ -83,7 +83,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   when(WorkflowExecutionPendingState) {
     case Event(ExecuteWorkflowCommand, _) =>
       // TODO WOM: Remove this when conditional and sub workflows are supported. It prevents the workflow from hanging
-      if(workflowDescriptor.namespace.innerGraph.nodes.collectFirst({
+      if(workflowDescriptor.callable.graph.nodes.collectFirst({
         case  _: ConditionalNode | _: WorkflowCallNode => true
       }).nonEmpty) {
         context.parent ! WorkflowExecutionFailedResponse(Map.empty, new Exception("Conditional and Sub Workflows not supported yet"))
@@ -288,7 +288,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       }
       // Publish fully qualified workflow outputs to log and metadata
       workflowLogger.info(
-        s"""Workflow ${workflowDescriptor.workflow.name} complete. Final Outputs:
+        s"""Workflow ${workflowDescriptor.callable.name} complete. Final Outputs:
            |${fullyQualifiedOutputs.stripLarge.toJson.prettyPrint}""".stripMargin
       )
       pushWorkflowOutputMetadata(fullyQualifiedOutputs)
@@ -311,7 +311,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       goto(WorkflowExecutionFailedState)
     }
 
-    val workflowOutputPorts = workflowDescriptor.namespace.innerGraph.outputNodes.flatMap(_.outputPorts)
+    val workflowOutputPorts = workflowDescriptor.callable.graph.outputNodes.flatMap(_.outputPorts)
 
     val workflowOutputValuesValidation = workflowOutputPorts
       // Try to find a value for each port in the value store

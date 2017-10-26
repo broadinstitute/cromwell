@@ -11,11 +11,13 @@ import io.circe.yaml
 import io.circe.literal._
 import common.Checked
 import common.validation.Checked._
-import wom.callable.Callable
+import wom.callable.ExecutableCallable
 import wom.executable.Executable
 import wom.executable.Executable.{InputParsingFunction, ParsedInputMap}
 
-// See explanation as to why there are 2 versions of this in ExecutableValidation
+// WARNING! Because of 2.11 vs 2.12 incompatibilities, there are two versions of this file.
+// If you're making changes here, you'll also need to update ../../scala-2.12/cwl/CwlExecutableValidation.scala
+// (ExecutableValidation.scala has more info on why this was necessary)
 object CwlExecutableValidation {
 
   implicit val f = implicitly[Decoder[File]]
@@ -29,7 +31,7 @@ object CwlExecutableValidation {
       }
     }
 
-  def buildWomExecutable(callable: Checked[Callable], inputFile: Option[String]): Checked[Executable] = {
+  def buildWomExecutable(callable: Checked[ExecutableCallable], inputFile: Option[String]): Checked[Executable] = {
     for {
       womDefinition <- callable
       executable <- Executable.withInputs(womDefinition, inputCoercionFunction, inputFile)

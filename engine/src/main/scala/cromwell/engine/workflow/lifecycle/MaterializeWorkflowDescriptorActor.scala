@@ -39,9 +39,8 @@ import common.validation.ErrorOr._
 import net.ceedubs.ficus.Ficus._
 import spray.json._
 import cwl.CwlDecoder.Parse
-import cwl.{CwlDecoder, Workflow}
+import cwl.CwlDecoder
 import wdl._
-import wom.callable.WorkflowDefinition
 import wom.executable.Executable
 import wom.executable.Executable.ResolvedExecutableInputs
 import wom.expression.{IoFunctionSet, WomExpression}
@@ -49,6 +48,7 @@ import wom.graph.GraphNodePort.OutputPort
 import wom.graph.{Graph, TaskCallNode}
 import wom.values.{WomSingleFile, WomString, WomValue}
 import better.files.File
+
 import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -281,12 +281,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
     (failureModeValidation, backendAssignmentsValidation, callCachingModeValidation) mapN {
       case (failureMode, backendAssignments, callCachingMode) =>
-        womNamespace.executable.entryPoint match {
-          case workflowDefinition: WorkflowDefinition =>
-            val backendDescriptor = BackendWorkflowDescriptor(id, workflowDefinition, womNamespace.womValueInputs, workflowOptions, labels)
-            EngineWorkflowDescriptor(workflowDefinition, backendDescriptor, backendAssignments, failureMode, pathBuilders, callCachingMode)
-          case _ => throw new NotImplementedError("Only workflows are valid entry points currently.")
-        }
+        val callable = womNamespace.executable.entryPoint
+        val backendDescriptor = BackendWorkflowDescriptor(id, callable, womNamespace.womValueInputs, workflowOptions, labels)
+        EngineWorkflowDescriptor(callable, backendDescriptor, backendAssignments, failureMode, pathBuilders, callCachingMode)
     }
   }
 
@@ -449,9 +446,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     for {
       _ <- unzipDependencies
       cwl <- CwlDecoder.decodeAllCwl(cwlFile)
-      wf <- fromEither[IO](cwl.select[Workflow].toRight(NonEmptyList.one(s"expected a workflow but got a $cwl")))
-      executable <-  fromEither[IO](wf.womExecutable(Option(source.inputsJson)))
-      graph <- fromEither[IO](executable.graph.toEither)
+      executable <-  fromEither[IO](cwl.womExecutable(Option(source.inputsJson)))
       ioFunctions = new WdlFunctions(pathBuilders)
       validatedWomNamespace <- fromEither[IO](validateWomNamespace(executable, ioFunctions))
     } yield validatedWomNamespace
@@ -505,9 +500,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   }
 
   private def validateWomNamespace(womExecutable: Executable, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = for {
-    graph <- womExecutable.graph.toEither
     evaluatedInputs <- validateExecutableInputs(womExecutable.resolvedExecutableInputs, ioFunctions).toEither
-    validatedWomNamespace = ValidatedWomNamespace(womExecutable, graph, evaluatedInputs)
+    validatedWomNamespace = ValidatedWomNamespace(womExecutable, womExecutable.graph, evaluatedInputs)
     _ <- validateWdlFiles(validatedWomNamespace.womValueInputs)
   } yield validatedWomNamespace
 

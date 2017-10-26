@@ -29,6 +29,11 @@ package object cwl extends TypeAliases {
 
   type Cwl = Workflow :+: CommandLineTool :+: CNil
 
+  object Cwl {
+    object Workflow { def unapply(cwl: Cwl): Option[Workflow] = cwl.select[Workflow] }
+    object CommandLineTool { def unapply(cwl: Cwl): Option[CommandLineTool] = cwl.select[CommandLineTool] }
+  }
+
   def cwlTypeToWdlType : CwlType => WomType = {
     case Null => WomNothingType
     case Boolean => WomBooleanType
@@ -40,7 +45,6 @@ package object cwl extends TypeAliases {
     case CwlType.File => WomFileType
     case CwlType.Directory => ???
   }
-
 
   /**
     *
@@ -77,12 +81,10 @@ package object cwl extends TypeAliases {
 
   type WdlTypeMap = Map[String, WomType]
 
-  object CwlToWomExecutable extends Poly1 {
-    implicit def caseClt = at[CommandLineTool](clt => clt.womExecutable())
-    implicit def caseWf = at[Workflow](wf => wf.womExecutable())
-  }
-
   implicit class CwlHelper(val cwl: Cwl) extends AnyVal {
-    def womExecutable: Checked[Executable] = cwl.fold(CwlToWomExecutable)
+    def womExecutable(inputsFile: Option[String] = None): Checked[Executable] = cwl match {
+      case Cwl.Workflow(w) => w.womExecutable(inputsFile)
+      case Cwl.CommandLineTool(clt) => clt.womExecutable(inputsFile)
+    }
   }
 }

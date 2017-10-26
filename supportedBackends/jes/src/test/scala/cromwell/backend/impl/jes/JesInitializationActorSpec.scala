@@ -190,7 +190,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
     within(Timeout) {
       val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld,
         runtime = """runtime { docker: "ubuntu/latest" test: true }""")
-      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflow.taskCallNodes,
+      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.callable.taskCallNodes,
         defaultBackendConfig)
       val eventPattern =
         "Key/s [test] is/are not supported by backend. Unsupported attributes will not be part of job executions."
@@ -208,7 +208,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   it should "return InitializationFailed when docker runtime attribute key is not present" taggedAs PostWomTest ignore {
     within(Timeout) {
       val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
-      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflow.taskCallNodes,
+      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.callable.taskCallNodes,
         defaultBackendConfig)
       backend ! Initialize
       expectMsgPF() {
@@ -231,7 +231,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.mapValues(JsString.apply)).compactPrint),
       options = workflowOptions
     )
-    val calls = workflowDescriptor.workflow.taskCallNodes
+    val calls = workflowDescriptor.callable.taskCallNodes
     val backendConfigurationDescriptor = BackendConfigurationDescriptor(backendConfig, globalConfig)
     val jesConfiguration = new JesConfiguration(backendConfigurationDescriptor)
 

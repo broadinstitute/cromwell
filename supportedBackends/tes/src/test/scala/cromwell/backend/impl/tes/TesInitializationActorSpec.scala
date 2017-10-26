@@ -81,7 +81,7 @@ class TesInitializationActorSpec extends TestKitSuite("TesInitializationActorSpe
       within(Timeout) {
         val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld,
           runtime = """runtime { docker: "ubuntu/latest" test: true }""")
-        val backend = getActorRef(workflowDescriptor, workflowDescriptor.workflow.taskCallNodes, conf)
+        val backend = getActorRef(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, conf)
         val eventPattern =
           "Key/s [test] is/are not supported by backend. Unsupported attributes will not be part of job executions."
         EventFilter.warning(pattern = escapePattern(eventPattern), occurrences = 1) intercept {
@@ -97,7 +97,7 @@ class TesInitializationActorSpec extends TestKitSuite("TesInitializationActorSpe
     "return InitializationFailed when docker runtime attribute key is not present" taggedAs PostWomTest ignore {
       within(Timeout) {
         val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
-        val backend = getActorRef(workflowDescriptor, workflowDescriptor.workflow.taskCallNodes, conf)
+        val backend = getActorRef(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, conf)
         backend ! Initialize
         expectMsgPF() {
           case InitializationFailed(failure) =>

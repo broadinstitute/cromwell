@@ -7,7 +7,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import better.files.File
 import cats.implicits._
 import cwl.CwlDecoder
-import common.validation.ErrorOr.ErrorOr
 import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.executable.Executable
 import wom.graph._
@@ -177,9 +176,9 @@ object WomGraph {
     val empty = NodesAndLinks(Set.empty, Set.empty)
   }
 
-  def fromFiles(mainFile: String, auxFiles: Seq[String]): ErrorOr[WomGraph] = {
+  def fromFiles(mainFile: String, auxFiles: Seq[String]) = {
     val womExecutable = if (mainFile.toLowerCase().endsWith("wdl")) womExecutableFromWdl(mainFile) else womExecutableFromCwl(mainFile)
-    womExecutable.graph map { graph => new WomGraph(womExecutable.entryPoint.name, graph) }
+    new WomGraph(womExecutable.entryPoint.name, womExecutable.graph)
   }
 
   private def readFile(filePath: String): String = Files.readAllLines(Paths.get(filePath)).asScala.mkString(System.lineSeparator())
@@ -198,7 +197,7 @@ object WomGraph {
       clt <- CwlDecoder.decodeAllCwl(File(filePath)).
         value.
         unsafeRunSync
-      wom <- clt.womExecutable
+      wom <- clt.womExecutable()
     } yield wom) match {
       case Right(womExecutable) => womExecutable
       case Left(e) => throw new Exception(s"Can't build WOM executable from CWL: ${e.toList.mkString("\n", "\n", "\n")}")

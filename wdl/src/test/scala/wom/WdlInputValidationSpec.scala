@@ -38,8 +38,8 @@ class WdlInputValidationSpec extends FlatSpec with Matchers with BeforeAndAfterA
 
   val namespace = WdlNamespace.loadUsingSource(wdlWorkflow, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
   val graph = namespace.workflow.womDefinition
-    .getOrElse(fail("Failed to build a wom definition"))
-    .graph.valueOr(errors => fail(s"Failed to build a wom graph: ${errors.toList.mkString(", ")}"))
+    .valueOr(errors => fail(s"Failed to build a wom definition: ${errors.toList.mkString(", ")}"))
+    .graph
 
   val w1OutputPort = graph.externalInputNodes.find(_.fullyQualifiedName == "w.w1").getOrElse(fail("Failed to find an input node for w1")).singleOutputPort
   val w2OutputPort = graph.externalInputNodes.find(_.fullyQualifiedName == "w.w2").getOrElse(fail("Failed to find an input node for w2")).singleOutputPort

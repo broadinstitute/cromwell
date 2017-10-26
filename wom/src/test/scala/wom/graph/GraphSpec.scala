@@ -5,7 +5,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct
 import wom.RuntimeAttributes
 import wom.callable.Callable.{OutputDefinition, RequiredInputDefinition}
-import wom.callable.{TaskDefinition, WorkflowDefinition}
+import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
 import wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNodePort.OutputPort
 import wom.types.{WomFileType, WomIntegerType, WomStringType}
@@ -14,7 +14,7 @@ class GraphSpec extends FlatSpec with Matchers {
   behavior of "Graph"
 
   def makeThreeStep: Graph = {
-    val taskDefinition_ps = TaskDefinition(
+    val taskDefinition_ps = CallableTaskDefinition(
       name = "ps",
       commandTemplate = null,
       runtimeAttributes = RuntimeAttributes(attributes = Map.empty),
@@ -27,7 +27,7 @@ class GraphSpec extends FlatSpec with Matchers {
     val cgrepInFile = RequiredInputDefinition("in_file", WomFileType)
     val cgrepPattern = RequiredInputDefinition("pattern", WomStringType)
     
-    val taskDefinition_cgrep = TaskDefinition(
+    val taskDefinition_cgrep = CallableTaskDefinition(
       name = "cgrep",
       commandTemplate = null,
       runtimeAttributes = RuntimeAttributes(attributes = Map.empty),
@@ -38,7 +38,7 @@ class GraphSpec extends FlatSpec with Matchers {
     )
 
     val wcInFile = RequiredInputDefinition("in_file", WomFileType)
-    val taskDefinition_wc = TaskDefinition(
+    val taskDefinition_wc = CallableTaskDefinition(
       name = "wc",
       commandTemplate = null,
       runtimeAttributes = RuntimeAttributes(attributes = Map.empty),

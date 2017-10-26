@@ -7,10 +7,10 @@ import cromwell.core.callcaching.MaybeCallCachingEligible
 import cromwell.core.labels.Labels
 import cromwell.core.{CallKey, WorkflowId, WorkflowOptions}
 import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
-import wom.callable.WorkflowDefinition
+import wom.callable.ExecutableCallable
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.TaskCallNode
-import wom.values.{WomValue, WomEvaluatedCallInputs}
+import wom.values.{WomEvaluatedCallInputs, WomValue}
 
 import scala.util.Try
 
@@ -45,11 +45,11 @@ case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
 
 object BackendWorkflowDescriptor {
   def apply(id: WorkflowId,
-            workflow: WorkflowDefinition,
+            callable: ExecutableCallable,
             knownValues: Map[OutputPort, WomValue],
             workflowOptions: WorkflowOptions,
             customLabels: Labels) = {
-    new BackendWorkflowDescriptor(id, workflow, knownValues, workflowOptions, customLabels, List.empty)
+    new BackendWorkflowDescriptor(id, callable, knownValues, workflowOptions, customLabels, List.empty)
   }
 }
 
@@ -57,16 +57,16 @@ object BackendWorkflowDescriptor {
   * For passing to a BackendActor construction time
   */
 case class BackendWorkflowDescriptor(id: WorkflowId,
-                                     workflow: WorkflowDefinition,
+                                     callable: ExecutableCallable,
                                      knownValues: Map[OutputPort, WomValue],
                                      workflowOptions: WorkflowOptions,
                                      customLabels: Labels,
                                      breadCrumbs: List[BackendJobBreadCrumb]) {
-  
-  val rootWorkflow = breadCrumbs.headOption.map(_.workflow).getOrElse(workflow)
+
+  val rootWorkflow = breadCrumbs.headOption.map(_.callable).getOrElse(callable)
   val rootWorkflowId = breadCrumbs.headOption.map(_.id).getOrElse(id)
-  
-  override def toString: String = s"[BackendWorkflowDescriptor id=${id.shortString} workflowName=${workflow.name}]"
+
+  override def toString: String = s"[BackendWorkflowDescriptor id=${id.shortString} workflowName=${callable.name}]"
   def getWorkflowOption(key: WorkflowOption) = workflowOptions.get(key).toOption
 }
 

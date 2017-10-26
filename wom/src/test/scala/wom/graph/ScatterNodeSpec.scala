@@ -6,7 +6,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct
 import wom.RuntimeAttributes
 import wom.callable.Callable.{OutputDefinition, RequiredInputDefinition}
-import wom.callable.TaskDefinition
+import wom.callable.CallableTaskDefinition
 import wom.expression.PlaceholderWomExpression
 import wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNodePort.OutputPort
@@ -17,7 +17,7 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
   behavior of "ScatterNode"
 
   val fooInputDef = RequiredInputDefinition("i", WomIntegerType)
-  val task_foo = TaskDefinition(name = "foo",
+  val task_foo = CallableTaskDefinition(name = "foo",
     commandTemplate = null,
     runtimeAttributes = RuntimeAttributes(Map.empty),
     meta = Map.empty,

@@ -1,11 +1,11 @@
 package cromwell.util
 
 import wom.RuntimeAttributes
-import wom.callable.{TaskDefinition, WorkflowDefinition}
+import wom.callable.{CallableTaskDefinition, TaskDefinition, WorkflowDefinition}
 import wom.graph.{Graph, TaskCallNode, WomIdentifier, WorkflowCallNode}
 
 object WomMocks {
-  val EmptyTaskDefinition = TaskDefinition("emptyTask", List.empty, RuntimeAttributes(Map.empty),
+  val EmptyTaskDefinition = CallableTaskDefinition("emptyTask", List.empty, RuntimeAttributes(Map.empty),
     Map.empty, Map.empty, List.empty, List.empty)
 
   val EmptyWorkflowDefinition = mockWorkflowDefinition("emptyWorkflow")
@@ -23,7 +23,7 @@ object WomMocks {
   }
 
   def mockTaskDefinition(name: String) = {
-    TaskDefinition(name, List.empty, RuntimeAttributes(Map.empty),
+    CallableTaskDefinition(name, List.empty, RuntimeAttributes(Map.empty),
       Map.empty, Map.empty, List.empty, List.empty)
   }
 }

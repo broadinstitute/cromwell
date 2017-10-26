@@ -12,18 +12,18 @@ class TaskDefinitionSpec extends FlatSpec with Matchers {
   behavior of "TaskDefinition.graph"
 
   it should "represent an empty task as a one-node TaskCall graph" in {
-    noInputsOrOutputsTask.graph match {
-      case Valid(graph) =>
-        graph.nodes.size should be(1)
+    executableNoInputsOrOutputsTask match {
+      case Valid(task) =>
+        task.graph.nodes.size should be(1)
       case Invalid(l) => fail(s"Failed to construct a one-node TaskCall graph: ${l.toList.mkString(", ")}")
     }
   }
 
   it should "create a graph input node for a one-input task definition" in {
-    oneInputTask.graph match {
-      case Valid(graph) =>
-        graph.nodes.size should be(2)
-        (graph.nodes.toList.find(_.isInstanceOf[GraphInputNode]), graph.nodes.toList.find(_.isInstanceOf[CallNode])) match {
+    executableOneInputTask match {
+      case Valid(task) =>
+        task.graph.nodes.size should be(2)
+        (task.graph.nodes.toList.find(_.isInstanceOf[GraphInputNode]), task.graph.nodes.toList.find(_.isInstanceOf[CallNode])) match {
           case (Some(inputNode), Some(callNode)) =>
             callNode.inputPorts.size should be(1)
             callNode.inputPorts.head.upstream.graphNode should be(inputNode)
@@ -34,8 +34,9 @@ class TaskDefinitionSpec extends FlatSpec with Matchers {
   }
 
   it should "create a graph output node for a one-output task definitions" in {
-    oneOutputTask.graph match {
-      case Valid(graph) =>
+    executableOneOutputTask match {
+      case Valid(task) =>
+        val graph = task.graph
         graph.nodes.size should be(2)
         (graph.nodes.toList.find(_.isInstanceOf[PortBasedGraphOutputNode]), graph.nodes.toList.find(_.isInstanceOf[CallNode])) match {
           case (Some(outputNode), Some(callNode)) =>
@@ -49,16 +50,18 @@ class TaskDefinitionSpec extends FlatSpec with Matchers {
   }
   
   it should "fail to build a graph with duplicates fqns" in {
-    duplicateFqns.graph match {
+    executableDuplicateFqns match {
       case Valid(_) => fail("The graph should be invalid")
-      case Invalid(_) =>
+      case Invalid(e) =>
+        e.size should be(1)
+        e.head should be("Two or more nodes have the same FullyQualifiedName: foo.bar")
     }
   }
 }
 
 object TaskDefinitionSpec {
 
-  val noInputsOrOutputsTask = TaskDefinition(
+  val noInputsOrOutputsTask = CallableTaskDefinition(
     name = "foo",
     commandTemplate = Seq.empty,
     runtimeAttributes = null,
@@ -66,8 +69,9 @@ object TaskDefinitionSpec {
     parameterMeta = Map.empty,
     outputs = List.empty,
     inputs = List.empty)
+  val executableNoInputsOrOutputsTask = ExecutableTaskDefinition.tryApply(noInputsOrOutputsTask)
 
-  val oneInputTask = TaskDefinition(
+  val oneInputTask = CallableTaskDefinition(
     name = "foo",
     commandTemplate = Seq.empty,
     runtimeAttributes = null,
@@ -75,8 +79,9 @@ object TaskDefinitionSpec {
     parameterMeta = Map.empty,
     outputs = List.empty,
     inputs = List(Callable.RequiredInputDefinition(LocalName("bar"), WomIntegerType)))
+  val executableOneInputTask = ExecutableTaskDefinition.tryApply(oneInputTask)
 
-  val oneOutputTask = TaskDefinition(
+  val oneOutputTask = CallableTaskDefinition(
     name = "foo",
     commandTemplate = Seq.empty,
     runtimeAttributes = null,
@@ -84,8 +89,9 @@ object TaskDefinitionSpec {
     parameterMeta = Map.empty,
     outputs = List(Callable.OutputDefinition(LocalName("bar"), WomStringType, null)),
     inputs = List.empty)
+  val executableOneOutputTask = ExecutableTaskDefinition.tryApply(oneOutputTask)
   
-  val duplicateFqns = TaskDefinition(
+  val duplicateFqns = CallableTaskDefinition(
     name = "foo",
     commandTemplate = Seq.empty,
     runtimeAttributes = null,
@@ -94,4 +100,5 @@ object TaskDefinitionSpec {
     outputs = List(Callable.OutputDefinition(LocalName("bar"), WomStringType, null)),
     inputs = List(Callable.RequiredInputDefinition(LocalName("bar"), WomStringType))
   )
+  val executableDuplicateFqns = ExecutableTaskDefinition.tryApply(duplicateFqns)
 }

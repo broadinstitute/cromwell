@@ -1,18 +1,22 @@
 package wom.callable
 
-import common.validation.ErrorOr.ErrorOr
 import wom.callable.Callable._
 import wom.expression.WomExpression
-import wom.graph.{Graph, LocalName}
+import wom.graph.{Graph, LocalName, TaskCallNode}
 import wom.types.{WomOptionalType, WomType}
-
 
 trait Callable {
   def name: String
 
-  def graph: ErrorOr[Graph]
   def inputs: List[_ <: InputDefinition]
   def outputs: List[_ <: OutputDefinition]
+}
+
+trait ExecutableCallable extends Callable {
+  def graph: Graph
+  lazy val taskCallNodes: Set[TaskCallNode] = graph.allNodes collect {
+    case taskNode: TaskCallNode => taskNode
+  }
 }
 
 object Callable {

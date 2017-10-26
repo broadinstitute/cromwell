@@ -23,7 +23,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          dockerImageUsed: String) {
 
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
-  private val workflowName = workflowDescriptor.workflow.name
+  private val workflowName = workflowDescriptor.callable.name
   private val fullyQualifiedTaskName = jobDescriptor.call.fullyQualifiedName
   val name: String = fullyQualifiedTaskName
   val description: String = jobDescriptor.toString

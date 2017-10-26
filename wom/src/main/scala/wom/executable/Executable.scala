@@ -4,7 +4,7 @@ import cats.syntax.validated._
 import common.Checked
 import common.validation.ErrorOr._
 import shapeless.Coproduct
-import wom.callable.Callable
+import wom.callable.ExecutableCallable
 import wom.executable.Executable.ResolvedExecutableInputs
 import wom.executable.ExecutableValidation._
 import wom.graph.Graph.ResolvedExecutableInput
@@ -33,7 +33,7 @@ object Executable {
    */
   type ResolvedExecutableInputs = Map[OutputPort, ResolvedExecutableInput]
 
-  def withInputs(entryPoint: Callable, inputParsingFunction: InputParsingFunction, inputFile: Option[String]): Checked[Executable] = {
+  def withInputs(entryPoint: ExecutableCallable, inputParsingFunction: InputParsingFunction, inputFile: Option[String]): Checked[Executable] = {
     validateExecutable(entryPoint, inputParsingFunction, parseGraphInputs, inputFile)
   }
 
@@ -64,6 +64,6 @@ object Executable {
   * @param entryPoint callable that this executable wraps
   * @param resolvedExecutableInputs Resolved values for the ExternalGraphInputNodes of the entryPoint's graph
   */
-final case class Executable(entryPoint: Callable, resolvedExecutableInputs: ResolvedExecutableInputs) {
-  val graph: ErrorOr[Graph] = entryPoint.graph
+final case class Executable(entryPoint: ExecutableCallable, resolvedExecutableInputs: ResolvedExecutableInputs) {
+  val graph: Graph = entryPoint.graph
 }

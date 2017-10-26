@@ -10,7 +10,7 @@ import wdl.expression.{WdlFunctions, WdlStandardLibraryFunctions}
 import wdl.util.StringUtil
 import wdl4s.parser.WdlParser._
 import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
-import wom.callable.{Callable, TaskDefinition}
+import wom.callable.{Callable, CallableTaskDefinition, TaskDefinition}
 import wom.graph.LocalName
 import wom.types.WomOptionalType
 import wom.values.{WomFile, WomValue}
@@ -212,7 +212,7 @@ case class WdlTask(name: String,
     } toMap
   }
 
-  private def buildWomTaskDefinition: TaskDefinition = TaskDefinition(
+  private def buildWomTaskDefinition: TaskDefinition = CallableTaskDefinition(
     name,
     commandTemplate,
     runtimeAttributes.toWomRuntimeAttributes,

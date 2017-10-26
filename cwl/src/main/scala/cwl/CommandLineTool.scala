@@ -1,19 +1,22 @@
 package cwl
 
+import java.nio.file.Paths
+
 import common.Checked
-import common.validation.Checked._
 import shapeless.syntax.singleton._
-import shapeless.{:+:, CNil, Witness, Coproduct}
+import shapeless.{:+:, CNil, Coproduct, Witness}
 import CommandLineTool._
 import CwlType.CwlType
 import CwlVersion._
 import eu.timepit.refined.W
-import wom.callable.Callable.{OutputDefinition, RequiredInputDefinition}
-import wom.callable.{Callable, TaskDefinition}
+import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition, RequiredInputDefinition}
+import wom.callable.{Callable, CallableTaskDefinition, ExecutableTaskDefinition}
 import wom.executable.Executable
-import wom.expression.WomExpression
+import wom.expression.{ValueAsAnExpression, WomExpression}
 import wom.types.WomFileType
 import wom.{CommandPart, RuntimeAttributes}
+
+import scala.util.Try
 
 /**
   * @param `class` This _should_ always be "CommandLineTool," however the spec does not -er- specify this.
@@ -42,9 +45,9 @@ case class CommandLineTool private(
                                    permanentFailCodes: Option[Array[Int]]) {
 
   def womExecutable(inputFile: Option[String] = None): Checked[Executable] =
-    CwlExecutableValidation.buildWomExecutable(taskDefinition.validNelCheck, inputFile)
+    CwlExecutableValidation.buildWomExecutable(ExecutableTaskDefinition.tryApply(taskDefinition).toEither, inputFile)
 
-  def taskDefinition: TaskDefinition = {
+  def taskDefinition: CallableTaskDefinition = {
 
     val id = this.id
 
@@ -69,7 +72,7 @@ case class CommandLineTool private(
       secondaryFiles
      */
 
-    val inputNames = this.inputs.map(_.id).toSet
+    val inputNames = this.inputs.map(i => FullyQualifiedName(i.id).id).toSet
 
     val outputs: List[Callable.OutputDefinition] = this.outputs.map {
       case CommandOutputParameter(cop_id, _, _, _, _, _, Some(outputBinding), Some(outputType)) if outputType.select[CwlType].contains(CwlType.File) =>
@@ -79,11 +82,14 @@ case class CommandLineTool private(
         OutputDefinition(FullyQualifiedName(cop_id).id, womType, CommandOutputExpression(outputBinding, womType, inputNames))
     }.toList
 
-    val inputs: List[_ <: Callable.InputDefinition] =
+    val inputDefinitions: List[_ <: Callable.InputDefinition] =
       this.inputs.map { cip =>
-        val tpe = cip.`type`.flatMap(_.select[CwlType]).map(cwlTypeToWdlType).get
-
-        RequiredInputDefinition(FullyQualifiedName(cip.id).id, tpe)
+        val inputType = cwlTypeToWdlType(cip.`type`.flatMap(_.select[CwlType]).get) // TODO: .get
+        val inputName = FullyQualifiedName(cip.id).id
+        cip.default match {
+          case Some(d) => InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(inputType.coerceRawValue(d.toString).get))
+          case None => RequiredInputDefinition(inputName, inputType)
+        }
       }.toList
 
     def stringOrExpressionToString(soe: Option[StringOrExpression]): Option[String] = soe flatMap {
@@ -91,14 +97,18 @@ case class CommandLineTool private(
       case StringOrExpression.Expression(_) => None // ... for now!
     }
 
-    TaskDefinition(
-      id,
+    // The try will succeed if this is a task within a step. If it's a standalone file, the ID will be the file,
+    // so the filename is the fallback.
+    def taskName = Try(FullyQualifiedName(id).id).getOrElse(Paths.get(id).getFileName.toString)
+
+    CallableTaskDefinition(
+      taskName,
       commandTemplate,
       runtimeAttributes,
       meta,
       parameterMeta,
       outputs,
-      inputs,
+      inputDefinitions,
       // TODO: This doesn't work in all cases and it feels clunky anyway - find a way to sort that out
       prefixSeparator = "#",
       commandPartSeparator = " ",

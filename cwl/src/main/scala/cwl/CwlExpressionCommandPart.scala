@@ -1,5 +1,6 @@
 package cwl
 
+import cwl.CommandLineTool.CommandInputParameter
 import wom.CommandPart
 import wom.expression.IoFunctionSet
 import wom.graph.LocalName
@@ -20,7 +21,7 @@ case class CwlExpressionCommandPart(expr: Expression) extends CommandPart {
 }
 
 // TODO: Dan to revisit making this an Either (and perhaps adding some other cases)
-case class CwlArgumentCommandPart(argument: CommandLineBinding) extends CommandPart {
+case class CommandLineBindingCommandPart(argument: CommandLineBinding) extends CommandPart {
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: (WomValue) => WomValue) = {
@@ -43,3 +44,29 @@ case class CwlArgumentCommandPart(argument: CommandLineBinding) extends CommandP
   }
 }
 
+case class InputParameterCommandPart(argument: CommandInputParameter) extends CommandPart {
+
+  override def instantiate(inputsMap: Map[LocalName, WomValue],
+                           functions: IoFunctionSet,
+                           valueMapper: (WomValue) => WomValue) = {
+
+    val localInputsMap = inputsMap.map{
+      case (LocalName(localName), WomSingleFile(path)) => localName -> WomString(path)
+      case (LocalName(localName), value) => localName -> value
+    }
+
+
+    val womValue: WomValue = argument match {
+      case CommandInputParameter(id, _,_,_,_,_, Some(CommandLineBinding(None,Some(_),None,None,None,None,None)),_,_) =>
+        localInputsMap.get(FullyQualifiedName(id).id) match {
+          case Some(x) =>x
+          case _ => throw new RuntimeException(s"could not find $id in map $inputsMap")
+        }
+
+      // There's a fair few other cases to add, but until then...
+      case other => throw new NotImplementedError(s"As-yet-unsupported commandPart from  command input parameters: $other")
+    }
+
+    womValue.valueString
+  }
+}

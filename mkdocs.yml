@@ -13,6 +13,7 @@ pages:
     - Installation: Installing.md
     - WDL: StartWDL.md
     - Other Resources: GettingHelp.md
+    - (SOON) CWL: CWL.md
 - Command Line: CommandLine.md
 - Configuration: Configuring.md
 - Security: Security.md

@@ -1,4 +1,4 @@
-Sometimes you might want to break up you 1000 line WDL file into smaller components for easier maintenance or for reuse in multiple workflows.  Have no fear, imports are here to help!  Imports allow you to reference other WDL files that contain entire workflows or even just raw tasks.
+Sometimes you might want to break up your 1000 line WDL file into smaller components for easier maintenance or for reuse in multiple workflows.  Have no fear, imports are here to help!  Imports allow you to reference other WDL files that contain entire workflows or even just raw tasks.
 
 To import a WDL, you can use the `import` WDL construct at the top of your workflow
 

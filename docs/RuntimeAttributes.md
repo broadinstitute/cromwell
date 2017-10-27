@@ -1,11 +1,11 @@
-Runtime attributes are used to customize tasks.
+# Runtime Attributes: Used to customize tasks
 
 They can be specified in one of two ways:
 
- * Within a task one can specify runtime attributes to customize the environment for the call.
- * [Default runtime attributes](#default-values) for all tasks can be specified in [Workflow Options](wf_options/Overview.md).
+ 1. Within a task you can specify runtime attributes to customize the environment for the call.  
+ 2. [Default runtime attributes](#default-values) for all tasks can be specified in [Workflow Options](wf_options/Overview.md).
 
- Certain [Backends](backends/Backends) only support certain runtime attributes.  See [Backend Support](#backend-support) for a table.
+ >* Certain [Backends](backends/Backends) only support certain runtime attributes.  See [Backend Support](#backend-support) for a table.
 
 # Task Example
 
@@ -29,7 +29,8 @@ workflow jes_workflow {
 
 # Expression support
 
-Runtime attribute values are interpreted as expressions.  This means that it is possible to express the value of a runtime attribute as a function of one of the task's inputs.  For example:
+Runtime attribute values are interpreted as expressions.  This means that it has the ability to express the value of a runtime attribute as a function of one of the task's inputs.  
+For example:
 
 ```
 task runtime_test {
@@ -47,11 +48,12 @@ task runtime_test {
 }
 ```
 
-SGE and similar backends may define other configurable runtime attributes beyond the five listed. See [Sun GridEngine](backends/SGE) for more information.
+SGE and similar backends may define other configurable runtime attributes beyond the five listed. To find more information about SGE, view [Sun GridEngine](backends/SGE).
 
 # Default Values
 
-Default values for runtime attributes can be specified via [Workflow Options](wf_options/WorkflowOptions).  For example, consider this WDL file:
+Default values for runtime attributes can be specified via [Workflow Options](wf_options/WorkflowOptions).  
+For example, consider this WDL file:
 
 ```wdl
 task first {
@@ -82,7 +84,7 @@ And this set of workflow options:
 }
 ```
 
-Then these values for `docker` and `zones` will be used for any task that does not explicitly override them in the WDL file. So the effective runtime for `task first` is:
+Then, these values for `docker` and `zones` will be used for any task that does not explicitly override them in the WDL file. In return, the effective runtime for `task first` is:
 ```
 {
     "docker": "ubuntu:latest",
@@ -96,7 +98,8 @@ And the effective runtime for `task second` is:
     "zones": "us-central1-c us-central1-b"
   }
 ```
-Note how for task second, the WDL value for `docker` is used instead of the default provided in the workflow options.
+Note how for `task second`:  
+*The WDL value for `docker` is used instead of the default provided in the workflow options.*
 
 ## `continueOnReturnCode`
 
@@ -142,9 +145,9 @@ Defaults to "1".
 
 ## `disks`
 
-Passed to Google Cloud: "Disks to attach."
+This is currently used by the [Google Cloud backend](backends/Google). You can use this attribute to specify volumes that will be mounted to the VM for your job.  These volumes are where you can read and write files that will be used by the commands within your workflow.
 
-The disks are specified as a comma separated list of disks. Each disk is further separated as a space separated triplet of:
+They are specified as a comma separated list of disks. Each disk is further separated as a space separated triplet (e.g. `local-disk 10 SSD`) consisting of:
 
 1. Mount point (absolute path), or `local-disk` to reference the mount point where Google Cloud will localize files and the task's current working directory will be
 2. Disk size in GB (ignored for disk type LOCAL)
@@ -154,7 +157,7 @@ All tasks launched on Google Cloud *must* have a `local-disk`.  If one is not sp
 
 The Disk type must be one of "LOCAL", "SSD", or "HDD". When set to "LOCAL", the size of the drive is automatically provisioned by Google so any size specified in WDL will be ignored. All disks are set to auto-delete after the job completes.
 
-Example 1: Changing the Localization Disk
+*Example 1: Changing the Localization Disk*
 
 ```
 runtime {
@@ -162,7 +165,7 @@ runtime {
 }
 ```
 
-Example 2: Mounting an Additional Two Disks
+*Example 2: Mounting an Additional Two Disks*
 
 ```
 runtime {
@@ -172,7 +175,7 @@ runtime {
 
 ## `bootDiskSizeGb`
 
-In addition to working disks, Google Cloud allows specification of a boot disk size. This is the disk where the docker image itself is booted, **not the working directory of your task on the VM**.
+In addition to working disks, Google Cloud allows specification of a boot disk size. This is the disk where the docker image itself is booted (**not the working directory of your task on the VM**).
 Its primary purpose is to ensure that larger docker images can fit on the boot disk.
 ```
 runtime {
@@ -187,7 +190,7 @@ Since no `local-disk` entry is specified, Cromwell will automatically add `local
 
 The ordered list of zone preference (see [Region and Zones](https://cloud.google.com/compute/docs/zones) documentation for specifics)
 
-The zones are specified as a space separated list, with no commas.
+*The zones are specified as a space separated list, with no commas:*
 
 ```
 runtime {
@@ -207,7 +210,7 @@ runtime {
 }
 ```
 
-This attribute is mandatory when submitting tasks to Google Cloud. When running on other backends, they default to not running the process within Docker.
+*This attribute is mandatory when submitting tasks to Google Cloud. When running on other backends, they default to not running the process within Docker.*
 
 ## `failOnStderr`
 
@@ -219,7 +222,7 @@ runtime {
 }
 ```
 
-Defaults to "false".
+*Defaults to "false".*  
 
 ## `memory`
 
@@ -235,14 +238,14 @@ runtime {
 }
 ```
 
-Defaults to "2G".
+*Defaults to "2G".*
 
 ## `preemptible`
 
 Passed to Google Cloud: "If applicable, preemptible machines may be used for the run."
 
-Take an Int as a value that indicates the maximum number of times Cromwell should request a preemptible machine for this task before defaulting back to a non-preemptible one.
-eg. With a value of 1, Cromwell will request a preemptible VM, if the VM is preempted, the task will be retried with a non-preemptible VM.
+Take an Int as a value that indicates the maximum number of times Cromwell should request a preemptible machine for this task before defaulting back to a non-preemptible one.  
+*eg. With a value of 1, Cromwell will request a preemptible VM, if the VM is preempted, the task will be retried with a non-preemptible VM.*
 
 ```
 runtime {
@@ -250,7 +253,7 @@ runtime {
 }
 ```
 
-Defaults to 0.
+*Defaults to 0.*
 
 # Backend Support
 

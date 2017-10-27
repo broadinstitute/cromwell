@@ -1,4 +1,4 @@
-## Configuration the Local Backend
+## Getting started on HPC clusters
 
 ### Prerequisites
 
@@ -6,10 +6,9 @@ This tutorial page relies on completing the previous tutorials:
 
 * [Configuration Files](ConfigurationFiles.md)
 
-
 ### Goals
 
-At the end of this tutorial you'll have seen how to add a configuration section for the Local backend to your configuration file, and seen what changing some of the various options does.
+At the end of this tutorial you'll have set up Cromwell to run against your HPC cluster. We'll use SGE as an example but this applies equally to LSF and others.
 
 ### Let's get started!
 

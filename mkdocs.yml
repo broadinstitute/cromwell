@@ -41,7 +41,7 @@ pages:
     - "Configuration Files": tutorials/ConfigurationFiles.md
     - "Configuring the Local backend": tutorials/LocalBackendIntro.md
     - "Getting started with Pipelines API": tutorials/PipelinesApi101.md
-    - "Getting started on SGE": tutorials/SGEIntro.md
+    - "Getting started on HPC Clusters": tutorials/HPCIntro.md
     - "Server Mode": tutorials/ServerMode.md
     - "Viewing Metadata": tutorials/MetadataEndpoint.md
     - "Timing Diagrams": tutorials/TimingDiagrams.md

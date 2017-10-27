@@ -12,8 +12,8 @@ For more advanced use cases involving large workflows or multi-tenancy for examp
 ## Server
 
 Server mode will start Cromwell as a web server that exposes REST endpoints.
+By default the server will be accessible at `http://localhost:8000`. See the [Server Section](Configuring#server) of the configuration for more information on how to configure it.
 
 A description of those endpoints can be found in the [API Section](api/RESTAPI).
-Information on how to configure the server can be found in the [TODO - Configuration Section](???).
 
 Follow the [TODO -Server Tutorial](???) to get your Cromwell server up and running in a few steps !

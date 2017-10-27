@@ -95,6 +95,29 @@ java -Dwebservice.port=8080 cromwell.jar ...
 
 **WARNING:** These advanced configuration values can significantly affect the performance of Cromwell.
 
+### Server
+
+By default the Cromwell server will bind to `0.0.0.0` on port `8000`.
+It can then be can be accessed through a browser at `http://localhost:8000`.
+To change these settings, simply edit the following values in your configuration file:
+
+```
+webservice {
+  port = 9000
+  interface = 0.0.0.0
+}
+```
+
+The above configuration will for instance use port `9000`.
+
+Cromwell uses `akka-http` to serve requests. For more advanced configuration settings, refer to the [akka-http](https://doc.akka.io/docs/akka-http/current/scala/http/configuration.html) documentation.
+
+For example, to increase the request timeout to 30 seconds you can add this stanza to your configuration file:
+
+```
+akka.http.server.request-timeout = 30s
+```
+
 ### I/O
 
 **I/O Throttling**

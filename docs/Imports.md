@@ -1,21 +1,3 @@
-_For the Doc-A-Thon_  
-**Questions to answer and things to consider:**
-
-1. Who is visiting the Imports page?  
-*did they come from the Command line page? from the API docs?*
-2. What do they need to know first?  
-*What are imports? Why might they want to use them? Common use cases?*
-3. Is all the important information there? If not, add it!  
-
-4. Are there things that don't need to be there? Remove them.  
-*What is Single Workflow Runner? It doesn't exist anywhere else in the docs. Either explain it or remove it!*
-5. Are the code and instructions accurate? Try it!
-
----
- **DELETE ABOVE ONCE COMPLETE**
-
----
-
 Cromwell implements imports in both [run](CommandLine) and [server](api/POST_api_workflows_version) mode.
 Imported files can be provided when submitting the workflow or referenced via `http` or `https`.
 In order to provide your own files, Cromwell lets you supply a zip file that should contain all required dependencies.

@@ -68,8 +68,6 @@ include required(classpath("application"))
 webservice {
   port = 8000
   interface = 0.0.0.0
-  binding-timeout = 5s
-  instance.name = "reference"
 }
 ```
 
@@ -79,8 +77,6 @@ Dot-separated values:
 include required(classpath("application"))
 webservice.port = 8000
 webservice.interface = 0.0.0.0
-webservice.binding-timeout = 5s
-webservice.instance.name = "reference"
 ```
 
 ## Configuration via Command Line Arguments

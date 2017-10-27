@@ -16,4 +16,4 @@ By default the server will be accessible at `http://localhost:8000`. See the [Se
 
 A description of those endpoints can be found in the [API Section](api/RESTAPI).
 
-Follow the [TODO -Server Tutorial](tutorials/ServerMode) to get your Cromwell server up and running in a few steps !
+Follow the [Server Tutorial](tutorials/ServerMode) to get your Cromwell server up and running in a few steps !

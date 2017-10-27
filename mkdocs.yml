@@ -7,7 +7,7 @@ repo_url: https://github.com/broadinstitute/cromwell/docs
 
 pages:
 - Introduction: index.md
-- Getting Started: 
+- Getting Started:
     - Requirements: Requirements.md
     - How to Build: Building.md
     - Installation: Installing.md
@@ -17,7 +17,7 @@ pages:
 - Command Line: CommandLine.md
 - Configuration: Configuring.md
 - Security: Security.md
-- Backends: 
+- Backends:
     - Overview: backends/Backends.md
     - Local: backends/Local.md
     - Shared Filesystem: backends/SharedFilesystem.md
@@ -29,12 +29,15 @@ pages:
 - Runtime Attributes: RuntimeAttributes.md
 - Logging: Logging.md
 - Instrumentation: Instrumentation.md
-- Workflow Options: WorkflowOptions.md
+- Workflow Options:
+  - Overview: wf_options/Overview.md
+  - Global: wf_options/Global.md
+  - Google Cloud: wf_options/Google.md
 - Labels: Labels.md
 - Call Caching: CallCaching.md
 - Imports: Imports.md
 - Sub-Workflows: SubWorkflows.md
-- REST API: 
+- REST API:
     - Overview: api/RESTAPI.md
     - POST /api/workflows/:version: api/POST_api_workflows_version.md
     - POST /api/workflows/:version/batch: api/POST_api_workflows_version_batch.md
@@ -50,7 +53,7 @@ pages:
     - GET /api/workflows/:version/backends: api/GET_api_workflows_version_backends.md
     - GET /api/workflows/:version/callcaching/diff: api/GET_api_workflows_version_callcaching_diff.md
     - GET /engine/:version/stats: api/GET_engine_version_stats.md
-    - GET /engine/:version/version: api/GET_engine_version_version.md 
+    - GET /engine/:version/version: api/GET_engine_version_version.md
     - GET /engine/:version/status: api/GET_engine_version_status.md
     - Errors: api/ErrorHandling.md
 

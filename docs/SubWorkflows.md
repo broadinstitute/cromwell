@@ -1,29 +1,11 @@
-_For the Doc-A-Thon_  
-**Questions to answer and things to consider:**
+In order to support the composition and reuse of workflows, WDL allows the execution of an entire workflow as a step in a larger workflow.  When a workflow calls another workflow, that second workflow is referred to as a sub-workflow.  Note that sub-workflows can themselves contain sub-workflows and so on and there is no explicit limit as to how deeply workflows can be nested.  Cromwell supports execution of such workflows.
 
-1. Who is visiting the Subworkflows page?  
-
-2. What do they need to know first?  
-
-3. Is all the important information there? If not, add it!  
-
-4. Are there things that don't need to be there? Remove them.  
-
-5. Are the code and instructions accurate? Try it!
-
----
- **DELETE ABOVE ONCE COMPLETE**
-
----
-
-
-WDL allows the execution of an entire workflow as a step in a larger workflow (see WDL SPEC for more details), which is what will be referred to as a sub workflow going forward.
-Cromwell supports execution of such workflows. Note that sub workflows can themselves contain sub workflows, etc... There is no limitation as to how deeply workflows can be nested.
+However, that a single WDL file can contain only a single workflow definition.  In order to reference a sub-workflow, the import directive can be used to bring that sub-workflow into existence and referenced by it's alias and name.  See the [documentation on imports](Imports.md) for more details of how to declare and reference tasks and workflows via imports.
 
 **Execution**
 
-Sub workflows are executed exactly as a task would be.
-*This means that if another call depends on an output of a sub workflow, this call will run when the whole sub workflow completes (successfully).*
+A sub-workflows is executed exactly as a task would be.
+*This means that if another call depends on an output of a sub-workflow, this call will run when the whole sub-workflow completes (successfully).*
 For example, in the following case :
 
 `main.wdl`
@@ -49,9 +31,6 @@ task hello {
   command {
     echo "Hello ${addressee}!"
   }
-  runtime {
-      docker: "ubuntu:latest"
-  }
   output {
     String salutation = read_string(stdout())
   }
@@ -61,9 +40,6 @@ task goodbye {
   String addressee
   command {
     echo "Goodbye ${addressee}!"
-  }
-  runtime {
-      docker: "ubuntu:latest"
   }
   output {
     String salutation = read_string(stdout())
@@ -83,27 +59,27 @@ workflow hello_and_goodbye {
 }
 ```
 
-`myTask` will start only when hello_and_goodbye completes (which means all of its calls are done), even though `myTask` only needs the output of hello in the hello_and_goodbye sub workflow. 
+`myTask` will start only when hello_and_goodbye completes (which means all of its calls are done), even though `myTask` only needs the output of hello in the hello_and_goodbye sub-workflow. 
 If hello_and_goodbye fails, then `myTask` won't be executed.
-Only workflow outputs are visible outside a workflow, which means that references to outputs produced by a sub workflow will only be valid if those outputs are exposed in the workflow output section.
+Only workflow outputs are visible outside a workflow, which means that references to outputs produced by a sub-workflow will only be valid if those outputs are exposed in the workflow output section.
 
-Sub workflows are executed in the context of a main workflow, which means that operations that are normally executed once per workflow (set up, clean up, outputs copying, log copying, etc...)
-will NOT be re-executed for each sub workflow. For instance if a resource is created during workflow initialization, sub workflows will need to share this same resource.
-Workflow outputs will be copied for the main root workflow but not for intermediate sub workflows.
+Sub-workflows are executed in the context of a main workflow, which means that operations that are normally executed once per workflow (set up, clean up, outputs copying, log copying, etc...)
+will NOT be re-executed for each sub-workflow. For instance if a resource is created during workflow initialization, sub-workflows will need to share this same resource.
+Workflow outputs will be copied for the main root workflow but not for intermediate sub-workflows.
 
 Restarts, aborts, and call-caching work exactly as they would with tasks. 
-All tasks run by a sub workflow are eligible for call caching under the same rules as any other task.
+All tasks run by a sub-workflow are eligible for call caching under the same rules as any other task.
 However, workflows themselves are not cached as such. Which means that running the exact same workflow twice with call caching on will trigger each task to cache individually,
 but not the workflow itself.
 
-The root path for sub workflow execution files (scripts, output files, logs) will be under the parent workflow call directory.
+The root path for sub-workflow execution files (scripts, output files, logs) will be under the parent workflow call directory.
 For example, the execution directory for the above main workflow would look like the following:
 
 ```
 cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd/ <- main workflow id
 └── call-hello_and_goodbye <- call directory for call hello_and_goodbye in the main workflow
-    └── hello_and_goodbye <- name of the sub workflow 
-        └── a6365f91-c807-465a-9186-a5d3da98fe11 <- sub workflow id
+    └── hello_and_goodbye <- name of the sub-workflow 
+        └── a6365f91-c807-465a-9186-a5d3da98fe11 <- sub-workflow id
             ├── call-goodbye
             │   └── execution
             │       ├── rc
@@ -129,7 +105,7 @@ cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd/ <- main 
 
 **Metadata**
 
-Each sub workflow will have its own workflow ID. This ID will appear in the metadata of the parent workflow, in the call section corresponding to the sub workflow, under the "subWorkflowId" attribute.
+Each sub-workflow will have its own workflow ID. This ID will appear in the metadata of the parent workflow, in the call section corresponding to the sub-workflow, under the "subWorkflowId" attribute.
 For example, querying the `main_workflow` metadata above (minus the `myTask` call) , could result in something like this:
 
 `GET /api/workflows/v2/1d919bd4-d046-43b0-9918-9964509689dd/metadata`
@@ -174,7 +150,7 @@ For example, querying the `main_workflow` metadata above (minus the `myTask` cal
 }
 ```
 
-The sub workflow ID can be queried separately:
+The sub-workflow ID can be queried separately:
 
 `GET /api/workflows/v2/a6365f91-c807-465a-9186-a5d3da98fe11/metadata`
 
@@ -191,7 +167,6 @@ The sub workflow ID can be queried separately:
           "salutation": "Hello sub world!"
         },
         "runtimeAttributes": {
-          "docker": "ubuntu:latest",
           "failOnStderr": false,
           "continueOnReturnCode": "0"
         },
@@ -248,7 +223,6 @@ The sub workflow ID can be queried separately:
           "salutation": "Goodbye sub world!"
         },
         "runtimeAttributes": {
-          "docker": "ubuntu:latest",
           "failOnStderr": false,
           "continueOnReturnCode": "0"
         },
@@ -313,7 +287,7 @@ The sub workflow ID can be queried separately:
 }
 ```
 
-It's also possible to set the URL query parameter `expandSubWorkflows` to `true` to automatically include sub workflows metadata (`false` by default).
+It's also possible to set the URL query parameter `expandSubWorkflows` to `true` to automatically include sub-workflows metadata (`false` by default).
 
 `GET api/workflows/v2/1d919bd4-d046-43b0-9918-9964509689dd/metadata?expandSubWorkflows=true`
 
@@ -339,7 +313,6 @@ It's also possible to set the URL query parameter `expandSubWorkflows` to `true`
               "salutation": "Hello sub world!"
             },
             "runtimeAttributes": {
-              "docker": "ubuntu:latest",
               "failOnStderr": false,
               "continueOnReturnCode": "0"
             },
@@ -388,7 +361,6 @@ It's also possible to set the URL query parameter `expandSubWorkflows` to `true`
               "salutation": "Goodbye sub world!"
             },
             "runtimeAttributes": {
-              "docker": "ubuntu:latest",
               "failOnStderr": false,
               "continueOnReturnCode": "0"
             },

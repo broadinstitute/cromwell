@@ -1,6 +1,8 @@
 _For the Doc-A-Thon_  
 
-**NOTE TO EDITOR:** There are a large number of options in [`cromwell.examples.conf`](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf). Only the existing options listed here were updated. We can add more in the future.
+**NOTES TO EDITOR:**
+- There are a large number of options in [`cromwell.examples.conf`](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf). Only the existing options listed here were updated. We can add more in the future.
+- These subsections are not headers, so links to subsections do not direct you there. (Note on note, there are now some subsections. Others are just **bold**.)
 
 **Questions to answer and things to consider:**
 
@@ -11,8 +13,6 @@ _For the Doc-A-Thon_
 *What about useful info like example configs, like Google cloud. REMEMBER to take out your personal details!*
 4. Are there things that don't need to be there? Remove them.
 5. Are the code and instructions accurate? Try it!
-
-*NOTE to editor: these subsections are not headers, so links to subsections do not direct you there.*
 
 ---
  **DELETE ABOVE ONCE COMPLETE**

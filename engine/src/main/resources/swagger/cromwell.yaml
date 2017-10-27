@@ -1,7 +1,6 @@
 swagger: '2.0'
 info:
-  title: Cromwell
-  description: The Cromwell workflow management system
+  title: Cromwell REST API
   license:
     name: BSD
     url: 'http://opensource.org/licenses/BSD-3-Clause'

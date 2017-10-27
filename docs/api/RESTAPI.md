@@ -1,10 +1,8 @@
-# Cromwell
+# Cromwell REST API
 
 
 <a name="overview"></a>
 ## Overview
-The Cromwell workflow management system
-
 
 ### Version information
 *Version* : 30

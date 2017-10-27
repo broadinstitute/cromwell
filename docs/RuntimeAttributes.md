@@ -1,25 +1,13 @@
-_For the Doc-A-Thon_  
-**Questions to answer and things to consider:**
+Runtime attributes are used to customize tasks.
 
-1. Who is visiting the Runtime Attributes page?  
+They can be specified in one of two ways:
 
-2. What do they need to know first?  
-*Why would they want to customize tasks?*
-3. Is all the important information there? If not, add it!  
+ * Within a task one can specify runtime attributes to customize the environment for the call.
+ * [Default runtime attributes](#default-values) for all tasks can be specified in [Workflow Options](wf_options/Overview.md).
 
-4. Are there things that don't need to be there? Remove them.  
+ Certain [Backends](backends/Backends) only support certain runtime attributes.  See [Backend Support](#backend-support) for a table.
 
-5. Are the code and instructions accurate? Try it!
-
----
- **DELETE ABOVE ONCE COMPLETE**
-
----
-
-
-Runtime attributes are used to customize tasks. Within a task one can specify runtime attributes to customize the environment for the call.
-
-For example:
+# Task Example
 
 ```
 task jes_task {
@@ -39,19 +27,7 @@ workflow jes_workflow {
 }
 ```
 
-This table lists the currently available runtime attributes for Cromwell:
-
-| Runtime Attribute    | LOCAL |  Pipelines API  |  SGE  |
-| -------------------- |:-----:|:-----:|:-----:|
-| continueOnReturnCode |   x   |   x   |   x   |
-| cpu                  |       |   x   |   x   |
-| disks                |       |   x   |       |
-| zones                |       |   x   |       |
-| docker               |   x   |   x   |   x   |
-| failOnStderr         |   x   |   x   |   x   |
-| memory               |       |   x   |   x   |
-| preemptible          |       |   x   |       |
-| bootDiskSizeGb       |       |   x   |       |
+# Expression support
 
 Runtime attribute values are interpreted as expressions.  This means that it is possible to express the value of a runtime attribute as a function of one of the task's inputs.  For example:
 
@@ -73,9 +49,9 @@ task runtime_test {
 
 SGE and similar backends may define other configurable runtime attributes beyond the five listed. See [Sun GridEngine](backends/SGE) for more information.
 
-**Specifying Default Values**
+# Default Values
 
-Default values for runtime attributes can be specified via [Workflow Options](WorkflowOptions).  For example, consider this WDL file:
+Default values for runtime attributes can be specified via [Workflow Options](wf_options/WorkflowOptions).  For example, consider this WDL file:
 
 ```wdl
 task first {
@@ -122,7 +98,7 @@ And the effective runtime for `task second` is:
 ```
 Note how for task second, the WDL value for `docker` is used instead of the default provided in the workflow options.
 
-**`continueOnReturnCode`**
+## `continueOnReturnCode`
 
 When each task finishes it returns a code. Normally, a non-zero return code indicates a failure. However you can override this behavior by specifying the `continueOnReturnCode` attribute.
 
@@ -150,9 +126,9 @@ runtime {
 
 Defaults to "0".
 
-**`cpu`**
+## `cpu`
 
-Passed to Pipelines API: "The minimum number of cores to use."
+Passed to Google Cloud: "The minimum number of cores to use."
 
 Passed to SGE, etc.: Configurable, but usually a reservation and/or limit of number of cores.
 
@@ -164,17 +140,17 @@ runtime {
 
 Defaults to "1".
 
-**`disks`**
+## `disks`
 
-Passed to Pipelines API: "Disks to attach."
+Passed to Google Cloud: "Disks to attach."
 
 The disks are specified as a comma separated list of disks. Each disk is further separated as a space separated triplet of:
 
-1. Mount point (absolute path), or `local-disk` to reference the mount point where Pipelines API will localize files and the task's current working directory will be
+1. Mount point (absolute path), or `local-disk` to reference the mount point where Google Cloud will localize files and the task's current working directory will be
 2. Disk size in GB (ignored for disk type LOCAL)
 3. Disk type.  One of: "LOCAL", "SSD", or "HDD" ([documentation](https://cloud.google.com/compute/docs/disks/#overview))
 
-All tasks launched on Pipelines API *must* have a `local-disk`.  If one is not specified in the runtime section of the task, then a default of `local-disk 10 SSD` will be used.  The `local-disk` will be mounted to `/cromwell_root`.
+All tasks launched on Google Cloud *must* have a `local-disk`.  If one is not specified in the runtime section of the task, then a default of `local-disk 10 SSD` will be used.  The `local-disk` will be mounted to `/cromwell_root`.
 
 The Disk type must be one of "LOCAL", "SSD", or "HDD". When set to "LOCAL", the size of the drive is automatically provisioned by Google so any size specified in WDL will be ignored. All disks are set to auto-delete after the job completes.
 
@@ -194,9 +170,9 @@ runtime {
 }
 ```
 
-**Boot Disk**
+## `bootDiskSizeGb`
 
-In addition to working disks, Pipelines API allows specification of a boot disk size. This is the disk where the docker image itself is booted, **not the working directory of your task on the VM**.
+In addition to working disks, Google Cloud allows specification of a boot disk size. This is the disk where the docker image itself is booted, **not the working directory of your task on the VM**.
 Its primary purpose is to ensure that larger docker images can fit on the boot disk.
 ```
 runtime {
@@ -207,7 +183,7 @@ runtime {
 
 Since no `local-disk` entry is specified, Cromwell will automatically add `local-disk 10 SSD` to this list.
 
-**`zones`**
+## `zones`
 
 The ordered list of zone preference (see [Region and Zones](https://cloud.google.com/compute/docs/zones) documentation for specifics)
 
@@ -219,9 +195,9 @@ runtime {
 }
 ```
 
-Defaults to the configuration setting `genomics.default-zones` in the Pipelines API configuration block which in turn defaults to using `us-central1-b`
+Defaults to the configuration setting `genomics.default-zones` in the Google Cloud configuration block which in turn defaults to using `us-central1-b`
 
-**`docker`**
+## `docker`
 
 When specified, cromwell will run your task within the specified Docker image.
 
@@ -231,9 +207,9 @@ runtime {
 }
 ```
 
-This attribute is mandatory when submitting tasks to Pipelines API. When running on other backends, they default to not running the process within Docker.
+This attribute is mandatory when submitting tasks to Google Cloud. When running on other backends, they default to not running the process within Docker.
 
-**`failOnStderr`**
+## `failOnStderr`
 
 Some programs write to the standard error stream when there is an error, but still return a zero exit code. Set `failOnStderr` to true for these tasks, and it will be considered a failure if anything is written to the standard error stream.
 
@@ -245,9 +221,9 @@ runtime {
 
 Defaults to "false".
 
-**`memory`**
+## `memory`
 
-Passed to Pipelines API: "The minimum amount of RAM to use."
+Passed to Google Cloud: "The minimum amount of RAM to use."
 
 Passed to SGE, etc.: Configurable, but usually a reservation and/or limit of memory.
 
@@ -261,13 +237,12 @@ runtime {
 
 Defaults to "2G".
 
-**`preemptible`**
+## `preemptible`
 
-Passed to Pipelines API: "If applicable, preemptible machines may be used for the run."
+Passed to Google Cloud: "If applicable, preemptible machines may be used for the run."
 
 Take an Int as a value that indicates the maximum number of times Cromwell should request a preemptible machine for this task before defaulting back to a non-preemptible one.
 eg. With a value of 1, Cromwell will request a preemptible VM, if the VM is preempted, the task will be retried with a non-preemptible VM.
-Note: If specified, this attribute overrides [workflow options](/workflowoptions).
 
 ```
 runtime {
@@ -276,3 +251,25 @@ runtime {
 ```
 
 Defaults to 0.
+
+# Backend Support
+
+[Backends](backends/Backends) only support certain attributes. See table below:
+
+| Runtime Attribute    | LOCAL |  Google Cloud  |  SGE  |
+| -------------------- |:-----:|:-----:|:-----:|
+| [continueOnReturnCode](#continueonreturncode) |   x   |   x   |   x   |
+| [cpu](#cpu)                  |       |   x   |   x   |
+| [disks](#disks)                                |       |   x   |       |
+| [zones](#zones)                                |       |   x   |       |
+| [docker](#docker)                              |   x   |   x   |   x   |
+| [failOnStderr](#failOnStderr)                  |   x   |   x   |   x   |
+| [memory](#memory)                              |       |   x   |   x   |
+| [preemptible](#preemptible)                    |       |   x   |       |
+| [bootDiskSizeGb](#bootdisksizegb)              |       |   x   |       |
+
+- [Shared Filesystem backend](backends/SharedFilesystem) is fully configurable and thus these attributes do not apply universally
+
+TODO:
+
+- Document TES, HTCondor, Spark backend attribute support

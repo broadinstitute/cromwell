@@ -1,40 +1,22 @@
-_For the Doc-A-Thon_  
-**Questions to answer and things to consider:**
 
-1. Who is visiting the Call Caching page?  
-
-2. What do they need to know first?  
-
-3. Is all the important information there? If not, add it!  
-*Add an FAQ about unexpected Docker behavior?*  
-*See this [Github issue](https://github.com/broadinstitute/cromwell/issues/1921) about Call Caching not being Backend-specific*
-4. Are there things that don't need to be there? Remove them.  
-
-5. Are the code and instructions accurate? Try it!
-
----
- **DELETE ABOVE ONCE COMPLETE**
-
----
-
-
-Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results, saving both time and money.  Cromwell searches the cache of previously run jobs for a one that has the exact same command and exact same inputs.  If a previously run job is found in the cache, Cromwell will use the results of the previous job instead of re-running it.
+Call Caching allows Cromwell to detect when a job has been run in the past so that it doesn't have to re-compute results, saving both time and money.  Cromwell searches the cache of previously run jobs for one that has the exact same command and exact same inputs.  If a previously run job is found in the cache, Cromwell will use the results of the previous job instead of re-running it.
 
 Cromwell's call cache is maintained in its database.  In order for call caching to be used on any previously run jobs, it is best to configure Cromwell to [point to a MySQL database](Configuring#database) instead of the default in-memory database.  This way any invocation of Cromwell (either with `run` or `server` subcommands) will be able to utilize results from all calls that are in that database.
 
 **Configuring Call Caching**
 
-*Call Caching is disabled by default.*  Call Caching can be enabled in your Cromwell [Configuration](Configuring#call-caching) and the behavior can be modified via [Workflow Options](WorkflowOptions).
+*Call Caching is disabled by default.*  Call Caching can be enabled in your Cromwell [Configuration](Configuring#call-caching) and the behavior can be modified via [Workflow Options](WorkflowOptions). If you are adding Workflow options, do not set [`read_from_cache`](WorkflowOptions) or [`write_to_cache`](WorkflowOptions) = false, as it will impact the following process.
 
-Once enabled, Cromwell will search the call cache for every `call` statement invocation, assuming [`read_from_cache`](WorkflowOptions) is enabled: 
+Once enabled, Cromwell will search the call cache for every `call` statement invocation.
 
-* If there was no cache hit, the `call` will be executed as normal.  Once finished it will add itself to the cache, assuming [`write_to_cache`](WorkflowOptions) is enabled.
+* If there was no cache hit, the `call` will be executed as normal.  Once finished it will add itself to the cache.
 * If there was a cache hit, outputs are either **copied from the original cached job to the new job's output directory** or **referenced from the original cached job** depending on the Cromwell [Configuration](Configuring#call-caching) settings.
 
 > **Note:** If call caching is enabled, be careful not to change the contents of the output directory for any previously run job.  Doing so might cause cache hits in Cromwell to copy over modified data and Cromwell currently does not check that the contents of the output directory changed.  Additionally, if any files from a previous job directory are removed, call caching will fail due to missing files.
 
 **Docker Tags**
 
+Certain Docker tags can impact call caching performance. 
 Docker tags are a convenient way to point to a version of an image (`ubuntu:14.04`), or even the latest version (`ubuntu:latest`).
 For that purpose, tags are mutable, meaning that the image they point to can change, while the tag name stays the same.
 While this is very convenient in some cases, using mutable, or "floating" tags in tasks affects the reproducibility of a workflow: the same workflow using `ubuntu:latest` run now, and a year, or even a month from now may run with different docker images.
@@ -59,13 +41,13 @@ However, in order to remove unpredictable behaviors, when Cromwell finds a job r
 
 **Docker Lookup**
 
-Cromwell provides 2 methods to lookup a docker hash from a docker tag:
+Cromwell provides two methods to lookup a Docker hash from a Docker tag:
 
 * _Local_  
-    In this mode, cromwell will first attempt to find the image on the local machine where it's running using the `docker` CLI. If the image is locally present, then its digest will be used.
+    In this mode, Cromwell will first attempt to find the image on the local machine where it's running using the `docker` CLI. If the image is locally present, then its digest will be used.
     If the image is not present locally, Cromwell will execute a `docker pull` to try and retrieve it. If this succeeds, the newly retrieved digest will be used. Otherwise the lookup will be considered failed.
     Note that Cromwell runs the `docker` CLI the same way a human would. This means two things:
-     * The machine Cromwell is running on needs to have docker installed and a docker daemon running.
+     * The machine Cromwell is running on needs to have Docker installed and a Docker daemon running.
      * The current `docker` CLI credentials on that machine will be used to pull the image.
     
 * _Remote_  

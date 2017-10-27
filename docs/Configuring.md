@@ -245,3 +245,60 @@ system {
   abort-jobs-on-terminate=true
 }
 ```
+
+Or, via `-Dsystem.abort-jobs-on-terminate=true` command line option.
+
+By default, this value is false when running `java -jar cromwell.jar server`, and true when running `java -jar cromwell.jar run <workflow source> <inputs>`.
+
+
+**Call Caching**
+
+Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  To learn more see [Call Caching](CallCaching).
+
+To enable Call Caching, add the following to your Cromwell configuration:
+
+```
+call-caching {
+  enabled = true
+  invalidate-bad-cache-results = true
+}
+```
+
+When `call-caching.enabled=true` (default: `false`), Cromwell will be able to to reference or copy results from previously run jobs (when appropriate).
+When `invalidate-bad-cache-results=true` (default: `true`), Cromwell will invalidate any cache results which contain files that cannot be accessed within a cache-hit. This is usually desired, but might be unwanted if this failure occurs for external reasons, such as a difference in user authentication.
+
+Cromwell also accepts [Workflow Options](WorkflowOptions) to override the cache read/write behavior.  
+
+**Local Filesystem Options**
+
+When running a job on the Config (Shared Filesystem) backend, Cromwell provides some additional options in the backend's config section:
+
+```
+      config {
+        ...
+        filesystems {
+          ...
+          local {
+            ...
+            caching {
+              # When copying a cached result, what type of file duplication should occur. Attempted in the order listed below:
+              duplication-strategy: [
+                "hard-link", "soft-link", "copy"
+              ]
+
+              # Possible values: file, path
+              # "file" will compute an md5 hash of the file content.
+              # "path" will compute an md5 hash of the file path. This strategy will only be effective if the duplication-strategy (above) is set to "soft-link",
+              # in order to allow for the original file path to be hashed.
+              # Default: file
+              hashing-strategy: "file"
+
+              # When true, will check if a sibling file with the same name and the .md5 extension exists, and if it does, use the content of this file as a hash.
+              # If false or the md5 does not exist, will proceed with the above-defined hashing strategy.
+              # Default: false
+              check-sibling-md5: false
+            }
+          }
+        }
+      }
+```

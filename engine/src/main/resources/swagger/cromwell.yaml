@@ -1,4 +1,43 @@
 swagger: '2.0'
+responses:
+  OkIdAndStatus:
+    description: Successful Request
+    schema:
+      $ref: '#/definitions/WorkflowIdAndStatus'
+  OK:
+    description: Successful Request
+    schema:
+      $ref: '#/definitions/WorkflowIdAndStatus'
+  BadRequest:
+    description: Malformed Workflow ID
+  Forbidden:
+    description: Workflow in terminal status
+  NotFound:
+    description: Workflow ID Not Found
+  ServerError:
+    description: Internal Error
+parameters:
+  singleId:
+    name: id
+    description: Workflow ID
+    required: true
+    type: string
+    in: path
+    pattern: ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$
+  workflowTypeParam:
+    name: workflowType
+    type: string
+    description: Type of workflow
+    required: false
+    enum: [wdl, cwl]
+    in: formData
+  versionParam:
+    name: version
+    description: API Version
+    required: true
+    type: string
+    in: path
+    default: v1
 info:
   title: Cromwell
   description: One workflow service to rule them all...
@@ -16,32 +55,21 @@ paths:
     post:
       summary: Abort a workflow based on workflow id
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
-        - name: id
-          description: Workflow ID
-          required: true
-          type: string
-          in: path
+        - $ref: '#/parameters/versionParam'
+        - $ref: '#/parameters/singleId'
       tags:
         - Workflows
       responses:
         '200':
-          description: Successful Request
-          schema:
-            $ref: '#/definitions/WorkflowAbortResponse'
+          $ref: '#/responses/OkIdAndStatus'
         '400':
-          description: Malformed Workflow ID
+          $ref: '#/responses/BadRequest'
         '403':
-          description: Workflow in terminal status
+          $ref: '#/responses/Forbidden'
         '404':
-          description: Workflow ID Not Found
+          $ref: '#/responses/NotFound'
         '500':
-          description: Internal Error
+          $ref: '#/responses/ServerError'
       security:
         - google_oauth:
             - openid
@@ -51,12 +79,7 @@ paths:
       consumes:
         - multipart/form-data
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
+        - $ref: '#/parameters/versionParam'
         - name: workflowSource
           description: Workflow source file
           required: true
@@ -92,11 +115,7 @@ paths:
           required: false
           type: file
           in: formData
-        - name: workflowType
-          description: Type of workflow
-          required: false
-          type: string
-          in: formData
+        - $ref: '#/parameters/workflowTypeParam'
         - name: workflowTypeVersion
           description: Version of workflow type
           required: false
@@ -118,11 +137,11 @@ paths:
         '201':
           description: Successful Request
           schema:
-            $ref: '#/definitions/WorkflowSubmitResponse'
+            $ref: '#/definitions/WorkflowIdAndStatus'
         '400':
-          description: Malformed Input
+          $ref: '#/responses/BadRequest'
         '500':
-          description: Internal Error
+          $ref: '#/responses/ServerError'
       security:
         - google_oauth:
             - openid
@@ -132,12 +151,7 @@ paths:
       consumes:
         - multipart/form-data
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
+        - $ref: '#/parameters/versionParam'
         - name: workflowSource
           description: Workflow Source
           required: true
@@ -153,11 +167,7 @@ paths:
           required: false
           type: file
           in: formData
-        - name: workflowType
-          description: Type of workflow
-          required: false
-          type: string
-          in: formData
+        - $ref: '#/parameters/workflowTypeParam'
         - name: workflowTypeVersion
           description: Version of workflow type
           required: false
@@ -181,11 +191,11 @@ paths:
           schema:
             type: array
             items:
-              $ref: '#/definitions/WorkflowSubmitResponse'
+              $ref: '#/definitions/WorkflowIdAndStatus'
         '400':
-          description: Malformed Input
+          $ref: '#/responses/BadRequest'
         '500':
-          description: Internal Error
+          $ref: '#/responses/ServerError'
       security:
         - google_oauth:
             - openid
@@ -193,28 +203,19 @@ paths:
     get:
       summary: Query for workflow outputs based on workflow id
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
-        - name: id
-          description: Workflow ID
-          required: true
-          type: string
-          in: path
+        - $ref: '#/parameters/versionParam'
+        - $ref: '#/parameters/singleId'
       tags:
         - Workflows
       responses:
         '200':
-          description: Successful Request
+          $ref: '#/responses/OkIdAndStatus'
         '400':
-          description: Malformed Workflow ID
+          $ref: '#/responses/BadRequest'
         '404':
-          description: Workflow ID Not Found
+          $ref: '#/responses/NotFound'
         '500':
-          description: Internal Error
+          $ref: '#/responses/ServerError'
       security:
         - google_oauth:
             - openid
@@ -222,17 +223,8 @@ paths:
     patch:
       summary: Add new labels or update values for existing label keys by workflow id.
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
-        - name: id
-          description: Workflow ID
-          required: true
-          type: string
-          in: path
+        - $ref: '#/parameters/versionParam'
+        - $ref: '#/parameters/singleId'
         - name: labels
           description: >
             Custom labels submitted as JSON.
@@ -249,11 +241,13 @@ paths:
           schema:
             $ref: '#/definitions/LabelsResponse'
         '400':
-          description: Malformed Workflow ID
+          $ref: '#/responses/BadRequest'
+        '403':
+          $ref: '#/responses/Forbidden'
         '404':
-          description: Workflow ID Not Found
+          $ref: '#/responses/NotFound'
         '500':
-          description: Internal Error
+          $ref: '#/responses/ServerError'
       security:
         - google_oauth:
             - openid
@@ -261,12 +255,7 @@ paths:
     get:
       summary: Query workflows by start dates, end dates, names, ids, statuses, or labels.
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
+        - $ref: '#/parameters/versionParam'
         - name: start
           required: false
           type: string
@@ -343,21 +332,18 @@ paths:
           schema:
             $ref: '#/definitions/WorkflowQueryResponse'
         '403':
-          description: Malformed Request
+          $ref: '#/responses/Forbidden'
+        '404':
+          $ref: '#/responses/NotFound'
         '500':
-          description: Internal Error
+          $ref: '#/responses/ServerError'
       security:
         - google_oauth:
             - openid
     post:
       summary: Query workflows by start dates, end dates, names, ids, or statuses.
       parameters:
-        - name: version
-          description: API version
-          required: true
-          type: string
-          in: path
-          default: v1
+        - $ref: '#/parameters/versionParam'
         - name: parameters
           required: true
           in: body
@@ -376,9 +362,9 @@ paths:
           schema:
             $ref: '#/definitions/WorkflowQueryResponse'
         '400':
-          description: Malformed Request
+          $ref: '#/responses/BadRequest'
         '500':
-          description: Internal Error
+          $ref: '#/responses/ServerError'
       security:
         - google_oauth:
             - openid
@@ -386,30 +372,19 @@ paths:
     get:
       summary: Query for workflow status based on workflow id
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
-        - name: id
-          description: Workflow ID
-          required: true
-          type: string
-          in: path
+        - $ref: '#/parameters/versionParam'
+        - $ref: '#/parameters/singleId'
       tags:
         - Workflows
       responses:
         '200':
-          description: Successful Request
-          schema:
-            $ref: '#/definitions/WorkflowStatusResponse'
+          $ref: '#/responses/OkIdAndStatus'
         '400':
-          description: Malformed Workflow ID
+          $ref: '#/responses/BadRequest'
         '404':
-          description: Workflow ID Not Found
+          $ref: '#/responses/NotFound'
         '500':
-          description: Internal Error
+          $ref: '#/responses/ServerError'
       security:
         - google_oauth:
             - openid
@@ -417,28 +392,19 @@ paths:
     get:
       summary: Query for the standard output and error of all calls in a workflow
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
-        - name: id
-          description: Workflow ID
-          required: true
-          type: string
-          in: path
+        - $ref: '#/parameters/versionParam'
+        - $ref: '#/parameters/singleId'
       tags:
         - Workflows
       responses:
         '200':
-          description: Successful Request
+          $ref: '#/responses/OK'
         '400':
-          description: Malformed Workflow ID
+          $ref: '#/responses/BadRequest'
         '404':
-          description: Workflow ID Not Found
+          $ref: '#/responses/NotFound'
         '500':
-          description: Internal Error
+          $ref: '#/responses/ServerError'
       security:
         - google_oauth:
             - openid
@@ -446,12 +412,7 @@ paths:
     get:
       summary: Return the hash differential between two calls
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
+        - $ref: '#/parameters/versionParam'
         - name: workflowA
           description: Workflow Id of the first workflow
           required: true
@@ -465,7 +426,7 @@ paths:
         - name: indexA
           description: Index of the first call
           required: false
-          type: int
+          type: integer
           in: query
         - name: workflowB
           description: Workflow Id of the second workflow
@@ -480,19 +441,19 @@ paths:
         - name: indexB
           description: Index of the second call
           required: false
-          type: int
+          type: integer
           in: query
       tags:
         - Workflows
       responses:
         '200':
-          description: Successful Request
+          $ref: '#/responses/OK'
         '400':
-          description: Malformed query parameters
+          $ref: '#/responses/BadRequest'
         '404':
-          description: No matching cache entry
+          $ref: '#/responses/NotFound'
         '500':
-          description: Internal Error
+          $ref: '#/responses/ServerError'
       security:
         - google_oauth:
             - openid
@@ -500,17 +461,8 @@ paths:
     get:
       summary: Query for workflow and call-level metadata for a specified workflow
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
-        - name: id
-          description: Workflow ID
-          required: true
-          type: string
-          in: path
+        - $ref: '#/parameters/versionParam'
+        - $ref: '#/parameters/singleId'
         - name: includeKey
           description: >
             When specified key(s) to include from the metadata. Matches any key starting with the value. May not be
@@ -673,11 +625,11 @@ paths:
                 "start": "2015-12-11T16:53:21.000-05:00"
               }
         '400':
-          description: Malformed Workflow ID
+          $ref: '#/responses/BadRequest'
         '404':
-          description: Workflow ID Not Found
+          $ref: '#/responses/NotFound'
         '500':
-          description: Internal Error
+          $ref: '#/responses/ServerError'
       security:
         - google_oauth:
             - openid
@@ -685,12 +637,7 @@ paths:
     get:
       summary: Returns the backends supported by this Cromwell.
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
+        - $ref: '#/parameters/versionParam'
       tags:
         - Workflows
       responses:
@@ -705,12 +652,7 @@ paths:
     get:
       summary: Returns basic statistics from this Cromwell's engine.
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
+        - $ref: '#/parameters/versionParam'
       tags:
         - Engine
       responses:
@@ -722,12 +664,7 @@ paths:
     get:
       summary: Returns the version of the Cromwell Engine
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
+        - $ref: '#/parameters/versionParam'
       tags:
         - Engine
       responses:
@@ -739,12 +676,7 @@ paths:
       get:
         summary: Returns the current health status of any monitored subsystems
         parameters:
-          - name: version
-            description: API Version
-            required: true
-            type: string
-            in: path
-            default: v1
+          - $ref: '#/parameters/versionParam'
         tags:
           - Engine
         responses:
@@ -764,30 +696,7 @@ securityDefinitions:
     scopes:
       openid: open id authorization
 definitions:
-  WorkflowSubmitResponse:
-    required:
-      - id
-      - status
-    properties:
-      id:
-        type: string
-        description: The identifier of the workflow
-      status:
-        type: string
-        description: The status of the workflow
-  WorkflowAbortResponse:
-
-    required:
-      - id
-      - status
-    properties:
-      id:
-        type: string
-        description: The identifier of the workflow
-      status:
-        type: string
-        description: The status of the workflow
-  WorkflowStatusResponse:
+  WorkflowIdAndStatus:
     required:
       - id
       - status

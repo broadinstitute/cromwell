@@ -18,5 +18,5 @@ At the end of this tutorial you'll have submitted your first workflow against Go
 
 You might find the following tutorials interesting to tackle next:
 
-* [Persisting Data Between Restarts](PersistentServer)
+* [Persisting Data Between Restarts](Database)
 * [Server Mode](ServerMode.md)

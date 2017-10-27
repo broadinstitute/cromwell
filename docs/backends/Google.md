@@ -214,3 +214,17 @@ On the Google Pipelines backend the GCS (Google Cloud Storage) filesystem is use
 On the Local, SGE, and associated backends any GCS URI will be downloaded locally.  For the Google backend the `jes_gcs_root` [workflow option](/workflowoptions) will take
 precedence over the `root` specified at `backend.providers.JES.config.root` in the configuration file. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
 workflows using the Google backend.
+
+
+#### Google Labels
+
+Every call run on the Pipelines API backend is given certain labels by default, so that Google resources can be queried by these labels later. The current default label set automatically applied is:
+
+| Key | Value | Example | Notes |
+|-----|-------|---------|-------|
+| cromwell-workflow-id | The Cromwell ID given to the root workflow (i.e. the ID returned by Cromwell on submission) | cromwell-d4b412c5-bf3d-4169-91b0-1b635ce47a26 | To fit the required [format](#label-format), we prefix with 'cromwell-' |
+| cromwell-sub-workflow-name | The name of this job's sub-workflow | my-sub-workflow | Only present if the task is called in a subworkflow. |
+| wdl-task-name | The name of the WDL task | my-task | |
+| wdl-call-alias | The alias of the WDL call that created this job | my-task-1 | Only present if the task was called with an alias. |
+
+Any custom labels provided upon workflow submission are also applied to Google resources by the Pipelines API.

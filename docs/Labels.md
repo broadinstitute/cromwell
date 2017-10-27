@@ -1,55 +1,39 @@
-_For the Doc-A-Thon_  
-**Questions to answer and things to consider:**
+Labels in Cromwell are a way to group together workflows that are related or associated to each other.
+For example, if you ran workflows to analyze data from a diabetes study, you can assign the label `project:diabetes-cohort`.  
 
-1. Who is visiting the Labels page?  
-*When would someone use labels?*
-2. What do they need to know first?  
+**Custom Labels JSON**
 
-3. Is all the important information there? If not, add it!  
-*Was the person redirected from the API page? from the CLI page? What about if they're using HPC or their laptop? Can they use labels?*
-4. Are there things that don't need to be there? Remove them.  
-*Does a user care about P.API rules? Maybe those should be a separate section*
-5. Are the code and instructions accurate? Try it!
+In order to assign labels to a workflow, the first step is to create a JSON file with key-value pairs that define a label. For the example above, the labels JSON should look like:
 
----
- **DELETE ABOVE ONCE COMPLETE**
-
----
-
-
-Every call run on the Pipelines API backend is given certain labels by default, so that Google resources can be queried by these labels later. The current default label set automatically applied is:
-
-| Key | Value | Example | Notes |
-|-----|-------|---------|-------|
-| cromwell-workflow-id | The Cromwell ID given to the root workflow (i.e. the ID returned by Cromwell on submission) | cromwell-d4b412c5-bf3d-4169-91b0-1b635ce47a26 | To fit the required [format](#label-format), we prefix with 'cromwell-' |
-| cromwell-sub-workflow-name | The name of this job's sub-workflow | my-sub-workflow | Only present if the task is called in a subworkflow. |
-| wdl-task-name | The name of the WDL task | my-task | |
-| wdl-call-alias | The alias of the WDL call that created this job | my-task-1 | Only present if the task was called with an alias. |
-
-**Custom Labels File**
-
-Custom labels can also be applied to every call in a workflow by specifying a custom labels file when the workflow is submitted. This file should be in JSON format and contain a set of fields: `"label-key": "label-value" `. For example:
 ```
 {
-  "label-key-1": "label-value-1",
-  "label-key-2": "label-value-2",
-  "label-key-3": "label-value-3"
+  "project":"diabetes-cohort"
 }
 ```
 
-**Label Format**
+When choosing key-value pairs, it's important to make sure you're adhering to Cromwell supported [label syntax](/labels#label-format).  
+
+There are two ways to add labels to a workflow.  
+Labels can be assigned to workflows upon workflow submission, by setting the `customLabels` parameter of the [submit endpoint](/api/POST_api_workflows_version) or setting the `-l` argument when running in [command line](/CommandLine) mode.  
+Labels can added to existing workflows by using the [labels patch endpoint](/api/PATCH_api_workflows_version_id_labels/).
+
+After adding labels to your workflows, you can take advantage of features like [query](/api/GET_api_workflows_version_query) to filter tagged workflows. The Google backend supports labelling cloud resources and you can learn more about that [here](/backends/Google/#google-labels).
+
+#### Label Format
 
 When labels are supplied to Cromwell, it will fail any request containing invalid label strings. Below are the requirements for a valid label key/value pair in Cromwell:
-- Label keys and values can't contain characters other than `[a-z]`, `[0-9]` or `-`.
-- Label keys must start with `[a-z]` and end with `[a-z]` or `[0-9]`.
-- Label values must start and end with `[a-z]` or `[0-9]`.
-- Label keys may not be empty but label values may be empty.
-- Label key and values have a max char limit of 63.
 
-Google has a different schema for labels, where label key and value strings must match the regex `[a-z]([-a-z0-9]*[a-z0-9])?` and be no more than 63 characters in length.
-For automatically applied labels, Cromwell will modify workflow/task/call names to fit the schema, according to the following rules:
-- Any capital letters are lowercased.
-- Any character which is not one of `[a-z]`, `[0-9]` or `-` will be replaced with `-`.
-- If the start character does not match `[a-z]` then prefix with `x--`
-- If the final character does not match `[a-z0-9]` then suffix with `--x`
-- If the string is too long, only take the first 30 and last 30 characters and add `---` between them.
+* Label keys and values can't contain characters other than `[a-z]`, `[0-9]` or `-`.
+* Label keys must start with `[a-z]` and end with `[a-z]` or `[0-9]`.
+* Label values must start and end with `[a-z]` or `[0-9]`.
+* Label keys may not be empty but label values may be empty.
+* Label key and values have a max char limit of 63.
+
+Google has a different schema for label syntax requriements, where label key and value strings must match the regex `[a-z]([-a-z0-9]*[a-z0-9])?` and be no more than 63 characters in length.
+For [default labels](/backends/Google/#google-labels) applied by the Google backend, Cromwell will modify workflow/task/call names to fit the schema, according to the following rules:
+
+* Any capital letters are converted to lowercase.
+* Any character which is not one of `[a-z]`, `[0-9]` or `-` will be replaced with `-`.
+* If the start character does not match `[a-z]` then prefix with `x--`
+* If the final character does not match `[a-z0-9]` then suffix with `--x`
+* If the string is too long, only take the first 30 and last 30 characters and add `---` between them.

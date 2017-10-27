@@ -6,7 +6,8 @@ _For the Doc-A-Thon_
 2. What do they need to know first?  
 
 3. Is all the important information there? If not, add it!  
-*FAQ about unexpected Docker behavior?*
+*Add an FAQ about unexpected Docker behavior?*  
+*See this [Github issue](https://github.com/broadinstitute/cromwell/issues/1921) about Call Caching not being Backend-specific*
 4. Are there things that don't need to be there? Remove them.  
 
 5. Are the code and instructions accurate? Try it!

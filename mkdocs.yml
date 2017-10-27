@@ -37,6 +37,20 @@ pages:
 - Call Caching: CallCaching.md
 - Imports: Imports.md
 - Sub-Workflows: SubWorkflows.md
+- Tutorials:
+    - "Tutorial Map": tutorials/Overview.md
+    - "Five Minute Introduction to Cromwell": tutorials/FiveMinuteIntro.md
+    - "Configuration Files": tutorials/ConfigurationFiles.md
+    - "Configuring the Local backend": tutorials/LocalBackendIntro.md
+    - "Getting started with Pipelines API": tutorials/PipelinesApi101.md
+    - "Getting started on SGE": tutorials/SGEIntro.md
+    - "Server Mode": tutorials/ServerMode.md
+    - "Viewing Metadata": tutorials/MetadataEndpoint.md
+    - "Timing Diagrams": tutorials/TimingDiagrams.md
+    - "Introduction to Call Caching": tutorials/CallCaching101.md
+    - "Persisting data between restarts": tutorials/Database.md
+    - "Common Errors": tutorials/FrequentErrors.md
+    - "General Debugging Tips": tutorials/GeneralDebuggingTips.md
 - REST API:
     - Overview: api/RESTAPI.md
     - POST /api/workflows/:version: api/POST_api_workflows_version.md
@@ -56,8 +70,6 @@ pages:
     - GET /engine/:version/version: api/GET_engine_version_version.md
     - GET /engine/:version/status: api/GET_engine_version_status.md
     - Errors: api/ErrorHandling.md
-- Tutorials:
-    - Overview: tutorials/Overview.md
 
 theme: readthedocs
 

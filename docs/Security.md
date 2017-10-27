@@ -6,7 +6,9 @@ _For the Doc-A-Thon_
 2. What do they need to know first?  
 
 3. Is all the important information there? If not, add it!  
-
+*Docker is insecure, you should take steps x, y, z.   
+Always runs as root.  
+Making sure that cromwell is set to run “local” or “JES” or other workflows and doesn’t accept workflows that wont to run somewhere else (ie, the “local” problem we had before)*
 4. Are there things that don't need to be there? Remove them.  
 
 5. Are the code and instructions accurate? Try it!

@@ -12,7 +12,7 @@ pages:
     - How to Build: Building.md
     - Installation: Installing.md
     - Modes: Modes.md
-    - WDL: StartWDL.md
+    - "Workflow Language Support": LanguageSupport.md
     - Other Resources: GettingHelp.md
     - (SOON) CWL: CWL.md
 - Command Line: CommandLine.md

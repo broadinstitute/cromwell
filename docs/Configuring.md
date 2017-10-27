@@ -302,3 +302,34 @@ When running a job on the Config (Shared Filesystem) backend, Cromwell provides 
         }
       }
 ```
+
+**Workflow Log Directory**
+
+To change the directory where Cromwell writes workflow logs, change the directory location via the setting:
+
+```hocon
+workflow-options {
+    workflow-log-dir = "cromwell-workflow-logs"
+}
+```
+
+
+**Preserving Workflow Logs**
+
+By default Cromwell erases the per workflow logs when the workflow completes to reduce disk usage. You can change this behavior by setting the following value to `false`:
+
+```hocon
+workflow-options {
+    workflow-log-temporary = true
+}
+```
+
+
+**Exporting workflow logs via Sentry**
+
+Cromwell supports [Sentry](https://docs.sentry.io) for copying workflow logs. Sentry is a service that can be used to monitor exceptions reported in an application’s logs.
+
+To send the Cromwell logs to Sentry, enter your DSN URL into the configuration value:
+
+```hocon
+sentry.dsn = DSN_URL```

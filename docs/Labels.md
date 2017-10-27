@@ -11,7 +11,7 @@ In order to assign labels to a workflow, the first step is to create a JSON file
 }
 ```
 
-When choosing key-value pairs, it's important to make sure you're adhering to Cromwell supported [label syntax](/labels#label-format).  
+When choosing key-value pairs, it's important to make sure you're adhering to Cromwell supported label syntax below.  
 
 There are two ways to add labels to a workflow.  
 Labels can be assigned to workflows upon workflow submission, by setting the `customLabels` parameter of the [submit endpoint](/api/POST_api_workflows_version) or setting the `-l` argument when running in [command line](/CommandLine) mode.

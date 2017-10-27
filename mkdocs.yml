@@ -9,10 +9,9 @@ pages:
 - Introduction: index.md
 - Getting Started:
     - Requirements: Requirements.md
-    - How to Build: Building.md
-    - Installation: Installing.md
     - Modes: Modes.md
     - "Workflow Language Support": LanguageSupport.md
+    - Getting Cromwell Releases: Getting.md
     - Other Resources: GettingHelp.md
     - (SOON) CWL: CWL.md
 - Command Line: CommandLine.md
@@ -70,6 +69,8 @@ pages:
     - GET /engine/:version/version: api/GET_engine_version_version.md
     - GET /engine/:version/status: api/GET_engine_version_status.md
     - Errors: api/ErrorHandling.md
+- Developing:
+    - How to Build: Building.md
 
 theme: readthedocs
 

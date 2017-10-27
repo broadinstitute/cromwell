@@ -1,8 +1,10 @@
-# Cromwell REST API
+# Cromwell Server REST API
 
 
 <a name="overview"></a>
 ## Overview
+Describes the rest API provided by a Cromwell server
+
 
 ### Version information
 *Version* : 30

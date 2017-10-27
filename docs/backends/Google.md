@@ -1,62 +1,14 @@
-_For the Doc-A-Thon_  
-**Questions to answer and things to consider:**
-
-1. Who is visiting the Gooogle Cloud page?  
-
-2. What do they need to know first?  
-
-3. Is all the important information there? If not, add it!  
-*Is it in the right order by importance?*  
-*Is there any supplemental information that we can have, rather than just link directly to the Google website?*
-4. Are there things that don't need to be there? Remove them.  
-*Now that FC is moving off of Refresh tokens, does that info still need to be here?*
-5. Are the code and instructions accurate? Try it!
-
----
- **DELETE ABOVE ONCE COMPLETE**
-
----
-
 
 **Google Cloud Backend**
 
-Google Genomics Pipelines API is a Docker-as-a-service from Google. It was formerly called JES (Job Execution Service) so you will see references to JES in the configuration files and code.
+Google Genomics Pipelines API is a Docker-as-a-service from Google. It was formerly called JES (Job Execution Service);
+you may see outdated references to the older JES terminology in Cromwell configuration files and code.
 
-**Configuring Google Project**
-
-You'll need the following things to get started:
-
-* A Google Project (Manage/create projects [here](https://console.developers.google.com/project))
-* A Google Cloud Storage bucket (View/create buckets in your project [here](https://console.cloud.google.com/storage/browser))
-
-On your Google project, open up the [API Manager](https://console.developers.google.com/apis/library) and enable the following APIs:
-
-* Google Compute Engine
-* Google Cloud Storage
-* Genomics API
-
-If your project is `my-project` your bucket is `gs://my-bucket/`, then update your [Cromwell configuration file](/configuring) as follows:
-
-```hocon
-backend {
-  default = "JES"
-  providers {
-    JES {
-      actor-factory = "cromwell.backend.impl.jes.JesBackendLifecycleActorFactory"
-      config {
-        project = "my-project"
-        root = "gs://my-bucket"
-        genomics-api-queries-per-100-seconds = 1000
-        .
-        .
-        .
-      }
-    }
-  ]
-}
-```
-
-If your project has API quotas other than the defaults set the `genomics-api-queries-per-100-seconds` value to be the lesser of the `Queries per 100 seconds per user` and `Queries per 100 seconds` quotas. This value will be used to help tune Cromwell's rate of interaction with Pipelines API.
+This section offers detailed configuration instructions for using Cromwell with the Pipelines API in all supported
+authentication modes. Before reading futher in this section please see the
+[Getting started on Google Pipelines API](PipelinesApi101) for instructions common to all authentication modes
+and detailed instructions for the application default authentication scheme in particular.
+The instructions below assume you have created a Google Cloud Storage bucket and a Google project enabled for the appropriate APIs.
 
 **Configuring Authentication**
 
@@ -69,7 +21,7 @@ authentication schemes that might be used:
 * `refresh_token` - Authenticate each individual workflow using a refresh token supplied in the workflow options.
 * `user_service_account` - Authenticate each individual workflow using service account credentials supplied in the workflow options.
 
-The `auths` block in the `google` stanza defines the authorization schemes within a Cromwell deployment:
+The `auths` block in the `google` stanza defines the authentication schemes within a Cromwell deployment:
 
 ```hocon
 google {
@@ -99,15 +51,14 @@ google {
 }
 ```
 
-These authorization schemes can be referenced by name within other portions of the configuration file.  For example, both
+These authentication schemes can be referenced by name within other portions of the configuration file.  For example, both
 the `genomics` and `filesystems.gcs` sections within a Google configuration block must reference an auth defined in this block.
 The auth for the `genomics` section governs the interactions with Google itself, while `filesystems.gcs` governs the localization
 of data into and out of GCE VMs.
 
 **Application Default Credentials**
 
-By default, application default credentials will be used.  There is no configuration required for application default
-credentials, only `name` and `scheme` are required.
+By default, application default credentials will be used.  Only `name` and `scheme` are required for application default credentials.
 
 To authenticate, run the following commands from your command line (requires [gcloud](https://cloud.google.com/sdk/gcloud/)):
 
@@ -140,7 +91,7 @@ Creating the account will cause the JSON file to be downloaded.  The structure o
 Most importantly, the value of the `client_email` field should go into the `service-account-id` field in the configuration (see below).  The
 `private_key` portion needs to be pulled into its own file (e.g. `my-key.pem`).  The `\n`s in the string need to be converted to newline characters.
 
-While technically not part of Service Account authorization mode, one can also override the default service account that the compute VM is started with via the configuration option `JES.config.genomics.compute-service-account` or through the workflow options parameter `google_compute_service_account`.  The service account you provide must have been granted Service Account Actor role to Cromwell's primary service account. As this only affects Google Pipelines API and not GCS, it's important that this service account, and the service account specified in `JES.config.genomics.auth` can both read/write the location specified by `JES.config.root`
+While technically not part of Service Account authentication mode, one can also override the default service account that the compute VM is started with via the configuration option `JES.config.genomics.compute-service-account` or through the workflow options parameter `google_compute_service_account`.  The service account you provide must have been granted Service Account Actor role to Cromwell's primary service account. As this only affects Google Pipelines API and not GCS, it's important that this service account, and the service account specified in `JES.config.genomics.auth` can both read/write the location specified by `JES.config.root`
 
 **Refresh Token**
 

@@ -21,11 +21,13 @@ pages:
 - Backends:
     - Overview: backends/Backends.md
     - Local: backends/Local.md
-    - Shared Filesystem: backends/SharedFilesystem.md
+    - HPC: backends/HPC.md
+    - Sun GridEngine: backends/SGE.md
+    - LSF: backends/LSF.md
+    - Slurm: backends/SLURM.md
+    - HTCondor: backends/HTcondor.md
     - Google Cloud: backends/Google.md
     - GA4GH TES: backends/TES.md
-    - Sun GridEngine: backends/SGE.md
-    - HTCondor: backends/HTcondor.md
     - Spark: backends/Spark.md
 - Runtime Attributes: RuntimeAttributes.md
 - Logging: Logging.md

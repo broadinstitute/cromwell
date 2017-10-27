@@ -6,7 +6,7 @@ _For the Doc-A-Thon_
 2. What do they need to know first?  
 
 3. Is all the important information there? If not, add it!  
-
+*Add information about SLURM? See this [Github issue](https://github.com/broadinstitute/cromwell/issues/1750) for more information.
 4. Are there things that don't need to be there? Remove them.  
 
 5. Are the code and instructions accurate? Try it!

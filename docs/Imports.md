@@ -19,7 +19,7 @@ _For the Doc-A-Thon_
 
 Import statements inside of a workflow file are supported by Cromwell when running in Server mode as well as Single Workflow Runner Mode.
 
-In Single Workflow Runner Mode, you pass in a zip file which includes the WDL files referenced by the import statements. Cromwell requires the zip file to be passed in as a command line argument, as explained by the section [run](#run).
+In Single Workflow Runner Mode, you pass in a zip file which includes the WDL files referenced by the import statements. Cromwell requires the zip file to be passed in as a command line argument, as explained by the section [Run](CommandLine).
 
 For example, given a workflow `wf.wdl` and an imports directory `WdlImports.zip`, a sample command would be:
 ```

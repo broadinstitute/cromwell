@@ -16,18 +16,33 @@ _For the Doc-A-Thon_
 
 ---
 
+Cromwell implements imports in both [run](CommandLine) and [server](api/POST_api_workflows_version) mode.
+Imported files can be provided when submitting the workflow or referenced via `http` or `https`.
+In order to provide your own files, Cromwell lets you supply a zip file that should contain all required dependencies.
+The directory structure of the zip file should match the import paths in the workflow source.
 
-Import statements inside of a workflow file are supported by Cromwell when running in Server mode as well as Single Workflow Runner Mode.
+For example, in WDL:
 
-In Single Workflow Runner Mode, you pass in a zip file which includes the WDL files referenced by the import statements. Cromwell requires the zip file to be passed in as a command line argument, as explained by the section [Run](CommandLine).
+_workflow.wdl_
+```wdl
+import "https://github.com/broadinstitute/cromwell/blob/master/engine/src/main/resources/3step.wdl" as http_import
+import "imports/imported.wdl" as provided_import
 
-For example, given a workflow `wf.wdl` and an imports directory `WdlImports.zip`, a sample command would be:
+workflow my_workflow {
+    ...
+}
 ```
-java -jar cromwell.jar wf.wdl wf.inputs - - WdlImports.zip
+
+_imports.zip_
+```
+imports
+└── imported.wdl
 ```
 
-In Server Mode, you pass in a zip file using the parameter `workflowDependencies` via the [POST /api/workflows/:version](/restapi#post-apiworkflowsversion) endpoint.
+---
 
-**Imports via HTTPS**
+In Run mode, a sample command to run _workflow.wdl_ would be
+```java -jar cromwell.jar run wf.wdl --inputs wf.inputs --imports imports.zip```
 
-# TBC by Kcibul
+
+In Server Mode, pass in a zip file using the parameter `workflowDependencies` via the [submit](/restapi#post-apiworkflowsversion) endpoint.

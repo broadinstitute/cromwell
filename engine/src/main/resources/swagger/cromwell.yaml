@@ -3,7 +3,8 @@ info:
   title: Cromwell REST API
   license:
     name: BSD
-    url: 'http://opensource.org/licenses/BSD-3-Clause'
+    url: 'https://github.com/broadinstitute/cromwell/blob/develop/LICENSE.txt'
+    termsOfService: 'https://github.com/broadinstitute/cromwell/blob/develop/LICENSE.txt'
   version: '30'
 produces:
   - application/json

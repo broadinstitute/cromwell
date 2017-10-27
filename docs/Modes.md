@@ -4,7 +4,7 @@ Run mode will run a single workflow from the command line, and exit when the wor
 The exit code of the run command will be `0` if the workflow succeeds or is aborted, `1` if it fails.
 
 Sending a `SIGINT` signal (via `CTRL-C` for example) will by default abort all running jobs and then exit.
-This behavior can be configured, and is explained in more details in the [Abort](Configuring##Abort) section of the configuration.
+This behavior can be configured, and is explained in more details in the [Abort](Configuring#Abort) section of the configuration.
 
 Run mode is a good way to get started with Cromwell and experiment quickly.
 For more advanced use cases involving large workflows or multi-tenancy for example, Server mode is recommended. It also offers a larger set of features through its endpoints that are not available in run mode.

@@ -1,17 +1,64 @@
-## Server Mode
+# Server Mode
 
-### Prerequisites
+Cromwell is best experienced in "server" mode, as discussed in the [Modes section of the docs](../Modes).
+
+# Prerequisites
 
 This tutorial page relies on completing the previous tutorials:
 
 * [Five Minute Introduction](FiveMinuteIntro.md)
 
-
-### Goals
+# Goals
 
 At the end of this tutorial you'll have run Cromwell in Server Mode, allowing you to submit more than one workflow in parallel, and query workflows even after they have completed.
 
-### Let's get started
+# Prepare Files
+
+Paste the following into  a file called `hello.wdl`:
+```wdl
+task hello {
+  String name
+
+  command {
+    echo 'Hello ${name}!'
+  }
+  output {
+    File response = stdout()
+  }
+}
+
+workflow test {
+  call hello
+}
+```
+
+Paste the following into a file called `inputs.json`:
+```json
+{
+  "test.hello.name": "World"
+}
+```
+
+# Run the server
+
+1. Run `java -jar cromwell-[version].jar server` (replace [version] with actual version).  Not that there is a `server` argument, this is the special sauce!
+2. Visit <a href="http://localhost:8000">localhost:8000</a> in your browser
+
+# Start the job
+
+1. Navigate to Workflows section and click "Show/Hide"
+2. Navigate to /workflows/{version} which has a green "POST" on the left.
+3. Find workflowSource file, "Choose File" and navigate to `hello.wdl`.
+4. Find inputs file and navigate to `inputs.json`.
+5. Navigate to the bottom of this section and click "Try it out!"
+6. Observe output from the server process.
+
+# What happened?
+
+* [Did it work?  Check the status endpoint](TODO_link_to_status)
+* Holy logs!  [How can I just see my outputs?](TODO_link_to_outputs_endpoint)
+* [Check out metadata related to your workflow.](TODO_link_to_metadata)
+* [All kinds of other interesting info.](TODO_all_endpoints)
 
 ### Next Steps
 

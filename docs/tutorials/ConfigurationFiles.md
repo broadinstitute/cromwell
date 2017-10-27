@@ -19,7 +19,7 @@ When Cromwell runs, it contains a large number of default options useful for get
 
 Soon you may want to start storing the results of your Cromwell runs in an external MySQL database. Or, you may want to run jobs on your organizations compute farm, or even run jobs in the cloud via the Pipelines API. All of these changes to the defaults will done by setting configuration values.
 
-When you have many configuration settings you would like to set, you specify them in custom configuration file. See the [configuration](Configuring) page for more specific information on the configuration file, and for links to the example configuration file.
+When you have many configuration settings you would like to set, you specify them in custom configuration file. See the [configuration](../Configuring) page for more specific information on the configuration file, and for links to the example configuration file.
 
 #### Configuration file syntax
 
@@ -60,7 +60,7 @@ When you then run Cromwell updated config file, cromwell will now be listening o
 
 #### Finding more configuration properties
 
-In addition to the common configuration properties listed on the [configuration](Configuring) page, there are also a large number of example configuration stanzas commented in [cromwell.examples.conf](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf).
+In addition to the common configuration properties listed on the [configuration](../Configuring) page, there are also a large number of example configuration stanzas commented in [cromwell.examples.conf](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf).
 
 ### Next Steps
 

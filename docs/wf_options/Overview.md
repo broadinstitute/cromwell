@@ -17,7 +17,7 @@ _For the Doc-A-Thon_
 ---
 
 
-When running a workflow from the [command line](/commandline#run) or [REST API](/restapi#post-apiworkflowsversion), one may specify a JSON file that toggles various options for running the workflow.  From the command line, the workflow options is passed in as the third positional parameter to the 'run' subcommand.  From the REST API, it's an optional part in the multi-part POST request.  See the respective sections for more details.
+When running a workflow from the [command line](/commandline#run) or [REST API](/restapi#post-apiworkflowsversion), one may specify a JSON file that toggles various options for running the workflow.  From the REST API, it's an optional part in the multi-part POST request.  See the respective sections for more details.
 
 Example workflow options file:
 

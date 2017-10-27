@@ -1,3 +1,10 @@
+The following workflow options apply to all workflows and their calls, regardless of the backend being used.
+
+
+|Option|Values|Description|Example|
+|---|---|---|---|
+|`write_to_cache`|`true` or `false`|If `false`, the completed calls from this workflow will not be added to the cache.  See the [Call Caching](CallCaching) section for more details.|`write_to_cache: true`|
+
 
 - **write_to_cache** - Accepts values `true` or `false`.  If `false`, the completed calls from this workflow will not be added to the cache.  See the [Call Caching](CallCaching) section for more details.
     * **read_from_cache** - Accepts values `true` or `false`.  If `false`, Cromwell will not search the cache when invoking a call (i.e. every call will be executed unconditionally).  See the [Call Caching](CallCaching) section for more details.

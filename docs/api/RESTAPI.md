@@ -19,13 +19,8 @@
 * `application/json`
 
 
-
-
-<a name="paths"></a>
-## Paths
-
 <a name="api-workflows-version-post"></a>
-### Submit a workflow for execution
+## Submit a workflow for execution
 ```
 POST /api/workflows/{version}
 ```
@@ -80,7 +75,7 @@ Submits a workflow to Cromwell. Note that this endpoint can accept an unlimited 
 
 
 <a name="api-workflows-version-backends-get"></a>
-### List the supported backends
+## List the supported backends
 ```
 GET /api/workflows/{version}/backends
 ```
@@ -117,7 +112,7 @@ Returns the backends supported by this Cromwell server, as well as the default b
 
 
 <a name="api-workflows-version-batch-post"></a>
-### Submit a batch of workflows for execution
+## Submit a batch of workflows for execution
 ```
 POST /api/workflows/{version}/batch
 ```
@@ -168,7 +163,7 @@ In instances where you want to run the same workflow multiple times with varying
 
 
 <a name="api-workflows-version-callcaching-diff-get"></a>
-### Explain hashing differences for 2 calls
+## Explain hashing differences for 2 calls
 ```
 GET /api/workflows/{version}/callcaching/diff
 ```
@@ -214,7 +209,7 @@ This endpoint returns the hash differences between 2 completed (successfully or 
 
 
 <a name="api-workflows-version-query-post"></a>
-### Get workflows matching some criteria
+## Get workflows matching some criteria
 ```
 POST /api/workflows/{version}/query
 ```
@@ -254,7 +249,7 @@ Query workflows by start dates, end dates, names, ids, or statuses.
 
 
 <a name="api-workflows-version-query-get"></a>
-### Get workflows matching some criteria
+## Get workflows matching some criteria
 ```
 GET /api/workflows/{version}/query
 ```
@@ -300,7 +295,7 @@ Query for workflows which match various criteria. When a combination of criteria
 
 
 <a name="api-workflows-version-id-abort-post"></a>
-### Abort a running workflow
+## Abort a running workflow
 ```
 POST /api/workflows/{version}/{id}/abort
 ```
@@ -342,7 +337,7 @@ Request Cromwell to abort a running workflow. For instance this might be necessa
 
 
 <a name="api-workflows-version-id-labels-patch"></a>
-### Update labels for a workflow
+## Update labels for a workflow
 ```
 PATCH /api/workflows/{version}/{id}/labels
 ```
@@ -385,7 +380,7 @@ Update multiple labels for an existing workflow. When supplying a label with a k
 
 
 <a name="api-workflows-version-id-logs-get"></a>
-### Get the logs for a workflow
+## Get the logs for a workflow
 ```
 GET /api/workflows/{version}/{id}/logs
 ```
@@ -426,7 +421,7 @@ Returns paths to the standard out and standard error files that were generated d
 
 
 <a name="api-workflows-version-id-metadata-get"></a>
-### Get workflow and call-level metadata for a specified workflow
+## Get workflow and call-level metadata for a specified workflow
 ```
 GET /api/workflows/{version}/{id}/metadata
 ```
@@ -599,7 +594,7 @@ json :
 
 
 <a name="api-workflows-version-id-outputs-get"></a>
-### Get the outputs for a workflow
+## Get the outputs for a workflow
 ```
 GET /api/workflows/{version}/{id}/outputs
 ```
@@ -640,7 +635,7 @@ Retrieve the outputs for the specified workflow. Cromwell will return any output
 
 
 <a name="api-workflows-version-id-status-get"></a>
-### Retrieves the current state for a workflow
+## Retrieves the current state for a workflow
 ```
 GET /api/workflows/{version}/{id}/status
 ```
@@ -677,7 +672,7 @@ GET /api/workflows/{version}/{id}/status
 
 
 <a name="api-workflows-version-id-timing-get"></a>
-### Get a visual diagram of a running workflow
+## Get a visual diagram of a running workflow
 ```
 GET /api/workflows/{version}/{id}/timing
 ```
@@ -718,7 +713,7 @@ Returns a javascript file which will render a Gantt chart for the requested work
 
 
 <a name="engine-version-stats-get"></a>
-### Returns basic statistics from this Cromwell server.
+## Returns basic statistics from this Cromwell server.
 ```
 GET /engine/{version}/stats
 ```
@@ -744,7 +739,7 @@ GET /engine/{version}/stats
 
 
 <a name="engine-version-status-get"></a>
-### Return the current health status of any monitored subsystems
+## Return the current health status of any monitored subsystems
 ```
 GET /engine/{version}/status
 ```

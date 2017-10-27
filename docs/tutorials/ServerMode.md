@@ -62,7 +62,8 @@ Paste the following into a file called `inputs.json`:
 
 ### Next Steps
 
-After completing this tutorial you might find the following page interesting:
+Nice job! Now that you have cromwell running in server mode you've reached the upper echilons of Cromwell prowess! After reaching these dizzy heights, you might also find the following pages interesting:
 
 * [Viewing Metadata](MetadataEndpoint)
+* [Timing Diagrams](TimingDiagrams)
 * [Configuration Files](ConfigurationFiles)

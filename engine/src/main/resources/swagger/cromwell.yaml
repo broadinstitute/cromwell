@@ -11,7 +11,7 @@ produces:
 paths:
   '/api/workflows/{version}':
     post:
-      summary: Submits a workflow for execution
+      summary: Submit a workflow for execution
       description: Submits a workflow to Cromwell. Note that this endpoint can accept an unlimited number of input files via workflowInputs_N but swagger needs them to be explicitly defined so we have provided 5 as an example.
       consumes:
         - multipart/form-data
@@ -221,7 +221,7 @@ paths:
             - openid
   '/api/workflows/{version}/{id}/outputs':
     get:
-      summary: Retrieve the outputs for a workflow
+      summary: Get the outputs for a workflow
       description: Retrieve the outputs for the specified workflow. Cromwell will return any outputs which currently exist even if a workflow has not successfully completed.
       parameters:
         - $ref: '#/parameters/versionParam'
@@ -242,7 +242,7 @@ paths:
             - openid
   '/api/workflows/{version}/{id}/logs':
     get:
-      summary: Retrieve the logs for a workflow
+      summary: Get the logs for a workflow
       description: Returns paths to the standard out and standard error files that were generated during the execution of all calls in a workflow. A call has one or more standard out and standard error logs, depending on if the call was scattered or not. In the latter case, one log is provided for each instance of the call that has been run.
       parameters:
         - $ref: '#/parameters/versionParam'
@@ -263,7 +263,7 @@ paths:
             - openid
   '/api/workflows/{version}/query':
     get:
-      summary: Query for workflows matching some criteria
+      summary: Get workflows matching some criteria
       description: Query for workflows which match various criteria. When a combination of criteria are applied the endpoint will return
       parameters:
         - $ref: '#/parameters/versionParam'
@@ -352,7 +352,7 @@ paths:
         - google_oauth:
             - openid
     post:
-      summary: Query for workflows matching some criteria
+      summary: Get workflows matching some criteria
       description: Query workflows by start dates, end dates, names, ids, or statuses.
       parameters:
         - $ref: '#/parameters/versionParam'
@@ -403,7 +403,7 @@ paths:
             - openid
   '/api/workflows/{version}/{id}/metadata':
     get:
-      summary: Query for workflow and call-level metadata for a specified workflow
+      summary: Get workflow and call-level metadata for a specified workflow
       parameters:
         - $ref: '#/parameters/versionParam'
         - $ref: '#/parameters/singleId'
@@ -657,7 +657,7 @@ paths:
             $ref: '#/definitions/StatsResponse'
   '/engine/{version}/version':
     get:
-      summary: Returns the version of this Cromwell server
+      summary: Return the version of this Cromwell server
       parameters:
         - $ref: '#/parameters/versionParam'
       tags:
@@ -669,7 +669,7 @@ paths:
             $ref: '#/definitions/VersionResponse'
   '/engine/{version}/status':
       get:
-        summary: Returns the current health status of any monitored subsystems
+        summary: Return the current health status of any monitored subsystems
         parameters:
           - $ref: '#/parameters/versionParam'
         tags:

@@ -27,7 +27,7 @@ The Cromwell workflow management system
 ## Paths
 
 <a name="api-workflows-version-post"></a>
-### Submits a workflow for execution
+### Submit a workflow for execution
 ```
 POST /api/workflows/{version}
 ```
@@ -216,7 +216,7 @@ This endpoint returns the hash differences between 2 completed (successfully or 
 
 
 <a name="api-workflows-version-query-post"></a>
-### Query for workflows matching some criteria
+### Get workflows matching some criteria
 ```
 POST /api/workflows/{version}/query
 ```
@@ -256,7 +256,7 @@ Query workflows by start dates, end dates, names, ids, or statuses.
 
 
 <a name="api-workflows-version-query-get"></a>
-### Query for workflows matching some criteria
+### Get workflows matching some criteria
 ```
 GET /api/workflows/{version}/query
 ```
@@ -387,7 +387,7 @@ Update multiple labels for an existing workflow. When supplying a label with a k
 
 
 <a name="api-workflows-version-id-logs-get"></a>
-### Retrieve the logs for a workflow
+### Get the logs for a workflow
 ```
 GET /api/workflows/{version}/{id}/logs
 ```
@@ -428,7 +428,7 @@ Returns paths to the standard out and standard error files that were generated d
 
 
 <a name="api-workflows-version-id-metadata-get"></a>
-### Query for workflow and call-level metadata for a specified workflow
+### Get workflow and call-level metadata for a specified workflow
 ```
 GET /api/workflows/{version}/{id}/metadata
 ```
@@ -601,7 +601,7 @@ json :
 
 
 <a name="api-workflows-version-id-outputs-get"></a>
-### Retrieve the outputs for a workflow
+### Get the outputs for a workflow
 ```
 GET /api/workflows/{version}/{id}/outputs
 ```
@@ -746,7 +746,7 @@ GET /engine/{version}/stats
 
 
 <a name="engine-version-status-get"></a>
-### Returns the current health status of any monitored subsystems
+### Return the current health status of any monitored subsystems
 ```
 GET /engine/{version}/status
 ```
@@ -773,7 +773,7 @@ GET /engine/{version}/status
 
 
 <a name="engine-version-version-get"></a>
-### Returns the version of this Cromwell server
+### Return the version of this Cromwell server
 ```
 GET /engine/{version}/version
 ```

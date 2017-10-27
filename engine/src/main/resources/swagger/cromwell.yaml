@@ -1,6 +1,7 @@
 swagger: '2.0'
 info:
-  title: Cromwell REST API
+  title: Cromwell Server REST API
+  description: Describes the rest API provided by a Cromwell server
   license:
     name: BSD
     url: 'https://github.com/broadinstitute/cromwell/blob/develop/LICENSE.txt'

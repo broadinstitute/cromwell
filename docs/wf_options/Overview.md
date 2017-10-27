@@ -10,4 +10,7 @@ Example:
 }
 ```
 
+- [Global Options](Global)
+- [Google Options](Google)
+
 

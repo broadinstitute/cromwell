@@ -60,6 +60,8 @@ theme: readthedocs
 
 extra_css:
     - css/extra.css
+extra_javascript:
+    - js/extra.js
 
 copyright: Copyright &copy; 2017 <a href="https://broadinstitute.org">Broad Institute</a>
 # google_analytics: ['identifierID', 'URL.org']

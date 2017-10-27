@@ -1,4 +1,7 @@
-# Options
+# Google Pipelines API Workflow Options
+
+These workflow options provide Google-specific information for workflows running tasks on the Google PAPI backend.
+
 Keys | Possible Values | Description
 --|--|--
 <a name="jes_gcs_root">jes_gcs_root</a> | `string`  | Where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).  If this is not set, this defaults to the value within `backend.jes.config.root` in the [Configuration](../Configuring).

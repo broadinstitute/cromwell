@@ -1,4 +1,10 @@
-Specify a JSON file that toggles various options for running the workflow.
+# Workflow Options Overview
+
+Workflow options can affect the execution of a single workflow without having to change configuration options or restart Cromwell. 
+
+Unless otherwise specified you can expect workflow options to override any hard-coded defaults in Cromwell or defaults provided in the [configuration file](../Configuring), but to be overridden by any values provided in the workflow definition file itself (WDL or CWL).
+
+Provide workflow options via a JSON file that toggles various options for running the workflow. This can be supplied at workflow-submit time either via the (**TODO: make these links**) CLI or the REST endpoint.
 
 Example:
 
@@ -10,7 +16,6 @@ Example:
 }
 ```
 
-- [Global Options](Global)
-- [Google Options](Google)
+Several workflow options apply to every task, regardless of backend: [Global Options](Global).
 
-
+Some workflow options apply only to tasks running on the Google Pipelines API backend: [Google Options](Google)

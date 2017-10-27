@@ -9,6 +9,8 @@ _For the Doc-A-Thon_
 4. Are there things that don't need to be there? Remove them.
 5. Are the code and instructions accurate? Try it!
 
+*NOTE to editor: these subsections are not headers, so links to subsections do not direct you there.*
+
 ---
  **DELETE ABOVE ONCE COMPLETE**
 

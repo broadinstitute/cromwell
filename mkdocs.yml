@@ -45,7 +45,7 @@ pages:
     - "Viewing Metadata": tutorials/MetadataEndpoint.md
     - "Timing Diagrams": tutorials/TimingDiagrams.md
     - "Introduction to Call Caching": tutorials/CallCaching101.md
-    - "Persisting data between restarts": tutorials/Database.md
+    - "Persisting data between restarts": tutorials/PersistentServer.md
     - "Common Errors": tutorials/FrequentErrors.md
     - "General Debugging Tips": tutorials/GeneralDebuggingTips.md
 - REST API:

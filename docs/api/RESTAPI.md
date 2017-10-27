@@ -10,7 +10,7 @@
 
 ### License information
 *License* : BSD  
-*License URL* : http://opensource.org/licenses/BSD-3-Clause  
+*License URL* : https://github.com/broadinstitute/cromwell/blob/develop/LICENSE.txt  
 *Terms of service* : null
 
 

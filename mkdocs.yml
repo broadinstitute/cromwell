@@ -13,7 +13,6 @@ pages:
     - "Workflow Language Support": LanguageSupport.md
     - Getting Cromwell Releases: Getting.md
     - Other Resources: GettingHelp.md
-    - (SOON) CWL: CWL.md
 - Command Line: CommandLine.md
 - Configuration: Configuring.md # Please update link in wf_options/Global.md if you change this name
 - Security: Security.md

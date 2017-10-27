@@ -5,7 +5,7 @@
 * A Unix-based operating system (yes, that includes Mac!)
 * A Java 8 runtime environment 
 	* You can see what you have by running `java --version` on a terminal. You're looking for a version that's at least `1.8` or higher.
-	* If not, you can download Java [here](http://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html))
+	* If not, you can download Java [here](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html)
 * A sense of adventure!
 
 ### Goals
@@ -32,10 +32,28 @@ $ cd cromwell
 $ cp ~/Downloads/cromwell-29.jar .
 ```
 
-### Step 2: Writing your first workflow
+### Step 2: Writing your first workflow description
 
+This bit's easy, you're just going to copy and paste something from the internet!
 
+Create a file in your new `cromwell` directory called `myWorkflow.wdl`. Copy the following content into it.
 
+```wdl
+workflow myWorkflow {
+	call myTask
+}
+
+task myTask {
+	command {
+		echo "hello world"
+	}
+	output {
+		String out = read_string(stdout())
+	}
+}
+```
+
+Don't worry too much about the workflow contents for now. If you'd like to learn more about how to author WDL, you can hopefully find all the resources you could ever want [here](https://github.com/openwdl/wdl)!
 
 
 ### Next Steps

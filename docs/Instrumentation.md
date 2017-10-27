@@ -16,18 +16,26 @@ _For the Doc-A-Thon_
 
 ---
 
+**Overview**
+
+Cromwell's instrumentation support can be useful to collect utilization data in long-running, high-volume
+production environments. While this instrumentation support can be used in smaller environments it will still require setting up a
+[StatsD](https://github.com/etsy/statsd) server outside of Cromwell and it's possible not enough data would be produced to be useful.  
+
 
 **StatsD**
 
-Cromwell collects metrics while it's running and sends them to an internal service. By default this service ignores those metrics, but it can be configured to forward them to a [StatsD](https://github.com/etsy/statsd) server.
-To do so, simply add this snippet to your configuration file:
+Cromwell collects metrics while running and sends them to an internal service. The default implementation of this service
+ignores these metrics, but Cromwell includes an alternate implementation that can forward metrics to a
+[StatsD](https://github.com/etsy/statsd) server.
+To specify this implementation in your configuration file:
 
-```hocon
-services.Instrumentation.class = "cromwell.services.instrumentation.impl.akka.AkkaInstrumentationServiceActor"
+```text
+services.Instrumentation.class = "cromwell.services.instrumentation.impl.statsd.StatsDInstrumentationServiceActor"
 ```
 Make sure to configure your StatsD service:
 
-```hocon
+```text
 services.Instrumentation.config.statsd {
     hostname = "localhost" # Replace with your host
     port = 8125 # Replace with your port
@@ -38,7 +46,7 @@ services.Instrumentation.config.statsd {
 
 There is also an additional configuration value that can be set: 
 
-```hocon
+```text
 # Rate at which Cromwell updates its gauge values (number of workflows running, queued, etc...)
 system.instrumentation-rate = 5 seconds
 ```
@@ -47,7 +55,11 @@ system.instrumentation-rate = 5 seconds
 
 The current StatsD implementation uses metrics-statsd to report instrumentation values.
 metrics-statsd reports all metrics with a gauge type.
-This means all the metric will be under the gauge section. We might add /remove metrics in the future depending on need and usage.
-However here the current high level categories:
+This means all metrics will be under the gauge section. We might add /remove metrics in the future depending on need and usage.
+These are the current high level categories:
 
-`backend`, `rest-api`, `job`, `workflow`, `io`
+* `backend`
+* `rest-api`
+* `job`
+* `workflow`
+* `io`

@@ -1,9 +1,10 @@
 Cromwell implements imports in both [run](CommandLine) and [server](api/POST_api_workflows_version) mode.
-Imported files can be provided when submitting the workflow or referenced via `http` or `https`.
-In order to provide your own files, Cromwell lets you supply a zip file that should contain all required dependencies.
-The directory structure of the zip file should match the import paths in the workflow source.
+You can either include imported files when submitting the workflow, or reference them via `http` or `https`.
 
-For example, in WDL:
+To include your own files, supply a .zip file that contains all required dependencies.
+The directory structure of the .zip file should match the import paths in the workflow source.
+
+Here's an example workflow in WDL:
 
 _workflow.wdl_
 ```wdl
@@ -23,8 +24,8 @@ imports
 
 ---
 
-In Run mode, a sample command to run _workflow.wdl_ would be
-```java -jar cromwell.jar run workflow.wdl --imports imports.zip```
+In Run mode, a sample command to run _workflow.wdl_ would be  
+```$ java -jar cromwell.jar run workflow.wdl --imports imports.zip```
 
 
-In Server Mode, pass in a zip file using the parameter `workflowDependencies` via the [submit](/restapi#post-apiworkflowsversion) endpoint.
+In Server Mode, pass in a .zip file using the parameter `workflowDependencies` via the [submit](api/POST_api_workflows_version) endpoint.

@@ -31,7 +31,6 @@ pages:
 - Instrumentation: Instrumentation.md
 - Workflow Options:
   - Overview: wf_options/Overview.md
-  - Global: wf_options/Global.md
   - Google Cloud: wf_options/Google.md
 - Labels: Labels.md
 - Call Caching: CallCaching.md

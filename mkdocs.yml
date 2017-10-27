@@ -8,7 +8,6 @@ repo_url: https://github.com/broadinstitute/cromwell/docs
 pages:
 - Introduction: index.md
 - Getting Started:
-    - Requirements: Requirements.md
     - Modes: Modes.md
     - "Workflow Language Support": LanguageSupport.md
     - Getting Cromwell Releases: Getting.md

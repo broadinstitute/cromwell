@@ -11,6 +11,7 @@ pages:
     - Requirements: Requirements.md
     - How to Build: Building.md
     - Installation: Installing.md
+    - Modes: Modes.md
     - WDL: StartWDL.md
     - Other Resources: GettingHelp.md
     - (SOON) CWL: CWL.md

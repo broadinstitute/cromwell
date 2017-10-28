@@ -1,22 +1,3 @@
-_For the Doc-A-Thon_  
-**Questions to answer and things to consider:**
-
-1. Who is visiting the Errors page?  
-
-2. What do they need to know first?  
-*What is the purpose of this page?*
-3. Is all the important information there? If not, add it!  
-*Frequently seen errors?*
-4. Are there things that don't need to be there? Remove them.  
-
-5. Are the code and instructions accurate? Try it!
-
----
- **DELETE ABOVE ONCE COMPLETE**
-
----
-
-
 Requests that Cromwell can't process return a failure in the form of a JSON response respecting the following JSON schema:
 
 ```
@@ -42,9 +23,11 @@ Requests that Cromwell can't process return a failure in the form of a JSON resp
 }
 ```
 
-The `status` field can take two values:
-> "fail" means that the request was invalid and/or data validation failed. "fail" status is most likely returned with a 4xx HTTP Status code.
-e.g.
+The `status` field can be `"fail"` or `"error"`.  
+
+`"fail"` means that the request was invalid and/or data validation failed. `"fail"` status is most likely returned with a 4xx HTTP Status code.  
+
+*For example,*
 
 ```
 {
@@ -56,8 +39,9 @@ e.g.
 }
 ```
 
-> "error" means that an error occurred while processing the request. "error" status is most likely returned with a 5xx HTTP Status code.
-e.g.
+`"error"` means that an error occurred while processing the request. `"error"` status is most likely returned with a 5xx HTTP Status code.  
+
+*For example,*
 
 ```
 {

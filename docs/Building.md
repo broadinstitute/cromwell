@@ -12,13 +12,13 @@ features or fixes, the following are required to build Cromwell from source:
 First start by cloning the Cromwell repository from GitHub:
 
 ```text
-git clone git@github.com:broadinstitute/cromwell.git
+$ git clone git@github.com:broadinstitute/cromwell.git
 ```
 
 Next change into the `cromwell` directory:
 
 ```text
-cd cromwell
+$ cd cromwell
 ```
 
 If you require a specific version of Cromwell as a starting point, do the appropriate `git checkout` now. 
@@ -26,7 +26,7 @@ If you require a specific version of Cromwell as a starting point, do the approp
 Finally build the Cromwell jar:
 
 ```text
-sbt assembly
+$ sbt assembly
 ```
 
-`sbt assembly` will build the runnable Cromwell jar in `target/scala-2.12/` with a name like `cromwell-<VERSION>.jar`.
+`sbt assembly` will build the runnable Cromwell JAR in `target/scala-2.12/` with a name like `cromwell-<VERSION>.jar`.

@@ -1,12 +1,12 @@
-A backend represents a way to run the commands of your workflow. Cromwell allows for backends conforming to
+A backend is a way to run the commands of your workflow. Cromwell allows for backends conforming to
 the Cromwell backend specification to be plugged into the Cromwell engine. Additionally, backends are included with the
 Cromwell distribution:
 
 * **[Local](Local)**
-* **[HPC](HPC): [SunGridEngine](SGE) / [LSF](LSF) / [HTCondor](HTcondor), [SLURM](SLURM), etc.** - Run jobs as subprocesses or via a dispatcher.  Supports launching in Docker containers. Use `bash`, `qsub`, `bsub`, etc. to run scripts.
+* **[HPC](HPC): [Sun Grid Engine](SGE) / [LSF](LSF) / [HTCondor](HTcondor), [SLURM](SLURM), etc.** - Run jobs as subprocesses or via a dispatcher.  Supports launching in Docker containers. Use `bash`, `qsub`, `bsub`, etc. to run scripts.
 * **[Google Cloud](Google)** - Launch jobs on Google Compute Engine through the Google Genomics Pipelines API.
 * **[GA4GH TES](TES)** - Launch jobs on servers that support the GA4GH Task Execution Schema (TES).
-* **[Spark](Spark)** - Supports execution of spark jobs.
+* **[Spark](Spark)** - Supports execution of Spark jobs.
 
 HPC backends are put under the same umbrella because they all use the same generic configuration that can be specialized to fit the need of a particular technology.
 
@@ -50,4 +50,4 @@ The backend/filesystem pairings are as follows:
 * Google backend uses the [Google Cloud Storage Filesystem](Google/#google-cloud-storage-filesystem).
 
 Additional filesystems capabilities can be added depending on the backend.
-For instance, an HPC backend can be configured to work with files on Google Cloud Storage. See the HPC documentation for more details.
+For instance, an HPC backend can be configured to work with files on Google Cloud Storage. See the [HPC documentation](HPC) for more details.

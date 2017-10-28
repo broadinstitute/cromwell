@@ -2,22 +2,21 @@
 
 
 <a name="overview"></a>
-## Overview
-Describes the rest API provided by a Cromwell server
+**Overview**  
+Describes the REST API provided by a Cromwell server
 
 
-### Version information
+**Version information**  
 *Version* : 30
 
 
-### License information
+**License information**  
 *License* : BSD  
 *License URL* : https://github.com/broadinstitute/cromwell/blob/develop/LICENSE.txt  
 *Terms of service* : null
 
 
-### Produces
-
+**Produces**  
 * `application/json`
 
 

@@ -44,23 +44,26 @@ case class CommandLineBindingCommandPart(argument: CommandLineBinding) extends C
   }
 }
 
-case class InputParameterCommandPart(argument: CommandInputParameter) extends CommandPart {
+case class InputParameterCommandPart(commandInputParameter: CommandInputParameter) extends CommandPart {
 
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: (WomValue) => WomValue) = {
 
-    val localInputsMap = inputsMap.map{
-      case (LocalName(localName), WomSingleFile(path)) => localName -> WomString(path)
-      case (LocalName(localName), value) => localName -> value
-    }
+    val womValue: WomValue = commandInputParameter match {
 
+        /*
+      In this case we are looking for the specific case where the only input binding option specified is the position.
 
-    val womValue: WomValue = argument match {
-      case CommandInputParameter(id, _,_,_,_,_, Some(CommandLineBinding(None,Some(_),None,None,None,None,None)),_,_) =>
-        localInputsMap.get(FullyQualifiedName(id).id) match {
+      NB: We ignore the position as these have already been sorted prior to being submitted as command part
+
+      In the cases where we have a defined inputbinding with more options,
+      we should consider instantiating a CommandLineBindingCommandPart and delegating this call.
+      */
+      case CommandInputParameter(commandInputParamterFqn, _,_,_,_,_, Some(CommandLineBinding(None,Some(_),None,None,None,None,None)),_,_) =>
+        inputsMap.get(LocalName(FullyQualifiedName(commandInputParamterFqn).id)) match {
           case Some(x) =>x
-          case _ => throw new RuntimeException(s"could not find $id in map $inputsMap")
+          case _ => throw new RuntimeException(s"could not find $commandInputParamterFqn in map $inputsMap")
         }
 
       // There's a fair few other cases to add, but until then...

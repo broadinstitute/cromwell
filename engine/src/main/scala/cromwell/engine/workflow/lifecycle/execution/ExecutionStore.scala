@@ -8,7 +8,7 @@ import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.{RunnableScop
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{apply => _}
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import common.collections.Table
-import wom.callable.WorkflowDefinition
+import wom.callable.ExecutableCallable
 import wom.graph.GraphNodePort.{ConditionalOutputPort, OutputPort, ScatterGathererPort}
 import wom.graph._
 import wom.graph.expression.ExpressionNode
@@ -33,9 +33,9 @@ object ExecutionStore {
 
   def empty = ExecutionStore(Map.empty[JobKey, ExecutionStatus], hasNewRunnables = false)
 
-  def apply(workflow: WorkflowDefinition): ExecutionStore = {
+  def apply(callable: ExecutableCallable): ExecutionStore = {
     // Keys that are added in a NotStarted Status
-    val notStartedKeys = workflow.innerGraph.nodes collect {
+    val notStartedKeys = callable.graph.nodes collect {
       case call: TaskCallNode => List(BackendJobDescriptorKey(call, None, 1))
       case expression: ExpressionNode => List(ExpressionKey(expression, None))
       case scatterNode: ScatterNode => List(ScatterKey(scatterNode))

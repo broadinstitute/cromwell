@@ -49,7 +49,7 @@ class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSy
       within(Timeout) {
         val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { unsupported: 1 }""")
         val conf = BackendConfigurationDescriptor(TestConfig.sampleBackendRuntimeConfig, ConfigFactory.empty())
-        val backend: ActorRef = getActorRef(workflowDescriptor, workflowDescriptor.workflow.taskCallNodes, conf)
+        val backend: ActorRef = getActorRef(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, conf)
         val pattern = "Key/s [unsupported] is/are not supported by backend. " +
           "Unsupported attributes will not be part of job executions."
         EventFilter.warning(pattern = escapePattern(pattern), occurrences = 1) intercept {

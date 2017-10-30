@@ -40,7 +40,7 @@ trait JesJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val defaultLabels: Labels = {
     val workflow = jobDescriptor.workflowDescriptor
     val call = jobDescriptor.call
-    val subWorkflow = workflow.workflow
+    val subWorkflow = workflow.callable
     val subWorkflowLabels = if (!subWorkflow.equals(workflow.rootWorkflow))
       Labels("cromwell-sub-workflow-name" -> subWorkflow.name)
     else

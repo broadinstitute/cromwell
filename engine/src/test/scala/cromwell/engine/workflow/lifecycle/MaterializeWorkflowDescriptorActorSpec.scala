@@ -74,7 +74,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
           case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) =>
             wfDesc.id shouldBe workflowId
             wfDesc.name shouldBe "wf_hello"
-            wfDesc.namespace.taskCallNodes.size shouldBe 1
+            wfDesc.callable.taskCallNodes.size shouldBe 1
             wfDesc.knownValues.head._1.fullyQualifiedName shouldBe "wf_hello.hello.addressee"
             wfDesc.knownValues.head._2 shouldBe WomString("world")
             wfDesc.getWorkflowOption(WorkflowOptions.WriteToCache) shouldBe Option("true")
@@ -131,7 +131,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       within(Timeout) {
         expectMsgPF() {
           case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) =>
-            wfDesc.namespace.taskCallNodes foreach {
+            wfDesc.callable.taskCallNodes foreach {
               case call if call.callable.name.equals("a") =>
                 wfDesc.backendAssignments(call) shouldBe "SpecifiedBackend"
               case call if call.callable.name.equals("b") =>

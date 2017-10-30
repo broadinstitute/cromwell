@@ -42,7 +42,7 @@ class SparkInitializationActorSpec  extends  TestKitSuite("SparkInitializationAc
       within(Timeout) {
         EventFilter.warning(message = s"Key/s [memory] is/are not supported by SparkBackend. Unsupported attributes will not be part of jobs executions.", occurrences = 1) intercept {
           val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { memory: 1 %s: "%s"}""".format("appMainClass", "test"))
-          val backend = getSparkBackend(workflowDescriptor, workflowDescriptor.workflow.taskCallNodes, TestConfig.emptyBackendConfigDescriptor)
+          val backend = getSparkBackend(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, TestConfig.emptyBackendConfigDescriptor)
           backend ! Initialize
         }
       }

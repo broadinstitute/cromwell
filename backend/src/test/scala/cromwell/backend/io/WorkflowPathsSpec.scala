@@ -32,13 +32,13 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
     val rootWd = mock[BackendWorkflowDescriptor]
     val rootWorkflow = WomMocks.mockWorkflowDefinition("rootWorkflow")
     val rootWorkflowId = WorkflowId.randomId()
-    rootWd.workflow returns rootWorkflow
+    rootWd.callable returns rootWorkflow
     rootWd.id returns rootWorkflowId
 
     val subWd = mock[BackendWorkflowDescriptor]
     val subWorkflow = WomMocks.mockWorkflowDefinition("subWorkflow")
     val subWorkflowId = WorkflowId.randomId()
-    subWd.workflow returns subWorkflow
+    subWd.callable returns subWorkflow
     subWd.id returns subWorkflowId
     
     val call1 = WomMocks.mockTaskCall(WomIdentifier("call1"))

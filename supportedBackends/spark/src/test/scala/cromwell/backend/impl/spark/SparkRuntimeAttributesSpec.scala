@@ -138,7 +138,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
   private def createRuntimeAttributes(workflowSource: WorkflowSource, runtimeAttributes: String): List[Map[String, WomValue]] = {
     val workflowDescriptor = buildWorkflowDescriptor(workflowSource, runtime = runtimeAttributes)
 
-    workflowDescriptor.workflow.taskCallNodes.toList map {
+    workflowDescriptor.callable.taskCallNodes.toList map {
       call =>
         val staticValues = workflowDescriptor.knownValues.map {
           case (outputPort, resolvedInput) => outputPort.name -> resolvedInput

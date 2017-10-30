@@ -50,7 +50,7 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
 
   lazy val graph = cwlWorkflow.womDefinition match {
     case Left(errors) => fail(s"Failed to build wom definition: ${errors.toList.mkString(", ")}")
-    case Right(womDef) => womDef.graph.getOrElse(fail("Failed to build wom graph"))
+    case Right(womDef) => womDef.graph
   }
 
   lazy val w0OutputPort = graph.inputNodes.find(_.localName == "w0").getOrElse(fail("Failed to find an input node for w0")).singleOutputPort

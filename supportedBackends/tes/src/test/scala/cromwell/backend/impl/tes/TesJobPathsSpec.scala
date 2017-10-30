@@ -10,7 +10,7 @@ class TesJobPathsSpec extends FlatSpec with Matchers with BackendSpec {
   "JobPaths" should "provide correct paths for a job" in {
 
     val wd = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld)
-    val call: TaskCallNode = wd.workflow.taskCallNodes.head
+    val call: TaskCallNode = wd.callable.taskCallNodes.head
     val jobKey = BackendJobDescriptorKey(call, None, 1)
     val jobPaths = TesJobPaths(jobKey, wd, TesTestConfig.backendConfig)
     val id = wd.id

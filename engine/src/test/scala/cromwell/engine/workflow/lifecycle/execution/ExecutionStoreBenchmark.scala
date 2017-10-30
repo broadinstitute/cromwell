@@ -28,8 +28,7 @@ object ExecutionStoreBenchmark extends Bench[Double] with DefaultJsonProtocol {
   
   val inputJson = Option(SampleWdl.PrepareScatterGatherWdl().rawInputs.toJson.compactPrint)
   val wdl = WdlNamespaceWithWorkflow.load(SampleWdl.PrepareScatterGatherWdl().workflowSource(), Seq.empty).get
-  val graph = wdl.womExecutable(inputJson).getOrElse(throw new Exception("Failed to build womExecutable"))
-    .graph.getOrElse(throw new Exception("Failed to build wom graph"))
+  val graph = wdl.womExecutable(inputJson).getOrElse(throw new Exception("Failed to build womExecutable")).graph
   val prepareCall: TaskCallNode = graph.calls.find(_.localName == "do_prepare").get.asInstanceOf[TaskCallNode]
   val scatterCall: TaskCallNode = graph.allNodes.find(_.localName == "do_scatter").get.asInstanceOf[TaskCallNode]
   val scatter: ScatterNode = graph.scatters.head

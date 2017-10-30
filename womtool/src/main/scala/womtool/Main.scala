@@ -2,7 +2,6 @@ package womtool
 
 import java.nio.file.Paths
 
-import cats.data.Validated.{Invalid, Valid}
 import wdl.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
 import wdl._
 import spray.json._
@@ -95,13 +94,8 @@ object Main extends App {
 
   def womGraph(args: Seq[String]): Termination = {
     continueIf(args.nonEmpty) {
-
       val (mainFile, auxFiles) = (args.head, args.tail)
-
-      WomGraph.fromFiles(mainFile, auxFiles) match {
-        case Valid(womGraph) => SuccessfulTermination(womGraph.digraphDot)
-        case Invalid(errors) => UnsuccessfulTermination("Unable to construct wom graph:" + errors.toList.mkString("\n", "\n", "\n"))
-      }
+      SuccessfulTermination(WomGraph.fromFiles(mainFile, auxFiles).digraphDot)
     }
   }
 

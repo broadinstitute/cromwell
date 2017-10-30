@@ -1,5 +1,6 @@
 package cwl
 
+import cwl.CommandLineTool.CommandInputParameter
 import wom.CommandPart
 import wom.expression.IoFunctionSet
 import wom.graph.LocalName
@@ -20,7 +21,7 @@ case class CwlExpressionCommandPart(expr: Expression) extends CommandPart {
 }
 
 // TODO: Dan to revisit making this an Either (and perhaps adding some other cases)
-case class CwlArgumentCommandPart(argument: CommandLineBinding) extends CommandPart {
+case class CommandLineBindingCommandPart(argument: CommandLineBinding) extends CommandPart {
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: (WomValue) => WomValue) = {
@@ -43,3 +44,32 @@ case class CwlArgumentCommandPart(argument: CommandLineBinding) extends CommandP
   }
 }
 
+case class InputParameterCommandPart(commandInputParameter: CommandInputParameter) extends CommandPart {
+
+  override def instantiate(inputsMap: Map[LocalName, WomValue],
+                           functions: IoFunctionSet,
+                           valueMapper: (WomValue) => WomValue) = {
+
+    val womValue: WomValue = commandInputParameter match {
+
+      /*
+        In this case we are looking for the specific case where the only input binding option specified is the position.
+
+        NB: We ignore the position as these have already been sorted prior to being submitted as command part
+
+        In the cases where we have a defined inputbinding with more options,
+        we should consider instantiating a CommandLineBindingCommandPart and delegating this call.
+      */
+      case CommandInputParameter(commandInputParamterFqn, _,_,_,_,_, Some(CommandLineBinding(None,Some(_),None,None,None,None,None)),_,_) =>
+        inputsMap.get(LocalName(FullyQualifiedName(commandInputParamterFqn).id)) match {
+          case Some(x) =>x
+          case _ => throw new RuntimeException(s"could not find $commandInputParamterFqn in map $inputsMap")
+        }
+
+      // There's a fair few other cases to add, but until then...
+      case other => throw new NotImplementedError(s"As-yet-unsupported commandPart from  command input parameters: $other")
+    }
+
+    womValue.valueString
+  }
+}

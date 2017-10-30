@@ -5,7 +5,7 @@
 This tutorial page relies on completing the previous tutorials:
 
 * [Configuration Files](ConfigurationFiles.md)
-* [docker](https://docs.docker.com/engine/installation/)
+* [Docker](https://docs.docker.com/engine/installation/)
 
 ### Goals
 
@@ -35,9 +35,9 @@ database {
   }
 }
 ```
-Add the line above, below the all other lines in your application.conf. Replace "DatabaseName","ChooseAName" and "YourOtherPassword" with the values you choose in step 2, preserving the double qoutes.
+Add the line above, below the all other lines in your `application.conf`. Replace `"DatabaseName"`, `"ChooseAName"` and `"YourOtherPassword"` with the values you choose in step 2, preserving the double quotes.
 
-Test it by running your server with the updated application.conf.
+Test it by running your server with the updated `application.conf`:
 ```bash
 java -Dconfig.file=/path/to/application.conf/ -jar cromwell-[version].jar ...
 ```
@@ -46,4 +46,4 @@ java -Dconfig.file=/path/to/application.conf/ -jar cromwell-[version].jar ...
 
 You might find the following tutorials interesting to tackle next:
 
-* [Server Mode](ServerMode.md)
+* [Server Mode](ServerMode)

@@ -16,7 +16,7 @@ At the end of this tutorial you'll have run your first workflow against the Goog
 **Configuring a Google Project**
 
 Install the <a href="https://cloud.google.com/sdk/downloads" target="_blank">Google Cloud SDK</a>. 
-Create a <a href="https://cloud.google.com/resource-manager/docs/creating-managing-projects" target="_blank">Google Cloud Project</a> and give it a project id (e.g. sample-project).  We’ll refer to this as &lt;google-project-id&gt; and your user login (e.g. username@gmail.com) as &lt;google-user-id&gt;.  
+Create a <a href="https://cloud.google.com/resource-manager/docs/creating-managing-projects" target="_blank">Google Cloud Project</a> and give it a project id (e.g. sample-project).  We’ll refer to this as `<google-project-id>` and your user login (e.g. username@gmail.com) as `<google-user-id>`.  
 
 On your Google project, open up the <a href="https://console.developers.google.com/apis/library" target="_blank">API Manager</a> and enable the following APIs:
         
@@ -171,5 +171,5 @@ Success!
 
 You might find the following tutorials interesting to tackle next:
 
-* [Persisting Data Between Restarts](Database)
+* [Persisting Data Between Restarts](PersistentServer)
 * [Server Mode](ServerMode.md)

@@ -12,20 +12,34 @@ pages:
     - "Workflow Language Support": LanguageSupport.md
     - Getting Cromwell Releases: Getting.md
     - Other Resources: GettingHelp.md
+- Tutorials:
+#    - "Tutorial Map": tutorials/Overview.md
+    - "Quick Introduction to Cromwell": tutorials/FiveMinuteIntro.md
+    - "Configuration Files": tutorials/ConfigurationFiles.md
+    - "Getting started with Pipelines API": tutorials/PipelinesApi101.md
+    - "Timing Diagrams": tutorials/TimingDiagrams.md
+    - "Persisting data between restarts": tutorials/PersistentServer.md
+    - "Getting started on HPC Clusters": tutorials/HPCIntro.md
+    - "Server Mode": tutorials/ServerMode.md
+    - "Configuring the Local backend": tutorials/LocalBackendIntro.md
+    - "Viewing Metadata": tutorials/MetadataEndpoint.md
+    - "Introduction to Call Caching": tutorials/CallCaching101.md
+    - "Common Errors": tutorials/FrequentErrors.md
+    - "General Debugging Tips": tutorials/GeneralDebuggingTips.md
 - Command Line: CommandLine.md
 - Configuration: Configuring.md # Please update link in wf_options/Global.md if you change this name
 - Security: Security.md
 - Backends:
     - Overview: backends/Backends.md
     - Local: backends/Local.md
+    - Google Cloud: backends/Google.md
+    - GA4GH TES: backends/TES.md
+    - Spark: backends/Spark.md
     - HPC: backends/HPC.md
     - Sun GridEngine: backends/SGE.md
     - LSF: backends/LSF.md
     - Slurm: backends/SLURM.md
     - HTCondor: backends/HTcondor.md
-    - Google Cloud: backends/Google.md
-    - GA4GH TES: backends/TES.md
-    - Spark: backends/Spark.md
 - Runtime Attributes: RuntimeAttributes.md
 - Logging: Logging.md
 - Instrumentation: Instrumentation.md
@@ -36,20 +50,6 @@ pages:
 - Call Caching: CallCaching.md
 - Imports: Imports.md
 - Sub-Workflows: SubWorkflows.md
-- Tutorials:
-    - "Tutorial Map": tutorials/Overview.md
-    - "Five Minute Introduction to Cromwell": tutorials/FiveMinuteIntro.md
-    - "Configuration Files": tutorials/ConfigurationFiles.md
-    - "Configuring the Local backend": tutorials/LocalBackendIntro.md
-    - "Getting started with Pipelines API": tutorials/PipelinesApi101.md
-    - "Getting started on HPC Clusters": tutorials/HPCIntro.md
-    - "Server Mode": tutorials/ServerMode.md
-    - "Viewing Metadata": tutorials/MetadataEndpoint.md
-    - "Timing Diagrams": tutorials/TimingDiagrams.md
-    - "Introduction to Call Caching": tutorials/CallCaching101.md
-    - "Persisting data between restarts": tutorials/PersistentServer.md
-    - "Common Errors": tutorials/FrequentErrors.md
-    - "General Debugging Tips": tutorials/GeneralDebuggingTips.md
 - REST API:
     - Overview: api/RESTAPI.md
     - Errors: api/ErrorHandling.md

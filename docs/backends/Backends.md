@@ -3,10 +3,16 @@ the Cromwell backend specification to be plugged into the Cromwell engine. Addit
 Cromwell distribution:
 
 * **[Local](Local)**
-* **[HPC](HPC): [Sun Grid Engine](SGE) / [LSF](LSF) / [HTCondor](HTcondor), [SLURM](SLURM), etc.** - Run jobs as subprocesses or via a dispatcher.  Supports launching in Docker containers. Use `bash`, `qsub`, `bsub`, etc. to run scripts.
-* **[Google Cloud](Google)** - Launch jobs on Google Compute Engine through the Google Genomics Pipelines API.
-* **[GA4GH TES](TES)** - Launch jobs on servers that support the GA4GH Task Execution Schema (TES).
-* **[Spark](Spark)** - Supports execution of Spark jobs.
+* **[HPC](HPC)**, including **[Sun Grid Engine](SGE), [LSF](LSF), [HTCondor](HTcondor) & [SLURM](SLURM)** 
+    * Run jobs as subprocesses or via a dispatcher.
+    * Supports launching in Docker containers.
+    * Use `bash`, `qsub`, and `bsub` to run scripts.
+* **[Google Cloud](Google)** 
+    * Launch jobs on Google Compute Engine through the Google Genomics Pipelines API.
+* **[GA4GH TES](TES)** 
+    * Launch jobs on servers that support the GA4GH Task Execution Schema (TES).
+* **[Spark](Spark)** 
+    * Supports execution of Spark jobs.
 
 HPC backends are put under the same umbrella because they all use the same generic configuration that can be specialized to fit the need of a particular technology.
 
@@ -46,7 +52,7 @@ backend {
 Each backend will utilize a filesystem to store the directory structure and results of an executed workflow.
 The backend/filesystem pairings are as follows:
 
-* Local, HPC and Spark backend use the [Shared Local Filesystem](SharedFilesystem).
+* Local, HPC and Spark backend use the [Shared Local Filesystem](HPC/#filesystems).
 * Google backend uses the [Google Cloud Storage Filesystem](Google/#google-cloud-storage-filesystem).
 
 Additional filesystems capabilities can be added depending on the backend.

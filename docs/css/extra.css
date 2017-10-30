@@ -41,3 +41,8 @@ dd {
 div.wy-nav-content {
     max-width: 1000px;
 }
+
+/* Increase font size for table */
+div.wy-table td, .rst-content table.docutils td, .rst-content table.field-list td, .wy-table th, .rst-content table.docutils th, .rst-content table.field-list th {
+    font-size: 100%;
+}

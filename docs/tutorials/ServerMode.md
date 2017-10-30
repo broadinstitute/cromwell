@@ -55,10 +55,10 @@ Paste the following into a file called `inputs.json`:
 
 # What happened?
 
-* [Did it work?  Check the status endpoint](TODO_link_to_status)
-* Holy logs!  [How can I just see my outputs?](TODO_link_to_outputs_endpoint)
-* [Check out metadata related to your workflow.](TODO_link_to_metadata)
-* [All kinds of other interesting info.](TODO_all_endpoints)
+* [Did it work?  Check the status endpoint](../api/RESTAPI#api-workflows-version-id-status-get)
+* Holy logs!  [How can I just see my outputs?](../api/RESTAPI#api-workflows-version-id-outputs-get)
+* [Check out metadata related to your workflow.](../api/RESTAPI#api-workflows-version-id-metadata-get)
+* [All kinds of other interesting info.](../api/RESTAPI)
 
 ### Next Steps
 

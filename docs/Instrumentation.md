@@ -1,27 +1,8 @@
-_For the Doc-A-Thon_  
-**Questions to answer and things to consider:**
-
-1. Who is visiting the Instrumentation page?  
-*why do they care about instrumentation and metrics? what do they use it for?*
-2. What do they need to know first?  
-
-3. Is all the important information there? If not, add it!  
-
-4. Are there things that don't need to be there? Remove them.  
-
-5. Are the code and instructions accurate? Try it!
-
----
- **DELETE ABOVE ONCE COMPLETE**
-
----
-
 **Overview**
 
 Cromwell's instrumentation support can be useful to collect utilization data in long-running, high-volume
 production environments. While this instrumentation support can be used in smaller environments it will still require setting up a
 [StatsD](https://github.com/etsy/statsd) server outside of Cromwell and it's possible not enough data would be produced to be useful.  
-
 
 **StatsD**
 

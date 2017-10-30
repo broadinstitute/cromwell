@@ -12,4 +12,4 @@ LSF {
 }
 ```
 
-For information on how to further configure it, take a look at the [Getting Started on HPC Clusters](../tutorials/HPCIntro)
+For information on how to further configure it, take a look at the [Getting Started on HPC Clusters](../tutorials/HPCIntro).

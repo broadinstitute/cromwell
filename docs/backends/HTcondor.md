@@ -1,22 +1,3 @@
-_For the Doc-A-Thon_  
-**Questions to answer and things to consider:**
-
-1. Who is visiting the HTCondor page?  
-
-2. What do they need to know first?  
-
-3. Is all the important information there? If not, add it!  
-*Why might they want to use HTCondor? Or not use it?*
-4. Are there things that don't need to be there? Remove them.  
-
-5. Are the code and instructions accurate? Try it!
-
----
- **DELETE ABOVE ONCE COMPLETE**
-
----
-
-
 **HTCondor Backend**
 
 Allows to execute jobs using HTCondor which is a specialized workload management system for compute-intensive jobs created by the Center for High Throughput Computing in the Department of Computer Sciences at the University of Wisconsin-Madison (UW-Madison).
@@ -147,4 +128,4 @@ An example of this is when there is a need to work with 'requirements' or 'rank'
 }
 ```
 
-nativeSpecs attribute needs to be specified as String.
+`nativeSpecs` attribute needs to be specified as String.

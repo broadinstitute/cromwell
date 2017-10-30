@@ -4,8 +4,8 @@
 
 * A Unix-based operating system (yes, that includes Mac!)
 * A Java 8 runtime environment 
-	* You can see what you have by running `java -version` on a terminal. You're looking for a version that's at least `1.8` or higher.
-	* If not, you can download Java [here](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html)
+	* You can see what you have by running `$ java -version` on a terminal. You're looking for a version that's at least `1.8` or higher.
+	* If not, you can download Java [here](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html).
 * A sense of adventure!
 
 ### Goals
@@ -21,20 +21,22 @@ At the end of this five minute introduction you will have:
 We host our Cromwell releases on GitHub! You can find the latest version on our [Releases](https://github.com/broadinstitute/cromwell/releases/latest) page.
 
 * Head down to the bottom of the page and find the link to download `cromwell-29.jar`. Note that when you read these instructions, the latest Cromwell version might be higher than 29. That's fine, these instructions will work just as well! Download the jar file.
-  * WARNING! If you're on a Mac, the security settings might try to stop you from running Cromwell! Don't worry, if this happens just go to `System Preferences > Security & Privacy > General` and find the `cromwell` jar listed on the page. Click `Open anyway`. The `cromwell-29.jar` will now automatically download to your `Downloads` directory.
-* You'll probably want to put your downloaded Cromwell somewhere you can find it later. If you want, you can make a cromwell directory in your home directory and put it there.
+ 	 * WARNING! If you're on a Mac, the security settings might try to stop you from running Cromwell! Don't worry, if this happens just go to `System Preferences > Security & Privacy > General` and find the `cromwell` jar listed on the page. Click `Open anyway`. The `cromwell-29.jar` will now automatically download to your `Downloads` directory.
+* Put your downloaded Cromwell somewhere you can find it later, like in a Cromwell directory in your home directory.
 
-* For example, in a terminal (if you're not using a Mac, the final command might be different for you!):
+For example, in a terminal:
 ```sh
 cd ~
 mkdir cromwell
 cp ~/Downloads/cromwell-29.jar cromwell/
 cd cromwell/
 ```
+_(if you're not using a Mac, the final command might be different for you)_
+
 
 ### Step 2: Writing your first workflow description
 
-This bit's easy, you're just going to copy and paste something from the internet!
+This bit is easy, you're just going to copy and paste something from the internet.
 
 Open your favorite editor. Paste in the following content and save it as `myWorkflow.wdl` in your new `cromwell` directory:
 
@@ -53,7 +55,7 @@ task myTask {
 }
 ```
 
-Don't worry, **you don't need to understand too much about the workflow contents to continue for now**! In brief, it tells Cromwell to run a task to run `echo "hello world"`, and then return the output as a String. If you'd like to learn more about how to author WDL, you can find all the resources you could ever want [here](https://github.com/openwdl/wdl)!
+Don't worry, **you don't need to understand too much about the workflow contents to continue for now**. In brief, it tells Cromwell to run a task to run `echo "hello world"`, and then return the output as a String. If you'd like to learn more about how to author WDL, you can find all the WDL resources you could ever want [here](https://github.com/openwdl/wdl).
 
 ### Step 3: Running the workflow
 
@@ -73,11 +75,11 @@ Ultimately, the workflow should succeed and you'll end up with the following out
 }
 ```
 
-Ok, you can stop your timer! You just installed and ran your first workflow in Cromwell!
+Ok, you can stop your timer! You just installed and ran your first workflow in Cromwell, congratulations!
 
 ### Next Steps
 
-After completing this tutorial you might want to pat yourself on the back! Bravo! As for what's next... why not try out one of the following pages?
+Pat yourself on the back for completing this tutorial, bravo! Then continue on to one of the follow pages:
 
-* [ServerMode](ServerMode)
+* [Server Mode](ServerMode)
 * [Configuration Files](ConfigurationFiles)

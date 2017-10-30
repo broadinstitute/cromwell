@@ -2,7 +2,7 @@
 
 Workflow options can affect the execution of a single workflow without having to change configuration options or restart Cromwell. 
 
-You provide workflow options to Cromwell in a JSON format. This can be supplied at workflow-submit time either via the (**TODO: make these links**) CLI or the REST endpoint:
+You provide workflow options to Cromwell in a JSON format. This can be supplied at workflow-submit time either via the [CLI](../CommandLine/) or the [REST endpoint](../api/RESTAPI/):
 
 ```json
 {
@@ -13,7 +13,7 @@ You provide workflow options to Cromwell in a JSON format. This can be supplied 
 
 Unless otherwise specified you can expect workflow options to override any hard-coded defaults in Cromwell or defaults provided in the [configuration file](../Configuring), but to be overridden by any values provided in the workflow definition file itself (WDL or CWL).
 
-Some workflow options apply only to tasks running on the Google Pipelines API backend: [Google Options](Google)
+Some workflow options apply only to tasks running on the [Google Pipelines API backend](Google).
 
 # Global Workflow Options 
 
@@ -25,7 +25,7 @@ Some options allow you to override or set defaults for runtime attributes.
 
 ### Setting Default Runtime Attributes
 
-You can supply a default for any [Runtime Attributes](RuntimeAttributes) by adding a `default_runtime_attributes` map to your workflow options file. Use the key to provide the attribute name and the value to supply the default. 
+You can supply a default for any [Runtime Attributes](../RuntimeAttributes) by adding a `default_runtime_attributes` map to your workflow options file. Use the key to provide the attribute name and the value to supply the default. 
 
 These defaults replace any defaults in the Cromwell configuration file but are themselves replaced by any values explicitly provided by the task in the WDL or CWL file.
 
@@ -78,7 +78,7 @@ Example `options.json`:
 |Option|Value|Description|
 |---|---|---|
 |`final_workflow_outputs_dir`|A directory available to Cromwell|Specifies a path where final workflow outputs will be written. If this is not specified, workflow outputs will not be copied out of the Cromwell workflow execution directory/path.|
-|`final_workflow_log_dir`|A directory available to Cromwell|Specifies a path where per-workflow logs will be written. If this is not specified, per-workflow logs will not be copied out of the Cromwell workflow log temporary directory/path before they are deleted. **TODO**: are they actually deleted?!?|
+|`final_workflow_log_dir`|A directory available to Cromwell|Specifies a path where per-workflow logs will be written. If this is not specified, per-workflow logs will not be copied out of the Cromwell workflow log temporary directory/path before they are deleted.|
 |`final_call_logs_dir`|A directory available to Cromwell|Specifies a path where final call logs will be written.  If this is not specified, call logs will not be copied out of the Cromwell workflow execution directory/path.|
 
 Note that these directories should be using the same filesystem as the workflow. Eg if you run on Google's PAPI, you should provide `gs://...` paths.
@@ -94,14 +94,14 @@ Example `options.json`:
 
 ## Call Caching Options
 
-These options can override Cromwell's configured call caching behavior for a single workflow. See the [Call Caching](CallCaching) section for more details and how to set defaults. The call caching section will also explain how these options interact when, for example, one is set `true` and the other is `false`.
+These options can override Cromwell's configured call caching behavior for a single workflow. See the [Call Caching](../CallCaching) section for more details and how to set defaults. The call caching section will also explain how these options interact when, for example, one is set `true` and the other is `false`.
 
 **Note:** If call caching is disabled, these options will be ignored and the options will be treated as though they were `false`.
 
 |Option|Values|Description|
 |---|---|---|
-|`write_to_cache`|`true` or `false`|If `false`, the completed calls from this workflow will not be added to the cache.  See the [Call Caching](CallCaching) section for more details.|
-|`read_from_cache`|`true` or `false`|If `false`, Cromwell will not search the cache when invoking a call (i.e. every call will be executed unconditionally).  See the [Call Caching](CallCaching) section for more details.|
+|`write_to_cache`|`true` or `false`|If `false`, the completed calls from this workflow will not be added to the cache.  See the [Call Caching](../CallCaching) section for more details.|
+|`read_from_cache`|`true` or `false`|If `false`, Cromwell will not search the cache when invoking a call (i.e. every call will be executed unconditionally).  See the [Call Caching](../CallCaching) section for more details.|
 
 Example `options.json`:
 ```json

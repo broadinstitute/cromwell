@@ -69,7 +69,7 @@ Once your tasks complete you should see output like mine, displayed below:
 ### Next Steps
 
 Nice work! Now you know how to investigate which tasks in your workflow are spending the most time, and which ones are holding up the rest of the workflow.
-Perhapse after completing such an amazing feat you might find the following page interesting...?
+Perhaps after completing such an amazing feat you might find the following pages interesting:
 
 * [Viewing Metadata](MetadataEndpoint)
 * [Configuration Files](ConfigurationFiles)

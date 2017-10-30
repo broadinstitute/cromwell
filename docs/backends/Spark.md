@@ -1,22 +1,3 @@
-_For the Doc-A-Thon_  
-**Questions to answer and things to consider:**
-
-1. Who is visiting the Spark page?  
-
-2. What do they need to know first?  
-
-3. Is all the important information there? If not, add it!  
-*Include a one-sentence explanation of Spark, why it's great, why Cromwell is great with Spark, etc*
-4. Are there things that don't need to be there? Remove them.  
-
-5. Are the code and instructions accurate? Try it!
-
----
- **DELETE ABOVE ONCE COMPLETE**
-
----
-
-
 **Spark Backend**
 
 This backend adds support for execution of spark jobs in a workflow.
@@ -34,7 +15,7 @@ Cromwell's default configuration file is located at `core/src/main/resources/ref
 
 To customize configuration it is recommended that one copies relevant stanzas from `core/src/main/resources/reference.conf` into a new file, modify it as appropriate, then pass it to Cromwell via:
 
-java -Dconfig.file=/path/to/yourOverrides.conf cromwell.jar
+`java -Dconfig.file=/path/to/yourOverrides.conf cromwell.jar`
 
 Spark configuration stanza is as follows: 
 
@@ -121,9 +102,9 @@ Supported File Systems as follows:
 * Network File System
 * Distributed file system
 
-**Sample WDL**
+Next, create a WDL, and its JSON input like so:
 
-Next, create a WDL, and its json input like so:
+_Sample WDL_ 
 
 ```wdl
 task sparkjob_with_yarn_cluster {
@@ -149,7 +130,7 @@ task sparkjob_with_yarn_cluster {
 	}
 ```
 
-and its accompanying json input as:
+and its accompanying JSON input as:
 
 ```json
 {

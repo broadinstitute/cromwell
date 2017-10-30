@@ -1,5 +1,6 @@
-## Configuration the Local Backend
+**Configuration the Local Backend**
 
+<!--
 ### Prerequisites
 
 This tutorial page relies on completing the previous tutorials:
@@ -20,3 +21,8 @@ You might find the following tutorials interesting to tackle next:
 
 * [Persisting Data Between Restarts](PersistentServer)
 * [Server Mode](ServerMode.md)
+-->
+
+_Drop us a line in the [Forum](https://gatkforums.broadinstitute.org/wdl/categories/ask-the-wdl-team) if you have a question._
+
+![Under Construction pig](https://i.imgflip.com/1yid55.jpg)

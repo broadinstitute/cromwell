@@ -1,19 +1,3 @@
-_For the Doc-A-Thon_  
-**Questions to answer and things to consider:**
-
-1. Who is visiting the Getting Started page?  
-*First time with Cromwell*
-2. What do they need to know first?  
-
-3. Is all the important information there? If not, add it!  
-*Great place for a quick overview of Cromwell, introduction to the different sections of the Cromwell docs*
-4. Are there things that don't need to be there? Remove them.  
-
----
- **DELETE ABOVE ONCE COMPLETE**
-
----
-
 **Support Forum**
 
 If you have questions that aren't covered by this documentation you can ask them in the

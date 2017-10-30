@@ -1,23 +1,4 @@
-_For the Doc-A-Thon_  
-**Questions to answer and things to consider:**
-
-1. Who is visiting the TES page?  
-
-2. What do they need to know first?  
-
-3. Is all the important information there? If not, add it!  
-
-4. Are there things that don't need to be there? Remove them.  
-
-5. Are the code and instructions accurate? Try it!
-
----
- **DELETE ABOVE ONCE COMPLETE**
-
----
-
-
-**GA4GH TES Backend**
+**TES Backend**
 
 The TES backend submits jobs to a server that complies with the protocol described by the [GA4GH schema](https://github.com/ga4gh/task-execution-schemas).
 
@@ -65,15 +46,20 @@ Currently this backend only works with files on a Local or Shared File System.
 
 **Docker**
 
-This backend supports the following optional runtime attributes / workflow options for working with Docker:
-* docker: Docker image to use such as "Ubuntu".
-* dockerWorkingDir: defines the working directory in the container.
+This backend supports the following optional [Runtime Attributes](RuntimeAttributes) and [Workflow Options](wf_options/Overview/) for working with Docker:
+
+* `docker`: Docker image to use such as "Ubuntu".
+* `dockerWorkingDir`: defines the working directory in the container.
 
 **CPU, Memory and Disk** 
 
-This backend supports CPU, memory and disk size configuration through the use of the following runtime attributes / workflow options:
-* cpu: defines the amount of CPU to use. Type: Integer. Ex: 4.
-* memory: defines the amount of memory to use. Type: String. Ex: "4 GB" or "4096 MB"
-* disk: defines the amount of disk to use. Type: String. Ex: "1 GB" or "1024 MB"
+This backend supports CPU, memory and disk size configuration through the use of the following [Runtime Attributes](RuntimeAttributes) and [Workflow Options](wf_options/Overview/):  
+
+* `cpu` defines the amount of CPU to use. 
+    * Type: Integer (ex: 4)
+* `memory` defines the amount of memory to use. 
+    * Type: String (ex: "4 GB" or "4096 MB")
+* `disk` defines the amount of disk to use. 
+    * Type: String (ex: "1 GB" or "1024 MB")
 
 If they are not set, the TES backend may use default values.

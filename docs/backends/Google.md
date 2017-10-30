@@ -6,7 +6,7 @@ you may see outdated references to the older JES terminology in Cromwell configu
 
 This section offers detailed configuration instructions for using Cromwell with the Pipelines API in all supported
 authentication modes. Before reading futher in this section please see the
-[Getting started on Google Pipelines API](PipelinesApi101) for instructions common to all authentication modes
+[Getting started on Google Pipelines API](../tutorials/PipelinesApi101) for instructions common to all authentication modes
 and detailed instructions for the application default authentication scheme in particular.
 The instructions below assume you have created a Google Cloud Storage bucket and a Google project enabled for the appropriate APIs.
 
@@ -15,7 +15,7 @@ The instructions below assume you have created a Google Cloud Storage bucket and
 The `google` stanza in the Cromwell configuration file defines how to authenticate to Google.  There are four different
 authentication schemes that might be used:
 
-* `application_default` - (default, recommended) Use [application default](https://developers.google.com/identity/protocols/application-default-credentials) credentials.
+* `application_default` (default, recommended) - Use [application default](https://developers.google.com/identity/protocols/application-default-credentials) credentials.
 * `service_account` - Use a specific service account and key file (in PEM format) to authenticate.
 * `user_account` - Authenticate as a user.
 * `refresh_token` - Authenticate each individual workflow using a refresh token supplied in the workflow options.
@@ -95,15 +95,15 @@ While technically not part of Service Account authentication mode, one can also 
 
 **Refresh Token**
 
-A **refresh_token** field must be specified in the [workflow options](/workflowoptions) when submitting the job.  Omitting this field will cause the workflow to fail.
+A **refresh_token** field must be specified in the [Workflow Options](../wf_options/Google.md) when submitting the job.  Omitting this field will cause the workflow to fail.
 
 The refresh token is passed to Google along with the `client-id` and `client-secret` pair specified in the corresponding entry in `auths`.
 
 **User Service Account**
 
-A [JSON key file for the service account](####service-acocunt) must be passed in via the **user_service_account_json** field in the [workflow options](/workflowoptions) when submitting the job. Omitting this field will cause the workflow to fail. The JSON should be passed as a string and will need to have no newlines and all instances of *"* and *\n* escaped. 
+A [JSON key file for the service account](../wf_options/Google.md) must be passed in via the `user_service_account_json` field in the [Workflow Options](../wf_options/Google.md) when submitting the job. Omitting this field will cause the workflow to fail. The JSON should be passed as a string and will need to have no newlines and all instances of `"` and `\n` escaped. 
 
-In the likely event that this service account does not have access to Cromwell's default google project the **google_project** workflow option must be set. In the similarly likely case that this service account can not access Cromwell's default google bucket, the **jes_gcs_root** workflow option should be set appropriately.
+In the likely event that this service account does not have access to Cromwell's default google project the `google_project` workflow option must be set. In the similarly likely case that this service account can not access Cromwell's default google bucket, the `jes_gcs_root` workflow option should be set appropriately.
 
 
 **Docker**
@@ -162,7 +162,7 @@ The output of this script will be written to a `monitoring.log` file that will b
 **Google Cloud Storage Filesystem**
 
 On the Google Pipelines backend the GCS (Google Cloud Storage) filesystem is used for the root of the workflow execution.
-On the Local, SGE, and associated backends any GCS URI will be downloaded locally.  For the Google backend the `jes_gcs_root` [workflow option](/workflowoptions) will take
+On the Local, SGE, and associated backends any GCS URI will be downloaded locally.  For the Google backend the `jes_gcs_root` [Workflow Option](../wf_options/Google) will take
 precedence over the `root` specified at `backend.providers.JES.config.root` in the configuration file. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
 workflows using the Google backend.
 

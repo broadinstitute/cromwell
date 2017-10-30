@@ -120,6 +120,10 @@ case class CommandLineTool private(
 
   def asCwl = Coproduct[Cwl](this)
 
+  /**
+    * Sort according to position. If position does not exist, use 0 per spec:
+    * http://www.commonwl.org/v1.0/CommandLineTool.html#CommandLineBinding
+    */
   def orderedInputs: Seq[CommandPart] =
     inputs.
       sortBy(_.inputBinding.flatMap(_.position).getOrElse(0)).

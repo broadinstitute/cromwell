@@ -52,13 +52,13 @@ case class InputParameterCommandPart(commandInputParameter: CommandInputParamete
 
     val womValue: WomValue = commandInputParameter match {
 
-        /*
-      In this case we are looking for the specific case where the only input binding option specified is the position.
+      /*
+        In this case we are looking for the specific case where the only input binding option specified is the position.
 
-      NB: We ignore the position as these have already been sorted prior to being submitted as command part
+        NB: We ignore the position as these have already been sorted prior to being submitted as command part
 
-      In the cases where we have a defined inputbinding with more options,
-      we should consider instantiating a CommandLineBindingCommandPart and delegating this call.
+        In the cases where we have a defined inputbinding with more options,
+        we should consider instantiating a CommandLineBindingCommandPart and delegating this call.
       */
       case CommandInputParameter(commandInputParamterFqn, _,_,_,_,_, Some(CommandLineBinding(None,Some(_),None,None,None,None,None)),_,_) =>
         inputsMap.get(LocalName(FullyQualifiedName(commandInputParamterFqn).id)) match {

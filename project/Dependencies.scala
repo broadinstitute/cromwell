@@ -61,7 +61,7 @@ object Dependencies {
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpV % Test
   )
 
-  val akkaHttpServerDependencies = akkaHttpDependencies :+  "org.webjars" % "swagger-ui" % "2.1.1"
+  val akkaHttpServerDependencies = akkaHttpDependencies :+  "org.webjars" % "swagger-ui" % "3.2.2"
 
   private val googleApiClientDependencies = List(
     // Used by swagger, but only in tests.  This overrides an older 2.1.3 version of jackson-core brought in by

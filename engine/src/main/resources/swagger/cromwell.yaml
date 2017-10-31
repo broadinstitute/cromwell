@@ -1,114 +1,71 @@
 swagger: '2.0'
 info:
-  title: Cromwell
-  description: One workflow service to rule them all...
-  contact:
-    email: dsde@broadinstitute.org
+  title: Cromwell Server REST API
+  description: Describes the rest API provided by a Cromwell server
   license:
     name: BSD
-    url: 'http://opensource.org/licenses/BSD-3-Clause'
-  termsOfService: 'http://www.github.com/broadinstitute/cromwell'
-  version: ''
+    url: 'https://github.com/broadinstitute/cromwell/blob/develop/LICENSE.txt'
+  version: '30'
 produces:
   - application/json
 paths:
-  '/api/workflows/{version}/{id}/abort':
-    post:
-      summary: Abort a workflow based on workflow id
-      parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
-        - name: id
-          description: Workflow ID
-          required: true
-          type: string
-          in: path
-      tags:
-        - Workflows
-      responses:
-        '200':
-          description: Successful Request
-          schema:
-            $ref: '#/definitions/WorkflowAbortResponse'
-        '400':
-          description: Malformed Workflow ID
-        '403':
-          description: Workflow in terminal status
-        '404':
-          description: Workflow ID Not Found
-        '500':
-          description: Internal Error
-      security:
-        - google_oauth:
-            - openid
   '/api/workflows/{version}':
     post:
-      summary: Submit a new workflow for execution
+      summary: Submit a workflow for execution
+      description: Submits a workflow to Cromwell. Note that this endpoint can accept an unlimited number of input files via workflowInputs_N but swagger needs them to be explicitly defined so we have provided 5 as an example.
       consumes:
         - multipart/form-data
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
+        - $ref: '#/parameters/versionParam'
         - name: workflowSource
-          description: Workflow source file
+          description: The workflow source file to submit for execution.
           required: true
           type: file
           in: formData
         - name: workflowInputs
-          description: Workflow Inputs JSON, 1
+          description: JSON file containing the inputs as an object. For WDL workflows a skeleton file can be generated from wdltool using the "inputs" subcommand. When multiple files are specified, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2. Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.
           required: false
           type: file
           in: formData
         - name: workflowInputs_2
-          description: Workflow Inputs JSON, 2
+          description: A second JSON file containing inputs.
           required: false
           type: file
           in: formData
         - name: workflowInputs_3
-          description: Workflow Inputs JSON, 3
+          description: A third JSON file containing inputs.
           required: false
           type: file
           in: formData
         - name: workflowInputs_4
-          description: Workflow Inputs JSON, 4
+          description: A fourth JSON file containing inputs.
           required: false
           type: file
           in: formData
         - name: workflowInputs_5
-          description: Workflow Inputs JSON, 5
+          description: A fifth JSON file containing inputs.
           required: false
           type: file
           in: formData
         - name: workflowOptions
-          description: Workflow Options JSON
+          description: JSON file containing configuration options for the execution of this workflow.
           required: false
           type: file
           in: formData
-        - name: workflowType
-          description: Type of workflow
-          required: false
-          type: string
-          in: formData
+        - $ref: '#/parameters/workflowTypeParam'
         - name: workflowTypeVersion
-          description: Version of workflow type
+          description: The specification version for the workflow language being used. For WDL, Cromwell currently supports draft-2.
           required: false
           type: string
+          enum: [draft-2]
           in: formData
         - name: customLabels
-          description: Custom Labels JSON
+          description: JSON file containing a set of collection of key/value pairs for labels to apply to this workflow.
           required: false
           type: file
           in: formData
         - name: workflowDependencies
-          description: Zip file containing workflow dependencies
+          description: ZIP file containing workflow source files that are used to resolve local imports. This zip bundle will be unpacked in a sandbox accessible to this workflow.
           required: false
           type: file
           in: formData
@@ -118,58 +75,51 @@ paths:
         '201':
           description: Successful Request
           schema:
-            $ref: '#/definitions/WorkflowSubmitResponse'
+            $ref: '#/definitions/WorkflowIdAndStatus'
         '400':
-          description: Malformed Input
+          $ref: '#/responses/BadRequest'
         '500':
-          description: Internal Error
+          $ref: '#/responses/ServerError'
       security:
         - google_oauth:
             - openid
   '/api/workflows/{version}/batch':
     post:
-      summary: Submit a batch of new workflows for execution
+      summary: Submit a batch of workflows for execution
+      description: In instances where you want to run the same workflow multiple times with varying inputs you may submit a workflow batch. This endpoint is fundamentally the same as the standard submission endpoint with the exception that the inputs JSON will be an array of objects instead of a single object.
       consumes:
         - multipart/form-data
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
+        - $ref: '#/parameters/versionParam'
         - name: workflowSource
-          description: Workflow Source
+          description: The workflow source file to submit for execution.
           required: true
           type: file
           in: formData
         - name: workflowInputs
-          description: Workflow Inputs JSON as an array
+          description: JSON file containing the inputs as an array of objects. Every element of the array will correspond to a single workflow. For WDL workflows a skeleton file can be generated from wdltool using the "inputs" subcommand. When multiple files are specified, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2. Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.
           required: true
           type: file
           in: formData
         - name: workflowOptions
-          description: Workflow Options JSON
+          description: JSON file containing configuration options for the execution of this workflow.
           required: false
           type: file
           in: formData
-        - name: workflowType
-          description: Type of workflow
-          required: false
-          type: string
-          in: formData
+        - $ref: '#/parameters/workflowTypeParam'
         - name: workflowTypeVersion
-          description: Version of workflow type
+          description: The specification version for the workflow language being used. Cromwell currently supports draft-2.
           required: false
           type: string
+          enum: [draft-2]
           in: formData
         - name: customLabels
-          description: Custom Labels JSON
+          description: JSON file containing a set of collection of key/value pairs for labels to apply to this workflow.
           required: false
           type: file
           in: formData
         - name: workflowDependencies
-          description: Zip file containing workflow dependencies
+          description: ZIP file containing workflow source files that are used to resolve local imports. This zip bundle will be unpacked in a sandbox accessible to these workflows.
           required: false
           type: file
           in: formData
@@ -181,53 +131,20 @@ paths:
           schema:
             type: array
             items:
-              $ref: '#/definitions/WorkflowSubmitResponse'
+              $ref: '#/definitions/WorkflowIdAndStatus'
         '400':
-          description: Malformed Input
+          $ref: '#/responses/BadRequest'
         '500':
-          description: Internal Error
-      security:
-        - google_oauth:
-            - openid
-  '/api/workflows/{version}/{id}/outputs':
-    get:
-      summary: Query for workflow outputs based on workflow id
-      parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
-        - name: id
-          description: Workflow ID
-          required: true
-          type: string
-          in: path
-      tags:
-        - Workflows
-      responses:
-        '200':
-          description: Successful Request
-        '400':
-          description: Malformed Workflow ID
-        '404':
-          description: Workflow ID Not Found
-        '500':
-          description: Internal Error
+          $ref: '#/responses/ServerError'
       security:
         - google_oauth:
             - openid
   '/api/workflows/{version}/{id}/labels':
     patch:
-      summary: Add new labels or update values for existing label keys by workflow id.
+      summary: Update labels for a workflow
+      description: Update multiple labels for an existing workflow. When supplying a label with a key unique to the workflow submission, a new label key/value entry is appended to that workflow's metadata. When supplying a label with a key that is already associated to the workflow submission, the original label value is updated with the new value for that workflow's metadata.
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
+        - $ref: '#/parameters/versionParam'
         - name: id
           description: Workflow ID
           required: true
@@ -249,24 +166,107 @@ paths:
           schema:
             $ref: '#/definitions/LabelsResponse'
         '400':
-          description: Malformed Workflow ID
+          $ref: '#/responses/BadRequest'
+        '403':
+          $ref: '#/responses/Forbidden'
         '404':
-          description: Workflow ID Not Found
+          $ref: '#/responses/NotFound'
         '500':
-          description: Internal Error
+          $ref: '#/responses/ServerError'
+      security:
+        - google_oauth:
+            - openid
+  '/api/workflows/{version}/{id}/abort':
+    post:
+      summary: Abort a running workflow
+      description: Request Cromwell to abort a running workflow. For instance this might be necessary in cases where you have submitted a workflow with incorrect inputs or no longer need the results. Cromwell will make a best effort attempt to immediately halt any currently running jobs from this workflow.
+      parameters:
+        - $ref: '#/parameters/versionParam'
+        - $ref: '#/parameters/singleId'
+      tags:
+        - Workflows
+      responses:
+        '200':
+          $ref: '#/responses/OkIdAndStatus'
+        '400':
+          $ref: '#/responses/BadRequest'
+        '403':
+          $ref: '#/responses/Forbidden'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/ServerError'
+      security:
+        - google_oauth:
+            - openid
+  '/api/workflows/{version}/{id}/status':
+    get:
+      summary: Retrieves the current state for a workflow
+      parameters:
+        - $ref: '#/parameters/versionParam'
+        - $ref: '#/parameters/singleId'
+      tags:
+        - Workflows
+      responses:
+        '200':
+          $ref: '#/responses/OkIdAndStatus'
+        '400':
+          $ref: '#/responses/BadRequest'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/ServerError'
+      security:
+        - google_oauth:
+            - openid
+  '/api/workflows/{version}/{id}/outputs':
+    get:
+      summary: Get the outputs for a workflow
+      description: Retrieve the outputs for the specified workflow. Cromwell will return any outputs which currently exist even if a workflow has not successfully completed.
+      parameters:
+        - $ref: '#/parameters/versionParam'
+        - $ref: '#/parameters/singleId'
+      tags:
+        - Workflows
+      responses:
+        '200':
+          $ref: '#/responses/OkIdAndStatus'
+        '400':
+          $ref: '#/responses/BadRequest'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/ServerError'
+      security:
+        - google_oauth:
+            - openid
+  '/api/workflows/{version}/{id}/logs':
+    get:
+      summary: Get the logs for a workflow
+      description: Returns paths to the standard out and standard error files that were generated during the execution of all calls in a workflow. A call has one or more standard out and standard error logs, depending on if the call was scattered or not. In the latter case, one log is provided for each instance of the call that has been run.
+      parameters:
+        - $ref: '#/parameters/versionParam'
+        - $ref: '#/parameters/singleId'
+      tags:
+        - Workflows
+      responses:
+        '200':
+          $ref: '#/responses/OK'
+        '400':
+          $ref: '#/responses/BadRequest'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/ServerError'
       security:
         - google_oauth:
             - openid
   '/api/workflows/{version}/query':
     get:
-      summary: Query workflows by start dates, end dates, names, ids, statuses, or labels.
+      summary: Get workflows matching some criteria
+      description: Query for workflows which match various criteria. When a combination of criteria are applied the endpoint will return
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
+        - $ref: '#/parameters/versionParam'
         - name: start
           required: false
           type: string
@@ -343,21 +343,19 @@ paths:
           schema:
             $ref: '#/definitions/WorkflowQueryResponse'
         '403':
-          description: Malformed Request
+          $ref: '#/responses/Forbidden'
+        '404':
+          $ref: '#/responses/NotFound'
         '500':
-          description: Internal Error
+          $ref: '#/responses/ServerError'
       security:
         - google_oauth:
             - openid
     post:
-      summary: Query workflows by start dates, end dates, names, ids, or statuses.
+      summary: Get workflows matching some criteria
+      description: Query workflows by start dates, end dates, names, ids, or statuses.
       parameters:
-        - name: version
-          description: API version
-          required: true
-          type: string
-          in: path
-          default: v1
+        - $ref: '#/parameters/versionParam'
         - name: parameters
           required: true
           in: body
@@ -376,145 +374,43 @@ paths:
           schema:
             $ref: '#/definitions/WorkflowQueryResponse'
         '400':
-          description: Malformed Request
+          $ref: '#/responses/BadRequest'
         '500':
-          description: Internal Error
+          $ref: '#/responses/ServerError'
       security:
         - google_oauth:
-            - openid
-  '/api/workflows/{version}/{id}/status':
+          - openid
+  '/api/workflows/{version}/{id}/timing':
     get:
-      summary: Query for workflow status based on workflow id
+      summary: Get a visual diagram of a running workflow
+      description: Returns a javascript file which will render a Gantt chart for the requested workflow. The bars in the chart represent start and end times for individual task invocations. This javascript is intended to be embedded into another web page.
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
-        - name: id
-          description: Workflow ID
-          required: true
-          type: string
-          in: path
+        - $ref: '#/parameters/versionParam'
+        - $ref: '#/parameters/singleId'
       tags:
         - Workflows
       responses:
         '200':
-          description: Successful Request
-          schema:
-            $ref: '#/definitions/WorkflowStatusResponse'
+          $ref: '#/responses/OkIdAndStatus'
         '400':
-          description: Malformed Workflow ID
+          $ref: '#/responses/BadRequest'
         '404':
-          description: Workflow ID Not Found
+          $ref: '#/responses/NotFound'
         '500':
-          description: Internal Error
-      security:
-        - google_oauth:
-            - openid
-  '/api/workflows/{version}/{id}/logs':
-    get:
-      summary: Query for the standard output and error of all calls in a workflow
-      parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
-        - name: id
-          description: Workflow ID
-          required: true
-          type: string
-          in: path
-      tags:
-        - Workflows
-      responses:
-        '200':
-          description: Successful Request
-        '400':
-          description: Malformed Workflow ID
-        '404':
-          description: Workflow ID Not Found
-        '500':
-          description: Internal Error
-      security:
-        - google_oauth:
-            - openid
-  '/api/workflows/{version}/callcaching/diff':
-    get:
-      summary: Return the hash differential between two calls
-      parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
-        - name: workflowA
-          description: Workflow Id of the first workflow
-          required: true
-          type: string
-          in: query
-        - name: callA
-          description: Call FQN (including workflow name) of the first call
-          required: true
-          type: string
-          in: query
-        - name: indexA
-          description: Index of the first call
-          required: false
-          type: int
-          in: query
-        - name: workflowB
-          description: Workflow Id of the second workflow
-          required: true
-          type: string
-          in: query
-        - name: callB
-          description: Call FQN (including workflow name) of the second call
-          required: true
-          type: string
-          in: query
-        - name: indexB
-          description: Index of the second call
-          required: false
-          type: int
-          in: query
-      tags:
-        - Workflows
-      responses:
-        '200':
-          description: Successful Request
-        '400':
-          description: Malformed query parameters
-        '404':
-          description: No matching cache entry
-        '500':
-          description: Internal Error
+          $ref: '#/responses/ServerError'
       security:
         - google_oauth:
             - openid
   '/api/workflows/{version}/{id}/metadata':
     get:
-      summary: Query for workflow and call-level metadata for a specified workflow
+      summary: Get workflow and call-level metadata for a specified workflow
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
-        - name: id
-          description: Workflow ID
-          required: true
-          type: string
-          in: path
+        - $ref: '#/parameters/versionParam'
+        - $ref: '#/parameters/singleId'
         - name: includeKey
           description: >
             When specified key(s) to include from the metadata. Matches any key starting with the value. May not be
-            used with excludeKey.
+            used with excludeKey. This applies to all keys in the response, including within nested blocks.
           required: false
           type: array
           items:
@@ -524,7 +420,7 @@ paths:
         - name: excludeKey
           description: >
             When specified key(s) to exclude from the metadata. Matches any key starting with the value. May not be
-            used with includeKey.
+            used with includeKey. This applies to all keys in the response, including within nested blocks.
           required: false
           type: array
           items:
@@ -545,152 +441,71 @@ paths:
           description: Successful Request
           schema:
             $ref: '#/definitions/WorkflowMetadataResponse'
-          examples:
-            application/json: |-
-              {
-                "workflowName": "example",
-                "calls": {
-                  "example.gather": [{
-                    "executionStatus": "Done",
-                    "stdout": "/cromwell/cromwell-executions/example/e552029e-4b9a-48e9-b11f-6e5d6d0dccc4/call-gather/stdout",
-                    "shardIndex": -1,
-                    "outputs": {
-                      "str": "_one_\n_two_\n_three_\n_four_"
-                    },
-                    "inputs": {
-                      "array": "analysis.out"
-                    },
-                    "returnCode": 0,
-                    "backend": "Local",
-                    "end": "2015-12-11T16:53:23.000-05:00",
-                    "stderr": "/cromwell/cromwell-executions/example/e552029e-4b9a-48e9-b11f-6e5d6d0dccc4/call-gather/stderr",
-                    "executionEvents": [{
-                      "description": "execution event - only one in this call, some calls might have none!",
-                      "startTime": "2015-12-11T16:53:23.000-05:00",
-                      "endTime": "2015-12-11T16:53:23.000-05:00"
-                    }],
-                    "start": "2015-12-11T16:53:23.000-05:00"
-                  }],
-                  "example.prepare": [{
-                    "executionStatus": "Done",
-                    "stdout": "/cromwell/cromwell-executions/example/e552029e-4b9a-48e9-b11f-6e5d6d0dccc4/call-prepare/stdout",
-                    "shardIndex": -1,
-                    "outputs": {
-                      "array": ["one", "two", "three", "four"]
-                    },
-                    "inputs": {
-
-                    },
-                    "returnCode": 0,
-                    "backend": "Local",
-                    "end": "2015-12-11T16:53:22.000-05:00",
-                    "stderr": "/cromwell/cromwell-executions/example/e552029e-4b9a-48e9-b11f-6e5d6d0dccc4/call-prepare/stderr",
-                    "executionEvents": [],
-                    "start": "2015-12-11T16:53:21.000-05:00"
-                  }],
-                  "example.analysis": [{
-                    "executionStatus": "Done",
-                    "stdout": "/cromwell/cromwell-executions/example/e552029e-4b9a-48e9-b11f-6e5d6d0dccc4/call-analysis/shard-0/stdout",
-                    "shardIndex": 0,
-                    "outputs": {
-                      "out": "/cromwell/cromwell-executions/example/e552029e-4b9a-48e9-b11f-6e5d6d0dccc4/call-analysis/shard-0/a.txt"
-                    },
-                    "inputs": {
-                      "str": "x"
-                    },
-                    "returnCode": 0,
-                    "backend": "Local",
-                    "end": "2015-12-11T16:53:23.000-05:00",
-                    "stderr": "/cromwell/cromwell-executions/example/e552029e-4b9a-48e9-b11f-6e5d6d0dccc4/call-analysis/shard-0/stderr",
-                    "executionEvents": [],
-                    "start": "2015-12-11T16:53:22.000-05:00"
-                  }, {
-                    "executionStatus": "Done",
-                    "stdout": "/cromwell/cromwell-executions/example/e552029e-4b9a-48e9-b11f-6e5d6d0dccc4/call-analysis/shard-1/stdout",
-                    "shardIndex": 1,
-                    "outputs": {
-                      "out": "/cromwell/cromwell-executions/example/e552029e-4b9a-48e9-b11f-6e5d6d0dccc4/call-analysis/shard-1/a.txt"
-                    },
-                    "inputs": {
-                      "str": "x"
-                    },
-                    "returnCode": 0,
-                    "backend": "Local",
-                    "end": "2015-12-11T16:53:23.000-05:00",
-                    "stderr": "/cromwell/cromwell-executions/example/e552029e-4b9a-48e9-b11f-6e5d6d0dccc4/call-analysis/shard-1/stderr",
-                    "executionEvents": [],
-                    "start": "2015-12-11T16:53:22.000-05:00"
-                  }, {
-                    "executionStatus": "Done",
-                    "stdout": "/cromwell/cromwell-executions/example/e552029e-4b9a-48e9-b11f-6e5d6d0dccc4/call-analysis/shard-2/stdout",
-                    "shardIndex": 2,
-                    "outputs": {
-                      "out": "/cromwell/cromwell-executions/example/e552029e-4b9a-48e9-b11f-6e5d6d0dccc4/call-analysis/shard-2/a.txt"
-                    },
-                    "inputs": {
-                      "str": "x"
-                    },
-                    "returnCode": 0,
-                    "backend": "Local",
-                    "end": "2015-12-11T16:53:23.000-05:00",
-                    "stderr": "/cromwell/cromwell-executions/example/e552029e-4b9a-48e9-b11f-6e5d6d0dccc4/call-analysis/shard-2/stderr",
-                    "executionEvents": [],
-                    "start": "2015-12-11T16:53:22.000-05:00"
-                  }, {
-                    "executionStatus": "Done",
-                    "stdout": "/cromwell/cromwell-executions/example/e552029e-4b9a-48e9-b11f-6e5d6d0dccc4/call-analysis/shard-3/stdout",
-                    "shardIndex": 3,
-                    "outputs": {
-                      "out": "/cromwell/cromwell-executions/example/e552029e-4b9a-48e9-b11f-6e5d6d0dccc4/call-analysis/shard-3/a.txt"
-                    },
-                    "inputs": {
-                      "str": "x"
-                    },
-                    "returnCode": 0,
-                    "backend": "Local",
-                    "end": "2015-12-11T16:53:23.000-05:00",
-                    "stderr": "/cromwell/cromwell-executions/example/e552029e-4b9a-48e9-b11f-6e5d6d0dccc4/call-analysis/shard-3/stderr",
-                    "executionEvents": [],
-                    "start": "2015-12-11T16:53:22.000-05:00"
-                  }]
-                },
-                "outputs": {
-                  "example.analysis.out": ["/cromwell/cromwell-executions/example/e552029e-4b9a-48e9-b11f-6e5d6d0dccc4/call-analysis/shard-0/a.txt", "/cromwell/cromwell-executions/example/e552029e-4b9a-48e9-b11f-6e5d6d0dccc4/call-analysis/shard-1/a.txt", "/cromwell/cromwell-executions/example/e552029e-4b9a-48e9-b11f-6e5d6d0dccc4/call-analysis/shard-2/a.txt", "/cromwell/cromwell-executions/example/e552029e-4b9a-48e9-b11f-6e5d6d0dccc4/call-analysis/shard-3/a.txt"],
-                  "example.gather.str": "_one_\n_two_\n_three_\n_four_",
-                  "example.prepare.array": ["one", "two", "three", "four"]
-                },
-                "id": "e552029e-4b9a-48e9-b11f-6e5d6d0dccc4",
-                "inputs": {
-                  "test.hello.name": "chris",
-                  "blah2.grep.pattern": "h",
-                  "blah2.cat.asdf": "gs://cromwell-root/blah/c0c116ef-aac6-4029-8d0a-70d86b17c843/call-ls/job.stdout.txt",
-                  "blah.grep.pattern": "v",
-                  "blah.ls.pattern": "./"
-                },
-                "submission": "2015-12-11T16:53:21.000-05:00",
-                "status": "Succeeded",
-                "end": "2015-12-11T16:53:23.000-05:00",
-                "start": "2015-12-11T16:53:21.000-05:00"
-              }
         '400':
-          description: Malformed Workflow ID
+          $ref: '#/responses/BadRequest'
         '404':
-          description: Workflow ID Not Found
+          $ref: '#/responses/NotFound'
         '500':
-          description: Internal Error
+          $ref: '#/responses/ServerError'
+      security:
+        - google_oauth:
+            - openid
+  '/api/workflows/{version}/callcaching/diff':
+    get:
+      summary: Explain hashing differences for 2 calls
+      description: This endpoint returns the hash differences between 2 completed (successfully or not) calls.
+      parameters:
+        - $ref: '#/parameters/versionParam'
+        - name: workflowA
+          description: Workflow Id of the first workflow
+          required: true
+          type: string
+          in: query
+        - name: callA
+          description: Fully qualified name, including workflow name, of the first call.
+          required: true
+          type: string
+          in: query
+        - name: indexA
+          description: Shard index for the first call for cases where the requested call was part of a scatter.
+          required: false
+          type: integer
+          in: query
+        - name: workflowB
+          description: Workflow Id of the second workflow
+          required: true
+          type: string
+          in: query
+        - name: callB
+          description: Fully qualified name, including workflow name, of the second call
+          required: true
+          type: string
+          in: query
+        - name: indexB
+          description: Shard index for the second call for cases where the requested call was part of a scatter.
+          required: false
+          type: integer
+          in: query
+      tags:
+        - Workflows
+      responses:
+        '200':
+          $ref: '#/responses/OK'
+        '400':
+          $ref: '#/responses/BadRequest'
+        '404':
+           description: No matching cache entry. Cromwell versions prior to 28 will not have recorded information necessary for this endpoint and thus will also appear to not exist.
+        '500':
+          $ref: '#/responses/ServerError'
       security:
         - google_oauth:
             - openid
   '/api/workflows/{version}/backends':
     get:
-      summary: Returns the backends supported by this Cromwell.
+      summary: List the supported backends
+      description: Returns the backends supported by this Cromwell server, as well as the default backend.
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
+        - $ref: '#/parameters/versionParam'
       tags:
         - Workflows
       responses:
@@ -703,14 +518,9 @@ paths:
             - openid
   '/engine/{version}/stats':
     get:
-      summary: Returns basic statistics from this Cromwell's engine.
+      summary: Returns basic statistics from this Cromwell server.
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
+        - $ref: '#/parameters/versionParam'
       tags:
         - Engine
       responses:
@@ -720,14 +530,9 @@ paths:
             $ref: '#/definitions/StatsResponse'
   '/engine/{version}/version':
     get:
-      summary: Returns the version of the Cromwell Engine
+      summary: Return the version of this Cromwell server
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
+        - $ref: '#/parameters/versionParam'
       tags:
         - Engine
       responses:
@@ -737,14 +542,9 @@ paths:
             $ref: '#/definitions/VersionResponse'
   '/engine/{version}/status':
       get:
-        summary: Returns the current health status of any monitored subsystems
+        summary: Return the current health status of any monitored subsystems
         parameters:
-          - name: version
-            description: API Version
-            required: true
-            type: string
-            in: path
-            default: v1
+          - $ref: '#/parameters/versionParam'
         tags:
           - Engine
         responses:
@@ -756,6 +556,46 @@ paths:
             description: At least one subsystem does not have an "ok" status
             schema:
               $ref: '#/definitions/StatusResponse'
+responses:
+  OkIdAndStatus:
+    description: Successful Request
+    schema:
+      $ref: '#/definitions/WorkflowIdAndStatus'
+  OK:
+    description: Successful Request
+    schema:
+      $ref: '#/definitions/WorkflowIdAndStatus'
+  BadRequest:
+    description: Malformed Workflow ID
+  Forbidden:
+    description: Workflow in terminal status
+  NotFound:
+    description: Workflow ID Not Found
+  ServerError:
+    description: Internal Error
+parameters:
+  singleId:
+    name: id
+    description: A workflow ID
+    required: true
+    type: string
+    in: path
+    pattern: ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$
+  workflowTypeParam:
+    name: workflowType
+    type: string
+    description: The workflow language for the file you submitted. Cromwell currently supports WDL.
+    required: false
+    enum: [wdl, cwl]
+    default: wdl
+    in: formData
+  versionParam:
+    name: version
+    description: Cromwell API Version
+    required: true
+    type: string
+    in: path
+    default: v1 # This really should be an enum but swagger-ui seems to not like it
 securityDefinitions:
   google_oauth:
     type: oauth2
@@ -772,11 +612,12 @@ definitions:
       id:
         type: string
         description: The identifier of the workflow
+        example: e442e52a-9de1-47f0-8b4f-e6e565008cf1
       status:
         type: string
         description: The status of the workflow
-  WorkflowAbortResponse:
-
+        example: Submitted
+  WorkflowIdAndStatus:
     required:
       - id
       - status
@@ -784,20 +625,11 @@ definitions:
       id:
         type: string
         description: The identifier of the workflow
+        example: e442e52a-9de1-47f0-8b4f-e6e565008cf1
       status:
         type: string
         description: The status of the workflow
-  WorkflowStatusResponse:
-    required:
-      - id
-      - status
-    properties:
-      id:
-        type: string
-        description: The identifier of the workflow
-      status:
-        type: string
-        description: The status of the workflow
+        example: Submitted
   WorkflowMetadataResponse:
     description: Workflow and call level metadata
     required:
@@ -995,6 +827,7 @@ definitions:
       cromwell:
         type: string
         description: The version of the Cromwell Engine
+        example: 30
   StatusResponse:
     description: Returns the status of monitored subsystems.
     type: object
@@ -1016,6 +849,8 @@ definitions:
       id:
         type: string
         description: The identifier of the workflow
+        example: label-key-1
       labels:
         type: string
-        description: The custom labels as json
+        description: The labels which have been updated
+        example: label-value-1

@@ -1,0 +1,68 @@
+site_name: Cromwell
+site_url: http://www.software.broadinstitute.org/WDL
+site_description: Cromwell documentation
+site_author: Red Team at Broad Institute
+
+repo_url: https://github.com/broadinstitute/cromwell/docs
+
+pages:
+- Introduction: index.md
+- Tutorials:
+#    - Tutorial Map: tutorials/Overview.md
+    - Quick Introduction: tutorials/FiveMinuteIntro.md
+    - How to Configure Cromwell: tutorials/ConfigurationFiles.md
+    - Getting started with Pipelines API: tutorials/PipelinesApi101.md
+    - View the Timing Diagrams: tutorials/TimingDiagrams.md
+    - Persisting data between restarts: tutorials/PersistentServer.md
+    - Getting started on HPC Clusters: tutorials/HPCIntro.md
+    - Server Mode: tutorials/ServerMode.md
+    - Configuring the Local backend: tutorials/LocalBackendIntro.md
+    - Viewing Metadata: tutorials/MetadataEndpoint.md
+#    - Introduction to Call Caching: tutorials/CallCaching101.md
+#    - Common Errors: tutorials/FrequentErrors.md
+#    - General Debugging Tips: tutorials/GeneralDebuggingTips.md
+- Cromwell Basics:
+    - Modes: Modes.md
+    - Workflow Language Support: LanguageSupport.md
+    - Cromwell Releases: Getting.md
+    - Support: GettingHelp.md
+- Command Line: CommandLine.md
+- Runtime Attributes: RuntimeAttributes.md
+- Workflow Options:
+  - Overview: wf_options/Overview.md
+  - Google Cloud: wf_options/Google.md
+- Configuration: Configuring.md
+- WOMtool: WOMtool.md
+- Labels: Labels.md
+- Call Caching: CallCaching.md
+- Imports: Imports.md
+- Sub-Workflows: SubWorkflows.md
+- Logging: Logging.md
+- Backends:
+    - Overview: backends/Backends.md
+    - Local: backends/Local.md
+    - Google Cloud: backends/Google.md
+    - GA4GH TES: backends/TES.md
+    - Spark: backends/Spark.md
+    - HPC: backends/HPC.md
+    - Sun GridEngine: backends/SGE.md
+    - LSF: backends/LSF.md
+    - Slurm: backends/SLURM.md
+    - HTCondor: backends/HTcondor.md
+- REST API:
+    - Overview: api/RESTAPI.md
+    - Errors: api/ErrorHandling.md
+- For Developers:
+    - How to Build: Building.md
+    - Instrumentation: Instrumentation.md
+    - Security: Security.md
+
+theme: readthedocs
+
+extra_css:
+    - css/extra.css
+extra_javascript:
+    - js/extra.js
+
+copyright: Copyright &copy; 2017 <a href="https://broadinstitute.org">Broad Institute</a>
+# google_analytics: ['identifierID', 'URL.org']

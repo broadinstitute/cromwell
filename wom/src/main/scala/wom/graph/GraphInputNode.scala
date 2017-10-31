@@ -60,7 +60,7 @@ object OuterGraphInputNode {
 /**
   * Used to represent an input to any GraphNode's inner graph which is a link to a value somewhere in the outer graph.
   */
-class OuterGraphInputNode(override val identifier: WomIdentifier, linkToOuterGraph: GraphNodePort.OutputPort) extends GraphInputNode {
+class OuterGraphInputNode(override val identifier: WomIdentifier, val linkToOuterGraph: GraphNodePort.OutputPort) extends GraphInputNode {
   override def womType: WomType = linkToOuterGraph.womType
 }
 

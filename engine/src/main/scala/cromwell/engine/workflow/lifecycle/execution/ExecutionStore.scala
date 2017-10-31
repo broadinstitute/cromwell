@@ -133,8 +133,10 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
     def calculateUpstreamDone(upstream: GraphNode, index: ExecutionIndex): Boolean = upstream match {
         // OuterGraphInputNode signals that an input comes from outside the graph.
         // Depending on whether or not this input is outside of a scatter graph will change the index which we need to look at
-      case outerNode: OuterGraphInputNode if key.node.isInstanceOf[ScatterNode] => calculateUpstreamDone(outerNode, None)
-      case outerNode: OuterGraphInputNode => calculateUpstreamDone(outerNode, index)
+      case outerNode: ScatterVariableNode =>
+        calculateUpstreamDone(outerNode.linkToOuterGraph.graphNode, None)
+      case outerNode: OuterGraphInputNode =>
+        calculateUpstreamDone(outerNode.linkToOuterGraph.graphNode, index)
       case _: CallNode | _: ScatterNode | _: ExpressionNode | _: ConditionalNode => doneKeys.contains(upstream, index)
       case _ => true
     }

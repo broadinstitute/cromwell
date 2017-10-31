@@ -31,6 +31,10 @@ code {
     color: green;
 }
 
+pre code {
+    font-size: 14px;
+}
+
 /* Definition List styles */
 
 dd {

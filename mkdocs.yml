@@ -50,6 +50,7 @@ pages:
 - Call Caching: CallCaching.md
 - Imports: Imports.md
 - Sub-Workflows: SubWorkflows.md
+- WOMtool: WOMtool.md
 - REST API:
     - Overview: api/RESTAPI.md
     - Errors: api/ErrorHandling.md

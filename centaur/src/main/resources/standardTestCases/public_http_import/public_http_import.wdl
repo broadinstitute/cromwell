@@ -1,4 +1,4 @@
-import "https://raw.githubusercontent.com/broadinstitute/centaur/591beaf8422af7c3faf51e437a91d94d13b76eba/src/main/resources/standardTestCases/aliased_subworkflows/subworkflow.wdl" as subworkflow
+import "https://raw.githubusercontent.com/broadinstitute/cromwell/f2d1c3bdd5535d9f6a997eadaf136742d86adbe5/centaur/src/main/resources/standardTestCases/aliased_subworkflows/aliased_subworkflows.wdl" as subworkflow
 
 workflow public_http_import {
 

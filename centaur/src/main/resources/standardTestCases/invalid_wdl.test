@@ -8,5 +8,5 @@ files {
 
 metadata {
   "failures.0.message": "Workflow input processing failed"
-  "failures.0.causedBy.0.message": "Unable to load namespace from workflow: ERROR: Unexpected symbol (line 1, col 15) when parsing 'task'.\n\nExpected lbrace, got }.\n\ntask blahblah }{\n              ^\n\n$task = :task :identifier :lbrace $_gen3 $_gen4 :rbrace -> Task( name=$1, declarations=$3, sections=$4 )\n     "
+  "failures.0.causedBy.0.message": "ERROR: Unexpected symbol (line 1, col 15) when parsing 'task'.\n\nExpected lbrace, got }.\n\ntask blahblah }{\n              ^\n\n$task = :task :identifier :lbrace $_gen3 $_gen4 :rbrace -> Task( name=$1, declarations=$3, sections=$4 )\n     "
 }

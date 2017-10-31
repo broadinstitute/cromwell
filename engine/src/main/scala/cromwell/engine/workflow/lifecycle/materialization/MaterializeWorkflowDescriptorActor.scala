@@ -5,8 +5,8 @@ import akka.pattern.pipe
 import better.files.File
 import cats.Monad
 import cats.data.EitherT._
-import cats.data.{EitherT, NonEmptyList}
 import cats.data.Validated.{Invalid, Valid}
+import cats.data.{EitherT, NonEmptyList}
 import cats.effect.IO
 import cats.instances.vector._
 import cats.syntax.apply._
@@ -41,6 +41,7 @@ import cwl.CwlDecoder.Parse
 import net.ceedubs.ficus.Ficus._
 import spray.json._
 import wdl._
+import wom.core.WorkflowSource
 import wom.executable.Executable
 import wom.executable.Executable.ResolvedExecutableInputs
 import wom.expression.{IoFunctionSet, WomExpression}
@@ -367,7 +368,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     def unZipFile(f: Path) = Try {
       val unzippedFile = f.unzipTo(parentPath)
       val unzippedFileContents = unzippedFile.list.toSeq.head
-      println(s"unzippedFileContents is ${unzippedFileContents.pathAsString} and is that a directory? ${unzippedFileContents.isDirectory}")
       if (unzippedFileContents.isDirectory) unzippedFileContents else unzippedFile
     }
 
@@ -383,49 +383,14 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     }
   }
 
-  private def validateNamespaceWithImports(w: WorkflowSourceFilesWithDependenciesZip): ErrorOr[WdlNamespaceWithWorkflow] = {
-    def getMetadatae(importsDir: Path, prefix: String = ""): List[(String, Path)] = {
-      importsDir.children.toList flatMap {
-        case f: Path if f.isDirectory => getMetadatae(f, prefix + f.name + "/")
-        case f: Path if f.name.endsWith(".wdl") => List((prefix + f.name, f))
-        case _ => List.empty
-      }
-    }
-
-    def writeMetadatae(importsDir: Path) = {
-      val wfImportEvents = getMetadatae(importsDir) map { case (name: String, f: Path) =>
-        val contents = f.lines.mkString(System.lineSeparator())
-        MetadataEvent(MetadataKey(workflowIdForLogging, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Imports, name), MetadataValue(contents))
-      }
-      serviceRegistryActor ! PutMetadataAction(wfImportEvents)
-    }
-
-    def importsAsNamespace(importsDir: Path): ErrorOr[WdlNamespaceWithWorkflow] = {
-      writeMetadatae(importsDir)
-      val importsDirFile = better.files.File(importsDir.pathAsString) // For wdl4s better file compatibility
-      val importResolvers: Seq[ImportResolver] = if (importLocalFilesystem) {
-        List(WdlNamespace.directoryResolver(importsDirFile), WdlNamespace.fileResolver, WdlNamespace.httpResolver)
-      } else {
-        List(WdlNamespace.directoryResolver(importsDirFile), WdlNamespace.httpResolver)
-      }
-      val results = WdlNamespaceWithWorkflow.load(w.workflowSource, importResolvers)
-      importsDir.delete(swallowIOExceptions = true)
-      results match {
-        case Success(ns) => validateWorkflowNameLengths(ns)
-        case Failure(f) => f.getMessage.invalidNel
-      }
-    }
-
-    validateImportsDirectory(w.importsZip) flatMap importsAsNamespace
-  }
-
-  private def validateWorkflowNameLengths(namespace: WdlNamespaceWithWorkflow): ErrorOr[WdlNamespaceWithWorkflow] = {
+  private def validateWorkflowNameLengths(namespace: WdlNamespaceWithWorkflow): Checked[Unit] = {
+    import common.validation.Checked._
     def allWorkflowNames(n: WdlNamespace): Seq[String] = n.workflows.map(_.unqualifiedName) ++ n.namespaces.flatMap(allWorkflowNames)
     val tooLong = allWorkflowNames(namespace).filter(_.length >= 100)
     if (tooLong.nonEmpty) {
-      ("Workflow names must be shorter than 100 characters: " + tooLong.mkString(" ")).invalidNel
+      ("Workflow names must be shorter than 100 characters: " + tooLong.mkString(" ")).invalidNelCheck
     } else {
-      namespace.validNel
+      ().validNelCheck
     }
   }
 
@@ -459,7 +424,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     import cats.instances.list._
     import cats.syntax.either._
     import cats.syntax.functor._
-    import cats.syntax.validated._
     import common.validation.Checked._
 
     def checkTypes(namespace: WdlNamespaceWithWorkflow, inputs: Map[OutputPort, WomValue]): Checked[Unit] = {
@@ -475,22 +439,57 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       list.sequence[Checked, Unit].void
     }
 
+    val baseResolvers: List[String => WorkflowSource] = if (importLocalFilesystem) {
+      List(WdlNamespace.fileResolver, WdlNamespace.httpResolver)
+    } else {
+      List(WdlNamespace.httpResolver)
+    }
+
+    import common.validation.Validation._
+
     val wdlNamespaceValidation = source match {
-      case w: WorkflowSourceFilesWithDependenciesZip => validateNamespaceWithImports(w)
+      case w: WorkflowSourceFilesWithDependenciesZip =>
+        for {
+          importsDir <- validateImportsDirectory(w.importsZip)
+          betterFilesImportsDir = better.files.File(importsDir.pathAsString)
+          directoryResolver = WdlNamespace.directoryResolver(betterFilesImportsDir): String => WorkflowSource
+          resolvers = directoryResolver +: baseResolvers
+          wf <- WdlNamespaceWithWorkflow.load(w.workflowSource, resolvers).toErrorOr
+          _ = importsDir.delete(swallowIOExceptions = true)
+        } yield wf
       case w: WorkflowSourceFilesWithoutImports =>
-        val importResolvers: Seq[ImportResolver] = if (importLocalFilesystem) {
-          List(WdlNamespace.fileResolver, WdlNamespace.httpResolver)
-        } else {
-          List(WdlNamespace.httpResolver)
+        WdlNamespaceWithWorkflow.load(w.workflowSource, baseResolvers).toErrorOr
+    }
+
+    /* Publish `MetadataEvent`s for all imports in this `WdlNamespace`. */
+    def publishImportMetadata(wdlNamespace: WdlNamespace): Unit = {
+      def metadataEventForImportedNamespace(ns: WdlNamespace): MetadataEvent = {
+        import MetadataKey._
+        import WorkflowMetadataKeys._
+        // This should only be called on namespaces that are known to have a defined `importUri` so the .get is safe.
+        val escapedUri = ns.importUri.get.escapeMeta
+        MetadataEvent(MetadataKey(
+          workflowIdForLogging, None, SubmissionSection, SubmissionSection_Imports, escapedUri), MetadataValue(ns.sourceString))
+      }
+
+      // Descend the namespace looking for imports and construct `MetadataEvent`s for them.
+      def collectImportEvents: List[MetadataEvent] = {
+        wdlNamespace.allNamespacesRecursively flatMap { ns =>
+          ns.importUri.toList collect {
+            // Do not publish import events for URIs which correspond to literal strings as these are the top-level
+            // submitted workflow.
+            case uri if uri != WdlNamespace.WorkflowResourceString => metadataEventForImportedNamespace(ns)
+          }
         }
-        WdlNamespaceWithWorkflow.load(w.workflowSource, importResolvers) match {
-          case Failure(e) => s"Unable to load namespace from workflow: ${e.getMessage}".invalidNel
-          case Success(namespace) => validateWorkflowNameLengths(namespace)
-        }
+      }
+
+      serviceRegistryActor ! PutMetadataAction(collectImportEvents)
     }
 
     (for {
       wdlNamespace <- wdlNamespaceValidation.toEither
+      _ <- validateWorkflowNameLengths(wdlNamespace)
+      _ = publishImportMetadata(wdlNamespace)
       womExecutable <- wdlNamespace.womExecutable(Option(source.inputsJson))
       ioFunctions = new WdlFunctions(pathBuilders)
       validatedWomNamespace <- validateWomNamespace(womExecutable, ioFunctions)

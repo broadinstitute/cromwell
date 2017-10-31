@@ -38,6 +38,10 @@ sealed trait WdlNamespace extends WomValue with Scope {
   def importedAs: Option[String] // Used when imported with `as`
   def imports: Seq[Import]
   def namespaces: Seq[WdlNamespace]
+  /** Return this `WdlNamespace` and its child `WdlNamespace`s recursively. */
+  def allNamespacesRecursively: List[WdlNamespace] = {
+    this +: (namespaces.toList flatMap { _.allNamespacesRecursively })
+  }
   def tasks: Seq[WdlTask]
   def workflows: Seq[WdlWorkflow]
   def terminalMap: Map[Terminal, WorkflowSource]
@@ -57,6 +61,8 @@ sealed trait WdlNamespace extends WomValue with Scope {
     }
     callsAndOutputs.find(d => d.fullyQualifiedName == fqn || d.fullyQualifiedNameWithIndexScopes == fqn)
   }
+  def sourceString: String
+  def importUri: Option[String] // URI under which this namespace was imported
 }
 
 /**
@@ -67,7 +73,9 @@ case class WdlNamespaceWithoutWorkflow(importedAs: Option[String],
                                        namespaces: Seq[WdlNamespace],
                                        tasks: Seq[WdlTask],
                                        terminalMap: Map[Terminal, WorkflowSource],
-                                       ast: Ast) extends WdlNamespace {
+                                       ast: Ast,
+                                       sourceString: String,
+                                       importUri: Option[String] = None) extends WdlNamespace {
   val workflows = Seq.empty[WdlWorkflow]
 
 }
@@ -82,7 +90,9 @@ case class WdlNamespaceWithWorkflow(importedAs: Option[String],
                                     tasks: Seq[WdlTask],
                                     terminalMap: Map[Terminal, WorkflowSource],
                                     wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter,
-                                    ast: Ast) extends WdlNamespace {
+                                    ast: Ast,
+                                    sourceString: String,
+                                    importUri: Option[String] = None) extends WdlNamespace {
 
   def womExecutable(inputFile: Option[String] = None): Checked[Executable] = {
     WdlInputParsing.buildWomExecutable(workflow, inputFile)
@@ -180,20 +190,21 @@ case class WdlNamespaceWithWorkflow(importedAs: Option[String],
   */
 object WdlNamespace {
 
+  val WorkflowResourceString = "string"
+
   def loadUsingPath(wdlFile: Path, resource: Option[String], importResolver: Option[Seq[ImportResolver]]): Try[WdlNamespace] = {
     load(readFile(wdlFile), resource.getOrElse(wdlFile.toString), importResolver.getOrElse(Seq(fileResolver)), None)
   }
 
   def loadUsingSource(workflowSource: WorkflowSource, resource: Option[String], importResolver: Option[Seq[ImportResolver]]): Try[WdlNamespace] = {
-    load(workflowSource, resource.getOrElse("string"), importResolver.getOrElse(Seq(fileResolver)), None)
+    load(workflowSource, resource.getOrElse(WorkflowResourceString), importResolver.getOrElse(Seq(fileResolver)), None)
   }
 
   private def load(workflowSource: WorkflowSource, resource: String, importResolver: Seq[ImportResolver], importedAs: Option[String], root: Boolean = true): Try[WdlNamespace] = Try {
-    WdlNamespace(AstTools.getAst(workflowSource, resource), workflowSource, importResolver, importedAs, root = root)
+    WdlNamespace(AstTools.getAst(workflowSource, resource), resource, workflowSource, importResolver, importedAs, root = root)
   }
 
-
-  def apply(ast: Ast, source: WorkflowSource, importResolvers: Seq[ImportResolver], namespaceName: Option[String], root: Boolean = false): WdlNamespace = {
+  def apply(ast: Ast, uri: String, source: WorkflowSource, importResolvers: Seq[ImportResolver], namespaceName: Option[String], root: Boolean = false): WdlNamespace = {
 
     val imports = for {
       importAst <- Option(ast).map(_.getAttribute("imports")).toSeq
@@ -307,8 +318,8 @@ object WdlNamespace {
     val children = topLevelTasks ++ namespaces ++ workflows ++ topLevelDeclarationScopes.map(ast => getScope(ast, parent = None))
 
     val namespace = workflows match {
-      case Nil => WdlNamespaceWithoutWorkflow(namespaceName, imports, namespaces, topLevelTasks, terminalMap, ast)
-      case Seq(w) => WdlNamespaceWithWorkflow(ast, w, namespaceName, imports, namespaces, topLevelTasks, terminalMap, wdlSyntaxErrorFormatter)
+      case Nil => WdlNamespaceWithoutWorkflow(namespaceName, imports, namespaces, topLevelTasks, terminalMap, ast, source, Option(uri))
+      case Seq(w) => WdlNamespaceWithWorkflow(ast, w, namespaceName, imports, namespaces, topLevelTasks, terminalMap, wdlSyntaxErrorFormatter, source, Option(uri))
 
       case _ => throw new SyntaxError(wdlSyntaxErrorFormatter.tooManyWorkflows(ast.findAsts(AstNodeName.Workflow).asJava))
     }
@@ -636,7 +647,7 @@ object WdlNamespaceWithWorkflow {
 
   def apply(ast: Ast, workflow: WdlWorkflow, namespace: Option[String], imports: Seq[Import],
             namespaces: Seq[WdlNamespace], tasks: Seq[WdlTask], terminalMap: Map[Terminal, WorkflowSource],
-            wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): WdlNamespaceWithWorkflow = {
-    new WdlNamespaceWithWorkflow(namespace, workflow, imports, namespaces, tasks, terminalMap, wdlSyntaxErrorFormatter, ast)
+            wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter, sourceString: String, importUri: Option[String]): WdlNamespaceWithWorkflow = {
+    new WdlNamespaceWithWorkflow(namespace, workflow, imports, namespaces, tasks, terminalMap, wdlSyntaxErrorFormatter, ast, sourceString, importUri)
   }
 }

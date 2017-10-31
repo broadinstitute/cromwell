@@ -20,7 +20,7 @@ Run the JAR file with no arguments to get the usage message:
 
 `$ java -jar womtool.jar`
 
-```text
+```
 java -jar /path/to/womtool.jar <action> <parameters>
 
 Actions:

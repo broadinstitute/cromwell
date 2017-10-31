@@ -7,28 +7,37 @@ repo_url: https://github.com/broadinstitute/cromwell/docs
 
 pages:
 - Introduction: index.md
-- Getting Started:
-    - Modes: Modes.md
-    - "Workflow Language Support": LanguageSupport.md
-    - Getting Cromwell Releases: Getting.md
-    - Other Resources: GettingHelp.md
 - Tutorials:
-#    - "Tutorial Map": tutorials/Overview.md
-    - "Quick Introduction to Cromwell": tutorials/FiveMinuteIntro.md
-    - "Configuration Files": tutorials/ConfigurationFiles.md
-    - "Getting started with Pipelines API": tutorials/PipelinesApi101.md
-    - "Timing Diagrams": tutorials/TimingDiagrams.md
-    - "Persisting data between restarts": tutorials/PersistentServer.md
-    - "Getting started on HPC Clusters": tutorials/HPCIntro.md
-    - "Server Mode": tutorials/ServerMode.md
-    - "Configuring the Local backend": tutorials/LocalBackendIntro.md
-    - "Viewing Metadata": tutorials/MetadataEndpoint.md
-    - "Introduction to Call Caching": tutorials/CallCaching101.md
-    - "Common Errors": tutorials/FrequentErrors.md
-    - "General Debugging Tips": tutorials/GeneralDebuggingTips.md
+#    - Tutorial Map: tutorials/Overview.md
+    - Quick Introduction: tutorials/FiveMinuteIntro.md
+    - How to Configure Cromwell: tutorials/ConfigurationFiles.md
+    - Getting started with Pipelines API: tutorials/PipelinesApi101.md
+    - View the Timing Diagrams: tutorials/TimingDiagrams.md
+    - Persisting data between restarts: tutorials/PersistentServer.md
+    - Getting started on HPC Clusters: tutorials/HPCIntro.md
+    - Server Mode: tutorials/ServerMode.md
+    - Configuring the Local backend: tutorials/LocalBackendIntro.md
+    - Viewing Metadata: tutorials/MetadataEndpoint.md
+#    - Introduction to Call Caching: tutorials/CallCaching101.md
+#    - Common Errors: tutorials/FrequentErrors.md
+#    - General Debugging Tips: tutorials/GeneralDebuggingTips.md
+- Cromwell Basics:
+    - Modes: Modes.md
+    - Workflow Language Support: LanguageSupport.md
+    - Cromwell Releases: Getting.md
+    - Support: GettingHelp.md
 - Command Line: CommandLine.md
+- Runtime Attributes: RuntimeAttributes.md
+- Workflow Options:
+  - Overview: wf_options/Overview.md
+  - Google Cloud: wf_options/Google.md
 - Configuration: Configuring.md
-- Security: Security.md
+- WOMtool: WOMtool.md
+- Labels: Labels.md
+- Call Caching: CallCaching.md
+- Imports: Imports.md
+- Sub-Workflows: SubWorkflows.md
+- Logging: Logging.md
 - Backends:
     - Overview: backends/Backends.md
     - Local: backends/Local.md
@@ -40,22 +49,13 @@ pages:
     - LSF: backends/LSF.md
     - Slurm: backends/SLURM.md
     - HTCondor: backends/HTcondor.md
-- Runtime Attributes: RuntimeAttributes.md
-- Logging: Logging.md
-- Instrumentation: Instrumentation.md
-- Workflow Options:
-  - Overview: wf_options/Overview.md
-  - Google Cloud: wf_options/Google.md
-- Labels: Labels.md
-- Call Caching: CallCaching.md
-- Imports: Imports.md
-- Sub-Workflows: SubWorkflows.md
-- WOMtool: WOMtool.md
 - REST API:
     - Overview: api/RESTAPI.md
     - Errors: api/ErrorHandling.md
 - For Developers:
     - How to Build: Building.md
+    - Instrumentation: Instrumentation.md
+    - Security: Security.md
 
 theme: readthedocs
 

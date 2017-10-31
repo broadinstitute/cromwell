@@ -11,12 +11,12 @@ ignores these metrics, but Cromwell includes an alternate implementation that ca
 [StatsD](https://github.com/etsy/statsd) server.
 To specify this implementation in your configuration file:
 
-```text
+```bash
 services.Instrumentation.class = "cromwell.services.instrumentation.impl.statsd.StatsDInstrumentationServiceActor"
 ```
 Make sure to configure your StatsD service:
 
-```text
+```bash
 services.Instrumentation.config.statsd {
     hostname = "localhost" # Replace with your host
     port = 8125 # Replace with your port
@@ -27,7 +27,7 @@ services.Instrumentation.config.statsd {
 
 There is also an additional configuration value that can be set: 
 
-```text
+```bash
 # Rate at which Cromwell updates its gauge values (number of workflows running, queued, etc...)
 system.instrumentation-rate = 5 seconds
 ```
@@ -36,7 +36,7 @@ system.instrumentation-rate = 5 seconds
 
 The current StatsD implementation uses metrics-statsd to report instrumentation values.
 metrics-statsd reports all metrics with a gauge type.
-This means all metrics will be under the gauge section. We might add /remove metrics in the future depending on need and usage.
+This means all metrics will be under the gauge section. We might add or remove metrics in the future depending on need and usage.
 These are the current high level categories:
 
 * `backend`

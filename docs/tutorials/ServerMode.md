@@ -46,11 +46,16 @@ Paste the following into a file called `inputs.json`:
 
 # Start the job
 
-1. Navigate to Workflows section and click "Show/Hide"![](workflows.png)
-2. Navigate to /workflows/{version} which has a green "POST" on the left.![](submit.png)
-3. Find workflowSource file, "Choose File" and navigate to `hello.wdl`.![](workflowSource.png)
-4. Find inputs file and navigate to `inputs.json`.![](inputs.png)
-5. Navigate to the bottom of this section and click "Try it out!"![](try.png)
+1. Navigate to Workflows section and click "Show/Hide"  
+![](workflows.png)
+2. Navigate to `/workflows/{version}` which has a green "POST" on the left.  
+![](submit.png)
+3. Find workflowSource file, "Choose File" and navigate to `hello.wdl`.  
+![](workflowSource.png)  
+4. Find inputs file and navigate to `inputs.json`.  
+![](inputs.png)  
+5. Navigate to the bottom of this section and click "Try it out!"  
+![](try.png)
 6. Observe output from the server process.
 
 # What happened?

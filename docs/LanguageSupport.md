@@ -2,7 +2,6 @@
 
 Below are the Domain Specific Languages (DSL) that Cromwell currently supports and will soon support for describing your workflow.
 
-
 ## Current Language Support
 
 ### WDL Draft 2
@@ -24,6 +23,7 @@ Draft 2 support will be maintained during this process.
 
 ### CWL 1.0
 
-From Cromwell v30 onwards, Cromwell will provide support for Common Workflow Language (CWL), beginning with the core spec, and providing support for the following requirements:
-- ShellCommandRequirement
-- InlineJavascriptRequirement
+From Cromwell 30 onwards, Cromwell will provide support for Common Workflow Language (CWL), beginning with the core spec, and providing support for the following requirements:
+
+* `ShellCommandRequirement`
+* `InlineJavascriptRequirement`

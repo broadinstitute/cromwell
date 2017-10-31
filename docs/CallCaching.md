@@ -1,11 +1,10 @@
-
 Call Caching allows Cromwell to detect when a job has been run in the past so that it doesn't have to re-compute results, saving both time and money.  Cromwell searches the cache of previously run jobs for one that has the exact same command and exact same inputs.  If a previously run job is found in the cache, Cromwell will use the results of the previous job instead of re-running it.
 
 Cromwell's call cache is maintained in its database.  In order for call caching to be used on any previously run jobs, it is best to configure Cromwell to [point to a MySQL database](Configuring#database) instead of the default in-memory database.  This way any invocation of Cromwell (either with `run` or `server` subcommands) will be able to utilize results from all calls that are in that database.
 
 **Configuring Call Caching**
 
-*Call Caching is disabled by default.*  Call Caching can be enabled in your Cromwell [Configuration](Configuring#call-caching) and the behavior can be modified via [Workflow Options](WorkflowOptions). If you are adding Workflow options, do not set [`read_from_cache`](WorkflowOptions) or [`write_to_cache`](WorkflowOptions) = false, as it will impact the following process.
+*Call Caching is disabled by default.*  Call Caching can be enabled in your Cromwell [Configuration](Configuring#call-caching) and the behavior can be modified via [Workflow Options](wf_options/Overview). If you are adding Workflow options, do not set [`read_from_cache` or `write_to_cache`](wf_options/Overview#call-caching-options) = false, as it will impact the following process.
 
 Once enabled, Cromwell will search the call cache for every `call` statement invocation.
 
@@ -19,7 +18,8 @@ Once enabled, Cromwell will search the call cache for every `call` statement inv
 Certain Docker tags can impact call caching performance. 
 Docker tags are a convenient way to point to a version of an image (`ubuntu:14.04`), or even the latest version (`ubuntu:latest`).
 For that purpose, tags are mutable, meaning that the image they point to can change, while the tag name stays the same.
-While this is very convenient in some cases, using mutable, or "floating" tags in tasks affects the reproducibility of a workflow: the same workflow using `ubuntu:latest` run now, and a year, or even a month from now may run with different docker images.
+While this is very convenient in some cases, using mutable, or "floating" tags in tasks affects the reproducibility of a workflow. 
+If you were to run the same workflow using `ubuntu:latest` now, and again in a year (or even in a month) may run with different docker images.
 This has an even bigger impact when Call Caching is turned on in Cromwell, and could lead to unpredictable behaviors if a tag is updated in the middle of a workflow or even a scatter for example.
 
 In order to ensure perfect reproducibility, Docker provides another way of identifying an image version by using the specific digest of the image, which is an immutable identifier. The digest is guaranteed to be different if 2 images have different byte content. For more information see [Docker's api specs](https://docs.docker.com/registry/spec/api/#/content-digests).

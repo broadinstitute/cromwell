@@ -1,4 +1,4 @@
-**Getting Cromwell Releases**
+**Cromwell Releases**
 
 The preferred way of getting Cromwell releases is at the [GitHub Releases](https://github.com/broadinstitute/cromwell/releases/latest) page. 
 You are strongly encouraged to use the latest release of Cromwell whenever possible.

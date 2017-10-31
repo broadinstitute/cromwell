@@ -1,20 +1,20 @@
+**Warning!**
+
  - Cromwell is NOT on its own a security appliance!
  - Only YOU are responsible for your own security! 
  - Please be sure to check with your security team before setting up your Cromwell server
  - Some recommendations and suggestions on security can be found below
 
-
-__Warning!__
-
 __This is intended as helpful guidance only, and is not endorsed by the Broad Institute.__
 
 Cromwell running in server mode accepts all connections on the configured webservice port.  Without taking additional measures to protect your Cromwell server, this can leave your Cromwell server and therefore all information stored by and accessible by your Cromwell server vulnerable to anyone who is able to access the server.  For instance, an unprotected Cromwell server running against the [Google Cloud backend](backends/Google) would leave you vulnerable to outside users running workflows that will cost you money, and potentially access the data files you use within your workflows!
 
-The simplest way to restrict access is by putting an authenticating proxy server in between users and the Cromwell server:
- 1. Configure a firewall rule on the Cromwell server host to deny access to the webservice port (e.g. 8000) from all addresses except a secure proxy host.
- 1. Configure `<YourFavoriteWebProxy>` on the proxy host with `<YourFavoriteAuthMechanism>`, to proxy authenticated traffic from the world to the Cromwell server. Using Apache `httpd` web server for example with basic `htpassword` file-based authentication, the configuration might look something like:
+The simplest way to restrict access is by putting an authenticating proxy server in between users and the Cromwell server:  
 
- ```Apache
+1. Configure a firewall rule on the Cromwell server host to deny access to the webservice port (e.g. 8000) from all addresses except a secure proxy host.  
+2. Configure `<YourFavoriteWebProxy>` on the proxy host with `<YourFavoriteAuthMechanism>`, to proxy authenticated traffic from the world to the Cromwell server. Using Apache `httpd` web server for example with basic `htpassword` file-based authentication, the configuration might look something like:
+
+```Apache
 <Location /cromwell>
     Order deny,allow
     Allow from all
@@ -22,11 +22,11 @@ The simplest way to restrict access is by putting an authenticating proxy server
     AuthName "Password Required"
     AuthUserFile /path/to/my/htpasswdfile
     Require user someone someoneelse
-    ProxyPass http://101.101.234.567:8000     # address of cromwell server web service
+    ProxyPass http://101.101.234.567:8000   # address of cromwell server web service
 </Location>
 ```
 
- 1. Users now hit `http://my.proxy.org/cromwell` with authenticated requests, and they're forwarded to port 8000 on the Cromwell server host. 
+Users now hit `http://my.proxy.org/cromwell` with authenticated requests, and they're forwarded to port 8000 on the Cromwell server host. 
 
 **Multiple Servers on one Host**
 

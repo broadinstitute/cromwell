@@ -1,6 +1,6 @@
-In order to support the composition and reuse of workflows, WDL allows the execution of an entire workflow as a step in a larger workflow.  When a workflow calls another workflow, that second workflow is referred to as a sub-workflow.  Note that sub-workflows can themselves contain sub-workflows and so on and there is no explicit limit as to how deeply workflows can be nested.  Cromwell supports execution of such workflows.
+In order to support the composition and reuse of workflows, WDL allows the execution of an entire workflow as a step in a larger workflow.  When a workflow calls another workflow, that second workflow is referred to as a sub-workflow.  Note that sub-workflows can themselves contain sub-workflows and so on, and there is no explicit limit as to how deeply workflows can be nested.  Cromwell supports execution of such workflows.
 
-However, that a single WDL file can contain only a single workflow definition.  In order to reference a sub-workflow, the import directive can be used to bring that sub-workflow into existence and referenced by it's alias and name.  See the [documentation on imports](Imports.md) for more details of how to declare and reference tasks and workflows via imports.
+However, a single WDL file can contain only a single workflow definition.  In order to reference a sub-workflow, the import directive can be used to bring that sub-workflow into existence and referenced by it's alias and name.  See the [documentation on Imports](Imports.md) for more details of how to declare and reference tasks and workflows via imports.
 
 **Execution**
 

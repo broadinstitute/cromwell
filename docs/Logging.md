@@ -5,7 +5,7 @@
 Cromwell accepts two properties for controlling logging. You can set these properties via a Java system property on the command line using `-D`:
 
 ```bash
-java -DLOG_LEVEL=DEBUG -jar cromwell.jar server
+$ java -DLOG_LEVEL=DEBUG -jar cromwell.jar server
 ```
 
 Alternatively, you can also set the log level via an environment variable:
@@ -43,12 +43,12 @@ java -DLOG_LEVEL=DEBUG -jar cromwell.jar server
 
 ## Workflow Logs
 
-While a workflow is running, Cromwell generates a log file specifically for the workflow. After the workflow completes, to clear up local disk space, Cromwell deletes the local copy of this log file. See the [configuration](Configuring) section on logs for more information on preventing cromwell from deleting each workflow log.
+While a workflow is running, Cromwell generates a log file specifically for the workflow. After the workflow completes, to clear up local disk space, Cromwell deletes the local copy of this log file. See the [Configuration](Configuring#workflow-log-directory) section on logs for more information on preventing cromwell from deleting each workflow log.
 
-Before Cromwell deletes teh files and before the workflow completes, you can configure Cromwell to copy the workflow logs to various locations. Normally, you'll want to copy the log to a remote bucket or directory. To specify the remote directory to copy the logs to use the separate [workflow option](WorkflowOptions) `final_workflow_log_dir`. Workflow logs may also be copied via [Sentry](https://docs.sentry.io) by setting the [configuration](Configuring) value `sentry.dsn`.
+Before Cromwell deletes the files and before the workflow completes, you can configure Cromwell to copy the workflow logs to various locations. Normally, you'll want to copy the log to a remote bucket or directory. To specify the remote directory to copy the logs to use the separate [Workflow Option](wf_options/Overview#output-copying) `final_workflow_log_dir`. Workflow logs may also be copied via [Sentry](https://docs.sentry.io) by setting the [Configuration](Configuring#workflow-log-directory) value `sentry.dsn`.
 
 ## Call Logs
 
 As each call in a workflow runs, it generates output to the standard output and standard error. This output is stored per call in call log files. Additionally, depending on the backend, specific per call backand logs may be generated.
 
-All of these call logs may be copied at the end of a workflow to a remote directory. Configure this directory by setting the [workflow option](WorkflowOptions) `final_call_logs_dir`.
+All of these call logs may be copied at the end of a workflow to a remote directory. Configure this directory by setting the [Workflow Option](wf_options/Overview#output-copying) `final_call_logs_dir`.

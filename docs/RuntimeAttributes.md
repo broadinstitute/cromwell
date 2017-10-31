@@ -1,13 +1,13 @@
-# Runtime Attributes: Used to customize tasks
+# Customize tasks
 
-They can be specified in one of two ways:
+Runtime attributes can be specified in one of two ways:
 
  1. Within a task you can specify runtime attributes to customize the environment for the call.  
  2. [Default runtime attributes](#default-values) for all tasks can be specified in [Workflow Options](wf_options/Overview.md).
 
  >* Certain [Backends](backends/Backends) only support certain runtime attributes.  See [Backend Support](#backend-support) for a table.
 
-# Task Example
+_Task Example_
 
 ```
 task jes_task {
@@ -27,10 +27,10 @@ workflow jes_workflow {
 }
 ```
 
-# Expression support
+## Expression support
 
 Runtime attribute values are interpreted as expressions.  This means that it has the ability to express the value of a runtime attribute as a function of one of the task's inputs.  
-For example:
+_For example:_
 
 ```
 task runtime_test {
@@ -50,9 +50,9 @@ task runtime_test {
 
 SGE and similar backends may define other configurable runtime attributes beyond the five listed. To find more information about SGE, view [Sun GridEngine](backends/SGE).
 
-# Default Values
+## Default Values
 
-Default values for runtime attributes can be specified via [Workflow Options](wf_options/WorkflowOptions).  
+Default values for runtime attributes can be specified via [Workflow Options](wf_options/overview).  
 For example, consider this WDL file:
 
 ```wdl
@@ -85,21 +85,24 @@ And this set of workflow options:
 ```
 
 Then, these values for `docker` and `zones` will be used for any task that does not explicitly override them in the WDL file. In return, the effective runtime for `task first` is:
+
 ```
 {
     "docker": "ubuntu:latest",
     "zones": "us-central1-c us-central1-b"
   }
 ```
+
 And the effective runtime for `task second` is:
+
 ```
 {
     "docker": "my_docker_image",
     "zones": "us-central1-c us-central1-b"
   }
 ```
-Note how for `task second`:  
-*The WDL value for `docker` is used instead of the default provided in the workflow options.*
+
+Note how for `task second` the WDL value for `docker` is used instead of the default provided in the workflow options.
 
 ## `continueOnReturnCode`
 
@@ -188,7 +191,7 @@ Since no `local-disk` entry is specified, Cromwell will automatically add `local
 
 ## `zones`
 
-The ordered list of zone preference (see [Region and Zones](https://cloud.google.com/compute/docs/zones) documentation for specifics)
+The ordered list of zone preference (see [Region and Zones](https://cloud.google.com/compute/docs/zones) documentation for specifics).
 
 *The zones are specified as a space separated list, with no commas:*
 
@@ -198,7 +201,7 @@ runtime {
 }
 ```
 
-Defaults to the configuration setting `genomics.default-zones` in the Google Cloud configuration block which in turn defaults to using `us-central1-b`
+Defaults to the configuration setting `genomics.default-zones` in the Google Cloud configuration block, which in turn defaults to using `us-central1-b`.
 
 ## `docker`
 
@@ -210,7 +213,7 @@ runtime {
 }
 ```
 
-*This attribute is mandatory when submitting tasks to Google Cloud. When running on other backends, they default to not running the process within Docker.*
+This attribute is mandatory when submitting tasks to Google Cloud. When running on other backends, they default to not running the process within Docker.
 
 ## `failOnStderr`
 
@@ -222,7 +225,7 @@ runtime {
 }
 ```
 
-*Defaults to "false".*  
+Defaults to "false".  
 
 ## `memory`
 
@@ -230,7 +233,7 @@ Passed to Google Cloud: "The minimum amount of RAM to use."
 
 Passed to SGE, etc.: Configurable, but usually a reservation and/or limit of memory.
 
-The memory size is specified as an amount and units of memory, for example "4 G".
+The memory size is specified as an amount and units of memory, for example "4 G":
 
 ```
 runtime {
@@ -238,7 +241,7 @@ runtime {
 }
 ```
 
-*Defaults to "2G".*
+Defaults to "2G".
 
 ## `preemptible`
 
@@ -253,9 +256,9 @@ runtime {
 }
 ```
 
-*Defaults to 0.*
+Defaults to 0.
 
-# Backend Support
+## Backend Support
 
 [Backends](backends/Backends) only support certain attributes. See table below:
 
@@ -271,8 +274,4 @@ runtime {
 | [preemptible](#preemptible)                    |       |   x   |       |
 | [bootDiskSizeGb](#bootdisksizegb)              |       |   x   |       |
 
-- [Shared Filesystem backend](backends/SharedFilesystem) is fully configurable and thus these attributes do not apply universally
-
-TODO:
-
-- Document TES, HTCondor, Spark backend attribute support
+[Shared Filesystem backend](backends/HPC#shared-filesystem) is fully configurable and thus these attributes do not apply universally.

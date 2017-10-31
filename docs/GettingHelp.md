@@ -2,7 +2,7 @@
 
 If you have questions that aren't covered by this documentation you can ask them in the
 [Support Forum](http://gatkforums.broadinstitute.org/wdl/categories/ask-the-wdl-team).
-Please note that despite the `wdl` currently in its name this is a forum that supports Cromwell users.
+Please note that despite the `wdl` currently in its name, this is a forum that supports Cromwell users too.
 
 **Website and User Guide**
 

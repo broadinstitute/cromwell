@@ -1,4 +1,3 @@
-
 Most users should not need to build Cromwell and can use pre-built Cromwell [releases](Getting).
 
 If for some reason you require a non-release version of Cromwell or are developing new Cromwell
@@ -11,13 +10,13 @@ features or fixes, the following are required to build Cromwell from source:
 
 First start by cloning the Cromwell repository from GitHub:
 
-```text
+```bash
 $ git clone git@github.com:broadinstitute/cromwell.git
 ```
 
 Next change into the `cromwell` directory:
 
-```text
+```bash
 $ cd cromwell
 ```
 
@@ -25,7 +24,7 @@ If you require a specific version of Cromwell as a starting point, do the approp
 
 Finally build the Cromwell jar:
 
-```text
+```bash
 $ sbt assembly
 ```
 

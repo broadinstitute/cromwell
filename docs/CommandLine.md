@@ -1,13 +1,11 @@
 
 For built-in documentation of Cromwell command line usage, run the Cromwell JAR file with no arguments:
 
-```text
-$ java -jar cromwell-<versionNumber>.jar
-```
+`$ java -jar cromwell-<versionNumber>.jar`
 
-The Cromwell jar file can be built as described in [Building](Building). You will get a usage message like the following:
+You will get a usage message like the following:
 
-```text
+```bash
 cromwell 29
 Usage: java -jar /path/to/cromwell.jar [server|run] [options] <args>...
 
@@ -31,42 +29,45 @@ Run the workflow and print out the outputs in JSON format.
 
 Cromwell's Server and Run modes can be invoked with the `server` and `run` arguments respectively. More information on these Cromwell modes can be found in [Modes](Modes).
 
-**`server`**
+The Cromwell jar file can be built as described in [Building](Building). 
+
+## `server`
 
 `server` mode accepts no arguments and runs Cromwell as a web server that accepts REST requests. See the documentation for [Cromwell's REST endpoints](/api/RESTAPI) for how to interact with Cromwell in `server` mode.
 
-**`run`**
+## `run`
 
 `run` mode executes a single workflow in Cromwell and then exits.
 
-* **`workflow-source`** The single required argument for the workflow source file.
-
+* **`workflow-source`**  
+The single required argument for the workflow source file.
  
-* **`--inputs`**
+* **`--inputs`**  
 An optional file of workflow inputs.  Although optional, it is a best practice to use an inputs file to satisfy workflow
 requirements rather than hardcoding inputs directly into a workflow source file.
 
-* **`--options`**
-An optional file of workflow options.  Some options are global (supported by all backends), while others are backend-specific. See the [Workflow Options](/workflowoptions) for more details.
+* **`--options`**  
+An optional file of workflow options.  Some options are global (supported by all backends), while others are backend-specific. See the [Workflow Options](wf_options/Overview) for more details.
 
-* **`--type`**
-An optional parameter to specify the language for the workflow source.  As of Cromwell 29 any value specified for this parameter is currently ignored and internally the value `WDL` is used.
+* **`--type`**  
+An optional parameter to specify the language for the workflow source. As of Cromwell 29 any value specified for this parameter is currently ignored and internally the value `WDL` is used.
 
-* **`--type-version`**
-An optional parameter to specify the version of the language for the workflow source.  Currently any specified value is ignored.
+* **`--type-version`**  
+An optional parameter to specify the version of the language for the workflow source. Currently any specified value is ignored.
 
-* **`--labels`**
+* **`--labels`**  
 An optional parameter to specify a file of JSON key-value label pairs to associate with the workflow.
 
-* **`--imports`**
+* **`--imports`**  
 You have the option of importing WDL workflows or tasks to use within your workflow, known as sub-workflows.
-If you use sub-workflows within your primary workflow then you must include a zip file with the WDL import files.
+If you use sub-workflows within your primary workflow then you must include a ZIP file with the WDL import files.
 See the documentation on [Imports](Imports) for more information.
 
-* **`--metadata-output`**
-You can specify a filename where Cromwell will write workflow metadata JSON such as start/end timestamps, status, inputs and outputs. By default Cromwell does not write workflow metadata. The metadata format in the `--metadata-output` file is the same as described for the [REST API](api/GET_api_workflows_version_id_metadata).
+* **`--metadata-output`**  
+You can specify a filename where Cromwell will write workflow metadata JSON such as start/end timestamps, status, inputs and outputs. By default Cromwell does not write workflow metadata. The metadata format in the `--metadata-output` file is the same as described for the [REST API](api/RESTAPI#get-workflow-and-call-level-metadata-for-a-specified-workflow).
 
-* **`--version`**
+* **`--version`**  
 The `--version` option prints the version of Cromwell and exits.
 
-* **`--help`** The `--help` option prints the full help text above and exits.
+* **`--help`**  
+The `--help` option prints the full help text above and exits.

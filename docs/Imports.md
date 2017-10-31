@@ -1,6 +1,6 @@
 Sometimes you might want to break up your 1000 line WDL file into smaller components for easier maintenance or for reuse in multiple workflows.  Have no fear, imports are here to help!  Imports allow you to reference other WDL files that contain entire workflows or even just raw tasks.
 
-To import a WDL, you can use the `import` WDL construct at the top of your workflow
+To import a WDL, you can use the `import` WDL construct at the top of your workflow:
 
 ```
 import "<resource>" as <alias>
@@ -38,10 +38,12 @@ imports
 ```
 
 ---
-The mechanism to provide the ZIP file of resources to be imported differ between Run and Server mode.
+The mechanism to provide the ZIP file of resources to be imported differ between [Run](Modes#run) and [Server](Modes#server) mode.
 
-In Run mode, a sample command to run _workflow.wdl_ would be  
-```$ java -jar cromwell.jar run workflow.wdl --imports imports.zip```
+In [Run](Modes#run) mode, a sample command to run _workflow.wdl_ would be:  
+```
+$ java -jar cromwell.jar run workflow.wdl --imports imports.zip
+```
 
-In Server Mode, pass in a .zip file using the parameter `workflowDependencies` via the [submit](api/POST_api_workflows_version) endpoint.
+In [Server](Modes#server) mode, pass in a ZIP file using the parameter `workflowDependencies` via the [Submit](api/RESTAPI#submit-a-workflow-for-execution) endpoint.
 

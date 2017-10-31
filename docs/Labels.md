@@ -13,12 +13,13 @@ In order to assign labels to a workflow, the first step is to create a JSON file
 
 When choosing key-value pairs, it's important to make sure you're adhering to Cromwell supported label syntax below.  
 
-There are two ways to add labels to a workflow.  
-Labels can be assigned to workflows upon workflow submission, by setting the `customLabels` parameter of the [submit endpoint](/api/POST_api_workflows_version) or setting the `-l` argument when running in [command line](/CommandLine) mode.
+There are two ways to add labels to a workflow:  
+1. Upon workflow submission set the `customLabels` parameter of the [Submit endpoint](api/RESTAPI#submit-a-workflow-for-execution), or  
+2. Setting the `-l` argument when running in [Command Line](/CommandLine) mode.
 
-Labels can be added to existing workflows by using the [labels patch endpoint](/api/PATCH_api_workflows_version_id_labels/).
+Labels can be added to existing workflows by using the [Labels patch endpoint](api/RESTAPI#update-labels-for-a-workflow).
 
-After adding labels to your workflows, you can take advantage of features like [query](/api/GET_api_workflows_version_query) to filter tagged workflows. The Google backend supports labelling cloud resources and you can learn more about that [here](/backends/Google/#google-labels).
+After adding labels to your workflows, you can take advantage of features like [Query](api/RESTAPI#get-workflows-matching-some-criteria) to filter tagged workflows. The Google backend supports labelling cloud resources and you can learn more about that [here](backends/Google#google-labels).
 
 #### Label Format
 
@@ -31,7 +32,7 @@ When labels are supplied to Cromwell, it will fail any request containing invali
 * Label key and values have a max char limit of 63.
 
 Google has a different schema for label syntax requirements, where label key and value strings must match the regex `[a-z]([-a-z0-9]*[a-z0-9])?` and be no more than 63 characters in length.
-For [default labels](/backends/Google/#google-labels) applied by the Google backend, Cromwell will modify workflow/task/call names to fit the schema, according to the following rules:
+For [default labels](backends/Google#google-labels) applied by the Google backend, Cromwell will modify workflow/task/call names to fit the schema, according to the following rules:
 
 * Any capital letters are converted to lowercase.
 * Any character which is not one of `[a-z]`, `[0-9]` or `-` will be replaced with `-`.

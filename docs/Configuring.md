@@ -1,32 +1,13 @@
-_For the Doc-A-Thon_  
-
-**NOTES TO EDITOR:**
-- There are a large number of options in [`cromwell.examples.conf`](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf). Only the existing options listed here were updated. We can add more in the future.
-- These subsections are not headers, so links to subsections do not direct you there. (Note on note, there are now some subsections. Others are just **bold**.)
-
-**Questions to answer and things to consider:**
-
-1. Who is visiting the Configuration page?  
-*Are they looking to make a config file? Edit one?*
-2. What do they need to know first?
-3. Is all the important information there? If not, add it!  
-*What about useful info like example configs, like Google cloud. REMEMBER to take out your personal details!*
-4. Are there things that don't need to be there? Remove them.
-5. Are the code and instructions accurate? Try it!
-
----
- **DELETE ABOVE ONCE COMPLETE**
-
----
-
 ## Overview
 
-You can configure cromwell settings either through configuration files or the java command line.
+You can configure Cromwell settings either through configuration files or the Java command line.
+
+Check out the tutorial on [How to Configure Cromwell](tutorials/ConfigurationFiles) for more information.
 
 ### cromwell.examples.conf
 
-You can find a description of options and example stanzas in the file
-[`cromwell.examples.conf`](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf).
+You can find a description of options and example stanzas in the [file
+`cromwell.examples.conf`](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf).
 
 ### Custom Configuration Files
 
@@ -37,7 +18,7 @@ To run using your configuration file, you should copy relevant stanzas from `cro
 file, modify it as appropriate, then pass it to Cromwell via:
 
 ```
-java -Dconfig.file=/path/to/yourOverrides.conf cromwell.jar ...
+$ java -Dconfig.file=/path/to/yourOverrides.conf cromwell.jar ...
 ``` 
 
 To create your own configuration file, start by creating a new text file, for example `my.conf`.
@@ -61,7 +42,7 @@ webservice.port = 58000
 
 Your configuration file can specify configuration as JSON-like stanzas or as dot-separated values. These next two examples are are equivalent.
 
-JSON-like stanza:
+_JSON-like stanza:_
 
 ```hocon
 include required(classpath("application"))
@@ -71,7 +52,7 @@ webservice {
 }
 ```
 
-Dot-separated values:
+_Dot-separated values:_
 
 ```hocon
 include required(classpath("application"))
@@ -81,20 +62,20 @@ webservice.interface = 0.0.0.0
 
 ## Configuration via Command Line Arguments
 
-In addition to using configuration files, you can use dot-separated configuration names to specify values directly on the java command line:
+In addition to using configuration files, you can use dot-separated configuration names to specify values directly on the Java command line:
 
 ```
-java -Dwebservice.port=8080 cromwell.jar ...
+$ java -Dwebservice.port=8080 cromwell.jar ...
 ```
 
 ## Advanced Configuration
 
-**WARNING:** These advanced configuration values can significantly affect the performance of Cromwell.
+**WARNING:** These advanced configuration values can significantly affect the performance of Cromwell. 
 
 ### Server
 
-By default the Cromwell server will bind to `0.0.0.0` on port `8000`.
-It can then be can be accessed through a browser at `http://localhost:8000`.
+By default the Cromwell server will bind to `0.0.0.0` on port `8000`.  
+You can then access it through a browser at `http://localhost:8000`.  
 To change these settings, simply edit the following values in your configuration file:
 
 ```
@@ -104,7 +85,7 @@ webservice {
 }
 ```
 
-The above configuration will for instance use port `9000`.
+The above configuration will use port `9000`.
 
 Cromwell uses `akka-http` to serve requests. For more advanced configuration settings, refer to the [akka-http](https://doc.akka.io/docs/akka-http/current/scala/http/configuration.html) documentation.
 
@@ -204,7 +185,7 @@ database {
 
 **Separate Metadata Database**
 
-This feature should be considered experimental and likely to change in the future.
+This feature should be considered _experimental_ and likely to change in the future.
 
 Cromwell stores metadata about each job and workflow intended. This metadata is intended for end users, and includes paths to job results, start and end times, etc. The metadata grows at a significantly faster rate than the rest of the internal engine data.
 
@@ -247,7 +228,7 @@ Or, via `-Dsystem.abort-jobs-on-terminate=true` command line option.
 By default, this value is false when running `java -jar cromwell.jar server`, and true when running `java -jar cromwell.jar run <workflow source> <inputs>`.
 
 
-**Call Caching**
+### Call Caching
 
 Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  To learn more see [Call Caching](CallCaching).
 
@@ -263,9 +244,9 @@ call-caching {
 When `call-caching.enabled=true` (default: `false`), Cromwell will be able to to reference or copy results from previously run jobs (when appropriate).
 When `invalidate-bad-cache-results=true` (default: `true`), Cromwell will invalidate any cache results which contain files that cannot be accessed within a cache-hit. This is usually desired, but might be unwanted if this failure occurs for external reasons, such as a difference in user authentication.
 
-Cromwell also accepts [Workflow Options](WorkflowOptions) to override the cache read/write behavior.  
+Cromwell also accepts [Workflow Options](wf_options/Overview#call-caching-options) to override the cache read/write behavior.  
 
-**Local Filesystem Options**
+### Local Filesystem Options
 
 When running a job on the Config (Shared Filesystem) backend, Cromwell provides some additional options in the backend's config section:
 
@@ -299,7 +280,7 @@ When running a job on the Config (Shared Filesystem) backend, Cromwell provides 
       }
 ```
 
-**Workflow Log Directory**
+### Workflow Log Directory
 
 To change the directory where Cromwell writes workflow logs, change the directory location via the setting:
 
@@ -328,4 +309,5 @@ Cromwell supports [Sentry](https://docs.sentry.io) for copying workflow logs. Se
 To send the Cromwell logs to Sentry, enter your DSN URL into the configuration value:
 
 ```hocon
-sentry.dsn = DSN_URL```
+sentry.dsn = DSN_URL
+```

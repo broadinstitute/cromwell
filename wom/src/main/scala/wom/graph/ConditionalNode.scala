@@ -1,6 +1,6 @@
 package wom.graph
 
-import wom.graph.GraphNode.GeneratedNodeAndNewNodes
+import wom.graph.GraphNode.{GeneratedNodeAndNewNodes, GraphNodeWithInnerGraph}
 import wom.graph.GraphNodePort.{ConditionalOutputPort, ConnectedInputPort, InputPort, OutputPort}
 import wom.graph.expression.ExpressionNode
 import wom.types.{WomBooleanType, WomOptionalType}
@@ -12,9 +12,9 @@ import wom.types.{WomBooleanType, WomOptionalType}
   * @param conditionExpression The (boolean) expression on which the conditional is predicated.
   * @param conditionalOutputPorts Output ports for the conditional node which link back to GraphOutputNodes of the inner graph.
   */
-final case class ConditionalNode private(innerGraph: Graph,
+final case class ConditionalNode private(override val innerGraph: Graph,
                                          conditionExpression: ExpressionNode,
-                                         conditionalOutputPorts: Set[ConditionalOutputPort]) extends GraphNode {
+                                         conditionalOutputPorts: Set[ConditionalOutputPort]) extends GraphNode with GraphNodeWithInnerGraph {
 
   override val identifier: WomIdentifier = WomIdentifier("ConditionalNode")
 
@@ -30,7 +30,7 @@ object ConditionalNode  {
   }
 
   def wireInConditional(innerGraph: Graph, expressionNode: ExpressionNode): ConditionalNodeWithNewNodes = {
-    val graphNodeSetter = new GraphNode.GraphNodeSetter()
+    val graphNodeSetter = new GraphNode.GraphNodeSetter[ConditionalNode]()
 
     val outputPorts: Set[ConditionalOutputPort] = innerGraph.nodes.collect { case gon: PortBasedGraphOutputNode =>
       ConditionalOutputPort(WomOptionalType(gon.womType), gon, graphNodeSetter.get)

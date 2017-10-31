@@ -10,6 +10,7 @@ import common.collections.EnhancedCollections._
 import common.validation.ErrorOr.ErrorOr
 import shapeless.{:+:, CNil}
 import wom.expression.WomExpression
+import wom.graph.GraphNode.GraphNodeWithInnerGraph
 import wom.graph.GraphNodePort.InputPort
 import wom.values.WomValue
 
@@ -58,6 +59,15 @@ object Graph {
       boolToErrorOr(portFinder(port.graphNode).exists(_ eq port), s"The port ${port.name} thinks it belongs to a Node (${port.graphNode}), but that Node doesn't think it owns it.")
     }
 
+    def outerGraphInputNodePointsHere(ogin: OuterGraphInputNode): ErrorOr[Unit] = {
+      boolToErrorOr(nodes.contains(ogin.linkToOuterGraph.graphNode), s"The OuterGraphInputNode ${ogin.identifier} does not link into the outer graph")
+    }
+
+    def validateInnerNodes(node: GraphNode): ErrorOr[Unit] = node match {
+      case g: GraphNodeWithInnerGraph => g.innerGraph.nodes.filterByType[OuterGraphInputNode].toList.traverse(outerGraphInputNodePointsHere).void
+      case _ => ().validNel
+    }
+
     def goodLink(port: InputPort): ErrorOr[Unit] = {
       val upstreamNodeValidation = upstreamNodeInGraph(port)
       val inputPortEmbeddedValidation = portProperlyEmbedded(port, _.inputPorts)
@@ -67,7 +77,7 @@ object Graph {
     }
 
     def validateNode(node: GraphNode): ErrorOr[Unit] = {
-      node.inputPorts.toList.traverse(goodLink).void
+      (node.inputPorts.toList.traverse(goodLink), validateInnerNodes(node)).tupled.void
     }
 
     // from https://stackoverflow.com/a/24729587/1498572

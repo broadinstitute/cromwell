@@ -24,22 +24,21 @@ object ExecutionStore {
       * false otherwise.
       */
     def allDependenciesAreIn(statusTable: Table[GraphNode, ExecutionIndex.ExecutionIndex, JobKey]) = {
-      def portIsInStatus(outputPort: OutputPort) = {
-        // If the port is a scatter gather port, then it depends on the collector node which is stored at index None
-        val index = outputPort match {
-          case _: ScatterGathererPort => None
-          case _ => key.index
-        }
-
-        outputPort.executionNode.isInStatus(index, statusTable)
+      def chooseIndex(port: OutputPort) = port match {
+        case _: ScatterGathererPort => None
+        case _ => key.index
       }
 
       key match {
-        // For a scatter collector key, the dependencies are all the shards
-        case scatterCollector: ScatterCollectorKey => statusTable.row(scatterCollector.node).size == scatterCollector.scatterWidth
-        case conditionalCollector: ConditionalCollectorKey => statusTable.contains(conditionalCollector.node.executionNode, key.index)
+        case scatterCollector: ScatterCollectorKey =>
+          // The outputToGather is the PortBasedGraphOutputNode of the inner graph that we're collecting. Go one step upstream and then
+          // find the node which will have entries in the execution store. If that has 'n' entries, then we're good to start collecting,
+          statusTable.row(scatterCollector.outputNodeToGather.singleInputPort.upstream.executionNode).size == scatterCollector.scatterWidth
+        case conditionalCollector: ConditionalCollectorKey =>
+          val upstreamPort = conditionalCollector.outputNodeToCollect.singleInputPort.upstream
+          upstreamPort.executionNode.isInStatus(chooseIndex(upstreamPort), statusTable)
         // In the general case, the dependencies are held by the upstreamPorts
-        case _ => key.node.upstreamPorts forall portIsInStatus
+        case _ => key.node.upstreamPorts forall { p => p.executionNode.isInStatus(chooseIndex(p), statusTable) }
       }
     }
   }
@@ -49,25 +48,22 @@ object ExecutionStore {
       * Node that should be considered to determine upstream dependencies
       */
     def executionNode: GraphNode = outputPort match {
-      case scatter: ScatterGathererPort => scatter.outputToGather.executionNode
-      case conditional: ConditionalOutputPort => conditional.outputToExpose.executionNode
-      case other => other.graphNode.executionNode
+      case scatter: ScatterGathererPort => scatter.outputToGather
+      case conditional: ConditionalOutputPort => conditional.outputToExpose
+      case other => other.graphNode
     }
   }
 
   implicit class EnhancedGraphNode(val graphNode: GraphNode) extends AnyVal {
-    def executionNode: GraphNode = graphNode match {
-      case pbgon: PortBasedGraphOutputNode => pbgon.source.graphNode.executionNode
-      case other => other
-    }
 
-    def isInStatus(index: ExecutionIndex, table: StatusTable) = graphNode match {
-      // FIXME this won't hold conditionals in scatters for example
-      // OuterGraphInputNode signals that an input comes from outside the graph.
+    def isInStatus(index: ExecutionIndex, table: StatusTable): Boolean = graphNode match {
+      case svn: ScatterVariableNode => table.contains(svn.linkToOuterGraph.graphNode, None)
+      // OuterGraphInputNodes signal that an input comes from outside the graph.
       // Depending on whether or not this input is outside of a scatter graph will change the index which we need to look at
-      case outerNode: OuterGraphInputNode => table.contains(outerNode, None)
-      case _: CallNode | _: ScatterNode | _: ExpressionNode | _: ConditionalNode => table.contains(graphNode, index)
-      case _ => true
+      case ogin: OuterGraphInputNode if !ogin.preserveScatterIndex => ogin.linkToOuterGraph.graphNode.isInStatus(None, table)
+      case ogin: OuterGraphInputNode => ogin.linkToOuterGraph.graphNode.isInStatus(index, table)
+      case _: GraphInputNode => true
+      case _ => table.contains(graphNode, index)
     }
   }
 
@@ -181,12 +177,6 @@ sealed abstract class ExecutionStore(statusStore: Map[JobKey, ExecutionStatus], 
 
   private def keysWithStatus(status: ExecutionStatus) = store.getOrElse(status, List.empty)
 
-  def isInBypassedConditional(jobKey: JobKey): Boolean = keysWithStatus(Bypassed).exists {
-    case conditional: ConditionalKey if conditional.node.innerGraph.nodes.contains(jobKey.node)
-      && conditional.index.equals(jobKey.index) => true
-    case _ => false
-  }
-
   /**
     * We're done when all the keys have a terminal status,
     * which is equivalent to non of them being in a non-terminal status and faster to verify
@@ -203,7 +193,14 @@ sealed abstract class ExecutionStore(statusStore: Map[JobKey, ExecutionStatus], 
     }
   }
 
-  override def toString: String = store.map { case (j, s) => s"$j -> $s" } mkString System.lineSeparator()
+  override def toString: String =
+    s"""
+       |ExecutionStore(
+       |  statusStore = {
+       |    ${store.map { case (j, s) => s"$j -> ${s.mkString(System.lineSeparator + "      ", ", " + System.lineSeparator + "      ", "")}" } mkString("," + System.lineSeparator + "    ")}
+       |  },
+       |  needsUpdate = $needsUpdate
+       |)""".stripMargin
 
   /**
     * If needsUpdate is true, goes through NotStarted keys and determines the ones that can be run.

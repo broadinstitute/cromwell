@@ -1,6 +1,5 @@
 package cromwell.engine.workflow.lifecycle.execution.job.preparation
 
-import cats.syntax.option._
 import cats.syntax.validated._
 import cromwell.core.ExecutionIndex.ExecutionIndex
 import common.validation.ErrorOr.ErrorOr
@@ -22,10 +21,7 @@ object InputPointerToWdlValue extends Poly1 {
 
   implicit def fromOutputPort: Case.Aux[OutputPort, ToWdlValueFn] = at[OutputPort] {
     port => (_: GraphNode, _: Map[String, WomValue], _: IoFunctionSet, valueStore: ValueStore, index : ExecutionIndex) =>
-      // TODO WOM: This is not right, we should be able to know which one to look at
-      valueStore.get(port, index)
-        .orElse(valueStore.get(port, None))  
-        .toValidNel(s"Cannot find a value for ${port.name}"): ErrorOr[WomValue]
+      valueStore.resolve(index)(port)
   }
 
   implicit def fromWomExpression: Case.Aux[WomExpression, ToWdlValueFn] = at[WomExpression] { 

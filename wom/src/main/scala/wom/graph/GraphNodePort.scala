@@ -23,6 +23,7 @@ object GraphNodePort {
 
   sealed trait OutputPort extends GraphNodePort {
     def identifier: WomIdentifier
+    override def toString: String = s"${getClass.getSimpleName}(${identifier.fullyQualifiedName.value})"
 
     /**
       * Alias for identifier.localName.asString
@@ -69,8 +70,9 @@ object GraphNodePort {
   /**
     * Represents the conditional output from a call or declaration in a ConditionalNode
     */
-  final case class ConditionalOutputPort(womType: WomOptionalType, outputToExpose: PortBasedGraphOutputNode, g: Unit => GraphNode) extends OutputPort with DelayedGraphNodePort {
+  final case class ConditionalOutputPort(womType: WomOptionalType, outputToExpose: PortBasedGraphOutputNode, g: Unit => ConditionalNode) extends OutputPort with DelayedGraphNodePort {
     // Since this port just wraps a PortBasedGraphOutputNode which itself wraps an output port, we can re-use the same identifier
     override def identifier: WomIdentifier = outputToExpose.identifier
+    lazy val conditionalNode: ConditionalNode = g(())
   }
 }

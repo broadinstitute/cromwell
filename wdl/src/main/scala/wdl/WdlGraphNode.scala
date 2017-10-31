@@ -61,7 +61,7 @@ object WdlGraphNode {
     * - Adds in any extras from 'includeGraphNode' which the call knows should also be in the Graph (eg the Scatter variable's InputGraphNode which this method doesn't know exists)
     * - Builds them all together into a Graph
     */
-  private[wdl] def buildWomGraph(from: Scope, includeGraphNodes: Set[GraphNode], outerLookup: Map[String, GraphNodePort.OutputPort]): ErrorOr[Graph] = {
+  private[wdl] def buildWomGraph(from: Scope, includeGraphNodes: Set[GraphNode], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[Graph] = {
 
     final case class FoldState(nodes: Set[GraphNode], availableInputs: Map[String, GraphNodePort.OutputPort])
 
@@ -84,16 +84,16 @@ object WdlGraphNode {
     }
 
     def buildNode(acc: FoldState, node: WdlGraphNode): ErrorOr[FoldState] = node match {
-      case wdlCall: WdlCall => WdlCall.buildWomNodeAndInputs(wdlCall, acc.availableInputs, outerLookup) map { case cnani @ CallNodeAndNewNodes(call, _, _) =>
+      case wdlCall: WdlCall => WdlCall.buildWomNodeAndInputs(wdlCall, acc.availableInputs, outerLookup, preserveIndexForOuterLookups) map { case cnani @ CallNodeAndNewNodes(call, _, _) =>
         foldInGeneratedNodeAndNewInputs(acc, call.localName + ".")(cnani)
       }
 
-      case decl: DeclarationInterface => Declaration.buildWomNode(decl, acc.availableInputs, outerLookup) map { declNode =>
+      case decl: DeclarationInterface => Declaration.buildWomNode(decl, acc.availableInputs, outerLookup, preserveIndexForOuterLookups) map { declNode =>
         FoldState(acc.nodes + declNode.toGraphNode, acc.availableInputs ++ declNode.singleOutputPort.collect { case sop: OutputPort => declNode.toGraphNode.localName -> sop })
       }
 
-      case scatter: Scatter => Scatter.womScatterNode(scatter, acc.availableInputs) map { foldInGeneratedNodeAndNewInputs(acc, "")(_) }
-      case ifBlock: If => If.womConditionalNode(ifBlock, acc.availableInputs) map { foldInGeneratedNodeAndNewInputs(acc, "")(_) }
+      case scatter: Scatter => Scatter.womScatterNode(scatter, acc.availableInputs, outerLookup, preserveIndexForOuterLookups) map { foldInGeneratedNodeAndNewInputs(acc, "")(_) }
+      case ifBlock: If => If.womConditionalNode(ifBlock, acc.availableInputs, outerLookup, preserveIndexForOuterLookups) map { foldInGeneratedNodeAndNewInputs(acc, "")(_) }
 
       case _ => s"Cannot process WdlGraphNodes of type ${node.getClass.getSimpleName} yet!".invalidNel
     }

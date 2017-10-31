@@ -2,9 +2,10 @@ package wom.values
 
 import wom.types.{WomOptionalType, WomType}
 
-import scala.util.Try
+import scala.annotation.tailrec
+import scala.util.{Success, Try}
 
-case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) extends WomValue {
+final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) extends WomValue {
   override val womType = WomOptionalType(innerType)
   override val toWomString = value map { _.toWomString } getOrElse "null"
 
@@ -82,7 +83,46 @@ case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) extends
     value.toList flatMap { _.collectAsSeq(filterFn) }
   }
 
-  override final lazy val valueString: String = value match {
+  /**
+    * Unpack a nested option down to a single layer of optionality
+    * eg Bring Int??[...]? down to Int?
+    */
+  @tailrec
+  private[wom] def flattenToBaseType: WomOptionalValue = this match {
+    case WomOptionalValue(_: WomOptionalType, Some(innerOptionalValue: WomOptionalValue)) => innerOptionalValue.flattenToBaseType
+    case WomOptionalValue(innerType: WomOptionalType, None) => WomOptionalValue(innerType.baseMemberType, None)
+    case _ => this
+  }
+
+  /**
+    * Box up a Some optional until it reaches a certain level (eg boxing Int? up to Int???)
+    */
+  @tailrec
+  private def boxUntilType(targetType: WomOptionalType): WomOptionalValue = {
+    assert(value.isDefined)
+    assert(targetType.baseMemberType.equals(womType.baseMemberType))
+    if (womType.equals(targetType)) {
+      this
+    } else {
+      WomOptionalValue(womType, Some(this)).boxUntilType(targetType)
+    }
+  }
+
+  /**
+    * Flattens this optional value down to its base form (eg Int???? goes to Int?) and then:
+    * If it's a Some:
+    *  - Coerce the member element to the required type (eg Int to String)
+    *  - Re-box the optional to the required final format (eg String? back to String??)
+    * If it's a None:
+    *  - Make an unnested None with the appropriate final type (eg use String???(None) rather than String???(Some(Some(None))))
+    * @param womOptionalType The final type we want to create
+    */
+  def coerceAndSetNestingLevel(womOptionalType: WomOptionalType) = this.flattenToBaseType match {
+    case WomOptionalValue(_, Some(v)) => womOptionalType.baseMemberType.coerceRawValue(v).map(WomOptionalValue(_).boxUntilType(womOptionalType))
+    case WomOptionalValue(_, None) => Success(WomOptionalValue(womOptionalType.memberType, None))
+  }
+
+  override lazy val valueString: String = value match {
     case Some(v) => v.valueString
     case None => ""
   }

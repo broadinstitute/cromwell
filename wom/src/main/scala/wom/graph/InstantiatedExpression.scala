@@ -16,7 +16,7 @@ class InstantiatedExpression private(val expression: WomExpression, val womRetur
 object InstantiatedExpression {
 
   private[graph] def instantiateExpressionForNode[ExpressionBasedNode <: GraphNode, Identifier <: WomIdentifier](nodeConstructor: (Identifier, InstantiatedExpression) => ExpressionBasedNode)(nodeIdentifier: Identifier, expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[ExpressionBasedNode] = {
-    val graphNodeSetter = new GraphNode.GraphNodeSetter()
+    val graphNodeSetter = new GraphNode.GraphNodeSetter[ExpressionBasedNode]()
 
     for {
       linkedInputs <- InstantiatedExpression.linkWithInputs(graphNodeSetter, expression, inputMapping)
@@ -25,7 +25,7 @@ object InstantiatedExpression {
     } yield expressionNode
   }
 
-  def linkWithInputs(graphNodeSetter: GraphNode.GraphNodeSetter, expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[InstantiatedExpression] = {
+  def linkWithInputs(graphNodeSetter: GraphNode.GraphNodeSetter[_ <: GraphNode], expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[InstantiatedExpression] = {
     def linkInput(input: String): ErrorOr[(String, InputPort)] = if (inputMapping.contains(input)) {
       val upstreamPort = inputMapping(input)
       Valid((input, ConnectedInputPort(input, upstreamPort.womType, upstreamPort, graphNodeSetter.get)))

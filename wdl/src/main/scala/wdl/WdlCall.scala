@@ -55,7 +55,7 @@ object WdlCall {
     } toMap
   }
 
-  private[wdl] def buildWomNodeAndInputs(wdlCall: WdlCall, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort]) = {
+  private[wdl] def buildWomNodeAndInputs(wdlCall: WdlCall, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean) = {
     import common.validation.ErrorOr._
 
     val callNodeBuilder = new CallNode.CallNodeBuilder()
@@ -71,7 +71,7 @@ object WdlCall {
     def expressionNodeMappings: ErrorOr[Map[LocalName, ExpressionNode]] = wdlCall.inputMappings traverse {
       case (inputName, wdlExpression) =>
         val identifier = wdlCall.womIdentifier.combine(inputName)
-        WdlWomExpression.toExpressionNode(identifier, WdlWomExpression(wdlExpression, None), localLookup, outerLookup) map {
+        WdlWomExpression.toExpressionNode(identifier, WdlWomExpression(wdlExpression, None), localLookup, outerLookup, preserveIndexForOuterLookups) map {
           LocalName(inputName) -> _
         }
     }

@@ -114,12 +114,12 @@ object Declaration {
     )
   }
 
-  def buildWomNode(decl: DeclarationInterface, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort]): ErrorOr[WdlDeclarationNode] = {
+  def buildWomNode(decl: DeclarationInterface, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[WdlDeclarationNode] = {
 
     def declarationAsExpressionNode(wdlExpression: WdlExpression) = {
       val womExpression = WdlWomExpression(wdlExpression, None)
       for {
-        inputMapping <- WdlWomExpression.findInputsforExpression(womExpression, localLookup, outerLookup)
+        inputMapping <- WdlWomExpression.findInputsforExpression(womExpression, localLookup, outerLookup, preserveIndexForOuterLookups)
         expressionNode <- ExposedExpressionNode.fromInputMapping(decl.womIdentifier, womExpression, decl.womType, inputMapping)
       } yield IntermediateValueDeclarationNode(expressionNode)
     }
@@ -127,7 +127,7 @@ object Declaration {
     def workflowOutputAsGraphOutputNode(wdlExpression: WdlExpression) = {
       val womExpression = WdlWomExpression(wdlExpression, None)
       for {
-        inputMapping <- WdlWomExpression.findInputsforExpression(womExpression, localLookup, outerLookup)
+        inputMapping <- WdlWomExpression.findInputsforExpression(womExpression, localLookup, outerLookup, preserveIndexForOuterLookups)
         graphOutputNode <- ExpressionBasedGraphOutputNode.fromInputMapping(decl.womIdentifier, womExpression, decl.womType, inputMapping)
       } yield GraphOutputDeclarationNode(graphOutputNode)
     }

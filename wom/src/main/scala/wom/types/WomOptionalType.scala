@@ -15,14 +15,13 @@ case class WomOptionalType(memberType: WomType) extends WomType {
     */
   override protected def coercion: PartialFunction[Any, WomValue] = {
 
-    // It's safe to box up values implicitly:
-    case womValue: WomValue if memberType.equals(womValue.womType) => WomOptionalValue(womValue)
-    case coerceable: Any if memberType.coercionDefined(coerceable) => WomOptionalValue(memberType.coerceRawValue(coerceable).get)
+    // Coerce and adjust nesting level of equivalent nested conditionals:
+    case womOptional: WomOptionalValue if baseMemberType.isCoerceableFrom(womOptional.womType.baseMemberType) => womOptional.coerceAndSetNestingLevel(this).get
 
-    // Coercing inner values:
-    case WomOptionalValue(otherMemberType, Some(value)) if memberType.isCoerceableFrom(otherMemberType) => WomOptionalValue(memberType, Option(memberType.coerceRawValue(value).get))
-    case WomOptionalValue(otherMemberType, None) if memberType.isCoerceableFrom(otherMemberType) => WomOptionalValue(memberType, None)
-      
+    // It's safe to box up values implicitly:
+    case womValue: WomValue if baseMemberType.isCoerceableFrom(womValue.womType) => WomOptionalValue(womValue).coerceAndSetNestingLevel(this).get
+    case coerceable: Any if baseMemberType.coercionDefined(coerceable) => WomOptionalValue(baseMemberType.coerceRawValue(coerceable).get).coerceAndSetNestingLevel(this).get
+
     // Javascript null coerces to empty value
     case JsNull => WomOptionalValue(memberType, None)
   }
@@ -35,7 +34,18 @@ case class WomOptionalType(memberType: WomType) extends WomType {
     // Check inner value coerceability:
     case WomOptionalType(otherMemberType) if memberType.isCoerceableFrom(otherMemberType) => true
 
+    // Check flattening:
+    case WomOptionalType(otherMemberType: WomOptionalType) => baseMemberType.isCoerceableFrom(otherMemberType.baseMemberType)
+
     case _ => false
+  }
+
+  /**
+    * Unpack any number of layers of optional-ness to get to the base member type:
+    */
+  def baseMemberType: WomType = memberType match {
+    case innerOptionalType: WomOptionalType => innerOptionalType.baseMemberType
+    case baseMemberType => baseMemberType
   }
 
   override def add(rhs: WomType): Try[WomType] = memberType.add(rhs)

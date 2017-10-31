@@ -67,11 +67,11 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
   when(WorkflowExecutionPendingState) {
     case Event(ExecuteWorkflowCommand, _) =>
-      // TODO WOM: Remove this when conditional and sub workflows are supported. It prevents the workflow from hanging
+      // TODO WOM: Remove this when sub workflows are supported. It prevents the workflow from hanging
       if(workflowDescriptor.callable.graph.nodes.collectFirst({
-        case  _: ConditionalNode | _: WorkflowCallNode => true
+        case  _: WorkflowCallNode => true
       }).nonEmpty) {
-        context.parent ! WorkflowExecutionFailedResponse(Map.empty, new Exception("Conditional and Sub Workflows not supported yet"))
+        context.parent ! WorkflowExecutionFailedResponse(Map.empty, new Exception("Sub Workflows not supported yet"))
         goto(WorkflowExecutionFailedState)
       }
 
@@ -82,7 +82,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         * Note that we don't record the fact that a workflow was failing, therefore we either restart in running or aborting state.
         * If the workflow was failing, it means at least one job failed in which case it'll still be failed when we get to it.
         * When that happens, we'll go to failing state.
-        * 
+        *
         * An effect of that is that up until the moment when we come across the failed job,
         * all backend jobs will be restarted with a Recover command which could potentially re-execute the job if the backend doesn't support
         * job recovery. A better way would be to record that the workflow was failing an restart in failing mode. However there will always be a gap
@@ -207,8 +207,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     // Abort command
     case Event(EngineLifecycleActorAbortCommand, data) =>
       handleAbortCommand(data)
-      
-    // Misc.  
+
+    // Misc.
     case Event(RequestValueStore, data) =>
       sender() ! data.valueStore
       stay()
@@ -229,7 +229,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   }
 
   /**
-    * This is called when a child of this actor throws or terminates. According to Akka, it is safe to access internal data here as long 
+    * This is called when a child of this actor throws or terminates. According to Akka, it is safe to access internal data here as long
     * as the supervisor strategy is declared inside the actor (which it is via the StopAndLogSupervisor trait)
     * see https://doc.akka.io/docs/akka/2.5/scala/fault-tolerance.html#creating-a-supervisor-strategy
     */
@@ -251,10 +251,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     context.children foreach { _ ! EngineLifecycleActorAbortCommand }
     // As well as all backend singleton actors
     params.backendSingletonCollection.backendSingletonActors.values.flatten.foreach { _ ! BackendSingletonActorAbortWorkflow(workflowIdForLogging) }
-    
+
     // Only seal the execution store if we're not restarting, otherwise we could miss some jobs that have been started before the
     // restart but are not started yet at this point
-    val newData = if (restarting) data else data.sealExecutionStore 
+    val newData = if (restarting) data else data.sealExecutionStore
 
     goto(WorkflowExecutionAbortingState) using newData
   }
@@ -323,12 +323,12 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     val dataWithFailure = stateData.executionFailure(failedJobKey, reason, jobExecutionMap)
     /*
      * If new calls are allowed don't seal the execution store as we want to go as far as possible.
-     * 
+     *
      * Also, if this workflow is restarting, we need to leave all keys in the store to cover for some edge cases.
      * For example, consider the following chain of events:
-     * 
+     *
      * Given 3 calls: A, B and B1, where A and B are independent, and B1 depends on B
-     * 
+     *
      * 1) Start A, Start B
      * 2) B is Successful
      * 3) Start B1
@@ -337,17 +337,17 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
      * 5) Cromwell comes back up
      * 6) Recover A, Recover B
      * 7) We get a response saying that A has failed and we end up in this method to handle the failure.
-     * 
+     *
      * At this point if we seal the execution store (remove all NotStarted keys), we'll never get a chance to try to reconnect
      * to B1 which as far as we know might still be running. By leaving the keys in the store, the following can happen:
-     * 
+     *
      * 8) We get a response saying that B was already successful
      * 9) We try to reconnect to B1 (and only reconnect, not recover.
      * We know to do that because we're in Failing state and restarting - see processRunnableJob method)
      * 10) We reconnect to B1 and wait for a terminal status
      * 11) If B1 had a dependency B2, then we'd try to reconnect to it as well, until we find a job that was never started
      * and for which reconnection will fail. When that happens we'll fail the job (see failing state).
-     * 
+     *
      * This guarantees that we'll try to reconnect to all potentially running jobs on restart.
     */
     val newData = if (workflowDescriptor.failureMode.allowNewCallsAfterFailure || restarting) {
@@ -355,7 +355,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     } else {
       dataWithFailure.sealExecutionStore
     }
-    
+
     // If we're in aborting state, stay there. Even if jobs fail when aborting, the final workflow status should be Aborted.
     val nextState = stateName match {
       case WorkflowExecutionAbortingState => WorkflowExecutionAbortingState
@@ -374,7 +374,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
     stay() using newStateData
   }
-  
+
   private def pushBackendStatusUnknown(jobKey: BackendJobDescriptorKey): Unit = {
     val unknownBackendStatus = MetadataEvent(metadataKeyForCall(jobKey, CallMetadataKeys.BackendStatus), MetadataValue("Unknown"))
     serviceRegistryActor ! PutMetadataAction(unknownBackendStatus)
@@ -426,6 +426,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       case key: BackendJobDescriptorKey => processRunnableJob(key, data)
       case key: SubWorkflowKey => processRunnableSubWorkflow(key, data)
       case key: ConditionalCollectorKey => key.processRunnable(data)
+      case key: ConditionalKey => key.processRunnable(data)
       case key: ExpressionKey => key.processRunnable(data, self)
       case key: ScatterCollectorKey => key.processRunnable(data)
       case key: ScatterKey => key.processRunnable(data)
@@ -439,10 +440,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       throw AggregatedMessageException("Workflow execution failure", errors.toList)
     )
   }
-  
-  /* 
+
+  /*
     * Job and Sub Workflow processing
-    * 
+    *
     * Unlike other job keys, those methods are not embedded in the key class itself because they require creating a child actor.
     * While it would be possible to extract those methods from the WEA as well and provide them with an actor factory, the majority of the objects needed to create
     * the children actors are attributes of this class, so it makes more sense to keep the functions here.
@@ -476,16 +477,12 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         s"Cannot start job ${key.tag} in $other state with restarting = $restarting".invalidNelCheck
     }
 
-    if (data.isInBypassedScope(key)) {
-      processBypassedNode(key, data)
-    } else {
-      (for {
-        backendName <- workflowDescriptor
-          .backendAssignments.get(key.call).toValidNel(s"Cannot find an assigned backend for call ${key.call.fullyQualifiedName}").toEither
-        backendFactory <- backendFactories.get(backendName).toValidNel(s"Cannot find a backend factory for backend $backendName").toEither
-        command <- runCommand
-      } yield startEJEA(key, backendName, backendFactory, command)).toValidated
-    }
+    (for {
+      backendName <- workflowDescriptor
+        .backendAssignments.get(key.call).toValidNel(s"Cannot find an assigned backend for call ${key.call.fullyQualifiedName}").toEither
+      backendFactory <- backendFactories.get(backendName).toValidNel(s"Cannot find a backend factory for backend $backendName").toEither
+      command <- runCommand
+    } yield startEJEA(key, backendName, backendFactory, command)).toValidated
   }
 
   private def startEJEA(jobKey: BackendJobDescriptorKey,
@@ -562,7 +559,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 object WorkflowExecutionActor {
 
   /**
-    * Rate at which ExecutionHeartBeat events are sent to the the WEA 
+    * Rate at which ExecutionHeartBeat events are sent to the the WEA
     */
   val ExecutionHeartBeatInterval = 1 second
 

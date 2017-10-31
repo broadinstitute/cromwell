@@ -14,16 +14,17 @@ task mirror {
 
 workflow scatters_in_ifs {
 
-  Array[Int] numbers = range(3)
+# TODO: Reinstate the nested lookup with #2724
+#  Array[Int] numbers = range(3)
 
   if (true) {
-    scatter (n in numbers) {
+    scatter (n in range(3)) {
       call mirror as mirrorTrue { input: i = n }
     }
   }
 
   if (false) {
-    scatter (n in numbers) {
+    scatter (n in range(3)) {
       call mirror as mirrorFalse { input: i = n }
     }
   }

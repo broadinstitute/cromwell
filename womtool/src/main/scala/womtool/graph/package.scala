@@ -17,7 +17,7 @@ package object graph {
 
     def graphName: String = dotSafe(graphNode match {
       case c: CallNode => s"call ${c.localName}"
-      case _: ScatterNode => "scatter"
+      case s: ScatterNode => s"scatter ${s.scatterCollectionExpressionNode.identifier.localName.value} in"
       case _: ConditionalNode => "conditional"
       case gin: OptionalGraphInputNodeWithDefault => s"${gin.womType.toDisplayString} ${gin.localName} = ..."
       case gin: GraphInputNode => s"${gin.womType.toDisplayString} ${gin.localName}"

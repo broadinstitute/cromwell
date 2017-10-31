@@ -7,7 +7,7 @@ import cromwell.core.{ExecutionStatus, JobKey}
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore.ValueKey
 import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActorData, WorkflowExecutionDiff}
 import wom.graph._
-import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode}
+import wom.graph.expression.{ExposedExpressionNode, ExpressionNode}
 import wom.values.WomArray.WomArrayLike
 import wom.values.WomValue
 
@@ -59,14 +59,10 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
       * (not the PortBasedGraphOutputNode that is just a proxy, but the source node). If that node is a CallNode
       * we create only one collector for all those scatter gather ports. 
      */
-    val collectors = node.outputMapping.groupBy(_.outputToGather.source.graphNode) flatMap {
-      case (taskCallNode: CallNode, scatterGatherPorts) => List(ScatterCollectorKey(taskCallNode, scatterGatherPorts, node, count))
-        // For other types of nodes we don't assume any time locality regarding the output ports availability and create
-        // one collector per port
-      case (declarationNode: AnonymousExpressionNode, scatterGatherPorts) => scatterGatherPorts map { sgp => ScatterCollectorKey(declarationNode, Set(sgp), node, count) }
-      case (_: ConditionalNode, scatterGatherPorts) => scatterGatherPorts map { sgp => ScatterCollectorKey(sgp.outputToGather, Set(sgp), node, count) }
-      case _ => List.empty
-    }
+    val collectors: Set[ScatterCollectorKey] = (node.outputMapping.groupBy(_.outputToGather.source.graphNode) flatMap {
+      case (_: CallNode | _: ExposedExpressionNode | _: ConditionalNode, scatterGatherPorts) => scatterGatherPorts.map(sgp => ScatterCollectorKey(sgp, count))
+      case _ => Set.empty[ScatterCollectorKey]
+    }).toSet
 
     (shards ++ collectors) map { _ -> ExecutionStatus.NotStarted } toMap
   }
@@ -85,29 +81,25 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
   }
 
   def processRunnable(data: WorkflowExecutionActorData): ErrorOr[WorkflowExecutionDiff] = {
-    if (data.isInBypassedScope(this)) {
-      WorkflowExecutionDiff(populate(0) + (this -> ExecutionStatus.Bypassed)).validNel
-    } else {
-      val collectionOutputPort = node.scatterCollectionExpressionNode.singleExpressionOutputPort
+    val collectionOutputPort = node.scatterCollectionExpressionNode.singleExpressionOutputPort
 
-      data.valueStore.get(collectionOutputPort, None) map {
-        case WomArrayLike(arrayLike) =>
-          WorkflowExecutionDiff(
-            // Add the new shards + collectors, and set the scatterVariable and scatterKey to Done
-            executionStoreChanges = populate(arrayLike.value.size) ++ Map(
-              ScatterVariableInputKey(node.scatterVariableInnerGraphInputNode, arrayLike) -> ExecutionStatus.Done,
-              this -> ExecutionStatus.Done
-            ),
-            // Add scatter variable arrayLike to the value store
-            valueStoreAdditions = Map(
-              ValueKey(node.scatterVariableInnerGraphInputNode.singleOutputPort, None) -> arrayLike
-            )
-          ).validNel
-        case v: WomValue =>
-          s"Scatter collection ${node.scatterCollectionExpressionNode.womExpression.sourceString} must evaluate to an array but instead got ${v.womType.toDisplayString}".invalidNel
-      } getOrElse {
-        s"Could not find an array value for scatter $tag. Missing array should have come from expression ${node.scatterCollectionExpressionNode.womExpression.sourceString}".invalidNel
-      }
+    data.valueStore.get(collectionOutputPort, None) map {
+      case WomArrayLike(arrayLike) =>
+        WorkflowExecutionDiff(
+          // Add the new shards + collectors, and set the scatterVariable and scatterKey to Done
+          executionStoreChanges = populate(arrayLike.value.size) ++ Map(
+            ScatterVariableInputKey(node.scatterVariableInnerGraphInputNode, arrayLike) -> ExecutionStatus.Done,
+            this -> ExecutionStatus.Done
+          ),
+          // Add scatter variable arrayLike to the value store
+          valueStoreAdditions = Map(
+            ValueKey(node.scatterVariableInnerGraphInputNode.singleOutputPort, None) -> arrayLike
+          )
+        ).validNel
+      case v: WomValue =>
+        s"Scatter collection ${node.scatterCollectionExpressionNode.womExpression.sourceString} must evaluate to an array but instead got ${v.womType.toDisplayString}".invalidNel
+    } getOrElse {
+      s"Could not find an array value for scatter $tag. Missing array should have come from expression ${node.scatterCollectionExpressionNode.womExpression.sourceString}".invalidNel
     }
   }
 }

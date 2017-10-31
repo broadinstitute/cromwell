@@ -52,7 +52,8 @@ object WdlWorkflow {
     * Convert this WdlWorkflow into a wom.components.Workflow
     */
   def womWorkflowDefinition(wdlWorkflow: WdlWorkflow): ErrorOr[WorkflowDefinition] = {
-    WdlGraphNode.buildWomGraph(wdlWorkflow, Set.empty, Map.empty) map { wg =>
+    // NB: We don't allow "OuterGraphInputNode"s when building this (the Map is empty), so preserveScatterForExternalLookups isn't ever actually used.
+    WdlGraphNode.buildWomGraph(wdlWorkflow, Set.empty, Map.empty, preserveIndexForOuterLookups = true) map { wg =>
       WorkflowDefinition(
         wdlWorkflow.unqualifiedName,
         wg,

@@ -4,6 +4,7 @@ import cats.data.Validated.Valid
 import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import wdl4s.parser.WdlParser.{Ast, Terminal}
+import wom.graph.GraphNodePort.OutputPort
 import wom.graph.ScatterNode.ScatterNodeWithNewNodes
 import wom.graph._
 import wom.types.WomArrayType
@@ -34,11 +35,14 @@ object Scatter {
     new Scatter(index, item, WdlExpression(ast.getAttribute("collection")), ast)
   }
 
-  def womScatterNode(scatter: Scatter, localLookup: Map[String, GraphNodePort.OutputPort]): ErrorOr[ScatterNodeWithNewNodes] = {
+  /**
+    * @param preserveIndexForOuterLookups When we're evaluating the scatter collection, should we preserve scatter index when we have to use the outerLookup?
+    */
+  def womScatterNode(scatter: Scatter, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[ScatterNodeWithNewNodes] = {
     // Convert the scatter collection WdlExpression to a WdlWomExpression 
     val scatterCollectionExpression = WdlWomExpression(scatter.collection, Option(scatter))
     // Generate an ExpressionNode from the WdlWomExpression
-    val scatterCollectionExpressionNode = WdlWomExpression.toExpressionNode(WomIdentifier(scatter.item), scatterCollectionExpression, localLookup, Map.empty)
+    val scatterCollectionExpressionNode = WdlWomExpression.toExpressionNode(WomIdentifier(scatter.item), scatterCollectionExpression, localLookup, outerLookup, preserveIndexForOuterLookups)
     // Validate the collection evaluates to a traversable type
     val scatterItemTypeValidation = scatterCollectionExpression.evaluateType(localLookup.map { case (k, v) => k -> v.womType }) flatMap {
       case WomArrayType(itemType) => Valid(itemType) // Covers maps because this is a custom unapply (see WdlArrayType)
@@ -50,7 +54,7 @@ object Scatter {
       expressionNode <- scatterCollectionExpressionNode
       // Graph input node for the scatter variable in the inner graph. Note that the type is the array's member type
       womInnerGraphScatterVariableInput = ScatterVariableNode(WomIdentifier(scatter.item), expressionNode.singleExpressionOutputPort, itemType)
-      g <- WdlGraphNode.buildWomGraph(scatter, Set(womInnerGraphScatterVariableInput), localLookup)
+      g <- WdlGraphNode.buildWomGraph(scatter, Set(womInnerGraphScatterVariableInput), localLookup, preserveIndexForOuterLookups = false)
     } yield ScatterNode.scatterOverGraph(g, expressionNode, womInnerGraphScatterVariableInput)
   }
 }

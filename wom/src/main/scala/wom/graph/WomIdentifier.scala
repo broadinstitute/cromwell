@@ -20,6 +20,7 @@ case class LocalName(value: String) {
   */
 case class FullyQualifiedName(value: String) {
   def combine(other: String) = FullyQualifiedName(s"$value.$other")
+  def prefixWith(prefix: String) = FullyQualifiedName(s"$prefix.$value")
 }
 
 object WomIdentifier {

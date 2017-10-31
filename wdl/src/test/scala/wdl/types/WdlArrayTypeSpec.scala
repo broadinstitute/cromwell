@@ -26,8 +26,11 @@ class WdlArrayTypeSpec extends FlatSpec with Matchers  {
 
     val arrayType = WomArrayType(desiredMemberType)
     val optionalArrayType = WomArrayType(WomOptionalType(desiredMemberType))
-    it should s"be able to coerce $arrayType to $optionalArrayType but not vice versa" in {
-      arrayType.isCoerceableFrom(optionalArrayType) should be(false)
+    it should s"be able to coerce ${arrayType.toDisplayString} to ${optionalArrayType.toDisplayString} and vice versa" in {
+
+      // If the inner type is already an optional, we can use the flatten coercion to go backwards (eg from Array[String??] to Array[String?])
+      val backwardsCoerceable = arrayType.memberType.isInstanceOf[WomOptionalType]
+      arrayType.isCoerceableFrom(optionalArrayType) should be(backwardsCoerceable)
       optionalArrayType.isCoerceableFrom(arrayType) should be(true)
     }
   }

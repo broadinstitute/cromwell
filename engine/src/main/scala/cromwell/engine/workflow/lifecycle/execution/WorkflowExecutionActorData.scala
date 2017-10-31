@@ -31,7 +31,7 @@ object WorkflowExecutionActorData {
       ValueStore.initialize(workflowDescriptor.knownValues)
     )
   }
-  
+
   final case class DataStoreUpdate(runnableKeys: List[JobKey], newData: WorkflowExecutionActorData)
 }
 
@@ -44,10 +44,6 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
 
   val expressionLanguageFunctions = new WdlFunctions(workflowDescriptor.pathBuilders)
 
-  def isInBypassedScope(jobKey: JobKey): Boolean = {
-    executionStore.isInBypassedConditional(jobKey)
-  }
-  
   def sealExecutionStore: WorkflowExecutionActorData = this.copy(
     executionStore = executionStore.seal
   )
@@ -66,14 +62,14 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
       valueStoreAdditions = Map(valueStoreKey -> value)
     ))
   }
-  
+
   def executionFailure(failedJobKey: JobKey, reason: Throwable, jobExecutionMap: JobExecutionMap): WorkflowExecutionActorData = {
     mergeExecutionDiff(WorkflowExecutionDiff(
       executionStoreChanges = Map(failedJobKey -> ExecutionStatus.Failed))
     ).addExecutions(jobExecutionMap)
     .copy(
       jobFailures = jobFailures + (failedJobKey -> reason)
-    )  
+    )
   }
 
   def executionFailed(jobKey: JobKey): WorkflowExecutionActorData = mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
@@ -88,7 +84,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   def addExecutions(jobExecutionMap: JobExecutionMap): WorkflowExecutionActorData = {
     this.copy(downstreamExecutionMap = downstreamExecutionMap ++ jobExecutionMap)
   }
-  
+
   def removeJobKeyActor(actorRef: ActorRef): WorkflowExecutionActorData = {
     this.copy(
       jobKeyActorMappings = jobKeyActorMappings - actorRef
@@ -106,7 +102,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   def mergeExecutionDiffs(diffs: Traversable[WorkflowExecutionDiff]): WorkflowExecutionActorData = {
     diffs.foldLeft(this)((newData, diff) => newData.mergeExecutionDiff(diff))
   }
-  
+
   def jobExecutionMap: JobExecutionMap = {
     downstreamExecutionMap updated (workflowDescriptor.backendDescriptor, executionStore.startedJobs)
   }
@@ -115,6 +111,6 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     val update = executionStore.update
     DataStoreUpdate(update.runnableKeys, this.copy(executionStore = update.updatedStore))
   }
-  
+
   def done: Boolean = executionStore.isDone
 }

@@ -30,7 +30,7 @@ object ConditionalNode  {
   }
 
   def wireInConditional(innerGraph: Graph, expressionNode: ExpressionNode): ConditionalNodeWithNewNodes = {
-    val graphNodeSetter = new GraphNode.GraphNodeSetter()
+    val graphNodeSetter = new GraphNode.GraphNodeSetter[ConditionalNode]()
 
     val outputPorts: Set[ConditionalOutputPort] = innerGraph.nodes.collect { case gon: PortBasedGraphOutputNode =>
       ConditionalOutputPort(WomOptionalType(gon.womType), gon, graphNodeSetter.get)

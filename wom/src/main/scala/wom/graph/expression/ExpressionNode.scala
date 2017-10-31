@@ -54,7 +54,7 @@ object ExpressionNode {
     */
   def buildFromConstructor[E <: ExpressionNode](constructor: ExpressionNodeConstructor[E])
   (identifier: WomIdentifier, expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[E] = {
-    val graphNodeSetter = new GraphNode.GraphNodeSetter()
+    val graphNodeSetter = new GraphNode.GraphNodeSetter[ExpressionNode]()
 
     for {
       combined <- linkWithInputs(graphNodeSetter, expression, inputMapping)
@@ -67,7 +67,7 @@ object ExpressionNode {
   /**
     * Attempts to find an output port for all referenced variables in the expression, and created input ports to connect them together.
     */
-  private def linkWithInputs(graphNodeSetter: GraphNode.GraphNodeSetter, expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[(WomType, Map[String, InputPort])] = {
+  private def linkWithInputs(graphNodeSetter: GraphNode.GraphNodeSetter[_ <: GraphNode], expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[(WomType, Map[String, InputPort])] = {
     def linkInput(input: String): ErrorOr[(String, InputPort)] = inputMapping.get(input) match {
       case Some(upstreamPort) => (input, ConnectedInputPort(input, upstreamPort.womType, upstreamPort, graphNodeSetter.get)).validNel
       case None => s"Expression cannot be connected without the input $input (provided: ${inputMapping.toString})".invalidNel

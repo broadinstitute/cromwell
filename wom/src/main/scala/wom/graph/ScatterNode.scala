@@ -52,7 +52,7 @@ object ScatterNode {
   def scatterOverGraph(innerGraph: Graph,
                        scatterCollectionExpressionNode: ExpressionNode,
                        scatterVariableInnerGraphInputNode: ScatterVariableNode): ScatterNodeWithNewNodes = {
-    val graphNodeSetter = new GraphNode.GraphNodeSetter()
+    val graphNodeSetter = new GraphNode.GraphNodeSetter[ScatterNode]()
 
     val outputPorts: Set[ScatterGathererPort] = innerGraph.nodes.collect { case gon: PortBasedGraphOutputNode =>
       ScatterGathererPort(WomArrayType(gon.womType), gon, graphNodeSetter.get)

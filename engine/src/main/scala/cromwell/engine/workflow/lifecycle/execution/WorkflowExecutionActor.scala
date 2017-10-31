@@ -82,11 +82,11 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   when(WorkflowExecutionPendingState) {
     case Event(ExecuteWorkflowCommand, _) =>
-      // TODO WOM: Remove this when conditional and sub workflows are supported. It prevents the workflow from hanging
+      // TODO WOM: Remove this when sub workflows are supported. It prevents the workflow from hanging
       if(workflowDescriptor.callable.graph.nodes.collectFirst({
-        case  _: ConditionalNode | _: WorkflowCallNode => true
+        case  _: WorkflowCallNode => true
       }).nonEmpty) {
-        context.parent ! WorkflowExecutionFailedResponse(Map.empty, new Exception("Conditional and Sub Workflows not supported yet"))
+        context.parent ! WorkflowExecutionFailedResponse(Map.empty, new Exception("Sub Workflows not supported yet"))
         goto(WorkflowExecutionFailedState)
       }
       scheduleStartRunnableCalls()
@@ -445,18 +445,17 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   private def processBypassedScope(jobKey: JobKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
     Success(
       WorkflowExecutionDiff(
-        executionStoreChanges = Map(jobKey -> ExecutionStatus.Bypassed),
-        valueStoreAdditions = bypassedScopeResults(jobKey)
+        executionStoreChanges = Map.empty, // Map(jobKey -> ExecutionStatus.Bypassed),
+        valueStoreAdditions = Map.empty //bypassedScopeResults(jobKey)
       )
     )
   }
 
-  private def bypassedScopeResults(jobKey: JobKey): Map[ValueKey, WomOptionalValue] = {
-    jobKey.node.outputPorts.map({ outputPort =>
-      ValueKey(outputPort, jobKey.index) ->  WomOptionalValue.none(outputPort.womType)
-    }).toMap
-
-  }
+//  private def bypassedScopeResults(jobKey: JobKey): Map[ValueKey, WomOptionalValue] = {
+//    jobKey.node.outputPorts.map({ outputPort =>
+//      ValueKey(outputPort, jobKey.index) ->  WomOptionalValue.none(outputPort.womType)
+//    }).toMap
+//  }
 
   private def processRunnableExpression(expression: ExpressionKey, data: WorkflowExecutionActorData) = {
     import common.validation.ErrorOr._
@@ -498,7 +497,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     // Just look it up in the store
     def forNormalNode(index: ExecutionIndex) = data.valueStore.get(outputPort, index) match {
       case Some(value) => value.validNel
-      case None => s"Can't find a value for ${outputPort.name}".invalidNel
+      case None => s"Can't find a ValueStore value for $outputPort in ${data.valueStore}".invalidNel
     }
 
     outputPort.graphNode match {
@@ -570,12 +569,20 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def processRunnableConditional(conditionalKey: ConditionalKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
-    val conditionOutputPort = conditionalKey.node.conditionExpression.singleExpressionOutputPort
 
+    // This is the output port from the conditional's 'condition' input:
+    val conditionOutputPort = conditionalKey.node.conditionExpression.singleExpressionOutputPort
     data.valueStore.get(conditionOutputPort, conditionalKey.index) match {
       case Some(b: WomBoolean) =>
         val conditionalStatus = if (b.value) ExecutionStatus.Done else ExecutionStatus.Bypassed
-        Success(WorkflowExecutionDiff(conditionalKey.populate + (conditionalKey -> conditionalStatus)))
+
+        val valueStoreAdditions: Map[ValueKey, WomValue] = if (!b.value) {
+          conditionalKey.node.outputPorts.map(op => ValueKey(op, conditionalKey.index) -> WomOptionalValue(op.womType, None)).toMap
+        } else Map.empty
+
+        Success(WorkflowExecutionDiff(
+          executionStoreChanges = conditionalKey.populate(b.value) + (conditionalKey -> conditionalStatus),
+          valueStoreAdditions = valueStoreAdditions))
       case Some(v: WomValue) => Failure(new RuntimeException(
         s"'if' condition ${conditionalKey.node.conditionExpression.womExpression.sourceString} must evaluate to a boolean but instead got ${v.womType.toDisplayString}"))
       case None => Failure(
@@ -588,6 +595,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     if (bypassed) {
       Success(WorkflowExecutionDiff(scatterKey.populate(0) + (scatterKey -> ExecutionStatus.Bypassed)))
     } else {
+      // This is the output port from the scatter's 'collection' input:
       val collectionOutputPort = scatterKey.node.scatterCollectionExpressionNode.singleExpressionOutputPort
 
       data.valueStore.get(collectionOutputPort, None) map {
@@ -642,10 +650,20 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
         override def exceptionContext: String = s"Failed to collect conditional output value for node ${collector.tag}"
         override def errorMessages: Traversable[String] = e.toList
       })
-      case Valid(outputs) => Success(WorkflowExecutionDiff(
-        executionStoreChanges = Map(collector -> ExecutionStatus.Done),
-        valueStoreAdditions = outputs
-      ))
+      case Valid(outputs) => {
+        if (outputs.size != 1) {
+          Failure(new Exception(s"Expected exactly 1 result back for $collector"))
+        } else {
+          val collectedOutputs = outputs map { case (ValueKey(_, index), womValue) =>
+            ValueKey(collector.conditionalOutputPort, index) -> womValue
+          }
+
+          Success(WorkflowExecutionDiff(
+            executionStoreChanges = Map(collector -> ExecutionStatus.Done),
+            valueStoreAdditions = collectedOutputs
+          ))
+        }
+      }
     }
   }
 }

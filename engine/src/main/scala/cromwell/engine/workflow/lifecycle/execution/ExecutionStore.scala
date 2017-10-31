@@ -31,8 +31,6 @@ object ExecutionStore {
   
   case class RunnableScopes(scopes: List[JobKey], truncated: Boolean)
 
-  def empty = ExecutionStore(Map.empty[JobKey, ExecutionStatus], hasNewRunnables = false)
-
   def apply(callable: ExecutableCallable): ExecutionStore = {
     // Keys that are added in a NotStarted Status
     val notStartedKeys = callable.graph.nodes collect {
@@ -71,7 +69,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
         val newDone = if (status.isDoneOrBypassed) done.addAll(newMapEntries) else done
         val newTerminal = if (status.isTerminal) terminal.addAll(newMapEntries) else terminal
 
-        newDone -> newTerminal
+        (newDone, newTerminal)
     })
   }
 
@@ -104,7 +102,15 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
 
   def hasFailedJob: Boolean = keysWithStatus(Failed).nonEmpty
 
-  override def toString: String = store.map { case (j, s) => s"$j -> $s" } mkString System.lineSeparator()
+  override def toString: String =
+    s"""
+      |ExecutionStore(
+      |  statusStore = {
+      |    ${store.map { case (j, s) => s"$j -> ${s.mkString(", ")}" } mkString("," + System.lineSeparator + "    ")}
+      |  },
+      |  hasNewRunnables = $hasNewRunnables
+      |)
+    """.stripMargin
 
   def add(values: Map[JobKey, ExecutionStatus]): ExecutionStore = {
     this.copy(statusStore = statusStore ++ values, hasNewRunnables = hasNewRunnables || values.values.exists(_.isTerminalOrRetryable))
@@ -124,11 +130,11 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
   }
 
   private def arePrerequisitesDone(key: JobKey): Boolean = {
-    def calculateUpstreamDone(upstream: GraphNode, index: ExecutionIndex) = upstream match {
-        // FIXME this won't hold conditionals in scatters for example
+    def calculateUpstreamDone(upstream: GraphNode, index: ExecutionIndex): Boolean = upstream match {
         // OuterGraphInputNode signals that an input comes from outside the graph.
         // Depending on whether or not this input is outside of a scatter graph will change the index which we need to look at
-      case outerNode: OuterGraphInputNode => doneKeys.contains(outerNode, None)
+      case outerNode: OuterGraphInputNode if key.node.isInstanceOf[ScatterNode] => calculateUpstreamDone(outerNode, None)
+      case outerNode: OuterGraphInputNode => calculateUpstreamDone(outerNode, index)
       case _: CallNode | _: ScatterNode | _: ExpressionNode | _: ConditionalNode => doneKeys.contains(upstream, index)
       case _ => true
     }
@@ -136,6 +142,8 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
     def upstreamAreDone = key.node.upstreamPorts forall {
       // The collector is at index None, so if this is a scatter gather port ignore the key index
       case upstreamPort: ScatterGathererPort => calculateUpstreamDone(upstreamPort.executionNode, None)
+      case upstreamPort: ConditionalOutputPort =>
+        statusStore.get(ConditionalCollectorKey(upstreamPort, key.index, upstreamPort.g(()))).exists(_.isDoneOrBypassed)
       case upstreamPort => calculateUpstreamDone(upstreamPort.executionNode, key.index)
     }
 

@@ -10,7 +10,7 @@ trait JobKey {
 
   override def toString = {
     import ExecutionIndex.IndexEnhancedIndex
-    s"${node.fullyQualifiedName}:${index.fromIndex}:$attempt"
+    s"${getClass.getSimpleName}_${node.getClass.getSimpleName}_${node.fullyQualifiedName}:${index.fromIndex}:$attempt"
   }
   
  def isShard = index.isDefined

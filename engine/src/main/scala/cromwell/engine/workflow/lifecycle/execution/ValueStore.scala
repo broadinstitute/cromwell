@@ -25,9 +25,17 @@ object ValueStore {
 
 case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
 
-  override def toString: String = store.valuesTriplet.map {
-    case (node, index, value) => s"${node.identifier.fullyQualifiedName}:${index.fromIndex} -> ${value.valueString}"
-  } mkString System.lineSeparator
+  override def toString: String = {
+    val values = store.valuesTriplet.map {
+      case (node, index, value) => s"$node:${index.fromIndex} -> $value"
+    }
+
+    s"""
+      |ValueStore {
+      |  ${values.mkString("," + System.lineSeparator + "  ")}
+      |}
+    """.stripMargin
+  }
 
   final def add(values: Map[ValueKey, WomValue]): ValueStore = {
     this.copy(store = store.addAll(values.map({ case (key, value) => (key.port, key.index, value) })))

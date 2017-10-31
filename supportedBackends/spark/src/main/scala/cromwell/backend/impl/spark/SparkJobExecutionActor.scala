@@ -9,7 +9,7 @@ import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
 import cromwell.backend.wdl.Command
 import cromwell.backend.wdl.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
+import cromwell.backend._
 import cromwell.core.path.JavaWriterImplicits._
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}
@@ -161,7 +161,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
         jobDescriptor,
         callEngineFunction,
         localizeInputs(jobPaths.callInputsRoot, docker = false),
-        outputsDirectory = jobPaths.callRoot
+        runtimeEnvironment = RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(MinimumRuntimeEnvironment())
       )
 
       log.debug("{} Creating bash script for executing command: {}", tag, command)

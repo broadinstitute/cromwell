@@ -26,11 +26,11 @@ sealed trait TaskDefinition extends Callable {
   def instantiateCommand(taskInputs: WomEvaluatedCallInputs,
                          functions: IoFunctionSet,
                          valueMapper: WomValue => WomValue = identity[WomValue],
-                        outputDirectory: String,
+                         runtimeEnvironment: RuntimeEnvironment,
                          separate: Boolean = false
                          ): Try[String] = {
     val mappedInputs = taskInputs.map({case (k, v) => k.localName -> v})
-    Try(StringUtil.normalize(commandTemplate.map(_.instantiate(mappedInputs, functions, valueMapper)).mkString(commandPartSeparator)))
+    Try(StringUtil.normalize(commandTemplate.map(_.instantiate(mappedInputs, functions, valueMapper, runtimeEnvironment)).mkString(commandPartSeparator)))
   }
 
   def commandTemplateString: String = StringUtil.normalize(commandTemplate.map(_.toString).mkString)

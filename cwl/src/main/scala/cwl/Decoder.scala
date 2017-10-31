@@ -37,7 +37,14 @@ object CwlDecoder {
   }
 
   def parseJson(json: String): Parse[Cwl] =
-    EitherT{IO{CwlCodecs.decodeCwl(json).leftMap(_.getMessage).leftMap(NonEmptyList.one)} }
+    EitherT{IO{
+      CwlCodecs.decodeCwl(json).
+        leftMap{t =>
+          val s = json
+          println(s)
+          NonEmptyList.of(t.getMessage, t.getStackTrace.mkString("\n"))
+        }
+    }}
 
   /**
    * Notice it gives you one instance of Cwl.  This has transformed all embedded files into scala object state

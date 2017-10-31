@@ -11,7 +11,7 @@ import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionA
 import cromwell.backend.validation._
 import cromwell.backend.wdl.OutputEvaluator._
 import cromwell.backend.wdl.{Command, OutputEvaluator, WdlFileMapper}
-import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobLifecycleActor}
+import cromwell.backend._
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.core.path.Path
 import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent}
@@ -21,9 +21,8 @@ import cromwell.services.metadata.CallMetadataKeys
 import common.exception.MessageAggregation
 import common.util.TryUtil
 import common.validation.ErrorOr.ErrorOr
-import cromwell.backend.io.JobPaths
 import net.ceedubs.ficus.Ficus._
-import wom.callable.RuntimeEnvironment
+import wdl4s.parser.MemoryUnit
 import wom.values._
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}
@@ -228,10 +227,16 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   /** The instantiated command. */
   lazy val instantiatedCommand: String =  {
 
-    jobDescriptor.runtimeAttributes
+    val todoMoveMeMinimums =
+      MinimumRuntimeEnvironment(
+        cores = 1,
+        ram = MemorySize.apply(4, MemoryUnit.GiB),
+        outputPathSize = Long.MaxValue,
+        tempPathSize = Long.MaxValue
+      )
 
     Command.instantiate(
-      jobDescriptor, backendEngineFunctions, commandLinePreProcessor, commandLineValueMapper, jobPaths.callRoot).get
+      jobDescriptor, backendEngineFunctions, commandLinePreProcessor, commandLineValueMapper, RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(todoMoveMeMinimums)).get
   }
 
   /**
@@ -732,24 +737,3 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   * @param jobId The job id.
   */
 final case class StandardAsyncJob(jobId: String) extends JobId
-
-object RuntimeEnvironmentBuilder {
-
-  /**
-    * Per the spec:
-    *
-    * "For cores, ram, outdirSize and tmpdirSize, if an implementation can't provide the actual number of reserved cores
-    * during the expression evaluation time, it should report back the minimal requested amount."
-    */
-  def apply(runtimeAttributes: Map[String, WomValue], jobPaths: JobPaths): RuntimeEnvironment = {
-
-    val cpus: Int = CpuValidation.instance.validate(runtimeAttributes).getOrElse(1)
-
-
-    val memory = MemoryValidation.instance().validate(runtimeAttributes).map(_.unit)
-
-    val runtimeEnvironment = RuntimeEnvironment(jobPaths.callRoot, jobPaths.callRoot, )
-
-
-  }
-}

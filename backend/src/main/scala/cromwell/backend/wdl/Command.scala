@@ -1,7 +1,7 @@
 package cromwell.backend.wdl
 
 import cromwell.backend.BackendJobDescriptor
-import cromwell.core.path.Path
+import wom.callable.RuntimeEnvironment
 import wom.expression.IoFunctionSet
 import wom.values.{WomEvaluatedCallInputs, WomValue}
 
@@ -24,9 +24,9 @@ object Command {
                   callEngineFunction: IoFunctionSet,
                   inputsPreProcessor: WomEvaluatedCallInputs => Try[WomEvaluatedCallInputs] = (i: WomEvaluatedCallInputs) => Success(i),
                   valueMapper: WomValue => WomValue = identity,
-                  outputsDirectory: Path): Try[String] = {
+                  runtimeEnvironment: RuntimeEnvironment): Try[String] = {
     inputsPreProcessor(jobDescriptor.inputDeclarations) flatMap { mappedInputs =>
-      jobDescriptor.call.callable.instantiateCommand(mappedInputs, callEngineFunction, valueMapper,  outputsDirectory.pathAsString)
+      jobDescriptor.call.callable.instantiateCommand(mappedInputs, callEngineFunction, valueMapper,  runtimeEnvironment)
     }
   }
 }

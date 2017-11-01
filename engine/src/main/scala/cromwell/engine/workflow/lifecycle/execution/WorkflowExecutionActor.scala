@@ -92,6 +92,9 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         case WorkflowStoreState.RestartableAborting => goto(WorkflowExecutionAbortingState)
         case _ => goto(WorkflowExecutionInProgressState)
       }
+    case Event(EngineLifecycleActorAbortCommand, _) =>
+      context.parent ! WorkflowExecutionAbortedResponse(Map.empty)
+      goto(WorkflowExecutionAbortedState)
   }
 
   /* ********************* */
@@ -136,17 +139,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     case Event(SubWorkflowAbortedResponse(jobKey, executedKeys), stateData) =>
       handleCallAborted(stateData, jobKey, executedKeys)
 
-    // A JobNotFoundException here means we were trying to reconnect to a job that was likely never started, so just abort the key.
-    case Event(JobFailedNonRetryableResponse(jobKey, _: JobNotFoundException, _), _) if restarting =>
-      handleCallAborted(stateData, jobKey)
-
     // Here we can't really know what the status of the job is. For now declare it aborted anyway but add some info in the metadata
-    case Event(JobFailedNonRetryableResponse(jobKey: BackendJobDescriptorKey, _: JobReconnectionNotSupportedException, _), _) if restarting =>
-      jobReconnectionNotSupported(jobKey)
-      handleCallAborted(stateData, jobKey)
-
-    // If we're already aborting there's nothing to do
-    case Event(EngineLifecycleActorAbortCommand, _) => stay()
+    case Event(JobFailedNonRetryableResponse(jobKey: BackendJobDescriptorKey, failure: JobReconnectionNotSupportedException, _), _) if restarting =>
+      pushBackendStatusUnknown(jobKey)
+      handleNonRetryableFailure(stateData, jobKey, failure, None)
   }
 
   when(WorkflowExecutionSuccessfulState) { FSM.NullFunction }
@@ -373,12 +369,9 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     stay() using newStateData
   }
   
-  private def jobReconnectionNotSupported(jobKey: BackendJobDescriptorKey): Unit = {
-    workflowDescriptor.backendAssignments.get(jobKey.call) foreach { backend =>
-      pushMiscEvent(jobKey, s"Cromwell was restarted while this job was running on $backend. This backend does not support reconnection to running jobs, therefore its backend status cannot be known.")
-      val unknownBackendStatus = MetadataEvent(metadataKeyForCall(jobKey, CallMetadataKeys.BackendStatus), MetadataValue("Unknown"))
-      serviceRegistryActor ! PutMetadataAction(unknownBackendStatus)
-    }
+  private def pushBackendStatusUnknown(jobKey: BackendJobDescriptorKey): Unit = {
+    val unknownBackendStatus = MetadataEvent(metadataKeyForCall(jobKey, CallMetadataKeys.BackendStatus), MetadataValue("Unknown"))
+    serviceRegistryActor ! PutMetadataAction(unknownBackendStatus)
   }
 
   private def handleRetryableFailure(jobKey: BackendJobDescriptorKey, reason: Throwable, returnCode: Option[Int]) = {

@@ -74,23 +74,23 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
       context.parent ! abortResponse
       context.stop(self)
     case KvFailure(_, e) =>
-      // Failed operation ID lookup during recover, crash and let the supervisor deal with it.
+      // Failed operation ID lookup, crash and let the supervisor deal with it.
       completionPromise.tryFailure(e)
       throw new RuntimeException(s"Failure attempting to look up job id for key ${jobDescriptor.key}", e)
   }
   
   private def recovering(executor: ActorRef): Receive = running(executor).orElse {
     case KvPair(key, Some(jobId)) if key.key == jobIdKey =>
-      // Successful operation ID lookup during recover.
+      // Successful operation ID lookup.
       executor ! Recover(StandardAsyncJob(jobId))
     case KvKeyLookupFailed(_) =>
-      // Missed operation ID lookup during recover, fall back to execute.
+      // Missed operation ID lookup, fall back to execute.
       executor ! Execute
   }
 
   private def reconnectingToAbort(executor: ActorRef): Receive = running(executor).orElse {
     case KvPair(key, Some(jobId)) if key.key == jobIdKey =>
-      // Successful operation ID lookup during recover.
+      // Successful operation ID lookup.
       executor ! ReconnectToAbort(StandardAsyncJob(jobId))
     case KvKeyLookupFailed(_) =>
       // Can't find an operation ID for this job, respond with a JobNotFound and don't start the job
@@ -100,7 +100,7 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
 
   private def reconnecting(executor: ActorRef): Receive = running(executor).orElse {
     case KvPair(key, Some(jobId)) if key.key == jobIdKey =>
-      // Successful operation ID lookup during recover.
+      // Successful operation ID lookup.
       executor ! Reconnect(StandardAsyncJob(jobId))
     case KvKeyLookupFailed(_) =>
       // Can't find an operation ID for this job, respond with a JobNotFound and don't start the job

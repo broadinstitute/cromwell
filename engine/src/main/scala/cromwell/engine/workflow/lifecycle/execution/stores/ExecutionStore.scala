@@ -209,7 +209,7 @@ sealed abstract class ExecutionStore(statusStore: Map[JobKey, ExecutionStatus], 
   /**
     * If needsUpdate is true, goes through NotStarted keys and determines the ones that can be run.
     * Only computes the first MaxJobsToStartPerTick runnable keys.
-    * In the process, identifies and updates the status of keys that are unreachable.
+    * In the process, identifies and updates the status of keys that are unstartable.
     * Returns an ExecutionStoreUpdate which is the list of runnable keys and an updated execution store.
     * 
     * If needsUpdate, returns an empty list of runnable keys and this instance of the store.
@@ -217,8 +217,8 @@ sealed abstract class ExecutionStore(statusStore: Map[JobKey, ExecutionStatus], 
     * This method can expansive to run for very large workflows if needsUpdate is true.
     */
   def update: ExecutionStoreUpdate = if (needsUpdate) {
-    // When looking for runnable keys, keep track of the ones that are unreachable so we can mark them as such
-    var unreachables = Map.empty[JobKey, ExecutionStatus]
+    // When looking for runnable keys, keep track of the ones that are unstartable so we can mark them as such
+    var unstartables = Map.empty[JobKey, ExecutionStatus]
 
     // filter the keys that are runnable. In the process remember the ones that are unreachable
     val readyToStart = keysWithStatus(NotStarted).toStream.filter(key => {
@@ -226,7 +226,7 @@ sealed abstract class ExecutionStore(statusStore: Map[JobKey, ExecutionStatus], 
       val runnable = key.allDependenciesAreIn(doneStatus)
       
       // If the key is not runnable, but all its dependencies are in a terminal status, then it's unreachable
-      if (!runnable && key.allDependenciesAreIn(terminalStatus)) unreachables = unreachables + (key -> UnReachable)
+      if (!runnable && key.allDependenciesAreIn(terminalStatus)) unstartables = unstartables + (key -> Unstartable)
       
       // returns the runnable value for the filter
       runnable
@@ -238,13 +238,13 @@ sealed abstract class ExecutionStore(statusStore: Map[JobKey, ExecutionStatus], 
     // Will be true if the result is truncated, in which case we'll need to do another pass later
     val truncated = keysToStartPlusOne.size > MaxJobsToStartPerTick
 
-    // If we found unreachable keys, update their status, and set needsUpdate to true (it might unblock other keys)
-    val updated = if (unreachables.nonEmpty) {
-      updateKeys(unreachables, needsUpdate = true)
+    // If we found unstartable keys, update their status, and set needsUpdate to true (it might unblock other keys)
+    val updated = if (unstartables.nonEmpty) {
+      updateKeys(unstartables, needsUpdate = true)
     // If the list was truncated, set needsUpdate to true because we'll need to do this again to get the truncated keys
     } else if (truncated) {
       withNeedsUpdateTrue
-    // Otherwise we can reset it, nothing else will be runnable / unreachable until some new keys become terminal
+    // Otherwise we can reset it, nothing else will be runnable / unstartable until some new keys become terminal
     } else withNeedsUpdateFalse
     
     // Only take the first ExecutionStore.MaxJobsToStartPerTick from the above list.

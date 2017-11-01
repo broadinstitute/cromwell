@@ -82,11 +82,11 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   when(WorkflowExecutionPendingState) {
     case Event(ExecuteWorkflowCommand, _) =>
-      // TODO WOM: Remove this when conditional and sub workflows are supported. It prevents the workflow from hanging
+      // TODO WOM: Remove this when sub workflows are supported. It prevents the workflow from hanging
       if(workflowDescriptor.callable.graph.nodes.collectFirst({
-        case  _: ConditionalNode | _: WorkflowCallNode => true
+        case  _: WorkflowCallNode => true
       }).nonEmpty) {
-        context.parent ! WorkflowExecutionFailedResponse(Map.empty, new Exception("Conditional and Sub Workflows not supported yet"))
+        context.parent ! WorkflowExecutionFailedResponse(Map.empty, new Exception("Sub Workflows not supported yet"))
         goto(WorkflowExecutionFailedState)
       }
       scheduleStartRunnableCalls()
@@ -394,13 +394,11 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     // Each process returns a Try[WorkflowExecutionDiff], which, upon success, contains potential changes to be made to the execution store.
     val diffs = runnableScopes map { scope =>
       scope -> Try(scope match {
-        case k: CallKey if data.isInBypassedScope(k) => processBypassedScope(k, data)
-        case k: ExpressionKey if data.isInBypassedScope(k) => processBypassedScope(k, data)
         case k: BackendJobDescriptorKey => processRunnableJob(k, data)
-        case k: ScatterKey => processRunnableScatter(k, data, data.isInBypassedScope(k))
+        case k: ScatterKey => processRunnableScatter(k, data)
         case k: ConditionalKey => processRunnableConditional(k, data)
-        case k: ScatterCollectorKey => processRunnableScatterCollector(k, data, data.isInBypassedScope(k))
-        case k: ConditionalCollectorKey => processRunnableConditionalCollector(k, data, data.isInBypassedScope(k))
+        case k: ScatterCollectorKey => processRunnableScatterCollector(k, data)
+        case k: ConditionalCollectorKey => processRunnableConditionalCollector(k, data)
         case k: SubWorkflowKey => processRunnableSubWorkflow(k, data)
         case k: ExpressionKey => processRunnableExpression(k, data)
         case k => Failure(new UnsupportedOperationException(s"Unknown entry in execution store: ${k.tag}"))
@@ -440,22 +438,6 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     pushQueuedCallMetadata(diffs)
     val newData = data.mergeExecutionDiffs(diffs)
     if (truncated || diffs.exists(_.containsNewEntry)) newData else newData.resetCheckRunnable
-  }
-
-  private def processBypassedScope(jobKey: JobKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
-    Success(
-      WorkflowExecutionDiff(
-        executionStoreChanges = Map(jobKey -> ExecutionStatus.Bypassed),
-        valueStoreAdditions = bypassedScopeResults(jobKey)
-      )
-    )
-  }
-
-  private def bypassedScopeResults(jobKey: JobKey): Map[ValueKey, WomOptionalValue] = {
-    jobKey.node.outputPorts.map({ outputPort =>
-      ValueKey(outputPort, jobKey.index) ->  WomOptionalValue.none(outputPort.womType)
-    }).toMap
-
   }
 
   private def processRunnableExpression(expression: ExpressionKey, data: WorkflowExecutionActorData) = {
@@ -498,7 +480,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     // Just look it up in the store
     def forNormalNode(index: ExecutionIndex) = data.valueStore.get(outputPort, index) match {
       case Some(value) => value.validNel
-      case None => s"Can't find a value for ${outputPort.name}".invalidNel
+      case None => s"Can't find a ValueStore value for $outputPort in ${data.valueStore}".invalidNel
     }
 
     outputPort.graphNode match {
@@ -570,12 +552,20 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def processRunnableConditional(conditionalKey: ConditionalKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
-    val conditionOutputPort = conditionalKey.node.conditionExpression.singleExpressionOutputPort
 
+    // This is the output port from the conditional's 'condition' input:
+    val conditionOutputPort = conditionalKey.node.conditionExpression.singleExpressionOutputPort
     data.valueStore.get(conditionOutputPort, conditionalKey.index) match {
       case Some(b: WomBoolean) =>
         val conditionalStatus = if (b.value) ExecutionStatus.Done else ExecutionStatus.Bypassed
-        Success(WorkflowExecutionDiff(conditionalKey.populate + (conditionalKey -> conditionalStatus)))
+
+        val valueStoreAdditions: Map[ValueKey, WomValue] = if (!b.value) {
+          conditionalKey.node.outputPorts.map(op => ValueKey(op, conditionalKey.index) -> WomOptionalValue(op.womType, None)).toMap
+        } else Map.empty
+
+        Success(WorkflowExecutionDiff(
+          executionStoreChanges = conditionalKey.populate(b.value) + (conditionalKey -> conditionalStatus),
+          valueStoreAdditions = valueStoreAdditions))
       case Some(v: WomValue) => Failure(new RuntimeException(
         s"'if' condition ${conditionalKey.node.conditionExpression.womExpression.sourceString} must evaluate to a boolean but instead got ${v.womType.toDisplayString}"))
       case None => Failure(
@@ -584,51 +574,42 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     }
   }
 
-  private def processRunnableScatter(scatterKey: ScatterKey, data: WorkflowExecutionActorData, bypassed: Boolean): Try[WorkflowExecutionDiff] = {
-    if (bypassed) {
-      Success(WorkflowExecutionDiff(scatterKey.populate(0) + (scatterKey -> ExecutionStatus.Bypassed)))
-    } else {
-      val collectionOutputPort = scatterKey.node.scatterCollectionExpressionNode.singleExpressionOutputPort
+  private def processRunnableScatter(scatterKey: ScatterKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
+    // This is the output port from the scatter's 'collection' input:
+    val collectionOutputPort = scatterKey.node.scatterCollectionExpressionNode.singleExpressionOutputPort
 
-      data.valueStore.get(collectionOutputPort, None) map {
-        case WomArrayLike(arrayLike) =>
-          Success(
-            WorkflowExecutionDiff(
-              // Add the new shards + collectors, and set the scatterVariable and scatterKey to Done
-              executionStoreChanges = scatterKey.populate(arrayLike.value.size) ++ Map (
-                ScatterVariableInputKey(scatterKey.node.scatterVariableInnerGraphInputNode, arrayLike) -> Done,
-                scatterKey -> Done
-              ),
-              // Add scatter variable arrayLike to the value store
-              valueStoreAdditions = Map (
-                ValueKey(scatterKey.node.scatterVariableInnerGraphInputNode.singleOutputPort, None) -> arrayLike
-              )
+    data.valueStore.get(collectionOutputPort, None) map {
+      case WomArrayLike(arrayLike) =>
+        Success(
+          WorkflowExecutionDiff(
+            // Add the new shards + collectors, and set the scatterVariable and scatterKey to Done
+            executionStoreChanges = scatterKey.populate(arrayLike.value.size) ++ Map (
+              ScatterVariableInputKey(scatterKey.node.scatterVariableInnerGraphInputNode, arrayLike) -> Done,
+              scatterKey -> Done
+            ),
+            // Add scatter variable arrayLike to the value store
+            valueStoreAdditions = Map (
+              ValueKey(scatterKey.node.scatterVariableInnerGraphInputNode.singleOutputPort, None) -> arrayLike
             )
           )
-        case v: WomValue =>
-          Failure(new RuntimeException(s"Scatter collection ${scatterKey.node.scatterCollectionExpressionNode.womExpression.sourceString} must evaluate to an array but instead got ${v.womType.toDisplayString}"))
-      } getOrElse {
-        Failure(new RuntimeException(s"Could not find an array value for scatter ${scatterKey.tag}. Missing array should have come from expression ${scatterKey.node.scatterCollectionExpressionNode.womExpression.sourceString}"))
-      }
+        )
+      case v: WomValue =>
+        Failure(new RuntimeException(s"Scatter collection ${scatterKey.node.scatterCollectionExpressionNode.womExpression.sourceString} must evaluate to an array but instead got ${v.womType.toDisplayString}"))
+    } getOrElse {
+      Failure(new RuntimeException(s"Could not find an array value for scatter ${scatterKey.tag}. Missing array should have come from expression ${scatterKey.node.scatterCollectionExpressionNode.womExpression.sourceString}"))
     }
   }
 
   /**
     * Collects all shards and add them to the value store
     */
-  private def processRunnableScatterCollector(collector: ScatterCollectorKey, data: WorkflowExecutionActorData, isInBypassed: Boolean): Try[WorkflowExecutionDiff] = {
+  private def processRunnableScatterCollector(collector: ScatterCollectorKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
     data.valueStore.collectShards(collector) match {
       case Invalid(e) => Failure(new RuntimeException with MessageAggregation {
         override def exceptionContext: String = s"Failed to collect output shards for node ${collector.tag}"
         override def errorMessages: Traversable[String] = e.toList
       })
       case Valid(outputs) =>
-        // TODO WOM: fix
-        //        val adjustedOutputs: CallOutputs = if (isInBypassed) {
-        //          outputs map {
-        //            case (outputKey, value) => outputKey -> WomOptionalValue.none(output._2.womValue.womType
-        //          }
-        //        } else outputs
         Success(WorkflowExecutionDiff(
           executionStoreChanges = Map(collector -> ExecutionStatus.Done),
           valueStoreAdditions = outputs
@@ -636,16 +617,25 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     }
   }
 
-  private def processRunnableConditionalCollector(collector: ConditionalCollectorKey, data: WorkflowExecutionActorData, isInBypassed: Boolean): Try[WorkflowExecutionDiff] = {
-    data.valueStore.collectConditional(collector, isInBypassed) match {
+  private def processRunnableConditionalCollector(collector: ConditionalCollectorKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
+    data.valueStore.collectConditional(collector) match {
       case Invalid(e) => Failure(new RuntimeException with MessageAggregation {
         override def exceptionContext: String = s"Failed to collect conditional output value for node ${collector.tag}"
         override def errorMessages: Traversable[String] = e.toList
       })
-      case Valid(outputs) => Success(WorkflowExecutionDiff(
-        executionStoreChanges = Map(collector -> ExecutionStatus.Done),
-        valueStoreAdditions = outputs
-      ))
+      case Valid(outputs) =>
+        if (outputs.size != 1) {
+          Failure(new Exception(s"Expected exactly 1 result back for $collector"))
+        } else {
+          val collectedOutputs = outputs map { case (ValueKey(_, index), womValue) =>
+            ValueKey(collector.conditionalOutputPort, index) -> womValue
+          }
+
+          Success(WorkflowExecutionDiff(
+            executionStoreChanges = Map(collector -> ExecutionStatus.Done),
+            valueStoreAdditions = collectedOutputs
+          ))
+        }
     }
   }
 }

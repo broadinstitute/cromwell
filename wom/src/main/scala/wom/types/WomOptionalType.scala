@@ -15,14 +15,16 @@ case class WomOptionalType(memberType: WomType) extends WomType {
     */
   override protected def coercion: PartialFunction[Any, WomValue] = {
 
-    // It's safe to box up values implicitly:
-    case womValue: WomValue if memberType.equals(womValue.womType) => WomOptionalValue(womValue)
-    case coerceable: Any if memberType.coercionDefined(coerceable) => WomOptionalValue(memberType.coerceRawValue(coerceable).get)
+    case alreadyGood @ WomOptionalValue(WomOptionalType(`memberType`), _) => alreadyGood
 
     // Coercing inner values:
     case WomOptionalValue(otherMemberType, Some(value)) if memberType.isCoerceableFrom(otherMemberType) => WomOptionalValue(memberType, Option(memberType.coerceRawValue(value).get))
     case WomOptionalValue(otherMemberType, None) if memberType.isCoerceableFrom(otherMemberType) => WomOptionalValue(memberType, None)
-      
+
+    // It's safe to box up values implicitly:
+    case womValue: WomValue if memberType.equals(womValue.womType) => WomOptionalValue(womValue)
+    case coerceable: Any if memberType.coercionDefined(coerceable) => WomOptionalValue(memberType.coerceRawValue(coerceable).get)
+
     // Javascript null coerces to empty value
     case JsNull => WomOptionalValue(memberType, None)
   }

@@ -35,10 +35,6 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
 
   val expressionLanguageFunctions = new WdlFunctions(workflowDescriptor.pathBuilders)
 
-  def isInBypassedScope(jobKey: JobKey): Boolean = {
-    executionStore.isInBypassedConditional(jobKey)
-  }
-
   def callExecutionSuccess(jobKey: JobKey, outputs: CallOutputs): WorkflowExecutionActorData = {
     val (newJobExecutionActors, newSubWorkflowExecutionActors) = jobKey match {
       case jobKey: BackendJobDescriptorKey => (backendJobExecutionActors - jobKey, subWorkflowExecutionActors)

@@ -151,7 +151,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
 
     val wf = decodeAllCwl(rootPath/"three_step.cwl").map {
       _.select[Workflow].get
-    }.value.unsafeRunSync.fold(error => throw new RuntimeException(s"broken parse! msg was $error"), identity)
+    }.value.unsafeRunSync.fold(error => throw new RuntimeException(s"broken parse: $error"), identity)
 
     wf.id should include("three_step")
 

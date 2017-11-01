@@ -22,7 +22,6 @@ import common.exception.MessageAggregation
 import common.util.TryUtil
 import common.validation.ErrorOr.ErrorOr
 import net.ceedubs.ficus.Ficus._
-import wdl4s.parser.MemoryUnit
 import wom.values._
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}

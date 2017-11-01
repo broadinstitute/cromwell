@@ -28,6 +28,6 @@ trait StandardJobExecutionActorParams {
   /** The singleton actor. */
   def backendSingletonActorOption: Option[ActorRef]
 
-  /** The settings for runtime Environment passed to CWL expressions when not specified */
+  /** The default settings for runtime Environment passed to CWL expressions when not specified in the Resource Requirements */
   val minimumRuntimeSettings: MinimumRuntimeSettings
 }

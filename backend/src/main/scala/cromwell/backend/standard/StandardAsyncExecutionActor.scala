@@ -226,19 +226,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   }
 
   /** The instantiated command. */
-  lazy val instantiatedCommand: String =  {
-
-    val todoMoveMeMinimums =
-      MinimumRuntimeSettings(
-        cores = 1,
-        ram = MemorySize.apply(4, MemoryUnit.GiB),
-        outputPathSize = Long.MaxValue,
-        tempPathSize = Long.MaxValue
-      )
-
+  lazy val instantiatedCommand: String =
     Command.instantiate(
-      jobDescriptor, backendEngineFunctions, commandLinePreProcessor, commandLineValueMapper, RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(todoMoveMeMinimums)).get
-  }
+      jobDescriptor, backendEngineFunctions, commandLinePreProcessor, commandLineValueMapper, RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(standardParams.minimumRuntimeSettings)).get
 
   /**
     * Redirect the stdout and stderr to the appropriate files. While not necessary, mark the job as not receiving any

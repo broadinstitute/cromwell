@@ -18,8 +18,8 @@ case class CwlExpressionCommandPart(expr: Expression) extends CommandPart {
 
     val pc =
       ParameterContext(
-        runtime = runtimeEnvironment.cwlMap).
-        withInputs(stringKeyMap, functions)
+        runtime = runtimeEnvironment.cwlMap
+      ).withInputs(stringKeyMap, functions)
 
     val womValue: WomValue = expr.fold(EvaluateExpression).apply(pc)
 

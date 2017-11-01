@@ -17,7 +17,7 @@ trait WdlCommandPart extends CommandPart {
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: WomValue => WomValue,
-                  runtimeEnvironment: RuntimeEnvironment): String = {
+                           runtimeEnvironment: RuntimeEnvironment): String = {
     val wdlFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(functions)
     instantiate(Seq.empty, inputsMap.map({case (localName, value) => localName.value -> value}), wdlFunctions, valueMapper)
   }

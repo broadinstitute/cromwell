@@ -33,11 +33,7 @@ case class RuntimeEnvironment(outputPath: String,
       case (key, value) => WomString(key) -> WomString(value)
     }
 
-    WomMap(
-      WomMapType(WomStringType, WomStringType),
-      womMap
-    )
+    WomMap(WomMapType(WomStringType, WomStringType), womMap)
   }
-
 }
 

@@ -7,4 +7,3 @@ object RuntimeAttributesKeys {
   val CpuKey = "cpu"
   val MemoryKey = "memory"
 }
-

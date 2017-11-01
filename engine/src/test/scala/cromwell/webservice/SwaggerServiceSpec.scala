@@ -70,13 +70,13 @@ class SwaggerServiceSpec extends FlatSpec with SwaggerService with ScalatestRout
   }
 
   it should "return the index.html" in {
-    Get("/swagger/index.html") ~>
+    Get("/swagger/index.html?url=/swagger/cromwell.yaml") ~>
       swaggerUiResourceRoute ~>
       check {
         assertResult(StatusCodes.OK) {
           status
         }
-        assertResult("<!DOCTYPE html>") {
+        assertResult("<!-- HTML for s") {
           responseAs[String].take(15)
         }
       }

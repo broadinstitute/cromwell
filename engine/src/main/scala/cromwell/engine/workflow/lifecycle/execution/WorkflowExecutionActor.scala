@@ -440,14 +440,6 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     if (truncated || diffs.exists(_.containsNewEntry)) newData else newData.resetCheckRunnable
   }
 
-
-
-//  private def bypassedScopeResults(jobKey: JobKey): Map[ValueKey, WomOptionalValue] = {
-//    jobKey.node.outputPorts.map({ outputPort =>
-//      ValueKey(outputPort, jobKey.index) ->  WomOptionalValue.none(outputPort.womType)
-//    }).toMap
-//  }
-
   private def processRunnableExpression(expression: ExpressionKey, data: WorkflowExecutionActorData) = {
     import common.validation.ErrorOr._
 

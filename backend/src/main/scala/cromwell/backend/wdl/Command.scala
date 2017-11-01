@@ -26,7 +26,7 @@ object Command {
                   valueMapper: WomValue => WomValue = identity,
                   runtimeEnvironment: RuntimeEnvironment): Try[String] = {
     inputsPreProcessor(jobDescriptor.inputDeclarations) flatMap { mappedInputs =>
-      jobDescriptor.call.callable.instantiateCommand(mappedInputs, callEngineFunction, valueMapper,  runtimeEnvironment)
+      jobDescriptor.call.callable.instantiateCommand(mappedInputs, callEngineFunction, valueMapper, runtimeEnvironment)
     }
   }
 }

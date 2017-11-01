@@ -161,7 +161,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
         jobDescriptor,
         callEngineFunction,
         localizeInputs(jobPaths.callInputsRoot, docker = false),
-        runtimeEnvironment = RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(MinimumRuntimeEnvironment())
+        runtimeEnvironment = RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(MinimumRuntimeSettings())
       )
 
       log.debug("{} Creating bash script for executing command: {}", tag, command)

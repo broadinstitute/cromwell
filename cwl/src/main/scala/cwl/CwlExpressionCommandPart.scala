@@ -14,7 +14,12 @@ case class CwlExpressionCommandPart(expr: Expression) extends CommandPart {
                            valueMapper: (WomValue) => WomValue,
                            runtimeEnvironment: RuntimeEnvironment ): String = {
 
-    val pc = ParameterContext(runtime = runtimeEnvironment.cwlMap).withInputs(inputsMap.map({ case (LocalName(localName), value) => localName -> value }), functions)
+    val stringKeyMap = inputsMap.map{ case (LocalName(localName), value) => localName -> value }
+
+    val pc =
+      ParameterContext(
+        runtime = runtimeEnvironment.cwlMap).
+        withInputs(stringKeyMap, functions)
 
     val womValue: WomValue = expr.fold(EvaluateExpression).apply(pc)
 
@@ -27,7 +32,7 @@ case class CommandLineBindingCommandPart(argument: CommandLineBinding) extends C
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: (WomValue) => WomValue,
-                  runtimeEnvironment: RuntimeEnvironment) = {
+                           runtimeEnvironment: RuntimeEnvironment) = {
 
     val pc = ParameterContext(runtime = runtimeEnvironment.cwlMap).withInputs(inputsMap.map({
       case (LocalName(localName), WomSingleFile(path)) => localName -> WomString(path)
@@ -52,12 +57,12 @@ case class InputParameterCommandPart(commandInputParameter: CommandInputParamete
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: (WomValue) => WomValue,
-                  runtimeEnvironment: RuntimeEnvironment) = {
+                           runtimeEnvironment: RuntimeEnvironment) = {
 
     val womValue: WomValue = commandInputParameter match {
 
       /*
-        In this case we are looking for the specific case where the only input binding option specified is the position.
+        Case where the only input binding option specified is the position.
 
         NB: We ignore the position as these have already been sorted prior to being submitted as command part
 

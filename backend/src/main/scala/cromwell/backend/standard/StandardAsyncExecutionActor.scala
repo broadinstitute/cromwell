@@ -42,7 +42,8 @@ case class DefaultStandardAsyncExecutionActorParams
   override val configurationDescriptor: BackendConfigurationDescriptor,
   override val backendInitializationDataOption: Option[BackendInitializationData],
   override val backendSingletonActorOption: Option[ActorRef],
-  override val completionPromise: Promise[BackendJobExecutionResponse]
+  override val completionPromise: Promise[BackendJobExecutionResponse],
+  override val minimumRuntimeSettings: MinimumRuntimeSettings
 ) extends StandardAsyncExecutionActorParams
 
 /**
@@ -228,7 +229,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   lazy val instantiatedCommand: String =  {
 
     val todoMoveMeMinimums =
-      MinimumRuntimeEnvironment(
+      MinimumRuntimeSettings(
         cores = 1,
         ram = MemorySize.apply(4, MemoryUnit.GiB),
         outputPathSize = Long.MaxValue,

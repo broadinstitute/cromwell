@@ -5,14 +5,12 @@ import wom.types.{WomMapType, WomNothingType, WomStringType}
 import wom.values.{WomMap, WomOptionalValue, WomSingleFile, WomString, WomValue}
 
 object ParameterContext {
-  val Empty = ParameterContext(
-    inputs = WomOptionalValue(WomNothingType, None),
-    self = WomOptionalValue(WomNothingType, None),
-    runtime = WomOptionalValue(WomNothingType, None)
-  )
+  val Empty = ParameterContext()
 }
 
-case class ParameterContext(inputs: WomValue = WomOptionalValue(WomNothingType, None), self: WomValue = WomOptionalValue(WomNothingType, None), runtime: WomValue = WomOptionalValue(WomNothingType, None)) {
+case class ParameterContext(inputs: WomValue = WomOptionalValue(WomNothingType, None),
+                            self: WomValue = WomOptionalValue(WomNothingType, None),
+                            runtime: WomValue = WomOptionalValue(WomNothingType, None)) {
   def withInputs(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ParameterContext = {
     val wdlValueType = WomStringType
     copy(

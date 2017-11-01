@@ -102,7 +102,7 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
                               ioActor: ActorRef,
                               backendSingletonActorOption: Option[ActorRef]): StandardSyncExecutionActorParams = {
     DefaultStandardSyncExecutionActorParams(jobIdKey, serviceRegistryActor, ioActor, jobDescriptor, configurationDescriptor,
-      initializationDataOption, backendSingletonActorOption, asyncExecutionActorClass)
+      initializationDataOption, backendSingletonActorOption, asyncExecutionActorClass, MinimumRuntimeSettings())
   }
 
   override def fileHashingActorProps:

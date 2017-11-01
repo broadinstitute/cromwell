@@ -5,7 +5,7 @@ import akka.testkit.TestActorRef
 import cromwell.backend.io.WorkflowPathsWithDocker
 import cromwell.backend.standard._
 import cromwell.backend.validation.{DockerValidation, RuntimeAttributesValidation}
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, MinimumRuntimeSettings}
 import cromwell.core.SimpleIoActor
 import cromwell.services.keyvalue.InMemoryKvServiceActor
 
@@ -51,7 +51,8 @@ object TestLocalAsyncJobExecutionActor {
       configurationDescriptor = configurationDescriptor,
       backendInitializationDataOption = Option(initializationData),
       backendSingletonActorOption = None,
-      asyncJobExecutionActorClass = asyncClass)
+      asyncJobExecutionActorClass = asyncClass,
+      MinimumRuntimeSettings())
 
     TestActorRef(new StandardSyncExecutionActor(params))
   }

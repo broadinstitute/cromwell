@@ -88,13 +88,11 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
     }
   }
 
-  final def collectConditional(collector: ConditionalCollectorKey, isInBypassed: Boolean): ErrorOr[Map[ValueKey, WomOptionalValue]] = {
+  final def collectConditional(collector: ConditionalCollectorKey): ErrorOr[Map[ValueKey, WomOptionalValue]] = {
     val conditionalPort = collector.conditionalOutputPort
     val sourcePort = conditionalPort.outputToExpose.source
     store.getValue(sourcePort, collector.index) match {
-      case Some(womValue: WomOptionalValue) if isInBypassed && womValue.value.isEmpty => Map(ValueKey(conditionalPort, collector.index) -> womValue).validNel
-      case Some(womValue) if !isInBypassed  => Map(ValueKey(conditionalPort, collector.index) -> WomOptionalValue(womValue)).validNel
-      case Some(_)  => s"Found a non empty value in a bypassed conditional node ${sourcePort.identifier.fullyQualifiedName.value}".invalidNel
+      case Some(womValue) => Map(ValueKey(conditionalPort, collector.index) -> WomOptionalValue(womValue)).validNel
       case None => s"Cannot find a value for output port ${sourcePort.identifier.fullyQualifiedName.value}".invalidNel
     }
   }

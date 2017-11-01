@@ -75,12 +75,6 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
 
   private def keysWithStatus(status: ExecutionStatus) = store.getOrElse(status, List.empty)
 
-  def isInBypassedConditional(jobKey: JobKey): Boolean = keysWithStatus(Bypassed).exists {
-    case conditional: ConditionalKey if conditional.node.innerGraph.nodes.contains(jobKey.node)
-      && conditional.index.equals(jobKey.index) => true
-    case _ => false
-  }
-
   def hasActiveJob: Boolean = {
     def upstreamFailed(node: GraphNode): Boolean = node.upstreamAncestry exists hasFailedNode
 

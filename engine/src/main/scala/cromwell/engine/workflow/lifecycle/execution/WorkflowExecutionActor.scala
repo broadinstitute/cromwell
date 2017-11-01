@@ -394,13 +394,11 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     // Each process returns a Try[WorkflowExecutionDiff], which, upon success, contains potential changes to be made to the execution store.
     val diffs = runnableScopes map { scope =>
       scope -> Try(scope match {
-        case k: CallKey if data.isInBypassedScope(k) => processBypassedScope(k, data)
-        case k: ExpressionKey if data.isInBypassedScope(k) => processBypassedScope(k, data)
         case k: BackendJobDescriptorKey => processRunnableJob(k, data)
-        case k: ScatterKey => processRunnableScatter(k, data, data.isInBypassedScope(k))
+        case k: ScatterKey => processRunnableScatter(k, data)
         case k: ConditionalKey => processRunnableConditional(k, data)
-        case k: ScatterCollectorKey => processRunnableScatterCollector(k, data, data.isInBypassedScope(k))
-        case k: ConditionalCollectorKey => processRunnableConditionalCollector(k, data, data.isInBypassedScope(k))
+        case k: ScatterCollectorKey => processRunnableScatterCollector(k, data)
+        case k: ConditionalCollectorKey => processRunnableConditionalCollector(k, data)
         case k: SubWorkflowKey => processRunnableSubWorkflow(k, data)
         case k: ExpressionKey => processRunnableExpression(k, data)
         case k => Failure(new UnsupportedOperationException(s"Unknown entry in execution store: ${k.tag}"))
@@ -442,14 +440,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     if (truncated || diffs.exists(_.containsNewEntry)) newData else newData.resetCheckRunnable
   }
 
-  private def processBypassedScope(jobKey: JobKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
-    Success(
-      WorkflowExecutionDiff(
-        executionStoreChanges = Map.empty, // Map(jobKey -> ExecutionStatus.Bypassed),
-        valueStoreAdditions = Map.empty //bypassedScopeResults(jobKey)
-      )
-    )
-  }
+
 
 //  private def bypassedScopeResults(jobKey: JobKey): Map[ValueKey, WomOptionalValue] = {
 //    jobKey.node.outputPorts.map({ outputPort =>
@@ -591,52 +582,42 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     }
   }
 
-  private def processRunnableScatter(scatterKey: ScatterKey, data: WorkflowExecutionActorData, bypassed: Boolean): Try[WorkflowExecutionDiff] = {
-    if (bypassed) {
-      Success(WorkflowExecutionDiff(scatterKey.populate(0) + (scatterKey -> ExecutionStatus.Bypassed)))
-    } else {
-      // This is the output port from the scatter's 'collection' input:
-      val collectionOutputPort = scatterKey.node.scatterCollectionExpressionNode.singleExpressionOutputPort
+  private def processRunnableScatter(scatterKey: ScatterKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
+    // This is the output port from the scatter's 'collection' input:
+    val collectionOutputPort = scatterKey.node.scatterCollectionExpressionNode.singleExpressionOutputPort
 
-      data.valueStore.get(collectionOutputPort, None) map {
-        case WomArrayLike(arrayLike) =>
-          Success(
-            WorkflowExecutionDiff(
-              // Add the new shards + collectors, and set the scatterVariable and scatterKey to Done
-              executionStoreChanges = scatterKey.populate(arrayLike.value.size) ++ Map (
-                ScatterVariableInputKey(scatterKey.node.scatterVariableInnerGraphInputNode, arrayLike) -> Done,
-                scatterKey -> Done
-              ),
-              // Add scatter variable arrayLike to the value store
-              valueStoreAdditions = Map (
-                ValueKey(scatterKey.node.scatterVariableInnerGraphInputNode.singleOutputPort, None) -> arrayLike
-              )
+    data.valueStore.get(collectionOutputPort, None) map {
+      case WomArrayLike(arrayLike) =>
+        Success(
+          WorkflowExecutionDiff(
+            // Add the new shards + collectors, and set the scatterVariable and scatterKey to Done
+            executionStoreChanges = scatterKey.populate(arrayLike.value.size) ++ Map (
+              ScatterVariableInputKey(scatterKey.node.scatterVariableInnerGraphInputNode, arrayLike) -> Done,
+              scatterKey -> Done
+            ),
+            // Add scatter variable arrayLike to the value store
+            valueStoreAdditions = Map (
+              ValueKey(scatterKey.node.scatterVariableInnerGraphInputNode.singleOutputPort, None) -> arrayLike
             )
           )
-        case v: WomValue =>
-          Failure(new RuntimeException(s"Scatter collection ${scatterKey.node.scatterCollectionExpressionNode.womExpression.sourceString} must evaluate to an array but instead got ${v.womType.toDisplayString}"))
-      } getOrElse {
-        Failure(new RuntimeException(s"Could not find an array value for scatter ${scatterKey.tag}. Missing array should have come from expression ${scatterKey.node.scatterCollectionExpressionNode.womExpression.sourceString}"))
-      }
+        )
+      case v: WomValue =>
+        Failure(new RuntimeException(s"Scatter collection ${scatterKey.node.scatterCollectionExpressionNode.womExpression.sourceString} must evaluate to an array but instead got ${v.womType.toDisplayString}"))
+    } getOrElse {
+      Failure(new RuntimeException(s"Could not find an array value for scatter ${scatterKey.tag}. Missing array should have come from expression ${scatterKey.node.scatterCollectionExpressionNode.womExpression.sourceString}"))
     }
   }
 
   /**
     * Collects all shards and add them to the value store
     */
-  private def processRunnableScatterCollector(collector: ScatterCollectorKey, data: WorkflowExecutionActorData, isInBypassed: Boolean): Try[WorkflowExecutionDiff] = {
+  private def processRunnableScatterCollector(collector: ScatterCollectorKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
     data.valueStore.collectShards(collector) match {
       case Invalid(e) => Failure(new RuntimeException with MessageAggregation {
         override def exceptionContext: String = s"Failed to collect output shards for node ${collector.tag}"
         override def errorMessages: Traversable[String] = e.toList
       })
       case Valid(outputs) =>
-        // TODO WOM: fix
-        //        val adjustedOutputs: CallOutputs = if (isInBypassed) {
-        //          outputs map {
-        //            case (outputKey, value) => outputKey -> WomOptionalValue.none(output._2.womValue.womType
-        //          }
-        //        } else outputs
         Success(WorkflowExecutionDiff(
           executionStoreChanges = Map(collector -> ExecutionStatus.Done),
           valueStoreAdditions = outputs
@@ -644,13 +625,13 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     }
   }
 
-  private def processRunnableConditionalCollector(collector: ConditionalCollectorKey, data: WorkflowExecutionActorData, isInBypassed: Boolean): Try[WorkflowExecutionDiff] = {
-    data.valueStore.collectConditional(collector, isInBypassed) match {
+  private def processRunnableConditionalCollector(collector: ConditionalCollectorKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
+    data.valueStore.collectConditional(collector) match {
       case Invalid(e) => Failure(new RuntimeException with MessageAggregation {
         override def exceptionContext: String = s"Failed to collect conditional output value for node ${collector.tag}"
         override def errorMessages: Traversable[String] = e.toList
       })
-      case Valid(outputs) => {
+      case Valid(outputs) =>
         if (outputs.size != 1) {
           Failure(new Exception(s"Expected exactly 1 result back for $collector"))
         } else {
@@ -663,7 +644,6 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
             valueStoreAdditions = collectedOutputs
           ))
         }
-      }
     }
   }
 }

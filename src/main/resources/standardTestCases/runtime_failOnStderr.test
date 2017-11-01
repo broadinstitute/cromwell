@@ -1,0 +1,6 @@
+name: runtime_failOnStderr
+testFormat: workflowfailure
+
+files {
+  wdl: runtime_failOnStderr/runtime_failOnStderr.wdl
+}

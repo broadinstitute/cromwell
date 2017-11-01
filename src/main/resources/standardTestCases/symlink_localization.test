@@ -1,0 +1,17 @@
+name: symlink_localization
+testFormat: workflowsuccess
+backends: [Local]
+tags: [localdockertest]
+
+files {
+  wdl: symlink_localization/symlink_localization.wdl
+  options: symlink_localization/symlink_localization.options
+}
+
+metadata {
+  workflowName: symlink_localization
+  status: Succeeded
+  "outputs.symlink_localization.noDocker": "hello\nhello"
+  "outputs.symlink_localization.withDocker": "hello\nhello"
+}
+

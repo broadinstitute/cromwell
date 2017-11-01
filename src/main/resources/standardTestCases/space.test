@@ -1,0 +1,12 @@
+ignore: true
+name: space
+testFormat: workflowsuccess
+
+files {
+  wdl: space/space.wdl
+}
+
+metadata {
+    workflowName: space
+    status: Succeeded
+}

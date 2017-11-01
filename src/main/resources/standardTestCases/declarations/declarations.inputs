@@ -1,0 +1,6 @@
+{
+  "two_step.cgrep.pattern": "first",
+  "two_step.cgrep.str_decl": "foobar",
+  "two_step.flags_suffix": "s"
+}
+

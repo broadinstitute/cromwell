@@ -1,0 +1,13 @@
+# Tests that we can pass a single element in to an array as an input
+name: single_to_array_coercion
+testFormat: workflowsuccess
+
+files {
+  wdl: single_to_array_coercion/single_to_array_coercion.wdl
+}
+
+metadata {
+  workflowName: oneToMany
+  status: Succeeded
+  "outputs.oneToMany.listFiles.result": hello
+}

@@ -1,0 +1,13 @@
+name: empty_string
+testFormat: workflowsuccess
+
+files {
+  wdl: empty_string/empty_string.wdl
+}
+
+metadata {
+  workflowName: wf_hello
+  status: Succeeded
+  "outputs.wf_hello.hello.empty" : ""
+  "outputs.wf_hello.goodbye.empty": ""
+}

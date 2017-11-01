@@ -1,0 +1,12 @@
+ignore: true
+name: composedenginefunctions
+testFormat: workflowsuccess
+
+files {
+  wdl: composedenginefunctions/composedenginefunctions.wdl
+}
+
+metadata {
+  "outputs.composedenginefunctions.composeEngineFunctions.x": "Hello, I am a small test string"
+  "outputs.composedenginefunctions.composeEngineFunctions.y": "2Hello, I am a small test stringHello, I am a small test string"
+}

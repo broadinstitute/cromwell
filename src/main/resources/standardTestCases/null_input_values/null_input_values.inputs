@@ -1,0 +1,18 @@
+{
+    "null_input_values.maybeString": null,
+    "null_input_values.maybeInt": null,
+    "null_input_values.maybeFloat": null,
+    "null_input_values.maybeBoolean": null,
+    "null_input_values.arrayOfMaybeInts": [1, 2, null, 4],
+    "null_input_values.maybeArrayOfInts": null,
+    "null_input_values.mapOfStringToMaybeInt": {
+        "one": 1,
+        "two": null,
+        "three": 3
+    },
+    "null_input_values.maybeMapOfStringToInt": null,
+    "null_input_values.pairOfMaybeIntMaybeString": {
+        "left": null,
+        "right": null
+    }
+}

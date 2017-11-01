@@ -1,0 +1,7 @@
+ignore: true
+name: globbingscatter
+testFormat: workflowsuccess
+
+files {
+  wdl: globbingscatter/globbingscatter.wdl
+}

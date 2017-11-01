@@ -1,0 +1,19 @@
+ignore: true
+# This test exercises a shortcoming in parsing array literals in WDL which never worked in any version of Cromwell, but
+# probably should.
+
+name: array_literal_locations
+testFormat: workflowsuccess
+
+
+files {
+  wdl: array_literal_locations/array_literal_locations.wdl
+}
+
+metadata {
+  workflowName: array_literal_locations
+  status: Succeeded
+  "outputs.array_literal_locations.array_literal_locations_i.out": "0:1:2"
+  "outputs.array_literal_locations.array_literal_locations_ii.0.out": "0"
+  "outputs.array_literal_locations.array_literal_locations_ii.1.out": "1"
+}

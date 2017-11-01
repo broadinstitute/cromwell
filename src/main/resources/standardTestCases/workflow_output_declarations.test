@@ -1,0 +1,15 @@
+ignore: true
+name: workflow_output_declarations
+testFormat: workflowsuccess
+
+files {
+  wdl: workflow_output_declarations/workflow_output_declarations.wdl
+}
+
+metadata {
+  workflowName: wf_output_declarations
+  status: Succeeded
+  "outputs.wf_output_declarations.out1": "Hello You!"
+  "outputs.wf_output_declarations.out2.0": "Hello Me!"
+  "outputs.wf_output_declarations.out3": "Hello Me!Hello You!"
+}

@@ -1,0 +1,14 @@
+name: output_filename_interpolation
+testFormat: workflowsuccess
+
+files {
+  wdl: output_filename_interpolation/output_filename_interpolation.wdl
+}
+
+metadata {
+  workflowName: output_filename_interpolation_wf
+  status: Succeeded
+  "outputs.output_filename_interpolation_wf.output_filename_interpolation.a": "a"
+  "outputs.output_filename_interpolation_wf.output_filename_interpolation.b": "b"
+  "outputs.output_filename_interpolation_wf.output_filename_interpolation.c": "c"
+}

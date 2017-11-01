@@ -1,0 +1,12 @@
+name: floating_tags
+testFormat: runtwiceexpectingcallcaching
+
+files {
+  wdl: floating_tags/floating_tags.wdl
+  options: floating_tags/floating_tags.options
+}
+
+metadata {
+  workflowName: floating_tags
+  status: Succeeded
+}

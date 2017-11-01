@@ -1,0 +1,6 @@
+name: filearrayoutput
+testFormat: workflowsuccess
+
+files {
+  wdl: filearrayoutput/filearrayoutput.wdl
+}

@@ -1,0 +1,3 @@
+{
+    "missing_sub_inputs.x": "gs://cloud-cromwell-dev/log.txt"
+}

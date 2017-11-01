@@ -1,0 +1,18 @@
+ignore: true
+name: missing_input_failure
+testFormat: workflowfailure
+backends: [Jes]
+
+files {
+  wdl: missing_input_failure/missing_input_failure.wdl
+  inputs: missing_input_failure/missing_input_failure.inputs
+}
+
+metadata {
+    workflowName: missing_input_failure
+    status: Failed
+    "failures.0.message": "Couldn't resolve all inputs for missing_input_failure.hello at index None."
+    "failures.0.causedBy.0.message": "Input evaluation for Call missing_input_failure.hello failed."
+    "failures.0.causedBy.0.causedBy.0.message": "addressee"
+    "failures.0.causedBy.0.causedBy.0.causedBy.0.message": "nonexistingbucket/path/doesnt/exist"
+}

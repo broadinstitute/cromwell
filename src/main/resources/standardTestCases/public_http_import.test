@@ -1,0 +1,22 @@
+ignore: true
+name: public_http_import
+testFormat: workflowsuccess
+tags: [import, subworkflow, alias]
+
+files {
+  wdl: public_http_import/public_http_import.wdl
+}
+
+metadata {
+  workflowName: public_http_import
+  status: Succeeded
+  "outputs.public_http_import.initial.0": "0"
+  "outputs.public_http_import.initial.1": "1"
+  "outputs.public_http_import.initial.2": "2"
+  "outputs.public_http_import.intermediate.0": "1"
+  "outputs.public_http_import.intermediate.1": "2"
+  "outputs.public_http_import.intermediate.2": "3"
+  "outputs.public_http_import.result.0": "2"
+  "outputs.public_http_import.result.1": "3"
+  "outputs.public_http_import.result.2": "4"
+}

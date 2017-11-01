@@ -1,0 +1,13 @@
+name: workflow_name_length
+testFormat: workflowfailure
+tags: [localdockertest]
+
+files {
+  wdl: workflow_name_length/workflow_name_length.wdl
+}
+
+metadata {
+    status: Failed
+    "failures.0.message": "Workflow input processing failed"
+    "failures.0.causedBy.0.message": "Workflow names must be shorter than 100 characters: hippopotomonstrosesquippedaliophobes_look_away_now_because_we_are_on_the_fast_train_to_Chargoggagoggmanchauggagoggchaubunagungamaugg"
+}

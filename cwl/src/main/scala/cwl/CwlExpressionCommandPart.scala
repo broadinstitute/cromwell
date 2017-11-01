@@ -14,7 +14,7 @@ case class CwlExpressionCommandPart(expr: Expression) extends CommandPart {
                            valueMapper: (WomValue) => WomValue,
                            runtimeEnvironment: RuntimeEnvironment ): String = {
 
-    val pc = ParameterContext.Empty.withInputs(inputsMap.map({ case (LocalName(localName), value) => localName -> value }), functions)
+    val pc = ParameterContext(runtime = runtimeEnvironment.cwlMap).withInputs(inputsMap.map({ case (LocalName(localName), value) => localName -> value }), functions)
 
     val womValue: WomValue = expr.fold(EvaluateExpression).apply(pc)
 
@@ -29,7 +29,7 @@ case class CommandLineBindingCommandPart(argument: CommandLineBinding) extends C
                            valueMapper: (WomValue) => WomValue,
                   runtimeEnvironment: RuntimeEnvironment) = {
 
-    val pc = ParameterContext.Empty.withInputs(inputsMap.map({
+    val pc = ParameterContext(runtime = runtimeEnvironment.cwlMap).withInputs(inputsMap.map({
       case (LocalName(localName), WomSingleFile(path)) => localName -> WomString(path)
       case (LocalName(localName), value) => localName -> value
     }), functions)

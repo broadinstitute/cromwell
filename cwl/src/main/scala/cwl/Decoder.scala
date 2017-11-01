@@ -40,8 +40,6 @@ object CwlDecoder {
     EitherT{IO{
       CwlCodecs.decodeCwl(json).
         leftMap{t =>
-          val s = json
-          println(s)
           NonEmptyList.of(t.getMessage, t.getStackTrace.mkString("\n"))
         }
     }}

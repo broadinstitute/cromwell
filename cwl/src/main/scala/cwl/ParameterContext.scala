@@ -12,7 +12,7 @@ object ParameterContext {
   )
 }
 
-case class ParameterContext(inputs: WomValue, self: WomValue, runtime: WomValue) {
+case class ParameterContext(inputs: WomValue = WomOptionalValue(WomNothingType, None), self: WomValue = WomOptionalValue(WomNothingType, None), runtime: WomValue = WomOptionalValue(WomNothingType, None)) {
   def withInputs(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ParameterContext = {
     val wdlValueType = WomStringType
     copy(

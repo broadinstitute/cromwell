@@ -16,11 +16,7 @@ object CwlCodecs {
   implicit val wfD = implicitly[Decoder[Workflow]]
   implicit val cltD = implicitly[Decoder[CommandLineTool]]
 
-  def decodeCwl(in: String) = {
-    val x = decode[Workflow](in)
-    println(x)
-    decode[Cwl](in)
-  }
+  def decodeCwl(in: String) = decode[Cwl](in)
 
   def encodeCwlCommandLineTool(commandLineTool: CommandLineTool): Json = {
     import io.circe.syntax._

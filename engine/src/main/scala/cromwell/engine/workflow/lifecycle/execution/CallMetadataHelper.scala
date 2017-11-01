@@ -89,11 +89,6 @@ trait CallMetadataHelper {
 
     serviceRegistryActor ! PutMetadataAction(completionEvents)
   }
-  
-  def pushMiscEvent(jobKey: JobKey, value: String) = {
-    val miscEvent = MetadataEvent(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Misc}[$randomNumberString]"), MetadataValue(value))
-    serviceRegistryActor ! PutMetadataAction(miscEvent)
-  }
 
   def pushExecutionEventsToMetadataService(jobKey: JobKey, eventList: Seq[ExecutionEvent]) = {
     def metadataEvent(k: String, value: Any) = {

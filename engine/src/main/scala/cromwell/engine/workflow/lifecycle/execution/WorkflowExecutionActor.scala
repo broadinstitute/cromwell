@@ -355,8 +355,14 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     } else {
       dataWithFailure.sealExecutionStore
     }
+    
+    // If we're in aborting state, stay there. Even if jobs fail when aborting, the final workflow status should be Aborted.
+    val nextState = stateName match {
+      case WorkflowExecutionAbortingState => WorkflowExecutionAbortingState
+      case _ => WorkflowExecutionFailingState
+    }
 
-    goto(WorkflowExecutionFailingState) using newData
+    goto(nextState) using newData
   }
 
   private def handleCallAborted(data: WorkflowExecutionActorData, jobKey: JobKey, jobExecutionMap: JobExecutionMap = Map.empty) = {

@@ -12,7 +12,6 @@ object CallMetadataKeys {
   val End = "end"
   val RetryableFailure = "retryableFailure"
   val Failures = "failures"
-  val Misc = "miscellaneous"
   val Stdout = "stdout"
   val Stderr = "stderr"
   val BackendLogsPrefix = "backendLogs"

@@ -16,16 +16,16 @@ import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Dispatcher.ApiDispatcher
+import cromwell.core.abort.{AbortResponse, WorkflowAbortingResponse, WorkflowAbortFailureResponse}
 import cromwell.core.labels.Labels
-import cromwell.core.{WorkflowAborted, WorkflowId, WorkflowSubmitted}
+import cromwell.core.{WorkflowAborting, WorkflowId, WorkflowSubmitted}
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor
-import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
+import cromwell.engine.workflow.WorkflowManagerActor.{AbortWorkflowCommand, WorkflowNotFoundException}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{BuiltCallCacheDiffResponse, CachedCallNotFoundException, CallCacheDiffActorResponse, FailedCallCacheDiffResponse}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheDiffActor, CallCacheDiffQueryParameter}
-import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.WorkflowStoreEngineAbortResponse
-import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
+import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreSubmitActor}
 import cromwell.server.CromwellShutdown
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse}
 import cromwell.services.metadata.MetadataService._
@@ -162,24 +162,25 @@ trait CromwellApiService extends HttpInstrumentation {
       post {
         instrumentRequest {
           def sendAbort(workflowId: WorkflowId): Route = {
-            val response = workflowStoreActor.ask(WorkflowStoreActor.AbortWorkflow(workflowId, workflowManagerActor)).mapTo[WorkflowStoreEngineAbortResponse]
+            val response = workflowStoreActor.ask(WorkflowStoreActor.AbortWorkflowCommand(workflowId)).mapTo[AbortResponse]
 
             onComplete(response) {
-              case Success(WorkflowStoreEngineActor.WorkflowAborted(id)) =>
-                complete(ToResponseMarshallable(WorkflowAbortResponse(id.toString, WorkflowAborted.toString)))
-              case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: IllegalStateException)) =>
+              case Success(WorkflowAbortingResponse(id)) =>
+                workflowManagerActor ! AbortWorkflowCommand(id)
+                complete(ToResponseMarshallable(WorkflowAbortResponse(id.toString, WorkflowAborting.toString)))
+              case Success(WorkflowAbortFailureResponse(_, e: IllegalStateException)) =>
                 /*
-                    Note that this is currently impossible to reach but was left as-is during the transition to akka http.
-                    When aborts get fixed, this should be looked at.
-                  */
+                  Note that this is currently impossible to reach but was left as-is during the transition to akka http.
+                  When aborts get fixed, this should be looked at.
+                */
                 e.errorRequest(StatusCodes.Forbidden)
-              case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: WorkflowNotFoundException)) => e.errorRequest(StatusCodes.NotFound)
-              case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e)) => e.errorRequest(StatusCodes.InternalServerError)
+              case Success(WorkflowAbortFailureResponse(_, e: WorkflowNotFoundException)) => e.errorRequest(StatusCodes.NotFound)
+              case Success(WorkflowAbortFailureResponse(_, e)) => e.errorRequest(StatusCodes.InternalServerError)
               case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
               case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
             }
           }
-          
+
           Try(WorkflowId.fromString(possibleWorkflowId)) match {
             case Success(workflowId) => sendAbort(workflowId)
             case Failure(_) => InvalidWorkflowException(possibleWorkflowId).failRequest(StatusCodes.BadRequest)

@@ -25,7 +25,7 @@ final case class WorkflowStoreActor private(store: WorkflowStore, serviceRegistr
 object WorkflowStoreActor {
   sealed trait WorkflowStoreActorEngineCommand
   final case class FetchRunnableWorkflows(n: Int) extends WorkflowStoreActorEngineCommand
-  final case class AbortWorkflow(id: WorkflowId, manager: ActorRef) extends WorkflowStoreActorEngineCommand
+  final case class AbortWorkflowCommand(id: WorkflowId) extends WorkflowStoreActorEngineCommand
   case object InitializerCommand extends WorkflowStoreActorEngineCommand
   case object WorkDone extends WorkflowStoreActorEngineCommand
 

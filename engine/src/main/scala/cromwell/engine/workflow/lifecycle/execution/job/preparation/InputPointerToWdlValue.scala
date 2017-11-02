@@ -1,10 +1,10 @@
-package cromwell.engine.workflow.lifecycle.execution.preparation
+package cromwell.engine.workflow.lifecycle.execution.job.preparation
 
 import cats.syntax.option._
 import cats.syntax.validated._
 import cromwell.core.ExecutionIndex.ExecutionIndex
-import cromwell.engine.workflow.lifecycle.execution.ValueStore
 import common.validation.ErrorOr.ErrorOr
+import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import shapeless.Poly1
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.GraphNode
@@ -21,7 +21,7 @@ object InputPointerToWdlValue extends Poly1 {
   }
 
   implicit def fromOutputPort: Case.Aux[OutputPort, ToWdlValueFn] = at[OutputPort] {
-    port => (node: GraphNode, _: Map[String, WomValue], _: IoFunctionSet, valueStore: ValueStore, index : ExecutionIndex) =>
+    port => (_: GraphNode, _: Map[String, WomValue], _: IoFunctionSet, valueStore: ValueStore, index : ExecutionIndex) =>
       // TODO WOM: This is not right, we should be able to know which one to look at
       valueStore.get(port, index)
         .orElse(valueStore.get(port, None))  

@@ -1,5 +1,6 @@
 package wom.graph
 
+import wom.expression.WomExpression
 import wom.types.{WomArrayType, WomOptionalType, WomType}
 
 sealed trait GraphNodePort {
@@ -50,6 +51,12 @@ object GraphNodePort {
     }
   }
   case class GraphNodeOutputPort(override val identifier: WomIdentifier, womType: WomType, graphNode: GraphNode) extends OutputPort
+  object ExpressionBasedOutputPort {
+    def apply(localName: LocalName, womType: WomType, graphNode: GraphNode, expression: WomExpression): ExpressionBasedOutputPort = {
+      ExpressionBasedOutputPort(WomIdentifier(localName, graphNode.identifier.fullyQualifiedName.combine(localName.value)), womType, graphNode, expression)
+    }
+  }
+  case class ExpressionBasedOutputPort(override val identifier: WomIdentifier, womType: WomType, graphNode: GraphNode, expression: WomExpression) extends OutputPort
 
   /**
     * Represents the gathered output from a call/declaration in a ScatterNode.

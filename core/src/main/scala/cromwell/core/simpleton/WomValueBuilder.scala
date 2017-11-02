@@ -1,9 +1,8 @@
 package cromwell.core.simpleton
 
+import cromwell.core.CallOutputs
 import cromwell.core.simpleton.WomValueSimpleton._
-import wom._
-import wom.callable.Callable.OutputDefinition
-import wom.core.CallOutputs
+import wom.graph.GraphNodePort.OutputPort
 import wom.types._
 import wom.values._
 
@@ -130,11 +129,11 @@ object WomValueBuilder {
     */
   private case class SimpletonComponent(path: String, value: WomValue)
 
-  def toJobOutputs(taskOutputs: Traversable[OutputDefinition], simpletons: Traversable[WomValueSimpleton]): CallOutputs = {
-    toWdlValues(taskOutputs, simpletons) mapValues JobOutput.apply
+  def toJobOutputs(taskOutputs: Traversable[OutputPort], simpletons: Traversable[WomValueSimpleton]): CallOutputs = {
+    CallOutputs(toWdlValues(taskOutputs, simpletons))
   }
 
-  def toWdlValues(taskOutputs: Traversable[OutputDefinition], simpletons: Traversable[WomValueSimpleton]): Map[String, WomValue] = {
+  def toWdlValues(taskOutputs: Traversable[OutputPort], simpletons: Traversable[WomValueSimpleton]): Map[OutputPort, WomValue] = {
 
     def simpletonToComponent(name: String)(simpleton: WomValueSimpleton): SimpletonComponent = {
       SimpletonComponent(simpleton.simpletonKey.drop(name.length), simpleton.simpletonValue)
@@ -142,10 +141,10 @@ object WomValueBuilder {
 
     // This is meant to "rehydrate" simpletonized WdlValues back to WdlValues.  It is assumed that these WdlValues were
     // "dehydrated" to WomValueSimpletons correctly. This code is not robust to corrupt input whatsoever.
-    val types = taskOutputs map { o => o.name -> o.womType } toMap
+    val types = taskOutputs map { o => o -> o.womType } toMap
     val simpletonsByOutputName = simpletons groupBy { _.simpletonKey match { case IdentifierAndPathPattern(i, _) => i } }
     val simpletonComponentsByOutputName = simpletonsByOutputName map { case (name, ss) => name -> (ss map simpletonToComponent(name)) }
-    types map { case (name, outputType) => name -> toWomValue(outputType, simpletonComponentsByOutputName(name))}
+    types map { case (outputPort, outputType) => outputPort -> toWomValue(outputType, simpletonComponentsByOutputName(outputPort.name))}
   }
 }
 

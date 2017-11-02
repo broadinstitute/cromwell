@@ -22,6 +22,8 @@ sealed abstract class CentaurTestFormat(val name: String) {
     case _: CromwellRestartWithoutRecover => "survive a Cromwell restart"
     case _: ScheduledAbort => "abort a workflow mid run"
     case _: ScheduledAbortWithRestart => "abort a workflow mid run and restart immediately"
+    case _: WorkflowFailureRestartWithRecover => "survive a Cromwell restart when a workflow was failing and recover jobs"
+    case _: WorkflowFailureRestartWithoutRecover => "survive a Cromwell restart when a workflow was failing"
     case other => s"unrecognized format $other"
   }
 }
@@ -60,6 +62,16 @@ object CentaurTestFormat {
   }
   case class ScheduledAbortWithRestart(callMarker: CallMarker) extends CentaurTestFormat(ScheduledAbortWithRestart.name) with RestartFormat
 
+  object WorkflowFailureRestartWithRecover extends CentaurTestFormat("WorkflowFailureRestartWithRecover") with WithCallMarker {
+    val build = WorkflowFailureRestartWithRecover.apply _
+  }
+  case class WorkflowFailureRestartWithRecover(callMarker: CallMarker) extends CentaurTestFormat(WorkflowFailureRestartWithRecover.name) with RestartFormat
+
+  object WorkflowFailureRestartWithoutRecover extends CentaurTestFormat("WorkflowFailureRestartWithoutRecover") with WithCallMarker {
+    val build = WorkflowFailureRestartWithoutRecover.apply _
+  }
+  case class WorkflowFailureRestartWithoutRecover(callMarker: CallMarker) extends CentaurTestFormat(WorkflowFailureRestartWithoutRecover.name) with RestartFormat
+  
   def fromConfig(conf: Config): Checked[CentaurTestFormat] = {
     
     CallMarker.fromConfig(conf).toEither flatMap { callMarker =>
@@ -87,7 +99,9 @@ object CentaurTestFormat {
       SubmitFailureTest,
       ScheduledAbortWithRestart,
       InstantAbort,
-      ScheduledAbort
+      ScheduledAbort,
+      WorkflowFailureRestartWithRecover,
+      WorkflowFailureRestartWithoutRecover
     ).collectFirst({
       case format: WithCallMarker if format.name.equalsIgnoreCase(testFormat) => withCallMarker(format.name, format.build)
       case format if format.name.equalsIgnoreCase(testFormat) => format.validNelCheck

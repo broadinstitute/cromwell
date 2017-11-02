@@ -9,7 +9,6 @@ import cromwell.services.EngineServicesStore
 import cromwell.util.WomMocks
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
-import wom.JobOutput
 import wom.callable.Callable.OutputDefinition
 import wom.expression.PlaceholderWomExpression
 import wom.graph.WomIdentifier
@@ -38,15 +37,15 @@ class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Moc
 
       val successKey = BackendJobDescriptorKey(successCall, None, 1).toJobStoreKey(workflowId)
 
-      jobStoreService ! QueryJobCompletion(successKey, mockTask.outputs)
+      jobStoreService ! QueryJobCompletion(successKey, mockTask.outputs map WomMocks.mockOutputPort)
       expectMsgType[JobNotComplete.type](MaxWait)
 
-      val outputs = Map("baz" -> JobOutput(WomString("qux")))
+      val outputs = WomMocks.mockOutputExpectations(Map("baz" -> WomString("qux")))
 
       jobStoreService ! RegisterJobCompleted(successKey, JobResultSuccess(Option(0), outputs))
       expectMsgType[JobStoreWriteSuccess](MaxWait)
 
-      jobStoreService ! QueryJobCompletion(successKey, mockTask.outputs)
+      jobStoreService ! QueryJobCompletion(successKey, mockTask.outputs map WomMocks.mockOutputPort)
       expectMsgPF(MaxWait) {
         case JobComplete(JobResultSuccess(Some(0), os)) if os == outputs =>
       }
@@ -54,13 +53,13 @@ class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Moc
       val failureCall = WomMocks.mockTaskCall(WomIdentifier("qux"))
       val failureKey = BackendJobDescriptorKey(failureCall, None, 1).toJobStoreKey(workflowId)
 
-      jobStoreService ! QueryJobCompletion(failureKey, mockTask.outputs)
+      jobStoreService ! QueryJobCompletion(failureKey, mockTask.outputs map WomMocks.mockOutputPort)
       expectMsgType[JobNotComplete.type](MaxWait)
 
       jobStoreService ! RegisterJobCompleted(failureKey, JobResultFailure(Option(11), new IllegalArgumentException("Insufficient funds"), retryable = false))
       expectMsgType[JobStoreWriteSuccess](MaxWait)
 
-      jobStoreService ! QueryJobCompletion(failureKey, mockTask.outputs)
+      jobStoreService ! QueryJobCompletion(failureKey, mockTask.outputs map WomMocks.mockOutputPort)
       expectMsgPF(MaxWait) {
         case JobComplete(JobResultFailure(Some(11), _, false)) =>
       }

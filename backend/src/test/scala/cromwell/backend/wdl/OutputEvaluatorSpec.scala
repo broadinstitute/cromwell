@@ -4,12 +4,11 @@ import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
 import cromwell.backend.wdl.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey}
-import cromwell.core.NoIoFunctionSet
+import cromwell.core.{CallOutputs, NoIoFunctionSet}
 import cromwell.util.WomMocks
 import common.validation.ErrorOr.ErrorOr
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
-import wom.JobOutput
 import wom.callable.Callable.{InputDefinition, OutputDefinition, RequiredInputDefinition}
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.WomIdentifier
@@ -98,12 +97,12 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     val call = WomMocks.mockTaskCall(WomIdentifier("call"), WomMocks.EmptyTaskDefinition.copy(outputs = mockOutputs))
     val key = BackendJobDescriptorKey(call, None, 1)
     val jobDescriptor = BackendJobDescriptor(null, key, null, mockInputs, null, null)
-    
+
     OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet) match {
-      case ValidJobOutputs(outputs) => outputs shouldBe Map(
-        "o1" -> JobOutput(WomInteger(5)),
-        "o2" -> JobOutput(WomInteger(5))
-      )
+      case ValidJobOutputs(outputs) => outputs shouldBe CallOutputs(Map(
+        jobDescriptor.call.outputPorts.find(_.name == "o1").get -> WomInteger(5),
+        jobDescriptor.call.outputPorts.find(_.name == "o2").get -> WomInteger(5)
+      ))
       case _ => fail("Failed to evaluate outputs")
     }
   }

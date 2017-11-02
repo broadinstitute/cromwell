@@ -17,15 +17,24 @@ import scala.concurrent.{ExecutionContext, Future}
 
 case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends WorkflowStore {
   override def initialize(implicit ec: ExecutionContext): Future[Unit] = {
-          if (ConfigFactory.load().as[Option[Boolean]]("system.workflow-restart").getOrElse(true)) {
-            sqlDatabase.updateWorkflowState(
-                WorkflowStoreState.Running.toString,
-                WorkflowStoreState.Restartable.toString)
-          } else {
-            Future.successful(())
-          }
+    if (ConfigFactory.load().as[Option[Boolean]]("system.workflow-restart").getOrElse(true)) {
+      sqlDatabase.updateWorkflowsInState(
+        List(
+          WorkflowStoreState.Running.toString -> WorkflowStoreState.RestartableRunning.toString,
+          WorkflowStoreState.Aborting.toString -> WorkflowStoreState.RestartableAborting.toString
+        )
+      )
+    } else {
+      Future.successful(())
+    }
   }
-  
+
+  override def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[Boolean] = {
+    sqlDatabase.updateWorkflowState(
+      id.toString, WorkflowStoreState.Aborting.toString
+    ).map(_ > 0)
+  }
+
   override def stats(implicit ec: ExecutionContext): Future[Map[String, Int]] = sqlDatabase.stats
 
   override def remove(id: WorkflowId)(implicit ec: ExecutionContext): Future[Boolean] = {
@@ -37,7 +46,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     * flag to true
     */
   override def fetchRunnableWorkflows(n: Int, state: StartableState)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
-    sqlDatabase.queryWorkflowStoreEntries(n, state.toString, WorkflowStoreState.Running.toString) map {
+    sqlDatabase.queryWorkflowStoreEntries(n, state.toString, state.afterFetchedState.toString) map {
       _.toList map fromWorkflowStoreEntry
     }
   }
@@ -91,10 +100,11 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
   }
 
   private def fromDbStateStringToStartableState(dbStateName: String): StartableState = {
-    if (dbStateName.equalsIgnoreCase(WorkflowStoreState.Restartable.toString)) {
-      WorkflowStoreState.Restartable
-    }
-    else {
+    if (dbStateName.equalsIgnoreCase(WorkflowStoreState.RestartableRunning.toString)) {
+      WorkflowStoreState.RestartableRunning
+    } else if(dbStateName.equalsIgnoreCase(WorkflowStoreState.RestartableAborting.toString)){
+      WorkflowStoreState.RestartableAborting
+    } else {
       WorkflowStoreState.Submitted
     }
   }

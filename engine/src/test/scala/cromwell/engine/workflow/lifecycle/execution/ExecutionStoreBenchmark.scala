@@ -4,6 +4,7 @@ import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionStatus.{apply => _, _}
 import cromwell.core.{ExecutionStatus, JobKey}
 import cromwell.engine.workflow.lifecycle.execution.keys.ScatterCollectorKey
+import cromwell.engine.workflow.lifecycle.execution.stores.ActiveExecutionStore
 import cromwell.util.SampleWdl
 import org.scalameter.api._
 import org.scalameter.picklers.Implicits._
@@ -45,20 +46,20 @@ object ExecutionStoreBenchmark extends Bench[Double] with DefaultJsonProtocol {
   // Each execution store contains X simulated shards of "prepareCall" in status Done and X simulated shards of "scatterCall" in status NotStarted
   // This provides a good starting point to evaluate the speed of "runnableCalls", as it needs to iterate over all "NotStarted" keys, and for each one
   // look for their upstreams keys in status "Done"
-  val executionStores: Gen[ExecutionStore] = for {
+  val executionStores: Gen[ActiveExecutionStore] = for {
     size <- sizes
     doneMap = (0 until size map makeKey(prepareCall, ExecutionStatus.Done)).toMap
     collectorKey = Map(ScatterCollectorKey(scatterCall, scatter.outputMapping, scatter, size) -> ExecutionStatus.NotStarted)
     notStartedMap = (0 until size map makeKey(scatterCall, ExecutionStatus.NotStarted)).toMap ++ collectorKey
     finalMap: Map[JobKey, ExecutionStatus] = doneMap ++ notStartedMap
-  } yield new ExecutionStore(finalMap, true)
+  } yield new ActiveExecutionStore(finalMap, true)
   
   performance of "ExecutionStore" in {
     // Measures how fast the execution store can find runnable calls with lots of "Done" calls and "NotStarted" calls.
     // Other "shapes" would be valuable to get a better sense of how this method behaves in various situations (with Collector Keys etc...)  
     measure method "runnableCalls" in {
       using(executionStores) in { es =>
-        es.runnableScopes
+        es.update
       }
     }
   }

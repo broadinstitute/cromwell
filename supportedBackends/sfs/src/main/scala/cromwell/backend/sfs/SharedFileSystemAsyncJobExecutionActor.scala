@@ -11,6 +11,7 @@ import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import wom.values.WomFile
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 case class SharedFileSystemRunStatus(returnCodeFileExists: Boolean) {
@@ -154,12 +155,27 @@ trait SharedFileSystemAsyncJobExecutionActor
     new ProcessRunner(processArgs.argv, stdout, stderr)
   }
 
-  override def recover(job: StandardAsyncJob): ExecutionHandle = {
+  override def recover(job: StandardAsyncJob): ExecutionHandle = reconnectToExistingJob(job)
+
+  override def reconnectAsync(job: StandardAsyncJob): Future[ExecutionHandle] = {
+    Future.successful(reconnectToExistingJob(job))
+  }
+  
+  override def reconnectToAbortAsync(job: StandardAsyncJob): Future[ExecutionHandle] = {
+    Future.successful(reconnectToExistingJob(job, forceAbort = true))
+  }
+
+  private def reconnectToExistingJob(job: StandardAsyncJob, forceAbort: Boolean = false): ExecutionHandle = {
     // To avoid race conditions, check for the rc file after checking if the job is alive.
-    if (isAlive(job) || jobPaths.returnCode.exists) {
+    if (isAlive(job)) {
+      // If the job is not done and forceAbort is true, try to abort it
+      if (!jobPaths.returnCode.exists && forceAbort) {
+        jobLogger.info(s"Recovering and aborting using job id: ${job.jobId}")
+        tryAbort(job)
+      }
+      PendingExecutionHandle(jobDescriptor, job, None, None)
       // If we're done, we'll get to the rc during the next poll.
-      // Or if we're still running, return pending also.
-      jobLogger.info(s"Recovering using job id: ${job.jobId}")
+    } else if (jobPaths.returnCode.exists) {
       PendingExecutionHandle(jobDescriptor, job, None, None)
     } else {
       // Could start executeScript(), but for now fail because we shouldn't be in this state.

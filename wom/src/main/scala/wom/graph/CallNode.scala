@@ -11,7 +11,7 @@ import wom.callable.{Callable, TaskDefinition, WorkflowDefinition}
 import wom.expression.WomExpression
 import wom.graph.CallNode._
 import wom.graph.GraphNode.GeneratedNodeAndNewNodes
-import wom.graph.GraphNodePort.{ConnectedInputPort, GraphNodeOutputPort, InputPort, OutputPort}
+import wom.graph.GraphNodePort._
 import wom.graph.expression.ExpressionNode
 import wom.values.WomValue
 
@@ -27,9 +27,11 @@ final case class TaskCallNode private(override val identifier: WomIdentifier,
                                       override val inputPorts: Set[GraphNodePort.InputPort],
                                       inputDefinitionMappings: InputDefinitionMappings) extends CallNode {
   val callType: String = "task"
-  override val outputPorts: Set[GraphNodePort.OutputPort] = {
-    callable.outputs.map(o => GraphNodeOutputPort(o.name, o.womType, this)).toSet
+  val expressionBasedOutputPorts: Set[ExpressionBasedOutputPort] = {
+    callable.outputs.map(o => ExpressionBasedOutputPort(o.localName, o.womType, this, o.expression)).toSet
   }
+
+  override val outputPorts: Set[OutputPort] = expressionBasedOutputPorts.toSet[OutputPort]
 }
 
 final case class WorkflowCallNode private(override val identifier: WomIdentifier,

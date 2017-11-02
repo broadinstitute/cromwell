@@ -1,7 +1,8 @@
-ignore: true
-name: abort.restart_abort
+ignore: false
+name: abort.restart_abort_jes
 testFormat: ScheduledAbortWithRestart
 callMark: scheduled_abort.aborted
+backends: [Jes]
 
 files {
   wdl: abort/scheduled_abort.wdl

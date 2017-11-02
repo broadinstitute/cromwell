@@ -70,19 +70,21 @@ object TestFormulas {
     } yield ()
   }
   
-  private def cromwellRestart(workflowDefinition: Workflow, callMarker: CallMarker, testRecover: Boolean): Test[Unit] = CentaurConfig.runMode match {
+  private def cromwellRestart(workflowDefinition: Workflow, callMarker: CallMarker, testRecover: Boolean, finalStatus: TerminalStatus): Test[Unit] = CentaurConfig.runMode match {
     case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
       for {
         w <- submitWorkflow(workflowDefinition)
         jobId <- pollUntilCallIsRunning(w, callMarker.callKey)
         _ = CromwellManager.stopCromwell()
         _ = CromwellManager.startCromwell(postRestart)
-        _ <- pollUntilStatus(w, Succeeded)
+        _ <- pollUntilStatus(w, finalStatus)
         _ <- validateMetadata(w, workflowDefinition)
         _ <- if(testRecover) validateRecovered(w, callMarker.callKey, jobId) else Test.successful(())
         _ <- validateDirectoryContentsCounts(workflowDefinition, w)
       } yield ()
-    case _ => runSuccessfulWorkflowAndVerifyMetadata(workflowDefinition)
+    case _ if finalStatus == Succeeded => runSuccessfulWorkflowAndVerifyMetadata(workflowDefinition)
+    case _ if finalStatus == Failed => runFailingWorkflowAndVerifyMetadata(workflowDefinition)
+    case _ => Test.failed(new Exception("This test can only run successful or failed workflow"))
   }
 
   def instantAbort(workflowDefinition: Workflow): Test[Unit] = for {
@@ -115,12 +117,11 @@ object TestFormulas {
     } yield ()
   }
 
-  def cromwellRestartWithRecover(workflowDefinition: Workflow, callMarker: CallMarker): Test[Unit] = {
-    cromwellRestart(workflowDefinition, callMarker, testRecover = true)
-  }
-
-  def cromwellRestartWithoutRecover(workflowDefinition: Workflow, callMarker: CallMarker): Test[Unit] = {
-    cromwellRestart(workflowDefinition, callMarker, testRecover = false)
+  def workflowRestart(workflowDefinition: Workflow,
+                             callMarker: CallMarker,
+                             recover: Boolean,
+                             finalStatus: TerminalStatus): Test[Unit] = {
+    cromwellRestart(workflowDefinition, callMarker, testRecover = recover, finalStatus = Failed)
   }
 
   def submitInvalidWorkflow(workflow: Workflow, expectedSubmitResponse: SubmitResponse): Test[Unit] = {

@@ -8,17 +8,17 @@ import cats.instances.set._
 import cats.instances.tuple._
 import cats.syntax.foldable._
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
-import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{JobAbortedResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor}
+import cromwell.core.CallOutputs
 import cromwell.core.io._
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.{Path, PathCopier}
 import cromwell.core.simpleton.{WomValueBuilder, WomValueSimpleton}
-import wom.core.CallOutputs
 import wom.values.WomFile
 
 import scala.util.{Failure, Success, Try}
@@ -231,7 +231,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
   def abort() = {
     log.warning("{}: Abort not supported during cache hit copying", jobTag)
-    context.parent ! AbortedResponse(jobDescriptor.key)
+    context.parent ! JobAbortedResponse(jobDescriptor.key)
     context stop self
     stay()
   }
@@ -262,7 +262,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       case nonFileSimpleton => (List(nonFileSimpleton), Set.empty[IoCommand[_]])
     })
 
-    (WomValueBuilder.toJobOutputs(jobDescriptor.call.callable.outputs, destinationSimpletons), ioCommands)
+    (WomValueBuilder.toJobOutputs(jobDescriptor.call.outputPorts, destinationSimpletons), ioCommands)
   }
 
   /**

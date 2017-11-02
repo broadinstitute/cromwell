@@ -13,6 +13,7 @@ object WorkflowLifecycleActor {
 
   trait WorkflowLifecycleSuccessResponse extends EngineLifecycleStateCompleteResponse
   trait WorkflowLifecycleFailureResponse extends EngineLifecycleStateCompleteResponse
+  trait WorkflowLifecycleAbortedResponse extends EngineLifecycleStateCompleteResponse
 
   object WorkflowLifecycleActorData {
     def empty = WorkflowLifecycleActorData(Set.empty, List.empty, Map.empty, List.empty)

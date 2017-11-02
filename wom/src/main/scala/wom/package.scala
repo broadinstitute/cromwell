@@ -36,7 +36,6 @@ package object core {
   type WorkflowType = String
   type WorkflowSource = String
   type WorkflowTypeVersion = String
-  type CallOutputs = Map[String, JobOutput]
   type HostInputs = Map[String, WomValue]
   type EvaluatedRuntimeAttributes = Map[String, WomValue]
   // This one really does seem WOM specific

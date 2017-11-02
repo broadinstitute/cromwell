@@ -4,9 +4,12 @@ import java.io.IOException
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
-import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
+import common.exception.MessageAggregation
+import common.util.TryUtil
+import common.validation.ErrorOr.ErrorOr
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
-import cromwell.backend.async.AsyncBackendJobExecutionActor.{ExecutionMode, JobId, Recover}
+import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle, ReturnCodeIsNotAnInt, StderrNonEmpty, SuccessfulExecutionHandle, WrongReturnCode}
 import cromwell.backend.validation._
 import cromwell.backend.wdl.OutputEvaluator._
@@ -18,9 +21,6 @@ import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker,
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
-import common.exception.MessageAggregation
-import common.util.TryUtil
-import common.validation.ErrorOr.ErrorOr
 import net.ceedubs.ficus.Ficus._
 import wom.values._
 
@@ -295,6 +295,32 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def recoverAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = Future.fromTry(Try(recover(jobId)))
 
   /**
+    * A correct implementation should reconnect to the specified job id, and upon reconnection try to abort the job.
+    * The job might already be aborted (or in any other state) and this method should be robust to that scenario.
+    * This method is needed in case Cromwell restarts while a workflow was being aborted. The engine cannot guarantee
+    * that all backend actors will have time to receive and process the abort command before the server shuts down.
+    * For that reason, upon restart, this method should always try to abort the job.
+    * 
+    * The default implementation returns a JobReconnectionNotSupportedException failure which will result in a job failure.
+    * 
+    * @param jobId The previously recorded job id.
+    * @return the execution handle for the job.
+    */
+  def reconnectToAbortAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = Future.failed(JobReconnectionNotSupportedException(jobDescriptor.key))
+
+  /**
+    * This is in spirit similar to recover except it does not defaults back to running the job if not implemented.
+    * This is used after a server restart to reconnect to jobs while the workflow was Failing (because another job failed). The workflow is bound
+    * to fail eventually for that reason but in the meantime we want to reconnect to running jobs to update their status.
+    * 
+    * The default implementation returns a JobReconnectionNotSupportedException failure which will result in a job failure.
+    * 
+    * @param jobId The previously recorded job id.
+    * @return the execution handle for the job.
+    */
+  def reconnectAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = Future.failed(JobReconnectionNotSupportedException(jobDescriptor.key))
+
+  /**
     * Returns the run status for the job.
     *
     * @param handle The handle of the running job.
@@ -397,7 +423,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def postAbort(): Unit = {
     if (requestsAbortAndDiesImmediately) {
       tellMetadata(Map(CallMetadataKeys.BackendStatus -> "Aborted"))
-      context.parent ! AbortedResponse(jobDescriptor.key)
+      context.parent ! JobAbortedResponse(jobDescriptor.key)
       context.stop(self)
     }
   }
@@ -535,6 +561,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     val executeOrRecoverFuture = {
       mode match {
+        case Reconnect(jobId: StandardAsyncJob@unchecked) => reconnectAsync(jobId)
+        case ReconnectToAbort(jobId: StandardAsyncJob@unchecked) => reconnectToAbortAsync(jobId)
         case Recover(jobId: StandardAsyncJob@unchecked) => recoverAsync(jobId)
         case _ =>
           tellMetadata(startMetadataKeyValues)

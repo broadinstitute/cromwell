@@ -3,7 +3,7 @@ package cromwell.engine.backend.mock
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobSucceededResponse}
 import cromwell.backend._
-import cromwell.core.NoIoFunctionSet
+import cromwell.core.{CallOutputs, NoIoFunctionSet}
 import wom.expression.IoFunctionSet
 import wom.graph.TaskCallNode
 
@@ -15,7 +15,7 @@ object DefaultBackendJobExecutionActor {
 
 case class DefaultBackendJobExecutionActor(override val jobDescriptor: BackendJobDescriptor, override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendJobExecutionActor {
   override def execute: Future[BackendJobExecutionResponse] = {
-    Future.successful(JobSucceededResponse(jobDescriptor.key, Some(0), (jobDescriptor.call.callable.outputs map taskOutputToJobOutput).toMap, None, Seq.empty, dockerImageUsed = None))
+    Future.successful(JobSucceededResponse(jobDescriptor.key, Some(0), CallOutputs((jobDescriptor.call.outputPorts map taskOutputToJobOutput).toMap), None, Seq.empty, dockerImageUsed = None))
   }
 
   override def recover = execute

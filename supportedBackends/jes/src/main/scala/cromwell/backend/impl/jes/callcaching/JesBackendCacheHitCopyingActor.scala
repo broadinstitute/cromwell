@@ -5,12 +5,12 @@ import cromwell.backend.BackendInitializationData
 import cromwell.backend.impl.jes.JesBackendInitializationData
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardCacheHitCopyingActorParams}
+import cromwell.core.CallOutputs
 import cromwell.core.io.{IoCommand, IoTouchCommand}
 import cromwell.core.path.Path
 import cromwell.core.simpleton.{WomValueBuilder, WomValueSimpleton}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import common.util.TryUtil
-import wom.core.CallOutputs
 import wom.values.WomFile
 
 import scala.language.postfixOps
@@ -30,7 +30,7 @@ class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActo
       }
       
       TryUtil.sequence(touchCommands) map {
-        WomValueBuilder.toJobOutputs(jobDescriptor.call.callable.outputs, womValueSimpletons) -> _.toSet
+        WomValueBuilder.toJobOutputs(jobDescriptor.call.outputPorts, womValueSimpletons) -> _.toSet
       }
   }
   

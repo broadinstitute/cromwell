@@ -27,7 +27,7 @@ trait WorkflowStoreEntryComponent {
 
     def customLabels = column[Clob]("CUSTOM_LABELS")
 
-    def workflowState = column[String]("WORKFLOW_STATE", O.Length(15))
+    def workflowState = column[String]("WORKFLOW_STATE", O.Length(20))
 
     def submissionTime = column[Timestamp]("SUBMISSION_TIME")
 
@@ -94,6 +94,16 @@ trait WorkflowStoreEntryComponent {
     (workflowState: Rep[String]) => for {
       workflowStoreEntry <- workflowStoreEntries
       if workflowStoreEntry.workflowState === workflowState
+    } yield workflowStoreEntry.workflowState
+  )
+
+  /**
+    * Useful for updating a given workflow to a new state
+    */
+  val workflowStateForId = Compiled(
+    (workflowId: Rep[String]) => for {
+      workflowStoreEntry <- workflowStoreEntries
+      if workflowStoreEntry.workflowExecutionUuid === workflowId
     } yield workflowStoreEntry.workflowState
   )
 }

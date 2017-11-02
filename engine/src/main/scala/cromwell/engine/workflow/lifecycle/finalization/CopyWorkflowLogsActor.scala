@@ -1,4 +1,4 @@
-package cromwell.engine.workflow.lifecycle
+package cromwell.engine.workflow.lifecycle.finalization
 
 import java.io.IOException
 
@@ -9,7 +9,7 @@ import cromwell.core._
 import cromwell.core.io._
 import cromwell.core.logging.WorkflowLogger
 import cromwell.core.path.Path
-import cromwell.engine.workflow.lifecycle.execution.WorkflowMetadataHelper
+import cromwell.engine.workflow.WorkflowMetadataHelper
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}

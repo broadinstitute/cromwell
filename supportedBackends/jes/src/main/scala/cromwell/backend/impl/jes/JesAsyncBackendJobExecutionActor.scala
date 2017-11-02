@@ -13,6 +13,7 @@ import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNo
 import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
 import cromwell.backend.impl.jes.errors.FailedToDelocalizeFailure
 import cromwell.backend.impl.jes.io._
+import cromwell.backend.impl.jes.statuspolling.JesRunCreationClient.JobAbortedException
 import cromwell.backend.impl.jes.statuspolling.{JesRunCreationClient, JesStatusRequestClient}
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
@@ -108,9 +109,9 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   private val previousRetryReasons: ErrorOr[PreviousRetryReasons] = PreviousRetryReasons.tryApply(jobDescriptor.prefetchedKvStoreEntries, jobDescriptor.key.attempt)
 
   private lazy val jobDockerImage = jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
-  
+
   override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
-  
+
   override val preemptible: Boolean = previousRetryReasons match {
     case Valid(PreviousRetryReasons(p, _)) => p < maxPreemption
     case _ => false
@@ -120,7 +121,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     Run(job, initializationData.genomics).abort()
   }
 
-  override def requestsAbortAndDiesImmediately: Boolean = true
+  override def requestsAbortAndDiesImmediately: Boolean = false
 
   override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse ioReceive orElse kvClientReceive orElse super.receive
 
@@ -158,12 +159,12 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   private[jes] def generateJesInputs(jobDescriptor: BackendJobDescriptor): Set[JesInput] = {
     // TODO WOM: Fix it !
-//    val fullyQualifiedPreprocessedInputs = jobDescriptor.inputDeclarations map { case (declaration, value) => declaration.fullyQualifiedName -> commandLineValueMapper(value) }
+    //    val fullyQualifiedPreprocessedInputs = jobDescriptor.inputDeclarations map { case (declaration, value) => declaration.fullyQualifiedName -> commandLineValueMapper(value) }
     val writeFunctionFiles = {
       List.empty
-//      call.task.evaluateFilesFromCommand(fullyQualifiedPreprocessedInputs, backendEngineFunctions) map {
-//        case (expression, file) => expression.toWdlString.md5SumShort -> Seq(file)
-//      }
+      //      call.task.evaluateFilesFromCommand(fullyQualifiedPreprocessedInputs, backendEngineFunctions) map {
+      //        case (expression, file) => expression.toWdlString.md5SumShort -> Seq(file)
+      //      }
     }
 
     /* Collect all WdlFiles from inputs to the call */
@@ -215,7 +216,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
 
     val wdlFileOutputs = jobDescriptor.call.callable.outputs.flatMap(evaluateFiles) map relativeLocalizationPath
-    
+
     val outputs = wdlFileOutputs.distinct flatMap { wdlFile =>
       wdlFile match {
         case singleFile: WomSingleFile => List(generateJesSingleFileOutputs(singleFile))
@@ -321,13 +322,23 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override def isTransient(throwable: Throwable): Boolean = isTransientJesException(throwable)
 
-  override def executeAsync(): Future[ExecutionHandle] = runWithJes(None)
+  override def executeAsync(): Future[ExecutionHandle] = createNewJob()
 
   val futureKvJobKey = KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
 
-  override def recoverAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = runWithJes(Option(jobId))
+  override def recoverAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = reconnectToExistingJob(jobId)
 
-  private def runWithJes(jobForResumption: Option[StandardAsyncJob]): Future[ExecutionHandle] = {
+  override def reconnectAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = reconnectToExistingJob(jobId)
+
+  override def reconnectToAbortAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = reconnectToExistingJob(jobId, forceAbort = true)
+
+  private def reconnectToExistingJob(jobForResumption: StandardAsyncJob, forceAbort: Boolean = false) = {
+    val run = Run(jobForResumption, initializationData.genomics)
+    if (forceAbort) Try(run.abort())
+    Future.successful(PendingExecutionHandle(jobDescriptor, jobForResumption, Option(run), previousStatus = None))
+  }
+
+  private def createNewJob(): Future[ExecutionHandle] = {
     // Want to force runtimeAttributes to evaluate so we can fail quickly now if we need to:
     def evaluateRuntimeAttributes = Future.fromTry(Try(runtimeAttributes))
 
@@ -347,23 +358,23 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       createJesRunPipelineRequest(jesParameters)
     })
 
-    jobForResumption match {
-      case Some(job) =>
-        val run = Run(job, initializationData.genomics)
-        Future.successful(PendingExecutionHandle(jobDescriptor, job, Option(run), previousStatus = None))
-      case None =>
-        for {
-          _ <- evaluateRuntimeAttributes
-          jesParameters <- generateJesParameters
-          _ <- uploadScriptFile
-          rpr <- makeRpr(jesParameters)
-          runId <- runPipeline(initializationData.genomics, rpr)
-          run = Run(runId, initializationData.genomics)
-        } yield PendingExecutionHandle(jobDescriptor, runId, Option(run), previousStatus = None)
+    val runPipelineResponse = for {
+      _ <- evaluateRuntimeAttributes
+      jesParameters <- generateJesParameters
+      _ <- uploadScriptFile
+      rpr <- makeRpr(jesParameters)
+      runId <- runPipeline(workflowId, initializationData.genomics, rpr)
+    } yield runId
+
+    runPipelineResponse map { runId =>
+      val run = Run(runId, initializationData.genomics)
+      PendingExecutionHandle(jobDescriptor, runId, Option(run), previousStatus = None)
+    } recover {
+      case JobAbortedException => AbortedExecutionHandle
     }
   }
 
-  override def pollStatusAsync(handle: JesPendingExecutionHandle): Future[RunStatus] = super[JesStatusRequestClient].pollStatus(handle.runInfo.get)
+  override def pollStatusAsync(handle: JesPendingExecutionHandle): Future[RunStatus] = super[JesStatusRequestClient].pollStatus(workflowId, handle.runInfo.get)
 
   override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {
     case (oldHandle: JesPendingExecutionHandle@unchecked, e: GoogleJsonResponseException) if e.getStatusCode == 404 =>
@@ -432,16 +443,16 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
                               handle: StandardAsyncPendingExecutionHandle,
                               returnCode: Option[Int]): Future[ExecutionHandle] = {
       (runStatus.errorCode, runStatus.jesCode) match {
-        case (Status.CANCELLED, None) => Future.successful(AbortedExecutionHandle)
         case (Status.NOT_FOUND, Some(JesFailedToDelocalize)) => Future.successful(FailedNonRetryableExecutionHandle(FailedToDelocalizeFailure(runStatus.prettyPrintedError, jobTag, Option(jobPaths.stderr))))
         case (Status.ABORTED, Some(JesUnexpectedTermination)) => handleUnexpectedTermination(runStatus.errorCode, runStatus.prettyPrintedError, returnCode)
         case _ => Future.successful(FailedNonRetryableExecutionHandle(StandardException(
-            runStatus.errorCode, runStatus.prettyPrintedError, jobTag, returnCode, jobPaths.stderr), returnCode))
+          runStatus.errorCode, runStatus.prettyPrintedError, jobTag, returnCode, jobPaths.stderr), returnCode))
       }
     }
 
     runStatus match {
       case preemptedStatus: RunStatus.Preempted if preemptible => handlePreemption(preemptedStatus, returnCode)
+      case _: RunStatus.Cancelled => Future.successful(AbortedExecutionHandle)
       case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus, handle, returnCode)
       case unknown => throw new RuntimeException(s"handleExecutionFailure not called with RunStatus.Failed or RunStatus.Preempted. Instead got $unknown")
     }

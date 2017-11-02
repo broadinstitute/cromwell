@@ -213,8 +213,6 @@ If no override is found for `metadata`, Cromwell falls back to using the setting
 
 For backends that support aborting jobs, Cromwell can be configured to automatically try to abort all calls when it receives a Control-C, also known as SIGINT. All currently running calls will also set their status to `Aborted`.
 
-By default, this value is `false` when running `java -jar cromwell.jar server`, and `true` when running `java -jar cromwell.jar run <workflow source> <inputs>`.
-
 To explicitly turn this feature on or off, set the configuration option:
 
 ```hocon
@@ -227,6 +225,7 @@ Or, via `-Dsystem.abort-jobs-on-terminate=true` command line option.
 
 By default, this value is false when running `java -jar cromwell.jar server`, and true when running `java -jar cromwell.jar run <workflow source> <inputs>`.
 
+Read the [Abort](Abort) page to learn more about how abort works.
 
 ### Call Caching
 

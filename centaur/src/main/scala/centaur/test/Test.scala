@@ -133,7 +133,7 @@ object Operations {
     new Test[Unit] {
       override def run = {
         // Give some margin to the timeout
-        Try(Await.result(Future { Thread.sleep(duration.toMillis) }, duration.plus(2.seconds)))
+        Try(Await.result(Future { Thread.sleep(duration.toMillis) }, duration.plus(1.minute)))
       }
     }
   }
@@ -192,7 +192,7 @@ object Operations {
     def eventually(startTime: OffsetDateTime, timeout: FiniteDuration)(f: => Try[Unit]): Try[Unit] = {
       f match {
         case Failure(_) if OffsetDateTime.now().isBefore(startTime.plusSeconds(timeout.toSeconds)) =>
-          blocking { Thread.sleep(1.second.toMillis) }
+          blocking { Thread.sleep(5.seconds.toMillis) }
           eventually(startTime, timeout)(f)
         case t => t
       }
@@ -238,7 +238,7 @@ object Operations {
         // as soon as it has requested cancellation, not when PAPI says its cancelled
         Try(checkPAPIAborted())
         // Give some time to the VM to actually die (PAPI says it's cancelled before the VM is actually killed)
-        eventually(OffsetDateTime.now(), 1.minute) {
+        eventually(OffsetDateTime.now(), 3.minutes) {
           Try(checkVMTerminated())
         }
       } else Success(())
@@ -322,8 +322,8 @@ object Operations {
         
         def validateUnwantedMetadata(actualMetadata: WorkflowMetadata) = if (workflowSpec.notInMetadata.nonEmpty) {
           // Check that none of the "notInMetadata" keys are in the actual metadata
-          val absentMdDif = workflowSpec.notInMetadata.toSet.diff(actualMetadata.value.keySet)
-          if (absentMdDif.isEmpty) throw new Exception(s"Found unwanted keys in metadata: ${absentMdDif.mkString(", ")}")
+          val absentMdIntersect = workflowSpec.notInMetadata.toSet.intersect(actualMetadata.value.keySet)
+          if (absentMdIntersect.nonEmpty) throw new Exception(s"Found unwanted keys in metadata: ${absentMdIntersect.mkString(", ")}")
         }
 
         for {

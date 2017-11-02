@@ -53,6 +53,8 @@ object RunStatus {
       val jesCode: Option[Int] = errorMessage flatMap { em => Try(em.substring(0, em.indexOf(':')).toInt).toOption }
       if (errorCode == Status.ABORTED && jesCode.contains(JesAsyncBackendJobExecutionActor.JesPreemption)) {
         Preempted(errorCode, jesCode, errorMessage, eventList, machineType, zone, instanceName)
+      } else if (errorCode == Status.CANCELLED) {
+        Cancelled(errorCode, jesCode, errorMessage, eventList, machineType, zone, instanceName)
       } else {
         Failed(errorCode, jesCode, errorMessage, eventList, machineType, zone, instanceName)
       }
@@ -67,6 +69,19 @@ object RunStatus {
                           zone: Option[String],
                           instanceName: Option[String]) extends UnsuccessfulRunStatus {
     override def toString = "Failed"
+  }
+
+  /**
+    * What Cromwell calls Aborted, PAPI calls Cancelled. This means the job was "cancelled" by the user
+    */
+  final case class Cancelled(errorCode: Status,
+                          jesCode: Option[Int],
+                          errorMessage: Option[String],
+                          eventList: Seq[ExecutionEvent],
+                          machineType: Option[String],
+                          zone: Option[String],
+                          instanceName: Option[String]) extends UnsuccessfulRunStatus {
+    override def toString = "Cancelled"
   }
 
   final case class Preempted(errorCode: Status,

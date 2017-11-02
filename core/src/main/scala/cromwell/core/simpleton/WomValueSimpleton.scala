@@ -1,5 +1,6 @@
 package cromwell.core.simpleton
 
+import wom.graph.GraphNodePort.OutputPort
 import wom.values._
 
 case class WomValueSimpleton(simpletonKey: String, simpletonValue: WomPrimitive)
@@ -39,4 +40,7 @@ object WomValueSimpleton {
     def simplify: Iterable[WomValueSimpleton] = wdlValues flatMap { case (name, value) => value.simplify(name) }
   }
 
+  implicit class WomValuesSimplifierPort(wdlValues: Map[OutputPort, WomValue]) {
+    def simplify: Iterable[WomValueSimpleton] = wdlValues flatMap { case (port, value) => value.simplify(port.name) }
+  }
 }

@@ -1,6 +1,7 @@
 package cromwell.core.simpleton
 
 import cromwell.core.simpleton.WomValueBuilderSpec._
+import cromwell.util.WomMocks
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import wom.callable.Callable.OutputDefinition
@@ -98,16 +99,17 @@ class WomValueBuilderSpec extends FlatSpec with Matchers with Mockito {
     it should s"decompose WdlValues into simpletons ($name)" in {
       import WomValueSimpleton._
 
-      val map = Map(name -> womValue)
+      val map = Map(WomMocks.mockOutputPort(name) -> womValue)
       map.simplify should contain theSameElementsAs simpletons
     }
 
     it should s"build simpletons back into WdlValues ($name)" in {
       // The task output is used to tell us the type of output we're expecting:
-      val taskOutputs = List(OutputDefinition(name, womValue.womType, IgnoredExpression))
-      val rebuiltValues = WomValueBuilder.toWdlValues(taskOutputs, simpletons)
+      val outputPort = WomMocks.mockOutputPort(OutputDefinition(name, womValue.womType, IgnoredExpression))
+      val taskOutputPorts = List(outputPort)
+      val rebuiltValues = WomValueBuilder.toWdlValues(taskOutputPorts, simpletons)
       rebuiltValues.size should be(1)
-      rebuiltValues(name) should be(womValue)
+      rebuiltValues(outputPort) should be(womValue)
     }
 
   }
@@ -115,8 +117,7 @@ class WomValueBuilderSpec extends FlatSpec with Matchers with Mockito {
 
   it should "round trip everything together with no losses" in {
 
-    val wdlValues = (simpletonConversions map { case SimpletonConversion(name, womValue, _) => name -> womValue }).toMap
-    val taskOutputs = wdlValues map { case (k, wv) => OutputDefinition(k, wv.womType, IgnoredExpression) }
+    val wdlValues = (simpletonConversions map { case SimpletonConversion(name, womValue, _) => WomMocks.mockOutputPort(name, womValue.womType) -> womValue }).toMap
     val allSimpletons = simpletonConversions flatMap { case SimpletonConversion(_, _, simpletons) => simpletons }
 
     import WomValueSimpleton._
@@ -124,7 +125,7 @@ class WomValueBuilderSpec extends FlatSpec with Matchers with Mockito {
     val actualSimpletons = wdlValues.simplify
     actualSimpletons should contain theSameElementsAs allSimpletons
 
-    val actual = WomValueBuilder.toWdlValues(taskOutputs, actualSimpletons)
+    val actual = WomValueBuilder.toWdlValues(wdlValues.keys.toSeq, actualSimpletons)
     actual shouldEqual wdlValues
   }
 }

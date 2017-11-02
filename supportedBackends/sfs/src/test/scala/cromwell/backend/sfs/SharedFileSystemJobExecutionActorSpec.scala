@@ -3,7 +3,7 @@ package cromwell.backend.sfs
 import _root_.wdl.LocallyQualifiedName
 import akka.testkit.{TestDuration, TestProbe}
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{JobAbortedResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
 import cromwell.backend.async.WrongReturnCode
@@ -17,11 +17,10 @@ import cromwell.core._
 import cromwell.core.callcaching.NoDocker
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.services.keyvalue.KeyValueServiceActor._
+import cromwell.util.WomMocks
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Assertion, FlatSpecLike, OptionValues}
-import wom.JobOutput
-import wom.core.CallOutputs
 import wom.graph.TaskCallNode
 import wom.types._
 import wom.values._
@@ -37,9 +36,8 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     StandardValidatedRuntimeAttributesBuilder.default(Some(TestConfig.optionalRuntimeConfig)).definitions.toSet
 
   def executeSpec(docker: Boolean): Any = {
-    val expectedOutputs: CallOutputs = Map(
-      "salutation" -> JobOutput(WomString("Hello you !"))
-    )
+    val expectedOutputs: CallOutputs = WomMocks.mockOutputExpectations(Map("salutation" -> WomString("Hello you !")))
+    
     val expectedResponse = JobSucceededResponse(mock[BackendJobDescriptorKey], Some(0), expectedOutputs, None, Seq.empty, None)
     val runtime = if (docker) """runtime { docker: "ubuntu:latest" }""" else ""
     val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = runtime)
@@ -94,11 +92,14 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
       "wf_localize.localize.inputFileFromJson": "$jsonInputFile"
     }""")
 
-    val expectedOutputs: CallOutputs = Map(
-      "out" -> JobOutput(WomArray(WomArrayType(WomStringType),
-        Array(
-          WomString("content from json inputs"),
-          WomString("content from call inputs")))))
+    val expectedOutputs: CallOutputs = WomMocks.mockOutputExpectations(
+      Map(
+        "out" -> WomArray(WomArrayType(WomStringType),
+          Array(
+            WomString("content from json inputs"),
+            WomString("content from call inputs")))
+      )
+    )
 
     val confs = List(
       (hardConf, false),
@@ -164,7 +165,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     backendRef ! AbortJobCommand
 
     whenReady(execute) { executionResponse =>
-      executionResponse shouldBe a[AbortedResponse]
+      executionResponse shouldBe a[JobAbortedResponse]
     }
   }
 
@@ -206,13 +207,13 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val kvPutReq = KvPut(kvPair)
     backendRef.underlyingActor.serviceRegistryActor.tell(msg = kvPutReq, sender = previousKvPutter.ref)
     previousKvPutter.expectMsg(KvPutSuccess(kvPutReq))
-
+    val outputPort = jobDescriptor.call.outputPorts.head
     whenReady(execute, Timeout(10.seconds.dilated)) { executionResponse =>
       if (writeReturnCode) {
         executionResponse should be(a[JobSucceededResponse])
         val succeededResponse = executionResponse.asInstanceOf[JobSucceededResponse]
         succeededResponse.returnCode.value should be(0)
-        succeededResponse.jobOutputs should be(Map("salutation" -> JobOutput(WomString("Hello stubby !"))))
+        succeededResponse.jobOutputs should be(CallOutputs(Map(outputPort -> WomString("Hello stubby !"))))
       } else {
         executionResponse should be(a[JobFailedNonRetryableResponse])
         val failedResponse = executionResponse.asInstanceOf[JobFailedNonRetryableResponse]
@@ -253,7 +254,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
         BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, Option(shard), 1), runtimeAttributes, fqnWdlMapToDeclarationMap(symbolMaps), NoDocker, Map.empty)
       val backend = createBackend(jobDescriptor, TestConfig.backendRuntimeConfigDescriptor)
       val response =
-        JobSucceededResponse(mock[BackendJobDescriptorKey], Some(0), Map("out" -> JobOutput(WomInteger(shard))), None, Seq.empty, None)
+        JobSucceededResponse(mock[BackendJobDescriptorKey], Some(0), WomMocks.mockOutputExpectations(Map("out" -> WomInteger(shard))), None, Seq.empty, None)
       executeJobAndAssertOutputs(backend, response)
     }
   }
@@ -269,11 +270,11 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val jobPaths = JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, TestConfig.backendRuntimeConfigDescriptor.backendConfig)
     val expectedA = WomFile(jobPaths.callExecutionRoot.resolve("a").toAbsolutePath.pathAsString)
     val expectedB = WomFile(jobPaths.callExecutionRoot.resolve("dir").toAbsolutePath.resolve("b").pathAsString)
-    val expectedOutputs = Map(
-      "o1" -> JobOutput(expectedA),
-      "o2" -> JobOutput(WomArray(WomArrayType(WomFileType), Seq(expectedA, expectedB))),
-      "o3" -> JobOutput(WomFile(inputFile))
-    )
+    val expectedOutputs = WomMocks.mockOutputExpectations(Map(
+      "o1" -> expectedA,
+      "o2" -> WomArray(WomArrayType(WomFileType), Seq(expectedA, expectedB)),
+      "o3" -> WomFile(inputFile)
+    ))
     val expectedResponse = JobSucceededResponse(jobDescriptor.key, Some(0), expectedOutputs, None, Seq.empty, None)
 
     executeJobAndAssertOutputs(backend, expectedResponse)

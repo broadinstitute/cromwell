@@ -1,16 +1,17 @@
-package cromwell.engine.workflow.lifecycle
+package cromwell.engine.workflow.lifecycle.finalization
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{ActorRef, FSM, OneForOneStrategy, Props}
+import common.exception.AggregatedMessageException
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationFailed, FinalizationSuccess, Finalize}
 import cromwell.backend._
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.WorkflowId
+import cromwell.core.{CallOutputs, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.CromwellBackends
-import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor._
+import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
-import wom.core.CallOutputs
+import cromwell.engine.workflow.lifecycle.finalization.WorkflowFinalizationActor._
 import wom.graph.TaskCallNode
 
 import scala.util.{Failure, Success, Try}
@@ -32,7 +33,6 @@ object WorkflowFinalizationActor {
     */
   sealed trait WorkflowFinalizationActorCommand
   case object StartFinalizationCommand extends WorkflowFinalizationActorCommand
-  case object AbortFinalizationCommand extends WorkflowFinalizationActorCommand
 
   /**
     * Responses
@@ -80,7 +80,7 @@ case class WorkflowFinalizationActor(workflowIdForLogging: WorkflowId,
           (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keySet)
           props <- CromwellBackends.backendLifecycleFactoryActorByName(backend).map(
             _.workflowFinalizationActorProps(workflowDescriptor.backendDescriptor, ioActor, calls, filterJobExecutionsForBackend(calls), workflowOutputs, initializationData.get(backend))
-          ).get
+          ).valueOr(errors => throw AggregatedMessageException("Cannot validate backend factories", errors.toList))
           actor = context.actorOf(props, backend)
         } yield actor
       }

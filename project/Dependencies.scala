@@ -193,7 +193,8 @@ object Dependencies {
 
   val centaurDependencies = List(
     "com.github.kxbmap" %% "configs" % "0.4.4",
-    "org.scalatest" %% "scalatest" % scalatestV % IntegrationTest
+    "org.scalatest" %% "scalatest" % scalatestV % IntegrationTest,
+    "com.google.guava" % "guava" % "22.0"
   ) ++ cromwellApiClientDependencies ++ circeDependencies ++ googleCloudDependencies
 
   val engineDependencies = List(

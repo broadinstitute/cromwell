@@ -2,7 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import akka.actor.ActorRef
 import cromwell.core.callcaching.{CallCachingActivity, ReadCache}
-import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
+import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheInvalidatedFailure, CallCacheInvalidatedSuccess}
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
@@ -37,12 +37,12 @@ class EjeaInvalidatingCacheEntrySpec extends EngineJobExecutionActorSpec {
 
           helper.bjeaProbe.expectMsg(awaitTimeout, expectedMessage)
           eventually { ejea.stateName should be(RunningJob) }
-          ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper. bjeaProps, None, None))
+          ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, None, None, None, Option(helper.bjeaProbe.ref)))
         }
       }
     }
   }
 
-  def standardResponsePendingData(ejha: Option[ActorRef]) = ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, None, ejha)
+  def standardResponsePendingData(ejha: Option[ActorRef]) = ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, None, ejha, None, None)
   def ejeaInvalidatingCacheEntryState(ejha: Option[ActorRef], restarting: Boolean = false) = helper.buildEJEA(restarting = restarting, callCachingMode = CallCachingActivity(ReadCache)).setStateInline(state = InvalidatingCacheEntry, data = standardResponsePendingData(ejha))
 }

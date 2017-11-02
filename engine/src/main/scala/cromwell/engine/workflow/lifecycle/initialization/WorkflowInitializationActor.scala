@@ -1,6 +1,7 @@
-package cromwell.engine.workflow.lifecycle
+package cromwell.engine.workflow.lifecycle.initialization
 
 import akka.actor.{ActorRef, FSM, Props}
+import common.exception.AggregatedMessageException
 import cromwell.backend.BackendLifecycleActor.BackendActorAbortedResponse
 import cromwell.backend.BackendWorkflowInitializationActor._
 import cromwell.backend.{AllBackendInitializationData, BackendWorkflowInitializationActor}
@@ -8,8 +9,9 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowId
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.CromwellBackends
-import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor._
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
+import cromwell.engine.workflow.lifecycle.initialization.WorkflowInitializationActor._
+import cromwell.engine.workflow.lifecycle.{AbortableWorkflowLifecycleActor, EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 
 import scala.util.{Failure, Success, Try}
 
@@ -37,9 +39,10 @@ object WorkflowInitializationActor {
   /**
     * Responses
     */
-  final case class WorkflowInitializationSucceededResponse(initializationData: AllBackendInitializationData) extends WorkflowLifecycleSuccessResponse
-  case object WorkflowInitializationAbortedResponse extends EngineLifecycleActorAbortedResponse
-  final case class WorkflowInitializationFailedResponse(reasons: Seq[Throwable]) extends WorkflowLifecycleFailureResponse
+  sealed trait WorkflowInitializationResponse
+  final case class WorkflowInitializationSucceededResponse(initializationData: AllBackendInitializationData) extends WorkflowLifecycleSuccessResponse with WorkflowInitializationResponse
+  case object WorkflowInitializationAbortedResponse extends EngineLifecycleActorAbortedResponse with WorkflowInitializationResponse
+  final case class WorkflowInitializationFailedResponse(reasons: Seq[Throwable]) extends WorkflowLifecycleFailureResponse with WorkflowInitializationResponse
 
   def props(workflowId: WorkflowId,
             workflowDescriptor: EngineWorkflowDescriptor,
@@ -70,7 +73,7 @@ case class WorkflowInitializationActor(workflowIdForLogging: WorkflowId,
   override def successResponse(data: WorkflowLifecycleActorData) = {
     val actorsToBackends = backendActorsAndBackends.map(ab => ab.actor -> ab.backend).toMap
     val actorsToData = data.successes.map(ad => ad.actor -> ad.data).toMap
-    val allBackendInitializationData = AllBackendInitializationData(actorsToBackends collect { case (a, b) => b -> actorsToData.get(a).get })
+    val allBackendInitializationData = AllBackendInitializationData(actorsToBackends collect { case (a, b) => b -> actorsToData(a) })
     WorkflowInitializationSucceededResponse(allBackendInitializationData)
   }
   override def failureResponse(reasons: Seq[Throwable]) = WorkflowInitializationFailedResponse(reasons)
@@ -85,7 +88,7 @@ case class WorkflowInitializationActor(workflowIdForLogging: WorkflowId,
           (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keySet)
           props <- CromwellBackends.backendLifecycleFactoryActorByName(backend).map(factory =>
             factory.workflowInitializationActorProps(workflowDescriptor.backendDescriptor, ioActor, calls, serviceRegistryActor, restarting)
-          ).get
+          ).valueOr(errors => throw AggregatedMessageException("Cannot validate backend factories", errors.toList))
           actor = context.actorOf(props, backend)
         } yield BackendActorAndBackend(actor, backend)
       }
@@ -105,7 +108,7 @@ case class WorkflowInitializationActor(workflowIdForLogging: WorkflowId,
           goto(InitializationInProgressState) using stateData.withActors(actorSet)
       }
 
-    case Event(InitializationAbortingState, _) =>
+    case Event(EngineLifecycleActorAbortCommand, _) =>
       context.parent ! WorkflowInitializationAbortedResponse
       goto(InitializationsAbortedState)
   }

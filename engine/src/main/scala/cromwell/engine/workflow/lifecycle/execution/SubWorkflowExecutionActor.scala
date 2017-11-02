@@ -7,12 +7,15 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core._
 import cromwell.core.logging.JobLogging
 import cromwell.engine.backend.{BackendConfiguration, BackendSingletonCollection}
+import cromwell.engine.workflow.WorkflowMetadataHelper
 import cromwell.engine.workflow.lifecycle.execution.SubWorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.keys.SubWorkflowKey
-import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.{CallPreparationFailed, Start}
-import cromwell.engine.workflow.lifecycle.execution.preparation.SubWorkflowPreparationActor
-import cromwell.engine.workflow.lifecycle.execution.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
+import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation.{CallPreparationFailed, Start}
+import cromwell.engine.workflow.lifecycle.execution.job.preparation.SubWorkflowPreparationActor
+import cromwell.engine.workflow.lifecycle.execution.job.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
+import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
+import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
@@ -33,7 +36,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 jobTokenDispenserActor: ActorRef,
                                 backendSingletonCollection: BackendSingletonCollection,
                                 initializationData: AllBackendInitializationData,
-                                restarting: Boolean) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData] with JobLogging with WorkflowMetadataHelper with CallMetadataHelper {
+                                startState: StartableState) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData] with JobLogging with WorkflowMetadataHelper with CallMetadataHelper {
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() { case _ => Escalate }
 
@@ -47,7 +50,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
 
   when(SubWorkflowPendingState) {
     case Event(Execute, _) =>
-      if (restarting) {
+      if (startState.isRestart) {
         subWorkflowStoreActor ! QuerySubWorkflow(parentWorkflow.id, key)
         goto(SubWorkflowCheckingStoreState)
       } else {
@@ -140,7 +143,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     val subWorkflowActor = createSubWorkflowActor(subWorkflowEngineDescriptor)
 
     subWorkflowActor ! WorkflowExecutionActor.ExecuteWorkflowCommand
-    context.parent ! JobRunning(key, inputs, Option(subWorkflowActor))
+    context.parent ! JobRunning(key, inputs)
     pushWorkflowRunningMetadata(subWorkflowEngineDescriptor.backendDescriptor, inputs)
 
     goto(SubWorkflowRunningState)
@@ -180,7 +183,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
         jobTokenDispenserActor = jobTokenDispenserActor,
         backendSingletonCollection,
         initializationData,
-        restarting
+        startState
       ),
       s"${subWorkflowEngineDescriptor.id}-SubWorkflowActor-${key.tag}"
     )
@@ -289,7 +292,7 @@ object SubWorkflowExecutionActor {
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             initializationData: AllBackendInitializationData,
-            restarting: Boolean) = {
+            startState: StartableState) = {
     Props(new SubWorkflowExecutionActor(
       key,
       parentWorkflow,
@@ -305,7 +308,7 @@ object SubWorkflowExecutionActor {
       jobTokenDispenserActor = jobTokenDispenserActor,
       backendSingletonCollection,
       initializationData,
-      restarting)
+      startState)
     ).withDispatcher(EngineDispatcher)
   }
 }

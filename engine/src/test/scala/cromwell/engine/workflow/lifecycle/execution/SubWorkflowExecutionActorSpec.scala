@@ -11,19 +11,18 @@ import cromwell.database.sql.tables.SubWorkflowStoreEntry
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.lifecycle.execution.SubWorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
+import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation
+import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation.CallPreparationFailed
+import cromwell.engine.workflow.lifecycle.execution.job.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
 import cromwell.engine.workflow.lifecycle.execution.keys.SubWorkflowKey
-import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation
-import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.CallPreparationFailed
-import cromwell.engine.workflow.lifecycle.execution.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
+import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
+import cromwell.engine.workflow.workflowstore.WorkflowStoreState.{RestartableRunning, StartableState, Submitted}
 import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor, WdlFunctions}
 import cromwell.subworkflowstore.SubWorkflowStoreActor.{QuerySubWorkflow, SubWorkflowFound, SubWorkflowNotFound}
 import cromwell.util.WomMocks
 import org.scalatest.concurrent.Eventually
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
-import wdl._
-import wom.JobOutput
-import wom.core.CallOutputs
 import wom.graph.WomIdentifier
 
 import scala.concurrent.duration._
@@ -62,7 +61,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   
   val awaitTimeout: FiniteDuration = 10 seconds
 
-  def buildEWEA(restart: Boolean = false) = {
+  def buildEWEA(startState: StartableState = Submitted) = {
     new TestFSMRef[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData, SubWorkflowExecutionActor](system, Props(
       new SubWorkflowExecutionActor(
         subKey,
@@ -79,7 +78,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
         jobTokenDispenserProbe.ref,
         BackendSingletonCollection(Map.empty),
         AllBackendInitializationData(Map.empty),
-        restart
+        startState
       ) {
         override def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId) = preparationActor.ref
         override def createSubWorkflowActor(createSubWorkflowActor: EngineWorkflowDescriptor) = subWorkflowActor.ref
@@ -87,7 +86,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   }
   
   it should "Check the sub workflow store when restarting" in {
-    val ewea = buildEWEA(restart = true)
+    val ewea = buildEWEA(startState = RestartableRunning)
     ewea.setState(SubWorkflowPendingState)
 
     ewea ! Execute
@@ -100,7 +99,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   it should "Reuse sub workflow id if found in the store" in {
     import cromwell.core.ExecutionIndex._
     
-    val ewea = buildEWEA(restart = true)
+    val ewea = buildEWEA(startState = RestartableRunning)
     ewea.setState(SubWorkflowCheckingStoreState)
     
     val subWorkflowUuid = WorkflowId.randomId()
@@ -114,7 +113,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   }
 
   it should "Fall back to a random Id if the sub workflow id is not found in the store" in {
-    val ewea = buildEWEA(restart = true)
+    val ewea = buildEWEA(startState = RestartableRunning)
     ewea.setState(SubWorkflowCheckingStoreState)
 
     ewea ! SubWorkflowNotFound(QuerySubWorkflow(parentWorkflowId, subKey))
@@ -160,7 +159,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
     
     ewea ! SubWorkflowPreparationSucceeded(subWorkflowDescriptor, Map.empty)
     subWorkflowActor.expectMsg(WorkflowExecutionActor.ExecuteWorkflowCommand)
-    parentProbe.expectMsg(JobRunning(subKey, Map.empty, Option(subWorkflowActor.ref)))
+    parentProbe.expectMsg(JobRunning(subKey, Map.empty))
     eventually {
       ewea.stateName shouldBe SubWorkflowRunningState
     }
@@ -186,7 +185,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
     deathWatch watch ewea
 
     val jobExecutionMap: JobExecutionMap = Map.empty
-    val outputs: CallOutputs = Map.empty[LocallyQualifiedName, JobOutput]
+    val outputs: CallOutputs = CallOutputs.empty
     val workflowSuccessfulMessage = WorkflowExecutionSucceededResponse(jobExecutionMap, outputs)
     ewea ! workflowSuccessfulMessage
     parentProbe.expectMsg(SubWorkflowSucceededResponse(subKey, jobExecutionMap, outputs))

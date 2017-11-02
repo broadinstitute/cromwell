@@ -4,7 +4,7 @@ import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
 import cromwell.core.WorkflowId
 import cromwell.core.callcaching.{CallCachingActivity, ReadAndWriteCache}
 import cromwell.core.simpleton.WomValueSimpleton
-import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
+import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.HashError
 import cromwell.engine.workflow.lifecycle.execution.callcaching.FetchCachedResultsActor.{CachedOutputLookupFailed, CachedOutputLookupSucceeded}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
@@ -71,7 +71,9 @@ class EjeaFetchingCachedOutputsFromDatabaseSpec extends EngineJobExecutionActorS
             case SuccessfulCallCacheHashes => Success(SuccessfulCallCacheHashes)
             case HashError(t) => Failure(t)
             case _ => fail(s"Bad test wiring. We didn't expect $ejhaResponse here")
-          })
+          },
+            backendJobActor = Option(helper.bjeaProbe.ref)
+          )
           ejea.stateData should be(expectedData)
         }
       }

@@ -27,6 +27,8 @@ case class CentaurTestCase(workflow: Workflow,
     case SubmitFailureTest => TestFormulas.submitInvalidWorkflow(workflow, submitResponseOption.get)
     case InstantAbort => TestFormulas.instantAbort(workflow)
     case CromwellRestartWithRecover(callMarker)=> TestFormulas.cromwellRestartWithRecover(workflow, callMarker)
+    case WorkflowFailureRestartWithRecover(callMarker)=> TestFormulas.workflowFailureRestartWithRecover(workflow, callMarker)
+    case WorkflowFailureRestartWithoutRecover(callMarker)=> TestFormulas.workflowFailureRestartWithoutRecover(workflow, callMarker)
     case CromwellRestartWithoutRecover(callMarker) => TestFormulas.cromwellRestartWithoutRecover(workflow, callMarker)
     case ScheduledAbort(callMarker) => TestFormulas.scheduledAbort(workflow, callMarker, restart = false)
     case ScheduledAbortWithRestart(callMarker) => TestFormulas.scheduledAbort(workflow, callMarker, restart = true)

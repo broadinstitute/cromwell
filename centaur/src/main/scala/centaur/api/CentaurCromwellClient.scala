@@ -6,6 +6,7 @@ import java.util.concurrent.Executors
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpRequest
+import akka.http.scaladsl.unmarshalling.Unmarshaller.UnsupportedContentTypeException
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings, StreamTcpException}
 import centaur.test.metadata.WorkflowMetadata
 import centaur.test.workflow.Workflow
@@ -69,7 +70,8 @@ object CentaurCromwellClient {
     Try(Await.result(x(), timeout)) recoverWith {
       case _: TimeoutException |
            _: StreamTcpException |
-           _: IOException if !CromwellManager.isReady && attempt < 5 =>
+           _: IOException |
+           _: UnsupportedContentTypeException if !CromwellManager.isReady && attempt < 5 =>
         Thread.sleep(5000)
         awaitFutureCompletion(x, timeout, attempt + 1)
       // see https://github.com/akka/akka-http/issues/768

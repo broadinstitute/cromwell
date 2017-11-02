@@ -1,0 +1,16 @@
+name: failures.terminal_status
+testFormat: workflowfailure
+
+files {
+  wdl: failures/terminal_status/terminal_status.wdl
+}
+
+metadata {
+  workflowName: terminal_status
+  status: Failed
+  "terminal_status.echo_sleep_exit.0.executionStatus": "Done"
+  "terminal_status.echo_sleep_exit.1.executionStatus": "Failed"
+  "terminal_status.echo_sleep_exit.2.executionStatus": "Done"
+  "terminal_status.echo_sleep_exit.3.executionStatus": "Failed"
+  "terminal_status.echo_sleep_exit.4.executionStatus": "Done"
+}

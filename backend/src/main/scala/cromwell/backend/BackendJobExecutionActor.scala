@@ -2,7 +2,7 @@ package cromwell.backend
 
 import akka.actor.ActorLogging
 import akka.event.LoggingReceive
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, _}
+import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.wdl.OutputEvaluator
 import cromwell.backend.wdl.OutputEvaluator.EvaluatedJobOutputs

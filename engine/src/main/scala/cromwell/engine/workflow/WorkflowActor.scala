@@ -208,9 +208,22 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   pushCurrentStateToMetadataService(workflowId, WorkflowUnstartedState.workflowState)
 
-  override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() { 
+  override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() {
+    case exception if stateName == MaterializingWorkflowDescriptorState =>
+      self ! MaterializeWorkflowDescriptorFailureResponse(exception)
+      Stop
+    case exception if stateName == InitializingWorkflowState =>
+      self ! WorkflowInitializationFailedResponse(List(exception))
+      Stop
+    case exception if stateName == ExecutingWorkflowState =>
+      self ! WorkflowExecutionFailedResponse(Map.empty, exception)
+      Stop
+    case exception if stateName == FinalizingWorkflowState =>
+      self ! WorkflowFinalizationFailedResponse(List(exception))
+      Stop
     case exception =>
       context.parent ! WorkflowFailedResponse(workflowId, stateData.lastStateReached.state, List(exception))
+      context stop self
       Stop
   }
 

@@ -296,7 +296,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   /**
     * A correct implementation should reconnect to the specified job id, and upon reconnection try to abort the job.
-    * With the understanding that the job might already be complete or aborted.
+    * The job might already be aborted (or in any other state) and this method should be robust to that scenario.
     * This method is needed in case Cromwell restarts while a workflow was being aborted. The engine cannot guarantee
     * that all backend actors will have time to receive and process the abort command before the server shuts down.
     * For that reason, upon restart, this method should always try to abort the job.

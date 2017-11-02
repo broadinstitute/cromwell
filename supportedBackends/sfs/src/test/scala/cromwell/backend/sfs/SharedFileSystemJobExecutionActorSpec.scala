@@ -36,7 +36,6 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     StandardValidatedRuntimeAttributesBuilder.default(Some(TestConfig.optionalRuntimeConfig)).definitions.toSet
 
   def executeSpec(docker: Boolean): Any = {
-    WomMocks
     val expectedOutputs: CallOutputs = WomMocks.mockOutputExpectations(Map("salutation" -> WomString("Hello you !")))
     
     val expectedResponse = JobSucceededResponse(mock[BackendJobDescriptorKey], Some(0), expectedOutputs, None, Seq.empty, None)

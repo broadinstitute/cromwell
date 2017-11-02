@@ -47,7 +47,6 @@ object ExecutionStore {
   implicit class EnhancedOutputPort(val outputPort: OutputPort) extends AnyVal {
     /**
       * Node that should be considered to determine upstream dependencies
-      * @return
       */
     def executionNode: GraphNode = outputPort match {
       case scatter: ScatterGathererPort => scatter.outputToGather.executionNode

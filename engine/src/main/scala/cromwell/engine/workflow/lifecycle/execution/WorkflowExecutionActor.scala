@@ -237,7 +237,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     // Both of these Should Never Happen (tm), assuming the state data is set correctly on EJEA creation.
     // If they do, it's a big programmer error and the workflow execution fails.
     val jobKey = stateData.jobKeyActorMappings.getOrElse(actorRef, throw new RuntimeException("Programmer Error: A job or sub workflow actor has terminated but was not assigned a jobKey"))
-    val jobStatus = stateData.executionStore.jobStatus(jobKey).getOrElse(throw new RuntimeException(s"Programmer Error: Ana ctor representing ${jobKey.tag} which this workflow is not running has sent up a terminated message."))
+    val jobStatus = stateData.executionStore.jobStatus(jobKey).getOrElse(throw new RuntimeException(s"Programmer Error: An actor representing ${jobKey.tag} which this workflow is not running has sent up a terminated message."))
 
     if (!jobStatus.isTerminalOrRetryable) {
       val terminationException = new RuntimeException(s"Unexpected failure or termination of the actor monitoring ${jobKey.tag}", throwable)

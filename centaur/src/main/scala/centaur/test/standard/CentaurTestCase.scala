@@ -11,6 +11,7 @@ import centaur.test.submit.SubmitResponse
 import centaur.test.workflow.{AllBackendsRequired, AnyBackendRequired, OnlyBackendsAllowed, Workflow}
 import com.typesafe.config.{Config, ConfigFactory}
 import common.validation.ErrorOr.ErrorOr
+import cromwell.api.model.{Failed, Succeeded}
 
 import scala.util.{Failure, Success, Try}
 
@@ -26,10 +27,10 @@ case class CentaurTestCase(workflow: Workflow,
     case RunFailingTwiceExpectingNoCallCachingTest => TestFormulas.runFailingWorkflowTwiceExpectingNoCaching(workflow)
     case SubmitFailureTest => TestFormulas.submitInvalidWorkflow(workflow, submitResponseOption.get)
     case InstantAbort => TestFormulas.instantAbort(workflow)
-    case CromwellRestartWithRecover(callMarker)=> TestFormulas.cromwellRestartWithRecover(workflow, callMarker)
-    case WorkflowFailureRestartWithRecover(callMarker)=> TestFormulas.workflowFailureRestartWithRecover(workflow, callMarker)
-    case WorkflowFailureRestartWithoutRecover(callMarker)=> TestFormulas.workflowFailureRestartWithoutRecover(workflow, callMarker)
-    case CromwellRestartWithoutRecover(callMarker) => TestFormulas.cromwellRestartWithoutRecover(workflow, callMarker)
+    case CromwellRestartWithRecover(callMarker)=> TestFormulas.workflowRestart(workflow, callMarker, recover = true, finalStatus = Succeeded)
+    case WorkflowFailureRestartWithRecover(callMarker)=> TestFormulas.workflowRestart(workflow, callMarker, recover = true, finalStatus = Failed)
+    case WorkflowFailureRestartWithoutRecover(callMarker)=> TestFormulas.workflowRestart(workflow, callMarker, recover = false, finalStatus = Failed)
+    case CromwellRestartWithoutRecover(callMarker) => TestFormulas.workflowRestart(workflow, callMarker, recover = false, finalStatus = Succeeded)
     case ScheduledAbort(callMarker) => TestFormulas.scheduledAbort(workflow, callMarker, restart = false)
     case ScheduledAbortWithRestart(callMarker) => TestFormulas.scheduledAbort(workflow, callMarker, restart = true)
     case other => Test.failed(new Exception(s"Invalid test format $other"))

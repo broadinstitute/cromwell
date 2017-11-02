@@ -70,7 +70,7 @@ object TestFormulas {
     } yield ()
   }
   
-  private def cromwellRestart(workflowDefinition: Workflow, callMarker: CallMarker, testRecover: Boolean, finalStatus: TerminalStatus = Succeeded): Test[Unit] = CentaurConfig.runMode match {
+  private def cromwellRestart(workflowDefinition: Workflow, callMarker: CallMarker, testRecover: Boolean, finalStatus: TerminalStatus): Test[Unit] = CentaurConfig.runMode match {
     case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
       for {
         w <- submitWorkflow(workflowDefinition)
@@ -117,20 +117,11 @@ object TestFormulas {
     } yield ()
   }
 
-  def workflowFailureRestartWithRecover(workflowDefinition: Workflow, callMarker: CallMarker): Test[Unit] = {
-    cromwellRestart(workflowDefinition, callMarker, testRecover = true, finalStatus = Failed)
-  }
-
-  def workflowFailureRestartWithoutRecover(workflowDefinition: Workflow, callMarker: CallMarker): Test[Unit] = {
-    cromwellRestart(workflowDefinition, callMarker, testRecover = false, finalStatus = Failed)
-  }
-
-  def cromwellRestartWithRecover(workflowDefinition: Workflow, callMarker: CallMarker): Test[Unit] = {
-    cromwellRestart(workflowDefinition, callMarker, testRecover = true)
-  }
-
-  def cromwellRestartWithoutRecover(workflowDefinition: Workflow, callMarker: CallMarker): Test[Unit] = {
-    cromwellRestart(workflowDefinition, callMarker, testRecover = false)
+  def workflowRestart(workflowDefinition: Workflow,
+                             callMarker: CallMarker,
+                             recover: Boolean,
+                             finalStatus: TerminalStatus): Test[Unit] = {
+    cromwellRestart(workflowDefinition, callMarker, testRecover = recover, finalStatus = Failed)
   }
 
   def submitInvalidWorkflow(workflow: Workflow, expectedSubmitResponse: SubmitResponse): Test[Unit] = {

@@ -116,7 +116,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
           configurationDescriptor = jesConfiguration.configurationDescriptor,
           backendInitializationDataOption = Option(buildInitializationData(jobDescriptor, jesConfiguration)),
           backendSingletonActorOption = Option(jesSingletonActor),
-          completionPromise = promise
+          completionPromise = promise,
+          minimumRuntimeSettings = MinimumRuntimeSettings()
         ),
         functions
       )

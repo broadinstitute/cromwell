@@ -11,7 +11,7 @@ import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionA
 import cromwell.backend.validation._
 import cromwell.backend.wdl.OutputEvaluator._
 import cromwell.backend.wdl.{Command, OutputEvaluator, WdlFileMapper}
-import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobLifecycleActor}
+import cromwell.backend._
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.core.path.Path
 import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent}
@@ -41,7 +41,8 @@ case class DefaultStandardAsyncExecutionActorParams
   override val configurationDescriptor: BackendConfigurationDescriptor,
   override val backendInitializationDataOption: Option[BackendInitializationData],
   override val backendSingletonActorOption: Option[ActorRef],
-  override val completionPromise: Promise[BackendJobExecutionResponse]
+  override val completionPromise: Promise[BackendJobExecutionResponse],
+  override val minimumRuntimeSettings: MinimumRuntimeSettings
 ) extends StandardAsyncExecutionActorParams
 
 /**
@@ -224,8 +225,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   }
 
   /** The instantiated command. */
-  lazy val instantiatedCommand: String = Command.instantiate(
-    jobDescriptor, backendEngineFunctions, commandLinePreProcessor, commandLineValueMapper).get
+  lazy val instantiatedCommand: String =
+    Command.instantiate(
+      jobDescriptor, backendEngineFunctions, commandLinePreProcessor, commandLineValueMapper, RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(standardParams.minimumRuntimeSettings)).get
 
   /**
     * Redirect the stdout and stderr to the appropriate files. While not necessary, mark the job as not receiving any

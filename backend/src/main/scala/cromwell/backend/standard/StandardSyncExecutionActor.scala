@@ -5,7 +5,7 @@ import akka.actor.{ActorRef, OneForOneStrategy, Props}
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, Recover}
-import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobExecutionActor}
+import cromwell.backend._
 import cromwell.core.Dispatcher
 import cromwell.services.keyvalue.KeyValueServiceActor._
 
@@ -25,7 +25,8 @@ case class DefaultStandardSyncExecutionActorParams
   override val configurationDescriptor: BackendConfigurationDescriptor,
   override val backendInitializationDataOption: Option[BackendInitializationData],
   override val backendSingletonActorOption: Option[ActorRef],
-  override val asyncJobExecutionActorClass: Class[_ <: StandardAsyncExecutionActor]
+  override val asyncJobExecutionActorClass: Class[_ <: StandardAsyncExecutionActor],
+  override val minimumRuntimeSettings: MinimumRuntimeSettings
 ) extends StandardSyncExecutionActorParams
 
 /**
@@ -116,7 +117,8 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
       standardParams.configurationDescriptor,
       standardParams.backendInitializationDataOption,
       standardParams.backendSingletonActorOption,
-      completionPromise
+      completionPromise,
+      standardParams.minimumRuntimeSettings
     )
   }
 

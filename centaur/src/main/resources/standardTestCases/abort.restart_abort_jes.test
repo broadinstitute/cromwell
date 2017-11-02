@@ -1,5 +1,5 @@
 ignore: false
-name: abort.restart_abort
+name: abort.restart_abort_jes
 testFormat: ScheduledAbortWithRestart
 callMark: scheduled_abort.aborted
 backends: [Jes]

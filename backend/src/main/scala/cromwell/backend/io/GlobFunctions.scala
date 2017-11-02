@@ -40,11 +40,10 @@ trait GlobFunctions extends IoFunctionSet {
     *
     * The paths are currently read from a list file based on the pattern, and the path parameter is not used.
     *
-    * @param path    The path string returned by globPath. This isn't currently used.
     * @param pattern The pattern of the glob. This is the same "glob" passed to globPath().
     * @return The paths that match the pattern.
     */
-  override def glob(path: String, pattern: String): Seq[String] = {
+  override def glob(pattern: String): Seq[String] = {
     val globPatternName = globName(pattern)
     val listFilePath = callContext.root.resolve(s"${globName(pattern)}.list")
     // This "lines" is technically a read file and hence should use the readFile IO method

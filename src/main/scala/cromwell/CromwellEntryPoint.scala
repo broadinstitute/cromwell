@@ -28,7 +28,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
   private lazy val config = ConfigFactory.load()
 
   // Only abort jobs on SIGINT if the config explicitly sets system.abort-jobs-on-terminate = true.
-  val abortJobsOnTerminate = config.as[Boolean]("system.abort-jobs-on-terminate")
+  val abortJobsOnTerminate = config.as[Option[Boolean]]("system.abort-jobs-on-terminate")
 
   val gracefulShutdown = config.as[Boolean]("system.graceful-server-shutdown")
 
@@ -37,7 +37,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
     */
   def runServer() = {
     val system = buildCromwellSystem(Server)
-    waitAndExit(CromwellServer.run(gracefulShutdown, abortJobsOnTerminate), system)
+    waitAndExit(CromwellServer.run(gracefulShutdown, abortJobsOnTerminate.getOrElse(false)), system)
   }
 
   /**
@@ -48,7 +48,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
     implicit val actorSystem = cromwellSystem.actorSystem
 
     val sources = validateRunArguments(args)
-    val runnerProps = SingleWorkflowRunnerActor.props(sources, args.metadataOutput, gracefulShutdown, abortJobsOnTerminate)(cromwellSystem.materializer)
+    val runnerProps = SingleWorkflowRunnerActor.props(sources, args.metadataOutput, gracefulShutdown, abortJobsOnTerminate.getOrElse(true))(cromwellSystem.materializer)
 
     val runner = cromwellSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
 

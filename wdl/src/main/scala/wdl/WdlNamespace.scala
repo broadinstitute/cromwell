@@ -457,7 +457,7 @@ object WdlNamespace {
     invalidVariableReferences ++ typeMismatches
   }
 
-  def lookupType(from: Scope)(n: String): WomType = {
+  private [wdl] def lookupType(from: Scope)(n: String): WomType = {
     val resolved = from.resolveVariable(n)
     resolved match {
       case Some(d: DeclarationInterface) => d.relativeWdlType(from)

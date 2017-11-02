@@ -1,7 +1,10 @@
 ignore: false
-name: abort.scheduled_abort
-testFormat: scheduledabort
+name: abort.restart_abort
+testFormat: ScheduledAbortWithRestart
 callMark: scheduled_abort.aborted
+backendsMode: "only"
+backends: [Local, LocalNoDocker]
+tags: [localdockertest]
 
 files {
   wdl: abort/scheduled_abort.wdl

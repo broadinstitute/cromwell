@@ -2,6 +2,7 @@ ignore: false
 name: abort.restart_abort
 testFormat: ScheduledAbortWithRestart
 callMark: scheduled_abort.aborted
+backends: [Jes]
 
 files {
   wdl: abort/scheduled_abort.wdl

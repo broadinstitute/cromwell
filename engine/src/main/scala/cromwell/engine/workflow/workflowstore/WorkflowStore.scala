@@ -11,6 +11,8 @@ trait WorkflowStore {
   def initialize(implicit ec: ExecutionContext): Future[Unit]
   
   def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[Boolean]
+
+  def abortAllRunning()(implicit ec: ExecutionContext): Future[Unit]
   
   def stats(implicit ec: ExecutionContext): Future[Map[String, Int]]
 

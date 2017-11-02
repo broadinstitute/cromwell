@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.workflowstore
 
-import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
+import akka.actor.{ActorLogging, ActorRef, LoggingFSM, PoisonPill, Props}
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
 import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingResponse}
@@ -10,12 +10,13 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{WorkflowStoreActorState, _}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
 import cromwell.services.instrumentation.CromwellInstrumentationScheduler
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceRegistryActor: ActorRef)
+final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceRegistryActor: ActorRef, abortAllJobsOnTerminate: Boolean)
   extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging with WorkflowInstrumentation with CromwellInstrumentationScheduler {
 
   implicit val ec: ExecutionContext = context.dispatcher
@@ -63,6 +64,12 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
   }
 
   whenUnhandled {
+    case Event(ShutdownCommand, _) if abortAllJobsOnTerminate =>
+      self ! AbortAllRunningWorkflowsCommandAndStop
+      stay()
+    case Event(ShutdownCommand, _) =>
+      context stop self
+      stay()
     case Event(msg, _) =>
       log.warning("Unexpected message to WorkflowStoreActor in state {} with data {}: {}", stateName, stateData, msg)
       stay
@@ -99,6 +106,11 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
             // A generic exception type like RuntimeException will produce a 500 at the API layer, which seems appropriate
             // given we don't know much about what went wrong here.  `t.getMessage` so the cause propagates to the client.
             sndr ! WorkflowAbortFailureResponse(id, new RuntimeException(s"$message: ${t.getMessage}", t))
+        }
+      case AbortAllRunningWorkflowsCommandAndStop =>
+        store.abortAllRunning() map { _ =>
+          log.info(s"Aborting all running workflows.")
+          self ! PoisonPill
         }
       case oops =>
         log.error("Unexpected type of start work command: {}", oops.getClass.getSimpleName)
@@ -149,8 +161,8 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
 }
 
 object WorkflowStoreEngineActor {
-  def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef) = {
-    Props(WorkflowStoreEngineActor(workflowStoreDatabase, serviceRegistryActor)).withDispatcher(EngineDispatcher)
+  def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef, abortAllJobsOnTerminate: Boolean) = {
+    Props(WorkflowStoreEngineActor(workflowStoreDatabase, serviceRegistryActor, abortAllJobsOnTerminate)).withDispatcher(EngineDispatcher)
   }
 
   sealed trait WorkflowStoreEngineActorResponse

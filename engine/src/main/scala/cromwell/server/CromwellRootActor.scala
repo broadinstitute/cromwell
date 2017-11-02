@@ -30,10 +30,11 @@ import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
 import cromwell.services.{EngineServicesStore, ServiceRegistryActor}
 import cromwell.subworkflowstore.{SqlSubWorkflowStore, SubWorkflowStoreActor}
 import cromwell.util.GracefulShutdownHelper
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import net.ceedubs.ficus.Ficus._
 
-import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -65,7 +66,7 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
 
   lazy val workflowStore: WorkflowStore = SqlWorkflowStore(EngineServicesStore.engineDatabaseInterface)
   lazy val workflowStoreActor =
-    context.actorOf(WorkflowStoreActor.props(workflowStore, serviceRegistryActor), "WorkflowStoreActor")
+    context.actorOf(WorkflowStoreActor.props(workflowStore, serviceRegistryActor, abortJobsOnTerminate), "WorkflowStoreActor")
 
   lazy val jobStore: JobStore = new SqlJobStore(EngineServicesStore.engineDatabaseInterface)
   lazy val jobStoreActor = context.actorOf(JobStoreActor.props(jobStore), "JobStoreActor")
@@ -144,7 +145,16 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   } else if (abortJobsOnTerminate) {
     // If gracefulShutdown is false but abortJobsOnTerminate is true, set up a classic JVM shutdown hook
     sys.addShutdownHook {
-      Try(Await.result(gracefulStop(workflowManagerActor, AbortTimeout, AbortAllWorkflowsCommand), AbortTimeout)) match {
+      implicit val ec = context.system.dispatcher
+
+      val abortFuture: Future[Unit] = for {
+        // Give 30 seconds to the workflow store to switch all running workflows to aborting and shutdown. Should be more than enough
+        _ <- gracefulStop(workflowStoreActor, 30.seconds, ShutdownCommand)
+        // Once all workflows are "Aborting" in the workflow store, ask the WMA to effectively abort all of them
+        _ <- gracefulStop(workflowManagerActor, AbortTimeout, AbortAllWorkflowsCommand)
+      } yield ()
+
+      Try(Await.result(abortFuture, AbortTimeout)) match {
         case Success(_) => logger.info("All workflows aborted")
         case Failure(f) => logger.error("Failed to abort workflows", f)
       }

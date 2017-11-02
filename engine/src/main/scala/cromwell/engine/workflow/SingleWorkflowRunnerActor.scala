@@ -47,8 +47,8 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
   private val backoff = SimpleExponentialBackoff(1 second, 1 minute, 1.2)
 
   override lazy val workflowStore = new InMemoryWorkflowStore()
-  override lazy val jobStoreActor = context.actorOf(EmptyJobStoreActor.props)
-  override lazy val subWorkflowStoreActor = context.actorOf(EmptySubWorkflowStoreActor.props)
+  override lazy val jobStoreActor = context.actorOf(EmptyJobStoreActor.props, "JobStoreActor")
+  override lazy val subWorkflowStoreActor = context.actorOf(EmptySubWorkflowStoreActor.props, "SubWorkflowStoreActor")
 
   startWith(NotStarted, EmptySwraData)
 

@@ -2,7 +2,7 @@ package cromwell.engine.workflow.workflowstore
 
 import cats.data.NonEmptyList
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
-import cromwell.engine.workflow.workflowstore.WorkflowStoreState.{Aborting, StartableState}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreState.{Aborting, Running, StartableState}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -50,6 +50,14 @@ class InMemoryWorkflowStore extends WorkflowStore {
 
   override def stats(implicit ec: ExecutionContext): Future[Map[String, Int]] = Future.successful(Map("Submitted" -> workflowStore.size))
 
+  override def abortAllRunning()(implicit ec: ExecutionContext): Future[Unit] = {
+    workflowStore = workflowStore.map({
+      case (workflow, Running) => workflow -> Aborting
+      case (workflow, state) => workflow -> state
+    })
+    Future.successful(())
+  }
+  
   override def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[Boolean] = {
     if (workflowStore.exists(_._1.id == id)) {
       workflowStore = workflowStore ++ workflowStore.find(_._1.id == id).map({ _._1 -> Aborting }).toMap

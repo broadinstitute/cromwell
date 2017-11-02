@@ -156,7 +156,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param globFiles The globs.
     * @return The shell scripting.
     */
-  def globManipulations(globFiles: Traversable[WomGlobFile]): String = globFiles map globManipulation mkString "\n"
+  def globManipulations(globFiles: Traversable[WomGlobFile]): String =
+    globFiles map globManipulation mkString "\n"
 
   /**
     * Returns the shell scripting for hard linking a glob results using ln.
@@ -187,7 +188,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     val rcPath = cwd./(jobPaths.returnCodeFilename)
     val rcTmpPath = rcPath.plusExt("tmp")
 
-    val globFiles: ErrorOr[List[WomGlobFile]] = backendEngineFunctions.findGlobOutputs(call, jobDescriptor)
+    val globFiles: ErrorOr[List[WomGlobFile]] =
+      backendEngineFunctions.findGlobOutputs(call, jobDescriptor)
 
     globFiles.map(globFiles =>
     s"""|#!/bin/bash

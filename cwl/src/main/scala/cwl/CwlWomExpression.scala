@@ -22,15 +22,18 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
 
   // TODO WOM: outputBinding.toString is probably not be the best representation of the outputBinding
   override def sourceString = outputBinding.toString
+
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
     val parameterContext = ParameterContext.Empty.withInputs(inputValues, ioFunctionSet)
 
-    val wdlValue: WomValue = outputBinding.commandOutputBindingToWdlValue(parameterContext, ioFunctionSet)
+    val wdlValue: WomValue = outputBinding.
+      commandOutputBindingToWdlValue(parameterContext, ioFunctionSet)
     val extractFile: WomValue =
       wdlValue match {
         case WomArray(_, Seq(WomMap(WomMapType(WomStringType, WomStringType), map))) => map(WomString("location"))
         case other => other
       }
+
     cwlExpressionType.coerceRawValue(extractFile).toErrorOr
   }
 
@@ -41,7 +44,7 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
    */
   override def evaluateFiles(inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] ={
 
-    val pc = ParameterContext.Empty.withInputs(inputs, ioFunctionSet)
+    val pc = ParameterContext().withInputs(inputs, ioFunctionSet)
 
     val files = for {
       globValue <- outputBinding.glob.toList

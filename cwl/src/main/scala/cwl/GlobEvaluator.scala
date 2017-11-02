@@ -4,6 +4,7 @@ import shapeless._
 import wom.expression.IoFunctionSet
 import wom.types.{WomArrayType, WomStringType}
 
+import scala.Function._
 import wom.values._
 
 /*
@@ -17,14 +18,14 @@ http://www.commonwl.org/v1.0/CommandLineTool.html#CommandOutputBinding
  */
 object GlobEvaluator {
 
-  private type GlobHandler = (ParameterContext, IoFunctionSet) => Seq[String]
+  private type GlobHandler = ParameterContext => Seq[String]
 
   type Glob[A] = String
 
   def globPaths(glob: CommandOutputBinding.Glob,
                 parameterContext: ParameterContext,
                 ioFunctionSet: IoFunctionSet): Seq[String] = {
-    val globs: Seq[String] = glob.fold(GlobToPaths).apply(parameterContext, ioFunctionSet)
+    val globs: Seq[String] = glob.fold(GlobToPaths).apply(parameterContext)
     getPaths(globs, ioFunctionSet)
   }
 
@@ -44,7 +45,7 @@ object GlobEvaluator {
   object GlobToPaths extends Poly1 {
     implicit def caseECMAScript: Case.Aux[Expression, GlobHandler] = {
       at[Expression] { ecmaScript =>
-        (parameterContext: ParameterContext, ioFunctions: IoFunctionSet) => {
+        (parameterContext: ParameterContext) => {
           ecmaScript.fold(EvaluateExpression).apply(parameterContext) match {
             case WomArray(_, values) if values.isEmpty => Vector.empty
             case WomString(value) => Vector(value)
@@ -64,11 +65,7 @@ object GlobEvaluator {
     }
 
     implicit def caseString: Case.Aux[String, GlobHandler] = {
-      at[String] { glob =>
-        (parameterContext: ParameterContext, ioFunctions: IoFunctionSet) => {
-          ioFunctions.glob(glob)
-        }
-      }
+      at[String] { string => const(Vector(string)) }
     }
   }
 

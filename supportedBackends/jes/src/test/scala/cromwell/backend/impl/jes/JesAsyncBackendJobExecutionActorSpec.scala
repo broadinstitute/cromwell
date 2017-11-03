@@ -16,7 +16,7 @@ import cromwell.backend.impl.jes.RunStatus.UnsuccessfulRunStatus
 import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.DoPoll
 import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardExpressionFunctionsParams}
-import cromwell.backend.wdl.WdlFileMapper
+import cromwell.backend.wdl.WomFileMapper
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.Tags.PostWomTest
 import cromwell.core._
@@ -381,7 +381,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
 
         def gcsPathToLocal(womValue: WomValue): WomValue = {
-          WdlFileMapper.mapWdlFiles(testActorRef.underlyingActor.mapCommandLineWdlFile)(womValue).get
+          WomFileMapper.mapWomFiles(testActorRef.underlyingActor.mapCommandLineWdlFile)(womValue).get
         }
 
         val mappedInputs = jobDescriptor.localInputs mapValues gcsPathToLocal
@@ -652,7 +652,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     def wdlValueToGcsPath(jesOutputs: Set[JesFileOutput])(womValue: WomValue): WomValue = {
-      WdlFileMapper.mapWdlFiles(testActorRef.underlyingActor.wdlFileToGcsPath(jesOutputs))(womValue).get
+      WomFileMapper.mapWomFiles(testActorRef.underlyingActor.wdlFileToGcsPath(jesOutputs))(womValue).get
     }
 
     val result = outputValues map wdlValueToGcsPath(jesOutputs)

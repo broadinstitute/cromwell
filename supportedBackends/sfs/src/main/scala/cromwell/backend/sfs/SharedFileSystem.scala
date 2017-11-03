@@ -7,7 +7,7 @@ import cats.syntax.functor._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.io.JobPaths
-import cromwell.backend.wdl.WdlFileMapper
+import cromwell.backend.wdl.WomFileMapper
 import cromwell.core.CromwellFatalExceptionMarker
 import cromwell.core.path.{DefaultPath, DefaultPathBuilder, Path, PathFactory}
 import common.util.TryUtil
@@ -133,7 +133,7 @@ trait SharedFileSystem extends PathFactory {
   }
 
   def outputMapper(job: JobPaths)(womValue: WomValue): Try[WomValue] = {
-    WdlFileMapper.mapWdlFiles(mapJobWdlFile(job))(womValue)
+    WomFileMapper.mapWomFiles(mapJobWdlFile(job))(womValue)
   }
 
   def mapJobWdlFile(job: JobPaths)(wdlFile: WomFile): WomFile = {
@@ -155,7 +155,7 @@ trait SharedFileSystem extends PathFactory {
    */
   def localizeInputs(inputsRoot: Path, docker: Boolean)(inputs: WomEvaluatedCallInputs): Try[WomEvaluatedCallInputs] = {
     TryUtil.sequenceMap(
-      inputs mapValues WdlFileMapper.mapWdlFiles(localizeWdlFile(inputsRoot, docker)),
+      inputs mapValues WomFileMapper.mapWomFiles(localizeWdlFile(inputsRoot, docker)),
       "Failures during localization"
     ) recoverWith {
       case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)

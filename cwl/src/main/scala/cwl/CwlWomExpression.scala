@@ -1,5 +1,7 @@
 package cwl
 
+import java.security.MessageDigest
+
 import cats.syntax.option._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
@@ -34,7 +36,15 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
         case other => other
       }
 
-    cwlExpressionType.coerceRawValue(extractFile).toErrorOr
+    extractFile match {
+      case WomString(string) if string.contains("*") =>
+        val md5: String = MessageDigest.getInstance("MD5").digest(string.getBytes).map("%02X".format(_)).mkString
+        cwlExpressionType.coerceRawValue(
+          WomString(s"glob-$md5.list")).
+          toErrorOr
+      case _ => cwlExpressionType.coerceRawValue(extractFile).toErrorOr
+    }
+
   }
 
   /*

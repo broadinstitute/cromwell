@@ -13,7 +13,7 @@ import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle, ReturnCodeIsNotAnInt, StderrNonEmpty, SuccessfulExecutionHandle, WrongReturnCode}
 import cromwell.backend.validation._
 import cromwell.backend.wdl.OutputEvaluator._
-import cromwell.backend.wdl.{Command, OutputEvaluator, WdlFileMapper}
+import cromwell.backend.wdl.{Command, OutputEvaluator, WomFileMapper}
 import cromwell.backend._
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.core.path.Path
@@ -116,9 +116,11 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   /** @see [[Command.instantiate]] */
   final lazy val commandLinePreProcessor: WomEvaluatedCallInputs => Try[WomEvaluatedCallInputs] = {
-    inputs => TryUtil.sequenceMap(inputs mapValues WdlFileMapper.mapWdlFiles(preProcessWdlFile)) recoverWith {
-      case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
-    }
+    inputs =>
+      TryUtil.sequenceMap(inputs mapValues WomFileMapper.mapWomFiles(preProcessWdlFile)).
+        recoverWith {
+          case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
+        }
   }
 
   /**
@@ -132,7 +134,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   /** @see [[Command.instantiate]] */
   final lazy val commandLineValueMapper: WomValue => WomValue = {
-    womValue => WdlFileMapper.mapWdlFiles(mapCommandLineWdlFile)(womValue).get
+    womValue => WomFileMapper.mapWomFiles(mapCommandLineWdlFile)(womValue).get
   }
 
   /**
@@ -437,7 +439,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @return The Try wrapped and mapped wdl value.
     */
   final def outputValueMapper(womValue: WomValue): Try[WomValue] = {
-    WdlFileMapper.mapWdlFiles(mapOutputWdlFile)(womValue)
+    WomFileMapper.mapWomFiles(mapOutputWdlFile)(womValue)
   }
 
   /**

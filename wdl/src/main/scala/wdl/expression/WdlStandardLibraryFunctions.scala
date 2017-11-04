@@ -176,6 +176,32 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
     extractArguments flatMap arrayLength
   }
 
+  def flatten(params: Seq[Try[WomValue]]): Try[WomValue] = {
+    def extractArguments: Try[WomValue] = params.size match {
+      case 1 => params.head
+      case n => Failure(new IllegalArgumentException(s"Invalid number of parameters for engine function flatten(): $n. flatten() takes exactly 1 parameter."))
+    }
+
+    def arrayFlatten(value: WomValue) : Try[WomValue] =
+      try {
+        value match {
+          case WomArray(WomArrayType(WomArrayType(elemType)), arrayValues) =>
+            val strippedDown: Vector[Vector[WomValue]] = arrayValues.map{
+              case WomArray(_, a) => a.toVector
+              case bad => throw new IllegalArgumentException(s"Invalid argument to flatten. Array element ${bad} should have type ${WomArrayType(elemType)}")
+            }.toVector
+            val flattened: Vector[WomValue] = strippedDown.flatten
+            Success(WomArray(WomArrayType(elemType), flattened))
+          case bad =>
+            throw new UnsupportedOperationException(s"flatten() expects one parameter of type Array[Array[T]] but got one parameter of type ${bad.womType.toDisplayString}")
+        }
+      } catch {
+        case f: Throwable => Failure(f)
+      }
+
+    extractArguments flatMap arrayFlatten
+  }
+
   def prefix(params: Seq[Try[WomValue]]): Try[WomArray] = {
     def extractTwoArguments: Try[(WomValue, WomValue)] = params.size match {
       case 2 => (params.head, params.tail.head).tupled
@@ -313,7 +339,7 @@ object WdlStandardLibraryFunctions {
 
     override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = ioFunctionSet.size(params)
   }
-  
+
   def crossProduct[A, B](as: Seq[A], bs: Seq[B]): Seq[(A, B)] = for {
     a <- as
     b <- bs
@@ -394,6 +420,12 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WomType] {
       val badArgs = params.mkString(", ")
       Failure(new Exception(s"Unexpected arguments to function `length`. `length` takes a parameter of type Array but got: $badArgs"))
   }
+  def flatten(params: Seq[Try[WomType]]): Try[WomType] = {
+    params.toList match {
+      case Success(WomArrayType(WomArrayType(t))) :: Nil => Success(WomArrayType(t))
+      case _ => Failure(new Exception(s"Unexpected flatten target: $params"))
+    }
+  }
   def prefix(params: Seq[Try[WomType]]): Try[WomType] = params.toList match {
     case Success(WomStringType) :: Success(WomArrayType(_: WomPrimitiveType)) :: Nil => Success(WomArrayType(WomStringType))
     case _ =>
@@ -453,6 +485,7 @@ case object NoFunctions extends WdlStandardLibraryFunctions {
   override def write_json(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError())
   override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new NotImplementedError())
   override def length(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new NotImplementedError())
+  override def flatten(params: Seq[Try[WomValue]]): Try[WomValue] = Failure(new NotImplementedError())
   override def sub(params: Seq[Try[WomValue]]): Try[WomString] = Failure(new NotImplementedError())
   override def range(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new NotImplementedError())
   override def transpose(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new NotImplementedError())

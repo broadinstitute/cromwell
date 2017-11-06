@@ -11,10 +11,13 @@ import cromwell.backend.BackendJobDescriptor
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.core.CallOutputs
+import cromwell.backend.io.GlobFunctions
+import wom.JobOutput
+import wom.callable.Callable.OutputDefinition
 import wom.expression.IoFunctionSet
 import wom.graph.GraphNodePort.{ExpressionBasedOutputPort, OutputPort}
 import wom.types.WomType
-import wom.values.WomValue
+import wom.values.{WomSingleFile, WomValue}
 
 import scala.util.{Failure, Success, Try}
 object OutputEvaluator {
@@ -40,9 +43,17 @@ object OutputEvaluator {
       }
 
       // Attempt to evaluate the expression using all known values
-      def evaluateOutputExpression: OutputResult[WomValue] = {
-        EitherT { Try(output.expression.evaluateValue(allKnownValues, ioFunctions)).map(_.toEither) }
-      }
+      def evaluateOutputExpression: OutputResult[WomValue] = EitherT{ Try{
+        output.expression.evaluateValue(allKnownValues, ioFunctions).toEither.map{
+
+          //If the string contained in a filename is actually a glob,
+          // The output of this expression is expected to be glob-md5(fileName).list
+          case WomSingleFile(fileName) if fileName.contains("*") =>
+            WomSingleFile(GlobFunctions.globName(fileName) + ".list")
+
+          case other => other
+        }
+      }}
 
       // Attempt to coerce the womValue to the desired output type
       def coerceOutputValue(womValue: WomValue, coerceTo: WomType): OutputResult[WomValue] = {

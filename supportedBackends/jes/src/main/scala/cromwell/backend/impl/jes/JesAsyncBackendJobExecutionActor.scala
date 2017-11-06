@@ -25,6 +25,7 @@ import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import common.validation.ErrorOr.ErrorOr
+import cromwell.backend.io.GlobFunctions
 import org.slf4j.LoggerFactory
 import wom.callable.Callable.OutputDefinition
 import wom.core.FullyQualifiedName
@@ -234,7 +235,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   private def generateJesGlobFileOutputs(wdlFile: WomGlobFile): List[JesFileOutput] = {
-    val globName = backendEngineFunctions.globName(wdlFile.value)
+    val globName = GlobFunctions.globName(wdlFile.value)
     val globDirectory = globName + "/"
     val globListFile = globName + ".list"
     val gcsGlobDirectoryDestinationPath = callRootPath.resolve(globDirectory).pathAsString

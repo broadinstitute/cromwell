@@ -22,9 +22,7 @@ trait GlobFunctions extends IoFunctionSet {
       }
     }
 
-  def globDirectory(glob: String): String = globName(glob) + "/"
-  def globName(glob: String) = s"glob-${glob.md5Sum}"
-
+  def globDirectory(glob: String): String = GlobFunctions.globName(glob) + "/"
   /**
     * Returns a path to the glob.
     *
@@ -44,6 +42,7 @@ trait GlobFunctions extends IoFunctionSet {
     * @return The paths that match the pattern.
     */
   override def glob(pattern: String): Seq[String] = {
+    import GlobFunctions._
     val globPatternName = globName(pattern)
     val listFilePath = callContext.root.resolve(s"${globName(pattern)}.list")
     // This "lines" is technically a read file and hence should use the readFile IO method
@@ -51,4 +50,8 @@ trait GlobFunctions extends IoFunctionSet {
       (callContext.root /  globPatternName  / fileName).pathAsString
     }
   }
+}
+
+object GlobFunctions {
+  def globName(glob: String) = s"glob-${glob.md5Sum}"
 }

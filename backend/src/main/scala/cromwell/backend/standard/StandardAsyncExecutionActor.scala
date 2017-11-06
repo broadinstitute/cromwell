@@ -21,6 +21,10 @@ import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker,
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
+import common.exception.MessageAggregation
+import common.util.TryUtil
+import common.validation.ErrorOr.ErrorOr
+import cromwell.backend.io.GlobFunctions
 import net.ceedubs.ficus.Ficus._
 import wom.values._
 
@@ -169,7 +173,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     */
   def globManipulation(globFile: WomGlobFile): String = {
     val parentDirectory = globParentDirectory(globFile)
-    val globDir = backendEngineFunctions.globName(globFile.value)
+    val globDir = GlobFunctions.globName(globFile.value)
     val globDirectory = parentDirectory./(globDir)
     val globList = parentDirectory./(s"$globDir.list")
 

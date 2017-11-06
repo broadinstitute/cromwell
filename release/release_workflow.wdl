@@ -1,15 +1,12 @@
 task do_release {
    # Repo to release
-   String repo
+   String repo = "cromwell"
    # Current version being released
    String releaseV
    # Next version
    String nextV
    # Command that will update the appropriate file for the current release
    String updateVersionCommand
-   
-   # Commands that will update previously released/published dependencies in this repo
-   Array[String] dependencyCommands = []
    
    # Can be swapped out to try this on a fork
    String organization
@@ -26,51 +23,11 @@ task do_release {
 
      # Expect the version number on develop to be the version TO BE RELEASED
 
-     echo "Updating dependencies"
-     ${sep='\n' dependencyCommands}
-     
      git add .
      # If there is nothing to commit, git commit will return 1 which will fail the script.
      # This ensures we only commit if build.sbt was effectively updated
      git diff-index --quiet HEAD || git commit -m "Update ${repo} version to ${releaseV}"
        
-     # wdl4s needs a scala docs update
-     if [ ${repo} == "wdl4s" ]; then
-     
-       # Generate new scaladoc
-       sbt 'set scalacOptions in (Compile, doc) := List("-skip-packages", "better")' doc
-       git checkout gh-pages
-       for subproj in cwl wdl wom; do
-         API_SRC_DIR=$subproj/target/scala-2.12/api
-         API_DST_DIR=${releaseV}/$subproj
-         if [ -d $API_SRC_DIR ]; then
-           mkdir -p $API_DST_DIR
-           mv $API_SRC_DIR $API_DST_DIR
-         fi
-       done
-       git add ${releaseV}
-       
-       # Update latest pointer
-       git rm --ignore-unmatch latest
-
-       ln -s ${releaseV}/wom/api latest
-       git add latest
-       
-       git diff-index --quiet HEAD || git commit -m "Update Scaladoc"
-       git push origin gh-pages
-       
-       # Update badges on README
-       git checkout develop
-       curl -o scaladoc.png https://img.shields.io/badge/scaladoc-${releaseV}-blue.png
-       curl -o version.png https://img.shields.io/badge/version-${releaseV}-blue.png
-       
-       git add scaladoc.png
-       git add version.png
-       
-       git diff-index --quiet HEAD || git commit -m "Update README badges"
-       git push origin develop
-     fi
-     
      # Merge develop into master
      git checkout master
      git pull --rebase
@@ -90,21 +47,11 @@ task do_release {
      # Create and push the hotfix branch
      git checkout -b ${releaseV}_hotfix
      
-     # Pin centaur for cromwell
-     if [ ${repo} == "cromwell" ]; then
-        centaurDevelopHEAD=$(git ls-remote git://github.com/${organization}/centaur.git | grep refs/heads/develop | cut -f 1)
-        sed -i '' s/CENTAUR_BRANCH=.*/CENTAUR_BRANCH="$centaurDevelopHEAD"/g .travis.yml
-        git add .travis.yml
-        git commit -m "Pin release to centaur branch"
-     fi 
-     
      git push origin ${releaseV}_hotfix
      
      # Assemble jar for cromwell
-     if [ ${repo} == "cromwell" ]; then
-        sbt -Dproject.version=${releaseV} -Dproject.isSnapshot=false assembly
-     fi  
-     
+     sbt -Dproject.version=${releaseV} -Dproject.isSnapshot=false assembly
+
      # Update develop to point to next release version
      git checkout develop
      ${updateVersionCommand}
@@ -121,73 +68,22 @@ task do_release {
    }
 }
 
-task wait_for_published_artifact {
-    String repo
-    String version
-    
-    command <<<
-        checkIfPresent() {
-            isPresent=$(curl -s --head https://broadinstitute.jfrog.io/broadinstitute/libs-release-local/org/broadinstitute/${repo}/${version}/ | head -n 1 | grep -q "HTTP/1.[01] [23]..")
-        }
-        
-        elapsedTime=0
-        checkIfPresent
-        
-        # Allow 1 hour for the file to appear as a published artifact
-        while [ $? -ne 0 ] && [ $elapsedTime -lt 3600 ]; do
-            sleep 10;
-            let "elapsedTime+=10"
-            checkIfPresent
-        done
-        
-        exit $?
-    >>>
-    
-    output {
-        String publishedVersion = version
-    }
-}
-
-task create_update_dependency_command {
-    String dependencyName
-    String newVersion
-    String dependencyFilePath = "build.sbt"
-    
-    command {
-        echo "sed -i '' \"s/${dependencyName}[[:space:]]=.*/${dependencyName} = \\\"${newVersion}\\\"/g\" ${dependencyFilePath}"
-    }
-    
-    output {
-      String updateCommand = read_string(stdout())
-    }
-}
-
 task versionPrep {
     String organization
-    String repo
-    String file
-    String regexPrefix
     String updateCommandTemplate
-    
-    String bash_rematch = "{BASH_REMATCH[1]}"
+    String repo = "cromwell"
+    String file = "project/Version.scala"
+
     command <<<
-        curl -o versionFile https://raw.githubusercontent.com/${organization}/${repo}/develop/${file}
-        regex="${regexPrefix}\"(([0-9]+\.)?([0-9]+))\""
-        
-        if [[ $(cat versionFile) =~ $regex ]]
-        then
-            version="$${bash_rematch}"
-            echo $version > version
-            echo $version | perl -ne 'if (/^([0-9]+\.)?([0-9]+)$/) { $incr = $2 + 1; print "$1$incr\n" }' > nextVersion
-        else
-            exit 1
-        fi
+      curl -o versionFile https://raw.githubusercontent.com/${organization}/${repo}/develop/${file}
+      perl -ne '/\s+cromwellVersion\s*=\s*"(.*)"/ && print $1' versionFile > currentVersion
+      echo $((`cat currentVersion` + 1)) > nextVersion
     >>>
     
     output {
-        String version = read_string("version")
         String nextVersion = read_string("nextVersion")
         String updateCommand = sub(updateCommandTemplate, "<<VERSION>>", nextVersion)
+        String currentVersion = read_string("currentVersion")
     }
 }
 
@@ -235,151 +131,33 @@ task makeGithubRelease {
 workflow release_cromwell {
   String githubToken
   String organization
-    
-  Pair[String, String] lenthallAsDependency = ("lenthallV", waitForLenthall.publishedVersion) 
-  Pair[String, String] wdl4sAsDependency = ("wdl4sV", waitForWdl4s.publishedVersion)
 
-  #This exists to gate the release of wdltool on the output of wdl4s CWL release.
-  #However, the wdl4s dependency is already updated via the wdl4sAsDependency pair above.
-  Pair[String, String] wdl4sCwlAsDependency = ("neverMatch", waitForWdl4sCwl.publishedVersion)
-  
-  Array[Pair[String, String]] wdl4sDependencies = [lenthallAsDependency]
-  Array[Pair[String, String]] wdltoolDependencies = [wdl4sAsDependency, wdl4sCwlAsDependency]
-  Array[Pair[String, String]] cromwellDependencies = [lenthallAsDependency, wdl4sAsDependency]
-  
-  # Regex to find the line setting the current version
-  String dependencyRegexPrefix = "git\\.baseVersion[[:space:]]:=[[:space:]]"
-  # Template command to update the version
-  String dependencyTemplate = "sed -i '' \"s/git\\.baseVersion[[:space:]]:=.*/git.baseVersion := \\\"<<VERSION>>\\\",/g\" build.sbt"
-  
   String cromwellTemplate = "sed -i '' \"s/cromwellVersion[[:space:]]=.*/cromwellVersion = \\\"<<VERSION>>\\\"/g\" project/Version.scala"
-  String cromwellRegexPrefix = "cromwellVersion[[:space:]]=[[:space:]]"
 
-  String wdl4sTemplate = "sed -i '' \"s/wdl4sVersion[[:space:]]=.*/wdl4sVersion = \\\"<<VERSION>>\\\"/g\" project/Version.scala"
-  String wdl4sRegexPrefix = "wdl4sVersion[[:space:]]=[[:space:]]"
-
-  # Prepare releases by finding out the current version, next version, and update version command
-  call versionPrep as lenthallPrep { input: 
+  call versionPrep { input:
     organization = organization,
-    repo = "lenthall",
-    file = "build.sbt",
-    regexPrefix = dependencyRegexPrefix,
-    updateCommandTemplate = dependencyTemplate
-  }
-  
-  call versionPrep as wdl4sPrep { input: 
-    organization = organization,
-    repo = "wdl4s",
-    file = "project/Version.scala",
-    regexPrefix = wdl4sRegexPrefix,
-    updateCommandTemplate = wdl4sTemplate
-  }
-  
-  call versionPrep as wdltoolPrep { input: 
-    organization = organization,
-    repo = "wdltool",
-    file = "build.sbt",
-    regexPrefix = dependencyRegexPrefix,
-    updateCommandTemplate = dependencyTemplate
-  }
-  
-  call versionPrep as cromwellPrep { input: 
-    organization = organization,
-    repo = "cromwell",
-    file = "project/Version.scala",
-    regexPrefix = cromwellRegexPrefix,
     updateCommandTemplate = cromwellTemplate
   }
   
   # Release calls  
-  call do_release as release_lenthall { input: 
+  call do_release { input:
         organization = organization, 
-        repo = "lenthall", 
-        releaseV = lenthallPrep.version,
-        nextV = lenthallPrep.nextVersion,
-        updateVersionCommand = lenthallPrep.updateCommand,
-       }
-       
-  call do_release as release_wdl4s { input: 
-        organization = organization, 
-        repo = "wdl4s", 
-        releaseV = wdl4sPrep.version,
-        nextV = wdl4sPrep.nextVersion,
-        updateVersionCommand = wdl4sPrep.updateCommand,
-        dependencyCommands = wdl4sDependencyCommands.updateCommand
-       }
-       
-  call do_release as release_wdltool { input:
-        organization = organization,
-        repo = "wdltool", 
-        releaseV = wdltoolPrep.version,
-        nextV = wdltoolPrep.nextVersion,
-        updateVersionCommand = wdltoolPrep.updateCommand,
-        dependencyCommands = wdltoolDependencyCommands.updateCommand
-       }  
-       
-  call do_release as release_cromwell { input: 
-        organization = organization, 
-        repo = "cromwell", 
-        releaseV = cromwellPrep.version,
-        nextV = cromwellPrep.nextVersion,
-        updateVersionCommand = cromwellPrep.updateCommand,
-        dependencyCommands = cromwellDependencyCommands.updateCommand
+        releaseV = versionPrep.currentVersion,
+        nextV = versionPrep.nextVersion,
+        updateVersionCommand = versionPrep.updateCommand
        }
   
-  call wait_for_published_artifact as waitForLenthall { input: repo = "lenthall_2.12", version = release_lenthall.version }
-  call wait_for_published_artifact as waitForWdl4s { input: repo = "wdl4s-wdl_2.12", version = release_wdl4s.version }
-
-  call wait_for_published_artifact as waitForWdl4sCwl { input: repo = "wdl4s-cwl_2.12", version = release_wdl4s.version }
-  
-  # Generates commands to update wdl4s dependencies
-  scatter(wdl4sDependency in wdl4sDependencies) {
-    String wdl4sDepName = wdl4sDependency.left
-    String wdl4sVersionName = wdl4sDependency.right
-    
-    call create_update_dependency_command as wdl4sDependencyCommands { input: 
-       dependencyName = wdl4sDepName,
-       newVersion = wdl4sVersionName,
-       dependencyFilePath = "build.sbt"
-    }
-  }
-  
-  # Generates commands to update wdltool dependencies
-  scatter(wdltoolDependency in wdltoolDependencies) {
-    String wdltoolDepName = wdltoolDependency.left
-    String wdltoolVersionName = wdltoolDependency.right
-    
-    call create_update_dependency_command as wdltoolDependencyCommands { input: 
-       dependencyName = wdltoolDepName,
-       newVersion = wdltoolVersionName,
-       dependencyFilePath = "build.sbt"
-    }
-  }
-  
-  # Generates commands to update cromwell dependencies
-  scatter(cromwellDependency in cromwellDependencies) {
-    String cromwellDepName = cromwellDependency.left
-    String cromwellVersionName = cromwellDependency.right
-    
-    call create_update_dependency_command as cromwellDependencyCommands { input: 
-       dependencyName = cromwellDepName,
-       newVersion = cromwellVersionName,
-       dependencyFilePath = "project/Dependencies.scala"
-    }
-  }
-  
-  File cromwellJar = release_cromwell.executionDir + "/target/scala-2.12/cromwell-" + cromwellPrep.version + ".jar"
-  # Version that was just released
-  Int cromwellVersionAsInt = cromwellPrep.version
+  File cromwellJar = "${do_release.executionDir}/target/scala-2.12/cromwell-${versionPrep.currentVersion}.jar"
+  Int cromwellVersionAsInt = versionPrep.currentVersion
   # Previous version
-  Int cromwellPreviousVersion = cromwellVersionAsInt - 1
-  
+  Int cromwellPreviousVersionAsInt = cromwellVersionAsInt - 1
+
   call makeGithubRelease { input:
            githubToken = githubToken,
            organization = organization,
            cromwellJar = cromwellJar,
            newVersion = cromwellVersionAsInt,
-           oldVersion = cromwellPreviousVersion
+           oldVersion = cromwellPreviousVersionAsInt
   }
   
   output {

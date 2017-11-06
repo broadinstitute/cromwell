@@ -12,8 +12,6 @@ import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.core.CallOutputs
 import cromwell.backend.io.GlobFunctions
-import wom.JobOutput
-import wom.callable.Callable.OutputDefinition
 import wom.expression.IoFunctionSet
 import wom.graph.GraphNodePort.{ExpressionBasedOutputPort, OutputPort}
 import wom.types.WomType

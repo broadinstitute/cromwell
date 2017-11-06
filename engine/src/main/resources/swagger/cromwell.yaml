@@ -77,7 +77,7 @@ paths:
           schema:
             $ref: '#/definitions/WorkflowIdAndStatus'
         '400':
-          $ref: '#/responses/BadRequest'
+          $ref: '#/responses/InvalidSubmission'
         '500':
           $ref: '#/responses/ServerError'
       security:
@@ -565,6 +565,8 @@ responses:
     description: Successful Request
     schema:
       $ref: '#/definitions/WorkflowIdAndStatus'
+  InvalidSubmission:
+    description: Invalid submission request
   BadRequest:
     description: Malformed Workflow ID
   Forbidden:

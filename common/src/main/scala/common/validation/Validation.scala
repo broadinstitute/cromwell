@@ -7,6 +7,7 @@ import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
 import cats.syntax.either._
 import common.Checked
+import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
 import net.ceedubs.ficus.readers.{StringReader, ValueReader}
 import org.slf4j.Logger
@@ -41,7 +42,11 @@ object Validation {
   implicit class ValidationTry[A](val e: ErrorOr[A]) extends AnyVal {
     def toTry: Try[A] = e match {
       case Valid(options) => Success(options)
-      case Invalid(err) => Failure(new RuntimeException(s"Error(s): ${err.toList.mkString(",")}"))
+      case Invalid(err) => Failure(AggregatedMessageException("Error(s)", err.toList))
+    }
+    def toTry(context: String): Try[A] = e match {
+      case Valid(options) => Success(options)
+      case Invalid(err) => Failure(AggregatedMessageException(context, err.toList))
     }
   }
 }

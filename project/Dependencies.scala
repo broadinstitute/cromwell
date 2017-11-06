@@ -262,7 +262,7 @@ object Dependencies {
     "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
     "io.swagger" % "swagger-parser" % swaggerParserV % Test,
     "org.yaml" % "snakeyaml" % snakeyamlV % Test
-  ) ++ swaggerUiDependencies ++ akkaHttpDependencies
+  ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ List(circeYamlDependency)
 
   val rootDependencies = slf4jBindingDependencies
 

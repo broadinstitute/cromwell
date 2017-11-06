@@ -1,12 +1,14 @@
 package cromwell.webservice
 
+import _root_.io.circe.yaml
 import akka.util.ByteString
+import cats.Monoid
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.apply._
 import cats.syntax.validated._
-import cromwell.core._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
+import cromwell.core._
 import org.slf4j.LoggerFactory
 import spray.json.{JsObject, JsValue}
 import wdl.WorkflowJson
@@ -14,71 +16,82 @@ import wom.core._
 
 import scala.util.Try
 
-final case class PartialWorkflowSources(workflowSource: Option[WorkflowSource],
-                                        workflowType: Option[WorkflowType],
-                                        workflowTypeVersion: Option[WorkflowTypeVersion],
-                                        workflowInputs: Vector[WorkflowJson],
-                                        workflowInputsAux: Map[Int, WorkflowJson],
-                                        workflowOptions: Option[WorkflowOptionsJson],
-                                        customLabels: Option[WorkflowJson],
-                                        zippedImports: Option[Array[Byte]],
-                                        warnings: Seq[String])
+final case class PartialWorkflowSources(workflowSource: Option[WorkflowSource] = None,
+                                        workflowType: Option[WorkflowType] = None,
+                                        workflowTypeVersion: Option[WorkflowTypeVersion] = None,
+                                        workflowInputs: Vector[WorkflowJson] = Vector.empty,
+                                        workflowInputsAux: Map[Int, WorkflowJson] = Map.empty,
+                                        workflowOptions: Option[WorkflowOptionsJson] = None,
+                                        customLabels: Option[WorkflowJson] = None,
+                                        zippedImports: Option[Array[Byte]] = None,
+                                        warnings: Seq[String] = List.empty)
 
 object PartialWorkflowSources {
   val log = LoggerFactory.getLogger(classOf[PartialWorkflowSources])
 
-  def empty = PartialWorkflowSources(
-    workflowSource = None,
-    workflowType = None,
-    workflowTypeVersion = None,
-    workflowInputs = Vector.empty,
-    workflowInputsAux = Map.empty,
-    workflowOptions = None,
-    customLabels = None,
-    zippedImports = None,
-    warnings = Vector.empty
-  )
-
+  implicit val partialWorkflowSourcesMonoid = new Monoid[PartialWorkflowSources] {
+    override def empty: PartialWorkflowSources = PartialWorkflowSources()
+    
+    override def combine(x: PartialWorkflowSources, y: PartialWorkflowSources): PartialWorkflowSources = {
+      x.copy(
+        workflowSource = x.workflowSource.orElse(y.workflowSource),
+        workflowType = x.workflowType.orElse(y.workflowType),
+        workflowTypeVersion = x.workflowTypeVersion.orElse(y.workflowTypeVersion),
+        workflowInputs = x.workflowInputs ++ y.workflowInputs,
+        workflowInputsAux = x.workflowInputsAux ++ y.workflowInputsAux,
+        workflowOptions = x.workflowOptions.orElse(y.workflowOptions),
+        zippedImports = x.zippedImports.orElse(y.zippedImports),
+        customLabels = x.customLabels.orElse(y.customLabels),
+        warnings = x.warnings ++ y.warnings
+      )
+    }
+  }
+  
   def fromSubmitRoute(formData: Map[String, ByteString],
                       allowNoInputs: Boolean): Try[Seq[WorkflowSourceFilesCollection]] = {
-    val partialSources: Try[PartialWorkflowSources] = Try {
-      formData.foldLeft(PartialWorkflowSources.empty) {
-        (partialSources: PartialWorkflowSources, kv: (String, ByteString)) =>
-          val (name, data) = kv
-
+    import cats.instances.list._
+    import cats.syntax.foldable._
+    import cats.syntax.validated._
+    
+    val partialSources: ErrorOr[PartialWorkflowSources] = {
+      formData.toList.foldMap({
+        case (name, data) =>
           name match {
             case "wdlSource" =>
               val warning = deprecationWarning(out = "wdlSource", in = "workflowSource")
-              val warnings = warning +: partialSources.warnings
-              partialSources.copy(workflowSource = Option(data.utf8String), warnings = warnings)
-            case "workflowSource" => partialSources.copy(workflowSource = Option(data.utf8String))
-            case "workflowType" => partialSources.copy(workflowType = Option(data.utf8String))
-            case "workflowTypeVersion" => partialSources.copy(workflowTypeVersion = Option(data.utf8String))
-            case "workflowInputs" => partialSources.copy(workflowInputs = workflowInputs(data.utf8String))
+              PartialWorkflowSources(workflowSource = Option(data.utf8String), warnings = Vector(warning)).validNel
+            case "workflowSource" => 
+              PartialWorkflowSources(workflowSource = Option(data.utf8String)).validNel
+            case "workflowType" => 
+              PartialWorkflowSources(workflowType = Option(data.utf8String)).validNel
+            case "workflowTypeVersion" => PartialWorkflowSources(workflowTypeVersion = Option(data.utf8String)).validNel
+            case "workflowInputs" =>
+              workflowInputs(data.utf8String) map { inputs => PartialWorkflowSources(workflowInputs = inputs) }
             case _ if name.startsWith("workflowInputs_") =>
-              val index = name.stripPrefix("workflowInputs_").toInt
-              partialSources.copy(workflowInputsAux = partialSources.workflowInputsAux + (index -> data.utf8String))
-            case "workflowOptions" => partialSources.copy(workflowOptions = Option(data.utf8String))
+              Try(name.stripPrefix("workflowInputs_").toInt).toErrorOr map { index =>
+                PartialWorkflowSources(workflowInputsAux = Map(index -> data.utf8String))
+              }
+            case "workflowOptions" => PartialWorkflowSources(workflowOptions = Option(data.utf8String)).validNel
             case "wdlDependencies" =>
               val warning = deprecationWarning(out = "wdlDependencies", in = "workflowDependencies")
-              val warnings = warning +: partialSources.warnings
-              partialSources.copy(zippedImports = Option(data.toArray), warnings = warnings)
-            case "workflowDependencies" => partialSources.copy(zippedImports = Option(data.toArray))
-            case "customLabels" => partialSources.copy(customLabels = Option(data.utf8String))
-            case _ => throw new IllegalArgumentException(s"Unexpected body part name: $name")
+              PartialWorkflowSources(zippedImports = Option(data.toArray), warnings = Vector(warning)).validNel
+            case "workflowDependencies" => PartialWorkflowSources(zippedImports = Option(data.toArray)).validNel
+            case "customLabels" => PartialWorkflowSources(customLabels = Option(data.utf8String)).validNel
+            case _ => s"Unexpected body part name: $name".invalidNel
           }
-      }
+      })
     }
 
-    partialSourcesToSourceCollections(partialSources.toErrorOr, allowNoInputs).toTry
+    partialSourcesToSourceCollections(partialSources, allowNoInputs).toTry("Invalid submit request")
   }
 
-  private def workflowInputs(data: String): Vector[WorkflowJson] = {
-    import spray.json._
-    data.parseJson match {
-      case JsArray(Seq(x, xs@_*)) => (Vector(x) ++ xs).map(_.compactPrint)
-      case JsArray(_) => Vector.empty
-      case v: JsValue => Vector(v.compactPrint)
+  private def workflowInputs(data: String): ErrorOr[Vector[WorkflowJson]] = {
+    import cats.syntax.validated._
+    
+    yaml.parser.parse(data) match {
+      // If it's an array, treat each element as an individual input object, otherwise simply toString the whole thing
+      case Right(json) => json.asArray.map(_.map(_.toString())).getOrElse(Vector(json.toString)).validNel
+      case Left(error) => s"Input file is not valid json: ${error.getMessage}".invalidNel
     }
   }
 

@@ -22,9 +22,13 @@ object APIResponse {
 
   private def constructFailureResponse(status: String, ex: Throwable) ={
     ex match {
-      case exceptionWithErrors: MessageAggregation =>
-        FailureResponse(status, exceptionWithErrors.getMessage,
-          Option(JsArray(exceptionWithErrors.errorMessages.toList.map(JsString(_)).toVector)))
+      case e: MessageAggregation =>
+        if (e.errorMessages.isEmpty) {
+          FailureResponse(status, e.exceptionContext, None)
+        } else {
+          val errors = Option(JsArray(e.errorMessages.toList.map(JsString(_)).toVector))
+          FailureResponse(status, e.exceptionContext, errors)
+        }
       case e: Throwable => FailureResponse(status, e.getMessage, None)
     }
   }

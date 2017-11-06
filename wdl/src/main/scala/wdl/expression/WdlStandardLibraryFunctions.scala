@@ -177,29 +177,19 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
   }
 
   def flatten(params: Seq[Try[WomValue]]): Try[WomValue] = {
-    def extractArguments: Try[WomValue] = params.size match {
-      case 1 => params.head
-      case n => Failure(new IllegalArgumentException(s"Invalid number of parameters for engine function flatten(): $n. flatten() takes exactly 1 parameter."))
+    def getFlatValues(v: WomValue): List[WomValue] = v match {
+      case WomArray(_, values) => values.toList
+      case other => List(other)
     }
 
-    def arrayFlatten(value: WomValue) : Try[WomValue] =
-      try {
-        value match {
-          case WomArray(WomArrayType(WomArrayType(elemType)), arrayValues) =>
-            val strippedDown: Vector[Vector[WomValue]] = arrayValues.map{
-              case WomArray(_, a) => a.toVector
-              case bad => throw new IllegalArgumentException(s"Invalid argument to flatten. Array element ${bad} should have type ${WomArrayType(elemType)}")
-            }.toVector
-            val flattened: Vector[WomValue] = strippedDown.flatten
-            Success(WomArray(WomArrayType(elemType), flattened))
-          case bad =>
-            throw new UnsupportedOperationException(s"flatten() expects one parameter of type Array[Array[T]] but got one parameter of type ${bad.womType.toDisplayString}")
-        }
-      } catch {
-        case f: Throwable => Failure(f)
-      }
-
-    extractArguments flatMap arrayFlatten
+    val arg:Try[WomValue] = extractSingleArgument("flatten", params)
+    arg flatMap {
+      case WomArray(WomArrayType(WomArrayType(elemType)), arrayValues) =>
+        val ll:List[List[WomValue]] = arrayValues.toList.map(getFlatValues)
+        Success(WomArray(WomArrayType(elemType), ll.flatten))
+      case bad =>
+        Failure(new UnsupportedOperationException(s"flatten() expects one parameter of type Array[Array[T]] but got one parameter of type ${bad.womType.toDisplayString}"))
+    }
   }
 
   def prefix(params: Seq[Try[WomValue]]): Try[WomArray] = {

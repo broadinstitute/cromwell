@@ -38,7 +38,7 @@ class PureStandardLibraryFunctionsSpec extends FlatSpec with Matchers {
 
   behavior of "flatten"
 
-  it should "get the right answers" in {
+  it should "concatenate arrays of arrays of integers" in {
     val ar1 = WomArray(WomArrayType(WomIntegerType), List(WomInteger(1), WomInteger(2)))
     val ar2 = WomArray(WomArrayType(WomIntegerType), List(WomInteger(3), WomInteger(4), WomInteger(5)))
     val ar3 = WomArray(WomArrayType(WomIntegerType), List.empty)
@@ -48,7 +48,9 @@ class PureStandardLibraryFunctionsSpec extends FlatSpec with Matchers {
                                                               WomInteger(3), WomInteger(4),
                                                               WomInteger(5), WomInteger(6)))
     PureStandardLibraryFunctions.flatten(Seq(Success(aar))) should be(Success(flat_ar))
+  }
 
+  it should "concatenate arrays of arrays of strings" in {
     val sar1 = WomArray(WomArrayType(WomStringType), List(WomString("chatting"), WomString("is")))
     val sar2 = WomArray(WomArrayType(WomStringType), List(WomString("great"), WomString("for"), WomString("you")))
     val saar = WomArray(WomArrayType(WomArrayType(WomStringType)), List(sar1, sar2))
@@ -56,7 +58,9 @@ class PureStandardLibraryFunctionsSpec extends FlatSpec with Matchers {
                                                               WomString("great"), WomString("for"),
                                                               WomString("you")))
     PureStandardLibraryFunctions.flatten(Seq(Success(saar))) should be(Success(flat_sar))
+  }
 
+  it should "return errors for arguments which are not two dimensional arrays" in {
     val err1 = WomArray(WomArrayType(WomFileType), List.empty)
     PureStandardLibraryFunctions.flatten(Seq(Success(err1))) should be(a[Failure[_]])
 

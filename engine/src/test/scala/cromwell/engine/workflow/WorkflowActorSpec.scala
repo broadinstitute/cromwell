@@ -71,7 +71,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       ),
       supervisor = supervisorProbe.ref)
     actor.setState(stateName = state, stateData = WorkflowActorData(Option(currentLifecycleActor.ref), Option(descriptor),
-      AllBackendInitializationData.empty, StateCheckpoint(InitializingWorkflowState)))
+      AllBackendInitializationData.empty, StateCheckpoint(InitializingWorkflowState), Submitted))
     actor
   }
 

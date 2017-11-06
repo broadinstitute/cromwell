@@ -50,7 +50,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
 
   when(SubWorkflowPendingState) {
     case Event(Execute, _) =>
-      if (startState.isRestart) {
+      if (startState.restarted) {
         subWorkflowStoreActor ! QuerySubWorkflow(parentWorkflow.id, key)
         goto(SubWorkflowCheckingStoreState)
       } else {

@@ -273,6 +273,6 @@ object WorkflowDockerLookupActorSpec {
     extends WorkflowDockerLookupActor(
       workflowId,
       dockerHashingActor,
-      startState.isRestart,
+      startState.restarted,
       EngineServicesStore.engineDatabaseInterface)
 }

@@ -4,33 +4,69 @@ import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
 
 sealed trait WorkflowStoreState {
-  def isStartable: Boolean
-  def isRestart: Boolean = false
+  def stateName: String
+  def restarted: Boolean = false
+
+  /**
+    * Return the restarted version of this state
+    */
+  def toRestartState: WorkflowStoreState
 }
 
 object WorkflowStoreState {
+  private val RunningStateName = "Running"
+  private val AbortingStateName = "Aborting"
+  private val SubmittedStateName = "Submitted"
+  
+  val AllStates = List(Running, Aborting, Submitted, RestartableRunning, RestartableAborting)
+  
+  def fromNameAndRestarted(stateName: String, restarted: Boolean): Option[WorkflowStoreState] = {
+    List(Running, Aborting, Submitted) collectFirst {
+      case state if state.stateName.equalsIgnoreCase(stateName) =>
+        if (restarted) state.toRestartState else state
+    }
+  }
+  
   sealed trait StartableState extends WorkflowStoreState {
-    override def isStartable = true 
+    /**
+      * After being fetched, what state should the workflow be set to
+      */
     def afterFetchedState: WorkflowStoreState
   }
-  sealed trait NonStartableState extends WorkflowStoreState { 
-    override def isStartable = false 
+
+  sealed trait RestartableState extends StartableState { override def restarted = true }
+
+  case object Running extends WorkflowStoreState {
+    override val stateName = RunningStateName
+    override val toRestartState = RestartableRunning
   }
-  sealed trait RestartedState extends WorkflowStoreState {
-    override def isRestart = true
+
+  case object Aborting extends WorkflowStoreState {
+    override val stateName = AbortingStateName
+    override val toRestartState = RestartableAborting
   }
-  case object Running extends NonStartableState
-  case object Aborting extends NonStartableState
   
   case object Submitted extends StartableState {
-    def afterFetchedState: WorkflowStoreState = Running
+    override val stateName = SubmittedStateName
+    override val toRestartState = this
+    override val afterFetchedState = Running
   }
-  
-  case object RestartableRunning extends StartableState with RestartedState {
-    def afterFetchedState: WorkflowStoreState = Running
+
+  /* 
+    * Restartable states - Those states do not exist as is in the database,
+    * they represent restartable workflows in Running and Aborting state. They exist so that we can type check that
+    * a workflow is being started only if it's in a Startable state.
+   */
+  case object RestartableRunning extends RestartableState {
+    override val stateName = RunningStateName
+    override val toRestartState = this
+    override val afterFetchedState = Running
   }
-  case object RestartableAborting extends StartableState with RestartedState {
-    def afterFetchedState: WorkflowStoreState = Aborting
+
+  case object RestartableAborting extends RestartableState {
+    override val stateName = AbortingStateName
+    override val toRestartState = this
+    override val afterFetchedState = Aborting
   }
 }
 

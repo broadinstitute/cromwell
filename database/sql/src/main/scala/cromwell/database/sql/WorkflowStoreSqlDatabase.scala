@@ -26,9 +26,12 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
 
   def updateWorkflowsInState(updates: List[(String, String)])
                             (implicit ec: ExecutionContext): Future[Unit]
+
+  def updateToRestartedIfInState(states: List[String])
+                                (implicit ec: ExecutionContext): Future[Unit]
   
   def updateWorkflowState(workflowId: String, newWorkflowState: String)
-                         (implicit ec: ExecutionContext): Future[Int]
+                         (implicit ec: ExecutionContext): Future[Option[Boolean]]
 
   /**
     * Adds the requested WorkflowSourceFiles to the store.
@@ -40,7 +43,7 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
     * Retrieves up to limit workflows which have not already been pulled into the engine and updates their state.
     * NOTE: Rows are returned with the query state, NOT the update state.
     */
-  def queryWorkflowStoreEntries(limit: Int, queryWorkflowState: String, updateWorkflowState: String)
+  def queryWorkflowStoreEntries(limit: Int, queryWorkflowState: String, queryWorkflowRestarted: Boolean, updateWorkflowState: String)
                                (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]]
 
   /**

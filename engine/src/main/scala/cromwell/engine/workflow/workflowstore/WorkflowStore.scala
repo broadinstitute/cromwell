@@ -9,11 +9,11 @@ import scala.concurrent.{ExecutionContext, Future}
 trait WorkflowStore {
 
   def initialize(implicit ec: ExecutionContext): Future[Unit]
-  
-  def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[Boolean]
 
   def abortAllRunning()(implicit ec: ExecutionContext): Future[Unit]
-  
+
+  def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[Option[Boolean]]
+
   def stats(implicit ec: ExecutionContext): Future[Map[String, Int]]
 
   /**

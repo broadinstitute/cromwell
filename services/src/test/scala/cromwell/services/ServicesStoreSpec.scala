@@ -310,6 +310,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         workflowInputs = clobOption,
         workflowOptions = clobOption,
         workflowState = "Testing",
+        restarted = false,
         submissionTime = OffsetDateTime.now.toSystemTimestamp,
         importsZip = Option(emptyBlob),
         customLabels = clob)
@@ -384,6 +385,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         workflowInputs = clobOption,
         workflowOptions = clobOption,
         workflowState = testWorkflowState,
+        restarted = false,
         submissionTime = OffsetDateTime.now.toSystemTimestamp,
         importsZip = Option(Array.empty[Byte]).toBlobOption,
         customLabels = clob)
@@ -397,6 +399,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         workflowInputs = clobOption,
         workflowOptions = clobOption,
         workflowState = testWorkflowState,
+        restarted = false,
         submissionTime = OffsetDateTime.now.toSystemTimestamp,
         importsZip = None,
         customLabels = clob)
@@ -411,6 +414,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         workflowInputs = clobOption,
         workflowOptions = clobOption,
         workflowState = testWorkflowState,
+        restarted = false,
         submissionTime = OffsetDateTime.now.toSystemTimestamp,
         importsZip = Option(Array(aByte)).toBlobOption,
         customLabels = clob)
@@ -419,7 +423,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
 
       val future = for {
         _ <- dataAccess.addWorkflowStoreEntries(workflowStoreEntries)
-        queried <- dataAccess.queryWorkflowStoreEntries(Int.MaxValue, testWorkflowState, testWorkflowState)
+        queried <- dataAccess.queryWorkflowStoreEntries(Int.MaxValue, testWorkflowState, queryWorkflowRestarted = false, testWorkflowState)
         _ = {
           val emptyEntry = queried.find(_.workflowExecutionUuid == emptyWorkflowUuid).get
           emptyEntry.importsZip.toBytesOption should be(None)

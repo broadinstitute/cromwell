@@ -23,9 +23,22 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     runTransaction(action) void
   }
 
+  override def updateToRestartedIfInState(states: List[String])
+                                         (implicit ec: ExecutionContext): Future[Unit] = {
+    val action = for {
+      _ <- dataAccess.workflowRestartedIfStateIsIn(states).update(true)
+    } yield ()
+
+    runTransaction(action) void
+  }
+
   override def updateWorkflowState(workflowId: String, newWorkflowState: String)
-                                     (implicit ec: ExecutionContext): Future[Int] = {
-    val action = dataAccess.workflowStateForId(workflowId).update(newWorkflowState)
+                                     (implicit ec: ExecutionContext): Future[Option[Boolean]] = {
+    val action =  for {
+      restarted <- dataAccess.workflowRestartedForId(workflowId).result.headOption
+      _ <- dataAccess.workflowStateForId(workflowId).update(newWorkflowState)
+    } yield restarted
+    
     runTransaction(action)
   }
 
@@ -35,21 +48,21 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     runTransaction(action) void
   }
 
-  override def queryWorkflowStoreEntries(limit: Int, queryWorkflowState: String, updateWorkflowState: String)
+  override def queryWorkflowStoreEntries(limit: Int, queryWorkflowState: String, queryWorkflowRestarted: Boolean, updateWorkflowState: String)
                                         (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]] = {
     val action = for {
-      workflowStoreEntries <- dataAccess.workflowStoreEntriesForWorkflowState((queryWorkflowState, limit.toLong)).result
-      _ <- DBIO.sequence(workflowStoreEntries map updateWorkflowStateForWorkflowExecutionUuid(updateWorkflowState))
+      workflowStoreEntries <- dataAccess.workflowStoreEntriesForWorkflowState((queryWorkflowState, queryWorkflowRestarted, limit.toLong)).result
+      _ <- DBIO.sequence(workflowStoreEntries map updateWorkflowStateAndRestartedForWorkflowExecutionUuid(updateWorkflowState, restarted = false))
     } yield workflowStoreEntries
     runTransaction(action)
   }
 
-  private def updateWorkflowStateForWorkflowExecutionUuid(updateWorkflowState: String)
+  private def updateWorkflowStateAndRestartedForWorkflowExecutionUuid(updateWorkflowState: String, restarted: Boolean)
                                                          (workflowStoreEntry: WorkflowStoreEntry)
                                                          (implicit ec: ExecutionContext): DBIO[Unit] = {
     val workflowExecutionUuid = workflowStoreEntry.workflowExecutionUuid
     for {
-      updateCount <- dataAccess.workflowStateForWorkflowExecutionUuid(workflowExecutionUuid).update(updateWorkflowState)
+      updateCount <- dataAccess.workflowStateAndRestartedForWorkflowExecutionUuid(workflowExecutionUuid).update((updateWorkflowState, restarted))
       _ <- assertUpdateCount(s"Update $workflowExecutionUuid to $updateWorkflowState", updateCount, 1)
     } yield ()
   }

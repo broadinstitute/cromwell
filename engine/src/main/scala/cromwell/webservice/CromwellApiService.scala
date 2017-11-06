@@ -165,8 +165,8 @@ trait CromwellApiService extends HttpInstrumentation {
             val response = workflowStoreActor.ask(WorkflowStoreActor.AbortWorkflowCommand(workflowId)).mapTo[AbortResponse]
 
             onComplete(response) {
-              case Success(WorkflowAbortingResponse(id)) =>
-                workflowManagerActor ! AbortWorkflowCommand(id)
+              case Success(WorkflowAbortingResponse(id, restarted)) =>
+                workflowManagerActor ! AbortWorkflowCommand(id, restarted)
                 complete(ToResponseMarshallable(WorkflowAbortResponse(id.toString, WorkflowAborting.toString)))
               case Success(WorkflowAbortFailureResponse(_, e: IllegalStateException)) =>
                 /*

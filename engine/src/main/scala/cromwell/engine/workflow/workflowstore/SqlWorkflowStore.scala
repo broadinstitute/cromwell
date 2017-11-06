@@ -4,6 +4,7 @@ import java.time.OffsetDateTime
 
 import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
+import common.validation.ErrorOr.ErrorOr
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.WorkflowStoreSqlDatabase
@@ -18,21 +19,19 @@ import scala.concurrent.{ExecutionContext, Future}
 case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends WorkflowStore {
   override def initialize(implicit ec: ExecutionContext): Future[Unit] = {
     if (ConfigFactory.load().as[Option[Boolean]]("system.workflow-restart").getOrElse(true)) {
-      sqlDatabase.updateWorkflowsInState(
-        List(
-          WorkflowStoreState.Running.toString -> WorkflowStoreState.RestartableRunning.toString,
-          WorkflowStoreState.Aborting.toString -> WorkflowStoreState.RestartableAborting.toString
-        )
+      // Workflows in Running or Aborting state get their restarted flag set to true on restart  
+      sqlDatabase.updateToRestartedIfInState(
+        List(WorkflowStoreState.Running.stateName, WorkflowStoreState.Aborting.stateName)
       )
     } else {
       Future.successful(())
     }
   }
 
-  override def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[Boolean] = {
+  override def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
     sqlDatabase.updateWorkflowState(
-      id.toString, WorkflowStoreState.Aborting.toString
-    ).map(_ > 0)
+      id.toString, WorkflowStoreState.Aborting.stateName
+    )
   }
   
   override def abortAllRunning()(implicit ec: ExecutionContext): Future[Unit] = {
@@ -54,8 +53,12 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     * flag to true
     */
   override def fetchRunnableWorkflows(n: Int, state: StartableState)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
-    sqlDatabase.queryWorkflowStoreEntries(n, state.toString, state.afterFetchedState.toString) map {
-      _.toList map fromWorkflowStoreEntry
+    import cats.syntax.traverse._
+    import cats.instances.list._
+    import common.validation.Validation._
+    sqlDatabase.queryWorkflowStoreEntries(n, state.stateName, state.restarted, state.afterFetchedState.stateName) map {
+      // .get on purpose here to fail the future if something went wrong
+      _.toList.traverse(fromWorkflowStoreEntry).toTry.get
     }
   }
 
@@ -72,7 +75,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     sqlDatabase.addWorkflowStoreEntries(asStoreEntries.toList) map { _ => returnValue }
   }
 
-  private def fromWorkflowStoreEntry(workflowStoreEntry: WorkflowStoreEntry): WorkflowToStart = {
+  private def fromWorkflowStoreEntry(workflowStoreEntry: WorkflowStoreEntry): ErrorOr[WorkflowToStart] = {
     val sources = WorkflowSourceFilesCollection(
       workflowSource = workflowStoreEntry.workflowDefinition.toRawString,
       workflowType = workflowStoreEntry.workflowType,
@@ -83,10 +86,13 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
       importsFile = workflowStoreEntry.importsZip.toBytesOption,
       warnings = Vector.empty
     )
-    WorkflowToStart(
-      WorkflowId.fromString(workflowStoreEntry.workflowExecutionUuid),
-      sources,
-      fromDbStateStringToStartableState(workflowStoreEntry.workflowState))
+
+    fromDbStateStringToStartableState(workflowStoreEntry.workflowState, workflowStoreEntry.restarted) map { startableState =>
+      WorkflowToStart(
+        WorkflowId.fromString(workflowStoreEntry.workflowExecutionUuid),
+        sources,
+        startableState)
+    }
   }
 
   private def toWorkflowStoreEntry(workflowSourceFiles: WorkflowSourceFilesCollection): WorkflowStoreEntry = {
@@ -102,18 +108,20 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
       workflowOptions = workflowSourceFiles.workflowOptionsJson.toClobOption,
       customLabels = workflowSourceFiles.labelsJson.toClob(default = nonEmptyJsonString),
       workflowState = WorkflowStoreState.Submitted.toString,
+      restarted = false,
       submissionTime = OffsetDateTime.now.toSystemTimestamp,
       importsZip = workflowSourceFiles.importsZipFileOption.toBlobOption
     )
   }
 
-  private def fromDbStateStringToStartableState(dbStateName: String): StartableState = {
-    if (dbStateName.equalsIgnoreCase(WorkflowStoreState.RestartableRunning.toString)) {
-      WorkflowStoreState.RestartableRunning
-    } else if(dbStateName.equalsIgnoreCase(WorkflowStoreState.RestartableAborting.toString)){
-      WorkflowStoreState.RestartableAborting
-    } else {
-      WorkflowStoreState.Submitted
+  private def fromDbStateStringToStartableState(dbStateName: String, restarted: Boolean): ErrorOr[StartableState] = {
+    import cats.syntax.validated._
+
+    WorkflowStoreState.fromNameAndRestarted(dbStateName, restarted) match {
+      case Some(startable: StartableState) => startable.validNel
+        // Both of those should be impossible unless someone is messing with the database
+      case Some(nonStartable) => s"$nonStartable is not a startable state".invalidNel
+      case None => s"Cannot find a known state for $dbStateName".invalidNel
     }
   }
 }

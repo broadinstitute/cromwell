@@ -46,7 +46,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   override val workflowIdForLogging = workflowDescriptor.id
   override val workflowIdForCallMetadata = workflowDescriptor.id
 
-  private val restarting = params.startState.isRestart
+  private val restarting = params.startState.restarted
   private val tag = s"WorkflowExecutionActor [UUID(${workflowDescriptor.id.shortString})]"
 
   private val backendFactories: Map[String, BackendLifecycleActorFactory] = {
@@ -497,7 +497,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       workflowDescriptor,
       backendFactory,
       params.initializationData.get(backendName),
-      restarting = params.startState.isRestart,
+      restarting = params.startState.restarted,
       serviceRegistryActor = serviceRegistryActor,
       ioActor = params.ioActor,
       jobStoreActor = params.jobStoreActor,

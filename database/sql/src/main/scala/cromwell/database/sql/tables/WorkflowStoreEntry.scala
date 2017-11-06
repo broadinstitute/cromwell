@@ -11,6 +11,7 @@ case class WorkflowStoreEntry
   workflowInputs: Option[Clob],
   workflowOptions: Option[Clob],
   workflowState: String,
+  restarted: Boolean,
   submissionTime: Timestamp,
   importsZip: Option[Blob],
   customLabels: Clob,

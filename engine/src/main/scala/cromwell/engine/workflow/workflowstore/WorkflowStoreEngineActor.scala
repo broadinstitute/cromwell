@@ -3,9 +3,11 @@ package cromwell.engine.workflow.workflowstore
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, PoisonPill, Props}
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
+import cromwell.core.WorkflowAborting
 import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingResponse}
 import cromwell.engine.instrumentation.WorkflowInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
+import cromwell.engine.workflow.WorkflowMetadataHelper
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{WorkflowStoreActorState, _}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
@@ -17,7 +19,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceRegistryActor: ActorRef, abortAllJobsOnTerminate: Boolean)
-  extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging with WorkflowInstrumentation with CromwellInstrumentationScheduler {
+  extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging with WorkflowInstrumentation with CromwellInstrumentationScheduler with WorkflowMetadataHelper {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
@@ -92,13 +94,13 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
           sndr ! nwm
         }
       case AbortWorkflowCommand(id) =>
-        store.aborting(id) map { aborting =>
-          if (aborting) {
-            sndr ! WorkflowAbortingResponse(id)
+        store.aborting(id) map {
+          case Some(restarted) =>
+            sndr ! WorkflowAbortingResponse(id, restarted)
+            pushCurrentStateToMetadataService(id, WorkflowAborting)
             log.info(s"Abort requested for workflow $id.")
-          } else {
+          case None =>
             sndr ! WorkflowAbortFailureResponse(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
-          }
         } recover {
           case t =>
             val message = s"Unable to update workflow store to abort $id"

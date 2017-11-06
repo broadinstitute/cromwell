@@ -29,12 +29,14 @@ trait WorkflowStoreEntryComponent {
 
     def workflowState = column[String]("WORKFLOW_STATE", O.Length(20))
 
+    def restarted = column[Boolean]("RESTARTED")
+
     def submissionTime = column[Timestamp]("SUBMISSION_TIME")
 
     def importsZip = column[Option[Blob]]("IMPORTS_ZIP")
 
     override def * = (workflowExecutionUuid, workflowDefinition, workflowType, workflowTypeVersion, workflowInputs, workflowOptions, workflowState,
-      submissionTime, importsZip, customLabels, workflowStoreEntryId.?) <> (WorkflowStoreEntry.tupled, WorkflowStoreEntry.unapply)
+      restarted, submissionTime, importsZip, customLabels, workflowStoreEntryId.?) <> (WorkflowStoreEntry.tupled, WorkflowStoreEntry.unapply)
 
     def ucWorkflowStoreEntryWeu = index("UC_WORKFLOW_STORE_ENTRY_WEU", workflowExecutionUuid, unique = true)
 
@@ -59,10 +61,11 @@ trait WorkflowStoreEntryComponent {
     * Useful for selecting workflow stores with a given state.
     */
   val workflowStoreEntriesForWorkflowState = Compiled(
-    (workflowState: Rep[String], limit: ConstColumn[Long]) => {
+    (workflowState: Rep[String], workflowRestarted: Rep[Boolean], limit: ConstColumn[Long]) => {
       val query = for {
         workflowStoreEntryRow <- workflowStoreEntries
         if workflowStoreEntryRow.workflowState === workflowState
+        if workflowStoreEntryRow.restarted === workflowRestarted
       } yield workflowStoreEntryRow
       query.sortBy(_.submissionTime.asc).take(limit)
     }
@@ -80,11 +83,11 @@ trait WorkflowStoreEntryComponent {
   /**
     * Useful for updating state for all entries matching a given UUID
     */
-  val workflowStateForWorkflowExecutionUuid = Compiled(
+  val workflowStateAndRestartedForWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       workflowStoreEntry <- workflowStoreEntries
       if workflowStoreEntry.workflowExecutionUuid === workflowExecutionUuid
-    } yield workflowStoreEntry.workflowState
+    } yield (workflowStoreEntry.workflowState, workflowStoreEntry.restarted)
   )
 
   /**
@@ -98,6 +101,17 @@ trait WorkflowStoreEntryComponent {
   )
 
   /**
+    * Useful for updating restarted flags on server restart.
+    * This method can't be compiled because of the List, but that's not a problem since it's only called once when the server start,
+    * so performance is not affected.
+    */
+  def workflowRestartedIfStateIsIn(states: List[String]) =
+    for {
+      workflowStoreEntry <- workflowStoreEntries
+      if workflowStoreEntry.workflowState inSet states
+    } yield workflowStoreEntry.restarted
+
+  /**
     * Useful for updating a given workflow to a new state
     */
   val workflowStateForId = Compiled(
@@ -105,5 +119,15 @@ trait WorkflowStoreEntryComponent {
       workflowStoreEntry <- workflowStoreEntries
       if workflowStoreEntry.workflowExecutionUuid === workflowId
     } yield workflowStoreEntry.workflowState
+  )
+
+  /**
+    * Useful for updating a given workflow to a new state
+    */
+  val workflowRestartedForId = Compiled(
+    (workflowId: Rep[String]) => for {
+      workflowStoreEntry <- workflowStoreEntries
+      if workflowStoreEntry.workflowExecutionUuid === workflowId
+    } yield workflowStoreEntry.restarted
   )
 }

@@ -57,13 +57,14 @@ class InMemoryWorkflowStore extends WorkflowStore {
     })
     Future.successful(())
   }
-  
-  override def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[Boolean] = {
+
+  override def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
     if (workflowStore.exists(_._1.id == id)) {
+      val state = workflowStore.find(_._1.id == id)
       workflowStore = workflowStore ++ workflowStore.find(_._1.id == id).map({ _._1 -> Aborting }).toMap
-      Future.successful(true)
+      Future.successful(state.map(_._2.restarted))
     } else {
-      Future.successful(false)
+      Future.successful(None)
     }
   }
 }

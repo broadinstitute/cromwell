@@ -122,13 +122,15 @@ object WorkflowActor {
   case class WorkflowActorData(currentLifecycleStateActor: Option[ActorRef],
                                workflowDescriptor: Option[EngineWorkflowDescriptor],
                                initializationData: AllBackendInitializationData,
-                               lastStateReached: StateCheckpoint)
+                               lastStateReached: StateCheckpoint,
+                               effectiveStartableState: StartableState)
   object WorkflowActorData {
-    def empty = WorkflowActorData(
+    def apply(startableState: StartableState): WorkflowActorData = WorkflowActorData(
       currentLifecycleStateActor = None,
       workflowDescriptor = None,
       initializationData = AllBackendInitializationData.empty,
-      lastStateReached = StateCheckpoint(WorkflowUnstartedState))
+      lastStateReached = StateCheckpoint(WorkflowUnstartedState),
+      effectiveStartableState = startableState)
   }
 
   /**
@@ -156,7 +158,7 @@ object WorkflowActor {
     Props(
       new WorkflowActor(
         workflowId = workflowId,
-        startState = startMode,
+        initialStartableState = startMode,
         workflowSourceFilesCollection = workflowSourceFilesCollection,
         conf = conf,
         ioActor = ioActor,
@@ -177,7 +179,7 @@ object WorkflowActor {
   * Class that orchestrates a single workflow.
   */
 class WorkflowActor(val workflowId: WorkflowId,
-                    startState: StartableState,
+                    initialStartableState: StartableState,
                     workflowSourceFilesCollection: WorkflowSourceFilesCollection,
                     conf: Config,
                     ioActor: ActorRef,
@@ -197,14 +199,14 @@ class WorkflowActor(val workflowId: WorkflowId,
   implicit val ec = context.dispatcher
   override val workflowIdForLogging = workflowId
 
-  private val restarting = startState.isRestart
+  private val restarting = initialStartableState.restarted
   
   private val startTime = System.currentTimeMillis()
 
   private val workflowDockerLookupActor = context.actorOf(
-    WorkflowDockerLookupActor.props(workflowId, dockerHashActor, startState.isRestart), s"WorkflowDockerLookupActor-$workflowId")
+    WorkflowDockerLookupActor.props(workflowId, dockerHashActor, initialStartableState.restarted), s"WorkflowDockerLookupActor-$workflowId")
 
-  startWith(WorkflowUnstartedState, WorkflowActorData.empty)
+  startWith(WorkflowUnstartedState, WorkflowActorData(initialStartableState))
 
   pushCurrentStateToMetadataService(workflowId, WorkflowUnstartedState.workflowState)
 
@@ -234,7 +236,8 @@ class WorkflowActor(val workflowId: WorkflowId,
       pushWorkflowStart(workflowId)
       actor ! MaterializeWorkflowDescriptorCommand(workflowSourceFilesCollection, conf)
       goto(MaterializingWorkflowDescriptorState) using stateData.copy(currentLifecycleStateActor = Option(actor))
-    case Event(AbortWorkflowCommand, _) => goto(WorkflowAbortedState)
+    // If the workflow is not being restarted - then we can abort it immediately as nothing happened yet
+    case Event(AbortWorkflowCommand, _) if !restarting => goto(WorkflowAbortedState)
   }
 
   /* *************************** */
@@ -249,9 +252,8 @@ class WorkflowActor(val workflowId: WorkflowId,
       goto(InitializingWorkflowState) using data.copy(currentLifecycleStateActor = Option(initializerActor), workflowDescriptor = Option(workflowDescriptor))
     case Event(MaterializeWorkflowDescriptorFailureResponse(reason: Throwable), data) =>
       goto(WorkflowFailedState) using data.copy(lastStateReached = StateCheckpoint(MaterializingWorkflowDescriptorState, Option(List(reason))))
-    case Event(AbortWorkflowCommand, _) =>
-      // No lifecycle sub-actors exist yet, so no indirection via WorkflowAbortingState is necessary:
-      goto(WorkflowAbortedState)
+    // If the workflow is not being restarted - then we can abort it immediately as nothing happened yet
+    case Event(AbortWorkflowCommand, _) if !restarting => goto(WorkflowAbortedState)
   }
 
   /* ************************** */
@@ -259,7 +261,7 @@ class WorkflowActor(val workflowId: WorkflowId,
   /* ************************** */
 
   when(InitializingWorkflowState) {
-    case Event(WorkflowInitializationSucceededResponse(initializationData), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
+    case Event(WorkflowInitializationSucceededResponse(initializationData), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
       val executionActor = context.actorOf(WorkflowExecutionActor.props(
         workflowDescriptor,
         ioActor = ioActor,
@@ -272,20 +274,20 @@ class WorkflowActor(val workflowId: WorkflowId,
         jobTokenDispenserActor = jobTokenDispenserActor,
         backendSingletonCollection,
         initializationData,
-        startState = startState), name = s"WorkflowExecutionActor-$workflowId")
+        startState = data.effectiveStartableState), name = s"WorkflowExecutionActor-$workflowId")
 
       executionActor ! ExecuteWorkflowCommand
       
-      val nextState = startState match {
+      val nextState = data.effectiveStartableState match {
         case RestartableAborting => WorkflowAbortingState
         case _ => ExecutingWorkflowState
       }
       goto(nextState) using data.copy(currentLifecycleStateActor = Option(executionActor), initializationData = initializationData)
-    case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
+    case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, Map.empty, CallOutputs.empty, Option(reason.toList))
 
     // Abort command  
-    case Event(AbortWorkflowCommand, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
+    case Event(AbortWorkflowCommand, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) if !restarting =>
       handleAbortCommand(data, workflowDescriptor)
   }
   
@@ -297,17 +299,17 @@ class WorkflowActor(val workflowId: WorkflowId,
   val executionResponseHandler: StateFunction = {
     // Workflow responses
     case Event(WorkflowExecutionSucceededResponse(jobKeys, outputs),
-    data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
+    data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, jobKeys, outputs, None)
     case Event(WorkflowExecutionFailedResponse(jobKeys, failures),
-    data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
+    data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, jobKeys, CallOutputs.empty, Option(List(failures)))
     case Event(WorkflowExecutionAbortedResponse(jobKeys),
-    data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
+    data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, jobKeys, CallOutputs.empty, None)
 
     // Abort command  
-    case Event(AbortWorkflowCommand, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) => 
+    case Event(AbortWorkflowCommand, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) => 
       handleAbortCommand(data, workflowDescriptor)
   }
 
@@ -320,11 +322,11 @@ class WorkflowActor(val workflowId: WorkflowId,
   // Handles initialization responses we can get if the abort came in when we were initializing the workflow
   val abortHandler: StateFunction = {
     // If the initialization failed, record the failure in the data and finalize the workflow
-    case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
+    case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, Map.empty, CallOutputs.empty, Option(reason.toList))
 
     // Otherwise (success or abort), finalize the workflow without failures
-    case Event(_: WorkflowInitializationResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
+    case Event(_: WorkflowInitializationResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, Map.empty, CallOutputs.empty, failures = None)
 
     // We're already aborting, there's nothing to do. Overrides the behavior in executionResponseHandler.
@@ -363,6 +365,9 @@ class WorkflowActor(val workflowId: WorkflowId,
   when(WorkflowSucceededState) { FSM.NullFunction }
 
   whenUnhandled {
+    // If the workflow is being restarted, then we have to keep going to try and reconnect to the jobs - but remember that workflow is now in abort mode
+    case Event(AbortWorkflowCommand, data: WorkflowActorData) if restarting =>
+      stay() using data.copy(effectiveStartableState = RestartableAborting)
     case Event(msg @ EngineStatsActor.JobCountQuery, data) =>
       data.currentLifecycleStateActor match {
         case Some(a) => a forward msg

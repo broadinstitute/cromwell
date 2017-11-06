@@ -34,6 +34,14 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
       id.toString, WorkflowStoreState.Aborting.toString
     ).map(_ > 0)
   }
+  
+  override def abortAllRunning()(implicit ec: ExecutionContext): Future[Unit] = {
+    sqlDatabase.updateWorkflowsInState(
+      List(
+        WorkflowStoreState.Running.toString -> WorkflowStoreState.Aborting.toString
+      )
+    )
+  }
 
   override def stats(implicit ec: ExecutionContext): Future[Map[String, Int]] = sqlDatabase.stats
 

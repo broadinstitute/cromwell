@@ -31,7 +31,7 @@ class InMemoryWorkflowStore extends WorkflowStore {
     workflowStore = workflowStore ++ updatedWorkflows
 
     val workflowsToStart = startableWorkflows map {
-      case (workflow, s: StartableState) => WorkflowToStart(workflow.id, workflow.sources, s)
+      case (workflow, WorkflowStoreState.Submitted) => WorkflowToStart(workflow.id, workflow.sources, Submitted)
       case _ => throw new IllegalArgumentException("This workflow is not currently in a startable state")
     }
 

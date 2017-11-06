@@ -2,7 +2,6 @@ package cromwell.engine
 
 import cats.data.NonEmptyList
 import cromwell.core.WorkflowSourceFilesCollection
-import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{NewWorkflowsToStart, NoNewWorkflowsToStart}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
@@ -78,7 +77,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
             case WorkflowToStart(id, sources, state) =>
               insertedIds.contains(id) shouldBe true
               sources shouldBe prettyOptions(helloWorldSourceFiles)
-              state shouldBe WorkflowStoreState.Submitted
+              state shouldBe Submitted
           }
       }
 
@@ -91,7 +90,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
             case WorkflowToStart(id, sources, state) =>
               insertedIds.contains(id) shouldBe true
               sources shouldBe prettyOptions(helloCwlWorldSourceFiles)
-              state shouldBe WorkflowStoreState.Submitted
+              state shouldBe Submitted
           }
       }
     }
@@ -123,7 +122,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
               insertedIds.contains(id) should be(true)
               sources.workflowSource should be(optionedSourceFiles.workflowSource)
               sources.inputsJson should be(optionedSourceFiles.inputsJson)
-              state should be(WorkflowStoreState.Submitted)
+              state should be(Submitted)
 
               import spray.json._
 
@@ -164,7 +163,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
             case WorkflowToStart(id, sources, state) =>
               insertedIds.contains(id) shouldBe true
               sources shouldBe prettyOptions(helloWorldSourceFiles)
-              state shouldBe WorkflowStoreState.Submitted
+              state shouldBe Submitted
           }
       }
     }

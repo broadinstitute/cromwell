@@ -5,8 +5,6 @@ import java.sql.{Blob, Clob, Timestamp}
 import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
 
 object WorkflowStoreEntry {
-  type StateAndRestarted = (String, Boolean)
-
   object WorkflowStoreState extends Enumeration {
     type WorkflowStoreState = Value
     val Submitted = Value("Submitted")

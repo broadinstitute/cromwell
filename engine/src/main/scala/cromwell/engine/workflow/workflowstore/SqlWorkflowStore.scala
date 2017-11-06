@@ -109,11 +109,14 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
 
   private def fromDbStateStringToStartableState(workflowState: WorkflowStoreState, restarted: Boolean): ErrorOr[StartableState] = {
     import cats.syntax.validated._
-
+    // A workflow is startable if
     (workflowState, restarted) match {
-      case (WorkflowStoreState.Submitted, false) => Submitted.validNel
-      case (WorkflowStoreState.Running, false) => RestartableRunning.validNel
-      case (WorkflowStoreState.Aborting, false) => RestartableAborting.validNel
+        // It's in Submitted state
+      case (WorkflowStoreState.Submitted, _) => Submitted.validNel
+        // It's in Running state and is being restarted
+      case (WorkflowStoreState.Running, true) => RestartableRunning.validNel
+        // It's in Aborting state and is being restarted
+      case (WorkflowStoreState.Aborting, true) => RestartableAborting.validNel
       case _ => s"Workflow in state $workflowState, and restarted = $restarted cannot be started and should not have been fetched.".invalidNel
     }
   }

@@ -286,7 +286,7 @@ class WorkflowActor(val workflowId: WorkflowId,
     case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, Map.empty, CallOutputs.empty, Option(reason.toList))
 
-    // Abort command  
+    // If the workflow is not restarting, handle the Abort command normally and send an abort message to the init actor
     case Event(AbortWorkflowCommand, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) if !restarting =>
       handleAbortCommand(data, workflowDescriptor)
   }
@@ -308,7 +308,8 @@ class WorkflowActor(val workflowId: WorkflowId,
     data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, jobKeys, CallOutputs.empty, None)
 
-    // Abort command  
+    // Whether we're running or aborting, restarting or not, pass along the abort command.
+    // Note that aborting a workflow multiple times will result in as many abort commands sent to the execution actor
     case Event(AbortWorkflowCommand, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) => 
       handleAbortCommand(data, workflowDescriptor)
   }
@@ -328,9 +329,6 @@ class WorkflowActor(val workflowId: WorkflowId,
     // Otherwise (success or abort), finalize the workflow without failures
     case Event(_: WorkflowInitializationResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, Map.empty, CallOutputs.empty, failures = None)
-
-    // We're already aborting, there's nothing to do. Overrides the behavior in executionResponseHandler.
-    case Event(AbortWorkflowCommand, _) => stay()
   }
   
   // In aborting state, we can receive initialization responses or execution responses.
@@ -346,6 +344,7 @@ class WorkflowActor(val workflowId: WorkflowId,
     case Event(WorkflowFinalizationFailedResponse(finalizationFailures), data) =>
       val failures = data.lastStateReached.failures.getOrElse(List.empty) ++ finalizationFailures
       goto(WorkflowFailedState) using data.copy(lastStateReached = StateCheckpoint(FinalizingWorkflowState, Option(failures)))
+    case Event(AbortWorkflowCommand, _) => stay()
   }
   
   def handleAbortCommand(data: WorkflowActorData, workflowDescriptor: EngineWorkflowDescriptor) = {

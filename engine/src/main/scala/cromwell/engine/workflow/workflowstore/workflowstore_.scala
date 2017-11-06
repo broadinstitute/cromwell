@@ -2,6 +2,9 @@ package cromwell.engine.workflow.workflowstore
 
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 
+/**
+  * States of a workflow for which it can be fetched from the workflow store and started.
+  */
 sealed trait StartableState {
   def restarted: Boolean
 }

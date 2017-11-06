@@ -140,7 +140,7 @@ trait SharedFileSystemAsyncJobExecutionActor
   def writeScriptContents(): Either[ExecutionHandle, Unit] =
     commandScriptContents.fold(
       errors => Left(FailedNonRetryableExecutionHandle(new RuntimeException("Unable to start job due to: " + errors.toList.mkString(", ")))),
-      {script => println(s"script was \n$script"); jobPaths.script.write(script); Right(())} )
+      {script => jobPaths.script.write(script); Right(())} )
 
   /**
     * Creates a script to submit the script for asynchronous processing. The default implementation assumes the

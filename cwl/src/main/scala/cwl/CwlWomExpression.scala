@@ -34,7 +34,7 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
         case other => other
       }
 
-   cwlExpressionType.coerceRawValue(extractFile).toErrorOr
+    cwlExpressionType.coerceRawValue(extractFile).toErrorOr
   }
 
   /*

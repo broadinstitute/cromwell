@@ -7,8 +7,10 @@ import akka.http.scaladsl.server.{HttpApp, Route}
 import akka.stream.ActorMaterializer
 import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.ConfigFactory
-import cromiam.server.config.CromIamServerConfig
+import cromiam.server.config.{CromIamServerConfig, SwaggerOauthConfig}
+import cromiam.server.status.StatusService
 import cromiam.webservice.{CromIamApiService, SwaggerService}
+import org.broadinstitute.dsde.workbench.util.health.Subsystems.{Cromwell, Sam}
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}
 
@@ -20,7 +22,7 @@ object CromIamServer extends HttpApp with CromIamApiService with SwaggerService 
     case Invalid(errors) => throw new Exception("Bad CromIAM configuration:" + errors.toList.mkString("\n", "\n", "\n"))
   }
 
-  override val oauthConfig = configuration.swaggerOauthConfig
+  override val oauthConfig: SwaggerOauthConfig = configuration.swaggerOauthConfig
 
   def run(): Unit = {
     CromIamServer.startServer(configuration.cromIamConfig.http.interface, configuration.cromIamConfig.http.port, configuration.cromIamConfig.serverSettings)
@@ -30,11 +32,11 @@ object CromIamServer extends HttpApp with CromIamApiService with SwaggerService 
   override implicit lazy val executor: ExecutionContextExecutor = system.dispatcher
   override implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-
-
   override val logger = Logging(system, getClass)
 
   override val route: Route = allRoutes ~ swaggerUiResourceRoute
+
+  override val statusService: StatusService = new StatusService(() => Map(Cromwell -> cromwellClient.subsystemStatus, Sam -> samClient.subsystemStatus))
 
   // Override default shutdownsignal which was just "hit return/enter"
   override def waitForShutdownSignal(actorSystem: ActorSystem)(implicit executionContext: ExecutionContext): Future[Done] = {

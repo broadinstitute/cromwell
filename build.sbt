@@ -1,4 +1,5 @@
 import com.typesafe.sbt.SbtGit._
+import sbtassembly.MergeStrategy
 
 name := "CromIam"
 organization := "org.broadinstitute"
@@ -57,6 +58,9 @@ libraryDependencies ++= {
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpV,
     "com.iheart" %% "ficus" % "1.4.0",
+    "com.softwaremill.sttp" %% "core" % "0.0.16",
+    "com.softwaremill.sttp" %% "async-http-client-backend-future" % "0.0.16",
+    "com.typesafe.scala-logging" %% "scala-logging" % "3.6.0",
     // WARNING: Updating this swagger-ui version?
     // Do a search/replace for the version string ("2.1.1") in the code too or the swagger page won't be found.
     "org.webjars" % "swagger-ui" % "2.1.1",
@@ -64,7 +68,8 @@ libraryDependencies ++= {
     "io.swagger" % "swagger-parser" % "1.0.22" % Test,
     "org.yaml" % "snakeyaml" % "1.17" % Test,
     "org.broadinstitute" %% "cromwell-api-client" % cromwellV,
-    "org.broadinstitute" %% "lenthall" % lenthallV
+    "org.broadinstitute" %% "lenthall" % lenthallV,
+    "org.broadinstitute.dsde.workbench" %% "workbench-util" % "0.2-1b977d7"
   ) ++ catsDependencies
 }
 
@@ -106,3 +111,16 @@ resolvers ++= List(
   "Broad Artifactory Releases" at "https://broadinstitute.jfrog.io/broadinstitute/libs-release/",
   "Broad Artifactory Snapshots" at "https://broadinstitute.jfrog.io/broadinstitute/libs-snapshot/"
 )
+
+assemblyMergeStrategy in assembly := {
+  case x if Assembly.isConfigFile(x) => MergeStrategy.concat
+  case PathList("META-INF", path@_*) =>
+    path map {
+      _.toLowerCase
+    } match {
+      case ("manifest.mf" :: Nil) | ("index.list" :: Nil) | ("dependencies" :: Nil) => MergeStrategy.discard
+      case "io.netty.versions.properties" :: Nil => MergeStrategy.first
+      case _ => MergeStrategy.deduplicate
+    }
+  case _ => MergeStrategy.deduplicate
+}

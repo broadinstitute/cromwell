@@ -55,8 +55,7 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
     case _ => false
   }
 
-  // This seems dangerous as any exception that is not one of the above (fatal) will trigger infinite retries !
-  def isTransient(throwable: Throwable): Boolean = !isFatal(throwable)
+  def isTransient(throwable: Throwable): Boolean = false
 
   private def withRetry[A](work: () => Future[A], backOff: SimpleExponentialBackoff): Future[A] = {
     Retry.withRetry(work, isTransient = isTransient, isFatal = isFatal, backoff = backOff)(context.system)

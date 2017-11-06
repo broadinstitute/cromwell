@@ -10,13 +10,13 @@ import cromwell.core.path.DefaultPathBuilder
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
-import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor.MaterializeWorkflowDescriptorFailureResponse
+import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{WorkflowExecutionAbortedResponse, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
+import cromwell.engine.workflow.lifecycle.finalization.CopyWorkflowLogsActor
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationSucceededResponse}
 import cromwell.engine.workflow.lifecycle.initialization.WorkflowInitializationActor.{WorkflowInitializationAbortedResponse, WorkflowInitializationFailedResponse}
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{WorkflowExecutionAbortedResponse, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
-import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
-import cromwell.engine.workflow.lifecycle.finalization.CopyWorkflowLogsActor
-import cromwell.engine.workflow.workflowstore.WorkflowStoreState.{StartableState, Submitted}
+import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor.MaterializeWorkflowDescriptorFailureResponse
+import cromwell.engine.workflow.workflowstore.{StartableState, Submitted}
 import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually

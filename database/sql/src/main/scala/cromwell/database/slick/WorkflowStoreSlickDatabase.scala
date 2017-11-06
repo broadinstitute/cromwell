@@ -55,8 +55,8 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
       workflowStoreEntries <- dataAccess.fetchStartableWorkflows(limit.toLong).result
       _ <- DBIO.sequence(workflowStoreEntries map updateWorkflowStateAndRestartedForWorkflowExecutionUuid)
     } yield workflowStoreEntries
+
     runTransaction(action)
-    Future.successful(List.empty)
   }
 
   private def updateWorkflowStateAndRestartedForWorkflowExecutionUuid(workflowStoreEntry: WorkflowStoreEntry)

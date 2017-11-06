@@ -10,7 +10,7 @@ import cromwell.engine.backend.{BackendConfigurationEntry, BackendSingletonColle
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{ExecuteWorkflowCommand, WorkflowExecutionFailedResponse}
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
-import cromwell.engine.workflow.workflowstore.WorkflowStoreState.Submitted
+import cromwell.engine.workflow.workflowstore.Submitted
 import cromwell.services.ServiceRegistryActor
 import cromwell.services.metadata.MetadataService
 import cromwell.util.SampleWdl

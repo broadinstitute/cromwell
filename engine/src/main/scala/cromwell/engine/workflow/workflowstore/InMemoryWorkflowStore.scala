@@ -25,8 +25,8 @@ class InMemoryWorkflowStore extends WorkflowStore {
     * Retrieves up to n workflows which have not already been pulled into the engine and sets their pickedUp
     * flag to true
     */
-  override def fetchRunnableWorkflows(n: Int, state: StartableState)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
-    val startableWorkflows = workflowStore filter { _._2 == state } take n
+  override def fetchRunnableWorkflows(n: Int)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
+    val startableWorkflows = workflowStore filter { _._2 == WorkflowStoreState.Submitted } take n
     val updatedWorkflows = startableWorkflows map { _._1 -> WorkflowStoreState.Running }
     workflowStore = workflowStore ++ updatedWorkflows
 
@@ -49,11 +49,11 @@ class InMemoryWorkflowStore extends WorkflowStore {
 
   override def initialize(implicit ec: ExecutionContext): Future[Unit] = Future.successful(())
 
-  override def stats(implicit ec: ExecutionContext): Future[Map[String, Int]] = Future.successful(Map("Submitted" -> workflowStore.size))
+  override def stats(implicit ec: ExecutionContext): Future[Map[WorkflowStoreState, Int]] = Future.successful(Map(WorkflowStoreState.Submitted -> workflowStore.size))
 
   override def abortAllRunning()(implicit ec: ExecutionContext): Future[Unit] = {
     workflowStore = workflowStore.map({
-      case (workflow, Running) => workflow -> Aborting
+      case (workflow, WorkflowStoreState.Running) => workflow -> WorkflowStoreState.Aborting
       case (workflow, state) => workflow -> state
     })
     Future.successful(())
@@ -62,8 +62,9 @@ class InMemoryWorkflowStore extends WorkflowStore {
   override def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
     if (workflowStore.exists(_._1.id == id)) {
       val state = workflowStore.find(_._1.id == id)
-      workflowStore = workflowStore ++ workflowStore.find(_._1.id == id).map({ _._1 -> Aborting }).toMap
-      Future.successful(state.map(_._2.restarted))
+      workflowStore = workflowStore ++ workflowStore.find(_._1.id == id).map({ _._1 -> WorkflowStoreState.Aborting }).toMap
+      // In memory workflows can never be restarted (since this is destroyed on a server restart)
+      Future.successful(state.map(_ => false))
     } else {
       Future.successful(None)
     }

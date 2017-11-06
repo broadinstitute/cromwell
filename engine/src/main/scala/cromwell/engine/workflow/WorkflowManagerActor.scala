@@ -254,7 +254,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     val workflowId = workflow.id
 
     if (workflow.state.restarted) {
-      logger.info(s"$tag Restarting workflow UUID($workflowId) in ${workflow.state.stateName} state")
+      logger.info(s"$tag Restarting workflow UUID($workflowId) in ${workflow.state.toString} state")
     } else {
       logger.info(s"$tag Starting workflow UUID($workflowId)")
     }

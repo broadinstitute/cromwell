@@ -3,6 +3,8 @@ package cromwell.database.slick.tables
 import java.sql.{Blob, Clob, Timestamp}
 
 import cromwell.database.sql.tables.WorkflowStoreEntry
+import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
+import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
 
 trait WorkflowStoreEntryComponent {
 
@@ -10,6 +12,15 @@ trait WorkflowStoreEntryComponent {
 
   import driver.api._
 
+  object WorkflowStoreEntries {
+    implicit val workflowStoreStateMapper = MappedColumnType.base[WorkflowStoreState, String](
+      e => e.toString,
+      s => WorkflowStoreState.withName(s)
+    )
+  }
+
+  import WorkflowStoreEntries._
+  
   class WorkflowStoreEntries(tag: Tag) extends Table[WorkflowStoreEntry](tag, "WORKFLOW_STORE_ENTRY") {
     def workflowStoreEntryId = column[Int]("WORKFLOW_STORE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
@@ -27,7 +38,7 @@ trait WorkflowStoreEntryComponent {
 
     def customLabels = column[Clob]("CUSTOM_LABELS")
 
-    def workflowState = column[String]("WORKFLOW_STATE", O.Length(20))
+    def workflowState = column[WorkflowStoreState]("WORKFLOW_STATE", O.Length(20))
 
     def restarted = column[Boolean]("RESTARTED")
 
@@ -36,7 +47,7 @@ trait WorkflowStoreEntryComponent {
     def importsZip = column[Option[Blob]]("IMPORTS_ZIP")
 
     override def * = (workflowExecutionUuid, workflowDefinition, workflowType, workflowTypeVersion, workflowInputs, workflowOptions, workflowState,
-      restarted, submissionTime, importsZip, customLabels, workflowStoreEntryId.?) <> (WorkflowStoreEntry.tupled, WorkflowStoreEntry.unapply)
+      restarted, submissionTime, importsZip, customLabels, workflowStoreEntryId.?) <> ((WorkflowStoreEntry.apply _).tupled, WorkflowStoreEntry.unapply)
 
     def ucWorkflowStoreEntryWeu = index("UC_WORKFLOW_STORE_ENTRY_WEU", workflowExecutionUuid, unique = true)
 
@@ -58,14 +69,15 @@ trait WorkflowStoreEntryComponent {
   )
 
   /**
-    * Useful for selecting workflow stores with a given state.
+    * Returns up to "limit" startable workflows, sorted by submission time.
     */
-  val workflowStoreEntriesForWorkflowState = Compiled(
-    (workflowState: Rep[String], workflowRestarted: Rep[Boolean], limit: ConstColumn[Long]) => {
+  val fetchStartableWorkflows = Compiled(
+    (limit: ConstColumn[Long]) => {
       val query = for {
         workflowStoreEntryRow <- workflowStoreEntries
-        if workflowStoreEntryRow.workflowState === workflowState
-        if workflowStoreEntryRow.restarted === workflowRestarted
+        if (workflowStoreEntryRow.workflowState === WorkflowStoreState.Submitted && workflowStoreEntryRow.restarted === false) ||
+           (workflowStoreEntryRow.workflowState === WorkflowStoreState.Running && workflowStoreEntryRow.restarted === true) ||
+           (workflowStoreEntryRow.workflowState === WorkflowStoreState.Aborting && workflowStoreEntryRow.restarted === true)
       } yield workflowStoreEntryRow
       query.sortBy(_.submissionTime.asc).take(limit)
     }
@@ -94,7 +106,7 @@ trait WorkflowStoreEntryComponent {
     * Useful for updating state for all entries matching a given state
     */
   val workflowStateForWorkflowState = Compiled(
-    (workflowState: Rep[String]) => for {
+    (workflowState: Rep[WorkflowStoreState]) => for {
       workflowStoreEntry <- workflowStoreEntries
       if workflowStoreEntry.workflowState === workflowState
     } yield workflowStoreEntry.workflowState
@@ -102,14 +114,13 @@ trait WorkflowStoreEntryComponent {
 
   /**
     * Useful for updating restarted flags on server restart.
-    * This method can't be compiled because of the List, but that's not a problem since it's only called once when the server start,
-    * so performance is not affected.
     */
-  def workflowRestartedIfStateIsIn(states: List[String]) =
+  val restartedFlagForRunningAndAborting = Compiled(
     for {
       workflowStoreEntry <- workflowStoreEntries
-      if workflowStoreEntry.workflowState inSet states
+      if workflowStoreEntry.workflowState === WorkflowStoreState.Running || workflowStoreEntry.workflowState === WorkflowStoreState.Aborting
     } yield workflowStoreEntry.restarted
+  )
 
   /**
     * Useful for updating a given workflow to a new state

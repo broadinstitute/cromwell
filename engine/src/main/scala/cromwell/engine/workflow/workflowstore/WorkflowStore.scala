@@ -2,7 +2,7 @@ package cromwell.engine.workflow.workflowstore
 
 import cats.data.NonEmptyList
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
-import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
+import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -14,7 +14,7 @@ trait WorkflowStore {
 
   def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[Option[Boolean]]
 
-  def stats(implicit ec: ExecutionContext): Future[Map[String, Int]]
+  def stats(implicit ec: ExecutionContext): Future[Map[WorkflowStoreState, Int]]
 
   /**
     * Adds the requested WorkflowSourceFiles to the store and returns a WorkflowId for each one (in order)
@@ -26,7 +26,7 @@ trait WorkflowStore {
     * Retrieves up to n workflows which have not already been pulled into the engine and sets their pickedUp
     * flag to true
     */
-  def fetchRunnableWorkflows(n: Int, state: StartableState)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]]
+  def fetchRunnableWorkflows(n: Int)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]]
 
   def remove(id: WorkflowId)(implicit ec: ExecutionContext): Future[Boolean]
 }

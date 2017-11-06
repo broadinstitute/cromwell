@@ -2,7 +2,8 @@ package cromwell.engine.workflow.workflowstore
 
 import cats.data.NonEmptyList
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
-import cromwell.engine.workflow.workflowstore.WorkflowStoreState.{Aborting, Running, StartableState}
+import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
+import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
 
 import scala.concurrent.{ExecutionContext, Future}
 

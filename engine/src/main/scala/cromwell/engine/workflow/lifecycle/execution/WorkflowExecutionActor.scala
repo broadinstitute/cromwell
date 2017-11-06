@@ -23,8 +23,7 @@ import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.keys.ExpressionKey.{ExpressionEvaluationFailedResponse, ExpressionEvaluationSucceededResponse}
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
-import cromwell.engine.workflow.workflowstore.WorkflowStoreState
-import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
+import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataValue}
 import cromwell.util.StopAndLogSupervisor
@@ -89,7 +88,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         * between when a job has failed and Cromwell is aware of it, or has time to persist that information.
        */
       params.startState match {
-        case WorkflowStoreState.RestartableAborting => goto(WorkflowExecutionAbortingState)
+        case RestartableAborting => goto(WorkflowExecutionAbortingState)
         case _ => goto(WorkflowExecutionInProgressState)
       }
     case Event(EngineLifecycleActorAbortCommand, _) =>

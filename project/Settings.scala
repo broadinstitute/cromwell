@@ -169,6 +169,7 @@ object Settings {
   )
 
   val engineSettings = versionConfCompileSettings
+  val centaurCwlRunnerSettings = versionConfCompileSettings
 
   private def buildProject(project: Project,
                            projectName: String,

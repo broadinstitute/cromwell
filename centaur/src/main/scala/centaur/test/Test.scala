@@ -8,7 +8,7 @@ import centaur._
 import centaur.api.CentaurCromwellClient
 import centaur.api.CentaurCromwellClient.sendReceiveFutureCompletion
 import centaur.test.metadata.WorkflowMetadata
-import centaur.test.submit.SubmitResponse
+import centaur.test.submit.SubmitHttpResponse
 import centaur.test.workflow.Workflow
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
@@ -94,9 +94,9 @@ object Operations {
     }
   }
 
-  def submitInvalidWorkflow(workflow: Workflow): Test[SubmitResponse] = {
-    new Test[SubmitResponse] {
-      override def run: Try[SubmitResponse] = {
+  def submitInvalidWorkflow(workflow: Workflow): Test[SubmitHttpResponse] = {
+    new Test[SubmitHttpResponse] {
+      override def run: Try[SubmitHttpResponse] = {
         Try {
           CentaurCromwellClient.submit(workflow) match {
 
@@ -112,7 +112,7 @@ object Operations {
                 case _ =>
                   throw new RuntimeException(s"Expected a strict http response entity but got ${httpResponse.entity}")
               }
-              SubmitResponse(statusCode, message)
+              SubmitHttpResponse(statusCode, message)
 
             case Failure(unexpected) => throw unexpected
           }
@@ -383,8 +383,8 @@ object Operations {
   def validateNoCacheMisses(metadata: WorkflowMetadata, workflowName: String): Test[Unit] = validateCacheResultField(metadata, workflowName, "Cache Miss")
 
   def validateSubmitFailure(workflow: Workflow,
-                            expectedSubmitResponse: SubmitResponse,
-                            actualSubmitResponse: SubmitResponse): Test[Unit] = {
+                            expectedSubmitResponse: SubmitHttpResponse,
+                            actualSubmitResponse: SubmitHttpResponse): Test[Unit] = {
     new Test[Unit] {
       override def run: Try[Unit] = {
         Try {

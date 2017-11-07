@@ -112,6 +112,11 @@ lazy val engine = project
 
 // Executables
 
+lazy val centaurCwlRunner = project
+  .withExecutableSettings("centaur-cwl-runner", centaurCwlRunnerDependencies, centaurCwlRunnerSettings)
+  .dependsOn(cwl)
+  .dependsOn(centaur)
+
 lazy val womtool = project
   .withExecutableSettings("womtool", womtoolDependencies, buildDocker = false)
   .dependsOn(wdl)
@@ -129,6 +134,7 @@ lazy val root = (project in file("."))
   // Full list of all sub-projects to build with the root (ex: include in `sbt test`)
   .aggregate(backend)
   .aggregate(centaur)
+  .aggregate(centaurCwlRunner)
   .aggregate(common)
   .aggregate(core)
   .aggregate(cromwellApiClient)

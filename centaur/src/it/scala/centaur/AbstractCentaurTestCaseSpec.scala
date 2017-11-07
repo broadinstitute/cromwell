@@ -30,7 +30,10 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
 
   def executeStandardTest(testCase: CentaurTestCase): Unit = {
     def nameTest = s"${testCase.testFormat.testSpecString} ${testCase.workflow.testName}"
-    def runTest(): Unit = testCase.testFunction.run.get
+    def runTest(): Unit = {
+      testCase.testFunction.run.get
+      ()
+    }
 
     // Make tags, but enforce lowercase:
     val tags = (testCase.testOptions.tags :+ testCase.workflow.testName :+ testCase.testFormat.name) map { x => Tag(x.toLowerCase) }

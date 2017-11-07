@@ -5,7 +5,7 @@ import cats.syntax.functor._
 import centaur.test.Operations._
 import centaur.test.Test.testMonad
 import centaur.test.markers.CallMarker
-import centaur.test.submit.SubmitResponse
+import centaur.test.submit.{SubmitHttpResponse, SubmitResponse}
 import centaur.test.workflow.Workflow
 import centaur.test.{Operations, Test}
 import centaur.{CentaurConfig, CromwellManager, ManagedCromwellServer}
@@ -28,49 +28,49 @@ object TestFormulas {
   private def runSuccessfulWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = runWorkflowUntilTerminalStatus(workflow, Succeeded)
   private def runFailingWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = runWorkflowUntilTerminalStatus(workflow, Failed)
 
-  def runSuccessfulWorkflowAndVerifyMetadata(workflowDefinition: Workflow): Test[Unit] = for {
+  def runSuccessfulWorkflowAndVerifyMetadata(workflowDefinition: Workflow): Test[SubmitResponse] = for {
     w <- runSuccessfulWorkflow(workflowDefinition)
     _ <- validateMetadata(w, workflowDefinition)
     _ <- validateDirectoryContentsCounts(workflowDefinition, w)
-  } yield ()
+  } yield SubmitResponse(w)
 
-  def runFailingWorkflowAndVerifyMetadata(workflowDefinition: Workflow): Test[Unit] = for {
+  def runFailingWorkflowAndVerifyMetadata(workflowDefinition: Workflow): Test[SubmitResponse] = for {
     w <- runFailingWorkflow(workflowDefinition)
     _ <- validateMetadata(w, workflowDefinition)
     _ <- validateDirectoryContentsCounts(workflowDefinition, w)
-  } yield ()
+  } yield SubmitResponse(w)
 
-  def runWorkflowTwiceExpectingCaching(workflowDefinition: Workflow): Test[Unit] = {
+  def runWorkflowTwiceExpectingCaching(workflowDefinition: Workflow): Test[SubmitResponse] = {
     for {
       firstWF <- runSuccessfulWorkflow(workflowDefinition)
       secondWf <- runSuccessfulWorkflow(workflowDefinition)
       metadata <- validateMetadata(secondWf, workflowDefinition, Option(firstWF.id.id))
       _ <- validateNoCacheMisses(metadata, workflowDefinition.testName)
       _ <- validateDirectoryContentsCounts(workflowDefinition, secondWf)
-    } yield ()
+    } yield SubmitResponse(secondWf)
   }
 
-  def runWorkflowTwiceExpectingNoCaching(workflowDefinition: Workflow): Test[Unit] = {
+  def runWorkflowTwiceExpectingNoCaching(workflowDefinition: Workflow): Test[SubmitResponse] = {
     for {
       _ <- runSuccessfulWorkflow(workflowDefinition) // Build caches
       testWf <- runSuccessfulWorkflow(workflowDefinition)
       metadata <- validateMetadata(testWf, workflowDefinition)
       _ <- validateNoCacheHits(metadata, workflowDefinition.testName)
       _ <- validateDirectoryContentsCounts(workflowDefinition, testWf)
-    } yield ()
+    } yield SubmitResponse(testWf)
   }
 
-  def runFailingWorkflowTwiceExpectingNoCaching(workflowDefinition: Workflow): Test[Unit] = {
+  def runFailingWorkflowTwiceExpectingNoCaching(workflowDefinition: Workflow): Test[SubmitResponse] = {
     for {
       _ <- runFailingWorkflow(workflowDefinition) // Build caches
       testWf <- runFailingWorkflow(workflowDefinition)
       metadata <- validateMetadata(testWf, workflowDefinition)
       _ <- validateNoCacheHits(metadata, workflowDefinition.testName)
       _ <- validateDirectoryContentsCounts(workflowDefinition, testWf)
-    } yield ()
+    } yield SubmitResponse(testWf)
   }
   
-  private def cromwellRestart(workflowDefinition: Workflow, callMarker: CallMarker, testRecover: Boolean, finalStatus: TerminalStatus): Test[Unit] = CentaurConfig.runMode match {
+  private def cromwellRestart(workflowDefinition: Workflow, callMarker: CallMarker, testRecover: Boolean, finalStatus: TerminalStatus): Test[SubmitResponse] = CentaurConfig.runMode match {
     case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
       for {
         w <- submitWorkflow(workflowDefinition)
@@ -81,21 +81,21 @@ object TestFormulas {
         _ <- validateMetadata(w, workflowDefinition)
         _ <- if(testRecover) validateRecovered(w, callMarker.callKey, jobId) else Test.successful(())
         _ <- validateDirectoryContentsCounts(workflowDefinition, w)
-      } yield ()
+      } yield SubmitResponse(w)
     case _ if finalStatus == Succeeded => runSuccessfulWorkflowAndVerifyMetadata(workflowDefinition)
     case _ if finalStatus == Failed => runFailingWorkflowAndVerifyMetadata(workflowDefinition)
     case _ => Test.failed(new Exception("This test can only run successful or failed workflow"))
   }
 
-  def instantAbort(workflowDefinition: Workflow): Test[Unit] = for {
+  def instantAbort(workflowDefinition: Workflow): Test[SubmitResponse] = for {
     w <- submitWorkflow(workflowDefinition)
     _ <- abortWorkflow(w)
     _ <- pollUntilStatus(w, Aborted)
     _ <- validateMetadata(w, workflowDefinition)
     _ <- validateDirectoryContentsCounts(workflowDefinition, w)
-  } yield ()
+  } yield SubmitResponse(w)
 
-  def scheduledAbort(workflowDefinition: Workflow, callMarker: CallMarker, restart: Boolean): Test[Unit] = {
+  def scheduledAbort(workflowDefinition: Workflow, callMarker: CallMarker, restart: Boolean): Test[SubmitResponse] = {
     def withRestart() = CentaurConfig.runMode match {
       case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
         CromwellManager.stopCromwell()
@@ -114,20 +114,20 @@ object TestFormulas {
       _ <- waitFor(30.seconds)
       _ <- validateMetadata(w, workflowDefinition)
       _ <- validateDirectoryContentsCounts(workflowDefinition, w)
-    } yield ()
+    } yield SubmitResponse(w)
   }
 
   def workflowRestart(workflowDefinition: Workflow,
                              callMarker: CallMarker,
                              recover: Boolean,
-                             finalStatus: TerminalStatus): Test[Unit] = {
+                             finalStatus: TerminalStatus): Test[SubmitResponse] = {
     cromwellRestart(workflowDefinition, callMarker, testRecover = recover, finalStatus = Failed)
   }
 
-  def submitInvalidWorkflow(workflow: Workflow, expectedSubmitResponse: SubmitResponse): Test[Unit] = {
+  def submitInvalidWorkflow(workflow: Workflow, expectedSubmitResponse: SubmitHttpResponse): Test[SubmitResponse] = {
     for {
       actualSubmitResponse <- Operations.submitInvalidWorkflow(workflow)
       _ <- validateSubmitFailure(workflow, expectedSubmitResponse, actualSubmitResponse)
-    } yield ()
+    } yield actualSubmitResponse
   }
 }

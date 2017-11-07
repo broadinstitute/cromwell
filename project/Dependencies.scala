@@ -220,6 +220,10 @@ object Dependencies {
 
   val womtoolDependencies = catsDependencies
 
+  val centaurCwlRunnerDependencies = List(
+    "com.github.scopt" %% "scopt" % scoptV
+  )
+
   val coreDependencies = List(
     "com.typesafe" % "config" % typesafeConfigV,
     "com.typesafe.akka" %% "akka-actor" % akkaV,

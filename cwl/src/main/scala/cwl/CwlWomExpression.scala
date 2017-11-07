@@ -41,7 +41,7 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
             case head :: Nil => WomString(head)
             case list => throw new RuntimeException(s"expecting a single File glob but instead got $list")
           }
-        case other => other
+        case _  => extractFile
       }
 
     cwlExpressionType.coerceRawValue(globIfFile).toErrorOr

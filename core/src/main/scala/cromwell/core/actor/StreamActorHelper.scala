@@ -26,7 +26,7 @@ trait StreamActorHelper[T <: StreamContext] { this: Actor with ActorLogging =>
 
   private val decider: Supervision.Decider = _ => Supervision.Resume
   
-  private val replySink = Sink.foreach[(Any, T)] {
+  protected val replySink = Sink.foreach[(Any, T)] {
     case (response, commandContext) =>
       val reply = commandContext.clientContext map { (_, response) } getOrElse response
       commandContext.replyTo ! reply

@@ -1,6 +1,5 @@
 package wdl.expression
 
-import org.apache.commons.lang3.NotImplementedException
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import wom.types.{WomArrayType, WomIntegerType, WomOptionalType}
@@ -34,7 +33,7 @@ class WdlStandardLibraryFunctionsSpec extends FlatSpec with Matchers {
     }
 
     it should s"select [${select_all.mkString(", ")}] as the select_all value in [${input.mkString(", ")}]" in {
-      val expectedSelectAllOutput = Success(WomArray(WomArrayType(WomIntegerType), select_all.map(WomInteger(_))))
+      val expectedSelectAllOutput = Success(WomArray(WomArrayType(WomIntegerType), select_all.map(WomInteger)))
       TestableFunctions.select_all(functionInput) should be(expectedSelectAllOutput)
     }
   }
@@ -51,19 +50,19 @@ class WdlStandardLibraryFunctionsSpec extends FlatSpec with Matchers {
 case object TestableFunctions extends WdlStandardLibraryFunctions {
   // No need to test the ones that are overridden anyway:
   // TODO: Can replace with "OnlyPureFunctions when that branch merges..."
-  override def readFile(path: String): String = throw new NotImplementedException("")
-  override def writeFile(path: String, content: String): Try[WomFile] = throw new NotImplementedException("")
-  override def range(params: Seq[Try[WomValue]]): Try[WomArray] = throw new NotImplementedException("")
-  override def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = throw new NotImplementedException("")
-  override def write_json(params: Seq[Try[WomValue]]): Try[WomFile] = throw new NotImplementedException("")
-  override def sub(params: Seq[Try[WomValue]]): Try[WomString] = throw new NotImplementedException("")
-  override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = throw new NotImplementedException("")
-  override def length(params: Seq[Try[WomValue]]): Try[WomInteger] = throw new NotImplementedException("")
-  override def transpose(params: Seq[Try[WomValue]]): Try[WomArray] = throw new NotImplementedException("")
-  override def write_tsv(params: Seq[Try[WomValue]]): Try[WomFile] = throw new NotImplementedException("")
-  override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = throw new NotImplementedException("")
-  override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedException("")
-  override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = throw new NotImplementedException("")
+  override def readFile(path: String): String = throw new NotImplementedError
+  override def writeFile(path: String, content: String): Try[WomFile] = throw new NotImplementedError
+  override def range(params: Seq[Try[WomValue]]): Try[WomArray] = throw new NotImplementedError
+  override def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = throw new NotImplementedError
+  override def write_json(params: Seq[Try[WomValue]]): Try[WomFile] = throw new NotImplementedError
+  override def sub(params: Seq[Try[WomValue]]): Try[WomString] = throw new NotImplementedError
+  override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = throw new NotImplementedError
+  override def length(params: Seq[Try[WomValue]]): Try[WomInteger] = throw new NotImplementedError
+  override def transpose(params: Seq[Try[WomValue]]): Try[WomArray] = throw new NotImplementedError
+  override def write_tsv(params: Seq[Try[WomValue]]): Try[WomFile] = throw new NotImplementedError
+  override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = throw new NotImplementedError
+  override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedError
+  override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = throw new NotImplementedError
 }
 
 case object TestableFunctionTypes extends WdlStandardLibraryFunctionsType

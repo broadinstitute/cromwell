@@ -12,17 +12,18 @@ import centaur.test.metadata.WorkflowMetadata
 import centaur.test.workflow.Workflow
 import centaur.{CentaurConfig, CromwellManager}
 import cromwell.api.CromwellClient
-import cromwell.api.model.{CromwellBackends, SubmittedWorkflow, WorkflowStatus}
+import cromwell.api.model.{CromwellBackends, SubmittedWorkflow, WorkflowOutputs, WorkflowStatus}
 
+import scala.concurrent._
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{Await, ExecutionContext, Future, TimeoutException}
 import scala.util.Try
 
 object CentaurCromwellClient {
   // Do not use scala.concurrent.ExecutionContext.Implicits.global as long as this is using Await.result
   // See https://github.com/akka/akka-http/issues/602
   // And https://github.com/viktorklang/blog/blob/master/Futures-in-Scala-2.12-part-7.md
-  final implicit val blockingEc = ExecutionContext.fromExecutor(Executors.newCachedThreadPool())
+  final implicit val blockingEc: ExecutionContextExecutor = ExecutionContext.fromExecutor(
+    Executors.newCachedThreadPool(DaemonizedDefaultThreadFactory))
 
   // Akka HTTP needs both the actor system and a materializer
   final implicit val system = ActorSystem("centaur-acting-like-a-system")
@@ -37,9 +38,13 @@ object CentaurCromwellClient {
   def status(workflow: SubmittedWorkflow): Try[WorkflowStatus] = {
     sendReceiveFutureCompletion(() => cromwellClient.status(workflow.id))
   }
-  
+
   def abort(workflow: SubmittedWorkflow): Try[WorkflowStatus] = {
     sendReceiveFutureCompletion(() => cromwellClient.abort(workflow.id))
+  }
+
+  def outputs(workflow: SubmittedWorkflow): Try[WorkflowOutputs] = {
+    sendReceiveFutureCompletion(() => cromwellClient.outputs(workflow.id))
   }
 
   /*

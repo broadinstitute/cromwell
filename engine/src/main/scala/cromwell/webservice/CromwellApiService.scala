@@ -67,11 +67,11 @@ trait CromwellApiService extends HttpInstrumentation {
     path("engine" / Segment / "version") { _ =>
       get { complete(versionResponse) }
     },
-    path("engine" / Segment / "status") { version =>
+    path("engine" / Segment / "status") { _ =>
       onComplete(serviceRegistryActor.ask(GetCurrentStatus).mapTo[StatusCheckResponse]) {
         case Success(status) =>
           val httpCode = if (status.ok) StatusCodes.OK else StatusCodes.InternalServerError
-          complete((httpCode, status.systems))
+          complete(ToResponseMarshallable((httpCode, status.systems)))
         case Failure(_) => new RuntimeException("Unable to gather engine status").failRequest(StatusCodes.InternalServerError)
       }
     }
@@ -359,7 +359,9 @@ object CromwellApiService {
 
   final case class InvalidWorkflowException(possibleWorkflowId: String) extends Exception(s"Invalid workflow ID: '$possibleWorkflowId'.")
 
-  val cromwellVersion = ConfigFactory.load("cromwell-version.conf").getConfig("version").getString("cromwell")
+  val versionConfig = ConfigFactory.load("cromwell-version.conf").getConfig("version")
+  val cromwellVersion = versionConfig.getString("cromwell")
+  val swaggerUiVersion = versionConfig.getString("swagger.ui")
   val backendResponse = BackendResponse(BackendConfiguration.AllBackendEntries.map(_.name).sorted, BackendConfiguration.DefaultBackendEntry.name)
   val versionResponse = JsObject(Map("cromwell" -> cromwellVersion.toJson))
   val serviceShuttingDownResponse = new Exception("Cromwell service is shutting down.").failRequest(StatusCodes.ServiceUnavailable)

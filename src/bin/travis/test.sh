@@ -18,6 +18,9 @@ case "$TRAVIS_EVENT_TYPE" in
         centaurLocal)
             "${SCRIPT_DIR}"/testCentaurLocal.sh
             ;;
+        centaurCwlConformance)
+            "${SCRIPT_DIR}"/testCentaurCwlConformance.sh
+            ;;
         sbt)
             "${SCRIPT_DIR}"/testSbt.sh
             ;;
@@ -35,7 +38,7 @@ case "$TRAVIS_EVENT_TYPE" in
         centaurJes)
             "${SCRIPT_DIR}"/testCentaurJes.sh -i
             ;;
-        centaurTes|centaurLocal|sbt|checkPublish)
+        centaurTes|centaurLocal|centaurCwlConformance|sbt|checkPublish)
             exit 0
             ;;
         *)

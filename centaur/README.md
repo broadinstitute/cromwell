@@ -19,12 +19,12 @@ Tag names are all lower case, so a test named "tagFoo" has a tag "tagfoo".
 
 To run only those tests which have been tagged with a specified tag `tagFoo`:
 ```
-sbt "project centaur" "it:testOnly * -- -n tagfoo"
+sbt "centaur/it:testOnly * -- -n tagfoo"
 ```
 
 Or to instead exclude all tests which have been tagged with a specified tag `tagFoo`:
 ```
-sbt "project centaur" "it:testOnly * -- -l tagfoo"
+sbt "centaur/it:testOnly * -- -l tagfoo"
 ```
 
 # Adding custom tests

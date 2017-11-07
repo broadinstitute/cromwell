@@ -6,8 +6,8 @@ import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.DbmsTest
 import cromwell.core._
 import cromwell.core.labels.Label
-import cromwell.database.slick.MetadataSlickDatabase
-import cromwell.services.MetadataServicesStore
+import cromwell.database.slick.{EngineSlickDatabase, MetadataSlickDatabase}
+import cromwell.services.{EngineServicesStore, MetadataServicesStore}
 import cromwell.services.ServicesStore.EnhancedSqlDatabase
 import cromwell.services.metadata._
 import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
@@ -38,9 +38,16 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
 
   def testWith(configPath: String): Unit = {
     lazy val dataAccess = new MetadataDatabaseAccess with MetadataServicesStore {
-      override val metadataDatabaseInterface =
-        new MetadataSlickDatabase(ConfigFactory.load.getConfig(configPath))
+      override val metadataDatabaseInterface = {
+        val databaseConfig = ConfigFactory.load.getConfig(configPath)
+
+        // NOTE: EngineLiquibaseSettings **MUST** always run before the MetadataLiquibaseSettings
+        new EngineSlickDatabase(databaseConfig)
+          .initialized(EngineServicesStore.EngineLiquibaseSettings)
+
+        new MetadataSlickDatabase(databaseConfig)
           .initialized(MetadataServicesStore.MetadataLiquibaseSettings)
+      }
     }
 
     def publishMetadataEvents(baseKey: MetadataKey, keyValues: Array[(String, String)]): Future[Unit] = {

@@ -1,6 +1,8 @@
 package cromwell.backend.async
 
 
+import java.util.concurrent.ExecutionException
+
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.BackendJobExecutionActor._
@@ -49,6 +51,7 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
     case _: RuntimeException => true
     case _: InterruptedException => true
     case _: CromwellFatalExceptionMarker => true
+    case e: ExecutionException => Option(e.getCause).exists(isFatal)
     case _ => false
   }
 

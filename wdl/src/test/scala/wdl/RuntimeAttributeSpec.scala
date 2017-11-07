@@ -1,6 +1,7 @@
 package wdl
 
 import org.scalatest.{EitherValues, FlatSpec, Matchers}
+import RuntimeAttributeSpec._
 
 object RuntimeAttributeSpec {
   val WorkflowWithRuntime =
@@ -68,10 +69,11 @@ object RuntimeAttributeSpec {
       |  }
       |}
       |
-      |workflow hello {
+      |workflow hellowf {
       |  call hello
       |}
     """.stripMargin
+}
 
   class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
     val NamespaceWithRuntime = WdlNamespaceWithWorkflow.load(WorkflowWithRuntime, Seq.empty).get
@@ -85,4 +87,3 @@ object RuntimeAttributeSpec {
       NamespaceWithoutRuntime.tasks.forall(_.runtimeAttributes.attrs.isEmpty) should be(true)
     }
   }
-}

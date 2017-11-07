@@ -7,12 +7,11 @@ import common.exception.AggregatedException
 import scala.util.{Failure, Success, Try}
 
 object TryUtil {
-  private def stringifyFailure[T](failure: Try[T]): String = {
+  private def stringifyFailure[T](failure: Failure[T]): String = {
     val stringWriter = new StringWriter()
     val writer = new PrintWriter(stringWriter)
     failure match {
       case Failure(e) => e.printStackTrace(writer)
-      case Success(_) =>
     }
     writer.flush()
     writer.close()

@@ -81,7 +81,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   override lazy val configurationDescriptor: BackendConfigurationDescriptor = standardParams.configurationDescriptor
 
   override lazy val completionPromise: Promise[BackendJobExecutionResponse] = standardParams.completionPromise
-  
+
   override lazy val ioActor = standardParams.ioActor
 
   /** Backend initialization data created by the a factory initializer. */
@@ -162,8 +162,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param globFiles The globs.
     * @return The shell scripting.
     */
-  def globManipulations(globFiles: Traversable[WomGlobFile]): String =
-    globFiles map globManipulation mkString "\n"
+  def globScripts(globFiles: Traversable[WomGlobFile]): String =
+    globFiles map globScript mkString "\n"
 
   /**
     * Returns the shell scripting for hard linking a glob results using ln.
@@ -171,14 +171,19 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param globFile The glob.
     * @return The shell scripting.
     */
-  def globManipulation(globFile: WomGlobFile): String = {
+  def globScript(globFile: WomGlobFile): String = {
     val parentDirectory = globParentDirectory(globFile)
     val globDir = GlobFunctions.globName(globFile.value)
     val globDirectory = parentDirectory./(globDir)
     val globList = parentDirectory./(s"$globDir.list")
 
-    s"""|mkdir $globDirectory
+    s"""|# make the directory which will keep the matching files
+        |mkdir $globDirectory
+        |
+        |# symlink all the files into the glob directory
         |( ln -L ${globFile.value} $globDirectory 2> /dev/null ) || ( ln ${globFile.value} $globDirectory )
+        |
+        |# list all the files that match teh glob into a file called glob-[md5 of glob].list
         |ls -1 $globDirectory > $globList
         |""".stripMargin
   }
@@ -219,7 +224,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |echo $$? > $rcTmpPath
         |(
         |cd $cwd
-        |${globManipulations(globFiles)}
+        |${globScripts(globFiles)}
         |)
         |(
         |cd $cwd
@@ -308,9 +313,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * This method is needed in case Cromwell restarts while a workflow was being aborted. The engine cannot guarantee
     * that all backend actors will have time to receive and process the abort command before the server shuts down.
     * For that reason, upon restart, this method should always try to abort the job.
-    * 
+    *
     * The default implementation returns a JobReconnectionNotSupportedException failure which will result in a job failure.
-    * 
+    *
     * @param jobId The previously recorded job id.
     * @return the execution handle for the job.
     */
@@ -320,9 +325,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * This is in spirit similar to recover except it does not defaults back to running the job if not implemented.
     * This is used after a server restart to reconnect to jobs while the workflow was Failing (because another job failed). The workflow is bound
     * to fail eventually for that reason but in the meantime we want to reconnect to running jobs to update their status.
-    * 
+    *
     * The default implementation returns a JobReconnectionNotSupportedException failure which will result in a job failure.
-    * 
+    *
     * @param jobId The previously recorded job id.
     * @return the execution handle for the job.
     */
@@ -694,7 +699,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def handleExecutionResult(status: StandardAsyncRunStatus,
                             oldHandle: StandardAsyncPendingExecutionHandle): Future[ExecutionHandle] = {
       lazy val stderrAsOption: Option[Path] = Option(jobPaths.stderr)
-    
+
       val stderrSizeAndReturnCode = for {
         returnCodeAsString <- contentAsStringAsync(jobPaths.returnCode)
         // Only check stderr size if we need to, otherwise this results in a lot of unnecessary I/O that
@@ -705,7 +710,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       stderrSizeAndReturnCode flatMap {
         case (stderrSize, returnCodeAsString) =>
           val tryReturnCodeAsInt = Try(returnCodeAsString.trim.toInt)
-          
+
           if (isSuccess(status)) {
             tryReturnCodeAsInt match {
               case Success(returnCodeAsInt) if failOnStdErr && stderrSize.intValue > 0 =>
@@ -723,7 +728,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
             handleExecutionFailure(status, oldHandle, tryReturnCodeAsInt.toOption)
           }
       } recoverWith {
-        case exception => 
+        case exception =>
           if (isSuccess(status)) Future.successful(FailedNonRetryableExecutionHandle(exception))
           else handleExecutionFailure(status, oldHandle, None)
       }

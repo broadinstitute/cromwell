@@ -11,11 +11,10 @@ import cromwell.backend.BackendJobDescriptor
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.core.CallOutputs
-import cromwell.backend.io.GlobFunctions
 import wom.expression.IoFunctionSet
 import wom.graph.GraphNodePort.{ExpressionBasedOutputPort, OutputPort}
 import wom.types.WomType
-import wom.values.{WomSingleFile, WomValue}
+import wom.values.WomValue
 
 import scala.util.{Failure, Success, Try}
 object OutputEvaluator {
@@ -30,28 +29,21 @@ object OutputEvaluator {
                       ioFunctions: IoFunctionSet,
                       postMapper: WomValue => Try[WomValue] = v => Success(v)): EvaluatedJobOutputs = {
     val knownValues: Map[String, WomValue] = jobDescriptor.localInputs
-    
+
     def foldFunction(accumulatedOutputs: Try[ErrorOr[List[(OutputPort, WomValue)]]], output: ExpressionBasedOutputPort) = accumulatedOutputs flatMap { accumulated =>
       // Extract the valid pairs from the job outputs accumulated so far, and add to it the inputs (outputs can also reference inputs)
       val allKnownValues: Map[String, WomValue] = accumulated match {
-        case Valid(outputs) => 
+        case Valid(outputs) =>
           // The evaluateValue methods needs a Map[String, WomValue], use the output port name for already computed outputs
           outputs.toMap[OutputPort, WomValue].map({ case (port, value) => port.name -> value }) ++ knownValues
         case Invalid(_) => knownValues
       }
 
       // Attempt to evaluate the expression using all known values
-      def evaluateOutputExpression: OutputResult[WomValue] = EitherT{ Try{
-        output.expression.evaluateValue(allKnownValues, ioFunctions).toEither.map{
-
-          //If the string contained in a filename is actually a glob,
-          // The output of this expression is expected to be glob-md5(fileName).list
-          case WomSingleFile(fileName) if fileName.contains("*") =>
-            WomSingleFile(GlobFunctions.globName(fileName) + ".list")
-
-          case other => other
+      def evaluateOutputExpression: OutputResult[WomValue] =
+        EitherT.fromEither[Try] {
+          output.expression.evaluateValue(allKnownValues, ioFunctions).toEither
         }
-      }}
 
       // Attempt to coerce the womValue to the desired output type
       def coerceOutputValue(womValue: WomValue, coerceTo: WomType): OutputResult[WomValue] = {
@@ -77,7 +69,7 @@ object OutputEvaluator {
         (accumulated, evaluatedOutput) mapN { _ :+ _ }
       }
     }
-    
+
     val emptyValue = Success(List.empty[(OutputPort, WomValue)].validNel): Try[ErrorOr[List[(OutputPort, WomValue)]]]
 
     // Fold over the outputs to evaluate them in order, map the result to an EvaluatedJobOutputs

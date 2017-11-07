@@ -34,7 +34,17 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
         case other => other
       }
 
-    cwlExpressionType.coerceRawValue(extractFile).toErrorOr
+    val globIfFile =
+      (extractFile, cwlExpressionType) match {
+        case (WomString(glob), WomFileType) =>
+          ioFunctionSet.glob(glob) match {
+            case head :: Nil => WomString(head)
+            case list => throw new RuntimeException(s"expecting a single File glob but instead got $list")
+          }
+        case other => other
+      }
+
+    cwlExpressionType.coerceRawValue(globIfFile).toErrorOr
   }
 
   /*

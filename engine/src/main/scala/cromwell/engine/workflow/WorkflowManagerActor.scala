@@ -161,6 +161,8 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
         // If the workflow is not being restarted, then we can just declare it aborted
         case None =>
           pushCurrentStateToMetadataService(id, WorkflowAborted)
+          // This will remove the entry from the workflow store
+          params.jobStoreActor ! RegisterWorkflowCompleted(id)
           stay()
       }
     case Event(AbortAllWorkflowsCommand, data) if data.workflows.isEmpty =>

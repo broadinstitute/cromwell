@@ -12,28 +12,20 @@
         </addColumn>
     </changeSet>
     <changeSet author="tjeandet" id="update-restartable">
-        <!--Running-->
+        <!--RestartableRunning to Running-->
         <update
                 tableName="WORKFLOW_STORE_ENTRY">
             <column name="WORKFLOW_STATE" value="Running" />
-            <where>RestartableRunning</where>
-        </update>
-        <update
-                tableName="WORKFLOW_STORE_ENTRY">
-            <column name="RESTARTED" valueBoolean="true" />
-            <where>RestartableRunning</where>
+            <where>WORKFLOW_STATE = 'RestartableRunning'</where>
         </update>
 
-        <!--Aborting-->
+        <!--RestartableAborting to Aborting-->
         <update
                 tableName="WORKFLOW_STORE_ENTRY">
             <column name="WORKFLOW_STATE" value="Aborting" />
-            <where>RestartableAborting</where>
+            <where>WORKFLOW_STATE = 'RestartableAborting'</where>
         </update>
-        <update
-                tableName="WORKFLOW_STORE_ENTRY">
-            <column name="RESTARTED" valueBoolean="true" />
-            <where>RestartableAborting</where>
-        </update>
+
+        <!--Note: there's not need to set the flags to true because that's the first thing Cromwell will do when it starts-->
     </changeSet>
 </databaseChangeLog>

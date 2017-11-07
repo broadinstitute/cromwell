@@ -21,18 +21,18 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
   override def initialize(implicit ec: ExecutionContext): Future[Unit] = {
     if (ConfigFactory.load().as[Option[Boolean]]("system.workflow-restart").getOrElse(true)) {
       // Workflows in Running or Aborting state get their restarted flag set to true on restart  
-      sqlDatabase.initializeRestartedFlags()
+      sqlDatabase.markRunningAndAbortingAsRestarted()
     } else {
       Future.successful(())
     }
   }
 
   override def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
-    sqlDatabase.abort(id.toString)
+    sqlDatabase.setToAborting(id.toString)
   }
   
   override def abortAllRunning()(implicit ec: ExecutionContext): Future[Unit] = {
-    sqlDatabase.abortAllRunning()
+    sqlDatabase.setAllRunningToAborting()
   }
 
   override def stats(implicit ec: ExecutionContext): Future[Map[WorkflowStoreState, Int]] = sqlDatabase.stats

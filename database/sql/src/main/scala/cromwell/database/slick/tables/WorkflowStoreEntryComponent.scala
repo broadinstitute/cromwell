@@ -75,9 +75,9 @@ trait WorkflowStoreEntryComponent {
     (limit: ConstColumn[Long]) => {
       val query = for {
         workflowStoreEntryRow <- workflowStoreEntries
-        if (workflowStoreEntryRow.workflowState === WorkflowStoreState.Submitted && workflowStoreEntryRow.restarted === false) ||
+        if (workflowStoreEntryRow.workflowState === WorkflowStoreState.Aborting && workflowStoreEntryRow.restarted === false) ||
            (workflowStoreEntryRow.workflowState === WorkflowStoreState.Running && workflowStoreEntryRow.restarted === true) ||
-           (workflowStoreEntryRow.workflowState === WorkflowStoreState.Aborting && workflowStoreEntryRow.restarted === true)
+           (workflowStoreEntryRow.workflowState === WorkflowStoreState.Submitted && workflowStoreEntryRow.restarted === true)
       } yield workflowStoreEntryRow
       query.sortBy(_.submissionTime.asc).take(limit)
     }

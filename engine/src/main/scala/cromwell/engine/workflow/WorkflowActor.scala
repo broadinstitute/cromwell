@@ -236,7 +236,7 @@ class WorkflowActor(val workflowId: WorkflowId,
       pushWorkflowStart(workflowId)
       actor ! MaterializeWorkflowDescriptorCommand(workflowSourceFilesCollection, conf)
       goto(MaterializingWorkflowDescriptorState) using stateData.copy(currentLifecycleStateActor = Option(actor))
-    // If the workflow is not being restarted - then we can abort it immediately as nothing happened yet
+    // If the workflow is not being restarted then we can abort it immediately as nothing happened yet
     case Event(AbortWorkflowCommand, _) if !restarting => goto(WorkflowAbortedState)
   }
 
@@ -252,7 +252,7 @@ class WorkflowActor(val workflowId: WorkflowId,
       goto(InitializingWorkflowState) using data.copy(currentLifecycleStateActor = Option(initializerActor), workflowDescriptor = Option(workflowDescriptor))
     case Event(MaterializeWorkflowDescriptorFailureResponse(reason: Throwable), data) =>
       goto(WorkflowFailedState) using data.copy(lastStateReached = StateCheckpoint(MaterializingWorkflowDescriptorState, Option(List(reason))))
-    // If the workflow is not being restarted - then we can abort it immediately as nothing happened yet
+    // If the workflow is not being restarted then we can abort it immediately as nothing happened yet
     case Event(AbortWorkflowCommand, _) if !restarting => goto(WorkflowAbortedState)
   }
 

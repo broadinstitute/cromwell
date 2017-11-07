@@ -28,22 +28,22 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
   /**
     * Set all running workflows to aborting state.
     */
-  def abortAllRunning()
-                     (implicit ec: ExecutionContext): Future[Unit]
+  def setAllRunningToAborting()
+                             (implicit ec: ExecutionContext): Future[Unit]
 
   /**
     * Set restarted flags for all running and aborting workflows to true.
     */
-  def initializeRestartedFlags()
-                (implicit ec: ExecutionContext): Future[Unit]
+  def markRunningAndAbortingAsRestarted()
+                                       (implicit ec: ExecutionContext): Future[Unit]
 
   /**
     * Set the workflow to aborting state.
     * @return Some(restarted) if the workflow exists in the store, where restarted is the value of its restarted flag
     *         None if the workflow does not exist in the store
     */
-  def abort(workflowId: String)
-           (implicit ec: ExecutionContext): Future[Option[Boolean]]
+  def setToAborting(workflowId: String)
+                   (implicit ec: ExecutionContext): Future[Option[Boolean]]
 
   /**
     * Adds the requested WorkflowSourceFiles to the store.

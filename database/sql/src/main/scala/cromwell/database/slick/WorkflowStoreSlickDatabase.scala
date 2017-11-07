@@ -15,8 +15,8 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
 
   import dataAccess.driver.api._
 
-  override def abortAllRunning()
-                              (implicit ec: ExecutionContext): Future[Unit] = {
+  override def setAllRunningToAborting()
+                                      (implicit ec: ExecutionContext): Future[Unit] = {
     val action = dataAccess
       .workflowStateForWorkflowState(WorkflowStoreState.Running)
       .update(WorkflowStoreState.Aborting)
@@ -24,17 +24,15 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     runTransaction(action) void
   }
 
-  override def initializeRestartedFlags()
-                                       (implicit ec: ExecutionContext): Future[Unit] = {
-    val action = for {
-      _ <- dataAccess.restartedFlagForRunningAndAborting.update(true)
-    } yield ()
+  override def markRunningAndAbortingAsRestarted()
+                                                (implicit ec: ExecutionContext): Future[Unit] = {
+    val action = dataAccess.restartedFlagForRunningAndAborting.update(true)
 
     runTransaction(action) void
   }
 
-  override def abort(workflowId: String)
-                    (implicit ec: ExecutionContext): Future[Option[Boolean]] = {
+  override def setToAborting(workflowId: String)
+                            (implicit ec: ExecutionContext): Future[Option[Boolean]] = {
     val action =  for {
       restarted <- dataAccess.workflowRestartedForId(workflowId).result.headOption
       _ <- dataAccess.workflowStateForId(workflowId).update(WorkflowStoreState.Aborting)

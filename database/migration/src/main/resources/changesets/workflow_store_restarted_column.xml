@@ -11,4 +11,29 @@
             </column>
         </addColumn>
     </changeSet>
+    <changeSet author="tjeandet" id="update-restartable">
+        <!--Running-->
+        <update
+                tableName="WORKFLOW_STORE_ENTRY">
+            <column name="WORKFLOW_STATE" value="Running" />
+            <where>RestartableRunning</where>
+        </update>
+        <update
+                tableName="WORKFLOW_STORE_ENTRY">
+            <column name="RESTARTED" valueBoolean="true" />
+            <where>RestartableRunning</where>
+        </update>
+
+        <!--Aborting-->
+        <update
+                tableName="WORKFLOW_STORE_ENTRY">
+            <column name="WORKFLOW_STATE" value="Aborting" />
+            <where>RestartableAborting</where>
+        </update>
+        <update
+                tableName="WORKFLOW_STORE_ENTRY">
+            <column name="RESTARTED" valueBoolean="true" />
+            <where>RestartableAborting</where>
+        </update>
+    </changeSet>
 </databaseChangeLog>

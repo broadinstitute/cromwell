@@ -19,7 +19,7 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
         |  Int x
         |  call import_me.inner as inner { input: i = x }
         |  output {
-        |    Array[String] out = inner.out
+        |    Array[String] out = [inner.out]
         |  }
         |}""".stripMargin
 
@@ -51,7 +51,7 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
       workflowSource = outerWdl,
       resource = None,
       importResolver = Some(Seq(innerResolver))).get.asInstanceOf[WdlNamespaceWithWorkflow]
-    
+
     val outerWorkflowGraph = namespace.workflow.womDefinition.map(_.graph)
 
     outerWorkflowGraph match {
@@ -165,7 +165,7 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
       workflowGraph.outputNodes.foreach(_.upstream should be(Set(scatter)))
     }
   }
-  
+
   it should "support conversion of sub workflows with identical names" in {
     val outerWdl =
       """import "import_me.wdl" as import_me

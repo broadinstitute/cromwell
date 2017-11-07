@@ -87,11 +87,12 @@ object PartialWorkflowSources {
 
   private def workflowInputs(data: String): ErrorOr[Vector[WorkflowJson]] = {
     import cats.syntax.validated._
+    import _root_.io.circe.Printer
     
     yaml.parser.parse(data) match {
       // If it's an array, treat each element as an individual input object, otherwise simply toString the whole thing
-      case Right(json) => json.asArray.map(_.map(_.toString())).getOrElse(Vector(json.toString)).validNel
-      case Left(error) => s"Input file is not valid json: ${error.getMessage}".invalidNel
+      case Right(json) => json.asArray.map(_.map(_.toString())).getOrElse(Vector(json.pretty(Printer.noSpaces))).validNel
+      case Left(error) => s"Input file is not valid yaml nor json: ${error.getMessage}".invalidNel
     }
   }
 

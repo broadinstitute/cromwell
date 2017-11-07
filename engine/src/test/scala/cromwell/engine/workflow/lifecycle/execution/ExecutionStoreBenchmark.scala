@@ -49,10 +49,10 @@ object ExecutionStoreBenchmark extends Bench[Double] with DefaultJsonProtocol {
   val executionStores: Gen[ActiveExecutionStore] = for {
     size <- sizes
     doneMap = (0 until size map makeKey(prepareCall, ExecutionStatus.Done)).toMap
-    collectorKey = Map(ScatterCollectorKey(scatterCall, scatter.outputMapping, scatter, size) -> ExecutionStatus.NotStarted)
-    notStartedMap = (0 until size map makeKey(scatterCall, ExecutionStatus.NotStarted)).toMap ++ collectorKey
+    collectorKeys = scatter.outputMapping.map(om => ScatterCollectorKey(om, size) -> ExecutionStatus.NotStarted).toMap
+    notStartedMap = (0 until size map makeKey(scatterCall, ExecutionStatus.NotStarted)).toMap ++ collectorKeys
     finalMap: Map[JobKey, ExecutionStatus] = doneMap ++ notStartedMap
-  } yield new ActiveExecutionStore(finalMap, true)
+  } yield ActiveExecutionStore(finalMap, true)
   
   performance of "ExecutionStore" in {
     // Measures how fast the execution store can find runnable calls with lots of "Done" calls and "NotStarted" calls.

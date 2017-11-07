@@ -17,7 +17,7 @@ case class GraphNodeInputExpression(inputName: String, expression: WomExpression
   /**
     * Instantiate the expression and connect its input ports to the appropriate graphNode.
     */
-  private[graph] def instantiateExpression(graphNodeSetter: GraphNodeSetter): ErrorOr[InstantiatedExpression] = InstantiatedExpression.linkWithInputs(graphNodeSetter, expression, inputMapping)
+  private[graph] def instantiateExpression(graphNodeSetter: GraphNodeSetter[_ <: GraphNode]): ErrorOr[InstantiatedExpression] = InstantiatedExpression.linkWithInputs(graphNodeSetter, expression, inputMapping)
 
   private[graph] lazy val evaluateType: ErrorOr[WomType] = expression.evaluateType(inputMapping.map { case (name, port) => (name, port.womType) })
 }

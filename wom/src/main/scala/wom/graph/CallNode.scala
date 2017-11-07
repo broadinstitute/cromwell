@@ -132,7 +132,7 @@ object CallNode {
     * Helps making input ports and building the node while making sure node references are set properly.
     */
   class CallNodeBuilder {
-    private val graphNodeSetter = new GraphNode.GraphNodeSetter()
+    private val graphNodeSetter = new GraphNode.GraphNodeSetter[CallNode]()
 
     /**
       * Makes an input port for this call.

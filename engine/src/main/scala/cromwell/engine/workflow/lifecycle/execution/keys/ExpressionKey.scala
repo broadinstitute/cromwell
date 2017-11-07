@@ -26,23 +26,18 @@ private [execution] case class ExpressionKey(node: ExpressionNode, index: Execut
   }
 
   def processRunnable(data: WorkflowExecutionActorData, workflowExecutionActor: ActorRef): ErrorOr[WorkflowExecutionDiff] = {
-
-    if (data.isInBypassedScope(this)) {
-      processBypassedNode(this, data)
-    } else {
-      upstreamPorts.traverseValues(data.valueStore.resolve(this)) map { lookup =>
-        // Send a message to self in case we decide to change evaluate to return asynchronously, if we don't we could
-        // directly add the value to the value store in the execution diff
-        node.evaluateAndCoerce(lookup, data.expressionLanguageFunctions) match {
-          case Right(result) => workflowExecutionActor ! ExpressionEvaluationSucceededResponse(this, result)
-          case Left(f) => workflowExecutionActor ! ExpressionEvaluationFailedResponse(this, new RuntimeException(f.toList.mkString(", ")))
-        }
-      } valueOr { f =>
-        workflowExecutionActor ! ExpressionEvaluationFailedResponse(this, new RuntimeException(f.toList.mkString(", ")))
+    upstreamPorts.traverseValues(data.valueStore.resolve(index)) map { lookup =>
+      // Send a message to self in case we decide to change evaluate to return asynchronously, if we don't we could
+      // directly add the value to the value store in the execution diff
+      node.evaluateAndCoerce(lookup, data.expressionLanguageFunctions) match {
+        case Right(result) => workflowExecutionActor ! ExpressionEvaluationSucceededResponse(this, result)
+        case Left(f) => workflowExecutionActor ! ExpressionEvaluationFailedResponse(this, new RuntimeException(f.toList.mkString(", ")))
       }
-
-      WorkflowExecutionDiff(Map(this -> ExecutionStatus.Running)).validNel
+    } valueOr { f =>
+      workflowExecutionActor ! ExpressionEvaluationFailedResponse(this, new RuntimeException(s"Unable to start $this" + f.toList.mkString(", ")))
     }
+
+    WorkflowExecutionDiff(Map(this -> ExecutionStatus.Running)).validNel
   }
 }
 

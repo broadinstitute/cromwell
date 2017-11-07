@@ -5,10 +5,11 @@ import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionIndex.ExecutionIndex
 import cromwell.core.{ExecutionStatus, JobKey}
+import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore.ValueKey
 import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActorData, WorkflowExecutionDiff}
 import wom.graph._
 import wom.graph.expression.ExpressionNode
-import wom.values.{WomBoolean, WomValue}
+import wom.values.{WomBoolean, WomOptionalValue, WomValue}
 
 /**
   * Represents a conditional node in the execution store.
@@ -19,18 +20,19 @@ private [execution] case class ConditionalKey(node: ConditionalNode, index: Exec
   override val attempt = 1
 
   /**
-    * Creates a sub-ExecutionStore with entries for each of the scoped children.
+    * Creates ExecutionStore entries for each of the scoped children.
     *
     * @return ExecutionStore of scattered children.
     */
-  def populate: Map[JobKey, ExecutionStatus.Value] = {
+  def populate(bypassed: Boolean): Map[JobKey, ExecutionStatus.Value] = {
     val conditionalKeys = node.innerGraph.nodes.flatMap({ node => keyify(node) })
 
     val collectors = node.conditionalOutputPorts map {
-      ConditionalCollectorKey(_, index, node)
+      ConditionalCollectorKey(_, index)
     }
 
-    (conditionalKeys ++ collectors).map({ _ -> ExecutionStatus.NotStarted }).toMap
+    val finalStatus = if (bypassed) ExecutionStatus.NotStarted else ExecutionStatus.Bypassed
+    (conditionalKeys ++ collectors).map({ _ -> finalStatus }).toMap
   }
 
   /**
@@ -51,12 +53,19 @@ private [execution] case class ConditionalKey(node: ConditionalNode, index: Exec
   }
 
   def processRunnable(data: WorkflowExecutionActorData): ErrorOr[WorkflowExecutionDiff] = {
+    // This is the output port from the conditional's 'condition' input:
     val conditionOutputPort = node.conditionExpression.singleExpressionOutputPort
-
     data.valueStore.get(conditionOutputPort, index) match {
       case Some(b: WomBoolean) =>
         val conditionalStatus = if (b.value) ExecutionStatus.Done else ExecutionStatus.Bypassed
-        WorkflowExecutionDiff(populate + (this -> conditionalStatus)).validNel
+
+        val valueStoreAdditions: Map[ValueKey, WomValue] = if (!b.value) {
+          node.outputPorts.map(op => ValueKey(op, index) -> WomOptionalValue(op.womType, None)).toMap
+        } else Map.empty
+
+        WorkflowExecutionDiff(
+          executionStoreChanges = populate(b.value) + (this -> conditionalStatus),
+          valueStoreAdditions = valueStoreAdditions).validNel
       case Some(v: WomValue) =>
         s"'if' condition ${node.conditionExpression.womExpression.sourceString} must evaluate to a boolean but instead got ${v.womType.toDisplayString}".invalidNel
       case None =>

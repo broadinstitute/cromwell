@@ -307,7 +307,7 @@ object AstTools {
         && a.getAttribute("rhs").isTerminal => a.getAttribute("rhs").asInstanceOf[Terminal]
     }
 
-    def fullVariableReferenceString = terminal.getSourceString + (terminalSubIdentifier map { "." + _.getSourceString } getOrElse "")
+    def fullVariableReferenceString: String = terminal.getSourceString + (terminalSubIdentifier map { "." + _.getSourceString } getOrElse "")
   }
 
   /**

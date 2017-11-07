@@ -242,13 +242,13 @@ object WdlWomExpression {
     *
     * If the input is found in an outer scope, we also make a new input node in the inner graph to represent it.
     */
-  def findInputsforExpression(expression: WdlWomExpression, innerLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort]): ErrorOr[Map[String, GraphNodePort.OutputPort]] = {
+  def findInputsforExpression(expression: WdlWomExpression, innerLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[Map[String, GraphNodePort.OutputPort]] = {
 
     def resolveVariable(v: AstTools.VariableReference): ErrorOr[(String, GraphNodePort.OutputPort)] = {
       val name = v.fullVariableReferenceString
       (innerLookup.get(name), outerLookup.get(name)) match {
         case (Some(port), None) => Valid(name -> port)
-        case (None, Some(port)) => Valid(name -> OuterGraphInputNode(WomIdentifier(name), port).singleOutputPort)
+        case (None, Some(port)) => Valid(name -> OuterGraphInputNode(WomIdentifier(name), port, preserveIndexForOuterLookups).singleOutputPort)
         case (None, None) => s"No input $name found evaluating inputs for expression ${expression.wdlExpression.toWomString}".invalidNel
         case (Some(innerPort), Some(outerPort)) => s"Two inputs called '$name' found evaluating inputs for expression ${expression.wdlExpression.toWomString}: on ${innerPort.graphNode.localName} and ${outerPort.graphNode.localName}".invalidNel
       }
@@ -262,10 +262,11 @@ object WdlWomExpression {
   def toExpressionNode(nodeIdentifier: WomIdentifier,
                        expression: WdlWomExpression,
                        innerLookup: Map[String, GraphNodePort.OutputPort],
-                       outerLookup: Map[String, GraphNodePort.OutputPort]): ErrorOr[ExpressionNode] = {
+                       outerLookup: Map[String, GraphNodePort.OutputPort],
+                       preserveIndexForOuterLookups: Boolean): ErrorOr[ExpressionNode] = {
     import common.validation.ErrorOr.ShortCircuitingFlatMap
     
-    findInputsforExpression(expression, innerLookup, outerLookup) flatMap { resolvedVariables => 
+    findInputsforExpression(expression, innerLookup, outerLookup, preserveIndexForOuterLookups) flatMap { resolvedVariables =>
        AnonymousExpressionNode.fromInputMapping(nodeIdentifier, expression, resolvedVariables)
     }
   }

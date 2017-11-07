@@ -52,18 +52,19 @@ final case class OptionalGraphInputNodeWithDefault(override val identifier: WomI
                                                    default: WomExpression) extends ExternalGraphInputNode
 
 object OuterGraphInputNode {
-  def apply(identifier: WomIdentifier, linkToOuterGraph: GraphNodePort.OutputPort): OuterGraphInputNode = {
-    new OuterGraphInputNode(identifier, linkToOuterGraph)
+  def apply(forIdentifier: WomIdentifier, linkToOuterGraph: GraphNodePort.OutputPort, preserveScatterIndex: Boolean): OuterGraphInputNode = {
+    new OuterGraphInputNode(forIdentifier.copy(fullyQualifiedName = forIdentifier.fullyQualifiedName.prefixWith("^")), linkToOuterGraph, preserveScatterIndex)
   }
 }
 
 /**
   * Used to represent an input to any GraphNode's inner graph which is a link to a value somewhere in the outer graph.
   */
-class OuterGraphInputNode(override val identifier: WomIdentifier, linkToOuterGraph: GraphNodePort.OutputPort) extends GraphInputNode {
+class OuterGraphInputNode(override val identifier: WomIdentifier, val linkToOuterGraph: GraphNodePort.OutputPort, val preserveScatterIndex: Boolean) extends GraphInputNode {
   override def womType: WomType = linkToOuterGraph.womType
+  override lazy val singleOutputPort: GraphNodeOutputPort = GraphNodeOutputPort(identifier, womType, this)
 }
 
 final case class ScatterVariableNode(override val identifier: WomIdentifier,
                                      scatterExpressionOutputPort: GraphNodePort.OutputPort,
-                                     override val womType: WomType) extends OuterGraphInputNode(identifier, scatterExpressionOutputPort)
+                                     override val womType: WomType) extends OuterGraphInputNode(identifier, scatterExpressionOutputPort, preserveScatterIndex = true)

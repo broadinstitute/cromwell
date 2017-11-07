@@ -1,6 +1,6 @@
 package wom.graph
 
-import wom.graph.GraphNode.GeneratedNodeAndNewNodes
+import wom.graph.GraphNode.{GeneratedNodeAndNewNodes, GraphNodeWithInnerGraph}
 import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort, ScatterGathererPort}
 import wom.graph.expression.ExpressionNode
 import wom.types.WomArrayType
@@ -12,10 +12,10 @@ import wom.types.WomArrayType
   * @param scatterVariableInnerGraphInputNode graph input node in the inner graph satisfied by the expression node
   * @param outputMapping Output ports for the scatter node, which also link back to GraphOutputNodes of the inner graph.
   */
-final case class ScatterNode private(innerGraph: Graph,
+final case class ScatterNode private(override val innerGraph: Graph,
                                      scatterCollectionExpressionNode: ExpressionNode,
-                                     scatterVariableInnerGraphInputNode: GraphInputNode,
-                                     outputMapping: Set[ScatterGathererPort]) extends GraphNode {
+                                     scatterVariableInnerGraphInputNode: OuterGraphInputNode,
+                                     outputMapping: Set[ScatterGathererPort]) extends GraphNode with GraphNodeWithInnerGraph {
 
   override val identifier: WomIdentifier = WomIdentifier("ScatterNode")
 
@@ -52,7 +52,7 @@ object ScatterNode {
   def scatterOverGraph(innerGraph: Graph,
                        scatterCollectionExpressionNode: ExpressionNode,
                        scatterVariableInnerGraphInputNode: ScatterVariableNode): ScatterNodeWithNewNodes = {
-    val graphNodeSetter = new GraphNode.GraphNodeSetter()
+    val graphNodeSetter = new GraphNode.GraphNodeSetter[ScatterNode]()
 
     val outputPorts: Set[ScatterGathererPort] = innerGraph.nodes.collect { case gon: PortBasedGraphOutputNode =>
       ScatterGathererPort(WomArrayType(gon.womType), gon, graphNodeSetter.get)

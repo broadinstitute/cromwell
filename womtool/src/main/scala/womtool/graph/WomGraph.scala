@@ -41,10 +41,15 @@ class WomGraph(graphName: String, graph: Graph) {
     graph.nodes foldMap nodesAndLinks
   }
 
-  private def upstreamLinks(graphNode: GraphNode): Set[String] = for {
-    inputPort <- graphNode.inputPorts
-    upstreamPort = inputPort.upstream
-  } yield s"${upstreamPort.graphId} -> ${inputPort.graphId}"
+  private def upstreamLinks(graphNode: GraphNode): Set[String] = graphNode match {
+    case ogin: OuterGraphInputNode => Set(s"${ogin.linkToOuterGraph.graphId} -> ${ogin.singleOutputPort.graphId} [style=dashed arrowhead=none]")
+    case _ =>
+      for {
+        inputPort <- graphNode.inputPorts
+        upstreamPort = inputPort.upstream
+      } yield s"${upstreamPort.graphId} -> ${inputPort.graphId}"
+
+  }
 
   private def portLine(p: GraphNodePort) = s"${p.graphId} [shape=${p.graphShape} label=${p.graphName}];"
 
@@ -103,24 +108,9 @@ class WomGraph(graphName: String, graph: Graph) {
          |}
          |""".stripMargin
     }
-    val scatterVariableNodesAndLinks = {
-      val scatterVariableExpressionId = s""""${UUID.randomUUID}""""
-      val scatterVariableClusterName = nextCluster
-      val node = s"""
-         |subgraph $scatterVariableClusterName {
-         |  style=filled;
-         |  fillcolor=${scatter.graphFillColor};
-         |  $scatterVariableExpressionId [shape=plaintext label="${scatter.scatterVariableInnerGraphInputNode.localName} in ..."]
-         |${indentAndCombine(scatter.scatterCollectionExpressionNode.inputPorts map portLine)}
-         |}
-         """.stripMargin
 
-      val scatterVariableInputLink = s"$scatterVariableExpressionId -> ${scatter.scatterVariableInnerGraphInputNode.singleOutputPort.graphId} [style=dashed ltail=$scatterVariableClusterName arrowhead=none]"
-
-      NodesAndLinks(Set(node), Set(scatterVariableInputLink))
-    }
     val outputLinks = scatter.outputMapping map { outputPort => s"${outputPort.outputToGather.singleInputPort.graphId} -> ${outputPort.graphId} [style=dashed arrowhead=none]" }
-    (innerGraph |+| scatterVariableNodesAndLinks).withLinks(outputLinks)
+    innerGraph.withLinks(outputLinks)
   }
 
   def internalConditionalNodesAndLinks(conditional: ConditionalNode): NodesAndLinks = {

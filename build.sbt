@@ -1,78 +1,64 @@
+import Dependencies._
 import Settings._
-import Testing._
 
-lazy val common = (project in file("common"))
-  .settings(commonSettings:_*)
-  .withTestSettings
+// Libraries
 
-lazy val wom = (project in file("wom"))
-  .settings(womSettings:_*)
+lazy val common = project
+  .withLibrarySettings("cromwell-common", commonDependencies, crossCompile = true)
+
+lazy val wom = project
+  .withLibrarySettings("cromwell-wom", womDependencies, crossCompile = true)
   .dependsOn(common)
-  .withTestSettings
 
-lazy val wdl = (project in file("wdl"))
-  .settings(wdlSettings:_*)
+lazy val wdl = project
+  .withLibrarySettings("cromwell-wdl", wdlDependencies, crossCompile = true)
   .dependsOn(wom)
-  .withTestSettings
 
-lazy val cwl = (project in file("cwl"))
-  .settings(cwlSettings:_*)
+lazy val cwl = project
+  .withLibrarySettings("cromwell-cwl", cwlDependencies, crossCompile = true)
   .dependsOn(wom)
   .dependsOn(wom % "test->test")
-  .withTestSettings
 
-lazy val womtool = (project in file("womtool"))
-  .settings(womtoolSettings:_ *)
-  .dependsOn(wdl)
-  .dependsOn(cwl)
-  .dependsOn(wom % "test->test")
-  .withTestSettings
-
-lazy val core = (project in file("core"))
-  .settings(coreSettings:_*)
+lazy val core = project
+  .withLibrarySettings("cromwell-core", coreDependencies)
   .dependsOn(wom)
   .dependsOn(wom % "test->test")
-  .withTestSettings
 
-lazy val gcsFileSystem = (project in file("filesystems/gcs"))
-  .settings(gcsFileSystemSettings:_*)
-  .withTestSettings
+lazy val cloudSupport = project
+  .withLibrarySettings("cromwell-cloud-support", cloudSupportDependencies)
   .dependsOn(core)
   .dependsOn(core % "test->test")
+
+lazy val gcsFileSystem = (project in file("filesystems/gcs"))
+  .withLibrarySettings("cromwell-gcsfilesystem")
+  .dependsOn(core)
   .dependsOn(cloudSupport)
+  .dependsOn(core % "test->test")
   .dependsOn(cloudSupport % "test->test")
 
 lazy val databaseSql = (project in file("database/sql"))
-  .settings(databaseSqlSettings:_*)
-  .withTestSettings
+  .withLibrarySettings("cromwell-database-sql", databaseSqlDependencies)
 
 lazy val databaseMigration = (project in file("database/migration"))
-  .settings(databaseMigrationSettings: _*)
+  .withLibrarySettings("cromwell-database-migration", databaseMigrationDependencies)
   .dependsOn(core)
   .dependsOn(wdl)
-  .withTestSettings
 
-lazy val dockerHashing = (project in file("dockerHashing"))
-  .settings(dockerHashingSettings: _*)
+lazy val dockerHashing = project
+  .withLibrarySettings("cromwell-docker-hashing")
   .dependsOn(core)
   .dependsOn(core % "test->test")
-  .withTestSettings
 
-lazy val cromwellApiClient = (project in file("cromwellApiClient"))
-  .settings(cromwellApiClientSettings: _*)
-  .withTestSettings
+lazy val cromwellApiClient = project
+  .withLibrarySettings("cromwell-api-client", cromwellApiClientDependencies)
 
-lazy val centaur = (project in file("centaur"))
-  .configs(IntegrationTest)
-  .settings(Defaults.itSettings ++ centaurSettings: _*)
-  .withTestSettings
+lazy val centaur = project
+  .withLibrarySettings("centaur", centaurDependencies, integrationTests = true)
   .dependsOn(common)
   .dependsOn(cromwellApiClient)
 
-lazy val services = (project in file("services"))
-  .settings(servicesSettings:_*)
-  .withTestSettings
-  .dependsOn(core)
+lazy val services = project
+  .withLibrarySettings("cromwell-services")
   .dependsOn(databaseSql)
   .dependsOn(databaseMigration)
   .dependsOn(cloudSupport)
@@ -81,49 +67,38 @@ lazy val services = (project in file("services"))
 
 lazy val backendRoot = Path("supportedBackends")
 
-lazy val backend = (project in file("backend"))
-  .settings(backendSettings:_*)
-  .withTestSettings
-  .dependsOn(core)
+lazy val backend = project
+  .withLibrarySettings("cromwell-backend")
   .dependsOn(services)
   .dependsOn(core % "test->test")
 
 lazy val sfsBackend = (project in backendRoot / "sfs")
-  .settings(sfsBackendSettings:_*)
-  .withTestSettings
+  .withLibrarySettings("cromwell-sfs-backend")
   .dependsOn(backend)
   .dependsOn(gcsFileSystem)
   .dependsOn(backend % "test->test")
   .dependsOn(services % "test->test")
 
 lazy val tesBackend = (project in backendRoot / "tes")
-  .settings(tesBackendSettings:_*)
-  .withTestSettings
+  .withLibrarySettings("cromwell-tes-backend", tesBackendDependencies)
   .dependsOn(sfsBackend)
   .dependsOn(backend % "test->test")
 
 lazy val sparkBackend = (project in backendRoot / "spark")
-  .settings(sparkBackendSettings:_*)
-  .withTestSettings
+  .withLibrarySettings("cromwell-spark-backend", sparkBackendDependencies)
   .dependsOn(sfsBackend)
   .dependsOn(backend % "test->test")
 
 lazy val jesBackend = (project in backendRoot / "jes")
-  .settings(jesBackendSettings:_*)
-  .withTestSettings
+  .withLibrarySettings("cromwell-jes-backend")
   .dependsOn(backend)
   .dependsOn(gcsFileSystem)
-  .dependsOn(cloudSupport)
   .dependsOn(backend % "test->test")
   .dependsOn(gcsFileSystem % "test->test")
   .dependsOn(services % "test->test")
 
-lazy val engine = (project in file("engine"))
-  .settings(engineSettings: _*)
-  .withTestSettings
-  .dependsOn(core)
-  .dependsOn(dockerHashing)
-  .dependsOn(services)
+lazy val engine = project
+  .withLibrarySettings("cromwell-engine", engineDependencies, engineSettings)
   .dependsOn(backend)
   .dependsOn(gcsFileSystem)
   .dependsOn(wdl)
@@ -135,43 +110,41 @@ lazy val engine = (project in file("engine"))
   .dependsOn(sfsBackend % "test->compile")
   .dependsOn(gcsFileSystem % "test->test")
 
-lazy val cloudSupport = (project in file("cloudSupport"))
-    .settings(cloudSupportSettings: _*)
-    .withTestSettings
-    .dependsOn(core)
-    .dependsOn(core % "test->test")
+// Executables
+
+lazy val womtool = project
+  .withExecutableSettings("womtool", womtoolDependencies, buildDocker = false)
+  .dependsOn(wdl)
+  .dependsOn(cwl)
+  .dependsOn(wom % "test->test")
 
 lazy val root = (project in file("."))
-  .settings(rootSettings: _*)
-  .enablePlugins(DockerPlugin)
-  .withTestSettings
-  // Full list of all sub-projects to build with the root (ex: include in `sbt test`)
-  .aggregate(common)
-  .aggregate(wom)
-  .aggregate(wdl)
-  .aggregate(cwl)
-  .aggregate(womtool)
-  .aggregate(core)
-  .aggregate(dockerHashing)
-  .aggregate(gcsFileSystem)
-  .aggregate(databaseSql)
-  .aggregate(databaseMigration)
-  .aggregate(services)
-  .aggregate(backend)
-  .aggregate(sfsBackend)
-  .aggregate(sparkBackend)
-  .aggregate(jesBackend)
-  .aggregate(tesBackend)
-  .aggregate(engine)
-  .aggregate(cromwellApiClient)
-  .aggregate(centaur)
+  .withExecutableSettings("cromwell", rootDependencies)
   // Next level of projects to include in the fat jar (their dependsOn will be transitively included)
   .dependsOn(engine)
   .dependsOn(jesBackend)
   .dependsOn(tesBackend)
   .dependsOn(sparkBackend)
-  .dependsOn(wdl)
-  .dependsOn(cwl)
-  .dependsOn(womtool)
-  // Dependencies for tests
   .dependsOn(engine % "test->test")
+  // Full list of all sub-projects to build with the root (ex: include in `sbt test`)
+  .aggregate(backend)
+  .aggregate(centaur)
+  .aggregate(common)
+  .aggregate(core)
+  .aggregate(cromwellApiClient)
+  .aggregate(cwl)
+  .aggregate(databaseMigration)
+  .aggregate(databaseSql)
+  .aggregate(dockerHashing)
+  .aggregate(engine)
+  .aggregate(gcsFileSystem)
+  .aggregate(jesBackend)
+  .aggregate(services)
+  .aggregate(sfsBackend)
+  .aggregate(sparkBackend)
+  .aggregate(tesBackend)
+  .aggregate(wdl)
+  .aggregate(wom)
+  .aggregate(womtool)
+  // TODO: See comment in plugins.sbt regarding SBT 1.x
+  .enablePlugins(CrossPerProjectPlugin)

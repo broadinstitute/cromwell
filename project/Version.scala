@@ -1,3 +1,4 @@
+import Dependencies._
 import com.typesafe.sbt.SbtGit._
 import sbt.Keys._
 import sbt._
@@ -24,6 +25,7 @@ object Version {
     val contents =
       s"""|version {
           |  cromwell: "${version.value}"
+          |  swagger.ui: "$swaggerUiV"
           |}
           |""".stripMargin
     IO.write(file, contents)

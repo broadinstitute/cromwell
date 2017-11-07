@@ -5,7 +5,9 @@ import Testing._
 import Version._
 import sbt.Keys._
 import sbt._
+import sbtassembly.AssemblyPlugin
 import sbtassembly.AssemblyPlugin.autoImport._
+import sbtdocker.DockerPlugin
 import sbtdocker.DockerPlugin.autoImport._
 import sbtrelease.ReleasePlugin
 
@@ -76,25 +78,23 @@ object Settings {
     "-Xfatal-warnings"       // makes those warnings fatal.
   )
 
-  addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
-
-  testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDSI", "-h", "target/test-reports")
-
   lazy val assemblySettings = Seq(
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar",
-    aggregate in assembly := false,
     test in assembly := {},
-    logLevel in assembly := Level.Info,
-    assemblyMergeStrategy in assembly := customMergeStrategy
+    assemblyMergeStrategy in assembly := customMergeStrategy.value
   )
 
-  val ScalaVersion = "2.12.4"
-  val sharedSettings = ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
-    dockerSettings ++ cromwellVersionWithGit ++ publishingSettings ++ List(
+  val ScalaVersion211 = "2.11.11"
+  val ScalaVersion212 = "2.12.4"
+  val ScalaVersion = ScalaVersion212
+  val paradiseV = "2.1.0"
+  val sharedSettings = ReleasePlugin.projectSettings ++
+    cromwellVersionWithGit ++ publishingSettings ++ List(
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,
     resolvers ++= commonResolvers,
     parallelExecution := false,
+    dependencyOverrides ++= cromwellDependencyOverrides.toSet, // TODO: Remove .toSet for SBT 1.x
     scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, 12)) =>
         // The default scalacOptions includes console-hostile options.  These options are overridden specifically below
@@ -109,42 +109,57 @@ object Settings {
     scalacOptions in(Compile, doc) := (baseSettings ++ List("-no-link-warnings")),
     // No console-hostile options, otherwise the console is effectively unusable.
     // https://github.com/sbt/sbt/issues/1815
-    scalacOptions in(Compile, console) := (baseSettings ++ warningSettings),
-    crossScalaVersions := List("2.11.11", "2.12.4")
+    scalacOptions in(Compile, console) --= consoleHostileSettings,
+    addCompilerPlugin("org.scalamacros" % "paradise" % paradiseV cross CrossVersion.full)
   )
 
-  val docSettings = List(
-    // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874
-    "-no-link-warnings"
+  val crossVersionSettings = List(
+    crossScalaVersions := List(ScalaVersion212, ScalaVersion211)
   )
+
+  val dockerTags = settingKey[Seq[String]]("The tags for docker builds.")
 
   lazy val dockerSettings = Seq(
-    imageNames in docker := Seq(
-      ImageName(
-        namespace = Option("broadinstitute"),
-        repository = name.value,
-        tag = Option(cromwellVersion)),
-      ImageName(
-        namespace = Option("broadinstitute"),
-        repository = name.value,
-        tag = Option(version.value))
-    ),
+    /*
+    NOTE: Gave up fighting with SBT settings. Using an environment variable instead.
+
+    The below "just works", assuming womtool docker image building is also enabled, setting the right image names and
+    versions.
+
+    `sbt 'show docker::imageNames'` returns:
+      ArrayBuffer(broadinstitute/womtool:30, broadinstitute/womtool:30-c33be41-SNAP)
+      ArrayBuffer(broadinstitute/cromwell:30, broadinstitute/cromwell:30-c33be41-SNAP)
+
+    `CROMWELL_DOCKER_TAGS=dev,develop sbt 'show docker::imageNames'` returns:
+      ArrayBuffer(broadinstitute/womtool:dev, broadinstitute/womtool:develop)
+      ArrayBuffer(broadinstitute/cromwell:dev, broadinstitute/cromwell:develop)
+    */
+    dockerTags := sys.env.getOrElse("CROMWELL_DOCKER_TAGS", s"$cromwellVersion,${version.value}").split(","),
+    imageNames in docker := dockerTags.value map { tag =>
+      ImageName(namespace = Option("broadinstitute"), repository = name.value, tag = Option(tag))
+    },
     dockerfile in docker := {
       // The assembly task generates a fat JAR file
       val artifact: File = assembly.value
       val artifactTargetPath = s"/app/${artifact.name}"
+      val artifactName = name.value
 
       new Dockerfile {
         from("openjdk:8")
         expose(8000)
         add(artifact, artifactTargetPath)
-        runRaw(s"ln -s $artifactTargetPath /app/cromwell.jar")
+        runRaw(s"ln -s $artifactTargetPath /app/$artifactName.jar")
 
         // If you use the 'exec' form for an entry point, shell processing is not performed and
         // environment variable substitution does not occur.  Thus we have to /bin/bash here
         // and pass along any subsequent command line arguments
         // See https://docs.docker.com/engine/reference/builder/#/entrypoint
-        entryPoint("/bin/bash", "-c", "java ${JAVA_OPTS} -jar /app/cromwell.jar ${CROMWELL_ARGS} ${*}", "--")
+        entryPoint(
+          "/bin/bash",
+          "-c",
+          s"java $${JAVA_OPTS} -jar /app/$artifactName.jar $${${artifactName.toUpperCase}_ARGS} $${*}",
+          "--"
+        )
       }
     },
     buildOptions in docker := BuildOptions(
@@ -153,110 +168,54 @@ object Settings {
     )
   )
 
-  val commonSettings = List(
-    name := "cromwell-common",
-    libraryDependencies ++= commonDependencies
-  ) ++ sharedSettings
+  val engineSettings = versionConfCompileSettings
 
-  val womSettings = List(
-    name := "cromwell-wom",
-    libraryDependencies ++= womDependencies
-  ) ++ sharedSettings
+  private def buildProject(project: Project,
+                           projectName: String,
+                           dependencies: Seq[ModuleID],
+                           builders: Seq[Project => Project]): Project = {
+    val projectSettings = List(
+      name := projectName,
+      libraryDependencies ++= dependencies
+    ) ++ sharedSettings
 
-  val wdlSettings = List(
-    name := "cromwell-wdl",
-    libraryDependencies ++= wdlDependencies
-  ) ++ sharedSettings
+    builders.foldRight(project.settings(projectSettings))(_ (_))
+  }
 
-  val cwlSettings = List(
-    name := "cromwell-cwl",
-    libraryDependencies ++= cwlDependencies
-  ) ++ sharedSettings
+  // Adds settings to build a library
+  implicit class ProjectLibrarySettings(val project: Project) extends AnyVal {
+    def withLibrarySettings(libraryName: String,
+                            dependencies: Seq[ModuleID] = List.empty,
+                            customSettings: Seq[Setting[_]] = List.empty,
+                            integrationTests: Boolean = false,
+                            crossCompile: Boolean = false): Project = {
+      val builders: Seq[Project => Project] = List(
+        addTestSettings,
+        if (integrationTests) addIntegrationTestSettings else identity,
+        _
+          .disablePlugins(AssemblyPlugin)
+          .settings(if (crossCompile) crossVersionSettings else List.empty)
+          .settings(customSettings)
+      )
+      buildProject(project, libraryName, dependencies, builders)
+    }
+  }
 
-  val womtoolSettings = List(
-    name := "womtool",
-    libraryDependencies ++= womtoolDependencies
-  ) ++ sharedSettings
+  // Adds settings to build an executable
+  implicit class ProjectExecutableSettings(val project: Project) extends AnyVal {
+    def withExecutableSettings(executableName: String,
+                               dependencies: Seq[ModuleID] = List.empty,
+                               customSettings: Seq[Setting[_]] = List.empty,
+                               buildDocker: Boolean = true): Project = {
 
-  val coreSettings = List(
-    name := "cromwell-core",
-    libraryDependencies ++= coreDependencies
-  ) ++ sharedSettings
+      val builders: Seq[Project => Project] = List(
+        addTestSettings,
+        if (buildDocker) _.enablePlugins(DockerPlugin).settings(dockerSettings) else identity,
+        _.settings(assemblySettings).settings(customSettings)
+      )
 
-  val servicesSettings = List(
-    name := "cromwell-services"
-  ) ++ sharedSettings
-
-  val gcsFileSystemSettings = List(
-    name := "cromwell-gcsfilesystem",
-    libraryDependencies ++= gcsFileSystemDependencies
-  ) ++ sharedSettings
-
-  val databaseSqlSettings = List(
-    name := "cromwell-database-sql",
-    libraryDependencies ++= databaseSqlDependencies
-  ) ++ sharedSettings
-
-  val databaseMigrationSettings = List(
-    name := "cromwell-database-migration",
-    libraryDependencies ++= databaseMigrationDependencies
-  ) ++ sharedSettings
-
-  val cromwellApiClientSettings = List(
-    name := "cromwell-api-client",
-    libraryDependencies ++= cromwellApiClientDependencies,
-    organization := "org.broadinstitute",
-    scalaVersion := ScalaVersion,
-    scalacOptions in (Compile, doc) ++= docSettings,
-    resolvers ++= commonResolvers
-  ) ++ sharedSettings ++ ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
-    cromwellVersionWithGit ++ publishingSettings
-
-  val centaurSettings = List(
-    name := "centaur",
-    libraryDependencies ++= centaurDependencies
-  ) ++ sharedSettings
-
-  val dockerHashingSettings = List(
-    name := "cromwell-docker-hashing"
-  ) ++ sharedSettings
-
-  val backendSettings = List(
-    name := "cromwell-backend"
-  ) ++ sharedSettings
-
-  val sfsBackendSettings = List(
-    name := "cromwell-sfs-backend"
-  ) ++ sharedSettings
-
-  val tesBackendSettings = List(
-    name := "cromwell-tes-backend",
-    libraryDependencies ++= tesBackendDependencies
-  ) ++ sharedSettings
-
-  val sparkBackendSettings = List(
-    name := "cromwell-spark-backend",
-    libraryDependencies ++= sparkBackendDependencies
-  ) ++ sharedSettings
-
-  val jesBackendSettings = List(
-    name := "cromwell-jes-backend",
-    libraryDependencies ++= jesBackendDependencies
-  ) ++ sharedSettings
-
-  val engineSettings = List(
-    name := "cromwell-engine",
-    libraryDependencies ++= engineDependencies
-  ) ++ sharedSettings ++ versionConfCompileSettings
-
-  val cloudSupportSettings = List(
-    name := "cromwell-cloud-support",
-    libraryDependencies ++= gcsFileSystemDependencies
-  ) ++ sharedSettings
-
-  val rootSettings = List(
-    name := "cromwell",
-    libraryDependencies ++= rootDependencies
-  ) ++ sharedSettings
+      buildProject(project, executableName, dependencies, builders)
+    }
+  }
 
 }

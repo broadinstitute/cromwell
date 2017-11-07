@@ -1,3 +1,5 @@
+import Dependencies._
+import sbt.Defaults._
 import sbt.Keys._
 import sbt._
 
@@ -37,6 +39,7 @@ object Testing {
     DontUseDbmsTaggedTests, DontUseGcsIntegrationTaggedTests)
 
   val testSettings = List(
+    libraryDependencies ++= testDependencies.map(_ % Test),
     // `test` (or `assembly`) - Run all tests, except docker and integration and DBMS
     testOptions in Test ++= Seq(TestReportArgs) ++ defaultExcludeTests,
     // `alltests:test` - Run all tests
@@ -56,30 +59,14 @@ object Testing {
     // Don't execute benchmarks in parallel
     parallelExecution in CromwellBenchmarkTest := false
   )
-  /*
-    TODO: This syntax of test in (NoTests, assembly) isn't correct
 
-    Trying to get:
+  val integrationTestSettings = List(
+    libraryDependencies ++= testDependencies.map(_ % IntegrationTest)
+  ) ++ itSettings
 
-      sbt notests:assembly
-
-    To be the same as:
-
-      sbt 'set test in assembly := {}' assembly
-
-    For now, one must use the more verbose command line until someone can crack sbt's custom configs/tasks/scopes for the
-    assembly plugin:
-
-      http://www.scala-sbt.org/0.13/tutorial/Scopes.html
-   */
-  //test in (NoTests, assembly) := {}
-
-  // Also tried
-  //test in (NoTests, assemblyPackageDependency) := {}
-  //test in (NoTests, assemblyPackageScala) := {}
-
-  implicit class ProjectTestSettings(val project: Project) extends AnyVal {
-    def withTestSettings: Project = project
+  def addTestSettings(project: Project) = {
+    project
+      .settings(testSettings)
       .configs(AllTests).settings(inConfig(AllTests)(Defaults.testTasks): _*)
       .configs(DockerTest).settings(inConfig(DockerTest)(Defaults.testTasks): _*)
       .configs(NoDockerTest).settings(inConfig(NoDockerTest)(Defaults.testTasks): _*)
@@ -87,6 +74,12 @@ object Testing {
       .configs(CromwellBenchmarkTest).settings(inConfig(CromwellBenchmarkTest)(Defaults.testTasks): _*)
       .configs(CromwellNoIntegrationTest).settings(inConfig(CromwellNoIntegrationTest)(Defaults.testTasks): _*)
       .configs(DbmsTest).settings(inConfig(DbmsTest)(Defaults.testTasks): _*)
+  }
+
+  def addIntegrationTestSettings(project: Project) = {
+    project
+      .settings(integrationTestSettings)
+      .configs(IntegrationTest)
   }
 
 }

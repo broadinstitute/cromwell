@@ -9,9 +9,8 @@ import cromwell.webservice.SwaggerUiHttpServiceSpec._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 
-
 trait SwaggerUiHttpServiceSpec extends FlatSpec with Matchers with ScalatestRouteTest with SwaggerUiHttpService {
-  override def swaggerUiVersion = TestSwaggerUiVersion
+  override def swaggerUiVersion = CromwellApiService.swaggerUiVersion
 }
 
 trait SwaggerResourceHttpServiceSpec extends FlatSpec with Matchers with ScalatestRouteTest with
@@ -24,7 +23,6 @@ trait SwaggerUiResourceHttpServiceSpec extends SwaggerUiHttpServiceSpec with Swa
 SwaggerUiResourceHttpService
 
 object SwaggerUiHttpServiceSpec {
-  val TestSwaggerUiVersion = "3.2.2"
   val SwaggerIndexPreamble =
     """
       |<!DOCTYPE html>
@@ -102,7 +100,7 @@ class NoRedirectRootSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
 }
 
 class DefaultSwaggerUiConfigHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerUiConfigHttpService {
-  override def swaggerUiConfig = ConfigFactory.parseString(s"uiVersion = $TestSwaggerUiVersion")
+  override def swaggerUiConfig = ConfigFactory.parseString(s"uiVersion = ${CromwellApiService.swaggerUiVersion}")
 
   behavior of "SwaggerUiConfigHttpService"
 
@@ -123,12 +121,11 @@ class DefaultSwaggerUiConfigHttpServiceSpec extends SwaggerUiHttpServiceSpec wit
 
 class OverriddenSwaggerUiConfigHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerUiConfigHttpService {
   override def swaggerUiConfig = ConfigFactory.parseString(
-    s"""
-       |baseUrl = /base
-       |docsPath = swagger/common.yaml
-       |uiPath = ui/path
-       |uiVersion = $TestSwaggerUiVersion
-     """.stripMargin)
+    s"""|baseUrl = /base
+        |docsPath = swagger/common.yaml
+        |uiPath = ui/path
+        |uiVersion = ${CromwellApiService.swaggerUiVersion}
+        |""".stripMargin)
 
   behavior of "SwaggerUiConfigHttpService"
 

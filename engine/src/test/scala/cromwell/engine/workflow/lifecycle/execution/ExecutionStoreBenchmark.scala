@@ -15,7 +15,7 @@ import wom.graph.{ScatterNode, TaskCallNode}
 /**
   * Benchmarks the performance of the execution store using ScalaMeter (http://scalameter.github.io/)
   * This is not run automatically by "sbt test". To run this test specifically, either use intellij integration, or run
-  * sbt "project engine"  "benchmark:test-only cromwell.engine.workflow.lifecycle.execution.ExecutionStoreBenchmark"
+  * sbt "engine/benchmark:test-only cromwell.engine.workflow.lifecycle.execution.ExecutionStoreBenchmark"
   * sbt benchmark:test will run all ScalaMeter tests
   */
 object ExecutionStoreBenchmark extends Bench[Double] with DefaultJsonProtocol {

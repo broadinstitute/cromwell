@@ -1,6 +1,6 @@
 package wom.values
 
-import org.apache.commons.lang3.StringEscapeUtils
+import org.apache.commons.text.StringEscapeUtils
 import wom.types.WomStringType
 
 import scala.util.{Success, Try}

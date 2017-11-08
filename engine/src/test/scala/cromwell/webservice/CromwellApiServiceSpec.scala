@@ -228,7 +228,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
       )).toEntity
 
       Post(s"/workflows/$version", formData) ~>
-        akkaHttpService.workflowRoutes ~>"proj"
+        akkaHttpService.workflowRoutes ~>
         check {
           assertResult(
             s"""{

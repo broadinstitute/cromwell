@@ -60,7 +60,7 @@ class PureStandardLibraryFunctionsSpec extends FlatSpec with Matchers {
     PureStandardLibraryFunctions.flatten(Seq(Success(saar))) should be(Success(flat_sar))
   }
 
-  it should "return errors for arguments which are not two dimensional arrays" in {
+  it should "return errors for arguments which are arrays with fewer than two dimensions" in {
     val err1 = WomArray(WomArrayType(WomFileType), List.empty)
     PureStandardLibraryFunctions.flatten(Seq(Success(err1))) should be(a[Failure[_]])
 
@@ -68,6 +68,14 @@ class PureStandardLibraryFunctionsSpec extends FlatSpec with Matchers {
     PureStandardLibraryFunctions.flatten(Seq(Success(err2))) should be(a[Failure[_]])
   }
 
+  it should "return errors for arguments which are not arrays" in {
+    val nonArrays: List[WomValue] = List(WomInteger(17),
+                                         WomString("banana"),
+                                         WomFile("/tmp/bubbles"))
+    nonArrays.foreach{ elem =>
+      PureStandardLibraryFunctions.flatten(Seq(Success(elem))) should be(a[Failure[_]])
+    }
+  }
 
   behavior of "prefix"
 

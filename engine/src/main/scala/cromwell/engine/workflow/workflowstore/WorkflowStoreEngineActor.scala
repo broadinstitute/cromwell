@@ -137,15 +137,15 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
     * Fetches at most n workflows, and builds the correct response message based on if there were any workflows or not
     */
   private def newWorkflowMessage(maxWorkflows: Int): Future[WorkflowStoreEngineActorResponse] = {
-    def fetchRunnableWorkflowsIfNeeded(maxWorkflowsInner: Int) = {
+    def fetchStartableWorkflowsIfNeeded(maxWorkflowsInner: Int) = {
       if (maxWorkflows > 0) {
-        store.fetchRunnableWorkflows(maxWorkflowsInner)
+        store.fetchStartableWorkflows(maxWorkflowsInner)
       } else {
         Future.successful(List.empty[WorkflowToStart])
       }
     }
 
-    fetchRunnableWorkflowsIfNeeded(maxWorkflows) map {
+    fetchStartableWorkflowsIfNeeded(maxWorkflows) map {
       case x :: xs => NewWorkflowsToStart(NonEmptyList.of(x, xs: _*))
       case _ => NoNewWorkflowsToStart
     } recover {

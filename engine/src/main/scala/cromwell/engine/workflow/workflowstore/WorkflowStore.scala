@@ -26,7 +26,7 @@ trait WorkflowStore {
     * Retrieves up to n workflows which have not already been pulled into the engine and sets their pickedUp
     * flag to true
     */
-  def fetchRunnableWorkflows(n: Int)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]]
+  def fetchStartableWorkflows(n: Int)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]]
 
   def remove(id: WorkflowId)(implicit ec: ExecutionContext): Future[Boolean]
 }

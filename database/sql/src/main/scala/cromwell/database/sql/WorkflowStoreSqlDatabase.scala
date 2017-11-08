@@ -55,8 +55,8 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
     * Retrieves up to limit workflows which have not already been pulled into the engine and updates their state.
     * NOTE: Rows are returned with the query state, NOT the update state.
     */
-  def fetchRunnableWorkflows(limit: Int)
-                            (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]]
+  def fetchStartableWorkflows(limit: Int)
+                             (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]]
 
   /**
     * Deletes a workflow from the database, returning the number of rows affected.

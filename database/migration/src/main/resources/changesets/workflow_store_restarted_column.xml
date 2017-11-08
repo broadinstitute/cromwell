@@ -26,6 +26,6 @@
             <where>WORKFLOW_STATE = 'RestartableAborting'</where>
         </update>
 
-        <!--Note: there's not need to set the flags to true because that's the first thing Cromwell will do when it starts-->
+        <!--Note: there's no need to set the flags to true because that's the first thing Cromwell will do when it starts-->
     </changeSet>
 </databaseChangeLog>

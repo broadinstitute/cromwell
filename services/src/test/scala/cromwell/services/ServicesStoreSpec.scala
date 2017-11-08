@@ -424,7 +424,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
 
       val future = for {
         _ <- dataAccess.addWorkflowStoreEntries(workflowStoreEntries)
-        queried <- dataAccess.fetchRunnableWorkflows(Int.MaxValue)
+        queried <- dataAccess.fetchStartableWorkflows(Int.MaxValue)
         _ = {
           val emptyEntry = queried.find(_.workflowExecutionUuid == emptyWorkflowUuid).get
           emptyEntry.importsZip.toBytesOption should be(None)

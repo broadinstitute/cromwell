@@ -225,7 +225,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
       val formData = Multipart.FormData(Map(
         "incorrectParameter" -> HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()),
         "incorrectParameter2" -> HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource())
-      )).toEntity()
+      )).toEntity
 
       Post(s"/workflows/$version", formData) ~>
         akkaHttpService.workflowRoutes ~>"proj"

@@ -1,0 +1,15 @@
+name: firstWorkflowCwl
+testFormat: workflowsuccess
+workflowType: CWL
+workflowTypeVersion: v1.0
+
+files {
+  wdl: first_workflow/1st-workflow.cwl
+  inputs: first_workflow/inputs.json
+  imports: [
+    first_workflow/arguments.cwl,
+    first_workflow/tar-param.cwl
+  ]
+}
+
+metadata { }

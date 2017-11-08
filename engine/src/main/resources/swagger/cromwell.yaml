@@ -588,8 +588,6 @@ parameters:
     type: string
     description: The workflow language for the file you submitted. Cromwell currently supports WDL.
     required: false
-    enum: [wdl, cwl]
-    default: wdl
     in: formData
   versionParam:
     name: version

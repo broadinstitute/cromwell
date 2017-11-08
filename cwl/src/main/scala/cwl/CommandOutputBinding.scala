@@ -25,7 +25,7 @@ case class CommandOutputBinding(
 
   http://www.commonwl.org/v1.0/CommandLineTool.html#CommandOutputBinding
    */
-  def commandOutputBindingToWdlValue(parameterContext: ParameterContext,
+  def commandOutputBindingToWomValue(parameterContext: ParameterContext,
                                      ioFunctionSet: IoFunctionSet): WomValue = {
 
     val paths: Seq[String] = glob map { globValue =>

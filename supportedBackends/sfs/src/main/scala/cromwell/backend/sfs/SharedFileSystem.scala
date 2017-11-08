@@ -7,10 +7,10 @@ import cats.syntax.functor._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.io.JobPaths
-import cromwell.backend.wdl.WomFileMapper
 import cromwell.core.CromwellFatalExceptionMarker
 import cromwell.core.path.{DefaultPath, DefaultPathBuilder, Path, PathFactory}
 import common.util.TryUtil
+import wom.WomFileMapper
 import wom.values._
 
 import scala.collection.JavaConverters._

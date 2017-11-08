@@ -16,7 +16,6 @@ import cromwell.backend.impl.jes.RunStatus.UnsuccessfulRunStatus
 import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.DoPoll
 import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardExpressionFunctionsParams}
-import cromwell.backend.wdl.WomFileMapper
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.Tags.PostWomTest
 import cromwell.core._
@@ -34,6 +33,7 @@ import org.scalatest.prop.Tables.Table
 import org.slf4j.Logger
 import org.specs2.mock.Mockito
 import spray.json._
+import wom.WomFileMapper
 import wom.graph.TaskCallNode
 import wom.types._
 import wom.values._

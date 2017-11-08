@@ -13,7 +13,7 @@ import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle, ReturnCodeIsNotAnInt, StderrNonEmpty, SuccessfulExecutionHandle, WrongReturnCode}
 import cromwell.backend.validation._
 import cromwell.backend.wdl.OutputEvaluator._
-import cromwell.backend.wdl.{Command, OutputEvaluator, WomFileMapper}
+import cromwell.backend.wdl.{Command, OutputEvaluator}
 import cromwell.backend._
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.core.path.Path
@@ -26,6 +26,7 @@ import common.util.TryUtil
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.io.GlobFunctions
 import net.ceedubs.ficus.Ficus._
+import wom.WomFileMapper
 import wom.values._
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}
@@ -183,7 +184,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |# symlink all the files into the glob directory
         |( ln -L ${globFile.value} $globDirectory 2> /dev/null ) || ( ln ${globFile.value} $globDirectory )
         |
-        |# list all the files that match teh glob into a file called glob-[md5 of glob].list
+        |# list all the files that match the glob into a file called glob-[md5 of glob].list
         |ls -1 $globDirectory > $globList
         |""".stripMargin
   }

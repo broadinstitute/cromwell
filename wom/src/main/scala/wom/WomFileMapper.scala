@@ -1,4 +1,4 @@
-package cromwell.backend.wdl
+package wom
 
 import common.util.TryUtil
 import wom.values._

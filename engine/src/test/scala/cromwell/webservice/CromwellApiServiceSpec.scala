@@ -228,13 +228,12 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
       )).toEntity()
 
       Post(s"/workflows/$version", formData) ~>
-        akkaHttpService.workflowRoutes ~>
+        akkaHttpService.workflowRoutes ~>"proj"
         check {
           assertResult(
             s"""{
                 |  "status": "fail",
-                |  "message": "Invalid submit request",
-                |  "errors": ["Unexpected body part name: incorrectParameter", "Unexpected body part name: incorrectParameter2"]
+                |  "message": "Error(s): Unexpected body part name: incorrectParameter\\nUnexpected body part name: incorrectParameter2"
                 |}""".stripMargin) {
             responseAs[String]
           }
@@ -319,8 +318,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           assertResult(
             s"""{
                 |  "status": "fail",
-                |  "message": "Invalid submit request",
-                |  "errors": ["No inputs were provided"]
+                |  "message": "Error(s): No inputs were provided"
                 |}""".stripMargin) {
             responseAs[String]
           }

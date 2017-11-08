@@ -14,7 +14,7 @@ import spray.json.{JsObject, JsValue}
 import wdl.WorkflowJson
 import wom.core._
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 final case class PartialWorkflowSources(workflowSource: Option[WorkflowSource] = None,
                                         workflowType: Option[WorkflowType] = None,
@@ -82,7 +82,10 @@ object PartialWorkflowSources {
       })
     }
 
-    partialSourcesToSourceCollections(partialSources, allowNoInputs).toTry("Invalid submit request")
+    partialSourcesToSourceCollections(partialSources, allowNoInputs) match {
+      case Valid(source) => Success(source)
+      case Invalid(errors) => Failure(new RuntimeException(s"Error(s): ${errors.toList.mkString("\n")}"))
+    }
   }
 
   private def workflowInputs(data: String): ErrorOr[Vector[WorkflowJson]] = {

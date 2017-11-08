@@ -29,20 +29,21 @@ object OutputEvaluator {
                       ioFunctions: IoFunctionSet,
                       postMapper: WomValue => Try[WomValue] = v => Success(v)): EvaluatedJobOutputs = {
     val knownValues: Map[String, WomValue] = jobDescriptor.localInputs
-    
+
     def foldFunction(accumulatedOutputs: Try[ErrorOr[List[(OutputPort, WomValue)]]], output: ExpressionBasedOutputPort) = accumulatedOutputs flatMap { accumulated =>
       // Extract the valid pairs from the job outputs accumulated so far, and add to it the inputs (outputs can also reference inputs)
       val allKnownValues: Map[String, WomValue] = accumulated match {
-        case Valid(outputs) => 
+        case Valid(outputs) =>
           // The evaluateValue methods needs a Map[String, WomValue], use the output port name for already computed outputs
           outputs.toMap[OutputPort, WomValue].map({ case (port, value) => port.name -> value }) ++ knownValues
         case Invalid(_) => knownValues
       }
 
       // Attempt to evaluate the expression using all known values
-      def evaluateOutputExpression: OutputResult[WomValue] = {
-        EitherT { Try(output.expression.evaluateValue(allKnownValues, ioFunctions)).map(_.toEither) }
-      }
+      def evaluateOutputExpression: OutputResult[WomValue] =
+        EitherT.fromEither[Try] {
+          output.expression.evaluateValue(allKnownValues, ioFunctions).toEither
+        }
 
       // Attempt to coerce the womValue to the desired output type
       def coerceOutputValue(womValue: WomValue, coerceTo: WomType): OutputResult[WomValue] = {
@@ -68,7 +69,7 @@ object OutputEvaluator {
         (accumulated, evaluatedOutput) mapN { _ :+ _ }
       }
     }
-    
+
     val emptyValue = Success(List.empty[(OutputPort, WomValue)].validNel): Try[ErrorOr[List[(OutputPort, WomValue)]]]
 
     // Fold over the outputs to evaluate them in order, map the result to an EvaluatedJobOutputs

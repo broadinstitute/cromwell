@@ -22,16 +22,34 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
 
   // TODO WOM: outputBinding.toString is probably not be the best representation of the outputBinding
   override def sourceString = outputBinding.toString
+
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
     val parameterContext = ParameterContext.Empty.withInputs(inputValues, ioFunctionSet)
 
-    val wdlValue: WomValue = outputBinding.commandOutputBindingToWdlValue(parameterContext, ioFunctionSet)
-    val extractFile: WomValue =
-      wdlValue match {
+    //To facilitate ECMAScript evaluation, filenames are stored in a map under the key "location"
+    val womValue = outputBinding.
+      commandOutputBindingToWomValue(parameterContext, ioFunctionSet) match {
         case WomArray(_, Seq(WomMap(WomMapType(WomStringType, WomStringType), map))) => map(WomString("location"))
         case other => other
       }
-    cwlExpressionType.coerceRawValue(extractFile).toErrorOr
+
+    //If the value is a string but the output is expecting a file, we consider that string a POSIX "glob" and apply
+    //it accordingly to retrieve the file list to which it expands.
+    val globbedIfFile =
+      (womValue, cwlExpressionType) match {
+
+        //In the case of a single file being expected, we must enforce that the glob only represents a single file
+        case (WomString(glob), WomFileType) =>
+          ioFunctionSet.glob(glob) match {
+            case head :: Nil => WomString(head)
+            case list => throw new RuntimeException(s"expecting a single File glob but instead got $list")
+          }
+
+        case _  => womValue
+      }
+
+    //CWL tells us the type this output is expected to be.  Attempt to coerce the actual output into this type.
+    cwlExpressionType.coerceRawValue(globbedIfFile).toErrorOr
   }
 
   /*
@@ -41,7 +59,7 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
    */
   override def evaluateFiles(inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] ={
 
-    val pc = ParameterContext.Empty.withInputs(inputs, ioFunctionSet)
+    val pc = ParameterContext().withInputs(inputs, ioFunctionSet)
 
     val files = for {
       globValue <- outputBinding.glob.toList

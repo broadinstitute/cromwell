@@ -34,9 +34,8 @@ class FileEvaluatorWdlFunctions
  * evaluate("b.txt") would return Seq().
  */
 case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WomType = WomAnyType) {
-  type T = Seq[WomFile]
-  def lookup = (s:String) => Seq.empty[WomFile]
 
+  def lookup = (s:String) => Seq.empty[WomFile]
 
   private def evalValue(ast: AstNode): Try[WomValue] = valueEvaluator.evaluate(ast)
 

@@ -17,7 +17,7 @@ object RuntimeEnvironmentBuilder {
    def apply(runtimeAttributes: Map[String, WomValue], jobPaths: JobPaths): MinimumRuntimeSettings => RuntimeEnvironment = {
      minimums =>
 
-       val outputPath: String = jobPaths.callRoot.pathAsString
+       val outputPath: String = jobPaths.callExecutionRoot.pathAsString
 
        val tempPath: String = jobPaths.callRoot.pathAsString
 

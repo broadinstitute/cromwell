@@ -101,7 +101,7 @@ class TestReadLikeFunctions(sizeResult: Try[Double]) extends IoFunctionSet {
 
   override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = ???
 
-  override def glob(path: String, pattern: String): Seq[String] = ???
+  override def glob(pattern: String): Seq[String] = ???
 
   override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = sizeResult.map(WomFloat.apply)
 }

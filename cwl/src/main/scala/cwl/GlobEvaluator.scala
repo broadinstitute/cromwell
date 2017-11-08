@@ -59,7 +59,9 @@ object GlobEvaluator {
     }
 
     implicit def caseArrayString: Case.Aux[Array[String], GlobHandler] = {
-      at[Array[String]] { const(_) }
+      at[Array[String]] { _ =>
+        throw new NotImplementedError("The Array[String] case of Glob evaluator has not yet been implemented")
+      }
     }
 
     implicit def caseString: Case.Aux[String, GlobHandler] = {

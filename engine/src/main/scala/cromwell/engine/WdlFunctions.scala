@@ -12,7 +12,7 @@ class WdlFunctions(val pathBuilders: List[PathBuilder]) extends ReadLikeFunction
 
   override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = fail("stdout")
   override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = fail("stderr")
-  override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedError(s"glob(path, pattern) not implemented yet")
+  override def glob(pattern: String): Seq[String] = throw new NotImplementedError(s"glob(path, pattern) not implemented yet")
 
   // TODO WOM: fix this
   override def writeFile(path: String, content: String): Future[WomFile] = Future.failed(new Exception("Can't write files"))

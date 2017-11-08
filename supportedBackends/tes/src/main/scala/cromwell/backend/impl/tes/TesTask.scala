@@ -1,5 +1,6 @@
 package cromwell.backend.impl.tes
 
+import cromwell.backend.io.GlobFunctions
 import cromwell.backend.standard.StandardExpressionFunctions
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.NoIoFunctionSet
@@ -140,7 +141,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
           )
         )
       case (g: WomGlobFile, index) =>
-        val globName = backendEngineFunctions.globName(g.value)
+        val globName = GlobFunctions.globName(g.value)
         val globDirName = "globDir." + index
         val globDirectory = globName + "/"
         val globListName =  "globList." + index

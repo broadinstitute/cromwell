@@ -2,8 +2,8 @@ This section explains at a high level how Cromwell runs a workflow, and how work
 
 In order to run a workflow, Cromwell uses the backends available to it to create jobs and monitor them until they are complete. When no new jobs can or should be started, and all jobs have reached a terminal status (Success, Failure, Aborted), the workflow itself is terminated.
 
-In a ideal situation, all jobs succeed and the workflow succeeds.
-Unfortunately things don't always go as planned. Here is what to expect from Cromwell when things go off rail.
+In an ideal situation, all jobs succeed and the workflow succeeds.
+Unfortunately things don't always go as planned. Here is what to expect from Cromwell when things go off the rails.
 
 ## Failure Modes
 
@@ -14,7 +14,7 @@ Cromwell supports two failure modes:
 
 They specify how Cromwell behaves when a job fails during the execution of a workflow.
 
-`NoNewCalls` will (fairly obviously) not start any new call as soon as a job fails. Cromwell will still monitor the rest of the jobs until they complete (successfully or not).
+`NoNewCalls` will not start any new call as soon as a job fails. Cromwell will still monitor the rest of the jobs until they complete (successfully or not).
 
 `ContinueWhilePossible` will attempt to run as many jobs as possible until no more can be started. When all running jobs are complete, the workflow fails.
 
@@ -59,7 +59,7 @@ If the failure mode is `ContinueWhilePossible`, then A **will be** retried:
 
 In both Run and Server mode, you have the ability to ask Cromwell to abort a running workflow. This section explains what that entails.
 
-When aborting workflow, either through the [abort endpoint](api/RESTAPI#abort-a-running-workflow) or by terminating the [Cromwell run process](Modes) (if [configured](Configuring#abort) to do so), Cromwell will take the following steps:
+When aborting a workflow, either through the [abort endpoint](api/RESTAPI#abort-a-running-workflow) or by terminating the [Cromwell run process](Modes) (if [configured](Configuring#abort) to do so), Cromwell will take the following steps:
 
 - Change the status of the workflow to `Aborting`
 - Do not start any new job going forward
@@ -68,7 +68,7 @@ When aborting workflow, either through the [abort endpoint](api/RESTAPI#abort-a-
 - Finalize the workflow
 - Change the status of the workflow to `Aborted`
 
-The action of aborting a job is backend specific. Cromwell can only ask a backend to abort a job and wait for the backend to notify when it is in fact aborted.
+The action of aborting a job is backend specific. Cromwell can only ask a backend to abort a job and wait for the backend to notify it when it is in fact aborted.
 Note that by the time the backend is asked to abort a job, it might already be successful, or failed, in which case Cromwell will report the job as such.
 
 As an example, the Google backend when asked to abort a job will send an abort request to the Pipelines API. When Pipelines API indicates that the status of the job is aborted, Cromwell will mark it as such.
@@ -76,7 +76,7 @@ However the abort action is entirely dependent on the backend, in this particula
 
 You'll also notice that the workflow is finalized even though being aborted.
 Finalization is the last step in the execution of a workflow and a chance for each backend to do some work before the workflow is terminated.
-Abort won't deny the chance for backends to finalize the workflow.
+Backends won't be denied the chance to finalize the workflow even if it's being aborted.
 
 If a job fails with a retryable failure (e.g is preempted), it will **not** be attempted again when the workflow is aborting.
 

@@ -5,15 +5,27 @@ import java.util.{Base64, UUID}
 
 import akka.NotUsed
 import akka.actor.{Actor, ActorLogging, ActorRef}
-import akka.stream.alpakka.googlecloud.pubsub
-import akka.stream.{ActorAttributes, ActorMaterializer, FlowShape, OverflowStrategy}
+import akka.stream.{ActorMaterializer, FlowShape, OverflowStrategy}
 import akka.stream.alpakka.googlecloud.pubsub.{PubSubMessage, PublishRequest}
 import akka.stream.alpakka.googlecloud.pubsub.scaladsl.GooglePubSub
-import akka.stream.scaladsl.{Flow, GraphDSL, Sink, Source, SourceQueueWithComplete, Unzip, Zip}
-import cromwell.core.Dispatcher
+import akka.stream.scaladsl.{Flow, GraphDSL, Sink, Source, SourceQueueWithComplete, Unzip}
+import better.files.File
+import com.google.auth.oauth2.ServiceAccountCredentials
 import cromwell.core.actor.StreamActorHelper
 import cromwell.core.actor.StreamIntegration.StreamContext
 import cromwell.services.pubsub.impl.google.GooglePubSubActor.{PubSubContext, PubSubRequest}
+
+class FooPubSubActor extends GooglePubSubActor {
+  val credentials = ServiceAccountCredentials.fromStream(new File("/Users/jgentry/broad-dsde-cromwell-dev-1ebbc164ce7e.json").newInputStream)
+
+  override val privateKey = credentials.getPrivateKey
+  override val clientEmail = credentials.getClientEmail
+  override val projectId = credentials.getProjectId
+  override val topic = "test-ps"
+  override val apiKey = "some bullshit"
+
+  override val sourceQueueSize = 100
+}
 
 /**
   * FIXME: Move to cloudSupport
@@ -24,7 +36,8 @@ import cromwell.services.pubsub.impl.google.GooglePubSubActor.{PubSubContext, Pu
   */
 trait GooglePubSubActor extends Actor with ActorLogging with StreamActorHelper[PubSubContext] {
   implicit val actorSystem = context.system
-  implicit val mat = ActorMaterializer()
+  implicit val materializer = ActorMaterializer()
+  implicit val ec = actorSystem.dispatcher
 
   def sourceQueueSize: Int
 
@@ -37,7 +50,7 @@ trait GooglePubSubActor extends Actor with ActorLogging with StreamActorHelper[P
   def parallelism: Int = 1
 
   override protected def actorReceive: Receive = {
-    case request: PubSubRequest => sendToStream(PubSubContext(request, sender()))
+    case request: PubSubRequest => println("I RECEIVED: " + request)//sendToStream(PubSubContext(request, sender()))
   }
 
   protected val publishSource: Source[PubSubContext, SourceQueueWithComplete[PubSubContext]] = {
@@ -65,7 +78,7 @@ trait GooglePubSubActor extends Actor with ActorLogging with StreamActorHelper[P
   override protected def streamSource = publishSource map { context => (context.request, context) }
 
   override val replySink = Sink.foreach[(Any, PubSubContext)] {
-    case (response, commandContext) => "hi there"
+    case (_, _) => () // response and commandContext
   }
 }
 

@@ -83,13 +83,14 @@ final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) e
     value.toList flatMap { _.collectAsSeq(filterFn) }
   }
 
+
   /**
     * Unpack a nested option down to a single layer of optionality
-    * eg Bring Int??[...]? down to Int?
+    * eg Bring Int?[...]? down to Int?
     */
   @tailrec
-  private[wom] def flattenToBaseType: WomOptionalValue = this match {
-    case WomOptionalValue(_: WomOptionalType, Some(innerOptionalValue: WomOptionalValue)) => innerOptionalValue.flattenToBaseType
+  def flattenOptional: WomOptionalValue = this match {
+    case WomOptionalValue(_: WomOptionalType, Some(innerOptionalValue: WomOptionalValue)) => innerOptionalValue.flattenOptional
     case WomOptionalValue(innerType: WomOptionalType, None) => WomOptionalValue(innerType.baseMemberType, None)
     case _ => this
   }
@@ -117,7 +118,7 @@ final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) e
     *  - Make an unnested None with the appropriate final type (eg use String???(None) rather than String???(Some(Some(None))))
     * @param womOptionalType The final type we want to create
     */
-  def coerceAndSetNestingLevel(womOptionalType: WomOptionalType) = this.flattenToBaseType match {
+  def coerceAndSetNestingLevel(womOptionalType: WomOptionalType) = this.flattenOptional match {
     case WomOptionalValue(_, Some(v)) => womOptionalType.baseMemberType.coerceRawValue(v).map(WomOptionalValue(_).boxUntilType(womOptionalType))
     case WomOptionalValue(_, None) => Success(WomOptionalValue(womOptionalType.memberType, None))
   }

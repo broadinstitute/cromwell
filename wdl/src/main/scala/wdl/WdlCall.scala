@@ -86,7 +86,7 @@ object WdlCall {
     def foldInputDefinitions(expressionNodes: Map[LocalName, ExpressionNode], callable: Callable): InputDefinitionFold = {
       // Updates the fold with a new graph input node. Happens when an optional or required undefined input without an
       // expression node mapping is found
-      def withGraphInputNode(inputDefinition: InputDefinition, graphInputNode: GraphInputNode) = {
+      def withGraphInputNode(inputDefinition: InputDefinition, graphInputNode: ExternalGraphInputNode) = {
         InputDefinitionFold(
           mappings = Map(inputDefinition -> Coproduct[InputDefinitionPointer](graphInputNode.singleOutputPort: OutputPort)),
           callInputPorts = Set(callNodeBuilder.makeInputPort(inputDefinition, graphInputNode.singleOutputPort)),

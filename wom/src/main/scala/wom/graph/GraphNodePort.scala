@@ -70,9 +70,10 @@ object GraphNodePort {
   /**
     * Represents the conditional output from a call or declaration in a ConditionalNode
     */
-  final case class ConditionalOutputPort(womType: WomOptionalType, outputToExpose: PortBasedGraphOutputNode, g: Unit => ConditionalNode) extends OutputPort with DelayedGraphNodePort {
+  final case class ConditionalOutputPort(outputToExpose: PortBasedGraphOutputNode, g: Unit => ConditionalNode) extends OutputPort with DelayedGraphNodePort {
     // Since this port just wraps a PortBasedGraphOutputNode which itself wraps an output port, we can re-use the same identifier
     override def identifier: WomIdentifier = outputToExpose.identifier
+    override val womType: WomType = WomOptionalType(outputToExpose.womType).flatOptionalType
     lazy val conditionalNode: ConditionalNode = g(())
   }
 }

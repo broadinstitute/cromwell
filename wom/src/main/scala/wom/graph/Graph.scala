@@ -20,6 +20,7 @@ import wom.values.WomValue
 final case class Graph private(nodes: Set[GraphNode]) {
   lazy val inputNodes: Set[GraphInputNode] = nodes.filterByType[GraphInputNode]
   lazy val externalInputNodes: Set[ExternalGraphInputNode] = nodes.filterByType[ExternalGraphInputNode]
+  lazy val outerGraphInputNodes: Set[OuterGraphInputNode] = nodes.filterByType[OuterGraphInputNode]
   lazy val outputNodes: Set[GraphOutputNode] = nodes.filterByType[GraphOutputNode]
   lazy val calls: Set[CallNode] = nodes.filterByType[CallNode]
   lazy val workflowCalls = calls.filterByType[WorkflowCallNode]: Set[WorkflowCallNode]
@@ -94,7 +95,7 @@ object Graph {
         case (fqn, list) if list.lengthCompare(1) > 0 => fqn
       }).toList match {
       case Nil => ().validNel
-      case head :: tail =>
+      case head :: tail => ().validNel
         NonEmptyList.of(head, tail: _*).map(fqn => s"Two or more nodes have the same FullyQualifiedName: ${fqn.value}").invalid
     }
 

@@ -32,7 +32,7 @@ object DeclarationInterface {
     target.closestCommonAncestor(from) map { ancestor =>
       target.ancestrySafe.takeWhile(_ != ancestor).foldLeft(womType){
         case (acc, _: Scatter) => WomArrayType(acc)
-        case (acc, _: If) => WomOptionalType(acc)
+        case (acc, _: If) => WomOptionalType(acc).flatOptionalType
         case (acc, _) => acc
       }
     } getOrElse womType
@@ -86,12 +86,12 @@ trait DeclarationInterface extends WdlGraphNodeWithUpstreamReferences {
 object Declaration {
 
   sealed trait WdlDeclarationNode {
-    def toGraphNode: GraphNode = this match {
+    lazy val toGraphNode: GraphNode = this match {
       case InputDeclarationNode(graphInputNode) => graphInputNode
       case IntermediateValueDeclarationNode(expressionNode) => expressionNode
       case GraphOutputDeclarationNode(graphOutputNode) => graphOutputNode
     }
-    def singleOutputPort: Option[GraphNodePort.OutputPort] = this match {
+    lazy val singleOutputPort: Option[GraphNodePort.OutputPort] = this match {
       case InputDeclarationNode(graphInputNode) => Option(graphInputNode.singleOutputPort)
       case IntermediateValueDeclarationNode(expressionNode) => Option(expressionNode.singleExpressionOutputPort)
       case GraphOutputDeclarationNode(_) => None

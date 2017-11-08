@@ -103,7 +103,7 @@ class WomGraph(graphName: String, graph: Graph) {
       s"""
          |subgraph $nextCluster {
          |  style=filled;
-         |  fillcolor=lightgray;
+         |  fillcolor=white;
          |${indentAndCombine(n)}
          |}
          |""".stripMargin
@@ -118,27 +118,27 @@ class WomGraph(graphName: String, graph: Graph) {
       s"""
          |subgraph $nextCluster {
          |  style=filled;
-         |  fillcolor=lightgray;
+         |  fillcolor=white;
          |${indentAndCombine(n)}
          |}
          |""".stripMargin
     }
 
     // A box (subgraph) for the condition (i.e. the if(x == 5) expression) and the links to and from it
-    val conditionNodesAndLinks = {
-      val node = s"""
-                    |subgraph $nextCluster {
-                    |  style=filled;
-                    |  fillcolor=${conditional.graphFillColor};
-                    |  "${UUID.randomUUID}" [shape=plaintext label="if(...)"]
-                    |${indentAndCombine(conditional.conditionExpression.inputPorts map portLine)}
-                    |}
-         """.stripMargin
-
-      NodesAndLinks(Set(node), Set.empty)
-    }
+//    val conditionNodesAndLinks = {
+//      val node = s"""
+//                    |subgraph $nextCluster {
+//                    |  style=filled;
+//                    |  fillcolor=${conditional.graphFillColor};
+//                    |  "${UUID.randomUUID}" [shape=plaintext label="if(...)"]
+//                    |${indentAndCombine(conditional.conditionExpression.inputPorts map portLine)}
+//                    |}
+//         """.stripMargin
+//
+//      NodesAndLinks(Set(node), Set.empty)
+//    }
     val outputLinks = conditional.conditionalOutputPorts map { outputPort => s"${outputPort.outputToExpose.singleInputPort.graphId} -> ${outputPort.graphId} [style=dashed arrowhead=none]" }
-    (innerGraph |+| conditionNodesAndLinks).withLinks(outputLinks)
+    (innerGraph).withLinks(outputLinks)
   }
 
   def internalSubworkflowNodesAndLinks(subworkflow: WorkflowCallNode): NodesAndLinks = listAllGraphNodes(subworkflow.callable.innerGraph) wrapNodes { n =>

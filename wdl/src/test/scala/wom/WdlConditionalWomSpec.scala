@@ -88,9 +88,9 @@ class WdlConditionalWomSpec extends FlatSpec with Matchers {
       def validateConnections(validatedOuterGraph: OuterGraphValidations, validatedInnerGraph: InnerGraphValidations) = {
         // The ConditionalNode's output port is correctly associated with the inner graph's GraphOutputNode:
         validatedOuterGraph.conditionalNode.conditionalOutputPorts.toList match {
-          case (port @ ConditionalOutputPort(womType, outputToGather, _)) :: Nil =>
+          case (port @ ConditionalOutputPort(outputToGather, _)) :: Nil =>
             port.name should be("foo.out")
-            womType should be(WomOptionalType(WomStringType))
+            port.womType should be(WomOptionalType(WomStringType))
             outputToGather eq validatedInnerGraph.foo_out_innerOutput should be(true)
           case other => fail("Expected exactly one output to be gathered in this conditional but got:" + other.mkString("\n", "\n", "\n"))
         }

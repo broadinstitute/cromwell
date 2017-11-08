@@ -106,14 +106,15 @@ object CallNode {
 
   final case class InputDefinitionFold(mappings: InputDefinitionMappings = Map.empty,
                                                        callInputPorts: Set[InputPort] = Set.empty,
-                                                       newGraphInputNodes: Set[GraphInputNode] = Set.empty,
+                                                       newGraphInputNodes: Set[ExternalGraphInputNode] = Set.empty,
                                                        newExpressionNodes: Set[ExpressionNode] = Set.empty)
 
   type InputDefinitionPointer = OutputPort :+: WomExpression :+: WomValue :+: CNil
   type InputDefinitionMappings = Map[InputDefinition, InputDefinitionPointer]
 
-  final case class CallNodeAndNewNodes(node: CallNode, newInputs: Set[GraphInputNode], newExpressions: Set[ExpressionNode]) extends GeneratedNodeAndNewNodes {
+  final case class CallNodeAndNewNodes(node: CallNode, newInputs: Set[ExternalGraphInputNode], newExpressions: Set[ExpressionNode]) extends GeneratedNodeAndNewNodes {
     def nodes: Set[GraphNode] = Set(node) ++ newInputs ++ newExpressions
+    override def nestedOuterGraphInputNodes: Set[_ <: OuterGraphInputNode] = Set.empty
   }
 
   /**

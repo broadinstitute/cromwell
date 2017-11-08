@@ -13,7 +13,7 @@ class WomOptionalValueSpec extends FlatSpec with Matchers {
     val opt = WomOptionalValue(WomInteger(75))
     opt.womType.toDisplayString should be("Int?")
 
-    val flattened = opt.flattenToBaseType
+    val flattened = opt.flattenOptional
     flattened should be(WomOptionalValue(WomInteger(75)))
     flattened.womType.toDisplayString should be("Int?")
   }
@@ -22,7 +22,7 @@ class WomOptionalValueSpec extends FlatSpec with Matchers {
     val opt = WomOptionalValue(WomIntegerType, None)
     opt.womType.toDisplayString should be("Int?")
 
-    val flattened = opt.flattenToBaseType
+    val flattened = opt.flattenOptional
     flattened should be(WomOptionalValue(WomIntegerType, None))
     flattened.womType.toDisplayString should be("Int?")
   }
@@ -33,7 +33,7 @@ class WomOptionalValueSpec extends FlatSpec with Matchers {
     val opt = WomOptionalValue(WomOptionalValue(WomInteger(75)))
     opt.womType.toDisplayString should be("Int??")
 
-    val flattened = opt.flattenToBaseType
+    val flattened = opt.flattenOptional
     flattened should be(WomOptionalValue(WomInteger(75)))
     flattened.womType.toDisplayString should be("Int?")
   }
@@ -42,7 +42,7 @@ class WomOptionalValueSpec extends FlatSpec with Matchers {
     val opt = WomOptionalValue(WomOptionalType(WomIntegerType), None)
     opt.womType.toDisplayString should be("Int??")
 
-    val flattened = opt.flattenToBaseType
+    val flattened = opt.flattenOptional
     flattened should be(WomOptionalValue(WomIntegerType, None))
     flattened.womType.toDisplayString should be("Int?")
   }
@@ -51,7 +51,7 @@ class WomOptionalValueSpec extends FlatSpec with Matchers {
     val opt = WomOptionalValue(WomOptionalValue(WomIntegerType, None))
     opt.womType.toDisplayString should be("Int??")
 
-    val flattened = opt.flattenToBaseType
+    val flattened = opt.flattenOptional
     flattened should be(WomOptionalValue(WomIntegerType, None))
     flattened.womType.toDisplayString should be("Int?")
   }
@@ -62,7 +62,7 @@ class WomOptionalValueSpec extends FlatSpec with Matchers {
     val opt = WomOptionalValue(WomOptionalValue(WomOptionalValue(WomInteger(75))))
     opt.womType.toDisplayString should be("Int???")
 
-    val flattened = opt.flattenToBaseType
+    val flattened = opt.flattenOptional
     flattened should be(WomOptionalValue(WomInteger(75)))
     flattened.womType.toDisplayString should be("Int?")
   }
@@ -71,7 +71,7 @@ class WomOptionalValueSpec extends FlatSpec with Matchers {
     val opt = WomOptionalValue(WomOptionalType(WomOptionalType(WomIntegerType)), None)
     opt.womType.toDisplayString should be("Int???")
 
-    val flattened = opt.flattenToBaseType
+    val flattened = opt.flattenOptional
     flattened should be(WomOptionalValue(WomIntegerType, None))
     flattened.womType.toDisplayString should be("Int?")
   }
@@ -80,7 +80,7 @@ class WomOptionalValueSpec extends FlatSpec with Matchers {
     val opt = WomOptionalValue(WomOptionalValue(WomOptionalType(WomIntegerType), None))
     opt.womType.toDisplayString should be("Int???")
 
-    val flattened = opt.flattenToBaseType
+    val flattened = opt.flattenOptional
     flattened should be(WomOptionalValue(WomIntegerType, None))
     flattened.womType.toDisplayString should be("Int?")
   }
@@ -89,7 +89,7 @@ class WomOptionalValueSpec extends FlatSpec with Matchers {
     val opt = WomOptionalValue(WomOptionalValue(WomOptionalValue(WomIntegerType, None)))
     opt.womType.toDisplayString should be("Int???")
 
-    val flattened = opt.flattenToBaseType
+    val flattened = opt.flattenOptional
     flattened should be(WomOptionalValue(WomIntegerType, None))
     flattened.womType.toDisplayString should be("Int?")
   }

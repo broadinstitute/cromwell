@@ -60,9 +60,10 @@ object OuterGraphInputNode {
 /**
   * Used to represent an input to any GraphNode's inner graph which is a link to a value somewhere in the outer graph.
   */
-class OuterGraphInputNode(override val identifier: WomIdentifier, val linkToOuterGraph: GraphNodePort.OutputPort, val preserveScatterIndex: Boolean) extends GraphInputNode {
+class OuterGraphInputNode protected(override val identifier: WomIdentifier, val linkToOuterGraph: GraphNodePort.OutputPort, val preserveScatterIndex: Boolean) extends GraphInputNode {
   override def womType: WomType = linkToOuterGraph.womType
   override lazy val singleOutputPort: GraphNodeOutputPort = GraphNodeOutputPort(identifier, womType, this)
+  lazy val linkToOuterGraphNode = linkToOuterGraph.graphNode
 }
 
 final case class ScatterVariableNode(override val identifier: WomIdentifier,

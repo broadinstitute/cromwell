@@ -7,7 +7,6 @@ import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import wdl.AstTools.{EnhancedAstNode, VariableReference}
 import wom.graph.CallNode.CallNodeAndNewNodes
 import wom.graph.GraphNode.GeneratedNodeAndNewNodes
-import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.graph.expression.ExposedExpressionNode
 
@@ -31,7 +30,14 @@ sealed trait WdlGraphNode extends Scope {
       case ancestor: WdlGraphNode => ancestor
     })
 
-    (referencedNodes ++ closestScopedAncestor.toSeq).toSet
+    // We want:
+    // - Nodes that this node references
+    // - The immediate ancestor
+    // - Anything that our children sre downstream from
+    // But because our children's upstream might also include these (which we don't want), filter out:
+    // - This
+    // - Any other WdlGraphNode descendants of this
+    (referencedNodes ++ closestScopedAncestor.toSeq ++ childGraphNodes.flatMap(_.upstream)).toSet - this -- descendants.filterByType[WdlGraphNode]
   }
 
   final lazy val downstream: Set[WdlGraphNode] = {
@@ -72,15 +78,29 @@ object WdlGraphNode {
       }.toMap
     )
 
-    def foldFunction(acc: ErrorOr[FoldState], node: WdlGraphNode): ErrorOr[FoldState] = acc flatMap { goodAcc =>  buildNode(goodAcc, node) }
+    def foldFunction(acc: ErrorOr[FoldState], node: WdlGraphNode): ErrorOr[FoldState] = acc flatMap { goodAcc => buildNode(goodAcc, node) }
 
     def foldInGeneratedNodeAndNewInputs(acc: FoldState, outputPortPrefix: String)(gnani: GeneratedNodeAndNewNodes): FoldState = {
       // The output ports from the new node
       val newCallOutputPorts = (gnani.node.outputPorts map { p => s"$outputPortPrefix${p.name}" -> p }).toMap
       // The output ports from newly created GraphInputNodes:
       val newInputOutputPorts = (gnani.newInputs map { i => i.localName -> i.singleOutputPort }).toMap
+      val usedOuterGraphInputNodes = gnani.nestedOuterGraphInputNodes.map(_.linkToOuterGraphNode)
 
-      FoldState(acc.nodes + gnani.node ++ gnani.newInputs ++ gnani.newExpressions, acc.availableInputs ++ newCallOutputPorts ++ newInputOutputPorts)
+      // To make our new list of Nodes in this graph, we add:
+      // - All the existing Nodes
+      // - The newly generated Node
+      // - Any new inputs made by the generated Node
+      // - Any OGINs that were generated during the creation of the new Node
+      // - Any new Expression Nodes that were made during the generation of the new Node.
+      // To make our new list of available inputs, we add:
+      // - All the existing ports in the FoldState
+      // - Any new call outputs from the generated Node
+      // - The outputs from any new input Nodes we had to make (so that other Nodes don't have to recreate them)
+      FoldState(
+        nodes = acc.nodes + gnani.node ++ gnani.newInputs ++ usedOuterGraphInputNodes ++ gnani.newExpressions,
+        availableInputs = acc.availableInputs ++ newCallOutputPorts ++ newInputOutputPorts
+      )
     }
 
     def buildNode(acc: FoldState, node: WdlGraphNode): ErrorOr[FoldState] = node match {
@@ -89,11 +109,17 @@ object WdlGraphNode {
       }
 
       case decl: DeclarationInterface => Declaration.buildWomNode(decl, acc.availableInputs, outerLookup, preserveIndexForOuterLookups) map { declNode =>
-        FoldState(acc.nodes + declNode.toGraphNode, acc.availableInputs ++ declNode.singleOutputPort.collect { case sop: OutputPort => declNode.toGraphNode.localName -> sop })
+        // As with GeneratedNodeAndNewInputs, we might have made some new OuterGraphInputNodes to build this DeclarationNode, so
+        // make sure they get included:
+        val newOgins: Set[OuterGraphInputNode] = declNode.toGraphNode.upstream.filterByType[OuterGraphInputNode]
+        val newOginOutputs = newOgins map {ogin => ogin.localName -> ogin.singleOutputPort }
+        FoldState(acc.nodes + declNode.toGraphNode ++ newOgins, acc.availableInputs ++ newOginOutputs ++ declNode.singleOutputPort.map { sop => declNode.toGraphNode.localName -> sop })
       }
 
-      case scatter: Scatter => Scatter.womScatterNode(scatter, acc.availableInputs, outerLookup, preserveIndexForOuterLookups) map { foldInGeneratedNodeAndNewInputs(acc, "")(_) }
-      case ifBlock: If => If.womConditionalNode(ifBlock, acc.availableInputs, outerLookup, preserveIndexForOuterLookups) map { foldInGeneratedNodeAndNewInputs(acc, "")(_) }
+      case scatter: Scatter =>
+        Scatter.womScatterNode(scatter, acc.availableInputs, outerLookup, preserveIndexForOuterLookups) map { foldInGeneratedNodeAndNewInputs(acc, "")(_) }
+      case ifBlock: If =>
+        If.womConditionalNode(ifBlock, acc.availableInputs, outerLookup, preserveIndexForOuterLookups) map { foldInGeneratedNodeAndNewInputs(acc, "")(_) }
 
       case _ => s"Cannot process WdlGraphNodes of type ${node.getClass.getSimpleName} yet!".invalidNel
     }

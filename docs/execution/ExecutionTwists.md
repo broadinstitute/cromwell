@@ -1,5 +1,3 @@
-This section explains at a high level how Cromwell runs a workflow, and how workflow completeness is determined.
-
 In order to run a workflow, Cromwell uses the backends available to it to create jobs and monitor them until they are complete. When no new jobs can or should be started, and all jobs have reached a terminal status (Success, Failure, Aborted), the workflow itself is terminated.
 
 In an ideal situation, all jobs succeed and the workflow succeeds.

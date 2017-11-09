@@ -53,7 +53,7 @@ case class CommandLineTool private(
 
     val commandTemplate: Seq[CommandPart] = baseCommand.toSeq.flatMap(_.fold(BaseCommandToCommandParts)) ++
       arguments.toSeq.flatMap(_.map(_.fold(ArgumentToCommandPart))) ++
-      orderedInputs
+      CommandLineTool.orderedForCommandLine(inputs).map(InputParameterCommandPart.apply)
 
     val runtimeAttributes: RuntimeAttributes = RuntimeAttributes(Map.empty[String, WomExpression])
 
@@ -120,18 +120,20 @@ case class CommandLineTool private(
 
   def asCwl = Coproduct[Cwl](this)
 
+}
+
+object CommandLineTool {
+
   /**
     * Sort according to position. If position does not exist, use 0 per spec:
     * http://www.commonwl.org/v1.0/CommandLineTool.html#CommandLineBinding
     */
-  def orderedInputs: Seq[CommandPart] =
+  protected[cwl] def orderedForCommandLine(inputs: Array[CommandInputParameter]):Seq[CommandInputParameter] = {
     inputs.
+      filter(_.inputBinding.isDefined).
       sortBy(_.inputBinding.flatMap(_.position).getOrElse(0)).
-      toSeq.
-      map(InputParameterCommandPart.apply)
-}
-
-object CommandLineTool {
+      toSeq
+  }
 
   def apply(inputs: Array[CommandInputParameter] = Array.empty,
             outputs: Array[CommandOutputParameter] = Array.empty,

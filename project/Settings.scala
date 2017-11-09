@@ -142,13 +142,13 @@ object Settings {
       // The assembly task generates a fat JAR file
       val artifact: File = assembly.value
       val artifactTargetPath = s"/app/${artifact.name}"
-      val artifactName = name.value
+      val projectName = name.value
 
       new Dockerfile {
         from("openjdk:8")
         expose(8000)
         add(artifact, artifactTargetPath)
-        runRaw(s"ln -s $artifactTargetPath /app/$artifactName.jar")
+        runRaw(s"ln -s $artifactTargetPath /app/$projectName.jar")
 
         // If you use the 'exec' form for an entry point, shell processing is not performed and
         // environment variable substitution does not occur.  Thus we have to /bin/bash here
@@ -157,7 +157,7 @@ object Settings {
         entryPoint(
           "/bin/bash",
           "-c",
-          s"java $${JAVA_OPTS} -jar /app/$artifactName.jar $${${artifactName.toUpperCase}_ARGS} $${*}",
+          s"java $${JAVA_OPTS} -jar /app/$projectName.jar $${${projectName.toUpperCase}_ARGS} $${*}",
           "--"
         )
       }
@@ -168,8 +168,7 @@ object Settings {
     )
   )
 
-  val engineSettings = versionConfCompileSettings
-  val centaurCwlRunnerSettings = versionConfCompileSettings
+  val engineSettings = List(resourceGenerators in Compile += writeSwaggerUiVersionConf)
 
   private def buildProject(project: Project,
                            projectName: String,
@@ -190,14 +189,17 @@ object Settings {
                             customSettings: Seq[Setting[_]] = List.empty,
                             integrationTests: Boolean = false,
                             crossCompile: Boolean = false): Project = {
+
       val builders: Seq[Project => Project] = List(
         addTestSettings,
         if (integrationTests) addIntegrationTestSettings else identity,
         _
           .disablePlugins(AssemblyPlugin)
           .settings(if (crossCompile) crossVersionSettings else List.empty)
+          .settings(resourceGenerators in Compile += writeProjectVersionConf)
           .settings(customSettings)
       )
+
       buildProject(project, libraryName, dependencies, builders)
     }
   }
@@ -212,7 +214,10 @@ object Settings {
       val builders: Seq[Project => Project] = List(
         addTestSettings,
         if (buildDocker) _.enablePlugins(DockerPlugin).settings(dockerSettings) else identity,
-        _.settings(assemblySettings).settings(customSettings)
+        _
+          .settings(assemblySettings)
+          .settings(resourceGenerators in Compile += writeProjectVersionConf)
+          .settings(customSettings)
       )
 
       buildProject(project, executableName, dependencies, builders)

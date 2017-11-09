@@ -104,7 +104,7 @@ cd "${RUN_DIR}"
 TEST_STATUS="failed"
 
 sbt centaur/it:compile
-CP=$(sbt "export centaur/it:dependency-classpath" --error)
+CP=$(sbt "export centaur/it:dependencyClasspath" --error)
 
 if [ -n "${TEST_CASE_DIR}" ]; then
     RUN_SPECIFIED_TEST_DIR_CMD="-Dcentaur.standardTestCasePath=${TEST_CASE_DIR}"

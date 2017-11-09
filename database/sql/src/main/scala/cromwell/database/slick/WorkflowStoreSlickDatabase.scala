@@ -4,53 +4,74 @@ import cats.instances.future._
 import cats.syntax.functor._
 import cromwell.database.sql.WorkflowStoreSqlDatabase
 import cromwell.database.sql.tables.WorkflowStoreEntry
+import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
+import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.language.postfixOps
 
 trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
   this: EngineSlickDatabase =>
 
   import dataAccess.driver.api._
 
-  override def updateWorkflowsInState(updates: List[(String, String)])
-                                     (implicit ec: ExecutionContext): Future[Unit] = {
-    val updateQueries = updates.map({
-      case (oldState, newState) => dataAccess.workflowStateForWorkflowState(oldState).update(newState)
-    })
+  override def setAllRunningToAborting()(implicit ec: ExecutionContext): Future[Unit] = {
+    val action = dataAccess
+      .workflowStateForWorkflowState(WorkflowStoreState.Running)
+      .update(WorkflowStoreState.Aborting)
 
-    val action = DBIO.sequence(updateQueries)
-    runTransaction(action) void
+    runTransaction(action).void
   }
 
-  override def updateWorkflowState(workflowId: String, newWorkflowState: String)
-                                     (implicit ec: ExecutionContext): Future[Int] = {
-    val action = dataAccess.workflowStateForId(workflowId).update(newWorkflowState)
+  override def markRunningAndAbortingAsRestarted()(implicit ec: ExecutionContext): Future[Unit] = {
+    val action = dataAccess.restartedFlagForRunningAndAborting.update(true)
+
+    runTransaction(action).void
+  }
+
+  /**
+    * Set the workflow Id to Aborting state.
+    * @return Some(restarted) if the workflow exists in the store, where restarted is the value of its restarted flag
+    *         None if the workflow does not exist in the store
+    */
+  override def setToAborting(workflowId: String)
+                            (implicit ec: ExecutionContext): Future[Option[Boolean]] = {
+    val action =  for {
+      restarted <- dataAccess.workflowRestartedForId(workflowId).result.headOption
+      _ <- dataAccess.workflowStateForId(workflowId).update(WorkflowStoreState.Aborting)
+    } yield restarted
+    
     runTransaction(action)
   }
 
   override def addWorkflowStoreEntries(workflowStoreEntries: Iterable[WorkflowStoreEntry])
                                       (implicit ec: ExecutionContext): Future[Unit] = {
     val action = dataAccess.workflowStoreEntryIdsAutoInc ++= workflowStoreEntries
-    runTransaction(action) void
+    runTransaction(action).void
   }
 
-  override def queryWorkflowStoreEntries(limit: Int, queryWorkflowState: String, updateWorkflowState: String)
-                                        (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]] = {
+  override def fetchStartableWorkflows(limit: Int)
+                                      (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]] = {
     val action = for {
-      workflowStoreEntries <- dataAccess.workflowStoreEntriesForWorkflowState((queryWorkflowState, limit.toLong)).result
-      _ <- DBIO.sequence(workflowStoreEntries map updateWorkflowStateForWorkflowExecutionUuid(updateWorkflowState))
+      workflowStoreEntries <- dataAccess.fetchStartableWorkflows(limit.toLong).result
+      _ <- DBIO.sequence(workflowStoreEntries map updateWorkflowStateAndRestartedForWorkflowExecutionUuid)
     } yield workflowStoreEntries
+
     runTransaction(action)
   }
 
-  private def updateWorkflowStateForWorkflowExecutionUuid(updateWorkflowState: String)
-                                                         (workflowStoreEntry: WorkflowStoreEntry)
+  private def updateWorkflowStateAndRestartedForWorkflowExecutionUuid(workflowStoreEntry: WorkflowStoreEntry)
                                                          (implicit ec: ExecutionContext): DBIO[Unit] = {
     val workflowExecutionUuid = workflowStoreEntry.workflowExecutionUuid
+    val updateState = workflowStoreEntry.workflowState match {
+        // Submitted workflows become running when fetched
+      case WorkflowStoreState.Submitted => WorkflowStoreState.Running
+        // Running or Aborting stay as is
+      case other => other
+    }
     for {
-      updateCount <- dataAccess.workflowStateForWorkflowExecutionUuid(workflowExecutionUuid).update(updateWorkflowState)
-      _ <- assertUpdateCount(s"Update $workflowExecutionUuid to $updateWorkflowState", updateCount, 1)
+      // When fetched, the restarted flag is set back to false so we don't pick it up next time.
+      updateCount <- dataAccess.workflowStateAndRestartedForWorkflowExecutionUuid(workflowExecutionUuid).update((updateState, false))
+      _ <- assertUpdateCount(s"Update $workflowExecutionUuid to $updateState", updateCount, 1)
     } yield ()
   }
 
@@ -59,7 +80,7 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     runTransaction(action)
   }
   
-  override def stats(implicit ec: ExecutionContext): Future[Map[String, Int]] = {
+  override def stats(implicit ec: ExecutionContext): Future[Map[WorkflowStoreState, Int]] = {
     val action = dataAccess.workflowStoreStats.result
     runTransaction(action) map { _.toMap }
   }

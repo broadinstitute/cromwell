@@ -5,16 +5,16 @@ import akka.actor._
 import akka.event.Logging
 import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
+import common.exception.ThrowableAggregation
 import cromwell.backend.async.KnownJobFailureException
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.{WorkflowAborted, WorkflowId}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
-import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreState}
+import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.webservice.EngineStatsActor
-import common.exception.ThrowableAggregation
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.exception.ExceptionUtils
 
@@ -35,7 +35,7 @@ object WorkflowManagerActor {
   case object PreventNewWorkflowsFromStarting extends WorkflowManagerActorMessage
   sealed trait WorkflowManagerActorCommand extends WorkflowManagerActorMessage
   case object RetrieveNewWorkflows extends WorkflowManagerActorCommand
-  final case class AbortWorkflowCommand(id: WorkflowId) extends WorkflowManagerActorCommand
+  final case class AbortWorkflowCommand(id: WorkflowId, restarted: Boolean) extends WorkflowManagerActorCommand
   case object AbortAllWorkflowsCommand extends WorkflowManagerActorCommand
   final case class SubscribeToWorkflowCommand(id: WorkflowId) extends WorkflowManagerActorCommand
   case object EngineStatsCommand extends WorkflowManagerActorCommand
@@ -145,16 +145,24 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     case Event(SubscribeToWorkflowCommand(id), data) =>
       data.workflows.get(id) foreach {_ ! SubscribeTransitionCallBack(sender())}
       stay()
-    case Event(WorkflowManagerActor.AbortWorkflowCommand(id), stateData) =>
+    case Event(WorkflowManagerActor.AbortWorkflowCommand(id, restarted), stateData) =>
       val workflowActor = stateData.workflows.get(id)
       workflowActor match {
         case Some(actor) =>
           actor ! WorkflowActor.AbortWorkflowCommand
           stay()
+        /*
+          * If there's no actor for this workflow yet but it's being restarted, then we need to wait.
+          * That's because we do want to restart this workflow so that we can reconnect to its jobs and update their status.
+          * Eventually this workflow will be fetched from the workflow store and restarted.
+         */
+        case None if restarted =>
+          stay()
+        // If the workflow is not being restarted, then we can just declare it aborted
         case None =>
-          // All cool, if we got this far the workflow ID was found in the workflow store so this workflow must have never
-          // made it to the workflow manager.
           pushCurrentStateToMetadataService(id, WorkflowAborted)
+          // This will remove the entry from the workflow store
+          params.jobStoreActor ! RegisterWorkflowCompleted(id)
           stay()
       }
     case Event(AbortAllWorkflowsCommand, data) if data.workflows.isEmpty =>
@@ -247,10 +255,10 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   private def submitWorkflow(workflow: workflowstore.WorkflowToStart): WorkflowIdToActorRef = {
     val workflowId = workflow.id
 
-    if (workflow.state == WorkflowStoreState.Submitted) {
-      logger.info(s"$tag Starting workflow UUID($workflowId)")
+    if (workflow.state.restarted) {
+      logger.info(s"$tag Restarting workflow UUID($workflowId) in ${workflow.state.toString} state")
     } else {
-      logger.info(s"$tag Restarting workflow UUID($workflowId) in ${workflow.state} state")
+      logger.info(s"$tag Starting workflow UUID($workflowId)")
     }
 
     val wfProps = WorkflowActor.props(workflowId, workflow.state, workflow.sources, config, params.ioActor, params.serviceRegistryActor,

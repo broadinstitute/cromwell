@@ -604,7 +604,7 @@ object CromwellApiServiceSpec {
         sender ! response
       case AbortWorkflowCommand(id) =>
         val message = id match {
-          case ExistingWorkflowId => WorkflowAbortingResponse(id)
+          case ExistingWorkflowId => WorkflowAbortingResponse(id, restarted = false)
           case UnrecognizedWorkflowId => WorkflowAbortFailureResponse(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
           case AbortedWorkflowId =>
             WorkflowAbortFailureResponse(id, new IllegalStateException(s"Workflow ID '$id' is in terminal state 'Aborted' and cannot be aborted."))

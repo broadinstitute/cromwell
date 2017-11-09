@@ -16,7 +16,7 @@ import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparat
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
 import cromwell.engine.workflow.lifecycle.execution.keys.SubWorkflowKey
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
-import cromwell.engine.workflow.workflowstore.WorkflowStoreState.{RestartableRunning, StartableState, Submitted}
+import cromwell.engine.workflow.workflowstore.{RestartableRunning, StartableState, Submitted}
 import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor, WdlFunctions}
 import cromwell.subworkflowstore.SubWorkflowStoreActor.{QuerySubWorkflow, SubWorkflowFound, SubWorkflowNotFound}
 import cromwell.util.WomMocks

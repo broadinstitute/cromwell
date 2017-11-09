@@ -238,7 +238,7 @@ object Operations {
         // as soon as it has requested cancellation, not when PAPI says its cancelled
         Try(checkPAPIAborted())
         // Give some time to the VM to actually die (PAPI says it's cancelled before the VM is actually killed)
-        eventually(OffsetDateTime.now(), 3.minutes) {
+        eventually(OffsetDateTime.now(), 5.minutes) {
           Try(checkVMTerminated())
         }
       } else Success(())

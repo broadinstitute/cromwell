@@ -10,9 +10,10 @@ import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags._
 import cromwell.core.WorkflowId
 import cromwell.database.migration.liquibase.LiquibaseUtils
-import cromwell.database.slick.{MetadataSlickDatabase, EngineSlickDatabase, SlickDatabase}
+import cromwell.database.slick.{EngineSlickDatabase, MetadataSlickDatabase, SlickDatabase}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.JobStoreJoin
+import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
 import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry, WorkflowStoreEntry}
 import liquibase.diff.DiffResult
 import liquibase.diff.output.DiffOutputControl
@@ -309,7 +310,8 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         workflowDefinition = clobOption,
         workflowInputs = clobOption,
         workflowOptions = clobOption,
-        workflowState = "Testing",
+        workflowState = WorkflowStoreState.Submitted,
+        restarted = false,
         submissionTime = OffsetDateTime.now.toSystemTimestamp,
         importsZip = Option(emptyBlob),
         customLabels = clob)
@@ -371,7 +373,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       import eu.timepit.refined.auto._
       import eu.timepit.refined.collection._
 
-      val testWorkflowState = "Testing"
+      val testWorkflowState = WorkflowStoreState.Submitted
       val clob = "".toClob(default = "{}")
       val clobOption = "{}".toClobOption
 
@@ -384,6 +386,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         workflowInputs = clobOption,
         workflowOptions = clobOption,
         workflowState = testWorkflowState,
+        restarted = false,
         submissionTime = OffsetDateTime.now.toSystemTimestamp,
         importsZip = Option(Array.empty[Byte]).toBlobOption,
         customLabels = clob)
@@ -397,6 +400,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         workflowInputs = clobOption,
         workflowOptions = clobOption,
         workflowState = testWorkflowState,
+        restarted = false,
         submissionTime = OffsetDateTime.now.toSystemTimestamp,
         importsZip = None,
         customLabels = clob)
@@ -411,6 +415,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         workflowInputs = clobOption,
         workflowOptions = clobOption,
         workflowState = testWorkflowState,
+        restarted = false,
         submissionTime = OffsetDateTime.now.toSystemTimestamp,
         importsZip = Option(Array(aByte)).toBlobOption,
         customLabels = clob)
@@ -419,7 +424,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
 
       val future = for {
         _ <- dataAccess.addWorkflowStoreEntries(workflowStoreEntries)
-        queried <- dataAccess.queryWorkflowStoreEntries(Int.MaxValue, testWorkflowState, testWorkflowState)
+        queried <- dataAccess.fetchStartableWorkflows(Int.MaxValue)
         _ = {
           val emptyEntry = queried.find(_.workflowExecutionUuid == emptyWorkflowUuid).get
           emptyEntry.importsZip.toBytesOption should be(None)

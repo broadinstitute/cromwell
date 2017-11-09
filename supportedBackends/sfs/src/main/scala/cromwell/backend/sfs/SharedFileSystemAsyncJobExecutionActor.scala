@@ -13,6 +13,7 @@ import wom.values.WomFile
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.util.{Failure, Success, Try}
 
 case class SharedFileSystemRunStatus(returnCodeFileExists: Boolean) {
   override def toString: String = if (returnCodeFileExists) "Done" else "WaitingForReturnCodeFile"
@@ -167,24 +168,27 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   private def reconnectToExistingJob(job: StandardAsyncJob, forceAbort: Boolean = false): ExecutionHandle = {
     // To avoid race conditions, check for the rc file after checking if the job is alive.
-    if (isAlive(job)) {
-      // If the job is not done and forceAbort is true, try to abort it
-      if (!jobPaths.returnCode.exists && forceAbort) {
-        jobLogger.info(s"Recovering and aborting using job id: ${job.jobId}")
-        tryAbort(job)
-      }
-      PendingExecutionHandle(jobDescriptor, job, None, None)
-      // If we're done, we'll get to the rc during the next poll.
-    } else if (jobPaths.returnCode.exists) {
-      PendingExecutionHandle(jobDescriptor, job, None, None)
-    } else {
-      // Could start executeScript(), but for now fail because we shouldn't be in this state.
-      FailedNonRetryableExecutionHandle(new RuntimeException(
-        s"Unable to determine that ${job.jobId} is alive, and ${jobPaths.returnCode} does not exist."), None)
+    isAlive(job) match {
+      case Success(true) =>
+        // If the job is not done and forceAbort is true, try to abort it
+        if (!jobPaths.returnCode.exists && forceAbort) {
+          jobLogger.info(s"Recovering and aborting using job id: ${job.jobId}")
+          tryAbort(job)
+        }
+        PendingExecutionHandle(jobDescriptor, job, None, None)
+      case Success(false) =>
+        if (jobPaths.returnCode.exists) {
+          PendingExecutionHandle(jobDescriptor, job, None, None)
+        } else {
+          // Could start executeScript(), but for now fail because we shouldn't be in this state.
+          FailedNonRetryableExecutionHandle(new RuntimeException(
+            s"Unable to determine that ${job.jobId} is alive, and ${jobPaths.returnCode} does not exist."), None)
+        }
+      case Failure(f) => FailedNonRetryableExecutionHandle(f, None)
     }
   }
 
-  def isAlive(job: StandardAsyncJob): Boolean = {
+  def isAlive(job: StandardAsyncJob): Try[Boolean] = Try {
     val argv = checkAliveArgs(job).argv
     val stdout = jobPaths.stdout.plusExt("check")
     val stderr = jobPaths.stderr.plusExt("check")

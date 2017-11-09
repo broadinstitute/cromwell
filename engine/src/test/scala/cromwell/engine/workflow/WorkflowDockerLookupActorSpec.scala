@@ -11,7 +11,7 @@ import cromwell.docker.DockerHashActor.{DockerHashFailedResponse, DockerHashSucc
 import cromwell.docker.{DockerHashRequest, DockerHashResult, DockerImageIdentifier, DockerImageIdentifierWithoutHash}
 import cromwell.engine.workflow.WorkflowDockerLookupActor.{DockerHashActorTimeout, WorkflowDockerLookupFailure, WorkflowDockerTerminalFailure}
 import cromwell.engine.workflow.WorkflowDockerLookupActorSpec._
-import cromwell.engine.workflow.workflowstore.WorkflowStoreState.{StartableState, Submitted}
+import cromwell.engine.workflow.workflowstore.{StartableState, Submitted}
 import cromwell.services.EngineServicesStore
 import cromwell.services.ServicesStore._
 import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
@@ -273,6 +273,6 @@ object WorkflowDockerLookupActorSpec {
     extends WorkflowDockerLookupActor(
       workflowId,
       dockerHashingActor,
-      startState.isRestart,
+      startState.restarted,
       EngineServicesStore.engineDatabaseInterface)
 }

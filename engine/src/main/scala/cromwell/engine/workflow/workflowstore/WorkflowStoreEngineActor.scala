@@ -3,12 +3,15 @@ package cromwell.engine.workflow.workflowstore
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, PoisonPill, Props}
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
+import cromwell.core.WorkflowAborting
 import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingResponse}
+import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
+import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
 import cromwell.engine.instrumentation.WorkflowInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
+import cromwell.engine.workflow.WorkflowMetadataHelper
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{WorkflowStoreActorState, _}
-import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
 import cromwell.services.instrumentation.CromwellInstrumentationScheduler
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -17,7 +20,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceRegistryActor: ActorRef, abortAllJobsOnTerminate: Boolean)
-  extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging with WorkflowInstrumentation with CromwellInstrumentationScheduler {
+  extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging with WorkflowInstrumentation with CromwellInstrumentationScheduler with WorkflowMetadataHelper {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
@@ -25,11 +28,11 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
   self ! InitializerCommand
 
   scheduleInstrumentation {
-    store.stats map { (stats: Map[String, Int]) =>
+    store.stats map { (stats: Map[WorkflowStoreState, Int]) =>
       // Update the count for Submitted and Running workflows, defaulting to 0
       val statesMap = stats.withDefault(_ => 0)
-      updateWorkflowsQueued(statesMap(WorkflowStoreState.Submitted.toString))
-      updateWorkflowsRunning(statesMap(WorkflowStoreState.Running.toString))
+      updateWorkflowsQueued(statesMap(WorkflowStoreState.Submitted))
+      updateWorkflowsRunning(statesMap(WorkflowStoreState.Running))
     }
     ()
   }
@@ -92,13 +95,13 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
           sndr ! nwm
         }
       case AbortWorkflowCommand(id) =>
-        store.aborting(id) map { aborting =>
-          if (aborting) {
-            sndr ! WorkflowAbortingResponse(id)
+        store.aborting(id) map {
+          case Some(restarted) =>
+            sndr ! WorkflowAbortingResponse(id, restarted)
+            pushCurrentStateToMetadataService(id, WorkflowAborting)
             log.info(s"Abort requested for workflow $id.")
-          } else {
+          case None =>
             sndr ! WorkflowAbortFailureResponse(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
-          }
         } recover {
           case t =>
             val message = s"Unable to update workflow store to abort $id"
@@ -134,21 +137,15 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
     * Fetches at most n workflows, and builds the correct response message based on if there were any workflows or not
     */
   private def newWorkflowMessage(maxWorkflows: Int): Future[WorkflowStoreEngineActorResponse] = {
-    def fetchRunnableWorkflowsIfNeeded(maxWorkflowsInner: Int, state: StartableState) = {
+    def fetchStartableWorkflowsIfNeeded(maxWorkflowsInner: Int) = {
       if (maxWorkflows > 0) {
-        store.fetchRunnableWorkflows(maxWorkflowsInner, state)
+        store.fetchStartableWorkflows(maxWorkflowsInner)
       } else {
         Future.successful(List.empty[WorkflowToStart])
       }
     }
 
-    val runnableWorkflows = for {
-      restartableAbortingWorkflows <- fetchRunnableWorkflowsIfNeeded(maxWorkflows, WorkflowStoreState.RestartableAborting)
-      restartableWorkflows <- fetchRunnableWorkflowsIfNeeded(maxWorkflows, WorkflowStoreState.RestartableRunning)
-      submittedWorkflows <- fetchRunnableWorkflowsIfNeeded(maxWorkflows - restartableWorkflows.size, WorkflowStoreState.Submitted)
-    } yield restartableWorkflows ++ submittedWorkflows ++ restartableAbortingWorkflows
-
-    runnableWorkflows map {
+    fetchStartableWorkflowsIfNeeded(maxWorkflows) map {
       case x :: xs => NewWorkflowsToStart(NonEmptyList.of(x, xs: _*))
       case _ => NoNewWorkflowsToStart
     } recover {

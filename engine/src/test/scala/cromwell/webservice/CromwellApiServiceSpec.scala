@@ -233,7 +233,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           assertResult(
             s"""{
                 |  "status": "fail",
-                |  "message": "Error(s): Unexpected body part name: incorrectParameter\\nUnexpected body part name: incorrectParameter2"
+                |  "message": "Error(s): Unexpected body part name: incorrectParameter\\nUnexpected body part name: incorrectParameter2\\nworkflowSource needs to be supplied"
                 |}""".stripMargin) {
             responseAs[String]
           }

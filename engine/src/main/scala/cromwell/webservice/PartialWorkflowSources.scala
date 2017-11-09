@@ -16,7 +16,7 @@ import wom.core._
 
 import scala.util.{Failure, Success, Try}
 
-final case class PartialWorkflowSources(workflowSource: Option[WorkflowSource] = None,
+final case class PartialWorkflowSources(workflowSource: WorkflowSource,
                                         workflowType: Option[WorkflowType] = None,
                                         workflowTypeVersion: Option[WorkflowTypeVersion] = None,
                                         workflowInputs: Vector[WorkflowJson] = Vector.empty,
@@ -57,7 +57,10 @@ object PartialWorkflowSources {
       def getArrayValue(key: String) = formData.get(key).map(_.toArray)
 
       // unrecognized keys
-      val unrecognized: ErrorOr[Unit] = formData.keySet.filterNot(name => allKeys.contains(name) || allPrefixes.exists(name.startsWith)).toList match {
+      val unrecognized: ErrorOr[Unit] = formData.keySet
+        .filterNot(name => allKeys.contains(name) || allPrefixes.exists(name.startsWith))
+        .toList
+        .map(name => s"Unexpected body part name: $name")  match {
         case Nil => ().validNel
         case head :: tail => NonEmptyList.of(head, tail: _*).invalid
       }
@@ -97,7 +100,7 @@ object PartialWorkflowSources {
       
       (unrecognized, workflowSourceFinal, workflowInputs, workflowInputsAux, workflowDependenciesFinal) mapN {
         case (_, source, inputs, aux, dep) => PartialWorkflowSources(
-          workflowSource = Option(source),
+          workflowSource = source,
           workflowType = getStringValue(WorkflowTypeKey),
           workflowTypeVersion = getStringValue(WorkflowTypeVersionKey),
           workflowInputs = inputs,
@@ -141,11 +144,6 @@ object PartialWorkflowSources {
     def validateOptions(options: Option[WorkflowOptionsJson]): ErrorOr[WorkflowOptions] =
       WorkflowOptions.fromJsonString(options.getOrElse("{}")).toErrorOr leftMap { _ map { i => s"Invalid workflow options provided: $i" } }
 
-    def validateWorkflowSource(partialSource: PartialWorkflowSources): ErrorOr[WorkflowJson] = partialSource.workflowSource match {
-      case Some(src) => src.validNel
-      case _ => s"Incomplete workflow submission: $partialSource".invalidNel
-    }
-
     def validateWorkflowType(partialSource: PartialWorkflowSources): ErrorOr[Option[WorkflowType]] = {
       partialSource.workflowType match {
         case Some(_) => partialSource.workflowType.validNel
@@ -162,12 +160,12 @@ object PartialWorkflowSources {
 
     partialSources match {
       case Valid(partialSource) =>
-        (validateWorkflowSource(partialSource), validateInputs(partialSource),
+        (validateInputs(partialSource),
           validateOptions(partialSource.workflowOptions), validateWorkflowType(partialSource),
           validateWorkflowTypeVersion(partialSource)) mapN {
-          case (wfSource, wfInputs, wfOptions, workflowType, workflowTypeVersion) =>
+          case (wfInputs, wfOptions, workflowType, workflowTypeVersion) =>
             wfInputs.map(inputsJson => WorkflowSourceFilesCollection(
-              workflowSource = wfSource,
+              workflowSource = partialSource.workflowSource,
               workflowType = workflowType,
               workflowTypeVersion = workflowTypeVersion,
               inputsJson = inputsJson,

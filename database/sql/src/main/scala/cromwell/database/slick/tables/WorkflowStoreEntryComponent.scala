@@ -133,7 +133,7 @@ trait WorkflowStoreEntryComponent {
   )
 
   /**
-    * Useful for updating a given workflow to a new state
+    * Useful for updating the restarted flag for a given workflow
     */
   val workflowRestartedForId = Compiled(
     (workflowId: Rep[String]) => for {

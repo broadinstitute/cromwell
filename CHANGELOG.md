@@ -5,17 +5,6 @@
 ### Other changes
 
 * **API**  
-    + The submit endpoint will now present all errors in an array:
-
-    ```
-    $ curl -X POST -F foo=wrong -F bar=wrong_again http://localhost:8000/api/workflows/v1
-    {
-      "status": "fail",
-      "message": "Invalid submit request",
-      "errors": ["Unexpected body part name: foo", "Unexpected body part name: bar"]
-    }
-    ```
-
     + Cromwell now supports input files in the yaml format (json format is still supported).
 
 * **Database**  

@@ -113,7 +113,7 @@ lazy val engine = project
 // Executables
 
 lazy val centaurCwlRunner = project
-  .withExecutableSettings("centaur-cwl-runner", centaurCwlRunnerDependencies, centaurCwlRunnerSettings)
+  .withExecutableSettings("centaur-cwl-runner", centaurCwlRunnerDependencies)
   .dependsOn(cwl)
   .dependsOn(centaur)
 

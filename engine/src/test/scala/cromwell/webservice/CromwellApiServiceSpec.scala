@@ -9,6 +9,7 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
+import common.util.VersionUtil
 import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingResponse}
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowSubmitted, WorkflowSucceeded}
 import cromwell.engine.workflow.WorkflowManagerActor
@@ -53,7 +54,8 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         status should be(StatusCodes.OK)
         val resp = responseAs[JsObject]
         val cromwellVersion = resp.fields("cromwell").asInstanceOf[JsString].value
-        cromwellVersion should fullyMatch regex """\d+-([0-9a-f]){7}(-SNAP)?"""
+        cromwellVersion should fullyMatch regex
+          s"""(\\d+-([0-9a-f]){7}(-SNAP)?|${VersionUtil.defaultMessage("cromwell-engine")})"""
       }
   }
 
@@ -214,7 +216,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         val warningHeader = header("Warning")
         warningHeader shouldNot be(empty)
         warningHeader.get.value should fullyMatch regex
-          """299 cromwell/\d+-([0-9a-f]){7}(-SNAP)? """ +
+          s"""299 cromwell/(\\d+-([0-9a-f]){7}(-SNAP)?|${VersionUtil.defaultMessage("cromwell-engine")}) """ +
             "\"The 'wdlSource' parameter name has been deprecated in favor of 'workflowSource'. " +
             "Support for 'wdlSource' will be removed from future versions of Cromwell. " +
             "Please switch to using 'workflowSource' in future submissions.\""
@@ -578,7 +580,11 @@ object CromwellApiServiceSpec {
       case ValidateWorkflowId(id) =>
         if (RecognizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId
         else sender ! MetadataService.UnrecognizedWorkflowId
-      case GetCurrentStatus => sender ! StatusCheckResponse(true, Map("Engine Database" -> SubsystemStatus(true, None)))
+      case GetCurrentStatus =>
+        sender ! StatusCheckResponse(
+          ok = true,
+          systems = Map(
+            "Engine Database" -> SubsystemStatus(ok = true, messages = None)))
       case GetStatus(id) => sender ! StatusLookupResponse(id, WorkflowSubmitted)
       case WorkflowOutputs(id) =>
         val event = Vector(MetadataEvent(MetadataKey(id, None, "outputs:test.hello.salutation"), MetadataValue("Hello foo!", MetadataString)))

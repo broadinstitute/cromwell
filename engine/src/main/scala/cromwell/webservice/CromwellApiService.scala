@@ -15,8 +15,10 @@ import akka.util.{ByteString, Timeout}
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.ConfigFactory
+import common.exception.AggregatedMessageException
+import common.util.VersionUtil
 import cromwell.core.Dispatcher.ApiDispatcher
-import cromwell.core.abort.{AbortResponse, WorkflowAbortingResponse, WorkflowAbortFailureResponse}
+import cromwell.core.abort.{AbortResponse, WorkflowAbortFailureResponse, WorkflowAbortingResponse}
 import cromwell.core.labels.Labels
 import cromwell.core.{WorkflowAborting, WorkflowId, WorkflowSubmitted}
 import cromwell.engine.backend.BackendConfiguration
@@ -33,7 +35,6 @@ import cromwell.webservice.LabelsManagerActor._
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
 import cromwell.webservice.metadata.{MetadataBuilderActor, WorkflowQueryPagination}
-import common.exception.AggregatedMessageException
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
@@ -359,9 +360,8 @@ object CromwellApiService {
 
   final case class InvalidWorkflowException(possibleWorkflowId: String) extends Exception(s"Invalid workflow ID: '$possibleWorkflowId'.")
 
-  val versionConfig = ConfigFactory.load("cromwell-version.conf").getConfig("version")
-  val cromwellVersion = versionConfig.getString("cromwell")
-  val swaggerUiVersion = versionConfig.getString("swagger.ui")
+  val cromwellVersion = VersionUtil.getVersion("cromwell-engine")
+  val swaggerUiVersion = VersionUtil.getVersion("swagger-ui", VersionUtil.sbtDependencyVersion("swaggerUi"))
   val backendResponse = BackendResponse(BackendConfiguration.AllBackendEntries.map(_.name).sorted, BackendConfiguration.DefaultBackendEntry.name)
   val versionResponse = JsObject(Map("cromwell" -> cromwellVersion.toJson))
   val serviceShuttingDownResponse = new Exception("Cromwell service is shutting down.").failRequest(StatusCodes.ServiceUnavailable)

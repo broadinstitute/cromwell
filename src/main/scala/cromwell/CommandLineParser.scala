@@ -1,6 +1,6 @@
 package cromwell
 
-import com.typesafe.config.ConfigFactory
+import common.util.VersionUtil
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import scopt.OptionParser
@@ -22,7 +22,7 @@ object CommandLineParser extends App {
                                   metadataOutput: Option[Path] = None
                                  )
 
-  lazy val cromwellVersion = ConfigFactory.load("cromwell-version.conf").getConfig("version").getString("cromwell")
+  lazy val cromwellVersion = VersionUtil.getVersion("cromwell")
 
   case class ParserAndCommand(parser: OptionParser[CommandLineArguments], command: Option[Command])
 

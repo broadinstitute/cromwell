@@ -6,7 +6,7 @@ import centaur.test.TestOptions
 import centaur.test.standard.{CentaurTestCase, CentaurTestFormat}
 import centaur.test.submit.{SubmitHttpResponse, SubmitWorkflowResponse}
 import centaur.test.workflow.{AllBackendsRequired, Workflow, WorkflowData}
-import com.typesafe.config.ConfigFactory
+import common.util.VersionUtil
 import cromwell.api.model.{Aborted, Failed, NonTerminalStatus, Succeeded}
 import spray.json._
 
@@ -40,7 +40,7 @@ object CentaurCwlRunner {
   }
 
   private val parser = buildParser()
-  private lazy val centaurVersion = ConfigFactory.load("cromwell-version.conf").getString("version.cromwell")
+  private lazy val centaurCwlRunnerVersion = VersionUtil.getVersion("centaur-cwl-runner")
 
   private def showUsage(): ExitCode.Value = {
     parser.showUsage()
@@ -49,7 +49,7 @@ object CentaurCwlRunner {
 
   private def buildParser(): scopt.OptionParser[CommandLineArguments] = {
     new scopt.OptionParser[CommandLineArguments]("java -jar /path/to/centaurCwlRunner.jar") {
-      head("centaur-cwl-runner", centaurVersion)
+      head("centaur-cwl-runner", centaurCwlRunnerVersion)
 
       help("help").text("Centaur CWL Runner - Cromwell integration testing environment")
 

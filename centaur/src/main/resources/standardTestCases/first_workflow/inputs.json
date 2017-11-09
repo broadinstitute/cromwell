@@ -1,4 +1,4 @@
 {
-  "inp": "/Users/danb/cromwell/tmp/x.tar",
+  "inp": "/path/to/x.tar",
   "ex": "Main.java"
 }

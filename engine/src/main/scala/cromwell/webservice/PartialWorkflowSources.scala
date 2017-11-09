@@ -2,7 +2,7 @@ package cromwell.webservice
 
 import _root_.io.circe.yaml
 import akka.util.ByteString
-import cats.Monoid
+import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.apply._
 import cats.syntax.validated._
@@ -28,58 +28,85 @@ final case class PartialWorkflowSources(workflowSource: Option[WorkflowSource] =
 
 object PartialWorkflowSources {
   val log = LoggerFactory.getLogger(classOf[PartialWorkflowSources])
-
-  implicit val partialWorkflowSourcesMonoid = new Monoid[PartialWorkflowSources] {
-    override def empty: PartialWorkflowSources = PartialWorkflowSources()
-    
-    override def combine(x: PartialWorkflowSources, y: PartialWorkflowSources): PartialWorkflowSources = {
-      x.copy(
-        workflowSource = x.workflowSource.orElse(y.workflowSource),
-        workflowType = x.workflowType.orElse(y.workflowType),
-        workflowTypeVersion = x.workflowTypeVersion.orElse(y.workflowTypeVersion),
-        workflowInputs = x.workflowInputs ++ y.workflowInputs,
-        workflowInputsAux = x.workflowInputsAux ++ y.workflowInputsAux,
-        workflowOptions = x.workflowOptions.orElse(y.workflowOptions),
-        zippedImports = x.zippedImports.orElse(y.zippedImports),
-        customLabels = x.customLabels.orElse(y.customLabels),
-        warnings = x.warnings ++ y.warnings
-      )
-    }
-  }
+  
+  val WdlSourceKey = "wdlSource"
+  val WorkflowSourceKey = "workflowSource"
+  val WorkflowTypeKey = "workflowType"
+  val WorkflowTypeVersionKey = "workflowTypeVersion"
+  val WorkflowInputsKey = "workflowInputs"
+  val WorkflowInputsAuxPrefix = "workflowInputs_"
+  val WorkflowOptionsKey = "workflowOptions"
+  val CustomLabelsKey = "customLabels"
+  val WdlDependenciesKey = "wdlDependencies"
+  val WorkflowDependenciesKey = "workflowDependencies"
+  
+  val allKeys = List(WdlSourceKey, WorkflowSourceKey, WorkflowTypeKey, WorkflowTypeVersionKey, WorkflowInputsKey,
+    WorkflowOptionsKey, CustomLabelsKey, WdlDependenciesKey, WorkflowDependenciesKey)
+  
+  val allPrefixes = List(WorkflowInputsAuxPrefix)
   
   def fromSubmitRoute(formData: Map[String, ByteString],
                       allowNoInputs: Boolean): Try[Seq[WorkflowSourceFilesCollection]] = {
     import cats.instances.list._
-    import cats.syntax.foldable._
+    import cats.syntax.apply._
+    import cats.syntax.traverse._
     import cats.syntax.validated._
     
     val partialSources: ErrorOr[PartialWorkflowSources] = {
-      formData.toList.foldMap({
-        case (name, data) =>
-          name match {
-            case "wdlSource" =>
-              val warning = deprecationWarning(out = "wdlSource", in = "workflowSource")
-              PartialWorkflowSources(workflowSource = Option(data.utf8String), warnings = Vector(warning)).validNel
-            case "workflowSource" => 
-              PartialWorkflowSources(workflowSource = Option(data.utf8String)).validNel
-            case "workflowType" => 
-              PartialWorkflowSources(workflowType = Option(data.utf8String)).validNel
-            case "workflowTypeVersion" => PartialWorkflowSources(workflowTypeVersion = Option(data.utf8String)).validNel
-            case "workflowInputs" =>
-              workflowInputs(data.utf8String) map { inputs => PartialWorkflowSources(workflowInputs = inputs) }
-            case _ if name.startsWith("workflowInputs_") =>
-              Try(name.stripPrefix("workflowInputs_").toInt).toErrorOr map { index =>
-                PartialWorkflowSources(workflowInputsAux = Map(index -> data.utf8String))
-              }
-            case "workflowOptions" => PartialWorkflowSources(workflowOptions = Option(data.utf8String)).validNel
-            case "wdlDependencies" =>
-              val warning = deprecationWarning(out = "wdlDependencies", in = "workflowDependencies")
-              PartialWorkflowSources(zippedImports = Option(data.toArray), warnings = Vector(warning)).validNel
-            case "workflowDependencies" => PartialWorkflowSources(zippedImports = Option(data.toArray)).validNel
-            case "customLabels" => PartialWorkflowSources(customLabels = Option(data.utf8String)).validNel
-            case _ => s"Unexpected body part name: $name".invalidNel
-          }
-      })
+      def getStringValue(key: String) = formData.get(key).map(_.utf8String)
+      def getArrayValue(key: String) = formData.get(key).map(_.toArray)
+
+      // unrecognized keys
+      val unrecognized: ErrorOr[Unit] = formData.keySet.filterNot(name => allKeys.contains(name) || allPrefixes.exists(name.startsWith)).toList match {
+        case Nil => ().validNel
+        case head :: tail => NonEmptyList.of(head, tail: _*).invalid
+      }
+      
+      // workflow source
+      val wdlSource = getStringValue(WdlSourceKey)
+      val workflowSource = getStringValue(WorkflowSourceKey)
+      val wdlSourceWarning = wdlSource.map(_ => wdlSourceDeprecationWarning)
+      val workflowSourceFinal: ErrorOr[String] = (wdlSource, workflowSource) match {
+        case (Some(source), None) => source.validNel
+        case (None, Some(source)) => source.validNel
+        case (Some(_), Some(_)) => "wdlSource and workflowSource can't both be supplied".invalidNel
+        case (None, None) => "workflowSource needs to be supplied".invalidNel
+      }
+      
+      // workflow inputs
+      val workflowInputs: ErrorOr[Vector[WorkflowJson]] = getStringValue(WorkflowInputsKey) match {
+        case Some(inputs) => workflowInputsValidation(inputs)
+        case None => Vector.empty.validNel
+      }
+      val workflowInputsAux: ErrorOr[Map[Int, String]] = formData.toList.traverse[ErrorOr, (Int, String)]({
+        case (name, value) if name.startsWith(WorkflowInputsAuxPrefix) => 
+          Try(name.stripPrefix(WorkflowInputsAuxPrefix).toInt).toErrorOr.map(_ -> value.utf8String)
+      }).map(_.toMap)
+      
+      // dependencies
+      val wdlDependencies = getArrayValue(WdlDependenciesKey)
+      val workflowDependencies = getArrayValue(WorkflowDependenciesKey)
+      val wdlDependenciesWarning = wdlDependencies.map(_ => wdlDependenciesDeprecationWarning)
+      val workflowDependenciesFinal: ErrorOr[Option[Array[Byte]]] = (wdlDependencies, workflowDependencies) match {
+        case (Some(dep), None) => Option(dep).validNel
+        case (None, Some(dep)) => Option(dep).validNel
+        case (Some(_), Some(_)) => "wdlDependencies and workflowDependencies can't both be supplied".invalidNel
+        case (None, None) => None.validNel
+      }
+      
+      (unrecognized, workflowSourceFinal, workflowInputs, workflowInputsAux, workflowDependenciesFinal) mapN {
+        case (_, source, inputs, aux, dep) => PartialWorkflowSources(
+          workflowSource = Option(source),
+          workflowType = getStringValue(WorkflowTypeKey),
+          workflowTypeVersion = getStringValue(WorkflowTypeVersionKey),
+          workflowInputs = inputs,
+          workflowInputsAux= aux,
+          workflowOptions = getStringValue(WorkflowOptionsKey),
+          customLabels = getStringValue(CustomLabelsKey),
+          zippedImports = dep,
+          warnings = wdlSourceWarning.toVector ++ wdlDependenciesWarning.toVector
+        )
+      }
     }
 
     partialSourcesToSourceCollections(partialSources, allowNoInputs) match {
@@ -88,9 +115,9 @@ object PartialWorkflowSources {
     }
   }
 
-  private def workflowInputs(data: String): ErrorOr[Vector[WorkflowJson]] = {
-    import cats.syntax.validated._
+  private def workflowInputsValidation(data: String): ErrorOr[Vector[WorkflowJson]] = {
     import _root_.io.circe.Printer
+    import cats.syntax.validated._
     
     yaml.parser.parse(data) match {
       // If it's an array, treat each element as an individual input object, otherwise simply toString the whole thing
@@ -151,6 +178,9 @@ object PartialWorkflowSources {
       case Invalid(err) => err.invalid
     }
   }
+  
+  private val wdlSourceDeprecationWarning = deprecationWarning(out = "wdlSource", in = "workflowSource")
+  private val wdlDependenciesDeprecationWarning = deprecationWarning(out = "wdlDependencies", in = "workflowDependencies")
 
   private def deprecationWarning(out: String, in: String): String = {
     val warning =

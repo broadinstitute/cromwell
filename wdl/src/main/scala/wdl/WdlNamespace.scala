@@ -468,13 +468,15 @@ object WdlNamespace {
     invalidVariableReferences ++ typeMismatches
   }
 
-  private def lookupType(from: Scope)(n: String): WomType = {
+  private [wdl] def lookupType(from: Scope)(n: String): WomType = {
     val resolved = from.resolveVariable(n)
     resolved match {
       case Some(d: DeclarationInterface) => d.relativeWdlType(from)
       case Some(c: WdlCall) => WdlCallOutputsObjectType(c)
       case Some(s: Scatter) => s.collection.evaluateType(lookupType(s), new WdlStandardLibraryFunctionsType, Option(from)) match {
-        case Success(a: WomArrayType) => a.memberType
+        case Success(WomArrayType(aType)) => aType
+        // We don't need to check for a WOM map type, because
+        // of the custom unapply in object WomArrayType
         case _ => throw new VariableLookupException(s"Variable $n references a scatter block ${s.fullyQualifiedName}, but the collection does not evaluate to an array")
       }
       case Some(_: WdlNamespace) => WdlNamespaceType

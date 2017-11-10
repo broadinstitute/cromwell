@@ -96,7 +96,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   private [preparation] def evaluateInputsAndAttributes(outputStore: OutputStore) = {
     for {
-      evaluatedInputs <- resolveAndEvaluateInputs(jobKey, workflowDescriptor, expressionLanguageFunctions, outputStore)
+      evaluatedInputs <- resolveAndEvaluateCallDeclarations(jobKey, workflowDescriptor, expressionLanguageFunctions, outputStore)
       runtimeAttributes <- prepareRuntimeAttributes(evaluatedInputs)
     } yield (evaluatedInputs, runtimeAttributes)
   }

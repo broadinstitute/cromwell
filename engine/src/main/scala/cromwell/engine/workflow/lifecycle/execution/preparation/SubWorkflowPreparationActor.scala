@@ -21,11 +21,15 @@ class SubWorkflowPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   def prepareExecutionActor(inputEvaluation: Map[Declaration, WdlValue]): CallPreparationActorResponse = {
     val oldBackendDescriptor = workflowDescriptor.backendDescriptor
+    val subworkflowFqn = callKey.scope.callable.fullyQualifiedName
+    // .fullyQualifiedName invoked on a declaration in a subworkflow gives an FQN rooted at the top level workflow,
+    // which certainly isn't right.
+    val subworkflowKnownValues = inputEvaluation map { case (k, v) => s"$subworkflowFqn.${k.unqualifiedName}" -> v }
 
     val newBackendDescriptor = oldBackendDescriptor.copy(
       id = subWorkflowId,
       workflow = callKey.scope.calledWorkflow,
-      knownValues = workflowDescriptor.knownValues ++ (inputEvaluation map { case (k, v) => k.fullyQualifiedName -> v }),
+      knownValues = workflowDescriptor.knownValues ++ subworkflowKnownValues,
       breadCrumbs = oldBackendDescriptor.breadCrumbs :+ BackendJobBreadCrumb(workflowDescriptor.workflow, workflowDescriptor.id, callKey)
     )
     val engineDescriptor = workflowDescriptor.copy(backendDescriptor = newBackendDescriptor, parentWorkflow = Option(workflowDescriptor))
@@ -34,7 +38,7 @@ class SubWorkflowPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   override def receive = {
     case Start(outputStore) =>
-      val evaluatedInputs = resolveAndEvaluateInputs(callKey, workflowDescriptor, expressionLanguageFunctions, outputStore)
+      val evaluatedInputs = resolveAndEvaluateCallDeclarations(callKey, workflowDescriptor, expressionLanguageFunctions, outputStore)
       val response = evaluatedInputs map { prepareExecutionActor }
       context.parent ! (response recover { case f => CallPreparationFailed(callKey, f) }).get
       context stop self

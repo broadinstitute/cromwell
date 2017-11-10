@@ -2,7 +2,7 @@ import sbt._
 
 object Dependencies {
   lazy val lenthallV = "0.27"
-  lazy val wdl4sV = "0.15-814d203" // Warning: 814d203 refers to the wrong cats-core/mouse versions. It requires 1.0.x!
+  lazy val wdl4sV = "0.15-c149133"
 
   lazy val akkaV = "2.5.3"
   lazy val akkaHttpV = "10.0.9"

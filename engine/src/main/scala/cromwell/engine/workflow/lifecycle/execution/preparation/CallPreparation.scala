@@ -23,19 +23,20 @@ object CallPreparation {
   case class JobCallPreparationFailed(jobKey: JobKey, throwable: Throwable) extends CallPreparationActorResponse
   case class CallPreparationFailed(jobKey: JobKey, throwable: Throwable) extends CallPreparationActorResponse
 
-  def resolveAndEvaluateInputs(callKey: CallKey,
-                               workflowDescriptor: EngineWorkflowDescriptor,
-                               expressionLanguageFunctions: WdlStandardLibraryFunctions,
-                               outputStore: OutputStore): Try[Map[Declaration, WdlValue]] = {
+  def resolveAndEvaluateCallDeclarations(callKey: CallKey,
+                                         workflowDescriptor: EngineWorkflowDescriptor,
+                                         expressionLanguageFunctions: WdlStandardLibraryFunctions,
+                                         outputStore: OutputStore): Try[Map[Declaration, WdlValue]] = {
     val call = callKey.scope
     val scatterMap = callKey.index flatMap { i =>
       // Will need update for nested scatters
       call.ancestry collectFirst { case s: Scatter => Map(s -> i) }
     } getOrElse Map.empty[Scatter, Int]
 
-    call.evaluateTaskInputs(
+    call.evaluateCallDeclarations(
       workflowDescriptor.backendDescriptor.knownValues,
       expressionLanguageFunctions,
+      callKey.index,
       outputStore.fetchNodeOutputEntries,
       scatterMap
     ) recoverWith {

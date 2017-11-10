@@ -4,6 +4,9 @@
 
 ### Other changes
 
+* **API**  
+    + Cromwell now supports input files in the yaml format (json format is still supported).
+
 * **Database**  
 You have the option of storing the metadata in a separate SQL database than the database containing the internal engine
 data. See the [README](https://github.com/broadinstitute/cromwell#database) or the `database` section in

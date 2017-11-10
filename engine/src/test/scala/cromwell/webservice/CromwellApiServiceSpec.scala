@@ -224,14 +224,18 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
   }
 
     it should "return 400 for an unrecognized form data request parameter " in {
-      val formData = Multipart.FormData(Multipart.FormData.BodyPart("incorrectParameter", HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))).toEntity()
+      val formData = Multipart.FormData(Map(
+        "incorrectParameter" -> HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()),
+        "incorrectParameter2" -> HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource())
+      )).toEntity
+
       Post(s"/workflows/$version", formData) ~>
         akkaHttpService.workflowRoutes ~>
         check {
           assertResult(
             s"""{
                 |  "status": "fail",
-                |  "message": "Error(s): Unexpected body part name: incorrectParameter"
+                |  "message": "Error(s): Unexpected body part name: incorrectParameter\\nUnexpected body part name: incorrectParameter2\\nworkflowSource needs to be supplied"
                 |}""".stripMargin) {
             responseAs[String]
           }

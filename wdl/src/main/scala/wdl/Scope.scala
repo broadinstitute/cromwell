@@ -42,7 +42,11 @@ trait Scope {
   lazy val childGraphNodesSorted: List[WdlGraphNode] = {
     // We can't use a classic ordering because the upstream / downstream order is not total over the set of nodes
     // Instead we use topological sorting to guarantee that we process the nodes top to bottom
-    val edges = childGraphNodes flatMap { child => child.upstreamAncestry map { upstreamNode => DiEdge(upstreamNode, child) } }
+    val edges = for {
+      child <- childGraphNodes
+      upstreamNode <- child.upstreamAncestry if childGraphNodes.contains(upstreamNode)
+    } yield DiEdge(upstreamNode, child)
+
     Graph.from[WdlGraphNode, DiEdge](childGraphNodes, edges).topologicalSort match {
       case Left(cycleNode) => throw new RuntimeException(s"This workflow contains a cyclic dependency on ${cycleNode.value.fullyQualifiedName}")
       case Right(topologicalOrder) => topologicalOrder.toList.map(_.value).filter(childGraphNodes.contains)

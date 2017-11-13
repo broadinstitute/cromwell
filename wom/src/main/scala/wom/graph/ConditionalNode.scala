@@ -3,7 +3,7 @@ package wom.graph
 import wom.graph.GraphNode.{GeneratedNodeAndNewNodes, GraphNodeWithInnerGraph}
 import wom.graph.GraphNodePort.{ConditionalOutputPort, ConnectedInputPort, InputPort, OutputPort}
 import wom.graph.expression.ExpressionNode
-import wom.types.{WomBooleanType, WomOptionalType}
+import wom.types.WomBooleanType
 
 /**
   * Currently only WDL has the concept of conditional executions:
@@ -25,7 +25,8 @@ final case class ConditionalNode private(override val innerGraph: Graph,
 object ConditionalNode  {
 
   final case class ConditionalNodeWithNewNodes(node: ConditionalNode) extends GeneratedNodeAndNewNodes {
-    override val newInputs = node.innerGraph.externalInputNodes.toSet[GraphInputNode]
+    override val newInputs = node.innerGraph.externalInputNodes
+    override val nestedOuterGraphInputNodes = node.innerGraph.outerGraphInputNodes.filter(_.linkToOuterGraphNode.isInstanceOf[OuterGraphInputNode])
     override val newExpressions = Set(node.conditionExpression)
   }
 
@@ -33,7 +34,7 @@ object ConditionalNode  {
     val graphNodeSetter = new GraphNode.GraphNodeSetter[ConditionalNode]()
 
     val outputPorts: Set[ConditionalOutputPort] = innerGraph.nodes.collect { case gon: PortBasedGraphOutputNode =>
-      ConditionalOutputPort(WomOptionalType(gon.womType), gon, graphNodeSetter.get)
+      ConditionalOutputPort(gon, graphNodeSetter.get)
     }
 
     val conditionalNode: ConditionalNode = ConditionalNode(innerGraph, expressionNode, outputPorts)

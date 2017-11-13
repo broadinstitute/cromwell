@@ -60,8 +60,8 @@ object ExecutionStore {
       case svn: ScatterVariableNode => table.contains(svn.linkToOuterGraph.graphNode, None)
       // OuterGraphInputNodes signal that an input comes from outside the graph.
       // Depending on whether or not this input is outside of a scatter graph will change the index which we need to look at
-      case ogin: OuterGraphInputNode if !ogin.preserveScatterIndex => ogin.linkToOuterGraph.graphNode.isInStatus(None, table)
-      case ogin: OuterGraphInputNode => ogin.linkToOuterGraph.graphNode.isInStatus(index, table)
+      case ogin: OuterGraphInputNode if !ogin.preserveScatterIndex => ogin.linkToOuterGraph.executionNode.isInStatus(None, table)
+      case ogin: OuterGraphInputNode => ogin.linkToOuterGraph.executionNode.isInStatus(index, table)
       case _: GraphInputNode => true
       case _ => table.contains(graphNode, index)
     }

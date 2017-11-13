@@ -97,7 +97,23 @@ object GraphNode {
     */
   trait GeneratedNodeAndNewNodes {
     def node: GraphNode
-    def newInputs: Set[_ <: GraphInputNode]
+    def newInputs: Set[_ <: ExternalGraphInputNode]
+
+    /**
+      * Find all OuterGraphInputNodes in the generated Node's inner graph (if there is one) which point upstream to
+      * other OuterGraphInputNodes.
+      *
+      * Why? Imagine that we're building three nested levels of a innerGraph.
+      * - Say we're building the middle layer.
+      * - We have a set of OutputPorts in the outer layer that we can make OGINs to if we need them.
+      * - We know that the inner graph might want to make use of those output ports, but we don't know which.
+      * - So, we can make OGINs at this layer for all possible OutputPorts in the outer graph and let the inner graph
+      * use however many of them it needs.
+      * - When the inner graph creates an OGIN that references one of the middle layer OGINS, we need to know that, so that we
+      * can remember to add it to the middle layer (and not add all of the extraneous ones we don't need.)
+      * - Hence, this function returns the set of OGINs in the inner graph that reference our OGINs, in the middle graph.
+      */
+    def nestedOuterGraphInputNodes: Set[_ <: OuterGraphInputNode]
     def newExpressions: Set[ExpressionNode]
   }
 

@@ -19,7 +19,7 @@ final case class PortBasedGraphOutputNode(override val identifier: WomIdentifier
   lazy val singleUpstreamNode: GraphNode = singleInputPort.upstream.graphNode
   lazy val singleUpstreamPort: GraphNode = singleInputPort.upstream.graphNode
   override val inputPorts: Set[GraphNodePort.InputPort] = Set(singleInputPort)
-  override val outputPorts: Set[GraphNodePort.OutputPort] = Set(source)
+  override val outputPorts: Set[GraphNodePort.OutputPort] = Set.empty
 }
 
 object ExpressionBasedGraphOutputNode {

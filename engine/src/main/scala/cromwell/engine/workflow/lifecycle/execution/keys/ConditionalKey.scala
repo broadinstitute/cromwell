@@ -44,7 +44,7 @@ private [execution] case class ConditionalKey(node: ConditionalNode, index: Exec
     case declaration: ExpressionNode => Option(ExpressionKey(declaration, index))
     case conditional: ConditionalNode => Option(ConditionalKey(conditional, index))
     case scatter: ScatterNode if index.isEmpty => Option(ScatterKey(scatter))
-    case _: OuterGraphInputNode => None
+    case _: GraphInputNode => None
     case _: PortBasedGraphOutputNode => None
     case _: ScatterNode =>
       throw new UnsupportedOperationException("Nested Scatters are not supported (yet) ... but you might try a sub workflow to achieve the same effect!")

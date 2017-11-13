@@ -40,15 +40,28 @@ object If {
   def womConditionalNode(ifBlock: If, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[ConditionalNodeWithNewNodes] = {
     val ifConditionExpression = WdlWomExpression(ifBlock.condition, Option(ifBlock))
     val ifConditionGraphInputExpressionValidation = WdlWomExpression.toExpressionNode(WomIdentifier("conditional"), ifConditionExpression, localLookup, outerLookup, preserveIndexForOuterLookups)
-    val ifConditionTypeValidation = ifConditionExpression.evaluateType(localLookup.map { case (k, v) => k -> v.womType }) flatMap {
+    val ifConditionTypeValidation = ifConditionExpression.evaluateType((localLookup ++ outerLookup).map { case (k, v) => k -> v.womType }) flatMap {
       case WomBooleanType => Valid(())
       case other => s"An if block must be given a boolean expression but instead got '${ifBlock.condition.toWomString}' (a ${other.toDisplayString})".invalidNel
     }
 
+    /**
+      * Why? Imagine that we're building three nested levels of a innerGraph.
+      * - Say we're building the middle layer.
+      * - We have a set of OutputPorts in the outer layer that we can make OGINs to if we need them.
+      * - We know that the inner graph might want to make use of those output ports, but we don't know which.
+      * - So, we can make OGINs at this layer for all possible OutputPorts in the outer graph and let the inner graph
+      * use however many of them it needs.
+      */
+    val possiblyNeededNestedOgins: Map[String, OuterGraphInputNode] = outerLookup filterNot{ case (name, _) => localLookup.contains(name) } map { case (name, outerPort) =>
+      name -> OuterGraphInputNode(WomIdentifier(name), outerPort, preserveScatterIndex = true)
+    }
+    val possiblyNeededNestedOginPorts: Map[String, OutputPort] = possiblyNeededNestedOgins map { case (name: String, ogin: OuterGraphInputNode) => name -> ogin.singleOutputPort }
+
     val innerGraphValidation: ErrorOr[Graph] = WdlGraphNode.buildWomGraph(
       ifBlock,
       Set.empty,
-      outerLookup = localLookup ++ outerLookup,
+      outerLookup = localLookup ++ possiblyNeededNestedOginPorts,
       preserveIndexForOuterLookups = true
     )
 

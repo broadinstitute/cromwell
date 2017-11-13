@@ -6,7 +6,27 @@ import wom.values._
 import wom.types.WomOptionalTypeSpecDefs._
 
 
-class WomOptionalTypeSpec() extends WomCoercionSpec(goodCoercionTable, badCoercionTable, behaviorOf) with FlatSpecLike with Matchers
+class WomOptionalTypeSpec() extends WomCoercionSpec(goodCoercionTable, badCoercionTable, behaviorOf) with FlatSpecLike with Matchers {
+
+  import TableDrivenPropertyChecks._
+
+  val baseTypes = Table[WomOptionalType, WomOptionalType, WomType](
+    ("optional type", "flat optional type", "base member type"),
+    (WomOptionalType(WomIntegerType), WomOptionalType(WomIntegerType), WomIntegerType),
+    (WomOptionalType(WomOptionalType(WomIntegerType)), WomOptionalType(WomIntegerType), WomIntegerType),
+    (WomOptionalType(WomOptionalType(WomOptionalType(WomArrayType(WomOptionalType(WomIntegerType))))), WomOptionalType(WomArrayType(WomOptionalType(WomIntegerType))), WomArrayType(WomOptionalType(WomIntegerType)))
+  )
+
+  forAll(baseTypes) { (optType, flatOptType, baseType) =>
+    it should s"get ${baseType.toDisplayString} as the base type for ${optType.toDisplayString}" in {
+      optType.baseMemberType should be(baseType)
+    }
+
+    it should s"get ${flatOptType.toDisplayString} as the flat optional type for ${optType.toDisplayString}" in {
+      optType.flatOptionalType should be(flatOptType)
+    }
+  }
+}
 
 private object WomOptionalTypeSpecDefs {
   import TableDrivenPropertyChecks._

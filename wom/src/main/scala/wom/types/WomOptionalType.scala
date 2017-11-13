@@ -43,9 +43,14 @@ case class WomOptionalType(memberType: WomType) extends WomType {
   /**
     * Unpack any number of layers of optional-ness to get to the base member type:
     */
-  def baseMemberType: WomType = memberType match {
-    case innerOptionalType: WomOptionalType => innerOptionalType.baseMemberType
-    case baseMemberType => baseMemberType
+  def baseMemberType: WomType = flatOptionalType.memberType
+
+  /**
+    * Flatten this optional type (eg Int?[...]? to Int?)
+    */
+  def flatOptionalType: WomOptionalType = memberType match {
+    case innerOptionalType: WomOptionalType => innerOptionalType.flatOptionalType
+    case _ => this
   }
 
   override def add(rhs: WomType): Try[WomType] = memberType.add(rhs)

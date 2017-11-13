@@ -42,7 +42,8 @@ object ScatterNode {
 
   final case class ScatterNodeWithNewNodes(node: ScatterNode) extends GeneratedNodeAndNewNodes {
     override val newExpressions = Set(node.scatterCollectionExpressionNode)
-    override val newInputs = node.innerGraph.externalInputNodes.toSet[GraphInputNode]
+    override val newInputs = node.innerGraph.externalInputNodes
+    override val nestedOuterGraphInputNodes = node.innerGraph.outerGraphInputNodes.filter(_.linkToOuterGraphNode.isInstanceOf[OuterGraphInputNode])
   }
 
   /**

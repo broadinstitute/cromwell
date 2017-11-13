@@ -82,7 +82,7 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
     val conditionalPort = collector.conditionalOutputPort
     val sourcePort = conditionalPort.outputToExpose.source
     store.getValue(sourcePort, collector.index) match {
-      case Some(womValue) => Map(ValueKey(conditionalPort, collector.index) -> WomOptionalValue(womValue)).validNel
+      case Some(womValue) => Map(ValueKey(conditionalPort, collector.index) -> WomOptionalValue(womValue).flattenOptional).validNel
       case None => s"Cannot collect ${collector.conditionalOutputPort.womType.toDisplayString} ${collector.node.identifier.fullyQualifiedName.value}: Cannot find a value for output port ${sourcePort.identifier.fullyQualifiedName.value}".invalidNel
     }
   }

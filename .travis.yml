@@ -23,6 +23,7 @@ before_install:
   - sudo rm -f /etc/boto.cfg
   - mysql -u root -e "SET GLOBAL sql_mode = 'STRICT_ALL_TABLES';"
   - mysql -u root -e "CREATE DATABASE IF NOT EXISTS cromwell_test;"
+  - apt-get install procps
 env:
   global:
     - INTEGRATION_TESTS_DIR=centaur/src/main/resources/integrationTestCases

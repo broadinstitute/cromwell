@@ -16,29 +16,13 @@ object WdlWomExpressionsAsInputsSpec {
     // Using calls as inputs since declaration inputs are currently not supported.
     """
       |workflow foo {
-      |    call a
-      |    call b
+      |    call x as a
+      |    call x as b
       |
-      |    call c { input: int_in = a.int_out + b.int_out }
+      |    call x as c { input: int_in = a.int_out + b.int_out }
       |}
       |
-      |task a {
-      |    Int int_in
-      |    command {}
-      |    output {
-      |        Int int_out = int_in
-      |    }
-      |}
-      |
-      |task b {
-      |    Int int_in
-      |    command {}
-      |    output {
-      |        Int int_out = int_in
-      |    }
-      |}
-      |
-      |task c {
+      |task x {
       |    Int int_in
       |    command {}
       |    output {

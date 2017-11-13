@@ -5,8 +5,10 @@ import cats.syntax.validated._
 import common.collections.EnhancedCollections._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import wdl.AstTools.{EnhancedAstNode, VariableReference}
+import wdl.Declaration.{GraphOutputDeclarationNode, InputDeclarationNode, IntermediateValueDeclarationNode}
 import wom.graph.CallNode.CallNodeAndNewNodes
 import wom.graph.GraphNode.GeneratedNodeAndNewNodes
+import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.graph.expression.ExposedExpressionNode
 
@@ -85,7 +87,8 @@ object WdlGraphNode {
       val newCallOutputPorts = (gnani.node.outputPorts map { p => s"$outputPortPrefix${p.name}" -> p }).toMap
       // The output ports from newly created GraphInputNodes:
       val newInputOutputPorts = (gnani.newInputs map { i => i.localName -> i.singleOutputPort }).toMap
-      val usedOuterGraphInputNodes = gnani.nestedOuterGraphInputNodes.map(_.linkToOuterGraphNode)
+      val usedOuterGraphInputNodes = gnani.usedOuterGraphInputNodes
+      val newOginOutputs = usedOuterGraphInputNodes.map(_.nameToPortMapping)
 
       // To make our new list of Nodes in this graph, we add:
       // - All the existing Nodes
@@ -99,21 +102,30 @@ object WdlGraphNode {
       // - The outputs from any new input Nodes we had to make (so that other Nodes don't have to recreate them)
       FoldState(
         nodes = acc.nodes + gnani.node ++ gnani.newInputs ++ usedOuterGraphInputNodes ++ gnani.newExpressions,
-        availableInputs = acc.availableInputs ++ newCallOutputPorts ++ newInputOutputPorts
+        availableInputs = acc.availableInputs ++ newCallOutputPorts ++ newInputOutputPorts ++ newOginOutputs
       )
     }
 
     def buildNode(acc: FoldState, node: WdlGraphNode): ErrorOr[FoldState] = node match {
-      case wdlCall: WdlCall => WdlCall.buildWomNodeAndInputs(wdlCall, acc.availableInputs, outerLookup, preserveIndexForOuterLookups) map { case cnani @ CallNodeAndNewNodes(call, _, _) =>
-        foldInGeneratedNodeAndNewInputs(acc, call.localName + ".")(cnani)
+      case wdlCall: WdlCall => WdlCall.buildWomNodeAndInputs(wdlCall, acc.availableInputs, outerLookup, preserveIndexForOuterLookups) map { cnani: CallNodeAndNewNodes =>
+        foldInGeneratedNodeAndNewInputs(acc, cnani.node.localName + ".")(cnani)
       }
 
-      case decl: DeclarationInterface => Declaration.buildWomNode(decl, acc.availableInputs, outerLookup, preserveIndexForOuterLookups) map { declNode =>
+      case decl: DeclarationInterface => Declaration.buildWdlDeclarationNode(decl, acc.availableInputs, outerLookup, preserveIndexForOuterLookups) map { wdlDeclNode =>
         // As with GeneratedNodeAndNewInputs, we might have made some new OuterGraphInputNodes to build this DeclarationNode, so
         // make sure they get included:
-        val newOgins: Set[OuterGraphInputNode] = declNode.toGraphNode.upstream.filterByType[OuterGraphInputNode]
-        val newOginOutputs = newOgins map {ogin => ogin.localName -> ogin.singleOutputPort }
-        FoldState(acc.nodes + declNode.toGraphNode ++ newOgins, acc.availableInputs ++ newOginOutputs ++ declNode.singleOutputPort.map { sop => declNode.toGraphNode.localName -> sop })
+        val declNode = wdlDeclNode.toGraphNode
+        val newOgins: Set[OuterGraphInputNode] = declNode.upstreamOuterGraphInputNodes
+        val newOginOutputs = newOgins.map(_.nameToPortMapping)
+
+        // We only want to include the output port as an input to other GraphNodes in the FoldState if it's not a Workflow Output:
+        val availableOutputPort: Option[(String, OutputPort)] = wdlDeclNode match {
+          case InputDeclarationNode(graphInputNode) => Option(declNode.localName -> graphInputNode.singleOutputPort)
+          case IntermediateValueDeclarationNode(expressionNode) => Option(declNode.localName -> expressionNode.singleExpressionOutputPort)
+          case GraphOutputDeclarationNode(_) => None
+        }
+
+        FoldState(acc.nodes + declNode ++ newOgins, acc.availableInputs ++ newOginOutputs ++ availableOutputPort)
       }
 
       case scatter: Scatter =>

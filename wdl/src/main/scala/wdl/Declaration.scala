@@ -91,11 +91,6 @@ object Declaration {
       case IntermediateValueDeclarationNode(expressionNode) => expressionNode
       case GraphOutputDeclarationNode(graphOutputNode) => graphOutputNode
     }
-    lazy val singleOutputPort: Option[GraphNodePort.OutputPort] = this match {
-      case InputDeclarationNode(graphInputNode) => Option(graphInputNode.singleOutputPort)
-      case IntermediateValueDeclarationNode(expressionNode) => Option(expressionNode.singleExpressionOutputPort)
-      case GraphOutputDeclarationNode(_) => None
-    }
   }
   final case class InputDeclarationNode(graphInputNode: GraphInputNode) extends WdlDeclarationNode
   final case class IntermediateValueDeclarationNode(expressionNode: ExpressionNode) extends WdlDeclarationNode
@@ -114,7 +109,7 @@ object Declaration {
     )
   }
 
-  def buildWomNode(decl: DeclarationInterface, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[WdlDeclarationNode] = {
+  def buildWdlDeclarationNode(decl: DeclarationInterface, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[WdlDeclarationNode] = {
 
     def declarationAsExpressionNode(wdlExpression: WdlExpression) = {
       val womExpression = WdlWomExpression(wdlExpression, None)

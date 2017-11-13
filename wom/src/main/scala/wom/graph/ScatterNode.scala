@@ -4,6 +4,7 @@ import wom.graph.GraphNode.{GeneratedNodeAndNewNodes, GraphNodeWithInnerGraph}
 import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort, ScatterGathererPort}
 import wom.graph.expression.ExpressionNode
 import wom.types.WomArrayType
+import common.collections.EnhancedCollections._
 
 /**
   *
@@ -41,9 +42,9 @@ object ScatterNode {
   case class ScatterVariableMapping(scatterCollectionExpressionNode: ExpressionNode, graphInputNode: GraphInputNode)
 
   final case class ScatterNodeWithNewNodes(node: ScatterNode) extends GeneratedNodeAndNewNodes {
-    override val newExpressions = Set(node.scatterCollectionExpressionNode)
-    override val newInputs = node.innerGraph.externalInputNodes
-    override val nestedOuterGraphInputNodes = node.innerGraph.outerGraphInputNodes.filter(_.linkToOuterGraphNode.isInstanceOf[OuterGraphInputNode])
+    override val newExpressions: Set[ExpressionNode] = Set(node.scatterCollectionExpressionNode)
+    override val newInputs: Set[ExternalGraphInputNode] = node.innerGraph.externalInputNodes
+    override val usedOuterGraphInputNodes: Set[OuterGraphInputNode] = node.innerGraph.outerGraphInputNodes.map(_.linkToOuterGraphNode).filterByType[OuterGraphInputNode]
   }
 
   /**

@@ -247,10 +247,12 @@ object WdlWomExpression {
     def resolveVariable(v: AstTools.VariableReference): ErrorOr[(String, GraphNodePort.OutputPort)] = {
       val name = v.fullVariableReferenceString
       (innerLookup.get(name), outerLookup.get(name)) match {
-        case (Some(port), None) => Valid(name -> port)
+        case (Some(port), _) =>
+          // If we can find the value locally, use it.
+          // It might be a local value or it might be an OGIN already created by another Node for an outerLookup.
+          Valid(name -> port)
         case (None, Some(port)) => Valid(name -> OuterGraphInputNode(WomIdentifier(name), port, preserveIndexForOuterLookups).singleOutputPort)
         case (None, None) => s"No input $name found evaluating inputs for expression ${expression.wdlExpression.toWomString}".invalidNel
-        case (Some(innerPort), Some(outerPort)) => s"Two inputs called '$name' found evaluating inputs for expression ${expression.wdlExpression.toWomString}: on ${innerPort.graphNode.localName} and ${outerPort.graphNode.localName}".invalidNel
       }
     }
 

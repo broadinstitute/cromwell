@@ -95,7 +95,7 @@ object Graph {
         case (fqn, list) if list.lengthCompare(1) > 0 => fqn
       }).toList match {
       case Nil => ().validNel
-      case head :: tail => ().validNel
+      case head :: tail =>
         NonEmptyList.of(head, tail: _*).map(fqn => s"Two or more nodes have the same FullyQualifiedName: ${fqn.value}").invalid
     }
 

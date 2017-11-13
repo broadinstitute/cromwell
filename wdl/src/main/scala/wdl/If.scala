@@ -53,7 +53,7 @@ object If {
       * - So, we can make OGINs at this layer for all possible OutputPorts in the outer graph and let the inner graph
       * use however many of them it needs.
       */
-    val possiblyNeededNestedOgins: Map[String, OuterGraphInputNode] = outerLookup filterNot{ case (name, _) => localLookup.contains(name) } map { case (name, outerPort) =>
+    val possiblyNeededNestedOgins: Map[String, OuterGraphInputNode] = outerLookup filterNot { case (name, _) => localLookup.contains(name) } map { case (name, outerPort) =>
       name -> OuterGraphInputNode(WomIdentifier(name), outerPort, preserveScatterIndex = true)
     }
     val possiblyNeededNestedOginPorts: Map[String, OutputPort] = possiblyNeededNestedOgins map { case (name: String, ogin: OuterGraphInputNode) => name -> ogin.singleOutputPort }

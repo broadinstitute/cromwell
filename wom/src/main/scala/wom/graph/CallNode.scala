@@ -99,22 +99,23 @@ object CallNode {
         mappings = x.mappings ++ y.mappings,
         callInputPorts = x.callInputPorts ++ y.callInputPorts,
         newGraphInputNodes = x.newGraphInputNodes ++ y.newGraphInputNodes,
-        newExpressionNodes = x.newExpressionNodes ++ y.newExpressionNodes
+        newExpressionNodes = x.newExpressionNodes ++ y.newExpressionNodes,
+        usedOuterGraphInputNodes = x.usedOuterGraphInputNodes ++ y.usedOuterGraphInputNodes
       )
     }
   }
 
   final case class InputDefinitionFold(mappings: InputDefinitionMappings = Map.empty,
-                                                       callInputPorts: Set[InputPort] = Set.empty,
-                                                       newGraphInputNodes: Set[ExternalGraphInputNode] = Set.empty,
-                                                       newExpressionNodes: Set[ExpressionNode] = Set.empty)
+                                       callInputPorts: Set[InputPort] = Set.empty,
+                                       newGraphInputNodes: Set[ExternalGraphInputNode] = Set.empty,
+                                       newExpressionNodes: Set[ExpressionNode] = Set.empty,
+                                       usedOuterGraphInputNodes: Set[OuterGraphInputNode] = Set.empty)
 
   type InputDefinitionPointer = OutputPort :+: WomExpression :+: WomValue :+: CNil
   type InputDefinitionMappings = Map[InputDefinition, InputDefinitionPointer]
 
-  final case class CallNodeAndNewNodes(node: CallNode, newInputs: Set[ExternalGraphInputNode], newExpressions: Set[ExpressionNode]) extends GeneratedNodeAndNewNodes {
-    def nodes: Set[GraphNode] = Set(node) ++ newInputs ++ newExpressions
-    override def nestedOuterGraphInputNodes: Set[_ <: OuterGraphInputNode] = Set.empty
+  final case class CallNodeAndNewNodes(node: CallNode, newInputs: Set[ExternalGraphInputNode], newExpressions: Set[ExpressionNode], override val usedOuterGraphInputNodes: Set[OuterGraphInputNode]) extends GeneratedNodeAndNewNodes {
+    def nodes: Set[GraphNode] = Set(node) ++ newInputs ++ newExpressions ++ usedOuterGraphInputNodes
   }
 
   /**
@@ -148,7 +149,7 @@ object CallNode {
               inputDefinitionFold: InputDefinitionFold): CallNodeAndNewNodes = {
       val callNode = CallNode(nodeIdentifier, callable, inputDefinitionFold.callInputPorts, inputDefinitionFold.mappings)
       graphNodeSetter._graphNode = callNode
-      CallNodeAndNewNodes(callNode, inputDefinitionFold.newGraphInputNodes, inputDefinitionFold.newExpressionNodes)
+      CallNodeAndNewNodes(callNode, inputDefinitionFold.newGraphInputNodes, inputDefinitionFold.newExpressionNodes, inputDefinitionFold.usedOuterGraphInputNodes)
     }
   }
 }

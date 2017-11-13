@@ -7,9 +7,11 @@ import java.util.concurrent.atomic.AtomicInteger
 import better.files.File
 import cats.implicits._
 import cwl.CwlDecoder
+import spray.json.{JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsValue}
 import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.executable.Executable
 import wom.graph._
+import wom.types._
 import womtool.graph.WomGraph._
 
 import scala.collection.JavaConverters._
@@ -124,21 +126,8 @@ class WomGraph(graphName: String, graph: Graph) {
          |""".stripMargin
     }
 
-    // A box (subgraph) for the condition (i.e. the if(x == 5) expression) and the links to and from it
-//    val conditionNodesAndLinks = {
-//      val node = s"""
-//                    |subgraph $nextCluster {
-//                    |  style=filled;
-//                    |  fillcolor=${conditional.graphFillColor};
-//                    |  "${UUID.randomUUID}" [shape=plaintext label="if(...)"]
-//                    |${indentAndCombine(conditional.conditionExpression.inputPorts map portLine)}
-//                    |}
-//         """.stripMargin
-//
-//      NodesAndLinks(Set(node), Set.empty)
-//    }
     val outputLinks = conditional.conditionalOutputPorts map { outputPort => s"${outputPort.outputToExpose.singleInputPort.graphId} -> ${outputPort.graphId} [style=dashed arrowhead=none]" }
-    (innerGraph).withLinks(outputLinks)
+    innerGraph.withLinks(outputLinks)
   }
 
   def internalSubworkflowNodesAndLinks(subworkflow: WorkflowCallNode): NodesAndLinks = listAllGraphNodes(subworkflow.callable.innerGraph) wrapNodes { n =>
@@ -175,8 +164,10 @@ object WomGraph {
 
   private def womExecutableFromWdl(filePath: String): Executable = {
     val namespace = WdlNamespaceWithWorkflow.load(readFile(filePath), Seq(WdlNamespace.fileResolver _)).get
-    // TODO WOM don't think anything good is going to happen with a None inputs file.
-    namespace.womExecutable(None) match {
+    // TODO: Remove this and the 'fakeInput' method with #2867
+    val fakedInputs = JsObject(namespace.workflow.inputs map { i => i._1 -> fakeInput(i._2.womType) })
+
+    namespace.womExecutable(Some(fakedInputs.prettyPrint)) match {
       case Right(wom) => wom
       case Left(e) => throw new Exception(s"Can't build WOM executable from WDL namespace: ${e.toList.mkString("\n", "\n", "\n")}")
     }
@@ -192,5 +183,15 @@ object WomGraph {
       case Right(womExecutable) => womExecutable
       case Left(e) => throw new Exception(s"Can't build WOM executable from CWL: ${e.toList.mkString("\n", "\n", "\n")}")
     }
+  }
+
+  def fakeInput(womType: WomType): JsValue = womType match {
+    case WomStringType => JsString("hio")
+    case WomIntegerType | WomFloatType => JsNumber(25)
+    case WomFileType => JsString("gs://bucket/path/file.txt")
+    case WomBooleanType => JsBoolean(true)
+    case _: WomOptionalType => JsNull
+    case WomArrayType(innerType) => JsArray(Vector(fakeInput(innerType)))
+    case WomMapType(_, valueType) => JsObject(Map("0" -> fakeInput(valueType)))
   }
 }

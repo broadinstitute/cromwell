@@ -1,0 +1,19 @@
+name: sub_workflow_decls
+testFormat: workflowsuccess
+# TODO WOM: enable this once subworkflows come back
+ignore: true
+
+files {
+  wdl: sub_workflow_decls/sub_workflow_decls.wdl
+  imports: [
+    sub_workflow_decls/sub_workflow_decls_import.wdl
+  ]
+}
+
+metadata {
+  workflowName: sub_workflow_decls
+  status: Succeeded
+  "outputs.sub_workflow_decls.out": "foo"
+  "outputs.sub_workflow_decls.init": "initialized"
+  "outputs.sub_workflow_decls.override": "overridden"
+}

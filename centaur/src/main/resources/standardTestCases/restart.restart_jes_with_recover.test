@@ -1,4 +1,5 @@
-ignore: true
+ignore: true # Depends on #2866
+
 name: restart_jes_with_recover
 testFormat: CromwellRestartWithRecover
 callMark: cromwell_restart.cromwell_killer

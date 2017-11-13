@@ -1,4 +1,3 @@
-ignore: true
 # Tests that on a shared filesystem Cromwell is correctly localizing input files coming from the same as
 # well as different directories. Tests both docker and non-docker
 

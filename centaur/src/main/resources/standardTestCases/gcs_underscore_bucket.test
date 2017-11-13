@@ -1,4 +1,3 @@
-ignore: true
 name: gcs_underscore_bucket
 testFormat: workflowsuccess
 backends: [Jes]

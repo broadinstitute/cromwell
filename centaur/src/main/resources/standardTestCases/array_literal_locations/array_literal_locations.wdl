@@ -5,7 +5,7 @@ task array_literal_locations_i {
       echo ${sep=":" array} > out
     }
     runtime { docker: "ubuntu:latest" }
-    output { File out = "out" }
+    output { String out = read_string("out") }
 }
 
 task array_literal_locations_ii {
@@ -17,7 +17,7 @@ task array_literal_locations_ii {
         docker: "ubuntu:latest"
         continueOnReturnCode: [ 0, 1, 2 ]
     }
-    output { File out = "out" }
+    output { String out = read_string("out") }
 }
 
 workflow array_literal_locations {

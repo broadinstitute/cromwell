@@ -8,7 +8,6 @@ import common.validation.ErrorOr.ErrorOr
 import wom.values._
 import wom.expression.IoFunctionSet
 import wom.graph.TaskCallNode
-import wom.types.WomAnyType
 import wom.values.WomGlobFile
 
 trait GlobFunctions extends IoFunctionSet {
@@ -16,8 +15,8 @@ trait GlobFunctions extends IoFunctionSet {
   def callContext: CallContext
 
   def findGlobOutputs(call: TaskCallNode, jobDescriptor: BackendJobDescriptor): ErrorOr[List[WomGlobFile]] =
-    call.callable.outputs.flatTraverse[ErrorOr, WomGlobFile] {
-      _.expression.evaluateFiles(jobDescriptor.localInputs, this, WomAnyType) map {
+    call.callable.outputs.flatTraverse[ErrorOr, WomGlobFile] { outputDefinition =>
+      outputDefinition.expression.evaluateFiles(jobDescriptor.localInputs, this, outputDefinition.womType) map {
         _.toList collect { case glob: WomGlobFile => glob }
       }
     }

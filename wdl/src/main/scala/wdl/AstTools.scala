@@ -102,7 +102,10 @@ object AstTools {
       }
     }
     def findTopLevelMemberAccesses(): Iterable[Ast] = AstTools.findTopLevelMemberAccesses(astNode)
-    def sourceString: String = astNode.asInstanceOf[Terminal].getSourceString
+    def sourceString: String = astNode match {
+      case t: Terminal => t.getSourceString
+      case a: Ast => a.toPrettyString
+    }
     def astListAsVector: Seq[AstNode] = astNode.asInstanceOf[AstList].asScala.toVector
     def womType(wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): WomType = {
       astNode match {

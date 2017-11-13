@@ -1,4 +1,4 @@
-ignore: true
+ignore: true # Reinstate with #2861
 name: scatterchain
 testFormat: workflowsuccess
 

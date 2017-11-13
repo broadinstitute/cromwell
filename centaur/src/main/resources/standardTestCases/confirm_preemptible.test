@@ -1,4 +1,3 @@
-ignore: true
 name: confirm_preemptible
 testFormat: workflowsuccess
 backends: [Jes]

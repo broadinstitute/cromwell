@@ -7,7 +7,7 @@ class CommandLineToolSpec extends FlatSpec with Matchers {
 
   behavior of "CommandLineTool"
 
-  it should "order input arguments when bound to command line" in {
+  it should "filter input arguments when not bound to command line" in {
 
     val a = CommandInputParameter("a", inputBinding = None)
     val b = CommandInputParameter("b", inputBinding = Some(CommandLineBinding()))
@@ -17,7 +17,5 @@ class CommandLineToolSpec extends FlatSpec with Matchers {
     ordered.contains(a) shouldBe false
 
     ordered.contains(b) shouldBe true
-
   }
-
 }

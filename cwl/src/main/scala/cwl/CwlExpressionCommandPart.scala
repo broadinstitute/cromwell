@@ -60,11 +60,11 @@ case class InputParameterCommandPart(commandInputParameter: CommandInputParamete
                            runtimeEnvironment: RuntimeEnvironment) = {
 
     val womValue: WomValue = commandInputParameter match {
-
-      case CommandInputParameter(commandInputParamterFqn, _,_,_,_,_, _,_,_) =>
-        inputsMap.get(LocalName(FullyQualifiedName(commandInputParamterFqn).id)) match {
+      case cip: CommandInputParameter =>
+        val localizedId = LocalName(FullyQualifiedName(cip.id).id)
+        inputsMap.get(localizedId) match {
           case Some(x) =>x
-          case _ => throw new RuntimeException(s"could not find $commandInputParamterFqn in map $inputsMap")
+          case _ => throw new RuntimeException(s"could not find ${localizedId} in map $inputsMap")
         }
 
       // There's a fair few other cases to add, but until then...

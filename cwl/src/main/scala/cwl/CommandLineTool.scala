@@ -127,6 +127,8 @@ object CommandLineTool {
   /**
     * Sort according to position. If position does not exist, use 0 per spec:
     * http://www.commonwl.org/v1.0/CommandLineTool.html#CommandLineBinding
+    *
+    * If an input binding is not specified, ignore the input parameter.
     */
   protected[cwl] def orderedForCommandLine(inputs: Array[CommandInputParameter]):Seq[CommandInputParameter] = {
     inputs.

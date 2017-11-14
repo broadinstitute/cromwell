@@ -124,7 +124,7 @@ lazy val womtool = project
   .dependsOn(wom % "test->test")
 
 lazy val root = (project in file("."))
-  .withExecutableSettings("cromwell", rootDependencies)
+  .withExecutableSettings("cromwell", rootDependencies, rootSettings)
   // Next level of projects to include in the fat jar (their dependsOn will be transitively included)
   .dependsOn(engine)
   .dependsOn(jesBackend)

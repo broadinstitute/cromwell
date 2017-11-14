@@ -53,7 +53,7 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
   def identifierTypeLookup(name: String): WomType = identifierLookup(name).womType
 
   class TestValueFunctions extends WdlStandardLibraryFunctions {
-    override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedError()
+    override def globHelper(pattern: String): Seq[String] = throw new NotImplementedError()
 
     override def readFile(path: String): String = throw new NotImplementedError()
 

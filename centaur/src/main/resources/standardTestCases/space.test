@@ -1,4 +1,3 @@
-ignore: true
 name: space
 testFormat: workflowsuccess
 
@@ -9,4 +8,10 @@ files {
 metadata {
     workflowName: space
     status: Succeeded
+    "outputs.space.o1": "Hello world"
+    "outputs.space.o2": "Hello world"
+    "outputs.space.o3.0": "Hello world"
+    "outputs.space.o3.1": "Hello world"
+    "outputs.space.o3.2": "Hello world"
+    "outputs.space.o3.3": "Hello world"
 }

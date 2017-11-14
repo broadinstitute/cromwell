@@ -1,7 +1,12 @@
-ignore: true
 name: globbingscatter
 testFormat: workflowsuccess
 
 files {
   wdl: globbingscatter/globbingscatter.wdl
+}
+
+metadata {
+  workflowName: globbingscatter
+  "outputs.globbingscatter.combiner1_result": "globbing is my number 1 best hobby\nglobbing is my number 2 best hobby\nglobbing is my number 3 best hobby\nglobbing is my number 4 best hobby\nglobbing is my number 5 best hobby"
+  "outputs.globbingscatter.combiner2_result": "globbing is my number 1 best hobby\nglobbing is my number 2 best hobby\nglobbing is my number 3 best hobby\nglobbing is my number 4 best hobby\nglobbing is my number 5 best hobby"
 }

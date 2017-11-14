@@ -227,7 +227,7 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Option[Sco
 
       override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = ioFunctionSet.stderr(params)
 
-      override def glob(path: String, pattern: String): Seq[String] = ioFunctionSet.glob(pattern)
+      override def globHelper(pattern: String): Seq[String] = ioFunctionSet.glob(pattern)
 
       override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = ioFunctionSet.size(params)
     }

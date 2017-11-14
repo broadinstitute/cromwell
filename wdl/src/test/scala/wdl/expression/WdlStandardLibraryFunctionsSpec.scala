@@ -61,7 +61,7 @@ case object TestableFunctions extends WdlStandardLibraryFunctions {
   override def transpose(params: Seq[Try[WomValue]]): Try[WomArray] = throw new NotImplementedError
   override def write_tsv(params: Seq[Try[WomValue]]): Try[WomFile] = throw new NotImplementedError
   override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = throw new NotImplementedError
-  override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedError
+  override def globHelper(pattern: String): Seq[String] = throw new NotImplementedError
   override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = throw new NotImplementedError
 }
 

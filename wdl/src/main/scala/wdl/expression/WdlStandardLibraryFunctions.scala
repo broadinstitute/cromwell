@@ -23,8 +23,6 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
 
   def stderr(params: Seq[Try[WomValue]]): Try[WomFile]
 
-  def glob(path: String, pattern: String): Seq[String]
-
   def size(params: Seq[Try[WomValue]]): Try[WomFloat]
 
   private def writeContent(baseName: String, content: String): Try[WomFile] = writeFile(s"${baseName}_${content.md5Sum}.tmp", content)
@@ -90,13 +88,15 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
     read_string(params) map { s => WomBoolean(java.lang.Boolean.parseBoolean(s.value.trim.toLowerCase)) }
   }
 
-  def glob(params: Seq[Try[WomValue]]): Try[WomArray] = {
+  def globHelper(pattern: String): Seq[String]
+
+  final def glob(params: Seq[Try[WomValue]]): Try[WomArray] = {
     for {
-      singleArgument <- extractSingleArgument("glob", params)
-      globVal = singleArgument.valueString
-      files = glob(globPath(globVal), globVal)
-      wdlFiles = files map { WomFile(_, isGlob = false) }
-    } yield WomArray(WomArrayType(WomFileType), wdlFiles)
+      pattern <- extractSingleArgument("glob", params)
+      womString <- WomStringType.coerceRawValue(pattern)
+      patternString = womString.valueString
+      filePaths <- Try(globHelper(patternString))
+    } yield WomArray(WomArrayType(WomFileType), filePaths.map(WomSingleFile))
   }
 
   def basename(params: Seq[Try[WomValue]]): Try[WomString] = {
@@ -309,7 +309,7 @@ object WdlStandardLibraryFunctions {
 
     override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = ioFunctionSet.stderr(params)
 
-    override def glob(path: String, pattern: String): Seq[String] = ioFunctionSet.glob(pattern)
+    override def globHelper(pattern: String): Seq[String] = ioFunctionSet.glob(pattern)
 
     override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = ioFunctionSet.size(params)
   }
@@ -349,7 +349,7 @@ trait PureStandardLibraryFunctionsLike extends WdlStandardLibraryFunctions {
   override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new NotImplementedError(s"size not available in $className."))
   override def write_tsv(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError(s"write_tsv not available in $className."))
   override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError(s"stdout not available in $className."))
-  override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedError(s"glob not available in $className.")
+  override def globHelper(pattern: String): Seq[String] = throw new NotImplementedError(s"glob not available in $className.")
   override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError(s"stderr not available in $className."))
 }
 
@@ -443,7 +443,7 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WomType] {
 }
 
 case object NoFunctions extends WdlStandardLibraryFunctions {
-  override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedError()
+  override def globHelper(pattern: String): Seq[String] = throw new NotImplementedError()
   override def readFile(path: String): String = throw new NotImplementedError()
   override def writeFile(path: String, content: String): Try[WomFile] = throw new NotImplementedError()
   override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError())

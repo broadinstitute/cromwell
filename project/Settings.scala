@@ -169,6 +169,7 @@ object Settings {
   )
 
   val engineSettings = List(resourceGenerators in Compile += writeSwaggerUiVersionConf)
+  val rootSettings = GenerateRestApiDocs.generateRestApiDocsSettings
 
   private def buildProject(project: Project,
                            projectName: String,

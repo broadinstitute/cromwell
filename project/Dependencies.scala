@@ -5,6 +5,7 @@ object Dependencies {
   val akkaV = "2.5.4"
   val ammoniteOpsV = "1.0.1"
   val apacheHttpClientV = "4.5.3"
+  val apacheHttpCoreV = "4.4.6"
   val betterFilesV = "2.17.1"
   val catsEffectV = "0.4"
   val catsV = "1.0.0-MF"
@@ -12,21 +13,29 @@ object Dependencies {
   val circeYamlV = "0.7.0-M1"
   val commonsCodecV = "1.10"
   val commonsIoV = "2.5"
+  val commonsLang3V = "3.5"
+  val commonsLoggingV = "1.2"
   val commonsTextV = "1.1"
   val configsV = "0.4.4"
+  val errorProneAnnotationsV = "2.0.19"
   val ficusV = "1.4.1"
   val fs2V = "0.9.7"
-  val googleClientApiV = "1.22.0"
+  val gaxV = "1.9.0"
+  val googleApiClientV = "1.22.0"
   val googleCloudComputeV = "0.26.0-alpha"
+  val googleCloudCoreV = "1.8.0"
   val googleCloudNioV = "0.20.1-alpha"
   val googleCredentialsV = "0.8.0"
   val googleGenomicsServicesApiV = "v1alpha2-rev64-1.22.0"
+  val googleHttpClientV = googleApiClientV
   val googleOauth2V = "0.8.0"
+  val googleOauthClientV = googleApiClientV
   val grpcV = "1.5.0"
   val guavaV = "22.0"
   val hsqldbV = "2.3.4"
   val jacksonV = "2.8.9"
   val janinoV = "3.0.7"
+  val jodaTimeV = "2.9.4"
   val jsr305V = "3.0.0"
   val kittensV = "1.0.0-RC0"
   val liquibaseSlf4jV = "2.0.0"
@@ -41,10 +50,13 @@ object Dependencies {
   val pegdownV = "1.6.0"
   val protoGoogleCommonProtosV = "0.1.21"
   val protoGoogleIamV1V = "0.1.21"
+  val protobufJavaV = "3.3.1"
   val ravenLogbackV = "8.0.3"
+  val reactiveStreamsV = "1.0.1"
   val refinedV = "0.8.3"
   val scalaGraphV = "1.12.0"
   val scalaLoggingV = "3.6.0"
+  val scalaXmlV = "1.0.6"
   val scalacheckV = "1.13.4"
   val scalacticV = "3.0.1"
   val scalameterV = "0.8.2"
@@ -55,6 +67,7 @@ object Dependencies {
   val slickV = "3.2.0"
   val snakeyamlV = "1.17"
   val specs2MockV = "3.8.9" // 3.9.X doesn't enjoy the spark backend or refined
+  val sprayJsonV = "1.3.3"
   val sttpV = "0.0.16"
   val swaggerParserV = "1.0.22"
   val swaggerUiV = "3.2.2"
@@ -64,17 +77,49 @@ object Dependencies {
   If you see warnings from SBT about evictions, insert a specific dependency version into this list.
    */
   val cromwellDependencyOverrides = List(
+    "ch.qos.logback" % "logback-classic" % logbackV,
+    "ch.qos.logback" % "logback-core" % logbackV,
+    "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonV,
+    "com.fasterxml.jackson.core" % "jackson-core" % jacksonV,
+    "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
+    "com.google.api" % "gax" % gaxV,
+    "com.google.api-client" % "google-api-client" % googleApiClientV,
     "com.google.api.grpc" % "proto-google-common-protos" % protoGoogleCommonProtosV,
     "com.google.api.grpc" % "proto-google-iam-v1" % protoGoogleIamV1V,
     "com.google.auth" % "google-auth-library-credentials" % googleCredentialsV,
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
+    "com.google.cloud" % "google-cloud-core" % googleCloudCoreV,
+    "com.google.cloud" % "google-cloud-core-http" % googleCloudCoreV,
     "com.google.code.findbugs" % "jsr305" % jsr305V,
+    "com.google.errorprone" % "error_prone_annotations" % errorProneAnnotationsV,
     "com.google.guava" % "guava" % guavaV,
+    "com.google.http-client" % "google-http-client" % googleHttpClientV,
+    "com.google.http-client" % "google-http-client-appengine" % googleHttpClientV,
+    "com.google.http-client" % "google-http-client-jackson" % googleHttpClientV,
+    "com.google.http-client" % "google-http-client-jackson2" % googleHttpClientV,
+    "com.google.oauth-client" % "google-oauth-client" % googleOauthClientV,
+    "com.google.protobuf" % "protobuf-java" % protobufJavaV,
+    "com.google.protobuf" % "protobuf-java-util" % protobufJavaV,
+    "com.typesafe" % "config" % typesafeConfigV,
     "com.typesafe.akka" %% "akka-actor" % akkaV,
     "com.typesafe.akka" %% "akka-stream" % akkaV,
+    "commons-codec" % "commons-codec" % commonsCodecV,
+    "commons-io" % "commons-io" % commonsIoV,
+    "commons-logging" % "commons-logging" % commonsLoggingV,
+    "eu.timepit" %% "refined" % refinedV,
+    "io.grpc" % "grpc-context" % grpcV,
     "io.netty" % "netty-handler" % nettyHandlerV,
+    "io.spray" %% "spray-json" % sprayJsonV,
+    "joda-time" % "joda-time" % jodaTimeV,
+    "org.apache.commons" % "commons-lang3" % commonsLang3V,
+    "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV,
+    "org.apache.httpcomponents" % "httpcore" % apacheHttpCoreV,
+    "org.reactivestreams" % "reactive-streams" % reactiveStreamsV,
+    "org.scala-lang.modules" %% "scala-xml" % scalaXmlV,
+    "org.slf4j" % "slf4j-api" % slf4jV,
     "org.typelevel" %% "cats-core" % catsV,
-    "org.typelevel" %% "cats-kernel" % catsV
+    "org.typelevel" %% "cats-kernel" % catsV,
+    "org.yaml" % "snakeyaml" % snakeyamlV
   )
 
   // Internal collections of dependencies
@@ -127,9 +172,9 @@ object Dependencies {
     "com.fasterxml.jackson.core" % "jackson-core" % jacksonV,
     // The exclusions prevent guava from colliding at assembly time.
     "com.google.guava" % "guava" % guavaV,
-    "com.google.api-client" % "google-api-client-java6" % googleClientApiV
+    "com.google.api-client" % "google-api-client-java6" % googleApiClientV
       exclude("com.google.guava", "guava-jdk5"),
-    "com.google.api-client" % "google-api-client-jackson2" % googleClientApiV
+    "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV
       exclude("com.google.guava", "guava-jdk5")
   )
 

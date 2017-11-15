@@ -1,4 +1,5 @@
-ignore: true
+ignore: true # Depends on 2866
+
 name: restart_tes_without_recover
 testFormat: CromwellRestartWithoutRecover
 callMark: cromwell_restart.cromwell_killer

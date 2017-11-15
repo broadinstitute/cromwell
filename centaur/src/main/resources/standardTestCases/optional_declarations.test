@@ -1,5 +1,3 @@
-ignore: true
-
 name: optional_declarations
 testFormat: workflowsuccess
 

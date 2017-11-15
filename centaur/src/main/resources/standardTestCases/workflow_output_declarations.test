@@ -1,4 +1,4 @@
-ignore: true
+ignore: true # depends on #2860
 name: workflow_output_declarations
 testFormat: workflowsuccess
 

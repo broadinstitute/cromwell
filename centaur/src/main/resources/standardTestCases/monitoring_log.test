@@ -1,4 +1,3 @@
-ignore: true
 # Test to confirm the output of the monitoring script will be written to a monitoring.log file
 
 name: monitoring_log

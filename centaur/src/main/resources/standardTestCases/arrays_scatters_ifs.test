@@ -1,4 +1,3 @@
-ignore: true
 name: arrays_scatters_ifs
 testFormat: workflowsuccess
 

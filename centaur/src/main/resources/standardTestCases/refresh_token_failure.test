@@ -1,4 +1,3 @@
-ignore: true
 name: refresh_token_failure
 testFormat: workflowfailure
 backends: [Jes-Refresh]

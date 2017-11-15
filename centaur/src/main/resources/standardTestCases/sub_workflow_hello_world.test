@@ -1,4 +1,4 @@
-ignore: true
+ignore: true # Depends on #2615
 name: sub_workflow_hello_world
 testFormat: workflowsuccess
 

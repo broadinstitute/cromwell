@@ -1,4 +1,4 @@
-ignore: true
+ignore: true # Depends on 2904
 name: invalid_runtime_attributes
 testFormat: workflowfailure
 
@@ -8,6 +8,7 @@ files {
 }
 
 metadata {
-    "failures.0.message": "Runtime validation failed"
-    "failures.0.causedBy.0.message": "Task invalid_runtime_attributes has an invalid runtime attribute continueOnReturnCode = \"oops\""
+    "workflowName": "invalid_runtime_attributes_wf"
+    "failures.0.message": "Workflow failed"
+    "failures.0.causedBy.0.causedBy.0.message": "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
 }

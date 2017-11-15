@@ -1,3 +1,4 @@
+# Ignored because of #1934
 ignore: true
 name: circular_dependencies
 testFormat: workflowfailure

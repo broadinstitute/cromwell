@@ -5,7 +5,7 @@ task wdl_function_locations_i {
       echo ${sep=":" array} > out
     }
     runtime { docker: "ubuntu:latest" }
-    output { File out = "out" }
+    output { String out = read_string("out") }
 }
 
 task wdl_function_locations_ii {
@@ -18,7 +18,7 @@ task wdl_function_locations_ii {
         # A (pure) WDL function in the runtime attributes:
         continueOnReturnCode: range(3)
     }
-    output { File out = "out" }
+    output { String out = read_string("out") }
 }
 
 workflow wdl_function_locations {

@@ -5,7 +5,7 @@ import common.validation.ErrorOr.ErrorOr
 import wdl4s.parser.WdlParser._
 import wdl.AstTools._
 import wdl.expression.WdlFunctions
-import wom.WorkflowInput
+import wom.callable.Callable.InputDefinition
 import wom.callable.WorkflowDefinition
 import wom.types.WomType
 import wom.values.WomValue
@@ -81,8 +81,10 @@ case class WdlWorkflow(unqualifiedName: String,
     */
   override lazy val childGraphNodes: Set[WdlGraphNode] = {
     import common.collections.EnhancedCollections._
-    children.toSet.filterByType[WdlGraphNode] ++ outputs
+    (children.toSet.filterByType[WdlGraphNode]: Set[WdlGraphNode]) ++ outputs
   }
+
+  def unsatisfiedCallInputs: Set[InputDefinition] = calls.flatMap(_.unsatisfiedInputs)
 
   /**
    * FQNs for all inputs to this workflow and their associated types and possible postfix quantifiers.
@@ -90,18 +92,14 @@ case class WdlWorkflow(unqualifiedName: String,
    * @return a Map[FullyQualifiedName, WorkflowInput] representing the
    *         inputs that the user needs to provide to this workflow
    */
-  def inputs: Map[FullyQualifiedName, WorkflowInput] = {
-    val callInputs = for {
-      call <- calls
-      input <- call.unsatisfiedInputs
-    } yield input
+  def inputs: Map[FullyQualifiedName, InputDefinition] = {
 
     val declarationInputs = for {
       declaration <- declarations
       input <- declaration.asWorkflowInput
     } yield input
 
-    (callInputs ++ declarationInputs) map { input => input.fqn -> input } toMap
+    (unsatisfiedCallInputs ++ declarationInputs) map { input => input.name -> input } toMap
   }
 
   /** First tries to find any Call with name `name`.  If not found,

@@ -33,9 +33,9 @@ object ExecutionStore {
         case scatterCollector: ScatterCollectorKey =>
           // The outputToGather is the PortBasedGraphOutputNode of the inner graph that we're collecting. Go one step upstream and then
           // find the node which will have entries in the execution store. If that has 'n' entries, then we're good to start collecting,
-          statusTable.row(scatterCollector.outputNodeToGather.singleInputPort.upstream.executionNode).size == scatterCollector.scatterWidth
+          statusTable.row(scatterCollector.outputNodeToGather.singleUpstreamPort.executionNode).size == scatterCollector.scatterWidth
         case conditionalCollector: ConditionalCollectorKey =>
-          val upstreamPort = conditionalCollector.outputNodeToCollect.singleInputPort.upstream
+          val upstreamPort = conditionalCollector.outputNodeToCollect.singleUpstreamPort
           upstreamPort.executionNode.isInStatus(chooseIndex(upstreamPort), statusTable)
         // In the general case, the dependencies are held by the upstreamPorts
         case _ => key.node.upstreamPorts forall { p => p.executionNode.isInStatus(chooseIndex(p), statusTable) }
@@ -74,17 +74,18 @@ object ExecutionStore {
   def apply(callable: ExecutableCallable) = {
     // Keys that are added in a NotStarted Status
     val notStartedKeys = callable.graph.nodes collect {
-      case call: TaskCallNode => List(BackendJobDescriptorKey(call, None, 1))
-      case expression: ExpressionNode => List(ExpressionKey(expression, None))
-      case scatterNode: ScatterNode => List(ScatterKey(scatterNode))
-      case conditionalNode: ConditionalNode => List(ConditionalKey(conditionalNode, None))
+      case call: TaskCallNode => BackendJobDescriptorKey(call, None, 1)
+      case expression: ExpressionNode => ExpressionKey(expression, None)
+      case scatterNode: ScatterNode => ScatterKey(scatterNode)
+      case conditionalNode: ConditionalNode => ConditionalKey(conditionalNode, None)
+      case subworkflow: WorkflowCallNode => SubWorkflowKey(subworkflow, None, 1)
     }
 
     // There are potentially resolved workflow inputs that are default WomExpressions.
     // For now assume that those are call inputs that will be evaluated in the CallPreparation.
     // If they are actually workflow declarations then we would need to add them to the ExecutionStore so they can be evaluated.
     // In that case we would want InstantiatedExpressions so we can create an InstantiatedExpressionNode and add a DeclarationKey
-    ActiveExecutionStore(notStartedKeys.flatten.map(_ -> NotStarted).toMap, notStartedKeys.nonEmpty)
+    ActiveExecutionStore(notStartedKeys.map(_ -> NotStarted).toMap, notStartedKeys.nonEmpty)
   }
 
 }
@@ -92,7 +93,7 @@ object ExecutionStore {
 /**
   * Execution store in its nominal state
   */
-final case class ActiveExecutionStore(private val statusStore: Map[JobKey, ExecutionStatus], override val needsUpdate: Boolean) extends ExecutionStore(statusStore, needsUpdate) {
+final case class ActiveExecutionStore private[stores](private val statusStore: Map[JobKey, ExecutionStatus], override val needsUpdate: Boolean) extends ExecutionStore(statusStore, needsUpdate) {
   override def updateKeys(values: Map[JobKey, ExecutionStatus], needsUpdate: Boolean): ActiveExecutionStore = {
     this.copy(statusStore = statusStore ++ values, needsUpdate = needsUpdate)
   }
@@ -105,7 +106,8 @@ final case class ActiveExecutionStore(private val statusStore: Map[JobKey, Execu
   * Execution store when the workflow is in either Failing or Aborting state. Keys in NotStarted state have been removed and
   * no new NotStarted key can be added. Other statuses can still be updated.
   */
-final case class SealedExecutionStore(private val statusStore: Map[JobKey, ExecutionStatus], override val needsUpdate: Boolean) extends ExecutionStore(statusStore, false) {
+final case class SealedExecutionStore private[stores](private val statusStore: Map[JobKey, ExecutionStatus], override val needsUpdate: Boolean) extends ExecutionStore(statusStore, false) {
+
   override def updateKeys(values: Map[JobKey, ExecutionStatus], needsUpdate: Boolean): SealedExecutionStore = {
     // Don't allow NotStarted keys in sealed mode
     this.copy(statusStore = statusStore ++ values.filterNot(_._2 == NotStarted), needsUpdate = needsUpdate)
@@ -124,7 +126,7 @@ final case class SealedExecutionStore(private val statusStore: Map[JobKey, Execu
   *                    when true, something happened since the last update that could yield new runnable keys, so update should be called
   *                    when false, nothing happened between the last update and now that will yield different results so no need to call the update method
   */
-sealed abstract class ExecutionStore(statusStore: Map[JobKey, ExecutionStatus], val needsUpdate: Boolean) {
+sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, ExecutionStatus], val needsUpdate: Boolean) {
   // View of the statusStore more suited for lookup based on status
   lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).mapValues(_.keys.toList)
 

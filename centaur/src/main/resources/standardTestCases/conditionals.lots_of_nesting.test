@@ -1,4 +1,4 @@
-ignore: true # Depends on #2615
+ignore: true # Depends on #2861
 
 name: lots_of_nesting
 testFormat: workflowsuccess

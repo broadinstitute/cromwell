@@ -134,7 +134,7 @@ class WomGraph(graphName: String, graph: Graph) {
     s"""
        |subgraph $nextCluster {
        |  style=filled;
-       |  fillcolor=lightgray;
+       |  fillcolor=white;
        |${indentAndCombine(n)}
        |}
        |""".stripMargin

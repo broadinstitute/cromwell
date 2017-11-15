@@ -66,13 +66,6 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
   when(WorkflowExecutionPendingState) {
     case Event(ExecuteWorkflowCommand, _) =>
-      // TODO WOM: Remove this when sub workflows are supported. It prevents the workflow from hanging
-      if(workflowDescriptor.callable.graph.nodes.collectFirst({
-        case  _: WorkflowCallNode => true
-      }).nonEmpty) {
-        context.parent ! WorkflowExecutionFailedResponse(Map.empty, new Exception("Sub Workflows not supported yet"))
-        goto(WorkflowExecutionFailedState)
-      }
       // Start HeartBeat
       timers.startPeriodicTimer(ExecutionHeartBeatKey, ExecutionHeartBeat, ExecutionHeartBeatInterval)
 
@@ -167,16 +160,22 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     case Event(r: JobSucceededResponse, stateData) =>
       handleCallSuccessful(r.jobKey, r.jobOutputs, r.returnCode, stateData, Map.empty)
     // Sub Workflow
-    case Event(SubWorkflowSucceededResponse(jobKey, descendantJobKeys, callOutputs), stateData) =>
-      handleCallSuccessful(jobKey, callOutputs, None, stateData, descendantJobKeys)
+    case Event(SubWorkflowSucceededResponse(jobKey, descendantJobKeys, callOutputs), currentStateData) =>
+      // Update call outputs to come from sub-workflow output ports:
+      val subworkflowOutputs: Map[OutputPort, WomValue] = callOutputs.outputs flatMap { case (port, value) =>
+        jobKey.node.subworkflowCallOutputPorts collectFirst {
+          case p if p.outputToExpose.graphOutputPort eq port => p -> value
+        }
+      }
+
+      if(subworkflowOutputs.size == callOutputs.outputs.size) {
+        handleCallSuccessful(jobKey, CallOutputs(subworkflowOutputs), None, currentStateData, descendantJobKeys)
+      } else {
+        handleNonRetryableFailure(currentStateData, jobKey, new Exception(s"Subworkflow produced outputs: [${callOutputs.outputs.keys.mkString(", ")}], but we expected all of [${jobKey.node.subworkflowCallOutputPorts.map(_.name)}]"))
+      }
     // Expression
     case Event(ExpressionEvaluationSucceededResponse(jobKey, callOutputs), stateData) =>
       handleDeclarationEvaluationSuccessful(jobKey, callOutputs, stateData)
-    // Conditional
-    case Event(BypassedCallResults(callOutputs), stateData) =>
-      handleCallBypassed(callOutputs, stateData)
-    case Event(BypassedDeclaration(declKey), stateData) =>
-      handleDeclarationEvaluationSuccessful(declKey, WomOptionalValue.none(declKey.womType), stateData)
 
     // Failure
     // Initialization
@@ -294,10 +293,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     }
 
     // Output ports for the workflow
-    val workflowOutputPorts: Set[OutputPort] = workflowDescriptor.callable.graph.outputNodes.flatMap{
-      case p: PortBasedGraphOutputNode => p.upstreamPorts
-      case e: ExpressionBasedGraphOutputNode => e.outputPorts
-    }
+    val workflowOutputPorts: Set[OutputPort] = workflowDescriptor.callable.graph.outputNodes.map(_.graphOutputPort)
 
     val workflowOutputValuesValidation = workflowOutputPorts
       // Try to find a value for each port in the value store
@@ -400,13 +396,6 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
   private def handleDeclarationEvaluationSuccessful(key: ExpressionKey, value: WomValue, data: WorkflowExecutionActorData) = {
     stay() using data.expressionEvaluationSuccess(key, value)
-  }
-
-  private def handleCallBypassed(callOutputs: Map[CallKey, CallOutputs], data: WorkflowExecutionActorData) = {
-    def foldFunc(d: WorkflowExecutionActorData, output: (CallKey, CallOutputs)) = d.callExecutionSuccess(output._1, output._2)
-
-    val updatedData = callOutputs.foldLeft(data)(foldFunc)
-    stay() using updatedData
   }
 
   /**
@@ -636,11 +625,6 @@ object WorkflowExecutionActor {
     * See https://doc.akka.io/docs/akka/2.5/scala/actors.html#timers-scheduled-messages
     */
   private case object ExecutionHeartBeatKey
-
-  private[execution] sealed trait BypassedScopeResults
-
-  private case class BypassedCallResults(callOutputs: Map[CallKey, CallOutputs]) extends BypassedScopeResults
-  private case class BypassedDeclaration(declaration: ExpressionKey) extends BypassedScopeResults
 
   case class SubWorkflowSucceededResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap, outputs: CallOutputs)
 

@@ -190,9 +190,5 @@ class DeclarationSpec extends FlatSpec with Matchers {
         values shouldEqual Map.empty
     }
   }
-  
-  "A namespace" should "Be able to coerce inputs" in {
-    namespace.coerceRawInputs(Map.empty).get shouldEqual Map.empty[FullyQualifiedName, WomValue]
-  }
 }
 

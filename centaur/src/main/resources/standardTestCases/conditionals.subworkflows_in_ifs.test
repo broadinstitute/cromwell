@@ -1,4 +1,3 @@
-ignore: true # Depends on #2615
 name: subworkflows_in_ifs
 testFormat: workflowsuccess
 tags: [ conditionals ]

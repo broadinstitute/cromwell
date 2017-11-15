@@ -76,4 +76,13 @@ object GraphNodePort {
     override val womType: WomType = WomOptionalType(outputToExpose.womType).flatOptionalType
     lazy val conditionalNode: ConditionalNode = g(())
   }
+
+  /**
+    * Represents an output port from a workflow call, based on the output that it exposes.
+    */
+  final case class SubworkflowCallOutputPort(outputToExpose: GraphOutputNode, workflowCallNode: WorkflowCallNode) extends OutputPort {
+    override val identifier: WomIdentifier = outputToExpose.identifier
+    override val womType: WomType = outputToExpose.womType
+    override val graphNode: GraphNode = workflowCallNode
+  }
 }

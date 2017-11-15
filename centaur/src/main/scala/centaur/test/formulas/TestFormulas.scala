@@ -121,7 +121,7 @@ object TestFormulas {
                              callMarker: CallMarker,
                              recover: Boolean,
                              finalStatus: TerminalStatus): Test[SubmitResponse] = {
-    cromwellRestart(workflowDefinition, callMarker, testRecover = recover, finalStatus = Failed)
+    cromwellRestart(workflowDefinition, callMarker, testRecover = recover, finalStatus = finalStatus)
   }
 
   def submitInvalidWorkflow(workflow: Workflow, expectedSubmitResponse: SubmitHttpResponse): Test[SubmitResponse] = {

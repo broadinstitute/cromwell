@@ -23,7 +23,6 @@ before_install:
   - sudo rm -f /etc/boto.cfg
   - mysql -u root -e "SET GLOBAL sql_mode = 'STRICT_ALL_TABLES';"
   - mysql -u root -e "CREATE DATABASE IF NOT EXISTS cromwell_test;"
-  - sudo apt-get install procps
 env:
   global:
     - INTEGRATION_TESTS_DIR=centaur/src/main/resources/integrationTestCases
@@ -36,6 +35,7 @@ env:
     - BUILD_TYPE=centaurTes
     - BUILD_TYPE=centaurCwlConformance
 script:
+  - sudo apt-get install procps
   - pip install 'requests[security]'
   - sudo pip install --ignore-installed cwltool
   - src/bin/travis/test.sh

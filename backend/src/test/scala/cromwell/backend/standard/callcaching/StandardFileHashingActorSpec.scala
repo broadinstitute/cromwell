@@ -1,7 +1,7 @@
 package cromwell.backend.standard.callcaching
 
 import akka.actor.{ActorRef, Props}
-import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
+import akka.testkit._
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.SingleFileHashRequest
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor}
 import cromwell.core.TestKitSuite
@@ -51,7 +51,7 @@ class StandardFileHashingActorSpec extends TestKitSuite("StandardFileHashingActo
     val request = SingleFileHashRequest(null, null, WomFile("/expected/failure/path"), None)
     standardFileHashingActorRef ! request
 
-    parentProbe.expectMsgPF(1.seconds) {
+    parentProbe.expectMsgPF(10.seconds.dilated) {
       case failed: HashingFailedMessage if failed.file == "/expected/failure/path" =>
         failed.reason should be(a[RuntimeException])
         failed.reason.getMessage should be("I am expected during tests")
@@ -65,7 +65,7 @@ class StandardFileHashingActorSpec extends TestKitSuite("StandardFileHashingActo
     val ioActorProbe = TestProbe()
     val params = StandardFileHashingActorSpec.ioActorParams(ioActorProbe.ref)
     val props = Props(new StandardFileHashingActor(params) with DefaultIoCommandBuilder {
-      override lazy val defaultIoTimeout = 2.second
+      override lazy val defaultIoTimeout = 1.second.dilated
 
       override def getPath(str: String): Try[Path] = Try(DefaultPathBuilder.get(str))
     })
@@ -74,12 +74,12 @@ class StandardFileHashingActorSpec extends TestKitSuite("StandardFileHashingActo
 
     standardFileHashingActorRef ! request
 
-    ioActorProbe.expectMsgPF(1.seconds) {
+    ioActorProbe.expectMsgPF(10.seconds.dilated) {
       case (request: FileHashContext, _: IoHashCommand) if request.file == "/expected/failure/path" =>
       case unexpected => fail(s"received unexpected message $unexpected")
     }
 
-    parentProbe.expectMsgPF(5.seconds) {
+    parentProbe.expectMsgPF(10.seconds.dilated) {
       case failed: HashingFailedMessage if failed.file == "/expected/failure/path" =>
         failed.reason should be(a[TimeoutException])
         failed.reason.getMessage should be("Hashing request timed out for: /expected/failure/path")

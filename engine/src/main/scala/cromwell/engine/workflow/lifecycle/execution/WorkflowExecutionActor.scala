@@ -66,13 +66,6 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
   when(WorkflowExecutionPendingState) {
     case Event(ExecuteWorkflowCommand, _) =>
-      // TODO WOM: Remove this when sub workflows are supported. It prevents the workflow from hanging
-      if(workflowDescriptor.callable.graph.nodes.collectFirst({
-        case  _: WorkflowCallNode => true
-      }).nonEmpty) {
-        context.parent ! WorkflowExecutionFailedResponse(Map.empty, new Exception("Sub Workflows not supported yet"))
-        goto(WorkflowExecutionFailedState)
-      }
 
       // Start HeartBeat
       timers.startPeriodicTimer(ExecutionHeartBeatKey, ExecutionHeartBeat, ExecutionHeartBeatInterval)

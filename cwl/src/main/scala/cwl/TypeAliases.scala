@@ -3,6 +3,7 @@ package cwl
 import cwl.CommandLineTool._
 import shapeless.{:+:, CNil}
 import cwl.CwlType.CwlType
+import wom.types.WomType
 
 trait TypeAliases {
 
@@ -57,6 +58,21 @@ trait TypeAliases {
           CNil
         ] :+:
       CNil
+
+  object MyriadInputType {
+    object CwlType {
+      def unapply(m: MyriadInputType): Option[CwlType] = {
+        m.select[CwlType]
+      }
+    }
+
+    object WomType {
+      def unapply(m: MyriadInputType): Option[WomType] = m match {
+        case CwlType(c) => Some(cwl.cwlTypeToWdlType(c))
+        case _ => None
+      }
+    }
+  }
 
   type MyriadOutputType =
     CwlType :+:

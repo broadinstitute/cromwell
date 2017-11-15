@@ -1,0 +1,4 @@
+{
+  "sub_workflow_decls.workflow_required_input": "This is the correct required value",
+  "sub_workflow_decls.workflow_overridden_input_optional": "This is the correct overridden value"
+}

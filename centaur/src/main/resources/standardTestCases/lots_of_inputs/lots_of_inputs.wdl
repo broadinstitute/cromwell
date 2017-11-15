@@ -32,6 +32,11 @@ task make_array {
 }
 
 workflow lots_of_inputs {
-  call make_array {input: n=400}
-  call do_nothing {input: f=make_array.a}
+  call make_array { input: n = 400 }
+  call do_nothing { input: f = make_array.a }
+
+  output {
+    Int out_count = length(make_array.a)
+    String nothing_out = do_nothing.o
+  }
 }

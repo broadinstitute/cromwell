@@ -44,6 +44,7 @@ workflow globbingscatter {
   }
   call combiner as combiner2 { input: in_file=catter2.result }
   output {
-     combiner2.result
+     String combiner1_result = combiner1.result
+     String combiner2_result = combiner2.result
   }
 }

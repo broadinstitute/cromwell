@@ -28,9 +28,4 @@ trait WdlFunctions[T] {
     * Path where to write files created by standard functions (write_*).
    */
   def tempFilePath: String = throw new NotImplementedError("write_* functions are not supported by this implementation")
-
-  /**
-    * Path where to glob from when the glob standard function evaluates.
-   */
-  def globPath(glob: String): String = throw new NotImplementedError("glob function is not supported by this implementation")
 }

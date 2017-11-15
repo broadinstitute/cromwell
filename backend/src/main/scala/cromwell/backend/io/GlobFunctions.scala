@@ -36,7 +36,7 @@ trait GlobFunctions extends IoFunctionSet {
   /**
     * Returns a list of path from the glob.
     *
-    * The paths are currently read from a list file based on the pattern, and the path parameter is not used.
+    * The paths are read from a list file based on the pattern.
     *
     * @param pattern The pattern of the glob. This is the same "glob" passed to globPath().
     * @return The paths that match the pattern.

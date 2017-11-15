@@ -20,16 +20,16 @@ task goodbye {
     Array[File] files
     Array[File] files2
     command {
-        echo "Goodbye ${f}"
-        echo "Goodbye ${f2}"
-        echo "Goodbye ${sep = " " files}"
-        echo "Goodbye ${sep = " " files2}"
+        cat "${f}"
+        cat "${f2}"
+        cat "${sep = " " files}"
+        cat "${sep = " " files2}"
     }
     runtime {
             docker: "ubuntu:latest"
     }
     output {
-        String out = read_string(stdout())
+        Array[String] out = read_lines(stdout())
     }
 }
 
@@ -48,6 +48,6 @@ workflow space {
     output {
         String o1 = s1
         String o2 = s2
-        String o3 = goodbye.out
+        Array[String] o3 = goodbye.out
     }
 }

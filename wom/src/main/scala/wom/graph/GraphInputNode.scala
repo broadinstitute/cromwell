@@ -64,6 +64,8 @@ class OuterGraphInputNode protected(override val identifier: WomIdentifier, val 
   override def womType: WomType = linkToOuterGraph.womType
   override lazy val singleOutputPort: GraphNodeOutputPort = GraphNodeOutputPort(identifier, womType, this)
   lazy val linkToOuterGraphNode = linkToOuterGraph.graphNode
+
+  lazy val nameToPortMapping: (String, GraphNodeOutputPort) = localName -> singleOutputPort
 }
 
 final case class ScatterVariableNode(override val identifier: WomIdentifier,

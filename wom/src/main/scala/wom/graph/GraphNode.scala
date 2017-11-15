@@ -2,6 +2,7 @@ package wom.graph
 
 import cats.implicits._
 import common.validation.ErrorOr.ErrorOr
+import common.collections.EnhancedCollections._
 import wom.callable.Callable
 import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, OutputDefinition, RequiredInputDefinition}
 import wom.graph.GraphNode._
@@ -45,6 +46,11 @@ trait GraphNode {
     * The set of all graph nodes which are (transitively) upstream from this one.
     */
   lazy val upstreamAncestry = calculateUpstreamAncestry(Set.empty, this)
+
+  /**
+    * The set of all OuterGraphInputNodes which are somewhere upstream of this Node (in the same graph)
+    */
+  lazy val upstreamOuterGraphInputNodes: Set[OuterGraphInputNode] = upstreamAncestry.filterByType[OuterGraphInputNode]
   lazy val upstreamPorts: Set[OutputPort] = inputPorts.map(_.upstream)
   lazy val upstream: Set[GraphNode] = upstreamPorts.map(_.graphNode)
 }
@@ -100,20 +106,9 @@ object GraphNode {
     def newInputs: Set[_ <: ExternalGraphInputNode]
 
     /**
-      * Find all OuterGraphInputNodes in the generated Node's inner graph (if there is one) which point upstream to
-      * other OuterGraphInputNodes.
-      *
-      * Why? Imagine that we're building three nested levels of a innerGraph.
-      * - Say we're building the middle layer.
-      * - We have a set of OutputPorts in the outer layer that we can make OGINs to if we need them.
-      * - We know that the inner graph might want to make use of those output ports, but we don't know which.
-      * - So, we can make OGINs at this layer for all possible OutputPorts in the outer graph and let the inner graph
-      * use however many of them it needs.
-      * - When the inner graph creates an OGIN that references one of the middle layer OGINS, we need to know that, so that we
-      * can remember to add it to the middle layer (and not add all of the extraneous ones we don't need.)
-      * - Hence, this function returns the set of OGINs in the inner graph that reference our OGINs, in the middle graph.
+      * All OuterGraphInputNodes that should be included in the same graph as 'node'.
       */
-    def nestedOuterGraphInputNodes: Set[_ <: OuterGraphInputNode]
+    def usedOuterGraphInputNodes: Set[_ <: OuterGraphInputNode]
     def newExpressions: Set[ExpressionNode]
   }
 

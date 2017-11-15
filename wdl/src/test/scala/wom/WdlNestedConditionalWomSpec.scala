@@ -14,17 +14,16 @@ class WdlNestedConditionalWomSpec extends FlatSpec with Matchers {
   val table = Table[String, String](
     ("test name", "WDL"),
     ("nested lookups", nestedLookups),
-    ("nested WF inputs", nestedWorkflowInputLookups)
-//    ("nested lookups with call inteference", nestedLookupsWithCallInterference),
-//    ("nested lookups with double call inteference", nestedLookupsWithDoubleCallInterference),
-//    ("nested lookups with declaration inteference", nestedLookupsWithDeclarationInterference),
-//    ("nested lookups with double declaration inteference", nestedLookupsWithDoubleDeclarationInterference)
+    ("nested WF inputs", nestedWorkflowInputLookups),
+    ("nested lookups with call interference", nestedLookupsWithCallInterference),
+    ("nested lookups with double call interference", nestedLookupsWithDoubleCallInterference),
+    ("nested lookups with declaration interference", nestedLookupsWithDeclarationInterference),
+    ("nested lookups with double declaration interference", nestedLookupsWithDoubleDeclarationInterference)
   )
 
   forAll(table) { (testName, wdl) =>
-
-
     it should s"link values outside and across nested scopes in the '$testName' WDL" in {
+
       val namespace = WdlNamespace.loadUsingSource(wdl, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
       val conditionalTestGraph = namespace.workflow.womDefinition.map(_.graph)
 
@@ -156,10 +155,10 @@ object WdlNestedConditionalWomSpec {
     """workflow nested_lookups {
       |  Int i = 27
       |  if(true) {
-      |    Int? throwaway = i # Make sure this 'm1.out' OGIN doesn't duplicate the nested m2's 'm1.out' OGIN
+      |    Int? throwaway = i # Make sure this 'i' OGIN doesn't duplicate the nested m1's 'i' OGIN
       |    if(true) {
       |      if(true) {
-      |        call mirror as m1 { input: i = i}
+      |        call mirror as m1 { input: i = i }
       |      }
       |    }
       |  }
@@ -173,8 +172,8 @@ object WdlNestedConditionalWomSpec {
     """workflow nested_lookups {
       |  Int i = 27
       |  if(true) {
-      |    Int? throwaway = i # Make sure this 'm1.out' OGIN doesn't duplicate the nested m2's 'm1.out' OGIN
-      |    Int? throwaway2 = i # Make sure this 'm1.out' OGIN doesn't duplicate the nested m2's 'm1.out' OGIN
+      |    Int? throwaway = i # Make sure this 'i' OGIN doesn't duplicate the nested m1's 'i' OGIN
+      |    Int? throwaway2 = i # Make sure this 'i' OGIN doesn't duplicate the nested m1's 'i' OGIN
       |    if(true) {
       |      if(true) {
       |        call mirror as m1 { input: i = i}

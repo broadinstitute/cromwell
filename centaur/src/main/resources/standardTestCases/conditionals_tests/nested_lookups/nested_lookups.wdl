@@ -2,8 +2,8 @@ workflow nested_lookups {
   Int i = 27
   Int a = 82
   if(true) {
-#    call mirror as throwaway1 { input: i = i } # Make sure this 'i' OGIN doesn't duplicate the nested m1's 'i' OGIN
-#    call mirror as throwaway2 { input: i = i } # Make sure this 'i' OGIN doesn't duplicate throwaway1's, or the nested m1's 'i' OGIN
+    call mirror as throwaway1 { input: i = i } # Make sure this 'i' OGIN doesn't duplicate the nested m1's 'i' OGIN
+    call mirror as throwaway2 { input: i = i } # Make sure this 'i' OGIN doesn't duplicate throwaway1's, or the nested m1's 'i' OGIN
     if(true) {
       if(true) {
         call mirror as m1 { input: i = i }
@@ -23,8 +23,11 @@ workflow nested_lookups {
   Int c = select_first([b, i])
 
   if(true) {
-#    Int? throwaway3 = m1.out # Make sure this 'm1.out' OGIN doesn't duplicate the nested m2's 'm1.out' OGIN
-#    Int? throwaway4 = m1.out # Make sure this 'm1.out' OGIN doesn't duplicate throwaway3's, or the nested m2's 'm1.out' OGIN
+    Int? throwaway3 = m1.out # Make sure this 'm1.out' OGIN doesn't duplicate the nested m2's 'm1.out' OGIN
+    Int? throwaway4 = m1.out # Make sure this 'm1.out' OGIN doesn't duplicate throwaway3's, or the nested m2's 'm1.out' OGIN
+    Int? throwaway5 = b # Make sure this 'b' OGIN doesn't duplicate the nested e's 'b' OGIN
+    Int? throwaway6 = b # Make sure this 'b' OGIN doesn't duplicate throwaway5's, or the nested e's 'b' OGIN
+
     if(true) {
       if(true) {
         call mirror as m2 { input: i = select_first([m1.out, 5]) + 1 }

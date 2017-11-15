@@ -126,7 +126,12 @@ object WdlCall {
 
     (expressionNodeMappings, wdlCall.callable.womDefinition) mapN {
       case (mappings, callable) =>
-        callNodeBuilder.build(wdlCall.womIdentifier, callable, foldInputDefinitions(mappings, callable))
+        val usedOgins: Set[OuterGraphInputNode] = for {
+          expressionNode <- mappings.values.toSet[ExpressionNode]
+          ogin <- expressionNode.upstreamOuterGraphInputNodes
+        } yield ogin
+
+        callNodeBuilder.build(wdlCall.womIdentifier, callable, foldInputDefinitions(mappings, callable).copy(usedOuterGraphInputNodes = usedOgins))
     }
   }
 }

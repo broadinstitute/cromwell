@@ -52,7 +52,7 @@ class GraphSpec extends FlatSpec with Matchers {
     
     val psNodeBuilder = new CallNodeBuilder()
     
-    val CallNodeAndNewNodes(psCall, psGraphInputs, _) = psNodeBuilder.build(WomIdentifier("ps"), taskDefinition_ps, InputDefinitionFold())
+    val CallNodeAndNewNodes(psCall, psGraphInputs, _, _) = psNodeBuilder.build(WomIdentifier("ps"), taskDefinition_ps, InputDefinitionFold())
     val ps_procsOutputPort = psCall.outputByName("procs").getOrElse(fail("Unexpectedly unable to find 'ps.procs' output"))
     
     val cgrepNodeBuilder = new CallNodeBuilder()
@@ -67,7 +67,7 @@ class GraphSpec extends FlatSpec with Matchers {
       ),
       Set(workflowInputNode)
     )
-    val CallNodeAndNewNodes(cgrepCall, cgrepGraphInputs, _) = cgrepNodeBuilder.build(WomIdentifier("cgrep"), taskDefinition_cgrep, cgrepInputDefinitionFold)
+    val CallNodeAndNewNodes(cgrepCall, cgrepGraphInputs, _, _) = cgrepNodeBuilder.build(WomIdentifier("cgrep"), taskDefinition_cgrep, cgrepInputDefinitionFold)
     val cgrep_countOutputPort = cgrepCall.outputByName("count").getOrElse(fail("Unexpectedly unable to find 'cgrep.count' output"))
 
     val wcNodeBuilder = new CallNodeBuilder()
@@ -81,7 +81,7 @@ class GraphSpec extends FlatSpec with Matchers {
       Set.empty
     )
     
-    val CallNodeAndNewNodes(wcCall, wcGraphInputs, _) = wcNodeBuilder.build(WomIdentifier("wc"), taskDefinition_wc, wcInputDefinitionFold)
+    val CallNodeAndNewNodes(wcCall, wcGraphInputs, _, _) = wcNodeBuilder.build(WomIdentifier("wc"), taskDefinition_wc, wcInputDefinitionFold)
     val wc_countOutputPort = wcCall.outputByName("count").getOrElse(fail("Unexpectedly unable to find 'wc.count' output"))
 
     val psProcsOutputNode = PortBasedGraphOutputNode(WomIdentifier("ps.procs"), WomFileType, ps_procsOutputPort)
@@ -120,7 +120,7 @@ class GraphSpec extends FlatSpec with Matchers {
       Set.empty,
       Set(workflowInputNode)
     )
-    val CallNodeAndNewNodes(threeStepCall, threeStepInputs, _) = threeStepNodeBuilder.build(WomIdentifier("three_step"), threeStepWorkflow, inputDefinitionFold)
+    val CallNodeAndNewNodes(threeStepCall, threeStepInputs, _, _) = threeStepNodeBuilder.build(WomIdentifier("three_step"), threeStepWorkflow, inputDefinitionFold)
 
     // This is painful manually, but it's not up to WOM to decide which subworkflow outputs are forwarded through:
     val psProcsOutputNode = PortBasedGraphOutputNode(WomIdentifier("three_step.ps.procs"), WomFileType, threeStepCall.outputByName("ps.procs").getOrElse(fail("Subworkflow didn't expose the ps.procs output")))

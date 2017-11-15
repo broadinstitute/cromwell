@@ -12,10 +12,23 @@ class CommandLineToolSpec extends FlatSpec with Matchers {
     val a = CommandInputParameter("a", inputBinding = None)
     val b = CommandInputParameter("b", inputBinding = Some(CommandLineBinding()))
 
-    val ordered: Seq[CommandInputParameter] = CommandLineTool.orderedForCommandLine(Array(a,b))
+    CommandLineTool.orderedForCommandLine(Array(a,b)) shouldBe Seq(b)
+  }
 
-    ordered.contains(a) shouldBe false
+  it should "order input arguments that are bound to command line" in {
+    val a = CommandInputParameter("a", inputBinding = None)
+    val b = CommandInputParameter("b", inputBinding = Some(CommandLineBinding(position = Some(1))))
+    val c = CommandInputParameter("c", inputBinding = Some(CommandLineBinding(position = Some(2))))
+    val d = CommandInputParameter("d", inputBinding = Some(CommandLineBinding(position = Some(3))))
 
-    ordered.contains(b) shouldBe true
+    CommandLineTool.orderedForCommandLine(Array(d,a,c,b)) shouldBe Seq(b,c,d)
+  }
+
+  it should "default input arguments with Command Line Binding but no position should be assigned position 0" in {
+    val a = CommandInputParameter("a", inputBinding = None)
+    val b = CommandInputParameter("b", inputBinding = Some(CommandLineBinding(position = Some(1))))
+    val c = CommandInputParameter("c", inputBinding = Some(CommandLineBinding()))
+
+    CommandLineTool.orderedForCommandLine(Array(a,c,b)) shouldBe Seq(c,b)
   }
 }

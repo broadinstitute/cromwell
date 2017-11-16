@@ -68,7 +68,7 @@ trait TypeAliases {
 
     object WomType {
       def unapply(m: MyriadInputType): Option[WomType] = m match {
-        case CwlType(c) => Some(cwl.cwlTypeToWdlType(c))
+        case CwlType(c) => Option(cwl.cwlTypeToWdlType(c))
         case _ => None
       }
     }

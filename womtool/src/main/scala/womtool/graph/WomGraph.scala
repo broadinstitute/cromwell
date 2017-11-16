@@ -167,7 +167,7 @@ object WomGraph {
     // TODO: Remove this and the 'fakeInput' method with #2867
     val fakedInputs = JsObject(namespace.workflow.inputs map { i => i._1 -> fakeInput(i._2.womType) })
 
-    namespace.womExecutable(Some(fakedInputs.prettyPrint)) match {
+    namespace.womExecutable(Option(fakedInputs.prettyPrint)) match {
       case Right(wom) => wom
       case Left(e) => throw new Exception(s"Can't build WOM executable from WDL namespace: ${e.toList.mkString("\n", "\n", "\n")}")
     }
@@ -180,7 +180,7 @@ object WomGraph {
         unsafeRunSync
       inputs = clt.requiredInputs
       fakedInputs = JsObject(inputs map { i => i._1 -> fakeInput(i._2) })
-      wom <- clt.womExecutable(Some(fakedInputs.prettyPrint))
+      wom <- clt.womExecutable(Option(fakedInputs.prettyPrint))
     } yield wom) match {
       case Right(womExecutable) => womExecutable
       case Left(e) => throw new Exception(s"Can't build WOM executable from CWL: ${e.toList.mkString("\n", "\n", "\n")}")

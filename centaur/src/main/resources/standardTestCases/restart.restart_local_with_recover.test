@@ -1,5 +1,3 @@
-ignore: true # Depends on 2866
-
 name: restart_local_with_recover
 testFormat: CromwellRestartWithRecover
 callMark: cromwell_restart.cromwell_killer

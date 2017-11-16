@@ -3,6 +3,7 @@ testFormat: workflowsuccess
 workflowType: CWL
 workflowTypeVersion: v1.0
 backends: [Local]
+tags: [localdockertest]
 
 files {
   wdl: three_step/three_step.cwl

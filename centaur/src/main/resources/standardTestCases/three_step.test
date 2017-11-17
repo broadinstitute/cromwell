@@ -3,6 +3,7 @@ testFormat: workflowsuccess
 workflowType: CWL
 workflowTypeVersion: v1.0
 backends: [Local]
+backendsMode: "only"
 tags: [localdockertest]
 
 files {

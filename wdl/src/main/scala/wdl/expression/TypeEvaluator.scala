@@ -15,6 +15,7 @@ case class TypeEvaluator(override val lookup: String => WomType, override val fu
   override type T = WomType
 
   override def evaluate(ast: AstNode): Try[WomType] = ast match {
+    case null => Failure(new Exception("Cannot evaluate the type of an empty expression"))
     case t: Terminal if t.getTerminalStr == "identifier" => Try(lookup(t.getSourceString))
     case t: Terminal if t.getTerminalStr == "integer" => Success(WomIntegerType)
     case t: Terminal if t.getTerminalStr == "float" => Success(WomFloatType)

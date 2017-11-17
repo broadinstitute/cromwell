@@ -16,7 +16,7 @@ import scala.util.{Failure, Success, Try}
 
 trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
   def readFile(path: String): String
-  // NB breaking change, though should be easily unbroken
+
   def writeFile(path: String, content: String): Try[WomFile]
 
   def stdout(params: Seq[Try[WomValue]]): Try[WomFile]

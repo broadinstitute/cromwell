@@ -133,15 +133,15 @@ trait SharedFileSystem extends PathFactory {
   }
 
   def outputMapper(job: JobPaths)(womValue: WomValue): Try[WomValue] = {
-    WomFileMapper.mapWomFiles(mapJobWdlFile(job))(womValue)
+    WomFileMapper.mapWomFiles(mapJobWomFile(job))(womValue)
   }
 
-  def mapJobWdlFile(job: JobPaths)(wdlFile: WomFile): WomFile = {
-    wdlFile match {
+  def mapJobWomFile(job: JobPaths)(womFile: WomFile): WomFile = {
+    womFile match {
       case fileNotFound: WomFile if !hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).exists =>
         throw new RuntimeException("Could not process output, file not found: " +
           s"${hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).pathAsString}")
-      case _ => WomFile(hostAbsoluteFilePath(job.callExecutionRoot, wdlFile.valueString).pathAsString)
+      case _ => WomFile(hostAbsoluteFilePath(job.callExecutionRoot, womFile.valueString).pathAsString)
     }
   }
 
@@ -155,14 +155,14 @@ trait SharedFileSystem extends PathFactory {
    */
   def localizeInputs(inputsRoot: Path, docker: Boolean)(inputs: WomEvaluatedCallInputs): Try[WomEvaluatedCallInputs] = {
     TryUtil.sequenceMap(
-      inputs mapValues WomFileMapper.mapWomFiles(localizeWdlFile(inputsRoot, docker)),
+      inputs mapValues WomFileMapper.mapWomFiles(localizeWomFile(inputsRoot, docker)),
       "Failures during localization"
     ) recoverWith {
       case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
     }
   }
 
-  def localizeWdlFile(inputsRoot: Path, docker: Boolean)(value: WomFile): WomFile = {
+  def localizeWomFile(inputsRoot: Path, docker: Boolean)(value: WomFile): WomFile = {
     val strategies = if (docker) DockerLocalizers else Localizers
 
     // Strip the protocol scheme
@@ -187,20 +187,20 @@ trait SharedFileSystem extends PathFactory {
     }
 
     // Optional function to adjust the path to "docker path" if the call runs in docker
-    localizeWdlFile(toCallPath _, strategies.toStream)(value)
+    localizeWomFile(toCallPath _, strategies.toStream)(value)
   }
 
   /**
-    * Try to localize a WdlFile.
+    * Try to localize a WomFile.
     *
     * @param toDestPath function specifying how to generate the destination path from the source path
     * @param strategies strategies to use for localization
-    * @param wdlFile WdlFile to localize
+    * @param womFile WomFile to localize
     * @return localized wdl file
     */
-  private def localizeWdlFile(toDestPath: (String => Try[PairOfFiles]), strategies: Stream[DuplicationStrategy])
-                             (wdlFile: WomFile): WomFile = {
-    val path = wdlFile.value
+  private def localizeWomFile(toDestPath: (String => Try[PairOfFiles]), strategies: Stream[DuplicationStrategy])
+                             (womFile: WomFile): WomFile = {
+    val path = womFile.value
     val result = toDestPath(path) flatMap {
       case PairOfFiles(src, dst) => duplicate("localize", src, dst, strategies) map { _ => WomFile(dst.pathAsString) }
     }

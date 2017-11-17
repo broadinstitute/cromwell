@@ -1,12 +1,13 @@
 package wdl
 
+import common.validation.Validation._
 import wdl.command.ParameterCommandPart
 import wdl.expression.NoFunctions
 import wdl4s.parser.WdlParser.SyntaxError
 import wom.types._
 import wom.values._
 
-import scala.util.{Failure, Success}
+import scala.util.Failure
 
 class ParameterWdlCommandPartSpec extends WdlTest {
   val commandParameterWdl = "src/test/cases/command_parameters/test.wdl"
@@ -58,8 +59,8 @@ class ParameterWdlCommandPartSpec extends WdlTest {
 
       val ns = WdlNamespace.loadUsingSource(wdl, None, None).get
       val task: WdlTask = ns.findTask("t").get
-      val command = task.instantiateCommand(Map(task.declarations.head -> WomString("world")), NoFunctions)
-      command shouldBe Success("echo hello world")
+      val command = task.instantiateCommand(Map(task.declarations.head -> WomString("world")), NoFunctions).toTry.get
+      command.commandString shouldBe "echo hello world"
     }
     
     "replace undefined values by their default value after evaluation" in {
@@ -75,8 +76,8 @@ class ParameterWdlCommandPartSpec extends WdlTest {
       
       val ns = WdlNamespace.loadUsingSource(wdl, None, None).get
       val task = ns.findTask("t").get
-      val command = task.instantiateCommand(Map(task.declarations.head -> WomOptionalValue.none(WomStringType)), NoFunctions)
-      command.get shouldBe "echo"
+      val command = task.instantiateCommand(Map(task.declarations.head -> WomOptionalValue.none(WomStringType)), NoFunctions).toTry.get
+      command.commandString shouldBe "echo"
     }
   }
 }

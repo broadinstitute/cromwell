@@ -2,7 +2,7 @@ package wom
 
 import org.apache.commons.codec.digest.DigestUtils
 import wom.callable.Callable.InputDefinition
-import wom.values.WomValue
+import wom.values.{WomFile, WomValue}
 
 import scala.util.Try
 
@@ -41,3 +41,9 @@ package object core {
   // This one really does seem WOM specific
   type ExecutableInputMap = Map[String, Any]
 }
+
+/**
+  * @param commandString The string representing the instantiation of this command.
+  * @param createdFiles Any files created as side effects of instantiating the command.
+  */
+case class InstantiatedCommand(commandString: String, createdFiles: List[WomFile] = List.empty)

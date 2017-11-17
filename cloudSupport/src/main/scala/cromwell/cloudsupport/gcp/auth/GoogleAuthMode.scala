@@ -18,9 +18,6 @@ import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.{CredentialFileFormat, 
 import cromwell.core.WorkflowOptions
 import cromwell.core.retry.Retry
 import org.slf4j.LoggerFactory
-import spray.json._
-import spray.json.DefaultJsonProtocol._
-import DefaultJsonProtocol._
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
@@ -45,13 +42,6 @@ object GoogleAuthMode {
 
   def checkReadable(file: File) = {
     if (!file.isReadable) throw new FileNotFoundException(s"File $file does not exist or is not readable")
-  }
-
-  case object MockAuthMode extends GoogleAuthMode {
-    override def name = "no_auth"
-    override def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = {
-      Future.successful(NoCredentials.getInstance())
-    }
   }
 
   def isFatal(ex: Throwable) = {
@@ -81,11 +71,28 @@ sealed trait GoogleAuthMode {
 
   def requiresAuthFile: Boolean = false
 
+  /**
+    * Enables swapping out credential validation for various testing purposes ONLY.
+    *
+    * All traits in this file are sealed, all classes final, meaning things like Mockito or other java/scala overrides
+    * cannot work.
+    */
+  private[auth] var credentialValidation: (Credentials => Unit) = credentials => credentials.refresh()
+
   protected def validateCredential(credential: Credentials) = {
-    Try(credential.refresh()) match {
+    Try(credentialValidation(credential)) match {
       case Failure(ex) => throw new RuntimeException(s"Google credentials are invalid: ${ex.getMessage}", ex)
       case Success(_) => credential
     }
+  }
+}
+
+case object MockAuthMode extends GoogleAuthMode {
+  override val name = "no_auth"
+
+  override def credential(options: WorkflowOptions)
+                         (implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = {
+    Future.successful(NoCredentials.getInstance())
   }
 }
 
@@ -130,6 +137,12 @@ final case class UserServiceAccountMode(override val name: String, scopes: java.
       throw new IllegalArgumentException(s"Missing parameters in workflow options: $UserServiceAccountKey")
     }
   }
+
+  override def validate(options: WorkflowOptions): Unit = {
+    extractServiceAccount(options)
+    ()
+  }
+
   override def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = {
     Future {
       ServiceAccountCredentials.fromStream(new ByteArrayInputStream(extractServiceAccount(options).getBytes("UTF-8"))).createScoped(scopes)
@@ -157,13 +170,13 @@ final case class UserMode(override val name: String,
   override def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = Future.successful(_credential)
 }
 
-private object ApplicationDefault {
+object ApplicationDefaultMode {
   private [auth] lazy val _Credential: Credentials = GoogleCredentials.getApplicationDefault
 }
 
 final case class ApplicationDefaultMode(name: String) extends GoogleAuthMode {
   override def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = {
-    Future.successful(ApplicationDefault._Credential)
+    Future.successful(ApplicationDefaultMode._Credential)
   }
 }
 
@@ -187,26 +200,23 @@ final case class RefreshTokenMode(name: String,
 
   override def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = {
     val refreshToken = extractRefreshToken(options)
-    val json = Map(
-      "client_id" -> clientId,
-      "client_secret" -> clientSecret,
-      "refresh_token" -> refreshToken
-    ).toJson.prettyPrint
-
-    import java.io.ByteArrayInputStream
-    import java.nio.charset.StandardCharsets
-    val stream = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8.name))
-
     Retry.withRetry(
-      () => Future(validateCredential(UserCredentials.fromStream(stream, GoogleAuthMode.HttpTransportFactory))
-      ),
+      () => Future(validateCredential(
+        UserCredentials
+          .newBuilder()
+          .setClientId(clientId)
+          .setClientSecret(clientSecret)
+          .setRefreshToken(refreshToken)
+          .setHttpTransportFactory(GoogleAuthMode.HttpTransportFactory)
+          .build()
+      )),
       isFatal = isFatal,
       maxRetries = Option(3)
     )
   }
 }
 
-trait ClientSecrets {
+sealed trait ClientSecrets {
   val clientId: String
   val clientSecret: String
 }

@@ -7,6 +7,7 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
 import ch.qos.logback.classic.Level
 import com.typesafe.config.ConfigFactory
+import common.exception.AggregatedMessageException
 import common.test.logging.TestLogger.withTestLoggerFor
 import common.validation.Validation._
 import net.ceedubs.ficus.Ficus._
@@ -76,6 +77,16 @@ class ValidationSpec extends FlatSpec with Matchers {
     import common.validation.Validation._
     success.toChecked shouldBe Right("yeah")
     failure.toChecked shouldBe Left(NonEmptyList.of(":("))
+  }
+
+  it should "convert an ErrorOr to a Try" in {
+    val valid = "yeah".valid
+    val invalid = ":(".invalidNel
+    import common.validation.Validation._
+    valid.toTry should be(Success("yeah"))
+    val exception = intercept[AggregatedMessageException](invalid.toTry.get)
+    exception.exceptionContext should be("Error(s)")
+    exception.errorMessages should contain theSameElementsAs List(":(")
   }
 
 }

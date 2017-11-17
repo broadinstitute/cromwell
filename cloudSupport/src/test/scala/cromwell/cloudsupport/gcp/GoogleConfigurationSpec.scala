@@ -1,6 +1,11 @@
 package cromwell.cloudsupport.gcp
 
+import java.net.URL
+
 import better.files.File
+import cats.implicits._
+import com.google.api.client.http.GenericUrl
+import com.google.api.client.testing.http.MockHttpTransport
 import com.typesafe.config.{ConfigException, ConfigFactory}
 import cromwell.cloudsupport.gcp.GoogleConfiguration.GoogleConfigurationException
 import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.{JsonFileFormat, PemFileFormat}
@@ -62,7 +67,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
     val gconf = GoogleConfiguration(ConfigFactory.parseString(righteousGoogleConfig))
 
     gconf.applicationName shouldBe "cromwell"
-    gconf.authsByName should have size 5
+    gconf.authsByName should have size 6
 
     val auths = gconf.authsByName.values
 
@@ -96,6 +101,56 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
     jsonMockFile.delete(true)
   }
 
+  it should "return a known auth" in {
+    val config =
+      """|google {
+         |  application-name = "cromwell"
+         |
+         |  auths = [
+         |    {
+         |      name = "name-default"
+         |      scheme = "application_default"
+         |    }
+         |  ]
+         |}
+         |""".stripMargin
+
+    val googleConfiguration = GoogleConfiguration(ConfigFactory.parseString(config))
+    googleConfiguration.auth("name-default").map(_.name) should be("name-default".valid)
+  }
+
+  it should "not return an unknown auth" in {
+    val config =
+      """|google {
+         |  application-name = "cromwell"
+         |
+         |  auths = [
+         |    {
+         |      name = "name-default"
+         |      scheme = "application_default"
+         |    }
+         |  ]
+         |}
+         |""".stripMargin
+
+    val googleConfiguration = GoogleConfiguration(ConfigFactory.parseString(config))
+    googleConfiguration.auth("name-botched") should be(
+      "`google` configuration stanza does not contain an auth named 'name-botched'.  Known auth names: name-default"
+        .invalidNel)
+  }
+
+  it should "create an initializer with custom timeouts" in {
+    val transport = new MockHttpTransport()
+    val initializer = GoogleConfiguration.withCustomTimeouts(request => {
+      request.getHeaders.set("custom_init", "ok")
+      ()
+    })
+    val factory = transport.createRequestFactory(initializer)
+    val request = factory.buildGetRequest(new GenericUrl(new URL("http://example.com")))
+    request.getConnectTimeout should be(180000)
+    request.getReadTimeout should be(180000)
+    request.getHeaders.get("custom_init") should be("ok")
+  }
 
   it should "not parse a configuration stanza without applicationName" in {
     val applessGoogleConfig =
@@ -110,12 +165,12 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    a[GoogleConfigurationException] shouldBe thrownBy {
+    the[GoogleConfigurationException] thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(applessGoogleConfig))
-    }
+    } should have message "Google configuration:\nNo configuration setting found for key 'application-name'"
   }
 
-  it should "not parse a configuration stanza with wrong cromwell auth" in {
+  it should "not parse a configuration stanza with double service account credentials" in {
     val doubleServiceAccountCredentials =
       """
         |google {
@@ -124,7 +179,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |  auths = [
         |    {
         |      name = "service-account"
-        |      scheme = "service-account"
+        |      scheme = "service_account"
         |      service-account-id = "my-google-account"
         |      pem-file = "path/to/file.pem"
         |      json-file = "path/to/json.pem"
@@ -133,10 +188,14 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    a[GoogleConfigurationException] shouldBe thrownBy {
+    the[GoogleConfigurationException] thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(doubleServiceAccountCredentials))
-    }
+    } should have message "Google configuration:\n" +
+      "Both a pem file and a json file were supplied for service account \"service-account\" in the configuration " +
+      "file. Only one credential file can be supplied for the same service account. Please choose between the two."
+  }
 
+  it should "not parse a configuration stanza without service account credentials" in {
     val noServiceAccountCredentials =
       """
         |google {
@@ -145,17 +204,21 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |  auths = [
         |    {
         |      name = "service-account"
-        |      scheme = "service-account"
+        |      scheme = "service_account"
         |      service-account-id = "my-google-account"
         |    }
         |  ]
         |}
       """.stripMargin
 
-    a[GoogleConfigurationException] shouldBe thrownBy {
+    the[GoogleConfigurationException] thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(noServiceAccountCredentials))
-    }
-    
+    } should have message "Google configuration:\n" +
+      "No credential configuration was found for service account \"service-account\". See reference.conf under the " +
+      "google.auth, service-account section for supported credential formats."
+  }
+
+  it should "not parse a configuration stanza with an unsupported authentication scheme" in {
     val unsupported =
       """
         |google {
@@ -170,10 +233,12 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    a[GoogleConfigurationException] shouldBe thrownBy {
+    the[GoogleConfigurationException] thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(unsupported))
-    }
+    } should have message "Google configuration:\nUnsupported authentication scheme: not supported"
+  }
 
+  it should "not parse a configuration stanza without a schema" in {
     val schemeless =
       """
         |google {
@@ -187,10 +252,12 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    a[ConfigException.Missing] shouldBe thrownBy {
+    the[ConfigException.Missing] thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(schemeless))
-    }
+    } should have message "No configuration setting found for key 'scheme'"
+  }
 
+  it should "not parse a configuration stanza without an auth name" in {
     val nameless =
       """
         |google {
@@ -198,16 +265,18 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |
         |  auths = [
         |    {
-        |      scheme = "application-default"
+        |      scheme = "application_default"
         |    }
         |  ]
         |}
       """.stripMargin
 
-    a[ConfigException.Missing] shouldBe thrownBy {
+    the[ConfigException.Missing] thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(nameless))
-    }
+    } should have message "No configuration setting found for key 'name'"
+  }
 
+  it should "not parse a configuration stanza with a bad client-id in refresh token mode" in {
     // The various GoogleAuthModes actually don't complain about spurious keys in their
     // configurations as long as all the keys they do care about are present.  That's not
     // necessarily ideal behavior.
@@ -227,10 +296,12 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    a[GoogleConfigurationException] shouldBe thrownBy {
+    the[GoogleConfigurationException] thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(badKeyInRefreshTokenMode))
-    }
+    } should have message "Google configuration:\nNo configuration setting found for key 'client-id'"
+  }
 
+  it should "not parse a configuration stanza without a user in user mode" in {
     val badKeyInUserMode =
       """
         |google {
@@ -248,10 +319,12 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    a[GoogleConfigurationException] shouldBe thrownBy {
+    the[GoogleConfigurationException] thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(badKeyInUserMode))
-    }
+    } should have message "Google configuration:\nNo configuration setting found for key 'user'"
+  }
 
+  it should "not parse a configuration stanza without a service-account-id in service account mode" in {
     val badKeyInServiceAccountMode =
       """
         |google {
@@ -268,8 +341,31 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    a[GoogleConfigurationException] shouldBe thrownBy {
+    the[GoogleConfigurationException] thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(badKeyInServiceAccountMode))
-    }
+    } should have message "Google configuration:\nNo configuration setting found for key 'service-account-id'"
+  }
+
+  it should "not parse a configuration stanza with a duplicate auth name" in {
+    val duplicateAuthName =
+      """|google {
+         |  application-name = "cromwell"
+         |
+         |  auths = [
+         |    {
+         |      name = "name-default"
+         |      scheme = "application_default"
+         |    }
+         |    {
+         |      name = "name-default"
+         |      scheme = "application_default"
+         |    }
+         |  ]
+         |}
+         |""".stripMargin
+
+    the[GoogleConfigurationException] thrownBy {
+      GoogleConfiguration(ConfigFactory.parseString(duplicateAuthName))
+    } should have message "Google configuration:\nDuplicate auth names: name-default"
   }
 }

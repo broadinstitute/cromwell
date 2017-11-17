@@ -40,10 +40,8 @@ object Validation {
   }
 
   implicit class ValidationTry[A](val e: ErrorOr[A]) extends AnyVal {
-    def toTry: Try[A] = e match {
-      case Valid(options) => Success(options)
-      case Invalid(err) => Failure(AggregatedMessageException("Error(s)", err.toList))
-    }
+    def toTry: Try[A] = toTry("Error(s)")
+
     def toTry(context: String): Try[A] = e match {
       case Valid(options) => Success(options)
       case Invalid(err) => Failure(AggregatedMessageException(context, err.toList))

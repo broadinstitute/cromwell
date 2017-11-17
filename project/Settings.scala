@@ -10,6 +10,7 @@ import sbtassembly.AssemblyPlugin.autoImport._
 import sbtdocker.DockerPlugin
 import sbtdocker.DockerPlugin.autoImport._
 import sbtrelease.ReleasePlugin
+import scoverage.ScoverageKeys._
 
 object Settings {
 
@@ -110,6 +111,23 @@ object Settings {
     // No console-hostile options, otherwise the console is effectively unusable.
     // https://github.com/sbt/sbt/issues/1815
     scalacOptions in(Compile, console) --= consoleHostileSettings,
+    //
+    /*
+    Only enable coverage for 2.12.
+
+    NOTE: Like below, gave up coming with an SBT setting. Using an environment variable instead.
+
+    Once 2.11 is gone, instead of
+      `ENABLE_COVERAGE=true sbt +test coverageReport`
+    one can run
+      `sbt coverage test coverageReport`
+     */
+    coverageEnabled := (CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 12)) => sys.env.get("ENABLE_COVERAGE").exists(_.toBoolean)
+      case Some((2, 11)) => false
+      case wut => throw new NotImplementedError(
+        s"Found unsupported Scala version $wut. wdl4s does not support versions of Scala other than 2.11 or 2.12.")
+    }),
     addCompilerPlugin("org.scalamacros" % "paradise" % paradiseV cross CrossVersion.full)
   )
 

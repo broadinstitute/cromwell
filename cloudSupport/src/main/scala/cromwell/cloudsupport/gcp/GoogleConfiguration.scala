@@ -6,15 +6,14 @@ import cats.data.Validated._
 import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.services.storage.StorageScopes
 import com.typesafe.config.{Config, ConfigException}
-import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.{JsonFileFormat, PemFileFormat}
-import cromwell.cloudsupport.gcp.auth._
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import common.validation.Validation._
+import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.{JsonFileFormat, PemFileFormat}
+import cromwell.cloudsupport.gcp.auth._
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.LoggerFactory
 
@@ -37,8 +36,6 @@ object GoogleConfiguration {
 
   lazy val DefaultConnectionTimeout = 3 minutes
   lazy val DefaultReadTimeout = 3 minutes
-
-  lazy val DefaultRequestInitializer = GoogleConfiguration.withCustomTimeouts(new GoogleCredential.Builder().build())
 
   def withCustomTimeouts(httpRequestInitializer: HttpRequestInitializer,
                          connectionTimeout: FiniteDuration = DefaultConnectionTimeout,

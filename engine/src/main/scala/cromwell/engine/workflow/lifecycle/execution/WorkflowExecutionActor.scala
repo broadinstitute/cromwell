@@ -73,7 +73,6 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         context.parent ! WorkflowExecutionFailedResponse(Map.empty, new Exception("Sub Workflows not supported yet"))
         goto(WorkflowExecutionFailedState)
       }
-
       // Start HeartBeat
       timers.startPeriodicTimer(ExecutionHeartBeatKey, ExecutionHeartBeat, ExecutionHeartBeatInterval)
 
@@ -295,7 +294,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     }
 
     // Output ports for the workflow
-    val workflowOutputPorts: Set[OutputPort] = workflowDescriptor.callable.graph.outputNodes.flatMap(_.outputPorts)
+    val workflowOutputPorts: Set[OutputPort] = workflowDescriptor.callable.graph.outputNodes.flatMap{
+      case p: PortBasedGraphOutputNode => p.upstreamPorts
+      case e: ExpressionBasedGraphOutputNode => e.outputPorts
+    }
 
     val workflowOutputValuesValidation = workflowOutputPorts
       // Try to find a value for each port in the value store

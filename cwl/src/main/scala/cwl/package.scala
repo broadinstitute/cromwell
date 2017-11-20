@@ -86,5 +86,20 @@ package object cwl extends TypeAliases {
       case Cwl.Workflow(w) => w.womExecutable(inputsFile)
       case Cwl.CommandLineTool(clt) => clt.womExecutable(inputsFile)
     }
+
+    def requiredInputs: Map[String, WomType] = cwl match {
+      case Cwl.Workflow(w) => selectWomTypeInputs(w.inputs collect {
+        case i if i.`type`.isDefined => FullyQualifiedName(i.id).id -> i.`type`.get
+      })
+      case Cwl.CommandLineTool(clt) => selectWomTypeInputs(clt.inputs collect {
+        case i if i.`type`.isDefined => FullyQualifiedName(i.id).id -> i.`type`.get
+      })
+    }
+
+    private def selectWomTypeInputs(myriadInputMap: Array[(String, MyriadInputType)]): Map[String, WomType] = {
+      (myriadInputMap collect {
+        case (key, MyriadInputType.WomType(w)) => key -> w
+      }).toMap
+    }
   }
 }

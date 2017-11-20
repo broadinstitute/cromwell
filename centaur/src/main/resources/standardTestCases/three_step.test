@@ -1,0 +1,14 @@
+name: threeStepCwl
+testFormat: workflowsuccess
+workflowType: CWL
+workflowTypeVersion: v1.0
+backends: [Local]
+backendsMode: "only"
+tags: [localdockertest]
+
+files {
+  wdl: three_step/three_step.cwl
+  inputs: three_step/inputs.json
+}
+
+metadata { }

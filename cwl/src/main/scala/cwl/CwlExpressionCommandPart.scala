@@ -60,19 +60,11 @@ case class InputParameterCommandPart(commandInputParameter: CommandInputParamete
                            runtimeEnvironment: RuntimeEnvironment) = {
 
     val womValue: WomValue = commandInputParameter match {
-
-      /*
-        Case where the only input binding option specified is the position.
-
-        NB: We ignore the position as these have already been sorted prior to being submitted as command part
-
-        In the cases where we have a defined inputbinding with more options,
-        we should consider instantiating a CommandLineBindingCommandPart and delegating this call.
-      */
-      case CommandInputParameter(commandInputParamterFqn, _,_,_,_,_, Some(CommandLineBinding(None,Some(_),None,None,None,None,None)),_,_) =>
-        inputsMap.get(LocalName(FullyQualifiedName(commandInputParamterFqn).id)) match {
+      case cip: CommandInputParameter =>
+        val localizedId = LocalName(FullyQualifiedName(cip.id).id)
+        inputsMap.get(localizedId) match {
           case Some(x) =>x
-          case _ => throw new RuntimeException(s"could not find $commandInputParamterFqn in map $inputsMap")
+          case _ => throw new RuntimeException(s"could not find ${localizedId} in map $inputsMap")
         }
 
       // There's a fair few other cases to add, but until then...

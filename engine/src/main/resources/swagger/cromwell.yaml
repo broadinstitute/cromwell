@@ -262,7 +262,7 @@ paths:
       summary: Query workflows by start dates, end dates, names, ids, statuses, or labels.
       parameters:
         - name: version
-          description: API Version
+          description: API Version for your query
           required: true
           type: string
           in: path
@@ -335,6 +335,16 @@ paths:
             returns workflows with all of the specified label keys. Specify the label key
             and label value pair as separated with
             "label-key:label-value"
+        - name: additionalKeys
+          required: false
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+          pattern: ^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$
+          description: >
+            Includes the specified keys in the information returned for each workflow matching the query.
       tags:
         - Workflows
       responses:

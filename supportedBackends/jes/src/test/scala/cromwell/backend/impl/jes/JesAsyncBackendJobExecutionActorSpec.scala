@@ -381,7 +381,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
 
         def gcsPathToLocal(womValue: WomValue): WomValue = {
-          WomFileMapper.mapWomFiles(testActorRef.underlyingActor.mapCommandLineWdlFile)(womValue).get
+          WomFileMapper.mapWomFiles(testActorRef.underlyingActor.mapCommandLineWomFile)(womValue).get
         }
 
         val mappedInputs = jobDescriptor.localInputs mapValues gcsPathToLocal
@@ -652,7 +652,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     def wdlValueToGcsPath(jesOutputs: Set[JesFileOutput])(womValue: WomValue): WomValue = {
-      WomFileMapper.mapWomFiles(testActorRef.underlyingActor.wdlFileToGcsPath(jesOutputs))(womValue).get
+      WomFileMapper.mapWomFiles(testActorRef.underlyingActor.womFileToGcsPath(jesOutputs))(womValue).get
     }
 
     val result = outputValues map wdlValueToGcsPath(jesOutputs)

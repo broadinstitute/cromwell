@@ -104,15 +104,15 @@ trait SharedFileSystemAsyncJobExecutionActor
   /**
     * Localizes the file, run outside of docker.
     */
-  override def preProcessWdlFile(wdlFile: WomFile): WomFile = {
-    sharedFileSystem.localizeWdlFile(jobPathsWithDocker.callInputsRoot, isDockerRun)(wdlFile)
+  override def preProcessWomFile(womFile: WomFile): WomFile = {
+    sharedFileSystem.localizeWomFile(jobPathsWithDocker.callInputsRoot, isDockerRun)(womFile)
   }
 
   /**
     * Returns the paths to the file, inside of docker.
     */
-  override def mapCommandLineWdlFile(wdlFile: WomFile): WomFile = {
-    val cleanPath = DefaultPathBuilder.build(wdlFile.valueString).get
+  override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
+    val cleanPath = DefaultPathBuilder.build(womFile.valueString).get
     WomFile(if (isDockerRun) jobPathsWithDocker.toDockerPath(cleanPath).pathAsString else cleanPath.pathAsString)
   }
 
@@ -233,7 +233,7 @@ trait SharedFileSystemAsyncJobExecutionActor
     runStatus.returnCodeFileExists
   }
 
-  override def mapOutputWdlFile(wdlFile: WomFile): WomFile = {
-    sharedFileSystem.mapJobWdlFile(jobPaths)(wdlFile)
+  override def mapOutputWomFile(womFile: WomFile): WomFile = {
+    sharedFileSystem.mapJobWomFile(jobPaths)(womFile)
   }
 }

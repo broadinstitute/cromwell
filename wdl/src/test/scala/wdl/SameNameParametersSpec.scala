@@ -1,5 +1,6 @@
 package wdl
 
+import common.validation.Validation._
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.expression.NoFunctions
 import wom.values.WomString
@@ -22,6 +23,6 @@ class SameNameParametersSpec extends FlatSpec with Matchers {
 
   it should "instantiate the command with duplicated parameter names properly" in {
     val inputs = task.inputsFromMap(Map("test.x" -> WomString("foo")))
-    task.instantiateCommand(inputs, NoFunctions).get shouldEqual "./script foo foo foo"
+    task.instantiateCommand(inputs, NoFunctions).toTry.get.commandString shouldEqual "./script foo foo foo"
   }
 }

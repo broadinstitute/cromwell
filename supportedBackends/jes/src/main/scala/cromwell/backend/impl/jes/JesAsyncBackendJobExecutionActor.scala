@@ -133,9 +133,9 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   /**
-    * Takes two arrays of remote and local WDL File paths and generates the necessary JesInputs.
+    * Takes two arrays of remote and local WOM File paths and generates the necessary JesInputs.
     */
-  private def jesInputsFromWdlFiles(jesNamePrefix: String,
+  private def jesInputsFromWomFiles(jesNamePrefix: String,
                                     remotePathArray: Seq[WomFile],
                                     localPathArray: Seq[WomFile],
                                     jobDescriptor: BackendJobDescriptor): Iterable[JesInput] = {
@@ -146,7 +146,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   /**
-    * Turns WdlFiles into relative paths.  These paths are relative to the working disk
+    * Turns WomFiles into relative paths.  These paths are relative to the working disk
     *
     * relativeLocalizationPath("foo/bar.txt") -> "foo/bar.txt"
     * relativeLocalizationPath("gs://some/bucket/foo.txt") -> "some/bucket/foo.txt"
@@ -159,22 +159,18 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   private[jes] def generateJesInputs(jobDescriptor: BackendJobDescriptor): Set[JesInput] = {
-    // TODO WOM: Fix it !
-    //    val fullyQualifiedPreprocessedInputs = jobDescriptor.inputDeclarations map { case (declaration, value) => declaration.fullyQualifiedName -> commandLineValueMapper(value) }
-    val writeFunctionFiles = {
-      List.empty
-      //      call.task.evaluateFilesFromCommand(fullyQualifiedPreprocessedInputs, backendEngineFunctions) map {
-      //        case (expression, file) => expression.toWdlString.md5SumShort -> Seq(file)
-      //      }
-    }
+    // We need to tell PAPI about files that were created as part of command instantiation (these need to be defined
+    // as inputs that will be localized down to the VM). Make up 'names' for these files that are just the short
+    // md5's of their paths.
+    val writeFunctionFiles = instantiatedCommand.createdFiles map { f => f.value.md5SumShort -> List(f) } toMap
 
-    /* Collect all WdlFiles from inputs to the call */
+    // Collect all WomFiles from inputs to the call.
     val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.fullyQualifiedInputs mapValues {
       _.collectAsSeq { case w: WomFile => w }
     }
 
     val inputs = (callInputFiles ++ writeFunctionFiles) flatMap {
-      case (name, files) => jesInputsFromWdlFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor)
+      case (name, files) => jesInputsFromWomFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor)
     }
     inputs.toSet
   }
@@ -216,10 +212,10 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         .getOrElse(List.empty)
     }
 
-    val wdlFileOutputs = jobDescriptor.call.callable.outputs.flatMap(evaluateFiles) map relativeLocalizationPath
+    val womFileOutputs = jobDescriptor.call.callable.outputs.flatMap(evaluateFiles) map relativeLocalizationPath
 
-    val outputs = wdlFileOutputs.distinct flatMap { wdlFile =>
-      wdlFile match {
+    val outputs = womFileOutputs.distinct flatMap { womFile =>
+      womFile match {
         case singleFile: WomSingleFile => List(generateJesSingleFileOutputs(singleFile))
         case globFile: WomGlobFile => generateJesGlobFileOutputs(globFile)
       }
@@ -228,20 +224,20 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     outputs.toSet
   }
 
-  private def generateJesSingleFileOutputs(wdlFile: WomSingleFile): JesFileOutput = {
-    val destination = callRootPath.resolve(wdlFile.value.stripPrefix("/")).pathAsString
-    val (relpath, disk) = relativePathAndAttachedDisk(wdlFile.value, runtimeAttributes.disks)
-    JesFileOutput(makeSafeJesReferenceName(wdlFile.value), destination, relpath, disk)
+  private def generateJesSingleFileOutputs(womFile: WomSingleFile): JesFileOutput = {
+    val destination = callRootPath.resolve(womFile.value.stripPrefix("/")).pathAsString
+    val (relpath, disk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
+    JesFileOutput(makeSafeJesReferenceName(womFile.value), destination, relpath, disk)
   }
 
-  private def generateJesGlobFileOutputs(wdlFile: WomGlobFile): List[JesFileOutput] = {
-    val globName = GlobFunctions.globName(wdlFile.value)
+  private def generateJesGlobFileOutputs(womFile: WomGlobFile): List[JesFileOutput] = {
+    val globName = GlobFunctions.globName(womFile.value)
     val globDirectory = globName + "/"
     val globListFile = globName + ".list"
     val gcsGlobDirectoryDestinationPath = callRootPath.resolve(globDirectory).pathAsString
     val gcsGlobListFileDestinationPath = callRootPath.resolve(globListFile).pathAsString
 
-    val (_, globDirectoryDisk) = relativePathAndAttachedDisk(wdlFile.value, runtimeAttributes.disks)
+    val (_, globDirectoryDisk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
 
     // We need both the glob directory and the glob list:
     List(
@@ -279,8 +275,8 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     } else ""
   }
 
-  override def globParentDirectory(wdlGlobFile: WomGlobFile): Path = {
-    val (_, disk) = relativePathAndAttachedDisk(wdlGlobFile.value, runtimeAttributes.disks)
+  override def globParentDirectory(womGlobFile: WomGlobFile): Path = {
+    val (_, disk) = relativePathAndAttachedDisk(womGlobFile.value, runtimeAttributes.disks)
     disk.mountPoint
   }
 
@@ -397,14 +393,14 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
-  override def mapOutputWdlFile(wdlFile: WomFile): WomFile = {
-    wdlFileToGcsPath(generateJesOutputs(jobDescriptor))(wdlFile)
+  override def mapOutputWomFile(womFile: WomFile): WomFile = {
+    womFileToGcsPath(generateJesOutputs(jobDescriptor))(womFile)
   }
 
-  private[jes] def wdlFileToGcsPath(jesOutputs: Set[JesFileOutput])(wdlFile: WomFile): WomFile = {
+  private[jes] def womFileToGcsPath(jesOutputs: Set[JesFileOutput])(womFile: WomFile): WomFile = {
     jesOutputs collectFirst {
-      case jesOutput if jesOutput.name == makeSafeJesReferenceName(wdlFile.valueString) => WomFile(jesOutput.gcs)
-    } getOrElse wdlFile
+      case jesOutput if jesOutput.name == makeSafeJesReferenceName(womFile.valueString) => WomFile(jesOutput.gcs)
+    } getOrElse womFile
   }
 
   override def isSuccess(runStatus: RunStatus): Boolean = {
@@ -522,12 +518,12 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
-  override def mapCommandLineWdlFile(wdlFile: WomFile): WomFile = {
-    getPath(wdlFile.valueString) match {
+  override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
+    getPath(womFile.valueString) match {
       case Success(gcsPath: GcsPath) =>
         val localPath = workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString
-        WomFile(localPath, wdlFile.isGlob)
-      case _ => wdlFile
+        WomFile(localPath, womFile.isGlob)
+      case _ => womFile
     }
   }
 }

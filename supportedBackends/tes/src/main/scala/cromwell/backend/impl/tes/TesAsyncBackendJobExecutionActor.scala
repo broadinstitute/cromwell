@@ -106,7 +106,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           runtimeAttributes,
           commandDirectory,
           _,
-          backendEngineFunctions,
+          instantiatedCommand,
           realDockerImageUsed))
 
     task.map(task => Task(

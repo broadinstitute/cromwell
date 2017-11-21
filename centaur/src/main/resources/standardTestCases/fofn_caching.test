@@ -1,4 +1,4 @@
-ignore: true # Depends on 2864
+ignore: true # Depends on 2922
 name: fofn_caching
 testFormat: runtwiceexpectingcallcaching
 backends: [Jes-Caching-No-Copy]

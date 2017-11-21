@@ -14,6 +14,6 @@ class WdlFunctions(val pathBuilders: List[PathBuilder]) extends ReadLikeFunction
   override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = fail("stderr")
   override def glob(pattern: String): Seq[String] = throw new NotImplementedError(s"glob(path, pattern) not implemented yet")
 
-  // TODO WOM: fix this
+  // Cromwell does not support writing files from the engine.
   override def writeFile(path: String, content: String): Future[WomFile] = Future.failed(new Exception("Can't write files"))
 }

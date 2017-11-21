@@ -14,11 +14,10 @@ import wdl.exception._
 import wdl.expression.{NoFunctions, WdlStandardLibraryFunctions, WdlStandardLibraryFunctionsType}
 import wdl.types.{WdlCallOutputsObjectType, WdlNamespaceType}
 import wdl4s.parser.WdlParser._
-import wom.WorkflowInput
 import wom.core._
 import wom.executable.Executable
 import wom.types._
-import wom.values.{WomOptionalValue, WomValue}
+import wom.values.WomValue
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -101,40 +100,6 @@ case class WdlNamespaceWithWorkflow(importedAs: Option[String],
   override val workflows = Seq(workflow)
 
   override def toString: String = s"[WdlNamespace importedAs=$importedAs]"
-
-  /**
-    * Confirm all required inputs are present and attempt to coerce raw inputs to `WomValue`s.
-    * This can fail if required raw inputs are missing or if the values for a specified raw input
-    * cannot be coerced to the target type of the input as specified in the namespace.
-    */
-  def coerceRawInputs(rawInputs: ExecutableInputMap): Try[WorkflowCoercedInputs] = {
-    def coerceRawInput(input: WorkflowInput): Try[WomValue] = input.fqn match {
-      case _ if rawInputs.contains(input.fqn) =>
-        val rawValue = rawInputs(input.fqn)
-        input.womType.coerceRawValue(rawValue) match {
-          case Success(value) => Success(value)
-          case _ => Failure(new UnsatisfiedInputException(s"Could not coerce ${rawValue.getClass.getSimpleName} value for '${input.fqn}' ($rawValue) into: ${input.womType}"))
-        }
-      case _ =>
-        if (input.optional) {
-          Success(WomOptionalValue(input.womType.asInstanceOf[WomOptionalType].memberType, None))
-        } else {
-          Failure(new UnsatisfiedInputException(s"Required workflow input '${input.fqn}' not specified."))
-        }
-    }
-
-    val tryCoercedValues = workflow.inputs map { case (fqn, input) => fqn -> coerceRawInput(input) }
-
-    val (successes, failures) = tryCoercedValues.partition { case (_, tryValue) => tryValue.isSuccess }
-    if (failures.isEmpty) {
-      Try(for {
-        (key, tryValue) <- successes
-      } yield key -> tryValue.get)
-    } else {
-      val errors = failures.values.toList.collect { case f: Failure[_] => f.exception }
-      Failure(ValidationException("Workflow input processing failed.", errors))
-    }
-  }
 
   /**
     * Some declarations need a value from the user and some have an expression attached to them.

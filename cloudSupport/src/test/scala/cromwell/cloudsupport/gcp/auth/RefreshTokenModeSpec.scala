@@ -2,6 +2,7 @@ package cromwell.cloudsupport.gcp.auth
 
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.{CromwellFatalException, TestKitSuite}
+import cromwell.util.EncryptionSpec
 import org.scalatest.{AsyncFlatSpecLike, Matchers}
 
 class RefreshTokenModeSpec extends TestKitSuite("RefreshTokenModeSpec") with AsyncFlatSpecLike with Matchers {
@@ -9,6 +10,7 @@ class RefreshTokenModeSpec extends TestKitSuite("RefreshTokenModeSpec") with Asy
   behavior of "RefreshTokenMode"
 
   it should "fail to generate a bad credential" in {
+    EncryptionSpec.assumeAes256Cbc()
     val refreshTokenMode = RefreshTokenMode(
       "user-via-refresh",
       "secret_id",
@@ -21,6 +23,7 @@ class RefreshTokenModeSpec extends TestKitSuite("RefreshTokenModeSpec") with Asy
   }
 
   it should "fail to generate a credential that cannot be validated" in {
+    EncryptionSpec.assumeAes256Cbc()
     val refreshTokenMode = RefreshTokenMode(
       "user-via-refresh",
       "secret_id",
@@ -34,6 +37,7 @@ class RefreshTokenModeSpec extends TestKitSuite("RefreshTokenModeSpec") with Asy
   }
 
   it should "generate a non-validated credential" in {
+    EncryptionSpec.assumeAes256Cbc()
     val refreshTokenMode = RefreshTokenMode(
       "user-via-refresh",
       "secret_id",
@@ -47,6 +51,7 @@ class RefreshTokenModeSpec extends TestKitSuite("RefreshTokenModeSpec") with Asy
   }
 
   it should "validate with a refresh_token workflow option" in {
+    EncryptionSpec.assumeAes256Cbc()
     val refreshTokenMode = RefreshTokenMode(
       "user-via-refresh",
       "secret_id",

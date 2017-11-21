@@ -1,6 +1,6 @@
 name: sub_workflow_var_refs
 testFormat: workflowsuccess
-ignore: true # Depends on #2615
+ignore: true # Depends on #2901
 
 files {
   wdl: sub_workflow_var_refs/sub_workflow_var_refs.wdl

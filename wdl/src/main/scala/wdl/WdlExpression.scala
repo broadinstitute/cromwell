@@ -171,7 +171,7 @@ object WdlExpression {
 }
 
 case class WdlExpression(ast: AstNode) extends WomValue {
-  override val womType = WdlExpressionType
+  override val womType: WomType = WdlExpressionType
 
   def evaluate(lookup: ScopedLookupFunction, functions: WdlFunctions[WomValue]): Try[WomValue] =
     WdlExpression.evaluate(ast, lookup, functions)

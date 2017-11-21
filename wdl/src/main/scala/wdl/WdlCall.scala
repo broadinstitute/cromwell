@@ -8,7 +8,6 @@ import wdl.AstTools.EnhancedAstNode
 import wdl.exception.{ValidationException, VariableLookupException, VariableNotFoundException}
 import wdl.expression.WdlFunctions
 import wdl4s.parser.WdlParser.{Ast, SyntaxError, Terminal}
-import wom.WorkflowInput
 import wom.callable.Callable
 import wom.callable.Callable._
 import wom.graph.CallNode._
@@ -171,9 +170,9 @@ sealed abstract class WdlCall(val alias: Option[String],
     * needed before its command can be constructed. This excludes inputs that
     * are satisfied via the 'input' section of the Call definition.
     */
-  def unsatisfiedInputs: Seq[WorkflowInput] = for {
-    i <- declarations if !inputMappings.contains(i.unqualifiedName) && i.expression.isEmpty
-  } yield WorkflowInput(i.fullyQualifiedName, i.womType)
+  def unsatisfiedInputs: Seq[InputDefinition] = for {
+    i <- declarations if !inputMappings.contains(i.unqualifiedName) && i.expression.isEmpty && !i.womType.isInstanceOf[WomOptionalType]
+  } yield RequiredInputDefinition(i.fullyQualifiedName, i.womType)
 
   override def toString: String = s"[Call $fullyQualifiedName]"
 

@@ -28,6 +28,10 @@ object Callable {
       * Alias for localName.asString
       */
     def name = localName.value
+    def optional = this match {
+      case _: RequiredInputDefinition => false
+      case _ => true
+    }
   }
 
   object RequiredInputDefinition {
@@ -42,6 +46,10 @@ object Callable {
       InputDefinitionWithDefault(LocalName(name), womType, default)
     }
   }
+
+  /**
+    * An input definition that has a default value supplied. Typical WDL example would be a declaration like: "Int x = 5"
+    */
   final case class InputDefinitionWithDefault(localName: LocalName, womType: WomType, default: WomExpression) extends InputDefinition
 
   object OptionalInputDefinition {

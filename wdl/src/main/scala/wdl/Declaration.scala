@@ -1,10 +1,11 @@
 package wdl
 
 import cats.data.Validated.Valid
+import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import wdl.AstTools.EnhancedAstNode
 import wdl4s.parser.WdlParser.{Ast, AstNode}
-import wom.WorkflowInput
+import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
 import wom.graph._
 import wom.graph.expression.{ExposedExpressionNode, ExpressionNode}
 import wom.types.{WomArrayType, WomOptionalType, WomType}
@@ -66,9 +67,23 @@ trait DeclarationInterface extends WdlGraphNodeWithUpstreamReferences {
     case None => Option(TaskInput(unqualifiedName, womType))
   }
 
-  def asWorkflowInput: Option[WorkflowInput] = expression match {
-    case Some(_) => None
-    case None => Some(WorkflowInput(fullyQualifiedName, womType))
+  /**
+    * Decide whether this declaration should be exposed as a workflow input, and if so, what kind
+    */
+  def asWorkflowInput: Option[InputDefinition] = (expression, womType) match {
+    case (None, optionalType: WomOptionalType) =>
+      Some(OptionalInputDefinition(fullyQualifiedName, optionalType.flatOptionalType))
+    case (None, nonOptionalType) =>
+      Some(RequiredInputDefinition(fullyQualifiedName, nonOptionalType))
+    // We only make declarations with expressions into inputs if they don't depend on previous tasks or decls:
+    case (Some(expr), optionalType: WomOptionalType) if upstreamAncestry.isEmpty =>
+      // Eg if we have 'Int? x = 5', we can let that be an input to a task requiring an Int:
+      val typeOfInput = if(optionalType.baseMemberType.isCoerceableFrom(expr.womType)) { optionalType.baseMemberType } else optionalType
+      Some(InputDefinitionWithDefault(fullyQualifiedName, typeOfInput, WdlWomExpression(expr, None)))
+    case (Some(expr), other) if upstreamAncestry.isEmpty =>
+      Some(InputDefinitionWithDefault(fullyQualifiedName, other, WdlWomExpression(expr, None)))
+    case _ =>
+      None
   }
 
   def toWdlString: String = {
@@ -127,11 +142,17 @@ object Declaration {
       } yield GraphOutputDeclarationNode(graphOutputNode)
     }
 
-    decl match {
-      case Declaration(opt: WomOptionalType, _, None, _, _) => Valid(InputDeclarationNode(OptionalGraphInputNode(decl.womIdentifier, opt)))
-      case Declaration(_, _, None, _, _) => Valid(InputDeclarationNode(RequiredGraphInputNode(decl.womIdentifier, decl.womType)))
-      case Declaration(_, _, Some(expr), _, _) => declarationAsExpressionNode(expr)
-      case WorkflowOutput(_, _, expr, _, _) => workflowOutputAsGraphOutputNode(expr)
+    def asWorkflowInput(inputDefinition: InputDefinition): GraphInputNode = inputDefinition match {
+      case RequiredInputDefinition(_, womType) => RequiredGraphInputNode(decl.womIdentifier, womType)
+      case OptionalInputDefinition(_, optionalType) => OptionalGraphInputNode(decl.womIdentifier, optionalType)
+      case InputDefinitionWithDefault(_, womType, default) => OptionalGraphInputNodeWithDefault(decl.womIdentifier, womType, default)
+    }
+
+    (decl.asWorkflowInput, decl) match {
+      case (_, WorkflowOutput(_, _, expr, _, _)) => workflowOutputAsGraphOutputNode(expr)
+      case (Some(inputDefinition), _) => Valid(InputDeclarationNode(asWorkflowInput(inputDefinition)))
+      case (None, Declaration(_, _, Some(expr), _, _)) => declarationAsExpressionNode(expr)
+      case (_, other) => s"Non-input declaration ($other) didn't have an expression".invalidNel
     }
   }
 }

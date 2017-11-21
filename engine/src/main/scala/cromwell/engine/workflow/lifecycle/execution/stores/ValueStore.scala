@@ -74,7 +74,7 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
         }
       case None =>
         // If we don't find any shards, this collector was found "runnable" when it shouldn't have
-        s"Cannot find a value for ${sourcePort.identifier.fullyQualifiedName.value} in the value store".invalidNel
+        s"Scatter collector cannot find any values for ${sourcePort.identifier.fullyQualifiedName.value} in value store: $this".invalidNel
     }
   }
 
@@ -83,7 +83,7 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
     val sourcePort = conditionalPort.outputToExpose.source
     store.getValue(sourcePort, collector.index) match {
       case Some(womValue) => Map(ValueKey(conditionalPort, collector.index) -> WomOptionalValue(womValue).flattenOptional).validNel
-      case None => s"Cannot collect ${collector.conditionalOutputPort.womType.toDisplayString} ${collector.node.identifier.fullyQualifiedName.value}: Cannot find a value for output port ${sourcePort.identifier.fullyQualifiedName.value}".invalidNel
+      case None => s"Conditional collector cannot find a value for output port ${sourcePort.identifier.fullyQualifiedName.value} in value store: $this".invalidNel
     }
   }
 

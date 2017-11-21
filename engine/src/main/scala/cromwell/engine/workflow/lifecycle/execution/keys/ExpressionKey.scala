@@ -34,7 +34,7 @@ private [execution] case class ExpressionKey(node: ExpressionNode, index: Execut
         case Left(f) => workflowExecutionActor ! ExpressionEvaluationFailedResponse(this, new RuntimeException(f.toList.mkString(", ")))
       }
     } valueOr { f =>
-      workflowExecutionActor ! ExpressionEvaluationFailedResponse(this, new RuntimeException(s"Unable to start $this" + f.toList.mkString(", ")))
+      workflowExecutionActor ! ExpressionEvaluationFailedResponse(this, new RuntimeException(s"Unable to start $this: " + f.toList.mkString(", ")))
     }
 
     WorkflowExecutionDiff(Map(this -> ExecutionStatus.Running)).validNel

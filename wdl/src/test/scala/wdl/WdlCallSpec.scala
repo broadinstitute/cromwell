@@ -18,8 +18,8 @@ class WdlCallSpec extends WordSpec with Matchers {
     val callT3 = namespace.calls.find(_.unqualifiedName == "t3").get
     val callV = namespace.calls.find(_.unqualifiedName == "v").get
 
-    val inputs = namespace.coerceRawInputs(SampleWdl.TaskDeclarationsWdl.rawInputs).get
-    
+    val inputs: WorkflowCoercedInputs = SampleWdl.TaskDeclarationsWdl.workflowInputs
+
     def outputResolver(call: WdlGraphNode, index: Option[Int]): Try[WomValue] = {
       (call, index) match {
         case (c, Some(2)) if c == callT => Success(WdlCallOutputsObject(callT, Map("o" -> WomString(s"c ${index.getOrElse(-1)}"))))

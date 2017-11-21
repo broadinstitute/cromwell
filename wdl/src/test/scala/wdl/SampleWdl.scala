@@ -2,13 +2,13 @@ package wdl
 
 import java.nio.file.{Files, Path}
 
-import wom.core.{ExecutableInputMap, WorkflowSource}
+import wom.core.WorkflowSource
+import wom.values.WomString
 
 // FIXME: Figure out if anything can be removed from cromwell completely or pulled from here
 
 trait SampleWdl extends TestFileUtil {
   def workflowSource(runtime: String = ""): WorkflowSource
-  def rawInputs: ExecutableInputMap
 
   def createFileArray(base: Path): Unit = {
     createFile("f1", base, "line1\nline2\n")
@@ -80,7 +80,6 @@ object SampleWdl {
     }
 
     val PatternKey ="three_step.cgrep.pattern"
-    override lazy val rawInputs = Map(PatternKey -> "...")
   }
 
   object ThreeStep extends ThreeStepTemplate
@@ -156,7 +155,6 @@ object SampleWdl {
         |  call D {input: D_in = B.B_out}
         |}
       """.stripMargin
-    override lazy val rawInputs = Map("" -> "...")
   }
 
 
@@ -223,8 +221,6 @@ object SampleWdl {
         |  call D {input: D_in = B.B_out}
         |}
       """.stripMargin
-
-    override lazy val rawInputs = Map.empty[String, String]
   }
 
   class DeclarationsWdl extends SampleWdl {
@@ -262,8 +258,6 @@ object SampleWdl {
         |  call c
         |}
       """.stripMargin
-
-    override lazy val rawInputs = Map.empty[String, String]
   }
 
   object TaskDeclarationsWdl extends SampleWdl {
@@ -311,9 +305,9 @@ object SampleWdl {
       | String workflowDeclarationFromInput
       | String workflowDeclaration = "b"
       | Array[File] files = ["a", "b", "c"]
-      | 
+      |
       | call t as t2 {input: s = "hey" }
-      | 
+      |
       | scatter (i in t2.outputArray) {
       |   call t {input: s = "c"}
       |   if (true) {
@@ -331,11 +325,11 @@ object SampleWdl {
     """.
         stripMargin
 
-    override lazy val rawInputs = Map(
-      "wf.workflowDeclarationFromInput" -> "a",
-      "wf.v.f" -> "f",
-      "wf.v.g" -> "g",
-      "wf.v.j" -> "j"
+    val workflowInputs = Map(
+      "wf.workflowDeclarationFromInput" -> WomString("a"),
+      "wf.v.f" -> WomString("f"),
+      "wf.v.g" -> WomString("g"),
+      "wf.v.j" -> WomString("j")
     )
   }
 }

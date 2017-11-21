@@ -10,7 +10,7 @@ package object graph {
 
   private[graph] implicit class GraphNodeGraphics(val graphNode: GraphNode) extends AnyVal {
     def graphFillColor = graphNode match {
-      case _: ConditionalNode | _: ScatterNode => "lightgray"
+      case _: ConditionalNode | _: ScatterNode | _: WorkflowCallNode => "lightgray"
       case _: ExternalGraphInputNode => "lightskyblue1"
       case _: OuterGraphInputNode => "blueviolet"
       case _: PortBasedGraphOutputNode => "yellowgreen"

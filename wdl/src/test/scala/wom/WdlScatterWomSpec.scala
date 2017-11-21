@@ -184,7 +184,7 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
     def validateGraph(workflowGraph: Graph) = {
 
       // Find the inputs:
-      val inputNodes: Set[ExternalGraphInputNode] = workflowGraph.nodes.filterByType[ExternalGraphInputNode]
+      val inputNodes: Set[ExternalGraphInputNode] = workflowGraph.nodes.filterByType[RequiredGraphInputNode]
       inputNodes.map {_.localName} should be(Set("foo.j"))
       inputNodes.map {_.identifier.fullyQualifiedName.value} should be(Set("scatter_test.foo.j"))
 

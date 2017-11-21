@@ -4,7 +4,7 @@ import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.{ImportResolver, WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.graph.expression.ExpressionNode
-import wom.graph.{Graph, TaskCallNode, WorkflowCallNode}
+import wom.graph._
 import wom.types.{WomArrayType, WomIntegerType, WomMaybeEmptyArrayType, WomStringType}
 
 class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
@@ -214,7 +214,13 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
 
     def validateOuter(workflowGraph: Graph) = {
       // One input, x
-      workflowGraph.inputNodes shouldBe empty
+      workflowGraph.inputNodes.size should be(1)
+      workflowGraph.inputNodes foreach {
+        case opt: OptionalGraphInputNodeWithDefault =>
+          opt.localName should be("i")
+          opt.womType should be(WomIntegerType)
+        case other => fail("Unexpected input node to outer graph: " + other.localName)
+      }
       val calls = workflowGraph.calls
       calls.map(_.localName) should be(Set("twin"))
 

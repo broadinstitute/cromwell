@@ -49,7 +49,7 @@ object OutputEvaluator {
       def coerceOutputValue(womValue: WomValue, coerceTo: WomType): OutputResult[WomValue] = {
         fromEither[Try](
           // TODO WOM: coerceRawValue should return an ErrorOr
-          coerceTo.coerceRawValue(womValue).toEither.leftMap(t => NonEmptyList.one(t.getMessage))
+          coerceTo.coerceRawValue(womValue).toEither.leftMap(t => NonEmptyList.one(t.getClass.getSimpleName + ": " + t.getMessage))
         )
       }
 

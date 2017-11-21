@@ -159,14 +159,10 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   private[jes] def generateJesInputs(jobDescriptor: BackendJobDescriptor): Set[JesInput] = {
-    // TODO WOM: Fix it !
-    //    val fullyQualifiedPreprocessedInputs = jobDescriptor.inputDeclarations map { case (declaration, value) => declaration.fullyQualifiedName -> commandLineValueMapper(value) }
-    val writeFunctionFiles = {
-      List.empty
-      //      call.task.evaluateFilesFromCommand(fullyQualifiedPreprocessedInputs, backendEngineFunctions) map {
-      //        case (expression, file) => expression.toWdlString.md5SumShort -> Seq(file)
-      //      }
-    }
+    // We need to tell PAPI about files that were created as part of command instantiation (these need to be defined
+    // as inputs that will be localized down to the VM). Make up 'names' for these files that are just the short
+    // md5's of their paths.
+    val writeFunctionFiles = instantiatedCommand.createdFiles map { f => f.value.md5SumShort -> List(f) } toMap
 
     // Collect all WomFiles from inputs to the call.
     val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.fullyQualifiedInputs mapValues {

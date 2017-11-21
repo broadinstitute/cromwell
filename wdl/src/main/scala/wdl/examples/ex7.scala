@@ -1,5 +1,6 @@
 package wdl.examples
 
+import common.validation.Validation._
 import wdl.WdlNamespaceWithWorkflow
 import wdl.expression.WdlFunctions
 import wom.types.{WomArrayType, WomIntegerType}
@@ -24,7 +25,7 @@ object ex7 {
     val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
     val inputs = Map(
       "prefix" -> WomString("some_prefix"),
-      "ints" -> WomArray(WomArrayType(WomIntegerType), Seq(1,2,3,4,5).map(WomInteger(_)))
+      "ints" -> WomArray(WomArrayType(WomIntegerType), Seq(1,2,3,4,5).map(WomInteger.apply))
     )
 
     class CustomFunctions extends WdlFunctions[WomValue] {
@@ -37,7 +38,7 @@ object ex7 {
     ns.taskCalls.find( _.unqualifiedName == "a") foreach { call =>
       val wdlFunctions: CustomFunctions = new CustomFunctions
       val evaluatedInputs = call.evaluateTaskInputs(inputs, wdlFunctions).get
-      println(call.task.instantiateCommand(evaluatedInputs, wdlFunctions).get)
+      println(call.task.instantiateCommand(evaluatedInputs, wdlFunctions).toTry.get)
     }
   }
 }

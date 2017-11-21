@@ -7,7 +7,8 @@ import cromwell.backend.validation.DockerValidation
 import cromwell.core.path.Path
 import wdl._
 import wdl.expression.NoFunctions
-import wom.values.{WomString, WomValue}
+import wom.InstantiatedCommand
+import wom.values.{WomFile, WomString, WomValue}
 
 /**
   * Base ConfigAsyncJobExecutionActor that reads the config and generates an outer script to submit an inner script
@@ -44,18 +45,22 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     * @param taskName The name of the task to retrieve from the precomputed wdl namespace.
     * @param inputs   The customized inputs to this task.
     */
-  def writeTaskScript(script: Path, taskName: String, inputs: WorkflowCoercedInputs): Unit = {
+  def writeTaskScript(script: Path, taskName: String, inputs: WorkflowCoercedInputs): List[WomFile] = {
     val task = configInitializationData.wdlNamespace.findTask(taskName).
       getOrElse(throw new RuntimeException(s"Unable to find task $taskName"))
     val inputsWithFqns = inputs map { case (k, v) => s"$taskName.$k" -> v }
-    val command = task.instantiateCommand(task.inputsFromMap(inputsWithFqns), NoFunctions).get
+
+    import common.validation.Validation._
+    val InstantiatedCommand(command, createdFiles) =
+      task.instantiateCommand(task.inputsFromMap(inputsWithFqns), NoFunctions).toTry.get
     jobLogger.info(s"executing: $command")
     val scriptBody =
       s"""|#!/bin/bash
           |SCRIPT_COMMAND
           |""".stripMargin.replace("SCRIPT_COMMAND", command)
     script.write(scriptBody)
-    ()
+
+    createdFiles
   }
 
   /**

@@ -7,6 +7,7 @@ import akka.event.LoggingReceive
 import common.exception.MessageAggregation
 import common.util.TryUtil
 import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
@@ -23,8 +24,8 @@ import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
 import net.ceedubs.ficus.Ficus._
-import wom.WomFileMapper
 import wom.values._
+import wom.{InstantiatedCommand, WomFileMapper}
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}
 import scala.util.{Failure, Success, Try}
@@ -111,8 +112,6 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     *
     * Sometimes a preprocessor may need to localize the files, etc.
     *
-    * @param womFile The womFile.
-    * @return The updated womFile.
     */
   def preProcessWomFile(womFile: WomFile): WomFile = womFile
 
@@ -128,8 +127,6 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   /**
     * Maps WomFile to a local path, for use in the commandLineValueMapper.
     *
-    * @param womFile The womFile.
-    * @return The updated womFile.
     */
   def mapCommandLineWomFile(womFile: WomFile): WomFile =
     WomSingleFile(workflowPaths.buildPath(womFile.value).pathAsString)
@@ -191,7 +188,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   /** A bash script containing the custom preamble, the instantiated command, and output globbing behavior. */
   def commandScriptContents: ErrorOr[String] = {
-    jobLogger.info(s"`$instantiatedCommand`")
+    jobLogger.info(s"`${instantiatedCommand.commandString}`")
 
     val cwd = commandDirectory
     val rcPath = cwd./(jobPaths.returnCodeFilename)
@@ -231,14 +228,16 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |mv $rcTmpPath $rcPath
         |""".stripMargin
       .replace("SCRIPT_PREAMBLE", scriptPreamble)
-      .replace("INSTANTIATED_COMMAND", instantiatedCommand)
+      .replace("INSTANTIATED_COMMAND", instantiatedCommand.commandString)
       .replace("SCRIPT_EPILOGUE", scriptEpilogue))
   }
 
   /** The instantiated command. */
-  lazy val instantiatedCommand: String =
+  lazy val instantiatedCommand: InstantiatedCommand = {
+    val runtimeEnvironment = RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(standardParams.minimumRuntimeSettings)
     Command.instantiate(
-      jobDescriptor, backendEngineFunctions, commandLinePreProcessor, commandLineValueMapper, RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(standardParams.minimumRuntimeSettings)).get
+      jobDescriptor, backendEngineFunctions, commandLinePreProcessor, commandLineValueMapper, runtimeEnvironment).toTry.get
+  }
 
   /**
     * Redirect the stdout and stderr to the appropriate files. While not necessary, mark the job as not receiving any
@@ -452,8 +451,6 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   /**
     * Used to convert to output paths.
     *
-    * @param womFile The original file.
-    * @return The mapped output file.
     */
   def mapOutputWomFile(womFile: WomFile): WomFile = womFile
 

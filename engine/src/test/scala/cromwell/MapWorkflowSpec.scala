@@ -69,7 +69,7 @@ class MapWorkflowSpec extends CromwellTestKitWordSpec {
       val command = writeMapTask.instantiateCommand(writeMapTask.inputsFromMap(Map("file_to_name" -> expectedMap)), new CannedFunctions).getOrElse {
         fail("Expected instantiation to work")
       }
-      command.instantiation shouldEqual "cat /test/map/path"
+      command.commandString shouldEqual "cat /test/map/path"
     }
     "Coerce Map[String, String] to Map[String, Int] when running the workflow" in {
       val sampleWdl = SampleWdl.MapLiteral(pwd)

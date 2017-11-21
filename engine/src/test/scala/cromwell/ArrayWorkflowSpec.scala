@@ -33,7 +33,7 @@ class ArrayWorkflowSpec extends CromwellTestKitWordSpec {
       val command = catTask.instantiateCommand(catTask.inputsFromMap(Map("cat.files" -> expectedArray)), NoFunctions).getOrElse {
         fail("Expected instantiation to work")
       }
-      command.instantiation shouldEqual "cat -s f1 f2 f3"
+      command.commandString shouldEqual "cat -s f1 f2 f3"
     }
     "Coerce Array[String] to Array[File] when running the workflow" in {
       val outputs = Map(

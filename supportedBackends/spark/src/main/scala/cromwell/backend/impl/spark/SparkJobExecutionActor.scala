@@ -3,6 +3,7 @@ package cromwell.backend.impl.spark
 import java.nio.file.attribute.PosixFilePermission
 
 import akka.actor.Props
+import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.backend.io.JobPathsWithDocker
@@ -161,6 +162,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
         jobDescriptor,
         callEngineFunction,
         localizeInputs(jobPaths.callInputsRoot, docker = false),
+        valueMapper = identity,
         runtimeEnvironment = RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(MinimumRuntimeSettings())
       )
 
@@ -172,7 +174,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
         SparkCommands.ExecutorCores -> runtimeAttributes.executorCores,
         SparkCommands.ExecutorMemory -> runtimeAttributes.executorMemory.toString.replaceAll("\\s","").toLowerCase,
         SparkCommands.AdditionalArgs -> runtimeAttributes.additionalArgs.getOrElse(""),
-        SparkCommands.SparkAppWithArgs -> command.get,
+        SparkCommands.SparkAppWithArgs -> command.toTry.get,
         SparkCommands.DeployMode -> sparkDeployMode
       )
 

@@ -3,24 +3,26 @@ package wdl
 import java.util.regex.Pattern
 
 import cats.data.Validated.Valid
-import common.util.TryUtil
+import cats.implicits._
+import common.validation.ErrorOr.ErrorOr
 import wdl.AstTools._
-import wdl.command.{ParameterCommandPart, StringCommandPart, WdlCommandPart}
-import wdl.expression.{WdlFunctions, WdlStandardLibraryFunctions}
+import wdl.command._
+import wdl.expression.WdlFunctions
 import wdl.util.StringUtil
 import wdl4s.parser.WdlParser._
+import wom.InstantiatedCommand
 import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, CallableTaskDefinition, TaskDefinition}
 import wom.graph.LocalName
 import wom.types.WomOptionalType
-import wom.values.{WomFile, WomValue}
+import wom.values.WomValue
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
 
 object WdlTask {
   val Ws = Pattern.compile("[\\ \\t]+")
+  private implicit val instantiatedCommandMonoid = cats.derive.monoid[InstantiatedCommand]
 
   /** The function validateDeclaration() and the DeclarationAccumulator class are used
     * to accumulate errors and keep track of which Declarations/TaskOutputs have been examined.
@@ -109,92 +111,26 @@ case class WdlTask(name: String,
     * @param valueMapper Optional WomValue => WomValue function that is called on the result of each expression
     *                    evaluation (i.e. evaluation of $${...} blocks).
     * @return String instantiation of the command
+    *
+    * TODO WOM this method should go away in the #2944 purge
     */
   def instantiateCommand(taskInputs: EvaluatedTaskInputs,
                          functions: WdlFunctions[WomValue],
-                         valueMapper: WomValue => WomValue = (v) => v): Try[String] = {
+                         valueMapper: WomValue => WomValue = identity): ErrorOr[InstantiatedCommand] = {
+
     val mappedInputs = taskInputs.map({case (k, v) => k.unqualifiedName -> v})
-    Try(StringUtil.normalize(commandTemplate.map(_.instantiate(declarations, mappedInputs, functions, valueMapper)).mkString("")))
+    // `foldMap`: `map` over the elements of the `List[WdlCommandPart]`s, transforming each `WdlCommandPart` to an
+    // `ErrorOr[InstantiatedCommand]`. Then fold the resulting `List[ErrorOr[InstantiatedCommand]]` into a single
+    // `ErrorOr[InstantiatedCommand]`.
+    import WdlTask.instantiatedCommandMonoid
+    val fullInstantiatedCommand: ErrorOr[InstantiatedCommand] = commandTemplate.toList.foldMap(_.instantiate(declarations, mappedInputs, functions, valueMapper))
+    // `normalize` the instantiation (i.e. don't break Python code indentation)
+    fullInstantiatedCommand map { c => c.copy(commandString = StringUtil.normalize(c.commandString))}
   }
 
   def commandTemplateString: String = StringUtil.normalize(commandTemplate.map(_.toString).mkString)
 
   override def toString: String = s"[Task name=$name commandTemplate=$commandTemplate}]"
-
-  /**
-    * A lookup function that restricts known task values to input declarations
-    */
-  def inputsLookupFunction(inputs: WorkflowCoercedInputs,
-                           wdlFunctions: WdlFunctions[WomValue],
-                           shards: Map[Scatter, Int] = Map.empty[Scatter, Int]): String => WomValue = {
-    outputs.toList match {
-      case head :: _ => super.lookupFunction(inputs, wdlFunctions, NoOutputResolver, shards, relativeTo = head)
-      case _ => super.lookupFunction(inputs, wdlFunctions, NoOutputResolver, shards, this)
-    }
-  }
-
-  /**
-    * Finds all write_* expressions in the command line, evaluates them,
-    * and return the corresponding created file for them.
-    */
-  def evaluateFilesFromCommand(inputs: WorkflowCoercedInputs,
-                               functions: WdlFunctions[WomValue]) = {
-    val commandExpressions = commandTemplate.collect({
-      case x: ParameterCommandPart => x.expression
-    })
-
-    val writeFunctionAsts = commandExpressions.map(_.ast).flatMap(x => AstTools.findAsts(x, "FunctionCall")).collect({
-      case y if y.getAttribute("name").sourceString.startsWith("write_") => y
-    })
-
-    val lookup = lookupFunction(inputs, functions)
-    val evaluatedExpressionMap = writeFunctionAsts map { ast =>
-      val expression = WdlExpression(ast)
-      val value = expression.evaluate(lookup, functions)
-      expression -> value
-    } toMap
-
-    evaluatedExpressionMap collect {
-      case (k, Success(file: WomFile)) => k -> file
-    }
-  }
-
-  /**
-    * Tries to determine files that will be created by the outputs of this task.
-    */
-  def findOutputFiles(inputs: WorkflowCoercedInputs,
-                      functions: WdlFunctions[WomValue],
-                      silenceEvaluationErrors: Boolean = true): Seq[WomFile] = {
-    val outputFiles = outputs flatMap { taskOutput =>
-      val lookup = lookupFunction(inputs, functions, relativeTo = taskOutput)
-      taskOutput.requiredExpression.evaluateFiles(lookup, functions, taskOutput.womType) match {
-        case Success(wdlFiles) => wdlFiles
-        case Failure(ex) => if (silenceEvaluationErrors) Seq.empty[WomFile] else throw ex
-      }
-    }
-
-    outputFiles.distinct
-  }
-
-  def evaluateOutputs(inputs: EvaluatedTaskInputs,
-                      wdlFunctions: WdlStandardLibraryFunctions,
-                      postMapper: WomValue => Try[WomValue] = v => Success(v)): Try[Map[TaskOutput, WomValue]] = {
-    val fqnInputs = inputs map { case (d, v) => d.fullyQualifiedName -> v }
-    val evaluatedOutputs = outputs.foldLeft(Map.empty[TaskOutput, Try[WomValue]])((outputMap, output) => {
-      val currentOutputs = outputMap collect {
-        case (outputName, value) if value.isSuccess => outputName.fullyQualifiedName -> value.get
-      }
-      def knownValues = currentOutputs ++ fqnInputs
-      val lookup = lookupFunction(knownValues, wdlFunctions, relativeTo = output)
-      val coerced = output.requiredExpression.evaluate(lookup, wdlFunctions) flatMap output.womType.coerceRawValue
-      val jobOutput = output -> (coerced flatMap postMapper).recoverWith {
-        case t: Throwable => Failure(new RuntimeException(s"Could not evaluate ${output.fullyQualifiedName} = ${output.requiredExpression.toWomString}", t))
-      }
-      outputMap + jobOutput
-    }) map { case (k, v) => k -> v }
-
-    TryUtil.sequenceMap(evaluatedOutputs, "Failed to evaluate outputs.")
-  }
 
   /**
     * Assign declaration values from the given input map.

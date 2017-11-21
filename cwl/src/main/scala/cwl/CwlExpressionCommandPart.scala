@@ -1,30 +1,35 @@
 package cwl
 
+import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import cwl.CommandLineTool.CommandInputParameter
-import wom.CommandPart
 import wom.callable.RuntimeEnvironment
 import wom.expression.IoFunctionSet
 import wom.graph.LocalName
 import wom.values._
+import wom.{InstantiatedCommand, CommandPart}
 
+import scala.util.Try
+
+import scala.language.postfixOps
 
 case class CwlExpressionCommandPart(expr: Expression) extends CommandPart {
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: (WomValue) => WomValue,
-                           runtimeEnvironment: RuntimeEnvironment ): String = {
+                           runtimeEnvironment: RuntimeEnvironment ): ErrorOr[InstantiatedCommand] =
+    Try {
+      val stringKeyMap = inputsMap.map { case (LocalName(localName), value) => localName -> value }
 
-    val stringKeyMap = inputsMap.map{ case (LocalName(localName), value) => localName -> value }
+      val pc =
+        ParameterContext(
+          runtime = runtimeEnvironment.cwlMap
+        ).withInputs(stringKeyMap, functions)
 
-    val pc =
-      ParameterContext(
-        runtime = runtimeEnvironment.cwlMap
-      ).withInputs(stringKeyMap, functions)
+      val womValue: WomValue = expr.fold(EvaluateExpression).apply(pc)
 
-    val womValue: WomValue = expr.fold(EvaluateExpression).apply(pc)
-
-    womValue.valueString
-  }
+      InstantiatedCommand(womValue.valueString)
+    } toErrorOr
 }
 
 // TODO: Dan to revisit making this an Either (and perhaps adding some other cases)
@@ -32,24 +37,23 @@ case class CommandLineBindingCommandPart(argument: CommandLineBinding) extends C
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: (WomValue) => WomValue,
-                           runtimeEnvironment: RuntimeEnvironment) = {
+                           runtimeEnvironment: RuntimeEnvironment): ErrorOr[InstantiatedCommand] =
+    Try {
+      val pc = ParameterContext(runtime = runtimeEnvironment.cwlMap).withInputs(inputsMap.map({
+        case (LocalName(localName), WomSingleFile(path)) => localName -> WomString(path)
+        case (LocalName(localName), value) => localName -> value
+      }), functions)
 
-    val pc = ParameterContext(runtime = runtimeEnvironment.cwlMap).withInputs(inputsMap.map({
-      case (LocalName(localName), WomSingleFile(path)) => localName -> WomString(path)
-      case (LocalName(localName), value) => localName -> value
-    }), functions)
-
-    val womValue: WomValue = argument match {
-      case CommandLineBinding(_, _, _, _, _, Some(StringOrExpression.Expression(expression)), Some(false)) =>
-        expression.fold(EvaluateExpression).apply(pc)
-      case CommandLineBinding(_, _, _, _, _, Some(StringOrExpression.String(string)), Some(false)) =>
-        WomString(string)
-      // There's a fair few other cases to add, but until then...
-      case other => throw new NotImplementedError(s"As-yet-unsupported command line binding: $other")
-    }
-
-    womValue.valueString
-  }
+      val womValue: WomValue = argument match {
+        case CommandLineBinding(_, _, _, _, _, Some(StringOrExpression.Expression(expression)), Some(false)) =>
+          expression.fold(EvaluateExpression).apply(pc)
+        case CommandLineBinding(_, _, _, _, _, Some(StringOrExpression.String(string)), Some(false)) =>
+          WomString(string)
+        // There's a fair few other cases to add, but until then...
+        case other => throw new NotImplementedError(s"As-yet-unsupported command line binding: $other")
+      }
+      InstantiatedCommand(womValue.valueString)
+    } toErrorOr
 }
 
 case class InputParameterCommandPart(commandInputParameter: CommandInputParameter) extends CommandPart {
@@ -57,20 +61,19 @@ case class InputParameterCommandPart(commandInputParameter: CommandInputParamete
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: (WomValue) => WomValue,
-                           runtimeEnvironment: RuntimeEnvironment) = {
+                           runtimeEnvironment: RuntimeEnvironment) =
+    Try {
+      val womValue: WomValue = commandInputParameter match {
+        case cip: CommandInputParameter =>
+          val localizedId = LocalName(FullyQualifiedName(cip.id).id)
+          inputsMap.get(localizedId) match {
+            case Some(x) =>x
+            case _ => throw new RuntimeException(s"could not find $localizedId in map $inputsMap")
+          }
 
-    val womValue: WomValue = commandInputParameter match {
-      case cip: CommandInputParameter =>
-        val localizedId = LocalName(FullyQualifiedName(cip.id).id)
-        inputsMap.get(localizedId) match {
-          case Some(x) =>x
-          case _ => throw new RuntimeException(s"could not find ${localizedId} in map $inputsMap")
-        }
-
-      // There's a fair few other cases to add, but until then...
-      case other => throw new NotImplementedError(s"As-yet-unsupported commandPart from  command input parameters: $other")
-    }
-
-    womValue.valueString
-  }
+        // There's a fair few other cases to add, but until then...
+        case other => throw new NotImplementedError(s"As-yet-unsupported commandPart from command input parameters: $other")
+      }
+      InstantiatedCommand(womValue.valueString)
+    } toErrorOr
 }

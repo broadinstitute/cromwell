@@ -1,16 +1,17 @@
 package cromwell.backend.impl.tes
 
 import cromwell.backend.io.GlobFunctions
-import cromwell.backend.standard.StandardExpressionFunctions
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.NoIoFunctionSet
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import wdl.FullyQualifiedName
 import wdl4s.parser.MemoryUnit
+import wom.InstantiatedCommand
 import wom.callable.Callable.OutputDefinition
-import wom.values.{WomFile, WomGlobFile, WomSingleFile, WomValue}
+import wom.values._
 
+import scala.language.postfixOps
 import scala.util.Try
 
 final case class TesTask(jobDescriptor: BackendJobDescriptor,
@@ -20,7 +21,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          runtimeAttributes: TesRuntimeAttributes,
                          containerWorkDir: Path,
                          commandScriptContents: String,
-                         backendEngineFunctions: StandardExpressionFunctions,
+                         instantiatedCommand: InstantiatedCommand,
                          dockerImageUsed: String) {
 
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
@@ -49,21 +50,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     contents = None
   )
 
-  private def writeFunctionFiles(commandLineValueMapper: WomValue => WomValue): Map[FullyQualifiedName, Seq[WomFile]] = {
-    // TODO WOM :fix !
-//    val commandLineMappedInputs = jobDescriptor.inputDeclarations map {
-//      case (declaration, value) => declaration.fullyQualifiedName -> commandLineValueMapper(value)
-//    }
-//
-//    jobDescriptor
-//      .call
-//      .task
-//      .evaluateFilesFromCommand(commandLineMappedInputs, backendEngineFunctions)
-//      .map {
-//        case (expression, file) => expression.toWdlString -> Seq(file)
-//      }
-    Map.empty
-  }
+  private def writeFunctionFiles: Map[FullyQualifiedName, Seq[WomFile]] =
+    instantiatedCommand.createdFiles map { f => f.value.md5SumShort -> List(f) } toMap
 
   private val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor
     .fullyQualifiedInputs
@@ -71,8 +59,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       _.collectAsSeq { case w: WomFile => w }
     }
 
-  def inputs(commandLineValueMapper: WomValue => WomValue): Seq[TaskParameter] = (callInputFiles ++ writeFunctionFiles(commandLineValueMapper))
-    .flatMap {
+  def inputs(commandLineValueMapper: WomValue => WomValue): Seq[TaskParameter] =
+    (callInputFiles ++ writeFunctionFiles).flatMap {
       case (fullyQualifiedName, files) => files.zipWithIndex.map {
         case (f, index) => TaskParameter(
           Option(fullyQualifiedName + "." + index),

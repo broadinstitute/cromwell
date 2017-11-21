@@ -1,13 +1,17 @@
 package cromwell.backend.impl.sfs.config
 
+import common.validation.Validation._
+import cromwell.backend.RuntimeEnvironmentBuilder
 import cromwell.backend.impl.sfs.config.ConfigConstants._
 import cromwell.backend.sfs._
 import cromwell.backend.standard.{StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.backend.validation.DockerValidation
+import cromwell.core.NoIoFunctionSet
 import cromwell.core.path.Path
 import wdl._
-import wdl.expression.NoFunctions
-import wom.values.{WomString, WomValue}
+import wom.InstantiatedCommand
+import wom.callable.Callable.OptionalInputDefinition
+import wom.values.{WomEvaluatedCallInputs, WomOptionalValue, WomString, WomValue}
 
 /**
   * Base ConfigAsyncJobExecutionActor that reads the config and generates an outer script to submit an inner script
@@ -47,8 +51,56 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
   def writeTaskScript(script: Path, taskName: String, inputs: WorkflowCoercedInputs): Unit = {
     val task = configInitializationData.wdlNamespace.findTask(taskName).
       getOrElse(throw new RuntimeException(s"Unable to find task $taskName"))
-    val inputsWithFqns = inputs map { case (k, v) => s"$taskName.$k" -> v }
-    val command = task.instantiateCommand(task.inputsFromMap(inputsWithFqns), NoFunctions).get
+
+    val taskDefinition = task.womDefinition.toTry.get
+
+    // Build WOM versions of the provided inputs by correlating with the `InputDefinition`s on the `TaskDefinition`.
+    val providedWomInputs: WomEvaluatedCallInputs = (for {
+      input <- inputs.toList
+      (localName, womValue) = input
+      womInputDefinition <- taskDefinition.inputs
+      if localName == womInputDefinition.localName.value
+    } yield womInputDefinition -> womValue).toMap
+
+    /*
+     * TODO WOM FIXME #2946
+     * This forces `none`s onto potentially initialized optionals. This is currently required because otherwise
+     * expressions using uninitialized optionals explode on evaluation. e.g.:
+     *
+     * runtime-attributes = """
+     * String? docker
+     * String? docker_user
+     * """
+     * submit = "/bin/bash ${script}"
+     * submit-docker = """
+     * docker run \
+     *   --cidfile ${docker_cid} \
+     *   --rm -i \
+     *   ${"--user " + docker_user} \
+     *   --entrypoint /bin/bash \
+     *   -v ${cwd}:${docker_cwd} \
+     *   ${docker} ${script}
+     *  """
+     *
+     * The `docker_user` variable is an uninitialized optional. But the expression `${"--user " + docker_user}` will
+     * fail to evaluate if `docker_user` is not provided as an input by the caller of `TaskDefinition#instantiateCommand`.
+     * This only appears to be the case when calling `instantiateCommand` on a `TaskDefinition` that came from
+     * `WdlTask#womDefinition`, which makes it seem that there is some special initialization of task optionals taking
+     * place when create a `WomExecutable` from a `WdlWorkflow`.
+     *
+     * */
+    val optionalsForciblyInitializedToNone = for {
+      optional <- taskDefinition.inputs.collect { case oid: OptionalInputDefinition => oid }
+      // Only default to `none` if there was no input value explicitly provided.
+      if !inputs.contains(optional.localName.value)
+    } yield optional -> WomOptionalValue.none(optional.womType.memberType)
+
+
+    val runtimeEnvironment = RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(standardParams.minimumRuntimeSettings)
+    val allInputs = providedWomInputs ++ optionalsForciblyInitializedToNone
+    val womInstantiation = taskDefinition.instantiateCommand(allInputs, NoIoFunctionSet, identity, runtimeEnvironment)
+
+    val InstantiatedCommand(command, _) = womInstantiation.toTry.get
     jobLogger.info(s"executing: $command")
     val scriptBody =
       s"""|#!/bin/bash

@@ -108,7 +108,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   // extract output files
   // if output paths are absolute we will ignore them here and assume they are redirects
-  private val outputWdlFiles: Seq[WomFile] = {
+  private val outputWomFiles: Seq[WomFile] = {
     import cats.syntax.validated._
     // TODO WOM: this should be pushed back into WOM.
     // It's also a mess, evaluateFiles returns an ErrorOr but can still throw. We might want to use an EitherT, although
@@ -125,7 +125,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
   }
 
-  private val wdlOutputs = outputWdlFiles
+  private val womOutputs = outputWomFiles
     .zipWithIndex
     .flatMap {
       case (f: WomSingleFile, index) =>
@@ -166,7 +166,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
         )
     }
 
-  val outputs: Seq[TaskParameter] = wdlOutputs ++ standardOutputs ++ Seq(commandScriptOut)
+  val outputs: Seq[TaskParameter] = womOutputs ++ standardOutputs ++ Seq(commandScriptOut)
 
   private val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
     case Some(x) =>

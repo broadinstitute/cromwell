@@ -9,22 +9,19 @@ import common.util.TryUtil
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
+import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle, ReturnCodeIsNotAnInt, StderrNonEmpty, SuccessfulExecutionHandle, WrongReturnCode}
+import cromwell.backend.io.GlobFunctions
 import cromwell.backend.validation._
 import cromwell.backend.wdl.OutputEvaluator._
 import cromwell.backend.wdl.{Command, OutputEvaluator}
-import cromwell.backend._
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.core.path.Path
 import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
-import common.exception.MessageAggregation
-import common.util.TryUtil
-import common.validation.ErrorOr.ErrorOr
-import cromwell.backend.io.GlobFunctions
 import net.ceedubs.ficus.Ficus._
 import wom.WomFileMapper
 import wom.values._
@@ -108,38 +105,38 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     .as[Option[String]]("temporary-directory").getOrElse("""$(mktemp -d "$PWD"/tmp.XXXXXX)""")
 
   /**
-    * Maps WdlFile objects for use in the commandLinePreProcessor.
+    * Maps WomFile objects for use in the commandLinePreProcessor.
     *
-    * By default just calls the pass through mapper mapCommandLineWdlFile.
+    * By default just calls the pass through mapper mapCommandLineWomFile.
     *
     * Sometimes a preprocessor may need to localize the files, etc.
     *
-    * @param wdlFile The wdlFile.
-    * @return The updated wdlFile.
+    * @param womFile The womFile.
+    * @return The updated womFile.
     */
-  def preProcessWdlFile(wdlFile: WomFile): WomFile = wdlFile
+  def preProcessWomFile(womFile: WomFile): WomFile = womFile
 
   /** @see [[Command.instantiate]] */
   final lazy val commandLinePreProcessor: WomEvaluatedCallInputs => Try[WomEvaluatedCallInputs] = {
     inputs =>
-      TryUtil.sequenceMap(inputs mapValues WomFileMapper.mapWomFiles(preProcessWdlFile)).
+      TryUtil.sequenceMap(inputs mapValues WomFileMapper.mapWomFiles(preProcessWomFile)).
         recoverWith {
           case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
         }
   }
 
   /**
-    * Maps WdlFile to a local path, for use in the commandLineValueMapper.
+    * Maps WomFile to a local path, for use in the commandLineValueMapper.
     *
-    * @param wdlFile The wdlFile.
-    * @return The updated wdlFile.
+    * @param womFile The womFile.
+    * @return The updated womFile.
     */
-  def mapCommandLineWdlFile(wdlFile: WomFile): WomFile =
-    WomSingleFile(workflowPaths.buildPath(wdlFile.value).pathAsString)
+  def mapCommandLineWomFile(womFile: WomFile): WomFile =
+    WomSingleFile(workflowPaths.buildPath(womFile.value).pathAsString)
 
   /** @see [[Command.instantiate]] */
   final lazy val commandLineValueMapper: WomValue => WomValue = {
-    womValue => WomFileMapper.mapWomFiles(mapCommandLineWdlFile)(womValue).get
+    womValue => WomFileMapper.mapWomFiles(mapCommandLineWomFile)(womValue).get
   }
 
   /**
@@ -449,16 +446,16 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @return The Try wrapped and mapped wdl value.
     */
   final def outputValueMapper(womValue: WomValue): Try[WomValue] = {
-    WomFileMapper.mapWomFiles(mapOutputWdlFile)(womValue)
+    WomFileMapper.mapWomFiles(mapOutputWomFile)(womValue)
   }
 
   /**
     * Used to convert to output paths.
     *
-    * @param wdlFile The original file.
+    * @param womFile The original file.
     * @return The mapped output file.
     */
-  def mapOutputWdlFile(wdlFile: WomFile): WomFile = wdlFile
+  def mapOutputWomFile(womFile: WomFile): WomFile = womFile
 
   /**
     * Tries to evaluate the outputs.

@@ -6,13 +6,10 @@ workflow subhello {
     input: inputs = greeting_pieces
   }
 
-  # Confirm referencing call outputs from subworkflows does not fail validation.
   String salutation_length = length(hello.out)
 
-  output {
-    Array[String] hello_out = hello.out
-    Int sal_len = salutation_length
-  }
+  # Neither the call output nor the declaration should be considered outputs to the subworkflow
+  output { }
 }
 
 task hello {

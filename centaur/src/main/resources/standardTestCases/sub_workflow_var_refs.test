@@ -1,6 +1,5 @@
 name: sub_workflow_var_refs
 testFormat: workflowsuccess
-ignore: true # Depends on #2901
 
 files {
   wdl: sub_workflow_var_refs/sub_workflow_var_refs.wdl
@@ -12,4 +11,11 @@ files {
 metadata {
   workflowName: top_level_workflow
   status: Succeeded
+
+  "outputs.top_level_workflow.sal_len_inner.0": 3
+  "outputs.top_level_workflow.sal_len_inner.1": 3
+  "outputs.top_level_workflow.sal_len_inner.2": 3
+  "outputs.top_level_workflow.sal_len_inner.3": 3
+
+  "outputs.top_level_workflow.sal_len_outer": 3
 }

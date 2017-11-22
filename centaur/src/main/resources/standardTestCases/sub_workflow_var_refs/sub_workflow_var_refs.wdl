@@ -11,4 +11,9 @@ workflow top_level_workflow {
       input: greeting_pieces = pieces
     }
   }
+
+  output {
+    Array[Int] sal_len_inner = subhello.sal_len
+    Int sal_len_outer = length(subhello.hello_out[0])
+  }
 }

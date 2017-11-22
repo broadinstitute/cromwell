@@ -263,9 +263,9 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     import cromwell.util.JsonFormatting.WomValueJsonFormatter._
     import spray.json._
 
-    def handleSuccessfulWorkflowOutputs(outputs: Map[OutputPort, WomValue]) = {
+    def handleSuccessfulWorkflowOutputs(outputs: Map[GraphOutputNode, WomValue]) = {
       val fullyQualifiedOutputs = outputs map {
-        case (identifier, value) => identifier.identifier.fullyQualifiedName.value -> value
+        case (outputNode, value) => outputNode.identifier.fullyQualifiedName.value -> value
       }
       // Publish fully qualified workflow outputs to log and metadata
       workflowLogger.info(
@@ -274,9 +274,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       )
       pushWorkflowOutputMetadata(fullyQualifiedOutputs)
 
-      // Use local names so they can be used in outer workflows if this is a sub workflow
       val localOutputs = CallOutputs(outputs map {
-        case (outputPort, value) => outputPort -> value
+        case (outputNode, value) => outputNode.graphOutputPort -> value
       })
 
       context.parent ! WorkflowExecutionSucceededResponse(data.jobExecutionMap, localOutputs)
@@ -293,12 +292,12 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     }
 
     // Output ports for the workflow
-    val workflowOutputPorts: Set[OutputPort] = workflowDescriptor.callable.graph.outputNodes.map(_.graphOutputPort)
+    val workflowOutputNodes: Set[GraphOutputNode] = workflowDescriptor.callable.graph.outputNodes
 
-    val workflowOutputValuesValidation = workflowOutputPorts
+    val workflowOutputValuesValidation = workflowOutputNodes
       // Try to find a value for each port in the value store
-      .map(op => op -> data.valueStore.get(op, None))
-      .toList.traverse[ErrorOr, (OutputPort, WomValue)]({
+      .map(outputNode => outputNode -> data.valueStore.get(outputNode.graphOutputPort, None))
+      .toList.traverse[ErrorOr, (GraphOutputNode, WomValue)]({
       case (name, Some(value)) => (name -> value).validNel
       case (name, None) => s"Cannot find an output value for ${name.identifier.fullyQualifiedName.value}".invalidNel
     })

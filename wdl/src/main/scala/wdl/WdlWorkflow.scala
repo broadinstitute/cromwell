@@ -155,15 +155,22 @@ case class WdlWorkflow(unqualifiedName: String,
     leftOutputs.find(_.unqualifiedName == name)
   }
 
-  lazy val hasEmptyOutputSection = workflowOutputWildcards.isEmpty && children.collect({ case o: WorkflowOutput => o }).isEmpty
+  lazy val noWorkflowOutputs = children.collect { case o: WorkflowOutput => o }.isEmpty
+  lazy val noOutputWildcards = workflowOutputWildcards.isEmpty
+
+  lazy val hasEmptyOutputSection = noWorkflowOutputs && noOutputWildcards
+
+  lazy val isTopLevelWorkflow: Boolean = namespace.fullyQualifiedName == ""
 
   /**
-   * All outputs for this workflow and their associated types
+   * All outputs for this workflow and their associated types. Only applies to top-level workflows.
    *
    * @return a Map[FullyQualifiedName, WomType] representing the union
    *         of all outputs from all `call`s within this workflow
    */
-  lazy val expandedWildcardOutputs: Seq[WorkflowOutput] = {
+  lazy val expandedWildcardOutputs: Seq[WorkflowOutput] = if (isTopLevelWorkflow) calculateExpandedWildcardOutputs else Seq.empty
+
+  private def calculateExpandedWildcardOutputs = {
 
     def toWorkflowOutput(output: DeclarationInterface, womType: WomType) = {
       val locallyQualifiedName = output.parent map { parent => output.locallyQualifiedName(parent) } getOrElse {

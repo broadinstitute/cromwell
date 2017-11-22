@@ -146,7 +146,17 @@ object WdlGraphNode {
       _.inputPorts.map(_.upstream.graphNode).filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode]
     }
 
-    def withDefaultOutputs(g: Graph): Graph = if (g.nodes.exists(_.isInstanceOf[GraphOutputNode])) { g } else {
+    // Default outputs are added if we're:
+    // - A top level workflow
+    // - A scatter block
+    // - An if block
+    lazy val addDefaultOutputs: Boolean = from match {
+      case w: WdlWorkflow => !w.ancestry.exists(_.isInstanceOf[WdlWorkflow]) && w.hasEmptyOutputSection
+      case _: Scatter | _: If => true
+      case _ => false
+    }
+
+    def withDefaultOutputs(g: Graph): Graph = if (addDefaultOutputs) { g } else {
       Graph(g.nodes.union((g.nodes collect {
           case node: CallNode => node.outputPorts.map(op => {
             val identifier = node.identifier.combine(op.name)

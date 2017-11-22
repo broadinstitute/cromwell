@@ -502,7 +502,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         val backendCacheHitCopyingActorProps = propsMaker(data.jobDescriptor, initializationData, serviceRegistryActor, ioActor)
         val cacheHitCopyActor = context.actorOf(backendCacheHitCopyingActorProps, buildCacheHitCopyingActorName(data.jobDescriptor, cacheResultId))
         cacheHitCopyActor ! CopyOutputsCommand(womValueSimpletons, jobDetritusFiles, returnCode)
-        replyTo ! JobRunning(data.jobDescriptor.key, data.jobDescriptor.inputDeclarations)
+        replyTo ! JobRunning(data.jobDescriptor.key, data.jobDescriptor.evaluatedTaskInputs)
         goto(BackendIsCopyingCachedOutputs)
       case None =>
         // This should be impossible with the FSM, but luckily, we CAN recover if some foolish future programmer makes this happen:
@@ -520,7 +520,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   private def runJob(data: ResponsePendingData) = {
     val backendJobExecutionActor = createBackendJobExecutionActor(data)
     backendJobExecutionActor ! command
-    replyTo ! JobRunning(data.jobDescriptor.key, data.jobDescriptor.inputDeclarations)
+    replyTo ! JobRunning(data.jobDescriptor.key, data.jobDescriptor.evaluatedTaskInputs)
     goto(RunningJob) using data.withBackendActor(backendJobExecutionActor)
   }
 

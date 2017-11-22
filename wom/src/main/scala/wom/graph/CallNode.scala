@@ -27,8 +27,8 @@ final case class TaskCallNode private(override val identifier: WomIdentifier,
                                       override val inputPorts: Set[GraphNodePort.InputPort],
                                       inputDefinitionMappings: InputDefinitionMappings) extends CallNode {
   val callType: String = "task"
-  val expressionBasedOutputPorts: Set[ExpressionBasedOutputPort] = {
-    callable.outputs.map(o => ExpressionBasedOutputPort(o.localName, o.womType, this, o.expression)).toSet
+  val expressionBasedOutputPorts: List[ExpressionBasedOutputPort] = {
+    callable.outputs.map(o => ExpressionBasedOutputPort(o.localName, o.womType, this, o.expression))
   }
 
   override val outputPorts: Set[OutputPort] = expressionBasedOutputPorts.toSet[OutputPort]

@@ -25,7 +25,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
   private val workflowName = workflowDescriptor.callable.name
-  private val fullyQualifiedTaskName = jobDescriptor.call.fullyQualifiedName
+  private val fullyQualifiedTaskName = jobDescriptor.taskCall.fullyQualifiedName
   val name: String = fullyQualifiedTaskName
   val description: String = jobDescriptor.toString
 
@@ -120,7 +120,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
        .getOrElse(List.empty)
     }
     
-    jobDescriptor.call.callable.outputs
+    jobDescriptor.taskCall.callable.outputs
       .flatMap(evaluateFiles)
       .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
   }

@@ -207,7 +207,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val kvPutReq = KvPut(kvPair)
     backendRef.underlyingActor.serviceRegistryActor.tell(msg = kvPutReq, sender = previousKvPutter.ref)
     previousKvPutter.expectMsg(KvPutSuccess(kvPutReq))
-    val outputPort = jobDescriptor.call.outputPorts.head
+    val outputPort = jobDescriptor.taskCall.outputPorts.head
     whenReady(execute, Timeout(10.seconds.dilated)) { executionResponse =>
       if (writeReturnCode) {
         executionResponse should be(a[JobSucceededResponse])

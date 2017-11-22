@@ -96,7 +96,7 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   lazy val jobPathsWithDocker: JobPathsWithDocker = jobPaths.asInstanceOf[JobPathsWithDocker]
 
-  def jobName: String = s"cromwell_${jobDescriptor.workflowDescriptor.id.shortString}_${jobDescriptor.call.localName}"
+  def jobName: String = s"cromwell_${jobDescriptor.workflowDescriptor.id.shortString}_${jobDescriptor.taskCall.localName}"
 
   lazy val isDockerRun: Boolean = RuntimeAttributesValidation.extractOption(
     DockerValidation.instance, validatedRuntimeAttributes).isDefined

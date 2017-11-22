@@ -17,6 +17,7 @@ import wom.types.WomType
 import wom.values.WomValue
 
 import scala.util.{Failure, Success, Try}
+
 object OutputEvaluator {
   sealed trait EvaluatedJobOutputs
   case class ValidJobOutputs(outputs: CallOutputs) extends EvaluatedJobOutputs
@@ -28,15 +29,15 @@ object OutputEvaluator {
   def evaluateOutputs(jobDescriptor: BackendJobDescriptor,
                       ioFunctions: IoFunctionSet,
                       postMapper: WomValue => Try[WomValue] = v => Success(v)): EvaluatedJobOutputs = {
-    val knownValues: Map[String, WomValue] = jobDescriptor.localInputs
+    val taskInputValues: Map[String, WomValue] = jobDescriptor.localInputs
 
     def foldFunction(accumulatedOutputs: Try[ErrorOr[List[(OutputPort, WomValue)]]], output: ExpressionBasedOutputPort) = accumulatedOutputs flatMap { accumulated =>
       // Extract the valid pairs from the job outputs accumulated so far, and add to it the inputs (outputs can also reference inputs)
       val allKnownValues: Map[String, WomValue] = accumulated match {
         case Valid(outputs) =>
           // The evaluateValue methods needs a Map[String, WomValue], use the output port name for already computed outputs
-          outputs.toMap[OutputPort, WomValue].map({ case (port, value) => port.name -> value }) ++ knownValues
-        case Invalid(_) => knownValues
+          outputs.toMap[OutputPort, WomValue].map({ case (port, value) => port.name -> value }) ++ taskInputValues
+        case Invalid(_) => taskInputValues
       }
 
       // Attempt to evaluate the expression using all known values
@@ -65,7 +66,8 @@ object OutputEvaluator {
         pair = output -> postProcessed
       } yield pair
 
-      evaluated.toValidated map { evaluatedOutput: ErrorOr[(OutputPort, WomValue)] =>
+      def enhanceErrorText(s: String): String = s"Bad output '${output.name}': $s"
+      evaluated.leftMap(_ map enhanceErrorText).toValidated map { evaluatedOutput: ErrorOr[(OutputPort, WomValue)] =>
         (accumulated, evaluatedOutput) mapN { _ :+ _ }
       }
     }
@@ -73,7 +75,7 @@ object OutputEvaluator {
     val emptyValue = Success(List.empty[(OutputPort, WomValue)].validNel): Try[ErrorOr[List[(OutputPort, WomValue)]]]
 
     // Fold over the outputs to evaluate them in order, map the result to an EvaluatedJobOutputs
-    jobDescriptor.call.expressionBasedOutputPorts.foldLeft(emptyValue)(foldFunction) match {
+    jobDescriptor.taskCall.expressionBasedOutputPorts.foldLeft(emptyValue)(foldFunction) match {
       case Success(Valid(outputs)) => ValidJobOutputs(CallOutputs(outputs.toMap))
       case Success(Invalid(errors)) => InvalidJobOutputs(errors)
       case Failure(exception) => JobOutputsEvaluationException(exception)

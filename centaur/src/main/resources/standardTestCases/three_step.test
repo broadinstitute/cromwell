@@ -1,14 +1,20 @@
-name: threeStepCwl
+name: three_step_cwl
 testFormat: workflowsuccess
 workflowType: CWL
 workflowTypeVersion: v1.0
 backends: [Local]
-backendsMode: "only"
 tags: [localdockertest]
 
 files {
   wdl: three_step/three_step.cwl
   inputs: three_step/inputs.json
+  options: three_step/three_step.options
 }
 
-metadata { }
+metadata {
+  "submittedFiles.workflowType": CWL
+  "submittedFiles.workflowTypeVersion": v1.0
+  "calls.wc.executionStatus": Done
+  "calls.ps.executionStatus": Done
+  "calls.cgrep.executionStatus": Done
+}

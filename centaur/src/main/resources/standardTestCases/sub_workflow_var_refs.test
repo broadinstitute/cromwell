@@ -1,4 +1,3 @@
-name: sub_workflow_var_refs
 testFormat: workflowsuccess
 ignore: true # Depends on #2901
 

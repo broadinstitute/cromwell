@@ -1,14 +1,17 @@
 package wom.callable
 
-import wom.core._
+import cats.implicits._
 import common.validation.ErrorOr.ErrorOr
 import wdl.util.StringUtil
+import wom.core._
 import wom.expression.IoFunctionSet
 import wom.graph.{Graph, TaskCall}
 import wom.values.{WomEvaluatedCallInputs, WomValue}
-import wom.{CommandPart, RuntimeAttributes}
+import wom.{InstantiatedCommand, CommandPart, RuntimeAttributes}
 
-import scala.util.Try
+object TaskDefinition {
+  private implicit val instantiatedCommandMonoid = cats.derive.monoid[InstantiatedCommand]
+}
 
 sealed trait TaskDefinition extends Callable {
 
@@ -25,12 +28,23 @@ sealed trait TaskDefinition extends Callable {
 
   def instantiateCommand(taskInputs: WomEvaluatedCallInputs,
                          functions: IoFunctionSet,
-                         valueMapper: WomValue => WomValue = identity[WomValue],
+                         valueMapper: WomValue => WomValue = identity,
                          runtimeEnvironment: RuntimeEnvironment,
-                         separate: Boolean = false
-                         ): Try[String] = {
+                         separate: Boolean = false): ErrorOr[InstantiatedCommand] = {
+
     val mappedInputs = taskInputs.map({case (k, v) => k.localName -> v})
-    Try(StringUtil.normalize(commandTemplate.map(_.instantiate(mappedInputs, functions, valueMapper, runtimeEnvironment)).mkString(commandPartSeparator)))
+    import TaskDefinition.instantiatedCommandMonoid
+
+    // Just raw command parts, no separators.
+    val rawCommandParts: List[ErrorOr[InstantiatedCommand]] =
+      commandTemplate.toList.map(_.instantiate(mappedInputs, functions, valueMapper, runtimeEnvironment))
+
+    // Add separator command parts and monoid smash down to one `ErrorOr[InstantiatedCommand]`.
+    val instantiatedCommand: ErrorOr[InstantiatedCommand] =
+      rawCommandParts.intercalate(InstantiatedCommand(commandPartSeparator).validNel)
+
+    // `normalize` the instantiation (i.e. don't break Python code indentation)
+    instantiatedCommand map { c => c.copy(commandString = StringUtil.normalize(c.commandString))}
   }
 
   def commandTemplateString: String = StringUtil.normalize(commandTemplate.map(_.toString).mkString)

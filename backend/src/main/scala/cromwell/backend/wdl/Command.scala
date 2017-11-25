@@ -1,6 +1,9 @@
 package cromwell.backend.wdl
 
+import common.validation.ErrorOr._
+import common.validation.Validation._
 import cromwell.backend.BackendJobDescriptor
+import wom.InstantiatedCommand
 import wom.callable.RuntimeEnvironment
 import wom.expression.IoFunctionSet
 import wom.values.{WomEvaluatedCallInputs, WomValue}
@@ -24,8 +27,8 @@ object Command {
                   callEngineFunction: IoFunctionSet,
                   inputsPreProcessor: WomEvaluatedCallInputs => Try[WomEvaluatedCallInputs] = (i: WomEvaluatedCallInputs) => Success(i),
                   valueMapper: WomValue => WomValue = identity,
-                  runtimeEnvironment: RuntimeEnvironment): Try[String] = {
-    inputsPreProcessor(jobDescriptor.inputDeclarations) flatMap { mappedInputs =>
+                  runtimeEnvironment: RuntimeEnvironment): ErrorOr[InstantiatedCommand] = {
+    inputsPreProcessor(jobDescriptor.inputDeclarations).toErrorOr flatMap { mappedInputs =>
       jobDescriptor.call.callable.instantiateCommand(mappedInputs, callEngineFunction, valueMapper, runtimeEnvironment)
     }
   }

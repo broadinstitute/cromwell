@@ -1,23 +1,25 @@
 package wdl.command
 
-import wdl.expression.{WdlFunctions, WdlStandardLibraryFunctions}
+import common.validation.ErrorOr.ErrorOr
 import wdl._
-import wom.CommandPart
+import wdl.expression.{WdlFunctions, WdlStandardLibraryFunctions}
 import wom.callable.RuntimeEnvironment
-import wom.graph.LocalName
 import wom.expression.IoFunctionSet
+import wom.graph.LocalName
 import wom.values.WomValue
+import wom.{InstantiatedCommand, CommandPart}
+
 
 trait WdlCommandPart extends CommandPart {
   def instantiate(declarations: Seq[Declaration],
                   inputsMap: Map[String, WomValue],
                   functions: WdlFunctions[WomValue],
-                  valueMapper: WomValue => WomValue): String
+                  valueMapper: WomValue => WomValue): ErrorOr[InstantiatedCommand]
 
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: WomValue => WomValue,
-                           runtimeEnvironment: RuntimeEnvironment): String = {
+                           runtimeEnvironment: RuntimeEnvironment): ErrorOr[InstantiatedCommand] = {
     val wdlFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(functions)
     instantiate(Seq.empty, inputsMap.map({case (localName, value) => localName.value -> value}), wdlFunctions, valueMapper)
   }

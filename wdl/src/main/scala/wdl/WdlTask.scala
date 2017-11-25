@@ -3,12 +3,15 @@ package wdl
 import java.util.regex.Pattern
 
 import cats.data.Validated.Valid
+import cats.implicits._
 import common.util.TryUtil
+import common.validation.ErrorOr.ErrorOr
 import wdl.AstTools._
-import wdl.command.{ParameterCommandPart, StringCommandPart, WdlCommandPart}
+import wdl.command._
 import wdl.expression.{WdlFunctions, WdlStandardLibraryFunctions}
 import wdl.util.StringUtil
 import wdl4s.parser.WdlParser._
+import wom.InstantiatedCommand
 import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, CallableTaskDefinition, TaskDefinition}
 import wom.graph.LocalName
@@ -21,6 +24,7 @@ import scala.util.{Failure, Success, Try}
 
 object WdlTask {
   val Ws = Pattern.compile("[\\ \\t]+")
+  private implicit val instantiatedCommandMonoid = cats.derive.monoid[InstantiatedCommand]
 
   /** The function validateDeclaration() and the DeclarationAccumulator class are used
     * to accumulate errors and keep track of which Declarations/TaskOutputs have been examined.
@@ -112,9 +116,15 @@ case class WdlTask(name: String,
     */
   def instantiateCommand(taskInputs: EvaluatedTaskInputs,
                          functions: WdlFunctions[WomValue],
-                         valueMapper: WomValue => WomValue = (v) => v): Try[String] = {
+                         valueMapper: WomValue => WomValue = identity): ErrorOr[InstantiatedCommand] = {
     val mappedInputs = taskInputs.map({case (k, v) => k.unqualifiedName -> v})
-    Try(StringUtil.normalize(commandTemplate.map(_.instantiate(declarations, mappedInputs, functions, valueMapper)).mkString("")))
+    // `foldMap`: `map` over the elements of the `List[WdlCommandPart]`s, transforming each `WdlCommandPart` to an
+    // `ErrorOr[InstantiatedCommand]`. Then fold the resulting `List[ErrorOr[InstantiatedCommand]]` into a single
+    // `ErrorOr[InstantiatedCommand]`.
+    import WdlTask.instantiatedCommandMonoid
+    val fullInstantiatedCommand: ErrorOr[InstantiatedCommand] = commandTemplate.toList.foldMap(_.instantiate(declarations, mappedInputs, functions, valueMapper))
+    // `normalize` the instantiation (i.e. don't break Python code indentation)
+    fullInstantiatedCommand map { c => c.copy(commandString = StringUtil.normalize(c.commandString))}
   }
 
   def commandTemplateString: String = StringUtil.normalize(commandTemplate.map(_.toString).mkString)

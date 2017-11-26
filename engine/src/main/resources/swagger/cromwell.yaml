@@ -59,7 +59,7 @@ paths:
           type: string
           enum: [draft-2]
           in: formData
-        - name: customLabels
+        - name: labels
           description: JSON file containing a set of collection of key/value pairs for labels to apply to this workflow.
           required: false
           type: file
@@ -113,7 +113,7 @@ paths:
           type: string
           enum: [draft-2]
           in: formData
-        - name: customLabels
+        - name: labels
           description: JSON file containing a set of collection of key/value pairs for labels to apply to this workflow.
           required: false
           type: file

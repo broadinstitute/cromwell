@@ -14,7 +14,7 @@ In order to assign labels to a workflow, the first step is to create a JSON file
 When choosing key-value pairs, it's important to make sure you're adhering to Cromwell supported label syntax below.  
 
 There are two ways to add labels to a workflow:  
-1. Upon workflow submission set the `customLabels` parameter of the [Submit endpoint](api/RESTAPI#submit-a-workflow-for-execution), or  
+1. Upon workflow submission set the `labels` parameter of the [Submit endpoint](api/RESTAPI#submit-a-workflow-for-execution), or  
 2. Setting the `-l` argument when running in [Command Line](/CommandLine) mode.
 
 Labels can be added to existing workflows by using the [Labels patch endpoint](api/RESTAPI#update-labels-for-a-workflow).

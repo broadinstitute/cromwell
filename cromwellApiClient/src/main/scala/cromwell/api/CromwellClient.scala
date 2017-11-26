@@ -70,7 +70,7 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String, val credentia
       workflowTypeVersion = workflow.workflowTypeVersion,
       inputsJson = Option(inputs),
       options = workflow.options,
-      customLabels = workflow.customLabels,
+      labels = workflow.labels,
       zippedImports = workflow.zippedImports))
 
     makeRequest[List[CromwellStatus]](HttpRequest(HttpMethods.POST, batchSubmitEndpoint, List.empty[HttpHeader], requestEntity)) map { statuses =>
@@ -192,7 +192,7 @@ object CromwellClient {
       "workflowTypeVersion" -> workflowSubmission.workflowTypeVersion,
       "workflowInputs" -> workflowSubmission.inputsJson,
       "workflowOptions" -> workflowSubmission.options,
-      "customLabels" -> workflowSubmission.customLabels.map(_.toJson.toString)
+      "labels" -> workflowSubmission.labels.map(_.toJson.toString)
     ) collect {
       case (name, Some(source: String)) =>
         Multipart.FormData.BodyPart(name, HttpEntity(MediaTypes.`application/json`, ByteString(source)))

@@ -6,6 +6,7 @@
 
 * **API**  
     + Cromwell now supports input files in the yaml format (json format is still supported).
+    + The `customLabels` form field for workflow submission has been renamed to `labels`.
 
 * **Database**  
 You have the option of storing the metadata in a separate SQL database than the database containing the internal engine

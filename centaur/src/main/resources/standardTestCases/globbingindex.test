@@ -1,4 +1,3 @@
-ignore: true # depends on 2901
 name: globbingindex
 testFormat: workflowsuccess
 

@@ -30,16 +30,14 @@ case class BackendJobDescriptorKey(call: TaskCallNode, index: Option[Int], attem
 case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                                 key: BackendJobDescriptorKey,
                                 runtimeAttributes: Map[LocallyQualifiedName, WomValue],
-                                inputDeclarations: WomEvaluatedCallInputs,
+                                evaluatedTaskInputs: WomEvaluatedCallInputs,
                                 maybeCallCachingEligible: MaybeCallCachingEligible,
                                 prefetchedKvStoreEntries: Map[String, KvResponse]) {
-  val fullyQualifiedInputs = inputDeclarations map { case (declaration, value) =>
-    key.call.identifier.combine(declaration.name).fullyQualifiedName.value -> value 
+  val fullyQualifiedInputs = evaluatedTaskInputs map { case (declaration, value) =>
+    key.call.identifier.combine(declaration.name).fullyQualifiedName.value -> value
   }
-  val localInputs = inputDeclarations map { case (declaration, value) =>
-    declaration.name -> value
-  }
-  val call = key.call
+  val localInputs = evaluatedTaskInputs map { case (declaration, value) => declaration.name -> value }
+  val taskCall = key.call
   override lazy val toString = key.mkTag(workflowDescriptor.id)
 }
 

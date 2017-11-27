@@ -25,8 +25,8 @@ object Command {
                   inputsPreProcessor: WomEvaluatedCallInputs => Try[WomEvaluatedCallInputs] = (i: WomEvaluatedCallInputs) => Success(i),
                   valueMapper: WomValue => WomValue = identity,
                   runtimeEnvironment: RuntimeEnvironment): Try[String] = {
-    inputsPreProcessor(jobDescriptor.inputDeclarations) flatMap { mappedInputs =>
-      jobDescriptor.call.callable.instantiateCommand(mappedInputs, callEngineFunction, valueMapper, runtimeEnvironment)
+    inputsPreProcessor(jobDescriptor.evaluatedTaskInputs) flatMap { mappedInputs =>
+      jobDescriptor.taskCall.callable.instantiateCommand(mappedInputs, callEngineFunction, valueMapper, runtimeEnvironment)
     }
   }
 }

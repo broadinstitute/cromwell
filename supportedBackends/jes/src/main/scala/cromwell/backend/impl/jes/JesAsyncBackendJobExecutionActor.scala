@@ -216,7 +216,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         .getOrElse(List.empty)
     }
 
-    val womFileOutputs = jobDescriptor.call.callable.outputs.flatMap(evaluateFiles) map relativeLocalizationPath
+    val womFileOutputs = jobDescriptor.taskCall.callable.outputs.flatMap(evaluateFiles) map relativeLocalizationPath
 
     val outputs = womFileOutputs.distinct flatMap { womFile =>
       womFile match {

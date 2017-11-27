@@ -119,7 +119,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
   private def initializeCCHJA() = {
     import cromwell.core.simpleton.WomValueSimpleton._
 
-    val unqualifiedInputs = jobDescriptor.inputDeclarations map { case (declaration, value) => declaration.name -> value }
+    val unqualifiedInputs = jobDescriptor.evaluatedTaskInputs map { case (declaration, value) => declaration.name -> value }
 
     val inputSimpletons = unqualifiedInputs.simplify
     val (fileInputSimpletons, nonFileInputSimpletons) = inputSimpletons partition {
@@ -147,10 +147,10 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
 
   private def calculateInitialHashes(nonFileInputs: Iterable[WomValueSimpleton], fileInputs: Iterable[WomValueSimpleton]): Set[HashResult] = {
 
-    val commandTemplateHash = HashResult(HashKey("command template"), jobDescriptor.call.callable.commandTemplateString.md5HashValue)
+    val commandTemplateHash = HashResult(HashKey("command template"), jobDescriptor.taskCall.callable.commandTemplateString.md5HashValue)
     val backendNameHash = HashResult(HashKey("backend name"), backendName.md5HashValue)
     val inputCountHash = HashResult(HashKey("input count"), (nonFileInputs.size + fileInputs.size).toString.md5HashValue)
-    val outputCountHash = HashResult(HashKey("output count"), jobDescriptor.call.callable.outputs.size.toString.md5HashValue)
+    val outputCountHash = HashResult(HashKey("output count"), jobDescriptor.taskCall.callable.outputs.size.toString.md5HashValue)
 
     val runtimeAttributeHashes = runtimeAttributeDefinitions map { definition => jobDescriptor.runtimeAttributes.get(definition.name) match {
       case Some(_) if definition.name == RuntimeAttributesKeys.DockerKey && callCachingEligible.dockerHash.isDefined =>
@@ -163,7 +163,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
       case WomValueSimpleton(name, value) => HashResult(HashKey("input", s"${value.womType.toDisplayString} $name"),  value.toWomString.md5HashValue)
     }
 
-    val outputExpressionHashResults = jobDescriptor.call.callable.outputs map { output =>
+    val outputExpressionHashResults = jobDescriptor.taskCall.callable.outputs map { output =>
       HashResult(HashKey("output expression", s"${output.womType.toDisplayString} ${output.name}"), output.expression.sourceString.md5HashValue)
     }
 

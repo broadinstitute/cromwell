@@ -239,7 +239,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   protected def lookupSourceCallRootPath(sourceJobDetritusFiles: Map[String, String]): Try[Path] = {
     sourceJobDetritusFiles.get(JobPaths.CallRootPathKey) match {
       case Some(source) => getPath(source)
-      case None => Failure(new RuntimeException(s"${JobPaths.CallRootPathKey} wasn't found for call ${jobDescriptor.call.fullyQualifiedName}"))
+      case None => Failure(new RuntimeException(s"${JobPaths.CallRootPathKey} wasn't found for call ${jobDescriptor.taskCall.fullyQualifiedName}"))
     }
   }
 
@@ -262,7 +262,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       case nonFileSimpleton => (List(nonFileSimpleton), Set.empty[IoCommand[_]])
     })
 
-    (WomValueBuilder.toJobOutputs(jobDescriptor.call.outputPorts, destinationSimpletons), ioCommands)
+    (WomValueBuilder.toJobOutputs(jobDescriptor.taskCall.outputPorts, destinationSimpletons), ioCommands)
   }
 
   /**

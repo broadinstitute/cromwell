@@ -30,7 +30,7 @@ class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActo
       }
       
       TryUtil.sequence(touchCommands) map {
-        WomValueBuilder.toJobOutputs(jobDescriptor.call.outputPorts, womValueSimpletons) -> _.toSet
+        WomValueBuilder.toJobOutputs(jobDescriptor.taskCall.outputPorts, womValueSimpletons) -> _.toSet
       }
   }
   

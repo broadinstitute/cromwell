@@ -190,8 +190,11 @@ trait CromwellApiService extends HttpInstrumentation {
       }
     } ~
     path("workflows" / Segment / Segment / "labels") { (_, possibleWorkflowId) =>
-      entity(as[Map[String, String]]) { parameterMap =>
-        patch {
+      get {
+        instrumentRequest { metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => GetLabels(w)) }
+      } ~
+      patch {
+        entity(as[Map[String, String]]) { parameterMap =>
           instrumentRequest {
             Labels.validateMapOfLabels(parameterMap) match {
               case Valid(labels) =>

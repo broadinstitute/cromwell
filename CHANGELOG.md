@@ -10,6 +10,7 @@
 
 * **API**  
     + Cromwell now supports input files in the yaml format (json format is still supported).
+    + Added a GET version for the `labels` endpoint which will return current labels for a workflow.
 
 * **Database**  
 You have the option of storing the metadata in a separate SQL database than the database containing the internal engine

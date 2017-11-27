@@ -179,6 +179,11 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action).map(_.flatten)
   }
 
+  override def getWorkflowLabels(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Map[String, String]] = {
+    val action = dataAccess.labelsForWorkflowExecutionUuid(workflowExecutionUuid).result
+    runTransaction(action).map(_.toMap)
+  }
+
   override def queryWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],
                                       workflowExecutionUuids: Set[String], labelKeyLabelValues: Set[(String,String)],
                                       startTimestampOption: Option[Timestamp],

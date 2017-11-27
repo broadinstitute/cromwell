@@ -73,6 +73,8 @@ trait MetadataSqlDatabase {
 
   def getWorkflowStatus(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Option[String]]
 
+  def getWorkflowLabels(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Map[String, String]]
+
   def queryWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],
                              workflowExecutionUuids: Set[String], labelKeyLabelValues: Set[(String,String)],
                              startTimestampOption: Option[Timestamp], endTimestampOption: Option[Timestamp],

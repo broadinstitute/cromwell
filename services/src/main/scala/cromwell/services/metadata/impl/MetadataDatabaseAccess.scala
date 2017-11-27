@@ -155,6 +155,11 @@ trait MetadataDatabaseAccess {
     metadataDatabaseInterface.getWorkflowStatus(id.toString) map { _ map WorkflowState.withName }
   }
 
+
+  def getWorkflowLabels(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[String, String]] = {
+    metadataDatabaseInterface.getWorkflowLabels(id.toString)
+  }
+
   def workflowExistsWithId(possibleWorkflowId: String)(implicit ec: ExecutionContext): Future[Boolean] = {
     metadataDatabaseInterface.metadataEntryExists(possibleWorkflowId)
   }

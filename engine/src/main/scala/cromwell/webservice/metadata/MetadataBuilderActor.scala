@@ -160,6 +160,9 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
     case Event(StatusLookupResponse(w, status), _) =>
       target ! BuiltMetadataResponse(processStatusResponse(w, status))
       allDone
+    case Event(LabelLookupResponse(w, labels), _) =>
+      target ! BuiltMetadataResponse(processLabelsResponse(w, labels))
+      allDone
     case Event(WorkflowOutputsResponse(id, events), _) =>
       // Add in an empty output event if there aren't already any output events.
       val hasOutputs = events exists { _.key.key.startsWith(WorkflowMetadataKeys.Outputs + ":") }
@@ -259,6 +262,14 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
     JsObject(Map(
       WorkflowMetadataKeys.Status -> JsString(status.toString),
       WorkflowMetadataKeys.Id -> JsString(workflowId.toString)
+    ))
+  }
+
+  def processLabelsResponse(workflowId: WorkflowId, labels: Map[String, String]): JsObject = {
+    val jsLabels = labels map { case (k, v) => k -> JsString(v) }
+    JsObject(Map(
+      WorkflowMetadataKeys.Id -> JsString(workflowId.toString),
+      WorkflowMetadataKeys.Labels -> JsObject(jsLabels)
     ))
   }
 

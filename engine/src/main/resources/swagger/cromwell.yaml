@@ -140,6 +140,27 @@ paths:
         - google_oauth:
             - openid
   '/api/workflows/{version}/{id}/labels':
+    get:
+      summary: Retrieves the current labels for a workflow
+      parameters:
+        - $ref: '#/parameters/versionParam'
+        - $ref: '#/parameters/singleId'
+      tags:
+        - Workflows
+      responses:
+        '200':
+          description: Successful Request
+          schema:
+            $ref: '#/definitions/LabelsResponse'
+        '400':
+          $ref: '#/responses/BadRequest'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/ServerError'
+      security:
+        - google_oauth:
+            - openid
     patch:
       summary: Update labels for a workflow
       description: Update multiple labels for an existing workflow. When supplying a label with a key unique to the workflow submission, a new label key/value entry is appended to that workflow's metadata. When supplying a label with a key that is already associated to the workflow submission, the original label value is updated with the new value for that workflow's metadata.

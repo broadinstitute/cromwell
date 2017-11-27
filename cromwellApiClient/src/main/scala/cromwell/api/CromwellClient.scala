@@ -50,6 +50,7 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String, val credentia
   import model.CromwellBackendsJsonSupport._
   import model.CromwellVersionJsonSupport._
   import model.CallCacheDiffJsonSupport._
+  import model.WorkflowLabelsJsonSupport._
 
   def submit(workflow: WorkflowSubmission)(implicit ec: ExecutionContext): Future[SubmittedWorkflow] = {
     val requestEntity = requestEntityForSubmit(workflow)

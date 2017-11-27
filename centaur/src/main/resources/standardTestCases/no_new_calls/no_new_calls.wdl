@@ -43,7 +43,7 @@ task delayedTask {
        docker: "ubuntu:latest"
     }
     output {
-     String notUsed = read_string(stdout())
+     String delayedOut = read_string(stdout())
     }
 }
 
@@ -51,5 +51,6 @@ workflow no_new_calls {
   call boundToFail
   call shouldNotStart { input: str = boundToFail.badOutput }
   call shouldSucceed { input: str = "echoing nonsense" }
-  call delayedTask  { input: str_2 = shouldSucceed.stalling }
+  call delayedTask as delayedTask1 { input: str_2 = shouldSucceed.stalling }
+  call delayedTask as delayedTask2 { input: str_2 = delayedTask1.delayedOut }
 }

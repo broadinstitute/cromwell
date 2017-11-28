@@ -4,10 +4,9 @@ import java.io.FileNotFoundException
 
 import better.files.File
 import cromwell.cloudsupport.gcp.GoogleConfiguration
-import cromwell.core.TestKitSuite
-import org.scalatest.{AsyncFlatSpecLike, Matchers}
+import org.scalatest.{FlatSpec, Matchers}
 
-class UserModeSpec extends TestKitSuite("UserModeSpec") with AsyncFlatSpecLike with Matchers {
+class UserModeSpec extends FlatSpec with Matchers {
 
   behavior of "UserMode"
 
@@ -26,7 +25,6 @@ class UserModeSpec extends TestKitSuite("UserModeSpec") with AsyncFlatSpecLike w
     exception.getMessage should startWith("Google credentials are invalid: ")
     secretsMockFile.delete(true)
     dataStoreMockDir.delete(true)
-    succeed
   }
 
   it should "fail to generate a bad credential from a secrets json" in {
@@ -43,7 +41,6 @@ class UserModeSpec extends TestKitSuite("UserModeSpec") with AsyncFlatSpecLike w
     val exception = intercept[FileNotFoundException](userMode.credential(workflowOptions))
     exception.getMessage should fullyMatch regex "File .*/secrets..*.json does not exist or is not readable"
     dataStoreMockDir.delete(true)
-    succeed
   }
 
   it should "generate a non-validated credential" in {
@@ -58,12 +55,10 @@ class UserModeSpec extends TestKitSuite("UserModeSpec") with AsyncFlatSpecLike w
     )
     userMode.credentialValidation = _ => ()
     val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    userMode.credential(workflowOptions) map { credentials =>
-      credentials.getAuthenticationType should be("OAuth2")
-      secretsMockFile.delete(true)
-      dataStoreMockDir.delete(true)
-      succeed
-    }
+    val credentials = userMode.credential(workflowOptions)
+    credentials.getAuthenticationType should be("OAuth2")
+    secretsMockFile.delete(true)
+    dataStoreMockDir.delete(true)
   }
 
   it should "validate" in {
@@ -80,7 +75,6 @@ class UserModeSpec extends TestKitSuite("UserModeSpec") with AsyncFlatSpecLike w
     userMode.validate(workflowOptions)
     secretsMockFile.delete(true)
     dataStoreMockDir.delete(true)
-    succeed
   }
 
   it should "requiresAuthFile" in {
@@ -96,7 +90,6 @@ class UserModeSpec extends TestKitSuite("UserModeSpec") with AsyncFlatSpecLike w
     userMode.requiresAuthFile should be(false)
     secretsMockFile.delete(true)
     dataStoreMockDir.delete(true)
-    succeed
   }
 
 }

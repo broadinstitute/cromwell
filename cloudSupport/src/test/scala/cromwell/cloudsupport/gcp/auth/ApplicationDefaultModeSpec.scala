@@ -1,9 +1,8 @@
 package cromwell.cloudsupport.gcp.auth
 
-import cromwell.core.TestKitSuite
-import org.scalatest.{AsyncFlatSpecLike, Matchers}
+import org.scalatest.{FlatSpec, Matchers}
 
-class ApplicationDefaultModeSpec extends TestKitSuite("ApplicationDefaultModeSpec") with AsyncFlatSpecLike with Matchers {
+class ApplicationDefaultModeSpec extends FlatSpec with Matchers {
 
   behavior of "ApplicationDefaultMode"
 
@@ -11,9 +10,8 @@ class ApplicationDefaultModeSpec extends TestKitSuite("ApplicationDefaultModeSpe
     GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
     val applicationDefaultMode = new ApplicationDefaultMode("application-default")
     val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    applicationDefaultMode.credential(workflowOptions) map { credentials =>
-      credentials.getAuthenticationType should be("OAuth2")
-    }
+    val credentials = applicationDefaultMode.credential(workflowOptions)
+    credentials.getAuthenticationType should be("OAuth2")
   }
 
   it should "validate" in {
@@ -21,14 +19,12 @@ class ApplicationDefaultModeSpec extends TestKitSuite("ApplicationDefaultModeSpe
     val applicationDefaultMode = new ApplicationDefaultMode("application-default")
     val workflowOptions = GoogleAuthModeSpec.emptyOptions
     applicationDefaultMode.validate(workflowOptions)
-    succeed
   }
 
   it should "requiresAuthFile" in {
     GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
     val applicationDefaultMode = new ApplicationDefaultMode("application-default")
     applicationDefaultMode.requiresAuthFile should be(false)
-    succeed
   }
 
 }

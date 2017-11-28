@@ -13,6 +13,7 @@ import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.gcs.GcsPathBuilder._
+import cromwell.filesystems.gcs.GoogleUtil._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -91,7 +92,7 @@ object GcsPathBuilder {
                    retrySettings: Option[RetrySettings],
                    cloudStorageConfiguration: CloudStorageConfiguration,
                    options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[GcsPathBuilder] = {
-    authMode.credential(options) map { credentials =>
+    authMode.retryCredential(options) map { credentials =>
       fromCredentials(credentials,
         applicationName,
         retrySettings,

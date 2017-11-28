@@ -15,7 +15,7 @@ import cromwell.api.CromwellClient
 import cromwell.api.model.{CromwellBackends, SubmittedWorkflow, WorkflowOutputs, WorkflowStatus}
 
 import scala.concurrent._
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 import scala.util.Try
 
 object CentaurCromwellClient {
@@ -65,6 +65,11 @@ object CentaurCromwellClient {
 
   lazy val backends: Try[CromwellBackends] = sendReceiveFutureCompletion(() => cromwellClient.backends)
 
+  // The total time waiting for a Future, including network hiccups, must be longer than the time for a restart.
+  private val awaitTotalTimeout: FiniteDuration = CromwellManager.timeout * 2
+  private val awaitSleep: FiniteDuration = 5.seconds
+  private val awaitMaxAttempts: Long = awaitTotalTimeout.toSeconds / awaitSleep.toSeconds
+
   /**
     * Ensure that the Future completes within the specified timeout. If it does not, or if the Future fails,
     * will return a Failure, otherwise a Success
@@ -76,15 +81,15 @@ object CentaurCromwellClient {
       case _: TimeoutException |
            _: StreamTcpException |
            _: IOException |
-           _: UnsupportedContentTypeException if !CromwellManager.isReady && attempt < 5 =>
-        Thread.sleep(5000)
+           _: UnsupportedContentTypeException if !CromwellManager.isReady && attempt < awaitMaxAttempts =>
+        Thread.sleep(awaitSleep.toMillis)
         awaitFutureCompletion(x, timeout, attempt + 1)
       // see https://github.com/akka/akka-http/issues/768
       case unexpected: RuntimeException
         if unexpected.getMessage.contains("The http server closed the connection unexpectedly") &&
           !CromwellManager.isReady &&
-          attempt < 5 =>
-        Thread.sleep(5000)
+          attempt < awaitMaxAttempts =>
+        Thread.sleep(awaitSleep.toMillis)
         awaitFutureCompletion(x, timeout, attempt + 1)
     }
   }

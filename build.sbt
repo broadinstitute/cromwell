@@ -26,8 +26,7 @@ lazy val core = project
 
 lazy val cloudSupport = project
   .withLibrarySettings("cromwell-cloud-support", cloudSupportDependencies)
-  .dependsOn(core)
-  .dependsOn(core % "test->test")
+  .dependsOn(common)
 
 lazy val gcsFileSystem = (project in file("filesystems/gcs"))
   .withLibrarySettings("cromwell-gcsfilesystem")
@@ -68,7 +67,7 @@ lazy val services = project
 lazy val backendRoot = Path("supportedBackends")
 
 lazy val backend = project
-  .withLibrarySettings("cromwell-backend")
+  .withLibrarySettings("cromwell-backend", backendDependencies)
   .dependsOn(services)
   .dependsOn(core % "test->test")
 

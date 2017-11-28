@@ -179,14 +179,15 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
   def flatten(params: Seq[Try[WomValue]]): Try[WomValue] = {
     def getFlatValues(v: WomValue): List[WomValue] = v match {
       case WomArray(_, values) => values.toList
-      case other => List(other)
+      case other => throw new IllegalArgumentException(s"Invalid argument to flatten(): ${other}, flatten() takes an array of arrays")
     }
 
-    val arg:Try[WomValue] = extractSingleArgument("flatten", params)
+    val arg: Try[WomValue] = extractSingleArgument("flatten", params)
     arg flatMap {
       case WomArray(WomArrayType(WomArrayType(elemType)), arrayValues) =>
-        val ll:List[List[WomValue]] = arrayValues.toList.map(getFlatValues)
-        Success(WomArray(WomArrayType(elemType), ll.flatten))
+        Try {
+          WomArray(WomArrayType(elemType), arrayValues.flatMap(getFlatValues))
+        }
       case bad =>
         Failure(new UnsupportedOperationException(s"flatten() expects one parameter of type Array[Array[T]] but got one parameter of type ${bad.womType.toDisplayString}"))
     }
@@ -409,12 +410,6 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WomType] {
     case _ =>
       val badArgs = params.mkString(", ")
       Failure(new Exception(s"Unexpected arguments to function `length`. `length` takes a parameter of type Array but got: $badArgs"))
-  }
-  def flatten(params: Seq[Try[WomType]]): Try[WomType] = {
-    params.toList match {
-      case Success(WomArrayType(WomArrayType(t))) :: Nil => Success(WomArrayType(t))
-      case _ => Failure(new Exception(s"Unexpected flatten target: $params"))
-    }
   }
   def prefix(params: Seq[Try[WomType]]): Try[WomType] = params.toList match {
     case Success(WomStringType) :: Success(WomArrayType(_: WomPrimitiveType)) :: Nil => Success(WomArrayType(WomStringType))

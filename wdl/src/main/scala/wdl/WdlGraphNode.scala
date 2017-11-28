@@ -146,8 +146,13 @@ object WdlGraphNode {
       _.inputPorts.map(_.upstream.graphNode).filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode]
     }
 
-    def withDefaultOutputs(g: Graph): Graph = if (g.nodes.exists(_.isInstanceOf[GraphOutputNode])) { g } else {
-      Graph(g.nodes.union((g.nodes collect {
+    // Default outputs are added if we're:
+    // - A scatter block
+    // - An if block
+    // - (NB: top level workflows are already given wildcard outputs in the WDL Workflow building phase)
+    def withDefaultOutputs(g: Graph): Graph = from match {
+      case _: If | _: Scatter =>
+        Graph(g.nodes.union((g.nodes collect {
           case node: CallNode => node.outputPorts.map(op => {
             val identifier = node.identifier.combine(op.name)
             PortBasedGraphOutputNode(identifier, op.womType, op)
@@ -162,6 +167,7 @@ object WdlGraphNode {
             PortBasedGraphOutputNode(op.identifier, op.womType, op)
           })
         }).flatten))
+      case _ => g
     }
 
     import common.validation.ErrorOr.ShortCircuitingFlatMap

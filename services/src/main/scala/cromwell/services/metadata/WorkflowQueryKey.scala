@@ -14,7 +14,7 @@ import cats.instances.list._
 import scala.util.{Success, Try}
 
 object WorkflowQueryKey {
-  val ValidKeys = Set(StartDate, EndDate, Name, Id, Status, LabelKeyValue, Page, PageSize) map { _.name }
+  val ValidKeys = Set(StartDate, EndDate, Name, Id, Status, LabelKeyValue, Page, PageSize, AdditionalKeys) map { _.name }
 
   case object StartDate extends DateTimeWorkflowQueryKey {
     override val name = "Start"
@@ -87,6 +87,18 @@ object WorkflowQueryKey {
         if (Try(WorkflowState.withName(v.toLowerCase.capitalize)).isSuccess) v.validNel[String] else v.invalidNel[String]
       }
       sequenceListOfValidatedNels("Unrecognized status values", nels)
+    }
+  }
+
+  case object AdditionalKeys extends SeqWorkflowQueryKey[String] {
+    override val name = "Additionalkeys"
+
+      override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[List[String]] = {
+      val values = valuesFromMap(grouped).toList
+        val nels = values map { v =>
+          v.validNel[String]
+        }
+      sequenceListOfValidatedNels("Unrecognized values", nels)
     }
   }
 }

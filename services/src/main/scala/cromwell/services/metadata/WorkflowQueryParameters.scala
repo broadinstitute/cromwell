@@ -17,7 +17,9 @@ case class WorkflowQueryParameters private(statuses: Set[String],
                                            startDate: Option[OffsetDateTime],
                                            endDate: Option[OffsetDateTime],
                                            page: Option[Int],
-                                           pageSize: Option[Int])
+                                           pageSize: Option[Int],
+                                           additionalKeys: Set[String]
+                                          )
 
 object WorkflowQueryParameters {
 
@@ -68,6 +70,8 @@ object WorkflowQueryParameters {
 
     val Seq(labels) = Seq(WorkflowQueryKey.LabelKeyValue) map { _.validate(valuesByCanonicalCapitalization) }
 
+    val Seq(additionalKeys) = Seq(AdditionalKeys) map { _.validate(valuesByCanonicalCapitalization) }
+
     val Seq(page, pageSize) = Seq(Page, PageSize) map { _.validate(valuesByCanonicalCapitalization) }
 
     // Only validate start before end if both of the individual date parsing validations have already succeeded.
@@ -76,10 +80,10 @@ object WorkflowQueryParameters {
       case _ => ().validNel[String]
     }
 
-    (onlyRecognizedKeys |@| startBeforeEnd |@| statuses |@| names |@| ids |@| labels |@| startDate |@| endDate |@| page |@| pageSize) map {
-      case (_, _, status, name, uuid, label, start, end, _page, _pageSize) =>
+    (onlyRecognizedKeys |@| startBeforeEnd |@| statuses |@| names |@| ids |@| labels |@| startDate |@| endDate |@| page |@| pageSize |@| additionalKeys) map {
+      case (_, _, status, name, uuid, label, start, end, _page, _pageSize, additionalKeys) =>
         val workflowId = uuid map WorkflowId.fromString
-        WorkflowQueryParameters(status.toSet, name.toSet, workflowId.toSet, label.toSet, start, end, _page, _pageSize)
+        WorkflowQueryParameters(status.toSet, name.toSet, workflowId.toSet, label.toSet, start, end, _page, _pageSize, additionalKeys.toSet)
     }
   }
 

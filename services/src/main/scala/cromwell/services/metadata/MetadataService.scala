@@ -16,7 +16,8 @@ object MetadataService {
 
   final val MetadataServiceName = "MetadataService"
 
-  final case class WorkflowQueryResult(id: String, name: Option[String], status: Option[String], start: Option[OffsetDateTime], end: Option[OffsetDateTime])
+//  final case class WorkflowQueryResult(params: List[Any])
+  final case class WorkflowQueryResult(keys: Seq[Any])
 
   final case class WorkflowQueryResponse(results: Seq[WorkflowQueryResult])
 

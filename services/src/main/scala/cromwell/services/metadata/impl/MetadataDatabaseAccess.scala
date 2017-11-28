@@ -11,6 +11,7 @@ import cromwell.services.ServicesStore
 import cromwell.services.metadata.MetadataService.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.services.metadata._
 
+import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
 
 object MetadataDatabaseAccess {
@@ -179,7 +180,8 @@ trait MetadataDatabaseAccess {
     workflowSummaryCount flatMap { count =>
       workflowSummaries map { workflows =>
         (WorkflowQueryResponse(workflows.toSeq map { workflow =>
-          MetadataService.WorkflowQueryResult(id = workflow.workflowExecutionUuid, name = workflow.workflowName, status = workflow.workflowStatus, start = workflow.startTimestamp map { _.toSystemOffsetDateTime }, end = workflow.endTimestamp map { _.toSystemOffsetDateTime })
+//          MetadataService.WorkflowQueryResult(id = workflow.workflowExecutionUuid, name = workflow.workflowName, status = workflow.workflowStatus, start = workflow.startTimestamp map { _.toSystemOffsetDateTime }, end = workflow.endTimestamp map { _.toSystemOffsetDateTime })
+          MetadataService.WorkflowQueryResult(keys = Seq(("id", workflow.workflowExecutionUuid)))
         }),
           //only return metadata if page is defined
           queryParameters.page map { _ => QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(count)) })

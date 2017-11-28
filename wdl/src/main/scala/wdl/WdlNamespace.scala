@@ -389,7 +389,7 @@ object WdlNamespace {
     val taskCommandReferenceErrors = for {
       task <- namespace.tasks
       param <- task.commandTemplate.collect({ case p: ParameterCommandPart => p })
-      variable <- param.expression.variableReferences
+      variable <- param.expression.variableReferences(task)
       if !task.declarations.map(_.unqualifiedName).contains(variable.terminal.getSourceString)
     } yield new SyntaxError(wdlSyntaxErrorFormatter.commandExpressionContainsInvalidVariableReference(task.ast.getAttribute("name").asInstanceOf[Terminal], variable.terminal))
 
@@ -417,7 +417,7 @@ object WdlNamespace {
     * Determine the list of references in this expression to values which were never declared
     */
   private def referencesToAbsentValues(container: Scope, expression: WdlExpression): Iterable[Terminal] =
-    expression.variableReferences collect { case variable if container.resolveVariable(variable.terminal.sourceString).isEmpty => variable.terminal }
+    expression.variableReferences(container) collect { case variable if container.resolveVariable(variable.terminal.sourceString).isEmpty => variable.terminal }
 
   private def validateDeclaration(declaration: DeclarationInterface, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Seq[SyntaxError] = {
     val invalidVariableReferences = for {

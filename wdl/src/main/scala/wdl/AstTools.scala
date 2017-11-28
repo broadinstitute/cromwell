@@ -295,7 +295,7 @@ object AstTools {
     }
   }.keys
 
-  final case class VariableReference(terminal: Terminal, trail: Iterable[AstNode]) {
+  final case class VariableReference private[wdl](terminal: Terminal, trail: Iterable[AstNode], from: Scope) {
     /**
       * If this is a simple MemberAccess (both sides are terminals),
       * find the rhs corresponding to "terminal" in the trail.
@@ -304,13 +304,32 @@ object AstTools {
       * if terminal is "a" and the trail contains a MemberAccess(lhs: Terminal("a"), rhs: Terminal("b")),
       * this will return Some(Terminal("b"))
       */
-    lazy val terminalSubIdentifier: Option[Terminal] = trail.collectFirst {
+    private lazy val terminalSubIdentifier: Option[Terminal] = trail.collectFirst {
       case a: Ast if a.isMemberAccess
         && a.getAttribute("lhs") == terminal
         && a.getAttribute("rhs").isTerminal => a.getAttribute("rhs").asInstanceOf[Terminal]
     }
 
-    def fullVariableReferenceString: String = terminal.getSourceString + (terminalSubIdentifier map { "." + _.getSourceString } getOrElse "")
+    private lazy val fullVariableReferenceString: String = terminal.getSourceString + (terminalSubIdentifier map { "." + _.getSourceString } getOrElse "")
+
+    private def findResolvableSubstring(name: String, previous: String): Option[String] = {
+      lazy val popLastNamePiece: Option[String] = {
+        name.lastIndexOf(".") match {
+          case -1 => None
+          case i => Option(name.substring(0, i))
+        }
+      }
+
+      from.resolveVariable(name) match {
+        case Some(_: WdlTaskCall | _ : WdlWorkflowCall) => Option(previous)
+        case Some(_) => Option(name)
+        case None => popLastNamePiece.flatMap(findResolvableSubstring(_, name))
+      }
+    }
+
+    lazy val referencedVariableName: String = {
+      findResolvableSubstring(fullVariableReferenceString, fullVariableReferenceString).getOrElse(fullVariableReferenceString)
+    }
   }
 
   /**
@@ -318,7 +337,7 @@ object AstTools {
     *
     * These represent anything that would need to be have scope resolution done on it to determine the value
     */
-  def findVariableReferences(expr: AstNode): Iterable[VariableReference] = {
+  def findVariableReferences(expr: AstNode, from: Scope): Iterable[VariableReference] = {
     def isMemberAccessRhs(identifier: Terminal, trail: Seq[AstNode]): Boolean = {
       // e.g. for MemberAccess ast representing source code A.B.C, this would return true for only B,C and not A
       trail.collect({ case a: Ast if a.isMemberAccess && a.getAttribute("rhs") == identifier => a }).nonEmpty
@@ -360,7 +379,7 @@ object AstTools {
      * There also might be other types of nodes in trail than MemberAccess depending the expression.
      */
     expr.findTerminalsWithTrail("identifier").collect({
-      case (terminal, trail) if !isMemberAccessRhs(terminal, trail) && !isFunctionName(terminal, trail) => VariableReference(terminal, trail)
+      case (terminal, trail) if !isMemberAccessRhs(terminal, trail) && !isFunctionName(terminal, trail) => VariableReference(terminal, trail, from)
     })
   }
 

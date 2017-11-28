@@ -70,7 +70,7 @@ object WdlCall {
     def expressionNodeMappings: ErrorOr[Map[LocalName, ExpressionNode]] = wdlCall.inputMappings traverse {
       case (inputName, wdlExpression) =>
         val identifier = wdlCall.womIdentifier.combine(inputName)
-        WdlWomExpression.toExpressionNode(identifier, WdlWomExpression(wdlExpression, None), localLookup, outerLookup, preserveIndexForOuterLookups) map {
+        WdlWomExpression.toExpressionNode(identifier, WdlWomExpression(wdlExpression, wdlCall), localLookup, outerLookup, preserveIndexForOuterLookups, wdlCall) map {
           LocalName(inputName) -> _
         }
     }

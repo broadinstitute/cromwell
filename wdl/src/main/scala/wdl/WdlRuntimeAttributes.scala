@@ -7,7 +7,7 @@ import wom.RuntimeAttributes
 import scala.collection.JavaConverters._
 
 case class WdlRuntimeAttributes(attrs: Map[String, WdlExpression]) {
-  def toWomRuntimeAttributes = RuntimeAttributes(attrs.mapValues(WdlWomExpression(_, None)))
+  def toWomRuntimeAttributes(task: WdlTask) = RuntimeAttributes(attrs.mapValues(WdlWomExpression(_, task)))
 }
 
 object WdlRuntimeAttributes {

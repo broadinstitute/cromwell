@@ -194,7 +194,7 @@ case class WdlExpression(ast: AstNode) extends WomValue {
     this.topLevelMemberAccesses map { _.lhs }
   }
   def topLevelMemberAccesses: Set[MemberAccess] = AstTools.findTopLevelMemberAccesses(ast) map { MemberAccess(_) } toSet
-  def variableReferences: Iterable[VariableReference] = AstTools.findVariableReferences(ast)
+  def variableReferences(from: Scope): Iterable[VariableReference] = AstTools.findVariableReferences(ast, from)
 }
 
 /**
@@ -203,9 +203,9 @@ case class WdlExpression(ast: AstNode) extends WomValue {
   * @param from The Scope in which the WdlExpression is found, needed to adjust member access expressions located in
   *             conditionals (wrapped in optionals) or scatters (wrapped in arrays).
   */
-final case class WdlWomExpression(wdlExpression: WdlExpression, from: Option[Scope]) extends WomExpression {
+final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope) extends WomExpression {
   override def sourceString = wdlExpression.valueString
-  override def inputs: Set[String] = wdlExpression.variableReferences map { _.fullVariableReferenceString } toSet
+  override def inputs: Set[String] = wdlExpression.variableReferences(from) map { _.referencedVariableName } toSet
 
   override def evaluateValue(variableValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
     lazy val wdlFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(ioFunctionSet)
@@ -215,7 +215,7 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Option[Sco
   override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] =
     // All current usages of WdlExpression#evaluateType trace back to WdlNamespace, but this is not the
     // case in the brave new WOM-world.
-    wdlExpression.evaluateType(inputTypes.apply, new WdlStandardLibraryFunctionsType, from).toErrorOr
+    wdlExpression.evaluateType(inputTypes.apply, new WdlStandardLibraryFunctionsType, Option(from)).toErrorOr
 
   override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] ={
     lazy val wdlFunctions = new WdlStandardLibraryFunctions {
@@ -242,10 +242,10 @@ object WdlWomExpression {
     *
     * If the input is found in an outer scope, we also make a new input node in the inner graph to represent it.
     */
-  def findInputsforExpression(expression: WdlWomExpression, innerLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[Map[String, GraphNodePort.OutputPort]] = {
+  def findInputsforExpression(expression: WdlWomExpression, innerLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean, owningScope: Scope): ErrorOr[Map[String, GraphNodePort.OutputPort]] = {
 
     def resolveVariable(v: AstTools.VariableReference): ErrorOr[(String, GraphNodePort.OutputPort)] = {
-      val name = v.fullVariableReferenceString
+      val name = v.referencedVariableName
       (innerLookup.get(name), outerLookup.get(name)) match {
         case (Some(port), _) =>
           // If we can find the value locally, use it.
@@ -257,7 +257,7 @@ object WdlWomExpression {
     }
 
     for {
-      resolvedVariables <- expression.wdlExpression.variableReferences.toList traverse resolveVariable
+      resolvedVariables <- expression.wdlExpression.variableReferences(owningScope).toList traverse resolveVariable
     } yield resolvedVariables.toMap
   }
   
@@ -265,10 +265,11 @@ object WdlWomExpression {
                        expression: WdlWomExpression,
                        innerLookup: Map[String, GraphNodePort.OutputPort],
                        outerLookup: Map[String, GraphNodePort.OutputPort],
-                       preserveIndexForOuterLookups: Boolean): ErrorOr[ExpressionNode] = {
+                       preserveIndexForOuterLookups: Boolean,
+                       owningScope: Scope): ErrorOr[ExpressionNode] = {
     import common.validation.ErrorOr.ShortCircuitingFlatMap
     
-    findInputsforExpression(expression, innerLookup, outerLookup, preserveIndexForOuterLookups) flatMap { resolvedVariables =>
+    findInputsforExpression(expression, innerLookup, outerLookup, preserveIndexForOuterLookups, owningScope) flatMap { resolvedVariables =>
        AnonymousExpressionNode.fromInputMapping(nodeIdentifier, expression, resolvedVariables)
     }
   }

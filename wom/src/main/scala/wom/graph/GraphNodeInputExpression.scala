@@ -2,7 +2,6 @@ package wom.graph
 
 import common.validation.ErrorOr.ErrorOr
 import wom.expression.WomExpression
-import wom.graph.GraphNode.GraphNodeSetter
 import wom.graph.GraphNodePort.OutputPort
 import wom.types.WomType
 
@@ -13,11 +12,6 @@ import wom.types.WomType
   * - InstantiatedExpression has created InputPorts for the expression inputs. This one only has references to OutputPorts.
   */
 case class GraphNodeInputExpression(inputName: String, expression: WomExpression, inputMapping: Map[String, OutputPort]) {
-
-  /**
-    * Instantiate the expression and connect its input ports to the appropriate graphNode.
-    */
-  private[graph] def instantiateExpression(graphNodeSetter: GraphNodeSetter[_ <: GraphNode]): ErrorOr[InstantiatedExpression] = InstantiatedExpression.linkWithInputs(graphNodeSetter, expression, inputMapping)
 
   private[graph] lazy val evaluateType: ErrorOr[WomType] = expression.evaluateType(inputMapping.map { case (name, port) => (name, port.womType) })
 }

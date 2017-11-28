@@ -76,10 +76,6 @@ trait DeclarationInterface extends WdlGraphNodeWithUpstreamReferences {
     case (None, nonOptionalType) =>
       Some(RequiredInputDefinition(fullyQualifiedName, nonOptionalType))
     // We only make declarations with expressions into inputs if they don't depend on previous tasks or decls:
-    case (Some(expr), optionalType: WomOptionalType) if upstreamAncestry.isEmpty =>
-      // Eg if we have 'Int? x = 5', we can let that be an input to a task requiring an Int:
-      val typeOfInput = if(optionalType.baseMemberType.isCoerceableFrom(expr.womType)) { optionalType.baseMemberType } else optionalType
-      Some(InputDefinitionWithDefault(fullyQualifiedName, typeOfInput, WdlWomExpression(expr, None)))
     case (Some(expr), other) if upstreamAncestry.isEmpty =>
       Some(InputDefinitionWithDefault(fullyQualifiedName, other, WdlWomExpression(expr, None)))
     case _ =>

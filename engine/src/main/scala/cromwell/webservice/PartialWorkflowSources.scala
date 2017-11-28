@@ -36,22 +36,22 @@ object PartialWorkflowSources {
   val WorkflowInputsKey = "workflowInputs"
   val WorkflowInputsAuxPrefix = "workflowInputs_"
   val WorkflowOptionsKey = "workflowOptions"
-  val CustomLabelsKey = "customLabels"
+  val labelsKey = "labels"
   val WdlDependenciesKey = "wdlDependencies"
   val WorkflowDependenciesKey = "workflowDependencies"
-  
+
   val allKeys = List(WdlSourceKey, WorkflowSourceKey, WorkflowTypeKey, WorkflowTypeVersionKey, WorkflowInputsKey,
-    WorkflowOptionsKey, CustomLabelsKey, WdlDependenciesKey, WorkflowDependenciesKey)
-  
+    WorkflowOptionsKey, labelsKey, WdlDependenciesKey, WorkflowDependenciesKey)
+
   val allPrefixes = List(WorkflowInputsAuxPrefix)
-  
+
   def fromSubmitRoute(formData: Map[String, ByteString],
                       allowNoInputs: Boolean): Try[Seq[WorkflowSourceFilesCollection]] = {
     import cats.instances.list._
     import cats.syntax.apply._
     import cats.syntax.traverse._
     import cats.syntax.validated._
-    
+
     val partialSources: ErrorOr[PartialWorkflowSources] = {
       def getStringValue(key: String) = formData.get(key).map(_.utf8String)
       def getArrayValue(key: String) = formData.get(key).map(_.toArray)
@@ -64,7 +64,7 @@ object PartialWorkflowSources {
         case Nil => ().validNel
         case head :: tail => NonEmptyList.of(head, tail: _*).invalid
       }
-      
+
       // workflow source
       val wdlSource = getStringValue(WdlSourceKey)
       val workflowSource = getStringValue(WorkflowSourceKey)
@@ -75,18 +75,18 @@ object PartialWorkflowSources {
         case (Some(_), Some(_)) => "wdlSource and workflowSource can't both be supplied".invalidNel
         case (None, None) => "workflowSource needs to be supplied".invalidNel
       }
-      
+
       // workflow inputs
       val workflowInputs: ErrorOr[Vector[WorkflowJson]] = getStringValue(WorkflowInputsKey) match {
         case Some(inputs) => workflowInputsValidation(inputs)
         case None => Vector.empty.validNel
       }
       val workflowInputsAux: ErrorOr[Map[Int, String]] = formData.toList.flatTraverse[ErrorOr, (Int, String)]({
-        case (name, value) if name.startsWith(WorkflowInputsAuxPrefix) => 
+        case (name, value) if name.startsWith(WorkflowInputsAuxPrefix) =>
           Try(name.stripPrefix(WorkflowInputsAuxPrefix).toInt).toErrorOr.map(index => List((index, value.utf8String)))
         case _ => List.empty.validNel
       }).map(_.toMap)
-      
+
       // dependencies
       val wdlDependencies = getArrayValue(WdlDependenciesKey)
       val workflowDependencies = getArrayValue(WorkflowDependenciesKey)
@@ -97,7 +97,7 @@ object PartialWorkflowSources {
         case (Some(_), Some(_)) => "wdlDependencies and workflowDependencies can't both be supplied".invalidNel
         case (None, None) => None.validNel
       }
-      
+
       (unrecognized, workflowSourceFinal, workflowInputs, workflowInputsAux, workflowDependenciesFinal) mapN {
         case (_, source, inputs, aux, dep) => PartialWorkflowSources(
           workflowSource = source,
@@ -106,7 +106,7 @@ object PartialWorkflowSources {
           workflowInputs = inputs,
           workflowInputsAux= aux,
           workflowOptions = getStringValue(WorkflowOptionsKey),
-          customLabels = getStringValue(CustomLabelsKey),
+          customLabels = getStringValue(labelsKey),
           zippedImports = dep,
           warnings = wdlSourceWarning.toVector ++ wdlDependenciesWarning.toVector
         )

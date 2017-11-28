@@ -87,7 +87,7 @@ class CromwellClientSpec extends AsyncFlatSpec with BeforeAndAfterAll with Match
         "workflowTypeVersion" -> "wfTypeVersion",
         "workflowInputs" -> "inputsJson",
         "workflowOptions" -> "optionsJson",
-        "customLabels" -> """{"labelKey":"labelValue"}"""
+        "labels" -> """{"labelKey":"labelValue"}"""
       ),
       Map("workflowDependencies" -> tempFile)
     ),
@@ -108,7 +108,7 @@ class CromwellClientSpec extends AsyncFlatSpec with BeforeAndAfterAll with Match
         "workflowTypeVersion" -> "wfTypeVersion",
         "workflowInputs" -> "[inputsJson1,inputsJson2]",
         "workflowOptions" -> "optionsJson",
-        "customLabels" -> """{"labelKey":"labelValue"}"""
+        "labels" -> """{"labelKey":"labelValue"}"""
       ),
       Map("workflowDependencies" -> tempFile)
     )

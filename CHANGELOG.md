@@ -2,6 +2,10 @@
 
 ## 30 Release Notes
 
+### Breaking Changes
+
+* The `customLabels` form field for workflow submission has been renamed to `labels`.
+
 ### Other changes
 
 * **API**  

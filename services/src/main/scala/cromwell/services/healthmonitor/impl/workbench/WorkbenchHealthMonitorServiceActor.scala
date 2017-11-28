@@ -3,17 +3,16 @@ package cromwell.services.healthmonitor.impl.workbench
 import java.net.URL
 
 import cats.data.Validated.{Invalid, Valid}
+import cats.instances.future._
+import cats.syntax.functor._
 import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.cloudsupport.gcp.genomics.GenomicsFactory
-import cromwell.core.WorkflowOptions
 import cromwell.services.healthmonitor.HealthMonitorServiceActor
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.{MonitoredSubsystem, OkStatus, SubsystemStatus}
-import net.ceedubs.ficus.Ficus._
-import cats.instances.future._
-import cats.syntax.functor._
 import cromwell.services.healthmonitor.impl.common.{DockerHubMonitor, EngineDatabaseMonitor}
+import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.Future
 
@@ -30,8 +29,8 @@ class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig
 
   override lazy val subsystems: Set[MonitoredSubsystem] = Set(DockerHub, EngineDb, Papi, Gcs)
 
-  private lazy val Gcs = MonitoredSubsystem("GCS", checkGcs _)
-  private lazy val Papi = MonitoredSubsystem("PAPI", checkPapi _)
+  private lazy val Gcs = MonitoredSubsystem("GCS", () => checkGcs())
+  private lazy val Papi = MonitoredSubsystem("PAPI", () => checkPapi())
 
   val googleConfig = GoogleConfiguration(globalConfig)
 
@@ -51,7 +50,7 @@ class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig
   private def checkGcs(): Future[SubsystemStatus] = {
     // For any expected production usage of this check, the GCS bucket should be public read */
     val gcsBucketToCheck = serviceConfig.as[String]("gcs-bucket-to-check")
-    val storage = googleAuth.credential(WorkflowOptions.empty) map { c => GcsStorage.gcsStorage(googleConfig.applicationName, c) }
+    val storage = Future(googleAuth.credential(Map.empty)) map { c => GcsStorage.gcsStorage(googleConfig.applicationName, c) }
     storage map { _.buckets.get(gcsBucketToCheck).execute() } as OkStatus
   }
 
@@ -63,7 +62,7 @@ class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig
     val papiProjectId = papiConfig.as[String]("project")
 
     val genomicsFactory = GenomicsFactory(googleConfig.applicationName, googleAuth, endpointUrl)
-    val genomicsInterface = googleAuth.credential(WorkflowOptions.empty) map genomicsFactory.fromCredentials
+    val genomicsInterface = Future(googleAuth.credential(Map.empty)) map genomicsFactory.fromCredentials
 
     genomicsInterface map { _.pipelines().list().setProjectId(papiProjectId).setPageSize(1).execute() } as OkStatus
   }

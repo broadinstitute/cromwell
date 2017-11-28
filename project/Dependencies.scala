@@ -124,7 +124,9 @@ object Dependencies {
 
   // Internal collections of dependencies
 
-  private val fs2Test = "co.fs2" %% "fs2-io" % fs2V % Test
+  private val betterFilesDependencies = List(
+    "com.github.pathikrit" %% "better-files" % betterFilesV
+  )
 
   private val catsDependencies = List(
     "org.typelevel" %% "cats-core" % catsV,
@@ -132,10 +134,10 @@ object Dependencies {
     "org.typelevel" %% "kittens" % kittensV
   )
 
-  private val baseDependencies = List(
-    "com.iheart" %% "ficus" % ficusV,
-    "org.specs2" %% "specs2-mock" % specs2MockV % Test
-  ) ++ catsDependencies :+ fs2Test
+  private val configDependencies = List(
+    "com.typesafe" % "config" % typesafeConfigV,
+    "com.iheart" %% "ficus" % ficusV
+  )
 
   private val slf4jBindingDependencies = List(
     // http://logback.qos.ch/dependencies.html
@@ -221,11 +223,10 @@ object Dependencies {
 
   // Sub-project dependencies, added in addition to any dependencies inherited from .dependsOn().
 
-  val cloudSupportDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ List(
-    "com.github.pathikrit" %% "better-files" % betterFilesV
-  )
+  val cloudSupportDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies
 
-  val databaseSqlDependencies = baseDependencies ++ slickDependencies ++ dbmsDependencies ++ refinedTypeDependenciesList
+  val databaseSqlDependencies = configDependencies ++ catsDependencies ++ slickDependencies ++ dbmsDependencies ++
+    refinedTypeDependenciesList
 
   val statsDDependencies = List(
     "nl.grons" %% "metrics-scala" % metricsScalaV,
@@ -233,53 +234,49 @@ object Dependencies {
   )
 
   val commonDependencies = List(
-    "com.typesafe" % "config" % typesafeConfigV,
-    "org.slf4j" % "slf4j-api" % slf4jV,
-    "com.iheart" %% "ficus" % ficusV
-  ) ++ catsDependencies ++ slf4jBindingDependencies
+    "org.slf4j" % "slf4j-api" % slf4jV
+  ) ++ catsDependencies ++ configDependencies
 
   val womDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
     "org.apache.commons" % "commons-text" % commonsTextV,
     "commons-codec" % "commons-codec" % commonsCodecV
-  ) ++ commonDependencies
+  )
 
   val wdlDependencies = List(
     "commons-io" % "commons-io" % commonsIoV,
-    "com.github.pathikrit" %% "better-files" % betterFilesV,
     "org.scala-graph" %% "graph-core" % scalaGraphV,
     "com.chuusai" %% "shapeless" % shapelessV,
     "com.softwaremill.sttp" %% "core" % sttpV,
     "com.softwaremill.sttp" %% "async-http-client-backend-cats" % sttpV,
     "org.mock-server" % "mockserver-netty" % mockserverNettyV % Test
-  )
+  ) ++ betterFilesDependencies
 
   val cwlDependencies = List(
-    "com.github.pathikrit" %% "better-files" % betterFilesV,
     "com.lihaoyi" %% "ammonite-ops" % ammoniteOpsV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "org.scalactic" %% "scalactic" % scalacticV,
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test
-  ) ++ circeDependencies ++ womDependencies ++ refinedTypeDependenciesList
+  ) ++ circeDependencies ++ womDependencies ++ refinedTypeDependenciesList ++ betterFilesDependencies
 
-  val womtoolDependencies = catsDependencies
+  val womtoolDependencies = catsDependencies ++ slf4jBindingDependencies
 
   val centaurCwlRunnerDependencies = List(
     "com.github.scopt" %% "scopt" % scoptV
   )
 
   val coreDependencies = List(
-    "com.typesafe" % "config" % typesafeConfigV,
     "com.typesafe.akka" %% "akka-actor" % akkaV,
     "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,
+    "com.typesafe.akka" %% "akka-stream" % akkaV,
+    "com.typesafe.akka" %% "akka-stream-testkit" % akkaV % Test,
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
-    "com.typesafe.akka" %% "akka-stream-testkit" % akkaV,
     "com.chuusai" %% "shapeless" % shapelessV,
-    "com.github.scopt" %% "scopt" % scoptV,
-    "com.github.pathikrit" %% "better-files" % betterFilesV
-  ) ++ baseDependencies ++ googleApiClientDependencies ++ statsDDependencies ++
+    "com.github.scopt" %% "scopt" % scoptV
+  ) ++ configDependencies ++ catsDependencies ++ googleApiClientDependencies ++ statsDDependencies ++
+    betterFilesDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
     slf4jBindingDependencies
 
@@ -288,9 +285,8 @@ object Dependencies {
   val cromwellApiClientDependencies = List(
     "com.typesafe.akka" %% "akka-actor" % akkaV,
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
-    "com.typesafe.akka" %% "akka-stream" % akkaV,
-    "com.github.pathikrit" %% "better-files" % betterFilesV
-  ) ++ akkaHttpDependencies
+    "com.typesafe.akka" %% "akka-stream" % akkaV
+  ) ++ akkaHttpDependencies ++ betterFilesDependencies
 
   val centaurDependencies = List(
     "com.github.kxbmap" %% "configs" % configsV
@@ -311,11 +307,16 @@ object Dependencies {
 
   val rootDependencies = slf4jBindingDependencies
 
+  val backendDependencies = List(
+    "co.fs2" %% "fs2-io" % fs2V % Test
+  )
+
   val tesBackendDependencies = akkaHttpDependencies
   val sparkBackendDependencies = akkaHttpDependencies
 
   val testDependencies = List(
     "org.scalatest" %% "scalatest" % scalatestV,
-    "org.pegdown" % "pegdown" % pegdownV
-  )
+    "org.pegdown" % "pegdown" % pegdownV,
+    "org.specs2" %% "specs2-mock" % specs2MockV
+  ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
 }

@@ -1,9 +1,8 @@
 package cromwell.cloudsupport.gcp.auth
 
 import java.io.{ByteArrayInputStream, FileNotFoundException}
+import java.net.HttpURLConnection._
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.model.StatusCodes
 import better.files.File
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.http.HttpResponseException
@@ -13,17 +12,16 @@ import com.google.auth.Credentials
 import com.google.auth.http.HttpTransportFactory
 import com.google.auth.oauth2.{GoogleCredentials, ServiceAccountCredentials, UserCredentials}
 import com.google.cloud.NoCredentials
-import cromwell.cloudsupport.gcp.auth.GoogleAuthMode.checkReadable
+import cromwell.cloudsupport.gcp.auth.GoogleAuthMode._
 import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.{CredentialFileFormat, JsonFileFormat, PemFileFormat}
-import cromwell.core.WorkflowOptions
-import cromwell.core.retry.Retry
 import org.slf4j.LoggerFactory
+
 import scala.collection.JavaConverters._
-import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 object GoogleAuthMode {
 
+  type OptionLookup = String => String
   lazy val jsonFactory = JacksonFactory.getDefaultInstance
   lazy val httpTransport = GoogleNetHttpTransport.newTrustedTransport
   lazy val HttpTransportFactory = new HttpTransportFactory {
@@ -45,15 +43,24 @@ object GoogleAuthMode {
   }
 
   def isFatal(ex: Throwable) = {
-    // We wrap the actual exception in a RuntimeException so get the cause
-    ex.getCause match {
+    ex match {
       case http: HttpResponseException =>
-        http.getStatusCode == StatusCodes.Unauthorized.intValue ||
-        http.getStatusCode == StatusCodes.Forbidden.intValue ||
-        http.getStatusCode == StatusCodes.BadRequest.intValue
+        // Using HttpURLConnection fields as com.google.api.client.http.HttpStatusCodes doesn't have Bad Request (400)
+        http.getStatusCode == HTTP_UNAUTHORIZED ||
+          http.getStatusCode == HTTP_FORBIDDEN ||
+          http.getStatusCode == HTTP_BAD_REQUEST
+      case _: OptionLookupException => true
       case _ => false
     }
   }
+
+  def extract(options: OptionLookup, key: String): String = {
+    Try(options(key)) match {
+      case Success(result) => result
+      case Failure(throwable) => throw new OptionLookupException(key, throwable)
+    }
+  }
+
 }
 
 
@@ -63,11 +70,14 @@ sealed trait GoogleAuthMode {
   /**
     * Validate the auth mode against provided options
     */
-  def validate(options: WorkflowOptions): Unit = {()}
+  def validate(options: OptionLookup): Unit = {
+    ()
+  }
 
   def name: String
+
   // Create a Credential object from the google.api.client.auth library (https://github.com/google/google-api-java-client)
-  def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials]
+  def credential(options: OptionLookup): Credentials
 
   def requiresAuthFile: Boolean = false
 
@@ -90,18 +100,19 @@ sealed trait GoogleAuthMode {
 case object MockAuthMode extends GoogleAuthMode {
   override val name = "no_auth"
 
-  override def credential(options: WorkflowOptions)
-                         (implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = {
-    Future.successful(NoCredentials.getInstance())
-  }
+  override def credential(options: OptionLookup): Credentials = NoCredentials.getInstance
 }
 
 object ServiceAccountMode {
+
   sealed trait CredentialFileFormat {
     def file: String
   }
+
   case class PemFileFormat(accountId: String, file: String) extends CredentialFileFormat
+
   case class JsonFileFormat(file: String) extends CredentialFileFormat
+
 }
 
 final case class ServiceAccountMode(override val name: String,
@@ -112,41 +123,35 @@ final case class ServiceAccountMode(override val name: String,
 
   private lazy val _credential: Credentials = {
     val serviceAccount = fileFormat match {
-      case PemFileFormat(accountId, _) => 
+      case PemFileFormat(accountId, _) =>
         log.warn("The PEM file format will be deprecated in the upcoming Cromwell version. Please use JSON instead.")
         ServiceAccountCredentials.fromPkcs8(accountId, accountId, credentialsFile.contentAsString, null, scopes)
       case _: JsonFileFormat => ServiceAccountCredentials.fromStream(credentialsFile.newInputStream).createScoped(scopes)
     }
-    
+
     // Validate credentials synchronously here, without retry.
-    // It's very unlikely to fail as it should not happen more than a few times 
+    // It's very unlikely to fail as it should not happen more than a few times
     // (one for the engine and for each backend using it) per Cromwell instance.
     validateCredential(serviceAccount)
   }
 
-  override def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = {
-    Future.successful(_credential)
-  }
+  override def credential(options: OptionLookup): Credentials = _credential
 }
 
 final case class UserServiceAccountMode(override val name: String, scopes: java.util.List[String]) extends GoogleAuthMode {
-  import GoogleAuthMode.UserServiceAccountKey
-
-  private def extractServiceAccount(options: WorkflowOptions): String = {
-    options.get(UserServiceAccountKey) getOrElse {
-      throw new IllegalArgumentException(s"Missing parameters in workflow options: $UserServiceAccountKey")
-    }
+  private def extractServiceAccount(options: OptionLookup): String = {
+    extract(options, UserServiceAccountKey)
   }
 
-  override def validate(options: WorkflowOptions): Unit = {
+  override def validate(options: OptionLookup): Unit = {
     extractServiceAccount(options)
     ()
   }
 
-  override def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = {
-    Future {
-      ServiceAccountCredentials.fromStream(new ByteArrayInputStream(extractServiceAccount(options).getBytes("UTF-8"))).createScoped(scopes)
-    }
+  override def credential(options: OptionLookup): Credentials = {
+    ServiceAccountCredentials
+      .fromStream(new ByteArrayInputStream(extractServiceAccount(options).getBytes("UTF-8")))
+      .createScoped(scopes)
   }
 }
 
@@ -167,51 +172,45 @@ final case class UserMode(override val name: String,
     validateCredential(UserCredentials.fromStream(secretsStream))
   }
 
-  override def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = Future.successful(_credential)
+  override def credential(options: OptionLookup): Credentials = _credential
 }
 
 object ApplicationDefaultMode {
-  private [auth] lazy val _Credential: Credentials = GoogleCredentials.getApplicationDefault
+  private lazy val _credential: Credentials = GoogleCredentials.getApplicationDefault
 }
 
 final case class ApplicationDefaultMode(name: String) extends GoogleAuthMode {
-  override def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = {
-    Future.successful(ApplicationDefaultMode._Credential)
-  }
+  override def credential(options: OptionLookup): Credentials = ApplicationDefaultMode._credential
 }
 
 final case class RefreshTokenMode(name: String,
                                   clientId: String,
                                   clientSecret: String,
                                   scopes: java.util.List[String]) extends GoogleAuthMode with ClientSecrets {
+
   import GoogleAuthMode._
+
   override def requiresAuthFile = true
 
-  private def extractRefreshToken(options: WorkflowOptions): String = {
-    options.get(RefreshTokenOptionKey) getOrElse {
-      throw new IllegalArgumentException(s"Missing parameters in workflow options: $RefreshTokenOptionKey")
-    }
+  private def extractRefreshToken(options: OptionLookup): String = {
+    extract(options, RefreshTokenOptionKey)
   }
 
-  override def validate(options: WorkflowOptions) = {
+  override def validate(options: OptionLookup) = {
     extractRefreshToken(options)
     ()
   }
 
-  override def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = {
+  override def credential(options: OptionLookup): Credentials = {
     val refreshToken = extractRefreshToken(options)
-    Retry.withRetry(
-      () => Future(validateCredential(
-        UserCredentials
-          .newBuilder()
-          .setClientId(clientId)
-          .setClientSecret(clientSecret)
-          .setRefreshToken(refreshToken)
-          .setHttpTransportFactory(GoogleAuthMode.HttpTransportFactory)
-          .build()
-      )),
-      isFatal = isFatal,
-      maxRetries = Option(3)
+    validateCredential(
+      UserCredentials
+        .newBuilder()
+        .setClientId(clientId)
+        .setClientSecret(clientSecret)
+        .setRefreshToken(refreshToken)
+        .setHttpTransportFactory(GoogleAuthMode.HttpTransportFactory)
+        .build()
     )
   }
 }
@@ -222,3 +221,5 @@ sealed trait ClientSecrets {
 }
 
 final case class SimpleClientSecrets(clientId: String, clientSecret: String) extends ClientSecrets
+
+class OptionLookupException(val key: String, cause: Throwable) extends RuntimeException(key, cause)

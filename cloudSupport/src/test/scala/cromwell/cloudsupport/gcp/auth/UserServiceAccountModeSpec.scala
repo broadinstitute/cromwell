@@ -1,10 +1,9 @@
 package cromwell.cloudsupport.gcp.auth
 
 import cromwell.cloudsupport.gcp.GoogleConfiguration
-import cromwell.core.TestKitSuite
-import org.scalatest.{AsyncFlatSpecLike, Matchers}
+import org.scalatest.{FlatSpec, Matchers}
 
-class UserServiceAccountModeSpec extends TestKitSuite("UserServiceAccountModeSpec") with AsyncFlatSpecLike with Matchers {
+class UserServiceAccountModeSpec extends FlatSpec with Matchers {
 
   behavior of "UserServiceAccountMode"
 
@@ -13,9 +12,8 @@ class UserServiceAccountModeSpec extends TestKitSuite("UserServiceAccountModeSpe
       "user-service-account",
       GoogleConfiguration.GoogleScopes)
     val workflowOptions = GoogleAuthModeSpec.userServiceAccountOptions
-    userServiceAccountMode.credential(workflowOptions) map { credentials =>
-      credentials.getAuthenticationType should be("OAuth2")
-    }
+    val credentials = userServiceAccountMode.credential(workflowOptions)
+    credentials.getAuthenticationType should be("OAuth2")
   }
 
   it should "validate with a user_service_account_json workflow option" in {
@@ -24,7 +22,6 @@ class UserServiceAccountModeSpec extends TestKitSuite("UserServiceAccountModeSpe
       GoogleConfiguration.GoogleScopes)
     val workflowOptions = GoogleAuthModeSpec.userServiceAccountOptions
     userServiceAccountMode.validate(workflowOptions)
-    succeed
   }
 
   it should "fail validate without a user_service_account_json workflow option" in {
@@ -32,9 +29,8 @@ class UserServiceAccountModeSpec extends TestKitSuite("UserServiceAccountModeSpe
       "user-service-account",
       GoogleConfiguration.GoogleScopes)
     val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    val exception = intercept[IllegalArgumentException](userServiceAccountMode.validate(workflowOptions))
-    exception.getMessage should be("Missing parameters in workflow options: user_service_account_json")
-    succeed
+    val exception = intercept[OptionLookupException](userServiceAccountMode.validate(workflowOptions))
+    exception.getMessage should be("user_service_account_json")
   }
 
   it should "requiresAuthFile" in {
@@ -42,7 +38,6 @@ class UserServiceAccountModeSpec extends TestKitSuite("UserServiceAccountModeSpe
       "user-service-account",
       GoogleConfiguration.GoogleScopes)
     userServiceAccountMode.requiresAuthFile should be(false)
-    succeed
   }
 
 }

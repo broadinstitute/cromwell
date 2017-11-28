@@ -67,12 +67,12 @@ class StandardValidatedRuntimeAttributesBuilderSpec extends WordSpecLike with Ma
     "log a warning and validate a valid Docker entry" in {
       val expectedRuntimeAttributes = defaultRuntimeAttributes
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"))
-      val mockWarnings = new MockWarnings
+      var warnings = List.empty[Any]
+      val mockLogger = mock[Logger]
+      mockLogger.warn(anyString).answers(warnings :+= _)
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes,
-        includeDockerSupport = false, logger = mockWarnings.mockLogger)
-      mockWarnings.warnings.size should be(1)
-      val message = mockWarnings.warnings.head
-      message should include("Unrecognized runtime attribute keys: docker")
+        includeDockerSupport = false, logger = mockLogger)
+      warnings should contain theSameElementsAs List("Unrecognized runtime attribute keys: docker")
     }
 
     "log a warning and validate an invalid Docker entry" in {
@@ -89,12 +89,12 @@ class StandardValidatedRuntimeAttributesBuilderSpec extends WordSpecLike with Ma
        */
       val expectedRuntimeAttributes = defaultRuntimeAttributes
       val runtimeAttributes = Map("docker" -> WomInteger(1))
-      val mockWarnings = new MockWarnings
+      var warnings = List.empty[Any]
+      val mockLogger = mock[Logger]
+      mockLogger.warn(anyString).answers(warnings :+= _)
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes,
-        includeDockerSupport = false, logger = mockWarnings.mockLogger)
-      mockWarnings.warnings.size should be(1)
-      val message = mockWarnings.warnings.head
-      message should include("Unrecognized runtime attribute keys: docker")
+        includeDockerSupport = false, logger = mockLogger)
+      warnings should contain theSameElementsAs List("Unrecognized runtime attribute keys: docker")
     }
 
     "fail to validate an invalid failOnStderr entry" in {
@@ -132,22 +132,6 @@ class StandardValidatedRuntimeAttributesBuilderSpec extends WordSpecLike with Ma
         workflowOptions = workflowOptions)
     }
 
-    /**
-      * Captures warning log messages with a mock.
-      *
-      * TODO: A generic MockLogger (with all levels captured) may be an Slf4J+specs2 replacement for the Slf4J+Logback
-      * TestLogger in commons.
-      */
-    class MockWarnings() {
-      var warnings: Seq[String] = Seq.empty
-      val mockLogger: Logger = mock[Logger]
-      mockLogger.warn(anyString).answers { result =>
-        result match {
-          case message: String =>
-            warnings :+= message
-        }
-      }
-    }
   }
 
   val defaultLogger: Logger = LoggerFactory.getLogger(classOf[StandardValidatedRuntimeAttributesBuilderSpec])

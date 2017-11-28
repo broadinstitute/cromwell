@@ -13,7 +13,7 @@ import scala.language.postfixOps
   */
 object CromwellManager {
   val ManagedCromwellPort = 8008
-  private val timeout = 30 seconds
+  val timeout = 30 seconds
   private val interval = 1 second
   private var cromwellProcess: Option[Process] = None
   private var _ready: Boolean = false
@@ -34,10 +34,18 @@ object CromwellManager {
     
     if (!isAlive) {
       val logFile: File = File(cromwell.logFile)
-      
+
+      val command = List(
+        "java",
+        s"-Dconfig.file=${cromwell.conf}",
+        s"-Dwebservice.port=$ManagedCromwellPort",
+        "-jar",
+        cromwell.jar,
+        "server")
       val processBuilder = new java.lang.ProcessBuilder()
-      processBuilder.command("java", s"-Dconfig.file=${cromwell.conf}", s"-Dwebservice.port=$ManagedCromwellPort", "-jar", cromwell.jar, "server")
-      processBuilder.redirectOutput(Redirect.appendTo(logFile.toJava))
+        .command(command: _*)
+        .redirectOutput(Redirect.appendTo(logFile.toJava))
+        .redirectErrorStream(true)
         
       // Start the cromwell process
       println("Starting Cromwell...")

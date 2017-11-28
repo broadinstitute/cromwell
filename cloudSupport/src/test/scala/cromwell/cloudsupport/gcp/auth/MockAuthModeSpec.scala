@@ -1,25 +1,22 @@
 package cromwell.cloudsupport.gcp.auth
 
-import cromwell.core.TestKitSuite
-import org.scalatest.{AsyncFlatSpecLike, Matchers}
+import org.scalatest.{FlatSpec, Matchers}
 
-class MockAuthModeSpec extends TestKitSuite("MockAuthModeSpec") with AsyncFlatSpecLike with Matchers {
+class MockAuthModeSpec extends FlatSpec with Matchers {
 
   behavior of "MockAuthMode"
 
   it should "generate a credential" in {
     val mockAuthMode = MockAuthMode
     val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    mockAuthMode.credential(workflowOptions) map { credentials =>
-      credentials.getAuthenticationType should be("OAuth2")
-    }
+    val credentials = mockAuthMode.credential(workflowOptions)
+    credentials.getAuthenticationType should be("OAuth2")
   }
 
   it should "validate" in {
     val mockAuthMode = MockAuthMode
     val workflowOptions = GoogleAuthModeSpec.emptyOptions
     mockAuthMode.validate(workflowOptions)
-    succeed
   }
 
   it should "requiresAuthFile" in {

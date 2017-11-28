@@ -1,29 +1,24 @@
 package cromwell.cloudsupport.gcp.auth
 
 import cromwell.cloudsupport.gcp.GoogleConfiguration
-import cromwell.core.{CromwellFatalException, TestKitSuite}
-import cromwell.util.EncryptionSpec
-import org.scalatest.{AsyncFlatSpecLike, Matchers}
+import org.scalatest.{FlatSpec, Matchers}
 
-class RefreshTokenModeSpec extends TestKitSuite("RefreshTokenModeSpec") with AsyncFlatSpecLike with Matchers {
+class RefreshTokenModeSpec extends FlatSpec with Matchers {
 
   behavior of "RefreshTokenMode"
 
   it should "fail to generate a bad credential" in {
-    EncryptionSpec.assumeAes256Cbc()
     val refreshTokenMode = RefreshTokenMode(
       "user-via-refresh",
       "secret_id",
       "secret_secret",
       GoogleConfiguration.GoogleScopes)
     val workflowOptions = GoogleAuthModeSpec.refreshTokenOptions
-    recoverToExceptionIf[CromwellFatalException](refreshTokenMode.credential(workflowOptions)) map { exception =>
-      exception.getCause.getMessage should startWith("Google credentials are invalid: ")
-    }
+    val exception = intercept[RuntimeException](refreshTokenMode.credential(workflowOptions))
+    exception.getMessage should startWith("Google credentials are invalid: ")
   }
 
   it should "fail to generate a credential that cannot be validated" in {
-    EncryptionSpec.assumeAes256Cbc()
     val refreshTokenMode = RefreshTokenMode(
       "user-via-refresh",
       "secret_id",
@@ -31,13 +26,11 @@ class RefreshTokenModeSpec extends TestKitSuite("RefreshTokenModeSpec") with Asy
       GoogleConfiguration.GoogleScopes)
     val workflowOptions = GoogleAuthModeSpec.refreshTokenOptions
     refreshTokenMode.credentialValidation = _ => throw new IllegalArgumentException("no worries! this is expected")
-    recoverToExceptionIf[CromwellFatalException](refreshTokenMode.credential(workflowOptions)) map { exception =>
-      exception.getCause.getMessage should startWith("Google credentials are invalid: ")
-    }
+    val exception = intercept[RuntimeException](refreshTokenMode.credential(workflowOptions))
+    exception.getMessage should startWith("Google credentials are invalid: ")
   }
 
   it should "generate a non-validated credential" in {
-    EncryptionSpec.assumeAes256Cbc()
     val refreshTokenMode = RefreshTokenMode(
       "user-via-refresh",
       "secret_id",
@@ -45,13 +38,11 @@ class RefreshTokenModeSpec extends TestKitSuite("RefreshTokenModeSpec") with Asy
       GoogleConfiguration.GoogleScopes)
     refreshTokenMode.credentialValidation = _ => ()
     val workflowOptions = GoogleAuthModeSpec.refreshTokenOptions
-    refreshTokenMode.credential(workflowOptions) map { credentials =>
-      credentials.getAuthenticationType should be("OAuth2")
-    }
+    val credentials = refreshTokenMode.credential(workflowOptions)
+    credentials.getAuthenticationType should be("OAuth2")
   }
 
   it should "validate with a refresh_token workflow option" in {
-    EncryptionSpec.assumeAes256Cbc()
     val refreshTokenMode = RefreshTokenMode(
       "user-via-refresh",
       "secret_id",
@@ -59,7 +50,6 @@ class RefreshTokenModeSpec extends TestKitSuite("RefreshTokenModeSpec") with Asy
       GoogleConfiguration.GoogleScopes)
     val workflowOptions = GoogleAuthModeSpec.refreshTokenOptions
     refreshTokenMode.validate(workflowOptions)
-    succeed
   }
 
   it should "fail validate without a refresh_token workflow option" in {
@@ -69,9 +59,8 @@ class RefreshTokenModeSpec extends TestKitSuite("RefreshTokenModeSpec") with Asy
       "secret_secret",
       GoogleConfiguration.GoogleScopes)
     val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    val exception = intercept[IllegalArgumentException](refreshTokenMode.validate(workflowOptions))
-    exception.getMessage should be("Missing parameters in workflow options: refresh_token")
-    succeed
+    val exception = intercept[OptionLookupException](refreshTokenMode.validate(workflowOptions))
+    exception.getMessage should be("refresh_token")
   }
 
   it should "requiresAuthFile" in {
@@ -81,7 +70,6 @@ class RefreshTokenModeSpec extends TestKitSuite("RefreshTokenModeSpec") with Asy
       "secret_secret",
       GoogleConfiguration.GoogleScopes)
     refreshTokenMode.requiresAuthFile should be(true)
-    succeed
   }
 
 }

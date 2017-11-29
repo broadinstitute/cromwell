@@ -26,6 +26,7 @@ class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAcc
       queryAndRespond(MetadataQuery(workflowId, None, None, includeKeys, excludeKeysOption, expandSubWorkflows))
     case GetMetadataQueryAction(query@MetadataQuery(_, _, _, _, _, _)) => queryAndRespond(query)
     case GetStatus(workflowId) => queryStatusAndRespond(workflowId)
+    case GetLabels(workflowId) => queryLabelsAndRespond(workflowId)
     case GetLogs(workflowId) => queryLogsAndRespond(workflowId)
     case query: WorkflowQuery => queryWorkflowsAndRespond(query.parameters)
     case WorkflowOutputs(id) => queryWorkflowOutputsAndRespond(id)
@@ -47,6 +48,14 @@ class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAcc
       // then the workflow exists but it must not have generated a status yet.
       case Success(None) => sndr ! StatusLookupResponse(id, WorkflowSubmitted)
       case Failure(t) => sndr ! StatusLookupFailed(id, t)
+    }
+  }
+
+  private def queryLabelsAndRespond(id: WorkflowId): Unit = {
+    val sndr = sender()
+    getWorkflowLabels(id) onComplete {
+      case Success(ls) => sndr ! LabelLookupResponse(id, ls)
+      case Failure(t) => sndr ! LabelLookupFailed(id, t)
     }
   }
 

@@ -65,15 +65,16 @@ object MetadataService {
   final case class PutMetadataAction(events: Iterable[MetadataEvent]) extends MetadataServiceAction
   final case class PutMetadataActionAndRespond(events: Iterable[MetadataEvent], replyTo: ActorRef) extends MetadataServiceAction
 
-  case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
+  final case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
                                              excludeKeysOption: Option[NonEmptyList[String]],
                                              expandSubWorkflows: Boolean)
     extends ReadAction
-  case class GetMetadataQueryAction(key: MetadataQuery) extends ReadAction
-  case class GetStatus(workflowId: WorkflowId) extends ReadAction
-  case class WorkflowQuery(parameters: Seq[(String, String)]) extends ReadAction
-  case class WorkflowOutputs(workflowId: WorkflowId) extends ReadAction
-  case class GetLogs(workflowId: WorkflowId) extends ReadAction
+  final case class GetMetadataQueryAction(key: MetadataQuery) extends ReadAction
+  final case class GetStatus(workflowId: WorkflowId) extends ReadAction
+  final case class GetLabels(workflowId: WorkflowId) extends ReadAction
+  final case class WorkflowQuery(parameters: Seq[(String, String)]) extends ReadAction
+  final case class WorkflowOutputs(workflowId: WorkflowId) extends ReadAction
+  final case class GetLogs(workflowId: WorkflowId) extends ReadAction
   case object RefreshSummary extends MetadataServiceAction
   trait ValidationCallback {
     def onMalformed(possibleWorkflowId: String): Unit
@@ -97,6 +98,9 @@ object MetadataService {
 
   final case class StatusLookupResponse(workflowId: WorkflowId, status: WorkflowState) extends MetadataServiceResponse
   final case class StatusLookupFailed(workflowId: WorkflowId, reason: Throwable) extends MetadataServiceFailure
+
+  final case class LabelLookupResponse(workflowId: WorkflowId, labels: Map[String, String]) extends MetadataServiceResponse
+  final case class LabelLookupFailed(workflowId: WorkflowId, reason: Throwable) extends MetadataServiceFailure
 
   final case class WorkflowOutputsResponse(id: WorkflowId, outputs: Seq[MetadataEvent]) extends MetadataServiceResponse
   final case class WorkflowOutputsFailure(id: WorkflowId, reason: Throwable) extends MetadataServiceFailure

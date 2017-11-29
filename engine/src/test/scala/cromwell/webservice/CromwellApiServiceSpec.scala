@@ -502,6 +502,17 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
     }
 
+    behavior of "REST API /labels GET endpoint"
+    it should "return labels for a workflow ID" in {
+      Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/labels") ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          val result = responseAs[JsObject]
+          status should be(StatusCodes.OK)
+          result.fields(WorkflowMetadataKeys.Labels).asJsObject.fields("key1") should be(JsString("label1"))
+        }
+    }
+
     behavior of "REST API /labels PATCH endpoint"
     it should "return successful status response when assigning valid labels to an existing workflow ID" in {
 
@@ -590,6 +601,7 @@ object CromwellApiServiceSpec {
           systems = Map(
             "Engine Database" -> SubsystemStatus(ok = true, messages = None)))
       case GetStatus(id) => sender ! StatusLookupResponse(id, WorkflowSubmitted)
+      case GetLabels(id) => sender ! LabelLookupResponse(id, Map("key1" -> "label1", "key2" -> "label2"))
       case WorkflowOutputs(id) =>
         val event = Vector(MetadataEvent(MetadataKey(id, None, "outputs:test.hello.salutation"), MetadataValue("Hello foo!", MetadataString)))
         sender ! WorkflowOutputsResponse(id, event)

@@ -52,4 +52,11 @@ trait CustomLabelEntryComponent {
         customLabelEntry.customLabelValue === labelValue
     ).exists
   }
+
+  val labelsForWorkflowExecutionUuid = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
+      customLabelEntry <- customLabelEntries
+      if customLabelEntry.workflowExecutionUuid === workflowExecutionUuid
+    } yield (customLabelEntry.customLabelKey, customLabelEntry.customLabelValue)
+  )
 }

@@ -197,7 +197,7 @@ trait WdlGraphNodeWithInputs extends WdlGraphNode {
 
   override final def referencedNodes = for {
     expr <- inputMappings.values
-    variable <- expr.variableReferences
+    variable <- expr.variableReferences(this)
     scope <- parent
     node <- scope.resolveVariable(variable.terminal.sourceString)
   } yield node

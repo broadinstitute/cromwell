@@ -215,7 +215,7 @@ case class WdlTask(name: String,
   private def buildWomTaskDefinition: TaskDefinition = CallableTaskDefinition(
     name,
     commandTemplate,
-    runtimeAttributes.toWomRuntimeAttributes,
+    runtimeAttributes.toWomRuntimeAttributes(this),
     meta,
     parameterMeta,
     outputs.map(_.womOutputDefinition).toList,
@@ -228,6 +228,6 @@ case class WdlTask(name: String,
     case d if d.expression.isEmpty && d.womType.isInstanceOf[WomOptionalType] =>
       OptionalInputDefinition(LocalName(d.unqualifiedName), d.womType.asInstanceOf[WomOptionalType])
     case d if d.expression.nonEmpty =>
-      InputDefinitionWithDefault(LocalName(d.unqualifiedName), d.womType, WdlWomExpression(d.expression.get, Option(this)))
+      InputDefinitionWithDefault(LocalName(d.unqualifiedName), d.womType, WdlWomExpression(d.expression.get, this))
   } toList
 }

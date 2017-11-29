@@ -193,7 +193,8 @@ object WomGraph {
     case WomFileType => JsString("gs://bucket/path/file.txt")
     case WomBooleanType => JsBoolean(true)
     case _: WomOptionalType => JsNull
-    case WomArrayType(innerType) => JsArray(Vector(fakeInput(innerType)))
     case WomMapType(_, valueType) => JsObject(Map("0" -> fakeInput(valueType)))
+    case WomArrayType(innerType) => JsArray(Vector(fakeInput(innerType)))
+    case WomPairType(leftType, rightType) => JsObject(Map("left" -> fakeInput(leftType), "right" -> fakeInput(rightType)))
   }
 }

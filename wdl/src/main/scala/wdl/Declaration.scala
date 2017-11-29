@@ -77,7 +77,7 @@ trait DeclarationInterface extends WdlGraphNodeWithUpstreamReferences {
       Some(RequiredInputDefinition(fullyQualifiedName, nonOptionalType))
     // We only make declarations with expressions into inputs if they don't depend on previous tasks or decls:
     case (Some(expr), other) if upstreamAncestry.isEmpty =>
-      Some(InputDefinitionWithDefault(fullyQualifiedName, other, WdlWomExpression(expr, None)))
+      Some(InputDefinitionWithDefault(fullyQualifiedName, other, WdlWomExpression(expr, this)))
     case _ =>
       None
   }
@@ -87,7 +87,7 @@ trait DeclarationInterface extends WdlGraphNodeWithUpstreamReferences {
     s"${womType.toDisplayString} $unqualifiedName$expr"
   }
 
-  final lazy val upstreamReferences = expression.toSeq.flatMap(_.variableReferences)
+  final lazy val upstreamReferences = expression.toSeq.flatMap(_.variableReferences(this))
 
   override def toString: String = {
     s"[Declaration type=${womType.toDisplayString} name=$unqualifiedName expr=${expression.map(_.toWomString)}]"
@@ -123,17 +123,17 @@ object Declaration {
   def buildWdlDeclarationNode(decl: DeclarationInterface, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[WdlDeclarationNode] = {
 
     def declarationAsExpressionNode(wdlExpression: WdlExpression) = {
-      val womExpression = WdlWomExpression(wdlExpression, None)
+      val womExpression = WdlWomExpression(wdlExpression, decl)
       for {
-        inputMapping <- WdlWomExpression.findInputsforExpression(womExpression, localLookup, outerLookup, preserveIndexForOuterLookups)
+        inputMapping <- WdlWomExpression.findInputsforExpression(womExpression, localLookup, outerLookup, preserveIndexForOuterLookups, decl)
         expressionNode <- ExposedExpressionNode.fromInputMapping(decl.womIdentifier, womExpression, decl.womType, inputMapping)
       } yield IntermediateValueDeclarationNode(expressionNode)
     }
 
     def workflowOutputAsGraphOutputNode(wdlExpression: WdlExpression) = {
-      val womExpression = WdlWomExpression(wdlExpression, None)
+      val womExpression = WdlWomExpression(wdlExpression, decl)
       for {
-        inputMapping <- WdlWomExpression.findInputsforExpression(womExpression, localLookup, outerLookup, preserveIndexForOuterLookups)
+        inputMapping <- WdlWomExpression.findInputsforExpression(womExpression, localLookup, outerLookup, preserveIndexForOuterLookups, decl)
         graphOutputNode <- ExpressionBasedGraphOutputNode.fromInputMapping(decl.womIdentifier, womExpression, decl.womType, inputMapping)
       } yield GraphOutputDeclarationNode(graphOutputNode)
     }

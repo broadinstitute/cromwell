@@ -19,7 +19,7 @@ case class If(index: Int, condition: WdlExpression, ast: Ast) extends WdlGraphNo
   val unqualifiedName = s"${If.FQNIdentifier}_$index"
   override def appearsInFqn = false
 
-  final val upstreamReferences = condition.variableReferences
+  final lazy val upstreamReferences = condition.variableReferences(this)
 
   override def toString: String = s"[If fqn=$fullyQualifiedName, condition=${condition.toWomString}]"
 }
@@ -38,8 +38,8 @@ object If {
     * @param preserveIndexForOuterLookups When we're evaluating the condition boolean, should we preserve scatter index if we have to use the outerLookup?
     */
   def womConditionalNode(ifBlock: If, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[ConditionalNodeWithNewNodes] = {
-    val ifConditionExpression = WdlWomExpression(ifBlock.condition, Option(ifBlock))
-    val ifConditionGraphInputExpressionValidation = WdlWomExpression.toExpressionNode(WomIdentifier("conditional"), ifConditionExpression, localLookup, outerLookup, preserveIndexForOuterLookups)
+    val ifConditionExpression = WdlWomExpression(ifBlock.condition, ifBlock)
+    val ifConditionGraphInputExpressionValidation = WdlWomExpression.toExpressionNode(WomIdentifier("conditional"), ifConditionExpression, localLookup, outerLookup, preserveIndexForOuterLookups, ifBlock)
     val ifConditionTypeValidation = ifConditionExpression.evaluateType((localLookup ++ outerLookup).map { case (k, v) => k -> v.womType }) flatMap {
       case WomBooleanType => Valid(())
       case other => s"An if block must be given a boolean expression but instead got '${ifBlock.condition.toWomString}' (a ${other.toDisplayString})".invalidNel

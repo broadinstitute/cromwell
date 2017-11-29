@@ -19,7 +19,7 @@ case class Scatter(index: Int, item: String, collection: WdlExpression, ast: Ast
   val unqualifiedName = s"${Scatter.FQNIdentifier}_$index"
   override def appearsInFqn = false
 
-  final val upstreamReferences = collection.variableReferences
+  final lazy val upstreamReferences = collection.variableReferences(this)
 
   override def toString: String = s"[Scatter fqn=$fullyQualifiedName, item=$item, collection=${collection.toWomString}]"
 }
@@ -40,9 +40,9 @@ object Scatter {
     */
   def womScatterNode(scatter: Scatter, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[ScatterNodeWithNewNodes] = {
     // Convert the scatter collection WdlExpression to a WdlWomExpression 
-    val scatterCollectionExpression = WdlWomExpression(scatter.collection, Option(scatter))
+    val scatterCollectionExpression = WdlWomExpression(scatter.collection, scatter)
     // Generate an ExpressionNode from the WdlWomExpression
-    val scatterCollectionExpressionNode = WdlWomExpression.toExpressionNode(WomIdentifier(scatter.item), scatterCollectionExpression, localLookup, outerLookup, preserveIndexForOuterLookups)
+    val scatterCollectionExpressionNode = WdlWomExpression.toExpressionNode(WomIdentifier(scatter.item), scatterCollectionExpression, localLookup, outerLookup, preserveIndexForOuterLookups, scatter)
     // Validate the collection evaluates to a traversable type
     val scatterItemTypeValidation = scatterCollectionExpression.evaluateType((localLookup ++ outerLookup).map { case (k, v) => k -> v.womType }) flatMap {
       case WomArrayType(itemType) => Valid(itemType) // Covers maps because this is a custom unapply (see WdlArrayType)

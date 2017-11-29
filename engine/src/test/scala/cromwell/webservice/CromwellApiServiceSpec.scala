@@ -590,7 +590,7 @@ object CromwellApiServiceSpec {
     override def receive = {
       case WorkflowQuery(_) =>
         val response = WorkflowQuerySuccess(WorkflowQueryResponse(List(WorkflowQueryResult(ExistingWorkflowId.toString,
-          None, Some(WorkflowSucceeded.toString), None, None))), None)
+          None, Some(WorkflowSucceeded.toString), None, None, None, None))), None)
         sender ! response
       case ValidateWorkflowId(id) =>
         if (RecognizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId

@@ -1,5 +1,7 @@
 package cromwell.services.metadata.impl
 
+import java.sql.Clob
+
 import cats.Semigroup
 import cats.data.NonEmptyList
 import cats.syntax.semigroup._
@@ -13,6 +15,7 @@ import cromwell.services.metadata._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 object MetadataDatabaseAccess {
 
@@ -36,7 +39,7 @@ object MetadataDatabaseAccess {
     }
   }
 
-  def baseSummary(workflowUuid: String) = WorkflowMetadataSummaryEntry(workflowUuid, None, None, None, None, None)
+  def baseSummary(workflowUuid: String) = WorkflowMetadataSummaryEntry(workflowUuid, None, None, None, None)
 
   // If visibility is made `private`, there's a bogus warning about this being unused.
   implicit class MetadatumEnhancer(val metadatum: MetadataEntry) extends AnyVal {
@@ -177,10 +180,61 @@ trait MetadataDatabaseAccess {
       queryParameters.statuses, queryParameters.names, queryParameters.ids.map(_.toString), queryParameters.labels.map(label => (label.key, label.value)),
       queryParameters.startDate.map(_.toSystemTimestamp), queryParameters.endDate.map(_.toSystemTimestamp))
 
+    def queryMetadata(count: Int): Option[QueryMetadata] = {
+      queryParameters.page map { _ => QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(count)) }
+    }
+
+    def summariesToQueryResults(workflows: Traversable[WorkflowMetadataSummaryEntry]): Future[Traversable[MetadataService.WorkflowQueryResult]] = {
+      val mapped: Traversable[Future[MetadataService.WorkflowQueryResult]] = workflows map { summaryToQueryResult }
+      val result: Future[Traversable[MetadataService.WorkflowQueryResult]] = Future.sequence(mapped)
+      result
+    }
+
+    def summaryToQueryResult(workflow: WorkflowMetadataSummaryEntry): Future[MetadataService.WorkflowQueryResult] = {
+
+      def metadataEntriesToValue(entries: Seq[MetadataEntry]): Option[String] = {
+        entries.headOption.flatMap(_.metadataValue.toRawStringOption)
+      }
+
+      def queryResult(parentWorkflowId: Option[String]): MetadataService.WorkflowQueryResult = {
+        MetadataService.WorkflowQueryResult(
+          id = workflow.workflowExecutionUuid,
+          name = workflow.workflowName,
+          status = workflow.workflowStatus,
+          start = workflow.startTimestamp map { _.toSystemOffsetDateTime },
+          end = workflow.endTimestamp map { _.toSystemOffsetDateTime },
+          labels = None,
+          parentWorkflowId = parentWorkflowId
+        )
+      }
+
+      //query metadata
+      val metadataEntries: Future[Seq[MetadataEntry]] = databaseInterface.queryMetadataEntries(workflow.workflowExecutionUuid, "parentWorkflowId")
+
+      metadataEntries map { entries =>
+        val parentWorkflowId = metadataEntriesToValue(entries)
+        queryResult(parentWorkflowId)
+      }
+
+
+    }
+    val out: Future[(WorkflowQueryResponse, Option[QueryMetadata])] = for {
+      count <- workflowSummaryCount
+      workflows <- workflowSummaries
+      queryResults <- summariesToQueryResults(workflows)
+    } yield (WorkflowQueryResponse(queryResults.toSeq), queryMetadata(count))
+
+    out
+
+    /*
     workflowSummaryCount flatMap { count =>
       workflowSummaries map { workflows =>
         (WorkflowQueryResponse(workflows.toSeq map { workflow =>
-          MetadataService.WorkflowQueryResult(
+
+          //query metadata
+          val metadataEntries: Future[Seq[MetadataEntry]] = databaseInterface.queryMetadataEntries(workflow.workflowExecutionUuid, "parentWorkflowId")
+
+          val queryResult = MetadataService.WorkflowQueryResult(
             id = workflow.workflowExecutionUuid,
             name = workflow.workflowName,
             status = workflow.workflowStatus,
@@ -189,10 +243,17 @@ trait MetadataDatabaseAccess {
             labels = None,
             parentWorkflowId = None
           )
+
+          metadataEntries onComplete {
+            case Success(metadata) => queryResult.copy(parentWorkflowId = Some(metadata.head.metadataValue.toRawString))
+            case Failure(_) => None
+          }
+          queryResult
         }),
           //only return metadata if page is defined
           queryParameters.page map { _ => QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(count)) })
       }
     }
+    */
   }
 }

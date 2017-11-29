@@ -38,7 +38,7 @@ abstract class ExpressionNode(override val identifier: WomIdentifier,
   def evaluateAndCoerce(inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): Checked[WomValue] = (for {
     evaluated <- womExpression.evaluateValue(inputs, ioFunctionSet)
     coerced <- womType.coerceRawValue(evaluated).toErrorOr
-  } yield coerced).toEither
+  } yield coerced).leftMap(_.map(e => s"Evaluating ${womExpression.sourceString} failed: $e")).toEither
 }
 
 object ExpressionNode {

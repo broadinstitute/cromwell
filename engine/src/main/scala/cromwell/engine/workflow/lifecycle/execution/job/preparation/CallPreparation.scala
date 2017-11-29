@@ -36,7 +36,7 @@ object CallPreparation {
         })
         
         val coercedValue = pointer.fold(InputPointerToWdlValue).apply(
-          callKey.node, validInputsAccumulated, expressionLanguageFunctions, valueStore, callKey.index
+          validInputsAccumulated, expressionLanguageFunctions, valueStore, callKey.index, inputDefinition
         ) flatMap(inputDefinition.womType.coerceRawValue(_).toErrorOr)
 
         accumulatedInputsSoFar + (inputDefinition -> coercedValue)

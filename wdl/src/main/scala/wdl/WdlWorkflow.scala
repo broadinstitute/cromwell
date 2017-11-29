@@ -1,17 +1,13 @@
 package wdl
 
-import common.util.TryUtil
 import common.validation.ErrorOr.ErrorOr
 import wdl4s.parser.WdlParser._
 import wdl.AstTools._
-import wdl.expression.WdlFunctions
 import wom.callable.Callable.InputDefinition
 import wom.callable.WorkflowDefinition
 import wom.types.WomType
-import wom.values.WomValue
 
 import scala.language.postfixOps
-import scala.util.Try
 
 object WdlWorkflow {
   def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): WdlWorkflow = {
@@ -180,7 +176,7 @@ case class WdlWorkflow(unqualifiedName: String,
       new WorkflowOutput(locallyQualifiedName, womType, WdlExpression.fromString(locallyQualifiedName), output.ast, Option(this))
     }
 
-    def toWorkflowOutputs(scope: Scope) = {
+    def toWorkflowOutputs(scope: Scope): Seq[WorkflowOutput] = {
       // Find out the number of parent scatters
       val outputs = scope match {
         case call: WdlCall => call.outputs
@@ -215,26 +211,6 @@ case class WdlWorkflow(unqualifiedName: String,
   override lazy val outputs: Seq[WorkflowOutput] = expandedWildcardOutputs ++ children collect { case o: WorkflowOutput => o }
 
   override def toString = s"[Workflow $fullyQualifiedName]"
-
-  def evaluateOutputs(knownInputs: WorkflowCoercedInputs,
-                      wdlFunctions: WdlFunctions[WomValue],
-                      outputResolver: OutputResolver = NoOutputResolver,
-                      shards: Map[Scatter, Int] = Map.empty[Scatter, Int]): Try[Map[WorkflowOutput, WomValue]] = {
-
-    val evaluatedOutputs = outputs.foldLeft(Map.empty[WorkflowOutput, Try[WomValue]])((outputMap, output) => {
-      val currentOutputs = outputMap collect {
-        case (outputName, value) if value.isSuccess => outputName.fullyQualifiedName -> value.get
-      }
-      def knownValues = currentOutputs ++ knownInputs
-      val lookup = lookupFunction(knownValues, wdlFunctions, outputResolver, shards, output)
-      val coerced = output.requiredExpression.evaluate(lookup, wdlFunctions) flatMap output.womType.coerceRawValue
-      val workflowOutput = output -> coerced
-
-      outputMap + workflowOutput
-    }) map { case (k, v) => k -> v }
-
-    TryUtil.sequenceMap(evaluatedOutputs, "Failed to evaluate workflow outputs.\n")
-  }
 }
 
 case class ReportableSymbol(fullyQualifiedName: FullyQualifiedName, womType: WomType)

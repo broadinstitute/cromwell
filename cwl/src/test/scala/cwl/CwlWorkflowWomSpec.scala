@@ -196,11 +196,12 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
     ps.inputDefinitionMappings shouldBe empty
     cgrep.inputDefinitionMappings should have size 2
 
+    val cgrepInputs = cgrep.inputDefinitionMappings.toMap
     val cgrepFileInputDef = cgrep.callable.inputs.find(_.name == "file").get
-    cgrep.inputDefinitionMappings(cgrepFileInputDef).select[OutputPort].get should be theSameInstanceAs cgrepFileExpression.singleExpressionOutputPort
+    cgrepInputs(cgrepFileInputDef).select[OutputPort].get should be theSameInstanceAs cgrepFileExpression.singleExpressionOutputPort
 
     val cgrepPatternInputDef = cgrep.callable.inputs.find(_.name == "pattern").get
-    cgrep.inputDefinitionMappings(cgrepPatternInputDef).select[OutputPort].get should be theSameInstanceAs cgrepPatternExpression.singleExpressionOutputPort
+    cgrepInputs(cgrepPatternInputDef).select[OutputPort].get should be theSameInstanceAs cgrepPatternExpression.singleExpressionOutputPort
   }
 
 }

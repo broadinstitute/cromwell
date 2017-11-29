@@ -1,4 +1,3 @@
-ignore: true # Depends on #2860
 name: if_then_else_expressions
 testFormat: workflowsuccess
 

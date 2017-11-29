@@ -41,7 +41,7 @@ package object graph {
       case _: OutputPort => "hexagon"
     }
 
-    def graphName: String = dotSafe(graphNodePort.name)
+    def graphName: String = dotSafe(graphNodePort.womType.toDisplayString + " " + graphNodePort.name)
     def graphId: String = dotSafe("PORT" + graphObjectUniqueId(graphNodePort))
   }
 

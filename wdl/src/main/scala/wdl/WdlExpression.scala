@@ -242,7 +242,11 @@ object WdlWomExpression {
     *
     * If the input is found in an outer scope, we also make a new input node in the inner graph to represent it.
     */
-  def findInputsforExpression(expression: WdlWomExpression, innerLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean, owningScope: Scope): ErrorOr[Map[String, GraphNodePort.OutputPort]] = {
+  def findInputsforExpression(expression: WdlWomExpression,
+                              innerLookup: Map[String, GraphNodePort.OutputPort],
+                              outerLookup: Map[String, GraphNodePort.OutputPort],
+                              preserveIndexForOuterLookups: Boolean,
+                              owningScope: Scope): ErrorOr[Map[String, GraphNodePort.OutputPort]] = {
 
     def resolveVariable(v: AstTools.VariableReference): ErrorOr[(String, GraphNodePort.OutputPort)] = {
       val name = v.referencedVariableName

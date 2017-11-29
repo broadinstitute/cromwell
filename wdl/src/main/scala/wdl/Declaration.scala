@@ -102,6 +102,12 @@ object Declaration {
       case IntermediateValueDeclarationNode(expressionNode) => expressionNode
       case GraphOutputDeclarationNode(graphOutputNode) => graphOutputNode
     }
+    lazy val singleOutputPort = this match {
+      case InputDeclarationNode(graphInputNode) => graphInputNode.singleOutputPort
+      case IntermediateValueDeclarationNode(expressionNode) => expressionNode.singleExpressionOutputPort
+      case GraphOutputDeclarationNode(outputNode) => outputNode.graphOutputPort
+    }
+    lazy val localName = toGraphNode.localName
   }
   final case class InputDeclarationNode(graphInputNode: GraphInputNode) extends WdlDeclarationNode
   final case class IntermediateValueDeclarationNode(expressionNode: ExpressionNode) extends WdlDeclarationNode

@@ -8,8 +8,6 @@ import cats.syntax.either._
 import cats.syntax.foldable._
 import cats.syntax.monoid._
 import cats.syntax.validated._
-import cwl.ScatterMethod._
-import cwl.WorkflowStep._
 import common.Checked
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
@@ -172,7 +170,7 @@ case class WorkflowStep(
           case _ if expressionNodes.contains(inputDefinition.name) =>
             val expressionNode = expressionNodes(inputDefinition.name)
             InputDefinitionFold(
-              mappings = Map(inputDefinition -> expressionNode.inputDefinitionPointer),
+              mappings = List(inputDefinition -> expressionNode.inputDefinitionPointer),
               callInputPorts = Set(callNodeBuilder.makeInputPort(inputDefinition, expressionNode.singleExpressionOutputPort)),
               newExpressionNodes = Set(expressionNode)
             ).validNel
@@ -180,7 +178,7 @@ case class WorkflowStep(
           // No expression node mapping, use the default
           case withDefault @ InputDefinitionWithDefault(_, _, expression) =>
             InputDefinitionFold(
-              mappings = Map(withDefault -> Coproduct[InputDefinitionPointer](expression))
+              mappings = List(withDefault -> Coproduct[InputDefinitionPointer](expression))
             ).validNel
 
           // Required input without default value and without mapping, this is a validation error
@@ -190,7 +188,7 @@ case class WorkflowStep(
           // Optional input without mapping, defaults to empty value
           case optional: OptionalInputDefinition =>
             InputDefinitionFold(
-              mappings = Map(optional -> Coproduct[InputDefinitionPointer](optional.womType.none: WomValue))
+              mappings = List(optional -> Coproduct[InputDefinitionPointer](optional.womType.none: WomValue))
             ).validNel
         }
       }

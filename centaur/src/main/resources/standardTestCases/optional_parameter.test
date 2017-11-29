@@ -1,5 +1,5 @@
-ignore: true # Reinstate with #2860
-# Tests interactions with an optional parameter. Supplying no value at all, using a default value and supplying a value
+# Tests interactions with an optional parameter.
+# Supplying no value at all, using a default value and supplying a value, depending on optional inputs in other inputs
 
 name: optional_parameter
 testFormat: workflowsuccess

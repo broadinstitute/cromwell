@@ -37,7 +37,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     val actor = TestActorRef(helper.buildTestJobPreparationActor(null, null, null, error.invalidNel, List.empty), self)
     actor ! Start(ValueStore.empty)
     expectMsgPF(1.second) {
-      case CallPreparationFailed(_, ex) => ex.getMessage shouldBe "Call input and runtime attributes evaluation failed:\nFailed to prepare inputs/attributes - part of test flow"
+      case CallPreparationFailed(_, ex) => ex.getMessage shouldBe "Call input and runtime attributes evaluation failed for JobPreparationSpec_call:\nFailed to prepare inputs/attributes - part of test flow"
     }
     helper.workflowDockerLookupActor.expectNoMsg(100 millis)
   }

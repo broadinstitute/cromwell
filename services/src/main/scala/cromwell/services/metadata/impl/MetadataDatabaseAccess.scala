@@ -187,9 +187,8 @@ trait MetadataDatabaseAccess {
             start = workflow.startTimestamp map { _.toSystemOffsetDateTime },
             end = workflow.endTimestamp map { _.toSystemOffsetDateTime },
             labels = None,
-            rootWorkflowId = None
+            parentWorkflowId = None
           )
-          //MetadataService.WorkflowQueryResult(Map("id" -> workflow.workflowExecutionUuid))
         }),
           //only return metadata if page is defined
           queryParameters.page map { _ => QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(count)) })

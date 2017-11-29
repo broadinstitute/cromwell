@@ -14,6 +14,9 @@ import cromwell.webservice.CromwellApiService.BackendResponse
 import cromwell.webservice.metadata.MetadataBuilderActor.BuiltMetadataResponse
 import spray.json.{DefaultJsonProtocol, JsObject, JsString, JsValue, RootJsonFormat}
 
+import cromwell.core.labels.Label
+import scala.language.postfixOps
+
 object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val workflowStatusResponseProtocol = jsonFormat2(WorkflowStatusResponse)
   implicit val workflowAbortResponseProtocol = jsonFormat2(WorkflowAbortResponse)
@@ -47,20 +50,15 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
     }
   }
 
-  implicit object WorkflowQueryResultJsonFormat extends RootJsonFormat[WorkflowQueryResult] {
-    def write(q: WorkflowQueryResult) = {
-      val mapping: Map[String, JsValue] = q.keys map { case (k: String, v: String) => k -> JsString(v) }
-      JsObject(mapping)
-    }
-    def read(value: JsValue): WorkflowQueryResult = {
-      val keys: Map[String, String] = value.asJsObject.fields map {
-        case (k, JsString(v)) => k -> v
-        case other => throw new NotImplementedError(s"Cannot parse $other to a WorkflowQueryResult")
-      }
-      WorkflowQueryResult(keys)
-    }
+  implicit object LabelJsonFormat extends RootJsonFormat[List[Label]] {
+    def write(l: List[Label]) = JsObject(l map { label => label.key -> JsString(label.value)} :_* )
+    def read(value: JsValue) = value.asJsObject.fields map {
+      case (k, JsString(v)) => Label(k, v)
+      case other => throw new UnsupportedOperationException(s"Cannot deserialize $other to a Label")
+    } toList
   }
 
+  implicit val workflowQueryResult = jsonFormat7(WorkflowQueryResult)
   implicit val workflowQueryResponse = jsonFormat1(WorkflowQueryResponse)
 }
 

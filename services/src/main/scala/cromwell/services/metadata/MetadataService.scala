@@ -4,6 +4,7 @@ import java.time.OffsetDateTime
 
 import akka.actor.ActorRef
 import cats.data.NonEmptyList
+import cromwell.core.labels.Label
 import cromwell.core.{FullyQualifiedName, JobKey, WorkflowId, WorkflowState}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import lenthall.exception.{MessageAggregation, ThrowableAggregation}
@@ -16,8 +17,7 @@ object MetadataService {
 
   final val MetadataServiceName = "MetadataService"
 
-  //final case class WorkflowQueryResult(params: List[Any])
-  final case class WorkflowQueryResult(keys: Map[String, String])
+  final case class WorkflowQueryResult(id: String, name: Option[String], status: Option[String], start: Option[OffsetDateTime], end: Option[OffsetDateTime], labels: Option[List[Label]], rootWorkflowId: Option[String])
 
   final case class WorkflowQueryResponse(results: Seq[WorkflowQueryResult])
 

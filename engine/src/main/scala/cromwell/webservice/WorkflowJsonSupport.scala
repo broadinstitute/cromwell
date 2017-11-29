@@ -12,7 +12,7 @@ import WdlValueJsonFormatter._
 import better.files.File
 import cromwell.webservice.CromwellApiService.BackendResponse
 import cromwell.webservice.metadata.MetadataBuilderActor.BuiltMetadataResponse
-import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
+import spray.json.{DefaultJsonProtocol, JsObject, JsString, JsValue, RootJsonFormat}
 
 object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val workflowStatusResponseProtocol = jsonFormat2(WorkflowStatusResponse)
@@ -47,7 +47,20 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
     }
   }
 
-  implicit val workflowQueryResult = jsonFormat1(WorkflowQueryResult)
+  implicit object WorkflowQueryResultJsonFormat extends RootJsonFormat[WorkflowQueryResult] {
+    def write(q: WorkflowQueryResult) = {
+      val mapping: Map[String, JsValue] = q.keys map { case (k: String, v: String) => k -> JsString(v) }
+      JsObject(mapping)
+    }
+    def read(value: JsValue): WorkflowQueryResult = {
+      val keys: Map[String, String] = value.asJsObject.fields map {
+        case (k, JsString(v)) => k -> v
+        case other => throw new NotImplementedError(s"Cannot parse $other to a WorkflowQueryResult")
+      }
+      WorkflowQueryResult(keys)
+    }
+  }
+
   implicit val workflowQueryResponse = jsonFormat1(WorkflowQueryResponse)
 }
 

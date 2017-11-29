@@ -181,7 +181,7 @@ trait MetadataDatabaseAccess {
       workflowSummaries map { workflows =>
         (WorkflowQueryResponse(workflows.toSeq map { workflow =>
 //          MetadataService.WorkflowQueryResult(id = workflow.workflowExecutionUuid, name = workflow.workflowName, status = workflow.workflowStatus, start = workflow.startTimestamp map { _.toSystemOffsetDateTime }, end = workflow.endTimestamp map { _.toSystemOffsetDateTime })
-          MetadataService.WorkflowQueryResult(keys = Seq(("id", workflow.workflowExecutionUuid)))
+          MetadataService.WorkflowQueryResult(Map("id" -> workflow.workflowExecutionUuid))
         }),
           //only return metadata if page is defined
           queryParameters.page map { _ => QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(count)) })

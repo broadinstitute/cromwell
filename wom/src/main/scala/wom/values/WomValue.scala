@@ -1,5 +1,6 @@
 package wom.values
 
+import wom.expression.{ValueAsAnExpression, WomExpression}
 import wom.types.WomType
 import wom.{OptionalNotSuppliedException, WomExpressionException}
 
@@ -68,6 +69,8 @@ trait WomValue {
       case w => symbolHash(w.valueString)
     }
   }
+
+  def asWomExpression: WomExpression = new ValueAsAnExpression(this)
 }
 
 object WomValue {

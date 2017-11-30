@@ -6,6 +6,7 @@ import cromwell.backend.RuntimeAttributeDefinition
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import org.slf4j.Logger
+import wom.expression.WomExpression
 import wom.types.WomType
 import wom.values.WomValue
 
@@ -35,9 +36,9 @@ trait ValidatedRuntimeAttributesBuilder {
   /**
     * Returns validators suitable for BackendWorkflowInitializationActor.runtimeAttributeValidators.
     */
-  final lazy val validatorMap: Map[String, (Option[WomValue]) => Boolean] = {
+  final lazy val validatorMap: Map[String, (Option[WomExpression]) => Boolean] = {
     validations.map(validation =>
-      validation.key -> validation.validateOptionalExpression _
+      validation.key -> validation.validateOptionalWomExpression _
     ).toMap
   }
 

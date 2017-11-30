@@ -2,7 +2,8 @@ package cromwell.backend.async
 
 import cromwell.core.path.Path
 import common.exception.ThrowableAggregation
-import wom.values.WomValue
+import cromwell.core.NoIoFunctionSet
+import wom.expression.WomExpression
 
 abstract class KnownJobFailureException extends Exception {
   def stderrPath: Option[Path]
@@ -29,14 +30,14 @@ final case class StderrNonEmpty(jobTag: String, stderrLength: Long, stderrPath: 
 object RuntimeAttributeValidationFailure {
   def apply(jobTag: String,
             runtimeAttributeName: String,
-            runtimeAttributeValue: Option[WomValue]): RuntimeAttributeValidationFailure = RuntimeAttributeValidationFailure(jobTag, runtimeAttributeName, runtimeAttributeValue, None)
+            runtimeAttributeValue: Option[WomExpression]): RuntimeAttributeValidationFailure = RuntimeAttributeValidationFailure(jobTag, runtimeAttributeName, runtimeAttributeValue, None)
 }
 
 final case class RuntimeAttributeValidationFailure private (jobTag: String,
                                                             runtimeAttributeName: String,
-                                                            runtimeAttributeValue: Option[WomValue],
+                                                            runtimeAttributeValue: Option[WomExpression],
                                                             stderrPath: Option[Path]) extends KnownJobFailureException {
-  override def getMessage = s"Task $jobTag has an invalid runtime attribute $runtimeAttributeName = ${runtimeAttributeValue map { _.valueString} getOrElse "!! NOT FOUND !!"}"
+  override def getMessage = s"Task $jobTag has an invalid runtime attribute $runtimeAttributeName = ${runtimeAttributeValue map { _.evaluateValue(Map.empty, NoIoFunctionSet)} getOrElse "!! NOT FOUND !!"}"
 }
 
 final case class RuntimeAttributeValidationFailures(throwables: List[RuntimeAttributeValidationFailure]) extends KnownJobFailureException with ThrowableAggregation {

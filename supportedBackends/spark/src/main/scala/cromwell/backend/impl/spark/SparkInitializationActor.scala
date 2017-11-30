@@ -7,6 +7,7 @@ import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.WorkflowOptions
+import wom.expression.WomExpression
 import wom.graph.TaskCallNode
 import wom.types.{WomBooleanType, WomIntegerType, WomStringType}
 import wom.values.WomValue
@@ -30,7 +31,7 @@ class SparkInitializationActor(override val workflowDescriptor: BackendWorkflowD
                                override val configurationDescriptor: BackendConfigurationDescriptor,
                                override val serviceRegistryActor: ActorRef) extends BackendWorkflowInitializationActor {
 
-  override protected def runtimeAttributeValidators: Map[String, (Option[WomValue]) => Boolean] = Map(
+  override protected def runtimeAttributeValidators: Map[String, (Option[WomExpression]) => Boolean] = Map(
     FailOnStderrKey -> wdlTypePredicate(valueRequired = false, WomBooleanType.isCoerceableFrom),
     SparkRuntimeAttributes.AppMainClassKey -> wdlTypePredicate(valueRequired = true, WomStringType.isCoerceableFrom),
     SparkRuntimeAttributes.NumberOfExecutorsKey -> wdlTypePredicate(valueRequired = false, WomIntegerType.isCoerceableFrom),

@@ -58,7 +58,7 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
     val x_inputNode = ScatterVariableNode(WomIdentifier("x"), xsExpressionAsInput.singleExpressionOutputPort, WomArrayType(WomIntegerType))
     val fooNodeBuilder = new CallNodeBuilder()
     val fooInputFold = InputDefinitionFold(
-      mappings = Map(
+      mappings = List(
         fooInputDef -> Coproduct[InputDefinitionPointer](x_inputNode.singleOutputPort: OutputPort)
       ),
       callInputPorts = Set(

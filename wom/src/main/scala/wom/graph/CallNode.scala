@@ -27,11 +27,11 @@ final case class TaskCallNode private(override val identifier: WomIdentifier,
                                       override val inputPorts: Set[GraphNodePort.InputPort],
                                       inputDefinitionMappings: InputDefinitionMappings) extends CallNode {
   val callType: String = "task"
-  val expressionBasedOutputPorts: List[ExpressionBasedOutputPort] = {
+  lazy val expressionBasedOutputPorts: List[ExpressionBasedOutputPort] = {
     callable.outputs.map(o => ExpressionBasedOutputPort(o.localName, o.womType, this, o.expression))
   }
 
-  override val outputPorts: Set[OutputPort] = expressionBasedOutputPorts.toSet[OutputPort]
+  override lazy val outputPorts: Set[OutputPort] = expressionBasedOutputPorts.toSet[OutputPort]
 }
 
 final case class WorkflowCallNode private(override val identifier: WomIdentifier,
@@ -70,7 +70,7 @@ object TaskCall {
       }
 
       InputDefinitionFold(
-        mappings = Map(inputDef -> Coproduct[InputDefinitionPointer](newNode.singleOutputPort: OutputPort)),
+        mappings = List(inputDef -> Coproduct[InputDefinitionPointer](newNode.singleOutputPort: OutputPort)),
         newGraphInputNodes = Set(newNode),
         callInputPorts = Set(callNodeBuilder.makeInputPort(inputDef, newNode.singleOutputPort))
       )
@@ -106,14 +106,15 @@ object CallNode {
     }
   }
 
-  final case class InputDefinitionFold(mappings: InputDefinitionMappings = Map.empty,
+  final case class InputDefinitionFold(mappings: InputDefinitionMappings = List.empty,
                                        callInputPorts: Set[InputPort] = Set.empty,
                                        newGraphInputNodes: Set[ExternalGraphInputNode] = Set.empty,
                                        newExpressionNodes: Set[ExpressionNode] = Set.empty,
                                        usedOuterGraphInputNodes: Set[OuterGraphInputNode] = Set.empty)
 
   type InputDefinitionPointer = OutputPort :+: WomExpression :+: WomValue :+: CNil
-  type InputDefinitionMappings = Map[InputDefinition, InputDefinitionPointer]
+  // This is a List rather than Map because the order of 'InputDefinition's is important:
+  type InputDefinitionMappings = List[(InputDefinition, InputDefinitionPointer)]
 
   final case class CallNodeAndNewNodes(node: CallNode, newInputs: Set[ExternalGraphInputNode], newExpressions: Set[ExpressionNode], override val usedOuterGraphInputNodes: Set[OuterGraphInputNode]) extends GeneratedNodeAndNewNodes {
     def nodes: Set[GraphNode] = Set(node) ++ newInputs ++ newExpressions ++ usedOuterGraphInputNodes

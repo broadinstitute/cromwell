@@ -94,7 +94,8 @@ class WdlNamespaceWomSpec extends FlatSpec with Matchers {
     cgrep.inputDefinitionMappings should have size 2
 
     val cgrepFileInputDef = cgrep.callable.inputs.find(_.name == "in_file").get
-    val inFileMapping = cgrep.inputDefinitionMappings(cgrepFileInputDef)
+    val cgrepInputs = cgrep.inputDefinitionMappings.toMap
+    val inFileMapping = cgrepInputs(cgrepFileInputDef)
     inFileMapping.select[OutputPort].isDefined shouldBe true
     // This should be less ugly when we can access a string value from a womexpression
     inFileMapping.select[OutputPort].get
@@ -103,7 +104,7 @@ class WdlNamespaceWomSpec extends FlatSpec with Matchers {
       .wdlExpression.valueString shouldBe "ps.procs"
 
     val cgrepPatternInputDef = cgrep.callable.inputs.find(_.name == "pattern").get
-    cgrep.inputDefinitionMappings(cgrepPatternInputDef).select[OutputPort].get eq patternInputNode.singleOutputPort shouldBe true
+    cgrepInputs(cgrepPatternInputDef).select[OutputPort].get eq patternInputNode.singleOutputPort shouldBe true
   }
 
 }

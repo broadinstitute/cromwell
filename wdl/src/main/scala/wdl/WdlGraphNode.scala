@@ -5,7 +5,6 @@ import cats.syntax.validated._
 import common.collections.EnhancedCollections._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import wdl.AstTools.{EnhancedAstNode, VariableReference}
-import wdl.Declaration.{GraphOutputDeclarationNode, InputDeclarationNode, IntermediateValueDeclarationNode}
 import wom.graph.CallNode.CallNodeAndNewNodes
 import wom.graph.GraphNode.GeneratedNodeAndNewNodes
 import wom.graph.GraphNodePort.OutputPort
@@ -120,11 +119,11 @@ object WdlGraphNode {
         val newOgins: Set[OuterGraphInputNode] = declNode.upstreamOuterGraphInputNodes
         val newOginOutputs = newOgins.map(_.nameToPortMapping)
 
-        // We only want to include the output port as an input to other GraphNodes in the FoldState if it's not a Workflow Output:
-        val availableOutputPort: Option[(String, OutputPort)] = wdlDeclNode match {
-          case InputDeclarationNode(graphInputNode) => Option(declNode.localName -> graphInputNode.singleOutputPort)
-          case IntermediateValueDeclarationNode(expressionNode) => Option(declNode.localName -> expressionNode.singleExpressionOutputPort)
-          case GraphOutputDeclarationNode(_) => None
+        // Add the output port, but only if the value isn't already available as an input from somewhere else
+        val availableOutputPort: Option[(String, OutputPort)] = if(!acc.availableInputs.contains(wdlDeclNode.localName)) {
+          Option(wdlDeclNode.localName -> wdlDeclNode.singleOutputPort)
+        } else {
+          None
         }
 
         FoldState(acc.nodes + declNode ++ newOgins, acc.availableInputs ++ newOginOutputs ++ availableOutputPort)

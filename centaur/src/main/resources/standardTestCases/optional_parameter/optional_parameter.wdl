@@ -2,6 +2,7 @@ task select_first_with_optionals {
 	String? supplied
 	String? wfSupplied
 	String? unsupplied
+	# Tests that we can use an optional input in a subsequent input expression:
 	String suppliedWithDefault = select_first([supplied, "HAPPY_BIRTHDAY_RUCHI"])
 	String wfSuppliedWithDefault = select_first([wfSupplied, "HAPPY_BIRTHDAY_RUCHI"])
 	String unsuppliedWithDefault = select_first([unsupplied, "HAPPY_BIRTHDAY_RUCHI"])

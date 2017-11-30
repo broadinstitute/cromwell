@@ -77,20 +77,20 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     val jobKey = BackendJobDescriptorKey(call, None, 1)
     
     val inputDeclarations: Map[InputDefinition, WomValue] = call.inputDefinitionMappings.map {
-      case (inputDef, resolved) => inputDef -> 
+      case (inputDef, resolved) => inputDef ->
         resolved.select[WomValue].orElse(
           resolved.select[WomExpression]
             .map(
               _.evaluateValue(inputs, NoIoFunctionSet).getOrElse(fail("Can't evaluate input"))
             )
         ).orElse(
-        workflowDescriptor.knownValues
-          .get(resolved.select[OutputPort].get)
+          workflowDescriptor.knownValues
+            .get(resolved.select[OutputPort].get)
         )
-        .getOrElse {
-          inputs(inputDef.name) 
-        }
-    }
+          .getOrElse {
+            inputs(inputDef.name)
+          }
+    }.toMap
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.callable.runtimeAttributes, NoIoFunctionSet, Map.empty).getOrElse(fail("Failed to evaluate runtime attributes")) // .get is OK here because this is a test
     val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
     BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, NoDocker, Map.empty)

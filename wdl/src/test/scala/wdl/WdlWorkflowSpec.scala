@@ -1,15 +1,16 @@
 package wdl
 
+import common.util.TryUtil
 import org.scalactic.Equality
 import org.scalatest.enablers.Aggregating._
 import org.scalatest.{Matchers, WordSpec}
-import wdl.expression.NoFunctions
+import wdl.expression.{NoFunctions, WdlFunctions}
 import wdl.values.WdlCallOutputsObject
 import wdl4s.parser.WdlParser.SyntaxError
 import wom.types._
 import wom.values._
 
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 class WdlWorkflowSpec extends WordSpec with Matchers {
 
@@ -130,6 +131,27 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
       }
     }
 
+    def evaluateOutputs(workflow: WdlWorkflow,
+                        knownInputs: WorkflowCoercedInputs,
+                        wdlFunctions: WdlFunctions[WomValue],
+                        outputResolver: OutputResolver,
+                        shards: Map[Scatter, Int] = Map.empty[Scatter, Int]): Try[Map[WorkflowOutput, WomValue]] = {
+
+      val evaluatedOutputs = workflow.outputs.foldLeft(Map.empty[WorkflowOutput, Try[WomValue]])((outputMap, output) => {
+        val currentOutputs = outputMap collect {
+          case (outputName, outputValue) if outputValue.isSuccess => outputName.fullyQualifiedName -> outputValue.get
+        }
+        def knownValues = currentOutputs ++ knownInputs
+        val lookup = workflow.lookupFunction(knownValues, wdlFunctions, outputResolver, shards, output)
+        val coerced = output.requiredExpression.evaluate(lookup, wdlFunctions) flatMap output.womType.coerceRawValue
+        val workflowOutput = output -> coerced
+
+        outputMap + workflowOutput
+      })
+
+      TryUtil.sequenceMap(evaluatedOutputs, "Failed to evaluate workflow outputs.\n")
+    }
+
     def verifyOutputsForNamespace(ns: WdlNamespaceWithWorkflow,
                                   declarationExpectations: Seq[WorkflowOutputExpectation],
                                   evaluationExpectations: Map[String, WomValue],
@@ -137,7 +159,7 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
       val outputs = ns.workflow.outputs
       outputs should contain theSameElementsAs declarationExpectations
 
-      val evaluatedOutputs = ns.workflow.evaluateOutputs(workflowInputs, NoFunctions, outputResolver)
+      val evaluatedOutputs = evaluateOutputs(ns.workflow, workflowInputs, NoFunctions, outputResolver)
       evaluatedOutputs match {
         case Success(v) => v map { case (output, outputValue) => output.unqualifiedName -> outputValue } should contain theSameElementsAs evaluationExpectations
         case Failure(e) => fail(e)

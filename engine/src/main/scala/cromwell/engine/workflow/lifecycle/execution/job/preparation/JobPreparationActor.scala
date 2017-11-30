@@ -60,7 +60,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
       evaluateInputsAndAttributes(valueStore) match {
         case Valid((inputs, attributes)) => fetchDockerHashesIfNecessary(inputs, attributes)
         case Invalid(failure) => sendFailureAndStop(new MessageAggregation {
-          override def exceptionContext: String = "Call input and runtime attributes evaluation failed"
+          override def exceptionContext: String = s"Call input and runtime attributes evaluation failed for ${jobKey.call.localName}"
           override def errorMessages: Traversable[String] = failure.toList
         })
       }

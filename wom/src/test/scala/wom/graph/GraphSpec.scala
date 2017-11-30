@@ -57,7 +57,7 @@ class GraphSpec extends FlatSpec with Matchers {
     
     val cgrepNodeBuilder = new CallNodeBuilder()
     val cgrepInputDefinitionFold = InputDefinitionFold(
-      mappings = Map(
+      mappings = List(
         cgrepPattern -> Coproduct[InputDefinitionPointer](workflowInputNode.singleOutputPort: OutputPort),
         cgrepInFile -> Coproduct[InputDefinitionPointer](psCall.outputPorts.head: OutputPort)
       ),
@@ -72,7 +72,7 @@ class GraphSpec extends FlatSpec with Matchers {
 
     val wcNodeBuilder = new CallNodeBuilder()
     val wcInputDefinitionFold = InputDefinitionFold(
-      mappings = Map(
+      mappings = List(
         wcInFile -> Coproduct[InputDefinitionPointer](psCall.outputPorts.head)
       ),
       Set(
@@ -116,7 +116,7 @@ class GraphSpec extends FlatSpec with Matchers {
     val workflowInputNode = RequiredGraphInputNode(WomIdentifier("three_step.cgrep.pattern"), WomStringType)
     
     val inputDefinitionFold = InputDefinitionFold(
-      mappings = Map.empty,
+      mappings = List.empty,
       Set.empty,
       Set(workflowInputNode)
     )

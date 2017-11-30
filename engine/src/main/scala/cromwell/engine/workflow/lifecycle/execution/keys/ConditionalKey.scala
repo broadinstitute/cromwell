@@ -9,7 +9,7 @@ import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore.ValueKey
 import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActorData, WorkflowExecutionDiff}
 import wom.graph._
 import wom.graph.expression.ExpressionNode
-import wom.values.{WomBoolean, WomOptionalValue, WomValue}
+import wom.values.{WomBoolean, WomValue}
 
 /**
   * Represents a conditional node in the execution store.
@@ -60,7 +60,7 @@ private [execution] case class ConditionalKey(node: ConditionalNode, index: Exec
         val conditionalStatus = if (b.value) ExecutionStatus.Done else ExecutionStatus.Bypassed
 
         val valueStoreAdditions: Map[ValueKey, WomValue] = if (!b.value) {
-          node.outputPorts.map(op => ValueKey(op, index) -> WomOptionalValue(op.womType, None)).toMap
+          node.conditionalOutputPorts.map(op => ValueKey(op, index) -> op.womType.none).toMap
         } else Map.empty
 
         WorkflowExecutionDiff(

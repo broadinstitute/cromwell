@@ -87,7 +87,7 @@ object WdlCall {
       // expression node mapping is found
       def withGraphInputNode(inputDefinition: InputDefinition, graphInputNode: ExternalGraphInputNode) = {
         InputDefinitionFold(
-          mappings = Map(inputDefinition -> Coproduct[InputDefinitionPointer](graphInputNode.singleOutputPort: OutputPort)),
+          mappings = List(inputDefinition -> Coproduct[InputDefinitionPointer](graphInputNode.singleOutputPort: OutputPort)),
           callInputPorts = Set(callNodeBuilder.makeInputPort(inputDefinition, graphInputNode.singleOutputPort)),
           newGraphInputNodes = Set(graphInputNode)
         )
@@ -98,7 +98,7 @@ object WdlCall {
         case inputDefinition if expressionNodes.contains(inputDefinition.localName) =>
           val expressionNode = expressionNodes(inputDefinition.localName)
           InputDefinitionFold(
-            mappings = Map(inputDefinition -> expressionNode.inputDefinitionPointer),
+            mappings = List(inputDefinition -> expressionNode.inputDefinitionPointer),
             callInputPorts = Set(callNodeBuilder.makeInputPort(inputDefinition, expressionNode.singleExpressionOutputPort)),
             newExpressionNodes = Set(expressionNode)
           )
@@ -106,7 +106,7 @@ object WdlCall {
         // No input mapping, use the default expression
         case withDefault @ InputDefinitionWithDefault(_, _, expression) =>
           InputDefinitionFold(
-            mappings = Map(withDefault -> Coproduct[InputDefinitionPointer](expression))
+            mappings = List(withDefault -> Coproduct[InputDefinitionPointer](expression))
           )
 
         // No input mapping, required and we don't have a default value, create a new RequiredGraphInputNode

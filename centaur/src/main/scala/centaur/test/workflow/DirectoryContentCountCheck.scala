@@ -3,11 +3,10 @@ package centaur.test.workflow
 import cats.data.Validated._
 import cats.implicits._
 import centaur.test.{CheckFiles, JesCheckFiles, LocalCheckFiles}
-import com.google.cloud.storage.StorageOptions
 import com.typesafe.config.Config
+import common.validation.ErrorOr.ErrorOr
 import configs.Result
 import configs.syntax._
-import common.validation.ErrorOr.ErrorOr
 
 final case class DirectoryContentCountCheck(expectedDrectoryContentsCounts: Map[String, Int], checkFiles: CheckFiles)
 
@@ -23,8 +22,8 @@ object DirectoryContentCountCheck {
       }
 
       val fileSystemChecker: ErrorOr[CheckFiles] = conf.get[String]("fileSystemCheck") match {
-        case Result.Success("gcs") => valid(JesCheckFiles(StorageOptions.getDefaultInstance.getService))
-        case Result.Success("local") => valid(LocalCheckFiles())
+        case Result.Success("gcs") => valid(JesCheckFiles)
+        case Result.Success("local") => valid(LocalCheckFiles)
         case Result.Success(_) => invalidNel(s"Test '$name': Invalid 'fileSystemCheck' value (must be either 'local' or 'gcs')")
         case Result.Failure(_) => invalidNel(s"Test '$name': Must specify a 'fileSystemCheck' value (must be either 'local' or 'gcs')")
       }

@@ -53,7 +53,7 @@ lazy val cromwellApiClient = project
 
 lazy val centaur = project
   .withLibrarySettings("centaur", centaurDependencies, integrationTests = true)
-  .dependsOn(common)
+  .dependsOn(cloudSupport)
   .dependsOn(cromwellApiClient)
 
 lazy val services = project

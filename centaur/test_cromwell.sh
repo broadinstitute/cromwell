@@ -13,16 +13,18 @@ EXIT_CODE=1
 PROGNAME="$(basename $0)"
 
 usage="
-$PROGNAME [-b branch] [-j jar path] [-r rundir] [-c config file] [-t refresh token] [-e excludeTag] [-i testDirPath]
+$PROGNAME [-h] [-b branch] [-j jar path] [-r rundir] [-c config file] [-t refresh token file] [-s service account json] [-e excludeTag] [-i testDirPath]
 
 Builds and runs specified branch of Cromwell and runs Centaur against it.
 
 Arguments:
+    -h    Displays this help message and exits
     -b    Branch of Cromwell to test. Mutually exclusive with -j
     -j    Path of a cromwell jar to use. Mutually exclusive with -b
     -r    Directory where script is run (defaults to current directory)
     -c    If supplied, the config file to pass to Cromwell
-    -t    Refresh Token that can be passed into the appropriate options file
+    -t    If supplied, the file containing a Refresh Token that can be passed into the appropriate options file
+    -s    If supplied, the Google service account json that should be used for various centaur operations
     -e    If supplied, will exclude tests with this tag
     -p    If supplied, number of tests to be run in parallel. 16 is the default
     -i    If supplied, will run the tests in this directory instead of the standard tests
@@ -32,7 +34,7 @@ INITIAL_DIR=$(pwd)
 RUN_DIR=$(pwd)
 TEST_THREAD_COUNT=16
 
-while getopts ":hb:r:c:p:j:t:e:i:" option; do
+while getopts ":hb:r:c:p:j:t:s:e:i:" option; do
     case "$option" in
         h) echo "$usage"
             exit
@@ -44,10 +46,15 @@ while getopts ":hb:r:c:p:j:t:e:i:" option; do
             ;;
         c) CONFIG_STRING="${OPTARG}"
             ;;
-
         j) CROMWELL_JAR="${OPTARG}"
             ;;
-        t) REFRESH_TOKEN=-Dcentaur.optionalToken=$(cat "${OPTARG}")
+        t) REFRESH_TOKEN=-Dcentaur.optionalTokenPath="${OPTARG}"
+            ;;
+        s) CENTAUR_GOOGLE_AUTH="-Dcentaur.google.auth=service-account"
+           CENTAUR_GOOGLE_AUTHS_NAME="-Dcentaur.google.auths.0.name=service-account"
+           CENTAUR_GOOGLE_AUTHS_SCHEME="-Dcentaur.google.auths.0.scheme=service_account"
+           CENTAUR_GOOGLE_AUTHS_JSON_FILE="-Dcentaur.google.auths.0.json-file=${OPTARG}"
+           CENTAUR_GOOGLE="${CENTAUR_GOOGLE_AUTH} ${CENTAUR_GOOGLE_AUTHS_NAME} ${CENTAUR_GOOGLE_AUTHS_SCHEME} ${CENTAUR_GOOGLE_AUTHS_JSON_FILE}"
             ;;
         p) TEST_THREAD_COUNT="${OPTARG}"
             ;;
@@ -115,15 +122,15 @@ CENTAUR_CROMWELL_JAR="-Dcentaur.cromwell.jar.path=${CROMWELL_JAR}"
 CENTAUR_CROMWELL_CONF="-Dcentaur.cromwell.jar.conf=${CONFIG_STRING}"
 CENTAUR_CROMWELL_LOG="-Dcentaur.cromwell.jar.log=${CROMWELL_LOG}"
 CENTAUR_CROMWELL_RESTART="-Dcentaur.cromwell.jar.withRestart=true"
-CENTAUR_CONF="${CENTAUR_CROMWELL_MODE} ${CENTAUR_CROMWELL_JAR} ${CENTAUR_CROMWELL_CONF} ${CENTAUR_CROMWELL_LOG} ${CENTAUR_CROMWELL_RESTART}"
+CENTAUR_CONF="${CENTAUR_CROMWELL_MODE} ${CENTAUR_CROMWELL_JAR} ${CENTAUR_CROMWELL_CONF} ${CENTAUR_CROMWELL_LOG} ${CENTAUR_CROMWELL_RESTART} ${CENTAUR_GOOGLE}"
 
 if [[ -n ${EXCLUDE_TAG[*]} ]]; then
     echo "Running Centaur filtering out ${EXCLUDE_TAG[*]} tests"
     EXCLUDE=""
     for val in "${EXCLUDE_TAG[@]}"; do 
-        EXCLUDE="-l $val "$EXCLUDE
+        EXCLUDE="-l $val "${EXCLUDE}
     done
-    TEST_COMMAND="java ${REFRESH_TOKEN} ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -PS${TEST_THREAD_COUNT} "$EXCLUDE
+    TEST_COMMAND="java ${REFRESH_TOKEN} ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -PS${TEST_THREAD_COUNT} "${EXCLUDE}
 else
     echo "Running Centaur with sbt test"
     TEST_COMMAND="java ${REFRESH_TOKEN} ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -PS${TEST_THREAD_COUNT}"

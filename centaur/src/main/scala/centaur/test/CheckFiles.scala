@@ -1,25 +1,25 @@
 package centaur.test
 
-import com.google.cloud.storage.{Blob, Storage}
 import com.google.cloud.storage.Storage.BlobListOption
+import com.google.cloud.storage.{Blob, Storage}
 
 import scala.collection.JavaConverters._
-
 import scala.language.implicitConversions
 
 sealed trait CheckFiles {
   def countObjectsAtPath: String => Int
 }
 
-case class JesCheckFiles(storage: Storage) extends CheckFiles {
+case object JesCheckFiles extends CheckFiles {
   import GCS._
+
+  private lazy val storage = Operations.storage
 
   def countObjectsAtPath: String => Int =
     storage.parsePath andThen storage.countObjectsAtPath
 }
 
-
-case class LocalCheckFiles() extends CheckFiles {
+case object LocalCheckFiles extends CheckFiles {
   def countObjectsAtPath: String => Int = { s =>
     val d = new java.io.File(s)
     if (d.exists && d.isDirectory)

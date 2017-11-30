@@ -4,12 +4,12 @@ You can configure Cromwell settings either through configuration files or the Ja
 
 Check out the tutorial on [How to Configure Cromwell](tutorials/ConfigurationFiles) for more information.
 
-### cromwell.examples.conf
+### Configuration examples
 
 You can find a description of options and example stanzas in the [file
 `cromwell.examples.conf`](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf).
 
-### Custom Configuration Files
+### Custom configuration files
 
 You write configuration files in
 [HOCON](https://github.com/typesafehub/config/blob/master/HOCON.md#hocon-human-optimized-config-object-notation).
@@ -60,7 +60,7 @@ webservice.port = 8000
 webservice.interface = 0.0.0.0
 ```
 
-## Configuration via Command Line Arguments
+## Configuration via command line
 
 In addition to using configuration files, you can use dot-separated configuration names to specify values directly on the Java command line:
 
@@ -68,7 +68,7 @@ In addition to using configuration files, you can use dot-separated configuratio
 $ java -Dwebservice.port=8080 cromwell.jar ...
 ```
 
-## Advanced Configuration
+## Advanced configuration
 
 **WARNING:** These advanced configuration values can significantly affect the performance of Cromwell. 
 
@@ -173,6 +173,45 @@ database {
 }
 ```
 
+**Cromwell server on MySQL Database**
+
+You can use [docker-compose](https://github.com/broadinstitute/cromwell/tree/develop/scripts) to link together a Cromwell docker image (built locally with `sbt docker` or available on [Dockerhub](https://hub.docker.com/r/broadinstitute/cromwell/)) with a MySQL docker image.
+
+To change the version of Cromwell used, [change the tag in `compose/cromwell/Dockerfile`](https://github.com/broadinstitute/cromwell/blob/develop/scripts/docker-compose-mysql/compose/cromwell/Dockerfile).
+
+**Local**
+
+`docker-compose up` from this directory will start a Cromwell server running on a MySQL instance with local backend.
+
+The default configuration file used can be [found at `compose/cromwell/app-config/application.conf`](https://github.com/broadinstitute/cromwell/blob/develop/scripts/docker-compose-mysql/compose/cromwell/app-config/application.conf).
+To override it, simply mount a volume containing your custom `application.conf` to `/app-config` ([see `jes-cromwell/docker-compose.yml` for an example](https://github.com/broadinstitute/cromwell/blob/develop/scripts/docker-compose-mysql/jes-cromwell/docker-compose.yml)).
+
+**Google Cloud**
+
+The [`jes-cromwell` directory](https://github.com/broadinstitute/cromwell/tree/develop/scripts/docker-compose-mysql/jes-cromwell) is an example of how to customize the original compose file with a configuration file and environment variables.
+
+It uses the application default credentials of the host machine. To use it make sure your gcloud is up to date and that your [application-default credentials](https://developers.google.com/identity/protocols/application-default-credentials) are set up.
+
+Then run `docker-compose -f docker-compose.yml -f jes-cromwell/docker-compose.yml up` to start a Cromwell server with a Google Cloud backend on MySQL.
+
+**MySQL**
+
+The data directory in the MySQL container is [mounted to `compose/mysql/data`](https://github.com/broadinstitute/cromwell/tree/develop/scripts/docker-compose-mysql/compose/mysql/init), which allows the data to survive a `docker-compose down`.
+
+To disable this feature, simply remove the `./compose/mysql/data:/var/lib/mysql` line in the [volume section of `docker-compose.yml`](https://github.com/broadinstitute/cromwell/blob/develop/scripts/docker-compose-mysql/docker-compose.yml).
+
+Note that in such case, the data will still be preserved by a `docker-compose stop` that stops the container but doesn't delete it.
+
+**Notes**
+
+To run Cromwell in the background, add `-d` at the end of the command:
+`docker-compose up -d`.
+
+To then see the logs for a specific service, run `docker-compose logs -f <service>`. 
+For example `docker-compose logs -f cromwell`.
+
+For more information about docker compose: [Docker compose doc](https://docs.docker.com/compose/).
+
 **Insert Batch Size**
 
 Cromwell queues up and then inserts batches of records into the database for increased performance. You can adjust the number of database rows batch inserted by cromwell as follows:
@@ -227,7 +266,7 @@ By default, this value is false when running `java -jar cromwell.jar server`, an
 
 Read the [Abort](Abort) page to learn more about how abort works.
 
-### Call Caching
+### Call caching
 
 Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  To learn more see [Call Caching](CallCaching).
 
@@ -245,7 +284,7 @@ When `invalidate-bad-cache-results=true` (default: `true`), Cromwell will invali
 
 Cromwell also accepts [Workflow Options](wf_options/Overview#call-caching-options) to override the cache read/write behavior.  
 
-### Local Filesystem Options
+### Local filesystem options
 
 When running a job on the Config (Shared Filesystem) backend, Cromwell provides some additional options in the backend's config section:
 
@@ -279,7 +318,7 @@ When running a job on the Config (Shared Filesystem) backend, Cromwell provides 
       }
 ```
 
-### Workflow Log Directory
+### Workflow log directory
 
 To change the directory where Cromwell writes workflow logs, change the directory location via the setting:
 

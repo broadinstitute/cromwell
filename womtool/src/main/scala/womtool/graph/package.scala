@@ -2,7 +2,7 @@ package womtool
 
 import wom.graph.GraphNodePort.{InputPort, OutputPort}
 import wom.graph._
-import wom.graph.expression.ExpressionNode
+import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode}
 
 package object graph {
 
@@ -16,6 +16,11 @@ package object graph {
       case _: PortBasedGraphOutputNode => "yellowgreen"
       case _: ExpressionBasedGraphOutputNode => "palegreen"
       case _ => "white"
+    }
+
+    def graphStyle = graphNode match {
+      case _: AnonymousExpressionNode => "\"filled,dashed\""
+      case _ => "\"filled,solid\""
     }
 
     def graphName: String = dotSafe(graphNode match {

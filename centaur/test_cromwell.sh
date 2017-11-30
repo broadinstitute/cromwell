@@ -13,7 +13,7 @@ EXIT_CODE=1
 PROGNAME="$(basename $0)"
 
 usage="
-$PROGNAME [-h] [-b branch] [-j jar path] [-r rundir] [-c config file] [-t refresh token file] [-s service account json] [-e excludeTag] [-i testDirPath]
+$PROGNAME [-h] [-b branch] [-j jar path] [-g] [-r rundir] [-c config file] [-t refresh token file] [-s service account json] [-e excludeTag] [-i testDirPath]
 
 Builds and runs specified branch of Cromwell and runs Centaur against it.
 
@@ -22,6 +22,7 @@ Arguments:
     -b    Branch of Cromwell to test. Mutually exclusive with -j
     -j    Path of a cromwell jar to use. Mutually exclusive with -b
     -r    Directory where script is run (defaults to current directory)
+    -g    Generate code coverage output for the centaur main classes
     -c    If supplied, the config file to pass to Cromwell
     -t    If supplied, the file containing a Refresh Token that can be passed into the appropriate options file
     -s    If supplied, the Google service account json that should be used for various centaur operations
@@ -33,8 +34,9 @@ Arguments:
 INITIAL_DIR=$(pwd)
 RUN_DIR=$(pwd)
 TEST_THREAD_COUNT=16
+CENTAUR_SBT_COVERAGE=false
 
-while getopts ":hb:r:c:p:j:t:s:e:i:" option; do
+while getopts ":hb:r:c:p:j:gt:s:e:i:" option; do
     case "$option" in
         h) echo "$usage"
             exit
@@ -47,6 +49,8 @@ while getopts ":hb:r:c:p:j:t:s:e:i:" option; do
         c) CONFIG_STRING="${OPTARG}"
             ;;
         j) CROMWELL_JAR="${OPTARG}"
+            ;;
+        g) CENTAUR_SBT_COVERAGE=true
             ;;
         t) REFRESH_TOKEN=-Dcentaur.optionalTokenPath="${OPTARG}"
             ;;
@@ -110,8 +114,8 @@ cd "${RUN_DIR}"
 
 TEST_STATUS="failed"
 
-sbt centaur/it:compile
-CP=$(sbt "export centaur/it:dependencyClasspath" --error)
+ENABLE_COVERAGE=${CENTAUR_SBT_COVERAGE} sbt centaur/it:compile
+CP=$(ENABLE_COVERAGE=${CENTAUR_SBT_COVERAGE} sbt "export centaur/it:dependencyClasspath" --error)
 
 if [ -n "${TEST_CASE_DIR}" ]; then
     RUN_SPECIFIED_TEST_DIR_CMD="-Dcentaur.standardTestCasePath=${TEST_CASE_DIR}"

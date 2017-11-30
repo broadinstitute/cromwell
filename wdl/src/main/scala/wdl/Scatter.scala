@@ -7,6 +7,7 @@ import wdl4s.parser.WdlParser.{Ast, Terminal}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.ScatterNode.ScatterNodeWithNewNodes
 import wom.graph._
+import wom.graph.expression.PlainAnonymousExpressionNode
 import wom.types.WomArrayType
 
 /**
@@ -42,7 +43,8 @@ object Scatter {
     // Convert the scatter collection WdlExpression to a WdlWomExpression 
     val scatterCollectionExpression = WdlWomExpression(scatter.collection, scatter)
     // Generate an ExpressionNode from the WdlWomExpression
-    val scatterCollectionExpressionNode = WdlWomExpression.toExpressionNode(WomIdentifier(scatter.item), scatterCollectionExpression, localLookup, outerLookup, preserveIndexForOuterLookups, scatter)
+    val scatterCollectionExpressionNode =
+      WdlWomExpression.toAnonymousExpressionNode(WomIdentifier(scatter.item), scatterCollectionExpression, localLookup, outerLookup, preserveIndexForOuterLookups, scatter, PlainAnonymousExpressionNode.apply)
     // Validate the collection evaluates to a traversable type
     val scatterItemTypeValidation = scatterCollectionExpression.evaluateType((localLookup ++ outerLookup).map { case (k, v) => k -> v.womType }) flatMap {
       case WomArrayType(itemType) => Valid(itemType) // Covers maps because this is a custom unapply (see WdlArrayType)

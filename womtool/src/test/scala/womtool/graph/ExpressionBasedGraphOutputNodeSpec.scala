@@ -59,7 +59,7 @@ class ExpressionBasedGraphOutputNodeSpec extends WomDotGraphTest {
       |    "PORT1" [shape=oval label="Int j_out"];
       |  }
       |  subgraph cluster_3 {
-      |    style="filled,dashed";
+      |    style="filled,solid";
       |    fillcolor=palegreen;
       |    "NODE8" [shape=plaintext label="Int x_out"]
       |    "PORT9" [shape=hexagon label="Int x_out"];

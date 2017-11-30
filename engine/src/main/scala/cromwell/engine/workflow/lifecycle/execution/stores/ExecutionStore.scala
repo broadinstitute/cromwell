@@ -130,6 +130,10 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
   // View of the statusStore more suited for lookup based on status
   lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).mapValues(_.keys.toList)
 
+  def keyForNode(node: GraphNode): Option[JobKey] = {
+    statusStore.keys collectFirst { case k if k.node eq node => k }
+  }
+
   /**
     * Update key statuses and needsUpdate
     */

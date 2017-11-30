@@ -10,7 +10,7 @@ import wom.callable.CallableTaskDefinition
 import wom.expression.PlaceholderWomExpression
 import wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNodePort.OutputPort
-import wom.graph.expression.AnonymousExpressionNode
+import wom.graph.expression.{AnonymousExpressionNode, PlainAnonymousExpressionNode}
 import wom.types.{WomArrayType, WomIntegerType, WomStringType}
 
 class ScatterNodeSpec extends FlatSpec with Matchers {
@@ -52,7 +52,7 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
 
     val xsExpression = PlaceholderWomExpression(Set("xs"), WomArrayType(WomIntegerType))
     val xsExpressionAsInput = AnonymousExpressionNode
-      .fromInputMapping(WomIdentifier("x"), xsExpression, Map("xs" -> xs_inputNode.singleOutputPort))
+      .fromInputMapping(WomIdentifier("x"), xsExpression, Map("xs" -> xs_inputNode.singleOutputPort), PlainAnonymousExpressionNode.apply)
       .valueOr(failures => fail(s"Failed to create expression node: ${failures.toList.mkString(", ")}"))
     
     val x_inputNode = ScatterVariableNode(WomIdentifier("x"), xsExpressionAsInput.singleExpressionOutputPort, WomArrayType(WomIntegerType))

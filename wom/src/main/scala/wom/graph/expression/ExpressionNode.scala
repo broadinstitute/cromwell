@@ -18,9 +18,9 @@ import wom.values.WomValue
   * Encapsulates a WomExpression with input ports connected to the expression's dependencies.
   */
 abstract class ExpressionNode(override val identifier: WomIdentifier,
-                     val womExpression: WomExpression,
-                     val womType: WomType,
-                     val inputMapping: Map[String, InputPort]) extends GraphNode {
+                              val womExpression: WomExpression,
+                              val womType: WomType,
+                              val inputMapping: Map[String, InputPort]) extends GraphNode {
   val singleExpressionOutputPort = GraphNodeOutputPort(identifier, womType, this)
   override val outputPorts: Set[GraphNodePort.OutputPort] = Set(singleExpressionOutputPort)
   override val inputPorts = inputMapping.values.toSet

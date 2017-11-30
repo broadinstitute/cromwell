@@ -13,7 +13,7 @@ import wom.callable.Callable._
 import wom.graph.CallNode._
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
-import wom.graph.expression.ExpressionNode
+import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode, PlainAnonymousExpressionNode, TaskCallInputExpressionNode}
 import wom.types.WomOptionalType
 import wom.values.{WomOptionalValue, WomValue}
 
@@ -67,10 +67,15 @@ object WdlCall {
       *   input3 = other_task.out + 2   -> ExpressionNode with an input port pointing to the output port of other_task.out
       * }
      */
-    def expressionNodeMappings: ErrorOr[Map[LocalName, ExpressionNode]] = wdlCall.inputMappings traverse {
+    def expressionNodeMappings: ErrorOr[Map[LocalName, AnonymousExpressionNode]] = wdlCall.inputMappings traverse {
       case (inputName, wdlExpression) =>
         val identifier = wdlCall.womIdentifier.combine(inputName)
-        WdlWomExpression.toExpressionNode(identifier, WdlWomExpression(wdlExpression, wdlCall), localLookup, outerLookup, preserveIndexForOuterLookups, wdlCall) map {
+        val constructor = wdlCall match {
+          case _: WdlTaskCall => TaskCallInputExpressionNode.apply _
+          case _ => PlainAnonymousExpressionNode.apply _
+        }
+
+        WdlWomExpression.toAnonymousExpressionNode(identifier, WdlWomExpression(wdlExpression, wdlCall), localLookup, outerLookup, preserveIndexForOuterLookups, wdlCall, constructor) map {
           LocalName(inputName) -> _
         }
     }
@@ -130,7 +135,18 @@ object WdlCall {
           ogin <- expressionNode.upstreamOuterGraphInputNodes
         } yield ogin
 
-        callNodeBuilder.build(wdlCall.womIdentifier, callable, foldInputDefinitions(mappings, callable).copy(usedOuterGraphInputNodes = usedOgins))
+        val callNodeAndNewNodes = callNodeBuilder.build(wdlCall.womIdentifier, callable, foldInputDefinitions(mappings, callable).copy(usedOuterGraphInputNodes = usedOgins))
+
+        // If the created node is a `TaskCallNode` the created input expressions should be `TaskCallInputExpressionNode`s
+        // and should be assigned a reference to the `TaskCallNode`. This is used in the `WorkflowExecutionActor` to
+        // find the task and the task's backend so the right `IoFunctionSet` can be used to evaluate task call inputs.
+        for {
+          taskCallNode <- List(callNodeAndNewNodes.node) collect { case c: TaskCallNode => c }
+          taskCallInputExpression <- mappings.values.toList collect { case t: TaskCallInputExpressionNode => t }
+          _ = taskCallInputExpression.taskCallNodeReceivingInput._graphNode = taskCallNode
+        } yield ()
+
+        callNodeAndNewNodes
     }
   }
 }

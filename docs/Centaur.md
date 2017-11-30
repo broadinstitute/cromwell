@@ -8,7 +8,7 @@ Centaur expects to find a Cromwell server properly configured and running in ser
 
 There are two ways to invoke the integration tests:
 
-* `sbt test` - compiles and run via sbt directly, simple but also has the problem of running two times cores tests in parallel which can overwhelm your Cromwell server if running in a development environment
+* `sbt test` - compiles and run via sbt directly, simple but also has the problem of running 2x cores tests in parallel which can overwhelm your Cromwell server if running in a development environment
 
 * `run_tests_parallel.sh [THREADS]` - runs the same tests with an enforced parallelism limit.  Defaults to `3` if not specified
 
@@ -20,12 +20,12 @@ Tag names are all lower case, so a test named "tagFoo" has a tag "tagfoo".
 
 To run only those tests which have been tagged with a specified tag `tagFoo`:
 ```
-sbt "testOnly * -- -n tagfoo"
+sbt "centaur/it:testOnly * -- -n tagfoo"
 ```
 
 Or to instead exclude all tests which have been tagged with a specified tag `tagFoo`:
 ```
-sbt "testOnly * -- -l tagfoo"
+sbt "centaur/it:testOnly * -- -l tagfoo"
 ```
 
 ## Adding custom tests

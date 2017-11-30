@@ -16,7 +16,8 @@ import wdl4s.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
 import wom.core._
 import wom.expression._
 import wom.graph._
-import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode}
+import wom.graph.expression.AnonymousExpressionNode
+import wom.graph.expression.AnonymousExpressionNode.AnonymousExpressionConstructor
 import wom.types.{WomAnyType, WomType}
 import wom.values.{WomFile, WomFloat, WomValue}
 
@@ -264,17 +265,18 @@ object WdlWomExpression {
       resolvedVariables <- expression.wdlExpression.variableReferences(owningScope).toList traverse resolveVariable
     } yield resolvedVariables.toMap
   }
-  
-  def toExpressionNode(nodeIdentifier: WomIdentifier,
-                       expression: WdlWomExpression,
-                       innerLookup: Map[String, GraphNodePort.OutputPort],
-                       outerLookup: Map[String, GraphNodePort.OutputPort],
-                       preserveIndexForOuterLookups: Boolean,
-                       owningScope: Scope): ErrorOr[ExpressionNode] = {
+
+  def toAnonymousExpressionNode[T <: AnonymousExpressionNode](nodeIdentifier: WomIdentifier,
+                                                              expression: WdlWomExpression,
+                                                              innerLookup: Map[String, GraphNodePort.OutputPort],
+                                                              outerLookup: Map[String, GraphNodePort.OutputPort],
+                                                              preserveIndexForOuterLookups: Boolean,
+                                                              owningScope: Scope,
+                                                              constructor: AnonymousExpressionConstructor[T]): ErrorOr[T] = {
     import common.validation.ErrorOr.ShortCircuitingFlatMap
-    
+
     findInputsforExpression(expression, innerLookup, outerLookup, preserveIndexForOuterLookups, owningScope) flatMap { resolvedVariables =>
-       AnonymousExpressionNode.fromInputMapping(nodeIdentifier, expression, resolvedVariables)
+      AnonymousExpressionNode.fromInputMapping(nodeIdentifier, expression, resolvedVariables, constructor)
     }
   }
 }

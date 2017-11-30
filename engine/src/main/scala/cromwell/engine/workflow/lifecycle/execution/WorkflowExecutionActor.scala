@@ -9,6 +9,7 @@ import cats.syntax.validated._
 import common.Checked
 import common.exception.{AggregatedException, AggregatedMessageException, MessageAggregation}
 import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend._
 import cromwell.core.Dispatcher._
@@ -31,6 +32,7 @@ import cromwell.webservice.EngineStatsActor
 import org.apache.commons.lang3.StringUtils
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
+import wom.graph.expression.TaskCallInputExpressionNode
 import wom.values._
 
 import scala.concurrent.duration._
@@ -416,7 +418,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       case key: SubWorkflowKey => processRunnableSubWorkflow(key, data)
       case key: ConditionalCollectorKey => key.processRunnable(data)
       case key: ConditionalKey => key.processRunnable(data)
-      case key: ExpressionKey => key.processRunnable(data, self)
+      case key @ ExpressionKey(expr: TaskCallInputExpressionNode, _) => processRunnableTaskCallInputExpression(key, data, expr)
+      case key: ExpressionKey => key.processRunnable(data.expressionLanguageFunctions, data.valueStore, self)
       case key: ScatterCollectorKey => key.processRunnable(data)
       case key: ScatterKey => key.processRunnable(data)
       case other =>
@@ -430,6 +433,34 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     )
   }
 
+   /*
+    * If this ExpressionKey has a TaskCallInputExpressionNode that feeds a task call input, use the backend IoFunctionSet
+    * instead of the engine's IoFunctionSet to properly handle `writeFile` or `readFile` invocations.
+    */
+  private def processRunnableTaskCallInputExpression(key: ExpressionKey,
+                                                     data: WorkflowExecutionActorData,
+                                                     expressionNode: TaskCallInputExpressionNode): ErrorOr[WorkflowExecutionDiff] = {
+    import cats.syntax.either._
+    val taskCallNode = expressionNode.taskCallNodeReceivingInput.get(())
+
+    (for {
+      jobKey <- data.executionStore.keyForNode(taskCallNode).toChecked(s"No job key found for call node $taskCallNode")
+      backendJobDescriptorKey <- Option(jobKey) collectFirst { case k: BackendJobDescriptorKey => k } toChecked s"Job key not a BackendJobDescriptorKey: $jobKey"
+      factory <- backendFactoryForTaskCallNode(taskCallNode)
+      backendInitializationData = params.initializationData.get(factory.name)
+      functions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, backendJobDescriptorKey, backendInitializationData)
+      diff <- key.processRunnable(functions, data.valueStore, self).toEither
+    } yield diff).toValidated
+  }
+
+  private def backendFactoryForTaskCallNode(taskCallNode: TaskCallNode): Checked[BackendLifecycleActorFactory] = {
+    for {
+      name <- workflowDescriptor
+        .backendAssignments.get(taskCallNode).toChecked(s"Cannot find an assigned backend for call ${taskCallNode.fullyQualifiedName}")
+      factory <- backendFactories.get(name).toChecked(s"Cannot find a backend factory for backend $name")
+    } yield factory
+  }
+
   /*
     * Job and Sub Workflow processing
     *
@@ -437,10 +468,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     * While it would be possible to extract those methods from the WEA as well and provide them with an actor factory, the majority of the objects needed to create
     * the children actors are attributes of this class, so it makes more sense to keep the functions here.
    */
-
   private def processRunnableJob(key: BackendJobDescriptorKey, data: WorkflowExecutionActorData): ErrorOr[WorkflowExecutionDiff] = {
     import cats.syntax.either._
-    import cats.syntax.option._
     import common.validation.Checked._
 
     // Determines the run command to be sent to the BJEA when starting the job
@@ -467,18 +496,16 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     }
 
     (for {
-      backendName <- workflowDescriptor
-        .backendAssignments.get(key.call).toValidNel(s"Cannot find an assigned backend for call ${key.call.fullyQualifiedName}").toEither
-      backendFactory <- backendFactories.get(backendName).toValidNel(s"Cannot find a backend factory for backend $backendName").toEither
+      factory <- backendFactoryForTaskCallNode(key.call)
       command <- runCommand
-    } yield startEJEA(key, backendName, backendFactory, command)).toValidated
+    } yield startEJEA(key, factory, command)).toValidated
   }
 
   private def startEJEA(jobKey: BackendJobDescriptorKey,
-                        backendName: String,
                         backendFactory: BackendLifecycleActorFactory,
                         command: BackendJobExecutionActorCommand): WorkflowExecutionDiff = {
     val ejeaName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
+    val backendName = backendFactory.name
     val backendSingleton = params.backendSingletonCollection.backendSingletonActors(backendName)
     val ejeaProps = EngineJobExecutionActor.props(
       self,

@@ -3,7 +3,7 @@ package wom.graph
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
 import wom.expression._
-import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode}
+import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode, PlainAnonymousExpressionNode}
 import wom.types.WomIntegerType
 
 class ExpressionNodeSpec extends FlatSpec with Matchers {
@@ -35,7 +35,7 @@ class ExpressionNodeSpec extends FlatSpec with Matchers {
     // Declare the expression node using both i and j:
     import common.validation.ErrorOr.ShortCircuitingFlatMap
     val graph = for {
-      xDeclarationNode <- AnonymousExpressionNode.fromInputMapping(WomIdentifier("x"), ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))
+      xDeclarationNode <- AnonymousExpressionNode.fromInputMapping(WomIdentifier("x"), ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort), PlainAnonymousExpressionNode.apply)
       xOutputNode = PortBasedGraphOutputNode(WomIdentifier("x_out"), WomIntegerType, xDeclarationNode.singleExpressionOutputPort)
       g <- Graph.validateAndConstruct(Set(iInputNode, jInputNode, xDeclarationNode, xOutputNode))
     } yield g

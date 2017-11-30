@@ -8,6 +8,7 @@ import wdl4s.parser.WdlParser.Ast
 import wom.graph.ConditionalNode.ConditionalNodeWithNewNodes
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
+import wom.graph.expression.PlainAnonymousExpressionNode
 import wom.types.WomBooleanType
 /**
   * Represents an If block in WDL
@@ -39,7 +40,8 @@ object If {
     */
   def womConditionalNode(ifBlock: If, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[ConditionalNodeWithNewNodes] = {
     val ifConditionExpression = WdlWomExpression(ifBlock.condition, ifBlock)
-    val ifConditionGraphInputExpressionValidation = WdlWomExpression.toExpressionNode(WomIdentifier("conditional"), ifConditionExpression, localLookup, outerLookup, preserveIndexForOuterLookups, ifBlock)
+    val ifConditionGraphInputExpressionValidation = WdlWomExpression.toAnonymousExpressionNode(
+      WomIdentifier("conditional"), ifConditionExpression, localLookup, outerLookup, preserveIndexForOuterLookups, ifBlock, PlainAnonymousExpressionNode.apply)
     val ifConditionTypeValidation = ifConditionExpression.evaluateType((localLookup ++ outerLookup).map { case (k, v) => k -> v.womType }) flatMap {
       case WomBooleanType => Valid(())
       case other => s"An if block must be given a boolean expression but instead got '${ifBlock.condition.toWomString}' (a ${other.toDisplayString})".invalidNel

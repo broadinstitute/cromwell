@@ -5,8 +5,10 @@ import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, _}
 import cromwell.core.ExecutionIndex._
 import cromwell.core.{ExecutionStatus, JobKey}
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionDiff
 import cromwell.engine.workflow.lifecycle.execution.keys.ExpressionKey.{ExpressionEvaluationFailedResponse, ExpressionEvaluationSucceededResponse}
-import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActorData, WorkflowExecutionDiff}
+import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
+import wom.expression.IoFunctionSet
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.expression.ExpressionNode
 import wom.values.WomValue
@@ -25,11 +27,11 @@ private [execution] case class ExpressionKey(node: ExpressionNode, index: Execut
     case (key, input) => key -> input.upstream
   }
 
-  def processRunnable(data: WorkflowExecutionActorData, workflowExecutionActor: ActorRef): ErrorOr[WorkflowExecutionDiff] = {
-    upstreamPorts.traverseValues(data.valueStore.resolve(index)) map { lookup =>
+  def processRunnable(ioFunctionSet: IoFunctionSet, valueStore: ValueStore, workflowExecutionActor: ActorRef): ErrorOr[WorkflowExecutionDiff] = {
+    upstreamPorts.traverseValues(valueStore.resolve(index)) map { lookup =>
       // Send a message to self in case we decide to change evaluate to return asynchronously, if we don't we could
       // directly add the value to the value store in the execution diff
-      node.evaluateAndCoerce(lookup, data.expressionLanguageFunctions) match {
+      node.evaluateAndCoerce(lookup, ioFunctionSet) match {
         case Right(result) => workflowExecutionActor ! ExpressionEvaluationSucceededResponse(this, result)
         case Left(f) => workflowExecutionActor ! ExpressionEvaluationFailedResponse(this, new RuntimeException(f.toList.mkString(", ")))
       }

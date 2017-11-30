@@ -3,8 +3,8 @@ package wom.graph
 import common.validation.ErrorOr.ErrorOr
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort}
+import wom.graph.expression.ExpressionNode
 import wom.graph.expression.ExpressionNode.buildFromConstructor
-import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode}
 import wom.types.WomType
 
 sealed trait GraphOutputNode extends GraphNode {
@@ -43,6 +43,6 @@ object ExpressionBasedGraphOutputNode {
 /**
   * A graph output which is produced by evaluating an expression.
   */
-trait ExpressionBasedGraphOutputNode extends AnonymousExpressionNode with GraphOutputNode {
+trait ExpressionBasedGraphOutputNode extends ExpressionNode with GraphOutputNode {
   override val graphOutputPort: OutputPort = singleExpressionOutputPort
 }

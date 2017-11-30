@@ -5,7 +5,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import wom.callable.TaskDefinitionSpec
 import wom.expression._
 import wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold}
-import wom.graph.expression.AnonymousExpressionNode
+import wom.graph.expression.{AnonymousExpressionNode, TaskCallInputExpressionNode}
 import wom.types.WomIntegerType
 
 class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
@@ -35,7 +35,8 @@ class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
     val ijExpression = PlaceholderWomExpression(Set("i", "j"), WomIntegerType)
 
     // Use that as an input to a one-input task:
-    val expressionNode = AnonymousExpressionNode.fromInputMapping(WomIdentifier("bar"), ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))
+    val expressionNode = AnonymousExpressionNode.fromInputMapping(
+      WomIdentifier("bar"), ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort), TaskCallInputExpressionNode.apply)
       .getOrElse(fail("Failed to build expression node"))
 
     val callNodeBuilder = new CallNodeBuilder()

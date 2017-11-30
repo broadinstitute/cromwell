@@ -11,13 +11,13 @@ import cromwell.core.{NoIoFunctionSet, WorkflowMetadataKeys, WorkflowOptions}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import wom.callable.TaskDefinition
-import wom.expression.{ValueAsAnExpression, WomExpression}
+import wom.expression.WomExpression
 import wom.graph.TaskCallNode
 import wom.types.WomType
 import wom.values.WomValue
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Try}
 
 object BackendWorkflowInitializationActor {
 
@@ -32,38 +32,6 @@ object BackendWorkflowInitializationActor {
   case class InitializationSuccess(backendInitializationData: Option[BackendInitializationData]) extends InitializationResponse
   case class InitializationFailed(reason: Throwable) extends Exception with InitializationResponse
 
-  def validateRuntimeAttributes(coerceDefaultRuntimeAttributes: WorkflowOptions => Try[Map[String, WomValue]],
-                                workflowOptions: WorkflowOptions,
-                                calls: Set[TaskCallNode],
-                                runtimeAttributeValidators: Map[String, Option[WomExpression] => Boolean]
-                               ): Future[Unit] = {
-
-    coerceDefaultRuntimeAttributes(workflowOptions) match {
-      case Success(defaultRuntimeAttributes) =>
-
-        def defaultRuntimeAttribute(name: String): Option[WomValue] = {
-          defaultRuntimeAttributes.get(name)
-        }
-
-        def badRuntimeAttrsForTask(task: TaskDefinition) = {
-          runtimeAttributeValidators map {
-            case (attributeName, validator) =>
-              val value: Option[WomExpression] =
-                task.runtimeAttributes.attributes.get(attributeName) orElse
-                  defaultRuntimeAttribute(attributeName).map(_.asWomExpression)
-              attributeName -> ((value, validator(value)))
-          } collect {
-            case (name, (value, false)) => RuntimeAttributeValidationFailure(task.name, name, value)
-          }
-        }
-
-        calls map { _.callable } flatMap badRuntimeAttrsForTask match {
-          case errors if errors.isEmpty => Future.successful(())
-          case errors => Future.failed(RuntimeAttributeValidationFailures(errors.toList))
-        }
-      case Failure(t) => Future.failed(t)
-    }
-  }
 }
 
 /**
@@ -149,33 +117,33 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     * - It would be nice to memoize as much of the work that gets done here as possible so it doesn't have to all be
     *   repeated when the various `FooRuntimeAttributes` classes are created, in the spirit of #1076.
     */
-  private def validateRuntimeAttributes: Future[Unit] = {
+  def validateRuntimeAttributes: Try[Unit] = {
 
-    coerceDefaultRuntimeAttributes(workflowDescriptor.workflowOptions) match {
-      case Success(_) =>
-
-//        def defaultRuntimeAttribute(name: String): Option[WomValue] = {
-//          defaultRuntimeAttributes.get(name)
-//        }
-
-        def badRuntimeAttrsForTask(task: TaskDefinition) = {
-          // TODO WOM: https://github.com/broadinstitute/cromwell/issues/2606
-//          runtimeAttributeValidators map { case (attributeName, validator) =>
-//            val value = task.runtimeAttributes.attributes.get(attributeName) orElse defaultRuntimeAttribute(attributeName)
-//            attributeName -> ((value, validator(value)))
-//          } collect {
-//            case (name, (value, false)) => RuntimeAttributeValidationFailure(task.name, name, value)
-//          }
-          Seq.empty
+    def checkForBadRuntimeAttributes(defaultRuntimeAttributes: Map[String, WomValue]): Try[Unit] = {
+      def badRuntimeAttrsForTask(task: TaskDefinition) = {
+        runtimeAttributeValidators map {
+          case (attributeName, validator) =>
+            val value: Option[WomExpression] =
+              task.runtimeAttributes.attributes.get(attributeName) orElse
+                defaultRuntimeAttributes.get(attributeName).map(_.asWomExpression)
+            attributeName -> ((value, validator(value)))
+        } collect {
+          case (name, (value, false)) => RuntimeAttributeValidationFailure(task.name, name, value)
         }
+      }
 
-        calls map { _.callable } flatMap badRuntimeAttrsForTask match {
-          case errors if errors.isEmpty => Future.successful(())
-          case errors => Future.failed(RuntimeAttributeValidationFailures(errors.toList))
-        }
-      case Failure(t) => Future.failed(t)
+      calls map { _.callable } flatMap badRuntimeAttrsForTask match {
+        case errors if errors.isEmpty => Try(())
+        case errors => Failure(RuntimeAttributeValidationFailures(errors.toList))
+      }
     }
+
+    for {
+      defaultRuntimeAttributes <- coerceDefaultRuntimeAttributes(workflowDescriptor.workflowOptions)
+      result <- checkForBadRuntimeAttributes(defaultRuntimeAttributes)
+    } yield result
   }
+
 
   def receive: Receive = LoggingReceive {
     case Initialize => performActionThenRespond(initSequence(), onFailure = InitializationFailed)
@@ -186,7 +154,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     * Our predefined sequence to run during preStart
     */
   final def initSequence(): Future[InitializationSuccess] = for {
-    _ <- validateRuntimeAttributes
+    _ <- Future.fromTry(validateRuntimeAttributes)
     _ <- validate()
     data <- beforeAll()
   } yield InitializationSuccess(data)

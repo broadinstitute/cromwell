@@ -9,6 +9,7 @@ import wdl.expression.WdlStandardLibraryFunctions.{crossProduct => stdLibCrossPr
 import wom.TsvSerializable
 import wom.expression.IoFunctionSet
 import wom.types._
+import wom.values.WomArray.WomArrayLike
 import wom.values._
 
 import scala.concurrent.Await
@@ -179,8 +180,8 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
 
   def flatten(params: Seq[Try[WomValue]]): Try[WomValue] = {
     def getFlatValues(v: WomValue): Try[Seq[WomValue]] = v match {
-      case WomArray(_, values) => Success(values.toList)
-      case other => Failure(new IllegalArgumentException(s"Invalid argument to flatten(): ${other}, flatten() takes an array of arrays"))
+      case WomArrayLike(WomArray(_, values)) => Success(values.toList)
+      case other => Failure(new IllegalArgumentException(s"Invalid argument to flatten: ${other.womType.toDisplayString}, flatten requires an Array[Array[_]]"))
     }
 
     val arg: Try[WomValue] = extractSingleArgument("flatten", params)
@@ -457,6 +458,11 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WomType] {
     }
   }
   def cross(params: Seq[Try[WomType]]): Try[WomType] = zip(params)
+
+  def flatten(params: Seq[Try[WomType]]): Try[WomType] = extractSingleArgument("flatten", params) flatMap {
+    case WomArrayType(inner @ WomArrayType(_)) => Success(inner)
+    case otherType => Failure(new Exception(s"flatten requires an Array[Array[_]] argument but instead got ${otherType.toDisplayString}"))
+  }
 }
 
 case object NoFunctions extends WdlStandardLibraryFunctions {

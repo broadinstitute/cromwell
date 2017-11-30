@@ -1,4 +1,4 @@
-Centaur is an integration testing suite for the [Cromwell](http://github.com/broadinstitute/cromwell) execution engine.  It's purpose is to exercise the functionality of a specific deployment of Cromwell, to ensure that it is functioning properly 'in the wild'.  
+Centaur is an integration testing suite for the [Cromwell](http://github.com/broadinstitute/cromwell) execution engine.  Its purpose is to exercise the functionality of a specific deployment of Cromwell, to ensure that it is functioning properly 'in the wild'.  
 
 ## Prerequisites
 
@@ -6,8 +6,10 @@ Centaur expects to find a Cromwell server properly configured and running in ser
 
 ## Running
 
-There are two ways to invoke the intergration tests:
+There are two ways to invoke the integration tests:
+
 * `sbt test` - compiles and run via sbt directly, simple but also has the problem of running two times cores tests in parallel which can overwhelm your Cromwell server if running in a development environment
+
 * `run_tests_parallel.sh [THREADS]` - runs the same tests with an enforced parallelism limit.  Defaults to `3` if not specified
 
 ### Tags

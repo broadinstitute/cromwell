@@ -56,7 +56,7 @@ pages:
 - For Developers:
     - How to Build: Building.md
     - Instrumentation: Instrumentation.md
-    - Integration tests: Testing.md
+    - Integration tests: Centaur.md
     - Security: Security.md
 
 theme: readthedocs

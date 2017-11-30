@@ -356,8 +356,8 @@ trait RuntimeAttributesValidation[ValidatedType] {
     }
   }
 
-  def validateOptionalWomExpression(wdlExpressionMaybe: Option[WomExpression]): Boolean = {
-    wdlExpressionMaybe match {
+  def validateOptionalWomExpression(womExpressionMaybe: Option[WomExpression]): Boolean = {
+    womExpressionMaybe match {
       case None => staticDefaultOption.isDefined || validateNone.isValid
       case Some(womExpression) =>
         womExpression.evaluateValue(Map.empty, NoIoFunctionSet) match {

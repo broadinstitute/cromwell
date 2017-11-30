@@ -3,6 +3,7 @@ package wdl.expression
 import cats.instances.try_._
 import cats.syntax.apply._
 import common.exception.AggregatedException
+import common.util.TryUtil
 import wom.WomExpressionException
 import wdl.expression.WdlStandardLibraryFunctions.{crossProduct => stdLibCrossProduct, _}
 import wom.TsvSerializable
@@ -176,6 +177,22 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
     extractArguments flatMap arrayLength
   }
 
+  def flatten(params: Seq[Try[WomValue]]): Try[WomValue] = {
+    def getFlatValues(v: WomValue): Try[Seq[WomValue]] = v match {
+      case WomArray(_, values) => Success(values.toList)
+      case other => Failure(new IllegalArgumentException(s"Invalid argument to flatten(): ${other}, flatten() takes an array of arrays"))
+    }
+
+    val arg: Try[WomValue] = extractSingleArgument("flatten", params)
+    arg flatMap {
+      case WomArray(WomArrayType(WomArrayType(elemType)), arrayValues) =>
+        val llt: Try[Seq[Seq[WomValue]]] = TryUtil.sequence(arrayValues.map(getFlatValues))
+        llt.map(ll => WomArray(WomArrayType(elemType), ll.flatten))
+      case bad =>
+        Failure(new UnsupportedOperationException(s"flatten() expects one parameter of type Array[Array[T]] but got one parameter of type ${bad.womType.toDisplayString}"))
+    }
+  }
+
   def prefix(params: Seq[Try[WomValue]]): Try[WomArray] = {
     def extractTwoArguments: Try[(WomValue, WomValue)] = params.size match {
       case 2 => (params.head, params.tail.head).tupled
@@ -313,7 +330,7 @@ object WdlStandardLibraryFunctions {
 
     override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = ioFunctionSet.size(params)
   }
-  
+
   def crossProduct[A, B](as: Seq[A], bs: Seq[B]): Seq[(A, B)] = for {
     a <- as
     b <- bs
@@ -453,6 +470,7 @@ case object NoFunctions extends WdlStandardLibraryFunctions {
   override def write_json(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError())
   override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new NotImplementedError())
   override def length(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new NotImplementedError())
+  override def flatten(params: Seq[Try[WomValue]]): Try[WomValue] = Failure(new NotImplementedError())
   override def sub(params: Seq[Try[WomValue]]): Try[WomString] = Failure(new NotImplementedError())
   override def range(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new NotImplementedError())
   override def transpose(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new NotImplementedError())

@@ -1,6 +1,9 @@
 import Dependencies._
 import Settings._
 
+resolvers += Resolver.sonatypeRepo("releases")
+
+
 // Libraries
 
 lazy val common = project
@@ -68,6 +71,7 @@ lazy val backendRoot = Path("supportedBackends")
 
 lazy val backend = project
   .withLibrarySettings("cromwell-backend", backendDependencies)
+    .settings(addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.4" cross CrossVersion.binary))
   .dependsOn(services)
   .dependsOn(core % "test->test")
 

@@ -2,6 +2,7 @@ package cromwell.backend
 
 import akka.actor.{ActorLogging, ActorRef}
 import akka.event.LoggingReceive
+import cats.data.{NonEmptyList, ValidatedNel}
 import cats.data.Validated.{Invalid, Valid}
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.BackendWorkflowInitializationActor._
@@ -10,15 +11,18 @@ import cromwell.backend.validation.ContinueOnReturnCodeValidation
 import cromwell.core.{NoIoFunctionSet, WorkflowMetadataKeys, WorkflowOptions}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
-import wom.callable.TaskDefinition
 import wom.expression.WomExpression
 import wom.graph.TaskCallNode
 import wom.types.WomType
 import wom.values.WomValue
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 import mouse.all._
+import cats.syntax.traverse._
+import cats.instances.list._
+import cats.data.Validated._
+import common.validation.Validation._
 
 object BackendWorkflowInitializationActor {
 
@@ -67,36 +71,28 @@ object BackendWorkflowInitializationActor {
     *   repeated when the various `FooRuntimeAttributes` classes are created, in the spirit of #1076.
     */
     def validateRuntimeAttributes(
-                                   coerceDefaultRuntimeAttributes: WorkflowOptions => Try[Map[String, WomValue]],
-                                   workflowOptions: WorkflowOptions,
-                                   calls: Set[TaskCallNode],
+                                   taskName: String,
+                                   defaultRuntimeAttributes: Map[String, WomValue],
+                                   runtimeAttributes: Map[String, WomExpression],
                                    runtimeAttributeValidators: Map[String, Option[WomExpression] => Boolean]
-                                 ): Try[Unit] = {
+                                 ): ValidatedNel[RuntimeAttributeValidationFailure, Unit] = {
 
-    def checkForBadRuntimeAttributes(defaultRuntimeAttributes: Map[String, WomValue]): Try[Unit] = {
-      def badRuntimeAttrsForTask(task: TaskDefinition) = {
-        runtimeAttributeValidators map {
-          case (attributeName, validator) =>
-            val value: Option[WomExpression] =
-              task.runtimeAttributes.attributes.get(attributeName) orElse
-                defaultRuntimeAttributes.get(attributeName).map(_.asWomExpression)
-            attributeName -> ((value, validator(value)))
-        } collect {
-          case (name, (value, false)) => RuntimeAttributeValidationFailure(task.name, name, value)
-        }
-      }
+      val lookups = defaultRuntimeAttributes.mapValues(_.asWomExpression) ++ runtimeAttributes
 
-      calls map { _.callable } flatMap badRuntimeAttrsForTask match {
-        case errors if errors.isEmpty => Success(())
-        case errors => Failure(RuntimeAttributeValidationFailures(errors.toList))
-      }
-    }
-
-    for {
-      defaultRuntimeAttributes <- coerceDefaultRuntimeAttributes(workflowOptions)
-      result <- checkForBadRuntimeAttributes(defaultRuntimeAttributes)
-    } yield result
+      runtimeAttributeValidators.toList.traverse[ValidatedNel[RuntimeAttributeValidationFailure, ?], Unit]{
+          case (attributeName, validator) => validateRuntimeAttribute(taskName, attributeName, lookups.get(attributeName), validator)
+        }.map(_ => ())
   }
+
+  def validateRuntimeAttribute(taskName: String,
+                               attributeName: String,
+                               value: Option[WomExpression],
+                               validator: Option[WomExpression] => Boolean
+                              ): ValidatedNel[RuntimeAttributeValidationFailure, Unit] =
+    validator(value).fold(
+      validNel(()),
+      Invalid(NonEmptyList.of(RuntimeAttributeValidationFailure(taskName, attributeName, value)))
+    )
 }
 
 /**
@@ -150,7 +146,6 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
   protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WomValue]]
 
 
-
   def receive: Receive = LoggingReceive {
     case Initialize => performActionThenRespond(initSequence(), onFailure = InitializationFailed)
     case Abort => abortInitialization()
@@ -161,7 +156,12 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     */
   final def initSequence(): Future[InitializationSuccess] =
     for {
-      _ <- validateRuntimeAttributes(coerceDefaultRuntimeAttributes, workflowDescriptor.workflowOptions, calls, runtimeAttributeValidators) |> Future.fromTry
+      defaultRuntimeAttributes <- coerceDefaultRuntimeAttributes(workflowDescriptor.workflowOptions) |> Future.fromTry _
+      taskList = calls.toList.map(_.callable).map(t => t.name -> t.runtimeAttributes.attributes)
+      _ <- taskList.
+            traverse[ValidatedNel[RuntimeAttributeValidationFailure, ?], Unit]{
+              case (name, runtimeAttributes) => validateRuntimeAttributes(name, defaultRuntimeAttributes, runtimeAttributes, runtimeAttributeValidators)
+            }.toFuture(errors => RuntimeAttributeValidationFailures(errors.toList))
       _ <- validate()
       data <- beforeAll()
     } yield InitializationSuccess(data)

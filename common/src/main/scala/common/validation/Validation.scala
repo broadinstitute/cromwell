@@ -3,7 +3,7 @@ package common.validation
 import java.net.{URI, URL}
 
 import cats.data.Validated.{Invalid, Valid}
-import cats.data.{NonEmptyList, Validated}
+import cats.data.{NonEmptyList, Validated, ValidatedNel}
 import cats.syntax.validated._
 import cats.syntax.either._
 import common.Checked
@@ -12,6 +12,7 @@ import common.validation.ErrorOr.ErrorOr
 import net.ceedubs.ficus.readers.{StringReader, ValueReader}
 import org.slf4j.Logger
 
+import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
 object Validation {
@@ -27,6 +28,12 @@ object Validation {
   def validate[A](block: => A): ErrorOr[A] = Try(block) match {
     case Success(result) => result.validNel
     case Failure(f) => f.getMessage.invalidNel
+  }
+
+  implicit class ValidationOps[B,A](val v: ValidatedNel[B, A]) {
+    def toFuture(f: NonEmptyList[B] => Throwable) = v fold(
+      (Future.failed _) compose f,
+      Future.successful)
   }
 
   implicit class TryValidation[A](val t: Try[A]) extends AnyVal {

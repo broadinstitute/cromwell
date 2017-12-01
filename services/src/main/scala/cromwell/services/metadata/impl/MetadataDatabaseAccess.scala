@@ -1,10 +1,9 @@
 package cromwell.services.metadata.impl
 
-import java.sql.Clob
-
 import cats.Semigroup
 import cats.data.NonEmptyList
 import cats.syntax.semigroup._
+import cromwell.core.labels.Labels
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, WorkflowQuery}
@@ -13,9 +12,7 @@ import cromwell.services.ServicesStore
 import cromwell.services.metadata.MetadataService.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.services.metadata._
 
-import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
 
 object MetadataDatabaseAccess {
 
@@ -169,6 +166,8 @@ trait MetadataDatabaseAccess {
   def queryWorkflowSummaries(queryParameters: WorkflowQueryParameters)
                             (implicit ec: ExecutionContext): Future[(WorkflowQueryResponse, Option[QueryMetadata])] = {
 
+    val additionalReturnKeys = queryParameters.additionalKeys
+
     val labelsToQuery = queryParameters.labels.map(label => (label.key, label.value))
 
     val workflowSummaries = databaseInterface.queryWorkflowSummaries(
@@ -192,39 +191,61 @@ trait MetadataDatabaseAccess {
 
     def summaryToQueryResult(workflow: WorkflowMetadataSummaryEntry): Future[MetadataService.WorkflowQueryResult] = {
 
-      def metadataEntriesToValue(entries: Seq[MetadataEntry]): Option[String] = {
-        entries.headOption.flatMap(_.metadataValue.toRawStringOption)
-      }
-
-      def queryResult(parentWorkflowId: Option[String]): MetadataService.WorkflowQueryResult = {
+      def queryResult(labels: Option[String], parentId: Option[String]): MetadataService.WorkflowQueryResult = {
+        val map: Map[String, Option[String]] = workflowMetadata.reduceOption(_ ++ _).getOrElse(Map.empty)
         MetadataService.WorkflowQueryResult(
           id = workflow.workflowExecutionUuid,
           name = workflow.workflowName,
           status = workflow.workflowStatus,
           start = workflow.startTimestamp map { _.toSystemOffsetDateTime },
           end = workflow.endTimestamp map { _.toSystemOffsetDateTime },
-          labels = None,
-          parentWorkflowId = parentWorkflowId
+          labels = labels,
+          parentWorkflowId = parentId
         )
       }
 
-      //query metadata
-      val metadataEntries: Future[Seq[MetadataEntry]] = databaseInterface.queryMetadataEntries(workflow.workflowExecutionUuid, "parentWorkflowId")
-
-      metadataEntries map { entries =>
-        val parentWorkflowId = metadataEntriesToValue(entries)
-        queryResult(parentWorkflowId)
+      def metadataEntriesToValue(entries: Seq[MetadataEntry]): Option[String] = {
+        entries.headOption.flatMap(_.metadataValue.toRawStringOption)
       }
 
+      def keyToMetadataValue(key: String): Future[Option[String]] = {
+        val metadataEntries: Future[Seq[MetadataEntry]] = databaseInterface.queryMetadataEntries(workflow.workflowExecutionUuid, key)
+        metadataEntries map { entries =>
+          metadataEntriesToValue(entries)
+        }
+      }
+
+      def workflowLabels: Future[Option[String]] = {
+        if (queryParameters.additionalKeys.contains("labels")) {
+          keyToMetadataValue(WorkflowMetadataKeys.ParentWorkflowId)
+        } else {
+          Future.successful(None)
+        }
+      }
+
+      val parentWorkflowId: Future[Option[String]] = {
+        if (queryParameters.additionalKeys.contains("parentWorkflowId")) {
+          keyToMetadataValue(WorkflowMetadataKeys.ParentWorkflowId)
+        } else {
+          Future.successful(None)
+        }
+      }
+
+      val result: Future[MetadataService.WorkflowQueryResult] = for {
+        labels <- workflowLabels
+        parentWorkflowId <- parentWorkflowId
+      } yield queryResult(labels, parentWorkflowId)
+      result
 
     }
-    val out: Future[(WorkflowQueryResponse, Option[QueryMetadata])] = for {
+
+    val response: Future[(WorkflowQueryResponse, Option[QueryMetadata])] = for {
       count <- workflowSummaryCount
       workflows <- workflowSummaries
       queryResults <- summariesToQueryResults(workflows)
     } yield (WorkflowQueryResponse(queryResults.toSeq), queryMetadata(count))
 
-    out
+    response
 
     /*
     workflowSummaryCount flatMap { count =>
@@ -257,3 +278,4 @@ trait MetadataDatabaseAccess {
     */
   }
 }
+

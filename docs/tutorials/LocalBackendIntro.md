@@ -25,4 +25,5 @@ You might find the following tutorials interesting to tackle next:
 
 _Drop us a line in the [Forum](https://gatkforums.broadinstitute.org/wdl/categories/ask-the-wdl-team) if you have a question._
 
-![Under Construction pig](https://i.imgflip.com/1yid55.jpg)
+\*\*\* **UNDER CONSTRUCTION** \*\*\*  
+[![Pennywell pig in red wellies - Richard Austin Images](http://www.richardaustinimages.com/wp-content/uploads/2015/04/fluffyAustin_Pigets_Wellies-500x395.jpg)](http://www.richardaustinimages.com/product/pennywell-pigs-under-umbrella-2/)

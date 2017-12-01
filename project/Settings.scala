@@ -149,6 +149,11 @@ object Settings {
     libraryDependencies ++= gcsFileSystemDependencies
   ) ++ commonSettings
 
+  val ossFileSystemSettings = List(
+    name := "cromwell-ossfilesystem",
+    libraryDependencies ++= ossFileSystemDependencies
+  ) ++ commonSettings
+
   val databaseSqlSettings = List(
     name := "cromwell-database-sql",
     libraryDependencies ++= databaseSqlDependencies
@@ -196,6 +201,11 @@ object Settings {
   val jesBackendSettings = List(
     name := "cromwell-jes-backend",
     libraryDependencies ++= jesBackendDependencies
+  ) ++ commonSettings
+
+  val bcsBackendSettings = List(
+    name := "cromwell-bcs-backend",
+    libraryDependencies ++= bcsBackendDependencies
   ) ++ commonSettings
 
   val engineSettings = List(

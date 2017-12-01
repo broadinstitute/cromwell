@@ -91,6 +91,19 @@ object Dependencies {
     "org.apache.httpcomponents" % "httpclient" % "4.5.3"
   )
 
+  private val aliyunOssDependencies = List(
+    "com.aliyun.oss" % "aliyun-sdk-oss" % "2.7.0"
+      exclude("commons-beanutils", "commons-beanutils-core")
+      exclude("commons-collections", "commons-collections")
+  )
+
+  private val aliyunBatchcomputeDependencies = List(
+    "com.aliyun" % "aliyun-java-sdk-core" % "3.2.1"
+      exclude("commons-beanutils", "commons-beanutils-core")
+      exclude("commons-collections", "commons-collections"),
+    "com.aliyun" % "aliyun-java-sdk-batchcompute" % "5.0.0"
+  )
+
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % "2.3.4",
     /*
@@ -110,6 +123,10 @@ object Dependencies {
   )
 
   // Sub-project dependencies, added in addition to any dependencies inherited from .dependsOn().
+
+  val ossFileSystemDependencies = baseDependencies ++ googleCloudDependencies ++ aliyunOssDependencies ++ List (
+    "com.github.pathikrit" %% "better-files" % betterFilesV
+  )
 
   val gcsFileSystemDependencies = baseDependencies ++ googleApiClientDependencies ++ googleCloudDependencies ++ List (
     "com.github.pathikrit" %% "better-files" % betterFilesV
@@ -162,6 +179,7 @@ object Dependencies {
 
   val rootDependencies = slf4jBindingDependencies
 
+  val bcsBackendDependencies = refinedTypeDependenciesList ++ aliyunBatchcomputeDependencies
   val jesBackendDependencies = refinedTypeDependenciesList
   val tesBackendDependencies = akkaHttpDependencies
   val sparkBackendDependencies = akkaHttpDependencies

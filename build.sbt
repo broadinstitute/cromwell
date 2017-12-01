@@ -1,15 +1,26 @@
 import Settings._
 import Testing._
 
+mainClass in (Compile, packageBin) := Some("cromwell.CommandLineParser")
+
 lazy val core = (project in file("core"))
   .settings(coreSettings:_*)
   .withTestSettings
 
-lazy val gcsFileSystem = (project in file("filesystems/gcs"))
-  .settings(gcsFileSystemSettings:_*)
+lazy val ossFileSystem = (project in file("filesystems/oss"))
+  .settings(ossFileSystemSettings:_*)
   .withTestSettings
   .dependsOn(core)
   .dependsOn(core % "test->test")
+
+lazy val gcsFileSystem = (project in file("filesystems/gcs"))
+  .settings(gcsFileSystemSettings:_*)
+  .withTestSettings
+  .dependsOn(ossFileSystem)
+  .dependsOn(core)
+  .dependsOn(ossFileSystem % "test->test")
+  .dependsOn(core % "test->test")
+
 
 lazy val databaseSql = (project in file("database/sql"))
   .settings(databaseSqlSettings:_*)
@@ -76,6 +87,18 @@ lazy val jesBackend = (project in backendRoot / "jes")
   .dependsOn(gcsFileSystem % "test->test")
   .dependsOn(services % "test->test")
 
+lazy val bcsBackend = (project in backendRoot / "bcs")
+  .settings(bcsBackendSettings:_*)
+  .withTestSettings
+  .dependsOn(backend)
+  .dependsOn(ossFileSystem)
+  .dependsOn(tesBackend)
+  .dependsOn(gcsFileSystem)
+  .dependsOn(backend % "test->test")
+  .dependsOn(ossFileSystem % "test->test")
+  .dependsOn(gcsFileSystem % "test->test")
+  .dependsOn(services % "test->test")
+
 lazy val engine = (project in file("engine"))
   .settings(engineSettings: _*)
   .withTestSettings
@@ -83,6 +106,7 @@ lazy val engine = (project in file("engine"))
   .dependsOn(dockerHashing)
   .dependsOn(services)
   .dependsOn(backend)
+  .dependsOn(ossFileSystem)
   .dependsOn(gcsFileSystem)
   .dependsOn(core % "test->test")
   .dependsOn(backend % "test->test")
@@ -90,6 +114,7 @@ lazy val engine = (project in file("engine"))
   // For now, all the engine tests run on the "Local" backend, an implementation of an impl.sfs.config backend.
   .dependsOn(sfsBackend % "test->compile")
   .dependsOn(gcsFileSystem % "test->test")
+  .dependsOn(ossFileSystem % "test->test")
 
 lazy val root = (project in file("."))
   .settings(rootSettings: _*)
@@ -99,6 +124,7 @@ lazy val root = (project in file("."))
   .aggregate(core)
   .aggregate(dockerHashing)
   .aggregate(gcsFileSystem)
+  .aggregate(ossFileSystem)
   .aggregate(databaseSql)
   .aggregate(databaseMigration)
   .aggregate(services)
@@ -106,12 +132,14 @@ lazy val root = (project in file("."))
   .aggregate(sfsBackend)
   .aggregate(sparkBackend)
   .aggregate(jesBackend)
+  .aggregate(bcsBackend)
   .aggregate(tesBackend)
   .aggregate(engine)
   .aggregate(cromwellApiClient)
   // Next level of projects to include in the fat jar (their dependsOn will be transitively included)
   .dependsOn(engine)
   .dependsOn(jesBackend)
+  .dependsOn(bcsBackend)
   .dependsOn(tesBackend)
   .dependsOn(sparkBackend)
   // Dependencies for tests

@@ -17,8 +17,10 @@ import cromwell.engine.io.IoActor._
 import cromwell.engine.io.gcs.GcsBatchFlow.BatchFailedException
 import cromwell.engine.io.gcs.{GcsBatchCommandContext, ParallelGcsBatchFlow}
 import cromwell.engine.io.nio.NioFlow
+import cromwell.engine.io.oss.OssFlow
 import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
 import cromwell.core.Dispatcher.IoDispatcher
+import cromwell.filesystems.oss.OssIoCommand
 
 /**
   * Actor that performs IO operations asynchronously using akka streams
@@ -32,7 +34,8 @@ final class IoActor(queueSize: Int, throttle: Option[Throttle])(implicit val mat
   
   implicit private val system = context.system
   implicit val ec = context.dispatcher
-  
+
+  private [io] lazy val ossFlow = new OssFlow(parallelism = 100, context.system.scheduler).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   private [io] lazy val defaultFlow = new NioFlow(parallelism = 100, context.system.scheduler).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   private [io] lazy val gcsBatchFlow = new ParallelGcsBatchFlow(parallelism = 10, batchSize = 100, context.system.scheduler).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   
@@ -44,19 +47,24 @@ final class IoActor(queueSize: Int, throttle: Option[Throttle])(implicit val mat
     val input = builder.add(Flow[IoCommandContext[_]])
     
     // Partitions requests between gcs batch, and single nio requests
-    val batchPartitioner = builder.add(Partition[IoCommandContext[_]](2, {
-      case _: GcsBatchCommandContext[_, _] => 0
-      case other @ _ => 1
+    val batchPartitioner = builder.add(Partition[IoCommandContext[_]](3, {
+      case _: OssCommandContext[_] => 0
+      case _: GcsBatchCommandContext[_, _] => 1
+      case other @ _ => 2
     }))
+
+    val osses = batchPartitioner.out(0) collect { case oss: OssCommandContext[_] => oss}
     
     // Sub flow for batched gcs requests
-    val batches = batchPartitioner.out(0) collect { case batch: GcsBatchCommandContext[_, _] => batch }
+    val batches = batchPartitioner.out(1) collect { case batch: GcsBatchCommandContext[_, _] => batch }
     
     // Sub flow for single nio requests
-    val defaults = batchPartitioner.out(1) collect { case default: DefaultCommandContext[_] => default }
+    val defaults = batchPartitioner.out(2) collect { case default: DefaultCommandContext[_] => default }
     
     // Merge results from both flows back together
-    val merger = builder.add(Merge[IoResult](2))
+    val merger = builder.add(Merge[IoResult](3))
+
+    val ossFlowPorts = builder.add(ossFlow)
     
     // Flow processing nio requests
     val defaultFlowPorts = builder.add(defaultFlow)
@@ -65,6 +73,7 @@ final class IoActor(queueSize: Int, throttle: Option[Throttle])(implicit val mat
     val batchFlowPorts = builder.add(gcsBatchFlow)
 
     input ~> batchPartitioner
+             osses.outlet ~> ossFlowPorts ~> merger
              defaults.outlet ~> defaultFlowPorts ~> merger
              batches.outlet ~> batchFlowPorts ~> merger
     
@@ -80,6 +89,16 @@ final class IoActor(queueSize: Int, throttle: Option[Throttle])(implicit val mat
   override protected lazy val streamSource = source.via(throttledFlow).withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   
   override def actorReceive: Receive = {
+    case (clientContext: Any, ossCommand: OssIoCommand[_]) =>
+      val replyTo = sender()
+      val commandContext = OssCommandContext(ossCommand, replyTo, Option(clientContext))
+      sendToStream(commandContext)
+
+    case ossCommand: OssIoCommand[_] =>
+      val replyTo = sender()
+      val commandContext = OssCommandContext(ossCommand, replyTo)
+      sendToStream(commandContext)
+
     /* GCS Batch command with context */
     case (clientContext: Any, gcsBatchCommand: GcsBatchIoCommand[_, _]) =>
       val replyTo = sender()
@@ -128,6 +147,7 @@ object IoActor {
   val MaxAttemptsNumber = ioConfig.getOrElse[Int]("number-of-attempts", 5)
 
   case class DefaultCommandContext[T](request: IoCommand[T], replyTo: ActorRef, override val clientContext: Option[Any] = None) extends IoCommandContext[T]
+  case class OssCommandContext[T](override val request: OssIoCommand[T], replyTo: ActorRef, override val clientContext: Option[Any] = None) extends IoCommandContext[T]
 
   /**
     * ATTENTION: Transient failures are retried *forever* 

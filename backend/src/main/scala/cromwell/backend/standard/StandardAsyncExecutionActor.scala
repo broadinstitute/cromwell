@@ -124,7 +124,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     WdlSingleFile(workflowPaths.buildPath(wdlFile.value).pathAsString)
 
   /** @see [[Command.instantiate]] */
-  final lazy val commandLineValueMapper: WdlValue => WdlValue = {
+  lazy val commandLineValueMapper: WdlValue => WdlValue = {
     wdlValue => WdlFileMapper.mapWdlFiles(mapCommandLineWdlFile)(wdlValue).get
   }
 

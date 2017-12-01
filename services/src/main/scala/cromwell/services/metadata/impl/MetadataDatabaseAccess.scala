@@ -192,7 +192,6 @@ trait MetadataDatabaseAccess {
     def summaryToQueryResult(workflow: WorkflowMetadataSummaryEntry): Future[MetadataService.WorkflowQueryResult] = {
 
       def queryResult(labels: Option[String], parentId: Option[String]): MetadataService.WorkflowQueryResult = {
-        val map: Map[String, Option[String]] = workflowMetadata.reduceOption(_ ++ _).getOrElse(Map.empty)
         MetadataService.WorkflowQueryResult(
           id = workflow.workflowExecutionUuid,
           name = workflow.workflowName,

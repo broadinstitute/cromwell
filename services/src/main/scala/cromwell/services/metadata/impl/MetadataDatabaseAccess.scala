@@ -190,20 +190,32 @@ trait MetadataDatabaseAccess {
 
     def summaryToQueryResult(workflow: WorkflowMetadataSummaryEntry): Future[MetadataService.WorkflowQueryResult] = {
 
-      def queryResult(labels: Option[String], parentId: Option[String]): MetadataService.WorkflowQueryResult = {
+      def queryResult(labels: Map[String, String], parentId: Option[String]): MetadataService.WorkflowQueryResult = {
         MetadataService.WorkflowQueryResult(
           id = workflow.workflowExecutionUuid,
           name = workflow.workflowName,
           status = workflow.workflowStatus,
           start = workflow.startTimestamp map { _.toSystemOffsetDateTime },
           end = workflow.endTimestamp map { _.toSystemOffsetDateTime },
-          labels = labels,
+          labels = if (labels.nonEmpty) { Some(labels) } else None,
           parentWorkflowId = parentId
         )
       }
 
-      def metadataEntriesToValue(entries: Seq[MetadataEntry]): Option[String] = {
-        entries.headOption.flatMap(_.metadataValue.toRawStringOption)
+      def getWorkflowLabels: Future[Map[String, String]] = {
+        if (queryParameters.additionalKeys.contains(WorkflowMetadataKeys.Labels)) {
+          metadataDatabaseInterface.getWorkflowLabels(workflow.workflowExecutionUuid)
+        } else {
+          Future.successful(Map.empty)
+        }
+      }
+
+      val getParentWorkflowId: Future[Option[String]] = {
+        if (queryParameters.additionalKeys.contains(WorkflowMetadataKeys.ParentWorkflowId)) {
+          keyToMetadataValue(WorkflowMetadataKeys.ParentWorkflowId)
+        } else {
+          Future.successful(None)
+        }
       }
 
       def keyToMetadataValue(key: String): Future[Option[String]] = {
@@ -213,25 +225,13 @@ trait MetadataDatabaseAccess {
         }
       }
 
-      def workflowLabels: Future[Option[String]] = {
-        if (queryParameters.additionalKeys.contains("labels")) {
-          keyToMetadataValue(WorkflowMetadataKeys.ParentWorkflowId)
-        } else {
-          Future.successful(None)
-        }
-      }
-
-      val parentWorkflowId: Future[Option[String]] = {
-        if (queryParameters.additionalKeys.contains("parentWorkflowId")) {
-          keyToMetadataValue(WorkflowMetadataKeys.ParentWorkflowId)
-        } else {
-          Future.successful(None)
-        }
+      def metadataEntriesToValue(entries: Seq[MetadataEntry]): Option[String] = {
+        entries.headOption.flatMap(_.metadataValue.toRawStringOption)
       }
 
       val result: Future[MetadataService.WorkflowQueryResult] = for {
-        labels <- workflowLabels
-        parentWorkflowId <- parentWorkflowId
+        labels <- getWorkflowLabels
+        parentWorkflowId <- getParentWorkflowId
       } yield queryResult(labels, parentWorkflowId)
       result
 

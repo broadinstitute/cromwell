@@ -62,7 +62,7 @@ class WomGraph(graphName: String, graph: Graph) {
       s"""
         |${combine((s.inputPorts -- s.scatterCollectionExpressionNode.inputPorts) map portLine)}
         |subgraph $nextCluster {
-        |  style=filled;
+        |  style=${s.graphStyle};
         |  fillcolor=${s.graphFillColor}
         |  "${UUID.randomUUID}" [shape=plaintext label="gather ports"]
         |${indentAndCombine(s.outputPorts map portLine)}
@@ -82,7 +82,7 @@ class WomGraph(graphName: String, graph: Graph) {
     val singleNode =
       s"""
          |subgraph $clusterName {
-         |  style=filled;
+         |  style=${graphNode.graphStyle};
          |  fillcolor=${graphNode.graphFillColor};
          |  ${graphNode.graphId} [shape=plaintext label=${graphNode.graphName}]
          |${indent(portLines(graphNode))}
@@ -104,7 +104,7 @@ class WomGraph(graphName: String, graph: Graph) {
     val innerGraph = listAllGraphNodes(scatter.innerGraph) wrapNodes { n =>
       s"""
          |subgraph $nextCluster {
-         |  style=filled;
+         |  style="filled,solid";
          |  fillcolor=white;
          |${indentAndCombine(n)}
          |}

@@ -143,7 +143,7 @@ docker run --rm \
     -e OUT_PATH=/output \
     broadinstitute/dsde-toolbox render-templates.sh
 
-sbt assembly
+ASSEMBLY_LOG_LEVEL=error ENABLE_COVERAGE=true sbt assembly --error
 CROMWELL_JAR=$(find "$(pwd)/target/scala-2.12" -name "cromwell-*.jar")
 JES_CONF="$(pwd)/jes_centaur.conf"
 JES_REFRESH_TOKEN="$(pwd)/jes_refresh_token.txt"
@@ -160,11 +160,17 @@ fi
 # because pulling the image during some of the tests would cause them to fail
 # (specifically output_redirection which expects a specific value in stderr)
 docker pull ubuntu:latest
+
 centaur/test_cromwell.sh \
   -j${CROMWELL_JAR} \
+  -g \
   -c${JES_CONF} \
   -t${JES_REFRESH_TOKEN} \
   -s${JES_SERVICE_ACCOUNT_JSON} \
   -elocaldockertest \
   -p100 \
   $INTEGRATION_TESTS
+
+sbt coverageReport --warn
+sbt coverageAggregate --warn
+bash <(curl -s https://codecov.io/bash) >/dev/null

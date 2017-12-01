@@ -202,6 +202,17 @@ trait MetadataDatabaseAccess {
         )
       }
 
+      def metadataEntriesToValue(entries: Seq[MetadataEntry]): Option[String] = {
+        entries.headOption.flatMap(_.metadataValue.toRawStringOption)
+      }
+
+      def keyToMetadataValue(key: String): Future[Option[String]] = {
+        val metadataEntries: Future[Seq[MetadataEntry]] = metadataDatabaseInterface.queryMetadataEntries(workflow.workflowExecutionUuid, key)
+        metadataEntries map { entries =>
+          metadataEntriesToValue(entries)
+        }
+      }
+
       def getWorkflowLabels: Future[Map[String, String]] = {
         if (queryParameters.additionalKeys.contains(WorkflowMetadataKeys.Labels)) {
           metadataDatabaseInterface.getWorkflowLabels(workflow.workflowExecutionUuid)
@@ -216,17 +227,6 @@ trait MetadataDatabaseAccess {
         } else {
           Future.successful(None)
         }
-      }
-
-      def keyToMetadataValue(key: String): Future[Option[String]] = {
-        val metadataEntries: Future[Seq[MetadataEntry]] = metadataDatabaseInterface.queryMetadataEntries(workflow.workflowExecutionUuid, key)
-        metadataEntries map { entries =>
-          metadataEntriesToValue(entries)
-        }
-      }
-
-      def metadataEntriesToValue(entries: Seq[MetadataEntry]): Option[String] = {
-        entries.headOption.flatMap(_.metadataValue.toRawStringOption)
       }
 
       val result: Future[MetadataService.WorkflowQueryResult] = for {

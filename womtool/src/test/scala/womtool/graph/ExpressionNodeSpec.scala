@@ -34,42 +34,40 @@ class ExpressionNodeSpec extends WomDotGraphTest {
   val expressionNodeDot =
     """digraph "ExpressionNodes"
       |{
-      |compound=true;
-      |"PORT0" -> "PORT1"
-      |"PORT2" -> "PORT3"
-      |"PORT4" -> "PORT5"
-      |subgraph cluster_0 {
-      |style=filled;
-      |fillcolor=lightskyblue1;
-      |"NODE6" [shape=plaintext label="Int i"]
-      |"PORT0" [shape=hexagon label="i"];
-      |}
-      |subgraph cluster_1 {
-      |style=filled;
-      |fillcolor=lightskyblue1;
-      |"NODE7" [shape=plaintext label="Int j"]
-      |"PORT2" [shape=hexagon label="j"];
-      |}
-      |subgraph cluster_2 {
-      |style=filled;
-      |fillcolor=white;
-      |"NODE8" [shape=plaintext label="Int x = f(i, j)"]
-      |"PORT4" [shape=hexagon label="x"];
-      |"PORT1" [shape=oval label="i"];
-      |"PORT3" [shape=oval label="j"];
-      |}
-      |subgraph cluster_3 {
-      |style=filled;
-      |fillcolor=palegreen;
-      |"NODE9" [shape=plaintext label="Int x_out"]
-      |"PORT5" [shape=oval label="x_out"];
-      |}
+      |  compound=true;
+      |  "PORT0" -> "PORT1"
+      |  "PORT2" -> "PORT3"
+      |  "PORT4" -> "PORT5"
+      |  subgraph cluster_0 {
+      |    style="filled,solid";
+      |    fillcolor=lightskyblue1;
+      |    "NODE6" [shape=plaintext label="Int i"]
+      |    "PORT0" [shape=hexagon label="Int i"];
+      |  }
+      |  subgraph cluster_1 {
+      |    style="filled,solid";
+      |    fillcolor=lightskyblue1;
+      |    "NODE7" [shape=plaintext label="Int j"]
+      |    "PORT2" [shape=hexagon label="Int j"];
+      |  }
+      |  subgraph cluster_2 {
+      |    style="filled,solid";
+      |    fillcolor=white;
+      |    "NODE8" [shape=plaintext label="Int x = f(i, j)"]
+      |    "PORT4" [shape=hexagon label="Int x"];
+      |    "PORT1" [shape=oval label="Int i"];
+      |    "PORT3" [shape=oval label="Int j"];
+      |  }
+      |  subgraph cluster_3 {
+      |    style="filled,solid";
+      |    fillcolor=yellowgreen;
+      |    "NODE9" [shape=plaintext label="Int x_out"]
+      |    "PORT5" [shape=oval label="Int x_out"];
+      |  }
       |}
       |""".stripMargin
 
-  // TODO WOM uncomment
-  // override val cases = List(WomDotGraphTestCase("ExpressionNodes", expressionNodeGraph, expressionNodeDot))
-  override val cases = List.empty
+  override val cases = List(WomDotGraphTestCase("ExpressionNodes", expressionNodeGraph, expressionNodeDot))
 
   tests()
 }

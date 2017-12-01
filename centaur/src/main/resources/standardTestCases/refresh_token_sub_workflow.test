@@ -1,7 +1,7 @@
-ignore: true # Ignored because it requires subworkflows
 name: refresh_token_sub_workflow
 testFormat: workflowsuccess
 backends: [Jes-Refresh]
+tags: [subworkflow]
 
 
 files {

@@ -36,17 +36,11 @@ workflow sub_decls {
   # A subworkflow declaration with a default that depends on another input which is overridden.
   String depends_on_default_which_is_overridden = default_which_is_overridden
 
-  # An overridden subworkflow declaration with a default that depends on another input which has no default.
-  String overridden_depends_on_needs_to_be_supplied = needs_to_be_supplied
-
-  # An overridden subworkflow declaration with a default that depends on another input which was overridden.
-  String overridden_depends_on_default_which_is_overridden = default_which_is_overridden
-
   # An optional subworkflow input no default
   # Uninitialized optionals in subworkflows currently crash and burn (the SubWorkflowExecutionActor dies
   # without diagnostics).
-  # String? optional_without_default_not_supplied
-  # String? optional_without_default_supplied
+  String? optional_without_default_not_supplied
+  String? optional_without_default_supplied
 
   # An optional subworkflow input that's got a default
   String? optional_with_default = "this is a default"
@@ -72,10 +66,8 @@ workflow sub_decls {
     String default_which_is_overridden_out = default_which_is_overridden
     String depends_on_needs_to_be_supplied_out = depends_on_needs_to_be_supplied
     String depends_on_default_which_is_overridden_out = depends_on_default_which_is_overridden
-    String overridden_depends_on_needs_to_be_supplied_out = overridden_depends_on_needs_to_be_supplied
-    String overridden_depends_on_default_which_is_overridden_out = overridden_depends_on_default_which_is_overridden
-    # String? optional_without_default_not_supplied_out = optional_without_default_not_supplied
-    # String? optional_without_default_supplied_out = optional_without_default_supplied
+    String? optional_without_default_not_supplied_out = optional_without_default_not_supplied
+    String? optional_without_default_supplied_out = optional_without_default_supplied
     String? optional_with_default_out = optional_with_default
     String? optional_with_default_but_overridden_out = optional_with_default_but_overridden
     String passthrough_required_input_out = passthrough_required_input

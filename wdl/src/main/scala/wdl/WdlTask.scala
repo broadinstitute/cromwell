@@ -141,6 +141,7 @@ case class WdlTask(name: String,
     * }
     * inputMap = Map("t.s" -> WdlString("hello"))
     */
+  // TODO WOM: Unused except in Specs
   def inputsFromMap(inputs: Map[FullyQualifiedName, WomValue]): EvaluatedTaskInputs = {
     declarations flatMap { declaration =>
       inputs collectFirst {

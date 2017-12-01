@@ -37,6 +37,7 @@ object Dependencies {
   val janinoV = "3.0.7"
   val jodaTimeV = "2.9.4"
   val jsr305V = "3.0.0"
+  val kindProjectorV = "0.9.4"
   val kittensV = "1.0.0-RC0"
   val liquibaseSlf4jV = "2.0.0"
   val liquibaseV = "3.5.1"

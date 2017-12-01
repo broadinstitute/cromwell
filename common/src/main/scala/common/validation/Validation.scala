@@ -31,9 +31,14 @@ object Validation {
   }
 
   implicit class ValidationOps[B,A](val v: ValidatedNel[B, A]) {
-    def toFuture(f: NonEmptyList[B] => Throwable) = v fold(
-      (Future.failed _) compose f,
-      Future.successful)
+    //Convert this into a future by folding over the state and returning the corresponding Future terminal state.
+    def toFuture(f: NonEmptyList[B] => Throwable) =
+      v fold(
+        //Use f to turn the failure list into a Throwable, then fail a future with it.
+        //Function composition lets us ignore the actual argument of the error list
+        (Future.failed _) compose f,
+        Future.successful
+      )
   }
 
   implicit class TryValidation[A](val t: Try[A]) extends AnyVal {

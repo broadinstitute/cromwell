@@ -1,6 +1,6 @@
 package wom.values
 
-import wom.expression.{ValueAsAnExpression, WomExpression}
+import wom.expression.ValueAsAnExpression
 import wom.types.WomType
 import wom.{OptionalNotSuppliedException, WomExpressionException}
 
@@ -70,7 +70,7 @@ trait WomValue {
     }
   }
 
-  def asWomExpression: WomExpression = new ValueAsAnExpression(this)
+  def asWomExpression: ValueAsAnExpression = new ValueAsAnExpression(this)
 }
 
 object WomValue {

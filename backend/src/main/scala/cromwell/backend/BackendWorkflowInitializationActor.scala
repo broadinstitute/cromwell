@@ -2,8 +2,11 @@ package cromwell.backend
 
 import akka.actor.{ActorLogging, ActorRef}
 import akka.event.LoggingReceive
+import cats.data.Validated.{Invalid, Valid, _}
 import cats.data.{NonEmptyList, ValidatedNel}
-import cats.data.Validated.{Invalid, Valid}
+import cats.instances.list._
+import cats.syntax.traverse._
+import common.validation.Validation._
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.BackendWorkflowInitializationActor._
 import cromwell.backend.async.{RuntimeAttributeValidationFailure, RuntimeAttributeValidationFailures}
@@ -11,6 +14,7 @@ import cromwell.backend.validation.ContinueOnReturnCodeValidation
 import cromwell.core.{NoIoFunctionSet, WorkflowMetadataKeys, WorkflowOptions}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import mouse.all._
 import wom.expression.WomExpression
 import wom.graph.TaskCallNode
 import wom.types.WomType
@@ -18,11 +22,6 @@ import wom.values.WomValue
 
 import scala.concurrent.Future
 import scala.util.Try
-import mouse.all._
-import cats.syntax.traverse._
-import cats.instances.list._
-import cats.data.Validated._
-import common.validation.Validation._
 
 object BackendWorkflowInitializationActor {
 
@@ -80,19 +79,15 @@ object BackendWorkflowInitializationActor {
       val lookups = defaultRuntimeAttributes.mapValues(_.asWomExpression) ++ runtimeAttributes
 
       runtimeAttributeValidators.toList.traverse[ValidatedNel[RuntimeAttributeValidationFailure, ?], Unit]{
-          case (attributeName, validator) => validateRuntimeAttribute(taskName, attributeName, lookups.get(attributeName), validator)
-        }.map(_ => ())
+        case (attributeName, validator) =>
+          val runtimeAttributeValue: Option[WomExpression] = lookups.get(attributeName)
+          validator(runtimeAttributeValue).fold(
+            validNel(()),
+            Invalid(NonEmptyList.of(RuntimeAttributeValidationFailure(taskName, attributeName, runtimeAttributeValue)))
+          )
+      }.map(_ => ())
   }
 
-  def validateRuntimeAttribute(taskName: String,
-                               attributeName: String,
-                               value: Option[WomExpression],
-                               validator: Option[WomExpression] => Boolean
-                              ): ValidatedNel[RuntimeAttributeValidationFailure, Unit] =
-    validator(value).fold(
-      validNel(()),
-      Invalid(NonEmptyList.of(RuntimeAttributeValidationFailure(taskName, attributeName, value)))
-    )
 }
 
 /**

@@ -502,6 +502,61 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
     }
 
+    behavior of "REST API /query GET endpoint"
+    it should "return labels if specified in query additionalKeys param" in {
+      Get(s"/workflows/$version/query?additionalKeys=labels&id=${CromwellApiServiceSpec.ExistingWorkflowId}") ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          status should be(StatusCodes.OK)
+          contentType should be(ContentTypes.`application/json`)
+          val results = responseAs[JsObject].fields("results").convertTo[Seq[JsObject]]
+          results.head.fields("id") should be(JsString(CromwellApiServiceSpec.ExistingWorkflowId.toString))
+          results.head.fields(WorkflowMetadataKeys.Labels).asJsObject.fields("key1") should be(JsString("label1"))
+          results.head.fields(WorkflowMetadataKeys.Labels).asJsObject.fields("key2") should be(JsString("label2"))
+        }
+    }
+
+    behavior of "REST API /query GET endpoint"
+    it should "return parentWorkflowId if specified in query additionalKeys param" in {
+      Get(s"/workflows/$version/query?additionalKeys=parentWorkflowId&id=${CromwellApiServiceSpec.ExistingWorkflowId}") ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          status should be(StatusCodes.OK)
+          contentType should be(ContentTypes.`application/json`)
+          val results = responseAs[JsObject].fields("results").convertTo[Seq[JsObject]]
+          results.head.fields("id") should be(JsString(CromwellApiServiceSpec.ExistingWorkflowId.toString))
+          results.head.fields(WorkflowMetadataKeys.ParentWorkflowId) should be(JsString("pid"))
+        }
+    }
+
+    behavior of "REST API /query POST endpoint"
+    it should "return labels if specified in query additionalKeys param" in {
+      Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"additionalKeys":"labels"}]""")) ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          assertResult(StatusCodes.OK) {
+            status
+          }
+          val results = responseAs[JsObject].fields("results").convertTo[Seq[JsObject]]
+          results.head.fields(WorkflowMetadataKeys.Labels).asJsObject.fields("key1") should be(JsString("label1"))
+          results.head.fields(WorkflowMetadataKeys.Labels).asJsObject.fields("key2") should be(JsString("label2"))
+        }
+    }
+
+    behavior of "REST API /query POST endpoint"
+    it should "return parentWorkflowId if specified in query additionalKeys param" in {
+      Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"additionalKeys":"parentWorkflowId"}]""")) ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          assertResult(StatusCodes.OK) {
+            status
+          }
+          assertResult(true) {
+            entityAs[String].contains("\"parentWorkflowId\":\"pid\"")
+          }
+        }
+    }
+
     behavior of "REST API /labels GET endpoint"
     it should "return labels for a workflow ID" in {
       Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/labels") ~>
@@ -588,9 +643,23 @@ object CromwellApiServiceSpec {
   class MockServiceRegistryActor extends Actor {
     import MockServiceRegistryActor._
     override def receive = {
-      case WorkflowQuery(_) =>
+      case WorkflowQuery(parameters) =>
+        val labels: Option[Map[String, String]] = {
+          if (parameters.contains(("additionalKeys", "labels"))) {
+            Some(Map("key1" -> "label1", "key2" -> "label2"))
+          } else {
+            None
+          }
+        }
+        val parentWorkflowId: Option[String] =  {
+          if (parameters.contains(("additionalKeys", "parentWorkflowId"))) {
+            Some("pid")
+          } else {
+            None
+          }
+        }
         val response = WorkflowQuerySuccess(WorkflowQueryResponse(List(WorkflowQueryResult(ExistingWorkflowId.toString,
-          None, Some(WorkflowSucceeded.toString), None, None, None, None))), None)
+          None, Some(WorkflowSucceeded.toString), None, None, labels, parentWorkflowId))), None)
         sender ! response
       case ValidateWorkflowId(id) =>
         if (RecognizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId

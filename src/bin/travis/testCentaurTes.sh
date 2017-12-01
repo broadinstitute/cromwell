@@ -125,6 +125,8 @@ centaur/test_cromwell.sh \
 -e non_root_specified_user \
 -e write_lines_files \
 
-sbt coverageReport --warn
-sbt coverageAggregate --warn
-bash <(curl -s https://codecov.io/bash) >/dev/null
+if [ "$TRAVIS_EVENT_TYPE" != "cron" ]; then
+    sbt coverageReport --warn
+    sbt coverageAggregate --warn
+    bash <(curl -s https://codecov.io/bash) >/dev/null
+fi

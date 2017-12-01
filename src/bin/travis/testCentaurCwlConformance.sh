@@ -30,6 +30,8 @@ sleep 5
     ./run_test.sh RUNNER="${CENTAUR_CWL_RUNNER}" || true
 )
 
-sbt coverageReport --warn
-sbt coverageAggregate --warn
-bash <(curl -s https://codecov.io/bash) >/dev/null
+if [ "$TRAVIS_EVENT_TYPE" != "cron" ]; then
+    sbt coverageReport --warn
+    sbt coverageAggregate --warn
+    bash <(curl -s https://codecov.io/bash) >/dev/null
+fi

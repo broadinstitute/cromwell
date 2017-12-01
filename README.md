@@ -9,4 +9,4 @@ The Cromwell documentation has a new home, [click here to check it out](http://c
 
 First time to Cromwell? Get started with [Tutorials](https://cromwell.readthedocs.io/en/latest/tutorials/FiveMinuteIntro/)!
 
-![Jamie, the Cromwell pig](https://us.v-cdn.net/5019796/uploads/FileUpload/63/29e34d502031fc9f0114aadb394337.png)
+![Jamie, the Cromwell pig](docs/jamie_the_cromwell_pig.png)

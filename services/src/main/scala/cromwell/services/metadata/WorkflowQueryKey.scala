@@ -6,7 +6,7 @@ import cats.data
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import cromwell.core.labels.Label
-import cromwell.core.{WorkflowId, WorkflowState}
+import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
 import common.validation.ErrorOr._
 import cats.data.Validated._
 import cats.instances.list._
@@ -95,8 +95,10 @@ object WorkflowQueryKey {
 
     override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[List[String]] = {
       val values = valuesFromMap(grouped).toList
-      val nels = values map { v =>
-        v.validNel[String]
+      val allowedValues = Seq(WorkflowMetadataKeys.Labels, WorkflowMetadataKeys.ParentWorkflowId)
+      val nels:List[data.ValidatedNel[String,String]] = values map { v => {
+        if (allowedValues.contains(v)) v.validNel[String] else v.invalidNel[String]
+      }
       }
       sequenceListOfValidatedNels("Unrecognized values", nels)
     }

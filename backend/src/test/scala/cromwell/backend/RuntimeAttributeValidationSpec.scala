@@ -8,14 +8,7 @@ import wom.values.{WomString, WomValue}
 class RuntimeAttributeValidationSpec extends Properties("Runtime Attribute Validation") {
 
   import WomGenerators._
-  /*
-  def validateRuntimeAttributes(
-                                 taskName: String,
-                                 defaultRuntimeAttributes: Map[String, WomValue],
-                                 runtimeAttributes: Map[String, WomExpression],
-                                 runtimeAttributeValidators: Map[String, Option[WomExpression] => Boolean]
-                               ): ValidatedNel[RuntimeAttributeValidationFailure, Unit] = {
-                               */
+
   property("use default and validate it when runtime is not specified") = forAll {
     (taskName: String, attributeName: String, womValue: WomValue) =>
       val defaultRuntimeAttributes = Map(attributeName -> womValue)
@@ -40,15 +33,12 @@ class RuntimeAttributeValidationSpec extends Properties("Runtime Attribute Valid
       val defaultRuntimeAttributes = Map(attributeName -> defaultWomValue)
       val runtimeAttributes = Map(attributeName -> runtimeWomExpression)
 
-      val validator: Option[WomExpression] => Boolean = {
-        case Some(`runtimeWomExpression`) => true
-        case _ => false
-      }
+      val validator: Option[WomExpression] => Boolean = _.contains(runtimeWomExpression)
       BackendWorkflowInitializationActor.validateRuntimeAttributes(taskName, defaultRuntimeAttributes, runtimeAttributes, Map((attributeName,validator))).isValid
   }
 
-  property("fail validation if no settings is present but it should be") = forAll {
-    (taskName: String, attributeName: String, defaultWomValue: WomValue, runtimeWomExpression: WomExpression) =>
+  property("fail validation if no setting is present but it should be") = forAll {
+    (taskName: String, attributeName: String) =>
 
       val validator: Option[WomExpression] => Boolean = {
         case None => false
@@ -58,7 +48,7 @@ class RuntimeAttributeValidationSpec extends Properties("Runtime Attribute Valid
   }
 
   property("use the taskName and attribute name in correct places for failures") = forAll {
-    (taskName: String, attributeName: String, defaultWomValue: WomValue, runtimeWomExpression: WomExpression) =>
+    (taskName: String, attributeName: String) =>
 
       val validator: Option[WomExpression] => Boolean = {
         case None => false

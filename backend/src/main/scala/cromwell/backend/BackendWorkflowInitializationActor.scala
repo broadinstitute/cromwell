@@ -76,6 +76,7 @@ object BackendWorkflowInitializationActor {
                                    runtimeAttributeValidators: Map[String, Option[WomExpression] => Boolean]
                                  ): ValidatedNel[RuntimeAttributeValidationFailure, Unit] = {
 
+      //This map append will overwrite default key/values with runtime settings upon key collisions
       val lookups = defaultRuntimeAttributes.mapValues(_.asWomExpression) ++ runtimeAttributes
 
       runtimeAttributeValidators.toList.traverse[ValidatedNel[RuntimeAttributeValidationFailure, ?], Unit]{
@@ -109,8 +110,8 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     * declarations will fail evaluation and return `true` from this predicate, even if the type could be determined
     * to be wrong with consideration of task declarations or inputs.
     */
-  protected def wdlTypePredicate(valueRequired: Boolean, predicate: WomType => Boolean)(wdlExpressionMaybe: Option[WomExpression]): Boolean = {
-    wdlExpressionMaybe match {
+  protected def womTypePredicate(valueRequired: Boolean, predicate: WomType => Boolean)(womExpressionMaybe: Option[WomExpression]): Boolean = {
+    womExpressionMaybe match {
       case None => !valueRequired
       case Some(womExpression: WomExpression) =>
         womExpression.evaluateValue(Map.empty, NoIoFunctionSet) map (_.womType) match {
@@ -125,8 +126,8 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     * between evaluation failures due to missing call inputs or evaluation failures due to malformed expressions, and will
     * return `true` in both cases.
     */
-  protected def continueOnReturnCodePredicate(valueRequired: Boolean)(wdlExpressionMaybe: Option[WomValue]): Boolean = {
-    ContinueOnReturnCodeValidation.default(configurationDescriptor.backendRuntimeConfig).validateOptionalWomValue(wdlExpressionMaybe)
+  protected def continueOnReturnCodePredicate(valueRequired: Boolean)(womExpressionMaybe: Option[WomValue]): Boolean = {
+    ContinueOnReturnCodeValidation.default(configurationDescriptor.backendRuntimeConfig).validateOptionalWomValue(womExpressionMaybe)
   }
 
   protected def runtimeAttributeValidators: Map[String, Option[WomExpression] => Boolean]

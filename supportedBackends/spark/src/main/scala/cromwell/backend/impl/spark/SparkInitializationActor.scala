@@ -32,11 +32,11 @@ class SparkInitializationActor(override val workflowDescriptor: BackendWorkflowD
                                override val serviceRegistryActor: ActorRef) extends BackendWorkflowInitializationActor {
 
   override protected def runtimeAttributeValidators: Map[String, (Option[WomExpression]) => Boolean] = Map(
-    FailOnStderrKey -> wdlTypePredicate(valueRequired = false, WomBooleanType.isCoerceableFrom),
-    SparkRuntimeAttributes.AppMainClassKey -> wdlTypePredicate(valueRequired = true, WomStringType.isCoerceableFrom),
-    SparkRuntimeAttributes.NumberOfExecutorsKey -> wdlTypePredicate(valueRequired = false, WomIntegerType.isCoerceableFrom),
-    SparkRuntimeAttributes.ExecutorMemoryKey -> wdlTypePredicate(valueRequired = false, WomBooleanType.isCoerceableFrom),
-    SparkRuntimeAttributes.ExecutorCoresKey -> wdlTypePredicate(valueRequired = false, WomIntegerType.isCoerceableFrom)
+    FailOnStderrKey -> womTypePredicate(valueRequired = false, WomBooleanType.isCoerceableFrom),
+    SparkRuntimeAttributes.AppMainClassKey -> womTypePredicate(valueRequired = true, WomStringType.isCoerceableFrom),
+    SparkRuntimeAttributes.NumberOfExecutorsKey -> womTypePredicate(valueRequired = false, WomIntegerType.isCoerceableFrom),
+    SparkRuntimeAttributes.ExecutorMemoryKey -> womTypePredicate(valueRequired = false, WomBooleanType.isCoerceableFrom),
+    SparkRuntimeAttributes.ExecutorCoresKey -> womTypePredicate(valueRequired = false, WomIntegerType.isCoerceableFrom)
   )
 
   /**

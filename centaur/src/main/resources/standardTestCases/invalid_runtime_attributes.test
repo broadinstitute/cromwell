@@ -8,6 +8,6 @@ files {
 metadata {
     "workflowName": "invalid_runtime_attributes_wf"
     "failures.0.message": "Runtime validation failed"
-    "failures.0.causedBy.0.causedBy.0.causedBy.0.message":
-      "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
+    "failures.0.causedBy.0.message":
+      "Task invalid_runtime_attributes has an invalid runtime attribute continueOnReturnCode = Valid(WomString(oops))"
 }

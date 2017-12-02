@@ -1,8 +1,6 @@
 import Dependencies._
 import Settings._
 
-
-
 // Libraries
 
 lazy val common = project

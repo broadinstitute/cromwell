@@ -14,10 +14,7 @@ class RuntimeAttributeValidationSpec extends Properties("Runtime Attribute Valid
       val defaultRuntimeAttributes = Map(attributeName -> womValue)
 
       val defaultValue = womValue.asWomExpression
-      val validator: Option[WomExpression] => Boolean = {
-        case Some(`defaultValue`) => true
-        case _ => false
-      }
+      val validator: Option[WomExpression] => Boolean = _.contains(defaultValue)
       BackendWorkflowInitializationActor.validateRuntimeAttributes(taskName, defaultRuntimeAttributes, Map.empty, Map((attributeName,validator)) ).isValid
   }
 

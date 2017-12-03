@@ -112,12 +112,12 @@ lazy val engine = project
 // Executables
 
 lazy val centaurCwlRunner = project
-  .withExecutableSettings("centaur-cwl-runner", centaurCwlRunnerDependencies)
+  .withExecutableSettings("centaur-cwl-runner", centaurCwlRunnerDependencies, buildDocker = false)
   .dependsOn(cwl)
   .dependsOn(centaur)
 
 lazy val womtool = project
-  .withExecutableSettings("womtool", womtoolDependencies, buildDocker = false)
+  .withExecutableSettings("womtool", womtoolDependencies)
   .dependsOn(wdl)
   .dependsOn(cwl)
   .dependsOn(wom % "test->test")

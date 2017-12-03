@@ -1,5 +1,0 @@
-# These files are text and should be normalized (Convert crlf => lf)
-*.scala text
-*.MD text
-*.java text
-*.html text

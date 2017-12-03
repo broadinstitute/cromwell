@@ -1,0 +1,14 @@
+name: unexpected_subworkflow_call_input_failure
+testFormat: workflowfailure
+tags: [subworkflow]
+
+files {
+  wdl: unexpected_subworkflow_call_input_failure/unexpected_subworkflow_call_input_failure.wdl
+  imports: [ unexpected_subworkflow_call_input_failure/unexpected_subworkflow_call_input_failure_import.wdl ]
+}
+
+metadata {
+    status: Failed
+    "failures.0.message": "Workflow input processing failed"
+    "failures.0.causedBy.0.message": "ERROR: Call supplied an unexpected input: The 'subwf' task doesn't have an input called 'j':\n\n  call subwf.subwf { input: i = 10, j = 20 }\n                                    ^\n\nOptions:\n - Add the input 'j' to the 'subwf' task (defined on line 1).\n - Remove 'j = ...' from subwf's inputs (on line 4).\n     "
+}

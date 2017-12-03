@@ -1,6 +1,6 @@
 name: subworkflows_in_ifs
 testFormat: workflowsuccess
-tags: [ conditionals ]
+tags: [ conditionals, subworkflow ]
 
 files {
   wdl: conditionals_tests/subworkflows_in_ifs/subworkflows_in_ifs.wdl

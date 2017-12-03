@@ -1,6 +1,6 @@
 name: sub_workflow_decls
 testFormat: workflowsuccess
-ignore: true
+tags: [subworkflow]
 
 files {
   wdl: sub_workflow_decls/sub_workflow_decls.wdl
@@ -18,12 +18,11 @@ metadata {
   "outputs.sub_workflow_decls.default_which_is_overridden": "overridden"
   "outputs.sub_workflow_decls.depends_on_needs_to_be_supplied": "initialized"
   "outputs.sub_workflow_decls.depends_on_default_which_is_overridden": "overridden"
-  "outputs.sub_workflow_decls.overridden_depends_on_needs_to_be_supplied": "you've been overridden!"
-  "outputs.sub_workflow_decls.overridden_depends_on_default_which_is_overridden": "your override has been overridden"
   "outputs.sub_workflow_decls.optional_with_default": "this is a default"
   "outputs.sub_workflow_decls.optional_with_default_but_overridden": "supplied but overridden optional"
   "outputs.sub_workflow_decls.passthrough_required_input": "This is the correct required value"
   "outputs.sub_workflow_decls.passthrough_initialized_input": "This is the correct initialized value"
   "outputs.sub_workflow_decls.passthrough_overridden_input": "This is the correct overridden value"
-  # There need to be metadata entries for uninitialized optionals once that's working
+  "outputs.sub_workflow_decls.optional_without_default_not_supplied": null
+  "outputs.sub_workflow_decls.optional_without_default_supplied": "consider yourself supplied"
 }

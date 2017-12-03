@@ -11,15 +11,13 @@ workflow sub_workflow_decls {
   String workflow_overridden_input = select_first([workflow_overridden_input_optional, workflow_default_input_optional])
 
   call decls.sub_decls as sudecls { input:
-    needs_to_be_supplied = "initialized"
-    , default_which_is_overridden = "overridden"
-    , overridden_depends_on_needs_to_be_supplied = "you've been overridden!"
-    , overridden_depends_on_default_which_is_overridden = "your override has been overridden"
-    #, optional_without_default_supplied = "consider yourself supplied"
-    , optional_with_default_but_overridden = "supplied but overridden optional"
-    , passthrough_required_input = workflow_required_input
-    , passthrough_initialized_input = workflow_initialized_input
-    , passthrough_overridden_input = workflow_overridden_input
+    needs_to_be_supplied = "initialized",
+    default_which_is_overridden = "overridden",
+    optional_without_default_supplied = "consider yourself supplied",
+    optional_with_default_but_overridden = "supplied but overridden optional",
+    passthrough_required_input = workflow_required_input,
+    passthrough_initialized_input = workflow_initialized_input,
+    passthrough_overridden_input = workflow_overridden_input
   }
 
   output {
@@ -28,10 +26,8 @@ workflow sub_workflow_decls {
     String  default_which_is_overridden = sudecls.default_which_is_overridden_out
     String  depends_on_needs_to_be_supplied = sudecls.depends_on_needs_to_be_supplied_out
     String  depends_on_default_which_is_overridden = sudecls.depends_on_default_which_is_overridden_out
-    String  overridden_depends_on_needs_to_be_supplied = sudecls.overridden_depends_on_needs_to_be_supplied_out
-    String  overridden_depends_on_default_which_is_overridden = sudecls.overridden_depends_on_default_which_is_overridden_out
-    # String? optional_without_default_not_supplied = sudecls.optional_without_default_not_supplied_out
-    # String? optional_without_default_supplied = sudecls.optional_without_default_supplied_out
+    String? optional_without_default_not_supplied = sudecls.optional_without_default_not_supplied_out
+    String? optional_without_default_supplied = sudecls.optional_without_default_supplied_out
     String? optional_with_default = sudecls.optional_with_default_out
     String? optional_with_default_but_overridden = sudecls.optional_with_default_but_overridden_out
     String passthrough_required_input = sudecls.passthrough_required_input_out

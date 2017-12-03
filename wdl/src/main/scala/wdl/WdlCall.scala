@@ -1,8 +1,9 @@
 package wdl
 
+import cats.data.NonEmptyList
 import cats.instances.list._
-import cats.syntax.apply._
 import cats.syntax.foldable._
+import cats.syntax.validated._
 import shapeless.Coproduct
 import wdl.AstTools.EnhancedAstNode
 import wdl.exception.{ValidationException, VariableLookupException, VariableNotFoundException}
@@ -59,6 +60,20 @@ object WdlCall {
 
     val callNodeBuilder = new CallNode.CallNodeBuilder()
 
+    def allInputsWereWantedValidation(callable: Callable): ErrorOr[Unit] = {
+      val callableExpectedInputs = callable.inputs.map(_.localName.value)
+      val unexpectedInputs: Option[NonEmptyList[String]] = NonEmptyList.fromList(wdlCall.inputMappings.toList collect {
+        case (inputName, _) if !callableExpectedInputs.contains(inputName) => inputName
+      })
+
+      unexpectedInputs match {
+        case None => ().validNel
+        case Some(unexpectedInputsNel) => (unexpectedInputsNel map { unexpectedInput =>
+          s"Invalid call to '${callable.name}': Didn't expect the input '$unexpectedInput'. Check that this input is declared in the task or workflow. Note that sub-workflow declarations with values that depend on previous values cannot be overridden."
+        }).invalid
+      }
+    }
+
     /*
       * Each input mapping gets its own ExpressionNode:
       * 
@@ -109,27 +124,27 @@ object WdlCall {
           )
 
         // No input mapping, use the default expression
-        case withDefault @ InputDefinitionWithDefault(_, _, expression) =>
+        case withDefault@InputDefinitionWithDefault(_, _, expression) =>
           InputDefinitionFold(
             mappings = List(withDefault -> Coproduct[InputDefinitionPointer](expression))
           )
 
         // No input mapping, required and we don't have a default value, create a new RequiredGraphInputNode
         // so that it can be satisfied via workflow inputs
-        case required @ RequiredInputDefinition(n, womType) =>
+        case required@RequiredInputDefinition(n, womType) =>
           val identifier = wdlCall.womIdentifier.combine(n)
           withGraphInputNode(required, RequiredGraphInputNode(identifier, womType))
 
         // No input mapping, no default value but optional, create a OptionalGraphInputNode
         // so that it can be satisfied via workflow inputs
-        case optional @ OptionalInputDefinition(n, womType) =>
+        case optional@OptionalInputDefinition(n, womType) =>
           val identifier = wdlCall.womIdentifier.combine(n)
           withGraphInputNode(optional, OptionalGraphInputNode(identifier, womType))
       }
     }
 
-    (expressionNodeMappings, wdlCall.callable.womDefinition) mapN {
-      case (mappings, callable) =>
+    (expressionNodeMappings, wdlCall.callable.womDefinition) flatMapN { case (mappings, callable) =>
+      allInputsWereWantedValidation(callable) map { _ =>
         val usedOgins: Set[OuterGraphInputNode] = for {
           expressionNode <- mappings.values.toSet[ExpressionNode]
           ogin <- expressionNode.upstreamOuterGraphInputNodes
@@ -147,6 +162,7 @@ object WdlCall {
         } yield ()
 
         callNodeAndNewNodes
+      }
     }
   }
 }

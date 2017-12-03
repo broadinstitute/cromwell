@@ -315,7 +315,7 @@ object WdlNamespace {
     descendants(namespace).foreach(_.namespace = namespace)
 
     // SYNTAX CHECKS
-    val callInputSectionErrors = namespace.descendants.collect({ case c: WdlTaskCall => c }).flatMap(
+    val callInputSectionErrors = namespace.descendants.collect({ case c: WdlCall => c }).flatMap(
       validateCallInputSection(_, wdlSyntaxErrorFormatter)
     )
 
@@ -471,14 +471,14 @@ object WdlNamespace {
     }
   }
 
-  private def validateCallInputSection(call: WdlTaskCall, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Seq[SyntaxError] = {
+  private def validateCallInputSection(call: WdlCall, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Seq[SyntaxError] = {
     val callInputSections = AstTools.callInputSectionIOMappings(call.ast, wdlSyntaxErrorFormatter)
 
     val invalidCallInputReferences = callInputSections flatMap { ast =>
       val lhs = ast.getAttribute("key").sourceString
-      call.declarations.find(_.unqualifiedName == lhs) match {
+      call.callable.inputNames.find(_ == lhs) match {
         case Some(_) => None
-        case None => Option(new SyntaxError(wdlSyntaxErrorFormatter.callReferencesAbsentTaskInput(ast, call.task.ast, lhs, call.unqualifiedName)))
+        case None => Option(new SyntaxError(wdlSyntaxErrorFormatter.callReferencesAbsentTaskInput(ast, call.callable.ast, lhs, call.unqualifiedName)))
       }
     }
 

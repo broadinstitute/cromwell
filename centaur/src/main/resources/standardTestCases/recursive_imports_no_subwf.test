@@ -1,7 +1,6 @@
-ignore: false
 name: recursive_imports_no_subwf
 testFormat: workflowsuccess
-
+tags: [subworkflow]
 
 files {
   wdl: recursive_imports_no_subwf/recursive_imports_no_subwf.wdl

@@ -1,6 +1,6 @@
 name: sub_workflow_interactions
 testFormat: workflowsuccess
-
+tags: [subworkflow]
 
 files {
   wdl: sub_workflow_interactions/sub_workflow_interactions.wdl

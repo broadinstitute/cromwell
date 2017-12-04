@@ -13,7 +13,7 @@ import scala.concurrent.duration._
 class SparkInitializationActorSpec  extends  TestKitSuite("SparkInitializationActorSpec")
   with WordSpecLike with Matchers with BeforeAndAfterAll with ImplicitSender {
 
-  val Timeout = 5.second.dilated
+  val Timeout = 10.second.dilated
 
   val HelloWorld =
     """

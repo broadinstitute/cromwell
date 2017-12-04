@@ -16,7 +16,7 @@ import scala.concurrent.duration._
 
 class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSystemInitializationActorSpec")
   with WordSpecLike with Matchers with ImplicitSender {
-  val Timeout: FiniteDuration = 5.second.dilated
+  val Timeout: FiniteDuration = 10.second.dilated
 
   val HelloWorld: String =
     s"""

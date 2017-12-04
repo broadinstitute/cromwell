@@ -25,7 +25,7 @@ import scala.concurrent.duration._
 
 class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpec") with FlatSpecLike with Matchers
   with ImplicitSender with Mockito {
-  val Timeout: FiniteDuration = 5.second.dilated
+  val Timeout: FiniteDuration = 10.second.dilated
 
   import BackendSpec._
   import JesInitializationActorSpec._

@@ -16,9 +16,10 @@ task do_release {
      set -x 
      
      # Clone repo and checkout develop
-     git clone git@github.com:${organization}/${repo}.git
+     git clone https://github.com/${organization}/${repo}.git
      cd ${repo}
-     git checkout develop
+     git checkout -t origin/develop
+
      git pull --rebase
 
      # Expect the version number on develop to be the version TO BE RELEASED
@@ -29,7 +30,7 @@ task do_release {
      git diff-index --quiet HEAD || git commit -m "Update ${repo} version to ${releaseV}"
        
      # Merge develop into master
-     git checkout master
+     git checkout -t origin/master
      git pull --rebase
      git merge develop --no-edit
      

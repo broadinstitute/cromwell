@@ -58,6 +58,9 @@ object JesAsyncBackendJobExecutionActor {
   val JesUnexpectedTermination = 13
   val JesPreemption = 14
 
+  // If the JES code is 2 (UNKNOWN), this sub-string indicates preemption:
+  val FailedToStartDueToPreemptionSubstring = "failed to start due to preemption"
+
   def StandardException(errorCode: Status,
                         message: String,
                         jobTag: String,
@@ -69,7 +72,7 @@ object JesAsyncBackendJobExecutionActor {
       case None => "The job was stopped before the command finished."
     }
 
-    new Exception(s"Task $jobTag failed. $returnCodeMessage JES error code ${errorCode.getCode.value}. $message")
+    new Exception(s"Task $jobTag failed. $returnCodeMessage PAPI error code ${errorCode.getCode.value}. $message")
   }
 }
 
@@ -425,11 +428,6 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         aggregated.throwables.collectFirst { case s: SocketTimeoutException => s }.isDefined
       case _ => false
     }
-  }
-
-  // If one exists, extract the JES error code (not the google RPC) from the error message
-  private[jes] def getJesErrorCode(errorMessage: String): Option[Int] = {
-    Try { errorMessage.substring(0, errorMessage.indexOf(':')).toInt } toOption
   }
 
   override def handleExecutionFailure(runStatus: RunStatus,

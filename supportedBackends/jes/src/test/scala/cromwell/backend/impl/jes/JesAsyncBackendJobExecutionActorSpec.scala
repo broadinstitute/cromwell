@@ -196,9 +196,9 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     system.actorOf(Props(new ExecuteOrRecoverActor), "ExecuteOrRecoverActor-" + UUID.randomUUID)
   }
 
-  private def runAndFail(previousPreemptions: Int, previousUnexpectedRetries: Int, preemptible: Int, errorCode: Status, innerErrorCode: Int, expectPreemptible: Boolean): BackendJobExecutionResponse = {
+  private def runAndFail(previousPreemptions: Int, previousUnexpectedRetries: Int, preemptible: Int, errorCode: Status, innerErrorMessage: String, expectPreemptible: Boolean): BackendJobExecutionResponse = {
 
-    val runStatus = UnsuccessfulRunStatus(errorCode, Option(s"$innerErrorCode: I seen some things man"), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
+    val runStatus = UnsuccessfulRunStatus(errorCode, Option(innerErrorMessage), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
     val statusPoller = TestProbe()
 
     val promise = Promise[BackendJobExecutionResponse]()
@@ -233,37 +233,41 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   { // Set of "handle call failures appropriately with respect to preemption and failure" tests
     val expectations = Table(
-      ("previous_preemptions", "previous_unexpectedRetries", "preemptible", "errorCode", "innerErrorCode", "shouldRunAsPreemptible", "shouldRetry"),
+      ("previous_preemptions", "previous_unexpectedRetries", "preemptible", "errorCode", "message", "shouldRunAsPreemptible", "shouldRetry"),
       // No preemptible attempts allowed, but standard failures should be retried.
-      (0, 0, 0, Status.ABORTED, 13, false, true), // This is the new "unexpected failure" mode, which is now retried
-      (0, 1, 0, Status.ABORTED, 13, false, true),
-      (0, 2, 0, Status.ABORTED, 13, false, false), // The third unexpected failure is a real failure.
-      (0, 0, 0, Status.ABORTED, 14, false, false), // Usually means "preempted', but this wasn't a preemptible VM, so this should just be a failure.
-      (0, 0, 0, Status.ABORTED, 15, false, false),
-      (0, 0, 0, Status.OUT_OF_RANGE, 13, false, false),
-      (0, 0, 0, Status.OUT_OF_RANGE, 14, false, false),
+      (0, 0, 0, Status.ABORTED, "13: retryable error", false, true), // This is the new "unexpected failure" mode, which is now retried
+      (0, 1, 0, Status.ABORTED, "13: retryable error", false, true),
+      (0, 2, 0, Status.ABORTED, "13: retryable error", false, false), // The third unexpected failure is a real failure.
+      (0, 0, 0, Status.ABORTED, "14: usually means preempted...?", false, false), // Usually means "preempted', but this wasn't a preemptible VM, so this should just be a failure.
+      (0, 0, 0, Status.ABORTED, "15: other error", false, false),
+      (0, 0, 0, Status.OUT_OF_RANGE, "13: unexpected error", false, false),
+      (0, 0, 0, Status.OUT_OF_RANGE, "14: test error msg", false, false),
       // 1 preemptible attempt allowed, but not all failures represent preemptions.
-      (0, 0, 1, Status.ABORTED, 13, true, true),
-      (0, 1, 1, Status.ABORTED, 13, true, true),
-      (0, 2, 1, Status.ABORTED, 13, true, false),
-      (0, 0, 1, Status.ABORTED, 14, true, true),
-      (0, 0, 1, Status.ABORTED, 15, true, false),
-      (0, 0, 1, Status.OUT_OF_RANGE, 13, true, false),
-      (0, 0, 1, Status.OUT_OF_RANGE, 14, true, false),
+      (0, 0, 1, Status.ABORTED, "13: retryable error", true, true),
+      (0, 1, 1, Status.ABORTED, "13: retryable error", true, true),
+      (0, 2, 1, Status.ABORTED, "13: retryable error", true, false),
+      (0, 0, 1, Status.ABORTED, "14: preempted", true, true),
+      (0, 0, 1, Status.UNKNOWN, "Instance failed to start due to preemption.", true, true),
+      (0, 0, 1, Status.ABORTED, "15: other error", true, false),
+      (0, 0, 1, Status.OUT_OF_RANGE, "13: retryable error", true, false),
+      (0, 0, 1, Status.OUT_OF_RANGE, "14: preempted", true, false),
+      (0, 0, 1, Status.OUT_OF_RANGE, "Instance failed to start due to preemption.", true, false),
       // 1 preemptible attempt allowed, but since we're now on the second preemption attempt only 13s should be retryable.
-      (1, 0, 1, Status.ABORTED, 13, false, true),
-      (1, 1, 1, Status.ABORTED, 13, false, true),
-      (1, 2, 1, Status.ABORTED, 13, false, false),
-      (1, 0, 1, Status.ABORTED, 14, false, false),
-      (1, 0, 1, Status.ABORTED, 15, false, false),
-      (1, 0, 1, Status.OUT_OF_RANGE, 13, false, false),
-      (1, 0, 1, Status.OUT_OF_RANGE, 14, false, false)
+      (1, 0, 1, Status.ABORTED, "13: retryable error", false, true),
+      (1, 1, 1, Status.ABORTED, "13: retryable error", false, true),
+      (1, 2, 1, Status.ABORTED, "13: retryable error", false, false),
+      (1, 0, 1, Status.ABORTED, "14: preempted", false, false),
+      (1, 0, 1, Status.UNKNOWN, "Instance failed to start due to preemption.", false, false),
+      (1, 0, 1, Status.ABORTED, "15: other error", false, false),
+      (1, 0, 1, Status.OUT_OF_RANGE, "13: retryable error", false, false),
+      (1, 0, 1, Status.OUT_OF_RANGE, "14: preempted", false, false),
+      (1, 0, 1, Status.OUT_OF_RANGE, "Instance failed to start due to preemption.", false, false),
     )
 
-    expectations foreach { case (previousPreemptions, previousUnexpectedRetries, preemptible, errorCode, innerErrorCode, shouldBePreemptible, shouldRetry) =>
-      val descriptor = s"previousPreemptions=$previousPreemptions, previousUnexpectedRetries=$previousUnexpectedRetries preemptible=$preemptible, errorCode=$errorCode, innerErrorCode=$innerErrorCode"
+    expectations foreach { case (previousPreemptions, previousUnexpectedRetries, preemptible, errorCode, innerErrorMessage, shouldBePreemptible, shouldRetry) =>
+      val descriptor = s"previousPreemptions=$previousPreemptions, previousUnexpectedRetries=$previousUnexpectedRetries preemptible=$preemptible, errorCode=$errorCode, innerErrorMessage=$innerErrorMessage"
       it should s"handle call failures appropriately with respect to preemption and failure ($descriptor)" in {
-        runAndFail(previousPreemptions, previousUnexpectedRetries, preemptible, errorCode, innerErrorCode, shouldBePreemptible) match {
+        runAndFail(previousPreemptions, previousUnexpectedRetries, preemptible, errorCode, innerErrorMessage, shouldBePreemptible) match {
           case response: JobFailedNonRetryableResponse =>
             if(shouldRetry) fail(s"A should-be-retried job ($descriptor) was sent back to the engine with: $response")
           case response: JobFailedRetryableResponse =>

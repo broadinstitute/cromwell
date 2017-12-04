@@ -1,10 +1,11 @@
+import Dependencies._
 import com.typesafe.sbt.SbtGit._
 import sbt.Keys._
 import sbt._
 
 object Version {
   // Upcoming release, or current if we're on a master / hotfix branch
-  val cromwellVersion = "29"
+  val cromwellVersion = "30"
 
   // Adapted from SbtGit.versionWithGit
   def cromwellVersionWithGit: Seq[Setting[_]] =
@@ -19,18 +20,39 @@ object Version {
       shellPrompt in ThisBuild := { state => "%s| %s> ".format(GitCommand.prompt.apply(state), cromwellVersion) }
     )
 
-  val writeVersionConf: Def.Initialize[Task[Seq[File]]] = Def.task {
-    val file = (resourceManaged in Compile).value / "cromwell-version.conf"
-    val contents =
-      s"""|version {
-          |  cromwell: "${version.value}"
-          |}
-          |""".stripMargin
-    IO.write(file, contents)
-    Seq(file)
+  val writeProjectVersionConf: Def.Initialize[Task[Seq[File]]] = Def.task {
+    writeVersionConf(name.value, (resourceManaged in Compile).value, version.value)
   }
 
-  val versionConfCompileSettings = List(resourceGenerators in Compile <+= writeVersionConf)
+  val writeSwaggerUiVersionConf: Def.Initialize[Task[Seq[File]]] = Def.task {
+    writeVersionConf("swagger-ui", (resourceManaged in Compile).value, swaggerUiV)
+  }
+
+  /**
+    * Writes a version.conf compatible with cromwell-common's VersionUtil. Returns the written file wrapped in a Seq to
+    * make it compatible for appending to `resourceGenerators in Compile`.
+    *
+    * Ex:
+    * {{{
+    * resourceGenerators in Compile += writeVersionConf(name.value, (resourceManaged in Compile).value, version.value)
+    * }}}
+    *
+    * For a project named "my-project", writes a conf named "my-project-version.conf" containing
+    * "my.project.version = [version]"
+    *
+    * @param projectName Name of the project
+    * @param directory The managed resource directory, usually `(resourceManaged in Compile).value`
+    * @param version The version to write
+    * @return The written file
+    */
+  private def writeVersionConf(projectName: String, directory: File, version: String): Seq[File] = {
+    val file = directory / s"$projectName-version.conf"
+    val contents =
+      s"""|${projectName.replace("-", ".")}.version: "$version"
+          |""".stripMargin
+    IO.write(file, contents)
+    List(file)
+  }
 
   private def makeVersion(versionProperty: String,
                           baseVersion: Option[String],

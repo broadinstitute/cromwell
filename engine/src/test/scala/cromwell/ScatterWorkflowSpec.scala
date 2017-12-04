@@ -2,9 +2,9 @@ package cromwell
 
 import akka.testkit._
 import cromwell.core.Tags.DockerTest
-import wdl4s.wdl.types.{WdlArrayType, WdlFileType, WdlIntegerType, WdlStringType}
-import wdl4s.wdl.values.{WdlArray, WdlFile, WdlInteger, WdlString}
 import cromwell.util.SampleWdl
+import wom.types._
+import wom.values._
 
 class ScatterWorkflowSpec extends CromwellTestKitWordSpec {
   "A workflow with a stand-alone scatter block in it" should {
@@ -13,8 +13,8 @@ class ScatterWorkflowSpec extends CromwellTestKitWordSpec {
         sampleWdl = SampleWdl.SimpleScatterWdl,
         eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         expectedOutputs = Map(
-          "scatter0.outside_scatter.out" -> WdlInteger(8000),
-          "scatter0.inside_scatter.out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(1, 2, 3, 4, 5).map(WdlInteger(_)))
+          "scatter0.outside_scatter.out" -> WomInteger(8000),
+          "scatter0.inside_scatter.out" -> WomArray(WomArrayType(WomIntegerType), Seq(1, 2, 3, 4, 5).map(WomInteger(_)))
         )
       )
     }
@@ -25,11 +25,11 @@ class ScatterWorkflowSpec extends CromwellTestKitWordSpec {
         sampleWdl = new SampleWdl.ScatterWdl,
         eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         expectedOutputs = Map(
-          "w.E.E_out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(9, 9, 9, 9, 9, 9).map(WdlInteger(_))),
-          "w.C.C_out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(400, 500, 600, 800, 600, 500).map(WdlInteger(_))),
-          "w.A.A_out" -> WdlArray(WdlArrayType(WdlStringType), Seq("jeff", "chris", "miguel", "thibault", "khalid", "ruchi").map(WdlString)),
-          "w.D.D_out" -> WdlInteger(34),
-          "w.B.B_out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(4, 5, 6, 8, 6, 5).map(WdlInteger(_)))
+          "w.E.E_out" -> WomArray(WomArrayType(WomIntegerType), Seq(9, 9, 9, 9, 9, 9).map(WomInteger(_))),
+          "w.C.C_out" -> WomArray(WomArrayType(WomIntegerType), Seq(400, 500, 600, 800, 600, 500).map(WomInteger(_))),
+          "w.A.A_out" -> WomArray(WomArrayType(WomStringType), Seq("jeff", "chris", "miguel", "thibault", "khalid", "ruchi").map(WomString)),
+          "w.D.D_out" -> WomInteger(34),
+          "w.B.B_out" -> WomArray(WomArrayType(WomIntegerType), Seq(4, 5, 6, 8, 6, 5).map(WomInteger(_)))
         )
       )
     }
@@ -40,12 +40,12 @@ class ScatterWorkflowSpec extends CromwellTestKitWordSpec {
         sampleWdl = SampleWdl.SiblingsScatterWdl,
         eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         expectedOutputs = Map(
-          "w.E.E_out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(9, 9, 9, 9, 9, 9).map(WdlInteger(_))),
-          "w.F.B_out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(4, 5, 6, 8, 6, 5).map(WdlInteger(_))),
-          "w.C.C_out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(400, 500, 600, 800, 600, 500).map(WdlInteger(_))),
-          "w.A.A_out" -> WdlArray(WdlArrayType(WdlStringType), Seq("jeff", "chris", "miguel", "thibault", "khalid", "ruchi").map(WdlString)),
-          "w.D.D_out" -> WdlInteger(34),
-          "w.B.B_out" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(4, 5, 6, 8, 6, 5).map(WdlInteger(_)))
+          "w.E.E_out" -> WomArray(WomArrayType(WomIntegerType), Seq(9, 9, 9, 9, 9, 9).map(WomInteger(_))),
+          "w.F.B_out" -> WomArray(WomArrayType(WomIntegerType), Seq(4, 5, 6, 8, 6, 5).map(WomInteger(_))),
+          "w.C.C_out" -> WomArray(WomArrayType(WomIntegerType), Seq(400, 500, 600, 800, 600, 500).map(WomInteger(_))),
+          "w.A.A_out" -> WomArray(WomArrayType(WomStringType), Seq("jeff", "chris", "miguel", "thibault", "khalid", "ruchi").map(WomString)),
+          "w.D.D_out" -> WomInteger(34),
+          "w.B.B_out" -> WomArray(WomArrayType(WomIntegerType), Seq(4, 5, 6, 8, 6, 5).map(WomInteger(_)))
         )
       )
     }
@@ -57,9 +57,9 @@ class ScatterWorkflowSpec extends CromwellTestKitWordSpec {
         sampleWdl = SampleWdl.PrepareScatterGatherWdl(),
         eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         expectedOutputs = Map(
-          "sc_test.do_gather.sum" -> WdlInteger(11),
-          "sc_test.do_prepare.split_files" -> WdlArray(WdlArrayType(WdlFileType), Seq("temp_aa", "temp_ab", "temp_ac", "temp_ad").map(WdlFile(_))),
-          "sc_test.do_scatter.count_file" -> WdlArray(WdlArrayType(WdlFileType), (1 to 4).map(_ => WdlFile("output.txt")))
+          "sc_test.do_gather.sum" -> WomInteger(11),
+          "sc_test.do_prepare.split_files" -> WomArray(WomArrayType(WomFileType), Seq("temp_aa", "temp_ab", "temp_ac", "temp_ad").map(WomFile(_))),
+          "sc_test.do_scatter.count_file" -> WomArray(WomArrayType(WomFileType), (1 to 4).map(_ => WomFile("output.txt")))
         )
       )
     }
@@ -74,9 +74,9 @@ class ScatterWorkflowSpec extends CromwellTestKitWordSpec {
                   |}
                   """.stripMargin,
         expectedOutputs = Map(
-          "sc_test.do_gather.sum" -> WdlInteger(11),
-          "sc_test.do_prepare.split_files" -> WdlArray(WdlArrayType(WdlFileType), Seq("temp_aa", "temp_ab", "temp_ac", "temp_ad").map(WdlFile(_))),
-          "sc_test.do_scatter.count_file" -> WdlArray(WdlArrayType(WdlFileType), (1 to 4).map(_ => WdlFile("output.txt")))
+          "sc_test.do_gather.sum" -> WomInteger(11),
+          "sc_test.do_prepare.split_files" -> WomArray(WomArrayType(WomFileType), Seq("temp_aa", "temp_ab", "temp_ac", "temp_ad").map(WomFile(_))),
+          "sc_test.do_scatter.count_file" -> WomArray(WomArrayType(WomFileType), (1 to 4).map(_ => WomFile("output.txt")))
         )
       )
     }

@@ -3,12 +3,12 @@ package cromwell.services.metadata
 import java.util.UUID
 
 import cromwell.core.WorkflowId
-import lenthall.exception.AggregatedException
+import common.exception.AggregatedException
 import org.scalactic.Equality
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.types.{WdlArrayType, WdlMapType, WdlStringType}
-import wdl4s.wdl.values._
+import wom.types._
+import wom.values._
 
 class MetadataServiceSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
 
@@ -26,15 +26,15 @@ class MetadataServiceSpec extends FlatSpec with Matchers with TableDrivenPropert
   it should "convert a WdlArray to MetadataEvents" in {
     import MetadataService._
     val workflowId = WorkflowId.randomId()
-    val wdlArray = WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("Hello"), WdlString("world!")))
-    val emptyWdlArray = WdlArray(WdlArrayType(WdlStringType), Seq.empty)
+    val wdlArray = WomArray(WomArrayType(WomStringType), Seq(WomString("Hello"), WomString("world!")))
+    val emptyWdlArray = WomArray(WomArrayType(WomStringType), Seq.empty)
 
-    wdlValueToMetadataEvents(MetadataKey(workflowId, None, "root"), wdlArray).toList should contain theSameElementsInOrderAs List(
+    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), wdlArray).toList should contain theSameElementsInOrderAs List(
       MetadataEvent(MetadataKey(workflowId, None, "root[0]"), MetadataValue("Hello")),
       MetadataEvent(MetadataKey(workflowId, None, "root[1]"), MetadataValue("world!"))
     )
 
-    wdlValueToMetadataEvents(MetadataKey(workflowId, None, "root"), emptyWdlArray).toList should contain theSameElementsAs List(
+    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), emptyWdlArray).toList should contain theSameElementsAs List(
       MetadataEvent.empty(MetadataKey(workflowId, None, "root[]"))
     )
   }
@@ -42,36 +42,36 @@ class MetadataServiceSpec extends FlatSpec with Matchers with TableDrivenPropert
   it should "convert a WdlMap to MetadataEvents" in {
     import MetadataService._
     val workflowId = WorkflowId.randomId()
-    val wdlArray = WdlMap(WdlMapType(WdlStringType, WdlStringType), Map(
-      WdlString("Hello") -> WdlString("world!"),
-      WdlString("Goodbye") -> WdlString("world!")
+    val wdlArray = WomMap(WomMapType(WomStringType, WomStringType), Map(
+      WomString("Hello") -> WomString("world!"),
+      WomString("Goodbye") -> WomString("world!")
     ))
-    val emptyWdlMap = WdlMap(WdlMapType(WdlStringType, WdlStringType), Map.empty)
+    val emptyWdlMap = WomMap(WomMapType(WomStringType, WomStringType), Map.empty)
 
-    wdlValueToMetadataEvents(MetadataKey(workflowId, None, "root"), wdlArray).toList should contain theSameElementsInOrderAs List(
+    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), wdlArray).toList should contain theSameElementsInOrderAs List(
       MetadataEvent(MetadataKey(workflowId, None, "root:Hello"), MetadataValue("world!")),
       MetadataEvent(MetadataKey(workflowId, None, "root:Goodbye"), MetadataValue("world!"))
     )
 
-    wdlValueToMetadataEvents(MetadataKey(workflowId, None, "root"), emptyWdlMap).toList should contain theSameElementsAs List(
+    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), emptyWdlMap).toList should contain theSameElementsAs List(
       MetadataEvent.empty(MetadataKey(workflowId, None, "root"))
     )
   }
 
-  it should "convert a primitive WdlValue to MetadataEvents" in {
+  it should "convert a primitive WomValue to MetadataEvents" in {
     import MetadataService._
     val workflowId = WorkflowId.randomId()
 
     val values = Table(
-      ("wdlValue", "metadataValue"),
-      (WdlString("hi"), MetadataValue("hi", MetadataString)),
-      (WdlInteger(1), MetadataValue("1", MetadataInt)),
-      (WdlFloat(1F), MetadataValue("1.0", MetadataNumber)),
-      (WdlBoolean(true), MetadataValue("true", MetadataBoolean))
+      ("womValue", "metadataValue"),
+      (WomString("hi"), MetadataValue("hi", MetadataString)),
+      (WomInteger(1), MetadataValue("1", MetadataInt)),
+      (WomFloat(1F), MetadataValue("1.0", MetadataNumber)),
+      (WomBoolean(true), MetadataValue("true", MetadataBoolean))
     )
 
-    forAll(values) { (wdlValue, metadataValue) =>
-      wdlValueToMetadataEvents(MetadataKey(workflowId, None, "root"), wdlValue).toList should contain theSameElementsAs List(
+    forAll(values) { (womValue, metadataValue) =>
+      womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), womValue).toList should contain theSameElementsAs List(
         MetadataEvent(MetadataKey(workflowId, None, "root"), metadataValue)
       )
     }

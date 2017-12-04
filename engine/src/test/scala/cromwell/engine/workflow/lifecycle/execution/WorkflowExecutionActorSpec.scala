@@ -10,6 +10,7 @@ import cromwell.engine.backend.{BackendConfigurationEntry, BackendSingletonColle
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{ExecuteWorkflowCommand, WorkflowExecutionFailedResponse}
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
+import cromwell.engine.workflow.workflowstore.Submitted
 import cromwell.services.ServiceRegistryActor
 import cromwell.services.metadata.MetadataService
 import cromwell.util.SampleWdl
@@ -34,6 +35,8 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike w
 
   val stubbedConfig = ConfigFactory.load().getConfig("backend.providers.Mock").getConfig("config")
 
+  val serviceRegistry = TestProbe().ref
+
   val runtimeSection =
     """
       |runtime {
@@ -56,7 +59,7 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike w
     val jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props)
     val ioActor = system.actorOf(SimpleIoActor.props)
     val subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)
-    val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props)
+    val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistry))
     val MockBackendConfigEntry = BackendConfigurationEntry(
       name = "Mock",
       lifecycleActorFactoryClass = "cromwell.engine.backend.mock.RetryableBackendLifecycleActorFactory",
@@ -73,7 +76,7 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike w
     val weaSupervisor = TestProbe()
     val workflowExecutionActor = TestActorRef(
       props = WorkflowExecutionActor.props(engineWorkflowDescriptor, ioActor, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
-        callCacheReadActor.ref, callCacheWriteActor.ref, dockerHashActor.ref, jobTokenDispenserActor, MockBackendSingletonCollection, AllBackendInitializationData.empty, restarting = false),
+        callCacheReadActor.ref, callCacheWriteActor.ref, dockerHashActor.ref, jobTokenDispenserActor, MockBackendSingletonCollection, AllBackendInitializationData.empty, startState = Submitted),
       name = "WorkflowExecutionActor",
       supervisor = weaSupervisor.ref)
 
@@ -107,7 +110,7 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike w
     val callCacheWriteActor = system.actorOf(EmptyCallCacheWriteActor.props)
     val dockerHashActor = system.actorOf(EmptyDockerHashActor.props)
     val ioActor = system.actorOf(SimpleIoActor.props)
-    val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props)
+    val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistry))
 
     val MockBackendConfigEntry = BackendConfigurationEntry(
       name = MockBackendName,
@@ -120,7 +123,7 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike w
     val engineWorkflowDescriptor = createMaterializedEngineWorkflowDescriptor(workflowId, SampleWdl.SimpleScatterWdl.asWorkflowSources(runtime = runtimeSection))
     val workflowExecutionActor = system.actorOf(
       WorkflowExecutionActor.props(engineWorkflowDescriptor, ioActor, serviceRegistry, jobStore, subWorkflowStoreActor,
-        callCacheReadActor, callCacheWriteActor, dockerHashActor, jobTokenDispenserActor, MockBackendSingletonCollection, AllBackendInitializationData.empty, restarting = false),
+        callCacheReadActor, callCacheWriteActor, dockerHashActor, jobTokenDispenserActor, MockBackendSingletonCollection, AllBackendInitializationData.empty, startState = Submitted),
       "WorkflowExecutionActor")
 
     val scatterLog = "Starting calls: scatter0.inside_scatter:0:1, scatter0.inside_scatter:1:1, scatter0.inside_scatter:2:1, scatter0.inside_scatter:3:1, scatter0.inside_scatter:4:1"

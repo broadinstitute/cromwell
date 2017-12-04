@@ -1,21 +1,84 @@
 package cromwell.backend.wdl
 
+import cats.data.EitherT._
+import cats.data.Validated.{Invalid, Valid}
+import cats.data.{EitherT, NonEmptyList}
+import cats.instances.try_._
+import cats.syntax.apply._
+import cats.syntax.either._
+import cats.syntax.validated._
 import cromwell.backend.BackendJobDescriptor
-import cromwell.core.JobOutput
-import wdl4s.wdl.LocallyQualifiedName
-import wdl4s.wdl.expression.WdlStandardLibraryFunctions
-import wdl4s.wdl.values.WdlValue
+import common.validation.Checked._
+import common.validation.ErrorOr.ErrorOr
+import cromwell.core.CallOutputs
+import wom.expression.IoFunctionSet
+import wom.graph.GraphNodePort.{ExpressionBasedOutputPort, OutputPort}
+import wom.types.WomType
+import wom.values.WomValue
 
-import scala.util.{Success, Try}
+import scala.util.{Failure, Success, Try}
 
 object OutputEvaluator {
+  sealed trait EvaluatedJobOutputs
+  case class ValidJobOutputs(outputs: CallOutputs) extends EvaluatedJobOutputs
+  case class InvalidJobOutputs(errors: NonEmptyList[String]) extends EvaluatedJobOutputs
+  case class JobOutputsEvaluationException(exception: Throwable) extends EvaluatedJobOutputs
+
+  type OutputResult[A] = EitherT[Try, NonEmptyList[String], A]
+
   def evaluateOutputs(jobDescriptor: BackendJobDescriptor,
-                      wdlFunctions: WdlStandardLibraryFunctions,
-                      postMapper: WdlValue => Try[WdlValue] = v => Success(v)): Try[Map[LocallyQualifiedName, JobOutput]] = {
-    jobDescriptor.call.task.evaluateOutputs(jobDescriptor.inputDeclarations, wdlFunctions, postMapper) map { outputs =>
-      outputs map {
-        case (output, value) => output.unqualifiedName -> JobOutput(value)
-      } 
+                      ioFunctions: IoFunctionSet,
+                      postMapper: WomValue => Try[WomValue] = v => Success(v)): EvaluatedJobOutputs = {
+    val taskInputValues: Map[String, WomValue] = jobDescriptor.localInputs
+
+    def foldFunction(accumulatedOutputs: Try[ErrorOr[List[(OutputPort, WomValue)]]], output: ExpressionBasedOutputPort) = accumulatedOutputs flatMap { accumulated =>
+      // Extract the valid pairs from the job outputs accumulated so far, and add to it the inputs (outputs can also reference inputs)
+      val allKnownValues: Map[String, WomValue] = accumulated match {
+        case Valid(outputs) =>
+          // The evaluateValue methods needs a Map[String, WomValue], use the output port name for already computed outputs
+          outputs.toMap[OutputPort, WomValue].map({ case (port, value) => port.name -> value }) ++ taskInputValues
+        case Invalid(_) => taskInputValues
+      }
+
+      // Attempt to evaluate the expression using all known values
+      def evaluateOutputExpression: OutputResult[WomValue] =
+        EitherT.fromEither[Try] {
+          output.expression.evaluateValue(allKnownValues, ioFunctions).toEither
+        }
+
+      // Attempt to coerce the womValue to the desired output type
+      def coerceOutputValue(womValue: WomValue, coerceTo: WomType): OutputResult[WomValue] = {
+        fromEither[Try](
+          // TODO WOM: coerceRawValue should return an ErrorOr
+          coerceTo.coerceRawValue(womValue).toEither.leftMap(t => NonEmptyList.one(t.getClass.getSimpleName + ": " + t.getMessage))
+        )
+      }
+
+      /*
+        * Go through evaluation, coercion and post processing.
+        * Transform the result to a validated Try[ErrorOr[(String, WomValue)]] with toValidated
+        * If we have a valid pair, add it to the previously accumulated outputs, otherwise combine the Nels of errors
+       */
+      val evaluated = for {
+        evaluated <- evaluateOutputExpression
+        coerced <- coerceOutputValue(evaluated, output.womType)
+        postProcessed <- EitherT { postMapper(coerced).map(_.validNelCheck) }: OutputResult[WomValue]
+        pair = output -> postProcessed
+      } yield pair
+
+      def enhanceErrorText(s: String): String = s"Bad output '${output.name}': $s"
+      evaluated.leftMap(_ map enhanceErrorText).toValidated map { evaluatedOutput: ErrorOr[(OutputPort, WomValue)] =>
+        (accumulated, evaluatedOutput) mapN { _ :+ _ }
+      }
+    }
+
+    val emptyValue = Success(List.empty[(OutputPort, WomValue)].validNel): Try[ErrorOr[List[(OutputPort, WomValue)]]]
+
+    // Fold over the outputs to evaluate them in order, map the result to an EvaluatedJobOutputs
+    jobDescriptor.taskCall.expressionBasedOutputPorts.foldLeft(emptyValue)(foldFunction) match {
+      case Success(Valid(outputs)) => ValidJobOutputs(CallOutputs(outputs.toMap))
+      case Success(Invalid(errors)) => InvalidJobOutputs(errors)
+      case Failure(exception) => JobOutputsEvaluationException(exception)
     }
   }
 }

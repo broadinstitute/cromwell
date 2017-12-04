@@ -7,8 +7,9 @@ import cromwell.backend.wfs.WorkflowPathBuilder
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
-import wdl4s.wdl.WdlTaskCall
-import wdl4s.wdl.values.WdlValue
+import wom.expression.WomExpression
+import wom.graph.TaskCallNode
+import wom.values.WomValue
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -16,7 +17,7 @@ import scala.util.Try
 trait StandardInitializationActorParams {
   def workflowDescriptor: BackendWorkflowDescriptor
 
-  def calls: Set[WdlTaskCall]
+  def calls: Set[TaskCallNode]
 
   def serviceRegistryActor: ActorRef
 
@@ -27,7 +28,7 @@ case class DefaultInitializationActorParams
 (
   workflowDescriptor: BackendWorkflowDescriptor,
   ioActor: ActorRef,
-  calls: Set[WdlTaskCall],
+  calls: Set[TaskCallNode],
   serviceRegistryActor: ActorRef,
   configurationDescriptor: BackendConfigurationDescriptor,
   restarting: Boolean
@@ -45,7 +46,7 @@ class StandardInitializationActor(val standardParams: StandardInitializationActo
 
   override lazy val serviceRegistryActor: ActorRef = standardParams.serviceRegistryActor
 
-  override lazy val calls: Set[WdlTaskCall] = standardParams.calls
+  override lazy val calls: Set[TaskCallNode] = standardParams.calls
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     initializationData map Option.apply
@@ -71,18 +72,18 @@ class StandardInitializationActor(val standardParams: StandardInitializationActo
   def runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
       StandardValidatedRuntimeAttributesBuilder.default(configurationDescriptor.backendRuntimeConfig)
 
-  override protected lazy val runtimeAttributeValidators: Map[String, (Option[WdlValue]) => Boolean] = {
+  override protected lazy val runtimeAttributeValidators: Map[String, (Option[WomExpression]) => Boolean] = {
     runtimeAttributesBuilder.validatorMap
   }
 
-  override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WdlValue]] = {
+  override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WomValue]] = {
     RuntimeAttributesDefault.workflowOptionsDefault(options, runtimeAttributesBuilder.coercionMap)
   }
 
   override def validate(): Future[Unit] = {
     Future.fromTry(Try {
       calls foreach { call =>
-        val runtimeAttributeKeys = call.task.runtimeAttributes.attrs.keys.toList
+        val runtimeAttributeKeys = call.callable.runtimeAttributes.attributes.keys.toList
         val notSupportedAttributes = runtimeAttributesBuilder.unsupportedKeys(runtimeAttributeKeys).toList
 
         if (notSupportedAttributes.nonEmpty) {

@@ -1,0 +1,11 @@
+name: curl
+testFormat: workflowsuccess
+
+files {
+  wdl: curl/curl.wdl
+}
+
+metadata {
+  workflowName: curl_wf
+  status: Succeeded
+}

@@ -3,22 +3,22 @@ package cromwell.backend.impl.tes
 import java.nio.file.FileAlreadyExistsException
 
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
+import akka.stream.ActorMaterializer
 import cromwell.backend.BackendJobLifecycleActor
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import wdl4s.wdl.expression.NoFunctions
-import wdl4s.wdl.values.WdlFile
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.marshalling.Marshal
-import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
-import akka.stream.ActorMaterializer
+import common.validation.ErrorOr.ErrorOr
+import wom.values.WomFile
 
-import scala.concurrent.duration._
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
@@ -70,20 +70,21 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override lazy val jobTag: String = jobDescriptor.key.tag
 
-  // Utility for converting a WdlValue so that the path is localized to the
+  // Utility for converting a WomValue so that the path is localized to the
   // container's filesystem.
-  override def mapCommandLineWdlFile(wdlFile: WdlFile): WdlFile = {
-    val localPath = DefaultPathBuilder.get(wdlFile.valueString).toAbsolutePath
+  override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
+    val localPath = DefaultPathBuilder.get(womFile.valueString).toAbsolutePath
+
     localPath match {
       case p if p.startsWith(tesJobPaths.workflowPaths.DockerRoot) =>
         val containerPath = p.pathAsString
-        WdlFile(containerPath)
+        WomFile(containerPath)
       case p if p.startsWith(tesJobPaths.callExecutionRoot) =>
         val containerPath = tesJobPaths.containerExec(commandDirectory, localPath.getFileName.pathAsString)
-        WdlFile(containerPath)
+        WomFile(containerPath)
       case p =>
         val containerPath = tesJobPaths.containerInput(p.pathAsString)
-        WdlFile(containerPath)
+        WomFile(containerPath)
     }
   }
 
@@ -94,12 +95,21 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
-  def createTaskMessage(): Task = {
-    val task = TesTask(jobDescriptor, configurationDescriptor, jobLogger, tesJobPaths,
-      runtimeAttributes, commandDirectory, commandScriptContents, backendEngineFunctions,
-      realDockerImageUsed)
+  def createTaskMessage(): ErrorOr[Task] = {
+    val task =
+      commandScriptContents.map(
+        TesTask(
+          jobDescriptor,
+          configurationDescriptor,
+          jobLogger,
+          tesJobPaths,
+          runtimeAttributes,
+          commandDirectory,
+          _,
+          instantiatedCommand,
+          realDockerImageUsed))
 
-    Task(
+    task.map(task => Task(
       None,
       None,
       Option(task.name),
@@ -112,15 +122,18 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       None,
       None,
       None
-    )
+    ))
   }
 
   override def executeAsync(): Future[ExecutionHandle] = {
     // create call exec dir
     tesJobPaths.callExecutionRoot.createPermissionedDirectories()
-    val taskMessage = createTaskMessage()
+    val taskMessageFuture = createTaskMessage().fold(
+      errors => Future.failed(new RuntimeException(errors.toList.mkString(", "))),
+      Future.successful)
 
     for {
+      taskMessage <- taskMessageFuture
       entity <- Marshal(taskMessage).to[RequestEntity]
       ctr <- makeRequest[CreateTaskResponse](HttpRequest(method = HttpMethods.POST, uri = tesEndpoint, entity = entity))
     } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(ctr.id), None, previousStatus = None)
@@ -187,17 +200,21 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
   
-  private val outputWdlFiles: Seq[WdlFile] = jobDescriptor.call.task
-    .findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions)
-    .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
+  private val outputWomFiles: Seq[WomFile] = {
+    Seq.empty
+    // TODO WOM: fix
+//    jobDescriptor.call.task
+//      .findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions)
+//      .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
+  }
 
-  override def mapOutputWdlFile(wdlFile: WdlFile): WdlFile = {
-    val absPath: Path = tesJobPaths.callExecutionRoot.resolve(wdlFile.valueString)
-    wdlFile match {
-      case fileNotFound if !absPath.exists && outputWdlFiles.contains(fileNotFound) =>
+  override def mapOutputWomFile(womFile: WomFile): WomFile = {
+    val absPath: Path = tesJobPaths.callExecutionRoot.resolve(womFile.valueString)
+    womFile match {
+      case fileNotFound if !absPath.exists && outputWomFiles.contains(fileNotFound) =>
         throw new RuntimeException("Could not process output, file not found: " +
           s"${absPath.pathAsString}")
-      case _ => WdlFile(absPath.pathAsString)
+      case _ => WomFile(absPath.pathAsString)
     }
   }
 

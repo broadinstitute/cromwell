@@ -1,21 +1,21 @@
 package cromwell.engine.workflow.mocks
 
 import org.specs2.mock.Mockito
-import wdl4s.wdl.{Declaration, WdlExpression}
-import wdl4s.wdl.types.WdlType
+import wdl.{Declaration, WdlExpression}
+import wom.types.WomType
 
 object DeclarationMock {
-  type DeclarationMockType = (String, WdlType, WdlExpression)
+  type DeclarationMockType = (String, WomType, WdlExpression)
 }
 
 trait DeclarationMock extends Mockito {
   def mockDeclaration(name: String,
-                      wdlType: WdlType,
+                      womType: WomType,
                       expression: WdlExpression) = {
     val declaration = mock[Declaration]
     declaration.unqualifiedName returns name
     declaration.expression returns Option(expression)
-    declaration.wdlType returns wdlType
+    declaration.womType returns womType
     declaration
   }
 }

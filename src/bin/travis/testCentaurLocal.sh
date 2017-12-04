@@ -78,23 +78,19 @@ printTravisHeartbeat
 set -x
 set -e
 
-sudo apt-get update -qq
-sudo apt-get install -qq mysql-server-5.6 mysql-client-5.6 mysql-client-core-5.6
-docker pull ubuntu:latest
-mysql -u root -e "SET GLOBAL sql_mode = 'STRICT_ALL_TABLES';"
-mysql -u root -e "CREATE DATABASE IF NOT EXISTS cromwell_test;"
-mysql -u root -e "CREATE USER 'travis'@'localhost' IDENTIFIED BY '';"
-mysql -u root -e "GRANT ALL PRIVILEGES ON cromwell_test . * TO 'travis'@'localhost';"
-
-sbt assembly
+ASSEMBLY_LOG_LEVEL=error ENABLE_COVERAGE=true sbt assembly --error
 CROMWELL_JAR=$(find "$(pwd)/target/scala-2.12" -name "cromwell-*.jar")
 LOCAL_CONF="$(pwd)/src/bin/travis/resources/local_centaur.conf"
-git clone https://github.com/broadinstitute/centaur.git
-cd centaur
-git checkout ${CENTAUR_BRANCH}
-cd ..
-# All tests use ubuntu:latest - make sure it's there before starting the tests 
+
+# All tests use ubuntu:latest - make sure it's there before starting the tests
 # because pulling the image during some of the tests would cause them to fail 
 # (specifically output_redirection which expects a specific value in stderr)
 docker pull ubuntu:latest
-centaur/test_cromwell.sh -j"${CROMWELL_JAR}" -c${LOCAL_CONF}
+
+centaur/test_cromwell.sh -j"${CROMWELL_JAR}" -g -c${LOCAL_CONF}
+
+if [ "$TRAVIS_EVENT_TYPE" != "cron" ]; then
+    sbt coverageReport --warn
+    sbt coverageAggregate --warn
+    bash <(curl -s https://codecov.io/bash) >/dev/null
+fi

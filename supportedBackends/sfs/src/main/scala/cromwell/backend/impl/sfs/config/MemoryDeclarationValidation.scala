@@ -2,11 +2,11 @@ package cromwell.backend.impl.sfs.config
 
 import cromwell.backend.MemorySize
 import cromwell.backend.validation._
-import wdl4s.wdl.expression.NoFunctions
+import wdl.expression.NoFunctions
+import wdl.{Declaration, NoLookup, WdlExpression}
 import wdl4s.parser.MemoryUnit
-import wdl4s.wdl.types._
-import wdl4s.wdl.values.{WdlFloat, WdlInteger, WdlOptionalValue, WdlValue}
-import wdl4s.wdl.{Declaration, NoLookup, WdlExpression}
+import wom.types._
+import wom.values._
 
 /**
   * Maps declarations of memory in WDL runtime attributes to the commands used to submit.
@@ -47,17 +47,17 @@ class MemoryDeclarationValidation(declaration: Declaration, attributeName: Strin
     */
   override protected def default(validation: RuntimeAttributesValidation[_],
                                  wdlExpression: WdlExpression): RuntimeAttributesValidation[_] = {
-    val wdlValue = declaration.expression.get.evaluate(NoLookup, NoFunctions).get
-    val amount: Double = defaultAmount(wdlValue)
+    val womValue = declaration.expression.get.evaluate(NoLookup, NoFunctions).get
+    val amount: Double = defaultAmount(womValue)
     val memorySize = MemorySize(amount, declarationMemoryUnit)
-    validation.withDefault(WdlInteger(memorySize.bytes.toInt))
+    validation.withDefault(WomInteger(memorySize.bytes.toInt))
   }
 
-  private def defaultAmount(wdlValue: WdlValue): Double = {
-    wdlValue match {
-      case WdlInteger(value) => value.toDouble
-      case WdlFloat(value) => value
-      case WdlOptionalValue(_, Some(optionalWdlValue)) => defaultAmount(optionalWdlValue)
+  private def defaultAmount(womValue: WomValue): Double = {
+    womValue match {
+      case WomInteger(value) => value.toDouble
+      case WomFloat(value) => value
+      case WomOptionalValue(_, Some(optionalWdlValue)) => defaultAmount(optionalWdlValue)
       case other => throw new RuntimeException(s"Unsupported memory default: $other")
     }
   }
@@ -77,16 +77,16 @@ class MemoryDeclarationValidation(declaration: Declaration, attributeName: Strin
     * @param validatedRuntimeAttributes The validated attributes.
     * @return The value from the collection wrapped in `Some`, or `None` if the value wasn't found.
     */
-  override def extractWdlValueOption(validatedRuntimeAttributes: ValidatedRuntimeAttributes): Option[WdlValue] = {
+  override def extractWdlValueOption(validatedRuntimeAttributes: ValidatedRuntimeAttributes): Option[WomValue] = {
     RuntimeAttributesValidation.extractOption(MemoryValidation.instance(attributeName), validatedRuntimeAttributes) map
-      coerceMemorySize(declaration.wdlType)
+      coerceMemorySize(declaration.womType)
   }
 
-  private def coerceMemorySize(wdlType: WdlType)(value: MemorySize): WdlValue = {
-    wdlType match {
-      case WdlIntegerType => WdlInteger(value.to(declarationMemoryUnit).amount.toInt)
-      case WdlFloatType => WdlFloat(value.to(declarationMemoryUnit).amount)
-      case WdlOptionalType(optionalType) => coerceMemorySize(optionalType)(value)
+  private def coerceMemorySize(womType: WomType)(value: MemorySize): WomValue = {
+    womType match {
+      case WomIntegerType => WomInteger(value.to(declarationMemoryUnit).amount.toInt)
+      case WomFloatType => WomFloat(value.to(declarationMemoryUnit).amount)
+      case WomOptionalType(optionalType) => coerceMemorySize(optionalType)(value)
       case other => throw new RuntimeException(s"Unsupported wdl type for memory: $other")
     }
   }

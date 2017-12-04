@@ -5,8 +5,8 @@ import com.typesafe.config.Config
 import cromwell.backend.MemorySize
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation._
-import lenthall.validation.ErrorOr.ErrorOr
-import wdl4s.wdl.values.{WdlString, WdlValue}
+import common.validation.ErrorOr.ErrorOr
+import wom.values._
 
 case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
                                 dockerImage: String,
@@ -74,8 +74,8 @@ object DockerWorkingDirValidation {
 
 class DockerWorkingDirValidation extends StringRuntimeAttributesValidation(TesRuntimeAttributes.DockerWorkingDirKey) {
   // NOTE: Docker's current test specs don't like WdlInteger, etc. auto converted to WdlString.
-  override protected def validateValue: PartialFunction[WdlValue, ErrorOr[String]] = {
-    case WdlString(value) => value.validNel
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[String]] = {
+    case WomString(value) => value.validNel
   }
 }
 

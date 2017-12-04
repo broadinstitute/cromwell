@@ -3,4 +3,4 @@
 set -e
 set -x
 
-sbt clean assembly doc
+sbt +clean +package assembly +doc

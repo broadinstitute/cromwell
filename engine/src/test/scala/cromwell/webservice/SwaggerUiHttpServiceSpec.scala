@@ -9,9 +9,8 @@ import cromwell.webservice.SwaggerUiHttpServiceSpec._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 
-
 trait SwaggerUiHttpServiceSpec extends FlatSpec with Matchers with ScalatestRouteTest with SwaggerUiHttpService {
-  override def swaggerUiVersion = TestSwaggerUiVersion
+  override def swaggerUiVersion = CromwellApiService.swaggerUiVersion
 }
 
 trait SwaggerResourceHttpServiceSpec extends FlatSpec with Matchers with ScalatestRouteTest with
@@ -24,14 +23,19 @@ trait SwaggerUiResourceHttpServiceSpec extends SwaggerUiHttpServiceSpec with Swa
 SwaggerUiResourceHttpService
 
 object SwaggerUiHttpServiceSpec {
-  val TestSwaggerUiVersion = "2.1.1"
   val SwaggerIndexPreamble =
     """
       |<!DOCTYPE html>
-      |<html>
+      |<html lang="en">
       |<head>
       |  <meta charset="UTF-8">
       |  <title>Swagger UI</title>""".stripMargin.trim // workaround IDEA's weird formatting of interpolated strings
+
+  /**
+    * Strips out an HTML comment at the front of the string and then tries to whittle it down to the same length as '
+    * the SwaggerIndexPreamblew
+    */
+  def stripResponseString(response: String) = response.splitAt(51)._2.take(SwaggerIndexPreamble.length)
 }
 
 class BasicSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
@@ -96,7 +100,7 @@ class NoRedirectRootSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
 }
 
 class DefaultSwaggerUiConfigHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerUiConfigHttpService {
-  override def swaggerUiConfig = ConfigFactory.parseString(s"uiVersion = $TestSwaggerUiVersion")
+  override def swaggerUiConfig = ConfigFactory.parseString(s"uiVersion = ${CromwellApiService.swaggerUiVersion}")
 
   behavior of "SwaggerUiConfigHttpService"
 
@@ -110,33 +114,32 @@ class DefaultSwaggerUiConfigHttpServiceSpec extends SwaggerUiHttpServiceSpec wit
   it should "return index.html from the swagger-ui jar" in {
     Get("/swagger/index.html") ~> swaggerUiRoute ~> check {
       status should be(StatusCodes.OK)
-      responseAs[String].take(SwaggerIndexPreamble.length) should be(SwaggerIndexPreamble)
+      responseAs[String].splitAt(51)._2.take(SwaggerIndexPreamble.length) should be(SwaggerIndexPreamble)
     }
   }
 }
 
 class OverriddenSwaggerUiConfigHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerUiConfigHttpService {
   override def swaggerUiConfig = ConfigFactory.parseString(
-    s"""
-       |baseUrl = /base
-       |docsPath = swagger/lenthall.yaml
-       |uiPath = ui/path
-       |uiVersion = $TestSwaggerUiVersion
-     """.stripMargin)
+    s"""|baseUrl = /base
+        |docsPath = swagger/common.yaml
+        |uiPath = ui/path
+        |uiVersion = ${CromwellApiService.swaggerUiVersion}
+        |""".stripMargin)
 
   behavior of "SwaggerUiConfigHttpService"
 
   it should "redirect /ui/path to the index.html under /base" in {
     Get("/ui/path") ~> swaggerUiRoute ~> check {
       status should be(StatusCodes.TemporaryRedirect)
-      header("Location") should be(Option(Location(Uri("/base/ui/path/index.html?url=/base/swagger/lenthall.yaml"))))
+      header("Location") should be(Option(Location(Uri("/base/ui/path/index.html?url=/base/swagger/common.yaml"))))
     }
   }
 
   it should "return index.html from the swagger-ui jar" in {
     Get("/ui/path/index.html") ~> swaggerUiRoute ~> check {
       status should be(StatusCodes.OK)
-      responseAs[String].take(SwaggerIndexPreamble.length) should be(SwaggerIndexPreamble)
+      responseAs[String].splitAt(51)._2.take(SwaggerIndexPreamble.length) should be(SwaggerIndexPreamble)
     }
   }
 }

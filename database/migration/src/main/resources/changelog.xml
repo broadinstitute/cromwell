@@ -68,6 +68,9 @@
     <include file="changesets/workflow_store_type_and_version.xml" relativeToChangelogFile="true" />
     <include file="changesets/preempted_is_a_backend_status.xml" relativeToChangelogFile="true" />
     <include file="changesets/remove_pre_pbe_tables.xml" relativeToChangelogFile="true" />
+    <include file="changesets/move_sql_metadata_changelog.xml" relativeToChangelogFile="true" />
+    <include file="changesets/workflow_store_state_widening.xml" relativeToChangelogFile="true" />
+    <include file="changesets/workflow_store_restarted_column.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!--
 

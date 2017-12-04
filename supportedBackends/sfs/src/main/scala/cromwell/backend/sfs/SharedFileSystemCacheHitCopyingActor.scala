@@ -3,7 +3,7 @@ package cromwell.backend.sfs
 import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor.PathPair
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardCacheHitCopyingActorParams}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
-import lenthall.util.TryUtil
+import common.util.TryUtil
 import cats.instances.try_._
 import cats.syntax.functor._
 
@@ -16,7 +16,7 @@ class SharedFileSystemCacheHitCopyingActor(standardParams: StandardCacheHitCopyi
       case (source, destination) => 
         sharedFileSystem.cacheCopy(source, destination)
     }
-    
+
     TryUtil.sequence(copies.toList).void recoverWith {
       case failure =>
         // If one or more of the copies failed, we want to delete all the files that were successfully copied

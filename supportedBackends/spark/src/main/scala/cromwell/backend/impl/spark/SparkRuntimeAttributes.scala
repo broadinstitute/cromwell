@@ -1,18 +1,17 @@
 package cromwell.backend.impl.spark
 
 import cats.data.Validated.{Invalid, Valid}
-import cats.syntax.cartesian._
+import cats.syntax.apply._
 import cats.syntax.validated._
 import cromwell.backend.MemorySize
 import cromwell.backend.validation.RuntimeAttributesDefault._
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.core._
-import lenthall.validation.ErrorOr._
-import lenthall.exception.MessageAggregation
-import wdl4s.wdl.types.{WdlBooleanType, WdlIntegerType, WdlStringType, WdlType}
-import wdl4s.wdl.values.{WdlBoolean, WdlInteger, WdlString, WdlValue}
-
+import common.exception.MessageAggregation
+import common.validation.ErrorOr._
+import wom.types._
+import wom.values._
 
 object SparkRuntimeAttributes {
   private val FailOnStderrDefaultValue = false
@@ -24,22 +23,24 @@ object SparkRuntimeAttributes {
   val AppMainClassKey = "appMainClass"
   //Specific to cluster mode
   val NumberOfExecutorsKey = "numberOfExecutors"
+  val AdditionalArgsKey = "additionalArgs"
 
   val staticDefaults = Map(
-    FailOnStderrKey -> WdlBoolean(FailOnStderrDefaultValue),
-    ExecutorCoresKey -> WdlInteger(ExecutorCoresDefaultValue),
-    ExecutorMemoryKey -> WdlString(ExecutorMemoryDefaultValue)
+    FailOnStderrKey -> WomBoolean(FailOnStderrDefaultValue),
+    ExecutorCoresKey -> WomInteger(ExecutorCoresDefaultValue),
+    ExecutorMemoryKey -> WomString(ExecutorMemoryDefaultValue)
   )
 
-  val coercionMap: Map[String, Set[WdlType]] = Map(
-    FailOnStderrKey -> Set[WdlType](WdlBooleanType),
-    ExecutorCoresKey -> Set(WdlIntegerType),
-    ExecutorMemoryKey -> Set(WdlStringType),
-    AppMainClassKey -> Set(WdlStringType),
-    NumberOfExecutorsKey -> Set(WdlIntegerType)
+  val coercionMap: Map[String, Set[WomType]] = Map(
+    FailOnStderrKey -> Set[WomType](WomBooleanType),
+    ExecutorCoresKey -> Set(WomIntegerType),
+    ExecutorMemoryKey -> Set(WomStringType),
+    AppMainClassKey -> Set(WomStringType),
+    NumberOfExecutorsKey -> Set(WomIntegerType),
+    AdditionalArgsKey -> Set(WomStringType)
   )
 
-  def apply(attrs: Map[String, WdlValue], options: WorkflowOptions): SparkRuntimeAttributes = {
+  def apply(attrs: Map[String, WomValue], options: WorkflowOptions): SparkRuntimeAttributes = {
     // Fail now if some workflow options are specified but can't be parsed correctly
     val defaultFromOptions = workflowOptionsDefault(options, coercionMap).get
     val withDefaultValues = withDefaults(attrs, List(defaultFromOptions, staticDefaults))
@@ -49,36 +50,42 @@ object SparkRuntimeAttributes {
     val executorCores = validateCpu(withDefaultValues.get(ExecutorCoresKey), noValueFoundFor(ExecutorCoresKey))
     val executorMemory = validateMemory(withDefaultValues.get(ExecutorMemoryKey), noValueFoundFor(ExecutorMemoryKey))
     val numberOfExecutors = validateNumberOfExecutors(withDefaultValues.get(NumberOfExecutorsKey), None.validNel)
-    val appMainCLass = validateAppEntryPoint(withDefaultValues(AppMainClassKey))
+    val appMainClass = validateAppEntryPoint(withDefaultValues.get(AppMainClassKey), None.validNel)
+    val additionalArgs = validateAdditionalArgs(withDefaultValues.get(AdditionalArgsKey), None.validNel)
 
-    (executorCores |@| executorMemory |@| numberOfExecutors |@| appMainCLass |@| failOnStderr) map {
-      new SparkRuntimeAttributes(_, _, _, _, _)
-    } match {
+    (executorCores, executorMemory, numberOfExecutors, appMainClass, additionalArgs, failOnStderr) mapN  {SparkRuntimeAttributes.apply} match {
       case Valid(x) => x
       case Invalid(nel) => throw new RuntimeException with MessageAggregation {
         override def exceptionContext: String = "Runtime attribute validation failed"
-
         override def errorMessages: Traversable[String] = nel.toList
       }
     }
   }
 
-  private def validateNumberOfExecutors(numOfExecutors: Option[WdlValue], onMissingKey: => ErrorOr[Option[Int]]): ErrorOr[Option[Int]] = {
+  private def validateNumberOfExecutors(numOfExecutors: Option[WomValue], onMissingKey: => ErrorOr[Option[Int]]): ErrorOr[Option[Int]] = {
     numOfExecutors match {
-      case Some(i: WdlInteger) => Option(i.value.intValue()).validNel
+      case Some(i: WomInteger) => Option(i.value.intValue()).validNel
       case None => onMissingKey
       case _ => s"Expecting $NumberOfExecutorsKey runtime attribute to be an Integer".invalidNel
     }
   }
 
-  private def validateAppEntryPoint(mainClass: WdlValue): ErrorOr[String] = {
-    WdlStringType.coerceRawValue(mainClass) match {
-      case scala.util.Success(WdlString(s)) => s.validNel
-      case _ => s"Could not coerce $AppMainClassKey into a String".invalidNel
+  private def validateAppEntryPoint(mainClass:  Option[WomValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
+    mainClass match {
+      case Some(WomString(s)) => Option(s).validNel
+      case None => onMissingKey
+      case _ => s"Expecting $AppMainClassKey runtime attribute to be a String".invalidNel
+    }
+  }
+
+  private def validateAdditionalArgs(additionalArgs:  Option[WomValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
+    additionalArgs match {
+      case Some(WomString(s)) => Option(s).validNel
+      case None => onMissingKey
+      case _ => s"Expecting $AdditionalArgsKey runtime attribute to be a String".invalidNel
     }
   }
 }
 
 case class SparkRuntimeAttributes(executorCores: Int, executorMemory: MemorySize, numberOfExecutors: Option[Int],
-                                  appMainClass: String, failOnStderr: Boolean)
-
+                                  appMainClass: Option[String], additionalArgs: Option[String], failOnStderr: Boolean)

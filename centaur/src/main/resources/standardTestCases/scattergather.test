@@ -1,0 +1,6 @@
+name: scattergather
+testFormat: workflowsuccess
+
+files {
+  wdl: scattergather/scattergather.wdl
+}

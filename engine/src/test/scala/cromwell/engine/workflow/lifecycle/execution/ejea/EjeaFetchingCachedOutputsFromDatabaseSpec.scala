@@ -3,14 +3,14 @@ package cromwell.engine.workflow.lifecycle.execution.ejea
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
 import cromwell.core.WorkflowId
 import cromwell.core.callcaching.{CallCachingActivity, ReadAndWriteCache}
-import cromwell.core.simpleton.WdlValueSimpleton
-import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
+import cromwell.core.simpleton.WomValueSimpleton
+import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.HashError
 import cromwell.engine.workflow.lifecycle.execution.callcaching.FetchCachedResultsActor.{CachedOutputLookupFailed, CachedOutputLookupSucceeded}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
 import cromwell.engine.workflow.lifecycle.execution.ejea.HasJobSuccessResponse.SuccessfulCallCacheHashes
-import wdl4s.wdl.values.WdlString
+import wom.values.WomString
 
 import scala.util.{Failure, Success}
 
@@ -32,7 +32,7 @@ class EjeaFetchingCachedOutputsFromDatabaseSpec extends EngineJobExecutionActorS
         ejhaResponse foreach { ejea ! _ }
 
         // Send the response from the "Fetch" actor
-        val cachedSimpletons = Seq(WdlValueSimpleton("a", WdlString("hullo")), WdlValueSimpleton("b", WdlString("cheerio")))
+        val cachedSimpletons = Seq(WomValueSimpleton("a", WomString("hullo")), WomValueSimpleton("b", WomString("cheerio")))
         val detritusMap = Map("stdout" -> "//somePath")
         val cachedReturnCode = Some(17)
         val sourceCacheDetails = s"${WorkflowId.randomId}:call-someTask:1"
@@ -71,7 +71,9 @@ class EjeaFetchingCachedOutputsFromDatabaseSpec extends EngineJobExecutionActorS
             case SuccessfulCallCacheHashes => Success(SuccessfulCallCacheHashes)
             case HashError(t) => Failure(t)
             case _ => fail(s"Bad test wiring. We didn't expect $ejhaResponse here")
-          })
+          },
+            backendJobActor = Option(helper.bjeaProbe.ref)
+          )
           ejea.stateData should be(expectedData)
         }
       }

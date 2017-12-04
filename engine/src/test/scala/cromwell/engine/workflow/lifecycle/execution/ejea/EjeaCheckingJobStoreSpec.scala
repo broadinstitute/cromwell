@@ -1,10 +1,10 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import cromwell.backend.BackendJobExecutionActor.{JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
-import cromwell.core._
-import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{CheckingCacheEntryExistence, CheckingJobStore, NoData}
+import cromwell.core.CallOutputs
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.CallCacheEntryForCall
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec.EnhancedTestEJEA
+import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor.{CheckingCacheEntryExistence, CheckingJobStore, NoData}
 import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete}
 import cromwell.jobstore.{JobResultFailure, JobResultSuccess}
 
@@ -17,7 +17,7 @@ class EjeaCheckingJobStoreSpec extends EngineJobExecutionActorSpec {
       createCheckingJobStoreEjea()
       ejea.setState(CheckingJobStore)
       val returnCode: Option[Int] = Option(0)
-      val jobOutputs: CallOutputs = Map.empty
+      val jobOutputs: CallOutputs = CallOutputs.empty
 
       ejea ! JobComplete(JobResultSuccess(returnCode, jobOutputs))
 

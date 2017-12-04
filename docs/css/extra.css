@@ -1,0 +1,52 @@
+div.col-md-9 h1:first-of-type {
+    text-align: center;
+    font-size: 60px;
+    font-weight: 300;
+}
+
+div.col-md-9>p:first-of-type {
+    text-align: center;
+}
+
+div.col-md-9 p.admonition-title:first-of-type {
+    text-align: left;
+}
+
+div.col-md-9 h1:first-of-type .headerlink {
+    display: none;
+}
+
+code.no-highlight {
+    color: black;
+}
+
+/* Making the code the right size */
+
+code.hljs {
+	font-size: 1em;
+}
+
+code {
+	font-size: 1em;
+    color: green;
+}
+
+pre code {
+    font-size: 14px;
+}
+
+/* Definition List styles */
+
+dd {
+    padding-left: 20px;
+}
+
+/* Making the text display wider */
+div.wy-nav-content {
+    max-width: 1000px;
+}
+
+/* Increase font size for table */
+div.wy-table td, .rst-content table.docutils td, .rst-content table.field-list td, .wy-table th, .rst-content table.docutils th, .rst-content table.field-list th {
+    font-size: 100%;
+}

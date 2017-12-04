@@ -1,0 +1,20 @@
+name: valid_labels
+testFormat: workflowsuccess
+tags: [ labels ]
+
+files {
+  wdl: hello/hello.wdl
+  inputs: hello/hello.inputs
+  labels: labels/valid.labels
+}
+
+metadata {
+  workflowName: wf_hello
+  status: Succeeded
+  "submittedFiles.labels": "{\"label-key-1\":\"label-value-1\",\"label-key-2\":\"label-value-2\",\"only-key\":\"\",\"fc-id\":\"0123-abcd-4567-efgh\"}"
+  "labels.label-key-1": "label-value-1"
+  "labels.label-key-2": "label-value-2"
+  "labels.only-key": ""
+  "labels.fc-id": "0123-abcd-4567-efgh"
+  "labels.cromwell-workflow-id": "cromwell-<<UUID>>"
+}

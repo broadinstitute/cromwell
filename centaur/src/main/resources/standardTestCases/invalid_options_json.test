@@ -1,0 +1,15 @@
+name: invalid_options_json
+testFormat: submitfailure
+
+files {
+  wdl: invalid_options_json/invalid_options_json.wdl
+  options: invalid_options_json/invalid_options_json.options
+}
+
+submit {
+  statusCode: 400
+  message: """{
+  "status": "fail",
+  "message": "Error(s): Invalid workflow options provided: Unexpected end-of-input at input index 72 (line 3, position 1), expected '}':\n\n^\n"
+}"""
+}

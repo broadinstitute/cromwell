@@ -3,11 +3,11 @@ package cromwell.engine.io
 import java.util.UUID
 
 import akka.stream.ActorMaterializer
-import akka.testkit.{ImplicitSender, TestActorRef}
+import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
+import cromwell.cloudsupport.gcp.auth.ApplicationDefaultMode
 import cromwell.core.Tags.IntegrationTest
 import cromwell.core.io._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
-import cromwell.filesystems.gcs.auth.ApplicationDefaultMode
 import cromwell.filesystems.gcs.batch.{GcsBatchCopyCommand, GcsBatchCrc32Command, GcsBatchDeleteCommand, GcsBatchSizeCommand}
 import cromwell.filesystems.gcs.{GcsPathBuilder, GcsPathBuilderFactory}
 import org.scalatest.concurrent.Eventually
@@ -51,7 +51,7 @@ class IoActorGcsBatchSpec extends TestKitSuite with FlatSpecLike with Matchers w
   }
   
   it should "batch queries" taggedAs IntegrationTest in {
-    val testActor = TestActorRef(new IoActor(10, None))
+    val testActor = TestActorRef(new IoActor(10, None, TestProbe().ref))
 
     val copyCommand = GcsBatchCopyCommand(src, dst, overwrite = false)
     val sizeCommand = GcsBatchSizeCommand(src)
@@ -90,7 +90,7 @@ class IoActorGcsBatchSpec extends TestKitSuite with FlatSpecLike with Matchers w
   }
 
   it should "copy files across GCS storage classes" taggedAs IntegrationTest in {
-    val testActor = TestActorRef(new IoActor(10, None))
+    val testActor = TestActorRef(new IoActor(10, None, TestProbe().ref))
 
     val copyCommand = GcsBatchCopyCommand(srcRegional, dstMultiRegional, overwrite = false)
     

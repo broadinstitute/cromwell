@@ -3,11 +3,12 @@ package cromwell.backend.validation
 import cats.data.Validated._
 import cats.instances.list._
 import cromwell.backend.RuntimeAttributeDefinition
-import lenthall.exception.MessageAggregation
-import lenthall.validation.ErrorOr._
+import common.exception.MessageAggregation
+import common.validation.ErrorOr._
 import org.slf4j.Logger
-import wdl4s.wdl.types.WdlType
-import wdl4s.wdl.values.WdlValue
+import wom.expression.WomExpression
+import wom.types.WomType
+import wom.values.WomValue
 
 final case class ValidatedRuntimeAttributes(attributes: Map[String, Any])
 
@@ -35,16 +36,16 @@ trait ValidatedRuntimeAttributesBuilder {
   /**
     * Returns validators suitable for BackendWorkflowInitializationActor.runtimeAttributeValidators.
     */
-  final lazy val validatorMap: Map[String, (Option[WdlValue]) => Boolean] = {
+  final lazy val validatorMap: Map[String, (Option[WomExpression]) => Boolean] = {
     validations.map(validation =>
-      validation.key -> validation.validateOptionalExpression _
+      validation.key -> validation.validateOptionalWomExpression _
     ).toMap
   }
 
   /**
     * Returns a map of coercions suitable for RuntimeAttributesDefault.workflowOptionsDefault.
     */
-  final lazy val coercionMap: Map[String, Traversable[WdlType]] = {
+  final lazy val coercionMap: Map[String, Traversable[WomType]] = {
     validations.map(validation => validation.key -> validation.coercion).toMap
   }
 
@@ -52,7 +53,7 @@ trait ValidatedRuntimeAttributesBuilder {
 
   private lazy val validationKeys = validations.map(_.key)
 
-  def build(attrs: Map[String, WdlValue], logger: Logger): ValidatedRuntimeAttributes = {
+  def build(attrs: Map[String, WomValue], logger: Logger): ValidatedRuntimeAttributes = {
     RuntimeAttributesValidation.warnUnrecognized(attrs.keySet, validationKeys.toSet, logger)
 
     val runtimeAttributesErrorOr: ErrorOr[ValidatedRuntimeAttributes] = validate(attrs)
@@ -66,7 +67,7 @@ trait ValidatedRuntimeAttributesBuilder {
     }
   }
 
-  private def validate(values: Map[String, WdlValue]): ErrorOr[ValidatedRuntimeAttributes] = {
+  private def validate(values: Map[String, WomValue]): ErrorOr[ValidatedRuntimeAttributes] = {
     val listOfKeysToErrorOrAnys: List[(String, ErrorOr[Any])] =
       validations.map(validation => validation.key -> validation.validate(values)).toList
 

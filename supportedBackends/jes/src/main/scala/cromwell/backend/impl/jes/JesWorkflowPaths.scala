@@ -6,9 +6,10 @@ import com.typesafe.config.Config
 import cromwell.backend.impl.jes.JesAsyncBackendJobExecutionActor.WorkflowOptionKeys
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
+import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{Path, PathBuilder}
-import cromwell.filesystems.gcs.{GcsPathBuilder, GcsPathBuilderFactory}
+import cromwell.filesystems.gcs.GcsPathBuilder
 
 import scala.language.postfixOps
 
@@ -31,7 +32,7 @@ case class JesWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
 
   val gcsAuthFilePath: Path = {
     // The default auth file bucket is always at the root of the root workflow
-    val defaultBucket = executionRoot.resolve(workflowDescriptor.rootWorkflow.unqualifiedName).resolve(workflowDescriptor.rootWorkflowId.toString)
+    val defaultBucket = executionRoot.resolve(workflowDescriptor.rootWorkflow.name).resolve(workflowDescriptor.rootWorkflowId.toString)
     val bucket = workflowDescriptor.workflowOptions.get(JesWorkflowPaths.AuthFilePathOptionKey) getOrElse defaultBucket.pathAsString
 
     /*
@@ -42,7 +43,7 @@ case class JesWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
       genomicsCredentials,
       jesConfiguration.googleConfig.applicationName,
       None,
-      GcsPathBuilderFactory.DefaultCloudStorageConfiguration,
+      GcsStorage.DefaultCloudStorageConfiguration,
       workflowOptions
     )
 

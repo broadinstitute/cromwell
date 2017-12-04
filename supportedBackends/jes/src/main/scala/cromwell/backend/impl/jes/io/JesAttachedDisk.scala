@@ -1,13 +1,13 @@
 package cromwell.backend.impl.jes.io
 
 import cats.data.Validated._
-import cats.syntax.cartesian._
+import cats.syntax.apply._
 import cats.syntax.validated._
 import com.google.api.services.genomics.model.Disk
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import lenthall.exception.MessageAggregation
-import lenthall.validation.ErrorOr._
-import wdl4s.wdl.values._
+import common.exception.MessageAggregation
+import common.validation.ErrorOr._
+import wom.values._
 
 import scala.util.Try
 import scala.util.matching.Regex
@@ -21,16 +21,14 @@ object JesAttachedDisk {
   val MountedDiskPattern: Regex = s"""($Directory)\\s+($Integer)\\s+($Identifier)""".r
 
   def parse(s: String): Try[JesAttachedDisk] = {
+
+    def sizeGbValidation(sizeGbString: String): ErrorOr[Int] = validateLong(sizeGbString).map(_.toInt)
+    def diskTypeValidation(diskTypeString: String): ErrorOr[DiskType] = validateDiskType(diskTypeString)
+
     val validation: ErrorOr[JesAttachedDisk] = s match {
-      case WorkingDiskPattern(sizeGb, diskType) =>
-        (validateLong(sizeGb) |@| validateDiskType(diskType)) map { (s, dt) =>
-          JesWorkingDisk(dt, s.toInt)
-        }
-      case MountedDiskPattern(mountPoint, sizeGb, diskType) =>
-        (validateLong(sizeGb) |@| validateDiskType(diskType)) map { (s, dt) =>
-          JesEmptyMountedDisk(dt, s.toInt, DefaultPathBuilder.get(mountPoint))
-        }
-      case _ => s"Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE'".invalidNel
+      case WorkingDiskPattern(sizeGb, diskType) => (validateDiskType(diskType), sizeGbValidation(sizeGb)) mapN { JesWorkingDisk.apply }
+      case MountedDiskPattern(mountPoint, sizeGb, diskType) => (sizeGbValidation(sizeGb), diskTypeValidation(diskType)) mapN { (s, dt) => JesEmptyMountedDisk(dt, s, DefaultPathBuilder.get(mountPoint)) }
+      case _ => s"Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE' but got: '$s'".invalidNel
     }
 
     Try(validation match {

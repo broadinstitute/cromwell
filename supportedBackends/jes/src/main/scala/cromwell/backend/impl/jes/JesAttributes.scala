@@ -3,17 +3,17 @@ package cromwell.backend.impl.jes
 import java.net.{URI, URL}
 
 import cats.data.Validated._
-import cats.syntax.cartesian._
+import cats.syntax.apply._
 import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigValue}
 import cromwell.backend.impl.jes.authentication.JesAuths
 import cromwell.backend.impl.jes.callcaching.{CopyCachedOutputs, JesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
-import cromwell.filesystems.gcs.GoogleConfiguration
+import cromwell.cloudsupport.gcp.GoogleConfiguration
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
-import lenthall.exception.MessageAggregation
-import lenthall.validation.ErrorOr._
-import lenthall.validation.Validation._
+import common.exception.MessageAggregation
+import common.validation.ErrorOr._
+import common.validation.Validation._
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.{StringReader, ValueReader}
 import org.slf4j.{Logger, LoggerFactory}
@@ -89,13 +89,18 @@ object JesAttributes {
     } }
 
 
-    (project |@| executionBucket |@| endpointUrl |@| genomicsAuthName |@| genomicsRestrictMetadataAccess |@| gcsFilesystemAuthName |@|
-      qpsValidation |@| duplicationStrategy).tupled flatMap {
-      case (p, b, u, genomicsName, restrictMetadata, gcsName, qps, cachingStrategy) =>
-      (googleConfig.auth(genomicsName) |@| googleConfig.auth(gcsName)) map { case (genomicsAuth, gcsAuth) =>
-        JesAttributes(p, computeServiceAccount, JesAuths(genomicsAuth, gcsAuth), restrictMetadata, b, u, maxPollingInterval, qps, cachingStrategy)
-      }
-    } match {
+    def authGoogleConfigForJesAttributes(project: String,
+                          bucket: String,
+                          endpointUrl: URL,
+                          genomicsName: String,
+                          restrictMetadata: Boolean,
+                          gcsName: String,
+                          qps: Int Refined Positive,
+                          cachingStrategy: JesCacheHitDuplicationStrategy): ErrorOr[JesAttributes] = (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
+      (genomicsAuth, gcsAuth) => JesAttributes(project, computeServiceAccount, JesAuths(genomicsAuth, gcsAuth), restrictMetadata, bucket, endpointUrl, maxPollingInterval, qps, cachingStrategy)
+    }
+
+    (project, executionBucket, endpointUrl, genomicsAuthName, genomicsRestrictMetadataAccess, gcsFilesystemAuthName, qpsValidation, duplicationStrategy) flatMapN authGoogleConfigForJesAttributes match {
       case Valid(r) => r
       case Invalid(f) =>
         throw new IllegalArgumentException with MessageAggregation {

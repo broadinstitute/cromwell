@@ -1,6 +1,8 @@
 package cromwell.backend.async
 
 
+import java.util.concurrent.ExecutionException
+
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.BackendJobExecutionActor._
@@ -30,6 +32,12 @@ object AsyncBackendJobExecutionActor {
   final case class Recover(recoveryId: JobId) extends ExecutionMode {
     override def jobId = Option(recoveryId)
   }
+  final case class ReconnectToAbort(recoveryId: JobId) extends ExecutionMode {
+    override def jobId = Option(recoveryId)
+  }
+  final case class Reconnect(recoveryId: JobId) extends ExecutionMode {
+    override def jobId = Option(recoveryId)
+  }
 }
 
 trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
@@ -43,10 +51,11 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
     case _: RuntimeException => true
     case _: InterruptedException => true
     case _: CromwellFatalExceptionMarker => true
+    case e: ExecutionException => Option(e.getCause).exists(isFatal)
     case _ => false
   }
 
-  def isTransient(throwable: Throwable): Boolean = !isFatal(throwable)
+  def isTransient(throwable: Throwable): Boolean = false
 
   private def withRetry[A](work: () => Future[A], backOff: SimpleExponentialBackoff): Future[A] = {
     Retry.withRetry(work, isTransient = isTransient, isFatal = isFatal, backoff = backOff)(context.system)
@@ -94,7 +103,7 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
       completionPromise.success(JobFailedRetryableResponse(jobDescriptor.key, throwable, returnCode))
       context.stop(self)
     case Finish(cromwell.backend.async.AbortedExecutionHandle) =>
-      completionPromise.success(AbortedResponse(jobDescriptor.key))
+      completionPromise.success(JobAbortedResponse(jobDescriptor.key))
       context.stop(self)
     case FailAndStop(t) => failAndStop(t)
     case response: MetadataServiceResponse => handleMetadataServiceResponse(sender(), response)

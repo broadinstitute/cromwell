@@ -1,0 +1,14 @@
+name: missing_sub_inputs
+testFormat: workflowfailure
+
+files {
+  wdl: missing_sub_inputs/missing_sub_inputs.wdl
+  input: missing_sub_inputs/missing_sub_inputs.wdl
+  imports: [
+     missing_sub_inputs/missing_sub_inputs_import.wdl
+  ]
+}
+
+metadata {
+  status: Failed
+}

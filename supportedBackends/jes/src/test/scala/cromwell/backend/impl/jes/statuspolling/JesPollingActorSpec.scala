@@ -1,28 +1,29 @@
 package cromwell.backend.impl.jes.statuspolling
 
 import akka.actor.{ActorRef, Props}
-import akka.testkit.{TestActorRef, TestProbe}
-import cromwell.core.{ExecutionEvent, TestKitSuite}
-import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
-import org.scalatest.concurrent.Eventually
-
-import scala.concurrent.duration._
-import akka.testkit._
+import akka.testkit.{TestActorRef, TestProbe, _}
 import cats.data.NonEmptyList
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback
 import com.google.api.client.googleapis.json.GoogleJsonError
+import com.google.api.client.http.HttpRequest
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.Operation
-import cromwell.backend.impl.jes.{JesConfiguration, Run, RunStatus}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesApiException, JesApiQueryFailed, JesStatusPollQuery, RequestJesPollingWork}
 import cromwell.backend.impl.jes.statuspolling.TestJesPollingActor.{CallbackFailure, CallbackSuccess, JesBatchCallbackResponse}
+import cromwell.backend.impl.jes.{JesConfiguration, Run, RunStatus}
+import cromwell.core.{ExecutionEvent, TestKitSuite}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import io.grpc.Status
+import org.scalatest.concurrent.Eventually
+import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
 
 import scala.collection.immutable.Queue
+import scala.concurrent.duration._
+import scala.concurrent.{Future, Promise}
+import scala.util.Try
 
 class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecLike with Matchers with Eventually with BeforeAndAfter with Mockito {
 
@@ -53,11 +54,11 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
     managerProbe.expectMsgClass(max = TestExecutionTimeout, c = classOf[JesApiQueryManager.RequestJesPollingWork])
 
     val requester1 = TestProbe()
-    val query1 = JesStatusPollQuery(requester1.ref, Run(null, null))
+    val query1 = JesStatusPollQuery(null, requester1.ref, Run(null, null))
     val requester2 = TestProbe()
-    val query2 = JesStatusPollQuery(requester2.ref, Run(null, null))
+    val query2 = JesStatusPollQuery(null, requester2.ref, Run(null, null))
     val requester3 = TestProbe()
-    val query3 = JesStatusPollQuery(requester3.ref, Run(null, null))
+    val query3 = JesStatusPollQuery(null, requester3.ref, Run(null, null))
 
     // For two requests the callback succeeds (first with RunStatus.Success, then RunStatus.Failed). The third callback fails (simulating a network timeout, for example):
     jpActor.underlyingActor.callbackResponses :+= CallbackSuccess
@@ -95,7 +96,8 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
 
   before {
     managerProbe = TestProbe()
-    jpActor = TestActorRef(TestJesPollingActor.props(managerProbe.ref, jesConfiguration), managerProbe.ref)
+    val registryProbe = TestProbe()
+    jpActor = TestActorRef(TestJesPollingActor.props(managerProbe.ref, jesConfiguration, registryProbe.ref), managerProbe.ref)
   }
 }
 
@@ -104,7 +106,7 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
   * - Mocks out the methods which actually call out to JES, and allows the callbacks to be triggered in a testable way
   * - Also waits a **lot** less time before polls!
   */
-class TestJesPollingActor(manager: ActorRef, qps: Int Refined Positive) extends JesPollingActor(manager, qps) with Mockito {
+class TestJesPollingActor(manager: ActorRef, qps: Int Refined Positive, registryProbe: ActorRef) extends JesPollingActor(manager, qps, registryProbe) with Mockito {
 
   override lazy val batchInterval = 10.milliseconds
 
@@ -124,7 +126,15 @@ class TestJesPollingActor(manager: ActorRef, qps: Int Refined Positive) extends 
         handler.onFailure(error, null)
     }}
   }
-  override def addStatusPollToBatch(run: Run, batch: BatchRequest, resultHandler: JsonBatchCallback[Operation]): Unit = resultHandlers :+= resultHandler
+
+  override private [statuspolling] def enqueueStatusPollInBatch(pollingRequest: JesStatusPollQuery, batch: BatchRequest): Future[Try[Unit]] = {
+    val completionPromise = Promise[Try[Unit]]()
+    val resultHandler = statusPollResultHandler(pollingRequest, completionPromise)
+    addStatusPollToBatch(null, batch, resultHandler)
+    completionPromise.future
+  }
+  
+  override def addStatusPollToBatch(httpRequest: HttpRequest, batch: BatchRequest, resultHandler: JsonBatchCallback[Operation]): Unit = resultHandlers :+= resultHandler
   override def interpretOperationStatus(operation: Operation): RunStatus = {
     val (status, newQueue) = operationStatusResponses.dequeue
     operationStatusResponses = newQueue
@@ -134,7 +144,7 @@ class TestJesPollingActor(manager: ActorRef, qps: Int Refined Positive) extends 
 }
 
 object TestJesPollingActor {
-  def props(manager: ActorRef, jesConfiguration: JesConfiguration) = Props(new TestJesPollingActor(manager, jesConfiguration.qps))
+  def props(manager: ActorRef, jesConfiguration: JesConfiguration, registryProbe: ActorRef) = Props(new TestJesPollingActor(manager, jesConfiguration.qps, registryProbe))
 
   sealed trait JesBatchCallbackResponse
   case object CallbackSuccess extends JesBatchCallbackResponse

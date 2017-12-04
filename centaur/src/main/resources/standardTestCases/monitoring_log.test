@@ -1,0 +1,18 @@
+# Test to confirm the output of the monitoring script will be written to a monitoring.log file
+
+name: monitoring_log
+testFormat: workflowsuccess
+backends: [Jes]
+
+files {
+  wdl: monitoring_log/monitoring_log.wdl
+  options: monitoring_log/monitoring_log.options
+}
+
+metadata {
+  "calls.monitoring_log.get_stats.jes.monitoringScript": "gs://cloud-cromwell-dev/some/simple_script.sh"
+  "calls.monitoring_log.get_stats.monitoringLog": "gs://cloud-cromwell-dev/cromwell_execution/travis/monitoring_log/<<UUID>>/call-get_stats/monitoring.log"
+  "outputs.monitoring_log.get_stats.stats.0": "CPU: 1"
+  "outputs.monitoring_log.get_stats.stats.1": "Total Memory: 3.6G"
+  "outputs.monitoring_log.get_stats.stats.2": "Total Disk space: 9.8G"
+}

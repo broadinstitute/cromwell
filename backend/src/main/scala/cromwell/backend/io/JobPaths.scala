@@ -1,5 +1,6 @@
 package cromwell.backend.io
 
+import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.path.Path
 import cromwell.core.{CallContext, JobKey}
 import cromwell.services.metadata.CallMetadataKeys
@@ -13,9 +14,10 @@ object JobPaths {
   val StdErrPathKey = "stderr"
   val ReturnCodePathKey = "returnCode"
   val CallRootPathKey = "callRootPath"
+  val DockerCidPathKey = "dockerCidPath"
 
   def callPathBuilder(root: Path, jobKey: JobKey) = {
-    val callName = jobKey.scope.unqualifiedName
+    val callName = jobKey.node.localName
     val call = s"$CallPrefix-$callName"
     val shard = jobKey.index map { s => s"$ShardPrefix-$s" } getOrElse ""
     val retry = if (jobKey.attempt > 1) s"$AttemptPrefix-${jobKey.attempt}" else ""
@@ -29,16 +31,21 @@ trait JobPaths {
 
   def workflowPaths: WorkflowPaths
   def returnCodeFilename: String = "rc"
-  def stdoutFilename: String = "stdout"
-  def stderrFilename: String = "stderr"
+  def defaultStdoutFilename = "stdout"
+  def defaultStderrFilename = "stderr"
+
+  final def stdoutFilename: String = jobKey.node.callable.stdoutRedirection.getOrElse(defaultStdoutFilename)
+  final def stderrFilename: String = jobKey.node.callable.stderrRedirection.getOrElse(defaultStderrFilename)
   def scriptFilename: String = "script"
-  
-  def jobKey: JobKey
+  def dockerCidFilename: String = "docker_cid"
+
+  def jobKey: BackendJobDescriptorKey
   lazy val callRoot = callPathBuilder(workflowPaths.workflowRoot, jobKey)
   lazy val callExecutionRoot = callRoot
   lazy val stdout = callExecutionRoot.resolve(stdoutFilename)
   lazy val stderr = callExecutionRoot.resolve(stderrFilename)
   lazy val script = callExecutionRoot.resolve(scriptFilename)
+  lazy val dockerCid = callExecutionRoot.resolve(dockerCidFilename)
   lazy val returnCode = callExecutionRoot.resolve(returnCodeFilename)
 
   private lazy val commonMetadataPaths: Map[String, Path] = Map(

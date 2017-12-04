@@ -1,0 +1,13 @@
+name: gcs_underscore_bucket
+testFormat: workflowsuccess
+backends: [Jes]
+
+files {
+  inputs: gcs_underscore_bucket/gcs_underscore_bucket.inputs
+  wdl: gcs_underscore_bucket/gcs_underscore_bucket.wdl
+}
+
+metadata {
+  workflowName: size_wf
+  "outputs.size_wf.out": "file has size 104636.0"
+}

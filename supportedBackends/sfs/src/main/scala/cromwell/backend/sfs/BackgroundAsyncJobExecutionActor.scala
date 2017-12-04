@@ -1,5 +1,6 @@
 package cromwell.backend.sfs
 
+import cromwell.backend.async.ExecutionHandle
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.path.Path
 
@@ -7,15 +8,14 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
 
   lazy val backgroundScript = jobPaths.script.plusExt("background")
 
-  override def writeScriptContents(): Unit = {
-    super.writeScriptContents()
-    writeBackgroundScriptContents()
+  override def writeScriptContents(): Either[ExecutionHandle, Unit] = {
+    super.writeScriptContents().flatMap(_ => writeBackgroundScriptContents())
   }
 
   /**
     * Run the command via bash in the background, and echo the PID.
     */
-  private def writeBackgroundScriptContents(): Unit = {
+  private def writeBackgroundScriptContents(): Either[ExecutionHandle, Unit] = {
     val backgroundCommand = redirectOutputs(processArgs.argv.mkString("'", "' '", "'"))
     // $! contains the previous background command's process id (PID)
     backgroundScript.write(
@@ -23,7 +23,7 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
           |BACKGROUND_COMMAND &
           |echo $$!
           |""".stripMargin.replace("BACKGROUND_COMMAND", backgroundCommand))
-    ()
+    Right(())
   }
 
   override def makeProcessRunner(): ProcessRunner = {

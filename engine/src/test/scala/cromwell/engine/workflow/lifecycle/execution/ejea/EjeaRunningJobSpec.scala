@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{ResponsePendingData, RunningJob, SucceededResponseData}
+import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor.{ResponsePendingData, RunningJob, SucceededResponseData}
 import cromwell.jobstore.JobResultFailure
 import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
 import EngineJobExecutionActorSpec.EnhancedTestEJEA

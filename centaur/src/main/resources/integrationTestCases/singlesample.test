@@ -1,0 +1,13 @@
+name: singlesample
+testFormat: workflowsuccess
+
+files {
+  wdl: green/singlesample/singlesample.wdl
+  inputs: green/singlesample/singlesample.inputs
+  options: green/singlesample/singlesample.options
+}
+
+metadata {
+  workflowName: PairedEndSingleSampleWorkflow
+  status: Succeeded
+}

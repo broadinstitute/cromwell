@@ -12,6 +12,7 @@ import net.ceedubs.ficus.Ficus._
 import scala.collection.JavaConverters._
 
 object ServiceRegistryActor {
+  case object NoopMessage
   case class ServiceRegistryFailure(serviceName: String)
 
   trait ServiceRegistryMessage {
@@ -72,6 +73,7 @@ class ServiceRegistryActor(serviceProps: Map[String, Props]) extends Actor with 
         case Nil => context stop self
         case head :: tail => waitForActorsAndShutdown(NonEmptyList.of(head, tail: _*))
       }
+    case NoopMessage => // Nothing to do - useful for streams that use this actor as a sink and want to send a message on completion
     case fool =>
       log.error("Received message which is not a ServiceRegistryMessage: {}", fool)
       sender ! ServiceRegistryFailure("Message is not a ServiceRegistryMessage: " + fool)

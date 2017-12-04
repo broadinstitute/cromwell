@@ -1,0 +1,12 @@
+name: missing_optional_output
+testFormat: workflowfailure
+
+files {
+  wdl: missing_optional_output/missing_optional_output.wdl
+}
+
+metadata {
+  status: Failed
+  "failures.0.message": "Workflow input processing failed"
+  "failures.0.causedBy.0.message": "Unable to build WOM node for Scatter '$scatter_0': Unable to build WOM node for If '$if_0': Unable to build WOM node for Declaration 'x_out': No input x.out_except_undeclared found evaluating inputs for expression x.out_except_undeclared"
+}

@@ -1,0 +1,12 @@
+name: readFromCacheFalse
+testFormat: runtwiceexpectingnocallcaching
+
+files {
+  wdl: readFromCacheFalse/readFromCache.wdl
+  options: readFromCacheFalse/readFromCache.options
+}
+
+metadata {
+  workflowName: readFromCache
+  status: Succeeded
+}

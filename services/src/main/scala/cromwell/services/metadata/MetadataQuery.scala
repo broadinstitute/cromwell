@@ -5,7 +5,7 @@ import java.time.OffsetDateTime
 import cats.data.NonEmptyList
 import cromwell.core.WorkflowId
 import org.slf4j.{Logger, LoggerFactory}
-import wdl4s.wdl.values._
+import wom.values._
 
 case class MetadataJobKey(callFqn: String, index: Option[Int], attempt: Int)
 
@@ -50,12 +50,12 @@ case object MetadataNull extends MetadataType { override val typeName = "null" }
 object MetadataValue {
   def apply(value: Any): MetadataValue = {
     Option(value).getOrElse("") match {
-      case WdlInteger(i) => new MetadataValue(i.toString, MetadataInt)
-      case WdlFloat(f) => new MetadataValue(f.toString, MetadataNumber)
-      case WdlBoolean(b) => new MetadataValue(b.toString, MetadataBoolean)
-      case WdlOptionalValue(_, Some(o)) => apply(o)
-      case WdlOptionalValue(_, None) => new MetadataValue("", MetadataNull)
-      case value: WdlValue => new MetadataValue(value.valueString, MetadataString)
+      case WomInteger(i) => new MetadataValue(i.toString, MetadataInt)
+      case WomFloat(f) => new MetadataValue(f.toString, MetadataNumber)
+      case WomBoolean(b) => new MetadataValue(b.toString, MetadataBoolean)
+      case WomOptionalValue(_, Some(o)) => apply(o)
+      case WomOptionalValue(_, None) => new MetadataValue("", MetadataNull)
+      case value: WomValue => new MetadataValue(value.valueString, MetadataString)
       case _: Int | Long => new MetadataValue(value.toString, MetadataInt)
       case _: Double | Float => new MetadataValue(value.toString, MetadataNumber)
       case _: Boolean => new MetadataValue(value.toString, MetadataBoolean)

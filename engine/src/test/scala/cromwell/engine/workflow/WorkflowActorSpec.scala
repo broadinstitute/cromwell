@@ -10,11 +10,13 @@ import cromwell.core.path.DefaultPathBuilder
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
-import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.MaterializeWorkflowDescriptorFailureResponse
-import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationSucceededResponse}
-import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{WorkflowInitializationAbortedResponse, WorkflowInitializationFailedResponse}
+import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{WorkflowExecutionAbortedResponse, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
-import cromwell.engine.workflow.lifecycle.{CopyWorkflowLogsActor, EngineLifecycleActorAbortCommand}
+import cromwell.engine.workflow.lifecycle.finalization.CopyWorkflowLogsActor
+import cromwell.engine.workflow.lifecycle.finalization.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationSucceededResponse}
+import cromwell.engine.workflow.lifecycle.initialization.WorkflowInitializationActor.{WorkflowInitializationAbortedResponse, WorkflowInitializationFailedResponse}
+import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor.MaterializeWorkflowDescriptorFailureResponse
+import cromwell.engine.workflow.workflowstore.{StartableState, Submitted}
 import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
@@ -54,7 +56,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       factory = new MockWorkflowActor(
         finalizationProbe = finalizationProbe,
         workflowId = currentWorkflowId,
-        startMode = StartNewWorkflow,
+        startState = Submitted,
         workflowSources = workflowSources,
         conf = ConfigFactory.load,
         ioActor = system.actorOf(SimpleIoActor.props),
@@ -69,7 +71,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       ),
       supervisor = supervisorProbe.ref)
     actor.setState(stateName = state, stateData = WorkflowActorData(Option(currentLifecycleActor.ref), Option(descriptor),
-      AllBackendInitializationData.empty, StateCheckpoint(InitializingWorkflowState)))
+      AllBackendInitializationData.empty, StateCheckpoint(InitializingWorkflowState), Submitted))
     actor
   }
 
@@ -133,7 +135,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
     "run Finalization actor if Execution succeeds" in {
       val actor = createWorkflowActor(ExecutingWorkflowState)
       deathwatch watch actor
-      actor ! WorkflowExecutionSucceededResponse(Map.empty, Map.empty)
+      actor ! WorkflowExecutionSucceededResponse(Map.empty, CallOutputs.empty)
       finalizationProbe.expectMsg(StartFinalizationCommand)
       actor.stateName should be(FinalizingWorkflowState)
       actor ! WorkflowFinalizationSucceededResponse
@@ -173,7 +175,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
 
 class MockWorkflowActor(val finalizationProbe: TestProbe,
                         workflowId: WorkflowId,
-                        startMode: StartMode,
+                        startState: StartableState,
                         workflowSources: WorkflowSourceFilesCollection,
                         conf: Config,
                         ioActor: ActorRef,
@@ -184,7 +186,7 @@ class MockWorkflowActor(val finalizationProbe: TestProbe,
                         callCacheReadActor: ActorRef,
                         callCacheWriteActor: ActorRef,
                         dockerHashActor: ActorRef,
-                        jobTokenDispenserActor: ActorRef) extends WorkflowActor(workflowId, startMode, workflowSources, conf, ioActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, callCacheWriteActor, dockerHashActor, jobTokenDispenserActor, BackendSingletonCollection(Map.empty), serverMode = true) {
+                        jobTokenDispenserActor: ActorRef) extends WorkflowActor(workflowId, startState, workflowSources, conf, ioActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, callCacheWriteActor, dockerHashActor, jobTokenDispenserActor, BackendSingletonCollection(Map.empty), serverMode = true) {
 
   override def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, jobExecutionMap: JobExecutionMap, worfklowOutputs: CallOutputs) = finalizationProbe.ref
 }

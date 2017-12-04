@@ -1,9 +1,9 @@
 package cromwell.engine.backend
 
+import cats.syntax.option._
+import common.util.TryUtil
+import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendLifecycleActorFactory
-import lenthall.util.TryUtil
-
-import scala.util.{Failure, Success, Try}
 
 /**
   * Provides a global singleton access to the instantiated backend factories.
@@ -13,11 +13,8 @@ case class CromwellBackends(backendEntries: List[BackendConfigurationEntry]) {
   // Raise the exception here if some backend factories failed to instantiate
   val backendLifecycleActorFactories = TryUtil.sequenceMap(backendEntries.map(e => e.name -> e.asBackendLifecycleActorFactory).toMap).get
 
-  def backendLifecycleActorFactoryByName(backendName: String): Try[BackendLifecycleActorFactory] = {
-    backendLifecycleActorFactories.get(backendName) match {
-      case None => Failure(new Exception(s"Backend $backendName was not found"))
-      case Some(factory) => Success(factory)
-    }
+  def backendLifecycleActorFactoryByName(backendName: String): ErrorOr[BackendLifecycleActorFactory] = {
+    backendLifecycleActorFactories.get(backendName).toValidNel(s"Backend $backendName was not found")
   }
 
   def isValidBackendName(name: String): Boolean = backendLifecycleActorFactories.contains(name)
@@ -29,7 +26,10 @@ object CromwellBackends {
 
 
   def isValidBackendName(name: String): Boolean = evaluateIfInitialized(_.isValidBackendName(name))
-  def backendLifecycleFactoryActorByName(backendName: String) = evaluateIfInitialized(_.backendLifecycleActorFactoryByName(backendName))
+
+  def backendLifecycleFactoryActorByName(backendName: String): ErrorOr[BackendLifecycleActorFactory] = {
+    evaluateIfInitialized(_.backendLifecycleActorFactoryByName(backendName))
+  }
 
   private def evaluateIfInitialized[A](func: CromwellBackends => A): A = {
     instance match {

@@ -3,10 +3,10 @@ package cromwell.backend.validation
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import cromwell.backend.MemorySize
-import lenthall.validation.ErrorOr._
+import common.validation.ErrorOr._
 import wdl4s.parser.MemoryUnit
-import wdl4s.wdl.types.{WdlIntegerType, WdlStringType}
-import wdl4s.wdl.values.{WdlInteger, WdlString, WdlValue}
+import wom.types.{WomIntegerType, WomStringType}
+import wom.values.{WomInteger, WomString, WomValue}
 
 import scala.util.{Failure, Success}
 
@@ -17,7 +17,7 @@ import scala.util.{Failure, Success}
   * `instance` returns an validation that errors when no attribute is specified.
   *
   * `configDefaultWdlValue` returns the value of the attribute as specified by the
-  * reference.conf file, coerced into a WdlValue.
+  * reference.conf file, coerced into a WomValue.
   *
   * `optional` can be used to return the validated value as an `Option`,
   * wrapped in a `Some`, if present, or `None` if not found.
@@ -33,8 +33,8 @@ object MemoryValidation {
     instance(attributeName).configDefaultValue(config)
   def withDefaultMemory(attributeName: String = RuntimeAttributesKeys.MemoryKey, memorySize: String): RuntimeAttributesValidation[MemorySize] = {
     MemorySize.parse(memorySize) match {
-      case Success(memory) => instance(attributeName).withDefault(WdlInteger(memory.bytes.toInt))
-      case Failure(_) => instance(attributeName).withDefault(BadDefaultAttribute(WdlString(memorySize.toString)))
+      case Success(memory) => instance(attributeName).withDefault(WomInteger(memory.bytes.toInt))
+      case Failure(_) => instance(attributeName).withDefault(BadDefaultAttribute(WomString(memorySize.toString)))
     }
   }
 
@@ -44,7 +44,7 @@ object MemoryValidation {
     "Expecting %s runtime attribute to be an Integer or String with format '8 GB'." +
       " Exception: %s"
 
-  private[validation] def validateMemoryString(attributeName: String, wdlString: WdlString): ErrorOr[MemorySize] =
+  private[validation] def validateMemoryString(attributeName: String, wdlString: WomString): ErrorOr[MemorySize] =
     validateMemoryString(attributeName, wdlString.value)
 
   private[validation] def validateMemoryString(attributeName: String, value: String): ErrorOr[MemorySize] = {
@@ -58,7 +58,7 @@ object MemoryValidation {
     }
   }
 
-  private[validation] def validateMemoryInteger(attributeName: String, wdlInteger: WdlInteger): ErrorOr[MemorySize] =
+  private[validation] def validateMemoryInteger(attributeName: String, wdlInteger: WomInteger): ErrorOr[MemorySize] =
     validateMemoryInteger(attributeName, wdlInteger.value)
 
   private[validation] def validateMemoryInteger(attributeName: String, value: Int): ErrorOr[MemorySize] = {
@@ -75,11 +75,11 @@ class MemoryValidation(attributeName: String = RuntimeAttributesKeys.MemoryKey) 
 
   override def key = attributeName
 
-  override def coercion = Seq(WdlIntegerType, WdlStringType)
+  override def coercion = Seq(WomIntegerType, WomStringType)
 
-  override protected def validateValue: PartialFunction[WdlValue, ErrorOr[MemorySize]] = {
-    case WdlInteger(value) => MemoryValidation.validateMemoryInteger(key, value)
-    case WdlString(value) => MemoryValidation.validateMemoryString(key, value)
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[MemorySize]] = {
+    case WomInteger(value) => MemoryValidation.validateMemoryInteger(key, value)
+    case WomString(value) => MemoryValidation.validateMemoryString(key, value)
   }
 
   override def missingValueMessage: String = wrongTypeFormat.format(key, "Not supported WDL type value")

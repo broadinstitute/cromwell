@@ -3,7 +3,8 @@ package cromwell.backend.impl.sfs.config
 import com.typesafe.config.Config
 import cromwell.backend.impl.sfs.config.ConfigConstants._
 import net.ceedubs.ficus.Ficus._
-import wdl4s.wdl._
+import wdl._
+import wom.core.WorkflowSource
 
 import scala.util.{Failure, Success}
 
@@ -29,6 +30,9 @@ class ConfigWdlNamespace(backendConfig: Config) {
   private val killCommandOption = backendConfig.as[Option[String]](KillConfig)
   private val killSourceOption = killCommandOption.map(makeWdlSource(KillTask, _, jobIdRuntimeAttributes))
 
+  private val killDockerCommandOption = backendConfig.as[Option[String]](KillDockerConfig)
+  private val killDockerSourceOption = killDockerCommandOption.map(makeWdlSource(KillDockerTask, _, jobIdRuntimeAttributes))
+
   private val checkAliveCommandOption = backendConfig.as[Option[String]](CheckAliveConfig)
   private val checkAliveSourceOption = checkAliveCommandOption.map(makeWdlSource(
     CheckAliveTask, _, jobIdRuntimeAttributes))
@@ -38,6 +42,7 @@ class ConfigWdlNamespace(backendConfig: Config) {
        |${submitSourceOption getOrElse ""}
        |${submitDockerSourceOption getOrElse ""}
        |${killSourceOption getOrElse ""}
+       |${killDockerSourceOption getOrElse ""}
        |${checkAliveSourceOption getOrElse ""}
        |""".stripMargin.trim
 
@@ -97,6 +102,7 @@ object ConfigWdlNamespace {
   private val submitDockerRuntimeAttributes =
     s"""
        |String $DockerCwdInput
+       |String $DockerCidInput
        |""".stripMargin
 
   /**
@@ -105,5 +111,6 @@ object ConfigWdlNamespace {
   private val jobIdRuntimeAttributes =
     s"""
        |String $JobIdInput
+       |String $DockerCidInput
        |""".stripMargin
 }

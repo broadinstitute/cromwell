@@ -5,13 +5,13 @@ import java.time.OffsetDateTime
 import akka.actor._
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
+import akka.testkit.TestProbe
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestKitSpec._
 import cromwell._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.{SimpleIoActor, WorkflowSourceFilesCollection}
-import cromwell.database.sql.SqlDatabase
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
@@ -55,14 +55,16 @@ object SingleWorkflowRunnerActorSpec {
 }
 
 abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitWordSpec with Mockito {
-  private val workflowStore = system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore, dummyServiceRegistryActor, mock[SqlDatabase]))
+  private val workflowStore =
+    system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore, dummyServiceRegistryActor, abortAllJobsOnTerminate = false))
+  private val serviceRegistry = TestProbe().ref
   private val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
   private val ioActor = system.actorOf(SimpleIoActor.props)
   private val subWorkflowStore = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)
   private val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
   private val callCacheWriteActor = system.actorOf(EmptyCallCacheWriteActor.props)
   private val dockerHashActor = system.actorOf(EmptyDockerHashActor.props)
-  private val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props)
+  private val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistry))
 
 
   def workflowManagerActor(): ActorRef = {
@@ -163,6 +165,7 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
   }
 
   "A SingleWorkflowRunnerActor" should {
+    // TODO WOM: needs FQNs
     "successfully run a workflow outputting metadata" in {
       val expectedCalls = Table(
         ("callName", "numInputs", "numOutputs"),

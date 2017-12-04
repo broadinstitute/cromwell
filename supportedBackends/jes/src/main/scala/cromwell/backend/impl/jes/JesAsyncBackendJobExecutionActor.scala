@@ -2,37 +2,38 @@ package cromwell.backend.impl.jes
 
 import java.net.SocketTimeoutException
 
+import _root_.io.grpc.Status
 import akka.actor.ActorRef
 import cats.data.Validated.{Invalid, Valid}
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.services.genomics.model.RunPipelineRequest
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import cromwell.backend._
-import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
 import cromwell.backend.impl.jes.errors.FailedToDelocalizeFailure
 import cromwell.backend.impl.jes.io._
+import cromwell.backend.impl.jes.statuspolling.JesRunCreationClient.JobAbortedException
 import cromwell.backend.impl.jes.statuspolling.{JesRunCreationClient, JesStatusRequestClient}
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.filesystems.gcs.GcsPath
-import lenthall.validation.ErrorOr.ErrorOr
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
+import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
+import common.validation.ErrorOr.ErrorOr
+import cromwell.backend.io.GlobFunctions
 import org.slf4j.LoggerFactory
-import wdl4s.wdl._
-import wdl4s.wdl.expression.PureStandardLibraryFunctions
-import wdl4s.wdl.values._
-
-import _root_.io.grpc.Status
+import wom.callable.Callable.OutputDefinition
+import wom.core.FullyQualifiedName
+import wom.values._
 
 import scala.collection.JavaConverters._
-import scala.concurrent.duration._
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Success, Try}
 
@@ -57,8 +58,21 @@ object JesAsyncBackendJobExecutionActor {
   val JesUnexpectedTermination = 13
   val JesPreemption = 14
 
-  def StandardException(errorCode: Status, message: String, jobTag: String) = {
-    new Exception(s"Task $jobTag failed. JES error code ${errorCode.getCode.value}. $message")
+  // If the JES code is 2 (UNKNOWN), this sub-string indicates preemption:
+  val FailedToStartDueToPreemptionSubstring = "failed to start due to preemption"
+
+  def StandardException(errorCode: Status,
+                        message: String,
+                        jobTag: String,
+                        returnCodeOption: Option[Int],
+                        stderrPath: Path) = {
+    val returnCodeMessage = returnCodeOption match {
+      case Some(returnCode) if returnCode == 0 => "Job exited without an error, exit code 0."
+      case Some(returnCode) => s"Job exit code $returnCode. Check $stderrPath for more information."
+      case None => "The job was stopped before the command finished."
+    }
+
+    new Exception(s"Task $jobTag failed. $returnCodeMessage PAPI error code ${errorCode.getCode.value}. $message")
   }
 }
 
@@ -99,10 +113,10 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   private val previousRetryReasons: ErrorOr[PreviousRetryReasons] = PreviousRetryReasons.tryApply(jobDescriptor.prefetchedKvStoreEntries, jobDescriptor.key.attempt)
 
   private lazy val jobDockerImage = jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
-  
+
   override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
-  
-  override val preemptible: Boolean = previousRetryReasons match {
+
+  override lazy val preemptible: Boolean = previousRetryReasons match {
     case Valid(PreviousRetryReasons(p, _)) => p < maxPreemption
     case _ => false
   }
@@ -111,7 +125,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     Run(job, initializationData.genomics).abort()
   }
 
-  override def requestsAbortAndDiesImmediately: Boolean = true
+  override def requestsAbortAndDiesImmediately: Boolean = false
 
   override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse ioReceive orElse kvClientReceive orElse super.receive
 
@@ -122,11 +136,11 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   /**
-    * Takes two arrays of remote and local WDL File paths and generates the necessary JesInputs.
+    * Takes two arrays of remote and local WOM File paths and generates the necessary JesInputs.
     */
-  private def jesInputsFromWdlFiles(jesNamePrefix: String,
-                                    remotePathArray: Seq[WdlFile],
-                                    localPathArray: Seq[WdlFile],
+  private def jesInputsFromWomFiles(jesNamePrefix: String,
+                                    remotePathArray: Seq[WomFile],
+                                    localPathArray: Seq[WomFile],
                                     jobDescriptor: BackendJobDescriptor): Iterable[JesInput] = {
     (remotePathArray zip localPathArray zipWithIndex) flatMap {
       case ((remotePath, localPath), index) =>
@@ -135,32 +149,31 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   /**
-    * Turns WdlFiles into relative paths.  These paths are relative to the working disk
+    * Turns WomFiles into relative paths.  These paths are relative to the working disk
     *
     * relativeLocalizationPath("foo/bar.txt") -> "foo/bar.txt"
     * relativeLocalizationPath("gs://some/bucket/foo.txt") -> "some/bucket/foo.txt"
     */
-  private def relativeLocalizationPath(file: WdlFile): WdlFile = {
+  private def relativeLocalizationPath(file: WomFile): WomFile = {
     getPath(file.value) match {
-      case Success(path) => WdlFile(path.pathWithoutScheme, file.isGlob)
+      case Success(path) => WomFile(path.pathWithoutScheme, file.isGlob)
       case _ => file
     }
   }
 
   private[jes] def generateJesInputs(jobDescriptor: BackendJobDescriptor): Set[JesInput] = {
+    // We need to tell PAPI about files that were created as part of command instantiation (these need to be defined
+    // as inputs that will be localized down to the VM). Make up 'names' for these files that are just the short
+    // md5's of their paths.
+    val writeFunctionFiles = instantiatedCommand.createdFiles map { f => f.value.md5SumShort -> List(f) } toMap
 
-    val fullyQualifiedPreprocessedInputs = jobDescriptor.inputDeclarations map { case (declaration, value) => declaration.fullyQualifiedName -> commandLineValueMapper(value) }
-    val writeFunctionFiles = call.task.evaluateFilesFromCommand(fullyQualifiedPreprocessedInputs, backendEngineFunctions) map {
-      case (expression, file) => expression.toWdlString.md5SumShort -> Seq(file)
-    }
-
-    /* Collect all WdlFiles from inputs to the call */
-    val callInputFiles: Map[FullyQualifiedName, Seq[WdlFile]] = jobDescriptor.fullyQualifiedInputs mapValues {
-      _.collectAsSeq { case w: WdlFile => w }
+    // Collect all WomFiles from inputs to the call.
+    val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.fullyQualifiedInputs mapValues {
+      _.collectAsSeq { case w: WomFile => w }
     }
 
     val inputs = (callInputFiles ++ writeFunctionFiles) flatMap {
-      case (name, files) => jesInputsFromWdlFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor)
+      case (name, files) => jesInputsFromWomFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor)
     }
     inputs.toSet
   }
@@ -193,32 +206,41 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   private[jes] def generateJesOutputs(jobDescriptor: BackendJobDescriptor): Set[JesFileOutput] = {
-    val wdlFileOutputs = call.task.findOutputFiles(jobDescriptor.fullyQualifiedInputs, PureStandardLibraryFunctions) map relativeLocalizationPath
+    // TODO WOM: put this back in WOM
+    import cats.syntax.validated._
+    def evaluateFiles(output: OutputDefinition): List[WomFile] = {
+      Try (
+        output.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, output.womType).map(_.toList)
+      ).getOrElse(List.empty[WomFile].validNel)
+        .getOrElse(List.empty)
+    }
 
-    val outputs = wdlFileOutputs.distinct flatMap { wdlFile =>
-      wdlFile match {
-        case singleFile: WdlSingleFile => List(generateJesSingleFileOutputs(singleFile))
-        case globFile: WdlGlobFile => generateJesGlobFileOutputs(globFile)
+    val womFileOutputs = jobDescriptor.taskCall.callable.outputs.flatMap(evaluateFiles) map relativeLocalizationPath
+
+    val outputs = womFileOutputs.distinct flatMap { womFile =>
+      womFile match {
+        case singleFile: WomSingleFile => List(generateJesSingleFileOutputs(singleFile))
+        case globFile: WomGlobFile => generateJesGlobFileOutputs(globFile)
       }
     }
 
     outputs.toSet
   }
 
-  private def generateJesSingleFileOutputs(wdlFile: WdlSingleFile): JesFileOutput = {
-    val destination = callRootPath.resolve(wdlFile.value.stripPrefix("/")).pathAsString
-    val (relpath, disk) = relativePathAndAttachedDisk(wdlFile.value, runtimeAttributes.disks)
-    JesFileOutput(makeSafeJesReferenceName(wdlFile.value), destination, relpath, disk)
+  private def generateJesSingleFileOutputs(womFile: WomSingleFile): JesFileOutput = {
+    val destination = callRootPath.resolve(womFile.value.stripPrefix("/")).pathAsString
+    val (relpath, disk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
+    JesFileOutput(makeSafeJesReferenceName(womFile.value), destination, relpath, disk)
   }
 
-  private def generateJesGlobFileOutputs(wdlFile: WdlGlobFile): List[JesFileOutput] = {
-    val globName = backendEngineFunctions.globName(wdlFile.value)
+  private def generateJesGlobFileOutputs(womFile: WomGlobFile): List[JesFileOutput] = {
+    val globName = GlobFunctions.globName(womFile.value)
     val globDirectory = globName + "/"
     val globListFile = globName + ".list"
     val gcsGlobDirectoryDestinationPath = callRootPath.resolve(globDirectory).pathAsString
     val gcsGlobListFileDestinationPath = callRootPath.resolve(globListFile).pathAsString
 
-    val (_, globDirectoryDisk) = relativePathAndAttachedDisk(wdlFile.value, runtimeAttributes.disks)
+    val (_, globDirectoryDisk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
 
     // We need both the glob directory and the glob list:
     List(
@@ -248,7 +270,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   private val DockerMonitoringLogPath: Path = JesWorkingDisk.MountPoint.resolve(jesCallPaths.jesMonitoringLogFilename)
   private val DockerMonitoringScriptPath: Path = JesWorkingDisk.MountPoint.resolve(jesCallPaths.jesMonitoringScriptFilename)
 
-  override def commandScriptPreamble: String = {
+  override def scriptPreamble: String = {
     if (monitoringOutput.isDefined) {
       s"""|touch $DockerMonitoringLogPath
           |chmod u+x $DockerMonitoringScriptPath
@@ -256,8 +278,8 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     } else ""
   }
 
-  override def globParentDirectory(wdlGlobFile: WdlGlobFile): Path = {
-    val (_, disk) = relativePathAndAttachedDisk(wdlGlobFile.value, runtimeAttributes.disks)
+  override def globParentDirectory(womGlobFile: WomGlobFile): Path = {
+    val (_, disk) = relativePathAndAttachedDisk(womGlobFile.value, runtimeAttributes.disks)
     disk.mountPoint
   }
 
@@ -300,13 +322,23 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override def isTransient(throwable: Throwable): Boolean = isTransientJesException(throwable)
 
-  override def executeAsync(): Future[ExecutionHandle] = runWithJes(None)
+  override def executeAsync(): Future[ExecutionHandle] = createNewJob()
 
   val futureKvJobKey = KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
 
-  override def recoverAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = runWithJes(Option(jobId))
+  override def recoverAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = reconnectToExistingJob(jobId)
 
-  private def runWithJes(jobForResumption: Option[StandardAsyncJob]): Future[ExecutionHandle] = {
+  override def reconnectAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = reconnectToExistingJob(jobId)
+
+  override def reconnectToAbortAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = reconnectToExistingJob(jobId, forceAbort = true)
+
+  private def reconnectToExistingJob(jobForResumption: StandardAsyncJob, forceAbort: Boolean = false) = {
+    val run = Run(jobForResumption, initializationData.genomics)
+    if (forceAbort) Try(run.abort())
+    Future.successful(PendingExecutionHandle(jobDescriptor, jobForResumption, Option(run), previousStatus = None))
+  }
+
+  private def createNewJob(): Future[ExecutionHandle] = {
     // Want to force runtimeAttributes to evaluate so we can fail quickly now if we need to:
     def evaluateRuntimeAttributes = Future.fromTry(Try(runtimeAttributes))
 
@@ -318,29 +350,31 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       standardParameters ++ gcsAuthParameter ++ jesInputs ++ jesOutputs
     })
 
-    def uploadScriptFile = writeAsync(jobPaths.script, commandScriptContents, Seq(CloudStorageOptions.withMimeType("text/plain")))
+    def uploadScriptFile = commandScriptContents.fold(
+      errors => Future.failed(new RuntimeException(errors.toList.mkString(", "))),
+      writeAsync(jobPaths.script, _, Seq(CloudStorageOptions.withMimeType("text/plain"))))
 
     def makeRpr(jesParameters: Seq[JesParameter]) = Future.fromTry(Try {
       createJesRunPipelineRequest(jesParameters)
     })
 
-    jobForResumption match {
-      case Some(job) =>
-        val run = Run(job, initializationData.genomics)
-        Future.successful(PendingExecutionHandle(jobDescriptor, job, Option(run), previousStatus = None))
-      case None =>
-        for {
-          _ <- evaluateRuntimeAttributes
-          jesParameters <- generateJesParameters
-          _ <- uploadScriptFile
-          rpr <- makeRpr(jesParameters)
-          runId <- runPipeline(initializationData.genomics, rpr)
-          run = Run(runId, initializationData.genomics)
-        } yield PendingExecutionHandle(jobDescriptor, runId, Option(run), previousStatus = None)
+    val runPipelineResponse = for {
+      _ <- evaluateRuntimeAttributes
+      jesParameters <- generateJesParameters
+      _ <- uploadScriptFile
+      rpr <- makeRpr(jesParameters)
+      runId <- runPipeline(workflowId, initializationData.genomics, rpr)
+    } yield runId
+
+    runPipelineResponse map { runId =>
+      val run = Run(runId, initializationData.genomics)
+      PendingExecutionHandle(jobDescriptor, runId, Option(run), previousStatus = None)
+    } recover {
+      case JobAbortedException => AbortedExecutionHandle
     }
   }
 
-  override def pollStatusAsync(handle: JesPendingExecutionHandle): Future[RunStatus] = super[JesStatusRequestClient].pollStatus(handle.runInfo.get)
+  override def pollStatusAsync(handle: JesPendingExecutionHandle): Future[RunStatus] = super[JesStatusRequestClient].pollStatus(workflowId, handle.runInfo.get)
 
   override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {
     case (oldHandle: JesPendingExecutionHandle@unchecked, e: GoogleJsonResponseException) if e.getStatusCode == 404 =>
@@ -362,14 +396,14 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
-  override def mapOutputWdlFile(wdlFile: WdlFile): WdlFile = {
-    wdlFileToGcsPath(generateJesOutputs(jobDescriptor))(wdlFile)
+  override def mapOutputWomFile(womFile: WomFile): WomFile = {
+    womFileToGcsPath(generateJesOutputs(jobDescriptor))(womFile)
   }
 
-  private[jes] def wdlFileToGcsPath(jesOutputs: Set[JesFileOutput])(wdlFile: WdlFile): WdlFile = {
+  private[jes] def womFileToGcsPath(jesOutputs: Set[JesFileOutput])(womFile: WomFile): WomFile = {
     jesOutputs collectFirst {
-      case jesOutput if jesOutput.name == makeSafeJesReferenceName(wdlFile.valueString) => WdlFile(jesOutput.gcs)
-    } getOrElse wdlFile
+      case jesOutput if jesOutput.name == makeSafeJesReferenceName(womFile.valueString) => WomFile(jesOutput.gcs)
+    } getOrElse womFile
   }
 
   override def isSuccess(runStatus: RunStatus): Boolean = {
@@ -396,11 +430,6 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
-  // If one exists, extract the JES error code (not the google RPC) from the error message
-  private[jes] def getJesErrorCode(errorMessage: String): Option[Int] = {
-    Try { errorMessage.substring(0, errorMessage.indexOf(':')).toInt } toOption
-  }
-
   override def handleExecutionFailure(runStatus: RunStatus,
                                       handle: StandardAsyncPendingExecutionHandle,
                                       returnCode: Option[Int]): Future[ExecutionHandle] = {
@@ -409,15 +438,16 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
                               handle: StandardAsyncPendingExecutionHandle,
                               returnCode: Option[Int]): Future[ExecutionHandle] = {
       (runStatus.errorCode, runStatus.jesCode) match {
-        case (Status.CANCELLED, None) => Future.successful(AbortedExecutionHandle)
         case (Status.NOT_FOUND, Some(JesFailedToDelocalize)) => Future.successful(FailedNonRetryableExecutionHandle(FailedToDelocalizeFailure(runStatus.prettyPrintedError, jobTag, Option(jobPaths.stderr))))
         case (Status.ABORTED, Some(JesUnexpectedTermination)) => handleUnexpectedTermination(runStatus.errorCode, runStatus.prettyPrintedError, returnCode)
-        case _ => Future.successful(FailedNonRetryableExecutionHandle(StandardException(runStatus.errorCode, runStatus.prettyPrintedError, jobTag), returnCode))
+        case _ => Future.successful(FailedNonRetryableExecutionHandle(StandardException(
+          runStatus.errorCode, runStatus.prettyPrintedError, jobTag, returnCode, jobPaths.stderr), returnCode))
       }
     }
 
     runStatus match {
       case preemptedStatus: RunStatus.Preempted if preemptible => handlePreemption(preemptedStatus, returnCode)
+      case _: RunStatus.Cancelled => Future.successful(AbortedExecutionHandle)
       case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus, handle, returnCode)
       case unknown => throw new RuntimeException(s"handleExecutionFailure not called with RunStatus.Failed or RunStatus.Preempted. Instead got $unknown")
     }
@@ -442,50 +472,56 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         if (thisUnexpectedRetry <= maxUnexpectedRetries) {
           // Increment unexpected retry count and preemption count stays the same
           writeFuturePreemptedAndUnexpectedRetryCounts(p, thisUnexpectedRetry).map { _ =>
-            FailedRetryableExecutionHandle(StandardException(errorCode, msg, jobTag), jobReturnCode)
+            FailedRetryableExecutionHandle(StandardException(
+              errorCode, msg, jobTag, jobReturnCode, jobPaths.stderr), jobReturnCode)
           }
         }
         else {
-          Future.successful(FailedNonRetryableExecutionHandle(StandardException(errorCode, errorMessage, jobTag), jobReturnCode))
+          Future.successful(FailedNonRetryableExecutionHandle(StandardException(
+            errorCode, errorMessage, jobTag, jobReturnCode, jobPaths.stderr), jobReturnCode))
         }
       case Invalid(_) =>
-        Future.successful(FailedNonRetryableExecutionHandle(StandardException(errorCode, errorMessage, jobTag), jobReturnCode))
+        Future.successful(FailedNonRetryableExecutionHandle(StandardException(
+          errorCode, errorMessage, jobTag, jobReturnCode, jobPaths.stderr), jobReturnCode))
     }
   }
 
   private def handlePreemption(runStatus: RunStatus.Preempted, jobReturnCode: Option[Int]): Future[ExecutionHandle] = {
-    import lenthall.numeric.IntegerUtil._
+    import common.numeric.IntegerUtil._
 
     val errorCode: Status = runStatus.errorCode
     val prettyPrintedError: String = runStatus.prettyPrintedError
     previousRetryReasons match {
       case Valid(PreviousRetryReasons(p, ur)) =>
         val thisPreemption = p + 1
-        val taskName = s"${workflowDescriptor.id}:${call.unqualifiedName}"
+        val taskName = s"${workflowDescriptor.id}:${call.localName}"
         val baseMsg = s"Task $taskName was preempted for the ${thisPreemption.toOrdinal} time."
 
         writeFuturePreemptedAndUnexpectedRetryCounts(thisPreemption, ur).map { _ =>
           if (thisPreemption < maxPreemption) {
             // Increment preemption count and unexpectedRetryCount stays the same
             val msg = s"""$baseMsg The call will be restarted with another preemptible VM (max preemptible attempts number is $maxPreemption). Error code $errorCode.$prettyPrintedError""".stripMargin
-            FailedRetryableExecutionHandle(StandardException(errorCode, msg, jobTag), jobReturnCode)
+            FailedRetryableExecutionHandle(StandardException(
+              errorCode, msg, jobTag, jobReturnCode, jobPaths.stderr), jobReturnCode)
           }
           else {
             val msg = s"""$baseMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The call will be restarted with a non-preemptible VM. Error code $errorCode.$prettyPrintedError)""".stripMargin
-            FailedRetryableExecutionHandle(StandardException(errorCode, msg, jobTag), jobReturnCode)
+            FailedRetryableExecutionHandle(StandardException(
+              errorCode, msg, jobTag, jobReturnCode, jobPaths.stderr), jobReturnCode)
           }
         }
       case Invalid(_) =>
-        Future.successful(FailedNonRetryableExecutionHandle(StandardException(errorCode, prettyPrintedError, jobTag), jobReturnCode))
+        Future.successful(FailedNonRetryableExecutionHandle(StandardException(
+          errorCode, prettyPrintedError, jobTag, jobReturnCode, jobPaths.stderr), jobReturnCode))
     }
   }
 
-  override def mapCommandLineWdlFile(wdlFile: WdlFile): WdlFile = {
-    getPath(wdlFile.valueString) match {
+  override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
+    getPath(womFile.valueString) match {
       case Success(gcsPath: GcsPath) =>
         val localPath = workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString
-        WdlFile(localPath, wdlFile.isGlob)
-      case _ => wdlFile
+        WomFile(localPath, womFile.isGlob)
+      case _ => womFile
     }
   }
 }

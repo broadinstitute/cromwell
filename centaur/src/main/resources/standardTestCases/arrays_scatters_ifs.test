@@ -1,0 +1,13 @@
+name: arrays_scatters_ifs
+testFormat: workflowsuccess
+
+files {
+  wdl: arrays_scatters_ifs/arrays_scatters_ifs.wdl
+}
+
+metadata {
+  workflowName: arrays_scatters_ifs
+  status: Succeeded
+  "outputs.arrays_scatters_ifs.ints.0": 0
+  "outputs.arrays_scatters_ifs.ints.1": 1
+}

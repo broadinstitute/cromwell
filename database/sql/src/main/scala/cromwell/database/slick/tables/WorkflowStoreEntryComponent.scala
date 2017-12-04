@@ -3,6 +3,8 @@ package cromwell.database.slick.tables
 import java.sql.{Blob, Clob, Timestamp}
 
 import cromwell.database.sql.tables.WorkflowStoreEntry
+import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
+import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
 
 trait WorkflowStoreEntryComponent {
 
@@ -10,6 +12,15 @@ trait WorkflowStoreEntryComponent {
 
   import driver.api._
 
+  object WorkflowStoreEntries {
+    implicit val workflowStoreStateMapper = MappedColumnType.base[WorkflowStoreState, String](
+      e => e.toString,
+      s => WorkflowStoreState.withName(s)
+    )
+  }
+
+  import WorkflowStoreEntries._
+  
   class WorkflowStoreEntries(tag: Tag) extends Table[WorkflowStoreEntry](tag, "WORKFLOW_STORE_ENTRY") {
     def workflowStoreEntryId = column[Int]("WORKFLOW_STORE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
@@ -27,14 +38,16 @@ trait WorkflowStoreEntryComponent {
 
     def customLabels = column[Clob]("CUSTOM_LABELS")
 
-    def workflowState = column[String]("WORKFLOW_STATE", O.Length(15))
+    def workflowState = column[WorkflowStoreState]("WORKFLOW_STATE", O.Length(20))
+
+    def restarted = column[Boolean]("RESTARTED")
 
     def submissionTime = column[Timestamp]("SUBMISSION_TIME")
 
     def importsZip = column[Option[Blob]]("IMPORTS_ZIP")
 
     override def * = (workflowExecutionUuid, workflowDefinition, workflowType, workflowTypeVersion, workflowInputs, workflowOptions, workflowState,
-      submissionTime, importsZip, customLabels, workflowStoreEntryId.?) <> (WorkflowStoreEntry.tupled, WorkflowStoreEntry.unapply)
+      restarted, submissionTime, importsZip, customLabels, workflowStoreEntryId.?) <> ((WorkflowStoreEntry.apply _).tupled, WorkflowStoreEntry.unapply)
 
     def ucWorkflowStoreEntryWeu = index("UC_WORKFLOW_STORE_ENTRY_WEU", workflowExecutionUuid, unique = true)
 
@@ -56,35 +69,76 @@ trait WorkflowStoreEntryComponent {
   )
 
   /**
-    * Useful for selecting workflow stores with a given state.
+    * Returns up to "limit" startable workflows, sorted by submission time.
     */
-  val workflowStoreEntriesForWorkflowState = Compiled(
-    (workflowState: Rep[String], limit: ConstColumn[Long]) => {
+  val fetchStartableWorkflows = Compiled(
+    (limit: ConstColumn[Long]) => {
       val query = for {
         workflowStoreEntryRow <- workflowStoreEntries
-        if workflowStoreEntryRow.workflowState === workflowState
+        if (workflowStoreEntryRow.workflowState === WorkflowStoreState.Aborting && workflowStoreEntryRow.restarted === true) ||
+           (workflowStoreEntryRow.workflowState === WorkflowStoreState.Running && workflowStoreEntryRow.restarted === true) ||
+           (workflowStoreEntryRow.workflowState === WorkflowStoreState.Submitted && workflowStoreEntryRow.restarted === false)
       } yield workflowStoreEntryRow
       query.sortBy(_.submissionTime.asc).take(limit)
     }
   )
 
   /**
+    * Useful for counting workflows in a given state.
+    */
+  val workflowStoreStats = Compiled(
+    for {
+      (state, entry) <- workflowStoreEntries groupBy (_.workflowState)
+    } yield state -> entry.size
+  )
+
+  /**
     * Useful for updating state for all entries matching a given UUID
     */
-  val workflowStateForWorkflowExecutionUuid = Compiled(
+  val workflowStateAndRestartedForWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       workflowStoreEntry <- workflowStoreEntries
       if workflowStoreEntry.workflowExecutionUuid === workflowExecutionUuid
-    } yield workflowStoreEntry.workflowState
+    } yield (workflowStoreEntry.workflowState, workflowStoreEntry.restarted)
   )
 
   /**
     * Useful for updating state for all entries matching a given state
     */
   val workflowStateForWorkflowState = Compiled(
-    (workflowState: Rep[String]) => for {
+    (workflowState: Rep[WorkflowStoreState]) => for {
       workflowStoreEntry <- workflowStoreEntries
       if workflowStoreEntry.workflowState === workflowState
     } yield workflowStoreEntry.workflowState
+  )
+
+  /**
+    * Useful for updating restarted flags on server restart.
+    */
+  val restartedFlagForRunningAndAborting = Compiled(
+    for {
+      workflowStoreEntry <- workflowStoreEntries
+      if workflowStoreEntry.workflowState === WorkflowStoreState.Running || workflowStoreEntry.workflowState === WorkflowStoreState.Aborting
+    } yield workflowStoreEntry.restarted
+  )
+
+  /**
+    * Useful for updating a given workflow to a new state
+    */
+  val workflowStateForId = Compiled(
+    (workflowId: Rep[String]) => for {
+      workflowStoreEntry <- workflowStoreEntries
+      if workflowStoreEntry.workflowExecutionUuid === workflowId
+    } yield workflowStoreEntry.workflowState
+  )
+
+  /**
+    * Useful for updating the restarted flag for a given workflow
+    */
+  val workflowRestartedForId = Compiled(
+    (workflowId: Rep[String]) => for {
+      workflowStoreEntry <- workflowStoreEntries
+      if workflowStoreEntry.workflowExecutionUuid === workflowId
+    } yield workflowStoreEntry.restarted
   )
 }

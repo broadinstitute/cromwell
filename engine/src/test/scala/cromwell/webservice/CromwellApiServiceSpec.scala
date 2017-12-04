@@ -1,25 +1,28 @@
 package cromwell.webservice
 
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
-import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowSubmitted, WorkflowSucceeded}
 import akka.http.scaladsl.coding.{Decoder, Gzip}
-import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import spray.json.DefaultJsonProtocol._
-import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{AbortWorkflow, BatchSubmitWorkflows, SubmitWorkflow}
-import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor
-import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.WorkflowAbortFailed
-import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
-import cromwell.services.metadata.MetadataService._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.{HttpEncodings, `Accept-Encoding`}
+import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
+import common.util.VersionUtil
+import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingResponse}
+import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowSubmitted, WorkflowSucceeded}
 import cromwell.engine.workflow.WorkflowManagerActor
+import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{AbortWorkflowCommand, BatchSubmitWorkflows, SubmitWorkflow}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
+import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse, SubsystemStatus}
+import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.util.SampleWdl.HelloWorld
+import mouse.boolean._
 import org.scalatest.{AsyncFlatSpec, Matchers}
+import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import scala.concurrent.duration._
@@ -52,8 +55,20 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         status should be(StatusCodes.OK)
         val resp = responseAs[JsObject]
         val cromwellVersion = resp.fields("cromwell").asInstanceOf[JsString].value
-        cromwellVersion should fullyMatch regex """\d+-([0-9a-f]){7}(-SNAP)?"""
+        cromwellVersion should fullyMatch regex
+          s"""(\\d+-([0-9a-f]){7}(-SNAP)?|${VersionUtil.defaultMessage("cromwell-engine")})"""
       }
+  }
+
+  "REST ENGINE /status endpoint" should "return 200 for status when all is well" in {
+    Get(s"/engine/$version/status") ~>
+      akkaHttpService.engineRoutes ~>
+        check {
+          status should be(StatusCodes.OK)
+          val resp = responseAs[JsObject]
+          val db = resp.fields("Engine Database").asJsObject
+          db.fields("ok").asInstanceOf[JsBoolean].value should be(true)
+        }
   }
 
     behavior of "REST API /status endpoint"
@@ -146,12 +161,13 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
       }
     }
+
     it should "return 200 for abort of a known workflow id" in {
       Post(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/abort") ~>
         akkaHttpService.workflowRoutes ~>
         check {
           assertResult(
-            s"""{"id":"${CromwellApiServiceSpec.ExistingWorkflowId.toString}","status":"Aborted"}""") {
+            s"""{"id":"${CromwellApiServiceSpec.ExistingWorkflowId.toString}","status":"Aborting"}""") {
             responseAs[String]
           }
           assertResult(StatusCodes.OK) {
@@ -178,18 +194,49 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           assertResult(StatusCodes.Created) {
             status
           }
+          headers should be(Seq.empty)
         }
     }
 
+  it should "return 201 with warnings for a successful v1 workflow submission still using wdlSource" in {
+    val workflowSource = Multipart.FormData.BodyPart("wdlSource",
+      HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
+    val formData = Multipart.FormData(workflowSource).toEntity()
+    Post(s"/workflows/v1", formData) ~>
+      akkaHttpService.workflowRoutes ~>
+      check {
+        status should be(StatusCodes.Created)
+        responseAs[String].parseJson.prettyPrint should be(
+          s"""|{
+              |  "id": "${CromwellApiServiceSpec.ExistingWorkflowId.toString}",
+              |  "status": "Submitted"
+              |}
+              |""".stripMargin.trim
+        )
+        headers.size should be(1)
+        val warningHeader = header("Warning")
+        warningHeader shouldNot be(empty)
+        warningHeader.get.value should fullyMatch regex
+          s"""299 cromwell/(\\d+-([0-9a-f]){7}(-SNAP)?|${VersionUtil.defaultMessage("cromwell-engine")}) """ +
+            "\"The 'wdlSource' parameter name has been deprecated in favor of 'workflowSource'. " +
+            "Support for 'wdlSource' will be removed from future versions of Cromwell. " +
+            "Please switch to using 'workflowSource' in future submissions.\""
+      }
+  }
+
     it should "return 400 for an unrecognized form data request parameter " in {
-      val formData = Multipart.FormData(Multipart.FormData.BodyPart("incorrectParameter", HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))).toEntity()
+      val formData = Multipart.FormData(Map(
+        "incorrectParameter" -> HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()),
+        "incorrectParameter2" -> HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource())
+      )).toEntity
+
       Post(s"/workflows/$version", formData) ~>
         akkaHttpService.workflowRoutes ~>
         check {
           assertResult(
             s"""{
                 |  "status": "fail",
-                |  "message": "Error(s): Unexpected body part name: incorrectParameter"
+                |  "message": "Error(s): Unexpected body part name: incorrectParameter\\nUnexpected body part name: incorrectParameter2\\nworkflowSource needs to be supplied"
                 |}""".stripMargin) {
             responseAs[String]
           }
@@ -442,6 +489,33 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
     }
 
+    it should "return labels if specified in additionalQueryResultFields param" in {
+      Get(s"/workflows/$version/query?additionalQueryResultFields=labels&id=${CromwellApiServiceSpec.ExistingWorkflowId}") ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          status should be(StatusCodes.OK)
+          contentType should be(ContentTypes.`application/json`)
+          val results = responseAs[JsObject].fields("results").convertTo[Seq[JsObject]]
+          val fields = results.head.fields
+          fields("id") should be(JsString(CromwellApiServiceSpec.ExistingWorkflowId.toString))
+          fields(WorkflowMetadataKeys.Labels).asJsObject.fields("key1") should be(JsString("label1"))
+          fields(WorkflowMetadataKeys.Labels).asJsObject.fields("key2") should be(JsString("label2"))
+        }
+    }
+
+    it should "return parentWorkflowId if specified in additionalQueryResultFields param" in {
+      Get(s"/workflows/$version/query?additionalQueryResultFields=parentWorkflowId&id=${CromwellApiServiceSpec.ExistingWorkflowId}") ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          status should be(StatusCodes.OK)
+          contentType should be(ContentTypes.`application/json`)
+          val results = responseAs[JsObject].fields("results").convertTo[Seq[JsObject]]
+          val fields = results.head.fields
+          fields("id") should be(JsString(CromwellApiServiceSpec.ExistingWorkflowId.toString))
+          fields(WorkflowMetadataKeys.ParentWorkflowId) should be(JsString("pid"))
+        }
+    }
+
     behavior of "REST API /query POST endpoint"
     it should "return good results for a good query map body" in {
       Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"status":"Succeeded"}]""")) ~>
@@ -453,6 +527,44 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           assertResult(true) {
             entityAs[String].contains("\"status\":\"Succeeded\"")
           }
+        }
+    }
+
+    it should "return labels if specified in additionalQueryResultFields param" in {
+      Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"additionalQueryResultFields":"labels"}]""")) ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          assertResult(StatusCodes.OK) {
+            status
+          }
+          val results = responseAs[JsObject].fields("results").convertTo[Seq[JsObject]]
+          val fields = results.head.fields
+          fields(WorkflowMetadataKeys.Labels).asJsObject.fields("key1") should be(JsString("label1"))
+          fields(WorkflowMetadataKeys.Labels).asJsObject.fields("key2") should be(JsString("label2"))
+        }
+    }
+
+    it should "return parentWorkflowId if specified in additionalQueryResultFields param" in {
+      Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"additionalQueryResultFields":"parentWorkflowId"}]""")) ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          assertResult(StatusCodes.OK) {
+            status
+          }
+          assertResult(true) {
+            entityAs[String].contains("\"parentWorkflowId\":\"pid\"")
+          }
+        }
+    }
+
+    behavior of "REST API /labels GET endpoint"
+    it should "return labels for a workflow ID" in {
+      Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/labels") ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          val result = responseAs[JsObject]
+          status should be(StatusCodes.OK)
+          result.fields(WorkflowMetadataKeys.Labels).asJsObject.fields("key1") should be(JsString("label1"))
         }
     }
 
@@ -494,7 +606,7 @@ object CromwellApiServiceSpec {
   val ExistingWorkflowId = WorkflowId.fromString("c4c6339c-8cc9-47fb-acc5-b5cb8d2809f5")
   val AbortedWorkflowId = WorkflowId.fromString("0574111c-c7d3-4145-8190-7a7ed8e8324a")
   val UnrecognizedWorkflowId = WorkflowId.fromString("2bdd06cc-e794-46c8-a897-4c86cedb6a06")
-  val RecognizedWorkflowIds = Set(ExistingWorkflowId, AbortedWorkflowId)
+  val RecognizedWorkflowIds = Set(ExistingWorkflowId)
 
   class MockApiService()(implicit val system: ActorSystem) extends CromwellApiService {
     override def actorRefFactory = system
@@ -517,7 +629,8 @@ object CromwellApiServiceSpec {
         MetadataEvent(MetadataKey(workflowId, None, "testKey2a"), MetadataValue("myValue2a", MetadataString)))
     }
 
-    def metadataQuery(workflowId: WorkflowId) = MetadataQuery(workflowId, None, None, None, None, false)
+    def metadataQuery(workflowId: WorkflowId) =
+      MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
 
     def logsEvents(id: WorkflowId) = {
       val stdout = MetadataEvent(MetadataKey(id, Some(MetadataJobKey("mycall", None, 1)), CallMetadataKeys.Stdout), MetadataValue("stdout.txt", MetadataString))
@@ -530,14 +643,27 @@ object CromwellApiServiceSpec {
   class MockServiceRegistryActor extends Actor {
     import MockServiceRegistryActor._
     override def receive = {
-      case WorkflowQuery(_) =>
+      case WorkflowQuery(parameters) =>
+        val labels: Option[Map[String, String]] = {
+          parameters.contains(("additionalQueryResultFields", "labels")).option(
+            Map("key1" -> "label1", "key2" -> "label2"))
+        }
+        val parentWorkflowId: Option[String] =  {
+          parameters.contains(("additionalQueryResultFields", "parentWorkflowId")).option("pid")
+        }
         val response = WorkflowQuerySuccess(WorkflowQueryResponse(List(WorkflowQueryResult(ExistingWorkflowId.toString,
-          None, Some(WorkflowSucceeded.toString), None, None))), None)
+          None, Some(WorkflowSucceeded.toString), None, None, labels, parentWorkflowId))), None)
         sender ! response
       case ValidateWorkflowId(id) =>
         if (RecognizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId
         else sender ! MetadataService.UnrecognizedWorkflowId
+      case GetCurrentStatus =>
+        sender ! StatusCheckResponse(
+          ok = true,
+          systems = Map(
+            "Engine Database" -> SubsystemStatus(ok = true, messages = None)))
       case GetStatus(id) => sender ! StatusLookupResponse(id, WorkflowSubmitted)
+      case GetLabels(id) => sender ! LabelLookupResponse(id, Map("key1" -> "label1", "key2" -> "label2"))
       case WorkflowOutputs(id) =>
         val event = Vector(MetadataEvent(MetadataKey(id, None, "outputs:test.hello.salutation"), MetadataValue("Hello foo!", MetadataString)))
         sender ! WorkflowOutputsResponse(id, event)
@@ -560,17 +686,18 @@ object CromwellApiServiceSpec {
       case BatchSubmitWorkflows(sources) =>
         val response = WorkflowsBatchSubmittedToStore(sources map { _ => ExistingWorkflowId })
         sender ! response
-      case AbortWorkflow(id, manager @ _) =>
+      case AbortWorkflowCommand(id) =>
         val message = id match {
-          case ExistingWorkflowId => WorkflowStoreEngineActor.WorkflowAborted(id)
+          case ExistingWorkflowId => WorkflowAbortingResponse(id, restarted = false)
+          case UnrecognizedWorkflowId => WorkflowAbortFailureResponse(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
           case AbortedWorkflowId =>
-            WorkflowAbortFailed(id, new IllegalStateException(s"Workflow ID '$id' is in terminal state 'Aborted' and cannot be aborted."))
+            WorkflowAbortFailureResponse(id, new IllegalStateException(s"Workflow ID '$id' is in terminal state 'Aborted' and cannot be aborted."))
           case WorkflowId(_) => throw new Exception("Something untoward happened")
         }
         sender ! message
     }
   }
-
+  
   class MockWorkflowManagerActor extends Actor with ActorLogging {
     override def receive: Receive = {
       case WorkflowManagerActor.EngineStatsCommand =>

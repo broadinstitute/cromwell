@@ -3,15 +3,20 @@ package cromwell.database.slick
 import java.sql.Timestamp
 
 import cats.data.NonEmptyList
+import com.typesafe.config.Config
+import cromwell.database.slick.tables.MetadataDataAccessComponent
 import cromwell.database.sql.MetadataSqlDatabase
-import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, MetadataJobQueryValue, WorkflowQuery}
+import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-trait MetadataSlickDatabase extends MetadataSqlDatabase {
-  this: SlickDatabase with SummaryStatusSlickDatabase =>
+class MetadataSlickDatabase(originalDatabaseConfig: Config)
+  extends SlickDatabase(originalDatabaseConfig)
+    with MetadataSqlDatabase
+    with SummaryStatusSlickDatabase {
+  override lazy val dataAccess = new MetadataDataAccessComponent(slickConfig.profile)
 
   import dataAccess.driver.api._
 
@@ -172,6 +177,11 @@ trait MetadataSlickDatabase extends MetadataSqlDatabase {
     // The workflow might not exist, so `headOption`.  But even if the workflow does exist, the status might be None.
     // So flatten the Option[Option[String]] to Option[String].
     runTransaction(action).map(_.flatten)
+  }
+
+  override def getWorkflowLabels(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Map[String, String]] = {
+    val action = dataAccess.labelsForWorkflowExecutionUuid(workflowExecutionUuid).result
+    runTransaction(action).map(_.toMap)
   }
 
   override def queryWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],

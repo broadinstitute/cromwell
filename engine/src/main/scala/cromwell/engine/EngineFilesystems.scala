@@ -6,12 +6,13 @@ import cats.instances.future._
 import cats.instances.list._
 import cats.syntax.traverse._
 import com.typesafe.config.{Config, ConfigFactory}
+import cromwell.cloudsupport.gcp.GoogleConfiguration
+import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
-import cromwell.filesystems.gcs.auth.GoogleAuthMode
-import cromwell.filesystems.gcs.{GcsPathBuilderFactory, GoogleConfiguration}
-import lenthall.exception.MessageAggregation
-import lenthall.validation.ErrorOr.ErrorOr
+import cromwell.filesystems.gcs.GcsPathBuilderFactory
+import common.exception.MessageAggregation
+import common.validation.ErrorOr.ErrorOr
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -46,5 +47,4 @@ object EngineFilesystems {
     case Success(maybeBuilderFactory) => maybeBuilderFactory.toList.traverse(_.withOptions(workflowOptions)).map(_ ++ defaultFileSystem)
     case Failure(failure) => Future.failed(failure)
   }
-
 }

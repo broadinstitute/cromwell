@@ -3,17 +3,18 @@ package cromwell.backend.impl.spark
 import java.nio.file.attribute.PosixFilePermission
 
 import akka.actor.Props
+import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
 import cromwell.backend.wdl.Command
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
+import cromwell.backend.wdl.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
+import cromwell.backend._
 import cromwell.core.path.JavaWriterImplicits._
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}
-import lenthall.util.TryUtil
-import wdl4s.parser.MemoryUnit
+import common.exception.MessageAggregation
 
 import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger
@@ -58,25 +59,19 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private lazy val SubmitJobJson = "%s.json"
   private lazy val isClusterMode = isSparkClusterMode(sparkDeployMode, sparkMaster)
 
-  private val call = jobDescriptor.key.call
   private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, DefaultPathBuilders)
-
-  private val lookup = jobDescriptor.fullyQualifiedInputs.apply _
 
   private val executionResponse = Promise[BackendJobExecutionResponse]()
 
   private val runtimeAttributes = {
-    val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues (_.evaluate(lookup, callEngineFunction))
-    // Fail the call if runtime attributes can't be evaluated
-    val runtimeMap = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
-    SparkRuntimeAttributes(runtimeMap, jobDescriptor.workflowDescriptor.workflowOptions)
+    SparkRuntimeAttributes(jobDescriptor.runtimeAttributes, jobDescriptor.workflowDescriptor.workflowOptions)
   }
 
   /**
     * Restart or resume a previously-started job.
     */
   override def recover: Future[BackendJobExecutionResponse] = {
-    log.warning("{} Spark backend currently doesn't support recovering jobs. Starting {} again.", tag, jobDescriptor.key.call.fullyQualifiedName)
+    log.warning("{} Spark backend currently doesn't support recovering jobs. Starting {} again.", tag, jobDescriptor.key.call.localName)
     taskLauncher
     executionResponse.future
   }
@@ -109,7 +104,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     (jobReturnCode, failedOnStderr) match {
       case (Success(0), true) if File(jobPaths.stderr).lines.toList.nonEmpty =>
         Future.successful(JobFailedNonRetryableResponse(jobDescriptor.key,
-        new IllegalStateException(s"Execution process failed although return code is zero but stderr is not empty"), Option(0)))
+          new IllegalStateException(s"Execution process failed although return code is zero but stderr is not empty"), Option(0)))
       case (Success(0), _) => resolveExecutionProcess
       case (Success(rc), _) => Future.successful(JobFailedNonRetryableResponse(jobDescriptor.key,
         new IllegalStateException(s"Execution process failed. Spark returned non zero status code: $rc"), Option(rc)))
@@ -133,12 +128,18 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   private def processSuccess(rc: Int) = {
     evaluateOutputs(callEngineFunction, outputMapper(jobPaths)) match {
-      case Success(outputs) => JobSucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty, dockerImageUsed = None)
-      case Failure(e) =>
-        val message = Option(e.getMessage) map {
+      case ValidJobOutputs(outputs) => JobSucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty, dockerImageUsed = None)
+      case InvalidJobOutputs(evaluationErrors) =>
+        val exception = new MessageAggregation {
+          override def exceptionContext: String = "Failed post processing of outputs"
+          override def errorMessages: Traversable[String] = evaluationErrors.toList
+        }
+        JobFailedNonRetryableResponse(jobDescriptor.key, exception, Option(rc))
+      case JobOutputsEvaluationException(evaluationException) =>
+        val message = Option(evaluationException.getMessage) map {
           ": " + _
         } getOrElse ""
-        JobFailedNonRetryableResponse(jobDescriptor.key, new Throwable("Failed post processing of outputs" + message, e), Option(rc))
+        JobFailedNonRetryableResponse(jobDescriptor.key, new Throwable("Failed post processing of outputs" + message, evaluationException), Option(rc))
     }
   }
 
@@ -160,23 +161,26 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
       val command = Command.instantiate(
         jobDescriptor,
         callEngineFunction,
-        localizeInputs(jobPaths.callInputsRoot, docker = false)
+        localizeInputs(jobPaths.callInputsRoot, docker = false),
+        valueMapper = identity,
+        runtimeEnvironment = RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(MinimumRuntimeSettings())
       )
 
       log.debug("{} Creating bash script for executing command: {}", tag, command)
       // TODO: we should use shapeless Heterogeneous list here not good to have generic map
       val attributes: Map[String, Any] = Map(
-        SparkCommands.AppMainClass -> runtimeAttributes.appMainClass,
+        SparkCommands.AppMainClass -> runtimeAttributes.appMainClass.getOrElse(""),
         SparkCommands.Master -> sparkMaster,
         SparkCommands.ExecutorCores -> runtimeAttributes.executorCores,
-        SparkCommands.ExecutorMemory -> runtimeAttributes.executorMemory.to(MemoryUnit.GB).amount.toLong,
-        SparkCommands.SparkAppWithArgs -> command.get,
+        SparkCommands.ExecutorMemory -> runtimeAttributes.executorMemory.toString.replaceAll("\\s","").toLowerCase,
+        SparkCommands.AdditionalArgs -> runtimeAttributes.additionalArgs.getOrElse(""),
+        SparkCommands.SparkAppWithArgs -> command.toTry.get,
         SparkCommands.DeployMode -> sparkDeployMode
       )
 
       val sparkSubmitCmd = cmds.sparkSubmitCommand(attributes)
       val sparkCommand = if (isClusterMode) {
-        sparkSubmitCmd.concat(" %s %s".format("&>", SubmitJobJson.format(sparkDeployMode)))
+        sparkSubmitCmd.concat(" > %s 2>&1".format(SubmitJobJson.format(sparkDeployMode)))
       } else {
         sparkSubmitCmd
       }

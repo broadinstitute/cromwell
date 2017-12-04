@@ -1,0 +1,13 @@
+name: confirm_preemptible
+testFormat: workflowsuccess
+backends: [Jes]
+
+files {
+  wdl: confirm_preemptible/confirm_preemptible.wdl
+}
+
+metadata {
+  status: Succeeded
+  "outputs.confirm_preemptible.should_be_true": "TRUE"
+  "outputs.confirm_preemptible.should_be_false": "FALSE"
+}

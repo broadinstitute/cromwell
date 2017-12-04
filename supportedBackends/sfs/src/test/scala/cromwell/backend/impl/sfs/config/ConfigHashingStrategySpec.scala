@@ -12,7 +12,7 @@ import org.apache.commons.codec.digest.DigestUtils
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
-import wdl4s.wdl.values.WdlFile
+import wom.values.WomFile
 
 import scala.util.Success
 
@@ -37,7 +37,7 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
   private def randomName(): String = UUID.randomUUID().toString
 
   def mockRequest(withSibling: Boolean, symlink: Boolean) = {
-    if (withSibling && md5File.notExists) md5File.write(md5FileHash)
+    if (withSibling && md5File.notExists) md5File.write(md5FileHash + System.lineSeparator())
     val requestFile = if (symlink) {
       val symLink: Path = symLinksDir./(s"symlink-${randomName()}")
       symLink.symbolicLinkTo(file)
@@ -50,7 +50,7 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
     val initData = mock[StandardInitializationData]
     initData.workflowPaths returns workflowPaths
 
-    SingleFileHashRequest(null, null, WdlFile(requestFile.pathAsString), Option(initData))
+    SingleFileHashRequest(null, null, WomFile(requestFile.pathAsString), Option(initData))
   }
 
   def makeStrategy(strategy: String, checkSibling: Option[Boolean] = None) = {

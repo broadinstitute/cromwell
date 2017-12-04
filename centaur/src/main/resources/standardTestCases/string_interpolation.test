@@ -1,0 +1,14 @@
+name: string_interpolation
+testFormat: workflowsuccess
+
+files {
+  wdl: string_interpolation/string_interpolation.wdl
+  inputs: string_interpolation/string_interpolation.inputs
+}
+
+metadata {
+  workflowName: echo_wf
+  status: Succeeded
+  "outputs.echo_wf.echo.two": 2
+  "outputs.echo_wf.echo.a_string": "world"
+}

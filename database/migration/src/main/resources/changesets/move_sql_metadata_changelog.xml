@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet author="kshakir" id="move_metadata_changelog">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(1) FROM METADATA_ENTRY</sqlCheck>
+        </preConditions>
+
+        <dropForeignKeyConstraint constraintName="FK_CUSTOM_LABEL_ENTRY_WORKFLOW_EXECUTION_UUID"
+                                  baseTableName="CUSTOM_LABEL_ENTRY"/>
+        <dropUniqueConstraint constraintName="UC_CUSTOM_LABEL_ENTRY_CLK_CLV_WEU"
+                              tableName="CUSTOM_LABEL_ENTRY"/>
+        <dropUniqueConstraint constraintName="UC_SUMMARY_STATUS_ENTRY_STN_STN"
+                              tableName="SUMMARY_STATUS_ENTRY"/>
+        <dropUniqueConstraint constraintName="UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU"
+                              tableName="WORKFLOW_METADATA_SUMMARY_ENTRY"/>
+        <dropTable tableName="CUSTOM_LABEL_ENTRY"/>
+        <dropTable tableName="METADATA_ENTRY"/>
+        <dropTable tableName="SUMMARY_STATUS_ENTRY"/>
+        <dropTable tableName="WORKFLOW_METADATA_SUMMARY_ENTRY"/>
+
+    </changeSet>
+</databaseChangeLog>

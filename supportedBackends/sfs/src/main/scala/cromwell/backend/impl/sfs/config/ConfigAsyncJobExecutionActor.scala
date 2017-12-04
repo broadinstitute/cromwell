@@ -1,13 +1,17 @@
 package cromwell.backend.impl.sfs.config
 
+import common.validation.Validation._
+import cromwell.backend.RuntimeEnvironmentBuilder
 import cromwell.backend.impl.sfs.config.ConfigConstants._
 import cromwell.backend.sfs._
 import cromwell.backend.standard.{StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.backend.validation.DockerValidation
+import cromwell.core.NoIoFunctionSet
 import cromwell.core.path.Path
-import wdl4s.wdl._
-import wdl4s.wdl.expression.NoFunctions
-import wdl4s.wdl.values.WdlString
+import wdl._
+import wom.InstantiatedCommand
+import wom.callable.Callable.OptionalInputDefinition
+import wom.values.{WomEvaluatedCallInputs, WomOptionalValue, WomString, WomValue}
 
 /**
   * Base ConfigAsyncJobExecutionActor that reads the config and generates an outer script to submit an inner script
@@ -47,8 +51,56 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
   def writeTaskScript(script: Path, taskName: String, inputs: WorkflowCoercedInputs): Unit = {
     val task = configInitializationData.wdlNamespace.findTask(taskName).
       getOrElse(throw new RuntimeException(s"Unable to find task $taskName"))
-    val inputsWithFqns = inputs map { case (k, v) => s"$taskName.$k" -> v }
-    val command = task.instantiateCommand(task.inputsFromMap(inputsWithFqns), NoFunctions).get
+
+    val taskDefinition = task.womDefinition.toTry.get
+
+    // Build WOM versions of the provided inputs by correlating with the `InputDefinition`s on the `TaskDefinition`.
+    val providedWomInputs: WomEvaluatedCallInputs = (for {
+      input <- inputs.toList
+      (localName, womValue) = input
+      womInputDefinition <- taskDefinition.inputs
+      if localName == womInputDefinition.localName.value
+    } yield womInputDefinition -> womValue).toMap
+
+    /*
+     * TODO WOM FIXME #2946
+     * This forces `none`s onto potentially initialized optionals. This is currently required because otherwise
+     * expressions using uninitialized optionals explode on evaluation. e.g.:
+     *
+     * runtime-attributes = """
+     * String? docker
+     * String? docker_user
+     * """
+     * submit = "/bin/bash ${script}"
+     * submit-docker = """
+     * docker run \
+     *   --cidfile ${docker_cid} \
+     *   --rm -i \
+     *   ${"--user " + docker_user} \
+     *   --entrypoint /bin/bash \
+     *   -v ${cwd}:${docker_cwd} \
+     *   ${docker} ${script}
+     *  """
+     *
+     * The `docker_user` variable is an uninitialized optional. But the expression `${"--user " + docker_user}` will
+     * fail to evaluate if `docker_user` is not provided as an input by the caller of `TaskDefinition#instantiateCommand`.
+     * This only appears to be the case when calling `instantiateCommand` on a `TaskDefinition` that came from
+     * `WdlTask#womDefinition`, which makes it seem that there is some special initialization of task optionals taking
+     * place when create a `WomExecutable` from a `WdlWorkflow`.
+     *
+     * */
+    val optionalsForciblyInitializedToNone = for {
+      optional <- taskDefinition.inputs.collect { case oid: OptionalInputDefinition => oid }
+      // Only default to `none` if there was no input value explicitly provided.
+      if !inputs.contains(optional.localName.value)
+    } yield optional -> WomOptionalValue.none(optional.womType.memberType)
+
+
+    val runtimeEnvironment = RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(standardParams.minimumRuntimeSettings)
+    val allInputs = providedWomInputs ++ optionalsForciblyInitializedToNone
+    val womInstantiation = taskDefinition.instantiateCommand(allInputs, NoIoFunctionSet, identity, runtimeEnvironment)
+
+    val InstantiatedCommand(command, _) = womInstantiation.toTry.get
     jobLogger.info(s"executing: $command")
     val scriptBody =
       s"""|#!/bin/bash
@@ -64,10 +116,12 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     */
   private lazy val standardInputs: WorkflowCoercedInputs = {
     Map(
-      JobNameInput -> WdlString(jobName),
-      CwdInput -> WdlString(jobPaths.callRoot.pathAsString)
+      JobNameInput -> WomString(jobName),
+      CwdInput -> WomString(jobPaths.callRoot.pathAsString)
     )
   }
+
+  private [config] def dockerCidInputValue: WomString = WomString(jobPaths.callExecutionRoot.resolve(jobPaths.dockerCid).pathAsString)
 
   /**
     * The inputs that are not specified by the config, that will be passed into a command for either submit or
@@ -76,16 +130,17 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
   private lazy val dockerizedInputs: WorkflowCoercedInputs = {
     if (isDockerRun) {
       Map(
-        DockerCwdInput -> WdlString(jobPathsWithDocker.callDockerRoot.pathAsString),
-        StdoutInput -> WdlString(jobPathsWithDocker.toDockerPath(jobPaths.stdout).pathAsString),
-        StderrInput -> WdlString(jobPathsWithDocker.toDockerPath(jobPaths.stderr).pathAsString),
-        ScriptInput -> WdlString(jobPathsWithDocker.toDockerPath(jobPaths.script).pathAsString)
+        DockerCwdInput -> WomString(jobPathsWithDocker.callDockerRoot.pathAsString),
+        DockerCidInput -> dockerCidInputValue,
+        StdoutInput -> WomString(jobPathsWithDocker.toDockerPath(jobPaths.stdout).pathAsString),
+        StderrInput -> WomString(jobPathsWithDocker.toDockerPath(jobPaths.stderr).pathAsString),
+        ScriptInput -> WomString(jobPathsWithDocker.toDockerPath(jobPaths.script).pathAsString)
       )
     } else {
       Map(
-        StdoutInput -> WdlString(jobPaths.stdout.pathAsString),
-        StderrInput -> WdlString(jobPaths.stderr.pathAsString),
-        ScriptInput -> WdlString(jobPaths.script.pathAsString)
+        StdoutInput -> WomString(jobPaths.stdout.pathAsString),
+        StderrInput -> WomString(jobPaths.stderr.pathAsString),
+        ScriptInput -> WomString(jobPaths.script.pathAsString)
       )
     }
   }
@@ -100,10 +155,10 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
       // Is it always the right thing to pass the Docker hash to a config backend?  What if it can't use hashes?
       case declarationValidation if declarationValidation.key == DockerValidation.instance.key && jobDescriptor.maybeCallCachingEligible.dockerHash.isDefined =>
         val dockerHash = jobDescriptor.maybeCallCachingEligible.dockerHash.get
-        Option(declarationValidation.key -> WdlString(dockerHash))
+        Option(declarationValidation.key -> WomString(dockerHash))
       case declarationValidation =>
-        declarationValidation.extractWdlValueOption(validatedRuntimeAttributes) map { wdlValue =>
-          declarationValidation.key -> wdlValue
+        declarationValidation.extractWdlValueOption(validatedRuntimeAttributes) map { womValue =>
+          declarationValidation.key -> womValue
         }
     }
     inputOptions.flatten.toMap
@@ -111,6 +166,20 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
 
   // `runtimeAttributeInputs` has already adjusted for the case of a `JobDescriptor` with `DockerWithHash`.
   override lazy val dockerImageUsed: Option[String] = runtimeAttributeInputs.get(DockerValidation.instance.key).map(_.valueString)
+
+  /**
+    * Generates a command for a job id, using a config task.
+    *
+    * @param job    The job id.
+    * @param suffix The suffix for the scripts.
+    * @param task   The config task that defines the command.
+    * @return A runnable command.
+    */
+  protected def jobScriptArgs(job: StandardAsyncJob, suffix: String, task: String, extraInputs: Map[String, WomValue] = Map.empty): SharedFileSystemCommand = {
+    val script = jobPaths.script.plusExt(suffix)
+    writeTaskScript(script, task, Map(JobIdInput -> WomString(job.jobId)) ++ extraInputs)
+    SharedFileSystemCommand("/bin/bash", script)
+  }
 }
 
 /**
@@ -119,7 +188,13 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
   * @param standardParams Params for running a shared file system job.
   */
 class BackgroundConfigAsyncJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
-  extends ConfigAsyncJobExecutionActor with BackgroundAsyncJobExecutionActor
+  extends ConfigAsyncJobExecutionActor with BackgroundAsyncJobExecutionActor {
+
+  override def killArgs(job: StandardAsyncJob): SharedFileSystemCommand = {
+    if (isDockerRun) jobScriptArgs(job, "kill", KillDockerTask, Map(DockerCidInput -> dockerCidInputValue))
+    else super[BackgroundAsyncJobExecutionActor].killArgs(job)
+  }
+}
 
 /**
   * Submits a job and returns relatively quickly. The job-id-regex is then used to read the job id for status or killing
@@ -167,19 +242,5 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     */
   override def killArgs(job: StandardAsyncJob): SharedFileSystemCommand = {
     jobScriptArgs(job, "kill", KillTask)
-  }
-
-  /**
-    * Generates a command for a job id, using a config task.
-    *
-    * @param job    The job id.
-    * @param suffix The suffix for the scripts.
-    * @param task   The config task that defines the command.
-    * @return A runnable command.
-    */
-  private def jobScriptArgs(job: StandardAsyncJob, suffix: String, task: String): SharedFileSystemCommand = {
-    val script = jobPaths.script.plusExt(suffix)
-    writeTaskScript(script, task, Map(JobIdInput -> WdlString(job.jobId)))
-    SharedFileSystemCommand("/bin/bash", script)
   }
 }

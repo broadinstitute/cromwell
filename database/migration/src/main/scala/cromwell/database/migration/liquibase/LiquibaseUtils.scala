@@ -11,20 +11,23 @@ import liquibase.{Contexts, LabelExpression, Liquibase}
 import org.hsqldb.persist.HsqlDatabaseProperties
 
 object LiquibaseUtils {
-  val ChangeLogDir = "src/main/migrations/"
-  val DefaultChangeLog = "changelog.xml"
-  val DefaultContexts = new Contexts()
-  val DefaultLabelExpression = new LabelExpression()
+  private val DefaultContexts = new Contexts()
+  private val DefaultLabelExpression = new LabelExpression()
 
   /**
     * Updates a liquibase schema to the latest version.
     *
+    * @param settings The liquibase settings.
     * @param jdbcConnection A jdbc connection to the database.
     */
-  def updateSchema(jdbcConnection: Connection): Unit = {
+  def updateSchema(settings: LiquibaseSettings)(jdbcConnection: Connection): Unit = {
     val liquibaseConnection = newConnection(jdbcConnection)
     try {
-      val liquibase = new Liquibase(DefaultChangeLog, new ClassLoaderResourceAccessor(), liquibaseConnection)
+      val database = DatabaseFactory.getInstance.findCorrectDatabaseImplementation(liquibaseConnection)
+      database.setDatabaseChangeLogLockTableName(settings.databaseChangeLogLockTableName.toUpperCase)
+      database.setDatabaseChangeLogTableName(settings.databaseChangeLogTableName.toUpperCase)
+
+      val liquibase = new Liquibase(settings.changeLogResourcePath, new ClassLoaderResourceAccessor(), database)
       updateSchema(liquibase)
     } finally {
       closeConnection(liquibaseConnection)

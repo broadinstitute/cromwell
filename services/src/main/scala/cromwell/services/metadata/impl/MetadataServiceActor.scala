@@ -7,7 +7,7 @@ import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.WorkflowId
-import cromwell.services.SingletonServicesStore
+import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataServiceActor._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
@@ -31,7 +31,7 @@ object MetadataServiceActor {
 }
 
 case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
-  extends Actor with ActorLogging with MetadataDatabaseAccess with SingletonServicesStore with GracefulShutdownHelper {
+  extends Actor with ActorLogging with MetadataDatabaseAccess with MetadataServicesStore with GracefulShutdownHelper {
   
   private val decider: Decider = {
     case _: ActorInitializationException => Escalate
@@ -54,12 +54,12 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
   val writeActor = context.actorOf(WriteMetadataActor.props(dbBatchSize, dbFlushRate), "WriteMetadataActor")
   implicit val ec = context.dispatcher
   private var summaryRefreshCancellable: Option[Cancellable] = None
-  
+
   summaryActor foreach { _ => self ! RefreshSummary }
 
   private def scheduleSummary(): Unit = {
     MetadataSummaryRefreshInterval foreach { interval =>
-      summaryRefreshCancellable = Option(context.system.scheduler.scheduleOnce(interval, self, RefreshSummary)(context.dispatcher, self)) 
+      summaryRefreshCancellable = Option(context.system.scheduler.scheduleOnce(interval, self, RefreshSummary)(context.dispatcher, self))
     }
   }
 

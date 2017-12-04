@@ -1,0 +1,26 @@
+# Tests that the select_all and select_first functions work in a variety of situations.
+
+name: select_functions
+testFormat: workflowsuccess
+
+files {
+  wdl: select_functions/select_functions.wdl
+}
+
+metadata {
+  workflowName: selection_functions
+  status: Succeeded
+  "outputs.selection_functions.allFromTruths.0": "hello"
+  "outputs.selection_functions.allFromTruths.1": "hello"
+  "outputs.selection_functions.allFromFalsesLength": 0
+  "outputs.selection_functions.allFromMix.0": "hello"
+  "outputs.selection_functions.firstFromTruths": "hello"
+  "outputs.selection_functions.firstFromFalses": "default"
+  "outputs.selection_functions.firstFromMix": "hello"
+  "outputs.selection_functions.mst": "hello"
+  "outputs.selection_functions.msts.0": "hello"
+  "outputs.selection_functions.msts.1": "hello"
+  "outputs.selection_functions.allFromMsts.0": "hello"
+  "outputs.selection_functions.allFromMsts.1": "hello"
+  "outputs.selection_functions.firstFromMsts": "hello"
+}

@@ -1,9 +1,12 @@
 package cromwell.backend.wdl
 
+import common.validation.ErrorOr._
+import common.validation.Validation._
 import cromwell.backend.BackendJobDescriptor
-import wdl4s.wdl.EvaluatedTaskInputs
-import wdl4s.wdl.expression.WdlFunctions
-import wdl4s.wdl.values.WdlValue
+import wom.InstantiatedCommand
+import wom.callable.RuntimeEnvironment
+import wom.expression.IoFunctionSet
+import wom.values.{WomEvaluatedCallInputs, WomValue}
 
 import scala.util.{Success, Try}
 
@@ -21,11 +24,12 @@ object Command {
     * @return
     */
   def instantiate(jobDescriptor: BackendJobDescriptor,
-                  callEngineFunction: WdlFunctions[WdlValue],
-                  inputsPreProcessor: EvaluatedTaskInputs => Try[EvaluatedTaskInputs] = (i: EvaluatedTaskInputs) => Success(i),
-                  valueMapper: WdlValue => WdlValue = identity): Try[String] = {
-    inputsPreProcessor(jobDescriptor.inputDeclarations) flatMap { mappedInputs =>
-      jobDescriptor.call.task.instantiateCommand(mappedInputs, callEngineFunction, valueMapper)
+                  callEngineFunction: IoFunctionSet,
+                  inputsPreProcessor: WomEvaluatedCallInputs => Try[WomEvaluatedCallInputs] = (i: WomEvaluatedCallInputs) => Success(i),
+                  valueMapper: WomValue => WomValue,
+                  runtimeEnvironment: RuntimeEnvironment): ErrorOr[InstantiatedCommand] = {
+    inputsPreProcessor(jobDescriptor.evaluatedTaskInputs).toErrorOr flatMap { mappedInputs =>
+      jobDescriptor.taskCall.callable.instantiateCommand(mappedInputs, callEngineFunction, valueMapper, runtimeEnvironment)
     }
   }
 }

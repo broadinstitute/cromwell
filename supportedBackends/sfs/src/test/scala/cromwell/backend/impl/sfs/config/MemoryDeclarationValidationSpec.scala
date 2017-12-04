@@ -2,34 +2,34 @@ package cromwell.backend.impl.sfs.config
 
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.MemorySize
+import cromwell.backend.impl.sfs.config.ConfigConstants._
 import cromwell.backend.validation.{RuntimeAttributesKeys, ValidatedRuntimeAttributes}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.parser.MemoryUnit
-import wdl4s.wdl.values.{WdlFloat, WdlInteger}
-import ConfigConstants._
+import wom.values.{WomFloat, WomInteger}
 
 class MemoryDeclarationValidationSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
   behavior of "MemoryDeclarationValidation"
 
   val validDeclaredAmounts = Table(
     ("declaration", "runtimeAmount", "expectedDefaultAmount", "expectedExtracted"),
-    ("Int memory", Option(2), None, Option(WdlInteger(2 * 1000 * 1000 * 1000))),
-    ("Int memory_gb", Option(2), None, Option(WdlInteger(2))),
+    ("Int memory", Option(2), None, Option(WomInteger(2 * 1000 * 1000 * 1000))),
+    ("Int memory_gb", Option(2), None, Option(WomInteger(2))),
     ("Int memory_gb = 3", None, Option(3), None),
-    ("Int memory_gb = 3", Option(2), Option(3), Option(WdlInteger(2))),
+    ("Int memory_gb = 3", Option(2), Option(3), Option(WomInteger(2))),
     ("Int? memory_gb", None, None, None),
-    ("Int? memory_gb", Option(2), None, Option(WdlInteger(2))),
+    ("Int? memory_gb", Option(2), None, Option(WomInteger(2))),
     ("Int? memory_gb = 3", None, Option(3), None),
-    ("Int? memory_gb = 3", Option(2), Option(3), Option(WdlInteger(2))),
-    ("Float memory", Option(2), None, Option(WdlFloat(2 * 1000 * 1000 * 1000))),
-    ("Float memory_gb", Option(2), None, Option(WdlFloat(2))),
+    ("Int? memory_gb = 3", Option(2), Option(3), Option(WomInteger(2))),
+    ("Float memory", Option(2), None, Option(WomFloat(2 * 1000 * 1000 * 1000))),
+    ("Float memory_gb", Option(2), None, Option(WomFloat(2))),
     ("Float memory_gb = 3.0", None, Option(3), None),
-    ("Float memory_gb = 3.0", Option(2), Option(3), Option(WdlFloat(2))),
+    ("Float memory_gb = 3.0", Option(2), Option(3), Option(WomFloat(2))),
     ("Float? memory_gb", None, None, None),
-    ("Float? memory_gb", Option(2), None, Option(WdlFloat(2))),
+    ("Float? memory_gb", Option(2), None, Option(WomFloat(2))),
     ("Float? memory_gb = 3.0", None, Option(3), None),
-    ("Float? memory_gb = 3.0", Option(2), Option(3), Option(WdlFloat(2)))
+    ("Float? memory_gb = 3.0", Option(2), Option(3), Option(WomFloat(2)))
   )
 
   forAll(validDeclaredAmounts) { (declaration, runtimeAmount, expectedDefaultAmount, expectedExtracted) =>
@@ -52,7 +52,7 @@ class MemoryDeclarationValidationSpec extends FlatSpec with Matchers with TableD
       val extracted = memoryDeclarationValidation.extractWdlValueOption(validatedRuntimeAttributes)
 
       val expectedDefault = expectedDefaultAmount
-        .map(amount => WdlInteger(MemorySize(amount.toDouble, MemoryUnit.GB).bytes.toInt))
+        .map(amount => WomInteger(MemorySize(amount.toDouble, MemoryUnit.GB).bytes.toInt))
 
       MemoryDeclarationValidation.isMemoryDeclaration(runtimeDeclaration.unqualifiedName,
         MemoryRuntimeAttribute, MemoryRuntimeAttributePrefix) should be(true)

@@ -7,9 +7,10 @@ import cromwell.core._
 import cromwell.engine._
 import cromwell.services.metadata.MetadataService
 import MetadataService._
-import cromwell.util.JsonFormatting.WdlValueJsonFormatter
-import WdlValueJsonFormatter._
+import cromwell.util.JsonFormatting.WomValueJsonFormatter
+import WomValueJsonFormatter._
 import better.files.File
+import cromwell.services.healthmonitor.HealthMonitorServiceActor.{StatusCheckResponse, SubsystemStatus}
 import cromwell.webservice.CromwellApiService.BackendResponse
 import cromwell.webservice.metadata.MetadataBuilderActor.BuiltMetadataResponse
 import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
@@ -24,7 +25,9 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val BackendResponseFormat = jsonFormat2(BackendResponse)
   implicit val BuiltStatusResponseFormat = jsonFormat1(BuiltMetadataResponse)
   implicit val callAttempt = jsonFormat2(CallAttempt)
-  implicit val workflowSourceData = jsonFormat6(WorkflowSourceFilesWithoutImports)
+  implicit val workflowSourceData = jsonFormat7(WorkflowSourceFilesWithoutImports)
+  implicit val subsystemStatusFormat = jsonFormat2(SubsystemStatus)
+  implicit val statusCheckResponseFormat = jsonFormat2(StatusCheckResponse)
 
   implicit object fileJsonFormat extends RootJsonFormat[File] {
     override def write(obj: File) = JsString(obj.path.toAbsolutePath.toString)
@@ -34,7 +37,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
     }
   }
 
-  implicit val workflowSourceDataWithImports = jsonFormat7(WorkflowSourceFilesWithDependenciesZip)
+  implicit val workflowSourceDataWithImports = jsonFormat8(WorkflowSourceFilesWithDependenciesZip)
   implicit val errorResponse = jsonFormat3(FailureResponse)
   implicit val successResponse = jsonFormat3(SuccessResponse)
 
@@ -47,7 +50,6 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
     }
   }
 
-  implicit val workflowQueryResult = jsonFormat5(WorkflowQueryResult)
+  implicit val workflowQueryResult = jsonFormat7(WorkflowQueryResult)
   implicit val workflowQueryResponse = jsonFormat1(WorkflowQueryResponse)
 }
-

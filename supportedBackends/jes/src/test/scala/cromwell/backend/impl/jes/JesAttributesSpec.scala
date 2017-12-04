@@ -3,9 +3,9 @@ package cromwell.backend.impl.jes
 import java.net.URL
 
 import com.typesafe.config.ConfigFactory
+import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.Tags._
-import cromwell.filesystems.gcs.GoogleConfiguration
-import lenthall.exception.MessageAggregation
+import common.exception.MessageAggregation
 import org.scalatest.{FlatSpec, Matchers}
 
 class JesAttributesSpec extends FlatSpec with Matchers {

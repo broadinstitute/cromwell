@@ -73,7 +73,7 @@ class CromwellCommandLineSpec extends FlatSpec with Matchers with BeforeAndAfter
   }
 
   it should "fail if input files do not exist" in {
-    val parsedArgs = parser.parse(Array("run", "3step.wdl", "--inputs", "3step.inputs", "--options", "3step.options"), CommandLineArguments()).get
+    val parsedArgs = parser.parse(Array("run", "xyzshouldnotexist.wdl", "--inputs", "xyzshouldnotexist.inputs", "--options", "xyzshouldnotexist.options"), CommandLineArguments()).get
     val validation = Try(CromwellEntryPoint.validateRunArguments(parsedArgs))
 
     validation.isFailure shouldBe true

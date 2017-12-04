@@ -1,0 +1,3 @@
+{{with $cromwellRefreshToken := vault (printf "secret/dsde/cromwell/common/cromwell-refresh-token")}}
+{{$cromwellRefreshToken.Data.token}}
+{{end}}

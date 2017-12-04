@@ -22,18 +22,19 @@ import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.io.IoActor
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.AbortAllWorkflowsCommand
-import cromwell.engine.workflow.lifecycle.CopyWorkflowLogsActor
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor, CallCacheWriteActor}
+import cromwell.engine.workflow.lifecycle.finalization.CopyWorkflowLogsActor
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowStore, WorkflowStoreActor}
 import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
-import cromwell.services.{ServiceRegistryActor, SingletonServicesStore}
+import cromwell.services.{EngineServicesStore, ServiceRegistryActor}
 import cromwell.subworkflowstore.{SqlSubWorkflowStore, SubWorkflowStoreActor}
 import cromwell.util.GracefulShutdownHelper
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import net.ceedubs.ficus.Ficus._
 
-import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -63,27 +64,28 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   lazy val serviceRegistryActor: ActorRef = context.actorOf(ServiceRegistryActor.props(config), "ServiceRegistryActor")
   lazy val numberOfWorkflowLogCopyWorkers = systemConfig.as[Option[Int]]("number-of-workflow-log-copy-workers").getOrElse(DefaultNumberOfWorkflowLogCopyWorkers)
 
-  lazy val workflowStore: WorkflowStore = SqlWorkflowStore(SingletonServicesStore.databaseInterface)
-  lazy val workflowStoreActor = context.actorOf(WorkflowStoreActor.props(workflowStore, serviceRegistryActor, SingletonServicesStore.databaseInterface), "WorkflowStoreActor")
+  lazy val workflowStore: WorkflowStore = SqlWorkflowStore(EngineServicesStore.engineDatabaseInterface)
+  lazy val workflowStoreActor =
+    context.actorOf(WorkflowStoreActor.props(workflowStore, serviceRegistryActor, abortJobsOnTerminate), "WorkflowStoreActor")
 
-  lazy val jobStore: JobStore = new SqlJobStore(SingletonServicesStore.databaseInterface)
+  lazy val jobStore: JobStore = new SqlJobStore(EngineServicesStore.engineDatabaseInterface)
   lazy val jobStoreActor = context.actorOf(JobStoreActor.props(jobStore), "JobStoreActor")
 
-  lazy val subWorkflowStore = new SqlSubWorkflowStore(SingletonServicesStore.databaseInterface)
+  lazy val subWorkflowStore = new SqlSubWorkflowStore(EngineServicesStore.engineDatabaseInterface)
   lazy val subWorkflowStoreActor = context.actorOf(SubWorkflowStoreActor.props(subWorkflowStore), "SubWorkflowStoreActor")
 
   // Io Actor
   lazy val throttleElements = systemConfig.as[Option[Int]]("io.number-of-requests").getOrElse(100000)
   lazy val throttlePer = systemConfig.as[Option[FiniteDuration]]("io.per").getOrElse(100 seconds)
   lazy val ioThrottle = Throttle(throttleElements, throttlePer, throttleElements)
-  lazy val ioActor = context.actorOf(IoActor.props(1000, Option(ioThrottle)), "IoActor")
+  lazy val ioActor = context.actorOf(IoActor.props(1000, Option(ioThrottle), serviceRegistryActor), "IoActor")
 
   lazy val workflowLogCopyRouter: ActorRef = context.actorOf(RoundRobinPool(numberOfWorkflowLogCopyWorkers)
     .withSupervisorStrategy(CopyWorkflowLogsActor.strategy)
     .props(CopyWorkflowLogsActor.props(serviceRegistryActor, ioActor)),
     "WorkflowLogCopyRouter")
 
-  lazy val callCache: CallCache = new CallCache(SingletonServicesStore.databaseInterface)
+  lazy val callCache: CallCache = new CallCache(EngineServicesStore.engineDatabaseInterface)
 
   lazy val numberOfCacheReadWorkers = config.getConfig("system").as[Option[Int]]("number-of-cache-read-workers").getOrElse(DefaultNumberOfCacheReadWorkers)
   lazy val callCacheReadActor = context.actorOf(RoundRobinPool(numberOfCacheReadWorkers)
@@ -112,11 +114,11 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
     dockerConf.cacheEntryTtl, dockerConf.cacheSize)(materializer), "DockerHashActor")
 
   lazy val backendSingletons = CromwellBackends.instance.get.backendLifecycleActorFactories map {
-    case (name, factory) => name -> (factory.backendSingletonActorProps map context.actorOf)
+    case (name, factory) => name -> (factory.backendSingletonActorProps(serviceRegistryActor) map context.actorOf)
   }
   lazy val backendSingletonCollection = BackendSingletonCollection(backendSingletons)
 
-  lazy val jobExecutionTokenDispenserActor = context.actorOf(JobExecutionTokenDispenserActor.props)
+  lazy val jobExecutionTokenDispenserActor = context.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistryActor))
 
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
@@ -143,7 +145,16 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   } else if (abortJobsOnTerminate) {
     // If gracefulShutdown is false but abortJobsOnTerminate is true, set up a classic JVM shutdown hook
     sys.addShutdownHook {
-      Try(Await.result(gracefulStop(workflowManagerActor, AbortTimeout, AbortAllWorkflowsCommand), AbortTimeout)) match {
+      implicit val ec = context.system.dispatcher
+
+      val abortFuture: Future[Unit] = for {
+        // Give 30 seconds to the workflow store to switch all running workflows to aborting and shutdown. Should be more than enough
+        _ <- gracefulStop(workflowStoreActor, 30.seconds, ShutdownCommand)
+        // Once all workflows are "Aborting" in the workflow store, ask the WMA to effectively abort all of them
+        _ <- gracefulStop(workflowManagerActor, AbortTimeout, AbortAllWorkflowsCommand)
+      } yield ()
+
+      Try(Await.result(abortFuture, AbortTimeout)) match {
         case Success(_) => logger.info("All workflows aborted")
         case Failure(f) => logger.error("Failed to abort workflows", f)
       }

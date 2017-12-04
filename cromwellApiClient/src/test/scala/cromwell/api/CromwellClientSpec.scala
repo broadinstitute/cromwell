@@ -30,7 +30,7 @@ class CromwellClientSpec extends AsyncFlatSpec with BeforeAndAfterAll with Match
     ("ignore bad json when refresh token provided but not used", Option("{"), Option("myToken"), Option("{")),
     ("not format json when refresh token key not found", Option("{   }"), Option("myToken"), Option("{   }")),
     ("replace token when found", Option("""{"refresh_token" : "replace_me"}"""), Option("myToken"),
-      Option("""{"refresh_token":"myToken"}""")),
+      Option("""{"refresh_token":"myToken"}"""))
   )
 
   forAll(okRefreshTokenTests) { (description, optionsOption, refreshTokenOption, expected) =>
@@ -87,7 +87,7 @@ class CromwellClientSpec extends AsyncFlatSpec with BeforeAndAfterAll with Match
         "workflowTypeVersion" -> "wfTypeVersion",
         "workflowInputs" -> "inputsJson",
         "workflowOptions" -> "optionsJson",
-        "customLabels" -> """{"labelKey":"labelValue"}"""
+        "labels" -> """{"labelKey":"labelValue"}"""
       ),
       Map("workflowDependencies" -> tempFile)
     ),
@@ -108,7 +108,7 @@ class CromwellClientSpec extends AsyncFlatSpec with BeforeAndAfterAll with Match
         "workflowTypeVersion" -> "wfTypeVersion",
         "workflowInputs" -> "[inputsJson1,inputsJson2]",
         "workflowOptions" -> "optionsJson",
-        "customLabels" -> """{"labelKey":"labelValue"}"""
+        "labels" -> """{"labelKey":"labelValue"}"""
       ),
       Map("workflowDependencies" -> tempFile)
     )

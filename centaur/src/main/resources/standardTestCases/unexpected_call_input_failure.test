@@ -1,0 +1,12 @@
+name: unexpected_call_input_failure
+testFormat: workflowfailure
+
+files {
+  wdl: unexpected_call_input_failure/unexpected_call_input_failure.wdl
+}
+
+metadata {
+    status: Failed
+    "failures.0.message": "Workflow input processing failed"
+    "failures.0.causedBy.0.message": "ERROR: Call supplied an unexpected input: The 'hello' task doesn't have an input called 'greeting':\n\n    greeting = \"bonjour\"   # But this is an unexpected input! Should be an error!\n    ^\n\nOptions:\n - Add the input 'greeting' to the 'hello' task (defined on line 13).\n - Remove 'greeting = ...' from hello's inputs (on line 5).\n     "
+}

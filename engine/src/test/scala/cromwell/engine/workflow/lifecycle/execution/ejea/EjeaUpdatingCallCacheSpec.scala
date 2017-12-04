@@ -1,9 +1,10 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
+import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
 import EngineJobExecutionActorSpec._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheWriteFailure, CallCacheWriteSuccess}
 import cromwell.engine.workflow.lifecycle.execution.ejea.HasJobSuccessResponse.SuccessfulCallCacheHashes
+
 import scala.util.Success
 
 class EjeaUpdatingCallCacheSpec extends EngineJobExecutionActorSpec with HasJobSuccessResponse with CanExpectJobStoreWrites {

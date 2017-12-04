@@ -1,27 +1,41 @@
 package cromwell.engine.workflow.workflowstore
 
-import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
+import akka.actor.{ActorLogging, ActorRef, LoggingFSM, PoisonPill, Props}
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
-import cromwell.core.WorkflowId
-import cromwell.database.sql.SqlDatabase
-import cromwell.engine.workflow.WorkflowManagerActor
+import cromwell.core.WorkflowAborting
+import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingResponse}
+import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
+import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
+import cromwell.engine.instrumentation.WorkflowInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
+import cromwell.engine.workflow.WorkflowMetadataHelper
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{WorkflowStoreActorState, _}
-import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
+import cromwell.services.instrumentation.CromwellInstrumentationScheduler
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceRegistryActor: ActorRef, database: SqlDatabase)
-  extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging {
+final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceRegistryActor: ActorRef, abortAllJobsOnTerminate: Boolean)
+  extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging with WorkflowInstrumentation with CromwellInstrumentationScheduler with WorkflowMetadataHelper {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
   startWith(Unstarted, WorkflowStoreActorData(None, List.empty))
   self ! InitializerCommand
+
+  scheduleInstrumentation {
+    store.stats map { (stats: Map[WorkflowStoreState, Int]) =>
+      // Update the count for Submitted and Running workflows, defaulting to 0
+      val statesMap = stats.withDefault(_ => 0)
+      updateWorkflowsQueued(statesMap(WorkflowStoreState.Submitted))
+      updateWorkflowsRunning(statesMap(WorkflowStoreState.Running))
+    }
+    ()
+  }
 
   when(Unstarted) {
     case Event(InitializerCommand, _) =>
@@ -53,6 +67,12 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
   }
 
   whenUnhandled {
+    case Event(ShutdownCommand, _) if abortAllJobsOnTerminate =>
+      self ! AbortAllRunningWorkflowsCommandAndStop
+      stay()
+    case Event(ShutdownCommand, _) =>
+      context stop self
+      stay()
     case Event(msg, _) =>
       log.warning("Unexpected message to WorkflowStoreActor in state {} with data {}: {}", stateName, stateData, msg)
       stay
@@ -74,22 +94,26 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
           }
           sndr ! nwm
         }
-      case AbortWorkflow(id, manager) =>
-        store.remove(id) map { removed =>
-          if (removed) {
-            manager ! WorkflowManagerActor.AbortWorkflowCommand(id, sndr)
-            log.debug(s"Workflow $id removed from the workflow store, abort requested.")
-          } else {
-            sndr ! WorkflowAbortFailed(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
-          }
+      case AbortWorkflowCommand(id) =>
+        store.aborting(id) map {
+          case Some(restarted) =>
+            sndr ! WorkflowAbortingResponse(id, restarted)
+            pushCurrentStateToMetadataService(id, WorkflowAborting)
+            log.info(s"Abort requested for workflow $id.")
+          case None =>
+            sndr ! WorkflowAbortFailureResponse(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
         } recover {
           case t =>
-            val message = s"Error aborting workflow $id: could not remove from workflow store"
+            val message = s"Unable to update workflow store to abort $id"
             log.error(t, message)
             // A generic exception type like RuntimeException will produce a 500 at the API layer, which seems appropriate
             // given we don't know much about what went wrong here.  `t.getMessage` so the cause propagates to the client.
-            val e = new RuntimeException(s"$message: ${t.getMessage}", t)
-            sndr ! WorkflowAbortFailed(id, e)
+            sndr ! WorkflowAbortFailureResponse(id, new RuntimeException(s"$message: ${t.getMessage}", t))
+        }
+      case AbortAllRunningWorkflowsCommandAndStop =>
+        store.abortAllRunning() map { _ =>
+          log.info(s"Aborting all running workflows.")
+          self ! PoisonPill
         }
       case oops =>
         log.error("Unexpected type of start work command: {}", oops.getClass.getSimpleName)
@@ -113,20 +137,15 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
     * Fetches at most n workflows, and builds the correct response message based on if there were any workflows or not
     */
   private def newWorkflowMessage(maxWorkflows: Int): Future[WorkflowStoreEngineActorResponse] = {
-    def fetchRunnableWorkflowsIfNeeded(maxWorkflowsInner: Int, state: StartableState) = {
+    def fetchStartableWorkflowsIfNeeded(maxWorkflowsInner: Int) = {
       if (maxWorkflows > 0) {
-        store.fetchRunnableWorkflows(maxWorkflowsInner, state)
+        store.fetchStartableWorkflows(maxWorkflowsInner)
       } else {
         Future.successful(List.empty[WorkflowToStart])
       }
     }
 
-    val runnableWorkflows = for {
-      restartableWorkflows <- fetchRunnableWorkflowsIfNeeded(maxWorkflows, WorkflowStoreState.Restartable)
-      submittedWorkflows <- fetchRunnableWorkflowsIfNeeded(maxWorkflows - restartableWorkflows.size, WorkflowStoreState.Submitted)
-    } yield restartableWorkflows ++ submittedWorkflows
-
-    runnableWorkflows map {
+    fetchStartableWorkflowsIfNeeded(maxWorkflows) map {
       case x :: xs => NewWorkflowsToStart(NonEmptyList.of(x, xs: _*))
       case _ => NoNewWorkflowsToStart
     } recover {
@@ -139,17 +158,13 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
 }
 
 object WorkflowStoreEngineActor {
-  def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef, database: SqlDatabase) = {
-    Props(WorkflowStoreEngineActor(workflowStoreDatabase, serviceRegistryActor, database)).withDispatcher(EngineDispatcher)
+  def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef, abortAllJobsOnTerminate: Boolean) = {
+    Props(WorkflowStoreEngineActor(workflowStoreDatabase, serviceRegistryActor, abortAllJobsOnTerminate)).withDispatcher(EngineDispatcher)
   }
 
   sealed trait WorkflowStoreEngineActorResponse
   case object NoNewWorkflowsToStart extends WorkflowStoreEngineActorResponse
   final case class NewWorkflowsToStart(workflows: NonEmptyList[WorkflowToStart]) extends WorkflowStoreEngineActorResponse
-  sealed abstract class WorkflowStoreEngineAbortResponse extends WorkflowStoreEngineActorResponse
-  final case class WorkflowAborted(workflowId: WorkflowId) extends WorkflowStoreEngineAbortResponse
-  final case class WorkflowAbortFailed(workflowId: WorkflowId, reason: Throwable) extends WorkflowStoreEngineAbortResponse
-
 
   final case class WorkflowStoreActorCommandWithSender(command: WorkflowStoreActorEngineCommand, sender: ActorRef)
 

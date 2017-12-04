@@ -1,0 +1,28 @@
+name: failures.restart_while_failing_local
+testFormat: WorkflowFailureRestartWithRecover
+callMark: restart_while_failing.B1
+backendsMode: "only"
+backends: [Local, LocalNoDocker]
+tags: [localdockertest]
+
+files {
+  wdl: failures/restart_while_failing/restart_while_failing.wdl
+}
+
+metadata {
+  workflowName: restart_while_failing
+  status: Failed
+  
+  "calls.restart_while_failing.A.executionStatus": "Failed"
+  "calls.restart_while_failing.B.executionStatus": "Done"
+  "calls.restart_while_failing.B1.executionStatus": "Done"
+
+  "restart_while_failing.sleep_exit.0.executionStatus": "Done"
+  "restart_while_failing.sleep_exit.1.executionStatus": "Done"
+  "restart_while_failing.sleep_exit.2.executionStatus": "Done"
+  "restart_while_failing.sleep_exit.3.executionStatus": "Done"
+  "restart_while_failing.sleep_exit.4.executionStatus": "Done"
+}
+
+# ensures that B2 was not started
+absent-metadata-keys: ["calls.restart_while_failing.B2.jobId"]

@@ -1,0 +1,29 @@
+name: jes_labels
+testFormat: workflowsuccess
+tags: [ labels ]
+backends: [Jes]
+
+files {
+  wdl: labels/jes_labels.wdl
+  labels: labels/valid.labels
+}
+
+metadata {
+  workflowName: I_hope_nobody_names_workflows_like_this_as_it_seems_very_unnecessary_
+  status: Succeeded
+  "calls.I_hope_nobody_names_workflows_like_this_as_it_seems_very_unnecessary_.my_task_aliased.backendLabels.label-key-2": "label-value-2"
+  "calls.I_hope_nobody_names_workflows_like_this_as_it_seems_very_unnecessary_.my_task_aliased.backendLabels.label-key-1": "label-value-1"
+  "calls.I_hope_nobody_names_workflows_like_this_as_it_seems_very_unnecessary_.my_task_aliased.backendLabels.only-key": ""
+  "calls.I_hope_nobody_names_workflows_like_this_as_it_seems_very_unnecessary_.my_task_aliased.backendLabels.fc-id": "x--0123-abcd-4567-efgh"
+  "calls.I_hope_nobody_names_workflows_like_this_as_it_seems_very_unnecessary_.my_task_aliased.backendLabels.cromwell-workflow-id": "cromwell-<<UUID>>"
+  "calls.I_hope_nobody_names_workflows_like_this_as_it_seems_very_unnecessary_.my_task_aliased.backendLabels.wdl-task-name": "my-task"
+  "calls.I_hope_nobody_names_workflows_like_this_as_it_seems_very_unnecessary_.my_task_aliased.backendLabels.wdl-call-alias": "my-task-aliased"
+  "calls.I_hope_nobody_names_workflows_like_this_as_it_seems_very_unnecessary_.my_task_aliased.labels.fc-id": "0123-abcd-4567-efgh"
+  "calls.I_hope_nobody_names_workflows_like_this_as_it_seems_very_unnecessary_.my_task_aliased.labels.wdl-task-name": "MY_TASK"
+  "calls.I_hope_nobody_names_workflows_like_this_as_it_seems_very_unnecessary_.my_task_aliased.labels.wdl-call-alias": "my_task_aliased"
+  "labels.label-key-1": "label-value-1"
+  "labels.label-key-2": "label-value-2"
+  "labels.only-key": ""
+  "labels.fc-id": "0123-abcd-4567-efgh"
+  "labels.cromwell-workflow-id": "cromwell-<<UUID>>"
+}

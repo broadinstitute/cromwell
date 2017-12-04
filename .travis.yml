@@ -2,9 +2,10 @@ sudo: required
 dist: trusty
 services:
   - docker
+  - mysql
 language: scala
 scala:
-  - 2.12.2
+  - 2.12.4
 jdk:
   - oraclejdk8
 cache:
@@ -20,10 +21,11 @@ before_cache:
 before_install:
   # https://github.com/travis-ci/travis-ci/issues/7940#issuecomment-310759657
   - sudo rm -f /etc/boto.cfg
+  - mysql -u root -e "SET GLOBAL sql_mode = 'STRICT_ALL_TABLES';"
+  - mysql -u root -e "CREATE DATABASE IF NOT EXISTS cromwell_test;"
 env:
   global:
-    - CENTAUR_BRANCH=develop
-    - INTEGRATION_TESTS_DIR=src/main/resources/integrationTestCases
+    - INTEGRATION_TESTS_DIR=centaur/src/main/resources/integrationTestCases
   matrix:
     # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
     - BUILD_TYPE=sbt
@@ -31,7 +33,11 @@ env:
     - BUILD_TYPE=centaurJes
     - BUILD_TYPE=centaurLocal
     - BUILD_TYPE=centaurTes
+    - BUILD_TYPE=centaurCwlConformance
 script:
+  - sudo apt-get install procps
+  - pip install 'requests[security]'
+  - sudo pip install --ignore-installed cwltool
   - src/bin/travis/test.sh
 after_success:
   - src/bin/travis/afterSuccess.sh

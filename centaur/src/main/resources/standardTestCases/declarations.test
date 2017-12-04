@@ -1,0 +1,16 @@
+# Tests a variety of schemes for specifying a declaration and makes sure that they all work correctly
+
+name: declarations
+testFormat: workflowsuccess
+
+files {
+  wdl: declarations/declarations.wdl
+  inputs: declarations/declarations.inputs
+}
+
+metadata {
+  workflowName: two_step
+  status: Succeeded
+  "outputs.two_step.cgrep.count": 1
+  "outputs.two_step.cgrep.str": "foobar"
+}

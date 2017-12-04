@@ -1,0 +1,6 @@
+name: multiplesourcedarray
+testFormat: workflowsuccess
+
+files {
+  wdl: multiplesourcedarray/multiplesourcedarray.wdl
+}

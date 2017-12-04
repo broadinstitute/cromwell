@@ -6,6 +6,8 @@ import akka.http.scaladsl.Http
 import akka.actor.ActorSystem
 import akka.http.scaladsl.coding.{Deflate, Gzip, NoCoding}
 import akka.http.scaladsl.model.{HttpEntity, _}
+import akka.http.scaladsl.model.headers.Authorization
+import akka.http.scaladsl.model.headers.HttpCredentials
 import akka.http.scaladsl.model.headers.HttpEncodings
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
@@ -19,7 +21,10 @@ import cromwell.api.CromwellClient._
 
 import scala.util.{Failure, Success, Try}
 
-class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit actorSystem: ActorSystem, materializer: ActorMaterializer) {
+class CromwellClient(val cromwellUrl: URL, val apiVersion: String, val credentials: Option[HttpCredentials]=None)(implicit actorSystem: ActorSystem, materializer: ActorMaterializer) {
+
+  lazy val authHeader = credentials.map { Authorization(_) }
+  lazy val commonHeaders = authHeader.toList
 
   lazy val engineEndpoint = s"$cromwellUrl/engine/$apiVersion"
   lazy val submitEndpoint = s"$cromwellUrl/api/workflows/$apiVersion"
@@ -30,6 +35,7 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
   def statusEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "status")
   def metadataEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "metadata")
   def outputsEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "outputs")
+  def labelsEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "labels")
   def logsEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "logs")
   def diffEndpoint(workflowA: WorkflowId, callA: String, indexA: ShardIndex, workflowB: WorkflowId, callB: String, indexB: ShardIndex): String = {
     def shardParam(aOrB: String, s: ShardIndex) = s.index.map(i => s"&index$aOrB=$i.toString").getOrElse("")
@@ -44,6 +50,7 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
   import model.CromwellBackendsJsonSupport._
   import model.CromwellVersionJsonSupport._
   import model.CallCacheDiffJsonSupport._
+  import model.WorkflowLabelsJsonSupport._
 
   def submit(workflow: WorkflowSubmission)(implicit ec: ExecutionContext): Future[SubmittedWorkflow] = {
     val requestEntity = requestEntityForSubmit(workflow)
@@ -65,7 +72,7 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
       workflowTypeVersion = workflow.workflowTypeVersion,
       inputsJson = Option(inputs),
       options = workflow.options,
-      customLabels = workflow.customLabels,
+      labels = workflow.labels,
       zippedImports = workflow.zippedImports))
 
     makeRequest[List[CromwellStatus]](HttpRequest(HttpMethods.POST, batchSubmitEndpoint, List.empty[HttpHeader], requestEntity)) map { statuses =>
@@ -80,13 +87,14 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
   def status(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStatus] = simpleRequest[CromwellStatus](statusEndpoint(workflowId)) map WorkflowStatus.apply
   def metadata(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowMetadata] = simpleRequest[String](metadataEndpoint(workflowId)) map WorkflowMetadata
   def outputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowOutputs] = simpleRequest[WorkflowOutputs](outputsEndpoint(workflowId))
+  def labels(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowLabels] = simpleRequest[WorkflowLabels](labelsEndpoint(workflowId))
   def logs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowLogs] = simpleRequest[WorkflowLogsStruct](outputsEndpoint(workflowId)) map WorkflowLogs.apply
   def callCacheDiff(workflowA: WorkflowId, callA: String, shardIndexA: ShardIndex, workflowB: WorkflowId, callB: String, shardIndexB: ShardIndex)(implicit ec: ExecutionContext): Future[CallCacheDiff] =
     simpleRequest[CallCacheDiff](diffEndpoint(workflowA, callA, shardIndexA, workflowB, callB, shardIndexB))
   def backends(implicit ec: ExecutionContext): Future[CromwellBackends] = simpleRequest[CromwellBackends](backendsEndpoint)
   def version(implicit ec: ExecutionContext): Future[CromwellVersion] = simpleRequest[CromwellVersion](versionEndpoint)
 
-  private [api] def executeRequest(request: HttpRequest) = Http().singleRequest(request)
+  private [api] def executeRequest(request: HttpRequest) = Http().singleRequest(request.withHeaders(commonHeaders))
 
   /**
     *
@@ -187,7 +195,7 @@ object CromwellClient {
       "workflowTypeVersion" -> workflowSubmission.workflowTypeVersion,
       "workflowInputs" -> workflowSubmission.inputsJson,
       "workflowOptions" -> workflowSubmission.options,
-      "customLabels" -> workflowSubmission.customLabels.map(_.toJson.toString)
+      "labels" -> workflowSubmission.labels.map(_.toJson.toString)
     ) collect {
       case (name, Some(source: String)) =>
         Multipart.FormData.BodyPart(name, HttpEntity(MediaTypes.`application/json`, ByteString(source)))

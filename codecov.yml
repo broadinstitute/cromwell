@@ -1,0 +1,29 @@
+codecov:
+  branch: develop
+
+coverage:
+  range: 50..75
+  round: down
+  precision: 2
+
+  notify:
+    slack:
+      default:
+        url: secret:5UELKPiiPFBCsKEe0bZTh6/8abNFShmwWu9eol4lyiyzHvAAI1fKP+aBv/M2K6wxGnW1iiOA879Bj4mXclM0XRDSdEDfzH+r6pEYlBVG/GabsUQ5PicPuu51Vgp8L7tcBEmrZh5MRH71AxWxgwQK/77UKXDGkPVD0hFHQdWnKjM=
+        base: pr
+        target: 50%
+        threshold: null
+        attachments: "header, diff, changes, sunburst, uncovered, tree"
+  status:
+    project:
+      default:
+        base: pr
+        target: 50%
+        threshold: 5%
+    patch:
+      default:
+        base: pr
+        target: 50%
+        threshold: 5%
+
+comment: false

@@ -1,0 +1,26 @@
+mysql:
+  image: mysql:5.6.30
+  environment:
+    MYSQL_ROOT_PASSWORD: private
+    MYSQL_DATABASE: cromwell
+    MYSQL_USER: cromwell
+    MYSQL_PASSWORD: cromwell
+  log_driver: "syslog"
+  log_opt:
+    syslog-tag: "mysql"
+  volumes:
+    - /data/mysql:/var/lib/mysql
+cromwell:
+  image: broadinstitute/cloud-cromwell:dev
+  ports:
+    - "8000:8000"
+  environment:
+    JAVA_OPTS: -Dscala.concurrent.context.minThreads=50 -Dscala.concurrent.context.numThreads=50 -Dscala.concurrent.context.maxThreads=50 -Xmx20g -Xms20g -Dbackend.defaultBackend=JES -Dbackend.jes.project=broad-dsde-cromwell-dev -Dbackend.jes.baseExecutionBucket=gs://cloud-cromwell-dev/centaur-executions -Dbackend.jes.endpointUrl=https://genomics.googleapis.com/ -Ddatabase.config=main.default -Ddatabase.main.default.db.url=jdbc:mysql://mysql:3306/cromwell -Ddatabase.main.default.db.driver=com.mysql.jdbc.Driver -Ddatabase.main.default.driver=slick.driver.MySQLDriver$$ -Ddatabase.main.default.db.user=cromwell -Ddatabase.main.default.db.password=cromwell -Dgoogle.applicationName=cromwell -Dgoogle.cromwellAuthenticationScheme=service_account -Dgoogle.serviceAuth.pemFile=/etc/cromwell-account.pem -Dgoogle.serviceAuth.serviceAccountId=cromwell@broad-dsde-cromwell-dev.iam.gserviceaccount.com -Dkamon.auto-start=true
+  log_driver: "syslog"
+  log_opt:
+    syslog-tag: "cromwell"
+  volumes:
+    - /app/cromwell-account.pem:/etc/cromwell-account.pem:ro
+  links:
+    - mysql:mysql
+  restart: always

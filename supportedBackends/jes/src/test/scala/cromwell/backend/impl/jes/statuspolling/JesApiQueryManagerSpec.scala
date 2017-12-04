@@ -1,22 +1,24 @@
 package cromwell.backend.impl.jes.statuspolling
 
 import akka.actor.{ActorRef, Props}
-import akka.testkit.{TestActorRef, TestProbe}
+import akka.testkit.{TestActorRef, TestProbe, _}
+import com.google.api.services.genomics.Genomics
+import com.google.api.services.genomics.model.RunPipelineRequest
+import cromwell.backend.BackendSingletonActorAbortWorkflow
+import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesApiRunCreationQueryFailed, JesRunCreationQuery, JesStatusPollQuery}
+import cromwell.backend.impl.jes.statuspolling.JesApiQueryManagerSpec._
 import cromwell.backend.impl.jes.{JesConfiguration, Run}
-import cromwell.core.TestKitSuite
-import org.scalatest.{FlatSpecLike, Matchers}
-
-import scala.concurrent.duration._
-import akka.testkit._
-import JesApiQueryManagerSpec._
-import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.JesStatusPollQuery
 import cromwell.backend.standard.StandardAsyncJob
+import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.util.AkkaTestUtil
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric._
 import org.scalatest.concurrent.Eventually
+import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.collection.immutable.Queue
+import scala.concurrent.duration._
+import scala.util.Random
 
 class JesApiQueryManagerSpec extends TestKitSuite("JesApiQueryManagerSpec") with FlatSpecLike with Matchers with Eventually {
 
@@ -26,10 +28,12 @@ class JesApiQueryManagerSpec extends TestKitSuite("JesApiQueryManagerSpec") with
   implicit val DefaultPatienceConfig = PatienceConfig(TestExecutionTimeout)
   val AwaitAlmostNothing = 30.milliseconds.dilated
   val BatchSize = 5
+  val registryProbe = TestProbe().ref
+  val workflowId = WorkflowId.randomId()
 
   it should "queue up and dispense status poll requests, in order" in {
     val statusPoller = TestProbe(name = "StatusPoller")
-    val jaqmActor: TestActorRef[TestJesApiQueryManager] = TestActorRef(TestJesApiQueryManager.props(statusPoller.ref))
+    val jaqmActor: TestActorRef[TestJesApiQueryManager] = TestActorRef(TestJesApiQueryManager.props(100, registryProbe, statusPoller.ref))
 
     var statusRequesters = ((0 until BatchSize * 2) map { i => i -> TestProbe(name = s"StatusRequester_$i") }).toMap
 
@@ -39,7 +43,7 @@ class JesApiQueryManagerSpec extends TestKitSuite("JesApiQueryManagerSpec") with
 
     // Send a few status poll requests:
     statusRequesters foreach { case (index, probe) =>
-      jaqmActor.tell(msg = JesApiQueryManager.DoPoll(Run(StandardAsyncJob(index.toString), null)), sender = probe.ref)
+      jaqmActor.tell(msg = JesApiQueryManager.DoPoll(workflowId, Run(StandardAsyncJob(index.toString), null)), sender = probe.ref)
     }
 
     // Should have no messages to the actual statusPoller yet:
@@ -69,6 +73,43 @@ class JesApiQueryManagerSpec extends TestKitSuite("JesApiQueryManagerSpec") with
     jaqmActor.underlyingActor.testPollerCreations should be(1)
   }
 
+  it should "reject create requests above maxBatchSize" in {
+    val statusPoller = TestProbe(name = "StatusPoller")
+    val jaqmActor: TestActorRef[TestJesApiQueryManager] = TestActorRef(TestJesApiQueryManager.props(15 * 1024 * 1024, registryProbe, statusPoller.ref))
+
+    val statusRequester = TestProbe()
+    
+    // Send a create request
+    jaqmActor.tell(msg = JesApiQueryManager.DoCreateRun(null, null, null), sender = statusRequester.ref)
+
+    statusRequester.expectMsgClass(classOf[JesApiRunCreationQueryFailed])
+
+    jaqmActor.underlyingActor.queueSize shouldBe 0
+  }
+
+  it should "respect the maxBatchSize when beheading the queue" in {
+    val statusPoller = TestProbe(name = "StatusPoller")
+    // maxBatchSize is 14MB, which mean we can take 2 queries of 5MB but not 3
+    val jaqmActor: TestActorRef[TestJesApiQueryManager] = TestActorRef(TestJesApiQueryManager.props(5 * 1024 * 1024, registryProbe, statusPoller.ref))
+
+    val statusRequester = TestProbe()
+
+    // Enqueue 3 create requests
+    1 to 3 foreach { _ => jaqmActor.tell(msg = JesApiQueryManager.DoCreateRun(null, null, null), sender = statusRequester.ref) }
+
+    // ask for a batch
+    jaqmActor.tell(msg = JesApiQueryManager.RequestJesPollingWork(BatchSize), sender = statusPoller.ref)
+    
+    // We should get only 2 requests back
+    statusPoller.expectMsgPF(max = TestExecutionTimeout) {
+      case JesApiQueryManager.JesPollingWorkBatch(workBatch) => workBatch.toList.size shouldBe 2
+      case other => fail(s"Unexpected message: $other")
+    }
+    
+    // There should be 1 left in the queue
+    jaqmActor.underlyingActor.queueSize shouldBe 1
+  }
+
   AkkaTestUtil.actorDeathMethods(system) foreach { case (name, stopMethod) =>
     /*
       This test creates two statusPoller ActorRefs which are handed to the TestJesApiQueryManager. Work is added to that query
@@ -81,13 +122,13 @@ class JesApiQueryManagerSpec extends TestKitSuite("JesApiQueryManagerSpec") with
     it should s"catch polling actors if they $name, recreate them and add work back to the queue" in {
       val statusPoller1 = TestActorRef(Props(new AkkaTestUtil.DeathTestActor()), TestActorRef(new AkkaTestUtil.StoppingSupervisor()))
       val statusPoller2 = TestActorRef(Props(new AkkaTestUtil.DeathTestActor()), TestActorRef(new AkkaTestUtil.StoppingSupervisor()))
-      val jaqmActor: TestActorRef[TestJesApiQueryManager] = TestActorRef(TestJesApiQueryManager.props(statusPoller1, statusPoller2))
+      val jaqmActor: TestActorRef[TestJesApiQueryManager] = TestActorRef(TestJesApiQueryManager.props(100, registryProbe, statusPoller1, statusPoller2), s"TestJesApiQueryManager-${Random.nextInt()}")
 
       val emptyActor = system.actorOf(Props.empty)
 
        // Send a few status poll requests:
       BatchSize indexedTimes { index =>
-        jaqmActor.tell(msg = JesApiQueryManager.DoPoll(Run(StandardAsyncJob(index.toString), null)), sender = emptyActor)
+        jaqmActor.tell(msg = JesApiQueryManager.DoPoll(null, Run(StandardAsyncJob(index.toString), null)), sender = emptyActor)
       }
 
       jaqmActor.tell(msg = JesApiQueryManager.RequestJesPollingWork(BatchSize), sender = statusPoller1)
@@ -99,6 +140,28 @@ class JesApiQueryManagerSpec extends TestKitSuite("JesApiQueryManagerSpec") with
         jaqmActor.underlyingActor.queueSize should be (BatchSize)
         jaqmActor.underlyingActor.statusPollerEquals(statusPoller2) should be (true)
       }
+    }
+  }
+
+  it should "remove run requests from queue when receiving an abort message" in {
+    val statusPoller = TestProbe(name = "StatusPoller")
+    // maxBatchSize is 14MB, which mean we can take 2 queries of 5MB but not 3
+    val jaqmActor: TestActorRef[TestJesApiQueryManager] = TestActorRef(TestJesApiQueryManager.props(5 * 1024 * 1024, registryProbe, statusPoller.ref))
+
+    // Enqueue 3 create requests
+    val workflowIdA = WorkflowId.randomId()
+    val workflowIdB = WorkflowId.randomId()
+    jaqmActor ! JesApiQueryManager.DoCreateRun(workflowIdA, null, null)
+    jaqmActor ! JesApiQueryManager.DoCreateRun(workflowIdA, null, null)
+    jaqmActor ! JesApiQueryManager.DoCreateRun(workflowIdB, null, null)
+
+    // abort workflow A
+    jaqmActor ! BackendSingletonActorAbortWorkflow(workflowIdA)
+
+    // It should remove all and only run requests for workflow A 
+    eventually {
+      jaqmActor.underlyingActor.queueSize shouldBe 1
+      jaqmActor.underlyingActor.workQueue.head.asInstanceOf[JesApiQueryManager.JesRunCreationQuery].workflowId shouldBe workflowIdB
     }
   }
 }
@@ -113,13 +176,25 @@ object JesApiQueryManagerSpec {
 /**
   * This test class allows us to hook into the JesApiQueryManager's makeStatusPoller and provide our own TestProbes instead
   */
-class TestJesApiQueryManager(qps: Int Refined Positive, statusPollerProbes: ActorRef*) extends JesApiQueryManager(qps) {
+class TestJesApiQueryManager(qps: Int Refined Positive, createRequestSize: Long, registry: ActorRef, statusPollerProbes: ActorRef*) extends JesApiQueryManager(qps, registry) {
   var testProbes: Queue[ActorRef] = _
   var testPollerCreations: Int = _
 
   private def init() = {
     testProbes = Queue(statusPollerProbes: _*)
     testPollerCreations = 0
+  }
+
+  override private[statuspolling] def makeCreateQuery(workflowId: WorkflowId, replyTo: ActorRef, genomics: Genomics, rpr: RunPipelineRequest) = {
+    new JesRunCreationQuery(workflowId, replyTo, genomics, rpr) {
+      override def contentLength = createRequestSize
+    }
+  }
+
+  override private[statuspolling] def makePollQuery(workflowId: WorkflowId, replyTo: ActorRef, run: Run) = {
+    new JesStatusPollQuery(workflowId, replyTo, run) {
+      override def contentLength = 0
+    }
   }
 
   override private[statuspolling] def makeWorkerActor(): ActorRef = {
@@ -145,5 +220,5 @@ object TestJesApiQueryManager {
   import cromwell.backend.impl.jes.JesTestConfig.JesBackendConfigurationDescriptor
   val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
 
-  def props(statusPollers: ActorRef*): Props = Props(new TestJesApiQueryManager(jesConfiguration.qps, statusPollers: _*))
+  def props(createRequestSize: Long, registryProbe: ActorRef, statusPollers: ActorRef*): Props = Props(new TestJesApiQueryManager(jesConfiguration.qps, createRequestSize, registryProbe, statusPollers: _*))
 }

@@ -1,21 +1,26 @@
 package cromwell.engine.workflow.tokens
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
-import cromwell.core.JobExecutionToken
-import JobExecutionToken._
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.core.JobExecutionToken._
+import cromwell.core.{ExecutionStatus, JobExecutionToken}
+import cromwell.engine.instrumentation.JobInstrumentation
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor._
 import cromwell.engine.workflow.tokens.TokenPool.TokenPoolPop
+import cromwell.services.instrumentation.CromwellInstrumentation._
+import cromwell.services.instrumentation.CromwellInstrumentationScheduler
 
 import scala.collection.immutable.Queue
 
-class JobExecutionTokenDispenserActor extends Actor with ActorLogging {
+class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRef) extends Actor with ActorLogging with JobInstrumentation with CromwellInstrumentationScheduler {
 
   /**
     * Lazily created token pool. We only create a pool for a token type when we need it
     */
   var tokenPools: Map[JobExecutionTokenType, TokenPool] = Map.empty
   var tokenAssignments: Map[ActorRef, JobExecutionToken] = Map.empty
+  
+  scheduleInstrumentation { sendGaugeJob(ExecutionStatus.Running.toString, tokenAssignments.size.toLong) }
 
   override def receive: Actor.Receive = {
     case JobExecutionTokenRequest(tokenType) => sendTokenRequestResult(sender, tokenType)
@@ -57,6 +62,7 @@ class JobExecutionTokenDispenserActor extends Actor with ActorLogging {
   }
 
   private def assignAndSendToken(actor: ActorRef, token: JobExecutionToken) = {
+    incrementJob("Started")
     tokenAssignments += actor -> token
     actor ! JobExecutionTokenDispensed(token)
   }
@@ -101,7 +107,7 @@ class JobExecutionTokenDispenserActor extends Actor with ActorLogging {
 
 object JobExecutionTokenDispenserActor {
 
-  def props = Props(new JobExecutionTokenDispenserActor).withDispatcher(EngineDispatcher)
+  def props(serviceRegistryActor: ActorRef) = Props(new JobExecutionTokenDispenserActor(serviceRegistryActor)).withDispatcher(EngineDispatcher)
 
   case class JobExecutionTokenRequest(jobExecutionTokenType: JobExecutionTokenType)
   case class JobExecutionTokenReturn(jobExecutionToken: JobExecutionToken)

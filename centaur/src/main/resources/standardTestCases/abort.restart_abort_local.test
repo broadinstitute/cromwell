@@ -1,0 +1,20 @@
+ignore: false
+name: abort.restart_abort_local
+testFormat: ScheduledAbortWithRestart
+callMark: scheduled_abort.aborted
+backendsMode: "only"
+backends: [Local, LocalNoDocker]
+tags: [localdockertest]
+
+files {
+  wdl: abort/scheduled_abort.wdl
+}
+
+metadata {
+  workflowName: scheduled_abort
+  status: Aborted
+  "calls.scheduled_abort.let_me_run.executionStatus": "Done"
+  "calls.scheduled_abort.aborted.executionStatus": "Aborted"
+}
+
+absent-metadata-keys: ["calls.scheduled_abort.lost_in_space.status"]

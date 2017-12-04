@@ -5,11 +5,12 @@ import cromwell.backend.impl.spark.SparkInitializationActor._
 import cromwell.backend.validation.RuntimeAttributesDefault
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
-import cromwell.core.WorkflowOptions
 import cromwell.core.Dispatcher.BackendDispatcher
-import wdl4s.wdl.WdlTaskCall
-import wdl4s.wdl.types.{WdlBooleanType, WdlIntegerType, WdlStringType}
-import wdl4s.wdl.values.WdlValue
+import cromwell.core.WorkflowOptions
+import wom.expression.WomExpression
+import wom.graph.TaskCallNode
+import wom.types.{WomBooleanType, WomIntegerType, WomStringType}
+import wom.values.WomValue
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -19,23 +20,23 @@ object SparkInitializationActor {
     SparkRuntimeAttributes.NumberOfExecutorsKey, SparkRuntimeAttributes.AppMainClassKey)
 
   def props(workflowDescriptor: BackendWorkflowDescriptor,
-            calls: Set[WdlTaskCall],
+            calls: Set[TaskCallNode],
             configurationDescriptor: BackendConfigurationDescriptor,
             serviceRegistryActor: ActorRef): Props =
     Props(new SparkInitializationActor(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor)).withDispatcher(BackendDispatcher)
 }
 
 class SparkInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
-                               override val calls: Set[WdlTaskCall],
+                               override val calls: Set[TaskCallNode],
                                override val configurationDescriptor: BackendConfigurationDescriptor,
                                override val serviceRegistryActor: ActorRef) extends BackendWorkflowInitializationActor {
 
-  override protected def runtimeAttributeValidators: Map[String, (Option[WdlValue]) => Boolean] = Map(
-    FailOnStderrKey -> wdlTypePredicate(valueRequired = false, WdlBooleanType.isCoerceableFrom),
-    SparkRuntimeAttributes.AppMainClassKey -> wdlTypePredicate(valueRequired = true, WdlStringType.isCoerceableFrom),
-    SparkRuntimeAttributes.NumberOfExecutorsKey -> wdlTypePredicate(valueRequired = false, WdlIntegerType.isCoerceableFrom),
-    SparkRuntimeAttributes.ExecutorMemoryKey -> wdlTypePredicate(valueRequired = false, WdlBooleanType.isCoerceableFrom),
-    SparkRuntimeAttributes.ExecutorCoresKey -> wdlTypePredicate(valueRequired = false, WdlIntegerType.isCoerceableFrom)
+  override protected def runtimeAttributeValidators: Map[String, (Option[WomExpression]) => Boolean] = Map(
+    FailOnStderrKey -> womTypePredicate(valueRequired = false, WomBooleanType.isCoerceableFrom),
+    SparkRuntimeAttributes.AppMainClassKey -> womTypePredicate(valueRequired = true, WomStringType.isCoerceableFrom),
+    SparkRuntimeAttributes.NumberOfExecutorsKey -> womTypePredicate(valueRequired = false, WomIntegerType.isCoerceableFrom),
+    SparkRuntimeAttributes.ExecutorMemoryKey -> womTypePredicate(valueRequired = false, WomBooleanType.isCoerceableFrom),
+    SparkRuntimeAttributes.ExecutorCoresKey -> womTypePredicate(valueRequired = false, WomIntegerType.isCoerceableFrom)
   )
 
   /**
@@ -55,7 +56,7 @@ class SparkInitializationActor(override val workflowDescriptor: BackendWorkflowD
   override def validate(): Future[Unit] = {
     Future {
       calls foreach { call =>
-        val notSupportedAttributes = call.task.runtimeAttributes.attrs filterKeys { !SupportedKeys.contains(_) }
+        val notSupportedAttributes = call.callable.runtimeAttributes.attributes filterKeys { !SupportedKeys.contains(_) }
         if (notSupportedAttributes.nonEmpty) {
           val notSupportedAttrString = notSupportedAttributes.keys mkString ", "
           log.warning(s"Key/s [$notSupportedAttrString] is/are not supported by SparkBackend. Unsupported attributes will not be part of jobs executions.")
@@ -64,7 +65,7 @@ class SparkInitializationActor(override val workflowDescriptor: BackendWorkflowD
     }
   }
 
-  override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WdlValue]] = {
+  override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WomValue]] = {
     RuntimeAttributesDefault.workflowOptionsDefault(options, SparkRuntimeAttributes.coercionMap)
   }
 }

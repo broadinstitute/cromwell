@@ -11,7 +11,7 @@ import cromwell.core.JobKey
 import cromwell.core.callcaching._
 import cromwell.core.io._
 import cromwell.core.logging.JobLogging
-import wdl4s.wdl.values.WdlFile
+import wom.values.WomFile
 
 import scala.util.{Failure, Success, Try}
 
@@ -40,13 +40,15 @@ case class DefaultStandardFileHashingActorParams
   override val configurationDescriptor: BackendConfigurationDescriptor
 ) extends StandardFileHashingActorParams
 
+case class FileHashContext(hashKey: HashKey, file: String)
+
 class DefaultStandardFileHashingActor(standardParams: StandardFileHashingActorParams) extends StandardFileHashingActor(standardParams) with DefaultIoCommandBuilder
 
 object StandardFileHashingActor {
   case class FileHashingFunction(work: (SingleFileHashRequest, LoggingAdapter) => Try[String])
 
   sealed trait BackendSpecificHasherCommand { def jobKey: JobKey }
-  final case class SingleFileHashRequest(jobKey: JobKey, hashKey: HashKey, file: WdlFile, initializationData: Option[BackendInitializationData]) extends BackendSpecificHasherCommand
+  final case class SingleFileHashRequest(jobKey: JobKey, hashKey: HashKey, file: WomFile, initializationData: Option[BackendInitializationData]) extends BackendSpecificHasherCommand
 
   sealed trait BackendSpecificHasherResponse extends SuccessfulHashResultMessage
   case class FileHashResponse(hashResult: HashResult) extends BackendSpecificHasherResponse { override def hashes = Set(hashResult) }
@@ -72,12 +74,12 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
       }
 
     // Hash Success
-    case (fileHashRequest: SingleFileHashRequest, IoSuccess(_, result: String)) =>
+    case (fileHashRequest: FileHashContext, IoSuccess(_, result: String)) =>
       context.parent ! FileHashResponse(HashResult(fileHashRequest.hashKey, HashValue(result)))
 
     // Hash Failure
-    case (fileHashRequest: SingleFileHashRequest, IoFailure(_, failure: Throwable)) =>
-      context.parent ! HashingFailedMessage(fileHashRequest.file.value, failure)
+    case (fileHashRequest: FileHashContext, IoFailure(_, failure: Throwable)) =>
+      context.parent ! HashingFailedMessage(fileHashRequest.file, failure)
 
     case other =>
       log.warning(s"Async File hashing actor received unexpected message: $other")
@@ -91,7 +93,7 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
     }
 
     ioHashCommandTry match {
-      case Success(ioHashCommand) => sendIoCommandWithContext(ioHashCommand, fileRequest)
+      case Success(ioHashCommand) => sendIoCommandWithContext(ioHashCommand, FileHashContext(fileRequest.hashKey, fileRequest.file.value))
       case Failure(failure) => replyTo ! HashingFailedMessage(fileAsString, failure)
     }
   }

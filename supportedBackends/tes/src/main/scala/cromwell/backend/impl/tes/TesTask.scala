@@ -1,13 +1,18 @@
 package cromwell.backend.impl.tes
 
-import cromwell.backend.standard.StandardExpressionFunctions
+import cromwell.backend.io.GlobFunctions
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
+import cromwell.core.NoIoFunctionSet
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import wdl4s.wdl.FullyQualifiedName
-import wdl4s.wdl.expression.NoFunctions
+import wdl.FullyQualifiedName
 import wdl4s.parser.MemoryUnit
-import wdl4s.wdl.values.{WdlFile, WdlGlobFile, WdlSingleFile, WdlValue}
+import wom.InstantiatedCommand
+import wom.callable.Callable.OutputDefinition
+import wom.values._
+
+import scala.language.postfixOps
+import scala.util.Try
 
 final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          configurationDescriptor: BackendConfigurationDescriptor,
@@ -16,12 +21,12 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          runtimeAttributes: TesRuntimeAttributes,
                          containerWorkDir: Path,
                          commandScriptContents: String,
-                         backendEngineFunctions: StandardExpressionFunctions,
+                         instantiatedCommand: InstantiatedCommand,
                          dockerImageUsed: String) {
 
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
-  private val workflowName = workflowDescriptor.workflow.unqualifiedName
-  private val fullyQualifiedTaskName = jobDescriptor.call.fullyQualifiedName
+  private val workflowName = workflowDescriptor.callable.name
+  private val fullyQualifiedTaskName = jobDescriptor.taskCall.fullyQualifiedName
   val name: String = fullyQualifiedTaskName
   val description: String = jobDescriptor.toString
 
@@ -45,28 +50,17 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     contents = None
   )
 
-  private def writeFunctionFiles(commandLineValueMapper: WdlValue => WdlValue): Map[FullyQualifiedName, Seq[WdlFile]] = {
-    val commandLineMappedInputs = jobDescriptor.inputDeclarations map {
-      case (declaration, value) => declaration.fullyQualifiedName -> commandLineValueMapper(value)
-    }
+  private def writeFunctionFiles: Map[FullyQualifiedName, Seq[WomFile]] =
+    instantiatedCommand.createdFiles map { f => f.value.md5SumShort -> List(f) } toMap
 
-    jobDescriptor
-      .call
-      .task
-      .evaluateFilesFromCommand(commandLineMappedInputs, backendEngineFunctions)
-      .map {
-        case (expression, file) => expression.toWdlString -> Seq(file)
-      }
-  }
-
-  private val callInputFiles: Map[FullyQualifiedName, Seq[WdlFile]] = jobDescriptor
+  private val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor
     .fullyQualifiedInputs
     .mapValues {
-      _.collectAsSeq { case w: WdlFile => w }
+      _.collectAsSeq { case w: WomFile => w }
     }
 
-  def inputs(commandLineValueMapper: WdlValue => WdlValue): Seq[TaskParameter] = (callInputFiles ++ writeFunctionFiles(commandLineValueMapper))
-    .flatMap {
+  def inputs(commandLineValueMapper: WomValue => WomValue): Seq[TaskParameter] =
+    (callInputFiles ++ writeFunctionFiles).flatMap {
       case (fullyQualifiedName, files) => files.zipWithIndex.map {
         case (f, index) => TaskParameter(
           Option(fullyQualifiedName + "." + index),
@@ -97,19 +91,32 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   // thus we can't directly match the names returned here to the files returned below. Also we have to consider Arrays
   //
   //  private val outputFileNames = jobDescriptor.call.task.outputs
-  //    .filter(o => o.wdlType.toWdlString == "Array[File]" || o.wdlType.toWdlString == "File")
+  //    .filter(o => o.womType.toWdlString == "Array[File]" || o.womType.toWdlString == "File")
   //    .map(_.unqualifiedName)
 
   // extract output files
   // if output paths are absolute we will ignore them here and assume they are redirects
-  private val outputWdlFiles: Seq[WdlFile] = jobDescriptor.call.task
-    .findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions)
-    .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
+  private val outputWomFiles: Seq[WomFile] = {
+    import cats.syntax.validated._
+    // TODO WOM: this should be pushed back into WOM.
+    // It's also a mess, evaluateFiles returns an ErrorOr but can still throw. We might want to use an EitherT, although
+    // if it fails we just want to fallback to an empty list anyway...
+    def evaluateFiles(output: OutputDefinition): List[WomFile] = {
+      Try (
+        output.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, output.womType).map(_.toList)
+      ).getOrElse(List.empty[WomFile].validNel)
+       .getOrElse(List.empty)
+    }
+    
+    jobDescriptor.taskCall.callable.outputs
+      .flatMap(evaluateFiles)
+      .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
+  }
 
-  private val wdlOutputs = outputWdlFiles
+  private val womOutputs = outputWomFiles
     .zipWithIndex
     .flatMap {
-      case (f: WdlSingleFile, index) =>
+      case (f: WomSingleFile, index) =>
         val outputFile = f.value
         Seq(
           TaskParameter(
@@ -121,8 +128,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
             None
           )
         )
-      case (g: WdlGlobFile, index) =>
-        val globName = backendEngineFunctions.globName(g.value)
+      case (g: WomGlobFile, index) =>
+        val globName = GlobFunctions.globName(g.value)
         val globDirName = "globDir." + index
         val globDirectory = globName + "/"
         val globListName =  "globList." + index
@@ -147,7 +154,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
         )
     }
 
-  val outputs: Seq[TaskParameter] = wdlOutputs ++ standardOutputs ++ Seq(commandScriptOut)
+  val outputs: Seq[TaskParameter] = womOutputs ++ standardOutputs ++ Seq(commandScriptOut)
 
   private val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
     case Some(x) =>

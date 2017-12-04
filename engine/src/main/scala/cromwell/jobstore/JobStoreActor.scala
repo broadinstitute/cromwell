@@ -7,7 +7,7 @@ import cromwell.core.WorkflowId
 import cromwell.jobstore.JobStore.{Completion, JobCompletion, WorkflowCompletion}
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
-import wdl4s.wdl.TaskOutput
+import wom.graph.GraphNodePort.OutputPort
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -49,7 +49,7 @@ object JobStoreActor {
   /**
     * Message to query the JobStoreReaderActor, asks whether the specified job has already been completed.
     */
-  case class QueryJobCompletion(jobKey: JobStoreKey, taskOutputs: Seq[TaskOutput]) extends JobStoreReaderCommand
+  case class QueryJobCompletion(jobKey: JobStoreKey, taskOutputs: Seq[OutputPort]) extends JobStoreReaderCommand
 
   sealed trait JobStoreReaderResponse
   /**

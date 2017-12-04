@@ -5,8 +5,8 @@ import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.TestConfig
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-import wdl4s.wdl.types.{WdlArrayType, WdlIntegerType, WdlStringType}
-import wdl4s.wdl.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}
+import wom.types._
+import wom.values._
 
 class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with BeforeAndAfterAll {
 
@@ -14,7 +14,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
 
   "RuntimeAttributesValidation" should {
     "return success when tries to validate a valid Docker entry" in {
-      val dockerValue = Some(WdlString("someImage"))
+      val dockerValue = Some(WomString("someImage"))
       val result = RuntimeAttributesValidation.validateDocker(dockerValue,
         "Failed to get Docker mandatory key from runtime attributes".invalidNel)
       result match {
@@ -43,7 +43,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
     }
 
     "return failure when there is an invalid docker runtime attribute defined" in {
-      val dockerValue = Some(WdlInteger(1))
+      val dockerValue = Some(WomInteger(1))
       val result = RuntimeAttributesValidation.validateDocker(dockerValue,
         "Failed to get Docker mandatory key from runtime attributes".invalidNel)
       result match {
@@ -53,7 +53,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
     }
 
     "return success when tries to validate a failOnStderr boolean entry" in {
-      val failOnStderrValue = Some(WdlBoolean(true))
+      val failOnStderrValue = Some(WomBoolean(true))
       val result = RuntimeAttributesValidation.validateFailOnStderr(failOnStderrValue,
         "Failed to get failOnStderr mandatory key from runtime attributes".invalidNel)
       result match {
@@ -63,7 +63,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
     }
 
     "return success when tries to validate a failOnStderr 'true' string entry" in {
-      val failOnStderrValue = Some(WdlString("true"))
+      val failOnStderrValue = Some(WomString("true"))
       val result = RuntimeAttributesValidation.validateFailOnStderr(failOnStderrValue,
         "Failed to get failOnStderr mandatory key from runtime attributes".invalidNel)
       result match {
@@ -73,7 +73,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
     }
 
     "return success when tries to validate a failOnStderr 'false' string entry" in {
-      val failOnStderrValue = Some(WdlString("false"))
+      val failOnStderrValue = Some(WomString("false"))
       val result = RuntimeAttributesValidation.validateFailOnStderr(failOnStderrValue,
         "Failed to get failOnStderr mandatory key from runtime attributes".invalidNel)
       result match {
@@ -83,7 +83,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
     }
 
     "return failure when there is an invalid failOnStderr runtime attribute defined" in {
-      val failOnStderrValue = Some(WdlInteger(1))
+      val failOnStderrValue = Some(WomInteger(1))
       val result = RuntimeAttributesValidation.validateFailOnStderr(failOnStderrValue,
         "Failed to get failOnStderr mandatory key from runtime attributes".invalidNel)
       result match {
@@ -102,7 +102,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
     }
 
     "return success when tries to validate a continueOnReturnCode boolean entry" in {
-      val continueOnReturnCodeValue = Some(WdlBoolean(true))
+      val continueOnReturnCodeValue = Some(WomBoolean(true))
       val result = RuntimeAttributesValidation.validateContinueOnReturnCode(continueOnReturnCodeValue,
         "Failed to get continueOnReturnCode mandatory key from runtime attributes".invalidNel)
       result match {
@@ -112,7 +112,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
     }
 
     "return success when tries to validate a continueOnReturnCode 'true' string entry" in {
-      val continueOnReturnCodeValue = Some(WdlString("true"))
+      val continueOnReturnCodeValue = Some(WomString("true"))
       val result = RuntimeAttributesValidation.validateContinueOnReturnCode(continueOnReturnCodeValue,
         "Failed to get continueOnReturnCode mandatory key from runtime attributes".invalidNel)
       result match {
@@ -122,7 +122,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
     }
 
     "return success when tries to validate a continueOnReturnCode 'false' string entry" in {
-      val continueOnReturnCodeValue = Some(WdlString("false"))
+      val continueOnReturnCodeValue = Some(WomString("false"))
       val result = RuntimeAttributesValidation.validateContinueOnReturnCode(continueOnReturnCodeValue,
         "Failed to get continueOnReturnCode mandatory key from runtime attributes".invalidNel)
       result match {
@@ -132,7 +132,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
     }
 
     "return success when tries to validate a continueOnReturnCode int entry" in {
-      val continueOnReturnCodeValue = Some(WdlInteger(12))
+      val continueOnReturnCodeValue = Some(WomInteger(12))
       val result = RuntimeAttributesValidation.validateContinueOnReturnCode(continueOnReturnCodeValue,
         "Failed to get continueOnReturnCode mandatory key from runtime attributes".invalidNel)
       result match {
@@ -142,7 +142,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
     }
 
     "return failure when there is an invalid continueOnReturnCode runtime attribute defined" in {
-      val continueOnReturnCodeValue = Some(WdlString("yes"))
+      val continueOnReturnCodeValue = Some(WomString("yes"))
       val result = RuntimeAttributesValidation.validateContinueOnReturnCode(continueOnReturnCodeValue,
         "Failed to get continueOnReturnCode mandatory key from runtime attributes".invalidNel)
       result match {
@@ -153,7 +153,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
     }
 
     "return success when there is a valid integer array in continueOnReturnCode runtime attribute" in {
-      val continueOnReturnCodeValue = Some(WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(1), WdlInteger(2))))
+      val continueOnReturnCodeValue = Some(WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(1), WomInteger(2))))
       val result = RuntimeAttributesValidation.validateContinueOnReturnCode(continueOnReturnCodeValue,
         "Failed to get continueOnReturnCode mandatory key from runtime attributes".invalidNel)
       result match {
@@ -163,7 +163,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
     }
 
     "return failure when there is an invalid array in continueOnReturnCode runtime attribute" in {
-      val continueOnReturnCodeValue = Some(WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("one"), WdlString("two"))))
+      val continueOnReturnCodeValue = Some(WomArray(WomArrayType(WomStringType), Seq(WomString("one"), WomString("two"))))
       val result = RuntimeAttributesValidation.validateContinueOnReturnCode(continueOnReturnCodeValue,
         "Failed to get continueOnReturnCode mandatory key from runtime attributes".invalidNel)
       result match {
@@ -183,7 +183,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
 
     "return success when tries to validate a valid Integer memory entry" in {
       val expectedGb = 1
-      val memoryValue = Some(WdlInteger(1000000000))
+      val memoryValue = Some(WomInteger(1000000000))
       val result = RuntimeAttributesValidation.validateMemory(memoryValue,
         "Failed to get memory mandatory key from runtime attributes".invalidNel)
       result match {
@@ -193,7 +193,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
     }
 
     "return failure when tries to validate an invalid Integer memory entry" in {
-      val memoryValue = Some(WdlInteger(-1))
+      val memoryValue = Some(WomInteger(-1))
       val result = RuntimeAttributesValidation.validateMemory(memoryValue,
         "Failed to get memory mandatory key from runtime attributes".invalidNel)
       result match {
@@ -204,7 +204,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
 
     "return success when tries to validate a valid String memory entry" in {
       val expectedGb = 2
-      val memoryValue = Some(WdlString("2 GB"))
+      val memoryValue = Some(WomString("2 GB"))
       val result = RuntimeAttributesValidation.validateMemory(memoryValue,
         "Failed to get memory mandatory key from runtime attributes".invalidNel)
       result match {
@@ -214,7 +214,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
     }
 
     "return failure when tries to validate an invalid size in String memory entry" in {
-      val memoryValue = Some(WdlString("0 GB"))
+      val memoryValue = Some(WomString("0 GB"))
       val result = RuntimeAttributesValidation.validateMemory(memoryValue,
         "Failed to get memory mandatory key from runtime attributes".invalidNel)
       result match {
@@ -224,7 +224,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
     }
 
     "return failure when tries to validate an invalid String memory entry" in {
-      val memoryValue = Some(WdlString("value"))
+      val memoryValue = Some(WomString("value"))
       val result = RuntimeAttributesValidation.validateMemory(memoryValue,
         "Failed to get memory mandatory key from runtime attributes".invalidNel)
       result match {
@@ -234,7 +234,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
     }
 
     "return failure when tries to validate an invalid memory entry" in {
-      val memoryValue = Some(WdlBoolean(true))
+      val memoryValue = Some(WomBoolean(true))
       val result = RuntimeAttributesValidation.validateMemory(memoryValue,
         "Failed to get memory mandatory key from runtime attributes".invalidNel)
       result match {
@@ -254,7 +254,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
     }
 
     "return success when tries to validate a valid cpu entry" in {
-      val cpuValue = Some(WdlInteger(1))
+      val cpuValue = Some(WomInteger(1))
       val result = RuntimeAttributesValidation.validateCpu(cpuValue,
         "Failed to get cpu mandatory key from runtime attributes".invalidNel)
       result match {
@@ -264,7 +264,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
     }
 
     "return failure when tries to validate an invalid cpu entry" in {
-      val cpuValue = Some(WdlInteger(-1))
+      val cpuValue = Some(WomInteger(-1))
       val result = RuntimeAttributesValidation.validateCpu(cpuValue,
         "Failed to get cpu mandatory key from runtime attributes".invalidNel)
       result match {
@@ -293,9 +293,9 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       )
 
       val expectedDefaultVals = Map(
-        "cpu" -> WdlInteger(1),
-        "failOnStderr" -> WdlBoolean(false),
-        "continueOnReturnCode" -> WdlInteger(0)
+        "cpu" -> WomInteger(1),
+        "failOnStderr" -> WomBoolean(false),
+        "continueOnReturnCode" -> WomInteger(0)
       )
 
       defaultVals shouldBe expectedDefaultVals
@@ -316,9 +316,9 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
      )
 
      val expectedDefaultVals = Map(
-       "cpu" -> BadDefaultAttribute(WdlString("1.4")),
-       "failOnStderr" -> BadDefaultAttribute(WdlString("notReal")),
-       "continueOnReturnCode" -> WdlInteger(0)
+       "cpu" -> BadDefaultAttribute(WomString("1.4")),
+       "failOnStderr" -> BadDefaultAttribute(WomString("notReal")),
+       "continueOnReturnCode" -> WomInteger(0)
      )
 
      defaultVals shouldBe expectedDefaultVals
@@ -335,10 +335,10 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate).getConfig("default-runtime-attributes")
 
       val memoryVal = MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, Some(backendConfig))
-      MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryKey, memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some((WdlInteger(2000000000)))
+      MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryKey, memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some((WomInteger(2000000000)))
     }
 
-    "shouldn't throw up if the value for a default-runtime-attribute key cannot be coerced into an expected WdlType" in {
+    "shouldn't throw up if the value for a default-runtime-attribute key cannot be coerced into an expected WomType" in {
       val backendConfigTemplate: String =
         s"""
            |  default-runtime-attributes {
@@ -349,7 +349,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate).getConfig("default-runtime-attributes")
 
       val memoryVal = MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, Some(backendConfig))
-      MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryKey, memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some(BadDefaultAttribute(WdlString("blahblah")))
+      MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryKey, memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some(BadDefaultAttribute(WomString("blahblah")))
     }
 
     "should be able to coerce a list of return codes into an WdlArray" in {
@@ -358,7 +358,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
            |continueOnReturnCode = [0,1,2]
            |""".stripMargin))
 
-      ContinueOnReturnCodeValidation.configDefaultWdlValue(optinalBackendConfig).get shouldBe WdlArray(WdlArrayType(WdlIntegerType), Array(WdlInteger(0), WdlInteger(1), WdlInteger(2)))
+      ContinueOnReturnCodeValidation.configDefaultWdlValue(optinalBackendConfig).get shouldBe WomArray(WomArrayType(WomIntegerType), Array(WomInteger(0), WomInteger(1), WomInteger(2)))
     }
   }
 }

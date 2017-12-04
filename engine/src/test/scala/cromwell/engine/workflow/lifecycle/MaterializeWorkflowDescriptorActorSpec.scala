@@ -4,16 +4,18 @@ import akka.actor.Props
 import akka.testkit.TestDuration
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestKitWordSpec
+import cromwell.core.CromwellGraphNode._
 import cromwell.core.labels.{Label, Labels}
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesWithoutImports}
 import cromwell.engine.backend.{BackendConfigurationEntry, CromwellBackends}
-import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
+import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor
+import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
 import cromwell.util.SampleWdl.HelloWorld
 import org.scalatest.BeforeAndAfter
 import org.scalatest.mockito.MockitoSugar
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-import wdl4s.wdl.values.WdlString
+import wom.values.WomString
 
 import scala.concurrent.duration._
 
@@ -64,7 +66,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
         workflowOptionsJson = validOptionsFile,
-        labelsJson = validCustomLabelsFile)
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
@@ -72,72 +75,19 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
           case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) =>
             wfDesc.id shouldBe workflowId
             wfDesc.name shouldBe "wf_hello"
-            wfDesc.namespace.tasks.size shouldBe 1
-            wfDesc.knownValues.head shouldBe (("wf_hello.hello.addressee", WdlString("world")))
-            wfDesc.backendDescriptor.knownValues.head shouldBe (("wf_hello.hello.addressee", WdlString("world")))
+            wfDesc.callable.taskCallNodes.size shouldBe 1
+            wfDesc.knownValues.head._1.fullyQualifiedName shouldBe "wf_hello.hello.addressee"
+            wfDesc.knownValues.head._2 shouldBe WomString("world")
             wfDesc.getWorkflowOption(WorkflowOptions.WriteToCache) shouldBe Option("true")
             wfDesc.getWorkflowOption(WorkflowOptions.ReadFromCache) shouldBe None
             wfDesc.backendDescriptor.customLabels shouldBe Labels("label1" -> "value1", "label2" -> "value2")
             // Default backend assignment is "Local":
             wfDesc.backendAssignments foreach {
-              case (call, assignment) if call.task.name.equals("hello") => assignment shouldBe "Local"
-              case (call, _) => fail(s"Unexpected call: ${call.task.name}")
+              case (call, assignment) if call.callable.name.equals("hello") => assignment shouldBe "Local"
+              case (call, _) => fail(s"Unexpected call: ${call.callable.name}")
             }
             wfDesc.pathBuilders.size shouldBe 1
           case MaterializeWorkflowDescriptorFailureResponse(reason) => fail(s"Materialization failed with $reason")
-          case unknown =>
-            fail(s"Unexpected materialization response: $unknown")
-        }
-      }
-
-      system.stop(materializeWfActor)
-    }
-
-    "assign default runtime attributes" ignore {
-      val wdl =
-        """
-          |task a {
-          | command {}
-          | runtime { docker: "specified:docker" }
-          |}
-          |task b { command {} }
-          |workflow foo {
-          | call a
-          | call b
-          |}
-        """.stripMargin
-
-      val defaultDocker =
-        """
-          |{
-          |  "default_runtime_attributes": {
-          |    "docker": "default:docker"
-          |  }
-          |}
-        """.stripMargin
-      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false))
-      val sources = WorkflowSourceFilesWithoutImports(
-        workflowSource = wdl,
-        workflowType = Option("WDL"),
-        workflowTypeVersion = None,
-        inputsJson = "{}",
-        workflowOptionsJson = defaultDocker,
-        labelsJson = validCustomLabelsFile)
-      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
-
-      within(Timeout) {
-        expectMsgPF() {
-          case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) =>
-            wfDesc.namespace.tasks foreach {
-              case task if task.name.equals("a") =>
-                task.runtimeAttributes.attrs.size shouldBe 1
-                task.runtimeAttributes.attrs.head._2 shouldBe "\"specified:docker\""
-              case task if task.name.equals("b") =>
-                task.runtimeAttributes.attrs.size shouldBe 1
-                task.runtimeAttributes.attrs.head._2 shouldBe "\"default:docker\""
-              case task => fail(s"Unexpected task: ${task.name}")
-            }
-          case MaterializeWorkflowDescriptorFailureResponse(reason) => fail(s"This materialization should not have failed (reason: $reason)")
           case unknown =>
             fail(s"Unexpected materialization response: $unknown")
         }
@@ -175,18 +125,19 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = "{}",
         workflowOptionsJson = "{}",
-        labelsJson = validCustomLabelsFile)
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, differentDefaultBackendConf)
 
       within(Timeout) {
         expectMsgPF() {
           case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) =>
-            wfDesc.namespace.workflow.taskCalls foreach {
-              case call if call.task.name.equals("a") =>
+            wfDesc.callable.taskCallNodes foreach {
+              case call if call.callable.name.equals("a") =>
                 wfDesc.backendAssignments(call) shouldBe "SpecifiedBackend"
-              case call if call.task.name.equals("b") =>
+              case call if call.callable.name.equals("b") =>
                 wfDesc.backendAssignments(call) shouldBe "DefaultBackend"
-              case call => fail(s"Unexpected task: ${call.task.name}")
+              case call => fail(s"Unexpected task: ${call.callable.name}")
             }
           case MaterializeWorkflowDescriptorFailureResponse(reason) => fail(s"Materialization unexpectedly failed ($reason)")
           case unknown =>
@@ -216,7 +167,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = "{}",
         workflowOptionsJson = "{}",
-        labelsJson = "{}")
+        labelsJson = "{}",
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, differentDefaultBackendConf)
 
       within(Timeout) {
@@ -241,13 +193,14 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
         workflowOptionsJson = validOptionsFile,
-        labelsJson = validCustomLabelsFile)
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
         expectMsgPF() {
           case MaterializeWorkflowDescriptorFailureResponse(reason) =>
-            reason.getMessage should startWith("Workflow input processing failed:\nUnable to load namespace from workflow: ERROR: Finished parsing without consuming all tokens.")
+            reason.getMessage should startWith("Workflow input processing failed:\nERROR: Finished parsing without consuming all tokens.")
           case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
           case unknown =>
             fail(s"Unexpected materialization response: $unknown")
@@ -271,13 +224,14 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
         workflowOptionsJson = validOptionsFile,
-        labelsJson = validCustomLabelsFile)
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
         expectMsgPF() {
           case MaterializeWorkflowDescriptorFailureResponse(reason) =>
-            reason.getMessage should startWith("Workflow input processing failed:\nUnable to load namespace from workflow: Namespace does not have a local workflow to run")
+            reason.getMessage should startWith("Workflow input processing failed:\nNamespace does not have a local workflow to run")
           case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
           case unknown =>
             fail(s"Unexpected materialization response: $unknown")
@@ -302,7 +256,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
         workflowOptionsJson = validOptionsFile,
-        labelsJson = validCustomLabelsFile)
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(badWdlSources, minimumConf)
 
       within(Timeout) {
@@ -327,7 +282,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
         workflowOptionsJson = unstructuredFile,
-        labelsJson = validCustomLabelsFile)
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
@@ -351,7 +307,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
         workflowOptionsJson = validOptionsFile,
-        labelsJson = unstructuredFile)
+        labelsJson = unstructuredFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
@@ -377,7 +334,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
         workflowOptionsJson = validOptionsFile,
-        labelsJson = badCustomLabelsFile)
+        labelsJson = badCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
@@ -407,13 +365,14 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = unstructuredFile,
         workflowOptionsJson = validOptionsFile,
-        labelsJson = validCustomLabelsFile)
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
         expectMsgPF() {
           case MaterializeWorkflowDescriptorFailureResponse(reason) =>
-            reason.getMessage should startWith("Workflow input processing failed:\nWorkflow contains invalid inputs JSON")
+            reason.getMessage should startWith("Workflow input processing failed:\n")
           case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
           case unknown =>
             fail(s"Unexpected materialization response: $unknown")
@@ -432,7 +391,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = noInputsJson,
         workflowOptionsJson = validOptionsFile,
-        labelsJson = validCustomLabelsFile)
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(badOptionsSources, minimumConf)
 
       within(Timeout) {
@@ -464,13 +424,14 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = "{}",
         workflowOptionsJson = validOptionsFile,
-        labelsJson = validCustomLabelsFile)
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
         expectMsgPF() {
           case MaterializeWorkflowDescriptorFailureResponse(reason) =>
-            reason.getMessage should startWith("Workflow input processing failed:\nUnable to load namespace from workflow: ERROR: Value for j is not coerceable into a Int")
+            reason.getMessage should startWith("Workflow input processing failed:\nERROR: Value for j is not coerceable into a Int")
           case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
           case unknown => fail(s"Unexpected materialization response: $unknown")
         }
@@ -487,11 +448,17 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
           |  File bad_one
           |  File good_one
           |  File bad_two
+          |  File bad_three
           |
           |  call bar
           |}
         """.stripMargin
-      val jsonInput = Map("foo.bad_one" -> "\"gs://this/is/a/bad/gcs/path.txt", "foo.good_one" -> "\"/local/path/is/ok.txt", "foo.bad_two" -> "\"gs://another/bad/gcs/path.txt").toJson.toString
+      val jsonInput = Map(
+        "foo.bad_one" -> "\"gs://this/is/a/bad/gcs/path.txt",
+        "foo.good_one" -> "\"/local/path/is/ok.txt",
+        "foo.bad_two" -> "\"gs://another/bad/gcs/path.txt",
+        "foo.bad_three" -> ""
+      ).toJson.toString
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false))
       val sources = WorkflowSourceFilesWithoutImports(
         workflowSource = wdl,
@@ -499,14 +466,17 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = jsonInput,
         workflowOptionsJson = validOptionsFile,
-        labelsJson = validCustomLabelsFile)
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
         expectMsgPF() {
           case MaterializeWorkflowDescriptorFailureResponse(reason) =>
-            reason.getMessage should equal("Workflow input processing failed:\nInvalid value for File input 'foo.bad_one': \"gs://this/is/a/bad/gcs/path.txt starts with a '\"' " +
-              "\nInvalid value for File input 'foo.bad_two': \"gs://another/bad/gcs/path.txt starts with a '\"' ")
+            reason.getMessage should startWith("Workflow input processing failed:\n")
+            reason.getMessage should include("Invalid value for File input 'foo.bad_one': \"gs://this/is/a/bad/gcs/path.txt starts with a '\"'")
+            reason.getMessage should include("Invalid value for File input 'foo.bad_two': \"gs://another/bad/gcs/path.txt starts with a '\"'")
+            reason.getMessage should include("Invalid value for File input 'foo.bad_three': empty value")
           case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
           case unknown => fail(s"Unexpected materialization response: $unknown")
         }

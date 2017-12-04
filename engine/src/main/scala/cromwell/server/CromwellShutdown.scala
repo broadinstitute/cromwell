@@ -12,7 +12,7 @@ import akka.util.Timeout
 import cats.instances.future._
 import cats.syntax.functor._
 import cromwell.engine.workflow.WorkflowManagerActor.{AbortAllWorkflowsCommand, PreventNewWorkflowsFromStarting}
-import cromwell.services.SingletonServicesStore
+import cromwell.services.{MetadataServicesStore, EngineServicesStore}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import org.slf4j.LoggerFactory
 
@@ -195,7 +195,8 @@ object CromwellShutdown extends GracefulStopSupport {
 
     // 6) Close database and stream materializer
     coordinatedShutdown.addTask(CoordinatedShutdown.PhaseBeforeActorSystemTerminate, "closeDatabase") { () =>
-      SingletonServicesStore.databaseInterface.close()
+      EngineServicesStore.engineDatabaseInterface.close()
+      MetadataServicesStore.metadataDatabaseInterface.close()
       logger.info("Database closed")
       Future.successful(Done)
     }

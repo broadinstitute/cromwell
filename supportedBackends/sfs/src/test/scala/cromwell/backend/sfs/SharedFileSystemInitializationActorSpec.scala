@@ -1,6 +1,6 @@
 package cromwell.backend.sfs
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import akka.testkit.{EventFilter, ImplicitSender, TestDuration}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendSpec._
@@ -10,13 +10,13 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescript
 import cromwell.core.TestKitSuite
 import cromwell.core.logging.LoggingTest._
 import org.scalatest.{Matchers, WordSpecLike}
-import wdl4s.wdl.WdlTaskCall
+import wom.graph.TaskCallNode
 
 import scala.concurrent.duration._
 
 class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSystemInitializationActorSpec")
   with WordSpecLike with Matchers with ImplicitSender {
-  val Timeout: FiniteDuration = 5.second.dilated
+  val Timeout: FiniteDuration = 10.second.dilated
 
   val HelloWorld: String =
     s"""
@@ -37,7 +37,7 @@ class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSy
       |}
     """.stripMargin
 
-  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[WdlTaskCall],
+  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCallNode],
                           conf: BackendConfigurationDescriptor) = {
     val params = DefaultInitializationActorParams(workflowDescriptor, emptyActor, calls, emptyActor, conf, restarting = false)
     val props = Props(new SharedFileSystemInitializationActor(params))
@@ -47,9 +47,9 @@ class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSy
   "SharedFileSystemInitializationActor" should {
     "log a warning message when there are unsupported runtime attributes" in {
       within(Timeout) {
-        val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { unsupported: 1 }""")
+        val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { unsupported: 1 }""")
         val conf = BackendConfigurationDescriptor(TestConfig.sampleBackendRuntimeConfig, ConfigFactory.empty())
-        val backend = getActorRef(workflowDescriptor, workflowDescriptor.workflow.taskCalls, conf)
+        val backend: ActorRef = getActorRef(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, conf)
         val pattern = "Key/s [unsupported] is/are not supported by backend. " +
           "Unsupported attributes will not be part of job executions."
         EventFilter.warning(pattern = escapePattern(pattern), occurrences = 1) intercept {

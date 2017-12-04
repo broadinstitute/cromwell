@@ -3,13 +3,12 @@ package cromwell.engine.workflow.lifecycle.execution
 import java.time.OffsetDateTime
 
 import akka.actor.ActorRef
-import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionStatus._
 import cromwell.core._
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
-import wdl4s.wdl._
-import wdl4s.wdl.values.WdlValue
+import wdl._
+import wom.values.{WomEvaluatedCallInputs, WomValue}
 
 import scala.util.Random
 
@@ -18,21 +17,14 @@ trait CallMetadataHelper {
   def workflowIdForCallMetadata: WorkflowId
   def serviceRegistryActor: ActorRef
 
-  def pushNewCallMetadata(callKey: CallKey, backendName: Option[String]) = {
+  def pushNewCallMetadata(callKey: CallKey, backendName: Option[String], serviceRegistryActor: ActorRef) = {
     val startEvents = List(
       Option(MetadataEvent(metadataKeyForCall(callKey, CallMetadataKeys.Start), MetadataValue(OffsetDateTime.now))),
+      Option(MetadataEvent(metadataKeyForCall(callKey, CallMetadataKeys.ExecutionStatus), MetadataValue(ExecutionStatus.QueuedInCromwell))),
       backendName map { name => MetadataEvent(metadataKeyForCall(callKey, CallMetadataKeys.Backend), MetadataValue(name)) }
     ).flatten
 
     serviceRegistryActor ! PutMetadataAction(startEvents)
-  }
-
-  def pushQueuedCallMetadata(diffs: List[WorkflowExecutionDiff]) = {
-    val startingEvents = for {
-      diff <- diffs
-      (jobKey, executionState) <- diff.executionStoreChanges if jobKey.isInstanceOf[BackendJobDescriptorKey] && executionState == ExecutionStatus.QueuedInCromwell
-    } yield MetadataEvent(metadataKeyForCall(jobKey, CallMetadataKeys.ExecutionStatus), MetadataValue(ExecutionStatus.QueuedInCromwell))
-    serviceRegistryActor ! PutMetadataAction(startingEvents)
   }
 
   def pushStartingCallMetadata(callKey: CallKey) = {
@@ -40,14 +32,14 @@ trait CallMetadataHelper {
     serviceRegistryActor ! PutMetadataAction(statusChange)
   }
 
-  def pushRunningCallMetadata(key: CallKey, evaluatedInputs: EvaluatedTaskInputs) = {
+  def pushRunningCallMetadata(key: CallKey, evaluatedInputs: WomEvaluatedCallInputs) = {
     val inputEvents = evaluatedInputs match {
       case empty if empty.isEmpty =>
         List(MetadataEvent.empty(metadataKeyForCall(key, s"${CallMetadataKeys.Inputs}")))
       case inputs =>
         inputs flatMap {
           case (inputName, inputValue) =>
-            wdlValueToMetadataEvents(metadataKeyForCall(key, s"${CallMetadataKeys.Inputs}:${inputName.unqualifiedName}"), inputValue)
+            womValueToMetadataEvents(metadataKeyForCall(key, s"${CallMetadataKeys.Inputs}:${inputName.name}"), inputValue)
         }
     }
 
@@ -56,12 +48,12 @@ trait CallMetadataHelper {
     serviceRegistryActor ! PutMetadataAction(runningEvent ++ inputEvents)
   }
 
-  def pushWorkflowOutputMetadata(outputs: Map[LocallyQualifiedName, WdlValue]) = {
+  def pushWorkflowOutputMetadata(outputs: Map[LocallyQualifiedName, WomValue]) = {
     val events = outputs match {
       case empty if empty.isEmpty => List(MetadataEvent.empty(MetadataKey(workflowIdForCallMetadata, None, WorkflowMetadataKeys.Outputs)))
       case _ => outputs flatMap {
         case (outputName, outputValue) =>
-          wdlValueToMetadataEvents(MetadataKey(workflowIdForCallMetadata, None, s"${WorkflowMetadataKeys.Outputs}:$outputName"), outputValue)
+          womValueToMetadataEvents(MetadataKey(workflowIdForCallMetadata, None, s"${WorkflowMetadataKeys.Outputs}:$outputName"), outputValue)
       }
     }
 
@@ -71,11 +63,13 @@ trait CallMetadataHelper {
   def pushSuccessfulCallMetadata(jobKey: JobKey, returnCode: Option[Int], outputs: CallOutputs) = {
     val completionEvents = completedCallMetadataEvents(jobKey, ExecutionStatus.Done, returnCode)
 
-    val outputEvents = outputs match {
+    val outputEvents = outputs.outputs match {
       case empty if empty.isEmpty =>
         List(MetadataEvent.empty(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Outputs}")))
       case _ =>
-        outputs flatMap { case (lqn, outputValue) => wdlValueToMetadataEvents(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Outputs}:$lqn"), outputValue.wdlValue) }
+        outputs.outputs flatMap { case (outputPort, outputValue) =>
+          womValueToMetadataEvents(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Outputs}:${outputPort.name}"), outputValue) 
+        }
     }
 
     serviceRegistryActor ! PutMetadataAction(completionEvents ++ outputEvents)
@@ -111,7 +105,7 @@ trait CallMetadataHelper {
       val tailedEventList = eventList :+ lastEvent
       val events = tailedEventList.sliding(2) flatMap {
         case Seq(eventCurrent, eventNext) =>
-          val eventKey = s"executionEvents[$randomNumberString]"
+          val eventKey = s"${CallMetadataKeys.ExecutionEvents}[$randomNumberString]"
           List(
             metadataEvent(s"$eventKey:description", eventCurrent.name),
             metadataEvent(s"$eventKey:startTime", eventCurrent.offsetDateTime),
@@ -134,8 +128,7 @@ trait CallMetadataHelper {
     ) ++ returnCodeEvent.getOrElse(List.empty)
   }
   
-  def metadataKeyForCall(jobKey: JobKey, myKey: String) = MetadataKey(workflowIdForCallMetadata, Option(MetadataJobKey(jobKey.scope.fullyQualifiedName, jobKey.index, jobKey.attempt)), myKey)
-
   private def randomNumberString: String = Random.nextInt.toString.stripPrefix("-")
 
+  def metadataKeyForCall(jobKey: JobKey, myKey: String) = MetadataKey(workflowIdForCallMetadata, Option(MetadataJobKey(jobKey.node.fullyQualifiedName, jobKey.index, jobKey.attempt)), myKey)
 }

@@ -1,19 +1,19 @@
 package cromwell.engine
 
 import cromwell.backend.wdl.ReadLikeFunctions
-import wdl4s.wdl.expression.PureStandardLibraryFunctionsLike
 import cromwell.core.path.PathBuilder
-import wdl4s.wdl.values.{WdlFile, WdlValue}
+import wom.values.{WomFile, WomValue}
 
+import scala.concurrent.Future
 import scala.util.{Failure, Try}
 
-class WdlFunctions(val pathBuilders: List[PathBuilder]) extends PureStandardLibraryFunctionsLike with ReadLikeFunctions {
+class WdlFunctions(val pathBuilders: List[PathBuilder]) extends ReadLikeFunctions {
   private def fail(name: String) = Failure(new NotImplementedError(s"$name() not supported at the workflow level yet"))
 
-  override def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("write_json")
-  override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("stdout")
-  override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("stderr")
-  override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedError(s"glob(path, pattern) not implemented yet")
-  override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = throw new NotImplementedError(s"Cromwell doesn't support write_* functions at the workflow level")
-  override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("write_tsv")
+  override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = fail("stdout")
+  override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = fail("stderr")
+  override def glob(pattern: String): Seq[String] = throw new NotImplementedError(s"glob(path, pattern) not implemented yet")
+
+  // Cromwell does not support writing files from the engine.
+  override def writeFile(path: String, content: String): Future[WomFile] = Future.failed(new Exception("Can't write files"))
 }

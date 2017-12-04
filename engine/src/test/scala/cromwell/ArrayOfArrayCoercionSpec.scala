@@ -1,9 +1,9 @@
 package cromwell
 
 import akka.testkit._
-import wdl4s.wdl.types.{WdlArrayType, WdlStringType}
-import wdl4s.wdl.values.{WdlArray, WdlString}
 import cromwell.util.SampleWdl
+import wom.types._
+import wom.values._
 
 
 class ArrayOfArrayCoercionSpec extends CromwellTestKitWordSpec {
@@ -13,9 +13,9 @@ class ArrayOfArrayCoercionSpec extends CromwellTestKitWordSpec {
         sampleWdl = SampleWdl.ArrayOfArrays,
         eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         expectedOutputs = Map(
-          "wf.subtask.concatenated" -> WdlArray(WdlArrayType(WdlStringType), Seq(
-            WdlString("foo\nbar\nbaz"),
-            WdlString("third\nfourth")
+          "wf.subtask.concatenated" -> WomArray(WomArrayType(WomStringType), Seq(
+            WomString("foo\nbar\nbaz"),
+            WomString("third\nfourth")
           ))
         )
       )

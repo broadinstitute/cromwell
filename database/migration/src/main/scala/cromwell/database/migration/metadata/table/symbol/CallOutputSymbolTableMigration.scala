@@ -2,7 +2,7 @@ package cromwell.database.migration.metadata.table.symbol
 
 import java.sql.PreparedStatement
 
-import wdl4s.wdl.values._
+import wom.values.WomValue
 
 class CallOutputSymbolTableMigration extends SymbolTableMigration {
   override def processSymbol(statement: PreparedStatement,
@@ -11,7 +11,7 @@ class CallOutputSymbolTableMigration extends SymbolTableMigration {
                              symbolScope: String,
                              symbolIndex: Option[Int],
                              symbolAttempt: Option[Int],
-                             wdlValue: WdlValue): Int = {
+                             womValue: WomValue): Int = {
 
     (symbolIndex, symbolAttempt) match {
       case (Some(index), Some(attempt)) =>
@@ -22,7 +22,7 @@ class CallOutputSymbolTableMigration extends SymbolTableMigration {
           attempt
         )
 
-        addWdlValue(s"outputs:$symbolName", wdlValue, metadataStatementForCall)
+        addWdlValue(s"outputs:$symbolName", womValue, metadataStatementForCall)
       case _ =>
         logger.warn(s"Found output without index or attempt: [$workflowUuid] $symbolScope - $symbolName:$symbolIndex:$symbolAttempt")
         0

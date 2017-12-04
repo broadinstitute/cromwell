@@ -2,65 +2,64 @@ package cromwell.jobstore
 
 import cromwell.CromwellTestKitWordSpec
 import cromwell.backend.BackendJobDescriptorKey
-import cromwell.core.{JobOutput, WorkflowId}
+import cromwell.core.WorkflowId
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.JobStoreServiceSpec._
-import cromwell.services.SingletonServicesStore
+import cromwell.services.EngineServicesStore
+import cromwell.util.WomMocks
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
-import wdl4s.parser.WdlParser.Ast
-import wdl4s.wdl.types.WdlStringType
-import wdl4s.wdl.values.WdlString
-import wdl4s.wdl._
+import wom.callable.Callable.OutputDefinition
+import wom.expression.PlaceholderWomExpression
+import wom.graph.WomIdentifier
+import wom.types.WomStringType
+import wom.values.WomString
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object JobStoreServiceSpec {
   val MaxWait = 5 seconds
-  val EmptyExpression = WdlExpression.fromString(""" "" """)
+  val EmptyExpression = PlaceholderWomExpression(Set.empty, WomStringType)
 }
 
 class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Mockito {
 
   "JobStoreService" should {
     "work" in {
-      lazy val jobStore: JobStore = new SqlJobStore(SingletonServicesStore.databaseInterface)
+      lazy val jobStore: JobStore = new SqlJobStore(EngineServicesStore.engineDatabaseInterface)
       val jobStoreService = system.actorOf(JobStoreActor.props(jobStore))
 
       val workflowId = WorkflowId.randomId()
-      val successCall = mock[WdlTaskCall]
-      successCall.fullyQualifiedName returns "foo.bar"
-      val mockTask = mock[WdlTask]
-      mockTask.outputs returns Seq(TaskOutput("baz", WdlStringType, EmptyExpression, mock[Ast], Option(mockTask)))
-      successCall.task returns mockTask
+      val mockTask = WomMocks.mockTaskDefinition("bar")
+      .copy(outputs = List(OutputDefinition("baz", WomStringType, EmptyExpression)))
+      val successCall = WomMocks.mockTaskCall(WomIdentifier("bar"), definition = mockTask)
 
       val successKey = BackendJobDescriptorKey(successCall, None, 1).toJobStoreKey(workflowId)
 
-      jobStoreService ! QueryJobCompletion(successKey, mockTask.outputs)
+      jobStoreService ! QueryJobCompletion(successKey, mockTask.outputs map WomMocks.mockOutputPort)
       expectMsgType[JobNotComplete.type](MaxWait)
 
-      val outputs = Map("baz" -> JobOutput(WdlString("qux")))
+      val outputs = WomMocks.mockOutputExpectations(Map("baz" -> WomString("qux")))
 
       jobStoreService ! RegisterJobCompleted(successKey, JobResultSuccess(Option(0), outputs))
       expectMsgType[JobStoreWriteSuccess](MaxWait)
 
-      jobStoreService ! QueryJobCompletion(successKey, mockTask.outputs)
+      jobStoreService ! QueryJobCompletion(successKey, mockTask.outputs map WomMocks.mockOutputPort)
       expectMsgPF(MaxWait) {
         case JobComplete(JobResultSuccess(Some(0), os)) if os == outputs =>
       }
 
-      val failureCall = mock[WdlTaskCall]
-      failureCall.fullyQualifiedName returns "baz.qux"
+      val failureCall = WomMocks.mockTaskCall(WomIdentifier("qux"))
       val failureKey = BackendJobDescriptorKey(failureCall, None, 1).toJobStoreKey(workflowId)
 
-      jobStoreService ! QueryJobCompletion(failureKey, mockTask.outputs)
+      jobStoreService ! QueryJobCompletion(failureKey, mockTask.outputs map WomMocks.mockOutputPort)
       expectMsgType[JobNotComplete.type](MaxWait)
 
       jobStoreService ! RegisterJobCompleted(failureKey, JobResultFailure(Option(11), new IllegalArgumentException("Insufficient funds"), retryable = false))
       expectMsgType[JobStoreWriteSuccess](MaxWait)
 
-      jobStoreService ! QueryJobCompletion(failureKey, mockTask.outputs)
+      jobStoreService ! QueryJobCompletion(failureKey, mockTask.outputs map WomMocks.mockOutputPort)
       expectMsgPF(MaxWait) {
         case JobComplete(JobResultFailure(Some(11), _, false)) =>
       }

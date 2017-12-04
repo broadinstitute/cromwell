@@ -2,13 +2,13 @@ package cromwell.backend.standard
 
 import akka.actor.{Actor, ActorRef}
 import cromwell.backend._
-import cromwell.backend.standard.callcaching.JobCachingActorHelper
 import cromwell.backend.io.{JobPaths, WorkflowPaths}
+import cromwell.backend.standard.callcaching.JobCachingActorHelper
 import cromwell.backend.validation.{RuntimeAttributesValidation, ValidatedRuntimeAttributes}
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.Path
 import cromwell.services.metadata.CallMetadataKeys
-import wdl4s.wdl.WdlTaskCall
+import wom.graph.TaskCallNode
 
 import scala.util.Try
 
@@ -46,7 +46,7 @@ trait StandardCachingActorHelper extends JobCachingActorHelper {
     */
   lazy val workflowDescriptor: BackendWorkflowDescriptor = jobDescriptor.workflowDescriptor
 
-  lazy val call: WdlTaskCall = jobDescriptor.key.call
+  lazy val call: TaskCallNode = jobDescriptor.key.call
 
   lazy val standardInitializationData: StandardInitializationData = BackendInitializationData.
     as[StandardInitializationData](backendInitializationDataOption)

@@ -3,15 +3,15 @@ package cromwell
 import akka.testkit._
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.SampleWdl
-import wdl4s.wdl.expression.NoFunctions
-import wdl4s.wdl.types.{WdlArrayType, WdlFileType, WdlStringType}
-import wdl4s.wdl.values.{WdlArray, WdlFile, WdlString}
-import wdl4s.wdl.{ImportResolver, WdlNamespaceWithWorkflow}
+import wdl.expression.NoFunctions
+import wdl.{ImportResolver, WdlNamespaceWithWorkflow}
+import wom.types._
+import wom.values._
 
 class ArrayWorkflowSpec extends CromwellTestKitWordSpec {
   val tmpDir = DefaultPathBuilder.createTempDirectory("ArrayWorkflowSpec")
   val ns = WdlNamespaceWithWorkflow.load(SampleWdl.ArrayLiteral(tmpDir).workflowSource(), Seq.empty[ImportResolver]).get
-  val expectedArray = WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile("f1"), WdlFile("f2"), WdlFile("f3")))
+  val expectedArray = WomArray(WomArrayType(WomFileType), Seq(WomFile("f1"), WomFile("f2"), WomFile("f3")))
 
   "A static Array[File] declaration" should {
     "be a valid declaration" in {
@@ -24,7 +24,7 @@ class ArrayWorkflowSpec extends CromwellTestKitWordSpec {
       val value = expression.evaluate((_: String) => fail("No lookups"), NoFunctions).getOrElse {
         fail("Expected expression for 'arr' to evaluate")
       }
-      value shouldEqual WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("f1"), WdlString("f2"), WdlString("f3")))
+      value shouldEqual WomArray(WomArrayType(WomStringType), Seq(WomString("f1"), WomString("f2"), WomString("f3")))
     }
     "be usable as an input" in {
       val catTask = ns.findTask("cat").getOrElse {
@@ -33,16 +33,16 @@ class ArrayWorkflowSpec extends CromwellTestKitWordSpec {
       val command = catTask.instantiateCommand(catTask.inputsFromMap(Map("cat.files" -> expectedArray)), NoFunctions).getOrElse {
         fail("Expected instantiation to work")
       }
-      command shouldEqual "cat -s f1 f2 f3"
+      command.commandString shouldEqual "cat -s f1 f2 f3"
     }
     "Coerce Array[String] to Array[File] when running the workflow" in {
       val outputs = Map(
-        "wf.cat.lines" -> WdlArray(WdlArrayType(WdlStringType), Seq(
-            WdlString("line1"),
-            WdlString("line2"),
-            WdlString("line3"),
-            WdlString("line4"),
-            WdlString("line5")
+        "wf.cat.lines" -> WomArray(WomArrayType(WomStringType), Seq(
+            WomString("line1"),
+            WomString("line2"),
+            WomString("line3"),
+            WomString("line4"),
+            WomString("line5")
           )
         )
       )

@@ -1,5 +1,38 @@
 # Cromwell Change Log
 
+## 30 Release Notes
+
+### Breaking changes
+
+* The `customLabels` form field for workflow submission has been renamed to `labels`.
+
+### Other changes
+
+* **New Cromwell documentation**  
+Our documentation has moved from our [README](https://github.com/broadinstitute/cromwell/blob/29_hotfix/README.md) to a new website: [Cromwell Documentation](http://cromwell.readthedocs.io/en/develop/). There are new [Tutorials](http://cromwell.readthedocs.io/en/develop/tutorials/FiveMinuteIntro/) and much of the documentation has been re-written. The source files are in the [/docs](https://github.com/broadinstitute/cromwell/tree/develop/docs) directory.
+
+* **API**  
+    + Cromwell now supports input files in the yaml format (JSON format is still supported).
+    + Added a [GET version for the `labels` endpoint](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/#retrieves-the-current-labels-for-a-workflow) which will return current labels for a workflow.
+
+* **Database**  
+You have the option of storing the metadata in a separate SQL database than the database containing the internal engine
+data. When switching connection information for an existing database containing historical data, the tables
+should be manually replicated from one database instance to another using the tools appropriate for your specific
+database types. Cromwell will not move any existing data automatically. This feature should be considered experimental
+and likely to change in the future. See the [Database Documentation](https://cromwell.readthedocs.io/en/develop/Configuring/#database) or the `database` section in
+[cromwell.examples.conf](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf) for more
+information.
+
+* **StatsD**  
+Added initial support for StatsD instrumentation. See the [Instrumentation Documentation](https://cromwell.readthedocs.io/en/develop/Instrumentation) for details on how to use it.
+
+* **User Service Account auth mode for Google**  
+Added a new authentication mode for [Google Cloud Platform](https://cromwell.readthedocs.io/en/develop/backends/Google) which will allow a user to supply the JSON key file in their workflow options to allow for per-workflow authentication via service account. This is analogous to the previously existing refresh token authentication scheme. As with the refresh token scheme it is encouraged that the **user_service_account_json** workflow option field is added to the **encrypted-fields** list in the configuration.
+
+* **Bugfixes**  
+Abort of Dockerized tasks on the Local backend should now work as expected. Cromwell uses `docker kill` to kill the Docker container.
+
 ## 29 Release Notes
 
 ### Breaking Changes
@@ -399,7 +432,7 @@ resulted in strings prepended with `file:///path/to/file`. Now absolute file pat
 
 ### Annex A - Workflow outputs
     
-The WDL specification has changed regarding [workflow outputs](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#outputs) to accommodate sub workflows.
+The WDL specification has changed regarding [workflow outputs](https://github.com/openwdl/wdl/blob/master/versions/draft-2/SPEC.md#outputs) to accommodate sub workflows.
 This change is backward compatible in terms of runnable WDLs (WDL files using the deprecated workflow outputs syntax will still run the same). 
 The only visible change lies in the metadata (as well as the console output in single workflow mode, when workflow outputs are printed out at the end of a successful workflow).
 

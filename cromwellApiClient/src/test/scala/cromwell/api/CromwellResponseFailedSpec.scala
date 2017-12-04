@@ -5,17 +5,16 @@ import java.net.URL
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
 import akka.stream.ActorMaterializer
-import akka.testkit.TestKit
+import akka.testkit._
 import cromwell.api.model.CromwellFailedResponseException
 import org.scalatest.{AsyncFlatSpecLike, BeforeAndAfterAll, Matchers}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
-import scala.language.postfixOps
 
 class CromwellResponseFailedSpec extends TestKit(ActorSystem()) with AsyncFlatSpecLike with Matchers with BeforeAndAfterAll {
   override def afterAll(): Unit = {
-    Await.ready(system.terminate(), 1 second)
+    Await.ready(system.terminate(), 10.seconds.dilated)
     super.afterAll()
   }
   

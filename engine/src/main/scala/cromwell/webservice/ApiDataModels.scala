@@ -1,20 +1,20 @@
 package cromwell.webservice
 
-import lenthall.exception.MessageAggregation
+import common.exception.MessageAggregation
 import spray.json._
-import wdl4s.wdl.FullyQualifiedName
-import wdl4s.wdl.values.WdlValue
+import wdl.FullyQualifiedName
+import wom.values.WomValue
 
 
 case class WorkflowStatusResponse(id: String, status: String)
 
 case class WorkflowSubmitResponse(id: String, status: String)
 
-case class WorkflowOutputResponse(id: String, outputs: Map[FullyQualifiedName, WdlValue])
+case class WorkflowOutputResponse(id: String, outputs: Map[FullyQualifiedName, WomValue])
 
 case class WorkflowAbortResponse(id: String, status: String)
 
-case class CallOutputResponse(id: String, callFqn: String, outputs: Map[FullyQualifiedName, WdlValue])
+case class CallOutputResponse(id: String, callFqn: String, outputs: Map[FullyQualifiedName, WomValue])
 
 case class WorkflowMetadataQueryParameters(outputs: Boolean = true, timings: Boolean = true)
 

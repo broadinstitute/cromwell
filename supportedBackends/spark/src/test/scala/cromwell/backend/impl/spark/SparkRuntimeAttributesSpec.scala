@@ -1,16 +1,16 @@
 package cromwell.backend.impl.spark
 
-import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendWorkflowDescriptor, MemorySize}
+import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.core.labels.Labels
-import cromwell.core.{WorkflowId, WorkflowOptions}
-import lenthall.util.TryUtil
+import cromwell.core.{NoIoFunctionSet, WorkflowId, WorkflowOptions}
+import common.validation.ErrorOr._
 import org.scalatest.{Matchers, WordSpecLike}
-import spray.json.{JsBoolean, JsNumber, JsObject, JsValue}
-import wdl4s.wdl.WdlExpression._
-import wdl4s.wdl.expression.NoFunctions
-import wdl4s.wdl.values.WdlValue
-import wdl4s.wdl._
+import spray.json.{JsBoolean, JsNumber, JsObject, JsString, JsValue}
+import wdl._
+import wom.core.WorkflowSource
+import wom.graph.GraphNodePort.OutputPort
+import wom.values.WomValue
 
 class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
@@ -34,7 +34,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
   val emptyWorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
 
-  val staticDefaults = SparkRuntimeAttributes(1, MemorySize.parse("1 GB").get, None, "com.test.spark" , failOnStderr = false)
+  val staticDefaults = SparkRuntimeAttributes(1, MemorySize.parse("1 GB").get, None, None, None, failOnStderr = false)
 
   def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]) = {
     WorkflowOptions(JsObject(Map(
@@ -44,76 +44,111 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
   "SparkRuntimeAttributes" should {
     "return an instance of itself when there are no runtime attributes defined." in {
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { %s: "%s" }""").head
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime {}""").head
       assertSparkRuntimeAttributes(runtimeAttributes, emptyWorkflowOptions, staticDefaults)
     }
 
     "return an instance of itself when tries to validate a valid Number of Executors entry" in {
       val expectedRuntimeAttributes = staticDefaults.copy(numberOfExecutors = Option(1))
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { numberOfExecutors: 1 %s: "%s" }""").head
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { numberOfExecutors: 1}""").head
       assertSparkRuntimeAttributes(runtimeAttributes, emptyWorkflowOptions, expectedRuntimeAttributes)
     }
 
     "use workflow options as default if numberOfExecutors key is missing" in {
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { %s: "%s" }""").head
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime {}""").head
       val workflowOptions = workflowOptionsWithDefaultRA(Map(SparkRuntimeAttributes.NumberOfExecutorsKey -> JsNumber(1)))
       assertSparkRuntimeAttributes(runtimeAttributes, workflowOptions, staticDefaults.copy(numberOfExecutors = Some(1)))
     }
 
     "throw an exception when tries to validate an invalid numberOfExecutors entry" in {
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { numberOfExecutors: "1" %s: "%s" }""").head
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { numberOfExecutors: "1"}""").head
       assertSparkRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting numberOfExecutors runtime attribute to be an Integer")
     }
 
     "return an instance of itself when tries to validate a valid failOnStderr entry" in {
       val expectedRuntimeAttributes = staticDefaults.copy(failOnStderr = true)
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { failOnStderr: "true" %s: "%s" }""").head
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { failOnStderr: "true"}""").head
       val shouldBeIgnored = workflowOptionsWithDefaultRA(Map(FailOnStderrKey -> JsBoolean(false)))
       assertSparkRuntimeAttributes(runtimeAttributes, shouldBeIgnored, expectedRuntimeAttributes)
     }
 
     "throw an exception when tries to validate an invalid failOnStderr entry" in {
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { failOnStderr: "yes" %s: "%s" }""").head
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { failOnStderr: "yes"}""").head
       assertSparkRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting failOnStderr runtime attribute to be a Boolean or a String with values of 'true' or 'false'")
     }
 
     "use workflow options as default if failOnStdErr key is missing" in {
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { %s: "%s" }""").head
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime {}""").head
       val workflowOptions = workflowOptionsWithDefaultRA(Map(FailOnStderrKey -> JsBoolean(true)))
       assertSparkRuntimeAttributes(runtimeAttributes, workflowOptions, staticDefaults.copy(failOnStderr = true))
+    }
+
+    "return an instance of itself when tries to validate a valid appMainClass entry" in {
+      val expectedRuntimeAttributes = staticDefaults.copy(appMainClass = Some("com.test.spark"))
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { appMainClass: "com.test.spark"}""").head
+      val shouldBeIgnored = workflowOptionsWithDefaultRA(Map(SparkRuntimeAttributes.AppMainClassKey -> JsString("com.test.spark")))
+      assertSparkRuntimeAttributes(runtimeAttributes, shouldBeIgnored, expectedRuntimeAttributes)
+    }
+
+    "throw an exception when tries to validate an invalid appMainClass entry" in {
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { appMainClass: 1}""").head
+      assertSparkRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting appMainClass runtime attribute to be a String")
+    }
+
+    "use workflow options as default if appMainClass key is missing" in {
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime {}""").head
+      val workflowOptions = workflowOptionsWithDefaultRA(Map(SparkRuntimeAttributes.AppMainClassKey -> JsString("com.test.spark")))
+      assertSparkRuntimeAttributes(runtimeAttributes, workflowOptions, staticDefaults.copy(appMainClass = Some("com.test.spark")))
+    }
+
+    "return an instance of itself when tries to validate a valid additionalArgs entry" in {
+      val expectedRuntimeAttributes = staticDefaults.copy(additionalArgs = Some("--a 'a1' --b 'b1' --c 'c1 d1=-d2'"))
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { additionalArgs: "--a 'a1' --b 'b1' --c 'c1 d1=-d2'"}""").head
+      val shouldBeIgnored = workflowOptionsWithDefaultRA(Map(SparkRuntimeAttributes.AdditionalArgsKey -> JsString("--a 'a1' --b 'b1' --c 'c1 d1=-d2'")))
+      assertSparkRuntimeAttributes(runtimeAttributes, shouldBeIgnored, expectedRuntimeAttributes)
+    }
+
+    "throw an exception when tries to validate an invalid additionalArgs entry" in {
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { additionalArgs: 1}""").head
+      assertSparkRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting additionalArgs runtime attribute to be a String")
+    }
+
+    "use workflow options as default if additionalArgs key is missing" in {
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime {}""").head
+      val workflowOptions = workflowOptionsWithDefaultRA(Map(SparkRuntimeAttributes.AdditionalArgsKey -> JsString("--a 'a1' --b 'b1' --c 'c1 d1=-d2'")))
+      assertSparkRuntimeAttributes(runtimeAttributes, workflowOptions, staticDefaults.copy(additionalArgs = Some( "--a 'a1' --b 'b1' --c 'c1 d1=-d2'")))
     }
 
   }
 
   private def buildWorkflowDescriptor(wdl: WorkflowSource,
-                                      inputs: Map[String, WdlValue] = Map.empty,
+                                      inputs: Map[OutputPort, WomValue] = Map.empty,
                                       options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
                                       runtime: String) = {
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime.format("appMainClass", "com.test.spark")), Seq.empty[ImportResolver]).get.workflow,
+      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime), Seq.empty[ImportResolver])
+        .get.workflow.womDefinition.getOrElse(fail("Cannot build Wom Workflow")),
       inputs,
       options,
       Labels.empty
     )
   }
 
-  private def createRuntimeAttributes(workflowSource: WorkflowSource, runtimeAttributes: String) = {
+  private def createRuntimeAttributes(workflowSource: WorkflowSource, runtimeAttributes: String): List[Map[String, WomValue]] = {
     val workflowDescriptor = buildWorkflowDescriptor(workflowSource, runtime = runtimeAttributes)
 
-    def createLookup(call: WdlCall): ScopedLookupFunction = {
-      val knownInputs = workflowDescriptor.knownValues
-      call.lookupFunction(knownInputs, NoFunctions)
-    }
-
-    workflowDescriptor.workflow.taskCalls map {
+    workflowDescriptor.callable.taskCallNodes.toList map {
       call =>
-        val ra = call.task.runtimeAttributes.attrs mapValues { _.evaluate(createLookup(call), NoFunctions) }
-        TryUtil.sequenceMap(ra, "Runtime attributes evaluation").get
+        val staticValues = workflowDescriptor.knownValues.map {
+          case (outputPort, resolvedInput) => outputPort.name -> resolvedInput
+        }
+        val ra = call.callable.runtimeAttributes.attributes mapValues { _.evaluateValue(staticValues, NoIoFunctionSet) }
+        ra.sequence.getOrElse(fail("Failed to evaluate runtime attributes"))
     }
   }
 
-  private def assertSparkRuntimeAttributes(runtimeAttributes: Map[String, WdlValue], workflowOptions: WorkflowOptions, expectedRuntimeAttributes: SparkRuntimeAttributes): Unit = {
+  private def assertSparkRuntimeAttributes(runtimeAttributes: Map[String, WomValue], workflowOptions: WorkflowOptions, expectedRuntimeAttributes: SparkRuntimeAttributes): Unit = {
     try {
       assert(SparkRuntimeAttributes(runtimeAttributes, workflowOptions) == expectedRuntimeAttributes)
     } catch {
@@ -122,7 +157,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
     ()
   }
 
-  private def assertSparkRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WdlValue], exMsg: String): Unit = {
+  private def assertSparkRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WomValue], exMsg: String): Unit = {
     try {
       SparkRuntimeAttributes(runtimeAttributes, emptyWorkflowOptions)
       fail("A RuntimeException was expected.")

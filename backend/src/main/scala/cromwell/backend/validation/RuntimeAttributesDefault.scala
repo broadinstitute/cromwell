@@ -2,27 +2,28 @@ package cromwell.backend.validation
 
 import cats.data.ValidatedNel
 import cats.syntax.validated._
-import cromwell.core.{EvaluatedRuntimeAttributes, OptionNotFoundException, WorkflowOptions}
-import lenthall.util.TryUtil
-import wdl4s.wdl.types.WdlType
-import wdl4s.wdl.values.WdlValue
+import cromwell.core.{OptionNotFoundException, WorkflowOptions}
+import common.util.TryUtil
+import wom.core.EvaluatedRuntimeAttributes
+import wom.types.WomType
+import wom.values.WomValue
 
 import scala.util.{Failure, Try}
 
 object RuntimeAttributesDefault {
 
-  def workflowOptionsDefault(options: WorkflowOptions, mapping: Map[String, Traversable[WdlType]]):
-  Try[Map[String, WdlValue]] = {
+  def workflowOptionsDefault(options: WorkflowOptions, mapping: Map[String, Traversable[WomType]]):
+  Try[Map[String, WomValue]] = {
     options.defaultRuntimeOptions flatMap { attrs =>
       TryUtil.sequenceMap(attrs collect {
         case (k, v) if mapping.contains(k) =>
           val maybeTriedValue = mapping(k) map {  _.coerceRawValue(v) } find { _.isSuccess } getOrElse {
-            Failure(new RuntimeException(s"Could not parse JsonValue $v to valid WdlValue for runtime attribute $k"))
+            Failure(new RuntimeException(s"Could not parse JsonValue $v to valid WomValue for runtime attribute $k"))
           }
           k -> maybeTriedValue
       }, "Failed to coerce default runtime options")
     } recover {
-      case _: OptionNotFoundException => Map.empty[String, WdlValue]
+      case _: OptionNotFoundException => Map.empty[String, WomValue]
     }
   }
 

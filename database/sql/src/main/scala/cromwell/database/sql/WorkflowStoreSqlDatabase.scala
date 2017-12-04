@@ -1,6 +1,7 @@
 package cromwell.database.sql
 
 import cromwell.database.sql.tables.WorkflowStoreEntry
+import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -24,8 +25,25 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
 
    */
 
-  def updateWorkflowState(queryWorkflowState: String, updateWorkflowState: String)
-                         (implicit ec: ExecutionContext): Future[Unit]
+  /**
+    * Set all running workflows to aborting state.
+    */
+  def setAllRunningToAborting()
+                             (implicit ec: ExecutionContext): Future[Unit]
+
+  /**
+    * Set restarted flags for all running and aborting workflows to true.
+    */
+  def markRunningAndAbortingAsRestarted()
+                                       (implicit ec: ExecutionContext): Future[Unit]
+
+  /**
+    * Set the workflow to aborting state.
+    * @return Some(restarted) if the workflow exists in the store, where restarted is the value of its restarted flag
+    *         None if the workflow does not exist in the store
+    */
+  def setToAborting(workflowId: String)
+                   (implicit ec: ExecutionContext): Future[Option[Boolean]]
 
   /**
     * Adds the requested WorkflowSourceFiles to the store.
@@ -37,11 +55,13 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
     * Retrieves up to limit workflows which have not already been pulled into the engine and updates their state.
     * NOTE: Rows are returned with the query state, NOT the update state.
     */
-  def queryWorkflowStoreEntries(limit: Int, queryWorkflowState: String, updateWorkflowState: String)
-                               (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]]
+  def fetchStartableWorkflows(limit: Int)
+                             (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]]
 
   /**
     * Deletes a workflow from the database, returning the number of rows affected.
     */
   def removeWorkflowStoreEntry(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Int]
+  
+  def stats(implicit ec: ExecutionContext): Future[Map[WorkflowStoreState, Int]]
 }

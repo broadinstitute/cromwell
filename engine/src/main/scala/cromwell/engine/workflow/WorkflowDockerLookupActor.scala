@@ -1,17 +1,15 @@
 package cromwell.engine.workflow
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.{Dispatcher, WorkflowId}
-import cromwell.database.sql.SqlDatabase
+import cromwell.database.sql.EngineSqlDatabase
 import cromwell.database.sql.tables.DockerHashStoreEntry
 import cromwell.docker.DockerHashActor.{DockerHashFailureResponse, DockerHashSuccessResponse}
 import cromwell.docker.{DockerClientHelper, DockerHashRequest, DockerHashResult, DockerImageIdentifier}
-import cromwell.engine.workflow.WorkflowActor.{RestartExistingWorkflow, StartMode}
 import cromwell.engine.workflow.WorkflowDockerLookupActor._
-import cromwell.services.SingletonServicesStore
-import cromwell.core.Dispatcher.EngineDispatcher
-
-import lenthall.util.TryUtil
+import cromwell.services.EngineServicesStore
+import common.util.TryUtil
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -38,7 +36,10 @@ import scala.util.{Failure, Success}
   *      for this tag will be attempted again.
   */
 
-class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId, val dockerHashingActor: ActorRef, startMode: StartMode, databaseInterface: SqlDatabase)
+class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
+                                                  val dockerHashingActor: ActorRef,
+                                                  isRestart: Boolean,
+                                                  databaseInterface: EngineSqlDatabase)
   extends LoggingFSM[WorkflowDockerLookupActorState, WorkflowDockerLookupActorData] with DockerClientHelper {
 
   implicit val ec = context.system.dispatchers.lookup(Dispatcher.EngineDispatcher)
@@ -52,7 +53,7 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId, val do
   context.become(dockerReceive orElse receive)
 
   startWith(
-    stateName = if (startMode == RestartExistingWorkflow) AwaitingFirstRequestOnRestart else Running,
+    stateName = if (isRestart) AwaitingFirstRequestOnRestart else Running,
     stateData = WorkflowDockerLookupActorData.empty
   )
 
@@ -250,8 +251,11 @@ object WorkflowDockerLookupActor {
   final case class WorkflowDockerLookupFailure(reason: Throwable, request: DockerHashRequest) extends WorkflowDockerLookupResponse
   final case class WorkflowDockerTerminalFailure(reason: Throwable, request: DockerHashRequest) extends WorkflowDockerLookupResponse
 
-  def props(workflowId: WorkflowId, dockerHashingActor: ActorRef, startMode: StartMode, databaseInterface: SqlDatabase = SingletonServicesStore.databaseInterface) = {
-    Props(new WorkflowDockerLookupActor(workflowId, dockerHashingActor, startMode, databaseInterface)).withDispatcher(EngineDispatcher)
+  def props(workflowId: WorkflowId,
+            dockerHashingActor: ActorRef,
+            isRestart: Boolean,
+            databaseInterface: EngineSqlDatabase = EngineServicesStore.engineDatabaseInterface) = {
+    Props(new WorkflowDockerLookupActor(workflowId, dockerHashingActor, isRestart, databaseInterface)).withDispatcher(EngineDispatcher)
   }
 
   object WorkflowDockerLookupActorData {

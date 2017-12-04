@@ -5,8 +5,9 @@ import cromwell.backend.BackendJobExecutionActor.{JobFailedNonRetryableResponse,
 import cromwell.core.ExecutionIndex.{ExecutionIndex, IndexEnhancedIndex}
 import cromwell.core.callcaching.HashResult
 import cromwell.core.path.Path
-import cromwell.core.simpleton.WdlValueSimpleton
-import cromwell.core.{CallOutputs, FullyQualifiedName, JobOutput, LocallyQualifiedName, WorkflowId}
+import cromwell.core.simpleton.WomValueSimpleton
+import cromwell.core.simpleton.WomValueSimpleton._
+import cromwell.core.{CallOutputs, WorkflowId}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql._
 import cromwell.database.sql.joins.CallCachingJoin
@@ -14,6 +15,7 @@ import cromwell.database.sql.tables._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCacheHashBundle
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.AggregatedCallHashes
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
+import wom.core._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -31,8 +33,7 @@ class CallCache(database: CallCachingSqlDatabase) {
         jobAttempt = b.jobAttempt,
         returnCode = b.returnCode,
         allowResultReuse = b.allowResultReuse)
-      import cromwell.core.simpleton.WdlValueSimpleton._
-      val result = b.callOutputs.mapValues(_.wdlValue).simplify
+      val result = b.callOutputs.outputs.simplify
       val jobDetritus = b.jobDetritusFiles.getOrElse(Map.empty)
       buildCallCachingJoin(metaInfo, b.callCacheHashes, result, jobDetritus)
     }
@@ -41,7 +42,7 @@ class CallCache(database: CallCachingSqlDatabase) {
   }
 
   private def buildCallCachingJoin(callCachingEntry: CallCachingEntry, callCacheHashes: CallCacheHashes,
-                                   result: Iterable[WdlValueSimpleton], jobDetritus: Map[String, Path]): CallCachingJoin = {
+                                   result: Iterable[WomValueSimpleton], jobDetritus: Map[String, Path]): CallCachingJoin = {
 
     val hashesToInsert: Iterable[CallCachingHashEntry] = {
       callCacheHashes.hashes map { hash => CallCachingHashEntry(hash.hashKey.key, hash.hashValue.value) }
@@ -56,8 +57,8 @@ class CallCache(database: CallCachingSqlDatabase) {
 
     val resultToInsert: Iterable[CallCachingSimpletonEntry] = {
       result map {
-        case WdlValueSimpleton(simpletonKey, wdlPrimitive) =>
-          CallCachingSimpletonEntry(simpletonKey, wdlPrimitive.valueString.toClobOption, wdlPrimitive.wdlType.toWdlString)
+        case WomValueSimpleton(simpletonKey, wdlPrimitive) =>
+          CallCachingSimpletonEntry(simpletonKey, wdlPrimitive.valueString.toClobOption, wdlPrimitive.womType.toDisplayString)
       }
     }
 
@@ -122,12 +123,12 @@ object CallCache {
       new CallCacheHashBundle(
         workflowId = workflowId,
         callCacheHashes = callCacheHashes,
-        fullyQualifiedName = jobFailedNonRetryableResponse.jobKey.scope.fullyQualifiedName,
+        fullyQualifiedName = jobFailedNonRetryableResponse.jobKey.node.fullyQualifiedName,
         jobIndex = jobFailedNonRetryableResponse.jobKey.index,
         jobAttempt = Option(jobFailedNonRetryableResponse.jobKey.attempt),
         returnCode = None,
         allowResultReuse = false,
-        callOutputs = Map.empty[LocallyQualifiedName, JobOutput],
+        callOutputs = CallOutputs.empty,
         jobDetritusFiles = None
       )
     }

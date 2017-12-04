@@ -9,25 +9,26 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashing
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor._
 import cromwell.services.metadata.MetadataService.PutMetadataAction
+import cromwell.util.WomMocks
 import org.scalatest.concurrent.Eventually
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
-import wdl4s.wdl.values.WdlValue
-import wdl4s.wdl.{WdlTask, WdlTaskCall}
+import _root_.wdl.command.StringCommandPart
+import wom.core.LocallyQualifiedName
+import wom.graph.WomIdentifier
+import wom.values.WomValue
 
 class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matchers with BackendSpec with TableDrivenPropertyChecks with Eventually {
   behavior of "EngineJobHashingActor"
 
-  def templateJobDescriptor(inputs: Map[LocallyQualifiedName, WdlValue] = Map.empty) = {
-    val task = mock[WdlTask]
-    val call = mock[WdlTaskCall]
-    task.commandTemplateString returns "Do the stuff... now!!"
-    task.outputs returns List.empty
-    task.fullyQualifiedName returns "workflow.hello"
-    call.task returns task
+  def templateJobDescriptor(inputs: Map[LocallyQualifiedName, WomValue] = Map.empty) = {
+    val task = WomMocks.mockTaskDefinition("hello").copy(
+      commandTemplate = List(StringCommandPart("Do the stuff... now!!"))
+    )
+    val call = WomMocks.mockTaskCall(WomIdentifier("hello", "workflow.hello")).copy(callable = task)
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
     workflowDescriptor.id returns WorkflowId.randomId()
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, fqnMapToDeclarationMap(inputs), NoDocker, Map.empty)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
     jobDescriptor
   }
   

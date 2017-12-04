@@ -4,10 +4,11 @@ import java.time.OffsetDateTime
 
 import akka.actor.ActorRef
 import cats.data.NonEmptyList
-import cromwell.core.{FullyQualifiedName, JobKey, WorkflowId, WorkflowState}
+import cromwell.core.{JobKey, WorkflowId, WorkflowState}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
-import lenthall.exception.{MessageAggregation, ThrowableAggregation}
-import wdl4s.wdl.values._
+import common.exception.{MessageAggregation, ThrowableAggregation}
+import wom.core._
+import wom.values._
 
 import scala.util.Random
 
@@ -16,7 +17,7 @@ object MetadataService {
 
   final val MetadataServiceName = "MetadataService"
 
-  final case class WorkflowQueryResult(id: String, name: Option[String], status: Option[String], start: Option[OffsetDateTime], end: Option[OffsetDateTime])
+  final case class WorkflowQueryResult(id: String, name: Option[String], status: Option[String], start: Option[OffsetDateTime], end: Option[OffsetDateTime], labels: Option[Map[String, String]], parentWorkflowId: Option[String])
 
   final case class WorkflowQueryResponse(results: Seq[WorkflowQueryResult])
 
@@ -40,7 +41,7 @@ object MetadataService {
   object implicits {
     implicit class MetadataAutoPutter(serviceRegistryActor: ActorRef) {
       def putMetadata(workflowId: WorkflowId, jobKey: Option[JobKey], keyValue: Map[String, Any]) = {
-        val metadataJobKey = jobKey map { jk => MetadataJobKey(jk.scope.fullyQualifiedName, jk.index, jk.attempt) }
+        val metadataJobKey = jobKey map { jk => MetadataJobKey(jk.node.fullyQualifiedName, jk.index, jk.attempt) }
 
         val events = keyValue map { case (key, value) =>
           val metadataKey = MetadataKey(workflowId, metadataJobKey, key)
@@ -64,15 +65,16 @@ object MetadataService {
   final case class PutMetadataAction(events: Iterable[MetadataEvent]) extends MetadataServiceAction
   final case class PutMetadataActionAndRespond(events: Iterable[MetadataEvent], replyTo: ActorRef) extends MetadataServiceAction
 
-  case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
+  final case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
                                              excludeKeysOption: Option[NonEmptyList[String]],
                                              expandSubWorkflows: Boolean)
     extends ReadAction
-  case class GetMetadataQueryAction(key: MetadataQuery) extends ReadAction
-  case class GetStatus(workflowId: WorkflowId) extends ReadAction
-  case class WorkflowQuery(parameters: Seq[(String, String)]) extends ReadAction
-  case class WorkflowOutputs(workflowId: WorkflowId) extends ReadAction
-  case class GetLogs(workflowId: WorkflowId) extends ReadAction
+  final case class GetMetadataQueryAction(key: MetadataQuery) extends ReadAction
+  final case class GetStatus(workflowId: WorkflowId) extends ReadAction
+  final case class GetLabels(workflowId: WorkflowId) extends ReadAction
+  final case class WorkflowQuery(parameters: Seq[(String, String)]) extends ReadAction
+  final case class WorkflowOutputs(workflowId: WorkflowId) extends ReadAction
+  final case class GetLogs(workflowId: WorkflowId) extends ReadAction
   case object RefreshSummary extends MetadataServiceAction
   trait ValidationCallback {
     def onMalformed(possibleWorkflowId: String): Unit
@@ -97,6 +99,9 @@ object MetadataService {
   final case class StatusLookupResponse(workflowId: WorkflowId, status: WorkflowState) extends MetadataServiceResponse
   final case class StatusLookupFailed(workflowId: WorkflowId, reason: Throwable) extends MetadataServiceFailure
 
+  final case class LabelLookupResponse(workflowId: WorkflowId, labels: Map[String, String]) extends MetadataServiceResponse
+  final case class LabelLookupFailed(workflowId: WorkflowId, reason: Throwable) extends MetadataServiceFailure
+
   final case class WorkflowOutputsResponse(id: WorkflowId, outputs: Seq[MetadataEvent]) extends MetadataServiceResponse
   final case class WorkflowOutputsFailure(id: WorkflowId, reason: Throwable) extends MetadataServiceFailure
 
@@ -115,25 +120,25 @@ object MetadataService {
   final case class WorkflowQuerySuccess(response: WorkflowQueryResponse, meta: Option[QueryMetadata]) extends MetadataQueryResponse
   final case class WorkflowQueryFailure(reason: Throwable) extends MetadataQueryResponse
 
-  def wdlValueToMetadataEvents(metadataKey: MetadataKey, wdlValue: WdlValue): Iterable[MetadataEvent] = wdlValue match {
-    case WdlArray(_, valueSeq) =>
+  def womValueToMetadataEvents(metadataKey: MetadataKey, womValue: WomValue): Iterable[MetadataEvent] = womValue match {
+    case WomArray(_, valueSeq) =>
       if (valueSeq.isEmpty) {
         List(MetadataEvent.empty(metadataKey.copy(key = s"${metadataKey.key}[]")))
       } else {
         val zippedSeq = valueSeq.zipWithIndex
-        zippedSeq.toList flatMap { case (value, index) => wdlValueToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}[$index]"), value) }
+        zippedSeq.toList flatMap { case (value, index) => womValueToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}[$index]"), value) }
       }
-    case WdlMap(_, valueMap) =>
+    case WomMap(_, valueMap) =>
       if (valueMap.isEmpty) {
         List(MetadataEvent.empty(metadataKey))
       } else {
-        valueMap.toList flatMap { case (key, value) => wdlValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":${key.valueString}"), value) }
+        valueMap.toList flatMap { case (key, value) => womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":${key.valueString}"), value) }
       }
-    case WdlOptionalValue(_, Some(value)) =>
-      wdlValueToMetadataEvents(metadataKey, value)
-    case WdlPair(left, right) =>
-      wdlValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":left"), left) ++
-        wdlValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":right"), right)
+    case WomOptionalValue(_, Some(value)) =>
+      womValueToMetadataEvents(metadataKey, value)
+    case WomPair(left, right) =>
+      womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":left"), left) ++
+        womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":right"), right)
     case value =>
       List(MetadataEvent(metadataKey, MetadataValue(value)))
   }

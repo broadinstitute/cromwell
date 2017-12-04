@@ -1,0 +1,27 @@
+name: null_input_values
+testFormat: workflowsuccess
+
+files {
+  wdl: null_input_values/null_input_values.wdl
+  inputs: null_input_values/null_input_values.inputs
+}
+
+metadata {
+  workflowName: null_input_values
+  status: Succeeded
+  "outputs.null_input_values.o1": null
+  "outputs.null_input_values.o2": null
+  "outputs.null_input_values.o3": null
+  "outputs.null_input_values.o4": null
+  "outputs.null_input_values.o5.0": 1
+  "outputs.null_input_values.o5.1": 2
+  "outputs.null_input_values.o5.2": null
+  "outputs.null_input_values.o5.3": 4
+  "outputs.null_input_values.o6": null
+  "outputs.null_input_values.o7.one": 1
+  "outputs.null_input_values.o7.two": null
+  "outputs.null_input_values.o7.three": 3
+  "outputs.null_input_values.o8": null
+  "outputs.null_input_values.o9.left": null
+  "outputs.null_input_values.o9.right": null
+}

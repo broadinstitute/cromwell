@@ -5,15 +5,7 @@ import java.util.UUID
 
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 
-trait SqlDatabase extends AutoCloseable
-  with JobKeyValueSqlDatabase
-  with CallCachingSqlDatabase
-  with JobStoreSqlDatabase
-  with MetadataSqlDatabase
-  with WorkflowStoreSqlDatabase
-  with SubWorkflowStoreSqlDatabase
-  with DockerHashStoreSqlDatabase {
-
+trait SqlDatabase extends AutoCloseable {
   protected val urlKey: String
   protected val originalDatabaseConfig: Config
   lazy val databaseConfig = SqlDatabase.withUniqueSchema(originalDatabaseConfig, urlKey)

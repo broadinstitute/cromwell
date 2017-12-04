@@ -2,14 +2,14 @@ package cromwell.backend.impl.jes
 
 import akka.actor.ActorRef
 import cromwell.backend._
+import cromwell.backend.impl.jes.JesBackendLifecycleActorFactory._
 import cromwell.backend.impl.jes.callcaching.{JesBackendCacheHitCopyingActor, JesBackendFileHashingActor}
 import cromwell.backend.standard._
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardFileHashingActor}
 import cromwell.core.CallOutputs
-import wdl4s.wdl.WdlTaskCall
+import wom.graph.TaskCallNode
 
 import scala.util.{Success, Try}
-import cromwell.backend.impl.jes.JesBackendLifecycleActorFactory._
 
 case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
   extends StandardLifecycleActorFactory {
@@ -26,12 +26,12 @@ case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor
 
   val jesConfiguration = new JesConfiguration(configurationDescriptor)
 
-  override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[WdlTaskCall],
+  override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[TaskCallNode],
                                                  serviceRegistryActor: ActorRef, restart: Boolean): StandardInitializationActorParams = {
     JesInitializationActorParams(workflowDescriptor, ioActor, calls, jesConfiguration, serviceRegistryActor, restart)
   }
 
-  override def workflowFinalizationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[WdlTaskCall],
+  override def workflowFinalizationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[TaskCallNode],
                                               jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs,
                                               initializationDataOption: Option[BackendInitializationData]):
   StandardFinalizationActorParams = {
@@ -47,7 +47,7 @@ case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor
     Option(classOf[JesBackendCacheHitCopyingActor])
   }
 
-  override def backendSingletonActorProps = Option(JesBackendSingletonActor.props(jesConfiguration.qps))
+  override def backendSingletonActorProps(serviceRegistryActor: ActorRef) = Option(JesBackendSingletonActor.props(jesConfiguration.qps, serviceRegistryActor))
 
   override lazy val fileHashingActorClassOption: Option[Class[_ <: StandardFileHashingActor]] = Option(classOf[JesBackendFileHashingActor])
   

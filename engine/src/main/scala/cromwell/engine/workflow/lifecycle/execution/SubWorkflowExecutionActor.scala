@@ -3,20 +3,24 @@ package cromwell.engine.workflow.lifecycle.execution
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor.{ActorRef, FSM, LoggingFSM, OneForOneStrategy, Props, SupervisorStrategy}
 import cromwell.backend.{AllBackendInitializationData, BackendLifecycleActorFactory, BackendWorkflowDescriptor}
-import cromwell.core._
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.core._
 import cromwell.core.logging.JobLogging
-import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
 import cromwell.engine.backend.{BackendConfiguration, BackendSingletonCollection}
-import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.{CallPreparationFailed, Start}
+import cromwell.engine.workflow.WorkflowMetadataHelper
 import cromwell.engine.workflow.lifecycle.execution.SubWorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
-import cromwell.engine.workflow.lifecycle.execution.preparation.SubWorkflowPreparationActor
-import cromwell.engine.workflow.lifecycle.execution.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
+import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation.{CallPreparationFailed, Start}
+import cromwell.engine.workflow.lifecycle.execution.job.preparation.SubWorkflowPreparationActor
+import cromwell.engine.workflow.lifecycle.execution.job.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
+import cromwell.engine.workflow.lifecycle.execution.keys.SubWorkflowKey
+import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
+import cromwell.engine.workflow.workflowstore.StartableState
+import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
-import wdl4s.wdl.EvaluatedTaskInputs
+import wom.values.WomEvaluatedCallInputs
 
 class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 parentWorkflow: EngineWorkflowDescriptor,
@@ -32,7 +36,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 jobTokenDispenserActor: ActorRef,
                                 backendSingletonCollection: BackendSingletonCollection,
                                 initializationData: AllBackendInitializationData,
-                                restarting: Boolean) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData] with JobLogging with WorkflowMetadataHelper with CallMetadataHelper {
+                                startState: StartableState) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData] with JobLogging with WorkflowMetadataHelper with CallMetadataHelper {
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() { case _ => Escalate }
 
@@ -46,22 +50,22 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
 
   when(SubWorkflowPendingState) {
     case Event(Execute, _) =>
-      if (restarting) {
+      if (startState.restarted) {
         subWorkflowStoreActor ! QuerySubWorkflow(parentWorkflow.id, key)
         goto(SubWorkflowCheckingStoreState)
       } else {
-        requestOutputStore(createSubWorkflowId())
+        requestValueStore(createSubWorkflowId())
       }
   }
 
   when(SubWorkflowCheckingStoreState) {
     case Event(SubWorkflowFound(entry), _) =>
-      requestOutputStore(WorkflowId.fromString(entry.subWorkflowExecutionUuid))
+      requestValueStore(WorkflowId.fromString(entry.subWorkflowExecutionUuid))
     case Event(_: SubWorkflowNotFound, _) =>
-      requestOutputStore(createSubWorkflowId())
+      requestValueStore(createSubWorkflowId())
     case Event(SubWorkflowStoreFailure(command, reason), _) =>
       jobLogger.error(reason, s"SubWorkflowStore failure for command $command, starting sub workflow with fresh ID.")
-      requestOutputStore(createSubWorkflowId())
+      requestValueStore(createSubWorkflowId())
   }
 
   /*
@@ -70,10 +74,10 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     * variable in this actor, which would prevent it from being garbage collected for the duration of the
     * subworkflow and would lead to memory leaks.
     */
-  when(WaitingForOutputStore) {
-    case Event(outputStore: OutputStore, SubWorkflowExecutionActorData(Some(subWorkflowId))) =>
-      prepareSubWorkflow(subWorkflowId, outputStore)
-    case Event(_: OutputStore, _) =>
+  when(WaitingForValueStore) {
+    case Event(valueStore: ValueStore, SubWorkflowExecutionActorData(Some(subWorkflowId))) =>
+      prepareSubWorkflow(subWorkflowId, valueStore)
+    case Event(_: ValueStore, _) =>
       context.parent ! SubWorkflowFailedResponse(key, Map.empty, new IllegalStateException(
         "This is a programmer error, we're ready to prepare the job and should have" +
           " a SubWorkflowId to use by now but somehow haven't. Failing the workflow."))
@@ -135,27 +139,27 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     case _ -> toState => eventList :+= ExecutionEvent(toState.toString)
   }
 
-  private def startSubWorkflow(subWorkflowEngineDescriptor: EngineWorkflowDescriptor, inputs: EvaluatedTaskInputs) = {
+  private def startSubWorkflow(subWorkflowEngineDescriptor: EngineWorkflowDescriptor, inputs: WomEvaluatedCallInputs) = {
     val subWorkflowActor = createSubWorkflowActor(subWorkflowEngineDescriptor)
 
     subWorkflowActor ! WorkflowExecutionActor.ExecuteWorkflowCommand
-    context.parent ! JobRunning(key, inputs, Option(subWorkflowActor))
+    context.parent ! JobRunning(key, inputs)
     pushWorkflowRunningMetadata(subWorkflowEngineDescriptor.backendDescriptor, inputs)
 
     goto(SubWorkflowRunningState)
   }
 
-  private def prepareSubWorkflow(subWorkflowId: WorkflowId, outputStore: OutputStore) = {
-    createSubWorkflowPreparationActor(subWorkflowId) ! Start(outputStore)
+  private def prepareSubWorkflow(subWorkflowId: WorkflowId, valueStore: ValueStore) = {
+    createSubWorkflowPreparationActor(subWorkflowId) ! Start(valueStore)
     context.parent ! JobStarting(key)
     pushCurrentStateToMetadataService(subWorkflowId, WorkflowRunning)
     pushWorkflowStart(subWorkflowId)
     goto(SubWorkflowPreparingState) using SubWorkflowExecutionActorData(Option(subWorkflowId))
   }
 
-  private def requestOutputStore(workflowId: WorkflowId) = {
-    context.parent ! RequestOutputStore
-    goto(WaitingForOutputStore) using SubWorkflowExecutionActorData(Option(workflowId))
+  private def requestValueStore(workflowId: WorkflowId) = {
+    context.parent ! RequestValueStore
+    goto(WaitingForValueStore) using SubWorkflowExecutionActorData(Option(workflowId))
   }
 
   def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId) = {
@@ -179,19 +183,19 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
         jobTokenDispenserActor = jobTokenDispenserActor,
         backendSingletonCollection,
         initializationData,
-        restarting
+        startState
       ),
       s"${subWorkflowEngineDescriptor.id}-SubWorkflowActor-${key.tag}"
     )
   }
 
-  private def pushWorkflowRunningMetadata(subWorkflowDescriptor: BackendWorkflowDescriptor, workflowInputs: EvaluatedTaskInputs) = {
+  private def pushWorkflowRunningMetadata(subWorkflowDescriptor: BackendWorkflowDescriptor, workflowInputs: WomEvaluatedCallInputs) = {
     val subWorkflowId = subWorkflowDescriptor.id
-    val parentWorkflowMetadataKey = MetadataKey(parentWorkflow.id, Option(MetadataJobKey(key.scope.fullyQualifiedName, key.index, key.attempt)), CallMetadataKeys.SubWorkflowId)
+    val parentWorkflowMetadataKey = MetadataKey(parentWorkflow.id, Option(MetadataJobKey(key.node.fullyQualifiedName, key.index, key.attempt)), CallMetadataKeys.SubWorkflowId)
 
     val events = List(
       MetadataEvent(parentWorkflowMetadataKey, MetadataValue(subWorkflowId)),
-      MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.Name), MetadataValue(key.scope.callable.unqualifiedName)),
+      MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.Name), MetadataValue(key.node.callable.name)),
       MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.ParentWorkflowId), MetadataValue(parentWorkflow.id))
     )
 
@@ -199,8 +203,8 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
       case empty if empty.isEmpty =>
         List(MetadataEvent.empty(MetadataKey(subWorkflowId, None,WorkflowMetadataKeys.Inputs)))
       case inputs =>
-        inputs flatMap { case (inputName, wdlValue) =>
-          wdlValueToMetadataEvents(MetadataKey(subWorkflowId, None, s"${WorkflowMetadataKeys.Inputs}:${inputName.unqualifiedName}"), wdlValue)
+        inputs flatMap { case (inputName, womValue) =>
+          womValueToMetadataEvents(MetadataKey(subWorkflowId, None, s"${WorkflowMetadataKeys.Inputs}:${inputName.name}"), womValue)
         }
     }
 
@@ -249,7 +253,7 @@ object SubWorkflowExecutionActor {
   case object SubWorkflowRunningState extends SubWorkflowExecutionActorState {
     override val workflowState = WorkflowRunning
   }
-  case object WaitingForOutputStore extends SubWorkflowExecutionActorState {
+  case object WaitingForValueStore extends SubWorkflowExecutionActorState {
     override val workflowState = WorkflowRunning
   }
   case object SubWorkflowAbortingState extends SubWorkflowExecutionActorState {
@@ -288,7 +292,7 @@ object SubWorkflowExecutionActor {
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             initializationData: AllBackendInitializationData,
-            restarting: Boolean) = {
+            startState: StartableState) = {
     Props(new SubWorkflowExecutionActor(
       key,
       parentWorkflow,
@@ -304,7 +308,7 @@ object SubWorkflowExecutionActor {
       jobTokenDispenserActor = jobTokenDispenserActor,
       backendSingletonCollection,
       initializationData,
-      restarting)
+      startState)
     ).withDispatcher(EngineDispatcher)
   }
 }

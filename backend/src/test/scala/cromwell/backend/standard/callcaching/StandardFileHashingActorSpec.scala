@@ -1,7 +1,7 @@
 package cromwell.backend.standard.callcaching
 
 import akka.actor.{ActorRef, Props}
-import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
+import akka.testkit._
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.SingleFileHashRequest
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor}
 import cromwell.core.TestKitSuite
@@ -9,7 +9,7 @@ import cromwell.core.callcaching.HashingFailedMessage
 import cromwell.core.io.{DefaultIoCommandBuilder, IoHashCommand}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import org.scalatest.{FlatSpecLike, Matchers}
-import wdl4s.wdl.values.WdlFile
+import wom.values.WomFile
 
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
@@ -27,7 +27,7 @@ class StandardFileHashingActorSpec extends TestKitSuite("StandardFileHashingActo
       override def getPath(str: String): Try[Path] = throw new RuntimeException("I am expected during tests")
     })
     val standardFileHashingActorRef = TestActorRef(props, parentProbe.ref)
-    val request = SingleFileHashRequest(null, null, WdlFile("/expected/failure/path"), None)
+    val request = SingleFileHashRequest(null, null, WomFile("/expected/failure/path"), None)
     standardFileHashingActorRef ! request
 
     parentProbe.expectMsgPF(1.seconds) {
@@ -48,10 +48,10 @@ class StandardFileHashingActorSpec extends TestKitSuite("StandardFileHashingActo
       override def hashCommand(file: Path) = throw new RuntimeException("I am expected during tests")
     })
     val standardFileHashingActorRef = TestActorRef(props, parentProbe.ref)
-    val request = SingleFileHashRequest(null, null, WdlFile("/expected/failure/path"), None)
+    val request = SingleFileHashRequest(null, null, WomFile("/expected/failure/path"), None)
     standardFileHashingActorRef ! request
 
-    parentProbe.expectMsgPF(1.seconds) {
+    parentProbe.expectMsgPF(10.seconds.dilated) {
       case failed: HashingFailedMessage if failed.file == "/expected/failure/path" =>
         failed.reason should be(a[RuntimeException])
         failed.reason.getMessage should be("I am expected during tests")
@@ -65,21 +65,21 @@ class StandardFileHashingActorSpec extends TestKitSuite("StandardFileHashingActo
     val ioActorProbe = TestProbe()
     val params = StandardFileHashingActorSpec.ioActorParams(ioActorProbe.ref)
     val props = Props(new StandardFileHashingActor(params) with DefaultIoCommandBuilder {
-      override lazy val defaultIoTimeout = 2.second
+      override lazy val defaultIoTimeout = 1.second.dilated
 
       override def getPath(str: String): Try[Path] = Try(DefaultPathBuilder.get(str))
     })
     val standardFileHashingActorRef = TestActorRef(props, parentProbe.ref)
-    val request = SingleFileHashRequest(null, null, WdlFile("/expected/failure/path"), None)
+    val request = SingleFileHashRequest(null, null, WomFile("/expected/failure/path"), None)
 
     standardFileHashingActorRef ! request
 
-    ioActorProbe.expectMsgPF(1.seconds) {
-      case (request: SingleFileHashRequest, _: IoHashCommand) if request.file.value == "/expected/failure/path" =>
+    ioActorProbe.expectMsgPF(10.seconds.dilated) {
+      case (request: FileHashContext, _: IoHashCommand) if request.file == "/expected/failure/path" =>
       case unexpected => fail(s"received unexpected message $unexpected")
     }
 
-    parentProbe.expectMsgPF(5.seconds) {
+    parentProbe.expectMsgPF(10.seconds.dilated) {
       case failed: HashingFailedMessage if failed.file == "/expected/failure/path" =>
         failed.reason should be(a[TimeoutException])
         failed.reason.getMessage should be("Hashing request timed out for: /expected/failure/path")

@@ -11,15 +11,19 @@ import cromwell.database.sql.tables.SubWorkflowStoreEntry
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.lifecycle.execution.SubWorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
-import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation
-import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.CallPreparationFailed
-import cromwell.engine.workflow.lifecycle.execution.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
+import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation
+import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation.CallPreparationFailed
+import cromwell.engine.workflow.lifecycle.execution.job.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
+import cromwell.engine.workflow.lifecycle.execution.keys.SubWorkflowKey
+import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
+import cromwell.engine.workflow.workflowstore.{RestartableRunning, StartableState, Submitted}
 import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor, WdlFunctions}
 import cromwell.subworkflowstore.SubWorkflowStoreActor.{QuerySubWorkflow, SubWorkflowFound, SubWorkflowNotFound}
+import cromwell.util.WomMocks
 import org.scalatest.concurrent.Eventually
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
-import wdl4s.wdl._
+import wom.graph.WomIdentifier
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -44,23 +48,20 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   val parentWorkflowId: WorkflowId = WorkflowId.randomId()
   parentBackendDescriptor.id returns parentWorkflowId
   val parentWorkflowDescriptor = EngineWorkflowDescriptor(
-    mock[WdlNamespaceWithWorkflow],
+    WomMocks.mockWorkflowDefinition("workflow"),
     parentBackendDescriptor,
     Map.empty,
     ContinueWhilePossible,
     List.empty,
     CallCachingOff
   )
-  val subWorkflow = mock[WdlWorkflow]
-  subWorkflow.unqualifiedName returns "sub_wf"
-  val subWorkflowCall = mock[WdlWorkflowCall]
-  subWorkflowCall.fullyQualifiedName returns "foo.bar"
-  subWorkflowCall.callable returns subWorkflow
-  val subKey = SubWorkflowKey(subWorkflowCall, None, 1)
+  val subWorkflow = WomMocks.mockWorkflowDefinition("sub_wf")
+  val subWorkflowCall = WomMocks.mockWorkflowCall(WomIdentifier("workflow"), definition = subWorkflow)
+  val subKey: SubWorkflowKey = SubWorkflowKey(subWorkflowCall, None, 1)
   
   val awaitTimeout: FiniteDuration = 10 seconds
 
-  def buildEWEA(restart: Boolean = false) = {
+  def buildEWEA(startState: StartableState = Submitted) = {
     new TestFSMRef[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData, SubWorkflowExecutionActor](system, Props(
       new SubWorkflowExecutionActor(
         subKey,
@@ -77,7 +78,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
         jobTokenDispenserProbe.ref,
         BackendSingletonCollection(Map.empty),
         AllBackendInitializationData(Map.empty),
-        restart
+        startState
       ) {
         override def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId) = preparationActor.ref
         override def createSubWorkflowActor(createSubWorkflowActor: EngineWorkflowDescriptor) = subWorkflowActor.ref
@@ -85,7 +86,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   }
   
   it should "Check the sub workflow store when restarting" in {
-    val ewea = buildEWEA(restart = true)
+    val ewea = buildEWEA(startState = RestartableRunning)
     ewea.setState(SubWorkflowPendingState)
 
     ewea ! Execute
@@ -98,28 +99,28 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   it should "Reuse sub workflow id if found in the store" in {
     import cromwell.core.ExecutionIndex._
     
-    val ewea = buildEWEA(restart = true)
+    val ewea = buildEWEA(startState = RestartableRunning)
     ewea.setState(SubWorkflowCheckingStoreState)
     
     val subWorkflowUuid = WorkflowId.randomId()
-    ewea ! SubWorkflowFound(SubWorkflowStoreEntry(Option(0), parentWorkflowId.toString, subKey.scope.fullyQualifiedName, subKey.index.fromIndex, subKey.attempt, subWorkflowUuid.toString, None))
-    parentProbe.expectMsg(RequestOutputStore)
+    ewea ! SubWorkflowFound(SubWorkflowStoreEntry(Option(0), parentWorkflowId.toString, subKey.node.fullyQualifiedName, subKey.index.fromIndex, subKey.attempt, subWorkflowUuid.toString, None))
+    parentProbe.expectMsg(RequestValueStore)
     
     eventually {
-      ewea.stateName shouldBe WaitingForOutputStore
+      ewea.stateName shouldBe WaitingForValueStore
       ewea.stateData.subWorkflowId shouldBe Some(subWorkflowUuid)
     }
   }
 
   it should "Fall back to a random Id if the sub workflow id is not found in the store" in {
-    val ewea = buildEWEA(restart = true)
+    val ewea = buildEWEA(startState = RestartableRunning)
     ewea.setState(SubWorkflowCheckingStoreState)
 
     ewea ! SubWorkflowNotFound(QuerySubWorkflow(parentWorkflowId, subKey))
-    parentProbe.expectMsg(RequestOutputStore)
+    parentProbe.expectMsg(RequestValueStore)
     
     eventually {
-      ewea.stateName shouldBe WaitingForOutputStore
+      ewea.stateName shouldBe WaitingForValueStore
       ewea.stateData.subWorkflowId should not be empty
     }
   }
@@ -127,11 +128,11 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   it should "Request output store" in {
     val ewea = buildEWEA()
     val subWorkflowId = WorkflowId.randomId()
-    ewea.setState(WaitingForOutputStore, SubWorkflowExecutionActorData(Option(subWorkflowId)))
-    val outputStore = OutputStore.empty
+    ewea.setState(WaitingForValueStore, SubWorkflowExecutionActorData(Option(subWorkflowId)))
+    val valueStore = ValueStore.empty
     
-    ewea ! outputStore
-    preparationActor.expectMsg(CallPreparation.Start(outputStore))
+    ewea ! valueStore
+    preparationActor.expectMsg(CallPreparation.Start(valueStore))
     parentProbe.expectMsg(JobStarting(subKey))
     eventually {
       ewea.stateName shouldBe SubWorkflowPreparingState
@@ -148,7 +149,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
     val subBackendDescriptor = mock[BackendWorkflowDescriptor]
     subBackendDescriptor.id returns subWorkflowId
     val subWorkflowDescriptor = EngineWorkflowDescriptor(
-      mock[WdlNamespaceWithWorkflow],
+      WomMocks.mockWorkflowDefinition("workflow"),
       subBackendDescriptor,
       Map.empty,
       ContinueWhilePossible,
@@ -158,7 +159,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
     
     ewea ! SubWorkflowPreparationSucceeded(subWorkflowDescriptor, Map.empty)
     subWorkflowActor.expectMsg(WorkflowExecutionActor.ExecuteWorkflowCommand)
-    parentProbe.expectMsg(JobRunning(subKey, Map.empty, Option(subWorkflowActor.ref)))
+    parentProbe.expectMsg(JobRunning(subKey, Map.empty))
     eventually {
       ewea.stateName shouldBe SubWorkflowRunningState
     }
@@ -184,7 +185,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
     deathWatch watch ewea
 
     val jobExecutionMap: JobExecutionMap = Map.empty
-    val outputs: CallOutputs = Map.empty[LocallyQualifiedName, JobOutput]
+    val outputs: CallOutputs = CallOutputs.empty
     val workflowSuccessfulMessage = WorkflowExecutionSucceededResponse(jobExecutionMap, outputs)
     ewea ! workflowSuccessfulMessage
     parentProbe.expectMsg(SubWorkflowSucceededResponse(subKey, jobExecutionMap, outputs))

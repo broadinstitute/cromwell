@@ -3,7 +3,7 @@ package cromwell.util
 import java.nio.file.attribute.PosixFilePermission
 
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import wdl4s.wdl.values._
+import wom.values._
 
 trait TestFileUtil {
   def createCannedFile(prefix: String, contents: String, dir: Option[Path] = None): Path = {
@@ -22,12 +22,12 @@ trait TestFileUtil {
 
 trait HashUtil extends TestFileUtil {
   // Files
-  val file1 = WdlFile(createCannedFile("refFile", "some content").pathAsString)
-  val sameAsfile1 = WdlFile(createCannedFile("sameContent", "some content").pathAsString)
-  val anotherFile = WdlFile(createCannedFile("differentContent", "different content").pathAsString)
+  val file1 = WomFile(createCannedFile("refFile", "some content").pathAsString)
+  val sameAsfile1 = WomFile(createCannedFile("sameContent", "some content").pathAsString)
+  val anotherFile = WomFile(createCannedFile("differentContent", "different content").pathAsString)
 
   // Strings
-  val string1 = WdlString("some text")
-  val sameAsString1 = WdlString("some text")
-  val anotherString = WdlString("different text")
+  val string1 = WomString("some text")
+  val sameAsString1 = WomString("some text")
+  val anotherString = WomString("different text")
 }

@@ -1,16 +1,16 @@
 package cromwell.backend.impl.jes
 
-import cats.syntax.validated._
 import cats.data.Validated._
-import cats.syntax.cartesian._
+import cats.syntax.apply._
+import cats.syntax.validated._
 import com.typesafe.config.Config
 import cromwell.backend.MemorySize
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation.{BooleanRuntimeAttributesValidation, _}
-import lenthall.validation.ErrorOr._
-import wdl4s.wdl.types._
-import wdl4s.wdl.values._
+import common.validation.ErrorOr._
+import wom.types._
+import wom.values._
 
 
 case class JesRuntimeAttributes(cpu: Int,
@@ -27,22 +27,22 @@ case class JesRuntimeAttributes(cpu: Int,
 object JesRuntimeAttributes {
 
   val ZonesKey = "zones"
-  private val ZonesDefaultValue = WdlString("us-central1-b")
+  private val ZonesDefaultValue = WomString("us-central1-b")
 
   val PreemptibleKey = "preemptible"
   private val preemptibleValidationInstance = new IntRuntimeAttributesValidation(PreemptibleKey)
-  private val PreemptibleDefaultValue = WdlInteger(0)
+  private val PreemptibleDefaultValue = WomInteger(0)
 
   val BootDiskSizeKey = "bootDiskSizeGb"
   private val bootDiskValidationInstance = new IntRuntimeAttributesValidation(BootDiskSizeKey)
-  private val BootDiskDefaultValue = WdlInteger(10)
+  private val BootDiskDefaultValue = WomInteger(10)
 
   val NoAddressKey = "noAddress"
   private val noAddressValidationInstance = new BooleanRuntimeAttributesValidation(NoAddressKey)
-  private val NoAddressDefaultValue = WdlBoolean(false)
+  private val NoAddressDefaultValue = WomBoolean(false)
 
   val DisksKey = "disks"
-  private val DisksDefaultValue = WdlString(s"${JesWorkingDisk.Name} 10 SSD")
+  private val DisksDefaultValue = WomString(s"${JesWorkingDisk.Name} 10 SSD")
 
   private val MemoryDefaultValue = "2 GB"
 
@@ -120,11 +120,11 @@ object JesRuntimeAttributes {
 object ZonesValidation extends RuntimeAttributesValidation[Vector[String]] {
   override def key: String = JesRuntimeAttributes.ZonesKey
 
-  override def coercion: Traversable[WdlType] = Set(WdlStringType, WdlArrayType(WdlStringType))
+  override def coercion: Traversable[WomType] = Set(WomStringType, WomArrayType(WomStringType))
 
-  override protected def validateValue: PartialFunction[WdlValue, ErrorOr[Vector[String]]] = {
-    case WdlString(s) => s.split("\\s+").toVector.validNel
-    case WdlArray(wdlType, value) if wdlType.memberType == WdlStringType =>
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Vector[String]]] = {
+    case WomString(s) => s.split("\\s+").toVector.validNel
+    case WomArray(womType, value) if womType.memberType == WomStringType =>
       value.map(_.valueString).toVector.validNel
   }
 
@@ -135,11 +135,11 @@ object ZonesValidation extends RuntimeAttributesValidation[Vector[String]] {
 object DisksValidation extends RuntimeAttributesValidation[Seq[JesAttachedDisk]] {
   override def key: String = JesRuntimeAttributes.DisksKey
 
-  override def coercion: Traversable[WdlType] = Set(WdlStringType, WdlArrayType(WdlStringType))
+  override def coercion: Traversable[WomType] = Set(WomStringType, WomArrayType(WomStringType))
 
-  override protected def validateValue: PartialFunction[WdlValue, ErrorOr[Seq[JesAttachedDisk]]] = {
-    case WdlString(value) => validateLocalDisks(value.split(",\\s*").toSeq)
-    case WdlArray(wdlType, values) if wdlType.memberType == WdlStringType =>
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Seq[JesAttachedDisk]]] = {
+    case WomString(value) => validateLocalDisks(value.split(",\\s*").toSeq)
+    case WomArray(womType, values) if womType.memberType == WomStringType =>
       validateLocalDisks(values.map(_.valueString))
   }
 
@@ -158,9 +158,9 @@ object DisksValidation extends RuntimeAttributesValidation[Seq[JesAttachedDisk]]
   }
 
   private def sequenceNels(nels: Seq[ErrorOr[JesAttachedDisk]]): ErrorOr[Seq[JesAttachedDisk]] = {
-    val emptyDiskNel = Vector.empty[JesAttachedDisk].validNel[String]
+    val emptyDiskNel: ErrorOr[Vector[JesAttachedDisk]] = Vector.empty[JesAttachedDisk].validNel
     val disksNel: ErrorOr[Vector[JesAttachedDisk]] = nels.foldLeft(emptyDiskNel) {
-      (acc, v) => (acc |@| v) map { (a, v) => a :+ v }
+      (acc, v) => (acc, v) mapN { (a, v) => a :+ v }
     }
     disksNel
   }

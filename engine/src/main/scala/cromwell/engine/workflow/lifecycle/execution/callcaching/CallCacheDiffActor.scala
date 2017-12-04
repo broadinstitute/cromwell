@@ -4,7 +4,7 @@ import akka.actor.{ActorRef, LoggingFSM, Props}
 import cats.data.NonEmptyList
 import cats.instances.list._
 import cats.syntax.foldable._
-import cromwell.core.WorkflowId
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{CallCacheDiffActorData, _}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter.CallCacheDiffQueryCall
 import cromwell.services.metadata.CallMetadataKeys.CallCachingKeys
@@ -12,7 +12,6 @@ import cromwell.services.metadata.MetadataService.{GetMetadataQueryAction, Metad
 import cromwell.services.metadata._
 import cromwell.webservice.metadata.MetadataComponent._
 import cromwell.webservice.metadata._
-import cromwell.core.Dispatcher.EngineDispatcher
 import spray.json.JsObject
 
 import scala.language.postfixOps
@@ -295,7 +294,7 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
     * Create a Metadata query from a CallCacheDiffQueryCall
     */
   private def makeMetadataQuery(call: CallCacheDiffQueryCall) = MetadataQuery(
-    WorkflowId.fromString(call.workflowId),
+    call.workflowId,
     // jobAttempt None will return keys for all attempts
     Option(MetadataQueryJobKey(call.callFqn, call.jobIndex, None)),
     None,

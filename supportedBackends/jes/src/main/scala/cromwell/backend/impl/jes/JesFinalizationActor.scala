@@ -6,7 +6,7 @@ import cromwell.backend.standard.{StandardFinalizationActor, StandardFinalizatio
 import cromwell.core.CallOutputs
 import cromwell.core.io.AsyncIo
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
-import wdl4s.wdl.WdlTaskCall
+import wom.graph.TaskCallNode
 
 import scala.concurrent.Future
 
@@ -14,7 +14,7 @@ case class JesFinalizationActorParams
 (
   workflowDescriptor: BackendWorkflowDescriptor,
   ioActor: ActorRef,
-  calls: Set[WdlTaskCall],
+  calls: Set[TaskCallNode],
   jesConfiguration: JesConfiguration,
   jobExecutionMap: JobExecutionMap,
   workflowOutputs: CallOutputs,

@@ -6,19 +6,20 @@ import javax.net.ssl.SSLException
 import akka.NotUsed
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.stream._
-import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition, Source}
+import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition, Sink, Source}
 import com.google.cloud.storage.StorageException
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Dispatcher
+import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.actor.StreamActorHelper
 import cromwell.core.actor.StreamIntegration.StreamContext
 import cromwell.core.io.{IoAck, IoCommand, Throttle}
+import cromwell.engine.instrumentation.IoInstrumentation
 import cromwell.engine.io.IoActor._
 import cromwell.engine.io.gcs.GcsBatchFlow.BatchFailedException
 import cromwell.engine.io.gcs.{GcsBatchCommandContext, ParallelGcsBatchFlow}
 import cromwell.engine.io.nio.NioFlow
 import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
-import cromwell.core.Dispatcher.IoDispatcher
 
 /**
   * Actor that performs IO operations asynchronously using akka streams
@@ -27,14 +28,26 @@ import cromwell.core.Dispatcher.IoDispatcher
   * @param throttle optional throttler to control the throughput of requests.
   *                 Applied to ALL incoming requests
   * @param materializer actor materializer to run the stream
+  * @param serviceRegistryActor actorRef for the serviceRegistryActor
   */
-final class IoActor(queueSize: Int, throttle: Option[Throttle])(implicit val materializer: ActorMaterializer) extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] {
+final class IoActor(queueSize: Int,
+                    throttle: Option[Throttle],
+                    override val serviceRegistryActor: ActorRef)(implicit val materializer: ActorMaterializer) 
+  extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] with IoInstrumentation {
   
   implicit private val system = context.system
   implicit val ec = context.dispatcher
+
+  /**
+    * Method for instrumentation to be executed when a IoCommand failed and is being retried.
+    * Can be passed to flows so they can invoke it when necessary.
+    */
+  private def onRetry(commandContext: IoCommandContext[_])(throwable: Throwable): Unit = {
+    incrementIoRetry(commandContext.request, throwable)
+  }
   
-  private [io] lazy val defaultFlow = new NioFlow(parallelism = 100, context.system.scheduler).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
-  private [io] lazy val gcsBatchFlow = new ParallelGcsBatchFlow(parallelism = 10, batchSize = 100, context.system.scheduler).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
+  private [io] lazy val defaultFlow = new NioFlow(parallelism = 100, context.system.scheduler, onRetry).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
+  private [io] lazy val gcsBatchFlow = new ParallelGcsBatchFlow(parallelism = 10, batchSize = 100, context.system.scheduler, onRetry).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   
   protected val source = Source.queue[IoCommandContext[_]](queueSize, OverflowStrategy.dropNew)
 
@@ -46,7 +59,7 @@ final class IoActor(queueSize: Int, throttle: Option[Throttle])(implicit val mat
     // Partitions requests between gcs batch, and single nio requests
     val batchPartitioner = builder.add(Partition[IoCommandContext[_]](2, {
       case _: GcsBatchCommandContext[_, _] => 0
-      case other @ _ => 1
+      case _ => 1
     }))
     
     // Sub flow for batched gcs requests
@@ -77,7 +90,12 @@ final class IoActor(queueSize: Int, throttle: Option[Throttle])(implicit val mat
       .via(flow)
   } getOrElse flow
   
-  override protected lazy val streamSource = source.via(throttledFlow).withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
+  private val instrumentationSink = Sink.foreach[IoResult](incrementIoResult)
+  
+  override protected lazy val streamSource = source
+    .via(throttledFlow)
+    .alsoTo(instrumentationSink)  
+    .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   
   override def actorReceive: Receive = {
     /* GCS Batch command with context */
@@ -167,7 +185,7 @@ object IoActor {
 
   def isFatal(failure: Throwable) = !isRetryable(failure)
   
-  def props(queueSize: Int, throttle: Option[Throttle])(implicit materializer: ActorMaterializer) = {
-    Props(new IoActor(queueSize, throttle)).withDispatcher(IoDispatcher)
+  def props(queueSize: Int, throttle: Option[Throttle], serviceRegistryActor: ActorRef)(implicit materializer: ActorMaterializer) = {
+    Props(new IoActor(queueSize, throttle, serviceRegistryActor)).withDispatcher(IoDispatcher)
   }
 }

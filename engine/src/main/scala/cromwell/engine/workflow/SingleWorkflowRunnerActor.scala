@@ -9,12 +9,13 @@ import cats.instances.try_._
 import cats.syntax.functor._
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core._
+import cromwell.core.abort.WorkflowAbortFailureResponse
 import cromwell.core.path.Path
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
-import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
+import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreSubmitActor}
 import cromwell.jobstore.EmptyJobStoreActor
 import cromwell.server.CromwellRootActor
 import cromwell.services.metadata.MetadataService.{GetSingleWorkflowMetadataAction, GetStatus, WorkflowOutputs}
@@ -46,8 +47,8 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
   private val backoff = SimpleExponentialBackoff(1 second, 1 minute, 1.2)
 
   override lazy val workflowStore = new InMemoryWorkflowStore()
-  override lazy val jobStoreActor = context.actorOf(EmptyJobStoreActor.props)
-  override lazy val subWorkflowStoreActor = context.actorOf(EmptySubWorkflowStoreActor.props)
+  override lazy val jobStoreActor = context.actorOf(EmptyJobStoreActor.props, "JobStoreActor")
+  override lazy val subWorkflowStoreActor = context.actorOf(EmptySubWorkflowStoreActor.props, "SubWorkflowStoreActor")
 
   startWith(NotStarted, EmptySwraData)
 
@@ -119,7 +120,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
 
   whenUnhandled {
     // Handle failures for all failure responses generically.
-    case Event(r: WorkflowStoreEngineActor.WorkflowAbortFailed, data) => failAndFinish(r.reason, data)
+    case Event(r: WorkflowAbortFailureResponse, data) => failAndFinish(r.failure, data)
     case Event(Failure(e), data) => failAndFinish(e, data)
     case Event(Status.Failure(e), data) => failAndFinish(e, data)
     case Event(FailedMetadataResponse(e), data) => failAndFinish(e, data)

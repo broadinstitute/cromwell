@@ -12,12 +12,13 @@ import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthObject, JesDockerCredentials}
 import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
+import cromwell.cloudsupport.gcp.auth.{ClientSecrets, GoogleAuthMode}
 import cromwell.core.CromwellFatalException
 import cromwell.core.io.AsyncIo
-import cromwell.filesystems.gcs.auth.{ClientSecrets, GoogleAuthMode}
+import cromwell.filesystems.gcs.GoogleUtil._
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import spray.json.{JsObject, JsTrue}
-import wdl4s.wdl.WdlTaskCall
+import wom.graph.TaskCallNode
 
 import scala.concurrent.Future
 
@@ -25,7 +26,7 @@ case class JesInitializationActorParams
 (
   workflowDescriptor: BackendWorkflowDescriptor,
   ioActor: ActorRef,
-  calls: Set[WdlTaskCall],
+  calls: Set[TaskCallNode],
   jesConfiguration: JesConfiguration,
   serviceRegistryActor: ActorRef,
   restarting: Boolean
@@ -57,11 +58,11 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
 
   // Credentials object for the GCS API
   private lazy val gcsCredentials: Future[Credentials] =
-    jesConfiguration.jesAttributes.auths.gcs.credential(workflowOptions)
+    jesConfiguration.jesAttributes.auths.gcs.retryCredential(workflowOptions)
 
   // Credentials object for the Genomics API
   private lazy val genomicsCredentials: Future[Credentials] =
-    jesConfiguration.jesAttributes.auths.genomics.credential(workflowOptions)
+    jesConfiguration.jesAttributes.auths.genomics.retryCredential(workflowOptions)
 
   // Genomics object to access the Genomics API
   private lazy val genomics: Future[Genomics] = {
@@ -87,7 +88,7 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
           Future.successful(())
         case CromwellFatalException(e: StorageException) if e.getCode == StatusCodes.PreconditionFailed.intValue =>
             Future.failed(new IOException(s"Failed to upload authentication file:" +
-              " there was already a file at the same location and this workflow was not being restarted."))
+              s" there was already a file at the same location and this workflow was not being restarted: ${e.getMessage}"))
         case failure => Future.failed(new IOException(s"Failed to upload authentication file", failure))
       }
     }

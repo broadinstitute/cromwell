@@ -1,8 +1,8 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
+import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobStarting
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.RequestOutputStore
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.RequestValueStore
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecutionTokenDenied, JobExecutionTokenDispensed}
 import cromwell.jobstore.JobStoreActor.QueryJobCompletion
 import org.scalatest.concurrent.Eventually
@@ -34,7 +34,7 @@ class EjeaRequestingExecutionTokenSpec extends EngineJobExecutionActorSpec with 
         helper.jobStoreProbe.expectMsgPF(max = awaitTimeout, hint = "Awaiting job store lookup") {
           case QueryJobCompletion(jobKey, taskOutputs) =>
             validateJobStoreKey(jobKey)
-            taskOutputs should be(helper.task.outputs)
+            taskOutputs should be(helper.call.outputPorts.toSeq)
         }
         helper.bjeaProbe.expectNoMsg(awaitAlmostNothing)
         helper.jobHashingInitializations shouldBe NothingYet
@@ -47,8 +47,8 @@ class EjeaRequestingExecutionTokenSpec extends EngineJobExecutionActorSpec with 
         ejea ! JobExecutionTokenDispensed(helper.executionToken)
 
         helper.replyToProbe.expectMsg(max = awaitTimeout, hint = "Awaiting JobStarting message", JobStarting(helper.jobDescriptorKey))
-        helper.replyToProbe.expectMsg(max = awaitTimeout, hint = "Awaiting RequestOutputStore message", RequestOutputStore)
-        ejea.stateName should be(WaitingForOutputStore)
+        helper.replyToProbe.expectMsg(max = awaitTimeout, hint = "Awaiting RequestValueStore message", RequestValueStore)
+        ejea.stateName should be(WaitingForValueStore)
       }
     }
   }

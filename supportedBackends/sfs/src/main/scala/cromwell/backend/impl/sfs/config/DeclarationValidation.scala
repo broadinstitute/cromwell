@@ -1,11 +1,11 @@
 package cromwell.backend.impl.sfs.config
 
-import cromwell.backend.validation._
-import wdl4s.wdl.expression.NoFunctions
-import wdl4s.wdl.types._
-import wdl4s.wdl.values.WdlValue
-import wdl4s.wdl.{Declaration, NoLookup, WdlExpression}
 import cromwell.backend.impl.sfs.config.ConfigConstants._
+import cromwell.backend.validation._
+import wdl.expression.NoFunctions
+import wdl.{Declaration, NoLookup, WdlExpression}
+import wom.types._
+import wom.values.WomValue
 
 /**
   * Creates instances of runtime attribute validations from WDL declarations.
@@ -34,18 +34,18 @@ object DeclarationValidation {
         new MemoryDeclarationValidation(declaration, DiskRuntimeAttribute, DiskRuntimeAttributePrefix)
       // All other declarations must be a Boolean, Float, Integer, or String.
       case _ =>
-        val validatedRuntimeAttr = validator(declaration.wdlType, declaration.unqualifiedName)
+        val validatedRuntimeAttr = validator(declaration.womType, declaration.unqualifiedName)
         new DeclarationValidation(declaration, validatedRuntimeAttr)
     }
   }
 
-  private def validator(wdlType: WdlType, unqualifiedName: String): PrimitiveRuntimeAttributesValidation[_, _] = {
-    wdlType match {
-      case WdlBooleanType => new BooleanRuntimeAttributesValidation(unqualifiedName)
-      case WdlFloatType => new FloatRuntimeAttributesValidation(unqualifiedName)
-      case WdlIntegerType => new IntRuntimeAttributesValidation(unqualifiedName)
-      case WdlStringType => new StringRuntimeAttributesValidation(unqualifiedName)
-      case WdlOptionalType(x) => validator(x, unqualifiedName)
+  private def validator(womType: WomType, unqualifiedName: String): PrimitiveRuntimeAttributesValidation[_, _] = {
+    womType match {
+      case WomBooleanType => new BooleanRuntimeAttributesValidation(unqualifiedName)
+      case WomFloatType => new FloatRuntimeAttributesValidation(unqualifiedName)
+      case WomIntegerType => new IntRuntimeAttributesValidation(unqualifiedName)
+      case WomStringType => new StringRuntimeAttributesValidation(unqualifiedName)
+      case WomOptionalType(x) => validator(x, unqualifiedName)
       case other => throw new RuntimeException(s"Unsupported config runtime attribute $other $unqualifiedName")
     }
   }
@@ -80,7 +80,7 @@ class DeclarationValidation(declaration: Declaration, instanceValidation: Runtim
     val validationDefault = if (declaration.expression.isDefined)
       default(instanceValidation, declaration.expression.get)
     else instanceValidation
-    if (declaration.wdlType.isInstanceOf[WdlOptionalType]) validationDefault.optional else validationDefault
+    if (declaration.womType.isInstanceOf[WomOptionalType]) validationDefault.optional else validationDefault
   }
 
   /**
@@ -101,9 +101,9 @@ class DeclarationValidation(declaration: Declaration, instanceValidation: Runtim
     * @param validatedRuntimeAttributes The validated attributes.
     * @return The value from the collection wrapped in `Some`, or `None` if the value wasn't found.
     */
-  def extractWdlValueOption(validatedRuntimeAttributes: ValidatedRuntimeAttributes): Option[WdlValue] = {
+  def extractWdlValueOption(validatedRuntimeAttributes: ValidatedRuntimeAttributes): Option[WomValue] = {
     RuntimeAttributesValidation.extractOption(instanceValidation, validatedRuntimeAttributes) map {
-      declaration.wdlType.coerceRawValue(_).get
+      declaration.womType.coerceRawValue(_).get
     }
   }
 }

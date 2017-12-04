@@ -5,15 +5,15 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell.core.actor.StreamIntegration.BackPressure
 import cromwell.core.{TestKitSuite, WorkflowId}
-import cromwell.database.slick.SlickDatabase
+import cromwell.database.slick.EngineSlickDatabase
 import cromwell.database.sql.tables.DockerHashStoreEntry
 import cromwell.docker.DockerHashActor.{DockerHashFailedResponse, DockerHashSuccessResponse}
 import cromwell.docker.{DockerHashRequest, DockerHashResult, DockerImageIdentifier, DockerImageIdentifierWithoutHash}
-import cromwell.engine.workflow.WorkflowActor.{RestartExistingWorkflow, StartMode, StartNewWorkflow}
 import cromwell.engine.workflow.WorkflowDockerLookupActor.{DockerHashActorTimeout, WorkflowDockerLookupFailure, WorkflowDockerTerminalFailure}
 import cromwell.engine.workflow.WorkflowDockerLookupActorSpec._
+import cromwell.engine.workflow.workflowstore.{StartableState, Submitted}
+import cromwell.services.EngineServicesStore
 import cromwell.services.ServicesStore._
-import cromwell.services.SingletonServicesStore
 import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
 
@@ -38,7 +38,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
   it should "wait and resubmit the docker request when it gets a backpressure message" in {
     val backpressureWaitTime = 2 seconds
 
-    val lookupActor = TestActorRef(Props(new TestWorkflowDockerLookupActor(workflowId, dockerHashingActor.ref, StartNewWorkflow, backpressureWaitTime)), self)
+    val lookupActor = TestActorRef(Props(new TestWorkflowDockerLookupActor(workflowId, dockerHashingActor.ref, Submitted, backpressureWaitTime)), self)
     lookupActor ! LatestRequest
 
     dockerHashingActor.expectMsg(LatestRequest)
@@ -53,7 +53,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
       Future.successful(())
     }
 
-    val lookupActor = TestActorRef(WorkflowDockerLookupActor.props(workflowId, dockerHashingActor.ref, StartNewWorkflow, db))
+    val lookupActor = TestActorRef(WorkflowDockerLookupActor.props(workflowId, dockerHashingActor.ref, isRestart = false, db))
     lookupActor ! LatestRequest
 
     // The WorkflowDockerLookupActor should not have the hash for this tag yet and will need to query the dockerHashingActor.
@@ -72,7 +72,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
   }
 
   it should "soldier on after docker hashing actor timeouts" in {
-    val lookupActor = TestActorRef(WorkflowDockerLookupActor.props(workflowId, dockerHashingActor.ref, StartNewWorkflow))
+    val lookupActor = TestActorRef(WorkflowDockerLookupActor.props(workflowId, dockerHashingActor.ref, isRestart = false))
 
     lookupActor ! LatestRequest
     lookupActor ! OlderRequest
@@ -108,7 +108,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
   }
 
   it should "respond appropriately to docker hash lookup failures" in {
-    val lookupActor = TestActorRef(WorkflowDockerLookupActor.props(workflowId, dockerHashingActor.ref, StartNewWorkflow))
+    val lookupActor = TestActorRef(WorkflowDockerLookupActor.props(workflowId, dockerHashingActor.ref, isRestart = false))
     lookupActor ! LatestRequest
     lookupActor ! OlderRequest
 
@@ -142,7 +142,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
         Seq(LatestStoreEntry(workflowId), OlderStoreEntry(workflowId)))
     }
 
-    val lookupActor = TestActorRef(WorkflowDockerLookupActor.props(workflowId, dockerHashingActor.ref, RestartExistingWorkflow, db))
+    val lookupActor = TestActorRef(WorkflowDockerLookupActor.props(workflowId, dockerHashingActor.ref, isRestart = true, db))
 
     lookupActor ! LatestRequest
     lookupActor ! OlderRequest
@@ -157,7 +157,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
 
   it should "not try to look up hashes if not restarting" in {
     val db = dbWithWrite(Future.successful(()))
-    val lookupActor = TestActorRef(WorkflowDockerLookupActor.props(workflowId, dockerHashingActor.ref, StartNewWorkflow, db))
+    val lookupActor = TestActorRef(WorkflowDockerLookupActor.props(workflowId, dockerHashingActor.ref, isRestart = false, db))
 
     lookupActor ! LatestRequest
     lookupActor ! OlderRequest
@@ -179,7 +179,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
       if (numWrites == 1) Future.failed(new RuntimeException("Fake exception from a test.")) else Future.successful(())
     }
 
-    val lookupActor = TestActorRef(WorkflowDockerLookupActor.props(workflowId, dockerHashingActor.ref, StartNewWorkflow, db))
+    val lookupActor = TestActorRef(WorkflowDockerLookupActor.props(workflowId, dockerHashingActor.ref, isRestart = false, db))
     lookupActor ! LatestRequest
 
     // The WorkflowDockerLookupActor should not have the hash for this tag yet and will need to query the dockerHashingActor.
@@ -204,7 +204,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
       Future.failed(new Exception("Don't worry this is just a dummy failure in a test"))
     }
 
-    val lookupActor = TestActorRef(WorkflowDockerLookupActor.props(workflowId, dockerHashingActor.ref, RestartExistingWorkflow, db))
+    val lookupActor = TestActorRef(WorkflowDockerLookupActor.props(workflowId, dockerHashingActor.ref, isRestart = true, db))
     lookupActor ! LatestRequest
 
     dockerHashingActor.expectNoMsg()
@@ -222,7 +222,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
       ))
     }
 
-    val lookupActor = TestActorRef(WorkflowDockerLookupActor.props(workflowId, dockerHashingActor.ref, RestartExistingWorkflow, db))
+    val lookupActor = TestActorRef(WorkflowDockerLookupActor.props(workflowId, dockerHashingActor.ref, isRestart = true, db))
     lookupActor ! LatestRequest
 
     dockerHashingActor.expectNoMsg()
@@ -230,21 +230,21 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
     numReads should equal(1)
   }
 
-  def dbWithWrite(writeFn: => Future[Unit]): SlickDatabase = {
+  def dbWithWrite(writeFn: => Future[Unit]): EngineSlickDatabase = {
     databaseInterface(write = _ => writeFn)
   }
 
-  def dbWithQuery(queryFn: => Future[Seq[DockerHashStoreEntry]]): SlickDatabase = {
+  def dbWithQuery(queryFn: => Future[Seq[DockerHashStoreEntry]]): EngineSlickDatabase = {
     databaseInterface(query = _ => queryFn)
   }
 
   def databaseInterface(query: String => Future[Seq[DockerHashStoreEntry]] = abjectFailure,
-                        write: DockerHashStoreEntry => Future[Unit] = abjectFailure): SlickDatabase = {
-    new SlickDatabase(DatabaseConfig) {
+                        write: DockerHashStoreEntry => Future[Unit] = abjectFailure): EngineSlickDatabase = {
+    new EngineSlickDatabase(DatabaseConfig) {
       override def queryDockerHashStoreEntries(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Seq[DockerHashStoreEntry]] = query(workflowExecutionUuid)
 
       override def addDockerHashStoreEntry(dockerHashStoreEntry: DockerHashStoreEntry)(implicit ec: ExecutionContext): Future[Unit] = write(dockerHashStoreEntry)
-    }.initialized
+    }.initialized(EngineServicesStore.EngineLiquibaseSettings)
   }
 }
 
@@ -269,6 +269,10 @@ object WorkflowDockerLookupActorSpec {
 
   def abjectFailure[A, B]: A => Future[B] = _ => Future.failed(new RuntimeException("Should not be called!"))
 
-  class TestWorkflowDockerLookupActor(workflowId: WorkflowId, dockerHashingActor: ActorRef, startMode: StartMode, override val backpressureTimeout: FiniteDuration)
-    extends WorkflowDockerLookupActor(workflowId, dockerHashingActor, startMode, SingletonServicesStore.databaseInterface)
+  class TestWorkflowDockerLookupActor(workflowId: WorkflowId, dockerHashingActor: ActorRef, startState: StartableState, override val backpressureTimeout: FiniteDuration)
+    extends WorkflowDockerLookupActor(
+      workflowId,
+      dockerHashingActor,
+      startState.restarted,
+      EngineServicesStore.engineDatabaseInterface)
 }

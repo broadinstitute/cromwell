@@ -2,9 +2,10 @@ package cromwell.backend.standard
 
 import akka.actor.SupervisorStrategy.{Decider, Stop}
 import akka.actor.{ActorRef, OneForOneStrategy, Props}
-import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobNotFoundException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
-import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, Recover}
+import cromwell.backend._
+import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, Reconnect, ReconnectToAbort, Recover}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobExecutionActor}
 import cromwell.core.Dispatcher
 import cromwell.services.keyvalue.KeyValueServiceActor._
@@ -25,7 +26,8 @@ case class DefaultStandardSyncExecutionActorParams
   override val configurationDescriptor: BackendConfigurationDescriptor,
   override val backendInitializationDataOption: Option[BackendInitializationData],
   override val backendSingletonActorOption: Option[ActorRef],
-  override val asyncJobExecutionActorClass: Class[_ <: StandardAsyncExecutionActor]
+  override val asyncJobExecutionActorClass: Class[_ <: StandardAsyncExecutionActor],
+  override val minimumRuntimeSettings: MinimumRuntimeSettings
 ) extends StandardSyncExecutionActorParams
 
 /**
@@ -61,26 +63,49 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
 
   private def startup: Receive = {
     case AbortJobCommand =>
-      context.parent ! AbortedResponse(jobDescriptor.key)
+      context.parent ! JobAbortedResponse(jobDescriptor.key)
       context.stop(self)
   }
 
   private def running(executor: ActorRef): Receive = {
     case AbortJobCommand =>
       executor ! AbortJobCommand
-    case abortResponse: AbortedResponse =>
+    case abortResponse: JobAbortedResponse =>
       context.parent ! abortResponse
       context.stop(self)
-    case KvPair(key, Some(jobId)) if key.key == jobIdKey =>
-      // Successful operation ID lookup during recover.
-      executor ! Recover(StandardAsyncJob(jobId))
-    case KvKeyLookupFailed(_) =>
-      // Missed operation ID lookup during recover, fall back to execute.
-      executor ! Execute
     case KvFailure(_, e) =>
-      // Failed operation ID lookup during recover, crash and let the supervisor deal with it.
+      // Failed operation ID lookup, crash and let the supervisor deal with it.
       completionPromise.tryFailure(e)
       throw new RuntimeException(s"Failure attempting to look up job id for key ${jobDescriptor.key}", e)
+  }
+  
+  private def recovering(executor: ActorRef): Receive = running(executor).orElse {
+    case KvPair(key, Some(jobId)) if key.key == jobIdKey =>
+      // Successful operation ID lookup.
+      executor ! Recover(StandardAsyncJob(jobId))
+    case KvKeyLookupFailed(_) =>
+      // Missed operation ID lookup, fall back to execute.
+      executor ! Execute
+  }
+
+  private def reconnectingToAbort(executor: ActorRef): Receive = running(executor).orElse {
+    case KvPair(key, Some(jobId)) if key.key == jobIdKey =>
+      // Successful operation ID lookup.
+      executor ! ReconnectToAbort(StandardAsyncJob(jobId))
+    case KvKeyLookupFailed(_) =>
+      // Can't find an operation ID for this job, respond with a JobNotFound and don't start the job
+      completionPromise.tryFailure(JobNotFoundException(jobDescriptor.key))
+      ()
+  }
+
+  private def reconnecting(executor: ActorRef): Receive = running(executor).orElse {
+    case KvPair(key, Some(jobId)) if key.key == jobIdKey =>
+      // Successful operation ID lookup.
+      executor ! Reconnect(StandardAsyncJob(jobId))
+    case KvKeyLookupFailed(_) =>
+      // Can't find an operation ID for this job, respond with a JobNotFound and don't start the job
+      completionPromise.tryFailure(JobNotFoundException(jobDescriptor.key))
+      ()
   }
 
   /**
@@ -97,14 +122,26 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
     completionPromise.future
   }
 
-  override def recover: Future[BackendJobExecutionResponse] = {
+  private def onRestart(nextReceive: ActorRef => Receive) = {
     val executorRef = createAsyncRef()
-    context.become(running(executorRef) orElse receive)
+    context.become(nextReceive(executorRef) orElse receive)
     val kvJobKey =
       KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt)
     val kvGet = KvGet(ScopedKey(jobDescriptor.workflowDescriptor.id, kvJobKey, jobIdKey))
     serviceRegistryActor ! kvGet
     completionPromise.future
+  }
+  
+  override def recover: Future[BackendJobExecutionResponse] = {
+    onRestart(recovering)
+  }
+  
+  override def reconnectToAborting: Future[BackendJobExecutionResponse] = {
+    onRestart(reconnectingToAbort)
+  }
+
+  override def reconnect: Future[BackendJobExecutionResponse] = {
+    onRestart(reconnecting)
   }
 
   def createAsyncParams(): StandardAsyncExecutionActorParams = {
@@ -116,7 +153,8 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
       standardParams.configurationDescriptor,
       standardParams.backendInitializationDataOption,
       standardParams.backendSingletonActorOption,
-      completionPromise
+      completionPromise,
+      standardParams.minimumRuntimeSettings
     )
   }
 

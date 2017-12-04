@@ -1,9 +1,10 @@
 package cromwell
 
+import common.validation.Validation._
 import org.scalatest.{Matchers, WordSpecLike}
-import wdl4s.wdl.WdlNamespace
-import wdl4s.wdl.expression.NoFunctions
-import wdl4s.wdl.values.{WdlFile, WdlString}
+import wdl.WdlNamespace
+import wdl.expression.NoFunctions
+import wom.values.{WomFile, WomString}
 
 
 class OptionalParamWorkflowSpec extends Matchers with WordSpecLike {
@@ -27,14 +28,14 @@ class OptionalParamWorkflowSpec extends Matchers with WordSpecLike {
         fail("Expected to find task 'find'")
       }
 
-      val instantiateWithoutValue = findTask.instantiateCommand(findTask.inputsFromMap(Map("find.root" -> WdlFile("src"))), NoFunctions)
-      instantiateWithoutValue.get shouldEqual "find src"
+      val instantiateWithoutValue = findTask.instantiateCommand(findTask.inputsFromMap(Map("find.root" -> WomFile("src"))), NoFunctions)
+      instantiateWithoutValue.toTry.get.commandString shouldEqual "find src"
 
       val instantiateWithValue = findTask.instantiateCommand(findTask.inputsFromMap(Map(
-        "find.root" -> WdlFile("src"),
-        "find.pattern" -> WdlString("*.java")
+        "find.root" -> WomFile("src"),
+        "find.pattern" -> WomString("*.java")
       )), NoFunctions).getOrElse {fail("Expected instantiation to work")}
-      instantiateWithValue shouldEqual "find src -name *.java"
+      instantiateWithValue.commandString shouldEqual "find src -name *.java"
     }
   }
 }

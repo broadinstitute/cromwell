@@ -5,7 +5,7 @@ import java.time.format.DateTimeFormatter
 import java.time.{OffsetDateTime, ZoneId, ZoneOffset}
 
 import org.slf4j.LoggerFactory
-import wdl4s.wdl.values._
+import wom.values._
 
 object MetadataStatement {
   val WorkflowIdIdx = 1
@@ -44,10 +44,10 @@ class MetadataStatementForWorkflow(preparedStatement: PreparedStatement, workflo
 
   private def metadataType(value: Any) = {
     value match {
-      case WdlInteger(_) => "int"
-      case WdlFloat(_) => "number"
-      case WdlBoolean(_) => "boolean"
-      case _: WdlValue => "string"
+      case WomInteger(_) => "int"
+      case WomFloat(_) => "number"
+      case WomBoolean(_) => "boolean"
+      case _: WomValue => "string"
       case _: Int | Long => "int"
       case _: Double | Float => "number"
       case _: Boolean => "boolean"
@@ -57,7 +57,7 @@ class MetadataStatementForWorkflow(preparedStatement: PreparedStatement, workflo
 
   private def metadataValue(value: Any) = {
     value match {
-      case v: WdlValue  => v.valueString
+      case v: WomValue  => v.valueString
       case v => v.toString
     }
   }

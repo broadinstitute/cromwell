@@ -28,13 +28,13 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
     val key2 = MetadataKey(workflowId, None, "key2")
     val supJob = MetadataJobKey("sup.sup", None, 1)
     val key3 = MetadataKey(workflowId, Option(supJob), "dog")
-    val moment = OffsetDateTime.now
+  val moment = OffsetDateTime.now.minusMinutes(1)
 
-    val event1_1 = MetadataEvent(key1, Option(MetadataValue("value1")), moment)
-    val event1_2 = MetadataEvent(key1, Option(MetadataValue("value2")), moment)
-    val event2_1 = MetadataEvent(key2, Option(MetadataValue("value1")), moment)
-    val event3_1 = MetadataEvent(key3, Option(MetadataValue("value3")), moment)
-    val event3_2 = MetadataEvent(key3, None, moment)
+  val event1_1 = MetadataEvent(key1, Option(MetadataValue("value1")), moment.plusSeconds(1))
+  val event1_2 = MetadataEvent(key1, Option(MetadataValue("value2")), moment.plusSeconds(2))
+  val event2_1 = MetadataEvent(key2, Option(MetadataValue("value1")), moment.plusSeconds(3))
+  val event3_1 = MetadataEvent(key3, Option(MetadataValue("value3")), moment.plusSeconds(4))
+  val event3_2 = MetadataEvent(key3, None, moment.plusSeconds(5))
 
   "MetadataServiceActor" should {
     "Store values for different keys and then retrieve those values" in {

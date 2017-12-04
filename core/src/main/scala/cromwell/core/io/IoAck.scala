@@ -21,7 +21,3 @@ case class IoSuccess[T](command: IoCommand[T], result: T) extends IoAck[T] {
 case class IoFailure[T](command: IoCommand[T], failure: Throwable) extends IoAck[T] {
   override def toTry = Failure(failure)
 }
-
-case class IoRetry[T](command: IoCommand[T], failure: Throwable) extends IoAck[T] {
-  override def toTry = Failure(failure)
-}

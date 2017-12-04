@@ -15,12 +15,12 @@ final case class JesJobPaths(override val workflowPaths: JesWorkflowPaths, jobKe
 
   val jesLogBasename = {
     val index = jobKey.index.map(s => s"-$s").getOrElse("")
-    s"${jobKey.scope.unqualifiedName}$index"
+    s"${jobKey.node.localName}$index"
   }
 
   override val returnCodeFilename: String = s"$jesLogBasename-rc.txt"
-  override val stdoutFilename: String = s"$jesLogBasename-stdout.log"
-  override val stderrFilename: String = s"$jesLogBasename-stderr.log"
+  override val defaultStdoutFilename: String = s"$jesLogBasename-stdout.log"
+  override val defaultStderrFilename: String = s"$jesLogBasename-stderr.log"
   override val scriptFilename: String = s"${JesJobPaths.JesExecParamName}.sh"
 
   val jesLogFilename: String = s"$jesLogBasename.log"

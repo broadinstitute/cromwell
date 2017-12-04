@@ -3,8 +3,9 @@ package cromwell.engine.backend.mock
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobSucceededResponse}
 import cromwell.backend._
-import wdl4s.wdl.WdlTaskCall
-import wdl4s.wdl.expression.{NoFunctions, WdlStandardLibraryFunctions}
+import cromwell.core.{CallOutputs, NoIoFunctionSet}
+import wom.expression.IoFunctionSet
+import wom.graph.TaskCallNode
 
 import scala.concurrent.Future
 
@@ -14,7 +15,7 @@ object DefaultBackendJobExecutionActor {
 
 case class DefaultBackendJobExecutionActor(override val jobDescriptor: BackendJobDescriptor, override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendJobExecutionActor {
   override def execute: Future[BackendJobExecutionResponse] = {
-    Future.successful(JobSucceededResponse(jobDescriptor.key, Some(0), (jobDescriptor.call.task.outputs map taskOutputToJobOutput).toMap, None, Seq.empty, dockerImageUsed = None))
+    Future.successful(JobSucceededResponse(jobDescriptor.key, Some(0), CallOutputs((jobDescriptor.taskCall.outputPorts map taskOutputToJobOutput).toMap), None, Seq.empty, dockerImageUsed = None))
   }
 
   override def recover = execute
@@ -26,7 +27,7 @@ class DefaultBackendLifecycleActorFactory(val name: String, val configurationDes
   extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 ioActor: ActorRef,
-                                                calls: Set[WdlTaskCall],
+                                                calls: Set[TaskCallNode],
                                                 serviceRegistryActor: ActorRef,
                                                 restarting: Boolean): Option[Props] = None
 
@@ -40,6 +41,6 @@ class DefaultBackendLifecycleActorFactory(val name: String, val configurationDes
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                            jobKey: BackendJobDescriptorKey,
-                                           initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = NoFunctions
+                                           initializationData: Option[BackendInitializationData]): IoFunctionSet = NoIoFunctionSet
 }
 

@@ -5,22 +5,15 @@ import akka.actor.{Actor, ActorRef, OneForOneStrategy, SupervisorStrategy}
 
 trait StopAndLogSupervisor { this: Actor =>
 
-  private var failureLog: Map[ActorRef, Throwable] = Map.empty
+  protected def onFailure(actorRef: ActorRef, throwable: => Throwable): Unit
 
   final val stopAndLogStrategy: SupervisorStrategy = {
     def stoppingDecider: Decider = {
       case e: Exception =>
-        val failer = sender()
-        failureLog += failer -> e
+        onFailure(sender(), e)
         Stop
     }
     OneForOneStrategy(loggingEnabled = false)(stoppingDecider)
-  }
-
-  final def getFailureCause(actorRef: ActorRef): Option[Throwable] = {
-    val result = failureLog.get(actorRef)
-    failureLog -= actorRef
-    result
   }
 
   override final val supervisorStrategy = stopAndLogStrategy

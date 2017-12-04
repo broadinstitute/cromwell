@@ -2,11 +2,12 @@ package cromwell.backend.impl.jes
 
 import com.google.cloud.NoCredentials
 import cromwell.backend.BackendSpec
+import cromwell.cloudsupport.gcp.auth.GoogleAuthModeSpec
 import cromwell.core.TestKitSuite
-import cromwell.filesystems.gcs.auth.GoogleAuthModeSpec
 import cromwell.util.SampleWdl
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
+import spray.json.{JsObject, JsString}
 
 class JesCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with Mockito {
 
@@ -18,7 +19,10 @@ class JesCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with
   it should "map the correct filenames" in {
     GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
 
-    val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.workflowSource())
+    val workflowDescriptor = buildWdlWorkflowDescriptor(
+      SampleWdl.HelloWorld.workflowSource(),
+      inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.mapValues(JsString.apply)).compactPrint)
+    )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
     val workflowPaths = JesWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), jesConfiguration)
@@ -34,7 +38,10 @@ class JesCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with
   it should "map the correct paths" in {
     GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
 
-    val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.workflowSource())
+    val workflowDescriptor = buildWdlWorkflowDescriptor(
+      SampleWdl.HelloWorld.workflowSource(),
+      inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.mapValues(JsString.apply)).compactPrint)
+    )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
     val workflowPaths = JesWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), jesConfiguration)
@@ -54,7 +61,10 @@ class JesCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with
   it should "map the correct call context" in {
     GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
 
-    val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.workflowSource())
+    val workflowDescriptor = buildWdlWorkflowDescriptor(
+      SampleWdl.HelloWorld.workflowSource(),
+      inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.mapValues(JsString.apply)).compactPrint)
+    )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
     val workflowPaths = JesWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), jesConfiguration)

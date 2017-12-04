@@ -2,10 +2,10 @@ package cromwell.backend
 
 
 import cats.data.Validated._
-import cats.syntax.cartesian._
+import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.validated._
-import lenthall.validation.ErrorOr._
+import common.validation.ErrorOr._
 import mouse.string._
 
 import scala.util.{Failure, Success, Try}
@@ -29,7 +29,7 @@ object MemorySize {
           case Some(s) => s.validNel
           case None => s"$unitString is an invalid memory unit".invalidNel
         }
-        (amount |@| unit) map { (a, u) => new MemorySize(a, u) } match {
+        (amount, unit) mapN { (a, u) => new MemorySize(a, u) } match {
           case Valid(memorySize) => Success(memorySize)
           case Invalid(nel) => Failure(new UnsupportedOperationException(nel.toList.mkString("\n")))
         }

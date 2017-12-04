@@ -1,0 +1,15 @@
+name: refresh_token
+testFormat: workflowsuccess
+backends: [Jes-Refresh]
+
+files {
+  wdl: refresh_token/refresh_token.wdl
+  inputs: refresh_token/refresh_token.inputs
+  options: refresh_token/refresh_token.options
+}
+
+metadata {
+  workflowName: refresh_token
+  status: Succeeded
+  "calls.refresh_token.hello.backend": "Jes-Refresh"
+}

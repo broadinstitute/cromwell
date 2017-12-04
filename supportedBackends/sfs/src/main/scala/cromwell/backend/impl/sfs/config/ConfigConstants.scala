@@ -12,6 +12,7 @@ object ConfigConstants {
   val SubmitConfig = "submit"
   val SubmitDockerConfig = "submit-docker"
   val KillConfig = "kill"
+  val KillDockerConfig = "kill-docker"
   val CheckAliveConfig = "check-alive"
   val RuntimeAttributesConfig = "runtime-attributes"
   val JobIdRegexConfig = "job-id-regex"
@@ -35,6 +36,7 @@ object ConfigConstants {
   val SubmitTask = "submit"
   val SubmitDockerTask = "submit_docker"
   val KillTask = "kill"
+  val KillDockerTask = "kill_docker"
   val CheckAliveTask = "check_alive"
 
   /*
@@ -44,6 +46,7 @@ object ConfigConstants {
   val JobNameInput = "job_name"
   val CwdInput = "cwd"
   val DockerCwdInput = "docker_cwd"
+  val DockerCidInput = "docker_cid"
   val StdoutInput = "out"
   val StderrInput = "err"
   val ScriptInput = "script"

@@ -8,9 +8,10 @@ import cromwell.backend.BackendInitializationData
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.standard.{StandardExpressionFunctions, StandardInitializationActor, StandardInitializationActorParams}
 import cromwell.backend.wfs.WorkflowPathBuilder
+import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
-import cromwell.filesystems.gcs.{GcsPathBuilderFactory, GoogleConfiguration}
-import lenthall.exception.MessageAggregation
+import cromwell.filesystems.gcs.GcsPathBuilderFactory
+import common.exception.MessageAggregation
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.Future

@@ -4,27 +4,28 @@ import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.WorkflowOptions.WorkflowOption
 import cromwell.core.callcaching.CallCachingMode
 import cromwell.core.path.PathBuilder
-import wdl4s.wdl._
+import wom.callable.Callable
+import wom.graph.TaskCallNode
 
-case class EngineWorkflowDescriptor(namespace: WdlNamespaceWithWorkflow,
+case class EngineWorkflowDescriptor(topLevelCallable: Callable,
                                     backendDescriptor: BackendWorkflowDescriptor,
-                                    backendAssignments: Map[WdlTaskCall, String],
+                                    backendAssignments: Map[TaskCallNode, String],
                                     failureMode: WorkflowFailureMode,
                                     pathBuilders: List[PathBuilder],
                                     callCachingMode: CallCachingMode,
                                     parentWorkflow: Option[EngineWorkflowDescriptor] = None) {
-  
+
   val rootWorkflow: EngineWorkflowDescriptor = parentWorkflow match {
     case Some(parent) => parent.rootWorkflow
     case None => this
   }
 
-  def isRootWorkflow = rootWorkflow.parentWorkflow.isEmpty
-  
+  def isRootWorkflow: Boolean = rootWorkflow.parentWorkflow.isEmpty
+
   lazy val id = backendDescriptor.id
-  lazy val workflow = backendDescriptor.workflow
-  lazy val name = workflow.unqualifiedName
+  lazy val callable = backendDescriptor.callable
+  lazy val name = callable.name
   lazy val knownValues = backendDescriptor.knownValues
-  
-  def getWorkflowOption(key: WorkflowOption) = backendDescriptor.getWorkflowOption(key)
+
+  def getWorkflowOption(key: WorkflowOption): Option[String] = backendDescriptor.getWorkflowOption(key)
 }

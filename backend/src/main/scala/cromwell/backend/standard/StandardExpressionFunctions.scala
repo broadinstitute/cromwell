@@ -4,8 +4,7 @@ import cromwell.backend.io.GlobFunctions
 import cromwell.backend.wdl.{ReadLikeFunctions, WriteFunctions}
 import cromwell.core.CallContext
 import cromwell.core.path.{Path, PathBuilder}
-import wdl4s.wdl.expression.PureStandardLibraryFunctionsLike
-import wdl4s.wdl.values.{WdlFile, WdlValue}
+import wom.values.{WomFile, WomValue}
 
 import scala.util.{Success, Try}
 
@@ -21,19 +20,15 @@ case class DefaultStandardExpressionFunctionsParams(override val pathBuilders: L
 
 // TODO: Once we figure out premapping and postmapping, maybe we can standardize that behavior. Currently that's the most important feature that subclasses override.
 class StandardExpressionFunctions(val standardParams: StandardExpressionFunctionsParams)
-  extends PureStandardLibraryFunctionsLike with ReadLikeFunctions with WriteFunctions with GlobFunctions {
+  extends GlobFunctions with ReadLikeFunctions with WriteFunctions {
 
-  override lazy val pathBuilders: List[PathBuilder] = standardParams.pathBuilders
+  override val pathBuilders: List[PathBuilder] = standardParams.pathBuilders
 
-  override lazy val callContext: CallContext = standardParams.callContext
+  val callContext: CallContext = standardParams.callContext
 
-  override lazy val writeDirectory: Path = callContext.root
+  val writeDirectory: Path = callContext.root
 
-  override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = Success(WdlFile(callContext.stdout))
+  override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = Success(WomFile(callContext.stdout))
 
-  override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = Success(WdlFile(callContext.stderr))
-
-  override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = {
-    super[WriteFunctions].writeTempFile(path, prefix, suffix, content)
-  }
+  override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = Success(WomFile(callContext.stderr))
 }

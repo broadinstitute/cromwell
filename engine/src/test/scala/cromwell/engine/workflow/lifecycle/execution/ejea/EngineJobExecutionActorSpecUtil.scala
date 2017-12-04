@@ -1,16 +1,16 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import cromwell.backend.BackendJobDescriptor
-import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
-import cromwell.core.JobOutput
+import cromwell.backend.BackendJobExecutionActor.{JobAbortedResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.core.callcaching._
-import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{EJEAData, SucceededResponseData, UpdatingCallCache, UpdatingJobStore}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CallCacheHashes, FileHashes}
+import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor.{EJEAData, SucceededResponseData, UpdatingCallCache, UpdatingJobStore}
 import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
 import cromwell.jobstore.{JobResultSuccess, JobStoreKey}
+import cromwell.util.WomMocks
 import org.scalatest.concurrent.Eventually
-import wdl4s.wdl.values.{WdlInteger, WdlString}
+import wom.values.{WomInteger, WomString}
 
 import scala.util.Success
 
@@ -77,7 +77,7 @@ private[ejea] trait CanExpectCacheInvalidation extends Eventually { self: Engine
 
 private[ejea] trait HasJobSuccessResponse { self: EngineJobExecutionActorSpec =>
   val successRc = Option(171)
-  val successOutputs = Map("a" -> JobOutput(WdlInteger(3)), "b" -> JobOutput(WdlString("bee")))
+  val successOutputs = WomMocks.mockOutputExpectations(Map("a" -> WomInteger(3), "b" -> WomString("bee")))
   def successResponse = JobSucceededResponse(helper.jobDescriptorKey, successRc, successOutputs, None, Seq.empty, None)
 }
 private[ejea] object HasJobSuccessResponse {
@@ -97,5 +97,5 @@ private[ejea] trait HasJobFailureResponses { self: EngineJobExecutionActorSpec =
   // Need to delay making the response because job descriptors come from the per-test "helper", which is null outside tests!
   def failureRetryableResponse = JobFailedRetryableResponse(helper.jobDescriptorKey, failureReason, failedRc)
   def failureNonRetryableResponse = JobFailedNonRetryableResponse(helper.jobDescriptorKey, failureReason, Option(12))
-  def abortedResponse = AbortedResponse(helper.jobDescriptorKey)
+  def abortedResponse = JobAbortedResponse(helper.jobDescriptorKey)
 }

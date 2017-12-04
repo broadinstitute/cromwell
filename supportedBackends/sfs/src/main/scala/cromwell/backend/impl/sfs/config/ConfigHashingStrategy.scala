@@ -46,7 +46,7 @@ abstract class ConfigHashingStrategy {
       if (!file.exists) Failure(new FileNotFoundException(s"Cannot hash file $file because it can't be found")) else {
         if (checkSiblingMd5) {
           precomputedMd5(file) match {
-            case Some(md5) => Try(md5.contentAsString)
+            case Some(md5) => Try(md5.contentAsString.trim)
             case None => hash(file)
           }
         } else hash(file)

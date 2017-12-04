@@ -2,7 +2,7 @@ package cromwell
 
 import akka.pattern.GracefulStopSupport
 import cats.data.Validated._
-import cats.syntax.cartesian._
+import cats.syntax.apply._
 import cats.syntax.validated._
 import com.typesafe.config.ConfigFactory
 import cromwell.CommandLineParser._
@@ -11,13 +11,13 @@ import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDepe
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.server.{CromwellServer, CromwellSystem}
-import lenthall.exception.MessageAggregation
-import lenthall.validation.ErrorOr._
+import common.exception.MessageAggregation
+import common.validation.ErrorOr._
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
-import scala.concurrent.duration.{Duration, _}
+import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, TimeoutException}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -28,7 +28,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
   private lazy val config = ConfigFactory.load()
 
   // Only abort jobs on SIGINT if the config explicitly sets system.abort-jobs-on-terminate = true.
-  val abortJobsOnTerminate = config.as[Boolean]("system.abort-jobs-on-terminate")
+  val abortJobsOnTerminate = config.as[Option[Boolean]]("system.abort-jobs-on-terminate")
 
   val gracefulShutdown = config.as[Boolean]("system.graceful-server-shutdown")
 
@@ -37,7 +37,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
     */
   def runServer() = {
     val system = buildCromwellSystem(Server)
-    waitAndExit(CromwellServer.run(gracefulShutdown, abortJobsOnTerminate), system)
+    waitAndExit(CromwellServer.run(gracefulShutdown, abortJobsOnTerminate.getOrElse(false)), system)
   }
 
   /**
@@ -48,7 +48,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
     implicit val actorSystem = cromwellSystem.actorSystem
 
     val sources = validateRunArguments(args)
-    val runnerProps = SingleWorkflowRunnerActor.props(sources, args.metadataOutput, gracefulShutdown, abortJobsOnTerminate)(cromwellSystem.materializer)
+    val runnerProps = SingleWorkflowRunnerActor.props(sources, args.metadataOutput, gracefulShutdown, abortJobsOnTerminate.getOrElse(true))(cromwellSystem.materializer)
 
     val runner = cromwellSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
 
@@ -136,24 +136,26 @@ object CromwellEntryPoint extends GracefulStopSupport {
     val labelsJson = readJson("Workflow labels", args.workflowLabels)
 
     val sourceFileCollection = args.imports match {
-      case Some(p) => (workflowSource |@| inputsJson |@| optionsJson |@| labelsJson) map { (w, i, o, l) =>
+      case Some(p) => (workflowSource, inputsJson, optionsJson, labelsJson) mapN { (w, i, o, l) =>
         WorkflowSourceFilesWithDependenciesZip.apply(
           workflowSource = w,
-          workflowType = Option("WDL"),
-          workflowTypeVersion = None,
+          workflowType = args.workflowType,
+          workflowTypeVersion = args.workflowTypeVersion,
           inputsJson = i,
           workflowOptionsJson = o,
           labelsJson = l,
-          importsZip = p.loadBytes)
+          importsZip = p.loadBytes,
+          warnings = Vector.empty)
       }
-      case None => (workflowSource |@| inputsJson |@| optionsJson |@| labelsJson) map { (w, i, o, l) =>
+      case None => (workflowSource, inputsJson, optionsJson, labelsJson) mapN { (w, i, o, l) =>
         WorkflowSourceFilesWithoutImports.apply(
           workflowSource = w,
-          workflowType = Option("WDL"),
-          workflowTypeVersion = None,
+          workflowType = args.workflowType,
+          workflowTypeVersion = args.workflowTypeVersion,
           inputsJson = i,
           workflowOptionsJson = o,
-          labelsJson = l
+          labelsJson = l,
+          warnings = Vector.empty
         )
       }
     }

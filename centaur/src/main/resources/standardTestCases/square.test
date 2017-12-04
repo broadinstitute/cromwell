@@ -1,0 +1,13 @@
+name: square
+testFormat: workflowsuccess
+
+files {
+  wdl: square/square.wdl
+}
+
+metadata {
+  workflowName: square
+  status: Succeeded
+  "outputs.square.doubled.0": 1
+  "outputs.square.doubled.1": 4
+}

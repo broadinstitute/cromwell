@@ -10,7 +10,7 @@ sealed trait WorkflowState {
 }
 
 object WorkflowState {
-  private lazy val WorkflowStateValues = Seq(WorkflowSubmitted, WorkflowRunning, WorkflowFailed, WorkflowSucceeded, WorkflowAborting, WorkflowAborted)
+  lazy val WorkflowStateValues = Seq(WorkflowSubmitted, WorkflowRunning, WorkflowFailed, WorkflowSucceeded, WorkflowAborting, WorkflowAborted)
 
   def withName(str: String): WorkflowState = WorkflowStateValues.find(_.toString == str).getOrElse(
     throw new NoSuchElementException(s"No such WorkflowState: $str"))

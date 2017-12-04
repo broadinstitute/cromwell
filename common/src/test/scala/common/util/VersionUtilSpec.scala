@@ -17,6 +17,16 @@ class VersionUtilSpec extends FlatSpec with Matchers {
     }
   }
 
+  it should "getVersion with the default" in {
+    val version = VersionUtil.getVersion("made-up-artifact")
+    version should be ("made-up-artifact-version.conf-to-be-generated-by-sbt")
+  }
+
+  it should "getVersion with a default override" in {
+    val version = VersionUtil.getVersion("made-up-artifact", _ => "default override")
+    version should be ("default override")
+  }
+
   it should "defaultMessage" in {
     VersionUtil.defaultMessage("some-project") should be("some-project-version.conf-to-be-generated-by-sbt")
   }

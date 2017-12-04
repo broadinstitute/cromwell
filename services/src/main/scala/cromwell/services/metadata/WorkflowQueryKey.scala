@@ -92,7 +92,7 @@ object WorkflowQueryKey {
   }
 
   case object AdditionalQueryResultFields extends SeqWorkflowQueryKey[String] {
-    override val name = "AdditionalQueryResultFields"
+    override val name = "Additionalqueryresultfields"
 
     override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[List[String]] = {
       val values = valuesFromMap(grouped).toList

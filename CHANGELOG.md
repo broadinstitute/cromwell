@@ -8,6 +8,9 @@
 
 ### Other changes
 
+* **New Cromwell documentation**  
+Our documentation has moved from our [README](https://github.com/broadinstitute/cromwell/blob/29_hotfix/README.md) to a new website: [Cromwell Documentation](http://cromwell.readthedocs.io/en/develop/). There are new [Tutorials](http://cromwell.readthedocs.io/en/develop/tutorials/FiveMinuteIntro/) and much of the documentation has been re-written. The source files are in the [/docs](https://github.com/broadinstitute/cromwell/tree/develop/docs) directory.
+
 * **API**  
     + Cromwell now supports input files in the yaml format (JSON format is still supported).
     + Added a [GET version for the `labels` endpoint](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/#retrieves-the-current-labels-for-a-workflow) which will return current labels for a workflow.

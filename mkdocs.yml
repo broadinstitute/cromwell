@@ -37,8 +37,8 @@ pages:
 - Call Caching: CallCaching.md
 - Imports: Imports.md
 - Sub-Workflows: SubWorkflows.md
+- Execution: execution/ExecutionTwists.md
 - Logging: Logging.md
-- Execution Twists: execution/ExecutionTwists.md
 - Backends:
     - Overview: backends/Backends.md
     - Local: backends/Local.md

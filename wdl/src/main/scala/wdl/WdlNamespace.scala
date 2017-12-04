@@ -478,7 +478,7 @@ object WdlNamespace {
       val lhs = ast.getAttribute("key").sourceString
       call.callable.inputNames.find(_ == lhs) match {
         case Some(_) => None
-        case None => Option(new SyntaxError(wdlSyntaxErrorFormatter.callReferencesAbsentTaskInput(ast, call.callable.ast, lhs, call.unqualifiedName)))
+        case None => Option(new SyntaxError(wdlSyntaxErrorFormatter.callReferencesAbsentTaskInput(ast, call.callable.ast, lhs, call.unqualifiedName, call.isInstanceOf[WdlWorkflowCall])))
       }
     }
 

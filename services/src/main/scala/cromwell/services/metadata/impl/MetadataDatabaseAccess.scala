@@ -2,7 +2,12 @@ package cromwell.services.metadata.impl
 
 import cats.Semigroup
 import cats.data.NonEmptyList
+import cats.instances.future._
+import cats.instances.list._
+import cats.instances.option._
+import cats.syntax.functor._
 import cats.syntax.semigroup._
+import cats.syntax.traverse._
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, WorkflowQuery}
@@ -10,6 +15,7 @@ import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.services.metadata._
+import mouse.boolean._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -179,13 +185,11 @@ trait MetadataDatabaseAccess {
       queryParameters.startDate.map(_.toSystemTimestamp), queryParameters.endDate.map(_.toSystemTimestamp))
 
     def queryMetadata(count: Int): Option[QueryMetadata] = {
-      queryParameters.page map { _ => QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(count)) }
+      queryParameters.page.as(QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(count)))
     }
 
-    def summariesToQueryResults(workflows: Traversable[WorkflowMetadataSummaryEntry]): Future[Traversable[MetadataService.WorkflowQueryResult]] = {
-      val mapped: Traversable[Future[MetadataService.WorkflowQueryResult]] = workflows map { summaryToQueryResult }
-      val result: Future[Traversable[MetadataService.WorkflowQueryResult]] = Future.sequence(mapped)
-      result
+    def summariesToQueryResults(workflows: Traversable[WorkflowMetadataSummaryEntry]): Future[List[MetadataService.WorkflowQueryResult]] = {
+      workflows.toList.traverse(summaryToQueryResult)
     }
 
     def summaryToQueryResult(workflow: WorkflowMetadataSummaryEntry): Future[MetadataService.WorkflowQueryResult] = {
@@ -197,7 +201,7 @@ trait MetadataDatabaseAccess {
           status = workflow.workflowStatus,
           start = workflow.startTimestamp map { _.toSystemOffsetDateTime },
           end = workflow.endTimestamp map { _.toSystemOffsetDateTime },
-          labels = if (labels.nonEmpty) { Some(labels) } else None,
+          labels = labels.nonEmpty.option(labels),
           parentWorkflowId = parentId
         )
       }
@@ -208,42 +212,31 @@ trait MetadataDatabaseAccess {
 
       def keyToMetadataValue(key: String): Future[Option[String]] = {
         val metadataEntries: Future[Seq[MetadataEntry]] = metadataDatabaseInterface.queryMetadataEntries(workflow.workflowExecutionUuid, key)
-        metadataEntries map { entries =>
-          metadataEntriesToValue(entries)
-        }
+        metadataEntries map metadataEntriesToValue
       }
 
       def getWorkflowLabels: Future[Map[String, String]] = {
-        if (queryParameters.additionalQueryResultFields.contains(WorkflowMetadataKeys.Labels)) {
-          metadataDatabaseInterface.getWorkflowLabels(workflow.workflowExecutionUuid)
-        } else {
-          Future.successful(Map.empty)
-        }
+        queryParameters.additionalQueryResultFields.contains(WorkflowMetadataKeys.Labels).fold(
+          metadataDatabaseInterface.getWorkflowLabels(workflow.workflowExecutionUuid), Future.successful(Map.empty))
       }
 
       val getParentWorkflowId: Future[Option[String]] = {
-        if (queryParameters.additionalQueryResultFields.contains(WorkflowMetadataKeys.ParentWorkflowId)) {
-          keyToMetadataValue(WorkflowMetadataKeys.ParentWorkflowId)
-        } else {
-          Future.successful(None)
-        }
+        queryParameters.additionalQueryResultFields.contains(WorkflowMetadataKeys.ParentWorkflowId).fold(
+          keyToMetadataValue(WorkflowMetadataKeys.ParentWorkflowId), Future.successful(None))
       }
 
-      val result: Future[MetadataService.WorkflowQueryResult] = for {
+      for {
         labels <- getWorkflowLabels
         parentWorkflowId <- getParentWorkflowId
       } yield queryResult(labels, parentWorkflowId)
-      result
 
     }
 
-    val response: Future[(WorkflowQueryResponse, Option[QueryMetadata])] = for {
+    for {
       count <- workflowSummaryCount
       workflows <- workflowSummaries
       queryResults <- summariesToQueryResults(workflows)
     } yield (WorkflowQueryResponse(queryResults.toSeq), queryMetadata(count))
-
-    response
 
   }
 }

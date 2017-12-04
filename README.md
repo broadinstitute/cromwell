@@ -7,6 +7,6 @@ Cromwell is a Workflow Management System geared towards scientific workflows. Cr
 
 The Cromwell documentation has a new home, [click here to check it out](http://cromwell.readthedocs.io/en/develop)!
 
-First time to Cromwell? Get started with [Tutorials](https://cromwell.readthedocs.io/en/latest/tutorials/FiveMinuteIntro/)!
+First time to Cromwell? Get started with [Tutorials](http://cromwell.readthedocs.io/en/develop/tutorials/FiveMinuteIntro/)!
 
 ![Jamie, the Cromwell pig](docs/jamie_the_cromwell_pig.png)

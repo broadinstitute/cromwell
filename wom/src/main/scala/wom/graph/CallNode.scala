@@ -51,6 +51,7 @@ object TaskCall {
     
     // Creates an identifier for an input or an output
     // The localName is the name of the input or output
+    
     // The FQN combines the name of the task to the name of the input or output
     def identifier(name: LocalName) = WomIdentifier(name, taskDefinitionLocalName.combineToFullyQualifiedName(name))
 
@@ -64,9 +65,9 @@ object TaskCall {
     val inputDefinitionFold = taskDefinition.inputs.foldMap({ inputDef =>
     {
       val newNode = inputDef match {
-        case RequiredInputDefinition(name, womType) => RequiredGraphInputNode(identifier(name), womType)
-        case InputDefinitionWithDefault(name, womType, default) => OptionalGraphInputNodeWithDefault(identifier(name), womType, default)
-        case OptionalInputDefinition(name, womType) => OptionalGraphInputNode(identifier(name), womType)
+        case RequiredInputDefinition(name, womType) => RequiredGraphInputNode(identifier(name), womType, name.value)
+        case InputDefinitionWithDefault(name, womType, default) => OptionalGraphInputNodeWithDefault(identifier(name), womType, default, name.value)
+        case OptionalInputDefinition(name, womType) => OptionalGraphInputNode(identifier(name), womType, name.value)
       }
 
       InputDefinitionFold(

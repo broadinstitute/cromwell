@@ -38,18 +38,26 @@ sealed trait ExternalGraphInputNode extends GraphInputNode {
     */
   
   override lazy val singleOutputPort: GraphNodeOutputPort = GraphNodeOutputPort(identifier, womType, this)
+
+  /**
+    * Key that should be looked for in the input set to satisfy this GIN
+    */
+  def nameInInputSet: String
 }
 
 final case class RequiredGraphInputNode(override val identifier: WomIdentifier,
-                                        womType: WomType) extends ExternalGraphInputNode
+                                        womType: WomType,
+                                        nameInInputSet: String) extends ExternalGraphInputNode
 
 final case class OptionalGraphInputNode(override val identifier: WomIdentifier,
-                                        womType: WomOptionalType) extends ExternalGraphInputNode
+                                        womType: WomOptionalType,
+                                        nameInInputSet: String) extends ExternalGraphInputNode
 
 // If we want to allow defaults to be "complex" expressions with dependencies we may need to make it an InstantiatedExpression here instead
 final case class OptionalGraphInputNodeWithDefault(override val identifier: WomIdentifier,
                                                    womType: WomType,
-                                                   default: WomExpression) extends ExternalGraphInputNode
+                                                   default: WomExpression,
+                                                   nameInInputSet: String) extends ExternalGraphInputNode
 
 object OuterGraphInputNode {
   def apply(forIdentifier: WomIdentifier, linkToOuterGraph: GraphNodePort.OutputPort, preserveScatterIndex: Boolean): OuterGraphInputNode = {

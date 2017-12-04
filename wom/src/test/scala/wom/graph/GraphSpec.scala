@@ -48,7 +48,7 @@ class GraphSpec extends FlatSpec with Matchers {
       inputs = List(wcInFile)
     )
     
-    val workflowInputNode = RequiredGraphInputNode(WomIdentifier("cgrep.pattern"), WomStringType)
+    val workflowInputNode = RequiredGraphInputNode(WomIdentifier("cgrep.pattern"), WomStringType, "cgrep.pattern")
     
     val psNodeBuilder = new CallNodeBuilder()
     
@@ -113,7 +113,7 @@ class GraphSpec extends FlatSpec with Matchers {
     val threeStepWorkflow = WorkflowDefinition("three_step", threeStepGraph, Map.empty, Map.empty, List.empty)
     val threeStepNodeBuilder = new CallNodeBuilder()
 
-    val workflowInputNode = RequiredGraphInputNode(WomIdentifier("three_step.cgrep.pattern"), WomStringType)
+    val workflowInputNode = RequiredGraphInputNode(WomIdentifier("three_step.cgrep.pattern"), WomStringType, "three_step.cgrep.pattern")
     
     val inputDefinitionFold = InputDefinitionFold(
       mappings = List.empty,
@@ -138,10 +138,10 @@ class GraphSpec extends FlatSpec with Matchers {
   }
   
   it should "fail to validate a Graph with duplicate identifiers" in {
-    val nodeA = RequiredGraphInputNode(WomIdentifier("bar", "foo.bar"), WomStringType)
-    val nodeB = RequiredGraphInputNode(WomIdentifier("bar", "foo.bar"), WomIntegerType)
-    val nodeC = RequiredGraphInputNode(WomIdentifier("baz", "foo.baz"), WomStringType)
-    val nodeD = RequiredGraphInputNode(WomIdentifier("baz", "foo.baz"), WomIntegerType)
+    val nodeA = RequiredGraphInputNode(WomIdentifier("bar", "foo.bar"), WomStringType, "foo.bar")
+    val nodeB = RequiredGraphInputNode(WomIdentifier("bar", "foo.bar"), WomIntegerType, "foo.bar")
+    val nodeC = RequiredGraphInputNode(WomIdentifier("baz", "foo.baz"), WomStringType, "foo.baz")
+    val nodeD = RequiredGraphInputNode(WomIdentifier("baz", "foo.baz"), WomIntegerType, "foo.baz")
     
     Graph.validateAndConstruct(Set(nodeA, nodeB, nodeC, nodeD)) match {
       case Valid(_) => fail("Graph should not validate")

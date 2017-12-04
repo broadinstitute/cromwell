@@ -140,13 +140,13 @@ object WdlCall {
         // so that it can be satisfied via workflow inputs
         case required@RequiredInputDefinition(n, womType) =>
           val identifier = wdlCall.womIdentifier.combine(n)
-          withGraphInputNode(required, RequiredGraphInputNode(identifier, womType))
+          withGraphInputNode(required, RequiredGraphInputNode(identifier, womType, identifier.fullyQualifiedName.value))
 
         // No input mapping, no default value but optional, create a OptionalGraphInputNode
         // so that it can be satisfied via workflow inputs
         case optional@OptionalInputDefinition(n, womType) =>
           val identifier = wdlCall.womIdentifier.combine(n)
-          withGraphInputNode(optional, OptionalGraphInputNode(identifier, womType))
+          withGraphInputNode(optional, OptionalGraphInputNode(identifier, womType, identifier.fullyQualifiedName.value))
       }
     }
 

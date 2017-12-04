@@ -48,7 +48,7 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
     *
     */
   it should "be able to wrap a single task call" in {
-    val xs_inputNode = RequiredGraphInputNode(WomIdentifier("xs"), WomArrayType(WomIntegerType))
+    val xs_inputNode = RequiredGraphInputNode(WomIdentifier("xs"), WomArrayType(WomIntegerType), "xs")
 
     val xsExpression = PlaceholderWomExpression(Set("xs"), WomArrayType(WomIntegerType))
     val xsExpressionAsInput = AnonymousExpressionNode

@@ -65,11 +65,11 @@ case class Workflow private(
 
         // TODO: Eurgh! But until we have something better ...
         val womValue = womType.coerceRawValue(inputParameter.default.get).get
-        OptionalGraphInputNodeWithDefault(WomIdentifier(parsedInputId), womType, ValueAsAnExpression(womValue))
+        OptionalGraphInputNodeWithDefault(WomIdentifier(parsedInputId, inputParameter.id), womType, ValueAsAnExpression(womValue), parsedInputId)
       case input =>
         val parsedInputId = FileAndId(input.id).id
 
-        RequiredGraphInputNode(WomIdentifier(parsedInputId), wdlTypeForInputParameter(input).get)
+        RequiredGraphInputNode(WomIdentifier(parsedInputId, input.id), wdlTypeForInputParameter(input).get, parsedInputId)
     }.toSet
 
     val workflowInputs: Map[String, GraphNodeOutputPort] =

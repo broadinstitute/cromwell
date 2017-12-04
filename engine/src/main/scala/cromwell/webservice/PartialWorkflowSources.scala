@@ -4,7 +4,9 @@ import _root_.io.circe.yaml
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
+import cats.instances.option._
 import cats.syntax.apply._
+import cats.syntax.functor._
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
@@ -68,12 +70,27 @@ object PartialWorkflowSources {
       // workflow source
       val wdlSource = getStringValue(WdlSourceKey)
       val workflowSource = getStringValue(WorkflowSourceKey)
-      val wdlSourceWarning = wdlSource.map(_ => wdlSourceDeprecationWarning)
+
+      def deprecationWarning(out: String, in: String)(actual: String): String = {
+        if (actual == out) {
+          val warning =
+            Array(
+              s"The '$out' parameter name has been deprecated in favor of '$in'.",
+              s"Support for '$out' will be removed from future versions of Cromwell.",
+              s"Please switch to using '$in' in future submissions.").mkString(" ")
+          log.warn(warning)
+          warning
+        } else ""
+      }
+
+      val wdlSourceDeprecationWarning: String => String = deprecationWarning(out = WdlSourceKey, in = WorkflowSourceKey)
+      val wdlSourceWarning = wdlSource.as(WdlSourceKey) map wdlSourceDeprecationWarning
+
       val workflowSourceFinal: ErrorOr[String] = (wdlSource, workflowSource) match {
         case (Some(source), None) => source.validNel
         case (None, Some(source)) => source.validNel
-        case (Some(_), Some(_)) => "wdlSource and workflowSource can't both be supplied".invalidNel
-        case (None, None) => "workflowSource needs to be supplied".invalidNel
+        case (Some(_), Some(_)) => s"$WdlSourceKey and $WorkflowSourceKey can't both be supplied".invalidNel
+        case (None, None) => s"$WorkflowSourceKey needs to be supplied".invalidNel
       }
 
       // workflow inputs
@@ -90,11 +107,14 @@ object PartialWorkflowSources {
       // dependencies
       val wdlDependencies = getArrayValue(WdlDependenciesKey)
       val workflowDependencies = getArrayValue(WorkflowDependenciesKey)
-      val wdlDependenciesWarning = wdlDependencies.map(_ => wdlDependenciesDeprecationWarning)
+
+      val wdlDependenciesDeprecationWarning: String => String = deprecationWarning(out = "wdlDependencies", in = "workflowDependencies")
+      val wdlDependenciesWarning = wdlDependencies.as(WdlDependenciesKey) map wdlDependenciesDeprecationWarning
+
       val workflowDependenciesFinal: ErrorOr[Option[Array[Byte]]] = (wdlDependencies, workflowDependencies) match {
         case (Some(dep), None) => Option(dep).validNel
         case (None, Some(dep)) => Option(dep).validNel
-        case (Some(_), Some(_)) => "wdlDependencies and workflowDependencies can't both be supplied".invalidNel
+        case (Some(_), Some(_)) => s"$WdlDependenciesKey and $WorkflowDependenciesKey can't both be supplied".invalidNel
         case (None, None) => None.validNel
       }
 
@@ -176,20 +196,6 @@ object PartialWorkflowSources {
         }
       case Invalid(err) => err.invalid
     }
-  }
-  
-  private val wdlSourceDeprecationWarning = deprecationWarning(out = "wdlSource", in = "workflowSource")
-  private val wdlDependenciesDeprecationWarning = deprecationWarning(out = "wdlDependencies", in = "workflowDependencies")
-
-  private def deprecationWarning(out: String, in: String): String = {
-    val warning =
-      s"""
-         |The '$out' parameter name has been deprecated in favor of '$in'.
-         |Support for '$out' will be removed from future versions of Cromwell.
-         |Please switch to using '$in' in future submissions.
-         """.stripMargin
-    log.warn(warning)
-    warning
   }
 
   def mergeMaps(allInputs: Seq[Option[String]]): JsObject = {

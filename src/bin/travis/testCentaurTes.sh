@@ -94,6 +94,7 @@ mkdir go-lib
 export GOPATH=$WORKDIR/go-lib
 go get github.com/ohsu-comp-bio/funnel
 cd $GOPATH/src/github.com/ohsu-comp-bio/funnel
+git submodule sync
 git checkout c4d9134
 make
 cd $WORKDIR

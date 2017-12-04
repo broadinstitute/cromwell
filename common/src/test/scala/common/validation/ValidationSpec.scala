@@ -2,8 +2,8 @@ package common.validation
 
 import java.net.URL
 
-import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
+import cats.data.{NonEmptyList, ValidatedNel}
 import cats.syntax.validated._
 import com.typesafe.config.ConfigFactory
 import common.exception.AggregatedMessageException
@@ -49,6 +49,21 @@ class ValidationSpec extends FlatSpec with Matchers with Mockito {
     url.getPath should be("/world")
   }
 
+  it should "convert a valid to a successful future" in {
+    val nel: ValidatedNel[String, String] = "ok".valid
+    val actual = nel.toFuture(_ => throw new RuntimeException("Should not be used"))
+    actual.value should be(Option(Success("ok")))
+  }
+
+  it should "convert a invalidNel to an unsuccessful future" in {
+    val nel: ValidatedNel[String, String] = "failed".invalidNel
+    val actual = nel.toFuture(nel => new RuntimeException(nel.toList.mkString("processed ", ",", " and caught")))
+    actual.value match {
+      case Some(Failure(exception: RuntimeException)) => exception.getMessage should be("processed failed and caught")
+      case other => fail(s"expected message: 'processed failed and caught' but got '$other'")
+    }
+  }
+
   it should "succeed to validate a valid value" in {
     val result = validate("hello")
     result should be("hello".valid)
@@ -83,6 +98,22 @@ class ValidationSpec extends FlatSpec with Matchers with Mockito {
     val exception = intercept[AggregatedMessageException](invalid.toTry.get)
     exception.exceptionContext should be("Error(s)")
     exception.errorMessages should contain theSameElementsAs List(":(")
+  }
+
+  it should "convert a Some to an ErrorOr" in {
+    Option("ok").toErrorOr("not used") should be("ok".valid)
+  }
+
+  it should "convert a None to an ErrorOr" in {
+    None.toErrorOr("error message") should be("error message".invalidNel)
+  }
+
+  it should "convert a Some to an Checked" in {
+    Option("ok").toChecked("not used") should be(Right("ok"))
+  }
+
+  it should "convert a None to an Checked" in {
+    None.toChecked("error message") should be(Left(NonEmptyList.one("error message")))
   }
 
 }

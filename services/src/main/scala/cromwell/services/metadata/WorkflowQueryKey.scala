@@ -14,7 +14,7 @@ import cats.instances.list._
 import scala.util.{Success, Try}
 
 object WorkflowQueryKey {
-  val ValidKeys = Set(StartDate, EndDate, Name, Id, Status, LabelKeyValue, Page, PageSize, AdditionalKeys) map { _.name }
+  val ValidKeys = Set(StartDate, EndDate, Name, Id, Status, LabelKeyValue, Page, PageSize, AdditionalQueryResultFields) map { _.name }
 
   case object StartDate extends DateTimeWorkflowQueryKey {
     override val name = "Start"
@@ -90,8 +90,8 @@ object WorkflowQueryKey {
     }
   }
 
-  case object AdditionalKeys extends SeqWorkflowQueryKey[String] {
-    override val name = "Additionalkeys"
+  case object AdditionalQueryResultFields extends SeqWorkflowQueryKey[String] {
+    override val name = "AdditionalQueryResultFields"
 
     override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[List[String]] = {
       val values = valuesFromMap(grouped).toList

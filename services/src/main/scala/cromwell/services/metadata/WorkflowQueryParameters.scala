@@ -18,7 +18,7 @@ case class WorkflowQueryParameters private(statuses: Set[String],
                                            endDate: Option[OffsetDateTime],
                                            page: Option[Int],
                                            pageSize: Option[Int],
-                                           additionalKeys: Set[String])
+                                           additionalQueryResultFields: Set[String])
 
 object WorkflowQueryParameters {
 
@@ -69,7 +69,7 @@ object WorkflowQueryParameters {
     val labelsValidation: ErrorOr[Set[Label]] = WorkflowQueryKey.LabelKeyValue.validate(valuesByCanonicalCapitalization).map(_.toSet)
     val pageValidation = Page.validate(valuesByCanonicalCapitalization)
     val pageSizeValidation = PageSize.validate(valuesByCanonicalCapitalization)
-    val additionalKeysValidation: ErrorOr[Set[String]] = AdditionalKeys.validate(valuesByCanonicalCapitalization).map(_.toSet)
+    val additionalQueryResultFieldsValidation: ErrorOr[Set[String]] = AdditionalQueryResultFields.validate(valuesByCanonicalCapitalization).map(_.toSet)
 
     // Only validate start before end if both of the individual date parsing validations have already succeeded.
     val startBeforeEndValidation: ErrorOr[Unit] = (startDateValidation, endDateValidation) match {
@@ -87,7 +87,7 @@ object WorkflowQueryParameters {
       endDateValidation,
       pageValidation,
       pageSizeValidation,
-      additionalKeysValidation) mapN { (_, _, statuses, names, ids, labels, startDate, endDate, page, pageSize, additionalKeys) => WorkflowQueryParameters(statuses, names, ids, labels, startDate, endDate, page, pageSize, additionalKeys) }
+      additionalQueryResultFieldsValidation) mapN { (_, _, statuses, names, ids, labels, startDate, endDate, page, pageSize, additionalQueryResultFields) => WorkflowQueryParameters(statuses, names, ids, labels, startDate, endDate, page, pageSize, additionalQueryResultFields) }
   }
 
   def apply(rawParameters: Seq[(String, String)]): WorkflowQueryParameters = {

@@ -356,7 +356,7 @@ paths:
             returns workflows with all of the specified label keys. Specify the label key
             and label value pair as separated with
             "label-key:label-value"
-        - name: additionalKeys
+        - name: additionalQueryResultFields
           required: false
           in: query
           type: array

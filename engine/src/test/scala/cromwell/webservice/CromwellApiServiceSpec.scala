@@ -503,8 +503,8 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
     }
 
     behavior of "REST API /query GET endpoint"
-    it should "return labels if specified in query additionalKeys param" in {
-      Get(s"/workflows/$version/query?additionalKeys=labels&id=${CromwellApiServiceSpec.ExistingWorkflowId}") ~>
+    it should "return labels if specified in additionalQueryResultFields param" in {
+      Get(s"/workflows/$version/query?additionalQueryResultFields=labels&id=${CromwellApiServiceSpec.ExistingWorkflowId}") ~>
         akkaHttpService.workflowRoutes ~>
         check {
           status should be(StatusCodes.OK)
@@ -517,8 +517,8 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
     }
 
     behavior of "REST API /query GET endpoint"
-    it should "return parentWorkflowId if specified in query additionalKeys param" in {
-      Get(s"/workflows/$version/query?additionalKeys=parentWorkflowId&id=${CromwellApiServiceSpec.ExistingWorkflowId}") ~>
+    it should "return parentWorkflowId if specified in additionalQueryResultFields param" in {
+      Get(s"/workflows/$version/query?additionalQueryResultFields=parentWorkflowId&id=${CromwellApiServiceSpec.ExistingWorkflowId}") ~>
         akkaHttpService.workflowRoutes ~>
         check {
           status should be(StatusCodes.OK)
@@ -530,8 +530,8 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
     }
 
     behavior of "REST API /query POST endpoint"
-    it should "return labels if specified in query additionalKeys param" in {
-      Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"additionalKeys":"labels"}]""")) ~>
+    it should "return labels if specified in additionalQueryResultFields param" in {
+      Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"additionalQueryResultFields":"labels"}]""")) ~>
         akkaHttpService.workflowRoutes ~>
         check {
           assertResult(StatusCodes.OK) {
@@ -544,8 +544,8 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
     }
 
     behavior of "REST API /query POST endpoint"
-    it should "return parentWorkflowId if specified in query additionalKeys param" in {
-      Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"additionalKeys":"parentWorkflowId"}]""")) ~>
+    it should "return parentWorkflowId if specified in additionalQueryResultFields param" in {
+      Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"additionalQueryResultFields":"parentWorkflowId"}]""")) ~>
         akkaHttpService.workflowRoutes ~>
         check {
           assertResult(StatusCodes.OK) {
@@ -645,14 +645,14 @@ object CromwellApiServiceSpec {
     override def receive = {
       case WorkflowQuery(parameters) =>
         val labels: Option[Map[String, String]] = {
-          if (parameters.contains(("additionalKeys", "labels"))) {
+          if (parameters.contains(("additionalQueryResultFields", "labels"))) {
             Some(Map("key1" -> "label1", "key2" -> "label2"))
           } else {
             None
           }
         }
         val parentWorkflowId: Option[String] =  {
-          if (parameters.contains(("additionalKeys", "parentWorkflowId"))) {
+          if (parameters.contains(("additionalQueryResultFields", "parentWorkflowId"))) {
             Some("pid")
           } else {
             None

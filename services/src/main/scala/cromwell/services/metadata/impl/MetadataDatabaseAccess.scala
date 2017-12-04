@@ -214,7 +214,7 @@ trait MetadataDatabaseAccess {
       }
 
       def getWorkflowLabels: Future[Map[String, String]] = {
-        if (queryParameters.additionalKeys.contains(WorkflowMetadataKeys.Labels)) {
+        if (queryParameters.additionalQueryResultFields.contains(WorkflowMetadataKeys.Labels)) {
           metadataDatabaseInterface.getWorkflowLabels(workflow.workflowExecutionUuid)
         } else {
           Future.successful(Map.empty)
@@ -222,7 +222,7 @@ trait MetadataDatabaseAccess {
       }
 
       val getParentWorkflowId: Future[Option[String]] = {
-        if (queryParameters.additionalKeys.contains(WorkflowMetadataKeys.ParentWorkflowId)) {
+        if (queryParameters.additionalQueryResultFields.contains(WorkflowMetadataKeys.ParentWorkflowId)) {
           keyToMetadataValue(WorkflowMetadataKeys.ParentWorkflowId)
         } else {
           Future.successful(None)

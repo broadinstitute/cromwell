@@ -7,6 +7,7 @@ import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.WorkflowOptions
+import wom.expression.WomExpression
 import wom.graph.TaskCallNode
 import wom.types.{WomBooleanType, WomIntegerType, WomStringType}
 import wom.values.WomValue
@@ -30,12 +31,12 @@ class SparkInitializationActor(override val workflowDescriptor: BackendWorkflowD
                                override val configurationDescriptor: BackendConfigurationDescriptor,
                                override val serviceRegistryActor: ActorRef) extends BackendWorkflowInitializationActor {
 
-  override protected def runtimeAttributeValidators: Map[String, (Option[WomValue]) => Boolean] = Map(
-    FailOnStderrKey -> wdlTypePredicate(valueRequired = false, WomBooleanType.isCoerceableFrom),
-    SparkRuntimeAttributes.AppMainClassKey -> wdlTypePredicate(valueRequired = true, WomStringType.isCoerceableFrom),
-    SparkRuntimeAttributes.NumberOfExecutorsKey -> wdlTypePredicate(valueRequired = false, WomIntegerType.isCoerceableFrom),
-    SparkRuntimeAttributes.ExecutorMemoryKey -> wdlTypePredicate(valueRequired = false, WomBooleanType.isCoerceableFrom),
-    SparkRuntimeAttributes.ExecutorCoresKey -> wdlTypePredicate(valueRequired = false, WomIntegerType.isCoerceableFrom)
+  override protected def runtimeAttributeValidators: Map[String, (Option[WomExpression]) => Boolean] = Map(
+    FailOnStderrKey -> womTypePredicate(valueRequired = false, WomBooleanType.isCoerceableFrom),
+    SparkRuntimeAttributes.AppMainClassKey -> womTypePredicate(valueRequired = true, WomStringType.isCoerceableFrom),
+    SparkRuntimeAttributes.NumberOfExecutorsKey -> womTypePredicate(valueRequired = false, WomIntegerType.isCoerceableFrom),
+    SparkRuntimeAttributes.ExecutorMemoryKey -> womTypePredicate(valueRequired = false, WomBooleanType.isCoerceableFrom),
+    SparkRuntimeAttributes.ExecutorCoresKey -> womTypePredicate(valueRequired = false, WomIntegerType.isCoerceableFrom)
   )
 
   /**

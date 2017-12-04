@@ -17,7 +17,8 @@ object Settings {
   val commonResolvers = List(
     Resolver.jcenterRepo,
     "Broad Artifactory Releases" at "https://broadinstitute.jfrog.io/broadinstitute/libs-release/",
-    "Broad Artifactory Snapshots" at "https://broadinstitute.jfrog.io/broadinstitute/libs-snapshot/"
+    "Broad Artifactory Snapshots" at "https://broadinstitute.jfrog.io/broadinstitute/libs-snapshot/",
+    Resolver.sonatypeRepo("releases")
   )
 
   /* The reason why -Xmax-classfile-name is set is because this will fail
@@ -187,7 +188,6 @@ object Settings {
       removeIntermediateContainers = BuildOptions.Remove.Always
     )
   )
-
   val engineSettings = List(resourceGenerators in Compile += writeSwaggerUiVersionConf)
   val rootSettings = GenerateRestApiDocs.generateRestApiDocsSettings
 

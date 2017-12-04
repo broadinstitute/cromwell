@@ -1,13 +1,16 @@
 package cromwell.backend.validation
 
+import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
 import common.validation.ErrorOr._
+import cromwell.core.NoIoFunctionSet
 import org.slf4j.Logger
 import wdl.expression.PureStandardLibraryFunctions
 import wdl.{NoLookup, WdlExpression}
+import wom.expression.WomExpression
 import wom.types._
 import wom.values._
 
@@ -312,7 +315,7 @@ trait RuntimeAttributesValidation[ValidatedType] {
   /**
     * Runs this validation on the value matching key.
     *
-    * NOTE: The values passed to this method should already be evaluated instances of WomValue, and not WdlExpression.
+    * NOTE: The values passed to this method should already be evaluated instances of WomValue, and not WomExpression.
     *
     * @param values The full set of values.
     * @return The error or valid value for this key.
@@ -341,7 +344,7 @@ trait RuntimeAttributesValidation[ValidatedType] {
     * @param wdlExpressionMaybe The optional expression.
     * @return True if the expression may be evaluated.
     */
-  def validateOptionalExpression(wdlExpressionMaybe: Option[WomValue]): Boolean = {
+  def validateOptionalWomValue(wdlExpressionMaybe: Option[WomValue]): Boolean = {
     wdlExpressionMaybe match {
       case None => staticDefaultOption.isDefined || validateNone.isValid
       case Some(wdlExpression: WdlExpression) =>
@@ -353,6 +356,16 @@ trait RuntimeAttributesValidation[ValidatedType] {
     }
   }
 
+  def validateOptionalWomExpression(womExpressionMaybe: Option[WomExpression]): Boolean = {
+    womExpressionMaybe match {
+      case None => staticDefaultOption.isDefined || validateNone.isValid
+      case Some(womExpression) =>
+        womExpression.evaluateValue(Map.empty, NoIoFunctionSet) match {
+          case Valid(womValue) => validateExpression.applyOrElse(womValue, (_: Any) => false)
+          case Invalid(_) => true // If we can't evaluate it, we'll let it pass for now...
+        }
+    }
+  }
   /**
     * Used to convert this instance to a `RuntimeAttributeDefinition`.
     *

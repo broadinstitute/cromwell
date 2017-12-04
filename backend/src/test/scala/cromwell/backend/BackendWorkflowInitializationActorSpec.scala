@@ -9,6 +9,7 @@ import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCo
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
+import wom.expression.WomExpression
 import wom.graph.TaskCallNode
 import wom.types._
 import wom.values._
@@ -37,7 +38,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
 
   it should "continueOnReturnCodePredicate" in {
     testContinueOnReturnCode(None) should be(true)
-    ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(None) should be(true)
+    ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(None) should be(true)
 
     val booleanRows = Table(
       "value",
@@ -71,7 +72,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
       val womValue = WomBoolean(value)
       val result = true
       testContinueOnReturnCode(Option(womValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(result)
       val valid =
         ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
@@ -82,7 +83,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
       val womValue = WomString(value.toString)
       val result = true
       testContinueOnReturnCode(Option(womValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(result)
       val valid =
         ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
@@ -93,7 +94,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
       val womValue = WdlExpression.fromString(value.toString)
       val result = true
       testContinueOnReturnCode(Option(womValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(result)
       // NOTE: expressions are never valid to validate
     }
 
@@ -101,7 +102,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
       val womValue = WomInteger(value)
       val result = true
       testContinueOnReturnCode(Option(womValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(result)
       val valid =
         ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
@@ -112,7 +113,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
       val womValue = WomString(value.toString)
       val result = true
       testContinueOnReturnCode(Option(womValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(result)
       val valid =
         ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
@@ -123,7 +124,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
       val womValue = WdlExpression.fromString(value.toString)
       val result = true
       testContinueOnReturnCode(Option(womValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(result)
       // NOTE: expressions are never valid to validate
     }
 
@@ -131,7 +132,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
       val womValue = WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(value)))
       val result = true
       testContinueOnReturnCode(Option(womValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(result)
       val valid =
         ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
@@ -142,7 +143,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
       val womValue = WomArray(WomArrayType(WomStringType), Seq(WomString(value.toString)))
       val result = true
       testContinueOnReturnCode(Option(womValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(result)
       val valid =
         ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
@@ -153,7 +154,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
       val womValue = WomArray(WomArrayType(WdlExpressionType), Seq(WdlExpression.fromString(value.toString)))
       val result = false
       testContinueOnReturnCode(Option(womValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(result)
       // NOTE: expressions are never valid to validate
     }
 
@@ -161,14 +162,14 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
       val womValue = WdlExpression.fromString(expression)
       val result = true
       testContinueOnReturnCode(Option(womValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(result)
       // NOTE: expressions are never valid to validate
     }
 
     forAll(invalidWdlValueRows) { womValue =>
       val result = false
       testContinueOnReturnCode(Option(womValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(result)
       val valid =
         ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
@@ -187,7 +188,7 @@ class TestPredicateBackendWorkflowInitializationActor extends BackendWorkflowIni
 
   override def calls: Set[TaskCallNode] = throw new NotImplementedError("calls")
 
-  override protected def runtimeAttributeValidators: Map[String, (Option[WomValue]) => Boolean] =
+  override protected def runtimeAttributeValidators: Map[String, (Option[WomExpression]) => Boolean] =
     throw new NotImplementedError("runtimeAttributeValidators")
 
   override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WomValue]] =

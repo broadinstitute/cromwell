@@ -7,6 +7,7 @@ import cromwell.backend.wfs.WorkflowPathBuilder
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
+import wom.expression.WomExpression
 import wom.graph.TaskCallNode
 import wom.values.WomValue
 
@@ -71,7 +72,7 @@ class StandardInitializationActor(val standardParams: StandardInitializationActo
   def runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
       StandardValidatedRuntimeAttributesBuilder.default(configurationDescriptor.backendRuntimeConfig)
 
-  override protected lazy val runtimeAttributeValidators: Map[String, (Option[WomValue]) => Boolean] = {
+  override protected lazy val runtimeAttributeValidators: Map[String, (Option[WomExpression]) => Boolean] = {
     runtimeAttributesBuilder.validatorMap
   }
 

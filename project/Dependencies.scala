@@ -308,6 +308,7 @@ object Dependencies {
   val rootDependencies = slf4jBindingDependencies
 
   val backendDependencies = List(
+    "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "co.fs2" %% "fs2-io" % fs2V % Test
   )
 

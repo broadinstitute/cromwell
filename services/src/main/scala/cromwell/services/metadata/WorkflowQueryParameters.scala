@@ -17,7 +17,8 @@ case class WorkflowQueryParameters private(statuses: Set[String],
                                            startDate: Option[OffsetDateTime],
                                            endDate: Option[OffsetDateTime],
                                            page: Option[Int],
-                                           pageSize: Option[Int])
+                                           pageSize: Option[Int],
+                                           additionalQueryResultFields: Set[String])
 
 object WorkflowQueryParameters {
 
@@ -68,6 +69,7 @@ object WorkflowQueryParameters {
     val labelsValidation: ErrorOr[Set[Label]] = WorkflowQueryKey.LabelKeyValue.validate(valuesByCanonicalCapitalization).map(_.toSet)
     val pageValidation = Page.validate(valuesByCanonicalCapitalization)
     val pageSizeValidation = PageSize.validate(valuesByCanonicalCapitalization)
+    val additionalQueryResultFieldsValidation: ErrorOr[Set[String]] = AdditionalQueryResultFields.validate(valuesByCanonicalCapitalization).map(_.toSet)
 
     // Only validate start before end if both of the individual date parsing validations have already succeeded.
     val startBeforeEndValidation: ErrorOr[Unit] = (startDateValidation, endDateValidation) match {
@@ -84,7 +86,8 @@ object WorkflowQueryParameters {
       startDateValidation,
       endDateValidation,
       pageValidation,
-      pageSizeValidation) mapN { (_, _, statuses, names, ids, labels, startDate, endDate, page, pageSize) => WorkflowQueryParameters(statuses, names, ids, labels, startDate, endDate, page, pageSize) }
+      pageSizeValidation,
+      additionalQueryResultFieldsValidation) mapN { (_, _, statuses, names, ids, labels, startDate, endDate, page, pageSize, additionalQueryResultFields) => WorkflowQueryParameters(statuses, names, ids, labels, startDate, endDate, page, pageSize, additionalQueryResultFields) }
   }
 
   def apply(rawParameters: Seq[(String, String)]): WorkflowQueryParameters = {

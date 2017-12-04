@@ -6,15 +6,16 @@ import cats.data
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import cromwell.core.labels.Label
-import cromwell.core.{WorkflowId, WorkflowState}
+import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
 import common.validation.ErrorOr._
 import cats.data.Validated._
 import cats.instances.list._
+import mouse.boolean._
 
 import scala.util.{Success, Try}
 
 object WorkflowQueryKey {
-  val ValidKeys = Set(StartDate, EndDate, Name, Id, Status, LabelKeyValue, Page, PageSize) map { _.name }
+  val ValidKeys = Set(StartDate, EndDate, Name, Id, Status, LabelKeyValue, Page, PageSize, AdditionalQueryResultFields) map { _.name }
 
   case object StartDate extends DateTimeWorkflowQueryKey {
     override val name = "Start"
@@ -87,6 +88,19 @@ object WorkflowQueryKey {
         if (Try(WorkflowState.withName(v.toLowerCase.capitalize)).isSuccess) v.validNel[String] else v.invalidNel[String]
       }
       sequenceListOfValidatedNels("Unrecognized status values", nels)
+    }
+  }
+
+  case object AdditionalQueryResultFields extends SeqWorkflowQueryKey[String] {
+    override val name = "Additionalqueryresultfields"
+
+    override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[List[String]] = {
+      val values = valuesFromMap(grouped).toList
+      val allowedValues = Seq(WorkflowMetadataKeys.Labels, WorkflowMetadataKeys.ParentWorkflowId)
+      val nels: List[ErrorOr[String]] = values map { v => {
+        allowedValues.contains(v).fold(v.validNel[String], v.invalidNel[String])
+      }}
+      sequenceListOfValidatedNels("Unrecognized values", nels)
     }
   }
 }

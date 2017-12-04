@@ -356,6 +356,15 @@ paths:
             returns workflows with all of the specified label keys. Specify the label key
             and label value pair as separated with
             "label-key:label-value"
+        - name: additionalQueryResultFields
+          required: false
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+          description: >
+            Includes the specified keys in the metadata for the returned workflows.
       tags:
         - Workflows
       responses:

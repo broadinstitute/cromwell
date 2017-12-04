@@ -20,6 +20,7 @@ import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStat
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.util.SampleWdl.HelloWorld
+import mouse.boolean._
 import org.scalatest.{AsyncFlatSpec, Matchers}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -488,6 +489,33 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
     }
 
+    it should "return labels if specified in additionalQueryResultFields param" in {
+      Get(s"/workflows/$version/query?additionalQueryResultFields=labels&id=${CromwellApiServiceSpec.ExistingWorkflowId}") ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          status should be(StatusCodes.OK)
+          contentType should be(ContentTypes.`application/json`)
+          val results = responseAs[JsObject].fields("results").convertTo[Seq[JsObject]]
+          val fields = results.head.fields
+          fields("id") should be(JsString(CromwellApiServiceSpec.ExistingWorkflowId.toString))
+          fields(WorkflowMetadataKeys.Labels).asJsObject.fields("key1") should be(JsString("label1"))
+          fields(WorkflowMetadataKeys.Labels).asJsObject.fields("key2") should be(JsString("label2"))
+        }
+    }
+
+    it should "return parentWorkflowId if specified in additionalQueryResultFields param" in {
+      Get(s"/workflows/$version/query?additionalQueryResultFields=parentWorkflowId&id=${CromwellApiServiceSpec.ExistingWorkflowId}") ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          status should be(StatusCodes.OK)
+          contentType should be(ContentTypes.`application/json`)
+          val results = responseAs[JsObject].fields("results").convertTo[Seq[JsObject]]
+          val fields = results.head.fields
+          fields("id") should be(JsString(CromwellApiServiceSpec.ExistingWorkflowId.toString))
+          fields(WorkflowMetadataKeys.ParentWorkflowId) should be(JsString("pid"))
+        }
+    }
+
     behavior of "REST API /query POST endpoint"
     it should "return good results for a good query map body" in {
       Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"status":"Succeeded"}]""")) ~>
@@ -498,6 +526,33 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           }
           assertResult(true) {
             entityAs[String].contains("\"status\":\"Succeeded\"")
+          }
+        }
+    }
+
+    it should "return labels if specified in additionalQueryResultFields param" in {
+      Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"additionalQueryResultFields":"labels"}]""")) ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          assertResult(StatusCodes.OK) {
+            status
+          }
+          val results = responseAs[JsObject].fields("results").convertTo[Seq[JsObject]]
+          val fields = results.head.fields
+          fields(WorkflowMetadataKeys.Labels).asJsObject.fields("key1") should be(JsString("label1"))
+          fields(WorkflowMetadataKeys.Labels).asJsObject.fields("key2") should be(JsString("label2"))
+        }
+    }
+
+    it should "return parentWorkflowId if specified in additionalQueryResultFields param" in {
+      Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"additionalQueryResultFields":"parentWorkflowId"}]""")) ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          assertResult(StatusCodes.OK) {
+            status
+          }
+          assertResult(true) {
+            entityAs[String].contains("\"parentWorkflowId\":\"pid\"")
           }
         }
     }
@@ -588,9 +643,16 @@ object CromwellApiServiceSpec {
   class MockServiceRegistryActor extends Actor {
     import MockServiceRegistryActor._
     override def receive = {
-      case WorkflowQuery(_) =>
+      case WorkflowQuery(parameters) =>
+        val labels: Option[Map[String, String]] = {
+          parameters.contains(("additionalQueryResultFields", "labels")).option(
+            Map("key1" -> "label1", "key2" -> "label2"))
+        }
+        val parentWorkflowId: Option[String] =  {
+          parameters.contains(("additionalQueryResultFields", "parentWorkflowId")).option("pid")
+        }
         val response = WorkflowQuerySuccess(WorkflowQueryResponse(List(WorkflowQueryResult(ExistingWorkflowId.toString,
-          None, Some(WorkflowSucceeded.toString), None, None))), None)
+          None, Some(WorkflowSucceeded.toString), None, None, labels, parentWorkflowId))), None)
         sender ! response
       case ValidateWorkflowId(id) =>
         if (RecognizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId

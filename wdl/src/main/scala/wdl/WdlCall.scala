@@ -4,6 +4,7 @@ import cats.data.NonEmptyList
 import cats.instances.list._
 import cats.syntax.foldable._
 import cats.syntax.validated._
+import common.validation.ErrorOr.ErrorOr
 import shapeless.Coproduct
 import wdl.AstTools.EnhancedAstNode
 import wdl.exception.{ValidationException, VariableLookupException, VariableNotFoundException}
@@ -55,7 +56,7 @@ object WdlCall {
     } toMap
   }
 
-  private[wdl] def buildWomNodeAndInputs(wdlCall: WdlCall, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean) = {
+  private[wdl] def buildWomNodeAndInputs(wdlCall: WdlCall, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[CallNodeAndNewNodes] = {
     import common.validation.ErrorOr._
 
     val callNodeBuilder = new CallNode.CallNodeBuilder()
@@ -82,17 +83,23 @@ object WdlCall {
       *   input3 = other_task.out + 2   -> ExpressionNode with an input port pointing to the output port of other_task.out
       * }
      */
-    def expressionNodeMappings: ErrorOr[Map[LocalName, AnonymousExpressionNode]] = wdlCall.inputMappings traverse {
-      case (inputName, wdlExpression) =>
-        val identifier = wdlCall.womIdentifier.combine(inputName)
-        val constructor = wdlCall match {
-          case _: WdlTaskCall => TaskCallInputExpressionNode.apply _
-          case _ => PlainAnonymousExpressionNode.apply _
-        }
+    def expressionNodeMappings: ErrorOr[Map[LocalName, AnonymousExpressionNode]] = {
+      val precomputedOgins: Map[String, OutputPort] = outerLookup collect {
+        case (name, port) if !localLookup.contains(name) => name -> OuterGraphInputNode(WomIdentifier(name), port, preserveIndexForOuterLookups).singleOutputPort
+      }
+      val newLocalLookup = localLookup ++ precomputedOgins
+      wdlCall.inputMappings traverse {
+        case (inputName, wdlExpression) =>
+          val identifier = wdlCall.womIdentifier.combine(inputName)
+          val constructor = wdlCall match {
+            case _: WdlTaskCall => TaskCallInputExpressionNode.apply _
+            case _ => PlainAnonymousExpressionNode.apply _
+          }
 
-        WdlWomExpression.toAnonymousExpressionNode(identifier, WdlWomExpression(wdlExpression, wdlCall), localLookup, outerLookup, preserveIndexForOuterLookups, wdlCall, constructor) map {
-          LocalName(inputName) -> _
-        }
+          WdlWomExpression.toAnonymousExpressionNode(identifier, WdlWomExpression(wdlExpression, wdlCall), newLocalLookup, Map.empty, preserveIndexForOuterLookups, wdlCall, constructor) map {
+            LocalName(inputName) -> _
+          }
+      }
     }
 
     /*

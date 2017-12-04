@@ -18,7 +18,8 @@ class WdlNestedConditionalWomSpec extends FlatSpec with Matchers {
     ("nested lookups with call interference", nestedLookupsWithCallInterference),
     ("nested lookups with double call interference", nestedLookupsWithDoubleCallInterference),
     ("nested lookups with declaration interference", nestedLookupsWithDeclarationInterference),
-    ("nested lookups with double declaration interference", nestedLookupsWithDoubleDeclarationInterference)
+    ("nested lookups with double declaration interference", nestedLookupsWithDoubleDeclarationInterference),
+    ("same nested lookup for two input expressions", doubleNestedVariableReferences)
   )
 
   forAll(table) { (testName, wdl) =>
@@ -185,4 +186,49 @@ object WdlNestedConditionalWomSpec {
       |    Int? m1_out = m1.out
       |  }
       |}""".stripMargin ++ taskMirror
+
+  val doubleNestedVariableReferences =
+    """|workflow double_nested_var_refs {
+       |
+       |  Int i = 27
+       |  Int j = 32
+       |  Int k = 56
+       |
+       |  call product as p0 { input: i = k, j = k }
+       |
+       |  if(true) {
+       |    Int throwawayInterference = i
+       |    if(true) {
+       |      call product as p1 { input: i = i, j = i }
+       |    }
+       |  }
+       |
+       |  scatter(s in range(1)) {
+       |    call product as p2_interference { input: i = j, j = j }
+       |    scatter(s in range(1)) {
+       |      call product as p2 { input: i = j, j = j }
+       |    }
+       |  }
+       |
+       |  output {
+       |    Int p0_out = p0.out
+       |    Int? p1_out = p1.out
+       |    Array[Array[Int]] p2_out = p2.out
+       |  }
+       |}
+       |
+       |task product {
+       |  Int i
+       |  Int j
+       |
+       |  command {
+       |    echo $((${i} * ${j}))
+       |  }
+       |  output {
+       |    Int out = read_int(stdout())
+       |  }
+       |  runtime {
+       |    docker: "ubuntu:latest"
+       |  }
+       |}""".stripMargin
 }

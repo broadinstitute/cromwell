@@ -100,16 +100,32 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) e
      """.stripMargin
   }
 
-  def callReferencesAbsentTaskInput(callInputAst: Ast, taskAst: Ast, missingInput: String, callName: String): String = {
+  def callReferencesAbsentTaskInput(callInputAst: Ast, taskAst: Ast, missingInput: String, callName: String, forSubworkflowCall: Boolean): String = {
     val callParameter: Terminal = callInputAst.getAttribute("key").asInstanceOf[Terminal]
     val taskName: Terminal = taskAst.getAttribute("name").asInstanceOf[Terminal]
     val taskNameString = taskName.getSourceString
+    // Include starting and trailing newlines so it fits neatly into the existing message:
+    lazy val subworkflowWarning = if (forSubworkflowCall) {
+      """
+        | - When calling a workflow, values that depend on previous values are considered intermediate values rather than overridable inputs.
+        |  - You can allow overriding intermediate values by having an optional override input and a select_first, eg:
+        |     # This is an optional input to the workflow:
+        |     Int? override_x
+        |
+        |     # This is a value based on some upstream task or declaration:
+        |     Int some_previous_result = ...
+        |
+        |     # This allows us to override an upstream result with override_x, or just use the previous result otherwise:
+        |     Int x = select_first(override_x, some_previous_result)
+        |""".stripMargin
+    } else { "" }
+
     s"""ERROR: Call supplied an unexpected input: The '$taskNameString' task doesn't have an input called '$missingInput':
         |
         |${pointToSource(callParameter)}
         |
         |Options:
-        | - Add the input '$missingInput' to the '$taskNameString' task (defined on line ${taskName.getLine}).
+        | - Add the input '$missingInput' to the '$taskNameString' task (defined on line ${taskName.getLine}).$subworkflowWarning
         | - Remove '$missingInput = ...' from $callName's inputs (on line ${callParameter.getLine}).
      """.stripMargin
   }
@@ -157,7 +173,7 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) e
 
   def multipleCallsAndHaveSameName(names: Seq[(String, Terminal)]): String = {
     val duplicatedCallNames = names.map { case (astType, name) =>
-      s"""${astType} statement here (line ${name.getLine}, column ${name.getColumn}):
+      s"""$astType statement here (line ${name.getLine}, column ${name.getColumn}):
         |
         |${pointToSource(name)}
       """.stripMargin

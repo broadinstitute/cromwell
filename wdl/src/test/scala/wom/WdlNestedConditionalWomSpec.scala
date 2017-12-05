@@ -1,10 +1,14 @@
 package wom
 
-import cats.data.Validated.{Invalid, Valid}
+import cats.data.Validated.Invalid
+import cats.syntax.functor._
+import cats.instances.list._
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
 import WdlNestedConditionalWomSpec._
+import common.validation.ErrorOr.ErrorOr
 import org.scalatest.prop.TableDrivenPropertyChecks
+import wom.graph.Graph
 
 class WdlNestedConditionalWomSpec extends FlatSpec with Matchers {
 
@@ -19,19 +23,37 @@ class WdlNestedConditionalWomSpec extends FlatSpec with Matchers {
     ("nested lookups with double call interference", nestedLookupsWithDoubleCallInterference),
     ("nested lookups with declaration interference", nestedLookupsWithDeclarationInterference),
     ("nested lookups with double declaration interference", nestedLookupsWithDoubleDeclarationInterference),
-    ("same nested lookup for two input expressions", doubleNestedVariableReferences)
+    ("same nested lookup for two input expressions", doubleNestedVariableReferences),
+    ("same lookups in multiple if expressions", sameLookupsInMultipleIfExpressions),
+    ("same lookups in multiple scatter expressions", sameLookupsInMultipleScatterExpressions),
+    ("same lookups in if and scatter expressions", sameLookupsInIfAndScatterExpressions),
+    ("same lookups in scatters and elsewhere", sameLookupsInScattersAndElsewhere)
   )
+
+
+  /*
+     NB these tests go as far as "can I make a WOM Graph out of this WDL.
+     We don't do anything to check that the WOM Graph is correct"
+   */
 
   forAll(table) { (testName, wdl) =>
     it should s"link values outside and across nested scopes in the '$testName' WDL" in {
 
-      val namespace = WdlNamespace.loadUsingSource(wdl, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
-      val conditionalTestGraph = namespace.workflow.womDefinition.map(_.graph)
-
-      conditionalTestGraph match {
-        case Valid(_) => () // Great!
-        case Invalid(errors) => fail(s"Unable to build wom version of nested_lookups from WDL: ${errors.toList.mkString("\n", "\n", "\n")}")
+      def mkTestGraph: ErrorOr[Graph] = {
+        val namespace = WdlNamespace.loadUsingSource(wdl, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
+        namespace.workflow.womDefinition.map(_.graph)
       }
+
+      // Run each WDL through 20 times because the topological ordering of WdlGraphNodes is sometimes non-deterministic
+      // and the order of operations has been known to change whether a bug is expressed or not.
+      val errors = (0 until 20).toList.as(mkTestGraph) collect {
+        case i @ Invalid(_) => i.e.toList
+      }
+
+      if (errors.nonEmpty) {
+        fail(s"Unable to build wom version of nested_lookups from WDL ${errors.size * 5}% of the time. First failure was: ${errors.head.mkString("\n", "\n", "\n")}")
+      }
+
     }
   }
 }
@@ -231,4 +253,61 @@ object WdlNestedConditionalWomSpec {
        |    docker: "ubuntu:latest"
        |  }
        |}""".stripMargin
+
+  val sameLookupsInMultipleIfExpressions =
+    """
+      | workflow foo {
+      |   Boolean b0 = true
+      |   Boolean b1 = true
+      |   Boolean b2 = true
+      |
+      |   if (b0) {
+      |     if (b1) { }
+      |     if (b1) { }
+      |     if (b1 && b2) { }
+      |   }
+      | }
+    """.stripMargin
+
+  val sameLookupsInMultipleScatterExpressions =
+    """
+      | workflow foo {
+      |   Boolean b0 = true
+      |   Array[Int] xs = [1,2,3]
+      |
+      |   if (b0) {
+      |     scatter(x in xs) { }
+      |     scatter(x in xs) { }
+      |   }
+      | }
+    """.stripMargin
+
+  val sameLookupsInIfAndScatterExpressions =
+    """
+      | workflow foo {
+      |   Boolean b0 = true
+      |   Array[Int] xs = [1,2,3]
+      |
+      |   if (b0) {
+      |     scatter(x in xs) { }
+      |     if(length(xs) < 5) { }
+      |   }
+      | }
+    """.stripMargin
+
+  val sameLookupsInScattersAndElsewhere =
+    """
+      | workflow foo {
+      |   Boolean b0 = true
+      |   Array[Int] xs = [1,2,3]
+      |   Array[Int] ys = [1,2,3]
+      |
+      |   if (b0) {
+      |     scatter(x in xs) { }
+      |     scatter(x in ys) {
+      |       Array[Int] inner_xs = xs
+      |     }
+      |   }
+      | }
+    """.stripMargin
 }

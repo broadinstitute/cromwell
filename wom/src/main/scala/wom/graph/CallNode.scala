@@ -49,8 +49,9 @@ object TaskCall {
   def graphFromDefinition(taskDefinition: TaskDefinition): ErrorOr[Graph] = {
     val taskDefinitionLocalName = LocalName(taskDefinition.name)
     
-    // Creates an identifier for an input or an output
-    // The localName is the name of the input or output
+    /* Creates an identifier for an input or an output
+     * The localName is the name of the input or output
+     */
     
     // The FQN combines the name of the task to the name of the input or output
     def identifier(name: LocalName) = WomIdentifier(name, taskDefinitionLocalName.combineToFullyQualifiedName(name))
@@ -92,8 +93,9 @@ object TaskCall {
 }
 
 object CallNode {
-  // A monoid can't be derived automatically for this class because it contains a Map[InputDefinition, InputDefinitionPointer],
-  // and there's no monoid defined over InputDefinitionPointer
+  /* A monoid can't be derived automatically for this class because it contains a Map[InputDefinition, InputDefinitionPointer],
+   * and there's no monoid defined over InputDefinitionPointer
+   */
   implicit val inputDefinitionFoldMonoid = new Monoid[InputDefinitionFold] {
     override def empty: InputDefinitionFold = InputDefinitionFold()
     override def combine(x: InputDefinitionFold, y: InputDefinitionFold): InputDefinitionFold = {

@@ -27,7 +27,6 @@ object Executable {
   type InputParsingFunction = String => Checked[ParsedInputMap]
   type ParsedInputMap = Map[String, DelayedCoercionFunction]
   type DelayedCoercionFunction = WomType => ErrorOr[WomValue]
-  type EGINInputIdentifier = ExternalGraphInputNode => String
   
   /*
     * Maps output ports from graph input nodes to ResolvedExecutableInput

@@ -10,6 +10,7 @@ CROMWELL_JAR=$(find "$(pwd)/target/scala-2.12" -name "cromwell-*.jar")
 CENTAUR_CWL_RUNNER="$(pwd)/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
 
 git clone --depth 1 https://github.com/common-workflow-language/common-workflow-language.git
+CWL_TEST_DIR=$(pwd)/common-workflow-language/v1.0/v1.0
 
 shutdownCromwell() {
     if [ -z "${CROMWELL_PID}" ]; then
@@ -19,8 +20,12 @@ shutdownCromwell() {
 
 trap "shutdownCromwell" EXIT
 
+# Start the Cromwell server in the directory containing input files so it can access them via their relative path
+CURRENT_DIR=$(pwd)
+cd CWL_TEST_DIR
 java -jar ${CROMWELL_JAR} server &
 CROMWELL_PID=$$
+cd CURRENT_DIR
 
 sleep 5
 

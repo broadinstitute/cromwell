@@ -6,6 +6,7 @@ import _root_.io.grpc.Status
 import _root_.wdl._
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
+import com.google.api.gax.retrying.RetrySettings
 import com.google.cloud.NoCredentials
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse}
 import cromwell.backend._
@@ -47,7 +48,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
   
   val mockPathBuilder: GcsPathBuilder = GcsPathBuilder.fromCredentials(NoCredentials.getInstance(),
-    "test-cromwell", None, GcsStorage.DefaultCloudStorageConfiguration, WorkflowOptions.empty)
+    "test-cromwell", RetrySettings.newBuilder().build(), GcsStorage.DefaultCloudStorageConfiguration, WorkflowOptions.empty)
   
   var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor))
 

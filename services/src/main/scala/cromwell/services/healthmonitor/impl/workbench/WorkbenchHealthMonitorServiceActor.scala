@@ -5,6 +5,7 @@ import java.net.URL
 import cats.data.Validated.{Invalid, Valid}
 import cats.instances.future._
 import cats.syntax.functor._
+import com.google.api.gax.retrying.RetrySettings
 import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
@@ -50,7 +51,7 @@ class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig
   private def checkGcs(): Future[SubsystemStatus] = {
     // For any expected production usage of this check, the GCS bucket should be public read */
     val gcsBucketToCheck = serviceConfig.as[String]("gcs-bucket-to-check")
-    val storage = Future(googleAuth.credential(Map.empty)) map { c => GcsStorage.gcsStorage(googleConfig.applicationName, c) }
+    val storage = Future(googleAuth.credential(Map.empty)) map { c => GcsStorage.gcsStorage(googleConfig.applicationName, c, RetrySettings.newBuilder().build()) }
     storage map { _.buckets.get(gcsBucketToCheck).execute() } as OkStatus
   }
 

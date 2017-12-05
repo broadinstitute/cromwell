@@ -31,7 +31,7 @@ object EngineFilesystems {
     
     engineAuthModeValidation map {
       // If the authentication mode is recognized, create a GcsPathBuilderFactory for the engine
-      case Valid(mode) => GcsPathBuilderFactory(mode, googleConf.applicationName)
+      case Valid(mode) => GcsPathBuilderFactory(mode, googleConf.applicationName, None)
       // Otherwise fail
       case Invalid(errors) => throw new RuntimeException() with MessageAggregation {
         override def exceptionContext: String = s"Failed to create authentication mode for $engineAuthModeAsString"

@@ -40,7 +40,7 @@ sealed trait ExternalGraphInputNode extends GraphInputNode {
   override lazy val singleOutputPort: GraphNodeOutputPort = GraphNodeOutputPort(identifier, womType, this)
 
   /**
-    * Key that should be looked for in the input set to satisfy this GIN
+    * Key that should be looked for in the input set to satisfy this EGIN
     */
   def nameInInputSet: String
 }

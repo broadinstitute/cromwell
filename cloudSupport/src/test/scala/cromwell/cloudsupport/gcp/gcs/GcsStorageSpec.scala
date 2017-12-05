@@ -16,14 +16,14 @@ class GcsStorageSpec extends FlatSpec with Matchers {
   }
 
   it should "build gcs storage" in {
-    val configuration = GcsStorage.gcsStorage("gcs-storage-spec", NoCredentials.getInstance())
+    val configuration = GcsStorage.gcsStorage("gcs-storage-spec", NoCredentials.getInstance(), RetrySettings.newBuilder().build())
     configuration.getApplicationName should be("gcs-storage-spec")
   }
 
   it should "build gcs storage options" in {
     val projectOption = Option("custom-project")
-    val retrySettingsOption = Option(RetrySettings.newBuilder().setMaxAttempts(2).build())
-    val storageOptions = GcsStorage.gcsStorageOptions(NoCredentials.getInstance(), projectOption, retrySettingsOption)
+    val retrySettings = RetrySettings.newBuilder().setMaxAttempts(2).build()
+    val storageOptions = GcsStorage.gcsStorageOptions(NoCredentials.getInstance(), retrySettings, projectOption)
     storageOptions.getProjectId should be("custom-project")
     storageOptions.getRetrySettings.getMaxAttempts should be(2)
   }

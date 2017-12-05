@@ -89,7 +89,7 @@ object GcsPathBuilder {
 
   def fromAuthMode(authMode: GoogleAuthMode,
                    applicationName: String,
-                   retrySettings: Option[RetrySettings],
+                   retrySettings: RetrySettings,
                    cloudStorageConfiguration: CloudStorageConfiguration,
                    options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[GcsPathBuilder] = {
     authMode.retryCredential(options) map { credentials =>
@@ -104,14 +104,14 @@ object GcsPathBuilder {
 
   def fromCredentials(credentials: Credentials,
                       applicationName: String,
-                      retrySettings: Option[RetrySettings],
+                      retrySettings: RetrySettings,
                       cloudStorageConfiguration: CloudStorageConfiguration,
                       options: WorkflowOptions): GcsPathBuilder = {
     // Grab the google project from Workflow Options if specified and set
     // that to be the project used by the StorageOptions Builder
     val project =  options.get("google_project").toOption
 
-    val storageOptions = GcsStorage.gcsStorageOptions(credentials, project, retrySettings)
+    val storageOptions = GcsStorage.gcsStorageOptions(credentials, retrySettings, project)
 
     // Create a com.google.api.services.storage.Storage
     // This is the underlying api used by com.google.cloud.storage

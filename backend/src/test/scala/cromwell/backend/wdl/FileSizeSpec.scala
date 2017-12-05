@@ -8,7 +8,8 @@ import cromwell.backend.standard.{DefaultStandardExpressionFunctionsParams, Stan
 import cromwell.core.CallContext
 import cromwell.core.Tags.PostWomTest
 import cromwell.core.path.DefaultPathBuilder
-import fs2.{Stream, Task}
+import fs2.Stream
+import cats.effect.IO
 import org.scalatest.{FlatSpec, Matchers}
 import wom.values._
 
@@ -58,8 +59,9 @@ class FileSizeSpec extends FlatSpec with Matchers {
         val fn = tempDir.toString + "/" + scala.util.Random.alphanumeric.take(5).mkString
         val jPath = Paths.get(fn)
         jPath.toFile.deleteOnExit
-        val start = Stream[Task, Byte](1).repeat.take(size.toLong)
-        val end = fs2.io.file.writeAll[Task](jPath, Seq(CREATE_NEW, WRITE))
+        val start = Stream.eval[IO, Byte](1).repeat.take(size.toLong)
+        val end = fs2.io.file.writeAll[IO](jPath, Seq(CREATE_NEW, WRITE))
+        start.through()
         (start to end).run.unsafeRunSync
         //jPath is now a file of n bytes, we can return it
         jPath

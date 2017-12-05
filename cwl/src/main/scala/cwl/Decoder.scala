@@ -54,6 +54,18 @@ object CwlDecoder {
       cwlWithEmbeddedCwl <- unmodifiedCwl.fold(AddEmbeddedCwl)
     } yield cwlWithEmbeddedCwl
 
+  def decodeTopLevelCwl(fileName: BFile): Parse[Cwl] =
+    for {
+      jsonString <- preprocess(fileName)
+      unmodifiedCwl <- parseJson(jsonString)
+    } yield unmodifiedCwl
+
+  def decodeTopLevelCwl(cwl: String): Parse[Cwl] =
+    for {
+     file <-  EitherT{ IO{ better.files.File.newTemporaryFile().write(cwl).asRight }}
+     out <- decodeTopLevelCwl(file)
+    } yield out
+
   //This is used when traversing over Cwl and replacing links w/ embedded data
   private[cwl] def decodeCwlAsValidated(fileName: String): ParseValidated[(String, Cwl)] = {
     //The SALAD preprocess step puts "file://" as a prefix to all filenames.  Better files doesn't like this.

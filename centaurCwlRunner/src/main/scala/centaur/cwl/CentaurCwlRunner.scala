@@ -8,6 +8,7 @@ import centaur.test.submit.{SubmitHttpResponse, SubmitWorkflowResponse}
 import centaur.test.workflow.{AllBackendsRequired, Workflow, WorkflowData}
 import common.util.VersionUtil
 import cromwell.api.model.{Aborted, Failed, NonTerminalStatus, Succeeded}
+import shapeless.Poly1
 import spray.json._
 
 /**
@@ -130,11 +131,11 @@ object CentaurCwlRunner {
               println(s"Unexpected failure.")
               ExitCode.Failure
             case Succeeded =>
-              val outputs = CentaurCromwellClient.outputs(submittedWorkflow).get.outputs
+
               if (!args.quiet) {
                 println("Result:")
               }
-              println(outputs)
+              println(centaur.cwl.Outputs.handleOutput(submittedWorkflow))
               ExitCode.Success
           }
       }
@@ -150,6 +151,7 @@ object CentaurCwlRunner {
     }
   }
 
+
   def main(args: Array[String]): Unit = {
     val parsedArgsOption = parser.parse(args, CommandLineArguments())
     val exitCode = parsedArgsOption match {
@@ -159,3 +161,14 @@ object CentaurCwlRunner {
     System.exit(exitCode.status)
   }
 }
+
+object CwlOutputsFold extends Poly1 {
+  import cwl._
+
+  implicit def wf: Case.Aux[cwl.Workflow, Map[String, MyriadOutputType]] = at[cwl.Workflow] {
+    _.outputs.map(output => output.id -> output.`type`.get).toMap
+  }
+
+  implicit def clt: Case.Aux[cwl.CommandLineTool, Map[String, MyriadOutputType]] = at[cwl.CommandLineTool] {_.outputs.map(output => output.id -> output.`type`.get).toMap}
+}
+

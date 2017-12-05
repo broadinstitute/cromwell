@@ -22,10 +22,10 @@ trap "shutdownCromwell" EXIT
 
 # Start the Cromwell server in the directory containing input files so it can access them via their relative path
 CURRENT_DIR=$(pwd)
-cd CWL_TEST_DIR
+cd $CWL_TEST_DIR
 java -jar ${CROMWELL_JAR} server &
 CROMWELL_PID=$$
-cd CURRENT_DIR
+cd $CURRENT_DIR
 
 sleep 5
 

@@ -47,7 +47,7 @@ object If {
       case other => s"An if block must be given a boolean expression but instead got '${ifBlock.condition.toWomString}' (a ${other.toDisplayString})".invalidNel
     }
 
-    /**
+    /*
       * Why? Imagine that we're building three nested levels of a innerGraph.
       * - Say we're building the middle layer.
       * - We have a set of OutputPorts in the outer layer that we can make OGINs to if we need them.

@@ -79,7 +79,7 @@ object BackendWorkflowInitializationActor {
       //This map append will overwrite default key/values with runtime settings upon key collisions
       val lookups = defaultRuntimeAttributes.mapValues(_.asWomExpression) ++ runtimeAttributes
 
-      runtimeAttributeValidators.toList.traverse[WishKindProjectorWorked, Unit]{
+      runtimeAttributeValidators.toList.traverse[ValidatedNel[RuntimeAttributeValidationFailure, ?], Unit]{
         case (attributeName, validator) =>
           val runtimeAttributeValue: Option[WomExpression] = lookups.get(attributeName)
           validator(runtimeAttributeValue).fold(
@@ -88,14 +88,6 @@ object BackendWorkflowInitializationActor {
           )
       }.map(_ => ())
   }
-
-  //This exists because when a type (in this case Validated[A,B]) has 2 type parameters it can't figure
-  //out how to form a shape F[X], where X could be either A or B.  In this case we want an Applicative
-  //for ValidatedNel where the error type is bound to RuntimeAttributeValidationFailure.
-  //Ideally we could use Scala Compiler plugin "Kind projector" to do this inline but Scaladoc
-  //did not work with it :(.
-  private type WishKindProjectorWorked[A] = ValidatedNel[RuntimeAttributeValidationFailure, A]
-
 }
 
 /**
@@ -162,7 +154,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
       defaultRuntimeAttributes <- coerceDefaultRuntimeAttributes(workflowDescriptor.workflowOptions) |> Future.fromTry _
       taskList = calls.toList.map(_.callable).map(t => t.name -> t.runtimeAttributes.attributes)
       _ <- taskList.
-            traverse[WishKindProjectorWorked, Unit]{
+            traverse[ValidatedNel[RuntimeAttributeValidationFailure, ?], Unit]{
               case (name, runtimeAttributes) => validateRuntimeAttributes(name, defaultRuntimeAttributes, runtimeAttributes, runtimeAttributeValidators)
             }.toFuture(errors => RuntimeAttributeValidationFailures(errors.toList))
       _ <- validate()
@@ -185,4 +177,3 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
   def validate(): Future[Unit]
 
 }
-

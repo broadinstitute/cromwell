@@ -91,7 +91,6 @@ object Settings {
   val ScalaVersion211 = "2.11.11"
   val ScalaVersion212 = "2.12.4"
   val ScalaVersion = ScalaVersion212
-  val paradiseV = "2.1.0"
   val sharedSettings = ReleasePlugin.projectSettings ++
     cromwellVersionWithGit ++ publishingSettings ++ List(
     organization := "org.broadinstitute",
@@ -110,7 +109,7 @@ object Settings {
       case wut => throw new NotImplementedError(s"Found unsupported Scala version $wut. wdl4s does not support versions of Scala other than 2.11 or 2.12.")
     }),
     // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874
-    scalacOptions in(Compile, doc) := (baseSettings ++ List("-no-link-warnings")),
+    scalacOptions in(Compile, doc) ++= baseSettings ++ List("-no-link-warnings"),
     // No console-hostile options, otherwise the console is effectively unusable.
     // https://github.com/sbt/sbt/issues/1815
     scalacOptions in(Compile, console) --= consoleHostileSettings,
@@ -188,6 +187,7 @@ object Settings {
       removeIntermediateContainers = BuildOptions.Remove.Always
     )
   )
+  val backendSettings = List(addCompilerPlugin("org.spire-math" %% "kind-projector" % kindProjectorV))
   val engineSettings = List(resourceGenerators in Compile += writeSwaggerUiVersionConf)
   val rootSettings = GenerateRestApiDocs.generateRestApiDocsSettings
 

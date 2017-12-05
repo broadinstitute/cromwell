@@ -51,7 +51,7 @@ object Scatter {
       case other => s"Cannot scatter over a non-traversable type ${other.toDisplayString}".invalidNel
     }
 
-    /**
+    /*
       * Why? Imagine that we're building three nested levels of a innerGraph.
       * - Say we're building the middle layer.
       * - We have a set of OutputPorts in the outer layer that we can make OGINs to if we need them.

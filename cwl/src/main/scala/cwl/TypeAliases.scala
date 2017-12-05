@@ -3,11 +3,15 @@ package cwl
 import cwl.CommandLineTool._
 import shapeless.{:+:, CNil}
 import cwl.CwlType.CwlType
+import io.circe.Json
 import wom.types.WomType
 
 trait TypeAliases {
 
-  type CwlAny = String
+  type CwlAny =
+    File :+:
+      Json :+:
+      CNil
 
   type WorkflowStepInputId = String
 

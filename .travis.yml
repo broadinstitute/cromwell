@@ -32,7 +32,7 @@ env:
     - BUILD_TYPE=checkPublish
     - BUILD_TYPE=centaurJes
     - BUILD_TYPE=centaurLocal
-    - BUILD_TYPE=centaurTes
+    #- BUILD_TYPE=centaurTes
     - BUILD_TYPE=centaurCwlConformance
 script:
   - sudo apt-get install procps

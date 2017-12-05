@@ -47,7 +47,7 @@ object Executable {
     }
 
     def fallBack(gin: ExternalGraphInputNode): ErrorOr[ResolvedExecutableInput] = gin match {
-      case required: RequiredGraphInputNode => s"Required workflow input '${required.identifier.fullyQualifiedName.value}' not specified".invalidNel
+      case required: RequiredGraphInputNode => s"Required workflow input '${required.nameInInputSet}' not specified".invalidNel
       case optionalWithDefault: OptionalGraphInputNodeWithDefault => Coproduct[ResolvedExecutableInput](optionalWithDefault.default).validNel
       case optional: OptionalGraphInputNode => Coproduct[ResolvedExecutableInput](optional.womType.none: WomValue).validNel
     }

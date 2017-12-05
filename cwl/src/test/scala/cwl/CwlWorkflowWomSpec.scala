@@ -81,7 +81,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
             case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/tarfile" =>
               exprNode.inputPorts.map(_.upstream.graphNode).count {
                 case rgin: RequiredGraphInputNode =>
-                  rgin.identifier == WomIdentifier("inp") &&
+                  rgin.identifier.localName == LocalName("inp") &&
                     rgin.womType == WomFileType
               }  shouldBe 1
           }).getOrElse(fail("Can't find expression node for inp"))

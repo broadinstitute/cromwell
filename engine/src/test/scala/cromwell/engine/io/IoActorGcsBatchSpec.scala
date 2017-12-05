@@ -33,7 +33,7 @@ class IoActorGcsBatchSpec extends TestKitSuite with FlatSpecLike with Matchers w
     super.afterAll()
   }
   
-  lazy val gcsPathBuilder = GcsPathBuilderFactory(ApplicationDefaultMode("default"), "cromwell-test")
+  lazy val gcsPathBuilder = GcsPathBuilderFactory(ApplicationDefaultMode("default"), "cromwell-test", None)
   lazy val pathBuilder: GcsPathBuilder = Await.result(gcsPathBuilder.withOptions(WorkflowOptions.empty), 1 second)
 
   lazy val randomUUID = UUID.randomUUID().toString

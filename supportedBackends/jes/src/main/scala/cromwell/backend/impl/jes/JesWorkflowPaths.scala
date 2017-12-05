@@ -1,6 +1,7 @@
 package cromwell.backend.impl.jes
 
 import akka.actor.ActorSystem
+import com.google.api.gax.retrying.RetrySettings
 import com.google.auth.Credentials
 import com.typesafe.config.Config
 import cromwell.backend.impl.jes.JesAsyncBackendJobExecutionActor.WorkflowOptionKeys
@@ -42,7 +43,7 @@ case class JesWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
     val pathBuilderWithGenomicsAuth = GcsPathBuilder.fromCredentials(
       genomicsCredentials,
       jesConfiguration.googleConfig.applicationName,
-      None,
+      RetrySettings.newBuilder().build(),
       GcsStorage.DefaultCloudStorageConfiguration,
       workflowOptions
     )

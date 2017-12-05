@@ -37,18 +37,18 @@ object GcsStorage {
       .build()
   }
 
-  def gcsStorage(applicationName: String, credentials: Credentials): Storage = {
-    gcsStorage(applicationName, gcsStorageOptions(credentials))
+  def gcsStorage(applicationName: String, credentials: Credentials, retrySettings: RetrySettings): Storage = {
+    gcsStorage(applicationName, gcsStorageOptions(credentials, retrySettings))
   }
 
   def gcsStorageOptions(credentials: Credentials,
-                        project: Option[String] = None,
-                        retrySettings: Option[RetrySettings] = None): StorageOptions = {
+                        retrySettings: RetrySettings,
+                        project: Option[String] = None): StorageOptions = {
     val storageOptionsBuilder = StorageOptions.newBuilder()
       .setTransportOptions(TransportOptions)
       .setCredentials(credentials)
 
-    retrySettings foreach storageOptionsBuilder.setRetrySettings
+    storageOptionsBuilder.setRetrySettings(retrySettings)
     project foreach storageOptionsBuilder.setProjectId
 
     storageOptionsBuilder.build()

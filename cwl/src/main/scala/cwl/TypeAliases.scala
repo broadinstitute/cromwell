@@ -8,7 +8,10 @@ import wom.types.WomType
 
 trait TypeAliases {
 
-  type CwlAny = Json
+  type CwlAny =
+    File :+:
+      Json :+:
+      CNil
 
   type WorkflowStepInputId = String
 

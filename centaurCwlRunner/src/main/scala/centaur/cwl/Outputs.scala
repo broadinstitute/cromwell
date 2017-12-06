@@ -7,6 +7,8 @@ import cwl.{CwlDecoder, CwlType, MyriadOutputType, File => CwlFile}
 import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.literal._
+import io.circe.refined._
+import io.circe.shapes._
 import io.circe.syntax._
 import shapeless.{Inl, Poly1}
 import spray.json.{JsNumber, JsObject, JsString, JsValue}

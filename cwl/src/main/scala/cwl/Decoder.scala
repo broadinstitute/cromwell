@@ -9,6 +9,7 @@ import cats.Applicative
 import better.files.{File => BFile}
 import common.validation.ErrorOr._
 import common.legacy.TwoElevenSupport._
+import io.circe.{DecodingFailure, ParsingFailure}
 
 import scala.util.Try
 
@@ -39,8 +40,9 @@ object CwlDecoder {
   def parseJson(json: String): Parse[Cwl] =
     EitherT{IO{
       CwlCodecs.decodeCwl(json).
-        leftMap{t =>
-          NonEmptyList.of(t.getMessage, t.getStackTrace.mkString("\n"))
+        leftMap{
+          case df@DecodingFailure(message, ops) => NonEmptyList.of(message, ops.mkString("\n"), df.getStackTrace.mkString("\n"))
+          case ParsingFailure(message, underlying) => NonEmptyList.of(message, underlying.getMessage, underlying.getStackTrace.mkString("\n"))
         }
     }}
 

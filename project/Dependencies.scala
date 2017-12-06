@@ -57,7 +57,7 @@ object Dependencies {
   val reactiveStreamsV = "1.0.1"
   val refinedV = "0.8.3"
   val scalaGraphV = "1.12.0"
-  val scalaLoggingV = "3.6.0"
+  val scalaLoggingV = "3.7.1"
   val scalaXmlV = "1.0.6"
   val scalacheckV = "1.13.4"
   val scalacticV = "3.0.1"

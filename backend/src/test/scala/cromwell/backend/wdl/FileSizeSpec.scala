@@ -59,7 +59,7 @@ class FileSizeSpec extends FlatSpec with Matchers {
         val fn = tempDir.toString + "/" + scala.util.Random.alphanumeric.take(5).mkString
         val jPath = Paths.get(fn)
         jPath.toFile.deleteOnExit
-        val start = Stream.eval[IO, Byte](1).repeat.take(size.toLong)
+        val start = Stream.eval[IO, Byte](IO(1.toByte)).repeat.take(size.toLong)
         val end = fs2.io.file.writeAll[IO](jPath, Seq(CREATE_NEW, WRITE))
         (start to end).run.unsafeRunSync
         //jPath is now a file of n bytes, we can return it

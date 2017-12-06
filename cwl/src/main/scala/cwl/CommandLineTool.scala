@@ -27,11 +27,7 @@ case class CommandLineTool private(
                                    `class`: Witness.`"CommandLineTool"`.T,
                                    id: String,
                                    requirements: Option[Array[Requirement]],
-
-                                   //TODO: Fix this when CwlAny parses correctly
-                                   //hints: Option[Array[CwlAny]] = None,
-                                   hints: Option[Array[Map[String, String]]],
-
+                                   hints: Option[Array[CwlAny]],
                                    label: Option[String],
                                    doc: Option[String],
                                    cwlVersion: Option[CwlVersion],
@@ -141,7 +137,7 @@ object CommandLineTool {
             outputs: Array[CommandOutputParameter] = Array.empty,
             id: String,
             requirements: Option[Array[Requirement]] = None,
-            hints: Option[Array[Map[String, String]]] = None,
+            hints: Option[Array[CwlAny]] = None,
             label: Option[String] = None,
             doc: Option[String] = None,
             cwlVersion: Option[CwlVersion] = Option(CwlVersion.Version1),

@@ -25,7 +25,9 @@ case class Workflow private(
                      id: String,
                      inputs: Array[InputParameter],
                      outputs: Array[WorkflowOutputParameter],
-                     steps: Array[WorkflowStep]) {
+                     steps: Array[WorkflowStep],
+                     requirements: Option[Array[Requirement]],
+                     hints: Option[Array[CwlAny]]) {
   def womExecutable(inputFile: Option[String] = None): Checked[Executable] = {
     CwlExecutableValidation.buildWomExecutable(womDefinition, inputFile)
   }
@@ -135,6 +137,8 @@ object Workflow {
             id: String,
             inputs: Array[InputParameter] = Array.empty,
             outputs: Array[WorkflowOutputParameter] = Array.empty,
-            steps: Array[WorkflowStep] = Array.empty): Workflow  =
-              Workflow(cwlVersion, "Workflow".narrow, id, inputs, outputs, steps)
+            steps: Array[WorkflowStep] = Array.empty,
+            requirements: Option[Array[Requirement]] = None,
+            hints: Option[Array[CwlAny]] = None): Workflow  =
+              Workflow(cwlVersion, "Workflow".narrow, id, inputs, outputs, steps, requirements, hints)
 }

@@ -5,21 +5,17 @@ import centaur.api.CentaurCromwellClient
 import cromwell.api.model.SubmittedWorkflow
 import cwl.{CwlDecoder, CwlType, MyriadOutputType, File => CwlFile}
 import io.circe.Json
-import shapeless.Inl
-import spray.json.{JsNumber, JsObject, JsString, JsValue}
 import io.circe.generic.auto._
 import io.circe.literal._
 import io.circe.syntax._
-import io.circe.shapes._
-import io.circe.refined._
+import shapeless.Inl
+import spray.json.{JsNumber, JsObject, JsString, JsValue}
+import scalaz.syntax.std.map._
 
 object Outputs {
-  import cwl.Implicits._
-  import cwl.Implicits.enumerationEncoder
 
   //When the string returned is not valid JSON, it is effectively an exception as CWL runner expects JSON to be returned
   def handleOutput(submittedWorkflow: SubmittedWorkflow): String = {
-    import scalaz.syntax.std.map._
     val metadata: Map[String, JsValue] = CentaurCromwellClient.metadata(submittedWorkflow).get.value
 
     //Sorry for all the nesting, but spray json JsValue doesn't have optional access methods like Argonaut/circe,
@@ -55,10 +51,14 @@ object Outputs {
     }
   }
 
+  //Ids come out of SALAD pre-processing with a filename prepended.  This gets rid of it
   def stripTypeMapKey(key: String): String = key.substring(key.lastIndexOf("#") + 1, key.length)
 
+  //Ids come out of Cromwell with a prefix, separated by a ".".  This takes everything to the right,
+  //as CWL wants it
   def stripOutputKey(key: String): String = key.substring(key.lastIndexOf(".") + 1, key.length)
 
+  //In an Ideal world I'd return a Coproduct of these types and leave the asJson-ing to the handleOutput
   def resolveOutput(jsValue: JsValue, mot: MyriadOutputType): Json  = {
     (jsValue, mot) match {
       //CWL expects quite a few enhancements to the File structure, hence...

@@ -7,16 +7,23 @@ import io.circe.generic.auto._
 import eu.timepit.refined.string._
 import io.circe.refined._
 import io.circe.literal._
+import shapeless.Coproduct
+import cats.syntax.either._
 
 object CwlCodecs {
   import Implicits._
 
-  //According to automatic derivation, these instances should not be required.  But
-  //removing these breaks decodeCwl, so...
-  implicit val wfD = implicitly[Decoder[Workflow]]
-  implicit val cltD = implicitly[Decoder[CommandLineTool]]
-
-  def decodeCwl(in: String): Either[Error, Cwl] = decode[Cwl](in)
+  def decodeCwl(in: String): Either[Error, Cwl] = {
+    //try to parse both and combine errors if they fail
+    (decode[Workflow](in), decode[CommandLineTool](in)) match {
+      case (Right(wf), _) => Coproduct[Cwl](wf).asRight
+      case (_, Right(clt)) => Coproduct[Cwl](clt).asRight
+      case (Left(wfError), Left(cltError)) =>
+        //This is not really suppressed but there is no other way to compose errors at the Exception level API AFAIK
+        wfError.addSuppressed(cltError)
+        wfError.asLeft
+    }
+  }
 
   def encodeCwlCommandLineTool(commandLineTool: CommandLineTool): Json = {
     import io.circe.syntax._

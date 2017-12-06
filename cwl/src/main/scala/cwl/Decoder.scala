@@ -40,13 +40,13 @@ object CwlDecoder {
   }
 
   def parseJson(json: String): Parse[Cwl] =
-    EitherT{IO{
+    fromEither[IO] {
       CwlCodecs.decodeCwl(json).
         leftMap{
           case df@DecodingFailure(message, ops) => NonEmptyList.of(message, ops.mkString("\n"), df.getStackTrace.mkString("\n"))
           case ParsingFailure(message, underlying) => NonEmptyList.of(message, underlying.getMessage, underlying.getStackTrace.mkString("\n"))
         }
-    }}
+    }
 
   /**
    * Notice it gives you one instance of Cwl.  This has transformed all embedded files into scala object state
@@ -66,7 +66,7 @@ object CwlDecoder {
 
   def decodeTopLevelCwl(cwl: String): Parse[Cwl] =
     for {
-     file <-  fromEither[IO](newTemporaryFile().write(cwl).asRight)
+     file <- fromEither[IO](newTemporaryFile().write(cwl).asRight)
      out <- decodeTopLevelCwl(file)
     } yield out
 
@@ -75,7 +75,10 @@ object CwlDecoder {
     //The SALAD preprocess step puts "file://" as a prefix to all filenames.  Better files doesn't like this.
     val bFileName = fileName.drop(5)
 
-    decodeAllCwl(BFile(bFileName)).map(fileName.toString -> _).value.map(_.toValidated)
+    decodeAllCwl(BFile(bFileName)).
+      map(fileName.toString -> _).
+      value.
+      map(_.toValidated)
   }
 }
 

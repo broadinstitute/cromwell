@@ -28,9 +28,9 @@ object Outputs {
     //Sorry for all the nesting, but spray json JsValue doesn't have optional access methods like Argonaut/circe,
     //thus no for comprehensions for us :(
     metadata.get("submittedFiles.workflow") match {
-      case Some(JsString(some)) =>
+      case Some(JsString(workflow)) =>
 
-        val cwl = CwlDecoder.decodeTopLevelCwl(some)
+        val cwl = CwlDecoder.decodeTopLevelCwl(workflow)
 
         cwl.value.attempt.unsafeRunSync() match {
           case Right(Right(cwl)) =>
@@ -51,8 +51,8 @@ object Outputs {
                   pretty(io.circe.Printer.spaces2.copy(dropNullValues = true))
               case other => s"it seems cromwell is not returning outputs as a Jsobject but is instead a $other"
             }
-          case Right(Left(error)) => s"couldn't parse $some: $error"
-          case Left(error) => s"Exception when trying to read $some: $error"
+          case Right(Left(error)) => s"couldn't parse workflow: $workflow failed with error: $error"
+          case Left(error) => s"Exception when trying to read workflow: $workflow failed with error: $error"
         }
       case Some(other) => s"received the value $other when the workflow string was expected"
       case None => "the workflow is no longer in the metadata payload, it's a problem"

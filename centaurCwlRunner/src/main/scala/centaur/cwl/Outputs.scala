@@ -44,7 +44,8 @@ object Outputs {
                   pretty(io.circe.Printer.spaces2.copy(dropNullValues = true))
               case other => s"it seems cromwell is not returning outputs as a Jsobject but is instead a $other"
             }
-          case _ => s"couldn't parse $some"
+          case Right(Left(error)) => s"couldn't parse $some: $error"
+          case Left(error) => s"couldn't parse $some: $error"
         }
       case Some(other) => s"received the value $other when the workflow string was expected"
       case None => "the workflow is no longer in the metadata payload, it's a problem"

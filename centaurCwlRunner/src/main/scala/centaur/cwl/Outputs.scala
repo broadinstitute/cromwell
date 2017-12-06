@@ -78,7 +78,6 @@ object Outputs {
           b => String.format("%02X", new Integer(b & 0xff))
         }.mkString.toLowerCase
 
-
         CwlFile(
           location = Option(fileName.name),
           checksum = Option("sha1$" + hex),

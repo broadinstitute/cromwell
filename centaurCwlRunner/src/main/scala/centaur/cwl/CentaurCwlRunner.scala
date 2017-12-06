@@ -150,7 +150,6 @@ object CentaurCwlRunner {
     }
   }
 
-
   def main(args: Array[String]): Unit = {
     val parsedArgsOption = parser.parse(args, CommandLineArguments())
     val exitCode = parsedArgsOption match {

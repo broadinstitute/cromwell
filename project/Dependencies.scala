@@ -286,10 +286,9 @@ object Dependencies {
   val databaseMigrationDependencies = liquibaseDependencies ++ dbmsDependencies
 
   val cromwellApiClientDependencies = List(
-     "org.scalaz" %% "scalaz-core" % scalazV,
-
+    "org.scalaz" %% "scalaz-core" % scalazV,
     "co.fs2" %% "fs2-io" % fs2V,
-  "com.typesafe.akka" %% "akka-actor" % akkaV,
+    "com.typesafe.akka" %% "akka-actor" % akkaV,
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
     "com.typesafe.akka" %% "akka-stream" % akkaV
   ) ++ akkaHttpDependencies ++ betterFilesDependencies

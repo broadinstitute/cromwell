@@ -207,7 +207,8 @@ case class WorkflowStep(
 
       // WorkflowStepInputFold contains the mappings from step input to ExpressionNode as well as all created nodes
       val stepInputFoldCheck: Checked[WorkflowStepInputFold] = in.foldLeft(WorkflowStepInputFold.emptyRight)(foldStepInput)
-      
+
+      // Validate that the scatter expression is an ArrayLike and return the member type
       def scatterExpressionItemType(expressionNode: ExpressionNode) = {
         expressionNode.womType match {
           case WomArrayType(itemType) => itemType.validNelCheck // Covers maps because this is a custom unapply (see WdlArrayType)
@@ -225,26 +226,26 @@ case class WorkflowStep(
             scatterExpressionItemType(expressionNode) map { itemType =>
               // create a scatter variable node for other scattered nodes to point to
               val scatterVariableNode = ScatterVariableNode(WomIdentifier(scatterArrayVariableName), expressionNode.singleExpressionOutputPort, itemType)
-              Option(ScatterHelper(scatterArrayVariableName, expressionNode, scatterVariableNode))
+              Option(ScatterHelper(expressionNode, scatterVariableNode))
             }
           case None => s"Could not find a variable ${parsedScatterVariable.id} in the workflow step input to scatter over. Please make sure ${parsedScatterVariable.id} is an input of step $unqualifiedStepId".invalidNelCheck[Option[ScatterHelper]]
         }
       }).getOrElse(None.validNelCheck)
 
-
+      // Wrap a call into a scatter node
       def buildScatterNode(callNodeAndNewNodes: CallNodeAndNewNodes, scatterExpressionNode: ExpressionNode, scatterVariableNode: ScatterVariableNode) = {
         val callNode = callNodeAndNewNodes.node
 
-        // We need to generate PBGONs for every output port of the call, so that the can be linked outside the scatter graph
+        // We need to generate PBGONs for every output port of the call, so that they can be linked outside the scatter graph
         val portBasedGraphOutputNodes = callNode.outputPorts.map(op => {
           PortBasedGraphOutputNode(op.identifier, op.womType, op)
         })
-          
-        for {
-          // Build the scatter inner graph using the callNodes, the scatterVariable
-          innerGraph <- Graph.validateAndConstruct(callNodeAndNewNodes.nodes ++ portBasedGraphOutputNodes ++ Set(scatterVariableNode)).toEither
-          scatterNode = ScatterNode.scatterOverGraph(innerGraph, scatterExpressionNode, scatterVariableNode)
-        } yield scatterNode
+
+        // Build the scatter inner graph using the callNode and its new nodes, the scatterVariable, and the PBGONs
+        Graph.validateAndConstruct(callNodeAndNewNodes.nodes ++ Set(scatterVariableNode) ++ portBasedGraphOutputNodes).toEither map { innerGraph =>
+          // Build the ScatterNode
+          ScatterNode.scatterOverGraph(innerGraph, scatterExpressionNode, scatterVariableNode)
+        }
       }
 
       /*
@@ -264,12 +265,18 @@ case class WorkflowStep(
         scatterHelper <- buildScatterHelper(stepInputFold)
         inputDefinitionFold <- taskDefinition.inputs.foldMap(foldInputDefinition(stepInputFold.stepInputMapping, scatterHelper)).toEither
         callAndNodes = callNodeBuilder.build(unqualifiedStepId, taskDefinition, inputDefinitionFold)
-        scatterNodeWithNewNodes <- scatterHelper.map(helper => buildScatterNode(callAndNodes, helper.scatterExpressionNode, helper.scatterVariableNode).map(Option.apply)).getOrElse(None.validNelCheck)
-        allNodes = {
-          val callNodes = if (scatterHelper.isDefined) Set.empty else callAndNodes.nodes
-          stepInputFold.generatedNodes ++ callNodes ++ scatterNodeWithNewNodes.map(_.node)
+        scatterNodeWithNewNodes <- scatterHelper.map(helper => 
+          // Build the scatter node
+          buildScatterNode(callAndNodes, helper.scatterExpressionNode, helper.scatterVariableNode).map(Option.apply)
+        ).getOrElse(None.validNelCheck)
+      } yield {
+        // If the call is wrapped in a scatter, just add the scatter node, otherwise add the call and its generated nodes
+        val newNodes = scatterNodeWithNewNodes.map(_.node) match {
+          case Some(scatterNode) => Set(scatterNode)
+          case None => callAndNodes.nodes
         }
-      } yield allNodes
+        stepInputFold.generatedNodes ++ newNodes
+      }
 
       graphNodes
     }
@@ -303,11 +310,10 @@ object WorkflowStep {
 
   /**
     * Holds values useful to build scatter nodes and wire inner nodes properly
-    * @param scatterVariableName name of the scatter variable
     * @param scatterExpressionNode expression node representing the ArrayLike expression to be scattered over
     * @param scatterVariableNode node representing an element of the array that should be used by nodes inside the scatter
     */
-  private [cwl] case class ScatterHelper(scatterVariableName: String, scatterExpressionNode: ExpressionNode, scatterVariableNode: ScatterVariableNode)
+  private [cwl] case class ScatterHelper(scatterExpressionNode: ExpressionNode, scatterVariableNode: ScatterVariableNode)
 
   val emptyOutputs: Outputs = Coproduct[Outputs](Array.empty[String])
 

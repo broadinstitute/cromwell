@@ -4,7 +4,7 @@ import cwl.CommandLineTool._
 import shapeless.{:+:, CNil}
 import cwl.CwlType.CwlType
 import io.circe.Json
-import wom.types.WomType
+import wom.types.{WomArrayType, WomType}
 
 trait TypeAliases {
 
@@ -103,9 +103,38 @@ object MyriadInputType {
     }
   }
 
+  object CwlInputArraySchema {
+    def unapply(m: MyriadInputType): Option[InputArraySchema] = {
+      m.select[InputArraySchema]
+    }
+  }
+
   object WomType {
     def unapply(m: MyriadInputType): Option[WomType] = m match {
-      case CwlType(c) => Option(cwl.cwlTypeToWdlType(c))
+      case CwlType(c) => Option(cwl.cwlTypeToWomType(c))
+      case CwlInputArraySchema(c) => c.items.select[CwlType].map(inner => WomArrayType(cwl.cwlTypeToWomType(inner)))
+      case _ => None
+    }
+  }
+}
+
+object MyriadOutputType {
+  object CwlType {
+    def unapply(m: MyriadOutputType): Option[CwlType] = {
+      m.select[CwlType]
+    }
+  }
+
+  object CwlOutputArraySchema {
+    def unapply(m: MyriadOutputType): Option[OutputArraySchema] = {
+      m.select[OutputArraySchema]
+    }
+  }
+
+  object WomType {
+    def unapply(m: MyriadOutputType): Option[WomType] = m match {
+      case CwlType(c) => Option(cwl.cwlTypeToWomType(c))
+      case CwlOutputArraySchema(c) => c.items.select[CwlType].map(inner => WomArrayType(cwl.cwlTypeToWomType(inner)))
       case _ => None
     }
   }

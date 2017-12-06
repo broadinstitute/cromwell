@@ -34,7 +34,7 @@ package object cwl extends TypeAliases {
     object CommandLineTool { def unapply(cwl: Cwl): Option[CommandLineTool] = cwl.select[CommandLineTool] }
   }
 
-  def cwlTypeToWdlType : CwlType => WomType = {
+  def cwlTypeToWomType : CwlType => WomType = {
     case Null => WomNothingType
     case Boolean => WomBooleanType
     case Int => WomIntegerType

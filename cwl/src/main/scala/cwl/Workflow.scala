@@ -10,7 +10,6 @@ import common.Checked
 import common.validation.ErrorOr._
 import shapeless._
 import shapeless.syntax.singleton._
-import CwlType.CwlType
 import CwlVersion._
 import wom.callable.WorkflowDefinition
 import wom.executable.Executable
@@ -42,11 +41,20 @@ case class Workflow private(
   lazy val stepById: Map[String, WorkflowStep] = steps.map(ws => ws.id -> ws).toMap
 
   def womGraph: Checked[Graph] = {
+    import common.validation.Checked._
+    
+    def womTypeForMyriadInputType(input: MyriadInputType): Checked[WomType] = {
+      input match {
+        case MyriadInputType.WomType(womType) => womType.validNelCheck
+        case _ => s"Unsupported input type: $input".invalidNelCheck
+      }
+    }
 
-    def cwlTypeForInputParameter(input: InputParameter): Option[CwlType] = input.`type`.flatMap(_.select[CwlType])
-
-    def wdlTypeForInputParameter(input: InputParameter): Option[WomType] = {
-      cwlTypeForInputParameter(input) map cwlTypeToWdlType
+    def womTypeForInputParameter(input: InputParameter): Checked[WomType] = {
+      input.`type` match {
+        case Some(t) => womTypeForMyriadInputType(t)
+        case None => s"Input ${input.id} does not have a defined type.".invalidNelCheck
+      }
     }
 
     val typeMap: WdlTypeMap =
@@ -55,13 +63,14 @@ case class Workflow private(
         // is that in CWL graph inputs can only be defined at the workflow level.  It's possible that's not actually
         // correct, but that's the assumption being made here.
         inputs.toList.flatMap { i =>
-          wdlTypeForInputParameter(i).map(i.id -> _).toList
+          womTypeForInputParameter(i).map(i.id -> _).toList
         }.toMap
 
     val graphFromInputs: Set[ExternalGraphInputNode] = inputs.map {
       case inputParameter if inputParameter.default.isDefined =>
         val parsedInputId = FileAndId(inputParameter.id).id
-        val womType = wdlTypeForInputParameter(inputParameter).get
+        val womType = womTypeForInputParameter(inputParameter)
+          .valueOr(errors => throw new Exception(s"Invalid type: ${errors.toList.mkString(", ")}"))
 
         // TODO: Eurgh! But until we have something better ...
         val womValue = womType.coerceRawValue(inputParameter.default.get).get
@@ -69,7 +78,11 @@ case class Workflow private(
       case input =>
         val parsedInputId = FileAndId(input.id).id
 
-        RequiredGraphInputNode(WomIdentifier(parsedInputId, input.id), wdlTypeForInputParameter(input).get, parsedInputId)
+        RequiredGraphInputNode(
+          WomIdentifier(parsedInputId, input.id),
+          womTypeForInputParameter(input).valueOr(errors => throw new Exception(s"Invalid type: ${errors.toList.mkString(", ")}")),
+          parsedInputId
+        )
     }.toSet
 
     val workflowInputs: Map[String, GraphNodeOutputPort] =
@@ -88,16 +101,24 @@ case class Workflow private(
       outputs.toList.traverse[ErrorOr, GraphNode] {
         output =>
 
-          val womType = cwlTypeToWdlType(output.`type`.flatMap(_.select[CwlType]).get)
+          val womType = output.`type`.map({
+            case MyriadOutputType.WomType(wom) => wom
+            case _ => throw new Exception(s"Unsupported type: ${output.`type`}")
+          }).get
 
-          def lookupOutputSource(outputId: FileStepAndId): Checked[OutputPort] =
+          // Try to find an output port for this cwl output in the set of available nodes
+          def lookupOutputSource(outputId: FileStepAndId): Checked[OutputPort] = {
             for {
               set <- graphFromSteps
-              call <- set.collectFirst { case callNode: CallNode if callNode.localName == outputId.stepId => callNode }.
+              call <- set.collectFirst({
+                case callNode: CallNode if callNode.localName == outputId.stepId => callNode
+                case scatterNode: ScatterNode if scatterNode.innerGraph.calls.exists(_.localName == outputId.stepId) => scatterNode
+              }).
                 toRight(NonEmptyList.one(s"Call Node by name ${outputId.stepId} was not found in set $set"))
               output <- call.outputPorts.find(_.name == outputId.id).
-                          toRight(NonEmptyList.one(s"looking for ${outputId.id} in call $call output ports ${call.outputPorts}"))
+                toRight(NonEmptyList.one(s"looking for ${outputId.id} in call $call output ports ${call.outputPorts}"))
             } yield output
+          }
 
           lookupOutputSource(FileStepAndId(output.outputSource.flatMap(_.select[String]).get)).
             map(PortBasedGraphOutputNode(WomIdentifier(output.id), womType, _)).toValidated

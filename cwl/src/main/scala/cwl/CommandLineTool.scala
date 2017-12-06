@@ -79,13 +79,13 @@ case class CommandLineTool private(
       case CommandOutputParameter(cop_id, _, _, _, _, _, Some(outputBinding), Some(outputType)) if outputType.select[CwlType].contains(CwlType.File) =>
         OutputDefinition(FullyQualifiedName(cop_id).id, WomFileType, CommandOutputExpression(outputBinding, WomFileType, inputNames))
       case CommandOutputParameter(cop_id, _, _, _, _, _, Some(outputBinding), Some(tpe)) =>
-        val womType = tpe.select[CwlType].map(cwlTypeToWdlType).get //<-- here be `get` dragons
+        val womType = tpe.select[CwlType].map(cwlTypeToWomType).get //<-- here be `get` dragons
         OutputDefinition(FullyQualifiedName(cop_id).id, womType, CommandOutputExpression(outputBinding, womType, inputNames))
     }.toList
 
     val inputDefinitions: List[_ <: Callable.InputDefinition] =
       this.inputs.map { cip =>
-        val inputType = cwlTypeToWdlType(cip.`type`.flatMap(_.select[CwlType]).get) // TODO: .get
+        val inputType = cwlTypeToWomType(cip.`type`.flatMap(_.select[CwlType]).get) // TODO: .get
         val inputName = FullyQualifiedName(cip.id).id
         cip.default match {
           case Some(d) => InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(inputType.coerceRawValue(d.toString).get))

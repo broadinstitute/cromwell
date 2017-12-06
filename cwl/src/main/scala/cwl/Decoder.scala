@@ -9,6 +9,9 @@ import cats.Applicative
 import better.files.{File => BFile}
 import common.validation.ErrorOr._
 import common.legacy.TwoElevenSupport._
+import io.circe.{DecodingFailure, ParsingFailure}
+import EitherT._
+import better.files.File.newTemporaryFile
 
 import scala.util.Try
 
@@ -33,14 +36,15 @@ object CwlDecoder {
         tacticalToEither.
         leftMap(t => NonEmptyList.one(s"running cwltool on file ${path.toString} failed with ${t.getMessage}"))
 
-    EitherT { IO { cwlToolResult flatMap resultToEither } }
+    fromEither[IO](cwlToolResult flatMap resultToEither)
   }
 
   def parseJson(json: String): Parse[Cwl] =
     EitherT{IO{
       CwlCodecs.decodeCwl(json).
-        leftMap{t =>
-          NonEmptyList.of(t.getMessage, t.getStackTrace.mkString("\n"))
+        leftMap{
+          case df@DecodingFailure(message, ops) => NonEmptyList.of(message, ops.mkString("\n"), df.getStackTrace.mkString("\n"))
+          case ParsingFailure(message, underlying) => NonEmptyList.of(message, underlying.getMessage, underlying.getStackTrace.mkString("\n"))
         }
     }}
 
@@ -53,6 +57,18 @@ object CwlDecoder {
       unmodifiedCwl <- parseJson(jsonString)
       cwlWithEmbeddedCwl <- unmodifiedCwl.fold(AddEmbeddedCwl)
     } yield cwlWithEmbeddedCwl
+
+  def decodeTopLevelCwl(fileName: BFile): Parse[Cwl] =
+    for {
+      jsonString <- preprocess(fileName)
+      unmodifiedCwl <- parseJson(jsonString)
+    } yield unmodifiedCwl
+
+  def decodeTopLevelCwl(cwl: String): Parse[Cwl] =
+    for {
+     file <-  fromEither[IO](newTemporaryFile().write(cwl).asRight)
+     out <- decodeTopLevelCwl(file)
+    } yield out
 
   //This is used when traversing over Cwl and replacing links w/ embedded data
   private[cwl] def decodeCwlAsValidated(fileName: String): ParseValidated[(String, Cwl)] = {

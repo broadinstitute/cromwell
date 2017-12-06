@@ -19,7 +19,7 @@ object Dependencies {
   val configsV = "0.4.4"
   val errorProneAnnotationsV = "2.0.19"
   val ficusV = "1.4.1"
-  val fs2V = "0.9.7"
+  val fs2V = "0.10.0-M7"
   val gaxV = "1.9.0"
   val googleApiClientV = "1.22.0"
   val googleCloudComputeV = "0.26.0-alpha"
@@ -63,6 +63,7 @@ object Dependencies {
   val scalacticV = "3.0.1"
   val scalameterV = "0.8.2"
   val scalatestV = "3.0.2"
+  val scalazV = "7.2.17"
   val scoptV = "3.6.0"
   val shapelessV = "2.3.2"
   val slf4jV = "1.7.24"
@@ -285,6 +286,8 @@ object Dependencies {
   val databaseMigrationDependencies = liquibaseDependencies ++ dbmsDependencies
 
   val cromwellApiClientDependencies = List(
+    "org.scalaz" %% "scalaz-core" % scalazV,
+    "co.fs2" %% "fs2-io" % fs2V,
     "com.typesafe.akka" %% "akka-actor" % akkaV,
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
     "com.typesafe.akka" %% "akka-stream" % akkaV

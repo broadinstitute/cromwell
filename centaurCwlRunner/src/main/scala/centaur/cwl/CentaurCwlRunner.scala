@@ -9,6 +9,7 @@ import centaur.test.workflow.{AllBackendsRequired, Workflow, WorkflowData}
 import common.util.VersionUtil
 import cromwell.api.model.{Aborted, Failed, NonTerminalStatus, Succeeded}
 import spray.json._
+import Outputs._
 
 /**
   * Runs workflows in a "cwl-runner" friendly way.
@@ -130,11 +131,11 @@ object CentaurCwlRunner {
               println(s"Unexpected failure.")
               ExitCode.Failure
             case Succeeded =>
-              val outputs = CentaurCromwellClient.outputs(submittedWorkflow).get.outputs
+
               if (!args.quiet) {
                 println("Result:")
               }
-              println(outputs)
+              println(handleOutput(submittedWorkflow))
               ExitCode.Success
           }
       }

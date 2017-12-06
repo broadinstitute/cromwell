@@ -12,6 +12,10 @@ import io.circe.shapes._
 import io.circe.syntax._
 import shapeless.{Inl, Poly1}
 import spray.json.{JsNumber, JsObject, JsString, JsValue}
+import fs2.io.file.readAll
+import fs2.hash.sha1
+
+import better.files.File
 
 import scalaz.syntax.std.map._
 
@@ -48,7 +52,7 @@ object Outputs {
               case other => s"it seems cromwell is not returning outputs as a Jsobject but is instead a $other"
             }
           case Right(Left(error)) => s"couldn't parse $some: $error"
-          case Left(error) => s"couldn't parse $some: $error"
+          case Left(error) => s"Exception when trying to read $some: $error"
         }
       case Some(other) => s"received the value $other when the workflow string was expected"
       case None => "the workflow is no longer in the metadata payload, it's a problem"
@@ -68,14 +72,15 @@ object Outputs {
       //CWL expects quite a few enhancements to the File structure, hence...
       case (JsString(metadata), Inl(CwlType.File)) =>
 
-        val fileName = better.files.File(metadata)
+        val fileName = File(metadata)
 
-        val file = fs2.io.file.readAll[IO](fileName.path, 65536)
-        val hash = fs2.hash.sha1[IO]
+        val file = readAll[IO](fileName.path, 65536)
+        val hash = sha1[IO]
 
         val bytes = (file through hash).runLog.unsafeRunSync
 
         //hexify the bytes into a string
+        //credit: https://stackoverflow.com/questions/2756166/what-is-are-the-scala-ways-to-implement-this-java-byte-to-hex-class
         val hex = bytes.map {
           b => String.format("%02X", new Integer(b & 0xff))
         }.mkString.toLowerCase
@@ -86,9 +91,9 @@ object Outputs {
           size = Option(fileName.size)
         ).asJson
       case (JsNumber(metadata), Inl(CwlType.Long)) => metadata.longValue.asJson
-      case (JsNumber(metadata), Inl(CwlType.Float)) => metadata.floatValue().asJson
-      case (JsNumber(metadata), Inl(CwlType.Double)) => metadata.doubleValue().asJson
-      case (JsNumber(metadata), Inl(CwlType.Int)) => metadata.intValue().asJson
+      case (JsNumber(metadata), Inl(CwlType.Float)) => metadata.floatValue.asJson
+      case (JsNumber(metadata), Inl(CwlType.Double)) => metadata.doubleValue.asJson
+      case (JsNumber(metadata), Inl(CwlType.Int)) => metadata.intValue.asJson
       case (JsString(metadata), Inl(CwlType.String)) => metadata.asJson
       case (json, tpe) => throw new RuntimeException(s" we currently do not support outputs of $json and type $tpe")
     }
@@ -102,5 +107,7 @@ object CwlOutputsFold extends Poly1 {
     _.outputs.map(output => output.id -> output.`type`.get).toMap
   }
 
-  implicit def clt: Case.Aux[cwl.CommandLineTool, Map[String, MyriadOutputType]] = at[cwl.CommandLineTool] {_.outputs.map(output => output.id -> output.`type`.get).toMap}
+  implicit def clt: Case.Aux[cwl.CommandLineTool, Map[String, MyriadOutputType]] = at[cwl.CommandLineTool] {
+    _.outputs.map(output => output.id -> output.`type`.get).toMap
+  }
 }

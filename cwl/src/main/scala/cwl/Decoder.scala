@@ -10,6 +10,8 @@ import better.files.{File => BFile}
 import common.validation.ErrorOr._
 import common.legacy.TwoElevenSupport._
 import io.circe.{DecodingFailure, ParsingFailure}
+import EitherT._
+import better.files.File.newTemporaryFile
 
 import scala.util.Try
 
@@ -34,7 +36,7 @@ object CwlDecoder {
         tacticalToEither.
         leftMap(t => NonEmptyList.one(s"running cwltool on file ${path.toString} failed with ${t.getMessage}"))
 
-    EitherT { IO { cwlToolResult flatMap resultToEither } }
+    fromEither[IO](cwlToolResult flatMap resultToEither)
   }
 
   def parseJson(json: String): Parse[Cwl] =
@@ -64,7 +66,7 @@ object CwlDecoder {
 
   def decodeTopLevelCwl(cwl: String): Parse[Cwl] =
     for {
-     file <-  EitherT{ IO{ better.files.File.newTemporaryFile().write(cwl).asRight }}
+     file <-  fromEither[IO](newTemporaryFile().write(cwl).asRight)
      out <- decodeTopLevelCwl(file)
     } yield out
 

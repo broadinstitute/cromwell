@@ -9,6 +9,7 @@ import centaur.test.workflow.{AllBackendsRequired, Workflow, WorkflowData}
 import common.util.VersionUtil
 import cromwell.api.model.{Aborted, Failed, NonTerminalStatus, Succeeded}
 import spray.json._
+import Outputs._
 
 /**
   * Runs workflows in a "cwl-runner" friendly way.
@@ -134,7 +135,7 @@ object CentaurCwlRunner {
               if (!args.quiet) {
                 println("Result:")
               }
-              println(centaur.cwl.Outputs.handleOutput(submittedWorkflow))
+              println(handleOutput(submittedWorkflow))
               ExitCode.Success
           }
       }

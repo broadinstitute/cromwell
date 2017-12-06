@@ -50,7 +50,7 @@ lazy val dockerHashing = project
 
 lazy val cromwellApiClient = project
   .withLibrarySettings("cromwell-api-client", cromwellApiClientDependencies)
-  .dependsOn(engine)
+  .dependsOn(cwl)
 
 lazy val centaur = project
   .withLibrarySettings("centaur", centaurDependencies, integrationTests = true)

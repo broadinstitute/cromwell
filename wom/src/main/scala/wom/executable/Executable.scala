@@ -42,11 +42,11 @@ object Executable {
     */
   private def parseGraphInputs(graph: Graph, inputCoercionMap: Map[String, DelayedCoercionFunction]): ErrorOr[ResolvedExecutableInputs] = {
     def fromInputMapping(gin: ExternalGraphInputNode): Option[ErrorOr[ResolvedExecutableInput]] = {
-      inputCoercionMap.get(gin.identifier.fullyQualifiedName.value).map(_(gin.womType).map(Coproduct[ResolvedExecutableInput](_)))
+      inputCoercionMap.get(gin.nameInInputSet).map(_(gin.womType).map(Coproduct[ResolvedExecutableInput](_)))
     }
 
     def fallBack(gin: ExternalGraphInputNode): ErrorOr[ResolvedExecutableInput] = gin match {
-      case required: RequiredGraphInputNode => s"Required workflow input '${required.identifier.fullyQualifiedName.value}' not specified".invalidNel
+      case required: RequiredGraphInputNode => s"Required workflow input '${required.nameInInputSet}' not specified".invalidNel
       case optionalWithDefault: OptionalGraphInputNodeWithDefault => Coproduct[ResolvedExecutableInput](optionalWithDefault.default).validNel
       case optional: OptionalGraphInputNode => Coproduct[ResolvedExecutableInput](optional.womType.none: WomValue).validNel
     }

@@ -28,8 +28,8 @@ class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
     */
   it should "create and wire in InstantiatedExpressions where appropriate" in {
     // Two inputs:
-    val iInputNode = RequiredGraphInputNode(WomIdentifier("i"), WomIntegerType)
-    val jInputNode = RequiredGraphInputNode(WomIdentifier("j"), WomIntegerType)
+    val iInputNode = RequiredGraphInputNode(WomIdentifier("i"), WomIntegerType, "i")
+    val jInputNode = RequiredGraphInputNode(WomIdentifier("j"), WomIntegerType, "j")
 
     // Declare an expression that needs both an "i" and a "j":
     val ijExpression = PlaceholderWomExpression(Set("i", "j"), WomIntegerType)

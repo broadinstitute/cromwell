@@ -145,9 +145,9 @@ object Declaration {
     }
 
     def asWorkflowInput(inputDefinition: InputDefinition): GraphInputNode = inputDefinition match {
-      case RequiredInputDefinition(_, womType) => RequiredGraphInputNode(decl.womIdentifier, womType)
-      case OptionalInputDefinition(_, optionalType) => OptionalGraphInputNode(decl.womIdentifier, optionalType)
-      case InputDefinitionWithDefault(_, womType, default) => OptionalGraphInputNodeWithDefault(decl.womIdentifier, womType, default)
+      case RequiredInputDefinition(_, womType) => RequiredGraphInputNode(decl.womIdentifier, womType, decl.womIdentifier.fullyQualifiedName.value)
+      case OptionalInputDefinition(_, optionalType) => OptionalGraphInputNode(decl.womIdentifier, optionalType, decl.womIdentifier.fullyQualifiedName.value)
+      case InputDefinitionWithDefault(_, womType, default) => OptionalGraphInputNodeWithDefault(decl.womIdentifier, womType, default, decl.womIdentifier.fullyQualifiedName.value)
     }
 
     (decl.asWorkflowInput, decl) match {

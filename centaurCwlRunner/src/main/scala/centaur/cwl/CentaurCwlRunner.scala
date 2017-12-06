@@ -8,7 +8,6 @@ import centaur.test.submit.{SubmitHttpResponse, SubmitWorkflowResponse}
 import centaur.test.workflow.{AllBackendsRequired, Workflow, WorkflowData}
 import common.util.VersionUtil
 import cromwell.api.model.{Aborted, Failed, NonTerminalStatus, Succeeded}
-import shapeless.Poly1
 import spray.json._
 
 /**
@@ -161,14 +160,3 @@ object CentaurCwlRunner {
     System.exit(exitCode.status)
   }
 }
-
-object CwlOutputsFold extends Poly1 {
-  import cwl._
-
-  implicit def wf: Case.Aux[cwl.Workflow, Map[String, MyriadOutputType]] = at[cwl.Workflow] {
-    _.outputs.map(output => output.id -> output.`type`.get).toMap
-  }
-
-  implicit def clt: Case.Aux[cwl.CommandLineTool, Map[String, MyriadOutputType]] = at[cwl.CommandLineTool] {_.outputs.map(output => output.id -> output.`type`.get).toMap}
-}
-

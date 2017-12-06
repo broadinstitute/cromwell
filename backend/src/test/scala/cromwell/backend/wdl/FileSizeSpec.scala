@@ -61,7 +61,6 @@ class FileSizeSpec extends FlatSpec with Matchers {
         jPath.toFile.deleteOnExit
         val start = Stream.eval[IO, Byte](1).repeat.take(size.toLong)
         val end = fs2.io.file.writeAll[IO](jPath, Seq(CREATE_NEW, WRITE))
-        start.through()
         (start to end).run.unsafeRunSync
         //jPath is now a file of n bytes, we can return it
         jPath

@@ -8,8 +8,9 @@ import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.literal._
 import io.circe.syntax._
-import shapeless.Inl
+import shapeless.{Inl, Poly1}
 import spray.json.{JsNumber, JsObject, JsString, JsValue}
+
 import scalaz.syntax.std.map._
 
 object Outputs {
@@ -93,4 +94,12 @@ object Outputs {
   }
 }
 
+object CwlOutputsFold extends Poly1 {
+  import cwl._
 
+  implicit def wf: Case.Aux[cwl.Workflow, Map[String, MyriadOutputType]] = at[cwl.Workflow] {
+    _.outputs.map(output => output.id -> output.`type`.get).toMap
+  }
+
+  implicit def clt: Case.Aux[cwl.CommandLineTool, Map[String, MyriadOutputType]] = at[cwl.CommandLineTool] {_.outputs.map(output => output.id -> output.`type`.get).toMap}
+}

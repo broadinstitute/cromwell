@@ -17,6 +17,7 @@ import shapeless._
 import wom.callable.Callable._
 import wom.graph.CallNode._
 import wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
+import wom.graph.ScatterNode.ScatterNodeWithNewNodes
 import wom.graph._
 import wom.graph.expression.ExpressionNode
 import wom.types.WomArrayType
@@ -233,7 +234,7 @@ case class WorkflowStep(
       }).getOrElse(None.validNelCheck)
 
       // Wrap a call into a scatter node
-      def buildScatterNode(callNodeAndNewNodes: CallNodeAndNewNodes, scatterExpressionNode: ExpressionNode, scatterVariableNode: ScatterVariableNode) = {
+      def buildScatterNode(callNodeAndNewNodes: CallNodeAndNewNodes, scatterHelper: ScatterHelper): Checked[ScatterNodeWithNewNodes] = {
         val callNode = callNodeAndNewNodes.node
 
         // We need to generate PBGONs for every output port of the call, so that they can be linked outside the scatter graph
@@ -242,9 +243,9 @@ case class WorkflowStep(
         })
 
         // Build the scatter inner graph using the callNode and its new nodes, the scatterVariable, and the PBGONs
-        Graph.validateAndConstruct(callNodeAndNewNodes.nodes ++ Set(scatterVariableNode) ++ portBasedGraphOutputNodes).toEither map { innerGraph =>
+        Graph.validateAndConstruct(callNodeAndNewNodes.nodes ++ Set(scatterHelper.scatterVariableNode) ++ portBasedGraphOutputNodes).toEither map { innerGraph =>
           // Build the ScatterNode
-          ScatterNode.scatterOverGraph(innerGraph, scatterExpressionNode, scatterVariableNode)
+          ScatterNode.scatterOverGraph(innerGraph, scatterHelper.scatterExpressionNode, scatterHelper.scatterVariableNode)
         }
       }
 
@@ -265,14 +266,14 @@ case class WorkflowStep(
         scatterHelper <- buildScatterHelper(stepInputFold)
         inputDefinitionFold <- taskDefinition.inputs.foldMap(foldInputDefinition(stepInputFold.stepInputMapping, scatterHelper)).toEither
         callAndNodes = callNodeBuilder.build(unqualifiedStepId, taskDefinition, inputDefinitionFold)
-        scatterNodeWithNewNodes <- scatterHelper.map(helper => 
-          // Build the scatter node
-          buildScatterNode(callAndNodes, helper.scatterExpressionNode, helper.scatterVariableNode).map(Option.apply)
-        ).getOrElse(None.validNelCheck)
+        scatterNodeWithNewNodes <- {
+          import cats.implicits._
+          scatterHelper.map(buildScatterNode(callAndNodes, _)).sequence[Checked, ScatterNodeWithNewNodes]
+        }
       } yield {
-        // If the call is wrapped in a scatter, just add the scatter node, otherwise add the call and its generated nodes
-        val newNodes = scatterNodeWithNewNodes.map(_.node) match {
-          case Some(scatterNode) => Set(scatterNode)
+        // If the call is wrapped in a scatter, add the scatter node and its generated nodes, otherwise add the call and its generated nodes
+        val newNodes = scatterNodeWithNewNodes match {
+          case Some(scatterNodes) => scatterNodes.newInputs ++ Set(scatterNodes.node)
           case None => callAndNodes.nodes
         }
         stepInputFold.generatedNodes ++ newNodes

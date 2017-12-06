@@ -37,7 +37,9 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
 
       futureId onComplete {
         case Success(id) =>
-          log.info("Workflow {} submitted.", id)
+          val wfType = cmd.source.workflowType.getOrElse("Unspecified type")
+          val wfTypeVersion = cmd.source.workflowTypeVersion.getOrElse("Unspecified version")
+          log.info("{} ({}) workflow {} submitted", wfType, wfTypeVersion, id)
           sndr ! WorkflowSubmittedToStore(id)
           removeWork()
         case Failure(throwable) =>

@@ -54,4 +54,10 @@ object AddEmbeddedCwl extends Poly1 {
       clt =>
         Monad[Parse].pure(clt.asCwl)
     }
+
+  implicit def expressionTool =
+    at[ExpressionTool] {
+      et =>
+        Monad[Parse].pure(et.asCwl)
+    }
 }

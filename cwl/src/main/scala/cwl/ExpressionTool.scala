@@ -1,6 +1,6 @@
 package cwl
 
-import shapeless.{:+:, CNil}
+import shapeless.{:+:, CNil, Coproduct}
 import cwl.CwlVersion._
 
 case class ExpressionTool(
@@ -16,7 +16,9 @@ case class ExpressionTool(
                            hints: Option[Array[CwlAny]] = None,
                            label: Option[String] = None,
                            doc: Option[String] = None,
-                           cwlVersion: Option[CwlVersion] = None)
+                           cwlVersion: Option[CwlVersion] = None) {
+  def asCwl = Coproduct[Cwl](this)
+}
 
 case class ExpressionToolOutputParameter(
                                           id: String,
@@ -35,7 +37,7 @@ case class ExpressionToolOutputParameter(
                                               String :+:
                                               Array[String] :+:
                                               CNil] = None,
-                                          streamable: Option[Boolean],
+                                          streamable: Option[Boolean] = None,
                                           doc:
                                             Option[
                                               String :+:

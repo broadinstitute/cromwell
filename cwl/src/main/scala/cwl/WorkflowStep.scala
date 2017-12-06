@@ -14,6 +14,7 @@ import common.validation.ErrorOr.ErrorOr
 import shapeless._
 import cwl.ScatterMethod._
 import cwl.WorkflowStep._
+import wom.callable.Callable
 import wom.values.WomValue
 import wom.callable.Callable._
 import wom.graph.CallNode._
@@ -21,7 +22,6 @@ import wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 import wom.graph._
 import wom.graph.expression.ExpressionNode
 
-import scala.language.postfixOps
 import scala.util.Try
 
 /**
@@ -60,14 +60,20 @@ case class WorkflowStep(
                      workflowInputs: Map[String, GraphNodeOutputPort]): Checked[Set[GraphNode]] = {
 
     // To avoid duplicating nodes, return immediately if we've already covered this node
-    val haveWeSeenThisStep: Boolean = knownNodes.collect { case TaskCallNode(identifier, _, _, _) => identifier }.contains(unqualifiedStepId)
+    val haveWeSeenThisStep: Boolean = knownNodes.collect {
+      case TaskCallNode(identifier, _, _, _) => identifier
+      case WorkflowCallNode(identifier, _, _, _) => identifier
+      // TODO CWL: Catch known ExpressionTools too
+    }.contains(unqualifiedStepId)
 
     if (haveWeSeenThisStep) Right(knownNodes)
     else {
-      // Create a task definition for the underlying run.
-      // For sub workflows, we'll need to handle the case where this could be a workflow definition
-      //TODO: turn this select into a fold that supports other types of runnables
-      val taskDefinition = run.select[CommandLineTool].map { _.taskDefinition } get
+      val callable: Checked[Callable] = run match {
+        case Run.CommandLineTool(clt) => Right(clt.taskDefinition)
+        case Run.Workflow(wf) => wf.womDefinition
+        // TODO CWL (obviously):
+        case Run.ExpressionTool(_) => throw new Exception("ExpressionTool is not supported as a workflow step yet")
+      }
 
       val callNodeBuilder = new CallNode.CallNodeBuilder()
 
@@ -207,8 +213,9 @@ case class WorkflowStep(
        */
       for {
         stepInputFold <- in.foldLeft(WorkflowStepInputFold.emptyRight)(foldStepInput)
-        inputDefinitionFold <- taskDefinition.inputs.foldMap(foldInputDefinition(stepInputFold.stepInputMapping)).toEither
-        callAndNodes = callNodeBuilder.build(unqualifiedStepId, taskDefinition, inputDefinitionFold)
+        checkedCallable <- callable
+        inputDefinitionFold <- checkedCallable.inputs.foldMap(foldInputDefinition(stepInputFold.stepInputMapping)).toEither
+        callAndNodes = callNodeBuilder.build(unqualifiedStepId, checkedCallable, inputDefinitionFold)
       } yield stepInputFold.generatedNodes ++ callAndNodes.nodes ++ knownNodes
     }
   }
@@ -247,6 +254,13 @@ object WorkflowStep {
       ExpressionTool :+:
       Workflow :+:
       CNil
+
+  object Run {
+    object String { def unapply(run: Run): Option[String] = run.select[String] }
+    object Workflow { def unapply(run: Run): Option[Workflow] = run.select[Workflow] }
+    object CommandLineTool { def unapply(run: Run): Option[CommandLineTool] = run.select[CommandLineTool] }
+    object ExpressionTool { def unapply(run: Run): Option[ExpressionTool] = run.select[ExpressionTool] }
+  }
 
   type Outputs =
     Array[String] :+:

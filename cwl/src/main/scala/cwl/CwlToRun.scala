@@ -3,16 +3,9 @@ package cwl
 import shapeless._
 
 object CwlToRun extends Poly1 {
-  implicit def commandLineTool =
-    at[CommandLineTool] {
-      clt =>
-       Coproduct[WorkflowStep.Run](clt)
-    }
-
-  implicit def workflow = at[Workflow] {
-    wf =>
-      Coproduct[WorkflowStep.Run](wf)
-  }
+  implicit def commandLineTool = at[CommandLineTool] { Coproduct[WorkflowStep.Run](_) }
+  implicit def workflow = at[Workflow] { Coproduct[WorkflowStep.Run](_) }
+  implicit def expressionTool = at[ExpressionTool] { Coproduct[WorkflowStep.Run](_) }
 }
 
 

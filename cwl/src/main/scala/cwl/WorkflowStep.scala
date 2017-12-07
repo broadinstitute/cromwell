@@ -11,7 +11,6 @@ import cats.syntax.validated._
 import common.Checked
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
-import cwl.ScatterLogic.ScatterVariablesPoly
 import cwl.ScatterMethod._
 import cwl.WorkflowStep.{WorkflowStepInputFold, _}
 import shapeless._
@@ -20,7 +19,6 @@ import wom.graph.CallNode._
 import wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 import wom.graph._
 import wom.graph.expression.ExpressionNode
-import wom.types.WomArrayType
 import wom.values.WomValue
 
 import scala.language.postfixOps
@@ -41,7 +39,7 @@ case class WorkflowStep(
                          hints: Option[Array[CwlAny]] = None,
                          label: Option[String] = None,
                          doc: Option[String] = None,
-                         scatter: Option[String :+: Array[String] :+: CNil] = None,
+                         scatter: ScatterVariables = None,
                          scatterMethod: Option[ScatterMethod] = None) {
 
   private def isScattered: Boolean = scatter.isDefined
@@ -169,51 +167,20 @@ case class WorkflowStep(
        */
       def foldInputDefinition(expressionNodes: Map[String, ExpressionNode], scatterMappings: ScatterMappings)
                              (inputDefinition: InputDefinition): ErrorOr[InputDefinitionFold] = {
-        
-        // Build a fold when the input definition references a step input
-        def buildFoldFromStepInput(expressionNode: ExpressionNode): ErrorOr[InputDefinitionFold] = {
-          val (mapping, outputPort, newNode) = if (isScattered) {
-            // mapping = Where does this input definition get its value from (in this method it'll always be an output port, but wrapped in a Coproduct[InputDefinitionPointer]
-            // outputPort = output port from which the input definition will get its values
-            // newNode = potentially newly created node to be added to the fold
-            scatterMappings.get(expressionNode) match {
-              // This input is being scattered over
-              case Some(scatterVariableNode) =>
-                // Point the input definition to the scatter variable
-                val mapping = List(inputDefinition -> Coproduct[InputDefinitionPointer](scatterVariableNode.singleOutputPort: OutputPort))
-                val outputPort = scatterVariableNode.singleOutputPort
-                (mapping, outputPort, None)
-              // This input is NOT being scattered over
-              case None =>
-                /*
-                  * If this input is not being scattered, we need to point at the step input expression node.
-                  * However the call node will be in the scatter inner graph, whereas the input expression node is outside of it.
-                  * So we create an OuterGraphInputNode to link them together.
-                 */
-                val ogin = OuterGraphInputNode(WomIdentifier(inputDefinition.name), expressionNode.singleExpressionOutputPort, preserveScatterIndex = false)
-                val mapping = List(inputDefinition -> Coproduct[InputDefinitionPointer](ogin.singleOutputPort: OutputPort))
-
-                (mapping, ogin.singleOutputPort, Option(ogin))
-            }
-          } else {
-            val mapping = List(inputDefinition -> expressionNode.inputDefinitionPointer)
-            val outputPort = expressionNode.singleExpressionOutputPort
-            (mapping, outputPort, None)
-          }
-
-          InputDefinitionFold(
-            mappings = mapping,
-            callInputPorts = Set(callNodeBuilder.makeInputPort(inputDefinition, outputPort)),
-            newExpressionNodes = Set(expressionNode),
-            usedOuterGraphInputNodes = newNode.toSet
-          ).validNel
-        }
-        
         inputDefinition match {
-          // We got an expression node, meaning there was a workflow step input for this input definition
-          // Add the mapping, create an input port from the expression node and add the expression node to the fold
+          // First 2 cases: We got an expression node, meaning there was a workflow step input for this input definition
+          // Depending on whether or not this input is being scattered over take appropriate action
+          case _ if expressionNodes.contains(inputDefinition.name) && isScattered =>
+            val expressionNode = expressionNodes(inputDefinition.name)
+            ScatterLogic.buildScatteredInputFold(inputDefinition, scatterMappings, expressionNode, callNodeBuilder)
+
           case _ if expressionNodes.contains(inputDefinition.name) =>
-            buildFoldFromStepInput(expressionNodes(inputDefinition.name))
+            val expressionNode = expressionNodes(inputDefinition.name)
+            InputDefinitionFold(
+              mappings = List(inputDefinition -> expressionNode.inputDefinitionPointer),
+              callInputPorts = Set(callNodeBuilder.makeInputPort(inputDefinition, expressionNode.singleExpressionOutputPort)),
+              newExpressionNodes = Set(expressionNode)
+            ).validNel
 
           // No expression node mapping, use the default
           case withDefault @ InputDefinitionWithDefault(_, _, expression) =>
@@ -235,68 +202,7 @@ case class WorkflowStep(
 
       // WorkflowStepInputFold contains the mappings from step input to ExpressionNode as well as all created nodes
       val stepInputFoldCheck: Checked[WorkflowStepInputFold] = in.foldLeft(WorkflowStepInputFold.emptyRight)(foldStepInput)
-
-      // Validate that the scatter expression is an ArrayLike and return the member type
-      def scatterExpressionItemType(expressionNode: ExpressionNode) = {
-        expressionNode.womType match {
-          case WomArrayType(itemType) => itemType.validNelCheck // Covers maps because this is a custom unapply (see WdlArrayType)
-          case other => s"Cannot scatter over a non-traversable type ${other.toDisplayString}".invalidNelCheck
-        }
-      }
-
-      // Build a list (potentially empty) of scatter helpers containing the expression node and scatter variable node
-      // for each input being scattered over
-      def buildScatterHelpers(stepInputFold: WorkflowStepInputFold): Checked[ScatterMappings] = {
-        import cats.implicits._
-
-        def buildScatterHelperFor(scatterVariableName: String): Checked[(ExpressionNode, ScatterVariableNode)] = {
-          // Assume the variable is a step input (is that always true ??). Find the corresponding expression node
-          val parsedScatterVariable = FileStepAndId(scatterVariableName)
-
-          stepInputFold.stepInputMapping.get(parsedScatterVariable.id) match {
-            case Some(expressionNode) =>
-              // find the item type
-              scatterExpressionItemType(expressionNode) map { itemType =>
-                // create a scatter variable node for other scattered nodes to point to
-                val scatterVariableNode = ScatterVariableNode(WomIdentifier(scatterVariableName), expressionNode.singleExpressionOutputPort, itemType)
-                (expressionNode, scatterVariableNode)
-              }
-            case None => s"Could not find a variable ${parsedScatterVariable.id} in the workflow step input to scatter over. Please make sure ${parsedScatterVariable.id} is an input of step $unqualifiedStepId".invalidNelCheck
-          }
-        }
-        // Take the scatter field defining the (list of) input(s) to be scattered over
-        scatter
-          // Fold them so we have a List[String] no matter what (a single scattered input becomes a single element list)
-          .map(_.fold(ScatterVariablesPoly))
-          // If there's no scatter make it an empty list
-          .getOrElse(List.empty)
-          // Traverse the list to create ScatterHelpers that will be used later on to create the ScatterNode
-          .traverse[Checked, (ExpressionNode, ScatterVariableNode)](buildScatterHelperFor)
-          // Transform the List of tuples to a Map
-          .map(_.toMap)
-      }
-
-      // Prepare the nodes to be returned if this call is being scattered
-      def prepareNodesForScatteredCall(callNodeAndNewNodes: CallNodeAndNewNodes, stepInputFold: WorkflowStepInputFold, scatterMappings: ScatterMappings): Checked[Set[GraphNode]] = {
-        val callNode = callNodeAndNewNodes.node
-
-        // We need to generate PBGONs for every output port of the call, so that they can be linked outside the scatter graph
-        val portBasedGraphOutputNodes = callNode.outputPorts.map(op => {
-          PortBasedGraphOutputNode(op.identifier, op.womType, op)
-        })
-
-        // Build the scatter inner graph using the callNode, the outerGraphInputNodes, the scatterVariableNodes, and the PBGONs
-        Graph.validateAndConstruct(Set(callNodeAndNewNodes.node) ++ callNodeAndNewNodes.usedOuterGraphInputNodes ++ scatterMappings.values ++ portBasedGraphOutputNodes).toEither map { innerGraph =>
-          // Build the ScatterNode - only with single scatter variable for now
-          val scatterNodeWithNewNodes = ScatterNode.scatterOverGraph(innerGraph, scatterMappings.head._1, scatterMappings.head._2)
-          knownNodes ++ scatterNodeWithNewNodes.nodes ++ stepInputFold.generatedNodes
-        }
-      }
       
-      def prepareNodesForNonScatteredCall(callNodeAndNewNodes: CallNodeAndNewNodes, stepInputFold: WorkflowStepInputFold): Checked[Set[GraphNode]] = {
-        (knownNodes ++ callNodeAndNewNodes.nodes ++ stepInputFold.generatedNodes).validNelCheck
-      }
-
       /*
         1) Fold over the workflow step inputs:
           - Create an expression node for each input
@@ -311,10 +217,14 @@ case class WorkflowStep(
        */
       for {
         stepInputFold <- stepInputFoldCheck
-        scatterMappings <- buildScatterHelpers(stepInputFold)
+        scatterMappings <- ScatterLogic.buildScatterMappings(scatter, stepInputFold, unqualifiedStepId.localName.value)
         inputDefinitionFold <- taskDefinition.inputs.foldMap(foldInputDefinition(stepInputFold.stepInputMapping, scatterMappings)).toEither
         callAndNodes = callNodeBuilder.build(unqualifiedStepId, taskDefinition, inputDefinitionFold)
-        allNodes <- if(isScattered) prepareNodesForScatteredCall(callAndNodes, stepInputFold, scatterMappings) else prepareNodesForNonScatteredCall(callAndNodes, stepInputFold)
+        allNodes <- if (isScattered) {
+          ScatterLogic.prepareNodesForScatteredCall(knownNodes, callAndNodes, stepInputFold, scatterMappings)
+        } else {
+          (knownNodes ++ callAndNodes.nodes ++ stepInputFold.generatedNodes).validNelCheck
+        }
       } yield allNodes
     }
   }

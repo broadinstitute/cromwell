@@ -27,8 +27,8 @@ sealed trait WomArrayType extends WomType {
     case javaList: java.util.List[_] if allowEmpty || !javaList.isEmpty => coerceIterable(javaList.asScala)
     case WomArray(WomMaybeEmptyArrayType.EmptyArrayType, _) => WomArray(this, Seq.empty)
     case womArray: WomArray if (allowEmpty || womArray.nonEmpty) && womArray.womType.memberType == WomStringType && memberType == WomFileType =>
-      WomArray(WomArrayType(WomFileType, guaranteedNonEmpty), womArray.value.map(str => WomFile(str.asInstanceOf[WomString].value)).toList)
-    case womArray: WomArray if (allowEmpty || womArray.nonEmpty) && womArray.womType.memberType == memberType => womArray
+      WomArray(this, womArray.value.map(str => WomFile(str.asInstanceOf[WomString].value)).toList)
+    case womArray: WomArray if (allowEmpty || womArray.nonEmpty) && womArray.womType.memberType == memberType => WomArray(this, womArray.value)
     case womArray: WomArray if (allowEmpty || womArray.nonEmpty) && womArray.womType.memberType == WomAnyType => coerceIterable(womArray.value)
     case womArray: WomArray if (allowEmpty || womArray.nonEmpty) && womArray.womType.memberType.isInstanceOf[WomArrayType] && memberType.isInstanceOf[WomArrayType] =>
       TryUtil.sequence(womArray.value.map(memberType.coerceRawValue)) match {

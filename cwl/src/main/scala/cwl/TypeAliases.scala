@@ -48,19 +48,8 @@ trait TypeAliases {
       CNil
 
   type MyriadInputType =
-    CwlType :+:
-      InputRecordSchema :+:
-      InputEnumSchema :+:
-      InputArraySchema :+:
-      String :+:
-      Array[
-        CwlType :+:
-          InputRecordSchema :+:
-          InputEnumSchema :+:
-          InputArraySchema :+:
-          String :+:
-          CNil
-        ] :+:
+      MyriadInputInnerType :+:
+      Array[MyriadInputInnerType] :+:
       CNil
 
   type MyriadInputInnerType =
@@ -72,11 +61,7 @@ trait TypeAliases {
       CNil
 
   type MyriadOutputType =
-    CwlType :+:
-      OutputRecordSchema :+:
-      OutputEnumSchema :+:
-      OutputArraySchema :+:
-      String :+:
+      MyriadOutputInnerType :+:
       Array[MyriadOutputInnerType] :+:
       CNil
 
@@ -108,7 +93,7 @@ trait TypeAliases {
 object MyriadInputType {
   object CwlType {
     def unapply(m: MyriadInputType): Option[CwlType] = {
-      m.select[CwlType]
+      m.select[MyriadInputInnerType].flatMap(_.select[CwlType])
     }
   }
 

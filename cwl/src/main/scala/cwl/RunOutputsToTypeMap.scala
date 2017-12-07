@@ -12,6 +12,7 @@ object RunOutputsToTypeMap extends Poly1 {
         acc ++
           out.
             `type`.
+            flatMap(_.select[MyriadOutputInnerType]).
             flatMap(_.select[CwlType]).
             map(cwlTypeToWdlType).
             map(out.id -> _).

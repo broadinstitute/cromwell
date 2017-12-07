@@ -10,11 +10,11 @@ import io.circe.literal._
 import io.circe.refined._
 import io.circe.shapes._
 import io.circe.syntax._
-import shapeless.{Inl, Poly1}
+import shapeless.{Inl, Inr, Poly1}
 import spray.json.{JsNumber, JsObject, JsString, JsValue}
 import fs2.io.file.readAll
 import fs2.hash.sha1
-
+import _root_.cwl._
 import better.files.File
 
 import scalaz.syntax.std.map._
@@ -68,6 +68,13 @@ object Outputs {
 
   //In an Ideal world I'd return a Coproduct of these types and leave the asJson-ing to the handleOutput
   def resolveOutput(jsValue: JsValue, mot: MyriadOutputType): Json  = {
+    mot match {
+      case Inl(moit) => resolveOutputViaInnerType(jsValue, moit)
+      case Inr(Inl(arrayMoit)) => resolveOutputViaInnerType(jsValue, arrayMoit.head)
+      case _ => ??? //Impossible!
+    }
+  }
+  def resolveOutputViaInnerType(jsValue: JsValue, mot: MyriadOutputInnerType): Json  = {
     (jsValue, mot) match {
       //CWL expects quite a few enhancements to the File structure, hence...
       case (JsString(metadata), Inl(CwlType.File)) =>

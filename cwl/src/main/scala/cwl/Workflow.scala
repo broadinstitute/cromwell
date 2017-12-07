@@ -11,7 +11,6 @@ import common.validation.Validation.OptionValidation
 import common.validation.ErrorOr._
 import shapeless._
 import shapeless.syntax.singleton._
-import CwlType.CwlType
 import CwlVersion._
 import wom.callable.WorkflowDefinition
 import wom.executable.Executable
@@ -46,10 +45,8 @@ case class Workflow private(
 
   def womGraph: Checked[Graph] = {
 
-    def cwlTypeForInputParameter(input: InputParameter): Option[CwlType] = input.`type`.flatMap(_.select[CwlType])
-
     def wdlTypeForInputParameter(input: InputParameter): Option[WomType] = {
-      cwlTypeForInputParameter(input) map cwlTypeToWdlType
+      input.`type`.map(_.fold(MyriadInputTypeToWomType))
     }
 
     val typeMap: WdlTypeMap =
@@ -91,7 +88,7 @@ case class Workflow private(
       outputs.toList.traverse[ErrorOr, GraphNode] {
         output =>
 
-          val womType = cwlTypeToWdlType(output.`type`.flatMap(_.select[CwlType]).get)
+          val womType = output.`type`.map(_.fold(MyriadOutputTypeToWomType)).get
 
           def lookupOutputSource(outputId: FileStepAndId): Checked[OutputPort] = {
             def isRightOutputPort(op: GraphNodePort.OutputPort) = FullyQualifiedName.maybeApply(op.name) match {

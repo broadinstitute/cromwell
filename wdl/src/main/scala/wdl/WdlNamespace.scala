@@ -460,9 +460,7 @@ object WdlNamespace {
           } else {
             expr.evaluate(NoLookup, NoFunctions) match {
               case Success(value) if decl.womType.coerceRawValue(value).isFailure =>
-                Option(new SyntaxError(wdlSyntaxErrorFormatter.declarationExpressionNotCoerceableToTargetType(
-                  declarationName(decl.ast), decl.womType
-                )))
+                Option(new SyntaxError(wdlSyntaxErrorFormatter.declarationExpressionNotCoerceableToTargetType(declarationName(decl.ast), decl.womType, value.womType)))
               case _ => None
             }
           }

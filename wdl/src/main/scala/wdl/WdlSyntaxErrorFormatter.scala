@@ -277,8 +277,8 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) e
      """.stripMargin
   }
 
-  def declarationExpressionNotCoerceableToTargetType(declName: Terminal, declType: WomType) = {
-    s"""ERROR: Value for ${declName.getSourceString} is not coerceable into a ${declType.toDisplayString}:
+  def declarationExpressionNotCoerceableToTargetType(declName: Terminal, declType: WomType, evaluatedType: WomType) = {
+    s"""ERROR: Value '${declName.getSourceString}' is declared as a '${declType.toDisplayString}' but the expression evaluates to '${evaluatedType.toDisplayString}':
         |
        |${pointToSource(declName)}
      """.stripMargin

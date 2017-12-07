@@ -241,39 +241,6 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       system.stop(materializeWfActor)
     }
 
-
-    "reject a taskless WDL source" ignore {
-      val noWorkflowWdl =
-        """
-          |# no task foo { ... } block!!
-          |
-          |workflow foo {  }
-        """.stripMargin
-      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false))
-      val badWdlSources = WorkflowSourceFilesWithoutImports(
-        workflowSource = noWorkflowWdl,
-        workflowType = Option("WDL"),
-        workflowTypeVersion = None,
-        inputsJson = validInputsJson,
-        workflowOptionsJson = validOptionsFile,
-        labelsJson = validCustomLabelsFile,
-        warnings = Vector.empty)
-      materializeWfActor ! MaterializeWorkflowDescriptorCommand(badWdlSources, minimumConf)
-
-      within(Timeout) {
-        expectMsgPF() {
-          case MaterializeWorkflowDescriptorFailureResponse(reason) =>
-            reason.getMessage should startWith("Workflow input processing failed:\nUnable to load namespace from workflow: Namespace does not have a local workflow to run")
-          case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
-          case unknown =>
-            fail(s"Unexpected materialization response: $unknown")
-        }
-      }
-
-      system.stop(materializeWfActor)
-    }
-
-
     "reject an invalid options file" in {
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false))
       val sources = WorkflowSourceFilesWithoutImports(
@@ -431,7 +398,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       within(Timeout) {
         expectMsgPF() {
           case MaterializeWorkflowDescriptorFailureResponse(reason) =>
-            reason.getMessage should startWith("Workflow input processing failed:\nERROR: Value for j is not coerceable into a Int")
+            reason.getMessage should startWith("Workflow input processing failed:\nERROR: Value 'j' is declared as a 'Int' but the expression evaluates to 'String'")
           case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
           case unknown => fail(s"Unexpected materialization response: $unknown")
         }

@@ -63,20 +63,29 @@ trait TypeAliases {
         ] :+:
       CNil
 
+  type MyriadInputInnerType =
+    CwlType :+:
+      InputRecordSchema :+:
+      InputEnumSchema :+:
+      InputArraySchema :+:
+      String :+:
+      CNil
+
   type MyriadOutputType =
     CwlType :+:
       OutputRecordSchema :+:
       OutputEnumSchema :+:
       OutputArraySchema :+:
       String :+:
-      Array[
-        CwlType :+:
-          OutputRecordSchema :+:
-          OutputEnumSchema :+:
-          OutputArraySchema :+:
-          String :+:
-          CNil
-        ] :+:
+      Array[MyriadOutputInnerType] :+:
+      CNil
+
+  type MyriadOutputInnerType =
+    CwlType :+:
+      OutputRecordSchema :+:
+      OutputEnumSchema :+:
+      OutputArraySchema :+:
+      String :+:
       CNil
 
   type MyriadCommandInputType =

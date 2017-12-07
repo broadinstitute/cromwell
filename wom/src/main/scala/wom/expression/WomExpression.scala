@@ -1,9 +1,10 @@
 package wom.expression
 
-import cats.data.Validated.Valid
+import cats.data.Validated._
 import common.validation.ErrorOr.ErrorOr
 import wom.types.WomType
 import wom.values._
+import cats.syntax.option._
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -35,4 +36,19 @@ trait IoFunctionSet {
   def stderr(params: Seq[Try[WomValue]]): Try[WomFile]
   def glob(pattern: String): Seq[String]
   def size(params: Seq[Try[WomValue]]): Try[WomFloat]
+}
+
+case class LookupExpression(tpe: WomType, id: String) extends WomExpression {
+
+  override def sourceString: String = tpe.toDisplayString
+
+  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] =
+    inputValues.get(id).toValidNel(s"could not find $id in $inputValues!")
+
+  override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = validNel(tpe)
+
+  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
+    validNel(Set.empty)
+
+  override def inputs: Set[String] = Set.empty
 }

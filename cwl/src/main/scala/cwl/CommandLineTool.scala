@@ -3,17 +3,17 @@ package cwl
 import java.nio.file.Paths
 
 import common.Checked
+import cwl.CommandLineTool._
+import cwl.CwlType.CwlType
+import cwl.CwlVersion._
+import eu.timepit.refined.W
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil, Coproduct, Witness}
-import CommandLineTool._
-import CwlType.CwlType
-import CwlVersion._
-import eu.timepit.refined.W
 import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, CallableTaskDefinition, ExecutableTaskDefinition}
 import wom.executable.Executable
-import wom.expression.{ValueAsAnExpression, WomExpression}
-import wom.types.WomFileType
+import wom.expression.{LookupExpression, ValueAsAnExpression, WomExpression}
+import wom.types.{WomFileType, WomType}
 import wom.{CommandPart, RuntimeAttributes}
 
 import scala.util.Try
@@ -77,11 +77,15 @@ case class CommandLineTool private(
       case CommandOutputParameter(cop_id, _, _, _, _, _, Some(outputBinding), Some(tpe)) =>
         val womType = tpe.select[CwlType].map(cwlTypeToWdlType).get //<-- here be `get` dragons
         OutputDefinition(FullyQualifiedName(cop_id).id, womType, CommandOutputExpression(outputBinding, womType, inputNames))
+
+      case cop:CommandOutputParameter if cop.`type`.isDefined =>
+        val womType:WomType = cop.`type`.get.fold(MyriadOutputTypeToWomType)
+        OutputDefinition(FullyQualifiedName(cop.id).id, womType, LookupExpression(womType, id))
     }.toList
 
     val inputDefinitions: List[_ <: Callable.InputDefinition] =
       this.inputs.map { cip =>
-        val inputType = cwlTypeToWdlType(cip.`type`.flatMap(_.select[CwlType]).get) // TODO: .get
+        val inputType = cip.`type`.fold(MyriadInputTypeToWomType)// cwlTypeToWdlType(cip.`type`.flatMap(_.select[CwlType]).get) // TODO: .get
         val inputName = FullyQualifiedName(cip.id).id
         cip.default match {
           case Some(d) => InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(inputType.coerceRawValue(d.toString).get))

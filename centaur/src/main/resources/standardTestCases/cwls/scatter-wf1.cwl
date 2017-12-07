@@ -3,6 +3,7 @@ cwlVersion: v1.0
 class: Workflow
 inputs:
   inp: string[]
+  inp2: string
 outputs:
   out:
     type: string[]
@@ -15,12 +16,16 @@ steps:
   step1:
     in:
       echo_in: inp
+      echo_in2: inp2
     out: [echo_out]
     scatter: echo_in
     run:
       class: CommandLineTool
       inputs:
         echo_in:
+          type: string
+          inputBinding: {}
+        echo_in2:
           type: string
           inputBinding: {}
       outputs:

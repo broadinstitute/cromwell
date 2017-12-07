@@ -110,18 +110,17 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           realDockerImageUsed))
 
     task.map(task => Task(
-      None,
-      None,
-      Option(task.name),
-      Option(task.description),
-      Option(task.project),
-      Option(task.inputs(commandLineValueMapper)),
-      Option(task.outputs),
-      Option(task.resources),
-      task.executors,
-      None,
-      None,
-      None
+      id = None,
+      state = None,
+      name = Option(task.name),
+      description = Option(task.description),
+      inputs = Option(task.inputs(commandLineValueMapper)),
+      outputs = Option(task.outputs),
+      resources = Option(task.resources),
+      executors = task.executors,
+      volumes = None,
+      tags = None,
+      logs = None
     ))
   }
 

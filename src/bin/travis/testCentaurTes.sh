@@ -84,12 +84,12 @@ CROMWELL_JAR=$(find "$(pwd)/target/scala-2.12" -name "cromwell-*.jar")
 TES_CENTAUR_CONF="$(pwd)/src/bin/travis/resources/tes_centaur.conf"
 FUNNEL_CONF="$(pwd)/src/bin/travis/resources/funnel.conf"
 
-wget https://github.com/ohsu-comp-bio/funnel/releases/download/0.2.0/funnel-linux-amd64.tar.gz
-tar xzf funnel-linux-amd64.tar.gz
-FUNNEL_PATH="$(pwd)/funnel-linux-amd64"
+wget https://github.com/ohsu-comp-bio/funnel/releases/download/0.4.1/funnel-linux-amd64-0.4.1.tar.gz
+tar xzf funnel-linux-amd64-0.4.1.tar.gz
+FUNNEL_PATH="$(pwd)/funnel"
 
 mkdir logs
-nohup "${FUNNEL_PATH}" server --config "${FUNNEL_CONF}" > logs/funnel.log 2>&1 &
+nohup "${FUNNEL_PATH}" server run --config "${FUNNEL_CONF}" > logs/funnel.log 2>&1 &
 
 # All tests use ubuntu:latest - make sure it's there before starting the tests
 # because pulling the image during some of the tests would cause them to fail 

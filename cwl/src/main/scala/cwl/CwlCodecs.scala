@@ -16,13 +16,12 @@ import cats.syntax.show._
 object CwlCodecs {
   import Implicits._
 
-  def decodeCwl(in: String): Either[NonEmptyList[String], Cwl] = {
+  def decodeCwl(cwlWorkflow: String): Either[NonEmptyList[String], Cwl] = {
     //try to parse both and combine errors if they fail
-    (decode[Workflow](in), decode[CommandLineTool](in)) match {
+    (decode[Workflow](cwlWorkflow), decode[CommandLineTool](cwlWorkflow)) match {
       case (Right(wf), _) => Coproduct[Cwl](wf).asRight
       case (_, Right(clt)) => Coproduct[Cwl](clt).asRight
       case (Left(wfError), Left(cltError)) =>
-        //This is not really suppressed but there is no other way to compose errors at the Exception level API AFAIK
         NonEmptyList.of(
           s"Workflow parsing error: ${wfError.show}",
           s"Command Line Tool parsing error: ${cltError.show}"

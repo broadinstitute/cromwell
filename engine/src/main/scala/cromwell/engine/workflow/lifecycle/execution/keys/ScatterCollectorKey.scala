@@ -4,6 +4,7 @@ import common.validation.ErrorOr.ErrorOr
 import cromwell.core.{ExecutionStatus, JobKey}
 import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActorData, WorkflowExecutionDiff}
 import wom.graph.GraphNodePort.ScatterGathererPort
+import wom.graph.ScatterNode.ScatterCollectionFunction
 import wom.graph.{GraphNode, PortBasedGraphOutputNode}
 
 /**
@@ -11,7 +12,8 @@ import wom.graph.{GraphNode, PortBasedGraphOutputNode}
   * call outside the scatter block.
   */
 private [execution] case class ScatterCollectorKey(scatterGatherPort: ScatterGathererPort,
-                                                   scatterWidth: Int) extends JobKey {
+                                                   scatterWidth: Int,
+                                                   scatterCollectionFunction: ScatterCollectionFunction) extends JobKey {
   val outputNodeToGather: PortBasedGraphOutputNode = scatterGatherPort.outputToGather
   override val node: GraphNode = outputNodeToGather
   override val index = None

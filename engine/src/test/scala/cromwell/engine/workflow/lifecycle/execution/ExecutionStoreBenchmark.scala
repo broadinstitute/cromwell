@@ -49,7 +49,7 @@ object ExecutionStoreBenchmark extends Bench[Double] with DefaultJsonProtocol {
   val executionStores: Gen[ActiveExecutionStore] = for {
     size <- sizes
     doneMap = (0 until size map makeKey(prepareCall, ExecutionStatus.Done)).toMap
-    collectorKeys = scatter.outputMapping.map(om => ScatterCollectorKey(om, size) -> ExecutionStatus.NotStarted).toMap
+    collectorKeys = scatter.outputMapping.map(om => ScatterCollectorKey(om, size, ScatterNode.DefaultScatterCollectionFunction) -> ExecutionStatus.NotStarted).toMap
     notStartedMap = (0 until size map makeKey(scatterCall, ExecutionStatus.NotStarted)).toMap ++ collectorKeys
     finalMap: Map[JobKey, ExecutionStatus] = doneMap ++ notStartedMap
   } yield ActiveExecutionStore(finalMap, true)

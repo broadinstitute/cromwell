@@ -55,6 +55,8 @@ sealed abstract case class WomArray(womType: WomArrayType, value: Seq[WomValue])
       case _ => this
     }
   }
+  
+  def size = value.size
 
   def tsvSerialize: Try[String] = {
     womType.memberType match {

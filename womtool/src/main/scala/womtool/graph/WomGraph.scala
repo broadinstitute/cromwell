@@ -60,7 +60,7 @@ class WomGraph(graphName: String, graph: Graph) {
       // Don't include the scatter expression input port here since they're added later in `internalScatterNodesAndLinks`
       // Round up the gathered output ports so it's obvious they're being gathered.
       s"""
-        |${combine((s.inputPorts -- s.scatterCollectionExpressionNode.inputPorts) map portLine)}
+        |${combine((s.inputPorts -- s.scatterCollectionExpressionNodes.head.inputPorts) map portLine)}
         |subgraph $nextCluster {
         |  style=${s.graphStyle};
         |  fillcolor=${s.graphFillColor}

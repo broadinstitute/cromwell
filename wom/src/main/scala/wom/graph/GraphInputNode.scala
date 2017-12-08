@@ -2,6 +2,7 @@ package wom.graph
 
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.GraphNodeOutputPort
+import wom.graph.expression.ExpressionNode
 import wom.types.{WomOptionalType, WomType}
 
 sealed trait GraphInputNode extends GraphNode {
@@ -20,23 +21,23 @@ sealed trait ExternalGraphInputNode extends GraphInputNode {
     *   workflow w {
     *     String s # "name" = "s", "fullyQualifiedIdentifier" = "w.s"
     *   }
-    * 
+    *
     * input.json:
     *   {
     *     "w.s": "hi!"
     *   }
-    * 
+    *
     * e.g in CWL:
     * workflow.cwl:
     *   class: Workflow
     *   inputs:
     *     s: string # "name" = "s", "fullyQualifiedIdentifier" = "s"
-    *   
+    *
     * inputs.yml:
     *   s: "hi !"
-    * 
+    *
     */
-  
+
   override lazy val singleOutputPort: GraphNodeOutputPort = GraphNodeOutputPort(identifier, womType, this)
 
   /**
@@ -77,5 +78,11 @@ class OuterGraphInputNode protected(override val identifier: WomIdentifier, val 
 }
 
 final case class ScatterVariableNode(override val identifier: WomIdentifier,
-                                     scatterExpressionOutputPort: GraphNodePort.OutputPort,
-                                     override val womType: WomType) extends OuterGraphInputNode(identifier, scatterExpressionOutputPort, preserveScatterIndex = true)
+                                     scatterExpressionNode: ExpressionNode,
+                                     override val womType: WomType) extends OuterGraphInputNode(identifier, scatterExpressionNode.singleExpressionOutputPort, preserveScatterIndex = true) {
+  private var indexLength: Int = 1
+
+  def withIndexLength(indexLength: Int) = this.indexLength = indexLength
+
+  def indexForShard(shardIndex: Int, arraySize: Int) = (shardIndex / indexLength) % arraySize
+}

@@ -68,8 +68,8 @@ object Scatter {
       itemType <- scatterItemTypeValidation
       expressionNode <- scatterCollectionExpressionNode
       // Graph input node for the scatter variable in the inner graph. Note that the type is the array's member type
-      womInnerGraphScatterVariableInput = ScatterVariableNode(WomIdentifier(scatter.item), expressionNode.singleExpressionOutputPort, itemType)
+      womInnerGraphScatterVariableInput = ScatterVariableNode(WomIdentifier(scatter.item), expressionNode, itemType)
       g <- WdlGraphNode.buildWomGraph(scatter, Set(womInnerGraphScatterVariableInput), localLookup ++ possiblyNeededNestedOginPorts, preserveIndexForOuterLookups = false)
-    } yield ScatterNode.scatterOverGraph(g, expressionNode, womInnerGraphScatterVariableInput)
+    } yield ScatterNode.scatterOverGraph(g, womInnerGraphScatterVariableInput)
   }
 }

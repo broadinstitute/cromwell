@@ -66,8 +66,9 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
 
         // Verify that we have all the expected shards.
         if (collectedValue.size == collector.scatterWidth) {
+          val collectedResult = collector.scatterCollectionFunction(collectedValue, scatterGatherPort.womType)
           // If the sizes match, create an Array from the values and assign it to the ScatterGatherPort
-          Map(ValueKey(scatterGatherPort, None) -> WomArray(scatterGatherPort.womType, collectedValue)).validNel
+          Map(ValueKey(scatterGatherPort, None) -> collectedResult).validNel
         } else {
           // If we don't find enough shards, this collector was found "runnable" when it shouldn't have
           s"Some shards are missing from the value store for node ${collector.node.fullyQualifiedName}, expected ${collector.scatterWidth} shards but only got ${collectedValue.size}: ${collectedValue.mkString(", ")}".invalidNel
@@ -97,7 +98,7 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
         case Some(womValue: WomArrayLike) =>
           index match {
             case Some(jobIndex) =>
-              womValue.asArray.value.lift(jobIndex)
+              womValue.asArray.value.lift(svn.indexForShard(jobIndex, womValue.asArray.value.size))
                 .toValidNel(s"Shard index $jobIndex exceeds scatter array length: ${womValue.asArray.value.size}")
             case None => s"Unsharded execution key references a scatter variable: ${p.identifier.fullyQualifiedName}".invalidNel
           }

@@ -45,13 +45,13 @@ baseCommand: echo
     val workflow = Workflow(
       id = "MyCwlWorkflow",
       inputs = Array(
-          InputParameter(id = "inp", `type` = Option(Coproduct[MyriadInputType](CwlType.File))),
-          InputParameter(id = "ex", `type` = Option(Coproduct[MyriadInputType](CwlType.String)))
+          InputParameter(id = "inp", `type` = Option(Coproduct[MyriadInputType](Coproduct[MyriadInputInnerType](CwlType.File)))),
+          InputParameter(id = "ex", `type` = Option(Coproduct[MyriadInputType](Coproduct[MyriadInputInnerType](CwlType.String))))
         ),
       outputs = Array(
         WorkflowOutputParameter(
           id = "classout",
-          `type` = Option(Coproduct[MyriadOutputType](CwlType.File)),
+          `type` = Option(Coproduct[MyriadOutputType](Coproduct[MyriadOutputInnerType](CwlType.File))),
           outputSource = Option(Coproduct[WorkflowOutputParameter#OutputSource]("compile/classfile"))
         )
       ),
@@ -118,7 +118,7 @@ steps:
         envDef = Array(EnvironmentDef("HELLO", Coproduct[StringOrExpression]("$(inputs.message)")))
       )))),
       inputs = Array(
-        CommandInputParameter(id =  "message", `type` = Option(Coproduct[MyriadInputType](CwlType.String)))
+        CommandInputParameter(id =  "message", `type` = Option(Coproduct[MyriadInputType](Coproduct[MyriadInputInnerType](CwlType.String))))
       )
     )
     val expectedToolJsonString =

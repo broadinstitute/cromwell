@@ -71,7 +71,7 @@ object Outputs {
     mot match {
       case Inl(moit) => resolveOutputViaInnerType(jsValue, moit)
       case Inr(Inl(arrayMoit)) => resolveOutputViaInnerType(jsValue, arrayMoit.head)
-      case _ => ??? //Impossible!
+      case _ => ??? //Impossible to reach this code
     }
   }
   def resolveOutputViaInnerType(jsValue: JsValue, mot: MyriadOutputInnerType): Json  = {

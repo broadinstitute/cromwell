@@ -101,9 +101,9 @@ case class InputEnumSchema(
 
 case class InputArraySchema(
   items: MyriadInputType,
-  `type`: W.`"array"`.T,
-  label: Option[String],
-  inputBinding: Option[CommandLineBinding])
+  `type`: W.`"array"`.T = Witness("array").value,
+  label: Option[String] = None,
+  inputBinding: Option[CommandLineBinding] = None)
 
 case class CommandLineBinding(
                                loadContents: Option[Boolean] = None,

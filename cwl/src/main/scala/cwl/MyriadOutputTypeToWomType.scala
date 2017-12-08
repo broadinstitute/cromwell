@@ -28,7 +28,7 @@ object MyriadOutputInnerTypeToWomType extends Poly1 {
 
   import Case._
 
-  def ex(component: String) = throw new RuntimeException(s"input type $component not yet suported!")
+  def ex(component: String) = throw new RuntimeException(s"input type $component not yet suported by WOM!")
 
   implicit def cwlType: Aux[CwlType, WomType] = at[CwlType]{
     cwl.cwlTypeToWdlType

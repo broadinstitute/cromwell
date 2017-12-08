@@ -13,15 +13,5 @@ groups:
       enabled: true
     author_approval:
       ignored: true
-    users:
-        - Horneth
-        - cjllanwarne
-        - francares
-        - geoffjentry
-        - jsotobroad
-        - katevoss
-        - kcibul
-        - kshakir
-        - mcovarr
-        - ruchim
-        - danbills
+    teams:
+        - redteam

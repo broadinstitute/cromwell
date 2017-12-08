@@ -87,13 +87,13 @@ case class CommandLineTool private(
     val inputDefinitions: List[_ <: Callable.InputDefinition] =
       this.inputs.map {
         case CommandInputParameter(id, _, _, _,_,_,_,Some(default),Some(tpe)) =>
-        val inputType = tpe.fold(MyriadInputTypeToWomType)
-        val inputName = FullyQualifiedName(id).id
-           InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(inputType.coerceRawValue(default.toString).get))
+          val inputType = tpe.fold(MyriadInputTypeToWomType)
+          val inputName = FullyQualifiedName(id).id
+          InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(inputType.coerceRawValue(default.toString).get))
         case CommandInputParameter(id, _, _, _,_,_,_,None,Some(tpe)) =>
           val inputType = tpe.fold(MyriadInputTypeToWomType)
           val inputName = FullyQualifiedName(id).id
-           RequiredInputDefinition(inputName, inputType)
+          RequiredInputDefinition(inputName, inputType)
         case other => throw new NotImplementedError(s"command input paramters such as $other are not yet supported")
       }.toList
 

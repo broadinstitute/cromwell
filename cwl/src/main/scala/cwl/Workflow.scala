@@ -86,9 +86,8 @@ case class Workflow private(
 
     val graphFromOutputs: Checked[Set[GraphNode]] =
       outputs.toList.traverse[ErrorOr, GraphNode] {
-        output =>
-
-          val womType = output.`type`.map(_.fold(MyriadOutputTypeToWomType)).get
+        case WorkflowOutputParameter(id, _, _, _, _, _, _, Some(Inl(outputSource: String)), _, Some(tpe)) =>
+          val womType:WomType = tpe.fold(MyriadOutputTypeToWomType)
 
           def lookupOutputSource(outputId: FileStepAndId): Checked[OutputPort] = {
             def isRightOutputPort(op: GraphNodePort.OutputPort) = FullyQualifiedName.maybeApply(op.name) match {
@@ -103,8 +102,10 @@ case class Workflow private(
               output <- call.outputPorts.find(isRightOutputPort).toChecked(s"looking for ${outputId.id} in call $call output ports ${call.outputPorts}")
             } yield output
           }
-          lookupOutputSource(FileStepAndId(output.outputSource.flatMap(_.select[String]).get)).
-            map(PortBasedGraphOutputNode(WomIdentifier(output.id), womType, _)).toValidated
+
+          lookupOutputSource(FileStepAndId(outputSource)).
+            map(PortBasedGraphOutputNode(WomIdentifier(id), womType, _)).toValidated
+        case wop => throw new NotImplementedError(s"Workflow output parameters such as $wop are not supported.")
       }.map(_.toSet).toEither
 
     for {

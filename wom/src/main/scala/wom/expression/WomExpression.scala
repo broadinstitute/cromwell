@@ -1,10 +1,10 @@
 package wom.expression
 
 import cats.data.Validated._
+import cats.syntax.option._
 import common.validation.ErrorOr.ErrorOr
 import wom.types.WomType
 import wom.values._
-import cats.syntax.option._
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -38,7 +38,10 @@ trait IoFunctionSet {
   def size(params: Seq[Try[WomValue]]): Try[WomFloat]
 }
 
-case class LookupExpression(tpe: WomType, id: String) extends WomExpression {
+/**
+  * Simply looks up the id in the inputs map.
+  */
+case class InputLookupExpression(tpe: WomType, id: String) extends WomExpression {
 
   override def sourceString: String = tpe.toDisplayString
 
@@ -50,5 +53,5 @@ case class LookupExpression(tpe: WomType, id: String) extends WomExpression {
   override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
     validNel(Set.empty)
 
-  override def inputs: Set[String] = Set.empty
+  override def inputs: Set[String] = Set(id)
 }

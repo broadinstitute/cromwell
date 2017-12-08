@@ -43,7 +43,7 @@ trait IoFunctionSet {
   */
 case class InputLookupExpression(tpe: WomType, id: String) extends WomExpression {
 
-  override def sourceString: String = tpe.toDisplayString
+  override def sourceString: String = id
 
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] =
     inputValues.get(id).toValidNel(s"could not find $id in $inputValues!")

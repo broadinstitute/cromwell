@@ -36,12 +36,11 @@ case class WorkflowStep(
                          out: Outputs,
                          run: Run,
                          requirements: Option[Array[Requirement]] = None,
-                         hints: Option[Array[CwlAny]] = None,
+                         hints: Option[Array[Hint]] = None,
                          label: Option[String] = None,
                          doc: Option[String] = None,
                          scatter: Option[String :+: Array[String] :+: CNil] = None,
                          scatterMethod: Option[ScatterMethod] = None) {
-
 
   def typedOutputs: WomTypeMap = run.fold(RunOutputsToTypeMap)
 
@@ -57,7 +56,8 @@ case class WorkflowStep(
   def callWithInputs(typeMap: WomTypeMap,
                      workflow: Workflow,
                      knownNodes: Set[GraphNode],
-                     workflowInputs: Map[String, GraphNodeOutputPort]): Checked[Set[GraphNode]] = {
+                     workflowInputs: Map[String, GraphNodeOutputPort],
+                     validator: RequirementsValidator): Checked[Set[GraphNode]] = {
 
     // To avoid duplicating nodes, return immediately if we've already covered this node
     val haveWeSeenThisStep: Boolean = knownNodes.collect {
@@ -69,8 +69,8 @@ case class WorkflowStep(
     if (haveWeSeenThisStep) Right(knownNodes)
     else {
       val callable: Checked[Callable] = run match {
-        case Run.CommandLineTool(clt) => Right(clt.taskDefinition)
-        case Run.Workflow(wf) => wf.womDefinition
+        case Run.CommandLineTool(clt) => clt.buildTaskDefinition(Option(workflow), validator).toEither
+        case Run.Workflow(wf) => wf.womDefinition(validator, parentWorkflow = Option(workflow))
         // TODO CWL (obviously):
         case Run.ExpressionTool(_) => throw new Exception("ExpressionTool is not supported as a workflow step yet")
       }
@@ -118,7 +118,7 @@ case class WorkflowStep(
             for {
               step <- workflow.steps.find { step => FullyQualifiedName(step.id).id == upstreamStepId }.
                 toRight(NonEmptyList.one(s"no step of id $upstreamStepId found in ${workflow.steps.map(_.id)}"))
-              call <- step.callWithInputs(typeMap, workflow, accumulatedNodes, workflowInputs)
+              call <- step.callWithInputs(typeMap, workflow, accumulatedNodes, workflowInputs, validator)
             } yield call
 
           def fromWorkflowInput(inputName: String): Checked[WorkflowStepInputFold] = {

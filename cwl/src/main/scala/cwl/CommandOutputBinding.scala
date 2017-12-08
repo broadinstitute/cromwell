@@ -36,21 +36,21 @@ case class CommandOutputBinding(
 
     val loadContents: Boolean = this.loadContents getOrElse false
 
-    val wdlMapType = WomMapType(WomStringType, WomStringType)
-    val wdlMaps = paths map { path =>
+    val womMapType = WomMapType(WomStringType, WomStringType)
+    val womMaps = paths map { path =>
       // TODO: WOM: basename/dirname/size/checksum/etc.
 
       val contents: Map[WomValue, WomValue] =
         if (loadContents) Map(WomString("contents") -> WomString(load64KiB(path, ioFunctionSet))) else Map.empty
 
-      val wdlKeyValues: Map[WomValue, WomValue] = Map(
+      val womKeyValues: Map[WomValue, WomValue] = Map(
         WomString("location") -> WomString(path)
       ) ++ contents
 
-      WomMap(wdlMapType, wdlKeyValues)
+      WomMap(womMapType, womKeyValues)
     }
 
-    val arrayOfCwlFileMaps = WomArray(WomArrayType(wdlMapType), wdlMaps)
+    val arrayOfCwlFileMaps = WomArray(WomArrayType(womMapType), womMaps)
 
     val outputEvalParameterContext = parameterContext.copy(self = arrayOfCwlFileMaps)
 
@@ -61,7 +61,7 @@ case class CommandOutputBinding(
           case StringOrExpression.Expression(e) => e.fold(EvaluateExpression).apply(outputEvalParameterContext)
         }
       case None =>
-        // Return the WdlArray of file paths, three_step.ps needs this for stdout output.
+        // Return the WomArray of file paths, three_step.ps needs this for stdout output.
         // There will be conversion required between this Array[File] output type and the requested File.
         arrayOfCwlFileMaps
     }
@@ -73,7 +73,7 @@ case class CommandOutputBinding(
     // ChrisL: But remember that they are different (WDL => failure, CWL => truncate)
     val content = ioFunctionSet.readFile(path)
 
-    // TODO: propagate IO, Try, or Future or something all the way out via "commandOutputBindingtoWdlValue" signature
+    // TODO: propagate IO, Try, or Future or something all the way out via "commandOutputBindingtoWomValue" signature
     // TODO: Stream only the first 64 KiB, this "read everything then ignore most of it" method is terrible
     val initialResult = Await.result(content, 5 seconds)
     initialResult.substring(0, Math.min(initialResult.length, 64 * 1024))

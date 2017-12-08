@@ -19,7 +19,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
   import TestSetup._
 
   "A Cwl object for 1st-tool" should "convert to WOM" in {
-    def validateWom(callable: Callable) = callable match {
+    def validateWom(callable: Callable): Unit = callable match {
       case taskDefinition: TaskDefinition =>
         taskDefinition.inputs shouldBe List(RequiredInputDefinition(s"message", WomStringType))
         ()
@@ -27,12 +27,14 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
       case _ => fail("not a task definition")
     }
 
+    import cats.syntax.validated._
     (for {
       clt <- decodeAllCwl(rootPath/"1st-tool.cwl").
               map(_.select[CommandLineTool].get).
               value.
               unsafeRunSync
-    } yield validateWom(clt.taskDefinition)).leftMap(e => throw new RuntimeException(s"error! $e"))
+      taskDef <- clt.buildTaskDefinition(None, _.validNel).toEither
+    } yield validateWom(taskDef)).leftMap(e => throw new RuntimeException(s"error! $e"))
   }
 
   "Cwl for 1st workflow" should "convert to WOM" in {
@@ -42,7 +44,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
               unsafeRunSync.
               map(_.select[Workflow].get)
 
-      womDefinition <- wf.womDefinition
+      womDefinition <- wf.womDefinition(AcceptAllRequirements)
     } yield validateWom(womDefinition)).leftMap(e => throw new RuntimeException(s"error! ${e.toList.mkString("\n")}"))
 
     def shouldBeRequiredGraphInputNode(node: GraphNode, localName: String, womType: WomType): Unit = {
@@ -155,7 +157,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
 
     wf.id should include("three_step")
 
-    val wfd = wf.womDefinition match {
+    val wfd = wf.womDefinition(AcceptAllRequirements) match {
       case Right(wf: WorkflowDefinition) => wf
       case Left(o) => fail(s"Workflow definition was not produced correctly: ${o.toList.mkString(", ")}")
       case Right(callable) => fail(s"produced $callable when a Workflow Definition was expected!")

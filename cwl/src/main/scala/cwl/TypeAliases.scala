@@ -30,6 +30,11 @@ trait TypeAliases {
       StepInputExpressionRequirement :+:
       CNil
 
+  type Hint =
+    Requirement :+:
+      CwlAny :+:
+      CNil
+
   // TODO WOM: Record Schema as well as Directories are not included because they're not supported yet, although they should eventually be.
   // Removing them saves some compile time when building decoders for this type (in CwlInputParsing)
   type MyriadInputValuePrimitives = 

@@ -106,7 +106,7 @@ object Settings {
       case Some((2, 11)) =>
         // Scala 2.11 takes a simplified set of options
         baseSettings
-      case wut => throw new NotImplementedError(s"Found unsupported Scala version $wut. wdl4s does not support versions of Scala other than 2.11 or 2.12.")
+      case wut => throw new NotImplementedError(s"Found unsupported Scala version $wut. WOM does not support versions of Scala other than 2.11 or 2.12.")
     }),
     // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874
     scalacOptions in(Compile, doc) ++= baseSettings ++ List("-no-link-warnings"),
@@ -128,7 +128,7 @@ object Settings {
       case Some((2, 12)) => sys.env.get("ENABLE_COVERAGE").exists(_.toBoolean)
       case Some((2, 11)) => false
       case wut => throw new NotImplementedError(
-        s"Found unsupported Scala version $wut. wdl4s does not support versions of Scala other than 2.11 or 2.12.")
+        s"Found unsupported Scala version $wut. WOM does not support versions of Scala other than 2.11 or 2.12.")
     }),
     addCompilerPlugin("org.scalamacros" % "paradise" % paradiseV cross CrossVersion.full)
   )

@@ -60,7 +60,7 @@ object Executable {
 }
 
 /**
-  * Wraps an callable in an executable object. An executable 
+  * Wraps a callable in an executable object.
   * @param entryPoint callable that this executable wraps
   * @param resolvedExecutableInputs Resolved values for the ExternalGraphInputNodes of the entryPoint's graph
   */

@@ -437,7 +437,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     val errors =
-      """ERROR: Value for x is not coerceable into a Int:
+      """ERROR: Value 'x' is declared as a 'Int' but the expression evaluates to 'String':
         |
         |    Int x = "bad value"
         |        ^

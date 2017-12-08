@@ -24,7 +24,7 @@ trait WomType {
    * Public interface for a `Try`-wrapped conversion of an input of type `Any` to
    * a `WomValue`.
    */
-  def coerceRawValue(any: Any): Try[WomValue] = {
+  final def coerceRawValue(any: Any): Try[WomValue] = {
     any match {
       case womValue: WomValue if womValue.womType == this => Success(womValue)
       case womValue: WomValue if !coercion.isDefinedAt(any) => Failure(new IllegalArgumentException(

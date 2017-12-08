@@ -174,13 +174,14 @@ object WomGraph {
   }
 
   private def womExecutableFromCwl(filePath: String): Executable = {
+    import cwl.AcceptAllRequirements
     (for {
       clt <- CwlDecoder.decodeAllCwl(File(filePath)).
         value.
         unsafeRunSync
       inputs = clt.requiredInputs
       fakedInputs = JsObject(inputs map { i => i._1 -> fakeInput(i._2) })
-      wom <- clt.womExecutable(Option(fakedInputs.prettyPrint))
+      wom <- clt.womExecutable(AcceptAllRequirements, Option(fakedInputs.prettyPrint))
     } yield wom) match {
       case Right(womExecutable) => womExecutable
       case Left(e) => throw new Exception(s"Can't build WOM executable from CWL: ${e.toList.mkString("\n", "\n", "\n")}")

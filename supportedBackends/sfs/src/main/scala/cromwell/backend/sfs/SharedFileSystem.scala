@@ -76,7 +76,7 @@ object SharedFileSystem extends StrictLogging {
   }
 
   private def duplicate(description: String, source: Path, dest: Path, strategies: Stream[DuplicationStrategy]): Try[Unit] = {
-    val attempts: Stream[Try[Unit]] = strategies.map(_ (source.followSymbolicLinks, dest))
+    val attempts: Stream[Try[Unit]] = strategies.map(_.apply(source.followSymbolicLinks, dest))
     attempts.find(_.isSuccess) getOrElse {
       TryUtil.sequence(attempts, s"Could not $description $source -> $dest").void
     }
@@ -196,7 +196,7 @@ trait SharedFileSystem extends PathFactory {
     * @param toDestPath function specifying how to generate the destination path from the source path
     * @param strategies strategies to use for localization
     * @param womFile WomFile to localize
-    * @return localized wdl file
+    * @return localized WomFile
     */
   private def localizeWomFile(toDestPath: (String => Try[PairOfFiles]), strategies: Stream[DuplicationStrategy])
                              (womFile: WomFile): WomFile = {

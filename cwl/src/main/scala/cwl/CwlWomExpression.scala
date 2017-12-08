@@ -54,8 +54,8 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
 
   /*
   TODO:
-   DB: It doesn't make sense to me that this function returns type WdlFile but accepts a type to which it coerces.
-   Wouldn't coerceTo always == WdlFileType, and if not then what?
+   DB: It doesn't make sense to me that this function returns type WomFile but accepts a type to which it coerces.
+   Wouldn't coerceTo always == WomFileType, and if not then what?
    */
   override def evaluateFiles(inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] ={
 

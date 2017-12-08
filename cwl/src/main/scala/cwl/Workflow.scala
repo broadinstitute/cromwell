@@ -27,9 +27,20 @@ case class Workflow private(
                      outputs: Array[WorkflowOutputParameter],
                      steps: Array[WorkflowStep],
                      requirements: Option[Array[Requirement]],
-                     hints: Option[Array[CwlAny]]) {
-  def womExecutable(inputFile: Option[String] = None): Checked[Executable] = {
-    CwlExecutableValidation.buildWomExecutable(womDefinition, inputFile)
+                     hints: Option[Array[Hint]]) {
+  /** Builds an `Executable` from a `Workflow` CWL with no parent `Workflow` */
+  def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None): Checked[Executable] = {
+    CwlExecutableValidation.buildWomExecutable(womDefinition(validator), inputFile)
+  }
+
+  private[cwl] var parentWorkflow: Option[Workflow] = None
+
+  val allRequirements: List[Requirement] = requirements.toList.flatten ++ parentWorkflow.toList.flatMap { _.allRequirements }
+
+  val allHints: List[Requirement] = {
+    // Just ignore any hint that isn't a Requirement.
+    val requirementHints = hints.toList.flatten.flatMap { _.select[Requirement] }
+    requirementHints ++ parentWorkflow.toList.flatMap { _.allHints }
   }
 
   val fileNames: List[String] = steps.toList.flatMap(_.run.select[String].toList)
@@ -43,7 +54,7 @@ case class Workflow private(
 
   lazy val stepById: Map[String, WorkflowStep] = steps.map(ws => ws.id -> ws).toMap
 
-  def womGraph: Checked[Graph] = {
+  def womGraph(validator: RequirementsValidator): Checked[Graph] = {
 
     def womTypeForInputParameter(input: InputParameter): Option[WomType] = {
       input.`type`.map(_.fold(MyriadInputTypeToWomType))
@@ -82,7 +93,7 @@ case class Workflow private(
       steps.
         toList.
         foldLeft((Set.empty[GraphNode] ++ graphFromInputs).asRight[NonEmptyList[String]])(
-          (nodes, step) => nodes.flatMap(step.callWithInputs(typeMap,  this, _, workflowInputs)))
+          (nodes, step) => nodes.flatMap(step.callWithInputs(typeMap, this, _, workflowInputs, validator)))
 
     val graphFromOutputs: Checked[Set[GraphNode]] =
       outputs.toList.traverse[ErrorOr, GraphNode] {
@@ -115,13 +126,14 @@ case class Workflow private(
     } yield ret
   }
 
-  def womDefinition: Checked[WorkflowDefinition] = {
+  def womDefinition(validator: RequirementsValidator, parentWorkflow: Option[Workflow] = None): Checked[WorkflowDefinition] = {
     val name: String = Paths.get(id).getFileName.toString
     val meta: Map[String, String] = Map.empty
     val paramMeta: Map[String, String] = Map.empty
     val declarations: List[(String, WomExpression)] = List.empty
+    this.parentWorkflow = parentWorkflow
 
-    womGraph.map(graph =>
+    womGraph(validator).map(graph =>
       WorkflowDefinition(
         name,
         graph,
@@ -142,6 +154,6 @@ object Workflow {
             outputs: Array[WorkflowOutputParameter] = Array.empty,
             steps: Array[WorkflowStep] = Array.empty,
             requirements: Option[Array[Requirement]] = None,
-            hints: Option[Array[CwlAny]] = None): Workflow  =
+            hints: Option[Array[Hint]] = None): Workflow  =
               Workflow(cwlVersion, "Workflow".narrow, id, inputs, outputs, steps, requirements, hints)
 }

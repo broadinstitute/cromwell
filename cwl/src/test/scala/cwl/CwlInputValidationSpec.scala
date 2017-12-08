@@ -48,7 +48,7 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
     _.select[Workflow].get
   }.value.unsafeRunSync.fold(error => throw new RuntimeException(s"broken parse! msg was $error"), identity)
 
-  lazy val graph = cwlWorkflow.womDefinition match {
+  lazy val graph = cwlWorkflow.womDefinition(AcceptAllRequirements) match {
     case Left(errors) => fail(s"Failed to build wom definition: ${errors.toList.mkString(", ")}")
     case Right(womDef) => womDef.graph
   }
@@ -63,7 +63,7 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
   lazy val w7OutputPort = graph.inputNodes.find(_.localName == "w7").getOrElse(fail("Failed to find an input node for w7")).singleOutputPort
   
   def validate(inputFile: String): Map[GraphNodePort.OutputPort, ResolvedExecutableInput] = {
-    cwlWorkflow.womExecutable(Option(inputFile)) match {
+    cwlWorkflow.womExecutable(AcceptAllRequirements, Option(inputFile)) match {
       case Left(errors) => fail(s"Failed to build a wom executable: ${errors.toList.mkString(", ")}")
       case Right(executable) => executable.resolvedExecutableInputs
     }
@@ -105,7 +105,7 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
         w2: hello !
       """.stripMargin
 
-    cwlWorkflow.womExecutable(Option(inputFile)) match {
+    cwlWorkflow.womExecutable(AcceptAllRequirements, Option(inputFile)) match {
       case Right(booh) => fail(s"Expected failed validation but got valid input map: $booh")
       case Left(errors) => errors.toList.toSet shouldBe Set(
         "Required workflow input 'w1' not specified",

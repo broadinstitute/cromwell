@@ -408,10 +408,11 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       case _ => Monad[Parse].unit
     }
 
+    import cwl.AcceptAllRequirements
     for {
       _ <- unzipDependencies
       cwl <- CwlDecoder.decodeAllCwl(cwlFile)
-      executable <-  fromEither[IO](cwl.womExecutable(Option(source.inputsJson)))
+      executable <-  fromEither[IO](cwl.womExecutable(AcceptAllRequirements, Option(source.inputsJson)))
       ioFunctions = new WdlFunctions(pathBuilders)
       validatedWomNamespace <- fromEither[IO](validateWomNamespace(executable, ioFunctions))
     } yield validatedWomNamespace

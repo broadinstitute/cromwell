@@ -67,7 +67,7 @@ case class InputParameterCommandPart(commandInputParameter: CommandInputParamete
         case cip: CommandInputParameter =>
           val localizedId = LocalName(FullyQualifiedName(cip.id).id)
           inputsMap.get(localizedId) match {
-            case Some(x) =>x
+            case Some(x) => valueMapper(x)
             case _ => throw new RuntimeException(s"could not find $localizedId in map $inputsMap")
           }
 

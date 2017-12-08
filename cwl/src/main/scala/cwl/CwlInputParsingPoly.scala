@@ -9,21 +9,21 @@ import wom.types.{WomArrayType, WomFileType, WomType}
 import wom.values._
 
 private [cwl] object CwlInputCoercion extends Poly1 {
-  implicit def cwlFileToWdlValue: Case.Aux[MyriadInputValuePrimitives, DelayedCoercionFunction] = at[MyriadInputValuePrimitives] {
+  implicit def cwlFileToWomValue: Case.Aux[MyriadInputValuePrimitives, DelayedCoercionFunction] = at[MyriadInputValuePrimitives] {
     _.fold(CwlInputPrimitiveCoercion)
   }
   
-  implicit def inputArrayValueToWdlValue: Case.Aux[Array[MyriadInputValuePrimitives], DelayedCoercionFunction] =
+  implicit def inputArrayValueToWomValue: Case.Aux[Array[MyriadInputValuePrimitives], DelayedCoercionFunction] =
     at[Array[MyriadInputValuePrimitives]] { arrayValue =>
       womType: WomType => {
         import cats.instances.list._
         import cats.syntax.traverse._
 
         womType match {
-          case wdlArrayType: WomArrayType =>
+          case womArrayType: WomArrayType =>
             arrayValue.toList
-              .traverse[ErrorOr, WomValue](_.fold(CwlInputPrimitiveCoercion).apply(wdlArrayType.memberType))
-              .map { WomArray(wdlArrayType, _) }
+              .traverse[ErrorOr, WomValue](_.fold(CwlInputPrimitiveCoercion).apply(womArrayType.memberType))
+              .map { WomArray(womArrayType, _) }
 
           case other => s"Cannot convert an array input value into a non array type: $other".invalidNel
         }
@@ -32,46 +32,46 @@ private [cwl] object CwlInputCoercion extends Poly1 {
 }
 
 private [cwl] object CwlInputPrimitiveCoercion extends Poly1 {
-  implicit def cwlFileToWdlValue: Case.Aux[File, DelayedCoercionFunction] = at[File] { cwlFile =>
+  implicit def cwlFileToWomValue: Case.Aux[File, DelayedCoercionFunction] = at[File] { cwlFile =>
     womType: WomType => {
       womType match {
-        case WomFileType => cwlFile.asWdlValue
+        case WomFileType => cwlFile.asWomValue
         case otherType => s"Input value is a File but the targeted input is a $otherType".invalidNel
       }
     }
   }
 
-  implicit def stringToWdlValue: Case.Aux[String, DelayedCoercionFunction] = at[String] { stringValue =>
+  implicit def stringToWomValue: Case.Aux[String, DelayedCoercionFunction] = at[String] { stringValue =>
     womType: WomType => {
       womType.coerceRawValue(stringValue).toErrorOr
     }
   }
 
-  implicit def booleanToWdlValue: Case.Aux[Boolean, DelayedCoercionFunction] = at[Boolean] { booleanValue =>
+  implicit def booleanToWomValue: Case.Aux[Boolean, DelayedCoercionFunction] = at[Boolean] { booleanValue =>
     womType: WomType => {
       womType.coerceRawValue(booleanValue).toErrorOr
     }
   }
 
-  implicit def intToWdlValue: Case.Aux[Int, DelayedCoercionFunction] = at[Int] { intValue =>
+  implicit def intToWomValue: Case.Aux[Int, DelayedCoercionFunction] = at[Int] { intValue =>
     womType: WomType => {
       womType.coerceRawValue(intValue).toErrorOr
     }
   }
 
-  implicit def floatToWdlValue: Case.Aux[Float, DelayedCoercionFunction] = at[Float] { floatValue =>
+  implicit def floatToWomValue: Case.Aux[Float, DelayedCoercionFunction] = at[Float] { floatValue =>
     womType: WomType => {
       womType.coerceRawValue(floatValue).toErrorOr
     }
   }
 
-  implicit def doubleToWdlValue: Case.Aux[Double, DelayedCoercionFunction] = at[Double] { doubleValue =>
+  implicit def doubleToWomValue: Case.Aux[Double, DelayedCoercionFunction] = at[Double] { doubleValue =>
     womType: WomType => {
       womType.coerceRawValue(doubleValue).toErrorOr
     }
   }
 
-  implicit def longToWdlValue: Case.Aux[Long, DelayedCoercionFunction] = at[Long] { longValue =>
+  implicit def longToWomValue: Case.Aux[Long, DelayedCoercionFunction] = at[Long] { longValue =>
     womType: WomType => {
       womType.coerceRawValue(longValue).toErrorOr
     }

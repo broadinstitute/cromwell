@@ -3,6 +3,7 @@ package cwl
 import java.nio.file.Paths
 
 import common.Checked
+import common.validation.ErrorOr.ErrorOr
 import cwl.CommandLineTool._
 import cwl.CwlType.CwlType
 import cwl.CwlVersion._
@@ -10,53 +11,88 @@ import eu.timepit.refined.W
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil, Coproduct, Witness}
 import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition, RequiredInputDefinition}
-import wom.callable.{Callable, CallableTaskDefinition, ExecutableTaskDefinition}
+import wom.callable.{Callable, CallableTaskDefinition}
 import wom.executable.Executable
 import wom.expression.{InputLookupExpression, ValueAsAnExpression, WomExpression}
 import wom.types.WomType
+import wom.values.WomString
 import wom.{CommandPart, RuntimeAttributes}
 
+import scala.language.postfixOps
 import scala.util.Try
 
 /**
   * @param `class` This _should_ always be "CommandLineTool," however the spec does not -er- specify this.
   */
 case class CommandLineTool private(
-                                    inputs: Array[CommandInputParameter],
-                                    outputs: Array[CommandOutputParameter],
-                                    `class`: Witness.`"CommandLineTool"`.T,
-                                    id: String,
-                                    requirements: Option[Array[Requirement]],
-                                    hints: Option[Array[CwlAny]],
-                                    label: Option[String],
-                                    doc: Option[String],
-                                    cwlVersion: Option[CwlVersion],
-                                    baseCommand: Option[BaseCommand],
-                                    arguments: Option[Array[CommandLineTool.Argument]],
-                                    stdin: Option[StringOrExpression],
-                                    stderr: Option[StringOrExpression],
-                                    stdout: Option[StringOrExpression],
-                                    successCodes: Option[Array[Int]],
-                                    temporaryFailCodes: Option[Array[Int]],
-                                    permanentFailCodes: Option[Array[Int]]) {
+                                   inputs: Array[CommandInputParameter],
+                                   outputs: Array[CommandOutputParameter],
+                                   `class`: Witness.`"CommandLineTool"`.T,
+                                   id: String,
+                                   requirements: Option[Array[Requirement]],
+                                   hints: Option[Array[Hint]],
+                                   label: Option[String],
+                                   doc: Option[String],
+                                   cwlVersion: Option[CwlVersion],
+                                   baseCommand: Option[BaseCommand],
+                                   arguments: Option[Array[CommandLineTool.Argument]],
+                                   stdin: Option[StringOrExpression],
+                                   stderr: Option[StringOrExpression],
+                                   stdout: Option[StringOrExpression],
+                                   successCodes: Option[Array[Int]],
+                                   temporaryFailCodes: Option[Array[Int]],
+                                   permanentFailCodes: Option[Array[Int]]) {
 
-  def womExecutable(inputFile: Option[String] = None): Checked[Executable] =
-    CwlExecutableValidation.buildWomExecutable(ExecutableTaskDefinition.tryApply(taskDefinition).toEither, inputFile)
+  /** Builds an `Executable` directly from a `CommandLineTool` CWL with no parent workflow. */
+  def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None): Checked[Executable] = {
+    val taskDefinition = buildTaskDefinition(parentWorkflow = None, validator)
+    CwlExecutableValidation.buildWomExecutable(taskDefinition, inputFile)
+  }
 
-  def taskDefinition: CallableTaskDefinition = {
+  private def validateRequirementsAndHints(parentWorkflow: Option[Workflow], validator: RequirementsValidator): ErrorOr[List[Requirement]] = {
+    import cats.instances.list._
+    import cats.syntax.traverse._
 
-    val id = this.id
+    val allRequirements = requirements.toList.flatten ++ parentWorkflow.toList.flatMap(_.allRequirements)
+    // All requirements must validate or this fails.
+    val errorOrValidatedRequirements: ErrorOr[List[Requirement]] = allRequirements traverse validator
 
-    val commandTemplate: Seq[CommandPart] = baseCommand.toSeq.flatMap(_.fold(BaseCommandToCommandParts)) ++
-      arguments.toSeq.flatMap(_.map(_.fold(ArgumentToCommandPart))) ++
-      CommandLineTool.orderedForCommandLine(inputs).map(InputParameterCommandPart.apply)
+    errorOrValidatedRequirements map { validRequirements =>
+      // Only Requirement hints, everything else is thrown out.
+      // TODO CWL don't throw them out but pass them back to the caller to do with as the caller pleases.
+      val hintRequirements = hints.toList.flatten.flatMap { _.select[Requirement] }
+      val parentHintRequirements = parentWorkflow.toList.flatMap(_.allHints)
 
-    val runtimeAttributes: RuntimeAttributes = RuntimeAttributes(Map.empty[String, WomExpression])
+      // Throw out invalid Requirement hints.
+      // TODO CWL pass invalid hints back to the caller to do with as the caller pleases.
+      val validHints = (hintRequirements ++ parentHintRequirements).collect { case req if validator(req).isValid => req }
+      validRequirements ++ validHints
+    }
+  }
 
-    val meta: Map[String, String] = Map.empty
-    val parameterMeta: Map[String, String] = Map.empty
+  def buildTaskDefinition(parentWorkflow: Option[Workflow], validator: RequirementsValidator): ErrorOr[CallableTaskDefinition] = {
 
-    /*
+    validateRequirementsAndHints(parentWorkflow, validator) map { requirementsAndHints =>
+      val id = this.id
+
+      val commandTemplate: Seq[CommandPart] = baseCommand.toSeq.flatMap(_.fold(BaseCommandToCommandParts)) ++
+        arguments.toSeq.flatMap(_.map(_.fold(ArgumentToCommandPart))) ++
+        CommandLineTool.orderedForCommandLine(inputs).map(InputParameterCommandPart.apply)
+
+      val dockerRequirement = requirementsAndHints.toStream flatMap { _.select[DockerRequirement] } headOption
+      val dockerPull: Option[WomExpression] = for {
+        requirement <- dockerRequirement
+        pull <- requirement.dockerPull.orElse(requirement.dockerImageId)
+      } yield ValueAsAnExpression(WomString(pull))
+
+      import mouse.option._
+      val empty = RuntimeAttributes.empty
+      val runtimeAttributes: RuntimeAttributes = dockerPull.cata(empty.withDockerImage, empty)
+
+      val meta: Map[String, String] = Map.empty
+      val parameterMeta: Map[String, String] = Map.empty
+
+      /*
     quoted from: http://www.commonwl.org/v1.0/CommandLineTool.html#CommandOutputBinding :
 
     For inputs and outputs, we only keep the variable name in the definition
@@ -97,29 +133,30 @@ case class CommandLineTool private(
         case other => throw new NotImplementedError(s"command input paramters such as $other are not yet supported")
       }.toList
 
-    def stringOrExpressionToString(soe: Option[StringOrExpression]): Option[String] = soe flatMap {
-      case StringOrExpression.String(str) => Some(str)
-      case StringOrExpression.Expression(_) => None // ... for now!
+      def stringOrExpressionToString(soe: Option[StringOrExpression]): Option[String] = soe flatMap {
+        case StringOrExpression.String(str) => Some(str)
+        case StringOrExpression.Expression(_) => None // ... for now!
+      }
+
+      // The try will succeed if this is a task within a step. If it's a standalone file, the ID will be the file,
+      // so the filename is the fallback.
+      def taskName = Try(FullyQualifiedName(id).id).getOrElse(Paths.get(id).getFileName.toString)
+
+      CallableTaskDefinition(
+        taskName,
+        commandTemplate,
+        runtimeAttributes,
+        meta,
+        parameterMeta,
+        outputs,
+        inputDefinitions,
+        // TODO: This doesn't work in all cases and it feels clunky anyway - find a way to sort that out
+        prefixSeparator = "#",
+        commandPartSeparator = " ",
+        stdoutRedirection = stringOrExpressionToString(stdout),
+        stderrRedirection = stringOrExpressionToString(stderr)
+      )
     }
-
-    // The try will succeed if this is a task within a step. If it's a standalone file, the ID will be the file,
-    // so the filename is the fallback.
-    def taskName = Try(FullyQualifiedName(id).id).getOrElse(Paths.get(id).getFileName.toString)
-
-    CallableTaskDefinition(
-      taskName,
-      commandTemplate,
-      runtimeAttributes,
-      meta,
-      parameterMeta,
-      outputs,
-      inputDefinitions,
-      // TODO: This doesn't work in all cases and it feels clunky anyway - find a way to sort that out
-      prefixSeparator = "#",
-      commandPartSeparator = " ",
-      stdoutRedirection = stringOrExpressionToString(stdout),
-      stderrRedirection = stringOrExpressionToString(stderr)
-    )
   }
 
   def asCwl = Coproduct[Cwl](this)
@@ -145,7 +182,7 @@ object CommandLineTool {
             outputs: Array[CommandOutputParameter] = Array.empty,
             id: String,
             requirements: Option[Array[Requirement]] = None,
-            hints: Option[Array[CwlAny]] = None,
+            hints: Option[Array[Hint]] = None,
             label: Option[String] = None,
             doc: Option[String] = None,
             cwlVersion: Option[CwlVersion] = Option(CwlVersion.Version1),

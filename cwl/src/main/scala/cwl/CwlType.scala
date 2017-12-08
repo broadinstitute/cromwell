@@ -35,8 +35,8 @@ case class File private(
   format: Option[String],
   contents: Option[String]) {
 
-  lazy val asWdlValue: ErrorOr[WomValue] = {
-    // TODO WOM: needs to handle basename and maybe other fields. We might need to augment WdlFile, or have a smarter WomFile
+  lazy val asWomValue: ErrorOr[WomValue] = {
+    // TODO WOM: needs to handle basename and maybe other fields.
     path.orElse(location) match {
       case Some(value) => WomSingleFile(value).validNel
       case None => "Cannot convert CWL File to WomValue without either a location or a path".invalidNel

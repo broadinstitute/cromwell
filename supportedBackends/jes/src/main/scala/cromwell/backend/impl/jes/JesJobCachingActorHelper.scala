@@ -28,8 +28,6 @@ trait JesJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val callRootPath: Path = jesCallPaths.callExecutionRoot
   lazy val returnCodeFilename: String = jesCallPaths.returnCodeFilename
   lazy val returnCodeGcsPath: Path = jesCallPaths.returnCode
-  lazy val jesStdoutFile: Path = jesCallPaths.stdout
-  lazy val jesStderrFile: Path = jesCallPaths.stderr
   lazy val jesLogFilename: String = jesCallPaths.jesLogFilename
 
   lazy val maxPreemption: Int = runtimeAttributes.preemptible

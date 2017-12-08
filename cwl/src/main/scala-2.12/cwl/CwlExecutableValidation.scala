@@ -9,7 +9,8 @@ import io.circe.yaml
 import io.circe.literal._
 import common.Checked
 import common.validation.Checked._
-import wom.callable.ExecutableCallable
+import common.validation.ErrorOr.ErrorOr
+import wom.callable.{CallableTaskDefinition, ExecutableCallable, ExecutableTaskDefinition}
 import wom.executable.Executable
 import wom.executable.Executable.{InputParsingFunction, ParsedInputMap}
 
@@ -33,6 +34,14 @@ object CwlExecutableValidation {
     for {
       womDefinition <- callable
       executable <- Executable.withInputs(womDefinition, inputCoercionFunction, inputFile)
+    } yield executable
+  }
+
+  def buildWomExecutable(callableTaskDefinition: ErrorOr[CallableTaskDefinition], inputFile: Option[String]): Checked[Executable] = {
+    for {
+      taskDefinition <- callableTaskDefinition.toEither
+      executableTaskDefinition = ExecutableTaskDefinition.tryApply(taskDefinition).toEither
+      executable <- CwlExecutableValidation.buildWomExecutable(executableTaskDefinition, inputFile)
     } yield executable
   }
 }

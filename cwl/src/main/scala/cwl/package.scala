@@ -2,6 +2,7 @@
 import cwl.CwlType.{CwlType, _}
 import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
 import common.Checked
+import common.validation.ErrorOr.ErrorOr
 import shapeless._
 import wom.executable.Executable
 import wom.types._
@@ -82,10 +83,14 @@ package object cwl extends TypeAliases {
 
   type WomTypeMap = Map[String, WomType]
 
+  type RequirementsValidator = Requirement => ErrorOr[Requirement]
+  import cats.syntax.validated._
+  val AcceptAllRequirements: RequirementsValidator = _.validNel
+
   implicit class CwlHelper(val cwl: Cwl) extends AnyVal {
-    def womExecutable(inputsFile: Option[String] = None): Checked[Executable] = cwl match {
-      case Cwl.Workflow(w) => w.womExecutable(inputsFile)
-      case Cwl.CommandLineTool(clt) => clt.womExecutable(inputsFile)
+    def womExecutable(validator: RequirementsValidator, inputsFile: Option[String] = None): Checked[Executable] = cwl match {
+      case Cwl.Workflow(w) => w.womExecutable(validator, inputsFile)
+      case Cwl.CommandLineTool(clt) => clt.womExecutable(validator, inputsFile)
     }
 
     def requiredInputs: Map[String, WomType] = cwl match {

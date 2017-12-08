@@ -12,11 +12,11 @@ case class ParameterContext(inputs: WomValue = WomOptionalValue(WomNothingType, 
                             self: WomValue = WomOptionalValue(WomNothingType, None),
                             runtime: WomValue = WomOptionalValue(WomNothingType, None)) {
   def withInputs(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ParameterContext = {
-    val wdlValueType = WomStringType
+    val womValueType = WomStringType
     copy(
       inputs = WomMap(
-        WomMapType(WomStringType, wdlValueType),
-        // TODO: WOM: convert inputValues (including WdlFile?) to inputs using the ioFunctionSet
+        WomMapType(WomStringType, womValueType),
+        // TODO: WOM: convert inputValues (including WomFile?) to inputs using the ioFunctionSet
         inputValues map {
           case (name, WomSingleFile(path)) => WomString(name) -> WomString(path)
           case (name, womValue) => WomString(name) -> womValue

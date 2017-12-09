@@ -13,6 +13,7 @@ cache:
   branch: md5deep
   directories:
     - $HOME/.ivy2/cache
+    - $HOME/.coursier/cache
     - $HOME/.sbt/boot/
 before_cache:
   # Tricks to avoid unnecessary cache updates

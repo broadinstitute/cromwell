@@ -1,6 +1,8 @@
 package centaur
 
 import centaur.api.CentaurCromwellClient
+import centaur.test.standard.CentaurTestCase
+import centaur.test.standard.CentaurTestFormat.{InstantAbort, RestartFormat, ScheduledAbort}
 import org.scalatest.{BeforeAndAfterAll, ParallelTestExecution, Suites}
 
 import scala.sys.ShutdownHookThread
@@ -17,12 +19,19 @@ object CentaurTestSuite {
   }
 
   val cromwellBackends = CentaurCromwellClient.backends.get.supportedBackends.map(_.toLowerCase)
+  
+  def runSequential(testCase: CentaurTestCase) = testCase.testFormat match {
+    case _: RestartFormat| _: ScheduledAbort | InstantAbort => true
+    case _ => false
+  }
+  
+  def runParallel(testCase: CentaurTestCase) = !runSequential(testCase)
 }
 
 /**
   * The main centaur test suites, runs sub suites in parallel, but allows better control over the way each nested suite runs.
   */
-class CentaurTestSuite extends Suites(new RestartTestCaseSpec(), new StandardTestCaseSpec()) with ParallelTestExecution with BeforeAndAfterAll {
+class CentaurTestSuite extends Suites(new SequentialTestCaseSpec(), new StandardTestCaseSpec()) with ParallelTestExecution with BeforeAndAfterAll {
   private var shutdownHook: Option[ShutdownHookThread] = _
 
   override def beforeAll() = {

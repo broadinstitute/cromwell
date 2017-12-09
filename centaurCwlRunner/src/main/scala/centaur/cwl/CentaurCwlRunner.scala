@@ -2,14 +2,18 @@ package centaur.cwl
 
 import better.files._
 import centaur.api.CentaurCromwellClient
+import centaur.cwl.Outputs._
 import centaur.test.TestOptions
 import centaur.test.standard.{CentaurTestCase, CentaurTestFormat}
 import centaur.test.submit.{SubmitHttpResponse, SubmitWorkflowResponse}
 import centaur.test.workflow.{AllBackendsRequired, Workflow, WorkflowData}
+import com.typesafe.scalalogging.StrictLogging
 import common.util.VersionUtil
 import cromwell.api.model.{Aborted, Failed, NonTerminalStatus, Succeeded}
 import spray.json._
-import Outputs._
+
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 /**
   * Runs workflows in a "cwl-runner" friendly way.
@@ -19,7 +23,7 @@ import Outputs._
   * https://github.com/common-workflow-language/common-workflow-language/blob/v1.0.1/draft-3/cwl-runner.cwl#L5-L68
   * https://github.com/common-workflow-language/common-workflow-language/pull/278/files#diff-ee814a9c027fc9750beb075c283a973cR49
   */
-object CentaurCwlRunner {
+object CentaurCwlRunner extends StrictLogging {
 
   case class CommandLineArguments(workflowSource: Option[File] = None,
                                   workflowInputs: Option[File] = None,
@@ -65,7 +69,7 @@ object CentaurCwlRunner {
       opt[Unit]("quiet").text("Only print warnings and errors.").optional().
         action((_, c) => c.copy(quiet = true))
 
-      opt[String]("outdir").text("Output directory, default current directory. Currently ignored.").optional().
+      opt[String]("outdir").text("Output directory, default current directory.").optional().
         action((s, c) =>
           c.copy(outdir = Option(File(s))))
     }
@@ -77,7 +81,7 @@ object CentaurCwlRunner {
       val zipFile = File.newTemporaryFile("cwl_imports.", ".zip")
       val dir = file.parent
       if (!args.quiet) {
-        println(s"Zipping $dir to $zipFile")
+        logger.info(s"Zipping $dir to $zipFile")
       }
       val files = dir.children
       Cmds.zip(files.toSeq: _*)(zipFile)
@@ -110,43 +114,46 @@ object CentaurCwlRunner {
     val testCase = CentaurTestCase(workflow, testFormat, testOptions, submitResponseOption)
 
     if (!args.quiet) {
-      println(s"Starting test for $workflowPath")
+      logger.info(s"Starting test for $workflowPath")
     }
 
     try {
       testCase.testFunction.run.get match {
         case unexpected: SubmitHttpResponse =>
-          println(s"Unexpected response: $unexpected")
+          logger.error(s"Unexpected response: $unexpected")
           ExitCode.Failure
         case SubmitWorkflowResponse(submittedWorkflow) =>
           val status = CentaurCromwellClient.status(submittedWorkflow).get
           status match {
             case unexpected: NonTerminalStatus =>
-              println(s"Unexpected status: $unexpected")
+              logger.error(s"Unexpected status: $unexpected")
               ExitCode.Failure
             case Aborted =>
-              println(s"Unexpected abort.")
+              logger.error(s"Unexpected abort.")
               ExitCode.Failure
             case Failed =>
-              println(s"Unexpected failure.")
+              logger.error(s"Unexpected failure.")
               ExitCode.Failure
             case Succeeded =>
 
+              val result = handleOutput(submittedWorkflow)
               if (!args.quiet) {
-                println("Result:")
+                logger.info(s"Result: $result")
+              } else {
+                // Print directly to stdout during --quiet
+                println(result)
               }
-              println(handleOutput(submittedWorkflow))
               ExitCode.Success
           }
       }
     } finally {
       zippedImports map { zipFile =>
         if (!args.quiet) {
-          println(s"Deleting $zipFile")
+          logger.info(s"Deleting $zipFile")
         }
         zipFile.delete(swallowIOExceptions = true)
       }
-      CentaurCromwellClient.system.terminate()
+      Await.result(CentaurCromwellClient.system.terminate(), Duration.Inf)
       ()
     }
   }

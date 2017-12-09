@@ -1,0 +1,21 @@
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- lower logging level, especially to stdout -->
+    <root level="warn">
+        <appender-ref ref="STDOUT"/>
+    </root>
+
+    <!--
+    Silence occasional PoolMasterActor error logging of:
+    04:20:04.785 [centaur-acting-like-a-system-akka.actor.default-dispatcher-5] ERROR akka.http.impl.engine.client.PoolMasterActor - connection pool for PoolGateway(hcps = HostConnectionPoolSetup(localhost,8000,ConnectionPoolSetup(ConnectionPoolSettings(4,0,5,32,1,30 seconds,ClientConnectionSettings(Some(User-Agent: akka-http/10.0.10),10 seconds,1 minute,512,None,<function0>,List(),ParserSettings(2048,16,64,64,8192,64,8388608,256,1048576,Strict,RFC6265,true,Full,Error,Map(If-Range -> 0, If-Modified-Since -> 0, If-Unmodified-Since -> 0, default -> 12, Content-MD5 -> 0, Date -> 0, If-Match -> 0, If-None-Match -> 0, User-Agent -> 32),false,akka.stream.impl.ConstantFun$$$Lambda$286/1579280783@2287c189,akka.stream.impl.ConstantFun$$$Lambda$286/1579280783@2287c189,akka.stream.impl.ConstantFun$$$Lambda$287/1370074462@628a0265),None),TCPTransport),akka.http.scaladsl.HttpConnectionContext$@164c4af,akka.event.MarkerLoggingAdapter@4204728))) has shut down unexpectedly
+
+    via:
+    https://github.com/akka/akka-http/blob/v10.0.10/akka-http-core/src/main/scala/akka/http/impl/engine/client/PoolMasterActor.scala#L117
+    -->
+    <logger name="akka.http.impl.engine.client.PoolMasterActor" level="off" additivity="false"/>
+</configuration>

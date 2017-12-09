@@ -142,10 +142,20 @@ object Dependencies {
     "com.iheart" %% "ficus" % ficusV
   )
 
+  /*
+  Adds a variety of logging libraries required for actual logging. However, some of these aren't always required.
+
+  Ex: If one isn't using akka & slf4j, then 'akka-slf4j' isn't required. However, for now, all executables are using
+  akka & slf4j... so leaving it.
+
+  Similarly, not _all_ executables/logback.xml configs will need logback-access, raven-logback, janino, etc.
+  Still, leaving them as dependencies for simplicity's sake.
+   */
   private val slf4jBindingDependencies = List(
     // http://logback.qos.ch/dependencies.html
     "ch.qos.logback" % "logback-classic" % logbackV,
     "ch.qos.logback" % "logback-access" % logbackV,
+    "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "com.getsentry.raven" % "raven-logback" % ravenLogbackV,
     "org.codehaus.janino" % "janino" % janinoV
   )
@@ -267,11 +277,10 @@ object Dependencies {
 
   val centaurCwlRunnerDependencies = List(
     "com.github.scopt" %% "scopt" % scoptV
-  )
+  ) ++ slf4jBindingDependencies
 
   val coreDependencies = List(
     "com.typesafe.akka" %% "akka-actor" % akkaV,
-    "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,
     "com.typesafe.akka" %% "akka-stream" % akkaV,
     "com.typesafe.akka" %% "akka-stream-testkit" % akkaV % Test,

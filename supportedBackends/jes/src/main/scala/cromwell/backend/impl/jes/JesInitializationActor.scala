@@ -9,12 +9,15 @@ import com.google.api.services.genomics.Genomics
 import com.google.auth.Credentials
 import com.google.cloud.storage.StorageException
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
+import cromwell.backend.impl.jes.JesInitializationActor.{AuthFileAlreadyExistsException, PotentialFalsePositiveAuthFailure}
 import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthObject, JesDockerCredentials}
 import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
 import cromwell.cloudsupport.gcp.auth.{ClientSecrets, GoogleAuthMode}
 import cromwell.core.CromwellFatalException
 import cromwell.core.io.AsyncIo
+import cromwell.core.path.Path
+import cromwell.core.retry.Retry
 import cromwell.filesystems.gcs.GoogleUtil._
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import spray.json.{JsObject, JsTrue}
@@ -32,6 +35,12 @@ case class JesInitializationActorParams
   restarting: Boolean
 ) extends StandardInitializationActorParams {
   override val configurationDescriptor: BackendConfigurationDescriptor = jesConfiguration.configurationDescriptor
+}
+
+object JesInitializationActor {
+  private case object PotentialFalsePositiveAuthFailure extends IOException
+  private case class AuthFileAlreadyExistsException(path: Path, message: String) extends IOException(s"Failed to upload authentication file at $path:" +
+    s" there was already a file at the same location and this workflow was not being restarted: $message")
 }
 
 class JesInitializationActor(jesParams: JesInitializationActorParams)
@@ -87,16 +96,38 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
           workflowLogger.debug(s"Authentication file already exists but this is a restart, proceeding.")
           Future.successful(())
         case CromwellFatalException(e: StorageException) if e.getCode == StatusCodes.PreconditionFailed.intValue =>
-            Future.failed(new IOException(s"Failed to upload authentication file:" +
-              s" there was already a file at the same location and this workflow was not being restarted: ${e.getMessage}"))
+          // Do an extra check that the file is actually there
+          existsAsync(paths.gcsAuthFilePath) flatMap {
+            // if it is then something is definitely wrong
+            case true => Future.failed(AuthFileAlreadyExistsException(paths.gcsAuthFilePath, e.getMessage))
+            // otherwise try to upload again
+            case false => Future.failed(PotentialFalsePositiveAuthFailure)
+          }
         case failure => Future.failed(new IOException(s"Failed to upload authentication file", failure))
       }
     }
 
+    // The only non fatal exception is PotentialFalsePositiveAuthFailure
+    // Everything else has already been retried appropriately by the I/O actor
+    def uploadIsFatal(t: Throwable) = t match {
+      case PotentialFalsePositiveAuthFailure => false
+      case _ => true
+    }
+    
+    def fileUploadWithRetries(paths: JesWorkflowPaths) = Retry.withRetry(
+      f = () => fileUpload(paths),
+      maxRetries = Option(2),
+      isFatal = uploadIsFatal,
+      onRetry = (_: Throwable) => workflowLogger.warn(
+        "The authentication failed to be written to GCS because it was supposedly there already, but an existence check on the file contradicts this fact. " +
+        "Trying to upload it again."
+      )
+    )
+
     for {
       paths <- workflowPaths
       _ = publishWorkflowRoot(paths.workflowRoot.pathAsString)
-      _ <- if (jesConfiguration.needAuthFileUpload) fileUpload(paths) else Future.successful(())
+      _ <- if (jesConfiguration.needAuthFileUpload) fileUploadWithRetries(paths) else Future.successful(())
       data <- initializationData
     } yield Option(data)
   }

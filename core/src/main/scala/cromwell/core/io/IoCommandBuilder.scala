@@ -12,6 +12,7 @@ trait IoCommandBuilder {
   def copyCommand(src: Path, dest: Path, overwrite: Boolean): IoCopyCommand
   def hashCommand(file: Path): IoHashCommand
   def touchCommand(file: Path): IoTouchCommand
+  def existsCommand(path: Path): IoExistsCommand
 }
 
 trait DefaultIoCommandBuilder extends IoCommandBuilder {
@@ -22,4 +23,5 @@ trait DefaultIoCommandBuilder extends IoCommandBuilder {
   def copyCommand(src: Path, dest: Path, overwrite: Boolean): IoCopyCommand = DefaultIoCopyCommand(src, dest, overwrite)
   def hashCommand(file: Path): IoHashCommand = DefaultIoHashCommand(file)
   def touchCommand(file: Path): IoTouchCommand = DefaultIoTouchCommand(file)
+  def existsCommand(file: Path): IoExistsCommand = DefaultIoExistsCommand(file)
 }

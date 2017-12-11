@@ -404,8 +404,9 @@ object SampleWdl {
         |task cat {
         |  File file
         |  String? flags
+        |  String? flags2 # This should be a workflow input
         |  command {
-        |    cat $${flags} $${file}
+        |    cat $${flags} $${flags2} $${file}
         |  }
         |  output {
         |    File procs = stdout()

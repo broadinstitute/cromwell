@@ -8,4 +8,3 @@ addSbtPlugin("org.xerial.sbt" % "sbt-pack" % "0.9.1")
 // TODO: This plugin is part of SBT 1.x. Remove it after upgrading.
 // https://github.com/sbt/sbt-doge/issues/18
 addSbtPlugin("com.eed3si9n" % "sbt-doge" % "0.1.5")
-addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.0-RC13")

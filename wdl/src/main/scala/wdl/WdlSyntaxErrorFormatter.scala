@@ -10,10 +10,12 @@ import scala.collection.JavaConverters._
 case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) extends SyntaxErrorFormatter {
 
   private def pointToSource(t: Terminal): String = s"${line(t)}\n${" " * (t.getColumn - 1)}^"
-  private def line(t:Terminal): String = t match {
-    case interpolated: InterpolatedTerminal => terminalMap(interpolated.rootTerminal).split("\n")(interpolated.getLine - 1)
-    case classicTerminal => terminalMap(classicTerminal).split("\n")(classicTerminal.getLine - 1)
+  private def getTerminal(t: Terminal) = t match {
+    case interpolated: InterpolatedTerminal => terminalMap.get(interpolated.rootTerminal)
+    case classicTerminal => terminalMap.get(classicTerminal)
   }
+
+  private def line(t:Terminal): String = getTerminal(t).map(_.split("\n")(t.getLine - 1)).getOrElse(s"Cannot highlight line. It was probably in an imported file.")
 
   def unexpectedEof(method: String, expected: java.util.List[TerminalIdentifier], nt_rules: java.util.List[String]): String = "ERROR: Unexpected end of file"
 

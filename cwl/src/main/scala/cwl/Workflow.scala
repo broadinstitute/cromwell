@@ -34,7 +34,7 @@ case class Workflow private(
 
   val fileNames: List[String] = steps.toList.flatMap(_.run.select[String].toList)
 
-  def outputsTypeMap: WdlTypeMap = steps.foldLeft(Map.empty[String, WomType]) {
+  def outputsTypeMap: WomTypeMap = steps.foldLeft(Map.empty[String, WomType]) {
     // Not implemented as a `foldMap` because there is no semigroup instance for `WomType`s.  `foldMap` doesn't know that
     // we don't need a semigroup instance since the map keys should be unique and therefore map values would never need
     // to be combined under the same key.
@@ -45,23 +45,23 @@ case class Workflow private(
 
   def womGraph: Checked[Graph] = {
 
-    def wdlTypeForInputParameter(input: InputParameter): Option[WomType] = {
+    def womTypeForInputParameter(input: InputParameter): Option[WomType] = {
       input.`type`.map(_.fold(MyriadInputTypeToWomType))
     }
 
-    val typeMap: WdlTypeMap =
+    val typeMap: WomTypeMap =
       outputsTypeMap ++
         // Note this is only looking at the workflow inputs and not recursing into steps, because our current thinking
         // is that in CWL graph inputs can only be defined at the workflow level.  It's possible that's not actually
         // correct, but that's the assumption being made here.
         inputs.toList.flatMap { i =>
-          wdlTypeForInputParameter(i).map(i.id -> _).toList
+          womTypeForInputParameter(i).map(i.id -> _).toList
         }.toMap
 
     val graphFromInputs: Set[ExternalGraphInputNode] = inputs.map {
       case inputParameter if inputParameter.default.isDefined =>
         val parsedInputId = FileAndId(inputParameter.id).id
-        val womType = wdlTypeForInputParameter(inputParameter).get
+        val womType = womTypeForInputParameter(inputParameter).get
 
         // TODO: Eurgh! But until we have something better ...
         val womValue = womType.coerceRawValue(inputParameter.default.get).get
@@ -69,7 +69,7 @@ case class Workflow private(
       case input =>
         val parsedInputId = FileAndId(input.id).id
 
-        RequiredGraphInputNode(WomIdentifier(parsedInputId, input.id), wdlTypeForInputParameter(input).get, parsedInputId)
+        RequiredGraphInputNode(WomIdentifier(parsedInputId, input.id), womTypeForInputParameter(input).get, parsedInputId)
     }.toSet
 
     val workflowInputs: Map[String, GraphNodeOutputPort] =

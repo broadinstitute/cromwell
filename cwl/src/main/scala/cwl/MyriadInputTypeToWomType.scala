@@ -15,7 +15,7 @@ object MyriadInputTypeToWomType extends Poly1 {
 
   //We only accept arrays of a single type, so we have to check whether the array boils down to an array of a single type
   implicit def am = at[Array[MyriadInputInnerType]] {
-    //We start by reducing the Array down to a set of
+    //reduce the Array down to a set to remove dupes.
     _.toList.foldMap(
       i => Set(i)
     ).map(
@@ -33,7 +33,7 @@ object MyriadInputInnerTypeToWomType extends Poly1 {
   def ex(component: String) = throw new RuntimeException(s"input type $component not yet suported by WOM!")
 
   implicit def ct: Aux[CwlType, WomType] = at[CwlType]{
-    cwl.cwlTypeToWdlType
+    cwl.cwlTypeToWomType
   }
   implicit def irs: Aux[InputRecordSchema, WomType] = at[InputRecordSchema]{
     _.toString |> ex

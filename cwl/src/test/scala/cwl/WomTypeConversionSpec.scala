@@ -1,9 +1,13 @@
 package cwl
 
+import java.lang.RuntimeException
+
 import org.scalacheck.Properties
 import org.scalacheck.Prop._
 import shapeless.Coproduct
 import wom.types.{WomArrayType, WomStringType}
+
+import scala.util.Try
 
 class WomTypeConversionSpec extends Properties("CWL -> WOM Conversion"){
 
@@ -24,10 +28,13 @@ class WomTypeConversionSpec extends Properties("CWL -> WOM Conversion"){
     Coproduct[MyriadInputType](Array(y)).fold(MyriadInputTypeToWomType) == WomArrayType(WomStringType)
   }
 
-  property("Array of more than one type is not allowed") = throws(classOf[RuntimeException]) {
+  property("Array of more than one type is not allowed") = secure {
     val y = Coproduct[MyriadInputInnerType](CwlType.String)
     val z = Coproduct[MyriadInputInnerType](CwlType.Boolean)
-    Coproduct[MyriadInputType](Array(y, z)).fold(MyriadInputTypeToWomType)
+    Try(Coproduct[MyriadInputType](Array(y, z)).fold(MyriadInputTypeToWomType)).fold(
+      _.getMessage == "Wom does not provide an array of >1 types",
+      s =>  throw new RuntimeException(s"failure expected but got $s!")
+    )
   }
 
   property("ArrayOutputSchema") = secure {

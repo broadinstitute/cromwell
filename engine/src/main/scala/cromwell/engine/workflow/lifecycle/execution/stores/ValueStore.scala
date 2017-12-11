@@ -51,30 +51,35 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
     /*
      * collector.scatter.outputMapping is all the output ports for the scatter (ScatterGathererPort)
      * There is one for each PortBasedGraphOutputNode in the scatter inner graph
-     * (FIXME: ExpressionBasedGraphOutputNodes should probably be in there too for sub workflows)
-    */
+     */
     val scatterGatherPort = collector.scatterGatherPort
 
     // The output port which this scatterGatherPort is referring to (could be a call node output port or a declaration node output port for example)
     val sourcePort = scatterGatherPort.outputToGather.source
 
-    // Try to find the values for this port in the store. Remember, the value store is a Table[OutputPort, ExecutionIndex, WomValue],
-    // so by "get"ting the output port we get all the shards for this output port, which is exactly what we want here (we're collecting the shards)
-    store.rowOptional(sourcePort) match {
-      case Some(shards) =>
-        val collectedValue = shards.toList.sortBy(_._1).map(_._2)
+    def goodResult(values: Seq[WomValue]) = Map(ValueKey(scatterGatherPort, None) -> WomArray(scatterGatherPort.womType, values)).validNel
 
-        // Verify that we have all the expected shards.
-        if (collectedValue.size == collector.scatterWidth) {
-          // If the sizes match, create an Array from the values and assign it to the ScatterGatherPort
-          Map(ValueKey(scatterGatherPort, None) -> WomArray(scatterGatherPort.womType, collectedValue)).validNel
-        } else {
-          // If we don't find enough shards, this collector was found "runnable" when it shouldn't have
-          s"Some shards are missing from the value store for node ${collector.node.fullyQualifiedName}, expected ${collector.scatterWidth} shards but only got ${collectedValue.size}: ${collectedValue.mkString(", ")}".invalidNel
-        }
-      case None =>
-        // If we don't find any shards, this collector was found "runnable" when it shouldn't have
-        s"Scatter collector cannot find any values for ${sourcePort.identifier.fullyQualifiedName.value} in value store: $this".invalidNel
+    if (collector.scatterWidth == 0) {
+      goodResult(Seq.empty)
+    } else {
+      // Try to find the values for this port in the store. Remember, the value store is a Table[OutputPort, ExecutionIndex, WomValue],
+      // so by "get"ting the output port we get all the shards for this output port, which is exactly what we want here (we're collecting the shards)
+      store.rowOptional(sourcePort) match {
+        case Some(shards) =>
+          val collectedValue = shards.toList.sortBy(_._1).map(_._2)
+
+          // Verify that we have all the expected shards.
+          if (collectedValue.size == collector.scatterWidth) {
+            // If the sizes match, create an Array from the values and assign it to the ScatterGatherPort
+            goodResult(collectedValue)
+          } else {
+            // If we don't find enough shards, this collector was found "runnable" when it shouldn't have
+            s"Some shards are missing from the value store for node ${collector.node.fullyQualifiedName}, expected ${collector.scatterWidth} shards but only got ${collectedValue.size}: ${collectedValue.mkString(", ")}".invalidNel
+          }
+        case None =>
+          // If we don't find any shards, this collector was found "runnable" when it shouldn't have
+          s"Scatter collector cannot find any values for ${sourcePort.identifier.fullyQualifiedName.value} in value store: $this".invalidNel
+      }
     }
   }
 

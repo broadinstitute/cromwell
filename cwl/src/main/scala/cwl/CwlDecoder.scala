@@ -1,27 +1,32 @@
 package cwl
 
-import cats.data.{EitherT, NonEmptyList, ValidatedNel}
-import ammonite.ops._
 import ammonite.ops.ImplicitWd._
+import ammonite.ops._
+import better.files.File.newTemporaryFile
+import better.files.{File => BFile}
+import cats.Applicative
+import cats.data.EitherT._
+import cats.data.{EitherT, NonEmptyList, ValidatedNel}
 import cats.effect.IO
 import cats.syntax.either._
-import cats.Applicative
-import better.files.{File => BFile}
-import common.validation.ErrorOr._
 import common.legacy.TwoElevenSupport._
-import EitherT._
-import better.files.File.newTemporaryFile
+import common.validation.ErrorOr._
 
 import scala.util.Try
 
 object CwlDecoder {
 
+  object Parse {
+    def error[A](error: String, tail: String*): Parse[A] = EitherT.leftT {
+      NonEmptyList.of(error, tail: _*)
+    }
+  }
+  
   type Parse[A] = EitherT[IO, NonEmptyList[String], A]
 
   type ParseValidated[A] = IO[ValidatedNel[String, A]]
 
   implicit val composedApplicative = Applicative[IO] compose Applicative[ErrorOr]
-
 
   private def preprocess(path: BFile): Parse[String] = {
     def resultToEither(cr: CommandResult) =
@@ -38,28 +43,29 @@ object CwlDecoder {
     fromEither[IO](cwlToolResult flatMap resultToEither)
   }
 
-  def parseJson(json: String): Parse[Cwl] = fromEither[IO](CwlCodecs.decodeCwl(json))
+  def parseJson(json: String): Parse[CwlFile] = fromEither[IO](CwlCodecs.decodeCwl(json))
 
   /**
    * Notice it gives you one instance of Cwl.  This has transformed all embedded files into scala object state
    */
-  def decodeAllCwl(fileName: BFile): Parse[Cwl] =
+  def decodeAllCwl(fileName: BFile, root: Option[String] = None): Parse[Cwl] =
     for {
       jsonString <- preprocess(fileName)
       unmodifiedCwl <- parseJson(jsonString)
-      cwlWithEmbeddedCwl <- unmodifiedCwl.fold(AddEmbeddedCwl)
+      cwlWithEmbeddedCwl <- unmodifiedCwl.fold(FlattenCwlFile).apply((fileName.toString, root))
     } yield cwlWithEmbeddedCwl
 
-  def decodeTopLevelCwl(fileName: BFile): Parse[Cwl] =
+  def decodeTopLevelCwl(fileName: BFile, rootName: Option[String]): Parse[Cwl] =
     for {
       jsonString <- preprocess(fileName)
       unmodifiedCwl <- parseJson(jsonString)
-    } yield unmodifiedCwl
+      rootCwl <- EitherT.fromEither(unmodifiedCwl.fold(FlattenCwlFile.CwlFileRoot).apply(rootName)): Parse[Cwl]
+    } yield rootCwl
 
-  def decodeTopLevelCwl(cwl: String): Parse[Cwl] =
+  def decodeTopLevelCwl(cwl: String, rootName: Option[String] = None): Parse[Cwl] =
     for {
      file <- fromEither[IO](newTemporaryFile().write(cwl).asRight)
-     out <- decodeTopLevelCwl(file)
+     out <- decodeTopLevelCwl(file, rootName)
     } yield out
 
   //This is used when traversing over Cwl and replacing links w/ embedded data

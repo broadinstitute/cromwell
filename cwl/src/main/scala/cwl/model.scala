@@ -8,6 +8,8 @@ import shapeless.syntax.singleton._
 import cwl.LinkMergeMethod.LinkMergeMethod
 import cwl.WorkflowStepInput.InputSource
 import common.validation.ErrorOr.ErrorOr
+import cwl.command.ParentName
+import io.circe.Json
 import wom.types.WomType
 import wom.graph.WomIdentifier
 import wom.graph.GraphNodePort.OutputPort
@@ -23,7 +25,7 @@ case class WorkflowStepInput(
   def toExpressionNode(sourceMappings: Map[String, OutputPort],
                        outputTypeMap: Map[String, WomType],
                        inputs: Set[String]
-                      ): ErrorOr[ExposedExpressionNode] = {
+                      )(implicit parentName: ParentName): ErrorOr[ExposedExpressionNode] = {
     val source = this.source.flatMap(_.select[String]).get
     val lookupId = FullyQualifiedName(source).id
 
@@ -74,7 +76,7 @@ case class InputParameter(
                            streamable: Option[Boolean] = None,
                            doc: Option[String :+: Array[String] :+: CNil] = None,
                            inputBinding: Option[CommandLineBinding] = None,
-                           default: Option[String] = None, //can be of type "Any" which... sucks.
+                           default: Option[Json] = None, //can be of type "Any" which... sucks.
                            `type`: Option[MyriadInputType] = None) {
 
   type `type` = MyriadInputType

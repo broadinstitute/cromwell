@@ -19,6 +19,7 @@ import wom.core._
 import scala.util.{Failure, Success, Try}
 
 final case class PartialWorkflowSources(workflowSource: WorkflowSource,
+                                        workflowRoot: Option[String] = None,
                                         workflowType: Option[WorkflowType] = None,
                                         workflowTypeVersion: Option[WorkflowTypeVersion] = None,
                                         workflowInputs: Vector[WorkflowJson] = Vector.empty,
@@ -32,6 +33,7 @@ object PartialWorkflowSources {
   val log = LoggerFactory.getLogger(classOf[PartialWorkflowSources])
   
   val WdlSourceKey = "wdlSource"
+  val WorkflowRootKey = "workflowRoot"
   val WorkflowSourceKey = "workflowSource"
   val WorkflowTypeKey = "workflowType"
   val WorkflowTypeVersionKey = "workflowTypeVersion"
@@ -42,7 +44,7 @@ object PartialWorkflowSources {
   val WdlDependenciesKey = "wdlDependencies"
   val WorkflowDependenciesKey = "workflowDependencies"
 
-  val allKeys = List(WdlSourceKey, WorkflowSourceKey, WorkflowTypeKey, WorkflowTypeVersionKey, WorkflowInputsKey,
+  val allKeys = List(WdlSourceKey, WorkflowRootKey, WorkflowSourceKey, WorkflowTypeKey, WorkflowTypeVersionKey, WorkflowInputsKey,
     WorkflowOptionsKey, labelsKey, WdlDependenciesKey, WorkflowDependenciesKey)
 
   val allPrefixes = List(WorkflowInputsAuxPrefix)
@@ -92,7 +94,7 @@ object PartialWorkflowSources {
         case (Some(_), Some(_)) => s"$WdlSourceKey and $WorkflowSourceKey can't both be supplied".invalidNel
         case (None, None) => s"$WorkflowSourceKey needs to be supplied".invalidNel
       }
-
+      
       // workflow inputs
       val workflowInputs: ErrorOr[Vector[WorkflowJson]] = getStringValue(WorkflowInputsKey) match {
         case Some(inputs) => workflowInputsValidation(inputs)
@@ -121,6 +123,7 @@ object PartialWorkflowSources {
       (unrecognized, workflowSourceFinal, workflowInputs, workflowInputsAux, workflowDependenciesFinal) mapN {
         case (_, source, inputs, aux, dep) => PartialWorkflowSources(
           workflowSource = source,
+          workflowRoot = getStringValue(WorkflowRootKey),
           workflowType = getStringValue(WorkflowTypeKey),
           workflowTypeVersion = getStringValue(WorkflowTypeVersionKey),
           workflowInputs = inputs,
@@ -186,6 +189,7 @@ object PartialWorkflowSources {
           case (wfInputs, wfOptions, workflowType, workflowTypeVersion) =>
             wfInputs.map(inputsJson => WorkflowSourceFilesCollection(
               workflowSource = partialSource.workflowSource,
+              workflowRoot = partialSource.workflowRoot,
               workflowType = workflowType,
               workflowTypeVersion = workflowTypeVersion,
               inputsJson = inputsJson,

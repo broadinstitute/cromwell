@@ -3,14 +3,14 @@ package cwl
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cwl.CommandLineTool.CommandInputParameter
+import cwl.command.ParentName
 import wom.callable.RuntimeEnvironment
 import wom.expression.IoFunctionSet
 import wom.graph.LocalName
 import wom.values._
-import wom.{InstantiatedCommand, CommandPart}
+import wom.{CommandPart, InstantiatedCommand}
 
 import scala.util.Try
-
 import scala.language.postfixOps
 
 case class CwlExpressionCommandPart(expr: Expression) extends CommandPart {
@@ -56,7 +56,7 @@ case class CommandLineBindingCommandPart(argument: CommandLineBinding) extends C
     } toErrorOr
 }
 
-case class InputParameterCommandPart(commandInputParameter: CommandInputParameter) extends CommandPart {
+case class InputParameterCommandPart(commandInputParameter: CommandInputParameter)(implicit parentName: ParentName) extends CommandPart {
 
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,

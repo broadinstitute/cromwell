@@ -20,7 +20,7 @@ object Outputs {
     metadata.get("submittedFiles.workflow") match {
       case Some(JsString(workflow)) =>
 
-        val cwl = CwlDecoder.decodeTopLevelCwl(workflow)
+        val cwl = CwlDecoder.decodeTopLevelCwl(workflow, submittedWorkflow.workflow.workflowRoot)
 
         cwl.value.attempt.unsafeRunSync() match {
           case Right(Right(cwl)) =>
@@ -49,10 +49,13 @@ object Outputs {
     }
   }
 
-  //Ids come out of SALAD pre-processing with a filename prepended.  This gets rid of it
-  def stripTypeMapKey(key: String): String = key.substring(key.lastIndexOf("#") + 1, key.length)
+  //Ids come out of SALAD pre-processing with a filename prepended. This gets rid of it
+  // Also gets rid of the parent workflow name if present
+  def stripTypeMapKey(key: String): String = key
+    .substring(key.lastIndexOf("#") + 1, key.length)
+    .split("/").last
 
-  //Ids come out of Cromwell with a prefix, separated by a ".".  This takes everything to the right,
+  //Ids come out of Cromwell with a prefix, separated by a ".". This takes everything to the right,
   //as CWL wants it
   def stripOutputKey(key: String): String = key.substring(key.lastIndexOf(".") + 1, key.length)
 

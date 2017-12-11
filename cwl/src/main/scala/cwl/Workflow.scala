@@ -12,6 +12,8 @@ import common.validation.ErrorOr._
 import shapeless._
 import shapeless.syntax.singleton._
 import CwlVersion._
+import cwl.command.ParentName
+import io.circe.Printer
 import wom.callable.WorkflowDefinition
 import wom.executable.Executable
 import wom.expression.{ValueAsAnExpression, WomExpression}
@@ -42,6 +44,8 @@ case class Workflow private(
     val requirementHints = hints.toList.flatten.flatMap { _.select[Requirement] }
     requirementHints ++ parentWorkflow.toList.flatMap { _.allHints }
   }
+  
+  private [cwl] implicit val explicitWorkflowName = ParentName(id)
 
   val fileNames: List[String] = steps.toList.flatMap(_.run.select[String].toList)
 
@@ -52,10 +56,8 @@ case class Workflow private(
     (acc, s) => acc ++ s.typedOutputs
   }
 
-  lazy val stepById: Map[String, WorkflowStep] = steps.map(ws => ws.id -> ws).toMap
-
   def womGraph(workflowName: String, validator: RequirementsValidator): Checked[Graph] = {
-    val workflowNameIdentifier = WomIdentifier(workflowName)
+    val workflowNameIdentifier = explicitWorkflowName.value.map(WomIdentifier.apply).getOrElse(WomIdentifier(workflowName))
 
     def womTypeForInputParameter(input: InputParameter): Option[WomType] = {
       input.`type`.map(_.fold(MyriadInputTypeToWomType))
@@ -76,7 +78,7 @@ case class Workflow private(
         val womType = womTypeForInputParameter(inputParameter).get
 
         // TODO: Eurgh! But until we have something better ...
-        val womValue = womType.coerceRawValue(inputParameter.default.get).get
+        val womValue = womType.coerceRawValue(inputParameter.default.get.pretty(Printer.noSpaces)).get
         OptionalGraphInputNodeWithDefault(WomIdentifier(parsedInputId, inputParameter.id), womType, ValueAsAnExpression(womValue), parsedInputId)
       case input =>
         val parsedInputId = FileAndId(input.id).id

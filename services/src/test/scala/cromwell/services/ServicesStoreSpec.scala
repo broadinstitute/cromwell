@@ -305,6 +305,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       val workflowUuid = WorkflowId.randomId().toString
       val workflowStoreEntry = WorkflowStoreEntry(
         workflowExecutionUuid = workflowUuid,
+        workflowRoot = Option("main"),
         workflowType = WdlWorkflowType,
         workflowTypeVersion = None,
         workflowDefinition = clobOption,
@@ -380,6 +381,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       val emptyWorkflowUuid = WorkflowId.randomId().toString
       val emptyWorkflowStoreEntry = WorkflowStoreEntry(
         workflowExecutionUuid = emptyWorkflowUuid,
+        workflowRoot = Option("main"),
         workflowType = WdlWorkflowType,
         workflowTypeVersion = None,
         workflowDefinition = clobOption,
@@ -394,6 +396,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       val noneWorkflowUuid = WorkflowId.randomId().toString
       val noneWorkflowStoreEntry = WorkflowStoreEntry(
         workflowExecutionUuid = noneWorkflowUuid,
+        workflowRoot = Option("main"),
         workflowType = WdlWorkflowType,
         workflowTypeVersion = None,
         workflowDefinition = clobOption,
@@ -409,6 +412,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       val aByteWorkflowUuid = WorkflowId.randomId().toString
       val aByteWorkflowStoreEntry = WorkflowStoreEntry(
         workflowExecutionUuid = aByteWorkflowUuid,
+        workflowRoot = Option("main"),
         workflowType = WdlWorkflowType,
         workflowTypeVersion = None,
         workflowDefinition = clobOption,

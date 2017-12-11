@@ -49,8 +49,6 @@ case class WorkflowStep(
 
   def fileName: Option[String] = run.select[String]
 
-  val unqualifiedStepId = WomIdentifier(Try(FullyQualifiedName(id)).map(_.id).getOrElse(id))
-
   /**
     * Generates all GraphNodes necessary to represent call nodes and input nodes
     * Recursive because dependencies are discovered as we iterate through inputs and corresponding
@@ -61,6 +59,10 @@ case class WorkflowStep(
                      knownNodes: Set[GraphNode],
                      workflowInputs: Map[String, GraphNodeOutputPort],
                      validator: RequirementsValidator): Checked[Set[GraphNode]] = {
+
+    implicit val parentName = workflow.explicitWorkflowName
+    
+    val unqualifiedStepId = WomIdentifier(Try(FullyQualifiedName(id)).map(_.id).getOrElse(id))
 
     // To avoid duplicating nodes, return immediately if we've already covered this node
     val haveWeSeenThisStep: Boolean = knownNodes.collect {
@@ -120,7 +122,7 @@ case class WorkflowStep(
           // Find the step corresponding to this upstreamStepId in the set of all the steps of this workflow
             for {
               step <- workflow.steps.find { step => FullyQualifiedName(step.id).id == upstreamStepId }.
-                toRight(NonEmptyList.one(s"no step of id $upstreamStepId found in ${workflow.steps.map(_.id)}"))
+                toRight(NonEmptyList.one(s"no step of id $upstreamStepId found in ${workflow.steps.map(_.id).toList}"))
               call <- step.callWithInputs(typeMap, workflow, accumulatedNodes, workflowInputs, validator)
             } yield call
 
@@ -164,9 +166,9 @@ case class WorkflowStep(
            */
           FullyQualifiedName(inputSource) match {
             // The source points to a workflow input, which means it should be in the workflowInputs map
-            case FileAndId(_, inputId) => fromWorkflowInput(inputId)
+            case FileAndId(_, _, inputId) => fromWorkflowInput(inputId)
             // The source points to an output from a different step
-            case FileStepAndId(_, stepId, stepOutputId) => fromStepOutput(stepId, stepOutputId)
+            case FileStepAndId(_, _, stepId, stepOutputId) => fromStepOutput(stepId, stepOutputId)
           }
       }
 

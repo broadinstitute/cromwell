@@ -139,6 +139,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
       case Some(p) => (workflowSource, inputsJson, optionsJson, labelsJson) mapN { (w, i, o, l) =>
         WorkflowSourceFilesWithDependenciesZip.apply(
           workflowSource = w,
+          workflowRoot = args.workflowRoot,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
           inputsJson = i,
@@ -150,6 +151,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
       case None => (workflowSource, inputsJson, optionsJson, labelsJson) mapN { (w, i, o, l) =>
         WorkflowSourceFilesWithoutImports.apply(
           workflowSource = w,
+          workflowRoot = args.workflowRoot,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
           inputsJson = i,

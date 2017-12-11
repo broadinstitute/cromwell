@@ -3,6 +3,7 @@ package cwl
 import cats.syntax.either._
 import cwl.CwlDecoder._
 import cwl.ExpressionEvaluator._
+import cwl.command.ParentName
 import eu.timepit.refined._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
@@ -18,6 +19,8 @@ import wom.types.{WomSingleFileType, WomStringType, WomType}
 class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
   import TestSetup._
 
+  implicit val parentName = ParentName.empty
+  
   "A Cwl object for 1st-tool" should "convert to WOM" in {
     def validateWom(callable: Callable): Unit = callable match {
       case taskDefinition: TaskDefinition =>

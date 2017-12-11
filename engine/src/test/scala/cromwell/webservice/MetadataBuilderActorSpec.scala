@@ -111,6 +111,10 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     MetadataEvent(MetadataKey(workflow, Option(jobKey), key), Option(value), offsetDateTime)
   }
 
+  def makeEmptyValue(workflow: WorkflowId)(key: String, value: MetadataValue, offsetDateTime: OffsetDateTime) = {
+    MetadataEvent(MetadataKey(workflow, None, key), None, offsetDateTime)
+  }
+
   def assertMetadataKeyStructure(eventList: List[EventBuilder],
                                  expectedJson: String,
                                  workflow: WorkflowId = WorkflowId.randomId(),
@@ -283,6 +287,20 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
         |     ]""".stripMargin
 
     assertMetadataKeyStructure(eventBuilderList, expectedRes)
+  }
+
+  it should "support nested empty lists" in {
+    val eventBuilderList = List(
+      ("l[0][]", null, OffsetDateTime.now),
+      ("l[1][]", null, OffsetDateTime.now)
+    )
+
+    val expectedRes =
+      """"l": [
+        |       [], []
+        |     ]""".stripMargin
+
+    assertMetadataKeyStructure(eventBuilderList, expectedRes, eventMaker = makeEmptyValue)
   }
 
   it should "override json values if they can't be merged" in {

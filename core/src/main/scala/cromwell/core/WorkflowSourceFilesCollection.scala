@@ -8,6 +8,7 @@ import wom.core._
 
 sealed trait WorkflowSourceFilesCollection {
   def workflowSource: WorkflowSource
+  def workflowRoot: Option[String]
   def inputsJson: WorkflowJson
   def workflowOptionsJson: WorkflowOptionsJson
   def labelsJson: WorkflowJson
@@ -29,6 +30,7 @@ sealed trait WorkflowSourceFilesCollection {
 
 object WorkflowSourceFilesCollection {
   def apply(workflowSource: WorkflowSource,
+            workflowRoot: Option[String],
             workflowType: Option[WorkflowType],
             workflowTypeVersion: Option[WorkflowTypeVersion],
             inputsJson: WorkflowJson,
@@ -38,27 +40,30 @@ object WorkflowSourceFilesCollection {
             warnings: Seq[String]): WorkflowSourceFilesCollection = importsFile match {
     case Some(imports) =>
       WorkflowSourceFilesWithDependenciesZip(
-        workflowSource,
-        workflowType,
-        workflowTypeVersion,
-        inputsJson,
-        workflowOptionsJson,
-        labelsJson,
-        imports,
-        warnings)
+        workflowSource = workflowSource,
+        workflowRoot = workflowRoot,
+        workflowType = workflowType,
+        workflowTypeVersion = workflowTypeVersion,
+        inputsJson = inputsJson,
+        workflowOptionsJson = workflowOptionsJson,
+        labelsJson = labelsJson,
+        importsZip = imports,
+        warnings = warnings)
     case None =>
       WorkflowSourceFilesWithoutImports(
-        workflowSource,
-        workflowType,
-        workflowTypeVersion,
-        inputsJson,
-        workflowOptionsJson,
-        labelsJson,
-        warnings)
+        workflowSource = workflowSource,
+        workflowRoot = workflowRoot,
+        workflowType = workflowType,
+        workflowTypeVersion = workflowTypeVersion,
+        inputsJson = inputsJson,
+        workflowOptionsJson = workflowOptionsJson,
+        labelsJson = labelsJson,
+        warnings = warnings)
   }
 }
 
 final case class WorkflowSourceFilesWithoutImports(workflowSource: WorkflowSource,
+                                                   workflowRoot: Option[String],
                                                    workflowType: Option[WorkflowType],
                                                    workflowTypeVersion: Option[WorkflowTypeVersion],
                                                    inputsJson: WorkflowJson,
@@ -67,6 +72,7 @@ final case class WorkflowSourceFilesWithoutImports(workflowSource: WorkflowSourc
                                                    warnings: Seq[String]) extends WorkflowSourceFilesCollection
 
 final case class WorkflowSourceFilesWithDependenciesZip(workflowSource: WorkflowSource,
+                                                        workflowRoot: Option[String],
                                                         workflowType: Option[WorkflowType],
                                                         workflowTypeVersion: Option[WorkflowTypeVersion],
                                                         inputsJson: WorkflowJson,

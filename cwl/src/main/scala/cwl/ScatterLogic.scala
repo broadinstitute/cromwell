@@ -7,6 +7,7 @@ import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
 import cwl.ScatterMethod.ScatterMethod
 import cwl.WorkflowStep.WorkflowStepInputFold
+import cwl.command.ParentName
 import shapeless.{Coproduct, Poly1}
 import wom.callable.Callable.InputDefinition
 import wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
@@ -104,7 +105,7 @@ object ScatterLogic {
   }
 
   // Build a list (potentially empty) of scatter variable nodes. Each node represents an input variable being scattered over
-  def buildScatterVariables(scatter: ScatterVariables, stepInputFold: WorkflowStepInputFold, stepId: String): Checked[List[ScatterVariableNode]] = {
+  def buildScatterVariables(scatter: ScatterVariables, stepInputFold: WorkflowStepInputFold, stepId: String)(implicit parentName: ParentName): Checked[List[ScatterVariableNode]] = {
     import cats.implicits._
 
     def buildScatterVariable(scatterVariableName: String): Checked[ScatterVariableNode] = {

@@ -1,8 +1,7 @@
 package centaur.cwl
 
 import io.circe.Json
-import spray.json.{JsNumber, JsString, JsValue}
-import _root_.cwl._
+import spray.json.{JsArray, JsNumber, JsString, JsValue}
 import cwl.{MyriadOutputType, File => CwlFile}
 import cats.effect.IO
 import shapeless.{Inl, Poly1}
@@ -57,6 +56,14 @@ object OutputManipulator extends Poly1{
       case (JsNumber(metadata), Inl(CwlType.Double)) => metadata.doubleValue.asJson
       case (JsNumber(metadata), Inl(CwlType.Int)) => metadata.intValue.asJson
       case (JsString(metadata), Inl(CwlType.String)) => metadata.asJson
+      case (JsArray(metadata), tpe) if tpe.select[OutputArraySchema].isDefined =>
+        val inputInnerType = tpe.select[OutputArraySchema].get.items
+        (for {
+          schema <- tpe.select[OutputArraySchema]
+          items = schema.items
+          innerType <- items.select[MyriadOutputInnerType]
+          outputJson = metadata.map(resolveOutputViaInnerType(innerType)).asJson
+        } yield outputJson).getOrElse(throw new RuntimeException(s"We currently do not support output arrays with $inputInnerType inner type"))
       case (json, tpe) => throw new RuntimeException(s" we currently do not support outputs of $json and type $tpe")
     }
   }

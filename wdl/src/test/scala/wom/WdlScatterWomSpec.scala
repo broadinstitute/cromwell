@@ -90,10 +90,10 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
 
       def validateConnections(validatedOuterGraph: OuterGraphValidations, validatedInnerGraph: InnerGraphValidations) = {
         // The scatter collection links to its predecessor
-        validatedOuterGraph.scatterNode.scatterCollectionExpressionNode.inputPorts.map(_.upstream.graphNode) should be(Set(validatedOuterGraph.xs_inputNode))
+        validatedOuterGraph.scatterNode.scatterCollectionExpressionNodes.head.inputPorts.map(_.upstream.graphNode) should be(Set(validatedOuterGraph.xs_inputNode))
 
         // The ScatterNode's "scatter variable mapping" links to the innerGraph's scatter variable input Node:
-        validatedOuterGraph.scatterNode.scatterVariableInnerGraphInputNode eq validatedInnerGraph.x_scatterCollectionInput should be(true)
+        validatedOuterGraph.scatterNode.scatterVariableInnerGraphInputNodes.head eq validatedInnerGraph.x_scatterCollectionInput should be(true)
 
         // The ScatterNode's output port links to the inner graph's GraphOutputNode:
         validatedOuterGraph.scatterNode.outputMapping.toList match {

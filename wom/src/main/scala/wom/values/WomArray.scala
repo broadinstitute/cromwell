@@ -9,6 +9,8 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object WomArray {
+  def empty = WomArray(WomMaybeEmptyArrayType.EmptyArrayType, List.empty)
+  
   def fromTsv(tsv: String): WomArray = {
     WomArray(WomArrayType(WomArrayType(WomStringType)), tsv.replaceAll("[\r\n]+$", "").split("[\n\r]+").toSeq map { line =>
       WomArray(WomArrayType(WomStringType), line.split("\t").toSeq.map(WomString))
@@ -55,6 +57,8 @@ sealed abstract case class WomArray(womType: WomArrayType, value: Seq[WomValue])
       case _ => this
     }
   }
+  
+  def size = value.size
 
   def tsvSerialize: Try[String] = {
     womType.memberType match {

@@ -7,6 +7,7 @@ import cats.instances.list._
 import cats.syntax.either._
 import cats.syntax.traverse._
 import common.Checked
+import common.validation.Validation.OptionValidation
 import common.validation.ErrorOr._
 import shapeless._
 import shapeless.syntax.singleton._
@@ -92,15 +93,19 @@ case class Workflow private(
 
           val womType = cwlTypeToWdlType(output.`type`.flatMap(_.select[CwlType]).get)
 
-          def lookupOutputSource(outputId: FileStepAndId): Checked[OutputPort] =
+          def lookupOutputSource(outputId: FileStepAndId): Checked[OutputPort] = {
+            def isRightOutputPort(op: GraphNodePort.OutputPort) = FullyQualifiedName.maybeApply(op.name) match {
+              case Some(fqn) => fqn.id == outputId.id
+              case None => op.name == outputId.id
+            }
+
             for {
               set <- graphFromSteps
               call <- set.collectFirst { case callNode: CallNode if callNode.localName == outputId.stepId => callNode }.
                 toRight(NonEmptyList.one(s"Call Node by name ${outputId.stepId} was not found in set $set"))
-              output <- call.outputPorts.find(_.name == outputId.id).
-                          toRight(NonEmptyList.one(s"looking for ${outputId.id} in call $call output ports ${call.outputPorts}"))
+              output <- call.outputPorts.find(isRightOutputPort).toChecked(s"looking for ${outputId.id} in call $call output ports ${call.outputPorts}")
             } yield output
-
+          }
           lookupOutputSource(FileStepAndId(output.outputSource.flatMap(_.select[String]).get)).
             map(PortBasedGraphOutputNode(WomIdentifier(output.id), womType, _)).toValidated
       }.map(_.toSet).toEither

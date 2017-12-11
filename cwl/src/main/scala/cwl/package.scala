@@ -27,11 +27,12 @@ import wom.types._
  */
 package object cwl extends TypeAliases {
 
-  type Cwl = Workflow :+: CommandLineTool :+: CNil
+  type Cwl = Workflow :+: CommandLineTool :+: ExpressionTool :+: CNil
 
   object Cwl {
     object Workflow { def unapply(cwl: Cwl): Option[Workflow] = cwl.select[Workflow] }
     object CommandLineTool { def unapply(cwl: Cwl): Option[CommandLineTool] = cwl.select[CommandLineTool] }
+    object ExpressionTool { def unapply(cwl: Cwl): Option[ExpressionTool] = cwl.select[ExpressionTool] }
   }
 
   def cwlTypeToWdlType : CwlType => WomType = {

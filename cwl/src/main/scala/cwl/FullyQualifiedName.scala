@@ -37,18 +37,19 @@ object FileStepAndId {
 case class FileStepUUID(fileName: String, id: String, uuid: String, stepId: String) extends FullyQualifiedName
 
 object FullyQualifiedName {
-  def apply(in: String): FullyQualifiedName = {
+  def apply(in: String): FullyQualifiedName = maybeApply(in).getOrElse(throw new Exception(s"malformed FQN: $in"))
 
-     in.split("#") match {
-       case Array(file, after) =>
-        (after.split("/").toList) match {
-          case step :: uuid :: id :: Nil => FileStepUUID(file, id, uuid, step)
-          case step :: id :: Nil => FileStepAndId(file, step, id)
-          case id :: Nil => FileAndId(file, id)
-          case _ => throw new RuntimeException(s"malformed FQN: $in")
+  def maybeApply(in: String): Option[FullyQualifiedName] = {
+
+    in.split("#") match {
+      case Array(file, after) =>
+        after.split("/").toList match {
+          case step :: uuid :: id :: Nil => Option(FileStepUUID(file, id, uuid, step))
+          case step :: id :: Nil => Option(FileStepAndId(file, step, id))
+          case id :: Nil => Option(FileAndId(file, id))
+          case _ => None
         }
-       case _ => throw new RuntimeException(s"malformed FQN: $in")
-     }
-
+      case _ => None
+    }
   }
 }

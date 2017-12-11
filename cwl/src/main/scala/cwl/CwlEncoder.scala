@@ -6,4 +6,6 @@ object CwlEncoder extends Poly1 {
   implicit def workflow = at[Workflow]{ CwlCodecs.encodeCwlWorkflow }
 
   implicit def commandLineTool = at[CommandLineTool]{ CwlCodecs.encodeCwlCommandLineTool }
+
+  implicit def expressionTool = at[ExpressionTool]{ CwlCodecs.encodeCwlExpressionTool }
 }

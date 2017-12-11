@@ -12,21 +12,30 @@ import shapeless.Coproduct
 import cats.syntax.either._
 import cats.syntax.show._
 
+import cats.syntax.either._
 
 object CwlCodecs {
   import Implicits._
 
   def decodeCwl(cwlWorkflow: String): Either[NonEmptyList[String], Cwl] = {
     //try to parse both and combine errors if they fail
-    (decode[Workflow](cwlWorkflow), decode[CommandLineTool](cwlWorkflow)) match {
-      case (Right(wf), _) => Coproduct[Cwl](wf).asRight
-      case (_, Right(clt)) => Coproduct[Cwl](clt).asRight
-      case (Left(wfError), Left(cltError)) =>
+    (decode[Workflow](cwlWorkflow), decode[CommandLineTool](cwlWorkflow), decode[ExpressionTool](cwlWorkflow)) match {
+      case (Right(wf), _, _) => Coproduct[Cwl](wf).asRight
+      case (_, Right(clt), _) => Coproduct[Cwl](clt).asRight
+      case (_, _, Right(et)) => Coproduct[Cwl](et).asRight
+      case (Left(wfError), Left(cltError), Left(etError)) =>
         NonEmptyList.of(
           s"Workflow parsing error: ${wfError.show}",
-          s"Command Line Tool parsing error: ${cltError.show}"
+          s"Command Line Tool parsing error: ${cltError.show}",
+          s"Expression Tool parsing error: ${etError.show}"
         ).asLeft
     }
+  }
+
+  def encodeCwlExpressionTool(expressionTool: ExpressionTool): Json = {
+    import io.circe.syntax._
+    import cwl.Implicits.enumerationEncoder
+    expressionTool.asJson
   }
 
   def encodeCwlCommandLineTool(commandLineTool: CommandLineTool): Json = {

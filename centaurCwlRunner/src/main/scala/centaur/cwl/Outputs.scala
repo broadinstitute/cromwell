@@ -110,4 +110,8 @@ object CwlOutputsFold extends Poly1 {
   implicit def clt: Case.Aux[cwl.CommandLineTool, Map[String, MyriadOutputType]] = at[cwl.CommandLineTool] {
     _.outputs.map(output => output.id -> output.`type`.get).toMap
   }
+
+  implicit def et: Case.Aux[cwl.ExpressionTool, Map[String, MyriadOutputType]] = at[cwl.ExpressionTool] {
+    _.outputs.map(output => output.id -> output.`type`).toMap
+  }
 }

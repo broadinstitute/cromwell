@@ -194,6 +194,16 @@ object ScatterLogic {
 
     // We need to generate PBGONs for every output port of the call, so that they can be linked outside the scatter graph
     val portBasedGraphOutputNodes = callNode.outputPorts.map(op => PortBasedGraphOutputNode(op.identifier, op.womType, op))
+    
+    def buildScatterNode(innerGraph: Graph, scatterProcessingFunction: ScatterProcessingFunction, scatterCollectingFunctionBuilder: ScatterCollectionFunctionBuilder) = {
+      val scatterNodeBuilder = new ScatterNodeBuilder
+      val outputPorts: Set[ScatterGathererPort] = innerGraph.nodes.collect { case gon: PortBasedGraphOutputNode =>
+        scatterNodeBuilder.makeOutputPort(scatterGatherPortTypeFunction(gon.womType), gon)
+      }
+
+      val scatterNodeWithNewNodes = scatterNodeBuilder.build(innerGraph, outputPorts, scatterVariables.toList, scatterProcessingFunction, scatterCollectingFunctionBuilder)
+      knownNodes ++ scatterNodeWithNewNodes.nodes ++ stepInputFold.generatedNodes
+    }
 
     // TODO POST 2.11 Could be forcomped in 2.12 but not in 2.11 because of the Checked
     scatterProcessingFunctionCheck match {
@@ -203,16 +213,9 @@ object ScatterLogic {
           callNodeAndNewNodes.usedOuterGraphInputNodes ++ 
           scatterVariables.toList ++ 
           portBasedGraphOutputNodes
-        ).map({ innerGraph =>
-          // Build the ScatterNode
-          val scatterNodeBuilder = new ScatterNodeBuilder
-          val outputPorts: Set[ScatterGathererPort] = innerGraph.nodes.collect { case gon: PortBasedGraphOutputNode =>
-            scatterNodeBuilder.makeOutputPort(scatterGatherPortTypeFunction(gon.womType), gon)
-          }
-
-          val scatterNodeWithNewNodes = scatterNodeBuilder.build(innerGraph, outputPorts, scatterVariables.toList, scatterProcessingFunction, scatterCollectingFunctionBuilder)
-          knownNodes ++ scatterNodeWithNewNodes.nodes ++ stepInputFold.generatedNodes
-        }).toEither
+        ).map(
+          buildScatterNode(_, scatterProcessingFunction, scatterCollectingFunctionBuilder)
+        ).toEither
       case Left(errors) => Left(errors)
     }
   }

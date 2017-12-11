@@ -1,6 +1,7 @@
 package wom.expression
 
-import cats.data.Validated.Valid
+import cats.data.Validated._
+import cats.syntax.option._
 import common.validation.ErrorOr.ErrorOr
 import wom.types.WomType
 import wom.values._
@@ -35,4 +36,22 @@ trait IoFunctionSet {
   def stderr(params: Seq[Try[WomValue]]): Try[WomFile]
   def glob(pattern: String): Seq[String]
   def size(params: Seq[Try[WomValue]]): Try[WomFloat]
+}
+
+/**
+  * Simply looks up the id in the inputs map.
+  */
+case class InputLookupExpression(tpe: WomType, id: String) extends WomExpression {
+
+  override def sourceString: String = id
+
+  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] =
+    inputValues.get(id).toValidNel(s"could not find $id in $inputValues!")
+
+  override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = validNel(tpe)
+
+  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
+    validNel(Set.empty)
+
+  override def inputs: Set[String] = Set(id)
 }

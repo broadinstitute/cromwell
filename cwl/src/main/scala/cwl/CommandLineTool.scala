@@ -3,17 +3,17 @@ package cwl
 import java.nio.file.Paths
 
 import common.Checked
+import cwl.CommandLineTool._
+import cwl.CwlType.CwlType
+import cwl.CwlVersion._
+import eu.timepit.refined.W
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil, Coproduct, Witness}
-import CommandLineTool._
-import CwlType.CwlType
-import CwlVersion._
-import eu.timepit.refined.W
 import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, CallableTaskDefinition, ExecutableTaskDefinition}
 import wom.executable.Executable
-import wom.expression.{ValueAsAnExpression, WomExpression}
-import wom.types.WomFileType
+import wom.expression.{InputLookupExpression, ValueAsAnExpression, WomExpression}
+import wom.types.WomType
 import wom.{CommandPart, RuntimeAttributes}
 
 import scala.util.Try
@@ -22,23 +22,23 @@ import scala.util.Try
   * @param `class` This _should_ always be "CommandLineTool," however the spec does not -er- specify this.
   */
 case class CommandLineTool private(
-                                   inputs: Array[CommandInputParameter],
-                                   outputs: Array[CommandOutputParameter],
-                                   `class`: Witness.`"CommandLineTool"`.T,
-                                   id: String,
-                                   requirements: Option[Array[Requirement]],
-                                   hints: Option[Array[CwlAny]],
-                                   label: Option[String],
-                                   doc: Option[String],
-                                   cwlVersion: Option[CwlVersion],
-                                   baseCommand: Option[BaseCommand],
-                                   arguments: Option[Array[CommandLineTool.Argument]],
-                                   stdin: Option[StringOrExpression],
-                                   stderr: Option[StringOrExpression],
-                                   stdout: Option[StringOrExpression],
-                                   successCodes: Option[Array[Int]],
-                                   temporaryFailCodes: Option[Array[Int]],
-                                   permanentFailCodes: Option[Array[Int]]) {
+                                    inputs: Array[CommandInputParameter],
+                                    outputs: Array[CommandOutputParameter],
+                                    `class`: Witness.`"CommandLineTool"`.T,
+                                    id: String,
+                                    requirements: Option[Array[Requirement]],
+                                    hints: Option[Array[CwlAny]],
+                                    label: Option[String],
+                                    doc: Option[String],
+                                    cwlVersion: Option[CwlVersion],
+                                    baseCommand: Option[BaseCommand],
+                                    arguments: Option[Array[CommandLineTool.Argument]],
+                                    stdin: Option[StringOrExpression],
+                                    stderr: Option[StringOrExpression],
+                                    stdout: Option[StringOrExpression],
+                                    successCodes: Option[Array[Int]],
+                                    temporaryFailCodes: Option[Array[Int]],
+                                    permanentFailCodes: Option[Array[Int]]) {
 
   def womExecutable(inputFile: Option[String] = None): Checked[Executable] =
     CwlExecutableValidation.buildWomExecutable(ExecutableTaskDefinition.tryApply(taskDefinition).toEither, inputFile)
@@ -72,21 +72,29 @@ case class CommandLineTool private(
     val inputNames = this.inputs.map(i => FullyQualifiedName(i.id).id).toSet
 
     val outputs: List[Callable.OutputDefinition] = this.outputs.map {
-      case CommandOutputParameter(cop_id, _, _, _, _, _, Some(outputBinding), Some(outputType)) if outputType.select[CwlType].contains(CwlType.File) =>
-        OutputDefinition(FullyQualifiedName(cop_id).id, WomFileType, CommandOutputExpression(outputBinding, WomFileType, inputNames))
       case CommandOutputParameter(cop_id, _, _, _, _, _, Some(outputBinding), Some(tpe)) =>
-        val womType = tpe.select[CwlType].map(cwlTypeToWdlType).get //<-- here be `get` dragons
+        val womType = tpe.fold(MyriadOutputTypeToWomType)
         OutputDefinition(FullyQualifiedName(cop_id).id, womType, CommandOutputExpression(outputBinding, womType, inputNames))
+
+      //This catches states where the output binding is not declared but the type is
+      case CommandOutputParameter(id, _, _, _, _, _, _, Some(tpe)) =>
+        val womType: WomType = tpe.fold(MyriadOutputTypeToWomType)
+        OutputDefinition(FullyQualifiedName(id).id, womType, InputLookupExpression(womType, id))
+
+      case other => throw new NotImplementedError(s"Command output parameters such as $other are not yet supported")
     }.toList
 
     val inputDefinitions: List[_ <: Callable.InputDefinition] =
-      this.inputs.map { cip =>
-        val inputType = cwlTypeToWdlType(cip.`type`.flatMap(_.select[CwlType]).get) // TODO: .get
-        val inputName = FullyQualifiedName(cip.id).id
-        cip.default match {
-          case Some(d) => InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(inputType.coerceRawValue(d.toString).get))
-          case None => RequiredInputDefinition(inputName, inputType)
-        }
+      this.inputs.map {
+        case CommandInputParameter(id, _, _, _, _, _, _, Some(default), Some(tpe)) =>
+          val inputType = tpe.fold(MyriadInputTypeToWomType)
+          val inputName = FullyQualifiedName(id).id
+          InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(inputType.coerceRawValue(default.toString).get))
+        case CommandInputParameter(id, _, _, _, _, _, _, None, Some(tpe)) =>
+          val inputType = tpe.fold(MyriadInputTypeToWomType)
+          val inputName = FullyQualifiedName(id).id
+          RequiredInputDefinition(inputName, inputType)
+        case other => throw new NotImplementedError(s"command input paramters such as $other are not yet supported")
       }.toList
 
     def stringOrExpressionToString(soe: Option[StringOrExpression]): Option[String] = soe flatMap {
@@ -126,7 +134,7 @@ object CommandLineTool {
     *
     * If an input binding is not specified, ignore the input parameter.
     */
-  protected[cwl] def orderedForCommandLine(inputs: Array[CommandInputParameter]):Seq[CommandInputParameter] = {
+  protected[cwl] def orderedForCommandLine(inputs: Array[CommandInputParameter]): Seq[CommandInputParameter] = {
     inputs.
       filter(_.inputBinding.isDefined).
       sortBy(_.inputBinding.flatMap(_.position).getOrElse(0)).
@@ -148,8 +156,8 @@ object CommandLineTool {
             stdout: Option[StringOrExpression] = None,
             successCodes: Option[Array[Int]] = None,
             temporaryFailCodes: Option[Array[Int]] = None,
-            permanentFailCodes: Option[Array[Int]] = None): CommandLineTool  =
-              CommandLineTool(inputs, outputs, "CommandLineTool".narrow, id, requirements, hints, label, doc, cwlVersion, baseCommand, arguments, stdin, stderr, stdout, successCodes, temporaryFailCodes, permanentFailCodes)
+            permanentFailCodes: Option[Array[Int]] = None): CommandLineTool =
+    CommandLineTool(inputs, outputs, "CommandLineTool".narrow, id, requirements, hints, label, doc, cwlVersion, baseCommand, arguments, stdin, stderr, stdout, successCodes, temporaryFailCodes, permanentFailCodes)
 
   type BaseCommand = String :+: Array[String] :+: CNil
 
@@ -213,7 +221,6 @@ object CommandLineTool {
                                      doc: Option[String :+: Array[String] :+: CNil] = None,
                                      outputBinding: Option[CommandOutputBinding] = None,
                                      `type`: Option[MyriadOutputType] = None)
-
 
 
 }

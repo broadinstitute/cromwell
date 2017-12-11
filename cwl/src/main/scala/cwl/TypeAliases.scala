@@ -48,35 +48,29 @@ trait TypeAliases {
       CNil
 
   type MyriadInputType =
+      MyriadInputInnerType :+:
+      Array[MyriadInputInnerType] :+:
+      CNil
+
+  type MyriadInputInnerType =
     CwlType :+:
       InputRecordSchema :+:
       InputEnumSchema :+:
       InputArraySchema :+:
       String :+:
-      Array[
-        CwlType :+:
-          InputRecordSchema :+:
-          InputEnumSchema :+:
-          InputArraySchema :+:
-          String :+:
-          CNil
-        ] :+:
       CNil
 
   type MyriadOutputType =
+      MyriadOutputInnerType :+:
+      Array[MyriadOutputInnerType] :+:
+      CNil
+
+  type MyriadOutputInnerType =
     CwlType :+:
       OutputRecordSchema :+:
       OutputEnumSchema :+:
       OutputArraySchema :+:
       String :+:
-      Array[
-        CwlType :+:
-          OutputRecordSchema :+:
-          OutputEnumSchema :+:
-          OutputArraySchema :+:
-          String :+:
-          CNil
-        ] :+:
       CNil
 
   type MyriadCommandInputType =
@@ -99,13 +93,13 @@ trait TypeAliases {
 object MyriadInputType {
   object CwlType {
     def unapply(m: MyriadInputType): Option[CwlType] = {
-      m.select[CwlType]
+      m.select[MyriadInputInnerType].flatMap(_.select[CwlType])
     }
   }
 
   object WomType {
     def unapply(m: MyriadInputType): Option[WomType] = m match {
-      case CwlType(c) => Option(cwl.cwlTypeToWdlType(c))
+      case CwlType(c) => Option(cwl.cwlTypeToWomType(c))
       case _ => None
     }
   }

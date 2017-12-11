@@ -1,7 +1,6 @@
 package cwl
 
 import shapeless.Poly1
-import cwl.CwlType.CwlType
 import wom.types.WomType
 
 object RunOutputsToTypeMap extends Poly1 {
@@ -12,8 +11,7 @@ object RunOutputsToTypeMap extends Poly1 {
         acc ++
           out.
             `type`.
-            flatMap(_.select[CwlType]).
-            map(cwlTypeToWdlType).
+            map(_.fold(MyriadOutputTypeToWomType)).
             map(out.id -> _).
             toList.
             toMap

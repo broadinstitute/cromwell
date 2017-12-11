@@ -11,7 +11,6 @@ import common.validation.Validation.OptionValidation
 import common.validation.ErrorOr._
 import shapeless._
 import shapeless.syntax.singleton._
-import CwlType.CwlType
 import CwlVersion._
 import wom.callable.WorkflowDefinition
 import wom.executable.Executable
@@ -35,7 +34,7 @@ case class Workflow private(
 
   val fileNames: List[String] = steps.toList.flatMap(_.run.select[String].toList)
 
-  def outputsTypeMap: WdlTypeMap = steps.foldLeft(Map.empty[String, WomType]) {
+  def outputsTypeMap: WomTypeMap = steps.foldLeft(Map.empty[String, WomType]) {
     // Not implemented as a `foldMap` because there is no semigroup instance for `WomType`s.  `foldMap` doesn't know that
     // we don't need a semigroup instance since the map keys should be unique and therefore map values would never need
     // to be combined under the same key.
@@ -46,25 +45,23 @@ case class Workflow private(
 
   def womGraph: Checked[Graph] = {
 
-    def cwlTypeForInputParameter(input: InputParameter): Option[CwlType] = input.`type`.flatMap(_.select[CwlType])
-
-    def wdlTypeForInputParameter(input: InputParameter): Option[WomType] = {
-      cwlTypeForInputParameter(input) map cwlTypeToWdlType
+    def womTypeForInputParameter(input: InputParameter): Option[WomType] = {
+      input.`type`.map(_.fold(MyriadInputTypeToWomType))
     }
 
-    val typeMap: WdlTypeMap =
+    val typeMap: WomTypeMap =
       outputsTypeMap ++
         // Note this is only looking at the workflow inputs and not recursing into steps, because our current thinking
         // is that in CWL graph inputs can only be defined at the workflow level.  It's possible that's not actually
         // correct, but that's the assumption being made here.
         inputs.toList.flatMap { i =>
-          wdlTypeForInputParameter(i).map(i.id -> _).toList
+          womTypeForInputParameter(i).map(i.id -> _).toList
         }.toMap
 
     val graphFromInputs: Set[ExternalGraphInputNode] = inputs.map {
       case inputParameter if inputParameter.default.isDefined =>
         val parsedInputId = FileAndId(inputParameter.id).id
-        val womType = wdlTypeForInputParameter(inputParameter).get
+        val womType = womTypeForInputParameter(inputParameter).get
 
         // TODO: Eurgh! But until we have something better ...
         val womValue = womType.coerceRawValue(inputParameter.default.get).get
@@ -72,7 +69,7 @@ case class Workflow private(
       case input =>
         val parsedInputId = FileAndId(input.id).id
 
-        RequiredGraphInputNode(WomIdentifier(parsedInputId, input.id), wdlTypeForInputParameter(input).get, parsedInputId)
+        RequiredGraphInputNode(WomIdentifier(parsedInputId, input.id), womTypeForInputParameter(input).get, parsedInputId)
     }.toSet
 
     val workflowInputs: Map[String, GraphNodeOutputPort] =
@@ -89,9 +86,8 @@ case class Workflow private(
 
     val graphFromOutputs: Checked[Set[GraphNode]] =
       outputs.toList.traverse[ErrorOr, GraphNode] {
-        output =>
-
-          val womType = cwlTypeToWdlType(output.`type`.flatMap(_.select[CwlType]).get)
+        case WorkflowOutputParameter(id, _, _, _, _, _, _, Some(Inl(outputSource: String)), _, Some(tpe)) =>
+          val womType:WomType = tpe.fold(MyriadOutputTypeToWomType)
 
           def lookupOutputSource(outputId: FileStepAndId): Checked[OutputPort] = {
             def isRightOutputPort(op: GraphNodePort.OutputPort) = FullyQualifiedName.maybeApply(op.name) match {
@@ -106,8 +102,10 @@ case class Workflow private(
               output <- call.outputPorts.find(isRightOutputPort).toChecked(s"looking for ${outputId.id} in call $call output ports ${call.outputPorts}")
             } yield output
           }
-          lookupOutputSource(FileStepAndId(output.outputSource.flatMap(_.select[String]).get)).
-            map(PortBasedGraphOutputNode(WomIdentifier(output.id), womType, _)).toValidated
+
+          lookupOutputSource(FileStepAndId(outputSource)).
+            map(PortBasedGraphOutputNode(WomIdentifier(id), womType, _)).toValidated
+        case wop => throw new NotImplementedError(s"Workflow output parameters such as $wop are not supported.")
       }.map(_.toSet).toEither
 
     for {

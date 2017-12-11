@@ -43,7 +43,7 @@ case class WorkflowStep(
                          scatterMethod: Option[ScatterMethod] = None) {
 
 
-  def typedOutputs: WdlTypeMap = run.fold(RunOutputsToTypeMap)
+  def typedOutputs: WomTypeMap = run.fold(RunOutputsToTypeMap)
 
   def fileName: Option[String] = run.select[String]
 
@@ -54,7 +54,7 @@ case class WorkflowStep(
     * Recursive because dependencies are discovered as we iterate through inputs and corresponding
     * upstream nodes need to be generated on the fly.
     */
-  def callWithInputs(typeMap: WdlTypeMap,
+  def callWithInputs(typeMap: WomTypeMap,
                      workflow: Workflow,
                      knownNodes: Set[GraphNode],
                      workflowInputs: Map[String, GraphNodeOutputPort]): Checked[Set[GraphNode]] = {

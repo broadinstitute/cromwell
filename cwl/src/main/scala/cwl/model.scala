@@ -101,9 +101,9 @@ case class InputEnumSchema(
 
 case class InputArraySchema(
   items: MyriadInputType,
-  `type`: W.`"array"`.T,
-  label: Option[String],
-  inputBinding: Option[CommandLineBinding])
+  `type`: W.`"array"`.T = Witness("array").value,
+  label: Option[String] = None,
+  inputBinding: Option[CommandLineBinding] = None)
 
 case class CommandLineBinding(
                                loadContents: Option[Boolean] = None,
@@ -163,9 +163,9 @@ case class OutputEnumSchema(
 
 case class OutputArraySchema(
   items: MyriadOutputType,
-  `type`: W.`"array"`.T,
-  label: Option[String],
-  outputBinding: Option[CommandOutputBinding])
+  `type`: W.`"array"`.T = Witness("array").value,
+  label: Option[String] = None,
+  outputBinding: Option[CommandOutputBinding] = None)
 
 
 case class InlineJavascriptRequirement(

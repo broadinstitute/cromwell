@@ -35,7 +35,7 @@ package object cwl extends TypeAliases {
     object ExpressionTool { def unapply(cwl: Cwl): Option[ExpressionTool] = cwl.select[ExpressionTool] }
   }
 
-  def cwlTypeToWdlType : CwlType => WomType = {
+  def cwlTypeToWomType : CwlType => WomType = {
     case Null => WomNothingType
     case Boolean => WomBooleanType
     case Int => WomIntegerType
@@ -80,7 +80,7 @@ package object cwl extends TypeAliases {
     }
   }
 
-  type WdlTypeMap = Map[String, WomType]
+  type WomTypeMap = Map[String, WomType]
 
   implicit class CwlHelper(val cwl: Cwl) extends AnyVal {
     def womExecutable(inputsFile: Option[String] = None): Checked[Executable] = cwl match {

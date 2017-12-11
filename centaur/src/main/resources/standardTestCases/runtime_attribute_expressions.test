@@ -4,3 +4,7 @@ testFormat: workflowsuccess
 files {
   wdl: runtime_attribute_expressions/runtime_attribute_expressions.wdl
 }
+
+metadata {
+  "outputs.runtime_attribute_expressions.out": "Hello World"
+}

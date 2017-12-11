@@ -51,7 +51,10 @@ case class InputLookupExpression(tpe: WomType, id: String) extends WomExpression
   override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = validNel(tpe)
 
   override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
-    validNel(Set.empty)
+    evaluateValue(inputTypes, ioFunctionSet).map{
+      case x: WomFile => Set(x)
+      case _ => Set.empty
+    }
 
   override def inputs: Set[String] = Set(id)
 }

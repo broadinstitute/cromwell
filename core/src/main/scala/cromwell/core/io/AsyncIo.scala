@@ -57,6 +57,12 @@ trait AsyncIo extends IoClientHelper { this: Actor with ActorLogging with IoComm
     sendIoCommandWithPromise(deleteCommand(path, swallowIoExceptions), promise)
     promise.future
   }
+  
+  def existsAsync(path: Path): Future[Boolean] = {
+    val promise = Promise[Boolean]
+    sendIoCommandWithPromise(existsCommand(path), promise)
+    promise.future
+  }
 
   def copyAsync(src: Path, dest: Path, overwrite: Boolean = true): Future[Unit] = {
     val promise = Promise[Unit]

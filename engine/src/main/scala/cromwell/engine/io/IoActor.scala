@@ -133,7 +133,7 @@ trait IoCommandContext[T] extends StreamContext {
 
 object IoActor {
   import net.ceedubs.ficus.Ficus._
-  
+
   /** Flow that can consume an IoCommandContext and produce an IoResult */
   type IoFlow = Flow[IoCommandContext[_], IoResult, NotUsed]
   
@@ -170,12 +170,19 @@ object IoActor {
     503
   )
   
+  val AdditionalRetryableErrorMessages = List(
+    "Connection closed prematurely"
+  )
+  
   /**
     * Failures that are considered retryable.
     * Retrying them should increase the "retry counter"
     */
   def isRetryable(failure: Throwable): Boolean = failure match {
-    case gcs: StorageException => gcs.isRetryable || AdditionalRetryableHttpCodes.contains(gcs.getCode) || isRetryable(gcs.getCause)
+    case gcs: StorageException => gcs.isRetryable || 
+      AdditionalRetryableHttpCodes.contains(gcs.getCode) || 
+      isRetryable(gcs.getCause) ||
+      AdditionalRetryableErrorMessages.exists(_.contains(gcs.getMessage))
     case _: SSLException => true
     case _: BatchFailedException => true
     case _: SocketException => true

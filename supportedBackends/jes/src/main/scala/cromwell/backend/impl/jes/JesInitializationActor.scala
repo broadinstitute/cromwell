@@ -1,20 +1,18 @@
 package cromwell.backend.impl.jes
 
 import java.io.IOException
-import java.nio.file.StandardOpenOption
 
 import akka.actor.ActorRef
-import akka.http.scaladsl.model.StatusCodes
 import com.google.api.services.genomics.Genomics
 import com.google.auth.Credentials
-import com.google.cloud.storage.StorageException
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
+import cromwell.backend.impl.jes.JesInitializationActor.AuthFileAlreadyExistsException
 import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthObject, JesDockerCredentials}
 import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
 import cromwell.cloudsupport.gcp.auth.{ClientSecrets, GoogleAuthMode}
-import cromwell.core.CromwellFatalException
 import cromwell.core.io.AsyncIo
+import cromwell.core.path.Path
 import cromwell.filesystems.gcs.GoogleUtil._
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import spray.json.{JsObject, JsTrue}
@@ -32,6 +30,11 @@ case class JesInitializationActorParams
   restarting: Boolean
 ) extends StandardInitializationActorParams {
   override val configurationDescriptor: BackendConfigurationDescriptor = jesConfiguration.configurationDescriptor
+}
+
+object JesInitializationActor {
+  private case class AuthFileAlreadyExistsException(path: Path) extends IOException(s"Failed to upload authentication file at $path:" +
+    s" there was already a file at the same location and this workflow was not being restarted.")
 }
 
 class JesInitializationActor(jesParams: JesInitializationActorParams)
@@ -81,18 +84,18 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
   } yield JesBackendInitializationData(jesWorkflowPaths, runtimeAttributesBuilder, jesConfiguration, gcsCreds, genomicsFactory)
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
-    def fileUpload(paths: JesWorkflowPaths): Future[Unit] = {
-      writeAuthenticationFile(paths, jesConfiguration.jesAttributes.restrictMetadataAccess, jesConfiguration.dockerCredentials) recoverWith {
-        case CromwellFatalException(e: StorageException) if e.getCode == StatusCodes.PreconditionFailed.intValue && jesParams.restarting =>
-          workflowLogger.debug(s"Authentication file already exists but this is a restart, proceeding.")
-          Future.successful(())
-        case CromwellFatalException(e: StorageException) if e.getCode == StatusCodes.PreconditionFailed.intValue =>
-            Future.failed(new IOException(s"Failed to upload authentication file:" +
-              s" there was already a file at the same location and this workflow was not being restarted: ${e.getMessage}"))
-        case failure => Future.failed(new IOException(s"Failed to upload authentication file", failure))
-      }
+    def fileUpload(paths: JesWorkflowPaths) = existsAsync(paths.gcsAuthFilePath) flatMap {
+      // if it is then something is definitely wrong
+      case true if !jesParams.restarting =>
+        workflowLogger.debug(s"Authentication file already exists but this is a restart, proceeding.")
+        Future.failed(AuthFileAlreadyExistsException(paths.gcsAuthFilePath))
+      case true if jesParams.restarting => Future.successful(())
+      case false =>
+        writeAuthenticationFile(paths, jesConfiguration.jesAttributes.restrictMetadataAccess, jesConfiguration.dockerCredentials) recoverWith {
+          case failure => Future.failed(new IOException(s"Failed to upload authentication file", failure))
+        }
     }
-
+    
     for {
       paths <- workflowPaths
       _ = publishWorkflowRoot(paths.workflowRoot.pathAsString)
@@ -108,12 +111,7 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
     generateAuthJson(authObjects, restrictMetadataAccess) map { content =>
       val path = workflowPath.gcsAuthFilePath
       workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n $path")
-      val openOptions = Seq(
-        CloudStorageOptions.withMimeType("application/json"),
-        // Will fail if the file already exists - 
-        // In case of a restart this avoids rewriting the file as the JES job might be trying to localize it at the same time 
-        StandardOpenOption.CREATE_NEW
-      )
+      val openOptions = List(CloudStorageOptions.withMimeType("application/json"))
       writeAsync(path, content, openOptions)
     } getOrElse Future.successful(())
   }

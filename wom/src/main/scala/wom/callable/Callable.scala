@@ -53,9 +53,7 @@ object Callable {
   final case class InputDefinitionWithDefault(localName: LocalName, womType: WomType, default: WomExpression) extends InputDefinition
 
   object OptionalInputDefinition {
-    def apply(name: String, womType: WomOptionalType): OptionalInputDefinition = {
-      OptionalInputDefinition(LocalName(name), womType)
-    }
+    def apply(name: String, womType: WomOptionalType): OptionalInputDefinition = OptionalInputDefinition(LocalName(name), womType)
   }
   final case class OptionalInputDefinition(localName: LocalName, womType: WomOptionalType) extends InputDefinition
 

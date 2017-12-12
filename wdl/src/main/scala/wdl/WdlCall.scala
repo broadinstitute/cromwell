@@ -205,13 +205,13 @@ sealed abstract class WdlCall(val alias: Option[String],
   override def children: Seq[Scope] = super.children ++ outputs
 
   /**
-    * Returns a Seq[WorkflowInput] representing the inputs to the call that are
+    * Returns a Seq[InputDefinition] representing the inputs to the call that are
     * needed before its command can be constructed. This excludes inputs that
     * are satisfied via the 'input' section of the Call definition.
+    *
+    * NB Only used in tests, womtool and some external tools (eg FC's workflow input enumerator)
     */
-  def unsatisfiedInputs: Seq[InputDefinition] = for {
-    i <- declarations if !inputMappings.contains(i.unqualifiedName) && i.expression.isEmpty && !i.womType.isInstanceOf[WomOptionalType]
-  } yield RequiredInputDefinition(i.fullyQualifiedName, i.womType)
+  def workflowInputs: Seq[InputDefinition] = declarations.filterNot(i => inputMappings.contains(i.unqualifiedName)).flatMap(_.asWorkflowInput)
 
   override def toString: String = s"[Call $fullyQualifiedName]"
 

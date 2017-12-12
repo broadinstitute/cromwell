@@ -80,7 +80,7 @@ case class WdlWorkflow(unqualifiedName: String,
     (children.toSet.filterByType[WdlGraphNode]: Set[WdlGraphNode]) ++ outputs
   }
 
-  def unsatisfiedCallInputs: Set[InputDefinition] = calls.flatMap(_.unsatisfiedInputs)
+  def unsatisfiedCallInputs: Set[InputDefinition] = calls.flatMap(_.workflowInputs)
 
   /**
    * FQNs for all inputs to this workflow and their associated types and possible postfix quantifiers.

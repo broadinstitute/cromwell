@@ -15,7 +15,11 @@ import cats.syntax.show._
 import cats.syntax.either._
 
 object CwlCodecs {
-  import Implicits._
+
+  implicit val cwlTypeDecoder = Decoder.enumDecoder(CwlType)
+  implicit val cwlVersionDecoder = Decoder.enumDecoder(CwlVersion)
+  implicit val scatterMethodDecoder = Decoder.enumDecoder(ScatterMethod)
+  implicit val linkMergeMethodDecoder = Decoder.enumDecoder(LinkMergeMethod)
 
   def decodeCwl(cwlWorkflow: String): Either[NonEmptyList[String], Cwl] = {
     //try to parse both and combine errors if they fail
@@ -31,28 +35,4 @@ object CwlCodecs {
         ).asLeft
     }
   }
-
-  def encodeCwlExpressionTool(expressionTool: ExpressionTool): Json = {
-    import io.circe.syntax._
-    import cwl.Implicits.enumerationEncoder
-    expressionTool.asJson
-  }
-
-  def encodeCwlCommandLineTool(commandLineTool: CommandLineTool): Json = {
-    import io.circe.syntax._
-    import cwl.Implicits.enumerationEncoder
-    commandLineTool.asJson
-  }
-
-  def encodeCwlWorkflow(workflow: Workflow): Json = {
-    import io.circe.syntax._
-    import cwl.Implicits.enumerationEncoder
-    workflow.asJson
-  }
-
-  def encodeCwl(cwl: Cwl): Json = cwl.fold(CwlEncoder)
-
-  val jsonPrettyPrinter = io.circe.Printer.spaces2.copy(dropNullValues = true, preserveOrder = true)
-
-  def cwlToJson(cwl: Cwl): String = jsonPrettyPrinter.pretty(encodeCwl(cwl))
 }

@@ -1,7 +1,5 @@
 package cwl
 
-import java.lang.RuntimeException
-
 import org.scalacheck.Properties
 import org.scalacheck.Prop._
 import shapeless.Coproduct

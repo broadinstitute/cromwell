@@ -7,6 +7,7 @@ import org.scalacheck.Prop._
 import shapeless.Coproduct
 import wom.types.{WomArrayType, WomStringType}
 
+import mouse.`try`._
 import scala.util.Try
 
 class WomTypeConversionSpec extends Properties("CWL -> WOM Conversion"){
@@ -31,9 +32,9 @@ class WomTypeConversionSpec extends Properties("CWL -> WOM Conversion"){
   property("Array of more than one type is not allowed") = secure {
     val y = Coproduct[MyriadInputInnerType](CwlType.String)
     val z = Coproduct[MyriadInputInnerType](CwlType.Boolean)
-    Try(Coproduct[MyriadInputType](Array(y, z)).fold(MyriadInputTypeToWomType)).fold(
-      _.getMessage == "Wom does not provide an array of >1 types",
-      s =>  throw new RuntimeException(s"failure expected but got $s!")
+    Try(Coproduct[MyriadInputType](Array(y, z)).fold(MyriadInputTypeToWomType)).cata(
+      s =>  throw new RuntimeException(s"failure expected but got $s!"),
+      _.getMessage == "Wom does not provide an array of >1 types"
     )
   }
 

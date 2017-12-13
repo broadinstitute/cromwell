@@ -124,9 +124,13 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
     (for {
       arrays <- scatterArraysValuesCheck
       scatterSize <- node.scatterProcessingFunction(arrays)
-      (executionStoreChanges, valueStoreChanges) = buildExecutionChanges(arrays)
+      (scatterVariablesExecutionChanges, valueStoreChanges) = buildExecutionChanges(arrays)
+      executionStoreChanges = populate(
+        scatterSize,
+        node.scatterCollectionFunctionBuilder(arrays.map(_.arrayValue.size))
+      ) ++ scatterVariablesExecutionChanges ++ Map(this -> ExecutionStatus.Done)
     } yield WorkflowExecutionDiff(
-      executionStoreChanges = populate(scatterSize, node.scatterCollectionFunctionBuilder(arrays.map(_.arrayValue.size))) ++ executionStoreChanges ++ Map(this -> ExecutionStatus.Done),
+      executionStoreChanges = executionStoreChanges,
       valueStoreAdditions = valueStoreChanges
     )).toValidated
   }

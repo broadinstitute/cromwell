@@ -19,6 +19,10 @@ lazy val cwl = project
   .dependsOn(wom)
   .dependsOn(wom % "test->test")
 
+lazy val cwlEncoder = project
+  .withLibrarySettings("cromwell-cwl-encoder", crossCompile = true)
+  .dependsOn(cwl)
+
 lazy val core = project
   .withLibrarySettings("cromwell-core", coreDependencies)
   .dependsOn(wom)

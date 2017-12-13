@@ -54,7 +54,8 @@ case class Workflow private(
 
   lazy val stepById: Map[String, WorkflowStep] = steps.map(ws => ws.id -> ws).toMap
 
-  def womGraph(validator: RequirementsValidator): Checked[Graph] = {
+  def womGraph(workflowName: String, validator: RequirementsValidator): Checked[Graph] = {
+    val workflowNameIdentifier = WomIdentifier(workflowName)
 
     def womTypeForInputParameter(input: InputParameter): Option[WomType] = {
       input.`type`.map(_.fold(MyriadInputTypeToWomType))
@@ -100,6 +101,10 @@ case class Workflow private(
         case WorkflowOutputParameter(id, _, _, _, _, _, _, Some(Inl(outputSource: String)), _, Some(tpe)) =>
           val womType:WomType = tpe.fold(MyriadOutputTypeToWomType)
 
+          val parsedWorkflowOutput = FileAndId(id)
+          val parsedOutputSource = FileStepAndId(outputSource)
+
+          // Try to find an output port for this cwl output in the set of available nodes
           def lookupOutputSource(outputId: FileStepAndId): Checked[OutputPort] = {
             def isRightOutputPort(op: GraphNodePort.OutputPort) = FullyQualifiedName.maybeApply(op.name) match {
               case Some(fqn) => fqn.id == outputId.id
@@ -108,14 +113,21 @@ case class Workflow private(
 
             for {
               set <- graphFromSteps
-              call <- set.collectFirst { case callNode: CallNode if callNode.localName == outputId.stepId => callNode }.
+              node <- set.collectFirst({
+                case callNode: CallNode if callNode.localName == outputId.stepId => callNode
+                case scatterNode: ScatterNode if scatterNode.innerGraph.calls.exists(_.localName == outputId.stepId) => scatterNode
+              }).
                 toRight(NonEmptyList.one(s"Call Node by name ${outputId.stepId} was not found in set $set"))
-              output <- call.outputPorts.find(isRightOutputPort).toChecked(s"looking for ${outputId.id} in call $call output ports ${call.outputPorts}")
+              output <- node.outputPorts.find(isRightOutputPort).toChecked(s"looking for ${outputId.id} in call $node output ports ${node.outputPorts}")
             } yield output
           }
 
-          lookupOutputSource(FileStepAndId(outputSource)).
-            map(PortBasedGraphOutputNode(WomIdentifier(id), womType, _)).toValidated
+          lookupOutputSource(parsedOutputSource).map({ port =>
+            val localName = LocalName(parsedWorkflowOutput.id)
+            val fullyQualifiedName = workflowNameIdentifier.fullyQualifiedName.combine(parsedWorkflowOutput.id)
+            val outputIdentifier = WomIdentifier(localName, fullyQualifiedName)
+            PortBasedGraphOutputNode(outputIdentifier, womType, port)
+          }).toValidated
         case wop => throw new NotImplementedError(s"Workflow output parameters such as $wop are not supported.")
       }.map(_.toSet).toEither
 
@@ -133,7 +145,7 @@ case class Workflow private(
     val declarations: List[(String, WomExpression)] = List.empty
     this.parentWorkflow = parentWorkflow
 
-    womGraph(validator).map(graph =>
+    womGraph(name, validator).map(graph =>
       WorkflowDefinition(
         name,
         graph,

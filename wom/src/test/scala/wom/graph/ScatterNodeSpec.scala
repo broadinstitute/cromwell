@@ -55,7 +55,7 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
       .fromInputMapping(WomIdentifier("x"), xsExpression, Map("xs" -> xs_inputNode.singleOutputPort), PlainAnonymousExpressionNode.apply)
       .valueOr(failures => fail(s"Failed to create expression node: ${failures.toList.mkString(", ")}"))
     
-    val x_inputNode = ScatterVariableNode(WomIdentifier("x"), xsExpressionAsInput.singleExpressionOutputPort, WomArrayType(WomIntegerType))
+    val x_inputNode = ScatterVariableNode(WomIdentifier("x"), xsExpressionAsInput, WomArrayType(WomIntegerType))
     val fooNodeBuilder = new CallNodeBuilder()
     val fooInputFold = InputDefinitionFold(
       mappings = List(
@@ -75,7 +75,6 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
 
     val scatterNodeWithInputs = ScatterNode.scatterOverGraph(
       scatterGraph,
-      xsExpressionAsInput,
       x_inputNode
     )
     

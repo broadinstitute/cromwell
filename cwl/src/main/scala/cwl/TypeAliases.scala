@@ -93,6 +93,8 @@ trait TypeAliases {
           CNil
         ] :+:
       CNil
+  
+  type ScatterVariables = Option[String :+: Array[String] :+: CNil]
 }
 
 object MyriadInputType {

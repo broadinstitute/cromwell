@@ -97,7 +97,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
 
           nodes.collect {
             case c: PortBasedGraphOutputNode => c
-          }.map(_.localName) shouldBe Set(s"file://$rootPath/1st-workflow.cwl#classout")
+          }.map(_.localName) shouldBe Set("classout")
         case wth: Any => fail(s"Parsed unexpected Callable: $wth")
       }
     }
@@ -170,7 +170,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
     val patternInputNode = graphInputNodes.head
     patternInputNode.localName should be("pattern")
 
-    nodes collect { case gon: GraphOutputNode => FullyQualifiedName(gon.localName).id } should be(Set(
+    nodes collect { case gon: GraphOutputNode => gon.localName } should be(Set(
       "cgrep-count",
       "wc-count"
     ))

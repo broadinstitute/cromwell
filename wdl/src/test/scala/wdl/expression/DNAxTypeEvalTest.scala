@@ -103,7 +103,7 @@ class DNAxTypeEvalTest extends FlatSpec with Matchers {
 
     val e1 = copy2call.inputMappings("src")
     val t1 = evalType(e1, copy2call)
-    t1 should equal(Success(WomFileType))
+    t1 should equal(Success(WomSingleFileType))
 
     val e2 = copy2call.inputMappings("basename")
     val t2 = evalType(e2, copy2call)

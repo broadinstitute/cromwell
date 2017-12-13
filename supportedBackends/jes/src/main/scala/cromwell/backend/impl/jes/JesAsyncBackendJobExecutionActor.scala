@@ -155,10 +155,12 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     * relativeLocalizationPath("gs://some/bucket/foo.txt") -> "some/bucket/foo.txt"
     */
   private def relativeLocalizationPath(file: WomFile): WomFile = {
-    getPath(file.value) match {
-      case Success(path) => WomFile(path.pathWithoutScheme, file.isGlob)
-      case _ => file
-    }
+    WomFile.mapFile(file, value =>
+      getPath(value) match {
+        case Success(path) => path.pathWithoutScheme
+        case _ => value
+      }
+    )
   }
 
   private[jes] def generateJesInputs(jobDescriptor: BackendJobDescriptor): Set[JesInput] = {
@@ -402,7 +404,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   private[jes] def womFileToGcsPath(jesOutputs: Set[JesFileOutput])(womFile: WomFile): WomFile = {
     jesOutputs collectFirst {
-      case jesOutput if jesOutput.name == makeSafeJesReferenceName(womFile.valueString) => WomFile(jesOutput.gcs)
+      case jesOutput if jesOutput.name == makeSafeJesReferenceName(womFile.valueString) => WomSingleFile(jesOutput.gcs)
     } getOrElse womFile
   }
 
@@ -517,11 +519,11 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
-    getPath(womFile.valueString) match {
-      case Success(gcsPath: GcsPath) =>
-        val localPath = workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString
-        WomFile(localPath, womFile.isGlob)
-      case _ => womFile
-    }
+    WomFile.mapFile(womFile, value =>
+      getPath(value) match {
+        case Success(gcsPath: GcsPath) => workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString
+        case _ => value
+      }
+    )
   }
 }

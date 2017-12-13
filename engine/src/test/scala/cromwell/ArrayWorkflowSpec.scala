@@ -11,7 +11,10 @@ import wom.values._
 class ArrayWorkflowSpec extends CromwellTestKitWordSpec {
   val tmpDir = DefaultPathBuilder.createTempDirectory("ArrayWorkflowSpec")
   val ns = WdlNamespaceWithWorkflow.load(SampleWdl.ArrayLiteral(tmpDir).workflowSource(), Seq.empty[ImportResolver]).get
-  val expectedArray = WomArray(WomArrayType(WomFileType), Seq(WomFile("f1"), WomFile("f2"), WomFile("f3")))
+  val expectedArray = WomArray(
+    WomArrayType(WomSingleFileType),
+    Seq(WomSingleFile("f1"), WomSingleFile("f2"), WomSingleFile("f3"))
+  )
 
   "A static Array[File] declaration" should {
     "be a valid declaration" in {

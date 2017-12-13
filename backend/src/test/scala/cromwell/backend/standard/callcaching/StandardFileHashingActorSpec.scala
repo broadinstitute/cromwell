@@ -9,7 +9,7 @@ import cromwell.core.callcaching.HashingFailedMessage
 import cromwell.core.io.{DefaultIoCommandBuilder, IoHashCommand}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import org.scalatest.{FlatSpecLike, Matchers}
-import wom.values.WomFile
+import wom.values.WomSingleFile
 
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
@@ -27,7 +27,7 @@ class StandardFileHashingActorSpec extends TestKitSuite("StandardFileHashingActo
       override def getPath(str: String): Try[Path] = throw new RuntimeException("I am expected during tests")
     })
     val standardFileHashingActorRef = TestActorRef(props, parentProbe.ref)
-    val request = SingleFileHashRequest(null, null, WomFile("/expected/failure/path"), None)
+    val request = SingleFileHashRequest(null, null, WomSingleFile("/expected/failure/path"), None)
     standardFileHashingActorRef ! request
 
     parentProbe.expectMsgPF(1.seconds) {
@@ -48,7 +48,7 @@ class StandardFileHashingActorSpec extends TestKitSuite("StandardFileHashingActo
       override def hashCommand(file: Path) = throw new RuntimeException("I am expected during tests")
     })
     val standardFileHashingActorRef = TestActorRef(props, parentProbe.ref)
-    val request = SingleFileHashRequest(null, null, WomFile("/expected/failure/path"), None)
+    val request = SingleFileHashRequest(null, null, WomSingleFile("/expected/failure/path"), None)
     standardFileHashingActorRef ! request
 
     parentProbe.expectMsgPF(10.seconds.dilated) {
@@ -70,7 +70,7 @@ class StandardFileHashingActorSpec extends TestKitSuite("StandardFileHashingActo
       override def getPath(str: String): Try[Path] = Try(DefaultPathBuilder.get(str))
     })
     val standardFileHashingActorRef = TestActorRef(props, parentProbe.ref)
-    val request = SingleFileHashRequest(null, null, WomFile("/expected/failure/path"), None)
+    val request = SingleFileHashRequest(null, null, WomSingleFile("/expected/failure/path"), None)
 
     standardFileHashingActorRef ! request
 

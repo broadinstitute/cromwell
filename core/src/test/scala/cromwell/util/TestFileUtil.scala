@@ -22,9 +22,9 @@ trait TestFileUtil {
 
 trait HashUtil extends TestFileUtil {
   // Files
-  val file1 = WomFile(createCannedFile("refFile", "some content").pathAsString)
-  val sameAsfile1 = WomFile(createCannedFile("sameContent", "some content").pathAsString)
-  val anotherFile = WomFile(createCannedFile("differentContent", "different content").pathAsString)
+  val file1 = WomSingleFile(createCannedFile("refFile", "some content").pathAsString)
+  val sameAsfile1 = WomSingleFile(createCannedFile("sameContent", "some content").pathAsString)
+  val anotherFile = WomSingleFile(createCannedFile("differentContent", "different content").pathAsString)
 
   // Strings
   val string1 = WomString("some text")

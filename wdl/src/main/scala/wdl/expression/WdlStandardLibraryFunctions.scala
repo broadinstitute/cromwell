@@ -98,7 +98,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
       womString <- WomStringType.coerceRawValue(pattern)
       patternString = womString.valueString
       filePaths <- Try(globHelper(patternString))
-    } yield WomArray(WomArrayType(WomFileType), filePaths.map(WomSingleFile))
+    } yield WomArray(WomArrayType(WomSingleFileType), filePaths.map(WomSingleFile))
   }
 
   def basename(params: Seq[Try[WomValue]]): Try[WomString] = {
@@ -374,8 +374,8 @@ trait PureStandardLibraryFunctionsLike extends WdlStandardLibraryFunctions {
 case object PureStandardLibraryFunctions extends PureStandardLibraryFunctionsLike
 
 class WdlStandardLibraryFunctionsType extends WdlFunctions[WomType] {
-  def stdout(params: Seq[Try[WomType]]): Try[WomType] = Success(WomFileType)
-  def stderr(params: Seq[Try[WomType]]): Try[WomType] = Success(WomFileType)
+  def stdout(params: Seq[Try[WomType]]): Try[WomType] = Success(WomSingleFileType)
+  def stderr(params: Seq[Try[WomType]]): Try[WomType] = Success(WomSingleFileType)
   def read_lines(params: Seq[Try[WomType]]): Try[WomType] = Success(WomArrayType(WomStringType))
   def read_tsv(params: Seq[Try[WomType]]): Try[WomType] = Success(WomArrayType(WomArrayType(WomStringType)))
   def read_map(params: Seq[Try[WomType]]): Try[WomType] = Success(WomMapType(WomStringType, WomStringType))
@@ -386,16 +386,16 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WomType] {
   def read_string(params: Seq[Try[WomType]]): Try[WomType] = Success(WomStringType)
   def read_float(params: Seq[Try[WomType]]): Try[WomType] = Success(WomFloatType)
   def read_boolean(params: Seq[Try[WomType]]): Try[WomType] = Success(WomBooleanType)
-  def write_lines(params: Seq[Try[WomType]]): Try[WomType] = Success(WomFileType)
-  def write_tsv(params: Seq[Try[WomType]]): Try[WomType] = Success(WomFileType)
-  def write_map(params: Seq[Try[WomType]]): Try[WomType] = Success(WomFileType)
-  def write_object(params: Seq[Try[WomType]]): Try[WomType] = Success(WomFileType)
-  def write_objects(params: Seq[Try[WomType]]): Try[WomType] = Success(WomFileType)
-  def write_json(params: Seq[Try[WomType]]): Try[WomType] = Success(WomFileType)
-  def glob(params: Seq[Try[WomType]]): Try[WomType] = Success(WomArrayType(WomFileType))
+  def write_lines(params: Seq[Try[WomType]]): Try[WomType] = Success(WomSingleFileType)
+  def write_tsv(params: Seq[Try[WomType]]): Try[WomType] = Success(WomSingleFileType)
+  def write_map(params: Seq[Try[WomType]]): Try[WomType] = Success(WomSingleFileType)
+  def write_object(params: Seq[Try[WomType]]): Try[WomType] = Success(WomSingleFileType)
+  def write_objects(params: Seq[Try[WomType]]): Try[WomType] = Success(WomSingleFileType)
+  def write_json(params: Seq[Try[WomType]]): Try[WomType] = Success(WomSingleFileType)
+  def glob(params: Seq[Try[WomType]]): Try[WomType] = Success(WomArrayType(WomSingleFileType))
   def size(params: Seq[Try[WomType]]): Try[WomType] = {
     def isGoodFirstSizeParam(womType: WomType): Boolean = womType match {
-      case f if WomFileType.isCoerceableFrom(f) => true
+      case f if WomSingleFileType.isCoerceableFrom(f) => true
       case WomOptionalType(o) => isGoodFirstSizeParam(o)
       case _ => false
     }

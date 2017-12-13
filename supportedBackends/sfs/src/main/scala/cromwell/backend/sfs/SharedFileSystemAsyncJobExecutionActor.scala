@@ -9,7 +9,7 @@ import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncJob}
 import cromwell.backend.validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import wom.values.WomFile
+import wom.values.{WomFile, WomSingleFile}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -113,7 +113,7 @@ trait SharedFileSystemAsyncJobExecutionActor
     */
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
     val cleanPath = DefaultPathBuilder.build(womFile.valueString).get
-    WomFile(if (isDockerRun) jobPathsWithDocker.toDockerPath(cleanPath).pathAsString else cleanPath.pathAsString)
+    WomSingleFile(if (isDockerRun) jobPathsWithDocker.toDockerPath(cleanPath).pathAsString else cleanPath.pathAsString)
   }
 
   override lazy val commandDirectory: Path = {

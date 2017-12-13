@@ -7,7 +7,7 @@ import cromwell.core.path.{DefaultPathBuilder, Path}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
-import wom.values.WomFile
+import wom.values.WomSingleFile
 
 class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with TableDrivenPropertyChecks with BackendSpec {
 
@@ -34,12 +34,12 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
       dest.touch()
     }
 
-    val inputs = fqnWdlMapToDeclarationMap(Map("input" -> WomFile(orig.pathAsString)))
+    val inputs = fqnWdlMapToDeclarationMap(Map("input" -> WomSingleFile(orig.pathAsString)))
     val sharedFS = new SharedFileSystem {
       override val pathBuilders = localPathBuilder
       override val sharedFileSystemConfig = config
     }
-    val localizedinputs = Map(inputs.head._1 -> WomFile(dest.pathAsString))
+    val localizedinputs = Map(inputs.head._1 -> WomSingleFile(dest.pathAsString))
     val result = sharedFS.localizeInputs(callDir, docker = docker)(inputs)
 
     result.isSuccess shouldBe true
@@ -81,7 +81,7 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
     val callDir = DefaultPathBuilder.createTempDirectory("SharedFileSystem")
     val orig = DefaultPathBuilder.get("/made/up/origin")
 
-    val inputs = fqnWdlMapToDeclarationMap(Map("input" -> WomFile(orig.pathAsString)))
+    val inputs = fqnWdlMapToDeclarationMap(Map("input" -> WomSingleFile(orig.pathAsString)))
     val sharedFS = new SharedFileSystem {
       override val pathBuilders = localPathBuilder
       override val sharedFileSystemConfig = defaultLocalization

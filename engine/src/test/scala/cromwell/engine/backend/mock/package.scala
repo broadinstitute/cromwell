@@ -14,7 +14,7 @@ package object mock {
     case WomFloatType => WomFloat(55.55)
     case WomStringType => WomString("The rain in Spain falls mainly in the plain")
     case WomBooleanType => WomBoolean(true)
-    case WomFileType => WomFile("/root/of/all/evil")
+    case WomSingleFileType => WomSingleFile("/root/of/all/evil")
     case WomArrayType(memberType) => WomArray(WomArrayType(memberType), List(sampleValue(memberType)))
     case WomObjectType => WomObject(Map("a" -> WomString("1"), "b" -> WomString("2")))
     case WomMapType(keyType, valueType) => WomMap(WomMapType(keyType, valueType), Map(sampleValue(keyType) -> sampleValue(valueType)))

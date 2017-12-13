@@ -12,7 +12,7 @@ import org.apache.commons.codec.digest.DigestUtils
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
-import wom.values.WomFile
+import wom.values.WomSingleFile
 
 import scala.util.Success
 
@@ -50,7 +50,7 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
     val initData = mock[StandardInitializationData]
     initData.workflowPaths returns workflowPaths
 
-    SingleFileHashRequest(null, null, WomFile(requestFile.pathAsString), Option(initData))
+    SingleFileHashRequest(null, null, WomSingleFile(requestFile.pathAsString), Option(initData))
   }
 
   def makeStrategy(strategy: String, checkSibling: Option[Boolean] = None) = {

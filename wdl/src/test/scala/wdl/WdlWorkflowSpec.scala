@@ -368,7 +368,7 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
       WorkflowOutputTestCase(
         "declarative coercion",
         "File o10 = workflow_input2",
-        Seq(WorkflowOutputExpectation("o10", WomFileType, "workflow_input2")),
+        Seq(WorkflowOutputExpectation("o10", WomSingleFileType, "workflow_input2")),
         Map("o10" -> WomSingleFile("workflow_input2"))
       ),
       WorkflowOutputTestCase(

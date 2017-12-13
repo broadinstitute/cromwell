@@ -282,7 +282,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
   // Allow to use shouldEqual between 2 WdlTypes while acknowledging for edge cases
   implicit val wdlTypeSoftEquality = new Equality[WomType] {
     override def areEqual(a: WomType, b: Any): Boolean = (a, b) match {
-      case (WomStringType | WomFileType, WomFileType | WomStringType) => true
+      case (WomStringType | WomSingleFileType, WomSingleFileType | WomStringType) => true
       case (arr1: WomArrayType, arr2: WomArrayType) => areEqual(arr1.memberType, arr2.memberType)
       case (map1: WomMapType, map2: WomMapType) => areEqual(map1.valueType, map2.valueType)
       case _ => a == b

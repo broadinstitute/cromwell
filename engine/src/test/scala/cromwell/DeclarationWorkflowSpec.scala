@@ -1,17 +1,17 @@
 package cromwell
 
-import wdl.{FullyQualifiedName, ImportResolver, WdlNamespaceWithWorkflow}
 import cromwell.util.SampleWdl
 import org.scalatest.{Matchers, WordSpecLike}
+import wdl.{FullyQualifiedName, ImportResolver, WdlNamespaceWithWorkflow}
 import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
-import wom.types.{WomFileType, WomOptionalType, WomStringType}
+import wom.types.{WomOptionalType, WomSingleFileType, WomStringType}
 
 class DeclarationWorkflowSpec extends Matchers with WordSpecLike {
   "A workflow with declarations in it" should {
     "compute inputs properly" in {
 
       val expectedRequiredInputs = Map(
-        "two_step.cat.file" -> RequiredInputDefinition("two_step.cat.file", WomFileType),
+        "two_step.cat.file" -> RequiredInputDefinition("two_step.cat.file", WomSingleFileType),
         "two_step.cgrep.str_decl" -> RequiredInputDefinition("two_step.cgrep.str_decl", WomStringType),
         "two_step.cgrep.pattern" -> RequiredInputDefinition("two_step.cgrep.pattern", WomStringType),
         "two_step.flags_suffix" -> RequiredInputDefinition("two_step.flags_suffix", WomStringType)

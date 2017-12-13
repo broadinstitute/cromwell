@@ -268,12 +268,12 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions)
     val backend = createBackend(jobDescriptor, TestConfig.backendRuntimeConfigDescriptor)
     val jobPaths = JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, TestConfig.backendRuntimeConfigDescriptor.backendConfig)
-    val expectedA = WomFile(jobPaths.callExecutionRoot.resolve("a").toAbsolutePath.pathAsString)
-    val expectedB = WomFile(jobPaths.callExecutionRoot.resolve("dir").toAbsolutePath.resolve("b").pathAsString)
+    val expectedA = WomSingleFile(jobPaths.callExecutionRoot.resolve("a").toAbsolutePath.pathAsString)
+    val expectedB = WomSingleFile(jobPaths.callExecutionRoot.resolve("dir").toAbsolutePath.resolve("b").pathAsString)
     val expectedOutputs = WomMocks.mockOutputExpectations(Map(
       "o1" -> expectedA,
-      "o2" -> WomArray(WomArrayType(WomFileType), Seq(expectedA, expectedB)),
-      "o3" -> WomFile(inputFile)
+      "o2" -> WomArray(WomArrayType(WomSingleFileType), Seq(expectedA, expectedB)),
+      "o3" -> WomSingleFile(inputFile)
     ))
     val expectedResponse = JobSucceededResponse(jobDescriptor.key, Some(0), expectedOutputs, None, Seq.empty, None)
 

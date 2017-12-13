@@ -2,7 +2,7 @@ package cromwell.backend.wdl
 
 import cromwell.core.path.Path
 import wom.expression.IoFunctionSet
-import wom.values.WomFile
+import wom.values.WomSingleFile
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -16,10 +16,10 @@ trait WriteFunctions extends IoFunctionSet {
 
   private lazy val _writeDirectory = writeDirectory.createPermissionedDirectories()
 
-  override def writeFile(path: String, content: String): Future[WomFile] = {
+  override def writeFile(path: String, content: String): Future[WomSingleFile] = {
     val file = _writeDirectory / path
     Future.fromTry(
-      Try(if (file.notExists) file.write(content)) map { _ => WomFile(file.pathAsString) }
+      Try(if (file.notExists) file.write(content)) map { _ => WomSingleFile(file.pathAsString) }
     )
   }
 }

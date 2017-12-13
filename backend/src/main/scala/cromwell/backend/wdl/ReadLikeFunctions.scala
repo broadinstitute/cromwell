@@ -34,14 +34,14 @@ trait ReadLikeFunctions extends PathFactory with IoFunctionSet {
 
     // Inner function: is this a file type, or an optional containing a file type?
     def isOptionalOfFileType(womType: WomType): Boolean = womType match {
-      case f if WomFileType.isCoerceableFrom(f) => true
+      case f if WomSingleFileType.isCoerceableFrom(f) => true
       case WomOptionalType(inner) => isOptionalOfFileType(inner)
       case _ => false
     }
 
     // Inner function: Get the file size, allowing for unpacking of optionals
     def optionalSafeFileSize(value: WomValue): Try[Double] = value match {
-      case f if f.isInstanceOf[WomFile] || WomFileType.isCoerceableFrom(f.womType) => size(f)
+      case f if f.isInstanceOf[WomSingleFile] || WomSingleFileType.isCoerceableFrom(f.womType) => size(f)
       case WomOptionalValue(_, Some(o)) => optionalSafeFileSize(o)
       case WomOptionalValue(f, None) if isOptionalOfFileType(f) => Success(0d)
       case _ => Failure(new Exception(s"The 'size' method expects a 'File' or 'File?' argument but instead got ${value.womType.toDisplayString}."))

@@ -44,7 +44,7 @@ package object cwl extends TypeAliases {
     case Float => WomFloatType
     case Double => WomFloatType
     case String => WomStringType
-    case CwlType.File => WomFileType
+    case CwlType.File => WomSingleFileType
     case CwlType.Directory => ???
   }
 

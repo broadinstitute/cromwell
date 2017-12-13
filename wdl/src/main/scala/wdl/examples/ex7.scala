@@ -4,7 +4,7 @@ import common.validation.Validation._
 import wdl.WdlNamespaceWithWorkflow
 import wdl.expression.WdlFunctions
 import wom.types.{WomArrayType, WomIntegerType}
-import wom.values.{WomArray, WomFile, WomInteger, WomString, WomValue}
+import wom.values.{WomArray, WomInteger, WomSingleFile, WomString, WomValue}
 
 import scala.util.{Success, Try}
 
@@ -31,7 +31,7 @@ object ex7 {
     class CustomFunctions extends WdlFunctions[WomValue] {
       def write_lines(params: Seq[Try[WomValue]]): Try[WomValue] = {
         // Validate `params`, write the result to a file, return file path
-        Success(WomFile("/tmp/array.txt"))
+        Success(WomSingleFile("/tmp/array.txt"))
       }
     }
 

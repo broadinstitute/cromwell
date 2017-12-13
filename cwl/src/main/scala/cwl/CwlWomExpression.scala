@@ -39,7 +39,7 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
       (womValue, cwlExpressionType) match {
 
         //In the case of a single file being expected, we must enforce that the glob only represents a single file
-        case (WomString(glob), WomFileType) =>
+        case (WomString(glob), WomSingleFileType) =>
           ioFunctionSet.glob(glob) match {
             case head :: Nil => WomString(head)
             case list => throw new RuntimeException(s"expecting a single File glob but instead got $list")

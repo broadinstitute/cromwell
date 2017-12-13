@@ -4,7 +4,7 @@ import common.validation.Validation._
 import org.scalatest.{Matchers, WordSpecLike}
 import wdl.WdlNamespace
 import wdl.expression.NoFunctions
-import wom.values.{WomFile, WomString}
+import wom.values.{WomSingleFile, WomString}
 
 
 class OptionalParamWorkflowSpec extends Matchers with WordSpecLike {
@@ -28,11 +28,14 @@ class OptionalParamWorkflowSpec extends Matchers with WordSpecLike {
         fail("Expected to find task 'find'")
       }
 
-      val instantiateWithoutValue = findTask.instantiateCommand(findTask.inputsFromMap(Map("find.root" -> WomFile("src"))), NoFunctions)
+      val instantiateWithoutValue = findTask.instantiateCommand(
+        findTask.inputsFromMap(Map("find.root" -> WomSingleFile("src"))),
+        NoFunctions
+      )
       instantiateWithoutValue.toTry.get.commandString shouldEqual "find src"
 
       val instantiateWithValue = findTask.instantiateCommand(findTask.inputsFromMap(Map(
-        "find.root" -> WomFile("src"),
+        "find.root" -> WomSingleFile("src"),
         "find.pattern" -> WomString("*.java")
       )), NoFunctions).getOrElse {fail("Expected instantiation to work")}
       instantiateWithValue.commandString shouldEqual "find src -name *.java"

@@ -25,7 +25,7 @@ class WomTypeSpec extends FlatSpec with Matchers {
     WomStringType.toDisplayString shouldEqual "String"
   }
   it should "stringify WomFile to 'File'" in {
-    WomFileType.toDisplayString shouldEqual "File"
+    WomSingleFileType.toDisplayString shouldEqual "File"
   }
 
   val rawValuesCoercedToType = Table(
@@ -134,8 +134,8 @@ class WomTypeSpec extends FlatSpec with Matchers {
   }
 
   "WomFile" should "support expected coercions" in {
-    WomFileType.coerceRawValue("/etc/passwd").get shouldEqual WomFile("/etc/passwd")
-    WomFileType.coerceRawValue(-1).isFailure shouldBe true
+    WomSingleFileType.coerceRawValue("/etc/passwd").get shouldEqual WomSingleFile("/etc/passwd")
+    WomSingleFileType.coerceRawValue(-1).isFailure shouldBe true
   }
 
   "WomInteger" should "support expected coercions" in {
@@ -156,7 +156,7 @@ class WomTypeSpec extends FlatSpec with Matchers {
     ("WomSource", "WomType"),
     ("String", WomStringType),
     ("Int", WomIntegerType),
-    ("File", WomFileType),
+    ("File", WomSingleFileType),
     ("Boolean", WomBooleanType),
     ("Float", WomFloatType),
     ("Array[Int]", WomArrayType(WomIntegerType)),

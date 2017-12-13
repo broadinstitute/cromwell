@@ -191,7 +191,7 @@ object WomGraph {
   def fakeInput(womType: WomType): JsValue = womType match {
     case WomStringType => JsString("hio")
     case WomIntegerType | WomFloatType => JsNumber(25)
-    case WomFileType => JsString("gs://bucket/path/file.txt")
+    case WomSingleFileType => JsString("gs://bucket/path/file.txt")
     case WomBooleanType => JsBoolean(true)
     case _: WomOptionalType => JsNull
     case WomMapType(_, valueType) => JsObject(Map("0" -> fakeInput(valueType)))

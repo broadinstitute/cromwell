@@ -12,7 +12,7 @@ class WdlTypeSpec extends FlatSpec with Matchers {
     ("DisplayString", "WomType"),
     ("String", WomStringType),
     ("Int", WomIntegerType),
-    ("File", WomFileType),
+    ("File", WomSingleFileType),
     ("Boolean", WomBooleanType),
     ("Float", WomFloatType),
     ("Array[Int]", WomArrayType(WomIntegerType)),

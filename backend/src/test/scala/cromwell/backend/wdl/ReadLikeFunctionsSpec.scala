@@ -35,32 +35,40 @@ class ReadLikeFunctionsSpec extends FlatSpec with Matchers {
 
   it should "correctly report the size of a supplied, optional, 2048 byte file" in {
     val readLike = new TestReadLikeFunctions(Success(2048d))
-    readLike.size(Seq(Success(WomOptionalValue(WomFileType, Some(WomSingleFile("blah")))))) should be(Success(WomFloat(2048d)))
+    readLike.size(Seq(Success(WomOptionalValue(WomSingleFileType, Option(WomSingleFile("blah")))))) should
+      be(Success(WomFloat(2048d)))
   }
 
   it should "correctly report the size of a supplied, optional optional, 2048 byte file" taggedAs PostWomTest ignore {
     val readLike = new TestReadLikeFunctions(Success(2048d))
-    readLike.size(Seq(Success(WomOptionalValue(WomOptionalType(WomFileType), Some(WomOptionalValue(WomFileType, Some(WomSingleFile("blah")))))))) should be(Success(WomFloat(2048d)))
+    readLike.size(Seq(Success(WomOptionalValue(
+      WomOptionalType(WomSingleFileType),
+      Option(WomOptionalValue(WomSingleFileType, Option(WomSingleFile("blah"))))
+    )))) should be(Success(WomFloat(2048d)))
   }
 
   it should "correctly report the size of a supplied, optional, 2048 byte file, in MB" taggedAs PostWomTest ignore {
     val readLike = new TestReadLikeFunctions(Success(2048d))
-    readLike.size(Seq(Success(WomOptionalValue(WomFileType, Some(WomSingleFile("blah")))), Success(WomString("MB")))) should be(Success(WomFloat(0.002048d)))
+    readLike.size(Seq(Success(WomOptionalValue(
+      WomSingleFileType, Option(WomSingleFile("blah")))), Success(WomString("MB")
+    ))) should be(Success(WomFloat(0.002048d)))
   }
 
   it should "correctly report that an unsupplied optional file is empty" taggedAs PostWomTest ignore {
     val readLike = new TestReadLikeFunctions(Success(2048d))
-    readLike.size(Seq(Success(WomOptionalValue(WomFileType, None)))) should be(Success(WomFloat(0d)))
+    readLike.size(Seq(Success(WomOptionalValue(WomSingleFileType, None)))) should be(Success(WomFloat(0d)))
   }
 
   it should "correctly report that an unsupplied File?? is empty" taggedAs PostWomTest ignore {
     val readLike = new TestReadLikeFunctions(Success(2048d))
-    readLike.size(Seq(Success(WomOptionalValue(WomOptionalType(WomFileType), None)))) should be(Success(WomFloat(0d)))
+    readLike.size(Seq(Success(WomOptionalValue(WomOptionalType(WomSingleFileType), None)))) should
+      be(Success(WomFloat(0d)))
   }
 
   it should "correctly report that an unsupplied optional file is empty, even in MB" taggedAs PostWomTest ignore {
     val readLike = new TestReadLikeFunctions(Success(2048d))
-    readLike.size(Seq(Success(WomOptionalValue(WomFileType, None)), Success(WomString("MB")))) should be(Success(WomFloat(0d)))
+    readLike.size(Seq(Success(WomOptionalValue(WomSingleFileType, None)), Success(WomString("MB")))) should
+      be(Success(WomFloat(0d)))
   }
 
   it should "refuse to report file sizes for Ints" taggedAs PostWomTest ignore {
@@ -95,11 +103,11 @@ class ReadLikeFunctionsSpec extends FlatSpec with Matchers {
 class TestReadLikeFunctions(sizeResult: Try[Double]) extends IoFunctionSet {
   override def readFile(path: String): Future[String] = ???
 
-  override def writeFile(path: String, content: String): Future[WomFile] = ???
+  override def writeFile(path: String, content: String): Future[WomSingleFile] = ???
 
-  override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = ???
+  override def stdout(params: Seq[Try[WomValue]]): Try[WomSingleFile] = ???
 
-  override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = ???
+  override def stderr(params: Seq[Try[WomValue]]): Try[WomSingleFile] = ???
 
   override def glob(pattern: String): Seq[String] = ???
 

@@ -16,7 +16,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
 import wom.core.LocallyQualifiedName
 import wom.graph.WomIdentifier
-import wom.values.{WomFile, WomInteger, WomString, WomValue}
+import wom.values.{WomInteger, WomSingleFile, WomString, WomValue}
 
 class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with BackendSpec with Matchers with Eventually with TableDrivenPropertyChecks {
   behavior of "CallCacheReadingJobActor"
@@ -57,7 +57,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
     val parent = TestProbe()
     val inputs = Map(
       "stringInput" -> WomString("hello"),
-      "fileInput" -> WomFile("world")
+      "fileInput" -> WomSingleFile("world")
     )
     // Do not include "memory" on purpose, even though it's in the map of runtime attributes.
     // This way we can verify that only attributes with a RuntimeAttributeDefinition are used for hashing
@@ -107,7 +107,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
     callCacheRead.expectMsg(expectedInitialHashResult)
     actorUnderTest.stateName shouldBe WaitingForHashFileRequest
     actorUnderTest.stateData shouldBe CallCacheHashingJobActorData(
-      List(SingleFileHashRequest(jobDescriptor.key, HashKey("input", "File fileInput"), WomFile("world"), None)),
+      List(SingleFileHashRequest(jobDescriptor.key, HashKey("input", "File fileInput"), WomSingleFile("world"), None)),
       Option(callCacheRead.ref)
     )
   }

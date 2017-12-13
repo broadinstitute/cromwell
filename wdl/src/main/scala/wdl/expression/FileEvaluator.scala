@@ -41,7 +41,7 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WomType = Wom
 
   private def evalValueToWdlFile(ast: AstNode): Try[WomFile] = {
     evalValue(ast) match {
-      case Success(p: WomPrimitive) => Success(WomFile(p.valueString))
+      case Success(p: WomPrimitive) => Success(WomSingleFile(p.valueString))
       case Success(_) => Failure(new WomExpressionException(s"Expecting a primitive type from AST:\n${ast.toPrettyString}"))
       case Failure(e) => Failure(e)
     }

@@ -141,7 +141,7 @@ trait SharedFileSystem extends PathFactory {
       case fileNotFound: WomFile if !hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).exists =>
         throw new RuntimeException("Could not process output, file not found: " +
           s"${hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).pathAsString}")
-      case _ => WomFile(hostAbsoluteFilePath(job.callExecutionRoot, womFile.valueString).pathAsString)
+      case _ => WomSingleFile(hostAbsoluteFilePath(job.callExecutionRoot, womFile.valueString).pathAsString)
     }
   }
 
@@ -202,7 +202,9 @@ trait SharedFileSystem extends PathFactory {
                              (womFile: WomFile): WomFile = {
     val path = womFile.value
     val result = toDestPath(path) flatMap {
-      case PairOfFiles(src, dst) => duplicate("localize", src, dst, strategies) map { _ => WomFile(dst.pathAsString) }
+      case PairOfFiles(src, dst) => duplicate("localize", src, dst, strategies) map { _ =>
+        WomSingleFile(dst.pathAsString)
+      }
     }
     result.get
   }

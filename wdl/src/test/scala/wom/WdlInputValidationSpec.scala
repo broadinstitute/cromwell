@@ -68,7 +68,7 @@ class WdlInputValidationSpec extends FlatSpec with Matchers with BeforeAndAfterA
           |}
         """.stripMargin,
         Map (
-          w1OutputPort -> Coproduct[ResolvedExecutableInput](WomFile("my_file.txt"): WomValue),
+          w1OutputPort -> Coproduct[ResolvedExecutableInput](WomSingleFile("my_file.txt"): WomValue),
           w2OutputPort -> Coproduct[ResolvedExecutableInput](WomOptionalValue.none(WomStringType): WomValue),
           t1OutputPort -> Coproduct[ResolvedExecutableInput](WomString("helloT"): WomValue),
           t2OutputPort -> Coproduct[ResolvedExecutableInput](WomOptionalValue.none(WomIntegerType): WomValue),
@@ -88,7 +88,7 @@ class WdlInputValidationSpec extends FlatSpec with Matchers with BeforeAndAfterA
           |}
         """.stripMargin,
         Map (
-          w1OutputPort -> Coproduct[ResolvedExecutableInput](WomFile("my_file.txt"): WomValue),
+          w1OutputPort -> Coproduct[ResolvedExecutableInput](WomSingleFile("my_file.txt"): WomValue),
           w2OutputPort -> Coproduct[ResolvedExecutableInput](WomOptionalValue(WomString("inputString")): WomValue),
           t1OutputPort -> Coproduct[ResolvedExecutableInput](WomString("helloT"): WomValue),
           t2OutputPort -> Coproduct[ResolvedExecutableInput](WomOptionalValue(WomInteger(5)): WomValue),

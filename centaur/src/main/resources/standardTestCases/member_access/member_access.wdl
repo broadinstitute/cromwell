@@ -3,7 +3,9 @@ task echo_str {
   command { 
     echo ${s[0]} ${s[1]} ${s[2]}
   }
-  output { Pair[String, Int] left = (read_string(stdout()), 27) }
+  output {
+    Pair[String, Int] left = (read_string(stdout()), 27)
+  }
   runtime { 
    docker: "ubuntu:latest"
   }
@@ -19,9 +21,13 @@ workflow test {
     input: s = [a[1], m["c"], p.left]
   }
 
+  call echo_str as echo_str_2 {
+    input: s = [ echo_str.left.left, echo_str.left.right, echo_str.left.left ]
+  }
+
   output {
     # This gets the 'left' output from task echo_str, and then a member lookup for the pair's 'left' element
-    String left_out = echo_str.left.left
+    String left_out = echo_str.left.left + " " + echo_str_2.left.right
 
     # Oh hey, nested Pair lookups also works now! Magic!
     Int triple_left = triple.left.left + triple.right.left

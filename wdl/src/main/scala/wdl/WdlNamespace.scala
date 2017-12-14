@@ -13,6 +13,7 @@ import wdl.command.ParameterCommandPart
 import wdl.exception._
 import wdl.expression.{NoFunctions, WdlStandardLibraryFunctions, WdlStandardLibraryFunctionsType}
 import wdl.types.{WdlCallOutputsObjectType, WdlNamespaceType}
+import wdl4s.parser.WdlParser
 import wdl4s.parser.WdlParser._
 import wom.core._
 import wom.executable.Executable
@@ -486,10 +487,8 @@ object WdlNamespace {
      * if we have "input: var=ns.ns1.my_task" it does not make sense to validate "ns1.my_task" by itself as it only
      * makes sense to validate that "ns.ns1.my_task" as a whole is coherent
      *
-     * Run for its side effect (i.e. Exception) but we were previously using a Try and immediately calling .get on it
-     * so it's the same thing
      */
-    val invalidMemberAccesses = callInputSections flatMap { ast =>
+    val invalidMemberAccesses: Seq[WdlParser.SyntaxError] = callInputSections flatMap { ast =>
       ast.getAttribute("value").findTopLevelMemberAccesses flatMap { memberAccessAst =>
         val memberAccess = MemberAccess(memberAccessAst)
         val requestedValue = memberAccess.rhs
@@ -504,19 +503,22 @@ object WdlNamespace {
               case WomArrayType(_: WomPairType) if memberAccess.rhs == "left" || memberAccess.rhs == "right" => None
               // Maps get coerced into arrays of pairs, so this is also ok:
               case _: WomMapType if memberAccess.rhs == "left" || memberAccess.rhs == "right" => None
-              case _ => Option(new SyntaxError(wdlSyntaxErrorFormatter.variableIsNotAnObject(memberAccessAst)))
+              case other => Option(new SyntaxError(wdlSyntaxErrorFormatter.badTargetTypeForMemberAccess(memberAccess, other)))
             } getOrElse None
-          case Some(d: Declaration) => d.womType match {
-            case _: WomPairType => None
-            case _ => Option(new SyntaxError(wdlSyntaxErrorFormatter.variableIsNotAnObject(memberAccessAst)))
+          case Some(d: DeclarationInterface) => d.womType match {
+            case _: WomPairType if memberAccess.rhs == "left" || memberAccess.rhs == "right" => None
+            case WomObjectType => None
+            case other => Option(new SyntaxError(wdlSyntaxErrorFormatter.badTargetTypeForMemberAccess(memberAccess, other)))
           }
+          case Some(other) => Option(new SyntaxError(wdlSyntaxErrorFormatter.badTargetScopeForMemberAccess(memberAccess, other)))
           case None =>
-            Option(new SyntaxError(wdlSyntaxErrorFormatter.undefinedMemberAccess(memberAccessAst)))
+            Option(new SyntaxError(wdlSyntaxErrorFormatter.noTargetForMemberAccess(memberAccess)))
         }
       }
     }
 
-    invalidMemberAccesses ++ invalidCallInputReferences
+    invalidMemberAccesses ++
+      invalidCallInputReferences
   }
 
   /**

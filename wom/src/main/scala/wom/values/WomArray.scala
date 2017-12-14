@@ -30,6 +30,8 @@ object WomArray {
     }
   }
 
+  def apply(value: Seq[WomValue]): WomArray = WomArray.apply(WomArrayType(WomType.homogeneousTypeFromValues(value)), value)
+
   trait WomArrayLike {
     def arrayType: WomArrayType
     def asArray: WomArray

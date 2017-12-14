@@ -22,9 +22,9 @@ class WdlCallSpec extends WordSpec with Matchers {
 
     def outputResolver(call: WdlGraphNode, index: Option[Int]): Try[WomValue] = {
       (call, index) match {
-        case (c, Some(2)) if c == callT => Success(WdlCallOutputsObject(callT, Map("o" -> WomString(s"c ${index.getOrElse(-1)}"))))
-        case (c, Some(2)) if c == callT3 => Success(WdlCallOutputsObject(callT, Map("o" -> WomString(s"c ${index.getOrElse(-1)}"))))
-        case (c, None) if c == callT2 => Success(WdlCallOutputsObject(callT2, Map(
+        case (`callT`, Some(2)) => Success(WdlCallOutputsObject(callT, Map("o" -> WomString(s"c ${index.getOrElse(-1)}"))))
+        case (`callT3`, Some(2)) => Success(WdlCallOutputsObject(callT, Map("o" -> WomString(s"c ${index.getOrElse(-1)}"))))
+        case (`callT2`, None) => Success(WdlCallOutputsObject(callT2, Map(
           "outputArray" -> WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(0), WomInteger(1), WomInteger(2)))
         )))
         case _ => Failure(new Exception(s"no output found for call ${call.fullyQualifiedName}"))
@@ -37,6 +37,8 @@ class WdlCallSpec extends WordSpec with Matchers {
     declarations.size shouldBe 12
     declarations.find(_._1.unqualifiedName == "a").get._2 shouldBe WomString("a")
     declarations.find(_._1.unqualifiedName == "b").get._2 shouldBe WomString("b")
+
+    // We didn't run the WDL, we faked the outputs in the 'outputResolver'. That's why this is "c 2"
     declarations.find(_._1.unqualifiedName == "c").get._2 shouldBe WomString("c 2")
     declarations.find(_._1.unqualifiedName == "d").get._2 shouldBe WomInteger(2)
     declarations.find(_._1.unqualifiedName == "e").get._2 shouldBe WomString("e")

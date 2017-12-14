@@ -100,6 +100,7 @@ case class TypeEvaluator(override val lookup: String => WomType, override val fu
                 case "left" => Success(leftType)
                 case "right" => Success(rightType)
               }
+            case WomObjectType => Success(WomAnyType)
             case ns: WdlNamespace => Success(lookup(ns.importedAs.map{ n => s"$n.${rhs.getSourceString}" }.getOrElse(rhs.getSourceString)))
             case _ => Failure(new WomExpressionException("Left-hand side of expression must be a WdlObject or Namespace"))
           } recoverWith {

@@ -269,8 +269,9 @@ sealed abstract class WdlCall(val alias: Option[String],
                               wdlFunctions: WdlFunctions[WomValue],
                               outputResolver: OutputResolver = NoOutputResolver,
                               shards: Map[Scatter, Int] = Map.empty[Scatter, Int],
-                              relativeTo: Scope = this): String => WomValue = {
-    def lookup(name: String): WomValue = {
+                              relativeTo: Scope = this): (String => WomValue) =
+    (name: String) => {
+
       val inputMappingsWithMatchingName = Try(
         inputMappings.getOrElse(name, throw new Exception(s"Could not find $name in input section of call $fullyQualifiedName"))
       )
@@ -322,9 +323,6 @@ sealed abstract class WdlCall(val alias: Option[String],
         }
       }
     }
-
-    lookup
-  }
 }
 
 case class WdlTaskCall(override val alias: Option[String], task: WdlTask, override val inputMappings: Map[String, WdlExpression], override val ast: Ast) extends WdlCall(alias, task, inputMappings, ast) {

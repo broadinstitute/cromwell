@@ -25,7 +25,9 @@ import wdl.AstTools.EnhancedAstNode
  *  }
  *}
  */
-case class MemberAccess(lhs: String, rhs: String)
+case class MemberAccess(lhs: String, rhs: String, ast: Ast) {
+  def memberAccessString = s"$lhs.$rhs"
+}
 
 object MemberAccess {
   def apply(ast: Ast): MemberAccess = {
@@ -36,6 +38,6 @@ object MemberAccess {
       case terminal: Terminal => terminal.sourceString
     }
 
-    MemberAccess(lhs, rhs)
+    MemberAccess(lhs, rhs, ast)
   }
 }

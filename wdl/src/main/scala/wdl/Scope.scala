@@ -4,6 +4,7 @@ import common.collections.EnhancedCollections._
 import wdl4s.parser.WdlParser.Ast
 import wdl.exception.{ScatterIndexNotFound, VariableLookupException, VariableNotFoundException}
 import wdl.expression.WdlFunctions
+import wdl.values.WdlCallOutputsObject
 import wom.graph.WomIdentifier
 import wom.values.WomArray.WomArrayLike
 import wom.values.WomValue
@@ -188,9 +189,15 @@ trait Scope {
       children.dropRight(children.size - children.indexOf(relativeTo) )
     else children
 
-    val localLookup = siblingScopes collect {
+    val siblingCallOutputs = siblingScopes flatMap {
+      case c: WdlTaskCall => c.outputs
+      case _ => Seq.empty[CallOutput]
+    }
+
+    val localLookup = (siblingScopes ++ siblingCallOutputs) collect {
       case d: Declaration if d.unqualifiedName == name => d
       case c: WdlTaskCall if c.unqualifiedName == name => c
+      case co: CallOutput if co.call.unqualifiedName + "." + co.unqualifiedName == name => co
       case o: TaskOutput if o.unqualifiedName == name => o
     }
 
@@ -292,6 +299,10 @@ trait Scope {
           knownInputs.get(scope.fullyQualifiedName) map Success.apply getOrElse {
             Failure(new VariableLookupException(s"Could not find value in inputs map."))
           }
+        case callOutput: CallOutput => handleCallEvaluation(callOutput.call) flatMap {
+          case outputs: WdlCallOutputsObject => outputs.outputs.get(callOutput.unqualifiedName).map(Success(_)).getOrElse(Failure(new Exception(s"No output ${callOutput.unqualifiedName} found in ${callOutput.call.unqualifiedName}'s outputs")))
+          case other => Failure(new Exception(s"Call outputs unexpectedly evaluated to a ${other.womType.toDisplayString}"))
+        }
         case call: WdlCall => handleCallEvaluation(call)
         case scatter: Scatter => handleScatterResolution(scatter)
         case declaration: DeclarationInterface if declaration.expression.isDefined => handleDeclarationEvaluation(declaration)

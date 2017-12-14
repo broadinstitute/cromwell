@@ -8,6 +8,9 @@ import wom.callable.Callable.OutputDefinition
 import wom.expression.PlaceholderWomExpression
 import wom.types.{WomArrayType, WomIntegerType, WomMapType, WomStringType}
 import wom.values._
+import WomValueSimpleton._
+
+import scala.util.Success
 
 object WomValueBuilderSpec {
   // WdlValueBuilder doesn't care about this expression, but something needs to be passed to the TaskOutput constructor.
@@ -20,6 +23,7 @@ class WomValueBuilderSpec extends FlatSpec with Matchers with Mockito {
   val simpletonConversions = List(
     SimpletonConversion("foo", WomString("none"), List(WomValueSimpleton("foo", WomString("none")))),
     SimpletonConversion("bar", WomArray(WomArrayType(WomIntegerType), List(WomInteger(1), WomInteger(2))), List(WomValueSimpleton("bar[0]", WomInteger(1)), WomValueSimpleton("bar[1]", WomInteger(2)))),
+    SimpletonConversion("empty_array", WomArray(WomArrayType(WomIntegerType), List.empty), List()),
     SimpletonConversion(
       "baz",
       WomArray(WomArrayType(WomArrayType(WomIntegerType)), List(
@@ -90,42 +94,147 @@ class WomValueBuilderSpec extends FlatSpec with Matchers with Mockito {
       List(WomValueSimpleton("escapology:foo\\[1\\]", WomString("foo")),
         WomValueSimpleton("escapology:bar\\[\\[", WomString("bar")),
         WomValueSimpleton("escapology:baz\\:qux", WomString("baz:qux")))
+    ),
+    SimpletonConversion(
+      "flat_object",
+      WomObject(Map(
+        "a" -> WomString("aardvark"),
+        "b" -> WomInteger(25),
+        "c" -> WomBoolean(false)
+      )),
+      List(WomValueSimpleton("flat_object:a", WomString("aardvark")),
+        WomValueSimpleton("flat_object:b", WomInteger(25)),
+        WomValueSimpleton("flat_object:c", WomBoolean(false)))
+    ),
+    SimpletonConversion(
+      "object_with_array",
+      WomObject(Map(
+        "a" -> WomArray(WomArrayType(WomStringType), Seq(WomString("aardvark"), WomString("beetle")))
+      )),
+      List(WomValueSimpleton("object_with_array:a[0]", WomString("aardvark")),
+        WomValueSimpleton("object_with_array:a[1]", WomString("beetle")))
+    ),
+    SimpletonConversion(
+      "object_with_object",
+      WomObject(Map(
+        "a" -> WomObject(Map(
+          "aa" -> WomArray(WomArrayType(WomStringType), Seq(WomString("aardvark"), WomString("aaron"))),
+          "ab" -> WomArray(WomArrayType(WomStringType), Seq(WomString("abacus"), WomString("a bee")))
+        )),
+        "b" -> WomObject(Map(
+          "ba" -> WomArray(WomArrayType(WomStringType), Seq(WomString("baa"), WomString("battle"))),
+          "bb" -> WomArray(WomArrayType(WomStringType), Seq(WomString("bbrrrr"), WomString("bb gun")))
+        ))
+      )),
+      List(
+        WomValueSimpleton("object_with_object:a:aa[0]", WomString("aardvark")),
+        WomValueSimpleton("object_with_object:a:aa[1]", WomString("aaron")),
+        WomValueSimpleton("object_with_object:a:ab[0]", WomString("abacus")),
+        WomValueSimpleton("object_with_object:a:ab[1]", WomString("a bee")),
+        WomValueSimpleton("object_with_object:b:ba[0]", WomString("baa")),
+        WomValueSimpleton("object_with_object:b:ba[1]", WomString("battle")),
+        WomValueSimpleton("object_with_object:b:bb[0]", WomString("bbrrrr")),
+        WomValueSimpleton("object_with_object:b:bb[1]", WomString("bb gun")),
+      )
     )
   )
 
   behavior of "WomValueSimpleton and WdlValueBuilder"
 
-  simpletonConversions foreach { case SimpletonConversion(name, womValue, simpletons) =>
+  simpletonConversions foreach { case SimpletonConversion(name, womValue, expectedSimpletons) =>
     it should s"decompose WdlValues into simpletons ($name)" in {
-      import WomValueSimpleton._
 
       val map = Map(WomMocks.mockOutputPort(name) -> womValue)
-      map.simplify should contain theSameElementsAs simpletons
+      assertSimpletonsEqual(expectedSimpletons, map.simplify)
     }
 
     it should s"build simpletons back into WdlValues ($name)" in {
       // The task output is used to tell us the type of output we're expecting:
       val outputPort = WomMocks.mockOutputPort(OutputDefinition(name, womValue.womType, IgnoredExpression))
       val taskOutputPorts = List(outputPort)
-      val rebuiltValues = WomValueBuilder.toWdlValues(taskOutputPorts, simpletons)
+      val rebuiltValues = WomValueBuilder.toWdlValues(taskOutputPorts, expectedSimpletons)
       rebuiltValues.size should be(1)
       rebuiltValues(outputPort) should be(womValue)
     }
-
   }
-
 
   it should "round trip everything together with no losses" in {
 
     val wdlValues = (simpletonConversions map { case SimpletonConversion(name, womValue, _) => WomMocks.mockOutputPort(name, womValue.womType) -> womValue }).toMap
     val allSimpletons = simpletonConversions flatMap { case SimpletonConversion(_, _, simpletons) => simpletons }
 
-    import WomValueSimpleton._
-
     val actualSimpletons = wdlValues.simplify
-    actualSimpletons should contain theSameElementsAs allSimpletons
+    assertSimpletonsEqual(allSimpletons, actualSimpletons)
 
     val actual = WomValueBuilder.toWdlValues(wdlValues.keys.toSeq, actualSimpletons)
     actual shouldEqual wdlValues
+  }
+
+  // We won't get exactly the same thing back when we reconstruct a Map from inside an object, but it should be
+  // coerceable back into the original type:
+  it should "decompose then reconstruct a map in an object into a coerceable value" in {
+
+    val aMap = WomMap(WomMapType(WomStringType, WomArrayType(WomStringType)), Map(
+      WomString("aa") -> WomArray(WomArrayType(WomStringType), Seq(WomString("aardvark"), WomString("aaron"))),
+      WomString("ab") -> WomArray(WomArrayType(WomStringType), Seq(WomString("abacus"), WomString("a bee")))
+    ))
+
+    val bMap = WomMap(WomMapType(WomStringType, WomArrayType(WomStringType)), Map(
+      WomString("ba") -> WomArray(WomArrayType(WomStringType), Seq(WomString("baa"), WomString("battle"))),
+      WomString("bb") -> WomArray(WomArrayType(WomStringType), Seq(WomString("bbrrrr"), WomString("bb gun")))
+    ))
+
+    val initial = WomObject(Map("a" -> aMap, "b" -> bMap ))
+
+    val map = Map(WomMocks.mockOutputPort("map_in_object") -> initial)
+
+    val actualSimpletons = map.simplify
+    assertSimpletonsEqual(
+      List(
+        WomValueSimpleton("map_in_object:a:aa[0]", WomString("aardvark")),
+        WomValueSimpleton("map_in_object:a:aa[1]", WomString("aaron")),
+        WomValueSimpleton("map_in_object:a:ab[0]", WomString("abacus")),
+        WomValueSimpleton("map_in_object:a:ab[1]", WomString("a bee")),
+        WomValueSimpleton("map_in_object:b:ba[0]", WomString("baa")),
+        WomValueSimpleton("map_in_object:b:ba[1]", WomString("battle")),
+        WomValueSimpleton("map_in_object:b:bb[0]", WomString("bbrrrr")),
+        WomValueSimpleton("map_in_object:b:bb[1]", WomString("bb gun")),
+      ),
+      actualSimpletons)
+
+    // Reconstruct:
+    val outputPort = WomMocks.mockOutputPort(OutputDefinition("map_in_object", initial.womType, IgnoredExpression))
+    val taskOutputPorts = List(outputPort)
+    val rebuiltValues = WomValueBuilder.toWdlValues(taskOutputPorts, actualSimpletons)
+
+    rebuiltValues.size should be(1)
+    val rebuiltObject = rebuiltValues.head._2
+    rebuiltObject match {
+      case o: WomObject =>
+        aMap.womType.coerceRawValue(o.value("a")) should be(Success(aMap))
+        bMap.womType.coerceRawValue(o.value("b")) should be(Success(bMap))
+      case other => fail(s"Expected reconstruction to Object but got ${other.womType.toDisplayString}")
+    }
+  }
+
+  def assertSimpletonsEqual(expectedSimpletons: Iterable[WomValueSimpleton], actualSimpletons: Iterable[WomValueSimpleton]) = {
+
+    // Sanity check, make sure we don't lose anything when we "toSet":
+    actualSimpletons.toSet should contain theSameElementsAs actualSimpletons
+    actualSimpletons.toSet.size should be(actualSimpletons.size)
+    expectedSimpletons.toSet should contain theSameElementsAs expectedSimpletons
+    expectedSimpletons.toSet.size should be(expectedSimpletons.size)
+
+    if (actualSimpletons.toSet != expectedSimpletons.toSet) {
+      val unexpecteds = actualSimpletons.toSet.diff(expectedSimpletons.toSet)
+      val unfounds = expectedSimpletons.toSet.diff(actualSimpletons.toSet)
+      fail(
+        s"""Actual simpletons did not meet expectations
+           |Total found / total expected: ${actualSimpletons.size} / ${expectedSimpletons.size}
+           |Found but not expected: ${unexpecteds.mkString(", ")}
+           |Expected but not found: ${unfounds.mkString(", ")}
+           |""".stripMargin
+      )
+    }
   }
 }

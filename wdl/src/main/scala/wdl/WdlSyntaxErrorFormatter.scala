@@ -203,10 +203,29 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) e
      """.stripMargin
   }
 
-  def undefinedMemberAccess(ast: Ast): String = {
-    val rhsAst = ast.getAttribute("rhs").asInstanceOf[Terminal]
-    s"""ERROR: Expression will not evaluate (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
+  def noTargetForMemberAccess(memberAccess: MemberAccess): String = {
+    val rhsAst = memberAccess.ast.getAttribute("rhs").asInstanceOf[Terminal]
+
+    s"""ERROR: Cannot find reference to '${memberAccess.lhs}' for member access '${memberAccess.memberAccessString}' (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
      |
+     |${pointToSource(rhsAst)}
+     """.stripMargin
+  }
+
+  def badTargetTypeForMemberAccess(memberAccess: MemberAccess, unexpectedType: WomType): String = {
+    val rhsAst = memberAccess.ast.getAttribute("rhs").asInstanceOf[Terminal]
+
+    s"""ERROR: Bad target for member access '${memberAccess.memberAccessString}': '${memberAccess.lhs}' was a ${unexpectedType.toDisplayString} (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
+       |
+     |${pointToSource(rhsAst)}
+     """.stripMargin
+  }
+
+  def badTargetScopeForMemberAccess(memberAccess: MemberAccess, unexpectedScope: Scope): String = {
+    val rhsAst = memberAccess.ast.getAttribute("rhs").asInstanceOf[Terminal]
+
+    s"""ERROR: Bad target for member access '${memberAccess.memberAccessString}': '${memberAccess.lhs}' was a ${unexpectedScope.getClass.getSimpleName} (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
+       |
      |${pointToSource(rhsAst)}
      """.stripMargin
   }
@@ -234,14 +253,6 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) e
         |
         |${pointToSource(rhsAst)}
         |""".stripMargin
-  }
-
-  def variableIsNotAnObject(ast: Ast): String = {
-    val lhsAst = ast.getAttribute("lhs").asInstanceOf[Terminal]
-    s"""ERROR: Variable is not an object (line ${lhsAst.getLine}, col ${lhsAst.getColumn}):
-        |
-     |${pointToSource(lhsAst)}
-     """.stripMargin
   }
 
   def pairMustHaveExactlyTwoTypeParameters(arrayDecl: Terminal): String = {

@@ -1,6 +1,5 @@
 name: mutect2
 testFormat: workflowsuccess
-ignore: true
 
 files {
   wdl: Somatic/Mutect2/Mutect2.wdl

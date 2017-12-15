@@ -3,6 +3,7 @@ package cwl
 import java.nio.file.Paths
 
 import common.Checked
+import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
 import cwl.CommandLineTool._
 import cwl.CwlType.CwlType
@@ -12,12 +13,14 @@ import eu.timepit.refined.W
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil, Coproduct, Witness}
 import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition, RequiredInputDefinition}
+import wom.callable.TaskDefinition.CommandPartRuntimeSortFunction
 import wom.callable.{Callable, CallableTaskDefinition}
 import wom.executable.Executable
 import wom.expression.{InputLookupExpression, ValueAsAnExpression, WomExpression}
 import wom.types.WomType
-import wom.values.WomString
+import wom.values.{WomEvaluatedCallInputs, WomString}
 import wom.{CommandPart, RuntimeAttributes}
+import mouse.all._
 
 import scala.language.postfixOps
 import scala.util.Try
@@ -78,6 +81,59 @@ case class CommandLineTool private(
     validateRequirementsAndHints(parentWorkflow, validator) map { requirementsAndHints =>
       val id = this.id
 
+      val argumentSortKeys: List[SortKey] = arguments.toList.flatten.map(_.fold(ArgumentToSortingKey)).zipWithIndex map {
+        case (Some(position), arrayIndex) => List(Coproduct[SortKeyInnerType](position), Coproduct[SortKeyInnerType](arrayIndex))
+        case (None, arrayIndex) => List(Coproduct[SortKeyInnerType](arrayIndex))
+      }
+
+//      def runtimeSorting(womInputs: WomEvaluatedCallInputs) = {
+//        inputs.map({input =>
+//          val parsedId = FullyQualifiedName(input.id).id
+//          for {
+//            inputBinding <- input.inputBinding
+//            womEntry <- womInputs.find(_._1.name == parsedId)
+//            (_, womValue) = womEntry
+//          } yield inputBinding -> womValue
+//          
+//          for {
+//            inputType <- input.`type`
+//            _ = inputType.select[]
+//          }
+//        })
+//      }
+      
+      
+      def positionFromOptionBinding(maybeBinding: Option[CommandLineBinding]) = maybeBinding.flatMap(_.position).getOrElse(0)
+      
+      def inputSortingKey(inputParameter: CommandInputParameter) = {
+        val inputPosition = inputParameter.inputBinding |> positionFromOptionBinding
+        val sortKey: SortKey = List(Coproduct[SortKeyInnerType](inputPosition))
+        
+        def typeDescent(cwlType: MyriadInputType) = {
+          def forRecordSchema = {
+            cwlType.select[InputRecordSchema] match {
+              case Some(recordSchema) => recordSchema.fields.toList.flatten map { field =>
+                field.inputBinding.map({binding => 
+                  val pos = binding.position.getOrElse(0)
+                  val fieldName = field.name
+                  List(Coproduct[SortKeyInnerType](pos), Coproduct[SortKeyInnerType](fieldName))
+                })
+              }
+            }
+          }
+        }
+        
+//        val recordSchema = inputParameter.`type`.flatMap(_.select[InputRecordSchema])
+        recordSchema.flatMap(_.fields).map({fields =>
+          fields.map({ field =>
+            val position = field.inputBinding |> positionFromOptionBinding
+            field.`type`
+          })
+          
+        })
+      }
+      
+      
       val commandTemplate: Seq[CommandPart] = baseCommand.toSeq.flatMap(_.fold(BaseCommandToCommandParts)) ++
         arguments.toSeq.flatMap(_.map(_.fold(ArgumentToCommandPart))) ++
         CommandLineTool.orderedForCommandLine(inputs).map(InputParameterCommandPart.apply)
@@ -118,7 +174,8 @@ case class CommandLineTool private(
       //This catches states where the output binding is not declared but the type is
       case CommandOutputParameter(id, _, _, _, _, _, _, Some(tpe)) =>
         val womType: WomType = tpe.fold(MyriadOutputTypeToWomType)
-        OutputDefinition(FullyQualifiedName(id).id, womType, InputLookupExpression(womType, id))
+        val inputId = FullyQualifiedName(id).id
+        OutputDefinition(inputId, womType, InputLookupExpression(womType, inputId))
 
       case other => throw new NotImplementedError(s"Command output parameters such as $other are not yet supported")
     }.toList
@@ -128,7 +185,11 @@ case class CommandLineTool private(
         case CommandInputParameter(id, _, _, _, _, _, _, Some(default), Some(tpe)) =>
           val inputType = tpe.fold(MyriadInputTypeToWomType)
           val inputName = FullyQualifiedName(id).id
-          InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(inputType.coerceRawValue(default.toString).get))
+          val defaultWomValue = default.fold(CwlAnyToWomValue).apply(inputType) match {
+            case Right(d) => d
+            case Left(errors) => throw AggregatedMessageException("Can't convert default CWL value to WOM value", errors.toList)
+          }
+          InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(defaultWomValue))
         case CommandInputParameter(id, _, _, _, _, _, _, None, Some(tpe)) =>
           val inputType = tpe.fold(MyriadInputTypeToWomType)
           val inputName = FullyQualifiedName(id).id
@@ -167,6 +228,9 @@ case class CommandLineTool private(
 }
 
 object CommandLineTool {
+  
+  type SortKeyInnerType = String :+: Int :+: CNil
+  type SortKey = List[SortKeyInnerType]
 
   /**
     * Sort according to position. If position does not exist, use 0 per spec:

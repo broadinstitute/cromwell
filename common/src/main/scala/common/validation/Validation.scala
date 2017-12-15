@@ -58,6 +58,11 @@ object Validation {
       case Valid(options) => Success(options)
       case Invalid(err) => Failure(AggregatedMessageException(context, err.toList))
     }
+
+    def toTry(f: NonEmptyList[String] => Throwable): Try[A] = e match {
+      case Valid(options) => Success(options)
+      case Invalid(err) => Failure(f(err))
+    }
   }
 
   implicit class OptionValidation[A](val o: Option[A]) extends AnyVal {

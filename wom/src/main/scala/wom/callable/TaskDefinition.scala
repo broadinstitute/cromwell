@@ -3,17 +3,14 @@ package wom.callable
 import cats.implicits._
 import common.validation.ErrorOr.ErrorOr
 import wdl.util.StringUtil
-import wom.callable.TaskDefinition._
 import wom.core._
 import wom.expression.IoFunctionSet
 import wom.graph.{Graph, TaskCall}
 import wom.values.{WomEvaluatedCallInputs, WomValue}
-import wom.{CommandPart, InstantiatedCommand, RuntimeAttributes}
+import wom.{InstantiatedCommand, CommandPart, RuntimeAttributes}
 
 object TaskDefinition {
-  type CommandPartRuntimeSortFunction = (WomEvaluatedCallInputs, Seq[CommandPart]) => Seq[CommandPart]
   private implicit val instantiatedCommandMonoid = cats.derive.monoid[InstantiatedCommand]
-  val DefaultCommandPartRuntimeSorting: CommandPartRuntimeSortFunction = (_, original) => original
 }
 
 sealed trait TaskDefinition extends Callable {
@@ -26,11 +23,6 @@ sealed trait TaskDefinition extends Callable {
   def commandPartSeparator: String
   def stdoutRedirection: Option[String]
   def stderrRedirection: Option[String]
-
-  /**
-    * Can be overridden to re-sort the command parts just before the command is instantiated, with access to the evaluated task inputs.
-    */
-  def commandTemplateRuntimeSort: CommandPartRuntimeSortFunction
 
   lazy val unqualifiedName: LocallyQualifiedName = name
 
@@ -73,8 +65,7 @@ final case class CallableTaskDefinition(name: String,
                                         prefixSeparator: String = ".",
                                         commandPartSeparator: String = "",
                                         stdoutRedirection: Option[String] = None,
-                                        stderrRedirection: Option[String] = None,
-                                        commandTemplateRuntimeSort: CommandPartRuntimeSortFunction = DefaultCommandPartRuntimeSorting
+                                        stderrRedirection: Option[String] = None
                                        ) extends TaskDefinition
 
 /**
@@ -82,8 +73,7 @@ final case class CallableTaskDefinition(name: String,
   * Can be called from a workflow but can also be run as a standalone execution.
   */
 final case class ExecutableTaskDefinition private (callableTaskDefinition: CallableTaskDefinition,
-                                                   override val graph: Graph,
-                                                   commandTemplateRuntimeSort: CommandPartRuntimeSortFunction = DefaultCommandPartRuntimeSorting
+                                                   override val graph: Graph
                                                   ) extends TaskDefinition with ExecutableCallable {
   override def name = callableTaskDefinition.name
   override def inputs = callableTaskDefinition.inputs

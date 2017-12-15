@@ -104,9 +104,7 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     }
 
     // Add all requests to the batch
-    contexts foreach { context =>
-      context.queue(batch) 
-    }
+    contexts foreach { _.queue(batch) }
     
     // Try to execute the batch request. 
     // If it fails with an IO Exception, fail all the underlying promises with a retyrable BatchFailedException

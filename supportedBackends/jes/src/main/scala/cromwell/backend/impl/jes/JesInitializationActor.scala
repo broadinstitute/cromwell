@@ -89,7 +89,7 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
       case true if !jesParams.restarting =>
         workflowLogger.debug(s"Authentication file already exists but this is a restart, proceeding.")
         Future.failed(AuthFileAlreadyExistsException(paths.gcsAuthFilePath))
-      case true if jesParams.restarting => Future.successful(())
+      case true => Future.successful(())
       case false =>
         writeAuthenticationFile(paths, jesConfiguration.jesAttributes.restrictMetadataAccess, jesConfiguration.dockerCredentials) recoverWith {
           case failure => Future.failed(new IOException(s"Failed to upload authentication file", failure))

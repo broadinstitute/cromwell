@@ -94,7 +94,7 @@ object PartialWorkflowSources {
         case (Some(_), Some(_)) => s"$WdlSourceKey and $WorkflowSourceKey can't both be supplied".invalidNel
         case (None, None) => s"$WorkflowSourceKey needs to be supplied".invalidNel
       }
-      
+
       // workflow inputs
       val workflowInputs: ErrorOr[Vector[WorkflowJson]] = getStringValue(WorkflowInputsKey) match {
         case Some(inputs) => workflowInputsValidation(inputs)

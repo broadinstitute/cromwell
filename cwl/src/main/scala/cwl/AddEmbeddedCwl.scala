@@ -54,14 +54,12 @@ object AddEmbeddedCwl extends Poly1 {
   implicit def commandLineTool: Case.Aux[CommandLineTool, Map[String, Cwl] => Parse[Cwl]] =
     at[CommandLineTool] {
       clt => 
-        (_: Map[String, Cwl]) =>
-          Monad[Parse].pure(clt.asCwl)
+        Function.const(Monad[Parse].pure(clt.asCwl))
     }
 
   implicit def expressionTool: Case.Aux[ExpressionTool, Map[String, Cwl] => Parse[Cwl]] =
     at[ExpressionTool] {
       et =>
-        (_: Map[String, Cwl]) =>
-          Monad[Parse].pure(et.asCwl)
+        Function.const(Monad[Parse].pure(et.asCwl))
     }
 }

@@ -29,7 +29,7 @@ private [cwl] object FlattenCwlFile extends Poly1 {
     implicit def fromCwlArray: Case.Aux[Array[Cwl], Option[String] => Checked[Cwl]] = at[Array[Cwl]] { cwls => 
       _ match {
         case Some(root) => findRoot(cwls, root)
-        case None => "The supplied file contains an array of Cwl objects but no root has been provided. Please provided the cwl root".invalidNelCheck
+        case None => "The supplied file contains an array of Cwl objects but no root has been provided. Please provide the cwl root".invalidNelCheck
       }
     }
   }

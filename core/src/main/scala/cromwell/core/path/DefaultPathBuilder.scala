@@ -29,7 +29,7 @@ case object DefaultPathBuilder extends PathBuilder {
           DefaultPath(FileSystems.getDefault.getPath(pathAsString))
         }
 
-      case _ => throw new RuntimeException(s"Cannot build a local path from $pathAsString")
+      case _ => throw PathParsingException(s"Cannot build a local path from $pathAsString")
     }
   }
 

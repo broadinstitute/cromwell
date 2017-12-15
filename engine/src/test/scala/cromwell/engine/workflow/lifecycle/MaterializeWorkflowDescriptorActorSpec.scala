@@ -62,6 +62,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false))
       val sources = WorkflowSourceFilesWithoutImports(
         workflowSource = workflowSourceNoDocker,
+        workflowRoot = None,
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
@@ -121,6 +122,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, cromwellBackends, importLocalFilesystem = false))
       val sources = WorkflowSourceFilesWithoutImports(
         workflowSource = wdl,
+        workflowRoot = None,
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = "{}",
@@ -163,6 +165,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false))
       val sources = WorkflowSourceFilesWithoutImports(
         workflowSource = wdl,
+        workflowRoot = None,
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = "{}",
@@ -189,6 +192,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false))
       val sources = WorkflowSourceFilesWithoutImports(
         workflowSource = unstructuredFile,
+        workflowRoot = None,
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
@@ -220,6 +224,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false))
       val sources = WorkflowSourceFilesWithoutImports(
         workflowSource = noWorkflowWdl,
+        workflowRoot = None,
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
@@ -245,6 +250,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false))
       val sources = WorkflowSourceFilesWithoutImports(
         workflowSource = workflowSourceNoDocker,
+        workflowRoot = None,
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
@@ -270,6 +276,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false))
       val sources = WorkflowSourceFilesWithoutImports(
         workflowSource = workflowSourceNoDocker,
+        workflowRoot = None,
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
@@ -297,6 +304,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false))
       val sources = WorkflowSourceFilesWithoutImports(
         workflowSource = workflowSourceNoDocker,
+        workflowRoot = None,
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
@@ -328,6 +336,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false))
       val sources = WorkflowSourceFilesWithoutImports(
         workflowSource = workflowSourceNoDocker,
+        workflowRoot = None,
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = unstructuredFile,
@@ -354,6 +363,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       val noInputsJson = "{}"
       val badOptionsSources = WorkflowSourceFilesWithoutImports(
         workflowSource = workflowSourceNoDocker,
+        workflowRoot = None,
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = noInputsJson,
@@ -387,6 +397,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false))
       val sources = WorkflowSourceFilesWithoutImports(
         workflowSource = wdl,
+        workflowRoot = None,
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = "{}",
@@ -429,6 +440,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false))
       val sources = WorkflowSourceFilesWithoutImports(
         workflowSource = wdl,
+        workflowRoot = None,
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = jsonInput,

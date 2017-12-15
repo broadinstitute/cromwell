@@ -71,6 +71,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
   private def fromWorkflowStoreEntry(workflowStoreEntry: WorkflowStoreEntry): ErrorOr[WorkflowToStart] = {
     val sources = WorkflowSourceFilesCollection(
       workflowSource = workflowStoreEntry.workflowDefinition.toRawString,
+      workflowRoot = workflowStoreEntry.workflowRoot,
       workflowType = workflowStoreEntry.workflowType,
       workflowTypeVersion = workflowStoreEntry.workflowTypeVersion,
       inputsJson = workflowStoreEntry.workflowInputs.toRawString,
@@ -95,6 +96,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     WorkflowStoreEntry(
       workflowExecutionUuid = WorkflowId.randomId().toString,
       workflowDefinition = workflowSourceFiles.workflowSource.toClobOption,
+      workflowRoot = workflowSourceFiles.workflowRoot,
       workflowType = workflowSourceFiles.workflowType,
       workflowTypeVersion = workflowSourceFiles.workflowTypeVersion,
       workflowInputs = workflowSourceFiles.inputsJson.toClobOption,

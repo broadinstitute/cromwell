@@ -1,3 +1,7 @@
+#
+# After any edits to this file run `sbt generateRestApiDocs` and commit the generated changes to `docs/api/RESTAPI.md`.
+#
+
 swagger: '2.0'
 info:
   title: Cromwell Server REST API
@@ -53,6 +57,11 @@ paths:
           type: file
           in: formData
         - $ref: '#/parameters/workflowTypeParam'
+        - name: workflowRoot
+          description: The root object to be run. Only necessary for CWL submissions containing multiple objects (in an array).
+          required: false
+          type: string
+          in: formData
         - name: workflowTypeVersion
           description: The specification version for the workflow language being used. For WDL, Cromwell currently supports draft-2.
           required: false

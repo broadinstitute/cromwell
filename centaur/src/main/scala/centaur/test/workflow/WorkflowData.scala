@@ -13,6 +13,7 @@ import spray.json._
 
 
 case class WorkflowData(wdl: String,
+                        workflowRoot: Option[String],
                         workflowType: Option[String],
                         workflowTypeVersion: Option[String],
                         inputs: Option[String],
@@ -25,6 +26,7 @@ object WorkflowData {
     filesConfig.get[Path]("wdl") match {
       case Success(wdl) => Valid(WorkflowData(
         wdl = basePath.resolve(wdl),
+        workflowRoot = None,
         filesConfig = filesConfig,
         fullConfig = fullConfig,
         basePath = basePath))
@@ -32,7 +34,7 @@ object WorkflowData {
     }
   }
 
-  def apply(wdl: Path, filesConfig: Config, fullConfig: Config, basePath: Path): WorkflowData = {
+  def apply(wdl: Path, workflowRoot: Option[String], filesConfig: Config, fullConfig: Config, basePath: Path): WorkflowData = {
     def getOptionalPath(name: String) = filesConfig.get[Option[Path]](name) valueOrElse None map basePath.resolve
 
     def getImports = filesConfig.get[List[Path]]("imports") match {
@@ -67,6 +69,7 @@ object WorkflowData {
     // TODO: The slurps can throw - not a high priority but see #36
     WorkflowData(
       wdl = wdl.slurp,
+      workflowRoot = workflowRoot,
       workflowType = workflowType,
       workflowTypeVersion = workflowTypeVersion,
       inputs = getOptionalPath("inputs") map { _.slurp },

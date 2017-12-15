@@ -7,6 +7,7 @@ import common.validation.ErrorOr.ErrorOr
 import cwl.CommandLineTool._
 import cwl.CwlType.CwlType
 import cwl.CwlVersion._
+import cwl.command.ParentName
 import eu.timepit.refined.W
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil, Coproduct, Witness}
@@ -42,6 +43,8 @@ case class CommandLineTool private(
                                    successCodes: Option[Array[Int]],
                                    temporaryFailCodes: Option[Array[Int]],
                                    permanentFailCodes: Option[Array[Int]]) {
+
+  private [cwl] implicit val explicitWorkflowName = ParentName(id)
 
   /** Builds an `Executable` directly from a `CommandLineTool` CWL with no parent workflow. */
   def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None): Checked[Executable] = {

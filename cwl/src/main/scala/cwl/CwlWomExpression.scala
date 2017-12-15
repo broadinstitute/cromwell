@@ -8,6 +8,7 @@ import wom.values._
 import wom.expression.{IoFunctionSet, WomExpression}
 import cats.syntax.validated._
 import cwl.WorkflowStepInput.InputSource
+import cwl.command.ParentName
 
 sealed trait CwlWomExpression extends WomExpression {
 
@@ -70,7 +71,7 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
   }
 }
 
-final case class WorkflowStepInputExpression(input: WorkflowStepInput, override val cwlExpressionType: WomType, graphInputs: Set[String]) extends CwlWomExpression {
+final case class WorkflowStepInputExpression(input: WorkflowStepInput, override val cwlExpressionType: WomType, graphInputs: Set[String])(implicit parentName: ParentName) extends CwlWomExpression {
 
   override def sourceString = input.toString
 

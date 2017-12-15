@@ -89,11 +89,15 @@ object CentaurCwlRunner extends StrictLogging {
     }
 
     val workflowPath = args.workflowSource.get
+    val (parsedWorkflowPath, workflowRoot) = workflowPath.path.toAbsolutePath.toString.split("#") match {
+      case Array(file) => File(file) -> None
+      case Array(file, root) => File(file) -> Option(root)
+    }
     val outdirOption = args.outdir.map(_.pathAsString)
     val testName = workflowPath.name
-    val workflowContents = workflowPath.contentAsString
+    val workflowContents = parsedWorkflowPath.contentAsString
     val inputContents = args.workflowInputs.map(_.contentAsString)
-    val workflowType = workflowPath.extension(includeDot = false)
+    val workflowType = Option("cwl")
     val workflowTypeVersion = None
     val optionsContents = outdirOption map { outdir =>
       JsObject("cwl_outdir" -> JsString(outdir)).compactPrint
@@ -109,7 +113,7 @@ object CentaurCwlRunner extends StrictLogging {
     val submitResponseOption = None
 
     val workflowData = WorkflowData(
-      workflowContents, workflowType, workflowTypeVersion, inputContents, optionsContents, labels, zippedImports)
+      workflowContents, workflowRoot, workflowType, workflowTypeVersion, inputContents, optionsContents, labels, zippedImports)
     val workflow = Workflow(testName, workflowData, workflowMetadata, notInMetadata, directoryContentCounts, backends)
     val testCase = CentaurTestCase(workflow, testFormat, testOptions, submitResponseOption)
 

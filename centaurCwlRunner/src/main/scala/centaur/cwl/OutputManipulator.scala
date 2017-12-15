@@ -21,7 +21,7 @@ import _root_.cwl._
 import better.files.File
 
 //Take cromwell's outputs and format them as expected by the spec
-object OutputManipulator extends Poly1{
+object OutputManipulator extends Poly1 {
 
   //In an Ideal world I'd return a Coproduct of these types and leave the asJson-ing to the handleOutput
   def resolveOutput(jsValue: JsValue, mot: MyriadOutputType): Json  = {
@@ -57,13 +57,12 @@ object OutputManipulator extends Poly1{
       case (JsNumber(metadata), Inl(CwlType.Int)) => metadata.intValue.asJson
       case (JsString(metadata), Inl(CwlType.String)) => metadata.asJson
       case (JsArray(metadata), tpe) if tpe.select[OutputArraySchema].isDefined =>
-        val inputInnerType = tpe.select[OutputArraySchema].get.items
         (for {
           schema <- tpe.select[OutputArraySchema]
           items = schema.items
           innerType <- items.select[MyriadOutputInnerType]
           outputJson = metadata.map(resolveOutputViaInnerType(innerType)).asJson
-        } yield outputJson).getOrElse(throw new RuntimeException(s"We currently do not support output arrays with $inputInnerType inner type"))
+        } yield outputJson).getOrElse(throw new RuntimeException(s"We currently do not support output arrays with ${tpe.select[OutputArraySchema].get.items} inner type"))
       case (json, tpe) => throw new RuntimeException(s" we currently do not support outputs of $json and type $tpe")
     }
   }

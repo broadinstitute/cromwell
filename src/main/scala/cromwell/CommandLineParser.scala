@@ -13,6 +13,7 @@ object CommandLineParser extends App {
 
   case class CommandLineArguments(command: Option[Command] = None,
                                   workflowSource: Option[Path] = None,
+                                  workflowRoot: Option[String] = None,
                                   workflowInputs: Option[Path] = None,
                                   workflowOptions: Option[Path] = None,
                                   workflowType: Option[String] = WorkflowOptions.defaultWorkflowType,
@@ -63,6 +64,9 @@ object CommandLineParser extends App {
         children(
           arg[String]("workflow-source").text("Workflow source file.").required().
             action((s, c) => c.copy(workflowSource = Option(DefaultPathBuilder.get(s)))),
+          opt[String]('i', "workflow-root").text("Workflow root.").
+            action((s, c) =>
+              c.copy(workflowRoot = Option(s))),
           opt[String]('i', "inputs").text("Workflow inputs file.").
             action((s, c) =>
               c.copy(workflowInputs = Option(DefaultPathBuilder.get(s)))),

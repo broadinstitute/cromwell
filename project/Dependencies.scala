@@ -304,7 +304,7 @@ object Dependencies {
 
   val centaurDependencies = List(
     "com.github.kxbmap" %% "configs" % configsV
-  ) ++ circeDependencies
+  ) ++ circeDependencies ++ slf4jBindingDependencies
 
   val engineDependencies = List(
     "commons-codec" % "commons-codec" % commonsCodecV,

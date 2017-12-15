@@ -14,17 +14,19 @@ object AddEmbeddedCwl extends Poly1 {
 
   import CwlDecoder._
 
-  implicit def workflow =
+  implicit def workflow: Case.Aux[Workflow, Map[String, Cwl] => Parse[Cwl]] =
     at[Workflow] {
       workflow =>
+        initialMap: Map[String, Cwl] =>
 
         //Gather up all the filenames from the "run" section of workflow steps.
         val fileNames =
           workflow.
             steps.
             toList.
-            flatMap(_.run.select[String].toList)
-
+            flatMap(_.run.select[String].toList).
+            filterNot(initialMap.keys.toList.contains)
+          
         //read the files, parse them, and put them in a Map
         val cwlList: ParseValidated[List[(String, Cwl)]] =
           fileNames.traverse[ParseValidated, (String, Cwl)](CwlDecoder.decodeCwlAsValidated)
@@ -41,7 +43,7 @@ object AddEmbeddedCwl extends Poly1 {
             //Replace each step that links to another CWL file with the CWL instance
             val newWorkflow = lens[Workflow].steps.modify(workflow){
               _.map{ step =>
-                lens[WorkflowStep].run.modify(step)(_.fold(RunToEmbeddedCwl).apply(fileNameToCwl))
+                lens[WorkflowStep].run.modify(step)(_.fold(RunToEmbeddedCwl).apply(fileNameToCwl ++ initialMap))
               }
             }
 
@@ -49,15 +51,15 @@ object AddEmbeddedCwl extends Poly1 {
         }
     }
 
-  implicit def commandLineTool =
+  implicit def commandLineTool: Case.Aux[CommandLineTool, Map[String, Cwl] => Parse[Cwl]] =
     at[CommandLineTool] {
-      clt =>
-        Monad[Parse].pure(clt.asCwl)
+      clt => 
+        Function.const(Monad[Parse].pure(clt.asCwl))
     }
 
-  implicit def expressionTool =
+  implicit def expressionTool: Case.Aux[ExpressionTool, Map[String, Cwl] => Parse[Cwl]] =
     at[ExpressionTool] {
       et =>
-        Monad[Parse].pure(et.asCwl)
+        Function.const(Monad[Parse].pure(et.asCwl))
     }
 }

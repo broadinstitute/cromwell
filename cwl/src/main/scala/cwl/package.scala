@@ -3,6 +3,7 @@ import cwl.CwlType.{CwlType, _}
 import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
+import cwl.command.ParentName
 import shapeless._
 import wom.executable.Executable
 import wom.types._
@@ -28,8 +29,9 @@ import wom.types._
  */
 package object cwl extends TypeAliases {
 
+  type CwlFile = Array[Cwl] :+: Cwl :+: CNil
   type Cwl = Workflow :+: CommandLineTool :+: ExpressionTool :+: CNil
-
+  
   object Cwl {
     object Workflow { def unapply(cwl: Cwl): Option[Workflow] = cwl.select[Workflow] }
     object CommandLineTool { def unapply(cwl: Cwl): Option[CommandLineTool] = cwl.select[CommandLineTool] }
@@ -93,13 +95,17 @@ package object cwl extends TypeAliases {
       case Cwl.CommandLineTool(clt) => clt.womExecutable(validator, inputsFile)
     }
 
-    def requiredInputs: Map[String, WomType] = cwl match {
-      case Cwl.Workflow(w) => selectWomTypeInputs(w.inputs collect {
-        case i if i.`type`.isDefined => FullyQualifiedName(i.id).id -> i.`type`.get
-      })
-      case Cwl.CommandLineTool(clt) => selectWomTypeInputs(clt.inputs collect {
-        case i if i.`type`.isDefined => FullyQualifiedName(i.id).id -> i.`type`.get
-      })
+    def requiredInputs: Map[String, WomType] = {
+      implicit val parent = ParentName.empty
+      
+      cwl match {
+        case Cwl.Workflow(w) => selectWomTypeInputs(w.inputs collect {
+          case i if i.`type`.isDefined => FullyQualifiedName(i.id).id -> i.`type`.get
+        })
+        case Cwl.CommandLineTool(clt) => selectWomTypeInputs(clt.inputs collect {
+          case i if i.`type`.isDefined => FullyQualifiedName(i.id).id -> i.`type`.get
+        })
+      }
     }
 
     private def selectWomTypeInputs(myriadInputMap: Array[(String, MyriadInputType)]): Map[String, WomType] = {

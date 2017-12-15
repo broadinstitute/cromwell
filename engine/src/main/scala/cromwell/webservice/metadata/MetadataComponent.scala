@@ -66,22 +66,24 @@ object MetadataComponent {
         // Name: "executionEvents"
         val objectName = chunk.substring(0, bracketIndex)
 
+        // Brackets: "[0][1]"
+        val brackets = chunk.substring(bracketIndex)
+        // Indices as a list: List(0, 1)
+        val listIndices = for {
+          m <- bracketMatcher.findAllMatchIn(brackets)
+          // It's possible for a bracket pair to be empty, in which case we just give it a random number
+          asInt = if (m.group(1).isEmpty) Random.nextInt() else m.group(1).toInt
+        } yield asInt
+        // Fold into a MetadataList: MetadataList(0 -> MetadataList(1 -> innerValue))
+        val init = if (innerValue == MetadataEmptyComponent) {
         // Empty value means empty list
-        if (innerValue == MetadataEmptyComponent) MetadataObject(Map(objectName -> MetadataList.empty))
-        else {
-          // Brackets: "[0][1]"
-          val brackets = chunk.substring(bracketIndex)
-          // Indices as a list: List(0, 1)
-          val listIndices = for {
-            m <- bracketMatcher.findAllMatchIn(brackets)
-            // It's possible for a bracket pair to be empty, in which case we just give it a random number
-            asInt = if (m.group(1).isEmpty) Random.nextInt() else m.group(1).toInt
-          } yield asInt
-          // Fold into a MetadataList: MetadataList(0 -> MetadataList(1 -> innerValue))
-          val metadataList = listIndices.toList.foldRight(innerValue)((index, acc) => MetadataList(TreeMap(index -> acc)))
-
-          MetadataObject(Map(objectName -> metadataList))
+          listIndices.toList.init.foldRight(MetadataList.empty)((index, acc) => MetadataList(TreeMap(index -> acc)))
+        } else {
+          listIndices.toList.foldRight(innerValue)((index, acc) => MetadataList(TreeMap(index -> acc)))
         }
+        val metadataList = listIndices.toList.foldRight(init)((index, acc) => MetadataList(TreeMap(index -> acc)))
+
+        MetadataObject(Map(objectName -> metadataList))
     }
   }
 

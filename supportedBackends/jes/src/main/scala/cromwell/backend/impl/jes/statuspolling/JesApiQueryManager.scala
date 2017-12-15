@@ -71,6 +71,8 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
   // workQueue is protected for the unit tests, not intended to be generally overridden
   protected[statuspolling] var workQueue: Queue[JesApiQuery] = Queue.empty
   private var workInProgress: Map[ActorRef, JesPollingWorkBatch] = Map.empty
+  // Queries that have been scheduled to be retried through the actor's timer. They will boomerang back to this actor after
+  // the scheduled delay, unless the workflow is aborted in the meantime in which case they will be cancelled.
   private var queriesWaitingForRetry: Set[JesApiQuery] = Set.empty[JesApiQuery]
 
   private def statusPollerProps = JesPollingActor.props(self, qps, serviceRegistryActor)

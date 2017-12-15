@@ -5,6 +5,7 @@ import com.typesafe.config.Config
 import cromwell.backend.MemorySize
 import common.validation.ErrorOr._
 import wdl4s.parser.MemoryUnit
+import wom.RuntimeAttributesKeys
 import wom.types.{WomIntegerType, WomStringType}
 import wom.values.{WomInteger, WomString, WomValue}
 
@@ -69,7 +70,7 @@ object MemoryValidation {
   }
 }
 
-class MemoryValidation(attributeName: String = RuntimeAttributesKeys.MemoryKey) extends RuntimeAttributesValidation[MemorySize] {
+class MemoryValidation(attributeName: String = RuntimeAttributesKeys.MemoryMinKey) extends RuntimeAttributesValidation[MemorySize] {
 
   import MemoryValidation._
 

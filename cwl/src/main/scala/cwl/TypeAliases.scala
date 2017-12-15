@@ -95,6 +95,8 @@ trait TypeAliases {
       CNil
   
   type ScatterVariables = Option[String :+: Array[String] :+: CNil]
+  
+  type ResourceRequirementType = Long :+: Expression :+: String :+: CNil
 }
 
 object MyriadInputType {

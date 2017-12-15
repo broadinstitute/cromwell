@@ -4,6 +4,7 @@ import cromwell.backend.impl.sfs.config.ConfigConstants._
 import cromwell.backend.validation._
 import wdl.expression.NoFunctions
 import wdl.{Declaration, NoLookup, WdlExpression}
+import wom.RuntimeAttributesKeys
 import wom.types._
 import wom.values.WomValue
 
@@ -26,10 +27,16 @@ object DeclarationValidation {
       // Docker and CPU are special keys understood by cromwell.
       case name if name == DockerValidation.instance.key =>
         new DeclarationValidation(declaration, DockerValidation.instance)
-      case name if name == CpuValidation.instance.key => new DeclarationValidation(declaration, CpuValidation.instance)
+      case name if name == RuntimeAttributesKeys.CPUKey => new DeclarationValidation(declaration, CpuValidation.instance)
+      case name if name == RuntimeAttributesKeys.CPUMinKey => new DeclarationValidation(declaration, CpuValidation.instanceMin)
+      case name if name == RuntimeAttributesKeys.CPUMaxKey => new DeclarationValidation(declaration, CpuValidation.instanceMax)
       // See MemoryDeclarationValidation for more info
       case name if MemoryDeclarationValidation.isMemoryDeclaration(name, MemoryRuntimeAttribute, MemoryRuntimeAttributePrefix) =>
         new MemoryDeclarationValidation(declaration, MemoryRuntimeAttribute, MemoryRuntimeAttributePrefix)
+      case name if MemoryDeclarationValidation.isMemoryDeclaration(name, MemoryMinRuntimeAttribute, MemoryRuntimeAttributePrefix) =>
+        new MemoryDeclarationValidation(declaration, MemoryMinRuntimeAttribute, MemoryMinRuntimeAttributePrefix)
+      case name if MemoryDeclarationValidation.isMemoryDeclaration(name, MemoryMaxRuntimeAttribute, MemoryRuntimeAttributePrefix) =>
+        new MemoryDeclarationValidation(declaration, MemoryMaxRuntimeAttribute, MemoryMaxRuntimeAttributePrefix)
       case name if MemoryDeclarationValidation.isMemoryDeclaration(name, DiskRuntimeAttribute, DiskRuntimeAttributePrefix) =>
         new MemoryDeclarationValidation(declaration, DiskRuntimeAttribute, DiskRuntimeAttributePrefix)
       // All other declarations must be a Boolean, Float, Integer, or String.

@@ -8,6 +8,7 @@ import cwl.CommandLineTool._
 import cwl.CwlType.CwlType
 import cwl.CwlVersion._
 import cwl.command.ParentName
+import cwl.requirement.ResourceRequirementToWomExpression
 import eu.timepit.refined.W
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil, Coproduct, Witness}
@@ -19,7 +20,6 @@ import wom.types.WomType
 import wom.values.WomString
 import wom.{CommandPart, RuntimeAttributes}
 
-import scala.language.postfixOps
 import scala.util.Try
 
 /**
@@ -45,6 +45,7 @@ case class CommandLineTool private(
                                    permanentFailCodes: Option[Array[Int]]) {
 
   private [cwl] implicit val explicitWorkflowName = ParentName(id)
+  private val inputNames = this.inputs.map(i => FullyQualifiedName(i.id).id).toSet
 
   /** Builds an `Executable` directly from a `CommandLineTool` CWL with no parent workflow. */
   def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None): Checked[Executable] = {
@@ -74,7 +75,37 @@ case class CommandLineTool private(
   }
 
   def buildTaskDefinition(parentWorkflow: Option[Workflow], validator: RequirementsValidator): ErrorOr[CallableTaskDefinition] = {
+    import wom.RuntimeAttributesKeys._
+    
+    def processRequirement(requirement: Requirement): Map[String, WomExpression] = {
+      def processDockerRequirement(requirement: DockerRequirement): Map[String, WomExpression] = {
+        requirement.dockerPull.orElse(requirement.dockerImageId).map({ pull =>
+          DockerKey -> ValueAsAnExpression(WomString(pull))
+        }).toMap
+      }
 
+      def processResourceRequirement(requirement: ResourceRequirement): Map[String, WomExpression] = {
+        def toExpression(resourceRequirement: ResourceRequirementType) = resourceRequirement.fold(ResourceRequirementToWomExpression).apply(inputNames)
+
+        List(
+          // Map cpuMin to both cpuMin and cpu keys
+          requirement.effectiveCoreMin.toList.map(toExpression).flatMap(min => List(CPUMinKey -> min, CPUKey -> min)),
+          requirement.effectiveCoreMax.toList.map(toExpression).map(CPUMaxKey -> _),
+          // Map ramMin to both memoryMin and memory keys
+          requirement.effectiveRamMin.toList.map(toExpression).flatMap(min => List(MemoryMinKey -> min, MemoryKey -> min)),
+          requirement.effectiveRamMax.toList.map(toExpression).map(MemoryMaxKey -> _),
+          requirement.effectiveTmpdirMin.toList.map(toExpression).map(TmpDirMinKey -> _),
+          requirement.effectiveTmpdirMax.toList.map(toExpression).map(TmpDirMaxKey -> _),
+          requirement.effectiveOutdirMin.toList.map(toExpression).map(OutDirMinKey -> _),
+          requirement.effectiveOutdirMax.toList.map(toExpression).map(OutDirMaxKey -> _)
+        ).flatten.toMap
+      }
+
+      requirement.select[DockerRequirement].map(processDockerRequirement).orElse(
+        requirement.select[ResourceRequirement].map(processResourceRequirement)
+      ).getOrElse(Map.empty)
+    }
+    
     validateRequirementsAndHints(parentWorkflow, validator) map { requirementsAndHints =>
       val id = this.id
 
@@ -82,15 +113,11 @@ case class CommandLineTool private(
         arguments.toSeq.flatMap(_.map(_.fold(ArgumentToCommandPart))) ++
         CommandLineTool.orderedForCommandLine(inputs).map(InputParameterCommandPart.apply)
 
-      val dockerRequirement = requirementsAndHints.toStream flatMap { _.select[DockerRequirement] } headOption
-      val dockerPull: Option[WomExpression] = for {
-        requirement <- dockerRequirement
-        pull <- requirement.dockerPull.orElse(requirement.dockerImageId)
-      } yield ValueAsAnExpression(WomString(pull))
+      val finalAttributesMap = requirementsAndHints.foldRight(Map.empty[String, WomExpression])({
+        case (requirement, attributesMap) => attributesMap ++ processRequirement(requirement)
+      })
 
-      import mouse.option._
-      val empty = RuntimeAttributes.empty
-      val runtimeAttributes: RuntimeAttributes = dockerPull.cata(empty.withDockerImage, empty)
+      val runtimeAttributes: RuntimeAttributes = RuntimeAttributes(finalAttributesMap)
 
       val meta: Map[String, String] = Map.empty
       val parameterMeta: Map[String, String] = Map.empty
@@ -107,8 +134,6 @@ case class CommandLineTool private(
       outputEval
       secondaryFiles
      */
-
-    val inputNames = this.inputs.map(i => FullyQualifiedName(i.id).id).toSet
 
     val outputs: List[Callable.OutputDefinition] = this.outputs.map {
       case CommandOutputParameter(cop_id, _, _, _, _, _, Some(outputBinding), Some(tpe)) =>

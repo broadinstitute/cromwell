@@ -3,8 +3,10 @@ package cromwell.engine.workflow.lifecycle.execution.job.preparation
 import _root_.wdl._
 import akka.actor.{ActorRef, FSM, Props}
 import cats.data.Validated.{Invalid, Valid}
+import common.exception.MessageAggregation
+import common.validation.ErrorOr.ErrorOr
 import cromwell.backend._
-import cromwell.backend.validation.{DockerValidation, RuntimeAttributesKeys}
+import cromwell.backend.validation.DockerValidation
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
@@ -16,8 +18,7 @@ import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparat
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.JobPreparationActor._
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvResponse, ScopedKey}
-import common.exception.MessageAggregation
-import common.validation.ErrorOr.ErrorOr
+import wom.RuntimeAttributesKeys
 import wom.callable.Callable.InputDefinition
 import wom.values._
 

@@ -146,6 +146,16 @@ runtime {
 
 Defaults to "1".
 
+**CWL**
+
+CWL splits the `cpu` requirement into `cpuMin` and `cpuMax`.
+If one of them is provided, `cpu` will inherit this value. If both of them are provided, `cpu` will take the value of `cpuMin`.
+If none is provided, `cpu` will default to its default value.
+
+Note: Runtime attributes are handled by backends as they please. 
+The PAPI backend for instance will only honor `cpuMin`.
+If provided, `cpuMin` and/or `cpuMax` will be available to the [HPC runtime attribute configuration](tutorials/HPCIntro.md#specifying-the-runtime-attributes-for-your-hpc-tasks).
+
 ## `disks`
 
 This is currently used by the [Google Cloud backend](backends/Google). You can use this attribute to specify volumes that will be mounted to the VM for your job.  These volumes are where you can read and write files that will be used by the commands within your workflow.
@@ -242,6 +252,16 @@ runtime {
 ```
 
 Defaults to "2G".
+
+**CWL**
+
+CWL splits the `memory` requirement into `ramMin` and `ramMax`.
+If one of them is provided, `memory` will inherit this value. If both of them are provided, `memory` will take the value of `ramMin`.
+If none is provided, `memory` will default to its default value.
+
+Note: Runtime attributes are handled by backends as they please.
+The PAPI backend for instance will only honor `ramMin`.
+If provided, `ramMin` and/or `ramMax` will be available to the [HPC runtime attribute configuration](tutorials/HPCIntro.md#specifying-the-runtime-attributes-for-your-hpc-tasks).
 
 ## `preemptible`
 

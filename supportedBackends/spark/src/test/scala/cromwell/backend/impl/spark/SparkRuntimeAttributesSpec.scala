@@ -1,7 +1,7 @@
 package cromwell.backend.impl.spark
 
 import cromwell.backend.{BackendWorkflowDescriptor, MemorySize}
-import cromwell.backend.validation.RuntimeAttributesKeys._
+import wom.RuntimeAttributesKeys._
 import cromwell.core.labels.Labels
 import cromwell.core.{NoIoFunctionSet, WorkflowId, WorkflowOptions}
 import common.validation.ErrorOr._

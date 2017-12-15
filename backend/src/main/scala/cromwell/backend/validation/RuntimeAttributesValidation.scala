@@ -405,7 +405,7 @@ trait RuntimeAttributesValidation[ValidatedType] {
     * @param optionalRuntimeConfig Optional default runtime attributes config of a particular backend.
     * @return The new version of this validation.
     */
-  final def configDefaultWdlValue(optionalRuntimeConfig: Option[Config]): Option[WomValue] = {
+  final def configDefaultWomValue(optionalRuntimeConfig: Option[Config]): Option[WomValue] = {
     optionalRuntimeConfig flatMap { config =>
       val value = config.getValue(key).unwrapped()
       coercion.collectFirst({

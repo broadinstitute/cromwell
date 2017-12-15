@@ -59,7 +59,9 @@ case class CommandOutputBinding(
       case Some(outputEvalCoproduct) =>
         outputEvalCoproduct match {
           case StringOrExpression.String(s) => WomString(s)
-          case StringOrExpression.Expression(e) => e.fold(EvaluateExpression).apply(outputEvalParameterContext)
+          case StringOrExpression.Expression(e) => 
+            // For now throw if the expression evaluation fails
+            e.fold(EvaluateExpression).apply(outputEvalParameterContext).get
         }
       case None =>
         // Return the WomArray of file paths, three_step.ps needs this for stdout output.

@@ -7,6 +7,8 @@ import wom.types.{WomArrayType, WomStringType}
 import scala.Function._
 import wom.values._
 
+import scala.util.{Failure, Success}
+
 /*
 CommandOutputBinding.glob:
 Find files relative to the output directory, using POSIX glob(3) pathname matching. If an array is provided, find
@@ -47,12 +49,13 @@ object GlobEvaluator {
       at[Expression] { ecmaScript =>
         (parameterContext: ParameterContext) => {
           ecmaScript.fold(EvaluateExpression).apply(parameterContext) match {
-            case WomArray(_, values) if values.isEmpty => Vector.empty
-            case WomString(value) => Vector(value)
-            case WomArray(WomArrayType(WomStringType), values) => values.map(_.valueString)
-            case womValue =>
+            case Success(WomArray(_, values)) if values.isEmpty => Vector.empty
+            case Success(WomString(value)) => Vector(value)
+            case Success(WomArray(WomArrayType(WomStringType), values)) => values.map(_.valueString)
+            case Success(womValue) =>
               throw new RuntimeException(
                 s"Unexpected expression result: $womValue while evaluating expression '$ecmaScript' using inputs '${parameterContext.inputs}'")
+            case Failure(e) => throw e
           }
         }
       }

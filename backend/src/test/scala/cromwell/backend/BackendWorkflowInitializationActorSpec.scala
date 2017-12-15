@@ -5,10 +5,11 @@ import _root_.wdl.types._
 import akka.actor.ActorRef
 import akka.testkit.TestActorRef
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, ContinueOnReturnCodeValidation, RuntimeAttributesKeys}
+import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, ContinueOnReturnCodeValidation}
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
+import wom.RuntimeAttributesKeys
 import wom.expression.WomExpression
 import wom.graph.TaskCallNode
 import wom.types._

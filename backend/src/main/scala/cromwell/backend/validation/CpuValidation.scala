@@ -3,6 +3,7 @@ package cromwell.backend.validation
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
+import wom.RuntimeAttributesKeys._
 import wom.types.WomIntegerType
 import wom.values.{WomInteger, WomValue}
 
@@ -17,13 +18,18 @@ import wom.values.{WomInteger, WomValue}
   * reference.conf file, coerced into a WomValue.
   */
 object CpuValidation {
-  lazy val instance: RuntimeAttributesValidation[Int] = new CpuValidation
+  lazy val instance: RuntimeAttributesValidation[Int] = new CpuValidation(CPUKey)
   lazy val optional: OptionalRuntimeAttributesValidation[Int] = instance.optional
-  lazy val default: WomValue = WomInteger(1)
-  def configDefaultWdlValue(config: Option[Config]): Option[WomValue] = instance.configDefaultWdlValue(config)
+  lazy val instanceMin: RuntimeAttributesValidation[Int] = new CpuValidation(CPUMinKey)
+  lazy val optionalMin: OptionalRuntimeAttributesValidation[Int] = instanceMin.optional
+  lazy val instanceMax: RuntimeAttributesValidation[Int] = new CpuValidation(CPUMaxKey)
+  lazy val optionalMax: OptionalRuntimeAttributesValidation[Int] = instanceMax.optional
+
+  lazy val defaultMin: WomValue = WomInteger(1)
+  def configDefaultWomValue(config: Option[Config]): Option[WomValue] = instance.configDefaultWomValue(config)
 }
 
-class CpuValidation extends IntRuntimeAttributesValidation(RuntimeAttributesKeys.CpuKey) {
+class CpuValidation(attributeName: String) extends IntRuntimeAttributesValidation(attributeName) {
   override protected def validateValue: PartialFunction[WomValue, ErrorOr[Int]] = {
     case womValue if WomIntegerType.coerceRawValue(womValue).isSuccess =>
       WomIntegerType.coerceRawValue(womValue).get match {

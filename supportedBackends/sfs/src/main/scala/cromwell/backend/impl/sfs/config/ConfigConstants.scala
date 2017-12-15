@@ -1,5 +1,7 @@
 package cromwell.backend.impl.sfs.config
 
+import wom.RuntimeAttributesKeys
+
 /**
   * A consolidated list of constants, a one-stop-shop for backend configuration to know what constants are floating
   * around.
@@ -21,11 +23,15 @@ object ConfigConstants {
   /*
   Runtime attributes that may be specified within the RuntimeAttributesConfig.
    */
-  val DockerRuntimeAttribute = "docker"
-  val CpuRuntimeAttribute = "cpu"
-  val MemoryRuntimeAttribute = "memory"
+  val DockerRuntimeAttribute = RuntimeAttributesKeys.DockerKey
+  val CpuRuntimeAttribute = RuntimeAttributesKeys.CPUKey
+  val MemoryRuntimeAttribute = RuntimeAttributesKeys.MemoryKey
+  val MemoryMinRuntimeAttribute = RuntimeAttributesKeys.MemoryMinKey
+  val MemoryMaxRuntimeAttribute = RuntimeAttributesKeys.MemoryMaxKey
   // See: MemoryDeclarationValidation
   val MemoryRuntimeAttributePrefix = "memory_"
+  val MemoryMinRuntimeAttributePrefix = "memoryMin_"
+  val MemoryMaxRuntimeAttributePrefix = "memoryMax_"
   val DiskRuntimeAttribute = "disk"
   val DiskRuntimeAttributePrefix = "disk_"
   /*

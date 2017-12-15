@@ -13,14 +13,12 @@ import eu.timepit.refined.W
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil, Coproduct, Witness}
 import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition, RequiredInputDefinition}
-import wom.callable.TaskDefinition.CommandPartRuntimeSortFunction
 import wom.callable.{Callable, CallableTaskDefinition}
 import wom.executable.Executable
 import wom.expression.{InputLookupExpression, ValueAsAnExpression, WomExpression}
 import wom.types.WomType
-import wom.values.{WomEvaluatedCallInputs, WomString}
+import wom.values.WomString
 import wom.{CommandPart, RuntimeAttributes}
-import mouse.all._
 
 import scala.language.postfixOps
 import scala.util.Try
@@ -81,59 +79,6 @@ case class CommandLineTool private(
     validateRequirementsAndHints(parentWorkflow, validator) map { requirementsAndHints =>
       val id = this.id
 
-      val argumentSortKeys: List[SortKey] = arguments.toList.flatten.map(_.fold(ArgumentToSortingKey)).zipWithIndex map {
-        case (Some(position), arrayIndex) => List(Coproduct[SortKeyInnerType](position), Coproduct[SortKeyInnerType](arrayIndex))
-        case (None, arrayIndex) => List(Coproduct[SortKeyInnerType](arrayIndex))
-      }
-
-//      def runtimeSorting(womInputs: WomEvaluatedCallInputs) = {
-//        inputs.map({input =>
-//          val parsedId = FullyQualifiedName(input.id).id
-//          for {
-//            inputBinding <- input.inputBinding
-//            womEntry <- womInputs.find(_._1.name == parsedId)
-//            (_, womValue) = womEntry
-//          } yield inputBinding -> womValue
-//          
-//          for {
-//            inputType <- input.`type`
-//            _ = inputType.select[]
-//          }
-//        })
-//      }
-      
-      
-      def positionFromOptionBinding(maybeBinding: Option[CommandLineBinding]) = maybeBinding.flatMap(_.position).getOrElse(0)
-      
-      def inputSortingKey(inputParameter: CommandInputParameter) = {
-        val inputPosition = inputParameter.inputBinding |> positionFromOptionBinding
-        val sortKey: SortKey = List(Coproduct[SortKeyInnerType](inputPosition))
-        
-        def typeDescent(cwlType: MyriadInputType) = {
-          def forRecordSchema = {
-            cwlType.select[InputRecordSchema] match {
-              case Some(recordSchema) => recordSchema.fields.toList.flatten map { field =>
-                field.inputBinding.map({binding => 
-                  val pos = binding.position.getOrElse(0)
-                  val fieldName = field.name
-                  List(Coproduct[SortKeyInnerType](pos), Coproduct[SortKeyInnerType](fieldName))
-                })
-              }
-            }
-          }
-        }
-        
-//        val recordSchema = inputParameter.`type`.flatMap(_.select[InputRecordSchema])
-        recordSchema.flatMap(_.fields).map({fields =>
-          fields.map({ field =>
-            val position = field.inputBinding |> positionFromOptionBinding
-            field.`type`
-          })
-          
-        })
-      }
-      
-      
       val commandTemplate: Seq[CommandPart] = baseCommand.toSeq.flatMap(_.fold(BaseCommandToCommandParts)) ++
         arguments.toSeq.flatMap(_.map(_.fold(ArgumentToCommandPart))) ++
         CommandLineTool.orderedForCommandLine(inputs).map(InputParameterCommandPart.apply)
@@ -229,9 +174,6 @@ case class CommandLineTool private(
 
 object CommandLineTool {
   
-  type SortKeyInnerType = String :+: Int :+: CNil
-  type SortKey = List[SortKeyInnerType]
-
   /**
     * Sort according to position. If position does not exist, use 0 per spec:
     * http://www.commonwl.org/v1.0/CommandLineTool.html#CommandLineBinding

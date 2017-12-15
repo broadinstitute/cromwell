@@ -20,9 +20,14 @@ object CentaurTestSuite {
 
   val cromwellBackends = CentaurCromwellClient.backends.get.supportedBackends.map(_.toLowerCase)
   
-  def runSequential(testCase: CentaurTestCase) = testCase.testFormat match {
-    case _: RestartFormat| _: ScheduledAbort | InstantAbort => true
-    case _ => false
+  def runSequential(testCase: CentaurTestCase) = {
+    val sequentialFormat = testCase.testFormat match {
+      case _: RestartFormat| _: ScheduledAbort | InstantAbort => true
+      case _ => false
+    }
+    val cwlWorkflow = testCase.workflow.data.workflowType.exists(_.equalsIgnoreCase("cwl"))
+
+    sequentialFormat || cwlWorkflow
   }
   
   def runParallel(testCase: CentaurTestCase) = !runSequential(testCase)

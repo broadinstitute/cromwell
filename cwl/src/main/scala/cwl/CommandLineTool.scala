@@ -3,7 +3,6 @@ package cwl
 import java.nio.file.Paths
 
 import common.Checked
-import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
 import cwl.CommandLineTool._
 import cwl.CwlType.CwlType
@@ -119,8 +118,7 @@ case class CommandLineTool private(
       //This catches states where the output binding is not declared but the type is
       case CommandOutputParameter(id, _, _, _, _, _, _, Some(tpe)) =>
         val womType: WomType = tpe.fold(MyriadOutputTypeToWomType)
-        val inputId = FullyQualifiedName(id).id
-        OutputDefinition(inputId, womType, InputLookupExpression(womType, inputId))
+        OutputDefinition(FullyQualifiedName(id).id, womType, InputLookupExpression(womType, id))
 
       case other => throw new NotImplementedError(s"Command output parameters such as $other are not yet supported")
     }.toList
@@ -130,11 +128,7 @@ case class CommandLineTool private(
         case CommandInputParameter(id, _, _, _, _, _, _, Some(default), Some(tpe)) =>
           val inputType = tpe.fold(MyriadInputTypeToWomType)
           val inputName = FullyQualifiedName(id).id
-          val defaultWomValue = default.fold(CwlAnyToWomValue).apply(inputType) match {
-            case Right(d) => d
-            case Left(errors) => throw AggregatedMessageException("Can't convert default CWL value to WOM value", errors.toList)
-          }
-          InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(defaultWomValue))
+          InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(inputType.coerceRawValue(default.toString).get))
         case CommandInputParameter(id, _, _, _, _, _, _, None, Some(tpe)) =>
           val inputType = tpe.fold(MyriadInputTypeToWomType)
           val inputName = FullyQualifiedName(id).id
@@ -173,7 +167,7 @@ case class CommandLineTool private(
 }
 
 object CommandLineTool {
-  
+
   /**
     * Sort according to position. If position does not exist, use 0 per spec:
     * http://www.commonwl.org/v1.0/CommandLineTool.html#CommandLineBinding

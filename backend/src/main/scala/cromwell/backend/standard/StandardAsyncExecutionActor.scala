@@ -4,7 +4,7 @@ import java.io.IOException
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
-import common.exception.{AggregatedMessageException, MessageAggregation}
+import common.exception.MessageAggregation
 import common.util.TryUtil
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
@@ -19,7 +19,7 @@ import cromwell.backend.wdl.OutputEvaluator._
 import cromwell.backend.wdl.{Command, OutputEvaluator}
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.core.path.Path
-import cromwell.core.{CromwellAggregatedException, CromwellFatalException, CromwellFatalExceptionMarker, ExecutionEvent}
+import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
@@ -236,9 +236,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   lazy val instantiatedCommand: InstantiatedCommand = {
     val runtimeEnvironment = RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(standardParams.minimumRuntimeSettings)
     Command.instantiate(
-      jobDescriptor, backendEngineFunctions, commandLinePreProcessor, commandLineValueMapper, runtimeEnvironment).toTry(errors =>
-      CromwellFatalException(AggregatedMessageException("Error(s)", errors.toList))
-    ).get
+      jobDescriptor, backendEngineFunctions, commandLinePreProcessor, commandLineValueMapper, runtimeEnvironment).toTry.get
   }
 
   /**

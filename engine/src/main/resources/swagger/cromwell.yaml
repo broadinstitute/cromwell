@@ -1,3 +1,7 @@
+#
+# After any edits to this file run `sbt generateRestApiDocs` and commit the generated changes to `docs/api/RESTAPI.md`.
+#
+
 swagger: '2.0'
 info:
   title: Cromwell Server REST API

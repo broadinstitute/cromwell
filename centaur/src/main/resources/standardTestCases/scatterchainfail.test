@@ -1,0 +1,6 @@
+name: scatterchainfail
+testFormat: workflowfailure
+
+files {
+  wdl: scatter_chain_fail/scatter_chain_fail.wdl
+}

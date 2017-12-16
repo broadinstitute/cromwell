@@ -95,6 +95,8 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
         writeAuthenticationFile(paths, jesConfiguration.jesAttributes.restrictMetadataAccess, jesConfiguration.dockerCredentials) recoverWith {
           case failure => Future.failed(new IOException(s"Failed to upload authentication file", failure))
         }
+    } recoverWith {
+      case failure => Future.failed(new IOException(s"Failed to upload authentication file", failure))
     }
     
     for {

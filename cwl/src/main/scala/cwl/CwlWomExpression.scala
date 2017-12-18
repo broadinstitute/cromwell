@@ -46,7 +46,7 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
             case list => throw new RuntimeException(s"expecting a single File glob but instead got $list")
           }
 
-        case _  => womValue
+        case _ => womValue
       }
 
     //CWL tells us the type this output is expected to be.  Attempt to coerce the actual output into this type.
@@ -58,7 +58,7 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
    DB: It doesn't make sense to me that this function returns type WomFile but accepts a type to which it coerces.
    Wouldn't coerceTo always == WomFileType, and if not then what?
    */
-  override def evaluateFiles(inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] ={
+  override def evaluateFiles(inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = {
 
     val pc = ParameterContext().withInputs(inputs, ioFunctionSet)
 

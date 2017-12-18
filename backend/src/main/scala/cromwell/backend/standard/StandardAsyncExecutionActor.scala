@@ -13,7 +13,6 @@ import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle, ReturnCodeIsNotAnInt, StderrNonEmpty, SuccessfulExecutionHandle, WrongReturnCode}
-import cromwell.backend.io.GlobFunctions
 import cromwell.backend.validation._
 import cromwell.backend.wdl.OutputEvaluator._
 import cromwell.backend.wdl.{Command, OutputEvaluator}
@@ -192,11 +191,16 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
     val cwd = commandDirectory
     val rcPath = cwd./(jobPaths.returnCodeFilename)
+    val stdoutPath = cwd./(jobPaths.stdoutFilename)
+    val stderrPath = cwd./(jobPaths.stderrFilename)
     val rcTmpPath = rcPath.plusExt("tmp")
 
     val globFiles: ErrorOr[List[WomGlobFile]] =
       backendEngineFunctions.findGlobOutputs(call, jobDescriptor)
 
+    // The `tee` trickery below is to be able to redirect to known filenames for CWL while also streaming
+    // stdout and stderr for PAPI to periodically upload to cloud storage.
+    // https://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
     globFiles.map(globFiles =>
     s"""|#!/bin/bash
         |tmpDir=$$(
@@ -215,15 +219,12 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |(
         |cd $cwd
         |INSTANTIATED_COMMAND
-        |)
+        |) > >(tee $stdoutPath) 2> >(tee $stderrPath >&2)
         |echo $$? > $rcTmpPath
         |(
         |cd $cwd
-        |${globScripts(globFiles)}
-        |)
-        |(
-        |cd $cwd
         |SCRIPT_EPILOGUE
+        |${globScripts(globFiles)}
         |)
         |mv $rcTmpPath $rcPath
         |""".stripMargin
@@ -248,7 +249,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def redirectOutputs(command: String): String = {
     // > 128 is the cutoff for signal-induced process deaths such as might be observed with abort.
     // http://www.tldp.org/LDP/abs/html/exitcodes.html
-    s"""$command > ${jobPaths.stdout} 2> ${jobPaths.stderr} < /dev/null || { rc=$$?; if [ "$$rc" -gt "128" ]; then echo $$rc; else echo -1; fi } > ${jobPaths.returnCode}"""
+    s"""$command < /dev/null || { rc=$$?; if [ "$$rc" -gt "128" ]; then echo $$rc; else echo -1; fi } > ${jobPaths.returnCode}"""
   }
 
   /** A tag that may be used for logging. */

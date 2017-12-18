@@ -2,14 +2,10 @@ name: three_step_cwl
 testFormat: workflowsuccess
 workflowType: CWL
 workflowTypeVersion: v1.0
-backends: [Local]
-tags: [localdockertest]
 
 files {
   wdl: three_step/three_step.cwl
   inputs: three_step/inputs.json
-  // TODO CWL: Make CWLs work against the TES backend (this .options hard codes to Local)
-  options: three_step/three_step.options
 }
 
 metadata {

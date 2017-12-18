@@ -39,9 +39,10 @@ case class CommandOutputBinding(
     val womMapType = WomMapType(WomStringType, WomStringType)
     val womMaps = paths map { path =>
       // TODO: WOM: basename/dirname/size/checksum/etc.
+      val globPathWithDirectory = GlobFunctions.prefixWithGlobDir(path)
 
       val contents: Map[WomValue, WomValue] =
-        if (loadContents) Map(WomString("contents") -> WomString(load64KiB(path, ioFunctionSet))) else Map.empty
+        if (loadContents) Map(WomString("contents") -> WomString(load64KiB(globPathWithDirectory, ioFunctionSet))) else Map.empty
 
       val womKeyValues: Map[WomValue, WomValue] = Map(
         WomString("location") -> WomString(path)

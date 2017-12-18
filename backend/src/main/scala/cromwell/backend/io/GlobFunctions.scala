@@ -50,7 +50,3 @@ trait GlobFunctions extends IoFunctionSet {
     }
   }
 }
-
-object GlobFunctions {
-  def globName(glob: String) = s"glob-${glob.md5Sum}"
-}

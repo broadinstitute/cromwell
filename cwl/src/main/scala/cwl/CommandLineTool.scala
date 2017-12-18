@@ -2,6 +2,7 @@ package cwl
 
 import java.nio.file.Paths
 
+import com.typesafe.config.ConfigFactory
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import cwl.CommandLineTool._
@@ -19,6 +20,7 @@ import wom.expression.{InputLookupExpression, ValueAsAnExpression, WomExpression
 import wom.types.WomType
 import wom.{CommandPart, RuntimeAttributes}
 
+import scala.language.postfixOps
 import scala.util.Try
 
 /**
@@ -85,7 +87,11 @@ case class CommandLineTool private(
         arguments.toSeq.flatMap(_.map(_.fold(ArgumentToCommandPart))) ++
         CommandLineTool.orderedForCommandLine(inputs).map(InputParameterCommandPart.apply)
 
-      val finalAttributesMap = requirementsAndHints.foldRight(Map.empty[String, WomExpression])({
+      // This is basically doing a `foldMap` but can't actually be a `foldMap` because:
+      // - There is no monoid instance for `WomExpression`s.
+      // - We want to fold from the right so the hints and requirements with the lowest precedence are processed first
+      //   and later overridden if there are duplicate hints or requirements of the same type with higher precedence.
+      val finalAttributesMap = (requirementsAndHints ++ DefaultDockerRequirement).foldRight(Map.empty[String, WomExpression])({
         case (requirement, attributesMap) => attributesMap ++ processRequirement(requirement)
       })
 
@@ -266,5 +272,20 @@ object CommandLineTool {
                                      outputBinding: Option[CommandOutputBinding] = None,
                                      `type`: Option[MyriadOutputType] = None)
 
+
+  // Used to supply a default Docker image for platforms like PAPI that must have one even if the CWL document does
+  // not specify a `DockerRequirement`.
+  import net.ceedubs.ficus.Ficus._
+  lazy val DefaultDockerImage = ConfigFactory.load().as[Option[String]]("cwl.default-docker-image")
+
+  lazy val DefaultDockerRequirement = DefaultDockerImage map { image => Coproduct[Requirement](DockerRequirement(
+    `class` = "DockerRequirement",
+    dockerPull = Option(image),
+    dockerLoad = None,
+    dockerFile = None,
+    dockerImport = None,
+    dockerImageId = None,
+    dockerOutputDirectory = None
+  )) } toList
 
 }

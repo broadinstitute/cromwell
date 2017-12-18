@@ -7,9 +7,15 @@ import centaur.test.TestOptions
 import centaur.test.standard.{CentaurTestCase, CentaurTestFormat}
 import centaur.test.submit.{SubmitHttpResponse, SubmitWorkflowResponse}
 import centaur.test.workflow.{AllBackendsRequired, Workflow, WorkflowData}
+import com.google.api.services.storage.StorageScopes
 import com.typesafe.scalalogging.StrictLogging
 import common.util.VersionUtil
 import cromwell.api.model.{Aborted, Failed, NonTerminalStatus, Succeeded}
+import cromwell.cloudsupport.gcp.auth.{ApplicationDefaultMode, ServiceAccountMode}
+import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.JsonFileFormat
+import cromwell.core.WorkflowOptions
+import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
+import cromwell.filesystems.gcs.GcsPathBuilderFactory
 import spray.json._
 
 import scala.concurrent.Await
@@ -28,7 +34,9 @@ object CentaurCwlRunner extends StrictLogging {
   case class CommandLineArguments(workflowSource: Option[File] = None,
                                   workflowInputs: Option[File] = None,
                                   quiet: Boolean = false,
-                                  outdir: Option[File] = None)
+                                  outdir: Option[File] = None,
+                                  localMode: Boolean = true,
+                                  serviceAccountJson: Option[String] = None)
 
   // TODO: This would be cleaner with Enumeratum
   object ExitCode extends Enumeration {
@@ -72,6 +80,16 @@ object CentaurCwlRunner extends StrictLogging {
       opt[String]("outdir").text("Output directory, default current directory.").optional().
         action((s, c) =>
           c.copy(outdir = Option(File(s))))
+
+      opt[Unit]("mode-local").text("Assume local file paths (default)").optional().
+        action((_, c) => c.copy(localMode = true))
+
+      opt[Unit]("mode-gcs-default").text("Assume GCS file paths, use application default credentials").optional().
+        action((_, c) => c.copy(localMode = false))
+
+      opt[String]("mode-gcs-service").text("Assume GCS file paths. Use service account credentials, path to credentials JSON as an argument.").
+        optional().
+        action((s, c) => c.copy(localMode = false, serviceAccountJson = Option(s)))
     }
   }
 
@@ -121,7 +139,26 @@ object CentaurCwlRunner extends StrictLogging {
       logger.info(s"Starting test for $workflowPath")
     }
 
+    def pathBuilderFactory: PathBuilderFactory = {
+      (args.localMode, args.serviceAccountJson) match {
+        case (true, _) => DefaultPathBuilderFactory
+        case (false, Some(serviceAccountJson)) =>
+          import scala.collection.JavaConverters._
+          val scopes = List(
+            StorageScopes.DEVSTORAGE_FULL_CONTROL,
+            StorageScopes.DEVSTORAGE_READ_WRITE
+          ).asJava
+          val auth = ServiceAccountMode("service-account", JsonFileFormat(serviceAccountJson), scopes)
+          GcsPathBuilderFactory(auth, "centaur-cwl", None)
+        case (false, _) =>
+          GcsPathBuilderFactory(ApplicationDefaultMode("application-default"), "centaur-cwl", None)
+      }
+    }
+
     try {
+      import CentaurCromwellClient.{blockingEc, system}
+      lazy val pathBuilder = Await.result(pathBuilderFactory.withOptions(WorkflowOptions.empty), Duration.Inf)
+
       testCase.testFunction.run.get match {
         case unexpected: SubmitHttpResponse =>
           logger.error(s"Unexpected response: $unexpected")
@@ -139,8 +176,7 @@ object CentaurCwlRunner extends StrictLogging {
               logger.error(s"Unexpected failure.")
               ExitCode.Failure
             case Succeeded =>
-
-              val result = handleOutput(submittedWorkflow)
+              val result = handleOutput(submittedWorkflow, pathBuilder)
               if (!args.quiet) {
                 logger.info(s"Result: $result")
               } else {

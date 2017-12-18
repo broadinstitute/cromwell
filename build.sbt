@@ -119,6 +119,7 @@ lazy val centaurCwlRunner = project
   .withExecutableSettings("centaur-cwl-runner", centaurCwlRunnerDependencies, buildDocker = false)
   .dependsOn(cwl)
   .dependsOn(centaur)
+  .dependsOn(gcsFileSystem)
 
 lazy val womtool = project
   .withExecutableSettings("womtool", womtoolDependencies)

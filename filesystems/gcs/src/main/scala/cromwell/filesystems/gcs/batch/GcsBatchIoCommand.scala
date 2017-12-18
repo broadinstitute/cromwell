@@ -1,5 +1,6 @@
 package cromwell.filesystems.gcs.batch
 
+import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpHeaders
 import com.google.api.services.storage.StorageRequest
 import com.google.api.services.storage.model.{RewriteResponse, StorageObject}
@@ -32,6 +33,11 @@ sealed trait GcsBatchIoCommand[T, U] extends IoCommand[T] {
   def onSuccess(response: U, httpHeaders: HttpHeaders): Either[T, GcsBatchIoCommand[T, U]] = {
     Left(mapGoogleResponse(response))
   }
+
+  /**
+    * Override to handle a failure differently and potentially return a successful response.
+    */
+  def onFailure(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders): Option[Either[T, GcsBatchIoCommand[T, U]]] = None
 }
 
 case class GcsBatchCopyCommand(
@@ -93,4 +99,13 @@ case class GcsBatchCrc32Command(override val file: GcsPath) extends IoHashComman
 
 case class GcsBatchTouchCommand(override val file: GcsPath) extends IoTouchCommand(file) with GcsBatchGetCommand[Unit] {
   override def mapGoogleResponse(response: StorageObject): Unit = ()
+}
+
+case class GcsBatchExistsCommand(override val file: GcsPath) extends IoExistsCommand(file) with GcsBatchGetCommand[Boolean] {
+  override def mapGoogleResponse(response: StorageObject): Boolean = true
+
+  override def onFailure(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders) = {
+    // If the object can't be found, don't fail the request but just return false as we were testing for existence
+    if (googleJsonError.getCode == 404) Option(Left(false)) else None
+  }
 }

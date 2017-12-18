@@ -8,14 +8,14 @@ import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
+import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobLifecycleActor
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import common.validation.ErrorOr.ErrorOr
-import wom.values.WomFile
+import wom.values.{WomFile, WomSingleFile}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -78,13 +78,13 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     localPath match {
       case p if p.startsWith(tesJobPaths.workflowPaths.DockerRoot) =>
         val containerPath = p.pathAsString
-        WomFile(containerPath)
+        WomSingleFile(containerPath)
       case p if p.startsWith(tesJobPaths.callExecutionRoot) =>
         val containerPath = tesJobPaths.containerExec(commandDirectory, localPath.getFileName.pathAsString)
-        WomFile(containerPath)
+        WomSingleFile(containerPath)
       case p =>
         val containerPath = tesJobPaths.containerInput(p.pathAsString)
-        WomFile(containerPath)
+        WomSingleFile(containerPath)
     }
   }
 
@@ -110,18 +110,17 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           realDockerImageUsed))
 
     task.map(task => Task(
-      None,
-      None,
-      Option(task.name),
-      Option(task.description),
-      Option(task.project),
-      Option(task.inputs(commandLineValueMapper)),
-      Option(task.outputs),
-      Option(task.resources),
-      task.executors,
-      None,
-      None,
-      None
+      id = None,
+      state = None,
+      name = Option(task.name),
+      description = Option(task.description),
+      inputs = Option(task.inputs(commandLineValueMapper)),
+      outputs = Option(task.outputs),
+      resources = Option(task.resources),
+      executors = task.executors,
+      volumes = None,
+      tags = None,
+      logs = None
     ))
   }
 

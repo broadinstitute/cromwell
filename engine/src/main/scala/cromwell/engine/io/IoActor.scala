@@ -170,9 +170,10 @@ object IoActor {
     503
   )
   
+  // Error messages not included in the list of built-in GCS retryable errors (com.google.cloud.storage.StorageException) but that we still want to retry
   val AdditionalRetryableErrorMessages = List(
     "Connection closed prematurely"
-  )
+  ).map(_.toLowerCase)
   
   /**
     * Failures that are considered retryable.
@@ -180,9 +181,9 @@ object IoActor {
     */
   def isRetryable(failure: Throwable): Boolean = failure match {
     case gcs: StorageException => gcs.isRetryable || 
-      AdditionalRetryableHttpCodes.contains(gcs.getCode) || 
       isRetryable(gcs.getCause) ||
-      AdditionalRetryableErrorMessages.exists(_.contains(gcs.getMessage))
+      AdditionalRetryableHttpCodes.contains(gcs.getCode) || 
+      AdditionalRetryableErrorMessages.exists(gcs.getMessage.toLowerCase.contains)
     case _: SSLException => true
     case _: BatchFailedException => true
     case _: SocketException => true

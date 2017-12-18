@@ -103,9 +103,9 @@ abstract class IoTouchCommand(val file: Path) extends SingleFileIoCommand[Unit] 
 }
 
 /**
-  * Check if a file exists
+  * Check whether a file exists
   */
 abstract class IoExistsCommand(val file: Path) extends SingleFileIoCommand[Boolean] {
-  override def toString = s"check if ${file.pathAsString} exists"
+  override def toString = s"check whether ${file.pathAsString} exists"
   override lazy val name = "exist"
 }

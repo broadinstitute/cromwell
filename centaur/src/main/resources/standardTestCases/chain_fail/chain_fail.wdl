@@ -1,5 +1,7 @@
 import "chain_fail_import.wdl" as sub
 
+# Test that if a scatter / conditional / sub workflow depends on *something* that fails,
+# the workflow fails properly even if later nodes depend on the scatter / conditional / sub workflow.
 workflow chain_fail {
   call fail
     

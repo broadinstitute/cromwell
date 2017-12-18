@@ -85,7 +85,7 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     def fileUpload(paths: JesWorkflowPaths) = existsAsync(paths.gcsAuthFilePath) flatMap {
-      // if it is then something is definitely wrong
+      // if we aren't restarting then something is definitely wrong
       case true if !jesParams.restarting =>
         Future.failed(AuthFileAlreadyExistsException(paths.gcsAuthFilePath))
       case true => 

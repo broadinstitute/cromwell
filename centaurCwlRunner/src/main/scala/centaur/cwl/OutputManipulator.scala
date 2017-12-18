@@ -3,9 +3,7 @@ package centaur.cwl
 import io.circe.Json
 import spray.json.{JsArray, JsNumber, JsString, JsValue}
 import cwl.{MyriadOutputType, File => CwlFile}
-import cats.effect.IO
 import shapeless.{Inl, Poly1}
-import better.files.File
 import cwl.{CwlType, MyriadOutputType, File => CwlFile}
 import io.circe.Json
 import io.circe.generic.auto._
@@ -15,41 +13,28 @@ import io.circe.shapes._
 import io.circe.syntax._
 import shapeless.{Inl, Poly1}
 import spray.json.{JsNumber, JsString, JsValue}
-import fs2.io.file.readAll
-import fs2.hash.sha1
 import _root_.cwl._
-import better.files.File
+import cromwell.core.path.PathBuilder
 
 //Take cromwell's outputs and format them as expected by the spec
 object OutputManipulator extends Poly1 {
 
   //In an Ideal world I'd return a Coproduct of these types and leave the asJson-ing to the handleOutput
-  def resolveOutput(jsValue: JsValue, mot: MyriadOutputType): Json  = {
-    mot.fold(this).apply(jsValue)
+  def resolveOutput(jsValue: JsValue, pathBuilder: PathBuilder, mot: MyriadOutputType): Json  = {
+    mot.fold(this).apply(jsValue, pathBuilder)
   }
 
-  private def resolveOutputViaInnerType(mot: MyriadOutputInnerType)(jsValue:JsValue) : Json  = {
+  private def resolveOutputViaInnerType(mot: MyriadOutputInnerType)(jsValue: JsValue, pathBuilder: PathBuilder): Json = {
     (jsValue, mot) match {
       //CWL expects quite a few enhancements to the File structure, hence...
       case (JsString(metadata), Inl(CwlType.File)) =>
 
-        val fileName = File(metadata)
-
-        val file = readAll[IO](fileName.path, 65536)
-        val hash = sha1[IO]
-
-        val bytes = (file through hash).runLog.unsafeRunSync
-
-        //hexify the bytes into a string
-        //credit: https://stackoverflow.com/questions/2756166/what-is-are-the-scala-ways-to-implement-this-java-byte-to-hex-class
-        val hex = bytes.map {
-          b => String.format("%02X", new Integer(b & 0xff))
-        }.mkString.toLowerCase
+        val path = pathBuilder.build(metadata).get
 
         CwlFile(
-          location = Option(fileName.name),
-          checksum = Option("sha1$" + hex),
-          size = Option(fileName.size)
+          location = Option(path.name),
+          checksum = Option("sha1$" + path.sha1.toLowerCase),
+          size = Option(path.size)
         ).asJson
       case (JsNumber(metadata), Inl(CwlType.Long)) => metadata.longValue.asJson
       case (JsNumber(metadata), Inl(CwlType.Float)) => metadata.floatValue.asJson
@@ -61,20 +46,19 @@ object OutputManipulator extends Poly1 {
           schema <- tpe.select[OutputArraySchema]
           items = schema.items
           innerType <- items.select[MyriadOutputInnerType]
-          outputJson = metadata.map(resolveOutputViaInnerType(innerType)).asJson
+          outputJson = metadata.map(m => resolveOutputViaInnerType(innerType)(m, pathBuilder)).asJson
         } yield outputJson).getOrElse(throw new RuntimeException(s"We currently do not support output arrays with ${tpe.select[OutputArraySchema].get.items} inner type"))
       case (json, tpe) => throw new RuntimeException(s" we currently do not support outputs of $json and type $tpe")
     }
   }
 
-  implicit def moit: Case.Aux[MyriadOutputInnerType, JsValue => Json] = at[MyriadOutputInnerType] {
+  implicit def moit: Case.Aux[MyriadOutputInnerType, (JsValue, PathBuilder) => Json] = at[MyriadOutputInnerType] {
     resolveOutputViaInnerType(_)
   }
 
-  implicit def amoit: Case.Aux[Array[MyriadOutputInnerType], JsValue => Json] =
+  implicit def amoit: Case.Aux[Array[MyriadOutputInnerType], (JsValue, PathBuilder) => Json] =
     at[Array[MyriadOutputInnerType]] {
       amoit =>
         resolveOutputViaInnerType(amoit.head)
     }
-
 }

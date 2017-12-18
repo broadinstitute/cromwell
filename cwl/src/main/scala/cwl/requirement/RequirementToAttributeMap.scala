@@ -1,6 +1,6 @@
 package cwl.requirement
 
-import cwl.{DockerRequirement, EnvVarRequirement, InitialWorkDirRequirement, InlineJavascriptRequirement, MultipleInputFeatureRequirement, ResourceRequirement, ResourceRequirementType, ScatterFeatureRequirement, SchemaDefRequirement, ShellCommandRequirement, SoftwareRequirement, StepInputExpressionRequirement, SubworkflowFeatureRequirement}
+import cwl._
 import shapeless.Poly1
 import wom.RuntimeAttributesKeys._
 import wom.expression.{ValueAsAnExpression, WomExpression}

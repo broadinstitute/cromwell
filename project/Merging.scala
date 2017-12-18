@@ -7,6 +7,8 @@ object Merging {
     case PathList(ps@_*) if ps.last == "project.properties" =>
       // Merge/Filter project.properties files from Google jars that otherwise collide at merge time.
       MergeStrategy.filterDistinctLines
+    case PathList(ps@_*) if ps.last == "logback.xml" =>
+      MergeStrategy.first
     case x @ PathList("META-INF", path@_*) =>
       path map {
         _.toLowerCase

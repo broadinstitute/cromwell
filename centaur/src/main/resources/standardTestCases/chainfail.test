@@ -1,0 +1,9 @@
+name: chainfail
+testFormat: workflowfailure
+
+files {
+  wdl: chain_fail/chain_fail.wdl
+  imports: [
+    chain_fail/chain_fail_import.wdl
+  ]
+}

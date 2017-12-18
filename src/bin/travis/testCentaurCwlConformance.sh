@@ -24,7 +24,7 @@ trap "shutdownCromwell" EXIT
 # Start the Cromwell server in the directory containing input files so it can access them via their relative path
 CURRENT_DIR=$(pwd)
 cd $CWL_TEST_DIR
-java -Dsystem.new-workflow-poll-rate=1 -jar ${CROMWELL_JAR} server &
+java -Dsystem.new-workflow-poll-rate=1 -Dbackend.providers.Local.config.script-epilogue="sleep 5 && sync" -jar ${CROMWELL_JAR} server &
 CROMWELL_PID=$$
 cd $CURRENT_DIR
 

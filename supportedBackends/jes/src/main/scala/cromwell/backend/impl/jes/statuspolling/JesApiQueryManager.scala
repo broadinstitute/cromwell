@@ -2,7 +2,7 @@ package cromwell.backend.impl.jes.statuspolling
 
 import java.io.IOException
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated, Timers}
 import cats.data.NonEmptyList
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.{HttpHeaders, HttpRequest}
@@ -28,9 +28,8 @@ import scala.concurrent.duration._
   * Holds a set of JES API requests until a JesQueryActor pulls the work.
   */
 class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegistryActor: ActorRef) extends Actor 
-  with ActorLogging with StopAndLogSupervisor with PapiInstrumentation with CromwellInstrumentationScheduler {
+  with ActorLogging with StopAndLogSupervisor with PapiInstrumentation with CromwellInstrumentationScheduler with Timers {
 
-  private implicit val ec = context.dispatcher
   private val maxRetries = 10
   /*
     * Context: the batch.execute() method throws an IOException("insufficient data written") in certain conditions.
@@ -72,6 +71,9 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
   // workQueue is protected for the unit tests, not intended to be generally overridden
   protected[statuspolling] var workQueue: Queue[JesApiQuery] = Queue.empty
   private var workInProgress: Map[ActorRef, JesPollingWorkBatch] = Map.empty
+  // Queries that have been scheduled to be retried through the actor's timer. They will boomerang back to this actor after
+  // the scheduled delay, unless the workflow is aborted in the meantime in which case they will be cancelled.
+  private var queriesWaitingForRetry: Set[JesApiQuery] = Set.empty[JesApiQuery]
 
   private def statusPollerProps = JesPollingActor.props(self, qps, serviceRegistryActor)
 
@@ -99,9 +101,23 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
   }
   
   private def abort(workflowId: WorkflowId) = {
+    def aborted(query: JesApiQuery) = query match {
+      case creation: JesRunCreationQuery => creation.requester ! JesApiRunCreationQueryFailed(creation, JobAbortedException)
+      case poll: JesStatusPollQuery => poll.requester ! JesApiStatusQueryFailed(poll, JobAbortedException)
+    }
+
     workQueue = workQueue.filterNot({
-      case creation: JesRunCreationQuery if creation.workflowId == workflowId =>
-        creation.requester ! JesApiRunCreationQueryFailed(creation, JobAbortedException)
+      case query if query.workflowId == workflowId =>
+        aborted(query)
+        true
+      case _ => false
+    })
+
+    queriesWaitingForRetry = queriesWaitingForRetry.filterNot({
+      case query if query.workflowId == workflowId =>
+        timers.cancel(query)
+        queriesWaitingForRetry = queriesWaitingForRetry - query
+        aborted(query)
         true
       case _ => false
     })
@@ -118,7 +134,8 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
   private def handleQueryFailure(failure: JesApiQueryFailed) = if (failure.query.failedAttempts < maxRetries) {
     val nextRequest = failure.query.withFailedAttempt
     val delay = nextRequest.backoff.backoffMillis.millis
-    context.system.scheduler.scheduleOnce(delay, self, nextRequest)
+    queriesWaitingForRetry = queriesWaitingForRetry + nextRequest
+    timers.startSingleTimer(nextRequest, nextRequest, delay)
     failedQuery(failure)
   } else {
     retriedQuery(failure)

@@ -670,7 +670,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
           customPollStatusFailure orElse {
             case (_: ExecutionHandle, exception: Exception) if isFatal(exception) =>
               // Log exceptions and return the original handle to try again.
-              jobLogger.warn(s"Fatal exception polling for status. Job will fail.")
+              jobLogger.warn(s"Fatal exception polling for status. Job will fail.", exception)
               FailedNonRetryableExecutionHandle(exception)
             case (handle: ExecutionHandle, exception: Exception) =>
               // Log exceptions and return the original handle to try again.

@@ -41,6 +41,12 @@ object ExecutionStore {
         case _ => key.node.upstreamPorts forall { p => p.executionNode.isInStatus(chooseIndex(p), statusTable) }
       }
     }
+    
+    def nonStartableOutputKeys: Set[JobKey] = key match {
+      case scatterKey: ScatterKey => scatterKey.makeCollectors(0, scatterKey.node.scatterCollectionFunctionBuilder(List.empty)).toSet[JobKey]
+      case conditionalKey: ConditionalKey => conditionalKey.collectors.toSet[JobKey]
+      case _ => Set.empty[JobKey]
+    }
   }
   
   implicit class EnhancedOutputPort(val outputPort: OutputPort) extends AnyVal {
@@ -228,7 +234,9 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
       val runnable = key.allDependenciesAreIn(doneStatus)
       
       // If the key is not runnable, but all its dependencies are in a terminal status, then it's unreachable
-      if (!runnable && key.allDependenciesAreIn(terminalStatus)) unstartables = unstartables + (key -> Unstartable)
+      if (!runnable && key.allDependenciesAreIn(terminalStatus)) {
+        unstartables = unstartables ++ key.nonStartableOutputKeys.map(_ -> Unstartable) + (key -> Unstartable)
+      }
       
       // returns the runnable value for the filter
       runnable

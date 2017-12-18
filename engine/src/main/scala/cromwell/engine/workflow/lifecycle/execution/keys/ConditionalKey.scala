@@ -19,6 +19,10 @@ private [execution] case class ConditionalKey(node: ConditionalNode, index: Exec
   override val tag = node.localName
   override val attempt = 1
 
+  lazy val collectors = node.conditionalOutputPorts map {
+    ConditionalCollectorKey(_, index)
+  }
+
   /**
     * Creates ExecutionStore entries for each of the scoped children.
     *
@@ -26,10 +30,6 @@ private [execution] case class ConditionalKey(node: ConditionalNode, index: Exec
     */
   def populate(bypassed: Boolean): Map[JobKey, ExecutionStatus.Value] = {
     val conditionalKeys = node.innerGraph.nodes.flatMap({ node => keyify(node) })
-
-    val collectors = node.conditionalOutputPorts map {
-      ConditionalCollectorKey(_, index)
-    }
 
     val finalStatus = if (bypassed) ExecutionStatus.NotStarted else ExecutionStatus.Bypassed
     (conditionalKeys ++ collectors).map({ _ -> finalStatus }).toMap

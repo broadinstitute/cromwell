@@ -20,7 +20,7 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
   override val tag = node.localName
 
   def makeCollectors(count: Int): Set[ScatterCollectorKey] = (node.outputMapping.groupBy(_.outputToGather.source.graphNode) flatMap {
-    case (_: CallNode | _: ExposedExpressionNode | _: ConditionalNode, scatterGatherPorts) => scatterGatherPorts.map(sgp => ScatterCollectorKey(sgp, count, scatterCollectionFunction))
+    case (_: CallNode | _: ExposedExpressionNode | _: ConditionalNode, scatterGatherPorts) => scatterGatherPorts.map(sgp => ScatterCollectorKey(sgp, count))
     case _ => Set.empty[ScatterCollectorKey]
   }).toSet
 

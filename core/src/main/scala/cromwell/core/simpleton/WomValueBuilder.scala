@@ -92,7 +92,8 @@ object WomValueBuilder {
     }
 
     outputType match {
-      case _: WomPrimitiveType => components collectFirst { case SimpletonComponent(_, v) => v } get
+      case _: WomPrimitiveType =>
+        components collectFirst { case SimpletonComponent(_, v) => v } get
       case opt: WomOptionalType =>
         if (components.isEmpty) {
           WomOptionalValue(opt.memberType, None)
@@ -109,6 +110,26 @@ object WomValueBuilder {
       case pairType: WomPairType =>
         val groupedByLeftOrRight: Map[PairLeftOrRight, Traversable[SimpletonComponent]] = group(components map descendIntoPair)
         WomPair(toWomValue(pairType.leftType, groupedByLeftOrRight(PairLeft)), toWomValue(pairType.rightType, groupedByLeftOrRight(PairRight)))
+      case WomObjectType =>
+        val groupedByMapKey: Map[String, Traversable[SimpletonComponent]] = group(components map descendIntoMap)
+        // map keys are guaranteed by the WDL spec to be primitives, so the "coerceRawValue(..).get" is safe.
+        val map: Map[String, WomValue] = groupedByMapKey map { case (k, ss) => k -> toWomValue(WomAnyType, ss) }
+        WomObject(map)
+      case WomAnyType =>
+        // Ok, we're going to have to guess, but the keys should give us some clues:
+        if (components forall { component => MapElementPattern.findFirstMatchIn(component.path).isDefined }) {
+          // Looks like an object
+          toWomValue(WomObjectType, components)
+        } else if (components forall { component => ArrayElementPattern.findFirstMatchIn(component.path).isDefined }) {
+          // Looks like an array:
+          toWomValue(WomArrayType(WomAnyType), components) match {
+            case WomArray(_, values) => WomArray(values)
+          }
+
+        } else {
+          // Treat it as a primitive:
+          components collectFirst { case SimpletonComponent(_, v) => v } get
+        }
     }
   }
 
@@ -143,8 +164,9 @@ object WomValueBuilder {
     // "dehydrated" to WomValueSimpletons correctly. This code is not robust to corrupt input whatsoever.
     val types = taskOutputs map { o => o -> o.womType } toMap
     val simpletonsByOutputName = simpletons groupBy { _.simpletonKey match { case IdentifierAndPathPattern(i, _) => i } }
-    val simpletonComponentsByOutputName = simpletonsByOutputName map { case (name, ss) => name -> (ss map simpletonToComponent(name)) }
-    types map { case (outputPort, outputType) => outputPort -> toWomValue(outputType, simpletonComponentsByOutputName(outputPort.name))}
+    val simpletonComponentsByOutputName: Map[String, Traversable[SimpletonComponent]] =
+      simpletonsByOutputName map { case (name, ss) => name -> (ss map simpletonToComponent(name)) }
+    types map { case (outputPort, outputType) => outputPort -> toWomValue(outputType, simpletonComponentsByOutputName.getOrElse(outputPort.name, Seq.empty))}
   }
 }
 

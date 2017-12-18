@@ -87,19 +87,13 @@ cd $WORKDIR
 
 
 FUNNEL_CONF="$(pwd)/src/bin/travis/resources/funnel.conf"
-wget https://storage.googleapis.com/golang/go1.8.1.linux-amd64.tar.gz
-tar xfz go1.8.1.linux-amd64.tar.gz
-export GOROOT=$WORKDIR/go
-mkdir go-lib
-export GOPATH=$WORKDIR/go-lib
-go get github.com/ohsu-comp-bio/funnel
-cd $GOPATH/src/github.com/ohsu-comp-bio/funnel
-git checkout c4d9134
-make
-cd $WORKDIR
-mkdir logs
-nohup $GOPATH/bin/funnel server --config ${FUNNEL_CONF} > logs/funnel.log 2>&1 &
 
+wget https://github.com/ohsu-comp-bio/funnel/releases/download/0.4.1/funnel-linux-amd64-0.4.1.tar.gz
+tar xzf funnel-linux-amd64-0.4.1.tar.gz
+FUNNEL_PATH="$(pwd)/funnel"
+
+mkdir logs
+nohup "${FUNNEL_PATH}" server run --config "${FUNNEL_CONF}" > logs/funnel.log 2>&1 &
 
 # All tests use ubuntu:latest - make sure it's there before starting the tests 
 # because pulling the image during some of the tests would cause them to fail 

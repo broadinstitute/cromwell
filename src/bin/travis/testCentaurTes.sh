@@ -93,7 +93,7 @@ tar xzf funnel-linux-amd64-0.4.1.tar.gz
 FUNNEL_PATH="$(pwd)/funnel"
 
 mkdir logs
-nohup "${FUNNEL_PATH}" server run --config "${FUNNEL_CONF}" &
+nohup "${FUNNEL_PATH}" server run --config "${FUNNEL_CONF}" > logs/funnel.log 2>&1 &
 
 # All tests use ubuntu:latest - make sure it's there before starting the tests 
 # because pulling the image during some of the tests would cause them to fail 

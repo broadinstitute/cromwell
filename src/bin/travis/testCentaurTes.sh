@@ -78,14 +78,10 @@ printTravisHeartbeat
 set -x
 set -e
 
-WORKDIR=$(pwd)
-
 ASSEMBLY_LOG_LEVEL=error ENABLE_COVERAGE=true sbt assembly --error
 CROMWELL_JAR=$(find "$(pwd)/target/scala-2.12" -name "cromwell-*.jar")
+
 TES_CENTAUR_CONF="$(pwd)/src/bin/travis/resources/tes_centaur.conf"
-cd $WORKDIR
-
-
 FUNNEL_CONF="$(pwd)/src/bin/travis/resources/funnel.conf"
 
 wget https://github.com/ohsu-comp-bio/funnel/releases/download/0.4.1/funnel-linux-amd64-0.4.1.tar.gz
@@ -95,7 +91,7 @@ FUNNEL_PATH="$(pwd)/funnel"
 mkdir logs
 nohup "${FUNNEL_PATH}" server run --config "${FUNNEL_CONF}" > logs/funnel.log 2>&1 &
 
-# All tests use ubuntu:latest - make sure it's there before starting the tests 
+# All tests use ubuntu:latest - make sure it's there before starting the tests
 # because pulling the image during some of the tests would cause them to fail 
 # (specifically output_redirection which expects a specific value in stderr)
 docker pull ubuntu:latest

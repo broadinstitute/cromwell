@@ -46,4 +46,12 @@ package object core {
   * @param commandString The string representing the instantiation of this command.
   * @param createdFiles Any files created as side effects of instantiating the command.
   */
-case class InstantiatedCommand(commandString: String, createdFiles: List[WomFile] = List.empty)
+final case class InstantiatedCommand(commandString: String, createdFiles: List[CommandSetupSideEffectFile] = List.empty)
+
+/**
+  * File created as a side effect of instantiating the command.
+  *
+  * @param file The WomFile which we need to localize
+  * @param relativeLocalPath Optionally, an override of the usual localization logic. A path relative to execution root.
+  */
+final case class CommandSetupSideEffectFile(file: WomFile, relativeLocalPath: Option[String] = None)

@@ -4,10 +4,10 @@ import cats.implicits._
 import common.validation.ErrorOr.ErrorOr
 import wdl.util.StringUtil
 import wom.core._
-import wom.expression.IoFunctionSet
+import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.{Graph, TaskCall}
 import wom.values.{WomEvaluatedCallInputs, WomValue}
-import wom.{InstantiatedCommand, CommandPart, RuntimeAttributes}
+import wom.{CommandPart, InstantiatedCommand, RuntimeAttributes}
 
 object TaskDefinition {
   private implicit val instantiatedCommandMonoid = cats.derive.monoid[InstantiatedCommand]
@@ -23,6 +23,7 @@ sealed trait TaskDefinition extends Callable {
   def commandPartSeparator: String
   def stdoutRedirection: Option[String]
   def stderrRedirection: Option[String]
+  def adHocFileCreation: Set[WomExpression]
 
   lazy val unqualifiedName: LocallyQualifiedName = name
 
@@ -62,6 +63,7 @@ final case class CallableTaskDefinition(name: String,
                                         parameterMeta: Map[String, String],
                                         outputs: List[Callable.OutputDefinition],
                                         inputs: List[_ <: Callable.InputDefinition],
+                                        adHocFileCreation: Set[WomExpression],
                                         prefixSeparator: String = ".",
                                         commandPartSeparator: String = "",
                                         stdoutRedirection: Option[String] = None,
@@ -87,6 +89,7 @@ final case class ExecutableTaskDefinition private (callableTaskDefinition: Calla
   override def commandPartSeparator = callableTaskDefinition.commandPartSeparator
   override def stdoutRedirection = callableTaskDefinition.stdoutRedirection
   override def stderrRedirection = callableTaskDefinition.stderrRedirection
+  override def adHocFileCreation = callableTaskDefinition.adHocFileCreation
 }
 
 object ExecutableTaskDefinition {

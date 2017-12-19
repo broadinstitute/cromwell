@@ -1,6 +1,5 @@
 package cromwell.backend.impl.tes
 
-import cromwell.backend.io.GlobFunctions
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.NoIoFunctionSet
 import cromwell.core.logging.JobLogger
@@ -54,7 +53,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   )
 
   private def writeFunctionFiles: Map[FullyQualifiedName, Seq[WomFile]] =
-    instantiatedCommand.createdFiles map { f => f.value.md5SumShort -> List(f) } toMap
+    instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f.file) } toMap
 
   private val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor
     .fullyQualifiedInputs

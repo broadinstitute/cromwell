@@ -133,7 +133,7 @@ case class CommandLineTool private(
           val inputType = tpe.fold(MyriadInputTypeToWomType)
           val inputName = FullyQualifiedName(id).id
           RequiredInputDefinition(inputName, inputType)
-        case other => throw new NotImplementedError(s"command input paramters such as $other are not yet supported")
+        case other => throw new NotImplementedError(s"command input parameters such as $other are not yet supported")
       }.toList
 
       def stringOrExpressionToString(soe: Option[StringOrExpression]): Option[String] = soe flatMap {
@@ -144,6 +144,12 @@ case class CommandLineTool private(
       // The try will succeed if this is a task within a step. If it's a standalone file, the ID will be the file,
       // so the filename is the fallback.
       def taskName = Try(FullyQualifiedName(id).id).getOrElse(Paths.get(id).getFileName.toString)
+
+      val adHocFileCreations: Set[WomExpression] = (for {
+        requirements <- requirements.getOrElse(Array.empty[Requirement])
+        initialWorkDirRequirement <- requirements.select[InitialWorkDirRequirement].toArray
+        listing <- initialWorkDirRequirement.listings
+      } yield InitialWorkDirFileGeneratorExpression(listing)).toSet[WomExpression]
 
       CallableTaskDefinition(
         taskName,
@@ -157,7 +163,8 @@ case class CommandLineTool private(
         prefixSeparator = "#",
         commandPartSeparator = " ",
         stdoutRedirection = stringOrExpressionToString(stdout),
-        stderrRedirection = stringOrExpressionToString(stderr)
+        stderrRedirection = stringOrExpressionToString(stderr),
+        adHocFileCreation = adHocFileCreations
       )
     }
   }

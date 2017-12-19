@@ -2,6 +2,9 @@ package cromwell.backend.standard
 
 import java.io.IOException
 
+import cats.syntax.apply._
+import cats.instances.list._
+import cats.syntax.traverse._
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
 import common.exception.MessageAggregation
@@ -24,7 +27,7 @@ import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
 import net.ceedubs.ficus.Ficus._
 import wom.values._
-import wom.{InstantiatedCommand, WomFileMapper}
+import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}
 import scala.util.{Failure, Success, Try}
@@ -236,8 +239,25 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   /** The instantiated command. */
   lazy val instantiatedCommand: InstantiatedCommand = {
     val runtimeEnvironment = RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(standardParams.minimumRuntimeSettings)
-    Command.instantiate(
-      jobDescriptor, backendEngineFunctions, commandLinePreProcessor, commandLineValueMapper, runtimeEnvironment).toTry.get
+
+    def adHocFileLocalization(womFile: WomFile): String = womFile.value.substring(womFile.value.lastIndexOf("/") + 1, womFile.value.length)
+
+    val adHocFileCreations: ErrorOr[List[CommandSetupSideEffectFile]] = jobDescriptor.taskCall.callable.adHocFileCreation.toList.traverse { _.evaluateValue(Map.empty, backendEngineFunctions) } map { _ collect {
+        case f: WomFile => CommandSetupSideEffectFile(f, Option(adHocFileLocalization(f)))
+      }
+    }
+    val instantiatedCommandValidation = Command.instantiate(
+      jobDescriptor,
+      backendEngineFunctions,
+      commandLinePreProcessor,
+      commandLineValueMapper,
+      runtimeEnvironment
+    )
+
+    // TODO CWL: toTry.get here. Is throwing an exception the best way to indicate command generation failure?
+    ((adHocFileCreations, instantiatedCommandValidation) mapN { (adHocFiles, command) =>
+        command.copy(createdFiles = command.createdFiles ++ adHocFiles)
+    }).toTry.get
   }
 
   /**

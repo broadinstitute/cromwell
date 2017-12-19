@@ -7,8 +7,13 @@ import wom.types._
 import wom.values._
 import wom.expression.{IoFunctionSet, WomExpression}
 import cats.syntax.validated._
+import cwl.InitialWorkDirRequirement.IwdrListingArrayEntry
 import cwl.WorkflowStepInput.InputSource
 import cwl.command.ParentName
+
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+import scala.util.Try
 
 sealed trait CwlWomExpression extends WomExpression {
 
@@ -85,7 +90,8 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput, override 
     }
   }
 
-  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType) = ???
+  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType) =
+    "Programmer error: Shouldn't use WorkflowStepInputExpressions to find output files. You silly goose.".invalidNel
 
   override def inputs = graphInputs ++ input.source.toSet.flatMap{ inputSource: InputSource => inputSource match {
     case WorkflowStepInputSource.String(s) => Set(FullyQualifiedName(s).id)
@@ -93,4 +99,22 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput, override 
   }}
 }
 
+final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEntry) extends CwlWomExpression {
+  override def cwlExpressionType: WomType = WomSingleFileType
+  override def sourceString: String = entry.toString
 
+  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = entry match {
+    case IwdrListingArrayEntry.StringDirent(content, StringOrExpression.String(entryname), _) =>
+      Try(Await.result(ioFunctionSet.writeFile(entryname, content), Duration.Inf)).toErrorOr
+    case _ => ??? // TODO WOM and the rest....
+  }
+
+
+  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
+    "Programmer error: Shouldn't use InitialWorkDirRequirement listing to find output files. You silly goose.".invalidNel
+
+  override def inputs: Set[String] = entry match {
+    case IwdrListingArrayEntry.StringDirent(_, _, _) => Set.empty
+    case _ => Set.empty // TODO WOM: For some cases this might need some...
+  }
+}

@@ -24,7 +24,7 @@ object ConfigConstants {
   Runtime attributes that may be specified within the RuntimeAttributesConfig.
    */
   val DockerRuntimeAttribute = RuntimeAttributesKeys.DockerKey
-  val CpuRuntimeAttribute = RuntimeAttributesKeys.CPUKey
+  val CpuRuntimeAttribute = RuntimeAttributesKeys.CpuKey
   val MemoryRuntimeAttribute = RuntimeAttributesKeys.MemoryKey
   val MemoryMinRuntimeAttribute = RuntimeAttributesKeys.MemoryMinKey
   val MemoryMaxRuntimeAttribute = RuntimeAttributesKeys.MemoryMaxKey

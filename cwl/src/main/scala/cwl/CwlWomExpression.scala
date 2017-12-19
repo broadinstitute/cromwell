@@ -22,8 +22,8 @@ sealed trait CwlWomExpression extends WomExpression {
   override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = cwlExpressionType.validNel
 }
 
-case class ResourceRequirementExpression(expression: Expression,
-                                         override val inputs: Set[String]) extends CwlWomExpression {
+case class JobPreparationExpression(expression: Expression,
+                                    override val inputs: Set[String]) extends CwlWomExpression {
   val cwlExpressionType = WomAnyType
 
   override def sourceString = expression match {

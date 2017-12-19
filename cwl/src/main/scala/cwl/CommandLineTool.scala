@@ -89,8 +89,8 @@ case class CommandLineTool private(
 
         List(
           // Map cpuMin to both cpuMin and cpu keys
-          requirement.effectiveCoreMin.toList.map(toExpression).flatMap(min => List(CPUMinKey -> min, CPUKey -> min)),
-          requirement.effectiveCoreMax.toList.map(toExpression).map(CPUMaxKey -> _),
+          requirement.effectiveCoreMin.toList.map(toExpression).flatMap(min => List(CpuMinKey -> min, CpuKey -> min)),
+          requirement.effectiveCoreMax.toList.map(toExpression).map(CpuMaxKey -> _),
           // Map ramMin to both memoryMin and memory keys
           requirement.effectiveRamMin.toList.map(toExpression).flatMap(min => List(MemoryMinKey -> min, MemoryKey -> min)),
           requirement.effectiveRamMax.toList.map(toExpression).map(MemoryMaxKey -> _),

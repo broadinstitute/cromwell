@@ -18,11 +18,11 @@ import wom.values.{WomInteger, WomValue}
   * reference.conf file, coerced into a WomValue.
   */
 object CpuValidation {
-  lazy val instance: RuntimeAttributesValidation[Int] = new CpuValidation(CPUKey)
+  lazy val instance: RuntimeAttributesValidation[Int] = new CpuValidation(CpuKey)
   lazy val optional: OptionalRuntimeAttributesValidation[Int] = instance.optional
-  lazy val instanceMin: RuntimeAttributesValidation[Int] = new CpuValidation(CPUMinKey)
+  lazy val instanceMin: RuntimeAttributesValidation[Int] = new CpuValidation(CpuMinKey)
   lazy val optionalMin: OptionalRuntimeAttributesValidation[Int] = instanceMin.optional
-  lazy val instanceMax: RuntimeAttributesValidation[Int] = new CpuValidation(CPUMaxKey)
+  lazy val instanceMax: RuntimeAttributesValidation[Int] = new CpuValidation(CpuMaxKey)
   lazy val optionalMax: OptionalRuntimeAttributesValidation[Int] = instanceMax.optional
 
   lazy val defaultMin: WomValue = WomInteger(1)

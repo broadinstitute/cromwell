@@ -330,17 +330,19 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
         s"""
            |  default-runtime-attributes {
            |     memory: "2 GB"
-           |     memoryMin: "2 GB"
-           |     memoryMax: "2 GB"
+           |     memoryMin: "0.3 GB"
+           |     memoryMax: "0.4 GB"
            |  }
            |""".stripMargin
 
       val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate).getConfig("default-runtime-attributes")
 
       val memoryVal = MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, Some(backendConfig))
+      val memoryMinVal = MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryMinKey, Some(backendConfig))
+      val memoryMaxVal = MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryMaxKey, Some(backendConfig))
       MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryKey, memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some((WomInteger(2000000000)))
-      MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryMinKey, memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some((WomInteger(2000000000)))
-      MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryMaxKey, memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some((WomInteger(2000000000)))
+      MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryMinKey, memoryMinVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some((WomInteger(300000000)))
+      MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryMaxKey, memoryMaxVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some((WomInteger(400000000)))
     }
 
     "shouldn't throw up if the value for a default-runtime-attribute key cannot be coerced into an expected WomType" in {

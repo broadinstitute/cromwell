@@ -50,6 +50,9 @@ object JesRuntimeAttributes {
   private def cpuValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] = CpuValidation.instance
     .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
 
+  private def cpuMinValidation(runtimeConfig: Option[Config]):RuntimeAttributesValidation[Int] = CpuValidation.instanceMin
+    .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
+
   private def failOnStderrValidation(runtimeConfig: Option[Config]) = FailOnStderrValidation.default(runtimeConfig)
 
   private def continueOnReturnCodeValidation(runtimeConfig: Option[Config]) = ContinueOnReturnCodeValidation.default(runtimeConfig)
@@ -69,6 +72,12 @@ object JesRuntimeAttributes {
       MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, runtimeConfig) getOrElse MemoryDefaultValue)
   }
 
+  private def memoryMinValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[MemorySize] = {
+    MemoryValidation.withDefaultMemory(
+      RuntimeAttributesKeys.MemoryMinKey,
+      MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryMinKey, runtimeConfig) getOrElse MemoryDefaultValue)
+  }
+
   private def bootDiskSizeValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] = bootDiskValidationInstance
     .withDefault(bootDiskValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse BootDiskDefaultValue)
 
@@ -81,10 +90,12 @@ object JesRuntimeAttributes {
     val runtimeConfig = jesConfiguration.runtimeConfig
     StandardValidatedRuntimeAttributesBuilder.default(runtimeConfig).withValidation(
       cpuValidation(runtimeConfig),
+      cpuMinValidation(runtimeConfig),
       disksValidation(runtimeConfig),
       zonesValidation(runtimeConfig),
       preemptibleValidation(runtimeConfig),
       memoryValidation(runtimeConfig),
+      memoryMinValidation(runtimeConfig),
       bootDiskSizeValidation(runtimeConfig),
       noAddressValidation(runtimeConfig),
       dockerValidation

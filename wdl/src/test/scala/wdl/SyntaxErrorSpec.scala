@@ -213,10 +213,30 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     val errors =
-      """ERROR: Expression will not evaluate (line 6, col 26):
+      """ERROR: Cannot find reference to 'psBAD' for member access 'psBAD.procs' (line 6, col 26):
         |
         |    input: pattern=psBAD.procs
         |                         ^
+      """.stripMargin
+  }
+
+  case object BadMemberAccessInCallInputSection3 extends ErrorWdl {
+    val testString = "detect when the LHS of a member access is an unexpected type"
+    val wdl =
+      """import "cgrep"
+        |workflow three_step {
+        |  Int x = 25
+        |  call cgrep.cgrep {
+        |    input: pattern=x.procs
+        |  }
+        |}
+      """.stripMargin
+
+    val errors =
+      """ERROR: Bad target for member access 'x.procs': 'x' was a Int (line 5, col 22):
+        |
+        |    input: pattern=x.procs
+        |                     ^
       """.stripMargin
   }
 
@@ -437,7 +457,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     val errors =
-      """ERROR: Value for x is not coerceable into a Int:
+      """ERROR: Value 'x' is declared as a 'Int' but the expression evaluates to 'String':
         |
         |    Int x = "bad value"
         |        ^
@@ -978,6 +998,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
     NamespaceNameCollision,
     BadMemberAccessInCallInputSection,
     BadMemberAccessInCallInputSection2,
+    BadMemberAccessInCallInputSection3,
     UnexpectedEof,
     UnexpectedSymbol,
     ExtraneousSymbol,

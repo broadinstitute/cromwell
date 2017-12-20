@@ -100,6 +100,7 @@ case class TypeEvaluator(override val lookup: String => WomType, override val fu
                 case "left" => Success(leftType)
                 case "right" => Success(rightType)
               }
+            case WomObjectType => Success(WomAnyType)
             case ns: WdlNamespace => Success(lookup(ns.importedAs.map{ n => s"$n.${rhs.getSourceString}" }.getOrElse(rhs.getSourceString)))
             case _ => Failure(new WomExpressionException("Left-hand side of expression must be a WdlObject or Namespace"))
           } recoverWith {
@@ -111,9 +112,9 @@ case class TypeEvaluator(override val lookup: String => WomType, override val fu
       (evaluate(a.getAttribute("lhs")), evaluate(a.getAttribute("rhs"))) match {
         case (Success(a: WomArrayType), Success(WomIntegerType)) => Success(a.memberType)
         case (Success(m: WomMapType), Success(_: WomType)) => Success(m.valueType)
-        case (Failure(ex), _) => Failure(ex)
-        case (_, Failure(ex)) => Failure(ex)
-        case (_, _) => Failure(new WomExpressionException(s"Can't index ${a.toPrettyString}"))
+        case (Success(otherLhs), Success(_)) => Failure(new WomExpressionException(s"Invalid indexing target. You cannot index a value of type '${otherLhs.toDisplayString}'"))
+        case (f: Failure[_], _) => f
+        case (_, f: Failure[_]) => f
       }
     case a: Ast if a.isFunctionCall =>
       val name = a.getAttribute("name").sourceString

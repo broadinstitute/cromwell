@@ -28,7 +28,7 @@ class SharedFileSystemInitializationActor(standardParams: StandardInitialization
     configurationDescriptor.backendConfig.as[Option[String]]("filesystems.gcs.auth") map { configAuth =>
       val googleConfiguration = GoogleConfiguration(configurationDescriptor.globalConfig)
       googleConfiguration.auth(configAuth) match {
-        case Valid(auth) => GcsPathBuilderFactory(auth, googleConfiguration.applicationName)
+        case Valid(auth) => GcsPathBuilderFactory(auth, googleConfiguration.applicationName, None)
         case Invalid(error) => throw new MessageAggregation {
           override def exceptionContext: String = "Failed to parse gcs auth configuration"
 

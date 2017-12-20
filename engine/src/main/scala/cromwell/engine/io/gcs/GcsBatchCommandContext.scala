@@ -84,12 +84,27 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
     promise.trySuccess(promiseResponse)
     ()
   }
+  
+  private def handleSuccess(successResult: Either[T, GcsBatchIoCommand[T, U]]) = {
+    val promiseResponse: BatchResponse = successResult match {
+      // Left means the command is complete, so just create the corresponding IoSuccess with the value
+      case Left(responseValue) => Left(success(responseValue))
+      // Right means there is a subsequent request to be executed, clone this context with the new request and a new promise
+      case Right(nextCommand) => Right(this.copy(request = nextCommand, promise = Promise[BatchResponse]))
+    }
+
+    promise.trySuccess(promiseResponse)
+    ()
+  }
 
   /**
     * On failure callback. Fail the promise with a StorageException
     */
   private def onFailureCallback(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders) = {
-    promise.tryFailure(new StorageException(googleJsonError))
+    request.onFailure(googleJsonError, httpHeaders) match {
+      case Some(successValue) => handleSuccess(successValue)
+      case None => promise.tryFailure(new StorageException(googleJsonError))
+    }
     ()
   }
 }

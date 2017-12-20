@@ -10,6 +10,6 @@ files {
 metadata {
   workflowName: test
   status: Succeeded
-  "outputs.test.left_out": "bar 2 left"
+  "outputs.test.left_out": "bar 2 left 27"
   "outputs.test.triple_left": "4"
 }

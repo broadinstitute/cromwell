@@ -1,6 +1,5 @@
 package centaur
 
-import centaur.test.standard.CentaurTestFormat.RestartFormat
 import org.scalatest.{DoNotDiscover, Matchers}
 
 /**
@@ -8,14 +7,10 @@ import org.scalatest.{DoNotDiscover, Matchers}
   * such that the restarting tests execute sequentially to avoid a mayhem of Cromwell restarts
  */
 @DoNotDiscover
-class RestartTestCaseSpec(cromwellBackends: List[String]) extends AbstractCentaurTestCaseSpec(cromwellBackends) with Matchers {
+class SequentialTestCaseSpec(cromwellBackends: List[String]) extends AbstractCentaurTestCaseSpec(cromwellBackends) with Matchers {
 
   def this() = this(CentaurTestSuite.cromwellBackends)
   
-  allTestCases.filter( _.testFormat match {
-    case _: RestartFormat => true
-    case _ => false
-  }
-  ) foreach executeStandardTest
+  allTestCases.filter(CentaurTestSuite.runSequential) foreach executeStandardTest
 
 }

@@ -10,10 +10,12 @@ import scala.collection.JavaConverters._
 case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) extends SyntaxErrorFormatter {
 
   private def pointToSource(t: Terminal): String = s"${line(t)}\n${" " * (t.getColumn - 1)}^"
-  private def line(t:Terminal): String = t match {
-    case interpolated: InterpolatedTerminal => terminalMap(interpolated.rootTerminal).split("\n")(interpolated.getLine - 1)
-    case classicTerminal => terminalMap(classicTerminal).split("\n")(classicTerminal.getLine - 1)
+  private def getTerminal(t: Terminal) = t match {
+    case interpolated: InterpolatedTerminal => terminalMap.get(interpolated.rootTerminal)
+    case classicTerminal => terminalMap.get(classicTerminal)
   }
+
+  private def line(t:Terminal): String = getTerminal(t).map(_.split("\n")(t.getLine - 1)).getOrElse(s"Cannot highlight line. It was probably in an imported file.")
 
   def unexpectedEof(method: String, expected: java.util.List[TerminalIdentifier], nt_rules: java.util.List[String]): String = "ERROR: Unexpected end of file"
 
@@ -201,10 +203,29 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) e
      """.stripMargin
   }
 
-  def undefinedMemberAccess(ast: Ast): String = {
-    val rhsAst = ast.getAttribute("rhs").asInstanceOf[Terminal]
-    s"""ERROR: Expression will not evaluate (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
+  def noTargetForMemberAccess(memberAccess: MemberAccess): String = {
+    val rhsAst = memberAccess.ast.getAttribute("rhs").asInstanceOf[Terminal]
+
+    s"""ERROR: Cannot find reference to '${memberAccess.lhs}' for member access '${memberAccess.memberAccessString}' (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
      |
+     |${pointToSource(rhsAst)}
+     """.stripMargin
+  }
+
+  def badTargetTypeForMemberAccess(memberAccess: MemberAccess, unexpectedType: WomType): String = {
+    val rhsAst = memberAccess.ast.getAttribute("rhs").asInstanceOf[Terminal]
+
+    s"""ERROR: Bad target for member access '${memberAccess.memberAccessString}': '${memberAccess.lhs}' was a ${unexpectedType.toDisplayString} (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
+       |
+     |${pointToSource(rhsAst)}
+     """.stripMargin
+  }
+
+  def badTargetScopeForMemberAccess(memberAccess: MemberAccess, unexpectedScope: Scope): String = {
+    val rhsAst = memberAccess.ast.getAttribute("rhs").asInstanceOf[Terminal]
+
+    s"""ERROR: Bad target for member access '${memberAccess.memberAccessString}': '${memberAccess.lhs}' was a ${unexpectedScope.getClass.getSimpleName} (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
+       |
      |${pointToSource(rhsAst)}
      """.stripMargin
   }
@@ -232,14 +253,6 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) e
         |
         |${pointToSource(rhsAst)}
         |""".stripMargin
-  }
-
-  def variableIsNotAnObject(ast: Ast): String = {
-    val lhsAst = ast.getAttribute("lhs").asInstanceOf[Terminal]
-    s"""ERROR: Variable is not an object (line ${lhsAst.getLine}, col ${lhsAst.getColumn}):
-        |
-     |${pointToSource(lhsAst)}
-     """.stripMargin
   }
 
   def pairMustHaveExactlyTwoTypeParameters(arrayDecl: Terminal): String = {
@@ -277,8 +290,8 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) e
      """.stripMargin
   }
 
-  def declarationExpressionNotCoerceableToTargetType(declName: Terminal, declType: WomType) = {
-    s"""ERROR: Value for ${declName.getSourceString} is not coerceable into a ${declType.toDisplayString}:
+  def declarationExpressionNotCoerceableToTargetType(declName: Terminal, declType: WomType, evaluatedType: WomType) = {
+    s"""ERROR: Value '${declName.getSourceString}' is declared as a '${declType.toDisplayString}' but the expression evaluates to '${evaluatedType.toDisplayString}':
         |
        |${pointToSource(declName)}
      """.stripMargin

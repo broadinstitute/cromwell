@@ -78,7 +78,9 @@ object JesAsyncBackendJobExecutionActor {
 
 class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends BackendJobLifecycleActor with StandardAsyncExecutionActor with JesJobCachingActorHelper
-    with JesStatusRequestClient with JesRunCreationClient with GcsBatchCommandBuilder with KvClient {
+    with JesStatusRequestClient with JesRunCreationClient with KvClient {
+
+  override lazy val ioCommandBuilder = GcsBatchCommandBuilder
 
   import JesAsyncBackendJobExecutionActor._
 
@@ -127,7 +129,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override def requestsAbortAndDiesImmediately: Boolean = false
 
-  override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse ioReceive orElse kvClientReceive orElse super.receive
+  override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse kvClientReceive orElse super.receive
 
   private def gcsAuthParameter: Option[JesInput] = {
     if (jesAttributes.auths.gcs.requiresAuthFile || dockerConfiguration.isDefined)
@@ -218,7 +220,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     // TODO WOM: put this back in WOM
     import cats.syntax.validated._
     def evaluateFiles(output: OutputDefinition): List[WomFile] = {
-      Try (
+      Try(
         output.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, output.womType).map(_.toList)
       ).getOrElse(List.empty[WomFile].validNel)
         .getOrElse(List.empty)
@@ -262,7 +264,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   lazy val jesMonitoringParamName: String = JesJobPaths.JesMonitoringKey
   lazy val localMonitoringLogPath: Path = DefaultPathBuilder.get(jesCallPaths.jesMonitoringLogFilename)
-  lazy val localMonitoringScriptPath: Path =  DefaultPathBuilder.get(jesCallPaths.jesMonitoringScriptFilename)
+  lazy val localMonitoringScriptPath: Path = DefaultPathBuilder.get(jesCallPaths.jesMonitoringScriptFilename)
 
   lazy val monitoringScript: Option[JesInput] = {
     jesCallPaths.workflowPaths.monitoringScriptPath map { path =>
@@ -270,8 +272,9 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
-  lazy val monitoringOutput: Option[JesFileOutput] = monitoringScript map { _ => JesFileOutput(s"$jesMonitoringParamName-out",
-    jesCallPaths.jesMonitoringLogPath.pathAsString, localMonitoringLogPath, workingDisk)
+  lazy val monitoringOutput: Option[JesFileOutput] = monitoringScript map { _ =>
+    JesFileOutput(s"$jesMonitoringParamName-out",
+      jesCallPaths.jesMonitoringLogPath.pathAsString, localMonitoringLogPath, workingDisk)
   }
 
   override lazy val commandDirectory: Path = JesWorkingDisk.MountPoint
@@ -351,7 +354,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     // Want to force runtimeAttributes to evaluate so we can fail quickly now if we need to:
     def evaluateRuntimeAttributes = Future.fromTry(Try(runtimeAttributes))
 
-    def generateJesParameters = Future.fromTry( Try {
+    def generateJesParameters = Future.fromTry(Try {
       val generatedJesInputs = generateJesInputs(jobDescriptor)
       val jesInputs: Set[JesInput] = generatedJesInputs ++ monitoringScript + cmdInput
       val jesOutputs: Set[JesFileOutput] = generateJesOutputs(jobDescriptor) ++ monitoringOutput
@@ -511,7 +514,8 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         writeFuturePreemptedAndUnexpectedRetryCounts(thisPreemption, ur).map { _ =>
           if (thisPreemption < maxPreemption) {
             // Increment preemption count and unexpectedRetryCount stays the same
-            val msg = s"""$baseMsg The call will be restarted with another preemptible VM (max preemptible attempts number is $maxPreemption). Error code $errorCode.$prettyPrintedError""".stripMargin
+            val msg =
+              s"""$baseMsg The call will be restarted with another preemptible VM (max preemptible attempts number is $maxPreemption). Error code $errorCode.$prettyPrintedError""".stripMargin
             FailedRetryableExecutionHandle(StandardException(
               errorCode, msg, jobTag, jobReturnCode, jobPaths.stderr), jobReturnCode)
           }

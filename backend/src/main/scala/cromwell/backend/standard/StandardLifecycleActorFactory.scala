@@ -4,11 +4,13 @@ import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
 import cromwell.backend._
 import cromwell.backend.standard.callcaching._
-import cromwell.core.{CallOutputs, Dispatcher}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.path.Path
+import cromwell.core.{CallOutputs, Dispatcher}
 import wom.expression.IoFunctionSet
 import wom.graph.TaskCallNode
+
+import scala.concurrent.ExecutionContext
 
 /**
   * May be extended for using the standard sync/async backend pattern.
@@ -172,11 +174,13 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                            jobKey: BackendJobDescriptorKey,
-                                           initializationDataOption: Option[BackendInitializationData]):
+                                           initializationDataOption: Option[BackendInitializationData],
+                                           ioActorEndpoint: ActorRef,
+                                           ec: ExecutionContext):
   IoFunctionSet = {
     val standardInitializationData = BackendInitializationData.as[StandardInitializationData](initializationDataOption)
     val jobPaths = standardInitializationData.workflowPaths.toJobPaths(jobKey, workflowDescriptor)
-    standardInitializationData.expressionFunctions(jobPaths)
+    standardInitializationData.expressionFunctions(jobPaths, ioActorEndpoint, ec)
   }
 
   override def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config,

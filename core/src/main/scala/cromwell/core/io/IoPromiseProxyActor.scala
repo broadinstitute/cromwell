@@ -1,0 +1,41 @@
+package cromwell.core.io
+
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import cromwell.core.io.AsyncIo.ioTimeout
+import cromwell.core.io.IoPromiseProxyActor.IoCommandWithPromise
+
+import scala.concurrent.Promise
+import scala.concurrent.duration.FiniteDuration
+
+object IoPromiseProxyActor {
+  case class IoCommandWithPromise[A](ioCommand: IoCommand[A], timeout: FiniteDuration = ioTimeout) {
+    val promise = Promise[A]
+  }
+  def props(ioActor: ActorRef) = Props(new IoPromiseProxyActor(ioActor))
+}
+
+/**
+  * Acts as a proxy for the IoActor by receiving promises along with the command and completing them when the response comes back.
+  * This enables using the IoActor through promises easily from anywhere.
+  * However backpressure is less efficient because the messages come back to this actor and the backpressure information can't really
+  * be communicated back to the original sender (who might not be an actor)
+  */
+class IoPromiseProxyActor(override val ioActor: ActorRef) extends Actor with ActorLogging with IoClientHelper {
+  override def receive = ioReceive orElse actorReceive
+  
+  def actorReceive: Receive = {
+    case withPromise: IoCommandWithPromise[_] => 
+      sendIoCommandWithContext(withPromise.ioCommand, withPromise.promise, withPromise.timeout)
+  }
+
+  override protected def ioResponseReceive: Receive = {
+    case (promise: Promise[_], ack: IoAck[Any] @unchecked) =>
+      cancelTimeout(promise -> ack.command)
+      // This is not typesafe. 
+      // However the sendIoCommand method ensures that the command and the promise have the same generic type
+      // Which means as long as only the sendIoCommand method is used to send requests, and the ioActor honors his contract
+      // and send back the right context with the right response, the types are virtually guaranteed to match.
+      promise.asInstanceOf[Promise[Any]].complete(ack.toTry)
+      ()
+  }
+}

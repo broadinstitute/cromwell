@@ -4,9 +4,8 @@ import akka.actor.SupervisorStrategy.{Decider, Stop}
 import akka.actor.{ActorRef, OneForOneStrategy, Props}
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobNotFoundException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
-import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, Reconnect, ReconnectToAbort, Recover}
-import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobExecutionActor}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobExecutionActor, _}
 import cromwell.core.Dispatcher
 import cromwell.services.keyvalue.KeyValueServiceActor._
 

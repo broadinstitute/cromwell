@@ -26,6 +26,7 @@ import wom.expression.IoFunctionSet
 import wom.graph.{TaskCallNode, WomIdentifier}
 import wom.types.{WomIntegerType, WomStringType}
 
+import scala.concurrent.ExecutionContext
 import scala.util.Success
 
 
@@ -92,7 +93,11 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
 
     override def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef) => Props] = Option((_, _, _, _) => callCacheHitCopyingProbe.props)
 
-    override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor, jobKey: BackendJobDescriptorKey, initializationData: Option[BackendInitializationData]): IoFunctionSet = {
+    override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
+                                             jobKey: BackendJobDescriptorKey,
+                                             initializationData: Option[BackendInitializationData],
+                                             ioActorEndpoint: ActorRef,
+                                             ec: ExecutionContext): IoFunctionSet = {
       NoIoFunctionSet
     }
 

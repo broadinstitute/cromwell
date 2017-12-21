@@ -10,7 +10,7 @@ import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.workflow.lifecycle.execution.keys.SubWorkflowKey
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation.{CallPreparationFailed, Start, _}
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
-import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
+import cromwell.engine.{EngineWorkflowDescriptor, EngineIoFunctions}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr.ErrorOr
 import wom.graph.{GraphInputNode, GraphNode, OptionalGraphInputNode, OptionalGraphInputNodeWithDefault}
@@ -18,7 +18,7 @@ import wom.graph.GraphNodePort.OutputPort
 import wom.values.{WomEvaluatedCallInputs, WomValue}
 
 class SubWorkflowPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
-                                  expressionLanguageFunctions: WdlFunctions,
+                                  expressionLanguageFunctions: EngineIoFunctions,
                                   callKey: SubWorkflowKey,
                                   subWorkflowId: WorkflowId) extends Actor with WorkflowLogging {
 
@@ -85,7 +85,7 @@ object SubWorkflowPreparationActor {
   case class SubWorkflowPreparationSucceeded(workflowDescriptor: EngineWorkflowDescriptor, inputs: WomEvaluatedCallInputs) extends CallPreparationActorResponse
 
   def props(workflowDescriptor: EngineWorkflowDescriptor,
-            expressionLanguageFunctions: WdlFunctions,
+            expressionLanguageFunctions: EngineIoFunctions,
             key: SubWorkflowKey,
             subWorkflowId: WorkflowId) = {
     // Note that JobPreparationActor doesn't run on the engine dispatcher as it mostly executes backend-side code

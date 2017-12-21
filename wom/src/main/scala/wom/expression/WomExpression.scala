@@ -34,8 +34,8 @@ trait IoFunctionSet {
   def writeFile(path: String, content: String): Future[WomFile]
   def stdout(params: Seq[Try[WomValue]]): Try[WomFile]
   def stderr(params: Seq[Try[WomValue]]): Try[WomFile]
-  def glob(pattern: String): Seq[String]
-  def size(params: Seq[Try[WomValue]]): Try[WomFloat]
+  def glob(pattern: String): Future[Seq[String]]
+  def size(params: Seq[Try[WomValue]]): Future[WomFloat]
 }
 
 /**

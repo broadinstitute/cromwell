@@ -6,6 +6,8 @@ import cromwell.core.NoIoFunctionSet
 import wom.expression.IoFunctionSet
 import wom.graph.TaskCallNode
 
+import scala.concurrent.ExecutionContext
+
 class RetryableBackendLifecycleActorFactory(val name: String,
                                             val configurationDescriptor: BackendConfigurationDescriptor)
   extends BackendLifecycleActorFactory {
@@ -25,5 +27,7 @@ class RetryableBackendLifecycleActorFactory(val name: String,
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                            jobKey: BackendJobDescriptorKey,
-                                           initializationData: Option[BackendInitializationData]): IoFunctionSet = NoIoFunctionSet
+                                           initializationData: Option[BackendInitializationData],
+                                           ioActorEndpoint: ActorRef,
+                                           ec: ExecutionContext): IoFunctionSet = NoIoFunctionSet
 }

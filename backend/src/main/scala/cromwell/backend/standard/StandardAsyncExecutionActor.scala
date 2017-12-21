@@ -19,7 +19,7 @@ import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionA
 import cromwell.backend.validation._
 import cromwell.backend.wdl.OutputEvaluator._
 import cromwell.backend.wdl.{Command, OutputEvaluator}
-import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
+import cromwell.core.io.{AsyncIoActorClient, DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.path.Path
 import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent}
 import cromwell.services.keyvalue.KeyValueServiceActor._
@@ -60,9 +60,11 @@ case class DefaultStandardAsyncExecutionActorParams
   * NOTE: Unlike the parent trait `AsyncBackendJobExecutionActor`, this trait is subject to even more frequent updates
   * as the common behavior among the backends adjusts in unison.
   */
-trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with StandardCachingActorHelper with AsyncIo with DefaultIoCommandBuilder with KvClient {
+trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with StandardCachingActorHelper with AsyncIoActorClient with KvClient {
   this: Actor with ActorLogging with BackendJobLifecycleActor =>
 
+  override lazy val ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
+  
   val SIGTERM = 143
   val SIGINT = 130
   val SIGKILL = 137
@@ -100,7 +102,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   /** @see [[Command.instantiate]] */
   lazy val backendEngineFunctions: StandardExpressionFunctions =
-    standardInitializationData.expressionFunctions(jobPaths)
+    standardInitializationData.expressionFunctions(jobPaths, standardParams.ioActor, ec)
 
   lazy val scriptEpilogue = configurationDescriptor.backendConfig.as[Option[String]]("script-epilogue").getOrElse("sync")
 
@@ -568,7 +570,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   private var missedAbort = false
   private case class CheckMissedAbort(jobId: StandardAsyncJob)
 
-  context.become(kvClientReceive orElse ioReceive orElse standardReceiveBehavior(None) orElse receive)
+  context.become(kvClientReceive orElse standardReceiveBehavior(None) orElse receive)
 
   def standardReceiveBehavior(jobIdOption: Option[StandardAsyncJob]): Receive = LoggingReceive {
     case AbortJobCommand =>
@@ -582,7 +584,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       }
       postAbort()
     case CheckMissedAbort(jobId: StandardAsyncJob) =>
-      context.become(kvClientReceive orElse ioReceive orElse standardReceiveBehavior(Option(jobId)) orElse receive)
+      context.become(kvClientReceive orElse standardReceiveBehavior(Option(jobId)) orElse receive)
       if (missedAbort)
         self ! AbortJobCommand
   }

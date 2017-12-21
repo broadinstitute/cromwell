@@ -5,12 +5,15 @@ import cats.syntax.traverse._
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.CallContext
 import common.validation.ErrorOr.ErrorOr
+import cromwell.core.io.AsyncIoFunctions
 import wom.values._
 import wom.expression.IoFunctionSet
 import wom.graph.TaskCallNode
 import wom.values.WomGlobFile
 
-trait GlobFunctions extends IoFunctionSet {
+import scala.concurrent.Future
+
+trait GlobFunctions extends IoFunctionSet with AsyncIoFunctions {
 
   def callContext: CallContext
 
@@ -21,17 +24,6 @@ trait GlobFunctions extends IoFunctionSet {
       }
     }
 
-  def globDirectory(glob: String): String = GlobFunctions.globName(glob) + "/"
-  /**
-    * Returns a path to the glob.
-    *
-    * This path is usually passed back into the glob() method below.
-    *
-    * @param glob The glob. This is the same "pattern" passed to glob() below.
-    * @return The path.
-    */
-  def globPath(glob: String): String = callContext.root.resolve(globDirectory(glob)).pathAsString
-
   /**
     * Returns a list of path from the glob.
     *
@@ -40,13 +32,14 @@ trait GlobFunctions extends IoFunctionSet {
     * @param pattern The pattern of the glob. This is the same "glob" passed to globPath().
     * @return The paths that match the pattern.
     */
-  override def glob(pattern: String): Seq[String] = {
+  override def glob(pattern: String): Future[Seq[String]] = {
     import GlobFunctions._
     val globPatternName = globName(pattern)
     val listFilePath = callContext.root.resolve(s"${globName(pattern)}.list")
-    // This "lines" is technically a read file and hence should use the readFile IO method
-    listFilePath.toRealPath().lines.toList map { fileName =>
-      (callContext.root /  globPatternName  / fileName).pathAsString
+    asyncIo.readLinesAsync(listFilePath.toRealPath()) map { lines =>
+      lines.toList map { fileName =>
+        (callContext.root /  globPatternName  / fileName).pathAsString
+      }
     }
   }
 }

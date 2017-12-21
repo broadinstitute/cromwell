@@ -7,7 +7,7 @@ import cromwell.core.{CallOutputs, NoIoFunctionSet}
 import wom.expression.IoFunctionSet
 import wom.graph.TaskCallNode
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 object DefaultBackendJobExecutionActor {
   def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor) = Props(DefaultBackendJobExecutionActor(jobDescriptor, configurationDescriptor))
@@ -41,6 +41,8 @@ class DefaultBackendLifecycleActorFactory(val name: String, val configurationDes
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                            jobKey: BackendJobDescriptorKey,
-                                           initializationData: Option[BackendInitializationData]): IoFunctionSet = NoIoFunctionSet
+                                           initializationData: Option[BackendInitializationData],
+                                           ioActorEndpoint: ActorRef,
+                                           ec: ExecutionContext): IoFunctionSet = NoIoFunctionSet
 }
 

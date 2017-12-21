@@ -26,6 +26,7 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
 import cromwell.core._
 import cromwell.core.callcaching._
+import cromwell.core.io.AsyncIo
 import cromwell.core.labels.{Label, Labels}
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.path.BetterFileMethods.OpenOptions
@@ -34,6 +35,7 @@ import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor._
+import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cwl.CwlDecoder
@@ -63,8 +65,9 @@ object MaterializeWorkflowDescriptorActor {
   // exception if not initialized yet.
   private def cromwellBackends = CromwellBackends.instance.get
 
-  def props(serviceRegistryActor: ActorRef, workflowId: WorkflowId, cromwellBackends: => CromwellBackends = cromwellBackends, importLocalFilesystem: Boolean): Props = {
-    Props(new MaterializeWorkflowDescriptorActor(serviceRegistryActor, workflowId, cromwellBackends, importLocalFilesystem)).withDispatcher(EngineDispatcher)
+  def props(serviceRegistryActor: ActorRef, workflowId: WorkflowId, cromwellBackends: => CromwellBackends = cromwellBackends,
+            importLocalFilesystem: Boolean, ioActorEndpoint: ActorRef): Props = {
+    Props(new MaterializeWorkflowDescriptorActor(serviceRegistryActor, workflowId, cromwellBackends, importLocalFilesystem, ioActorEndpoint)).withDispatcher(EngineDispatcher)
   }
 
   /*
@@ -136,7 +139,8 @@ object MaterializeWorkflowDescriptorActor {
 class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                          val workflowIdForLogging: WorkflowId,
                                          cromwellBackends: => CromwellBackends,
-                                         importLocalFilesystem: Boolean) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, Unit] with LazyLogging with WorkflowLogging {
+                                         importLocalFilesystem: Boolean,
+                                         ioActorEndpoint: ActorRef) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, Unit] with LazyLogging with WorkflowLogging {
 
   import MaterializeWorkflowDescriptorActor._
 
@@ -153,8 +157,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
       workflowOptionsAndPathBuilders(workflowSourceFiles) match {
         case Valid((workflowOptions, pathBuilders)) =>
-          val futureDescriptor: Future[ErrorOr[EngineWorkflowDescriptor]] = pathBuilders flatMap {
-            buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf, workflowOptions, _).
+          val futureDescriptor: Future[ErrorOr[EngineWorkflowDescriptor]] = pathBuilders flatMap { pb =>
+            val engineIoFunctions = new EngineIoFunctions(pb, new AsyncIo(ioActorEndpoint, GcsBatchCommandBuilder), iOExecutionContext)
+            buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf, workflowOptions, pb, engineIoFunctions).
               value.
               unsafeToFuture().
               map(_.toValidated)
@@ -226,10 +231,11 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       sourceFiles: WorkflowSourceFilesCollection,
                                       conf: Config,
                                       workflowOptions: WorkflowOptions,
-                                      pathBuilders: List[PathBuilder]): Parse[EngineWorkflowDescriptor] = {
+                                      pathBuilders: List[PathBuilder],
+                                      engineIoFunctions: EngineIoFunctions): Parse[EngineWorkflowDescriptor] = {
     val namespaceValidation: Parse[ValidatedWomNamespace] = sourceFiles.workflowType match {
-      case Some(wdl) if wdl.equalsIgnoreCase("wdl") => fromEither[IO](validateWdlNamespace(sourceFiles, workflowOptions, pathBuilders).toEither)
-      case Some(cwl) if cwl.equalsIgnoreCase("cwl") => validateCwlNamespace(sourceFiles, workflowOptions, pathBuilders)
+      case Some(wdl) if wdl.equalsIgnoreCase("wdl") => fromEither[IO](validateWdlNamespace(sourceFiles, workflowOptions, engineIoFunctions).toEither)
+      case Some(cwl) if cwl.equalsIgnoreCase("cwl") => validateCwlNamespace(sourceFiles, workflowOptions, engineIoFunctions)
       case Some(other) => fromEither[IO](s"Unknown workflow type: $other".invalidNelCheck[ValidatedWomNamespace])
       case None => fromEither[IO]("Need a workflow type here !".invalidNelCheck[ValidatedWomNamespace])
     }
@@ -396,7 +402,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
   private def validateCwlNamespace(source: WorkflowSourceFilesCollection,
                                    workflowOptions: WorkflowOptions,
-                                   pathBuilders: List[PathBuilder]): Parse[ValidatedWomNamespace] = {
+                                   ioFunctions: EngineIoFunctions): Parse[ValidatedWomNamespace] = {
     // TODO WOM: CwlDecoder takes a file so write it to disk for now
 
     val cwlFile: File = File.newTemporaryFile(prefix = workflowIdForLogging.toString).write(source.workflowSource)
@@ -412,15 +418,14 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     for {
       _ <- unzipDependencies
       cwl <- CwlDecoder.decodeAllCwl(cwlFile, source.workflowRoot)
-      executable <- fromEither[IO](cwl.womExecutable(AcceptAllRequirements, Option(source.inputsJson)))
-      ioFunctions = new WdlFunctions(pathBuilders)
+      executable <-  fromEither[IO](cwl.womExecutable(AcceptAllRequirements, Option(source.inputsJson)))
       validatedWomNamespace <- fromEither[IO](validateWomNamespace(executable, ioFunctions))
     } yield validatedWomNamespace
   }
 
   private def validateWdlNamespace(source: WorkflowSourceFilesCollection,
                                    workflowOptions: WorkflowOptions,
-                                   pathBuilders: List[PathBuilder]): ErrorOr[ValidatedWomNamespace] = {
+                                   ioFunctions: EngineIoFunctions): ErrorOr[ValidatedWomNamespace] = {
     import cats.instances.either._
     import cats.instances.list._
     import cats.syntax.either._
@@ -492,7 +497,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       _ <- validateWorkflowNameLengths(wdlNamespace)
       _ = publishImportMetadata(wdlNamespace)
       womExecutable <- wdlNamespace.womExecutable(Option(source.inputsJson))
-      ioFunctions = new WdlFunctions(pathBuilders)
       validatedWomNamespace <- validateWomNamespace(womExecutable, ioFunctions)
       _ <- checkTypes(wdlNamespace, validatedWomNamespace.womValueInputs)
       _ = pushWfInputsToMetadataService(validatedWomNamespace.womValueInputs)

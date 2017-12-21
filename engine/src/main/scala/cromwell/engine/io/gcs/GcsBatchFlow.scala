@@ -9,9 +9,9 @@ import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
-import cromwell.engine.io.IoActor.IoResult
+import cromwell.engine.io.IoActor._
+import cromwell.engine.io.IoCommandContext
 import cromwell.engine.io.gcs.GcsBatchFlow.BatchFailedException
-import cromwell.engine.io.{IoActor, IoCommandContext}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -133,9 +133,9 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     */
   private def recoverCommand(context: GcsBatchCommandContext[_, _]): PartialFunction[Throwable, Future[GcsBatchResponse[_]]] = {
     // If the failure is retryable - recover with a GcsBatchRetry so it can be retried in the next batch
-    case failure if IoActor.isRetryable(failure) =>
+    case failure if isRetryable(failure) =>
       context.retryIn match {
-        case Some(waitTime) if IoActor.isTransient(failure) =>
+        case Some(waitTime) if isTransient(failure) =>
           onRetry(context)(failure)
           akka.pattern.after(waitTime, scheduler)(Future.successful(GcsBatchRetry(context.nextTransient, failure)))
         case Some(waitTime) =>

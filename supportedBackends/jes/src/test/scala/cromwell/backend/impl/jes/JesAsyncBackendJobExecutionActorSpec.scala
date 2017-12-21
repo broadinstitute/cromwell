@@ -46,7 +46,6 @@ import scala.util.Success
 
 class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
   with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
-  
   val mockPathBuilder: GcsPathBuilder = GcsPathBuilder.fromCredentials(NoCredentials.getInstance(),
     "test-cromwell", RetrySettings.newBuilder().build(), GcsStorage.DefaultCloudStorageConfiguration, WorkflowOptions.empty)
   
@@ -86,6 +85,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   lazy val TestableStandardExpressionFunctionsParams = new StandardExpressionFunctionsParams {
     override lazy val pathBuilders: List[PathBuilder] = List(mockPathBuilder)
     override lazy val callContext: CallContext = TestableCallContext
+    override val ioActorEndpoint: ActorRef = simpleIoActor
+    override val executionContext = system.dispatcher
   }
 
   lazy val TestableJesExpressionFunctions: JesExpressionFunctions = {

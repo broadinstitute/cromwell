@@ -5,8 +5,8 @@ import java.util.UUID
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.testkit.TestActorRef
+import cromwell.core.TestKitSuite
 import cromwell.core.path.DefaultPathBuilder
-import cromwell.core.{SimpleIoActor, TestKitSuite}
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{AsyncFlatSpecLike, Matchers}
 
@@ -14,12 +14,7 @@ class AsyncIoSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
 
   behavior of "AsyncIoSpec"
   
-  val simpleIoActor = system.actorOf(SimpleIoActor.props)
-  
-  override def afterAll() = {
-    system stop simpleIoActor
-    super.afterAll()
-  } 
+  implicit val ioCommandBuilder = DefaultIoCommandBuilder
   
   it should "write asynchronously" in {
     val testActor = TestActorRef(new AsyncIoTestActor(simpleIoActor))
@@ -104,10 +99,10 @@ class AsyncIoSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     recoverToSucceededIf[NoSuchFileException] { testActor.underlyingActor.deleteAsync(testPath, swallowIoExceptions = false) }
   }
 
-  private class AsyncIoTestActor(override val ioActor: ActorRef) extends Actor with ActorLogging with AsyncIo with DefaultIoCommandBuilder {
+  private class AsyncIoTestActor(override val ioActor: ActorRef) extends Actor with ActorLogging with AsyncIoActorClient {
 
-    context.become(ioReceive orElse receive)
-
+    override lazy val ioCommandBuilder = DefaultIoCommandBuilder
+    
     override def receive: Receive = {
       case _ =>
     }

@@ -1,8 +1,10 @@
 package cromwell.core
 
 import akka.actor.{Actor, Props}
+import cromwell.core.io.IoPromiseProxyActor.IoCommandWithPromise
 import cromwell.core.io._
 
+import scala.concurrent.Promise
 import scala.io.Codec
 import scala.util.{Failure, Success, Try}
 
@@ -53,6 +55,12 @@ class SimpleIoActor extends Actor {
         case Success(hash) => sender() ! IoSuccess(command, hash)
         case Failure(failure) => sender() ! IoFailure(command, failure)
       }
+      
+    case command: IoExistsCommand =>
+      Try(command.file.exists) match {
+        case Success(exists) => sender() ! IoSuccess(command, exists)
+        case Failure(failure) => sender() ! IoFailure(command, failure)
+      }
 
     // With context
     case (requestContext: Any, command: IoCopyCommand) =>
@@ -96,5 +104,18 @@ class SimpleIoActor extends Actor {
         case Success(hash) => sender() ! (requestContext -> IoSuccess(command, hash))
         case Failure(failure) => sender() ! (requestContext -> IoFailure(command, failure))
       }
+
+    case (requestContext: Any, command: IoExistsCommand) =>
+
+      Try(command.file.exists) match {
+        case Success(exists) => sender() ! (requestContext -> IoSuccess(command, exists))
+        case Failure(failure) => sender() ! (requestContext -> IoFailure(command, failure))
+      }
+
+    case withPromise: IoCommandWithPromise[_] => self ! ((withPromise.promise, withPromise.ioCommand))
+
+    case (promise: Promise[_], ack: IoAck[Any] @unchecked) =>
+      promise.asInstanceOf[Promise[Any]].complete(ack.toTry)
+      ()
   }
 }

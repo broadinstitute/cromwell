@@ -102,13 +102,13 @@ object StandardCacheHitCopyingActor {
   private[callcaching] case class NextSubSet(commands: Set[IoCommand[_]]) extends CommandSetState
 }
 
-class DefaultStandardCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams) with DefaultIoCommandBuilder
+class DefaultStandardCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams)
 
 /**
   * Standard implementation of a BackendCacheHitCopyingActor.
   */
 abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHitCopyingActorParams)
-  extends FSM[StandardCacheHitCopyingActorState, Option[StandardCacheHitCopyingActorData]] with JobLogging with StandardCachingActorHelper with IoClientHelper { this: IoCommandBuilder =>
+  extends FSM[StandardCacheHitCopyingActorState, Option[StandardCacheHitCopyingActorData]] with JobLogging with StandardCachingActorHelper with IoClientHelper {
 
   override lazy val jobDescriptor: BackendJobDescriptor = standardParams.jobDescriptor
   override lazy val backendInitializationDataOption: Option[BackendInitializationData] = standardParams.backendInitializationDataOption
@@ -258,7 +258,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
         val destinationSimpleton = WomValueSimpleton(key, WomSingleFile(destinationPath.pathAsString))
 
-        List(destinationSimpleton) -> Set(copyCommand(sourcePath, destinationPath, overwrite = true))
+        List(destinationSimpleton) -> Set(DefaultIoCommandBuilder.copyCommand(sourcePath, destinationPath, overwrite = true))
       case nonFileSimpleton => (List(nonFileSimpleton), Set.empty[IoCommand[_]])
     })
 
@@ -289,7 +289,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
         val newDetrituses = detrituses + (detritus -> destinationPath)
 
-        (newDetrituses, commands + copyCommand(sourcePath, destinationPath, overwrite = true))
+        (newDetrituses, commands + DefaultIoCommandBuilder.copyCommand(sourcePath, destinationPath, overwrite = true))
     })
 
     (destinationDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath), ioCommands)

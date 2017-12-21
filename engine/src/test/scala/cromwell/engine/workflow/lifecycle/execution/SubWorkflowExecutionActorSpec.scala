@@ -7,6 +7,7 @@ import akka.testkit.{TestFSMRef, TestProbe}
 import cromwell.backend.{AllBackendInitializationData, BackendWorkflowDescriptor, JobExecutionMap}
 import cromwell.core._
 import cromwell.core.callcaching.CallCachingOff
+import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.lifecycle.execution.SubWorkflowExecutionActor._
@@ -17,7 +18,7 @@ import cromwell.engine.workflow.lifecycle.execution.job.preparation.SubWorkflowP
 import cromwell.engine.workflow.lifecycle.execution.keys.SubWorkflowKey
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.engine.workflow.workflowstore.{RestartableRunning, StartableState, Submitted}
-import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor, WdlFunctions}
+import cromwell.engine.{ContinueWhilePossible, EngineIoFunctions, EngineWorkflowDescriptor}
 import cromwell.subworkflowstore.SubWorkflowStoreActor.{QuerySubWorkflow, SubWorkflowFound, SubWorkflowNotFound}
 import cromwell.util.WomMocks
 import org.scalatest.concurrent.Eventually
@@ -66,7 +67,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
       new SubWorkflowExecutionActor(
         subKey,
         parentWorkflowDescriptor,
-        new WdlFunctions(List.empty),
+        new EngineIoFunctions(List.empty, new AsyncIo(simpleIoActor, DefaultIoCommandBuilder), system.dispatcher),
         Map.empty,
         ioActorProbe.ref,
         serviceRegistryProbe.ref,

@@ -275,7 +275,6 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
   implicit val defaultPatience = PatienceConfig(timeout = Span(200, Seconds), interval = Span(1000, Millis))
   implicit val ec = system.dispatcher
   implicit val materializer = twms.materializer
-
   val dummyServiceRegistryActor = system.actorOf(Props.empty)
   val dummyLogCopyRouter = system.actorOf(Props.empty)
 

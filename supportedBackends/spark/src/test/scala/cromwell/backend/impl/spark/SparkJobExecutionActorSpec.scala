@@ -156,7 +156,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       val stubTailed = new TailedWriter(jobPaths.stderr, 100) with MockPathWriter
       val stderr = ""
 
-      val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc) {
+      val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc, simpleIoActor) {
         override lazy val clusterExtProcess = sparkClusterProcess
         override lazy val cmds = sparkCommands
       }).underlyingActor
@@ -186,7 +186,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       val stubTailed = new TailedWriter(jobPaths.stderr, 100) with MockPathWriter
       val stderr = ""
 
-      val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc) {
+      val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc, simpleIoActor) {
         override lazy val clusterExtProcess = sparkClusterProcess
         override lazy val cmds = sparkCommands
       }).underlyingActor
@@ -217,7 +217,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       val stubTailed = new TailedWriter(jobPaths.stderr, 100) with MockPathWriter
       val stderr = ""
 
-      val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc) {
+      val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc, simpleIoActor) {
         override lazy val clusterExtProcess = sparkClusterProcess
         override lazy val cmds = sparkCommands
       }).underlyingActor
@@ -249,7 +249,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       File(jobPaths.stderr) < "failed"
       File(jobPaths.callExecutionRoot.resolve("cluster.json")) < sampleSubmissionResponse
 
-      val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc) {
+      val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc, simpleIoActor) {
         override lazy val clusterExtProcess = sparkClusterProcess
         override lazy val cmds = sparkCommands
       }).underlyingActor
@@ -277,7 +277,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       val stubUntailed = new UntailedWriter(jobPaths.stdout) with MockPathWriter
       val stubTailed = new TailedWriter(jobPaths.stderr, 100) with MockPathWriter
       val stderrResult = ""
-      val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc) {
+      val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc, simpleIoActor) {
         override lazy val clusterExtProcess = sparkClusterProcess
         override lazy val cmds = sparkCommands
       }).underlyingActor
@@ -303,7 +303,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       val stubUntailed = new UntailedWriter(jobPaths.stdout) with MockPathWriter
       val stubTailed = new TailedWriter(jobPaths.stderr, 100) with MockPathWriter
       val stderrResult = ""
-      val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc) {
+      val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc, simpleIoActor) {
         override lazy val clusterExtProcess = sparkClusterProcess
         override lazy val cmds = sparkCommands
       }).underlyingActor
@@ -339,7 +339,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       when(sparkProcess.untailedWriter(any[Path])).thenReturn(stubUntailed)
       when(sparkProcess.processStderr).thenReturn(stderrResult)
 
-      val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc) {
+      val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc, simpleIoActor) {
         override lazy val extProcess = sparkProcess
         override lazy val cmds = sparkCommands
       }).underlyingActor
@@ -358,7 +358,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       val jobDescriptor = prepareJob()
       val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
 
-      val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc) {
+      val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc, simpleIoActor) {
         override lazy val cmds = sparkCommands
         override lazy val extProcess = sparkProcess
       }).underlyingActor
@@ -385,7 +385,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       val jobDescriptor = prepareJob(runtimeString = failedOnStderr)
       val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
 
-      val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc) {
+      val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc, simpleIoActor) {
         override lazy val cmds = sparkCommands
         override lazy val extProcess = sparkProcess
       }).underlyingActor
@@ -411,7 +411,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       val jobDescriptor = prepareJob()
       val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
 
-      val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc) {
+      val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc, simpleIoActor) {
         override lazy val cmds = sparkCommands
         override lazy val extProcess = sparkProcess
       }).underlyingActor

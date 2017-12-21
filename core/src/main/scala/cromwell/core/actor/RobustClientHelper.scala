@@ -1,6 +1,6 @@
 package cromwell.core.actor
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable}
+import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Timers}
 import cromwell.core.actor.RobustClientHelper._
 import cromwell.core.actor.StreamIntegration._
 
@@ -13,7 +13,7 @@ object RobustClientHelper {
   val DefaultRequestLostTimeout = 5 minutes
 }
 
-trait RobustClientHelper { this: Actor with ActorLogging =>
+trait RobustClientHelper extends Timers { this: Actor with ActorLogging =>
   private [actor] implicit val robustActorHelperEc = context.dispatcher
 
   private final val random = new Random()

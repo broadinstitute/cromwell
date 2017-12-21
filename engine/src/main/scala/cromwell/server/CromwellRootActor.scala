@@ -19,7 +19,7 @@ import cromwell.docker.registryv2.flows.dockerhub.DockerHubFlow
 import cromwell.docker.registryv2.flows.gcr.GoogleFlow
 import cromwell.docker.registryv2.flows.quay.QuayFlow
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
-import cromwell.engine.io.IoActor
+import cromwell.engine.io.{IoActor, IoActorEndpoint}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.AbortAllWorkflowsCommand
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor, CallCacheWriteActor}
@@ -79,6 +79,7 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   lazy val throttlePer = systemConfig.as[Option[FiniteDuration]]("io.per").getOrElse(100 seconds)
   lazy val ioThrottle = Throttle(throttleElements, throttlePer, throttleElements)
   lazy val ioActor = context.actorOf(IoActor.props(1000, Option(ioThrottle), serviceRegistryActor), "IoActor")
+  lazy val ioActorEndpoint = context.actorOf(IoActorEndpoint.props(ioActor))
 
   lazy val workflowLogCopyRouter: ActorRef = context.actorOf(RoundRobinPool(numberOfWorkflowLogCopyWorkers)
     .withSupervisorStrategy(CopyWorkflowLogsActor.strategy)
@@ -122,7 +123,7 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
 
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
-      workflowStoreActor, ioActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, callCacheWriteActor,
+      workflowStoreActor, ioActorEndpoint, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, callCacheWriteActor,
       dockerHashActor, jobExecutionTokenDispenserActor, backendSingletonCollection, serverMode),
     "WorkflowManagerActor")
 
@@ -137,7 +138,7 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
       workflowStoreActor = workflowStoreActor,
       subWorkflowStoreActor = subWorkflowStoreActor,
       callCacheWriteActor = callCacheWriteActor,
-      ioActor = ioActor,
+      ioActor = ioActorEndpoint,
       dockerHashActor = dockerHashActor,
       serviceRegistryActor = serviceRegistryActor,
       materializer = materializer

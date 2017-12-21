@@ -2,19 +2,19 @@ package cromwell.backend.impl.spark
 
 import java.nio.file.attribute.PosixFilePermission
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
+import common.exception.MessageAggregation
 import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
+import cromwell.backend._
 import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
 import cromwell.backend.wdl.Command
 import cromwell.backend.wdl.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
-import cromwell.backend._
 import cromwell.core.path.JavaWriterImplicits._
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}
-import common.exception.MessageAggregation
 
 import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger
@@ -23,12 +23,15 @@ import scala.util.{Failure, Success, Try}
 object SparkJobExecutionActor {
   val DefaultPathBuilders = List(DefaultPathBuilder)
 
-  def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor): Props =
-    Props(new SparkJobExecutionActor(jobDescriptor, configurationDescriptor))
+  def props(jobDescriptor: BackendJobDescriptor,
+            configurationDescriptor: BackendConfigurationDescriptor,
+            ioActorEndpoint: ActorRef): Props =
+    Props(new SparkJobExecutionActor(jobDescriptor, configurationDescriptor, ioActorEndpoint))
 }
 
 class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
-                             override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendJobExecutionActor with SharedFileSystem {
+                             override val configurationDescriptor: BackendConfigurationDescriptor,
+                             ioActorEndpoint: ActorRef) extends BackendJobExecutionActor with SharedFileSystem {
 
   import SparkJobExecutionActor._
 
@@ -59,7 +62,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private lazy val SubmitJobJson = "%s.json"
   private lazy val isClusterMode = isSparkClusterMode(sparkDeployMode, sparkMaster)
 
-  private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, DefaultPathBuilders)
+  private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, DefaultPathBuilders, ioActorEndpoint, context.dispatcher)
 
   private val executionResponse = Promise[BackendJobExecutionResponse]()
 

@@ -8,7 +8,7 @@ import cromwell.backend.{AllBackendInitializationData, BackendConfigurationDescr
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.WorkflowOptions._
 import cromwell.core._
-import cromwell.core.io.AsyncIo
+import cromwell.core.io.AsyncIoActorClient
 import cromwell.core.path.{Path, PathCopier, PathFactory}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
@@ -27,12 +27,12 @@ object CopyWorkflowOutputsActor {
 
 class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: ActorRef, val workflowDescriptor: EngineWorkflowDescriptor, workflowOutputs: CallOutputs,
                                initializationData: AllBackendInitializationData)
-  extends Actor with ActorLogging with PathFactory with AsyncIo with GcsBatchCommandBuilder {
-
+  extends Actor with ActorLogging with PathFactory with AsyncIoActorClient {
+  override lazy val ioCommandBuilder = GcsBatchCommandBuilder
   implicit val ec = context.dispatcher
   override val pathBuilders = workflowDescriptor.pathBuilders
 
-  override def receive = ioReceive orElse LoggingReceive {
+  override def receive = LoggingReceive {
     case Finalize => performActionThenRespond(afterAll()(context.dispatcher), FinalizationFailed)(context.dispatcher)
   }
 

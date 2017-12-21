@@ -109,3 +109,11 @@ abstract class IoExistsCommand(val file: Path) extends SingleFileIoCommand[Boole
   override def toString = s"check whether ${file.pathAsString} exists"
   override lazy val name = "exist"
 }
+
+/**
+  * Check whether a file exists
+  */
+abstract class IoReadLinesCommand(val file: Path) extends SingleFileIoCommand[Traversable[String]] {
+  override def toString = s"read lines of ${file.pathAsString}"
+  override lazy val name = "read lines"
+}

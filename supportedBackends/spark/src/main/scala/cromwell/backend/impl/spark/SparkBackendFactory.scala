@@ -8,6 +8,8 @@ import cromwell.core.CallContext
 import wom.expression.IoFunctionSet
 import wom.graph.TaskCallNode
 
+import scala.concurrent.ExecutionContext
+
 case class SparkBackendFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor) extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef,
                                                 calls: Set[TaskCallNode], serviceRegistryActor: ActorRef, restarting: Boolean): Option[Props] = {
@@ -19,11 +21,13 @@ case class SparkBackendFactory(name: String, configurationDescriptor: BackendCon
                                       serviceRegistryActor: ActorRef,
                                       ioActor: ActorRef,
                                       backendSingletonActor: Option[ActorRef]): Props = {
-    SparkJobExecutionActor.props(jobDescriptor, configurationDescriptor)
+    SparkJobExecutionActor.props(jobDescriptor, configurationDescriptor, ioActor)
   }
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor, jobKey: BackendJobDescriptorKey,
-                                           initializationData: Option[BackendInitializationData]): IoFunctionSet = {
+                                           initializationData: Option[BackendInitializationData],
+                                           ioActorEndpoint: ActorRef,
+                                           ec: ExecutionContext): IoFunctionSet = {
     val jobPaths = JobPathsWithDocker(jobKey, workflowDescriptor, configurationDescriptor.backendConfig)
     val callContext = CallContext(
       jobPaths.callExecutionRoot,
@@ -31,6 +35,6 @@ case class SparkBackendFactory(name: String, configurationDescriptor: BackendCon
       jobPaths.stderr.toAbsolutePath.toString
     )
 
-    new SharedFileSystemExpressionFunctions(SparkJobExecutionActor.DefaultPathBuilders, callContext)
+    new SharedFileSystemExpressionFunctions(SparkJobExecutionActor.DefaultPathBuilders, callContext, ioActorEndpoint, ec)
   }
 }

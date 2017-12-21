@@ -1,16 +1,16 @@
 package cromwell.backend.sfs
 
-import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor.PathPair
-import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardCacheHitCopyingActorParams}
-import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
-import common.util.TryUtil
 import cats.instances.try_._
 import cats.syntax.functor._
+import common.util.TryUtil
+import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor.PathPair
+import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardCacheHitCopyingActorParams}
 
 import scala.util.{Failure, Try}
 
 class SharedFileSystemCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams)
-  extends StandardCacheHitCopyingActor(standardParams) with SharedFileSystemJobCachingActorHelper with GcsBatchCommandBuilder {
+  extends StandardCacheHitCopyingActor(standardParams) with SharedFileSystemJobCachingActorHelper {
+
   override protected def duplicate(copyPairs: Set[PathPair]): Option[Try[Unit]] = Option {
     val copies = copyPairs map {
       case (source, destination) => 

@@ -3,7 +3,7 @@ package cromwell.engine.workflow
 import akka.actor.{ActorSystem, Props}
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestKitSpec
-import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
+import cromwell.core.{SimpleIoActor, WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse, WorkflowDescriptorMaterializationResult}
@@ -14,6 +14,7 @@ trait WorkflowDescriptorBuilder {
 
   implicit val awaitTimeout = CromwellTestKitSpec.TimeoutDuration
   implicit val actorSystem: ActorSystem
+  lazy val ioActor = actorSystem.actorOf(SimpleIoActor.props)
 
   def createMaterializedEngineWorkflowDescriptor(id: WorkflowId, workflowSources: WorkflowSourceFilesCollection): EngineWorkflowDescriptor = {
     import akka.pattern.ask
@@ -21,7 +22,7 @@ trait WorkflowDescriptorBuilder {
     implicit val ec = actorSystem.dispatcher
 
     val serviceRegistryIgnorer = actorSystem.actorOf(Props.empty)
-    val actor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryIgnorer, id, importLocalFilesystem = false), "MaterializeWorkflowDescriptorActor-" + id.id)
+    val actor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryIgnorer, id, importLocalFilesystem = false, ioActorEndpoint = ioActor), "MaterializeWorkflowDescriptorActor-" + id.id)
     val workflowDescriptorFuture = actor.ask(
       MaterializeWorkflowDescriptorCommand(workflowSources, ConfigFactory.load)
     ).mapTo[WorkflowDescriptorMaterializationResult]

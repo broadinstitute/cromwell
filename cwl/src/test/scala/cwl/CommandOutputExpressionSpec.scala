@@ -25,7 +25,7 @@ class CommandOutputExpressionSpec extends FlatSpec with Matchers {
       override def writeFile(path: String, content: String) = throw new Exception("writeFile should not be used in this test")
       override def stdout(params: Seq[Try[WomValue]]) = throw new Exception("stdout should not be used in this test")
       override def stderr(params: Seq[Try[WomValue]]) = throw new Exception("stderr should not be used in this test")
-      override def glob(pattern: String): Seq[String] = throw new Exception("glob should not be used in this test")
+      override def glob(pattern: String): Future[Seq[String]] = throw new Exception("glob should not be used in this test")
       override def size(params: Seq[Try[WomValue]]) = throw new Exception("size should not be used in this test")
     }
 

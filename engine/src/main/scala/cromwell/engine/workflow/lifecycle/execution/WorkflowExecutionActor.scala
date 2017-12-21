@@ -15,6 +15,7 @@ import cromwell.backend._
 import cromwell.core.Dispatcher._
 import cromwell.core.ExecutionStatus._
 import cromwell.core._
+import cromwell.core.io.AsyncIo
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
@@ -25,6 +26,7 @@ import cromwell.engine.workflow.lifecycle.execution.keys.ExpressionKey.{Expressi
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState}
+import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataValue}
 import cromwell.util.StopAndLogSupervisor
@@ -46,7 +48,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   val workflowDescriptor = params.workflowDescriptor
   override val workflowIdForLogging = workflowDescriptor.id
   override val workflowIdForCallMetadata = workflowDescriptor.id
-
+  private val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
   private val restarting = params.startState.restarted
   private val tag = s"WorkflowExecutionActor [UUID(${workflowDescriptor.id.shortString})]"
 
@@ -63,7 +65,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
   startWith(
     WorkflowExecutionPendingState,
-    WorkflowExecutionActorData(workflowDescriptor)
+    WorkflowExecutionActorData(workflowDescriptor, ioEc, new AsyncIo(params.ioActor, GcsBatchCommandBuilder))
   )
 
   when(WorkflowExecutionPendingState) {
@@ -448,7 +450,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       backendJobDescriptorKey <- Option(jobKey) collectFirst { case k: BackendJobDescriptorKey => k } toChecked s"Job key not a BackendJobDescriptorKey: $jobKey"
       factory <- backendFactoryForTaskCallNode(taskCallNode)
       backendInitializationData = params.initializationData.get(factory.name)
-      functions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, backendJobDescriptorKey, backendInitializationData)
+      functions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, backendJobDescriptorKey, backendInitializationData, params.ioActor, ioEc)
       diff <- key.processRunnable(functions, data.valueStore, self).toEither
     } yield diff).toValidated
   }

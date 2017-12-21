@@ -60,6 +60,8 @@ package object cwl extends TypeAliases {
   type Expression = ECMAScriptExpression :+: ECMAScriptFunction :+: CNil
 
   object StringOrExpression {
+    def unapply(listing: InitialWorkDirRequirement.IwdrListing): Option[StringOrExpression] = listing.select[StringOrExpression]
+
     object String {
       def unapply(soe: StringOrExpression): Option[String] = soe.select[String]
     }

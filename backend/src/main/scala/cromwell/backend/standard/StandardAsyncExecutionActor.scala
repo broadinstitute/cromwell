@@ -5,12 +5,15 @@ import java.io.IOException
 import cats.syntax.apply._
 import cats.instances.list._
 import cats.syntax.traverse._
+import cats.syntax.validated._
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
+import cats.data.Validated.Valid
 import common.exception.MessageAggregation
 import common.util.TryUtil
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
+import common.validation.ErrorOr.ShortCircuitingFlatMap
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
@@ -244,10 +247,22 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
     def adHocFileLocalization(womFile: WomFile): String = womFile.value.substring(womFile.value.lastIndexOf("/") + 1, womFile.value.length)
 
-    val adHocFileCreations: ErrorOr[List[CommandSetupSideEffectFile]] = jobDescriptor.taskCall.callable.adHocFileCreation.toList.traverse { _.evaluateValue(Map.empty, backendEngineFunctions) } map { _ collect {
-        case f: WomFile => CommandSetupSideEffectFile(f, Option(adHocFileLocalization(f)))
-      }
+    val adHocFileCreationInputs = jobDescriptor.evaluatedTaskInputs.map { case (k,v) => k.localName.value -> v }
+
+    def validateAdHocFile(value: WomValue): ErrorOr[WomFile] = value match {
+        case f: WomFile => Valid(f)
+        case other => s"Ad-hoc file creation expression invalidly created a ${other.womType.toDisplayString} result.".invalidNel
     }
+
+    val adHocFileCreations: ErrorOr[List[WomFile]] = jobDescriptor.taskCall.callable.adHocFileCreation.toList.traverse {
+      _.evaluateValue(adHocFileCreationInputs, backendEngineFunctions).flatMap(validateAdHocFile)
+    }
+
+    val adHocFileCreationSideEffectFiles: ErrorOr[List[CommandSetupSideEffectFile]] = adHocFileCreations map { _ map {
+      f => CommandSetupSideEffectFile(f,  Option(adHocFileLocalization(f)))
+    }}
+
+
     val instantiatedCommandValidation = Command.instantiate(
       jobDescriptor,
       backendEngineFunctions,
@@ -257,7 +272,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     )
 
     // TODO CWL: toTry.get here. Is throwing an exception the best way to indicate command generation failure?
-    ((adHocFileCreations, instantiatedCommandValidation) mapN { (adHocFiles, command) =>
+    ((adHocFileCreationSideEffectFiles, instantiatedCommandValidation) mapN { (adHocFiles, command) =>
         command.copy(createdFiles = command.createdFiles ++ adHocFiles)
     }).toTry.get
   }

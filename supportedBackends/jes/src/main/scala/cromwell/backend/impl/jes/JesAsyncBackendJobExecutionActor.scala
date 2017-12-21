@@ -25,8 +25,8 @@ import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import common.validation.ErrorOr.ErrorOr
-import cromwell.backend.io.GlobFunctions
 import org.slf4j.LoggerFactory
+import wom.CommandSetupSideEffectFile
 import wom.callable.Callable.OutputDefinition
 import wom.core.FullyQualifiedName
 import wom.values._
@@ -149,7 +149,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   /**
-    * Turns WomFiles into relative paths.  These paths are relative to the working disk
+    * Turns WomFiles into relative paths.  These paths are relative to the working disk.
     *
     * relativeLocalizationPath("foo/bar.txt") -> "foo/bar.txt"
     * relativeLocalizationPath("gs://some/bucket/foo.txt") -> "some/bucket/foo.txt"
@@ -167,17 +167,24 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     // We need to tell PAPI about files that were created as part of command instantiation (these need to be defined
     // as inputs that will be localized down to the VM). Make up 'names' for these files that are just the short
     // md5's of their paths.
-    val writeFunctionFiles = instantiatedCommand.createdFiles map { f => f.value.md5SumShort -> List(f) } toMap
+    val writeFunctionFiles = instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f) } toMap
+
+    def localizationPath(f: CommandSetupSideEffectFile) = f.relativeLocalPath.fold(ifEmpty = relativeLocalizationPath(f.file))(WomSingleFile)
+    val writeFunctionInputs = writeFunctionFiles flatMap {
+      case (name, files) => jesInputsFromWomFiles(name, files.map(_.file), files.map(localizationPath), jobDescriptor)
+    }
 
     // Collect all WomFiles from inputs to the call.
     val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.fullyQualifiedInputs mapValues {
       _.collectAsSeq { case w: WomFile => w }
     }
 
-    val inputs = (callInputFiles ++ writeFunctionFiles) flatMap {
+    val callInputInputs = callInputFiles flatMap {
       case (name, files) => jesInputsFromWomFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor)
     }
-    inputs.toSet
+
+    (writeFunctionInputs ++ callInputInputs).toSet
+
   }
 
   /**

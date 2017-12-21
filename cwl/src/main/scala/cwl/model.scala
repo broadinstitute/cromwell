@@ -204,31 +204,6 @@ case class SoftwarePackage(
   type Specs = Array[String]
 }
 
-case class InitialWorkDirRequirement(
-  `class`: W.`"InitialWorkDirRequirement"`.T,
-  listing:
-    Array[
-      File :+:
-      Directory :+:
-      Dirent :+:
-      Expression :+:
-      String :+:
-      CNil
-    ] :+:
-    Expression :+:
-    String :+:
-    CNil)
-
-/**
- *  Short for "Directory Entry"
- *  @see <a href="http://www.commonwl.org/v1.0/CommandLineTool.html#Dirent">Dirent Specification</a>
- */
-case class Dirent(
-                   entry: Expression :+: String :+: CNil,
-                   entryName: Option[Expression :+: String :+: CNil],
-                   writable: Option[Boolean])
-
-
 case class EnvVarRequirement(
                               `class`: EnvVarRequirement.ClassType = EnvVarRequirement.`class`,
                               envDef: Array[EnvironmentDef]

@@ -11,7 +11,7 @@ import wom.values.WomValue
 
 object WomMocks {
   val EmptyTaskDefinition = CallableTaskDefinition("emptyTask", List.empty, RuntimeAttributes(Map.empty),
-    Map.empty, Map.empty, List.empty, List.empty)
+    Map.empty, Map.empty, List.empty, List.empty, Set.empty)
 
   val EmptyWorkflowDefinition = mockWorkflowDefinition("emptyWorkflow")
 
@@ -29,7 +29,7 @@ object WomMocks {
 
   def mockTaskDefinition(name: String) = {
     CallableTaskDefinition(name, List.empty, RuntimeAttributes(Map.empty),
-      Map.empty, Map.empty, List.empty, List.empty)
+      Map.empty, Map.empty, List.empty, List.empty, Set.empty)
   }
   
   def mockOutputPort(name: String, womType: WomType = WomStringType): OutputPort = {

@@ -150,13 +150,14 @@ case class WdlTask(name: String,
   }
 
   private def buildWomTaskDefinition: TaskDefinition = CallableTaskDefinition(
-    name,
-    commandTemplate,
-    runtimeAttributes.toWomRuntimeAttributes(this),
-    meta,
-    parameterMeta,
-    outputs.map(_.womOutputDefinition).toList,
-    buildWomInputs
+    name = name,
+    commandTemplate = commandTemplate,
+    runtimeAttributes = runtimeAttributes.toWomRuntimeAttributes(this),
+    meta = meta,
+    parameterMeta = parameterMeta,
+    outputs = outputs.map(_.womOutputDefinition).toList,
+    inputs = buildWomInputs,
+    adHocFileCreation = Set.empty
   )
 
   private def buildWomInputs: List[Callable.InputDefinition] = declarations collect {

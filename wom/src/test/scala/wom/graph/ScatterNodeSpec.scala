@@ -23,7 +23,8 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
     meta = Map.empty,
     parameterMeta = Map.empty,
     outputs = List(OutputDefinition("out", WomStringType, PlaceholderWomExpression(Set.empty, WomStringType))),
-    inputs = List(fooInputDef)
+    inputs = List(fooInputDef),
+    adHocFileCreation = Set.empty
   )
 
   /**

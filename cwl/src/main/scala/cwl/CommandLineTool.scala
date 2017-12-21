@@ -8,7 +8,7 @@ import cwl.CommandLineTool._
 import cwl.CwlType.CwlType
 import cwl.CwlVersion._
 import cwl.command.ParentName
-import cwl.requirement.ResourceRequirementToWomExpression
+import cwl.requirement.RequirementToAttributeMap
 import eu.timepit.refined.W
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil, Coproduct, Witness}
@@ -17,7 +17,6 @@ import wom.callable.{Callable, CallableTaskDefinition}
 import wom.executable.Executable
 import wom.expression.{InputLookupExpression, ValueAsAnExpression, WomExpression}
 import wom.types.WomType
-import wom.values.WomString
 import wom.{CommandPart, RuntimeAttributes}
 
 import scala.util.Try
@@ -73,39 +72,12 @@ case class CommandLineTool private(
       validRequirements ++ validHints
     }
   }
+  
+  private def processRequirement(requirement: Requirement): Map[String, WomExpression] = {
+    requirement.fold(RequirementToAttributeMap).apply(inputNames)
+  }
 
   def buildTaskDefinition(parentWorkflow: Option[Workflow], validator: RequirementsValidator): ErrorOr[CallableTaskDefinition] = {
-    import wom.RuntimeAttributesKeys._
-    
-    def processRequirement(requirement: Requirement): Map[String, WomExpression] = {
-      def processDockerRequirement(requirement: DockerRequirement): Map[String, WomExpression] = {
-        requirement.dockerPull.orElse(requirement.dockerImageId).map({ pull =>
-          DockerKey -> ValueAsAnExpression(WomString(pull))
-        }).toMap
-      }
-
-      def processResourceRequirement(requirement: ResourceRequirement): Map[String, WomExpression] = {
-        def toExpression(resourceRequirement: ResourceRequirementType) = resourceRequirement.fold(ResourceRequirementToWomExpression).apply(inputNames)
-
-        List(
-          // Map cpuMin to both cpuMin and cpu keys
-          requirement.effectiveCoreMin.toList.map(toExpression).flatMap(min => List(CpuMinKey -> min, CpuKey -> min)),
-          requirement.effectiveCoreMax.toList.map(toExpression).map(CpuMaxKey -> _),
-          // Map ramMin to both memoryMin and memory keys
-          requirement.effectiveRamMin.toList.map(toExpression).flatMap(min => List(MemoryMinKey -> min, MemoryKey -> min)),
-          requirement.effectiveRamMax.toList.map(toExpression).map(MemoryMaxKey -> _),
-          requirement.effectiveTmpdirMin.toList.map(toExpression).map(TmpDirMinKey -> _),
-          requirement.effectiveTmpdirMax.toList.map(toExpression).map(TmpDirMaxKey -> _),
-          requirement.effectiveOutdirMin.toList.map(toExpression).map(OutDirMinKey -> _),
-          requirement.effectiveOutdirMax.toList.map(toExpression).map(OutDirMaxKey -> _)
-        ).flatten.toMap
-      }
-
-      requirement.select[DockerRequirement].map(processDockerRequirement).orElse(
-        requirement.select[ResourceRequirement].map(processResourceRequirement)
-      ).getOrElse(Map.empty)
-    }
-    
     validateRequirementsAndHints(parentWorkflow, validator) map { requirementsAndHints =>
       val id = this.id
 

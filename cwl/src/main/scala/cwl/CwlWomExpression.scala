@@ -67,7 +67,7 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
             case head :: Nil => WomString(head)
             case list => throw new RuntimeException(s"expecting a single File glob but instead got $list")
           }
-
+        case (WomString(glob), WomMaybeEmptyArrayType(WomSingleFileType)) => ioFunctionSet.glob(glob)
         case _ => womValue
       }
 

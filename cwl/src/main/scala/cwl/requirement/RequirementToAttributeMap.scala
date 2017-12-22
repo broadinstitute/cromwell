@@ -8,11 +8,11 @@ import wom.values.WomString
 
 object RequirementToAttributeMap extends Poly1 {
   implicit def fromJs: Case.Aux[InlineJavascriptRequirement, Set[String] => Map[String, WomExpression]] = at[InlineJavascriptRequirement] {
-    Function.const(Map.empty)
+    _ => _ => Map.empty
   }
 
   implicit def fromSchemaDef: Case.Aux[SchemaDefRequirement, Set[String] => Map[String, WomExpression]] = at[SchemaDefRequirement] {
-    Function.const(Map.empty)
+    _ => _ => Map.empty
   }
 
   implicit def fromDocker: Case.Aux[DockerRequirement, Set[String] => Map[String, WomExpression]] = at[DockerRequirement] {
@@ -22,19 +22,19 @@ object RequirementToAttributeMap extends Poly1 {
   }
 
   implicit def fromSoftware: Case.Aux[SoftwareRequirement, Set[String] => Map[String, WomExpression]] = at[SoftwareRequirement] {
-    Function.const(Map.empty)
+    _ => _ => Map.empty
   }
 
   implicit def fromInitialWorkDir: Case.Aux[InitialWorkDirRequirement, Set[String] => Map[String, WomExpression]] = at[InitialWorkDirRequirement] {
-    Function.const(Map.empty)
+    _ => _ => Map.empty
   }
 
   implicit def fromEnvVar: Case.Aux[EnvVarRequirement, Set[String] => Map[String, WomExpression]] = at[EnvVarRequirement] {
-    Function.const(Map.empty)
+    _ => _ => Map.empty
   }
 
   implicit def fromShellCommand: Case.Aux[ShellCommandRequirement, Set[String] => Map[String, WomExpression]] = at[ShellCommandRequirement] {
-    Function.const(Map.empty)
+    _ => _ => Map.empty
   }
 
   implicit def fromResource: Case.Aux[ResourceRequirement, Set[String] => Map[String, WomExpression]] = at[ResourceRequirement] {
@@ -56,18 +56,18 @@ object RequirementToAttributeMap extends Poly1 {
   }
 
   implicit def fromSubWorkflow: Case.Aux[SubworkflowFeatureRequirement, Set[String] => Map[String, WomExpression]] = at[SubworkflowFeatureRequirement] {
-    Function.const(Map.empty)
+    _ => _ => Map.empty
   }
 
   implicit def fromScatter: Case.Aux[ScatterFeatureRequirement, Set[String] => Map[String, WomExpression]] = at[ScatterFeatureRequirement] {
-    Function.const(Map.empty)
+    _ => _ => Map.empty
   }
 
   implicit def fromMultipleInput: Case.Aux[MultipleInputFeatureRequirement, Set[String] => Map[String, WomExpression]] = at[MultipleInputFeatureRequirement] {
-    Function.const(Map.empty)
+    _ => _ => Map.empty
   }
 
   implicit def fromStepInput: Case.Aux[StepInputExpressionRequirement, Set[String] => Map[String, WomExpression]] = at[StepInputExpressionRequirement] {
-    Function.const(Map.empty)
+    _ => _ => Map.empty
   }
 }

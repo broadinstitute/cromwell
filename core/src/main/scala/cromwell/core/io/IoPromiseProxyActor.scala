@@ -38,4 +38,11 @@ class IoPromiseProxyActor(override val ioActor: ActorRef) extends Actor with Act
       promise.asInstanceOf[Promise[Any]].complete(ack.toTry)
       ()
   }
+
+  override def onTimeout(message: Any, to: ActorRef): Unit = message match {
+    case (promise: Promise[_], ioAck: IoAck[_]) =>
+      promise.tryFailure(IoTimeout(ioAck.command))
+      ()
+    case _ =>
+  }
 }

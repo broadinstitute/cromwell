@@ -111,7 +111,7 @@ abstract class IoExistsCommand(val file: Path) extends SingleFileIoCommand[Boole
 }
 
 /**
-  * Check whether a file exists
+  * Return the lines of a file in a collection
   */
 abstract class IoReadLinesCommand(val file: Path) extends SingleFileIoCommand[Traversable[String]] {
   override def toString = s"read lines of ${file.pathAsString}"

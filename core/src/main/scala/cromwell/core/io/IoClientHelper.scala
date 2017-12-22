@@ -3,7 +3,6 @@ package cromwell.core.io
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import cromwell.core.actor.RobustClientHelper
 
-import scala.concurrent.Promise
 import scala.concurrent.duration.FiniteDuration
 
 trait IoClientHelper extends RobustClientHelper { this: Actor with ActorLogging =>
@@ -34,10 +33,4 @@ trait IoClientHelper extends RobustClientHelper { this: Actor with ActorLogging 
     robustSend(context -> ioCommand, ioActor, timeout)
   }
 
-  override protected def onTimeout(message: Any, to: ActorRef): Unit = message match {
-    case (promise: Promise[_], ioAck: IoAck[_]) =>
-      promise.tryFailure(IoTimeout(ioAck.command))
-      ()
-    case _ =>
-  }
 }

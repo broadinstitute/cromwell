@@ -40,58 +40,49 @@ object IoCommandBuilder {
   * @param partialBuilders list of PartialIoCommandBuilder to try
   */
 class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.empty) {
-  def contentAsStringCommand(path: Path): IoContentAsStringCommand = {
-    partialBuilders.toStream.map(_.contentAsStringCommand.lift(path)).collectFirst({
+  // Find the first partialBuilder for which the partial function is defined, or use the default
+  private def buildOrDefault[A, B](builder: PartialIoCommandBuilder => PartialFunction[A, B],
+                                   params: A,
+                                   default: B) = {
+    partialBuilders.toStream.map(builder(_).lift(params)).collectFirst({
       case Some(command) => command
-    }).getOrElse(DefaultIoContentAsStringCommand(path))
+    }).getOrElse(default)
+  }
+  
+  def contentAsStringCommand(path: Path): IoContentAsStringCommand = {
+    buildOrDefault(_.contentAsStringCommand, path, DefaultIoContentAsStringCommand(path))
   }
   
   def writeCommand(path: Path, content: String, options: OpenOptions): IoWriteCommand = {
-    partialBuilders.toStream.map(_.writeCommand.lift((path, content, options))).collectFirst({
-      case Some(command) => command
-    }).getOrElse(DefaultIoWriteCommand(path, content, options))
+    buildOrDefault(_.writeCommand, (path, content, options), DefaultIoWriteCommand(path, content, options))
   }
   
   def sizeCommand(path: Path): IoSizeCommand = {
-    partialBuilders.toStream.map(_.sizeCommand.lift(path)).collectFirst({
-      case Some(command) => command
-    }).getOrElse(DefaultIoSizeCommand(path))
+    buildOrDefault(_.sizeCommand, path, DefaultIoSizeCommand(path))
   } 
   
   def deleteCommand(path: Path, swallowIoExceptions: Boolean = true): IoDeleteCommand = {
-    partialBuilders.toStream.map(_.deleteCommand.lift((path, swallowIoExceptions))).collectFirst({
-      case Some(command) => command
-    }).getOrElse(DefaultIoDeleteCommand(path, swallowIoExceptions))
+    buildOrDefault(_.deleteCommand, (path, swallowIoExceptions), DefaultIoDeleteCommand(path, swallowIoExceptions))
   }
   
   def copyCommand(src: Path, dest: Path, overwrite: Boolean): IoCopyCommand = {
-    partialBuilders.toStream.map(_.copyCommand.lift((src, dest, overwrite))).collectFirst({
-      case Some(command) => command
-    }).getOrElse(DefaultIoCopyCommand(src, dest, overwrite))
+    buildOrDefault(_.copyCommand, (src, dest, overwrite), DefaultIoCopyCommand(src, dest, overwrite))
   }
   
   def hashCommand(file: Path): IoHashCommand = {
-    partialBuilders.toStream.map(_.hashCommand.lift(file)).collectFirst({
-      case Some(command) => command
-    }).getOrElse(DefaultIoHashCommand(file))
+    buildOrDefault(_.hashCommand, file, DefaultIoHashCommand(file))
   }
   
   def touchCommand(file: Path): IoTouchCommand = {
-    partialBuilders.toStream.map(_.touchCommand.lift(file)).collectFirst({
-      case Some(command) => command
-    }).getOrElse(DefaultIoTouchCommand(file))
+    buildOrDefault(_.touchCommand, file, DefaultIoTouchCommand(file))
   }
 
   def existsCommand(file: Path): IoExistsCommand = {
-    partialBuilders.toStream.map(_.existsCommand.lift(file)).collectFirst({
-      case Some(command) => command
-    }).getOrElse(DefaultIoExistsCommand(file))
+    buildOrDefault(_.existsCommand, file, DefaultIoExistsCommand(file))
   }
 
   def readLines(file: Path): IoReadLinesCommand = {
-    partialBuilders.toStream.map(_.readLinesCommand.lift(file)).collectFirst({
-      case Some(command) => command
-    }).getOrElse(DefaultIoReadLinesCommand(file))
+    buildOrDefault(_.readLinesCommand, file, DefaultIoReadLinesCommand(file))
   }
 }
 

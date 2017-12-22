@@ -1,15 +1,15 @@
 package cwl
 
 import cats.syntax.option._
+import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
-import wom.types._
-import wom.values._
-import wom.expression.{IoFunctionSet, WomExpression}
-import cats.syntax.validated._
 import cwl.InitialWorkDirRequirement.IwdrListingArrayEntry
 import cwl.WorkflowStepInput.InputSource
 import cwl.command.ParentName
+import wom.expression.{IoFunctionSet, WomExpression}
+import wom.types._
+import wom.values._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -20,6 +20,23 @@ sealed trait CwlWomExpression extends WomExpression {
   def cwlExpressionType: WomType
 
   override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = cwlExpressionType.validNel
+}
+
+case class JobPreparationExpression(expression: Expression,
+                                    override val inputs: Set[String]) extends CwlWomExpression {
+  val cwlExpressionType = WomAnyType
+
+  override def sourceString = expression match {
+    case Expression.ECMAScriptExpression(s) => s.value
+    case Expression.ECMAScriptFunction(s) => s.value
+  }
+
+  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet) = {
+    val pc = ParameterContext().withInputs(inputValues, ioFunctionSet)
+    expression.fold(EvaluateExpression).apply(pc).toErrorOr
+  }
+
+  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType) = Set.empty[WomFile].validNel
 }
 
 case class CommandOutputExpression(outputBinding: CommandOutputBinding,

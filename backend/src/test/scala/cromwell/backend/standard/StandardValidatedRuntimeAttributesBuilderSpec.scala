@@ -1,6 +1,6 @@
 package cromwell.backend.standard
 
-import cromwell.backend.validation.RuntimeAttributesKeys._
+import wom.RuntimeAttributesKeys._
 import cromwell.backend.validation._
 import cromwell.backend.{RuntimeAttributeDefinition, TestConfig}
 import cromwell.core.WorkflowOptions

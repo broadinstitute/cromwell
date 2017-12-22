@@ -21,7 +21,7 @@ object RuntimeEnvironmentBuilder {
 
        val tempPath: String = jobPaths.callRoot.pathAsString
 
-       val cores: Int = CpuValidation.instance.validate(runtimeAttributes).getOrElse(minimums.cores)
+       val cores: Int = CpuValidation.instanceMin.validate(runtimeAttributes).getOrElse(minimums.cores)
 
        val memoryInMiB: Double =
          MemoryValidation.instance().

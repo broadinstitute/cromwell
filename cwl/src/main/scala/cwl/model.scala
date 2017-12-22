@@ -225,14 +225,26 @@ case class ShellCommandRequirement(`class`: W.`"ShellCommandRequirement"`.T = "S
 
 case class ResourceRequirement(
                                 `class`: W.`"ResourceRequirement"`.T,
-                                coresMin: Long :+: Expression :+: String :+: CNil,
-                                coresMax: Int :+: Expression :+: String :+: CNil,
-                                ramMin: Long :+: Expression :+: String :+: CNil,
-                                ramMax: Long :+: Expression :+: String :+: CNil,
-                                tmpdirMin: Long :+: Expression :+: String :+: CNil,
-                                tmpdirMax: Long :+: Expression :+: String :+: CNil,
-                                outdirMin: Long :+: Expression :+: String :+: CNil,
-                                outdirMax: Long :+: Expression :+: String :+: CNil)
+                                coresMin: Option[ResourceRequirementType],
+                                coresMax: Option[ResourceRequirementType],
+                                ramMin: Option[ResourceRequirementType],
+                                ramMax: Option[ResourceRequirementType],
+                                tmpdirMin: Option[ResourceRequirementType],
+                                tmpdirMax: Option[ResourceRequirementType],
+                                outdirMin: Option[ResourceRequirementType],
+                                outdirMax: Option[ResourceRequirementType]) {
+  def effectiveCoreMin = coresMin.orElse(coresMax)
+  def effectiveCoreMax = coresMax.orElse(coresMin)
+  
+  def effectiveRamMin = ramMin.orElse(ramMax)
+  def effectiveRamMax = ramMax.orElse(ramMin)
+  
+  def effectiveTmpdirMin = tmpdirMin.orElse(tmpdirMax)
+  def effectiveTmpdirMax = tmpdirMax.orElse(tmpdirMin)
+  
+  def effectiveOutdirMin = outdirMin.orElse(outdirMax)
+  def effectiveOutdirMax = outdirMax.orElse(outdirMin)
+}
 
 case class SubworkflowFeatureRequirement(
   `class`: W.`"SubworkflowFeatureRequirement"`.T)

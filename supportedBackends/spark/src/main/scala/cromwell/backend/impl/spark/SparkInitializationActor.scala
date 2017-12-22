@@ -3,7 +3,7 @@ package cromwell.backend.impl.spark
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.impl.spark.SparkInitializationActor._
 import cromwell.backend.validation.RuntimeAttributesDefault
-import cromwell.backend.validation.RuntimeAttributesKeys._
+import wom.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.WorkflowOptions

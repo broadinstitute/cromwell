@@ -16,7 +16,7 @@ object ServicesSpec {
     """
       |akka {
       |  loggers = ["akka.testkit.TestEventListener"]
-      |  loglevel = "INFO"
+      |  loglevel = "DEBUG"
       |  actor {
       |    debug {
       |       receive = on

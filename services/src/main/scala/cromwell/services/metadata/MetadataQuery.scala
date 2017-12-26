@@ -80,11 +80,11 @@ object MetadataType {
   }
 }
 
-case class MetadataValue(value: String, valueType: MetadataType)
+final case class MetadataValue(value: String, valueType: MetadataType)
 
-case class MetadataEvent(key: MetadataKey, value: Option[MetadataValue], offsetDateTime: OffsetDateTime)
+final case class MetadataEvent(key: MetadataKey, value: Option[MetadataValue], offsetDateTime: OffsetDateTime)
 
-case class MetadataQueryJobKey(callFqn: String, index: Option[Int], attempt: Option[Int])
+final case class MetadataQueryJobKey(callFqn: String, index: Option[Int], attempt: Option[Int])
 
 object MetadataQueryJobKey {
   def forMetadataJobKey(jobKey: MetadataJobKey) = MetadataQueryJobKey(jobKey.callFqn, jobKey.index, Option(jobKey.attempt))

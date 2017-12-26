@@ -207,6 +207,8 @@ object Dependencies {
       exclude("com.google.cloud.datastore", "datastore-v1-protos")
       exclude("org.apache.httpcomponents", "httpclient"),
     "com.google.cloud" % "google-cloud-compute" % googleCloudComputeV,
+    "org.broadinstitute.dsde.workbench" %% "workbench-google" % "0.10-0967a99"
+      exclude("com.google.apis", "google-api-services-genomics"),
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV
   )
 

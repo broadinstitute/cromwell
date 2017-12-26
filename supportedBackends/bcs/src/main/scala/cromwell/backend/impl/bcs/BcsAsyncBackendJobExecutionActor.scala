@@ -55,7 +55,7 @@ class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   private[bcs] lazy val jobName: String = s"cromwell_${jobDescriptor.workflowDescriptor.id.shortString}_${jobDescriptor.call.unqualifiedName}"
   override lazy val jobTag: String = jobDescriptor.key.tag
 
-  private lazy val bcsWorkflowInputMount: BcsMount = bcsWorkflowPaths.getWorkflowInputMounts()
+  private lazy val bcsWorkflowInputMount: BcsMount = bcsWorkflowPaths.getWorkflowInputMounts
   private lazy val userDefinedMounts = runtimeAttributes.mounts.getOrElse(Seq.empty) :+ bcsWorkflowInputMount
   private[bcs] def localizeOssSingleInput(ossPath: OssPath): Path = {
     val tmp = DefaultPathBuilder.get("/" + ossPath.pathWithoutScheme)

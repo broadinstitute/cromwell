@@ -64,8 +64,6 @@ object RunStatus {
   }
 }
 
-trait RunStatusFactory {}
-
 object RunStatusFactory {
     def getStatus(jobId: String, status: String, errorMessage: Option[String] = None, eventList: Option[Seq[ExecutionEvent]] = None): Try[RunStatus] = {
         import RunStatus._

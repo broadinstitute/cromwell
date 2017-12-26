@@ -92,7 +92,7 @@ object Dependencies {
   )
 
   private val aliyunOssDependencies = List(
-    "com.aliyun.oss" % "aliyun-sdk-oss" % "2.7.0"
+    "com.aliyun.oss" % "aliyun-sdk-oss" % "2.8.3"
       exclude("commons-beanutils", "commons-beanutils-core")
       exclude("commons-collections", "commons-collections")
   )

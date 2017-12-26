@@ -17,7 +17,7 @@ final case class BcsWorkflowPaths(override val workflowDescriptor: BackendWorkfl
 
     override protected def withDescriptor(workflowDescriptor: BackendWorkflowDescriptor): WorkflowPaths = this.copy(workflowDescriptor = workflowDescriptor)
 
-    private[bcs] def getWorkflowInputMounts(): BcsInputMount = {
+    private[bcs] def getWorkflowInputMounts: BcsInputMount = {
         val src = workflowRoot
         val dest = BcsJobPaths.BcsTempInputDirectory.resolve(src.pathWithoutScheme)
         BcsInputMount(src, dest, true)

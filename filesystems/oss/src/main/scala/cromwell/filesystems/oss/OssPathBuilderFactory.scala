@@ -15,6 +15,6 @@ case class OssPathBuilderFactory(endpoint: String,
                                  securityToken: Option[String]
                                 ) extends PathBuilderFactory {
   def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext) = {
-    Future.successful(OssPathBuilder.fromCredentials(endpoint, accessId, accessKey, securityToken, options))
+    Future.successful(OssPathBuilder.fromConfiguration(endpoint, accessId, accessKey, securityToken, options))
   }
 }

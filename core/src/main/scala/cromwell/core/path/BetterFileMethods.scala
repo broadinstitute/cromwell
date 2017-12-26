@@ -67,9 +67,9 @@ trait BetterFileMethods {
     newPath(betterFile.createIfNotExists(asDirectory, createParents)(attributes, linkOptions))
   }
 
-  def exists(implicit linkOptions: LinkOptions = LinkOptions.default): Boolean = betterFile.exists(linkOptions)
+  final def exists(implicit linkOptions: LinkOptions = LinkOptions.default): Boolean = betterFile.exists(linkOptions)
 
-  def notExists(implicit linkOptions: LinkOptions = LinkOptions.default): Boolean =
+  final def notExists(implicit linkOptions: LinkOptions = LinkOptions.default): Boolean =
     betterFile.notExists(linkOptions)
 
   final def sibling(name: String): Path = newPath(betterFile.sibling(name))
@@ -109,7 +109,7 @@ trait BetterFileMethods {
   final def tokens(implicit config: Scanner.Config = Scanner.Config.default, codec: Codec): Traversable[String] =
     betterFile.tokens(config, codec)
 
-  def contentAsString(implicit codec: Codec): String = betterFile.contentAsString(codec)
+  final def contentAsString(implicit codec: Codec): String = betterFile.contentAsString(codec)
 
   final def `!`(implicit codec: Codec): String = betterFile.`!`(codec)
 
@@ -175,7 +175,7 @@ trait BetterFileMethods {
     this
   }
   
-  def write(text: String)(implicit openOptions: OpenOptions = OpenOptions.default, codec: Codec): this.type = {
+  final def write(text: String)(implicit openOptions: OpenOptions = OpenOptions.default, codec: Codec): this.type = {
     betterFile.write(text)(openOptions, codec)
     this
   }
@@ -320,7 +320,7 @@ trait BetterFileMethods {
 
   final def uri: URI = betterFile.uri
 
-  def size: Long = betterFile.size
+  final def size: Long = betterFile.size
 
   final def permissions: Set[PosixFilePermission] = betterFile.permissions
 

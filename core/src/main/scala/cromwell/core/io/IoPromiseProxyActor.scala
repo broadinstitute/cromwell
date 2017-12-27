@@ -31,10 +31,7 @@ class IoPromiseProxyActor(override val ioActor: ActorRef) extends Actor with Act
   override protected def ioResponseReceive: Receive = {
     case (promise: Promise[_], ack: IoAck[Any] @unchecked) =>
       cancelTimeout(promise -> ack.command)
-      // This is not typesafe. 
-      // However the sendIoCommand method ensures that the command and the promise have the same generic type
-      // Which means as long as only the sendIoCommand method is used to send requests, and the ioActor honors his contract
-      // and send back the right context with the right response, the types are virtually guaranteed to match.
+      // This is not typesafe and assumes the Promise context is of the same type as the IoAck response.
       promise.asInstanceOf[Promise[Any]].complete(ack.toTry)
       ()
   }

@@ -31,8 +31,8 @@ import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
   * @param serviceRegistryActor actorRef for the serviceRegistryActor
   */
 final class IoActor(queueSize: Int,
-                            throttle: Option[Throttle],
-                            override val serviceRegistryActor: ActorRef)(implicit val materializer: ActorMaterializer) 
+                    throttle: Option[Throttle],
+                    override val serviceRegistryActor: ActorRef)(implicit val materializer: ActorMaterializer) 
   extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] with IoInstrumentation {
   
   implicit private val system = context.system

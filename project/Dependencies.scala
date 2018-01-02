@@ -98,10 +98,10 @@ object Dependencies {
   )
 
   private val aliyunBatchcomputeDependencies = List(
-    "com.aliyun" % "aliyun-java-sdk-core" % "3.2.1"
+    "com.aliyun" % "aliyun-java-sdk-core" % "3.2.3"
       exclude("commons-beanutils", "commons-beanutils-core")
       exclude("commons-collections", "commons-collections"),
-    "com.aliyun" % "aliyun-java-sdk-batchcompute" % "5.0.0"
+    "com.aliyun" % "aliyun-java-sdk-batchcompute" % "5.1.0"
   )
 
   private val dbmsDependencies = List(

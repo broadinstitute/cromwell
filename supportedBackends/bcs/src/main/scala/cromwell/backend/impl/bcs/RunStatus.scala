@@ -9,6 +9,8 @@ sealed trait RunStatus {
   val jobId: String
   val status: String
 
+  def isTerminated: Boolean
+
   def isRunningOrComplete = this match {
     case _: Running | _: TerminalRunStatus => true
     case _ => false
@@ -18,18 +20,22 @@ sealed trait RunStatus {
 }
 
 object RunStatus {
-  case class  Waiting(override val jobId: String) extends RunStatus
-  {
-      override val status = "Waiting"
+  case class  Waiting(override val jobId: String) extends RunStatus {
+    override val status = "Waiting"
+
+    override def isTerminated: Boolean = false
   }
 
-  case class  Running(override val jobId: String) extends RunStatus
-  {
-      override val status = "Running"
+  case class  Running(override val jobId: String) extends RunStatus {
+    override val status = "Running"
+
+    override def isTerminated: Boolean = false
   }
 
   sealed trait TerminalRunStatus extends RunStatus {
     def eventList: Seq[ExecutionEvent]
+
+    override def isTerminated: Boolean = true
   }
 
   sealed trait UnsuccessfulRunStatus extends TerminalRunStatus {
@@ -63,8 +69,6 @@ object RunStatus {
       override val status = "Stopped"
   }
 }
-
-trait RunStatusFactory {}
 
 object RunStatusFactory {
     def getStatus(jobId: String, status: String, errorMessage: Option[String] = None, eventList: Option[Seq[ExecutionEvent]] = None): Try[RunStatus] = {

@@ -49,7 +49,7 @@ class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(3.seconds, 30.seconds, 1.1)
 
-  override lazy val dockerImageUsed: Option[String] = runtimeAttributes.dockerImage
+  override lazy val dockerImageUsed: Option[String] = runtimeAttributes.docker map {docker => docker.image}
   override lazy val commandDirectory: Path = BcsJobPaths.BcsCommandDirectory.resolve(bcsJobPaths.callExecutionRoot.pathWithoutScheme)
 
   private[bcs] lazy val jobName: String = s"cromwell_${jobDescriptor.workflowDescriptor.id.shortString}_${jobDescriptor.call.unqualifiedName}"
@@ -220,15 +220,15 @@ class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
             }
             ossPath
           case Success(path: Path) =>
-            if (bcsJobPaths.worker.notExists) {
-              writeAsync(bcsJobPaths.worker, path.pathAsString, Seq(UploadFileOption))
+            if (bcsJobPaths.workerPath.notExists) {
+              writeAsync(bcsJobPaths.workerPath, path.pathAsString, Seq(UploadFileOption))
             }
-            bcsJobPaths.worker
+            bcsJobPaths.workerPath
           case _ => throw new RuntimeException(s"Invalid worker packer path: $pathAsString")
         }
       case None =>
-        writeAsync(bcsJobPaths.worker, bcsJobPaths.workerFileName, Seq(UploadFileOption))
-        bcsJobPaths.worker
+        writeAsync(bcsJobPaths.workerPath, bcsJobPaths.workerFileName, Seq(UploadFileOption))
+        bcsJobPaths.workerPath
     }
   }
 

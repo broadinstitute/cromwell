@@ -11,6 +11,7 @@ import wdl4s.wdl.types.{WdlArrayType, WdlStringType, WdlType}
 import wdl4s.wdl.values.{WdlArray, WdlBoolean, WdlInteger, WdlString, WdlValue}
 
 import scala.util.{Failure, Success, Try}
+import BcsClusterIdOrConfiguration.BcsClusterIdOrConfiguration
 
 trait OptionalWithDefault[A] {
   this: RuntimeAttributesValidation[A] =>
@@ -25,20 +26,19 @@ trait OptionalWithDefault[A] {
 }
 
 case class BcsRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
-                                dockerImage: Option[String],
-                                dockerPath: Option[String],
+                                docker: Option[BcsDocker],
                                 failOnStderr: Boolean,
                                 mounts: Option[Seq[BcsMount]],
                                 userData: Option[Seq[BcsUserData]],
-                                clusterId: Option[String],
-                                resourceType: Option[String],
-                                instanceType: Option[String],
-                                imageId: Option[String],
+                                cluster: Option[BcsClusterIdOrConfiguration],
+                                systemDisk: Option[BcsSystemDisk],
+                                dataDisk: Option[BcsDataDisk],
                                 reserveOnFail: Option[Boolean],
                                 autoReleaseJob: Option[Boolean],
                                 workerPath: Option[String],
                                 timeout: Option[Int],
-                                verbose: Option[Boolean])
+                                verbose: Option[Boolean],
+                                vpc: Option[BcsVpcConfiguration])
 
 object BcsRuntimeAttributes {
 
@@ -52,28 +52,25 @@ object BcsRuntimeAttributes {
   val TimeoutKey = "timeout"
   val TimeoutDefault = WdlInteger(21600)
   val VerboseKey = "verbose"
+  val ClusterKey = "cluster"
+  val DockerKey = "docker"
+  val SystemDiskKey = "systemDisk"
+  val DataDiskKey = "dataDisk"
+  val VpcKey = "vpc"
 
   private def failOnStderrValidation(runtimeConfig: Option[Config]) = FailOnStderrValidation.default(runtimeConfig)
 
   private def continueOnReturnCodeValidation(runtimeConfig: Option[Config]) = ContinueOnReturnCodeValidation.default(runtimeConfig)
 
-  private def dockerImageValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = DockerImageValidation.optionalWithDefault(runtimeConfig)
+  private def clusterValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[BcsClusterIdOrConfiguration] = ClusterValidation.optionalWithDefault(runtimeConfig)
 
-  private def dockerPathValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = DockerPathValidation.optionalWithDefault(runtimeConfig)
-
-
-  private def clusterIdValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = ClusterIdValidation.optionalWithDefault(runtimeConfig)
-
-  private def resourceTypeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = ResourceTypeValidation.optionalWithDefault(runtimeConfig)
-
-  private def instanceTypeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = InstanceTypeValidation.optionalWithDefault(runtimeConfig)
-
-  private def imageIdValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = ImageIdValidation.optionalWithDefault(runtimeConfig)
-
+  private def dockerValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[BcsDocker] = DockerValidation.optionalWithDefault(runtimeConfig)
   private def userDataValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Seq[BcsUserData]] = UserDataValidation.optionalWithDefault(runtimeConfig)
 
-  private def reserveOnFailValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Boolean] = ReserveOnFailValidation.optionalWithDefault(runtimeConfig)
+  private def systemDiskValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[BcsSystemDisk] = SystemDiskValidation.optionalWithDefault(runtimeConfig)
+  private def dataDiskValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[BcsDataDisk] = DataDiskValidation.optionalWithDefault(runtimeConfig)
 
+  private def reserveOnFailValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Boolean] = ReserveOnFailValidation.optionalWithDefault(runtimeConfig)
 
   private def autoReleaseJobValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Boolean] = AutoReleaseJobValidation.optionalWithDefault(runtimeConfig)
 
@@ -85,21 +82,22 @@ object BcsRuntimeAttributes {
 
   private def verboseValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Boolean] = VerboseValidation.optionalWithDefault(runtimeConfig)
 
+  private def vpcValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[BcsVpcConfiguration] = VpcValidation.optionalWithDefault(runtimeConfig)
+
   def runtimeAttributesBuilder(backendRuntimeConfig: Option[Config]): StandardValidatedRuntimeAttributesBuilder =
     StandardValidatedRuntimeAttributesBuilder.default(backendRuntimeConfig).withValidation(
       mountsValidation(backendRuntimeConfig),
       userDataValidation(backendRuntimeConfig),
-      clusterIdValidation(backendRuntimeConfig),
-      dockerImageValidation(backendRuntimeConfig),
-      dockerPathValidation(backendRuntimeConfig),
-      resourceTypeValidation(backendRuntimeConfig),
-      instanceTypeValidation(backendRuntimeConfig),
-      imageIdValidation(backendRuntimeConfig),
+      clusterValidation(backendRuntimeConfig),
+      dockerValidation(backendRuntimeConfig),
+      systemDiskValidation(backendRuntimeConfig),
+      dataDiskValidation(backendRuntimeConfig),
       reserveOnFailValidation(backendRuntimeConfig),
       autoReleaseJobValidation(backendRuntimeConfig),
       workerPathValidation(backendRuntimeConfig),
       timeoutValidation(backendRuntimeConfig),
-      verboseValidation(backendRuntimeConfig)
+      verboseValidation(backendRuntimeConfig),
+      vpcValidation(backendRuntimeConfig)
     )
 
   def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, backendRuntimeConfig: Option[Config]): BcsRuntimeAttributes = {
@@ -109,34 +107,34 @@ object BcsRuntimeAttributes {
       RuntimeAttributesValidation.extract(continueOnReturnCodeValidation(backendRuntimeConfig), validatedRuntimeAttributes)
     val mounts: Option[Seq[BcsMount]] = RuntimeAttributesValidation.extractOption(mountsValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
     val userData: Option[Seq[BcsUserData]] = RuntimeAttributesValidation.extractOption(userDataValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
-    val clusterId: Option[String] = RuntimeAttributesValidation.extractOption(clusterIdValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
-    val dockerImage: Option[String] = RuntimeAttributesValidation.extractOption(dockerImageValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
-    val dockerPath: Option[String] = RuntimeAttributesValidation.extractOption(dockerPathValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
-    val resourceType: Option[String] = RuntimeAttributesValidation.extractOption(resourceTypeValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
-    val instanceType: Option[String] = RuntimeAttributesValidation.extractOption(instanceTypeValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
-    val imageId: Option[String] = RuntimeAttributesValidation.extractOption(imageIdValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+
+    val cluster: Option[BcsClusterIdOrConfiguration] = RuntimeAttributesValidation.extractOption(clusterValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    val docker: Option[BcsDocker] = RuntimeAttributesValidation.extractOption(dockerValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    val systemDisk: Option[BcsSystemDisk] = RuntimeAttributesValidation.extractOption(systemDiskValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    val dataDisk: Option[BcsDataDisk] = RuntimeAttributesValidation.extractOption(dataDiskValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+
     val reserveOnFail: Option[Boolean] = RuntimeAttributesValidation.extractOption(reserveOnFailValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
     val autoReleaseJob: Option[Boolean] = RuntimeAttributesValidation.extractOption(autoReleaseJobValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
     val workerPath: Option[String] = RuntimeAttributesValidation.extractOption(workerPathValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
     val timeout: Option[Int] = RuntimeAttributesValidation.extractOption(timeoutValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
     val verbose: Option[Boolean] = RuntimeAttributesValidation.extractOption(verboseValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    val vpc: Option[BcsVpcConfiguration] = RuntimeAttributesValidation.extractOption(vpcValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
 
     new BcsRuntimeAttributes(
       continueOnReturnCode,
-      dockerImage,
-      dockerPath,
+      docker,
       failOnStderr,
       mounts,
       userData,
-      clusterId,
-      resourceType,
-      instanceType,
-      imageId,
+      cluster,
+      systemDisk,
+      dataDisk,
       reserveOnFail,
       autoReleaseJob,
       workerPath,
       timeout,
-      verbose
+      verbose,
+      vpc
     )
   }
 }
@@ -221,102 +219,6 @@ class UserDataValidation(override val config: Option[Config]) extends RuntimeAtt
     s"Expecting $key runtime attribute to be a comma separated String or Array[String]"
 }
 
-object ClusterIdValidation {
-  def optionalWithDefault(config: Option[Config]): OptionalRuntimeAttributesValidation[String] = new ClusterIdValidation(config).optional
-}
-
-class ClusterIdValidation(override val config: Option[Config]) extends StringRuntimeAttributesValidation("cluster") with OptionalWithDefault[String] {
-  override protected def usedInCallCaching: Boolean = false
-
-  override protected def missingValueMessage: String = "Can't find an attribute value for key cluster-id"
-
-  override protected def invalidValueMessage(value: WdlValue): String = super.missingValueMessage
-
-  override protected def validateValue: PartialFunction[WdlValue, ErrorOr[String]] = {
-    case WdlString(value) => value.validNel
-  }
-}
-
-object DockerImageValidation {
-  def optionalWithDefault(config: Option[Config]): OptionalRuntimeAttributesValidation[String] = new DockerImageValidation(config).optional
-}
-
-class DockerImageValidation(override val config: Option[Config]) extends StringRuntimeAttributesValidation("dockerImage") with OptionalWithDefault[String] {
-  override protected def usedInCallCaching: Boolean = false
-
-  override protected def missingValueMessage: String = "Can't find an attribute value for key docker image"
-
-  override protected def invalidValueMessage(value: WdlValue): String = super.missingValueMessage
-
-  override protected def validateValue: PartialFunction[WdlValue, ErrorOr[String]] = {
-    case WdlString(value) => value.validNel
-  }
-}
-
-object DockerPathValidation {
-  def optionalWithDefault(config: Option[Config]): OptionalRuntimeAttributesValidation[String] = new DockerPathValidation(config).optional
-}
-
-class DockerPathValidation(override val config: Option[Config]) extends StringRuntimeAttributesValidation("dockerPath") with OptionalWithDefault[String] {
-  override protected def usedInCallCaching: Boolean = false
-
-  override protected def missingValueMessage: String = "Can't find an attribute value for key docker path"
-
-  override protected def invalidValueMessage(value: WdlValue): String = super.missingValueMessage
-
-  override protected def validateValue: PartialFunction[WdlValue, ErrorOr[String]] = {
-    case WdlString(value) => value.validNel
-  }
-}
-
-object ResourceTypeValidation {
-  def optionalWithDefault(config: Option[Config]): OptionalRuntimeAttributesValidation[String] = new ResourceTypeValidation(config).optional
-}
-
-class ResourceTypeValidation(override val config: Option[Config]) extends StringRuntimeAttributesValidation("resourceType") with OptionalWithDefault[String] {
-  override protected def usedInCallCaching: Boolean = false
-
-  override protected def missingValueMessage: String = "Can't find an attribute value for resource type"
-
-  override protected def invalidValueMessage(value: WdlValue): String = super.missingValueMessage
-
-  override protected def validateValue: PartialFunction[WdlValue, ErrorOr[String]] = {
-    case WdlString(value) => value.validNel
-  }
-}
-
-object InstanceTypeValidation {
-  def optionalWithDefault(config: Option[Config]): OptionalRuntimeAttributesValidation[String] = new InstanceTypeValidation(config).optional
-}
-
-class InstanceTypeValidation(override val config: Option[Config]) extends StringRuntimeAttributesValidation("instanceType") with OptionalWithDefault[String] {
-  override protected def usedInCallCaching: Boolean = false
-
-  override protected def missingValueMessage: String = "Can't find an attribute value for key instance type"
-
-  override protected def invalidValueMessage(value: WdlValue): String = super.missingValueMessage
-
-  override protected def validateValue: PartialFunction[WdlValue, ErrorOr[String]] = {
-    case WdlString(value) => value.validNel
-  }
-}
-
-object ImageIdValidation {
-  def optionalWithDefault(config: Option[Config]): OptionalRuntimeAttributesValidation[String] = new ImageIdValidation(config).optional
-}
-
-class ImageIdValidation(override val config: Option[Config]) extends StringRuntimeAttributesValidation("imageId") with OptionalWithDefault[String] {
-  override protected def usedInCallCaching: Boolean = false
-
-  override protected def missingValueMessage: String = "Can't find an attribute value for key image id"
-
-  override protected def invalidValueMessage(value: WdlValue): String = super.missingValueMessage
-
-  override protected def validateValue: PartialFunction[WdlValue, ErrorOr[String]] = {
-    case WdlString(value) => value.validNel
-  }
-}
-
 object WorkerPathValidation {
   def optionalWithDefault(config: Option[Config]): OptionalRuntimeAttributesValidation[String] = new WorkerPathValidation(config).optional
 }
@@ -356,3 +258,86 @@ object VerboseValidation {
 }
 
 class VerboseValidation(override val config: Option[Config]) extends BooleanRuntimeAttributesValidation(BcsRuntimeAttributes.VerboseKey) with OptionalWithDefault[Boolean]
+
+
+object ClusterValidation {
+  def optionalWithDefault(config: Option[Config]): OptionalRuntimeAttributesValidation[BcsClusterIdOrConfiguration] = new ClusterValidation(config).optional
+}
+
+class ClusterValidation(override val config: Option[Config]) extends RuntimeAttributesValidation[BcsClusterIdOrConfiguration] with OptionalWithDefault[BcsClusterIdOrConfiguration]
+{
+  override def key: String = "cluster"
+
+  override def coercion: Traversable[WdlType] = Set(WdlStringType)
+
+  override def validateValue: PartialFunction[WdlValue, ErrorOr[BcsClusterIdOrConfiguration]] = {
+    case WdlString(s) => BcsClusterIdOrConfiguration.parse(s.toString) match {
+      case Success(cluster) => cluster.validNel
+      case Failure(t) => t.getMessage.invalidNel
+    }
+  }
+}
+
+object SystemDiskValidation {
+  def optionalWithDefault(config: Option[Config]): OptionalRuntimeAttributesValidation[BcsSystemDisk] = new SystemDiskValidation(config).optional
+}
+
+class SystemDiskValidation(override val config: Option[Config]) extends RuntimeAttributesValidation[BcsSystemDisk] with OptionalWithDefault[BcsSystemDisk]
+{
+  override def key: String = "systemDisk"
+  override def coercion: Traversable[WdlType] = Set(WdlStringType)
+  override def validateValue: PartialFunction[WdlValue, ErrorOr[BcsSystemDisk]] = {
+    case WdlString(s) => BcsDisk.parse(s.toString) match {
+      case Success(disk: BcsSystemDisk) => disk.validNel
+      case _ => s"system disk should be string like 'cloud 40'".invalidNel
+    }
+  }
+}
+
+object DataDiskValidation {
+  def optionalWithDefault(config: Option[Config]): OptionalRuntimeAttributesValidation[BcsDataDisk] = new DataDiskValidation(config).optional
+}
+
+class DataDiskValidation(override val config: Option[Config]) extends RuntimeAttributesValidation[BcsDataDisk] with OptionalWithDefault[BcsDataDisk]
+{
+  override def key: String = "dataDisk"
+  override def coercion: Traversable[WdlType] = Set(WdlStringType)
+  override def validateValue: PartialFunction[WdlValue, ErrorOr[BcsDataDisk]] = {
+    case WdlString(s) => BcsDisk.parse(s.toString) match {
+      case Success(disk: BcsDataDisk) => disk.validNel
+      case _ => s"system disk should be string like 'cloud 40 /home/data/'".invalidNel
+    }
+  }
+}
+
+object DockerValidation {
+  def optionalWithDefault(config: Option[Config]): OptionalRuntimeAttributesValidation[BcsDocker] = new DockerValidation(config).optional
+}
+
+class DockerValidation(override val config: Option[Config]) extends RuntimeAttributesValidation[BcsDocker] with OptionalWithDefault[BcsDocker]
+{
+  override def key: String = "docker"
+  override def coercion: Traversable[WdlType] = Set(WdlStringType)
+  override def validateValue: PartialFunction[WdlValue, ErrorOr[BcsDocker]] = {
+    case WdlString(s) => BcsDocker.parse(s.toString) match {
+      case Success(docker: BcsDocker) => docker.validNel
+      case _ => s"docker must be 'dockeImage dockerPath' like".invalidNel
+    }
+  }
+}
+
+object VpcValidation {
+  def optionalWithDefault(config: Option[Config]): OptionalRuntimeAttributesValidation[BcsVpcConfiguration] = new VpcValidation(config).optional
+}
+
+class VpcValidation(override val config: Option[Config]) extends RuntimeAttributesValidation[BcsVpcConfiguration] with OptionalWithDefault[BcsVpcConfiguration]
+{
+  override def key: String = "vpc"
+  override def coercion: Traversable[WdlType] = Set(WdlStringType)
+  override def validateValue: PartialFunction[WdlValue, ErrorOr[BcsVpcConfiguration]] = {
+    case WdlString(s) => BcsVpcConfiguration.parse(s.toString) match {
+      case Success(vpc: BcsVpcConfiguration) => vpc.validNel
+      case _ => s"vpc must be '192.168.0.0/16 vpc-xxxx' like".invalidNel
+    }
+  }
+}

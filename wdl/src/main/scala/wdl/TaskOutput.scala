@@ -20,5 +20,5 @@ object TaskOutput {
 }
 
 final case class TaskOutput(unqualifiedName: String, womType: WomType, requiredExpression: WdlExpression, ast: Ast, override val parent: Option[Scope]) extends Output {
-  lazy val womOutputDefinition = TaskOutput.buildWomOutputDefinition(this)
+  lazy val womOutputDefinition: OutputDefinition = TaskOutput.buildWomOutputDefinition(this)
 }

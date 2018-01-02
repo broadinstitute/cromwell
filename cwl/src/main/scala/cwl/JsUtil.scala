@@ -1,4 +1,4 @@
-package wom.util
+package cwl
 
 import javax.script.{ScriptContext, SimpleScriptContext}
 
@@ -30,11 +30,11 @@ object JsUtil {
     * @param values A map filled with WOM values.
     * @return The result of the expression.
     */
-  def eval(expr: String, values: Map[String, WomValue] = Map.empty): WomValue = {
+  def eval(expr: String, javascriptValues: java.util.Map[String, AnyRef]): WomValue = {
+    println(s"evaluating $expr against $javascriptValues")
     val engine = ScriptEngineFactory.getScriptEngine(nashornStrictArgs, getNashornClassLoader, noJavaClassFilter)
 
     val bindings = engine.createBindings()
-    val javascriptValues = values.mapValues(toJavascript).asJava
     bindings.asInstanceOf[java.util.Map[String, Any]].putAll(javascriptValues)
 
     val context = new SimpleScriptContext
@@ -90,6 +90,7 @@ object JsUtil {
   }
 
   private def fromJavascript(value: AnyRef): WomValue = {
+    println(s" from javascript $value")
     def isWhole(d: Double) = (d == Math.floor(d)) && !java.lang.Double.isInfinite(d)
     value match {
       case null => WomOptionalValue(WomNothingType, None)

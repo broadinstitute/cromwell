@@ -18,10 +18,26 @@ object ParameterContext {
   val Empty = ParameterContext()
 }
 
+/**
+  * This class holds values that ultimately will be bound to variables in JDK's "Nashorn" Javascript execution engine.
+  *
+  * The untyped format accomplishes two goals:
+  *   * Allows multiple types to be stored in one map
+  *   * Holds values as Nashorn expects them (a map)
+  *
+  * See {{cwl.JsUtil}} for nashorn-specific implementation details.
+  *
+  * @param inputs
+  * @param self
+  * @param runtime
+  */
 case class ParameterContext(private val inputs: Map[String, AnyRef] = Map.empty,
                        private val self: Array[Map[String, String]] = Array.empty,
                        private val runtime: Map[String, AnyRef] = Map.empty) {
 
+  /**
+    * see <a href="http://www.commonwl.org/v1.0/CommandLineTool.html#Runtime_environment">CWL Spec</a>.
+    */
   def setRuntime(runtimeEnvironment: RuntimeEnvironment): ParameterContext = {
     import runtimeEnvironment._
 
@@ -35,14 +51,17 @@ case class ParameterContext(private val inputs: Map[String, AnyRef] = Map.empty,
     ))
   }
 
-
+  /**
+    * The public method of adding values hides our untyped internal representation and verifies that a Nashorn-compatible
+    * value exists for the womvalue being passed in.
+    *
+    * @param womMap
+    * @return a new Parameter Context with the inputs values added
+    */
   def addInputs(womMap: Map[String, WomValue]): Either[NonEmptyList[String], ParameterContext] = {
-    val x: ErrorOr[List[(String, AnyRef)]] = womMap.toList.traverse{
+    womMap.toList.traverse{
       case (key, womValue) => (key.validNel[String]:ErrorOr[String], toJavascript(womValue)).tupled
-    }
-
-
-    x.map(lst => this.copy(inputs ++ lst.toMap)).toEither
+    }.map(lst => this.copy(inputs ++ lst.toMap)).toEither
   }
 
   def addLocalInputs(womMap: Map[LocalName, WomValue]): Either[NonEmptyList[String], ParameterContext] = {
@@ -52,10 +71,19 @@ case class ParameterContext(private val inputs: Map[String, AnyRef] = Map.empty,
     addInputs(stringKeyMap)
   }
 
+  /**
+    * Exposed the inputs for logging convenience.
+    */
   def ecmaScriptInputs: Map[String, AnyRef] = inputs
 
+  //TODO CWL: This will change as Self is a shapeshifter.  See http://www.commonwl.org/v1.0/CommandLineTool.html#Parameter_references
   def setSelf(newSelf: Array[Map[String, String]]): ParameterContext = this.copy(self = newSelf)
 
+  /**
+    * Outputs the values in a java map as Nashorn expects it with keys as CWL expects them.
+    *
+    * For the static key values see http://www.commonwl.org/v1.0/CommandLineTool.html#Parameter_references
+    */
   def ecmaScriptValues:java.util.Map[String, AnyRef] =
     Map(
       "inputs" -> inputs.asJava.asInstanceOf[AnyRef],
@@ -63,6 +91,7 @@ case class ParameterContext(private val inputs: Map[String, AnyRef] = Map.empty,
       "self" -> self.asInstanceOf[AnyRef]
     ).asJava
 
+  //Nashorn expects values in Java native format
   private def toJavascript(value: WomValue): ErrorOr[AnyRef] = {
     value match {
       case WomOptionalValue(WomNothingType, None) => null

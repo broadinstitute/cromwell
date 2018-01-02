@@ -99,4 +99,3 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
     */
   override def inputs: Set[String] = Set.empty
 }
-

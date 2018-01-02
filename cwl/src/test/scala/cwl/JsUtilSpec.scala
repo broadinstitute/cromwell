@@ -41,7 +41,5 @@ class JsUtilSpec extends FlatSpec with Matchers {
 
       result2 should be(WomBoolean(false))
     }
-
   }
-
 }

@@ -49,7 +49,6 @@ class BcsInitializationActor(params: BcsInitializationActorParams)
     BcsWorkflowPaths(workflowDescriptor, bcsConfiguration.configurationDescriptor.backendConfig, _)
   }
 
-
   override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
     BcsRuntimeAttributes.runtimeAttributesBuilder(bcsConfiguration.runtimeConfig)
 

@@ -18,7 +18,7 @@ object BcsMount {
   val writeSupport = """true|false"""
 
   val inputMountPattern: Regex = s"""($ossPrefix)\\s+($localPath)\\s+($writeSupport)""".r
-  val outputMountPattern:Regex = s"""($localPath)\\s+($ossPrefix)\\s+($writeSupport)""".r
+  val outputMountPattern: Regex = s"""($localPath)\\s+($ossPrefix)\\s+($writeSupport)""".r
 
   def parse(s: String): Try[BcsMount] = {
     val validation: ErrorOr[BcsMount] = s match {

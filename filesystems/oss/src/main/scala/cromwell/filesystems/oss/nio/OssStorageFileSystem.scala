@@ -71,7 +71,7 @@ object OssStorageConfiguration {
 case class OssStorageConfiguration(endpoint: String,
                                    accessId: String,
                                    accessKey: String,
-                                   stsToken: Option[String]
+                                   stsToken: Option[String] = None
                                   ) {
   import OssStorageConfiguration._
 

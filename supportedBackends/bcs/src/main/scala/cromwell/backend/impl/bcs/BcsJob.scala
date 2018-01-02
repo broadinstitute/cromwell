@@ -22,96 +22,13 @@ case class BcsJob(name: String,
                   envs: Map[String, String],
                   runtime: BcsRuntimeAttributes,
                   batchCompute: BatchComputeClient) {
-  val jobDesc = new JobDescription
-  val task = new TaskDescription
 
-  jobDesc.setName(name)
-  jobDesc.setDescription(description)
-  jobDesc.setType("DAG")
-
-  val cmd = new Command
-  cmd.setCommandLine(commandString)
-
-  var updatedEnvs = runtime.dockerImage match {
-    case Some(image) => envs + (BcsJob.BcsDockerImageEnvKey -> image)
-    case None => envs
-  }
-
-  updatedEnvs = runtime.dockerPath match {
-    case Some(path) => updatedEnvs + (BcsJob.BcsDockerPathEnvKey -> path)
-    case None => updatedEnvs
-  }
-
-  cmd.setPackagePath(packagePath.pathAsString)
-  cmd.setEnvVars(updatedEnvs.asJava)
-
-  val params = new Parameters
-  params.setCommand(cmd)
-  task.setParameters(params)
-  task.setInstanceCount(1)
-
-  runtime.clusterId match {
-    case Some(id) => task.setClusterId(id)
-    case None =>
-      val autoOption =  for {
-        resourceType <- runtime.resourceType
-        instanceType <- runtime.instanceType
-        imageId <- runtime.imageId
-      } yield {
-        val autoCluster = new AutoCluster
-        autoCluster.setImageId(imageId)
-        autoCluster.setResourceType(resourceType)
-        autoCluster.setInstanceType(instanceType)
-
-        runtime.reserveOnFail match {
-          case Some(reserve) => autoCluster.setReserveOnFail(reserve)
-          case None => autoCluster.setReserveOnFail(BcsRuntimeAttributes.ReserveOnFailDefault)
-        }
-
-        var userData: Map[String, String] = Map()
-        runtime.userData match {
-          case Some(datas) => {
-            datas map {
-              data =>
-                {
-                  userData += { data.key -> data.value}
-                }
-            }
-          }
-          case None => println("no user data")
-        }
-
-        autoCluster.setUserData(userData.asJava)
-        autoCluster
-      }
-      task.setAutoCluster(autoOption.getOrElse(throw new RuntimeException("invalid auto cluster parameters")))
-  }
-
-  runtime.timeout match {
-    case Some(timeout) => task.setTimeout(timeout.toLong)
-    case None => task.setTimeout(21600)
-  }
-
-  val dag = new DAG
-  dag.addTask("cromwell", task)
-  jobDesc.setDag(dag)
-
-  mounts map { mount =>
-    mount match {
-      case input: BcsInputMount =>
-        var destStr = input.dest.pathAsString
-        if (input.src.pathAsString.endsWith("/") && !destStr.endsWith("/")) {
-          destStr += "/"
-        }
-        task.addInputMapping(input.src.pathAsString, destStr)
-      case output: BcsOutputMount =>
-        var srcStr = output.src.pathAsString
-        if (output.dest.pathAsString.endsWith("/") && !srcStr.endsWith("/")) {
-          srcStr += "/"
-        }
-        task.addOutputMapping(srcStr, output.dest.pathAsString)
-    }
-  }
+  lazy val lazyDisks = new Disks
+  lazy val lazyConfigs = new Configs
+  lazy val lazyVpc = new VPC
+  lazy val lazyTask = new TaskDescription
+  lazy val lazyJob = new JobDescription
+  lazy val lazyCmd = new Command
 
   def submit(): Try[String] = Try{
     val request: CreateJobRequest = new CreateJobRequest
@@ -135,4 +52,145 @@ case class BcsJob(name: String,
   def cancel(jobId: String): Unit = {
     // XXX: Do nothing currently.
   }
+
+  private[bcs] def systemDisk: Option[SystemDisk] = runtime.systemDisk map { disk =>
+      val systemDisk = new SystemDisk()
+      systemDisk.setType(disk.diskType)
+      systemDisk.setSize(disk.sizeInGB)
+      systemDisk
+  }
+
+  private[bcs] def dataDisk: Option[DataDisk] = runtime.dataDisk map { disk =>
+    val dataDisk = new DataDisk
+    dataDisk.setType(disk.diskType)
+    dataDisk.setSize(disk.sizeInGB)
+    dataDisk.setMountPoint(disk.mountPoint)
+    dataDisk
+  }
+
+  // XXX: maybe more elegant way to reduce two options?
+  private[bcs] def disks: Option[Disks] = {
+    (systemDisk, dataDisk) match {
+      case (Some(sys), Some(data)) =>
+        lazyDisks.setSystemDisk(sys)
+        lazyDisks.setDataDisk(data)
+        Some(lazyDisks)
+      case (Some(sys), None) =>
+        lazyDisks.setSystemDisk(sys)
+        Some(lazyDisks)
+      case (None, Some(data)) =>
+        lazyDisks.setDataDisk(data)
+        Some(lazyDisks)
+      case (None, None) => None
+    }
+  }
+
+  private[bcs] def vpc: Option[VPC] = {
+    (runtime.vpc flatMap {v => v.cidrBlock}, runtime.vpc flatMap {v => v.vpcId}) match {
+      case (Some(cidr), Some(id)) =>
+        lazyVpc.setCidrBlock(cidr)
+        lazyVpc.setVpcId(id)
+        Some(lazyVpc)
+      case (Some(cidr), None) =>
+        lazyVpc.setCidrBlock(cidr)
+        Some(lazyVpc)
+      case (None, Some(vpc)) =>
+        lazyVpc.setVpcId(vpc)
+        Some(lazyVpc)
+      case (None, None) => None
+    }
+  }
+
+  private[bcs] def configs: Option[Configs] = {
+    (vpc, disks) match {
+      case (Some(bcsVpc), Some(bcsDisks)) =>
+        lazyConfigs.setDisks(bcsDisks)
+        val networks = new Networks
+        networks.setVpc(bcsVpc)
+        lazyConfigs.setNetworks(networks)
+        Some(lazyConfigs)
+      case (Some(bcsVpc), None) =>
+        val networks = new Networks
+        networks.setVpc(bcsVpc)
+        lazyConfigs.setNetworks(networks)
+        Some(lazyConfigs)
+      case (None, Some(bcsDisks)) =>
+        lazyConfigs.setDisks(bcsDisks)
+        Some(lazyConfigs)
+      case (None, None) => None
+    }
+  }
+
+  private[bcs] def params: Parameters = {
+    val parames = new Parameters
+    lazyCmd.setPackagePath(packagePath.pathAsString)
+    lazyCmd.setEnvVars(environments.asJava)
+    lazyCmd.setCommandLine(commandString)
+
+    parames.setCommand(lazyCmd)
+    parames
+  }
+
+  private[bcs] def environments: Map[String, String] = runtime.docker match {
+      case Some(docker: BcsDockerWithoutPath) => envs + (BcsJob.BcsDockerImageEnvKey -> docker.image)
+      case Some(docker: BcsDockerWithPath) => envs + (BcsJob.BcsDockerPathEnvKey -> docker.path) +  (BcsJob.BcsDockerImageEnvKey -> docker.image)
+      case _ => envs
+  }
+
+  private[bcs] def jobDesc: JobDescription = {
+    lazyJob.setName(name)
+    lazyJob.setDescription(description)
+    lazyJob.setType("DAG")
+
+    val dag = new DAG
+    dag.addTask("cromwell", taskDesc)
+    lazyJob.setDag(dag)
+
+    lazyJob
+  }
+
+  private[bcs] def taskDesc: TaskDescription = {
+    lazyTask.setParameters(params)
+    lazyTask.setInstanceCount(1)
+
+    runtime.timeout foreach {timeout => lazyTask.setTimeout(timeout.toLong)}
+
+    val cluster = runtime.cluster getOrElse(throw new IllegalArgumentException("cluster id or auto cluster configuration is mandatory"))
+    cluster.fold(handleClusterId, handleAutoCluster)
+
+    mounts foreach  {
+      case input: BcsInputMount =>
+        var destStr = input.dest.pathAsString
+        if (input.src.pathAsString.endsWith("/") && !destStr.endsWith("/")) {
+          destStr += "/"
+        }
+        lazyTask.addInputMapping(input.src.pathAsString, destStr)
+      case output: BcsOutputMount =>
+        var srcStr = output.src.pathAsString
+        if (output.dest.pathAsString.endsWith("/") && !srcStr.endsWith("/")) {
+          srcStr += "/"
+        }
+        lazyTask.addOutputMapping(srcStr, output.dest.pathAsString)
+    }
+
+    lazyTask
+  }
+
+  private def handleAutoCluster(config: AutoClusterConfiguration): Unit = {
+    val autoCluster = new AutoCluster
+    autoCluster.setImageId(config.imageId)
+    autoCluster.setInstanceType(config.instanceType)
+    autoCluster.setResourceType(config.resourceType)
+
+    config.spotStrategy foreach {strategy => autoCluster.setSpotStrategy(strategy)}
+    config.spotPriceLimit foreach {priceLimit => autoCluster.setSpotPriceLimit(priceLimit)}
+    runtime.reserveOnFail foreach {reserve => autoCluster.setReserveOnFail(reserve)}
+    val userData = runtime.userData map {datas => Map(datas map {data => data.key -> data.value}: _*)}
+    userData foreach {datas => autoCluster.setUserData(datas.asJava)}
+
+    configs foreach (bcsConfigs => autoCluster.setConfigs(bcsConfigs))
+    lazyTask.setAutoCluster(autoCluster)
+  }
+
+  private def handleClusterId(clusterId: String): Unit = lazyTask.setClusterId(clusterId)
 }

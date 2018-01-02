@@ -14,14 +14,9 @@ object BcsJobPaths {
 		val BcsTempInputDirectory: Path = DefaultPathBuilder.get("/cromwell_inputs")
 }
 
-final case class BcsJobPaths(override val workflowPaths: BcsWorkflowPaths, jobKey: BackendJobDescriptorKey) extends JobPaths {
-
-	val baseName = {
-		val index = jobKey.index.map(s => s"-$s").getOrElse("")
-		s"${jobKey.scope.unqualifiedName}$index"
-	}
+final case class BcsJobPaths(workflowPaths: BcsWorkflowPaths, jobKey: BackendJobDescriptorKey) extends JobPaths {
 
 	// alibaba cloud's batchcompute service can only support tar.gz formatted package.
 	val workerFileName = "worker.tar.gz"
-	val worker = workflowPaths.workflowRoot.resolve(workerFileName)
+	val workerPath = workflowPaths.workflowRoot.resolve(workerFileName)
 }

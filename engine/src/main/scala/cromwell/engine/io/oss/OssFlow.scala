@@ -1,8 +1,6 @@
 package cromwell.engine.io.oss
 
-import java.io.{BufferedReader, ByteArrayInputStream, InputStreamReader}
 
-import scala.util.control._
 import akka.actor.{ActorSystem, Scheduler}
 import akka.stream.scaladsl.Flow
 import cromwell.core.io.IoCommand
@@ -10,7 +8,10 @@ import cromwell.core.retry.Retry
 import cromwell.engine.io.IoActor
 import cromwell.engine.io.IoActor.{IoResult, OssCommandContext}
 import cromwell.filesystems.oss._
-import java.io.FileInputStream
+import java.nio.file.{Files, Paths}
+
+import better.files.File.OpenOptions
+
 import scala.concurrent.{ExecutionContext, Future}
 
 class OssFlow(parallelism: Int, scheduler: Scheduler, nbAttempts: Int = IoActor.MaxAttemptsNumber)(implicit ec: ExecutionContext, actorSystem: ActorSystem) {
@@ -44,75 +45,41 @@ class OssFlow(parallelism: Int, scheduler: Scheduler, nbAttempts: Int = IoActor.
   val flow = Flow[OssCommandContext[_]].mapAsyncUnordered[IoResult](parallelism)(processCommand)
 
   private def copy(copy: OssIoCopyCommand) = Future {
-    val src = copy.source
-    val dest = copy.destination
-    val ossClient = src.ossClient
-    ossClient.copyObject(src.bucket, src.key, dest.bucket, dest.key)
+    copy.source.copyTo(copy.destination, true)
   }
 
   private def write(write: OssIoWriteCommand) = Future {
     val file = write.file
     val content = write.content
-    val ossClient = file.ossClient
     val options = write.openOptions
 
     options match {
       case Seq(UploadFileOption) =>
-        val inputStream = new FileInputStream(content)
-        ossClient.putObject(file.bucket, file.key, inputStream)
+        val bytes = Files.readAllBytes(Paths.get(write.content))
+        file.writeByteArray(bytes)(OpenOptions.default)
       case _ =>
-        ossClient.putObject(file.bucket, file.key, new ByteArrayInputStream(content.getBytes()))
+        file.writeByteArray(content.getBytes)(OpenOptions.default)
     }
-
   }
 
   private def delete(delete: OssIoDeleteCommand) = Future {
-    val file = delete.file
-    val ossClient = file.ossClient
-    ossClient.deleteObject(file.bucket, file.key)
+    delete.file.delete(true)
   }
 
   private def size(size: OssIoSizeCommand) = Future {
-    val file = size.file
-    val ossClient = file.ossClient
-    val meta = ossClient.getObjectMetadata(file.bucket, file.key)
-    meta.getContentLength
+    size.file.size
   }
 
   private def readAsString(command: OssIoContentAsStringCommand) = Future {
-    val file = command.file
-    val ossClient = file.ossClient
-    val ossObject = ossClient.getObject(file.bucket, file.key)
-
-    val reader = new BufferedReader(new InputStreamReader(ossObject.getObjectContent()))
-
-    val ret = new StringBuilder
-    val loop = new Breaks
-    loop.breakable {
-      while (true) {
-        val line = reader.readLine()
-        if (line == null) {
-          loop.break
-        }
-        ret ++= (line + '\n')
-      }
-    }
-    reader.close()
-    ret.toString()
+    command.file.contentAsString
   }
 
   private def hash(hash: OssIoHashCommand) = Future {
-    val file = hash.file
-    val ossClient = file.ossClient
-    val meta = ossClient.getObjectMetadata(file.bucket, file.key)
-    meta.getContentMD5
+    hash.file.md5
   }
 
   private def touch(touch :OssIoTouchCommand) = Future {
-    val file = touch.file
-    val ossClient = file.ossClient
-    val content: String = ""
-    ossClient.putObject(file.bucket, file.key, new ByteArrayInputStream(content.getBytes()))
+    touch.file.touch()
   }
 
 }

@@ -54,8 +54,6 @@ case class ParameterContext(private val inputs: Map[String, AnyRef] = Map.empty,
 
   def ecmaScriptInputs: Map[String, AnyRef] = inputs
 
-  def ecmaScriptCompatinputs: Map[String, AnyRef] = inputs
-
   def setSelf(newSelf: Array[Map[String, String]]): ParameterContext = this.copy(self = newSelf)
 
   def ecmaScriptValues:java.util.Map[String, AnyRef] =

@@ -6,32 +6,16 @@ import jdk.nashorn.api.scripting.{ClassFilter, NashornScriptEngineFactory, Scrip
 import wom.types._
 import wom.values._
 
-import scala.collection.JavaConverters._
-
 object JsUtil {
 
   /**
     * Evaluates a javascript expression.
     *
-    * Inputs, and returned output must be one of:
-    * - WomString
-    * - WomBoolean
-    * - WomFloat
-    * - WomInteger
-    * - WomMap
-    * - WomArray
-    * - A "WomNull" equal to WomOptionalValue(WomNothingType, None)
-    *
-    * The WomMap keys and values, and WomArray elements must be the one of the above, recursively.
-    *
-    * WomSingleFile and WomGlobFile are not permitted, and must be already converted to one of the above types.
-    *
     * @param expr   The javascript expression.
-    * @param values A map filled with WOM values.
+    * @param javascriptValues A map filled with WOM values.
     * @return The result of the expression.
     */
   def eval(expr: String, javascriptValues: java.util.Map[String, AnyRef]): WomValue = {
-    println(s"evaluating $expr against $javascriptValues")
     val engine = ScriptEngineFactory.getScriptEngine(nashornStrictArgs, getNashornClassLoader, noJavaClassFilter)
 
     val bindings = engine.createBindings()
@@ -72,25 +56,7 @@ object JsUtil {
     }
   }
 
-  private def toJavascript(value: WomValue): AnyRef = {
-    value match {
-      case WomOptionalValue(WomNothingType, None) => null
-      case WomString(string) => string
-      case WomInteger(int) => int.asInstanceOf[java.lang.Integer]
-      case WomFloat(double) => double.asInstanceOf[java.lang.Double]
-      case WomBoolean(boolean) => boolean.asInstanceOf[java.lang.Boolean]
-      case WomArray(_, array) => array.map(toJavascript).toArray
-      case WomSingleFile(path) => path
-      case WomMap(_, map) =>
-        map.map({
-          case (mapKey, mapValue) => toJavascript(mapKey) -> toJavascript(mapValue)
-        }).asJava
-      case _ => throw new IllegalArgumentException(s"Unexpected value: $value")
-    }
-  }
-
   private def fromJavascript(value: AnyRef): WomValue = {
-    println(s" from javascript $value")
     def isWhole(d: Double) = (d == Math.floor(d)) && !java.lang.Double.isInfinite(d)
     value match {
       case null => WomOptionalValue(WomNothingType, None)

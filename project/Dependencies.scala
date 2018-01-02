@@ -66,7 +66,6 @@ object Dependencies {
   val scalazV = "7.2.17"
   val scoptV = "3.6.0"
   val shapelessV = "2.3.2"
-  val simulacrumV = "0.11.0"
   val slf4jV = "1.7.24"
   val slickV = "3.2.0"
   val snakeyamlV = "1.17"
@@ -271,7 +270,6 @@ object Dependencies {
     "com.lihaoyi" %% "ammonite-ops" % ammoniteOpsV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "org.scalactic" %% "scalactic" % scalacticV,
-    //"com.github.mpilquist" %% "simulacrum" % simulacrumV,
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test
   ) ++ circeDependencies ++ womDependencies ++ refinedTypeDependenciesList ++ betterFilesDependencies
 

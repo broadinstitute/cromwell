@@ -1,14 +1,14 @@
 package cromwell.core.io
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import cromwell.core.io.AsyncIo.ioTimeout
+import cromwell.core.io.AsyncIo.defaultTimeout
 import cromwell.core.io.IoPromiseProxyActor.IoCommandWithPromise
 
 import scala.concurrent.Promise
 import scala.concurrent.duration.FiniteDuration
 
 object IoPromiseProxyActor {
-  case class IoCommandWithPromise[A](ioCommand: IoCommand[A], timeout: FiniteDuration = ioTimeout) {
+  case class IoCommandWithPromise[A](ioCommand: IoCommand[A], timeout: FiniteDuration = defaultTimeout) {
     val promise = Promise[A]
   }
   def props(ioActor: ActorRef) = Props(new IoPromiseProxyActor(ioActor))

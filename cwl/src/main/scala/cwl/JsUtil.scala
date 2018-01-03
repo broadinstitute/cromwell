@@ -12,7 +12,7 @@ object JsUtil {
     * Evaluates a javascript expression.
     *
     * @param expr   The javascript expression.
-    * @param javascriptValues A map filled with WOM values.
+    * @param javascriptValues A map filled with Javascript-compatible AnyRef values.  See {{jdk.nashorn.internal.objects}} package.
     * @return The result of the expression.
     */
   def eval(expr: String, javascriptValues: java.util.Map[String, AnyRef]): WomValue = {

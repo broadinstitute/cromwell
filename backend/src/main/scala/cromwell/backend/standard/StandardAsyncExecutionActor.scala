@@ -134,7 +134,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     WomSingleFile(workflowPaths.buildPath(womFile.value).pathAsString)
 
   /** @see [[Command.instantiate]] */
-  final lazy val commandLineValueMapper: WomValue => WomValue = {
+  lazy val commandLineValueMapper: WomValue => WomValue = {
     womValue => WomFileMapper.mapWomFiles(mapCommandLineWomFile)(womValue).get
   }
 

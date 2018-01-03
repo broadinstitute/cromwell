@@ -34,10 +34,16 @@ lazy val cloudSupport = project
 
 lazy val gcsFileSystem = (project in file("filesystems/gcs"))
   .withLibrarySettings("cromwell-gcsfilesystem")
+  .dependsOn(ossFileSystem)
   .dependsOn(core)
   .dependsOn(cloudSupport)
   .dependsOn(core % "test->test")
   .dependsOn(cloudSupport % "test->test")
+
+lazy val ossFileSystem = (project in file("filesystems/oss"))
+  .withLibrarySettings("cromwell-ossFileSystem", ossFileSystemDependencies)
+  .dependsOn(core)
+  .dependsOn(core % "test->test")
 
 lazy val databaseSql = (project in file("database/sql"))
   .withLibrarySettings("cromwell-database-sql", databaseSqlDependencies)
@@ -100,9 +106,19 @@ lazy val jesBackend = (project in backendRoot / "jes")
   .dependsOn(gcsFileSystem % "test->test")
   .dependsOn(services % "test->test")
 
+lazy val bcsBackend = (project in backendRoot / "bcs")
+  .withLibrarySettings("cromwell-bcs-backend", bcsBackendDependencies)
+  .dependsOn(backend)
+  .dependsOn(ossFileSystem)
+  .dependsOn(gcsFileSystem)
+  .dependsOn(backend % "test->test")
+  .dependsOn(ossFileSystem % "test->test")
+  .dependsOn(services % "test->test")
+
 lazy val engine = project
   .withLibrarySettings("cromwell-engine", engineDependencies, engineSettings)
   .dependsOn(backend)
+  .dependsOn(ossFileSystem)
   .dependsOn(gcsFileSystem)
   .dependsOn(wdl)
   .dependsOn(cwl)
@@ -112,6 +128,7 @@ lazy val engine = project
   // For now, all the engine tests run on the "Local" backend, an implementation of an impl.sfs.config backend.
   .dependsOn(sfsBackend % "test->compile")
   .dependsOn(gcsFileSystem % "test->test")
+  .dependsOn(ossFileSystem % "test->test")
 
 // Executables
 
@@ -131,6 +148,7 @@ lazy val root = (project in file("."))
   // Next level of projects to include in the fat jar (their dependsOn will be transitively included)
   .dependsOn(engine)
   .dependsOn(jesBackend)
+  .dependsOn(bcsBackend)
   .dependsOn(tesBackend)
   .dependsOn(sparkBackend)
   .dependsOn(engine % "test->test")
@@ -148,8 +166,10 @@ lazy val root = (project in file("."))
   .aggregate(dockerHashing)
   .aggregate(engine)
   .aggregate(gcsFileSystem)
+  .aggregate(ossFileSystem)
   .aggregate(jesBackend)
   .aggregate(services)
+  .aggregate(bcsBackend)
   .aggregate(sfsBackend)
   .aggregate(sparkBackend)
   .aggregate(tesBackend)

@@ -206,6 +206,19 @@ object Dependencies {
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV
   )
 
+  private val aliyunOssDependencies = List(
+    "com.aliyun.oss" % "aliyun-sdk-oss" % "2.8.3"
+      exclude("commons-beanutils", "commons-beanutils-core")
+      exclude("commons-collections", "commons-collections")
+  )
+
+  private val aliyunBatchcomputeDependencies = List(
+    "com.aliyun" % "aliyun-java-sdk-core" % "3.2.3"
+      exclude("commons-beanutils", "commons-beanutils-core")
+      exclude("commons-collections", "commons-collections"),
+    "com.aliyun" % "aliyun-java-sdk-batchcompute" % "5.1.0"
+  )
+
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,
     /*
@@ -245,6 +258,13 @@ object Dependencies {
     "nl.grons" %% "metrics-scala" % metricsScalaV,
     "com.readytalk" % "metrics3-statsd" % metrics3StatsdV
   )
+
+  val ossFileSystemDependencies = googleCloudDependencies ++ aliyunOssDependencies ++ List (
+    "com.github.pathikrit" %% "better-files" % betterFilesV
+  )
+
+  val gcsFileSystemDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ List (
+    "com.github.pathikrit" %% "better-files" % betterFilesV)
 
   val commonDependencies = List(
     "org.slf4j" % "slf4j-api" % slf4jV
@@ -326,6 +346,7 @@ object Dependencies {
     "co.fs2" %% "fs2-io" % fs2V % Test
   )
 
+  val bcsBackendDependencies = commonDependencies ++ refinedTypeDependenciesList ++ aliyunBatchcomputeDependencies
   val tesBackendDependencies = akkaHttpDependencies
   val sparkBackendDependencies = akkaHttpDependencies
 

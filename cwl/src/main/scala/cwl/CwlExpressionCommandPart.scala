@@ -28,7 +28,7 @@ case class CwlExpressionCommandPart(expr: Expression) extends CommandPart {
           map(_.setRuntime(runtimeEnvironment)).
           flatMap(pc => expr.fold(EvaluateExpression).apply(pc).toEither.leftMap(e => NonEmptyList.one(e.getMessage))).
           map(_.valueString).
-          map(s => InstantiatedCommand(s)).
+          map(InstantiatedCommand.apply(_)).
           toValidated
 }
 
@@ -51,7 +51,7 @@ case class CommandLineBindingCommandPart(argument: CommandLineBinding) extends C
             case other => throw new NotImplementedError(s"As-yet-unsupported command line binding: $other")
         }
       }.map(_.valueString).
-      map(s => InstantiatedCommand(s)).
+      map(InstantiatedCommand.apply(_)).
       toValidated
 }
 

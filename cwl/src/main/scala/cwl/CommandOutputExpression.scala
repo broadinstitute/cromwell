@@ -18,10 +18,8 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
                                    override val cwlExpressionType: WomType,
                                    override val inputs: Set[String]) extends CwlWomExpression {
 
-  // TODO WOM: outputBinding.toString is probably not be the best representation of the outputBinding
+  // TODO WOM: outputBinding.toString is probably not the best representation of the expression source
   override def sourceString = outputBinding.toString
-
-
 
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
 
@@ -36,7 +34,7 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
 
     http://www.commonwl.org/v1.0/CommandLineTool.html#CommandOutputBinding
      */
-    def commandOutputBindingToWomValue: Either[NonEmptyList[String], WomValue] = {
+    def outputBindingEvaluationResult: Either[NonEmptyList[String], WomValue] = {
       import StringOrExpression._
       (outputBinding, parameterContext) match {
         case (CommandOutputBinding(_, _, Some(String(value))), Right(_)) => WomString(value).asRight
@@ -52,17 +50,17 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
           val _loadContents: Boolean = loadContents getOrElse false
 
           val womMaps: Array[Map[String, String]] =
-            paths.map({
+            paths.toArray map({
               (path:String) =>
                 // TODO: WOM: basename/dirname/size/checksum/etc.
+                val contents =
+                    Map("contents" -> load64KiB(path, ioFunctionSet)).
+                      filter(_ => _loadContents)
 
-                val contents: Map[String, String] =
-                    Map("contents" -> load64KiB(path, ioFunctionSet)).filter(_ => _loadContents)
+                val location = Map("location" -> path)
 
-                Map(
-                  "location" -> path
-                ) ++ contents
-            }).toArray
+                location ++ contents
+            })
 
           val outputEvalParameterContext: ParameterContext = parameterContext.setSelf(womMaps)
 
@@ -71,12 +69,10 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
     }
     //To facilitate ECMAScript evaluation, filenames are stored in a map under the key "location"
     val womValue =
-      commandOutputBindingToWomValue map {
-        case WomArray(_, Seq(WomMap(WomMapType(WomStringType, WomStringType), map))) => map(WomString("location"))
+      outputBindingEvaluationResult map {
+        case WomArray(_, Seq(WomMap(WomMapType(WomStringType, WomStringType), results))) => results(WomString("location"))
         case other => other
       }
-
-
 
     //If the value is a string but the output is expecting a file, we consider that string a POSIX "glob" and apply
     //it accordingly to retrieve the file list to which it expands.
@@ -87,7 +83,7 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
         case (Right(WomString(glob)), WomSingleFileType) =>
           Await.result(ioFunctionSet.glob(glob), Duration.Inf) match {
             case head :: Nil => WomString(head).validNel
-            case list => s"expecting a single File glob but instead got $list".invalidNel
+            case list => s"expecting a single File glob but instead got ${list.toList.mkString(", ")}".invalidNel
           }
 
         case (other, _) => other.toValidated
@@ -121,8 +117,8 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
     val content = ioFunctionSet.readFile(path)
 
     // TODO: propagate IO, Try, or Future or something all the way out via "commandOutputBindingtoWomValue" signature
-    // TODO: Stream only the first 64 KiB, this "read everything then ignore most of it" method is terrible
-    val initialResult = Await.result(content, 5 seconds)
+    // TODO: Stream only the first 64 KiB, this "read everything then ignore most of it" method will be very inefficient
+    val initialResult = Await.result(content, 60 seconds)
     initialResult.substring(0, Math.min(initialResult.length, 64 * 1024))
   }
 }

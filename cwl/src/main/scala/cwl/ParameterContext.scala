@@ -11,6 +11,7 @@ import common.validation.ErrorOr.ErrorOr
 import cats.data.Validated._
 import wom.callable.RuntimeEnvironment
 import wom.graph.LocalName
+import shapeless.syntax.typeable._
 
 import scala.collection.JavaConverters._
 
@@ -88,7 +89,7 @@ case class ParameterContext(private val inputs: Map[String, AnyRef] = Map.empty,
     Map(
       "inputs" -> inputs.asJava.asInstanceOf[AnyRef],
       "runtime" -> runtime.asJava.asInstanceOf[AnyRef],
-      "self" -> self.asInstanceOf[AnyRef]
+      "self" -> self.map(_.asJava).asInstanceOf[AnyRef]
     ).asJava
 
   //Nashorn expects values in Java native format
@@ -96,9 +97,9 @@ case class ParameterContext(private val inputs: Map[String, AnyRef] = Map.empty,
     value match {
       case WomOptionalValue(WomNothingType, None) => null
       case WomString(string) => string.validNel
-      case WomInteger(int) => int.asInstanceOf[java.lang.Integer].validNel
-      case WomFloat(double) => double.asInstanceOf[java.lang.Double].validNel
-      case WomBoolean(boolean) => boolean.asInstanceOf[java.lang.Boolean].validNel
+      case WomInteger(int) => int.cast[java.lang.Integer].validNel
+      case WomFloat(double) => double.cast[java.lang.Double].validNel
+      case WomBoolean(boolean) => boolean.cast[java.lang.Boolean].validNel
       case WomArray(_, array) => array.map(toJavascript).toArray.validNel
       case WomSingleFile(path) => path.validNel
       case WomMap(_, map) =>

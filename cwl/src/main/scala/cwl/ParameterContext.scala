@@ -60,7 +60,7 @@ case class ParameterContext(private val inputs: Map[String, AnyRef] = Map.empty,
     */
   def addInputs(womMap: Map[String, WomValue]): Either[NonEmptyList[String], ParameterContext] = {
     womMap.toList.traverse{
-      case (key, womValue) => (key.validNel[String]:ErrorOr[String], toJavascript(womValue)).tupled
+      case (key, womValue) => (key.validNel[String], toJavascript(womValue)).tupled
     }.map(lst => this.copy(inputs ++ lst.toMap)).toEither
   }
 
@@ -72,7 +72,7 @@ case class ParameterContext(private val inputs: Map[String, AnyRef] = Map.empty,
   }
 
   /**
-    * Exposed the inputs for logging convenience.
+    * Expose the inputs for logging convenience.
     */
   def ecmaScriptInputs: Map[String, AnyRef] = inputs
 

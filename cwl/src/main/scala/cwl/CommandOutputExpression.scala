@@ -13,6 +13,7 @@ import cats.data.NonEmptyList
 import scala.language.postfixOps
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import mouse.all._
 
 case class CommandOutputExpression(outputBinding: CommandOutputBinding,
                                    override val cwlExpressionType: WomType,
@@ -64,7 +65,11 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
 
           val outputEvalParameterContext: ParameterContext = parameterContext.setSelf(womMaps)
 
-          expression.fold(EvaluateExpression).apply(outputEvalParameterContext).toEither.leftMap(e => NonEmptyList.one(e.getMessage))
+          expression.
+            fold(EvaluateExpression).
+            apply(outputEvalParameterContext).
+            cata(Right(_),Left(_)). // this is because toEither is not a thing in scala 2.11.
+            leftMap(e => NonEmptyList.one(e.getMessage))
       }
     }
     //To facilitate ECMAScript evaluation, filenames are stored in a map under the key "location"

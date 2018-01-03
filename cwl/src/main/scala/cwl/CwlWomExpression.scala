@@ -16,6 +16,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.util.Try
 import cats.syntax.either._
+import mouse.all._
 
 trait CwlWomExpression extends WomExpression {
 
@@ -40,7 +41,7 @@ case class JobPreparationExpression(expression: Expression,
         expression.
           fold(EvaluateExpression).
             apply(pc).
-            toEither.
+            cata(Right(_),Left(_)). // this is because toEither is not a thing in scala 2.11.
             leftMap(e => NonEmptyList.one(e.getMessage))
       ).toValidated
 

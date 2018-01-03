@@ -65,7 +65,6 @@ object Settings {
     "-Xlint:type-parameter-shadow",
     "-Xlint:unsound-match",
     "-Yno-adapted-args",
-    "-Ypartial-unification",             // Enable partial unification in type constructor inference
     "-Ywarn-dead-code",
     "-Ywarn-numeric-widen",
     "-Ywarn-value-discard",

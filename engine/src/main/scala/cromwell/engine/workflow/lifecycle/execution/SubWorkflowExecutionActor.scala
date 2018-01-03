@@ -16,7 +16,7 @@ import cromwell.engine.workflow.lifecycle.execution.job.preparation.SubWorkflowP
 import cromwell.engine.workflow.lifecycle.execution.keys.SubWorkflowKey
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.engine.workflow.workflowstore.StartableState
-import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
+import cromwell.engine.{EngineWorkflowDescriptor, EngineIoFunctions}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
@@ -24,7 +24,7 @@ import wom.values.WomEvaluatedCallInputs
 
 class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 parentWorkflow: EngineWorkflowDescriptor,
-                                expressionLanguageFunctions: WdlFunctions,
+                                expressionLanguageFunctions: EngineIoFunctions,
                                 factories: Map[String, BackendLifecycleActorFactory],
                                 ioActor: ActorRef,
                                 override val serviceRegistryActor: ActorRef,
@@ -280,7 +280,7 @@ object SubWorkflowExecutionActor {
 
   def props(key: SubWorkflowKey,
             parentWorkflow: EngineWorkflowDescriptor,
-            expressionLanguageFunctions: WdlFunctions,
+            expressionLanguageFunctions: EngineIoFunctions,
             factories: Map[String, BackendLifecycleActorFactory],
             ioActor: ActorRef,
             serviceRegistryActor: ActorRef,

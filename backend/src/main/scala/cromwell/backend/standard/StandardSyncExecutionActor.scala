@@ -6,7 +6,6 @@ import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, J
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, Reconnect, ReconnectToAbort, Recover}
-import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobExecutionActor}
 import cromwell.core.Dispatcher
 import cromwell.services.keyvalue.KeyValueServiceActor._
 

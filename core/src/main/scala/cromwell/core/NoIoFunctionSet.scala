@@ -15,7 +15,7 @@ case object NoIoFunctionSet extends IoFunctionSet {
 
   override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError("stderr is not available here"))
 
-  override def glob(pattern: String): Seq[String] = throw new NotImplementedError("glob is not available here")
+  override def glob(pattern: String): Future[Seq[String]] = throw new NotImplementedError("glob is not available here")
 
-  override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new NotImplementedError("size is not available here"))
+  override def size(params: Seq[Try[WomValue]]): Future[WomFloat] = Future.failed(new NotImplementedError("size is not available here"))
 }

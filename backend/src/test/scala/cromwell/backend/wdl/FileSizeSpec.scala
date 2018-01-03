@@ -3,19 +3,19 @@ package cromwell.backend.wdl
 import java.nio.file.StandardOpenOption._
 import java.nio.file.{Path, Paths}
 
+import cats.effect.IO
 import com.google.common.io.Files
 import cromwell.backend.standard.{DefaultStandardExpressionFunctionsParams, StandardExpressionFunctions}
-import cromwell.core.CallContext
 import cromwell.core.Tags.PostWomTest
 import cromwell.core.path.DefaultPathBuilder
+import cromwell.core.{CallContext, TestKitSuite}
 import fs2.Stream
-import cats.effect.IO
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{FlatSpecLike, Matchers}
 import wom.values._
 
 import scala.util.{Failure, Success, Try}
 
-class FileSizeSpec extends FlatSpec with Matchers {
+class FileSizeSpec extends TestKitSuite with FlatSpecLike with Matchers {
   val _readLinesLimit = 4
   val _readBoolLimit = 5
   val _readIntLimit = 6
@@ -29,7 +29,11 @@ class FileSizeSpec extends FlatSpec with Matchers {
   val rlf = {
     val path = DefaultPathBuilder.build("/tmp").get
 
-    val dp = DefaultStandardExpressionFunctionsParams(List(cromwell.core.path.DefaultPathBuilder), CallContext(path, "stdout", "stderr"))
+    val dp = DefaultStandardExpressionFunctionsParams(
+      List(cromwell.core.path.DefaultPathBuilder),
+      CallContext(path, "stdout", "stderr"),
+      simpleIoActor,
+      scala.concurrent.ExecutionContext.global)
 
     new StandardExpressionFunctions(dp) {
       override val fileSizeLimitationConfig =

@@ -4,7 +4,7 @@ import akka.actor.ActorRef
 import cromwell.backend._
 import cromwell.backend.standard.{StandardFinalizationActor, StandardFinalizationActorParams}
 import cromwell.core.CallOutputs
-import cromwell.core.io.AsyncIo
+import cromwell.core.io.AsyncIoActorClient
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import wom.graph.TaskCallNode
 
@@ -24,11 +24,11 @@ case class JesFinalizationActorParams
 }
 
 class JesFinalizationActor(val jesParams: JesFinalizationActorParams)
-  extends StandardFinalizationActor(jesParams) with AsyncIo with GcsBatchCommandBuilder {
+  extends StandardFinalizationActor(jesParams) with AsyncIoActorClient {
 
   lazy val jesConfiguration: JesConfiguration = jesParams.jesConfiguration
-  
-  override def receive = ioReceive orElse super.receive
+
+  override lazy val ioCommandBuilder = GcsBatchCommandBuilder
 
   override def afterAll(): Future[Unit] = {
     for {
@@ -40,7 +40,7 @@ class JesFinalizationActor(val jesParams: JesFinalizationActorParams)
 
   private def deleteAuthenticationFile(): Future[Unit] = {
     (jesConfiguration.needAuthFileUpload, workflowPaths) match {
-      case (true, Some(paths: JesWorkflowPaths)) => deleteAsync(paths.gcsAuthFilePath)
+      case (true, Some(paths: JesWorkflowPaths)) => asyncIo.deleteAsync(paths.gcsAuthFilePath)
       case _ => Future.successful(())
     }
   }

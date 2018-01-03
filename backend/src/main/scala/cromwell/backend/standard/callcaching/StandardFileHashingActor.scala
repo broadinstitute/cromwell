@@ -42,7 +42,9 @@ case class DefaultStandardFileHashingActorParams
 
 case class FileHashContext(hashKey: HashKey, file: String)
 
-class DefaultStandardFileHashingActor(standardParams: StandardFileHashingActorParams) extends StandardFileHashingActor(standardParams) with DefaultIoCommandBuilder
+class DefaultStandardFileHashingActor(standardParams: StandardFileHashingActorParams) extends StandardFileHashingActor(standardParams) {
+  override val ioCommandBuilder = DefaultIoCommandBuilder
+}
 
 object StandardFileHashingActor {
   case class FileHashingFunction(work: (SingleFileHashRequest, LoggingAdapter) => Try[String])
@@ -55,13 +57,14 @@ object StandardFileHashingActor {
 }
 
 abstract class StandardFileHashingActor(standardParams: StandardFileHashingActorParams) extends Actor with ActorLogging with JobLogging with IoClientHelper with StandardCachingActorHelper {
-  this: IoCommandBuilder =>
   override lazy val ioActor = standardParams.ioActor
   override lazy val jobDescriptor: BackendJobDescriptor = standardParams.jobDescriptor
   override lazy val backendInitializationDataOption: Option[BackendInitializationData] = standardParams.backendInitializationDataOption
   override lazy val serviceRegistryActor: ActorRef = standardParams.serviceRegistryActor
   override lazy val configurationDescriptor: BackendConfigurationDescriptor = standardParams.configurationDescriptor
-
+  
+  protected def ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
+  
   def customHashStrategy(fileRequest: SingleFileHashRequest): Option[Try[String]] = None
 
   def fileHashingReceive: Receive = {
@@ -89,7 +92,7 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
     val fileAsString = fileRequest.file.value
     val ioHashCommandTry = Try {
       val gcsPath = getPath(fileAsString).get
-      hashCommand(gcsPath)
+      ioCommandBuilder.hashCommand(gcsPath)
     }
 
     ioHashCommandTry match {
@@ -100,7 +103,7 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
 
   override def receive: Receive = ioReceive orElse fileHashingReceive
 
-  protected def onTimeout(message: Any, to: ActorRef): Unit = {
+  override protected def onTimeout(message: Any, to: ActorRef): Unit = {
     message match {
       case (_, ioHashCommand: IoHashCommand) =>
         val fileAsString = ioHashCommand.file.pathAsString

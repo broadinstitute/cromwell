@@ -11,7 +11,7 @@ import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthObject, J
 import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
 import cromwell.cloudsupport.gcp.auth.{ClientSecrets, GoogleAuthMode}
-import cromwell.core.io.AsyncIo
+import cromwell.core.io.AsyncIoActorClient
 import cromwell.core.path.Path
 import cromwell.filesystems.gcs.GoogleUtil._
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
@@ -38,14 +38,12 @@ object JesInitializationActor {
 }
 
 class JesInitializationActor(jesParams: JesInitializationActorParams)
-  extends StandardInitializationActor(jesParams) with AsyncIo with GcsBatchCommandBuilder {
+  extends StandardInitializationActor(jesParams) with AsyncIoActorClient {
 
   override lazy val ioActor = jesParams.ioActor
   private val jesConfiguration = jesParams.jesConfiguration
   private val workflowOptions = workflowDescriptor.workflowOptions
   implicit private val system = context.system
-
-  context.become(ioReceive orElse receive)
 
   override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
     JesRuntimeAttributes.runtimeAttributesBuilder(jesConfiguration)
@@ -84,7 +82,7 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
   } yield JesBackendInitializationData(jesWorkflowPaths, runtimeAttributesBuilder, jesConfiguration, gcsCreds, genomicsFactory)
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
-    def fileUpload(paths: JesWorkflowPaths) = existsAsync(paths.gcsAuthFilePath) flatMap {
+    def fileUpload(paths: JesWorkflowPaths) = asyncIo.existsAsync(paths.gcsAuthFilePath) flatMap {
       // if we aren't restarting then something is definitely wrong
       case true if !jesParams.restarting =>
         Future.failed(AuthFileAlreadyExistsException(paths.gcsAuthFilePath))
@@ -115,7 +113,7 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
       val path = workflowPath.gcsAuthFilePath
       workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n $path")
       val openOptions = List(CloudStorageOptions.withMimeType("application/json"))
-      writeAsync(path, content, openOptions)
+      asyncIo.writeAsync(path, content, openOptions)
     } getOrElse Future.successful(())
   }
 
@@ -133,4 +131,6 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
     if (jsonMap.nonEmpty) Option(JsObject(jsonMap).prettyPrint)
     else None
   }
+
+  override lazy val ioCommandBuilder = GcsBatchCommandBuilder
 }

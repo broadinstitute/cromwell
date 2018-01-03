@@ -32,13 +32,13 @@ class OptionalParamWorkflowSpec extends Matchers with WordSpecLike {
         findTask.inputsFromMap(Map("find.root" -> WomSingleFile("src"))),
         NoFunctions
       )
-      instantiateWithoutValue.toTry.get.commandString shouldEqual "find src"
+      instantiateWithoutValue.toTry.get.head.commandString shouldEqual "find src"
 
       val instantiateWithValue = findTask.instantiateCommand(findTask.inputsFromMap(Map(
         "find.root" -> WomSingleFile("src"),
         "find.pattern" -> WomString("*.java")
       )), NoFunctions).getOrElse {fail("Expected instantiation to work")}
-      instantiateWithValue.commandString shouldEqual "find src -name *.java"
+      instantiateWithValue.head.commandString shouldEqual "find src -name *.java"
     }
   }
 }

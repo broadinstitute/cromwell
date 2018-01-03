@@ -62,7 +62,7 @@ trait WomValue {
 
   def computeHash(implicit hasher: FileHasher): SymbolHash = {
     this match {
-      case w: WomObject => symbolHash(w.value mapValues { _.computeHash(hasher) })
+      case w: WomObject => symbolHash(w.values mapValues { _.computeHash(hasher) })
       case w: WomMap => symbolHash(w.value map { case (k, v) => k.computeHash(hasher) -> v.computeHash(hasher) })
       case w: WomArray => symbolHash(w.value map { _.computeHash(hasher) } mkString "")
       case w: WomFile => hasher(w)
@@ -97,7 +97,7 @@ object WomValue {
           )
         case objectLike: WomObjectLike =>
           // First take only a limited number of the top-level elements.
-          val shallowSubset = objectLike.value.take(maxElements)
+          val shallowSubset = objectLike.values.take(maxElements)
           // Then recursively take only a limited number of elements.
           val deepSubset = shallowSubset map {
             case (mapKey, mapValue) => mapKey -> takeMaxElements(mapValue)

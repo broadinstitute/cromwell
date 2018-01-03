@@ -22,7 +22,7 @@ class ExportCwlSamplesSpec extends FlatSpec with Matchers {
         id = "echo",
         inputs =  Array(CommandInputParameter(
           id = "message",
-          inputBinding = Option(CommandLineBinding(
+          inputBinding = Option(InputCommandLineBinding(
             position = Option(1)
           ))
         )),

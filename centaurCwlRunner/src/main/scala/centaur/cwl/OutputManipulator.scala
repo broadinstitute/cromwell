@@ -1,7 +1,7 @@
 package centaur.cwl
 
 import io.circe.Json
-import spray.json.{JsArray, JsNumber, JsString, JsValue}
+import spray.json.{JsArray, JsNumber, JsObject, JsString, JsValue}
 import cwl.{MyriadOutputType, File => CwlFile}
 import shapeless.{Inl, Poly1}
 import cwl.{CwlType, MyriadOutputType, File => CwlFile}
@@ -12,9 +12,9 @@ import io.circe.refined._
 import io.circe.shapes._
 import io.circe.syntax._
 import shapeless.{Inl, Poly1}
-import spray.json.{JsNumber, JsString, JsValue}
 import _root_.cwl._
 import cromwell.core.path.PathBuilder
+import cwl.command.ParentName
 
 //Take cromwell's outputs and format them as expected by the spec
 object OutputManipulator extends Poly1 {
@@ -48,7 +48,19 @@ object OutputManipulator extends Poly1 {
           innerType <- items.select[MyriadOutputInnerType]
           outputJson = metadata.map(m => resolveOutputViaInnerType(innerType)(m, pathBuilder)).asJson
         } yield outputJson).getOrElse(throw new RuntimeException(s"We currently do not support output arrays with ${tpe.select[OutputArraySchema].get.items} inner type"))
-      case (json, tpe) => throw new RuntimeException(s" we currently do not support outputs of $json and type $tpe")
+      case (JsObject(metadata), tpe) if tpe.select[OutputRecordSchema].isDefined =>
+        (for {
+          schema <- tpe.select[OutputRecordSchema]
+          fields <- schema.fields
+          typeMap = fields.flatMap({ field =>
+            val parsedName = FullyQualifiedName(field.name)(ParentName.empty).id
+            field.`type`.select[MyriadOutputInnerType] map { parsedName -> _ }
+          }).toMap
+          outputJson = metadata.map({
+            case (k, v) => k -> resolveOutputViaInnerType(typeMap(k))(v, pathBuilder)
+          }).asJson
+        } yield outputJson).getOrElse(throw new RuntimeException(s"We currently do not support output arrays with ${tpe.select[OutputArraySchema].get.items} inner type"))
+      case (json, tpe) => throw new RuntimeException(s"We currently do not support outputs (${json.getClass.getSimpleName}) of $json and type $tpe")
     }
   }
 

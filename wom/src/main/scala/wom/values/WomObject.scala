@@ -6,9 +6,17 @@ import wom.util.FileUtil
 
 import scala.util.{Failure, Success, Try}
 
-trait WomObjectLike {
-  def value: Map[String, WomValue]
+trait WomObjectLike extends WomValue {
+  def values: Map[String, WomValue]
   def copyWith(values: Map[String, WomValue]): WomValue with WomObjectLike
+  override def toWomString: String = {
+    val typed = womObjectTypeLike match {
+      case _: WomCompositeType => "typed "
+      case _ => ""
+    }
+    s"${typed}object {" + values.map { case (k, v) => s"$k: ${v.toWomString}" }.mkString(", ") + "}"
+  }
+  def womObjectTypeLike: WomObjectTypeLike
 }
 
 object WomObject {
@@ -51,29 +59,32 @@ object WomObject {
         val attributes = objects.head.orderedAttributes
         val attributesLine = attributes.mkString("\t")
         val valuesLines = objects map { obj =>
-          attributes map { obj.value(_).valueString } mkString "\t"
+          attributes map { obj.values(_).valueString } mkString "\t"
         } mkString(start = "", sep = "\n", end = "\n")
 
         Success(s"$attributesLine\n$valuesLines")
       case _ => Failure(new UnsupportedOperationException("Could not serialize array: Objects in the array have different attributes."))
     }
   }
+  
+  def apply(values: Map[String, WomValue]) = new WomObject(values, WomObjectType)
+  
+  def withType(values: Map[String, Any], objectTypeLike: WomObjectTypeLike) = {
+    import common.validation.Validation._
+    objectTypeLike.validateAndCoerceValues(values).map(new WomObject(_, objectTypeLike)).toTry.get
+  }
 
 }
 
-case class WomObject(value: Map[String, WomValue]) extends WomValue with WomObjectLike with TsvSerializable {
-  val womType = WomObjectType
-
-  override def toWomString: String =
-    "object {" + value.map {case (k, v) => s"$k: ${v.toWomString}"}.mkString(", ") + "}"
-
-  lazy val orderedAttributes = value.keySet.toSeq
-  lazy val orderedValues = orderedAttributes map { value(_) }
-
+case class WomObject private[WomObject] (values: Map[String, WomValue], womType: WomObjectTypeLike) extends WomObjectLike with TsvSerializable {
+  lazy val orderedAttributes = values.keySet.toSeq
+  lazy val orderedValues = orderedAttributes map { values(_) }
+  lazy val womObjectTypeLike = womType
+  
   def tsvSerialize: Try[String] = Try {
     val keysLine = orderedAttributes.mkString(start = "", sep = "\t", end = "\n")
     val values = orderedValues map {
-      case v if v.isInstanceOf[WomPrimitive] => v.valueString
+      case v: WomPrimitive => v.valueString
       case _ => throw new UnsupportedOperationException("Can only TSV serialize an Object with Primitive values.")
     }
 

@@ -25,7 +25,7 @@ class TaskSpec extends WdlTest {
           Map("wc.in_file" -> WomSingleFile("/path/to/file"))
         ),
         NoFunctions
-      ).toTry.get.commandString shouldEqual "cat /path/to/file | wc -l"
+      ).toTry.get.head.commandString shouldEqual "cat /path/to/file | wc -l"
       wcTask.outputs.size shouldEqual 1
       wcTask.outputs.head.unqualifiedName shouldEqual "count"
       wcTask.outputs.head.womType shouldEqual WomIntegerType
@@ -42,7 +42,7 @@ class TaskSpec extends WdlTest {
           Map("cgrep.pattern" -> WomString("^...$"), "cgrep.in_file" -> WomSingleFile("/path/to/file"))
         ),
         NoFunctions
-      ).toTry.get.commandString shouldEqual "grep '^...$' /path/to/file | wc -l"
+      ).toTry.get.head.commandString shouldEqual "grep '^...$' /path/to/file | wc -l"
       cgrepTask.outputs.size shouldEqual 1
       cgrepTask.outputs.head.unqualifiedName shouldEqual "count"
       cgrepTask.outputs.head.womType shouldEqual WomIntegerType
@@ -51,7 +51,7 @@ class TaskSpec extends WdlTest {
     s"have a task with name 'ps'" in {
       psTask.name shouldEqual "ps"
       psTask.declarations shouldEqual Vector()
-      psTask.instantiateCommand(Map(), NoFunctions).toTry.get.commandString shouldEqual "ps"
+      psTask.instantiateCommand(Map(), NoFunctions).toTry.get.head.commandString shouldEqual "ps"
       psTask.outputs.size shouldEqual 1
       psTask.outputs.head.unqualifiedName shouldEqual "procs"
       psTask.outputs.head.womType shouldEqual WomSingleFileType
@@ -71,7 +71,7 @@ class TaskSpec extends WdlTest {
         "param_test.e" -> WomArray(WomArrayType(WomIntegerType), Seq(0, 1, 2) map WomInteger.apply),
         "param_test.f" -> WomBoolean.False
       )
-      paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions).toTry.get.commandString shouldEqual "./binary a_val -p b_val c0,c1,c2 1 0\t1\t2 --false"
+      paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions).toTry.get.head.commandString shouldEqual "./binary a_val -p b_val c0,c1,c2 1 0\t1\t2 --false"
     }
 
     s"instantiate command (1)" in {
@@ -82,7 +82,7 @@ class TaskSpec extends WdlTest {
         "param_test.e" -> WomArray(WomArrayType(WomIntegerType), Seq(0, 1, 2) map WomInteger.apply),
         "param_test.f" -> WomBoolean.True
       )
-      paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions).toTry.get.commandString shouldEqual "./binary a_val -p b_val c0,c1,c2 9 0\t1\t2 --true"
+      paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions).toTry.get.head.commandString shouldEqual "./binary a_val -p b_val c0,c1,c2 9 0\t1\t2 --true"
     }
 
     s"instantiate command (2)" in {
@@ -94,7 +94,7 @@ class TaskSpec extends WdlTest {
         "param_test.e" -> WomArray(WomArrayType(WomIntegerType), Seq()),
         "param_test.f" -> WomBoolean.True
       )
-      paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions).toTry.get.commandString shouldEqual "./binary a_val -p b_val c0 1  --true"
+      paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions).toTry.get.head.commandString shouldEqual "./binary a_val -p b_val c0 1  --true"
     }
 
     s"instantiate command (3)" in {
@@ -106,7 +106,7 @@ class TaskSpec extends WdlTest {
         "param_test.e" -> WomArray(WomArrayType(WomIntegerType), Seq()),
         "param_test.f" -> WomBoolean.True
       )
-      paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions).toTry.get.commandString shouldEqual "./binary a_val -p b_val  1  --true"
+      paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions).toTry.get.head.commandString shouldEqual "./binary a_val -p b_val  1  --true"
     }
 
     s"fail to instantiate command if missing a required input" in {
@@ -145,7 +145,7 @@ class TaskSpec extends WdlTest {
           "u.i" -> WomString("b")
         )
       )
-      val command = callV.task.instantiateCommand(inputs, NoFunctions).toTry.get.commandString
+      val command = callV.task.instantiateCommand(inputs, NoFunctions).toTry.get.head.commandString
       command shouldBe
         """echo a
           |echo b

@@ -144,10 +144,9 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
   forAll(stringOrExpressionTests) { (index, expected) =>
     it should s"correctly identify the ${getTestName(expected)}" in {
       val argument: CommandLineTool.Argument = commandLineTool.arguments.get.apply(index)
-      val commandLineBinding: CommandLineBinding = argument.select[CommandLineBinding]
+      val commandLineBinding: ArgumentCommandLineBinding = argument.select[ArgumentCommandLineBinding]
         .getOrElse(fail(s"$argument wasn't a CommandLineBinding"))
       val stringOrExpression: StringOrExpression = commandLineBinding.valueFrom
-        .getOrElse(fail(s"valueFrom missing in $commandLineBinding"))
       stringOrExpression should be(expected)
     }
   }

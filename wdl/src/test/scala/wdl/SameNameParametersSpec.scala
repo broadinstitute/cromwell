@@ -23,6 +23,6 @@ class SameNameParametersSpec extends FlatSpec with Matchers {
 
   it should "instantiate the command with duplicated parameter names properly" in {
     val inputs = task.inputsFromMap(Map("test.x" -> WomString("foo")))
-    task.instantiateCommand(inputs, NoFunctions).toTry.get.commandString shouldEqual "./script foo foo foo"
+    task.instantiateCommand(inputs, NoFunctions).toTry.get.head.commandString shouldEqual "./script foo foo foo"
   }
 }

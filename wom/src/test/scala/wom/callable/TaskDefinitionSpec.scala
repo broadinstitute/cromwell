@@ -1,5 +1,6 @@
 package wom.callable
 
+import cats.syntax.validated._
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
 import wom.graph.{CallNode, GraphInputNode, LocalName, PortBasedGraphOutputNode}
@@ -63,7 +64,7 @@ object TaskDefinitionSpec {
 
   val noInputsOrOutputsTask = CallableTaskDefinition(
     name = "foo",
-    commandTemplate = Seq.empty,
+    commandTemplateBuilder = Function.const(Seq.empty.validNel),
     runtimeAttributes = null,
     meta = Map.empty,
     parameterMeta = Map.empty,
@@ -74,7 +75,7 @@ object TaskDefinitionSpec {
 
   val oneInputTask = CallableTaskDefinition(
     name = "foo",
-    commandTemplate = Seq.empty,
+    commandTemplateBuilder = Function.const(Seq.empty.validNel),
     runtimeAttributes = null,
     meta = Map.empty,
     parameterMeta = Map.empty,
@@ -85,7 +86,7 @@ object TaskDefinitionSpec {
 
   val oneOutputTask = CallableTaskDefinition(
     name = "foo",
-    commandTemplate = Seq.empty,
+    commandTemplateBuilder = Function.const(Seq.empty.validNel),
     runtimeAttributes = null,
     meta = Map.empty,
     parameterMeta = Map.empty,
@@ -96,7 +97,7 @@ object TaskDefinitionSpec {
   
   val duplicateFqns = CallableTaskDefinition(
     name = "foo",
-    commandTemplate = Seq.empty,
+    commandTemplateBuilder = Function.const(Seq.empty.validNel),
     runtimeAttributes = null,
     meta = Map.empty,
     parameterMeta = Map.empty,

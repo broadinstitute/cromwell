@@ -125,7 +125,7 @@ case class ValueEvaluator(override val lookup: String => WomValue, override val 
               case _ =>
                 evaluate(a.getAttribute("lhs")).flatMap {
                   case o: WomObjectLike =>
-                    o.value.get(rhs.getSourceString) match {
+                    o.values.get(rhs.getSourceString) match {
                       case Some(v:WomValue) => Success(v)
                       case None =>
                         o match {
@@ -160,7 +160,7 @@ case class ValueEvaluator(override val lookup: String => WomValue, override val 
                      * then 'foo' would evaluate to an Array[Objects] and foo.x would result in an
                      * Array[Int]
                      */
-                    Success(array map {_.asInstanceOf[WomObject].value.get(rhs.sourceString).get})
+                    Success(array map {_.asInstanceOf[WomObject].values.get(rhs.sourceString).get})
                   case p: WomPair =>
                     val identifier = rhs.getSourceString
                     if (identifier.equals("left")) Success(p.left)

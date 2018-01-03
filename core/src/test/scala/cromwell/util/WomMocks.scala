@@ -1,5 +1,6 @@
 package cromwell.util
 
+import cats.syntax.validated._
 import cromwell.core.CallOutputs
 import wom.RuntimeAttributes
 import wom.callable.Callable.OutputDefinition
@@ -10,7 +11,7 @@ import wom.types.{WomStringType, WomType}
 import wom.values.WomValue
 
 object WomMocks {
-  val EmptyTaskDefinition = CallableTaskDefinition("emptyTask", List.empty, RuntimeAttributes(Map.empty),
+  val EmptyTaskDefinition = CallableTaskDefinition("emptyTask", Function.const(List.empty.validNel), RuntimeAttributes(Map.empty),
     Map.empty, Map.empty, List.empty, List.empty, Set.empty)
 
   val EmptyWorkflowDefinition = mockWorkflowDefinition("emptyWorkflow")
@@ -28,7 +29,7 @@ object WomMocks {
   }
 
   def mockTaskDefinition(name: String) = {
-    CallableTaskDefinition(name, List.empty, RuntimeAttributes(Map.empty),
+    CallableTaskDefinition(name, Function.const(List.empty.validNel), RuntimeAttributes(Map.empty),
       Map.empty, Map.empty, List.empty, List.empty, Set.empty)
   }
   

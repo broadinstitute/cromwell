@@ -211,8 +211,8 @@ class WomValueBuilderSpec extends FlatSpec with Matchers with Mockito {
     val rebuiltObject = rebuiltValues.head._2
     rebuiltObject match {
       case o: WomObject =>
-        aMap.womType.coerceRawValue(o.value("a")) should be(Success(aMap))
-        bMap.womType.coerceRawValue(o.value("b")) should be(Success(bMap))
+        aMap.womType.coerceRawValue(o.values("a")) should be(Success(aMap))
+        bMap.womType.coerceRawValue(o.values("b")) should be(Success(bMap))
       case other => fail(s"Expected reconstruction to Object but got ${other.womType.toDisplayString}")
     }
   }

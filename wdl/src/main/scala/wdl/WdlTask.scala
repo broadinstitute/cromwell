@@ -116,16 +116,18 @@ case class WdlTask(name: String,
     */
   def instantiateCommand(taskInputs: EvaluatedTaskInputs,
                          functions: WdlFunctions[WomValue],
-                         valueMapper: WomValue => WomValue = identity): ErrorOr[InstantiatedCommand] = {
+                         valueMapper: WomValue => WomValue = identity): ErrorOr[List[InstantiatedCommand]] = {
 
     val mappedInputs = taskInputs.map({case (k, v) => k.unqualifiedName -> v})
     // `foldMap`: `map` over the elements of the `List[WdlCommandPart]`s, transforming each `WdlCommandPart` to an
     // `ErrorOr[InstantiatedCommand]`. Then fold the resulting `List[ErrorOr[InstantiatedCommand]]` into a single
     // `ErrorOr[InstantiatedCommand]`.
     import WdlTask.instantiatedCommandMonoid
-    val fullInstantiatedCommand: ErrorOr[InstantiatedCommand] = commandTemplate.toList.foldMap(_.instantiate(declarations, mappedInputs, functions, valueMapper))
+    val fullInstantiatedCommand: ErrorOr[InstantiatedCommand] = commandTemplate.toList
+      .flatTraverse(_.instantiate(declarations, mappedInputs, functions, valueMapper)).map(_.combineAll)
+    
     // `normalize` the instantiation (i.e. don't break Python code indentation)
-    fullInstantiatedCommand map { c => c.copy(commandString = StringUtil.normalize(c.commandString))}
+    fullInstantiatedCommand map { c => List(c.copy(commandString = StringUtil.normalize(c.commandString)))}
   }
 
   def commandTemplateString: String = StringUtil.normalize(commandTemplate.map(_.toString).mkString)
@@ -151,7 +153,7 @@ case class WdlTask(name: String,
 
   private def buildWomTaskDefinition: TaskDefinition = CallableTaskDefinition(
     name = name,
-    commandTemplate = commandTemplate,
+    commandTemplateBuilder = Function.const(commandTemplate.validNel),
     runtimeAttributes = runtimeAttributes.toWomRuntimeAttributes(this),
     meta = meta,
     parameterMeta = parameterMeta,

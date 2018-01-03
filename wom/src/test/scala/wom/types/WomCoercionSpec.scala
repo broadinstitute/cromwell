@@ -20,7 +20,8 @@ abstract class WomCoercionSpec(val goodCoercionTable: TableFor2[_ <: Any, WomVal
     it should s"Allow coercion from ${fromValue.displayString} (${fromValue.typeDisplayString}) to ${toValue.toWomString} (${toValue.womType.toDisplayString})" in {
       toValue.womType.coercionDefined(fromValue) should be(true)
       fromValue match {
-        case wv: WomValue => toValue.womType.isCoerceableFrom(wv.womType) should be(true)
+        case wv: WomValue => 
+          toValue.womType.isCoerceableFrom(wv.womType) should be(true)
         case _ => // can't test isCoerceableFrom for this fromValue
       }
     }

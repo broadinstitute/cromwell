@@ -12,5 +12,5 @@ case class StringCommandPart(literal: String) extends CommandPart {
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: (WomValue) => WomValue,
-                           runtimeEnvironment: RuntimeEnvironment): ErrorOr[InstantiatedCommand] = InstantiatedCommand(literal).validNel
+                           runtimeEnvironment: RuntimeEnvironment): ErrorOr[List[InstantiatedCommand]] = List(InstantiatedCommand(literal)).validNel
 }

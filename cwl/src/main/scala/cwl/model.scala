@@ -8,12 +8,14 @@ import shapeless.syntax.singleton._
 import cwl.LinkMergeMethod.LinkMergeMethod
 import cwl.WorkflowStepInput.InputSource
 import common.validation.ErrorOr.ErrorOr
+import cwl.CommandLineTool.{CommandBindingSortingKey, SortKeyAndCommandPart}
 import cwl.command.ParentName
 import io.circe.Json
 import wom.types.WomType
 import wom.graph.WomIdentifier
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.expression.ExposedExpressionNode
+import wom.values.WomValue
 
 case class WorkflowStepInput(
   id: String,
@@ -75,7 +77,7 @@ case class InputParameter(
                                CNil] = None,
                            streamable: Option[Boolean] = None,
                            doc: Option[String :+: Array[String] :+: CNil] = None,
-                           inputBinding: Option[CommandLineBinding] = None,
+                           inputBinding: Option[InputCommandLineBinding] = None,
                            default: Option[Json] = None, //can be of type "Any" which... sucks.
                            `type`: Option[MyriadInputType] = None) {
 
@@ -92,29 +94,61 @@ case class InputRecordField(
   name: String,
   `type`: MyriadInputType,
   doc: Option[String],
-  inputBinding: Option[CommandLineBinding],
+  inputBinding: Option[InputCommandLineBinding],
   label: Option[String])
 
 case class InputEnumSchema(
   symbols: Array[String],
   `type`: W.`"enum"`.T,
   label: Option[String],
-  inputBinding: Option[CommandLineBinding])
+  inputBinding: Option[InputCommandLineBinding])
 
 case class InputArraySchema(
   items: MyriadInputType,
   `type`: W.`"array"`.T = Witness("array").value,
   label: Option[String] = None,
-  inputBinding: Option[CommandLineBinding] = None)
+  inputBinding: Option[InputCommandLineBinding] = None)
 
-case class CommandLineBinding(
+trait CommandLineBinding {
+  def loadContents: Option[Boolean]
+  def position: Option[Int]
+  def prefix: Option[String]
+  def separate: Option[Boolean]
+  def itemSeparator: Option[String]
+  def optionalValueFrom: Option[StringOrExpression]
+  def shellQuote: Option[Boolean]
+  // position defaults to 0
+  def effectivePosition = position.getOrElse(0)
+  // separate defaults to true
+  def effectiveSeparate = separate.getOrElse(true)
+}
+
+case class InputCommandLineBinding(
                                loadContents: Option[Boolean] = None,
                                position: Option[Int] = None,
                                prefix: Option[String] = None,
-                               separate: Option[String] = None,
+                               separate: Option[Boolean] = None,
                                itemSeparator: Option[String] = None,
                                valueFrom: Option[StringOrExpression] = None,
-                               shellQuote: Option[Boolean] = None)
+                               shellQuote: Option[Boolean] = None) extends CommandLineBinding {
+  override val optionalValueFrom = valueFrom
+
+  def toCommandPart(sortingKey: CommandBindingSortingKey, boundValue: WomValue) = {
+    SortKeyAndCommandPart(sortingKey, InputCommandLineBindingCommandPart(this, boundValue))
+  }
+}
+
+// valueFrom is required for command line bindings in the argument section: http://www.commonwl.org/v1.0/CommandLineTool.html#CommandLineBinding
+case class ArgumentCommandLineBinding(
+                               valueFrom: StringOrExpression,
+                               loadContents: Option[Boolean] = None,
+                               position: Option[Int] = None,
+                               prefix: Option[String] = None,
+                               separate: Option[Boolean] = None,
+                               itemSeparator: Option[String] = None,
+                               shellQuote: Option[Boolean] = None) extends CommandLineBinding {
+  override val optionalValueFrom = Option(valueFrom)
+}
 
 case class WorkflowOutputParameter(
                                     id: String,

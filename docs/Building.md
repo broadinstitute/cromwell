@@ -4,7 +4,7 @@ If for some reason you require a non-release version of Cromwell or are developi
 features or fixes, the following are required to build Cromwell from source:
 
 * [Scala 2.12.2](http://www.scala-lang.org/news/2.12.1#scala-212-notes)
-* [SBT 0.13.12](https://github.com/sbt/sbt/releases/tag/v0.13.12)
+* [SBT 0.13.16](https://github.com/sbt/sbt/releases/tag/v0.13.16)
 * [Java 8](http://www.oracle.com/technetwork/java/javase/overview/java8-2100321.html)
 * [Git](https://git-scm.com/)
 

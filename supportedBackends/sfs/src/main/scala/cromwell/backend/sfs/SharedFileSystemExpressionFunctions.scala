@@ -11,9 +11,9 @@ import scala.concurrent.ExecutionContext
 object SharedFileSystemExpressionFunctions {
   def apply(jobPaths: JobPaths,
             pathBuilders: List[PathBuilder],
-            ioActorEndpoint: ActorRef,
+            ioActorProxy: ActorRef,
             ec: ExecutionContext): SharedFileSystemExpressionFunctions = {
-    new SharedFileSystemExpressionFunctions(pathBuilders, jobPaths.callContext, ioActorEndpoint, ec)
+    new SharedFileSystemExpressionFunctions(pathBuilders, jobPaths.callContext, ioActorProxy, ec)
   }
 }
 
@@ -22,9 +22,9 @@ class SharedFileSystemExpressionFunctions(standardParams: StandardExpressionFunc
 
   def this(pathBuilders: List[PathBuilder],
            callContext: CallContext,
-           ioActorEndpoint: ActorRef,
+           ioActorProxy: ActorRef,
            ec: ExecutionContext) = {
-    this(DefaultStandardExpressionFunctionsParams(pathBuilders, callContext, ioActorEndpoint, ec))
+    this(DefaultStandardExpressionFunctionsParams(pathBuilders, callContext, ioActorProxy, ec))
   }
 
   override def postMapping(path: Path) = {

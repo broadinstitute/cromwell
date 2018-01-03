@@ -25,13 +25,13 @@ object SparkJobExecutionActor {
 
   def props(jobDescriptor: BackendJobDescriptor,
             configurationDescriptor: BackendConfigurationDescriptor,
-            ioActorEndpoint: ActorRef): Props =
-    Props(new SparkJobExecutionActor(jobDescriptor, configurationDescriptor, ioActorEndpoint))
+            ioActorProxy: ActorRef): Props =
+    Props(new SparkJobExecutionActor(jobDescriptor, configurationDescriptor, ioActorProxy))
 }
 
 class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                              override val configurationDescriptor: BackendConfigurationDescriptor,
-                             ioActorEndpoint: ActorRef) extends BackendJobExecutionActor with SharedFileSystem {
+                             ioActorProxy: ActorRef) extends BackendJobExecutionActor with SharedFileSystem {
 
   import SparkJobExecutionActor._
 
@@ -62,7 +62,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private lazy val SubmitJobJson = "%s.json"
   private lazy val isClusterMode = isSparkClusterMode(sparkDeployMode, sparkMaster)
 
-  private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, DefaultPathBuilders, ioActorEndpoint, context.dispatcher)
+  private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, DefaultPathBuilders, ioActorProxy, context.dispatcher)
 
   private val executionResponse = Promise[BackendJobExecutionResponse]()
 

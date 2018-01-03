@@ -85,7 +85,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   lazy val TestableStandardExpressionFunctionsParams = new StandardExpressionFunctionsParams {
     override lazy val pathBuilders: List[PathBuilder] = List(mockPathBuilder)
     override lazy val callContext: CallContext = TestableCallContext
-    override val ioActorEndpoint: ActorRef = simpleIoActor
+    override val ioActorProxy: ActorRef = simpleIoActor
     override val executionContext = system.dispatcher
   }
 

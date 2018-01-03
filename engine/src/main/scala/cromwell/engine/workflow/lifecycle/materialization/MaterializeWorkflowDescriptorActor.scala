@@ -66,8 +66,8 @@ object MaterializeWorkflowDescriptorActor {
   private def cromwellBackends = CromwellBackends.instance.get
 
   def props(serviceRegistryActor: ActorRef, workflowId: WorkflowId, cromwellBackends: => CromwellBackends = cromwellBackends,
-            importLocalFilesystem: Boolean, ioActorEndpoint: ActorRef): Props = {
-    Props(new MaterializeWorkflowDescriptorActor(serviceRegistryActor, workflowId, cromwellBackends, importLocalFilesystem, ioActorEndpoint)).withDispatcher(EngineDispatcher)
+            importLocalFilesystem: Boolean, ioActorProxy: ActorRef): Props = {
+    Props(new MaterializeWorkflowDescriptorActor(serviceRegistryActor, workflowId, cromwellBackends, importLocalFilesystem, ioActorProxy)).withDispatcher(EngineDispatcher)
   }
 
   /*
@@ -140,7 +140,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                          val workflowIdForLogging: WorkflowId,
                                          cromwellBackends: => CromwellBackends,
                                          importLocalFilesystem: Boolean,
-                                         ioActorEndpoint: ActorRef) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, Unit] with LazyLogging with WorkflowLogging {
+                                         ioActorProxy: ActorRef) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, Unit] with LazyLogging with WorkflowLogging {
 
   import MaterializeWorkflowDescriptorActor._
 
@@ -158,7 +158,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       workflowOptionsAndPathBuilders(workflowSourceFiles) match {
         case Valid((workflowOptions, pathBuilders)) =>
           val futureDescriptor: Future[ErrorOr[EngineWorkflowDescriptor]] = pathBuilders flatMap { pb =>
-            val engineIoFunctions = new EngineIoFunctions(pb, new AsyncIo(ioActorEndpoint, GcsBatchCommandBuilder), iOExecutionContext)
+            val engineIoFunctions = new EngineIoFunctions(pb, new AsyncIo(ioActorProxy, GcsBatchCommandBuilder), iOExecutionContext)
             buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf, workflowOptions, pb, engineIoFunctions).
               value.
               unsafeToFuture().

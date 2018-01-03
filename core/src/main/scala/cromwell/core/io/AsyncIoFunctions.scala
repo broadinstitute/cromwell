@@ -6,7 +6,7 @@ import scala.concurrent.ExecutionContext
 
 trait AsyncIoFunctions { this: IoFunctionSet =>
   /**
-    * Used to perform io functions asynchronously through the IoActorEndpoint
+    * Used to perform io functions asynchronously through the ioActorProxy
     */
   def asyncIo: AsyncIo
 

@@ -7,11 +7,11 @@ import cromwell.core.io.IoPromiseProxyActor.IoCommandWithPromise
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
-object IoActorEndpoint {
-  def props(ioActor: ActorRef) = Props(new IoActorEndpoint(ioActor))
+object IoActorProxy {
+  def props(ioActor: ActorRef) = Props(new IoActorProxy(ioActor))
 }
 
-class IoActorEndpoint(ioActor: ActorRef) extends Actor with ActorLogging with GracefulShutdownHelper {
+class IoActorProxy(ioActor: ActorRef) extends Actor with ActorLogging with GracefulShutdownHelper {
   private val ioPromiseProxyActor: ActorRef = context.actorOf(IoPromiseProxyActor.props(ioActor), "IoPromiseProxyActor")
 
   override def receive = {

@@ -54,7 +54,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
     val copies = outputFilePaths map {
       case (srcPath, dstPath) => 
         dstPath.createDirectories()
-        copyAsync(srcPath, dstPath)
+        asyncIo.copyAsync(srcPath, dstPath)
     }
     
     Future.sequence(copies)

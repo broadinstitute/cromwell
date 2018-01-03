@@ -82,7 +82,7 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
   } yield JesBackendInitializationData(jesWorkflowPaths, runtimeAttributesBuilder, jesConfiguration, gcsCreds, genomicsFactory)
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
-    def fileUpload(paths: JesWorkflowPaths) = existsAsync(paths.gcsAuthFilePath) flatMap {
+    def fileUpload(paths: JesWorkflowPaths) = asyncIo.existsAsync(paths.gcsAuthFilePath) flatMap {
       // if we aren't restarting then something is definitely wrong
       case true if !jesParams.restarting =>
         Future.failed(AuthFileAlreadyExistsException(paths.gcsAuthFilePath))
@@ -113,7 +113,7 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
       val path = workflowPath.gcsAuthFilePath
       workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n $path")
       val openOptions = List(CloudStorageOptions.withMimeType("application/json"))
-      writeAsync(path, content, openOptions)
+      asyncIo.writeAsync(path, content, openOptions)
     } getOrElse Future.successful(())
   }
 

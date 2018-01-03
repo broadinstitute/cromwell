@@ -16,14 +16,14 @@ trait StandardExpressionFunctionsParams {
 
   def callContext: CallContext
 
-  def ioActorEndpoint: ActorRef
+  def ioActorProxy: ActorRef
   
   def executionContext: ExecutionContext
 }
 
 case class DefaultStandardExpressionFunctionsParams(override val pathBuilders: List[PathBuilder],
                                                     override val callContext: CallContext,
-                                                    override val ioActorEndpoint: ActorRef,
+                                                    override val ioActorProxy: ActorRef,
                                                     override val executionContext: ExecutionContext
                                                    ) extends StandardExpressionFunctionsParams
 
@@ -35,7 +35,7 @@ class StandardExpressionFunctions(val standardParams: StandardExpressionFunction
   
   protected lazy val ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
 
-  override lazy val asyncIo = new AsyncIo(standardParams.ioActorEndpoint, ioCommandBuilder)
+  override lazy val asyncIo = new AsyncIo(standardParams.ioActorProxy, ioCommandBuilder)
 
   override val pathBuilders: List[PathBuilder] = standardParams.pathBuilders
 

@@ -719,10 +719,10 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       lazy val stderrAsOption: Option[Path] = Option(jobPaths.stderr)
 
       val stderrSizeAndReturnCode = for {
-        returnCodeAsString <- contentAsStringAsync(jobPaths.returnCode)
+        returnCodeAsString <- asyncIo.contentAsStringAsync(jobPaths.returnCode)
         // Only check stderr size if we need to, otherwise this results in a lot of unnecessary I/O that
         // may fail due to race conditions on quickly-executing jobs.
-        stderrSize <- if (failOnStdErr) sizeAsync(jobPaths.stderr) else Future.successful(0L)
+        stderrSize <- if (failOnStdErr) asyncIo.sizeAsync(jobPaths.stderr) else Future.successful(0L)
       } yield (stderrSize, returnCodeAsString)
 
       stderrSizeAndReturnCode flatMap {

@@ -22,7 +22,7 @@ trait WorkflowDescriptorBuilder {
     implicit val ec = actorSystem.dispatcher
 
     val serviceRegistryIgnorer = actorSystem.actorOf(Props.empty)
-    val actor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryIgnorer, id, importLocalFilesystem = false, ioActorEndpoint = ioActor), "MaterializeWorkflowDescriptorActor-" + id.id)
+    val actor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryIgnorer, id, importLocalFilesystem = false, ioActorProxy = ioActor), "MaterializeWorkflowDescriptorActor-" + id.id)
     val workflowDescriptorFuture = actor.ask(
       MaterializeWorkflowDescriptorCommand(workflowSources, ConfigFactory.load)
     ).mapTo[WorkflowDescriptorMaterializationResult]

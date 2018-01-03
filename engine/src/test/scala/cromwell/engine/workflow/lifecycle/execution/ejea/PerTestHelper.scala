@@ -96,7 +96,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
     override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                              jobKey: BackendJobDescriptorKey,
                                              initializationData: Option[BackendInitializationData],
-                                             ioActorEndpoint: ActorRef,
+                                             ioActorProxy: ActorRef,
                                              ec: ExecutionContext): IoFunctionSet = {
       NoIoFunctionSet
     }

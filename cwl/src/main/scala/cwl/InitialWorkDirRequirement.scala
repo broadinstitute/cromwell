@@ -44,6 +44,8 @@ final case class StringDirent(
 
 object InitialWorkDirRequirement {
 
+  // "ExpressionDirent" has to come before StringDirent because expressions are matched by "String" first if we do it the
+  // other way round.
   final type IwdrListingArrayEntry = File :+: Directory :+: ExpressionDirent :+: StringDirent :+: StringOrExpression :+: CNil
   final type IwdrListing = Array[IwdrListingArrayEntry] :+: StringOrExpression :+: CNil
 

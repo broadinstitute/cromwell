@@ -12,7 +12,6 @@ case class BcsBackendLifecycleActorFactory(val name: String, val configurationDe
 
   override def jobIdKey: String = BcsAsyncBackendJobExecutionActor.JobIdKey
 
-
   val bcsConfiguration = new BcsConfiguration(configurationDescriptor)
 
   override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[TaskCallNode], serviceRegistryActor: ActorRef, restarting: Boolean): StandardInitializationActorParams = {

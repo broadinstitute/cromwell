@@ -61,7 +61,7 @@ final class IoActor(queueSize: Int,
     val input = builder.add(Flow[IoCommandContext[_]])
     
     // Partitions requests between gcs batch, and single nio requests
-    val batchPartitioner = builder.add(Partition[IoCommandContext[_]](2, {
+    val batchPartitioner = builder.add(Partition[IoCommandContext[_]](3, {
       case _: OssCommandContext[_] => 0
       case _: GcsBatchCommandContext[_, _] => 1
       case _ => 2

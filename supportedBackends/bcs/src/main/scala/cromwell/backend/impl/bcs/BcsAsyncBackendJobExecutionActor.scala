@@ -17,7 +17,6 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import cromwell.core.path.{DefaultPathBuilder, Path, PathFactory}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
-import wom.WomFileMapper
 import wom.callable.Callable.OutputDefinition
 import wom.core.FullyQualifiedName
 import wom.types.WomSingleFileType
@@ -179,18 +178,28 @@ class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         mount.dest.pathAsString
       }
     }
+  }
 
+  private[bcs] def relativeOutputPath(path: Path): String = {
+    if (isOutputOssFileString(path.pathAsString)) {
+      bcsJobPaths.callRoot.resolve(path.pathAsString).pathAsString
+    } else {
+      path.pathAsString
+    }
   }
 
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
     getPath(womFile.valueString) match {
       case Success(ossPath: OssPath) =>
         WomFile(WomSingleFileType, localizeOssPath(ossPath))
+      case Success(path: Path) if !path.isAbsolute =>
+        WomFile(WomSingleFileType, relativeOutputPath(path))
       case _ => womFile
     }
   }
 
 
+  /*
   override lazy val commandLineValueMapper: WomValue => WomValue = {
       case str: WomString => getPath(str.valueString) match {
         case Success(ossPath: OssPath) => WomString(localizeOssPath(ossPath))
@@ -198,6 +207,7 @@ class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       }
       case wdlValue => WomFileMapper.mapWomFiles(mapCommandLineWomFile)(wdlValue).get
   }
+  */
 
 
   override def isTerminal(runStatus: RunStatus): Boolean = {

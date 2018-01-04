@@ -151,10 +151,11 @@ class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   private def generateBcsSingleFileOutput(wdlFile: WomSingleFile): BcsOutputMount = {
     val destination = getPath(wdlFile.valueString) match {
       case Success(ossPath: OssPath) => ossPath
+      case Success(path: Path) if !path.isAbsolute => relativeOutputPath(path)
       case _ => callRootPath.resolve(wdlFile.value.stripPrefix("/"))
     }
 
-    val src = relativePath(mapCommandLineWomFile(wdlFile).valueString)
+    val src = relativePath(wdlFile.valueString)
 
     BcsOutputMount(src, destination, false)
   }
@@ -180,11 +181,11 @@ class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
-  private[bcs] def relativeOutputPath(path: Path): String = {
+  private[bcs] def relativeOutputPath(path: Path): Path = {
     if (isOutputOssFileString(path.pathAsString)) {
-      bcsJobPaths.callRoot.resolve(path.pathAsString).pathAsString
+      bcsJobPaths.callRoot.resolve(path.pathAsString)
     } else {
-      path.pathAsString
+      path
     }
   }
 
@@ -193,7 +194,7 @@ class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       case Success(ossPath: OssPath) =>
         WomFile(WomSingleFileType, localizeOssPath(ossPath))
       case Success(path: Path) if !path.isAbsolute =>
-        WomFile(WomSingleFileType, relativeOutputPath(path))
+        WomFile(WomSingleFileType, relativeOutputPath(path).pathAsString)
       case _ => womFile
     }
   }

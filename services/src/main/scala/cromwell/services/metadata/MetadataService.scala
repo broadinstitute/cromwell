@@ -19,7 +19,7 @@ object MetadataService {
 
   final case class WorkflowQueryResult(id: String, name: Option[String], status: Option[String], start: Option[OffsetDateTime], end: Option[OffsetDateTime], labels: Option[Map[String, String]], parentWorkflowId: Option[String])
 
-  final case class WorkflowQueryResponse(results: Seq[WorkflowQueryResult])
+  final case class WorkflowQueryResponse(results: Seq[WorkflowQueryResult], totalResultsCount: Int)
 
   final case class QueryMetadata(page: Option[Int], pageSize: Option[Int], totalRecords: Option[Int])
 

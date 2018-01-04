@@ -1,5 +1,9 @@
 # Cromwell Change Log
 
+## 30.1 Release Notes
+
+* A set of bug fixes following the migration of Cromwell to WOM (the Workflow Object Model) in version 30.
+
 ## 30 Release Notes
 
 ### Breaking changes

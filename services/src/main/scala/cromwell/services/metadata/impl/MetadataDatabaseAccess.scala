@@ -180,7 +180,7 @@ trait MetadataDatabaseAccess {
       queryParameters.startDate.map(_.toSystemTimestamp), queryParameters.endDate.map(_.toSystemTimestamp),
       queryParameters.page, queryParameters.pageSize)
 
-    val workflowSummaryCount = metadataDatabaseInterface.countWorkflowSummaries(
+    val workflowSummaryCount: Future[Int] = metadataDatabaseInterface.countWorkflowSummaries(
       queryParameters.statuses, queryParameters.names, queryParameters.ids.map(_.toString), queryParameters.labels.map(label => (label.key, label.value)),
       queryParameters.startDate.map(_.toSystemTimestamp), queryParameters.endDate.map(_.toSystemTimestamp))
 
@@ -236,7 +236,7 @@ trait MetadataDatabaseAccess {
       count <- workflowSummaryCount
       workflows <- workflowSummaries
       queryResults <- summariesToQueryResults(workflows)
-    } yield (WorkflowQueryResponse(queryResults.toSeq), queryMetadata(count))
+    } yield (WorkflowQueryResponse(queryResults.toSeq, count), queryMetadata(count))
 
   }
 }

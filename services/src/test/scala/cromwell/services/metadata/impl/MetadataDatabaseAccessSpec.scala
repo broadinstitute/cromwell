@@ -23,6 +23,7 @@ object MetadataDatabaseAccessSpec {
 
   val Workflow1Name = "test1"
   val Workflow2Name = "test2"
+  val Workflow3Name = "test3"
 }
 
 class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
@@ -93,7 +94,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         }
       } yield()).futureValue
     }
-    
+
     it should "sort metadata events by timestamp from older to newer" taggedAs DbmsTest in {
       def unorderedEvents(id: WorkflowId): Future[Vector[MetadataEvent]] = {
         val workflowKey = MetadataKey(id, jobKey = None, key = null)
@@ -111,7 +112,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         
         dataAccess.addMetadataEvents(events) map { _ => expectedEvents }
       }
-      
+
       (for {
         workflow1Id <- baseWorkflowMetadata(Workflow1Name)
         expected <- unorderedEvents(workflow1Id)
@@ -247,6 +248,28 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
           }
         }
       } yield ()).futureValue(Timeout(scaled(Span(30, Seconds))), Interval(scaled(Span(500, Millis))))
+    }
+
+    it should "return totalResultsCount when page and pagesize query params are specified" taggedAs DbmsTest in {
+      (for {
+        _ <- baseWorkflowMetadata(Workflow3Name)
+        _ <- baseWorkflowMetadata(Workflow3Name)
+        // refresh the metadata
+        _ <- dataAccess.refreshWorkflowMetadataSummaries() map { max =>
+          max should be > 0L
+        }
+        //get totalResultsCount when page and pagesize are specified
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
+          // name being added to the query parameters so as to exclude workflows being populated by the other tests in this spec
+          WorkflowQueryKey.Name.name -> Workflow3Name,
+          WorkflowQueryKey.Page.name -> "1", WorkflowQueryKey.PageSize.name -> "1"))) map { case (resp, _) =>
+          resp.totalResultsCount match {
+            case 2 =>
+            case 1 => fail("totalResultsCount is suspiciously equal to the pageSize and not the expected total results count. Please fix!")
+            case other => fail(s"totalResultsCount is expected to be 2 but is actually $other. Something has gone horribly wrong!")
+          }
+        }
+      } yield()).futureValue
     }
 
     it should "close the database" taggedAs DbmsTest in {

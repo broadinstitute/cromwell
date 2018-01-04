@@ -15,6 +15,8 @@ class EngineIoFunctions(val pathBuilders: List[PathBuilder], override val asyncI
   override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = fail("stderr")
   override def glob(pattern: String): Future[Seq[String]] = throw new NotImplementedError(s"glob(path, pattern) not implemented yet")
 
-  // Cromwell does not support writing files from the engine.
-  override def writeFile(path: String, content: String): Future[WomFile] = Future.failed(new Exception("Can't write files"))
+  override def writeFile(path: String, content: String): Future[WomFile] =
+    Future.failed(new Exception("Cromwell does not support writing files from a workflow context"))
+  override def copyFile(pathFrom: String, targetName: String): Future[WomFile] =
+    Future.failed(new Exception("Cromwell does not support copying files from a workflow context"))
 }

@@ -32,6 +32,7 @@ final case class ValueAsAnExpression(value: WomValue) extends WomExpression {
 trait IoFunctionSet {
   def readFile(path: String): Future[String]
   def writeFile(path: String, content: String): Future[WomFile]
+  def copyFile(pathFrom: String, targetName: String): Future[WomFile]
   def stdout(params: Seq[Try[WomValue]]): Try[WomFile]
   def stderr(params: Seq[Try[WomValue]]): Try[WomFile]
   def glob(pattern: String): Future[Seq[String]]

@@ -12,7 +12,8 @@ import cromwell.services.metadata.MetadataService.{MetadataWriteFailure, Metadat
 import net.ceedubs.ficus.Ficus._
 import org.broadinstitute.dsde.workbench.google.{GooglePubSubDAO, HttpGooglePubSubDAO}
 import spray.json._
-
+import cats.instances.future._
+import cats.syntax.functor._
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
@@ -90,7 +91,7 @@ class PubSubMetadataServiceActor(serviceConfig: Config, globalConfig: Config) ex
     */
   private def createTopicAndSubscription(): Future[Unit] = {
     log.info("Ensuring topic " + pubSubTopicName + " exists")
-    pubSubConnection.createTopic(pubSubTopicName) map { _ => createSubscription() } map { _ => () }
+    pubSubConnection.createTopic(pubSubTopicName).flatMap(_ => createSubscription()).void
   }
 
   /**
@@ -102,7 +103,7 @@ class PubSubMetadataServiceActor(serviceConfig: Config, globalConfig: Config) ex
     pubSubSubscriptionName match {
       case Some(name) =>
         log.info("Creating subscription " + name)
-        pubSubConnection.createSubscription(pubSubTopicName, name) map { _ => () }
+        pubSubConnection.createSubscription(pubSubTopicName, name).void
       case None =>
         log.info("Not creating a subscription")
         Future.successful(())

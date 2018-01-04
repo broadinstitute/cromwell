@@ -8,8 +8,10 @@ import org.mockito.Mockito._
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+import org.scalatest.mockito.MockitoSugar
 
-object OssStorageObjectAttributesSpec {
+
+object OssStorageObjectAttributesSpec extends MockitoSugar{
   val DEFAULT_BUCKET = "bcs-bucket"
 
   val DEFAULT_FILE_NAME = "/bcs-dir/bcs-file"
@@ -31,13 +33,6 @@ object OssStorageObjectAttributesSpec {
   val DEFAULT_CONTENT_ENCODING = None.orNull
 
   val DEFAULT_CONTENT_TYPE = "application/x-msdownload"
-}
-
-class OssStorageObjectAttributesSpec extends TestKitSuite with OssNioUtilSpec {
-
-  behavior of s"OssStorageObjectAttributes"
-
-  import OssStorageObjectAttributesSpec._
 
   def getObjectMeta = {
     val meta = mock[ObjectMetadata]
@@ -53,7 +48,13 @@ class OssStorageObjectAttributesSpec extends TestKitSuite with OssNioUtilSpec {
 
     meta
   }
+}
 
+class OssStorageObjectAttributesSpec extends TestKitSuite with OssNioUtilSpec {
+
+  behavior of s"OssStorageObjectAttributes"
+
+  import OssStorageObjectAttributesSpec._
 
   def getObject = {
     OssStoragePath.getPath(mockFileSystem, fileName)
@@ -61,7 +62,6 @@ class OssStorageObjectAttributesSpec extends TestKitSuite with OssNioUtilSpec {
 
   def getDir = {
     OssStoragePath.getPath(mockFileSystem, "/bcs-dir/")
-
   }
 
   "an oss object attr" should "be an right" in {

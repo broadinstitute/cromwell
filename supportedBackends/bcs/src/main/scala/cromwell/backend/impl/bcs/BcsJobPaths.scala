@@ -5,13 +5,13 @@ import cromwell.backend.io.JobPaths
 import cromwell.core.path.{DefaultPathBuilder, Path}
 
 object BcsJobPaths {
-    val BcsLogPathKey = "bcsLog"
-    val BcsEnvExecKey = "exec"
-	  val BcsEnvCwdKey = "cwd"
-	  val BcsEnvStdoutKey = "stdout"
-	  val BcsEnvStderrKey = "stderr"
-	  val BcsCommandDirectory: Path = DefaultPathBuilder.get("/cromwell_root")
-		val BcsTempInputDirectory: Path = DefaultPathBuilder.get("/cromwell_inputs")
+	val BcsLogPathKey = "bcsLog"
+	val BcsEnvExecKey = "exec"
+	val BcsEnvCwdKey = "cwd"
+	val BcsEnvStdoutKey = "stdout"
+	val BcsEnvStderrKey = "stderr"
+	val BcsCommandDirectory: Path = DefaultPathBuilder.get("/cromwell_root")
+	val BcsTempInputDirectory: Path = DefaultPathBuilder.get("/cromwell_inputs")
 }
 
 final case class BcsJobPaths(workflowPaths: BcsWorkflowPaths, jobKey: BackendJobDescriptorKey) extends JobPaths {

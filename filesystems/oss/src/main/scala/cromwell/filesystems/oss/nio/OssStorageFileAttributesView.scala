@@ -14,7 +14,7 @@ case class OssStorageFileAttributesView(ossClient: OSSClient, path: OssStoragePa
     val ossPath = OssStoragePath.checkPath(path)
 
     if (ossPath.seemsLikeDirectory) {
-      return new OssStorageDirectoryAttributes(path)
+      return OssStorageDirectoryAttributes(path)
     }
 
     if (!ossClient.doesObjectExist(ossPath.bucket, ossPath.key)) {

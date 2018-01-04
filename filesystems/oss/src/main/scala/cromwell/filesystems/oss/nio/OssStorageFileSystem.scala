@@ -9,7 +9,6 @@ import java.{lang, util}
 import com.aliyun.oss.OSSClient
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.Map
 
 
 object OssStorageFileSystem {
@@ -77,8 +76,8 @@ case class OssStorageConfiguration(endpoint: String,
 
   def toMap: Map[String, String] = {
     val ret = Map(ENDPOINT_KEY -> endpoint, ACCESS_ID_KEY -> accessId, ACCESS_KEY_KEY -> accessKey)
-    stsToken map {token => ret += (SECURITY_TOKEN_KEY -> token)}
-    ret
+    val token = stsToken map {token => SECURITY_TOKEN_KEY -> token}
+    ret ++ token
   }
 
   def newOssClient() = {

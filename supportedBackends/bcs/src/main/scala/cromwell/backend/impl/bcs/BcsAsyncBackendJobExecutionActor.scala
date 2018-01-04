@@ -2,6 +2,7 @@ package cromwell.backend.impl.bcs
 
 import java.io.FileNotFoundException
 
+import better.files.File.OpenOptions
 import com.aliyuncs.batchcompute.main.v20151111.BatchComputeClient
 import com.aliyuncs.exceptions.{ClientException, ServerException}
 import cromwell.backend._
@@ -9,7 +10,7 @@ import cromwell.backend.async.{ExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.bcs.RunStatus.{Finished, TerminalRunStatus}
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.{ExecutionEvent, NoIoFunctionSet}
-import cromwell.filesystems.oss.{OssPath, UploadFileOption, UploadStringOption}
+import cromwell.filesystems.oss.{OssPath, UploadStringOption}
 import cromwell.core.retry.SimpleExponentialBackoff
 
 import scala.collection.mutable.ArrayBuffer
@@ -45,8 +46,9 @@ class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override lazy val dockerImageUsed: Option[String] = runtimeAttributes.docker map {docker => docker.image}
   override lazy val commandDirectory: Path = BcsJobPaths.BcsCommandDirectory.resolve(bcsJobPaths.callExecutionRoot.pathWithoutScheme)
 
-  private[bcs] lazy val jobName: String = s"cromwell_${jobDescriptor.workflowDescriptor.id.shortString}_${jobDescriptor.taskCall.identifier.localName.value}"
-  println(jobName)
+  private[bcs] lazy val userTag = runtimeAttributes.tag.getOrElse("cromwell")
+  private[bcs] lazy val jobName: String = s"${userTag}_${jobDescriptor.workflowDescriptor.id.shortString}_${jobDescriptor.taskCall.identifier.localName.value}"
+
   override lazy val jobTag: String = jobDescriptor.key.tag
 
   private lazy val bcsWorkflowInputMount: BcsMount = bcsWorkflowPaths.getWorkflowInputMounts
@@ -60,7 +62,6 @@ class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     val ret = BcsInputMount(ossPath, local, writeSupport = false)
     if (!inputMounts.exists(mount => mount.src == ossPath && mount.dest == local)) {
       inputMounts += ret
-      println(inputMounts)
     }
 
     ret
@@ -131,7 +132,6 @@ class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   private[bcs] def isOutputOssFileString(s: String): Boolean = {
-    println(callRawOutputFiles)
     callRawOutputFiles.exists({
       case file: WomSingleFile if file.value == s => true
       case _ => false
@@ -233,24 +233,24 @@ class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   private[bcs] lazy val  stderrBcsOutput = new BcsOutputMount(commandDirectory.resolve(bcsJobPaths.stderrFilename), bcsJobPaths.stderr, false)
 
   private[bcs] lazy val uploadBcsWorkerPackage = {
-    runtimeAttributes.workerPath match {
-      case Some(pathAsString: String) =>
-        getPath(pathAsString) match {
-          case Success(ossPath: OssPath) =>
-            if (ossPath.notExists) {
-              throw new FileNotFoundException(s"$pathAsString")
-            }
-            ossPath
-          case Success(path: Path) =>
-            if (bcsJobPaths.workerPath.notExists) {
-              writeAsync(bcsJobPaths.workerPath, path.pathAsString, Seq(UploadFileOption))
-            }
-            bcsJobPaths.workerPath
-          case _ => throw new RuntimeException(s"Invalid worker packer path: $pathAsString")
+    getPath(runtimeAttributes.workerPath.getOrElse(bcsJobPaths.workerFileName)) match {
+      case Success(ossPath: OssPath) =>
+        if (ossPath.notExists) {
+          throw new FileNotFoundException(s"$ossPath")
         }
-      case None =>
-        writeAsync(bcsJobPaths.workerPath, bcsJobPaths.workerFileName, Seq(UploadFileOption))
+        ossPath
+      case Success(path: Path) =>
+        if (path.notExists) {
+          throw new FileNotFoundException(s"$path")
+        }
+
+        if (bcsJobPaths.workerPath.notExists) {
+          val content = path.byteArray
+          bcsJobPaths.workerPath.writeByteArray(content)(OpenOptions.default)
+        }
+
         bcsJobPaths.workerPath
+      case _ => throw new RuntimeException(s"Invalid worker packer path")
     }
   }
 

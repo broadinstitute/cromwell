@@ -298,10 +298,6 @@ case class OssStorageFileSystemProvider(config: OssStorageConfiguration) extends
       () => ossClient.listObjects(listRequest)
     )
 
-    if (listResult.getObjectSummaries.iterator().hasNext) {
-      true
-    } else {
-      false
-    }
+    listResult.getObjectSummaries.iterator().hasNext
   }
 }

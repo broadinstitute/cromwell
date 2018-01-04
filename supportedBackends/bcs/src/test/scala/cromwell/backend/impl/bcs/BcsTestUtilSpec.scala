@@ -34,6 +34,7 @@ object BcsTestUtilSpec {
       |  dataDisk: "cloud 250 /home/data/"
       |  timeout: 3000
       |  vpc: "192.168.0.0/16 vpc-xxxx"
+      |  tag: "jobTag"
       |}
     """.stripMargin
 

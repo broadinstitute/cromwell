@@ -40,7 +40,7 @@ object BcsClusterIdOrConfiguration {
       case instanceAndImagePattern(instanceType, imageId) => Success(Right(AutoClusterConfiguration(defaultResourceType, instanceType, imageId)))
       case resourceAndInstanceAndImagePattern(resourceType, instanceType, imageId) => Success(Right(AutoClusterConfiguration(resourceType, instanceType, imageId)))
       case spotPattern(resourceType, instanceType, imageId, spotStrategy, spotPriceLimit) => Success(Right(AutoClusterConfiguration(resourceType, instanceType, imageId, Some(spotStrategy), Some(spotPriceLimit.toFloat))))
-      case _ => Failure(new IllegalArgumentException("must be some string kike 'cls-xxxx' or 'OnDemand ecs.s1.large img-ubuntu'"))
+      case _ => Failure(new IllegalArgumentException("must be some string like 'cls-xxxx' or 'OnDemand ecs.s1.large img-ubuntu'"))
     }
   }
 }

@@ -22,7 +22,7 @@ object OssNioUtilSpec {
     "endpoint" -> "",
     "access-id" -> "",
     "access-key" -> "",
-    "bucket" -> ""
+    "bucket" -> DEFAULT_BUCKET
   )
 }
 

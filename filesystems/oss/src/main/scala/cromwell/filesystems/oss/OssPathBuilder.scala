@@ -43,7 +43,7 @@ object OssPathBuilder {
     def errorMessage = s"OSS URIs must have 'oss' scheme: $pathString"
   }
 
-  final case class InvalidFullGcsPath(pathString: String) extends InvalidOssPath {
+  final case class InvalidFullOssPath(pathString: String) extends InvalidOssPath {
     def errorMessage = {
       s"""
          |The path '$pathString' does not seem to be a valid OSS path.
@@ -68,7 +68,7 @@ object OssPathBuilder {
       if (uri.getScheme == null) PossiblyValidRelativeOssPath
       else if (uri.getScheme.equalsIgnoreCase(URI_SCHEME)) {
         if (uri.getHost == null) {
-          softBucketParsing(string) map { ValidFullOssPath(_, uri.getPath) } getOrElse InvalidFullGcsPath(string)
+          softBucketParsing(string) map { ValidFullOssPath(_, uri.getPath) } getOrElse InvalidFullOssPath(string)
         } else ValidFullOssPath(uri.getHost, uri.getPath)
       } else InvalidScheme(string)
     } recover { case t => UnparseableOssPath(string, t) } get

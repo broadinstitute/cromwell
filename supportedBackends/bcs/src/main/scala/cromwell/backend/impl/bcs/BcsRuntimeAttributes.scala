@@ -40,7 +40,8 @@ case class BcsRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
                                 workerPath: Option[String],
                                 timeout: Option[Int],
                                 verbose: Option[Boolean],
-                                vpc: Option[BcsVpcConfiguration])
+                                vpc: Option[BcsVpcConfiguration],
+                                tag: Option[String])
 
 object BcsRuntimeAttributes {
 
@@ -59,6 +60,7 @@ object BcsRuntimeAttributes {
   val SystemDiskKey = "systemDisk"
   val DataDiskKey = "dataDisk"
   val VpcKey = "vpc"
+  val TagKey = "tag"
 
   private def failOnStderrValidation(runtimeConfig: Option[Config]) = FailOnStderrValidation.default(runtimeConfig)
 
@@ -86,6 +88,8 @@ object BcsRuntimeAttributes {
 
   private def vpcValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[BcsVpcConfiguration] = VpcValidation.optionalWithDefault(runtimeConfig)
 
+  private def tagValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = TagValidation.optionalWithDefault(runtimeConfig)
+
   def runtimeAttributesBuilder(backendRuntimeConfig: Option[Config]): StandardValidatedRuntimeAttributesBuilder =
     StandardValidatedRuntimeAttributesBuilder.default(backendRuntimeConfig).withValidation(
       mountsValidation(backendRuntimeConfig),
@@ -99,7 +103,8 @@ object BcsRuntimeAttributes {
       workerPathValidation(backendRuntimeConfig),
       timeoutValidation(backendRuntimeConfig),
       verboseValidation(backendRuntimeConfig),
-      vpcValidation(backendRuntimeConfig)
+      vpcValidation(backendRuntimeConfig),
+      tagValidation(backendRuntimeConfig)
     )
 
   def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, backendRuntimeConfig: Option[Config]): BcsRuntimeAttributes = {
@@ -121,6 +126,7 @@ object BcsRuntimeAttributes {
     val timeout: Option[Int] = RuntimeAttributesValidation.extractOption(timeoutValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
     val verbose: Option[Boolean] = RuntimeAttributesValidation.extractOption(verboseValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
     val vpc: Option[BcsVpcConfiguration] = RuntimeAttributesValidation.extractOption(vpcValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    val tag: Option[String] = RuntimeAttributesValidation.extractOption(tagValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
 
     new BcsRuntimeAttributes(
       continueOnReturnCode,
@@ -136,7 +142,8 @@ object BcsRuntimeAttributes {
       workerPath,
       timeout,
       verbose,
-      vpc
+      vpc,
+      tag
     )
   }
 }
@@ -236,6 +243,8 @@ class WorkerPathValidation(override val config: Option[Config]) extends StringRu
     case WomString(value) => value.validNel
   }
 }
+
+
 
 object ReserveOnFailValidation {
   def optionalWithDefault(config: Option[Config]): OptionalRuntimeAttributesValidation[Boolean] = new ReserveOnFailValidation(config).optional
@@ -343,3 +352,10 @@ class VpcValidation(override val config: Option[Config]) extends RuntimeAttribut
     }
   }
 }
+
+object TagValidation {
+  def optionalWithDefault(config: Option[Config]): OptionalRuntimeAttributesValidation[String] = new TagValidation(config).optional
+}
+
+class TagValidation(override val config: Option[Config]) extends StringRuntimeAttributesValidation("tag") with OptionalWithDefault[String]
+

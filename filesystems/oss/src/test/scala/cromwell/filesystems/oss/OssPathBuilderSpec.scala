@@ -24,7 +24,7 @@ class OssPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
     testPathBuiler.build(s"oss://$bucket").success.value.key shouldBe empty
   }
 
-  it should "start with spearator when path specified" in {
+  it should "start with separator when path specified" in {
     val path = testPathBuiler.build(s"oss://$bucket$fileName").success.value
     path.bucket shouldBe bucket
     path.nioPath.toString shouldBe fileName

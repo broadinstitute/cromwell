@@ -6,9 +6,6 @@ import cromwell.core.path.PathBuilderFactory
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object OssPathBuilderFactory {
-}
-
 case class OssPathBuilderFactory(endpoint: String,
                                  accessId: String,
                                  accessKey: String,

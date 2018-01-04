@@ -4,6 +4,11 @@ import cats.syntax.option._
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
+import common.validation.ErrorOr.ShortCircuitingFlatMap
+import wom.types._
+import wom.values._
+import wom.expression.{IoFunctionSet, WomExpression}
+import cats.syntax.validated._
 import cwl.InitialWorkDirRequirement.IwdrListingArrayEntry
 import cwl.WorkflowStepInput.InputSource
 import cwl.command.ParentName
@@ -120,32 +125,46 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
   override def cwlExpressionType: WomType = WomSingleFileType
   override def sourceString: String = entry.toString
 
-  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = entry match {
-    case IwdrListingArrayEntry.StringDirent(content, StringOrExpression.String(entryname), _) =>
-      Try(Await.result(ioFunctionSet.writeFile(entryname, content), Duration.Inf)).toErrorOr
-    case IwdrListingArrayEntry.StringDirent(content, StringOrExpression.ECMAScriptExpression(entrynameExpression), _) =>
-      def mustBeString(womValue: WomValue): ErrorOr[String] = womValue match {
-        case WomString(s) => s.validNel
-        case other => WomStringType.coerceRawValue(other).map(_.asInstanceOf[WomString].value).toErrorOr
-      }
+  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomFile] = {
+    def mustBeString(womValue: WomValue): ErrorOr[String] = womValue match {
+      case WomString(s) => s.validNel
+      case other => WomStringType.coerceRawValue(other).map(_.asInstanceOf[WomString].value).toErrorOr
+    }
+    entry match {
+      // The entry name and the entry are both constant:
+      case IwdrListingArrayEntry.StringDirent(content, StringOrExpression.String(entryname), _) =>
+        Try(Await.result(ioFunctionSet.writeFile(entryname, content), Duration.Inf)).toErrorOr
 
-      import common.validation.ErrorOr.ShortCircuitingFlatMap
-      for {
-        expressionEvaluated <- ExpressionEvaluator.evalExpression(entrynameExpression, ParameterContext().withInputs(inputValues, ioFunctionSet)).toErrorOr
-        entryNameValidated <- mustBeString(expressionEvaluated)
+      // The entry name is an expression but the entry is constant:
+      case IwdrListingArrayEntry.StringDirent(content, StringOrExpression.ECMAScriptExpression(entrynameExpression), _) => for {
+        entryNameExpressionEvaluated <- ExpressionEvaluator.evalExpression(entrynameExpression, ParameterContext().withInputs(inputValues, ioFunctionSet)).toErrorOr
+        entryNameValidated <- mustBeString(entryNameExpressionEvaluated)
         writtenFile <- Try(Await.result(ioFunctionSet.writeFile(entryNameValidated, content), Duration.Inf)).toErrorOr
       } yield writtenFile
 
+      // The entry name is constant but the entry is an expression:
+      case IwdrListingArrayEntry.ExpressionDirent(Expression.ECMAScriptExpression(contentExpression), Some(StringOrExpression.String(entryname)), _) =>
 
-    case _ => ??? // TODO WOM and the rest....
+        val entryEvaluation: ErrorOr[WomValue] = ExpressionEvaluator.evalExpression(contentExpression, ParameterContext().withInputs(inputValues, ioFunctionSet)).toErrorOr
+
+        entryEvaluation flatMap {
+          case f: WomFile => f.validNel
+          case other => for {
+            coerced <- WomStringType.coerceRawValue(other).toErrorOr
+            contentString = coerced.asInstanceOf[WomString].value
+            writtenFile <- Try(Await.result(ioFunctionSet.writeFile(entryname, contentString), Duration.Inf)).toErrorOr
+          }  yield writtenFile
+        }
+      case _ => ??? // TODO WOM and the rest....
+    }
   }
 
 
   override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
     "Programmer error: Shouldn't use InitialWorkDirRequirement listing to find output files. You silly goose.".invalidNel
 
-  override def inputs: Set[String] = entry match {
-    case IwdrListingArrayEntry.StringDirent(_, _, _) => Set.empty
-    case _ => Set.empty // TODO WOM: For some cases this might need some...
-  }
+  /**
+    * We already get all of the task inputs when evaluating, and we don't need to highlight anything else
+    */
+  override def inputs: Set[String] = Set.empty
 }

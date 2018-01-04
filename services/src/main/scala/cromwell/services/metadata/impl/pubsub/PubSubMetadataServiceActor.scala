@@ -50,7 +50,7 @@ class PubSubMetadataServiceActor(serviceConfig: Config, globalConfig: Config) ex
   val pubSubConnection = createPubSubConnection()
   createTopicAndSubscription().failed foreach { e => throw e }
 
-  def receive = {
+  override def receive = {
     case action: PutMetadataAction =>
       publishMessages(action.events).failed foreach { e =>
         log.error(e, "Failed to post metadata: " + action.events)

@@ -27,7 +27,7 @@ class JsUtilSpec extends FlatSpec with Matchers {
       "someother" -> WomBoolean(false)
     )
 
-    ParameterContext().addInputs(values).foreach{pc =>
+    ParameterContext().addInputs(values).right.map{pc =>
 
       val expr = "inputs.myName"
 

@@ -10,7 +10,7 @@ $graph:
         dockerPull: "python:3.5.0"
       - class: InitialWorkDirRequirement
         listing:
-            - entryname: 'prime_sieve.py'
+            - entryname: $(inputs.script_name)
               entry: $(inputs.script)
 
   stdout: "primes"
@@ -37,6 +37,10 @@ $graph:
           result += "]"
 
           print(result)
+      - id: script_name
+        type: string
+        default: "prime_sieve.py"
+  arguments: [ $(inputs.script_name), '100' ]
   outputs:
       - id: prime_list
         type: string

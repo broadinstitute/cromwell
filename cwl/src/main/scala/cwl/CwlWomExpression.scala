@@ -1,13 +1,9 @@
 package cwl
 
 import cats.syntax.option._
-import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import common.validation.ErrorOr.ShortCircuitingFlatMap
-import wom.types._
-import wom.values._
-import wom.expression.{IoFunctionSet, WomExpression}
 import cats.syntax.validated._
 import cwl.InitialWorkDirRequirement.IwdrListingArrayEntry
 import cwl.WorkflowStepInput.InputSource
@@ -130,31 +126,36 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
       case WomString(s) => s.validNel
       case other => WomStringType.coerceRawValue(other).map(_.asInstanceOf[WomString].value).toErrorOr
     }
-    entry match {
-      // The entry name and the entry are both constant:
-      case IwdrListingArrayEntry.StringDirent(content, StringOrExpression.String(entryname), _) =>
-        Try(Await.result(ioFunctionSet.writeFile(entryname, content), Duration.Inf)).toErrorOr
 
-      // The entry name is an expression but the entry is constant:
-      case IwdrListingArrayEntry.StringDirent(content, StringOrExpression.ECMAScriptExpression(entrynameExpression), _) => for {
+    def evaluateEntryName(stringOrExpression: StringOrExpression): ErrorOr[String] = stringOrExpression match {
+      case StringOrExpression.String(s) => s.validNel
+      case StringOrExpression.ECMAScriptExpression(entrynameExpression) => for {
         entryNameExpressionEvaluated <- ExpressionEvaluator.evalExpression(entrynameExpression, ParameterContext().withInputs(inputValues, ioFunctionSet)).toErrorOr
         entryNameValidated <- mustBeString(entryNameExpressionEvaluated)
+      } yield entryNameValidated
+    }
+
+    entry match {
+      case IwdrListingArrayEntry.StringDirent(content, direntEntryName, _) => for {
+        entryNameValidated <- evaluateEntryName(direntEntryName)
         writtenFile <- Try(Await.result(ioFunctionSet.writeFile(entryNameValidated, content), Duration.Inf)).toErrorOr
       } yield writtenFile
 
-      // The entry name is constant but the entry is an expression:
-      case IwdrListingArrayEntry.ExpressionDirent(Expression.ECMAScriptExpression(contentExpression), Some(StringOrExpression.String(entryname)), _) =>
-
+      case IwdrListingArrayEntry.ExpressionDirent(Expression.ECMAScriptExpression(contentExpression), direntEntryName, _) =>
         val entryEvaluation: ErrorOr[WomValue] = ExpressionEvaluator.evalExpression(contentExpression, ParameterContext().withInputs(inputValues, ioFunctionSet)).toErrorOr
-
         entryEvaluation flatMap {
+          // TODO CWL: Once files have "local paths", we will be able to specify a new local name based on direntEntryName if necessary.
           case f: WomFile => f.validNel
           case other => for {
             coerced <- WomStringType.coerceRawValue(other).toErrorOr
             contentString = coerced.asInstanceOf[WomString].value
+            // We force the entryname to be specified, and then evaluate it:
+            entryNameUnoptioned <- direntEntryName.toErrorOr("Invalid dirent: Entry was a string but no file name was supplied")
+            entryname <- evaluateEntryName(entryNameUnoptioned)
             writtenFile <- Try(Await.result(ioFunctionSet.writeFile(entryname, contentString), Duration.Inf)).toErrorOr
           }  yield writtenFile
         }
+
       case _ => ??? // TODO WOM and the rest....
     }
   }

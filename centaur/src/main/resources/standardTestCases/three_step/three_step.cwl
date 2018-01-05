@@ -1,6 +1,7 @@
 cwlVersion: v1.0
 class: Workflow
 id: three_step
+# Workflow-level DockerRequirement
 hints:
   DockerRequirement:
     dockerPull: "ubuntu:latest"
@@ -28,6 +29,7 @@ steps:
       type: File
     class: CommandLineTool
     requirements:
+      # Command line tool-level DockerRequirement
       # Check it: this DockerRequirement does not use the `class` formatting but should still parse
       # thanks to the magic of SALAD.
       DockerRequirement:
@@ -42,6 +44,10 @@ steps:
     source: "#ps/ps-stdOut"
   out:
   - id: cgrep-count
+  # Workflow step-level DockerRequirement
+  requirements:
+    DockerRequirement:
+      dockerPull: "debian:jessie"
   run:
     inputs:
     - id: pattern

@@ -42,8 +42,24 @@ case class WorkflowStep(
                          scatter: ScatterVariables = None,
                          scatterMethod: Option[ScatterMethod] = None) {
 
+  run.select[Workflow].foreach(_.parentWorkflowStep = Option(this))
+  run.select[CommandLineTool].foreach(_.parentWorkflowStep = Option(this))
+
   // We're scattering if scatter is defined, and if it's a list of variables the list needs to be non empty
   private val isScattered: Boolean = scatter exists { _.select[Array[String]].forall(_.nonEmpty) }
+
+  // Circe can't create bidirectional links between workflows and workflow steps so this ugly var is here to link
+  // back to the parent workflow. This is needed to navigate upward for finding requirements in the containment
+  // hierarchy. There is always a workflow containing a workflow step so this is not an `Option`.
+  private[cwl] var parentWorkflow: Workflow = _
+
+  lazy val allRequirements: List[Requirement] = requirements.toList.flatten ++ parentWorkflow.allRequirements
+
+  lazy val allHints: List[Requirement] = {
+    // Just ignore any hint that isn't a Requirement.
+    val requirementHints = hints.toList.flatten.flatMap { _.select[Requirement] }
+    requirementHints ++ parentWorkflow.allHints
+  }
 
   def typedOutputs: WomTypeMap = run.fold(RunOutputsToTypeMap)
 
@@ -74,8 +90,8 @@ case class WorkflowStep(
     if (haveWeSeenThisStep) Right(knownNodes)
     else {
       val callable: Checked[Callable] = run match {
-        case Run.CommandLineTool(clt) => clt.buildTaskDefinition(Option(workflow), validator).toEither
-        case Run.Workflow(wf) => wf.womDefinition(validator, parentWorkflow = Option(workflow))
+        case Run.CommandLineTool(clt) => clt.buildTaskDefinition(validator).toEither
+        case Run.Workflow(wf) => wf.womDefinition(validator)
         // TODO CWL (obviously):
         case Run.ExpressionTool(_) => throw new Exception("ExpressionTool is not supported as a workflow step yet")
       }

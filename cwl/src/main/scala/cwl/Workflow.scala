@@ -30,21 +30,27 @@ case class Workflow private(
                      steps: Array[WorkflowStep],
                      requirements: Option[Array[Requirement]],
                      hints: Option[Array[Hint]]) {
+
+  steps.foreach { _.parentWorkflow = this }
+
   /** Builds an `Executable` from a `Workflow` CWL with no parent `Workflow` */
   def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None): Checked[Executable] = {
     CwlExecutableValidation.buildWomExecutable(womDefinition(validator), inputFile)
   }
 
-  private[cwl] var parentWorkflow: Option[Workflow] = None
+  // Circe can't create bidirectional links between workflow steps and runs (including `Workflow`s) so this
+  // ugly var is here to link back to a possible parent workflow step. This is needed to navigate upward for finding
+  // requirements in the containment hierarchy. There isn't always a containing workflow step so this is an `Option`.
+  private[cwl] var parentWorkflowStep: Option[WorkflowStep] = None
 
-  val allRequirements: List[Requirement] = requirements.toList.flatten ++ parentWorkflow.toList.flatMap { _.allRequirements }
+  val allRequirements: List[Requirement] = requirements.toList.flatten ++ parentWorkflowStep.toList.flatMap { _.allRequirements }
 
   val allHints: List[Requirement] = {
     // Just ignore any hint that isn't a Requirement.
     val requirementHints = hints.toList.flatten.flatMap { _.select[Requirement] }
-    requirementHints ++ parentWorkflow.toList.flatMap { _.allHints }
+    requirementHints ++ parentWorkflowStep.toList.flatMap { _.allHints }
   }
-  
+
   private [cwl] implicit val explicitWorkflowName = ParentName(id)
 
   val fileNames: List[String] = steps.toList.flatMap(_.run.select[String].toList)
@@ -140,12 +146,11 @@ case class Workflow private(
     } yield ret
   }
 
-  def womDefinition(validator: RequirementsValidator, parentWorkflow: Option[Workflow] = None): Checked[WorkflowDefinition] = {
+  def womDefinition(validator: RequirementsValidator): Checked[WorkflowDefinition] = {
     val name: String = Paths.get(id).getFileName.toString
     val meta: Map[String, String] = Map.empty
     val paramMeta: Map[String, String] = Map.empty
     val declarations: List[(String, WomExpression)] = List.empty
-    this.parentWorkflow = parentWorkflow
 
     womGraph(name, validator).map(graph =>
       WorkflowDefinition(

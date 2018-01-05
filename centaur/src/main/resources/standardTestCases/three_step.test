@@ -16,5 +16,5 @@ metadata {
   "calls.cgrep.executionStatus": Done
   "calls.ps.runtimeAttributes.docker": "ubuntu:bionic"
   "calls.wc.runtimeAttributes.docker": "ubuntu:latest"
-  "calls.cgrep.runtimeAttributes.docker": "ubuntu:latest"
+  "calls.cgrep.runtimeAttributes.docker": "debian:jessie"
 }

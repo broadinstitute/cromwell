@@ -7,7 +7,7 @@ import com.aliyun.oss.model.AppendObjectRequest
 
 import scala.util.Try
 
-case class OssAppendOutputStream(ossClient: OSSClient, path: OssStoragePath, deleteIfExists: Boolean) extends OutputStream {
+final case class OssAppendOutputStream(ossClient: OSSClient, path: OssStoragePath, deleteIfExists: Boolean) extends OutputStream {
 
   var position: Long = {
     val exist = OssStorageRetry.fromTry(

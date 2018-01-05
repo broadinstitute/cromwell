@@ -6,8 +6,8 @@ trait BcsDocker {
   val image: String
 }
 
-case class BcsDockerWithoutPath(image: String) extends BcsDocker
-case class BcsDockerWithPath(image: String, path: String) extends BcsDocker
+final case class BcsDockerWithoutPath(image: String) extends BcsDocker
+final case class BcsDockerWithPath(image: String, path: String) extends BcsDocker
 
 
 object BcsDocker{

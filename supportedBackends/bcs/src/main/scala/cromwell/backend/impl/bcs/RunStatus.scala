@@ -20,13 +20,13 @@ sealed trait RunStatus {
 }
 
 object RunStatus {
-  case class  Waiting(override val jobId: String) extends RunStatus {
+  final case class  Waiting(override val jobId: String) extends RunStatus {
     override val status = "Waiting"
 
     override def isTerminated: Boolean = false
   }
 
-  case class  Running(override val jobId: String) extends RunStatus {
+  final case class  Running(override val jobId: String) extends RunStatus {
     override val status = "Running"
 
     override def isTerminated: Boolean = false
@@ -43,7 +43,7 @@ object RunStatus {
     lazy val prettyPrintedError: String = errorMessage map { e => s" Message: $e" } getOrElse ""
   }
 
-  case class Finished(override val jobId: String, eventList: Seq[ExecutionEvent]) extends TerminalRunStatus {
+  final case class Finished(override val jobId: String, eventList: Seq[ExecutionEvent]) extends TerminalRunStatus {
     override val status = "Finished"
   }
 

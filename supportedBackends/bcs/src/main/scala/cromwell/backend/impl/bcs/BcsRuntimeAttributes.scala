@@ -27,7 +27,7 @@ trait OptionalWithDefault[A] {
   }
 }
 
-case class BcsRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
+final case class BcsRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
                                 docker: Option[BcsDocker],
                                 failOnStderr: Boolean,
                                 mounts: Option[Seq[BcsMount]],

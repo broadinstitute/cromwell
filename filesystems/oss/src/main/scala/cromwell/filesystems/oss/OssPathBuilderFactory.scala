@@ -6,7 +6,7 @@ import cromwell.core.path.PathBuilderFactory
 
 import scala.concurrent.{ExecutionContext, Future}
 
-case class OssPathBuilderFactory(endpoint: String,
+final case class OssPathBuilderFactory(endpoint: String,
                                  accessId: String,
                                  accessKey: String,
                                  securityToken: Option[String]

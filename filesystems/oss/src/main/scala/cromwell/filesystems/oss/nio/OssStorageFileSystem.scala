@@ -67,7 +67,7 @@ object OssStorageConfiguration {
 
 }
 
-case class OssStorageConfiguration(endpoint: String,
+final case class OssStorageConfiguration(endpoint: String,
                                    accessId: String,
                                    accessKey: String,
                                    stsToken: Option[String] = None

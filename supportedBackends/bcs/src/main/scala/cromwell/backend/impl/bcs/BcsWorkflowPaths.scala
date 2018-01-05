@@ -6,7 +6,7 @@ import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.path.{PathBuilder}
 
 
-case class BcsWorkflowPaths(override val workflowDescriptor: BackendWorkflowDescriptor,
+final case class BcsWorkflowPaths(override val workflowDescriptor: BackendWorkflowDescriptor,
                             override val config: Config,
                             override val pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) extends WorkflowPaths {
 

@@ -7,8 +7,8 @@ trait BcsDisk {
   val sizeInGB: Int
 }
 
-case class BcsSystemDisk(diskType: String, sizeInGB: Int) extends BcsDisk
-case class BcsDataDisk(diskType: String, sizeInGB: Int, mountPoint: String) extends BcsDisk
+final case class BcsSystemDisk(diskType: String, sizeInGB: Int) extends BcsDisk
+final case class BcsDataDisk(diskType: String, sizeInGB: Int, mountPoint: String) extends BcsDisk
 
 object BcsDisk{
   val systemDiskPattern = s"""(\\S+)\\s+(\\d+)""".r

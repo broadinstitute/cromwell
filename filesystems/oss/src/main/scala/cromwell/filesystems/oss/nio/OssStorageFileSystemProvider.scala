@@ -17,7 +17,7 @@ import scala.collection.immutable.Set
 import collection.mutable.ArrayBuffer
 
 
-case class OssStorageFileSystemProvider(config: OssStorageConfiguration) extends FileSystemProvider {
+final case class OssStorageFileSystemProvider(config: OssStorageConfiguration) extends FileSystemProvider {
   lazy val ossClient: OSSClient = config.newOssClient()
 
   class PathIterator(ossClient: OSSClient, prefix: OssStoragePath, filter: DirectoryStream.Filter[_ >: Path]) extends AbstractIterator[Path] {
@@ -183,7 +183,7 @@ case class OssStorageFileSystemProvider(config: OssStorageConfiguration) extends
   }
 
   /*
-   * XXX: Can only copy files whose size is bolow 1GB currently.
+   * XXX: Can only copy files whose size is below 1GB currently.
    */
 
   override def copy(source: Path, target: Path, options: CopyOption*): Unit = {

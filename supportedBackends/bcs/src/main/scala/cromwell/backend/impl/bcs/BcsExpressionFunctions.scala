@@ -4,7 +4,7 @@ import cromwell.backend.standard.{StandardExpressionFunctions, StandardExpressio
 import cromwell.filesystems.oss.OssPathBuilder
 import cromwell.filesystems.oss.OssPathBuilder.{InvalidOssPath, PossiblyValidRelativeOssPath, ValidFullOssPath}
 
-class BcsExpressionFunctions(standardParams: StandardExpressionFunctionsParams)
+final case class BcsExpressionFunctions(override val standardParams: StandardExpressionFunctionsParams)
   extends StandardExpressionFunctions(standardParams) {
 
   override def preMapping(str: String) = {

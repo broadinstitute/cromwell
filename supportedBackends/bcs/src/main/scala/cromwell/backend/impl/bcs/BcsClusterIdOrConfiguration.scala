@@ -4,7 +4,7 @@ package cromwell.backend.impl.bcs
 import scala.util.{Try, Success, Failure}
 import scala.util.matching.Regex
 
-case class AutoClusterConfiguration(resourceType: String,
+final case class AutoClusterConfiguration(resourceType: String,
                                     instanceType: String,
                                     imageId: String,
                                     spotStrategy: Option[String] = None,

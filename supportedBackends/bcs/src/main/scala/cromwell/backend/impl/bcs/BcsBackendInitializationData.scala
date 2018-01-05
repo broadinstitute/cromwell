@@ -4,7 +4,7 @@ import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.standard.{StandardInitializationData, StandardValidatedRuntimeAttributesBuilder}
 import cromwell.core.path.PathBuilder
 
-case class BcsBackendInitializationData
+final case class BcsBackendInitializationData
 (
   override val workflowPaths: WorkflowPaths,
   override val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder,

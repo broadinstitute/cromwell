@@ -8,7 +8,7 @@ import com.aliyun.oss.model.GetObjectRequest
 
 import scala.util.Try
 
-case class OssFileReadChannel(ossClient: OSSClient, pos: Long, path: OssStoragePath) extends OssFileChannel {
+final case class OssFileReadChannel(ossClient: OSSClient, pos: Long, path: OssStoragePath) extends OssFileChannel {
   var internalPosition = pos
 
   override def position(): Long = {

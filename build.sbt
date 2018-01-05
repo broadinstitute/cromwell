@@ -34,7 +34,6 @@ lazy val cloudSupport = project
 
 lazy val gcsFileSystem = (project in file("filesystems/gcs"))
   .withLibrarySettings("cromwell-gcsfilesystem")
-  .dependsOn(ossFileSystem)
   .dependsOn(core)
   .dependsOn(cloudSupport)
   .dependsOn(core % "test->test")

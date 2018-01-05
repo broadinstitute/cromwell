@@ -14,7 +14,7 @@ import scala.concurrent.Future
 import wom.graph.TaskCallNode
 
 
-case class BcsInitializationActorParams
+final case class BcsInitializationActorParams
 (
   workflowDescriptor: BackendWorkflowDescriptor,
   calls: Set[TaskCallNode],
@@ -24,7 +24,7 @@ case class BcsInitializationActorParams
   override val configurationDescriptor: BackendConfigurationDescriptor = bcsConfiguration.configurationDescriptor
 }
 
-class BcsInitializationActor(params: BcsInitializationActorParams)
+final class BcsInitializationActor(params: BcsInitializationActorParams)
   extends StandardInitializationActor(params) {
 
   private val bcsConfiguration = params.bcsConfiguration

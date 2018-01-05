@@ -10,7 +10,7 @@ import cromwell.backend.async.{ExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.bcs.RunStatus.{Finished, TerminalRunStatus}
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.{ExecutionEvent, NoIoFunctionSet}
-import cromwell.filesystems.oss.{OssPath, UploadStringOption}
+import cromwell.filesystems.oss.OssPath
 import cromwell.core.retry.SimpleExponentialBackoff
 
 import scala.collection.mutable.ArrayBuffer
@@ -29,7 +29,7 @@ object BcsAsyncBackendJobExecutionActor {
   val JobIdKey = "__bcs_job_id"
 }
 
-class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
+final class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends BackendJobLifecycleActor with StandardAsyncExecutionActor with BcsJobCachingActorHelper with GcsBatchCommandBuilder {
 
   type BcsPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, BcsJob, RunStatus]
@@ -100,11 +100,9 @@ class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   private[bcs] def generateBcsInputs(jobDescriptor: BackendJobDescriptor): Unit = {
-    getInputFiles(jobDescriptor) flatMap {
+    val _ = getInputFiles(jobDescriptor) flatMap {
       case (name, files) => bcsInputsFromWomFiles(name, files, jobDescriptor)
     }
-
-    return
   }
 
   private def relativePath(path: String): Path = {
@@ -199,18 +197,6 @@ class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
-
-  /*
-  override lazy val commandLineValueMapper: WomValue => WomValue = {
-      case str: WomString => getPath(str.valueString) match {
-        case Success(ossPath: OssPath) => WomString(localizeOssPath(ossPath))
-        case _ => str
-      }
-      case wdlValue => WomFileMapper.mapWomFiles(mapCommandLineWomFile)(wdlValue).get
-  }
-  */
-
-
   override def isTerminal(runStatus: RunStatus): Boolean = {
     runStatus match {
       case _ : TerminalRunStatus => true
@@ -268,7 +254,7 @@ class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override def executeAsync(): Future[ExecutionHandle] = {
     commandScriptContents.fold(
       errors => Future.failed(new RuntimeException(errors.toList.mkString(", "))),
-      writeAsync(bcsJobPaths.script, _, Seq(UploadStringOption)))
+      writeAsync(bcsJobPaths.script, _, OpenOptions.default))
 
 
     setBcsVerbose()

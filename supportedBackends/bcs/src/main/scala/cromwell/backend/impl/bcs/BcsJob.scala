@@ -14,7 +14,7 @@ object BcsJob{
   val BcsDockerPathEnvKey = "BATCH_COMPUTE_DOCKER_REGISTRY_OSS_PATH"
 }
 
-case class BcsJob(name: String,
+final case class BcsJob(name: String,
                   description: String,
                   commandString: String,
                   packagePath: Path,

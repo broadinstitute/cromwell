@@ -95,7 +95,7 @@ trait OssStoragePath extends Path {
   override def toUri: URI = throw new UnsupportedOperationException
 }
 
-case class OssStoragePathImpl(filesystem: OssStorageFileSystem, override val path: UnixPath = UnixPath.EMPTY_PATH) extends  OssStoragePath {
+final case class OssStoragePathImpl(filesystem: OssStorageFileSystem, override val path: UnixPath = UnixPath.EMPTY_PATH) extends  OssStoragePath {
 
   override def pathAsString: String = toUri.toString
 
@@ -249,4 +249,4 @@ case class OssStoragePathImpl(filesystem: OssStorageFileSystem, override val pat
   }
 }
 
-case class NullOssStoragePath(filesystem: OssStorageFileSystem) extends OssStoragePath
+final case class NullOssStoragePath(filesystem: OssStorageFileSystem) extends OssStoragePath

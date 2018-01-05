@@ -12,7 +12,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks
 
 class OssStorageFileSystemProviderSpec extends TestKitSuite with OssNioUtilSpec with BeforeAndAfter {
-  behavior of s"OssStorageFileSystemProviderSpec"
+  behavior of "OssStorageFileSystemProviderSpec"
 
   it should "has right schema" in {
     mockProvider.getScheme shouldEqual OssStorageFileSystem.URI_SCHEMA

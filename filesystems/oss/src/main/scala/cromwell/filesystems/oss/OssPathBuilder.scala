@@ -90,7 +90,7 @@ object OssPathBuilder {
   }
 }
 
-case class OssPathBuilder(ossStorageConfiguration: OssStorageConfiguration) extends PathBuilder {
+final case class OssPathBuilder(ossStorageConfiguration: OssStorageConfiguration) extends PathBuilder {
   def build(string: String): Try[OssPath] = {
     validateOssPath(string) match {
       case ValidFullOssPath(bucket, path) =>
@@ -106,9 +106,9 @@ case class OssPathBuilder(ossStorageConfiguration: OssStorageConfiguration) exte
   override def name: String = "oss"
 }
 
-case class BucketAndObj(bucket: String, obj: String)
+final case class BucketAndObj(bucket: String, obj: String)
 
-case class OssPath private[oss](nioPath: NioPath) extends Path {
+final case class OssPath private[oss](nioPath: NioPath) extends Path {
 
   override protected def newPath(path: NioPath): OssPath = {
     OssPath(path)

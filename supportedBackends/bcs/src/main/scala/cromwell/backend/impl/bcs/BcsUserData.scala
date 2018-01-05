@@ -40,4 +40,4 @@ object BcsUserData {
 
 }
 
-case class BcsUserData(key: String, value: String)
+final case class BcsUserData(key: String, value: String)

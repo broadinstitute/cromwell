@@ -8,7 +8,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.Map
 import scala.util.Try
 
-case class OssStorageObjectAttributes(objectMeta: ObjectMetadata, path: OssStoragePath) extends OssStorageFileAttributes {
+final case class OssStorageObjectAttributes(objectMeta: ObjectMetadata, path: OssStoragePath) extends OssStorageFileAttributes {
   override def creationTime(): FileTime = {
     FileTime.fromMillis(objectMeta.getLastModified.getTime)
   }

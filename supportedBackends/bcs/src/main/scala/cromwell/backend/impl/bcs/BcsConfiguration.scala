@@ -12,7 +12,7 @@ object BcsConfiguration{
   val OssTokenKey = "ossToken"
 }
 
-class BcsConfiguration(val configurationDescriptor: BackendConfigurationDescriptor) {
+final class BcsConfiguration(val configurationDescriptor: BackendConfigurationDescriptor) {
   val runtimeConfig = configurationDescriptor.backendRuntimeConfig
   val bcsRegion: Option[String] = configurationDescriptor.backendConfig.as[Option[String]]("region")
 

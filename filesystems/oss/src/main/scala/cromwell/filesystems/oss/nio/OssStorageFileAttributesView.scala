@@ -7,7 +7,7 @@ import com.aliyun.oss.OSSClient
 
 import scala.util.Try
 
-case class OssStorageFileAttributesView(ossClient: OSSClient, path: OssStoragePath) extends BasicFileAttributeView {
+final case class OssStorageFileAttributesView(ossClient: OSSClient, path: OssStoragePath) extends BasicFileAttributeView {
   override def name(): String = OssStorageFileSystem.URI_SCHEMA
 
   override def readAttributes(): OssStorageFileAttributes = {

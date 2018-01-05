@@ -4,7 +4,7 @@ import java.nio.file.attribute.FileTime
 
 import scala.collection.mutable.Map
 
-case class OssStorageDirectoryAttributes(path: OssStoragePath) extends OssStorageFileAttributes {
+final case class OssStorageDirectoryAttributes(path: OssStoragePath) extends OssStorageFileAttributes {
   override def creationTime(): FileTime = FileTime.fromMillis(0)
 
   override def lastAccessTime(): FileTime = FileTime.fromMillis(0)

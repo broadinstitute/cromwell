@@ -5,7 +5,7 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescript
 import cromwell.backend.standard._
 import wom.graph.TaskCallNode
 
-case class BcsBackendLifecycleActorFactory(val name: String, val configurationDescriptor: BackendConfigurationDescriptor)
+final case class BcsBackendLifecycleActorFactory(val name: String, val configurationDescriptor: BackendConfigurationDescriptor)
   extends StandardLifecycleActorFactory {
   override lazy val initializationActorClass: Class[_ <: StandardInitializationActor] = classOf[BcsInitializationActor]
   override lazy val asyncExecutionActorClass: Class[_ <: StandardAsyncExecutionActor] = classOf[BcsAsyncBackendJobExecutionActor]

@@ -4,7 +4,7 @@ package cromwell.backend.impl.bcs
 import scala.util.{Failure, Success, Try}
 
 
-case class BcsVpcConfiguration(cidrBlock: Option[String] = None,
+final case class BcsVpcConfiguration(cidrBlock: Option[String] = None,
                                vpcId: Option[String] = None)
 
 

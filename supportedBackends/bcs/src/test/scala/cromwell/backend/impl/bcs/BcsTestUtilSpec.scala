@@ -2,7 +2,7 @@ package cromwell.backend.impl.bcs
 
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, RuntimeAttributeDefinition}
-import cromwell.backend.BackendSpec.buildWorkflowDescriptor
+import cromwell.backend.BackendSpec.{buildWdlWorkflowDescriptor}
 import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.core.{TestKitSuite, WorkflowOptions}
@@ -120,9 +120,11 @@ trait BcsTestUtilSpec extends TestKitSuite with FlatSpecLike with Matchers with 
   val mockOssConf = OssStorageConfiguration("oss.aliyuncs.com", "test-id", "test-key")
   val mockPathBuiler = OssPathBuilder(mockOssConf)
   val mockPathBuilders = List(mockPathBuiler)
-  val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.workflowSource(),
-    inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.mapValues(JsString.apply)).compactPrint))
-  val jobKey = {
+  lazy val workflowDescriptor =  buildWdlWorkflowDescriptor(
+    SampleWdl.HelloWorld.workflowSource(),
+    inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.mapValues(JsString.apply)).compactPrint)
+  )
+  lazy val jobKey = {
     val call = workflowDescriptor.callable.taskCallNodes.head
     BackendJobDescriptorKey(call, None, 1)
   }
@@ -143,7 +145,7 @@ trait BcsTestUtilSpec extends TestKitSuite with FlatSpecLike with Matchers with 
   val expectedTimeout = Some(3000)
   val expectedVerbose = Some(false)
   val expectedVpc = Some(BcsVpcConfiguration(Some("192.168.0.0/16"), Some("vpc-xxxx")))
-  val expectedTag = None
+  val expectedTag = Some("jobTag")
 
 
   val expectedRuntimeAttributes = new BcsRuntimeAttributes(expectedContinueOnReturn, expectedDocker, expectedFailOnStderr,  expectedMounts, expectedUserData, expectedCluster,

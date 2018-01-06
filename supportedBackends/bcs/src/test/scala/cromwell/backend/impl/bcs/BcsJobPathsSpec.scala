@@ -1,13 +1,7 @@
 package cromwell.backend.impl.bcs
 
-import cromwell.backend.BackendJobDescriptorKey
 import cromwell.filesystems.oss.OssPath
 import org.mockito.Mockito.when
-import wom.graph.TaskCallNode
-
-object BcsJobPathsSpec {
-}
-
 
 class BcsJobPathsSpec extends BcsTestUtilSpec {
   behavior of s"BcsJobPathsSpec"
@@ -22,17 +16,6 @@ class BcsJobPathsSpec extends BcsTestUtilSpec {
   }
 
   def name = "test"
-
-  override val jobKey = {
-    val key = mock[BackendJobDescriptorKey]
-    val scope = mock[TaskCallNode]
-    when(key.attempt).thenReturn(0)
-    when(key.index).thenReturn(None)
-
-    when(key.node).thenReturn(scope)
-
-    key
-  }
 
   it should "have right package name" in {
     val jobPath = BcsJobPaths(workflowPath, jobKey)

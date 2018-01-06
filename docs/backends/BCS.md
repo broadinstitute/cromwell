@@ -29,7 +29,7 @@ backend {
 }
 ```
 
-Before reading futher in this section please see the [Getting started on Alibaba Cloud](../tutorials/BCSIntro.md) for instructions of configuring to Alibaba Cloud services.
+Before reading further in this section please see the [Getting started on Alibaba Cloud](../tutorials/BCSIntro.md) for instructions on configuring to Alibaba Cloud services.
 
 The configuration file for Alibaba Cloud will look like the following.
 
@@ -102,7 +102,7 @@ backend {
 
 ### Runtime Attributes
 
-This backend support additional runtime attributes that are specified in the configuration key `backend.providers.BCS.config.runtime-attributes`. 
+This backend supports additional runtime attributes that are specified in the configuration key `backend.providers.BCS.config.runtime-attributes`. 
 It uses the same syntax as specifying runtime attributes in a task in WDL. A typical runtime attributes example for BCS backend looks like this:
 
 ```hocon
@@ -159,7 +159,7 @@ There are two different ways of specifying an Alibaba Cloud BatchCompute cluster
 #### mounts
 
 BCS jobs can mount an OSS object or an OSS prefix to local filesystem as a file or a directory in VM. 
-It uses distribute-caching and lazy-load techniques to optimize concurrently read reqeust of OSS file system. 
+It uses distribute-caching and lazy-load techniques to optimize concurrently read requests of the OSS file system. 
 You can mount your OSS objects to VM like this:
 
 - `<mount-src>` - An OSS object path or OSS prefix to mount from.

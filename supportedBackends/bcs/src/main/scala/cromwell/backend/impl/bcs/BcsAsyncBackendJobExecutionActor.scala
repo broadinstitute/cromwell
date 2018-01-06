@@ -16,7 +16,6 @@ import cromwell.core.retry.SimpleExponentialBackoff
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import cromwell.core.path.{DefaultPathBuilder, Path, PathFactory}
-import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import wom.callable.Callable.OutputDefinition
 import wom.core.FullyQualifiedName
 import wom.types.WomSingleFileType
@@ -30,7 +29,7 @@ object BcsAsyncBackendJobExecutionActor {
 }
 
 final class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
-  extends BackendJobLifecycleActor with StandardAsyncExecutionActor with BcsJobCachingActorHelper with GcsBatchCommandBuilder {
+  extends BackendJobLifecycleActor with StandardAsyncExecutionActor with BcsJobCachingActorHelper {
 
   type BcsPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, BcsJob, RunStatus]
 
@@ -254,7 +253,7 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
   override def executeAsync(): Future[ExecutionHandle] = {
     commandScriptContents.fold(
       errors => Future.failed(new RuntimeException(errors.toList.mkString(", "))),
-      writeAsync(bcsJobPaths.script, _, OpenOptions.default))
+      bcsJobPaths.script.write(_))
 
 
     setBcsVerbose()

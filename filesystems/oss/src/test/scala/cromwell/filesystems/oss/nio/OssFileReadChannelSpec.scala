@@ -3,8 +3,9 @@ package cromwell.filesystems.oss.nio
 import java.nio.charset.Charset
 
 import cromwell.core.TestKitSuite
-import org.scalatest.BeforeAndAfter
+import org.scalatest.{BeforeAndAfter}
 
+import scala.util.Try
 import scala.util.control.Breaks
 
 object OssFileReadChannelSpec {
@@ -25,12 +26,11 @@ class OssFileReadChannelSpec extends TestKitSuite with OssNioUtilSpec with Befor
   def getPath = OssStoragePath.getPath(ossFileSystem, FILENAME)
 
   before {
-    val stream = OssAppendOutputStream(ossClient, getPath, true)
-    stream.write(CONTENT.getBytes("UTF-8"))
+     Try(OssAppendOutputStream(ossClient, getPath, true)) foreach {_.write(CONTENT.getBytes("UTF-8"))}
   }
 
   after {
-    deleteObject(getPath)
+    Try(deleteObject(getPath))
   }
 
   it should "has the right size" taggedAs NeedAK in {

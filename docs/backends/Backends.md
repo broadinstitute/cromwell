@@ -56,7 +56,7 @@ The backend/filesystem pairings are as follows:
 
 * Local, HPC and Spark backend use the [Shared Local Filesystem](HPC/#filesystems).
 * Google backend uses the [Google Cloud Storage Filesystem](Google/#google-cloud-storage-filesystem).
-* Alibaba Cloud backend uses the OSS Storae FileSystem.
+* Alibaba Cloud backend uses the OSS Storage FileSystem.
 
 Additional filesystems capabilities can be added depending on the backend.
 For instance, an HPC backend can be configured to work with files on Google Cloud Storage. See the [HPC documentation](HPC) for more details.

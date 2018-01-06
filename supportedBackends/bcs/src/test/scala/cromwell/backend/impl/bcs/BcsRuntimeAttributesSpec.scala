@@ -140,5 +140,4 @@ class BcsRuntimeAttributesSpec extends BcsTestUtilSpec {
     createBcsRuntimeAttributes(runtime) shouldEqual expected
   }
 
-
 }

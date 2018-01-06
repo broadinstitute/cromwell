@@ -1,16 +1,11 @@
 package cromwell.backend.impl.bcs
 
-import org.scalatest.BeforeAndAfter
 import org.scalatest.TryValues._
 
-class BcsMountSpec extends BcsTestUtilSpec with BeforeAndAfter {
+class BcsMountSpec extends BcsTestUtilSpec {
   behavior of s"BcsMountSpec"
   val ossObject = "oss://bcs-test/bcs-dir/"
   val localFile = "/home/admin/local-dir/"
-
-  before {
-    BcsMount.pathBuilders = List(mockPathBuiler)
-  }
 
   it should "be an input mount if src starts with oss://" in {
     var writeSupport = true

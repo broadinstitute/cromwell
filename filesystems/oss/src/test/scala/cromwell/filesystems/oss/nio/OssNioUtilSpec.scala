@@ -51,7 +51,6 @@ trait OssNioUtilSpec extends FlatSpecLike with MockitoSugar with Matchers {
     bucket
   }
 
-
   lazy val ossConf: OssStorageConfiguration = Try{
     OssStorageConfiguration.parseMap(ossInfo)
   } getOrElse(throw new IllegalArgumentException("you should supply oss info before testing oss related operation"))

@@ -165,8 +165,8 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
   }
 
   private[bcs] def localizeOssPath(ossPath: OssPath): String = {
-    if (isOutputOssFileString(ossPath.pathAsString)) {
-      commandDirectory.resolve(getOssFileName(ossPath)).pathAsString
+    if (isOutputOssFileString(ossPath.pathAsString) && !ossPath.isAbsolute) {
+      commandDirectory.resolve(getOssFileName(ossPath)).normalize.pathAsString
     } else {
       userDefinedMounts collectFirst {
         case bcsMount: BcsMount if ossPath.pathAsString.startsWith(bcsMount.src.pathAsString) =>
@@ -180,7 +180,7 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
 
   private[bcs] def relativeOutputPath(path: Path): Path = {
     if (isOutputOssFileString(path.pathAsString)) {
-      bcsJobPaths.callRoot.resolve(path.pathAsString)
+      bcsJobPaths.callRoot.resolve(path.pathAsString).normalize()
     } else {
       path
     }

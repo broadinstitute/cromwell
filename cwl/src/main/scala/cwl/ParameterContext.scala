@@ -1,6 +1,5 @@
 package cwl
 
-import cats.syntax.validated._
 import wom.callable.RuntimeEnvironment
 import wom.graph.LocalName
 import wom.types.WomNothingType
@@ -88,17 +87,17 @@ case class ParameterContext(private val inputs: Map[String, AnyRef] = Map.empty,
   private def toJavascript(value: WomValue): AnyRef = {
     value match {
       case WomOptionalValue(WomNothingType, None) => null
-      case WomString(string) => string.validNel
-      case WomInteger(int) => Int.box(int).validNel
-      case WomFloat(double) => Double.box(double).validNel
-      case WomBoolean(boolean) => Boolean.box(boolean).validNel
-      case WomArray(_, array) => array.map(toJavascript).toArray.validNel
-      case WomSingleFile(path) => path.validNel
+      case WomString(string) => string
+      case WomInteger(int) => Int.box(int)
+      case WomFloat(double) => Double.box(double)
+      case WomBoolean(boolean) => Boolean.box(boolean)
+      case WomArray(_, array) => array.map(toJavascript).toArray
+      case WomSingleFile(path) => path
       case WomMap(_, map) =>
         map.map{
           case (mapKey, mapValue) => toJavascript(mapKey) -> toJavascript(mapValue)
         }.toMap.asJava
-      case _ => (s"Value is unsupported in JavaScript: $value").invalidNel
+      case _ => throw new RuntimeException(s"Value is unsupported in JavaScript: $value")
     }
   }
 }

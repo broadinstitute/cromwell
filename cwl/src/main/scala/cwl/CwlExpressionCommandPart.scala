@@ -28,7 +28,7 @@ case class CwlExpressionCommandPart(expr: Expression) extends CommandPart {
 
     val evaluatedExpression = expr.fold(EvaluateExpression).apply(pc).toEither.leftMap(e => NonEmptyList.one(e.getMessage))
 
-    evaluatedExpression.map(_.valueString). map(InstantiatedCommand.apply(_)). toValidated
+    evaluatedExpression.map(_.valueString).map(InstantiatedCommand.apply(_)). toValidated
   }
 }
 

@@ -141,9 +141,7 @@ case class CommandLineTool private(
     })
 
     inputBindingsCommandParts map { parts =>
-      val sorted = (argumentsParts ++ parts).sorted
-      sorted.map(_.sortingKey.value).foreach(println)
-      baseCommandPart ++ sorted.map(_.commandPart)
+      baseCommandPart ++ (argumentsParts ++ parts).sorted.map(_.commandPart)
     }
   }
 

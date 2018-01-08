@@ -17,6 +17,10 @@ trait WomObjectLike extends WomValue {
     s"${typed}object {" + values.map { case (k, v) => s"$k: ${v.toWomString}" }.mkString(", ") + "}"
   }
   def womObjectTypeLike: WomObjectTypeLike
+
+  override def collectAsSeq[T <: WomValue](filterFn: PartialFunction[WomValue, T]): Seq[T] = {
+    values.values.toSeq flatMap { _.collectAsSeq(filterFn) }
+  }
 }
 
 object WomObject {

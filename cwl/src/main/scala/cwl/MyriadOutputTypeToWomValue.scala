@@ -11,8 +11,14 @@ import shapeless.{Coproduct, Poly1}
 import wom.types._
 import wom.values.{WomArray, WomObject, WomValue}
 
+/**
+  * Folds a MyriadOutputType into a WomValue
+  * This is needed because the type might define the structure of the final output value (for OutputRecordSchemas for example)
+  */
 object MyriadOutputTypeToWomValue extends Poly1 {
 
+  // We pass in a function that can evaluate a CommandOutputBinding and produce a WomValue. This allows us to recurse into the
+  // MyriadOutputTypes and evaluate values as we do.
   type EvaluationFunction = (CommandOutputBinding, WomType) => ErrorOr[WomValue]
 
   import Case._
@@ -21,6 +27,7 @@ object MyriadOutputTypeToWomValue extends Poly1 {
     _.fold(MyriadOutputInnerTypeToWomValue)
   }
 
+  // Evaluate all the types and make a WomArray from it
   implicit def acwl: Aux[Array[MyriadOutputInnerType], EvaluationFunction => ErrorOr[WomValue]] = at[Array[MyriadOutputInnerType]] { types =>
     evalFunction =>
       types.toList.traverse[ErrorOr, WomValue](_.fold(MyriadOutputInnerTypeToWomValue).apply(evalFunction)) map { values =>
@@ -46,14 +53,16 @@ object MyriadOutputInnerTypeToWomValue extends Poly1 {
     case OutputRecordSchema(_, Some(fields), _) =>
       evalFunction =>
 
+        // Go over each field and evaluate the binding if there's one, otherwise keep folding over field types
         def evaluateValues = fields.toList.traverse[ErrorOr, ((String, WomValue), (String, WomType))]({ field =>
           val womType = field.`type`.fold(MyriadOutputTypeToWomType)
           val womValue: ErrorOr[WomValue] = field.outputBinding match {
-            case Some(binding) =>
-              evalFunction(binding, womType)
+            case Some(binding) => evalFunction(binding, womType)
             case None => field.`type`.fold(MyriadOutputTypeToWomValue).apply(evalFunction)
           }
 
+          // TODO: ParentName might need to be passed in here ?
+          // return the value and the type with a clean parsedName
           womValue map { value =>
             val parsedName = FullyQualifiedName(field.name)(ParentName.empty).id
             (parsedName -> value) -> (parsedName -> womType)
@@ -62,6 +71,7 @@ object MyriadOutputInnerTypeToWomValue extends Poly1 {
 
         evaluateValues map { evaluatedValues =>
           val (valueMap, typeMap) = evaluatedValues.unzip
+          // Create a typed WomObject from the values and the typeMap
           WomObject.withType(valueMap.toMap, WomCompositeType(typeMap.toMap))
         }
     case ors => ors.toString |> ex

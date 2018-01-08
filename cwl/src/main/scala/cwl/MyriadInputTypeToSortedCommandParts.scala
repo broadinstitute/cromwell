@@ -16,7 +16,7 @@ object MyriadInputTypeToSortedCommandParts extends Poly1 {
 
   /**
     * CommandLineBinding: binding of the element being processed.
-    *   Sometimes there might be no binding but still a type so the binding could be empty.
+    *   It's possible for an input not to have an "inputBinding", but to have a complex type which itself has inputBindings for its fields or items.
     *   e.g:
     *     - id: arrayInput
     *       type:
@@ -27,6 +27,7 @@ object MyriadInputTypeToSortedCommandParts extends Poly1 {
     * Here the array type has an inputBinding but the input itself (arrayInput) does not.
     * This would yield on the command line something like "-YYY arrayItem0 -YYY arrayItem1 ..."
     * 
+    * On the other hand:
     *     - id: arrayInput
     *       type:
     *         type: array
@@ -63,11 +64,7 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
 
   def ex(component: String) = throw new RuntimeException(s"input type $component not yet supported by WOM!")
 
-  /**
-    * This means we're at a leaf (CwlType is a primitive type)
-    * Update the sorting key and create a InputCommandLineBindingCommandPart
-    * If there's no binding it should not be included in the command so return an empty map
-    */
+  // Primitive type: we just need to create a command part from the binding if there's one here.
   implicit def ct: Aux[CwlType, CommandPartBuilder] = at[CwlType] { _ => { case (binding, womValue, key) => binding.toList.map(_.toCommandPart(key, womValue)) } }
 
   implicit def irs: Aux[InputRecordSchema, CommandPartBuilder] = at[InputRecordSchema] { irs => {
@@ -75,15 +72,17 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
       // If there's an input binding, make a SortKeyAndCommandPart for it
       val fromInputBinding: Option[SortKeyAndCommandPart] = inputBinding.map(_.toCommandPart(sortingKey, objectLike))
       
-      // Go through the fields to find command line bindings
+      // Go over the fields an fold over their type
       irs.fields.toList.flatten
         .foldLeft(CommandPartsList.empty)({
           case (currentMap, field) =>
             // Parse the name to get a clean id
             val parsedName = FullyQualifiedName(field.name)(ParentName.empty).id
             
-            // Use the field name as a tie breaker by adding it at the end of the key
-            val fieldSortingKey = sortingKey
+            // The field name needs to be added to the key after the input binding (as per the spec)
+            // Also start from the key from the input binding if there was one
+            val fieldSortingKey = 
+              fromInputBinding.map(_.sortingKey).getOrElse(sortingKey)
               .append(field.inputBinding, Coproduct[StringOrInt](parsedName))
 
             // Get the value of this field from the objectLike
@@ -119,8 +118,9 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
         womArray.value.zipWithIndex.foldLeft(CommandPartsList.empty)({
           case (currentMap, (item, index)) =>
             // Update the sorting key with the binding position (if any), add the index
-            val itemSortingKey = 
-              // Use the sorting key from the above input binding if there was one, otherwise use the original one 
+            val itemSortingKey =
+              // The index needs to be added to the key after the input binding (as per the spec)
+              // Also start from the key from the input binding if there was one
               fromInputBinding.map(_.sortingKey).getOrElse(sortingKey)
               .append(ias.inputBinding, Coproduct[StringOrInt](index))
 

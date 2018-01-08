@@ -27,7 +27,7 @@ class CommandLineToolSpec extends FlatSpec with Matchers with ParallelTestExecut
     RequiredInputDefinition("f", WomBooleanType) -> WomBoolean.True,
     RequiredInputDefinition("g", WomBooleanType) -> WomBoolean.False,
     RequiredInputDefinition("h", WomIntegerType) -> WomInteger(0),
-    RequiredInputDefinition("i", WomSingleFileType) -> WomSingleFile("ifile"),
+    RequiredInputDefinition("i", WomSingleFileType) -> WomSingleFile("ifile")
   )
   
   val localNameValues = inputs.map({ case (k, v) => k.localName -> v })

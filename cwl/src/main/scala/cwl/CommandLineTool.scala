@@ -129,6 +129,7 @@ case class CommandLineTool private(
         // Locate the value for this input parameter in the inputValue or fail
         inputValues
           .find(_._1.name == parsedName).map(_._2)
+          .orElse(inputParameter.default.map(_.stringRepresentation).map(WomString.apply))
           .toErrorOr(s"Could not find an input value for input $parsedName in ${inputValues.prettyString}") map { value =>
           
           // See http://www.commonwl.org/v1.0/CommandLineTool.html#Input_binding

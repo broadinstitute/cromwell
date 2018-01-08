@@ -40,7 +40,11 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
       (outputBinding, parameterContext) match {
         case (CommandOutputBinding(_, _, Some(String(value))), Right(_)) => WomString(value).asRight
         case (CommandOutputBinding(Some(glob), _, None), Right(parameterContext)) =>
-              WomArray(WomArrayType(WomStringType), GlobEvaluator.globPaths(glob, parameterContext, ioFunctionSet).map(WomString.apply)).asRight
+          GlobEvaluator.globPaths(glob, parameterContext, ioFunctionSet) match {
+            case Seq(fileName) => WomString(fileName).asRight
+            case array => WomArray(WomArrayType(WomStringType), array.map(WomString.apply)).asRight
+          }
+
 
         case (CommandOutputBinding(glob, loadContents, Some(Expression(expression))), Right(parameterContext)) =>
 
@@ -51,17 +55,17 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
           val _loadContents: Boolean = loadContents getOrElse false
 
           val womMaps: Array[Map[String, String]] =
-            paths.toArray map({
-              (path:String) =>
+            paths.toArray map {
+              (path: String) =>
                 // TODO: WOM: basename/dirname/size/checksum/etc.
                 val contents =
-                    Map("contents" -> load64KiB(path, ioFunctionSet)).
-                      filter(_ => _loadContents)
+                  Map("contents" -> load64KiB(path, ioFunctionSet)).
+                    filter(_ => _loadContents)
 
                 val location = Map("location" -> path)
 
                 location ++ contents
-            })
+            }
 
           val outputEvalParameterContext: ParameterContext = parameterContext.setSelf(womMaps)
 
@@ -69,7 +73,7 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
             fold(EvaluateExpression).
             apply(outputEvalParameterContext).
             cata(Right(_),Left(_)). // this is because toEither is not a thing in scala 2.11.
-            leftMap(e => NonEmptyList.one(e.getMessage))
+            leftMap(e => NonEmptyList(e.getMessage, e.getStackTrace.map(_.toString).toList))
       }
     }
     //To facilitate ECMAScript evaluation, filenames are stored in a map under the key "location"

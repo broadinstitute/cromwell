@@ -20,15 +20,16 @@ case class CwlExpressionCommandPart(expr: Expression) extends CommandPart {
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: (WomValue) => WomValue,
-                           runtimeEnvironment: RuntimeEnvironment): ErrorOr[InstantiatedCommand] =
+                           runtimeEnvironment: RuntimeEnvironment): ErrorOr[InstantiatedCommand] = {
 
-        ParameterContext().
-          addLocalInputs(inputsMap).
-          map(_.setRuntime(runtimeEnvironment)).
-          flatMap(pc => expr.fold(EvaluateExpression).apply(pc).toEither.leftMap(e => NonEmptyList.one(e.getMessage))).
-          map(_.valueString).
-          map(InstantiatedCommand.apply(_)).
-          toValidated
+    val pc = ParameterContext().
+      addLocalInputs(inputsMap).
+      setRuntime(runtimeEnvironment)
+
+    val evaluatedExpression = expr.fold(EvaluateExpression).apply(pc).toEither.leftMap(e => NonEmptyList.one(e.getMessage))
+
+    evaluatedExpression.map(_.valueString). map(InstantiatedCommand.apply(_)). toValidated
+  }
 }
 
 // TODO: Dan to revisit making this an Either (and perhaps adding some other cases)
@@ -36,22 +37,22 @@ case class CommandLineBindingCommandPart(argument: CommandLineBinding) extends C
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: (WomValue) => WomValue,
-                           runtimeEnvironment: RuntimeEnvironment): ErrorOr[InstantiatedCommand] =
-    ParameterContext().
-      addLocalInputs(inputsMap).
-      flatMap{
-        pc =>
-          argument match {
-            case CommandLineBinding(_, _, _, _, _, Some(StringOrExpression.Expression(expression)), Some(false)) =>
-              expression.fold(EvaluateExpression).apply(pc).map(valueMapper).toEither.leftMap(e => NonEmptyList.one(e.getMessage))
-            case CommandLineBinding(_, _, _, _, _, Some(StringOrExpression.String(string)), Some(false)) =>
-              Right(WomString(string))
-            // There's a fair few other cases to add, but until then...
-            case other => throw new NotImplementedError(s"As-yet-unsupported command line binding: $other")
-        }
-      }.map(_.valueString).
-      map(InstantiatedCommand.apply(_)).
-      toValidated
+                           runtimeEnvironment: RuntimeEnvironment): ErrorOr[InstantiatedCommand] = {
+    val pc = ParameterContext().addLocalInputs(inputsMap)
+
+    val expressionEvaluationResult: Either[NonEmptyList[WorkflowStepInputId], WomValue] = (argument match {
+      case CommandLineBinding(_, _, _, _, _, Some(StringOrExpression.Expression(expression)), Some(false)) =>
+        expression.fold(EvaluateExpression).apply(pc).map(valueMapper).toEither.leftMap(e => NonEmptyList.one(e.getMessage))
+      case CommandLineBinding(_, _, _, _, _, Some(StringOrExpression.String(string)), Some(false)) =>
+        Right(WomString(string))
+      // There's a fair few other cases to add, but until then...
+      case other => throw new NotImplementedError(s"As-yet-unsupported command line binding: $other")
+    })
+
+    val commandString = expressionEvaluationResult.map(_.valueString)
+
+    commandString.map(InstantiatedCommand.apply(_)).toValidated
+  }
 }
 
 case class InputParameterCommandPart(commandInputParameter: CommandInputParameter)(implicit parentName: ParentName) extends CommandPart {

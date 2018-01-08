@@ -27,19 +27,18 @@ class JsUtilSpec extends FlatSpec with Matchers {
       "someother" -> WomBoolean(false)
     )
 
-    ParameterContext().addInputs(values).right.map{pc =>
+    val pc = ParameterContext().addInputs(values)
 
-      val expr = "inputs.myName"
+    val expr = "inputs.myName"
 
-      val result: WomValue = JsUtil.eval(expr, pc.ecmaScriptValues)
+    val result: WomValue = JsUtil.eval(expr, pc.ecmaScriptValues)
 
-      result should be(WomString("hi"))
+    result should be(WomString("hi"))
 
-      val expr2 = "inputs.someother"
+    val expr2 = "inputs.someother"
 
-      val result2: WomValue = JsUtil.eval(expr2, pc.ecmaScriptValues)
+    val result2: WomValue = JsUtil.eval(expr2, pc.ecmaScriptValues)
 
-      result2 should be(WomBoolean(false))
-    }
+    result2 should be(WomBoolean(false))
   }
 }

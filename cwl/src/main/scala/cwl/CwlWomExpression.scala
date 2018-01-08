@@ -31,16 +31,15 @@ case class JobPreparationExpression(expression: Expression,
     case Expression.ECMAScriptFunction(s) => s.value
   }
 
-  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet) =
-    ParameterContext().
-      addInputs(inputValues).
-      flatMap(pc =>
-        expression.
-          fold(EvaluateExpression).
-            apply(pc).
-            cata(Right(_),Left(_)). // this is because toEither is not a thing in scala 2.11.
-            leftMap(e => NonEmptyList.one(e.getMessage))
-      ).toValidated
+  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet) = {
+    val pc = ParameterContext(inputValues)
+    expression.
+      fold(EvaluateExpression).
+      apply(pc).
+      cata(Right(_), Left(_)). // this is because toEither is not a thing in scala 2.11.
+      leftMap(e => NonEmptyList.one(e.getMessage)).
+      toValidated
+  }
 
   override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType) = Set.empty[WomFile].validNel
 }
@@ -58,8 +57,7 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
     def evaluateEntryName(stringOrExpression: StringOrExpression): ErrorOr[String] = stringOrExpression match {
       case StringOrExpression.String(s) => s.validNel
       case StringOrExpression.ECMAScriptExpression(entrynameExpression) => for {
-        parameterContext <- ParameterContext().addInputs(inputValues).toValidated
-        entryNameExpressionEvaluated <- ExpressionEvaluator.evalExpression(entrynameExpression, parameterContext).toErrorOr
+        entryNameExpressionEvaluated <- ExpressionEvaluator.evalExpression(entrynameExpression, ParameterContext(inputValues)).toErrorOr
         entryNameValidated <- mustBeString(entryNameExpressionEvaluated)
       } yield entryNameValidated
     }
@@ -71,7 +69,7 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
       } yield writtenFile
 
       case IwdrListingArrayEntry.ExpressionDirent(Expression.ECMAScriptExpression(contentExpression), direntEntryName, _) =>
-        val f = (_:WomValue) match {
+        ExpressionEvaluator.evalExpression(contentExpression, ParameterContext(inputValues)).toErrorOr.flatMap {
           // TODO CWL: Once files have "local paths", we will be able to specify a new local name based on direntEntryName if necessary.
           case f: WomFile => f.validNel
           case other => for {
@@ -81,13 +79,7 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
             entryNameUnoptioned <- direntEntryName.toErrorOr("Invalid dirent: Entry was a string but no file name was supplied")
             entryname <- evaluateEntryName(entryNameUnoptioned)
             writtenFile <- Try(Await.result(ioFunctionSet.writeFile(entryname, contentString), Duration.Inf)).toErrorOr
-          }  yield writtenFile
-        }
-        for {
-          parameterContext <- ParameterContext().addInputs(inputValues).toValidated
-          entryEvaluation <- ExpressionEvaluator.evalExpression(contentExpression, parameterContext).toErrorOr
-          result <- f(entryEvaluation)
-        } yield result
+          } yield writtenFile}
 
       case _ => ??? // TODO WOM and the rest....
     }

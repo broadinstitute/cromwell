@@ -24,7 +24,7 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
 
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
 
-    val parameterContext = ParameterContext().addInputs(inputValues)
+    val parameterContext = ParameterContext(inputValues)
 
     /*
     CommandOutputBinding.glob:
@@ -37,16 +37,16 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
      */
     def outputBindingEvaluationResult: Checked[WomValue] = {
       import StringOrExpression._
-      (outputBinding, parameterContext) match {
-        case (CommandOutputBinding(_, _, Some(String(value))), Right(_)) => WomString(value).asRight
-        case (CommandOutputBinding(Some(glob), _, None), Right(parameterContext)) =>
+      outputBinding match {
+        case CommandOutputBinding(_, _, Some(String(value))) => WomString(value).asRight
+        case CommandOutputBinding(Some(glob), _, None) =>
           GlobEvaluator.globPaths(glob, parameterContext, ioFunctionSet) match {
             case Seq(fileName) => WomString(fileName).asRight
             case array => WomArray(WomArrayType(WomStringType), array.map(WomString.apply)).asRight
           }
 
 
-        case (CommandOutputBinding(glob, loadContents, Some(Expression(expression))), Right(parameterContext)) =>
+        case CommandOutputBinding(glob, loadContents, Some(Expression(expression))) =>
 
           val paths: Seq[String] = glob.toSeq flatMap { globValue =>
             GlobEvaluator.globPaths(globValue, parameterContext, ioFunctionSet)
@@ -110,16 +110,11 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
    Wouldn't coerceTo always == WomFileType, and if not then what?
    */
   override def evaluateFiles(inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] ={
-
-    ParameterContext().addInputs(inputs).
-      map(pc =>
-        for {
-          globValue <- outputBinding.glob.toList
-          path <- GlobEvaluator.globPaths(globValue, pc, ioFunctionSet).toList
-        } yield WomGlobFile(path): WomFile).
-      map(_.toSet).
-      toValidated
-
+    val pc = ParameterContext(inputs)
+    (for {
+      globValue <- outputBinding.glob.toList
+      path <- GlobEvaluator.globPaths(globValue, pc, ioFunctionSet)
+    } yield WomGlobFile(path): WomFile).toSet.validNel
   }
 
   private def load64KiB(path: String, ioFunctionSet: IoFunctionSet): String = {

@@ -1,12 +1,6 @@
 package cwl
 
-import cats.data.Validated._
-import cats.instances.list._
-import cats.syntax.apply._
-import cats.syntax.traverse._
 import cats.syntax.validated._
-import common.Checked
-import common.validation.ErrorOr.ErrorOr
 import wom.callable.RuntimeEnvironment
 import wom.graph.LocalName
 import wom.types.WomNothingType
@@ -15,7 +9,10 @@ import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomMap, WomOption
 import scala.collection.JavaConverters._
 
 object ParameterContext {
+
   val Empty = ParameterContext()
+
+  def apply(inputs: Map[String, WomValue]): ParameterContext = ParameterContext().addInputs(inputs)
 }
 
 /**
@@ -55,13 +52,12 @@ case class ParameterContext(private val inputs: Map[String, AnyRef] = Map.empty,
     * @param womMap
     * @return a new Parameter Context with the inputs values added
     */
-  def addInputs(womMap: Map[String, WomValue]): Checked[ParameterContext] = {
-    womMap.toList.traverse{
-      case (key, womValue) => (key.validNel[String]: ErrorOr[String], toJavascript(womValue)).tupled
-    }.map(lst => this.copy(inputs ++ lst.toMap)).toEither
+  def addInputs(womMap: Map[String, WomValue]): ParameterContext = {
+    val jsValues = womMap.mapValues(toJavascript)
+    this.copy(inputs ++ jsValues.toMap)
   }
 
-  def addLocalInputs(womMap: Map[LocalName, WomValue]): Checked[ParameterContext] = {
+  def addLocalInputs(womMap: Map[LocalName, WomValue]): ParameterContext = {
     val stringKeyMap: Map[String, WomValue] = womMap.map {
       case (LocalName(localName), value) => localName -> value
     }
@@ -89,7 +85,7 @@ case class ParameterContext(private val inputs: Map[String, AnyRef] = Map.empty,
     ).asJava
 
   //Nashorn expects values in Java native format
-  private def toJavascript(value: WomValue): ErrorOr[AnyRef] = {
+  private def toJavascript(value: WomValue): AnyRef = {
     value match {
       case WomOptionalValue(WomNothingType, None) => null
       case WomString(string) => string.validNel
@@ -99,9 +95,9 @@ case class ParameterContext(private val inputs: Map[String, AnyRef] = Map.empty,
       case WomArray(_, array) => array.map(toJavascript).toArray.validNel
       case WomSingleFile(path) => path.validNel
       case WomMap(_, map) =>
-        map.toList.traverse({
-          case (mapKey, mapValue) => (toJavascript(mapKey), toJavascript(mapValue)).tupled
-        }).map(_.toMap.asJava)
+        map.map{
+          case (mapKey, mapValue) => toJavascript(mapKey) -> toJavascript(mapValue)
+        }.toMap.asJava
       case _ => (s"Value is unsupported in JavaScript: $value").invalidNel
     }
   }

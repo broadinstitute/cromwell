@@ -2,6 +2,7 @@ package cromwell.core.io
 
 import better.files.File.OpenOptions
 import com.google.api.client.util.ExponentialBackOff
+import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
 import cromwell.core.path.Path
 import cromwell.core.retry.SimpleExponentialBackoff
 
@@ -52,11 +53,21 @@ abstract class IoCopyCommand(val source: Path, val destination: Path, val overwr
   override def toString = s"copy ${source.pathAsString} to ${destination.pathAsString} with overwrite = $overwrite"
   override lazy val name = "copy"
 }
+  
+object IoContentAsStringCommand {
+
+  /**
+    * Options to customize reading of a file.
+    * @param maxBytes If specified, only reads up to maxBytes Bytes from the file
+    * @param failOnOverflow If this is true, maxBytes is specified, and the file is larger than maxBytes, fail the command. 
+    */
+  case class IoReadOptions(maxBytes: Option[Int], failOnOverflow: Boolean)
+}
 
 /**
   * Read file as a string (load the entire content in memory)
   */
-abstract class IoContentAsStringCommand(val file: Path) extends SingleFileIoCommand[String] {
+abstract class IoContentAsStringCommand(val file: Path, val options: IoReadOptions = IoReadOptions(None, failOnOverflow = false)) extends SingleFileIoCommand[String] {
   override def toString = s"read content of ${file.pathAsString}"
   override lazy val name = "read"
 }

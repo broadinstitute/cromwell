@@ -7,7 +7,7 @@ import scala.concurrent.Future
 import scala.util.{Failure, Try}
 
 case object NoIoFunctionSet extends IoFunctionSet {
-  override def readFile(path: String): Future[String] = Future.failed(new NotImplementedError("readFile is not available here"))
+  override def readFile(path: String, maxBytes: Option[Int] = None, failOnOverflow: Boolean = false): Future[String] = Future.failed(new NotImplementedError("readFile is not available here"))
 
   override def writeFile(path: String, content: String): Future[WomFile] = Future.failed(new NotImplementedError("writeFile is not available here"))
 

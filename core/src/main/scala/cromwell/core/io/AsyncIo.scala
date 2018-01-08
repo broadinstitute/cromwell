@@ -30,7 +30,7 @@ class AsyncIo(ioEndpoint: ActorRef, ioCommandBuilder: IoCommandBuilder) {
     * IMPORTANT: This loads the entire content of the file into memory !
     * Only use for small files !
     */
-  def contentAsStringAsync(path: Path): Future[String] = {
+  def contentAsStringAsync(path: Path, maxBytes: Option[Int] = None, failOnOverflow: Boolean = false): Future[String] = {
     asyncCommand(ioCommandBuilder.contentAsStringCommand(path))
   }
 

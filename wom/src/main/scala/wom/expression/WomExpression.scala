@@ -30,7 +30,7 @@ final case class ValueAsAnExpression(value: WomValue) extends WomExpression {
 
 // TODO: Flesh this out (https://github.com/broadinstitute/cromwell/issues/2521)
 trait IoFunctionSet {
-  def readFile(path: String): Future[String]
+  def readFile(path: String, maxBytes: Option[Int] = None, failOnOverflow: Boolean = false): Future[String]
   def writeFile(path: String, content: String): Future[WomFile]
   def stdout(params: Seq[Try[WomValue]]): Try[WomFile]
   def stderr(params: Seq[Try[WomValue]]): Try[WomFile]

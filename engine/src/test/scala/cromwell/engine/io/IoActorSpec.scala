@@ -8,6 +8,7 @@ import better.files.File.OpenOptions
 import com.google.cloud.storage.StorageException
 import cromwell.core.TestKitSuite
 import cromwell.core.io.DefaultIoCommand._
+import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
 import cromwell.core.io._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.engine.io.gcs.GcsBatchFlow.BatchFailedException
@@ -87,7 +88,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
 
-    val readCommand = DefaultIoContentAsStringCommand(src)
+    val readCommand = DefaultIoContentAsStringCommand(src, IoReadOptions(None, failOnOverflow = false))
 
     testActor ! readCommand
     expectMsgPF(5 seconds) {
@@ -95,6 +96,42 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
         response.command.isInstanceOf[IoContentAsStringCommand] shouldBe true
         response.result.asInstanceOf[String] shouldBe "hello"
       case response: IoFailure[_] => fail("Expected an IoSuccess", response.failure)
+    }
+
+    src.delete()
+  }
+
+  it should "read only the first bytes of file" in {
+    val testActor = TestActorRef(new IoActor(1, None, TestProbe().ref))
+
+    val src = DefaultPathBuilder.createTempFile()
+    src.write("hello")
+
+    val readCommand = DefaultIoContentAsStringCommand(src, IoReadOptions(Option(2), failOnOverflow = false))
+
+    testActor ! readCommand
+    expectMsgPF(5 seconds) {
+      case response: IoSuccess[_] =>
+        response.command.isInstanceOf[IoContentAsStringCommand] shouldBe true
+        response.result.asInstanceOf[String] shouldBe "he"
+      case response: IoFailure[_] => fail("Expected an IoSuccess", response.failure)
+    }
+
+    src.delete()
+  }
+
+  it should "fail if the file is larger than the read limit" in {
+    val testActor = TestActorRef(new IoActor(1, None, TestProbe().ref))
+
+    val src = DefaultPathBuilder.createTempFile()
+    src.write("hello")
+
+    val readCommand = DefaultIoContentAsStringCommand(src, IoReadOptions(Option(2), failOnOverflow = true))
+
+    testActor ! readCommand
+    expectMsgPF(5 seconds) {
+      case _: IoSuccess[_] => fail("Command should have failed because the read limit was < file size and failOnOverflow was true")
+      case response: IoFailure[_] => response.failure.getMessage shouldBe s"java.io.IOException: File ${src.pathAsString} is larger than 2 Bytes"
     }
 
     src.delete()

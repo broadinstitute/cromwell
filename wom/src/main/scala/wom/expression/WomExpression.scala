@@ -21,7 +21,7 @@ trait WomExpression {
   * It looks and acts like an expression, but it's really just a value.
   */
 final case class ValueAsAnExpression(value: WomValue) extends WomExpression {
-  override def sourceString: String = value.toWomString
+  override def sourceString: String = value.valueString
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = Valid(value)
   override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = Valid(value.womType)
   override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = Valid(Set.empty)

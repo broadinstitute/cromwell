@@ -4,7 +4,7 @@ import cats.instances.list._
 import cats.instances.option._
 import cats.syntax.traverse._
 import cats.syntax.validated._
-import common.validation.ErrorOr._
+import common.validation.ErrorOr.{ErrorOr, _}
 import common.validation.Validation._
 import eu.timepit.refined._
 import shapeless.Poly1

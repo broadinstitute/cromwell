@@ -8,6 +8,7 @@ import shapeless.Coproduct
 import wom.expression.WomExpression
 import wom.graph.Graph.ResolvedExecutableInput
 import wom.graph.GraphNodePort
+import wom.types.{WomArrayType, WomStringType}
 import wom.values._
 
 class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks with BeforeAndAfterAll {
@@ -33,6 +34,12 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
         | w5: double
         | w6: float
         | w7: boolean
+        | w8:
+        |   type:
+        |     type: array
+        |     items:
+        |       type: array
+        |       items: string
         |steps: []    
         |outputs: []
       """.stripMargin
@@ -61,6 +68,7 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
   lazy val w5OutputPort = graph.inputNodes.find(_.localName == "w5").getOrElse(fail("Failed to find an input node for w5")).singleOutputPort
   lazy val w6OutputPort = graph.inputNodes.find(_.localName == "w6").getOrElse(fail("Failed to find an input node for w6")).singleOutputPort
   lazy val w7OutputPort = graph.inputNodes.find(_.localName == "w7").getOrElse(fail("Failed to find an input node for w7")).singleOutputPort
+  lazy val w8OutputPort = graph.inputNodes.find(_.localName == "w8").getOrElse(fail("Failed to find an input node for w8")).singleOutputPort
   
   def validate(inputFile: String): Map[GraphNodePort.OutputPort, ResolvedExecutableInput] = {
     cwlWorkflow.womExecutable(AcceptAllRequirements, Option(inputFile)) match {
@@ -75,12 +83,20 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
         w1:
           class: File
           path: my_file.txt
+          location: my_file.txt
+          path: my_file.txt
+          path: my_file.txt
         w2: hello !
         w3: 3
         w4: 4
         w5: 5.1
         w6: 6.1
         w7: true
+        w8: [
+          ["a", "b"],
+          ["c", "d"]
+        ] 
+          
       """.stripMargin
 
     val validInputs = validate(inputFile).map {
@@ -89,15 +105,24 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
 
     // w0 has no input value in the input file, so it should fallback to the default value
     // TODO WOM: when we have string value for wom expression, check that it's "hi !"
-    validInputs(w0OutputPort.name).select[WomExpression].isDefined shouldBe true
+    validInputs(w0OutputPort.name).select[WomExpression].get.sourceString shouldBe "\"hi w0 !\""
     validInputs(w1OutputPort.name) shouldBe
       Coproduct[ResolvedExecutableInput](WomMaybePopulatedFile("my_file.txt"): WomValue)
     validInputs(w2OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomString("hello !"): WomValue)
     validInputs(w3OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomInteger(3): WomValue)
     validInputs(w4OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomInteger(4): WomValue)
-    validInputs(w5OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomFloat(5.1F): WomValue)
-    validInputs(w6OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomFloat(6.1F): WomValue)
+    validInputs(w5OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomFloat(5.1D): WomValue)
+    validInputs(w6OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomFloat(6.1D): WomValue)
     validInputs(w7OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomBoolean(true): WomValue)
+    validInputs(w8OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](
+      WomArray(
+        WomArrayType(WomArrayType(WomStringType)),
+        List(
+          WomArray(WomArrayType(WomStringType), List(WomString("a"), WomString("b"))),
+          WomArray(WomArrayType(WomStringType), List(WomString("c"), WomString("d")))
+        )
+      ): WomValue
+    )
   }
 
   it should "not validate when required inputs are missing" in {

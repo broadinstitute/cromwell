@@ -1,16 +1,16 @@
 package cwl
 
-import cats.data.NonEmptyList
-import wom.types.WomNothingType
-import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomMap, WomOptionalValue, WomSingleFile, WomString, WomValue}
-import cats.syntax.traverse._
-import cats.syntax.apply._
-import cats.syntax.validated._
-import cats.instances.list._
-import common.validation.ErrorOr.ErrorOr
 import cats.data.Validated._
+import cats.instances.list._
+import cats.syntax.apply._
+import cats.syntax.traverse._
+import cats.syntax.validated._
+import common.Checked
+import common.validation.ErrorOr.ErrorOr
 import wom.callable.RuntimeEnvironment
 import wom.graph.LocalName
+import wom.types.WomNothingType
+import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomMap, WomOptionalValue, WomSingleFile, WomString, WomValue}
 
 import scala.collection.JavaConverters._
 
@@ -27,13 +27,10 @@ object ParameterContext {
   *
   * See {{cwl.JsUtil}} for nashorn-specific implementation details.
   *
-  * @param inputs
-  * @param self
-  * @param runtime
   */
 case class ParameterContext(private val inputs: Map[String, AnyRef] = Map.empty,
-                       private val self: Array[Map[String, String]] = Array.empty,
-                       private val runtime: Map[String, AnyRef] = Map.empty) {
+                            private val self: Array[Map[String, String]] = Array.empty,
+                            private val runtime: Map[String, AnyRef] = Map.empty) {
 
   /**
     * see <a href="http://www.commonwl.org/v1.0/CommandLineTool.html#Runtime_environment">CWL Spec</a>.
@@ -58,13 +55,13 @@ case class ParameterContext(private val inputs: Map[String, AnyRef] = Map.empty,
     * @param womMap
     * @return a new Parameter Context with the inputs values added
     */
-  def addInputs(womMap: Map[String, WomValue]): Either[NonEmptyList[String], ParameterContext] = {
+  def addInputs(womMap: Map[String, WomValue]): Checked[ParameterContext] = {
     womMap.toList.traverse{
       case (key, womValue) => (key.validNel[String]: ErrorOr[String], toJavascript(womValue)).tupled
     }.map(lst => this.copy(inputs ++ lst.toMap)).toEither
   }
 
-  def addLocalInputs(womMap: Map[LocalName, WomValue]): Either[NonEmptyList[String], ParameterContext] = {
+  def addLocalInputs(womMap: Map[LocalName, WomValue]): Checked[ParameterContext] = {
     val stringKeyMap: Map[String, WomValue] = womMap.map {
       case (LocalName(localName), value) => localName -> value
     }

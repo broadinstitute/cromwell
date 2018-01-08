@@ -1,19 +1,19 @@
 package cwl
 
+import cats.data.NonEmptyList
+import cats.syntax.either._
+import cats.syntax.validated._
+import common.Checked
 import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
+import mouse.all._
 import wom.expression.IoFunctionSet
 import wom.types._
-import wom.values.{WomArray, WomFile, WomGlobFile, WomMap, WomString, WomValue}
-import cats.syntax.validated._
-import cats.syntax.either._
+import wom.values.{GlobFunctions, WomArray, WomFile, WomGlobFile, WomMap, WomString, WomValue}
 
-import common.validation.Validation._
-import cats.data.NonEmptyList
-
-import scala.language.postfixOps
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import mouse.all._
+import scala.language.postfixOps
 
 case class CommandOutputExpression(outputBinding: CommandOutputBinding,
                                    override val cwlExpressionType: WomType,
@@ -35,7 +35,7 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
 
     http://www.commonwl.org/v1.0/CommandLineTool.html#CommandOutputBinding
      */
-    def outputBindingEvaluationResult: Either[NonEmptyList[String], WomValue] = {
+    def outputBindingEvaluationResult: Checked[WomValue] = {
       import StringOrExpression._
       (outputBinding, parameterContext) match {
         case (CommandOutputBinding(_, _, Some(String(value))), Right(_)) => WomString(value).asRight
@@ -58,8 +58,10 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
             paths.toArray map {
               (path: String) =>
                 // TODO: WOM: basename/dirname/size/checksum/etc.
+                val globPathWithDirectory = GlobFunctions.prefixWithGlobDir(path)
+
                 val contents =
-                  Map("contents" -> load64KiB(path, ioFunctionSet)).
+                  Map("contents" -> load64KiB(globPathWithDirectory, ioFunctionSet)).
                     filter(_ => _loadContents)
 
                 val location = Map("location" -> path)

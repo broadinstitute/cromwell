@@ -1,13 +1,12 @@
 package cwl
 
-import cats.syntax.option._
 import cats.data.NonEmptyList
+import cats.syntax.either._
 import cats.syntax.validated._
-import common.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.Validation._
-import common.validation.ErrorOr.ShortCircuitingFlatMap
-import cats.syntax.validated._
 import cwl.InitialWorkDirRequirement.IwdrListingArrayEntry
+import mouse.all._
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.types._
 import wom.values._
@@ -15,8 +14,6 @@ import wom.values._
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.util.Try
-import cats.syntax.either._
-import mouse.all._
 
 trait CwlWomExpression extends WomExpression {
 
@@ -61,7 +58,8 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
     def evaluateEntryName(stringOrExpression: StringOrExpression): ErrorOr[String] = stringOrExpression match {
       case StringOrExpression.String(s) => s.validNel
       case StringOrExpression.ECMAScriptExpression(entrynameExpression) => for {
-        entryNameExpressionEvaluated <- ExpressionEvaluator.evalExpression(entrynameExpression, ParameterContext().withInputs(inputValues, ioFunctionSet)).toErrorOr
+        parameterContext <- ParameterContext().addInputs(inputValues).toValidated
+        entryNameExpressionEvaluated <- ExpressionEvaluator.evalExpression(entrynameExpression, parameterContext).toErrorOr
         entryNameValidated <- mustBeString(entryNameExpressionEvaluated)
       } yield entryNameValidated
     }
@@ -73,8 +71,7 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
       } yield writtenFile
 
       case IwdrListingArrayEntry.ExpressionDirent(Expression.ECMAScriptExpression(contentExpression), direntEntryName, _) =>
-        val entryEvaluation: ErrorOr[WomValue] = ExpressionEvaluator.evalExpression(contentExpression, ParameterContext().withInputs(inputValues, ioFunctionSet)).toErrorOr
-        entryEvaluation flatMap {
+        val f = (_:WomValue) match {
           // TODO CWL: Once files have "local paths", we will be able to specify a new local name based on direntEntryName if necessary.
           case f: WomFile => f.validNel
           case other => for {
@@ -86,6 +83,11 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
             writtenFile <- Try(Await.result(ioFunctionSet.writeFile(entryname, contentString), Duration.Inf)).toErrorOr
           }  yield writtenFile
         }
+        for {
+          parameterContext <- ParameterContext().addInputs(inputValues).toValidated
+          entryEvaluation <- ExpressionEvaluator.evalExpression(contentExpression, parameterContext).toErrorOr
+          result <- f(entryEvaluation)
+        } yield result
 
       case _ => ??? // TODO WOM and the rest....
     }

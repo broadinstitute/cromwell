@@ -3,10 +3,9 @@ package cwl
 import shapeless._
 import wom.expression.IoFunctionSet
 import wom.types.{WomArrayType, WomStringType}
-
-import scala.Function._
 import wom.values._
 
+import scala.Function._
 import scala.util.{Failure, Success}
 
 /*

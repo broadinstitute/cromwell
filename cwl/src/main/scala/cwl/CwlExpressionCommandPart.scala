@@ -1,6 +1,7 @@
 package cwl
 
 import cats.data.NonEmptyList
+import cats.syntax.either._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cwl.CommandLineTool.CommandInputParameter
@@ -12,10 +13,8 @@ import wom.graph.LocalName
 import wom.values._
 import wom.{CommandPart, InstantiatedCommand}
 
-import scala.util.Try
-import cats.syntax.either._
-
 import scala.language.postfixOps
+import scala.util.Try
 
 case class CwlExpressionCommandPart(expr: Expression) extends CommandPart {
   override def instantiate(inputsMap: Map[LocalName, WomValue],

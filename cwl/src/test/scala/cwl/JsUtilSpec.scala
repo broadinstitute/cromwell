@@ -3,7 +3,7 @@ package cwl
 import org.scalatest.{FlatSpec, Matchers}
 import wom.values._
 
-import collection.JavaConverters._
+import scala.collection.JavaConverters._
 
 class JsUtilSpec extends FlatSpec with Matchers {
 

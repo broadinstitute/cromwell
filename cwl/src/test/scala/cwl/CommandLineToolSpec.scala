@@ -37,8 +37,9 @@ class CommandLineToolSpec extends FlatSpec with Matchers with ParallelTestExecut
     override def glob(pattern: String): Future[Seq[String]] = ???
     override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = ???
     override def size(params: Seq[Try[WomValue]]): Future[WomFloat] = ???
-    override def readFile(path: String): Future[String] = ???
+    override def readFile(path: String, maxBytes: Option[Int], failOnOverflow: Boolean): Future[String] = ???
     override def writeFile(path: String, content: String): Future[WomFile] = ???
+    override def copyFile(pathFrom: String, targetName: String) = ???
   }
   
   val runtimeEnv = RuntimeEnvironment("", "", 0, 0D, 0L, 0L)

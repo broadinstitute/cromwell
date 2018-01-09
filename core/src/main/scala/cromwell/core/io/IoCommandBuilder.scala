@@ -50,7 +50,7 @@ class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.emp
     }).getOrElse(default)
   }
   
-  def contentAsStringCommand(path: Path, maxBytes: Option[Int] = None, failOnOverflow: Boolean = false): IoContentAsStringCommand = {
+  def contentAsStringCommand(path: Path, maxBytes: Option[Int], failOnOverflow: Boolean): IoContentAsStringCommand = {
     buildOrDefault(_.contentAsStringCommand, (path, maxBytes, failOnOverflow), DefaultIoContentAsStringCommand(path, IoReadOptions(maxBytes, failOnOverflow)))
   }
   

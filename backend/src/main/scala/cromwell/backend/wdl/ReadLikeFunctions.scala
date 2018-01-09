@@ -16,7 +16,7 @@ trait ReadLikeFunctions extends PathFactory with IoFunctionSet with AsyncIoFunct
   // TODO WOM: https://github.com/broadinstitute/cromwell/issues/2611
   val fileSizeLimitationConfig = FileSizeLimitationConfig.fileSizeLimitationConfig
 
-  override def readFile(path: String, maxBytes: Option[Int], failOnOverflow: Boolean = false): Future[String] = asyncIo.contentAsStringAsync(buildPath(path), maxBytes, failOnOverflow)
+  override def readFile(path: String, maxBytes: Option[Int], failOnOverflow: Boolean): Future[String] = asyncIo.contentAsStringAsync(buildPath(path), maxBytes, failOnOverflow)
 
   protected def size(file: WomValue): Future[Double] = asyncIo.sizeAsync(buildPath(file.valueString)).map(_.toDouble)
 

@@ -319,7 +319,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
 
 object WdlStandardLibraryFunctions {
   def fromIoFunctionSet(ioFunctionSet: IoFunctionSet) = new WdlStandardLibraryFunctions {
-    override def readFile(path: String): String = Await.result(ioFunctionSet.readFile(path), Duration.Inf)
+    override def readFile(path: String): String = Await.result(ioFunctionSet.readFile(path, None, failOnOverflow = false), Duration.Inf)
 
     override def writeFile(path: String, content: String): Try[WomFile] = Try(Await.result(ioFunctionSet.writeFile(path, content), Duration.Inf))
 

@@ -137,11 +137,11 @@ There are two different ways of specifying an Alibaba Cloud BatchCompute cluster
 
 - Reserved cluster - A pre-created cluster ID in BatchCompute service like this:
 
-  ```hocon
+```hocon
       default-runtime-attributes {
         cluster: "cls-your-cluster-id"
       }
-  ```
+```
 
 - Auto cluster - Cluster configuration to create a new runtime cluster bound to the workflow job:
 
@@ -149,12 +149,12 @@ There are two different ways of specifying an Alibaba Cloud BatchCompute cluster
   - `<instance-type>` - Type of VM instance. Go to <a href="https://help.aliyun.com/document_detail/25378.html" target="_blank">Alibaba Cloud BatchCompute Instance Type</a> to choose a suitable type for you.
   - `<image-id>` - Image ID of Alibaba Cloud BatchCompute service to create a VM.
 
-  ```hocon
+```hocon
       default-runtime-attributes {
         cluster: "<resource-type> <instance-type> <image-id>"
         # Maybe like cluster: "OnDemand ecs.sn1ne.large img-ubuntu"
       }
-  ```
+```
 
 #### mounts
 

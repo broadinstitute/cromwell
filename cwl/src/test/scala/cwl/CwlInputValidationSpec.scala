@@ -40,16 +40,17 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
         |     items:
         |       type: array
         |       items: string
-        | w9:
-        |   type:
-        |     name: w9
-        |     type: record
-        |     fields:
-        |     - name: w9a
-        |       type: record
-        |       fields: 
-        |       - name: w9aa
-        |         type: string  
+        | # enable this when InputRecordSchemas are enabled      
+        | #w9:
+        | #  type:
+        | #    name: w9
+        | #    type: record
+        | #    fields:
+        | #    - name: w9a
+        | #      type: record
+        | #      fields: 
+        | #      - name: w9aa
+        | #        type: string  
         |steps: []    
         |outputs: []
       """.stripMargin
@@ -81,7 +82,7 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
   lazy val w6OutputPort = getOutputPort(6)
   lazy val w7OutputPort = getOutputPort(7)
   lazy val w8OutputPort = getOutputPort(8)
-  lazy val w9OutputPort = getOutputPort(9)
+//  lazy val w9OutputPort = getOutputPort(9)
   
   def validate(inputFile: String): Map[GraphNodePort.OutputPort, ResolvedExecutableInput] = {
     cwlWorkflow.womExecutable(AcceptAllRequirements, Option(inputFile)) match {
@@ -139,13 +140,14 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
         )
       ): WomValue
     )
-    validInputs(w9OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](
-      WomObject(
-        Map(
-          "w9a" -> WomObject(Map("w9aa" -> WomString("hello")))
-        )
-      ): WomValue
-    )
+    // Enable this when InputRecordSchema is enabled
+//    validInputs(w9OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](
+//      WomObject(
+//        Map(
+//          "w9a" -> WomObject(Map("w9aa" -> WomString("hello")))
+//        )
+//      ): WomValue
+//    )
   }
 
   it should "not validate when required inputs are missing" in {
@@ -162,7 +164,8 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
         "Required workflow input 'w4' not specified",
         "Required workflow input 'w5' not specified",
         "Required workflow input 'w6' not specified",
-        "Required workflow input 'w7' not specified"
+        "Required workflow input 'w7' not specified",
+        "Required workflow input 'w8' not specified"
       )
     }
   }

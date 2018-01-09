@@ -6,15 +6,13 @@ import shapeless.Poly1
 import wom.values.WomValue
 
 object EvaluateExpression extends Poly1 {
-  implicit def caseECMAScriptExpression: Case.Aux[ECMAScriptExpression, ParameterContext => ErrorOr[WomValue]] = {
-    at {
-      ExpressionEvaluator.evalExpression
-    }
+  implicit def script: Case.Aux[ECMAScriptExpression, (ParameterContext, Vector[ECMAScriptFunction]) => ErrorOr[WomValue]] = at[ECMAScriptExpression] { e =>
+    (parameterContext: ParameterContext, expressionLib: Vector[ECMAScriptFunction]) =>
+      ExpressionEvaluator.evalExpression(e, parameterContext, expressionLib)
   }
 
-  implicit def caseECMAScriptFunction: Case.Aux[ECMAScriptFunction, ParameterContext => ErrorOr[WomValue]] = {
-    at {
-      ExpressionEvaluator.evalFunction
-    }
+  implicit def function: Case.Aux[ECMAScriptFunction, (ParameterContext, Vector[ECMAScriptFunction]) => ErrorOr[WomValue]] = at[ECMAScriptFunction] { f =>
+    (parameterContext: ParameterContext, expressionLib: Vector[ECMAScriptFunction]) =>
+      ExpressionEvaluator.evalFunction(f, parameterContext, expressionLib)
   }
 }

@@ -5,6 +5,7 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.Validation._
+import cwl.ExpressionEvaluator.ECMAScriptFunction
 import cwl.InitialWorkDirRequirement.IwdrListingArrayEntry
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.types._
@@ -18,6 +19,16 @@ trait CwlWomExpression extends WomExpression {
   def cwlExpressionType: WomType
 
   override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = cwlExpressionType.validNel
+
+  def expressionLib: Vector[ECMAScriptFunction]
+
+  def evaluate(inputs: Map[String, WomValue], parameterContext: ParameterContext, expression: Expression): ErrorOr[WomValue] =
+    expression.
+      fold(EvaluateExpression).
+      apply(parameterContext).
+      cata(Right(_),Left(_)). // this is because toEither is not a thing in scala 2.11.
+      leftMap(e => NonEmptyList.one(e.getMessage)).
+      toValidated
 }
 
 case class JobPreparationExpression(expression: Expression,

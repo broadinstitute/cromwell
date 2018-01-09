@@ -24,23 +24,30 @@ object ExpressionEvaluator {
   type ECMAScriptFunction = String Refined MatchesRegex[ECMAScriptFunctionWitness.T]
   type MatchesECMAFunction = MatchesRegex[ECMAScriptFunctionWitness.T]
 
-  def evalExpression(expression: ECMAScriptExpression)(parameterContext: ParameterContext): ErrorOr[WomValue] = {
+  def evalExpression(expression: ECMAScriptExpression, parameterContext: ParameterContext, expressionLib: Vector[ECMAScriptFunction]): ErrorOr[WomValue] = {
     expression.value match {
-      case ECMAScriptExpressionRegex(script) => eval(script, parameterContext)
+      case ECMAScriptExpressionRegex(script) =>
+        val expressionScript = expressionLibToScript(expressionLib)
+        eval(expressionScript + script, parameterContext)
       case unmatched =>
         s"Expression '$unmatched' was unable to be matched to regex '${ECMAScriptExpressionWitness.value}'".invalidNel
     }
   }
 
-  def evalFunction(function: ECMAScriptFunction)(parameterContext: ParameterContext): ErrorOr[WomValue] = {
+
+  def evalFunction(function: ECMAScriptFunction, parameterContext: ParameterContext, expressionLib: Vector[ECMAScriptFunction]): ErrorOr[WomValue] = {
     function.value match {
       case ECMAScriptFunctionRegex(script) =>
+
+        val expressionScript = expressionLibToScript(expressionLib)
+
         val functionExpression =
           s"""|(function() {
               |FUNCTION_BODY
               |})();
               |""".stripMargin.replace("FUNCTION_BODY", script)
-        eval(functionExpression, parameterContext)
+
+        eval(expressionScript + functionExpression, parameterContext)
       case unmatched =>
         s"Expression '$unmatched' was unable to be matched to regex '${ECMAScriptFunctionWitness.value}'".invalidNel
     }
@@ -81,4 +88,15 @@ object ExpressionEvaluator {
     )
   }
 
+
+  def expressionLibToScript: Vector[ECMAScriptFunction] => String = _.map(funcToScript).mkString("")
+
+  def funcToScript: ECMAScriptFunction => String = {
+    case ECMAScriptFunctionRegex(script) =>
+        s"""|(function() {
+            |FUNCTION_BODY
+            |})();
+            |""".stripMargin.replaceAll("FUNCTION_BODY", script)
+    case _ => throw new RuntimeException(s"Expression was unable to be matched to Regex. This is never supposed to happen thanks to our JSON parsing library")
+  }
 }

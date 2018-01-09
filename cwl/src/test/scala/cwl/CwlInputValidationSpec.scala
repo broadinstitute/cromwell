@@ -98,8 +98,6 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
           class: File
           path: my_file.txt
           location: my_file.txt
-          path: my_file.txt
-          path: my_file.txt
         w2: hello !
         w3: 3
         w4: 4

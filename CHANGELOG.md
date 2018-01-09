@@ -1,5 +1,10 @@
 # Cromwell Change Log
 
+## 31 Release Notes
+
+* Added a configuration option under `docker.hash-lookup.enabled` to disable docker hash lookup.
+ Disabling it will also disable call caching for jobs with floating docker tags.
+
 ## 30 Release Notes
 
 ### Breaking changes

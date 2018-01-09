@@ -75,6 +75,10 @@ object Dependencies {
   val swaggerParserV = "1.0.22"
   val swaggerUiV = "3.2.2"
   val typesafeConfigV = "1.3.1"
+  val alibabaCloudCoreV = "3.2.3"
+  val alibabaCloudOssV = "2.8.3"
+  val alibabaCloudBcsV = "5.1.0"
+
 
   /*
   If you see warnings from SBT about evictions, insert a specific dependency version into this list.
@@ -206,6 +210,19 @@ object Dependencies {
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV
   )
 
+  private val aliyunOssDependencies = List(
+    "com.aliyun.oss" % "aliyun-sdk-oss" % alibabaCloudOssV
+      exclude("commons-beanutils", "commons-beanutils-core")
+      exclude("commons-collections", "commons-collections")
+  )
+
+  private val aliyunBatchComputeDependencies = List(
+    "com.aliyun" % "aliyun-java-sdk-core" % alibabaCloudCoreV
+      exclude("commons-beanutils", "commons-beanutils-core")
+      exclude("commons-collections", "commons-collections"),
+    "com.aliyun" % "aliyun-java-sdk-batchcompute" % alibabaCloudBcsV
+  )
+
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,
     /*
@@ -244,6 +261,10 @@ object Dependencies {
   val statsDDependencies = List(
     "nl.grons" %% "metrics-scala" % metricsScalaV,
     "com.readytalk" % "metrics3-statsd" % metrics3StatsdV
+  )
+
+  val ossFileSystemDependencies = googleCloudDependencies ++ aliyunOssDependencies ++ List (
+    "com.github.pathikrit" %% "better-files" % betterFilesV
   )
 
   val commonDependencies = List(
@@ -326,6 +347,7 @@ object Dependencies {
     "co.fs2" %% "fs2-io" % fs2V % Test
   )
 
+  val bcsBackendDependencies = commonDependencies ++ refinedTypeDependenciesList ++ aliyunBatchComputeDependencies
   val tesBackendDependencies = akkaHttpDependencies
   val sparkBackendDependencies = akkaHttpDependencies
 

@@ -3,10 +3,10 @@ package wdl
 import java.nio.file.Path
 
 import better.files._
-import wdl4s.parser.WdlParser
-import wdl4s.parser.WdlParser._
 import wdl.WdlExpression.{AstForExpressions, AstNodeForExpressions}
 import wdl.expression.ValueEvaluator.InterpolationTagPattern
+import wdl4s.parser.WdlParser
+import wdl4s.parser.WdlParser._
 import wom.core._
 import wom.types._
 import wom.values._
@@ -111,6 +111,7 @@ object AstTools {
       astNode match {
         case t: Terminal =>
           t.getSourceString match {
+            case WomUnlistedDirectoryType.`toDisplayString` => WomUnlistedDirectoryType
             case WomSingleFileType.`toDisplayString` => WomSingleFileType
             case WomStringType.`toDisplayString` => WomStringType
             case WomIntegerType.`toDisplayString` => WomIntegerType
@@ -126,16 +127,19 @@ object AstTools {
           val typeTerminal = a.getAttribute("name").asInstanceOf[Terminal]
           a.getAttribute("name").sourceString match {
             case "Pair" =>
-              if (subtypes.size != 2) throw new SyntaxError(wdlSyntaxErrorFormatter.pairMustHaveExactlyTwoTypeParameters(typeTerminal))
+              if (subtypes.lengthCompare(2) != 0)
+                throw new SyntaxError(wdlSyntaxErrorFormatter.pairMustHaveExactlyTwoTypeParameters(typeTerminal))
               val leftType = subtypes.head.womType(wdlSyntaxErrorFormatter)
               val rightType = subtypes.tail.head.womType(wdlSyntaxErrorFormatter)
               WomPairType(leftType, rightType)
             case "Array" =>
-              if (subtypes.size != 1) throw new SyntaxError(wdlSyntaxErrorFormatter.arrayMustHaveOnlyOneTypeParameter(typeTerminal))
+              if (subtypes.lengthCompare(1) != 0)
+                throw new SyntaxError(wdlSyntaxErrorFormatter.arrayMustHaveOnlyOneTypeParameter(typeTerminal))
               val member = subtypes.head.womType(wdlSyntaxErrorFormatter)
               WomArrayType(member)
             case "Map" =>
-              if (subtypes.size != 2) throw new SyntaxError(wdlSyntaxErrorFormatter.mapMustHaveExactlyTwoTypeParameters(typeTerminal))
+              if (subtypes.lengthCompare(2) != 0)
+                throw new SyntaxError(wdlSyntaxErrorFormatter.mapMustHaveExactlyTwoTypeParameters(typeTerminal))
               val keyType = subtypes.head.womType(wdlSyntaxErrorFormatter)
               val valueType = subtypes.tail.head.womType(wdlSyntaxErrorFormatter)
               WomMapType(keyType, valueType)
@@ -181,10 +185,10 @@ object AstTools {
 
       def astTupleToValue(a: Ast): WomValue = {
         val subElements = a.getAttribute("values").astListAsVector
-        if (subElements.size == 1) {
+        if (subElements.lengthCompare(1) == 0) {
           // Tuple 1 is equivalent to the value inside it. Enables nesting parens, e.g. (1 + 2) + 3
           a.womValue(womType, wdlSyntaxErrorFormatter)
-        } else if (subElements.size == 2 && womType.isInstanceOf[WomPairType]) {
+        } else if (subElements.lengthCompare(2) == 0 && womType.isInstanceOf[WomPairType]) {
           val pairType = womType.asInstanceOf[WomPairType]
           WomPair(subElements.head.womValue(pairType.leftType, wdlSyntaxErrorFormatter), subElements(1).womValue(pairType.rightType, wdlSyntaxErrorFormatter))
         } else {
@@ -194,8 +198,12 @@ object AstTools {
 
       astNode match {
         case t: Terminal if t.getTerminalStr == "string" && womType == WomStringType => WomString(t.getSourceString)
+        case t: Terminal if t.getTerminalStr == "string" && womType == WomUnlistedDirectoryType =>
+          WomUnlistedDirectory(t.getSourceString)
         case t: Terminal if t.getTerminalStr == "string" && womType == WomSingleFileType =>
           WomSingleFile(t.getSourceString)
+        case t: Terminal if t.getTerminalStr == "string" && womType == WomGlobFileType =>
+          WomGlobFile(t.getSourceString)
         case t: Terminal if t.getTerminalStr == "integer" && womType == WomIntegerType => WomInteger(t.getSourceString.toInt)
         case t: Terminal if t.getTerminalStr == "float" && womType == WomFloatType => WomFloat(t.getSourceString.toDouble)
         case t: Terminal if t.getTerminalStr == "boolean" && womType == WomBooleanType => t.getSourceString.toLowerCase match {
@@ -219,7 +227,7 @@ object AstTools {
 
   implicit class EnhancedAstSeq(val astSeq: Seq[Ast]) extends AnyVal {
     def duplicatesByName: Seq[Ast] = {
-      astSeq.groupBy(_.getAttribute("name").sourceString).collect({case (_ ,v) if v.size > 1 => v.head}).toVector
+      astSeq.groupBy(_.getAttribute("name").sourceString).collect({case (_ ,v) if v.lengthCompare(1) > 0 => v.head}).toVector
     }
   }
 
@@ -406,7 +414,7 @@ object AstTools {
 
     /* Then, make sure there is at most one 'input' section defined, then return the a Seq of IOMapping(key=<terminal>, value=<expression>) ASTs*/
     callInputSections match {
-      case asts: Seq[Ast] if asts.size == 1 => asts.head.getAttribute("map").findAsts(AstNodeName.IOMapping)
+      case asts: Seq[Ast] if asts.lengthCompare(1) == 0 => asts.head.getAttribute("map").findAsts(AstNodeName.IOMapping)
       case asts: Seq[Ast] if asts.isEmpty => Seq.empty[Ast]
       case asts: Seq[Ast] =>
         /* Uses of .head here are assumed by the above code that ensures that there are no empty maps */
@@ -421,7 +429,7 @@ object AstTools {
   def wdlSectionToStringMap(ast: Ast, node: String, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Map[String, String] = {
     ast.findAsts(node) match {
       case a if a.isEmpty => Map.empty[String, String]
-      case a if a.size == 1 =>
+      case a if a.lengthCompare(1) == 0 =>
         // Yes, even 'meta {}' and 'parameter_meta {}' sections have RuntimeAttribute ASTs.
         // In hindsight, this was a poor name for the AST.
         a.head.findAsts(AstNodeName.RuntimeAttribute).map({ ast =>

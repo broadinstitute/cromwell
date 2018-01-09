@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import common.validation.ErrorOr.ErrorOr
 import wom.types.WomType
-import wom.values.{WomFile, WomValue}
+import wom.values.{WomFile, WomSingleFile, WomValue}
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -21,8 +21,8 @@ final case class PlaceholderWomExpression(inputs: Set[String], fixedWomType: Wom
 
 case object PlaceholderIoFunctionSet extends IoFunctionSet {
   override def readFile(path: String, maxBytes: Option[Int] = None, failOnOverflow: Boolean = false): Future[String] = ???
-  override def writeFile(path: String, content: String): Future[WomFile] = ???
-  override def copyFile(pathFrom: String, targetName: String): Future[WomFile] = ???
+  override def writeFile(path: String, content: String): Future[WomSingleFile] = ???
+  override def copyFile(pathFrom: String, targetName: String): Future[WomSingleFile] = ???
   override def stdout(params: Seq[Try[WomValue]]) = ???
   override def stderr(params: Seq[Try[WomValue]]) = ???
   override def glob(pattern: String): Future[Seq[String]] = ???

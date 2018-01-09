@@ -12,12 +12,13 @@ case class WomString(value: String) extends WomPrimitive {
     case r: WomString => Success(WomString(value + r.value))
     case r: WomInteger => Success(WomString(value + r.value))
     case r: WomFloat => Success(WomString(value + r.value))
-    case r: WomFile => Success(WomString(value + r.value))
+    case r: WomPrimitiveFile => Success(WomString(value + r.value))
     case r: WomOptionalValue => evaluateIfDefined("+", r, add)
     case _ => invalid(s"$value + $rhs")
   }
 
   override def equals(rhs: WomValue): Try[WomBoolean] = rhs match {
+    case r: WomPrimitiveFile => Success(WomBoolean(value == r.value))
     case r: WomString => Success(WomBoolean(value == r.value))
     case r: WomOptionalValue => evaluateIfDefined("==", r, equals)
     case _ => invalid(s"$value == $rhs")

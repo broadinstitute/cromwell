@@ -1,5 +1,6 @@
 package cwl
 
+import cwl.ExpressionEvaluator.ECMAScriptExpression
 import cwl.InitialWorkDirRequirement._
 import eu.timepit.refined.W
 import shapeless.{:+:, CNil, _}
@@ -57,6 +58,21 @@ object InitialWorkDirRequirement {
     object ExpressionDirent {
       def unapply(e: IwdrListingArrayEntry): Option[(Expression, Option[StringOrExpression], Boolean)] =
         e.select[ExpressionDirent].map(sd => (sd.entry, sd.entryname, sd.writableWithDefault))
+    }
+    object FilePath {
+      def unapply(e: IwdrListingArrayEntry): Option[String] = e.select[File].flatMap(file => file.location)
+    }
+    object String {
+      def unapply(e: IwdrListingArrayEntry): Option[String] = e.select[StringOrExpression].flatMap(_.select[String])
+    }
+    object ECMAScriptExpression {
+      def unapply(e: IwdrListingArrayEntry): Option[ECMAScriptExpression] = for {
+        soe <- e.select[StringOrExpression]
+        expr <- soe.select[Expression]
+        ecmaScriptExpression <- expr.select[ECMAScriptExpression]
+      } yield ecmaScriptExpression
+
+
     }
   }
 

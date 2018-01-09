@@ -8,7 +8,6 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
-import cats.data.Validated.Valid
 import common.exception.MessageAggregation
 import common.util.TryUtil
 import common.validation.ErrorOr.ErrorOr
@@ -249,14 +248,15 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
     val adHocFileCreationInputs = jobDescriptor.evaluatedTaskInputs.map { case (k,v) => k.localName.value -> v }
 
-    def validateAdHocFile(value: WomValue): ErrorOr[WomFile] = value match {
-        case f: WomFile => Valid(f)
+    def validateAdHocFile(value: WomValue): ErrorOr[List[WomFile]] = value match {
+        case f: WomFile => List(f).valid
+        case a: WomArray => a.value.toList.traverse(validateAdHocFile).map(_.flatten)
         case other => s"Ad-hoc file creation expression invalidly created a ${other.womType.toDisplayString} result.".invalidNel
     }
 
     val adHocFileCreations: ErrorOr[List[WomFile]] = jobDescriptor.taskCall.callable.adHocFileCreation.toList.traverse {
       _.evaluateValue(adHocFileCreationInputs, backendEngineFunctions).flatMap(validateAdHocFile)
-    }
+    }.map(_.flatten)
 
     val adHocFileCreationSideEffectFiles: ErrorOr[List[CommandSetupSideEffectFile]] = adHocFileCreations map { _ map {
       f => CommandSetupSideEffectFile(f,  Option(adHocFileLocalization(f)))
@@ -274,7 +274,10 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     // TODO CWL: toTry.get here. Is throwing an exception the best way to indicate command generation failure?
     ((adHocFileCreationSideEffectFiles, instantiatedCommandValidation) mapN { (adHocFiles, command) =>
         command.copy(createdFiles = command.createdFiles ++ adHocFiles)
-    }).toTry.get
+    }).toTry match {
+      case Success(ic) => ic
+      case Failure(e) => throw new Exception("Failed to evaluate ad hoc files", e)
+    }
   }
 
   /**

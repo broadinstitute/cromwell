@@ -4,7 +4,9 @@ import cwl.CommandLineTool._
 import shapeless.{:+:, CNil}
 import cwl.CwlType.CwlType
 import io.circe.Json
+import spray.json.JsValue
 import wom.types.WomType
+import spray.json._
 
 trait TypeAliases {
 
@@ -100,9 +102,14 @@ trait TypeAliases {
 }
 
 object CwlAny {
-  implicit class EnhancedCwlAny(val cwlAny: CwlAny) extends AnyVal {
-    def stringRepresentation: String = cwlAny.select[Json] map { json => json.asString.getOrElse(json.toString) } getOrElse "CwlAny (not Json)"
+
+  implicit class EnhancedJson(val json: Json) extends AnyVal {
+    // Yes, urgh! This is disgusting but until we rewrite the entire JS coercion set for circe...
+    def sprayJsonRepresentation: JsValue = json.noSpaces.parseJson
   }
+
+  object Json { def unapply(cwlAny: CwlAny): Option[Json] = cwlAny.select[Json] }
+  object File { def unapply(cwlAny: CwlAny): Option[File] = cwlAny.select[File] }
 }
 
 object MyriadInputType {

@@ -11,6 +11,8 @@ case object NoIoFunctionSet extends IoFunctionSet {
 
   override def writeFile(path: String, content: String): Future[WomFile] = Future.failed(new NotImplementedError("writeFile is not available here"))
 
+  override def copyFile(pathFrom: String, targetName: String): Future[WomFile] = throw new Exception("copyFile is not available here")
+
   override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError("stdout is not available here"))
 
   override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError("stderr is not available here"))

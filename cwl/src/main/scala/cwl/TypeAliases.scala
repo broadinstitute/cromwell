@@ -99,6 +99,12 @@ trait TypeAliases {
   type ResourceRequirementType = Long :+: Expression :+: String :+: CNil
 }
 
+object CwlAny {
+  implicit class EnhancedCwlAny(val cwlAny: CwlAny) extends AnyVal {
+    def stringRepresentation: String = cwlAny.select[Json] map { json => json.asString.getOrElse(json.toString) } getOrElse "CwlAny (not Json)"
+  }
+}
+
 object MyriadInputType {
   object CwlType {
     def unapply(m: MyriadInputType): Option[CwlType] = {

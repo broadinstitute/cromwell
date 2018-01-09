@@ -1,9 +1,10 @@
 package cwl
 
 import cats.syntax.option._
-import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
+import common.validation.ErrorOr.ShortCircuitingFlatMap
+import cats.syntax.validated._
 import cwl.InitialWorkDirRequirement.IwdrListingArrayEntry
 import cwl.WorkflowStepInput.InputSource
 import cwl.command.ParentName
@@ -63,7 +64,7 @@ case class CommandOutputExpression(outputBinding: CommandOutputBinding,
 
         //In the case of a single file being expected, we must enforce that the glob only represents a single file
         case (WomString(glob), WomSingleFileType) =>
-          ioFunctionSet.glob(glob) match {
+          Await.result(ioFunctionSet.glob(glob), Duration.Inf) match {
             case head :: Nil => WomString(head)
             case list => throw new RuntimeException(s"expecting a single File glob but instead got $list")
           }
@@ -120,18 +121,51 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
   override def cwlExpressionType: WomType = WomSingleFileType
   override def sourceString: String = entry.toString
 
-  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = entry match {
-    case IwdrListingArrayEntry.StringDirent(content, StringOrExpression.String(entryname), _) =>
-      Try(Await.result(ioFunctionSet.writeFile(entryname, content), Duration.Inf)).toErrorOr
-    case _ => ??? // TODO WOM and the rest....
+  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomFile] = {
+    def mustBeString(womValue: WomValue): ErrorOr[String] = womValue match {
+      case WomString(s) => s.validNel
+      case other => WomStringType.coerceRawValue(other).map(_.asInstanceOf[WomString].value).toErrorOr
+    }
+
+    def evaluateEntryName(stringOrExpression: StringOrExpression): ErrorOr[String] = stringOrExpression match {
+      case StringOrExpression.String(s) => s.validNel
+      case StringOrExpression.ECMAScriptExpression(entrynameExpression) => for {
+        entryNameExpressionEvaluated <- ExpressionEvaluator.evalExpression(entrynameExpression, ParameterContext().withInputs(inputValues, ioFunctionSet)).toErrorOr
+        entryNameValidated <- mustBeString(entryNameExpressionEvaluated)
+      } yield entryNameValidated
+    }
+
+    entry match {
+      case IwdrListingArrayEntry.StringDirent(content, direntEntryName, _) => for {
+        entryNameValidated <- evaluateEntryName(direntEntryName)
+        writtenFile <- Try(Await.result(ioFunctionSet.writeFile(entryNameValidated, content), Duration.Inf)).toErrorOr
+      } yield writtenFile
+
+      case IwdrListingArrayEntry.ExpressionDirent(Expression.ECMAScriptExpression(contentExpression), direntEntryName, _) =>
+        val entryEvaluation: ErrorOr[WomValue] = ExpressionEvaluator.evalExpression(contentExpression, ParameterContext().withInputs(inputValues, ioFunctionSet)).toErrorOr
+        entryEvaluation flatMap {
+          // TODO CWL: Once files have "local paths", we will be able to specify a new local name based on direntEntryName if necessary.
+          case f: WomFile => f.validNel
+          case other => for {
+            coerced <- WomStringType.coerceRawValue(other).toErrorOr
+            contentString = coerced.asInstanceOf[WomString].value
+            // We force the entryname to be specified, and then evaluate it:
+            entryNameUnoptioned <- direntEntryName.toErrorOr("Invalid dirent: Entry was a string but no file name was supplied")
+            entryname <- evaluateEntryName(entryNameUnoptioned)
+            writtenFile <- Try(Await.result(ioFunctionSet.writeFile(entryname, contentString), Duration.Inf)).toErrorOr
+          }  yield writtenFile
+        }
+
+      case _ => ??? // TODO WOM and the rest....
+    }
   }
 
 
   override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
     "Programmer error: Shouldn't use InitialWorkDirRequirement listing to find output files. You silly goose.".invalidNel
 
-  override def inputs: Set[String] = entry match {
-    case IwdrListingArrayEntry.StringDirent(_, _, _) => Set.empty
-    case _ => Set.empty // TODO WOM: For some cases this might need some...
-  }
+  /**
+    * We already get all of the task inputs when evaluating, and we don't need to highlight anything else
+    */
+  override def inputs: Set[String] = Set.empty
 }

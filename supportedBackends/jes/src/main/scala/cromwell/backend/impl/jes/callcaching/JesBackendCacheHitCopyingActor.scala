@@ -16,8 +16,7 @@ import wom.values.WomFile
 import scala.language.postfixOps
 import scala.util.Try
 
-class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams) with GcsBatchCommandBuilder {
-  
+class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams) {
   private val cachingStrategy = BackendInitializationData
     .as[JesBackendInitializationData](standardParams.backendInitializationDataOption)
     .jesConfiguration.jesAttributes.duplicationStrategy
@@ -26,7 +25,7 @@ class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActo
     case CopyCachedOutputs => super.processSimpletons(womValueSimpletons, sourceCallRootPath)
     case UseOriginalCachedOutputs =>
       val touchCommands: Seq[Try[IoTouchCommand]] = womValueSimpletons collect {
-        case WomValueSimpleton(_, wdlFile: WomFile) => getPath(wdlFile.value) map touchCommand
+        case WomValueSimpleton(_, wdlFile: WomFile) => getPath(wdlFile.value) map GcsBatchCommandBuilder.touchCommand
       }
       
       TryUtil.sequence(touchCommands) map {
@@ -44,7 +43,7 @@ class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActo
 
       // Don't forget to re-add the CallRootPathKey that has been filtered out by detritusFileKeys
       TryUtil.sequenceMap(detritusAsPaths, "Failed to make paths out of job detritus") map { newDetritus =>
-        (newDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath)) -> newDetritus.values.map(touchCommand).toSet
+        (newDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath)) -> newDetritus.values.map(GcsBatchCommandBuilder.touchCommand).toSet
       }
   }
 
@@ -62,7 +61,7 @@ class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActo
              |The original outputs can be found at this location: ${sourceCallRootPath.pathAsString}
       """.stripMargin
 
-        List(Set(writeCommand(jobPaths.callExecutionRoot / "call_caching_placeholder.txt", content, Seq(CloudStorageOptions.withMimeType("text/plain")))))
+        List(Set(GcsBatchCommandBuilder.writeCommand(jobPaths.callExecutionRoot / "call_caching_placeholder.txt", content, Seq(CloudStorageOptions.withMimeType("text/plain")))))
       case CopyCachedOutputs => List.empty
     }
   }

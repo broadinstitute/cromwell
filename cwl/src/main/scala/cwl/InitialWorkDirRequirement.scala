@@ -1,16 +1,16 @@
 package cwl
 
-import cwl.InitialWorkDirRequirement.{ExpressionOrString, IwdrListingArrayEntry, _}
+import cwl.InitialWorkDirRequirement._
 import eu.timepit.refined.W
 import shapeless.{:+:, CNil, _}
 
 final case class InitialWorkDirRequirement(
                                             `class`: W.`"InitialWorkDirRequirement"`.T,
-                                            listing: Array[IwdrListingArrayEntry] :+: ExpressionOrString :+: CNil
+                                            listing: IwdrListing
                                           ) {
   val listings: Array[IwdrListingArrayEntry] = listing match {
     case IwdrListingArray(array) => array
-    case ExpressionOrString(eos) => Array(Coproduct[IwdrListingArrayEntry](eos))
+    case StringOrExpression(soe) => Array(Coproduct[IwdrListingArrayEntry](soe))
   }
 
   override def toString: WorkflowStepInputId =
@@ -32,39 +32,36 @@ trait Dirent {
 
 final case class ExpressionDirent(
                                    entry: Expression,
-                                   entryname: Option[ExpressionOrString],
+                                   entryname: Option[StringOrExpression],
                                    writable: Option[Boolean]
                                  ) extends Dirent
 
 final case class StringDirent(
                                entry: String,
-                               entryname: ExpressionOrString,
+                               entryname: StringOrExpression,
                                writable: Option[Boolean]
                              ) extends Dirent
 
 object InitialWorkDirRequirement {
 
-  final type IwdrListingArrayEntry = File :+: Directory :+: StringDirent :+: ExpressionDirent :+: ExpressionOrString :+: CNil
+  // "ExpressionDirent" has to come before StringDirent because expressions are matched by "String" first if we do it the
+  // other way round.
+  final type IwdrListingArrayEntry = File :+: Directory :+: ExpressionDirent :+: StringDirent :+: StringOrExpression :+: CNil
+  final type IwdrListing = Array[IwdrListingArrayEntry] :+: StringOrExpression :+: CNil
 
   object IwdrListingArrayEntry {
     object StringDirent {
-      def unapply(e: IwdrListingArrayEntry): Option[(String, ExpressionOrString, Boolean)] =
+      def unapply(e: IwdrListingArrayEntry): Option[(String, StringOrExpression, Boolean)] =
         e.select[StringDirent].map(sd => (sd.entry, sd.entryname, sd.writableWithDefault))
+    }
+    object ExpressionDirent {
+      def unapply(e: IwdrListingArrayEntry): Option[(Expression, Option[StringOrExpression], Boolean)] =
+        e.select[ExpressionDirent].map(sd => (sd.entry, sd.entryname, sd.writableWithDefault))
     }
   }
 
   object IwdrListingArray {
-    def unapply(listing: Array[IwdrListingArrayEntry] :+: ExpressionOrString :+: CNil): Option[Array[IwdrListingArrayEntry]] =
+    def unapply(listing: IwdrListing): Option[Array[IwdrListingArrayEntry]] =
       listing.select[Array[IwdrListingArrayEntry]]
-  }
-  object Expression { def unapply(listing: Array[IwdrListingArrayEntry] :+: ExpressionOrString :+: CNil): Option[Array[IwdrListingArrayEntry]] = listing.select[Array[IwdrListingArrayEntry]] }
-
-
-
-  final type ExpressionOrString = Expression :+: String :+: CNil
-  object ExpressionOrString {
-    def unapply(listing: Array[IwdrListingArrayEntry] :+: ExpressionOrString :+: CNil): Option[ExpressionOrString] = listing.select[ExpressionOrString]
-    object Expression { def unapply(eos: ExpressionOrString): Option[Expression] = eos.select[Expression] }
-    object String { def unapply(eos: ExpressionOrString): Option[String] = eos.select[String] }
   }
 }

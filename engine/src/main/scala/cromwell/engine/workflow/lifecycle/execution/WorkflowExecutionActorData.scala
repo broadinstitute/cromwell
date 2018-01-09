@@ -3,13 +3,16 @@ package cromwell.engine.workflow.lifecycle.execution
 import akka.actor.ActorRef
 import cromwell.backend._
 import cromwell.core.ExecutionStatus._
+import cromwell.core.io.AsyncIo
 import cromwell.core.{JobKey, _}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData.DataStoreUpdate
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore.ValueKey
 import cromwell.engine.workflow.lifecycle.execution.stores.{ExecutionStore, ValueStore}
-import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
+import cromwell.engine.{EngineIoFunctions, EngineWorkflowDescriptor}
 import wom.values.WomValue
+
+import scala.concurrent.ExecutionContext
 
 object WorkflowExecutionDiff {
   def empty = WorkflowExecutionDiff(Map.empty)
@@ -24,11 +27,13 @@ final case class WorkflowExecutionDiff(executionStoreChanges: Map[JobKey, Execut
 }
 
 object WorkflowExecutionActorData {
-  def apply(workflowDescriptor: EngineWorkflowDescriptor): WorkflowExecutionActorData = {
+  def apply(workflowDescriptor: EngineWorkflowDescriptor, ec: ExecutionContext, asyncIo: AsyncIo): WorkflowExecutionActorData = {
     WorkflowExecutionActorData(
       workflowDescriptor,
       ExecutionStore(workflowDescriptor.callable),
-      ValueStore.initialize(workflowDescriptor.knownValues)
+      ValueStore.initialize(workflowDescriptor.knownValues),
+      asyncIo,
+      ec
     )
   }
 
@@ -38,11 +43,13 @@ object WorkflowExecutionActorData {
 case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescriptor,
                                       executionStore: ExecutionStore,
                                       valueStore: ValueStore,
+                                      asyncIo: AsyncIo,
+                                      ec: ExecutionContext,
                                       jobKeyActorMappings: Map[ActorRef, JobKey] = Map.empty,
                                       jobFailures: Map[JobKey, Throwable] = Map.empty,
                                       downstreamExecutionMap: JobExecutionMap = Map.empty) {
 
-  val expressionLanguageFunctions = new WdlFunctions(workflowDescriptor.pathBuilders)
+  val expressionLanguageFunctions = new EngineIoFunctions(workflowDescriptor.pathBuilders, asyncIo, ec)
 
   def sealExecutionStore: WorkflowExecutionActorData = this.copy(
     executionStore = executionStore.seal

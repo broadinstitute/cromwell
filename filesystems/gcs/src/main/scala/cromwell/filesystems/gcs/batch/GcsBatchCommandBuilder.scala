@@ -1,37 +1,32 @@
 package cromwell.filesystems.gcs.batch
 
 import cromwell.core.io._
-import cromwell.core.path.Path
 import cromwell.filesystems.gcs.GcsPath
 
-trait GcsBatchCommandBuilder extends DefaultIoCommandBuilder {
-  override def sizeCommand(path: Path) = path match {
+private case object PartialGcsBatchCommandBuilder extends PartialIoCommandBuilder {
+  override def sizeCommand = {
     case gcsPath: GcsPath => GcsBatchSizeCommand(gcsPath)
-    case _ => super.sizeCommand(path)
   }
   
-  override def deleteCommand(path: Path, swallowIoExceptions: Boolean = false) = path match {
-    case gcsPath: GcsPath => GcsBatchDeleteCommand(gcsPath, swallowIoExceptions)
-    case _ => super.deleteCommand(path, swallowIoExceptions)
+  override def deleteCommand = {
+    case (gcsPath: GcsPath, swallowIoExceptions) => GcsBatchDeleteCommand(gcsPath, swallowIoExceptions)
   }
   
-  override def copyCommand(src: Path, dest: Path, overwrite: Boolean = true) =  (src, dest) match {
-    case (gcsSrc: GcsPath, gcsDest: GcsPath) => GcsBatchCopyCommand(gcsSrc, gcsDest, overwrite)
-    case _ => super.copyCommand(src, dest, overwrite)
+  override def copyCommand = {
+    case (gcsSrc: GcsPath, gcsDest: GcsPath, overwrite) => GcsBatchCopyCommand(gcsSrc, gcsDest, overwrite)
   }
   
-  override def hashCommand(path: Path) =  path match {
+  override def hashCommand = {
     case gcsPath: GcsPath => GcsBatchCrc32Command(gcsPath)
-    case _ => super.hashCommand(path)
   }
 
-  override def touchCommand(path: Path) =  path match {
+  override def touchCommand = {
     case gcsPath: GcsPath => GcsBatchTouchCommand(gcsPath)
-    case _ => super.touchCommand(path)
   }
 
-  override def existsCommand(path: Path) =  path match {
+  override def existsCommand = {
     case gcsPath: GcsPath => GcsBatchExistsCommand(gcsPath)
-    case _ => super.existsCommand(path)
   }
 }
+
+case object GcsBatchCommandBuilder extends IoCommandBuilder(List(PartialGcsBatchCommandBuilder))

@@ -10,6 +10,8 @@ import net.ceedubs.ficus.Ficus._
 import wom.expression.IoFunctionSet
 import wom.graph.TaskCallNode
 
+import scala.concurrent.ExecutionContext
+
 trait BackendLifecycleActorFactory {
 
   /**
@@ -91,7 +93,9 @@ trait BackendLifecycleActorFactory {
 
   def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                   jobKey: BackendJobDescriptorKey,
-                                  initializationData: Option[BackendInitializationData]): IoFunctionSet = NoIoFunctionSet
+                                  initializationData: Option[BackendInitializationData],
+                                  ioActor: ActorRef,
+                                  ec: ExecutionContext): IoFunctionSet = NoIoFunctionSet
 
   def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config, initializationData: Option[BackendInitializationData]): Path = {
     new WorkflowPathsWithDocker(workflowDescriptor, backendConfig).executionRoot

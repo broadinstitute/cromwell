@@ -327,9 +327,9 @@ object WdlStandardLibraryFunctions {
 
     override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = ioFunctionSet.stderr(params)
 
-    override def globHelper(pattern: String): Seq[String] = ioFunctionSet.glob(pattern)
+    override def globHelper(pattern: String): Seq[String] = Await.result(ioFunctionSet.glob(pattern), Duration.Inf)
 
-    override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = ioFunctionSet.size(params)
+    override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Try(Await.result(ioFunctionSet.size(params), Duration.Inf))
   }
 
   def crossProduct[A, B](as: Seq[A], bs: Seq[B]): Seq[(A, B)] = for {

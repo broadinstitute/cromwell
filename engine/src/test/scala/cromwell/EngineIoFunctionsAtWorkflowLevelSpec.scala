@@ -6,7 +6,7 @@ import wom.types.{WomMapType, WomStringType}
 import wom.values.{WomMap, WomString}
 
 
-class WdlFunctionsAtWorkflowLevelSpec extends CromwellTestKitWordSpec {
+class EngineIoFunctionsAtWorkflowLevelSpec extends CromwellTestKitWordSpec {
   val outputMap = WomMap(WomMapType(WomStringType, WomStringType), Map(
     WomString("k1") -> WomString("v1"),
     WomString("k2") -> WomString("v2"),

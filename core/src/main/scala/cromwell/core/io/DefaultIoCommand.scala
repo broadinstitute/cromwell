@@ -23,4 +23,5 @@ object DefaultIoCommand {
   case class DefaultIoHashCommand(override val file: Path) extends IoHashCommand(file)
   case class DefaultIoTouchCommand(override val file: Path) extends IoTouchCommand(file)
   case class DefaultIoExistsCommand(override val file: Path) extends IoExistsCommand(file)
+  case class DefaultIoReadLinesCommand(override val file: Path) extends IoReadLinesCommand(file)
 }

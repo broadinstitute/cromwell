@@ -2,12 +2,14 @@ package cwl
 
 import java.nio.file.Paths
 
+import com.typesafe.config.ConfigFactory
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import cwl.CommandLineTool._
 import cwl.CwlType.CwlType
 import cwl.CwlVersion._
 import cwl.command.ParentName
+import cwl.CwlAny.EnhancedCwlAny
 import cwl.requirement.RequirementToAttributeMap
 import eu.timepit.refined.W
 import shapeless.syntax.singleton._
@@ -19,6 +21,7 @@ import wom.expression.{InputLookupExpression, ValueAsAnExpression, WomExpression
 import wom.types.WomType
 import wom.{CommandPart, RuntimeAttributes}
 
+import scala.language.postfixOps
 import scala.util.Try
 
 /**
@@ -46,17 +49,22 @@ case class CommandLineTool private(
   private [cwl] implicit val explicitWorkflowName = ParentName(id)
   private val inputNames = this.inputs.map(i => FullyQualifiedName(i.id).id).toSet
 
+  // Circe can't create bidirectional links between workflow steps and runs (including `CommandLineTool`s) so this
+  // ugly var is here to link back to a possible parent workflow step. This is needed to navigate upward for finding
+  // requirements in the containment hierarchy. There isn't always a containing workflow step so this is an `Option`.
+  private[cwl] var parentWorkflowStep: Option[WorkflowStep] = None
+
   /** Builds an `Executable` directly from a `CommandLineTool` CWL with no parent workflow. */
   def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None): Checked[Executable] = {
-    val taskDefinition = buildTaskDefinition(parentWorkflow = None, validator)
+    val taskDefinition = buildTaskDefinition(validator)
     CwlExecutableValidation.buildWomExecutable(taskDefinition, inputFile)
   }
 
-  private def validateRequirementsAndHints(parentWorkflow: Option[Workflow], validator: RequirementsValidator): ErrorOr[List[Requirement]] = {
+  private def validateRequirementsAndHints(validator: RequirementsValidator): ErrorOr[List[Requirement]] = {
     import cats.instances.list._
     import cats.syntax.traverse._
 
-    val allRequirements = requirements.toList.flatten ++ parentWorkflow.toList.flatMap(_.allRequirements)
+    val allRequirements = requirements.toList.flatten ++ parentWorkflowStep.toList.flatMap(_.allRequirements)
     // All requirements must validate or this fails.
     val errorOrValidatedRequirements: ErrorOr[List[Requirement]] = allRequirements traverse validator
 
@@ -64,7 +72,7 @@ case class CommandLineTool private(
       // Only Requirement hints, everything else is thrown out.
       // TODO CWL don't throw them out but pass them back to the caller to do with as the caller pleases.
       val hintRequirements = hints.toList.flatten.flatMap { _.select[Requirement] }
-      val parentHintRequirements = parentWorkflow.toList.flatMap(_.allHints)
+      val parentHintRequirements = parentWorkflowStep.toList.flatMap(_.allHints)
 
       // Throw out invalid Requirement hints.
       // TODO CWL pass invalid hints back to the caller to do with as the caller pleases.
@@ -72,20 +80,24 @@ case class CommandLineTool private(
       validRequirements ++ validHints
     }
   }
-  
+
   private def processRequirement(requirement: Requirement): Map[String, WomExpression] = {
     requirement.fold(RequirementToAttributeMap).apply(inputNames)
   }
 
-  def buildTaskDefinition(parentWorkflow: Option[Workflow], validator: RequirementsValidator): ErrorOr[CallableTaskDefinition] = {
-    validateRequirementsAndHints(parentWorkflow, validator) map { requirementsAndHints =>
+  def buildTaskDefinition(validator: RequirementsValidator): ErrorOr[CallableTaskDefinition] = {
+    validateRequirementsAndHints(validator) map { requirementsAndHints =>
       val id = this.id
 
       val commandTemplate: Seq[CommandPart] = baseCommand.toSeq.flatMap(_.fold(BaseCommandToCommandParts)) ++
         arguments.toSeq.flatMap(_.map(_.fold(ArgumentToCommandPart))) ++
         CommandLineTool.orderedForCommandLine(inputs).map(InputParameterCommandPart.apply)
 
-      val finalAttributesMap = requirementsAndHints.foldRight(Map.empty[String, WomExpression])({
+      // This is basically doing a `foldMap` but can't actually be a `foldMap` because:
+      // - There is no monoid instance for `WomExpression`s.
+      // - We want to fold from the right so the hints and requirements with the lowest precedence are processed first
+      //   and later overridden if there are duplicate hints or requirements of the same type with higher precedence.
+      val finalAttributesMap = (requirementsAndHints ++ DefaultDockerRequirement).foldRight(Map.empty[String, WomExpression])({
         case (requirement, attributesMap) => attributesMap ++ processRequirement(requirement)
       })
 
@@ -125,7 +137,7 @@ case class CommandLineTool private(
         case CommandInputParameter(id, _, _, _, _, _, _, Some(default), Some(tpe)) =>
           val inputType = tpe.fold(MyriadInputTypeToWomType)
           val inputName = FullyQualifiedName(id).id
-          InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(inputType.coerceRawValue(default.toString).get))
+          InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(inputType.coerceRawValue(default.stringRepresentation).get))
         case CommandInputParameter(id, _, _, _, _, _, _, None, Some(tpe)) =>
           val inputType = tpe.fold(MyriadInputTypeToWomType)
           val inputName = FullyQualifiedName(id).id
@@ -266,5 +278,20 @@ object CommandLineTool {
                                      outputBinding: Option[CommandOutputBinding] = None,
                                      `type`: Option[MyriadOutputType] = None)
 
+
+  // Used to supply a default Docker image for platforms like PAPI that must have one even if the CWL document does
+  // not specify a `DockerRequirement`.
+  import net.ceedubs.ficus.Ficus._
+  lazy val DefaultDockerImage = ConfigFactory.load().as[Option[String]]("cwl.default-docker-image")
+
+  lazy val DefaultDockerRequirement = DefaultDockerImage map { image => Coproduct[Requirement](DockerRequirement(
+    `class` = "DockerRequirement",
+    dockerPull = Option(image),
+    dockerLoad = None,
+    dockerFile = None,
+    dockerImport = None,
+    dockerImageId = None,
+    dockerOutputDirectory = None
+  )) } toList
 
 }

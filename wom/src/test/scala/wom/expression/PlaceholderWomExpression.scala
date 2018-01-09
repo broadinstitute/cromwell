@@ -24,6 +24,6 @@ case object PlaceholderIoFunctionSet extends IoFunctionSet {
   override def writeFile(path: String, content: String): Future[WomFile] = ???
   override def stdout(params: Seq[Try[WomValue]]) = ???
   override def stderr(params: Seq[Try[WomValue]]) = ???
-  override def glob(pattern: String): Seq[String] = ???
+  override def glob(pattern: String): Future[Seq[String]] = ???
   override def size(params: Seq[Try[WomValue]]) = ???
 }

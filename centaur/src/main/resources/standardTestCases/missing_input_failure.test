@@ -11,5 +11,5 @@ metadata {
     workflowName: missing_input_failure
     status: Failed
     "failures.0.message": "Workflow failed"
-    "failures.0.causedBy.0.message": "Evaluating read_string(wf_hello_input) failed: gs://nonexistingbucket/path/doesnt/exist"
+    "failures.0.causedBy.0.message": "Evaluating read_string(wf_hello_input) failed: java.nio.file.NoSuchFileException: gs://nonexistingbucket/path/doesnt/exist"
 }

@@ -7,6 +7,7 @@ import common.exception.MessageAggregation
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend._
 import cromwell.backend.validation.DockerValidation
+import cromwell.core.Dispatcher
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
@@ -48,8 +49,9 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   override lazy val workflowIdForLogging = workflowDescriptor.id
 
   private[preparation] lazy val noResponseTimeout: FiniteDuration = 3 minutes
+  private[preparation] val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
 
-  private[preparation] lazy val expressionLanguageFunctions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, initializationData)
+  private[preparation] lazy val expressionLanguageFunctions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, initializationData, ioActor, ioEc)
   private[preparation] lazy val dockerHashCredentials = factory.dockerHashCredentials(initializationData)
   private[preparation] lazy val runtimeAttributeDefinitions = factory.runtimeAttributeDefinitions(initializationData)
   private[preparation] lazy val hasDockerDefinition = runtimeAttributeDefinitions.exists(_.name == DockerValidation.instance.key)

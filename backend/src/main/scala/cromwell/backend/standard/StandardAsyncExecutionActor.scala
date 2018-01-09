@@ -5,12 +5,15 @@ import java.io.IOException
 import cats.syntax.apply._
 import cats.instances.list._
 import cats.syntax.traverse._
+import cats.syntax.validated._
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
+import cats.data.Validated.Valid
 import common.exception.MessageAggregation
 import common.util.TryUtil
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
+import common.validation.ErrorOr.ShortCircuitingFlatMap
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
@@ -19,7 +22,7 @@ import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionA
 import cromwell.backend.validation._
 import cromwell.backend.wdl.OutputEvaluator._
 import cromwell.backend.wdl.{Command, OutputEvaluator}
-import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
+import cromwell.core.io.{AsyncIoActorClient, DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.path.Path
 import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent}
 import cromwell.services.keyvalue.KeyValueServiceActor._
@@ -60,9 +63,11 @@ case class DefaultStandardAsyncExecutionActorParams
   * NOTE: Unlike the parent trait `AsyncBackendJobExecutionActor`, this trait is subject to even more frequent updates
   * as the common behavior among the backends adjusts in unison.
   */
-trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with StandardCachingActorHelper with AsyncIo with DefaultIoCommandBuilder with KvClient {
+trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with StandardCachingActorHelper with AsyncIoActorClient with KvClient {
   this: Actor with ActorLogging with BackendJobLifecycleActor =>
 
+  override lazy val ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
+  
   val SIGTERM = 143
   val SIGINT = 130
   val SIGKILL = 137
@@ -100,7 +105,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   /** @see [[Command.instantiate]] */
   lazy val backendEngineFunctions: StandardExpressionFunctions =
-    standardInitializationData.expressionFunctions(jobPaths)
+    standardInitializationData.expressionFunctions(jobPaths, standardParams.ioActor, ec)
 
   lazy val scriptEpilogue = configurationDescriptor.backendConfig.as[Option[String]]("script-epilogue").getOrElse("sync")
 
@@ -242,10 +247,22 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
     def adHocFileLocalization(womFile: WomFile): String = womFile.value.substring(womFile.value.lastIndexOf("/") + 1, womFile.value.length)
 
-    val adHocFileCreations: ErrorOr[List[CommandSetupSideEffectFile]] = jobDescriptor.taskCall.callable.adHocFileCreation.toList.traverse { _.evaluateValue(Map.empty, backendEngineFunctions) } map { _ collect {
-        case f: WomFile => CommandSetupSideEffectFile(f, Option(adHocFileLocalization(f)))
-      }
+    val adHocFileCreationInputs = jobDescriptor.evaluatedTaskInputs.map { case (k,v) => k.localName.value -> v }
+
+    def validateAdHocFile(value: WomValue): ErrorOr[WomFile] = value match {
+        case f: WomFile => Valid(f)
+        case other => s"Ad-hoc file creation expression invalidly created a ${other.womType.toDisplayString} result.".invalidNel
     }
+
+    val adHocFileCreations: ErrorOr[List[WomFile]] = jobDescriptor.taskCall.callable.adHocFileCreation.toList.traverse {
+      _.evaluateValue(adHocFileCreationInputs, backendEngineFunctions).flatMap(validateAdHocFile)
+    }
+
+    val adHocFileCreationSideEffectFiles: ErrorOr[List[CommandSetupSideEffectFile]] = adHocFileCreations map { _ map {
+      f => CommandSetupSideEffectFile(f,  Option(adHocFileLocalization(f)))
+    }}
+
+
     val instantiatedCommandValidation = Command.instantiate(
       jobDescriptor,
       backendEngineFunctions,
@@ -255,7 +272,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     )
 
     // TODO CWL: toTry.get here. Is throwing an exception the best way to indicate command generation failure?
-    ((adHocFileCreations, instantiatedCommandValidation) mapN { (adHocFiles, command) =>
+    ((adHocFileCreationSideEffectFiles, instantiatedCommandValidation) mapN { (adHocFiles, command) =>
         command.copy(createdFiles = command.createdFiles ++ adHocFiles)
     }).toTry.get
   }
@@ -568,7 +585,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   private var missedAbort = false
   private case class CheckMissedAbort(jobId: StandardAsyncJob)
 
-  context.become(kvClientReceive orElse ioReceive orElse standardReceiveBehavior(None) orElse receive)
+  context.become(kvClientReceive orElse standardReceiveBehavior(None) orElse receive)
 
   def standardReceiveBehavior(jobIdOption: Option[StandardAsyncJob]): Receive = LoggingReceive {
     case AbortJobCommand =>
@@ -582,7 +599,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       }
       postAbort()
     case CheckMissedAbort(jobId: StandardAsyncJob) =>
-      context.become(kvClientReceive orElse ioReceive orElse standardReceiveBehavior(Option(jobId)) orElse receive)
+      context.become(kvClientReceive orElse standardReceiveBehavior(Option(jobId)) orElse receive)
       if (missedAbort)
         self ! AbortJobCommand
   }
@@ -717,10 +734,10 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       lazy val stderrAsOption: Option[Path] = Option(jobPaths.stderr)
 
       val stderrSizeAndReturnCode = for {
-        returnCodeAsString <- contentAsStringAsync(jobPaths.returnCode)
+        returnCodeAsString <- asyncIo.contentAsStringAsync(jobPaths.returnCode)
         // Only check stderr size if we need to, otherwise this results in a lot of unnecessary I/O that
         // may fail due to race conditions on quickly-executing jobs.
-        stderrSize <- if (failOnStdErr) sizeAsync(jobPaths.stderr) else Future.successful(0L)
+        stderrSize <- if (failOnStdErr) asyncIo.sizeAsync(jobPaths.stderr) else Future.successful(0L)
       } yield (stderrSize, returnCodeAsString)
 
       stderrSizeAndReturnCode flatMap {

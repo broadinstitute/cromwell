@@ -28,21 +28,21 @@ object CopyWorkflowLogsActor {
 // This could potentially be turned into a more generic "Copy/Move something from A to B"
 // Which could be used for other copying work (outputs, call logs..)
 class CopyWorkflowLogsActor(override val serviceRegistryActor: ActorRef, override val ioActor: ActorRef) extends Actor 
-  with ActorLogging with GcsBatchCommandBuilder with IoClientHelper with WorkflowMetadataHelper with MonitoringCompanionHelper {
+  with ActorLogging with IoClientHelper with WorkflowMetadataHelper with MonitoringCompanionHelper {
 
   implicit val ec = context.dispatcher
   
   def copyLog(src: Path, dest: Path, workflowId: WorkflowId) = {
     dest.parent.createPermissionedDirectories()
     // Send the workflowId as context along with the copy so we can update metadata when the response comes back
-    sendIoCommandWithContext(copyCommand(src, dest, overwrite = true), workflowId)
+    sendIoCommandWithContext(GcsBatchCommandBuilder.copyCommand(src, dest, overwrite = true), workflowId)
     // In order to keep "copy and then delete" operations atomic as far as monitoring is concerned, removeWork will only be called
     // when the delete is complete (successfully or not), or when the copy completes if WorkflowLogger.isTemporary is false
     addWork()
   }
 
   def deleteLog(src: Path) = if (WorkflowLogger.isTemporary) {
-    sendIoCommand(deleteCommand(src))
+    sendIoCommand(GcsBatchCommandBuilder.deleteCommand(src))
   } else removeWork()
   
   def updateLogsPathInMetadata(workflowId: WorkflowId, path: Path) = {

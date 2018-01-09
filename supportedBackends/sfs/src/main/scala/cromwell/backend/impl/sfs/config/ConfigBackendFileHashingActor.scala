@@ -13,8 +13,10 @@ object ConfigBackendFileHashingActor {
   def props(standardParams: StandardFileHashingActorParams) = Props(new ConfigBackendFileHashingActor(standardParams))
 }
 
-class ConfigBackendFileHashingActor(standardParams: StandardFileHashingActorParams) extends StandardFileHashingActor(standardParams) with GcsBatchCommandBuilder {
+class ConfigBackendFileHashingActor(standardParams: StandardFileHashingActorParams) extends StandardFileHashingActor(standardParams) {
 
+  override val ioCommandBuilder = GcsBatchCommandBuilder
+  
   lazy val hashingStrategy: ConfigHashingStrategy = {
     configurationDescriptor.backendConfig.as[Option[Config]]("filesystems.local.caching") map ConfigHashingStrategy.apply getOrElse ConfigHashingStrategy.defaultStrategy
   }

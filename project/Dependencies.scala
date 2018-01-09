@@ -267,9 +267,6 @@ object Dependencies {
     "com.github.pathikrit" %% "better-files" % betterFilesV
   )
 
-  val gcsFileSystemDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ List (
-    "com.github.pathikrit" %% "better-files" % betterFilesV)
-
   val commonDependencies = List(
     "org.slf4j" % "slf4j-api" % slf4jV
   ) ++ catsDependencies ++ configDependencies

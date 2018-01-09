@@ -8,7 +8,7 @@ import scala.collection.immutable.TreeMap
 import scala.util.{Failure, Try}
 
 trait WomValue {
-  val womType: WomType
+  def womType: WomType
   def invalid(operation: String) = Failure(new WomExpressionException(s"Cannot perform operation: $operation"))
   def emptyValueFailure(operationName: String) = Failure(OptionalNotSuppliedException(operationName))
   def evaluateIfDefined[A <: WomValue](operationName: String, optionalValue: WomOptionalValue, operation: WomValue => Try[A]): Try[A] = optionalValue match {
@@ -70,7 +70,7 @@ trait WomValue {
     }
   }
 
-  def asWomExpression: ValueAsAnExpression = new ValueAsAnExpression(this)
+  def asWomExpression: ValueAsAnExpression = ValueAsAnExpression(this)
 }
 
 object WomValue {

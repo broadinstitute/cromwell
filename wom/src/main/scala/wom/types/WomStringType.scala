@@ -1,7 +1,7 @@
 package wom.types
 
 import spray.json.JsString
-import wom.values.{WomFile, WomPrimitive, WomString}
+import wom.values.{WomPrimitive, WomPrimitiveFile, WomString}
 
 import scala.util.{Success, Try}
 
@@ -12,7 +12,7 @@ case object WomStringType extends WomPrimitiveType {
     case s: String => WomString(s)
     case s: JsString => WomString(s.value)
     case s: WomString => s
-    case f: WomFile => WomString(f.value)
+    case f: WomPrimitiveFile => WomString(f.value)
     case p: WomPrimitive => WomString(p.toWomString)
   }
 
@@ -23,7 +23,8 @@ case object WomStringType extends WomPrimitiveType {
   }
 
   override def add(rhs: WomType): Try[WomType] = rhs match {
-    case WomStringType | WomIntegerType | WomFloatType | WomSingleFileType => Success(WomStringType)
+    case WomStringType | WomIntegerType | WomFloatType => Success(WomStringType)
+    case _: WomPrimitiveFileType => Success(WomStringType)
     case WomOptionalType(memberType) => add(memberType)
     case _ => invalid(s"$this + $rhs")
   }

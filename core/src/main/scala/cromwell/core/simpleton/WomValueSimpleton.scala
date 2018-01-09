@@ -31,7 +31,20 @@ object WomValueSimpleton {
       case WomArray(_, arrayValue) => arrayValue.zipWithIndex flatMap { case (arrayItem, index) => arrayItem.simplify(s"$name[$index]") }
       case WomMap(_, mapValue) => mapValue flatMap { case (key, value) => value.simplify(s"$name:${key.valueString.escapeMeta}") }
       case WomPair(left, right) => left.simplify(s"$name:left") ++ right.simplify(s"$name:right")
-      case wdlObject: WomObjectLike => wdlObject.value flatMap { case (key, value) => value.simplify(s"$name:${key.escapeMeta}") }
+      case womObjectLike: WomObjectLike => womObjectLike.value flatMap {
+        case (key, value) => value.simplify(s"$name:${key.escapeMeta}")
+      }
+      // TODO: WOM: WOMFILE: Better simplification of listed dirs / populated files
+      case womMaybeListedDirectory: WomMaybeListedDirectory =>
+        womMaybeListedDirectory
+          .valueOption
+          .map(value => WomUnlistedDirectory(value).simplify(name))
+          .getOrElse(Seq.empty)
+      case womMaybePopulatedFile: WomMaybePopulatedFile =>
+        womMaybePopulatedFile
+          .valueOption
+          .map(value => WomSingleFile(value).simplify(name))
+          .getOrElse(Seq.empty)
       case other => throw new Exception(s"Cannot simplify wdl value $other of type ${other.womType}")
     }
   }

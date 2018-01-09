@@ -4,9 +4,8 @@ import cats.instances.try_._
 import cats.syntax.apply._
 import common.exception.AggregatedException
 import common.util.TryUtil
-import wom.WomExpressionException
 import wdl.expression.WdlStandardLibraryFunctions.{crossProduct => stdLibCrossProduct, _}
-import wom.TsvSerializable
+import wom.{TsvSerializable, WomExpressionException}
 import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values.WomArray.WomArrayLike
@@ -98,7 +97,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
       womString <- WomStringType.coerceRawValue(pattern)
       patternString = womString.valueString
       filePaths <- Try(globHelper(patternString))
-    } yield WomArray(WomArrayType(WomSingleFileType), filePaths.map(WomSingleFile))
+    } yield WomArray(WomArrayType(WomSingleFileType), filePaths.map(WomSingleFile(_)))
   }
 
   def basename(params: Seq[Try[WomValue]]): Try[WomString] = {
@@ -106,7 +105,9 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
     val arguments: Try[(WomValue, WomValue)] = params.toList match {
       case Success(f) :: Nil => Success((f, WomString("")))
       case Success(f) :: Success(s) :: Nil => Success((f, s))
-      case s if s.size > 2 || s.size < 1 => Failure(new IllegalArgumentException(s"Bad number of arguments to basename(filename, suffixToStrip = ''): ${params.size}"))
+      case s if s.lengthCompare(2) > 0 || s.lengthCompare(1) < 0 =>
+        val message = s"Bad number of arguments to basename(filename, suffixToStrip = ''): ${params.size}"
+        Failure(new IllegalArgumentException(message))
       case _ =>
         val failures = params collect {
           case Failure(e) => e
@@ -338,7 +339,7 @@ object WdlStandardLibraryFunctions {
   } yield (a, b)
 
   def extractTwoParams[A](params: Seq[Try[A]], badArgsFailure: Failure[Nothing]): Try[(A, A)] = {
-    if (params.size != 2) { badArgsFailure }
+    if (params.lengthCompare(2) != 0) { badArgsFailure }
     else for {
       left <- params.head
       right <- params(1)
@@ -346,7 +347,7 @@ object WdlStandardLibraryFunctions {
   }
 
   def assertEquallySizedArrays[A](values: (WomValue, WomValue), badArgsFailure: Failure[Nothing] ): Try[(WomArray, WomArray)] = values match {
-    case (leftArray: WomArray, rightArray: WomArray) if leftArray.value.size == rightArray.value.size => Success((leftArray, rightArray))
+    case (leftArray: WomArray, rightArray: WomArray) if leftArray.value.lengthCompare(rightArray.value.size) == 0 => Success((leftArray, rightArray))
     case _ => badArgsFailure
   }
 

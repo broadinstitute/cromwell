@@ -6,6 +6,16 @@ import wom.values._
 import scala.util.{Success, Try}
 
 object WomFileMapper {
+  /**
+    * Loops over a WomValue applying the supplied mapper function whenever a WomFile is encountered.
+    *
+    * Where WomValue.collectAsSeq applies a partial function that collects into a Seq, this method applies a function to
+    * all encountered WomFile within a WomMap, WomPair, WomArray, etc. Similarly WomFile.mapFile only traverses
+    * the passed in WomFile plus any additional files referenced within the WomFile.
+    *
+    * @see [[wom.values.WomValue.collectAsSeq]]
+    * @see [[wom.values.WomFile.mapFile]]
+    */
   def mapWomFiles(mapper: (WomFile => WomFile))(womValue: WomValue): Try[WomValue] = {
     womValue match {
       case file: WomFile => Try(mapper(file))

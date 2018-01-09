@@ -140,6 +140,9 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
       womFile match {
         case singleFile: WomSingleFile => List(generateBcsSingleFileOutput(singleFile))
         case _: WomGlobFile => throw new RuntimeException(s"glob output not supported currently")
+        case unsupported: WomFile =>
+          // TODO: WOM: WOMFILE: Add support for directories.
+          throw new NotImplementedError(s"$unsupported is not supported yet.")
       }
     }
 

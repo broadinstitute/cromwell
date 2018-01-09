@@ -111,5 +111,5 @@ class TestReadLikeFunctions(sizeResult: Try[Double]) extends IoFunctionSet {
 
   override def size(params: Seq[Try[WomValue]]): Future[WomFloat] = Future.fromTry(sizeResult.map(WomFloat.apply))
 
-  override def copyFile(pathFrom: String, targetName: String): Future[WomFile] = ???
+  override def copyFile(pathFrom: String, targetName: String): Future[WomSingleFile] = ???
 }

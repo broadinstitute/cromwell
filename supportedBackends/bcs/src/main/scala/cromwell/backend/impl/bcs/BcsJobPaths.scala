@@ -12,11 +12,17 @@ object BcsJobPaths {
 	val BcsEnvStderrKey = "stderr"
 	val BcsCommandDirectory: Path = DefaultPathBuilder.get("/cromwell_root")
 	val BcsTempInputDirectory: Path = DefaultPathBuilder.get("/cromwell_inputs")
+	val BcsStdoutRedirectPath = "bcs-stdout"
+	val BcsStderrRedirectPath = "bcs-stderr"
 }
 
 final case class BcsJobPaths(workflowPaths: BcsWorkflowPaths, jobKey: BackendJobDescriptorKey) extends JobPaths {
 
+	import BcsJobPaths._
+
 	// alibaba cloud's batchcompute service can only support tar.gz formatted package.
 	val workerFileName = "worker.tar.gz"
-	val workerPath = workflowPaths.workflowRoot.resolve(workerFileName)
+	val workerPath = callRoot.resolve(workerFileName)
+	val bcsStdoutPath = callRoot.resolve(BcsStdoutRedirectPath)
+	val bcsStderrPath = callRoot.resolve(BcsStderrRedirectPath)
 }

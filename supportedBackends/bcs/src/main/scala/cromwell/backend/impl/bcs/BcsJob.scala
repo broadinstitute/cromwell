@@ -21,6 +21,8 @@ final case class BcsJob(name: String,
                   mounts: Seq[BcsMount],
                   envs: Map[String, String],
                   runtime: BcsRuntimeAttributes,
+                  stdoutPath: Option[Path],
+                  stderrPath: Option[Path],
                   batchCompute: BatchComputeClient) {
 
   lazy val lazyDisks = new Disks
@@ -126,6 +128,9 @@ final case class BcsJob(name: String,
     lazyCmd.setPackagePath(packagePath.pathAsString)
     lazyCmd.setEnvVars(environments.asJava)
     lazyCmd.setCommandLine(commandString)
+
+    stdoutPath foreach {path => parames.setStdoutRedirectPath(path.normalize().pathAsString + "/")}
+    stderrPath foreach {path => parames.setStderrRedirectPath(path.normalize().pathAsString + "/")}
 
     parames.setCommand(lazyCmd)
     parames

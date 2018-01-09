@@ -19,7 +19,6 @@ class BcsJobPathsSpec extends BcsTestUtilSpec {
 
   it should "have right package name" in {
     val jobPath = BcsJobPaths(workflowPath, jobKey)
-    jobPath.workerPath shouldEqual root.resolve(s"${jobPath.workerFileName}")
+    jobPath.workerPath shouldEqual jobPath.callRoot.resolve(s"${jobPath.workerFileName}")
   }
-
 }

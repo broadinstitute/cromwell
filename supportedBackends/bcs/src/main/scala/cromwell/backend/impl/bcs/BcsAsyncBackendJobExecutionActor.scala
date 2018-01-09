@@ -41,7 +41,8 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
 
   override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(3.seconds, 30.seconds, 1.1)
 
-  override lazy val dockerImageUsed: Option[String] = runtimeAttributes.docker map {docker => docker.image}
+  // override lazy val dockerImageUsed: Option[String] = runtimeAttributes.docker map {docker => docker.image}
+  override lazy val dockerImageUsed: Option[String] = None
   override lazy val commandDirectory: Path = BcsJobPaths.BcsCommandDirectory.resolve(bcsJobPaths.callExecutionRoot.pathWithoutScheme)
 
   private[bcs] lazy val userTag = runtimeAttributes.tag.getOrElse("cromwell")
@@ -166,7 +167,11 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
 
   private[bcs] def localizeOssPath(ossPath: OssPath): String = {
     if (isOutputOssFileString(ossPath.pathAsString) && !ossPath.isAbsolute) {
-      commandDirectory.resolve(getOssFileName(ossPath)).normalize.pathAsString
+      if (ossPath.exists) {
+        ossPathToMount(ossPath).dest.normalize.pathAsString
+      } else {
+        commandDirectory.resolve(getOssFileName(ossPath)).normalize.pathAsString
+      }
     } else {
       userDefinedMounts collectFirst {
         case bcsMount: BcsMount if ossPath.pathAsString.startsWith(bcsMount.src.pathAsString) =>
@@ -266,6 +271,8 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
           bcsMounts,
           bcsEnvs,
           runtimeAttributes,
+          Some(bcsJobPaths.bcsStdoutPath),
+          Some(bcsJobPaths.bcsStderrPath),
           bcsClient)
 
     for {
@@ -291,7 +298,6 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
       case bcsOutput if bcsOutput.src.pathAsString.endsWith(wdlFile.valueString) => WomFile(WomSingleFileType, bcsOutput.dest.pathAsString)
     } getOrElse wdlFile
   }
-
 
   override def tryAbort(job: StandardAsyncJob): Unit = {
     for {

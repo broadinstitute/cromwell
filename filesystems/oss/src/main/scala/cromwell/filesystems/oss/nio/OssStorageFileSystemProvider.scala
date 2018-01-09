@@ -1,6 +1,6 @@
 package cromwell.filesystems.oss.nio
 
-import java.io.OutputStream
+import java.io.{BufferedOutputStream, OutputStream}
 import java.net.URI
 import java.nio.channels.SeekableByteChannel
 import java.nio.file._
@@ -126,8 +126,9 @@ final case class OssStorageFileSystemProvider(config: OssStorageConfiguration) e
     }
 
     opts += StandardOpenOption.WRITE
+    val ossStream = OssAppendOutputStream(ossClient, path.asInstanceOf[OssStoragePath], true)
 
-    OssAppendOutputStream(ossClient, path.asInstanceOf[OssStoragePath], true)
+    new BufferedOutputStream(ossStream, 256*1024)
   }
 
   override def newByteChannel(path: Path, options: util.Set[_ <: OpenOption], attrs: FileAttribute[_]*): SeekableByteChannel = {

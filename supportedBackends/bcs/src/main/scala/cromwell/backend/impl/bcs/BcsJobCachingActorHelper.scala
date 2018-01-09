@@ -28,6 +28,6 @@ trait BcsJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val bcsStdoutFile: Path = bcsJobPaths.stdout
   lazy val bcsStderrFile: Path = bcsJobPaths.stderr
 
-  lazy val bcsCommandLine = "bash -c $(pwd)/cromwell_bcs"
-
+  //lazy val bcsCommandLine = "bash -c $(pwd)/cromwell_bcs && sync"
+  lazy val bcsCommandLine = "python -u cromwell_bcs.py"
 }

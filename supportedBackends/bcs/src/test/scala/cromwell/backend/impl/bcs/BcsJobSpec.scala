@@ -120,7 +120,7 @@ class BcsJobSpec extends BcsTestUtilSpec {
 
   private def withRuntime(runtime: Map[String, WomValue] = Map.empty[String, WomValue]): BcsJob = {
     val rumtimeAttributes = createBcsRuntimeAttributes(runtime)
-    BcsJob(name, description, command, packagePath, rumtimeAttributes.mounts.getOrElse(mounts), envs, rumtimeAttributes, mockBcsClient)
+    BcsJob(name, description, command, packagePath, rumtimeAttributes.mounts.getOrElse(mounts), envs, rumtimeAttributes, None, None, mockBcsClient)
   }
 
   private def taskWithRuntime(runtime: Map[String, WomValue] = Map.empty[String, WomValue]): TaskDescription = {

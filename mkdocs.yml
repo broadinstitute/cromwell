@@ -44,8 +44,8 @@ pages:
     - Overview: backends/Backends.md
     - Local: backends/Local.md
     - Google Cloud: backends/Google.md
-    - GA4GH TES: backends/TES.md
     - Alibaba Cloud: backends/BCS.md
+    - GA4GH TES: backends/TES.md
     - Spark: backends/Spark.md
     - HPC: backends/HPC.md
     - Sun GridEngine: backends/SGE.md

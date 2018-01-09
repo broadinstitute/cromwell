@@ -24,7 +24,7 @@ object BcsTestUtilSpec {
       |  continueOnReturnCode: 0
       |  cluster: "cls-mycluster"
       |  mounts: "oss://bcs-bucket/bcs-dir/ /home/inputs/ false"
-      |  dockerTag: "ubuntu/latest oss://bcs-reg/ubuntu/"
+      |  docker: "ubuntu/latest oss://bcs-reg/ubuntu/"
       |  userData: "key value"
       |  reserveOnFail: true
       |  autoReleaseJob: true

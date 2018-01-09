@@ -13,19 +13,19 @@ class BcsRuntimeAttributesSpec extends BcsTestUtilSpec {
   }
 
   it should "parse docker without docker path" in {
-    val runtime = Map("dockerTag" -> WomString("ubuntu/latest"))
+    val runtime = Map("docker" -> WomString("ubuntu/latest"))
     val expected = expectedRuntimeAttributes.copy(docker = Some(BcsDockerWithoutPath("ubuntu/latest")))
     createBcsRuntimeAttributes(runtime) shouldEqual(expected)
   }
 
   it should "parse docker with path" in {
-    val runtime = Map("dockerTag" -> WomString("centos/latest oss://bcs-dir/registry/"))
+    val runtime = Map("docker" -> WomString("centos/latest oss://bcs-dir/registry/"))
     val expected = expectedRuntimeAttributes.copy(docker = Some(BcsDockerWithPath("centos/latest", "oss://bcs-dir/registry/")))
     createBcsRuntimeAttributes(runtime) shouldEqual(expected)
   }
 
   it should "parse docker fail if an empty string value" in {
-    val runtime = Map("dockerTag" -> WomString(""))
+    val runtime = Map("docker" -> WomString(""))
     an [Exception] should be thrownBy createBcsRuntimeAttributes(runtime)
   }
 

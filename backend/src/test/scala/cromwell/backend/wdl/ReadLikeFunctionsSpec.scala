@@ -99,7 +99,7 @@ class ReadLikeFunctionsSpec extends AsyncFlatSpec with Matchers {
 
 // TODO WOM: Fix
 class TestReadLikeFunctions(sizeResult: Try[Double]) extends IoFunctionSet {
-  override def readFile(path: String): Future[String] = ???
+  override def readFile(path: String, maxBytes: Option[Int] = None, failOnOverflow: Boolean = false): Future[String] = ???
 
   override def writeFile(path: String, content: String): Future[WomSingleFile] = ???
 

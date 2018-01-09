@@ -20,7 +20,7 @@ final case class PlaceholderWomExpression(inputs: Set[String], fixedWomType: Wom
 }
 
 case object PlaceholderIoFunctionSet extends IoFunctionSet {
-  override def readFile(path: String): Future[String] = ???
+  override def readFile(path: String, maxBytes: Option[Int] = None, failOnOverflow: Boolean = false): Future[String] = ???
   override def writeFile(path: String, content: String): Future[WomFile] = ???
   override def stdout(params: Seq[Try[WomValue]]) = ???
   override def stderr(params: Seq[Try[WomValue]]) = ???

@@ -21,7 +21,7 @@ class CommandOutputExpressionSpec extends FlatSpec with Matchers {
 
   def ioFunctionSet(data: String) =
     new IoFunctionSet {
-      override def readFile(path: String) = Future.successful(data)
+      override def readFile(path: String, maxBytes: Option[Int] = None, failOnOverflow: Boolean = false) = Future.successful(data)
       override def writeFile(path: String, content: String) = throw new Exception("writeFile should not be used in this test")
       override def stdout(params: Seq[Try[WomValue]]) = throw new Exception("stdout should not be used in this test")
       override def stderr(params: Seq[Try[WomValue]]) = throw new Exception("stderr should not be used in this test")

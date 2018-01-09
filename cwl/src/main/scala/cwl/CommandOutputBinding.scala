@@ -11,5 +11,5 @@ case class CommandOutputBinding(
 
 object CommandOutputBinding {
   type Glob = Expression :+: String :+: Array[String] :+: CNil
-
+  val ReadLimit = Option(64 * 1024)
 }

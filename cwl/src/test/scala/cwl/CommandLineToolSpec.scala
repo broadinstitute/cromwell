@@ -8,7 +8,7 @@ import wom.callable.Callable.RequiredInputDefinition
 import wom.callable.RuntimeEnvironment
 import wom.expression.IoFunctionSet
 import wom.types._
-import wom.values.{WomArray, WomBoolean, WomEvaluatedCallInputs, WomFile, WomFloat, WomInteger, WomObject, WomSingleFile, WomString, WomValue}
+import wom.values.{WomArray, WomBoolean, WomEvaluatedCallInputs, WomFloat, WomInteger, WomObject, WomSingleFile, WomString, WomValue}
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -33,12 +33,12 @@ class CommandLineToolSpec extends FlatSpec with Matchers with ParallelTestExecut
   val localNameValues = inputs.map({ case (k, v) => k.localName -> v })
   
   val noIoFunctionSet = new IoFunctionSet {
-    override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = ???
+    override def stdout(params: Seq[Try[WomValue]]): Try[WomSingleFile] = ???
     override def glob(pattern: String): Future[Seq[String]] = ???
-    override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = ???
+    override def stderr(params: Seq[Try[WomValue]]): Try[WomSingleFile] = ???
     override def size(params: Seq[Try[WomValue]]): Future[WomFloat] = ???
     override def readFile(path: String, maxBytes: Option[Int], failOnOverflow: Boolean): Future[String] = ???
-    override def writeFile(path: String, content: String): Future[WomFile] = ???
+    override def writeFile(path: String, content: String): Future[WomSingleFile] = ???
     override def copyFile(pathFrom: String, targetName: String) = ???
   }
   

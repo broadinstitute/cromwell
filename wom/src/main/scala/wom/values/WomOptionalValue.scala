@@ -7,7 +7,7 @@ import scala.util.{Success, Try}
 
 final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) extends WomValue {
   override val womType = WomOptionalType(innerType)
-  override val toWomString = value map { _.toWomString } getOrElse "null"
+  override def toWomString = value map { _.toWomString } getOrElse "null"
 
   override def add(rhs: WomValue): Try[WomValue] = value match {
     case Some(lhs) => lhs.add(rhs)

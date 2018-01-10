@@ -49,7 +49,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     val testPath = DefaultPathBuilder.createTempFile()
     testPath.write("hello")
     
-    val context = DefaultCommandContext(contentAsStringCommand(testPath), replyTo)
+    val context = DefaultCommandContext(contentAsStringCommand(testPath, None, failOnOverflow = false), replyTo)
     val testSource = Source.single(context)
 
     val stream = testSource.via(flow).toMat(readSink)(Keep.right)
@@ -193,7 +193,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
   it should "retry on retryable exceptions" in {
     val testPath = DefaultPathBuilder.build("does/not/matter").get
 
-    val context = DefaultCommandContext(contentAsStringCommand(testPath), replyTo)
+    val context = DefaultCommandContext(contentAsStringCommand(testPath, None, failOnOverflow = false), replyTo)
 
     val testSource = Source.single(context)
 

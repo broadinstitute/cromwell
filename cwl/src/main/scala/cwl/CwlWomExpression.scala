@@ -1,13 +1,14 @@
 package cwl
 
-import cats.syntax.option._
-import common.validation.ErrorOr.ErrorOr
-import common.validation.Validation._
-import common.validation.ErrorOr.ShortCircuitingFlatMap
+import cats.data.NonEmptyList
+import cats.syntax.either._
 import cats.syntax.validated._
+import cats.syntax.traverse._
+import cats.instances.list._
+import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
+import common.validation.Validation._
 import cwl.InitialWorkDirRequirement.IwdrListingArrayEntry
-import cwl.WorkflowStepInput.InputSource
-import cwl.command.ParentName
+import mouse.all._
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.types._
 import wom.values._
@@ -16,7 +17,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.util.Try
 
-sealed trait CwlWomExpression extends WomExpression {
+trait CwlWomExpression extends WomExpression {
 
   def cwlExpressionType: WomType
 
@@ -33,95 +34,23 @@ case class JobPreparationExpression(expression: Expression,
   }
 
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet) = {
-    val pc = ParameterContext().withInputs(inputValues, ioFunctionSet)
-    expression.fold(EvaluateExpression).apply(pc).toErrorOr
+    val pc = ParameterContext(inputValues)
+    expression.
+      fold(EvaluateExpression).
+      apply(pc).
+      cata(Right(_), Left(_)). // this is because toEither is not a thing in scala 2.11.
+      leftMap(e => NonEmptyList.one(e.getMessage)).
+      toValidated
   }
 
   override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType) = Set.empty[WomFile].validNel
-}
-
-case class CommandOutputExpression(outputBinding: CommandOutputBinding,
-                                   override val cwlExpressionType: WomType,
-                                   override val inputs: Set[String]) extends CwlWomExpression {
-
-  // TODO WOM: outputBinding.toString is probably not be the best representation of the outputBinding
-  override def sourceString = outputBinding.toString
-
-  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
-    val parameterContext = ParameterContext.Empty.withInputs(inputValues, ioFunctionSet)
-
-    //To facilitate ECMAScript evaluation, filenames are stored in a map under the key "location"
-    val womValue = outputBinding.
-      commandOutputBindingToWomValue(parameterContext, ioFunctionSet) match {
-        case WomArray(_, Seq(WomMap(WomMapType(WomStringType, WomStringType), map))) => map(WomString("location"))
-        case other => other
-      }
-
-    //If the value is a string but the output is expecting a file, we consider that string a POSIX "glob" and apply
-    //it accordingly to retrieve the file list to which it expands.
-    val globbedIfFile =
-      (womValue, cwlExpressionType) match {
-
-        //In the case of a single file being expected, we must enforce that the glob only represents a single file
-        case (WomString(glob), WomSingleFileType) =>
-          Await.result(ioFunctionSet.glob(glob), Duration.Inf) match {
-            case head :: Nil => WomString(head)
-            case list => throw new RuntimeException(s"expecting a single File glob but instead got $list")
-          }
-
-        case _ => womValue
-      }
-
-    //CWL tells us the type this output is expected to be.  Attempt to coerce the actual output into this type.
-    cwlExpressionType.coerceRawValue(globbedIfFile).toErrorOr
-  }
-
-  /*
-  TODO:
-   DB: It doesn't make sense to me that this function returns type WomFile but accepts a type to which it coerces.
-   Wouldn't coerceTo always == WomFileType, and if not then what?
-   */
-  override def evaluateFiles(inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = {
-
-    val pc = ParameterContext().withInputs(inputs, ioFunctionSet)
-
-    val files = for {
-      globValue <- outputBinding.glob.toList
-      path <- GlobEvaluator.globPaths(globValue, pc, ioFunctionSet).toList
-    } yield WomGlobFile(path): WomFile
-
-    files.toSet.validNel[String]
-  }
-}
-
-final case class WorkflowStepInputExpression(input: WorkflowStepInput, override val cwlExpressionType: WomType, graphInputs: Set[String])(implicit parentName: ParentName) extends CwlWomExpression {
-
-  override def sourceString = input.toString
-
-  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet) = {
-    (input.valueFrom, input.source) match {
-      case (None, Some(WorkflowStepInputSource.String(id))) =>
-        inputValues.
-          get(FullyQualifiedName(id).id).
-          toValidNel(s"could not find id $id in typeMap\n${inputValues.mkString("\n")}\nwhen evaluating $input.  Graph Inputs were ${graphInputs.mkString("\n")}")
-      case _ => s"Could not do evaluateValue(${input.valueFrom}, ${input.source}), most likely it has not been implemented yet".invalidNel
-    }
-  }
-
-  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType) =
-    "Programmer error: Shouldn't use WorkflowStepInputExpressions to find output files. You silly goose.".invalidNel
-
-  override def inputs = graphInputs ++ input.source.toSet.flatMap{ inputSource: InputSource => inputSource match {
-    case WorkflowStepInputSource.String(s) => Set(FullyQualifiedName(s).id)
-    case WorkflowStepInputSource.StringArray(sa) => sa.map(FullyQualifiedName(_).id).toSet
-  }}
 }
 
 final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEntry) extends CwlWomExpression {
   override def cwlExpressionType: WomType = WomSingleFileType
   override def sourceString: String = entry.toString
 
-  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomFile] = {
+  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
     def mustBeString(womValue: WomValue): ErrorOr[String] = womValue match {
       case WomString(s) => s.validNel
       case other => WomStringType.coerceRawValue(other).map(_.asInstanceOf[WomString].value).toErrorOr
@@ -130,7 +59,7 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
     def evaluateEntryName(stringOrExpression: StringOrExpression): ErrorOr[String] = stringOrExpression match {
       case StringOrExpression.String(s) => s.validNel
       case StringOrExpression.ECMAScriptExpression(entrynameExpression) => for {
-        entryNameExpressionEvaluated <- ExpressionEvaluator.evalExpression(entrynameExpression, ParameterContext().withInputs(inputValues, ioFunctionSet)).toErrorOr
+        entryNameExpressionEvaluated <- ExpressionEvaluator.evalExpression(entrynameExpression, ParameterContext(inputValues)).toErrorOr
         entryNameValidated <- mustBeString(entryNameExpressionEvaluated)
       } yield entryNameValidated
     }
@@ -142,10 +71,14 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
       } yield writtenFile
 
       case IwdrListingArrayEntry.ExpressionDirent(Expression.ECMAScriptExpression(contentExpression), direntEntryName, _) =>
-        val entryEvaluation: ErrorOr[WomValue] = ExpressionEvaluator.evalExpression(contentExpression, ParameterContext().withInputs(inputValues, ioFunctionSet)).toErrorOr
+        val entryEvaluation: ErrorOr[WomValue] = ExpressionEvaluator.evalExpression(contentExpression, ParameterContext().addInputs(inputValues)).toErrorOr
         entryEvaluation flatMap {
-          // TODO CWL: Once files have "local paths", we will be able to specify a new local name based on direntEntryName if necessary.
-          case f: WomFile => f.validNel
+          case f: WomFile =>
+            val entryName: ErrorOr[String] = direntEntryName match {
+              case Some(en) => evaluateEntryName(en)
+              case None => f.value.split('/').last.validNel
+            }
+            entryName flatMap { en => Try(Await.result(ioFunctionSet.copyFile(f.value, en), Duration.Inf)).toErrorOr }
           case other => for {
             coerced <- WomStringType.coerceRawValue(other).toErrorOr
             contentString = coerced.asInstanceOf[WomString].value
@@ -155,8 +88,22 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
             writtenFile <- Try(Await.result(ioFunctionSet.writeFile(entryname, contentString), Duration.Inf)).toErrorOr
           }  yield writtenFile
         }
+      case IwdrListingArrayEntry.ECMAScriptExpression(expression) =>
+        // A single expression which must evaluate to an array of Files
+        val expressionEvaluation: ErrorOr[WomValue] = ExpressionEvaluator.evalExpression(expression, ParameterContext().addInputs(inputValues)).toErrorOr
 
-      case _ => ??? // TODO WOM and the rest....
+        expressionEvaluation flatMap {
+          case array: WomArray if WomArrayType(WomSingleFileType).coercionDefined(array) =>
+            val newFileArray: ErrorOr[List[WomFile]] = array.value.map(_.valueString).toList.traverse { source: String =>
+              val dest = source.split('/').last
+              Try(Await.result(ioFunctionSet.copyFile(source, dest), Duration.Inf)).toErrorOr
+            }
+            newFileArray map { nfa => WomArray(WomArrayType(WomSingleFileType), nfa) }
+
+          case other => s"InitialWorkDirRequirement listing expression must be Array[File] but got ${other.womType.toDisplayString}".invalidNel
+        }
+
+      case _ => ??? // TODO CWL and the rest....
     }
   }
 

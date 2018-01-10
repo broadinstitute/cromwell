@@ -1,6 +1,7 @@
 package cromwell.core.io
 
 import cromwell.core.io.DefaultIoCommand._
+import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
 import cromwell.core.path.BetterFileMethods.OpenOptions
 import cromwell.core.path.Path
 
@@ -8,7 +9,7 @@ import cromwell.core.path.Path
   * Can be used to customize IoCommands for the desired I/O operations
   */
 abstract class PartialIoCommandBuilder {
-  def contentAsStringCommand: PartialFunction[Path, IoContentAsStringCommand] = PartialFunction.empty
+  def contentAsStringCommand: PartialFunction[(Path, Option[Int], Boolean), IoContentAsStringCommand] = PartialFunction.empty
   def writeCommand: PartialFunction[(Path, String, OpenOptions), IoWriteCommand] = PartialFunction.empty
   def sizeCommand: PartialFunction[Path, IoSizeCommand] = PartialFunction.empty
   def deleteCommand: PartialFunction[(Path, Boolean), IoDeleteCommand] = PartialFunction.empty
@@ -49,8 +50,8 @@ class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.emp
     }).getOrElse(default)
   }
   
-  def contentAsStringCommand(path: Path): IoContentAsStringCommand = {
-    buildOrDefault(_.contentAsStringCommand, path, DefaultIoContentAsStringCommand(path))
+  def contentAsStringCommand(path: Path, maxBytes: Option[Int], failOnOverflow: Boolean): IoContentAsStringCommand = {
+    buildOrDefault(_.contentAsStringCommand, (path, maxBytes, failOnOverflow), DefaultIoContentAsStringCommand(path, IoReadOptions(maxBytes, failOnOverflow)))
   }
   
   def writeCommand(path: Path, content: String, options: OpenOptions): IoWriteCommand = {

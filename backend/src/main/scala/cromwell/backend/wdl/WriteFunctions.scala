@@ -26,4 +26,11 @@ trait WriteFunctions extends IoFunctionSet with AsyncIoFunctions {
       case true => Future.successful(WomSingleFile(file.pathAsString))
     }
   }
+
+  override def copyFile(pathFrom: String, targetName: String): Future[WomSingleFile] = {
+    val source = _writeDirectory.root / pathFrom
+    val destination = _writeDirectory / targetName
+
+    asyncIo.copyAsync(source, destination).as(WomSingleFile(destination.pathAsString))
+  }
 }

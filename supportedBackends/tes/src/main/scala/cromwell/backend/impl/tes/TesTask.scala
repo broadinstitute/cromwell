@@ -150,6 +150,9 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
             `type` = Option("FILE")
           )
         )
+      case (unsupported: WomFile, _) =>
+        // TODO: WOM: WOMFILE: Add support for directories.
+        throw new NotImplementedError(s"$unsupported is not supported yet.")
     }
 
   val outputs: Seq[Output] = womOutputs ++ standardOutputs ++ Seq(commandScriptOut)

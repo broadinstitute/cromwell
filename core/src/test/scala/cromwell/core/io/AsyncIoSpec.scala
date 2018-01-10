@@ -32,7 +32,7 @@ class AsyncIoSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     val testPath = DefaultPathBuilder.createTempFile()
     testPath.write("hello")
 
-    testActor.underlyingActor.asyncIo.contentAsStringAsync(testPath) map { result =>
+    testActor.underlyingActor.asyncIo.contentAsStringAsync(testPath, None, failOnOverflow = false) map { result =>
       assert(result == "hello")
     }
   }

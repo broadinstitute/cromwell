@@ -3,10 +3,9 @@ package cwl
 import shapeless._
 import wom.expression.IoFunctionSet
 import wom.types.{WomArrayType, WomStringType}
-
-import scala.Function._
 import wom.values._
 
+import scala.Function._
 import scala.util.{Failure, Success}
 
 /*
@@ -54,7 +53,7 @@ object GlobEvaluator {
             case Success(WomArray(WomArrayType(WomStringType), values)) => values.map(_.valueString)
             case Success(womValue) =>
               throw new RuntimeException(
-                s"Unexpected expression result: $womValue while evaluating expression '$ecmaScript' using inputs '${parameterContext.inputs}'")
+                s"Unexpected expression result: $womValue while evaluating expression '$ecmaScript' using inputs '${parameterContext.ecmaScriptInputs}'")
             case Failure(e) => throw e
           }
         }

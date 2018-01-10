@@ -12,6 +12,7 @@ pages:
     - Quick Introduction: tutorials/FiveMinuteIntro.md
     - How to Configure Cromwell: tutorials/ConfigurationFiles.md
     - Getting started with Pipelines API: tutorials/PipelinesApi101.md
+    - Getting started with Alibaba Cloud: tutorials/BCSIntro.md
     - View the Timing Diagrams: tutorials/TimingDiagrams.md
     - Persisting data between restarts: tutorials/PersistentServer.md
     - Getting started on HPC Clusters: tutorials/HPCIntro.md
@@ -43,6 +44,7 @@ pages:
     - Overview: backends/Backends.md
     - Local: backends/Local.md
     - Google Cloud: backends/Google.md
+    - Alibaba Cloud: backends/BCS.md
     - GA4GH TES: backends/TES.md
     - Spark: backends/Spark.md
     - HPC: backends/HPC.md

@@ -99,7 +99,7 @@ class ReadLikeFunctionsSpec extends AsyncFlatSpec with Matchers {
 
 // TODO WOM: Fix
 class TestReadLikeFunctions(sizeResult: Try[Double]) extends IoFunctionSet {
-  override def readFile(path: String): Future[String] = ???
+  override def readFile(path: String, maxBytes: Option[Int] = None, failOnOverflow: Boolean = false): Future[String] = ???
 
   override def writeFile(path: String, content: String): Future[WomSingleFile] = ???
 
@@ -110,4 +110,6 @@ class TestReadLikeFunctions(sizeResult: Try[Double]) extends IoFunctionSet {
   override def glob(pattern: String): Future[Seq[String]] = ???
 
   override def size(params: Seq[Try[WomValue]]): Future[WomFloat] = Future.fromTry(sizeResult.map(WomFloat.apply))
+
+  override def copyFile(pathFrom: String, targetName: String): Future[WomSingleFile] = ???
 }

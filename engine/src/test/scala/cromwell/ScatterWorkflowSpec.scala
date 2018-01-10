@@ -60,7 +60,7 @@ class ScatterWorkflowSpec extends CromwellTestKitWordSpec {
           "sc_test.do_gather.sum" -> WomInteger(11),
           "sc_test.do_prepare.split_files" -> WomArray(
             WomArrayType(WomSingleFileType),
-            Seq("temp_aa", "temp_ab", "temp_ac", "temp_ad").map(WomSingleFile)
+            Seq("temp_aa", "temp_ab", "temp_ac", "temp_ad").map(WomSingleFile(_))
           ),
           "sc_test.do_scatter.count_file" -> WomArray(
             WomArrayType(WomSingleFileType),
@@ -83,7 +83,7 @@ class ScatterWorkflowSpec extends CromwellTestKitWordSpec {
           "sc_test.do_gather.sum" -> WomInteger(11),
           "sc_test.do_prepare.split_files" -> WomArray(
             WomArrayType(WomSingleFileType),
-            Seq("temp_aa", "temp_ab", "temp_ac", "temp_ad").map(WomSingleFile)
+            Seq("temp_aa", "temp_ab", "temp_ac", "temp_ad").map(WomSingleFile(_))
           ),
           "sc_test.do_scatter.count_file" -> WomArray(
             WomArrayType(WomSingleFileType),

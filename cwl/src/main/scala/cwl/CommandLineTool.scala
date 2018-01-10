@@ -17,7 +17,6 @@ import cwl.command.ParentName
 import cwl.requirement.RequirementToAttributeMap
 import eu.timepit.refined.W
 import shapeless.syntax.singleton._
-<<<<<<< HEAD
 import shapeless.{:+:, CNil, Coproduct, Poly1, Witness}
 import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, CallableTaskDefinition}
@@ -37,23 +36,23 @@ import scala.util.Try
   * @param `class` This _should_ always be "CommandLineTool," however the spec does not -er- specify this.
   */
 case class CommandLineTool private(
-                                   inputs: Array[CommandInputParameter],
-                                   outputs: Array[CommandOutputParameter],
-                                   `class`: Witness.`"CommandLineTool"`.T,
-                                   id: String,
-                                   requirements: Option[Array[Requirement]],
-                                   hints: Option[Array[Hint]],
-                                   label: Option[String],
-                                   doc: Option[String],
-                                   cwlVersion: Option[CwlVersion],
-                                   baseCommand: Option[BaseCommand],
-                                   arguments: Option[Array[CommandLineTool.Argument]],
-                                   stdin: Option[StringOrExpression],
-                                   stderr: Option[StringOrExpression],
-                                   stdout: Option[StringOrExpression],
-                                   successCodes: Option[Array[Int]],
-                                   temporaryFailCodes: Option[Array[Int]],
-                                   permanentFailCodes: Option[Array[Int]]) {
+                                    inputs: Array[CommandInputParameter],
+                                    outputs: Array[CommandOutputParameter],
+                                    `class`: Witness.`"CommandLineTool"`.T,
+                                    id: String,
+                                    requirements: Option[Array[Requirement]],
+                                    hints: Option[Array[Hint]],
+                                    label: Option[String],
+                                    doc: Option[String],
+                                    cwlVersion: Option[CwlVersion],
+                                    baseCommand: Option[BaseCommand],
+                                    arguments: Option[Array[CommandLineTool.Argument]],
+                                    stdin: Option[StringOrExpression],
+                                    stderr: Option[StringOrExpression],
+                                    stdout: Option[StringOrExpression],
+                                    successCodes: Option[Array[Int]],
+                                    temporaryFailCodes: Option[Array[Int]],
+                                    permanentFailCodes: Option[Array[Int]]) {
 
   private [cwl] implicit val explicitWorkflowName = ParentName(id)
   private val inputNames = this.inputs.map(i => FullyQualifiedName(i.id).id).toSet
@@ -125,7 +124,7 @@ case class CommandLineTool private(
           commandPartsList :+ SortKeyAndCommandPart(sortingKey, part)
       })
 
-    val inputBindingsCommandParts = inputs.toList.flatTraverse[ErrorOr, SortKeyAndCommandPart]({
+    val inputBindingsCommandParts: ErrorOr[List[SortKeyAndCommandPart]] = inputs.toList.flatTraverse[ErrorOr, SortKeyAndCommandPart]({
       inputParameter =>
         val parsedName = FullyQualifiedName(inputParameter.id)(ParentName.empty).id
         val womType = inputParameter.`type`.map(_.fold(MyriadInputTypeToWomType)).getOrElse(WomStringType)
@@ -276,7 +275,6 @@ object CommandLineTool {
   // Maps a sorting key to its binding
   case class SortKeyAndCommandPart(sortingKey: CommandBindingSortingKey, commandPart: CommandPart)
 
-  // Convenience type for a list of SortKeyAndCommandPart
   type CommandPartsList = List[SortKeyAndCommandPart]
 
   object CommandPartsList {

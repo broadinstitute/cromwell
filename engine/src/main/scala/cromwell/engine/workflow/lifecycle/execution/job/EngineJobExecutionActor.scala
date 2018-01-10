@@ -545,11 +545,11 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
     data.ejha match {
       case Some(ejha) =>
-        log.info("Trying to use another cache hit for job: {}", jobDescriptorKey)
+        workflowLogger.debug("Trying to use another cache hit for job: {}", jobDescriptorKey)
         ejha ! NextHit
         goto(CheckingCallCache)
       case _ =>
-        log.info("Could not find another cache hit, falling back to running job: {}", jobDescriptorKey)
+        workflowLogger.info("Could not find a suitable cache hit, falling back to running job: {}", jobDescriptorKey)
         runJob(data)
     }
   }

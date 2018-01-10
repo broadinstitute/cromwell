@@ -23,38 +23,102 @@ class MetadataServiceSpec extends FlatSpec with Matchers with TableDrivenPropert
     }
   }
 
-  it should "convert a WdlArray to MetadataEvents" in {
+  it should "convert a WomArray to MetadataEvents" in {
     import MetadataService._
     val workflowId = WorkflowId.randomId()
-    val wdlArray = WomArray(WomArrayType(WomStringType), Seq(WomString("Hello"), WomString("world!")))
-    val emptyWdlArray = WomArray(WomArrayType(WomStringType), Seq.empty)
+    val womArray = WomArray(WomArrayType(WomStringType), Seq(WomString("Hello"), WomString("world!")))
+    val emptyWomArray = WomArray(WomArrayType(WomStringType), Seq.empty)
 
-    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), wdlArray).toList should contain theSameElementsInOrderAs List(
+    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), womArray).toList should contain theSameElementsInOrderAs List(
       MetadataEvent(MetadataKey(workflowId, None, "root[0]"), MetadataValue("Hello")),
       MetadataEvent(MetadataKey(workflowId, None, "root[1]"), MetadataValue("world!"))
     )
 
-    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), emptyWdlArray).toList should contain theSameElementsAs List(
+    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), emptyWomArray).toList should contain theSameElementsAs List(
       MetadataEvent.empty(MetadataKey(workflowId, None, "root[]"))
     )
   }
 
-  it should "convert a WdlMap to MetadataEvents" in {
+  it should "convert a WomMap to MetadataEvents" in {
     import MetadataService._
     val workflowId = WorkflowId.randomId()
-    val wdlArray = WomMap(WomMapType(WomStringType, WomStringType), Map(
+    val womMap = WomMap(WomMapType(WomStringType, WomStringType), Map(
       WomString("Hello") -> WomString("world!"),
       WomString("Goodbye") -> WomString("world!")
     ))
-    val emptyWdlMap = WomMap(WomMapType(WomStringType, WomStringType), Map.empty)
+    val emptyWomMap = WomMap(WomMapType(WomStringType, WomStringType), Map.empty)
 
-    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), wdlArray).toList should contain theSameElementsInOrderAs List(
+    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), womMap).toList should contain theSameElementsInOrderAs List(
       MetadataEvent(MetadataKey(workflowId, None, "root:Hello"), MetadataValue("world!")),
       MetadataEvent(MetadataKey(workflowId, None, "root:Goodbye"), MetadataValue("world!"))
     )
 
-    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), emptyWdlMap).toList should contain theSameElementsAs List(
+    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), emptyWomMap).toList should contain theSameElementsAs List(
       MetadataEvent.empty(MetadataKey(workflowId, None, "root"))
+    )
+  }
+
+  it should "convert a WomMaybePopulatedFile to MetadataEvents" in {
+    import MetadataService._
+    val workflowId = WorkflowId.randomId()
+    // Leave some fields out on purpose to verify that they still make it (empty) to the metadata
+    val womMaybePopulatedFileInner = WomMaybePopulatedFile(
+      valueOption = Option("innerFileValue"),
+      contentsOption = Option("innerContents")
+    )
+
+    val womMaybePopulatedFileOuter = WomMaybePopulatedFile(
+      valueOption = Option("fileValue"),
+      checksumOption = Option("checksum"),
+      sizeOption = Option(5L),
+      formatOption = Option("format"),
+      contentsOption = Option("contents"),
+      secondaryFiles = List(
+        womMaybePopulatedFileInner,
+        WomSingleFile("outerSingleFile")
+      )
+    )
+
+    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), womMaybePopulatedFileOuter).toList should contain theSameElementsInOrderAs List(
+      MetadataEvent(MetadataKey(workflowId, None, "root:value"), MetadataValue("fileValue")),
+      MetadataEvent(MetadataKey(workflowId, None, "root:checksum"), MetadataValue("checksum")),
+      MetadataEvent(MetadataKey(workflowId, None, "root:size"), MetadataValue(5L)),
+      MetadataEvent(MetadataKey(workflowId, None, "root:format"), MetadataValue("format")),
+      MetadataEvent(MetadataKey(workflowId, None, "root:contents"), MetadataValue("contents")),
+      MetadataEvent(MetadataKey(workflowId, None, "root:secondaryFiles[0]:value"), MetadataValue("innerFileValue")),
+      MetadataEvent(MetadataKey(workflowId, None, "root:secondaryFiles[0]:checksum"), None),
+      MetadataEvent(MetadataKey(workflowId, None, "root:secondaryFiles[0]:size"), None),
+      MetadataEvent(MetadataKey(workflowId, None, "root:secondaryFiles[0]:format"), None),
+      MetadataEvent(MetadataKey(workflowId, None, "root:secondaryFiles[0]:contents"), MetadataValue("innerContents")),
+      MetadataEvent(MetadataKey(workflowId, None, "root:secondaryFiles[0]:secondaryFiles[]"), None),
+      MetadataEvent(MetadataKey(workflowId, None, "root:secondaryFiles[1]"), MetadataValue("outerSingleFile"))
+    )
+  }
+
+  it should "convert a WomMaybeListedDirectory to MetadataEvents" in {
+    import MetadataService._
+    val workflowId = WorkflowId.randomId()
+    // Leave some fields out on purpose to verify that they still make it (empty) to the metadata
+    val womMaybeListedDirectoryInner = WomMaybeListedDirectory(
+      valueOption = Option("innerDirectoryValue"),
+      listingOption = None
+    )
+
+    val womMaybeListedDirectoryOuter = WomMaybeListedDirectory(
+      valueOption = Option("directoryValue"),
+      listingOption = Option(
+        List(
+          womMaybeListedDirectoryInner,
+          WomSingleFile("outerSingleFile")
+        )
+      )
+    )
+
+    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), womMaybeListedDirectoryOuter).toList should contain theSameElementsInOrderAs List(
+      MetadataEvent(MetadataKey(workflowId, None, "root:value"), MetadataValue("directoryValue")),
+      MetadataEvent(MetadataKey(workflowId, None, "root:listing[0]:value"), MetadataValue("innerDirectoryValue")),
+      MetadataEvent(MetadataKey(workflowId, None, "root:listing[0]:listing[]"), None),
+      MetadataEvent(MetadataKey(workflowId, None, "root:listing[1]"), MetadataValue("outerSingleFile"))
     )
   }
 

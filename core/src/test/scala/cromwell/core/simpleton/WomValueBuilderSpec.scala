@@ -1,6 +1,7 @@
 package cromwell.core.simpleton
 
 import cromwell.core.simpleton.WomValueBuilderSpec._
+import cromwell.core.simpleton.WomValueSimpleton._
 import cromwell.util.WomMocks
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
@@ -8,7 +9,6 @@ import wom.callable.Callable.OutputDefinition
 import wom.expression.PlaceholderWomExpression
 import wom.types.{WomArrayType, WomIntegerType, WomMapType, WomStringType}
 import wom.values._
-import WomValueSimpleton._
 
 import scala.util.Success
 
@@ -135,6 +135,57 @@ class WomValueBuilderSpec extends FlatSpec with Matchers with Mockito {
         WomValueSimpleton("object_with_object:b:ba[1]", WomString("battle")),
         WomValueSimpleton("object_with_object:b:bb[0]", WomString("bbrrrr")),
         WomValueSimpleton("object_with_object:b:bb[1]", WomString("bb gun")),
+      )
+    ),
+    SimpletonConversion(
+      "directory",
+      WomMaybeListedDirectory(
+        Option("outerValueName"), 
+        Option(List(
+          WomSingleFile("outerSingleFile"),
+          WomMaybeListedDirectory(Option("innerValueName"), Option(List(WomSingleFile("innerSingleFile")))),
+          WomMaybePopulatedFile(
+            Option("populatedInnerValueName"),
+            Option("innerChecksum"),
+            Option(10L),
+            Option("innerFormat"),
+            Option("innerContents"),
+            List(
+              WomSingleFile("populatedInnerSingleFile"),
+              WomMaybeListedDirectory(Option("innerDirectoryValueName"), Option(List(WomSingleFile("innerDirectorySingleFile")))),
+              WomUnlistedDirectory("innerUnlistedDirectory"),
+              WomGlobFile("innerGlobFile")
+            )
+          ),
+          WomUnlistedDirectory("outerUnlistedDirectory"),
+          WomGlobFile("outerGlobFile")
+      ))),
+      List(
+        WomValueSimpleton("directory:class", WomString("Directory")),
+        WomValueSimpleton("directory:value", WomString("outerValueName")),
+        
+        WomValueSimpleton("directory:listing[0]", WomSingleFile("outerSingleFile")),
+        
+        WomValueSimpleton("directory:listing[1]:class", WomString("Directory")),
+        WomValueSimpleton("directory:listing[1]:value", WomString("innerValueName")),
+        WomValueSimpleton("directory:listing[1]:listing[0]", WomSingleFile("innerSingleFile")),
+        
+        WomValueSimpleton("directory:listing[2]:class", WomString("File")),
+        WomValueSimpleton("directory:listing[2]:value", WomString("populatedInnerValueName")),
+        
+        WomValueSimpleton("directory:listing[2]:checksum", WomString("innerChecksum")),
+        WomValueSimpleton("directory:listing[2]:size", WomInteger(10)),
+        WomValueSimpleton("directory:listing[2]:format", WomString("innerFormat")),
+        WomValueSimpleton("directory:listing[2]:contents", WomString("innerContents")),
+        WomValueSimpleton("directory:listing[2]:secondaryFiles[0]", WomSingleFile("populatedInnerSingleFile")),
+        WomValueSimpleton("directory:listing[2]:secondaryFiles[1]:class", WomString("Directory")),
+        WomValueSimpleton("directory:listing[2]:secondaryFiles[1]:value", WomString("innerDirectoryValueName")),
+        WomValueSimpleton("directory:listing[2]:secondaryFiles[1]:listing[0]", WomSingleFile("innerDirectorySingleFile")),
+        WomValueSimpleton("directory:listing[2]:secondaryFiles[2]", WomUnlistedDirectory("innerUnlistedDirectory")),
+        WomValueSimpleton("directory:listing[2]:secondaryFiles[3]", WomGlobFile("innerGlobFile")),
+        
+        WomValueSimpleton("directory:listing[3]", WomUnlistedDirectory("outerUnlistedDirectory")),
+        WomValueSimpleton("directory:listing[4]", WomGlobFile("outerGlobFile"))
       )
     )
   )

@@ -120,14 +120,22 @@ object MetadataService {
   final case class WorkflowQuerySuccess(response: WorkflowQueryResponse, meta: Option[QueryMetadata]) extends MetadataQueryResponse
   final case class WorkflowQueryFailure(reason: Throwable) extends MetadataQueryResponse
 
+  private implicit class EnhancedWomTraversable(val womValues: Traversable[WomValue]) extends AnyVal {
+    def toEvents(metadataKey: MetadataKey): List[MetadataEvent] = if (womValues.isEmpty) {
+      List(MetadataEvent.empty(metadataKey.copy(key = s"${metadataKey.key}[]")))
+    } else {
+      womValues.toList
+        .zipWithIndex
+        .flatMap { case (value, index) => womValueToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}[$index]"), value) }
+    }
+  }
+  
+  private def toPrimitiveEvent(metadataKey: MetadataKey, valueName: String)(value: Option[Any]) = {
+    MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:$valueName"), value.map(MetadataValue.apply))
+  }
+  
   def womValueToMetadataEvents(metadataKey: MetadataKey, womValue: WomValue): Iterable[MetadataEvent] = womValue match {
-    case WomArray(_, valueSeq) =>
-      if (valueSeq.isEmpty) {
-        List(MetadataEvent.empty(metadataKey.copy(key = s"${metadataKey.key}[]")))
-      } else {
-        val zippedSeq = valueSeq.zipWithIndex
-        zippedSeq.toList flatMap { case (value, index) => womValueToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}[$index]"), value) }
-      }
+    case WomArray(_, valueSeq) => valueSeq.toEvents(metadataKey)
     case WomMap(_, valueMap) =>
       if (valueMap.isEmpty) {
         List(MetadataEvent.empty(metadataKey))
@@ -145,6 +153,19 @@ object MetadataService {
     case WomPair(left, right) =>
       womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":left"), left) ++
         womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":right"), right)
+    case populated: WomMaybePopulatedFile =>
+      import mouse.all._
+      val secondaryFiles = populated.secondaryFiles.toEvents(metadataKey.copy(key = s"${metadataKey.key}:secondaryFiles"))
+      
+      List(toPrimitiveEvent(metadataKey, "value")(populated.valueOption),
+          populated.checksumOption |> toPrimitiveEvent(metadataKey, "checksum"),
+          populated.sizeOption |> toPrimitiveEvent(metadataKey, "size"),
+          populated.formatOption |> toPrimitiveEvent(metadataKey, "format"),
+          populated.contentsOption |> toPrimitiveEvent(metadataKey, "contents")
+      ) ++ secondaryFiles
+    case listedDirectory: WomMaybeListedDirectory =>
+      val listing = listedDirectory.listingOption.toList.flatten.toEvents(metadataKey.copy(key = s"${metadataKey.key}:listing"))
+      List(toPrimitiveEvent(metadataKey, "value")(listedDirectory.valueOption)) ++ listing
     case value =>
       List(MetadataEvent(metadataKey, MetadataValue(value)))
   }

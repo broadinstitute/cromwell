@@ -36,7 +36,7 @@ private [cwl] object CwlInputCoercion extends Json.Folder[DelayedCoercionFunctio
   override def onArray(value: Vector[Json]) = {
     case womArrayType: WomArrayType =>
       value.toList
-        .traverse[ErrorOr, WomValue](_.foldWith(CwlInputCoercion).apply(womArrayType.memberType))
+        .traverse[ErrorOr, WomValue](_.foldWith(this).apply(womArrayType.memberType))
         .map {
           WomArray(womArrayType, _)
         }
@@ -58,7 +58,7 @@ private [cwl] object CwlInputCoercion extends Json.Folder[DelayedCoercionFunctio
       }
     case WomObjectType =>
       val foldedMap = value.toList.traverse[ErrorOr, (String, WomValue)]({
-        case (k, v) => v.foldWith(CwlInputCoercion).apply(WomAnyType).map(k -> _)
+        case (k, v) => v.foldWith(this).apply(WomAnyType).map(k -> _)
       }).map(_.toMap[String, WomValue])
 
       foldedMap.map(WomObject.apply)

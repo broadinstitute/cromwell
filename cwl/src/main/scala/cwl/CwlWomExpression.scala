@@ -58,8 +58,8 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
 
     def evaluateEntryName(stringOrExpression: StringOrExpression): ErrorOr[String] = stringOrExpression match {
       case StringOrExpression.String(s) => s.validNel
-      case StringOrExpression.ECMAScriptExpression(entrynameExpression) => for {
-        entryNameExpressionEvaluated <- ExpressionEvaluator.evalExpression(entrynameExpression, ParameterContext(inputValues)).toErrorOr
+      case StringOrExpression.Expression(entrynameExpression) => for {
+        entryNameExpressionEvaluated <- ExpressionEvaluator.evalCwlExpression(entrynameExpression, ParameterContext(inputValues)).toErrorOr
         entryNameValidated <- mustBeString(entryNameExpressionEvaluated)
       } yield entryNameValidated
     }
@@ -70,8 +70,8 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
         writtenFile <- Try(Await.result(ioFunctionSet.writeFile(entryNameValidated, content), Duration.Inf)).toErrorOr
       } yield writtenFile
 
-      case IwdrListingArrayEntry.ExpressionDirent(Expression.ECMAScriptExpression(contentExpression), direntEntryName, _) =>
-        val entryEvaluation: ErrorOr[WomValue] = ExpressionEvaluator.evalExpression(contentExpression, ParameterContext().addInputs(inputValues)).toErrorOr
+      case IwdrListingArrayEntry.ExpressionDirent(contentExpression, direntEntryName, _) =>
+        val entryEvaluation: ErrorOr[WomValue] = ExpressionEvaluator.evalCwlExpression(contentExpression, ParameterContext().addInputs(inputValues)).toErrorOr
         entryEvaluation flatMap {
           case f: WomFile =>
             val entryName: ErrorOr[String] = direntEntryName match {
@@ -88,9 +88,9 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
             writtenFile <- Try(Await.result(ioFunctionSet.writeFile(entryname, contentString), Duration.Inf)).toErrorOr
           }  yield writtenFile
         }
-      case IwdrListingArrayEntry.ECMAScriptExpression(expression) =>
+      case IwdrListingArrayEntry.Expression(expression) =>
         // A single expression which must evaluate to an array of Files
-        val expressionEvaluation: ErrorOr[WomValue] = ExpressionEvaluator.evalExpression(expression, ParameterContext().addInputs(inputValues)).toErrorOr
+        val expressionEvaluation: ErrorOr[WomValue] = ExpressionEvaluator.evalCwlExpression(expression, ParameterContext().addInputs(inputValues)).toErrorOr
 
         expressionEvaluation flatMap {
           case array: WomArray if WomArrayType(WomSingleFileType).coercionDefined(array) =>

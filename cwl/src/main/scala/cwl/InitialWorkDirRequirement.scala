@@ -1,6 +1,5 @@
 package cwl
 
-import cwl.ExpressionEvaluator.ECMAScriptExpression
 import cwl.InitialWorkDirRequirement._
 import eu.timepit.refined.W
 import shapeless.{:+:, CNil, _}
@@ -65,12 +64,11 @@ object InitialWorkDirRequirement {
     object String {
       def unapply(e: IwdrListingArrayEntry): Option[String] = e.select[StringOrExpression].flatMap(_.select[String])
     }
-    object ECMAScriptExpression {
-      def unapply(e: IwdrListingArrayEntry): Option[ECMAScriptExpression] = for {
+    object Expression {
+      def unapply(e: IwdrListingArrayEntry): Option[Expression] = for {
         soe <- e.select[StringOrExpression]
         expr <- soe.select[Expression]
-        ecmaScriptExpression <- expr.select[ECMAScriptExpression]
-      } yield ecmaScriptExpression
+      } yield expr
 
 
     }

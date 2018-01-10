@@ -20,6 +20,10 @@ object ExpressionEvaluator {
   type ECMAScriptFunction = String Refined MatchesRegex[ECMAScriptFunctionWitness.T]
   type MatchesECMAFunction = MatchesRegex[ECMAScriptFunctionWitness.T]
 
+  def evalCwlExpression(expression: Expression, parameterContext: ParameterContext): Try[WomValue] = expression match {
+    case Expression.ECMAScriptExpression(expr) => evalExpression(expr, parameterContext)
+    case Expression.ECMAScriptFunction(fun) => evalFunction(fun, parameterContext)
+  }
 
   def evalExpression(expression: ECMAScriptExpression, parameterContext: ParameterContext): Try[WomValue] = {
     val ECMAScriptExpressionRegex = ECMAScriptExpressionWitness.value.r

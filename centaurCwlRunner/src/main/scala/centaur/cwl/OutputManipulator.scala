@@ -49,13 +49,15 @@ object OutputManipulator extends Poly1 {
           outputJson = metadata.map(m => resolveOutputViaInnerType(innerType)(m, pathBuilder)).asJson
         } yield outputJson).getOrElse(throw new RuntimeException(s"We currently do not support output arrays with ${tpe.select[OutputArraySchema].get.items} inner type"))
       case (JsObject(metadata), tpe) if tpe.select[OutputRecordSchema].isDefined =>
+        def processField(field: InputRecordField) = {
+          val parsedName = FullyQualifiedName(field.name)(ParentName.empty).id
+          field.`type`.select[MyriadOutputInnerType] map { parsedName -> _ }
+        }
+
         (for {
           schema <- tpe.select[OutputRecordSchema]
           fields <- schema.fields
-          typeMap = fields.flatMap({ field =>
-            val parsedName = FullyQualifiedName(field.name)(ParentName.empty).id
-            field.`type`.select[MyriadOutputInnerType] map { parsedName -> _ }
-          }).toMap
+          typeMap = fields.flatMap(processField).toMap
           outputJson = metadata.map({
             case (k, v) => k -> resolveOutputViaInnerType(typeMap(k))(v, pathBuilder)
           }).asJson

@@ -2,6 +2,7 @@ package cwl
 
 import java.nio.file.Paths
 
+import cats.data.Validated.{Invalid, Valid}
 import cats.instances.list._
 import cats.instances.option._
 import cats.syntax.traverse._
@@ -22,10 +23,8 @@ import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition, Requ
 import wom.callable.{Callable, CallableTaskDefinition}
 import wom.executable.Executable
 import wom.expression.{ValueAsAnExpression, WomExpression}
-import wom.types.WomType
+import wom.types.{WomStringType, WomType}
 import wom.values.{WomArray, WomEvaluatedCallInputs, WomFile, WomString, WomValue}
-import wom.types.WomStringType
-import wom.values.WomEvaluatedCallInputs
 import wom.{CommandPart, RuntimeAttributes}
 
 import scala.language.postfixOps
@@ -125,24 +124,25 @@ case class CommandLineTool private(
       })
 
     val inputBindingsCommandParts: ErrorOr[List[SortKeyAndCommandPart]] = inputs.toList.flatTraverse[ErrorOr, SortKeyAndCommandPart]({
+      import cats.syntax.validated._
+
       inputParameter =>
         val parsedName = FullyQualifiedName(inputParameter.id)(ParentName.empty).id
         val womType = inputParameter.`type`.map(_.fold(MyriadInputTypeToWomType)).getOrElse(WomStringType)
-        val defaultValue = inputParameter.default map {
-          case CwlAny.Json(jsonDefault) => womType.coerceRawValue(jsonDefault.sprayJsonRepresentation).get
-          case CwlAny.File(fileDefault) => womType.coerceRawValue(fileDefault.path.get).get
-        }
+
+        val defaultValue = inputParameter.default.map(_.fold(CommandInputParameter.DefaultToWomValuePoly).apply(womType))
 
         inputValues
-          .find(_._1.name == parsedName).map(_._2)
+          .collectFirst({ case (inputDefinition, womValue) if inputDefinition.name == parsedName => womValue.validNel })
           .orElse(defaultValue)
-          .toErrorOr(s"Could not find an input value for input $parsedName in ${inputValues.prettyString}") map { value =>
-
-          // See http://www.commonwl.org/v1.0/CommandLineTool.html#Input_binding
-          lazy val initialKey = CommandBindingSortingKey.empty
-            .append(inputParameter.inputBinding, Coproduct[StringOrInt](parsedName))
-
-          inputParameter.`type`.toList.flatMap(_.fold(MyriadInputTypeToSortedCommandParts).apply(inputParameter.inputBinding, value, initialKey.asNewKey))
+          .toErrorOr(s"Could not find an input value for input $parsedName in ${inputValues.prettyString}") match {
+            case Valid(value) =>
+              // See http://www.commonwl.org/v1.0/CommandLineTool.html#Input_binding
+              lazy val initialKey = CommandBindingSortingKey.empty
+                .append(inputParameter.inputBinding, Coproduct[StringOrInt](parsedName))
+    
+              inputParameter.`type`.toList.flatMap(_.fold(MyriadInputTypeToSortedCommandParts).apply(inputParameter.inputBinding, value, initialKey.asNewKey))
+           case Invalid(errors) => Invalid(errors)
         }
     })
 
@@ -181,22 +181,19 @@ case class CommandLineTool private(
         case other => throw new NotImplementedError(s"Command output parameters such as $other are not yet supported")
       }.toList
 
-      val inputDefinitions: List[_ <: Callable.InputDefinition] =
-        this.inputs.map {
-          case CommandInputParameter(id, _, _, _, _, _, _, Some(default), Some(tpe)) =>
-            val inputType = tpe.fold(MyriadInputTypeToWomType)
-            val inputName = FullyQualifiedName(id).id
-            val defaultValue = default match {
-              case CwlAny.Json(jsonDefault) => ValueAsAnExpression(inputType.coerceRawValue(jsonDefault.sprayJsonRepresentation).get)
-              case CwlAny.File(fileDefault) => ValueAsAnExpression(inputType.coerceRawValue(fileDefault.path.get).get)
-            }
-            InputDefinitionWithDefault(inputName, inputType, defaultValue)
-          case CommandInputParameter(id, _, _, _, _, _, _, None, Some(tpe)) =>
-            val inputType = tpe.fold(MyriadInputTypeToWomType)
-            val inputName = FullyQualifiedName(id).id
-            RequiredInputDefinition(inputName, inputType)
-          case other => throw new NotImplementedError(s"command input parameters such as $other are not yet supported")
-        }.toList
+    val inputDefinitions: List[_ <: Callable.InputDefinition] =
+      this.inputs.map {
+        case CommandInputParameter(inputId, _, _, _, _, _, _, Some(default), Some(tpe)) =>
+          val inputType = tpe.fold(MyriadInputTypeToWomType)
+          val inputName = FullyQualifiedName(inputId).id
+          val defaultWomValue = default.fold(CommandInputParameter.DefaultToWomValuePoly).apply(inputType).toTry.get
+          InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(defaultWomValue))
+        case CommandInputParameter(inputId, _, _, _, _, _, _, None, Some(tpe)) =>
+          val inputType = tpe.fold(MyriadInputTypeToWomType)
+          val inputName = FullyQualifiedName(inputId).id
+          RequiredInputDefinition(inputName, inputType)
+        case other => throw new NotImplementedError(s"command input parameters such as $other are not yet supported")
+      }.toList
 
       def stringOrExpressionToString(soe: Option[StringOrExpression]): Option[String] = soe flatMap {
         case StringOrExpression.String(str) => Some(str)

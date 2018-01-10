@@ -182,8 +182,7 @@ class WomValueBuilderSpec extends FlatSpec with Matchers with Mockito {
     it should s"decompose WdlValues into simpletons ($name)" in {
 
       val map = Map(WomMocks.mockOutputPort(name) -> womValue)
-      val simplified = map.simplify
-      assertSimpletonsEqual(expectedSimpletons, simplified)
+      assertSimpletonsEqual(expectedSimpletons, map.simplify)
     }
 
     it should s"build simpletons back into WdlValues ($name)" in {

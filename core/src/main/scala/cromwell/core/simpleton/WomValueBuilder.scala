@@ -106,8 +106,8 @@ object WomValueBuilder {
       else {
         // Otherwise make a map of the components and detect the type of file from the marker
         val groupedListing = components.asMap
-        if (groupedListing.get("<<directory>>").isDefined) toWomValue(WomMaybeListedDirectoryType, components)
-        else if (groupedListing.get("<<populated>>").isDefined) toWomValue(WomMaybePopulatedFileType, components)
+        if (groupedListing.get(WomValueSimpleton.DirectoryMarker).isDefined) toWomValue(WomMaybeListedDirectoryType, components)
+        else if (groupedListing.get(WomValueSimpleton.PopulatedMarker).isDefined) toWomValue(WomMaybePopulatedFileType, components)
         else throw new IllegalArgumentException(s"Cannot build a WomFile from simpletons: ${groupedListing.toList.mkString(", ")}")
       }
     }
@@ -134,7 +134,7 @@ object WomValueBuilder {
         val map: Map[String, WomValue] = components.asMap map { case (k, ss) => k -> toWomValue(WomAnyType, ss) }
         WomObject(map)
       case WomMaybeListedDirectoryType =>
-        val directoryValues = components.asMap("<<directory>>").asMap
+        val directoryValues = components.asMap(WomValueSimpleton.DirectoryMarker).asMap
 
         val value = directoryValues.get("value").map(_.asString)
         val listing = directoryValues.get("listing")
@@ -142,7 +142,7 @@ object WomValueBuilder {
 
         WomMaybeListedDirectory(value, listing)
       case WomMaybePopulatedFileType =>
-        val populatedValues = components.asMap("<<populated>>").asMap
+        val populatedValues = components.asMap(WomValueSimpleton.PopulatedMarker).asMap
 
         val value = populatedValues.get("value").map(_.asString)
         val checksum = populatedValues.get("checksum").map(_.asString)

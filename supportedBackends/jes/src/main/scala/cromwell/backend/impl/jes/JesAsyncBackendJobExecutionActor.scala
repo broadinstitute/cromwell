@@ -8,7 +8,8 @@ import cats.data.Validated.{Invalid, Valid}
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.services.genomics.model.RunPipelineRequest
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
-import common.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr._
+import common.validation.Validation._
 import cromwell.backend._
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
@@ -16,6 +17,7 @@ import cromwell.backend.impl.jes.errors.FailedToDelocalizeFailure
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.impl.jes.statuspolling.JesRunCreationClient.JobAbortedException
 import cromwell.backend.impl.jes.statuspolling.{JesRunCreationClient, JesStatusRequestClient}
+import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
 import cromwell.core.logging.JobLogger
@@ -29,6 +31,7 @@ import org.slf4j.LoggerFactory
 import wom.CommandSetupSideEffectFile
 import wom.callable.Callable.OutputDefinition
 import wom.core.FullyQualifiedName
+import wom.types.{WomArrayType, WomSingleFileType}
 import wom.values._
 
 import scala.collection.JavaConverters._
@@ -159,7 +162,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   private def relativeLocalizationPath(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
-        case Success(path) => path.pathWithoutScheme
+        case Success(path) => JesInput.stripPrefixWithoutScheme(path)
         case _ => value
       }
     )
@@ -171,15 +174,27 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     // md5's of their paths.
     val writeFunctionFiles = instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f) } toMap
 
-    def localizationPath(f: CommandSetupSideEffectFile) = f.relativeLocalPath.fold(ifEmpty = relativeLocalizationPath(f.file))(WomSingleFile)
+    def localizationPath(f: CommandSetupSideEffectFile) =
+      f.relativeLocalPath.fold(ifEmpty = relativeLocalizationPath(f.file))(WomFile(f.file.womFileType, _))
     val writeFunctionInputs = writeFunctionFiles flatMap {
       case (name, files) => jesInputsFromWomFiles(name, files.map(_.file), files.map(localizationPath), jobDescriptor)
     }
 
     // Collect all WomFiles from inputs to the call.
     val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.fullyQualifiedInputs mapValues {
-      _.collectAsSeq { case w: WomFile => w }
-    }
+      womFile =>
+        val arrays: Seq[WomArray] = womFile collectAsSeq {
+          case womFile: WomFile =>
+            val files: List[WomSingleFile] = DirectoryFunctions
+              .listWomSingleFiles(womFile, jesCallPaths.workflowPaths, JesInput.prefixIfNecessary)
+              .toTry(s"Error getting single files for $womFile").get
+            WomArray(WomArrayType(WomSingleFileType), files)
+        }
+
+        arrays.flatMap(_.value).collect {
+          case womFile: WomFile => womFile
+        }
+    } map identity // <-- unlazy the mapValues
 
     val callInputInputs = callInputFiles flatMap {
       case (name, files) => jesInputsFromWomFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor)

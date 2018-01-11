@@ -1,50 +1,84 @@
 package cwl
 
+import cats.syntax.validated._
+import common.validation.ErrorOr.ErrorOr
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.MatchesRegex
 import shapeless.Witness
-import wom.values.WomValue
-
-import scala.util.{Failure, Try}
+import wom.callable.RuntimeEnvironment
+import wom.util.JsUtil
+import wom.values.{WomFloat, WomInteger, WomString, WomValue}
 
 // http://www.commonwl.org/v1.0/CommandLineTool.html#Expressions
 object ExpressionEvaluator {
   // A code fragment wrapped in the $(...) syntax must be evaluated as a ECMAScript expression.
-  val ECMAScriptExpressionWitness = Witness("""\$\((.*)\)""")
+  val ECMAScriptExpressionWitness = Witness("""(?s)\s*\$\((.*)\)\s*""")
+  val ECMAScriptExpressionRegex = ECMAScriptExpressionWitness.value.r
   type MatchesECMAScript = MatchesRegex[ECMAScriptExpressionWitness.T]
   type ECMAScriptExpression = String Refined MatchesRegex[ECMAScriptExpressionWitness.T]
 
   // A code fragment wrapped in the ${...} syntax must be evaluated as a ECMAScript function body for an anonymous,
   // zero-argument function.
-  val ECMAScriptFunctionWitness = Witness("""\$\{(.*)\}""")
+  val ECMAScriptFunctionWitness = Witness("""(?s)\s*\$\{(.*)\}\s*""")
+  val ECMAScriptFunctionRegex = ECMAScriptFunctionWitness.value.r
   type ECMAScriptFunction = String Refined MatchesRegex[ECMAScriptFunctionWitness.T]
   type MatchesECMAFunction = MatchesRegex[ECMAScriptFunctionWitness.T]
 
-  def evalCwlExpression(expression: Expression, parameterContext: ParameterContext): Try[WomValue] = expression match {
-    case Expression.ECMAScriptExpression(expr) => evalExpression(expr, parameterContext)
-    case Expression.ECMAScriptFunction(fun) => evalFunction(fun, parameterContext)
-  }
-
-  def evalExpression(expression: ECMAScriptExpression, parameterContext: ParameterContext): Try[WomValue] = {
-    val ECMAScriptExpressionRegex = ECMAScriptExpressionWitness.value.r
+  def evalExpression(expression: ECMAScriptExpression)(parameterContext: ParameterContext): ErrorOr[WomValue] = {
     expression.value match {
-      case ECMAScriptExpressionRegex(script) => Try(JsUtil.eval(script, parameterContext.ecmaScriptValues))
-      case _ => Failure(new RuntimeException(s"Expression was unable to be matched to Regex. This is never supposed to happen thanks to our JSON parsing library"))
+      case ECMAScriptExpressionRegex(script) => eval(script, parameterContext)
+      case unmatched =>
+        s"Expression '$unmatched' was unable to be matched to regex '${ECMAScriptExpressionWitness.value}'".invalidNel
     }
   }
 
-  def evalFunction(function: ECMAScriptFunction, parameterContext: ParameterContext): Try[WomValue] = {
-    val ECMAScriptFunctionRegex = ECMAScriptFunctionWitness.value.r
+  def evalFunction(function: ECMAScriptFunction)(parameterContext: ParameterContext): ErrorOr[WomValue] = {
     function.value match {
       case ECMAScriptFunctionRegex(script) =>
         val functionExpression =
           s"""|(function() {
               |FUNCTION_BODY
               |})();
-              |""".stripMargin.replaceAll("FUNCTION_BODY", script)
-
-        Try(JsUtil.eval(functionExpression, parameterContext.ecmaScriptValues))
-      case _ => Failure(new RuntimeException(s"Expression was unable to be matched to Regex. This is never supposed to happen thanks to our JSON parsing library"))
+              |""".stripMargin.replace("FUNCTION_BODY", script)
+        eval(functionExpression, parameterContext)
+      case unmatched =>
+        s"Expression '$unmatched' was unable to be matched to regex '${ECMAScriptFunctionWitness.value}'".invalidNel
     }
   }
+
+  private lazy val cwlJsEncoder = new CwlJsEncoder()
+  private lazy val cwlJsDecoder = new CwlJsDecoder()
+
+  def eval(expr: String, parameterContext: ParameterContext): ErrorOr[WomValue] = {
+    val (rawValues, mapValues) = paramValues(parameterContext)
+    JsUtil.evalStructish(expr, rawValues, mapValues, cwlJsEncoder, cwlJsDecoder)
+  }
+
+  def eval(expr: Expression, parameterContext: ParameterContext): ErrorOr[WomValue] = {
+    expr.fold(EvaluateExpression).apply(parameterContext)
+  }
+
+  def paramValues(parameterContext: ParameterContext): (Map[String, WomValue], Map[String, Map[String, WomValue]]) = {
+    (
+      Map(
+        "self" -> parameterContext.self
+      ),
+      Map(
+        "inputs" -> parameterContext.inputs,
+        "runtime" -> parameterContext.runtimeOption.map(cwlMap).getOrElse(Map.empty)
+      )
+    )
+  }
+
+  def cwlMap(runtime: RuntimeEnvironment): Map[String, WomValue] = {
+    Map(
+      "outdir" -> WomString(runtime.outputPath),
+      "tmpdir" -> WomString(runtime.tempPath),
+      "cores" -> WomInteger(runtime.cores),
+      "ram" -> WomFloat(runtime.ram),
+      "outdirSize" -> WomFloat(runtime.outputPathSize.toDouble),
+      "tmpdirSize" -> WomFloat(runtime.tempPathSize.toDouble)
+    )
+  }
+
 }

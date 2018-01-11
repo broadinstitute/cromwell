@@ -1,12 +1,23 @@
 package cwl
 
-import shapeless._
 import cwl.command.StringCommandPart
+import shapeless._
+import wom.CommandPart
 
 object ArgumentToCommandPart extends Poly1 {
-  implicit def script = at[Expression] { CwlExpressionCommandPart.apply }
+  implicit def caseStringOrExpression: Case.Aux[StringOrExpression, CommandPart] = at {
+    _.fold(this)
+  }
 
-  implicit def clb = at[CommandLineBinding] { CommandLineBindingCommandPart.apply }
+  implicit def caseExpression: Case.Aux[Expression, CommandPart] = at {
+    CwlExpressionCommandPart.apply
+  }
 
-  implicit def string = at[String] { StringCommandPart.apply }
+  implicit def caseString: Case.Aux[String, CommandPart] = at {
+    StringCommandPart.apply
+  }
+
+  implicit def caseCommandLineBinding: Case.Aux[CommandLineBinding, CommandPart] = at {
+    CommandLineBindingCommandPart.apply
+  }
 }

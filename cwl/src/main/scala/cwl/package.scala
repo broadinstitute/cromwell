@@ -1,8 +1,8 @@
 
-import cwl.CwlType.{CwlType, _}
-import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
+import cwl.CwlType._
+import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
 import cwl.command.ParentName
 import shapeless._
 import wom.executable.Executable
@@ -46,18 +46,9 @@ package object cwl extends TypeAliases {
     case Float => WomFloatType
     case Double => WomFloatType
     case String => WomStringType
-    case CwlType.File => WomSingleFileType
-    case CwlType.Directory => ???
+    case CwlType.File => WomMaybePopulatedFileType
+    case CwlType.Directory => WomMaybeListedDirectoryType
   }
-
-  /**
-    *
-    * These are supposed to be valid ECMAScript Expressions.
-    * See http://www.commonwl.org/v1.0/Workflow.html#Expressions
-    */
-
-  type StringOrExpression = Expression :+: String :+: CNil
-  type Expression = ECMAScriptExpression :+: ECMAScriptFunction :+: CNil
 
   object StringOrExpression {
     def unapply(listing: InitialWorkDirRequirement.IwdrListing): Option[StringOrExpression] = listing.select[StringOrExpression]

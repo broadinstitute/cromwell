@@ -54,7 +54,7 @@ object GcsPathBuilder {
          |The path '$pathString' does not seem to be a valid GCS path.
          |Please check that it starts with gs:// and that the bucket and object follow GCS naming guidelines at
          |https://cloud.google.com/storage/docs/naming.
-      """.stripMargin.replaceAll("\n", " ").trim
+      """.stripMargin.replace("\n", " ").trim
     }
   }
   final case class UnparseableGcsPath(pathString: String, throwable: Throwable) extends InvalidGcsPath {

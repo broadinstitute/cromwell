@@ -25,6 +25,13 @@ object JesInput {
     case Some(prefix) if !url.startsWith("gs://") => prefix + url
     case _ => url
   }
+
+  private[jes] def stripPrefixWithoutScheme(path: Path): String = {
+    defaultGcsPrefix match {
+      case Some(prefix) if path.pathAsString.startsWith(prefix) => path.pathAsString.stripPrefix(prefix)
+      case _ => path.pathWithoutScheme
+    }
+  }
 }
 
 sealed trait JesInput extends JesParameter

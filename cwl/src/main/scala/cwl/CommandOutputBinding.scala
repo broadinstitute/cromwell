@@ -75,7 +75,8 @@ object CommandOutputBinding {
                              outputWomType: WomType,
                              commandOutputBinding: CommandOutputBinding,
                              secondaryFilesCoproduct: Option[SecondaryFiles],
-                             formatCoproduct: Option[StringOrExpression]): ErrorOr[WomValue] = {
+                             formatCoproduct: Option[StringOrExpression],
+                             expressionLib: ExpressionLib): ErrorOr[WomValue] = {
     val parameterContext = ParameterContext(inputs = inputValues)
 
     // 3. outputEval: pass in the primary files to an expression to generate our return value

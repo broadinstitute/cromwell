@@ -20,19 +20,20 @@ trait CwlWomExpression extends WomExpression {
 
   override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = cwlExpressionType.validNel
 
-  def expressionLib: Vector[ECMAScriptFunction]
+  def expressionLib: ExpressionLib
 
-  def evaluate(inputs: Map[String, WomValue], parameterContext: ParameterContext, expression: Expression): ErrorOr[WomValue] =
+  def evaluate(inputs: Map[String, WomValue], parameterContext: ParameterContext, expression: Expression, expressionLib: ExpressionLib): ErrorOr[WomValue] =
     expression.
       fold(EvaluateExpression).
-      apply(parameterContext).
+      apply(parameterContext, expressionLib).
       cata(Right(_),Left(_)). // this is because toEither is not a thing in scala 2.11.
       leftMap(e => NonEmptyList.one(e.getMessage)).
       toValidated
 }
 
 case class JobPreparationExpression(expression: Expression,
-                                    override val inputs: Set[String]) extends CwlWomExpression {
+                                    override val inputs: Set[String],
+                                    override val expressionLib: ExpressionLib) extends CwlWomExpression {
   val cwlExpressionType = WomAnyType
 
   override def sourceString = expression match {
@@ -41,15 +42,15 @@ case class JobPreparationExpression(expression: Expression,
   }
 
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet) = {
-    val parameterContext = ParameterContext(inputValues)
-    ExpressionEvaluator.eval(expression, parameterContext)
+    val pc = ParameterContext(inputValues)
+    evaluate(inputValues, pc, expression, expressionLib)
   }
 
   override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType) = Set.empty[WomFile].validNel
 }
 
-final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEntry) extends CwlWomExpression {
-  override def cwlExpressionType: WomType = WomMaybePopulatedFileType
+final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEntry, expressionLib: ExpressionLib) extends CwlWomExpression {
+  override def cwlExpressionType: WomType = WomSingleFileType
   override def sourceString: String = entry.toString
 
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
@@ -61,7 +62,7 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
     def evaluateEntryName(stringOrExpression: StringOrExpression): ErrorOr[String] = stringOrExpression match {
       case StringOrExpression.String(s) => s.validNel
       case StringOrExpression.Expression(entrynameExpression) => for {
-        entryNameExpressionEvaluated <- ExpressionEvaluator.eval(entrynameExpression, ParameterContext(inputValues))
+        entryNameExpressionEvaluated <- ExpressionEvaluator.eval(entrynameExpression, ParameterContext(inputValues), expressionLib).toErrorOr
         entryNameValidated <- mustBeString(entryNameExpressionEvaluated)
       } yield entryNameValidated
     }
@@ -73,7 +74,7 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
       } yield writtenFile
 
       case IwdrListingArrayEntry.ExpressionDirent(content, direntEntryName, _) =>
-        val entryEvaluation: ErrorOr[WomValue] = ExpressionEvaluator.eval(content, ParameterContext(inputValues))
+        val entryEvaluation: ErrorOr[WomValue] = ExpressionEvaluator.eval(content, ParameterContext(inputValues), expressionLib)
         entryEvaluation flatMap {
           case f: WomFile =>
             val errorOrEntryName: ErrorOr[String] = direntEntryName match {
@@ -94,7 +95,7 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
         }
       case IwdrListingArrayEntry.Expression(expression) =>
         // A single expression which must evaluate to an array of Files
-        val expressionEvaluation = ExpressionEvaluator.eval(expression, ParameterContext(inputValues))
+        val expressionEvaluation = ExpressionEvaluator.eval(expression, ParameterContext(inputValues), expressionLib)
 
         expressionEvaluation flatMap {
           case array: WomArray if WomArrayType(WomSingleFileType).coercionDefined(array) =>

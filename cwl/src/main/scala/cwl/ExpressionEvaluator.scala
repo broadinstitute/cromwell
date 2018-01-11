@@ -61,8 +61,8 @@ object ExpressionEvaluator {
     JsUtil.evalStructish(expr, rawValues, mapValues, cwlJsEncoder, cwlJsDecoder)
   }
 
-  def eval(expr: Expression, parameterContext: ParameterContext): ErrorOr[WomValue] = {
-    expr.fold(EvaluateExpression).apply(parameterContext)
+  def eval(expr: Expression, parameterContext: ParameterContext, expressionLib: ExpressionLib): ErrorOr[WomValue] = {
+    expr.fold(EvaluateExpression).apply(parameterContext, expressionLib)
   }
 
   def paramValues(parameterContext: ParameterContext): (Map[String, WomValue], Map[String, Map[String, WomValue]]) = {

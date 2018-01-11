@@ -107,4 +107,6 @@ package object cwl extends TypeAliases {
       }).toMap
     }
   }
+
+  type ExpressionLib = Vector[ECMAScriptFunction]
 }

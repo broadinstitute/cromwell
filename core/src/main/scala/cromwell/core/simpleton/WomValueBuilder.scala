@@ -102,7 +102,7 @@ object WomValueBuilder {
     
     def toWomFile(components: Traversable[SimpletonComponent]) = {
       // If there's just one simpleton, it's a single file
-      if (components.size == 1) toWomValue(WomSingleFileType, components)
+      if (components.size == 1) components.asPrimitive
       else {
         // Otherwise make a map of the components and detect the type of file from the marker
         val groupedListing = components.asMap

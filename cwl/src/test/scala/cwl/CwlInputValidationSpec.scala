@@ -51,6 +51,7 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
         | #      fields: 
         | #      - name: w9aa
         | #        type: string  
+        | w10: Directory
         |steps: []    
         |outputs: []
       """.stripMargin
@@ -83,6 +84,7 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
   lazy val w7OutputPort = getOutputPort(7)
   lazy val w8OutputPort = getOutputPort(8)
 //  lazy val w9OutputPort = getOutputPort(9)
+  lazy val w10OutputPort = getOutputPort(10)
   
   def validate(inputFile: String): Map[GraphNodePort.OutputPort, ResolvedExecutableInput] = {
     cwlWorkflow.womExecutable(AcceptAllRequirements, Option(inputFile)) match {
@@ -97,7 +99,9 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
         w1:
           class: File
           path: my_file.txt
-          location: my_file.txt
+          secondaryFiles:
+            - class: File
+              path: secondaryFile.txt
         w2: hello !
         w3: 3
         w4: 4
@@ -110,8 +114,15 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
         ]
         w9: 
           w9a:
-            w9aa: "hello" 
-          
+            w9aa: "hello"
+        w10:
+          class: Directory
+          location: "directory_location"
+          listing:
+            - class: Directory
+              path: "innerDirectory"
+            - class: File
+              location: "innerFile"
       """.stripMargin
 
     val validInputs = validate(inputFile).map {
@@ -122,7 +133,10 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
     // TODO WOM: when we have string value for wom expression, check that it's "hi !"
     validInputs(w0OutputPort.name).select[WomExpression].get.sourceString shouldBe "\"hi w0 !\""
     validInputs(w1OutputPort.name) shouldBe
-      Coproduct[ResolvedExecutableInput](WomMaybePopulatedFile("my_file.txt"): WomValue)
+      Coproduct[ResolvedExecutableInput](WomMaybePopulatedFile(
+        valueOption = Option("my_file.txt"),
+        secondaryFiles = List(WomMaybePopulatedFile("secondaryFile.txt"))
+      ): WomValue)
     validInputs(w2OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomString("hello !"): WomValue)
     validInputs(w3OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomInteger(3): WomValue)
     validInputs(w4OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomInteger(4): WomValue)
@@ -146,6 +160,16 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
 //        )
 //      ): WomValue
 //    )
+    validInputs(w10OutputPort.name) shouldBe
+      Coproduct[ResolvedExecutableInput](WomMaybeListedDirectory(
+        valueOption = Option("directory_location"),
+        listingOption = Option(
+          List(
+            WomMaybeListedDirectory("innerDirectory"),
+            WomMaybePopulatedFile("innerFile")
+          )
+        )
+      ): WomValue)
   }
 
   it should "not validate when required inputs are missing" in {
@@ -163,7 +187,8 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
         "Required workflow input 'w5' not specified",
         "Required workflow input 'w6' not specified",
         "Required workflow input 'w7' not specified",
-        "Required workflow input 'w8' not specified"
+        "Required workflow input 'w8' not specified",
+        "Required workflow input 'w10' not specified"
       )
     }
   }

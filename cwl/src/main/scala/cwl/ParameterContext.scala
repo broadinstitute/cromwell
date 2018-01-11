@@ -92,7 +92,7 @@ case class ParameterContext(private val inputs: Map[String, AnyRef] = Map.empty,
       case WomFloat(double) => Double.box(double)
       case WomBoolean(boolean) => Boolean.box(boolean)
       case WomArray(_, array) => array.map(toJavascript).toArray
-      case WomSingleFile(path) => path
+      case WomSingleFile(path) => Map("location" -> path, "class" -> "File").toMap.asJava
       case WomMap(_, map) =>
         map.map{
           case (mapKey, mapValue) => toJavascript(mapKey) -> toJavascript(mapValue)

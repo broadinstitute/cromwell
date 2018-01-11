@@ -15,7 +15,7 @@ $graph:
         type:
           type: array
           items: File
-        default: [ "/Users/chrisl/Downloads/cwl/allRequirements.txt" ]
+        default: [ "/path/to/something.txt" ]
   arguments: [ "*.txt" ]
   outputs:
       - id: file_list

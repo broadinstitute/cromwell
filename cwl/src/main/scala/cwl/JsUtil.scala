@@ -6,6 +6,9 @@ import jdk.nashorn.api.scripting.{ClassFilter, NashornScriptEngineFactory, Scrip
 import wom.types._
 import wom.values._
 
+import scala.collection.convert.Wrappers
+import scala.reflect.ClassTag
+
 object JsUtil {
 
   /**
@@ -56,10 +59,13 @@ object JsUtil {
     }
   }
 
-  private def fromJavascript(value: AnyRef): WomValue = {
+  private def fromJavascript(value: AnyRef)(implicit tag: ClassTag[Wrappers.MapWrapper[String, String]]): WomValue = {
     def isWhole(d: Double) = (d == Math.floor(d)) && !java.lang.Double.isInfinite(d)
+
     value match {
       case null => WomOptionalValue(WomNothingType, None)
+      case mw: Wrappers.MapWrapper[_, _] if mw.containsKey("location") && mw.containsKey("class") && mw.get("class") == "File" =>
+        WomSingleFile(mw.get("location").asInstanceOf[String])
       case string: String => WomString(string)
       case int: java.lang.Integer => WomInteger(int)
       case int: java.lang.Double if isWhole(int) => WomInteger(int.intValue()) // Because numbers in nashorn come back as 'Double's

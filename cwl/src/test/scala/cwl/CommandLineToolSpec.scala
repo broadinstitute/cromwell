@@ -40,6 +40,7 @@ class CommandLineToolSpec extends FlatSpec with Matchers with ParallelTestExecut
     override def readFile(path: String, maxBytes: Option[Int], failOnOverflow: Boolean): Future[String] = ???
     override def writeFile(path: String, content: String): Future[WomSingleFile] = ???
     override def copyFile(pathFrom: String, targetName: String) = ???
+    override def listAllFilesUnderDirectory(dirPath: String) = ???
   }
   
   val runtimeEnv = RuntimeEnvironment("", "", 0, 0D, 0L, 0L)

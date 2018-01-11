@@ -102,7 +102,6 @@ case class CommandLineTool private(
   private [cwl] def buildCommandTemplate(inputValues: WomEvaluatedCallInputs): ErrorOr[List[CommandPart]] = {
     import cats.instances.list._
     import cats.syntax.traverse._
-    import common.validation.Validation._
 
     val baseCommandPart = baseCommand.toList.flatMap(_.fold(BaseCommandToCommandParts))
 

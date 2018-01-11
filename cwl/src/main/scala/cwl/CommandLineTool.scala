@@ -134,15 +134,15 @@ case class CommandLineTool private(
 
         inputValues
           .collectFirst({ case (inputDefinition, womValue) if inputDefinition.name == parsedName => womValue.validNel })
-          .orElse(defaultValue)
-          .toErrorOr(s"Could not find an input value for input $parsedName in ${inputValues.prettyString}") match {
-            case Valid(value) =>
+          .orElse(defaultValue) match {
+            case Some(Valid(value)) =>
               // See http://www.commonwl.org/v1.0/CommandLineTool.html#Input_binding
               lazy val initialKey = CommandBindingSortingKey.empty
                 .append(inputParameter.inputBinding, Coproduct[StringOrInt](parsedName))
     
-              inputParameter.`type`.toList.flatMap(_.fold(MyriadInputTypeToSortedCommandParts).apply(inputParameter.inputBinding, value, initialKey.asNewKey))
-           case Invalid(errors) => Invalid(errors)
+              inputParameter.`type`.toList.flatMap(_.fold(MyriadInputTypeToSortedCommandParts).apply(inputParameter.inputBinding, value, initialKey.asNewKey)).validNel
+           case Some(Invalid(errors)) => Invalid(errors)
+           case None => s"Could not find an input value for input $parsedName in ${inputValues.prettyString}".invalidNel
         }
     })
 

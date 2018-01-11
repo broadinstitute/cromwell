@@ -1,7 +1,7 @@
 package cromwell.backend.standard
 
 import akka.actor.ActorRef
-import cromwell.backend.io.GlobFunctions
+import cromwell.backend.io.{DirectoryFunctions, GlobFunctions}
 import cromwell.backend.wdl.{ReadLikeFunctions, WriteFunctions}
 import cromwell.core.CallContext
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder, IoCommandBuilder}
@@ -17,7 +17,7 @@ trait StandardExpressionFunctionsParams {
   def callContext: CallContext
 
   def ioActorProxy: ActorRef
-  
+
   def executionContext: ExecutionContext
 }
 
@@ -29,10 +29,10 @@ case class DefaultStandardExpressionFunctionsParams(override val pathBuilders: L
 
 // TODO: Once we figure out premapping and postmapping, maybe we can standardize that behavior. Currently that's the most important feature that subclasses override.
 class StandardExpressionFunctions(val standardParams: StandardExpressionFunctionsParams)
-  extends GlobFunctions with ReadLikeFunctions with WriteFunctions {
+  extends GlobFunctions with DirectoryFunctions with ReadLikeFunctions with WriteFunctions {
 
   override lazy val ec = standardParams.executionContext
-  
+
   protected lazy val ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
 
   override lazy val asyncIo = new AsyncIo(standardParams.ioActorProxy, ioCommandBuilder)

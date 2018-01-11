@@ -91,7 +91,7 @@ object SampleWdl {
         |workflow wf_hello {
         |  call hello
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
 
     val Addressee = "wf_hello.hello.addressee"
     val rawInputs = Map(Addressee -> "world")
@@ -172,7 +172,7 @@ object SampleWdl {
         |   goodbye.empty
         |  }
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
 
     val rawInputs = Map.empty[String, Any]
     val outputMap = Map(
@@ -470,7 +470,7 @@ object SampleWdl {
         |workflow postfix {
         |  call hello
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
   }
 
   object ZeroOrMorePostfixQuantifierWorkflowWithArrayInput extends ZeroOrMorePostfixQuantifier {
@@ -501,7 +501,7 @@ object SampleWdl {
         |workflow postfix {
         |  call hello
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
   }
 
   object OneOrMorePostfixQuantifierWorkflowWithArrayInput extends OneOrMorePostfixQuantifier {
@@ -528,7 +528,7 @@ object SampleWdl {
         |workflow wf_whereami {
         |  call whereami
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
 
     override val rawInputs: Map[String, Any] = Map.empty
   }
@@ -553,7 +553,7 @@ object SampleWdl {
         |    input: strs = strings
         |  }
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
     override val rawInputs: Map[String, Any] = Map.empty
   }
 
@@ -687,7 +687,7 @@ object SampleWdl {
         |  }
         |  call D {input: D_in = B.B_out}
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
 
     override lazy val rawInputs = Map.empty[String, String]
   }
@@ -708,7 +708,7 @@ object SampleWdl {
         |  }
         |  call D {input: D_in = B.B_out}
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
 
     override lazy val rawInputs = Map.empty[String, String]
   }
@@ -814,7 +814,7 @@ object SampleWdl {
         |        input: input_files = do_scatter.count_file
         |    }
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
     }
 
     val contents =
@@ -877,7 +877,7 @@ object SampleWdl {
         |  call a {input: in = f}
         |  call a as b {input: in = a.out}
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
 
     private val fileContents = s"foo bar baz"
 
@@ -921,7 +921,7 @@ object SampleWdl {
         |  call a {input: in = f}
         |  call a as b {input: in = a.out}
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
 
     private val fileContents = s"foo bar baz"
 
@@ -972,7 +972,7 @@ object SampleWdl {
         |    map = in_map
         |  }
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
 
     override val rawInputs = {
       Map(
@@ -1048,7 +1048,7 @@ object SampleWdl {
         |workflow w {
         |  call t
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
 
     val tempDir = DefaultPathBuilder.createTempDirectory("CallCachingHashingWdl")
     val cannedFile = createCannedFile(prefix = "canned", contents = "file contents", dir = Option(tempDir))

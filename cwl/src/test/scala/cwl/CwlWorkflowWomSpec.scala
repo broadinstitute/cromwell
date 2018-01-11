@@ -14,7 +14,7 @@ import wom.callable.{Callable, TaskDefinition, WorkflowDefinition}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.graph.expression.ExpressionNode
-import wom.types.{WomSingleFileType, WomStringType, WomType}
+import wom.types.{WomMaybePopulatedFileType, WomStringType, WomType}
 
 class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
   import TestSetup._
@@ -87,7 +87,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
               exprNode.inputPorts.map(_.upstream.graphNode).count {
                 case rgin: RequiredGraphInputNode =>
                   rgin.identifier.localName == LocalName("inp") &&
-                    rgin.womType == WomSingleFileType
+                    rgin.womType == WomMaybePopulatedFileType
               }  shouldBe 1
           }).getOrElse(fail("Can't find expression node for inp"))
 

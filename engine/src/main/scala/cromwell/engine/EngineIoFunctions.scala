@@ -20,4 +20,7 @@ class EngineIoFunctions(val pathBuilders: List[PathBuilder], override val asyncI
 
   override def copyFile(pathFrom: String, targetName: String): Future[WomSingleFile] =
     Future.failed(new Exception("Cromwell does not support copying files from a workflow context"))
+
+  override def listAllFilesUnderDirectory(dirPath: String): Nothing =
+    throw new NotImplementedError(s"listAllFilesUnderDirectory not implemented yet")
 }

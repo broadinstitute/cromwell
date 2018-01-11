@@ -109,6 +109,8 @@ class TestReadLikeFunctions(sizeResult: Try[Double]) extends IoFunctionSet {
 
   override def glob(pattern: String): Future[Seq[String]] = ???
 
+  override def listAllFilesUnderDirectory(dirPath: String): Future[Seq[String]] = ???
+
   override def size(params: Seq[Try[WomValue]]): Future[WomFloat] = Future.fromTry(sizeResult.map(WomFloat.apply))
 
   override def copyFile(pathFrom: String, targetName: String): Future[WomSingleFile] = ???

@@ -110,11 +110,11 @@ object WomValueBuilder {
       case pairType: WomPairType =>
         val groupedByLeftOrRight: Map[PairLeftOrRight, Traversable[SimpletonComponent]] = group(components map descendIntoPair)
         WomPair(toWomValue(pairType.leftType, groupedByLeftOrRight(PairLeft)), toWomValue(pairType.rightType, groupedByLeftOrRight(PairRight)))
-      case WomObjectType =>
+      case objectType: WomObjectTypeLike =>
         val groupedByMapKey: Map[String, Traversable[SimpletonComponent]] = group(components map descendIntoMap)
         // map keys are guaranteed by the WDL spec to be primitives, so the "coerceRawValue(..).get" is safe.
         val map: Map[String, WomValue] = groupedByMapKey map { case (k, ss) => k -> toWomValue(WomAnyType, ss) }
-        WomObject(map)
+        WomObject.withType(map, objectType)
       case WomAnyType =>
         // Ok, we're going to have to guess, but the keys should give us some clues:
         if (components forall { component => MapElementPattern.findFirstMatchIn(component.path).isDefined }) {

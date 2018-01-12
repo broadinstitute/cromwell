@@ -8,7 +8,7 @@ import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values._
 
-final case class WorkflowStepInputExpression(input: WorkflowStepInput, override val cwlExpressionType: WomType, graphInputs: Set[String])(implicit parentName: ParentName) extends CwlWomExpression {
+final case class WorkflowStepInputExpression(input: WorkflowStepInput, override val cwlExpressionType: WomType, graphInputs: Set[String], override val expressionLib: ExpressionLib)(implicit parentName: ParentName) extends CwlWomExpression {
 
   override def sourceString = input.toString
 

@@ -36,7 +36,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
               map(_.select[CommandLineTool].get).
               value.
               unsafeRunSync
-      taskDef <- clt.buildTaskDefinition(_.validNel).toEither
+      taskDef <- clt.buildTaskDefinition(_.validNel, Vector.empty).toEither
     } yield validateWom(taskDef)).leftMap(e => throw new RuntimeException(s"error! $e"))
   }
 
@@ -47,7 +47,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
               unsafeRunSync.
               map(_.select[Workflow].get)
 
-      womDefinition <- wf.womDefinition(AcceptAllRequirements)
+      womDefinition <- wf.womDefinition(AcceptAllRequirements, Vector.empty)
     } yield validateWom(womDefinition)).leftMap(e => throw new RuntimeException(s"error! ${e.toList.mkString("\n")}"))
 
     def shouldBeRequiredGraphInputNode(node: GraphNode, localName: String, womType: WomType): Unit = {
@@ -159,7 +159,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
 
     wf.id should include("three_step")
 
-    val wfd = wf.womDefinition(AcceptAllRequirements) match {
+    val wfd = wf.womDefinition(AcceptAllRequirements, Vector.empty) match {
       case Right(wf: WorkflowDefinition) => wf
       case Left(o) => fail(s"Workflow definition was not produced correctly: ${o.toList.mkString(", ")}")
       case Right(callable) => fail(s"produced $callable when a Workflow Definition was expected!")

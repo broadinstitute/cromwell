@@ -43,17 +43,17 @@ object MyriadInputTypeToSortedCommandParts extends Poly1 {
     * WomValue: value bound to the element (in the cases above it would be the WomArray)
     * CommandBindingSortingKey: The current sorting key. Because we might need to recurse in nested types we need to propagate the key as we do.
     */
-  type CommandPartBuilder = (Option[InputCommandLineBinding], WomValue, CommandBindingSortingKey) => CommandPartsList
+  type CommandPartBuilder = (Option[InputCommandLineBinding], WomValue, CommandBindingSortingKey, ExpressionLib) => CommandPartsList
 
   implicit def m: Aux[MyriadInputInnerType, CommandPartBuilder] = at[MyriadInputInnerType] { innerType => {
-    case (binding, womValue, sortingKey) =>
-      innerType.fold(MyriadInputInnerTypeToSortedCommandParts).apply(binding, womValue, sortingKey)
+    case (binding, womValue, sortingKey, expressionLib) =>
+      innerType.fold(MyriadInputInnerTypeToSortedCommandParts).apply(binding, womValue, sortingKey, expressionLib)
   }
   }
 
   implicit def am: Aux[Array[MyriadInputInnerType], CommandPartBuilder] = at[Array[MyriadInputInnerType]] { types => {
-    case (binding, womValue, sortingKey) =>
-      types.toList.flatMap(_.fold(MyriadInputInnerTypeToSortedCommandParts).apply(binding, womValue, sortingKey))
+    case (binding, womValue, sortingKey, expressionLib) =>
+      types.toList.flatMap(_.fold(MyriadInputInnerTypeToSortedCommandParts).apply(binding, womValue, sortingKey, expressionLib))
   }
   }
 }
@@ -65,12 +65,12 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
   def ex(component: String) = throw new RuntimeException(s"input type $component not yet supported by WOM!")
 
   // Primitive type: we just need to create a command part from the binding if there's one here.
-  implicit def ct: Aux[CwlType, CommandPartBuilder] = at[CwlType] { _ => { case (binding, womValue, key) => binding.toList.map(_.toCommandPart(key, womValue)) } }
+  implicit def ct: Aux[CwlType, CommandPartBuilder] = at[CwlType] { _ => { case (binding, womValue, key, expressionLib) => binding.toList.map(_.toCommandPart(key, womValue, expressionLib)) } }
 
   implicit def irs: Aux[InputRecordSchema, CommandPartBuilder] = at[InputRecordSchema] { irs => {
-    case (inputBinding, objectLike: WomObjectLike, sortingKey) =>
+    case (inputBinding, objectLike: WomObjectLike, sortingKey, expressionLib) =>
       // If there's an input binding, make a SortKeyAndCommandPart for it
-      val fromInputBinding: Option[SortKeyAndCommandPart] = inputBinding.map(_.toCommandPart(sortingKey, objectLike))
+      val fromInputBinding: Option[SortKeyAndCommandPart] = inputBinding.map(_.toCommandPart(sortingKey, objectLike, expressionLib))
       
       // Go over the fields an fold over their type
       irs.fields.toList.flatten
@@ -89,11 +89,11 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
             // TODO: Could this fail ?
             val innerValue = objectLike.values(parsedName)
 
-            val fromType = field.`type`.fold(MyriadInputTypeToSortedCommandParts).apply(field.inputBinding, innerValue, fieldSortingKey.asNewKey)
+            val fromType = field.`type`.fold(MyriadInputTypeToSortedCommandParts).apply(field.inputBinding, innerValue, fieldSortingKey.asNewKey, expressionLib)
 
             currentMap ++ fromType
         }) ++ fromInputBinding
-    case (_, other, _) => ex(s"Value $other cannot be used for an input of type InputRecordSchema")
+    case (_, other, _, _) => ex(s"Value $other cannot be used for an input of type InputRecordSchema")
   }
   }
 
@@ -102,10 +102,10 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
   }
 
   implicit def ias: Aux[InputArraySchema, CommandPartBuilder] = at[InputArraySchema] { ias => {
-    case (inputBinding, WomArray.WomArrayLike(womArray), sortingKey) =>
+    case (inputBinding, WomArray.WomArrayLike(womArray), sortingKey, expressionLib) =>
 
       // If there's an input binding, make a SortKeyAndCommandPart for it
-      val fromInputBinding: Option[SortKeyAndCommandPart] = inputBinding.map(_.toCommandPart(sortingKey, womArray))
+      val fromInputBinding: Option[SortKeyAndCommandPart] = inputBinding.map(_.toCommandPart(sortingKey, womArray, expressionLib))
 
       // Now depending on whether we have an itemSeparator and/or valueFrom or not, we're going to recurse over each element of the array (or not).
       // See http://www.commonwl.org/v1.0/CommandLineTool.html#CommandLineBinding
@@ -125,14 +125,14 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
               .append(ias.inputBinding, Coproduct[StringOrInt](index))
 
             // Fold over the item type fo each array element
-            val fromType = ias.items.fold(MyriadInputTypeToSortedCommandParts).apply(ias.inputBinding, item, itemSortingKey.asNewKey)
+            val fromType = ias.items.fold(MyriadInputTypeToSortedCommandParts).apply(ias.inputBinding, item, itemSortingKey.asNewKey, expressionLib)
             currentMap ++ fromType
         }) ++ fromInputBinding
       }
 
-    case (_, other, _) => ex(s"Value $other cannot be used for an input of type InputRecordSchema")
+    case (_, other, _, _) => ex(s"Value $other cannot be used for an input of type InputRecordSchema")
   }
   }
 
-  implicit def s: Aux[String, CommandPartBuilder] = at[String] { _ => { case (_, _, _) => CommandPartsList.empty } }
+  implicit def s: Aux[String, CommandPartBuilder] = at[String] { _ => { case (_, _, _, _) => CommandPartsList.empty } }
 }

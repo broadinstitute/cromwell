@@ -5,7 +5,6 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.Validation._
-import cwl.ExpressionEvaluator.ECMAScriptFunction
 import cwl.InitialWorkDirRequirement.IwdrListingArrayEntry
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.types._
@@ -25,10 +24,7 @@ trait CwlWomExpression extends WomExpression {
   def evaluate(inputs: Map[String, WomValue], parameterContext: ParameterContext, expression: Expression, expressionLib: ExpressionLib): ErrorOr[WomValue] =
     expression.
       fold(EvaluateExpression).
-      apply(parameterContext, expressionLib).
-      cata(Right(_),Left(_)). // this is because toEither is not a thing in scala 2.11.
-      leftMap(e => NonEmptyList.one(e.getMessage)).
-      toValidated
+      apply(parameterContext, expressionLib)
 }
 
 case class JobPreparationExpression(expression: Expression,
@@ -62,7 +58,7 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
     def evaluateEntryName(stringOrExpression: StringOrExpression): ErrorOr[String] = stringOrExpression match {
       case StringOrExpression.String(s) => s.validNel
       case StringOrExpression.Expression(entrynameExpression) => for {
-        entryNameExpressionEvaluated <- ExpressionEvaluator.eval(entrynameExpression, ParameterContext(inputValues), expressionLib).toErrorOr
+        entryNameExpressionEvaluated <- ExpressionEvaluator.eval(entrynameExpression, ParameterContext(inputValues), expressionLib)
         entryNameValidated <- mustBeString(entryNameExpressionEvaluated)
       } yield entryNameValidated
     }

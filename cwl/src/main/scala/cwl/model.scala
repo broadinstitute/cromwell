@@ -27,7 +27,8 @@ case class WorkflowStepInput(
 
   def toExpressionNode(sourceMappings: Map[String, OutputPort],
                        outputTypeMap: Map[String, WomType],
-                       inputs: Set[String]
+                       inputs: Set[String],
+                       expressionLib: ExpressionLib
                       )(implicit parentName: ParentName): ErrorOr[ExposedExpressionNode] = {
     val source = this.source.flatMap(_.select[String]).get
     val lookupId = FullyQualifiedName(source).id
@@ -38,7 +39,7 @@ case class WorkflowStepInput(
     (for {
       inputType <- outputTypeMapWithIDs.get(lookupId).
         toRight(NonEmptyList.one(s"couldn't find $lookupId as derived from $source in map\n${outputTypeMapWithIDs.mkString("\n")}"))
-      womExpression = WorkflowStepInputExpression(this, inputType, inputs)
+      womExpression = WorkflowStepInputExpression(this, inputType, inputs, expressionLib)
       identifier = WomIdentifier(id)
       ret <- ExposedExpressionNode.fromInputMapping(identifier, womExpression, inputType, sourceMappings).toEither
     } yield ret).toValidated
@@ -134,8 +135,8 @@ case class InputCommandLineBinding(
                                shellQuote: Option[Boolean] = None) extends CommandLineBinding {
   override val optionalValueFrom = valueFrom
 
-  def toCommandPart(sortingKey: CommandBindingSortingKey, boundValue: WomValue) = {
-    SortKeyAndCommandPart(sortingKey, InputCommandLineBindingCommandPart(this, boundValue))
+  def toCommandPart(sortingKey: CommandBindingSortingKey, boundValue: WomValue, expressionLib: ExpressionLib) = {
+    SortKeyAndCommandPart(sortingKey, InputCommandLineBindingCommandPart(this, boundValue)(expressionLib))
   }
 }
 

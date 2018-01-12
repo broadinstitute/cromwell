@@ -27,7 +27,8 @@ object CommandOutputBinding {
   def getOutputWomFiles(inputValues: Map[String, WomValue],
                         outputWomType: WomType,
                         commandOutputBinding: CommandOutputBinding,
-                        secondaryFilesOption: Option[SecondaryFiles]): ErrorOr[Set[WomFile]] = {
+                        secondaryFilesOption: Option[SecondaryFiles],
+                        expressionLib: ExpressionLib): ErrorOr[Set[WomFile]] = {
     val parameterContext = ParameterContext(inputs = inputValues)
 
     /*
@@ -47,14 +48,14 @@ object CommandOutputBinding {
     }
 
     for {
-      primaryPaths <- GlobEvaluator.globs(commandOutputBinding.glob, parameterContext)
+      primaryPaths <- GlobEvaluator.globs(commandOutputBinding.glob, parameterContext, expressionLib)
       primaryWomFiles <- outputWomFlatType match {
         case WomGlobFileType => primaryPaths.map(WomGlobFile).valid
         case WomUnlistedDirectoryType => primaryPaths.map(WomUnlistedDirectory).valid
         case other => s"Program error: $other type was not expected".invalidNel
       }
       secondaryWomFiles <- primaryWomFiles.flatTraverse[ErrorOr, WomFile] {
-        CommandLineTool.CommandOutputParameter.secondaryFiles(_, secondaryFilesOption, parameterContext)
+        CommandLineTool.CommandOutputParameter.secondaryFiles(_, secondaryFilesOption, parameterContext, expressionLib)
       }
     } yield (primaryWomFiles ++ secondaryWomFiles).toSet
   }
@@ -85,14 +86,14 @@ object CommandOutputBinding {
         case Some(StringOrExpression.String(string)) => WomString(string).valid
         case Some(StringOrExpression.Expression(expression)) =>
           val outputEvalParameterContext = parameterContext.copy(self = womFilesArray)
-          ExpressionEvaluator.eval(expression, outputEvalParameterContext)
+          ExpressionEvaluator.eval(expression, outputEvalParameterContext, expressionLib)
         case None =>
           womFilesArray.valid
       }
     }
 
     // Used to retrieve the file format to be injected into a file result.
-    def formatOptionErrorOr = CommandLineTool.CommandOutputParameter.format(formatCoproduct, parameterContext)
+    def formatOptionErrorOr = CommandLineTool.CommandOutputParameter.format(formatCoproduct, parameterContext, expressionLib)
 
     // 4. secondaryFiles: just before returning the value, fill in the secondary files on the return value
     def populateSecondaryFiles(evaluatedWomValue: WomValue): ErrorOr[WomValue] = {
@@ -101,7 +102,8 @@ object CommandOutputBinding {
           val secondaryFilesErrorOr = CommandLineTool.CommandOutputParameter.secondaryFiles(
             womMaybePopulatedFile,
             secondaryFilesCoproduct,
-            parameterContext
+            parameterContext,
+            expressionLib
           )
 
           (secondaryFilesErrorOr, formatOptionErrorOr) mapN { (secondaryFiles, formatOption) =>
@@ -133,7 +135,7 @@ object CommandOutputBinding {
 
     for {
       // 1. glob: get a list the globbed files as our primary files
-      primaryPaths <- GlobEvaluator.globs(commandOutputBinding.glob, parameterContext)
+      primaryPaths <- GlobEvaluator.globs(commandOutputBinding.glob, parameterContext, expressionLib)
 
       // 2. loadContents: load the contents of the primary files
       primaryAsDirectoryOrFiles <- primaryPaths.flatTraverse[ErrorOr, WomFile] {

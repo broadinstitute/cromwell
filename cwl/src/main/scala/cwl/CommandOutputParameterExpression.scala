@@ -8,8 +8,9 @@ import wom.types._
 import wom.values.{WomFile, WomValue}
 
 case class CommandOutputParameterExpression(parameter: CommandOutputParameter,
-                                   override val cwlExpressionType: WomType,
-                                   override val inputs: Set[String]) extends CwlWomExpression {
+                                            override val cwlExpressionType: WomType,
+                                            override val inputs: Set[String],
+                                            override val expressionLib: ExpressionLib) extends CwlWomExpression {
 
   override def sourceString = parameter.toString
 
@@ -25,7 +26,8 @@ case class CommandOutputParameterExpression(parameter: CommandOutputParameter,
       cwlExpressionType,
       outputBinding,
       secondaryFilesOption,
-      formatOption
+      formatOption,
+      expressionLib
     )
   }
 
@@ -38,7 +40,8 @@ case class CommandOutputParameterExpression(parameter: CommandOutputParameter,
       inputValues,
       coerceTo,
       outputBinding,
-      secondaryFilesOption
+      secondaryFilesOption,
+      expressionLib
     )
   }
   

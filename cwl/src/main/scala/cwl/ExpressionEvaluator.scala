@@ -91,7 +91,8 @@ object ExpressionEvaluator {
 
   def expressionLibToScript: Vector[ECMAScriptFunction] => String = _.map(funcToScript).mkString("")
 
-  def funcToScript: ECMAScriptFunction => String = {
+  def funcToScript: ECMAScriptFunction => String =
+  _.value match {
     case ECMAScriptFunctionRegex(script) =>
         s"""|(function() {
             |FUNCTION_BODY

@@ -54,7 +54,7 @@ class CommandLineToolSpec extends FlatSpec with Matchers with ParallelTestExecut
     }
     
     clt
-      .buildCommandTemplate(inputs)
+      .buildCommandTemplate(Vector.empty)(inputs)
       .valueOr(errors => fail(errors.toList.mkString(", ")))
       .flatTraverse[ErrorOr, String](_.instantiate(localNameValues, noIoFunctionSet, identity[WomValue], runtimeEnv).map(_.map(_.commandString)))
       .valueOr(errors => fail(errors.toList.mkString(", "))) shouldBe expectation

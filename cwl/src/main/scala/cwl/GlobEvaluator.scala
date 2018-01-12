@@ -17,18 +17,18 @@ http://www.commonwl.org/v1.0/CommandLineTool.html#CommandOutputBinding
  */
 object GlobEvaluator {
 
-  type GlobEvaluatorFunction = ParameterContext => ErrorOr[List[String]]
+  type GlobEvaluatorFunction = (ParameterContext, ExpressionLib) => ErrorOr[List[String]]
 
-  def globs(globOption: Option[Glob], parameterContext: ParameterContext): ErrorOr[List[String]] = {
+  def globs(globOption: Option[Glob], parameterContext: ParameterContext, expressionLib: ExpressionLib): ErrorOr[List[String]] = {
     globOption map {
-      globs(_, parameterContext)
+      globs(_, parameterContext, expressionLib)
     } getOrElse {
       Nil.valid
     }
   }
 
-  def globs(glob: Glob, parameterContext: ParameterContext): ErrorOr[List[String]] = {
-    glob.fold(GlobEvaluator.GlobEvaluatorPoly).apply(parameterContext)
+  def globs(glob: Glob, parameterContext: ParameterContext, expressionLib: ExpressionLib): ErrorOr[List[String]] = {
+    glob.fold(GlobEvaluator.GlobEvaluatorPoly).apply(parameterContext, expressionLib)
   }
 
   object GlobEvaluatorPoly extends Poly1 {
@@ -41,8 +41,8 @@ object GlobEvaluator {
     implicit def caseExpression: Case.Aux[Expression, GlobEvaluatorFunction] = {
       at {
         expression =>
-          parameterContext => {
-            ExpressionEvaluator.eval(expression, parameterContext) flatMap {
+          (parameterContext, expressionLib) => {
+            ExpressionEvaluator.eval(expression, parameterContext, expressionLib) flatMap {
               case WomArray(_, values) if values.isEmpty => Nil.valid
               case WomString(value) => List(value).valid
               case WomArray(WomArrayType(WomStringType), values) => values.toList.map(_.valueString).valid
@@ -56,11 +56,11 @@ object GlobEvaluator {
     }
 
     implicit def caseArrayString: Case.Aux[Array[String], GlobEvaluatorFunction] = {
-      at { array => _ => array.toList.valid }
+      at { array => (_, _) => array.toList.valid }
     }
 
     implicit def caseString: Case.Aux[String, GlobEvaluatorFunction] = {
-      at { string => _ => List(string).valid }
+      at { string => (_, _) => List(string).valid }
     }
   }
 

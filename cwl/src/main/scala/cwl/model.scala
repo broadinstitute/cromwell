@@ -9,6 +9,7 @@ import cwl.LinkMergeMethod.LinkMergeMethod
 import cwl.WorkflowStepInput.InputSource
 import common.validation.ErrorOr.ErrorOr
 import cwl.CommandLineTool.{CommandBindingSortingKey, SortKeyAndCommandPart}
+import cwl.ExpressionEvaluator.ECMAScriptFunction
 import cwl.command.ParentName
 import io.circe.Json
 import wom.types.WomType
@@ -206,7 +207,7 @@ case class OutputArraySchema(
 
 case class InlineJavascriptRequirement(
   `class`: W.`"InlineJavascriptRequirement"`.T = "InlineJavascriptRequirement".narrow,
-  expressionLib: Option[Array[String]] = None)
+  expressionLib: Option[Array[ECMAScriptFunction]] = None)
 
 case class SchemaDefRequirement(
   `class`: W.`"SchemaDefRequirement"`.T,

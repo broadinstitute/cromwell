@@ -14,6 +14,7 @@ import common.validation.Validation._
 import cwl.CommandLineTool._
 import cwl.CwlType.CwlType
 import cwl.CwlVersion._
+import cwl.ExpressionEvaluator.ECMAScriptFunction
 import cwl.command.ParentName
 import cwl.requirement.RequirementToAttributeMap
 import eu.timepit.refined.W
@@ -151,7 +152,7 @@ case class CommandLineTool private(
   }
 
   def buildTaskDefinition(validator: RequirementsValidator): ErrorOr[CallableTaskDefinition] = {
-    validateRequirementsAndHints(validator) map { requirementsAndHints =>
+    validateRequirementsAndHints(validator) map { requirementsAndHints: Seq[cwl.Requirement] =>
       val id = this.id
 
       // This is basically doing a `foldMap` but can't actually be a `foldMap` because:
@@ -203,11 +204,15 @@ case class CommandLineTool private(
       // so the filename is the fallback.
       def taskName = Try(FullyQualifiedName(id).id).getOrElse(Paths.get(id).getFileName.toString)
 
+      lazy val jsRequirements: List[ECMAScriptFunction] = requirementsAndHints.toList.collect {
+        case js: InlineJavascriptRequirement => js
+      }.flatMap(_.expressionLib.toList.flatten)
+
       val adHocFileCreations: Set[WomExpression] = (for {
         requirements <- requirements.getOrElse(Array.empty[Requirement])
         initialWorkDirRequirement <- requirements.select[InitialWorkDirRequirement].toArray
         listing <- initialWorkDirRequirement.listings
-      } yield InitialWorkDirFileGeneratorExpression(listing)).toSet[WomExpression]
+      } yield InitialWorkDirFileGeneratorExpression(listing, jsRequirements.toVector)).toSet[WomExpression]
 
       CallableTaskDefinition(
         taskName,

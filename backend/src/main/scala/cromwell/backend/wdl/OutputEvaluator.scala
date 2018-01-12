@@ -7,15 +7,16 @@ import cats.instances.try_._
 import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.validated._
-import cromwell.backend.BackendJobDescriptor
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
+import cromwell.backend.BackendJobDescriptor
 import cromwell.core.CallOutputs
 import wom.expression.IoFunctionSet
 import wom.graph.GraphNodePort.{ExpressionBasedOutputPort, OutputPort}
 import wom.types.WomType
 import wom.values.WomValue
 
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 object OutputEvaluator {
@@ -28,7 +29,7 @@ object OutputEvaluator {
 
   def evaluateOutputs(jobDescriptor: BackendJobDescriptor,
                       ioFunctions: IoFunctionSet,
-                      postMapper: WomValue => Try[WomValue] = v => Success(v)): EvaluatedJobOutputs = {
+                      postMapper: WomValue => Try[WomValue] = v => Success(v))(implicit ec: ExecutionContext): Future[EvaluatedJobOutputs] = {
     val taskInputValues: Map[String, WomValue] = jobDescriptor.localInputs
 
     def foldFunction(accumulatedOutputs: Try[ErrorOr[List[(OutputPort, WomValue)]]], output: ExpressionBasedOutputPort) = accumulatedOutputs flatMap { accumulated =>
@@ -75,10 +76,29 @@ object OutputEvaluator {
     val emptyValue = Success(List.empty[(OutputPort, WomValue)].validNel): Try[ErrorOr[List[(OutputPort, WomValue)]]]
 
     // Fold over the outputs to evaluate them in order, map the result to an EvaluatedJobOutputs
-    jobDescriptor.taskCall.expressionBasedOutputPorts.foldLeft(emptyValue)(foldFunction) match {
+    def fromOutputPorts: EvaluatedJobOutputs = jobDescriptor.taskCall.expressionBasedOutputPorts.foldLeft(emptyValue)(foldFunction) match {
       case Success(Valid(outputs)) => ValidJobOutputs(CallOutputs(outputs.toMap))
       case Success(Invalid(errors)) => InvalidJobOutputs(errors)
       case Failure(exception) => JobOutputsEvaluationException(exception)
     }
+    
+    // Validate that all the output ports have been filled with values
+    def validateCustomEvaluation(outputs: Map[OutputPort, WomValue]): EvaluatedJobOutputs = {
+      def toError(outputPort: OutputPort) = s"Missing output value for ${outputPort.identifier.fullyQualifiedName.value}"
+
+      jobDescriptor.taskCall.expressionBasedOutputPorts.diff(outputs.keySet.toList) match {
+        case Nil => ValidJobOutputs(CallOutputs(outputs))
+        case head :: tail => InvalidJobOutputs(NonEmptyList.of(toError(head), tail.map(toError): _*))
+      }
+    }
+
+    // Try the custom evaluation function
+    jobDescriptor.taskCall.customOutputEvaluation(taskInputValues, ioFunctions, ec).value
+      .map({
+        case Some(Right(outputs)) => validateCustomEvaluation(outputs)
+        case Some(Left(errors)) => InvalidJobOutputs(errors)
+        // If it returns an empty value, fallback to canonical output evaluation
+        case None => fromOutputPorts
+      })
   }
 }

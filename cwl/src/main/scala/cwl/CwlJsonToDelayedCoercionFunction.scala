@@ -17,7 +17,7 @@ import wom.values._
 
 // With recursive types we could let circe parse it for us, but until we figure that out just parse it as Json and
 // manually check for File / Directory structures
-private [cwl] object CwlInputCoercion extends Json.Folder[DelayedCoercionFunction] {
+private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[DelayedCoercionFunction] {
   import cwl.decoder._
   implicit val fileD = implicitly[Decoder[File]]
   implicit val directoryD = implicitly[Decoder[Directory]]

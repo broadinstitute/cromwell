@@ -7,13 +7,16 @@ import cats.syntax.traverse._
 import common.validation.ErrorOr.ErrorOr
 import shapeless.{:+:, CNil, Coproduct}
 import wom.callable.Callable._
+import wom.callable.TaskDefinition.OutputFunctionResponse
 import wom.callable.{Callable, TaskDefinition, WorkflowDefinition}
-import wom.expression.WomExpression
+import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.CallNode._
 import wom.graph.GraphNode.GeneratedNodeAndNewNodes
 import wom.graph.GraphNodePort._
 import wom.graph.expression.ExpressionNode
 import wom.values.WomValue
+
+import scala.concurrent.ExecutionContext
 
 sealed abstract class CallNode extends GraphNode {
   def callable: Callable
@@ -32,6 +35,14 @@ final case class TaskCallNode private(override val identifier: WomIdentifier,
   }
 
   override lazy val outputPorts: Set[OutputPort] = expressionBasedOutputPorts.toSet[OutputPort]
+
+  /**
+    * Evaluate outputs using the custom evaluation function of the task definition.
+    * An empty return value means the engine should fall back to its default evaluation method.
+    */
+  def customOutputEvaluation(inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, executionContext: ExecutionContext): OutputFunctionResponse = {
+    callable.customizedOutputEvaluation(outputPorts, inputs, ioFunctionSet, executionContext)
+  }
 }
 
 final case class WorkflowCallNode private(override val identifier: WomIdentifier,

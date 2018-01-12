@@ -3,8 +3,7 @@ package cwl
 import java.nio.file.Paths
 
 import cats.data.Validated.{Invalid, Valid}
-import cats.instances.list._
-import cats.instances.option._
+import cats.data.{NonEmptyList, OptionT}
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.typesafe.config.ConfigFactory
@@ -17,16 +16,20 @@ import cwl.CwlVersion._
 import cwl.command.ParentName
 import cwl.requirement.RequirementToAttributeMap
 import eu.timepit.refined.W
+import io.circe.{Json, yaml}
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil, Coproduct, Inl, Poly1, Witness}
-import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition, RequiredInputDefinition}
+import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, OutputDefinition, RequiredInputDefinition}
+import wom.callable.TaskDefinition.{EvaluatedOutputs, OutputFunctionResponse}
 import wom.callable.{Callable, CallableTaskDefinition}
 import wom.executable.Executable
-import wom.expression.{ValueAsAnExpression, WomExpression}
-import wom.types.{WomStringType, WomType}
-import wom.values.{WomArray, WomEvaluatedCallInputs, WomFile, WomString, WomValue}
+import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}
+import wom.graph.GraphNodePort.OutputPort
+import wom.types.{WomOptionalType, WomStringType, WomType}
+import wom.values.{WomArray, WomEvaluatedCallInputs, WomFile, WomGlobFile, WomString, WomValue}
 import wom.{CommandPart, RuntimeAttributes}
 
+import scala.concurrent.ExecutionContext
 import scala.language.postfixOps
 import scala.math.Ordering
 import scala.util.Try
@@ -181,7 +184,9 @@ case class CommandLineTool private(
     // These are only the environment defs defined on this tool.
     val cltRequirements = requirements.toList.flatten ++ hints.toList.flatten.flatMap(_.select[Requirement])
     val cltEnvironmentDefExpressions = (for {
-      cltEnvVarRequirement <- cltRequirements flatMap { _.select[EnvVarRequirement]}
+      cltEnvVarRequirement <- cltRequirements flatMap {
+        _.select[EnvVarRequirement]
+      }
       cltEnvironmentDef <- cltEnvVarRequirement.envDef.toList
       expr <- cltEnvironmentDef.envValue.select[Expression].toList
     } yield expr).toSet
@@ -204,6 +209,57 @@ case class CommandLineTool private(
         s"Could not evaluate environment variable expressions defined in the call hierarchy of tool $id: ${xs.mkString(", ")}.".invalidNel
     }
   }
+  
+  /*
+    * Custom evaluation of the outputs of the command line tool (custom as in bypasses the engine provided default implementation).
+    * This is needed because the output of a CWL tool might be defined by the presence of a cwl.output.json file in the output directory.
+    * In that case, the content of the file should be used as output. This means that otherwise provided output expressions should not be evaluated.
+    * This method checks for the existence of this file, and optionally return a Map[OutputPort, WomValue] if the file was found.
+    * It ensures all the output ports of the corresponding WomCallNode get a WomValue which is needed for the engine to keep running the workflow properly.
+    * If the json file happens to be missing values for one or more output ports, it's a failure.
+    * If the file is not present, an empty value is returned and the engine will execute its own output evaluation logic.
+    * 
+    * TODO: use IO instead of Future ?
+   */
+  final private def outputEvaluationJsonFunction(outputPorts: Set[OutputPort],
+                                                 inputs: Map[String, WomValue],
+                                                 ioFunctionSet: IoFunctionSet,
+                                                 executionContext: ExecutionContext): OutputFunctionResponse = {
+    implicit val ec = executionContext
+    import cats.instances.future._
+    import cats.syntax.either._
+
+    // Convert the parsed json to Wom-usable output values
+    def jsonToOutputs(json: Map[String, Json]): Checked[List[(OutputPort, WomValue)]] = {
+      import cats.instances.list._
+
+      outputPorts.toList.traverse[ErrorOr, (OutputPort, WomValue)]({ outputPort =>
+        json.get(outputPort.name)
+          .map(_.foldWith(CwlJsonToDelayedCoercionFunction).apply(outputPort.womType).map(outputPort -> _))
+          .getOrElse(s"Cannot find a value for output ${outputPort.name} in output json $json".invalidNel)
+      }).toEither
+    }
+    
+    // Parse content as json and return output values for each output port
+    def parseContent(content: String): EvaluatedOutputs = {
+      for {
+        parsed <- yaml.parser.parse(content).flatMap(_.as[Map[String, Json]]).leftMap(error => NonEmptyList.one(error.getMessage))
+        jobOutputsMap <- jsonToOutputs(parsed)
+      } yield jobOutputsMap.toMap
+    }
+    
+    for {
+      // Glob for "cwl.output.json"
+      outputJsonGlobs <- OptionT.liftF { ioFunctionSet.glob(CwlOutputJson) }
+      // There can only be 0 or 1, so try to take the head of the list
+      outputJsonFile <- OptionT.fromOption { outputJsonGlobs.headOption }
+      // Read the content using the ioFunctionSet.readFile function
+      content <- OptionT.liftF { ioFunctionSet.readFile(outputJsonFile, None, failOnOverflow = false) }
+      // parse the content and validate it
+      outputs = parseContent(content)
+    } yield outputs
+  }
+  
 
   def buildTaskDefinition(validator: RequirementsValidator, parentExpressionLib: ExpressionLib): ErrorOr[CallableTaskDefinition] = {
     for {
@@ -253,11 +309,17 @@ case class CommandLineTool private(
           val inputType = tpe.fold(MyriadInputTypeToWomType)
           val inputName = FullyQualifiedName(inputId).id
           val defaultWomValue = default.fold(CommandInputParameter.DefaultToWomValuePoly).apply(inputType).toTry.get
-          InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(defaultWomValue))
+          inputType match {
+            case optional: WomOptionalType => OptionalInputDefinition(inputName, optional)
+            case _ => InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(defaultWomValue))
+          }
         case CommandInputParameter(inputId, _, _, _, _, _, _, None, Some(tpe)) =>
           val inputType = tpe.fold(MyriadInputTypeToWomType)
           val inputName = FullyQualifiedName(inputId).id
-          RequiredInputDefinition(inputName, inputType)
+          inputType match {
+            case optional: WomOptionalType => OptionalInputDefinition(inputName, optional)
+            case _ => RequiredInputDefinition(inputName, inputType)
+          }
         case other => throw new NotImplementedError(s"command input parameters such as $other are not yet supported")
       }.toList
 
@@ -290,7 +352,10 @@ case class CommandLineTool private(
       stdoutRedirection = stringOrExpressionToString(stdout),
       stderrRedirection = stringOrExpressionToString(stderr),
       adHocFileCreation = adHocFileCreations,
-      environmentExpressions = environmentExpressions
+      environmentExpressions = environmentExpressions,
+      // Always add "cwl.output.json" as an additional glob, as the tool may or may not produce it
+      additionalGlob = Option(WomGlobFile("cwl.output.json")),
+      customizedOutputEvaluation = outputEvaluationJsonFunction
     )
   }
 
@@ -299,6 +364,8 @@ case class CommandLineTool private(
 }
 
 object CommandLineTool {
+  val CwlOutputJson = "cwl.output.json"
+  
   private val DefaultPosition = Coproduct[StringOrInt](0)
   // Elements of the sorting key can be either Strings or Ints
   type StringOrInt = String :+: Int :+: CNil
@@ -404,7 +471,7 @@ object CommandLineTool {
                                     `type`: Option[MyriadInputType] = None)
 
   object CommandInputParameter {
-
+    import cats.instances.list._
     type DefaultToWomValueFunction = WomType => ErrorOr[WomValue]
 
     object DefaultToWomValuePoly extends Poly1 {
@@ -503,7 +570,8 @@ object CommandLineTool {
                                      `type`: Option[MyriadOutputType] = None)
 
   object CommandOutputParameter {
-
+    import cats.instances.list._
+    import cats.instances.option._
     def format(formatOption: Option[StringOrExpression],
                parameterContext: ParameterContext,
                expressionLib: ExpressionLib): ErrorOr[Option[String]] = {

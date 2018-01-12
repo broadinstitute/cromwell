@@ -3,10 +3,8 @@ package cwl
 import common.Checked
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
-import io.circe.generic.auto._
 import io.circe.literal._
-import io.circe.shapes._
-import io.circe.{Decoder, Json, yaml}
+import io.circe.{Json, yaml}
 import wom.callable.{CallableTaskDefinition, ExecutableCallable, ExecutableTaskDefinition}
 import wom.executable.Executable
 import wom.executable.Executable.{InputParsingFunction, ParsedInputMap}
@@ -16,15 +14,12 @@ import wom.executable.Executable.{InputParsingFunction, ParsedInputMap}
 // (ExecutableValidation.scala has more info on why this was necessary)
 object CwlExecutableValidation {
 
-  implicit val fileDecoder = implicitly[Decoder[File]]
-  implicit val directoryDecoder = implicitly[Decoder[Directory]]
-
   // Decodes the input file, and build the ParsedInputMap
   private val inputCoercionFunction: InputParsingFunction =
     inputFile => {
       yaml.parser.parse(inputFile).flatMap(_.as[Map[String, Json]]) match {
         case Left(error) => error.getMessage.invalidNelCheck[ParsedInputMap]
-        case Right(inputValue) => inputValue.map({ case (key, value) => key -> value.foldWith(CwlInputCoercion) }).validNelCheck
+        case Right(inputValue) => inputValue.map({ case (key, value) => key -> value.foldWith(CwlJsonToDelayedCoercionFunction) }).validNelCheck
       }
     }
 

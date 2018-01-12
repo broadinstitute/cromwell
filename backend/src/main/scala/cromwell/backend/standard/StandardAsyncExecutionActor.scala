@@ -178,15 +178,24 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     val globDir = GlobFunctions.globName(globFile.value)
     val globDirectory = parentDirectory./(globDir)
     val globList = parentDirectory./(s"$globDir.list")
+    val controlFileName = "cromwell_glob_control_file"
+    val controlFileContent =
+      """This file is used by Cromwell to allow for globs that would not match any file.
+        |By its presence it works around the limitation of some backends that do not allow empty globs.
+        |Regardless of the outcome of the glob, this file will not be part of the final list of globbed files.
+      """.stripMargin
 
     s"""|# make the directory which will keep the matching files
         |mkdir $globDirectory
         |
+        |# create the glob control file that will allow for the globbing to succeed even if there is 0 match
+        |echo "${controlFileContent.trim}" > $globDirectory/$controlFileName
+        |
         |# symlink all the files into the glob directory
         |( ln -L ${globFile.value} $globDirectory 2> /dev/null ) || ( ln ${globFile.value} $globDirectory )
         |
-        |# list all the files that match the glob into a file called glob-[md5 of glob].list
-        |ls -1 $globDirectory > $globList
+        |# list all the files (except the control file) that match the glob into a file called glob-[md5 of glob].list
+        |ls -1 $globDirectory | grep -v $controlFileName > $globList
         |""".stripMargin
   }
 
@@ -514,7 +523,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     *
     * @return A Try wrapping evaluated outputs.
     */
-  def evaluateOutputs: EvaluatedJobOutputs = {
+  def evaluateOutputs()(implicit ec: ExecutionContext): Future[EvaluatedJobOutputs] = {
     OutputEvaluator.evaluateOutputs(jobDescriptor, backendEngineFunctions, outputValueMapper)
   }
 
@@ -566,8 +575,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     */
   def handleExecutionSuccess(runStatus: StandardAsyncRunStatus,
                              handle: StandardAsyncPendingExecutionHandle,
-                             returnCode: Int): ExecutionHandle = {
-    evaluateOutputs match {
+                             returnCode: Int)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+    evaluateOutputs() map {
       case ValidJobOutputs(outputs) =>
         SuccessfulExecutionHandle(outputs, returnCode, jobPaths.detritusPaths, getTerminalEvents(runStatus))
       case InvalidJobOutputs(errors) =>
@@ -768,7 +777,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
               case Success(returnCodeAsInt) if !continueOnReturnCode.continueFor(returnCodeAsInt) =>
                 Future.successful(FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption), Option(returnCodeAsInt)))
               case Success(returnCodeAsInt) =>
-                Future.successful(handleExecutionSuccess(status, oldHandle, returnCodeAsInt))
+                handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
               case Failure(_) =>
                 Future.successful(FailedNonRetryableExecutionHandle(ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString, stderrAsOption)))
             }

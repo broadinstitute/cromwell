@@ -15,6 +15,9 @@ import wom.graph.WomIdentifier
 import wom.types.{WomIntegerType, WomType}
 import wom.values.{WomFile, WomInteger, WomValue}
 
+import scala.concurrent.Await
+import scala.concurrent.duration._
+
 class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
   behavior of "OutputEvaluator"
   
@@ -97,8 +100,8 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     val call = WomMocks.mockTaskCall(WomIdentifier("call"), WomMocks.EmptyTaskDefinition.copy(outputs = mockOutputs))
     val key = BackendJobDescriptorKey(call, None, 1)
     val jobDescriptor = BackendJobDescriptor(null, key, null, mockInputs, null, null)
-
-    OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet) match {
+    
+    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet)(scala.concurrent.ExecutionContext.global), 2.seconds) match {
       case ValidJobOutputs(outputs) => outputs shouldBe CallOutputs(Map(
         jobDescriptor.taskCall.outputPorts.find(_.name == "o1").get -> WomInteger(5),
         jobDescriptor.taskCall.outputPorts.find(_.name == "o2").get -> WomInteger(5)
@@ -118,7 +121,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     val key = BackendJobDescriptorKey(call, None, 1)
     val jobDescriptor = BackendJobDescriptor(null, key, null, mockInputs, null, null)
 
-    OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet) match {
+    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet)(scala.concurrent.ExecutionContext.global), 2.seconds) match {
       case InvalidJobOutputs(errors) => errors shouldBe NonEmptyList.of(
         "Bad output 'invalid1': Invalid expression 1", "Bad output 'invalid2': Invalid expression 2"
       )
@@ -136,7 +139,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     val key = BackendJobDescriptorKey(call, None, 1)
     val jobDescriptor = BackendJobDescriptor(null, key, null, mockInputs, null, null)
 
-    OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet) match {
+    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet)(scala.concurrent.ExecutionContext.global), 2.seconds) match {
       case JobOutputsEvaluationException(e) => e shouldBe exception
       case _ => fail("Output evaluation should have failed")
     }

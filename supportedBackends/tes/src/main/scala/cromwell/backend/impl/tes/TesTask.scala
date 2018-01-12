@@ -113,6 +113,30 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       .flatMap(evaluateFiles)
       .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
   }
+  
+  def handleGlobFile(g: WomGlobFile, index: Int) = {
+    val globName = GlobFunctions.globName(g.value)
+    val globDirName = "globDir." + index
+    val globDirectory = globName + "/"
+    val globListName =  "globList." + index
+    val globListFile = globName + ".list"
+    Seq(
+      Output(
+        name = Option(globDirName),
+        description = Option(fullyQualifiedTaskName + "." + globDirName),
+        url = Option(tesPaths.storageOutput(globDirectory)),
+        path = tesPaths.containerOutput(containerWorkDir, globDirectory),
+        `type` = Option("DIRECTORY")
+      ),
+      Output(
+        name  = Option(globListName),
+        description = Option(fullyQualifiedTaskName + "." + globListName),
+        url = Option(tesPaths.storageOutput(globListFile)),
+        path = tesPaths.containerOutput(containerWorkDir, globListFile),
+        `type` = Option("FILE")
+      )
+    )
+  }
 
   private val womOutputs = outputWomFiles
     .zipWithIndex
@@ -128,34 +152,15 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
             `type` = Option("FILE")
           )
         )
-      case (g: WomGlobFile, index) =>
-        val globName = GlobFunctions.globName(g.value)
-        val globDirName = "globDir." + index
-        val globDirectory = globName + "/"
-        val globListName =  "globList." + index
-        val globListFile = globName + ".list"
-        Seq(
-          Output(
-            name = Option(globDirName),
-            description = Option(fullyQualifiedTaskName + "." + globDirName),
-            url = Option(tesPaths.storageOutput(globDirectory)),
-            path = tesPaths.containerOutput(containerWorkDir, globDirectory),
-            `type` = Option("DIRECTORY")
-          ),
-          Output(
-            name  = Option(globListName),
-            description = Option(fullyQualifiedTaskName + "." + globListName),
-            url = Option(tesPaths.storageOutput(globListFile)),
-            path = tesPaths.containerOutput(containerWorkDir, globListFile),
-            `type` = Option("FILE")
-          )
-        )
+      case (g: WomGlobFile, index) => handleGlobFile(g, index)
       case (unsupported: WomFile, _) =>
         // TODO: WOM: WOMFILE: Add support for directories.
         throw new NotImplementedError(s"$unsupported is not supported yet.")
     }
+  
+  private val additionalGlobOutput = jobDescriptor.taskCall.callable.additionalGlob.toList.flatMap(handleGlobFile(_, womOutputs.size))
 
-  val outputs: Seq[Output] = womOutputs ++ standardOutputs ++ Seq(commandScriptOut)
+  val outputs: Seq[Output] = womOutputs ++ standardOutputs ++ Seq(commandScriptOut) ++ additionalGlobOutput
 
   private val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
     case Some(x) =>

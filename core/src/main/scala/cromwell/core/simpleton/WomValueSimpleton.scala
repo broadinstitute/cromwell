@@ -15,6 +15,9 @@ case class WomValueSimpleton(simpletonKey: String, simpletonValue: WomPrimitive)
   * `WomValueSimpleton`s are transformed back to `WomValue`s.
   */
 object WomValueSimpleton {
+  
+  val DirectoryMarker = "<<directory>>"
+  val PopulatedMarker = "<<populated>>"
 
   implicit class KeyMetacharacterEscaper(val key: String) extends AnyVal {
     // The escapes are necessary on the first arguments to `replaceAll` since they're treated like regular expressions
@@ -25,6 +28,11 @@ object WomValueSimpleton {
   }
 
   implicit class WomValueSimplifier(womValue: WomValue) {
+    private def toStringSimpleton(key: String)(value: String) = WomValueSimpleton(key, WomString(value))
+    private def toNumberSimpleton(key: String)(value: Long) = WomValueSimpleton(key, WomInteger(value.toInt))
+    private def directorySuffixed(name: String)(suffix: String) = s"$name:$DirectoryMarker:$suffix"
+    private def populatedSuffixed(name: String)(suffix: String) = s"$name:$PopulatedMarker:$suffix"
+    
     def simplify(name: String): Iterable[WomValueSimpleton] = womValue match {
       case prim: WomPrimitive => List(WomValueSimpleton(name, prim))
       case opt: WomOptionalValue => opt.value.map(_.simplify(name)).getOrElse(Seq.empty)
@@ -34,17 +42,25 @@ object WomValueSimpleton {
       case womObjectLike: WomObjectLike => womObjectLike.value flatMap {
         case (key, value) => value.simplify(s"$name:${key.escapeMeta}")
       }
-      // TODO: WOM: WOMFILE: Better simplification of listed dirs / populated files
-      case womMaybeListedDirectory: WomMaybeListedDirectory =>
-        womMaybeListedDirectory
-          .valueOption
-          .map(value => WomUnlistedDirectory(value).simplify(name))
-          .getOrElse(Seq.empty)
+      case WomMaybeListedDirectory(valueOption, listingOption) =>
+        def suffix = directorySuffixed(name) _
+        val valueSimpleton = valueOption.map(toStringSimpleton(suffix("value")))
+        val listingSimpletons = listingOption.toList.flatMap(files => 
+          files.zipWithIndex flatMap { case (arrayItem, index) => arrayItem.simplify(suffix(s"listing[$index]")) }
+        )
+        listingSimpletons ++ valueSimpleton
       case womMaybePopulatedFile: WomMaybePopulatedFile =>
-        womMaybePopulatedFile
-          .valueOption
-          .map(value => WomSingleFile(value).simplify(name))
-          .getOrElse(Seq.empty)
+        def suffix = populatedSuffixed(name) _
+        val valueSimpleton = womMaybePopulatedFile.valueOption.map(toStringSimpleton(suffix("value")))
+        val checksumSimpleton = womMaybePopulatedFile.checksumOption.map(toStringSimpleton(suffix("checksum")))
+        val contentsSimpleton = womMaybePopulatedFile.contentsOption.map(toStringSimpleton(suffix("contents")))
+        val sizeSimpleton = womMaybePopulatedFile.sizeOption.map(toNumberSimpleton(suffix("size")))
+        val formatSimpleton = womMaybePopulatedFile.formatOption.map(toStringSimpleton(suffix("format")))
+        val secondaryFilesSimpletons = womMaybePopulatedFile.secondaryFiles.toList.zipWithIndex flatMap { 
+          case (arrayItem, index) => arrayItem.simplify(suffix(s"secondaryFiles[$index]")) 
+        }
+
+        valueSimpleton ++ checksumSimpleton ++ contentsSimpleton ++ sizeSimpleton ++ formatSimpleton ++ secondaryFilesSimpletons
       case other => throw new Exception(s"Cannot simplify wdl value $other of type ${other.womType}")
     }
   }

@@ -70,7 +70,8 @@ object TaskDefinitionSpec {
     parameterMeta = Map.empty,
     outputs = List.empty,
     inputs = List.empty,
-    adHocFileCreation = Set.empty)
+    adHocFileCreation = Set.empty,
+    environmentExpressions = Map.empty)
   val executableNoInputsOrOutputsTask = ExecutableTaskDefinition.tryApply(noInputsOrOutputsTask)
 
   val oneInputTask = CallableTaskDefinition(
@@ -81,7 +82,8 @@ object TaskDefinitionSpec {
     parameterMeta = Map.empty,
     outputs = List.empty,
     inputs = List(Callable.RequiredInputDefinition(LocalName("bar"), WomIntegerType)),
-    adHocFileCreation = Set.empty)
+    adHocFileCreation = Set.empty,
+    environmentExpressions = Map.empty)
   val executableOneInputTask = ExecutableTaskDefinition.tryApply(oneInputTask)
 
   val oneOutputTask = CallableTaskDefinition(
@@ -92,7 +94,8 @@ object TaskDefinitionSpec {
     parameterMeta = Map.empty,
     outputs = List(Callable.OutputDefinition(LocalName("bar"), WomStringType, null)),
     inputs = List.empty,
-    adHocFileCreation = Set.empty)
+    adHocFileCreation = Set.empty,
+    environmentExpressions = Map.empty)
   val executableOneOutputTask = ExecutableTaskDefinition.tryApply(oneOutputTask)
   
   val duplicateFqns = CallableTaskDefinition(
@@ -103,7 +106,8 @@ object TaskDefinitionSpec {
     parameterMeta = Map.empty,
     outputs = List(Callable.OutputDefinition(LocalName("bar"), WomStringType, null)),
     inputs = List(Callable.RequiredInputDefinition(LocalName("bar"), WomStringType)),
-    adHocFileCreation = Set.empty
+    adHocFileCreation = Set.empty,
+    environmentExpressions = Map.empty
   )
   val executableDuplicateFqns = ExecutableTaskDefinition.tryApply(duplicateFqns)
 }

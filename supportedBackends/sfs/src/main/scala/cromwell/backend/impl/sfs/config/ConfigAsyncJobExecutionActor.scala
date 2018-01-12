@@ -100,7 +100,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     val allInputs = providedWomInputs ++ optionalsForciblyInitializedToNone
     val womInstantiation = taskDefinition.instantiateCommand(allInputs, NoIoFunctionSet, identity, runtimeEnvironment)
 
-    val InstantiatedCommand(command, _) = womInstantiation.toTry.get
+    val InstantiatedCommand(command, _, _) = womInstantiation.toTry.get
     jobLogger.info(s"executing: $command")
     val scriptBody =
       s"""|#!/bin/bash

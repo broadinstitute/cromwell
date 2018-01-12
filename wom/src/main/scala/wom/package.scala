@@ -52,7 +52,9 @@ package object core {
   * @param commandString The string representing the instantiation of this command.
   * @param createdFiles Any files created as side effects of instantiating the command.
   */
-final case class InstantiatedCommand(commandString: String, createdFiles: List[CommandSetupSideEffectFile] = List.empty)
+final case class InstantiatedCommand(commandString: String,
+                                     environmentVariables: Map[String, String] = Map.empty,
+                                     createdFiles: List[CommandSetupSideEffectFile] = List.empty)
 
 /**
   * File created as a side effect of instantiating the command.

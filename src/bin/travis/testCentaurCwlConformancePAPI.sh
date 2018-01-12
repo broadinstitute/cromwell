@@ -89,7 +89,7 @@ TEST_PASSING=0
 
 set +e
 # Only run tests that are expected to succeed as PAPI CWL conformance is not quick.
-for TEST_NUMBER in $(perl -ne '/#(\d+)/ && print "$1 "' "${CONFORMANCE_EXPECTED_FAILURES}"); do
+for TEST_NUMBER in $(perl -ne '/#(\d+)/ && !/PAPIFAIL/ && print "$1 "' "${CONFORMANCE_EXPECTED_FAILURES}"); do
     # Check if test is supposed to fail
     grep -q '^'"${TEST_NUMBER}"'$' "${CONFORMANCE_EXPECTED_FAILURES}"
     TEST_IN_EXPECTED_FAILED=$?

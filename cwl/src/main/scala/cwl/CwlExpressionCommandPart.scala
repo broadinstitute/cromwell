@@ -81,7 +81,7 @@ abstract class CommandLineBindingCommandPart(commandLineBinding: CommandLineBind
       case _ => List.empty
     }
 
-    // Can't flatMap Either in 2.11..
+    // Can't flatMap Either in 2.11.
     evaluatedWomValue match {
       case Right(womValue) => applyShellQuote(womValue).map(processValue).map(_.map(InstantiatedCommand(_))).toValidated
       case Left(e) => Invalid(e)

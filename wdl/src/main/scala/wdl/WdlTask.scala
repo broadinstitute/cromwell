@@ -159,7 +159,8 @@ case class WdlTask(name: String,
     parameterMeta = parameterMeta,
     outputs = outputs.map(_.womOutputDefinition).toList,
     inputs = buildWomInputs,
-    adHocFileCreation = Set.empty
+    adHocFileCreation = Set.empty,
+    environmentExpressions = Map.empty
   )
 
   private def buildWomInputs: List[Callable.InputDefinition] = declarations collect {

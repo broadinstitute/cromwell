@@ -134,14 +134,14 @@ case class CommandLineTool private(
         inputValues
           .collectFirst({ case (inputDefinition, womValue) if inputDefinition.name == parsedName => womValue.validNel })
           .orElse(defaultValue) match {
-            case Some(Valid(value)) =>
-              // See http://www.commonwl.org/v1.0/CommandLineTool.html#Input_binding
-              lazy val initialKey = CommandBindingSortingKey.empty
-                .append(inputParameter.inputBinding, Coproduct[StringOrInt](parsedName))
+          case Some(Valid(value)) =>
+            // See http://www.commonwl.org/v1.0/CommandLineTool.html#Input_binding
+            lazy val initialKey = CommandBindingSortingKey.empty
+              .append(inputParameter.inputBinding, Coproduct[StringOrInt](parsedName))
 
-              inputParameter.`type`.toList.flatMap(_.fold(MyriadInputTypeToSortedCommandParts).apply(inputParameter.inputBinding, value, initialKey.asNewKey, expressionLib)).validNel
-           case Some(Invalid(errors)) => Invalid(errors)
-           case None => s"Could not find an input value for input $parsedName in ${inputValues.prettyString}".invalidNel
+            inputParameter.`type`.toList.flatMap(_.fold(MyriadInputTypeToSortedCommandParts).apply(inputParameter.inputBinding, value, initialKey.asNewKey, expressionLib)).validNel
+          case Some(Invalid(errors)) => Invalid(errors)
+          case None => s"Could not find an input value for input $parsedName in ${inputValues.prettyString}".invalidNel
         }
     })
 
@@ -150,38 +150,102 @@ case class CommandLineTool private(
     }
   }
 
+
+  private def environmentDefs(requirementsAndHints: List[Requirement], expressionLib: ExpressionLib): ErrorOr[Map[String, WomExpression]] = {
+    // For environment variables we need to make sure that we aren't being asked to evaluate expressions from a containing
+    // workflow step or its containing workflow or anything containing the workflow. The current structure of this code
+    // is not prepared to evaluate those expressions. Actually this is true for attributes too and we're totally not
+    // checking for this condition there. Blurgh.
+    // TODO CWL: for runtime attributes, detect unevaluatable expressions in the containment hierarchy.
+
+    // This traverses all `EnvironmentDef`s within all `EnvVarRequirement`s. The spec doesn't appear to say how to handle
+    // duplicate `envName` keys in a single array of `EnvironmentDef`s; this code gives precedence to the last occurrence.
+    val allEnvVarDefs = for {
+      req <- requirementsAndHints
+      envVarReq <- req.select[EnvVarRequirement].toList
+      // Reverse the defs within an env var requirement so that when we fold from the right below the later defs
+      // will take precedence over the earlier defs.
+      envDef <- envVarReq.envDef.toList.reverse
+    } yield envDef
+
+    // Compact the `EnvironmentDef`s. Don't convert to `WomExpression`s yet, the `StringOrExpression`s need to be
+    // compared to the `EnvVarRequirement`s that were defined on this tool.
+    val effectiveEnvironmentDefs = allEnvVarDefs.foldRight(Map.empty[String, StringOrExpression]) {
+      case (envVarReq, envVarMap) => envVarMap + (envVarReq.envName -> envVarReq.envValue)
+    }
+
+    // These are the effective environment defs irrespective of where they were found in the
+    // Run / WorkflowStep / Workflow containment hierarchy.
+    val effectiveExpressionEnvironmentDefs = effectiveEnvironmentDefs filter { case (_, expr) => expr.select[Expression].isDefined }
+
+    // These are only the environment defs defined on this tool.
+    val cltRequirements = requirements.toList.flatten ++ hints.toList.flatten.flatMap(_.select[Requirement])
+    val cltEnvironmentDefExpressions = (for {
+      cltEnvVarRequirement <- cltRequirements flatMap { _.select[EnvVarRequirement]}
+      cltEnvironmentDef <- cltEnvVarRequirement.envDef.toList
+      expr <- cltEnvironmentDef.envValue.select[Expression].toList
+    } yield expr).toSet
+
+    // If there is an expression in an effective environment def that wasn't defined on this tool then error out since
+    // there isn't currently a way of evaluating it.
+    val unevaluatableEnvironmentDefs = for {
+      (name, stringOrExpression) <- effectiveExpressionEnvironmentDefs.toList
+      expression <- stringOrExpression.select[Expression].toList
+      if !cltEnvironmentDefExpressions.contains(expression)
+    } yield name
+
+    unevaluatableEnvironmentDefs match {
+      case Nil =>
+        // No unevaluatable environment defs => keep on truckin'
+        effectiveEnvironmentDefs.foldRight(Map.empty[String, WomExpression]) { case ((envName, envValue), acc) =>
+          acc + (envName -> envValue.fold(StringOrExpressionToWomExpression).apply(inputNames, expressionLib))
+        }.validNel
+      case xs =>
+        s"Could not evaluate environment variable expressions defined in the call hierarchy of tool $id: ${xs.mkString(", ")}.".invalidNel
+    }
+  }
+
   def buildTaskDefinition(validator: RequirementsValidator, parentExpressionLib: ExpressionLib): ErrorOr[CallableTaskDefinition] = {
-    validateRequirementsAndHints(validator) map { requirementsAndHints: Seq[cwl.Requirement] =>
-      val id = this.id
+    for {
+      requirementsAndHints <- validateRequirementsAndHints(validator)
+      environment <- environmentDefs(requirementsAndHints, parentExpressionLib)
+    } yield buildCallableTaskDefinition(requirementsAndHints, parentExpressionLib, environment)
+  }
 
-      val expressionLib: ExpressionLib =
-        parentExpressionLib ++ inlineJavascriptRequirements(requirementsAndHints)
+  def buildCallableTaskDefinition(requirementsAndHints: List[cwl.Requirement],
+                                  parentExpressionLib: ExpressionLib,
+                                  environmentExpressions: Map[String, WomExpression]): CallableTaskDefinition = {
 
-      // This is basically doing a `foldMap` but can't actually be a `foldMap` because:
-      // - There is no monoid instance for `WomExpression`s.
-      // - We want to fold from the right so the hints and requirements with the lowest precedence are processed first
-      //   and later overridden if there are duplicate hints or requirements of the same type with higher precedence.
-      val finalAttributesMap: Map[String, WomExpression] = (requirementsAndHints ++ DefaultDockerRequirement).foldRight(Map.empty[String, WomExpression])({
-        case (requirement, attributesMap) => attributesMap ++ processRequirement(requirement, expressionLib)
-      })
+    val id = this.id
 
-      val runtimeAttributes: RuntimeAttributes = RuntimeAttributes(finalAttributesMap)
+    val expressionLib: ExpressionLib =
+      parentExpressionLib ++ inlineJavascriptRequirements(requirementsAndHints)
 
-      val meta: Map[String, String] = Map.empty
-      val parameterMeta: Map[String, String] = Map.empty
+    // This is basically doing a `foldMap` but can't actually be a `foldMap` because:
+    // - There is no monoid instance for `WomExpression`s.
+    // - We want to fold from the right so the hints and requirements with the lowest precedence are processed first
+    //   and later overridden if there are duplicate hints or requirements of the same type with higher precedence.
+    val finalAttributesMap: Map[String, WomExpression] = (requirementsAndHints ++ DefaultDockerRequirement).foldRight(Map.empty[String, WomExpression])({
+      case (requirement, attributesMap) => attributesMap ++ processRequirement(requirement, expressionLib)
+    })
 
-      /*
-    quoted from: http://www.commonwl.org/v1.0/CommandLineTool.html#CommandOutputBinding :
+    val runtimeAttributes: RuntimeAttributes = RuntimeAttributes(finalAttributesMap)
 
-    For inputs and outputs, we only keep the variable name in the definition
-     */
+    val meta: Map[String, String] = Map.empty
+    val parameterMeta: Map[String, String] = Map.empty
 
-      val outputs: List[Callable.OutputDefinition] = this.outputs.map {
-        case p @ CommandOutputParameter(cop_id, _, _, _, _, _, _, Some(tpe)) =>
-          val womType = tpe.fold(MyriadOutputTypeToWomType)
-          OutputDefinition(FullyQualifiedName(cop_id).id, womType, CommandOutputParameterExpression(p, womType, inputNames, expressionLib))
-        case other => throw new NotImplementedError(s"Command output parameters such as $other are not yet supported")
-      }.toList
+    /*
+  quoted from: http://www.commonwl.org/v1.0/CommandLineTool.html#CommandOutputBinding :
+
+  For inputs and outputs, we only keep the variable name in the definition
+   */
+
+    val outputs: List[Callable.OutputDefinition] = this.outputs.map {
+      case p @ CommandOutputParameter(cop_id, _, _, _, _, _, _, Some(tpe)) =>
+        val womType = tpe.fold(MyriadOutputTypeToWomType)
+        OutputDefinition(FullyQualifiedName(cop_id).id, womType, CommandOutputParameterExpression(p, womType, inputNames, expressionLib))
+      case other => throw new NotImplementedError(s"Command output parameters such as $other are not yet supported")
+    }.toList
 
     val inputDefinitions: List[_ <: Callable.InputDefinition] =
       this.inputs.map {
@@ -197,37 +261,37 @@ case class CommandLineTool private(
         case other => throw new NotImplementedError(s"command input parameters such as $other are not yet supported")
       }.toList
 
-      def stringOrExpressionToString(soe: Option[StringOrExpression]): Option[String] = soe flatMap {
-        case StringOrExpression.String(str) => Some(str)
-        case StringOrExpression.Expression(_) => None // ... for now!
-      }
-
-      // The try will succeed if this is a task within a step. If it's a standalone file, the ID will be the file,
-      // so the filename is the fallback.
-      def taskName = Try(FullyQualifiedName(id).id).getOrElse(Paths.get(id).getFileName.toString)
-
-      val adHocFileCreations: Set[WomExpression] = (for {
-        requirements <- requirements.getOrElse(Array.empty[Requirement])
-        initialWorkDirRequirement <- requirements.select[InitialWorkDirRequirement].toArray
-        listing <- initialWorkDirRequirement.listings
-      } yield InitialWorkDirFileGeneratorExpression(listing, expressionLib)).toSet[WomExpression]
-
-      CallableTaskDefinition(
-        taskName,
-        buildCommandTemplate(expressionLib),
-        runtimeAttributes,
-        meta,
-        parameterMeta,
-        outputs,
-        inputDefinitions,
-        // TODO: This doesn't work in all cases and it feels clunky anyway - find a way to sort that out
-        prefixSeparator = "#",
-        commandPartSeparator = " ",
-        stdoutRedirection = stringOrExpressionToString(stdout),
-        stderrRedirection = stringOrExpressionToString(stderr),
-        adHocFileCreation = adHocFileCreations
-      )
+    def stringOrExpressionToString(soe: Option[StringOrExpression]): Option[String] = soe flatMap {
+      case StringOrExpression.String(str) => Some(str)
+      case StringOrExpression.Expression(_) => None // ... for now!
     }
+
+    // The try will succeed if this is a task within a step. If it's a standalone file, the ID will be the file,
+    // so the filename is the fallback.
+    def taskName = Try(FullyQualifiedName(id).id).getOrElse(Paths.get(id).getFileName.toString)
+
+    val adHocFileCreations: Set[WomExpression] = (for {
+      requirements <- requirements.getOrElse(Array.empty[Requirement])
+      initialWorkDirRequirement <- requirements.select[InitialWorkDirRequirement].toArray
+      listing <- initialWorkDirRequirement.listings
+    } yield InitialWorkDirFileGeneratorExpression(listing, expressionLib)).toSet[WomExpression]
+
+    CallableTaskDefinition(
+      taskName,
+      buildCommandTemplate(expressionLib),
+      runtimeAttributes,
+      meta,
+      parameterMeta,
+      outputs,
+      inputDefinitions,
+      // TODO: This doesn't work in all cases and it feels clunky anyway - find a way to sort that out
+      prefixSeparator = "#",
+      commandPartSeparator = " ",
+      stdoutRedirection = stringOrExpressionToString(stdout),
+      stderrRedirection = stringOrExpressionToString(stderr),
+      adHocFileCreation = adHocFileCreations,
+      environmentExpressions = environmentExpressions
+    )
   }
 
   def asCwl = Coproduct[Cwl](this)
@@ -552,4 +616,14 @@ object CommandLineTool {
     dockerOutputDirectory = None
   )) } toList
 
+}
+
+object StringOrExpressionToWomExpression extends Poly1 {
+  implicit def string: Case.Aux[String, (Set[String], ExpressionLib) => WomExpression] = at[String] { s => (inputNames, expressionLib) =>
+    ValueAsAnExpression(WomString(s))
+  }
+
+  implicit def expression: Case.Aux[Expression, (Set[String], ExpressionLib) => WomExpression] = at[Expression] { e => (inputNames, expressionLib) =>
+    cwl.JobPreparationExpression(e, inputNames, expressionLib)
+  }
 }

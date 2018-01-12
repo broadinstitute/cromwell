@@ -805,11 +805,14 @@ definitions:
     description: Response to a workflow query
     required:
       - results
+      - totalResultsCount
     properties:
       results:
         type: array
         items:
           $ref: '#/definitions/WorkflowQueryResult'
+      totalResultsCount:
+        type: integer
   WorkflowQueryResult:
     description: Result for an individual workflow returned by a workflow query
     required:

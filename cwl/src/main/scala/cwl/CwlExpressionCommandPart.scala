@@ -68,7 +68,7 @@ abstract class CommandLineBindingCommandPart(commandLineBinding: CommandLineBind
     }
     
     def processValue(womValue: WomValue): List[String] = womValue match {
-      case _: WomString | _: WomInteger | _: WomSingleFile => handlePrefix(womValue.valueString)
+      case _: WomString | _: WomInteger | _: WomFile => handlePrefix(womValue.valueString)
       // For boolean values, use the value of the boolean to choose whether to print the prefix or not
       case WomBoolean(false) => List.empty
       case WomBoolean(true) => prefixAsList

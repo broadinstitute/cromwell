@@ -17,7 +17,7 @@ object ArgumentToCommandPart extends Poly1 {
     StringCommandPart.apply
   }
 
-  implicit def caseCommandLineBinding: Case.Aux[CommandLineBinding, CommandPart] = at {
-    CommandLineBindingCommandPart.apply
+  implicit def caseCommandLineBinding: Case.Aux[ArgumentCommandLineBinding, CommandPart] = at {
+    ArgumentCommandLineBindingCommandPart.apply
   }
 }

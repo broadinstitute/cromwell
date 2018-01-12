@@ -1,11 +1,29 @@
 package wom.types
 
+import cats.instances.list._
+import cats.syntax.traverse._
+import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import spray.json.JsObject
 import wom.values._
 
 import scala.util.{Failure, Success, Try}
 
-case object WomObjectType extends WomType {
+trait WomObjectTypeLike extends WomType {
+  /**
+    * Validate the values against the WomObjectTypeLike and return a valid map of values if possible.
+    * This is an indirection from the usual coercion path but it allows WomObject to validate values against the WomObjectTypeLike at
+    * instantiation time and ensure the WomObject is only built if the values match the constraints of the type.
+    * See apply method in WomObject.
+   */
+  def validateAndCoerceValues(values: Map[String, Any]): ErrorOr[Map[String, WomValue]] = {
+    values.toList.traverse[ErrorOr, (String, WomValue)]({
+      case (k, v) => WomAnyType.coerceRawValue(v).toErrorOr.map(k -> _)
+    }).map(_.toMap)
+  }
+}
+
+case object WomObjectType extends WomObjectTypeLike {
   val toDisplayString: String = "Object"
 
   private def handleCoercionFailures(tries: Try[_]*) = {
@@ -17,7 +35,7 @@ case object WomObjectType extends WomType {
   }
 
   override protected def coercion = {
-    case o: WomObject => o
+    case o: WomObject => WomObject(o.values)
     case m: WomMap if isMapCoercable(m) =>
       val coercedMap = m.value map {
         case (k, v) => toWomString(k) -> toWomString(v)

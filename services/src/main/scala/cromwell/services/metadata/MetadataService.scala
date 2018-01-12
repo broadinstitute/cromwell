@@ -134,6 +134,12 @@ object MetadataService {
       } else {
         valueMap.toList flatMap { case (key, value) => womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":${key.valueString}"), value) }
       }
+    case objectLike: WomObjectLike =>
+      if (objectLike.values.isEmpty) {
+        List(MetadataEvent.empty(metadataKey))
+      } else {
+        objectLike.values.toList flatMap { case (key, value) => womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":$key"), value) }
+      }
     case WomOptionalValue(_, Some(value)) =>
       womValueToMetadataEvents(metadataKey, value)
     case WomPair(left, right) =>

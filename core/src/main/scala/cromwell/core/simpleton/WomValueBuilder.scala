@@ -115,6 +115,16 @@ object WomValueBuilder {
         // map keys are guaranteed by the WDL spec to be primitives, so the "coerceRawValue(..).get" is safe.
         val map: Map[String, WomValue] = groupedByMapKey map { case (k, ss) => k -> toWomValue(WomAnyType, ss) }
         WomObject(map)
+      case composite: WomCompositeType =>
+        val groupedByMapKey: Map[String, Traversable[SimpletonComponent]] = group(components map descendIntoMap)
+        // map keys are guaranteed by the WDL spec to be primitives, so the "coerceRawValue(..).get" is safe.
+        val map: Map[String, WomValue] = groupedByMapKey map { case (k, ss) => 
+          val valueType = composite
+            .typeMap
+            .getOrElse(k, throw new RuntimeException(s"Field $k is not a declared field of composite type $composite. Cannot build a WomValue from the simpletons."))
+          k -> toWomValue(valueType, ss) 
+        }
+        WomObject.withType(map, composite)
       case WomAnyType =>
         // Ok, we're going to have to guess, but the keys should give us some clues:
         if (components forall { component => MapElementPattern.findFirstMatchIn(component.path).isDefined }) {

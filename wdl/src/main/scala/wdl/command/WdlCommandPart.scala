@@ -14,12 +14,12 @@ trait WdlCommandPart extends CommandPart {
   def instantiate(declarations: Seq[Declaration],
                   inputsMap: Map[String, WomValue],
                   functions: WdlFunctions[WomValue],
-                  valueMapper: WomValue => WomValue): ErrorOr[InstantiatedCommand]
+                  valueMapper: WomValue => WomValue): ErrorOr[List[InstantiatedCommand]]
 
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: WomValue => WomValue,
-                           runtimeEnvironment: RuntimeEnvironment): ErrorOr[InstantiatedCommand] = {
+                           runtimeEnvironment: RuntimeEnvironment): ErrorOr[List[InstantiatedCommand]] = {
     val wdlFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(functions)
     instantiate(Seq.empty, inputsMap.map({case (localName, value) => localName.value -> value}), wdlFunctions, valueMapper)
   }

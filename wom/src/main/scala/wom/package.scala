@@ -20,6 +20,12 @@ package object values {
   type FileHasher = WomFile => SymbolHash
 
   type WomEvaluatedCallInputs = Map[InputDefinition, WomValue]
+  
+  implicit class EnhancedWomEvaluatedCallInputs(val inputs: WomEvaluatedCallInputs) extends AnyVal {
+    def prettyString = inputs.map({
+      case (inputDef, womValue) => s"${inputDef.name} -> ${womValue.valueString}"
+    }).mkString(", ")
+  }
 
   implicit class HashableString(val value: String) extends AnyVal with Hashable {
     def md5Sum: String = DigestUtils.md5Hex(value)

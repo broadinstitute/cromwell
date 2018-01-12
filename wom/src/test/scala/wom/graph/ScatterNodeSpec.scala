@@ -18,7 +18,7 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
 
   val fooInputDef = RequiredInputDefinition("i", WomIntegerType)
   val task_foo = CallableTaskDefinition(name = "foo",
-    commandTemplate = null,
+    commandTemplateBuilder = null,
     runtimeAttributes = RuntimeAttributes(Map.empty),
     meta = Map.empty,
     parameterMeta = Map.empty,

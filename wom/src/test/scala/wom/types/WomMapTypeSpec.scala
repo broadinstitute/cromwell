@@ -17,6 +17,11 @@ class WomMapTypeSpec extends FlatSpec with Matchers  {
     "b" -> WomString("2"),
     "c" -> WomString("3")
   ))
+  val coerceableTypedObject = WomObject(Map(
+    "a" -> WomString("1"),
+    "b" -> WomString("2"),
+    "c" -> WomString("3")
+  ), WomCompositeType(Map("a" -> WomStringType, "b" -> WomStringType, "c" -> WomStringType)))
 
   "WomMap" should "stringify its value" in {
     stringIntMap.toWomString shouldEqual "{\"a\": 1, \"b\": 2, \"c\": 3}"
@@ -38,6 +43,14 @@ class WomMapTypeSpec extends FlatSpec with Matchers  {
   }
   it should "coerce a coerceable object into a WomMap" in {
     WomMapType(WomStringType, WomIntegerType).coerceRawValue(coerceableObject) match {
+      case Success(v) =>
+        v.womType shouldEqual WomMapType(WomStringType, WomIntegerType)
+        v.toWomString shouldEqual stringIntMap.toWomString
+      case Failure(_) => fail("Failed to coerce a map to an object")
+    }
+  }
+  it should "coerce a coerceable typed object into a WomMap" in {
+    WomMapType(WomStringType, WomIntegerType).coerceRawValue(coerceableTypedObject) match {
       case Success(v) =>
         v.womType shouldEqual WomMapType(WomStringType, WomIntegerType)
         v.toWomString shouldEqual stringIntMap.toWomString

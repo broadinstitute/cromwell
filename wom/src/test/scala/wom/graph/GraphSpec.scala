@@ -16,7 +16,7 @@ class GraphSpec extends FlatSpec with Matchers {
   def makeThreeStep: Graph = {
     val taskDefinition_ps = CallableTaskDefinition(
       name = "ps",
-      commandTemplate = null,
+      commandTemplateBuilder = null,
       runtimeAttributes = RuntimeAttributes(attributes = Map.empty),
       meta = Map.empty,
       parameterMeta = Map.empty,
@@ -30,7 +30,7 @@ class GraphSpec extends FlatSpec with Matchers {
     
     val taskDefinition_cgrep = CallableTaskDefinition(
       name = "cgrep",
-      commandTemplate = null,
+      commandTemplateBuilder = null,
       runtimeAttributes = RuntimeAttributes(attributes = Map.empty),
       meta = Map.empty,
       parameterMeta = Map.empty,
@@ -42,7 +42,7 @@ class GraphSpec extends FlatSpec with Matchers {
     val wcInFile = RequiredInputDefinition("in_file", WomSingleFileType)
     val taskDefinition_wc = CallableTaskDefinition(
       name = "wc",
-      commandTemplate = null,
+      commandTemplateBuilder = null,
       runtimeAttributes = RuntimeAttributes(attributes = Map.empty),
       meta = Map.empty,
       parameterMeta = Map.empty,

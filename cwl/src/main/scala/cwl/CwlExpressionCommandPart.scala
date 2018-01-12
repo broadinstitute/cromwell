@@ -1,11 +1,11 @@
 package cwl
 
+import cats.data.Validated.Invalid
+import cats.syntax.either._
 import cats.syntax.validated._
-import common.validation.ErrorOr._
-import common.validation.Validation._
-import cwl.CommandLineTool.CommandInputParameter
-import cwl.command.ParentName
-import mouse.all._
+import common.Checked
+import common.validation.Checked._
+import common.validation.ErrorOr.ErrorOr
 import wom.callable.RuntimeEnvironment
 import wom.expression.IoFunctionSet
 import wom.graph.LocalName
@@ -16,7 +16,7 @@ case class CwlExpressionCommandPart(expr: Expression) extends CommandPart {
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: (WomValue) => WomValue,
-                           runtimeEnvironment: RuntimeEnvironment): ErrorOr[InstantiatedCommand] = {
+                           runtimeEnvironment: RuntimeEnvironment): ErrorOr[List[InstantiatedCommand]] = {
     val stringKeyMap = inputsMap map {
       case (LocalName(localName), value) => localName -> value
     }
@@ -24,54 +24,77 @@ case class CwlExpressionCommandPart(expr: Expression) extends CommandPart {
         inputs = stringKeyMap, runtimeOption = Option(runtimeEnvironment)
       )
     ExpressionEvaluator.eval(expr, parameterContext) map { womValue =>
-      InstantiatedCommand(womValue.valueString)
+      List(InstantiatedCommand(womValue.valueString))
     }
   }
 }
 
-// TODO: Dan to revisit making this an Either (and perhaps adding some other cases)
-case class CommandLineBindingCommandPart(argument: CommandLineBinding) extends CommandPart {
-  override def instantiate(inputsMap: Map[LocalName, WomValue],
-                           functions: IoFunctionSet,
-                           valueMapper: (WomValue) => WomValue,
-                           runtimeEnvironment: RuntimeEnvironment): ErrorOr[InstantiatedCommand] = {
+/**
+  * Generates command parts from a CWL Binding
+  */
+abstract class CommandLineBindingCommandPart(commandLineBinding: CommandLineBinding) extends CommandPart {
 
-    val stringInputsMap = inputsMap map {
-      case (LocalName(localName), value) => localName -> valueMapper(value)
-    }
-    val parameterContext = ParameterContext(inputs = stringInputsMap, runtimeOption = Option(runtimeEnvironment))
+  
+  private lazy val prefixAsString = commandLineBinding.prefix.getOrElse("")
+  private lazy val prefixAsList = commandLineBinding.prefix.toList
+  private lazy val separate = commandLineBinding.effectiveSeparate
 
-    val womValueErrorOr: ErrorOr[WomValue] = argument match {
-      case CommandLineBinding(_, _, _, _, _, Some(StringOrExpression.Expression(expression)), Some(false)) =>
-        ExpressionEvaluator.eval(expression, parameterContext) map valueMapper
-      case CommandLineBinding(_, _, _, _, _, Some(StringOrExpression.String(string)), Some(false)) =>
-        WomString(string).valid
-      // There's a fair few other cases to add, but until then...
-      case other => throw new NotImplementedError(s"As-yet-unsupported command line binding: $other")
-    }
-
-    womValueErrorOr map { womValue =>
-      InstantiatedCommand(womValue.valueString)
-    }
+  def handlePrefix(value: String) = {
+    if (separate) prefixAsList :+ value else List(s"$prefixAsString$value")
   }
-}
-
-case class InputParameterCommandPart(commandInputParameter: CommandInputParameter)(implicit parentName: ParentName) extends CommandPart {
 
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: (WomValue) => WomValue,
-                           runtimeEnvironment: RuntimeEnvironment) =
-    validate {
-      val womValue: WomValue = commandInputParameter match {
-        case cip: CommandInputParameter =>
-          val localizedId = LocalName(FullyQualifiedName(cip.id).id)
-          inputsMap.get(localizedId).cata(
-            valueMapper, throw new RuntimeException(s"could not find $localizedId in map $inputsMap"))
-
-        // There's a fair few other cases to add, but until then...
-        case other => throw new NotImplementedError(s"As-yet-unsupported commandPart from command input parameters: $other")
+                           runtimeEnvironment: RuntimeEnvironment): ErrorOr[List[InstantiatedCommand]] = {
+      val stringInputsMap = inputsMap map {
+        case (LocalName(localName), value) => localName -> valueMapper(value)
       }
-      InstantiatedCommand(womValue.valueString)
+      val parameterContext = ParameterContext(inputs = stringInputsMap, runtimeOption = Option(runtimeEnvironment))
+
+    val evaluatedValueFrom = commandLineBinding.optionalValueFrom map {
+      case StringOrExpression.Expression(expression) => ExpressionEvaluator.eval(expression, parameterContext) map valueMapper
+      case StringOrExpression.String(string) => WomString(string).validNel
     }
+    
+    val evaluatedWomValue: Checked[WomValue] = evaluatedValueFrom.orElse(boundValue.map(_.validNel)) match {
+      case Some(womValue) => womValue.map(valueMapper).toEither
+      case None => "Command line binding has no valueFrom field and no bound value".invalidNelCheck
+    }
+    
+    def applyShellQuote(womValue: WomValue): Checked[WomValue] = commandLineBinding.shellQuote match {
+      case Some(false) | None => womValue.validNelCheck
+      case _ => "Shell quote is unsupported yet".invalidNelCheck
+    }
+    
+    def processValue(womValue: WomValue): List[String] = womValue match {
+      case _: WomString | _: WomInteger | _: WomFile => handlePrefix(womValue.valueString)
+      // For boolean values, use the value of the boolean to choose whether to print the prefix or not
+      case WomBoolean(false) => List.empty
+      case WomBoolean(true) => prefixAsList
+      case WomArray(_, values) => commandLineBinding.itemSeparator match {
+        case Some(itemSeparator) => handlePrefix(values.map(_.valueString).mkString(itemSeparator))
+        case None if commandLineBinding.optionalValueFrom.isDefined => values.toList.flatMap(processValue)
+        case _ => prefixAsList
+      }
+      case _: WomObjectLike => prefixAsList
+      case _ => List.empty
+    }
+
+    // Can't flatMap Either in 2.11..
+    evaluatedWomValue match {
+      case Right(womValue) => applyShellQuote(womValue).map(processValue).map(_.map(InstantiatedCommand(_))).toValidated
+      case Left(e) => Invalid(e)
+    }
+  }
+  
+  def boundValue: Option[WomValue]
+}
+
+case class InputCommandLineBindingCommandPart(commandLineBinding: InputCommandLineBinding, associatedValue: WomValue) extends CommandLineBindingCommandPart(commandLineBinding) {
+  override lazy val boundValue = Option(associatedValue)
+}
+
+case class ArgumentCommandLineBindingCommandPart(commandLineBinding: ArgumentCommandLineBinding) extends CommandLineBindingCommandPart(commandLineBinding) {
+  override lazy val boundValue = None
 }

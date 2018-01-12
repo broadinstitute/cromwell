@@ -35,7 +35,7 @@ class AdvancedInterpolationSpec extends FlatSpec with Matchers {
       fail("call 'test' not found")
     }
     val inputs = testCall.evaluateTaskInputs(Map("testWF.test.eval_this" -> WomString("${var}")), NoFunctions)
-    val testCmd = testCall.task.instantiateCommand(inputs.get, NoFunctions).toTry.get
+    val testCmd = testCall.task.instantiateCommand(inputs.get, NoFunctions).toTry.get.head
     testCmd.commandString shouldEqual "echo 'inside inside inside'"
   }
 }

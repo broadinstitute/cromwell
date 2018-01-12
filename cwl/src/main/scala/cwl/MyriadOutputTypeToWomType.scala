@@ -2,10 +2,11 @@ package cwl
 
 import cwl.CwlType.CwlType
 import shapeless.Poly1
-import wom.types.{WomArrayType, WomType}
+import wom.types.{WomArrayType, WomCompositeType, WomType}
 import cats.syntax.foldable._
 import cats.instances.list._
 import cats.instances.set._
+import cwl.command.ParentName
 import mouse.all._
 
 object MyriadOutputTypeToWomType extends Poly1{
@@ -35,7 +36,13 @@ object MyriadOutputInnerTypeToWomType extends Poly1 {
   }
 
   implicit def ors: Aux[OutputRecordSchema, WomType] = at[OutputRecordSchema] {
-    _.toString |> ex
+    case OutputRecordSchema(_, Some(fields), _) =>
+      val typeMap = fields.map({ field =>
+        val parsedName = FullyQualifiedName(field.name)(ParentName.empty).id
+        parsedName -> field.`type`.fold(MyriadOutputTypeToWomType)
+      }).toMap
+      WomCompositeType(typeMap)
+    case ors => ors.toString |> ex
   }
 
   implicit def oes: Aux[OutputEnumSchema, WomType] = at[OutputEnumSchema] {

@@ -35,7 +35,7 @@ case class ParameterCommandPart(attributes: Map[String, String], expression: Wdl
   override def toString: String = "${" + s"$attributesToString${expression.toWomString}" + "}"
 
   override def instantiate(declarations: Seq[Declaration], inputs: Map[String, WomValue], functions: WdlFunctions[WomValue],
-                           valueMapper: (WomValue) => WomValue): ErrorOr[InstantiatedCommand] = {
+                           valueMapper: (WomValue) => WomValue): ErrorOr[List[InstantiatedCommand]] = {
     // This is a safety net.
     // In Cromwell's production code, optional declarations are always passed to instantiate, as WdlOptionalValue.none(type) if necessary.
     def lookupDeclaration(s: String) = declarations.collectFirst {
@@ -82,7 +82,7 @@ case class ParameterCommandPart(attributes: Map[String, String], expression: Wdl
     for {
       value <- evaluatedCommandPartExpression
       instantiatedCommand <- instantiateCommand(value)
-    } yield instantiatedCommand
+    } yield List(instantiatedCommand)
   }
 
   lazy val defaultString = WomString(attributes.getOrElse("default", ""))

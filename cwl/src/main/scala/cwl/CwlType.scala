@@ -39,6 +39,7 @@ case class File private
   format: Option[String],
   contents: Option[String]
 ) {
+  lazy val effectivePath = path.orElse(location)
 
   lazy val errorOrSecondaryFiles: ErrorOr[List[WomFile]] = {
     val dirsOrFiles: List[FileOrDirectory] = secondaryFiles.getOrElse(Array.empty).toList

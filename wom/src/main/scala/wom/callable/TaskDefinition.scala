@@ -2,6 +2,7 @@ package wom.callable
 
 import cats.implicits._
 import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import wdl.util.StringUtil
 import wom.core._
 import wom.expression.{IoFunctionSet, WomExpression}
@@ -9,13 +10,25 @@ import wom.graph.{Graph, TaskCall}
 import wom.values.{WomEvaluatedCallInputs, WomValue}
 import wom.{CommandPart, InstantiatedCommand, RuntimeAttributes}
 
+import scala.util.Try
+
 object TaskDefinition {
   private implicit val instantiatedCommandMonoid = cats.derive.monoid[InstantiatedCommand]
+  object CommandTemplateBuilder {
+    def fromValues(values: Seq[CommandPart]) = new CommandTemplateBuilder {
+      override def build(inputs: WomEvaluatedCallInputs): ErrorOr[Seq[CommandPart]] = values.validNel
+    }
+  }
+  abstract class CommandTemplateBuilder {
+    def build(inputs: WomEvaluatedCallInputs): ErrorOr[Seq[CommandPart]]
+  }
 }
 
 sealed trait TaskDefinition extends Callable {
 
-  def commandTemplate: Seq[CommandPart]
+  def commandTemplateBuilder: WomEvaluatedCallInputs => ErrorOr[Seq[CommandPart]]
+  // TODO ErrorOrify this ? Throw for now
+  def commandTemplate(taskInputs: WomEvaluatedCallInputs): Seq[CommandPart] = commandTemplateBuilder(taskInputs).toTry("Failed to build command").get
   def runtimeAttributes: RuntimeAttributes
   def meta: Map[String, String]
   def parameterMeta: Map[String, String]
@@ -37,7 +50,9 @@ sealed trait TaskDefinition extends Callable {
 
     // Just raw command parts, no separators.
     val rawCommandParts: List[ErrorOr[InstantiatedCommand]] =
-      commandTemplate.toList.map(_.instantiate(mappedInputs, functions, valueMapper, runtimeEnvironment))
+      commandTemplate(taskInputs).toList.flatMap({ commandPart =>
+        commandPart.instantiate(mappedInputs, functions, valueMapper, runtimeEnvironment).sequence
+      })
 
     // Add separator command parts and monoid smash down to one `ErrorOr[InstantiatedCommand]`.
     val instantiatedCommand: ErrorOr[InstantiatedCommand] =
@@ -47,9 +62,12 @@ sealed trait TaskDefinition extends Callable {
     instantiatedCommand map { c => c.copy(commandString = StringUtil.normalize(c.commandString))}
   }
 
-  def commandTemplateString: String = StringUtil.normalize(commandTemplate.map(_.toString).mkString)
+  def commandTemplateString(taskInputs: WomEvaluatedCallInputs): String = StringUtil.normalize(commandTemplate(taskInputs).map(_.toString).mkString)
 
-  override def toString: String = s"[Task name=$name commandTemplate=$commandTemplate}]"
+  override def toString: String = {
+    val template = Try(commandTemplate(Map.empty).toString()).getOrElse("Could not generate command template without inputs")
+    s"[Task name=$name commandTemplate=$template]"
+  }
 }
 
 /**
@@ -57,7 +75,7 @@ sealed trait TaskDefinition extends Callable {
   * Can be called but cannot be used in an Executable as a standalone execution.
   */
 final case class CallableTaskDefinition(name: String,
-                                        commandTemplate: Seq[CommandPart],
+                                        commandTemplateBuilder: WomEvaluatedCallInputs => ErrorOr[Seq[CommandPart]],
                                         runtimeAttributes: RuntimeAttributes,
                                         meta: Map[String, String],
                                         parameterMeta: Map[String, String],
@@ -81,7 +99,7 @@ final case class ExecutableTaskDefinition private (callableTaskDefinition: Calla
   override def inputs = callableTaskDefinition.inputs
   override def outputs = callableTaskDefinition.outputs
 
-  override def commandTemplate = callableTaskDefinition.commandTemplate
+  override def commandTemplateBuilder = callableTaskDefinition.commandTemplateBuilder
   override def runtimeAttributes = callableTaskDefinition.runtimeAttributes
   override def meta = callableTaskDefinition.meta
   override def parameterMeta = callableTaskDefinition.parameterMeta

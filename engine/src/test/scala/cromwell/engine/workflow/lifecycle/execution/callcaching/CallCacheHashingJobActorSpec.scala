@@ -4,6 +4,7 @@ import _root_.wdl.command.StringCommandPart
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{TestFSMRef, TestProbe}
 import cats.data.NonEmptyList
+import cats.syntax.validated._
 import cromwell.backend._
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.{FileHashResponse, SingleFileHashRequest}
 import cromwell.core.TestKitSuite
@@ -22,7 +23,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
   behavior of "CallCacheReadingJobActor"
 
   def templateJobDescriptor(inputs: Map[LocallyQualifiedName, WomValue] = Map.empty) = {
-    val task = WomMocks.mockTaskDefinition("task").copy(commandTemplate = List(StringCommandPart("Do the stuff... now!!")))
+    val task = WomMocks.mockTaskDefinition("task").copy(commandTemplateBuilder = Function.const(List(StringCommandPart("Do the stuff... now!!")).validNel))
     val call = WomMocks.mockTaskCall(WomIdentifier("call"), definition = task)
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
     val runtimeAttributes = Map(

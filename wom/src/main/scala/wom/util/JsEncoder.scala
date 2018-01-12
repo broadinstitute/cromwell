@@ -7,7 +7,7 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr._
 import wom.types.WomNothingType
-import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomMap, WomOptionalValue, WomString, WomValue}
+import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomMap, WomObjectLike, WomOptionalValue, WomString, WomValue}
 
 import scala.collection.JavaConverters._
 
@@ -45,6 +45,9 @@ class JsEncoder {
       case WomArray(_, array) => array.toList.traverse[ErrorOr, AnyRef](encode).map(JsArray)
       case WomMap(_, map) => map.traverse({
         case (mapKey, mapValue) => (encodeString(mapKey), encode(mapValue)).mapN((_, _))
+      }).map(JsMap)
+      case objectLike: WomObjectLike => objectLike.values.traverse({
+        case (key, innerValue) => (key.validNel: ErrorOr[String], encode(innerValue)).mapN((_, _))
       }).map(JsMap)
       case _ => s"$getClass is unable to encode value: $value".invalidNel
     }

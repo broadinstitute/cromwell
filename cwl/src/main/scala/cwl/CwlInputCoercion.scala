@@ -56,6 +56,15 @@ private [cwl] object CwlInputCoercion extends Json.Folder[DelayedCoercionFunctio
         case Left(errors) => errors.message.invalidNel
         case Right(directory) => directory.asWomValue
       }
+    case composite: WomCompositeType =>
+      val foldedMap = value.toList.traverse[ErrorOr, (String, WomValue)]({
+        case (k, v) =>
+          composite.typeMap.get(k).map({ valueType =>
+            v.foldWith(this).apply(valueType).map(k -> _)
+          }).getOrElse(s"Input field $k is not defined in the composite input type ${composite}".invalidNel)
+      }).map(_.toMap[String, WomValue])
+
+      foldedMap.map(WomObject.withType(_, composite))
     case WomObjectType =>
       val foldedMap = value.toList.traverse[ErrorOr, (String, WomValue)]({
         case (k, v) => v.foldWith(this).apply(WomAnyType).map(k -> _)

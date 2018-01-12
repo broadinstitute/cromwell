@@ -31,7 +31,7 @@ object WomValueSimpleton {
       case WomArray(_, arrayValue) => arrayValue.zipWithIndex flatMap { case (arrayItem, index) => arrayItem.simplify(s"$name[$index]") }
       case WomMap(_, mapValue) => mapValue flatMap { case (key, value) => value.simplify(s"$name:${key.valueString.escapeMeta}") }
       case WomPair(left, right) => left.simplify(s"$name:left") ++ right.simplify(s"$name:right")
-      case womObjectLike: WomObjectLike => womObjectLike.value flatMap {
+      case womObjectLike: WomObjectLike => womObjectLike.values flatMap {
         case (key, value) => value.simplify(s"$name:${key.escapeMeta}")
       }
       // TODO: WOM: WOMFILE: Better simplification of listed dirs / populated files

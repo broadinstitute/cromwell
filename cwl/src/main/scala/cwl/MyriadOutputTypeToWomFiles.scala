@@ -20,8 +20,9 @@ object MyriadOutputTypeToWomFiles extends Poly1 {
     _.fold(MyriadOutputInnerTypeToWomFiles)
   }
 
-  implicit def acwl: Aux[Array[MyriadOutputInnerType], EvaluationFunction => ErrorOr[Set[WomFile]]] = at[Array[MyriadOutputInnerType]] { _ => _ =>
-    throw new RuntimeException(s"multi types are not supported yet")
+  implicit def acwl: Aux[Array[MyriadOutputInnerType], EvaluationFunction => ErrorOr[Set[WomFile]]] = at[Array[MyriadOutputInnerType]] { types => 
+    evalFunction =>
+      types.toList.traverse[ErrorOr, Set[WomFile]](_.fold(MyriadOutputInnerTypeToWomFiles).apply(evalFunction)).map(_.toSet.flatten)
   }
 }
 

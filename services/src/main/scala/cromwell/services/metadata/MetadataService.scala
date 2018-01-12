@@ -156,16 +156,17 @@ object MetadataService {
     case populated: WomMaybePopulatedFile =>
       import mouse.all._
       val secondaryFiles = populated.secondaryFiles.toEvents(metadataKey.copy(key = s"${metadataKey.key}:secondaryFiles"))
-      
-      List(toPrimitiveEvent(metadataKey, "value")(populated.valueOption),
-          populated.checksumOption |> toPrimitiveEvent(metadataKey, "checksum"),
-          populated.sizeOption |> toPrimitiveEvent(metadataKey, "size"),
-          populated.formatOption |> toPrimitiveEvent(metadataKey, "format"),
-          populated.contentsOption |> toPrimitiveEvent(metadataKey, "contents")
+
+      List(populated.valueOption |> toPrimitiveEvent(metadataKey, "value"),
+        populated.checksumOption |> toPrimitiveEvent(metadataKey, "checksum"),
+        populated.sizeOption |> toPrimitiveEvent(metadataKey, "size"),
+        populated.formatOption |> toPrimitiveEvent(metadataKey, "format"),
+        populated.contentsOption |> toPrimitiveEvent(metadataKey, "contents")
       ) ++ secondaryFiles
     case listedDirectory: WomMaybeListedDirectory =>
+      import mouse.all._
       val listing = listedDirectory.listingOption.toList.flatten.toEvents(metadataKey.copy(key = s"${metadataKey.key}:listing"))
-      List(toPrimitiveEvent(metadataKey, "value")(listedDirectory.valueOption)) ++ listing
+      List(listedDirectory.valueOption |> toPrimitiveEvent(metadataKey, "value")) ++ listing
     case value =>
       List(MetadataEvent(metadataKey, MetadataValue(value)))
   }

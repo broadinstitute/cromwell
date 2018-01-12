@@ -30,7 +30,7 @@ class DirectorySpec extends FlatSpec with Matchers {
     val command = call.callable.asInstanceOf[CallableTaskDefinition].instantiateCommand(
       defaultCallInputs, PlaceholderIoFunctionSet, identity, runtimeEnvironment
     ).toTry.get
-    command.commandString should be("echo exampledir")
+    command.commandString should be("""   "echo" exampledir   """.trim)
   }
 
 }

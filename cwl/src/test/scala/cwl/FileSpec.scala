@@ -31,7 +31,7 @@ class FileSpec extends FlatSpec with Matchers {
       defaultCallInputs, PlaceholderIoFunctionSet, identity, runtimeEnvironment
     ).toEither
     val command = commandEither.right.get.commandString
-    command should be("echo example.txt")
+    command should be("""   "echo" example.txt   """.trim)
   }
 
 }

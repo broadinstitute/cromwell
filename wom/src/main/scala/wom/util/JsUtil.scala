@@ -93,7 +93,7 @@ object JsUtil {
     * https://github.com/JetBrains/jdk8u_nashorn/blob/jdk8u76-b03/src/jdk/nashorn/internal/runtime/resources/Options.properties
     * [[jdk.nashorn.api.scripting.NashornScriptEngineFactory#DEFAULT_OPTIONS]]
     */
-  private val nashornStrictArgs = Array("-doe", "-strict", "--no-java", "--no-syntax-extensions", "--language=es5")
+  private val nashornStrictArgs = Array("-doe", "--no-java", "--no-syntax-extensions", "--language=es5")
 
   /**
     * Don't allow any java classes.

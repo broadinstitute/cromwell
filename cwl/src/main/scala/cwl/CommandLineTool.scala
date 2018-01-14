@@ -210,7 +210,6 @@ case class CommandLineTool private(
       // so the filename is the fallback.
       def taskName = Try(FullyQualifiedName(id).id).getOrElse(Paths.get(id).getFileName.toString)
 
-
       val adHocFileCreations: Set[WomExpression] = (for {
         requirements <- requirements.getOrElse(Array.empty[Requirement])
         initialWorkDirRequirement <- requirements.select[InitialWorkDirRequirement].toArray

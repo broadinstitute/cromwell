@@ -38,7 +38,6 @@ object ExpressionEvaluator {
     s"$expressionScript;$script"
   }
 
-
   def evalFunction(function: ECMAScriptFunction, parameterContext: ParameterContext, expressionLib: ExpressionLib): ErrorOr[WomValue] = {
     function.value match {
       case ECMAScriptFunctionRegex(script) =>

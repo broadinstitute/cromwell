@@ -108,5 +108,5 @@ package object cwl extends TypeAliases {
     }
   }
 
-  type ExpressionLib = Vector[ECMAScriptFunction]
+  type ExpressionLib = Vector[String]
 }

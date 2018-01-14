@@ -208,7 +208,7 @@ case class OutputArraySchema(
 
 case class InlineJavascriptRequirement(
   `class`: W.`"InlineJavascriptRequirement"`.T = "InlineJavascriptRequirement".narrow,
-  expressionLib: Option[Array[ECMAScriptFunction]] = None)
+  expressionLib: Option[Array[String]] = None)
 
 case class SchemaDefRequirement(
   `class`: W.`"SchemaDefRequirement"`.T,

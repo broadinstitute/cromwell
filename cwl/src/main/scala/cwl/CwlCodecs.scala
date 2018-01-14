@@ -22,5 +22,5 @@ object CwlCodecs {
   implicit val cltD = implicitly[Decoder[CommandLineTool]]
   implicit val etD = implicitly[Decoder[ExpressionTool]]
 
-  def decodeCwl(in: String): Checked[CwlFile] = decodeAccumulating[CwlFile](in).leftMap(_.map(_.getMessage)).toEither
+  def decodeCwl(in: String): Checked[CwlFile] = decodeAccumulating[CwlFile](in).leftMap(_.map(_.getMessage).map(s"error parsing: $in" + _)).toEither
 }

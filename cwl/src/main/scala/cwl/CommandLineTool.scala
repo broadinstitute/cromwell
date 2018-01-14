@@ -14,12 +14,11 @@ import common.validation.Validation._
 import cwl.CommandLineTool._
 import cwl.CwlType.CwlType
 import cwl.CwlVersion._
-import cwl.ExpressionEvaluator.ECMAScriptFunction
 import cwl.command.ParentName
 import cwl.requirement.RequirementToAttributeMap
 import eu.timepit.refined.W
 import shapeless.syntax.singleton._
-import shapeless.{:+:, CNil, Coproduct, Poly1, Witness}
+import shapeless.{:+:, CNil, Coproduct, Inl, Poly1, Witness}
 import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, CallableTaskDefinition}
 import wom.executable.Executable
@@ -155,11 +154,12 @@ case class CommandLineTool private(
     validateRequirementsAndHints(validator) map { requirementsAndHints: Seq[cwl.Requirement] =>
       val id = this.id
 
-      lazy val expressionLib: Vector[ECMAScriptFunction] =
-        parentExpressionLib ++
-          requirementsAndHints.toList.collect {
-            case js: InlineJavascriptRequirement => js
-          }.flatMap(_.expressionLib.toList.flatten).toVector
+      val expressionLib: ExpressionLib =
+        parentExpressionLib ++ inlineJavascriptRequirements(requirementsAndHints)
+
+      val commandTemplate: Seq[CommandPart] = baseCommand.toSeq.flatMap(_.fold(BaseCommandToCommandParts)) ++
+        arguments.toSeq.flatMap(_.map(_.fold(ArgumentToCommandPart).apply(expressionLib))) ++
+        CommandLineTool.orderedForCommandLine(inputs).map(InputParameterCommandPart.apply)
 
       // This is basically doing a `foldMap` but can't actually be a `foldMap` because:
       // - There is no monoid instance for `WomExpression`s.
@@ -302,6 +302,14 @@ object CommandLineTool {
 
   // Ordering for a CommandPartSortMapping: order by sorting key
   implicit val SortKeyAndCommandPartOrdering: Ordering[SortKeyAndCommandPart] = Ordering.by(_.sortingKey)
+
+  def inlineJavascriptRequirements(allRequirementsAndHints: Seq[Requirement]): Vector[String] = {
+    val inlineJavscriptRequirements: Seq[InlineJavascriptRequirement] = allRequirementsAndHints.toList.collect {
+      case Inl(ijr@InlineJavascriptRequirement(_,_)) => ijr
+    }
+
+    inlineJavscriptRequirements.flatMap(_.expressionLib.toList.flatten).toVector
+  }
 
   def apply(inputs: Array[CommandInputParameter] = Array.empty,
             outputs: Array[CommandOutputParameter] = Array.empty,

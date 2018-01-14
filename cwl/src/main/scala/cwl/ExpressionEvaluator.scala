@@ -24,22 +24,24 @@ object ExpressionEvaluator {
   type ECMAScriptFunction = String Refined MatchesRegex[ECMAScriptFunctionWitness.T]
   type MatchesECMAFunction = MatchesRegex[ECMAScriptFunctionWitness.T]
 
-  def evalExpression(expression: ECMAScriptExpression, parameterContext: ParameterContext, expressionLib: Vector[ECMAScriptFunction]): ErrorOr[WomValue] = {
+  def evalExpression(expression: ECMAScriptExpression, parameterContext: ParameterContext, expressionLib: ExpressionLib): ErrorOr[WomValue] = {
     expression.value match {
       case ECMAScriptExpressionRegex(script) =>
-        val expressionScript = expressionLibToScript(expressionLib)
-        eval(expressionScript + script, parameterContext)
+        eval(expressionFromParts(expressionLib, script), parameterContext)
       case unmatched =>
         s"Expression '$unmatched' was unable to be matched to regex '${ECMAScriptExpressionWitness.value}'".invalidNel
     }
   }
 
+  def expressionFromParts(lib: ExpressionLib, script: String) = {
+    val expressionScript: String = lib.mkString(";")
+    s"$expressionScript;$script"
+  }
 
-  def evalFunction(function: ECMAScriptFunction, parameterContext: ParameterContext, expressionLib: Vector[ECMAScriptFunction]): ErrorOr[WomValue] = {
+
+  def evalFunction(function: ECMAScriptFunction, parameterContext: ParameterContext, expressionLib: ExpressionLib): ErrorOr[WomValue] = {
     function.value match {
       case ECMAScriptFunctionRegex(script) =>
-
-        val expressionScript = expressionLibToScript(expressionLib)
 
         val functionExpression =
           s"""|(function() {
@@ -47,7 +49,7 @@ object ExpressionEvaluator {
               |})();
               |""".stripMargin.replace("FUNCTION_BODY", script)
 
-        eval(expressionScript + functionExpression, parameterContext)
+        eval(expressionFromParts(expressionLib, functionExpression), parameterContext)
       case unmatched =>
         s"Expression '$unmatched' was unable to be matched to regex '${ECMAScriptFunctionWitness.value}'".invalidNel
     }
@@ -57,6 +59,7 @@ object ExpressionEvaluator {
   private lazy val cwlJsDecoder = new CwlJsDecoder()
 
   def eval(expr: String, parameterContext: ParameterContext): ErrorOr[WomValue] = {
+    println(s"evaluating $expr")
     val (rawValues, mapValues) = paramValues(parameterContext)
     JsUtil.evalStructish(expr, rawValues, mapValues, cwlJsEncoder, cwlJsDecoder)
   }
@@ -86,18 +89,5 @@ object ExpressionEvaluator {
       "outdirSize" -> WomFloat(runtime.outputPathSize.toDouble),
       "tmpdirSize" -> WomFloat(runtime.tempPathSize.toDouble)
     )
-  }
-
-
-  def expressionLibToScript: Vector[ECMAScriptFunction] => String = _.map(funcToScript).mkString("")
-
-  def funcToScript: ECMAScriptFunction => String =
-  _.value match {
-    case ECMAScriptFunctionRegex(script) =>
-        s"""|(function() {
-            |FUNCTION_BODY
-            |})();
-            |""".stripMargin.replaceAll("FUNCTION_BODY", script)
-    case _ => throw new RuntimeException(s"Expression was unable to be matched to Regex. This is never supposed to happen thanks to our JSON parsing library")
   }
 }

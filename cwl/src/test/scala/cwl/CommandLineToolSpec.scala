@@ -9,6 +9,7 @@ import wom.callable.RuntimeEnvironment
 import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values.{WomArray, WomBoolean, WomEvaluatedCallInputs, WomFloat, WomInteger, WomObject, WomSingleFile, WomString, WomValue}
+import shapeless.Coproduct
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -277,5 +278,10 @@ class CommandLineToolSpec extends FlatSpec with Matchers with ParallelTestExecut
                """.stripMargin
 
     validate(tool, List("echo", "--prefixhelloA"))
+  }
+
+  it should "pull expression libs from all requirements" in {
+    val list = List(Coproduct[Requirement](InlineJavascriptRequirement(`class` = "InlineJavascriptRequirement", expressionLib = Some(Array("a")))))
+    CommandLineTool.inlineJavascriptRequirements(list).head shouldBe "a"
   }
 }

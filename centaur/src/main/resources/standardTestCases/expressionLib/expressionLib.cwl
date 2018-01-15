@@ -1,5 +1,8 @@
 class: CommandLineTool
 cwlVersion: v1.0
+hints:
+  DockerRequirement:
+    dockerPull: "ubuntu:latest"
 requirements:
   InlineJavascriptRequirement:
     expressionLib:

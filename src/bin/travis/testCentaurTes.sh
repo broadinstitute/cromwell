@@ -84,8 +84,8 @@ CROMWELL_JAR=$(find "$(pwd)/target/scala-2.12" -name "cromwell-*.jar")
 TES_CENTAUR_CONF="$(pwd)/src/bin/travis/resources/tes_centaur.conf"
 FUNNEL_CONF="$(pwd)/src/bin/travis/resources/funnel.conf"
 
-wget https://github.com/ohsu-comp-bio/funnel/releases/download/0.4.1/funnel-linux-amd64-0.4.1.tar.gz
-tar xzf funnel-linux-amd64-0.4.1.tar.gz
+wget https://github.com/ohsu-comp-bio/funnel/releases/download/0.5.0/funnel-linux-amd64-0.5.0.tar.gz
+tar xzf funnel-linux-amd64-0.5.0.tar.gz
 FUNNEL_PATH="$(pwd)/funnel"
 
 mkdir logs

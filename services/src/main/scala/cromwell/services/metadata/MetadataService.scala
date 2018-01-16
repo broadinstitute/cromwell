@@ -130,8 +130,9 @@ object MetadataService {
     }
   }
   
-  private def toPrimitiveEvent(metadataKey: MetadataKey, valueName: String)(value: Option[Any]) = {
-    MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:$valueName"), value.map(MetadataValue.apply))
+  private def toPrimitiveEvent(metadataKey: MetadataKey, valueName: String)(value: Option[Any]) = value match {
+    case Some(v) => MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:$valueName"), MetadataValue(v))
+    case None => MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:$valueName"), MetadataValue("", MetadataNull))
   }
   
   def womValueToMetadataEvents(metadataKey: MetadataKey, womValue: WomValue): Iterable[MetadataEvent] = womValue match {
@@ -157,7 +158,9 @@ object MetadataService {
       import mouse.all._
       val secondaryFiles = populated.secondaryFiles.toEvents(metadataKey.copy(key = s"${metadataKey.key}:secondaryFiles"))
 
-      List(populated.valueOption |> toPrimitiveEvent(metadataKey, "value"),
+      List(
+        MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:class"), MetadataValue("File")),
+        populated.valueOption |> toPrimitiveEvent(metadataKey, "location"),
         populated.checksumOption |> toPrimitiveEvent(metadataKey, "checksum"),
         populated.sizeOption |> toPrimitiveEvent(metadataKey, "size"),
         populated.formatOption |> toPrimitiveEvent(metadataKey, "format"),
@@ -166,7 +169,10 @@ object MetadataService {
     case listedDirectory: WomMaybeListedDirectory =>
       import mouse.all._
       val listing = listedDirectory.listingOption.toList.flatten.toEvents(metadataKey.copy(key = s"${metadataKey.key}:listing"))
-      List(listedDirectory.valueOption |> toPrimitiveEvent(metadataKey, "value")) ++ listing
+      List(
+        MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:class"), MetadataValue("Directory")),
+        listedDirectory.valueOption |> toPrimitiveEvent(metadataKey, "location")
+      ) ++ listing
     case value =>
       List(MetadataEvent(metadataKey, MetadataValue(value)))
   }

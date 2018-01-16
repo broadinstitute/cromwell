@@ -80,15 +80,17 @@ class MetadataServiceSpec extends FlatSpec with Matchers with TableDrivenPropert
     )
 
     womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), womMaybePopulatedFileOuter).toList should contain theSameElementsInOrderAs List(
-      MetadataEvent(MetadataKey(workflowId, None, "root:value"), MetadataValue("fileValue")),
+      MetadataEvent(MetadataKey(workflowId, None, "root:class"), MetadataValue("File")),
+      MetadataEvent(MetadataKey(workflowId, None, "root:location"), MetadataValue("fileValue")),
       MetadataEvent(MetadataKey(workflowId, None, "root:checksum"), MetadataValue("checksum")),
       MetadataEvent(MetadataKey(workflowId, None, "root:size"), MetadataValue(5L)),
       MetadataEvent(MetadataKey(workflowId, None, "root:format"), MetadataValue("format")),
       MetadataEvent(MetadataKey(workflowId, None, "root:contents"), MetadataValue("contents")),
-      MetadataEvent(MetadataKey(workflowId, None, "root:secondaryFiles[0]:value"), MetadataValue("innerFileValue")),
-      MetadataEvent(MetadataKey(workflowId, None, "root:secondaryFiles[0]:checksum"), None),
-      MetadataEvent(MetadataKey(workflowId, None, "root:secondaryFiles[0]:size"), None),
-      MetadataEvent(MetadataKey(workflowId, None, "root:secondaryFiles[0]:format"), None),
+      MetadataEvent(MetadataKey(workflowId, None, "root:secondaryFiles[0]:class"), MetadataValue("File")),
+      MetadataEvent(MetadataKey(workflowId, None, "root:secondaryFiles[0]:location"), MetadataValue("innerFileValue")),
+      MetadataEvent(MetadataKey(workflowId, None, "root:secondaryFiles[0]:checksum"), MetadataValue("", MetadataNull)),
+      MetadataEvent(MetadataKey(workflowId, None, "root:secondaryFiles[0]:size"), MetadataValue("", MetadataNull)),
+      MetadataEvent(MetadataKey(workflowId, None, "root:secondaryFiles[0]:format"), MetadataValue("", MetadataNull)),
       MetadataEvent(MetadataKey(workflowId, None, "root:secondaryFiles[0]:contents"), MetadataValue("innerContents")),
       MetadataEvent(MetadataKey(workflowId, None, "root:secondaryFiles[0]:secondaryFiles[]"), None),
       MetadataEvent(MetadataKey(workflowId, None, "root:secondaryFiles[1]"), MetadataValue("outerSingleFile"))
@@ -115,8 +117,10 @@ class MetadataServiceSpec extends FlatSpec with Matchers with TableDrivenPropert
     )
 
     womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), womMaybeListedDirectoryOuter).toList should contain theSameElementsInOrderAs List(
-      MetadataEvent(MetadataKey(workflowId, None, "root:value"), MetadataValue("directoryValue")),
-      MetadataEvent(MetadataKey(workflowId, None, "root:listing[0]:value"), MetadataValue("innerDirectoryValue")),
+      MetadataEvent(MetadataKey(workflowId, None, "root:class"), MetadataValue("Directory")),
+      MetadataEvent(MetadataKey(workflowId, None, "root:location"), MetadataValue("directoryValue")),
+      MetadataEvent(MetadataKey(workflowId, None, "root:listing[0]:class"), MetadataValue("Directory")),
+      MetadataEvent(MetadataKey(workflowId, None, "root:listing[0]:location"), MetadataValue("innerDirectoryValue")),
       MetadataEvent(MetadataKey(workflowId, None, "root:listing[0]:listing[]"), None),
       MetadataEvent(MetadataKey(workflowId, None, "root:listing[1]"), MetadataValue("outerSingleFile"))
     )

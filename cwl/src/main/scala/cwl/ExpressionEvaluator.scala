@@ -58,7 +58,6 @@ object ExpressionEvaluator {
   private lazy val cwlJsDecoder = new CwlJsDecoder()
 
   def eval(expr: String, parameterContext: ParameterContext): ErrorOr[WomValue] = {
-    println(s"evaluating $expr")
     val (rawValues, mapValues) = paramValues(parameterContext)
     JsUtil.evalStructish(expr, rawValues, mapValues, cwlJsEncoder, cwlJsDecoder)
   }

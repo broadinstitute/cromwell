@@ -1,7 +1,5 @@
 package cwl
 
-import cats.instances.list._
-import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.Validation._
@@ -94,13 +92,15 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
         val expressionEvaluation = ExpressionEvaluator.eval(expression, ParameterContext(inputValues), expressionLib)
 
         expressionEvaluation flatMap {
-          case array: WomArray if WomArrayType(WomSingleFileType).coercionDefined(array) =>
-            val newFileArray: ErrorOr[List[WomFile]] =
-              array.value.map(_.valueString).toList.traverse[ErrorOr, WomSingleFile] { source: String =>
-                val dest = source.split('/').last
-                validate(Await.result(ioFunctionSet.copyFile(source, dest), Duration.Inf))
-              }
-            newFileArray map { nfa => WomArray(WomArrayType(WomSingleFileType), nfa) }
+          case array: WomArray if WomArrayType(WomSingleFileType).coercionDefined(array) => WomArrayType(WomSingleFileType).coerceRawValue(array).toErrorOr
+//            val newFileArray: ErrorOr[List[WomFile]] =
+//              array.value.map(_.valueString).toList.traverse[ErrorOr, WomSingleFile] { source: String =>
+//                val dest = source.split('/').last
+//                validate(Await.result(ioFunctionSet.copyFile(source, dest), Duration.Inf))
+//              }
+//            newFileArray map { nfa => WomArray(WomArrayType(WomSingleFileType), nfa) }
+          case file: WomSingleFile =>
+            file.validNel
 
           case other => s"InitialWorkDirRequirement listing expression must be Array[File] but got ${other.womType.toDisplayString}".invalidNel
         }

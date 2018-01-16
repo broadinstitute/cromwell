@@ -300,7 +300,7 @@ object CommandLineTool {
 
   def inlineJavascriptRequirements(allRequirementsAndHints: Seq[Requirement]): Vector[String] = {
     val inlineJavscriptRequirements: Seq[InlineJavascriptRequirement] = allRequirementsAndHints.toList.collect {
-      case Inl(ijr@InlineJavascriptRequirement(_,_)) => ijr
+      case Inl(ijr:InlineJavascriptRequirement) => ijr
     }
 
     inlineJavscriptRequirements.flatMap(_.expressionLib.toList.flatten).toVector

@@ -157,10 +157,6 @@ case class CommandLineTool private(
       val expressionLib: ExpressionLib =
         parentExpressionLib ++ inlineJavascriptRequirements(requirementsAndHints)
 
-      val commandTemplate: Seq[CommandPart] = baseCommand.toSeq.flatMap(_.fold(BaseCommandToCommandParts)) ++
-        arguments.toSeq.flatMap(_.map(_.fold(ArgumentToCommandPart).apply(expressionLib))) ++
-        CommandLineTool.orderedForCommandLine(inputs).map(InputParameterCommandPart.apply)
-
       // This is basically doing a `foldMap` but can't actually be a `foldMap` because:
       // - There is no monoid instance for `WomExpression`s.
       // - We want to fold from the right so the hints and requirements with the lowest precedence are processed first

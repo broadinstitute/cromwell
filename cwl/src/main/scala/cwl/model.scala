@@ -9,7 +9,6 @@ import cwl.LinkMergeMethod.LinkMergeMethod
 import cwl.WorkflowStepInput.InputSource
 import common.validation.ErrorOr.ErrorOr
 import cwl.CommandLineTool.{CommandBindingSortingKey, SortKeyAndCommandPart}
-import cwl.ExpressionEvaluator.ECMAScriptFunction
 import cwl.command.ParentName
 import io.circe.Json
 import wom.types.WomType

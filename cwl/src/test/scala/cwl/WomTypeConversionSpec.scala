@@ -3,9 +3,9 @@ package cwl
 import org.scalacheck.Properties
 import org.scalacheck.Prop._
 import shapeless.Coproduct
-import wom.types.{WomArrayType, WomStringType}
-
+import wom.types.{WomArrayType, WomOptionalType, WomStringType}
 import mouse.`try`._
+
 import scala.util.Try
 
 class WomTypeConversionSpec extends Properties("CWL -> WOM Conversion"){
@@ -22,9 +22,9 @@ class WomTypeConversionSpec extends Properties("CWL -> WOM Conversion"){
     Coproduct[MyriadInputType](y).fold(MyriadInputTypeToWomType) == WomStringType
   }
 
-  property("Array of things is array of one type") = secure {
+  property("Array of a single type is actually one type not in an array") = secure {
     val y = Coproduct[MyriadInputInnerType](CwlType.String)
-    Coproduct[MyriadInputType](Array(y)).fold(MyriadInputTypeToWomType) == WomArrayType(WomStringType)
+    Coproduct[MyriadInputType](Array(y)).fold(MyriadInputTypeToWomType) == WomStringType
   }
 
   property("Array of more than one type is not allowed") = secure {
@@ -32,7 +32,16 @@ class WomTypeConversionSpec extends Properties("CWL -> WOM Conversion"){
     val z = Coproduct[MyriadInputInnerType](CwlType.Boolean)
     Try(Coproduct[MyriadInputType](Array(y, z)).fold(MyriadInputTypeToWomType)).cata(
       s =>  throw new RuntimeException(s"failure expected but got $s!"),
-      _.getMessage == "Wom does not provide an array of >1 types"
+      _.getMessage == "Multi types not supported yet"
+    )
+  }
+
+  property("Array of a type followed by a null is an optional type") = secure {
+    val y = Coproduct[MyriadInputInnerType](CwlType.String)
+    val z = Coproduct[MyriadInputInnerType](CwlType.Null)
+    Try(Coproduct[MyriadInputType](Array(y, z)).fold(MyriadInputTypeToWomType)).cata(
+      success => (success == WomOptionalType(WomStringType)) :| "input should evaluate to an optional string type",
+      failure => false :| s"expected success but received a failure"
     )
   }
 
@@ -48,14 +57,23 @@ class WomTypeConversionSpec extends Properties("CWL -> WOM Conversion"){
     Coproduct[MyriadOutputType](y).fold(MyriadOutputTypeToWomType) == WomStringType
   }
 
-  property("Array of things is array of one type") = secure {
+  property("Array of a single type is the same as one type not in an array") = secure {
     val y = Coproduct[MyriadOutputInnerType](CwlType.String)
-    Coproduct[MyriadOutputType](Array(y)).fold(MyriadOutputTypeToWomType) == WomArrayType(WomStringType)
+    Coproduct[MyriadOutputType](Array(y)).fold(MyriadOutputTypeToWomType) == WomStringType
   }
 
-  property("Array of more than one type is not allowed") = throws(classOf[RuntimeException]) {
+  property("Array of more than one type is not allowed") = throws(classOf[NotImplementedError]) {
     val y = Coproduct[MyriadOutputInnerType](CwlType.String)
     val z = Coproduct[MyriadOutputInnerType](CwlType.Boolean)
     Coproduct[MyriadOutputType](Array(y, z)).fold(MyriadOutputTypeToWomType)
+  }
+
+  property("Array of a type followed by a null is an optional type") = secure {
+    val y = Coproduct[MyriadOutputInnerType](CwlType.String)
+    val z = Coproduct[MyriadOutputInnerType](CwlType.Null)
+    Try(Coproduct[MyriadOutputType](Array(y, z)).fold(MyriadOutputTypeToWomType)).cata(
+      success => (success == WomOptionalType(WomStringType)) :| "input should evaluate to an optional string type",
+      failure => false :| s"expected success but received a failure"
+    )
   }
 }

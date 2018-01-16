@@ -67,7 +67,7 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
     _.select[Workflow].get
   }.value.unsafeRunSync.fold(error => throw new RuntimeException(s"broken parse! msg was $error"), identity)
 
-  lazy val graph = cwlWorkflow.womDefinition(AcceptAllRequirements) match {
+  lazy val graph = cwlWorkflow.womDefinition(AcceptAllRequirements, Vector.empty) match {
     case Left(errors) => fail(s"Failed to build wom definition: ${errors.toList.mkString(", ")}")
     case Right(womDef) => womDef.graph
   }

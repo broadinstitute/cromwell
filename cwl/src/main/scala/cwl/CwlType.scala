@@ -112,7 +112,8 @@ object File {
 
   def secondaryExpressionFiles(primaryWomFile: WomFile,
                                expression: Expression,
-                               parameterContext: ParameterContext): ErrorOr[List[WomFile]] = {
+                               parameterContext: ParameterContext,
+                               expressionLib: ExpressionLib): ErrorOr[List[WomFile]] = {
     /*
     If the value is an expression, the value of self in the expression must be the primary input or output File object
     to which this binding applies.
@@ -135,7 +136,7 @@ object File {
       }
     }
 
-    val possibleArrayErrorOr: ErrorOr[WomValue] = ExpressionEvaluator.eval(expression, secondaryParameterContext)
+    val possibleArrayErrorOr: ErrorOr[WomValue] = ExpressionEvaluator.eval(expression, secondaryParameterContext, expressionLib)
     possibleArrayErrorOr.flatMap(parseResult(nestedLevel = 0))
   }
 

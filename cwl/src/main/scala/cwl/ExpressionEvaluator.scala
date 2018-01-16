@@ -24,23 +24,31 @@ object ExpressionEvaluator {
   type ECMAScriptFunction = String Refined MatchesRegex[ECMAScriptFunctionWitness.T]
   type MatchesECMAFunction = MatchesRegex[ECMAScriptFunctionWitness.T]
 
-  def evalExpression(expression: ECMAScriptExpression)(parameterContext: ParameterContext): ErrorOr[WomValue] = {
+  def evalExpression(expression: ECMAScriptExpression, parameterContext: ParameterContext, expressionLib: ExpressionLib): ErrorOr[WomValue] = {
     expression.value match {
-      case ECMAScriptExpressionRegex(script) => eval(script, parameterContext)
+      case ECMAScriptExpressionRegex(script) =>
+        eval(expressionFromParts(expressionLib, script), parameterContext)
       case unmatched =>
         s"Expression '$unmatched' was unable to be matched to regex '${ECMAScriptExpressionWitness.value}'".invalidNel
     }
   }
 
-  def evalFunction(function: ECMAScriptFunction)(parameterContext: ParameterContext): ErrorOr[WomValue] = {
+  def expressionFromParts(lib: ExpressionLib, script: String) = {
+    val expressionScript: String = lib.mkString(";")
+    s"$expressionScript;$script"
+  }
+
+  def evalFunction(function: ECMAScriptFunction, parameterContext: ParameterContext, expressionLib: ExpressionLib): ErrorOr[WomValue] = {
     function.value match {
       case ECMAScriptFunctionRegex(script) =>
+
         val functionExpression =
           s"""|(function() {
               |FUNCTION_BODY
               |})();
               |""".stripMargin.replace("FUNCTION_BODY", script)
-        eval(functionExpression, parameterContext)
+
+        eval(expressionFromParts(expressionLib, functionExpression), parameterContext)
       case unmatched =>
         s"Expression '$unmatched' was unable to be matched to regex '${ECMAScriptFunctionWitness.value}'".invalidNel
     }
@@ -54,8 +62,8 @@ object ExpressionEvaluator {
     JsUtil.evalStructish(expr, rawValues, mapValues, cwlJsEncoder, cwlJsDecoder)
   }
 
-  def eval(expr: Expression, parameterContext: ParameterContext): ErrorOr[WomValue] = {
-    expr.fold(EvaluateExpression).apply(parameterContext)
+  def eval(expr: Expression, parameterContext: ParameterContext, expressionLib: ExpressionLib): ErrorOr[WomValue] = {
+    expr.fold(EvaluateExpression).apply(parameterContext, expressionLib)
   }
 
   def paramValues(parameterContext: ParameterContext): (Map[String, WomValue], Map[String, Map[String, WomValue]]) = {
@@ -80,5 +88,4 @@ object ExpressionEvaluator {
       "tmpdirSize" -> WomFloat(runtime.tempPathSize.toDouble)
     )
   }
-
 }

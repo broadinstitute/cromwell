@@ -74,7 +74,8 @@ case class WorkflowStep(
                      workflow: Workflow,
                      knownNodes: Set[GraphNode],
                      workflowInputs: Map[String, GraphNodeOutputPort],
-                     validator: RequirementsValidator): Checked[Set[GraphNode]] = {
+                     validator: RequirementsValidator,
+                     expressionLib: ExpressionLib): Checked[Set[GraphNode]] = {
 
     implicit val parentName = workflow.explicitWorkflowName
     
@@ -90,8 +91,8 @@ case class WorkflowStep(
     if (haveWeSeenThisStep) Right(knownNodes)
     else {
       val callable: Checked[Callable] = run match {
-        case Run.CommandLineTool(clt) => clt.buildTaskDefinition(validator).toEither
-        case Run.Workflow(wf) => wf.womDefinition(validator)
+        case Run.CommandLineTool(clt) => clt.buildTaskDefinition(validator, expressionLib).toEither
+        case Run.Workflow(wf) => wf.womDefinition(validator, expressionLib)
         // TODO CWL (obviously):
         case Run.ExpressionTool(_) => throw new Exception("ExpressionTool is not supported as a workflow step yet")
       }
@@ -139,7 +140,7 @@ case class WorkflowStep(
             for {
               step <- workflow.steps.find { step => FullyQualifiedName(step.id).id == upstreamStepId }.
                 toRight(NonEmptyList.one(s"no step of id $upstreamStepId found in ${workflow.steps.map(_.id).toList}"))
-              call <- step.callWithInputs(typeMap, workflow, accumulatedNodes, workflowInputs, validator)
+              call <- step.callWithInputs(typeMap, workflow, accumulatedNodes, workflowInputs, validator, expressionLib)
             } yield call
 
           def fromWorkflowInput(inputName: String): Checked[WorkflowStepInputFold] = {
@@ -166,7 +167,7 @@ case class WorkflowStep(
             val inputSourceId = FullyQualifiedName(inputSource).id
 
             // TODO for now we only handle a single input source, but there may be several
-            workflowStepInput.toExpressionNode(Map(inputSourceId -> outputPort), typeMap, Set(inputSourceId)).map({ expressionNode =>
+            workflowStepInput.toExpressionNode(Map(inputSourceId -> outputPort), typeMap, Set(inputSourceId), expressionLib).map({ expressionNode =>
               fold |+| WorkflowStepInputFold(
                 stepInputMapping = Map(FullyQualifiedName(workflowStepInput.id).id -> expressionNode),
                 generatedNodes = newNodes + expressionNode

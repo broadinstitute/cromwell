@@ -35,7 +35,7 @@ case class Workflow private(
 
   /** Builds an `Executable` from a `Workflow` CWL with no parent `Workflow` */
   def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None): Checked[Executable] = {
-    CwlExecutableValidation.buildWomExecutable(womDefinition(validator), inputFile)
+    CwlExecutableValidation.buildWomExecutable(womDefinition(validator, Vector.empty), inputFile)
   }
 
   // Circe can't create bidirectional links between workflow steps and runs (including `Workflow`s) so this
@@ -62,7 +62,7 @@ case class Workflow private(
     (acc, s) => acc ++ s.typedOutputs
   }
 
-  def womGraph(workflowName: String, validator: RequirementsValidator): Checked[Graph] = {
+  def womGraph(workflowName: String, validator: RequirementsValidator, expressionLib: ExpressionLib): Checked[Graph] = {
     val workflowNameIdentifier = explicitWorkflowName.value.map(WomIdentifier.apply).getOrElse(WomIdentifier(workflowName))
 
     def womTypeForInputParameter(input: InputParameter): Option[WomType] = {
@@ -102,7 +102,7 @@ case class Workflow private(
       steps.
         toList.
         foldLeft((Set.empty[GraphNode] ++ graphFromInputs).asRight[NonEmptyList[String]])(
-          (nodes, step) => nodes.flatMap(step.callWithInputs(typeMap, this, _, workflowInputs, validator)))
+          (nodes, step) => nodes.flatMap(step.callWithInputs(typeMap, this, _, workflowInputs, validator, expressionLib)))
 
     val graphFromOutputs: Checked[Set[GraphNode]] =
       outputs.toList.traverse[ErrorOr, GraphNode] {
@@ -146,13 +146,13 @@ case class Workflow private(
     } yield ret
   }
 
-  def womDefinition(validator: RequirementsValidator): Checked[WorkflowDefinition] = {
+  def womDefinition(validator: RequirementsValidator, expressionLib: ExpressionLib): Checked[WorkflowDefinition] = {
     val name: String = Paths.get(id).getFileName.toString
     val meta: Map[String, String] = Map.empty
     val paramMeta: Map[String, String] = Map.empty
     val declarations: List[(String, WomExpression)] = List.empty
 
-    womGraph(name, validator).map(graph =>
+    womGraph(name, validator, expressionLib).map(graph =>
       WorkflowDefinition(
         name,
         graph,

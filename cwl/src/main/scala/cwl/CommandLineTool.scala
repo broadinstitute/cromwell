@@ -18,7 +18,7 @@ import cwl.command.ParentName
 import cwl.requirement.RequirementToAttributeMap
 import eu.timepit.refined.W
 import shapeless.syntax.singleton._
-import shapeless.{:+:, CNil, Coproduct, Poly1, Witness}
+import shapeless.{:+:, CNil, Coproduct, Inl, Poly1, Witness}
 import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, CallableTaskDefinition}
 import wom.executable.Executable
@@ -63,7 +63,7 @@ case class CommandLineTool private(
 
   /** Builds an `Executable` directly from a `CommandLineTool` CWL with no parent workflow. */
   def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None): Checked[Executable] = {
-    val taskDefinition = buildTaskDefinition(validator)
+    val taskDefinition = buildTaskDefinition(validator, Vector.empty)
     CwlExecutableValidation.buildWomExecutable(taskDefinition, inputFile)
   }
 
@@ -88,8 +88,8 @@ case class CommandLineTool private(
     }
   }
 
-  private def processRequirement(requirement: Requirement): Map[String, WomExpression] = {
-    requirement.fold(RequirementToAttributeMap).apply(inputNames)
+  private def processRequirement(requirement: Requirement, expressionLib: ExpressionLib): Map[String, WomExpression] = {
+    requirement.fold(RequirementToAttributeMap).apply(inputNames, expressionLib)
   }
 
   /*
@@ -99,7 +99,7 @@ case class CommandLineTool private(
    * - Finally the inputs are folded one by one into a CommandPartsList
    * - arguments and inputs CommandParts are sorted according to their sort key
    */
-  private [cwl] def buildCommandTemplate(inputValues: WomEvaluatedCallInputs): ErrorOr[List[CommandPart]] = {
+  private [cwl] def buildCommandTemplate(expressionLib: ExpressionLib)(inputValues: WomEvaluatedCallInputs): ErrorOr[List[CommandPart]] = {
     import cats.instances.list._
     import cats.syntax.traverse._
 
@@ -111,7 +111,7 @@ case class CommandLineTool private(
         // zip the index because we need it in the sorting key
         .zipWithIndex.foldLeft(CommandPartsList.empty)({
         case (commandPartsList, (argument, index)) =>
-          val part = argument.fold(ArgumentToCommandPart)
+          val part = argument.fold(ArgumentToCommandPart).apply(expressionLib)
           // Get the position from the binding if there is one
           val position = argument.select[ArgumentCommandLineBinding].flatMap(_.position)
             .map(Coproduct[StringOrInt](_)).getOrElse(DefaultPosition)
@@ -138,8 +138,8 @@ case class CommandLineTool private(
               // See http://www.commonwl.org/v1.0/CommandLineTool.html#Input_binding
               lazy val initialKey = CommandBindingSortingKey.empty
                 .append(inputParameter.inputBinding, Coproduct[StringOrInt](parsedName))
-    
-              inputParameter.`type`.toList.flatMap(_.fold(MyriadInputTypeToSortedCommandParts).apply(inputParameter.inputBinding, value, initialKey.asNewKey)).validNel
+
+              inputParameter.`type`.toList.flatMap(_.fold(MyriadInputTypeToSortedCommandParts).apply(inputParameter.inputBinding, value, initialKey.asNewKey, expressionLib)).validNel
            case Some(Invalid(errors)) => Invalid(errors)
            case None => s"Could not find an input value for input $parsedName in ${inputValues.prettyString}".invalidNel
         }
@@ -150,16 +150,19 @@ case class CommandLineTool private(
     }
   }
 
-  def buildTaskDefinition(validator: RequirementsValidator): ErrorOr[CallableTaskDefinition] = {
-    validateRequirementsAndHints(validator) map { requirementsAndHints =>
+  def buildTaskDefinition(validator: RequirementsValidator, parentExpressionLib: ExpressionLib): ErrorOr[CallableTaskDefinition] = {
+    validateRequirementsAndHints(validator) map { requirementsAndHints: Seq[cwl.Requirement] =>
       val id = this.id
+
+      val expressionLib: ExpressionLib =
+        parentExpressionLib ++ inlineJavascriptRequirements(requirementsAndHints)
 
       // This is basically doing a `foldMap` but can't actually be a `foldMap` because:
       // - There is no monoid instance for `WomExpression`s.
       // - We want to fold from the right so the hints and requirements with the lowest precedence are processed first
       //   and later overridden if there are duplicate hints or requirements of the same type with higher precedence.
-      val finalAttributesMap = (requirementsAndHints ++ DefaultDockerRequirement).foldRight(Map.empty[String, WomExpression])({
-        case (requirement, attributesMap) => attributesMap ++ processRequirement(requirement)
+      val finalAttributesMap: Map[String, WomExpression] = (requirementsAndHints ++ DefaultDockerRequirement).foldRight(Map.empty[String, WomExpression])({
+        case (requirement, attributesMap) => attributesMap ++ processRequirement(requirement, expressionLib)
       })
 
       val runtimeAttributes: RuntimeAttributes = RuntimeAttributes(finalAttributesMap)
@@ -176,7 +179,7 @@ case class CommandLineTool private(
       val outputs: List[Callable.OutputDefinition] = this.outputs.map {
         case p @ CommandOutputParameter(cop_id, _, _, _, _, _, _, Some(tpe)) =>
           val womType = tpe.fold(MyriadOutputTypeToWomType)
-          OutputDefinition(FullyQualifiedName(cop_id).id, womType, CommandOutputParameterExpression(p, womType, inputNames))
+          OutputDefinition(FullyQualifiedName(cop_id).id, womType, CommandOutputParameterExpression(p, womType, inputNames, expressionLib))
         case other => throw new NotImplementedError(s"Command output parameters such as $other are not yet supported")
       }.toList
 
@@ -207,11 +210,11 @@ case class CommandLineTool private(
         requirements <- requirements.getOrElse(Array.empty[Requirement])
         initialWorkDirRequirement <- requirements.select[InitialWorkDirRequirement].toArray
         listing <- initialWorkDirRequirement.listings
-      } yield InitialWorkDirFileGeneratorExpression(listing)).toSet[WomExpression]
+      } yield InitialWorkDirFileGeneratorExpression(listing, expressionLib)).toSet[WomExpression]
 
       CallableTaskDefinition(
         taskName,
-        buildCommandTemplate,
+        buildCommandTemplate(expressionLib),
         runtimeAttributes,
         meta,
         parameterMeta,
@@ -294,6 +297,14 @@ object CommandLineTool {
 
   // Ordering for a CommandPartSortMapping: order by sorting key
   implicit val SortKeyAndCommandPartOrdering: Ordering[SortKeyAndCommandPart] = Ordering.by(_.sortingKey)
+
+  def inlineJavascriptRequirements(allRequirementsAndHints: Seq[Requirement]): Vector[String] = {
+    val inlineJavscriptRequirements: Seq[InlineJavascriptRequirement] = allRequirementsAndHints.toList.collect {
+      case Inl(ijr:InlineJavascriptRequirement) => ijr
+    }
+
+    inlineJavscriptRequirements.flatMap(_.expressionLib.toList.flatten).toVector
+  }
 
   def apply(inputs: Array[CommandInputParameter] = Array.empty,
             outputs: Array[CommandOutputParameter] = Array.empty,
@@ -430,17 +441,18 @@ object CommandLineTool {
   object CommandOutputParameter {
 
     def format(formatOption: Option[StringOrExpression],
-               parameterContext: ParameterContext): ErrorOr[Option[String]] = {
+               parameterContext: ParameterContext,
+               expressionLib: ExpressionLib): ErrorOr[Option[String]] = {
       formatOption.traverse[ErrorOr, String] {
-        format(_, parameterContext)
+        format(_, parameterContext, expressionLib)
       }
     }
 
-    def format(format: StringOrExpression, parameterContext: ParameterContext): ErrorOr[String] = {
-      format.fold(CommandLineTool.CommandOutputParameter.FormatPoly).apply(parameterContext)
+    def format(format: StringOrExpression, parameterContext: ParameterContext, expressionLib: ExpressionLib): ErrorOr[String] = {
+      format.fold(CommandLineTool.CommandOutputParameter.FormatPoly).apply(parameterContext, expressionLib)
     }
 
-    type FormatFunction = ParameterContext => ErrorOr[String]
+    type FormatFunction = (ParameterContext, ExpressionLib) => ErrorOr[String]
 
     object FormatPoly extends Poly1 {
       implicit def caseStringOrExpression: Case.Aux[StringOrExpression, FormatFunction] = {
@@ -452,8 +464,8 @@ object CommandLineTool {
       implicit def caseExpression: Case.Aux[Expression, FormatFunction] = {
         at {
           expression =>
-            parameterContext =>
-              val result: ErrorOr[WomValue] = ExpressionEvaluator.eval(expression, parameterContext)
+            (parameterContext, expressionLib) =>
+              val result: ErrorOr[WomValue] = ExpressionEvaluator.eval(expression, parameterContext, expressionLib)
               result flatMap {
                 case womString: WomString => womString.value.valid
                 case other => s"Not a valid file format: $other".invalidNel
@@ -461,7 +473,7 @@ object CommandLineTool {
         }
       }
 
-      implicit def caseString: Case.Aux[String, FormatFunction] = at { string => _ => string.valid }
+      implicit def caseString: Case.Aux[String, FormatFunction] = at { string => (_,_) => string.valid }
     }
 
     /**
@@ -469,9 +481,10 @@ object CommandLineTool {
       */
     def secondaryFiles(primaryWomFile: WomFile,
                        secondaryFilesOption: Option[SecondaryFiles],
-                       parameterContext: ParameterContext): ErrorOr[List[WomFile]] = {
+                       parameterContext: ParameterContext,
+                       expressionLib: ExpressionLib): ErrorOr[List[WomFile]] = {
       secondaryFilesOption
-        .map(secondaryFiles(primaryWomFile, _, parameterContext))
+        .map(secondaryFiles(primaryWomFile, _, parameterContext, expressionLib))
         .getOrElse(Nil.valid)
     }
 
@@ -480,13 +493,14 @@ object CommandLineTool {
       */
     def secondaryFiles(primaryWomFile: WomFile,
                        secondaryFiles: SecondaryFiles,
-                       parameterContext: ParameterContext): ErrorOr[List[WomFile]] = {
+                       parameterContext: ParameterContext,
+                       expressionLib: ExpressionLib): ErrorOr[List[WomFile]] = {
       secondaryFiles
         .fold(CommandLineTool.CommandOutputParameter.SecondaryFilesPoly)
-        .apply(primaryWomFile, parameterContext)
+        .apply(primaryWomFile, parameterContext, expressionLib)
     }
 
-    type SecondaryFilesFunction = (WomFile, ParameterContext) => ErrorOr[List[WomFile]]
+    type SecondaryFilesFunction = (WomFile, ParameterContext, ExpressionLib) => ErrorOr[List[WomFile]]
 
     object SecondaryFilesPoly extends Poly1 {
       implicit def caseStringOrExpression: Case.Aux[StringOrExpression, SecondaryFilesFunction] = {
@@ -498,15 +512,15 @@ object CommandLineTool {
       implicit def caseExpression: Case.Aux[Expression, SecondaryFilesFunction] = {
         at {
           expression =>
-            (primaryWomFile, parameterContext) =>
-              File.secondaryExpressionFiles(primaryWomFile, expression, parameterContext)
+            (primaryWomFile, parameterContext, expressionLib) =>
+              File.secondaryExpressionFiles(primaryWomFile, expression, parameterContext, expressionLib)
         }
       }
 
       implicit def caseString: Case.Aux[String, SecondaryFilesFunction] = {
         at {
           string =>
-            (primaryWomFile, _) =>
+            (primaryWomFile, _, _) =>
               File.secondaryStringFile(primaryWomFile, string).map(List(_))
         }
       }
@@ -514,9 +528,9 @@ object CommandLineTool {
       implicit def caseArray: Case.Aux[Array[StringOrExpression], SecondaryFilesFunction] = {
         at {
           array =>
-            (primaryWomFile, parameterContext) =>
+            (primaryWomFile, parameterContext, expressionLib) =>
               val functions: List[SecondaryFilesFunction] = array.toList.map(_.fold(this))
-              functions.flatTraverse(_ (primaryWomFile, parameterContext))
+              functions.flatTraverse(_ (primaryWomFile, parameterContext, expressionLib))
         }
       }
     }

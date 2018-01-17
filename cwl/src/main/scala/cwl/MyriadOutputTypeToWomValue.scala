@@ -29,7 +29,7 @@ object MyriadOutputTypeToWomValue extends Poly1 {
     _.fold(MyriadOutputInnerTypeToWomValue)
   }
 
-  // TODO: Not sure what the right thing to do is here, for now go over the list of types and use the first evaluation that yields sueccess
+  // TODO: Not sure what the right thing to do is here, for now go over the list of types and use the first evaluation that yields success
   implicit def acwl: Aux[Array[MyriadOutputInnerType], EvaluationFunction => ErrorOr[WomValue]] = at[Array[MyriadOutputInnerType]] { types =>
     evalFunction =>
       types.toList.map(_.fold(MyriadOutputInnerTypeToWomValue).apply(evalFunction)).collectFirst({

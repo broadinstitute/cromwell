@@ -4,10 +4,10 @@ import cats.syntax.validated._
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
 import wom.graph.{CallNode, GraphInputNode, LocalName, PortBasedGraphOutputNode}
-import wom.callable.TaskDefinitionSpec._
+import wom.callable.CommandTaskDefinitionSpec._
 import wom.types.{WomIntegerType, WomStringType}
 
-class TaskDefinitionSpec extends FlatSpec with Matchers {
+class CommandTaskDefinitionSpec extends FlatSpec with Matchers {
 
   // Checks that the graph generated from a task definition adds sufficient inputs and outputs, and is correctly linked.
   behavior of "TaskDefinition.graph"
@@ -60,7 +60,7 @@ class TaskDefinitionSpec extends FlatSpec with Matchers {
   }
 }
 
-object TaskDefinitionSpec {
+object CommandTaskDefinitionSpec {
 
   val noInputsOrOutputsTask = CallableTaskDefinition(
     name = "foo",

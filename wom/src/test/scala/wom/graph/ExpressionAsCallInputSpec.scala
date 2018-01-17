@@ -2,7 +2,7 @@ package wom.graph
 
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
-import wom.callable.TaskDefinitionSpec
+import wom.callable.CommandTaskDefinitionSpec
 import wom.expression._
 import wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold}
 import wom.graph.expression.{AnonymousExpressionNode, TaskCallInputExpressionNode}
@@ -41,7 +41,7 @@ class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
 
     val callNodeBuilder = new CallNodeBuilder()
 
-    val inputDefinition = TaskDefinitionSpec.oneInputTask.inputs.head
+    val inputDefinition = CommandTaskDefinitionSpec.oneInputTask.inputs.head
     
     val inputDefinitionFold = InputDefinitionFold(
       mappings = List(inputDefinition -> expressionNode.inputDefinitionPointer),
@@ -51,7 +51,7 @@ class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
     
     val callNodeWithInputs = callNodeBuilder.build(
       WomIdentifier("foo"),
-      TaskDefinitionSpec.oneInputTask,
+      CommandTaskDefinitionSpec.oneInputTask,
       inputDefinitionFold
     )
 

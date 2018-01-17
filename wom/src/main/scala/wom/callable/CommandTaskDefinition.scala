@@ -6,7 +6,7 @@ import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import wdl.util.StringUtil
-import wom.callable.TaskDefinition.OutputEvaluationFunction
+import wom.callable.CommandTaskDefinition.OutputEvaluationFunction
 import wom.core._
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
@@ -17,7 +17,7 @@ import wom.{CommandPart, InstantiatedCommand, RuntimeAttributes}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
-object TaskDefinition {
+object CommandTaskDefinition {
 
   type EvaluatedOutputs = Checked[Map[OutputPort, WomValue]]
 
@@ -47,7 +47,7 @@ object TaskDefinition {
   }
 }
 
-sealed trait TaskDefinition extends Callable {
+sealed trait CommandTaskDefinition extends Callable {
 
   def commandTemplateBuilder: WomEvaluatedCallInputs => ErrorOr[Seq[CommandPart]]
   // TODO ErrorOrify this ? Throw for now
@@ -77,7 +77,7 @@ sealed trait TaskDefinition extends Callable {
                          runtimeEnvironment: RuntimeEnvironment): ErrorOr[InstantiatedCommand] = {
 
     val mappedInputs = taskInputs.map({case (k, v) => k.localName -> v})
-    import TaskDefinition.instantiatedCommandMonoid
+    import CommandTaskDefinition.instantiatedCommandMonoid
 
     // Just raw command parts, no separators.
     val rawCommandParts: List[ErrorOr[InstantiatedCommand]] =
@@ -121,7 +121,7 @@ final case class CallableTaskDefinition(name: String,
                                         stderrRedirection: Option[String] = None,
                                         additionalGlob: Option[WomGlobFile] = None,
                                         private [wom] val customizedOutputEvaluation: OutputEvaluationFunction = OutputEvaluationFunction.none
-                                       ) extends TaskDefinition
+                                       ) extends CommandTaskDefinition
 
 /**
   * A task definition with an embedded graph.
@@ -129,7 +129,7 @@ final case class CallableTaskDefinition(name: String,
   */
 final case class ExecutableTaskDefinition private (callableTaskDefinition: CallableTaskDefinition,
                                                    override val graph: Graph
-                                                  ) extends TaskDefinition with ExecutableCallable {
+                                                  ) extends CommandTaskDefinition with ExecutableCallable {
   override def name = callableTaskDefinition.name
   override def inputs = callableTaskDefinition.inputs
   override def outputs = callableTaskDefinition.outputs

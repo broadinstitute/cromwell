@@ -6,6 +6,18 @@ import mouse.all._
 import shapeless.Poly1
 import wom.types._
 
+object MyriadOutputInnerTypeToString extends Poly1 {
+
+  implicit def cwlType= at[CwlType]{_.toString}
+
+  implicit def ors= at[OutputRecordSchema] {_.toString}
+
+  implicit def oes= at[OutputEnumSchema] {_.toString}
+
+  implicit def oas= at[OutputArraySchema] {_.toString}
+  implicit def s=  at[String] {identity}
+}
+
 object MyriadOutputTypeToWomType extends Poly1{
 
   import Case._
@@ -24,7 +36,8 @@ object MyriadOutputTypeToWomType extends Poly1{
         WomOptionalType(singleNonNullType.fold(MyriadOutputInnerTypeToWomType))
       // Leave other "Coproduct types" unsupported for now
       case _ =>
-        throw new NotImplementedError("Multi types not supported yet")
+        val readableTypes = types.map(_.fold(MyriadOutputInnerTypeToString)).mkString(", ")
+        throw new NotImplementedError(s"Cromwell only supports single types or optionals (as indicated by [null, X]). Instead we saw: $readableTypes")
     }
   }
 }

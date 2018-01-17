@@ -316,10 +316,7 @@ case class CommandLineTool private(
           val inputType = tpe.fold(MyriadInputTypeToWomType)
           val inputName = FullyQualifiedName(inputId).id
           val defaultWomValue = default.fold(CommandInputParameter.DefaultToWomValuePoly).apply(inputType).toTry.get
-          inputType match {
-            case optional: WomOptionalType => OptionalInputDefinition(inputName, optional)
-            case _ => InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(defaultWomValue))
-          }
+          InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(defaultWomValue))
         case CommandInputParameter(inputId, _, _, _, _, _, _, None, Some(tpe)) =>
           val inputType = tpe.fold(MyriadInputTypeToWomType)
           val inputName = FullyQualifiedName(inputId).id

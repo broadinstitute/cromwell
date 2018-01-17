@@ -6,23 +6,32 @@ import mouse.all._
 import shapeless.Poly1
 import wom.types._
 
+object MyriadInputInnerTypeToString extends Poly1 {
+  implicit def ct = at[CwlType]{ _.toString }
+  implicit def irs = at[InputRecordSchema]{_.toString}
+  implicit def ies = at[InputEnumSchema]{ _.toString }
+  implicit def ias = at[InputArraySchema]{ _.toString}
+  implicit def s = at[String]{identity}
+}
 
 object MyriadInputTypeToWomType extends Poly1 {
 
   implicit def m = at[MyriadInputInnerType] {_.fold(MyriadInputInnerTypeToWomType)}
 
-  // An array of type means "this input value can be in any of those types"
+  // An array of type means "this input value can be in any of those types."
+  // Currently we only accept single types or [null, X] to mean Optional[X]
   implicit def am = at[Array[MyriadInputInnerType]] { types =>
     types.partition(_.select[CwlType].contains(CwlType.Null)) match {
         // If there's a single non null type, use that
-      case (nullTypes, Array(singleNonNullType)) if nullTypes.isEmpty =>
+      case (Array(), Array(singleNonNullType)) =>
         singleNonNullType.fold(MyriadInputInnerTypeToWomType)
         // If there's a null type and a single non null type, it's a WomOptionalType
-      case (nullTypes, Array(singleNonNullType)) if nullTypes.nonEmpty =>
+      case (Array(_), Array(singleNonNullType)) =>
         WomOptionalType(singleNonNullType.fold(MyriadInputInnerTypeToWomType))
         // Leave other "Coproduct types" unsupported for now
       case _ =>
-        throw new NotImplementedError("Multi types not supported yet")
+        val readableTypes = types.map(_.fold(MyriadInputInnerTypeToString)).mkString(", ")
+        throw new NotImplementedError(s"Cromwell only supports single types or optionals (as indicated by [null, X]). Instead we saw: $readableTypes")
     }
   }
 }

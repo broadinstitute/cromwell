@@ -36,7 +36,7 @@ object OutputManipulator extends Poly1 {
     }
     
     def updateFileOrDirectoryWithNestedFiles(obj: JsonObject, fieldName: String) = {
-      // Cromwell metadata has a field for all values even if they're content is empty
+      // Cromwell metadata has a field for all values even if their content is empty
       // remove it as the cwl test runner expects nothing instead
       val withoutField = obj.remove(fieldName)
 

@@ -557,6 +557,16 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
     }
 
+    it should "include totalResultCount in workflow query response" in {
+      Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"status":"Succeeded"}]""")) ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          val result = responseAs[JsObject]
+          status should be(StatusCodes.OK)
+          result.fields("totalResultsCount") should be(JsNumber("1"))
+        }
+    }
+
     behavior of "REST API /labels GET endpoint"
     it should "return labels for a workflow ID" in {
       Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/labels") ~>
@@ -652,7 +662,7 @@ object CromwellApiServiceSpec {
           parameters.contains(("additionalQueryResultFields", "parentWorkflowId")).option("pid")
         }
         val response = WorkflowQuerySuccess(WorkflowQueryResponse(List(WorkflowQueryResult(ExistingWorkflowId.toString,
-          None, Some(WorkflowSucceeded.toString), None, None, labels, parentWorkflowId))), None)
+          None, Some(WorkflowSucceeded.toString), None, None, labels, parentWorkflowId)), 1), None)
         sender ! response
       case ValidateWorkflowId(id) =>
         if (RecognizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId

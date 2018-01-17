@@ -17,10 +17,10 @@ object MyriadOutputTypeToWomType extends Poly1{
   implicit def acwl: Aux[Array[MyriadOutputInnerType], WomType] = at[Array[MyriadOutputInnerType]] { types =>
     types.partition(_.select[CwlType].contains(CwlType.Null)) match {
       // If there's a single non null type, use that
-      case (nullTypes, Array(singleNonNullType)) if nullTypes.isEmpty =>
+      case (Array(), Array(singleNonNullType)) =>
         singleNonNullType.fold(MyriadOutputInnerTypeToWomType)
       // If there's a null type and a single non null type, it's a WomOptionalType
-      case (nullTypes, Array(singleNonNullType)) if nullTypes.nonEmpty =>
+      case (Array(_), Array(singleNonNullType)) =>
         WomOptionalType(singleNonNullType.fold(MyriadOutputInnerTypeToWomType))
       // Leave other "Coproduct types" unsupported for now
       case _ =>

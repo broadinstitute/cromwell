@@ -7,8 +7,8 @@ import cats.syntax.traverse._
 import common.validation.ErrorOr.ErrorOr
 import shapeless.{:+:, CNil, Coproduct}
 import wom.callable.Callable._
-import wom.callable.TaskDefinition.OutputFunctionResponse
-import wom.callable.{Callable, TaskDefinition, WorkflowDefinition}
+import wom.callable.CommandTaskDefinition.OutputFunctionResponse
+import wom.callable.{Callable, CommandTaskDefinition, WorkflowDefinition}
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.CallNode._
 import wom.graph.GraphNode.GeneratedNodeAndNewNodes
@@ -26,7 +26,7 @@ sealed abstract class CallNode extends GraphNode {
 }
 
 final case class TaskCallNode private(override val identifier: WomIdentifier,
-                                      callable: TaskDefinition,
+                                      callable: CommandTaskDefinition,
                                       override val inputPorts: Set[GraphNodePort.InputPort],
                                       inputDefinitionMappings: InputDefinitionMappings) extends CallNode {
   val callType: String = "task"
@@ -57,7 +57,7 @@ final case class WorkflowCallNode private(override val identifier: WomIdentifier
 }
 
 object TaskCall {
-  def graphFromDefinition(taskDefinition: TaskDefinition): ErrorOr[Graph] = {
+  def graphFromDefinition(taskDefinition: CommandTaskDefinition): ErrorOr[Graph] = {
     val taskDefinitionLocalName = LocalName(taskDefinition.name)
     
     /* Creates an identifier for an input or an output
@@ -141,7 +141,7 @@ object CallNode {
                            callable: Callable,
                            inputPorts: Set[GraphNodePort.InputPort],
                            inputDefinitionMappings: InputDefinitionMappings): CallNode = callable match {
-    case t: TaskDefinition => TaskCallNode(nodeIdentifier, t, inputPorts, inputDefinitionMappings)
+    case t: CommandTaskDefinition => TaskCallNode(nodeIdentifier, t, inputPorts, inputDefinitionMappings)
     case w: WorkflowDefinition => WorkflowCallNode(nodeIdentifier, w, inputPorts, inputDefinitionMappings)
   }
 

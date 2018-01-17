@@ -3,13 +3,14 @@ package cwl
 import org.scalacheck.Properties
 import org.scalacheck.Prop._
 import shapeless.Coproduct
-import wom.types.{WomArrayType, WomOptionalType, WomStringType}
+import wom.types._
 import mouse.`try`._
 
 import scala.util.Try
 
 class WomTypeConversionSpec extends Properties("CWL -> WOM Conversion"){
 
+  /* ******** Inputs *********** */
   property("ArrayInputSchema") = secure {
     val y = Coproduct[MyriadInputInnerType](CwlType.String)
     val x = InputArraySchema(items = Coproduct[MyriadInputType](y))
@@ -41,10 +42,26 @@ class WomTypeConversionSpec extends Properties("CWL -> WOM Conversion"){
     val z = Coproduct[MyriadInputInnerType](CwlType.Null)
     Try(Coproduct[MyriadInputType](Array(y, z)).fold(MyriadInputTypeToWomType)).cata(
       success => (success == WomOptionalType(WomStringType)) :| "input should evaluate to an optional string type",
-      failure => false :| s"expected success but received a failure"
+      failure => false :| s"expected optional string type but received a failure"
     )
   }
 
+  property("Optional Array of a type is interpreted correctly as input type") = secure {
+    val miit = Coproduct[MyriadInputInnerType](CwlType.File)
+    val mit = Coproduct[MyriadInputType](miit)
+    val ias =  InputArraySchema(items = mit)
+    val y = Coproduct[MyriadInputInnerType](ias)
+    val z = Coproduct[MyriadInputInnerType](CwlType.Null)
+    def testInputArray(array: Array[MyriadInputInnerType]) = {
+      Try(Coproduct[MyriadInputType](array).fold(MyriadInputTypeToWomType)).cata(
+        success => (success == WomOptionalType(WomMaybeEmptyArrayType(WomMaybePopulatedFileType))) :| "input should evaluate to an optional array of files type",
+        failure => false :| s"expected an optional array of files type but received a failure"
+      )
+    }
+    testInputArray(Array(y, z)) && testInputArray(Array(z,y))
+  }
+
+  /* ******** Outputs *********** */
   property("ArrayOutputSchema") = secure {
     val y = Coproduct[MyriadOutputInnerType](CwlType.String)
     val x = OutputArraySchema(items = Coproduct[MyriadOutputType](y))
@@ -73,7 +90,22 @@ class WomTypeConversionSpec extends Properties("CWL -> WOM Conversion"){
     val z = Coproduct[MyriadOutputInnerType](CwlType.Null)
     Try(Coproduct[MyriadOutputType](Array(y, z)).fold(MyriadOutputTypeToWomType)).cata(
       success => (success == WomOptionalType(WomStringType)) :| "input should evaluate to an optional string type",
-      failure => false :| s"expected success but received a failure"
+      failure => false :| s"expected an optional string type but received a failure"
     )
+  }
+
+  property("Optional Array of a type is interpreted correctly as output type") = secure {
+    def testOutputArray(array: Array[MyriadOutputInnerType]) = {
+      Try(Coproduct[MyriadOutputType](array).fold(MyriadOutputTypeToWomType)).cata(
+        success => (success == WomOptionalType(WomMaybeEmptyArrayType(WomMaybePopulatedFileType))) :| "input should evaluate to an optional array of files type",
+        failure => false :| s"expected to receive an optional array of files type but received a failure"
+      )
+    }
+    val miit = Coproduct[MyriadOutputInnerType](CwlType.File)
+    val mit = Coproduct[MyriadOutputType](miit)
+    val ias =  OutputArraySchema(items = mit)
+    val y = Coproduct[MyriadOutputInnerType](ias)
+    val z = Coproduct[MyriadOutputInnerType](CwlType.Null)
+    testOutputArray(Array(y,z)) && testOutputArray(Array(z,y))
   }
 }

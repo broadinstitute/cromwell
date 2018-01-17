@@ -10,7 +10,6 @@ import cwl.WorkflowStepInput.InputSource
 import common.validation.ErrorOr.ErrorOr
 import cwl.CommandLineTool.{CommandBindingSortingKey, SortKeyAndCommandPart}
 import cwl.command.ParentName
-import io.circe.Json
 import wom.types.WomType
 import wom.graph.WomIdentifier
 import wom.graph.GraphNodePort.OutputPort
@@ -58,34 +57,6 @@ object WorkflowStepInputSource {
   }
 }
 
-case class InputParameter(
-                           id: String,
-                           label: Option[String] = None,
-                           secondaryFiles:
-                             Option[
-                               Expression :+:
-                               String :+:
-                               Array[
-                                 Expression :+:
-                                 String :+:
-                                 CNil] :+:
-                               CNil] = None,
-                           format:
-                             Option[
-                               Expression :+:
-                               String :+:
-                               Array[String] :+:
-                               CNil] = None,
-                           streamable: Option[Boolean] = None,
-                           doc: Option[String :+: Array[String] :+: CNil] = None,
-                           inputBinding: Option[InputCommandLineBinding] = None,
-                           default: Option[Json] = None, //can be of type "Any" which... sucks.
-                           `type`: Option[MyriadInputType] = None) {
-
-  type `type` = MyriadInputType
-  type Id = String
-}
-
 case class InputRecordSchema(
   `type`: W.`"record"`.T,
   fields: Option[Array[InputRecordField]],
@@ -118,8 +89,6 @@ trait CommandLineBinding {
   def itemSeparator: Option[String]
   def optionalValueFrom: Option[StringOrExpression]
   def shellQuote: Option[Boolean]
-  // position defaults to 0
-  def effectivePosition = position.getOrElse(0)
   // separate defaults to true
   def effectiveSeparate = separate.getOrElse(true)
 }
@@ -181,8 +150,7 @@ case class InputBinding(position: Int, prefix: String)
 case class OutputRecordSchema(
   `type`: W.`"record"`.T,
   fields: Option[Array[OutputRecordField]],
-  label: Option[String]
-  )
+  label: Option[String])
 
 case class OutputRecordField(
   name: String,

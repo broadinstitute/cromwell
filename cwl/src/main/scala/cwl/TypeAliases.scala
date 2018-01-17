@@ -1,6 +1,5 @@
 package cwl
 
-import cwl.CommandLineTool._
 import cwl.CwlType.CwlType
 import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
 import io.circe.Json
@@ -64,19 +63,6 @@ trait TypeAliases {
       OutputRecordSchema :+:
       OutputEnumSchema :+:
       OutputArraySchema :+:
-      String :+:
-      CNil
-
-  type MyriadCommandInputType =
-    MyriadCommandInnerType :+:
-      Array[MyriadCommandInnerType] :+:
-      CNil
-
-  type MyriadCommandInnerType =
-    CwlType :+:
-      CommandInputRecordSchema :+:
-      CommandInputEnumSchema :+:
-      CommandInputArraySchema :+:
       String :+:
       CNil
 

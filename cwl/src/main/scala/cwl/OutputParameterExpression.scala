@@ -2,15 +2,14 @@ package cwl
 
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
-import cwl.CommandLineTool.CommandOutputParameter
 import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values.{WomFile, WomValue}
 
-case class CommandOutputParameterExpression(parameter: CommandOutputParameter,
-                                            override val cwlExpressionType: WomType,
-                                            override val inputs: Set[String],
-                                            override val expressionLib: ExpressionLib) extends CwlWomExpression {
+case class OutputParameterExpression(parameter: OutputParameter,
+                                     override val cwlExpressionType: WomType,
+                                     override val inputs: Set[String],
+                                     override val expressionLib: ExpressionLib) extends CwlWomExpression {
 
   override def sourceString = parameter.toString
 

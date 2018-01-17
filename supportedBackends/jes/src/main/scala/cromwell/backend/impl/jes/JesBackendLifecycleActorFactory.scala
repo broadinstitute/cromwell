@@ -32,8 +32,8 @@ case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor
   }
 
   override def workflowFinalizationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[CommandCallNode],
-                                              jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs,
-                                              initializationDataOption: Option[BackendInitializationData]):
+                                               jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs,
+                                               initializationDataOption: Option[BackendInitializationData]):
   StandardFinalizationActorParams = {
     // The `JesInitializationActor` will only return a non-`Empty` `JesBackendInitializationData` from a successful `beforeAll`
     // invocation.  HOWEVER, the finalization actor is created regardless of whether workflow initialization was successful

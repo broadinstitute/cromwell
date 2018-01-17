@@ -8,7 +8,7 @@ import cromwell.core.{ExecutionStatus, JobKey}
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore.ValueKey
 import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActorData, WorkflowExecutionDiff}
 import wom.graph._
-import wom.graph.expression.ExpressionNode
+import wom.graph.expression.ExpressionNodeLike
 import wom.values.{WomBoolean, WomValue}
 
 /**
@@ -41,7 +41,7 @@ private [execution] case class ConditionalKey(node: ConditionalNode, index: Exec
   private def keyify(node: GraphNode): Option[JobKey] = node match {
     case call: CommandCallNode => Option(BackendJobDescriptorKey(call, index, 1))
     case call: WorkflowCallNode => Option(SubWorkflowKey(call, index, 1))
-    case declaration: ExpressionNode => Option(ExpressionKey(declaration, index))
+    case expression: ExpressionNodeLike => Option(ExpressionKey(expression, index))
     case conditional: ConditionalNode => Option(ConditionalKey(conditional, index))
     case scatter: ScatterNode if index.isEmpty => Option(ScatterKey(scatter))
     case _: GraphInputNode => None

@@ -13,7 +13,7 @@ private [cwl] object FlattenCwlFile extends Poly1 {
   private object CwlIdFromCwl extends Poly1 {
     implicit def fromWorkflow: Case.Aux[Workflow, String] = at[Workflow] { _.id }
     implicit def fromCommandLineTool: Case.Aux[CommandLineTool, String] = at[CommandLineTool] { _.id }
-    implicit def fromExpressionLineTool: Case.Aux[ExpressionTool, String] = at[ExpressionTool] { _.id.get }
+    implicit def fromExpressionLineTool: Case.Aux[ExpressionTool, String] = at[ExpressionTool] { _.id }
   }
   
   private def findRoot(cwls: Array[Cwl], root: String): Checked[Cwl] = {

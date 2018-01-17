@@ -8,6 +8,8 @@ import io.circe.refined._
 import io.circe.literal._
 import common.Checked
 
+import scala.util.Try
+
 object CwlCodecs {
 
   import cwl.decoder._
@@ -22,5 +24,8 @@ object CwlCodecs {
   implicit val cltD = implicitly[Decoder[CommandLineTool]]
   implicit val etD = implicitly[Decoder[ExpressionTool]]
 
-  def decodeCwl(in: String): Checked[CwlFile] = decodeAccumulating[CwlFile](in).leftMap(_.map(_.getMessage).map(s"error parsing: $in" + _)).toEither
+  def decodeCwl(in: String): Checked[CwlFile] = {
+    val a = Try(decodeAccumulating[CwlFile](in).leftMap(_.map(_.getMessage).map(s"error parsing: $in" + _)).toEither)
+    a.get
+  }
 }

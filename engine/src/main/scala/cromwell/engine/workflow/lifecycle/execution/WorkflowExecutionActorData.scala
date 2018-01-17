@@ -10,6 +10,7 @@ import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore.ValueKey
 import cromwell.engine.workflow.lifecycle.execution.stores.{ExecutionStore, ValueStore}
 import cromwell.engine.{EngineIoFunctions, EngineWorkflowDescriptor}
+import wom.graph.GraphNodePort.OutputPort
 import wom.values.WomValue
 
 import scala.concurrent.ExecutionContext
@@ -62,11 +63,13 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     ))
   }
 
-  final def expressionEvaluationSuccess(expressionKey: ExpressionKey, value: WomValue): WorkflowExecutionActorData = {
-    val valueStoreKey = ValueKey(expressionKey.singleOutputPort, expressionKey.index)
+  final def expressionEvaluationSuccess(expressionKey: ExpressionKey, values: Map[OutputPort, WomValue]): WorkflowExecutionActorData = {
+    val valueStoreAdditions = values.map({
+      case (outputPort, value) => ValueKey(outputPort, expressionKey.index) -> value
+    })
     mergeExecutionDiff(WorkflowExecutionDiff(
       executionStoreChanges = Map(expressionKey -> Done),
-      valueStoreAdditions = Map(valueStoreKey -> value)
+      valueStoreAdditions =valueStoreAdditions
     ))
   }
 

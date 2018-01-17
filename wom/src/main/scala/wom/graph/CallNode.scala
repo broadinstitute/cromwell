@@ -1,5 +1,6 @@
 package wom.graph
 
+import cats.data.Validated.Valid
 import cats.instances.list._
 import cats.kernel.Monoid
 import cats.syntax.foldable._
@@ -8,13 +9,13 @@ import common.validation.ErrorOr.ErrorOr
 import shapeless.{:+:, CNil, Coproduct}
 import wom.callable.Callable._
 import wom.callable.CommandTaskDefinition.OutputFunctionResponse
-import wom.callable.{Callable, CommandTaskDefinition, WorkflowDefinition}
-import wom.expression.{IoFunctionSet, WomExpression}
+import wom.callable._
+import wom.expression.{InputPointerToWomValue, IoFunctionSet, WomExpression}
 import wom.graph.CallNode._
 import wom.graph.GraphNode.GeneratedNodeAndNewNodes
 import wom.graph.GraphNodePort._
-import wom.graph.expression.ExpressionNode
-import wom.values.WomValue
+import wom.graph.expression.{ExpressionNode, ExpressionNodeLike}
+import wom.values.{WomEvaluatedCallInputs, WomValue}
 
 import scala.concurrent.ExecutionContext
 
@@ -25,11 +26,27 @@ sealed abstract class CallNode extends GraphNode {
   def inputDefinitionMappings: InputDefinitionMappings
 }
 
+final case class ExpressionCallNode private(override val identifier: WomIdentifier,
+                                      callable: ExpressionTaskDefinition,
+                                      override val inputPorts: Set[GraphNodePort.InputPort],
+                                      inputDefinitionMappings: InputDefinitionMappings) extends CallNode with ExpressionNodeLike {
+  val callType: String = "expression task"
+  lazy val expressionBasedOutputPorts: List[ExpressionBasedOutputPort] = {
+    callable.outputs.map(o => ExpressionBasedOutputPort(o.localName, o.womType, this, o.expression))
+  }
+
+  override lazy val outputPorts: Set[OutputPort] = expressionBasedOutputPorts.toSet[OutputPort]
+
+  override def evaluate(outputPortLookup: OutputPort => ErrorOr[WomValue], ioFunctionSet: IoFunctionSet) = {
+    ExpressionCallNodeEvaluation.evaluate(this, outputPortLookup, ioFunctionSet)
+  }
+}
+
 final case class CommandCallNode private(override val identifier: WomIdentifier,
                                          callable: CommandTaskDefinition,
                                          override val inputPorts: Set[GraphNodePort.InputPort],
                                          inputDefinitionMappings: InputDefinitionMappings) extends CallNode {
-  val callType: String = "task"
+  val callType: String = "command task"
   lazy val expressionBasedOutputPorts: List[ExpressionBasedOutputPort] = {
     callable.outputs.map(o => ExpressionBasedOutputPort(o.localName, o.womType, this, o.expression))
   }
@@ -57,7 +74,7 @@ final case class WorkflowCallNode private(override val identifier: WomIdentifier
 }
 
 object TaskCall {
-  def graphFromDefinition(taskDefinition: CommandTaskDefinition): ErrorOr[Graph] = {
+  def graphFromDefinition(taskDefinition: TaskDefinition): ErrorOr[Graph] = {
     val taskDefinitionLocalName = LocalName(taskDefinition.name)
     
     /* Creates an identifier for an input or an output
@@ -77,9 +94,9 @@ object TaskCall {
     val inputDefinitionFold = taskDefinition.inputs.foldMap({ inputDef =>
     {
       val newNode = inputDef match {
-        case RequiredInputDefinition(name, womType) => RequiredGraphInputNode(identifier(name), womType, name.value)
-        case InputDefinitionWithDefault(name, womType, default) => OptionalGraphInputNodeWithDefault(identifier(name), womType, default, name.value)
-        case OptionalInputDefinition(name, womType) => OptionalGraphInputNode(identifier(name), womType, name.value)
+        case RequiredInputDefinition(name, womType, _) => RequiredGraphInputNode(identifier(name), womType, name.value)
+        case InputDefinitionWithDefault(name, womType, default, _) => OptionalGraphInputNodeWithDefault(identifier(name), womType, default, name.value)
+        case OptionalInputDefinition(name, womType, _) => OptionalGraphInputNode(identifier(name), womType, name.value)
       }
 
       InputDefinitionFold(
@@ -104,6 +121,27 @@ object TaskCall {
 }
 
 object CallNode {
+  def resolveAndEvaluateInputs(callNode: CallNode,
+                               expressionLanguageFunctions: IoFunctionSet,
+                               outputStoreLookup: OutputPort => ErrorOr[WomValue]): ErrorOr[WomEvaluatedCallInputs] = {
+    import common.validation.Validation._
+    import common.validation.ErrorOr._
+    
+    callNode.inputDefinitionMappings.foldLeft(Map.empty[InputDefinition, ErrorOr[WomValue]]) {
+      case (accumulatedInputsSoFar, (inputDefinition, pointer)) =>
+        // We could have a commons method for this kind of "filtering valid values"
+        val validInputsAccumulated: Map[String, WomValue] = accumulatedInputsSoFar.collect({
+          case (input, Valid(errorOrWdlValue)) => input.name -> errorOrWdlValue
+        })
+
+        val coercedValue = pointer.fold(InputPointerToWomValue).apply(
+          validInputsAccumulated, expressionLanguageFunctions, outputStoreLookup, inputDefinition
+        ) flatMap(inputDefinition.womType.coerceRawValue(_).toErrorOr)
+
+        accumulatedInputsSoFar + (inputDefinition -> coercedValue)
+    }.sequence
+  }
+  
   /* A monoid can't be derived automatically for this class because it contains a Map[InputDefinition, InputDefinitionPointer],
    * and there's no monoid defined over InputDefinitionPointer
    */
@@ -143,6 +181,7 @@ object CallNode {
                            inputDefinitionMappings: InputDefinitionMappings): CallNode = callable match {
     case t: CommandTaskDefinition => CommandCallNode(nodeIdentifier, t, inputPorts, inputDefinitionMappings)
     case w: WorkflowDefinition => WorkflowCallNode(nodeIdentifier, w, inputPorts, inputDefinitionMappings)
+    case w: ExpressionTaskDefinition => ExpressionCallNode(nodeIdentifier, w, inputPorts, inputDefinitionMappings)
   }
 
   /**

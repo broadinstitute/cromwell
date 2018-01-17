@@ -45,8 +45,8 @@ baseCommand: echo
     val workflow = Workflow(
       id = "MyCwlWorkflow",
       inputs = Array(
-          InputParameter(id = "inp", `type` = Option(Coproduct[MyriadInputType](Coproduct[MyriadInputInnerType](CwlType.File)))),
-          InputParameter(id = "ex", `type` = Option(Coproduct[MyriadInputType](Coproduct[MyriadInputInnerType](CwlType.String))))
+          WorkflowInputParameter(id = "inp", `type` = Option(Coproduct[MyriadInputType](Coproduct[MyriadInputInnerType](CwlType.File)))),
+        WorkflowInputParameter(id = "ex", `type` = Option(Coproduct[MyriadInputType](Coproduct[MyriadInputInnerType](CwlType.String))))
         ),
       outputs = Array(
         WorkflowOutputParameter(

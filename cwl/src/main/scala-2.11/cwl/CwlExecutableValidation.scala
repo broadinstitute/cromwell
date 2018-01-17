@@ -7,7 +7,7 @@ import io.circe.{Json, yaml}
 import common.Checked
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
-import wom.callable.{CallableTaskDefinition, ExecutableCallable, ExecutableTaskDefinition}
+import wom.callable.{CallableTaskDefinition, ExecutableCallable, ExecutableTaskDefinition, TaskDefinition}
 import wom.executable.Executable
 import wom.executable.Executable.{InputParsingFunction, ParsedInputMap}
 
@@ -25,20 +25,18 @@ object CwlExecutableValidation {
       }
     }
 
-  def buildWomExecutable(callable: Checked[ExecutableCallable], inputFile: Option[String]): Checked[Executable] = {
+  def buildWomExecutableCallable(callable: Checked[ExecutableCallable], inputFile: Option[String]): Checked[Executable] = {
     for {
       womDefinition <- callable
       executable <- Executable.withInputs(womDefinition, inputCoercionFunction, inputFile)
     } yield executable
   }
 
-  def buildWomExecutable(callableTaskDefinition: ErrorOr[CallableTaskDefinition], inputFile: Option[String]): Checked[Executable] = {
-    import cats.data.Validated._
-    import common.validation.ErrorOr._
-    (for {
+  def buildWomExecutable(callableTaskDefinition: Checked[TaskDefinition], inputFile: Option[String]): Checked[Executable] = {
+    for {
       taskDefinition <- callableTaskDefinition
-      executableTaskDefinition = ExecutableTaskDefinition.tryApply(taskDefinition)
-      executable <- fromEither(CwlExecutableValidation.buildWomExecutable(executableTaskDefinition.toEither, inputFile))
-    } yield executable).toEither
+      executableTaskDefinition = taskDefinition.toExecutable.toEither
+      executable <- CwlExecutableValidation.buildWomExecutableCallable(executableTaskDefinition, inputFile)
+    } yield executable
   }
 }

@@ -86,6 +86,7 @@ package object cwl extends TypeAliases {
     def womExecutable(validator: RequirementsValidator, inputsFile: Option[String] = None): Checked[Executable] = cwl match {
       case Cwl.Workflow(w) => w.womExecutable(validator, inputsFile)
       case Cwl.CommandLineTool(clt) => clt.womExecutable(validator, inputsFile)
+      case Cwl.ExpressionTool(et) => et.womExecutable(validator, inputsFile)
     }
 
     def requiredInputs: Map[String, WomType] = {
@@ -109,4 +110,6 @@ package object cwl extends TypeAliases {
   }
 
   type ExpressionLib = Vector[String]
+
+  val ReadLimit = Option(64 * 1024)
 }

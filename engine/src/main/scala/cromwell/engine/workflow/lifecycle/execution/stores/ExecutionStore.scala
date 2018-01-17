@@ -11,7 +11,7 @@ import cromwell.engine.workflow.lifecycle.execution.stores.ExecutionStore._
 import wom.callable.ExecutableCallable
 import wom.graph.GraphNodePort.{ConditionalOutputPort, OutputPort, ScatterGathererPort}
 import wom.graph._
-import wom.graph.expression.ExpressionNode
+import wom.graph.expression.ExpressionNodeLike
 
 object ExecutionStore {
   type StatusTable = Table[GraphNode, ExecutionIndex.ExecutionIndex, JobKey]
@@ -81,7 +81,7 @@ object ExecutionStore {
     // Keys that are added in a NotStarted Status
     val notStartedKeys = callable.graph.nodes collect {
       case call: CommandCallNode => BackendJobDescriptorKey(call, None, 1)
-      case expression: ExpressionNode => ExpressionKey(expression, None)
+      case expression: ExpressionNodeLike => ExpressionKey(expression, None)
       case scatterNode: ScatterNode => ScatterKey(scatterNode)
       case conditionalNode: ConditionalNode => ConditionalKey(conditionalNode, None)
       case subworkflow: WorkflowCallNode => SubWorkflowKey(subworkflow, None, 1)

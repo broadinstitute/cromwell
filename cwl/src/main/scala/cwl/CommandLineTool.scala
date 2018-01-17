@@ -354,7 +354,7 @@ case class CommandLineTool private(
       adHocFileCreation = adHocFileCreations,
       environmentExpressions = environmentExpressions,
       // Always add "cwl.output.json" as an additional glob, as the tool may or may not produce it
-      additionalGlob = Option(WomGlobFile("cwl.output.json")),
+      additionalGlob = Option(WomGlobFile(CwlOutputJson)),
       customizedOutputEvaluation = outputEvaluationJsonFunction
     )
   }

@@ -57,7 +57,7 @@ object WomValueBuilder {
 
   // Group tuples by key using a Map with key type `K`.
   private def group[K](tuples: Traversable[(K, SimpletonComponent)]): Map[K, Traversable[SimpletonComponent]] = {
-    tuples groupBy { case (i, _) => i } mapValues { _ map { case (_, s) => s} }
+    tuples groupBy { case (i, _) => i } map { case (k, v) => k -> (v map { case (_, s) => s}) }
   }
 
   // Returns a tuple of the index into the outermost array and a `SimpletonComponent` whose path reflects the "descent"

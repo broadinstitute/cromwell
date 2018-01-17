@@ -27,13 +27,12 @@ object OutputManipulator extends Poly1 {
     val path = pathBuilder.build(objAsMap("location").asString.get).get
     
     def populateInnerFiles(json: Json): Option[Json] = {
+      import mouse.boolean._
+
       // Assume the json is an array ("secondaryFiles" and "listing" are both arrays)
       val innerFiles = json.asArray.get
-      // the cwl test runner doesn't expect a "secondaryFiles" or "listing" field at all if it's empty 
-      if (innerFiles.isEmpty) None
-      else {
-        Option(Json.arr(innerFiles.map(_.mapObject(populateFileFields(pathBuilder))): _*))
-      }
+      // the cwl test runner doesn't expect a "secondaryFiles" or "listing" field at all if it's empty
+      innerFiles.nonEmpty.option(Json.arr(innerFiles.map(_.mapObject(populateFileFields(pathBuilder))): _*))
     }
     
     def updateFileOrDirectoryWithNestedFiles(obj: JsonObject, fieldName: String) = {
@@ -48,8 +47,7 @@ object OutputManipulator extends Poly1 {
     }
     
     // The cwl test runner expects only the name, not the full path
-    val updatedLocation = obj
-      .add("location", Json.fromString(path.name))
+    val updatedLocation = obj.add("location", Json.fromString(path.name))
 
     if (path.isRegularFile) {
       val checksum = Json.fromString("sha1$" + path.sha1.toLowerCase)

@@ -137,6 +137,19 @@ class WomValueBuilderSpec extends FlatSpec with Matchers with Mockito {
         WomValueSimpleton("object_with_object:b:bb[1]", WomString("bb gun")),
       )
     ),
+    /*
+      * Wom object representing a directory listing
+      *  - a single file
+      *  - a "maybe populated file" with some properties (checksum etc..) and secondary files:
+      *         - another single file
+      *         - a directory listing a single file
+      *         - an unlisted directory
+      *         - a glob file
+      *  - an unlisted directory
+      *  - a glob file
+      *  
+      *  Note: glob files technically are never simpletonized but as WomFiles they *can* be
+     */
     SimpletonConversion(
       "directory",
       WomMaybeListedDirectory(

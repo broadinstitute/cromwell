@@ -232,7 +232,6 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   private[jes] def generateJesOutputs(jobDescriptor: BackendJobDescriptor): Set[JesFileOutput] = {
-    // TODO WOM: put this back in WOM
     import cats.syntax.validated._
     def evaluateFiles(output: OutputDefinition): List[WomFile] = {
       Try(
@@ -252,8 +251,10 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           throw new NotImplementedError(s"$unsupported is not supported yet.")
       }
     }
+    
+    val additionalGlobOutput = jobDescriptor.taskCall.callable.additionalGlob.toList.flatMap(generateJesGlobFileOutputs).toSet
 
-    outputs.toSet
+    outputs.toSet ++ additionalGlobOutput
   }
 
   private def generateJesSingleFileOutputs(womFile: WomSingleFile): JesFileOutput = {

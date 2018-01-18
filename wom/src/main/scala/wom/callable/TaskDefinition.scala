@@ -1,18 +1,41 @@
 package wom.callable
 
+import cats.data.OptionT
 import cats.implicits._
+import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import wdl.util.StringUtil
+import wom.callable.TaskDefinition.OutputEvaluationFunction
 import wom.core._
 import wom.expression.{IoFunctionSet, WomExpression}
+import wom.graph.GraphNodePort.OutputPort
 import wom.graph.{Graph, TaskCall}
-import wom.values.{WomEvaluatedCallInputs, WomValue}
+import wom.values.{WomEvaluatedCallInputs, WomGlobFile, WomValue}
 import wom.{CommandPart, InstantiatedCommand, RuntimeAttributes}
 
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 object TaskDefinition {
+
+  type EvaluatedOutputs = Checked[Map[OutputPort, WomValue]]
+
+  /*
+    * Result type of the OutputEvaluationFunction. Equivalent to Future[Option[EvaluatedOutputs]]
+    * - Future because it might involve I/O
+    * - Option because it might not return any value (dependent on the task)
+    * - Checked because the evaluation could fail (invalid types, missing values etc...)
+  */
+  type OutputFunctionResponse = OptionT[Future, EvaluatedOutputs]
+
+  // Function definition to evaluate task outputs
+  type OutputEvaluationFunction = (Set[OutputPort], Map[String, WomValue], IoFunctionSet, ExecutionContext) => OutputFunctionResponse
+  
+  object OutputEvaluationFunction {
+    val none: OutputEvaluationFunction = { case (_ ,_, _, _) => OptionT[Future, EvaluatedOutputs](Future.successful(None)) }
+  }
+
   private implicit val instantiatedCommandMonoid = cats.derive.monoid[InstantiatedCommand]
   object CommandTemplateBuilder {
     def fromValues(values: Seq[CommandPart]) = new CommandTemplateBuilder {
@@ -38,6 +61,12 @@ sealed trait TaskDefinition extends Callable {
   def stderrRedirection: Option[String]
   def adHocFileCreation: Set[WomExpression]
   def environmentExpressions: Map[String, WomExpression]
+  def additionalGlob: Option[WomGlobFile]
+  /**
+    * Provides a custom way to evaluate outputs of the task definition.
+    * Return None to leave the evaluation method to the engine.
+    */
+  private [wom] def customizedOutputEvaluation: OutputEvaluationFunction
 
   lazy val unqualifiedName: LocallyQualifiedName = name
 
@@ -87,7 +116,9 @@ final case class CallableTaskDefinition(name: String,
                                         prefixSeparator: String = ".",
                                         commandPartSeparator: String = "",
                                         stdoutRedirection: Option[String] = None,
-                                        stderrRedirection: Option[String] = None
+                                        stderrRedirection: Option[String] = None,
+                                        additionalGlob: Option[WomGlobFile] = None,
+                                        private [wom] val customizedOutputEvaluation: OutputEvaluationFunction = OutputEvaluationFunction.none
                                        ) extends TaskDefinition
 
 /**
@@ -111,6 +142,8 @@ final case class ExecutableTaskDefinition private (callableTaskDefinition: Calla
   override def stderrRedirection = callableTaskDefinition.stderrRedirection
   override def adHocFileCreation = callableTaskDefinition.adHocFileCreation
   override def environmentExpressions = callableTaskDefinition.environmentExpressions
+  override def additionalGlob = callableTaskDefinition.additionalGlob
+  override private [wom]  def customizedOutputEvaluation = callableTaskDefinition.customizedOutputEvaluation
 }
 
 object ExecutableTaskDefinition {

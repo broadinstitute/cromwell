@@ -26,13 +26,14 @@ task mirror {
 
 workflow ifs_in_scatters {
   Array[Int] numbers = range(5)
+  call mirror as init { input: i = 1 }
 
   scatter (n in numbers) {
 
     call validate_int { input: i = n }
     if (validate_int.validation) {
       Int incremented = n + 1
-      call mirror { input: i = incremented }
+      call mirror { input: i = incremented + init.out }
     }
   }
 

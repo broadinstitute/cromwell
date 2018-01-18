@@ -89,7 +89,6 @@ private[statuspolling] object StatusPolling {
         } getOrElse false
 
         // If there's an error, generate an unsuccessful status. Otherwise, we were successful!
-        // metadata.pipelineArgs.resources.preemptible
         Option(op.getError) match {
           case Some(error) =>
             val errorCode = Status.fromCodeValue(error.getCode)

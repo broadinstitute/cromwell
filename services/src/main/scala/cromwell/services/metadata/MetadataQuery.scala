@@ -32,6 +32,7 @@ object MetadataKey {
 
 object MetadataEvent {
   def apply(key: MetadataKey, value: MetadataValue) = new MetadataEvent(key, Option(value), OffsetDateTime.now)
+  def apply(key: MetadataKey, optionalValue: Option[MetadataValue]) = new MetadataEvent(key, optionalValue, OffsetDateTime.now)
   def empty(key: MetadataKey) = new MetadataEvent(key, None, OffsetDateTime.now)
 }
 

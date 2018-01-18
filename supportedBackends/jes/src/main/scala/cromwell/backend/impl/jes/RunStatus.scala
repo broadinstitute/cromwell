@@ -49,11 +49,13 @@ object RunStatus {
               eventList: Seq[ExecutionEvent],
               machineType: Option[String],
               zone: Option[String],
-              instanceName: Option[String]): UnsuccessfulRunStatus = {
+              instanceName: Option[String],
+              isPreemptible: Boolean): UnsuccessfulRunStatus = {
       val jesCode: Option[Int] = errorMessage flatMap { em => Try(em.substring(0, em.indexOf(':')).toInt).toOption }
 
       val unsuccessfulStatusBuilder = errorCode match {
         case Status.ABORTED if jesCode.contains(JesAsyncBackendJobExecutionActor.JesPreemption) => Preempted.apply _
+        case Status.ABORTED if jesCode.contains(JesAsyncBackendJobExecutionActor.JesUnexpectedTermination) && isPreemptible => Preempted.apply _
         case Status.UNKNOWN if errorMessage.exists(_.contains(JesAsyncBackendJobExecutionActor.FailedToStartDueToPreemptionSubstring)) => Preempted.apply _
         case Status.CANCELLED => Cancelled.apply _
         case _ => Failed.apply _

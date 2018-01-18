@@ -74,15 +74,26 @@ private[statuspolling] object StatusPolling {
           runtimeMetadata <- op.getMetadata.asScala.get("runtimeMetadata")
           computeEngine <- runtimeMetadata.asInstanceOf[GArrayMap[String, Object]].asScala.get("computeEngine")
         } yield computeEngine.asInstanceOf[GArrayMap[String, String]].asScala
+        
         lazy val machineType = computeEngineOption.flatMap(_.get("machineType"))
         lazy val instanceName = computeEngineOption.flatMap(_.get("instanceName"))
         lazy val zone = computeEngineOption.flatMap(_.get("zone"))
 
+        val preemptible = {
+          for {
+            request <- op.getMetadata.asScala.get("request")
+            pipelineArgs <- request.asInstanceOf[GArrayMap[String, Object]].asScala.get("pipelineArgs")
+            resources <- pipelineArgs.asInstanceOf[GArrayMap[String, Object]].asScala.get("resources")
+            preemptible <- resources.asInstanceOf[GArrayMap[String, Object]].asScala.get("preemptible")
+          } yield preemptible.asInstanceOf[Boolean]
+        } getOrElse false
+
         // If there's an error, generate an unsuccessful status. Otherwise, we were successful!
+        // metadata.pipelineArgs.resources.preemptible
         Option(op.getError) match {
           case Some(error) =>
             val errorCode = Status.fromCodeValue(error.getCode)
-            UnsuccessfulRunStatus(errorCode, Option(error.getMessage), eventList, machineType, zone, instanceName)
+            UnsuccessfulRunStatus(errorCode, Option(error.getMessage), eventList, machineType, zone, instanceName, preemptible)
           case None => Success(eventList, machineType, zone, instanceName)
         }
       } else if (op.hasStarted) {

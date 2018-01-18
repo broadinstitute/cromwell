@@ -200,7 +200,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   private def runAndFail(previousPreemptions: Int, previousUnexpectedRetries: Int, preemptible: Int, errorCode: Status, innerErrorMessage: String, expectPreemptible: Boolean): BackendJobExecutionResponse = {
 
-    val runStatus = UnsuccessfulRunStatus(errorCode, Option(innerErrorMessage), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
+    val runStatus = UnsuccessfulRunStatus(errorCode, Option(innerErrorMessage), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"),false)
     val statusPoller = TestProbe()
 
     val promise = Promise[BackendJobExecutionResponse]()
@@ -263,7 +263,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       (1, 0, 1, Status.ABORTED, "15: other error", false, false),
       (1, 0, 1, Status.OUT_OF_RANGE, "13: retryable error", false, false),
       (1, 0, 1, Status.OUT_OF_RANGE, "14: preempted", false, false),
-      (1, 0, 1, Status.OUT_OF_RANGE, "Instance failed to start due to preemption.", false, false),
+      (1, 0, 1, Status.OUT_OF_RANGE, "Instance failed to start due to preemption.", false, false)
     )
 
     expectations foreach { case (previousPreemptions, previousUnexpectedRetries, preemptible, errorCode, innerErrorMessage, shouldBePreemptible, shouldRetry) =>
@@ -286,7 +286,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val runId = StandardAsyncJob(UUID.randomUUID().toString)
     val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
-    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
+    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), true)
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
     val result = Await.result(executionResult, timeout)
     result.isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
@@ -300,7 +300,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val runId = StandardAsyncJob(UUID.randomUUID().toString)
     val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
-    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
+    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), true)
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
     val result = Await.result(executionResult, timeout)
     result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
@@ -315,7 +315,22 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val runId = StandardAsyncJob(UUID.randomUUID().toString)
     val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
-    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
+    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), true)
+    val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
+    val result = Await.result(executionResult, timeout)
+    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    val retryableHandle = result.asInstanceOf[FailedRetryableExecutionHandle]
+    retryableHandle.returnCode shouldBe None
+    retryableHandle.throwable.getMessage should include("will be restarted with another preemptible VM")
+  }
+
+  it should "treat a JES message 13 as preemptible if the VM was preemptible" in {
+    val actorRef = buildPreemptibleTestActorRef(1, 2)
+    val jesBackend = actorRef.underlyingActor
+    val runId = StandardAsyncJob(UUID.randomUUID().toString)
+    val handle = new JesPendingExecutionHandle(null, runId, None, None)
+
+    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option("13: Retryable Error."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), true)
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
     val result = Await.result(executionResult, timeout)
     result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
@@ -331,7 +346,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
     def checkFailedResult(errorCode: Status, errorMessage: Option[String]): ExecutionHandle = {
-      val failed = UnsuccessfulRunStatus(errorCode, errorMessage, Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
+      val failed = UnsuccessfulRunStatus(errorCode, errorMessage, Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), true)
       Await.result(jesBackend.handleExecutionResult(failed, handle), timeout)
     }
 

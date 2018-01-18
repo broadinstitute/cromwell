@@ -12,7 +12,7 @@ workflow lots_of_nesting {
 
     scatter (m in mxm) {
       Int lhs = m.left
-      if (lhs * m.right == 8) {
+      if (lhs * m.right == 35) {
         Int rhs = m.right
         Pair[Int, Int] hooroo = ( lhs, rhs )
       }

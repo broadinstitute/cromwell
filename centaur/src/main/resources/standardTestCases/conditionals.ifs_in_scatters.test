@@ -9,8 +9,8 @@ files {
 metadata {
   workflowName: ifs_in_scatters
   "outputs.ifs_in_scatters.mirrors.0": null
-  "outputs.ifs_in_scatters.mirrors.1": "3"
+  "outputs.ifs_in_scatters.mirrors.1": "5"
   "outputs.ifs_in_scatters.mirrors.2": null
-  "outputs.ifs_in_scatters.mirrors.3": "5"
+  "outputs.ifs_in_scatters.mirrors.3": "7"
   "outputs.ifs_in_scatters.mirrors.4": null
 }

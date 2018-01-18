@@ -41,6 +41,8 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
           WomArray(womArrayType, _)
         }
 
+    case WomOptionalType(otherType) =>
+      onArray(value).apply(otherType)
     case other => s"Cannot convert an array input value into a non array type: $other".invalidNel
   }
 

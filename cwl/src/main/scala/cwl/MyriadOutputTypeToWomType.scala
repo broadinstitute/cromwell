@@ -8,14 +8,25 @@ import wom.types._
 
 object MyriadOutputInnerTypeToString extends Poly1 {
 
-  implicit def cwlType= at[CwlType]{_.toString}
+  implicit def cwlType = at[CwlType] {
+    _.toString
+  }
 
-  implicit def ors= at[OutputRecordSchema] {_.toString}
+  implicit def ors = at[OutputRecordSchema] {
+    _.toString
+  }
 
-  implicit def oes= at[OutputEnumSchema] {_.toString}
+  implicit def oes = at[OutputEnumSchema] {
+    _.toString
+  }
 
-  implicit def oas= at[OutputArraySchema] {_.toString}
-  implicit def s=  at[String] {identity}
+  implicit def oas = at[OutputArraySchema] {
+    _.toString
+  }
+
+  implicit def s = at[String] {
+    identity
+  }
 }
 
 object MyriadOutputTypeToWomType extends Poly1{

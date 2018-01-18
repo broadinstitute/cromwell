@@ -99,11 +99,11 @@ class WomTypeConversionSpec extends Properties("CWL -> WOM Conversion"){
   }
 
   property("Optional Array of a type is interpreted correctly as output type") = secure {
-    val miit = Coproduct[MyriadOutputInnerType](CwlType.File)
-    val mit = Coproduct[MyriadOutputType](miit)
-    val ias =  OutputArraySchema(items = mit)
-    val y = Coproduct[MyriadOutputInnerType](ias)
-    val z = Coproduct[MyriadOutputInnerType](CwlType.Null)
-    testOutputArray(Array(y,z), WomOptionalType(WomMaybeEmptyArrayType(WomMaybePopulatedFileType)))
+    val moit = Coproduct[MyriadOutputInnerType](CwlType.File)
+    val mot = Coproduct[MyriadOutputType](moit)
+    val oas =  OutputArraySchema(items = mot)
+    val moit2 = Coproduct[MyriadOutputInnerType](oas)
+    val moit3 = Coproduct[MyriadOutputInnerType](CwlType.Null)
+    testOutputArray(Array(moit2,moit3), WomOptionalType(WomMaybeEmptyArrayType(WomMaybePopulatedFileType)))
   }
 }

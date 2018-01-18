@@ -82,7 +82,10 @@ object OutputEvaluator {
       case Failure(exception) => JobOutputsEvaluationException(exception)
     }
     
-    // Validate that all the output ports have been filled with values
+    /*
+      * Because Cromwell doesn't trust anyone, if custom evaluation is provided,
+      * still make sure that all the output ports have been filled with values
+     */
     def validateCustomEvaluation(outputs: Map[OutputPort, WomValue]): EvaluatedJobOutputs = {
       def toError(outputPort: OutputPort) = s"Missing output value for ${outputPort.identifier.fullyQualifiedName.value}"
 
@@ -92,7 +95,13 @@ object OutputEvaluator {
       }
     }
 
-    // Try the custom evaluation function
+    /*
+      * See if the task definition has "short-circuit" for the default output evaluation.
+      * In the case of CWL for example, this gives a chance to look for cwl.output.json and use it as the output of the tool,
+      * instead of the default behavior of going over each output port of the task and evaluates their expression.
+      * If the "customOutputEvaluation" returns None (which will happen if the cwl.output.json is not there, as well as for all WDL workflows),
+      * we fallback to the default behavior.
+     */
     jobDescriptor.taskCall.customOutputEvaluation(taskInputValues, ioFunctions, ec).value
       .map({
         case Some(Right(outputs)) => validateCustomEvaluation(outputs)

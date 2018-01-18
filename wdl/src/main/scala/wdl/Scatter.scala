@@ -60,6 +60,19 @@ object Scatter {
       * use however many of them it needs.
       */
     val possiblyNeededNestedOgins: Map[String, OuterGraphInputNode] = outerLookup filterNot { case (name, _) => localLookup.contains(name) } map { case (name, outerPort) =>
+      /*
+        * preserveIndexForOuterLookups indicates us whether or not nodes in the outerLookup should be considered "siblings" of the scatter in term of scatter index
+        * preserveIndexForOuterLookups = false means the outerLookup nodes are outside a scatter containing this scatter node
+        * preserveIndexForOuterLookups = true means the above predicate does not hold
+        * 
+        * When creating OGINs from those outer lookup nodes for the inner graph we want to make sure we set their preserveScatterIndex to preserveIndexForOuterLookups
+        * because they effectively represent the outer lookup nodes inside the scatter. So whether the index must be preserved depends on whether this
+        * scatter node has been asked to "preserveIndexForOuterLookups".
+        * 
+        * Note that preserveIndexForOuterLookups will always be true here as long as scatters can't be nested. Indeed the only reason for a node to be
+        * asked to NOT preserve the index is if its outerLookup is referencing nodes outside a scatter.
+        * In this case preserveIndexForOuterLookups = false would mean this scatter node is part of the inner graph of another scatter node.
+       */
       name -> OuterGraphInputNode(WomIdentifier(name), outerPort, preserveScatterIndex = preserveIndexForOuterLookups)
     }
     val possiblyNeededNestedOginPorts: Map[String, OutputPort] = possiblyNeededNestedOgins map { case (name: String, ogin: OuterGraphInputNode) => name -> ogin.singleOutputPort }

@@ -1,4 +1,4 @@
-Command line utilities for interacting with the Workflow Object Model (WOM).
+Command line utilities for interacting with the Workflow Object Model (WOM). You can download the latest WOMtool from the [Cromwell releases page on Github](https://github.com/broadinstitute/cromwell/releases/latest).
 
 ## Requirements
 

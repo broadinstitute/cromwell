@@ -65,7 +65,13 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
   def ex(component: String) = throw new RuntimeException(s"input type $component not yet supported by WOM!")
 
   // Primitive type: we just need to create a command part from the binding if there's one here.
-  implicit def ct: Aux[CwlType, CommandPartBuilder] = at[CwlType] { _ => { case (binding, womValue, key, expressionLib) => binding.toList.map(_.toCommandPart(key, womValue, expressionLib)) } }
+  implicit def ct: Aux[CwlType, CommandPartBuilder] =
+    at[CwlType] {
+      case CwlType.Null => {case (_, _,_,_) => List.empty}
+      case _ => {
+        case (binding, womValue, key, expressionLib) => binding.toList.map(_.toCommandPart(key, womValue, expressionLib))
+      }
+    }
 
   implicit def irs: Aux[InputRecordSchema, CommandPartBuilder] = at[InputRecordSchema] { irs => {
     def go: CommandPartBuilder = {
@@ -74,7 +80,7 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
       case (inputBinding, WomOptionalValue(_, Some(value)), sortingKey, expressionLib) =>
         go(inputBinding, value, sortingKey, expressionLib)
 
-        //If it's optional and there's no value, no problemo!
+        //If it's optional and there's no value, do nothing
       case (_, WomOptionalValue(_, None), _, _) => List.empty
 
       case (inputBinding, objectLike: WomObjectLike, sortingKey, expressionLib) =>

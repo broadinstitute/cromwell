@@ -242,13 +242,11 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
     val womFileOutputs = jobDescriptor.taskCall.callable.outputs.flatMap(evaluateFiles) map relativeLocalizationPath
 
-    val outputs = womFileOutputs.distinct flatMap { womFile =>
-      womFile match {
-        case singleFile: WomSingleFile => List(generateJesSingleFileOutputs(singleFile))
+    val outputs: Seq[JesFileOutput] = womFileOutputs.distinct flatMap {
+      _.flattenFiles flatMap {
+        case unlistedDirectory: WomUnlistedDirectory => generateUnlistedDirectoryOutputs(unlistedDirectory)
+        case singleFile: WomSingleFile => generateJesSingleFileOutputs(singleFile)
         case globFile: WomGlobFile => generateJesGlobFileOutputs(globFile)
-        case unsupported: WomFile =>
-          // TODO: WOM: WOMFILE: Add support for directories.
-          throw new NotImplementedError(s"$unsupported is not supported yet.")
       }
     }
     
@@ -257,10 +255,38 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     outputs.toSet ++ additionalGlobOutput
   }
 
-  private def generateJesSingleFileOutputs(womFile: WomSingleFile): JesFileOutput = {
+  private def generateUnlistedDirectoryOutputs(womFile: WomUnlistedDirectory): List[JesFileOutput] = {
+    val directoryPath = DirectoryFunctions.ensureSlashed(womFile.value)
+    val directoryListFile = DirectoryFunctions.ensureUnslashed(womFile.value) + ".list"
+    val gcsDirDestinationPath = callRootPath.resolve(directoryPath).pathAsString
+    val gcsListDestinationPath = callRootPath.resolve(directoryListFile).pathAsString
+
+    val (_, directoryDisk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
+
+    // We need both the collection directory and the collection list:
+    List(
+      // The collection directory:
+      JesFileOutput(
+        makeSafeJesReferenceName(directoryListFile),
+        gcsListDestinationPath,
+        DefaultPathBuilder.get(directoryListFile),
+        directoryDisk
+      ),
+      // The collection list file:
+      JesFileOutput(
+        makeSafeJesReferenceName(directoryPath),
+        gcsDirDestinationPath,
+        DefaultPathBuilder.get(directoryPath + "*"),
+        directoryDisk
+      )
+    )
+  }
+
+  private def generateJesSingleFileOutputs(womFile: WomSingleFile): List[JesFileOutput] = {
     val destination = callRootPath.resolve(womFile.value.stripPrefix("/")).pathAsString
     val (relpath, disk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
-    JesFileOutput(makeSafeJesReferenceName(womFile.value), destination, relpath, disk)
+    val jesFileOutput = JesFileOutput(makeSafeJesReferenceName(womFile.value), destination, relpath, disk)
+    List(jesFileOutput)
   }
 
   private def generateJesGlobFileOutputs(womFile: WomGlobFile): List[JesFileOutput] = {
@@ -434,9 +460,11 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   private[jes] def womFileToGcsPath(jesOutputs: Set[JesFileOutput])(womFile: WomFile): WomFile = {
-    jesOutputs collectFirst {
-      case jesOutput if jesOutput.name == makeSafeJesReferenceName(womFile.valueString) => WomSingleFile(jesOutput.gcs)
-    } getOrElse womFile
+    womFile mapFile { path =>
+      jesOutputs collectFirst {
+        case jesOutput if jesOutput.name == makeSafeJesReferenceName(path) => jesOutput.gcs
+      } getOrElse path
+    }
   }
 
   override def isSuccess(runStatus: RunStatus): Boolean = {

@@ -57,7 +57,7 @@ class CwlJsDecoder extends JsDecoder {
     */
   def partialDecodeMapToDirectory(): PartialFunction[Map[String, AnyRef], ErrorOr[FileOrDirectory]] = {
     new PartialFunction[Map[String, AnyRef], ErrorOr[FileOrDirectory]] {
-      override def isDefinedAt(map: Map[String, AnyRef]): Boolean = isFile(map)
+      override def isDefinedAt(map: Map[String, AnyRef]): Boolean = isDirectory(map)
 
       override def apply(map: Map[String, AnyRef]): ErrorOr[FileOrDirectory] = {
         decodeDirectory(map).map(Coproduct[FileOrDirectory](_))

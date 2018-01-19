@@ -61,7 +61,7 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
         case (k, v) =>
           composite.typeMap.get(k).map({ valueType =>
             v.foldWith(this).apply(valueType).map(k -> _)
-          }).getOrElse(s"Input field $k is not defined in the composite input type ${composite}".invalidNel)
+          }).getOrElse(s"Input field $k is not defined in the composite input type $composite".invalidNel)
       }).map(_.toMap[String, WomValue])
 
       foldedMap.map(WomObject.withType(_, composite))
@@ -71,6 +71,6 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
       }).map(_.toMap[String, WomValue])
 
       foldedMap.map(WomObject.apply)
-    case other => s"Cannot convert an array input value into a non array type: $other".invalidNel
+    case other => s"Cannot convert an object input value into a non object type: $other".invalidNel
   }
 }

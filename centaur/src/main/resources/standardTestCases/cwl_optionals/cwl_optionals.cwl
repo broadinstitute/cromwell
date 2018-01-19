@@ -7,4 +7,6 @@ baseCommand: echo
 inputs:
   message:
     type: string[]?
+  unsupplied_optional:
+    type: string[]?
 outputs: []

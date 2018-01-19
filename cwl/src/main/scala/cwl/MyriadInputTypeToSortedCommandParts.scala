@@ -69,8 +69,14 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
 
   implicit def irs: Aux[InputRecordSchema, CommandPartBuilder] = at[InputRecordSchema] { irs => {
     def go: CommandPartBuilder = {
+
+      //If the value is optional and is supplied, recurse over the value provided
       case (inputBinding, WomOptionalValue(_, Some(value)), sortingKey, expressionLib) =>
         go(inputBinding, value, sortingKey, expressionLib)
+
+        //If it's optional and there's no value, no problemo!
+      case (_, WomOptionalValue(_, None), _, _) => List.empty
+
       case (inputBinding, objectLike: WomObjectLike, sortingKey, expressionLib) =>
         // If there's an input binding, make a SortKeyAndCommandPart for it
         val fromInputBinding: Option[SortKeyAndCommandPart] = inputBinding.map(_.toCommandPart(sortingKey, objectLike, expressionLib))
@@ -110,6 +116,10 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
     def go: CommandPartBuilder = {
       case (inputBinding, WomOptionalValue(_, Some(value)), sortingKey, expressionLib) =>
         go(inputBinding, value, sortingKey, expressionLib)
+
+      //If it's optional and there's no value, do nothing
+      case (_, WomOptionalValue(_, None), _, _) => List.empty
+
       case (inputBinding, WomArray.WomArrayLike(womArray), sortingKey, expressionLib) =>
 
         // If there's an input binding, make a SortKeyAndCommandPart for it

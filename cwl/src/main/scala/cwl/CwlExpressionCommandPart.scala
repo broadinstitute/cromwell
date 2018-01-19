@@ -18,13 +18,13 @@ case class CwlExpressionCommandPart(expr: Expression)(expressionLib: ExpressionL
                            valueMapper: (WomValue) => WomValue,
                            runtimeEnvironment: RuntimeEnvironment): ErrorOr[List[InstantiatedCommand]] = {
     val stringKeyMap = inputsMap map {
-      case (LocalName(localName), value) => localName -> value
+      case (LocalName(localName), value) => localName -> valueMapper(value)
     }
     val parameterContext = ParameterContext(
         inputs = stringKeyMap, runtimeOption = Option(runtimeEnvironment)
       )
     ExpressionEvaluator.eval(expr, parameterContext, expressionLib) map { womValue =>
-      List(InstantiatedCommand(womValue.valueString))
+      List(InstantiatedCommand(valueMapper(womValue).valueString))
     }
   }
 }
@@ -68,13 +68,13 @@ abstract class CommandLineBindingCommandPart(commandLineBinding: CommandLineBind
     }
     
     def processValue(womValue: WomValue): List[String] = womValue match {
-      case WomOptionalValue(_, Some(womValue)) => processValue(womValue)
-      case _: WomString | _: WomInteger | _: WomFile => handlePrefix(womValue.valueString)
+      case WomOptionalValue(_, Some(womValue)) => processValue(valueMapper(womValue))
+      case _: WomString | _: WomInteger | _: WomFile => handlePrefix(valueMapper(womValue).valueString)
       // For boolean values, use the value of the boolean to choose whether to print the prefix or not
       case WomBoolean(false) => List.empty
       case WomBoolean(true) => prefixAsList
       case WomArray(_, values) => commandLineBinding.itemSeparator match {
-        case Some(itemSeparator) => handlePrefix(values.map(_.valueString).mkString(itemSeparator))
+        case Some(itemSeparator) => handlePrefix(values.map(valueMapper(_).valueString).mkString(itemSeparator))
         case None if commandLineBinding.optionalValueFrom.isDefined => values.toList.flatMap(processValue)
         case _ => prefixAsList
       }

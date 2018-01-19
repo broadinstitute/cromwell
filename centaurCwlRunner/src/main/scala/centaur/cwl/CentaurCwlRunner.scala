@@ -95,6 +95,8 @@ object CentaurCwlRunner extends StrictLogging {
 
   private def runCentaur(args: CommandLineArguments): ExitCode.Value = {
 
+    def preProcessIfNotLocal(preProcessor: String => String)(value: String): String = if (args.localMode) value else preProcessor(value)
+    
     def zipSiblings(file: File): File = {
       val zipFile = File.newTemporaryFile("cwl_imports.", ".zip")
       val dir = file.parent
@@ -113,8 +115,8 @@ object CentaurCwlRunner extends StrictLogging {
     }
     val outdirOption = args.outdir.map(_.pathAsString)
     val testName = workflowPath.name
-    val workflowContents = parsedWorkflowPath.contentAsString
-    val inputContents = args.workflowInputs.map(_.contentAsString)
+    val workflowContents = preProcessIfNotLocal(PAPIPreprocessor.preProcessWorkflow)(parsedWorkflowPath.contentAsString)
+    val inputContents = args.workflowInputs.map(_.contentAsString) map preProcessIfNotLocal(PAPIPreprocessor.preProcessInput)
     val workflowType = Option("cwl")
     val workflowTypeVersion = None
     val optionsContents = outdirOption map { outdir =>

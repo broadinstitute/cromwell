@@ -33,7 +33,7 @@ workflow my_workflow {
 
 _imports.zip_
 ```
-imports
+imports.zip
 └── imported.wdl
 ```
 

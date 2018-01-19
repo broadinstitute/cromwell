@@ -234,8 +234,15 @@ case class CommandLineTool private(
       import cats.instances.list._
 
       outputPorts.toList.traverse[ErrorOr, (OutputPort, WomValue)]({ outputPort =>
+        // If the type is optional, then we can set the value to none if there's nothing in the json
+        def emptyValue = outputPort.womType match {
+          case optional: WomOptionalType => Option((outputPort -> optional.none).validNel)
+          case _ => None
+        }
+        
         json.get(outputPort.name)
           .map(_.foldWith(CwlJsonToDelayedCoercionFunction).apply(outputPort.womType).map(outputPort -> _))
+          .orElse(emptyValue)
           .getOrElse(s"Cannot find a value for output ${outputPort.name} in output json $json".invalidNel)
       }).toEither
     }

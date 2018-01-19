@@ -31,9 +31,10 @@ workflow my_workflow {
 }
 ```
 
+Note that we said "`import "imports/imported.wdl`" in the workflow so we must have a `imports/imported.wdl` structure in the imports file:
 _imports.zip_
 ```
-imports.zip
+imports
 └── imported.wdl
 ```
 

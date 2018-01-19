@@ -819,7 +819,6 @@ definitions:
       - id
       - name
       - status
-      - start
     properties:
       id:
         type: string

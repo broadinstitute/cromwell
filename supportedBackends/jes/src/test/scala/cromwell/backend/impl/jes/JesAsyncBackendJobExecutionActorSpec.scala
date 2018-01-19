@@ -200,7 +200,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   private def runAndFail(previousPreemptions: Int, previousUnexpectedRetries: Int, preemptible: Int, errorCode: Status, innerErrorMessage: String, expectPreemptible: Boolean): BackendJobExecutionResponse = {
 
-    val runStatus = UnsuccessfulRunStatus(errorCode, Option(innerErrorMessage), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), false)
+    val runStatus = UnsuccessfulRunStatus(errorCode, Option(innerErrorMessage), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), expectPreemptible)
     val statusPoller = TestProbe()
 
     val promise = Promise[BackendJobExecutionResponse]()
@@ -244,10 +244,13 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       (0, 0, 0, Status.ABORTED, "15: other error", false, false),
       (0, 0, 0, Status.OUT_OF_RANGE, "13: unexpected error", false, false),
       (0, 0, 0, Status.OUT_OF_RANGE, "14: test error msg", false, false),
+      // These commented out tests should be uncommented if/when we stop mapping 13 to 14 in preemption mode
       // 1 preemptible attempt allowed, but not all failures represent preemptions.
+//      (0, 0, 1, Status.ABORTED, "13: retryable error", true, true),
+//      (0, 1, 1, Status.ABORTED, "13: retryable error", true, true),
+//      (0, 2, 1, Status.ABORTED, "13: retryable error", true, false),
+      // The following 13 based test should be removed if/when we stop mapping 13 to 14 in preemption mode
       (0, 0, 1, Status.ABORTED, "13: retryable error", true, true),
-      (0, 1, 1, Status.ABORTED, "13: retryable error", true, true),
-      (0, 2, 1, Status.ABORTED, "13: retryable error", true, false),
       (0, 0, 1, Status.ABORTED, "14: preempted", true, true),
       (0, 0, 1, Status.UNKNOWN, "Instance failed to start due to preemption.", true, true),
       (0, 0, 1, Status.ABORTED, "15: other error", true, false),

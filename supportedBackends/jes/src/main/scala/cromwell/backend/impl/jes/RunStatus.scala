@@ -49,11 +49,17 @@ object RunStatus {
               eventList: Seq[ExecutionEvent],
               machineType: Option[String],
               zone: Option[String],
-              instanceName: Option[String]): UnsuccessfulRunStatus = {
+              instanceName: Option[String],
+              wasPreemptible: Boolean): UnsuccessfulRunStatus = {
       val jesCode: Option[Int] = errorMessage flatMap { em => Try(em.substring(0, em.indexOf(':')).toInt).toOption }
 
+      /*
+       Because of Reasons, sometimes errors which aren't indicative of preemptions are treated as preemptions. The belief
+       is that PAPI v2 will get rid of this so we should look into removing in the future
+        */
       val unsuccessfulStatusBuilder = errorCode match {
         case Status.ABORTED if jesCode.contains(JesAsyncBackendJobExecutionActor.JesPreemption) => Preempted.apply _
+        case Status.ABORTED if jesCode.contains(JesAsyncBackendJobExecutionActor.JesUnexpectedTermination) && wasPreemptible => Preempted.apply _
         case Status.UNKNOWN if errorMessage.exists(_.contains(JesAsyncBackendJobExecutionActor.FailedToStartDueToPreemptionSubstring)) => Preempted.apply _
         case Status.CANCELLED => Cancelled.apply _
         case _ => Failed.apply _

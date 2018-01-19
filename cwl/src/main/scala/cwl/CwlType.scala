@@ -9,6 +9,7 @@ import common.validation.Validation._
 import eu.timepit.refined._
 import shapeless.Poly1
 import shapeless.syntax.singleton._
+import wom.types.WomFileType
 import wom.values._
 
 import scala.annotation.tailrec
@@ -106,11 +107,14 @@ object File {
     }
   }
 
-  def secondaryStringFile(primaryWomFile: WomFile, secondaryValue: String): ErrorOr[WomFile] = {
-    validate(WomSingleFile(File.relativeFileName(primaryWomFile.value, secondaryValue)))
+  def secondaryStringFile(primaryWomFile: WomFile,
+                          stringWomFileType: WomFileType,
+                          secondaryValue: String): ErrorOr[WomFile] = {
+    validate(WomFile(stringWomFileType, File.relativeFileName(primaryWomFile.value, secondaryValue)))
   }
 
   def secondaryExpressionFiles(primaryWomFile: WomFile,
+                               stringWomFileType: WomFileType,
                                expression: Expression,
                                parameterContext: ParameterContext,
                                expressionLib: ExpressionLib): ErrorOr[List[WomFile]] = {
@@ -127,7 +131,7 @@ object File {
      */
     def parseResult(nestedLevel: Int)(womValue: WomValue): ErrorOr[List[WomFile]] = {
       womValue match {
-        case womString: WomString => List(WomSingleFile(womString.value)).valid
+        case womString: WomString => List(WomFile(stringWomFileType, womString.value)).valid
         case womMaybeListedDirectory: WomMaybeListedDirectory => List(womMaybeListedDirectory).valid
         case womMaybePopulatedFile: WomMaybePopulatedFile => List(womMaybePopulatedFile).valid
         case womArray: WomArray if nestedLevel == 0 =>
@@ -170,7 +174,7 @@ object File {
       val (prefix, suffix) = stripCaret(primary, secondary)
       prefix + suffix
     } else {
-      secondary
+      primary + secondary
     }
 
   }

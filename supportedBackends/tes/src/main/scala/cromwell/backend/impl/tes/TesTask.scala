@@ -1,5 +1,6 @@
 package cromwell.backend.impl.tes
 
+import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.NoIoFunctionSet
 import cromwell.core.logging.JobLogger
@@ -63,15 +64,21 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   def inputs(commandLineValueMapper: WomValue => WomValue): Seq[Input] =
     (callInputFiles ++ writeFunctionFiles).flatMap {
-      case (fullyQualifiedName, files) => files.zipWithIndex.map {
-        case (f, index) => Input(
-          name = Option(fullyQualifiedName + "." + index),
-          description = Option(workflowName + "." + fullyQualifiedName + "." + index),
-          url = Option(f.value),
-          path = tesPaths.containerInput(f.value),
-          `type` = Option("FILE"),
-          content = None
-        )
+      case (fullyQualifiedName, files) => files.flatMap(_.flattenFiles).zipWithIndex.map {
+        case (f, index) =>
+          val inputType = f match {
+            case _: WomUnlistedDirectory => "DIRECTORY"
+            case _: WomSingleFile => "FILE"
+            case _: WomGlobFile => "FILE"
+          }
+          Input(
+            name = Option(fullyQualifiedName + "." + index),
+            description = Option(workflowName + "." + fullyQualifiedName + "." + index),
+            url = Option(f.value),
+            path = tesPaths.containerInput(f.value),
+            `type` = Option(inputType),
+            content = None
+          )
       }
     }.toList ++ Seq(commandScript)
 
@@ -113,7 +120,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       .flatMap(evaluateFiles)
       .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
   }
-  
+
   def handleGlobFile(g: WomGlobFile, index: Int) = {
     val globName = GlobFunctions.globName(g.value)
     val globDirName = "globDir." + index
@@ -138,7 +145,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     )
   }
 
-  private val womOutputs = outputWomFiles
+  private val womOutputs = outputWomFiles.flatMap(_.flattenFiles)
     .zipWithIndex
     .flatMap {
       case (f: WomSingleFile, index) =>
@@ -153,11 +160,29 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
           )
         )
       case (g: WomGlobFile, index) => handleGlobFile(g, index)
-      case (unsupported: WomFile, _) =>
-        // TODO: WOM: WOMFILE: Add support for directories.
-        throw new NotImplementedError(s"$unsupported is not supported yet.")
+      case (d: WomUnlistedDirectory, index) =>
+        val directoryPathName = "dirPath." + index
+        val directoryPath = DirectoryFunctions.ensureSlashed(d.value)
+        val directoryListName =  "dirList." + index
+        val directoryList = DirectoryFunctions.ensureUnslashed(d.value) + ".list"
+        Seq(
+          Output(
+            name = Option(directoryPathName),
+            description = Option(fullyQualifiedTaskName + "." + directoryPathName),
+            url = Option(tesPaths.storageOutput(directoryPath)),
+            path = tesPaths.containerOutput(containerWorkDir, directoryPath),
+            `type` = Option("DIRECTORY")
+          ),
+          Output(
+            name  = Option(directoryListName),
+            description = Option(fullyQualifiedTaskName + "." + directoryListName),
+            url = Option(tesPaths.storageOutput(directoryList)),
+            path = tesPaths.containerOutput(containerWorkDir, directoryList),
+            `type` = Option("FILE")
+          )
+        )
     }
-  
+
   private val additionalGlobOutput = jobDescriptor.taskCall.callable.additionalGlob.toList.flatMap(handleGlobFile(_, womOutputs.size))
 
   val outputs: Seq[Output] = womOutputs ++ standardOutputs ++ Seq(commandScriptOut) ++ additionalGlobOutput

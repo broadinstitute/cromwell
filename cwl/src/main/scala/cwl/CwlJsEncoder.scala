@@ -1,8 +1,8 @@
 package cwl
 
 import cats.instances.list._
+import cats.instances.option._
 import cats.syntax.traverse._
-import cats.syntax.validated._
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import wom.util.JsEncoder
@@ -35,7 +35,7 @@ class CwlJsEncoder extends JsEncoder {
     value match {
       case directory: WomUnlistedDirectory => encodeDirectory(WomMaybeListedDirectory(directory.value))
       case file: WomSingleFile => encodeFile(WomMaybePopulatedFile(file.value))
-      case glob: WomGlobFile => s"Glob file javascript encoding is not supported: $glob".invalidNel
+      case glob: WomGlobFile => encodeFile(WomMaybePopulatedFile(glob.value))
       case directory: WomMaybeListedDirectory => encodeDirectory(directory)
       case file: WomMaybePopulatedFile => encodeFile(file)
     }
@@ -72,7 +72,7 @@ class CwlJsEncoder extends JsEncoder {
       "location" -> validate(directory.valueOption),
       "path" -> validate(Option(directory.value)),
       "basename" -> validate(Option(Directory.basename(directory.value))),
-      "listing" -> validate(directory.listingOption.map(encodeFileOrDirectories))
+      "listing" -> directory.listingOption.traverse(encodeFileOrDirectories)
     ).sequence
 
     flattenToJava(lifted)

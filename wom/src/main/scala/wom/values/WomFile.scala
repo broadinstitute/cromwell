@@ -32,23 +32,26 @@ sealed trait WomFile extends WomValue {
   def mapFile(f: String => String): WomFile
 
   /**
-    * Returns the WomFile recursively referenced by this instance.
+    * Returns the WomPrimitiveFile instances recursively referenced by this instance.
     *
-    * WomSingleDirectory return either just the directory, or if there is Some listing then just the recursive listing
-    * entries. WomSingleFile return that instance plus any instances recursively discovered in secondaryFiles.
-    * WomGlobFile return just the instance.
+    * WomMaybeListedDirectory instances return either just the directory as an WomUnlistedDirectory, or if there is a
+    * listing then returns the recursive listing. WomMaybePopulatedFile instances return that instance as a
+    * WomSingleFile plus any primitives recursively discovered in secondaryFiles.
+    *
+    * WomPrimitiveFile instances return just the instance.
     */
-  def flattenFiles: Seq[WomFile] = {
+  def flattenFiles: Seq[WomPrimitiveFile] = {
     this match {
       case womMaybeListedDirectory: WomMaybeListedDirectory =>
         womMaybeListedDirectory.listingOption.getOrElse(Nil).toList match {
-          case Nil => List(this)
+          case Nil => womMaybeListedDirectory.valueOption.toList.map(WomUnlistedDirectory)
           case list => list.flatMap(_.flattenFiles)
         }
       case womMaybePopulatedFile: WomMaybePopulatedFile =>
-        womMaybePopulatedFile.secondaryFiles.foldLeft(List(this)) {
-          (womFiles, womMaybeListedDirectoryOrFile) =>
-            womFiles ++ womMaybeListedDirectoryOrFile.flattenFiles
+        val primaryFiles: Seq[WomPrimitiveFile] = womMaybePopulatedFile.valueOption.toList.map(WomSingleFile)
+        womMaybePopulatedFile.secondaryFiles.foldLeft(primaryFiles) {
+          (womFiles, secondaryFile) =>
+            womFiles ++ secondaryFile.flattenFiles
         }
       case womPrimitiveFile: WomPrimitiveFile => List(womPrimitiveFile)
     }

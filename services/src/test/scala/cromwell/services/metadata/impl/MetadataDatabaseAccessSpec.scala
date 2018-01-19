@@ -251,9 +251,10 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
     }
 
     it should "return totalResultsCount when page and pagesize query params are specified" taggedAs DbmsTest in {
+      val uniqueWorkflow3Name = s"${Workflow3Name}_${WorkflowId.randomId()}".filterNot(_ == '-')
       (for {
-        _ <- baseWorkflowMetadata(Workflow3Name)
-        _ <- baseWorkflowMetadata(Workflow3Name)
+        _ <- baseWorkflowMetadata(uniqueWorkflow3Name)
+        _ <- baseWorkflowMetadata(uniqueWorkflow3Name)
         // refresh the metadata
         _ <- dataAccess.refreshWorkflowMetadataSummaries() map { max =>
           max should be > 0L
@@ -261,7 +262,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         //get totalResultsCount when page and pagesize are specified
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
           // name being added to the query parameters so as to exclude workflows being populated by the other tests in this spec
-          WorkflowQueryKey.Name.name -> Workflow3Name,
+          WorkflowQueryKey.Name.name -> uniqueWorkflow3Name,
           WorkflowQueryKey.Page.name -> "1", WorkflowQueryKey.PageSize.name -> "1"))) map { case (resp, _) =>
           resp.totalResultsCount match {
             case 2 =>

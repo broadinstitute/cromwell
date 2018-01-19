@@ -19,6 +19,24 @@ case class CommandOutputBinding(glob: Option[Glob] = None,
                                 outputEval: Option[StringOrExpression] = None)
 
 object CommandOutputBinding {
+  /**
+   * TODO: WOM: WOMFILE: Need to support returning globs for primary and secondary.
+   *
+   * Right now, when numerous glob files are created, the backends place each glob result into a different subdirectory.
+   * Later, when the secondary files are being generated each of their globs are in different sub-directories.
+   * Unfortunately, the secondary file resolution assumes that the secondaries are _next to_ the primaries, not in
+   * sibling directories.
+   *
+   * While this is being worked on, instead of looking up globs return regular files until this can be fixed.
+   */
+  def isRegularFile(path: String): Boolean = {
+    path match {
+      case _ if path.contains("*") => false
+      case _ if path.contains("?") => false
+      case _ => true
+    }
+  }
+
   val ReadLimit = Option(64 * 1024)
 
   /**
@@ -40,23 +58,38 @@ object CommandOutputBinding {
 
     Either way create one of the two types as a return type that the backend should be looking for when the command
     completes.
+
+    UPDATE:
+    It turns out that secondary files can be directories. TODO: WOM: WOMFILE: Not sure what to do with that yet.
+    https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/search.cwl#L42
+    https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/index.py#L36-L37
      */
-    val outputWomFlatType = outputWomType match {
-      case WomMaybeListedDirectoryType => WomUnlistedDirectoryType
-      case WomArrayType(WomMaybeListedDirectoryType) => WomUnlistedDirectoryType
-      case _ => WomGlobFileType
+    def primaryPathsToWomFiles(primaryPaths: List[String]): ErrorOr[List[WomFile]] = {
+      validate {
+        primaryPaths map { primaryPath =>
+          val outputWomFlatType = outputWomType match {
+            case WomMaybeListedDirectoryType => WomUnlistedDirectoryType
+            case WomArrayType(WomMaybeListedDirectoryType) => WomUnlistedDirectoryType
+            case _ if isRegularFile(primaryPath) => WomSingleFileType
+            case _ => WomGlobFileType
+          }
+
+          WomFile(outputWomFlatType, primaryPath)
+        }
+      }
+    }
+
+    def secondaryFilesToWomFiles(primaryWomFiles: List[WomFile]): ErrorOr[List[WomFile]] = {
+      primaryWomFiles.flatTraverse[ErrorOr, WomFile] { primaryWomFile =>
+        CommandLineTool.CommandOutputParameter.secondaryFiles(primaryWomFile,
+          primaryWomFile.womFileType, secondaryFilesOption, parameterContext, expressionLib)
+      }
     }
 
     for {
       primaryPaths <- GlobEvaluator.globs(commandOutputBinding.glob, parameterContext, expressionLib)
-      primaryWomFiles <- outputWomFlatType match {
-        case WomGlobFileType => primaryPaths.map(WomGlobFile).valid
-        case WomUnlistedDirectoryType => primaryPaths.map(WomUnlistedDirectory).valid
-        case other => s"Program error: $other type was not expected".invalidNel
-      }
-      secondaryWomFiles <- primaryWomFiles.flatTraverse[ErrorOr, WomFile] {
-        CommandLineTool.CommandOutputParameter.secondaryFiles(_, secondaryFilesOption, parameterContext, expressionLib)
-      }
+      primaryWomFiles <- primaryPathsToWomFiles(primaryPaths)
+      secondaryWomFiles <- secondaryFilesToWomFiles(primaryWomFiles)
     } yield (primaryWomFiles ++ secondaryWomFiles).toSet
   }
 
@@ -101,6 +134,7 @@ object CommandOutputBinding {
         case womMaybePopulatedFile: WomMaybePopulatedFile =>
           val secondaryFilesErrorOr = CommandLineTool.CommandOutputParameter.secondaryFiles(
             womMaybePopulatedFile,
+            WomSingleFileType,
             secondaryFilesCoproduct,
             parameterContext,
             expressionLib
@@ -109,12 +143,7 @@ object CommandOutputBinding {
           (secondaryFilesErrorOr, formatOptionErrorOr) mapN { (secondaryFiles, formatOption) =>
             womMaybePopulatedFile.copy(secondaryFiles = secondaryFiles, formatOption = formatOption)
           }
-
-        case womArray: WomArray if womArray.womType.memberType == WomMaybePopulatedFileType =>
-          formatOptionErrorOr map { formatOption =>
-            womArray.map(_.asInstanceOf[WomMaybePopulatedFile].copy(formatOption = formatOption))
-          }
-
+        case womArray: WomArray => womArray.value.toList.traverse(populateSecondaryFiles).map(WomArray(_))
         case womValue: WomValue => womValue.valid
       }
     }
@@ -122,14 +151,24 @@ object CommandOutputBinding {
     // CWL tells us the type this output is expected to be. Attempt to coerce the actual output into this type.
     def coerceWomValue(populatedWomValue: WomValue): ErrorOr[WomValue] = {
       (outputWomType, populatedWomValue) match {
-        case (womType: WomArrayType, womValue: WomArray) => womType.coerceRawValue(womValue).toErrorOr
+
+        case (womType: WomArrayType, womValue: WomArray) =>
+          // Array -from- Array then coerce normally
+          // NOTE: this evaluates to the same as the last case, but guards against the next cases accidentally matching
+          womType.coerceRawValue(womValue).toErrorOr
+
         case (womType: WomArrayType, womValue) =>
-          // Coerce a single value to an array
+          // Array -from- Single then coerce a single value to an array
           womType.coerceRawValue(womValue).toErrorOr.map(value => WomArray(womType, List(value)))
+
         case (womType, womValue: WomArray) if womValue.value.lengthCompare(1) == 0 =>
-          // Coerce an array to a single value
+          // Single -from- Array then coerce the head (if there's only a head)
           womType.coerceRawValue(womValue.value.head).toErrorOr
-        case (womType, womValue) => womType.coerceRawValue(womValue).toErrorOr
+
+        case (womType, womValue) =>
+          // <other> to <other> then coerce normally
+          womType.coerceRawValue(womValue).toErrorOr
+
       }
     }
 
@@ -175,6 +214,9 @@ object CommandOutputBinding {
       case WomMaybeListedDirectoryType =>
         // Even if multiple directories are _somehow_ requested, a single flattened directory is returned.
         loadDirectoryWithListing(cwlPath, ioFunctionSet, commandOutputBinding).map(List(_))
+      case WomMaybePopulatedFileType if isRegularFile(cwlPath) =>
+        val globs = List(cwlPath)
+        globs traverse loadFileWithContents(ioFunctionSet, commandOutputBinding)
       case WomMaybePopulatedFileType =>
         val globs = Await.result(ioFunctionSet.glob(cwlPath), Duration.Inf)
         globs.toList traverse loadFileWithContents(ioFunctionSet, commandOutputBinding)

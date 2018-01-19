@@ -54,6 +54,7 @@ class CommandOutputExpressionSpec extends FlatSpec with Matchers {
     val commandOutputParameter = CommandOutputParameter("id", outputBinding = Option(outputBinding))
     val commandOutputExpression = CommandOutputParameterExpression(commandOutputParameter, WomIntegerType, Set.empty, Vector.empty)
     val result = commandOutputExpression.evaluateFiles(Map.empty, PlaceholderIoFunctionSet, WomIntegerType)
-    result shouldBe Set(WomGlobFile("stdout")).valid
+    // TODO: This should be a glob. See [[cwl.CommandOutputBinding.dependingIfGlobLike]]
+    result shouldBe Set(WomSingleFile("stdout")).valid
   }
 }

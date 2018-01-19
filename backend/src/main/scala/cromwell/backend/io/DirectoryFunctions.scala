@@ -5,14 +5,26 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr._
 import common.validation.Validation._
+import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.DirectoryFunctions._
 import cromwell.core.path.{Path, PathFactory}
 import wom.expression.IoFunctionSet
+import wom.graph.TaskCallNode
 import wom.values.{WomFile, WomGlobFile, WomMaybeListedDirectory, WomMaybePopulatedFile, WomSingleFile, WomUnlistedDirectory}
 
 import scala.concurrent.Future
 
 trait DirectoryFunctions extends IoFunctionSet with PathFactory {
+
+  def findDirectoryOutputs(call: TaskCallNode,
+                           jobDescriptor: BackendJobDescriptor): ErrorOr[List[WomUnlistedDirectory]] = {
+    call.callable.outputs.flatTraverse[ErrorOr, WomUnlistedDirectory] { outputDefinition =>
+      outputDefinition.expression.evaluateFiles(jobDescriptor.localInputs, this, outputDefinition.womType) map {
+        _.toList.flatMap(_.flattenFiles) collect { case unlistedDirectory: WomUnlistedDirectory => unlistedDirectory }
+      }
+    }
+  }
+
   override def listAllFilesUnderDirectory(dirPath: String): Future[Seq[String]] = {
     temporaryImplListPaths(dirPath)
   }
@@ -30,15 +42,26 @@ trait DirectoryFunctions extends IoFunctionSet with PathFactory {
 object DirectoryFunctions {
   def ensureSlashed(dir: String): String = if (dir.endsWith("/")) dir else s"$dir/"
 
+  def ensureUnslashed(dir: String): String = dir.stripSuffix("/")
+
   def listFiles(path: Path): ErrorOr[List[Path]] = {
-    if (path.isDirectory) {
-      for {
-        pathListing <- validate(path.list.toList)
-        pathsPerListing <- pathListing.traverse(listFiles)
-      } yield pathsPerListing.flatten
-    } else {
-      List(path).valid
+    def listPaths(path: Path, checkedPaths: Set[Path]): ErrorOr[Set[Path]] = {
+      val newCheckedPaths = checkedPaths ++ Set(path)
+      if (path.isDirectory) {
+        for {
+          pathListing <- validate(path.list.toSet)
+          uncheckedPaths = pathListing -- newCheckedPaths
+          pathsPerListing <-
+            uncheckedPaths.toList.traverse[ErrorOr, List[Path]](listPaths(_, newCheckedPaths).map(_.toList))
+        } yield checkedPaths ++ pathsPerListing.flatten.toSet
+      } else {
+        newCheckedPaths.valid
+      }
     }
+
+    val allPaths = listPaths(path, Set.empty).map(_.toList)
+    val allFiles = allPaths.map(_.filterNot(_.isDirectory))
+    allFiles
   }
 
   def listWomSingleFiles(womFile: WomFile, pathFactory: PathFactory, pathPatcher: String => String): ErrorOr[List[WomSingleFile]] = {

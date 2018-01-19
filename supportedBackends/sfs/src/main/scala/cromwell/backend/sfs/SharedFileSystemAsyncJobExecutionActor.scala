@@ -9,7 +9,7 @@ import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncJob}
 import cromwell.backend.validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import wom.values.{WomFile, WomSingleFile}
+import wom.values.WomFile
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -112,8 +112,10 @@ trait SharedFileSystemAsyncJobExecutionActor
     * Returns the paths to the file, inside of docker.
     */
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
-    val cleanPath = DefaultPathBuilder.build(womFile.valueString).get
-    WomSingleFile(if (isDockerRun) jobPathsWithDocker.toDockerPath(cleanPath).pathAsString else cleanPath.pathAsString)
+    womFile mapFile { path =>
+      val cleanPath = DefaultPathBuilder.build(path).get
+      if (isDockerRun) jobPathsWithDocker.toDockerPath(cleanPath).pathAsString else cleanPath.pathAsString
+    }
   }
 
   override lazy val commandDirectory: Path = {

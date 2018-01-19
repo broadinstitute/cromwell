@@ -25,7 +25,7 @@ import wom.callable.{Callable, CallableTaskDefinition}
 import wom.executable.Executable
 import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
-import wom.types.{WomOptionalType, WomStringType, WomType}
+import wom.types.{WomFileType, WomOptionalType, WomStringType, WomType}
 import wom.values.{WomArray, WomEvaluatedCallInputs, WomFile, WomGlobFile, WomString, WomValue}
 import wom.{CommandPart, RuntimeAttributes}
 
@@ -209,7 +209,7 @@ case class CommandLineTool private(
         s"Could not evaluate environment variable expressions defined in the call hierarchy of tool $id: ${xs.mkString(", ")}.".invalidNel
     }
   }
-  
+
   /*
     * Custom evaluation of the outputs of the command line tool (custom as in bypasses the engine provided default implementation).
     * This is needed because the output of a CWL tool might be defined by the presence of a cwl.output.json file in the output directory.
@@ -218,7 +218,7 @@ case class CommandLineTool private(
     * It ensures all the output ports of the corresponding WomCallNode get a WomValue which is needed for the engine to keep running the workflow properly.
     * If the json file happens to be missing values for one or more output ports, it's a failure.
     * If the file is not present, an empty value is returned and the engine will execute its own output evaluation logic.
-    * 
+    *
     * TODO: use IO instead of Future ?
    */
   final private def outputEvaluationJsonFunction(outputPorts: Set[OutputPort],
@@ -239,7 +239,7 @@ case class CommandLineTool private(
           .getOrElse(s"Cannot find a value for output ${outputPort.name} in output json $json".invalidNel)
       }).toEither
     }
-    
+
     // Parse content as json and return output values for each output port
     def parseContent(content: String): EvaluatedOutputs = {
       for {
@@ -247,7 +247,7 @@ case class CommandLineTool private(
         jobOutputsMap <- jsonToOutputs(parsed)
       } yield jobOutputsMap.toMap
     }
-    
+
     for {
       // Glob for "cwl.output.json"
       outputJsonGlobs <- OptionT.liftF { ioFunctionSet.glob(CwlOutputJson) }
@@ -259,7 +259,7 @@ case class CommandLineTool private(
       outputs = parseContent(content)
     } yield outputs
   }
-  
+
 
   def buildTaskDefinition(validator: RequirementsValidator, parentExpressionLib: ExpressionLib): ErrorOr[CallableTaskDefinition] = {
     for {
@@ -365,7 +365,7 @@ case class CommandLineTool private(
 
 object CommandLineTool {
   val CwlOutputJson = "cwl.output.json"
-  
+
   private val DefaultPosition = Coproduct[StringOrInt](0)
   // Elements of the sorting key can be either Strings or Ints
   type StringOrInt = String :+: Int :+: CNil
@@ -612,11 +612,12 @@ object CommandLineTool {
       * Returns the list of secondary files for the primary file.
       */
     def secondaryFiles(primaryWomFile: WomFile,
+                       stringWomFileType: WomFileType,
                        secondaryFilesOption: Option[SecondaryFiles],
                        parameterContext: ParameterContext,
                        expressionLib: ExpressionLib): ErrorOr[List[WomFile]] = {
       secondaryFilesOption
-        .map(secondaryFiles(primaryWomFile, _, parameterContext, expressionLib))
+        .map(secondaryFiles(primaryWomFile, stringWomFileType, _, parameterContext, expressionLib))
         .getOrElse(Nil.valid)
     }
 
@@ -624,15 +625,16 @@ object CommandLineTool {
       * Returns the list of secondary files for the primary file.
       */
     def secondaryFiles(primaryWomFile: WomFile,
+                       stringWomFileType: WomFileType,
                        secondaryFiles: SecondaryFiles,
                        parameterContext: ParameterContext,
                        expressionLib: ExpressionLib): ErrorOr[List[WomFile]] = {
       secondaryFiles
         .fold(CommandLineTool.CommandOutputParameter.SecondaryFilesPoly)
-        .apply(primaryWomFile, parameterContext, expressionLib)
+        .apply(primaryWomFile, stringWomFileType, parameterContext, expressionLib)
     }
 
-    type SecondaryFilesFunction = (WomFile, ParameterContext, ExpressionLib) => ErrorOr[List[WomFile]]
+    type SecondaryFilesFunction = (WomFile, WomFileType, ParameterContext, ExpressionLib) => ErrorOr[List[WomFile]]
 
     object SecondaryFilesPoly extends Poly1 {
       implicit def caseStringOrExpression: Case.Aux[StringOrExpression, SecondaryFilesFunction] = {
@@ -644,25 +646,25 @@ object CommandLineTool {
       implicit def caseExpression: Case.Aux[Expression, SecondaryFilesFunction] = {
         at {
           expression =>
-            (primaryWomFile, parameterContext, expressionLib) =>
-              File.secondaryExpressionFiles(primaryWomFile, expression, parameterContext, expressionLib)
+            (primaryWomFile, stringWomFileType, parameterContext, expressionLib) =>
+              File.secondaryExpressionFiles(primaryWomFile, stringWomFileType, expression, parameterContext, expressionLib)
         }
       }
 
       implicit def caseString: Case.Aux[String, SecondaryFilesFunction] = {
         at {
           string =>
-            (primaryWomFile, _, _) =>
-              File.secondaryStringFile(primaryWomFile, string).map(List(_))
+            (primaryWomFile, stringWomFileType, _, _) =>
+              File.secondaryStringFile(primaryWomFile, stringWomFileType, string).map(List(_))
         }
       }
 
       implicit def caseArray: Case.Aux[Array[StringOrExpression], SecondaryFilesFunction] = {
         at {
           array =>
-            (primaryWomFile, parameterContext, expressionLib) =>
+            (primaryWomFile, stringWomFileType, parameterContext, expressionLib) =>
               val functions: List[SecondaryFilesFunction] = array.toList.map(_.fold(this))
-              functions.flatTraverse(_ (primaryWomFile, parameterContext, expressionLib))
+              functions.flatTraverse(_ (primaryWomFile, stringWomFileType, parameterContext, expressionLib))
         }
       }
     }

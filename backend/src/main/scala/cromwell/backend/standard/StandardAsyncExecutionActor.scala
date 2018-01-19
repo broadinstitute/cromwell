@@ -18,6 +18,7 @@ import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle, ReturnCodeIsNotAnInt, StderrNonEmpty, SuccessfulExecutionHandle, WrongReturnCode}
+import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.validation._
 import cromwell.backend.wdl.OutputEvaluator._
 import cromwell.backend.wdl.{Command, OutputEvaluator}
@@ -136,7 +137,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     *
     */
   def mapCommandLineWomFile(womFile: WomFile): WomFile =
-    WomSingleFile(workflowPaths.buildPath(womFile.value).pathAsString)
+    womFile.mapFile(workflowPaths.buildPath(_).pathAsString)
 
   /** @see [[Command.instantiate]] */
   final lazy val commandLineValueMapper: WomValue => WomValue = {
@@ -147,6 +148,30 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * The local path where the command will run.
     */
   lazy val commandDirectory: Path = jobPaths.callExecutionRoot
+
+  /**
+    * Returns the shell scripting for finding all files listed within a directory.
+    *
+    * @param directoryFiles The directories.
+    * @return The shell scripting.
+    */
+  def directoryScripts(directoryFiles: Traversable[WomUnlistedDirectory]): String =
+    directoryFiles map directoryScript mkString "\n"
+
+  /**
+    * Returns the shell scripting for finding all files listed within a directory.
+    *
+    * @param unlistedDirectory The directory.
+    * @return The shell scripting.
+    */
+  def directoryScript(unlistedDirectory: WomUnlistedDirectory): String = {
+    val directoryPath = DirectoryFunctions.ensureUnslashed(unlistedDirectory.value)
+    val directoryList = directoryPath + ".list"
+
+    s"""|# list all the files that match the directory into a file called directory.list
+        |find $directoryPath -type f > $directoryList
+        |""".stripMargin
+  }
 
   /**
     * The local parent directory of the glob file. By default this is the same as the commandDirectory.
@@ -212,7 +237,10 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     val stderrPath = cwd./(jobPaths.stderrFilename)
     val rcTmpPath = rcPath.plusExt("tmp")
 
-    val globFiles: ErrorOr[List[WomGlobFile]] =
+    val errorOrDirectoryOutputs: ErrorOr[List[WomUnlistedDirectory]] =
+      backendEngineFunctions.findDirectoryOutputs(call, jobDescriptor)
+
+    val errorOrGlobFiles: ErrorOr[List[WomGlobFile]] =
       backendEngineFunctions.findGlobOutputs(call, jobDescriptor)
 
     lazy val environmentVariables = instantiatedCommand.environmentVariables map { case (k, v) => s"""$k="$v"""" } mkString("", "\n", "\n")
@@ -220,7 +248,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     // The `tee` trickery below is to be able to redirect to known filenames for CWL while also streaming
     // stdout and stderr for PAPI to periodically upload to cloud storage.
     // https://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
-    globFiles.map(globFiles =>
+    (errorOrDirectoryOutputs, errorOrGlobFiles).mapN((directoryOutputs, globFiles) =>
     s"""|#!/bin/bash
         |tmpDir=$$(
         |  set -e
@@ -245,6 +273,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |cd $cwd
         |SCRIPT_EPILOGUE
         |${globScripts(globFiles)}
+        |${directoryScripts(directoryOutputs)}
         |)
         |mv $rcTmpPath $rcPath
         |""".stripMargin
@@ -268,9 +297,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         case other => s"Ad-hoc file creation expression invalidly created a ${other.womType.toDisplayString} result.".invalidNel
     }
 
-    val adHocFileCreations: ErrorOr[List[WomFile]] = jobDescriptor.taskCall.callable.adHocFileCreation.toList.traverse {
+    val adHocFileCreations: ErrorOr[List[WomFile]] = jobDescriptor.taskCall.callable.adHocFileCreation.toList.traverse(
       _.evaluateValue(adHocFileCreationInputs, backendEngineFunctions).flatMap(validateAdHocFile)
-    }.map(_.flatten)
+    ).map(_.flatten)
 
     val adHocFileCreationSideEffectFiles: ErrorOr[List[CommandSetupSideEffectFile]] = adHocFileCreations map { _ map {
       f => CommandSetupSideEffectFile(f,  Option(adHocFileLocalization(f)))
@@ -651,7 +680,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   private def executeOrRecoverSuccess(executionHandle: ExecutionHandle): Future[ExecutionHandle] = {
     executionHandle match {
       case handle: PendingExecutionHandle[StandardAsyncJob@unchecked, StandardAsyncRunInfo@unchecked, StandardAsyncRunStatus@unchecked] =>
-        tellKvJobId(handle.pendingJob).map { case _ =>
+        tellKvJobId(handle.pendingJob) map { _ =>
           jobLogger.info(s"job id: ${handle.pendingJob.jobId}")
           tellMetadata(Map(CallMetadataKeys.JobId -> handle.pendingJob.jobId))
           /*

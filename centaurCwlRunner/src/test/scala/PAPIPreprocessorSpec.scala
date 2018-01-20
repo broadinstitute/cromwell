@@ -18,8 +18,26 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
         """
           |{
           |  "input": {
-          |    "file": {"location": "whale.txt", "class": "File"},
-          |    "directory": {"location": "ref.fasta", "class": "Directory"}
+          |    "file": {
+          |      "path": "whale.txt",
+          |      "class": "File",
+          |      "secondaryFiles": [
+          |        {
+          |          "class": File,
+          |          "location": "hello.txt"
+          |        }
+          |      ]
+          |    },
+          |    "directory": {
+          |      "location": "ref.fasta",
+          |      "class": "Directory",
+          |      "listing": [
+          |        {
+          |          "class": File,
+          |          "location": "hello.txt"
+          |        }
+          |      ]
+          |    }
           |  }
           |}
           |
@@ -27,8 +45,26 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
       """
         |{
         |  "input": {
-        |    "file": {"location": "gs://centaur-cwl-conformance/cwl-inputs/whale.txt", "class": "File"},
-        |    "directory": {"location": "gs://centaur-cwl-conformance/cwl-inputs/ref.fasta", "class": "Directory"}
+        |    "file": {
+        |      "path": "gs://centaur-cwl-conformance/cwl-inputs/whale.txt",
+        |      "class": "File",
+        |      "secondaryFiles": [
+        |        {
+        |          "class": File,
+        |          "location": "gs://centaur-cwl-conformance/cwl-inputs/hello.txt"
+        |        }
+        |      ]
+        |    },
+        |    "directory": {
+        |      "location": "gs://centaur-cwl-conformance/cwl-inputs/ref.fasta",
+        |      "class": "Directory",
+        |      "listing": [
+        |        {
+        |          "class": File,
+        |          "location": "gs://centaur-cwl-conformance/cwl-inputs/hello.txt"
+        |        }
+        |      ]
+        |    }
         |  }
         |}
         |

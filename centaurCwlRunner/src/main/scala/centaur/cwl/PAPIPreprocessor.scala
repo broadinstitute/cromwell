@@ -9,56 +9,65 @@ import io.circe.{Json, JsonObject, yaml}
 object PAPIPreprocessor {
   // GCS directory where inputs for conformance tests are stored
   private val gcsPrefix = "gs://centaur-cwl-conformance/cwl-inputs/"
-  
+
   // Default docker image to inject if none is provided
   private val DefaultDocker: Json = {
     Json.obj(
-       "class" -> Json.fromString("DockerRequirement"),
-       "dockerPull" -> Json.fromString("ubuntu:latest")
+      "class" -> Json.fromString("DockerRequirement"),
+      "dockerPull" -> Json.fromString("ubuntu:latest")
     )
   }
-  
+
+  // Requirements array with default docker requirement
   private val DefaultDockerRequirement: Json = {
     Json.obj(
       "requirements" -> Json.arr(DefaultDocker)
     )
   }
-  
-  // parse value, apply f to it, and print it back to String using the printer
-  private def process(value: String, printer: Json => String, f: Json => Json) = {
+
+  // Parse value, apply f to it, and print it back to String using the printer
+  private def process(value: String, f: Json => Json, printer: Json => String) = {
     yaml.parser.parse(value) match {
       case Left(error) => throw new Exception(error.getMessage)
       case Right(json) => printer(f(json))
     }
   }
 
-  // process and print back as YAML
-  private def processYaml(value: String)(f: Json => Json) = process(value, yaml.Printer.spaces2.pretty, f)
-  
-  // process and print back as JSON
-  private def processJson(value: String)(f: Json => Json) = process(value, io.circe.Printer.spaces2.pretty, f)
+  // Process and print back as YAML
+  private def processYaml(value: String)(f: Json => Json) = process(value, f, yaml.Printer.spaces2.pretty)
 
-  // prefix the string at "key" with the gcs prefix
+  // Process and print back as JSON
+  private def processJson(value: String)(f: Json => Json) = process(value, f, io.circe.Printer.spaces2.pretty)
+
+  // Prefix the string at "key" with the gcs prefix
   private def prefixLocationWithGcs(key: String): Json => Json = root.selectDynamic(key).string.modify(gcsPrefix + _)
-  
+
   // Prefix "location" and "path"
   private val prefix = prefixLocationWithGcs("location").compose(prefixLocationWithGcs("path"))
-  
+
   // Function to check if the given json has the provided key / value pair
   private def hasKeyValue(key: String, value: String): Json => Boolean = {
     root.selectDynamic(key).string.exist(_.equalsIgnoreCase(value))
   }
-  
+
+  // Return true if the given json object represents a File
   private def isFile(obj: JsonObject) = hasKeyValue("class", "File")(Json.fromJsonObject(obj))
+
+  // Return true if the given json object represents a Directory
   private def isDirectory(obj: JsonObject) = hasKeyValue("class", "Directory")(Json.fromJsonObject(obj))
 
+  // Prefix the location or path in the json object if it's a file or directory, otherwise recurse over its fields
   private def prefixObject(obj: JsonObject) = {
     // If the object is file a file or a directory, prefix it with the gcs prefix
-    if (isFile(obj) || isDirectory(obj)) prefix(Json.fromJsonObject(obj))
+    if (isFile(obj) || isDirectory(obj)) {
+      prefix(Json.fromJsonObject(obj))
+        // Even if it's a file it may have secondary files. So keep recursing on its fields
+        .mapObject(_.mapValues(prefixFiles))
+    }
     // Otherwise recursively process its fields
     else Json.fromJsonObject(obj.mapValues(prefixFiles))
   }
-  
+
   // Fold over the json recursively and prefix all files
   private def prefixFiles(json: Json): Json = json.fold(
     jsonNull = json,
@@ -73,13 +82,13 @@ object PAPIPreprocessor {
     * Pre-process input file by prefixing all files with the gcs prefix
     */
   def preProcessInput(input: String): String = processJson(input)(prefixFiles)
-  
+
   // Check if the given path (as an array) has an DockerRequirement element
   def hasDocker(jsonPath: JsonPath): Json => Boolean = jsonPath.arr.exist(_.exists(hasKeyValue("class", "DockerRequirement")))
-  
+
   // Check if the given Json has a docker image in hints or requirements
   def hasDocker(json: Json): Boolean = hasDocker(root.hints)(json) || hasDocker(root.requirements)(json)
-  
+
   // Add a default docker requirement to the workflow if it doesn't have one
   private def addDefaultDocker(workflow: Json) = if (!hasDocker(workflow)) {
     // deepMerge does not combine objects together but replaces keys, so first manually see if there are requirements

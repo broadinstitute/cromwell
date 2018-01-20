@@ -72,7 +72,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
     )
   }
 
-  it should "add default docker image" in {
+  it should "add default docker image if there's no requirements" in {
     validate(
       PAPIPreprocessor.preProcessWorkflow(
         """
@@ -105,6 +105,97 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
         |
         |baseCommand: python
         |arguments: ["bwa", "mem"]""".stripMargin
+    )
+  }
+
+  it should "append default docker image to existing requirements as an array" in {
+    validate(
+      PAPIPreprocessor.preProcessWorkflow(
+        """
+          |class: CommandLineTool
+          |requirements:
+          |  - class: EnvVarRequirement
+          |    envDef:
+          |      TEST_ENV: $(inputs.in)
+          |cwlVersion: v1.0
+          |inputs:
+          |  - id: reference
+          |    type: File
+          |    inputBinding: { position: 2 }
+          |
+          |outputs:
+          |  args: string[]
+          |
+          |baseCommand: python
+          |arguments: ["bwa", "mem"]
+        """.stripMargin),
+      """
+        |class: CommandLineTool
+        |requirements:
+        |  - class: EnvVarRequirement
+        |    envDef:
+        |      TEST_ENV: $(inputs.in)
+        |  - class: DockerRequirement
+        |    dockerPull: ubuntu:latest
+        |cwlVersion: v1.0
+        |inputs:
+        |  - id: reference
+        |    type: File
+        |    inputBinding: { position: 2 }
+        |
+        |outputs:
+        |  args: string[]
+        |
+        |baseCommand: python
+        |arguments: ["bwa", "mem"]""".stripMargin
+    )
+  }
+
+  it should "append default docker image to existing requirements as an object" in {
+    validate(
+      PAPIPreprocessor.preProcessWorkflow(
+        """
+          |class: CommandLineTool
+          |cwlVersion: v1.0
+          |inputs:
+          |  in: string
+          |outputs:
+          |  out:
+          |    type: File
+          |    outputBinding:
+          |      glob: out
+          |
+          |requirements:
+          |  EnvVarRequirement:
+          |    envDef:
+          |      TEST_ENV: $(inputs.in)
+          |
+          |baseCommand: ["/bin/bash", "-c", "echo $TEST_ENV"]
+          |
+          |stdout: out
+        """.stripMargin),
+      """
+        |class: CommandLineTool
+        |cwlVersion: v1.0
+        |inputs:
+        |  in: string
+        |outputs:
+        |  out:
+        |    type: File
+        |    outputBinding:
+        |      glob: out
+        |
+        |requirements:
+        |  EnvVarRequirement:
+        |    envDef:
+        |      TEST_ENV: $(inputs.in)
+        |  DockerRequirement:
+        |    dockerPull: ubuntu:latest
+        |
+        |baseCommand: ["/bin/bash", "-c", "echo $TEST_ENV"]
+        |
+        |stdout: out
+        |""".stripMargin
     )
   }
 

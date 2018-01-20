@@ -10,18 +10,21 @@ object PAPIPreprocessor {
   // GCS directory where inputs for conformance tests are stored
   private val gcsPrefix = "gs://centaur-cwl-conformance/cwl-inputs/"
 
-  // Default docker image to inject if none is provided
-  private val DefaultDocker: Json = {
+  // Default docker pull image
+  val DefaultDockerPull = "dockerPull" -> Json.fromString("ubuntu:latest")
+  
+  // Default docker image to be injected in a pre-existing requirements array
+  private val DefaultDockerRequirement: Json = {
     Json.obj(
       "class" -> Json.fromString("DockerRequirement"),
-      "dockerPull" -> Json.fromString("ubuntu:latest")
+      DefaultDockerPull
     )
   }
 
   // Requirements array with default docker requirement
-  private val DefaultDockerRequirement: Json = {
+  private val DefaultDockerRequirementList: Json = {
     Json.obj(
-      "requirements" -> Json.arr(DefaultDocker)
+      "requirements" -> Json.arr(DefaultDockerRequirement)
     )
   }
 
@@ -91,11 +94,19 @@ object PAPIPreprocessor {
 
   // Add a default docker requirement to the workflow if it doesn't have one
   private def addDefaultDocker(workflow: Json) = if (!hasDocker(workflow)) {
-    // deepMerge does not combine objects together but replaces keys, so first manually see if there are requirements
-    // already and if so add our docker one
-    root.requirements.arr.modifyOption(_ :+ DefaultDocker)(workflow)
-      // otherwise add a new "requirements" field with our default docker
-      .getOrElse(workflow.deepMerge(DefaultDockerRequirement))
+    /*
+      * deepMerge does not combine objects together but replaces keys which would overwrite existing requirements
+      * so first check if there are requirements already and if so add our docker one.
+      * Also turns out that the requirements section can be either an array or an object.
+      * When it gets saladed the object is transformed to an array but because we deal with unsaladed cwl here
+      * we have to handle both cases.
+     */
+    val requirementsAsArray = root.requirements.arr.modifyOption(_ :+ DefaultDockerRequirement)(workflow)
+    val requirementsAsObject = root.requirements.obj.modifyOption(_.add("DockerRequirement", Json.obj(DefaultDockerPull)))(workflow)
+
+    requirementsAsArray
+      .orElse(requirementsAsObject)
+      .getOrElse(workflow.deepMerge(DefaultDockerRequirementList))
   } else workflow
 
   /**

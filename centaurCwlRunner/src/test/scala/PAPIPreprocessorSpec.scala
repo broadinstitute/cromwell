@@ -12,12 +12,13 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
     parsedResult shouldBe parsedExpectation
   }
 
-  it should "prefix files" in {
+  it should "prefix files and directories" in {
     validate(
       PAPIPreprocessor.preProcessInput(
         """
           |{
           |  "input": {
+          |    "null": null,
           |    "file": {
           |      "path": "whale.txt",
           |      "class": "File",
@@ -45,6 +46,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
       """
         |{
         |  "input": {
+        |    "null": null,
         |    "file": {
         |      "path": "gs://centaur-cwl-conformance/cwl-inputs/whale.txt",
         |      "class": "File",
@@ -304,5 +306,14 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
                      |arguments: ["bwa", "mem"]
                    """.stripMargin
     validate(PAPIPreprocessor.preProcessWorkflow(workflow), workflow)
+  }
+  
+  it should "throw an exception if yaml / json can't be parse" in {
+    val invalid =
+      """
+        |{ [invalid]: }
+      """.stripMargin
+    
+    an[Exception] shouldBe thrownBy(PAPIPreprocessor.preProcessWorkflow(invalid))
   }
 }

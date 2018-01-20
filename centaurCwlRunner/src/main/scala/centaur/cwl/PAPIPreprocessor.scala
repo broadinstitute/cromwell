@@ -82,7 +82,7 @@ object PAPIPreprocessor {
   )
 
   /**
-    * Pre-process input file by prefixing all files with the gcs prefix
+    * Pre-process input file by prefixing all files and directories with the gcs prefix
     */
   def preProcessInput(input: String): String = processJson(input)(prefixFiles)
 

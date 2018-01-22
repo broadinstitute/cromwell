@@ -45,8 +45,8 @@ object PAPIPreprocessor {
   // Prefix the string at "key" with the gcs prefix
   private def prefixLocationWithGcs(key: String): Json => Json = root.selectDynamic(key).string.modify(gcsPrefix + _)
 
-  // Prefix "location" and "path"
-  private val prefix = prefixLocationWithGcs("location").compose(prefixLocationWithGcs("path"))
+  // Prefix "location" and "default"
+  private val prefix = prefixLocationWithGcs("location")
 
   // Function to check if the given json has the provided key / value pair
   private def hasKeyValue(key: String, value: String): Json => Boolean = {
@@ -86,8 +86,13 @@ object PAPIPreprocessor {
     */
   def preProcessInput(input: String): String = processJson(input)(prefixFiles)
 
-  // Check if the given path (as an array) has an DockerRequirement element
-  def hasDocker(jsonPath: JsonPath): Json => Boolean = jsonPath.arr.exist(_.exists(hasKeyValue("class", "DockerRequirement")))
+  // Check if the given path (as an array or object) has a DockerRequirement element
+  def hasDocker(jsonPath: JsonPath)(json: Json): Boolean = {
+    val hasDockerInArray: Json => Boolean = jsonPath.arr.exist(_.exists(hasKeyValue("class", "DockerRequirement")))
+    val hasDockerInObject: Json => Boolean = jsonPath.obj.exist(_.kleisli("DockerRequirement").nonEmpty)
+
+    hasDockerInArray(json) || hasDockerInObject(json)
+  }
 
   // Check if the given Json has a docker image in hints or requirements
   def hasDocker(json: Json): Boolean = hasDocker(root.hints)(json) || hasDocker(root.requirements)(json)
@@ -113,9 +118,11 @@ object PAPIPreprocessor {
     * Pre-process the workflow by adding a default docker hint iff it doesn't have one
     */
   def preProcessWorkflow(workflow: String) = processYaml(workflow) { json =>
+    def process = (prefixFiles _).andThen(addDefaultDocker)
+    
     // Some files contain a list of tools / workflows under the "$graph" field. In this case recursively add docker default to them
-    root.$graph.arr.modifyOption(_.map(addDefaultDocker))(json)
+    root.$graph.arr.modifyOption(_.map(process))(json)
       // otherwise just process the file as a single workflow / tool
-      .getOrElse(addDefaultDocker(json))
+      .getOrElse(process(json))
   }
 }

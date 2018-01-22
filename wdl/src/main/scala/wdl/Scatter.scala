@@ -51,7 +51,7 @@ object Scatter {
       case other => s"Cannot scatter over a non-traversable type ${other.toDisplayString}".invalidNel
     }
 
-    /**
+    /*
       * Why? Imagine that we're building three nested levels of a innerGraph.
       * - Say we're building the middle layer.
       * - We have a set of OutputPorts in the outer layer that we can make OGINs to if we need them.
@@ -61,19 +61,10 @@ object Scatter {
       */
     val possiblyNeededNestedOgins: Map[String, OuterGraphInputNode] = outerLookup filterNot { case (name, _) => localLookup.contains(name) } map { case (name, outerPort) =>
       /*
-        * preserveIndexForOuterLookups indicates us whether or not nodes in the outerLookup should be considered "siblings" of the scatter in term of scatter index
-        * preserveIndexForOuterLookups = false means the outerLookup nodes are outside a scatter containing this scatter node
-        * preserveIndexForOuterLookups = true means the above predicate does not hold
-        * 
-        * When creating OGINs from those outer lookup nodes for the inner graph we want to make sure we set their preserveScatterIndex to preserveIndexForOuterLookups
-        * because they effectively represent the outer lookup nodes inside the scatter. So whether the index must be preserved depends on whether this
-        * scatter node has been asked to "preserveIndexForOuterLookups".
-        * 
-        * Note that preserveIndexForOuterLookups will always be true here as long as scatters can't be nested. Indeed the only reason for a node to be
-        * asked to NOT preserve the index is if its outerLookup is referencing nodes outside a scatter.
-        * In this case preserveIndexForOuterLookups = false would mean this scatter node is part of the inner graph of another scatter node.
+        * preserveScatterIndex = false because in the absence of support of nested scatters,
+        * the index should never be preserved when for nodes coming from outside the scatter.
        */
-      name -> OuterGraphInputNode(WomIdentifier(name), outerPort, preserveScatterIndex = preserveIndexForOuterLookups)
+      name -> OuterGraphInputNode(WomIdentifier(name), outerPort, preserveScatterIndex = false)
     }
     val possiblyNeededNestedOginPorts: Map[String, OutputPort] = possiblyNeededNestedOgins map { case (name: String, ogin: OuterGraphInputNode) => name -> ogin.singleOutputPort }
 
@@ -81,8 +72,8 @@ object Scatter {
       itemType <- scatterItemTypeValidation
       expressionNode <- scatterCollectionExpressionNode
       // Graph input node for the scatter variable in the inner graph. Note that the type is the array's member type
-      womInnerGraphScatterVariableInput = ScatterVariableNode(WomIdentifier(scatter.item), expressionNode.singleExpressionOutputPort, itemType)
+      womInnerGraphScatterVariableInput = ScatterVariableNode(WomIdentifier(scatter.item), expressionNode, itemType)
       g <- WdlGraphNode.buildWomGraph(scatter, Set(womInnerGraphScatterVariableInput), localLookup ++ possiblyNeededNestedOginPorts, preserveIndexForOuterLookups = false)
-    } yield ScatterNode.scatterOverGraph(g, expressionNode, womInnerGraphScatterVariableInput)
+    } yield ScatterNode.scatterOverGraph(g, womInnerGraphScatterVariableInput)
   }
 }

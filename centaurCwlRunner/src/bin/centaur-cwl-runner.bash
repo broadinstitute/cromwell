@@ -17,4 +17,4 @@ CENTAUR_CWL_RUNNER_MODE=${CENTAUR_CWL_RUNNER_MODE:-$MODE}
 
 >&2 echo using CENTAUR_CWL_RUNNER_MODE="${CENTAUR_CWL_RUNNER_MODE}"
 
-java -jar "${CENTAUR_CWL_JAR}" "${CENTAUR_CWL_RUNNER_MODE}" "$@"
+java -Dpapi.default-input-gcs-prefix=gs://centaur-cwl-conformance/cwl-inputs/ -jar "${CENTAUR_CWL_JAR}" "${CENTAUR_CWL_RUNNER_MODE}" "$@"

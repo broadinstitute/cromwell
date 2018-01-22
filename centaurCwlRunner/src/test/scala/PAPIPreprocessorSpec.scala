@@ -1,9 +1,12 @@
 import centaur.cwl.PAPIPreprocessor
+import com.typesafe.config.ConfigFactory
 import org.scalatest.{FlatSpec, Matchers}
 
 class PAPIPreprocessorSpec extends FlatSpec with Matchers {
   behavior of "PAPIPreProcessor"
 
+  val pAPIPreprocessor = new PAPIPreprocessor(ConfigFactory.load())
+  
   def validate(result: String, expectation: String) = {
     val parsedResult = io.circe.yaml.parser.parse(result).right.get
     val parsedExpectation = io.circe.yaml.parser.parse(expectation).right.get
@@ -14,7 +17,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
 
   it should "prefix files and directories in inputs" in {
     validate(
-      PAPIPreprocessor.preProcessInput(
+      pAPIPreprocessor.preProcessInput(
         """|{
            |  "input": {
            |    "null": null,
@@ -80,7 +83,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
 
   it should "prefix files and directories in workflow" in {
     validate(
-      PAPIPreprocessor.preProcessWorkflow(
+      pAPIPreprocessor.preProcessWorkflow(
         """|class: CommandLineTool
            |cwlVersion: v1.0
            |requirements:
@@ -124,7 +127,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
 
   it should "add default docker image if there's no requirements" in {
     validate(
-      PAPIPreprocessor.preProcessWorkflow(
+      pAPIPreprocessor.preProcessWorkflow(
         """|class: CommandLineTool
            |cwlVersion: v1.0
            |inputs:
@@ -159,7 +162,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
 
   it should "append default docker image to existing requirements as an array" in {
     validate(
-      PAPIPreprocessor.preProcessWorkflow(
+      pAPIPreprocessor.preProcessWorkflow(
         """|class: CommandLineTool
            |requirements:
            |  - class: EnvVarRequirement
@@ -201,7 +204,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
 
   it should "append default docker image to existing requirements as an object" in {
     validate(
-      PAPIPreprocessor.preProcessWorkflow(
+      pAPIPreprocessor.preProcessWorkflow(
         """|class: CommandLineTool
            |cwlVersion: v1.0
            |inputs:
@@ -247,7 +250,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
 
   it should "add default docker image in multi tool/workflow files" in {
     validate(
-      PAPIPreprocessor.preProcessWorkflow(
+      pAPIPreprocessor.preProcessWorkflow(
         """|#!/usr/bin/env cwl-runner
            |
            |cwlVersion: v1.0
@@ -325,7 +328,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
                       |baseCommand: python
                       |arguments: ["bwa", "mem"]
                       |""".stripMargin
-    validate(PAPIPreprocessor.preProcessWorkflow(workflow), workflow)
+    validate(pAPIPreprocessor.preProcessWorkflow(workflow), workflow)
   }
 
   it should "not replace existing docker hint in an object" in {
@@ -345,7 +348,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
                       |baseCommand: python
                       |arguments: ["bwa", "mem"]
                       |""".stripMargin
-    validate(PAPIPreprocessor.preProcessWorkflow(workflow), workflow)
+    validate(pAPIPreprocessor.preProcessWorkflow(workflow), workflow)
   }
 
   it should "not replace existing docker hint in an array" in {
@@ -365,7 +368,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
                       |baseCommand: python
                       |arguments: ["bwa", "mem"]
                       |""".stripMargin
-    validate(PAPIPreprocessor.preProcessWorkflow(workflow), workflow)
+    validate(pAPIPreprocessor.preProcessWorkflow(workflow), workflow)
   }
 
   it should "not replace existing docker requirement in an array" in {
@@ -385,7 +388,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
                       |baseCommand: python
                       |arguments: ["bwa", "mem"]
                       |""".stripMargin
-    validate(PAPIPreprocessor.preProcessWorkflow(workflow), workflow)
+    validate(pAPIPreprocessor.preProcessWorkflow(workflow), workflow)
   }
 
   it should "throw an exception if yaml / json can't be parse" in {
@@ -394,6 +397,6 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
         |{ [invalid]: }
       """.stripMargin
 
-    an[Exception] shouldBe thrownBy(PAPIPreprocessor.preProcessWorkflow(invalid))
+    an[Exception] shouldBe thrownBy(pAPIPreprocessor.preProcessWorkflow(invalid))
   }
 }

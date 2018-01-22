@@ -57,7 +57,7 @@ object If {
       */
     val possiblyNeededNestedOgins: Map[String, OuterGraphInputNode] = outerLookup filterNot { case (name, _) => localLookup.contains(name) } map { case (name, outerPort) =>
       /*
-        * preserveIndexForOuterLookups indicates us whether or not nodes in the outerLookup should be considered "siblings" of the conditional in term of scatter index
+        * preserveIndexForOuterLookups indicates us whether or not nodes in the outerLookup are in the same scatter inn graph as this node
         * preserveIndexForOuterLookups = false means the outerLookup nodes are outside a scatter containing this conditional node
         * preserveIndexForOuterLookups = true means the above predicate does not hold
         * 

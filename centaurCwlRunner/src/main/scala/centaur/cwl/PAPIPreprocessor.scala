@@ -61,7 +61,7 @@ object PAPIPreprocessor {
 
   // Prefix the location or path in the json object if it's a file or directory, otherwise recurse over its fields
   private def prefixObject(obj: JsonObject) = {
-    // If the object is file a file or a directory, prefix it with the gcs prefix
+    // If the object is file or a directory, prefix it with the gcs prefix
     if (isFile(obj) || isDirectory(obj)) {
       prefix(Json.fromJsonObject(obj))
         // Even if it's a file it may have secondary files. So keep recursing on its fields

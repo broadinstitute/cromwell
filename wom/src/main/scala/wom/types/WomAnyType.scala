@@ -2,6 +2,8 @@ package wom.types
 
 import wom.values.WomValue
 
+import scala.util.{Success, Try}
+
 case object WomAnyType extends WomType {
   val toDisplayString: String = s"Any"
 
@@ -49,4 +51,5 @@ case object WomAnyType extends WomType {
   }
 
   override final def isCoerceableFrom(otherType: WomType): Boolean = true
+  override def equals(rhs: WomType): Try[WomType] = Success(WomBooleanType)
 }

@@ -5,11 +5,12 @@ import cats.syntax.apply._
 import common.exception.AggregatedException
 import common.util.TryUtil
 import wdl.expression.WdlStandardLibraryFunctions.{crossProduct => stdLibCrossProduct, _}
-import wom.{TsvSerializable, WomExpressionException}
+import wom.TsvSerializable
 import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values.WomArray.WomArrayLike
 import wom.values._
+import spray.json._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -46,7 +47,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
 
   def read_objects(params: Seq[Try[WomValue]]): Try[WomArray] = extractObjects("read_objects", params) map { WomArray(WomArrayType(WomObjectType), _) }
   def read_string(params: Seq[Try[WomValue]]): Try[WomString] = readContentsFromSingleFileParameter("read_string", params).map(s => WomString(s.trim))
-  def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = Failure(new NotImplementedError(s"read_json() not implemented yet"))
+  def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = readContentsFromSingleFileParameter("read_json", params).map(_.parseJson).flatMap(WomAnyType.coerceRawValue)
   def read_int(params: Seq[Try[WomValue]]): Try[WomInteger] = read_string(params) map { s => WomInteger(s.value.trim.toInt) }
   def read_float(params: Seq[Try[WomValue]]): Try[WomFloat] = read_string(params) map { s => WomFloat(s.value.trim.toDouble) }
 
@@ -55,7 +56,22 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
   def write_object(params: Seq[Try[WomValue]]): Try[WomFile] = writeToTsv("write_object", params, WomObject(Map.empty[String, WomValue]))
   def write_objects(params: Seq[Try[WomValue]]): Try[WomFile] = writeToTsv("write_objects", params, WomArray(WomArrayType(WomObjectType), List.empty[WomObject]))
   def write_tsv(params: Seq[Try[WomValue]]): Try[WomFile] = writeToTsv("write_tsv", params, WomArray(WomArrayType(WomStringType), List.empty[WomValue]))
-  def write_json(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError(s"write_json() not implemented yet"))
+  def write_json(params: Seq[Try[WomValue]]): Try[WomFile] = for {
+    value <- extractSingleArgument("write_json", params)
+    jsonContent = valueToJson(value)
+    written <- writeContent("write_json", jsonContent.compactPrint)
+  } yield written
+
+  private def valueToJson(womValue: WomValue): JsValue = womValue match {
+    case WomInteger(i) => JsNumber(i)
+    case WomFloat(f) => JsNumber(f)
+    case WomString(s) => JsString(s)
+    case WomBoolean(b) => JsBoolean(b)
+    case WomPair(left, right) => JsObject(Map("left" -> valueToJson(left), "right" -> valueToJson(right)))
+    case WomArray(_, values) => JsArray(values.map(valueToJson).toVector)
+    case WomMap(_, value) => JsObject(value map { case (k, v) => k.valueString -> valueToJson(v) })
+    case o: WomObject => JsObject(o.values map { case (k, v) => k -> valueToJson(v) })
+  }
 
   def read_lines(params: Seq[Try[WomValue]]): Try[WomArray] = {
     for {
@@ -382,7 +398,7 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WomType] {
   def read_map(params: Seq[Try[WomType]]): Try[WomType] = Success(WomMapType(WomStringType, WomStringType))
   def read_object(params: Seq[Try[WomType]]): Try[WomType] = Success(WomObjectType)
   def read_objects(params: Seq[Try[WomType]]): Try[WomType] = Success(WomArrayType(WomObjectType))
-  def read_json(params: Seq[Try[WomType]]): Try[WomType] = Failure(new WomExpressionException("Return type of read_json() can't be known statically"))
+  def read_json(params: Seq[Try[WomType]]): Try[WomType] = Success(WomObjectType)
   def read_int(params: Seq[Try[WomType]]): Try[WomType] = Success(WomIntegerType)
   def read_string(params: Seq[Try[WomType]]): Try[WomType] = Success(WomStringType)
   def read_float(params: Seq[Try[WomType]]): Try[WomType] = Success(WomFloatType)

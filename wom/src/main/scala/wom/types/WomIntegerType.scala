@@ -10,7 +10,7 @@ case object WomIntegerType extends WomPrimitiveType {
 
   override protected def coercion = {
     case i: Integer => WomInteger(i)
-    case n: JsNumber => WomInteger(n.value.intValue())
+    case n: JsNumber if n.value.isValidInt => WomInteger(n.value.intValue())
     case i: WomInteger => i
     case s: WomString => WomInteger(s.value.toInt)
     case s: String => WomInteger(s.toInt)

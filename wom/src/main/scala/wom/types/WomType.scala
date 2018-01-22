@@ -71,7 +71,7 @@ trait WomType {
 object WomType {
   /* This is in the order of coercion from non-wom types */
   val womTypeCoercionOrder: Seq[WomType] = Seq(
-    WomStringType, WomIntegerType, WomFloatType, WomMapType(WomAnyType, WomAnyType),
+    WomStringType, WomIntegerType, WomFloatType, WomPairType(WomAnyType, WomAnyType), WomMapType(WomAnyType, WomAnyType),
     WomArrayType(WomAnyType), WomBooleanType, WomObjectType
   )
 

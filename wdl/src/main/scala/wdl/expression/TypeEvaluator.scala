@@ -62,6 +62,7 @@ case class TypeEvaluator(override val lookup: String => WomType, override val fu
         elements <- TryUtil.sequence(evaluatedElements)
         subtype = WomType.homogeneousTypeFromTypes(elements)
       } yield WomArrayType(subtype)
+    case o: Ast if o.isObjectLiteral => Success(WomObjectType)
     case a: Ast if a.isTupleLiteral => tupleAstToWdlType(a)
     case a: Ast if a.isMapLiteral =>
       val evaluatedMap = a.getAttribute("map").astListAsVector map { kv =>

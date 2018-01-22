@@ -104,6 +104,7 @@ object Main extends App {
   private[this] def loadWdl(path: String)(f: WdlNamespace => Termination): Termination = {
     WdlNamespace.loadUsingPath(Paths.get(path), None, None) match {
       case Success(namespace) => f(namespace)
+      case Failure(r: RuntimeException) => throw new RuntimeException("Unexpected failure mode", r)
       case Failure(t) => UnsuccessfulTermination(t.getMessage)
     }
   }

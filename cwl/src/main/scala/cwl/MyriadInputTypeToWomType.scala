@@ -1,29 +1,37 @@
 package cwl
 
-import shapeless.Poly1
-import wom.types.{WomArrayType, WomCompositeType, WomType}
 import cwl.CwlType.CwlType
-import cats.syntax.foldable._
-import cats.instances.list._
-import cats.instances.set._
 import cwl.command.ParentName
 import mouse.all._
+import shapeless.Poly1
+import wom.types._
 
+object MyriadInputInnerTypeToString extends Poly1 {
+  implicit def ct = at[CwlType]{ _.toString }
+  implicit def irs = at[InputRecordSchema]{_.toString}
+  implicit def ies = at[InputEnumSchema]{ _.toString }
+  implicit def ias = at[InputArraySchema]{ _.toString}
+  implicit def s = at[String]{identity}
+}
 
 object MyriadInputTypeToWomType extends Poly1 {
 
   implicit def m = at[MyriadInputInnerType] {_.fold(MyriadInputInnerTypeToWomType)}
 
-  //We only accept arrays of a single type, so we have to check whether the array boils down to an array of a single type
-  implicit def am = at[Array[MyriadInputInnerType]] {
-    //reduce the Array down to a set to remove dupes.
-    _.toList.foldMap(
-      i => Set(i)
-    ).map(
-      _.fold(MyriadInputInnerTypeToWomType)
-    ).toList match {
-      case head :: Nil => WomArrayType(head)
-      case _ => throw new RuntimeException("Wom does not provide an array of >1 types")
+  // An array of type means "this input value can be in any of those types."
+  // Currently we only accept single types or [null, X] to mean Optional[X]
+  implicit def am = at[Array[MyriadInputInnerType]] { types =>
+    types.partition(_.select[CwlType].contains(CwlType.Null)) match {
+        // If there's a single non null type, use that
+      case (Array(), Array(singleNonNullType)) =>
+        singleNonNullType.fold(MyriadInputInnerTypeToWomType)
+        // If there's a null type and a single non null type, it's a WomOptionalType
+      case (Array(_), Array(singleNonNullType)) =>
+        WomOptionalType(singleNonNullType.fold(MyriadInputInnerTypeToWomType))
+        // Leave other "Coproduct types" unsupported for now
+      case _ =>
+        val readableTypes = types.map(_.fold(MyriadInputInnerTypeToString)).mkString(", ")
+        throw new NotImplementedError(s"Cromwell only supports single types or optionals (as indicated by [null, X]). Instead we saw: $readableTypes")
     }
   }
 }

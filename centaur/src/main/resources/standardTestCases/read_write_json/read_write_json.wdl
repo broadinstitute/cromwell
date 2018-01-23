@@ -28,6 +28,9 @@ task round_trip {
   output {
     Object round_tripped = read_json("output.json")
   }
+  runtime {
+    docker: "ubuntu:latest"
+  }
 }
 
 task make_some_json {
@@ -45,6 +48,9 @@ task make_some_json {
   >>>
   output {
     Object output_json = read_json(stdout())
+  }
+  runtime {
+    docker: "ubuntu:latest"
   }
 }
 

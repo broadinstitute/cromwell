@@ -4,6 +4,7 @@ import java.io.IOException
 
 import cats.syntax.apply._
 import cats.instances.list._
+import cats.instances.option._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import akka.actor.{Actor, ActorLogging, ActorRef}
@@ -233,6 +234,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
     val cwd = commandDirectory
     val rcPath = cwd./(jobPaths.returnCodeFilename)
+    val stdinRedirection = instantiatedCommand.stdinRedirection.map("< " + _.shellQuote).getOrElse("")
     val stdoutPath = cwd./(jobPaths.stdoutFilename)
     val stderrPath = cwd./(jobPaths.stderrFilename)
     val rcTmpPath = rcPath.plusExt("tmp")
@@ -267,7 +269,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |cd $cwd
         |ENVIRONMENT_VARIABLES
         |INSTANTIATED_COMMAND
-        |) > >(tee $stdoutPath) 2> >(tee $stderrPath >&2)
+        |) $stdinRedirection > >(tee $stdoutPath) 2> >(tee $stderrPath >&2)
         |echo $$? > $rcTmpPath
         |(
         |cd $cwd
@@ -289,7 +291,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
     def adHocFileLocalization(womFile: WomFile): String = womFile.value.substring(womFile.value.lastIndexOf("/") + 1, womFile.value.length)
 
-    val adHocFileCreationInputs = jobDescriptor.evaluatedTaskInputs.map { case (k,v) => k.localName.value -> v }
+    val commandInstantiationInputs = jobDescriptor.evaluatedTaskInputs.map { case (k, v) => k.localName.value -> v }
 
     def validateAdHocFile(value: WomValue): ErrorOr[List[WomFile]] = value match {
         case f: WomFile => List(f).valid
@@ -297,9 +299,11 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         case other => s"Ad-hoc file creation expression invalidly created a ${other.womType.toDisplayString} result.".invalidNel
     }
 
-    val adHocFileCreations: ErrorOr[List[WomFile]] = jobDescriptor.taskCall.callable.adHocFileCreation.toList.traverse(
-      _.evaluateValue(adHocFileCreationInputs, backendEngineFunctions).flatMap(validateAdHocFile)
-    ).map(_.flatten)
+    val callable = jobDescriptor.taskCall.callable
+
+    val adHocFileCreations: ErrorOr[List[WomFile]] = callable.adHocFileCreation.toList.flatTraverse(
+      _.evaluateValue(commandInstantiationInputs, backendEngineFunctions).flatMap(validateAdHocFile)
+    )
 
     val adHocFileCreationSideEffectFiles: ErrorOr[List[CommandSetupSideEffectFile]] = adHocFileCreations map { _ map {
       f => CommandSetupSideEffectFile(f,  Option(adHocFileLocalization(f)))
@@ -316,14 +320,18 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
     def evaluateEnvironmentExpression(nameAndExpression: (String, WomExpression)): ErrorOr[(String, String)] = {
       val (name, expression) = nameAndExpression
-      expression.evaluateValue(adHocFileCreationInputs, backendEngineFunctions) map { name -> _.valueString }
+      expression.evaluateValue(commandInstantiationInputs, backendEngineFunctions) map { name -> _.valueString }
     }
 
-    val environmentVariables = jobDescriptor.taskCall.callable.environmentExpressions.toList traverse evaluateEnvironmentExpression
+    val environmentVariables = callable.environmentExpressions.toList traverse evaluateEnvironmentExpression
+
+    val stdinRedirect = callable.stdinRedirection.traverse[ErrorOr, String] {
+      _.evaluateValue(commandInstantiationInputs, backendEngineFunctions) map { _.valueString }
+    }
 
     // TODO CWL: toTry.get here. Is throwing an exception the best way to indicate command generation failure?
-    ((adHocFileCreationSideEffectFiles, instantiatedCommandValidation, environmentVariables) mapN { (adHocFiles, command, env) =>
-        command.copy(createdFiles = command.createdFiles ++ adHocFiles, environmentVariables = env.toMap)
+    ((adHocFileCreationSideEffectFiles, instantiatedCommandValidation, environmentVariables, stdinRedirect) mapN { (adHocFiles, command, env, stdin) =>
+        command.copy(createdFiles = command.createdFiles ++ adHocFiles, environmentVariables = env.toMap, stdinRedirection = stdin)
     }).toTry match {
       case Success(ic) => ic
       case Failure(e) => throw new Exception("Failed to evaluate ad hoc files", e)

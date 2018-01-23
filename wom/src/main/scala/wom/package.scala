@@ -31,6 +31,13 @@ package object values {
     def md5Sum: String = DigestUtils.md5Hex(value)
     def md5SumShort: String = value.md5Sum.substring(0, 8)
   }
+
+  implicit class ShellQuoteHelper(val s: String) extends AnyVal {
+    // Escape any double quote characters in the string and surround with double quotes. The CWL spec doesn't
+    // appear to say whether quotes should be of the single or double variety, but the conformance tests clearly
+    // expect double quotes to allow for interpolation of environment variables.
+    def shellQuote: String = '"' + s.replaceAll("\"", "\\\"") + '"'
+  }
 }
 
 package object core {
@@ -54,7 +61,8 @@ package object core {
   */
 final case class InstantiatedCommand(commandString: String,
                                      environmentVariables: Map[String, String] = Map.empty,
-                                     createdFiles: List[CommandSetupSideEffectFile] = List.empty)
+                                     createdFiles: List[CommandSetupSideEffectFile] = List.empty,
+                                     stdinRedirection: Option[String] = None)
 
 /**
   * File created as a side effect of instantiating the command.

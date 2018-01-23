@@ -326,7 +326,7 @@ case class CommandLineTool private(
       }.toList
 
     def stringOrExpressionToString(soe: Option[StringOrExpression]): Option[String] = soe flatMap {
-      case StringOrExpression.String(str) => Some(str)
+      case StringOrExpression.String(str) => Option(str)
       case StringOrExpression.Expression(_) => None // ... for now!
     }
 
@@ -340,6 +340,10 @@ case class CommandLineTool private(
       listing <- initialWorkDirRequirement.listings
     } yield InitialWorkDirFileGeneratorExpression(listing, expressionLib)).toSet[WomExpression]
 
+    val stdinRedirection: Option[WomExpression] = stdin map {
+      _.fold(StringOrExpressionToWomExpression).apply(inputNames, expressionLib)
+    }
+
     CallableTaskDefinition(
       taskName,
       buildCommandTemplate(expressionLib),
@@ -351,6 +355,7 @@ case class CommandLineTool private(
       // TODO: This doesn't work in all cases and it feels clunky anyway - find a way to sort that out
       prefixSeparator = "#",
       commandPartSeparator = " ",
+      stdinRedirection = stdinRedirection,
       stdoutRedirection = stringOrExpressionToString(stdout),
       stderrRedirection = stringOrExpressionToString(stderr),
       adHocFileCreation = adHocFileCreations,

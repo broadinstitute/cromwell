@@ -4,6 +4,7 @@ import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.path.Path
 import cromwell.core.{CallContext, JobKey}
 import cromwell.services.metadata.CallMetadataKeys
+import wom.expression.WomExpression
 
 object JobPaths {
   val CallPrefix = "call"
@@ -34,6 +35,7 @@ trait JobPaths {
   def defaultStdoutFilename = "stdout"
   def defaultStderrFilename = "stderr"
 
+  final def stdinFilenameExpression: Option[WomExpression] = jobKey.node.callable.stdinRedirection
   final def stdoutFilename: String = jobKey.node.callable.stdoutRedirection.getOrElse(defaultStdoutFilename)
   final def stderrFilename: String = jobKey.node.callable.stderrRedirection.getOrElse(defaultStderrFilename)
   def scriptFilename: String = "script"

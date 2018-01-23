@@ -11,6 +11,7 @@ import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import cats.syntax.either._
 import cats.syntax.traverse._
+import cats.syntax.validated._
 import cats.syntax.show._
 import cats.instances.vector._
 import io.circe.Error._
@@ -30,9 +31,9 @@ object CwlCodecs {
   implicit val cltD = implicitly[Decoder[CommandLineTool]]
   implicit val etD = implicitly[Decoder[ExpressionTool]]
 
-  def errorToStrings : Error => NonEmptyList[String] = e => NonEmptyList.one(e.show)
+  def errorToStrings : NonEmptyList[Error] => NonEmptyList[String] = _.map(_.show)
 
-  def decodeWithErrorStrings[A](in: String)(implicit d: Decoder[A]): Checked[A] = decode[A](in).leftMap(errorToStrings)
+  def decodeWithErrorStrings[A](in: String)(implicit d: Decoder[A]): ErrorOr[A] = decodeAccumulating[A](in).leftMap(errorToStrings)
 
   /**
     * Attempt to parse as an array of CWL or a single one.
@@ -40,7 +41,7 @@ object CwlCodecs {
     * If it fails, attempt to parse each CWL individually and return a superset of those failures.
     */
   def decodeCwl(in: String): Checked[CwlFile] =
-    decodeWithErrorStrings[CwlFile](in).leftMap(decodePieces(in))
+    decodeWithErrorStrings[CwlFile](in).leftMap(decodePieces(in)).toEither
 
   /**
     * Drop down to a lower level and try to parse each CWL individually, returning a superset of those failures.
@@ -67,7 +68,7 @@ object CwlCodecs {
       case Some("Workflow") => decodeWithErrorStrings[Workflow](rawJson)
       case Some("CommandLineTool") => decodeWithErrorStrings[CommandLineTool](rawJson)
       case Some("ExpressionTool") => decodeWithErrorStrings[ExpressionTool](rawJson)
-      case _ => NonEmptyList.one("Class field was declared incorrectly!").asLeft
-    }).toValidated.map(_ => ())
+      case _ => "Class field was declared incorrectly!".invalidNel
+    }).map(_ => ())
   }
 }

@@ -8,5 +8,5 @@ files {
 metadata {
   workflowName: read_write_json
   status: Succeeded
-  "outputs.read_write_json.result" = "28.5 was equal to 27.5"
+  "outputs.read_write_json.result" = "28.5 was equal to 27.5 plus 1"
 }

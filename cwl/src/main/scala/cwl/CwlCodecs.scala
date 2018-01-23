@@ -8,6 +8,12 @@ import eu.timepit.refined.string._
 import io.circe.refined._
 import io.circe.literal._
 import common.Checked
+import common.validation.ErrorOr.ErrorOr
+import cats.syntax.either._
+import cats.syntax.traverse._
+import cats.syntax.show._
+import cats.instances.vector._
+import io.circe.Error._
 
 object CwlCodecs {
 
@@ -23,28 +29,46 @@ object CwlCodecs {
   implicit val cltD = implicitly[Decoder[CommandLineTool]]
   implicit val etD = implicitly[Decoder[ExpressionTool]]
 
-  def decodeCwl(in: String): Checked[CwlFile] = {
-    decodeAccumulating[CwlFile](in).leftMap((original: NonEmptyList[Error]) => {
+  def errorToStrings : Error => NonEmptyList[String] = e => NonEmptyList.one(e.show)
 
-      def errorToStrings : Error => NonEmptyList[String] = e => NonEmptyList(e.getMessage, e.getStackTrace.map(_.toString).toList)
+  def decodeWithErrorStrings[A](in: String)(implicit d: Decoder[A]): Checked[A] = decode[A](in).leftMap(errorToStrings)
 
-      val originalErrorMessageAsStrings: NonEmptyList[String] = original.flatMap(errorToStrings)
-      //we know something is wrong, but we'd like to understand it better
-      def betterError: String => NonEmptyList[String] = s => (s match {
-        case "Workflow" => decode[Workflow](in)
-        case "CommandLineTool" => decode[CommandLineTool](in)
-        case "ExpressionTool" => decode[ExpressionTool](in)
-        case _ => throw new Exception(s"saw an unknown CWL type: $s")
-      }).fold(errorToStrings,
-        _ => originalErrorMessageAsStrings
-      )
+  /**
+    * Attempt to parse as an array of CWL or a single one.
+    *
+    * If it fails, attempt to parse each CWL individually and return a superset of those failures.
+    */
+  def decodeCwl(in: String): Checked[CwlFile] =
+    decodeWithErrorStrings[CwlFile](in).leftMap(decodePieces(in))
 
-      (for {
-        raw <- parse(in).toOption
-        clazz <- (raw \\ "class").head.asString
-        errors = betterError(clazz)
-      } yield errors).getOrElse(originalErrorMessageAsStrings)
-    }
-    ).toEither
+  /**
+    * Looks into the file and tries to parse each CWL individually, returning a superset of those failures.
+    */
+  def decodePieces(in: String)(original: NonEmptyList[String]):NonEmptyList[String]  =
+    (for {
+      raw <- parse(in).leftMap(_.getMessage()).leftMap(NonEmptyList.one)
+      _ <-
+        if (raw.isArray)
+          raw.asArray.toVector.flatten.traverse(decodeCwl).toEither
+        else
+          decodeCwl(raw).toEither
+    } yield  ()).fold(
+      identity,
+      _ => original
+    )
+
+  // we know we are dealing with an individual CWL, so we can take some liberties like assuming "class" is defined.
+  private def decodeCwl(json: Json): ErrorOr[Unit] = {
+
+    val rawJson = io.circe.Printer.noSpaces.pretty(json)
+
+
+    ((json \\ "class").head.asString match {
+      case Some("Workflow") => decodeWithErrorStrings[Workflow](rawJson)
+      case Some("CommandLineTool") => decodeWithErrorStrings[CommandLineTool](rawJson)
+      case Some("ExpressionTool") => decodeWithErrorStrings[ExpressionTool](rawJson)
+      case _ => NonEmptyList.one("could not find class in CWL").asLeft
+    }).toValidated.map(_ => ())
   }
+
 }

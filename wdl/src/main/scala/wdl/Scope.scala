@@ -197,7 +197,7 @@ trait Scope {
     val localLookup = (siblingScopes ++ siblingCallOutputs) collect {
       case d: Declaration if d.unqualifiedName == name => d
       case c: WdlTaskCall if c.unqualifiedName == name => c
-      case co: CallOutput if co.call.unqualifiedName + "." + co.unqualifiedName == name => co
+      case co: CallOutput if co.unqualifiedName == name => co
       case o: TaskOutput if o.unqualifiedName == name => o
     }
 

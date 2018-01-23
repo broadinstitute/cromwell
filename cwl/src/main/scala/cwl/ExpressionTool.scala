@@ -7,10 +7,7 @@ case class ExpressionTool(
                            inputs: Array[InputParameter] = Array.empty,
                            outputs: Array[ExpressionToolOutputParameter] = Array.empty,
                            `class`: String,
-                           expression:
-                             Expression :+:
-                             String :+:
-                             CNil,
+                           expression: StringOrExpression,
                            id: Option[String] = None,
                            requirements: Option[Array[Requirement]] = None,
                            hints: Option[Array[Hint]] = None,
@@ -23,14 +20,7 @@ case class ExpressionTool(
 case class ExpressionToolOutputParameter(
                                           id: String,
                                           label: Option[String] = None,
-                                          secondaryFiles:
-                                            Option[Expression :+:
-                                            String :+:
-                                            Array[
-                                              Expression :+:
-                                              String :+:
-                                              CNil] :+:
-                                            CNil] = None,
+                                          secondaryFiles: Option[SecondaryFiles] = None,
                                           format:
                                             Option[
                                               Expression :+:

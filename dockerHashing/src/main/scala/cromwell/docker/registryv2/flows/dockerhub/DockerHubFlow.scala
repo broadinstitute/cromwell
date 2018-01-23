@@ -16,7 +16,9 @@ object DockerHubFlow {
   private val DockerHubDefaultRegistry = "index.docker.io"
   private val RegistryHostName = "registry-1.docker.io"
   private val AuthorizationServerHostName = "auth.docker.io"
+  private val DockerHubImplicitRegistryHostName = "docker.io"
   private val ServiceName = Option("registry.docker.io")
+  private val validDockerHubHosts = Array(DockerHubDefaultRegistry, RegistryHostName, DockerHubImplicitRegistryHostName)
 }
 
 class DockerHubFlow(httpClientFlow: HttpDockerFlow)(implicit ec: ExecutionContext, materializer: ActorMaterializer, scheduler: Scheduler) 
@@ -40,7 +42,7 @@ class DockerHubFlow(httpClientFlow: HttpDockerFlow)(implicit ec: ExecutionContex
     dockerImageIdentifierWithoutHash.host match {
         // If no host is provided, assume dockerhub
       case None => true
-      case Some(host) if host == registryHostName || host == DockerHubDefaultRegistry => true
+      case Some(host) if validDockerHubHosts.contains(host) => true
       case _ => false
     }
   }

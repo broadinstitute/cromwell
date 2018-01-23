@@ -10,10 +10,10 @@ task dockerhub {
 
 workflow docker_hash_dockerhub {
 
-    Array[String] hostnames = ["", "docker.io/", "index.docker.io/"]
+    call dockerhub as dockerWithoutHost { input: hostname = "" }
 
-    scatter (hostname in hostnames) {
-        call dockerhub { input: hostname = hostname }
-    }
+    call dockerhub as implicitRegistryHost { input: hostname = "docker.io/" }
+
+    call dockerhub as defaultRegistryHost { input: hostname = "index.docker.io/" }
 }
 

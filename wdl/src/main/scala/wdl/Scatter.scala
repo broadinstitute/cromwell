@@ -60,6 +60,10 @@ object Scatter {
       * use however many of them it needs.
       */
     val possiblyNeededNestedOgins: Map[String, OuterGraphInputNode] = outerLookup filterNot { case (name, _) => localLookup.contains(name) } map { case (name, outerPort) =>
+      /*
+        * preserveScatterIndex = false because in the absence of support of nested scatters,
+        * the index should never be preserved when for nodes coming from outside the scatter.
+       */
       name -> OuterGraphInputNode(WomIdentifier(name), outerPort, preserveScatterIndex = false)
     }
     val possiblyNeededNestedOginPorts: Map[String, OutputPort] = possiblyNeededNestedOgins map { case (name: String, ogin: OuterGraphInputNode) => name -> ogin.singleOutputPort }

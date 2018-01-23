@@ -466,7 +466,7 @@ object CommandLineTool {
   case class CommandInputParameter(
                                     id: String,
                                     label: Option[String] = None,
-                                    secondaryFiles: Option[Array[StringOrExpression]] = None,
+                                    secondaryFiles: Option[SecondaryFiles] = None,
                                     format: Option[Expression :+: Array[String] :+: String :+: CNil] = None, //only valid when type: File
                                     streamable: Option[Boolean] = None, //only valid when type: File
                                     doc: Option[String :+: Array[String] :+: CNil] = None,

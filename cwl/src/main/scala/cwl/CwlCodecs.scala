@@ -14,6 +14,7 @@ import cats.syntax.traverse._
 import cats.syntax.show._
 import cats.instances.vector._
 import io.circe.Error._
+import io.circe.ParsingFailure._
 
 object CwlCodecs {
 
@@ -42,11 +43,11 @@ object CwlCodecs {
     decodeWithErrorStrings[CwlFile](in).leftMap(decodePieces(in))
 
   /**
-    * Looks into the file and tries to parse each CWL individually, returning a superset of those failures.
+    * Drop down to a lower level and try to parse each CWL individually, returning a superset of those failures.
     */
   def decodePieces(in: String)(original: NonEmptyList[String]):NonEmptyList[String]  =
     (for {
-      raw <- parse(in).leftMap(_.getMessage()).leftMap(NonEmptyList.one)
+      raw <- parse(in).leftMap(_.show).leftMap(NonEmptyList.one)
       _ <-
         if (raw.isArray)
           raw.asArray.toVector.flatten.traverse(decodeCwl).toEither
@@ -54,21 +55,19 @@ object CwlCodecs {
           decodeCwl(raw).toEither
     } yield  ()).fold(
       identity,
-      _ => original
+      _ => original //this should never happen as we're gathering up the errors
     )
 
-  // we know we are dealing with an individual CWL, so we can take some liberties like assuming "class" is defined.
   private def decodeCwl(json: Json): ErrorOr[Unit] = {
 
     val rawJson = io.circe.Printer.noSpaces.pretty(json)
 
-
+    // we know we are dealing with an individual CWL, so we can take some liberties like assuming "class" is defined.
     ((json \\ "class").head.asString match {
       case Some("Workflow") => decodeWithErrorStrings[Workflow](rawJson)
       case Some("CommandLineTool") => decodeWithErrorStrings[CommandLineTool](rawJson)
       case Some("ExpressionTool") => decodeWithErrorStrings[ExpressionTool](rawJson)
-      case _ => NonEmptyList.one("could not find class in CWL").asLeft
+      case _ => NonEmptyList.one("Class field was declared incorrectly!").asLeft
     }).toValidated.map(_ => ())
   }
-
 }

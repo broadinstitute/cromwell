@@ -9,7 +9,7 @@ metadata {
   "calls.docker_hash_dockerhub.dockerhub.0.runtimeAttributes.docker": "ubuntu:precise-20161209",
   "calls.docker_hash_dockerhub.dockerhub.0.dockerImageUsed": "ubuntu@sha256:abdc090336ba4503bd72d0961a4f3d45134900d9a793d3f0c06a64d2555fbab7",
   "calls.docker_hash_dockerhub.dockerhub.1.runtimeAttributes.docker": "docker.io/ubuntu:precise-20161209",
-  "calls.docker_hash_dockerhub.dockerhub.1.dockerImageUsed": "ubuntu@sha256:abdc090336ba4503bd72d0961a4f3d45134900d9a793d3f0c06a64d2555fbab7",
+  "calls.docker_hash_dockerhub.dockerhub.1.dockerImageUsed": "docker.io/ubuntu@sha256:abdc090336ba4503bd72d0961a4f3d45134900d9a793d3f0c06a64d2555fbab7",
   "calls.docker_hash_dockerhub.dockerhub.2.runtimeAttributes.docker": "index.docker.io/ubuntu:precise-20161209",
-  "calls.docker_hash_dockerhub.dockerhub.2.dockerImageUsed": "ubuntu@sha256:abdc090336ba4503bd72d0961a4f3d45134900d9a793d3f0c06a64d2555fbab7"
+  "calls.docker_hash_dockerhub.dockerhub.2.dockerImageUsed": "index.docker.io/ubuntu@sha256:abdc090336ba4503bd72d0961a4f3d45134900d9a793d3f0c06a64d2555fbab7"
 }

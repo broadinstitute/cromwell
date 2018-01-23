@@ -481,6 +481,8 @@ object CommandLineTool {
     import cats.instances.list._
     type DefaultToWomValueFunction = WomType => ErrorOr[WomValue]
 
+    type SecondaryFiles = StringOrExpression :+: Array[StringOrExpression] :+: CNil
+
     object DefaultToWomValuePoly extends Poly1 {
       implicit def caseFileOrDirectory: Case.Aux[FileOrDirectory, DefaultToWomValueFunction] = {
         at {

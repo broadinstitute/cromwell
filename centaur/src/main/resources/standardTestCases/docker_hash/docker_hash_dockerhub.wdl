@@ -1,12 +1,19 @@
 task dockerhub {
+    String hostname
     command {
         echo "hello"
     }
     runtime {
-        docker: "docker.io/ubuntu:precise-20161209"
+        docker: hostname + "ubuntu:precise-20161209"
     }
 }
 
 workflow docker_hash_dockerhub {
-    call dockerhub
+
+    Array[String] hostnames = ["", "docker.io/", "index.docker.io/"]
+
+    scatter (hostname in hostnames) {
+        call dockerhub { input: hostname = hostname }
+    }
 }
+

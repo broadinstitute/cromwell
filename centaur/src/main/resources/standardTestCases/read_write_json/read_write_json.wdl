@@ -1,4 +1,8 @@
 workflow read_write_json {
+
+  Int? supplied_optional_int = 1
+  Int? not_supplied_optional_int
+
   Object json_object = object {
     str: "hi",
     int: 57,
@@ -8,7 +12,9 @@ workflow read_write_json {
     obj: object {
       inner_str: "inner hello",
       inner_float: 28.5
-    }
+    },
+    opt_int_1: supplied_optional_int,
+    opt_int_2: not_supplied_optional_int
   }
 
   call make_some_json
@@ -16,7 +22,7 @@ workflow read_write_json {
 
   Object round_tripped_inner_obj = round_trip.round_tripped.obj
 
-  if (round_tripped_inner_obj.inner_float == make_some_json.output_json.float + 1) {
+  if (round_tripped_inner_obj.inner_float == make_some_json.output_json.float + round_trip.round_tripped.opt_int_1) {
     call success { input: actual = round_tripped_inner_obj.inner_float, expected = make_some_json.output_json.float }
   }
 

@@ -72,6 +72,10 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
     case WomArray(_, values) => JsArray(values.map(valueToJson).toVector)
     case WomMap(_, value) => JsObject(value map { case (k, v) => k.valueString -> valueToJson(v) })
     case o: WomObjectLike => JsObject(o.values map { case (k, v) => k -> valueToJson(v) })
+    case opt: WomOptionalValue => opt.value match {
+      case Some(inner) => valueToJson(inner)
+      case None => JsNull
+    }
   }
 
   def read_lines(params: Seq[Try[WomValue]]): Try[WomArray] = {

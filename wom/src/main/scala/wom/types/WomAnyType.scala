@@ -44,10 +44,17 @@ case object WomAnyType extends WomType {
   override protected def coercion = {
     case womValue: WomValue => womValue
     case any: Any =>
+
+      def foldFun(acc: Option[WomValue], nextType: WomType): Option[WomValue] = acc.orElse(nextType.coerceRawValue(any).toOption)
+
       /* This does throw an exception if it couldn't coerce (.get is intentional) */
-      WomType.womTypeCoercionOrder.map(_.coerceRawValue(any)).find(_.isSuccess).getOrElse(
-        throw new UnsupportedOperationException(s"Could not coerce $any into a WOM type")
-      ).get
+      WomType.womTypeCoercionOrder.foldLeft[Option[WomValue]](None)(foldFun).getOrElse(
+            throw new UnsupportedOperationException(s"Could not coerce $any into a WOM type"))
+//
+//
+//      WomType.womTypeCoercionOrder.map(_.coerceRawValue(any)).find(_.isSuccess).getOrElse(
+//        throw new UnsupportedOperationException(s"Could not coerce $any into a WOM type")
+//      ).get
   }
 
   override final def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = true

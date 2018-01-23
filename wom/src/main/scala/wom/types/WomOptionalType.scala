@@ -15,15 +15,16 @@ case class WomOptionalType(memberType: WomType) extends WomType {
     */
   override protected def coercion: PartialFunction[Any, WomValue] = {
 
+    // Javascript null coerces to empty value
+    case JsNull => WomOptionalValue(memberType, None)
+    case None => WomOptionalValue(memberType, None)
+
     // Coerce and adjust nesting level of equivalent nested conditionals:
     case womOptional: WomOptionalValue if baseMemberType.isCoerceableFrom(womOptional.womType.baseMemberType) => womOptional.coerceAndSetNestingLevel(this).get
 
     // It's safe to box up values implicitly:
     case womValue: WomValue if baseMemberType.isCoerceableFrom(womValue.womType) => WomOptionalValue(womValue).coerceAndSetNestingLevel(this).get
     case coerceable: Any if baseMemberType.coercionDefined(coerceable) => WomOptionalValue(baseMemberType.coerceRawValue(coerceable).get).coerceAndSetNestingLevel(this).get
-
-    // Javascript null coerces to empty value
-    case JsNull => WomOptionalValue(memberType, None)
   }
 
   override def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = otherType match {

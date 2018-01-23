@@ -864,7 +864,7 @@ Result for an individual workflow returned by a workflow query
 |**end**  <br>*optional*|Workflow end datetime|string (date-time)|
 |**id**  <br>*required*|Workflow ID|string|
 |**name**  <br>*required*|Workflow name|string|
-|**start**  <br>*required*|Workflow start datetime|string (date-time)|
+|**start**  <br>*optional*|Workflow start datetime|string (date-time)|
 |**status**  <br>*required*|Workflow status|string|
 
 

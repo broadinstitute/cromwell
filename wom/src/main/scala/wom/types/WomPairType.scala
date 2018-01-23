@@ -7,7 +7,7 @@ import scala.util.{Failure, Success, Try}
 
 case class WomPairType(leftType: WomType, rightType: WomType) extends WomType {
 
-  override def isCoerceableFrom(otherType: WomType): Boolean = otherType match {
+  override def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = otherType match {
     case WomPairType(otherType1, otherType2) => leftType.isCoerceableFrom(otherType1) && rightType.isCoerceableFrom(otherType2)
     case _ => false
   }

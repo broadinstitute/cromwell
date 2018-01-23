@@ -67,10 +67,11 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
     case WomFloat(f) => JsNumber(f)
     case WomString(s) => JsString(s)
     case WomBoolean(b) => JsBoolean(b)
+    case f: WomFile => JsString(f.value)
     case WomPair(left, right) => JsObject(Map("left" -> valueToJson(left), "right" -> valueToJson(right)))
     case WomArray(_, values) => JsArray(values.map(valueToJson).toVector)
     case WomMap(_, value) => JsObject(value map { case (k, v) => k.valueString -> valueToJson(v) })
-    case o: WomObject => JsObject(o.values map { case (k, v) => k -> valueToJson(v) })
+    case o: WomObjectLike => JsObject(o.values map { case (k, v) => k -> valueToJson(v) })
   }
 
   def read_lines(params: Seq[Try[WomValue]]): Try[WomArray] = {

@@ -60,7 +60,7 @@ case object WomObjectType extends WomObjectTypeLike {
 
   private def toWomString(v: WomValue) = WomStringType.coerceRawValue(v).map(_.asInstanceOf[WomString])
 
-  override def isCoerceableFrom(otherType: WomType) = otherType match {
+  override def typeSpecificIsCoerceableFrom(otherType: WomType) = otherType match {
     case WomObjectType => true
     case t: WomMapType if isMapTypeCoercable(t) => true
     case _ => false

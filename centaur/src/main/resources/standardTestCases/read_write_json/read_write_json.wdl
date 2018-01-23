@@ -4,14 +4,20 @@ workflow read_write_json {
     int: 57,
     float: 27.5,
     pair: (5, "hello"),
-    array: ["a", "b", "c"]
+    array: ["a", "b", "c"],
+    obj: object {
+      inner_str: "inner hello",
+      inner_float: 28.5
+    }
   }
 
   call make_some_json
   call round_trip { input: to_jsonify = json_object }
 
-  if (round_trip.round_tripped.float == make_some_json.output_json.float) {
-    call success { input: actual = round_trip.round_tripped.float, expected = make_some_json.output_json.float }
+  Object round_tripped_inner_obj = round_trip.round_tripped.obj
+
+  if (round_tripped_inner_obj.inner_float == make_some_json.output_json.float + 1) {
+    call success { input: actual = round_tripped_inner_obj.inner_float, expected = make_some_json.output_json.float }
   }
 
   output {
@@ -58,7 +64,7 @@ task success {
   Float actual
   Float expected
   command {
-    echo "${actual} was equal to ${expected}"
+    echo "${actual} was equal to ${expected} plus 1"
   }
   output {
     String result = read_string(stdout())

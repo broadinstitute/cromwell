@@ -26,7 +26,7 @@ case class WomOptionalType(memberType: WomType) extends WomType {
     case JsNull => WomOptionalValue(memberType, None)
   }
 
-  override def isCoerceableFrom(otherType: WomType): Boolean = otherType match {
+  override def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = otherType match {
 
     // Check for boxing coerceability:
     case womType: WomType if memberType.isCoerceableFrom(womType) => true

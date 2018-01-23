@@ -37,7 +37,11 @@ trait WomType {
     }
   }
 
-  def isCoerceableFrom(otherType: WomType): Boolean = false
+  final def isCoerceableFrom(otherType: WomType): Boolean = otherType match {
+    case WomAnyType => true
+    case _ => typeSpecificIsCoerceableFrom(otherType)
+  }
+  protected def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = false
 
   def toDisplayString: String
 

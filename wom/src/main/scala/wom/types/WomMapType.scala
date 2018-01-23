@@ -14,7 +14,7 @@ case class WomMapType(keyType: WomType, valueType: WomType) extends WomType {
     case o: WomObjectLike => WomMap.coerceMap(o.values, this)
   }
 
-  override def isCoerceableFrom(otherType: WomType): Boolean = otherType match {
+  override def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = otherType match {
     case m: WomMapType => keyType.isCoerceableFrom(m.keyType) && valueType.isCoerceableFrom(m.valueType)
     case _: WomObjectTypeLike => keyType.isCoerceableFrom(WomStringType) && valueType.isCoerceableFrom(WomStringType)
     case _ => false

@@ -50,6 +50,22 @@ case object WomAnyType extends WomType {
       ).get
   }
 
-  override final def isCoerceableFrom(otherType: WomType): Boolean = true
-  override def equals(rhs: WomType): Try[WomType] = Success(WomBooleanType)
+  override final def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = true
+
+  override def add(rhs: WomType): Try[WomType] = Success(WomAnyType)
+  override def subtract(rhs: WomType): Try[WomType] = Success(WomAnyType)
+  override def multiply(rhs: WomType): Try[WomType] = Success(WomAnyType)
+  override def divide(rhs: WomType): Try[WomType] = Success(WomAnyType)
+  override def mod(rhs: WomType): Try[WomType] = Success(WomAnyType)
+  override def equals(rhs: WomType): Try[WomType] = Success(WomAnyType)
+  override def notEquals(rhs: WomType): Try[WomType] = Success(WomAnyType)
+  override def lessThan(rhs: WomType): Try[WomType] = Success(WomAnyType)
+  override def lessThanOrEqual(rhs: WomType): Try[WomType] = Success(WomAnyType)
+  override def greaterThan(rhs: WomType): Try[WomType] = Success(WomAnyType)
+  override def greaterThanOrEqual(rhs: WomType): Try[WomType] = Success(WomAnyType)
+  override def or(rhs: WomType): Try[WomType] = Success(WomAnyType)
+  override def and(rhs: WomType): Try[WomType] = Success(WomAnyType)
+  override def not: Try[WomType] = Success(WomAnyType)
+  override def unaryPlus: Try[WomType] = Success(WomAnyType)
+  override def unaryMinus: Try[WomType] = Success(WomAnyType)
 }

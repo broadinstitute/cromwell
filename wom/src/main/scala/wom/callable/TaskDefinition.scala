@@ -57,6 +57,7 @@ sealed trait TaskDefinition extends Callable {
   def parameterMeta: Map[String, String]
   def prefixSeparator: String
   def commandPartSeparator: String
+  def stdinRedirection: Option[WomExpression]
   def stdoutRedirection: Option[String]
   def stderrRedirection: Option[String]
   def adHocFileCreation: Set[WomExpression]
@@ -115,6 +116,7 @@ final case class CallableTaskDefinition(name: String,
                                         environmentExpressions: Map[String, WomExpression],
                                         prefixSeparator: String = ".",
                                         commandPartSeparator: String = "",
+                                        stdinRedirection: Option[WomExpression] = None,
                                         stdoutRedirection: Option[String] = None,
                                         stderrRedirection: Option[String] = None,
                                         additionalGlob: Option[WomGlobFile] = None,
@@ -138,6 +140,7 @@ final case class ExecutableTaskDefinition private (callableTaskDefinition: Calla
   override def parameterMeta = callableTaskDefinition.parameterMeta
   override def prefixSeparator = callableTaskDefinition.prefixSeparator
   override def commandPartSeparator = callableTaskDefinition.commandPartSeparator
+  override def stdinRedirection = callableTaskDefinition.stdinRedirection
   override def stdoutRedirection = callableTaskDefinition.stdoutRedirection
   override def stderrRedirection = callableTaskDefinition.stderrRedirection
   override def adHocFileCreation = callableTaskDefinition.adHocFileCreation

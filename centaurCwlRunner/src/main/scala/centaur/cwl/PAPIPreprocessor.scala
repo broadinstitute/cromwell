@@ -51,7 +51,7 @@ class PAPIPreprocessor(config: Config) {
   private def prefixLocationWithGcs(key: String): Json => Json = root.selectDynamic(key).string.modify(gcsPrefix + _)
 
   // Prefix "location" and "default"
-  private val prefix = prefixLocationWithGcs("location")
+  private val prefix = prefixLocationWithGcs("location").compose(prefixLocationWithGcs("path"))
 
   // Function to check if the given json has the provided key / value pair
   private def hasKeyValue(key: String, value: String): Json => Boolean = {
@@ -123,7 +123,7 @@ class PAPIPreprocessor(config: Config) {
     * Pre-process the workflow by adding a default docker hint iff it doesn't have one
     */
   def preProcessWorkflow(workflow: String) = processYaml(workflow) { json =>
-    def process = (prefixFiles _).andThen(addDefaultDocker)
+    def process = addDefaultDocker _
     
     // Some files contain a list of tools / workflows under the "$graph" field. In this case recursively add docker default to them
     root.$graph.arr.modifyOption(_.map(process))(json)

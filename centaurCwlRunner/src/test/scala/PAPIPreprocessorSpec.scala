@@ -81,7 +81,8 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
     )
   }
 
-  it should "prefix files and directories in workflow" in {
+  // Ignored because until cwltool accepts gcs paths in workflows we can't prefix default locations
+  it should "prefix files and directories in workflow" ignore {
     validate(
       pAPIPreprocessor.preProcessWorkflow(
         """|class: CommandLineTool

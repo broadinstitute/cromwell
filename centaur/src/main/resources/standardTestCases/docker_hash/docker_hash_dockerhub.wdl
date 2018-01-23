@@ -3,7 +3,7 @@ task dockerhub {
         echo "hello"
     }
     runtime {
-        docker: "ubuntu:precise-20161209"
+        docker: "docker.io/ubuntu:precise-20161209"
     }
 }
 

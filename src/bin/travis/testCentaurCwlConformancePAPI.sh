@@ -68,8 +68,6 @@ CURRENT_DIR=$(pwd)
 
 java \
   -Dconfig.file="$JES_CONF" \
-  -Dpapi.default-input-gcs-prefix=gs://centaur-cwl-conformance/cwl-inputs/ \
-  -Dcwl.default-docker-image="ubuntu:latest" \
   -Dsystem.new-workflow-poll-rate=1 \
   -jar "${CROMWELL_JAR}" server &
 

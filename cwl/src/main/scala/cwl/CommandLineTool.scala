@@ -6,7 +6,6 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, OptionT}
 import cats.syntax.traverse._
 import cats.syntax.validated._
-import com.typesafe.config.ConfigFactory
 import common.Checked
 import common.validation.ErrorOr._
 import common.validation.Validation._
@@ -30,7 +29,6 @@ import wom.values.{WomArray, WomEvaluatedCallInputs, WomFile, WomGlobFile, WomSt
 import wom.{CommandPart, RuntimeAttributes}
 
 import scala.concurrent.ExecutionContext
-import scala.language.postfixOps
 import scala.math.Ordering
 import scala.util.Try
 
@@ -288,7 +286,7 @@ case class CommandLineTool private(
     // - There is no monoid instance for `WomExpression`s.
     // - We want to fold from the right so the hints and requirements with the lowest precedence are processed first
     //   and later overridden if there are duplicate hints or requirements of the same type with higher precedence.
-    val finalAttributesMap: Map[String, WomExpression] = (requirementsAndHints ++ DefaultDockerRequirement).foldRight(Map.empty[String, WomExpression])({
+    val finalAttributesMap: Map[String, WomExpression] = requirementsAndHints.foldRight(Map.empty[String, WomExpression])({
       case (requirement, attributesMap) => attributesMap ++ processRequirement(requirement, expressionLib)
     })
 
@@ -674,22 +672,6 @@ object CommandLineTool {
     }
 
   }
-
-  // Used to supply a default Docker image for platforms like PAPI that must have one even if the CWL document does
-  // not specify a `DockerRequirement`.
-  import net.ceedubs.ficus.Ficus._
-  lazy val DefaultDockerImage = ConfigFactory.load().as[Option[String]]("cwl.default-docker-image")
-
-  lazy val DefaultDockerRequirement = DefaultDockerImage map { image => Coproduct[Requirement](DockerRequirement(
-    `class` = "DockerRequirement",
-    dockerPull = Option(image),
-    dockerLoad = None,
-    dockerFile = None,
-    dockerImport = None,
-    dockerImageId = None,
-    dockerOutputDirectory = None
-  )) } toList
-
 }
 
 object StringOrExpressionToWomExpression extends Poly1 {

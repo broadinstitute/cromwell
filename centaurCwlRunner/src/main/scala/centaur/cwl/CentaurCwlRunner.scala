@@ -8,6 +8,7 @@ import centaur.test.standard.{CentaurTestCase, CentaurTestFormat}
 import centaur.test.submit.{SubmitHttpResponse, SubmitWorkflowResponse}
 import centaur.test.workflow.{AllBackendsRequired, Workflow, WorkflowData}
 import com.google.api.services.storage.StorageScopes
+import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.StrictLogging
 import common.util.VersionUtil
 import cromwell.api.model.{Aborted, Failed, NonTerminalStatus, Succeeded}
@@ -30,6 +31,8 @@ import scala.concurrent.duration.Duration
   * https://github.com/common-workflow-language/common-workflow-language/pull/278/files#diff-ee814a9c027fc9750beb075c283a973cR49
   */
 object CentaurCwlRunner extends StrictLogging {
+  
+  val pAPIPreprocessor = new PAPIPreprocessor(ConfigFactory.load())
 
   case class CommandLineArguments(workflowSource: Option[File] = None,
                                   workflowInputs: Option[File] = None,
@@ -95,6 +98,8 @@ object CentaurCwlRunner extends StrictLogging {
 
   private def runCentaur(args: CommandLineArguments): ExitCode.Value = {
 
+    def preProcessIfNotLocal(preProcessor: String => String)(value: String): String = if (args.localMode) value else preProcessor(value)
+    
     def zipSiblings(file: File): File = {
       val zipFile = File.newTemporaryFile("cwl_imports.", ".zip")
       val dir = file.parent
@@ -113,8 +118,8 @@ object CentaurCwlRunner extends StrictLogging {
     }
     val outdirOption = args.outdir.map(_.pathAsString)
     val testName = workflowPath.name
-    val workflowContents = parsedWorkflowPath.contentAsString
-    val inputContents = args.workflowInputs.map(_.contentAsString)
+    val workflowContents = preProcessIfNotLocal(pAPIPreprocessor.preProcessWorkflow)(parsedWorkflowPath.contentAsString)
+    val inputContents = args.workflowInputs.map(_.contentAsString) map preProcessIfNotLocal(pAPIPreprocessor.preProcessInput)
     val workflowType = Option("cwl")
     val workflowTypeVersion = None
     val optionsContents = outdirOption map { outdir =>

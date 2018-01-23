@@ -297,8 +297,9 @@ object Dependencies {
   val womtoolDependencies = catsDependencies ++ slf4jBindingDependencies
 
   val centaurCwlRunnerDependencies = List(
-    "com.github.scopt" %% "scopt" % scoptV
-  ) ++ slf4jBindingDependencies
+    "com.github.scopt" %% "scopt" % scoptV,
+    "io.circe" %% "circe-optics" % circeV
+  ) ++ slf4jBindingDependencies ++ circeDependencies
 
   val coreDependencies = List(
     "com.typesafe.akka" %% "akka-actor" % akkaV,

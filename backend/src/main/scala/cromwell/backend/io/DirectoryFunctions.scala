@@ -64,13 +64,13 @@ object DirectoryFunctions {
     allFiles
   }
 
-  def listWomSingleFiles(womFile: WomFile, pathFactory: PathFactory, pathPatcher: String => String): ErrorOr[List[WomSingleFile]] = {
+  def listWomSingleFiles(womFile: WomFile, pathFactory: PathFactory): ErrorOr[List[WomSingleFile]] = {
     def listWomSingleFiles(womFile: WomFile): ErrorOr[List[WomSingleFile]] = {
       womFile match {
         case womSingleFile: WomSingleFile => List(womSingleFile).valid
 
         case womUnlistedDirectory: WomUnlistedDirectory =>
-          val errorOrListPaths = listFiles(pathFactory.buildPath(ensureSlashed(pathPatcher(womUnlistedDirectory.value))))
+          val errorOrListPaths = listFiles(pathFactory.buildPath(ensureSlashed(womUnlistedDirectory.value)))
           errorOrListPaths.map(_.map(path => WomSingleFile(path.pathAsString)))
 
         case womMaybePopulatedFile: WomMaybePopulatedFile =>

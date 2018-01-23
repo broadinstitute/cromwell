@@ -162,7 +162,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   private def relativeLocalizationPath(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
-        case Success(path) => JesInput.stripPrefixWithoutScheme(path)
+        case Success(path) => path.pathWithoutScheme
         case _ => value
       }
     )
@@ -186,7 +186,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         val arrays: Seq[WomArray] = womFile collectAsSeq {
           case womFile: WomFile =>
             val files: List[WomSingleFile] = DirectoryFunctions
-              .listWomSingleFiles(womFile, jesCallPaths.workflowPaths, JesInput.prefixIfNecessary)
+              .listWomSingleFiles(womFile, jesCallPaths.workflowPaths)
               .toTry(s"Error getting single files for $womFile").get
             WomArray(WomArrayType(WomSingleFileType), files)
         }

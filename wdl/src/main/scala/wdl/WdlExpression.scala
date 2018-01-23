@@ -90,6 +90,7 @@ object WdlExpression {
     "read_map",
     "read_object",
     "read_tsv",
+    "read_json",
     "size"
   )
 

@@ -5,13 +5,11 @@ import java.io.File
 import better.files.File.OpenOptions
 import cats.instances.future._
 import cats.syntax.functor._
-import com.typesafe.config.ConfigFactory
 import cromwell.core.io.AsyncIoFunctions
 import cromwell.core.path.{Path, PathFactory}
 import wom.expression.IoFunctionSet
 import wom.values.WomSingleFile
 
-import net.ceedubs.ficus.Ficus._
 import scala.concurrent.Future
 
 

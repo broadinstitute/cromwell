@@ -5,13 +5,12 @@ import akka.pattern.pipe
 import better.files.File
 import cats.Monad
 import cats.data.EitherT._
+import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
-import cats.data.{EitherT, NonEmptyList}
 import cats.effect.IO
 import cats.instances.vector._
 import cats.syntax.apply._
 import cats.syntax.either._
-import cats.syntax.functor._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.typesafe.config.Config
@@ -39,7 +38,7 @@ import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cwl.CwlDecoder
-import cwl.CwlDecoder.Parse
+import cwl.CwlDecoder._
 import net.ceedubs.ficus.Ficus._
 import spray.json._
 import wdl._
@@ -405,21 +404,33 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                    ioFunctions: EngineIoFunctions): Parse[ValidatedWomNamespace] = {
     // TODO WOM: CwlDecoder takes a file so write it to disk for now
 
-    val cwlFile: File = File.newTemporaryFile(prefix = workflowIdForLogging.toString).write(source.workflowSource)
+    def writeCwlFileToNewTempDir(): Parse[File] = {
+      goParse {
+        val tempDir = File.newTemporaryDirectory(prefix = s"$workflowIdForLogging.temp.")
+        val cwlFile: File = tempDir./(s"$workflowIdForLogging.cwl").write(source.workflowSource)
+        cwlFile
+      }
+    }
 
-    def unzipDependencies: Parse[Unit]  = source match {
-      case wsfwdz: WorkflowSourceFilesWithDependenciesZip =>
-        EitherT.
-          fromEither[IO]{validateImportsDirectory(wsfwdz.importsZip, Some(DefaultPathBuilder.build(cwlFile.parent.path))).void.toEither}
-      case _ => Monad[Parse].unit
+    def unzipDependencies(cwlFile: File): Parse[Unit] = {
+      source match {
+        case wsfwdz: WorkflowSourceFilesWithDependenciesZip =>
+          for {
+            parent <- tryParse(DefaultPathBuilder.build(cwlFile.parent.pathAsString))
+            _ <- errorOrParse(validateImportsDirectory(wsfwdz.importsZip, Option(parent)))
+          } yield ()
+        case _ => Monad[Parse].unit
+      }
     }
 
     import cwl.AcceptAllRequirements
     for {
-      _ <- unzipDependencies
+      cwlFile <- writeCwlFileToNewTempDir()
+      _ <- unzipDependencies(cwlFile)
       cwl <- CwlDecoder.decodeAllCwl(cwlFile, source.workflowRoot)
-      executable <-  fromEither[IO](cwl.womExecutable(AcceptAllRequirements, Option(source.inputsJson)))
+      executable <- fromEither[IO](cwl.womExecutable(AcceptAllRequirements, Option(source.inputsJson)))
       validatedWomNamespace <- fromEither[IO](validateWomNamespace(executable, ioFunctions))
+      _ <- CwlDecoder.todoDeleteCwlFileParentDirectory(cwlFile.parent)
     } yield validatedWomNamespace
   }
 

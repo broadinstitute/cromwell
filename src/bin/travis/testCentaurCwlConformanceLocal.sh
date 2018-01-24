@@ -11,7 +11,7 @@ CENTAUR_CWL_RUNNER="$(pwd)/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
 
 git clone --depth 1 https://github.com/common-workflow-language/common-workflow-language.git
 CWL_TEST_DIR=$(pwd)/common-workflow-language/v1.0/v1.0
-CONFORMANCE_EXPECTED_FAILURES=$(pwd)/src/bin/travis/resources/conformance_expected_failures.txt
+CONFORMANCE_EXPECTED_FAILURES=$(pwd)/src/bin/travis/resources/local_conformance_expected_failures.txt
 
 shutdownCromwell() {
     if [ -z "${CROMWELL_PID}" ]; then
@@ -24,7 +24,12 @@ trap "shutdownCromwell" EXIT
 # Start the Cromwell server in the directory containing input files so it can access them via their relative path
 CURRENT_DIR=$(pwd)
 cd $CWL_TEST_DIR
-java -Dsystem.new-workflow-poll-rate=1 -Dbackend.providers.Local.config.script-epilogue="sleep 5 && sync" -jar ${CROMWELL_JAR} server &
+java \
+  -Xmx2g \
+  -Dsystem.new-workflow-poll-rate=1 \
+  -Dbackend.providers.Local.config.script-epilogue="sleep 5 && sync" \
+  -jar ${CROMWELL_JAR} \
+  server &
 CROMWELL_PID=$$
 cd $CURRENT_DIR
 

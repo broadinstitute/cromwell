@@ -3,7 +3,8 @@ package centaur.cwl
 import centaur.api.CentaurCromwellClient
 import cromwell.api.model.SubmittedWorkflow
 import cromwell.core.path.PathBuilder
-import cwl.{CwlDecoder, MyriadOutputType}
+import cwl.CwlDecoder.Parse
+import cwl.{Cwl, CwlDecoder, MyriadOutputType}
 import io.circe.Json
 import io.circe.syntax._
 import shapeless.Poly1
@@ -27,9 +28,13 @@ object Outputs {
     metadata.get("submittedFiles.workflow") match {
       case Some(JsString(workflow)) =>
 
-        val cwl = CwlDecoder.decodeTopLevelCwl(workflow, submittedWorkflow.workflow.workflowRoot)
+        val parseCwl: Parse[Cwl] = CwlDecoder.decodeTopLevelCwl(
+          workflow,
+          submittedWorkflow.workflow.zippedImports,
+          submittedWorkflow.workflow.workflowRoot
+        )
 
-        cwl.value.attempt.unsafeRunSync() match {
+        parseCwl.value.attempt.unsafeRunSync() match {
           case Right(Right(cwl)) =>
 
             CentaurCromwellClient.outputs(submittedWorkflow).get.outputs match {

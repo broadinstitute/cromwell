@@ -30,7 +30,8 @@ docker run --rm \
     broadinstitute/dsde-toolbox \
     vault auth "$JES_TOKEN" < /dev/null > /dev/null && echo vault auth success
 
-set -x
+# For now, leave logging off
+#set -x
 
 # Render secrets
 docker run --rm \
@@ -50,23 +51,34 @@ JES_CONF="$(pwd)/jes_centaur.conf"
 sed -i '/^call-caching\s*/{N;s/enabled.*/  enabled: false/;}' ${JES_CONF}
 
 ENABLE_COVERAGE=true sbt assembly
-CROMWELL_JAR=$(find "$(pwd)/target/scala-2.12" -name "cromwell-*.jar")
-CENTAUR_CWL_RUNNER="$(pwd)/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
 
 git clone --depth 1 https://github.com/common-workflow-language/common-workflow-language.git
 
-CONFORMANCE_EXPECTED_FAILURES=$(pwd)/src/bin/travis/resources/conformance_expected_failures.txt
+CROMWELL_JAR=$(find "$(pwd)/target/scala-2.12" -name "cromwell-*.jar")
+CENTAUR_CWL_RUNNER="$(pwd)/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
+CENTAUR_CWL_RUNNER_MODE="papi"
+GOOGLE_AUTH_MODE="service-account"
+GOOGLE_SERVICE_ACCOUNT_JSON="$(pwd)/cromwell-service-account.json"
+CONFORMANCE_EXPECTED_FAILURES=$(pwd)/src/bin/travis/resources/papi_conformance_expected_failures.txt
+CWL_DIR=$(pwd)/common-workflow-language
+CWL_TEST_DIR=$(pwd)/common-workflow-language/v1.0/v1.0
+CWL_CONFORMANCE_TEST_WDL=$(pwd)/src/bin/travis/resources/cwl_conformance_test.wdl
+CWL_CONFORMANCE_TEST_INPUTS=$(pwd)/cwl_conformance_test.inputs.json
+CWL_CONFORMANCE_TEST_PARALLELISM=10 # Set too high and it will cause false negatives due to cromwell server timeouts.
+PAPI_INPUT_GCS_PREFIX=gs://centaur-cwl-conformance/cwl-inputs/
 
-shutdownCromwell() {
-    if [ -z "${CROMWELL_PID}" ]; then
-        kill "${CROMWELL_PID}"
-    fi
-}
-
-trap "shutdownCromwell" EXIT
 CURRENT_DIR=$(pwd)
+# The java programs must run from the directory that contains a number of the cwl imports or the tests won't pass.
+cd ${CWL_TEST_DIR}
+
+# Export variables used in conf files and commands
+export CENTAUR_CWL_RUNNER_MODE
+export GOOGLE_AUTH_MODE
+export GOOGLE_SERVICE_ACCOUNT_JSON
+export PAPI_INPUT_GCS_PREFIX
 
 java \
+  -Xmx2g \
   -Dconfig.file="$JES_CONF" \
   -Dsystem.new-workflow-poll-rate=1 \
   -jar "${CROMWELL_JAR}" server &
@@ -75,50 +87,22 @@ CROMWELL_PID=$$
 
 sleep 30
 
-UNEXPECTED_PASS=()
-UNEXPECTED_FAIL=()
+cat <<JSON >${CWL_CONFORMANCE_TEST_INPUTS}
+{
+  "cwl_conformance_test.cwl_dir": "$CWL_DIR",
+  "cwl_conformance_test.centaur_cwl_runner": "$CENTAUR_CWL_RUNNER",
+  "cwl_conformance_test.conformance_expected_failures": "$CONFORMANCE_EXPECTED_FAILURES"
+}
+JSON
 
-cd common-workflow-language
-TEST_COUNT=$(./run_test.sh RUNNER="${CENTAUR_CWL_RUNNER}" -l | grep -c '^\[')
+java \
+  -Xmx2g \
+  -Dbackend.providers.Local.config.concurrent-job-limit=${CWL_CONFORMANCE_TEST_PARALLELISM} \
+  -jar ${CROMWELL_JAR} \
+  run ${CWL_CONFORMANCE_TEST_WDL} \
+  -i ${CWL_CONFORMANCE_TEST_INPUTS}
 
-echo Test count is "${TEST_COUNT}"
-
-TEST_PASSING=0
-
-set +e
-# Only run tests that are expected to succeed as PAPI CWL conformance is not quick.
-for TEST_NUMBER in $(perl -ne '/#(\d+)/ && !/PAPIFAIL/ && print "$1 "' "${CONFORMANCE_EXPECTED_FAILURES}"); do
-    # Check if test is supposed to fail
-    grep -q '^'"${TEST_NUMBER}"'$' "${CONFORMANCE_EXPECTED_FAILURES}"
-    TEST_IN_EXPECTED_FAILED=$?
-
-    # Run the test
-    ./run_test.sh RUNNER="${CENTAUR_CWL_RUNNER}" -n"${TEST_NUMBER}"
-    TEST_RESULT_CODE=$?
-
-    if [ ${TEST_RESULT_CODE} -eq 0 ]; then
-        TEST_PASSING=$((TEST_PASSING + 1))
-    fi
-
-    # Check for unexpected results
-    if [ ${TEST_IN_EXPECTED_FAILED} -eq 0 ] && [ ${TEST_RESULT_CODE} -eq 0 ]; then
-        UNEXPECTED_PASS+=("${TEST_NUMBER}")
-    elif [ ! ${TEST_IN_EXPECTED_FAILED} -eq 0 ] && [ ! ${TEST_RESULT_CODE} -eq 0 ]; then
-        UNEXPECTED_FAIL+=("${TEST_NUMBER}")
-    fi
-done
-set -e
-
-cd "$CURRENT_DIR"
-
-echo Conformance percentage at "$(echo 100 '*' ${TEST_PASSING} '/' "${TEST_COUNT}" | bc)%"
-
-if [ ! $(( ${#UNEXPECTED_PASS[@]} + ${#UNEXPECTED_FAIL[@]} )) -eq 0 ]; then
-    printf 'Unexpected passing tests: (%s)\n' "${UNEXPECTED_PASS[*]}"
-    printf 'Unexpected failing tests: (%s)\n' "${UNEXPECTED_FAIL[*]}"
-    printf 'Does %s need to be updated?\n' "${CONFORMANCE_EXPECTED_FAILURES}"
-    exit 1
-fi
+cd $CURRENT_DIR
 
 if [ "$TRAVIS_EVENT_TYPE" != "cron" ]; then
     sbt coverageReport --warn

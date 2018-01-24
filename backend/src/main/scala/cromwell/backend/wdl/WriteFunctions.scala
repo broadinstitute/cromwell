@@ -41,6 +41,8 @@ trait WriteFunctions extends PathFactory with IoFunctionSet with AsyncIoFunction
     val source = buildPath(relativeToAbsolutePath(pathFrom))
     val destination = _writeDirectory / targetName
 
-    asyncIo.copyAsync(source, destination).as(WomSingleFile(destination.pathAsString))
+    asyncIo.copyAsync(source, destination).as(WomSingleFile(destination.pathAsString)) recoverWith {
+      case e => Future.failed(new Exception(s"Could not copy ${source.toAbsolutePath} to ${destination.toAbsolutePath}", e))
+    }
   }
 }

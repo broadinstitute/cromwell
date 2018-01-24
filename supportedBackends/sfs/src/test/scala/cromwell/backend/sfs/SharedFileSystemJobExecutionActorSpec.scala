@@ -21,7 +21,7 @@ import cromwell.util.WomMocks
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Assertion, FlatSpecLike, OptionValues}
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 import wom.types._
 import wom.values._
 
@@ -240,7 +240,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
   it should "execute shards from a scatter" in {
     val workflowDescriptor = buildWdlWorkflowDescriptor(TestWorkflows.Scatter)
 
-    val call: TaskCallNode = workflowDescriptor.callable.taskCallNodes.head
+    val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
 
     0 to 2 foreach { shard =>
       // This assumes that engine will give us the evaluated value of the scatter item at the correct index

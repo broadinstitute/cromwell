@@ -8,7 +8,7 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationDa
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import wom.expression.WomExpression
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 import wom.values.WomValue
 
 import scala.concurrent.Future
@@ -17,7 +17,7 @@ import scala.util.Try
 trait StandardInitializationActorParams {
   def workflowDescriptor: BackendWorkflowDescriptor
 
-  def calls: Set[TaskCallNode]
+  def calls: Set[CommandCallNode]
 
   def serviceRegistryActor: ActorRef
 
@@ -28,7 +28,7 @@ case class DefaultInitializationActorParams
 (
   workflowDescriptor: BackendWorkflowDescriptor,
   ioActor: ActorRef,
-  calls: Set[TaskCallNode],
+  calls: Set[CommandCallNode],
   serviceRegistryActor: ActorRef,
   configurationDescriptor: BackendConfigurationDescriptor,
   restarting: Boolean
@@ -46,7 +46,7 @@ class StandardInitializationActor(val standardParams: StandardInitializationActo
 
   override lazy val serviceRegistryActor: ActorRef = standardParams.serviceRegistryActor
 
-  override lazy val calls: Set[TaskCallNode] = standardParams.calls
+  override lazy val calls: Set[CommandCallNode] = standardParams.calls
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     initializationData map Option.apply

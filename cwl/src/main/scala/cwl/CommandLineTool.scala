@@ -19,7 +19,7 @@ import io.circe.{Json, yaml}
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil, Coproduct, Inl, Poly1, Witness}
 import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, OutputDefinition, RequiredInputDefinition}
-import wom.callable.TaskDefinition.{EvaluatedOutputs, OutputFunctionResponse}
+import wom.callable.CommandTaskDefinition.{EvaluatedOutputs, OutputFunctionResponse}
 import wom.callable.{Callable, CallableTaskDefinition}
 import wom.executable.Executable
 import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}

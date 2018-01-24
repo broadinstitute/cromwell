@@ -19,7 +19,7 @@ import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
 import spray.json._
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
@@ -170,14 +170,14 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   val refreshTokenConfig: Config = ConfigFactory.parseString(refreshTokenConfigTemplate)
 
   private def getJesBackendProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                 calls: Set[TaskCallNode],
+                                 calls: Set[CommandCallNode],
                                  jesConfiguration: JesConfiguration): Props = {
     val ioActor = mockIoActor
     val params = JesInitializationActorParams(workflowDescriptor, ioActor, calls, jesConfiguration, emptyActor, restarting = false)
     Props(new JesInitializationActor(params)).withDispatcher(BackendDispatcher)
   }
 
-  private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCallNode], conf: BackendConfigurationDescriptor) = {
+  private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[CommandCallNode], conf: BackendConfigurationDescriptor) = {
     val props = getJesBackendProps(workflowDescriptor, calls, new JesConfiguration(conf))
     system.actorOf(props, "TestableJesInitializationActor-" + UUID.randomUUID)
   }

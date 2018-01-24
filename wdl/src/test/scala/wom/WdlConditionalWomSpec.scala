@@ -72,7 +72,7 @@ class WdlConditionalWomSpec extends FlatSpec with Matchers {
         }.getOrElse(fail("Conditional inner graph did not contain a GraphInputNode 'foo.i'"))
 
         val foo_callNode = validatedOuterGraph.conditionalNode.innerGraph.nodes.collectFirst {
-          case c: TaskCallNode if c.localName == "foo" => c
+          case c: CommandCallNode if c.localName == "foo" => c
         }.getOrElse(fail("Conditional inner graph did not contain a call to 'foo'"))
 
         foo_callNode.identifier.fullyQualifiedName.value shouldBe "conditional_test.foo"

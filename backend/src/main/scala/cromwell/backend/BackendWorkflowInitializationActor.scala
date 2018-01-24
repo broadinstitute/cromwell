@@ -16,7 +16,7 @@ import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import mouse.all._
 import wom.expression.WomExpression
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 import wom.types.WomType
 import wom.values.WomValue
 
@@ -96,7 +96,7 @@ object BackendWorkflowInitializationActor {
 trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor with ActorLogging {
   def serviceRegistryActor: ActorRef
 
-  def calls: Set[TaskCallNode]
+  def calls: Set[CommandCallNode]
 
   /**
     * This method is meant only as a "pre-flight check" validation of runtime attribute expressions during workflow

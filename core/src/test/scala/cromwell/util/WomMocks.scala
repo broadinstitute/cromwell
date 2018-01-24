@@ -6,7 +6,7 @@ import wom.RuntimeAttributes
 import wom.callable.Callable.OutputDefinition
 import wom.callable.{CallableTaskDefinition, CommandTaskDefinition, WorkflowDefinition}
 import wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
-import wom.graph.{Graph, TaskCallNode, WomIdentifier, WorkflowCallNode}
+import wom.graph.{Graph, CommandCallNode, WomIdentifier, WorkflowCallNode}
 import wom.types.{WomStringType, WomType}
 import wom.values.WomValue
 
@@ -17,7 +17,7 @@ object WomMocks {
   val EmptyWorkflowDefinition = mockWorkflowDefinition("emptyWorkflow")
 
   def mockTaskCall(identifier: WomIdentifier, definition: CommandTaskDefinition = EmptyTaskDefinition) = {
-    TaskCallNode(identifier, definition, Set.empty, List.empty)
+    CommandCallNode(identifier, definition, Set.empty, List.empty)
   }
   
   def mockWorkflowCall(identifier: WomIdentifier, definition: WorkflowDefinition = EmptyWorkflowDefinition) = {

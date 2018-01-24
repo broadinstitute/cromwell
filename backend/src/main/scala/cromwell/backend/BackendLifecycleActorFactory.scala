@@ -8,7 +8,7 @@ import cromwell.core.{CallOutputs, NoIoFunctionSet}
 import cromwell.core.path.Path
 import net.ceedubs.ficus.Ficus._
 import wom.expression.IoFunctionSet
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 import scala.concurrent.ExecutionContext
 
@@ -38,7 +38,7 @@ trait BackendLifecycleActorFactory {
 
   def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                        ioActor: ActorRef,
-                                       calls: Set[TaskCallNode],
+                                       calls: Set[CommandCallNode],
                                        serviceRegistryActor: ActorRef,
                                        restarting: Boolean): Option[Props] = None
 
@@ -63,7 +63,7 @@ trait BackendLifecycleActorFactory {
 
   def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                      ioActor: ActorRef,
-                                     calls: Set[TaskCallNode],
+                                     calls: Set[CommandCallNode],
                                      jobExecutionMap: JobExecutionMap,
                                      workflowOutputs: CallOutputs,
                                      initializationData: Option[BackendInitializationData]): Option[Props] = None

@@ -15,7 +15,9 @@ import cats.syntax.validated._
 import cats.syntax.show._
 import cats.instances.vector._
 import io.circe.Error._
+import io.circe.Json._
 import io.circe.ParsingFailure._
+import io.circe.DecodingFailure._
 
 object CwlCodecs {
 
@@ -31,44 +33,58 @@ object CwlCodecs {
   implicit val cltD = implicitly[Decoder[CommandLineTool]]
   implicit val etD = implicitly[Decoder[ExpressionTool]]
 
-  def errorToStrings : NonEmptyList[Error] => NonEmptyList[String] = _.map(_.show)
-
-  def decodeWithErrorStrings[A](in: String)(implicit d: Decoder[A]): ErrorOr[A] = decodeAccumulating[A](in).leftMap(errorToStrings)
-
   /**
     * Attempt to parse as an array of CWL or a single one.
     *
-    * If it fails, attempt to parse each CWL individually and return a superset of those failures.
+    * If it fails, attempt to parse each CWL individually and return all of those failures.
     */
   def decodeCwl(in: String): Checked[CwlFile] =
-    decodeWithErrorStrings[CwlFile](in).leftMap(decodePieces(in)).toEither
+    decodeWithErrorStrings[CwlFile](in).leftMap(_ => decodePieces(in)).toEither
+
+  private def decodeWithErrorStrings[A](in: String)(implicit d: Decoder[A]): ErrorOr[A] =
+    decodeAccumulating[A](in).leftMap(_.map(_.show))
+
+  private def decodeWithErrorStringsJson[A](in: Json)(implicit d: Decoder[A]): ErrorOr[A] =
+    in.as[A].leftMap(_.show).leftMap(NonEmptyList.one).toValidated
 
   /**
-    * Drop down to a lower level and try to parse each CWL individually, returning a superset of those failures.
+    * Drop down to a lower level and try to parse each CWL individually.
     */
-  def decodePieces(in: String)(original: NonEmptyList[String]):NonEmptyList[String]  =
-    (for {
-      raw <- parse(in).leftMap(_.show).leftMap(NonEmptyList.one)
-      _ <-
-        if (raw.isArray)
-          raw.asArray.toVector.flatten.traverse(decodeCwl).toEither
-        else
-          decodeCwl(raw).toEither
-    } yield  ()).fold(
+  private def decodePieces(originalJson: String):NonEmptyList[String]  = {
+
+    //break down a CWL into pieces, and try to decode each one.  Gather up all the errors
+    val errorsPerPiece: Either[NonEmptyList[String], Unit] =
+      for {
+        raw <- parse(originalJson).leftMap(_.show).leftMap(NonEmptyList.one)
+        _ <-
+          if (raw.isArray)
+            raw.asArray.toVector.flatten.traverse(decodeCwl).toEither
+          else
+            decodeCwl(raw).toEither
+      } yield ()
+
+    //we need a way to get the errors and ignore the "success" case. Validated doesn't have a "getOrElse" for errors so we're stuck with fold.
+    errorsPerPiece.fold(
       identity,
-      _ => original //this should never happen as we're gathering up the errors
+      _ => throw new RuntimeException("There is a bug in Cromwell's parsing logic.  The code meant to improve error messaging has encountered an unknown state")
     )
+  }
+
+  private def findClass(json: Json): Option[String] =
+    for {
+      obj <- json.asObject
+      map = obj.toMap
+      classObj <- map.get("class")
+      classString <- classObj.asString
+    } yield classString
 
   private def decodeCwl(json: Json): ErrorOr[Unit] = {
-
-    val rawJson = io.circe.Printer.noSpaces.pretty(json)
-
-    // we know we are dealing with an individual CWL, so we can take some liberties like assuming "class" is defined.
-    ((json \\ "class").head.asString match {
-      case Some("Workflow") => decodeWithErrorStrings[Workflow](rawJson)
-      case Some("CommandLineTool") => decodeWithErrorStrings[CommandLineTool](rawJson)
-      case Some("ExpressionTool") => decodeWithErrorStrings[ExpressionTool](rawJson)
-      case _ => "Class field was declared incorrectly!".invalidNel
+      (findClass(json) match {
+      case Some("Workflow") => decodeWithErrorStringsJson[Workflow](json)
+      case Some("CommandLineTool") => decodeWithErrorStringsJson[CommandLineTool](json)
+      case Some("ExpressionTool") => decodeWithErrorStringsJson[ExpressionTool](json)
+      case Some(other) => s"Class field was declared incorrectly: $other is not one of Workflow, CommandLineTool, or ExpressionTool! as seen in ${json.show}".invalidNel
+      case None => s"Class field was omitted in ${json.show}".invalidNel
     }).map(_ => ())
   }
 }

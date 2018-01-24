@@ -60,6 +60,7 @@ pages:
     - Instrumentation: Instrumentation.md
     - Integration tests: Centaur.md
     - Security: Security.md
+    - Contribute: Contribute.md
 
 theme: readthedocs
 

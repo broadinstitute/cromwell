@@ -25,7 +25,7 @@ class OutputNameCollisionSpec extends WomDotGraphTest {
       |}
     """.stripMargin
 
-  val expressionNodeGraph = {
+  val outputCollisionWdlGraph = {
     val namespace = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
     namespace.womExecutable() match {
       case Right(executable) => executable.graph
@@ -33,8 +33,8 @@ class OutputNameCollisionSpec extends WomDotGraphTest {
     }
   }
 
-  val expressionNodeDot =
-    """digraph "ExpressionNodes"
+  val outputCollisionWdlDot =
+    """digraph "non_colliding_output_names"
       |{
       |  compound=true;
       |  "PORT0" -> "PORT1"
@@ -56,7 +56,7 @@ class OutputNameCollisionSpec extends WomDotGraphTest {
       |}
       |""".stripMargin
 
-  override val cases = List(WomDotGraphTestCase("ExpressionNodes", expressionNodeGraph, expressionNodeDot))
+  override val cases = List(WomDotGraphTestCase("non_colliding_output_names", outputCollisionWdlGraph, outputCollisionWdlDot))
 
   tests()
 }

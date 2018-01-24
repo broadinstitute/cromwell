@@ -27,7 +27,8 @@ object ConditionalNode  {
 
   final case class ConditionalNodeWithNewNodes(node: ConditionalNode) extends GeneratedNodeAndNewNodes {
     override val newInputs = node.innerGraph.externalInputNodes
-    override val usedOuterGraphInputNodes = (node.conditionExpression.upstream.filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode]) ++
+    override val usedOuterGraphInputNodes =
+      (node.conditionExpression.upstream.filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode]) ++
         (node.innerGraph.outerGraphInputNodes.map(_.linkToOuterGraphNode).filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode])
 
     override val newExpressions = Set(node.conditionExpression)

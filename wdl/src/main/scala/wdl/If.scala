@@ -39,13 +39,6 @@ object If {
     * @param preserveIndexForOuterLookups When we're evaluating the condition boolean, should we preserve scatter index if we have to use the outerLookup?
     */
   def womConditionalNode(ifBlock: If, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[ConditionalNodeWithNewNodes] = {
-    val ifConditionExpression = WdlWomExpression(ifBlock.condition, ifBlock)
-    val ifConditionGraphInputExpressionValidation = WdlWomExpression.toAnonymousExpressionNode(
-      WomIdentifier("conditional"), ifConditionExpression, localLookup, outerLookup, preserveIndexForOuterLookups, ifBlock, PlainAnonymousExpressionNode.apply)
-    val ifConditionTypeValidation = ifConditionExpression.evaluateType((localLookup ++ outerLookup).map { case (k, v) => k -> v.womType }) flatMap {
-      case coerceable if WomBooleanType.isCoerceableFrom(coerceable) => Valid(())
-      case other => s"An if block must be given a boolean expression but instead got '${ifBlock.condition.toWomString}' (a ${other.toDisplayString})".invalidNel
-    }
 
     /*
       * Why? Imagine that we're building three nested levels of a innerGraph.
@@ -68,6 +61,14 @@ object If {
       name -> OuterGraphInputNode(WomIdentifier(name), outerPort, preserveScatterIndex = preserveIndexForOuterLookups)
     }
     val possiblyNeededNestedOginPorts: Map[String, OutputPort] = possiblyNeededNestedOgins map { case (name: String, ogin: OuterGraphInputNode) => name -> ogin.singleOutputPort }
+
+    val ifConditionExpression = WdlWomExpression(ifBlock.condition, ifBlock)
+    val ifConditionGraphInputExpressionValidation = WdlWomExpression.toAnonymousExpressionNode(
+      WomIdentifier("conditional"), ifConditionExpression, localLookup ++ possiblyNeededNestedOginPorts, Map.empty, preserveIndexForOuterLookups, ifBlock, PlainAnonymousExpressionNode.apply)
+    val ifConditionTypeValidation = ifConditionExpression.evaluateType((localLookup ++ outerLookup).map { case (k, v) => k -> v.womType }) flatMap {
+      case coerceable if WomBooleanType.isCoerceableFrom(coerceable) => Valid(())
+      case other => s"An if block must be given a boolean expression but instead got '${ifBlock.condition.toWomString}' (a ${other.toDisplayString})".invalidNel
+    }
 
     val innerGraphValidation: ErrorOr[Graph] = WdlGraphNode.buildWomGraph(
       ifBlock,

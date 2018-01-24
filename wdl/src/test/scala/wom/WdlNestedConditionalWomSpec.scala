@@ -27,7 +27,8 @@ class WdlNestedConditionalWomSpec extends FlatSpec with Matchers {
     ("same lookups in multiple if expressions", sameLookupsInMultipleIfExpressions),
     ("same lookups in multiple scatter expressions", sameLookupsInMultipleScatterExpressions),
     ("same lookups in if and scatter expressions", sameLookupsInIfAndScatterExpressions),
-    ("same lookups in scatters and elsewhere", sameLookupsInScattersAndElsewhere)
+    ("same lookups in scatters and elsewhere", sameLookupsInScattersAndElsewhere),
+    ("same lookups in if condition, scatter collection, and task calls", sameLookupsInConditionsAndInnerTaskCalls)
   )
 
 
@@ -310,4 +311,38 @@ object WdlNestedConditionalWomSpec {
       |   }
       | }
     """.stripMargin
+
+  val sameLookupsInConditionsAndInnerTaskCalls =
+    """workflow Test {
+      |  String? testString
+      |  Array[String] testStrings = [""]
+      |
+      |  if(true) {
+      |    if (defined(testString)) {
+      |      call testTask as tt {
+      |        input:
+      |          testString = testString
+      |      }
+      |    }
+      |  }
+      |
+      |  if(true) {
+      |    scatter(ts in testStrings) {
+      |      call testTask as tt2 {
+      |        input:
+      |          testString = testStrings[0]
+      |      }
+      |    }
+      |  }
+      |}
+      |
+      |task testTask {
+      |    String? testString
+      |    command {
+      |      echo "Hello world"
+      |    }
+      |    runtime {
+      |      docker: "ubuntu"
+      |    }
+      |}""".stripMargin
 }

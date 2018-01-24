@@ -29,8 +29,10 @@ import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker,
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
+import mouse.all._
 import net.ceedubs.ficus.Ficus._
 import wom.expression.WomExpression
+import wom.graph.LocalName
 import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 
@@ -287,28 +289,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   /** The instantiated command. */
   lazy val instantiatedCommand: InstantiatedCommand = {
+
     val runtimeEnvironment = RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(standardParams.minimumRuntimeSettings)
-
-    def adHocFileLocalization(womFile: WomFile): String = womFile.value.substring(womFile.value.lastIndexOf("/") + 1, womFile.value.length)
-
-    val commandInstantiationInputs = jobDescriptor.evaluatedTaskInputs.map { case (k, v) => k.localName.value -> v }
-
-    def validateAdHocFile(value: WomValue): ErrorOr[List[WomFile]] = value match {
-        case f: WomFile => List(f).valid
-        case a: WomArray => a.value.toList.traverse(validateAdHocFile).map(_.flatten)
-        case other => s"Ad-hoc file creation expression invalidly created a ${other.womType.toDisplayString} result.".invalidNel
-    }
-
-    val callable = jobDescriptor.taskCall.callable
-
-    val adHocFileCreations: ErrorOr[List[WomFile]] = callable.adHocFileCreation.toList.flatTraverse(
-      _.evaluateValue(commandInstantiationInputs, backendEngineFunctions).flatMap(validateAdHocFile)
-    )
-
-    val adHocFileCreationSideEffectFiles: ErrorOr[List[CommandSetupSideEffectFile]] = adHocFileCreations map { _ map {
-      f => CommandSetupSideEffectFile(f,  Option(adHocFileLocalization(f)))
-    }}
-
 
     val instantiatedCommandValidation = Command.instantiate(
       jobDescriptor,
@@ -318,21 +300,48 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       runtimeEnvironment
     )
 
-    def evaluateEnvironmentExpression(nameAndExpression: (String, WomExpression)): ErrorOr[(String, String)] = {
-      val (name, expression) = nameAndExpression
-      expression.evaluateValue(commandInstantiationInputs, backendEngineFunctions) map { name -> _.valueString }
+    def adHocFileLocalization(womFile: WomFile): String = womFile.value.substring(womFile.value.lastIndexOf("/") + 1)
+
+    def validateAdHocFile(value: WomValue): ErrorOr[List[WomFile]] = value match {
+      case f: WomFile => List(f).valid
+      case a: WomArray => a.value.toList.traverse(validateAdHocFile).map(_.flatten)
+      case other => s"Ad-hoc file creation expression invalidly created a ${other.womType.toDisplayString} result.".invalidNel
     }
 
-    val environmentVariables = callable.environmentExpressions.toList traverse evaluateEnvironmentExpression
+    val callable = jobDescriptor.taskCall.callable
+    def makeStringKeyedMap(list: List[(LocalName, WomValue)]): Map[String, WomValue] = list.toMap map { case (k, v) => k.value -> v }
 
-    val stdinRedirect = callable.stdinRedirection.traverse[ErrorOr, String] {
-      _.evaluateValue(commandInstantiationInputs, backendEngineFunctions) map { _.valueString }
+    val command = instantiatedCommandValidation flatMap { instantiatedCommand =>
+      val preprocessedInputs = instantiatedCommand.preprocessedInputs |> makeStringKeyedMap
+      val valueMappedPreprocessedInputs = instantiatedCommand.valueMappedPreprocessedInputs |> makeStringKeyedMap
+
+      val adHocFileCreations: ErrorOr[List[WomFile]] = callable.adHocFileCreation.toList.flatTraverse(
+        _.evaluateValue(preprocessedInputs, backendEngineFunctions).flatMap(validateAdHocFile)
+      )
+
+      val adHocFileCreationSideEffectFiles: ErrorOr[List[CommandSetupSideEffectFile]] = adHocFileCreations map { _ map {
+        f => CommandSetupSideEffectFile(f, Option(adHocFileLocalization(f)))
+      }}
+
+      def evaluateEnvironmentExpression(nameAndExpression: (String, WomExpression)): ErrorOr[(String, String)] = {
+        val (name, expression) = nameAndExpression
+        expression.evaluateValue(valueMappedPreprocessedInputs, backendEngineFunctions) map { name -> _.valueString }
+      }
+
+      val environmentVariables = callable.environmentExpressions.toList traverse evaluateEnvironmentExpression
+
+      val stdinRedirect = callable.stdinRedirection.traverse[ErrorOr, String] {
+        _.evaluateValue(valueMappedPreprocessedInputs, backendEngineFunctions) map { _.valueString }
+      }
+
+      (adHocFileCreationSideEffectFiles, environmentVariables, stdinRedirect) mapN { (adHocFiles, env, stdin) =>
+        instantiatedCommand.copy(
+          createdFiles = instantiatedCommand.createdFiles ++ adHocFiles, environmentVariables = env.toMap, stdinRedirection = stdin)
+      }
     }
 
     // TODO CWL: toTry.get here. Is throwing an exception the best way to indicate command generation failure?
-    ((adHocFileCreationSideEffectFiles, instantiatedCommandValidation, environmentVariables, stdinRedirect) mapN { (adHocFiles, command, env, stdin) =>
-        command.copy(createdFiles = command.createdFiles ++ adHocFiles, environmentVariables = env.toMap, stdinRedirection = stdin)
-    }).toTry match {
+    command.toTry match {
       case Success(ic) => ic
       case Failure(e) => throw new Exception("Failed to evaluate ad hoc files", e)
     }

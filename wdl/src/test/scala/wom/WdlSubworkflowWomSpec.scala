@@ -85,7 +85,7 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
       val calls = innerGraph.calls
       calls.map(_.localName) should be(Set("foo"))
 
-      val fooCall = calls.head.asInstanceOf[TaskCallNode]
+      val fooCall = calls.head.asInstanceOf[CommandCallNode]
       fooCall.upstream.head.asInstanceOf[ExpressionNode].inputPorts.map(_.upstream.graphNode) should be(Set(innerGraph.inputNodes.head))
 
       innerGraph.outputNodes.map(_.localName) should be(Set("out", "x"))
@@ -243,7 +243,7 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
       val calls = innerGraph.calls
       calls.map(_.localName) should be(Set("foo"))
 
-      val fooCall = calls.head.asInstanceOf[TaskCallNode]
+      val fooCall = calls.head.asInstanceOf[CommandCallNode]
       fooCall.upstream.head.asInstanceOf[ExpressionNode].inputPorts.map(_.upstream.graphNode) should be(Set(innerGraph.inputNodes.head))
 
       innerGraph.outputNodes.map(_.localName) should be(Set("out"))

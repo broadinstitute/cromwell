@@ -25,10 +25,10 @@ sealed abstract class CallNode extends GraphNode {
   def inputDefinitionMappings: InputDefinitionMappings
 }
 
-final case class TaskCallNode private(override val identifier: WomIdentifier,
-                                      callable: CommandTaskDefinition,
-                                      override val inputPorts: Set[GraphNodePort.InputPort],
-                                      inputDefinitionMappings: InputDefinitionMappings) extends CallNode {
+final case class CommandCallNode private(override val identifier: WomIdentifier,
+                                         callable: CommandTaskDefinition,
+                                         override val inputPorts: Set[GraphNodePort.InputPort],
+                                         inputDefinitionMappings: InputDefinitionMappings) extends CallNode {
   val callType: String = "task"
   lazy val expressionBasedOutputPorts: List[ExpressionBasedOutputPort] = {
     callable.outputs.map(o => ExpressionBasedOutputPort(o.localName, o.womType, this, o.expression))
@@ -141,7 +141,7 @@ object CallNode {
                            callable: Callable,
                            inputPorts: Set[GraphNodePort.InputPort],
                            inputDefinitionMappings: InputDefinitionMappings): CallNode = callable match {
-    case t: CommandTaskDefinition => TaskCallNode(nodeIdentifier, t, inputPorts, inputDefinitionMappings)
+    case t: CommandTaskDefinition => CommandCallNode(nodeIdentifier, t, inputPorts, inputDefinitionMappings)
     case w: WorkflowDefinition => WorkflowCallNode(nodeIdentifier, w, inputPorts, inputDefinitionMappings)
   }
 

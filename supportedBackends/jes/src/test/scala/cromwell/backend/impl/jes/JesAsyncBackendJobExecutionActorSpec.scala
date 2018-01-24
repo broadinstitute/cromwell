@@ -35,7 +35,7 @@ import org.slf4j.Logger
 import org.specs2.mock.Mockito
 import spray.json._
 import wom.WomFileMapper
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 import wom.types._
 import wom.values._
 
@@ -394,7 +394,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
           Labels.empty
         )
 
-        val call: TaskCallNode = workflowDescriptor.callable.graph.nodes.collectFirst({ case t: TaskCallNode => t }).get
+        val call: CommandCallNode = workflowDescriptor.callable.graph.nodes.collectFirst({ case t: CommandCallNode => t }).get
         val key = BackendJobDescriptorKey(call, None, 1)
         val runtimeAttributes = makeRuntimeAttributes(call)
         val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
@@ -467,7 +467,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
           Labels.empty
         )
 
-        val job: TaskCallNode = workflowDescriptor.callable.taskCallNodes.head
+        val job: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
         val runtimeAttributes = makeRuntimeAttributes(job)
         val key = BackendJobDescriptorKey(job, None, 1)
         val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
@@ -515,7 +515,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
           Labels.empty
         )
 
-        val call: TaskCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == callName).get
+        val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == callName).get
         val key = BackendJobDescriptorKey(call, None, 1)
         val runtimeAttributes = makeRuntimeAttributes(call)
         val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
@@ -582,7 +582,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
           Labels.empty
         )
 
-        val job: TaskCallNode = workflowDescriptor.callable.taskCallNodes.head
+        val job: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
         val runtimeAttributes = makeRuntimeAttributes(job)
         val key = BackendJobDescriptorKey(job, None, 1)
         val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
@@ -617,7 +617,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
           Labels.empty
         )
 
-        val job: TaskCallNode = workflowDescriptor.callable.taskCallNodes.head
+        val job: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
         val runtimeAttributes = makeRuntimeAttributes(job)
         val key = BackendJobDescriptorKey(job, None, 1)
         val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
@@ -666,7 +666,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       Labels.empty
     )
 
-    val call: TaskCallNode = workflowDescriptor.callable.taskCallNodes.head
+    val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
     val key = BackendJobDescriptorKey(call, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
@@ -700,7 +700,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       Labels.empty
     )
 
-    val job: TaskCallNode = workflowDescriptor.callable.taskCallNodes.head
+    val job: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
     val runtimeAttributes = makeRuntimeAttributes(job)
     val key = BackendJobDescriptorKey(job, None, 1)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
@@ -723,7 +723,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       Labels.empty
     )
 
-    val job: TaskCallNode = workflowDescriptor.callable.graph.nodes.collectFirst({case t: TaskCallNode => t}).get
+    val job: CommandCallNode = workflowDescriptor.callable.graph.nodes.collectFirst({case t: CommandCallNode => t}).get
     val key = BackendJobDescriptorKey(job, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(job)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
@@ -746,7 +746,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       Labels.empty
     )
 
-    val call: TaskCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == "hello").get
+    val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == "hello").get
     val key = BackendJobDescriptorKey(call, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
@@ -779,7 +779,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       Labels.empty
     )
 
-    val call: TaskCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == "B").get
+    val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == "B").get
     val key = BackendJobDescriptorKey(call, Option(2), 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
@@ -824,7 +824,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     descriptorWithMax2AndKey2.preemptible shouldBe true
   }
 
-  private def makeRuntimeAttributes(job: TaskCallNode) = {
+  private def makeRuntimeAttributes(job: CommandCallNode) = {
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(job.callable.runtimeAttributes, null, Map.empty)
     RuntimeAttributeDefinition.addDefaultsToAttributes(
       runtimeAttributesBuilder.definitions.toSet, NoOptions)(evaluatedAttributes.getOrElse(fail("Failed to evaluate runtime attributes")))

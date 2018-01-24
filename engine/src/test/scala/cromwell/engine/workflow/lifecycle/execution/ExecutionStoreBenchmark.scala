@@ -10,7 +10,7 @@ import org.scalameter.api._
 import org.scalameter.picklers.Implicits._
 import spray.json.DefaultJsonProtocol
 import wdl.WdlNamespaceWithWorkflow
-import wom.graph.{ScatterNode, TaskCallNode}
+import wom.graph.{ScatterNode, CommandCallNode}
 
 /**
   * Benchmarks the performance of the execution store using ScalaMeter (http://scalameter.github.io/)
@@ -30,11 +30,11 @@ object ExecutionStoreBenchmark extends Bench[Double] with DefaultJsonProtocol {
   val inputJson = Option(SampleWdl.PrepareScatterGatherWdl().rawInputs.toJson.compactPrint)
   val wdl = WdlNamespaceWithWorkflow.load(SampleWdl.PrepareScatterGatherWdl().workflowSource(), Seq.empty).get
   val graph = wdl.womExecutable(inputJson).getOrElse(throw new Exception("Failed to build womExecutable")).graph
-  val prepareCall: TaskCallNode = graph.calls.find(_.localName == "do_prepare").get.asInstanceOf[TaskCallNode]
-  val scatterCall: TaskCallNode = graph.allNodes.find(_.localName == "do_scatter").get.asInstanceOf[TaskCallNode]
+  val prepareCall: CommandCallNode = graph.calls.find(_.localName == "do_prepare").get.asInstanceOf[CommandCallNode]
+  val scatterCall: CommandCallNode = graph.allNodes.find(_.localName == "do_scatter").get.asInstanceOf[CommandCallNode]
   val scatter: ScatterNode = graph.scatters.head
   
-  private def makeKey(call: TaskCallNode, executionStatus: ExecutionStatus)(index: Int) = {
+  private def makeKey(call: CommandCallNode, executionStatus: ExecutionStatus)(index: Int) = {
     BackendJobDescriptorKey(call, Option(index), 1) -> executionStatus
   }
   

@@ -23,7 +23,7 @@ import org.specs2.mock.Mockito
 import wdl4s.parser.WdlParser.Ast
 import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition}
 import wom.expression.IoFunctionSet
-import wom.graph.{TaskCallNode, WomIdentifier}
+import wom.graph.{CommandCallNode, WomIdentifier}
 import wom.types.{WomIntegerType, WomStringType}
 
 import scala.concurrent.ExecutionContext
@@ -53,7 +53,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
     meta = Map.empty,
     parameterMeta = Map.empty,
     ast = mock[Ast])
-  val call: TaskCallNode = WomMocks.mockTaskCall(WomIdentifier(taskName, jobFqn), task)
+  val call: CommandCallNode = WomMocks.mockTaskCall(WomIdentifier(taskName, jobFqn), task)
   val jobDescriptorKey = BackendJobDescriptorKey(call, jobIndex, jobAttempt)
 
   val backendWorkflowDescriptor = BackendWorkflowDescriptor(workflowId, null, null, null, null)
@@ -117,13 +117,13 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
     // These two factory methods should never be called from EJEA or any of its descendants:
     override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 ioActor: ActorRef,
-                                                calls: Set[TaskCallNode],
+                                                calls: Set[CommandCallNode],
                                                 jobExecutionMap: JobExecutionMap,
                                                 workflowOutputs: CallOutputs,
                                                 initializationData: Option[BackendInitializationData]): Option[Props] = throw new UnsupportedOperationException("Unexpected finalization actor creation!")
     override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                   ioActor: ActorRef,
-                                                  calls: Set[TaskCallNode],
+                                                  calls: Set[CommandCallNode],
                                                   serviceRegistryActor: ActorRef,
                                                   restarting: Boolean): Option[Props] = throw new UnsupportedOperationException("Unexpected finalization actor creation!")
   }

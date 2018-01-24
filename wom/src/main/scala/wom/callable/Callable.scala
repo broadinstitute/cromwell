@@ -2,7 +2,7 @@ package wom.callable
 
 import wom.callable.Callable._
 import wom.expression.WomExpression
-import wom.graph.{Graph, LocalName, TaskCallNode}
+import wom.graph.{Graph, LocalName, CommandCallNode}
 import wom.types.{WomOptionalType, WomType}
 
 trait Callable {
@@ -14,8 +14,8 @@ trait Callable {
 
 trait ExecutableCallable extends Callable {
   def graph: Graph
-  lazy val taskCallNodes: Set[TaskCallNode] = graph.allNodes collect {
-    case taskNode: TaskCallNode => taskNode
+  lazy val taskCallNodes: Set[CommandCallNode] = graph.allNodes collect {
+    case taskNode: CommandCallNode => taskNode
   }
 }
 

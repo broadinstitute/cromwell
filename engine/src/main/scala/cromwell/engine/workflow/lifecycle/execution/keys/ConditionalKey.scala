@@ -39,7 +39,7 @@ private [execution] case class ConditionalKey(node: ConditionalNode, index: Exec
     * Make a JobKey for all of the contained scopes.
     */
   private def keyify(node: GraphNode): Option[JobKey] = node match {
-    case call: TaskCallNode => Option(BackendJobDescriptorKey(call, index, 1))
+    case call: CommandCallNode => Option(BackendJobDescriptorKey(call, index, 1))
     case call: WorkflowCallNode => Option(SubWorkflowKey(call, index, 1))
     case declaration: ExpressionNode => Option(ExpressionKey(declaration, index))
     case conditional: ConditionalNode => Option(ConditionalKey(conditional, index))

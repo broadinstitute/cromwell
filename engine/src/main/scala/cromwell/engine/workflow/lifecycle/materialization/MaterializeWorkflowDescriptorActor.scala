@@ -47,7 +47,7 @@ import wom.executable.Executable
 import wom.executable.Executable.ResolvedExecutableInputs
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
-import wom.graph.{Graph, TaskCallNode}
+import wom.graph.{Graph, CommandCallNode}
 import wom.values.{WomSingleFile, WomString, WomValue}
 
 import scala.concurrent.Future
@@ -276,7 +276,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       labels: Labels,
                                       conf: Config,
                                       pathBuilders: List[PathBuilder]): ErrorOr[EngineWorkflowDescriptor] = {
-    val taskCalls = womNamespace.graph.allNodes collect { case taskNode: TaskCallNode => taskNode }
+    val taskCalls = womNamespace.graph.allNodes collect { case taskNode: CommandCallNode => taskNode }
     val defaultBackendName = conf.as[Option[String]]("backend.default")
 
     val failureModeValidation = validateWorkflowFailureMode(workflowOptions, conf)
@@ -307,7 +307,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     serviceRegistryActor ! PutMetadataAction(inputEvents)
   }
 
-  private def validateBackendAssignments(calls: Set[TaskCallNode], workflowOptions: WorkflowOptions, defaultBackendName: Option[String]): ErrorOr[Map[TaskCallNode, String]] = {
+  private def validateBackendAssignments(calls: Set[CommandCallNode], workflowOptions: WorkflowOptions, defaultBackendName: Option[String]): ErrorOr[Map[CommandCallNode, String]] = {
     val callToBackendMap = Try {
       calls map { call =>
         val backendPriorities = Seq(
@@ -336,7 +336,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   /**
     * Map a call to a backend name depending on the runtime attribute key
     */
-  private def assignBackendUsingRuntimeAttrs(call: TaskCallNode): Option[String] = {
+  private def assignBackendUsingRuntimeAttrs(call: CommandCallNode): Option[String] = {
     val runtimeAttributesMap = call.callable.runtimeAttributes.attributes
     runtimeAttributesMap.get(RuntimeBackendKey) map { wdlExpr => evaluateBackendNameExpression(call.fullyQualifiedName, wdlExpr) }
   }

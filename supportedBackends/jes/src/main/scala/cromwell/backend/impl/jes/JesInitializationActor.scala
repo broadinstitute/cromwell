@@ -16,7 +16,7 @@ import cromwell.core.path.Path
 import cromwell.filesystems.gcs.GoogleUtil._
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import spray.json.{JsObject, JsTrue}
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 import scala.concurrent.Future
 
@@ -24,7 +24,7 @@ case class JesInitializationActorParams
 (
   workflowDescriptor: BackendWorkflowDescriptor,
   ioActor: ActorRef,
-  calls: Set[TaskCallNode],
+  calls: Set[CommandCallNode],
   jesConfiguration: JesConfiguration,
   serviceRegistryActor: ActorRef,
   restarting: Boolean

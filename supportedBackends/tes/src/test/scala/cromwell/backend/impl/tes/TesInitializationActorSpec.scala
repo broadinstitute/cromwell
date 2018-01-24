@@ -13,7 +13,7 @@ import cromwell.core.Tags.PostWomTest
 import cromwell.core.TestKitSuite
 import cromwell.core.logging.LoggingTest._
 import org.scalatest.{Matchers, WordSpecLike}
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
@@ -65,7 +65,7 @@ class TesInitializationActorSpec extends TestKitSuite("TesInitializationActorSpe
       |""".stripMargin
 
 
-  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCallNode],
+  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[CommandCallNode],
                           conf: BackendConfigurationDescriptor) = {
     val params = TesInitializationActorParams(workflowDescriptor, calls, new TesConfiguration(conf), emptyActor)
     val props = Props(new TesInitializationActor(params))

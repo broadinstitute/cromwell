@@ -163,7 +163,7 @@ object WdlCall {
         // and should be assigned a reference to the `TaskCallNode`. This is used in the `WorkflowExecutionActor` to
         // find the task and the task's backend so the right `IoFunctionSet` can be used to evaluate task call inputs.
         for {
-          taskCallNode <- List(callNodeAndNewNodes.node) collect { case c: TaskCallNode => c }
+          taskCallNode <- List(callNodeAndNewNodes.node) collect { case c: CommandCallNode => c }
           taskCallInputExpression <- mappings.values.toList collect { case t: TaskCallInputExpressionNode => t }
           _ = taskCallInputExpression.taskCallNodeReceivingInput._graphNode = taskCallNode
         } yield ()

@@ -3,7 +3,7 @@ package cromwell.backend
 import akka.actor.{Actor, ActorRef}
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.core.logging.{JobLogging, WorkflowLogging}
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -65,7 +65,7 @@ trait BackendWorkflowLifecycleActor extends BackendLifecycleActor with WorkflowL
   /**
     * The subset of calls which this backend will be expected to run
     */
-  protected def calls: Set[TaskCallNode]
+  protected def calls: Set[CommandCallNode]
 }
 
 trait BackendJobLifecycleActor extends BackendLifecycleActor with JobLogging {

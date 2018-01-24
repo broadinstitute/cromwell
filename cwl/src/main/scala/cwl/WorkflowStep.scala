@@ -83,7 +83,7 @@ case class WorkflowStep(
 
     // To avoid duplicating nodes, return immediately if we've already covered this node
     val haveWeSeenThisStep: Boolean = knownNodes.collect {
-      case TaskCallNode(identifier, _, _, _) => identifier
+      case CommandCallNode(identifier, _, _, _) => identifier
       case WorkflowCallNode(identifier, _, _, _) => identifier
       // TODO CWL: Catch known ExpressionTools too
     }.contains(unqualifiedStepId)

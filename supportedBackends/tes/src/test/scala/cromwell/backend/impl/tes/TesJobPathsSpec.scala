@@ -3,14 +3,14 @@ package cromwell.backend.impl.tes
 import better.files._
 import cromwell.backend.{BackendJobDescriptorKey, BackendSpec}
 import org.scalatest.{FlatSpec, Matchers}
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 class TesJobPathsSpec extends FlatSpec with Matchers with BackendSpec {
 
   "JobPaths" should "provide correct paths for a job" in {
 
     val wd = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld)
-    val call: TaskCallNode = wd.callable.taskCallNodes.head
+    val call: CommandCallNode = wd.callable.taskCallNodes.head
     val jobKey = BackendJobDescriptorKey(call, None, 1)
     val jobPaths = TesJobPaths(jobKey, wd, TesTestConfig.backendConfig)
     val id = wd.id

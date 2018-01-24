@@ -12,7 +12,7 @@ import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowFinalizationActor._
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 import scala.util.{Failure, Success, Try}
 
@@ -109,7 +109,7 @@ case class WorkflowFinalizationActor(workflowIdForLogging: WorkflowId,
   }
   
   // Only send to each backend the jobs that it executed
-  private def filterJobExecutionsForBackend(calls: Set[TaskCallNode]): JobExecutionMap = {
+  private def filterJobExecutionsForBackend(calls: Set[CommandCallNode]): JobExecutionMap = {
     jobExecutionMap map {
       case (wd, executedKeys) => wd -> (executedKeys filter { jobKey => calls.contains(jobKey.call) })
     } filter {

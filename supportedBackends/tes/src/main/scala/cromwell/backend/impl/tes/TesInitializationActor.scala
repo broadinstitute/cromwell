@@ -12,14 +12,14 @@ import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.filesystems.gcs.GcsPathBuilderFactory
 import common.exception.MessageAggregation
 import net.ceedubs.ficus.Ficus._
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 import scala.concurrent.Future
 
 case class TesInitializationActorParams
 (
   workflowDescriptor: BackendWorkflowDescriptor,
-  calls: Set[TaskCallNode],
+  calls: Set[CommandCallNode],
   tesConfiguration: TesConfiguration,
   serviceRegistryActor: ActorRef
 ) extends StandardInitializationActorParams {

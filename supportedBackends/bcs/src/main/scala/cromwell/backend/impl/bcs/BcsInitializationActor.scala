@@ -11,13 +11,13 @@ import cats.instances.list._
 import cats.syntax.traverse._
 
 import scala.concurrent.Future
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 
 final case class BcsInitializationActorParams
 (
   workflowDescriptor: BackendWorkflowDescriptor,
-  calls: Set[TaskCallNode],
+  calls: Set[CommandCallNode],
   bcsConfiguration: BcsConfiguration,
   serviceRegistryActor: ActorRef
 ) extends StandardInitializationActorParams {

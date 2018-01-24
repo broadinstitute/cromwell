@@ -5,7 +5,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import wom.WdlWomExpressionsAsInputsSpec.Wdl
 import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.graph.GraphNodePort.OutputPort
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 import wom.graph.expression.ExpressionNode
 
 import scala.language.postfixOps
@@ -44,7 +44,7 @@ class WdlWomExpressionsAsInputsSpec extends FlatSpec with Matchers {
       case Invalid(errors) => fail(s"Unable to build wom graph from WDL: ${errors.toList.mkString("\n", "\n", "\n")}")
     }
 
-    val callNodes = workflowGraph.nodes.toList collect { case callNode: TaskCallNode => callNode.localName -> callNode } toMap
+    val callNodes = workflowGraph.nodes.toList collect { case callNode: CommandCallNode => callNode.localName -> callNode } toMap
 
     val a = callNodes("a")
     val b = callNodes("b")
@@ -61,7 +61,7 @@ class WdlWomExpressionsAsInputsSpec extends FlatSpec with Matchers {
       val connectedInputPort = inputExpression.inputMapping(s"$x.int_out")
       val upstream = connectedInputPort.upstream
       upstream.name shouldBe "int_out"
-      val upstreamTaskCallNode = upstream.graphNode.asInstanceOf[TaskCallNode]
+      val upstreamTaskCallNode = upstream.graphNode.asInstanceOf[CommandCallNode]
       upstreamTaskCallNode.localName shouldBe x
       // Instance equality test
       (upstreamTaskCallNode eq callNodes(x)) shouldBe true

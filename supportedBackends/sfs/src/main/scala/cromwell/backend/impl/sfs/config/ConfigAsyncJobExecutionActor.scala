@@ -9,7 +9,6 @@ import cromwell.backend.validation.DockerValidation
 import cromwell.core.NoIoFunctionSet
 import cromwell.core.path.Path
 import wdl._
-import wom.InstantiatedCommand
 import wom.callable.Callable.OptionalInputDefinition
 import wom.values.{WomEvaluatedCallInputs, WomOptionalValue, WomString, WomValue}
 
@@ -100,7 +99,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     val allInputs = providedWomInputs ++ optionalsForciblyInitializedToNone
     val womInstantiation = taskDefinition.instantiateCommand(allInputs, NoIoFunctionSet, identity, runtimeEnvironment)
 
-    val InstantiatedCommand(command, _, _, _) = womInstantiation.toTry.get
+    val command = womInstantiation.toTry.get.commandString
     jobLogger.info(s"executing: $command")
     val scriptBody =
       s"""|#!/bin/bash

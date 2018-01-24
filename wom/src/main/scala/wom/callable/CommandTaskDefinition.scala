@@ -99,21 +99,26 @@ sealed trait CommandTaskDefinition extends TaskDefinition {
                          valueMapper: WomValue => WomValue,
                          runtimeEnvironment: RuntimeEnvironment): ErrorOr[InstantiatedCommand] = {
 
-    val mappedInputs = taskInputs.map({case (k, v) => k.localName -> v})
+    val inputsByLocalName = taskInputs map { case (k, v) => k.localName -> v }
+    val valueMappedInputsByLocalName = inputsByLocalName map { case (k, v) => k -> valueMapper(v) }
     import CommandTaskDefinition.instantiatedCommandMonoid
 
     // Just raw command parts, no separators.
     val rawCommandParts: List[ErrorOr[InstantiatedCommand]] =
       commandTemplate(taskInputs).toList.flatMap({ commandPart =>
-        commandPart.instantiate(mappedInputs, functions, valueMapper, runtimeEnvironment).sequence
+        commandPart.instantiate(inputsByLocalName, functions, valueMapper, runtimeEnvironment).sequence
       })
 
     // Add separator command parts and monoid smash down to one `ErrorOr[InstantiatedCommand]`.
     val instantiatedCommand: ErrorOr[InstantiatedCommand] =
       rawCommandParts.intercalate(InstantiatedCommand(commandPartSeparator).validNel)
 
-    // `normalize` the instantiation (i.e. don't break Python code indentation)
-    instantiatedCommand map { c => c.copy(commandString = StringUtil.normalize(c.commandString))}
+    // `normalize` the instantiation (i.e. don't break Python code indentation) and add in the inputs.
+    instantiatedCommand map { c => c.copy(
+      commandString = StringUtil.normalize(c.commandString),
+      preprocessedInputs = inputsByLocalName.toList,
+      valueMappedPreprocessedInputs = valueMappedInputsByLocalName.toList
+    )}
   }
 
   def commandTemplateString(taskInputs: WomEvaluatedCallInputs): String = StringUtil.normalize(commandTemplate(taskInputs).map(_.toString).mkString)

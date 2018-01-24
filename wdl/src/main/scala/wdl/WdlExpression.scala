@@ -193,7 +193,7 @@ case class WdlExpression(ast: AstNode) extends WomValue {
   override def toWomString: String = toString(NullSyntaxHighlighter)
 
   def prerequisiteCallNames: Set[FullyQualifiedName] = {
-    this.topLevelMemberAccesses map { _.lhs }
+    this.topLevelMemberAccesses map { _.lhsString }
   }
   def topLevelMemberAccesses: Set[MemberAccess] = AstTools.findTopLevelMemberAccesses(ast) map { MemberAccess(_) } toSet
   def variableReferences(from: Scope): Iterable[VariableReference] = AstTools.findVariableReferences(ast, from)

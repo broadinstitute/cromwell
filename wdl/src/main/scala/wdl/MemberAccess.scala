@@ -25,8 +25,10 @@ import wdl.AstTools.EnhancedAstNode
  *  }
  *}
  */
-case class MemberAccess(lhs: String, rhs: String, ast: Ast) {
-  def memberAccessString = s"$lhs.$rhs"
+case class MemberAccess(lhsString: String, rhsString: String, ast: Ast) {
+  def memberAccessString = s"$lhsString.$rhsString"
+
+  def lhsAst = ast.getAttribute("lhs")
 }
 
 object MemberAccess {

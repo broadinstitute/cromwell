@@ -117,6 +117,15 @@ case class ValueEvaluator(override val lookup: String => WomValue, override val 
             WomType.homogeneousTypeFromValues(pairs.map(_._2))
           ).coerceRawValue(pairs.toMap)
         }
+      case a: Ast if a.isObjectLiteral =>
+        val evaluatedMap = a.getAttribute("map").astListAsVector map { kv =>
+          val key = kv.asInstanceOf[Ast].getAttribute("key").sourceString
+          val value = evaluate(kv.asInstanceOf[Ast].getAttribute("value"))
+          key -> value
+        }
+        TryUtil.sequence(evaluatedMap map { tuple => tuple._2.map((tuple._1, _)) }) map { pairs =>
+          WomObject(pairs.toMap)
+        }
       case a: Ast if a.isMemberAccess =>
         a.getAttribute("rhs") match {
           case rhs:Terminal if rhs.getTerminalStr == "identifier" =>

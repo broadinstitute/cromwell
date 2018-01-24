@@ -4,6 +4,7 @@ import java.nio.file.Path
 
 import better.files._
 import wdl.WdlExpression.{AstForExpressions, AstNodeForExpressions}
+
 import wdl.expression.ValueEvaluator.InterpolationTagPattern
 import wdl4s.parser.WdlParser
 import wdl4s.parser.WdlParser._
@@ -85,6 +86,10 @@ object AstTools {
                                parentTerminal: Option[Terminal] = None,
                                columnOffset: Int = 0): Map[Terminal, Seq[AstNode]] = {
       astNode match {
+        case o: Ast if o.isObjectLiteral => o.getAttribute("map").astListAsVector flatMap {
+          case a: Ast => a.getAttribute("value").findTerminalsWithTrail(terminalType, trail :+ o, parentTerminal)
+          case _: AstNode => Seq.empty
+        } toMap
         case a: Ast => a.getAttributes.values.asScala flatMap { _.findTerminalsWithTrail(terminalType, trail :+ a) } toMap
         case a: AstList => a.asScala.toVector flatMap { _.findTerminalsWithTrail(terminalType, trail :+ a) } toMap
         case t: Terminal if t.getTerminalStr == terminalType =>
@@ -390,6 +395,7 @@ object AstTools {
     expr.findTerminalsWithTrail("identifier").collect({
       case (terminal, trail) if !isMemberAccessRhs(terminal, trail) && !isFunctionName(terminal, trail) => VariableReference(terminal, trail, from)
     })
+
   }
 
   /**

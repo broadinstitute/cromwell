@@ -29,7 +29,7 @@ case class WomCompositeType(typeMap: Map[String, WomType]) extends WomObjectType
     case jsObject: JsObject => WomObject.withType(jsObject.fields, this)
   }
 
-  override def isCoerceableFrom(otherType: WomType): Boolean = {
+  override def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = {
     otherType match {
       // This is as good as we can do here without the values
       case mapType: WomMapType if WomStringType.isCoerceableFrom(mapType.keyType) => true

@@ -37,7 +37,11 @@ trait WomType {
     }
   }
 
-  def isCoerceableFrom(otherType: WomType): Boolean = false
+  final def isCoerceableFrom(otherType: WomType): Boolean = otherType match {
+    case WomAnyType => true
+    case _ => typeSpecificIsCoerceableFrom(otherType)
+  }
+  protected def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = false
 
   def toDisplayString: String
 
@@ -71,8 +75,11 @@ trait WomType {
 object WomType {
   /* This is in the order of coercion from non-wom types */
   val womTypeCoercionOrder: Seq[WomType] = Seq(
-    WomStringType, WomIntegerType, WomFloatType, WomMapType(WomAnyType, WomAnyType),
-    WomArrayType(WomAnyType), WomBooleanType, WomObjectType
+    WomStringType, WomIntegerType, WomFloatType, WomPairType(WomAnyType, WomAnyType), WomMapType(WomAnyType, WomAnyType),
+    WomArrayType(WomAnyType), WomBooleanType, WomObjectType,
+    // Putting optional type last means we'll only coerce to it for JsNull.
+    // That should be OK because every other type X can coerce into X? later if it needs to.
+    WomOptionalType(WomAnyType)
   )
 
   def homogeneousTypeFromValues(values: Iterable[WomValue]): WomType =

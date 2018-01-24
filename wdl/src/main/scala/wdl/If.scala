@@ -43,7 +43,7 @@ object If {
     val ifConditionGraphInputExpressionValidation = WdlWomExpression.toAnonymousExpressionNode(
       WomIdentifier("conditional"), ifConditionExpression, localLookup, outerLookup, preserveIndexForOuterLookups, ifBlock, PlainAnonymousExpressionNode.apply)
     val ifConditionTypeValidation = ifConditionExpression.evaluateType((localLookup ++ outerLookup).map { case (k, v) => k -> v.womType }) flatMap {
-      case WomBooleanType => Valid(())
+      case coerceable if WomBooleanType.isCoerceableFrom(coerceable) => Valid(())
       case other => s"An if block must be given a boolean expression but instead got '${ifBlock.condition.toWomString}' (a ${other.toDisplayString})".invalidNel
     }
 

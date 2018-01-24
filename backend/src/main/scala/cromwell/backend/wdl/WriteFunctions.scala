@@ -32,21 +32,15 @@ trait WriteFunctions extends PathFactory with IoFunctionSet with AsyncIoFunction
     }
   }
 
-  private val relativeToLocal = System.getProperty("user.dir")
-  private val relativeToPapi = ConfigFactory.load().as[Option[String]]("papi.default-input-gcs-prefix").orElse(ConfigFactory.load().as[Option[String]]("backend.providers.JES.config.root")).getOrElse("gs://")
-
-  private def withSlash(str: String) = if (str.endsWith("/")) str else str + "/"
-
-  def relativeToAbsolutePath(pathFrom: String, papi: Boolean): String = if (new File(pathFrom).isAbsolute) pathFrom else {
-    val result = withSlash(if (papi) relativeToPapi else relativeToLocal) + pathFrom
-    println(s"RelativeToAbsolute of $pathFrom was $result")
-    result
+  private val relativeToLocal = {
+    val initial = System.getProperty("user.dir")
+    if (initial.endsWith("/")) initial else initial + "/"
   }
 
-  override def copyFile(pathFrom: String, targetName: String): Future[WomSingleFile] = {
-    val papi = buildPath(".").toString.startsWith("gs")
+  def relativeToAbsolutePath(pathFrom: String): String = if (new File(pathFrom).isAbsolute) pathFrom else relativeToLocal + pathFrom
 
-    val source = buildPath(relativeToAbsolutePath(pathFrom, papi))
+  override def copyFile(pathFrom: String, targetName: String): Future[WomSingleFile] = {
+    val source = buildPath(relativeToAbsolutePath(pathFrom))
     val destination = _writeDirectory / targetName
 
     asyncIo.copyAsync(source, destination).as(WomSingleFile(destination.pathAsString))

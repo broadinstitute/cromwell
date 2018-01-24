@@ -2,15 +2,15 @@ package cwl
 
 import ammonite.ops.ImplicitWd._
 import ammonite.ops._
-import better.files.File.newTemporaryFile
 import better.files.{File => BFile}
-import cats.Applicative
 import cats.data.EitherT._
 import cats.data.{EitherT, NonEmptyList, ValidatedNel}
 import cats.effect.IO
 import cats.syntax.either._
+import cats.{Applicative, Monad}
 import common.legacy.TwoElevenSupport._
 import common.validation.ErrorOr._
+import common.validation.Validation._
 
 import scala.util.Try
 
@@ -25,6 +25,14 @@ object CwlDecoder {
   type Parse[A] = EitherT[IO, NonEmptyList[String], A]
 
   type ParseValidated[A] = IO[ValidatedNel[String, A]]
+
+  // If anyone has a magic import that does exactly what these helpers do, please replace, thx!
+
+  def errorOrParse[A](f: => ErrorOr[A]): Parse[A] = fromEither[IO](f.toEither)
+
+  def tryParse[A](f: => Try[A]): Parse[A] = errorOrParse(f.toErrorOr)
+
+  def goParse[A](f: => A): Parse[A] = tryParse(Try(f))
 
   implicit val composedApplicative = Applicative[IO] compose Applicative[ErrorOr]
 
@@ -41,6 +49,16 @@ object CwlDecoder {
         leftMap(t => NonEmptyList.one(s"running cwltool on file ${path.toString} failed with ${t.getMessage}"))
 
     fromEither[IO](cwlToolResult flatMap resultToEither)
+  }
+
+  // TODO: WOM: During conformance testing the saladed-CWLs are referring to files in the temp directory.
+  // Thus we can't delete the temp directory until after the workflow is complete, like the workflow logs.
+  // All callers to this method should be fixed around the same time.
+  // https://github.com/broadinstitute/cromwell/issues/3186
+  def todoDeleteCwlFileParentDirectory(cwlFile: BFile): Parse[Unit] = {
+    goParse {
+      //cwlFile.parent.delete(swallowIOExceptions = true)
+    }
   }
 
   def parseJson(json: String): Parse[CwlFile] = fromEither[IO](CwlCodecs.decodeCwl(json))
@@ -62,11 +80,18 @@ object CwlDecoder {
       rootCwl <- EitherT.fromEither(unmodifiedCwl.fold(FlattenCwlFile.CwlFileRoot).apply(rootName)): Parse[Cwl]
     } yield rootCwl
 
-  def decodeTopLevelCwl(cwl: String, rootName: Option[String] = None): Parse[Cwl] =
+  def decodeTopLevelCwl(cwl: String, zipOption: Option[BFile] = None, rootName: Option[String] = None): Parse[Cwl] = {
     for {
-     file <- fromEither[IO](newTemporaryFile().write(cwl).asRight)
-     out <- decodeTopLevelCwl(file, rootName)
+      parentDir <- goParse(BFile.newTemporaryDirectory("cwl.temp."))
+      file <- fromEither[IO](BFile.newTemporaryFile("temp.", ".cwl", Option(parentDir)).write(cwl).asRight)
+      _ <- zipOption match {
+        case Some(zip) => goParse(zip.unzipTo(parentDir))
+        case None => Monad[Parse].unit
+      }
+      out <- decodeTopLevelCwl(file, rootName)
+      _ <- todoDeleteCwlFileParentDirectory(file)
     } yield out
+  }
 
   //This is used when traversing over Cwl and replacing links w/ embedded data
   private[cwl] def decodeCwlAsValidated(fileName: String): ParseValidated[(String, Cwl)] = {

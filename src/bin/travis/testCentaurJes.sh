@@ -146,8 +146,9 @@ docker run --rm \
 ASSEMBLY_LOG_LEVEL=error ENABLE_COVERAGE=true sbt assembly --error
 CROMWELL_JAR=$(find "$(pwd)/target/scala-2.12" -name "cromwell-*.jar")
 JES_CONF="$(pwd)/jes_centaur.conf"
-JES_REFRESH_TOKEN="$(pwd)/jes_refresh_token.txt"
-JES_SERVICE_ACCOUNT_JSON="$(pwd)/cromwell-service-account.json"
+GOOGLE_AUTH_MODE="service-account"
+GOOGLE_REFRESH_TOKEN_PATH="$(pwd)/jes_refresh_token.txt"
+GOOGLE_SERVICE_ACCOUNT_JSON="$(pwd)/cromwell-service-account.json"
 
 # pass integration directory to the inputs json otherwise remove it from the inputs file
 if [ $RUN_INTEGRATION_TESTS -ne 1 ]; then
@@ -161,12 +162,15 @@ fi
 # (specifically output_redirection which expects a specific value in stderr)
 docker pull ubuntu:latest
 
+# Export variables used in conf files
+export GOOGLE_AUTH_MODE
+export GOOGLE_REFRESH_TOKEN_PATH
+export GOOGLE_SERVICE_ACCOUNT_JSON
+
 centaur/test_cromwell.sh \
   -j${CROMWELL_JAR} \
   -g \
   -c${JES_CONF} \
-  -t${JES_REFRESH_TOKEN} \
-  -s${JES_SERVICE_ACCOUNT_JSON} \
   -elocaldockertest \
   -p100 \
   $INTEGRATION_TESTS

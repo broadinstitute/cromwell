@@ -1,6 +1,5 @@
 package wom.graph
 
-import cats.data.Validated.Valid
 import cats.instances.list._
 import cats.kernel.Monoid
 import cats.syntax.foldable._
@@ -38,7 +37,15 @@ final case class ExpressionCallNode private(override val identifier: WomIdentifi
   override lazy val outputPorts: Set[OutputPort] = expressionBasedOutputPorts.toSet[OutputPort]
 
   override def evaluate(outputPortLookup: OutputPort => ErrorOr[WomValue], ioFunctionSet: IoFunctionSet) = {
-    ExpressionCallNodeEvaluation.evaluate(this, outputPortLookup, ioFunctionSet)
+    import cats.syntax.either._
+    for {
+      // Evaluate the inputs
+      womEvaluatedInputs <- CallNode.resolveAndEvaluateInputs(this, ioFunctionSet, outputPortLookup).toEither
+      // Create a lookup map usable by the evaluationFunction
+      lookup = womEvaluatedInputs.map({ case (inputDefinition, value) => inputDefinition.name -> value })
+      // Evaluate the ExpressionTaskDefinition
+      evaluated <- callable.evaluateFunction(lookup, ioFunctionSet, expressionBasedOutputPorts)
+    } yield evaluated
   }
 }
 
@@ -121,21 +128,23 @@ object TaskCall {
 }
 
 object CallNode {
+  /**
+    * Resolve and evaluate inputs of the call node, in order: inputs can depend on previous ones.
+    */
   def resolveAndEvaluateInputs(callNode: CallNode,
-                               expressionLanguageFunctions: IoFunctionSet,
+                               ioFunctions: IoFunctionSet,
                                outputStoreLookup: OutputPort => ErrorOr[WomValue]): ErrorOr[WomEvaluatedCallInputs] = {
-    import common.validation.Validation._
     import common.validation.ErrorOr._
+    import common.validation.Validation._
     
     callNode.inputDefinitionMappings.foldLeft(Map.empty[InputDefinition, ErrorOr[WomValue]]) {
       case (accumulatedInputsSoFar, (inputDefinition, pointer)) =>
-        // We could have a commons method for this kind of "filtering valid values"
-        val validInputsAccumulated: Map[String, WomValue] = accumulatedInputsSoFar.collect({
-          case (input, Valid(errorOrWdlValue)) => input.name -> errorOrWdlValue
+        val validInputsAccumulated: Map[String, WomValue] = accumulatedInputsSoFar.collectValid({
+          case (input, errorOrWdlValue) => input.name -> errorOrWdlValue
         })
 
         val coercedValue = pointer.fold(InputPointerToWomValue).apply(
-          validInputsAccumulated, expressionLanguageFunctions, outputStoreLookup, inputDefinition
+          validInputsAccumulated, ioFunctions, outputStoreLookup, inputDefinition
         ) flatMap(inputDefinition.womType.coerceRawValue(_).toErrorOr)
 
         accumulatedInputsSoFar + (inputDefinition -> coercedValue)

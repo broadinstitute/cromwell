@@ -25,6 +25,7 @@ object ErrorOr {
 
   implicit class MapErrorOrRhs[A, B](val m: Map[A, ErrorOr[B]]) extends AnyVal {
     def sequence: ErrorOr[Map[A, B]] = m.traverseValues(identity)
+    def collectValid[C,D](f: ((A,B)) => (C,D)): Map[C, D] = m.collect({ case (k, Valid(v)) => f(k -> v) })
   }
 
   implicit class MapTraversal[A, B](val m: Map[A, B]) extends AnyVal {

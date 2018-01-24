@@ -41,7 +41,14 @@ abstract class ExpressionNode(override val identifier: WomIdentifier,
   } yield coerced).leftMap(_.map(e => s"Evaluating ${womExpression.sourceString} failed: $e")).toEither
 
   override final def evaluate(outputPortLookup: OutputPort => ErrorOr[WomValue], ioFunctionSet: IoFunctionSet): Checked[Map[OutputPort, WomValue]] = {
-    ExpressionNodeEvaluation.evaluate(this, outputPortLookup, ioFunctionSet)
+    import cats.syntax.either._
+    import common.validation.ErrorOr._
+    for {
+      // Retrieve the inputs values using the outputPortLookup
+      inputs <- inputMapping.traverseValues(inputPort => outputPortLookup(inputPort.upstream)).toEither
+      // Evaluate the expression
+      evaluated <- evaluateAndCoerce(inputs, ioFunctionSet)
+    } yield Map(singleExpressionOutputPort -> evaluated)
   }
   
 }

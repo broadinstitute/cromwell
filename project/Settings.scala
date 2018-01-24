@@ -76,7 +76,8 @@ object Settings {
   )
 
   val consoleHostileSettings = List(
-    "-Ywarn-unused:imports", // warns about every unused import on every command.
+    // Disabled until we stop supporting scala 2.11 (04/01/18 !!) to allow use of scala 2.12 features in 2.11 with library imports
+    // "-Ywarn-unused:imports", // warns about every unused import on every command.
     "-Xfatal-warnings"       // makes those warnings fatal.
   )
 

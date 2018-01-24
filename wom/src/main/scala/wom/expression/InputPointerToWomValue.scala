@@ -20,12 +20,20 @@ object InputPointerToWomValue extends Poly1 {
 
   implicit def fromOutputPort: Case.Aux[OutputPort, ToWdlValueFn] = at[OutputPort] {
     port => (knownValues: Map[String, WomValue], ioFunctions: IoFunctionSet, outputPortLookup: OutputPortLookup, inputDefinition: InputDefinition) =>
+      val valueMapper = inputDefinition.valueMapper(ioFunctions)
+
       (outputPortLookup(port), inputDefinition) match {
-        case (v: Valid[WomValue], _) => v.map(inputDefinition.valueMapper(ioFunctions))
-        case (_, InputDefinitionWithDefault(_, _, defaultExpression, valueMapper)) =>
-          evaluate(defaultExpression, knownValues, ioFunctions).map(valueMapper(ioFunctions))
-        case (_, OptionalInputDefinition(_, optionalType, valueMapper)) => valueMapper(ioFunctions)(optionalType.none).validNel
-        case _ => s"Failed to lookup input value for required input ${port.name}".invalidNel
+        case (v: Valid[WomValue], _) => 
+          v.map(valueMapper)
+
+        case (_, InputDefinitionWithDefault(_, _, defaultExpression, _)) =>
+          evaluate(defaultExpression, knownValues, ioFunctions).map(valueMapper)
+
+        case (_, OptionalInputDefinition(_, optionalType, _)) => 
+          valueMapper(optionalType.none).validNel
+
+        case _ => 
+          s"Failed to lookup input value for required input ${port.name}".invalidNel
       }
   }
 

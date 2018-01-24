@@ -47,10 +47,20 @@ object CommandTaskDefinition {
   }
 }
 
+/**
+  * Interface for a TaskDefinition.
+  * There are 2 types of TaskDefinition:
+  *   - CommandTaskDefinition
+  *   - ExpressionTaskDefinition
+  */
 sealed trait TaskDefinition extends Callable {
   def runtimeAttributes: RuntimeAttributes
   def meta: Map[String, String]
   def parameterMeta: Map[String, String]
+
+  /**
+    * Transform the Callable TaskDefinition to an ExecutableCallable that can be executed on its own.
+    */
   def toExecutable: ErrorOr[ExecutableCallable]
   /**
     * Provides a custom way to evaluate outputs of the task definition.
@@ -59,6 +69,10 @@ sealed trait TaskDefinition extends Callable {
   private [wom] def customizedOutputEvaluation: OutputEvaluationFunction
 }
 
+/**
+  * A task definition for a command line.
+  * Can be Callable only or CallableExecutable
+  */
 sealed trait CommandTaskDefinition extends TaskDefinition {
 
   def stdoutRedirection: Option[String]
@@ -161,6 +175,13 @@ final case class ExecutableTaskDefinition private (callableTaskDefinition: Calla
   override def toExecutable = this.validNel
 }
 
+/**
+  * A task definition for an expression.
+  * The only additional requirement on top of the TaskDefinition interface is a method that can produce
+  * a Map[OutputPort, WomValue] given inputs and io functions.
+  * 
+  * Can be Callable only or CallableExecutable
+  */
 sealed trait ExpressionTaskDefinition extends TaskDefinition {
   def evaluateFunction: (Map[String, WomValue], IoFunctionSet, List[OutputPort]) => Checked[Map[OutputPort, WomValue]]
 }
@@ -193,7 +214,6 @@ final case class ExecutableExpressionTaskDefinition private (callableTaskDefinit
   override def name = callableTaskDefinition.name
   override def inputs = callableTaskDefinition.inputs
   override def outputs = callableTaskDefinition.outputs
-
   override def evaluateFunction = callableTaskDefinition.evaluateFunction
   override def runtimeAttributes = callableTaskDefinition.runtimeAttributes
   override def meta = callableTaskDefinition.meta

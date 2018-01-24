@@ -97,7 +97,7 @@ trait Tool {
   }
   
   /*
-    * Last minute chance to manipulate a WomValue before it's used as an input to the tool (Command or Expression)
+    * Chance to manipulate a WomValue before it's used as an input to the tool (Command or Expression)
     * For now, if the inputParameter has an input binding with loadContents = true, load the content of the file.
    */
   private def inputValueMapper(inputParameter: InputParameter): InputValueMapper = { ioFunctionSet: IoFunctionSet => {

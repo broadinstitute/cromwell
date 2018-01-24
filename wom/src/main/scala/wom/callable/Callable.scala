@@ -23,6 +23,7 @@ trait ExecutableCallable extends Callable {
 
 object Callable {
   object InputDefinition {
+    // Function to transform the value linked to an input definition. Curried for convenience of callers.
     type InputValueMapper = IoFunctionSet => WomValue => WomValue
     val IdentityValueMapper: InputValueMapper = { _ => value => value}
   }
@@ -38,6 +39,11 @@ object Callable {
       case _: RequiredInputDefinition => false
       case _ => true
     }
+
+    /**
+      * When a WomValue is linked to this input definition, valueMapper should be called
+      * on the value as it may perform necessary transformations to it.
+      */
     def valueMapper: InputValueMapper
   }
 

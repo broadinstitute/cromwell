@@ -9,7 +9,8 @@ import wom.RuntimeAttributes
 import wom.callable.{Callable, CallableExpressionTaskDefinition}
 import wom.expression.{IoFunctionSet, ValueAsAnExpression}
 import wom.graph.GraphNodePort.OutputPort
-import wom.values.{WomString, WomValue}
+import wom.types.{WomObjectType, WomType}
+import wom.values.{WomObjectLike, WomString, WomValue}
 
 case class ExpressionTool(
                            inputs: Array[ExpressionToolInputParameter] = Array.empty,
@@ -31,14 +32,34 @@ case class ExpressionTool(
                           runtimeAttributes: RuntimeAttributes,
                           requirementsAndHints: List[cwl.Requirement],
                           expressionLib: ExpressionLib): ErrorOr[CallableExpressionTaskDefinition] = {
-
+    import cats.syntax.either._
+    import common.validation.Validation._
+    
     def evaluate(inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, outputPorts: List[OutputPort]): Checked[Map[OutputPort, WomValue]] = {
       val womExpression = expression match {
         case StringOrExpression.String(str) => ValueAsAnExpression(WomString(str))
         case StringOrExpression.Expression(expr) => JavascriptExpression(expr, inputNames, expressionLib)
       }
-      
-      ExpressionToolEvaluation.evaluate(inputs, ioFunctionSet, outputPorts, womExpression)
+
+      // Since we don't validate anything, if something goes wrong just remove it from the list of outputs, hence the toOption
+      def coerce(womValue: WomValue, womType: WomType): Option[WomValue] = womType.coerceRawValue(womValue).toOption
+
+      def mapPortsToValues(values: Map[String, WomValue]): Map[OutputPort, WomValue] = {
+        outputPorts.flatMap({ outputPort =>
+          values.get(outputPort.name)
+            .flatMap(coerce(_, outputPort.womType))
+            .map(outputPort -> _)
+        }).toMap
+      }
+
+      for {
+        evaluatedExpression <- womExpression.evaluateValue(inputs, ioFunctionSet).toEither
+        asObject <- WomObjectType.coerceRawValue(evaluatedExpression).toChecked
+        values = asObject match {
+          case womObject: WomObjectLike => womObject.values
+          case _ => throw new Exception("This cannot happen otherwise the coercion above would have failed")
+        }
+      } yield mapPortsToValues(values)
     }
 
     CallableExpressionTaskDefinition(

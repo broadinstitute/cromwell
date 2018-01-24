@@ -40,18 +40,7 @@ object Scatter {
     * @param preserveIndexForOuterLookups When we're evaluating the scatter collection, should we preserve scatter index when we have to use the outerLookup?
     */
   def womScatterNode(scatter: Scatter, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[ScatterNodeWithNewNodes] = {
-    // Convert the scatter collection WdlExpression to a WdlWomExpression 
-    val scatterCollectionExpression = WdlWomExpression(scatter.collection, scatter)
-    // Generate an ExpressionNode from the WdlWomExpression
-    val scatterCollectionExpressionNode =
-      WdlWomExpression.toAnonymousExpressionNode(WomIdentifier(scatter.item), scatterCollectionExpression, localLookup, outerLookup, preserveIndexForOuterLookups, scatter, PlainAnonymousExpressionNode.apply)
-    // Validate the collection evaluates to a traversable type
-    val scatterItemTypeValidation = scatterCollectionExpression.evaluateType((localLookup ++ outerLookup).map { case (k, v) => k -> v.womType }) flatMap {
-      case WomArrayType(itemType) => Valid(itemType) // Covers maps because this is a custom unapply (see WdlArrayType)
-      case other => s"Cannot scatter over a non-traversable type ${other.toDisplayString}".invalidNel
-    }
-
-    /**
+    /*
       * Why? Imagine that we're building three nested levels of a innerGraph.
       * - Say we're building the middle layer.
       * - We have a set of OutputPorts in the outer layer that we can make OGINs to if we need them.
@@ -67,6 +56,17 @@ object Scatter {
       name -> OuterGraphInputNode(WomIdentifier(name), outerPort, preserveScatterIndex = false)
     }
     val possiblyNeededNestedOginPorts: Map[String, OutputPort] = possiblyNeededNestedOgins map { case (name: String, ogin: OuterGraphInputNode) => name -> ogin.singleOutputPort }
+
+    // Convert the scatter collection WdlExpression to a WdlWomExpression
+    val scatterCollectionExpression = WdlWomExpression(scatter.collection, scatter)
+    // Generate an ExpressionNode from the WdlWomExpression
+    val scatterCollectionExpressionNode =
+      WdlWomExpression.toAnonymousExpressionNode(WomIdentifier(scatter.item), scatterCollectionExpression, localLookup ++ possiblyNeededNestedOginPorts, Map.empty, preserveIndexForOuterLookups, scatter, PlainAnonymousExpressionNode.apply)
+    // Validate the collection evaluates to a traversable type
+    val scatterItemTypeValidation = scatterCollectionExpression.evaluateType((localLookup ++ outerLookup).map { case (k, v) => k -> v.womType }) flatMap {
+      case WomArrayType(itemType) => Valid(itemType) // Covers maps because this is a custom unapply (see WdlArrayType)
+      case other => s"Cannot scatter over a non-traversable type ${other.toDisplayString}".invalidNel
+    }
 
     for {
       itemType <- scatterItemTypeValidation

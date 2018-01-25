@@ -44,7 +44,7 @@ case "$TRAVIS_EVENT_TYPE" in
         centaurJes)
             "${SCRIPT_DIR}"/testCentaurJes.sh -i
             ;;
-        centaurTes|centaurLocal|centaurBcs|centaurCwlConformance|sbt|checkPublish)
+        centaurTes|centaurLocal|centaurBcs|centaurCwlConformanceLocal|centaurCwlConformancePAPI|sbt|checkPublish)
             exit 0
             ;;
         *)

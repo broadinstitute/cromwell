@@ -10,7 +10,6 @@ import cwl.WorkflowStepInput.InputSource
 import common.validation.ErrorOr.ErrorOr
 import cwl.CommandLineTool.{CommandBindingSortingKey, SortKeyAndCommandPart}
 import cwl.command.ParentName
-import io.circe.Json
 import wom.types.WomType
 import wom.graph.WomIdentifier
 import wom.graph.GraphNodePort.OutputPort
@@ -56,34 +55,6 @@ object WorkflowStepInputSource {
   object StringArray {
     def unapply(arg: InputSource): Option[Array[String]] = arg.select[Array[String]]
   }
-}
-
-case class InputParameter(
-                           id: String,
-                           label: Option[String] = None,
-                           secondaryFiles:
-                             Option[
-                               Expression :+:
-                               String :+:
-                               Array[
-                                 Expression :+:
-                                 String :+:
-                                 CNil] :+:
-                               CNil] = None,
-                           format:
-                             Option[
-                               Expression :+:
-                               String :+:
-                               Array[String] :+:
-                               CNil] = None,
-                           streamable: Option[Boolean] = None,
-                           doc: Option[String :+: Array[String] :+: CNil] = None,
-                           inputBinding: Option[InputCommandLineBinding] = None,
-                           default: Option[Json] = None, //can be of type "Any" which... sucks.
-                           `type`: Option[MyriadInputType] = None) {
-
-  type `type` = MyriadInputType
-  type Id = String
 }
 
 case class InputRecordSchema(
@@ -149,31 +120,6 @@ case class ArgumentCommandLineBinding(
                                itemSeparator: Option[String] = None,
                                shellQuote: Option[Boolean] = None) extends CommandLineBinding {
   override val optionalValueFrom = Option(valueFrom)
-}
-
-case class WorkflowOutputParameter(
-                                    id: String,
-                                    label: Option[String] = None,
-                                    secondaryFiles:
-                                      Option[
-                                        Expression :+:
-                                        String :+:
-                                        Array[
-                                          Expression :+:
-                                          String :+:
-                                          CNil] :+:
-                                        CNil] = None,
-                                    format: Option[Expression :+: String :+: Array[String] :+: CNil] = None,
-                                    streamable: Option[Boolean] = None,
-                                    doc: Option[String :+: Array[String] :+: CNil] = None,
-                                    outputBinding: Option[CommandOutputBinding] = None,
-                                    outputSource: Option[WorkflowOutputParameter#OutputSource] = None,
-                                    linkMerge: Option[LinkMergeMethod] = None,
-                                    `type`: Option[MyriadOutputType] = None) {
-
-  type OutputSource = String :+: Array[String] :+: CNil
-  type `type` = MyriadOutputType
-  type Id = String
 }
 
 case class InputBinding(position: Int, prefix: String)

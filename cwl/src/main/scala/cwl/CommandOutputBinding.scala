@@ -81,7 +81,7 @@ object CommandOutputBinding {
 
     def secondaryFilesToWomFiles(primaryWomFiles: List[WomFile]): ErrorOr[List[WomFile]] = {
       primaryWomFiles.flatTraverse[ErrorOr, WomFile] { primaryWomFile =>
-        CommandLineTool.CommandOutputParameter.secondaryFiles(primaryWomFile,
+        OutputParameter.secondaryFiles(primaryWomFile,
           primaryWomFile.womFileType, secondaryFilesOption, parameterContext, expressionLib)
       }
     }
@@ -126,13 +126,13 @@ object CommandOutputBinding {
     }
 
     // Used to retrieve the file format to be injected into a file result.
-    def formatOptionErrorOr = CommandLineTool.CommandOutputParameter.format(formatCoproduct, parameterContext, expressionLib)
+    def formatOptionErrorOr = OutputParameter.format(formatCoproduct, parameterContext, expressionLib)
 
     // 4. secondaryFiles: just before returning the value, fill in the secondary files on the return value
     def populateSecondaryFiles(evaluatedWomValue: WomValue): ErrorOr[WomValue] = {
       evaluatedWomValue match {
         case womMaybePopulatedFile: WomMaybePopulatedFile =>
-          val secondaryFilesErrorOr = CommandLineTool.CommandOutputParameter.secondaryFiles(
+          val secondaryFilesErrorOr = OutputParameter.secondaryFiles(
             womMaybePopulatedFile,
             WomSingleFileType,
             secondaryFilesCoproduct,

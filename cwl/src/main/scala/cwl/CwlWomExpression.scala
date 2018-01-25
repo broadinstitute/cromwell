@@ -25,9 +25,9 @@ trait CwlWomExpression extends WomExpression {
       apply(parameterContext, expressionLib)
 }
 
-case class JobPreparationExpression(expression: Expression,
-                                    override val inputs: Set[String],
-                                    override val expressionLib: ExpressionLib) extends CwlWomExpression {
+case class ECMAScriptWomExpression(expression: Expression,
+                                   override val inputs: Set[String],
+                                   override val expressionLib: ExpressionLib) extends CwlWomExpression {
   val cwlExpressionType = WomAnyType
 
   override def sourceString = expression match {

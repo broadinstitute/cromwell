@@ -36,7 +36,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
               map(_.select[CommandLineTool].get).
               value.
               unsafeRunSync
-      taskDef <- clt.buildTaskDefinition(_.validNel, Vector.empty).toEither
+      taskDef <- clt.buildTaskDefinition(_.validNel, Vector.empty)
     } yield validateWom(taskDef)).leftMap(e => throw new RuntimeException(s"error! $e"))
   }
 

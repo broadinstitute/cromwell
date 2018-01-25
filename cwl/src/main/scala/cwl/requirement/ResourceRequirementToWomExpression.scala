@@ -10,6 +10,6 @@ object ResourceRequirementToWomExpression extends Poly1 {
   implicit def fromLong: Case.Aux[Long, ResourceRequirementStringSetToWomExpression] = at[Long] { l => (_, _) => ValueAsAnExpression(WomInteger(l.toInt)) }
   implicit def fromString: Case.Aux[String, ResourceRequirementStringSetToWomExpression] = at[String] { s =>  (_, _) => ValueAsAnExpression(WomString(s)) }
   implicit def fromExpression: Case.Aux[Expression, ResourceRequirementStringSetToWomExpression] = at[Expression] { e => (inputs, expressionLib) =>
-    cwl.JobPreparationExpression(e, inputs, expressionLib)
+    cwl.ECMAScriptWomExpression(e, inputs, expressionLib)
   }
 }

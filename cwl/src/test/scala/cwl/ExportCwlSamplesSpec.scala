@@ -1,9 +1,10 @@
 package cwl
 
+import cwl.CommandLineTool.{BaseCommand, CommandInputParameter}
+import cwl.Workflow.{WorkflowInputParameter, WorkflowOutputParameter}
+import cwl.WorkflowStepInput.InputSource
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct
-import cwl.CommandLineTool.{BaseCommand, CommandInputParameter}
-import cwl.WorkflowStepInput.InputSource
 
 
   /**
@@ -45,8 +46,8 @@ baseCommand: echo
     val workflow = Workflow(
       id = "MyCwlWorkflow",
       inputs = Array(
-          InputParameter(id = "inp", `type` = Option(Coproduct[MyriadInputType](Coproduct[MyriadInputInnerType](CwlType.File)))),
-          InputParameter(id = "ex", `type` = Option(Coproduct[MyriadInputType](Coproduct[MyriadInputInnerType](CwlType.String))))
+          WorkflowInputParameter(id = "inp", `type` = Option(Coproduct[MyriadInputType](Coproduct[MyriadInputInnerType](CwlType.File)))),
+          WorkflowInputParameter(id = "ex", `type` = Option(Coproduct[MyriadInputType](Coproduct[MyriadInputInnerType](CwlType.String))))
         ),
       outputs = Array(
         WorkflowOutputParameter(

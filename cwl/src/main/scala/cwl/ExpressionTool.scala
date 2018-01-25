@@ -1,10 +1,11 @@
 package cwl
 
-import shapeless.{:+:, CNil, Coproduct}
 import cwl.CwlVersion._
+import cwl.ExpressionTool.{ExpressionToolInputParameter, ExpressionToolOutputParameter}
+import shapeless.Coproduct
 
 case class ExpressionTool(
-                           inputs: Array[InputParameter] = Array.empty,
+                           inputs: Array[ExpressionToolInputParameter] = Array.empty,
                            outputs: Array[ExpressionToolOutputParameter] = Array.empty,
                            `class`: String,
                            expression: StringOrExpression,
@@ -17,21 +18,24 @@ case class ExpressionTool(
   def asCwl = Coproduct[Cwl](this)
 }
 
-case class ExpressionToolOutputParameter(
-                                          id: String,
+object ExpressionTool {
+
+  case class ExpressionToolOutputParameter(id: String,
+                                           label: Option[String] = None,
+                                           secondaryFiles: Option[SecondaryFiles] = None,
+                                           format: Option[Format] = None,
+                                           streamable: Option[Boolean] = None,
+                                           doc: Option[Doc] = None,
+                                           outputBinding: Option[CommandOutputBinding] = None,
+                                           `type`: MyriadOutputType)
+
+  case class ExpressionToolInputParameter(id: String,
                                           label: Option[String] = None,
                                           secondaryFiles: Option[SecondaryFiles] = None,
-                                          format:
-                                            Option[
-                                              Expression :+:
-                                              String :+:
-                                              Array[String] :+:
-                                              CNil] = None,
+                                          format: Option[Format] = None,
                                           streamable: Option[Boolean] = None,
-                                          doc:
-                                            Option[
-                                              String :+:
-                                              Array[String] :+:
-                                              CNil] = None,
-                                          outputBinding: Option[CommandOutputBinding] = None,
-                                          `type`: MyriadOutputType)
+                                          doc: Option[Doc] = None,
+                                          inputBinding: Option[InputCommandLineBinding] = None,
+                                          default: Option[CwlAny] = None,
+                                          `type`: Option[MyriadInputType] = None) extends InputParameter
+}

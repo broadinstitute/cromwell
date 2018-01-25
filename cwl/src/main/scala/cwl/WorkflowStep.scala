@@ -91,7 +91,7 @@ case class WorkflowStep(
     if (haveWeSeenThisStep) Right(knownNodes)
     else {
       val callable: Checked[Callable] = run match {
-        case Run.CommandLineTool(clt) => clt.buildTaskDefinition(validator, expressionLib).toEither
+        case Run.CommandLineTool(clt) => clt.buildTaskDefinition(validator, expressionLib)
         case Run.Workflow(wf) => wf.womDefinition(validator, expressionLib)
         // TODO CWL (obviously):
         case Run.ExpressionTool(_) => throw new Exception("ExpressionTool is not supported as a workflow step yet")

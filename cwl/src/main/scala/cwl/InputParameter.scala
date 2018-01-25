@@ -11,7 +11,7 @@ trait InputParameter {
   def id: String
   def label: Option[String]
   def secondaryFiles: Option[SecondaryFiles]
-  def format: Option[Format]
+  def format: Option[InputParameterFormat]
   def streamable: Option[Boolean]
   def doc: Option[Doc]
   def inputBinding: Option[InputCommandLineBinding]

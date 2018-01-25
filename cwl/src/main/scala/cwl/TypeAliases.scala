@@ -9,8 +9,14 @@ import wom.types.WomType
 trait TypeAliases {
 
   type Expression = ECMAScriptExpression :+: ECMAScriptFunction :+: CNil
+
+  // http://www.commonwl.org/v1.0/Workflow.html#InputParameter
+  // http://www.commonwl.org/v1.0/CommandLineTool.html#CommandInputParameter
+  type InputParameterFormat = Expression :+: String :+: Array[String] :+: CNil
   
-  type Format = Expression :+: String :+: Array[String] :+: CNil
+  // http://www.commonwl.org/v1.0/Workflow.html#ExpressionToolOutputParameter
+  // http://www.commonwl.org/v1.0/CommandLineTool.html#CommandOutputParameter
+  type OutputParameterFormat = StringOrExpression
   
   type Doc = String :+: Array[String] :+: CNil
 

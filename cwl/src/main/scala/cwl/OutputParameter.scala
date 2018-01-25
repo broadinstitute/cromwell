@@ -11,7 +11,7 @@ trait OutputParameter {
   def id: String
   def label: Option[String]
   def secondaryFiles: Option[SecondaryFiles]
-  def format: Option[StringOrExpression]
+  def format: Option[OutputParameterFormat]
   def streamable: Option[Boolean]
   def doc: Option[String :+: Array[String] :+: CNil]
   def outputBinding: Option[CommandOutputBinding]

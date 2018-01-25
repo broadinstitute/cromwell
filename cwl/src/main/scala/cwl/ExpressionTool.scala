@@ -20,22 +20,22 @@ case class ExpressionTool(
 
 object ExpressionTool {
 
-  case class ExpressionToolOutputParameter(id: String,
-                                           label: Option[String] = None,
-                                           secondaryFiles: Option[SecondaryFiles] = None,
-                                           format: Option[Format] = None,
-                                           streamable: Option[Boolean] = None,
-                                           doc: Option[Doc] = None,
-                                           outputBinding: Option[CommandOutputBinding] = None,
-                                           `type`: MyriadOutputType)
-
   case class ExpressionToolInputParameter(id: String,
                                           label: Option[String] = None,
                                           secondaryFiles: Option[SecondaryFiles] = None,
-                                          format: Option[Format] = None,
+                                          format: Option[InputParameterFormat] = None,
                                           streamable: Option[Boolean] = None,
                                           doc: Option[Doc] = None,
                                           inputBinding: Option[InputCommandLineBinding] = None,
                                           default: Option[CwlAny] = None,
                                           `type`: Option[MyriadInputType] = None) extends InputParameter
+
+  case class ExpressionToolOutputParameter(id: String,
+                                           label: Option[String] = None,
+                                           secondaryFiles: Option[SecondaryFiles] = None,
+                                           format: Option[OutputParameterFormat] = None,
+                                           streamable: Option[Boolean] = None,
+                                           doc: Option[Doc] = None,
+                                           outputBinding: Option[CommandOutputBinding] = None,
+                                           `type`: MyriadOutputType)
 }

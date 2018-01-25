@@ -358,9 +358,9 @@ object CommandLineTool {
                                     id: String,
                                     label: Option[String] = None,
                                     secondaryFiles: Option[SecondaryFiles] = None,
-                                    format: Option[Expression :+: String :+: Array[String] :+: CNil] = None, //only valid when type: File
+                                    format: Option[InputParameterFormat] = None, //only valid when type: File
                                     streamable: Option[Boolean] = None, //only valid when type: File
-                                    doc: Option[String :+: Array[String] :+: CNil] = None,
+                                    doc: Option[Doc] = None,
                                     inputBinding: Option[InputCommandLineBinding] = None,
                                     default: Option[CwlAny] = None,
                                     `type`: Option[MyriadInputType] = None) extends InputParameter
@@ -369,9 +369,9 @@ object CommandLineTool {
                                      id: String,
                                      label: Option[String] = None,
                                      secondaryFiles: Option[SecondaryFiles] = None,
-                                     format: Option[StringOrExpression] = None, //only valid when type: File
+                                     format: Option[OutputParameterFormat] = None, //only valid when type: File
                                      streamable: Option[Boolean] = None, //only valid when type: File
-                                     doc: Option[String :+: Array[String] :+: CNil] = None,
+                                     doc: Option[Doc] = None,
                                      outputBinding: Option[CommandOutputBinding] = None,
                                      `type`: Option[MyriadOutputType] = None) extends OutputParameter
 }

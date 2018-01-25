@@ -10,7 +10,7 @@ import wom.executable.Executable
 import wom.executable.Executable.{InputParsingFunction, ParsedInputMap}
 
 // WARNING! Because of 2.11 vs 2.12 incompatibilities, there are two versions of this file.
-// If you're making changes here, you'll also need to update ../../scala-2.11/cwl/CwlExecutableValidation.scala
+// If you're making changes here, you'll also need to update ../../scala-2.12/cwl/CwlExecutableValidation.scala
 // (ExecutableValidation.scala has more info on why this was necessary)
 object CwlExecutableValidation {
 

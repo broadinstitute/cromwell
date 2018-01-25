@@ -105,7 +105,7 @@ case class CommandLineTool private(
     }
   }
 
-  // This seem like it makes sense only for CommandLineTool and hence is not abstrsacted in Tool. If this assumption is wrong it could be moved up.
+  // This seems like it makes sense only for CommandLineTool and hence is not abstracted in Tool. If this assumption is wrong it could be moved up.
   private def environmentDefs(requirementsAndHints: List[Requirement], expressionLib: ExpressionLib): ErrorOr[Map[String, WomExpression]] = {
     // For environment variables we need to make sure that we aren't being asked to evaluate expressions from a containing
     // workflow step or its containing workflow or anything containing the workflow. The current structure of this code
@@ -235,7 +235,7 @@ case class CommandLineTool private(
       _.fold(StringOrExpressionToWomExpression).apply(inputNames, expressionLib)
     }
 
-    // This seem like it makes sense only for CommandLineTool and hence is not abstrsacted in Tool. If this assumption is wrong it could be moved up.
+    // This seems like it makes sense only for CommandLineTool and hence is not abstracted in Tool. If this assumption is wrong it could be moved up.
     val adHocFileCreations: Set[WomExpression] = (for {
       requirements <- requirements.getOrElse(Array.empty[Requirement])
       initialWorkDirRequirement <- requirements.select[InitialWorkDirRequirement].toArray

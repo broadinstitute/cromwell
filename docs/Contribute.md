@@ -4,7 +4,7 @@ Cromwell is an open-source project and we heartily welcome community contributio
 
 First off, here are useful links:
 
-* Cromwell documentation: [cromwell.readthedocs.io/en/develop](http://cromwell.readthedocs.io/en/develop)
+* Cromwell documentation: [cromwell.readthedocs.io](http://cromwell.readthedocs.io)
 * Source on Github: [github.com/broadinstitute/cromwell](https://github.com/broadinstitute/cromwell/tree/develop/docs)
 * Builds on ReadTheDocs: [readthedocs.org/projects/cromwell](https://readthedocs.org/projects/cromwell/builds/)
 * How to build and view the documentation locally: [mkdocs.readthedocs.io](https://mkdocs.readthedocs.io/en/stable/#installation)
@@ -69,6 +69,17 @@ _produces this block_
 	}
 ```	
 
+**Images**
+
+* Relative: `![](ImgName.png)`
+	* _Example:_ `![](jamie_the_cromwell_pig.png)` _produces this image_  
+	![](jamie_the_cromwell_pig.png)  
+* Absolute: `![](URLofImg.png)`
+	* _Example:_ `![](https://www.broadinstitute.org/sites/all/themes/custom/at_broad/logo.png)` _produces this image_  
+	![](https://www.broadinstitute.org/sites/all/themes/custom/at_broad/logo.png)  
+
+### Updating the API and Menu
+
 **REST API:**
 
 1. Edit the [`cromwell.yaml`](https://github.com/broadinstitute/cromwell/blob/develop/engine/src/main/resources/swagger/cromwell.yaml) to make any changes to the REST API content.  
@@ -80,21 +91,12 @@ _produces this block_
 
 To add or remove items from the menu, edit [mkdocs.yml](https://github.com/broadinstitute/cromwell/blob/develop/mkdocs.yml) in Cromwell.
 
-**Images**
-
-* Relative: `![](ImgName.png)`
-	* _Example:_ `![](jamie_the_cromwell_pig.png)` _produces this image_  
-	![](jamie_the_cromwell_pig.png)  
-* Absolute: `![](URLofImg.png)`
-	* _Example:_ `![](https://www.broadinstitute.org/sites/all/themes/custom/at_broad/logo.png)` _produces this image_  
-	![](https://www.broadinstitute.org/sites/all/themes/custom/at_broad/logo.png)
-
 ### FAQs
 
 **_Why isn't my documentation showing up?_**
 
-* **Have you confirmed that your PR is merged?**  
-If not, [go merge it](https://github.com/broadinstitute/cromwell/pulls). This will trigger an automatic build.  
+* **Is your PR merged?**  
+If not, [go merge it](https://github.com/broadinstitute/cromwell/pulls) or respond to comments. Once your PR is merged to develop, it will trigger an automatic build.  
 
 * **Has the build finished?**   
 [Check build status here](https://readthedocs.org/projects/cromwell/builds/).

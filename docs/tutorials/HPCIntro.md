@@ -197,7 +197,7 @@ Whenever Cromwell restarts it checks to see if a job has completed by searching 
 
 ```hocon
 backend.providers.SGE.config {
-  check-alive = "qdel ${job_id}"
+  check-alive = "qstat -j ${job_id}"
 }
 ```
 

@@ -9,14 +9,14 @@ import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.DirectoryFunctions._
 import cromwell.core.path.{Path, PathFactory}
 import wom.expression.IoFunctionSet
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 import wom.values.{WomFile, WomGlobFile, WomMaybeListedDirectory, WomMaybePopulatedFile, WomSingleFile, WomUnlistedDirectory}
 
 import scala.concurrent.Future
 
 trait DirectoryFunctions extends IoFunctionSet with PathFactory {
 
-  def findDirectoryOutputs(call: TaskCallNode,
+  def findDirectoryOutputs(call: CommandCallNode,
                            jobDescriptor: BackendJobDescriptor): ErrorOr[List[WomUnlistedDirectory]] = {
     call.callable.outputs.flatTraverse[ErrorOr, WomUnlistedDirectory] { outputDefinition =>
       outputDefinition.expression.evaluateFiles(jobDescriptor.localInputs, this, outputDefinition.womType) map {

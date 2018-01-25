@@ -282,6 +282,6 @@ class CommandLineToolSpec extends FlatSpec with Matchers with ParallelTestExecut
 
   it should "pull expression libs from all requirements" in {
     val list = List(Coproduct[Requirement](InlineJavascriptRequirement(`class` = "InlineJavascriptRequirement", expressionLib = Some(Array("a")))))
-    CommandLineTool.inlineJavascriptRequirements(list).head shouldBe "a"
+    Tool.inlineJavascriptRequirements(list).head shouldBe "a"
   }
 }

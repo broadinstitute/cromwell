@@ -455,7 +455,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     } yield diff).toValidated
   }
 
-  private def backendFactoryForTaskCallNode(taskCallNode: TaskCallNode): Checked[BackendLifecycleActorFactory] = {
+  private def backendFactoryForTaskCallNode(taskCallNode: CommandCallNode): Checked[BackendLifecycleActorFactory] = {
     for {
       name <- workflowDescriptor
         .backendAssignments.get(taskCallNode).toChecked(s"Cannot find an assigned backend for call ${taskCallNode.fullyQualifiedName}")

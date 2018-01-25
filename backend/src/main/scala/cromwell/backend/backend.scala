@@ -9,7 +9,7 @@ import cromwell.core.{CallKey, WorkflowId, WorkflowOptions}
 import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
 import wom.callable.ExecutableCallable
 import wom.graph.GraphNodePort.OutputPort
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 import wom.values.{WomEvaluatedCallInputs, WomValue}
 
 import scala.util.Try
@@ -17,7 +17,7 @@ import scala.util.Try
 /**
   * For uniquely identifying a job which has been or will be sent to the backend.
   */
-case class BackendJobDescriptorKey(call: TaskCallNode, index: Option[Int], attempt: Int) extends CallKey {
+case class BackendJobDescriptorKey(call: CommandCallNode, index: Option[Int], attempt: Int) extends CallKey {
   def node = call
   private val indexString = index map { _.toString } getOrElse "NA"
   lazy val tag = s"${call.fullyQualifiedName}:$indexString:$attempt"

@@ -5,7 +5,7 @@ import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, J
 import cromwell.backend._
 import cromwell.core.{CallOutputs, NoIoFunctionSet}
 import wom.expression.IoFunctionSet
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -27,7 +27,7 @@ class DefaultBackendLifecycleActorFactory(val name: String, val configurationDes
   extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 ioActor: ActorRef,
-                                                calls: Set[TaskCallNode],
+                                                calls: Set[CommandCallNode],
                                                 serviceRegistryActor: ActorRef,
                                                 restarting: Boolean): Option[Props] = None
 

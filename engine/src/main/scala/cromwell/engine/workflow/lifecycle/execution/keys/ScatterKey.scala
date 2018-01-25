@@ -40,7 +40,7 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
   }
 
   private def makeShards(scope: GraphNode, count: Int): Seq[JobKey] = scope match {
-    case call: TaskCallNode => (0 until count) map { i => BackendJobDescriptorKey(call, Option(i), 1) }
+    case call: CommandCallNode => (0 until count) map { i => BackendJobDescriptorKey(call, Option(i), 1) }
     case expression: ExpressionNode => (0 until count) map { i => ExpressionKey(expression, Option(i)) }
     case conditional: ConditionalNode => (0 until count) map { i => ConditionalKey(conditional, Option(i)) }
     case subworkflow: WorkflowCallNode => (0 until count) map { i => SubWorkflowKey(subworkflow, Option(i), 1) }

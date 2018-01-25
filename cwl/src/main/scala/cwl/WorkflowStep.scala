@@ -83,7 +83,7 @@ case class WorkflowStep(
 
     // To avoid duplicating nodes, return immediately if we've already covered this node
     val haveWeSeenThisStep: Boolean = knownNodes.collect {
-      case TaskCallNode(identifier, _, _, _) => identifier
+      case CommandCallNode(identifier, _, _, _) => identifier
       case WorkflowCallNode(identifier, _, _, _) => identifier
       // TODO CWL: Catch known ExpressionTools too
     }.contains(unqualifiedStepId)
@@ -91,7 +91,7 @@ case class WorkflowStep(
     if (haveWeSeenThisStep) Right(knownNodes)
     else {
       val callable: Checked[Callable] = run match {
-        case Run.CommandLineTool(clt) => clt.buildTaskDefinition(validator, expressionLib).toEither
+        case Run.CommandLineTool(clt) => clt.buildTaskDefinition(validator, expressionLib)
         case Run.Workflow(wf) => wf.womDefinition(validator, expressionLib)
         // TODO CWL (obviously):
         case Run.ExpressionTool(_) => throw new Exception("ExpressionTool is not supported as a workflow step yet")

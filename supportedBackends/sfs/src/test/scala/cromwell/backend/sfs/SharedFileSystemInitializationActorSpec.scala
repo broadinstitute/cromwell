@@ -10,7 +10,7 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescript
 import cromwell.core.TestKitSuite
 import cromwell.core.logging.LoggingTest._
 import org.scalatest.{Matchers, WordSpecLike}
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
@@ -37,7 +37,7 @@ class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSy
       |}
     """.stripMargin
 
-  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCallNode],
+  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[CommandCallNode],
                           conf: BackendConfigurationDescriptor) = {
     val params = DefaultInitializationActorParams(workflowDescriptor, emptyActor, calls, emptyActor, conf, restarting = false)
     val props = Props(new SharedFileSystemInitializationActor(params))

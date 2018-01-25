@@ -4,10 +4,10 @@ import cats.syntax.validated._
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
 import wom.graph.{CallNode, GraphInputNode, LocalName, PortBasedGraphOutputNode}
-import wom.callable.TaskDefinitionSpec._
+import wom.callable.CommandTaskDefinitionSpec._
 import wom.types.{WomIntegerType, WomStringType}
 
-class TaskDefinitionSpec extends FlatSpec with Matchers {
+class CommandTaskDefinitionSpec extends FlatSpec with Matchers {
 
   // Checks that the graph generated from a task definition adds sufficient inputs and outputs, and is correctly linked.
   behavior of "TaskDefinition.graph"
@@ -60,7 +60,7 @@ class TaskDefinitionSpec extends FlatSpec with Matchers {
   }
 }
 
-object TaskDefinitionSpec {
+object CommandTaskDefinitionSpec {
 
   val noInputsOrOutputsTask = CallableTaskDefinition(
     name = "foo",
@@ -72,7 +72,7 @@ object TaskDefinitionSpec {
     inputs = List.empty,
     adHocFileCreation = Set.empty,
     environmentExpressions = Map.empty)
-  val executableNoInputsOrOutputsTask = ExecutableTaskDefinition.tryApply(noInputsOrOutputsTask)
+  val executableNoInputsOrOutputsTask = noInputsOrOutputsTask.toExecutable
 
   val oneInputTask = CallableTaskDefinition(
     name = "foo",
@@ -84,7 +84,7 @@ object TaskDefinitionSpec {
     inputs = List(Callable.RequiredInputDefinition(LocalName("bar"), WomIntegerType)),
     adHocFileCreation = Set.empty,
     environmentExpressions = Map.empty)
-  val executableOneInputTask = ExecutableTaskDefinition.tryApply(oneInputTask)
+  val executableOneInputTask = oneInputTask.toExecutable
 
   val oneOutputTask = CallableTaskDefinition(
     name = "foo",
@@ -96,7 +96,7 @@ object TaskDefinitionSpec {
     inputs = List.empty,
     adHocFileCreation = Set.empty,
     environmentExpressions = Map.empty)
-  val executableOneOutputTask = ExecutableTaskDefinition.tryApply(oneOutputTask)
+  val executableOneOutputTask = oneOutputTask.toExecutable
   
   val duplicateFqns = CallableTaskDefinition(
     name = "foo",
@@ -109,5 +109,5 @@ object TaskDefinitionSpec {
     adHocFileCreation = Set.empty,
     environmentExpressions = Map.empty
   )
-  val executableDuplicateFqns = ExecutableTaskDefinition.tryApply(duplicateFqns)
+  val executableDuplicateFqns = duplicateFqns.toExecutable
 }

@@ -71,7 +71,7 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
         }.getOrElse(fail("Scatter inner graph did not contain a GraphInputNode 'x'"))
 
         val foo_callNode = validatedOuterGraph.scatterNode.innerGraph.nodes.collectFirst {
-          case c: TaskCallNode if c.localName == "foo" => c
+          case c: CommandCallNode if c.localName == "foo" => c
         }.getOrElse(fail("Scatter inner graph did not contain a call to 'foo'"))
         
         foo_callNode.identifier.fullyQualifiedName.value shouldBe "scatter_test.foo"

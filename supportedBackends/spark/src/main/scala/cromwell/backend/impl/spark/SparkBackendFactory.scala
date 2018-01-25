@@ -6,13 +6,13 @@ import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
 import cromwell.core.CallContext
 import wom.expression.IoFunctionSet
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 import scala.concurrent.ExecutionContext
 
 case class SparkBackendFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor) extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef,
-                                                calls: Set[TaskCallNode], serviceRegistryActor: ActorRef, restarting: Boolean): Option[Props] = {
+                                                calls: Set[CommandCallNode], serviceRegistryActor: ActorRef, restarting: Boolean): Option[Props] = {
     Option(SparkInitializationActor.props(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor))
   }
 

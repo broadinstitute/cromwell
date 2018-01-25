@@ -7,7 +7,7 @@ import cromwell.backend.impl.jes.callcaching.{JesBackendCacheHitCopyingActor, Je
 import cromwell.backend.standard._
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardFileHashingActor}
 import cromwell.core.CallOutputs
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 import scala.util.{Success, Try}
 
@@ -26,12 +26,12 @@ case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor
 
   val jesConfiguration = new JesConfiguration(configurationDescriptor)
 
-  override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[TaskCallNode],
+  override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[CommandCallNode],
                                                  serviceRegistryActor: ActorRef, restart: Boolean): StandardInitializationActorParams = {
     JesInitializationActorParams(workflowDescriptor, ioActor, calls, jesConfiguration, serviceRegistryActor, restart)
   }
 
-  override def workflowFinalizationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[TaskCallNode],
+  override def workflowFinalizationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[CommandCallNode],
                                               jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs,
                                               initializationDataOption: Option[BackendInitializationData]):
   StandardFinalizationActorParams = {

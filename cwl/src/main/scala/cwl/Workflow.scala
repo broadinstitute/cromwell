@@ -13,7 +13,9 @@ import shapeless._
 import shapeless.syntax.singleton._
 import CwlVersion._
 import cwl.command.ParentName
-import io.circe.Printer
+import common.validation.Validation._
+import cwl.LinkMergeMethod.LinkMergeMethod
+import cwl.Workflow.{WorkflowInputParameter, WorkflowOutputParameter}
 import wom.callable.WorkflowDefinition
 import wom.executable.Executable
 import wom.expression.{ValueAsAnExpression, WomExpression}
@@ -22,20 +24,20 @@ import wom.graph._
 import wom.types.WomType
 
 case class Workflow private(
-                     cwlVersion: Option[CwlVersion],
-                     `class`: Witness.`"Workflow"`.T,
-                     id: String,
-                     inputs: Array[InputParameter],
-                     outputs: Array[WorkflowOutputParameter],
-                     steps: Array[WorkflowStep],
-                     requirements: Option[Array[Requirement]],
-                     hints: Option[Array[Hint]]) {
+                             cwlVersion: Option[CwlVersion],
+                             `class`: Witness.`"Workflow"`.T,
+                             id: String,
+                             inputs: Array[WorkflowInputParameter],
+                             outputs: Array[WorkflowOutputParameter],
+                             steps: Array[WorkflowStep],
+                             requirements: Option[Array[Requirement]],
+                             hints: Option[Array[Hint]]) {
 
   steps.foreach { _.parentWorkflow = this }
 
   /** Builds an `Executable` from a `Workflow` CWL with no parent `Workflow` */
   def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None): Checked[Executable] = {
-    CwlExecutableValidation.buildWomExecutable(womDefinition(validator, Vector.empty), inputFile)
+    CwlExecutableValidation.buildWomExecutableCallable(womDefinition(validator, Vector.empty), inputFile)
   }
 
   // Circe can't create bidirectional links between workflow steps and runs (including `Workflow`s) so this
@@ -83,8 +85,7 @@ case class Workflow private(
         val parsedInputId = FileAndId(inputParameter.id).id
         val womType = womTypeForInputParameter(inputParameter).get
 
-        // TODO: Eurgh! But until we have something better ...
-        val womValue = womType.coerceRawValue(inputParameter.default.get.pretty(Printer.noSpaces)).get
+        val womValue = inputParameter.default.get.fold(InputParameter.DefaultToWomValuePoly).apply(womType).toTry.get
         OptionalGraphInputNodeWithDefault(WomIdentifier(parsedInputId, inputParameter.id), womType, ValueAsAnExpression(womValue), parsedInputId)
       case input =>
         val parsedInputId = FileAndId(input.id).id
@@ -167,12 +168,37 @@ case class Workflow private(
 }
 object Workflow {
 
+  case class WorkflowInputParameter(id: String,
+                                    label: Option[String] = None,
+                                    secondaryFiles: Option[SecondaryFiles] = None,
+                                    format: Option[InputParameterFormat] = None,
+                                    streamable: Option[Boolean] = None,
+                                    doc: Option[Doc] = None,
+                                    inputBinding: Option[InputCommandLineBinding] = None,
+                                    default: Option[CwlAny] = None,
+                                    `type`: Option[MyriadInputType] = None) extends InputParameter
+
+  case class WorkflowOutputParameter(
+                                      id: String,
+                                      label: Option[String] = None,
+                                      secondaryFiles: Option[SecondaryFiles] = None,
+                                      format: Option[OutputParameterFormat] = None,
+                                      streamable: Option[Boolean] = None,
+                                      doc: Option[Doc] = None,
+                                      outputBinding: Option[CommandOutputBinding] = None,
+                                      outputSource: Option[WorkflowOutputParameter#OutputSource] = None,
+                                      linkMerge: Option[LinkMergeMethod] = None,
+                                      `type`: Option[MyriadOutputType] = None) {
+
+    type OutputSource = String :+: Array[String] :+: CNil
+  }
+
   def apply(cwlVersion: Option[CwlVersion] = Option(CwlVersion.Version1),
             id: String,
-            inputs: Array[InputParameter] = Array.empty,
+            inputs: Array[WorkflowInputParameter] = Array.empty,
             outputs: Array[WorkflowOutputParameter] = Array.empty,
             steps: Array[WorkflowStep] = Array.empty,
             requirements: Option[Array[Requirement]] = None,
             hints: Option[Array[Hint]] = None): Workflow  =
-              Workflow(cwlVersion, "Workflow".narrow, id, inputs, outputs, steps, requirements, hints)
+    Workflow(cwlVersion, "Workflow".narrow, id, inputs, outputs, steps, requirements, hints)
 }

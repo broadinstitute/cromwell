@@ -1,36 +1,27 @@
 package cwl
 
-import java.nio.file.Paths
-
 import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, OptionT}
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.Checked
 import common.validation.ErrorOr._
-import common.validation.Validation._
 import cwl.CommandLineTool._
-import cwl.CwlType.CwlType
 import cwl.CwlVersion._
 import cwl.command.ParentName
-import cwl.requirement.RequirementToAttributeMap
-import eu.timepit.refined.W
-import io.circe.{Json, yaml}
+import io.circe.Json
 import shapeless.syntax.singleton._
-import shapeless.{:+:, CNil, Coproduct, Inl, Poly1, Witness}
-import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, OutputDefinition, RequiredInputDefinition}
-import wom.callable.TaskDefinition.{EvaluatedOutputs, OutputFunctionResponse}
+import shapeless.{:+:, CNil, Coproduct, Poly1, Witness}
+import wom.callable.CommandTaskDefinition.{EvaluatedOutputs, OutputFunctionResponse}
 import wom.callable.{Callable, CallableTaskDefinition}
-import wom.executable.Executable
 import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
-import wom.types.{WomFileType, WomOptionalType, WomStringType, WomType}
-import wom.values.{WomArray, WomEvaluatedCallInputs, WomFile, WomGlobFile, WomString, WomValue}
+import wom.types.{WomOptionalType, WomStringType}
+import wom.values.{WomEvaluatedCallInputs, WomGlobFile, WomString, WomValue}
 import wom.{CommandPart, RuntimeAttributes}
 
 import scala.concurrent.ExecutionContext
 import scala.math.Ordering
-import scala.util.Try
 
 /**
   * @param `class` This _should_ always be "CommandLineTool," however the spec does not -er- specify this.
@@ -52,46 +43,9 @@ case class CommandLineTool private(
                                     stdout: Option[StringOrExpression],
                                     successCodes: Option[Array[Int]],
                                     temporaryFailCodes: Option[Array[Int]],
-                                    permanentFailCodes: Option[Array[Int]]) {
+                                    permanentFailCodes: Option[Array[Int]]) extends Tool {
 
-  private [cwl] implicit val explicitWorkflowName = ParentName(id)
-  private val inputNames = this.inputs.map(i => FullyQualifiedName(i.id).id).toSet
-
-  // Circe can't create bidirectional links between workflow steps and runs (including `CommandLineTool`s) so this
-  // ugly var is here to link back to a possible parent workflow step. This is needed to navigate upward for finding
-  // requirements in the containment hierarchy. There isn't always a containing workflow step so this is an `Option`.
-  private[cwl] var parentWorkflowStep: Option[WorkflowStep] = None
-
-  /** Builds an `Executable` directly from a `CommandLineTool` CWL with no parent workflow. */
-  def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None): Checked[Executable] = {
-    val taskDefinition = buildTaskDefinition(validator, Vector.empty)
-    CwlExecutableValidation.buildWomExecutable(taskDefinition, inputFile)
-  }
-
-  private def validateRequirementsAndHints(validator: RequirementsValidator): ErrorOr[List[Requirement]] = {
-    import cats.instances.list._
-    import cats.syntax.traverse._
-
-    val allRequirements = requirements.toList.flatten ++ parentWorkflowStep.toList.flatMap(_.allRequirements)
-    // All requirements must validate or this fails.
-    val errorOrValidatedRequirements: ErrorOr[List[Requirement]] = allRequirements traverse validator
-
-    errorOrValidatedRequirements map { validRequirements =>
-      // Only Requirement hints, everything else is thrown out.
-      // TODO CWL don't throw them out but pass them back to the caller to do with as the caller pleases.
-      val hintRequirements = hints.toList.flatten.flatMap { _.select[Requirement] }
-      val parentHintRequirements = parentWorkflowStep.toList.flatMap(_.allHints)
-
-      // Throw out invalid Requirement hints.
-      // TODO CWL pass invalid hints back to the caller to do with as the caller pleases.
-      val validHints = (hintRequirements ++ parentHintRequirements).collect { case req if validator(req).isValid => req }
-      validRequirements ++ validHints
-    }
-  }
-
-  private def processRequirement(requirement: Requirement, expressionLib: ExpressionLib): Map[String, WomExpression] = {
-    requirement.fold(RequirementToAttributeMap).apply(inputNames, expressionLib)
-  }
+  def asCwl: Cwl = Coproduct[Cwl](this)
 
   /*
    * The command template is built following the rules described here: http://www.commonwl.org/v1.0/CommandLineTool.html#Input_binding
@@ -130,7 +84,7 @@ case class CommandLineTool private(
         val parsedName = FullyQualifiedName(inputParameter.id)(ParentName.empty).id
         val womType = inputParameter.`type`.map(_.fold(MyriadInputTypeToWomType)).getOrElse(WomStringType)
 
-        val defaultValue = inputParameter.default.map(_.fold(CommandInputParameter.DefaultToWomValuePoly).apply(womType))
+        val defaultValue = inputParameter.default.map(_.fold(InputParameter.DefaultToWomValuePoly).apply(womType))
 
         inputValues
           .collectFirst({ case (inputDefinition, womValue) if inputDefinition.name == parsedName => womValue.validNel })
@@ -151,7 +105,7 @@ case class CommandLineTool private(
     }
   }
 
-
+  // This seems like it makes sense only for CommandLineTool and hence is not abstracted in Tool. If this assumption is wrong it could be moved up.
   private def environmentDefs(requirementsAndHints: List[Requirement], expressionLib: ExpressionLib): ErrorOr[Map[String, WomExpression]] = {
     // For environment variables we need to make sure that we aren't being asked to evaluate expressions from a containing
     // workflow step or its containing workflow or anything containing the workflow. The current structure of this code
@@ -237,7 +191,7 @@ case class CommandLineTool private(
           case optional: WomOptionalType => Option((outputPort -> optional.none).validNel)
           case _ => None
         }
-        
+
         json.get(outputPort.name)
           .map(_.foldWith(CwlJsonToDelayedCoercionFunction).apply(outputPort.womType).map(outputPort -> _))
           .orElse(emptyValue)
@@ -248,7 +202,7 @@ case class CommandLineTool private(
     // Parse content as json and return output values for each output port
     def parseContent(content: String): EvaluatedOutputs = {
       for {
-        parsed <- yaml.parser.parse(content).flatMap(_.as[Map[String, Json]]).leftMap(error => NonEmptyList.one(error.getMessage))
+        parsed <- io.circe.yaml.parser.parse(content).flatMap(_.as[Map[String, Json]]).leftMap(error => NonEmptyList.one(error.getMessage))
         jobOutputsMap <- jsonToOutputs(parsed)
       } yield jobOutputsMap.toMap
     }
@@ -265,109 +219,51 @@ case class CommandLineTool private(
     } yield outputs
   }
 
-
-  def buildTaskDefinition(validator: RequirementsValidator, parentExpressionLib: ExpressionLib): ErrorOr[CallableTaskDefinition] = {
-    for {
-      requirementsAndHints <- validateRequirementsAndHints(validator)
-      environment <- environmentDefs(requirementsAndHints, parentExpressionLib)
-    } yield buildCallableTaskDefinition(requirementsAndHints, parentExpressionLib, environment)
-  }
-
-  def buildCallableTaskDefinition(requirementsAndHints: List[cwl.Requirement],
-                                  parentExpressionLib: ExpressionLib,
-                                  environmentExpressions: Map[String, WomExpression]): CallableTaskDefinition = {
-
-    val id = this.id
-
-    val expressionLib: ExpressionLib =
-      parentExpressionLib ++ inlineJavascriptRequirements(requirementsAndHints)
-
-    // This is basically doing a `foldMap` but can't actually be a `foldMap` because:
-    // - There is no monoid instance for `WomExpression`s.
-    // - We want to fold from the right so the hints and requirements with the lowest precedence are processed first
-    //   and later overridden if there are duplicate hints or requirements of the same type with higher precedence.
-    val finalAttributesMap: Map[String, WomExpression] = requirementsAndHints.foldRight(Map.empty[String, WomExpression])({
-      case (requirement, attributesMap) => attributesMap ++ processRequirement(requirement, expressionLib)
-    })
-
-    val runtimeAttributes: RuntimeAttributes = RuntimeAttributes(finalAttributesMap)
-
-    val meta: Map[String, String] = Map.empty
-    val parameterMeta: Map[String, String] = Map.empty
-
-    /*
-  quoted from: http://www.commonwl.org/v1.0/CommandLineTool.html#CommandOutputBinding :
-
-  For inputs and outputs, we only keep the variable name in the definition
-   */
-
-    val outputs: List[Callable.OutputDefinition] = this.outputs.map {
-      case p @ CommandOutputParameter(cop_id, _, _, _, _, _, _, Some(tpe)) =>
-        val womType = tpe.fold(MyriadOutputTypeToWomType)
-        OutputDefinition(FullyQualifiedName(cop_id).id, womType, CommandOutputParameterExpression(p, womType, inputNames, expressionLib))
-      case other => throw new NotImplementedError(s"Command output parameters such as $other are not yet supported")
-    }.toList
-
-    val inputDefinitions: List[_ <: Callable.InputDefinition] =
-      this.inputs.map {
-        case CommandInputParameter(inputId, _, _, _, _, _, _, Some(default), Some(tpe)) =>
-          val inputType = tpe.fold(MyriadInputTypeToWomType)
-          val inputName = FullyQualifiedName(inputId).id
-          val defaultWomValue = default.fold(CommandInputParameter.DefaultToWomValuePoly).apply(inputType).toTry.get
-          InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(defaultWomValue))
-        case CommandInputParameter(inputId, _, _, _, _, _, _, None, Some(tpe)) =>
-          val inputType = tpe.fold(MyriadInputTypeToWomType)
-          val inputName = FullyQualifiedName(inputId).id
-          inputType match {
-            case optional: WomOptionalType => OptionalInputDefinition(inputName, optional)
-            case _ => RequiredInputDefinition(inputName, inputType)
-          }
-        case other => throw new NotImplementedError(s"command input parameters such as $other are not yet supported")
-      }.toList
+  def buildTaskDefinition(taskName: String,
+                          inputDefinitions: List[_ <: Callable.InputDefinition],
+                          outputDefinitions: List[Callable.OutputDefinition],
+                          runtimeAttributes: RuntimeAttributes,
+                          requirementsAndHints: List[cwl.Requirement],
+                          expressionLib: ExpressionLib): ErrorOr[CallableTaskDefinition] = {
 
     def stringOrExpressionToString(soe: Option[StringOrExpression]): Option[String] = soe flatMap {
       case StringOrExpression.String(str) => Option(str)
       case StringOrExpression.Expression(_) => None // ... for now!
     }
 
-    // The try will succeed if this is a task within a step. If it's a standalone file, the ID will be the file,
-    // so the filename is the fallback.
-    def taskName = Try(FullyQualifiedName(id).id).getOrElse(Paths.get(id).getFileName.toString)
+    val stdinRedirection: Option[WomExpression] = stdin map {
+      _.fold(StringOrExpressionToWomExpression).apply(inputNames, expressionLib)
+    }
 
+    // This seems like it makes sense only for CommandLineTool and hence is not abstracted in Tool. If this assumption is wrong it could be moved up.
     val adHocFileCreations: Set[WomExpression] = (for {
       requirements <- requirements.getOrElse(Array.empty[Requirement])
       initialWorkDirRequirement <- requirements.select[InitialWorkDirRequirement].toArray
       listing <- initialWorkDirRequirement.listings
     } yield InitialWorkDirFileGeneratorExpression(listing, expressionLib)).toSet[WomExpression]
 
-    val stdinRedirection: Option[WomExpression] = stdin map {
-      _.fold(StringOrExpressionToWomExpression).apply(inputNames, expressionLib)
+    environmentDefs(requirementsAndHints, expressionLib) map { environmentExpressions =>
+      CallableTaskDefinition(
+        taskName,
+        buildCommandTemplate(expressionLib),
+        runtimeAttributes,
+        Map.empty,
+        Map.empty,
+        outputDefinitions,
+        inputDefinitions,
+        adHocFileCreation = adHocFileCreations,
+        environmentExpressions = environmentExpressions,
+        // TODO: This doesn't work in all cases and it feels clunky anyway - find a way to sort that out
+        prefixSeparator = "#",
+        commandPartSeparator = " ",
+        stdinRedirection = stdinRedirection,
+        stdoutRedirection = stringOrExpressionToString(stdout),
+        stderrRedirection = stringOrExpressionToString(stderr),
+        additionalGlob = Option(WomGlobFile(CwlOutputJson)),
+        customizedOutputEvaluation = outputEvaluationJsonFunction
+      )
     }
-
-    CallableTaskDefinition(
-      taskName,
-      buildCommandTemplate(expressionLib),
-      runtimeAttributes,
-      meta,
-      parameterMeta,
-      outputs,
-      inputDefinitions,
-      // TODO: This doesn't work in all cases and it feels clunky anyway - find a way to sort that out
-      prefixSeparator = "#",
-      commandPartSeparator = " ",
-      stdinRedirection = stdinRedirection,
-      stdoutRedirection = stringOrExpressionToString(stdout),
-      stderrRedirection = stringOrExpressionToString(stderr),
-      adHocFileCreation = adHocFileCreations,
-      environmentExpressions = environmentExpressions,
-      // Always add "cwl.output.json" as an additional glob, as the tool may or may not produce it
-      additionalGlob = Option(WomGlobFile(CwlOutputJson)),
-      customizedOutputEvaluation = outputEvaluationJsonFunction
-    )
   }
-
-  def asCwl = Coproduct[Cwl](this)
-
 }
 
 object CommandLineTool {
@@ -436,14 +332,6 @@ object CommandLineTool {
   // Ordering for a CommandPartSortMapping: order by sorting key
   implicit val SortKeyAndCommandPartOrdering: Ordering[SortKeyAndCommandPart] = Ordering.by(_.sortingKey)
 
-  def inlineJavascriptRequirements(allRequirementsAndHints: Seq[Requirement]): Vector[String] = {
-    val inlineJavscriptRequirements: Seq[InlineJavascriptRequirement] = allRequirementsAndHints.toList.collect {
-      case Inl(ijr:InlineJavascriptRequirement) => ijr
-    }
-
-    inlineJavscriptRequirements.flatMap(_.expressionLib.toList.flatten).toVector
-  }
-
   def apply(inputs: Array[CommandInputParameter] = Array.empty,
             outputs: Array[CommandOutputParameter] = Array.empty,
             id: String,
@@ -470,213 +358,22 @@ object CommandLineTool {
                                     id: String,
                                     label: Option[String] = None,
                                     secondaryFiles: Option[SecondaryFiles] = None,
-                                    format: Option[Expression :+: Array[String] :+: String :+: CNil] = None, //only valid when type: File
+                                    format: Option[InputParameterFormat] = None, //only valid when type: File
                                     streamable: Option[Boolean] = None, //only valid when type: File
-                                    doc: Option[String :+: Array[String] :+: CNil] = None,
+                                    doc: Option[Doc] = None,
                                     inputBinding: Option[InputCommandLineBinding] = None,
                                     default: Option[CwlAny] = None,
-                                    `type`: Option[MyriadInputType] = None)
-
-  object CommandInputParameter {
-    import cats.instances.list._
-    type DefaultToWomValueFunction = WomType => ErrorOr[WomValue]
-
-    object DefaultToWomValuePoly extends Poly1 {
-      implicit def caseFileOrDirectory: Case.Aux[FileOrDirectory, DefaultToWomValueFunction] = {
-        at {
-          _.fold(this)
-        }
-      }
-
-      implicit def caseFileOrDirectoryArray: Case.Aux[Array[FileOrDirectory], DefaultToWomValueFunction] = {
-        at {
-          fileOrDirectoryArray =>
-            womType =>
-              fileOrDirectoryArray
-                .toList
-                .traverse[ErrorOr, WomValue](_.fold(this).apply(womType))
-                .map(WomArray(_))
-        }
-      }
-
-      implicit def caseFile: Case.Aux[File, DefaultToWomValueFunction] = {
-        at {
-          file =>
-            womType =>
-              file.asWomValue.flatMap(womType.coerceRawValue(_).toErrorOr)
-        }
-      }
-
-      implicit def caseDirectory: Case.Aux[Directory, DefaultToWomValueFunction] = {
-        at {
-          directory =>
-            womType =>
-              directory.asWomValue.flatMap(womType.coerceRawValue(_).toErrorOr)
-        }
-      }
-
-      implicit def caseJson: Case.Aux[io.circe.Json, DefaultToWomValueFunction] = {
-        at {
-          circeJson =>
-            womType =>
-              val stringJson = circeJson.noSpaces
-              import spray.json._
-              val sprayJson = stringJson.parseJson
-              womType.coerceRawValue(sprayJson).toErrorOr
-        }
-      }
-    }
-  }
-
-  case class CommandInputRecordSchema(
-                                       `type`: W.`"record"`.T,
-                                       fields: Option[Array[CommandInputRecordField]],
-                                       label: Option[String])
-
-  case class CommandInputRecordField(
-                                      name: String,
-                                      `type`: MyriadInputType,
-                                      doc: Option[String],
-                                      inputBinding: Option[InputCommandLineBinding],
-                                      label: Option[String])
-
-  case class CommandInputEnumSchema(
-                                     symbols: Array[String],
-                                     `type`: W.`"enum"`.T,
-                                     label: Option[String],
-                                     inputBinding: Option[InputCommandLineBinding])
-
-  case class CommandInputArraySchema(
-                                      items:
-                                      CwlType :+:
-                                        CommandInputRecordSchema :+:
-                                        CommandInputEnumSchema :+:
-                                        CommandInputArraySchema :+:
-                                        String :+:
-                                        Array[
-                                          CwlType :+:
-                                            CommandInputRecordSchema :+:
-                                            CommandInputEnumSchema :+:
-                                            CommandInputArraySchema :+:
-                                            String :+:
-                                            CNil] :+:
-                                        CNil,
-                                      `type`: W.`"array"`.T,
-                                      label: Option[String],
-                                      inputBinding: Option[InputCommandLineBinding])
-
+                                    `type`: Option[MyriadInputType] = None) extends InputParameter
 
   case class CommandOutputParameter(
                                      id: String,
                                      label: Option[String] = None,
                                      secondaryFiles: Option[SecondaryFiles] = None,
-                                     format: Option[StringOrExpression] = None, //only valid when type: File
+                                     format: Option[OutputParameterFormat] = None, //only valid when type: File
                                      streamable: Option[Boolean] = None, //only valid when type: File
-                                     doc: Option[String :+: Array[String] :+: CNil] = None,
+                                     doc: Option[Doc] = None,
                                      outputBinding: Option[CommandOutputBinding] = None,
-                                     `type`: Option[MyriadOutputType] = None)
-
-  object CommandOutputParameter {
-    import cats.instances.list._
-    import cats.instances.option._
-    def format(formatOption: Option[StringOrExpression],
-               parameterContext: ParameterContext,
-               expressionLib: ExpressionLib): ErrorOr[Option[String]] = {
-      formatOption.traverse[ErrorOr, String] {
-        format(_, parameterContext, expressionLib)
-      }
-    }
-
-    def format(format: StringOrExpression, parameterContext: ParameterContext, expressionLib: ExpressionLib): ErrorOr[String] = {
-      format.fold(CommandLineTool.CommandOutputParameter.FormatPoly).apply(parameterContext, expressionLib)
-    }
-
-    type FormatFunction = (ParameterContext, ExpressionLib) => ErrorOr[String]
-
-    object FormatPoly extends Poly1 {
-      implicit def caseStringOrExpression: Case.Aux[StringOrExpression, FormatFunction] = {
-        at {
-          _.fold(this)
-        }
-      }
-
-      implicit def caseExpression: Case.Aux[Expression, FormatFunction] = {
-        at {
-          expression =>
-            (parameterContext, expressionLib) =>
-              val result: ErrorOr[WomValue] = ExpressionEvaluator.eval(expression, parameterContext, expressionLib)
-              result flatMap {
-                case womString: WomString => womString.value.valid
-                case other => s"Not a valid file format: $other".invalidNel
-              }
-        }
-      }
-
-      implicit def caseString: Case.Aux[String, FormatFunction] = at { string => (_,_) => string.valid }
-    }
-
-    /**
-      * Returns the list of secondary files for the primary file.
-      */
-    def secondaryFiles(primaryWomFile: WomFile,
-                       stringWomFileType: WomFileType,
-                       secondaryFilesOption: Option[SecondaryFiles],
-                       parameterContext: ParameterContext,
-                       expressionLib: ExpressionLib): ErrorOr[List[WomFile]] = {
-      secondaryFilesOption
-        .map(secondaryFiles(primaryWomFile, stringWomFileType, _, parameterContext, expressionLib))
-        .getOrElse(Nil.valid)
-    }
-
-    /**
-      * Returns the list of secondary files for the primary file.
-      */
-    def secondaryFiles(primaryWomFile: WomFile,
-                       stringWomFileType: WomFileType,
-                       secondaryFiles: SecondaryFiles,
-                       parameterContext: ParameterContext,
-                       expressionLib: ExpressionLib): ErrorOr[List[WomFile]] = {
-      secondaryFiles
-        .fold(CommandLineTool.CommandOutputParameter.SecondaryFilesPoly)
-        .apply(primaryWomFile, stringWomFileType, parameterContext, expressionLib)
-    }
-
-    type SecondaryFilesFunction = (WomFile, WomFileType, ParameterContext, ExpressionLib) => ErrorOr[List[WomFile]]
-
-    object SecondaryFilesPoly extends Poly1 {
-      implicit def caseStringOrExpression: Case.Aux[StringOrExpression, SecondaryFilesFunction] = {
-        at {
-          _.fold(this)
-        }
-      }
-
-      implicit def caseExpression: Case.Aux[Expression, SecondaryFilesFunction] = {
-        at {
-          expression =>
-            (primaryWomFile, stringWomFileType, parameterContext, expressionLib) =>
-              File.secondaryExpressionFiles(primaryWomFile, stringWomFileType, expression, parameterContext, expressionLib)
-        }
-      }
-
-      implicit def caseString: Case.Aux[String, SecondaryFilesFunction] = {
-        at {
-          string =>
-            (primaryWomFile, stringWomFileType, _, _) =>
-              File.secondaryStringFile(primaryWomFile, stringWomFileType, string).map(List(_))
-        }
-      }
-
-      implicit def caseArray: Case.Aux[Array[StringOrExpression], SecondaryFilesFunction] = {
-        at {
-          array =>
-            (primaryWomFile, stringWomFileType, parameterContext, expressionLib) =>
-              val functions: List[SecondaryFilesFunction] = array.toList.map(_.fold(this))
-              functions.flatTraverse(_ (primaryWomFile, stringWomFileType, parameterContext, expressionLib))
-        }
-      }
-    }
-
-  }
+                                     `type`: Option[MyriadOutputType] = None) extends OutputParameter
 }
 
 object StringOrExpressionToWomExpression extends Poly1 {
@@ -685,6 +382,6 @@ object StringOrExpressionToWomExpression extends Poly1 {
   }
 
   implicit def expression: Case.Aux[Expression, (Set[String], ExpressionLib) => WomExpression] = at[Expression] { e => (inputNames, expressionLib) =>
-    cwl.JobPreparationExpression(e, inputNames, expressionLib)
+    cwl.ECMAScriptWomExpression(e, inputNames, expressionLib)
   }
 }

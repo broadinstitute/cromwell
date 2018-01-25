@@ -1,13 +1,12 @@
 package wom.util
 
 import cats.instances.list._
-import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr._
 import jdk.nashorn.api.scripting.ScriptObjectMirror
 import wom.types._
-import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomMap, WomOptionalValue, WomString, WomValue}
+import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomObject, WomOptionalValue, WomString, WomValue}
 
 import scala.collection.JavaConverters._
 
@@ -96,9 +95,7 @@ class JsDecoder {
     */
   def decodeMap(map: Map[String, AnyRef]): ErrorOr[WomValue] = {
     map.traverse({
-      case (key, value) =>
-        val tuple: (ErrorOr[WomValue], ErrorOr[WomValue]) = (WomString(key).valid, decode(value))
-        tuple.mapN((_, _))
-    }).map(WomMap(_))
+      case (key, value) => decode(value).map(key -> _)
+    }).map(WomObject(_))
   }
 }

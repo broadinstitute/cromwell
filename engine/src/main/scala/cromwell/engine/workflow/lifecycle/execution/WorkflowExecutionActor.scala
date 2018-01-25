@@ -178,8 +178,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         handleNonRetryableFailure(currentStateData, jobKey, new Exception(s"Subworkflow produced outputs: [${callOutputs.outputs.keys.mkString(", ")}], but we expected all of [${jobKey.node.subworkflowCallOutputPorts.map(_.name)}]"))
       }
     // Expression
-    case Event(ExpressionEvaluationSucceededResponse(jobKey, callOutputs), stateData) =>
-      handleDeclarationEvaluationSuccessful(jobKey, callOutputs, stateData)
+    case Event(ExpressionEvaluationSucceededResponse(expressionKey, callOutputs), stateData) =>
+      handleDeclarationEvaluationSuccessful(expressionKey, callOutputs, stateData)
 
     // Failure
     // Initialization
@@ -300,7 +300,9 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
     val workflowOutputValuesValidation = workflowOutputNodes
       // Try to find a value for each port in the value store
-      .map(outputNode => outputNode -> data.valueStore.get(outputNode.graphOutputPort, None))
+      .map(outputNode => 
+      outputNode -> data.valueStore.get(outputNode.graphOutputPort, None)
+    )
       .toList.traverse[ErrorOr, (GraphOutputNode, WomValue)]({
       case (name, Some(value)) => (name -> value).validNel
       case (name, None) => s"Cannot find an output value for ${name.identifier.fullyQualifiedName.value}".invalidNel
@@ -397,8 +399,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     stay() using data.callExecutionSuccess(jobKey, outputs).addExecutions(jobExecutionMap)
   }
 
-  private def handleDeclarationEvaluationSuccessful(key: ExpressionKey, value: WomValue, data: WorkflowExecutionActorData) = {
-    stay() using data.expressionEvaluationSuccess(key, value)
+  private def handleDeclarationEvaluationSuccessful(key: ExpressionKey, values: Map[OutputPort, WomValue], data: WorkflowExecutionActorData) = {
+    stay() using data.expressionEvaluationSuccess(key, values)
   }
 
   /**

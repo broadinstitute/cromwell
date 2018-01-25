@@ -76,19 +76,6 @@ trait TypeAliases {
       String :+:
       CNil
 
-  type MyriadCommandInputType =
-    MyriadCommandInnerType :+:
-      Array[MyriadCommandInnerType] :+:
-      CNil
-
-  type MyriadCommandInnerType =
-    CwlType :+:
-      InputRecordSchema :+:
-      InputEnumSchema :+:
-      InputArraySchema :+:
-      String :+:
-      CNil
-
   type ResourceRequirementType = Long :+: Expression :+: String :+: CNil
 
   type SingleOrArrayOfStrings = String :+: Array[String] :+: CNil

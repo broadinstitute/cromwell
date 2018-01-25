@@ -134,7 +134,7 @@ class CwlJsDecoder extends JsDecoder {
     val location = decodeMapValue(map, "location", _.toString)
     val path = decodeMapValue(map, "path", _.toString)
     val basename = decodeMapValue(map, "basename", _.toString)
-    val listing = decodeMapDirectoryOrFiles(map, "secondaryFiles")
+    val listing = decodeMapDirectoryOrFiles(map, "listing")
 
     (location, path, basename, listing).mapN(
       Directory(_, _, _, _)

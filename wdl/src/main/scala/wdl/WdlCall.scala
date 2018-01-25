@@ -131,20 +131,20 @@ object WdlCall {
           )
 
         // No input mapping, use the default expression
-        case withDefault@InputDefinitionWithDefault(_, _, expression) =>
+        case withDefault@InputDefinitionWithDefault(_, _, expression, _) =>
           InputDefinitionFold(
             mappings = List(withDefault -> Coproduct[InputDefinitionPointer](expression))
           )
 
         // No input mapping, required and we don't have a default value, create a new RequiredGraphInputNode
         // so that it can be satisfied via workflow inputs
-        case required@RequiredInputDefinition(n, womType) =>
+        case required@RequiredInputDefinition(n, womType, _) =>
           val identifier = wdlCall.womIdentifier.combine(n)
           withGraphInputNode(required, RequiredGraphInputNode(identifier, womType, identifier.fullyQualifiedName.value))
 
         // No input mapping, no default value but optional, create a OptionalGraphInputNode
         // so that it can be satisfied via workflow inputs
-        case optional@OptionalInputDefinition(n, womType) =>
+        case optional@OptionalInputDefinition(n, womType, _) =>
           val identifier = wdlCall.womIdentifier.combine(n)
           withGraphInputNode(optional, OptionalGraphInputNode(identifier, womType, identifier.fullyQualifiedName.value))
       }

@@ -37,8 +37,6 @@ object CommandOutputBinding {
     }
   }
 
-  val ReadLimit = Option(64 * 1024)
-
   /**
     * Returns all the primary and secondary files that _will be_ created by this command output binding.
     */

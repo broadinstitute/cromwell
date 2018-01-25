@@ -9,7 +9,6 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless._
 import wom.WomMatchers._
-import wom.callable.Callable.RequiredInputDefinition
 import wom.callable.{Callable, CommandTaskDefinition, WorkflowDefinition}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
@@ -24,7 +23,9 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
   "A Cwl object for 1st-tool" should "convert to WOM" in {
     def validateWom(callable: Callable): Unit = callable match {
       case taskDefinition: CommandTaskDefinition =>
-        taskDefinition.inputs shouldBe List(RequiredInputDefinition(s"message", WomStringType))
+        val inputDef = taskDefinition.inputs.head 
+        inputDef.name shouldBe "message" 
+        inputDef.womType shouldBe WomStringType
         ()
 
       case _ => fail("not a task definition")

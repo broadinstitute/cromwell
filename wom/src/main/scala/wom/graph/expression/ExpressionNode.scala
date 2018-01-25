@@ -20,7 +20,7 @@ import wom.values.WomValue
 abstract class ExpressionNode(override val identifier: WomIdentifier,
                               val womExpression: WomExpression,
                               val womType: WomType,
-                              val inputMapping: Map[String, InputPort]) extends GraphNode {
+                              val inputMapping: Map[String, InputPort]) extends GraphNode with ExpressionNodeLike {
   val singleExpressionOutputPort = GraphNodeOutputPort(identifier, womType, this)
   override val outputPorts: Set[GraphNodePort.OutputPort] = Set(singleExpressionOutputPort)
   override val inputPorts = inputMapping.values.toSet
@@ -39,6 +39,16 @@ abstract class ExpressionNode(override val identifier: WomIdentifier,
     evaluated <- womExpression.evaluateValue(inputs, ioFunctionSet)
     coerced <- womType.coerceRawValue(evaluated).toErrorOr
   } yield coerced).leftMap(_.map(e => s"Evaluating ${womExpression.sourceString} failed: $e")).toEither
+
+  override final def evaluate(outputPortLookup: OutputPort => ErrorOr[WomValue], ioFunctionSet: IoFunctionSet): Checked[Map[OutputPort, WomValue]] = {
+    import cats.syntax.either._
+    import common.validation.ErrorOr._
+    for {
+      inputs <- inputMapping.traverseValues(inputPort => outputPortLookup(inputPort.upstream)).toEither
+      evaluated <- evaluateAndCoerce(inputs, ioFunctionSet)
+    } yield Map(singleExpressionOutputPort -> evaluated)
+  }
+  
 }
 
 object ExpressionNode {

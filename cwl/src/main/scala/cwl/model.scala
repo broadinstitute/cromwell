@@ -89,8 +89,6 @@ trait CommandLineBinding {
   def itemSeparator: Option[String]
   def optionalValueFrom: Option[StringOrExpression]
   def shellQuote: Option[Boolean]
-  // position defaults to 0
-  def effectivePosition = position.getOrElse(0)
   // separate defaults to true
   def effectiveSeparate = separate.getOrElse(true)
 }
@@ -127,8 +125,7 @@ case class InputBinding(position: Int, prefix: String)
 case class OutputRecordSchema(
   `type`: W.`"record"`.T,
   fields: Option[Array[OutputRecordField]],
-  label: Option[String]
-  )
+  label: Option[String])
 
 case class OutputRecordField(
   name: String,

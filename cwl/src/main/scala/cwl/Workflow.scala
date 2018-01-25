@@ -7,15 +7,14 @@ import cats.instances.list._
 import cats.syntax.either._
 import cats.syntax.traverse._
 import common.Checked
-import common.validation.Validation.OptionValidation
 import common.validation.ErrorOr._
-import shapeless._
-import shapeless.syntax.singleton._
-import CwlVersion._
-import cwl.command.ParentName
-import common.validation.Validation._
+import common.validation.Validation.{OptionValidation, _}
+import cwl.CwlVersion._
 import cwl.LinkMergeMethod.LinkMergeMethod
 import cwl.Workflow.{WorkflowInputParameter, WorkflowOutputParameter}
+import cwl.command.ParentName
+import shapeless._
+import shapeless.syntax.singleton._
 import wom.callable.WorkflowDefinition
 import wom.executable.Executable
 import wom.expression.{ValueAsAnExpression, WomExpression}

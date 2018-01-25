@@ -69,7 +69,8 @@ object ScatterNode {
   final case class ScatterNodeWithNewNodes(node: ScatterNode) extends GeneratedNodeAndNewNodes {
     override val newExpressions: Set[ExpressionNode] = node.scatterCollectionExpressionNodes.toSet
     override val newInputs: Set[ExternalGraphInputNode] = node.innerGraph.externalInputNodes
-    override val usedOuterGraphInputNodes: Set[OuterGraphInputNode] =(node.scatterCollectionExpressionNodes.flatMap(_.upstream).toSet.filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode]) ++
+    override val usedOuterGraphInputNodes: Set[OuterGraphInputNode] =
+      (node.scatterCollectionExpressionNodes.flatMap(_.upstream).toSet.filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode]) ++
       (node.innerGraph.outerGraphInputNodes.map(_.linkToOuterGraphNode).filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode])
     def nodes: Set[GraphNode] = newExpressions ++ newInputs ++ usedOuterGraphInputNodes ++ Set(node)
   }

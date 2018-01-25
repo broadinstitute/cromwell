@@ -110,7 +110,7 @@ _Hint:_ Once you have regenerated the docs correctly, the hidden timestamp at th
 
 **_How do I generate a Markdown document of the Swagger YAML?_**
 
-A library named [swagger2markup](http://swagger2markup.github.io) will render a Swagger YAML into various formats, including Markdown. Then generated Markdown is further customized by a custom SBT task.
+A library named [swagger2markup](https://github.com/Swagger2Markup/swagger2markup) will render a Swagger YAML into various formats, including Markdown. Then generated Markdown is further customized by a custom SBT task.
 
 **_Generating and Hosting ScalaDoc_**
 

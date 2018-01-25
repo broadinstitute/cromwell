@@ -107,3 +107,20 @@ If not, [add it here](https://github.com/broadinstitute/cromwell/blob/develop/mk
 * **Don't forget to regenerate**  
 After you edit the [`cromwell.yaml`](https://github.com/broadinstitute/cromwell/blob/develop/engine/src/main/resources/swagger/cromwell.yaml), run `sbt generateRestApiDocs` and commit all changes.  
 _Hint:_ Once you have regenerated the docs correctly, the hidden timestamp at the top of the [`RESTAPI.md` file](https://raw.githubusercontent.com/broadinstitute/cromwell/develop/docs/api/RESTAPI.md) will show the current time.
+
+**_How do I generate a Markdown document of the Swagger YAML?_**
+
+A library named [swagger2markup](http://swagger2markup.github.io) will render a Swagger YAML into various formats, including Markdown. Then generated Markdown is further customized by a custom SBT task.
+
+**_Generating and Hosting ScalaDoc_**
+
+Essentially run `sbt doc` then commit the generated code into the `gh-pages` branch on this repository
+
+```
+$ sbt doc
+$ git co gh-pages
+$ mv target/scala-2.12/api scaladoc
+$ git add scaladoc
+$ git commit -m "API Docs"
+$ git push origin gh-pages
+```

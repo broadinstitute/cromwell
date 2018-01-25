@@ -6,7 +6,6 @@ import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr._
-import wom.types.WomNothingType
 import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomMap, WomObjectLike, WomOptionalValue, WomString, WomValue}
 
 import scala.collection.JavaConverters._
@@ -37,7 +36,8 @@ class JsEncoder {
     */
   def encode(value: WomValue): ErrorOr[AnyRef] = {
     value match {
-      case WomOptionalValue(WomNothingType, None) => Validated.valid(null)
+      case WomOptionalValue(_, None) => Validated.valid(null)
+      case WomOptionalValue(_, Some(innerValue)) => encode(innerValue)
       case WomString(string) => string.valid
       case WomInteger(int) => Int.box(int).valid
       case WomFloat(double) => Double.box(double).valid

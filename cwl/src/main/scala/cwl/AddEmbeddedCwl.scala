@@ -4,15 +4,15 @@ import shapeless.{Path => _, _}
 import cats.syntax.traverse._
 import cats.instances.list._
 import cats.effect.IO
-import CwlDecoder.Parse
-import cats.Monad
+import CwlDecoder.{Parse, ParseValidated}
+import cats.{Applicative, Monad}
 import cats.data.EitherT._
 import cats.data.EitherT
 import common.validation.ErrorOr._
 
 object AddEmbeddedCwl extends Poly1 {
 
-  import CwlDecoder._
+  implicit val composedApplicative = Applicative[IO] compose Applicative[ErrorOr]
 
   implicit def workflow: Case.Aux[Workflow, Map[String, Cwl] => Parse[Cwl]] =
     at[Workflow] {

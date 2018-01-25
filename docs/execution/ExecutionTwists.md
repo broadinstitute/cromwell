@@ -95,3 +95,43 @@ Once all jobs have been reconnected to, the workflow will keep running normally.
 
 During the reconnection process Cromwell might ask backends to reconnect to jobs that were never started before the restart. In that case, the job will be mark as failed with an explanation message. This failure is benign and only an artifact of the fact that Cromwell was restarted.  
 If the backend does not support reconnection to an existing job, jobs will be marked as failed with an explanation message as well. The backend status of the jobs will be "Unknown".
+
+## Graceful Shutdown
+
+When Cromwell is run as a server, it will by default attempt to gracefully shutdown, stopping its different services in a specific order to avoid losing critical data.
+This behavior, documented below, can be turned off in the configuration via `system.graceful-server-shutdown = false`.
+
+Upon receiving a `SIGINT` or `SIGTERM` signal, the JVM will initiate its shutdown process. Prior to this Cromwell will attempt to shutdown its own services in the following way:
+
+1. Workflows in `Submitted` state are no longer started
+2. Cromwell unbinds from the address/port it was listening on. From this point the Cromwell server is unreachable via the endpoints.
+3. All actors generating data that needs to be persisted receive a message asking them to gracefully stop.
+This means that they are given some time (see below for how much and how to change it) to return to a known "consistent" state.
+For example, an actor waiting for a response from the database before sending information to the metadata will wait for that response before shutting itself down.
+4. All active connections from the REST endpoints are completed and closed. At this point any client that made a request before the shutdown process started should have received a response.
+5. All actors responsible for data persistence are in turn being asked to gracefully shutdown. 
+For example, all queued up metadata writes are executed.
+6. Database connection pools are shutdown.
+7. Actor system shuts down.
+8. JVM exits.
+    
+This multi-stage process is designed to minimize the risk of data loss during shutdown. However in order to prevent this process to last forever, each stage (called phase) has its own timeout.
+If the phase does not complete within the given timeout, actors will be forcefully stopped and the next phase will start.
+
+This logic is implemented using [Akka Coordinated Shutdown Extension](http://doc.akka.io/docs/akka/current/scala/actors.html#coordinated-shutdown).
+It comes with a set of pre-defined phases, that can be added on and modified. Those phases can be linked together to form a Graph. Cromwell shutdown graphs looks as such:
+
+![Scaladoc](CromwellShutdownProcess.png)
+
+Pre-defined but unused phases have been omitted (cluster related phases for example that are irrelevant in Cromwell).
+
+You'll notice the presence of a `PhaseAbortAllWorkflows` phase. This phase is at the same level as the `PhaseServiceRequestsDone` phase which corresponds to our step #3 above.
+The reason for a specific abort phase is so that its timeout can be configured differently than the normal shutdown phase.
+
+Indeed, stopping all workflows and aborting them is very similar from an outside perspective. We send a message (resp. "Stop" and "Abort") and wait for a response.
+
+However we want to be able to give more time to abort as it will likely involve more work. This can be done by editing the value of `coordinated-shutdown.phases.abort-all-workflows.timeout` which defaults to 1 hour.
+Phases timeouts default to 5 seconds, except the stop-io-activity phase which defaults to 30 minutes. This is because depending on the Database load at the time of the shutdown, it might take a significant amount of time to flush all pending writes.
+
+All of the timeouts are configurable in the `akka.coordinated-shutdown.phases` section (see `reference.conf`).
+To change the default timeout, change the value of `akka.coordinated-shutdown.default-phase-timeout`.

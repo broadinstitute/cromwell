@@ -481,6 +481,40 @@ object WdlNamespace {
       }
     }
 
+    def checkValidityOfMemberAccess(memberAccessAst: Ast): Option[SyntaxError] = {
+      val memberAccess = MemberAccess(memberAccessAst)
+      val requestedValue = memberAccess.rhsString
+      val resolvedScope: Option[Scope] = call.resolveVariable(memberAccess.lhsString)
+      resolvedScope match {
+        case Some(c: WdlCall) if c.outputs.exists(_.unqualifiedName == requestedValue) => None
+        case Some(c: WdlCall) =>
+          Option(new SyntaxError(wdlSyntaxErrorFormatter.memberAccessReferencesAbsentCallOutput(memberAccessAst, c)))
+        case Some(s: Scatter) =>
+          s.collection.evaluateType(lookupType(s), new WdlStandardLibraryFunctionsType) map {
+            case WomArrayType(WomObjectType) => None
+            case WomArrayType(_: WomPairType) if memberAccess.rhsString == "left" || memberAccess.rhsString == "right" => None
+            // Maps get coerced into arrays of pairs, so this is also ok:
+            case _: WomMapType if memberAccess.rhsString == "left" || memberAccess.rhsString == "right" => None
+            case other => Option(new SyntaxError(wdlSyntaxErrorFormatter.badTargetTypeForMemberAccess(memberAccess, other)))
+          } getOrElse None
+        case Some(d: DeclarationInterface) => d.womType match {
+          case _: WomPairType if memberAccess.rhsString == "left" || memberAccess.rhsString == "right" => None
+          case WomObjectType => None
+          case other => Option(new SyntaxError(wdlSyntaxErrorFormatter.badTargetTypeForMemberAccess(memberAccess, other)))
+        }
+        case Some(other) => Option(new SyntaxError(wdlSyntaxErrorFormatter.badTargetScopeForMemberAccess(memberAccess, other)))
+        case None => None
+          // In cases where there are many member accesses in the same Ast, it might be we can look up one layer but
+          // not an inner layer.
+          // It looks like we couldn't find this layer, so check whether there's an outer layer we can test access
+          // for instead.
+          memberAccess.lhsAst match {
+            case outerMemberAccessAst: Ast if outerMemberAccessAst.getName == "MemberAccess" => checkValidityOfMemberAccess(outerMemberAccessAst)
+            case _ => Option(new SyntaxError(wdlSyntaxErrorFormatter.noTargetForMemberAccess(memberAccess)))
+          }
+      }
+    }
+
     /*
      * Ensures that the lhs corresponds to a call and the rhs corresponds to one of its outputs. We're only checking
      * top level MemberAccess ASTs because the sub-ASTs don't make sense w/o the context of the parent. For example
@@ -489,32 +523,7 @@ object WdlNamespace {
      *
      */
     val invalidMemberAccesses: Seq[WdlParser.SyntaxError] = callInputSections flatMap { ast =>
-      ast.getAttribute("value").findTopLevelMemberAccesses flatMap { memberAccessAst =>
-        val memberAccess = MemberAccess(memberAccessAst)
-        val requestedValue = memberAccess.rhs
-        val resolvedScope: Option[Scope] = call.resolveVariable(memberAccess.lhs)
-        resolvedScope match {
-          case Some(c: WdlCall) if c.outputs.exists(_.unqualifiedName == requestedValue) => None
-          case Some(c: WdlCall) =>
-            Option(new SyntaxError(wdlSyntaxErrorFormatter.memberAccessReferencesAbsentCallOutput(memberAccessAst, c)))
-          case Some(s: Scatter) =>
-            s.collection.evaluateType(lookupType(s), new WdlStandardLibraryFunctionsType) map {
-              case WomArrayType(WomObjectType) => None
-              case WomArrayType(_: WomPairType) if memberAccess.rhs == "left" || memberAccess.rhs == "right" => None
-              // Maps get coerced into arrays of pairs, so this is also ok:
-              case _: WomMapType if memberAccess.rhs == "left" || memberAccess.rhs == "right" => None
-              case other => Option(new SyntaxError(wdlSyntaxErrorFormatter.badTargetTypeForMemberAccess(memberAccess, other)))
-            } getOrElse None
-          case Some(d: DeclarationInterface) => d.womType match {
-            case _: WomPairType if memberAccess.rhs == "left" || memberAccess.rhs == "right" => None
-            case WomObjectType => None
-            case other => Option(new SyntaxError(wdlSyntaxErrorFormatter.badTargetTypeForMemberAccess(memberAccess, other)))
-          }
-          case Some(other) => Option(new SyntaxError(wdlSyntaxErrorFormatter.badTargetScopeForMemberAccess(memberAccess, other)))
-          case None =>
-            Option(new SyntaxError(wdlSyntaxErrorFormatter.noTargetForMemberAccess(memberAccess)))
-        }
-      }
+      ast.getAttribute("value").findTopLevelMemberAccesses() flatMap checkValidityOfMemberAccess
     }
 
     invalidMemberAccesses ++

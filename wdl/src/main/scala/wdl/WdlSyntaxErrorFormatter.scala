@@ -206,7 +206,7 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) e
   def noTargetForMemberAccess(memberAccess: MemberAccess): String = {
     val rhsAst = memberAccess.ast.getAttribute("rhs").asInstanceOf[Terminal]
 
-    s"""ERROR: Cannot find reference to '${memberAccess.lhs}' for member access '${memberAccess.memberAccessString}' (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
+    s"""ERROR: Cannot find reference to '${memberAccess.lhsString}' for member access '${memberAccess.memberAccessString}' (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
      |
      |${pointToSource(rhsAst)}
      """.stripMargin
@@ -215,7 +215,7 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) e
   def badTargetTypeForMemberAccess(memberAccess: MemberAccess, unexpectedType: WomType): String = {
     val rhsAst = memberAccess.ast.getAttribute("rhs").asInstanceOf[Terminal]
 
-    s"""ERROR: Bad target for member access '${memberAccess.memberAccessString}': '${memberAccess.lhs}' was a ${unexpectedType.toDisplayString} (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
+    s"""ERROR: Bad target for member access '${memberAccess.memberAccessString}': '${memberAccess.lhsString}' was a ${unexpectedType.toDisplayString} (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
        |
      |${pointToSource(rhsAst)}
      """.stripMargin
@@ -224,7 +224,7 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) e
   def badTargetScopeForMemberAccess(memberAccess: MemberAccess, unexpectedScope: Scope): String = {
     val rhsAst = memberAccess.ast.getAttribute("rhs").asInstanceOf[Terminal]
 
-    s"""ERROR: Bad target for member access '${memberAccess.memberAccessString}': '${memberAccess.lhs}' was a ${unexpectedScope.getClass.getSimpleName} (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
+    s"""ERROR: Bad target for member access '${memberAccess.memberAccessString}': '${memberAccess.lhsString}' was a ${unexpectedScope.getClass.getSimpleName} (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
        |
      |${pointToSource(rhsAst)}
      """.stripMargin
@@ -236,12 +236,12 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) e
     val taskName = call.unqualifiedName
     val goodOutputs = s" (current outputs of '$taskName': " + call.outputs.map("'" + _.unqualifiedName + "'").mkString(", ") + ")"
 
-    s"""ERROR: Call output not found: Call '${memberAccess.lhs}' doesn't have an output '${memberAccess.rhs}' (line ${rhsAst.getLine}, col ${rhsAst.getColumn}).
+    s"""ERROR: Call output not found: Call '${memberAccess.lhsString}' doesn't have an output '${memberAccess.rhsString}' (line ${rhsAst.getLine}, col ${rhsAst.getColumn}).
      |
      |${pointToSource(rhsAst)}
      |
      |Options:
-     | - Add the output '${memberAccess.rhs}' to '$taskName'.
+     | - Add the output '${memberAccess.rhsString}' to '$taskName'.
      | - Modify the member access (on line ${rhsAst.getLine}) to use an existing output$goodOutputs.
      """.stripMargin
   }

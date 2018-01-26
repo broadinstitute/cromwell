@@ -42,7 +42,7 @@ class PAPIPreprocessor(config: Config) {
   }
 
   // Process and print back as YAML
-  private def processYaml(value: String)(f: Json => Json) = process(value, f, yaml.Printer.spaces2.pretty)
+  private def processYaml(value: String)(f: Json => Json) = process(value, f, yaml.Printer.spaces2.copy(stringStyle = yaml.Printer.StringStyle.DoubleQuoted).pretty)
 
   // Process and print back as JSON
   private def processJson(value: String)(f: Json => Json) = process(value, f, io.circe.Printer.spaces2.pretty)

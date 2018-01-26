@@ -6,7 +6,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
   behavior of "PAPIPreProcessor"
 
   val pAPIPreprocessor = new PAPIPreprocessor(ConfigFactory.load())
-  
+
   def validate(result: String, expectation: String) = {
     val parsedResult = io.circe.yaml.parser.parse(result).right.get
     val parsedExpectation = io.circe.yaml.parser.parse(expectation).right.get

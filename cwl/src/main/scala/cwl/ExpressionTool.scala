@@ -57,7 +57,6 @@ case class ExpressionTool(
       def mapPortsToValues(values: Map[String, WomValue]): Checked[Map[OutputPort, WomValue]] = {
         import cats.instances.list._
         import cats.syntax.traverse._
-        import cats.syntax.either._
 
         val coercedValues: List[ErrorOr[(OutputPort, WomValue)]] = for {
           outputPort <- outputPorts

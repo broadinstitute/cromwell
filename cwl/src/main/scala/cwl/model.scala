@@ -1,6 +1,8 @@
 package cwl
 
-import cats.data.NonEmptyList
+import cats.syntax.option._
+import cats.syntax.traverse._
+import cats.instances.list._
 import eu.timepit.refined._
 import cats.syntax.either._
 import shapeless.{:+:, CNil, Witness}
@@ -27,8 +29,7 @@ case class WorkflowStepInput(
                        outputTypeMap: Map[String, WomType],
                        expressionLib: ExpressionLib
                       )(implicit parentName: ParentName): ErrorOr[ExposedExpressionNode] = {
-    val source = this.source.flatMap(_.select[String]).get
-    val lookupId = FullyQualifiedName(source).id
+    val lookupId = source.toList.flatMap(_.fold(WorkflowStepInputSourceToStrings)).map(FullyQualifiedName(_).id)
 
     val inputs = sourceMappings.keySet
 
@@ -36,8 +37,8 @@ case class WorkflowStepInput(
       case (key, value) => FullyQualifiedName(key).id -> value
     }
     (for {
-      inputType <- outputTypeMapWithIDs.get(lookupId).
-        toRight(NonEmptyList.one(s"couldn't find $lookupId as derived from $source in map\n${outputTypeMapWithIDs.mkString("\n")}"))
+      inputTypes <- lookupId.traverse[ErrorOr, WomType](outputTypeMapWithIDs.get(_).toValidNel(s"couldn't find $lookupId as derived from $source in map\n${outputTypeMapWithIDs.mkString("\n")}")).toEither
+      inputType = WomType.lowestCommonSubtype(inputTypes)
       womExpression = WorkflowStepInputExpression(this, inputType, inputs, expressionLib)
       identifier = WomIdentifier(id)
       ret <- ExposedExpressionNode.fromInputMapping(identifier, womExpression, inputType, sourceMappings).toEither

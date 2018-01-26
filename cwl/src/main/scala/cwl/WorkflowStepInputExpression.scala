@@ -30,7 +30,7 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
 
 
     (input.valueFrom, input.source.map(_.fold(WorkflowStepInputSourceToStrings))) match {
-      case (None, Some(WorkflowStepInputSource.String(id))) =>
+      case (None, Some(List(id))) =>
         lookupValue(id).toValidated
 
       // If valueFrom is a constant string value, use this as the value for this input parameter.

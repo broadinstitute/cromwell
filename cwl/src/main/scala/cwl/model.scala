@@ -5,7 +5,6 @@ import cats.syntax.traverse._
 import cats.instances.list._
 import eu.timepit.refined._
 import cats.syntax.either._
-import common.Checked
 import shapeless.{:+:, CNil, Witness}
 import shapeless.syntax.singleton._
 import cwl.LinkMergeMethod.LinkMergeMethod

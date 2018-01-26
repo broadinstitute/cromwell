@@ -34,10 +34,10 @@ package object values {
   }
 
   implicit class ShellQuoteHelper(val s: String) extends AnyVal {
-    // Escape any double quote characters in the string and surround with double quotes. The CWL spec doesn't
-    // appear to say whether quotes should be of the single or double variety, but the conformance tests clearly
-    // expect double quotes to allow for interpolation of environment variables.
-    def shellQuote: String = '"' + s.replaceAll("\"", "\\\"") + '"'
+    // `cwltool` invokes `shellescape.quote` to escape its arguments. This should reimplement that algorithm.
+    // [1] https://github.com/common-workflow-language/cwltool/blob/93a122a3da7926be8efe9a0952214ee7244d0d46/cwltool/draft2tool.py#L495-L496
+    // [2] https://github.com/chrissimpkins/shellescape/blob/1600bceca32a8df2d8928751003f429dad9fe77e/lib/shellescape/main.py#L21
+    def shellQuote: String = "'" + s.replaceAll("'", "'\"'\"'") + "'"
   }
 }
 

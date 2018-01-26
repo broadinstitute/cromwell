@@ -1,6 +1,5 @@
 package cwl
 
-import cats.data.Validated.Invalid
 import cats.syntax.either._
 import cats.syntax.validated._
 import common.Checked
@@ -11,6 +10,8 @@ import wom.expression.IoFunctionSet
 import wom.graph.LocalName
 import wom.values._
 import wom.{CommandPart, InstantiatedCommand}
+
+import scala.language.postfixOps
 
 case class CwlExpressionCommandPart(expr: Expression)(expressionLib: ExpressionLib) extends CommandPart {
   override def instantiate(inputsMap: Map[LocalName, WomValue],
@@ -62,9 +63,9 @@ abstract class CommandLineBindingCommandPart(commandLineBinding: CommandLineBind
       case None => "Command line binding has no valueFrom field and no bound value".invalidNelCheck
     }
     
-    def applyShellQuote(womValue: WomValue): Checked[WomValue] = commandLineBinding.shellQuote match {
-      case Some(false) | None => womValue.validNelCheck
-      case _ => "Shell quote is unsupported yet".invalidNelCheck
+    def applyShellQuote(value: String): String = commandLineBinding.shellQuote match {
+      case Some(false) => value
+      case _ => value.shellQuote
     }
     
     def processValue(womValue: WomValue): List[String] = womValue match {
@@ -82,11 +83,7 @@ abstract class CommandLineBindingCommandPart(commandLineBinding: CommandLineBind
       case _ => List.empty
     }
 
-    // Can't flatMap Either in 2.11.
-    evaluatedWomValue match {
-      case Right(womValue) => applyShellQuote(womValue).map(processValue).map(_.map(InstantiatedCommand(_))).toValidated
-      case Left(e) => Invalid(e)
-    }
+    evaluatedWomValue map { v => processValue(v) map applyShellQuote map (InstantiatedCommand(_)) } toValidated
   }
   
   def boundValue: Option[WomValue]

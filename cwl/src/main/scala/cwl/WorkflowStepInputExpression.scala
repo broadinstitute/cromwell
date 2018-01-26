@@ -28,7 +28,6 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
         get(FullyQualifiedName(key).id).
         toRight(s"source value $key not found in input values ${inputValues.mkString("\n")}.  Graph Inputs were ${graphInputs.mkString("\n")}" |> NonEmptyList.one)
 
-
     (input.valueFrom, input.source.map(_.fold(WorkflowStepInputSourceToStrings))) match {
       case (None, Some(List(id))) =>
         lookupValue(id).toValidated

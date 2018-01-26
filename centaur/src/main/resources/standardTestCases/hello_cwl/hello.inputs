@@ -1,0 +1,3 @@
+# Seemingly innocuous but this particular message actually tests proper shell quoting of
+# spaces, single quotes, and exclamation points.
+message: Hello m'Lord!

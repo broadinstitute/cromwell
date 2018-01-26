@@ -9,10 +9,10 @@ import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import cwl.WorkflowStepInput.InputSource
 import cwl.command.ParentName
+import mouse.all._
 import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values._
-import mouse.all._
 
 final case class WorkflowStepInputExpression(input: WorkflowStepInput,
                                              override val cwlExpressionType: WomType,
@@ -22,17 +22,19 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
   override def sourceString = input.toString
 
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet) = {
+
     def lookupValue(key: String): Checked[WomValue] =
       inputValues.
         get(FullyQualifiedName(key).id).
         toRight(s"source value $key not found in input values ${inputValues.mkString("\n")}.  Graph Inputs were ${graphInputs.mkString("\n")}" |> NonEmptyList.one)
 
-    (input.valueFrom, input.source) match {
+
+    (input.valueFrom, input.source.map(_.fold(WorkflowStepInputSourceToStrings))) match {
       case (None, Some(WorkflowStepInputSource.String(id))) =>
         lookupValue(id).toValidated
 
-        // If valueFrom is a constant string value, use this as the value for this input parameter.
-        // TODO: need to handle case where this is a parameter reference
+      // If valueFrom is a constant string value, use this as the value for this input parameter.
+      // TODO: need to handle case where this is a parameter reference, it currently looks like a String to us!
       case (Some(StringOrExpression.String(value)), None) => WomString(value).validNel
 
       /**
@@ -46,23 +48,19 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
         * input parameters is undefined and the result of evaluating valueFrom on a parameter must not be visible to
         * evaluation of valueFrom on other parameters.
         */
-      case (Some(StringOrExpression.Expression(expression)), Some(WorkflowStepInputSource.String(source))) => {
+      case (Some(StringOrExpression.Expression(expression)), Some(sources)) =>
+        //used to determine the value of "self" as expected by CWL Spec
+        def selfValue(in: List[WomValue]) = in match {
+          case single :: Nil => single
+          case multiple => WomArray(multiple)
+        }
+
         val either =
           for {
-            self <- lookupValue(source)
+            sourceValueList <- sources.traverse[ErrorOr, WomValue](lookupValue(_).toValidated).toEither
+            //value is either a womArray or not depending on how many items are in the source list
+            self = selfValue(sourceValueList)
             pc = ParameterContext(inputValues, self)
-            result <- expression.fold(EvaluateExpression).apply(pc, expressionLib).toEither
-          } yield result
-
-        either.toValidated
-      }
-
-
-      case (Some(StringOrExpression.Expression(expression)), Some(WorkflowStepInputSource.StringArray(array))) =>
-        val either =
-          for {
-            self <- array.toList.traverse[ErrorOr, WomValue](lookupValue(_).toValidated).toEither
-            pc = ParameterContext(inputValues, WomArray(self))
             result <- expression.fold(EvaluateExpression).apply(pc, expressionLib).toEither
           } yield result
 

@@ -5,6 +5,7 @@ import cats.syntax.traverse._
 import cats.instances.list._
 import eu.timepit.refined._
 import cats.syntax.either._
+import common.Checked
 import shapeless.{:+:, CNil, Witness}
 import shapeless.syntax.singleton._
 import cwl.LinkMergeMethod.LinkMergeMethod
@@ -29,15 +30,24 @@ case class WorkflowStepInput(
                        outputTypeMap: Map[String, WomType],
                        expressionLib: ExpressionLib
                       )(implicit parentName: ParentName): ErrorOr[ExposedExpressionNode] = {
-    val lookupId = source.toList.flatMap(_.fold(WorkflowStepInputSourceToStrings)).map(FullyQualifiedName(_).id)
+
+    val sources = source.toList.flatMap(_.fold(WorkflowStepInputSourceToStrings)).map(FullyQualifiedName(_).id)
 
     val inputs = sourceMappings.keySet
 
     val outputTypeMapWithIDs = outputTypeMap.map {
       case (key, value) => FullyQualifiedName(key).id -> value
     }
+
+    def lookupId(id: String): ErrorOr[WomType] =
+      outputTypeMapWithIDs.
+        get(id).
+        toValidNel(s"couldn't find $id as derived from $source in map\n${outputTypeMapWithIDs.mkString("\n")}")
+
     (for {
-      inputTypes <- lookupId.traverse[ErrorOr, WomType](outputTypeMapWithIDs.get(_).toValidNel(s"couldn't find $lookupId as derived from $source in map\n${outputTypeMapWithIDs.mkString("\n")}")).toEither
+      //lookup each of our source Ids, failing if any of them are missing
+      inputTypes <- sources.traverse[ErrorOr, WomType](lookupId).toEither
+      //we may have several sources, we make sure to have a type common to all of them
       inputType = WomType.lowestCommonSubtype(inputTypes)
       womExpression = WorkflowStepInputExpression(this, inputType, inputs, expressionLib)
       identifier = WomIdentifier(id)

@@ -25,11 +25,12 @@ case class WorkflowStepInput(
 
   def toExpressionNode(sourceMappings: Map[String, OutputPort],
                        outputTypeMap: Map[String, WomType],
-                       inputs: Set[String],
                        expressionLib: ExpressionLib
                       )(implicit parentName: ParentName): ErrorOr[ExposedExpressionNode] = {
     val source = this.source.flatMap(_.select[String]).get
     val lookupId = FullyQualifiedName(source).id
+
+    val inputs = sourceMappings.keySet
 
     val outputTypeMapWithIDs = outputTypeMap.map {
       case (key, value) => FullyQualifiedName(key).id -> value

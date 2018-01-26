@@ -160,28 +160,22 @@ case class WorkflowStep(
               }
           }
 
-          def updateFold(outputPort: Map[String, OutputPort], newNodes: Set[GraphNode]): Checked[WorkflowStepInputFold] = {
-            val sourceMappings = outputPort.map{ case(inputSource, outputPort) => FullyQualifiedName(inputSource).id -> outputPort}.toMap
-
-            // TODO for now we only handle a single input source, but there may be several
+          def updateFold(sourceMappings: Map[String, OutputPort], newNodes: Set[GraphNode]): Checked[WorkflowStepInputFold] =
             workflowStepInput.toExpressionNode(sourceMappings, typeMap, expressionLib).map({ expressionNode =>
               fold |+| WorkflowStepInputFold(
                 stepInputMapping = Map(FullyQualifiedName(workflowStepInput.id).id -> expressionNode),
                 generatedNodes = newNodes + expressionNode
               )
             }).toEither
-          }
 
-
-
-          /*
-           * Parse the inputSource (what this input is pointing to)
-           * 2 cases:
-           *   - points to a workflow input
-           *   - points to an upstream step
-           */
-          val x: Checked[(Map[String, OutputPort], Set[GraphNode])] = inputSources.foldLeft((Map.empty[String, OutputPort], accumulatedNodes).asRight[NonEmptyList[String]]){
+          val inputMappingsAndGraphNodes: Checked[(Map[String, OutputPort], Set[GraphNode])] = inputSources.foldLeft((Map.empty[String, OutputPort], accumulatedNodes).asRight[NonEmptyList[String]]){
             case (Right((sourceMappings, graphNodes)), inputSource) =>
+              /*
+               * Parse the inputSource (what this input is pointing to)
+               * 2 cases:
+               *   - points to a workflow input
+               *   - points to an upstream step
+               */
               FullyQualifiedName(inputSource) match {
                 // The source points to a workflow input, which means it should be in the workflowInputs map
                 case FileAndId(_, _, inputId) => fromWorkflowInput(inputId).map(newMap => (sourceMappings ++ newMap, graphNodes))
@@ -191,7 +185,7 @@ case class WorkflowStep(
             case (other, _) => other
           }
 
-          x.flatMap((updateFold _).tupled)
+          inputMappingsAndGraphNodes.flatMap((updateFold _).tupled)
       }
 
       /*

@@ -1,7 +1,6 @@
 package cwl
 
 import cats.data.NonEmptyList
-import cats.syntax.option._
 import cats.syntax.validated._
 import cats.syntax.either._
 import cats.syntax.traverse._
@@ -25,14 +24,12 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet) = {
     def lookupValue(key: String): Checked[WomValue] =
       inputValues.
-        get(key).
-        toRight(s"source value $key not found in input values ${inputValues.mkString(", ")}" |> NonEmptyList.one)
+        get(FullyQualifiedName(key).id).
+        toRight(s"source value $key not found in input values ${inputValues.mkString("\n")}.  Graph Inputs were ${graphInputs.mkString("\n")}" |> NonEmptyList.one)
 
     (input.valueFrom, input.source) match {
       case (None, Some(WorkflowStepInputSource.String(id))) =>
-        inputValues.
-          get(FullyQualifiedName(id).id).
-          toValidNel(s"could not find id $id in typeMap\n${inputValues.mkString("\n")}\nwhen evaluating $input.  Graph Inputs were ${graphInputs.mkString("\n")}")
+        lookupValue(id).toValidated
 
         // If valueFrom is a constant string value, use this as the value for this input parameter.
         // TODO: need to handle case where this is a parameter reference

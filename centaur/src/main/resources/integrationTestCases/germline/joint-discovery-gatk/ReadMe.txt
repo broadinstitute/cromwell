@@ -1,0 +1,1 @@
+joint-discovery-gatk4-part1 and joint-discovery-gatk4-part2 is a the orginal split in half in case the excution time goes over travis's default limit.

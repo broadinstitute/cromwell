@@ -74,7 +74,6 @@ sealed trait TaskDefinition extends Callable {
   * Can be Callable only or CallableExecutable
   */
 sealed trait CommandTaskDefinition extends TaskDefinition {
-
   def stdoutRedirection: Option[String]
   def stderrRedirection: Option[String]
   def commandTemplateBuilder: WomEvaluatedCallInputs => ErrorOr[Seq[CommandPart]]
@@ -154,7 +153,7 @@ final case class CallableTaskDefinition(name: String,
 }
 
 /**
-  * A task definition with an embedded graph.
+  * A command task definition with an embedded graph.
   * Can be called from a workflow but can also be run as a standalone execution.
   */
 final case class ExecutableTaskDefinition private (callableTaskDefinition: CallableTaskDefinition,
@@ -178,4 +177,45 @@ final case class ExecutableTaskDefinition private (callableTaskDefinition: Calla
   override def additionalGlob = callableTaskDefinition.additionalGlob
   override private [wom]  def customizedOutputEvaluation = callableTaskDefinition.customizedOutputEvaluation
   override def toExecutable = this.validNel
+}
+
+sealed trait ExpressionTaskDefinition extends TaskDefinition {
+  def evaluate: (Map[String, WomValue], IoFunctionSet, List[OutputPort]) => Checked[Map[OutputPort, WomValue]]
+}
+
+
+/**
+  * An expression task definition only.
+  * Can be called but cannot be used in an Executable as a standalone execution.
+  */
+final case class CallableExpressionTaskDefinition(name: String,
+                                                  evaluate: (Map[String, WomValue], IoFunctionSet, List[OutputPort]) => Checked[Map[OutputPort, WomValue]],
+                                                  runtimeAttributes: RuntimeAttributes,
+                                                  meta: Map[String, String],
+                                                  parameterMeta: Map[String, String],
+                                                  outputs: List[Callable.OutputDefinition],
+                                                  inputs: List[_ <: Callable.InputDefinition],
+                                                  prefixSeparator: String = ".",
+                                                  private [wom] val customizedOutputEvaluation: OutputEvaluationFunction = OutputEvaluationFunction.none
+                                       ) extends ExpressionTaskDefinition {
+  def toExecutable: ErrorOr[ExecutableExpressionTaskDefinition] = TaskCall.graphFromDefinition(this) map { ExecutableExpressionTaskDefinition(this, _) }
+}
+
+/**
+  * An expression task definition with an embedded graph.
+  * Can be called from a workflow but can also be run as a standalone execution.
+  */
+final case class ExecutableExpressionTaskDefinition private (callableTaskDefinition: CallableExpressionTaskDefinition,
+                                                   override val graph: Graph
+                                                  ) extends ExpressionTaskDefinition with ExecutableCallable {
+  override def name = callableTaskDefinition.name
+  override def inputs = callableTaskDefinition.inputs
+  override def outputs = callableTaskDefinition.outputs
+
+  override def evaluate = callableTaskDefinition.evaluate
+  override def runtimeAttributes = callableTaskDefinition.runtimeAttributes
+  override def meta = callableTaskDefinition.meta
+  override def parameterMeta = callableTaskDefinition.parameterMeta
+  override def toExecutable = this.validNel
+  override private [wom]  def customizedOutputEvaluation = callableTaskDefinition.customizedOutputEvaluation
 }

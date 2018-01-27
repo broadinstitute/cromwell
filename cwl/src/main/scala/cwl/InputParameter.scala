@@ -17,7 +17,6 @@ trait InputParameter {
   def inputBinding: Option[InputCommandLineBinding]
   def default: Option[CwlAny]
   def `type`: Option[MyriadInputType]
-
   def loadContents = inputBinding.flatMap(_.loadContents).getOrElse(false)
 }
 

@@ -84,8 +84,8 @@ case class WorkflowStep(
     // To avoid duplicating nodes, return immediately if we've already covered this node
     val haveWeSeenThisStep: Boolean = knownNodes.collect {
       case CommandCallNode(identifier, _, _, _) => identifier
+      case ExpressionCallNode(identifier, _, _, _) => identifier
       case WorkflowCallNode(identifier, _, _, _) => identifier
-      // TODO CWL: Catch known ExpressionTools too
     }.contains(unqualifiedStepId)
 
     if (haveWeSeenThisStep) Right(knownNodes)
@@ -93,8 +93,7 @@ case class WorkflowStep(
       val callable: Checked[Callable] = run match {
         case Run.CommandLineTool(clt) => clt.buildTaskDefinition(validator, expressionLib)
         case Run.Workflow(wf) => wf.womDefinition(validator, expressionLib)
-        // TODO CWL (obviously):
-        case Run.ExpressionTool(_) => throw new Exception("ExpressionTool is not supported as a workflow step yet")
+        case Run.ExpressionTool(et) => et.buildTaskDefinition(validator, expressionLib)
       }
 
       val callNodeBuilder = new CallNode.CallNodeBuilder()
@@ -210,13 +209,13 @@ case class WorkflowStep(
             ).validNel
 
           // No expression node mapping, use the default
-          case withDefault @ InputDefinitionWithDefault(_, _, expression) =>
+          case withDefault @ InputDefinitionWithDefault(_, _, expression, _) =>
             InputDefinitionFold(
               mappings = List(withDefault -> Coproduct[InputDefinitionPointer](expression))
             ).validNel
 
           // Required input without default value and without mapping, this is a validation error
-          case RequiredInputDefinition(requiredName, _) =>
+          case RequiredInputDefinition(requiredName, _, _) =>
             s"Input $requiredName is required and is not bound to any value".invalidNel
 
           // Optional input without mapping, defaults to empty value

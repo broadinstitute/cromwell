@@ -11,12 +11,15 @@ import cwl.command.ParentName
 import cwl.requirement.RequirementToAttributeMap
 import shapeless.Inl
 import wom.RuntimeAttributes
+import wom.callable.Callable.InputDefinition.InputValueMapper
 import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, OutputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, TaskDefinition}
 import wom.executable.Executable
-import wom.expression.{ValueAsAnExpression, WomExpression}
+import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}
 import wom.types.WomOptionalType
-
+import wom.values.{WomMaybePopulatedFile, WomValue}
+import scala.concurrent.duration._
+import scala.concurrent.Await
 import scala.util.Try
 
 object Tool {
@@ -48,7 +51,7 @@ trait Tool {
 
   /** Builds an `Executable` directly from a `Tool` CWL with no parent workflow. */
   def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None): Checked[Executable] = {
-    val taskDefinition: Checked[TaskDefinition] = buildTaskDefinition(validator, Vector.empty)
+    val taskDefinition = buildTaskDefinition(validator, Vector.empty)
     CwlExecutableValidation.buildWomExecutable(taskDefinition, inputFile)
   }
 
@@ -92,6 +95,19 @@ trait Tool {
   private def processRequirement(requirement: Requirement, expressionLib: ExpressionLib): Map[String, WomExpression] = {
     requirement.fold(RequirementToAttributeMap).apply(inputNames, expressionLib)
   }
+  
+  /*
+    * Yet another value mapper. This one is needed because in CWL we might need to "augment" inputs which we can only do
+    * once they have been linked to a WomValue. This input value mapper encapsulates logic to be applied once that is done. 
+    * For now, if the inputParameter has an input binding with loadContents = true, load the content of the file.
+   */
+  private def inputValueMapper(inputParameter: InputParameter): InputValueMapper = { ioFunctionSet: IoFunctionSet => {
+      case womValue: WomMaybePopulatedFile if inputParameter.loadContents =>
+        val content = Await.result(ioFunctionSet.readFile(womValue.value, ReadLimit, failOnOverflow = false), 60.seconds)
+        womValue.copy(contentsOption = Option(content))
+      case womValue: WomValue => womValue
+    }
+  }
 
   def buildTaskDefinition(validator: RequirementsValidator, parentExpressionLib: ExpressionLib): Checked[TaskDefinition] = {
     def build(requirementsAndHints: Seq[cwl.Requirement]) = {
@@ -111,17 +127,17 @@ trait Tool {
 
       val inputDefinitions: List[_ <: Callable.InputDefinition] =
         this.inputs.map {
-          case InputParameter.IdDefaultAndType(inputId, default, tpe) =>
+          case input @ InputParameter.IdDefaultAndType(inputId, default, tpe) =>
             val inputType = tpe.fold(MyriadInputTypeToWomType)
             val inputName = FullyQualifiedName(inputId).id
             val defaultWomValue = default.fold(InputParameter.DefaultToWomValuePoly).apply(inputType).toTry.get
-            InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(defaultWomValue))
-          case InputParameter.IdAndType(inputId, tpe) =>
+            InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(defaultWomValue), inputValueMapper(input))
+          case input @ InputParameter.IdAndType(inputId, tpe) =>
             val inputType = tpe.fold(MyriadInputTypeToWomType)
             val inputName = FullyQualifiedName(inputId).id
             inputType match {
-              case optional: WomOptionalType => OptionalInputDefinition(inputName, optional)
-              case _ => RequiredInputDefinition(inputName, inputType)
+              case optional: WomOptionalType => OptionalInputDefinition(inputName, optional, inputValueMapper(input))
+              case _ => RequiredInputDefinition(inputName, inputType, inputValueMapper(input))
             }
           case other => throw new NotImplementedError(s"command input parameters such as $other are not yet supported")
         }.toList
@@ -129,7 +145,7 @@ trait Tool {
       val outputDefinitions: List[Callable.OutputDefinition] = this.outputs.map {
         case p @ OutputParameter.IdAndType(cop_id, tpe) =>
           val womType = tpe.fold(MyriadOutputTypeToWomType)
-          OutputDefinition(FullyQualifiedName(cop_id).id, womType, CommandOutputParameterExpression(p, womType, inputNames, expressionLib))
+          OutputDefinition(FullyQualifiedName(cop_id).id, womType, OutputParameterExpression(p, womType, inputNames, expressionLib))
         case other => throw new NotImplementedError(s"Command output parameters such as $other are not yet supported")
       }.toList
 

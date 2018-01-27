@@ -6,10 +6,10 @@ import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values.{WomFile, WomValue}
 
-case class CommandOutputParameterExpression(parameter: OutputParameter,
-                                            override val cwlExpressionType: WomType,
-                                            override val inputs: Set[String],
-                                            override val expressionLib: ExpressionLib) extends CwlWomExpression {
+case class OutputParameterExpression(parameter: OutputParameter,
+                                     override val cwlExpressionType: WomType,
+                                     override val inputs: Set[String],
+                                     override val expressionLib: ExpressionLib) extends CwlWomExpression {
 
   override def sourceString = parameter.toString
 

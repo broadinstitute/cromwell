@@ -27,7 +27,13 @@ object ExpressionEvaluator {
   def evalExpression(expression: ECMAScriptExpression, parameterContext: ParameterContext, expressionLib: ExpressionLib): ErrorOr[WomValue] = {
     expression.value match {
       case ECMAScriptExpressionRegex(script) =>
-        eval(expressionFromParts(expressionLib, script), parameterContext)
+        // Nashorn doesn't like an expression floating around. So assign it to a variable and return that variable.
+        val variableExpression =
+          s"""|var expression_result = EXPRESSION_BODY;
+              |expression_result
+              |""".stripMargin.replace("EXPRESSION_BODY", script)
+        
+        eval(expressionFromParts(expressionLib, variableExpression), parameterContext)
       case unmatched =>
         s"Expression '$unmatched' was unable to be matched to regex '${ECMAScriptExpressionWitness.value}'".invalidNel
     }

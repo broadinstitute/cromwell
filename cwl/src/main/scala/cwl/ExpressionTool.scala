@@ -1,21 +1,104 @@
 package cwl
 
+import cats.syntax.either._
+import cats.syntax.validated._
+import common.Checked
+import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import cwl.CwlVersion._
 import cwl.ExpressionTool.{ExpressionToolInputParameter, ExpressionToolOutputParameter}
-import shapeless.Coproduct
+import shapeless.{Coproduct, Witness}
+import wom.RuntimeAttributes
+import wom.callable.{Callable, CallableExpressionTaskDefinition}
+import wom.expression.{IoFunctionSet, ValueAsAnExpression}
+import wom.graph.GraphNodePort.OutputPort
+import wom.types.{WomObjectType, WomType}
+import wom.values.{WomObjectLike, WomString, WomValue}
 
 case class ExpressionTool(
                            inputs: Array[ExpressionToolInputParameter] = Array.empty,
                            outputs: Array[ExpressionToolOutputParameter] = Array.empty,
-                           `class`: String,
+                           `class`: Witness.`"ExpressionTool"`.T,
                            expression: StringOrExpression,
-                           id: Option[String] = None,
+                           id: String,
                            requirements: Option[Array[Requirement]] = None,
                            hints: Option[Array[Hint]] = None,
                            label: Option[String] = None,
                            doc: Option[String] = None,
-                           cwlVersion: Option[CwlVersion] = None) {
-  def asCwl = Coproduct[Cwl](this)
+                           cwlVersion: Option[CwlVersion] = None) extends Tool {
+
+  def asCwl: Cwl = Coproduct[Cwl](this)
+
+  def buildTaskDefinition(taskName: String,
+                          inputDefinitions: List[_ <: Callable.InputDefinition],
+                          outputDefinitions: List[Callable.OutputDefinition],
+                          runtimeAttributes: RuntimeAttributes,
+                          requirementsAndHints: List[cwl.Requirement],
+                          expressionLib: ExpressionLib): ErrorOr[CallableExpressionTaskDefinition] = {
+
+    def evaluate(inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, outputPorts: List[OutputPort]): Checked[Map[OutputPort, WomValue]] = {
+      val womExpression = expression match {
+        case StringOrExpression.String(str) => ValueAsAnExpression(WomString(str))
+        case StringOrExpression.Expression(expr) => ECMAScriptWomExpression(expr, inputNames, expressionLib)
+      }
+
+      // If we expect a certain type for 
+      def coerce(womValue: WomValue, womType: WomType): Checked[WomValue] = womType.coerceRawValue(womValue).toChecked
+
+      /*
+        * Look in the object (the result of the expression evaluation) for values to match output each port.
+        * Ideally we'd want to find a value for each output port declared by the tool.
+        * However since the spec is not clear on this and cwltool seems to ignore entirely the outputs declaration,
+        * we'll do the same for now, meaning we'll assign a value to the output port iff the result of the expression has one for them,
+        * otherwise we'll remove the port for the final map.
+        * If there are fields in the expression's result that do not have a matching declared output port, they won't be added either,
+        * because we'd have to create an output port for them now which would be useless anyway since nothing could point to it.
+       */
+      def mapPortsToValues(values: Map[String, WomValue]): Checked[Map[OutputPort, WomValue]] = {
+        import cats.instances.list._
+        import cats.syntax.traverse._
+
+        val coercedValues: List[ErrorOr[(OutputPort, WomValue)]] = for {
+          outputPort <- outputPorts
+          value <- values.get(outputPort.name)
+          coerced = coerce(value, outputPort.womType).toValidated
+        } yield coerced.map(outputPort -> _)
+
+        coercedValues.sequence[ErrorOr, (OutputPort, WomValue)].map(_.toMap).toEither
+      }
+
+      for {
+        // Evaluate the expression
+        evaluatedExpression <- womExpression.evaluateValue(inputs, ioFunctionSet).toEither
+        /*
+          * We expect the result to be an object of the form:
+          * {
+          *   "outputName": value,
+          *   ...
+          * }
+         */
+        asObject <- WomObjectType.coerceRawValue(evaluatedExpression).toChecked
+        // Unfortunately coerceRawValue returns an abstract WomValue, so we have to explicitly match it
+        values = asObject match {
+          case womObject: WomObjectLike => womObject.values
+          case _ => throw new Exception("This cannot happen otherwise the coercion above would have failed")
+        }
+        mappedValues <- mapPortsToValues(values)
+      } yield mappedValues
+    }
+
+    CallableExpressionTaskDefinition(
+      taskName,
+      evaluate,
+      runtimeAttributes,
+      Map.empty,
+      Map.empty,
+      outputDefinitions,
+      inputDefinitions,
+      // TODO: This doesn't work in all cases and it feels clunky anyway - find a way to sort that out
+      prefixSeparator = "#"
+    ).validNel
+  }
 }
 
 object ExpressionTool {
@@ -37,5 +120,5 @@ object ExpressionTool {
                                            streamable: Option[Boolean] = None,
                                            doc: Option[Doc] = None,
                                            outputBinding: Option[CommandOutputBinding] = None,
-                                           `type`: MyriadOutputType)
+                                           `type`: Option[MyriadOutputType] = None) extends OutputParameter
 }

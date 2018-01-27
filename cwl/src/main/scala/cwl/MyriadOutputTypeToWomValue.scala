@@ -4,6 +4,7 @@ import cats.data.Validated.Valid
 import cats.instances.list._
 import cats.syntax.option._
 import cats.syntax.traverse._
+import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import cwl.CwlType.CwlType
 import cwl.MyriadOutputTypeToWomValue.EvaluationFunction
@@ -45,7 +46,7 @@ object MyriadOutputInnerTypeToWomValue extends Poly1 {
   def ex(component: String) = throw new RuntimeException(s"output type $component cannot yield a wom value")
 
   implicit def cwlType: Aux[CwlType, EvaluationFunction => ErrorOr[WomValue]] = at[CwlType] { cwlType => _ =>
-    cwlType.toString |> ex
+    "No output binding is defined. Are you expecting the output to be infered from a cwl.output.json file ? If so please make sure the file was effectively created.".invalidNel
   }
 
   implicit def ors: Aux[OutputRecordSchema, EvaluationFunction => ErrorOr[WomValue]] = at[OutputRecordSchema] {

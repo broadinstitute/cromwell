@@ -76,7 +76,8 @@ object Settings {
   )
 
   val consoleHostileSettings = List(
-    "-Ywarn-unused:imports", // warns about every unused import on every command.
+    // Commented until 04/01/18 to reduce burden of supporting 2.11
+    // "-Ywarn-unused:imports", // warns about every unused import on every command.
     "-Xfatal-warnings"       // makes those warnings fatal.
   )
 

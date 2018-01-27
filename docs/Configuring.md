@@ -342,11 +342,11 @@ workflow-options {
 ```
 
 
-**Exporting workflow logs via Sentry**
+**Exception monitoring via Sentry**
 
-Cromwell supports [Sentry](https://docs.sentry.io) for copying workflow logs. Sentry is a service that can be used to monitor exceptions reported in an application’s logs.
+Cromwell supports [Sentry](https://docs.sentry.io) which is a service that can be used to monitor exceptions reported in an application’s logs.
 
-To send the Cromwell logs to Sentry, enter your DSN URL into the configuration value:
+To enable Sentry monitoring in Cromwell, enter your DSN URL into the configuration value:
 
 ```hocon
 sentry.dsn = DSN_URL

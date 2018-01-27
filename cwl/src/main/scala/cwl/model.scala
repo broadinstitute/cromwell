@@ -47,7 +47,7 @@ case class WorkflowStepInput(
       //lookup each of our source Ids, failing if any of them are missing
       inputTypes <- sources.traverse[ErrorOr, WomType](lookupId).toEither
       //we may have several sources, we make sure to have a type common to all of them
-      inputType = WomType.lowestCommonSubtype(inputTypes)
+      inputType = WomType.homogeneousTypeFromTypes(inputTypes)
       womExpression = WorkflowStepInputExpression(this, inputType, inputs, expressionLib)
       identifier = WomIdentifier(id)
       ret <- ExposedExpressionNode.fromInputMapping(identifier, womExpression, inputType, sourceMappings).toEither

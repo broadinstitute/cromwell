@@ -68,7 +68,7 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
       case (Some(StringOrExpression.Expression(expression)), None) =>
         expression.fold(EvaluateExpression).apply(ParameterContext(inputValues), expressionLib)
 
-      case _ => s"Could not do evaluateValue(${input.valueFrom}, ${input.source}), most likely it has not been implemented yet".invalidNel
+      case (errorValueFrom, errorSources) => s"Could not do evaluateValue($errorValueFrom, $errorSources), most likely it has not been implemented yet".invalidNel
     }
   }
 

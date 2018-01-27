@@ -3,7 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution.keys
 import akka.actor.ActorRef
 import cats.syntax.validated._
 import common.validation.ErrorOr._
-import cromwell.core.ExecutionIndex.{ExecutionIndex, _}
+import cromwell.core.ExecutionIndex._
 import cromwell.core.{ExecutionStatus, JobKey}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionDiff
 import cromwell.engine.workflow.lifecycle.execution.keys.ExpressionKey.{ExpressionEvaluationFailedResponse, ExpressionEvaluationSucceededResponse}

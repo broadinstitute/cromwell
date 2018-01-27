@@ -8,7 +8,7 @@ import cats.syntax.either._
 import cats.syntax.traverse._
 import common.Checked
 import common.validation.ErrorOr._
-import common.validation.Validation.{OptionValidation, _}
+import common.validation.Validation._
 import cwl.CwlVersion._
 import cwl.LinkMergeMethod.LinkMergeMethod
 import cwl.Workflow.{WorkflowInputParameter, WorkflowOutputParameter}

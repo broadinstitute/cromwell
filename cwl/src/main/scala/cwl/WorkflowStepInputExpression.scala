@@ -54,7 +54,7 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
           case multiple => WomArray(multiple)
         }
 
-        val either =
+        val evaluatedExpression: Checked[WomValue] =
           for {
             sourceValueList <- sources.traverse[ErrorOr, WomValue](lookupValue(_).toValidated).toEither
             //value is either a womArray or not depending on how many items are in the source list
@@ -63,7 +63,7 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
             result <- expression.fold(EvaluateExpression).apply(pc, expressionLib).toEither
           } yield result
 
-        either.toValidated
+        evaluatedExpression.toValidated
 
       case (Some(StringOrExpression.Expression(expression)), None) =>
         expression.fold(EvaluateExpression).apply(ParameterContext(inputValues), expressionLib)

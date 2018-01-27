@@ -107,9 +107,6 @@ case class WorkflowStep(
        */
       def foldStepInput(currentFold: Checked[WorkflowStepInputFold], workflowStepInput: WorkflowStepInput): Checked[WorkflowStepInputFold] = currentFold flatMap {
         fold =>
-          // The sources from which we expect to satisfy this input (output from other step or workflow input)
-          val inputSources: List[String] = workflowStepInput.source.toList.flatMap(_.fold(WorkflowStepInputSourceToStrings))
-
           /*
             * Try to find in the given set an output port named stepOutputId in a call node named stepId
             * This is useful when we've determined that the input points to an output of a different step and we want
@@ -163,6 +160,14 @@ case class WorkflowStep(
                 generatedNodes = newNodes + expressionNode
               )
             }).toEither
+
+          /**
+            * We intend to validate that all of these sources point to a WOM Outputport that we know about.
+            *
+            * If we don't know about them, we find upstream nodes and build them (see "buildUpstreamNodes").
+             */
+
+          val inputSources: List[String] = workflowStepInput.source.toList.flatMap(_.fold(WorkflowStepInputSourceToStrings))
 
           val baseCase = (Map.empty[String, OutputPort], fold.generatedNodes).asRight[NonEmptyList[String]]
           val inputMappingsAndGraphNodes: Checked[(Map[String, OutputPort], Set[GraphNode])] =

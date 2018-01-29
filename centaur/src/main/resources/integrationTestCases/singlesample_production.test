@@ -1,6 +1,6 @@
 name: singlesample_production
 testFormat: workflowsuccess
-ignore: true
+
 files {
   wdl: germline/single-sample-production-workflow/PairedEndSingleSampleWf.wdl
   inputs: germline/single-sample-production-workflow/PairedEndSingleSampleWf.inputs.json

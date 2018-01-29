@@ -1,5 +1,0 @@
-package cwl
-
-object RunToInputTypeMap {
-
-}

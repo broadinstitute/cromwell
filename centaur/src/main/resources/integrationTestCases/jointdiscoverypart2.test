@@ -1,6 +1,6 @@
 name: jointdiscovery2
 testFormat: workflowsuccess
-
+ignore: true
 files {
   wdl: germline/joint-discovery-gatk/joint-discovery-gatk4-part2.wdl
   inputs: germline/joint-discovery-gatk/joint-discovery-gatk4.hg38.wgs.inputs.json

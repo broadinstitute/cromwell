@@ -2,7 +2,7 @@
   "##_COMMENT1": "SAMPLE NAME AND UNMAPPED BAMS",
   "PreProcessingForVariantDiscovery_GATK4.sample_name": "NA12878",
   "PreProcessingForVariantDiscovery_GATK4.ref_name": "hg38",
-  "PreProcessingForVariantDiscovery_GATK4.flowcell_unmapped_bams_list": "/broad-public-datasets/NA12878_downsampled_for_testing/unmapped/NA12878.ubams.list",
+  "PreProcessingForVariantDiscovery_GATK4.flowcell_unmapped_bams_list": "gs://broad-public-datasets/NA12878_downsampled_for_testing/unmapped/NA12878.ubams.list",
   "PreProcessingForVariantDiscovery_GATK4.unmapped_bam_suffix": ".bam",
 
   "##_COMMENT2": "REFERENCE FILES",

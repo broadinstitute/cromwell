@@ -120,8 +120,6 @@ lazy val engine = project
   .dependsOn(backend)
   .dependsOn(ossFileSystem)
   .dependsOn(gcsFileSystem)
-  .dependsOn(wdl)
-  .dependsOn(cwl)
   .dependsOn(core % "test->test")
   .dependsOn(backend % "test->test")
   // In the future we may have a dedicated test backend like the `TestLocalAsyncJobExecutionActor`.
@@ -144,14 +142,34 @@ lazy val womtool = project
   .dependsOn(cwl)
   .dependsOn(wom % "test->test")
 
+lazy val languageFactoryRoot = Path("languageFactories")
+
+lazy val languageFactoryCore = (project in languageFactoryRoot / "language-factory-core")
+  .withExecutableSettings("language-factory-core")
+  .dependsOn(engine)
+
+lazy val wdlDraft2LanguageFactory = (project in languageFactoryRoot / "wdl-draft2")
+  .withExecutableSettings("wdl-draft2")
+  .dependsOn(languageFactoryCore)
+  .dependsOn(wdl)
+
+lazy val cwlV1_0LanguageFactory = (project in languageFactoryRoot / "cwl-v1-0")
+  .withExecutableSettings("cwl-v1-0")
+  .dependsOn(languageFactoryCore)
+  .dependsOn(cwl)
+
 lazy val root = (project in file("."))
   .withExecutableSettings("cromwell", rootDependencies, rootSettings)
   // Next level of projects to include in the fat jar (their dependsOn will be transitively included)
+  // Must 'dependsOn' any projects which might be loaded at runtime from the fat jar
+  // NB: even if you 'dependsOn' a project, you still need to aggregate it (c'est la vie...)
   .dependsOn(engine)
   .dependsOn(jesBackend)
   .dependsOn(bcsBackend)
   .dependsOn(tesBackend)
   .dependsOn(sparkBackend)
+  .dependsOn(wdlDraft2LanguageFactory)
+  .dependsOn(cwlV1_0LanguageFactory)
   .dependsOn(engine % "test->test")
   // Full list of all sub-projects to build with the root (ex: include in `sbt test`)
   .aggregate(backend)
@@ -177,5 +195,8 @@ lazy val root = (project in file("."))
   .aggregate(wdl)
   .aggregate(wom)
   .aggregate(womtool)
+  .aggregate(languageFactoryCore)
+  .aggregate(wdlDraft2LanguageFactory)
+  .aggregate(cwlV1_0LanguageFactory)
   // TODO: See comment in plugins.sbt regarding SBT 1.x
   .enablePlugins(CrossPerProjectPlugin)

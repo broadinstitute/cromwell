@@ -3,18 +3,18 @@ package cromwell
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
+import akka.testkit._
 import akka.actor.{Actor, ActorRef, ActorSystem, Props, Terminated}
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
-import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.CromwellTestKitSpec._
 import cromwell.core._
 import cromwell.core.path.BetterFileMethods.Cmds
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.docker.DockerHashActor.DockerHashSuccessResponse
 import cromwell.docker.{DockerHashRequest, DockerHashResult}
 import cromwell.engine.backend.BackendConfigurationEntry
+import cromwell.engine.language.LanguageConfigurationEntry
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheLookupNoHit, CacheLookupRequest}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor.SaveCallCacheHashes
@@ -40,6 +40,7 @@ import wom.values._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
+import cromwell.CromwellTestKitSpec._
 import scala.language.postfixOps
 import scala.util.matching.Regex
 

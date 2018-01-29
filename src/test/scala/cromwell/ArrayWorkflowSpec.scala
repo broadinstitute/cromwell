@@ -1,6 +1,6 @@
 package cromwell
 
-import akka.testkit._
+import akka.testkit.EventFilter
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.SampleWdl
 import wdl.expression.NoFunctions

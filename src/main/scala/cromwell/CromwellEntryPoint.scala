@@ -13,6 +13,7 @@ import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.server.{CromwellServer, CromwellSystem}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
+import cromwell.engine.language.{LanguageConfiguration, LanguageConfigurationEntry}
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.LoggerFactory
 

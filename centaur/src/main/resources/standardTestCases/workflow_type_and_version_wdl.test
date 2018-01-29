@@ -6,10 +6,10 @@ files {
 }
 
 workflowType: WDL
-workflowTypeVersion: 3.14159
+workflowTypeVersion: draft-2
 
 metadata {
   workflowName: workflow_type_and_version_wdl
   "submittedFiles.workflowType": WDL
-  "submittedFiles.workflowTypeVersion": 3.14159
+  "submittedFiles.workflowTypeVersion": draft-2
 }

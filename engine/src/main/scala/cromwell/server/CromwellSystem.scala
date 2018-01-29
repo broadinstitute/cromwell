@@ -5,7 +5,8 @@ import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
-import cromwell.services.{MetadataServicesStore, EngineServicesStore}
+import cromwell.engine.language.{CromwellLanguages, LanguageConfiguration, LanguageConfigurationEntry}
+import cromwell.services.{EngineServicesStore, MetadataServicesStore}
 
 import scala.concurrent.Future
 
@@ -46,4 +47,5 @@ trait CromwellSystem {
   }
 
   CromwellBackends.initBackends(BackendConfiguration.AllBackendEntries)
+  CromwellLanguages.initLanguages(LanguageConfiguration.AllLanguageEntries)
 }

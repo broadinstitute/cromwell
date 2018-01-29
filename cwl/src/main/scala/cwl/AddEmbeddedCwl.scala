@@ -4,7 +4,7 @@ import shapeless.{Path => _, _}
 import cats.syntax.traverse._
 import cats.instances.list._
 import cats.effect.IO
-import CwlDecoder.{Parse, ParseValidated}
+import common.validation.Parse._
 import cats.{Applicative, Monad}
 import cats.data.EitherT._
 import cats.data.EitherT

@@ -1,6 +1,6 @@
 package cromwell
 
-import akka.testkit._
+import akka.testkit.EventFilter
 import cromwell.util.SampleWdl
 import wom.types.{WomMapType, WomStringType}
 import wom.values.{WomMap, WomString}

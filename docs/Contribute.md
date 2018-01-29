@@ -109,8 +109,3 @@ If not, [add it here](https://github.com/broadinstitute/cromwell/blob/develop/mk
 * **Don't forget to regenerate**  
 After you edit the [`cromwell.yaml`](https://github.com/broadinstitute/cromwell/blob/develop/engine/src/main/resources/swagger/cromwell.yaml), run `sbt generateRestApiDocs` and commit all changes.  
 _Hint:_ Once you have regenerated the docs correctly, the hidden timestamp at the top of the [`RESTAPI.md` file](https://raw.githubusercontent.com/broadinstitute/cromwell/develop/docs/api/RESTAPI.md) will show the current time.
-
-**_How do I generate a Markdown document of the Swagger YAML?_**
-
-A library named [swagger2markup](https://github.com/Swagger2Markup/swagger2markup) will render a Swagger YAML into various formats, including Markdown. Then generated Markdown is further customized by a custom SBT task.
-```

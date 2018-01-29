@@ -130,7 +130,7 @@ The reason for a specific abort phase is so that its timeout can be configured d
 
 Indeed, stopping all workflows and aborting them is very similar from an outside perspective. We send a message (resp. "Stop" and "Abort") and wait for a response.
 
-However we want to be able to give more time to abort as it will likely involve more work. This can be done by editing the value of `coordinated-shutdown.phases.abort-all-workflows.timeout` which defaults to 1 hour.
+In the case where you want to be able to give more time to abort, as it will likely involve more work, you can edit the value of `coordinated-shutdown.phases.abort-all-workflows.timeout` which defaults to 1 hour.
 Phases timeouts default to 5 seconds, except the stop-io-activity phase which defaults to 30 minutes. This is because depending on the Database load at the time of the shutdown, it might take a significant amount of time to flush all pending writes.
 
 All of the timeouts are configurable in the `akka.coordinated-shutdown.phases` section ([see the latest `reference.conf`](https://raw.githubusercontent.com/akka/akka/master/akka-actor/src/main/resources/reference.conf)).

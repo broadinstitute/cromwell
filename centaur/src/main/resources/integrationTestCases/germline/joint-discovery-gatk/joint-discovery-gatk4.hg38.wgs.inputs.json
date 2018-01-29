@@ -37,10 +37,12 @@
 
   "##_COMMENT4": "DOCKERS",
   "JointGenotyping.python_docker": "python:2.7",
-  "JointGenotyping.gatk_docker": "broadinstitute/gatk:4.0.0.0",
+  "##_JointGenotyping.gatk_docker": "us.gcr.io/broad-gatk/gatk:4.0.0.0",
+  "JointGenotyping.gatk_docker": "us.gcr.io/broad-gatk/gatk:4.beta.6",
 
   "##_COMMENT5": "PATHS",
-  "JointGenotyping.gatk_path": "/gatk/gatk",
+  "##_JointGenotyping.gatk_path": "/gatk/gatk",
+  "JointGenotyping.gatk_path": "/gatk/gatk-launch",
 
   "##_COMMENT6": "JAVA OPTIONS",
   "JointGenotyping.SNPsVariantRecalibratorScattered.java_opt": "-Xmx3g -Xms3g",

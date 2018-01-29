@@ -11,7 +11,11 @@ import cats.syntax.validated._
 import common.Checked
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
+<<<<<<< HEAD
 import cwl.ScatterLogic.ScatterVariablesPoly
+=======
+import cwl.CwlType.CwlType
+>>>>>>> wip
 import cwl.ScatterMethod._
 import cwl.WorkflowStep.{WorkflowStepInputFold, _}
 import cwl.command.ParentName
@@ -90,6 +94,8 @@ case class WorkflowStep(
       stepOutputValue -> scatterTypeFunction(runOutputTypes(stepOutputId.id))
     }).toMap
   }
+
+  def typedRunInputs: Map[String, Option[MyriadInputType]] = run.fold(RunToInputTypeMap)
 
   def fileName: Option[String] = run.select[String]
 

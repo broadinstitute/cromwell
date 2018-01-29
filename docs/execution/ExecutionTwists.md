@@ -115,10 +115,10 @@ For example, all queued up metadata writes are executed.
 7. Actor system shuts down.
 8. JVM exits.
     
-This multi-stage process is designed to minimize the risk of data loss during shutdown. However in order to prevent this process to last forever, each stage (called phase) has its own timeout.
+This multi-stage process is designed to minimize the risk of data loss during shutdown. However in order to prevent this process from lasting forever, each stage (called phase) has its own timeout.
 If the phase does not complete within the given timeout, actors will be forcefully stopped and the next phase will start.
 
-This logic is implemented using [Akka Coordinated Shutdown Extension](http://doc.akka.io/docs/akka/current/scala/actors.html#coordinated-shutdown).
+This logic is implemented using [Akka Coordinated Shutdown Extension](http://doc.akka.io/docs/akka/current/scala/actors.html#coordinated-shutdown). Currently Cromwell is running [version 2.5.4](https://doc.akka.io/docs/akka/2.5.4/scala/actors.html#coordinated-shutdown).
 It comes with a set of pre-defined phases, that can be added on and modified. Those phases can be linked together to form a Graph. Cromwell shutdown graphs looks as such:
 
 ![Scaladoc](CromwellShutdownProcess.png)
@@ -133,5 +133,5 @@ Indeed, stopping all workflows and aborting them is very similar from an outside
 However we want to be able to give more time to abort as it will likely involve more work. This can be done by editing the value of `coordinated-shutdown.phases.abort-all-workflows.timeout` which defaults to 1 hour.
 Phases timeouts default to 5 seconds, except the stop-io-activity phase which defaults to 30 minutes. This is because depending on the Database load at the time of the shutdown, it might take a significant amount of time to flush all pending writes.
 
-All of the timeouts are configurable in the `akka.coordinated-shutdown.phases` section (see `reference.conf`).
+All of the timeouts are configurable in the `akka.coordinated-shutdown.phases` section ([see the latest `reference.conf`](https://raw.githubusercontent.com/akka/akka/master/akka-actor/src/main/resources/reference.conf)).
 To change the default timeout, change the value of `akka.coordinated-shutdown.default-phase-timeout`.

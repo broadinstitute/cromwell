@@ -78,7 +78,7 @@ _produces this block_
 	* _Example:_ `![](https://www.broadinstitute.org/sites/all/themes/custom/at_broad/logo.png)` _produces this image_  
 	![](https://www.broadinstitute.org/sites/all/themes/custom/at_broad/logo.png)  
 
-### Updating the API and Menu
+### REST API & Menu
 
 **REST API:**
 
@@ -93,10 +93,10 @@ To add or remove items from the menu, edit [mkdocs.yml](https://github.com/broad
 
 ### FAQs
 
-**_Why isn't my documentation showing up?_**
+**_Why isn't my documentation showing up?_** 
 
 * **Is your PR merged?**  
-If not, [go merge it](https://github.com/broadinstitute/cromwell/pulls) or respond to comments. Once your PR is merged to develop, it will trigger an automatic build.  
+If not, [kindly ask the team to merge it](https://github.com/broadinstitute/cromwell/pulls). Once your PR is merged to develop, it will trigger an automatic build.  
 
 * **Has the build finished?**   
 [Check build status here](https://readthedocs.org/projects/cromwell/builds/).

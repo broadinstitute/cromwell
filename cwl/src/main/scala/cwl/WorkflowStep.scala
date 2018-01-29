@@ -161,12 +161,11 @@ case class WorkflowStep(
               )
             }).toEither
 
-          /**
-            * We intend to validate that all of these sources point to a WOM Outputport that we know about.
-            *
-            * If we don't know about them, we find upstream nodes and build them (see "buildUpstreamNodes").
-             */
-
+          /*
+           * We intend to validate that all of these sources point to a WOM Outputport that we know about.
+           *
+           * If we don't know about them, we find upstream nodes and build them (see "buildUpstreamNodes").
+           */
           val inputSources: List[String] = workflowStepInput.source.toList.flatMap(_.fold(WorkflowStepInputSourceToStrings))
 
           val baseCase = (Map.empty[String, OutputPort], fold.generatedNodes).asRight[NonEmptyList[String]]
@@ -174,11 +173,11 @@ case class WorkflowStep(
             inputSources.foldLeft(baseCase){
               case (Right((sourceMappings, graphNodes)), inputSource) =>
                 /*
-               * Parse the inputSource (what this input is pointing to)
-               * 2 cases:
-               *   - points to a workflow input
-               *   - points to an upstream step
-               */
+                 * Parse the inputSource (what this input is pointing to)
+                 * 2 cases:
+                 *   - points to a workflow input
+                 *   - points to an upstream step
+                 */
                 FullyQualifiedName(inputSource) match {
                   // The source points to a workflow input, which means it should be in the workflowInputs map
                   case FileAndId(_, _, inputId) => fromWorkflowInput(inputId).map(newMap => (sourceMappings ++ newMap, graphNodes))

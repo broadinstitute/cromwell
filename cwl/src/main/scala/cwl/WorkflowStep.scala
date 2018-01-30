@@ -107,14 +107,6 @@ case class WorkflowStep(
        */
       def foldStepInput(currentFold: Checked[WorkflowStepInputFold], workflowStepInput: WorkflowStepInput): Checked[WorkflowStepInputFold] = currentFold flatMap {
         fold =>
-          // The source from which we expect to satisfy this input (output from other step or workflow input)
-          // TODO: this can be None, a single source, or multiple sources. Currently assuming it's a single one
-          val inputSource: String = workflowStepInput.source.flatMap(_.select[String]).get
-
-          // Name of the step input
-
-          val accumulatedNodes = fold.generatedNodes ++ knownNodes
-
           /*
             * Try to find in the given set an output port named stepOutputId in a call node named stepId
             * This is useful when we've determined that the input points to an output of a different step and we want
@@ -134,7 +126,7 @@ case class WorkflowStep(
            * Build a wom node for the given step and return the newly created nodes
            * This is useful when we've determined that the input belongs to an upstream step that we haven't covered yet
            */
-          def buildUpstreamNodes(upstreamStepId: String): Checked[Set[GraphNode]] =
+          def buildUpstreamNodes(upstreamStepId: String, accumulatedNodes: Set[GraphNode]): Checked[Set[GraphNode]] =
           // Find the step corresponding to this upstreamStepId in the set of all the steps of this workflow
             for {
               step <- workflow.steps.find { step => FullyQualifiedName(step.id).id == upstreamStepId }.
@@ -142,50 +134,60 @@ case class WorkflowStep(
               call <- step.callWithInputs(typeMap, workflow, accumulatedNodes, workflowInputs, validator, expressionLib)
             } yield call
 
-          def fromWorkflowInput(inputName: String): Checked[WorkflowStepInputFold] = {
+          def fromWorkflowInput(inputName: String): Checked[Map[String, OutputPort]] = {
             // Try to find it in the workflow inputs map, if we can't it's an error
             workflowInputs.collectFirst {
-              case (inputId, port) if inputName == inputId => updateFold(port)
-            } getOrElse s"Can't find workflow input for $inputName".invalidNelCheck[WorkflowStepInputFold]
+              case (inputId, port) if inputName == inputId => Map(inputId -> port).asRight[NonEmptyList[String]]
+            } getOrElse s"Can't find workflow input for $inputName".invalidNelCheck[Map[String, OutputPort]]
           }
 
-          def fromStepOutput(stepId: String, stepOutputId: String): Checked[WorkflowStepInputFold] = {
+          def fromStepOutput(stepId: String, stepOutputId: String, accumulatedNodes: Set[GraphNode]): Checked[(Map[String, OutputPort], Set[GraphNode])] = {
             // First check if we've already built the WOM node for this step, and if so return the associated output port
-            findThisInputInSet(accumulatedNodes, stepId, stepOutputId).flatMap(updateFold(_))
+            findThisInputInSet(accumulatedNodes, stepId, stepOutputId).map(outputPort => (Map(stepOutputId -> outputPort), Set.empty[GraphNode]))
               .orElse {
                 // Otherwise build the upstream nodes and look again in those newly created nodes
                 for {
-                  newNodes <- buildUpstreamNodes(stepId)
-                  outputPort <- findThisInputInSet(newNodes, stepId, stepOutputId)
-                  newFold <- updateFold(outputPort, newNodes)
-                } yield newFold
+                  newNodes <- buildUpstreamNodes(stepId, accumulatedNodes)
+                  sourceMappings <- findThisInputInSet(newNodes, stepId, stepOutputId).map(outputPort => Map(stepOutputId -> outputPort))
+                } yield (sourceMappings, newNodes)
               }
           }
 
-          def updateFold(outputPort: OutputPort, newNodes: Set[GraphNode] = Set.empty): Checked[WorkflowStepInputFold] = {
-            val inputSourceId = FullyQualifiedName(inputSource).id
-
-            // TODO for now we only handle a single input source, but there may be several
-            workflowStepInput.toExpressionNode(Map(inputSourceId -> outputPort), typeMap, Set(inputSourceId), expressionLib).map({ expressionNode =>
+          def updateFold(sourceMappings: Map[String, OutputPort], newNodes: Set[GraphNode]): Checked[WorkflowStepInputFold] =
+            workflowStepInput.toExpressionNode(sourceMappings, typeMap, expressionLib).map({ expressionNode =>
               fold |+| WorkflowStepInputFold(
                 stepInputMapping = Map(FullyQualifiedName(workflowStepInput.id).id -> expressionNode),
                 generatedNodes = newNodes + expressionNode
               )
             }).toEither
-          }
 
           /*
-           * Parse the inputSource (what this input is pointing to)
-           * 2 cases:
-           *   - points to a workflow input
-           *   - points to an upstream step
+           * We intend to validate that all of these sources point to a WOM Outputport that we know about.
+           *
+           * If we don't know about them, we find upstream nodes and build them (see "buildUpstreamNodes").
            */
-          FullyQualifiedName(inputSource) match {
-            // The source points to a workflow input, which means it should be in the workflowInputs map
-            case FileAndId(_, _, inputId) => fromWorkflowInput(inputId)
-            // The source points to an output from a different step
-            case FileStepAndId(_, _, stepId, stepOutputId) => fromStepOutput(stepId, stepOutputId)
-          }
+          val inputSources: List[String] = workflowStepInput.source.toList.flatMap(_.fold(WorkflowStepInputSourceToStrings))
+
+          val baseCase = (Map.empty[String, OutputPort], fold.generatedNodes).asRight[NonEmptyList[String]]
+          val inputMappingsAndGraphNodes: Checked[(Map[String, OutputPort], Set[GraphNode])] =
+            inputSources.foldLeft(baseCase){
+              case (Right((sourceMappings, graphNodes)), inputSource) =>
+                /*
+                 * Parse the inputSource (what this input is pointing to)
+                 * 2 cases:
+                 *   - points to a workflow input
+                 *   - points to an upstream step
+                 */
+                FullyQualifiedName(inputSource) match {
+                  // The source points to a workflow input, which means it should be in the workflowInputs map
+                  case FileAndId(_, _, inputId) => fromWorkflowInput(inputId).map(newMap => (sourceMappings ++ newMap, graphNodes))
+                  // The source points to an output from a different step
+                  case FileStepAndId(_, _, stepId, stepOutputId) => fromStepOutput(stepId, stepOutputId, graphNodes)
+                }
+              case (other, _) => other
+            }
+
+          inputMappingsAndGraphNodes.flatMap((updateFold _).tupled)
       }
 
       /*
@@ -226,8 +228,11 @@ case class WorkflowStep(
         }
       }
 
+      //inputs base case consist of the nodes we already know about
+      val baseCase = WorkflowStepInputFold(generatedNodes = knownNodes).asRight[NonEmptyList[String]]
+
       // WorkflowStepInputFold contains the mappings from step input to ExpressionNode as well as all created nodes
-      val stepInputFoldCheck: Checked[WorkflowStepInputFold] = in.foldLeft(WorkflowStepInputFold.emptyRight)(foldStepInput)
+      val stepInputFoldCheck: Checked[WorkflowStepInputFold] = in.foldLeft(baseCase)(foldStepInput)
 
       /*
         1) Fold over the workflow step inputs:
@@ -277,9 +282,6 @@ object WorkflowStep {
     }
   }
 
-  private [cwl] object WorkflowStepInputFold {
-    private [cwl] def emptyRight = workflowStepInputFoldMonoid.empty.asRight[NonEmptyList[String]]
-  }
   private [cwl] case class WorkflowStepInputFold(stepInputMapping: Map[String, ExpressionNode] = Map.empty,
                                                  generatedNodes: Set[GraphNode] = Set.empty)
 

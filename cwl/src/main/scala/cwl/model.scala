@@ -1,6 +1,8 @@
 package cwl
 
-import cats.data.NonEmptyList
+import cats.syntax.option._
+import cats.syntax.traverse._
+import cats.instances.list._
 import eu.timepit.refined._
 import cats.syntax.either._
 import shapeless.{:+:, CNil, Witness}
@@ -25,18 +27,27 @@ case class WorkflowStepInput(
 
   def toExpressionNode(sourceMappings: Map[String, OutputPort],
                        outputTypeMap: Map[String, WomType],
-                       inputs: Set[String],
                        expressionLib: ExpressionLib
                       )(implicit parentName: ParentName): ErrorOr[ExposedExpressionNode] = {
-    val source = this.source.flatMap(_.select[String]).get
-    val lookupId = FullyQualifiedName(source).id
+
+    val sources = source.toList.flatMap(_.fold(WorkflowStepInputSourceToStrings)).map(FullyQualifiedName(_).id)
+
+    val inputs = sourceMappings.keySet
 
     val outputTypeMapWithIDs = outputTypeMap.map {
       case (key, value) => FullyQualifiedName(key).id -> value
     }
+
+    def lookupId(id: String): ErrorOr[WomType] =
+      outputTypeMapWithIDs.
+        get(id).
+        toValidNel(s"couldn't find $id as derived from $source in map\n${outputTypeMapWithIDs.mkString("\n")}")
+
     (for {
-      inputType <- outputTypeMapWithIDs.get(lookupId).
-        toRight(NonEmptyList.one(s"couldn't find $lookupId as derived from $source in map\n${outputTypeMapWithIDs.mkString("\n")}"))
+      //lookup each of our source Ids, failing if any of them are missing
+      inputTypes <- sources.traverse[ErrorOr, WomType](lookupId).toEither
+      //we may have several sources, we make sure to have a type common to all of them
+      inputType = WomType.homogeneousTypeFromTypes(inputTypes)
       womExpression = WorkflowStepInputExpression(this, inputType, inputs, expressionLib)
       identifier = WomIdentifier(id)
       ret <- ExposedExpressionNode.fromInputMapping(identifier, womExpression, inputType, sourceMappings).toEither

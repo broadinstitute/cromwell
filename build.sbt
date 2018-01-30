@@ -4,7 +4,7 @@ import sbtassembly.MergeStrategy
 name := "CromIam"
 organization := "org.broadinstitute"
 
-scalaVersion := "2.12.1"
+scalaVersion := "2.12.4"
 
 scalacOptions := List(
   "-Xlint",
@@ -30,12 +30,11 @@ scalacOptions in (Compile, doc) ++= List(
 )
 
 libraryDependencies ++= {
-  val akkaV       = "2.4.17"
-  val akkaHttpV   = "10.0.6"
+  val akkaV       = "2.5.9"
+  val akkaHttpV   = "10.0.11"
   val scalaTestV  = "3.0.1"
   val catsV = "0.9.0"
-  val lenthallV = "0.25-903b3c0-SNAP"
-  val cromwellV = "27-091ed3b-SNAP"
+  val cromwellV = "30"
 
   val catsDependencies = List(
     "org.typelevel" %% "cats" % catsV
@@ -67,9 +66,10 @@ libraryDependencies ++= {
     "org.scalatest" %% "scalatest" % scalaTestV % Test,
     "io.swagger" % "swagger-parser" % "1.0.22" % Test,
     "org.yaml" % "snakeyaml" % "1.17" % Test,
-    "org.broadinstitute" %% "cromwell-api-client" % cromwellV,
-    "org.broadinstitute" %% "lenthall" % lenthallV,
-    "org.broadinstitute.dsde.workbench" %% "workbench-util" % "0.2-1b977d7"
+    "org.broadinstitute" %% "cromwell-api-client" % cromwellV exclude("com.getsentry.raven", "raven-logback"),
+    "org.broadinstitute" %% "cromwell-common" % cromwellV exclude("com.getsentry.raven", "raven-logback"),
+    "org.broadinstitute.dsde.workbench" %% "workbench-util" % "0.2-dcca21f",
+    "org.broadinstitute.dsde.workbench" %% "workbench-model" % "0.7-dcca21f"
   ) ++ catsDependencies
 }
 
@@ -118,7 +118,7 @@ assemblyMergeStrategy in assembly := {
     path map {
       _.toLowerCase
     } match {
-      case ("manifest.mf" :: Nil) | ("index.list" :: Nil) | ("dependencies" :: Nil) => MergeStrategy.discard
+      case ("manifest.mf" :: Nil) | ("index.list" :: Nil) | ("dependencies" :: Nil)  => MergeStrategy.discard
       case "io.netty.versions.properties" :: Nil => MergeStrategy.first
       case _ => MergeStrategy.deduplicate
     }

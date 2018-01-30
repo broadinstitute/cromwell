@@ -85,6 +85,11 @@ paths:
           required: false
           type: file
           in: formData
+        - name: collectionName
+          description: Collection name for this workflow
+          required: false
+          type: string
+          in: formData
         - name: workflowInputs_2
           description: WDL Inputs JSON, 2
           required: false
@@ -110,7 +115,7 @@ paths:
           required: false
           type: file
           in: formData
-        - name: customLabels
+        - name: labels
           description: Custom Labels JSON
           required: false
           type: file
@@ -163,7 +168,7 @@ paths:
           required: false
           type: file
           in: formData
-        - name: customLabels
+        - name: labels
           description: Custom Labels JSON
           required: false
           type: file

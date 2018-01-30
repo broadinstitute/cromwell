@@ -32,9 +32,9 @@ object CromIamServer extends HttpApp with CromIamApiService with SwaggerService 
   override implicit lazy val executor: ExecutionContextExecutor = system.dispatcher
   override implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  override val logger = Logging(system, getClass)
+  override val log = Logging(system, getClass)
 
-  override val route: Route = allRoutes ~ swaggerUiResourceRoute
+  override val routes: Route = allRoutes ~ swaggerUiResourceRoute
 
   override val statusService: StatusService = new StatusService(() => Map(Cromwell -> cromwellClient.subsystemStatus, Sam -> samClient.subsystemStatus))
 
@@ -43,7 +43,7 @@ object CromIamServer extends HttpApp with CromIamApiService with SwaggerService 
     val promise = Promise[Done]()
     sys.addShutdownHook {
       // we can add anything we want the server to do when someone shutdowns the server (Ctrl-c)
-      logger.info("Shutting down the server")
+      log.info("Shutting down the server")
       promise.success(Done)
     }
     promise.future

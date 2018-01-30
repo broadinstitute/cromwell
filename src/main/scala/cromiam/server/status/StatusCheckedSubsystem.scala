@@ -21,7 +21,7 @@ trait StatusCheckedSubsystem {
   def subsystemStatus()(implicit ec: ExecutionContext): Future[SubsystemStatus] = {
     sttp.get(statusUri).send map { x =>
       x.body match {
-        case Right(body) => SubsystemStatus(true, None)
+        case Right(_) => SubsystemStatus(true, None)
         case Left(errors) => SubsystemStatus(false, Option(List(errors)))
       }
     }

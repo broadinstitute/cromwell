@@ -2,6 +2,7 @@ package centaur.cwl
 import com.typesafe.config.Config
 import io.circe.optics.JsonPath
 import io.circe.optics.JsonPath._
+import io.circe.yaml.Printer.StringStyle
 import io.circe.{Json, JsonObject, yaml}
 import net.ceedubs.ficus.Ficus._
 
@@ -42,7 +43,8 @@ class PAPIPreprocessor(config: Config) {
   }
 
   // Process and print back as YAML
-  private def processYaml(value: String)(f: Json => Json) = process(value, f, yaml.Printer.spaces2.pretty)
+  private def processYaml(value: String)(f: Json => Json) =
+    process(value, f, yaml.Printer.spaces2.copy(stringStyle = StringStyle.DoubleQuoted).pretty)
 
   // Process and print back as JSON
   private def processJson(value: String)(f: Json => Json) = process(value, f, io.circe.Printer.spaces2.pretty)

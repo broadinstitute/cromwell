@@ -1,6 +1,6 @@
 task nobody {
   command {
-    echo $HOME
+    whoami
   }
 
   runtime {
@@ -9,7 +9,7 @@ task nobody {
   }
 
   output {
-    String home = read_string(stdout())
+    String user = read_string(stdout())
   }
 }
 
@@ -17,6 +17,6 @@ workflow woot {
   call nobody
 
   output {
-    String nobodyHome = nobody.home
+    String nobodyUser = nobody.user
   }
 }

@@ -2,18 +2,17 @@ package cromwell.backend.standard
 
 import java.io.IOException
 
-import cats.syntax.apply._
-import cats.instances.list._
-import cats.instances.option._
-import cats.syntax.traverse._
-import cats.syntax.validated._
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
+import cats.instances.list._
+import cats.instances.option._
+import cats.syntax.apply._
+import cats.syntax.traverse._
+import cats.syntax.validated._
 import common.exception.MessageAggregation
 import common.util.TryUtil
-import common.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.Validation._
-import common.validation.ErrorOr.ShortCircuitingFlatMap
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
@@ -31,6 +30,7 @@ import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
+import wom.callable.RuntimeEnvironment
 import wom.expression.WomExpression
 import wom.graph.LocalName
 import wom.values._
@@ -114,7 +114,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   lazy val scriptEpilogue = configurationDescriptor.backendConfig.as[Option[String]]("script-epilogue").getOrElse("sync")
 
   lazy val temporaryDirectory = configurationDescriptor.backendConfig
-    .as[Option[String]]("temporary-directory").getOrElse("""$(mktemp -d "$PWD"/tmp.XXXXXX)""")
+    .as[Option[String]]("temporary-directory").getOrElse(s"""$$(mkdir -p "${runtimeEnvironment.tempPath}" && echo "${runtimeEnvironment.tempPath}")""")
 
   /**
     * Maps WomFile objects for use in the commandLinePreProcessor.
@@ -260,9 +260,10 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |  tmpDir="$temporaryDirectory"
         |  echo "$$tmpDir"
         |)
-        |chmod 777 $$tmpDir
-        |export _JAVA_OPTIONS=-Djava.io.tmpdir=$$tmpDir
-        |export TMPDIR=$$tmpDir
+        |chmod 777 "$$tmpDir"
+        |export _JAVA_OPTIONS=-Djava.io.tmpdir="$$tmpDir"
+        |export TMPDIR="$$tmpDir"
+        |export HOME="${runtimeEnvironment.outputPath}"
         |(
         |cd $cwd
         |SCRIPT_PREAMBLE
@@ -287,10 +288,16 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       .replace("SCRIPT_EPILOGUE", scriptEpilogue))
   }
 
+  def runtimeEnvironmentPathMapper(env: RuntimeEnvironment): RuntimeEnvironment = {
+    def localize(path: String): String = (WomSingleFile(path) |> commandLineValueMapper).valueString
+    env.copy(outputPath = env.outputPath |> localize, tempPath = env.tempPath |> localize)
+  }
+
+  lazy val runtimeEnvironment =
+    RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(standardParams.minimumRuntimeSettings) |> runtimeEnvironmentPathMapper
+
   /** The instantiated command. */
   lazy val instantiatedCommand: InstantiatedCommand = {
-
-    val runtimeEnvironment = RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(standardParams.minimumRuntimeSettings)
 
     val instantiatedCommandValidation = Command.instantiate(
       jobDescriptor,

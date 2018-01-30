@@ -39,6 +39,7 @@ package object cwl extends TypeAliases {
   }
 
   def cwlTypeToWomType : CwlType => WomType = {
+    case CwlType.Any => WomAnyType
     case Null => WomNothingType
     case Boolean => WomBooleanType
     case Int => WomIntegerType

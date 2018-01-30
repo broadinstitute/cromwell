@@ -1,6 +1,6 @@
 task notroot {
   command {
-    echo $HOME
+    whoami
   }
 
   runtime {
@@ -8,7 +8,7 @@ task notroot {
   }
 
   output {
-    String home = read_string(stdout())
+    String user = read_string(stdout())
   }
 }
 
@@ -16,6 +16,6 @@ workflow woot {
   call notroot
 
   output {
-    String notrootHome = notroot.home
+    String notrootUser = notroot.user
   }
 }

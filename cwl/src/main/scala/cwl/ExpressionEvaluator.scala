@@ -1,7 +1,8 @@
 package cwl
 
 import cats.syntax.validated._
-import common.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr._
+import cwl.ExpressionEvaluator.eval
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.MatchesRegex
 import shapeless.Witness
@@ -15,14 +16,24 @@ object ExpressionEvaluator {
   val ECMAScriptExpressionWitness = Witness("""(?s)\s*\$\((.*)\)\s*""")
   val ECMAScriptExpressionRegex = ECMAScriptExpressionWitness.value.r
   type MatchesECMAScript = MatchesRegex[ECMAScriptExpressionWitness.T]
-  type ECMAScriptExpression = String Refined MatchesRegex[ECMAScriptExpressionWitness.T]
+  type ECMAScriptExpression = String Refined MatchesECMAScript
 
   // A code fragment wrapped in the ${...} syntax must be evaluated as a ECMAScript function body for an anonymous,
   // zero-argument function.
   val ECMAScriptFunctionWitness = Witness("""(?s)\s*\$\{(.*)\}\s*""")
   val ECMAScriptFunctionRegex = ECMAScriptFunctionWitness.value.r
-  type ECMAScriptFunction = String Refined MatchesRegex[ECMAScriptFunctionWitness.T]
   type MatchesECMAFunction = MatchesRegex[ECMAScriptFunctionWitness.T]
+  type ECMAScriptFunction = String Refined MatchesECMAFunction
+
+  // This is not ECMAScript, just what CWL uses for interpolated expressions. The pattern is 'before$(expression)after'.
+  // The regex uses a non-greedy quantifier on the 'before' to allow the expression to be processed from left to right,
+  // and there are capturing groups around each portion. The official specification for interpolated strings is in the
+  // last part of this section:
+  // http://www.commonwl.org/v1.0/CommandLineTool.html#Parameter_references
+  val InterpolatedStringWitness = Witness("""(?s)(.*?)\$\(([^\)]+)\)(.*)""")
+  val InterpolatedStringRegex = InterpolatedStringWitness.value.r
+  type MatchesInterpolatedString = MatchesRegex[InterpolatedStringWitness.T]
+  type InterpolatedString = String Refined MatchesInterpolatedString
 
   def evalExpression(expression: ECMAScriptExpression, parameterContext: ParameterContext, expressionLib: ExpressionLib): ErrorOr[WomValue] = {
     expression.value match {
@@ -57,6 +68,28 @@ object ExpressionEvaluator {
         eval(expressionFromParts(expressionLib, functionExpression), parameterContext)
       case unmatched =>
         s"Expression '$unmatched' was unable to be matched to regex '${ECMAScriptFunctionWitness.value}'".invalidNel
+    }
+  }
+
+  def evalInterpolatedString(string: InterpolatedString, parameterContext: ParameterContext, expressionLib: ExpressionLib): ErrorOr[WomValue] = {
+    def interpolate(remaining: String, acc: String = ""): ErrorOr[String] = {
+      remaining match {
+        // The match is non-greedy in `before` so `expr` will always contain the first expression. e.g.:
+        //
+        // "foo $(bar) baz $(qux) quux" would match with before = "foo ", expr = "bar", after = " baz $(qux) quux"
+        case InterpolatedStringRegex(before, expr, after) =>
+          eval(expressionFromParts(expressionLib, expr), parameterContext) flatMap { v =>
+            interpolate(after, acc + before + v.valueString)
+          }
+        case r => (acc + r).validNel
+      }
+    }
+
+    string.value match {
+      case InterpolatedStringRegex(_, _, _) => interpolate(string.value) map WomString.apply
+
+      case unmatched =>
+        s"Expression '$unmatched' was unable to be matched to regex '${InterpolatedStringWitness.value}'".invalidNel
     }
   }
 

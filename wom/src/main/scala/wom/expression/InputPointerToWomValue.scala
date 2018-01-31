@@ -6,7 +6,9 @@ import common.validation.ErrorOr.ErrorOr
 import shapeless.Poly1
 import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OptionalInputDefinition}
 import wom.graph.GraphNodePort.OutputPort
-import wom.values.WomValue
+import wom.values.{WomOptionalValue, WomValue}
+
+import scala.annotation.tailrec
 
 object InputPointerToWomValue extends Poly1 {
   type OutputPortLookup = OutputPort => ErrorOr[WomValue]
@@ -21,12 +23,22 @@ object InputPointerToWomValue extends Poly1 {
   implicit def fromOutputPort: Case.Aux[OutputPort, ToWdlValueFn] = at[OutputPort] {
     port => (knownValues: Map[String, WomValue], ioFunctions: IoFunctionSet, outputPortLookup: OutputPortLookup, inputDefinition: InputDefinition) =>
       (outputPortLookup(port), inputDefinition) match {
-        case (v: Valid[WomValue], _) => v.map(inputDefinition.valueMapper(ioFunctions))
+        case (Valid(womValue), _) if isDefined(womValue) =>
+          inputDefinition.valueMapper(ioFunctions)(womValue).valid
         case (_, InputDefinitionWithDefault(_, _, defaultExpression, valueMapper)) =>
           evaluate(defaultExpression, knownValues, ioFunctions).map(valueMapper(ioFunctions))
         case (_, OptionalInputDefinition(_, optionalType, valueMapper)) => valueMapper(ioFunctions)(optionalType.none).validNel
         case _ => s"Failed to lookup input value for required input ${port.name}".invalidNel
       }
+  }
+
+  @tailrec
+  private def isDefined(womValue: WomValue): Boolean = {
+    womValue match {
+      case WomOptionalValue(_, Some(innerWomValue)) => isDefined(innerWomValue)
+      case WomOptionalValue(_, None) => false
+      case _ => true
+    }
   }
 
   implicit def fromWomExpression: Case.Aux[WomExpression, ToWdlValueFn] = at[WomExpression] {

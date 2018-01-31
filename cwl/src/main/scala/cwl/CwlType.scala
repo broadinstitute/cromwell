@@ -17,6 +17,7 @@ import scala.annotation.tailrec
 object CwlType extends Enumeration {
   type CwlType = Value
 
+  val Any = Value("Any")
   val Null = Value("null")
   val Boolean = Value("boolean")
   val Int = Value("int")

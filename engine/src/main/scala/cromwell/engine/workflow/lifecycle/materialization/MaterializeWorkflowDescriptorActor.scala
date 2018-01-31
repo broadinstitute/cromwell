@@ -234,10 +234,10 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     val labelsValidation: Parse[Labels] = fromEither[IO](validateLabels(sourceFiles.labelsJson).toEither)
 
     for {
-      validatedNamespace <- namespaceValidation
       labels <- labelsValidation
+      _ <- publishLabelsToMetadata(id, labels)
+      validatedNamespace <- namespaceValidation
       _ <- pushWfNameMetadataService(validatedNamespace.executable.entryPoint.name)
-      _ <- publishLabelsToMetadata(id, validatedNamespace.executable.entryPoint.name, labels)
       ewd <- fromEither[IO](buildWorkflowDescriptor(id, sourceFiles, validatedNamespace, workflowOptions, labels, conf, pathBuilders).toEither)
     } yield ewd
   }
@@ -250,7 +250,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     Monad[Parse].pure(serviceRegistryActor ! PutMetadataAction(nameEvent))
   }
 
-  private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, unqualifiedName: String, labels: Labels): Parse[Unit] = {
+  private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, labels: Labels): Parse[Unit] = {
     val defaultLabel = "cromwell-workflow-id" -> s"cromwell-$rootWorkflowId"
     val customLabels = labels.asMap
     Monad[Parse].pure(labelsToMetadata(customLabels + defaultLabel, rootWorkflowId))

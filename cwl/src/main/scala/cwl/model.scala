@@ -18,44 +18,6 @@ import wom.graph.expression.{ExposedExpressionNode, ExpressionNode}
 import wom.types.{WomStringType, WomType}
 import wom.values.WomValue
 
-case class WorkflowStepInput(
-  id: String,
-  source: Option[InputSource] = None,
-  linkMerge: Option[LinkMergeMethod] = None,
-  default: Option[CwlAny] = None,
-  valueFrom: Option[StringOrExpression] = None) {
-  
-  def toExpressionNode(sourceMappings: Map[String, OutputPort],
-                       outputTypeMap: Map[String, WomType],
-                       expressionLib: ExpressionLib
-                      )(implicit parentName: ParentName): ErrorOr[ExpressionNode] = {
-
-    val sources = source.toList.flatMap(_.fold(WorkflowStepInputSourceToStrings))
-
-    val inputs = sourceMappings.keySet
-
-    def lookupId(id: String): ErrorOr[WomType] =
-      outputTypeMap.
-        get(id).
-        toValidNel(s"couldn't find $id as derived from $source in map\n${outputTypeMap.mkString("\n")}")
-
-    (for {
-      //lookup each of our source Ids, failing if any of them are missing
-      inputTypes <- sources.traverse[ErrorOr, WomType](lookupId).toEither
-      // we may have several sources, we make sure to have a type common to all of them.
-      // In the case where there's no input source, we currently wrap the valueFrom value in a WomString (see WorkflowStepInputExpression)
-      inputType = if (inputTypes.isEmpty) WomStringType else WomType.homogeneousTypeFromTypes(inputTypes)
-      womExpression = WorkflowStepInputExpression(this, inputType, inputs, expressionLib)
-      identifier = WomIdentifier(id)
-      ret <- ExposedExpressionNode.fromInputMapping(identifier, womExpression, inputType, sourceMappings).toEither
-    } yield ret).toValidated
-  }
-}
-
-object WorkflowStepInput {
-  type InputSource = String :+: Array[String] :+: CNil
-}
-
 object WorkflowStepInputSource {
   object String {
     def unapply(arg: InputSource): Option[String] = arg.select[String]

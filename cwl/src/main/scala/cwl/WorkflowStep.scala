@@ -11,11 +11,7 @@ import cats.syntax.validated._
 import common.Checked
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
-<<<<<<< HEAD
 import cwl.ScatterLogic.ScatterVariablesPoly
-=======
-import cwl.CwlType.CwlType
->>>>>>> wip
 import cwl.ScatterMethod._
 import cwl.WorkflowStep.{WorkflowStepInputFold, _}
 import cwl.command.ParentName
@@ -95,8 +91,6 @@ case class WorkflowStep(
     }).toMap
   }
 
-  def typedRunInputs: Map[String, Option[MyriadInputType]] = run.fold(RunToInputTypeMap)
-
   def fileName: Option[String] = run.select[String]
 
   /**
@@ -118,6 +112,8 @@ case class WorkflowStep(
         WomIdentifier(LocalName(fqn.id), womFqn)
       }).getOrElse(WomIdentifier(id))
     }
+
+    def typedRunInputs: Map[String, Option[MyriadInputType]] = run.fold(RunToInputTypeMap).apply(parentName)
 
     // To avoid duplicating nodes, return immediately if we've already covered this node
     val haveWeSeenThisStep: Boolean = knownNodes.collect {
@@ -194,20 +190,29 @@ case class WorkflowStep(
               }
           }
 
-          def updateFold(sourceMappings: Map[String, OutputPort], newNodes: Set[GraphNode]): Checked[WorkflowStepInputFold] =
-            workflowStepInput.toExpressionNode(sourceMappings, typeMap, expressionLib).map({ expressionNode =>
+          def updateFold(sourceMappings: Map[String, OutputPort], newNodes: Set[GraphNode]): Checked[WorkflowStepInputFold] = {
+
+            /*
+             * We can expect this id to be present because the SALAD process validates all links for us.
+             */
+            val targetType: Option[cwl.MyriadInputType] = typedRunInputs(id)
+
+            val isScattered = scatter.map(_.fold(StringOrStringArrayToStringList).contains(FullyQualifiedName(id).id)).getOrElse(false)
+
+            workflowStepInput.toExpressionNode(sourceMappings, typeMap, expressionLib, targetType, isScattered).map({ expressionNode =>
               fold |+| WorkflowStepInputFold(
                 stepInputMapping = Map(FullyQualifiedName(workflowStepInput.id).id -> expressionNode),
                 generatedNodes = newNodes + expressionNode
               )
             }).toEither
+          }
 
           /*
            * We intend to validate that all of these sources point to a WOM Outputport that we know about.
            *
            * If we don't know about them, we find upstream nodes and build them (see "buildUpstreamNodes").
            */
-          val inputSources: List[String] = workflowStepInput.source.toList.flatMap(_.fold(WorkflowStepInputSourceToStrings))
+          val inputSources: List[String] = workflowStepInput.source.toList.flatMap(_.fold(StringOrStringArrayToStringList))
 
           val baseCase = (Map.empty[String, OutputPort], fold.generatedNodes).asRight[NonEmptyList[String]]
           val inputMappingsAndGraphNodes: Checked[(Map[String, OutputPort], Set[GraphNode])] =

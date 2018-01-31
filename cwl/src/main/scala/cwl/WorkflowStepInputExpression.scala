@@ -28,8 +28,11 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
         get(FullyQualifiedName(key).id).
         toRight(s"source value $key not found in input values ${inputValues.mkString("\n")}.  Graph Inputs were ${graphInputs.mkString("\n")}" |> NonEmptyList.one)
 
-    (input.valueFrom, input.source.map(_.fold(WorkflowStepInputSourceToStrings))) match {
-      case (None, Some(List(id))) =>
+    val linkMerge = input.linkMerge.getOrElse(LinkMergeMethod.MergeNested)
+
+
+    (input.valueFrom, input.source.map(_.fold(StringOrStringArrayToStringList)), linkMerge) match {
+      case (None, Some(List(id)), _) =>
         lookupValue(id).toValidated
 
       // If valueFrom is a constant string value, use this as the value for this input parameter.
@@ -48,6 +51,9 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
        * evaluation of valueFrom on other parameters.
        */
       case (Some(StringOrExpression.Expression(expression)), Some(sources)) =>
+
+
+
         //used to determine the value of "self" as expected by CWL Spec
         def selfValue(in: List[WomValue]) = in match {
           case single :: Nil => single

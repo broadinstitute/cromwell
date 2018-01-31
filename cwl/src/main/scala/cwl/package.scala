@@ -2,7 +2,7 @@
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import cwl.CwlType._
-import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
+import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction, InterpolatedString}
 import cwl.command.ParentName
 import shapeless._
 import wom.executable.Executable
@@ -54,6 +54,9 @@ package object cwl extends TypeAliases {
   object StringOrExpression {
     def unapply(listing: InitialWorkDirRequirement.IwdrListing): Option[StringOrExpression] = listing.select[StringOrExpression]
 
+    object InterpolatedString {
+      def unapply(arg: StringOrExpression): Option[InterpolatedString] = arg.select[Expression].flatMap(_.select[InterpolatedString])
+    }
     object String {
       def unapply(soe: StringOrExpression): Option[String] = soe.select[String]
     }
@@ -74,6 +77,9 @@ package object cwl extends TypeAliases {
     }
     object ECMAScriptFunction {
       def unapply(soe: Expression): Option[ECMAScriptFunction] = soe.select[ECMAScriptFunction]
+    }
+    object InterpolatedString {
+      def unapply(soe: Expression): Option[InterpolatedString] = soe.select[InterpolatedString]
     }
   }
 

@@ -1,14 +1,14 @@
 package cwl
 
 import cwl.CwlType.CwlType
-import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
+import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction, InterpolatedString}
 import io.circe.Json
 import shapeless.{:+:, CNil}
 import wom.types.WomType
 
 trait TypeAliases {
 
-  type Expression = ECMAScriptExpression :+: ECMAScriptFunction :+: CNil
+  type Expression = ECMAScriptExpression :+: ECMAScriptFunction :+: InterpolatedString :+: CNil
 
   // http://www.commonwl.org/v1.0/Workflow.html#InputParameter
   // http://www.commonwl.org/v1.0/CommandLineTool.html#CommandInputParameter

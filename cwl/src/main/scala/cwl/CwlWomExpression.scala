@@ -33,6 +33,7 @@ case class ECMAScriptWomExpression(expression: Expression,
   override def sourceString = expression match {
     case Expression.ECMAScriptExpression(s) => s.value
     case Expression.ECMAScriptFunction(s) => s.value
+    case Expression.InterpolatedString(s) => s.value
   }
 
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet) = {

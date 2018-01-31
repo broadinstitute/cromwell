@@ -347,10 +347,10 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       }
     }
 
-    // TODO CWL: toTry.get here. Is throwing an exception the best way to indicate command generation failure?
+    // TODO CWL: Is throwing an exception the best way to indicate command generation failure?
     command.toTry match {
       case Success(ic) => ic
-      case Failure(e) => throw new Exception("Failed to evaluate ad hoc files", e)
+      case Failure(e) => throw new Exception("Failed command instantiation", e)
     }
   }
 

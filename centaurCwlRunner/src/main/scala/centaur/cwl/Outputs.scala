@@ -3,7 +3,7 @@ package centaur.cwl
 import centaur.api.CentaurCromwellClient
 import cromwell.api.model.SubmittedWorkflow
 import cromwell.core.path.PathBuilder
-import cwl.CwlDecoder.Parse
+import common.validation.Parse._
 import cwl.{Cwl, CwlDecoder, MyriadOutputType}
 import io.circe.Json
 import io.circe.syntax._

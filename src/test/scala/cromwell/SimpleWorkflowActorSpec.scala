@@ -31,7 +31,7 @@ object SimpleWorkflowActorSpec {
 
 class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfter {
   val serviceRegistry = TestProbe().ref
-  
+
   private def buildWorkflowActor(sampleWdl: SampleWdl,
                                  rawInputsOverride: String,
                                  workflowId: WorkflowId,
@@ -134,7 +134,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
     }
 
     "fail when a call fails" in {
-      val expectedError = "Job wf_goodbye.goodbye:NA:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details." 
+      val expectedError = "Job wf_goodbye.goodbye:NA:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
       val failureMatcher = FailureMatcher(expectedError)
       val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.GoodbyeWorld, SampleWdl.GoodbyeWorld.workflowJson, workflowId, failureMatcher)
       val probe = TestProbe()

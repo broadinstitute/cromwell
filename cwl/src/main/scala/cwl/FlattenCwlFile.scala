@@ -2,7 +2,7 @@ package cwl
 
 import cats.data.EitherT
 import common.Checked
-import cwl.CwlDecoder.Parse
+import common.validation.Parse._
 import cwl.command.ParentName
 import shapeless.Poly1
 import common.validation.Checked._

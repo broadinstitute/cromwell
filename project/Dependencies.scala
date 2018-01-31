@@ -268,7 +268,8 @@ object Dependencies {
   )
 
   val commonDependencies = List(
-    "org.slf4j" % "slf4j-api" % slf4jV
+    "org.slf4j" % "slf4j-api" % slf4jV,
+    "org.typelevel" %% "cats-effect" % catsEffectV
   ) ++ catsDependencies ++ configDependencies
 
   val womDependencies = List(
@@ -289,7 +290,6 @@ object Dependencies {
 
   val cwlDependencies = List(
     "com.lihaoyi" %% "ammonite-ops" % ammoniteOpsV,
-    "org.typelevel" %% "cats-effect" % catsEffectV,
     "org.scalactic" %% "scalactic" % scalacticV,
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test
   ) ++ circeDependencies ++ womDependencies ++ refinedTypeDependenciesList ++ betterFilesDependencies
@@ -339,7 +339,7 @@ object Dependencies {
     "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
     "io.swagger" % "swagger-parser" % swaggerParserV % Test,
     "org.yaml" % "snakeyaml" % snakeyamlV % Test
-  ) ++ swaggerUiDependencies ++ akkaHttpDependencies
+  ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ circeDependencies
 
   val rootDependencies = slf4jBindingDependencies
 

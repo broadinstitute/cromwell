@@ -1,10 +1,9 @@
 package cromwell
 
-import akka.testkit._
+import akka.testkit.EventFilter
 import cromwell.util.SampleWdl
 import wom.types._
 import wom.values._
-
 
 class ArrayOfArrayCoercionSpec extends CromwellTestKitWordSpec {
   "A workflow that has an Array[Array[File]] input " should {

@@ -4,35 +4,17 @@ import ammonite.ops.ImplicitWd._
 import ammonite.ops._
 import better.files.{File => BFile}
 import cats.data.EitherT._
-import cats.data.{EitherT, NonEmptyList, ValidatedNel}
+import cats.data.{EitherT, NonEmptyList}
 import cats.effect.IO
 import cats.syntax.either._
 import cats.{Applicative, Monad}
 import common.legacy.TwoElevenSupport._
 import common.validation.ErrorOr._
-import common.validation.Validation._
+import common.validation.Parse._
 
 import scala.util.Try
 
 object CwlDecoder {
-
-  object Parse {
-    def error[A](error: String, tail: String*): Parse[A] = EitherT.leftT {
-      NonEmptyList.of(error, tail: _*)
-    }
-  }
-  
-  type Parse[A] = EitherT[IO, NonEmptyList[String], A]
-
-  type ParseValidated[A] = IO[ValidatedNel[String, A]]
-
-  // If anyone has a magic import that does exactly what these helpers do, please replace, thx!
-
-  def errorOrParse[A](f: => ErrorOr[A]): Parse[A] = fromEither[IO](f.toEither)
-
-  def tryParse[A](f: => Try[A]): Parse[A] = errorOrParse(f.toErrorOr)
-
-  def goParse[A](f: => A): Parse[A] = tryParse(Try(f))
 
   implicit val composedApplicative = Applicative[IO] compose Applicative[ErrorOr]
 

@@ -279,7 +279,16 @@ object Dependencies {
     "commons-codec" % "commons-codec" % commonsCodecV
   )
 
-  val wdlDependencies = List(
+  val wdlDraft2Dependencies = List(
+    "commons-io" % "commons-io" % commonsIoV,
+    "org.scala-graph" %% "graph-core" % scalaGraphV,
+    "com.chuusai" %% "shapeless" % shapelessV,
+    "com.softwaremill.sttp" %% "core" % sttpV,
+    "com.softwaremill.sttp" %% "async-http-client-backend-cats" % sttpV,
+    "org.mock-server" % "mockserver-netty" % mockserverNettyV % Test
+  ) ++ betterFilesDependencies
+
+  val wdlDraft3Dependencies = List(
     "commons-io" % "commons-io" % commonsIoV,
     "org.scala-graph" %% "graph-core" % scalaGraphV,
     "com.chuusai" %% "shapeless" % shapelessV,

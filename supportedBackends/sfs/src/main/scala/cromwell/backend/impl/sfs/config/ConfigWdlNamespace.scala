@@ -4,6 +4,7 @@ import com.typesafe.config.Config
 import cromwell.backend.impl.sfs.config.ConfigConstants._
 import net.ceedubs.ficus.Ficus._
 import wdl._
+import wdl.draft2.{WdlNamespace, WdlTask}
 import wom.core.WorkflowSource
 
 import scala.util.{Failure, Success}

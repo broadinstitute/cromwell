@@ -1,6 +1,6 @@
 package cromwell.backend
 
-import _root_.wdl._
+import _root_.wdl.draft2._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.backend.io.TestWorkflows._
 import cromwell.core.callcaching.NoDocker

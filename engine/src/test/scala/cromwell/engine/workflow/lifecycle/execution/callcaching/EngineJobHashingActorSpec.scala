@@ -1,5 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
+import _root_.wdl.draft2.command.StringCommandPart
 import akka.actor.{Actor, ActorRef, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import cats.syntax.validated._
@@ -14,7 +15,6 @@ import cromwell.util.WomMocks
 import org.scalatest.concurrent.Eventually
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
-import _root_.wdl.command.StringCommandPart
 import wom.core.LocallyQualifiedName
 import wom.graph.WomIdentifier
 import wom.values.WomValue

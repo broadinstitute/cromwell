@@ -8,7 +8,7 @@ import better.files.File
 import cats.implicits._
 import cwl.CwlDecoder
 import spray.json.{JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsValue}
-import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
+import wdl.draft2.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.executable.Executable
 import wom.graph._
 import wom.types._

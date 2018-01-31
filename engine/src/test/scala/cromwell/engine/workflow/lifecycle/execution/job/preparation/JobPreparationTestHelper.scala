@@ -1,5 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.job.preparation
 
+import _root_.wdl.draft2.LocallyQualifiedName
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.TestProbe
 import cromwell.backend._
@@ -36,7 +37,7 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
   def buildTestJobPreparationActor(backpressureTimeout: FiniteDuration,
                                    noResponseTimeout: FiniteDuration,
                                    dockerHashCredentials: List[Any],
-                                   inputsAndAttributes: ErrorOr[(WomEvaluatedCallInputs, Map[_root_.wdl.LocallyQualifiedName, WomValue])],
+                                   inputsAndAttributes: ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])],
                                    kvStoreKeysForPrefetch: List[String]) = {
 
     Props(new TestJobPreparationActor(
@@ -58,7 +59,7 @@ private[preparation] class TestJobPreparationActor(kvStoreKeysForPrefetch: List[
                                                    dockerHashCredentialsInput: List[Any],
                                                    backpressureWaitTimeInput: FiniteDuration,
                                                    dockerNoResponseTimeoutInput: FiniteDuration,
-                                                   inputsAndAttributes: ErrorOr[(WomEvaluatedCallInputs, Map[_root_.wdl.LocallyQualifiedName, WomValue])],
+                                                   inputsAndAttributes: ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])],
                                                    workflowDescriptor: EngineWorkflowDescriptor,
                                                    jobKey: BackendJobDescriptorKey,
                                                    workflowDockerLookupActor: ActorRef,

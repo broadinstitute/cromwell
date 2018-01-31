@@ -8,8 +8,8 @@ import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
 import common.validation.ErrorOr._
 import cromwell.core.NoIoFunctionSet
 import org.slf4j.Logger
-import wdl.expression.PureStandardLibraryFunctions
-import wdl.{NoLookup, WdlExpression}
+import wdl.draft2.expression.PureStandardLibraryFunctions
+import wdl.draft2.{NoLookup, WdlExpression}
 import wom.expression.WomExpression
 import wom.types._
 import wom.values._

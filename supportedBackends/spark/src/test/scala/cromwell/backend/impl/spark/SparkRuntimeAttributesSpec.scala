@@ -7,7 +7,7 @@ import cromwell.core.{NoIoFunctionSet, WorkflowId, WorkflowOptions}
 import common.validation.ErrorOr._
 import org.scalatest.{Matchers, WordSpecLike}
 import spray.json.{JsBoolean, JsNumber, JsObject, JsString, JsValue}
-import wdl._
+import wdl.draft2._
 import wom.core.WorkflowSource
 import wom.graph.GraphNodePort.OutputPort
 import wom.values.WomValue

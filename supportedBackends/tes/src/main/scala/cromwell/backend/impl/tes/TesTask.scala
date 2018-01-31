@@ -5,7 +5,7 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.NoIoFunctionSet
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import wdl.FullyQualifiedName
+import wdl.draft2.FullyQualifiedName
 import wdl4s.parser.MemoryUnit
 import wom.InstantiatedCommand
 import wom.callable.Callable.OutputDefinition

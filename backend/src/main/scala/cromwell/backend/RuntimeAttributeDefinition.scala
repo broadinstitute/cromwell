@@ -1,6 +1,6 @@
 package cromwell.backend
 
-import _root_.wdl._
+import _root_.wdl.draft2._
 import cromwell.core.WorkflowOptions
 import cromwell.util.JsonFormatting.WomValueJsonFormatter
 import common.validation.ErrorOr.ErrorOr

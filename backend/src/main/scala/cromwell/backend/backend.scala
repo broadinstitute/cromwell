@@ -1,6 +1,5 @@
 package cromwell.backend
 
-import _root_.wdl._
 import com.typesafe.config.Config
 import cromwell.core.WorkflowOptions.WorkflowOption
 import cromwell.core.callcaching.MaybeCallCachingEligible
@@ -29,7 +28,7 @@ case class BackendJobDescriptorKey(call: CommandCallNode, index: Option[Int], at
   */
 case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                                 key: BackendJobDescriptorKey,
-                                runtimeAttributes: Map[LocallyQualifiedName, WomValue],
+                                runtimeAttributes: Map[String, WomValue],
                                 evaluatedTaskInputs: WomEvaluatedCallInputs,
                                 maybeCallCachingEligible: MaybeCallCachingEligible,
                                 prefetchedKvStoreEntries: Map[String, KvResponse]) {

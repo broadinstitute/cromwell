@@ -9,8 +9,8 @@ import cromwell.util.SampleWdl
 import org.scalameter.api._
 import org.scalameter.picklers.Implicits._
 import spray.json.DefaultJsonProtocol
-import wdl.WdlNamespaceWithWorkflow
-import wom.graph.{ScatterNode, CommandCallNode}
+import wdl.draft2.WdlNamespaceWithWorkflow
+import wom.graph.{CommandCallNode, ScatterNode}
 
 /**
   * Benchmarks the performance of the execution store using ScalaMeter (http://scalameter.github.io/)

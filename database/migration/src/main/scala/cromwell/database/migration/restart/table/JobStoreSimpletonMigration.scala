@@ -3,7 +3,7 @@ package cromwell.database.migration.restart.table
 import cromwell.core.simpleton.WomValueSimpleton._
 import cromwell.database.migration.WdlTransformation._
 import liquibase.database.jvm.JdbcConnection
-import wdl.types._
+import wdl.draft2.types._
 import wom.types.WomType
 import wom.values.WomValue
 

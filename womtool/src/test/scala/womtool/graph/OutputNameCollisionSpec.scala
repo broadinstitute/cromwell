@@ -1,6 +1,6 @@
 package womtool.graph
 
-import wdl.WdlNamespaceWithWorkflow
+import wdl.draft2.WdlNamespaceWithWorkflow
 
 class OutputNameCollisionSpec extends WomDotGraphTest {
 

@@ -90,6 +90,9 @@ trait TypeAliases {
 }
 
 object MyriadInputType {
+  object InputArray {
+    def unapply(m: MyriadInputType): Option[Array[MyriadInputInnerType]] = m.select[Array[MyriadInputInnerType]]
+  }
   object CwlType {
     def unapply(m: MyriadInputType): Option[CwlType] = {
       m.select[MyriadInputInnerType].flatMap(_.select[CwlType])

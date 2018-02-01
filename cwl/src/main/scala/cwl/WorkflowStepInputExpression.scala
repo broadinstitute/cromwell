@@ -37,7 +37,7 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
 
       // If valueFrom is a constant string value, use this as the value for this input parameter.
       // TODO: need to handle case where this is a parameter reference, it currently looks like a String to us!
-      case (Some(StringOrExpression.String(value)), None) => WomString(value).validNel
+      case (Some(StringOrExpression.String(value)), None, _) => WomString(value).validNel
 
       /*
        * If valueFrom is a parameter reference or expression, it must be evaluated to yield the actual value to be assiged to the input field.
@@ -50,7 +50,7 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
        * input parameters is undefined and the result of evaluating valueFrom on a parameter must not be visible to
        * evaluation of valueFrom on other parameters.
        */
-      case (Some(StringOrExpression.Expression(expression)), Some(sources)) =>
+      case (Some(StringOrExpression.Expression(expression)), Some(sources), _) =>
 
 
 
@@ -71,10 +71,10 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
 
         evaluatedExpression.toValidated
 
-      case (Some(StringOrExpression.Expression(expression)), None) =>
+      case (Some(StringOrExpression.Expression(expression)), None, _) =>
         expression.fold(EvaluateExpression).apply(ParameterContext(inputValues), expressionLib)
 
-      case (errorValueFrom, errorSources) => s"Could not do evaluateValue($errorValueFrom, $errorSources), most likely it has not been implemented yet".invalidNel
+      case (errorValueFrom, errorSources, _) => s"Could not do evaluateValue($errorValueFrom, $errorSources), most likely it has not been implemented yet".invalidNel
     }
   }
 

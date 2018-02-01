@@ -1,6 +1,6 @@
 name: cnv_somatic_pair
 testFormat: workflowsuccess
-
+ignore: true
 files {
   wdl: Somatic/CNV-Pair/cnv_somatic_pair_workflow.wdl
   inputs: Somatic/CNV-Pair/cnv_somatic_pair_workflow_do_gc_wes.inputs

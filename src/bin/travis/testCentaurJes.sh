@@ -13,7 +13,7 @@ fi
 
 printTravisHeartbeat() {
     # Sleep one minute between printouts, but don't zombie for more than two hours
-    for ((i=0; i < 120; i++)); do
+    for ((i=0; i < 180; i++)); do
         sleep 60
         printf "…"
     done &

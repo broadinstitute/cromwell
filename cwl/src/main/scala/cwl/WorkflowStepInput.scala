@@ -22,6 +22,7 @@ import cwl.WorkflowStepInput.InputSource
 import common.validation.ErrorOr.ErrorOr
 import cwl.CommandLineTool.{CommandBindingSortingKey, SortKeyAndCommandPart}
 import cwl.command.ParentName
+import mouse.all._
 import wom.types.WomType
 import wom.graph.WomIdentifier
 import wom.graph.GraphNodePort.OutputPort
@@ -61,6 +62,40 @@ case class WorkflowStepInput(
       } yield node
     node.toValidated
   }
+
+  lazy val sources: List[String] =
+    source.
+      toList.
+      flatMap(_.fold(StringOrStringArrayToStringList))
+
+  def effectiveLinkMerge: LinkMergeMethod = linkMerge.getOrElse(LinkMergeMethod.MergeNested)
+
+  def sourceValues(inputValues: Map[String, WomValue])(implicit pn: ParentName): Checked[Map[String, WomValue]]  = {
+
+    def lookupValue(key: String): Checked[WomValue] =
+      inputValues.
+        get(FullyQualifiedName(key).id).
+        toRight(s"source value $key not found in input values ${inputValues.mkString("\n")}." |> NonEmptyList.one)
+
+
+    sources.
+      traverse[ErrorOr, (String, WomValue)](s => lookupValue(s).toValidated.map(FullyQualifiedName(s).id -> _)).
+      toEither.
+      map(_.toMap)
+  }
+
+  def validatedSourceTypes(typeMap: WomTypeMap)(implicit pn: ParentName): Checked[WomTypeMap] = {
+    def lookupValue(key: String): Checked[WomType] =
+      typeMap.
+        get(FullyQualifiedName(key).id).
+        toRight(s"source value $key not found in type map ${typeMap.mkString("\n")}." |> NonEmptyList.one)
+
+    sources.
+      traverse[ErrorOr, (String, WomType)](s => lookupValue(s).toValidated.map(FullyQualifiedName(s).id -> _)).
+      toEither.
+      map(_.toMap)
+  }
+
 }
 
 object WorkflowStepInput {
@@ -71,9 +106,9 @@ object WorkflowStepInput {
                     expectedType: Option[MyriadInputType],
                     isScattered: Boolean)(implicit parentName: ParentName): Checked[WomType] = {
 
+    /*
     val sources = stepInput.source.toList.flatMap(_.fold(StringOrStringArrayToStringList)).map(FullyQualifiedName(_).id)
 
-    /*
     val outputTypeMapWithIDs = outputTypeMap.map {
       case (key, value) => FullyQualifiedName(key).id -> value
     }
@@ -93,8 +128,15 @@ object WorkflowStepInput {
     }).getOrElse(false)
     */
 
-    (sources.size,isScattered, expectedType) match {
-      case (n, true, Some(tpe)) if (n > 0) => WomArrayType(tpe.fold(MyriadInputTypeToWomType)).asRight
+    (isScattered, expectedType) match {
+      case (true, Some(tpe)) => WomArrayType(tpe.fold(MyriadInputTypeToWomType)).asRight
+      case (false, someArray@Some(MyriadInputType.InputArray(_))) => WomArrayType(someArray.get.fold(MyriadInputTypeToWomType)).asRight
+      case (false, Some(MyriadInputType.InputArraySchema(tpe: InputArraySchema)))  =>
+        (stepInput.validatedSourceTypes(outputTypeMap).map(_.toList), tpe.items.fold(MyriadInputTypeToWomType)) match {
+          case (Right(List((_, value))), itemsWomType) if (value == itemsWomType) =>  WomArrayType(itemsWomType).asRight
+          case (Right(lst), itemsWomType)  =>  (s"could not verify that types $lst and the items type of the run's InputArraySchema $itemsWomType were compatible" |> NonEmptyList.one).asLeft
+          case (Left(invalid), _) => Left(invalid)
+        }
     }
   }
 }

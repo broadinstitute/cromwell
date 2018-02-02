@@ -28,10 +28,34 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
         get(FullyQualifiedName(key).id).
         toRight(s"source value $key not found in input values ${inputValues.mkString("\n")}.  Graph Inputs were ${graphInputs.mkString("\n")}" |> NonEmptyList.one)
 
-    val linkMerge = input.linkMerge.getOrElse(LinkMergeMethod.MergeNested)
+    def convertTupleToWomMap: (String, WomValue) => WomMap = {
+      case (key, value) => WomMap(WomMapType(WomStringType, value.womType), Map(WomString(key) -> value))
+    }
 
 
-    (input.valueFrom, input.source.map(_.fold(StringOrStringArrayToStringList)), linkMerge) match {
+    (input.valueFrom, input.source.map(_.fold(StringOrStringArrayToStringList)), input.effectiveLinkMerge) match {
+      case (None, Some(sources), LinkMergeMethod.MergeNested) =>
+          val x: ErrorOr[List[WomMap]] = sources.
+            traverse[ErrorOr, WomMap](s => lookupValue(s).toValidated.map(FullyQualifiedName(s).id -> _).map(convertTupleToWomMap.tupled))
+
+        x.map(list => WomArray(list.toSeq))
+
+      case (None, Some(sources), LinkMergeMethod.MergeFlattened) =>
+
+        val x: Checked[List[WomValue]] = sources.
+          traverse[ErrorOr, WomValue](s => lookupValue(s).toValidated).
+          toEither
+
+        //flatten this down
+        val y: Checked[List[WomValue]] = x.map(list => list.flatMap{ womValue =>
+          womValue match {
+            case WomArray(_, value) => value
+            case other => List(other)
+          }
+        })
+
+        y.map(list => WomArray(list)).toValidated
+
       case (None, Some(List(id)), _) =>
         lookupValue(id).toValidated
 
@@ -74,7 +98,7 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
       case (Some(StringOrExpression.Expression(expression)), None, _) =>
         expression.fold(EvaluateExpression).apply(ParameterContext(inputValues), expressionLib)
 
-      case (errorValueFrom, errorSources, _) => s"Could not do evaluateValue($errorValueFrom, $errorSources), most likely it has not been implemented yet".invalidNel
+      case other => s"Could not do evaluateValue $other, most likely it has not been implemented yet".invalidNel
     }
   }
 
@@ -87,3 +111,5 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
     case WorkflowStepInputSource.StringArray(sa) => sa.map(FullyQualifiedName(_).id).toSet
   }}
 }
+
+

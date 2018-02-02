@@ -30,7 +30,7 @@ class CommandOutputExpressionSpec extends FlatSpec with Matchers {
       override def glob(pattern: String): Future[Seq[String]] = Future.successful(List(pattern))
       override def listAllFilesUnderDirectory(dirPath: String): Nothing =
         fail("listAllFilesUnderDirectory should not be used in this test")
-      override def size(params: Seq[Try[WomValue]]) = fail("size should not be used in this test")
+      override def size(file: WomValue): Future[Double] = fail("size should not be used in this test")
     }
 
   it should "evaluateValue" in {

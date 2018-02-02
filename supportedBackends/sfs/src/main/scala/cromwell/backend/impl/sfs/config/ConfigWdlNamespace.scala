@@ -4,6 +4,7 @@ import com.typesafe.config.Config
 import cromwell.backend.impl.sfs.config.ConfigConstants._
 import net.ceedubs.ficus.Ficus._
 import wdl._
+import wdl.draft2.Draft2VersionSpecifics
 import wom.core.WorkflowSource
 
 import scala.util.{Failure, Success}
@@ -50,7 +51,7 @@ class ConfigWdlNamespace(backendConfig: Config) {
     * The wdl namespace containing the submit, kill, and check alive tasks.
     */
   val wdlNamespace = {
-    WdlNamespace.loadUsingSource(workflowSource, None, None) match {
+    WdlNamespace.loadUsingSource(workflowSource, None, None)(Draft2VersionSpecifics) match {
       case Success(ns) => ns
       case Failure(f) => throw new RuntimeException(s"Error parsing generated wdl:\n$workflowSource".stripMargin, f)
     }
@@ -79,7 +80,7 @@ object ConfigWdlNamespace {
 
   private def makeTask(taskName: String, command: String, declarations: String): WdlTask = {
     val workflowSource = makeWdlSource(taskName, command, declarations)
-    val wdlNamespace = WdlNamespace.loadUsingSource(workflowSource, None, None).get
+    val wdlNamespace = WdlNamespace.loadUsingSource(workflowSource, None, None)(Draft2VersionSpecifics).get
     wdlNamespace.findTask(taskName).getOrElse(throw new RuntimeException(s"Couldn't find task $taskName"))
   }
 

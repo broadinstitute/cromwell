@@ -1,10 +1,15 @@
 package womtool
 
+import wdl.draft2.Draft2VersionSpecifics
+import wdl.versioning.WdlVersionSpecifics
 import wom.graph.GraphNodePort.{InputPort, OutputPort}
 import wom.graph._
 import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode}
 
 package object graph {
+
+  // For the sake of this proof of concept:
+  implicit val wdlVersionSpecifics: WdlVersionSpecifics = Draft2VersionSpecifics
 
   private[graph] def dotSafe(s: String) = s""""${s.replaceAllLiterally("\"", "\\\"")}""""
 

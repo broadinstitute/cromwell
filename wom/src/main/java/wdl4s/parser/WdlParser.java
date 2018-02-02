@@ -27,7 +27,7 @@ import org.apache.commons.text.StringEscapeUtils;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import java.lang.reflect.Method;
-public class WdlParser {
+public class WdlParser implements SharedWdlParserPieces {
     private static Map<Integer, List<TerminalIdentifier>> nonterminal_first;
     private static Map<Integer, List<TerminalIdentifier>> nonterminal_follow;
     private static Map<Integer, List<TerminalIdentifier>> rule_first;
@@ -78,11 +78,6 @@ public class WdlParser {
         }
         finally {
             stream.close();
-        }
-    }
-    public static class SyntaxError extends Exception {
-        public SyntaxError(String message) {
-            super(message);
         }
     }
     public interface SyntaxErrorFormatter {
@@ -515,7 +510,7 @@ public class WdlParser {
         public int id();
         public String string();
     }
-    public enum WdlTerminalIdentifier implements TerminalIdentifier {
+    private enum WdlTerminalIdentifier implements TerminalIdentifier {
         TERMINAL_AS(15, "as"),
         TERMINAL_ASTERISK(40, "asterisk"),
         TERMINAL_BOOLEAN(5, "boolean"),

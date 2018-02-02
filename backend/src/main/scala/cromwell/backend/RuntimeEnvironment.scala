@@ -5,6 +5,7 @@ import java.util.UUID
 import cromwell.backend.io.JobPaths
 import cromwell.backend.validation.{CpuValidation, MemoryValidation}
 import wdl4s.parser.MemoryUnit
+import wom.MemorySize
 import wom.callable.RuntimeEnvironment
 import wom.values.WomValue
 

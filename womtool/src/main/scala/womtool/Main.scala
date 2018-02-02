@@ -5,11 +5,16 @@ import java.nio.file.Paths
 import wdl.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
 import wdl._
 import spray.json._
+import wdl.draft2.Draft2VersionSpecifics
 import womtool.graph.{GraphPrint, WomGraph}
 
 import scala.util.{Failure, Success}
 
 object Main extends App {
+
+  // For the sake of this proof of concept:
+  implicit val wdlVersionSpecifics = Draft2VersionSpecifics
+
   sealed trait Termination {
     def output: String
     def returnCode: Int

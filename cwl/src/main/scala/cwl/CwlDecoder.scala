@@ -4,13 +4,16 @@ import ammonite.ops.ImplicitWd._
 import ammonite.ops._
 import better.files.{File => BFile}
 import cats.data.EitherT._
-import cats.data.{EitherT, NonEmptyList}
+import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.syntax.either._
+import cats.instances.try_._
 import cats.{Applicative, Monad}
 import common.legacy.TwoElevenSupport._
 import common.validation.ErrorOr._
 import common.validation.Parse._
+import cwl.preprocessor.CwlPreProcessor
+import io.circe.Json
 
 import scala.util.Try
 
@@ -18,7 +21,7 @@ object CwlDecoder {
 
   implicit val composedApplicative = Applicative[IO] compose Applicative[ErrorOr]
 
-  private def preprocess(path: BFile): Parse[String] = {
+  def saladCwlFile(path: BFile): Parse[String] = {
     def resultToEither(cr: CommandResult) =
       cr.exitCode match {
         case 0 => Right(cr.out.string)
@@ -32,6 +35,8 @@ object CwlDecoder {
 
     fromEither[IO](cwlToolResult flatMap resultToEither)
   }
+  
+  lazy val cwlPreProcessor = new CwlPreProcessor()
 
   // TODO: WOM: During conformance testing the saladed-CWLs are referring to files in the temp directory.
   // Thus we can't delete the temp directory until after the workflow is complete, like the workflow logs.
@@ -43,26 +48,19 @@ object CwlDecoder {
     }
   }
 
-  def parseJson(json: String): Parse[CwlFile] = fromEither[IO](CwlCodecs.decodeCwl(json))
+  def parseJson(json: Json): Parse[Cwl] = fromEither[IO](CwlCodecs.decodeCwl(json))
 
   /**
    * Notice it gives you one instance of Cwl.  This has transformed all embedded files into scala object state
    */
-  def decodeAllCwl(fileName: BFile, root: Option[String] = None): Parse[Cwl] =
+  def decodeCwlFile(fileName: BFile,
+                    workflowRoot: Option[String] = None): Parse[Cwl] =
     for {
-      jsonString <- preprocess(fileName)
-      unmodifiedCwl <- parseJson(jsonString)
-      cwlWithEmbeddedCwl <- unmodifiedCwl.fold(FlattenCwlFile).apply((fileName.toString, root))
-    } yield cwlWithEmbeddedCwl
+      standaloneWorkflow <- cwlPreProcessor.preProcessCwlFile(fileName, workflowRoot)
+      parsedCwl <- parseJson(standaloneWorkflow)
+    } yield parsedCwl
 
-  def decodeTopLevelCwl(fileName: BFile, rootName: Option[String]): Parse[Cwl] =
-    for {
-      jsonString <- preprocess(fileName)
-      unmodifiedCwl <- parseJson(jsonString)
-      rootCwl <- EitherT.fromEither(unmodifiedCwl.fold(FlattenCwlFile.CwlFileRoot).apply(rootName)): Parse[Cwl]
-    } yield rootCwl
-
-  def decodeTopLevelCwl(cwl: String, zipOption: Option[BFile] = None, rootName: Option[String] = None): Parse[Cwl] = {
+  def decodeCwlString(cwl: String, zipOption: Option[BFile] = None, rootName: Option[String] = None): Parse[Cwl] = {
     for {
       parentDir <- goParse(BFile.newTemporaryDirectory("cwl.temp."))
       file <- fromEither[IO](BFile.newTemporaryFile("temp.", ".cwl", Option(parentDir)).write(cwl).asRight)
@@ -70,7 +68,7 @@ object CwlDecoder {
         case Some(zip) => goParse(zip.unzipTo(parentDir))
         case None => Monad[Parse].unit
       }
-      out <- decodeTopLevelCwl(file, rootName)
+      out <- decodeCwlFile(file, rootName)
       _ <- todoDeleteCwlFileParentDirectory(file)
     } yield out
   }
@@ -78,9 +76,9 @@ object CwlDecoder {
   //This is used when traversing over Cwl and replacing links w/ embedded data
   private[cwl] def decodeCwlAsValidated(fileName: String): ParseValidated[(String, Cwl)] = {
     //The SALAD preprocess step puts "file://" as a prefix to all filenames.  Better files doesn't like this.
-    val bFileName = fileName.drop(5)
+    val bFileName = fileName.stripPrefix("file://")
 
-    decodeAllCwl(BFile(bFileName)).
+    decodeCwlFile(BFile(bFileName)).
       map(fileName.toString -> _).
       value.
       map(_.toValidated)

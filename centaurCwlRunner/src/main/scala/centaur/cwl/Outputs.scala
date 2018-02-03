@@ -28,7 +28,7 @@ object Outputs {
     metadata.get("submittedFiles.workflow") match {
       case Some(JsString(workflow)) =>
 
-        val parseCwl: Parse[Cwl] = CwlDecoder.decodeTopLevelCwl(
+        val parseCwl: Parse[Cwl] = CwlDecoder.decodeCwlString(
           workflow,
           submittedWorkflow.workflow.zippedImports,
           submittedWorkflow.workflow.workflowRoot

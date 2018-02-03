@@ -176,7 +176,7 @@ object WomGraph {
   private def womExecutableFromCwl(filePath: String): Executable = {
     import cwl.AcceptAllRequirements
     (for {
-      clt <- CwlDecoder.decodeAllCwl(File(filePath)).
+      clt <- CwlDecoder.decodeCwlFile(File(filePath)).
         value.
         unsafeRunSync
       inputs = clt.requiredInputs

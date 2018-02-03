@@ -33,7 +33,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
 
     import cats.syntax.validated._
     (for {
-      clt <- decodeAllCwl(rootPath/"1st-tool.cwl").
+      clt <- decodeCwlFile(rootPath/"1st-tool.cwl").
               map(_.select[CommandLineTool].get).
               value.
               unsafeRunSync
@@ -43,7 +43,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
 
   "Cwl for 1st workflow" should "convert to WOM" in {
     (for {
-      wf <- decodeAllCwl(rootPath/"1st-workflow.cwl").
+      wf <- decodeCwlFile(rootPath/"1st-workflow.cwl").
               value.
               unsafeRunSync.
               map(_.select[Workflow].get)
@@ -128,7 +128,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
   }
 
   private lazy val commandLineTool: CommandLineTool = {
-    val wf = decodeAllCwl(rootPath / "three_step.cwl").map { wf =>
+    val wf = decodeCwlFile(rootPath / "three_step.cwl").map { wf =>
       wf.select[Workflow].get
     }.value.unsafeRunSync.fold(error => throw new RuntimeException(s"broken parse! msg was ${error.toList.mkString(", ")}"), identity)
 
@@ -154,7 +154,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
 
   "A CwlNamespace for 3step" should "provide conversion to WOM" in {
 
-    val wf = decodeAllCwl(rootPath/"three_step.cwl").map {
+    val wf = decodeCwlFile(rootPath/"three_step.cwl").map {
       _.select[Workflow].get
     }.value.unsafeRunSync.fold(error => throw new RuntimeException(s"broken parse: $error"), identity)
 

@@ -1,7 +1,7 @@
 package cwl
 
 import common.validation.Validation._
-import cwl.CwlDecoder.decodeAllCwl
+import cwl.CwlDecoder.decodeCwlFile
 import cwl.TestSetup.rootPath
 import org.scalatest.{FlatSpec, Matchers}
 import wom.callable.Callable.InputDefinition
@@ -15,7 +15,7 @@ class DirectorySpec extends FlatSpec with Matchers {
   behavior of "Directory"
 
   it should "dir_example" in {
-    val cwl = decodeAllCwl(rootPath / "dir_example.cwl").value.unsafeRunSync.right.get
+    val cwl = decodeCwlFile(rootPath / "dir_example.cwl").value.unsafeRunSync.right.get
     val executable = cwl.womExecutable(AcceptAllRequirements, None).right.get
     val call = executable.graph.calls.head
     val runtimeEnvironment = RuntimeEnvironment("output/path", "temp/path", 1, 2e10, 100, 100)

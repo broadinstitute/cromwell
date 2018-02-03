@@ -46,7 +46,7 @@ class CwlV1_0LanguageFactory() extends LanguageFactory {
     for {
       cwlFile <- writeCwlFileToNewTempDir()
       _ <- unzipDependencies(cwlFile)
-      cwl <- CwlDecoder.decodeAllCwl(cwlFile, source.workflowRoot)
+      cwl <- CwlDecoder.decodeCwlFile(cwlFile, source.workflowRoot)
       executable <- fromEither[IO](cwl.womExecutable(AcceptAllRequirements, Option(source.inputsJson)))
       validatedWomNamespace <- fromEither[IO](LanguageFactoryUtil.validateWomNamespace(executable, ioFunctions))
       _ <- CwlDecoder.todoDeleteCwlFileParentDirectory(cwlFile.parent)

@@ -9,7 +9,7 @@ class CwlDecoderSpec extends Properties("cwl decoder") {
   import TestSetup._
 
   property("read nested workflow") =
-    decodeAllCwl(rootPath/"nestedworkflows.cwl").
+    decodeCwlFile(rootPath/"nestedworkflows.cwl").
       value.
       unsafeRunSync match {
         case Right(cwl) =>
@@ -19,13 +19,13 @@ class CwlDecoderSpec extends Properties("cwl decoder") {
       }
 
   property("broken links fail the SALAD preprocessing test") =
-    decodeAllCwl(rootPath/"brokenlinks.cwl").
+    decodeCwlFile(rootPath/"brokenlinks.cwl").
       value.
       unsafeRunSync.
       isLeft
 
   property("links fail to parse breaks the SALAD preprocessing test") =
-    decodeAllCwl(rootPath/"links_dont_parse.cwl").
+    decodeCwlFile(rootPath/"links_dont_parse.cwl").
      value.
      unsafeRunSync match {
        case Left(errors) =>

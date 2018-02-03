@@ -49,7 +49,7 @@ class CommandLineToolSpec extends FlatSpec with Matchers with ParallelTestExecut
   def validate(tool: String, expectation: List[String]) = {
     val cltFile = better.files.File.newTemporaryFile()().write(tool)
 
-    val clt = CwlDecoder.decodeTopLevelCwl(cltFile, None).value.unsafeRunSync() match {
+    val clt = CwlDecoder.decodeCwlFile(cltFile, None).value.unsafeRunSync() match {
       case Left(errors) => fail("Cannot parse command line tool " + errors.toList.mkString(", "))
       case Right(cwlFile) => cwlFile.select[CommandLineTool].get
     }

@@ -1,7 +1,7 @@
 package cwl
 
 import common.validation.Validation._
-import cwl.CwlDecoder.decodeAllCwl
+import cwl.CwlDecoder.decodeCwlFile
 import cwl.TestSetup.rootPath
 import org.scalatest.{FlatSpec, Matchers}
 import wom.callable.Callable.InputDefinition
@@ -15,7 +15,7 @@ class FileSpec extends FlatSpec with Matchers {
   behavior of "File"
 
   it should "file_example" in {
-    val cwl = decodeAllCwl(rootPath / "file_example.cwl").value.unsafeRunSync.right.get
+    val cwl = decodeCwlFile(rootPath / "file_example.cwl").value.unsafeRunSync.right.get
     val executable = cwl.womExecutable(AcceptAllRequirements, None).right.get
     val call = executable.graph.calls.head
     val runtimeEnvironment = RuntimeEnvironment("output/path", "temp/path", 1, 2e10, 100, 100)

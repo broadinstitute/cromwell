@@ -1,13 +1,18 @@
 package cromwell
 
+import akka.actor.ActorSystem
 import akka.pattern.GracefulStopSupport
+import akka.stream.ActorMaterializer
 import cats.data.Validated._
 import cats.syntax.apply._
 import cats.syntax.validated._
 import com.typesafe.config.ConfigFactory
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
+import cromwell.CommandLineArguments.ValidSubmission
 import cromwell.CromwellApp._
+import cromwell.api.CromwellClient
+import cromwell.api.model.{Label, LabelsJsonFormatter, WorkflowSingleSubmission}
 import cromwell.core.path.Path
 import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
@@ -37,7 +42,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
     */
   def runServer() = {
     val system = buildCromwellSystem(Server)
-    waitAndExit(CromwellServer.run(gracefulShutdown, abortJobsOnTerminate.getOrElse(false)), system)
+    waitAndExit(CromwellServer.run(gracefulShutdown, abortJobsOnTerminate.getOrElse(false)) _, system)
   }
 
   /**
@@ -54,6 +59,28 @@ object CromwellEntryPoint extends GracefulStopSupport {
 
     import cromwell.util.PromiseActor.EnhancedActorRef
     waitAndExit(_ => runner.askNoTimeout(RunWorkflow), cromwellSystem)
+  }
+
+  def submitToServer(args: CommandLineArguments): Unit = {
+    initLogging(Submit)
+    lazy val Log = LoggerFactory.getLogger("cromwell-submit")
+
+    implicit val actorSystem = ActorSystem("SubmitSystem")
+    implicit val materializer = ActorMaterializer()
+    implicit val ec = actorSystem.dispatcher
+
+    val cromwellClient = new CromwellClient(args.host, "v2")
+
+    val singleSubmission = validateSubmitArguments(args)
+    val submissionFuture = () => cromwellClient.submit(singleSubmission).andThen({
+      case Success(submitted) =>
+        Log.info(s"Workflow ${submitted.id} submitted to ${args.host}")
+      case Failure(t) =>
+        Log.error(s"Failed to submit workflow to cromwell server at ${args.host}")
+        Log.error(t.getMessage)
+    })
+
+    waitAndExit(submissionFuture, () => actorSystem.terminate())
   }
 
   private def buildCromwellSystem(command: Command): CromwellSystem = {
@@ -83,6 +110,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
   private def initLogging(command: Command): Unit = {
     val logbackSetting = command match {
       case Server => "STANDARD"
+      case Submit => "PRETTY"
       case Run => "PRETTY"
     }
 
@@ -107,12 +135,12 @@ object CromwellEntryPoint extends GracefulStopSupport {
     ConfigFactory.invalidateCaches()
   }
 
-  private def waitAndExit(runner: CromwellSystem => Future[Any], workflowManagerSystem: CromwellSystem): Unit = {
-    val futureResult = runner(workflowManagerSystem)
+  protected def waitAndExit[A](operation: () => Future[A], shutdown: () => Future[Any]) = {
+    val futureResult = operation()
     Await.ready(futureResult, Duration.Inf)
 
     try {
-      Await.ready(workflowManagerSystem.shutdownActorSystem(), 30 seconds)
+      Await.ready(shutdown(), 30.seconds)
     } catch {
       case _: TimeoutException => Console.err.println("Timed out trying to shutdown actor system")
       case other: Exception => Console.err.println(s"Unexpected error trying to shutdown actor system: ${other.getMessage}")
@@ -128,38 +156,53 @@ object CromwellEntryPoint extends GracefulStopSupport {
     sys.exit(returnCode)
   }
 
+  private def waitAndExit(runner: CromwellSystem => Future[Any], workflowManagerSystem: CromwellSystem): Unit = {
+    waitAndExit(() => runner(workflowManagerSystem), () => workflowManagerSystem.shutdownActorSystem())
+  }
+
+  def validateSubmitArguments(args: CommandLineArguments): WorkflowSingleSubmission = {
+    import LabelsJsonFormatter._
+    import spray.json._
+
+    val validation = args.validateSubmission(EntryPointLogger) map {
+      case ValidSubmission(w, r, i, o, l, z) =>
+        WorkflowSingleSubmission(
+          workflowSource = w,
+          workflowRoot = r,
+          workflowType = args.workflowType,
+          workflowTypeVersion = args.workflowTypeVersion,
+          inputsJson = Option(i),
+          options = Option(o),
+          labels = Option(l.parseJson.convertTo[List[Label]]),
+          zippedImports = z)
+    }
+
+    validOrFailSubmission(validation)
+  }
+
   def validateRunArguments(args: CommandLineArguments): WorkflowSourceFilesCollection = {
-
-    val workflowSource = readContent("Workflow source", args.workflowSource.get)
-    val inputsJson = readJson("Workflow inputs", args.workflowInputs)
-    val optionsJson = readJson("Workflow options", args.workflowOptions)
-    val labelsJson = readJson("Workflow labels", args.workflowLabels)
-
-    val sourceFileCollection = args.imports match {
-      case Some(p) => (workflowSource, inputsJson, optionsJson, labelsJson) mapN { (w, i, o, l) =>
+    val sourceFileCollection = (args.validateSubmission(EntryPointLogger), writeableMetadataPath(args.metadataOutput)) mapN {
+      case (ValidSubmission(w, r, i, o, l, Some(z)), _) =>
         WorkflowSourceFilesWithDependenciesZip.apply(
           workflowSource = w,
-          workflowRoot = args.workflowRoot,
+          workflowRoot = r,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
           inputsJson = i,
           workflowOptionsJson = o,
           labelsJson = l,
-          importsZip = p.loadBytes,
+          importsZip = z.loadBytes,
           warnings = Vector.empty)
-      }
-      case None => (workflowSource, inputsJson, optionsJson, labelsJson) mapN { (w, i, o, l) =>
+      case (ValidSubmission(w, r, i, o, l, None), _) =>
         WorkflowSourceFilesWithoutImports.apply(
           workflowSource = w,
-          workflowRoot = args.workflowRoot,
+          workflowRoot = r,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
           inputsJson = i,
           workflowOptionsJson = o,
           labelsJson = l,
-          warnings = Vector.empty
-        )
-      }
+          warnings = Vector.empty)
     }
 
     val sourceFiles = for {
@@ -167,13 +210,14 @@ object CromwellEntryPoint extends GracefulStopSupport {
       _ <- writeableMetadataPath(args.metadataOutput)
     } yield sources
 
-    sourceFiles match {
-      case Valid(r) => r
-      case Invalid(nel) => throw new RuntimeException with MessageAggregation {
-        override def exceptionContext: String = "ERROR: Unable to run Cromwell:"
-        override def errorMessages: Traversable[String] = nel.toList
-      }
-    }
+    validOrFailSubmission(sourceFiles)
+  }
+
+  def validOrFailSubmission[A](validation: ErrorOr[A]): A = {
+    validation.valueOr(errors => throw new RuntimeException with MessageAggregation {
+      override def exceptionContext: String = "ERROR: Unable to submit workflow to Cromwell:"
+      override def errorMessages: Traversable[String] = errors.toList
+    })
   }
 
   private def writeableMetadataPath(path: Option[Path]): ErrorOr[Unit] = {
@@ -183,24 +227,6 @@ object CromwellEntryPoint extends GracefulStopSupport {
     }
   }
 
-  /** Read the path to a string. */
-  private def readContent(inputDescription: String, path: Path): ErrorOr[String] = {
-    if (!path.exists) {
-      s"$inputDescription does not exist: $path".invalidNel
-    } else if (!path.isReadable) {
-      s"$inputDescription is not readable: $path".invalidNel
-    } else path.contentAsString.validNel
-  }
-
-  /** Read the path to a string, unless the path is None, in which case returns "{}". */
-  private def readJson(inputDescription: String, pathOption: Option[Path]): ErrorOr[String] = {
-    pathOption match {
-      case Some(path) => readContent(inputDescription, path)
-      case None => "{}".validNel
-    }
-  }
-
   private def metadataPathIsWriteable(metadataPath: Path): Boolean =
     Try(metadataPath.createIfNotExists(createParents = true).append("")).isSuccess
-
 }

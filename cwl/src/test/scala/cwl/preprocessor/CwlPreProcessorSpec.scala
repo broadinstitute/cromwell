@@ -2,6 +2,7 @@ package cwl.preprocessor
 
 import better.files.File
 import cats.data.NonEmptyList
+import cats.syntax.either._
 import common.validation.Parse.Parse
 import org.scalamock.function.MockFunction1
 import org.scalamock.scalatest.MockFactory

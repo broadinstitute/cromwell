@@ -6,8 +6,8 @@ import better.files.{File => BFile}
 import cats.data.EitherT._
 import cats.data.NonEmptyList
 import cats.effect.IO
-import cats.syntax.either._
 import cats.instances.try_._
+import cats.syntax.either._
 import cats.{Applicative, Monad}
 import common.legacy.TwoElevenSupport._
 import common.validation.ErrorOr._
@@ -35,7 +35,7 @@ object CwlDecoder {
 
     fromEither[IO](cwlToolResult flatMap resultToEither)
   }
-  
+
   lazy val cwlPreProcessor = new CwlPreProcessor()
 
   // TODO: WOM: During conformance testing the saladed-CWLs are referring to files in the temp directory.
@@ -51,8 +51,8 @@ object CwlDecoder {
   def parseJson(json: Json): Parse[Cwl] = fromEither[IO](CwlCodecs.decodeCwl(json))
 
   /**
-   * Notice it gives you one instance of Cwl.  This has transformed all embedded files into scala object state
-   */
+    * Notice it gives you one instance of Cwl.  This has transformed all embedded files into scala object state
+    */
   def decodeCwlFile(fileName: BFile,
                     workflowRoot: Option[String] = None): Parse[Cwl] =
     for {

@@ -1,6 +1,6 @@
 package cromwell
 
-import cromwell.CromwellApp.{CommandLineArguments, Run, Server}
+import cromwell.CromwellApp.{Run, Server}
 import cromwell.CromwellCommandLineSpec.WdlAndInputs
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.util.SampleWdl

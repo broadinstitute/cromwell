@@ -1,32 +1,12 @@
 package cromwell
 
-import common.util.VersionUtil
-import cromwell.core.WorkflowOptions
-import cromwell.core.path.{DefaultPathBuilder, Path}
-import scopt.OptionParser
-
 object CromwellApp extends App {
 
   sealed trait Command
   case object Run extends Command
   case object Server extends Command
-
-  case class CommandLineArguments(command: Option[Command] = None,
-                                  workflowSource: Option[Path] = None,
-                                  workflowRoot: Option[String] = None,
-                                  workflowInputs: Option[Path] = None,
-                                  workflowOptions: Option[Path] = None,
-                                  workflowType: Option[String] = WorkflowOptions.defaultWorkflowType,
-                                  workflowTypeVersion: Option[String] = WorkflowOptions.defaultWorkflowTypeVersion,
-                                  workflowLabels: Option[Path] = None,
-                                  imports: Option[Path] = None,
-                                  metadataOutput: Option[Path] = None
-                                 )
-
-  lazy val cromwellVersion = VersionUtil.getVersion("cromwell")
-
-  case class ParserAndCommand(parser: OptionParser[CommandLineArguments], command: Option[Command])
-
+  case object Submit extends Command
+  
   //  cromwell 29
   //  Usage: java -jar /path/to/cromwell.jar [server|run] [options] <args>...
   //
@@ -46,58 +26,15 @@ object CromwellApp extends App {
   //  -p, --imports <value>    A directory or zipfile to search for workflow imports.
   //  -m, --metadata-output <value>
   //                           An optional directory path to output metadata.
+  //  -h, --host               Cromwell server URL
 
-  def buildParser(): scopt.OptionParser[CommandLineArguments] = {
-    new scopt.OptionParser[CommandLineArguments]("java -jar /path/to/cromwell.jar") {
-      head("cromwell", cromwellVersion)
-
-      help("help").text("Cromwell - Workflow Execution Engine")
-
-      version("version")
-
-      cmd("server").action((_, c) => c.copy(command = Option(Server))).text(
-        "Starts a web server on port 8000.  See the web server documentation for more details about the API endpoints.")
-
-      cmd("run").
-        action((_, c) => c.copy(command = Option(Run))).
-        text("Run the workflow and print out the outputs in JSON format.").
-        children(
-          arg[String]("workflow-source").text("Workflow source file.").required().
-            action((s, c) => c.copy(workflowSource = Option(DefaultPathBuilder.get(s)))),
-          opt[String]("workflow-root").text("Workflow root.").
-            action((s, c) =>
-              c.copy(workflowRoot = Option(s))),
-          opt[String]('i', "inputs").text("Workflow inputs file.").
-            action((s, c) =>
-              c.copy(workflowInputs = Option(DefaultPathBuilder.get(s)))),
-          opt[String]('o', "options").text("Workflow options file.").
-            action((s, c) =>
-              c.copy(workflowOptions = Option(DefaultPathBuilder.get(s)))),
-          opt[String]('t', "type").text("Workflow type.").
-            action((s, c) =>
-              c.copy(workflowType = Option(s))),
-          opt[String]('v', "type-version").text("Workflow type version.").
-            action((s, c) =>
-              c.copy(workflowTypeVersion = Option(s))),
-          opt[String]('l', "labels").text("Workflow labels file.").
-            action((s, c) =>
-              c.copy(workflowLabels = Option(DefaultPathBuilder.get(s)))),
-          opt[String]('p', "imports").text(
-            "A directory or zipfile to search for workflow imports.").
-            action((s, c) =>
-              c.copy(imports = Option(DefaultPathBuilder.get(s)))),
-          opt[String]('m', "metadata-output").text(
-            "An optional directory path to output metadata.").
-            action((s, c) =>
-              c.copy(metadataOutput = Option(DefaultPathBuilder.get(s))))
-        )
-    }
-  }
+  def buildParser(): scopt.OptionParser[CommandLineArguments] = new CommandLineParser()
 
   def runCromwell(args: CommandLineArguments): Unit = {
     args.command match {
       case Some(Run) => CromwellEntryPoint.runSingle(args)
       case Some(Server) => CromwellEntryPoint.runServer()
+      case Some(Submit) => CromwellEntryPoint.submitToServer(args)
       case None => parser.showUsage()
     }
   }

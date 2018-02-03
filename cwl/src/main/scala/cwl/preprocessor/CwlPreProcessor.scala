@@ -62,6 +62,10 @@ object CwlPreProcessor {
     */
   private [preprocessor] case class CwlReference(file: BFile, fullReference: String) {
     override def toString = fullReference
+    val pointer: Option[String] = fullReference.split("#") match {
+      case Array(_, p) => Option(p)
+      case _ => None
+    }
   }
 
   private [preprocessor] type BreadCrumb = List[CwlReference]
@@ -74,7 +78,7 @@ object CwlPreProcessor {
   private case class ProcessedJsonAndDependencies(processedJson: Json, processedDependencies: ProcessedReferences)
 
   val saladCwlFile: BFile => Parse[String] = { file =>
-    Log.debug(s"Salading ${file.pathAsString}")
+    Log.info(s"Salading ${file.pathAsString}")
     CwlDecoder.saladCwlFile(file) 
   }
 
@@ -114,9 +118,20 @@ class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
     *
     */
   def preProcessCwlFile(file: BFile, cwlRoot: Option[String]): Parse[Json] = {
-    flattenCwlReference(CwlReference(file, cwlRoot), Map.empty, Map.empty, Set.empty) map {
-      case ProcessedJsonAndDependencies(result, _) => result.json
-    }
+    val reference = CwlReference(file, cwlRoot)
+    def flatten: Parse[ProcessedJsonAndDependencies] = flattenCwlReference(CwlReference(file, cwlRoot), Map.empty, Map.empty, Set.empty)
+    
+    for {
+      original <- parseYaml(file.contentAsString)
+      flattened <- original
+        .asObject
+        .flatMap(_.kleisli("id").flatMap(_.asString)) match {
+        case Some(id) if id == reference.fullReference => flatten.map(_.processedJson)
+        // This by passes the pre-processing if the file has an id which doesn't match the file path,
+        // meaning it has already been saladed / pre-processed elsewhere
+        case _ => original.validParse
+      }
+    } yield flattened
   }
 
   /**
@@ -139,7 +154,9 @@ class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
       // Get a Map[CwlReference, Json] from the parsed file. If the file is a JSON object and only contains one node, the map will only have 1 element 
       newUnProcessedReferences = mapIdToContent(parsed).toMap
       // The reference json in the file
-      referenceJson <- newUnProcessedReferences.get(cwlReference).toParse(s"Cannot find a tool or workflow with ID ${cwlReference.fullReference} in file ${cwlReference.file.pathAsString}")
+      referenceJson <- newUnProcessedReferences
+        .collectFirst({ case (ref, json) if ref.pointer == cwlReference.pointer => json })
+        .toParse(s"Cannot find a tool or workflow with ID ${cwlReference.fullReference} in file ${cwlReference.file.pathAsString}")
       // Process the reference json
       processed <- flattenJson(referenceJson, newUnProcessedReferences ++ unProcessedReferences, processedReferences, breadCrumbs + cwlReference)
     } yield processed
@@ -194,6 +211,8 @@ class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
                           breadCrumbs: Set[CwlReference]): Parse[ProcessedJsonAndDependencies] = {
     val foldFunction = processCwlRunReference(unProcessedReferences, breadCrumbs) _
 
+    // TODO: it would be nice to accumulate failures here somehow (while still folding and be able to re-use
+    // successfully processed references, so I don't know if ErrorOr would work)
     findRunReferences(saladedJson.json).foldLeft(processedReferences.validParse)(foldFunction) map { newKnownReferences =>
 
       // Provide a function to swap the run reference with its json content
@@ -218,8 +237,16 @@ class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
     */
   private def saladAndParse(file: BFile): Parse[Json] = for {
     saladed <- saladFunction(file)
-    saladedJson <- Parse.checkedParse(io.circe.parser.parse(saladed).leftMap(error => NonEmptyList.one(error.message)))
+    saladedJson <- parseJson(saladed)
   } yield saladedJson
+  
+  private def parseJson(in: String): Parse[Json] = {
+    Parse.checkedParse(io.circe.parser.parse(in).leftMap(error => NonEmptyList.one(error.message)))
+  }
+
+  private def parseYaml(in: String): Parse[Json] = {
+    Parse.checkedParse(io.circe.yaml.parser.parse(in).leftMap(error => NonEmptyList.one(error.message)))
+  }
 
   /**
     * Given a json, collects all "steps.run" values that are JSON Strings, and convert them to CwlReferences.

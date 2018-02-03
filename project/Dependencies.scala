@@ -291,7 +291,9 @@ object Dependencies {
   val cwlDependencies = List(
     "com.lihaoyi" %% "ammonite-ops" % ammoniteOpsV,
     "org.scalactic" %% "scalactic" % scalacticV,
-    "org.scalacheck" %% "scalacheck" % scalacheckV % Test
+    "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
+    "io.circe" %% "circe-optics" % circeV,
+    "org.scalamock" %% "scalamock" % "4.0.0" % Test
   ) ++ circeDependencies ++ womDependencies ++ refinedTypeDependenciesList ++ betterFilesDependencies
 
   val womtoolDependencies = catsDependencies ++ slf4jBindingDependencies

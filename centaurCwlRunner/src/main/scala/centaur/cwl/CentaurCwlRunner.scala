@@ -12,6 +12,7 @@ import common.util.VersionUtil
 import cromwell.api.model.{Aborted, Failed, NonTerminalStatus, Succeeded}
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathBuilderFactory
+import cwl.preprocessor.CwlPreProcessor
 import spray.json._
 
 import scala.concurrent.Await
@@ -46,6 +47,7 @@ object CentaurCwlRunner extends StrictLogging {
     val NotImplemented = Val(33)
   }
 
+  private val cwlPreProcessor = new CwlPreProcessor()
   private val centaurCwlRunnerRunMode = CentaurCwlRunnerRunMode.fromConfig(CentaurCwlRunnerConfig.conf)
   private val parser = buildParser()
   private lazy val centaurCwlRunnerVersion = VersionUtil.getVersion("centaur-cwl-runner")
@@ -103,7 +105,13 @@ object CentaurCwlRunner extends StrictLogging {
     }
     val outdirOption = args.outdir.map(_.pathAsString)
     val testName = workflowPath.name
-    val workflowContents = centaurCwlRunnerRunMode.preProcessWorkflow(parsedWorkflowPath.contentAsString)
+    val preProcessedWorkflow = cwlPreProcessor
+      .preProcessCwlFileToString(parsedWorkflowPath, workflowRoot)
+      .valueOr(errors => {
+        logger.error(s"Failed to pre process cwl workflow: ${errors.toList.mkString(", ")}")
+        return ExitCode.Failure
+      })
+    val workflowContents = centaurCwlRunnerRunMode.preProcessWorkflow(preProcessedWorkflow)
     val inputContents = args.workflowInputs.map(_.contentAsString) map centaurCwlRunnerRunMode.preProcessInput
     val workflowType = Option("cwl")
     val workflowTypeVersion = None
@@ -121,7 +129,7 @@ object CentaurCwlRunner extends StrictLogging {
     val submitResponseOption = None
 
     val workflowData = WorkflowData(
-      workflowContents, workflowRoot, workflowType, workflowTypeVersion, inputContents, optionsContents, labels, zippedImports)
+      workflowContents, None, workflowType, workflowTypeVersion, inputContents, optionsContents, labels, zippedImports)
     val workflow = Workflow(testName, workflowData, workflowMetadata, notInMetadata, directoryContentCounts, backends)
     val testCase = CentaurTestCase(workflow, testFormat, testOptions, submitResponseOption)
 

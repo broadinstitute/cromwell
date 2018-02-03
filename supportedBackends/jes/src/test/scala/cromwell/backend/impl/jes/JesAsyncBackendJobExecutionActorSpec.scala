@@ -4,6 +4,7 @@ import java.util.UUID
 
 import _root_.io.grpc.Status
 import _root_.wdl._
+import _root_.wdl.versioning.NoVersionSpecifics
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
 import com.google.api.gax.retrying.RetrySettings
@@ -46,6 +47,8 @@ import scala.util.Success
 
 class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
   with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
+
+  implicit val wdlVersionSpecifics = NoVersionSpecifics
   val mockPathBuilder: GcsPathBuilder = GcsPathBuilder.fromCredentials(NoCredentials.getInstance(),
     "test-cromwell", RetrySettings.newBuilder().build(), GcsStorage.DefaultCloudStorageConfiguration, WorkflowOptions.empty)
   

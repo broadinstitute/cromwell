@@ -4,6 +4,7 @@ import akka.testkit._
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.SampleWdl
 import wdl.expression.{NoFunctions, WdlFunctions}
+import wdl.versioning.NoVersionSpecifics
 import wdl.{ImportResolver, WdlNamespaceWithWorkflow}
 import wom.types._
 import wom.values._
@@ -13,7 +14,7 @@ import scala.util.{Success, Try}
 class MapWorkflowSpec extends CromwellTestKitWordSpec {
   private val pwd = DefaultPathBuilder.get(".")
   private val sampleWdl = SampleWdl.MapLiteral(pwd)
-  val ns = WdlNamespaceWithWorkflow.load(sampleWdl.workflowSource(), Seq.empty[ImportResolver]).get
+  val ns = WdlNamespaceWithWorkflow.load(sampleWdl.workflowSource(), Seq.empty[ImportResolver])(NoVersionSpecifics).get
   val expectedMap = WomMap(WomMapType(WomSingleFileType, WomStringType), Map(
     WomSingleFile("f1") -> WomString("alice"),
     WomSingleFile("f2") -> WomString("bob"),
@@ -21,7 +22,6 @@ class MapWorkflowSpec extends CromwellTestKitWordSpec {
   ))
   sampleWdl.cleanup()
 
-  // TODO WOM: Fails because of input evaluation
   "A task which contains a parameter " should {
     "accept an array for the value" in {
       val sampleWdl = SampleWdl.MapLiteral(pwd)

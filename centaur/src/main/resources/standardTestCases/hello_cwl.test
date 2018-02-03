@@ -2,10 +2,10 @@ name: hello_cwl
 testFormat: workflowsuccess
 workflowType: CWL
 workflowTypeVersion: v1.0
+workflowRoot: hello
 
 files {
   wdl: hello_cwl/hello.cwl
   inputs: hello_cwl/hello.inputs
+  "outputs.hello.salutation": "Hello m'Lord!"
 }
-
-# TODO Metadata assertions on command line tool output. Currently this is just a smoke test.

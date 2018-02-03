@@ -165,6 +165,7 @@ lazy val wdlDraft2LanguageFactory = (project in languageFactoryRoot / "wdl-draft
   .withExecutableSettings("wdl-draft2-factory")
   .dependsOn(languageFactoryCore)
   .dependsOn(wdlCore)
+  .dependsOn(wdlDraft2)
 
 lazy val wdlDraft3LanguageFactory = (project in languageFactoryRoot / "wdl-draft3")
   .withExecutableSettings("wdl-draft3-factory")

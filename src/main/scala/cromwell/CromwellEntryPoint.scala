@@ -5,15 +5,14 @@ import cats.data.Validated._
 import cats.syntax.apply._
 import cats.syntax.validated._
 import com.typesafe.config.ConfigFactory
-import cromwell.CommandLineParser._
+import common.exception.MessageAggregation
+import common.validation.ErrorOr._
+import cromwell.CromwellApp._
 import cromwell.core.path.Path
 import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.server.{CromwellServer, CromwellSystem}
-import common.exception.MessageAggregation
-import common.validation.ErrorOr._
-import cromwell.engine.language.{LanguageConfiguration, LanguageConfigurationEntry}
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.LoggerFactory
 

@@ -5,7 +5,7 @@ import cromwell.core.WorkflowOptions
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import scopt.OptionParser
 
-object CommandLineParser extends App {
+object CromwellApp extends App {
 
   sealed trait Command
   case object Run extends Command

@@ -29,7 +29,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
 
   def stderr(params: Seq[Try[WomValue]]): Try[WomFile]
 
-  def singleFileSize(file: WomValue): Try[Double]
+  protected def singleFileSize(file: WomValue): Try[Double]
 
   /**
     * Gets the size of a file.
@@ -515,7 +515,8 @@ case object NoFunctions extends WdlStandardLibraryFunctions {
   override def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = Failure(new NotImplementedError())
   override def write_tsv(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError())
   override def write_json(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError())
-  override def singleFileSize(file: WomValue): Try[Double] = Failure(new NotImplementedError())
+  override protected def singleFileSize(file: WomValue): Try[Double] = Failure(new NotImplementedError())
+  override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new NotImplementedError())
   override def length(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new NotImplementedError())
   override def flatten(params: Seq[Try[WomValue]]): Try[WomValue] = Failure(new NotImplementedError())
   override def sub(params: Seq[Try[WomValue]]): Try[WomString] = Failure(new NotImplementedError())

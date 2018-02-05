@@ -31,16 +31,6 @@ final case class JesJobPaths(override val workflowPaths: JesWorkflowPaths, jobKe
 
   val jesMonitoringScriptFilename: String = s"${JesJobPaths.JesMonitoringKey}.sh"
 
-  /*
-  TODO: Move various monitoring files path generation here.
-
-  "/cromwell_root" is a well known path, called in the regular JobPaths callDockerRoot.
-  This JesCallPaths should know about that root, and be able to create the monitoring file paths.
-  Instead of the AsyncActor creating the paths, the paths could then be shared with the CachingActor.
-
-  Those monitoring paths could then be returned by metadataFiles and detritusFiles.
-   */
-
   override lazy val customMetadataPaths = Map(
     CallMetadataKeys.BackendLogsPrefix + ":log" -> jesLogPath
   ) ++ (

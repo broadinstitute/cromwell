@@ -125,11 +125,11 @@ class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
       original <- parseYaml(file.contentAsString)
       flattened <- original
         .asObject
-        .flatMap(_.kleisli("id").flatMap(_.asString)) match {
-        case Some(id) if id == reference.fullReference => flatten.map(_.processedJson)
-        // This by passes the pre-processing if the file has an id which doesn't match the file path,
-        // meaning it has already been saladed / pre-processed elsewhere
-        case _ => original.validParse
+        .flatMap(_.kleisli("id").flatMap(_.asString).flatMap(CwlReference.fromString)) match {
+        // This by passes the pre-processing if the file already has an id for which the file doesn't match the path of the file
+        // passed to this function, as this would indicate that it has already been saladed and pre-processed.
+        case Some(contentRef) if !contentRef.file.equals(reference.file) => original.validParse
+        case _ => flatten.map(_.processedJson)
       }
     } yield flattened
   }

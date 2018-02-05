@@ -34,6 +34,8 @@ trait JobPaths {
   def returnCodeFilename: String = "rc"
   def defaultStdoutFilename = "stdout"
   def defaultStderrFilename = "stderr"
+  def isContainerPath(path: Path): Boolean = false
+  def hostPathFromContainerPath(path: Path): Path = path
 
   final def stdinFilenameExpression: Option[WomExpression] = jobKey.node.callable.stdinRedirection
   final def stdoutFilename: String = jobKey.node.callable.stdoutRedirection.getOrElse(defaultStdoutFilename)

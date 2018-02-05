@@ -7,6 +7,7 @@ import cats.instances.try_._
 import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.validated._
+import common.util.TryUtil
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobDescriptor
@@ -90,7 +91,12 @@ object OutputEvaluator {
       def toError(outputPort: OutputPort) = s"Missing output value for ${outputPort.identifier.fullyQualifiedName.value}"
 
       jobDescriptor.taskCall.expressionBasedOutputPorts.diff(outputs.keySet.toList) match {
-        case Nil => ValidJobOutputs(CallOutputs(outputs))
+        case Nil =>
+          val errorMessagePrefix = "Error applying postMapper in short-circuit output evaluation"
+          TryUtil.sequenceMap(outputs map { case (k, v) => (k, postMapper(v))}, errorMessagePrefix) match {
+            case Failure(e) => InvalidJobOutputs(NonEmptyList.one(e.getMessage))
+            case Success(postMappedOutputs) => ValidJobOutputs(CallOutputs(postMappedOutputs))
+          }
         case head :: tail => InvalidJobOutputs(NonEmptyList.of(toError(head), tail.map(toError): _*))
       }
     }

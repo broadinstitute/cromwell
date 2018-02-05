@@ -22,6 +22,15 @@ case class JobPathsWithDocker private[io] (override val workflowPaths: WorkflowP
   val callExecutionDockerRoot = callDockerRoot.resolve("execution")
   val callInputsRoot = callRoot.resolve("inputs")
 
+  override def isContainerPath(path: Path): Boolean = path.pathAsString.startsWith(callExecutionDockerRoot.pathAsString)
+
+  override def hostPathFromContainerPath(path: Path): Path = {
+    val dockerPrefix = callExecutionDockerRoot.pathAsString
+    val dockerPrefixWithSlash = dockerPrefix + (if (dockerPrefix.endsWith("/")) "" else "/")
+    val relativePath = path.pathAsString.substring(dockerPrefixWithSlash.length)
+    callExecutionRoot.resolve(relativePath)
+  }
+
   def toDockerPath(path: Path): Path = {
     path.toAbsolutePath match {
       case p if p.startsWith(WorkflowPathsWithDocker.DockerRoot) => p

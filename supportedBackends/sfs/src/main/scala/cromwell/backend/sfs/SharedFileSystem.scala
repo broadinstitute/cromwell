@@ -124,11 +124,12 @@ trait SharedFileSystem extends PathFactory {
     localizePathAlreadyLocalized _ +: mappedDuplicationStrategies
   }
 
-  private def hostAbsoluteFilePath(callRoot: Path, pathString: String): Path = {
-    val wdlPath = PathFactory.buildPath(pathString, pathBuilders)
-    wdlPath match {
-      case _: DefaultPath if !wdlPath.isAbsolute => callRoot.resolve(wdlPath).toAbsolutePath
-      case _ => wdlPath
+  private def hostAbsoluteFilePath(jobPaths: JobPaths, pathString: String): Path = {
+    val path = PathFactory.buildPath(pathString, pathBuilders)
+    path match {
+      case _: DefaultPath if !path.isAbsolute => jobPaths.callExecutionRoot.resolve(path).toAbsolutePath
+      case _: DefaultPath if path.isAbsolute && jobPaths.isContainerPath(path) => jobPaths.hostPathFromContainerPath(path)
+      case _ => path
     }
   }
 
@@ -136,13 +137,15 @@ trait SharedFileSystem extends PathFactory {
     WomFileMapper.mapWomFiles(mapJobWomFile(job))(womValue)
   }
 
-  def mapJobWomFile(job: JobPaths)(womFile: WomFile): WomFile = {
-    womFile match {
-      case fileNotFound: WomFile if !hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).exists =>
-        throw new RuntimeException("Could not process output, file not found: " +
-          s"${hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).pathAsString}")
-      case _ => womFile.mapFile(hostAbsoluteFilePath(job.callExecutionRoot, _).pathAsString)
-    }
+  def mapJobWomFile(jobPaths: JobPaths)(womFile: WomFile): WomFile = {
+    val hostPath = hostAbsoluteFilePath(jobPaths, womFile.valueString)
+    def hostAbsolute(pathString: String): String = hostAbsoluteFilePath(jobPaths, pathString).pathAsString
+
+    if (!hostPath.exists) throw new RuntimeException(s"Could not process output, file not found: ${hostAbsolute(womFile.valueString)}")
+
+    // There are composite WomFile types like WomMaybeListedDirectoryType that need to make the paths of contained
+    // WomFiles host absolute, so don't just pass in a `const` of the function call result above.
+    womFile mapFile hostAbsolute
   }
 
   def cacheCopy(sourceFilePath: Path, destinationFilePath: Path): Try[Unit] = {

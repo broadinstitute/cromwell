@@ -556,8 +556,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   /**
     * Output value mapper.
     *
-    * @param womValue The original wdl value.
-    * @return The Try wrapped and mapped wdl value.
+    * @param womValue The original WOM value.
+    * @return The Try wrapped and mapped WOM value.
     */
   final def outputValueMapper(womValue: WomValue): Try[WomValue] = {
     WomFileMapper.mapWomFiles(mapOutputWomFile)(womValue)

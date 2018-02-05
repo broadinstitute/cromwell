@@ -1,7 +1,7 @@
 package cromwell.engine.language
 
 import cromwell.engine.language.CromwellLanguages._
-import cromwell.engine.workflow.lifecycle.materialization.LanguageFactory
+import cromwell.languages.LanguageFactory
 
 // Construct a singleton instance of this class using 'initLanguages' below.
 final case class CromwellLanguages private(languageConfig: List[LanguageConfigurationEntry]) {

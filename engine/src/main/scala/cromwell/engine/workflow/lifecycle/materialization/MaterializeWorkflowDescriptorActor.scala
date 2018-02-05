@@ -33,13 +33,14 @@ import cromwell.engine.language.CromwellLanguages
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor._
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
-import cromwell.services.metadata.MetadataService._
+import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import cromwell.services.metadata.MetadataService._
 import net.ceedubs.ficus.Ficus._
 import spray.json._
-import wom.executable.ValidatedWomNamespace
 import wom.expression.WomExpression
 import wom.graph.CommandCallNode
+import wom.graph.GraphNodePort.OutputPort
 import wom.values.{WomString, WomValue}
 
 import scala.concurrent.Future
@@ -227,27 +228,59 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
           case Some(other) => s"Unknown version '$other' for workflow language '$languageName'".invalidNel
           case _ => language.allVersions.head._2.valid
         }
-        errorOrParse(factory).flatMap(_.validateNamespace(sourceFiles, workflowOptions, engineIoFunctions, importLocalFilesystem, serviceRegistryActor, workflowIdForLogging))
+        errorOrParse(factory).flatMap(_.validateNamespace(sourceFiles, workflowOptions, importLocalFilesystem, workflowIdForLogging))
       case Some(other) => fromEither[IO](s"Unknown workflow type: $other".invalidNelCheck[ValidatedWomNamespace])
       case None => fromEither[IO]("Need a workflow type here !".invalidNelCheck[ValidatedWomNamespace])
     }
+
     val labelsValidation: Parse[Labels] = fromEither[IO](validateLabels(sourceFiles.labelsJson).toEither)
 
     for {
       labels <- labelsValidation
       _ <- publishLabelsToMetadata(id, labels)
+
       validatedNamespace <- namespaceValidation
-      _ <- pushWfNameMetadataService(validatedNamespace.executable.entryPoint.name)
+      _ = pushNamespaceMetadata(validatedNamespace)
       ewd <- fromEither[IO](buildWorkflowDescriptor(id, sourceFiles, validatedNamespace, workflowOptions, labels, conf, pathBuilders).toEither)
     } yield ewd
   }
 
+  private def pushNamespaceMetadata(validatedNamespace: ValidatedWomNamespace): Unit = {
+    val importsMetadata = importedFilesMetadata(validatedNamespace.importedFileContent)
+    val wfInputsMetadataEvents = wfInputsMetadata(validatedNamespace.womValueInputs)
+    val wfNameMetadataEvent = wfNameMetadata(validatedNamespace.executable.entryPoint.name)
+    serviceRegistryActor ! PutMetadataAction(importsMetadata.toVector ++ wfInputsMetadataEvents :+ wfNameMetadataEvent)
+  }
 
-  private def pushWfNameMetadataService(name: String): Parse[Unit] = {
+  private def wfInputsMetadata(workflowInputs: Map[OutputPort, WomValue]): Iterable[MetadataEvent] = {
+    import cromwell.core.CromwellGraphNode.CromwellEnhancedOutputPort
+
+    workflowInputs match {
+      case empty if empty.isEmpty =>
+        List(MetadataEvent.empty(MetadataKey(workflowIdForLogging, None,WorkflowMetadataKeys.Inputs)))
+      case inputs =>
+        inputs flatMap { case (outputPort, womValue) =>
+          val inputName = outputPort.fullyQualifiedName
+          womValueToMetadataEvents(MetadataKey(workflowIdForLogging, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), womValue)
+        }
+    }
+  }
+
+  private def importedFilesMetadata(imported: Map[String, String]): Iterable[MetadataEvent] = {
+    def metadataEventForImportedFile(uri: String, value: String): MetadataEvent = {
+      import MetadataKey._
+      import WorkflowMetadataKeys._
+      // This should only be called on namespaces that are known to have a defined `importUri` so the .get is safe.
+      val escapedUri = uri.escapeMeta
+      MetadataEvent(MetadataKey(
+        workflowIdForLogging, None, SubmissionSection, SubmissionSection_Imports, escapedUri), MetadataValue(value))
+    }
+    imported map { case (uri, value) => metadataEventForImportedFile(uri, value) }
+  }
+
+  private def wfNameMetadata(name: String): MetadataEvent = {
     // Workflow name:
-    val nameEvent = MetadataEvent(MetadataKey(workflowIdForLogging, None, WorkflowMetadataKeys.Name), MetadataValue(name))
-
-    Monad[Parse].pure(serviceRegistryActor ! PutMetadataAction(nameEvent))
+    MetadataEvent(MetadataKey(workflowIdForLogging, None, WorkflowMetadataKeys.Name), MetadataValue(name))
   }
 
   private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, labels: Labels): Parse[Unit] = {
@@ -269,7 +302,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       labels: Labels,
                                       conf: Config,
                                       pathBuilders: List[PathBuilder]): ErrorOr[EngineWorkflowDescriptor] = {
-    val taskCalls = womNamespace.graph.allNodes collect { case taskNode: CommandCallNode => taskNode }
+    val taskCalls = womNamespace.executable.graph.allNodes collect { case taskNode: CommandCallNode => taskNode }
     val defaultBackendName = conf.as[Option[String]]("backend.default")
 
     val failureModeValidation = validateWorkflowFailureMode(workflowOptions, conf)

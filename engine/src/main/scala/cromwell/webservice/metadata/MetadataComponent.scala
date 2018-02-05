@@ -4,7 +4,7 @@ import cats.{Monoid, Semigroup}
 import cats.instances.map._
 import cats.instances.list._
 import cats.syntax.foldable._
-import cromwell.core.{ExecutionStatus, WorkflowMetadataKeys, WorkflowState}
+import cromwell.core._
 import cromwell.services.metadata._
 import spray.json.{JsArray, _}
 

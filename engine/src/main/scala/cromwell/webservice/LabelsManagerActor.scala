@@ -2,7 +2,7 @@ package cromwell.webservice
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.core.labels.Labels
-import cromwell.core.{Dispatcher, WorkflowId, WorkflowMetadataKeys}
+import cromwell.core._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.LabelsManagerActor._

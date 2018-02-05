@@ -4,7 +4,7 @@ import java.time.OffsetDateTime
 
 import akka.pattern._
 import com.typesafe.config.ConfigFactory
-import cromwell.core.WorkflowId
+import cromwell.core._
 import cromwell.services.ServicesSpec
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._

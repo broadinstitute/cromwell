@@ -1,32 +1,24 @@
 package languages.wdl
 
-import akka.actor.ActorRef
 import cats.data.EitherT.fromEither
 import cats.effect.IO
 import cats.syntax.traverse._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import cromwell.core._
-import cromwell.engine.workflow.lifecycle.materialization.LanguageFactory
-import cromwell.services.metadata.MetadataService.{PutMetadataAction, womValueToMetadataEvents}
-import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.core.WorkflowSource
-import wom.executable.ValidatedWomNamespace
-import wom.expression.IoFunctionSet
 import wom.graph.GraphNodePort.OutputPort
 import wom.values.WomValue
 import common.validation.ErrorOr._
 import common.validation.Parse.Parse
-import cromwell.core.CromwellGraphNode.CromwellEnhancedOutputPort
-import languages.util.LanguageFactoryUtil
+import cromwell.languages.util.LanguageFactoryUtil
+import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 
 class WdlDraft2LanguageFactory() extends LanguageFactory {
   override def validateNamespace(source: WorkflowSourceFilesCollection,
                                     workflowOptions: WorkflowOptions,
-                                    ioFunctions: IoFunctionSet,
                                     importLocalFilesystem: Boolean,
-                                    serviceRegistryActor: ActorRef,
                                     workflowIdForLogging: WorkflowId): Parse[ValidatedWomNamespace] = {
     import cats.instances.either._
     import cats.instances.list._
@@ -69,40 +61,29 @@ class WdlDraft2LanguageFactory() extends LanguageFactory {
         WdlNamespaceWithWorkflow.load(w.workflowSource, baseResolvers).toErrorOr
     }
 
-    /* Publish `MetadataEvent`s for all imports in this `WdlNamespace`. */
-    def publishImportMetadata(wdlNamespace: WdlNamespace): Unit = {
-      def metadataEventForImportedNamespace(ns: WdlNamespace): MetadataEvent = {
-        import MetadataKey._
-        import WorkflowMetadataKeys._
-        // This should only be called on namespaces that are known to have a defined `importUri` so the .get is safe.
-        val escapedUri = ns.importUri.get.escapeMeta
-        MetadataEvent(MetadataKey(
-          workflowIdForLogging, None, SubmissionSection, SubmissionSection_Imports, escapedUri), MetadataValue(ns.sourceString))
-      }
-
+    def evaluateImports(wdlNamespace: WdlNamespace): Map[String, String] = {
       // Descend the namespace looking for imports and construct `MetadataEvent`s for them.
-      def collectImportEvents: List[MetadataEvent] = {
-        wdlNamespace.allNamespacesRecursively flatMap { ns =>
+      def collectImportEvents: Map[String, String] = {
+        (wdlNamespace.allNamespacesRecursively flatMap { ns =>
           ns.importUri.toList collect {
             // Do not publish import events for URIs which correspond to literal strings as these are the top-level
             // submitted workflow.
-            case uri if uri != WdlNamespace.WorkflowResourceString => metadataEventForImportedNamespace(ns)
+            case uri if uri != WdlNamespace.WorkflowResourceString => uri -> ns.sourceString
           }
-        }
+        }).toMap
       }
 
-      serviceRegistryActor ! PutMetadataAction(collectImportEvents)
+      collectImportEvents
     }
 
     val errorOr: ErrorOr[ValidatedWomNamespace] = (for {
       wdlNamespace <- wdlNamespaceValidation.toEither
       _ <- validateWorkflowNameLengths(wdlNamespace)
-      _ = publishImportMetadata(wdlNamespace)
+      importedUris = evaluateImports(wdlNamespace)
       womExecutable <- wdlNamespace.womExecutable(Option(source.inputsJson))
-      validatedWomNamespace <- LanguageFactoryUtil.validateWomNamespace(womExecutable, ioFunctions)
-      _ <- checkTypes(wdlNamespace, validatedWomNamespace.womValueInputs)
-      _ = pushWfInputsToMetadataService(validatedWomNamespace.womValueInputs, serviceRegistryActor, workflowIdForLogging)
-    } yield validatedWomNamespace).toValidated
+      validatedWomNamespaceBeforeMetadata <- LanguageFactoryUtil.validateWomNamespace(womExecutable)
+      _ <- checkTypes(wdlNamespace, validatedWomNamespaceBeforeMetadata.womValueInputs)
+    } yield validatedWomNamespaceBeforeMetadata.copy(importedFileContent = importedUris)).toValidated
 
     fromEither[IO](errorOr.toEither)
   }
@@ -116,23 +97,6 @@ class WdlDraft2LanguageFactory() extends LanguageFactory {
     } else {
       ().validNelCheck
     }
-  }
-
-  private def pushWfInputsToMetadataService(workflowInputs: Map[OutputPort, WomValue],
-                                            serviceRegistryActor: ActorRef,
-                                            workflowIdForLogging: WorkflowId): Unit = {
-    // Inputs
-    val inputEvents = workflowInputs match {
-      case empty if empty.isEmpty =>
-        List(MetadataEvent.empty(MetadataKey(workflowIdForLogging, None,WorkflowMetadataKeys.Inputs)))
-      case inputs =>
-        inputs flatMap { case (outputPort, womValue) =>
-          val inputName = outputPort.fullyQualifiedName
-          womValueToMetadataEvents(MetadataKey(workflowIdForLogging, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), womValue)
-        }
-    }
-
-    serviceRegistryActor ! PutMetadataAction(inputEvents)
   }
 
   // TODO WOM: resurect ?

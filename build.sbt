@@ -120,6 +120,7 @@ lazy val engine = project
   .dependsOn(backend)
   .dependsOn(ossFileSystem)
   .dependsOn(gcsFileSystem)
+  .dependsOn(languageFactoryCore)
   .dependsOn(core % "test->test")
   .dependsOn(backend % "test->test")
   // In the future we may have a dedicated test backend like the `TestLocalAsyncJobExecutionActor`.
@@ -146,7 +147,7 @@ lazy val languageFactoryRoot = Path("languageFactories")
 
 lazy val languageFactoryCore = (project in languageFactoryRoot / "language-factory-core")
   .withExecutableSettings("language-factory-core")
-  .dependsOn(engine)
+  .dependsOn(core)
 
 lazy val wdlDraft2LanguageFactory = (project in languageFactoryRoot / "wdl-draft2")
   .withExecutableSettings("wdl-draft2")

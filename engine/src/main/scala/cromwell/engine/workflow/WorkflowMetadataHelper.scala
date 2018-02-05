@@ -3,9 +3,9 @@ package cromwell.engine.workflow
 import java.time.OffsetDateTime
 
 import akka.actor.ActorRef
-import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
-import cromwell.services.metadata.MetadataService._
+import cromwell.core._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import cromwell.services.metadata.MetadataService._
 
 trait WorkflowMetadataHelper {
 

@@ -11,9 +11,9 @@ import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.BackendWorkflowInitializationActor._
 import cromwell.backend.async.{RuntimeAttributeValidationFailure, RuntimeAttributeValidationFailures}
 import cromwell.backend.validation.ContinueOnReturnCodeValidation
-import cromwell.core.{NoIoFunctionSet, WorkflowMetadataKeys, WorkflowOptions}
-import cromwell.services.metadata.MetadataService.PutMetadataAction
+import cromwell.core._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import cromwell.services.metadata.MetadataService.PutMetadataAction
 import mouse.all._
 import wom.expression.WomExpression
 import wom.graph.CommandCallNode

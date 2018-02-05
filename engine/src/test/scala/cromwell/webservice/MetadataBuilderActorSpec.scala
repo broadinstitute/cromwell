@@ -6,7 +6,7 @@ import java.util.UUID
 import akka.testkit._
 import akka.pattern.ask
 import akka.util.Timeout
-import cromwell.core.{TestKitSuite, WorkflowId}
+import cromwell.core._
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.webservice.metadata.MetadataBuilderActor

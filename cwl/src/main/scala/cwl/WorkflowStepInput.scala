@@ -8,7 +8,7 @@ import cwl.command.ParentName
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.WomIdentifier
 import wom.graph.expression.ExposedExpressionNode
-import wom.types.{WomArrayType, WomType}
+import wom.types.{WomArrayType, WomMaybeEmptyArrayType, WomType}
 import cats.syntax.traverse._
 import cats.syntax.option._
 import cats.instances.list._
@@ -23,7 +23,6 @@ import common.validation.ErrorOr.ErrorOr
 import cwl.CommandLineTool.{CommandBindingSortingKey, SortKeyAndCommandPart}
 import cwl.command.ParentName
 import mouse.all._
-import wom.types.WomType
 import wom.graph.WomIdentifier
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.expression.ExposedExpressionNode
@@ -106,37 +105,40 @@ object WorkflowStepInput {
                     expectedType: Option[MyriadInputType],
                     isScattered: Boolean)(implicit parentName: ParentName): Checked[WomType] = {
 
-    /*
-    val sources = stepInput.source.toList.flatMap(_.fold(StringOrStringArrayToStringList)).map(FullyQualifiedName(_).id)
+    (isScattered, expectedType.map(_.fold(MyriadInputTypeToWomType)), stepInput.effectiveLinkMerge) match {
 
-    val outputTypeMapWithIDs = outputTypeMap.map {
-      case (key, value) => FullyQualifiedName(key).id -> value
-    }
+        //If scattering over this variable, we expect an array of the sink type
+      case (true, Some(tpe), _) => WomArrayType(tpe).asRight
 
-    def lookupId(id: String): ErrorOr[WomType] =
-      outputTypeMapWithIDs.
-        get(id).
-        toValidNel(s"couldn't find $id as derived from ${stepInput.source} in map\n${outputTypeMapWithIDs.mkString("\n")}")
+        //If sink parameter is an array, we must frame the input as an array
+      case (false, Some(array: WomArrayType), LinkMergeMethod.MergeNested) =>
+        array.asRight
 
-    lazy val typeFromSources: Either[NonEmptyList[String], List[WomType]] = sources.traverse[ErrorOr, WomType](lookupId).toEither
-
-    val typeFromRunInput: Option[WomType] = expectedType.map(_.fold(MyriadInputTypeToWomType))
-
-    val sinkParameterIsArray: Boolean = expectedType.map(_ match {
-      case MyriadInputType.InputArray(_) => true
-      case _ => false
-    }).getOrElse(false)
-    */
-
-    (isScattered, expectedType) match {
-      case (true, Some(tpe)) => WomArrayType(tpe.fold(MyriadInputTypeToWomType)).asRight
-      case (false, someArray@Some(MyriadInputType.InputArray(_))) => WomArrayType(someArray.get.fold(MyriadInputTypeToWomType)).asRight
-      case (false, Some(MyriadInputType.InputArraySchema(tpe: InputArraySchema)))  =>
-        (stepInput.validatedSourceTypes(outputTypeMap).map(_.toList), tpe.items.fold(MyriadInputTypeToWomType)) match {
-          case (Right(List((_, value))), itemsWomType) if (value == itemsWomType) =>  WomArrayType(itemsWomType).asRight
-          case (Right(lst), itemsWomType)  =>  (s"could not verify that types $lst and the items type of the run's InputArraySchema $itemsWomType were compatible" |> NonEmptyList.one).asLeft
-          case (Left(invalid), _) => Left(invalid)
+        //If sink parameter is an array and merge_flattened is used, must validate input & output types are equivalent before proceeding
+      case (false, array@Some(WomArrayType(tpe)), LinkMergeMethod.MergeFlattened)  =>
+        //Collect the upstream outputs and their types,
+        stepInput.validatedSourceTypes(outputTypeMap)  match {
+          case Right(map)  if typesToItemMatch(map.values, tpe) =>  array.get.asRight
+          case Right(map) => (s"could not verify that types $map and the items type of the run's InputArraySchema $tpe were compatible" |> NonEmptyList.one).asLeft
+          case Left(invalid) => Left(invalid)
         }
+
+        //We don't have explicit information aboutthe type, so we
+      //case (false, Some(tpe), _)
+      case _ => stepInput.validatedSourceTypes(outputTypeMap).map(_.values).map(WomType.homogeneousTypeFromTypes)
+    }
+  }
+
+  def typesToItemMatch(lst: Iterable[WomType], target: WomType): Boolean = {
+    val effectiveInputType = WomType.homogeneousTypeFromTypes(lst)
+
+    typeToItemMatch(effectiveInputType, target)
+  }
+
+  def typeToItemMatch(upstream: WomType, downstream: WomType): Boolean = {
+    upstream match {
+      case WomType.RecursiveType(innerType) => typeToItemMatch(innerType, downstream)
+      case other => other == downstream
     }
   }
 }

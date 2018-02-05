@@ -98,4 +98,13 @@ object WomType {
       case t1 if types.forall(t2 => t1.isCoerceableFrom(t2)) => t1
     } getOrElse WomAnyType
   }
+
+  object RecursiveType {
+    def unapply(in: WomType): Option[WomType] = in match {
+      case WomOptionalType(other) => Some(other)
+      case WomMaybeEmptyArrayType(other) => Some(other)
+      case WomNonEmptyArrayType(other) => Some(other)
+      case _ => None
+    }
+  }
 }

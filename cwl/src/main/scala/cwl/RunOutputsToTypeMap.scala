@@ -17,7 +17,7 @@ object RunOutputsToTypeMap extends Poly1 {
             toMap
     }
   }
-
+  
   implicit def commandLineTool =
     at[CommandLineTool] {
       clt =>

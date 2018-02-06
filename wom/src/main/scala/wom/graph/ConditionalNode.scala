@@ -21,7 +21,7 @@ final case class ConditionalNode private(override val innerGraph: Graph,
 
   override val identifier: WomIdentifier = WomIdentifier("ConditionalNode")
 
-  override val inputPorts: Set[InputPort] = Set(ConnectedInputPort("condition", WomBooleanType, conditionExpression.singleExpressionOutputPort, _ => this))
+  override val inputPorts: Set[InputPort] = Set(ConnectedInputPort("condition", WomBooleanType, conditionExpression.singleOutputPort, _ => this))
   override val outputPorts: Set[GraphNodePort.OutputPort] = conditionalOutputPorts.toSet[OutputPort]
 }
 

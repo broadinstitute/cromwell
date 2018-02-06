@@ -1,21 +1,10 @@
 package cwl
 
-import cats.instances.list._
-import cats.syntax.either._
-import cats.syntax.option._
-import cats.syntax.traverse._
-import common.validation.ErrorOr.ErrorOr
 import cwl.CommandLineTool.{CommandBindingSortingKey, SortKeyAndCommandPart}
-import cwl.LinkMergeMethod.LinkMergeMethod
 import cwl.WorkflowStepInput.InputSource
-import cwl.command.ParentName
 import eu.timepit.refined._
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil, Witness}
-import wom.graph.GraphNodePort.OutputPort
-import wom.graph.WomIdentifier
-import wom.graph.expression.{ExposedExpressionNode, ExpressionNode}
-import wom.types.{WomStringType, WomType}
 import wom.values.WomValue
 
 object WorkflowStepInputSource {

@@ -45,7 +45,7 @@ class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
     
     val inputDefinitionFold = InputDefinitionFold(
       mappings = List(inputDefinition -> expressionNode.inputDefinitionPointer),
-      callInputPorts = Set(callNodeBuilder.makeInputPort(inputDefinition, expressionNode.singleExpressionOutputPort)),
+      callInputPorts = Set(callNodeBuilder.makeInputPort(inputDefinition, expressionNode.singleOutputPort)),
       newExpressionNodes = Set(expressionNode)
     )
     

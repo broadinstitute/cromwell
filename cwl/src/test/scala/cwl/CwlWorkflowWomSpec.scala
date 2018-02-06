@@ -79,12 +79,12 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
 
           untarUpstream should have size 2
           untarUpstream.collectFirst({
-            case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/extractfile" =>
+            case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/extractfile.merge" =>
               shouldBeRequiredGraphInputNode(exprNode.inputPorts.head.upstream.graphNode, "ex", WomStringType)
           }).getOrElse(fail("Can't find expression node for ex"))
 
           untarUpstream.collectFirst({
-            case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/tarfile" =>
+            case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/tarfile.merge" =>
               exprNode.inputPorts.map(_.upstream.graphNode).count {
                 case rgin: RequiredGraphInputNode =>
                   rgin.identifier.localName == LocalName("inp") &&
@@ -96,7 +96,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
             case compile: CallNode if compile.localName == s"compile" => compile
           }.get.inputPorts.map(_.upstream).head
 
-          compileUpstreamExpressionPort.name shouldBe s"file://$rootPath/1st-workflow.cwl#compile/src"
+          compileUpstreamExpressionPort.name shouldBe s"file://$rootPath/1st-workflow.cwl#compile/src.merge"
           compileUpstreamExpressionPort.graphNode.asInstanceOf[ExpressionNode].inputPorts.map(_.upstream.name).count(_ == "example_out") shouldBe 1
 
           nodes.collect {
@@ -182,10 +182,10 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
 
     val ps = nodes.collectFirst({ case ps: CallNode if ps.localName == "ps" => ps }).get
     val cgrep = nodes.collectFirst({ case cgrep: CallNode if cgrep.localName == "cgrep" => cgrep }).get
-    val cgrepFileExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if s"${FileStepAndId(cgrepInput.localName).stepId}/${FileStepAndId(cgrepInput.localName).id}" == "cgrep/file" => cgrepInput }).get
-    val cgrepPatternExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if s"${FileStepAndId(cgrepInput.localName).stepId}/${FileStepAndId(cgrepInput.localName).id}" == "cgrep/pattern" => cgrepInput }).get
+    val cgrepFileExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if s"${FileStepAndId(cgrepInput.localName).stepId}/${FileStepAndId(cgrepInput.localName).id}" == "cgrep/file.merge" => cgrepInput }).get
+    val cgrepPatternExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if s"${FileStepAndId(cgrepInput.localName).stepId}/${FileStepAndId(cgrepInput.localName).id}" == "cgrep/pattern.merge" => cgrepInput }).get
     val wc = nodes.collectFirst({ case wc: CallNode if wc.localName == "wc" => wc }).get
-    val wcFileExpression = nodes.collectFirst({ case wcInput: ExpressionNode if s"${FileStepAndId(wcInput.localName).stepId}/${FileStepAndId(wcInput.localName).id}" == "wc/file" => wcInput }).get
+    val wcFileExpression = nodes.collectFirst({ case wcInput: ExpressionNode if s"${FileStepAndId(wcInput.localName).stepId}/${FileStepAndId(wcInput.localName).id}" == "wc/file.merge" => wcInput }).get
 
     ps.upstream shouldBe empty
 
@@ -203,10 +203,10 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
 
     val cgrepInputs = cgrep.inputDefinitionMappings.toMap
     val cgrepFileInputDef = cgrep.callable.inputs.find(_.name == "file").get
-    cgrepInputs(cgrepFileInputDef).select[OutputPort].get should be theSameInstanceAs cgrepFileExpression.singleExpressionOutputPort
+    cgrepInputs(cgrepFileInputDef).select[OutputPort].get should be theSameInstanceAs cgrepFileExpression.singleOutputPort
 
     val cgrepPatternInputDef = cgrep.callable.inputs.find(_.name == "pattern").get
-    cgrepInputs(cgrepPatternInputDef).select[OutputPort].get should be theSameInstanceAs cgrepPatternExpression.singleExpressionOutputPort
+    cgrepInputs(cgrepPatternInputDef).select[OutputPort].get should be theSameInstanceAs cgrepPatternExpression.singleOutputPort
   }
 
 }

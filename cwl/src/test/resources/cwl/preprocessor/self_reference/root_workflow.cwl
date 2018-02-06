@@ -28,3 +28,4 @@ $graph:
     out:
       type: string
       valueFrom: "hello"
+      

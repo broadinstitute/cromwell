@@ -38,3 +38,4 @@ $graph:
         in:
           valueFrom: $(inputs.tool.nameroot)
       out: [out]
+      

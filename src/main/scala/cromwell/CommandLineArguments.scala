@@ -4,14 +4,18 @@ import java.net.URL
 
 import better.files.File
 import cats.syntax.apply._
+import cats.syntax.either._
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import cromwell.CommandLineArguments._
 import cromwell.CromwellApp.Command
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.Path
 import cwl.preprocessor.CwlPreProcessor
-import org.slf4j.Logger 
+import org.slf4j.Logger
+
+import scala.util.Try
 
 object CommandLineArguments {
   val DefaultCromwellHost = new URL("http://localhost:8000")
@@ -48,7 +52,10 @@ case class CommandLineArguments(command: Option[Command] = None,
 
       imports match {
         case Some(explicitImports) => readContent("Workflow source", workflowSource.get).map((_, Option(File(explicitImports.pathAsString)), workflowRoot))
-        case None => preProcessedCwl.map((_, None, None))
+        case None => Try(preProcessedCwl.map((_, None, None)).value.unsafeRunSync())
+          .toChecked
+          .flatMap(identity)
+          .toValidated
       }
     } else readContent("Workflow source", workflowSource.get).map((_, imports.map(p => File(p.pathAsString)), workflowRoot))
 

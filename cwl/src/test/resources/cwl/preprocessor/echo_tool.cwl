@@ -10,3 +10,4 @@ outputs:
   out:
     type: string
     valueFrom: "hello"
+    

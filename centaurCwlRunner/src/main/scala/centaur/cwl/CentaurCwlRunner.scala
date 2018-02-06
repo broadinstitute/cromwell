@@ -107,10 +107,13 @@ object CentaurCwlRunner extends StrictLogging {
     val testName = workflowPath.name
     val preProcessedWorkflow = cwlPreProcessor
       .preProcessCwlFileToString(parsedWorkflowPath, workflowRoot)
-      .valueOr(errors => {
+      .value.unsafeRunSync() match {
+      case Left(errors) =>
         logger.error(s"Failed to pre process cwl workflow: ${errors.toList.mkString(", ")}")
         return ExitCode.Failure
-      })
+      case Right(v) => v
+    }
+
     val workflowContents = centaurCwlRunnerRunMode.preProcessWorkflow(preProcessedWorkflow)
     val inputContents = args.workflowInputs.map(_.contentAsString) map centaurCwlRunnerRunMode.preProcessInput
     val workflowType = Option("cwl")

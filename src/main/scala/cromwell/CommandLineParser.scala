@@ -11,6 +11,26 @@ object CommandLineParser {
   lazy val cromwellVersion = VersionUtil.getVersion("cromwell")
 }
 
+//  cromwell 29
+//  Usage: java -jar /path/to/cromwell.jar [server|run] [options] <args>...
+//
+//    --help                   Cromwell - Workflow Execution Engine
+//    --version
+//  Command: server
+//  Starts a web server on port 8000.  See the web server documentation for more details about the API endpoints.
+//  Command: run [options] workflow-source
+//  Run the workflow and print out the outputs in JSON format.
+//  workflow-source          Workflow source file.
+//  -i, --inputs <value>     Workflow inputs file.
+//  -o, --options <value>    Workflow options file.
+//  -t, --type <value>       Workflow type.
+//  -v, --type-version <value>
+//                           Workflow type version.
+//  -l, --labels <value>     Workflow labels file.
+//  -p, --imports <value>    A directory or zipfile to search for workflow imports.
+//  -m, --metadata-output <value>
+//                           An optional directory path to output metadata.
+//  -h, --host               Cromwell server URL
 class CommandLineParser extends scopt.OptionParser[CommandLineArguments]("java -jar /path/to/cromwell.jar") {
   
   private def commonSubmissionArguments = List(
@@ -53,22 +73,22 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments]("java -
     action((_, c) => c.copy(command = Option(Run))).
     text("Run the workflow and print out the outputs in JSON format.").
     children(
-      (commonSubmissionArguments ++ List(
+      commonSubmissionArguments ++ List(
         opt[String]('m', "metadata-output").text(
           "An optional directory path to output metadata.").
           action((s, c) =>
             c.copy(metadataOutput = Option(DefaultPathBuilder.get(s))))
-      )): _*
+      ): _*
     )
 
   cmd("submit")
     .action((_, c) => c.copy(command = Option(Submit))).
     text("Submit the workflow to a Cromwell server.").
     children(
-      (commonSubmissionArguments ++ List(
+      commonSubmissionArguments ++ List(
         opt[String]('h', "host").text("Cromwell server URL.").
           action((h, c) =>
             c.copy(host = new URL(h)))
-      )): _*
+      ): _*
     )
 }

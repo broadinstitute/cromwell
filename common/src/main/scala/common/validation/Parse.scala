@@ -2,12 +2,13 @@ package common.validation
 
 import cats.data.EitherT.fromEither
 import cats.data.{EitherT, NonEmptyList, ValidatedNel}
+import cats.syntax.validated._
 import cats.effect.IO
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 object Parse {
 

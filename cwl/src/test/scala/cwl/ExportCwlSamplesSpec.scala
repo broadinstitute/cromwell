@@ -2,6 +2,7 @@ package cwl
 
 import cwl.CommandLineTool.{BaseCommand, CommandInputParameter}
 import cwl.Workflow.{WorkflowInputParameter, WorkflowOutputParameter}
+import cwl.WorkflowStep.{WorkflowStepOutputInnerType, WorkflowStepOutputType}
 import cwl.WorkflowStepInput.InputSource
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct
@@ -66,7 +67,7 @@ baseCommand: echo
                 WorkflowStepInput(id = "tarfile", source = Option(Coproduct[InputSource]("inp"))),
                 WorkflowStepInput(id = "extractfile", source =  Option(Coproduct[InputSource]("ex")))
               ),
-            out = Coproduct[WorkflowStep.Outputs](Array("example_out"))
+            out = Array(Coproduct[WorkflowStepOutputInnerType](WorkflowStepOutput("example_out")))
           ),
           WorkflowStep(
             id = "compile",
@@ -74,7 +75,7 @@ baseCommand: echo
             in = Array(
                  WorkflowStepInput(id = "src", source = Option(Coproduct[InputSource]("untar/example_out")))
               ),
-            out = Coproduct[WorkflowStep.Outputs](Array("classfile"))
+            out = Array(Coproduct[WorkflowStepOutputInnerType](WorkflowStepOutput("classfile")))
           )
         )
       )

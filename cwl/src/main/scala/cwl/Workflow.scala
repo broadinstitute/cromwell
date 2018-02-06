@@ -18,6 +18,7 @@ import shapeless.syntax.singleton._
 import wom.callable.WorkflowDefinition
 import wom.executable.Executable
 import wom.expression.{ValueAsAnExpression, WomExpression}
+import wom.graph
 import wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 import wom.graph._
 import wom.types.WomType
@@ -46,13 +47,20 @@ case class Workflow private(
 
   val allRequirements: List[Requirement] = requirements.toList.flatten ++ parentWorkflowStep.toList.flatMap { _.allRequirements }
 
+  private [cwl] implicit val explicitWorkflowName = ParentName(id)
+  
+  lazy val womFqn: Option[wom.graph.FullyQualifiedName] = {
+    explicitWorkflowName.value map { workflowName =>
+      parentWorkflowStep.map(_.womFqn.combine(workflowName))
+        .getOrElse(wom.graph.FullyQualifiedName(workflowName))
+    }
+  }
+
   val allHints: List[Requirement] = {
     // Just ignore any hint that isn't a Requirement.
     val requirementHints = hints.toList.flatten.flatMap { _.select[Requirement] }
     requirementHints ++ parentWorkflowStep.toList.flatMap { _.allHints }
   }
-
-  private [cwl] implicit val explicitWorkflowName = ParentName(id)
 
   val fileNames: List[String] = steps.toList.flatMap(_.run.select[String].toList)
 
@@ -187,7 +195,7 @@ object Workflow {
                                       outputBinding: Option[CommandOutputBinding] = None,
                                       outputSource: Option[WorkflowOutputParameter#OutputSource] = None,
                                       linkMerge: Option[LinkMergeMethod] = None,
-                                      `type`: Option[MyriadOutputType] = None) {
+                                      `type`: Option[MyriadOutputType] = None) extends OutputParameter {
 
     type OutputSource = String :+: Array[String] :+: CNil
   }

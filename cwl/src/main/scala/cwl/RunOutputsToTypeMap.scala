@@ -5,8 +5,8 @@ import wom.types.WomType
 
 object RunOutputsToTypeMap extends Poly1 {
 
-  def handleCommandLine(clt: CommandLineTool): Map[String, WomType] = {
-    clt.outputs.toList.foldLeft(Map.empty[String, WomType]) {
+  def handleOutputParameters[A <: OutputParameter](outputs: Array[A]): Map[String, WomType] = {
+    outputs.toList.foldLeft(Map.empty[String, WomType]) {
       (acc, out) =>
         acc ++
           out.
@@ -17,25 +17,26 @@ object RunOutputsToTypeMap extends Poly1 {
             toMap
     }
   }
-
+  
   implicit def commandLineTool =
     at[CommandLineTool] {
       clt =>
-          handleCommandLine(clt)
+        handleOutputParameters(clt.outputs)
     }
 
   implicit def string = at[String] {
-    fileName =>
+    _ =>
       Map.empty[String, WomType]
   }
 
   implicit def expressionTool = at[ExpressionTool] {
-    _ =>
-        Map.empty[String, WomType]
+    et =>
+      handleOutputParameters(et.outputs)
   }
 
   implicit def workflow = at[Workflow] {
-    wf =>  wf.steps.toList.flatMap(_.typedOutputs.toList).toMap
+    wf =>
+      handleOutputParameters(wf.outputs)
   }
 }
 

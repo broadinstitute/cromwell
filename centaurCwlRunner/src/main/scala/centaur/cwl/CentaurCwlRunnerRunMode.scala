@@ -1,6 +1,8 @@
 package centaur.cwl
 
 import com.typesafe.config.Config
+import common.validation.Parse.Parse
+import common.validation.Parse._
 import common.validation.Validation._
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
@@ -29,7 +31,7 @@ sealed trait CentaurCwlRunnerRunMode {
     *
     * For example, may prefix relative paths so that absolute URLs are used.
     */
-  def preProcessInput(input: String): String = input
+  def preProcessInput(input: String): Parse[String] = input.validParse
 }
 
 object CentaurCwlRunnerRunMode {
@@ -61,5 +63,5 @@ case class PapiRunMode(conf: Config) extends CentaurCwlRunnerRunMode {
 
   override def preProcessWorkflow(workflow: String): String = preprocessor.preProcessWorkflow(workflow)
 
-  override def preProcessInput(input: String): String = preprocessor.preProcessInput(input)
+  override def preProcessInput(input: String): Parse[String] = preprocessor.preProcessInput(input)
 }

@@ -11,18 +11,19 @@ import cats.syntax.validated._
 import common.Checked
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
+import cwl.ScatterLogic.ScatterVariablesPoly
 import cwl.ScatterMethod._
 import cwl.WorkflowStep.{WorkflowStepInputFold, _}
-import shapeless._
+import cwl.command.ParentName
+import shapeless.{:+:, CNil, _}
 import wom.callable.Callable
 import wom.callable.Callable._
 import wom.graph.CallNode._
 import wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 import wom.graph._
 import wom.graph.expression.ExpressionNode
+import wom.types.WomType
 import wom.values.WomValue
-
-import scala.util.Try
 
 /**
   * An individual job to run.
@@ -33,7 +34,7 @@ import scala.util.Try
 case class WorkflowStep(
                          id: String,
                          in: Array[WorkflowStepInput] = Array.empty,
-                         out: Outputs,
+                         out: WorkflowStepOutputType,
                          run: Run,
                          requirements: Option[Array[Requirement]] = None,
                          hints: Option[Array[Hint]] = None,
@@ -44,6 +45,7 @@ case class WorkflowStep(
 
   run.select[Workflow].foreach(_.parentWorkflowStep = Option(this))
   run.select[CommandLineTool].foreach(_.parentWorkflowStep = Option(this))
+  run.select[ExpressionTool].foreach(_.parentWorkflowStep = Option(this))
 
   // We're scattering if scatter is defined, and if it's a list of variables the list needs to be non empty
   private val isScattered: Boolean = scatter exists { _.select[Array[String]].forall(_.nonEmpty) }
@@ -54,14 +56,40 @@ case class WorkflowStep(
   private[cwl] var parentWorkflow: Workflow = _
 
   lazy val allRequirements: List[Requirement] = requirements.toList.flatten ++ parentWorkflow.allRequirements
-
+  
+  lazy val womFqn: wom.graph.FullyQualifiedName = {
+    implicit val parentName = parentWorkflow.explicitWorkflowName
+    val localFqn = FullyQualifiedName.maybeApply(id).map(_.id).getOrElse(id)
+    parentWorkflow.womFqn.map(_.combine(localFqn)).getOrElse(wom.graph.FullyQualifiedName(localFqn))
+  }
+  
   lazy val allHints: List[Requirement] = {
     // Just ignore any hint that isn't a Requirement.
     val requirementHints = hints.toList.flatten.flatMap { _.select[Requirement] }
     requirementHints ++ parentWorkflow.allHints
   }
+  
+  // If the step is being scattered over, apply the necessary transformation to get the final output array type.
+  lazy val scatterTypeFunction: WomType => WomType = scatter.map(_.fold(ScatterVariablesPoly)) match {
+    case Some(Nil) => identity[WomType]
+    case Some(nonEmpty) => ScatterLogic.scatterGatherPortTypeFunction(scatterMethod, NonEmptyList.fromListUnsafe(nonEmpty))
+    case _ =>  identity[WomType]
+  }
 
-  def typedOutputs: WomTypeMap = run.fold(RunOutputsToTypeMap)
+  def typedOutputs: WomTypeMap = {
+    implicit val parentName = ParentName.empty
+    // Find the type of the outputs of the run section
+    val runOutputTypes = run.fold(RunOutputsToTypeMap)
+      .map({ 
+        case (runOutputId, womType) => FullyQualifiedName(runOutputId).id -> womType
+      })
+    // Use them to find get the final type of the workflow outputs, and only the workflow outputs
+    out.map({ stepOutput =>
+      val stepOutputValue = stepOutput.select[WorkflowStepOutput].map(_.id).getOrElse(stepOutput.select[String].get)
+      val stepOutputId = FullyQualifiedName(stepOutputValue)
+      stepOutputValue -> scatterTypeFunction(runOutputTypes(stepOutputId.id))
+    }).toMap
+  }
 
   def fileName: Option[String] = run.select[String]
 
@@ -78,8 +106,12 @@ case class WorkflowStep(
                      expressionLib: ExpressionLib): Checked[Set[GraphNode]] = {
 
     implicit val parentName = workflow.explicitWorkflowName
-    
-    val unqualifiedStepId = WomIdentifier(Try(FullyQualifiedName(id)).map(_.id).getOrElse(id))
+
+    val unqualifiedStepId: WomIdentifier = {
+      FullyQualifiedName.maybeApply(id).map({ fqn =>
+        WomIdentifier(LocalName(fqn.id), womFqn)
+      }).getOrElse(WomIdentifier(id))
+    }
 
     // To avoid duplicating nodes, return immediately if we've already covered this node
     val haveWeSeenThisStep: Boolean = knownNodes.collect {
@@ -114,8 +146,11 @@ case class WorkflowStep(
            */
           def findThisInputInSet(set: Set[GraphNode], stepId: String, stepOutputId: String): Checked[OutputPort] = {
             for {
-              // We only care for outputPorts of call nodes
-              call <- set.collectFirst { case callNode: CallNode if callNode.localName == stepId => callNode }.
+              // We only care for outputPorts of call nodes or scatter nodes
+              call <- set.collectFirst { 
+                case callNode: CallNode if callNode.localName == stepId => callNode
+                case scatterNode: ScatterNode if scatterNode.innerGraph.calls.exists(_.localName == stepId) => scatterNode
+              }.
                 toRight(NonEmptyList.one(s"stepId $stepId not found in known Nodes $set"))
               output <- call.outputPorts.find(_.name == stepOutputId).
                 toRight(NonEmptyList.one(s"step output id $stepOutputId not found in ${call.outputPorts}"))
@@ -143,13 +178,13 @@ case class WorkflowStep(
 
           def fromStepOutput(stepId: String, stepOutputId: String, accumulatedNodes: Set[GraphNode]): Checked[(Map[String, OutputPort], Set[GraphNode])] = {
             // First check if we've already built the WOM node for this step, and if so return the associated output port
-            findThisInputInSet(accumulatedNodes, stepId, stepOutputId).map(outputPort => (Map(stepOutputId -> outputPort), Set.empty[GraphNode]))
+            findThisInputInSet(accumulatedNodes, stepId, stepOutputId).map(outputPort => (Map(stepOutputId -> outputPort), accumulatedNodes))
               .orElse {
                 // Otherwise build the upstream nodes and look again in those newly created nodes
                 for {
                   newNodes <- buildUpstreamNodes(stepId, accumulatedNodes)
                   sourceMappings <- findThisInputInSet(newNodes, stepId, stepOutputId).map(outputPort => Map(stepOutputId -> outputPort))
-                } yield (sourceMappings, newNodes)
+                } yield (sourceMappings, newNodes ++ accumulatedNodes)
               }
           }
 
@@ -182,7 +217,7 @@ case class WorkflowStep(
                   // The source points to a workflow input, which means it should be in the workflowInputs map
                   case FileAndId(_, _, inputId) => fromWorkflowInput(inputId).map(newMap => (sourceMappings ++ newMap, graphNodes))
                   // The source points to an output from a different step
-                  case FileStepAndId(_, _, stepId, stepOutputId) => fromStepOutput(stepId, stepOutputId, graphNodes)
+                  case FileStepAndId(_, _, stepId, stepOutputId) => fromStepOutput(stepId, stepOutputId, graphNodes).map({ case (newMap, newNodes) => (sourceMappings ++ newMap, newNodes) })
                 }
               case (other, _) => other
             }
@@ -290,7 +325,7 @@ object WorkflowStep {
     */
   type ScatterMappings = Map[ExpressionNode, ScatterVariableNode]
 
-  val emptyOutputs: Outputs = Coproduct[Outputs](Array.empty[String])
+  val emptyOutputs: WorkflowStepOutputType = Array.empty
 
   type Run =
     String :+:
@@ -306,8 +341,6 @@ object WorkflowStep {
     object ExpressionTool { def unapply(run: Run): Option[ExpressionTool] = run.select[ExpressionTool] }
   }
 
-  type Outputs =
-    Array[String] :+:
-      Array[WorkflowStepOutput] :+:
-      CNil
+  type WorkflowStepOutputInnerType = String :+: WorkflowStepOutput :+: CNil
+  type WorkflowStepOutputType = Array[WorkflowStepOutputInnerType]
 }

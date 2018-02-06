@@ -1,12 +1,15 @@
 
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
+import common.validation.Checked._
 import cwl.CwlType._
 import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction, InterpolatedString}
 import cwl.command.ParentName
 import shapeless._
 import wom.executable.Executable
 import wom.types._
+
+import scala.util.{Failure, Success, Try}
 
 /**
  * This package is intended to parse all CWL files.
@@ -90,10 +93,16 @@ package object cwl extends TypeAliases {
   val AcceptAllRequirements: RequirementsValidator = _.validNel
 
   implicit class CwlHelper(val cwl: Cwl) extends AnyVal {
-    def womExecutable(validator: RequirementsValidator, inputsFile: Option[String] = None): Checked[Executable] = cwl match {
-      case Cwl.Workflow(w) => w.womExecutable(validator, inputsFile)
-      case Cwl.CommandLineTool(clt) => clt.womExecutable(validator, inputsFile)
-      case Cwl.ExpressionTool(et) => et.womExecutable(validator, inputsFile)
+    def womExecutable(validator: RequirementsValidator, inputsFile: Option[String] = None): Checked[Executable] = {
+      def executable = cwl match {
+        case Cwl.Workflow(w) => w.womExecutable(validator, inputsFile)
+        case Cwl.CommandLineTool(clt) => clt.womExecutable(validator, inputsFile)
+        case Cwl.ExpressionTool(et) => et.womExecutable(validator, inputsFile)
+      }
+      Try(executable) match {
+        case Success(s) => s
+        case Failure(f) => f.getMessage.invalidNelCheck
+      }
     }
 
     def requiredInputs: Map[String, WomType] = {

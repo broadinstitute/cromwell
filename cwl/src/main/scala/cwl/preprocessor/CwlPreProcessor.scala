@@ -10,7 +10,7 @@ import common.validation.Validation._
 import cwl.command.ParentName
 import cwl.preprocessor.CwlPreProcessor._
 import cwl.{CwlDecoder, FileAndId, FullyQualifiedName}
-import io.circe.Json
+import io.circe.{Json, JsonObject}
 import io.circe.optics.JsonPath._
 import mouse.all._
 import org.slf4j.LoggerFactory
@@ -78,7 +78,7 @@ object CwlPreProcessor {
   private case class ProcessedJsonAndDependencies(processedJson: Json, processedDependencies: ProcessedReferences)
 
   val saladCwlFile: BFile => Parse[String] = { file =>
-    Log.info(s"Salading ${file.pathAsString}")
+    Log.info(s"Pre-Processing ${file.pathAsString}")
     CwlDecoder.saladCwlFile(file)
   }
 
@@ -97,6 +97,50 @@ object CwlPreProcessor {
   * @param saladFunction function that takes a file and produce a saladed version of the content
   */
 class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
+
+  // Modify the string at "key" using the mappingFunction
+  private def mapStringValue(key: String, mappingFunction: String => String): Json => Json = root.selectDynamic(key).string.modify(mappingFunction)
+
+  // Map "location" and "default"
+  private def prefix(mappingFunction: String => String): Json => Json = mapStringValue("location", mappingFunction).compose(mapStringValue("path", mappingFunction))
+
+  // Function to check if the given json has the provided key / value pair
+  private def hasKeyValue(key: String, value: String): Json => Boolean = {
+    root.selectDynamic(key).string.exist(_.equalsIgnoreCase(value))
+  }
+
+  // Return true if the given json object represents a File
+  private def isFile(obj: JsonObject) = hasKeyValue("class", "File")(Json.fromJsonObject(obj))
+
+  // Return true if the given json object represents a Directory
+  private def isDirectory(obj: JsonObject) = hasKeyValue("class", "Directory")(Json.fromJsonObject(obj))
+
+  // Prefix the location or path in the json object if it's a file or directory, otherwise recurse over its fields
+  private def prefixObject(mappingFunction: String => String)(obj: JsonObject): Json = {
+    // If the object is file or a directory, prefix it with the gcs prefix
+    if (isFile(obj) || isDirectory(obj)) {
+      prefix(mappingFunction)(Json.fromJsonObject(obj))
+        // Even if it's a file it may have secondary files. So keep recursing on its fields
+        .mapObject(_.mapValues(mapFilesAndDirectories(mappingFunction)))
+    }
+    // Otherwise recursively process its fields
+    else Json.fromJsonObject(obj.mapValues(mapFilesAndDirectories(mappingFunction)))
+  }
+
+  // Fold over the json recursively and prefix all files
+  private def mapFilesAndDirectories(mappingFunction: String => String)(json: Json): Json = json.fold(
+    jsonNull = json,
+    jsonBoolean = _ => json,
+    jsonNumber = _ => json,
+    jsonString = _ => json,
+    jsonObject = prefixObject(mappingFunction),
+    jsonArray = arr => Json.arr(arr.map(mapFilesAndDirectories(mappingFunction)): _*)
+  )
+  
+  def preProcessInputFiles(inputContent: String, mappingFunction: String => String): Parse[String] = for {
+    parsed <- parseYaml(inputContent)
+    mapped = mapFilesAndDirectories(mappingFunction)(parsed)
+  } yield mapped.printCompact
 
   /**
     * Pre-process a CWL file and create a standalone, runnable (given proper inputs), inlined version of its content.

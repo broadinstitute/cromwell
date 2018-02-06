@@ -1,7 +1,7 @@
 package cwl
 
 import better.files.{File => BFile}
-import cwl.CwlDecoder.decodeAllCwl
+import cwl.CwlDecoder.decodeCwlFile
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import shapeless.Coproduct
@@ -63,7 +63,7 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
     ()
   }
 
-  lazy val cwlWorkflow = decodeAllCwl(cwlFile).map {
+  lazy val cwlWorkflow = decodeCwlFile(cwlFile).map {
     _.select[Workflow].get
   }.value.unsafeRunSync.fold(error => throw new RuntimeException(s"broken parse! msg was $error"), identity)
 

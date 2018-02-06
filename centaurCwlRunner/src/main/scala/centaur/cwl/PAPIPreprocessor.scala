@@ -124,12 +124,5 @@ class PAPIPreprocessor(config: Config) {
   /**
     * Pre-process the workflow by adding a default docker hint iff it doesn't have one
     */
-  def preProcessWorkflow(workflow: String) = processYaml(workflow) { json =>
-    def process = addDefaultDocker _
-    
-    // Some files contain a list of tools / workflows under the "$graph" field. In this case recursively add docker default to them
-    root.$graph.arr.modifyOption(_.map(process))(json)
-      // otherwise just process the file as a single workflow / tool
-      .getOrElse(process(json))
-  }
+  def preProcessWorkflow(workflow: String) = processYaml(workflow)(addDefaultDocker)
 }

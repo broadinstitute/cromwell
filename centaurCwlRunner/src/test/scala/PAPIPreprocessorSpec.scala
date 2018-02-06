@@ -249,69 +249,6 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
     )
   }
 
-  it should "add default docker image in multi tool/workflow files" in {
-    validate(
-      pAPIPreprocessor.preProcessWorkflow(
-        """|#!/usr/bin/env cwl-runner
-           |
-           |cwlVersion: v1.0
-           |$graph:
-           |
-           |- id: echo
-           |  class: CommandLineTool
-           |  inputs: []
-           |  outputs: []
-           |  baseCommand: "echo"
-           |  arguments: ["-n", "foo"]
-           |
-           |- id: main
-           |  class: Workflow
-           |  inputs: []
-           |  requirements:
-           |    - class: ScatterFeatureRequirement
-           |  steps:
-           |    step1:
-           |      scatter: [echo_in1, echo_in2]
-           |      scatterMethod: flat_crossproduct
-           |      in: []
-           |      out: []
-           |
-           |  outputs: []
-           |""".stripMargin),
-      """|#!/usr/bin/env cwl-runner
-         |
-         |cwlVersion: v1.0
-         |$graph:
-         |
-         |- id: echo
-         |  class: CommandLineTool
-         |  requirements:
-         |  - class: DockerRequirement
-         |    dockerPull: ubuntu:latest
-         |  inputs: []
-         |  outputs: []
-         |  baseCommand: "echo"
-         |  arguments: ["-n", "foo"]
-         |
-         |- id: main
-         |  class: Workflow
-         |  inputs: []
-         |  requirements:
-         |    - class: ScatterFeatureRequirement
-         |    - class: DockerRequirement
-         |      dockerPull: ubuntu:latest
-         |  steps:
-         |    step1:
-         |      scatter: [echo_in1, echo_in2]
-         |      scatterMethod: flat_crossproduct
-         |      in: []
-         |      out: []
-         |
-         |  outputs: []
-         |""".stripMargin
-    )
-  }
-
   it should "not replace existing docker requirement in an object" in {
     val workflow = """|class: CommandLineTool
                       |cwlVersion: v1.0

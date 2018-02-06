@@ -1,6 +1,6 @@
 package cromwell
 
-import cromwell.CommandLineParser.{CommandLineArguments, Run, Server}
+import cromwell.CromwellApp.{Run, Server}
 import cromwell.CromwellCommandLineSpec.WdlAndInputs
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.util.SampleWdl
@@ -16,7 +16,7 @@ class CromwellCommandLineSpec extends FlatSpec with Matchers with BeforeAndAfter
   behavior of "CromwellCommandLine"
 
   before {
-    parser = CommandLineParser.buildParser()
+    parser = CromwellApp.buildParser()
   }
 
   it should "fail to parse with no arguments" in {

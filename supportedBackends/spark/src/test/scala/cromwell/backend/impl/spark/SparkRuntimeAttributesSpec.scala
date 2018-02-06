@@ -8,9 +8,11 @@ import common.validation.ErrorOr._
 import org.scalatest.{Matchers, WordSpecLike}
 import spray.json.{JsBoolean, JsNumber, JsObject, JsString, JsValue}
 import wdl._
+import wdl.transforms.draft2.wdlom2wom._
 import wom.core.WorkflowSource
 import wom.graph.GraphNodePort.OutputPort
 import wom.values.WomValue
+import wom.transforms.WomWorkflowDefinitionMaker._
 
 class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
@@ -125,10 +127,11 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
                                       inputs: Map[OutputPort, WomValue] = Map.empty,
                                       options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
                                       runtime: String) = {
+    val wdlNamespace = WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime), Seq.empty[ImportResolver]).get
+
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime), Seq.empty[ImportResolver])
-        .get.workflow.womDefinition.getOrElse(fail("Cannot build Wom Workflow")),
+      wdlNamespace.workflow.toWomWorkflowDefinition.getOrElse(fail("Cannot build Wom Workflow")),
       inputs,
       options,
       Labels.empty

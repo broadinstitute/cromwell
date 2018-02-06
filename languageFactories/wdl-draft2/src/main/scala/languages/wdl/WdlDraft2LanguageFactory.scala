@@ -14,6 +14,8 @@ import common.validation.ErrorOr._
 import common.validation.Parse.Parse
 import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
+import wdl.transforms.draft2.wdlom2wom._
+import wom.transforms.WomExecutableMaker._
 
 class WdlDraft2LanguageFactory() extends LanguageFactory {
   override def validateNamespace(source: WorkflowSourceFilesCollection,
@@ -80,7 +82,7 @@ class WdlDraft2LanguageFactory() extends LanguageFactory {
       wdlNamespace <- wdlNamespaceValidation.toEither
       _ <- validateWorkflowNameLengths(wdlNamespace)
       importedUris = evaluateImports(wdlNamespace)
-      womExecutable <- wdlNamespace.womExecutable(Option(source.inputsJson))
+      womExecutable <- wdlNamespace.toWomExecutable(Option(source.inputsJson))
       validatedWomNamespaceBeforeMetadata <- LanguageFactoryUtil.validateWomNamespace(womExecutable)
       _ <- checkTypes(wdlNamespace, validatedWomNamespaceBeforeMetadata.womValueInputs)
     } yield validatedWomNamespaceBeforeMetadata.copy(importedFileContent = importedUris)).toValidated

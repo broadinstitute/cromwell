@@ -9,8 +9,10 @@ import cromwell.backend.validation.DockerValidation
 import cromwell.core.NoIoFunctionSet
 import cromwell.core.path.Path
 import wdl._
+import wdl.transforms.draft2.wdlom2wom._
 import wom.callable.Callable.OptionalInputDefinition
 import wom.values.{WomEvaluatedCallInputs, WomOptionalValue, WomString, WomValue}
+import wom.transforms.WomCommandTaskDefinitionMaker._
 
 /**
   * Base ConfigAsyncJobExecutionActor that reads the config and generates an outer script to submit an inner script
@@ -51,7 +53,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     val task = configInitializationData.wdlNamespace.findTask(taskName).
       getOrElse(throw new RuntimeException(s"Unable to find task $taskName"))
 
-    val taskDefinition = task.womDefinition.toTry.get
+    val taskDefinition = task.toWomTaskDefinition.toTry.get
 
     // Build WOM versions of the provided inputs by correlating with the `InputDefinition`s on the `TaskDefinition`.
     val providedWomInputs: WomEvaluatedCallInputs = (for {

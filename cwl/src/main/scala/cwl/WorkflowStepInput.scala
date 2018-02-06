@@ -124,7 +124,7 @@ object WorkflowStepInput {
         }
 
         //We don't have explicit information aboutthe type, so we
-      //case (false, Some(tpe), _)
+      case (false, Some(tpe), _) => tpe.asRight
       case _ => stepInput.validatedSourceTypes(outputTypeMap).map(_.values).map(WomType.homogeneousTypeFromTypes)
     }
   }

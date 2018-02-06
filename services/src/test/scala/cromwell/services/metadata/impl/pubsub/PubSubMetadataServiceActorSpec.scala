@@ -165,11 +165,7 @@ object PubSubMetadataServiceActorSpec {
   }
 
   // This doesn't include a project so should be a failure
-  val emptyConfig = ConfigFactory.parseString(
-    """
-      |
-    """.stripMargin
-  )
+  val emptyConfig = ConfigFactory.empty()
 
   val configWithSubscription = ConfigFactory.parseString(
     """

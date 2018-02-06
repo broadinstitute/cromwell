@@ -41,12 +41,12 @@ class PubSubMetadataServiceActor(serviceConfig: Config, globalConfig: Config) ex
   implicit val ec = context.dispatcher
 
   // The auth *must* be a service account auth but it might not be named service-account.
-  val googleAuthName = serviceConfig.as[Option[String]]("auth").getOrElse("service-account")
+  val googleAuthName = serviceConfig.getOrElse("auth", "service-account")
 
   val googleProject = serviceConfig.as[String]("project")
-  val pubSubTopicName = serviceConfig.as[Option[String]]("topic").getOrElse("cromwell-metadata")
-  val pubSubSubscriptionName = serviceConfig.as[Option[String]]("subscription")
-  val pubSubAppName = serviceConfig.as[Option[String]]("appName").getOrElse("cromwell")
+  val pubSubTopicName = serviceConfig.getOrElse("topic", "cromwell-metadata")
+  val pubSubSubscriptionName = serviceConfig.getAs[String]("subscription")
+  val pubSubAppName = serviceConfig.getOrElse("appName", "cromwell")
 
   val pubSubConnection = createPubSubConnection()
   createTopicAndSubscription().failed foreach { e => throw e }

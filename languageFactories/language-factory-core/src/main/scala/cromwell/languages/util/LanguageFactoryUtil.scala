@@ -1,4 +1,4 @@
-package languages.util
+package cromwell.languages.util
 
 import cats.data.NonEmptyList
 import cats.syntax.validated._
@@ -6,13 +6,14 @@ import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import cromwell.core.path.BetterFileMethods.OpenOptions
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import cromwell.engine.workflow.lifecycle.materialization.ResolvedExecutableInputsPoly
 import wom.executable.Executable.ResolvedExecutableInputs
-import wom.executable.{Executable, ValidatedWomNamespace}
+import wom.executable.Executable
 import wom.expression.IoFunctionSet
 import wom.graph.GraphNodePort.OutputPort
 import wom.values.{WomSingleFile, WomValue}
 import cromwell.core.CromwellGraphNode.CromwellEnhancedOutputPort
+import cromwell.core.NoIoFunctionSet
+import cromwell.languages.ValidatedWomNamespace
 
 import scala.util.{Failure, Success, Try}
 
@@ -43,9 +44,9 @@ object LanguageFactoryUtil {
     }
   }
 
-  def validateWomNamespace(womExecutable: Executable, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = for {
-    evaluatedInputs <- validateExecutableInputs(womExecutable.resolvedExecutableInputs, ioFunctions).toEither
-    validatedWomNamespace = ValidatedWomNamespace(womExecutable, womExecutable.graph, evaluatedInputs)
+  def validateWomNamespace(womExecutable: Executable): Checked[ValidatedWomNamespace] = for {
+    evaluatedInputs <- validateExecutableInputs(womExecutable.resolvedExecutableInputs, NoIoFunctionSet).toEither
+    validatedWomNamespace = ValidatedWomNamespace(womExecutable, evaluatedInputs, Map.empty)
     _ <- validateWdlFiles(validatedWomNamespace.womValueInputs)
   } yield validatedWomNamespace
 
@@ -60,7 +61,6 @@ object LanguageFactoryUtil {
    */
   private def validateExecutableInputs(inputs: ResolvedExecutableInputs, ioFunctions: IoFunctionSet): ErrorOr[Map[OutputPort, WomValue]] = {
     import common.validation.ErrorOr.MapTraversal
-
     inputs.traverse[OutputPort, WomValue] {
       case (key, value) => value.fold(ResolvedExecutableInputsPoly).apply(ioFunctions) map { key -> _ }
     }

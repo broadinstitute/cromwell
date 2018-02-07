@@ -2,8 +2,10 @@ package cromwell.services.metadata
 
 import java.util.UUID
 
-import cromwell.core.WorkflowId
+import cromwell.core._
 import common.exception.AggregatedException
+import cromwell.core
+import cromwell.services.metadata
 import org.scalactic.Equality
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
@@ -140,7 +142,7 @@ class MetadataServiceSpec extends FlatSpec with Matchers with TableDrivenPropert
 
     forAll(values) { (womValue, metadataValue) =>
       womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), womValue).toList should contain theSameElementsAs List(
-        MetadataEvent(MetadataKey(workflowId, None, "root"), metadataValue)
+        metadata.MetadataEvent(MetadataKey(workflowId, None, "root"), metadataValue)
       )
     }
   }

@@ -4,7 +4,7 @@ import java.time.OffsetDateTime
 
 import akka.actor.ActorRef
 import cats.data.NonEmptyList
-import cromwell.core.{JobKey, WorkflowId, WorkflowState}
+import cromwell.core._
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import common.exception.{MessageAggregation, ThrowableAggregation}
 import wom.core._

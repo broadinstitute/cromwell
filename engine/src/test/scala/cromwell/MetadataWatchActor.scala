@@ -2,10 +2,10 @@ package cromwell
 
 import akka.actor.{Actor, ActorLogging, Props}
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.services.metadata.{MetadataEvent, MetadataJobKey, MetadataString, MetadataValue}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import MetadataWatchActor._
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvPut, KvPutSuccess}
+import cromwell.services.metadata.{MetadataEvent, MetadataJobKey, MetadataString, MetadataValue}
 
 import scala.concurrent.Promise
 

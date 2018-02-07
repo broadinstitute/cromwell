@@ -9,8 +9,8 @@ import cromwell.core.WorkflowId
 import cromwell.core.actor.BatchingDbWriter
 import cromwell.core.actor.BatchingDbWriter._
 import cromwell.services.ServicesSpec
-import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import cromwell.services.metadata.MetadataService.PutMetadataAction
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
 

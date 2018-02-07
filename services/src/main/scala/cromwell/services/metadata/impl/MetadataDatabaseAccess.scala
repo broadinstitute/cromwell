@@ -8,7 +8,7 @@ import cats.instances.option._
 import cats.syntax.functor._
 import cats.syntax.semigroup._
 import cats.syntax.traverse._
-import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
+import cromwell.core._
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, WorkflowQuery}
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}

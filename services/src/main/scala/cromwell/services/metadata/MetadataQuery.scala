@@ -3,7 +3,7 @@ package cromwell.services.metadata
 import java.time.OffsetDateTime
 
 import cats.data.NonEmptyList
-import cromwell.core.WorkflowId
+import cromwell.core._
 import org.slf4j.{Logger, LoggerFactory}
 import wom.values._
 

@@ -6,7 +6,7 @@ import akka.actor.{ActorRef, LoggingFSM, Props}
 import cromwell.webservice.metadata.MetadataComponent._
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.core.ExecutionIndex.ExecutionIndex
-import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
+import cromwell.core._
 import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._

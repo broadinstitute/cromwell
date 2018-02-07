@@ -9,7 +9,7 @@ ENABLE_COVERAGE=true sbt assembly
 CROMWELL_JAR=$(find "$(pwd)/target/scala-2.12" -name "cromwell-*.jar")
 CENTAUR_CWL_RUNNER="$(pwd)/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
 
-git clone --depth 1 https://github.com/common-workflow-language/common-workflow-language.git
+git clone https://github.com/common-workflow-language/common-workflow-language.git
 cd common-workflow-language
 # checkout a known git hash to prevent the tests from changing out from under us
 git checkout af9e073634dc6aec4092c55e1c081f335affa54a

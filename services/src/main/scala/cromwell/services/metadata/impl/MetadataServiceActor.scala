@@ -30,7 +30,7 @@ object MetadataServiceActor {
   def props(serviceConfig: Config, globalConfig: Config) = Props(MetadataServiceActor(serviceConfig, globalConfig)).withDispatcher(ServiceDispatcher)
 }
 
-case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
+final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
   extends Actor with ActorLogging with MetadataDatabaseAccess with MetadataServicesStore with GracefulShutdownHelper {
   
   private val decider: Decider = {

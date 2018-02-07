@@ -1,5 +1,7 @@
 package cromwell.services.metadata.impl.pubsub
 
+import java.nio.file.{Files, Paths}
+
 import akka.actor.{Actor, ActorLogging, Props}
 import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.Config
@@ -76,7 +78,9 @@ class PubSubMetadataServiceActor(serviceConfig: Config, globalConfig: Config) ex
       case Invalid(e) => throw new IllegalArgumentException("Unable to configure PubSubMetadataServiceActor: " + e.toList.mkString(", "))
     }
     val jsonAuth = googleAuth.fileFormat match {
-      case j: JsonFileFormat => GoogleCredentialModes.Json(scala.io.Source.fromFile(j.file).mkString)
+      case j: JsonFileFormat =>
+        val jsonString = new String(Files.readAllBytes(Paths.get(j.file)))
+        GoogleCredentialModes.Json(jsonString)
       case _ => throw new IllegalArgumentException("Unable to configure PubSubMetadataServiceActor: the service account must supply a JSON file")
     }
 

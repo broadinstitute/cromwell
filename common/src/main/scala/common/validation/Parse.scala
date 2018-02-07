@@ -39,4 +39,15 @@ object Parse {
   implicit class InvalidParse(val obj: String) extends AnyVal {
     def invalidParse[A]: Parse[A] = error(obj)
   }
+
+  implicit class EnhancedParse[A](val p: Parse[A]) extends AnyVal {
+    import cats.syntax.either._
+    def toChecked: Checked[A] = {
+      Try(p.value.unsafeRunSync()) match {
+        case Success(r) => r
+        case Failure(f) => NonEmptyList.one(f.getMessage).asLeft
+      }
+    }
+    def toErrorOr: ErrorOr[A] = toChecked.toValidated
+  }
 }

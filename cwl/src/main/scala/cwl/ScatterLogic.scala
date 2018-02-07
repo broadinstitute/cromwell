@@ -104,6 +104,13 @@ object ScatterLogic {
     }
   }
 
+  def scatterGatherPortTypeFunction(scatterMethod: Option[ScatterMethod], scatterVariables: NonEmptyList[_]): WomType => WomArrayType = scatterMethod match {
+    case Some(ScatterMethod.NestedCrossProduct) =>
+      innerType: WomType =>
+        scatterVariables.tail.foldLeft(WomArrayType(innerType))({ case (t, _) => WomArrayType(t) })
+    case _ => innerType: WomType => WomArrayType(innerType)
+  }
+
   // Build a list (potentially empty) of scatter variable nodes. Each node represents an input variable being scattered over
   def buildScatterVariables(scatter: ScatterVariables, stepInputFold: WorkflowStepInputFold, stepId: String)(implicit parentName: ParentName): Checked[List[ScatterVariableNode]] = {
     import cats.implicits._
@@ -184,13 +191,6 @@ object ScatterLogic {
       case (_, None) => "When scattering over multiple variables, a scatter method needs to be defined. See http://www.commonwl.org/v1.0/Workflow.html#WorkflowStep".invalidNelCheck
     }
 
-    val scatterGatherPortTypeFunction: WomType => WomArrayType = scatterMethod match {
-      case Some(ScatterMethod.NestedCrossProduct) =>
-        innerType: WomType =>
-          scatterVariables.tail.foldLeft(WomArrayType(innerType))({ case (t, _) => WomArrayType(t) })
-      case _ => innerType: WomType => WomArrayType(innerType)
-    }
-
     val callNode = callNodeAndNewNodes.node
 
     // We need to generate PBGONs for every output port of the call, so that they can be linked outside the scatter graph
@@ -199,7 +199,7 @@ object ScatterLogic {
     def buildScatterNode(innerGraph: Graph, scatterProcessingFunction: ScatterProcessingFunction, scatterCollectingFunctionBuilder: ScatterCollectionFunctionBuilder) = {
       val scatterNodeBuilder = new ScatterNodeBuilder
       val outputPorts: Set[ScatterGathererPort] = innerGraph.nodes.collect { case gon: PortBasedGraphOutputNode =>
-        scatterNodeBuilder.makeOutputPort(scatterGatherPortTypeFunction(gon.womType), gon)
+        scatterNodeBuilder.makeOutputPort(scatterGatherPortTypeFunction(scatterMethod, scatterVariables)(gon.womType), gon)
       }
 
       val scatterNodeWithNewNodes = scatterNodeBuilder.build(innerGraph, outputPorts, scatterVariables.toList, scatterProcessingFunction, scatterCollectingFunctionBuilder)

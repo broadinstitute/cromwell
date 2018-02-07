@@ -1,15 +1,19 @@
 package centaur.cwl
 import com.typesafe.config.Config
+import common.validation.Parse.Parse
+import cwl.preprocessor.CwlPreProcessor
 import io.circe.optics.JsonPath
 import io.circe.optics.JsonPath._
 import io.circe.yaml.Printer.StringStyle
-import io.circe.{Json, JsonObject, yaml}
+import io.circe.{Json, yaml}
 import net.ceedubs.ficus.Ficus._
 
 /**
   * Tools to pre-process the CWL workflows and inputs before feeding them to Cromwell so they can be executed on PAPI.
   */
 class PAPIPreprocessor(config: Config) {
+  val cwlPreProcessor = new CwlPreProcessor()
+  
   // GCS directory where inputs for conformance tests are stored
   private val gcsPrefix = {
     val rawPrefix = config.as[String]("papi.default-input-gcs-prefix")
@@ -46,52 +50,18 @@ class PAPIPreprocessor(config: Config) {
   private def processYaml(value: String)(f: Json => Json) =
     process(value, f, yaml.Printer.spaces2.copy(stringStyle = StringStyle.DoubleQuoted).pretty)
 
-  // Process and print back as JSON
-  private def processJson(value: String)(f: Json => Json) = process(value, f, io.circe.Printer.spaces2.pretty)
-
   // Prefix the string at "key" with the gcs prefix
-  private def prefixLocationWithGcs(key: String): Json => Json = root.selectDynamic(key).string.modify(gcsPrefix + _)
-
-  // Prefix "location" and "default"
-  private val prefix = prefixLocationWithGcs("location").compose(prefixLocationWithGcs("path"))
+  private def prefixLocationWithGcs(value: String): String = gcsPrefix + value
 
   // Function to check if the given json has the provided key / value pair
   private def hasKeyValue(key: String, value: String): Json => Boolean = {
     root.selectDynamic(key).string.exist(_.equalsIgnoreCase(value))
   }
 
-  // Return true if the given json object represents a File
-  private def isFile(obj: JsonObject) = hasKeyValue("class", "File")(Json.fromJsonObject(obj))
-
-  // Return true if the given json object represents a Directory
-  private def isDirectory(obj: JsonObject) = hasKeyValue("class", "Directory")(Json.fromJsonObject(obj))
-
-  // Prefix the location or path in the json object if it's a file or directory, otherwise recurse over its fields
-  private def prefixObject(obj: JsonObject) = {
-    // If the object is file or a directory, prefix it with the gcs prefix
-    if (isFile(obj) || isDirectory(obj)) {
-      prefix(Json.fromJsonObject(obj))
-        // Even if it's a file it may have secondary files. So keep recursing on its fields
-        .mapObject(_.mapValues(prefixFiles))
-    }
-    // Otherwise recursively process its fields
-    else Json.fromJsonObject(obj.mapValues(prefixFiles))
-  }
-
-  // Fold over the json recursively and prefix all files
-  private def prefixFiles(json: Json): Json = json.fold(
-    jsonNull = json,
-    jsonBoolean = _ => json,
-    jsonNumber = _ => json,
-    jsonString = _ => json,
-    jsonObject = prefixObject,
-    jsonArray = arr => Json.arr(arr.map(prefixFiles): _*)
-  )
-
   /**
     * Pre-process input file by prefixing all files and directories with the gcs prefix
     */
-  def preProcessInput(input: String): String = processJson(input)(prefixFiles)
+  def preProcessInput(input: String): Parse[String] = cwlPreProcessor.preProcessInputFiles(input, prefixLocationWithGcs)
 
   // Check if the given path (as an array or object) has a DockerRequirement element
   def hasDocker(jsonPath: JsonPath)(json: Json): Boolean = {

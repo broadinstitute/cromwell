@@ -47,7 +47,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
            |    }
            |  }
            |}
-           |""".stripMargin),
+           |""".stripMargin).value.unsafeRunSync().right.get,
       """|{
          |  "input": {
          |    "null": null,

@@ -7,15 +7,18 @@ import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
+import common.validation.Parse._
 import common.validation.Validation._
 import cromwell.CommandLineArguments._
 import cromwell.CromwellApp.Command
 import cromwell.core.WorkflowOptions
-import cromwell.core.path.Path
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import cwl.preprocessor.CwlPreProcessor
 import org.slf4j.Logger
 
 import scala.util.Try
+
+import scala.util.Success
 
 object CommandLineArguments {
   val DefaultCromwellHost = new URL("http://localhost:8000")
@@ -43,6 +46,20 @@ case class CommandLineArguments(command: Option[Command] = None,
   private lazy val cwlPreProcessor = new CwlPreProcessor()
   private lazy val isCwl = workflowType.exists(_.equalsIgnoreCase("cwl"))
 
+  /*
+    * If the file is a relative local path, resolve it against the path of the input json.
+   */
+  private def inputFilesMapper(inputJsonPath: Path)(file: String) = {
+    DefaultPathBuilder.build(file) match {
+      case Success(path) if !path.isAbsolute => inputJsonPath.sibling(file).pathAsString
+      case _ => file
+    }
+  }
+
+  private def preProcessCwlInputFile(path: Path): ErrorOr[String] = {
+    cwlPreProcessor.preProcessInputFiles(path.contentAsString, inputFilesMapper(path)).toErrorOr
+  }
+
   def validateSubmission(logger: Logger): ErrorOr[ValidSubmission] = {
     val workflowPath = File(workflowSource.get.pathAsString)
 
@@ -59,7 +76,11 @@ case class CommandLineArguments(command: Option[Command] = None,
       }
     } else readContent("Workflow source", workflowSource.get).map((_, imports.map(p => File(p.pathAsString)), workflowRoot))
 
-    val inputsJson = readJson("Workflow inputs", workflowInputs)
+    val inputsJson: ErrorOr[String] = if (isCwl) {
+      logger.info("Pre Processing Inputs...")
+      workflowInputs.map(preProcessCwlInputFile).getOrElse(readJson("Workflow inputs", workflowInputs))
+    } else readJson("Workflow inputs", workflowInputs)
+
     val optionsJson = readJson("Workflow options", workflowOptions)
     val labelsJson = readJson("Workflow labels", workflowLabels)
 

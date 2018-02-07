@@ -105,7 +105,8 @@ object WorkflowStepInput {
                     expectedType: Option[MyriadInputType],
                     isScattered: Boolean)(implicit parentName: ParentName): Checked[WomType] = {
 
-    (isScattered, expectedType.map(_.fold(MyriadInputTypeToWomType)), stepInput.effectiveLinkMerge) match {
+    val expectedTypeAsWom: Option[WomType] = expectedType.map(_.fold(MyriadInputTypeToWomType))
+    (isScattered, expectedTypeAsWom, stepInput.effectiveLinkMerge) match {
 
         //If scattering over this variable, we expect an array of the sink type
       case (true, Some(tpe), _) => WomArrayType(tpe).asRight

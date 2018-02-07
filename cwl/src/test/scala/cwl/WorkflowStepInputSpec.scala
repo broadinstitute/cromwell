@@ -51,15 +51,6 @@ object WorkflowStepInputSpec extends Properties("WorkflowStepInput") {
       )))
   }
 
-  property("assert compatible explicit types when merge_flattened is used") = secure {
-    val arrayType = Coproduct[MyriadInputType](Array(it))
-    val wsi = WorkflowStepInput("s#h", linkMerge = Some(LinkMergeMethod.MergeFlattened))
-    val stringToType = Map("h" -> WomArrayType(WomStringType), "i" -> WomArrayType(WomStringType))
-
-    WorkflowStepInput.
-      determineType(wsi, stringToType, Some(arrayType), false) == Right(WomArrayType(WomStringType))
-  }
-
   property("assert source type is compatible with single element of 'items' type of the destination array parameter when merge_flattened option enabled") = secure {
     val miit = Coproduct[MyriadInputInnerType](InputArraySchema(items = stringType))
     val mit = Coproduct[MyriadInputType](miit)

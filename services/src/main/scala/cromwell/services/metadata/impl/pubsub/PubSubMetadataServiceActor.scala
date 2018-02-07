@@ -5,15 +5,16 @@ import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.ServiceAccountMode
-import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.PemFileFormat
+import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.{JsonFileFormat, PemFileFormat}
 import cromwell.core.Dispatcher._
 import cromwell.services.metadata._
 import cromwell.services.metadata.MetadataService.{MetadataWriteFailure, MetadataWriteSuccess, PutMetadataAction, PutMetadataActionAndRespond}
 import net.ceedubs.ficus.Ficus._
-import org.broadinstitute.dsde.workbench.google.{GooglePubSubDAO, HttpGooglePubSubDAO}
+import org.broadinstitute.dsde.workbench.google.{GoogleCredentialModes, GooglePubSubDAO, HttpGooglePubSubDAO}
 import spray.json._
 import cats.instances.future._
 import cats.syntax.functor._
+
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
@@ -74,14 +75,13 @@ class PubSubMetadataServiceActor(serviceConfig: Config, globalConfig: Config) ex
       case Valid(doh) => throw new IllegalArgumentException(s"Unable to configure PubSubMetadataServiceActor: ${doh.name} was not a service account auth")
       case Invalid(e) => throw new IllegalArgumentException("Unable to configure PubSubMetadataServiceActor: " + e.toList.mkString(", "))
     }
-
-    val pemFile = googleAuth.fileFormat match {
-      case p: PemFileFormat => p
-      case _ => throw new IllegalArgumentException("Unable to configure PubSubMetadataServiceActor: the service account must supply a PEM file")
+    val jsonAuth = googleAuth.fileFormat match {
+      case j: JsonFileFormat => GoogleCredentialModes.Json(scala.io.Source.fromFile(j.file).mkString)
+      case _ => throw new IllegalArgumentException("Unable to configure PubSubMetadataServiceActor: the service account must supply a JSON file")
     }
 
     // The metric name is pretty useless. It's an artifact of the workbench libraries which we're not using
-    new HttpGooglePubSubDAO(pemFile.accountId, pemFile.file, pubSubAppName, googleProject, "cromwell.pubsub")
+    new HttpGooglePubSubDAO(pubSubAppName, jsonAuth, "cromwell.pubsub", googleProject)
   }
 
   /**

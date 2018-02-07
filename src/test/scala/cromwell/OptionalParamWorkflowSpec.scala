@@ -4,6 +4,7 @@ import common.validation.Validation._
 import org.scalatest.{Matchers, WordSpecLike}
 import wdl.WdlNamespace
 import wdl.expression.NoFunctions
+import wdl.versioning.NoVersionSpecifics
 import wom.values.{WomSingleFile, WomString}
 
 
@@ -23,7 +24,7 @@ class OptionalParamWorkflowSpec extends Matchers with WordSpecLike {
          |  call find
          |}
        """.stripMargin
-      val ns = WdlNamespace.loadUsingSource(wf, None, None).get
+      val ns = WdlNamespace.loadUsingSource(wf, None, None)(NoVersionSpecifics).get
       val findTask = ns.findTask("find") getOrElse {
         fail("Expected to find task 'find'")
       }

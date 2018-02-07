@@ -1,6 +1,7 @@
 package cromwell.backend
 
 import _root_.wdl._
+import _root_.wdl.versioning.NoVersionSpecifics
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.backend.io.TestWorkflows._
 import cromwell.core.callcaching.NoDocker
@@ -32,7 +33,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
                               options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
                               runtime: String = "") = {
     val wdlNamespace = WdlNamespaceWithWorkflow.load(workflowSource.replaceAll("RUNTIME", runtime),
-      Seq.empty[ImportResolver]).get
+      Seq.empty[ImportResolver])(NoVersionSpecifics).get
     val executable = wdlNamespace.womExecutable(inputFileAsJson) match {
       case Left(errors) => fail(s"Fail to build wom executable: ${errors.toList.mkString(", ")}")
       case Right(e) => e

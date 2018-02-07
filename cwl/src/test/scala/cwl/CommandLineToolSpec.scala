@@ -37,7 +37,7 @@ class CommandLineToolSpec extends FlatSpec with Matchers with ParallelTestExecut
     override def stdout(params: Seq[Try[WomValue]]): Try[WomSingleFile] = ???
     override def glob(pattern: String): Future[Seq[String]] = ???
     override def stderr(params: Seq[Try[WomValue]]): Try[WomSingleFile] = ???
-    override def size(params: Seq[Try[WomValue]]): Future[WomFloat] = ???
+    override def size(file: WomValue): Future[Double] = ???
     override def readFile(path: String, maxBytes: Option[Int], failOnOverflow: Boolean): Future[String] = ???
     override def writeFile(path: String, content: String): Future[WomSingleFile] = ???
     override def copyFile(pathFrom: String, targetName: String) = ???

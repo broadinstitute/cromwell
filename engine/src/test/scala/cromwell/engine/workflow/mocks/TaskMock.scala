@@ -4,9 +4,10 @@ import cromwell.engine.workflow.mocks.DeclarationMock.DeclarationMockType
 import org.specs2.mock.Mockito
 import wdl4s.parser.WdlParser.Ast
 import wdl._
+import wdl.versioning.NoVersionSpecifics
 
 trait TaskMock extends Mockito {
-  
+  implicit val wdlVersionSpecifics = NoVersionSpecifics
   def mockTask(name: String,
                declarations: Seq[Declaration] = Seq.empty,
                runtimeAttributes: WdlRuntimeAttributes = new WdlRuntimeAttributes(Map.empty),

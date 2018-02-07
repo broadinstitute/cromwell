@@ -1,6 +1,6 @@
 package cromwell.backend.impl.spark
 
-import cromwell.backend.{BackendWorkflowDescriptor, MemorySize}
+import cromwell.backend.BackendWorkflowDescriptor
 import wom.RuntimeAttributesKeys._
 import cromwell.core.labels.Labels
 import cromwell.core.{NoIoFunctionSet, WorkflowId, WorkflowOptions}
@@ -8,6 +8,8 @@ import common.validation.ErrorOr._
 import org.scalatest.{Matchers, WordSpecLike}
 import spray.json.{JsBoolean, JsNumber, JsObject, JsString, JsValue}
 import wdl._
+import wdl.versioning.NoVersionSpecifics
+import wom.MemorySize
 import wom.core.WorkflowSource
 import wom.graph.GraphNodePort.OutputPort
 import wom.values.WomValue
@@ -127,7 +129,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
                                       runtime: String) = {
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime), Seq.empty[ImportResolver])
+      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime), Seq.empty[ImportResolver])(NoVersionSpecifics)
         .get.workflow.womDefinition.getOrElse(fail("Cannot build Wom Workflow")),
       inputs,
       options,

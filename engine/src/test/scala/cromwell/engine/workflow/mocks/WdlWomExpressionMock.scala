@@ -4,11 +4,13 @@ import org.specs2.mock.Mockito
 import wdl.{Scope, WdlExpression, WdlWomExpression}
 import wdl.WdlExpression._
 import wdl.expression.WdlFunctions
+import wdl.versioning.NoVersionSpecifics
 import wom.values.{WomInteger, WomString, WomValue}
 
 import scala.util.Success
 
 trait WdlWomExpressionMock extends Mockito {
+  implicit val wdlVersionSpecifics = NoVersionSpecifics
   val helloStringExpression = {
     val expression = mock[WdlExpression]
     expression.valueString returns "hello"

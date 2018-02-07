@@ -10,7 +10,8 @@ import org.scalameter.api._
 import org.scalameter.picklers.Implicits._
 import spray.json.DefaultJsonProtocol
 import wdl.WdlNamespaceWithWorkflow
-import wom.graph.{ScatterNode, CommandCallNode}
+import wdl.versioning.NoVersionSpecifics
+import wom.graph.{CommandCallNode, ScatterNode}
 
 /**
   * Benchmarks the performance of the execution store using ScalaMeter (http://scalameter.github.io/)
@@ -19,6 +20,8 @@ import wom.graph.{ScatterNode, CommandCallNode}
   * sbt benchmark:test will run all ScalaMeter tests
   */
 object ExecutionStoreBenchmark extends Bench[Double] with DefaultJsonProtocol {
+
+  implicit val wdlVersionSpecifics = NoVersionSpecifics
 
   import spray.json._
   /* Benchmark configuration */

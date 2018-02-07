@@ -3,6 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution.ejea
 import java.util.UUID
 
 import _root_.wdl._
+import _root_.wdl.versioning.NoVersionSpecifics
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{TestFSMRef, TestProbe}
 import cromwell.backend.BackendJobExecutionActor.{ExecuteJobCommand, RecoverJobCommand}
@@ -31,7 +32,7 @@ import scala.util.Success
 
 
 private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mockito with TaskMock with WdlWomExpressionMock with DeclarationMock {
-
+  override implicit val wdlVersionSpecifics = NoVersionSpecifics
   val workflowId = WorkflowId.randomId()
   val workflowName = "wf"
   val taskName = "foobar"

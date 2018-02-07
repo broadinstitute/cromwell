@@ -10,9 +10,9 @@ import wom.graph.GraphNode.GeneratedNodeAndNewNodes
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.expression.ExposedExpressionNode
 import wom.graph._
-import wom.transforms.WomCallNodeMaker._
-import wom.transforms.WomConditionalNodeMaker._
-import wom.transforms.WomScatterNodeMaker._
+import wom.transforms.WomCallNodeMaker.ops._
+import wom.transforms.WomConditionalNodeMaker.ops._
+import wom.transforms.WomScatterNodeMaker.ops._
 import wom.transforms.WomGraphMaker
 
 object WdlDraft2WomGraphMaker extends WomGraphMaker[Scope] {

@@ -9,7 +9,7 @@ import cats.implicits._
 import cwl.CwlDecoder
 import spray.json.{JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsValue}
 import wdl.transforms.draft2.wdlom2wom._
-import wom.transforms.WomExecutableMaker._
+import wom.transforms.WomExecutableMaker.ops._
 import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.executable.Executable
 import wom.graph._

@@ -12,7 +12,7 @@ import wdl.transforms.draft2.wdlom2wom._
 import wom.core.WorkflowSource
 import wom.graph.GraphNodePort.OutputPort
 import wom.values.WomValue
-import wom.transforms.WomWorkflowDefinitionMaker._
+import wom.transforms.WomWorkflowDefinitionMaker.ops._
 
 class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
 

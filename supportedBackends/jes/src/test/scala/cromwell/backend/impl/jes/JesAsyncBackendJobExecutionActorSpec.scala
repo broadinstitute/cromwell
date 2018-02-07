@@ -5,8 +5,8 @@ import java.util.UUID
 import _root_.io.grpc.Status
 import _root_.wdl._
 import wdl.transforms.draft2.wdlom2wom._
-import wom.transforms.WomExecutableMaker._
-import wom.transforms.WomWorkflowDefinitionMaker._
+import wom.transforms.WomExecutableMaker.ops._
+import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
 import com.google.api.gax.retrying.RetrySettings

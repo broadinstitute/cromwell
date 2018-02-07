@@ -10,7 +10,7 @@ import wdl.{WdlCall, WdlTaskCall, WdlWomExpression}
 import wom.callable.Callable
 import wom.graph.CallNode._
 import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
-import wom.transforms.WomCallableMaker._
+import wom.transforms.WomCallableMaker.ops._
 import wom.graph.CallNode.{CallNodeAndNewNodes, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode, PlainAnonymousExpressionNode, TaskCallInputExpressionNode}

@@ -9,7 +9,7 @@ import wom.graph.ScatterNode.ScatterNodeWithNewNodes
 import wom.graph._
 import wom.graph.expression.PlainAnonymousExpressionNode
 import wom.transforms.WomScatterNodeMaker
-import wom.transforms.WomGraphMaker._
+import wom.transforms.WomGraphMaker.ops._
 import wom.types.WomArrayType
 
 object WdlDraft2WomScatterNodeMaker extends WomScatterNodeMaker[Scatter] {

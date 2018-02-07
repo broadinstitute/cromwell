@@ -10,7 +10,7 @@ import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.graph.expression.PlainAnonymousExpressionNode
 import wom.transforms.WomConditionalNodeMaker
-import wom.transforms.WomGraphMaker.CanMakeGraph
+import wom.transforms.WomGraphMaker.ops._
 import wom.types.WomBooleanType
 
 object WdlDraft2WomConditionalNodeMaker extends WomConditionalNodeMaker[If] {

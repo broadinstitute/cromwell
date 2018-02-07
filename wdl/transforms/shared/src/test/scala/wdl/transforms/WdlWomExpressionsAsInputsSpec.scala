@@ -8,10 +8,9 @@ import wom.graph.GraphNodePort.OutputPort
 import wom.graph.expression.ExpressionNode
 import WdlWomExpressionsAsInputsSpec._
 import wom.transforms.WomWorkflowDefinitionMaker
-import wom.transforms.WomWorkflowDefinitionMaker._
+import wom.transforms.WomWorkflowDefinitionMaker.ops._
 
 import scala.language.postfixOps
-
 
 object WdlWomExpressionsAsInputsSpec {
   val Wdl =

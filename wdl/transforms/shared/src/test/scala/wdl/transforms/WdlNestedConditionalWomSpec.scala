@@ -10,7 +10,7 @@ import wdl.{WdlNamespace, WdlNamespaceWithWorkflow, WdlWorkflow}
 import wom.transforms.WomWorkflowDefinitionMaker
 import wdl.transforms.WdlNestedConditionalWomSpec._
 import wom.graph.Graph
-import wom.transforms.WomWorkflowDefinitionMaker._
+import wom.transforms.WomWorkflowDefinitionMaker.ops._
 
 class WdlNestedConditionalWomSpec(implicit workflowDefinitionMaker: WomWorkflowDefinitionMaker[WdlWorkflow]) extends FlatSpec with Matchers {
 

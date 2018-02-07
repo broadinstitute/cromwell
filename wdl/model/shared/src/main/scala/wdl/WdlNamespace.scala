@@ -6,7 +6,6 @@ import better.files._
 import cats.effect.IO
 import com.softwaremill.sttp._
 import com.softwaremill.sttp.asynchttpclient.cats.AsyncHttpClientCatsBackend
-import common.Checked
 import common.util.TryUtil
 import wdl.AstTools.{AstNodeName, EnhancedAstNode}
 import wdl.command.ParameterCommandPart
@@ -16,7 +15,6 @@ import wdl.types.{WdlCallOutputsObjectType, WdlNamespaceType}
 import wdl4s.parser.WdlParser
 import wdl4s.parser.WdlParser._
 import wom.core._
-import wom.executable.Executable
 import wom.types._
 import wom.values.WomValue
 

@@ -9,7 +9,7 @@ import wom.graph.GraphNodePort.ConditionalOutputPort
 import wom.graph._
 import wom.graph.expression.ExpressionNode
 import wom.types.{WomBooleanType, WomIntegerType, WomOptionalType, WomStringType}
-import wom.transforms.WomWorkflowDefinitionMaker._
+import wom.transforms.WomWorkflowDefinitionMaker.ops._
 
 class WdlConditionalWomSpec(implicit workflowDefinitionMaker: WomWorkflowDefinitionMaker[WdlWorkflow]) extends FlatSpec with Matchers {
 

@@ -8,7 +8,7 @@ import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.graph.expression.ExpressionNode
 import common.collections.EnhancedCollections._
-import wom.transforms.WomWorkflowDefinitionMaker._
+import wom.transforms.WomWorkflowDefinitionMaker.ops._
 
 class WdlNamespaceWomSpec(implicit workflowDefinitionMaker: WomWorkflowDefinitionMaker[WdlWorkflow]) extends FlatSpec with Matchers {
 

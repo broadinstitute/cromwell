@@ -13,8 +13,8 @@ import wom.transforms.WomExecutableMaker
 import wom.graph.Graph.ResolvedExecutableInput
 import wom.types._
 import wom.values._
-import wom.transforms.WomWorkflowDefinitionMaker._
-import wom.transforms.WomExecutableMaker._
+import wom.transforms.WomWorkflowDefinitionMaker.ops._
+import wom.transforms.WomExecutableMaker.ops._
 
 class WdlInputValidationSpec(implicit executableMaker: WomExecutableMaker[WdlNamespaceWithWorkflow],
                              workflowDefinitionMaker: WomWorkflowDefinitionMaker[WdlWorkflow]) extends FlatSpec with Matchers with BeforeAndAfterAll with TableDrivenPropertyChecks {

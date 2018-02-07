@@ -10,7 +10,7 @@ import wom.executable.Executable.InputParsingFunction
 import wom.executable.Executable.ParsedInputMap
 import wom.executable.Executable
 import wom.types.WomType
-import wom.transforms.WomWorkflowDefinitionMaker._
+import wom.transforms.WomWorkflowDefinitionMaker.ops._
 
 object WdlDraft2InputParsing {
   private lazy val inputCoercionFunction: InputParsingFunction = inputString => {

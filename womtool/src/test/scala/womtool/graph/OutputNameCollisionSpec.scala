@@ -2,7 +2,7 @@ package womtool.graph
 
 import wdl.WdlNamespaceWithWorkflow
 import wdl.transforms.draft2.wdlom2wom._
-import wom.transforms.WomExecutableMaker._
+import wom.transforms.WomExecutableMaker.ops._
 
 class OutputNameCollisionSpec extends WomDotGraphTest {
 
@@ -29,7 +29,7 @@ class OutputNameCollisionSpec extends WomDotGraphTest {
 
   val outputCollisionWdlGraph = {
     val namespace = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
-    namespace.toWomExecutable match {
+    namespace.toWomExecutable() match {
       case Right(executable) => executable.graph
       case Left(errors) => throw new Exception(errors.toList.mkString(", "))
     }

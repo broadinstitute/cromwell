@@ -4,7 +4,7 @@ import common.validation.ErrorOr.ErrorOr
 import wdl.{Scope, WdlWorkflow}
 import wom.callable.WorkflowDefinition
 import wom.transforms.WomWorkflowDefinitionMaker
-import wom.transforms.WomGraphMaker._
+import wom.transforms.WomGraphMaker.ops._
 
 object WdlDraft2WomWorkflowDefinitionMaker extends WomWorkflowDefinitionMaker[WdlWorkflow] {
   override def toWomWorkflowDefinition(wdlWorkflow: WdlWorkflow): ErrorOr[WorkflowDefinition] = {

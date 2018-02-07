@@ -15,7 +15,7 @@ import common.validation.Parse.Parse
 import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import wdl.transforms.draft2.wdlom2wom._
-import wom.transforms.WomExecutableMaker._
+import wom.transforms.WomExecutableMaker.ops._
 
 class WdlDraft2LanguageFactory() extends LanguageFactory {
   override def validateNamespace(source: WorkflowSourceFilesCollection,

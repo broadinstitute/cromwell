@@ -4,7 +4,7 @@ import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.{ImportResolver, WdlNamespace, WdlNamespaceWithWorkflow, WdlWorkflow}
 import wom.transforms.WomWorkflowDefinitionMaker
-import wom.transforms.WomWorkflowDefinitionMaker._
+import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.graph._
 import wom.graph.expression.ExpressionNode
 import wom.types.{WomArrayType, WomIntegerType, WomMaybeEmptyArrayType, WomStringType}

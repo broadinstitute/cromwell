@@ -12,7 +12,7 @@ import wdl._
 import wdl.transforms.draft2.wdlom2wom._
 import wom.callable.Callable.OptionalInputDefinition
 import wom.values.{WomEvaluatedCallInputs, WomOptionalValue, WomString, WomValue}
-import wom.transforms.WomCommandTaskDefinitionMaker._
+import wom.transforms.WomCommandTaskDefinitionMaker.ops._
 
 /**
   * Base ConfigAsyncJobExecutionActor that reads the config and generates an outer script to submit an inner script

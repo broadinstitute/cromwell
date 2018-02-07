@@ -12,7 +12,7 @@ import spray.json.DefaultJsonProtocol
 import wdl.WdlNamespaceWithWorkflow
 import wom.graph.{ScatterNode, CommandCallNode}
 import wdl.transforms.draft2.wdlom2wom._
-import wom.transforms.WomExecutableMaker._
+import wom.transforms.WomExecutableMaker.ops._
 
 /**
   * Benchmarks the performance of the execution store using ScalaMeter (http://scalameter.github.io/)

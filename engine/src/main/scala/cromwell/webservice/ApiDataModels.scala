@@ -2,9 +2,8 @@ package cromwell.webservice
 
 import common.exception.MessageAggregation
 import spray.json._
-import wdl.FullyQualifiedName
+import wdl.draft2.FullyQualifiedName
 import wom.values.WomValue
-
 
 case class WorkflowStatusResponse(id: String, status: String)
 

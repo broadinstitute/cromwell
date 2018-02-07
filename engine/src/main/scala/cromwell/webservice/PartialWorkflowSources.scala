@@ -13,7 +13,7 @@ import common.validation.Validation._
 import cromwell.core._
 import org.slf4j.LoggerFactory
 import spray.json.{JsObject, JsValue}
-import wdl.WorkflowJson
+import wdl.draft2.WorkflowJson
 import wom.core._
 
 import scala.util.{Failure, Success, Try}

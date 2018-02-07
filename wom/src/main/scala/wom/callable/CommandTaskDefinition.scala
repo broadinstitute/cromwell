@@ -3,9 +3,9 @@ package wom.callable
 import cats.data.OptionT
 import cats.implicits._
 import common.Checked
+import common.util.StringUtil
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
-import wdl.util.StringUtil
 import wom.callable.CommandTaskDefinition.OutputEvaluationFunction
 import wom.core._
 import wom.expression.{IoFunctionSet, WomExpression}

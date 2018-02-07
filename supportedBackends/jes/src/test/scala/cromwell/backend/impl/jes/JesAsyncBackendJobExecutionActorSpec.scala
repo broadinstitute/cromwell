@@ -3,7 +3,7 @@ package cromwell.backend.impl.jes
 import java.util.UUID
 
 import _root_.io.grpc.Status
-import _root_.wdl._
+import _root_.wdl.draft2._
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
 import com.google.api.gax.retrying.RetrySettings

@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
-import _root_.wdl.command.StringCommandPart
+import wdl.draft2.command.StringCommandPart
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{TestFSMRef, TestProbe}
 import cats.data.NonEmptyList

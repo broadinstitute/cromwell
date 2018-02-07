@@ -1,6 +1,6 @@
 package cromwell.engine
 
-import wdl._
+import wdl.draft2.FullyQualifiedName
 
 import scala.util.{Failure, Success, Try}
 

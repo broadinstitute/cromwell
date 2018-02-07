@@ -2,7 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import java.util.UUID
 
-import _root_.wdl._
+import _root_.wdl.draft2._
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{TestFSMRef, TestProbe}
 import cromwell.backend.BackendJobExecutionActor.{ExecuteJobCommand, RecoverJobCommand}

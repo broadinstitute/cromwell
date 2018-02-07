@@ -10,8 +10,14 @@ lazy val wom = project
   .withLibrarySettings("cromwell-wom", womDependencies, crossCompile = true)
   .dependsOn(common)
 
-lazy val wdl = project
-  .withLibrarySettings("cromwell-wdl", wdlDependencies, crossCompile = true)
+lazy val wdlRoot = Path("wdl")
+
+lazy val wdlDraft2 = (project in wdlRoot / "wdl-draft2")
+  .withLibrarySettings("cromwell-wdl-draft2", wdlDraft2Dependencies, crossCompile = true)
+  .dependsOn(wom)
+
+lazy val wdlDraft3 = (project in wdlRoot / "wdl-draft3")
+  .withLibrarySettings("cromwell-wdl-draft3", wdlDraft3Dependencies, crossCompile = true)
   .dependsOn(wom)
 
 lazy val cwl = project
@@ -50,7 +56,7 @@ lazy val databaseSql = (project in file("database/sql"))
 lazy val databaseMigration = (project in file("database/migration"))
   .withLibrarySettings("cromwell-database-migration", databaseMigrationDependencies)
   .dependsOn(core)
-  .dependsOn(wdl)
+  .dependsOn(wdlDraft2)
 
 lazy val dockerHashing = project
   .withLibrarySettings("cromwell-docker-hashing")
@@ -138,7 +144,7 @@ lazy val centaurCwlRunner = project
 
 lazy val womtool = project
   .withExecutableSettings("womtool", womtoolDependencies)
-  .dependsOn(wdl)
+  .dependsOn(wdlDraft2)
   .dependsOn(cwl)
   .dependsOn(wom % "test->test")
 
@@ -151,7 +157,12 @@ lazy val languageFactoryCore = (project in languageFactoryRoot / "language-facto
 lazy val wdlDraft2LanguageFactory = (project in languageFactoryRoot / "wdl-draft2")
   .withExecutableSettings("wdl-draft2")
   .dependsOn(languageFactoryCore)
-  .dependsOn(wdl)
+  .dependsOn(wdlDraft2)
+
+lazy val wdlDraft3LanguageFactory = (project in languageFactoryRoot / "wdl-draft3")
+  .withExecutableSettings("wdl-draft3")
+  .dependsOn(languageFactoryCore)
+  .dependsOn(wdlDraft3)
 
 lazy val cwlV1_0LanguageFactory = (project in languageFactoryRoot / "cwl-v1-0")
   .withExecutableSettings("cwl-v1-0")
@@ -170,6 +181,7 @@ lazy val root = (project in file("."))
   .dependsOn(sparkBackend)
   .dependsOn(cromwellApiClient)
   .dependsOn(wdlDraft2LanguageFactory)
+  .dependsOn(wdlDraft3LanguageFactory)
   .dependsOn(cwlV1_0LanguageFactory)
   .dependsOn(engine % "test->test")
   // Full list of all sub-projects to build with the root (ex: include in `sbt test`)
@@ -193,11 +205,13 @@ lazy val root = (project in file("."))
   .aggregate(sfsBackend)
   .aggregate(sparkBackend)
   .aggregate(tesBackend)
-  .aggregate(wdl)
+  .aggregate(wdlDraft2)
+  .aggregate(wdlDraft3)
   .aggregate(wom)
   .aggregate(womtool)
   .aggregate(languageFactoryCore)
   .aggregate(wdlDraft2LanguageFactory)
+  .aggregate(wdlDraft3LanguageFactory)
   .aggregate(cwlV1_0LanguageFactory)
   // TODO: See comment in plugins.sbt regarding SBT 1.x
   .enablePlugins(CrossPerProjectPlugin)

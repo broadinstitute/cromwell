@@ -1,7 +1,7 @@
 package cromwell.engine.workflow.mocks
 
 import org.specs2.mock.Mockito
-import wdl.{Declaration, WdlExpression}
+import wdl.draft2.{Declaration, WdlExpression}
 import wom.types.WomType
 
 object DeclarationMock {

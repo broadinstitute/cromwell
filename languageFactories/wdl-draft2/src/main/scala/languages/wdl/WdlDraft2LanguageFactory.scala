@@ -10,7 +10,6 @@ import cromwell.core._
 import cromwell.engine.workflow.lifecycle.materialization.LanguageFactory
 import cromwell.services.metadata.MetadataService.{PutMetadataAction, womValueToMetadataEvents}
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
-import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.core.WorkflowSource
 import wom.executable.ValidatedWomNamespace
 import wom.expression.IoFunctionSet
@@ -20,6 +19,7 @@ import common.validation.ErrorOr._
 import common.validation.Parse.Parse
 import cromwell.core.CromwellGraphNode.CromwellEnhancedOutputPort
 import languages.util.LanguageFactoryUtil
+import wdl.draft2.{WdlNamespace, WdlNamespaceWithWorkflow}
 
 class WdlDraft2LanguageFactory() extends LanguageFactory {
   override def validateNamespace(source: WorkflowSourceFilesCollection,

@@ -192,10 +192,12 @@ case class WorkflowStep(
 
           def updateFold(sourceMappings: Map[String, OutputPort], newNodes: Set[GraphNode]): Checked[WorkflowStepInputFold] = {
 
+            val lookupValue = FullyQualifiedName(workflowStepInput.id).id
+
             /*
              * We can expect this id to be present because the SALAD process validates all links for us.
              */
-            val targetType: Option[cwl.MyriadInputType] = typedRunInputs(id)
+            val targetType: Option[cwl.MyriadInputType] = typedRunInputs(lookupValue)
 
             val isScattered = scatter.map(_.fold(StringOrStringArrayToStringList).contains(FullyQualifiedName(id).id)).getOrElse(false)
 

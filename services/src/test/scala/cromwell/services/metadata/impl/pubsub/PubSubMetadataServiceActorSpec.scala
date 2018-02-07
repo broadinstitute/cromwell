@@ -13,6 +13,7 @@ import cromwell.services.metadata.MetadataService.{MetadataWriteFailure, Metadat
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import org.broadinstitute.dsde.workbench.google.GooglePubSubDAO
 import org.broadinstitute.dsde.workbench.google.GooglePubSubDAO.PubSubMessage
+import org.broadinstitute.dsde.workbench.model.WorkbenchEmail
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -147,7 +148,7 @@ object PubSubMetadataServiceActorSpec {
     override def acknowledgeMessages(subscriptionName: String, messages: Seq[PubSubMessage]): Future[Unit] = ???
     override def acknowledgeMessagesById(subscriptionName: String, ackIds: Seq[String]): Future[Unit] = ???
     override def pullMessages(subscriptionName: String, maxMessages: Int): Future[Seq[PubSubMessage]] = ???
-    override def getPubSubServiceAccountCredential: Credential = ???
+    override def setTopicIamPermissions(topicName: String, permissions: Map[WorkbenchEmail, String]): Future[Unit] = ???
   }
 
   class SuccessfulMockGooglePubSubDao extends MockGooglePubSubDao {

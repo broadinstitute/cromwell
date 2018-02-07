@@ -56,7 +56,7 @@ case class CommandLineArguments(command: Option[Command] = None,
     }
   }
 
-  private def preProcessInputFile(path: Path): ErrorOr[String] = {
+  private def preProcessCwlInputFile(path: Path): ErrorOr[String] = {
     cwlPreProcessor.preProcessInputFiles(path.contentAsString, inputFilesMapper(path)).toErrorOr
   }
 
@@ -78,7 +78,7 @@ case class CommandLineArguments(command: Option[Command] = None,
 
     val inputsJson: ErrorOr[String] = if (isCwl) {
       logger.info("Pre Processing Inputs...")
-      workflowInputs.map(preProcessInputFile).getOrElse(readJson("Workflow inputs", workflowInputs))
+      workflowInputs.map(preProcessCwlInputFile).getOrElse(readJson("Workflow inputs", workflowInputs))
     } else readJson("Workflow inputs", workflowInputs)
 
     val optionsJson = readJson("Workflow options", workflowOptions)

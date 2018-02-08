@@ -3,10 +3,12 @@ package wdl.transforms.wdlwom
 import cats.data.Validated.{Invalid, Valid}
 import common.collections.EnhancedCollections._
 import org.scalatest.{FlatSpec, Matchers}
+import wdl._
 import wom.graph.GraphNodePort.ScatterGathererPort
 import wom.graph.expression.ExpressionNode
 import wom.graph.{GraphInputNode, ScatterNode, _}
 import wom.transforms.WomWorkflowDefinitionMaker
+import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.types.{WomArrayType, WomIntegerType, WomStringType}
 
 class WdlScatterWomSpec(implicit workflowDefinitionMaker: WomWorkflowDefinitionMaker[WdlWorkflow]) extends FlatSpec with Matchers {

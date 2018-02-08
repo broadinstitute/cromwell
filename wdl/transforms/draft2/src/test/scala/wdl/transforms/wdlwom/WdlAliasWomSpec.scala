@@ -5,7 +5,8 @@ import common.collections.EnhancedCollections._
 import org.scalatest.{FlatSpec, Matchers}
 import wom.graph._
 import wom.transforms.WomWorkflowDefinitionMaker
-import wdl.WdlWorkflow
+import wom.transforms.WomWorkflowDefinitionMaker.ops._
+import wdl._
 
 class WdlAliasWomSpec(implicit workflowDefinitionMaker: WomWorkflowDefinitionMaker[WdlWorkflow]) extends FlatSpec with Matchers {
 

@@ -6,9 +6,13 @@ import common.validation.Checked._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import shapeless.Coproduct
+import wdl._
 import wom.executable.Executable.ResolvedExecutableInputs
 import wom.graph.Graph.ResolvedExecutableInput
-import wom.transforms.{WomExecutableMaker, WomWorkflowDefinitionMaker}
+import wom.transforms.WomExecutableMaker
+import wom.transforms.WomExecutableMaker.ops._
+import wom.transforms.WomWorkflowDefinitionMaker
+import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.types._
 import wom.values._
 

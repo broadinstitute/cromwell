@@ -6,8 +6,11 @@ import cats.syntax.functor._
 import common.validation.ErrorOr.ErrorOr
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
+import wdl._
 import wom.graph.Graph
 import wom.transforms.WomWorkflowDefinitionMaker
+import wom.transforms.WomWorkflowDefinitionMaker.ops._
+import wdl.transforms.wdlwom.WdlNestedConditionalWomSpec._
 
 class WdlNestedConditionalWomSpec(implicit workflowDefinitionMaker: WomWorkflowDefinitionMaker[WdlWorkflow]) extends FlatSpec with Matchers {
 

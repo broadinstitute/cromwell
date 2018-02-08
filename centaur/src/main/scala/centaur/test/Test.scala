@@ -175,7 +175,7 @@ object Operations {
     * Polls until a specific status is reached. If a terminal status which wasn't expected is returned, the polling
     * stops with a failure.
     */
-  def pollUntilStatus(workflow: SubmittedWorkflow, expectedStatus: WorkflowStatus): Test[SubmittedWorkflow] = {
+  def pollUntilStatus(workflow: SubmittedWorkflow, testDefinition: Workflow, expectedStatus: WorkflowStatus): Test[SubmittedWorkflow] = {
     def pollDelay() = blocking { Thread.sleep(10000) } // This could be a lot smarter, including cromwell style backoff
     new Test[SubmittedWorkflow] {
       @tailrec
@@ -189,6 +189,7 @@ object Operations {
             doPerform(allowed404s = allowed404s - 1)
           case Failure(f) if CromwellManager.isReady => throw f
           case _ =>
+            println(s"Waiting for completion of test '${testDefinition.testName}' as ${workflow.id}")
             pollDelay()
             doPerform()
         }

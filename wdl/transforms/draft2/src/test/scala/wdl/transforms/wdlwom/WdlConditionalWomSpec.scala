@@ -3,10 +3,12 @@ package wdl.transforms.wdlwom
 import cats.data.Validated.{Invalid, Valid}
 import common.collections.EnhancedCollections._
 import org.scalatest.{FlatSpec, Matchers}
+import wdl._
 import wom.graph.GraphNodePort.ConditionalOutputPort
 import wom.graph._
 import wom.graph.expression.ExpressionNode
 import wom.transforms.WomWorkflowDefinitionMaker
+import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.types.{WomBooleanType, WomIntegerType, WomOptionalType, WomStringType}
 
 class WdlConditionalWomSpec(implicit workflowDefinitionMaker: WomWorkflowDefinitionMaker[WdlWorkflow]) extends FlatSpec with Matchers {

@@ -46,4 +46,14 @@ object WorkflowStepInputExpressionSpec extends Properties("Workflow Step Input E
         WomMap(WomMapType(WomStringType, WomIntegerType) ,Map(WomString("i2") -> WomInteger(2)))
       )))
   }
+
+  property("list of one entry for when there is only one input link and when merge_nested is used") = secure {
+    val inputSource =  Coproduct[InputSource]("_#i1")
+    val wsi = WorkflowStepInput("s#h", source = Some(inputSource))
+    val expression = WorkflowStepInputExpression(wsi, null, Set.empty, Vector.empty)
+
+    expression.evaluateValue(Map("i1" -> WomInteger(1), "i2" -> WomInteger(2)), null) ==
+      Valid(WomInteger(1))
+  }
+
 }

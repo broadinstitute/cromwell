@@ -40,17 +40,6 @@ object WorkflowStepInputSpec extends Properties("WorkflowStepInput") {
     wsi.effectiveLinkMerge == LinkMergeMethod.MergeNested
   }
 
-  property("list of one entry for when there is only one input link and when merge_nested is used") = secure {
-    val inputSource =  Coproduct[InputSource]("_#i1")
-    val wsi = WorkflowStepInput("s#h", source = Some(inputSource))
-    val expression = WorkflowStepInputExpression(wsi, null, Set.empty, Vector.empty)
-
-    expression.evaluateValue(Map("i1" -> WomInteger(1), "i2" -> WomInteger(2)), null) ==
-      Valid(WomArray(Seq(
-        WomMap(WomMapType(WomStringType, WomIntegerType) ,Map(WomString("i1") -> WomInteger(1)))
-      )))
-  }
-
   property("assert source type is compatible with single element of 'items' type of the destination array parameter when merge_flattened option enabled") = secure {
     val miit = Coproduct[MyriadInputInnerType](InputArraySchema(items = stringType))
     val mit = Coproduct[MyriadInputType](miit)

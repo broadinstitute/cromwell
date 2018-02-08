@@ -4,6 +4,7 @@ import cats.data.NonEmptyList
 import cats.syntax.validated._
 import cats.syntax.either._
 import cats.syntax.traverse._
+import cats.syntax.option._
 import cats.instances.list._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
@@ -23,44 +24,55 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
 
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet) = {
 
-    def lookupValue(key: String): Checked[WomValue] =
+    def lookupValue(key: String): ErrorOr[WomValue] =
       inputValues.
         get(FullyQualifiedName(key).id).
-        toRight(s"source value $key not found in input values ${inputValues.mkString("\n")}.  Graph Inputs were ${graphInputs.mkString("\n")}" |> NonEmptyList.one)
-
-    def convertTupleToWomMap: (String, WomValue) => WomMap = {
-      case (key, value) => WomMap(WomMapType(WomStringType, value.womType), Map(WomString(key) -> value))
-    }
-
+        toValidNel(s"source value $key not found in input values ${inputValues.mkString("\n")}.  Graph Inputs were ${graphInputs.mkString("\n")}")
 
     (input.valueFrom, input.source.map(_.fold(StringOrStringArrayToStringList)), input.effectiveLinkMerge) match {
+        //When we have a single source, simply look it up
       case (None, Some(List(source)), LinkMergeMethod.MergeNested) =>
-        lookupValue(source).toValidated
+        lookupValue(source)
 
+      //When we have a single source, validate they are all present and provide them as a nested array of maps
       case (None, Some(sources), LinkMergeMethod.MergeNested) =>
-          val x: ErrorOr[List[WomMap]] = sources.
-            traverse[ErrorOr, WomMap](s => lookupValue(s).toValidated.map(FullyQualifiedName(s).id -> _).map(convertTupleToWomMap.tupled))
 
-        x.map(list => WomArray(list.toSeq))
+        def convertTupleToWomMap: (String, WomValue) => WomMap = {
+          case (key, value) => WomMap(WomMapType(WomStringType, value.womType), Map(WomString(key) -> value))
+        }
+
+        val validatedSourceValues: ErrorOr[List[WomMap]] =
+          sources.
+            traverse[ErrorOr, WomMap]{
+              s =>
+                lookupValue(s).
+                  // bind each wom value to its original id so it can be referred to by name
+                  map(FullyQualifiedName(s).id -> _).
+
+                  // convert each tuple into a map consisting of a single element
+                  map(convertTupleToWomMap.tupled)
+            }
+
+        validatedSourceValues.map(WomArray.apply)
 
       case (None, Some(sources), LinkMergeMethod.MergeFlattened) =>
 
-        val x: Checked[List[WomValue]] = sources.
-          traverse[ErrorOr, WomValue](s => lookupValue(s).toValidated).
+        val validatedSourceValues: Checked[List[WomValue]] = sources.
+          traverse[ErrorOr, WomValue](s => lookupValue(s)).
           toEither
 
-        //flatten this down
-        val y: Checked[List[WomValue]] = x.map(list => list.flatMap{ womValue =>
+        //This is the meat of "merge_flattened," where we find arrays and concatenate them to form one array
+        val flattenedValidatedSourceValues: Checked[List[WomValue]] = validatedSourceValues.map(list => list.flatMap{ womValue =>
           womValue match {
             case WomArray(_, value) => value
             case other => List(other)
           }
         })
 
-        y.map(list => WomArray(list)).toValidated
+        flattenedValidatedSourceValues.map(list => WomArray(list)).toValidated
 
       case (None, Some(List(id)), _) =>
-        lookupValue(id).toValidated
+        lookupValue(id)
 
       // If valueFrom is a constant string value, use this as the value for this input parameter.
       // TODO: need to handle case where this is a parameter reference, it currently looks like a String to us!
@@ -79,8 +91,6 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
        */
       case (Some(StringOrExpression.Expression(expression)), Some(sources), _) =>
 
-
-
         //used to determine the value of "self" as expected by CWL Spec
         def selfValue(in: List[WomValue]) = in match {
           case single :: Nil => single
@@ -89,7 +99,7 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
 
         val evaluatedExpression: Checked[WomValue] =
           for {
-            sourceValueList <- sources.traverse[ErrorOr, WomValue](lookupValue(_).toValidated).toEither
+            sourceValueList <- sources.traverse[ErrorOr, WomValue](lookupValue).toEither
             //value is either a womArray or not depending on how many items are in the source list
             self = selfValue(sourceValueList)
             pc = ParameterContext(inputValues, self)

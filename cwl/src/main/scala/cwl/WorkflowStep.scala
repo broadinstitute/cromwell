@@ -192,27 +192,25 @@ case class WorkflowStep(
 
           def updateFold(sourceMappings: Map[String, OutputPort], newNodes: Set[GraphNode]): Checked[WorkflowStepInputFold] = {
 
-            val lookupValue = FullyQualifiedName(workflowStepInput.id).id
+            val workflowStepInputId = FullyQualifiedName(workflowStepInput.id).id
 
-            /*
-             * We can expect this id to be present because the SALAD process validates all links for us.
-             */
-            val targetType: Option[cwl.MyriadInputType] = typedRunInputs(lookupValue)
-
+            val typeExpectedByRunInput: Option[cwl.MyriadInputType] = typedRunInputs(workflowStepInputId)
 
             val scatterLookupSet =
               scatter.toList.
                 flatMap(_.fold(StringOrStringArrayToStringList)).
                 map(id => FullyQualifiedName(id).id)
 
-            val isScattered = scatterLookupSet.contains(lookupValue)
+            val isThisStepScattered = scatterLookupSet.contains(workflowStepInputId)
 
-            workflowStepInput.toExpressionNode(sourceMappings, typeMap, expressionLib, targetType, isScattered).map({ expressionNode =>
-              fold |+| WorkflowStepInputFold(
-                stepInputMapping = Map(FullyQualifiedName(workflowStepInput.id).id -> expressionNode),
-                generatedNodes = newNodes + expressionNode
-              )
-            }).toEither
+            workflowStepInput.toExpressionNode(sourceMappings, typeMap, expressionLib, typeExpectedByRunInput, isThisStepScattered).
+              map{
+                expressionNode =>
+                  fold |+| WorkflowStepInputFold(
+                    stepInputMapping = Map(FullyQualifiedName(workflowStepInput.id).id -> expressionNode),
+                    generatedNodes = newNodes + expressionNode
+                  )
+              }.toEither
           }
 
           /*

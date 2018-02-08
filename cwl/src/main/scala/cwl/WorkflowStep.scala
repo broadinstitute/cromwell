@@ -199,7 +199,13 @@ case class WorkflowStep(
              */
             val targetType: Option[cwl.MyriadInputType] = typedRunInputs(lookupValue)
 
-            val isScattered = scatter.map(_.fold(StringOrStringArrayToStringList).contains(FullyQualifiedName(id).id)).getOrElse(false)
+
+            val scatterLookupSet =
+              scatter.toList.
+                flatMap(_.fold(StringOrStringArrayToStringList)).
+                map(id => FullyQualifiedName(id).id)
+
+            val isScattered = scatterLookupSet.contains(lookupValue)
 
             workflowStepInput.toExpressionNode(sourceMappings, typeMap, expressionLib, targetType, isScattered).map({ expressionNode =>
               fold |+| WorkflowStepInputFold(

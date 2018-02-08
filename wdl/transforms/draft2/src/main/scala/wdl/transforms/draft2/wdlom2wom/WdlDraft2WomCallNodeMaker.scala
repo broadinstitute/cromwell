@@ -19,7 +19,7 @@ import wom.transforms.WomCallNodeMaker
 
 object WdlDraft2WomCallNodeMaker extends WomCallNodeMaker[WdlCall] {
   override def toWomCallNode(taskCall: WdlCall, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[CallNode.CallNodeAndNewNodes] = {
-    buildWomNodeAndInputs(taskCall, localLookup, outerLookup, preserveIndexForOuterLookups = false)
+    buildWomNodeAndInputs(taskCall, localLookup, outerLookup, preserveIndexForOuterLookups)
   }
 
   private def buildWomNodeAndInputs(wdlCall: WdlCall, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[CallNodeAndNewNodes] = {

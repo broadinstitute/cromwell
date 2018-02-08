@@ -49,7 +49,6 @@ object WdlDraft2WomConditionalNodeMaker extends WomConditionalNodeMaker[If] {
       case other => s"An if block must be given a boolean expression but instead got '${ifBlock.condition.toWomString}' (a ${other.toDisplayString})".invalidNel
     }
 
-    // TODO Dan: can I avoid casting to Scope before using the implicit?
     val innerGraphValidation: ErrorOr[Graph] = (ifBlock: Scope).toWomGraph(
       Set.empty,
       outerLookup = localLookup ++ possiblyNeededNestedOginPorts,

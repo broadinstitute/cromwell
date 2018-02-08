@@ -61,12 +61,17 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
           traverse[ErrorOr, WomValue](s => lookupValue(s)).
           toEither
 
+        def flatten: WomValue => List[WomValue] = {
+          womValue =>
+            womValue match {
+              case WomArray(_, value) => value.toList
+              case WomOptionalValue(_, Some(value)) => flatten(value)
+              case other => List(other)
+            }
+        }
         //This is the meat of "merge_flattened," where we find arrays and concatenate them to form one array
         val flattenedValidatedSourceValues: Checked[List[WomValue]] = validatedSourceValues.map(list => list.flatMap{ womValue =>
-          womValue match {
-            case WomArray(_, value) => value
-            case other => List(other)
-          }
+          flatten(womValue)
         })
 
         flattenedValidatedSourceValues.map(list => WomArray(list)).toValidated

@@ -1,4 +1,4 @@
-package wdl.transforms
+package wdl.transforms.wdlwom
 
 import cats.syntax.either._
 import common.Checked
@@ -6,15 +6,11 @@ import common.validation.Checked._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import shapeless.Coproduct
-import wdl.{WdlNamespace, WdlNamespaceWithWorkflow, WdlWorkflow}
-import wom.transforms.WomWorkflowDefinitionMaker
 import wom.executable.Executable.ResolvedExecutableInputs
-import wom.transforms.WomExecutableMaker
 import wom.graph.Graph.ResolvedExecutableInput
+import wom.transforms.{WomExecutableMaker, WomWorkflowDefinitionMaker}
 import wom.types._
 import wom.values._
-import wom.transforms.WomWorkflowDefinitionMaker.ops._
-import wom.transforms.WomExecutableMaker.ops._
 
 class WdlInputValidationSpec(implicit executableMaker: WomExecutableMaker[WdlNamespaceWithWorkflow],
                              workflowDefinitionMaker: WomWorkflowDefinitionMaker[WdlWorkflow]) extends FlatSpec with Matchers with BeforeAndAfterAll with TableDrivenPropertyChecks {

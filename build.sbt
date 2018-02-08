@@ -19,7 +19,7 @@ lazy val wdlSharedModel = (project in wdlModelRoot / "shared")
   .dependsOn(wom)
 
 lazy val wdlModelDraft2 = (project in wdlModelRoot / "draft2")
-  .withLibrarySettings("cromwell-wdl-model-draft2", crossCompile = true)
+  .withLibrarySettings("cromwell-wdl-model-draft2", wdlDependencies, crossCompile = true)
   .dependsOn(wdlSharedModel)
 
 lazy val wdlTransformsRoot = wdlRoot / "transforms"

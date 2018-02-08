@@ -1,14 +1,11 @@
-package wdl.transforms
+package wdl.transforms.wdlwom
 
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.{WdlNamespace, WdlNamespaceWithWorkflow, WdlWomExpression, WdlWorkflow}
-import wom.transforms.WomWorkflowDefinitionMaker
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.graph.expression.ExpressionNode
-import common.collections.EnhancedCollections._
-import wom.transforms.WomWorkflowDefinitionMaker.ops._
+import wom.transforms.WomWorkflowDefinitionMaker
 
 class WdlNamespaceWomSpec(implicit workflowDefinitionMaker: WomWorkflowDefinitionMaker[WdlWorkflow]) extends FlatSpec with Matchers {
 

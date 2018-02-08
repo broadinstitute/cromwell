@@ -1,14 +1,12 @@
-package wdl.transforms
+package wdl.transforms.wdlwom
 
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.{WdlNamespace, WdlNamespaceWithWorkflow, WdlWorkflow}
+import wdl.transforms.wdlwom.WdlWomExpressionsAsInputsSpec._
 import wom.graph.CommandCallNode
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.expression.ExpressionNode
-import WdlWomExpressionsAsInputsSpec._
 import wom.transforms.WomWorkflowDefinitionMaker
-import wom.transforms.WomWorkflowDefinitionMaker.ops._
 
 import scala.language.postfixOps
 

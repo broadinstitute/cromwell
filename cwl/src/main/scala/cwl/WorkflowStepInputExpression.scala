@@ -34,6 +34,9 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
 
 
     (input.valueFrom, input.source.map(_.fold(StringOrStringArrayToStringList)), input.effectiveLinkMerge) match {
+      case (None, Some(List(source)), LinkMergeMethod.MergeNested) =>
+        lookupValue(source).toValidated
+
       case (None, Some(sources), LinkMergeMethod.MergeNested) =>
           val x: ErrorOr[List[WomMap]] = sources.
             traverse[ErrorOr, WomMap](s => lookupValue(s).toValidated.map(FullyQualifiedName(s).id -> _).map(convertTupleToWomMap.tupled))

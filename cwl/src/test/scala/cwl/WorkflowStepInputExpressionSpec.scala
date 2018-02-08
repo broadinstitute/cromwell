@@ -12,6 +12,7 @@ import shapeless.Coproduct
 import wom.types._
 import wom.values.{WomArray, WomInteger, WomMap, WomString, WomValue}
 import cats.syntax.validated._
+import cats.syntax.either._
 
 object WorkflowStepInputExpressionSpec extends Properties("Workflow Step Input Expression"){
 

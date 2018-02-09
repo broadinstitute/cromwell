@@ -7,11 +7,11 @@ import wdl._
 import wom.graph.GraphNodePort.ScatterGathererPort
 import wom.graph.expression.ExpressionNode
 import wom.graph.{GraphInputNode, ScatterNode, _}
-import wom.transforms.WomWorkflowDefinitionMaker
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.types.{WomArrayType, WomIntegerType, WomStringType}
+import wdl.transforms.draft2.wdlom2wom._
 
-class WdlScatterWomSpec(implicit workflowDefinitionMaker: WomWorkflowDefinitionMaker[WdlWorkflow]) extends FlatSpec with Matchers {
+class WdlScatterWomSpec extends FlatSpec with Matchers {
 
   behavior of "WdlNamespaces with scatters"
 

@@ -4,11 +4,11 @@ import cats.data.Validated.{Invalid, Valid}
 import common.collections.EnhancedCollections._
 import org.scalatest.{FlatSpec, Matchers}
 import wom.graph._
-import wom.transforms.WomWorkflowDefinitionMaker
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
+import wdl.transforms.draft2.wdlom2wom._
 import wdl._
 
-class WdlAliasWomSpec(implicit workflowDefinitionMaker: WomWorkflowDefinitionMaker[WdlWorkflow]) extends FlatSpec with Matchers {
+class WdlAliasWomSpec extends FlatSpec with Matchers {
 
   behavior of "WdlNamespaces with aliased calls"
 

@@ -8,8 +8,9 @@ import wom.graph.expression.ExpressionNode
 import wom.transforms.WomWorkflowDefinitionMaker
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.types.{WomArrayType, WomIntegerType, WomMaybeEmptyArrayType, WomStringType}
+import wdl.transforms.draft2.wdlom2wom._
 
-class WdlSubworkflowWomSpec(implicit workflowDefinitionMaker: WomWorkflowDefinitionMaker[WdlWorkflow]) extends FlatSpec with Matchers {
+class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
 
   behavior of "WdlNamespaces with subworkflows"
 

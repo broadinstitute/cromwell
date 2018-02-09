@@ -1,23 +1,23 @@
 package wdl.transforms.wdlwom
 
+import cats.data.NonEmptyList
 import cats.syntax.either._
 import common.Checked
 import common.validation.Checked._
-import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import shapeless.Coproduct
 import wdl._
 import wom.executable.Executable.ResolvedExecutableInputs
 import wom.graph.Graph.ResolvedExecutableInput
-import wom.transforms.WomExecutableMaker
+import wom.graph.GraphNodePort.OutputPort
 import wom.transforms.WomExecutableMaker.ops._
-import wom.transforms.WomWorkflowDefinitionMaker
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
+import wdl.transforms.draft2.wdlom2wom._
 import wom.types._
 import wom.values._
 
-class WdlInputValidationSpec(implicit executableMaker: WomExecutableMaker[WdlNamespaceWithWorkflow],
-                             workflowDefinitionMaker: WomWorkflowDefinitionMaker[WdlWorkflow]) extends FlatSpec with Matchers with BeforeAndAfterAll with TableDrivenPropertyChecks {
+class WdlInputValidationSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TableDrivenPropertyChecks {
 
   behavior of "WDL Wom executable"
 
@@ -60,63 +60,84 @@ class WdlInputValidationSpec(implicit executableMaker: WomExecutableMaker[WdlNam
     }
   }
 
-  it should "validate workflow inputs" in {
-    val validations = Table(
-      ("inputFile", "expectedResult"),
-      (
-        """
-          |{
-          |  "w.w1": "my_file.txt",
-          |  "w.t.t1": "helloT",
-          |  "w.u.t1": "helloU"
-          |}
-        """.stripMargin,
-        Map (
-          w1OutputPort -> Coproduct[ResolvedExecutableInput](WomSingleFile("my_file.txt"): WomValue),
-          w2OutputPort -> Coproduct[ResolvedExecutableInput](WomOptionalValue.none(WomStringType): WomValue),
-          t1OutputPort -> Coproduct[ResolvedExecutableInput](WomString("helloT"): WomValue),
-          t2OutputPort -> Coproduct[ResolvedExecutableInput](WomOptionalValue.none(WomIntegerType): WomValue),
-          u1OutputPort -> Coproduct[ResolvedExecutableInput](WomString("helloU"): WomValue),
-          u2OutputPort -> Coproduct[ResolvedExecutableInput](WomOptionalValue.none(WomIntegerType): WomValue)
-        ).validNelCheck
-      ),
-      (
-        """
-          |{
-          |  "w.w1": "my_file.txt",
-          |  "w.w2": "inputString",
-          |  "w.t.t1": "helloT",
-          |  "w.t.t2": 5,
-          |  "w.u.t1": "helloU",
-          |  "w.u.t2": 6
-          |}
-        """.stripMargin,
-        Map (
-          w1OutputPort -> Coproduct[ResolvedExecutableInput](WomSingleFile("my_file.txt"): WomValue),
-          w2OutputPort -> Coproduct[ResolvedExecutableInput](WomOptionalValue(WomString("inputString")): WomValue),
-          t1OutputPort -> Coproduct[ResolvedExecutableInput](WomString("helloT"): WomValue),
-          t2OutputPort -> Coproduct[ResolvedExecutableInput](WomOptionalValue(WomInteger(5)): WomValue),
-          u1OutputPort -> Coproduct[ResolvedExecutableInput](WomString("helloU"): WomValue),
-          u2OutputPort -> Coproduct[ResolvedExecutableInput](WomOptionalValue(WomInteger(6)): WomValue)
-        ).validNelCheck
-      ),
-      (
-        """
-          |{
-          |}
-        """.stripMargin,
-        Set(
-          "Required workflow input 'w.t.t1' not specified",
-          "Required workflow input 'w.u.t1' not specified",
-          "Required workflow input 'w.w1' not specified"
-        ).asLeft[ResolvedExecutableInputs]
-      )
+  val validations: TableFor3[String, String, Checked[ResolvedExecutableInputs]] = Table(
+    ("test name", "inputs JSON", "input set"),
+    (
+      "Workflow and task inputs 1",
+      """
+        |{
+        |  "w.w1": "my_file.txt",
+        |  "w.t.t1": "helloT",
+        |  "w.u.t1": "helloU"
+        |}
+      """.stripMargin,
+      Map[OutputPort, ResolvedExecutableInput](
+        w1OutputPort -> Coproduct[ResolvedExecutableInput](WomSingleFile("my_file.txt"): WomValue),
+        w2OutputPort -> Coproduct[ResolvedExecutableInput](WomOptionalValue.none(WomStringType): WomValue),
+        t1OutputPort -> Coproduct[ResolvedExecutableInput](WomString("helloT"): WomValue),
+        t2OutputPort -> Coproduct[ResolvedExecutableInput](WomOptionalValue.none(WomIntegerType): WomValue),
+        u1OutputPort -> Coproduct[ResolvedExecutableInput](WomString("helloU"): WomValue),
+        u2OutputPort -> Coproduct[ResolvedExecutableInput](WomOptionalValue.none(WomIntegerType): WomValue)
+      ).validNelCheck
+    ),
+    (
+      "Workflow and task inputs 2",
+      """
+        |{
+        |  "w.w1": "my_file.txt",
+        |  "w.w2": "inputString",
+        |  "w.t.t1": "helloT",
+        |  "w.t.t2": 5,
+        |  "w.u.t1": "helloU",
+        |  "w.u.t2": 6
+        |}
+      """.stripMargin,
+      Map[OutputPort, ResolvedExecutableInput](
+        w1OutputPort -> Coproduct[ResolvedExecutableInput](WomSingleFile("my_file.txt"): WomValue),
+        w2OutputPort -> Coproduct[ResolvedExecutableInput](WomOptionalValue(WomString("inputString")): WomValue),
+        t1OutputPort -> Coproduct[ResolvedExecutableInput](WomString("helloT"): WomValue),
+        t2OutputPort -> Coproduct[ResolvedExecutableInput](WomOptionalValue(WomInteger(5)): WomValue),
+        u1OutputPort -> Coproduct[ResolvedExecutableInput](WomString("helloU"): WomValue),
+        u2OutputPort -> Coproduct[ResolvedExecutableInput](WomOptionalValue(WomInteger(6)): WomValue)
+      ).validNelCheck
+    ),
+    (
+      "Missing workflow and task inputs",
+      """
+        |{
+        |}
+      """.stripMargin,
+      NonEmptyList.fromListUnsafe(List(
+        "Required workflow input 'w.t.t1' not specified",
+        "Required workflow input 'w.u.t1' not specified",
+        "Required workflow input 'w.w1' not specified"
+      )).asLeft[ResolvedExecutableInputs]
     )
+  )
 
-    forAll(validations) { (inputSource, expectation) =>
-      // The order in the Nel is not important, so make it a Set to check that all the expected failure messages are here, regardless of their order
-      validate(inputSource).leftMap(_.toList.toSet) shouldBe expectation
+  /*
+   * Note that we create the graph twice:
+    * once in namespace.workflow.toWomWorkflowDefinition for the expectations
+    * once in namespace.toWomExecutable to validate the actual inputs
+   * So the output ports in the map won't be object matches. We just check the name equality.
+   */
+  private def validateInexactPortEquality(actual: ResolvedExecutableInputs, expected: ResolvedExecutableInputs) = {
+    def mapToPortName(resolvedExecutableInputs: ResolvedExecutableInputs) = resolvedExecutableInputs map {
+      case (k, v) => k.identifier.fullyQualifiedName -> v
     }
+
+    mapToPortName(actual) shouldBe mapToPortName(expected)
   }
 
+  forAll(validations) { (name, inputSource, expectation) =>
+
+    it should s"validate $name" in {
+      (validate(inputSource), expectation) match {
+        case (Left(actualError), Left(expectedError)) => actualError.toList.toSet -- expectedError.toList.toSet should be(Set.empty)
+        case (Left(actualError), _) => fail(s"Expected success but got errors: ${actualError.toList.mkString(", ")}")
+        case (Right(actualInputs), Right(expectedInputs)) => validateInexactPortEquality(actualInputs, expectedInputs)
+        case (_, Left(expectedError)) => fail(s"Expected errors: '${expectedError.toList.mkString(", ")}' but got success ")
+      }
+    }
+  }
 }

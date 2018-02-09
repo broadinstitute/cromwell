@@ -7,7 +7,7 @@ import wdl._
 import wom.graph.CommandCallNode
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.expression.ExpressionNode
-import wom.transforms.WomWorkflowDefinitionMaker
+import wdl.transforms.draft2.wdlom2wom._
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 
 import scala.language.postfixOps
@@ -34,7 +34,7 @@ object WdlWomExpressionsAsInputsSpec {
 }
 
 
-class WdlWomExpressionsAsInputsSpec(implicit workflowDefinitionMaker: WomWorkflowDefinitionMaker[WdlWorkflow]) extends FlatSpec with Matchers {
+class WdlWomExpressionsAsInputsSpec extends FlatSpec with Matchers {
   behavior of "WdlWomExpressionsAsInputs"
 
   it should "wire up input expressions for a WDL workflow" in {

@@ -7,10 +7,10 @@ import wdl._
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.graph.expression.ExpressionNode
-import wom.transforms.WomWorkflowDefinitionMaker
+import wdl.transforms.draft2.wdlom2wom._
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 
-class WdlNamespaceWomSpec(implicit workflowDefinitionMaker: WomWorkflowDefinitionMaker[WdlWorkflow]) extends FlatSpec with Matchers {
+class WdlNamespaceWomSpec extends FlatSpec with Matchers {
 
   "A WdlNamespace for 3step" should "provide conversion to WOM" in {
     val threeStep =

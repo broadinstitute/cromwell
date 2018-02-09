@@ -8,11 +8,11 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import wdl._
 import wom.graph.Graph
-import wom.transforms.WomWorkflowDefinitionMaker
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wdl.transforms.wdlwom.WdlNestedConditionalWomSpec._
+import wdl.transforms.draft2.wdlom2wom._
 
-class WdlNestedConditionalWomSpec(implicit workflowDefinitionMaker: WomWorkflowDefinitionMaker[WdlWorkflow]) extends FlatSpec with Matchers {
+class WdlNestedConditionalWomSpec extends FlatSpec with Matchers {
 
   behavior of "WDL to WOM conversion of nested scopes"
 

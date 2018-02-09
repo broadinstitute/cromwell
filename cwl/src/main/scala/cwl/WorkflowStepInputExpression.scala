@@ -60,9 +60,7 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
         }
 
         //This is the meat of "merge_flattened," where we find arrays and concatenate them to form one array
-        val flattenedValidatedSourceValues: Checked[List[WomValue]] = validatedSourceValues.map(list => list.flatMap{ womValue =>
-          flatten(womValue)
-        })
+        val flattenedValidatedSourceValues: Checked[List[WomValue]] = validatedSourceValues.map(_.flatMap{flatten})
 
         flattenedValidatedSourceValues.map(list => WomArray(list)).toValidated
 
@@ -119,5 +117,4 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
     case WorkflowStepInputSource.StringArray(sa) => sa.map(FullyQualifiedName(_).id).toSet
   }}
 }
-
 

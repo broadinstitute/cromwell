@@ -190,9 +190,10 @@ case class WorkflowStep(
               }
           }
 
+          lazy val workflowStepInputId = FullyQualifiedName(workflowStepInput.id).id
+
           def updateFold(sourceMappings: Map[String, OutputPort], newNodes: Set[GraphNode]): Checked[WorkflowStepInputFold] = {
 
-            val workflowStepInputId = FullyQualifiedName(workflowStepInput.id).id
 
             val typeExpectedByRunInput: Option[cwl.MyriadInputType] = typedRunInputs(workflowStepInputId)
 
@@ -207,7 +208,7 @@ case class WorkflowStep(
               map{
                 expressionNode =>
                   fold |+| WorkflowStepInputFold(
-                    stepInputMapping = Map(FullyQualifiedName(workflowStepInput.id).id -> expressionNode),
+                    stepInputMapping = Map(workflowStepInputId -> expressionNode),
                     generatedNodes = newNodes + expressionNode
                   )
               }.toEither

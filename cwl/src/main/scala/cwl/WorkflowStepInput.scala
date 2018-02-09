@@ -1,31 +1,20 @@
 package cwl
 
 import cats.data.NonEmptyList
-import common.validation.ErrorOr.ErrorOr
-import cwl.LinkMergeMethod.LinkMergeMethod
-import cwl.WorkflowStepInput.InputSource
-import cwl.command.ParentName
-import wom.graph.GraphNodePort.OutputPort
-import wom.graph.WomIdentifier
-import wom.graph.expression.ExposedExpressionNode
-import wom.types.{WomArrayType, WomMaybeEmptyArrayType, WomType}
-import cats.syntax.traverse._
-import cats.syntax.option._
 import cats.instances.list._
-import eu.timepit.refined._
 import cats.syntax.either._
+import cats.syntax.traverse._
 import common.Checked
-import shapeless.{:+:, CNil, Witness}
-import shapeless.syntax.singleton._
+import common.validation.ErrorOr.ErrorOr
 import cwl.LinkMergeMethod.LinkMergeMethod
 import cwl.WorkflowStepInput.InputSource
-import common.validation.ErrorOr.ErrorOr
-import cwl.CommandLineTool.{CommandBindingSortingKey, SortKeyAndCommandPart}
 import cwl.command.ParentName
 import mouse.all._
-import wom.graph.WomIdentifier
+import shapeless.{:+:, CNil}
 import wom.graph.GraphNodePort.OutputPort
+import wom.graph.WomIdentifier
 import wom.graph.expression.ExposedExpressionNode
+import wom.types.{WomArrayType, WomType}
 import wom.values.WomValue
 
 case class WorkflowStepInput(
@@ -62,10 +51,7 @@ case class WorkflowStepInput(
     node.toValidated
   }
 
-  lazy val sources: List[String] =
-    source.
-      toList.
-      flatMap(_.fold(StringOrStringArrayToStringList))
+  lazy val sources: List[String] = source.toList.flatMap(_.fold(StringOrStringArrayToStringList))
 
   lazy val effectiveLinkMerge: LinkMergeMethod = linkMerge.getOrElse(LinkMergeMethod.MergeNested)
 

@@ -1,0 +1,20 @@
+ignore: false
+name: abort.sub_workflow_abort
+testFormat: scheduledabort
+callMark: sub_workflow_abort.inner_abort
+
+files {
+  wdl: abort/sub_workflow_abort.wdl
+  imports: [
+    abort/sub_workflow_aborted_import.wdl
+  ]
+}
+
+metadata {
+  workflowName: sub_workflow_abort
+  status: Aborted
+  "calls.sub_workflow_abort.let_me_run.executionStatus": "Done"
+  "calls.sub_workflow_abort.inner_abort.executionStatus": "Aborted"
+}
+
+absent-metadata-keys: ["calls.sub_workflow_abort.lost_in_space.status"]

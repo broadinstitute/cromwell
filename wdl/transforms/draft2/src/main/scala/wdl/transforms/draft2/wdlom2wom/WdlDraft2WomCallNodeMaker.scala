@@ -27,6 +27,7 @@ object WdlDraft2WomCallNodeMaker extends WomCallNodeMaker[WdlCall] {
 
     val callNodeBuilder = new CallNode.CallNodeBuilder()
 
+    // A validation that all inputs to the call were actually wanted:
     def allInputsWereWantedValidation(callable: Callable): ErrorOr[Unit] = {
       val callableExpectedInputs = callable.inputs.map(_.localName.value)
       val unexpectedInputs: Option[NonEmptyList[String]] = NonEmptyList.fromList(wdlCall.inputMappings.toList collect {

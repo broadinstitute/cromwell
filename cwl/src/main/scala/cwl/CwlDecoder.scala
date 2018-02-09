@@ -36,7 +36,7 @@ object CwlDecoder {
     fromEither[IO](cwlToolResult flatMap resultToEither)
   }
 
-  lazy val cwlPreProcessor = new CwlPreProcessor()
+  private lazy val cwlPreProcessor = new CwlPreProcessor()
 
   // TODO: WOM: During conformance testing the saladed-CWLs are referring to files in the temp directory.
   // Thus we can't delete the temp directory until after the workflow is complete, like the workflow logs.
@@ -54,9 +54,9 @@ object CwlDecoder {
     * Notice it gives you one instance of Cwl.  This has transformed all embedded files into scala object state
     */
   def decodeCwlFile(fileName: BFile,
-                    workflowRoot: Option[String] = None): Parse[Cwl] =
+                    workflowRoot: Option[String] = None)(implicit processor: CwlPreProcessor = cwlPreProcessor): Parse[Cwl] =
     for {
-      standaloneWorkflow <- cwlPreProcessor.preProcessCwlFile(fileName, workflowRoot)
+      standaloneWorkflow <- processor.preProcessCwlFile(fileName, workflowRoot)
       parsedCwl <- parseJson(standaloneWorkflow)
     } yield parsedCwl
 

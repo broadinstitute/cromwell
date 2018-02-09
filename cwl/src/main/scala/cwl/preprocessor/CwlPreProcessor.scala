@@ -90,6 +90,8 @@ object CwlPreProcessor {
     def asReference: Option[CwlReference] = CwlReference.fromString(id)
     def stripFilePrefix = id.stripPrefix(LocalScheme)
   }
+  
+  def noLogging = new CwlPreProcessor(CwlDecoder.saladCwlFile)
 }
 
 /**

@@ -9,6 +9,5 @@ import scala.language.implicitConversions
 
 @typeclass
 trait WomConditionalNodeMaker[A] {
-  @op("toWomConditionalNode")
   def toWomConditionalNode(a: A, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[ConditionalNodeWithNewNodes]
 }

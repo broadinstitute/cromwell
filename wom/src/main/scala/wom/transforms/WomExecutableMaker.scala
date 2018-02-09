@@ -7,6 +7,5 @@ import scala.language.implicitConversions
 
 @typeclass
 trait WomExecutableMaker[A] {
-  @op("toWomExecutable")
   def toWomExecutable(a: A, inputFile: Option[String] = None): Checked[Executable]
 }

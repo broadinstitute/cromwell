@@ -7,6 +7,5 @@ import scala.language.implicitConversions
 
 @typeclass
 trait WomWorkflowDefinitionMaker[A] {
-  @op("toWomWorkflowDefinition")
   def toWomWorkflowDefinition(a: A): ErrorOr[WorkflowDefinition]
 }

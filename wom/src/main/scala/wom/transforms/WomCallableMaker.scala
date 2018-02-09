@@ -7,6 +7,5 @@ import scala.language.implicitConversions
 
 @typeclass
 trait WomCallableMaker[A] {
-  @op("toWomCallable")
   def toWomCallable(a: A): ErrorOr[Callable]
 }

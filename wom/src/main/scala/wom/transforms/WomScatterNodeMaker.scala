@@ -9,6 +9,5 @@ import scala.language.implicitConversions
 
 @typeclass
 trait WomScatterNodeMaker[A] {
-  @op("toWomScatterNode")
   def toWomScatterNode(a: A, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[ScatterNodeWithNewNodes]
 }

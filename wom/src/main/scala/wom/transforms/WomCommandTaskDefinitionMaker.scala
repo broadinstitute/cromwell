@@ -7,6 +7,5 @@ import scala.language.implicitConversions
 
 @typeclass
 trait WomCommandTaskDefinitionMaker[A] {
-  @op("toWomTaskDefinition")
   def toWomTaskDefinition(a: A): ErrorOr[CommandTaskDefinition]
 }

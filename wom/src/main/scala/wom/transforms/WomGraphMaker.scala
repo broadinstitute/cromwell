@@ -7,6 +7,5 @@ import scala.language.implicitConversions
 
 @typeclass
 trait WomGraphMaker[A] {
-  @op("toWomGraph")
   def toWomGraph(a: A, includeGraphNodes: Set[GraphNode], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[Graph]
 }

@@ -42,8 +42,8 @@ object WorkflowStepInputExpressionSpec extends Properties("Workflow Step Input E
 
     expression.evaluateValue(Map("i1" -> WomInteger(1), "i2" -> WomInteger(2)), null) ==
       Valid(WomArray(Seq(
-        WomMap(WomMapType(WomStringType, WomIntegerType) ,Map(WomString("i1") -> WomInteger(1))),
-        WomMap(WomMapType(WomStringType, WomIntegerType) ,Map(WomString("i2") -> WomInteger(2)))
+        WomInteger(1),
+        WomInteger(2)
       )))
   }
 

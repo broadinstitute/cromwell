@@ -29,38 +29,26 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
         get(FullyQualifiedName(key).id).
         toValidNel(s"source value $key not found in input values ${inputValues.mkString("\n")}.  Graph Inputs were ${graphInputs.mkString("\n")}")
 
+    def validateSources(sources: List[String]): ErrorOr[List[WomValue]] =
+      sources.
+        traverse[ErrorOr, WomValue]{lookupValue}
+
     (input.valueFrom, input.source.map(_.fold(StringOrStringArrayToStringList)), input.effectiveLinkMerge) match {
 
       //When we have a single source, simply look it up
       case (None, Some(List(source)), LinkMergeMethod.MergeNested) =>
         lookupValue(source)
 
-      //When we have several sources, validate they are all present and provide them as a nested array of maps
+      //When we have several sources, validate they are all present and provide them as a nested array
       case (None, Some(sources), LinkMergeMethod.MergeNested) =>
 
-        def convertTupleToWomMap: (String, WomValue) => WomMap = {
-          case (key, value) => WomMap(WomMapType(WomStringType, value.womType), Map(WomString(key) -> value))
-        }
 
-        val validatedSourceValues: ErrorOr[List[WomMap]] =
-          sources.
-            traverse[ErrorOr, WomMap]{
-              s =>
-                lookupValue(s).
-                  // bind each wom value to its original id so it can be referred to by name
-                  map(FullyQualifiedName(s).id -> _).
-
-                  // convert each tuple into a map consisting of a single element
-                  map(convertTupleToWomMap.tupled)
-            }
-
-        validatedSourceValues.map(WomArray.apply)
+        validateSources(sources).map(WomArray.apply)
 
       case (None, Some(sources), LinkMergeMethod.MergeFlattened) =>
 
-        val validatedSourceValues: Checked[List[WomValue]] = sources.
-          traverse[ErrorOr, WomValue](s => lookupValue(s)).
-          toEither
+        val validatedSourceValues: Checked[List[WomValue]] =
+          validateSources(sources).toEither
 
         def flatten: WomValue => List[WomValue] = {
           womValue =>
@@ -70,6 +58,7 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
               case other => List(other)
             }
         }
+
         //This is the meat of "merge_flattened," where we find arrays and concatenate them to form one array
         val flattenedValidatedSourceValues: Checked[List[WomValue]] = validatedSourceValues.map(list => list.flatMap{ womValue =>
           flatten(womValue)
@@ -105,7 +94,7 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
 
         val evaluatedExpression: Checked[WomValue] =
           for {
-            sourceValueList <- sources.traverse[ErrorOr, WomValue](lookupValue).toEither
+            sourceValueList <- validateSources(sources).toEither
             //value is either a womArray or not depending on how many items are in the source list
             self = selfValue(sourceValueList)
             pc = ParameterContext(inputValues, self)

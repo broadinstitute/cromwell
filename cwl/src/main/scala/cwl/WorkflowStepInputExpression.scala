@@ -30,11 +30,12 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
         toValidNel(s"source value $key not found in input values ${inputValues.mkString("\n")}.  Graph Inputs were ${graphInputs.mkString("\n")}")
 
     (input.valueFrom, input.source.map(_.fold(StringOrStringArrayToStringList)), input.effectiveLinkMerge) match {
-        //When we have a single source, simply look it up
+
+      //When we have a single source, simply look it up
       case (None, Some(List(source)), LinkMergeMethod.MergeNested) =>
         lookupValue(source)
 
-      //When we have a single source, validate they are all present and provide them as a nested array of maps
+      //When we have several sources, validate they are all present and provide them as a nested array of maps
       case (None, Some(sources), LinkMergeMethod.MergeNested) =>
 
         def convertTupleToWomMap: (String, WomValue) => WomMap = {

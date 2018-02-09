@@ -67,7 +67,7 @@ case class WorkflowStepInput(
       toList.
       flatMap(_.fold(StringOrStringArrayToStringList))
 
-  def effectiveLinkMerge: LinkMergeMethod = linkMerge.getOrElse(LinkMergeMethod.MergeNested)
+  lazy val effectiveLinkMerge: LinkMergeMethod = linkMerge.getOrElse(LinkMergeMethod.MergeNested)
 
   def sourceValues(inputValues: Map[String, WomValue])(implicit pn: ParentName): Checked[Map[String, WomValue]]  = {
 
@@ -108,24 +108,25 @@ object WorkflowStepInput {
     val expectedTypeAsWom: Option[WomType] = expectedType.map(_.fold(MyriadInputTypeToWomType))
     (isScattered, expectedTypeAsWom, stepInput.effectiveLinkMerge) match {
 
-        //If scattering over this variable, we expect an array of the sink type
+      //If scattering over this variable, we expect an array of the sink type
       case (true, Some(tpe), _) => WomArrayType(tpe).asRight
 
-        //If sink parameter is an array, we must frame the input as an array
+      //If sink parameter is an array, we must frame the input as an array
       case (false, Some(array: WomArrayType), LinkMergeMethod.MergeNested) =>
         array.asRight
 
-        //If sink parameter is an array and merge_flattened is used, must validate input & output types are equivalent before proceeding
-      case (false, array@Some(WomArrayType(tpe)), LinkMergeMethod.MergeFlattened)  =>
-        //Collect the upstream outputs and their types,
-        stepInput.validatedSourceTypes(outputTypeMap)  match {
-          case Right(map)  if typesToItemMatch(map.values, tpe) =>  array.get.asRight
-          case Right(map) => (s"could not verify that types $map and the items type of the run's InputArraySchema $tpe were compatible" |> NonEmptyList.one).asLeft
-          case Left(invalid) => Left(invalid)
+      //If sink parameter is an array and merge_flattened is used, must validate input & output types are equivalent before proceeding
+      case (false, Some(array@WomArrayType(tpe)), LinkMergeMethod.MergeFlattened)  =>
+        //Collect the upstream outputs and their types
+        stepInput.validatedSourceTypes(outputTypeMap) flatMap {
+          case map  if typesToItemMatch(map.values, tpe) =>  array.asRight
+          case map => (s"could not verify that types $map and the items type of the run's InputArraySchema $tpe were compatible" |> NonEmptyList.one).asLeft
         }
 
-        //We don't have explicit information aboutthe type, so we
+      //We don't need to alter the type in the base case (i.e. not a scatter variable and no array type in the run input)
       case (false, Some(tpe), _) => tpe.asRight
+
+      //We don't have type information from the run input so we gather up the sources and try to determine a common type amongst them.
       case _ => stepInput.validatedSourceTypes(outputTypeMap).map(_.values).map(WomType.homogeneousTypeFromTypes)
     }
   }

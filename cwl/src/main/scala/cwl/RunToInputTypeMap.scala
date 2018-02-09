@@ -13,7 +13,7 @@ object RunToInputTypeMap extends Poly1 {
 
   implicit def s: Aux[String, OutputType] =
     at[String] {
-      _ =>  _ => throw new RuntimeException("this embedded CWL was supposed to have been embedded")
+      run =>  _ => throw new RuntimeException(s"Run field $run was not inlined as expected")
     }
 
   implicit def clt: Aux[CommandLineTool, OutputType] =

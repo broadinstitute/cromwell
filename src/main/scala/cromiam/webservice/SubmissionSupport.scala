@@ -10,14 +10,13 @@ import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import SubmissionSupport._
 import cromiam.auth.{Collection, User}
-import cromiam.auth.User.requireUser
 import akka.event.LoggingAdapter
 import spray.json.{JsObject, JsString, JsValue}
 import Collection.{CollectionLabelName, LabelsKey, validateLabels}
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
 
-trait SubmissionSupport {
+trait SubmissionSupport extends RequestSupport {
   val cromwellClient: CromwellClient
   val samClient: SamClient
 
@@ -29,14 +28,10 @@ trait SubmissionSupport {
   // FIXME - getting pathPrefix to shrink this keeps hosing up, there's gotta be some way to do this
   def submitRoute: Route = (path("api" / "workflows" / Segment) | path("api" / "workflows" / Segment / "batch")) { _ =>
     post {
-      requireUser { user =>
+      extractUserAndRequest { (user, request) =>
         log.info("Received submission request from user " + user.userId)
-        toStrictEntity(Timeout) {
-          extractSubmission(user) { submission =>
-            extractRequest { request =>
-              complete { forwardSubmissionToCromwell(user, submission.collection, request.withEntity(submission.entity)) }
-            }
-          }
+        extractSubmission(user) { submission =>
+          complete { forwardSubmissionToCromwell(user, submission.collection, request.withEntity(submission.entity)) }
         }
       }
     }

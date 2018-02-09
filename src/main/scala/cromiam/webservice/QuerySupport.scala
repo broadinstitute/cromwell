@@ -6,7 +6,6 @@ import akka.stream.ActorMaterializer
 import cromiam.cromwell.CromwellClient
 import cromiam.sam.SamClient
 import akka.http.scaladsl.model.{HttpEntity, _}
-import cromiam.auth.User._
 import cromiam.auth.{Collection, User}
 import akka.event.LoggingAdapter
 import Collection.{CollectionLabelName, LabelContainsCollectionException}
@@ -15,7 +14,7 @@ import QuerySupport._
 import scala.concurrent.ExecutionContextExecutor
 import scala.util.{Failure, Success, Try}
 
-trait QuerySupport {
+trait QuerySupport extends RequestSupport {
   val cromwellClient: CromwellClient
   val samClient: SamClient
 
@@ -53,13 +52,13 @@ trait QuerySupport {
     * directive
     */
   private def preprocessQuery(method: String): Directive[(User, List[Collection], HttpRequest)] = {
-    requireUser flatMap  { user =>
+    extractUser flatMap  { user =>
       log.info("Received query " + method + " request for user " + user.userId)
 
       onComplete(samClient.collectionsForUser(user)) flatMap {
         case Success(collections) =>
           toStrictEntity(Timeout) tflatMap { _ =>
-            extractRequest flatMap { request =>
+            extractStrictRequest flatMap { request =>
               tprovide((user, collections, request))
             }
           }

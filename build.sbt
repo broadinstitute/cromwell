@@ -32,12 +32,12 @@ scalacOptions in (Compile, doc) ++= List(
 libraryDependencies ++= {
   val akkaV       = "2.5.9"
   val akkaHttpV   = "10.0.11"
-  val scalaTestV  = "3.0.1"
-  val catsV = "0.9.0"
+  val scalaTestV  = "3.0.4"
+  val catsV = "1.0.1"
   val cromwellV = "30"
 
   val catsDependencies = List(
-    "org.typelevel" %% "cats" % catsV
+    "org.typelevel" %% "cats-core" % catsV
   ) map (_
     /*
     Exclude test framework cats-laws and its transitive dependency scalacheck.
@@ -68,8 +68,8 @@ libraryDependencies ++= {
     "org.yaml" % "snakeyaml" % "1.17" % Test,
     "org.broadinstitute" %% "cromwell-api-client" % cromwellV exclude("com.getsentry.raven", "raven-logback"),
     "org.broadinstitute" %% "cromwell-common" % cromwellV exclude("com.getsentry.raven", "raven-logback"),
-    "org.broadinstitute.dsde.workbench" %% "workbench-util" % "0.2-dcca21f",
-    "org.broadinstitute.dsde.workbench" %% "workbench-model" % "0.7-dcca21f"
+    "org.broadinstitute.dsde.workbench" %% "workbench-util" % "0.3-f3ce961",
+    "org.broadinstitute.dsde.workbench" %% "workbench-model" % "0.10-6800f3a"
   ) ++ catsDependencies
 }
 

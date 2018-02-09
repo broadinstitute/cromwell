@@ -12,7 +12,7 @@ import centaur.test.metadata.WorkflowMetadata
 import centaur.test.workflow.Workflow
 import centaur.{CentaurConfig, CromwellManager}
 import cromwell.api.CromwellClient
-import cromwell.api.model.{CromwellBackends, SubmittedWorkflow, WorkflowOutputs, WorkflowStatus}
+import cromwell.api.model.{CromwellBackends, SubmittedWorkflow, WorkflowId, WorkflowOutputs, WorkflowStatus}
 
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -57,8 +57,10 @@ object CentaurCromwellClient {
     Try(Await.result(request, CentaurConfig.sendReceiveTimeout)).isSuccess
   }
 
-  def metadata(workflow: SubmittedWorkflow): Try[WorkflowMetadata] = {
-    sendReceiveFutureCompletion(() => cromwellClient.metadata(workflow.id)) map { m =>
+  def metadata(workflow: SubmittedWorkflow): Try[WorkflowMetadata] = metadata(workflow.id)
+
+  def metadata(id: WorkflowId): Try[WorkflowMetadata] = {
+    sendReceiveFutureCompletion(() => cromwellClient.metadata(id)) map { m =>
       WorkflowMetadata.fromMetadataJson(m.value).toOption.get
     }
   }

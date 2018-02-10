@@ -1,6 +1,6 @@
 package wdl.draft2.model
 
-import wdl4s.parser.WdlParser.Ast
+import wdl.draft2.parser.WdlParser.Ast
 import wom.types.WomType
 
 final case class CallOutput(call: WdlCall, taskOutput: Output) extends Output {

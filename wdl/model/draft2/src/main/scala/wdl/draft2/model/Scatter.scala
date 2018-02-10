@@ -1,6 +1,6 @@
 package wdl.draft2.model
 
-import wdl4s.parser.WdlParser.{Ast, Terminal}
+import wdl.draft2.parser.WdlParser.{Ast, Terminal}
 
 /**
   * Scatter class.

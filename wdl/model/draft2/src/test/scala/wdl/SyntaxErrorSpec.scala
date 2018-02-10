@@ -1,6 +1,6 @@
 package wdl
 
-import wdl4s.parser.WdlParser.SyntaxError
+import wdl.draft2.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table

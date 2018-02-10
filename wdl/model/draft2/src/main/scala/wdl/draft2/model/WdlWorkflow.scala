@@ -1,7 +1,7 @@
 package wdl.draft2.model
 
 import wdl.draft2.model.AstTools._
-import wdl4s.parser.WdlParser._
+import wdl.draft2.parser.WdlParser._
 import wom.callable.Callable.InputDefinition
 import wom.types.WomType
 

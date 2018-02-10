@@ -5,7 +5,7 @@ import wdl.draft2.model.AstTools.EnhancedAstNode
 import wdl.draft2.model.WdlExpression._
 import wdl.draft2.model._
 import wdl.draft2.model.values.WdlCallOutputsObject
-import wdl4s.parser.WdlParser.{Ast, AstNode, Terminal}
+import wdl.draft2.parser.WdlParser.{Ast, AstNode, Terminal}
 import wom.WomExpressionException
 import wom.types.{WomArrayType, WomMapType, WomObjectType, WomType}
 import wom.values._

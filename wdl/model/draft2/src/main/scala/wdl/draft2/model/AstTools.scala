@@ -5,8 +5,8 @@ import java.nio.file.Path
 import better.files._
 import wdl.draft2.model.WdlExpression.{AstForExpressions, AstNodeForExpressions}
 import wdl.draft2.model.expression.ValueEvaluator.InterpolationTagPattern
-import wdl4s.parser.WdlParser
-import wdl4s.parser.WdlParser._
+import wdl.draft2.parser.WdlParser
+import wdl.draft2.parser.WdlParser._
 import wom.core._
 import wom.types._
 import wom.values._

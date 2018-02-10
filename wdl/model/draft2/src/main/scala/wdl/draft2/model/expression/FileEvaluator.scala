@@ -4,7 +4,7 @@ import common.util.TryUtil
 import wdl.draft2.model.AstTools.EnhancedAstNode
 import wdl.draft2.model.TernaryIf
 import wdl.draft2.model.WdlExpression._
-import wdl4s.parser.WdlParser.{Ast, AstNode}
+import wdl.draft2.parser.WdlParser.{Ast, AstNode}
 import wom.WomExpressionException
 import wom.types._
 import wom.values._

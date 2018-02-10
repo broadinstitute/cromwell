@@ -5,7 +5,7 @@ import wdl.draft2.model.exception.VariableNotFoundException
 import wdl.draft2.model.expression.WdlFunctions
 import wdl.draft2.model.values.WdlCallOutputsObject
 import wdl.draft2.model.exception.{ScatterIndexNotFound, VariableLookupException}
-import wdl4s.parser.WdlParser.Ast
+import wdl.draft2.parser.WdlParser.Ast
 import wom.graph.WomIdentifier
 import wom.values.WomArray.WomArrayLike
 import wom.values.WomValue

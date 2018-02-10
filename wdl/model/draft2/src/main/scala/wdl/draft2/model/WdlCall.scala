@@ -4,7 +4,7 @@ import wdl.draft2.model.AstTools.EnhancedAstNode
 import wdl.draft2.model.exception.{ValidationException, VariableLookupException, VariableNotFoundException}
 import wdl.draft2.model.expression.WdlFunctions
 import wdl.draft2.model.exception.{ValidationException, VariableLookupException}
-import wdl4s.parser.WdlParser.{Ast, SyntaxError, Terminal}
+import wdl.draft2.parser.WdlParser.{Ast, SyntaxError, Terminal}
 import wom.callable.Callable._
 import wom.types.WomOptionalType
 import wom.values.{WomOptionalValue, WomValue}

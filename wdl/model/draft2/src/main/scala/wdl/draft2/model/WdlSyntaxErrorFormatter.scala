@@ -1,7 +1,7 @@
 package wdl.draft2.model
 
 import wdl.draft2.model.AstTools.InterpolatedTerminal
-import wdl4s.parser.WdlParser._
+import wdl.draft2.parser.WdlParser._
 import wom.core._
 import wom.types.WomType
 

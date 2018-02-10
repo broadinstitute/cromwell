@@ -7,7 +7,7 @@ import org.scalatest.{Matchers, WordSpec}
 import wdl.draft2.model._
 import wdl.draft2.model.expression.{NoFunctions, WdlFunctions}
 import wdl.draft2.model.values.WdlCallOutputsObject
-import wdl4s.parser.WdlParser.SyntaxError
+import wdl.draft2.parser.WdlParser.SyntaxError
 import wom.types._
 import wom.values._
 

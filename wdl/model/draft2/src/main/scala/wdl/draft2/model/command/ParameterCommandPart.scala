@@ -6,7 +6,7 @@ import wdl.draft2.model.AstTools.EnhancedAstNode
 import wdl.draft2.model.exception.VariableNotFoundException
 import wdl.draft2.model.expression.WdlFunctions
 import wdl.draft2.model.{Declaration, WdlExpression, WdlSyntaxErrorFormatter}
-import wdl4s.parser.WdlParser.{Ast, SyntaxError, Terminal}
+import wdl.draft2.parser.WdlParser.{Ast, SyntaxError, Terminal}
 import wom.types.WomOptionalType
 import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, OptionalNotSuppliedException}

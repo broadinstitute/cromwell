@@ -3,7 +3,7 @@ package wdl
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.draft2.model.{AstTools, WdlNamespaceWithWorkflow, WdlWorkflow}
 import wdl.draft2.model.AstTools.AstNodeName
-import wdl4s.parser.WdlParser.Ast
+import wdl.draft2.parser.WdlParser.Ast
 
 class ScopeSpec extends FlatSpec with Matchers {
   val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.NestedScatterWdl.workflowSource(), Seq.empty).get

@@ -1,6 +1,6 @@
 package wdl.draft2.model
 
-import wdl4s.parser.WdlParser.Ast
+import wdl.draft2.parser.WdlParser.Ast
 
 case class WorkflowOutputWildcard(fqn: String, wildcard: Boolean, ast: Ast) {
 

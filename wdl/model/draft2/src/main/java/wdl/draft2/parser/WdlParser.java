@@ -12,7 +12,7 @@
  * re-generate this file, or change the templates in Hermes and regenerate.
  * See the Hermes repository: http://github.com/scottfrazer/hermes
  */
-package wdl4s.parser;
+package wdl.draft2.parser;
 import java.util.*;
 import java.io.IOException;
 import java.io.File;

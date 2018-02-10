@@ -2,7 +2,7 @@ package wdl.draft2.model.types
 
 import wdl.draft2.model.AstTools.EnhancedAstNode
 import wdl.draft2.model.{WdlExpression, WdlSyntaxErrorFormatter}
-import wdl4s.parser.WdlParser
+import wdl.draft2.parser.WdlParser
 import wom.core.WorkflowSource
 import wom.types.{WomBooleanType, WomFloatType, WomIntegerType, WomType}
 import wom.values.{WomBoolean, WomFloat, WomInteger, WomValue}

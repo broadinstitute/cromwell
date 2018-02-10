@@ -9,15 +9,14 @@ import com.softwaremill.sttp.asynchttpclient.cats.AsyncHttpClientCatsBackend
 import common.util.TryUtil
 import wdl.draft2.model.AstTools.{AstNodeName, EnhancedAstNode}
 import wdl.draft2.model.command.ParameterCommandPart
-import wdl.draft2.model.exception._
-import wdl.draft2.model.expression.{NoFunctions, WdlStandardLibraryFunctions, WdlStandardLibraryFunctionsType}
-import wdl.draft2.model.types.{WdlCallOutputsObjectType, WdlNamespaceType}
+import wdl.draft2.model.expression.WdlStandardLibraryFunctions
+import wdl.draft2.model.types.WdlCallOutputsObjectType
 import wdl.draft2.model.exception._
 import wdl.draft2.model.expression.{NoFunctions, WdlStandardLibraryFunctionsType}
 import wdl.draft2.model.types.WdlNamespaceType
 import wdl.draft2.model.{FullyQualifiedName => _, LocallyQualifiedName => _, _}
-import wdl4s.parser.WdlParser
-import wdl4s.parser.WdlParser._
+import wdl.draft2.parser.WdlParser
+import wdl.draft2.parser.WdlParser._
 import wom.core._
 import wom.types._
 import wom.values.WomValue

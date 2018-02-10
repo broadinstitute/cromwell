@@ -9,7 +9,7 @@ import wdl.draft2.model.AstTools._
 import wdl.draft2.model.command.{StringCommandPart, WdlCommandPart}
 import wdl.draft2.model.expression.WdlFunctions
 import wdl.util.StringUtil
-import wdl4s.parser.WdlParser._
+import wdl.draft2.parser.WdlParser._
 import wom.InstantiatedCommand
 import wom.values.WomValue
 

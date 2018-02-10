@@ -1,7 +1,7 @@
 package wdl.draft2.model
 
 import wdl.draft2.model.AstTools.{AstNodeName, EnhancedAstNode}
-import wdl4s.parser.WdlParser.{Ast, AstList}
+import wdl.draft2.parser.WdlParser.{Ast, AstList}
 import wom.RuntimeAttributes
 
 import scala.collection.JavaConverters._

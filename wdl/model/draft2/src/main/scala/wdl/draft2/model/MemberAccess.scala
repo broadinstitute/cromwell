@@ -1,7 +1,7 @@
 package wdl.draft2.model
 
 import wdl.draft2.model.AstTools.EnhancedAstNode
-import wdl4s.parser.WdlParser.{Ast, Terminal}
+import wdl.draft2.parser.WdlParser.{Ast, Terminal}
 
 /**
  * Represents a member-access construct holding the left and right hand sides, e.g.

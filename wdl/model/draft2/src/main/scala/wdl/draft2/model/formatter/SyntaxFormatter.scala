@@ -4,7 +4,7 @@ import common.util.TerminalUtil
 import wdl.draft2.model.AstTools.EnhancedAstNode
 import wdl.draft2.model._
 import wdl.draft2.model.command.StringCommandPart
-import wdl4s.parser.WdlParser.{Ast, AstList, AstNode}
+import wdl.draft2.parser.WdlParser.{Ast, AstList, AstNode}
 import wom.types.WomType
 
 import scala.collection.JavaConverters._

@@ -5,7 +5,7 @@ import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import wdl.draft2.model
 import wdl.draft2.model.AstTools.EnhancedAstNode
-import wdl4s.parser.WdlParser.{Ast, AstNode}
+import wdl.draft2.parser.WdlParser.{Ast, AstNode}
 import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
 import wom.graph._
 import wom.graph.expression.{ExposedExpressionNode, ExpressionNode}

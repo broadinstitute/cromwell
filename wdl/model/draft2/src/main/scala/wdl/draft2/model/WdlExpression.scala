@@ -8,15 +8,13 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import wdl.draft2.model.AstTools.{EnhancedAstNode, VariableReference}
 import wdl.draft2.model.WdlExpression._
-import wdl.draft2.model.expression._
-import wdl.draft2.model.formatter.{NullSyntaxHighlighter, SyntaxHighlighter}
+import wdl.draft2.model.formatter.SyntaxHighlighter
 import wdl.draft2.model.types.WdlExpressionType
 import wdl.draft2.model.expression._
 import wdl.draft2.model.formatter.NullSyntaxHighlighter
-import wdl.draft2.model.types._
 import wdl.draft2.model.{FullyQualifiedName => _}
-import wdl4s.parser.WdlParser
-import wdl4s.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
+import wdl.draft2.parser.WdlParser
+import wdl.draft2.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
 import wom.core._
 import wom.expression._
 import wom.graph._

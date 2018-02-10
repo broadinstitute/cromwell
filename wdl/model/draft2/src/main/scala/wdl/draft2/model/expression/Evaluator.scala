@@ -1,6 +1,6 @@
 package wdl.draft2.model.expression
 
-import wdl4s.parser.WdlParser.AstNode
+import wdl.draft2.parser.WdlParser.AstNode
 
 import scala.util.Try
 

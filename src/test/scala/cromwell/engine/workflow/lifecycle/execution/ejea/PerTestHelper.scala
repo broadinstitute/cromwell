@@ -20,7 +20,6 @@ import cromwell.engine.workflow.mocks.{DeclarationMock, TaskMock, WdlWomExpressi
 import cromwell.util.AkkaTestUtil._
 import cromwell.util.WomMocks
 import org.specs2.mock.Mockito
-import wdl4s.parser.WdlParser.Ast
 import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition}
 import wom.expression.IoFunctionSet
 import wom.graph.{CommandCallNode, WomIdentifier}
@@ -51,7 +50,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
     wdlSyntaxErrorFormatter = mock[WdlSyntaxErrorFormatter],
     meta = Map.empty,
     parameterMeta = Map.empty,
-    ast = mock[Ast])
+    ast = null)
   val call: CommandCallNode = WomMocks.mockTaskCall(WomIdentifier(taskName, jobFqn), task)
   val jobDescriptorKey = BackendJobDescriptorKey(call, jobIndex, jobAttempt)
 

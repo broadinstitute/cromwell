@@ -2,7 +2,7 @@ package wdl.draft2.model
 
 import better.files.File
 import wdl.draft2.model.AstTools.EnhancedAstNode
-import wdl4s.parser.WdlParser.{Ast, AstNode, Terminal}
+import wdl.draft2.parser.WdlParser.{Ast, AstNode, Terminal}
 
 object Import {
   def apply(astNode: AstNode): Import = {

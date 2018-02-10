@@ -1,7 +1,7 @@
 package wdl.types
 
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.parser.WdlParser.SyntaxError
+import wdl.draft2.parser.WdlParser.SyntaxError
 import wom.types.{WomMapType, WomObjectType, WomStringType}
 import wom.values.{WomMap, WomObject, WomString}
 import wdl.draft2.model.types.WdlFlavoredWomType._

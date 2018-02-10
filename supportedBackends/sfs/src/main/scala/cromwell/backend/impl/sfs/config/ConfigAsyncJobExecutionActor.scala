@@ -8,7 +8,7 @@ import cromwell.backend.standard.{StandardAsyncExecutionActorParams, StandardAsy
 import cromwell.backend.validation.DockerValidation
 import cromwell.core.NoIoFunctionSet
 import cromwell.core.path.Path
-import wdl._
+import wdl.draft2.model._
 import wdl.transforms.draft2.wdlom2wom._
 import wom.callable.Callable.OptionalInputDefinition
 import wom.values.{WomEvaluatedCallInputs, WomOptionalValue, WomString, WomValue}

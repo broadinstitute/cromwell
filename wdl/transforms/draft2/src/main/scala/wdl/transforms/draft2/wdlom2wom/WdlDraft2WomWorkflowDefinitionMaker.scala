@@ -1,7 +1,8 @@
 package wdl.transforms.draft2.wdlom2wom
 
 import common.validation.ErrorOr.ErrorOr
-import wdl.{Scope, WdlWorkflow}
+import wdl.draft2.model.WdlWorkflow
+import wdl.draft2.model.{Scope, WdlWorkflow}
 import wom.callable.WorkflowDefinition
 import wom.transforms.WomWorkflowDefinitionMaker
 import wom.transforms.WomGraphMaker.ops._

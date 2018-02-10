@@ -1,6 +1,6 @@
 package womtool.graph
 
-import wdl.WdlNamespaceWithWorkflow
+import wdl.draft2.model.WdlNamespaceWithWorkflow
 import wdl.transforms.draft2.wdlom2wom._
 import wom.transforms.WomExecutableMaker.ops._
 

@@ -3,7 +3,7 @@ package cromwell.backend.impl.jes
 import java.util.UUID
 
 import _root_.io.grpc.Status
-import _root_.wdl._
+import _root_.wdl.draft2.model._
 import wdl.transforms.draft2.wdlom2wom._
 import wom.transforms.WomExecutableMaker.ops._
 import wom.transforms.WomWorkflowDefinitionMaker.ops._

@@ -6,7 +6,8 @@ import cats.data.NonEmptyList
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import shapeless.Coproduct
-import wdl.{WdlCall, WdlTaskCall, WdlWomExpression}
+import wdl.draft2.model.{WdlCall, WdlTaskCall, WdlWomExpression}
+import wdl.draft2.model.{WdlTaskCall, WdlWomExpression}
 import wom.callable.Callable
 import wom.graph.CallNode._
 import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}

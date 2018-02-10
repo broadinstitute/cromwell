@@ -3,6 +3,7 @@ package wdl.types
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpec, Matchers}
+import wdl.draft2.model.types.WdlFlavoredWomType
 import wdl4s.parser.WdlParser.SyntaxError
 import wom.types._
 

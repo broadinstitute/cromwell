@@ -3,7 +3,7 @@ package wdl.transforms.draft2.wdlom2wom
 import cats.data.Validated.Valid
 import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
-import wdl.{Scatter, Scope, WdlWomExpression}
+import wdl.draft2.model.{Scatter, Scope, WdlWomExpression}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.ScatterNode.ScatterNodeWithNewNodes
 import wom.graph._

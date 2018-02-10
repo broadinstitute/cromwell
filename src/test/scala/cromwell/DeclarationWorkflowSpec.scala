@@ -2,7 +2,8 @@ package cromwell
 
 import cromwell.util.SampleWdl
 import org.scalatest.{Matchers, WordSpecLike}
-import wdl.{FullyQualifiedName, ImportResolver, WdlNamespaceWithWorkflow}
+import wdl.draft2.model.WdlNamespaceWithWorkflow
+import wdl.draft2.model.{FullyQualifiedName, ImportResolver}
 import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
 import wom.types.{WomOptionalType, WomSingleFileType, WomStringType}
 

@@ -1,7 +1,8 @@
 package wdl
 
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.expression.NoFunctions
+import wdl.draft2.model.WdlNamespaceWithWorkflow
+import wdl.draft2.model.expression.NoFunctions
 import wom.types._
 import wom.values._
 

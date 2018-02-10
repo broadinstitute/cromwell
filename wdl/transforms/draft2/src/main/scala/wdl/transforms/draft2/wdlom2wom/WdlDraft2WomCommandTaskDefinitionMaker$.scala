@@ -2,7 +2,8 @@ package wdl.transforms.draft2.wdlom2wom
 
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
-import wdl.{WdlTask, WdlWomExpression}
+import wdl.draft2.model.WdlTask
+import wdl.draft2.model.{WdlTask, WdlWomExpression}
 import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, CallableTaskDefinition, CommandTaskDefinition}
 import wom.graph.LocalName

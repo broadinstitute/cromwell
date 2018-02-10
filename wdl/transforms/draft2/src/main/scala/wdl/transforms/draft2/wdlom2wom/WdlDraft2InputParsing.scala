@@ -3,7 +3,7 @@ package wdl.transforms.draft2.wdlom2wom
 // TODO 2.11 remove this "import cats.syntax.either._"
 import cats.syntax.either._
 import common.Checked
-import wdl.WdlWorkflow
+import wdl.draft2.model.WdlWorkflow
 
 import scala.util.Try
 import wom.executable.Executable.InputParsingFunction

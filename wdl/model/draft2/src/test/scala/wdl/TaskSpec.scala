@@ -1,7 +1,8 @@
 package wdl
 
 import common.validation.Validation._
-import wdl.expression.NoFunctions
+import wdl.draft2.model.expression.NoFunctions
+import wdl.draft2.model.{WdlExpression, WdlNamespaceWithWorkflow}
 import wom.types._
 import wom.values._
 

@@ -1,7 +1,7 @@
 package wdl.transforms.draft2.wdlom2wom
 
 import common.Checked
-import wdl.WdlNamespaceWithWorkflow
+import wdl.draft2.model.WdlNamespaceWithWorkflow
 import wom.executable.Executable
 import wom.transforms.WomExecutableMaker
 

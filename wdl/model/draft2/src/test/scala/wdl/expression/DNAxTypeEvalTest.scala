@@ -1,8 +1,10 @@
 package wdl.expression
 
 import org.scalatest.{FlatSpec, Matchers}
+import wdl.draft2.model._
+
 import scala.util.{Success, Try}
-import wdl.{Scope, Scatter, WdlCall, WdlExpression, WdlNamespace, WdlNamespaceWithWorkflow}
+import wdl.draft2.model.expression.WdlStandardLibraryFunctionsType
 import wom.types._
 
 class DNAxTypeEvalTest extends FlatSpec with Matchers {

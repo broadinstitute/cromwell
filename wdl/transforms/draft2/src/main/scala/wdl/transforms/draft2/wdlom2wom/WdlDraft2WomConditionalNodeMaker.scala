@@ -4,7 +4,8 @@ import cats.data.Validated.Valid
 import cats.syntax.apply._
 import cats.syntax.validated._
 import common.validation.ErrorOr._
-import wdl.{If, Scope, WdlWomExpression}
+import wdl.draft2.model.{If, Scope, WdlWomExpression}
+import wdl.draft2.model.{Scope, WdlWomExpression}
 import wom.graph.ConditionalNode.ConditionalNodeWithNewNodes
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._

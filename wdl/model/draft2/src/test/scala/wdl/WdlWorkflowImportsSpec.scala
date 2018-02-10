@@ -2,6 +2,7 @@ package wdl
 
 import better.files.File
 import org.scalatest.{FlatSpec, Matchers}
+import wdl.draft2.model._
 
 class WdlWorkflowImportsSpec extends FlatSpec with Matchers {
 

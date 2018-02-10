@@ -2,7 +2,8 @@ package wdl
 
 import common.validation.Validation._
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.expression.NoFunctions
+import wdl.draft2.model.WdlNamespaceWithWorkflow
+import wdl.draft2.model.expression.NoFunctions
 import wom.values.WomString
 
 class AdvancedInterpolationSpec extends FlatSpec with Matchers {

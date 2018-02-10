@@ -2,7 +2,8 @@ package wdl.expression
 
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.WdlExpression
+import wdl.draft2.model.WdlExpression
+import wdl.draft2.model.expression.{NoFunctions, WdlStandardLibraryFunctions, WdlStandardLibraryFunctionsType}
 import wom.OptionalNotSuppliedException
 import wom.types._
 import wom.values._

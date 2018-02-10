@@ -6,7 +6,6 @@ import cats.syntax.traverse._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import cromwell.core._
-import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.core.WorkflowSource
 import wom.graph.GraphNodePort.OutputPort
 import wom.values.WomValue
@@ -14,6 +13,7 @@ import common.validation.ErrorOr._
 import common.validation.Parse.Parse
 import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
+import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wdl.transforms.draft2.wdlom2wom._
 import wom.transforms.WomExecutableMaker.ops._
 

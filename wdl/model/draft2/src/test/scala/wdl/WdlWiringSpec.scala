@@ -3,6 +3,7 @@ package wdl
 import better.files._
 import org.scalatest.{FlatSpec, Matchers}
 import spray.json._
+import wdl.draft2.model._
 
 import scala.collection.immutable.ListMap
 

@@ -3,8 +3,9 @@ package cromwell
 import akka.testkit.EventFilter
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.SampleWdl
-import wdl.expression.NoFunctions
-import wdl.{ImportResolver, WdlNamespaceWithWorkflow}
+import wdl.draft2.model.ImportResolver
+import wdl.draft2.model.WdlNamespaceWithWorkflow
+import wdl.draft2.model.expression.NoFunctions
 import wom.types._
 import wom.values._
 

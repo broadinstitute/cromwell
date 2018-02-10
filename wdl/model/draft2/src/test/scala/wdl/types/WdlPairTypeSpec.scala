@@ -3,7 +3,7 @@ package wdl.types
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.{FlatSpec, Matchers}
 import spray.json._
-import wdl.WdlNamespaceWithWorkflow
+import wdl.draft2.model.WdlNamespaceWithWorkflow
 import wom.types._
 import wom.values.{WomInteger, WomMap, WomPair, WomString, _}
 

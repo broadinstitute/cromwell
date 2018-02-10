@@ -1,7 +1,8 @@
 package wdl
 
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.AstTools.AstNodeName
+import wdl.draft2.model.{AstTools, WdlNamespaceWithWorkflow, WdlWorkflow}
+import wdl.draft2.model.AstTools.AstNodeName
 import wdl4s.parser.WdlParser.Ast
 
 class ScopeSpec extends FlatSpec with Matchers {

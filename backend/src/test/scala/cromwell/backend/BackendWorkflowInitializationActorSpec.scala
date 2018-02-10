@@ -1,7 +1,7 @@
 package cromwell.backend
 
-import _root_.wdl.WdlExpression
-import _root_.wdl.types._
+import _root_.wdl.draft2.model.types._
+import _root_.wdl.draft2.model.WdlExpression
 import akka.actor.ActorRef
 import akka.testkit.TestActorRef
 import com.typesafe.config.ConfigFactory

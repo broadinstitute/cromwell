@@ -1,7 +1,8 @@
 package wdl
 
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.exception.ValidationException
+import wdl.draft2.model.exception.ValidationException
+import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.core.WorkflowSource
 
 import scala.util.Failure

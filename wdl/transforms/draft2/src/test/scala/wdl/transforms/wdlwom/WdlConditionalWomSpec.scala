@@ -3,7 +3,7 @@ package wdl.transforms.wdlwom
 import cats.data.Validated.{Invalid, Valid}
 import common.collections.EnhancedCollections._
 import org.scalatest.{FlatSpec, Matchers}
-import wdl._
+import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wdl.transforms.draft2.wdlom2wom._
 import wom.graph.GraphNodePort.ConditionalOutputPort
 import wom.graph._

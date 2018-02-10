@@ -1,6 +1,7 @@
 package wdl
 
 import org.scalatest.{FlatSpec, Matchers}
+import wdl.draft2.model.{AstTools, WdlNamespace}
 
 class AstSpec extends FlatSpec with Matchers {
   val namespace = WdlNamespace.loadUsingSource(SampleWdl.ThreeStep.workflowSource(), None, None).get

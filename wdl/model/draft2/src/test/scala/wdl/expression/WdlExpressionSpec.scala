@@ -1,7 +1,7 @@
 package wdl.expression
 
-import wdl.WdlExpression
 import org.scalatest.{FlatSpec, Matchers}
+import wdl.draft2.model.WdlExpression
 
 class WdlExpressionSpec extends FlatSpec with Matchers {
   val expr: String => WdlExpression = WdlExpression.fromString

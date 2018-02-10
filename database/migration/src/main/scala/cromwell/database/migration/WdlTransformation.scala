@@ -6,7 +6,7 @@ import java.util.zip.GZIPInputStream
 
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.io.IOUtils
-import wdl.types.WdlFlavoredWomType._
+import wdl.draft2.model.types.WdlFlavoredWomType._
 import wom.types.{WomPrimitiveType, WomType}
 
 import scala.util.Try

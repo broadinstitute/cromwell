@@ -4,7 +4,7 @@ import cats.data.Validated.Valid
 import cats.syntax.validated._
 import common.collections.EnhancedCollections._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
-import wdl._
+import wdl.draft2.model._
 import wom.graph.CallNode.CallNodeAndNewNodes
 import wom.graph.GraphNode.GeneratedNodeAndNewNodes
 import wom.graph.GraphNodePort.OutputPort

@@ -1,6 +1,6 @@
 package cromwell.backend.sfs
 
-import _root_.wdl.LocallyQualifiedName
+import _root_.wdl.draft2.model.LocallyQualifiedName
 import akka.testkit.{TestDuration, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{JobAbortedResponse, JobFailedNonRetryableResponse, JobSucceededResponse}

@@ -2,8 +2,8 @@ package cromwell
 
 import common.validation.Validation._
 import org.scalatest.{Matchers, WordSpecLike}
-import wdl.WdlNamespace
-import wdl.expression.NoFunctions
+import wdl.draft2.model.WdlNamespace
+import wdl.draft2.model.expression.NoFunctions
 import wom.values.{WomSingleFile, WomString}
 
 

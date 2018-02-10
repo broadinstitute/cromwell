@@ -3,6 +3,7 @@ package wdl
 import better.files.File
 import better.files.File.currentWorkingDirectory
 import org.scalatest.{Matchers, WordSpecLike}
+import wdl.draft2.model._
 
 trait WdlTest extends Matchers with WordSpecLike {
   def resolver(root: File)(relPath: String): String = (root / relPath).contentAsString

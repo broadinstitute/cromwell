@@ -7,7 +7,7 @@ import cromwell.core.ExecutionStatus._
 import cromwell.core._
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
-import wdl._
+import wdl.draft2.model._
 import wom.values.{WomEvaluatedCallInputs, WomValue}
 
 import scala.util.Random

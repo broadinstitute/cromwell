@@ -2,6 +2,7 @@ package wdl.expression
 
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
+import wdl.draft2.model.expression.{WdlStandardLibraryFunctions, WdlStandardLibraryFunctionsType}
 import wom.types.{WomArrayType, WomIntegerType, WomOptionalType}
 import wom.values._
 

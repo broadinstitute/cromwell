@@ -1,6 +1,6 @@
 package cromwell.backend
 
-import _root_.wdl._
+import _root_.wdl.draft2.model._
 import com.typesafe.config.Config
 import cromwell.core.WorkflowOptions.WorkflowOption
 import cromwell.core.callcaching.MaybeCallCachingEligible

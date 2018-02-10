@@ -1,8 +1,8 @@
 package wdl.values
 
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.expression.NoFunctions
-import wdl.{NoLookup, WdlExpression}
+import wdl.draft2.model.expression.NoFunctions
+import wdl.draft2.model.{NoLookup, WdlExpression}
 import wom.types.{WomArrayType, WomIntegerType}
 import wom.values.WomArray
 

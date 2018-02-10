@@ -2,10 +2,12 @@ package wdl.values
 
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.{SampleWdl, WdlExpression, WdlNamespaceWithWorkflow}
+import wdl.SampleWdl
+import wdl.draft2.model.{WdlExpression, WdlNamespaceWithWorkflow}
 import wom.types.{WomArrayType, WomMapType, WomStringType}
 import wom.values._
-import wdl.types.WdlFlavoredWomType._
+import wdl.draft2.model.types.WdlFlavoredWomType._
+import wdl.draft2.model.values.WdlCallOutputsObject
 
 class WdlValueSpec extends FlatSpec with Matchers {
 

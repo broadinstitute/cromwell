@@ -3,7 +3,7 @@ package wdl.transforms.wdlwom
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.transforms.wdlwom.WdlWomExpressionsAsInputsSpec._
-import wdl._
+import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.graph.CommandCallNode
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.expression.ExpressionNode

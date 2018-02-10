@@ -2,6 +2,7 @@ package wdl
 
 import org.scalatest.{EitherValues, FlatSpec, Matchers}
 import RuntimeAttributeSpec._
+import wdl.draft2.model.WdlNamespaceWithWorkflow
 
 object RuntimeAttributeSpec {
   val WorkflowWithRuntime =

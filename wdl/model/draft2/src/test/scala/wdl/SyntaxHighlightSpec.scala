@@ -1,7 +1,8 @@
 package wdl
 
-import wdl.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
 import org.scalatest.{Matchers, WordSpec}
+import wdl.draft2.model.WdlNamespace
+import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
 import wom.core.WorkflowSource
 
 class SyntaxHighlightSpec extends WordSpec with Matchers {

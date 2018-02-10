@@ -7,7 +7,7 @@ import common.validation.Checked._
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import shapeless.Coproduct
-import wdl._
+import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.executable.Executable.ResolvedExecutableInputs
 import wom.graph.Graph.ResolvedExecutableInput
 import wom.graph.GraphNodePort.OutputPort

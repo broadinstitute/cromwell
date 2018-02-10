@@ -4,8 +4,9 @@ import common.util.TryUtil
 import org.scalactic.Equality
 import org.scalatest.enablers.Aggregating._
 import org.scalatest.{Matchers, WordSpec}
-import wdl.expression.{NoFunctions, WdlFunctions}
-import wdl.values.WdlCallOutputsObject
+import wdl.draft2.model._
+import wdl.draft2.model.expression.{NoFunctions, WdlFunctions}
+import wdl.draft2.model.values.WdlCallOutputsObject
 import wdl4s.parser.WdlParser.SyntaxError
 import wom.types._
 import wom.values._

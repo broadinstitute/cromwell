@@ -1,6 +1,6 @@
 package cromwell.backend
 
-import _root_.wdl._
+import _root_.wdl.draft2.model._
 import _root_.wdl.transforms.draft2.wdlom2wom._
 import wom.transforms.WomExecutableMaker.ops._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}

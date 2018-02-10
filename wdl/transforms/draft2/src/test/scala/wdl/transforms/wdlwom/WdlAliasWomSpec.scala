@@ -6,7 +6,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import wom.graph._
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wdl.transforms.draft2.wdlom2wom._
-import wdl._
+import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
 
 class WdlAliasWomSpec extends FlatSpec with Matchers {
 

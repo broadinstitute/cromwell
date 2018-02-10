@@ -1,6 +1,7 @@
 package wdl
 
-import org.scalatest.{Matchers, FlatSpec}
+import org.scalatest.{FlatSpec, Matchers}
+import wdl.draft2.model.WorkflowOutputWildcard
 
 class WdlWorkflowOutputDeclarationSpec extends FlatSpec with Matchers {
 

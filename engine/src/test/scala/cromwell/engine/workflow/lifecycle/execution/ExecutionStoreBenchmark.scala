@@ -9,8 +9,8 @@ import cromwell.util.SampleWdl
 import org.scalameter.api._
 import org.scalameter.picklers.Implicits._
 import spray.json.DefaultJsonProtocol
-import wdl.WdlNamespaceWithWorkflow
-import wom.graph.{ScatterNode, CommandCallNode}
+import wdl.draft2.model.WdlNamespaceWithWorkflow
+import wom.graph.{CommandCallNode, ScatterNode}
 import wdl.transforms.draft2.wdlom2wom._
 import wom.transforms.WomExecutableMaker.ops._
 

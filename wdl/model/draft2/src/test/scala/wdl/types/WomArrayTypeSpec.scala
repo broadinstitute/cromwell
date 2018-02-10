@@ -1,10 +1,10 @@
 package wdl.types
 
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.WdlExpression
-import wdl.expression.NoFunctions
+import wdl.draft2.model.WdlExpression
+import wdl.draft2.model.expression.NoFunctions
 import wom.types._
-import wom.values.{WomValue, WomArray}
+import wom.values.{WomArray, WomValue}
 
 import scala.util.{Failure, Success}
 

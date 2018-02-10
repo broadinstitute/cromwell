@@ -6,7 +6,7 @@ import cats.syntax.functor._
 import common.validation.ErrorOr.ErrorOr
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import wdl._
+import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.graph.Graph
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wdl.transforms.wdlwom.WdlNestedConditionalWomSpec._

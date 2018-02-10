@@ -1,9 +1,10 @@
 package wdl
 
 import org.scalatest.{Matchers, WordSpec}
-import wdl.exception.ValidationException
-import wdl.expression.{NoFunctions, PureStandardLibraryFunctionsLike}
-import wdl.values.WdlCallOutputsObject
+import wdl.draft2.model.exception.ValidationException
+import wdl.draft2.model.expression.{NoFunctions, PureStandardLibraryFunctionsLike}
+import wdl.draft2.model.values.WdlCallOutputsObject
+import wdl.draft2.model.{WdlGraphNode, WdlNamespace, WdlNamespaceWithWorkflow, WorkflowCoercedInputs}
 import wom.types._
 import wom.values._
 

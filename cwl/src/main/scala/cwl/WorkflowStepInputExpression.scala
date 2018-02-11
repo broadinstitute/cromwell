@@ -71,6 +71,11 @@ final case class WorkflowStepInputExpression(input: WorkflowStepInput,
       // TODO: need to handle case where this is a parameter reference, it currently looks like a String to us!
       case (Some(StringOrExpression.String(value)), None, _) => WomString(value).validNel
 
+      case (Some(StringOrExpression.String(value)), Some(sources), _) =>
+        (s"There were both a hardcoded string value $value in 'valueFrom' as well as sources named: ${sources.mkString(", ")}.  While this " +
+        s"is technically valid CWL, the sources get discarded and only the value $value is used.  " +
+        "Cromwell chooses to flag these situations as a potential bug, rather than silently accept the 'valueFrom' value and discard the sources.").invalidNel
+
       /*
        * If valueFrom is a parameter reference or expression, it must be evaluated to yield the actual value to be assiged to the input field.
        *

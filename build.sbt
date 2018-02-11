@@ -22,6 +22,10 @@ lazy val wdlModelDraft2 = (project in wdlModelRoot / "draft2")
   .withLibrarySettings("cromwell-wdl-model-draft2", wdlDependencies, crossCompile = true)
   .dependsOn(wdlSharedModel)
 
+lazy val wdlModelDraft3 = (project in wdlModelRoot / "draft3")
+  .withLibrarySettings("cromwell-wdl-model-draft3", crossCompile = true)
+  .dependsOn(wdlSharedModel)
+
 lazy val wdlTransformsRoot = wdlRoot / "transforms"
 
 lazy val wdlSharedTransforms = (project in wdlTransformsRoot / "shared")
@@ -33,6 +37,11 @@ lazy val wdlTransformsDraft2 = (project in wdlTransformsRoot / "draft2")
   .withLibrarySettings("cromwell-wdl-transforms-draft2", wdlDependencies, crossCompile = true)
   .dependsOn(wdlSharedTransforms)
   .dependsOn(wdlModelDraft2)
+
+lazy val wdlTransformsDraft3 = (project in wdlTransformsRoot / "draft3")
+  .withLibrarySettings("cromwell-wdl-transforms-draft3", wdlDependencies, crossCompile = true)
+  .dependsOn(wdlSharedTransforms)
+  .dependsOn(wdlModelDraft3)
 
 lazy val cwl = project
   .withLibrarySettings("cromwell-cwl", cwlDependencies, crossCompile = true)
@@ -177,6 +186,12 @@ lazy val wdlDraft2LanguageFactory = (project in languageFactoryRoot / "wdl-draft
   .dependsOn(wdlModelDraft2)
   .dependsOn(wdlTransformsDraft2)
 
+lazy val wdlDraft3LanguageFactory = (project in languageFactoryRoot / "wdl-draft3")
+  .withExecutableSettings("wdl-draft3")
+  .dependsOn(languageFactoryCore)
+  .dependsOn(wdlModelDraft3)
+  .dependsOn(wdlTransformsDraft3)
+
 lazy val cwlV1_0LanguageFactory = (project in languageFactoryRoot / "cwl-v1-0")
   .withExecutableSettings("cwl-v1-0")
   .dependsOn(languageFactoryCore)
@@ -194,6 +209,7 @@ lazy val root = (project in file("."))
   .dependsOn(sparkBackend)
   .dependsOn(cromwellApiClient)
   .dependsOn(wdlDraft2LanguageFactory)
+  .dependsOn(wdlDraft3LanguageFactory)
   .dependsOn(cwlV1_0LanguageFactory)
   .dependsOn(engine % "test->test")
   // Full list of all sub-projects to build with the root (ex: include in `sbt test`)
@@ -221,10 +237,13 @@ lazy val root = (project in file("."))
   .aggregate(wdlSharedTransforms)
   .aggregate(wdlModelDraft2)
   .aggregate(wdlTransformsDraft2)
+  .aggregate(wdlModelDraft3)
+  .aggregate(wdlTransformsDraft3)
   .aggregate(wom)
   .aggregate(womtool)
   .aggregate(languageFactoryCore)
   .aggregate(wdlDraft2LanguageFactory)
+  .aggregate(wdlDraft3LanguageFactory)
   .aggregate(cwlV1_0LanguageFactory)
   // TODO: See comment in plugins.sbt regarding SBT 1.x
   .enablePlugins(CrossPerProjectPlugin)

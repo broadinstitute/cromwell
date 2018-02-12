@@ -8,7 +8,7 @@ import wdl.model.draft3.elements._
 import wdl.draft3.parser.WdlParser.Ast
 import wdl.draft3.transforms.ast2wdlom.EnhancedDraft3Ast._
 
-object Draft3FileElementFromAstNode extends FromAst[FileElement] {
+object Draft3FileElementFromAst extends FromAst[FileElement] {
   override def convert(ast: Ast): ErrorOr[FileElement] = if (ast.getName == "Draft3File") {
 
     val validatedImportElements: ErrorOr[Vector[ImportElement]] = ast.getAttributeAsVector[ImportElement]("imports").toValidated

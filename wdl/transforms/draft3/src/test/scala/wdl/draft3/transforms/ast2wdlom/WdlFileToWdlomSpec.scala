@@ -1,17 +1,16 @@
-package wdl.transforms
+package wdl.draft3.transforms.ast2wdlom
 
 import better.files.File
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
-
-import scala.collection.JavaConverters._
-import wom.core.WorkflowSource
 import wdl.draft3.parser.WdlParser
 import wdl.draft3.parser.WdlParser.Ast
-import wdl.draft3.transforms.ast2wdlom.FromAstNode
 import wdl.draft3.transforms.parsing.WdlDraft3SyntaxErrorFormatter
 import wdl.model.draft3.elements.FileElement
-import wdl.transforms.WdlFileToWdlomSpec._
+import wdl.draft3.transforms.ast2wdlom.WdlFileToWdlomSpec._
+import wom.core.WorkflowSource
+
+import scala.collection.JavaConverters._
 
 class WdlFileToWdlomSpec extends FlatSpec with Matchers {
 

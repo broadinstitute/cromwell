@@ -37,7 +37,11 @@ object PathFactory {
                 postMapping: Path => Path = identity[Path]): Path = {
     pathBuilders.toStream map { _.build(preMapping(string)) } collectFirst { case Success(p) => postMapping(p) } getOrElse {
       val pathBuilderNames: String = pathBuilders map { _.name } mkString ", "
-      throw PathParsingException(s"Could not find suitable filesystem among $pathBuilderNames to parse $string.")
+      throw PathParsingException(
+        s"$string exists on a filesystem not supported by this instance of Cromwell." +
+        s" Supported filesystems are: $pathBuilderNames." +
+        s" Please refer to the documentation for more information on how to configure filesystems: http://cromwell.readthedocs.io/en/develop/backends/HPC/#filesystems"
+      )
     }
   }
 }

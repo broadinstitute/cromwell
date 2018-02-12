@@ -10,6 +10,8 @@ trait FromAtoB[A, B] {
 }
 
 object FromAtoB {
-  implicit def viaX[A, X, B](implicit ax: FromAtoB[A, X], xb: FromAtoB[X, B]): FromAtoB[A, B] = { a => ax.convert(a) flatMap xb.convert }
-  implicit def forVectors[A, B](implicit ab: FromAtoB[A, B]): FromAtoB[Vector[A], Vector[B]] = as => as.traverse[ErrorOr, B] { ab.convert }
+  implicit def apply[A, B](implicit fromImplicitScope: FromAtoB[A, B]) = fromImplicitScope
+
+  def viaX[A, X, B](implicit ax: FromAtoB[A, X], xb: FromAtoB[X, B]): FromAtoB[A, B] = { (a: A) => ax.convert(a) flatMap xb.convert }
+  def forVectors[A, B](implicit ab: FromAtoB[A, B]): FromAtoB[Vector[A], Vector[B]] = (as: Vector[A]) => as.traverse[ErrorOr, B] { ab.convert }
 }

@@ -1,6 +1,7 @@
 package wdl.draft3.transforms
 
 import cats.syntax.validated._
+import common.validation.ErrorOr.ErrorOr
 import wdl.draft3.parser.WdlParser.{AstNode, Terminal}
 
 package object ast2wdlom {
@@ -11,8 +12,10 @@ package object ast2wdlom {
   implicit val draft3TaskDefinitionElementFromAstNode = FromAtoB.viaX(AstFromAstNode, Draft3TaskDefinitionElementFromAst)
   implicit val draft3WorkflowDefinitionElementFromAstNode = FromAtoB.viaX(AstFromAstNode, Draft3WorkflowDefinitionElementFromAst)
 
-  implicit val StringFromAstNode: FromAtoB[AstNode, String] = {
-    case t: Terminal => t.getSourceString.valid
-    case other: AstNode => s"Cannot convert ${other.getClass.getSimpleName} into String".invalidNel
+  implicit val StringFromAstNode: FromAtoB[AstNode, String] = new FromAtoB[AstNode, String] {
+    override def convert(a: AstNode): ErrorOr[String] = a match {
+      case t: Terminal => t.getSourceString.valid
+      case other: AstNode => s"Cannot convert ${other.getClass.getSimpleName} into String".invalidNel
+    }
   }
 }

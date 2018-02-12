@@ -26,14 +26,18 @@ object EnhancedDraft3Ast {
 
   implicit class EnhancedAst(val ast: Ast) extends AnyVal {
 
+    def getAttributeAsAstNodeVector(attr: String): Checked[Vector[AstNode]] = for {
+      attributeNode <- Option(ast.getAttribute(attr)).toChecked(s"No attribute $attr found on Ast of type ${ast.getName}")
+      asVector <- attributeNode.astListAsVector
+    } yield asVector
+
     /**
       * Will get an attribute on this Ast as an AstList and then convert that into a vector of Ast
       * @param attr The attribute to read from this Ast
       */
     def getAttributeAsVector[A](attr: String)(implicit toA: FromAtoB[AstNode, A]): Checked[Vector[A]] = {
       for {
-        attributeNode <- Option(ast.getAttribute(attr)).toChecked(s"No attribute $attr found on Ast of type ${ast.getName}")
-        asVector <- attributeNode.astListAsVector
+        asVector <- getAttributeAsAstNodeVector(attr)
         result <- asVector.traverse(toA.convert).toEither
       } yield result
     }

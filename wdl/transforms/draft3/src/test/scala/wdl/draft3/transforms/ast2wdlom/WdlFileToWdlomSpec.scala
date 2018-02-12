@@ -6,7 +6,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import wdl.draft3.parser.WdlParser
 import wdl.draft3.parser.WdlParser.Ast
 import wdl.draft3.transforms.parsing.WdlDraft3SyntaxErrorFormatter
-import wdl.model.draft3.elements.FileElement
+import wdl.model.draft3.elements.{FileElement, WorkflowDefinitionElement}
 import wdl.draft3.transforms.ast2wdlom.WdlFileToWdlomSpec._
 import wom.core.WorkflowSource
 
@@ -56,6 +56,11 @@ class WdlFileToWdlomSpec extends FlatSpec with Matchers {
 object WdlFileToWdlomSpec {
 
   val expectations: Map[String, FileElement] = Map(
+    "empty_workflow" ->
+      FileElement(
+        imports = List.empty,
+        workflows = List(WorkflowDefinitionElement("empty")),
+        tasks = List.empty),
     "passthrough_workflow" ->
       FileElement(
         imports = List.empty,
@@ -65,7 +70,7 @@ object WdlFileToWdlomSpec {
       FileElement(
         imports = List.empty,
         workflows = List.empty,
-        tasks = List.empty),
+        tasks = List.empty)
   )
 
 

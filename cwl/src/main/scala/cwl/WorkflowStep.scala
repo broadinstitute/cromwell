@@ -182,6 +182,13 @@ case class WorkflowStep(
 
     implicit val parentName = workflow.explicitWorkflowName
 
+    val scatterLookupSet =
+      scatter.toList.
+        flatMap(_.fold(StringOrStringArrayToStringList)).
+        map(id => FullyQualifiedName(id).id)
+
+    def isStepScattered(workflowStepInputId: String) = scatterLookupSet.contains(workflowStepInputId)
+
     val unqualifiedStepId: WomIdentifier = {
       FullyQualifiedName.maybeApply(id).map({ fqn =>
         WomIdentifier(LocalName(fqn.id), womFqn)
@@ -268,16 +275,11 @@ case class WorkflowStep(
           lazy val workflowStepInputId = FullyQualifiedName(workflowStepInput.id).id
 
           def updateFold(sourceMappings: Map[String, OutputPort], newNodes: Set[GraphNode]): Checked[WorkflowStepInputFold] = {
-            val typeExpectedByRunInput: Option[cwl.MyriadInputType] = typedRunInputs(workflowStepInputId)
+            val typeExpectedByRunInput: Option[cwl.MyriadInputType] = typedRunInputs.get(workflowStepInputId).flatten
 
-            val scatterLookupSet =
-              scatter.toList.
-                flatMap(_.fold(StringOrStringArrayToStringList)).
-                map(id => FullyQualifiedName(id).id)
+            val isThisStepScattered = isStepScattered(workflowStepInputId)
 
-            val isThisStepScattered = scatterLookupSet.contains(workflowStepInputId)
-
-            workflowStepInput.toMergeNode(sourceMappings, typeMap, expressionLib, typeExpectedByRunInput, isThisStepScattered) match {
+            workflowStepInput.toMergeNode(sourceMappings, expressionLib, typeExpectedByRunInput, isThisStepScattered) match {
               // If the input needs a merge node, build it and add it to the input fold
               case Some(mergeNode) =>
                 mergeNode.toEither.map({ node =>
@@ -387,12 +389,13 @@ case class WorkflowStep(
         in.toList.collect({
           case stepInput @ WorkflowStepInput(_, _, _, _, Some(valueFrom)) =>
             // Transform the shared inputs map into a usable map to create the expression.
-            // Also remove this step input from the map: we don't want to depend on ourselves !
-            lazy val sharedInputMap: Map[String, OutputPort] = (sharedInputNodes - stepInput).map({
+            lazy val sharedInputMap: Map[String, OutputPort] = sharedInputNodes.map({
               case (siblingStepInput, graphNode) => siblingStepInput.parsedId -> graphNode.singleOutputPort
             })
+            val typeExpectedByRunInput: Option[cwl.MyriadInputType] = typedRunInputs.get(stepInput.parsedId).flatten
+            val isThisStepScattered = isStepScattered(stepInput.parsedId)
 
-            stepInput.toExpressionNode(valueFrom, sharedInputMap, updatedTypeMap, expressionLib).map(stepInput.parsedId -> _)
+            stepInput.toExpressionNode(valueFrom, typeExpectedByRunInput, isThisStepScattered, sharedInputMap, updatedTypeMap, expressionLib).map(stepInput.parsedId -> _)
         })
           .sequence[ErrorOr, (String, ExpressionNode)]
           .toEither

@@ -1,5 +1,6 @@
 package cwl
 
+import cats.data.NonEmptyList
 import cats.instances.list._
 import cats.syntax.either._
 import cats.syntax.option._
@@ -14,41 +15,34 @@ import wom.values.{WomArray, WomFile, WomOptionalValue, WomValue}
 
 final case class WorkflowStepInputMergeExpression(input: WorkflowStepInput,
                                                   cwlExpressionType: WomType,
-                                                  // cats doesn't have NonEmptyMap (yet https://github.com/typelevel/cats/pull/2141/)
-                                                  // This is an ugly way to guarantee this class is only instantiated with at least one mapping
-                                                  stepInputMappingHead: (String, OutputPort),
-                                                  stepInputMappings: Map[String, OutputPort],
+                                                  stepInputMappingHead: NonEmptyList[(String, OutputPort)],
                                                   override val expressionLib: ExpressionLib) extends CwlWomExpression {
-  private val allStepInputMappings = stepInputMappings + stepInputMappingHead
+
+  private val allStepInputMappings = stepInputMappingHead.toList
+  private val allStepInputSources = allStepInputMappings.map(_._1)
 
   override def sourceString: String = s"${input.id}-Merge-Expression"
-  override def inputs: Set[String] = allStepInputMappings.keySet
+  override def inputs: Set[String] = allStepInputSources.toSet
+
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
     def lookupValue(key: String): ErrorOr[WomValue] =
       inputValues.
         get(key).
-        toValidNel(s"source value $key not found in input values ${inputValues.mkString("\n")}.  Graph Inputs were ${allStepInputMappings.keySet.mkString("\n")}")
+        toValidNel(s"source value $key not found in input values ${inputValues.mkString("\n")}.  Graph Inputs were ${allStepInputSources.mkString("\n")}")
 
     def validateSources(sources: List[String]): ErrorOr[List[WomValue]] =
       sources.
-        traverse[ErrorOr, WomValue] {
-        lookupValue
-      }
+        traverse[ErrorOr, WomValue](lookupValue)
 
-    (input.source.map(_.fold(StringOrStringArrayToStringList)), input.effectiveLinkMerge) match {
+    (allStepInputSources, input.effectiveLinkMerge) match {
 
       //When we have a single source, simply look it up
-      case (Some(List(source)), LinkMergeMethod.MergeNested) =>
-        lookupValue(source)
+      case (List(source), LinkMergeMethod.MergeNested) => lookupValue(source)
 
       //When we have several sources, validate they are all present and provide them as a nested array
-      case (Some(sources), LinkMergeMethod.MergeNested) =>
+      case (sources, LinkMergeMethod.MergeNested) => validateSources(sources).map(WomArray.apply)
 
-
-        validateSources(sources).map(WomArray.apply)
-
-      case (Some(sources), LinkMergeMethod.MergeFlattened) =>
-
+      case (sources, LinkMergeMethod.MergeFlattened) =>
         val validatedSourceValues: Checked[List[WomValue]] =
           validateSources(sources).toEither
 
@@ -59,14 +53,11 @@ final case class WorkflowStepInputMergeExpression(input: WorkflowStepInput,
         }
 
         //This is the meat of "merge_flattened," where we find arrays and concatenate them to form one array
-        val flattenedValidatedSourceValues: Checked[List[WomValue]] = validatedSourceValues.map(_.flatMap {
-          flatten
-        })
+        val flattenedValidatedSourceValues: Checked[List[WomValue]] = validatedSourceValues.map(_.flatMap(flatten))
 
         flattenedValidatedSourceValues.map(list => WomArray(list)).toValidated
 
-      case (Some(List(id)), _) =>
-        lookupValue(id)
+      case (List(id), _) => lookupValue(id)
     }
   }
 

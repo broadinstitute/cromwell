@@ -1,17 +1,11 @@
 package cwl
 
-import cats.data.Validated.Valid
-import cwl.LinkMergeMethod.LinkMergeMethod
-import cwl.WorkflowStep.Run
-import cwl.WorkflowStepInput.InputSource
+import cats.data.NonEmptyList
 import cwl.command.ParentName
-import org.scalacheck.Properties
 import org.scalacheck.Prop._
-import org.scalacheck.Gen._
+import org.scalacheck.Properties
 import shapeless.Coproduct
 import wom.types._
-import wom.values.{WomArray, WomInteger, WomMap, WomString, WomValue}
-import cats.syntax.validated._
 
 object WorkflowStepInputSpec extends Properties("WorkflowStepInput") {
   implicit val pn = ParentName("_")
@@ -22,34 +16,53 @@ object WorkflowStepInputSpec extends Properties("WorkflowStepInput") {
   val arraySchema = Coproduct[MyriadInputInnerType](InputArraySchema(items = stringType))
 
   val arrayStringType = Coproduct[MyriadInputType](arraySchema)
-  val source = Some(Coproduct[InputSource]("s#in"))
 
-  property("imply an array type if parameter is named in scatter operation") = secure {
-    val wsi = WorkflowStepInput("h", source = source)
-    WorkflowStepInput.determineType(wsi, Map.empty, Some(stringType), true) == Right(WomMaybeEmptyArrayType(WomStringType))
+  property("use single source type if no merge method is not specified") = secure {
+    WorkflowStepInput.determineMergeType(Map("s#in" -> WomStringType), None, None) ==
+      Right(WomStringType)
   }
 
-  property("imply an array type if sink parameter is an array") = secure {
-    val wsi = WorkflowStepInput("h")
-
-    WorkflowStepInput.determineType(wsi, Map.empty, Some(arrayStringType), false) == Right(WomArrayType(WomStringType))
+  property("use unpacked optional single source type if no merge method is not specified") = secure {
+    WorkflowStepInput.determineMergeType(Map("s#in" -> WomOptionalType(WomStringType)), None, None) ==
+      Right(WomStringType)
   }
 
-  property("assert merge_nested is default LinkMergeMethod") = secure {
-    val wsi = WorkflowStepInput("h")
-    wsi.effectiveLinkMerge == LinkMergeMethod.MergeNested
+  property("wrap single source type in an array if merge method is nested") = secure {
+    WorkflowStepInput.determineMergeType(Map("s#in" -> WomStringType), Option(LinkMergeMethod.MergeNested), None) ==
+      Right(WomArrayType(WomStringType))
   }
 
-  property("assert source type is compatible with single element of 'items' type of the destination array parameter when merge_flattened option enabled") = secure {
-    val miit = Coproduct[MyriadInputInnerType](InputArraySchema(items = stringType))
-    val mit = Coproduct[MyriadInputType](miit)
-    val inputSource =  Coproduct[InputSource](Array("_#h", "_#i"))
-    val wsi = WorkflowStepInput("s#h", source = Some(inputSource), linkMerge = Some(LinkMergeMethod.MergeFlattened))
+  property("find the closest common type to all sources if merge method is nested") = secure {
+    WorkflowStepInput.determineMergeType(Map("s#in" -> WomStringType, "s#in2" -> WomIntegerType), Option(LinkMergeMethod.MergeNested), None) ==
+      Right(WomMaybeEmptyArrayType(WomStringType))
+  }
 
-    val stringToType = Map("h" -> WomArrayType(WomStringType), "i" -> WomArrayType(WomStringType))
+  property("validate array inner type against target type if merge method is flattened") = secure {
+    WorkflowStepInput.determineMergeType(Map("s#in" -> WomStringType, "s#in2" -> WomStringType),
+      Option(LinkMergeMethod.MergeFlattened),
+      Option(arrayStringType)
+    ) == Right(WomArrayType(WomStringType))
+  }
 
-    WorkflowStepInput.
-      determineType(wsi, stringToType, Some(mit), false) == Right(WomArrayType(WomStringType))
+  property("validate type against target type if merge method is flattened") = secure {
+    WorkflowStepInput.determineMergeType(Map("s#in" -> WomStringType, "s#in2" -> WomStringType),
+      Option(LinkMergeMethod.MergeFlattened),
+      Option(stringType)
+    ) == Right(WomArrayType(WomStringType))
+  }
+
+  property("fail if target type does not conform to source types if merge method is flattened") = secure {
+    WorkflowStepInput.determineMergeType(Map("s#in" -> WomObjectType, "s#in2" -> WomObjectType),
+      Option(LinkMergeMethod.MergeFlattened),
+      Option(stringType)
+    ) == Left(NonEmptyList.one("could not verify that types Map(s#in -> WomObjectType, s#in2 -> WomObjectType) and the items type of the run's InputArraySchema WomStringType were compatible"))
+  }
+
+  property("fall back to the closest common type") = secure {
+    WorkflowStepInput.determineMergeType(Map("s#in" -> WomBooleanType, "s#in2" -> WomIntegerType),
+      Option(LinkMergeMethod.MergeFlattened),
+      None
+    ) == Right(WomAnyType)
   }
 }
 

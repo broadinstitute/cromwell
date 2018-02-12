@@ -52,6 +52,10 @@ trait CommandLineBinding {
   def effectiveSeparate = separate.getOrElse(true)
 }
 
+object InputCommandLineBinding {
+  def default = InputCommandLineBinding()
+}
+
 case class InputCommandLineBinding(
                                loadContents: Option[Boolean] = None,
                                position: Option[Int] = None,

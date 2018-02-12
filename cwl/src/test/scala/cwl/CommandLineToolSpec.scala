@@ -53,10 +53,11 @@ class CommandLineToolSpec extends FlatSpec with Matchers with ParallelTestExecut
       case Left(errors) => fail("Cannot parse command line tool " + errors.toList.mkString(", "))
       case Right(cwlFile) => cwlFile.select[CommandLineTool].get
     }
-    
-    clt
+
+    val template = clt
       .buildCommandTemplate(Vector.empty)(inputs)
       .valueOr(errors => fail(errors.toList.mkString(", ")))
+    template
       .flatTraverse[ErrorOr, String](_.instantiate(localNameValues, noIoFunctionSet, identity[WomValue], runtimeEnv).map(_.map(_.commandString)))
       .valueOr(errors => fail(errors.toList.mkString(", "))) shouldBe expectation
     

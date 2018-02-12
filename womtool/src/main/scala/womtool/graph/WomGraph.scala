@@ -7,6 +7,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import better.files.File
 import cats.implicits._
 import cwl.CwlDecoder
+import cwl.preprocessor.CwlPreProcessor
 import spray.json.{JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsValue}
 import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.executable.Executable
@@ -144,6 +145,8 @@ class WomGraph(graphName: String, graph: Graph) {
 }
 
 object WomGraph {
+  
+  implicit val cwlPreProcessor = CwlPreProcessor.noLogging
 
   final case class WorkflowDigraph(workflowName: String, digraph: NodesAndLinks)
   final case class NodesAndLinks(nodes: Set[String], links: Set[String]) {

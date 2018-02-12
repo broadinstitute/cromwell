@@ -5,7 +5,7 @@ import simulacrum._
 
 import scala.language.implicitConversions
 
-case class TaskDefinitionElement(identifier: String,
+case class TaskDefinitionElement(identifier: String
                                 // TODO: sections
                                 ) extends LanguageElement {
   override def children: Seq[LanguageElement] = List.empty // TODO: sections

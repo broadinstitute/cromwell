@@ -8,7 +8,7 @@ import scala.collection.JavaConverters._
 import wom.core.WorkflowSource
 import wdl.draft3.parser.WdlParser
 import wdl.draft3.parser.WdlParser.Ast
-import wdl.draft3.transforms.ast2wdlom.FromAst
+import wdl.draft3.transforms.ast2wdlom.FromAstNode
 import wdl.draft3.transforms.parsing.WdlDraft3SyntaxErrorFormatter
 import wdl.model.draft3.elements.FileElement
 import wdl.transforms.WdlFileToWdlomSpec._
@@ -43,13 +43,12 @@ class WdlFileToWdlomSpec extends FlatSpec with Matchers {
       val ast = parseFile(fileContents, testCase.name)
 
       val expected = expectations.getOrElse(testName, fail(s"No Element expectation defined for $testName"))
-      FromAst[FileElement](ast) match {
+      FromAstNode[FileElement](ast) match {
         case Valid(actual) => actual shouldBe expected
         case Invalid(errors) =>
           val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())
           fail(s"Failed to create WDLOM:$formattedErrors")
       }
-
 
     }
   }

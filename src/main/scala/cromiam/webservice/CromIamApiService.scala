@@ -152,7 +152,7 @@ trait CromIamApiService extends RequestSupport
       samClient.requestAuth(CollectionAuthorizationRequest(user, collection, action)) recoverWith {
         case SamDenialException => Future.failed(SamDenialException)
         case e =>
-          log.error("Unable to connect to Sam {}", e)
+          log.error(e, "Unable to connect to Sam {}", e)
           Future.failed(SamConnectionFailure("authorization", e))
       }
     }

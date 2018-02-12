@@ -5,7 +5,7 @@ import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.draft3.parser.WdlParser
 import wdl.draft3.parser.WdlParser.Ast
-import wdl.draft3.transforms.parsing.WdlDraft3SyntaxErrorFormatter
+import wdl.draft3.transforms.parsing.{FileParser, StringParser, FileParserInput, WdlDraft3SyntaxErrorFormatter}
 import wdl.model.draft3.elements.{FileElement, WorkflowDefinitionElement}
 import wdl.draft3.transforms.ast2wdlom.WdlFileToWdlomSpec._
 import wom.core.WorkflowSource
@@ -36,13 +36,9 @@ class WdlFileToWdlomSpec extends FlatSpec with Matchers {
     }
 
     testOrIgnore {
-      val wdlFile = testCase
-
-      val fileContents = wdlFile.contentAsString
-      val ast = parseFile(fileContents, testCase.name)
 
       val expected = expectations.getOrElse(testName, fail(s"No Element expectation defined for $testName"))
-      FromAstNode[FileElement](ast) match {
+      draft3FileElementFromFile.convert(testCase) match {
         case Valid(actual) => actual shouldBe expected
         case Invalid(errors) =>
           val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())
@@ -72,13 +68,4 @@ object WdlFileToWdlomSpec {
         workflows = List.empty,
         tasks = List.empty)
   )
-
-
-  private def parseFile(workflowSource: WorkflowSource, resource: String): Ast = {
-    val parser = new WdlParser()
-    val tokens = parser.lex(workflowSource, resource)
-    val terminalMap = (tokens.asScala.toVector map {(_, workflowSource)}).toMap
-    val syntaxErrorFormatter = WdlDraft3SyntaxErrorFormatter(terminalMap)
-    parser.parse(tokens, syntaxErrorFormatter).toAst.asInstanceOf[Ast]
-  }
 }

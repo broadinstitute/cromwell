@@ -17,7 +17,6 @@ import cwl.ScatterMethod._
 import cwl.WorkflowStep.{WorkflowStepInputFold, _}
 import cwl.WorkflowStepInput._
 import cwl.command.ParentName
-import mouse.all._
 import shapeless.{:+:, CNil, _}
 import wom.callable.Callable
 import wom.callable.Callable._
@@ -165,11 +164,11 @@ case class WorkflowStep(
     *   and will provide at runtime shard values for other nodes of the scatter graph.
     *
     * OGIN: If the step has at least one input being scattered over, there will be a scatter node created.
-    *   For inputs that are NOT being scattered over but still have one or more input sources (and hence a merge node), and OGIN
+    *   For inputs that are NOT being scattered over but still have one or more input sources (and hence a merge node), an OGIN
     *   will be created to act as a proxy to the merge node outside the scatter graph.
     *
     * ExpressionNode: If an input has a valueFrom field, an expression node will be created to evaluate the expression.
-    *   An important information to note is that the expression needs access to all other input values 
+    *   An important fact to note is that the expression needs access to all other input values 
     *   AFTER their source, default value and shard number has been determined but
     *   BEFORE their (potential) valueFrom is evaluated (see http://www.commonwl.org/v1.0/Workflow.html#WorkflowStepInput)
     *   This is why on the above diagram, StepInput0Expression depends on the OGIN, and StepInput1Expression depends on the scatter variable.
@@ -372,11 +371,11 @@ case class WorkflowStep(
 
       /*
         * For inputs that have a valueFrom field, create an ExpressionNode responsible for evaluating the expression.
-        * Not that this expression might need access to the other input values, so make each expression node depend on all other
+        * Note that this expression might need access to the other input values, so make each expression node depend on all other
         * inputs.
        */
       def buildStepInputExpressionNodes(sharedInputNodes: Map[WorkflowStepInput, GraphNodeWithSingleOutputPort]): Checked[Map[String, ExpressionNode]] = {
-        // Add new information to the typeMap from the sharde input nodes.
+        // Add new information to the typeMap from the shard input nodes.
         lazy val updatedTypeMap = sharedInputNodes.map({
           // If the input node is a scatter variable, make sure the type is the item type, not the array type, as the expression node
           // will operate on shards not on the whole scattered array.
@@ -445,7 +444,7 @@ case class WorkflowStep(
         checkedCallable <- callable
         // Aggregate again by adding generated expression nodes. Again order matters here, expression nodes override other nodes.
         pointerMap = expressionNodeMap.asIdentifierMap ++ stepInputExpressionNodes
-        // Assign each callable's input definition to an output port from the pointer map
+        // Assign of the each callable's input definition to an output port from the pointer map
         inputDefinitionFold <- checkedCallable.inputs.foldMap(foldInputDefinition(pointerMap)).toEither
         // Build the call node
         callAndNodes = callNodeBuilder.build(unqualifiedStepId, checkedCallable, inputDefinitionFold)
@@ -454,14 +453,14 @@ case class WorkflowStep(
         /* ************************************ */
         /* ************ Scatter Node ********** */
         /* ************************************ */
-        scatterNodeOrExposedNodes <- isScattered.option(
-            ScatterLogic.buildScatterNode(
-              callAndNodes,
-              NonEmptyList.fromListUnsafe(scatterVariableNodes.values.toList),
-              ogins.values.toSet,
-              stepInputExpressionNodes.values.toSet,
-              scatterMethod).map(Set(_))
-        ).getOrElse {
+        scatterNodeOrExposedNodes <- if (isScattered) {
+          ScatterLogic.buildScatterNode(
+            callAndNodes,
+            NonEmptyList.fromListUnsafe(scatterVariableNodes.values.toList),
+            ogins.values.toSet,
+            stepInputExpressionNodes.values.toSet,
+            scatterMethod).map(Set(_))
+        } else {
           // If there's no scatter node then we need to return the expression nodes and the call node explicitly
           // as they won't be contained in the scatter inner graph
           (stepInputExpressionNodes.values.toSet + callAndNodes.node).validNelCheck

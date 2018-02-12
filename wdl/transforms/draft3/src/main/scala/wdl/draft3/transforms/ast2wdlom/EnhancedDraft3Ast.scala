@@ -44,7 +44,7 @@ object EnhancedDraft3Ast {
     }
 
     def getAttributeAsVectors[A, B](attr: String, astName1: String, astName2: String)
-                                   (implicit astNodeToA: CheckedAtoB[AstNode, A], astNodeToB:CheckedAtoB[AstNode, B]
+                                   (implicit astNodeToA: CheckedAtoB[AstNode, A], astNodeToB: CheckedAtoB[AstNode, B]
                                    ): (Checked[(Vector[A], Vector[B])]) = {
 
       ast.getAttributeAsVector[Ast](attr) flatMap { asts =>

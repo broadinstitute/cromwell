@@ -1,14 +1,14 @@
 package wom.types
 
 import spray.json.JsString
-import wom.values.{WomPrimitive, WomPrimitiveFile, WomString}
+import wom.values.{WomPrimitive, WomPrimitiveFile, WomString, WomValue}
 
 import scala.util.{Success, Try}
 
 case object WomStringType extends WomPrimitiveType {
   val toDisplayString: String = "String"
 
-  override protected def coercion = {
+  override def coercion(): PartialFunction[Any, WomValue] = {
     case s: String => WomString(s)
     case s: JsString => WomString(s.value)
     case s: WomString => s

@@ -29,7 +29,10 @@ object MyriadInputTypeToWomType extends Poly1 {
       case (Array(_), Array(singleNonNullType)) =>
         WomOptionalType(singleNonNullType.fold(MyriadInputInnerTypeToWomType))
         // Leave other "Coproduct types" unsupported for now
-      case _ =>
+      case (Array(_), array: Array[MyriadInputInnerType]) if array.size > 1  =>
+        val types = array.map(_.fold(MyriadInputInnerTypeToWomType))
+        WomOptionalType(WomCoproductType(types.toSet))
+      case (Array(_), _) =>
         val readableTypes = types.map(_.fold(MyriadInputInnerTypeToString)).mkString(", ")
         throw new NotImplementedError(s"Cromwell only supports single types or optionals (as indicated by [null, X]). Instead we saw: $readableTypes")
     }

@@ -17,7 +17,7 @@ trait WomType {
    * construct `WomBoolean`s for inputs of supported types and contents.  Values for which
    * the partial function is not defined are assumed to not be convertible to the target type.
    */
-  protected def coercion: PartialFunction[Any, WomValue]
+  def coercion(): PartialFunction[Any, WomValue]
   def coercionDefined(any: Any) = coercion.isDefinedAt(any)
 
   /**
@@ -33,7 +33,7 @@ trait WomType {
       case _ if !coercion.isDefinedAt(any) => Failure(new IllegalArgumentException(
         s"No coercion defined from '${ScalaRunTime.stringOf(any, 3)}' of type" +
           s" '${Option(any.getClass.getCanonicalName).getOrElse(any.getClass.getName)}' to '$toDisplayString'."))
-      case _ => Try(coercion(any))
+      case _ => Try(coercion()(any))
     }
   }
 

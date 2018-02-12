@@ -1,12 +1,12 @@
 package wom.types
 
 import spray.json.JsObject
-import wom.values.{WomMap, WomObjectLike}
+import wom.values.{WomMap, WomObjectLike, WomValue}
 
 case class WomMapType(keyType: WomType, valueType: WomType) extends WomType {
   val toDisplayString: String = s"Map[${keyType.toDisplayString}, ${valueType.toDisplayString}]"
 
-  override protected def coercion = {
+  override def coercion(): PartialFunction[Any, WomValue] = {
     case m: Map[_, _] if m.nonEmpty => WomMap.coerceMap(m, this)
     case m: Map[_, _] if m.isEmpty => WomMap(WomMapType(keyType, valueType), Map())
     case js: JsObject if js.fields.nonEmpty => WomMap.coerceMap(js.fields, this)

@@ -19,7 +19,7 @@ case class WomPairType(leftType: WomType, rightType: WomType) extends WomType {
     * construct `WomBoolean`s for inputs of supported types and contents.  Values for which
     * the partial function is not defined are assumed to not be convertible to the target type.
     */
-  override protected def coercion: PartialFunction[Any, WomValue] = {
+  override def coercion(): PartialFunction[Any, WomValue] = {
     case otherPair @ WomPair(otherValue1, otherValue2) if isCoerceableFrom(otherPair.womType) =>
       WomPair(leftType.coerceRawValue(otherValue1).get, rightType.coerceRawValue(otherValue2).get)
     case jsObject: JsObject if jsObject.fields.size == 2 => coercePair(jsObject.fields, this)

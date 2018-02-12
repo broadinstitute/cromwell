@@ -1,14 +1,14 @@
 package wom.types
 
 import spray.json.{JsNumber, JsString}
-import wom.values.{WomFloat, WomString}
+import wom.values.{WomFloat, WomString, WomValue}
 
 import scala.util.{Success, Try}
 
 case object WomFloatType extends WomPrimitiveType {
   val toDisplayString: String = "Float"
 
-  override protected def coercion = {
+  override def coercion(): PartialFunction[Any, WomValue] = {
     case f: Float => WomFloat(f.toDouble)
     case d: Double => WomFloat(d)
     case n: JsNumber => WomFloat(n.value.doubleValue())

@@ -43,7 +43,7 @@ trait CromIamApiService extends RequestSupport
   val CromIamExceptionHandler: ExceptionHandler = {
   ExceptionHandler {
       case e: Exception =>
-        log.error("Request failed", e)
+        log.error("Request failed {}", e)
         complete(HttpResponse(InternalServerError, entity = e.getMessage)) // FIXME: use workbench-model ErrorReport
     }
   }
@@ -152,7 +152,7 @@ trait CromIamApiService extends RequestSupport
       samClient.requestAuth(CollectionAuthorizationRequest(user, collection, action)) recoverWith {
         case SamDenialException => Future.failed(SamDenialException)
         case e =>
-          log.error("Unable to connect to Sam", e)
+          log.error("Unable to connect to Sam {}", e)
           Future.failed(SamConnectionFailure("authorization", e))
       }
     }

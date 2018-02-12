@@ -15,13 +15,13 @@ import com.google.api.services.genomics.model.Operation
 import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
 import com.google.auth.oauth2.ServiceAccountCredentials
-import com.google.cloud.compute.{Compute, ComputeOptions, InstanceId}
+import com.google.cloud.compute.{Compute, ComputeOptions}
 import com.google.cloud.storage.{Storage, StorageOptions}
 import com.typesafe.config.Config
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{Failed, SubmittedWorkflow, TerminalStatus, WorkflowStatus}
+import cromwell.api.model.{Failed, SubmittedWorkflow, TerminalStatus, WorkflowId, WorkflowStatus}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import spray.json.JsString
@@ -159,7 +159,7 @@ object Operations {
       override def run: Try[WorkflowStatus] = CentaurCromwellClient.abort(workflow)
     }
   }
-  
+
   def waitFor(duration: FiniteDuration) = {
     import scala.concurrent.duration._
 
@@ -220,42 +220,7 @@ object Operations {
   }
 
   def validatePAPIAborted(jobId: String, workflow: SubmittedWorkflow): Test[Unit] = {
-    import scala.concurrent.duration._
-
-    def eventually(startTime: OffsetDateTime, timeout: FiniteDuration)(f: => Try[Unit]): Try[Unit] = {
-      f match {
-        case Failure(_) if OffsetDateTime.now().isBefore(startTime.plusSeconds(timeout.toSeconds)) =>
-          blocking { Thread.sleep(5.seconds.toMillis) }
-          eventually(startTime, timeout)(f)
-        case t => t
-      }
-    }
-    
     new Test[Unit] {
-      def checkVMTerminated(): Unit = {
-          CentaurCromwellClient.metadata(workflow) match {
-            case Success(metadata) =>
-              // Note: this doesn't work as of now because Cromwell doesn't publish metadata values for instanceName and
-              // zone if the job gets cancelled
-              val instanceName = metadata.value.collectFirst({
-                case (key, value) if key.endsWith("jes.instanceName") => value.asInstanceOf[JsString].value
-              }).getOrElse(throw new Exception("Cannot find the instance name in metadata"))
-              
-              val zone = metadata.value.collectFirst({
-                case (key, value) if key.endsWith("jes.zone") => value.asInstanceOf[JsString].value
-              }).getOrElse(throw new Exception("Cannot find the zone in metadata"))
-              
-              val instanceId = InstanceId.of(zone, instanceName)
-
-              Try(compute.getInstance(instanceId)) match {
-                case Success(null) => // all good, couldn't find the instance
-                case Success(_) => throw new Exception("Underlying VM is still running")
-                case Failure(f) => throw f
-              }
-            case Failure(f) => throw f
-          }
-      }
-      
       def checkPAPIAborted(): Unit = {
         val operation: Operation = genomics.operations().get(jobId).execute()
         val done = operation.getDone
@@ -270,10 +235,6 @@ object Operations {
         // Note: this doesn't work as of now because Cromwell considers the workflow aborted
         // as soon as it has requested cancellation, not when PAPI says its cancelled
         Try(checkPAPIAborted())
-        // Give some time to the VM to actually die (PAPI says it's cancelled before the VM is actually killed)
-        eventually(OffsetDateTime.now(), 5.minutes) {
-          Try(checkVMTerminated())
-        }
       } else Success(())
     }
   }
@@ -286,18 +247,33 @@ object Operations {
     // For JES it should be fine but locally it can be quite fast
     def pollDelay() = blocking { Thread.sleep(5000) }
 
+    // Special case for sub workflow testing
+    def findJobIdInSubWorkflow(subWorkflowId: String): Option[String] = {
+      for {
+        metadata <- CentaurCromwellClient.metadata(WorkflowId.fromString(subWorkflowId)).toOption
+        jobId <- metadata.value.get("calls.inner_abort.aborted.jobId")
+      } yield jobId.asInstanceOf[JsString].value
+    }
+
+    def valueAsString(key: String, metadata: WorkflowMetadata) = {
+      metadata.value.get(key).map(_.asInstanceOf[JsString].value)
+    }
+
     def findCallStatus(metadata: WorkflowMetadata): Option[(String, String)] = {
       for {
         status <- metadata.value.get(s"calls.$callFqn.executionStatus")
-        jobId <- metadata.value.get(s"calls.$callFqn.jobId")
-      } yield (status.asInstanceOf[JsString].value, jobId.asInstanceOf[JsString].value)
+        jobId <- valueAsString(s"calls.$callFqn.jobId", metadata)
+          .orElse(
+            valueAsString(s"calls.$callFqn.subWorkflowId", metadata).flatMap(findJobIdInSubWorkflow)
+          )
+      } yield (status.asInstanceOf[JsString].value, jobId)
     }
 
     new Test[String] {
       @tailrec
       def doPerform(allowed404s: Int = 2): String = {
         val metadata = for {
-        // We don't want to keep going forever if the workflow failed
+          // We don't want to keep going forever if the workflow failed
           status <- CentaurCromwellClient.status(workflow)
           _ <- status match {
             case Failed => Failure(new Exception("Workflow Failed"))
@@ -352,7 +328,7 @@ object Operations {
           }
         }
         cleanUpImports(workflow)
-        
+
         def validateUnwantedMetadata(actualMetadata: WorkflowMetadata) = if (workflowSpec.notInMetadata.nonEmpty) {
           // Check that none of the "notInMetadata" keys are in the actual metadata
           val absentMdIntersect = workflowSpec.notInMetadata.toSet.intersect(actualMetadata.value.keySet)

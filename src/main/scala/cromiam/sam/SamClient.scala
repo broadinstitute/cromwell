@@ -33,7 +33,7 @@ class SamClient(scheme: String, interface: String, port: Int, log: LoggingAdapte
 
     for {
       response <- Http().singleRequest(request)
-      resources <- Unmarshal(request.entity).to[List[SamResource]]
+      resources <- Unmarshal(response.entity).to[List[SamResource]]
     } yield resources.map(r => Collection(r.resourceId))
   }
 

@@ -43,7 +43,7 @@ trait CromIamApiService extends RequestSupport
   val CromIamExceptionHandler: ExceptionHandler = {
   ExceptionHandler {
       case e: Exception =>
-        log.error("Request failed {}", e)
+        log.error(e, "Request failed {}", e)
         complete(HttpResponse(InternalServerError, entity = e.getMessage)) // FIXME: use workbench-model ErrorReport
     }
   }

@@ -3,7 +3,7 @@ package cromwell.backend.impl.sfs.config
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.sfs._
 import cromwell.backend.standard.{StandardInitializationActorParams, StandardInitializationData, StandardValidatedRuntimeAttributesBuilder}
-import wdl.WdlNamespace
+import wdl.draft2.model.WdlNamespace
 
 import scala.concurrent.Future
 

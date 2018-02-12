@@ -14,7 +14,7 @@ import cromwell.subworkflowstore.SubWorkflowStoreSpec._
 import cromwell.util.WomMocks
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
-import wdl.WdlExpression
+import wdl.draft2.model.WdlExpression
 import wom.graph.{GraphNode, WomIdentifier}
 
 import scala.concurrent.duration._

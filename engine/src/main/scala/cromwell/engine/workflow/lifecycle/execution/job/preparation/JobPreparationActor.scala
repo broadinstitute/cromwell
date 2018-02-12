@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.job.preparation
 
-import _root_.wdl._
+import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, FSM, Props}
 import cats.data.Validated.{Invalid, Valid}
 import common.exception.MessageAggregation

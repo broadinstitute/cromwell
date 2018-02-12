@@ -9,7 +9,9 @@ import cats.implicits._
 import cwl.CwlDecoder
 import cwl.preprocessor.CwlPreProcessor
 import spray.json.{JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsValue}
-import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
+import wdl.transforms.draft2.wdlom2wom._
+import wom.transforms.WomExecutableMaker.ops._
+import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.executable.Executable
 import wom.graph._
 import wom.types._
@@ -170,7 +172,7 @@ object WomGraph {
     // TODO: Remove this and the 'fakeInput' method with #2867
     val fakedInputs = JsObject(namespace.workflow.inputs map { i => i._1 -> fakeInput(i._2.womType) })
 
-    namespace.womExecutable(Option(fakedInputs.prettyPrint)) match {
+    namespace.toWomExecutable(Option(fakedInputs.prettyPrint)) match {
       case Right(wom) => wom
       case Left(e) => throw new Exception(s"Can't build WOM executable from WDL namespace: ${e.toList.mkString("\n", "\n", "\n")}")
     }

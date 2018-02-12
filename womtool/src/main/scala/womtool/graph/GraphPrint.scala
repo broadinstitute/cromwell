@@ -4,7 +4,7 @@ import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicInteger
 
 import cats.implicits._
-import wdl.{CallOutput, Declaration, If, Scatter, WdlCall, WdlGraphNode, _}
+import wdl.draft2.model.{Declaration, If, Scatter, WdlCall, WdlGraphNode, _}
 
 import scala.collection.JavaConverters._
 

@@ -20,6 +20,7 @@ package object graph {
 
     def graphStyle = graphNode match {
       case _: AnonymousExpressionNode => "\"filled,dashed\""
+      case o: OuterGraphInputNode if o.preserveScatterIndex => "\"dashed\""
       case _ => "\"filled,solid\""
     }
 

@@ -1,9 +1,9 @@
 package cromwell.engine.workflow.mocks
 
 import org.specs2.mock.Mockito
-import wdl.{Scope, WdlExpression, WdlWomExpression}
-import wdl.WdlExpression._
-import wdl.expression.WdlFunctions
+import wdl.draft2.model.{Scope, WdlExpression, WdlWomExpression}
+import wdl.draft2.model.WdlExpression._
+import wdl.draft2.model.expression.WdlFunctions
 import wom.values.{WomInteger, WomString, WomValue}
 
 import scala.util.Success

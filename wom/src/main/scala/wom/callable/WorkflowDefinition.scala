@@ -1,8 +1,9 @@
 package wom.callable
 
+import common.validation.ErrorOr.ErrorOr
 import wom.expression.WomExpression
 import wom.graph.GraphNode._
-import wom.graph.{Graph, CommandCallNode}
+import wom.graph.{CommandCallNode, Graph}
 
 final case class WorkflowDefinition(name: String,
                                     innerGraph: Graph,

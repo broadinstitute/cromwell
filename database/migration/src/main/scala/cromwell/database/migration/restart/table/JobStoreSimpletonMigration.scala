@@ -3,10 +3,9 @@ package cromwell.database.migration.restart.table
 import cromwell.core.simpleton.WomValueSimpleton._
 import cromwell.database.migration.WdlTransformation._
 import liquibase.database.jvm.JdbcConnection
-import wdl.types._
+import wdl.draft2.model.types.WdlFlavoredWomType
 import wom.types.WomType
 import wom.values.WomValue
-
 
 class JobStoreSimpletonMigration extends AbstractRestartMigration {
   override val description = "WORKFLOW_EXECUTION + EXECUTION + SYMBOL + JOB_STORE -> JOB_STORE_RESULT_SIMPLETON"

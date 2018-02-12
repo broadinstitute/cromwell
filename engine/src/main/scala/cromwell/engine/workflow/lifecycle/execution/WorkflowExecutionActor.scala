@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution
 
-import _root_.wdl._
+import _root_.wdl.draft2.model._
 import akka.actor.{Scope => _, _}
 import cats.data.NonEmptyList
 import cats.instances.list._

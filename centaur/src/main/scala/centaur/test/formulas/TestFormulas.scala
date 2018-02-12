@@ -21,7 +21,7 @@ object TestFormulas {
   private def runWorkflowUntilTerminalStatus(workflow: Workflow, status: TerminalStatus): Test[SubmittedWorkflow] = {
     for {
       s <- submitWorkflow(workflow)
-      _ <- pollUntilStatus(s, status)
+      _ <- pollUntilStatus(s, workflow, status)
     } yield s
   }
 
@@ -77,7 +77,7 @@ object TestFormulas {
         jobId <- pollUntilCallIsRunning(w, callMarker.callKey)
         _ = CromwellManager.stopCromwell()
         _ = CromwellManager.startCromwell(postRestart)
-        _ <- pollUntilStatus(w, finalStatus)
+        _ <- pollUntilStatus(w, workflowDefinition, finalStatus)
         _ <- validateMetadata(w, workflowDefinition)
         _ <- if(testRecover) validateRecovered(w, callMarker.callKey, jobId) else Test.successful(())
         _ <- validateDirectoryContentsCounts(workflowDefinition, w)
@@ -90,7 +90,7 @@ object TestFormulas {
   def instantAbort(workflowDefinition: Workflow): Test[SubmitResponse] = for {
     w <- submitWorkflow(workflowDefinition)
     _ <- abortWorkflow(w)
-    _ <- pollUntilStatus(w, Aborted)
+    _ <- pollUntilStatus(w, workflowDefinition, Aborted)
     _ <- validateMetadata(w, workflowDefinition)
     _ <- validateDirectoryContentsCounts(workflowDefinition, w)
   } yield SubmitResponse(w)
@@ -108,7 +108,7 @@ object TestFormulas {
       jobId <- pollUntilCallIsRunning(w, callMarker.callKey)
       _ <- abortWorkflow(w)
       _ = if(restart) withRestart()
-      _ <- pollUntilStatus(w, Aborted)
+      _ <- pollUntilStatus(w, workflowDefinition, Aborted)
       _ <- validatePAPIAborted(jobId, w)
       // Wait a little to make sure that if the abort didn't work and calls start running we see them in the metadata
       _ <- waitFor(30.seconds)

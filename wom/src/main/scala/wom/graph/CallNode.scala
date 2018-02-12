@@ -81,6 +81,8 @@ final case class WorkflowCallNode private(override val identifier: WomIdentifier
   override val outputPorts: Set[OutputPort] = subworkflowCallOutputPorts.toSet[OutputPort]
 }
 
+
+
 object TaskCall {
   def graphFromDefinition(taskDefinition: TaskDefinition): ErrorOr[Graph] = {
     val taskDefinitionLocalName = LocalName(taskDefinition.name)

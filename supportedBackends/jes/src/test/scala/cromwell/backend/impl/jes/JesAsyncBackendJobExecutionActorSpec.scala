@@ -3,7 +3,10 @@ package cromwell.backend.impl.jes
 import java.util.UUID
 
 import _root_.io.grpc.Status
-import _root_.wdl._
+import _root_.wdl.draft2.model._
+import wdl.transforms.draft2.wdlom2wom._
+import wom.transforms.WomExecutableMaker.ops._
+import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
 import com.google.api.gax.retrying.RetrySettings
@@ -149,9 +152,9 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val attempt = previousPreemptions + previousUnexpectedRetries + 1
     val wdlNamespace = WdlNamespaceWithWorkflow.load(YoSup.replace("[PREEMPTIBLE]", s"preemptible: $preemptible"),
       Seq.empty[ImportResolver]).get
-    val womDefinition = wdlNamespace.workflow.womDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
+    val womDefinition = wdlNamespace.workflow.toWomWorkflowDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
 
-    wdlNamespace.womExecutable(Option(Inputs.toJson.compactPrint)) match {
+    wdlNamespace.toWomExecutable(Option(Inputs.toJson.compactPrint)) match {
       case Right(womExecutable) =>
         val inputs = for {
           combined <- womExecutable.resolvedExecutableInputs
@@ -381,8 +384,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val wdlNamespace = WdlNamespaceWithWorkflow.load(YoSup.replace("[PREEMPTIBLE]", ""),
       Seq.empty[ImportResolver]).get
-    val womWorkflow = wdlNamespace.workflow.womDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
-    wdlNamespace.womExecutable(Option(inputs.toJson.compactPrint)) match {
+    val womWorkflow = wdlNamespace.workflow.toWomWorkflowDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
+    wdlNamespace.toWomExecutable(Option(inputs.toJson.compactPrint)) match {
       case Right(womExecutable) =>
         val wdlInputs = womExecutable.resolvedExecutableInputs.flatMap({case (port, v) => v.select[WomValue] map { port -> _ }})
 
@@ -455,8 +458,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       case (k, v) => s"wf_whereami.whereami$k" -> v
     }
 
-    val womWorkflow = dockerAndDiskWdlNamespace.workflow.womDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
-    dockerAndDiskWdlNamespace.womExecutable(Option(workflowInputs.toJson.compactPrint)) match {
+    val womWorkflow = dockerAndDiskWdlNamespace.workflow.toWomWorkflowDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
+    dockerAndDiskWdlNamespace.toWomExecutable(Option(workflowInputs.toJson.compactPrint)) match {
       case Right(womExecutable) =>
         val wdlInputs = womExecutable.resolvedExecutableInputs.flatMap({case (port, v) => v.select[WomValue] map { port -> _ }})
         val workflowDescriptor = BackendWorkflowDescriptor(
@@ -503,8 +506,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
                       functions: JesExpressionFunctions = TestableJesExpressionFunctions):
   TestActorRef[TestableJesJobExecutionActor] = {
     val womWorkflow = WdlNamespaceWithWorkflow.load(sampleWdl.asWorkflowSources(DockerAndDiskRuntime).workflowSource,
-      Seq.empty[ImportResolver]).get.workflow.womDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
-    dockerAndDiskWdlNamespace.womExecutable(Option(inputs.toJson.compactPrint)) match {
+      Seq.empty[ImportResolver]).get.workflow.toWomWorkflowDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
+    dockerAndDiskWdlNamespace.toWomExecutable(Option(inputs.toJson.compactPrint)) match {
       case Right(womExecutable) =>
         val wdlInputs = womExecutable.resolvedExecutableInputs.flatMap({case (port, v) => v.select[WomValue] map { port -> _ }})
         val workflowDescriptor = BackendWorkflowDescriptor(
@@ -570,8 +573,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
         WomArray(WomArrayType(WomSingleFileType), Seq(WomSingleFile("gs://path/to/file1"), WomSingleFile("gs://path/to/file2")))
     )
 
-    val womWorkflow = dockerAndDiskWdlNamespace.workflow.womDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
-    dockerAndDiskWdlNamespace.womExecutable(Option(inputs.toJson.compactPrint)) match {
+    val womWorkflow = dockerAndDiskWdlNamespace.workflow.toWomWorkflowDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
+    dockerAndDiskWdlNamespace.toWomExecutable(Option(inputs.toJson.compactPrint)) match {
       case Right(womExecutable) =>
         val wdlInputs = womExecutable.resolvedExecutableInputs.flatMap({case (port, v) => v.select[WomValue] map { port -> _ }})
         val workflowDescriptor = BackendWorkflowDescriptor(
@@ -605,8 +608,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       "file2" -> WomSingleFile("gs://path/to/file2")
     )
 
-    val womWorkflow = dockerAndDiskWdlNamespace.workflow.womDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
-    dockerAndDiskWdlNamespace.womExecutable(Option(inputs.toJson.compactPrint)) match {
+    val womWorkflow = dockerAndDiskWdlNamespace.workflow.toWomWorkflowDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
+    dockerAndDiskWdlNamespace.toWomExecutable(Option(inputs.toJson.compactPrint)) match {
       case Right(womExecutable) =>
         val wdlInputs = womExecutable.resolvedExecutableInputs.flatMap({case (port, v) => v.select[WomValue] map { port -> _ }})
         val workflowDescriptor = BackendWorkflowDescriptor(
@@ -660,7 +663,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId.randomId(),
       WdlNamespaceWithWorkflow.load(SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).workflowSource,
-        Seq.empty[ImportResolver]).get.workflow.womDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
+        Seq.empty[ImportResolver]).get.workflow.toWomWorkflowDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       NoOptions,
       Labels.empty
@@ -694,7 +697,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId.randomId(),
       WdlNamespaceWithWorkflow.load(SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).workflowSource,
-        Seq.empty[ImportResolver]).get.workflow.womDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
+        Seq.empty[ImportResolver]).get.workflow.toWomWorkflowDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       WorkflowOptions.fromJsonString("""{"monitoring_script": "gs://path/to/script"}""").get,
       Labels.empty
@@ -717,7 +720,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId.randomId(),
       WdlNamespaceWithWorkflow.load(SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).workflowSource,
-        Seq.empty[ImportResolver]).get.workflow.womDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
+        Seq.empty[ImportResolver]).get.workflow.toWomWorkflowDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       NoOptions,
       Labels.empty
@@ -740,7 +743,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       WorkflowId(UUID.fromString("e6236763-c518-41d0-9688-432549a8bf7c")),
       WdlNamespaceWithWorkflow.load(
         SampleWdl.HelloWorld.asWorkflowSources(""" runtime {docker: "ubuntu:latest"} """).workflowSource,
-        Seq.empty[ImportResolver]).get.workflow.womDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
+        Seq.empty[ImportResolver]).get.workflow.toWomWorkflowDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       WorkflowOptions.fromJsonString(""" {"jes_gcs_root": "gs://path/to/gcs_root"} """).get,
       Labels.empty
@@ -773,7 +776,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       WorkflowId(UUID.fromString("e6236763-c518-41d0-9688-432549a8bf7d")),
       WdlNamespaceWithWorkflow.load(
         new SampleWdl.ScatterWdl().asWorkflowSources(""" runtime {docker: "ubuntu:latest"} """).workflowSource,
-        Seq.empty[ImportResolver]).get.workflow.womDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
+        Seq.empty[ImportResolver]).get.workflow.toWomWorkflowDefinition.getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       WorkflowOptions.fromJsonString(""" {"jes_gcs_root": "gs://path/to/gcs_root"} """).get,
       Labels.empty

@@ -2,7 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import java.util.UUID
 
-import _root_.wdl._
+import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{TestFSMRef, TestProbe}
 import cromwell.backend.BackendJobExecutionActor.{ExecuteJobCommand, RecoverJobCommand}
@@ -20,7 +20,6 @@ import cromwell.engine.workflow.mocks.{DeclarationMock, TaskMock, WdlWomExpressi
 import cromwell.util.AkkaTestUtil._
 import cromwell.util.WomMocks
 import org.specs2.mock.Mockito
-import wdl4s.parser.WdlParser.Ast
 import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition}
 import wom.expression.IoFunctionSet
 import wom.graph.{CommandCallNode, WomIdentifier}
@@ -28,7 +27,6 @@ import wom.types.{WomIntegerType, WomStringType}
 
 import scala.concurrent.ExecutionContext
 import scala.util.Success
-
 
 private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mockito with TaskMock with WdlWomExpressionMock with DeclarationMock {
 
@@ -52,7 +50,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
     wdlSyntaxErrorFormatter = mock[WdlSyntaxErrorFormatter],
     meta = Map.empty,
     parameterMeta = Map.empty,
-    ast = mock[Ast])
+    ast = null)
   val call: CommandCallNode = WomMocks.mockTaskCall(WomIdentifier(taskName, jobFqn), task)
   val jobDescriptorKey = BackendJobDescriptorKey(call, jobIndex, jobAttempt)
 

@@ -10,9 +10,38 @@ lazy val wom = project
   .withLibrarySettings("cromwell-wom", womDependencies, crossCompile = true)
   .dependsOn(common)
 
-lazy val wdl = project
-  .withLibrarySettings("cromwell-wdl", wdlDependencies, crossCompile = true)
+lazy val wdlRoot = Path("wdl")
+
+lazy val wdlModelRoot = wdlRoot / "model"
+
+lazy val wdlSharedModel = (project in wdlModelRoot / "shared")
+  .withLibrarySettings("cromwell-wdl-model-core", wdlDependencies, crossCompile = true)
   .dependsOn(wom)
+
+lazy val wdlModelDraft2 = (project in wdlModelRoot / "draft2")
+  .withLibrarySettings("cromwell-wdl-model-draft2", wdlDependencies, crossCompile = true)
+  .dependsOn(wdlSharedModel)
+
+lazy val wdlModelDraft3 = (project in wdlModelRoot / "draft3")
+  .withLibrarySettings("cromwell-wdl-model-draft3", crossCompile = true)
+  .dependsOn(wdlSharedModel)
+
+lazy val wdlTransformsRoot = wdlRoot / "transforms"
+
+lazy val wdlSharedTransforms = (project in wdlTransformsRoot / "shared")
+  .withLibrarySettings("cromwell-wdl-transforms-shared", wdlDependencies, crossCompile = true)
+  .dependsOn(wdlSharedModel)
+  .dependsOn(wom)
+
+lazy val wdlTransformsDraft2 = (project in wdlTransformsRoot / "draft2")
+  .withLibrarySettings("cromwell-wdl-transforms-draft2", wdlDependencies, crossCompile = true)
+  .dependsOn(wdlSharedTransforms)
+  .dependsOn(wdlModelDraft2)
+
+lazy val wdlTransformsDraft3 = (project in wdlTransformsRoot / "draft3")
+  .withLibrarySettings("cromwell-wdl-transforms-draft3", wdlDependencies, crossCompile = true)
+  .dependsOn(wdlSharedTransforms)
+  .dependsOn(wdlModelDraft3)
 
 lazy val cwl = project
   .withLibrarySettings("cromwell-cwl", cwlDependencies, crossCompile = true)
@@ -50,7 +79,8 @@ lazy val databaseSql = (project in file("database/sql"))
 lazy val databaseMigration = (project in file("database/migration"))
   .withLibrarySettings("cromwell-database-migration", databaseMigrationDependencies)
   .dependsOn(core)
-  .dependsOn(wdl)
+  .dependsOn(wdlModelDraft2)
+  .dependsOn(wdlTransformsDraft2)
 
 lazy val dockerHashing = project
   .withLibrarySettings("cromwell-docker-hashing")
@@ -139,7 +169,8 @@ lazy val centaurCwlRunner = project
 
 lazy val womtool = project
   .withExecutableSettings("womtool", womtoolDependencies)
-  .dependsOn(wdl)
+  .dependsOn(wdlModelDraft2)
+  .dependsOn(wdlTransformsDraft2)
   .dependsOn(cwl)
   .dependsOn(wom % "test->test")
 
@@ -152,7 +183,14 @@ lazy val languageFactoryCore = (project in languageFactoryRoot / "language-facto
 lazy val wdlDraft2LanguageFactory = (project in languageFactoryRoot / "wdl-draft2")
   .withExecutableSettings("wdl-draft2")
   .dependsOn(languageFactoryCore)
-  .dependsOn(wdl)
+  .dependsOn(wdlModelDraft2)
+  .dependsOn(wdlTransformsDraft2)
+
+lazy val wdlDraft3LanguageFactory = (project in languageFactoryRoot / "wdl-draft3")
+  .withExecutableSettings("wdl-draft3")
+  .dependsOn(languageFactoryCore)
+  .dependsOn(wdlModelDraft3)
+  .dependsOn(wdlTransformsDraft3)
 
 lazy val cwlV1_0LanguageFactory = (project in languageFactoryRoot / "cwl-v1-0")
   .withExecutableSettings("cwl-v1-0")
@@ -171,6 +209,7 @@ lazy val root = (project in file("."))
   .dependsOn(sparkBackend)
   .dependsOn(cromwellApiClient)
   .dependsOn(wdlDraft2LanguageFactory)
+  .dependsOn(wdlDraft3LanguageFactory)
   .dependsOn(cwlV1_0LanguageFactory)
   .dependsOn(engine % "test->test")
   // Full list of all sub-projects to build with the root (ex: include in `sbt test`)
@@ -194,11 +233,17 @@ lazy val root = (project in file("."))
   .aggregate(sfsBackend)
   .aggregate(sparkBackend)
   .aggregate(tesBackend)
-  .aggregate(wdl)
+  .aggregate(wdlSharedModel)
+  .aggregate(wdlSharedTransforms)
+  .aggregate(wdlModelDraft2)
+  .aggregate(wdlTransformsDraft2)
+  .aggregate(wdlModelDraft3)
+  .aggregate(wdlTransformsDraft3)
   .aggregate(wom)
   .aggregate(womtool)
   .aggregate(languageFactoryCore)
   .aggregate(wdlDraft2LanguageFactory)
+  .aggregate(wdlDraft3LanguageFactory)
   .aggregate(cwlV1_0LanguageFactory)
   // TODO: See comment in plugins.sbt regarding SBT 1.x
   .enablePlugins(CrossPerProjectPlugin)

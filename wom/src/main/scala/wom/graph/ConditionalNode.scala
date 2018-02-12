@@ -5,6 +5,8 @@ import wom.graph.GraphNodePort.{ConditionalOutputPort, ConnectedInputPort, Input
 import wom.graph.expression.ExpressionNode
 import wom.types.WomBooleanType
 import common.collections.EnhancedCollections._
+import common.validation.ErrorOr.ErrorOr
+import wom.graph.ConditionalNode.ConditionalNodeWithNewNodes
 
 /**
   * Currently only WDL has the concept of conditional executions:

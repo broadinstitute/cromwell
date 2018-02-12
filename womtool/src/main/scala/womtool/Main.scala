@@ -2,9 +2,9 @@ package womtool
 
 import java.nio.file.Paths
 
-import wdl.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
-import wdl._
 import spray.json._
+import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
+import wdl.draft2.model.{AstTools, WdlNamespace, WdlNamespaceWithWorkflow}
 import womtool.graph.{GraphPrint, WomGraph}
 
 import scala.util.{Failure, Success}

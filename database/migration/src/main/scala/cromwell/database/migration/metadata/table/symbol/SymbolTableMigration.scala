@@ -5,8 +5,8 @@ import java.sql.{PreparedStatement, ResultSet}
 import cromwell.core.simpleton.WomValueSimpleton._
 import cromwell.database.migration.WdlTransformation
 import cromwell.database.migration.custom.BatchedTaskChange
-import wdl.WdlExpression
-import wdl.types.WdlFlavoredWomType
+import wdl.draft2.model.WdlExpression
+import wdl.draft2.model.types.WdlFlavoredWomType
 import wom.values.WomValue
 
 import scala.util.{Failure, Success, Try}

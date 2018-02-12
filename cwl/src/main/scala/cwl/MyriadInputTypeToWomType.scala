@@ -25,6 +25,9 @@ object MyriadInputTypeToWomType extends Poly1 {
         // If there's a single non null type, use that
       case (Array(), Array(singleNonNullType)) =>
         singleNonNullType.fold(MyriadInputInnerTypeToWomType)
+      case (Array(), array: Array[MyriadInputInnerType]) if array.size > 1  =>
+        val types = array.map(_.fold(MyriadInputInnerTypeToWomType))
+        WomCoproductType(types.toSet)
         // If there's a null type and a single non null type, it's a WomOptionalType
       case (Array(_), Array(singleNonNullType)) =>
         WomOptionalType(singleNonNullType.fold(MyriadInputInnerTypeToWomType))

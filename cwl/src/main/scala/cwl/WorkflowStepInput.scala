@@ -70,7 +70,7 @@ case class WorkflowStepInput(
 
     def makeNode(head: (String, OutputPort), tail: List[(String, OutputPort)]) = for {
         inputType <- WorkflowStepInput.determineType(this, outputTypeMap, matchingRunInputType, isScattered)
-        womExpression = WorkflowStepInputMergeExpression(this, head, tail.toMap, inputType, expressionLib)
+        womExpression = WorkflowStepInputMergeExpression(this, inputType, head, tail.toMap, expressionLib)
         node <- AnonymousExpressionNode.fromInputMapping(identifier, womExpression, sourceMappings, PlainAnonymousExpressionNode.apply).toEither
       } yield node
 

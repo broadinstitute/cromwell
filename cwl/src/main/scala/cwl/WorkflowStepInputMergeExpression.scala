@@ -13,11 +13,11 @@ import wom.types.WomType
 import wom.values.{WomArray, WomFile, WomOptionalValue, WomValue}
 
 final case class WorkflowStepInputMergeExpression(input: WorkflowStepInput,
+                                                  cwlExpressionType: WomType,
                                                   // cats doesn't have NonEmptyMap (yet https://github.com/typelevel/cats/pull/2141/)
                                                   // This is an ugly way to guarantee this class is only instantiated with at least one mapping
                                                   stepInputMappingHead: (String, OutputPort),
                                                   stepInputMappings: Map[String, OutputPort],
-                                                  cwlExpressionType: WomType,
                                                   override val expressionLib: ExpressionLib) extends CwlWomExpression {
   private val allStepInputMappings = stepInputMappings + stepInputMappingHead
 
@@ -26,7 +26,7 @@ final case class WorkflowStepInputMergeExpression(input: WorkflowStepInput,
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
     def lookupValue(key: String): ErrorOr[WomValue] =
       inputValues.
-        get(FullyQualifiedName(key).id).
+        get(key).
         toValidNel(s"source value $key not found in input values ${inputValues.mkString("\n")}.  Graph Inputs were ${allStepInputMappings.keySet.mkString("\n")}")
 
     def validateSources(sources: List[String]): ErrorOr[List[WomValue]] =

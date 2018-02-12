@@ -62,7 +62,8 @@ trait QuerySupport extends RequestSupport {
               tprovide((user, collections, request))
             }
           }
-        case Failure(e) => throw new RuntimeException("Unable to look up collections for user " + user.userId, e)
+        case Failure(e) =>
+          throw new RuntimeException(s"Unable to look up collections for user ${user.userId}: ${e.getMessage}", e)
       }
     }
   }
@@ -112,7 +113,7 @@ trait QuerySupport extends RequestSupport {
     */
   protected[this] def processLabels(user: User, collections: List[Collection], labels: Iterable[String]): Iterable[String] = {
     if (hasCollectionLabel(labels)) {
-      log.error("User " + user.userId + "attempted to submit query with label " + CollectionLabelName)
+      log.error("User " + user.userId + " attempted to submit query with label " + CollectionLabelName)
       throw new LabelContainsCollectionException
     } else {
       labels ++ collections.map(c => s"$CollectionLabelName:${c.name}")
@@ -123,6 +124,7 @@ trait QuerySupport extends RequestSupport {
 object QuerySupport {
   def hasCollectionLabel(labels: Iterable[String]): Boolean = labels exists { _.startsWith(s"$CollectionLabelName:") }
 
-  final case class InvalidQueryException(e: Throwable) extends Exception("Invalid JSON in query POST body", e)
+  final case class InvalidQueryException(e: Throwable) extends
+    Exception(s"Invalid JSON in query POST body: ${e.getMessage}", e)
   val LabelKey = "label"
 }

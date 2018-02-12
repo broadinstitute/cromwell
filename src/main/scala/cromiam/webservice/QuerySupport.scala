@@ -76,8 +76,10 @@ trait QuerySupport extends RequestSupport {
     extractUri flatMap { uri =>
       val query = uri.query()
 
+      val otherParams = query.filterNot({ case (key, _) => key == LabelKey })
       val labelsWithCollections = processLabels(user, collections, query.getAll(LabelKey))
       val newQueryBuilder = query.newBuilder
+      newQueryBuilder ++= otherParams
       labelsWithCollections foreach { l => newQueryBuilder += (LabelKey -> l) }
       provide(uri.withQuery(newQueryBuilder.result()))
     }

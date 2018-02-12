@@ -106,6 +106,8 @@ object TestFormulas {
     for {
       w <- submitWorkflow(workflowDefinition)
       jobId <- pollUntilCallIsRunning(w, callMarker.callKey)
+      // The Cromwell call status could be running but the backend job might not have started yet, give it some time
+      _ <- waitFor(30.seconds)
       _ <- abortWorkflow(w)
       _ = if(restart) withRestart()
       _ <- pollUntilStatus(w, Aborted)

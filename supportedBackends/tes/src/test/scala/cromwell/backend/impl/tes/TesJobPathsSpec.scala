@@ -2,6 +2,7 @@ package cromwell.backend.impl.tes
 
 import better.files._
 import cromwell.backend.{BackendJobDescriptorKey, BackendSpec}
+import cromwell.backend.io.JobPathsSpecHelper._
 import org.scalatest.{FlatSpec, Matchers}
 import wom.graph.CommandCallNode
 

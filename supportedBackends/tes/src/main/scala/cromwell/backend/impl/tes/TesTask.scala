@@ -1,6 +1,6 @@
 package cromwell.backend.impl.tes
 
-import cromwell.backend.io.DirectoryFunctions
+import common.util.StringUtil._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.NoIoFunctionSet
 import cromwell.core.logging.JobLogger
@@ -162,9 +162,9 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       case (g: WomGlobFile, index) => handleGlobFile(g, index)
       case (d: WomUnlistedDirectory, index) =>
         val directoryPathName = "dirPath." + index
-        val directoryPath = DirectoryFunctions.ensureSlashed(d.value)
+        val directoryPath = d.value.ensureSlashed
         val directoryListName =  "dirList." + index
-        val directoryList = DirectoryFunctions.ensureUnslashed(d.value) + ".list"
+        val directoryList = d.value.ensureUnslashed + ".list"
         Seq(
           Output(
             name = Option(directoryPathName),

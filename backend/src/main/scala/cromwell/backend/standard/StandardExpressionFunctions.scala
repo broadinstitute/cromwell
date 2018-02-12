@@ -43,7 +43,9 @@ class StandardExpressionFunctions(val standardParams: StandardExpressionFunction
 
   val writeDirectory: Path = callContext.root
 
-  override def stdout(params: Seq[Try[WomValue]]): Try[WomSingleFile] = Success(WomSingleFile(callContext.stdout))
+  lazy val standardPaths = callContext.standardPaths
 
-  override def stderr(params: Seq[Try[WomValue]]): Try[WomSingleFile] = Success(WomSingleFile(callContext.stderr))
+  override def stdout(params: Seq[Try[WomValue]]): Try[WomSingleFile] = Success(WomSingleFile(standardPaths.output.pathAsString))
+
+  override def stderr(params: Seq[Try[WomValue]]): Try[WomSingleFile] = Success(WomSingleFile(standardPaths.error.pathAsString))
 }

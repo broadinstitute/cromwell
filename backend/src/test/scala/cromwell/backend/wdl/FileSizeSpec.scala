@@ -5,6 +5,7 @@ import java.nio.file.{Path, Paths}
 
 import cats.effect.IO
 import com.google.common.io.Files
+import cromwell.backend.io.JobPathsSpecHelper.DummyStandardPaths
 import cromwell.backend.standard.{DefaultStandardExpressionFunctionsParams, StandardExpressionFunctions}
 import cromwell.core.Tags.PostWomTest
 import cromwell.core.path.DefaultPathBuilder
@@ -31,7 +32,7 @@ class FileSizeSpec extends TestKitSuite with FlatSpecLike with Matchers {
 
     val dp = DefaultStandardExpressionFunctionsParams(
       List(cromwell.core.path.DefaultPathBuilder),
-      CallContext(path, "stdout", "stderr"),
+      CallContext(path, DummyStandardPaths),
       simpleIoActor,
       scala.concurrent.ExecutionContext.global)
 

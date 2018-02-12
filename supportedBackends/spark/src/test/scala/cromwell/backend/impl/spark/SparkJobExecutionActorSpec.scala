@@ -7,6 +7,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.backend.io._
+import cromwell.backend.io.JobPathsSpecHelper._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendSpec}
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.{Path, PathWriter, TailedWriter, UntailedWriter}

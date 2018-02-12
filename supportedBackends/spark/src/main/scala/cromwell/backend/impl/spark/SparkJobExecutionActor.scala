@@ -54,11 +54,12 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private val executionDir = jobPaths.callExecutionRoot
   private val scriptPath = jobPaths.script
 
-  private lazy val stdoutWriter = extProcess.untailedWriter(jobPaths.stdout)
-  private lazy val stderrWriter = extProcess.tailedWriter(100, jobPaths.stderr)
+  private lazy val standardPaths = jobPaths.standardPaths
+  private lazy val stdoutWriter = extProcess.untailedWriter(standardPaths.output)
+  private lazy val stderrWriter = extProcess.tailedWriter(100, standardPaths.error)
 
-  private lazy val clusterStdoutWriter = clusterExtProcess.untailedWriter(jobPaths.stdout)
-  private lazy val clusterStderrWriter = clusterExtProcess.tailedWriter(100, jobPaths.stderr)
+  private lazy val clusterStdoutWriter = clusterExtProcess.untailedWriter(standardPaths.output)
+  private lazy val clusterStderrWriter = clusterExtProcess.tailedWriter(100, standardPaths.error)
   private lazy val SubmitJobJson = "%s.json"
   private lazy val isClusterMode = isSparkClusterMode(sparkDeployMode, sparkMaster)
 
@@ -105,7 +106,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   private def resolveExecutionResult(jobReturnCode: Try[Int], failedOnStderr: Boolean): Future[BackendJobExecutionResponse] = {
     (jobReturnCode, failedOnStderr) match {
-      case (Success(0), true) if File(jobPaths.stderr).lines.toList.nonEmpty =>
+      case (Success(0), true) if File(standardPaths.error).lines.toList.nonEmpty =>
         Future.successful(JobFailedNonRetryableResponse(jobDescriptor.key,
           new IllegalStateException(s"Execution process failed although return code is zero but stderr is not empty"), Option(0)))
       case (Success(0), _) => resolveExecutionProcess

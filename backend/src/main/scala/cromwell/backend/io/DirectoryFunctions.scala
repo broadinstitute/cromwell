@@ -3,6 +3,7 @@ package cromwell.backend.io
 import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import common.util.StringUtil._
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend.BackendJobDescriptor
@@ -32,7 +33,7 @@ trait DirectoryFunctions extends IoFunctionSet with PathFactory {
   // TODO: WOM: WOMFILE: This will likely use a Tuple2(tar file, dir list file) for each dirPath.
   private final def temporaryImplListPaths(dirPath: String): Future[Seq[String]] = {
     val errorOrPaths = for {
-      dir <- validate(buildPath(ensureSlashed(dirPath)))
+      dir <- validate(buildPath(dirPath.ensureSlashed))
       files <- listFiles(dir)
     } yield files.map(_.pathAsString)
     Future.fromTry(errorOrPaths.toTry(s"Error listing files under $dirPath"))
@@ -40,10 +41,6 @@ trait DirectoryFunctions extends IoFunctionSet with PathFactory {
 }
 
 object DirectoryFunctions {
-  def ensureSlashed(dir: String): String = if (dir.endsWith("/")) dir else s"$dir/"
-
-  def ensureUnslashed(dir: String): String = dir.stripSuffix("/")
-
   def listFiles(path: Path): ErrorOr[List[Path]] = {
     def listPaths(path: Path, checkedPaths: Set[Path]): ErrorOr[Set[Path]] = {
       val newCheckedPaths = checkedPaths ++ Set(path)
@@ -70,7 +67,7 @@ object DirectoryFunctions {
         case womSingleFile: WomSingleFile => List(womSingleFile).valid
 
         case womUnlistedDirectory: WomUnlistedDirectory =>
-          val errorOrListPaths = listFiles(pathFactory.buildPath(ensureSlashed(womUnlistedDirectory.value)))
+          val errorOrListPaths = listFiles(pathFactory.buildPath(womUnlistedDirectory.value.ensureSlashed))
           errorOrListPaths.map(_.map(path => WomSingleFile(path.pathAsString)))
 
         case womMaybePopulatedFile: WomMaybePopulatedFile =>

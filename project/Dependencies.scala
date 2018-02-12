@@ -271,7 +271,8 @@ object Dependencies {
 
   val commonDependencies = List(
     "org.slf4j" % "slf4j-api" % slf4jV,
-    "org.typelevel" %% "cats-effect" % catsEffectV
+    "org.typelevel" %% "cats-effect" % catsEffectV,
+    "org.apache.commons" % "commons-lang3" % commonsLang3V
   ) ++ catsDependencies ++ configDependencies
 
   val womDependencies = List(

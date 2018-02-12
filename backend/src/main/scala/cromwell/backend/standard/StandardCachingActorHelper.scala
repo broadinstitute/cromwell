@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef}
 import cromwell.backend._
 import cromwell.backend.io.{JobPaths, WorkflowPaths}
 import cromwell.backend.standard.callcaching.JobCachingActorHelper
-import cromwell.backend.validation.{RuntimeAttributesValidation, ValidatedRuntimeAttributes}
+import cromwell.backend.validation.{DockerValidation, RuntimeAttributesValidation, ValidatedRuntimeAttributes}
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.Path
 import cromwell.services.metadata.CallMetadataKeys
@@ -55,6 +55,9 @@ trait StandardCachingActorHelper extends JobCachingActorHelper {
     val builder = standardInitializationData.runtimeAttributesBuilder
     builder.build(jobDescriptor.runtimeAttributes, jobLogger)
   }
+
+  lazy val isDockerRun: Boolean = RuntimeAttributesValidation.extractOption(
+    DockerValidation.instance, validatedRuntimeAttributes).isDefined
 
   /**
     * Returns the paths to the job.

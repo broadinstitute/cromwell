@@ -7,6 +7,7 @@ import io.circe.optics.JsonPath._
 import io.circe.yaml.Printer.StringStyle
 import io.circe.{Json, yaml}
 import net.ceedubs.ficus.Ficus._
+import common.util.StringUtil._
 
 /**
   * Tools to pre-process the CWL workflows and inputs before feeding them to Cromwell so they can be executed on PAPI.
@@ -15,10 +16,7 @@ class PAPIPreprocessor(config: Config) {
   val cwlPreProcessor = new CwlPreProcessor()
   
   // GCS directory where inputs for conformance tests are stored
-  private val gcsPrefix = {
-    val rawPrefix = config.as[String]("papi.default-input-gcs-prefix")
-    if (rawPrefix.endsWith("/")) rawPrefix else rawPrefix + "/"
-  }
+  private val gcsPrefix = config.as[String]("papi.default-input-gcs-prefix").ensureSlashed
 
   // Default docker pull image
   val DefaultDockerPull = "dockerPull" -> Json.fromString("ubuntu:latest")

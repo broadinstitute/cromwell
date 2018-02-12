@@ -133,14 +133,14 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
       Map(
         DockerCwdInput -> WomString(jobPathsWithDocker.callDockerRoot.pathAsString),
         DockerCidInput -> dockerCidInputValue,
-        StdoutInput -> WomString(jobPathsWithDocker.toDockerPath(jobPaths.stdout).pathAsString),
-        StderrInput -> WomString(jobPathsWithDocker.toDockerPath(jobPaths.stderr).pathAsString),
+        StdoutInput -> WomString(jobPathsWithDocker.toDockerPath(standardPaths.output).pathAsString),
+        StderrInput -> WomString(jobPathsWithDocker.toDockerPath(standardPaths.error).pathAsString),
         ScriptInput -> WomString(jobPathsWithDocker.toDockerPath(jobPaths.script).pathAsString)
       )
     } else {
       Map(
-        StdoutInput -> WomString(jobPaths.stdout.pathAsString),
-        StderrInput -> WomString(jobPaths.stderr.pathAsString),
+        StdoutInput -> WomString(standardPaths.output.pathAsString),
+        StderrInput -> WomString(standardPaths.error.pathAsString),
         ScriptInput -> WomString(jobPaths.script.pathAsString)
       )
     }

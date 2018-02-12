@@ -10,6 +10,7 @@ import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.exception.MessageAggregation
+import common.util.StringUtil._
 import common.util.TryUtil
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.Validation._
@@ -18,19 +19,18 @@ import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle, ReturnCodeIsNotAnInt, StderrNonEmpty, SuccessfulExecutionHandle, WrongReturnCode}
-import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.validation._
 import cromwell.backend.wdl.OutputEvaluator._
 import cromwell.backend.wdl.{Command, OutputEvaluator}
 import cromwell.core.io.{AsyncIoActorClient, DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.path.Path
-import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent}
+import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent, StandardPaths}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
-import wom.callable.RuntimeEnvironment
+import wom.callable.{CommandTaskDefinition, RuntimeEnvironment}
 import wom.expression.WomExpression
 import wom.graph.LocalName
 import wom.values._
@@ -168,7 +168,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @return The shell scripting.
     */
   def directoryScript(unlistedDirectory: WomUnlistedDirectory): String = {
-    val directoryPath = DirectoryFunctions.ensureUnslashed(unlistedDirectory.value)
+    val directoryPath = unlistedDirectory.value.ensureUnslashed
     val directoryList = directoryPath + ".list"
 
     s"""|# list all the files that match the directory into a file called directory.list
@@ -236,9 +236,49 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
     val cwd = commandDirectory
     val rcPath = cwd./(jobPaths.returnCodeFilename)
-    val stdinRedirection = instantiatedCommand.stdinRedirection.map("< " + _.shellQuote).getOrElse("")
-    val stdoutPath = cwd./(jobPaths.stdoutFilename)
-    val stderrPath = cwd./(jobPaths.stderrFilename)
+    // It's here at instantiation time that the names of standard input/output/error files are calculated.
+    // The standard input filename can be as ephemeral as the execution: the name needs to match the expectations of
+    // the command, but the standard input file will never be accessed after the command completes. standard output and
+    // error on the other hand will be accessed and the names of those files need to be known to be delocalized and read
+    // by the backend.
+    //
+    // All of these redirections can be expressions and will be given "value-mapped" versions of their inputs, which
+    // means that if any fully qualified filenames are generated they will be container paths. As mentioned above this
+    // doesn't matter for standard input since that's ephemeral to the container, but standard output and error paths
+    // will need to be mapped back to host paths for use outside the command script.
+    //
+    // Absolutize any redirect and overridden paths. All of these files must have absolute paths since the command script
+    // references them outside a (cd "execution dir"; ...) subshell. The default names are known to be relative paths,
+    // the names from redirections may or may not be relative.
+    def absolutizeContainerPath(path: String): String = {
+      if (path.startsWith(cwd.pathAsString)) path else cwd.resolve(path).pathAsString
+    }
+
+    val executionStdin = instantiatedCommand.evaluatedStdinRedirection map absolutizeContainerPath
+    val executionStdout = instantiatedCommand.evaluatedStdoutOverride.getOrElse(jobPaths.defaultStdoutFilename) |> absolutizeContainerPath
+    val executionStderr = instantiatedCommand.evaluatedStderrOverride.getOrElse(jobPaths.defaultStderrFilename) |> absolutizeContainerPath
+
+    def hostPathFromContainerPath(string: String): Path = {
+      val cwdString = cwd.pathAsString.ensureSlashed
+      val relativePath = string.stripPrefix(cwdString)
+      jobPaths.callExecutionRoot.resolve(relativePath)
+    }
+
+    // .get's are safe on stdout and stderr after falling back to default names above.
+    jobPaths.standardPaths = StandardPaths(
+      output = hostPathFromContainerPath(executionStdout),
+      error = hostPathFromContainerPath(executionStderr)
+    )
+
+    // Re-publish stdout and stderr paths that were possibly just updated.
+    tellMetadata(jobPaths.standardOutputAndErrorPaths)
+
+    // The standard input redirection gets a '<' that standard output and error do not since standard input is only
+    // redirected if requested. Standard output and error are always redirected but not necessarily to the default
+    // stdout/stderr file names.
+    val stdinRedirection = executionStdin.map("< " + _.shellQuote).getOrElse("")
+    val stdoutRedirection = executionStdout.shellQuote
+    val stderrRedirection = executionStderr.shellQuote
     val rcTmpPath = rcPath.plusExt("tmp")
 
     val errorOrDirectoryOutputs: ErrorOr[List[WomUnlistedDirectory]] =
@@ -272,7 +312,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |cd $cwd
         |ENVIRONMENT_VARIABLES
         |INSTANTIATED_COMMAND
-        |) $stdinRedirection > >(tee $stdoutPath) 2> >(tee $stderrPath >&2)
+        |) $stdinRedirection > >(tee $stdoutRedirection) 2> >(tee $stderrRedirection >&2)
         |echo $$? > $rcTmpPath
         |(
         |cd $cwd
@@ -337,13 +377,18 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
       val environmentVariables = callable.environmentExpressions.toList traverse evaluateEnvironmentExpression
 
-      val stdinRedirect = callable.stdinRedirection.traverse[ErrorOr, String] {
-        _.evaluateValue(valueMappedPreprocessedInputs, backendEngineFunctions) map { _.valueString }
+      // Build a list of functions from a CommandTaskDefinition to an Option[WomExpression] representing a possible
+      // redirection or override of the filename of a redirection. Evaluate that expression if present and stringify.
+      val List(stdinRedirect, stdoutOverride, stderrOverride) = List[CommandTaskDefinition => Option[WomExpression]](
+        _.stdinRedirection, _.stdoutOverride, _.stderrOverride) map {
+        _.apply(callable).traverse[ErrorOr, String] { _.evaluateValue(valueMappedPreprocessedInputs, backendEngineFunctions) map { _.valueString} }
       }
 
-      (adHocFileCreationSideEffectFiles, environmentVariables, stdinRedirect) mapN { (adHocFiles, env, stdin) =>
+      (adHocFileCreationSideEffectFiles, environmentVariables, stdinRedirect, stdoutOverride, stderrOverride) mapN {
+        (adHocFiles, env, in, out, err) =>
         instantiatedCommand.copy(
-          createdFiles = instantiatedCommand.createdFiles ++ adHocFiles, environmentVariables = env.toMap, stdinRedirection = stdin)
+          createdFiles = instantiatedCommand.createdFiles ++ adHocFiles, environmentVariables = env.toMap,
+          evaluatedStdinRedirection = in, evaluatedStdoutOverride = out, evaluatedStderrOverride = err)
       }
     }
 
@@ -808,13 +853,15 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     */
   def handleExecutionResult(status: StandardAsyncRunStatus,
                             oldHandle: StandardAsyncPendingExecutionHandle): Future[ExecutionHandle] = {
-      lazy val stderrAsOption: Option[Path] = Option(jobPaths.stderr)
+
+      val stderr = jobPaths.standardPaths.error
+      lazy val stderrAsOption: Option[Path] = Option(stderr)
 
       val stderrSizeAndReturnCode = for {
         returnCodeAsString <- asyncIo.contentAsStringAsync(jobPaths.returnCode, None, failOnOverflow = false)
         // Only check stderr size if we need to, otherwise this results in a lot of unnecessary I/O that
         // may fail due to race conditions on quickly-executing jobs.
-        stderrSize <- if (failOnStdErr) asyncIo.sizeAsync(jobPaths.stderr) else Future.successful(0L)
+        stderrSize <- if (failOnStdErr) asyncIo.sizeAsync(stderr) else Future.successful(0L)
       } yield (stderrSize, returnCodeAsString)
 
       stderrSizeAndReturnCode flatMap {

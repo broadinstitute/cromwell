@@ -31,8 +31,7 @@ case class SparkBackendFactory(name: String, configurationDescriptor: BackendCon
     val jobPaths = JobPathsWithDocker(jobKey, workflowDescriptor, configurationDescriptor.backendConfig)
     val callContext = CallContext(
       jobPaths.callExecutionRoot,
-      jobPaths.stdout.toAbsolutePath.toString,
-      jobPaths.stderr.toAbsolutePath.toString
+      jobPaths.standardPaths
     )
 
     new SharedFileSystemExpressionFunctions(SparkJobExecutionActor.DefaultPathBuilders, callContext, ioActorProxy, ec)

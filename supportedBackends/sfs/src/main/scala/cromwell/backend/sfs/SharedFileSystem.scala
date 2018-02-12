@@ -124,12 +124,11 @@ trait SharedFileSystem extends PathFactory {
     localizePathAlreadyLocalized _ +: mappedDuplicationStrategies
   }
 
-  private def hostAbsoluteFilePath(jobPaths: JobPaths, pathString: String): Path = {
+  def hostAbsoluteFilePath(jobPaths: JobPaths, pathString: String): Path = {
     val path = PathFactory.buildPath(pathString, pathBuilders)
     path match {
       case _: DefaultPath if !path.isAbsolute => jobPaths.callExecutionRoot.resolve(path).toAbsolutePath
-      case _: DefaultPath if path.isAbsolute && jobPaths.isContainerPath(path) => jobPaths.hostPathFromContainerPath(path)
-      case _ => path
+      case _: DefaultPath => jobPaths.hostPathFromContainerPath(path.pathAsString)
     }
   }
 

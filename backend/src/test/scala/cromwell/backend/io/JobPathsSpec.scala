@@ -2,6 +2,7 @@ package cromwell.backend.io
 
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, BackendSpec, TestConfig}
+import cromwell.backend.io.JobPathsSpecHelper._
 import cromwell.core.path.DefaultPathBuilder
 import org.scalatest.{FlatSpec, Matchers}
 import wom.graph.CommandCallNode

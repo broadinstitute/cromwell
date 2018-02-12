@@ -19,6 +19,7 @@ import cromwell.backend.impl.jes.JesAsyncBackendJobExecutionActor.JesPendingExec
 import cromwell.backend.impl.jes.RunStatus.UnsuccessfulRunStatus
 import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.DoPoll
+import cromwell.backend.io.JobPathsSpecHelper._
 import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardExpressionFunctionsParams}
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.Tags.PostWomTest
@@ -83,7 +84,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
 
-  lazy val TestableCallContext = CallContext(mockPathBuilder.build("gs://root").get, "out", "err")
+  lazy val TestableCallContext = CallContext(mockPathBuilder.build("gs://root").get, DummyStandardPaths)
 
   lazy val TestableStandardExpressionFunctionsParams = new StandardExpressionFunctionsParams {
     override lazy val pathBuilders: List[PathBuilder] = List(mockPathBuilder)

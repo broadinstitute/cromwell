@@ -5,6 +5,7 @@ import java.io.File
 import better.files.File.OpenOptions
 import cats.instances.future._
 import cats.syntax.functor._
+import common.util.StringUtil._
 import cromwell.core.io.AsyncIoFunctions
 import cromwell.core.path.{Path, PathFactory}
 import wom.expression.IoFunctionSet
@@ -30,10 +31,7 @@ trait WriteFunctions extends PathFactory with IoFunctionSet with AsyncIoFunction
     }
   }
 
-  private val relativeToLocal = {
-    val initial = System.getProperty("user.dir")
-    if (initial.endsWith("/")) initial else initial + "/"
-  }
+  private val relativeToLocal = System.getProperty("user.dir").ensureSlashed
 
   def relativeToAbsolutePath(pathFrom: String): String = if (new File(pathFrom).isAbsolute) pathFrom else relativeToLocal + pathFrom
 

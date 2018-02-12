@@ -1,6 +1,7 @@
 package cromwell.backend.io
 
 import com.typesafe.config.Config
+import common.util.StringUtil._
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.path.{Path, PathBuilder}
 
@@ -22,13 +23,10 @@ case class JobPathsWithDocker private[io] (override val workflowPaths: WorkflowP
   val callExecutionDockerRoot = callDockerRoot.resolve("execution")
   val callInputsRoot = callRoot.resolve("inputs")
 
-  override def isContainerPath(path: Path): Boolean = path.pathAsString.startsWith(callExecutionDockerRoot.pathAsString)
+  private lazy val callExecutionDockerRootWithSlash = callExecutionDockerRoot.pathAsString.ensureSlashed
 
-  override def hostPathFromContainerPath(path: Path): Path = {
-    val dockerPrefix = callExecutionDockerRoot.pathAsString
-    val dockerPrefixWithSlash = dockerPrefix + (if (dockerPrefix.endsWith("/")) "" else "/")
-    val relativePath = path.pathAsString.substring(dockerPrefixWithSlash.length)
-    callExecutionRoot.resolve(relativePath)
+  override def hostPathFromContainerPath(string: String): Path = {
+    callExecutionRoot.resolve(string.stripPrefix(callExecutionDockerRootWithSlash))
   }
 
   def toDockerPath(path: Path): Path = {

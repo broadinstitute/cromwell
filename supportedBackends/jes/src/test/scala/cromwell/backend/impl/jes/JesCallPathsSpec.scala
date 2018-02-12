@@ -2,6 +2,7 @@ package cromwell.backend.impl.jes
 
 import com.google.cloud.NoCredentials
 import cromwell.backend.BackendSpec
+import cromwell.backend.io.JobPathsSpecHelper._
 import cromwell.cloudsupport.gcp.auth.GoogleAuthModeSpec
 import cromwell.core.TestKitSuite
 import cromwell.util.SampleWdl
@@ -30,8 +31,8 @@ class JesCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with
     val callPaths = JesJobPaths(workflowPaths, jobDescriptorKey)
     
     callPaths.returnCodeFilename should be("hello-rc.txt")
-    callPaths.stderrFilename should be("hello-stderr.log")
-    callPaths.stdoutFilename should be("hello-stdout.log")
+    callPaths.stderr.getFileName.pathAsString should be("gs://my-cromwell-workflows-bucket/hello-stderr.log")
+    callPaths.stdout.getFileName.pathAsString should be("gs://my-cromwell-workflows-bucket/hello-stdout.log")
     callPaths.jesLogFilename should be("hello.log")
   }
 

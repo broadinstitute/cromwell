@@ -60,7 +60,11 @@ package object core {
   * @param commandString The string representing the instantiation of this command.
   * @param environmentVariables Key/value environment variable pairs.
   * @param createdFiles Any files created as side effects of instantiating the command.
-  * @param stdinRedirection An optional redirection of standard input from a stringified filename.
+  * @param evaluatedStdinRedirection An optional redirection of standard input from a stringified filename.
+  * @param evaluatedStdoutOverride An optional override of standard output to a specified filename. Standard output will
+  *                       always be redirected to a file, this parameter only controls the name of the file.
+  * @param evaluatedStderrOverride An optional override of standard error to a specified filename. Standard error will
+  *                       always be redirected to a file, this parameter only controls the name of the file.
   * @param preprocessedInputs A List of tuples of preprocessed inputs. This is a List rather than a Map because this class
   *                   needs to have a monoid instance. If this class contained Maps there would need to be monoid
   *                   instances for their WomValue values which is unpossible (and the way Cromwell uses this data
@@ -70,7 +74,9 @@ package object core {
 final case class InstantiatedCommand(commandString: String,
                                      environmentVariables: Map[String, String] = Map.empty,
                                      createdFiles: List[CommandSetupSideEffectFile] = List.empty,
-                                     stdinRedirection: Option[String] = None,
+                                     evaluatedStdinRedirection: Option[String] = None,
+                                     evaluatedStdoutOverride: Option[String] = None,
+                                     evaluatedStderrOverride: Option[String] = None,
                                      preprocessedInputs: List[(LocalName, WomValue)] = List.empty,
                                      valueMappedPreprocessedInputs: List[(LocalName, WomValue)] = List.empty)
 

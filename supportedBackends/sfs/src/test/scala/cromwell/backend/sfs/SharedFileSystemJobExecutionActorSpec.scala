@@ -7,6 +7,7 @@ import cromwell.backend.BackendJobExecutionActor.{JobAbortedResponse, JobFailedN
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
 import cromwell.backend.async.WrongReturnCode
+import cromwell.backend.io.JobPathsSpecHelper._
 import cromwell.backend.io.TestWorkflows._
 import cromwell.backend.io.{JobPathsWithDocker, TestWorkflows}
 import cromwell.backend.sfs.TestLocalAsyncJobExecutionActor._

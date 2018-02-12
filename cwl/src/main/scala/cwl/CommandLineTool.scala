@@ -226,12 +226,7 @@ case class CommandLineTool private(
                           requirementsAndHints: List[cwl.Requirement],
                           expressionLib: ExpressionLib): ErrorOr[CallableTaskDefinition] = {
 
-    def stringOrExpressionToString(soe: Option[StringOrExpression]): Option[String] = soe flatMap {
-      case StringOrExpression.String(str) => Option(str)
-      case StringOrExpression.Expression(_) => None // ... for now!
-    }
-
-    val stdinRedirection: Option[WomExpression] = stdin map {
+    def redirect(soe: Option[StringOrExpression]): Option[WomExpression] = soe map {
       _.fold(StringOrExpressionToWomExpression).apply(inputNames, expressionLib)
     }
 
@@ -256,9 +251,9 @@ case class CommandLineTool private(
         // TODO: This doesn't work in all cases and it feels clunky anyway - find a way to sort that out
         prefixSeparator = "#",
         commandPartSeparator = " ",
-        stdinRedirection = stdinRedirection,
-        stdoutRedirection = stringOrExpressionToString(stdout),
-        stderrRedirection = stringOrExpressionToString(stderr),
+        stdinRedirection = redirect(stdin),
+        stdoutOverride = redirect(stdout),
+        stderrOverride = redirect(stderr),
         additionalGlob = Option(WomGlobFile(CwlOutputJson)),
         customizedOutputEvaluation = outputEvaluationJsonFunction
       )

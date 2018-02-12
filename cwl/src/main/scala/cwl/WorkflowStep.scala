@@ -113,6 +113,8 @@ case class WorkflowStep(
       }).getOrElse(WomIdentifier(id))
     }
 
+    def typedRunInputs: Map[String, Option[MyriadInputType]] = run.fold(RunToInputTypeMap).apply(parentName)
+
     // To avoid duplicating nodes, return immediately if we've already covered this node
     val haveWeSeenThisStep: Boolean = knownNodes.collect {
       case CommandCallNode(identifier, _, _, _) => identifier
@@ -188,20 +190,36 @@ case class WorkflowStep(
               }
           }
 
-          def updateFold(sourceMappings: Map[String, OutputPort], newNodes: Set[GraphNode]): Checked[WorkflowStepInputFold] =
-            workflowStepInput.toExpressionNode(sourceMappings, typeMap, expressionLib).map({ expressionNode =>
-              fold |+| WorkflowStepInputFold(
-                stepInputMapping = Map(FullyQualifiedName(workflowStepInput.id).id -> expressionNode),
-                generatedNodes = newNodes + expressionNode
-              )
-            }).toEither
+          lazy val workflowStepInputId = FullyQualifiedName(workflowStepInput.id).id
+
+          def updateFold(sourceMappings: Map[String, OutputPort], newNodes: Set[GraphNode]): Checked[WorkflowStepInputFold] = {
+
+
+            val typeExpectedByRunInput: Option[cwl.MyriadInputType] = typedRunInputs(workflowStepInputId)
+
+            val scatterLookupSet =
+              scatter.toList.
+                flatMap(_.fold(StringOrStringArrayToStringList)).
+                map(id => FullyQualifiedName(id).id)
+
+            val isThisStepScattered = scatterLookupSet.contains(workflowStepInputId)
+
+            workflowStepInput.toExpressionNode(sourceMappings, typeMap, expressionLib, typeExpectedByRunInput, isThisStepScattered).
+              map{
+                expressionNode =>
+                  fold |+| WorkflowStepInputFold(
+                    stepInputMapping = Map(workflowStepInputId -> expressionNode),
+                    generatedNodes = newNodes + expressionNode
+                  )
+              }.toEither
+          }
 
           /*
            * We intend to validate that all of these sources point to a WOM Outputport that we know about.
            *
            * If we don't know about them, we find upstream nodes and build them (see "buildUpstreamNodes").
            */
-          val inputSources: List[String] = workflowStepInput.source.toList.flatMap(_.fold(WorkflowStepInputSourceToStrings))
+          val inputSources: List[String] = workflowStepInput.source.toList.flatMap(_.fold(StringOrStringArrayToStringList))
 
           val baseCase = (Map.empty[String, OutputPort], fold.generatedNodes).asRight[NonEmptyList[String]]
           val inputMappingsAndGraphNodes: Checked[(Map[String, OutputPort], Set[GraphNode])] =

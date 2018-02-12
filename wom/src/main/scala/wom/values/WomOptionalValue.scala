@@ -83,7 +83,6 @@ final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) e
     value.toList flatMap { _.collectAsSeq(filterFn) }
   }
 
-
   /**
     * Unpack a nested option down to a single layer of optionality
     * eg Bring Int?[...]? down to Int?
@@ -101,8 +100,17 @@ final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) e
   @tailrec
   private def boxUntilType(targetType: WomOptionalType): WomOptionalValue = {
     assert(value.isDefined)
-    assert(targetType.baseMemberType.equals(womType.baseMemberType))
-    if (womType.equals(targetType)) {
+
+    val y = targetType.baseMemberType
+    val x: Boolean = targetType.baseMemberType.equals(womType.baseMemberType)
+    println(x)
+    println(y)
+    /*
+    assert(
+      targetType.baseMemberType.equals(womType.baseMemberType),
+      s"base member type ${targetType.baseMemberType} and womtype ${womType.baseMemberType} are not equal")
+      */
+    if (womType.depth.equals(targetType.depth)) {
       this
     } else {
       WomOptionalValue(womType, Some(this)).boxUntilType(targetType)
@@ -119,7 +127,8 @@ final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) e
     * @param womOptionalType The final type we want to create
     */
   def coerceAndSetNestingLevel(womOptionalType: WomOptionalType) = this.flattenOptional match {
-    case WomOptionalValue(_, Some(v)) => womOptionalType.baseMemberType.coerceRawValue(v).map(WomOptionalValue(_).boxUntilType(womOptionalType))
+    case WomOptionalValue(_, Some(v)) =>
+      womOptionalType.baseMemberType.coerceRawValue(v).map(WomOptionalValue(_).boxUntilType(womOptionalType))
     case WomOptionalValue(_, None) => Success(WomOptionalValue(womOptionalType.memberType, None))
   }
 

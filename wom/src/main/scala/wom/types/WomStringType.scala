@@ -1,9 +1,10 @@
 package wom.types
 
 import spray.json.JsString
+import wom.WomExpressionException
 import wom.values.{WomPrimitive, WomPrimitiveFile, WomString, WomValue}
 
-import scala.util.{Success, Try}
+import scala.util.{Failure, Success, Try}
 
 case object WomStringType extends WomPrimitiveType {
   val toDisplayString: String = "String"
@@ -29,7 +30,16 @@ case object WomStringType extends WomPrimitiveType {
     case _ => invalid(s"$this + $rhs")
   }
 
-  override def equals(rhs: WomType): Try[WomType] = comparisonOperator(rhs, "==")
+  override def equals(rhs: WomType): Try[WomType] =
+
+    rhs match {
+    case WomOptionalType(wct:WomCoproductType) =>
+      wct.types.exists(_.equals(WomStringType)) match {
+        case true => Success(WomBooleanType)
+        case _ => Failure(new WomExpressionException(s"Type equality could not be asserted because $rhs was not found in the coproduct of ${wct.toDisplayString}"))
+      }
+    case other => comparisonOperator(other, "==")
+  }
   override def lessThan(rhs: WomType): Try[WomType] = comparisonOperator(rhs, "<")
   override def greaterThan(rhs: WomType): Try[WomType] = comparisonOperator(rhs, ">")
 }

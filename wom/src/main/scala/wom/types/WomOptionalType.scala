@@ -6,6 +6,11 @@ import wom.values.{WomOptionalValue, WomValue}
 import scala.util.Try
 
 case class WomOptionalType(memberType: WomType) extends WomType {
+
+  def depth: Int = memberType match {
+    case recursive: WomOptionalType => 1 + recursive.depth
+    case _ => 1
+  }
   /**
     * Method to be overridden by implementation classes defining a partial function
     * for the conversion of raw input values to specific implementation class value types.

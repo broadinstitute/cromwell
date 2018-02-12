@@ -1,7 +1,8 @@
 package wom.types
+import wom.WomExpressionException
 import wom.values.WomValue
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 case class WomCoproductType(types: Set[WomType]) extends WomType {
   /**
@@ -11,13 +12,19 @@ case class WomCoproductType(types: Set[WomType]) extends WomType {
     * construct `WomBoolean`s for inputs of supported types and contents.  Values for which
     * the partial function is not defined are assumed to not be convertible to the target type.
     */
-  override def coercion(): PartialFunction[Any, WomValue] = {
-    case any =>
-      types.map(t =>
-        t.coerceRawValue(any)
-      ).reduce(_ orElse _).get
-  }
+  override def coercion(): PartialFunction[Any, WomValue] =
+      types.map(
+        _.coercion()
+      ).reduce(_ orElse _)
 
   override def toDisplayString: String =
     types.map(_.toDisplayString).mkString("Coproduct[",", ", "]")
+
+  override def equals(rhs: WomType): Try[WomType] = {
+    println("running equals")
+    types.exists(_.equals(rhs)) match {
+      case true => Success(WomBooleanType)
+      case _ => Failure(new WomExpressionException(s"Type equality could not be asserted because $rhs was found in the coproduct of $toDisplayString"))
+    }
+  }
 }

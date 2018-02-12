@@ -5,10 +5,10 @@ import simulacrum._
 
 import scala.language.implicitConversions
 
-case class WorkflowDefinitionElement(identifier: String
-                                    // TODO: sections
+case class WorkflowDefinitionElement(name: String,
+                                     workflowOutputs: Seq[WorkflowOutputsElement]
                                     ) extends LanguageElement {
-  override def children: Seq[LanguageElement] = List.empty // TODO: sections
+  override def children: Seq[LanguageElement] = workflowOutputs
 }
 
 @typeclass

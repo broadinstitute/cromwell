@@ -224,7 +224,8 @@ object Operations {
       def checkPAPIAborted(): Unit = {
         val operation: Operation = genomics.operations().get(jobId).execute()
         val done = operation.getDone
-        val aborted = operation.getError.getCode == 1 && operation.getError.getMessage.startsWith("Operation canceled")
+        val operationError = Option(operation.getError)
+        val aborted = operationError.exists(_.getCode == 1) && operationError.exists(_.getMessage.startsWith("Operation canceled"))
         if (!(done && aborted)) {
           throw new Exception("Underlying JES job was not aborted properly")
         }

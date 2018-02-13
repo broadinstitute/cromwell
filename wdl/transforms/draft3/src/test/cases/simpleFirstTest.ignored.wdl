@@ -1,3 +1,5 @@
+version draft3
+
 task in_n_out {
   input {
     Int total

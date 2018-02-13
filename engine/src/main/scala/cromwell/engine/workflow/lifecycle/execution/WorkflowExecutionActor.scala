@@ -149,7 +149,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   // Most of the Event handling is common to all states, so put it here. Specific behavior is added / overridden in each state
   whenUnhandled {
     case Event(ExecutionHeartBeat, data) if data.executionStore.needsUpdate =>
-      val newData =  startRunnableNodes(data)
+      val newData = startRunnableNodes(data)
       sendHeartBeat()
       stay() using newData
     case Event(ExecutionHeartBeat, _) =>

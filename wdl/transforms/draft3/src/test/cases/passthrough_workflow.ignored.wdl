@@ -1,3 +1,5 @@
+version draft-3
+
 workflow foo {
   input {
     Int x

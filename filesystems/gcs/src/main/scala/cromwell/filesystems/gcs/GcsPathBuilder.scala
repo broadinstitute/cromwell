@@ -152,7 +152,7 @@ class GcsPathBuilder(apiStorage: com.google.api.services.storage.Storage,
     }
   }
 
-  override def name: String = "Gcs"
+  override def name: String = "Google Cloud Storage"
 }
 
 case class GcsPath private[gcs](nioPath: NioPath,

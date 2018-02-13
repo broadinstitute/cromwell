@@ -1,4 +1,4 @@
-version draft3
+version draft-3
 
 workflow foo {
   input {

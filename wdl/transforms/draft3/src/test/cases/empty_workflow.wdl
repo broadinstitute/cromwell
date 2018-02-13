@@ -1,3 +1,3 @@
-version draft3
+version draft-3
 
 workflow empty {}

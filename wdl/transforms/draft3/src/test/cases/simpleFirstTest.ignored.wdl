@@ -1,4 +1,4 @@
-version draft3
+version draft-3
 
 task in_n_out {
   input {

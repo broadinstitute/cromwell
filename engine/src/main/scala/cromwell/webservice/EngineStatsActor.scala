@@ -38,7 +38,7 @@ final case class EngineStatsActor(workflowActors: List[ActorRef], replyTo: Actor
   }
 
   private def reportStats(): Unit = {
-    replyTo ! EngineStats(jobCounts.size, jobCounts.values.sum)
+    replyTo ! EngineStats(workflowActors.size, jobCounts.values.sum)
     scheduledMsg.cancel()
     context stop self
   }

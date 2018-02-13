@@ -15,7 +15,7 @@ import scala.util.Try
 object StringParser extends FromAtoB[FileParserInput, Ast] {
   override def convert(a: FileParserInput): ErrorOr[Ast] = Try {
     val parser = new WdlParser()
-    val tokens = parser.lex(a. workflowSource, a.resource)
+    val tokens = parser.lex(a.workflowSource, a.resource)
     val terminalMap = (tokens.asScala.toVector map {(_, a.workflowSource)}).toMap
     val syntaxErrorFormatter = WdlDraft3SyntaxErrorFormatter(terminalMap)
     parser.parse(tokens, syntaxErrorFormatter).toAst.asInstanceOf[Ast]

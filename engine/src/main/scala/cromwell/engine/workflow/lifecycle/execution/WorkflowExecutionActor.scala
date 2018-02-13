@@ -67,11 +67,13 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     WorkflowExecutionPendingState,
     WorkflowExecutionActorData(workflowDescriptor, ioEc, new AsyncIo(params.ioActor, GcsBatchCommandBuilder))
   )
+  
+  private def sendHeartBeat(): Unit = timers.startSingleTimer(ExecutionHeartBeatKey, ExecutionHeartBeat, ExecutionHeartBeatInterval)
 
   when(WorkflowExecutionPendingState) {
     case Event(ExecuteWorkflowCommand, _) =>
       // Start HeartBeat
-      timers.startPeriodicTimer(ExecutionHeartBeatKey, ExecutionHeartBeat, ExecutionHeartBeatInterval)
+      sendHeartBeat()
 
       /*
         * Note that we don't record the fact that a workflow was failing, therefore we either restart in running or aborting state.
@@ -147,8 +149,11 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   // Most of the Event handling is common to all states, so put it here. Specific behavior is added / overridden in each state
   whenUnhandled {
     case Event(ExecutionHeartBeat, data) if data.executionStore.needsUpdate =>
-      stay() using startRunnableNodes(data)
+      val newData = startRunnableNodes(data)
+      sendHeartBeat()
+      stay() using newData
     case Event(ExecutionHeartBeat, _) =>
+      sendHeartBeat()
       stay()
     case Event(JobStarting(jobKey), stateData) =>
       pushStartingCallMetadata(jobKey)

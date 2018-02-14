@@ -1,7 +1,6 @@
 package cwl
 
 import cats.data.NonEmptyList
-import cats.syntax.either._
 import common.Checked
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
@@ -51,6 +50,7 @@ import scala.annotation.tailrec
   *   When we do have this information we update each SVN with it in the ScatterProcessingFunction and returns the number of shards to be generated.
   */
 object ScatterLogic {
+  case class ScatterFunctions(processing: ScatterProcessingFunction, collection: ScatterCollectionFunctionBuilder)
 
   object ScatterVariablesPoly extends Poly1 {
     implicit def fromString: Case.Aux[String, List[String]] = at[String] { s: String => List(s) }
@@ -72,7 +72,7 @@ object ScatterLogic {
     case _ => innerType: WomType => WomArrayType(innerType)
   }
 
-  // Build a list (potentially empty) of scatter variable nodes. Each node represents an input variable being scattered over
+  // Build a map (potentially empty) of scatterered input steps with their corresponding SVN node.
   def buildScatterVariableNodes(scatter: ScatterVariables, stepInputMappings: Map[WorkflowStepInput, ExpressionNode], stepId: String): Checked[Map[WorkflowStepInput, ScatterVariableNode]] = {
     import cats.implicits._
 
@@ -103,15 +103,15 @@ object ScatterLogic {
 
   // Prepare the nodes to be returned if this call is being scattered
   def buildScatterNode(callNodeAndNewNodes: CallNodeAndNewNodes,
-                       scatterVariablesNodes: NonEmptyList[ScatterVariableNode],
+                       scatterVariableNodes: NonEmptyList[ScatterVariableNode],
                        ogins: Set[OuterGraphInputNode],
                        stepExpressionNodes: Set[ExpressionNode],
                        scatterMethod: Option[ScatterMethod]): Checked[ScatterNode] = {
 
-    val scatterProcessingFunctionCheck = (scatterVariablesNodes.size, scatterMethod) match {
+    val scatterProcessingFunctionCheck = (scatterVariableNodes.size, scatterMethod) match {
       // If we scatter over one variable only, the default processing method can handle it
-      case (1, _) => (ScatterNode.DefaultScatterProcessingFunction, ScatterNode.DefaultScatterCollectionFunctionBuilder).validNelCheck
-      case (_, Some(method)) => (processingFunction(method), collectingFunctionBuilder(method)).validNelCheck
+      case (1, _) => ScatterFunctions(ScatterNode.DefaultScatterProcessingFunction, ScatterNode.DefaultScatterCollectionFunctionBuilder).validNelCheck
+      case (_, Some(method)) => ScatterFunctions(processingFunction(method), collectingFunctionBuilder(method)).validNelCheck
       case (_, None) => "When scattering over multiple variables, a scatter method needs to be defined. See http://www.commonwl.org/v1.0/Workflow.html#WorkflowStep".invalidNelCheck
     }
 
@@ -120,26 +120,25 @@ object ScatterLogic {
     // We need to generate PBGONs for every output port of the call, so that they can be linked outside the scatter graph
     val portBasedGraphOutputNodes = callNode.outputPorts.map(op => PortBasedGraphOutputNode(op.identifier, op.womType, op))
 
-    def buildScatterNode(innerGraph: Graph, scatterProcessingFunction: ScatterProcessingFunction, scatterCollectingFunctionBuilder: ScatterCollectionFunctionBuilder) = {
+    def buildScatterNode(innerGraph: Graph, scatterFunctions: ScatterFunctions) = {
       val scatterNodeBuilder = new ScatterNodeBuilder
       val outputPorts: Set[ScatterGathererPort] = innerGraph.nodes.collect { case gon: PortBasedGraphOutputNode =>
-        scatterNodeBuilder.makeOutputPort(scatterGatherPortTypeFunction(scatterMethod, scatterVariablesNodes)(gon.womType), gon)
+        scatterNodeBuilder.makeOutputPort(scatterGatherPortTypeFunction(scatterMethod, scatterVariableNodes)(gon.womType), gon)
       }
 
-      scatterNodeBuilder.build(innerGraph, outputPorts, scatterVariablesNodes.toList, scatterProcessingFunction, scatterCollectingFunctionBuilder)
+      scatterNodeBuilder.build(innerGraph, outputPorts, scatterVariableNodes.toList, scatterFunctions.processing, scatterFunctions.collection)
     }
     
     for {
       scatterProcessingFunctionAndBuilder <- scatterProcessingFunctionCheck
-      (scatterProcessingFunction, scatterCollectingFunctionBuilder) = scatterProcessingFunctionAndBuilder
       graph <- Graph.validateAndConstruct(
         Set(callNodeAndNewNodes.node) ++
           ogins ++
           stepExpressionNodes ++
-          scatterVariablesNodes.toList ++
+          scatterVariableNodes.toList ++
           portBasedGraphOutputNodes
       ).toEither
-      scatterNode = buildScatterNode(graph, scatterProcessingFunction, scatterCollectingFunctionBuilder)
+      scatterNode = buildScatterNode(graph, scatterProcessingFunctionAndBuilder)
     } yield scatterNode.node
   }
 

@@ -6,6 +6,7 @@ import cats.syntax.either._
 import cats.syntax.traverse._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
+import common.validation.Checked._
 import cwl.LinkMergeMethod.LinkMergeMethod
 import cwl.WorkflowStepInput.InputSource
 import cwl.command.ParentName
@@ -144,8 +145,8 @@ object WorkflowStepInput {
       // If sink parameter is not an array and merge flattened is used, validate that the sources types matche the sink type
       case (_, Some(targetType), Some(LinkMergeMethod.MergeFlattened)) if typesToItemMatch(sources.values, targetType) => WomArrayType(targetType).asRight
       // If the types are not compatible, fail  
-      case (_, Some(targetType), Some(LinkMergeMethod.MergeFlattened)) => 
-        (s"could not verify that types $sources and the items type of the run's InputArraySchema $targetType were compatible" |> NonEmptyList.one).asLeft
+      case (_, Some(targetType), Some(LinkMergeMethod.MergeFlattened)) =>
+        s"could not verify that types $sources and the items type of the run's InputArraySchema $targetType were compatible".invalidNelCheck
 
       //We don't have type information from the run input so we gather up the sources and try to determine a common type amongst them.
       case _ => WomType.homogeneousTypeFromTypes(sources.values).asRight

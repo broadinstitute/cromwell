@@ -376,7 +376,7 @@ case class WorkflowStep(
         * Note that this expression might need access to the other input values, so make each expression node depend on all other
         * inputs.
        */
-      def buildStepInputExpressionNodes(sharedInputNodes: Map[WorkflowStepInput, GraphNodeWithSingleOutputPort]): Checked[Map[String, ExpressionNode]] = {
+      def buildStepInputValueFromNodes(sharedInputNodes: Map[WorkflowStepInput, GraphNodeWithSingleOutputPort]): Checked[Map[String, ExpressionNode]] = {
         // Add new information to the typeMap from the shard input nodes.
         lazy val updatedTypeMap = sharedInputNodes.map({
           // If the input node is a scatter variable, make sure the type is the item type, not the array type, as the expression node
@@ -436,9 +436,9 @@ case class WorkflowStep(
         /* ************************************ */
         // Aggregate the generated nodes so far. This map will be used to generate expression nodes, so the order of aggregation matters:
         // scatter variables and ogins take precedence over merge nodes (see diagram)
-        expressionNodeMap = mergeNodes ++ scatterVariableNodes ++ ogins
+        aggregatedMapForValueFromNodes = mergeNodes ++ scatterVariableNodes ++ ogins
         // Build expression nodes for inputs that have a valueFrom field
-        stepInputExpressionNodes <- buildStepInputExpressionNodes(expressionNodeMap)
+        stepInputValueFromNodes <- buildStepInputValueFromNodes(aggregatedMapForValueFromNodes)
 
         /* ************************************ */
         /* ************* Call Node ************ */
@@ -446,9 +446,9 @@ case class WorkflowStep(
         // Get the callable object for this step
         checkedCallable <- callable
         // Aggregate again by adding generated expression nodes. Again order matters here, expression nodes override other nodes.
-        pointerMap = expressionNodeMap.asIdentifierMap ++ stepInputExpressionNodes
-        // Assign of the each callable's input definition to an output port from the pointer map
-        inputDefinitionFold <- checkedCallable.inputs.foldMap(foldInputDefinition(pointerMap)).toEither
+        aggregatedMapForInputDefinitions = aggregatedMapForValueFromNodes.asIdentifierMap ++ stepInputValueFromNodes
+        // Assign each of the callable's input definition to an output port from the pointer map
+        inputDefinitionFold <- checkedCallable.inputs.foldMap(foldInputDefinition(aggregatedMapForInputDefinitions)).toEither
         // Build the call node
         callAndNodes = callNodeBuilder.build(unqualifiedStepId, checkedCallable, inputDefinitionFold)
         // Depending on whether the step is being scattered, invoke the scatter node builder or not
@@ -461,12 +461,12 @@ case class WorkflowStep(
             callAndNodes,
             NonEmptyList.fromListUnsafe(scatterVariableNodes.values.toList),
             ogins.values.toSet,
-            stepInputExpressionNodes.values.toSet,
+            stepInputValueFromNodes.values.toSet,
             scatterMethod).map(Set(_))
         } else {
           // If there's no scatter node then we need to return the expression nodes and the call node explicitly
           // as they won't be contained in the scatter inner graph
-          (stepInputExpressionNodes.values.toSet + callAndNodes.node).validNelCheck
+          (stepInputValueFromNodes.values.toSet + callAndNodes.node).validNelCheck
         }
 
         /*

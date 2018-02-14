@@ -8,6 +8,7 @@ import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.Checked
+import common.transforms.CheckedAtoB
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
@@ -35,7 +36,7 @@ object EnhancedDraft3Ast {
       * Will get an attribute on this Ast as an AstList and then convert that into a vector of Ast
       * @param attr The attribute to read from this Ast
       */
-    def getAttributeAsVector[A](attr: String)(implicit toA: CheckedAstNodeTo[A]): Checked[Vector[A]] = {
+    def getAttributeAsVector[A](attr: String)(implicit toA: CheckedAtoB[AstNode, A]): Checked[Vector[A]] = {
       for {
         asVector <- getAttributeAsAstNodeVector(attr)
         result <- asVector.traverse(toA.run)
@@ -43,7 +44,7 @@ object EnhancedDraft3Ast {
     }
 
     def getAttributeAsVectors[A, B](attr: String, astName1: String, astName2: String)
-                                   (implicit astNodeToA: CheckedAstNodeTo[A], astNodeToB: CheckedAstNodeTo[B]
+                                   (implicit astNodeToA: CheckedAtoB[AstNode, A], astNodeToB:CheckedAtoB[AstNode, B]
                                    ): (Checked[(Vector[A], Vector[B])]) = {
 
       ast.getAttributeAsVector[Ast](attr) flatMap { asts =>

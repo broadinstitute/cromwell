@@ -1,44 +1,31 @@
 package wdl.draft3.transforms
 
 import better.files.File
-import cats.data.Kleisli
 import cats.instances.either._
 import common.Checked
+import common.transforms.CheckedAtoB
 import common.validation.Checked._
 import wdl.draft3.parser.WdlParser.{Ast, AstNode, Terminal}
-import wdl.draft3.transforms.ast2wdlom.CheckedAstNodeToAst.CheckedAstNodeToAst
-import wdl.draft3.transforms.parsing.FileParser
+import wdl.draft3.transforms.parsing._
 import wdl.model.draft3.elements.FileElement
 
 package object ast2wdlom {
 
-  type CheckedAtoB[A, B] = Kleisli[Checked, A, B]
-  object CheckedAtoB {
-    def apply[A, B](implicit runner: CheckedAtoB[A, B]): Kleisli[Checked, A, B] = runner
-    def apply[A, B](run: A => Checked[B]): Kleisli[Checked, A, B] = Kleisli(run)
-  }
+  implicit val checkedAstNodeToAst = CheckedAtoB.fromCheck(run = (a: AstNode) => a match {
+    case ast: Ast => ast.validNelCheck
+    case other => s"Cannot convert from AstNode type '${other.getClass.getSimpleName}' into Ast".invalidNelCheck
+  })
 
-  type CheckedAstNodeTo[B] = CheckedAtoB[AstNode, B]
-  object CheckedAstNodeTo {
-    def apply[B](run: AstNode => Checked[B]): CheckedAstNodeTo[B] = CheckedAtoB[AstNode, B](run)
-  }
+  implicit val checkedAstToFileElement = CheckedAtoB.fromErrorOr(CheckedAstToFileElement.convert)
+  implicit val checkedAstNodeToImportElement = checkedAstNodeToAst andThen CheckedAtoB.fromCheck(CheckedAstToImportElement.convert)
+  implicit val checkedAstNodeToTaskDefinitionElement = checkedAstNodeToAst andThen CheckedAtoB.fromCheck(CheckedAstToTaskDefinitionElement.convert)
+  implicit val checkedAstNodeToWorkflowDefinitionElement = checkedAstNodeToAst andThen CheckedAtoB.fromErrorOr(CheckedAstToWorkflowDefinitionElement.convert)
 
-  type CheckedAstTo[B] = CheckedAtoB[Ast, B]
-  object CheckedAstTo {
-    def apply[B](run: Ast => Checked[B]): CheckedAstTo[B] = CheckedAtoB[Ast, B](run)
-  }
+  implicit val checkedFileElementFromFile: CheckedAtoB[File, FileElement] = checkedFileToAst andThen checkedAstToFileElement
 
-  implicit val astFromAstNode: CheckedAstNodeToAst = CheckedAstNodeToAst.instance
-  implicit val draft3FileElementFromAstNode = astFromAstNode andThen CheckedAstToFileElement.instance
-  implicit val draft3ImportElementFromAstNode = astFromAstNode andThen CheckedAstToImportElement.instance
-  implicit val draft3TaskDefinitionElementFromAstNode = astFromAstNode andThen CheckedAstToTaskDefinitionElement.instance
-  implicit val draft3WorkflowDefinitionElementFromAstNode = astFromAstNode andThen CheckedAstToWorkflowDefinitionElement.instance
-
-  implicit val draft3FileElementFromFile: CheckedAtoB[File, FileElement] = FileParser.instance andThen CheckedAstToFileElement.instance
-
-  implicit val checkedAstNodeToString: CheckedAstNodeTo[String] = CheckedAtoB[AstNode, String] (run = (a: AstNode) => a match {
+  implicit val checkedAstNodeToString = CheckedAtoB.fromCheck { (a: AstNode) => a match {
     case t: Terminal => t.getSourceString.validNelCheck
     case other: AstNode => s"Cannot convert ${other.getClass.getSimpleName} into String".invalidNelCheck
-  })
+  }}
 
 }

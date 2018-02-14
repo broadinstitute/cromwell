@@ -172,6 +172,7 @@ object WomGraph {
     // TODO: Remove this and the 'fakeInput' method with #2867
     val fakedInputs = JsObject(namespace.workflow.inputs map { i => i._1 -> fakeInput(i._2.womType) })
 
+
     namespace.toWomExecutable(Option(fakedInputs.prettyPrint)) match {
       case Right(wom) => wom
       case Left(e) => throw new Exception(s"Can't build WOM executable from WDL namespace: ${e.toList.mkString("\n", "\n", "\n")}")

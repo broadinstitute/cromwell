@@ -14,9 +14,6 @@ import scala.util.Try
 
 object StringParser {
 
-  type FileParser = CheckedAtoB[FileParserInput, Ast]
-  def instance: FileParser = CheckedAtoB(convert _)
-
   def convert(a: FileParserInput): Checked[Ast] = Try {
     val parser = new WdlParser()
     val tokens = parser.lex(a.workflowSource, a.resource)
@@ -29,9 +26,6 @@ object StringParser {
 final case class FileParserInput(workflowSource: WorkflowSource, resource: String)
 
 object FileParser {
-
-  type FileParser = CheckedAtoB[File, Ast]
-  def instance: FileParser = CheckedAtoB(convert _)
 
   def convert(a: File): Checked[Ast] = {
     val parserInput = FileParserInput(a.contentAsString, a.name)

@@ -1,16 +1,8 @@
 package wdl.draft3.transforms
 
-import better.files.File
-import cats.instances.either._
-
-import wdl.draft3.transforms.ast2wdlom._
-import wdl.draft3.transforms.wdlom2wom.FileElementToWomExecutable.FileElementAndInputsFile
-import wom.executable.Executable
+import common.transforms.CheckedAtoB
 
 package object wdlom2wom {
-  implicit val fromWorkflowDefinitionElementToWorkflowDefinition = WorkflowDefinitionElementToWomWorkflowDefinition
-
-  def womFromDraft3FileConverter(inputs: Option[String]): CheckedAtoB[File, Executable] = {
-    draft3FileElementFromFile.map(FileElementAndInputsFile(_, inputs)) andThen FileElementToWomExecutable.instance
-  }
+  implicit val checkedWorkflowDefinitionElementToWomWorkflowDefinition = CheckedAtoB.fromErrorOr(WorkflowDefinitionElementToWomWorkflowDefinition.convert)
+  implicit val fileElementToWomExecutable = CheckedAtoB.fromErrorOr(FileElementToWomExecutable.convert)
 }

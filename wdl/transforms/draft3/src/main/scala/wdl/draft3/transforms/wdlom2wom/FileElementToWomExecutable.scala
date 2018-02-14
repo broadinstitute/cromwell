@@ -7,29 +7,25 @@ import cats.instances.vector._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
-import wdl.draft3.transforms.ast2wdlom.CheckedAtoB
+import common.transforms.CheckedAtoB
 import wdl.model.draft3.elements.{FileElement, ImportElement, TaskDefinitionElement, WorkflowDefinitionElement}
 import wom.callable.WorkflowDefinition
 import wom.executable.Executable
+import wom.transforms.WomExecutableMaker.ExecutableMakerInputs
 
 object FileElementToWomExecutable {
 
-  type FileElementToWomExecutable = CheckedAtoB[FileElementAndInputsFile, Executable]
-  def instance: FileElementToWomExecutable = CheckedAtoB(convert _)
+  def convert(a: ExecutableMakerInputs[FileElement]): ErrorOr[Executable] = {
 
-  final case class FileElementAndInputsFile(fileElement: FileElement, inputs: Option[String])
-
-  def convert(a: FileElementAndInputsFile): Checked[Executable] = {
-
-    val importsValidation: ErrorOr[Vector[ImportElement]] = if (a.fileElement.imports.isEmpty) Vector.empty.valid else "FileElement to WOM conversion of imports not yet implemented.".invalidNel
-    val tasksValidation: ErrorOr[Vector[TaskDefinitionElement]] = if (a.fileElement.imports.isEmpty) Vector.empty.valid else "FileElement to WOM conversion of tasks not yet implemented.".invalidNel
+    val importsValidation: ErrorOr[Vector[ImportElement]] = if (a.from.imports.isEmpty) Vector.empty.valid else "FileElement to WOM conversion of imports not yet implemented.".invalidNel
+    val tasksValidation: ErrorOr[Vector[TaskDefinitionElement]] = if (a.from.imports.isEmpty) Vector.empty.valid else "FileElement to WOM conversion of tasks not yet implemented.".invalidNel
 
 
     def importAndTasksToWorkflow(imports: Vector[ImportElement], tasks: Vector[TaskDefinitionElement]): ErrorOr[Executable] = {
-      implicit val workflowConverter: CheckedAtoB[WorkflowDefinitionElement, WorkflowDefinition] = WorkflowDefinitionElementToWomWorkflowDefinition.instance
+      implicit val workflowConverter: CheckedAtoB[WorkflowDefinitionElement, WorkflowDefinition] = checkedWorkflowDefinitionElementToWomWorkflowDefinition
 
       val workflowsValidation: ErrorOr[Vector[WorkflowDefinition]] = {
-        a.fileElement.workflows.toVector.traverse[ErrorOr, WorkflowDefinition](workflowConverter.run(_).toValidated)
+        a.from.workflows.toVector.traverse[ErrorOr, WorkflowDefinition](workflowConverter.run(_).toValidated)
       }
 
       workflowsValidation flatMap {
@@ -39,7 +35,7 @@ object FileElementToWomExecutable {
     }
 
 
-    ((importsValidation, tasksValidation) flatMapN importAndTasksToWorkflow).toEither
+    (importsValidation, tasksValidation) flatMapN importAndTasksToWorkflow
 
   }
 }

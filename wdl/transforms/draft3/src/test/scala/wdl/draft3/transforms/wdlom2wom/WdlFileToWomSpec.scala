@@ -2,6 +2,8 @@ package wdl.draft3.transforms.wdlom2wom
 
 import better.files.File
 import org.scalatest.{FlatSpec, Matchers}
+import wom.transforms.WomExecutableMaker.ExecutableMakerInputs
+import wdl.draft3.transforms.parsing._
 
 class WdlFileToWomSpec extends FlatSpec with Matchers {
   behavior of "WDL File to WOM"
@@ -25,8 +27,8 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     }
 
     testOrIgnore {
-
-      womFromDraft3FileConverter(None).run(testCase) match {
+      val input = ExecutableMakerInputs(testCase, None)
+      checkedFileToWomExecutable.run(input) match {
         case Right(_) => // Great!
         case Left(errors) =>
           val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())

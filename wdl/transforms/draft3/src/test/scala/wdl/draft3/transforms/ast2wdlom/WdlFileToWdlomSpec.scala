@@ -31,7 +31,7 @@ class WdlFileToWdlomSpec extends FlatSpec with Matchers {
     testOrIgnore {
 
       val expected = expectations.getOrElse(testName, fail(s"No Element expectation defined for $testName"))
-      draft3FileElementFromFile.run(testCase) match {
+      checkedFileElementFromFile.run(testCase) match {
         case Right(actual) => actual shouldBe expected
         case Left(errors) =>
           val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())

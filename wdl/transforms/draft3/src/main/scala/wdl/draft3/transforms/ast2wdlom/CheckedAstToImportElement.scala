@@ -7,9 +7,6 @@ import wdl.model.draft3.elements.ImportElement
 
 object CheckedAstToImportElement {
 
-  type CheckedAstToImportElement = CheckedAstTo[ImportElement]
-  def instance: CheckedAstToImportElement = CheckedAtoB(convert _)
-
   def convert(a: Ast): Checked[ImportElement] =
     "FromAst[ImportElement](a: Ast) is not implemented".invalidNelCheck
 }

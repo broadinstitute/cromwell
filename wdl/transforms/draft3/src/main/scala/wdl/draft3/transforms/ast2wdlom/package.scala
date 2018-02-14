@@ -1,24 +1,29 @@
 package wdl.draft3.transforms
 
-import cats.syntax.validated._
-import common.validation.ErrorOr.ErrorOr
-import wdl.draft3.parser.WdlParser.{AstNode, Terminal}
-import wdl.draft3.transforms.parsing.FileParser
+import better.files.File
+import cats.instances.either._
+import common.transforms.CheckedAtoB
+import common.validation.Checked._
+import wdl.draft3.parser.WdlParser.{Ast, AstNode, Terminal}
+import wdl.draft3.transforms.parsing._
+import wdl.model.draft3.elements.{FileElement, ImportElement, TaskDefinitionElement, WorkflowDefinitionElement}
 
 package object ast2wdlom {
 
-  implicit val astFromAstNode = AstFromAstNode
-  implicit val draft3FileElementFromAstNode = FromAtoB.viaX(AstFromAstNode, Draft3FileElementFromAst)
-  implicit val draft3ImportElementFromAstNode = FromAtoB.viaX(AstFromAstNode, Draft3ImportElementFromAst)
-  implicit val draft3TaskDefinitionElementFromAstNode = FromAtoB.viaX(AstFromAstNode, Draft3TaskDefinitionElementFromAst)
-  implicit val draft3WorkflowDefinitionElementFromAstNode = FromAtoB.viaX(AstFromAstNode, Draft3WorkflowDefinitionElementFromAst)
-
-  implicit val draft3FileElementFromFile = FromAtoB.viaX(FileParser, Draft3FileElementFromAst)
-
-  implicit val StringFromAstNode: FromAtoB[AstNode, String] = new FromAtoB[AstNode, String] {
-    override def convert(a: AstNode): ErrorOr[String] = a match {
-      case t: Terminal => t.getSourceString.valid
-      case other: AstNode => s"Cannot convert ${other.getClass.getSimpleName} into String".invalidNel
-    }
+  implicit val astNodeToAst: CheckedAtoB[AstNode, Ast] = CheckedAtoB.fromCheck {
+    case ast: Ast => ast.validNelCheck
+    case other => s"Cannot convert from AstNode type '${other.getClass.getSimpleName}' into Ast".invalidNelCheck
   }
+
+  implicit val astToFileElement: CheckedAtoB[Ast, FileElement] = CheckedAtoB.fromErrorOr(CheckedAstToFileElement.convert)
+  implicit val astNodeToImportElement: CheckedAtoB[AstNode, ImportElement] = astNodeToAst andThen CheckedAtoB.fromCheck(CheckedAstToImportElement.convert)
+  implicit val astNodeToTaskDefinitionElement: CheckedAtoB[AstNode, TaskDefinitionElement] = astNodeToAst andThen CheckedAtoB.fromCheck(CheckedAstToTaskDefinitionElement.convert)
+  implicit val astNodeToWorkflowDefinitionElement: CheckedAtoB[AstNode, WorkflowDefinitionElement] = astNodeToAst andThen CheckedAtoB.fromErrorOr(CheckedAstToWorkflowDefinitionElement.convert)
+
+  implicit val fileToFileElement: CheckedAtoB[File, FileElement] = fileToAst andThen astToFileElement
+
+  implicit val astNodeToString: CheckedAtoB[AstNode, String] = CheckedAtoB.fromCheck { (a: AstNode) => a match {
+    case t: Terminal => t.getSourceString.validNelCheck
+    case other: AstNode => s"Cannot convert ${other.getClass.getSimpleName} into String".invalidNelCheck
+  }}
 }

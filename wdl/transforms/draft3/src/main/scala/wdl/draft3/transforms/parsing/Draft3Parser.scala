@@ -7,7 +7,6 @@ import scala.collection.JavaConverters._
 import common.validation.Validation.TryValidation
 import wdl.draft3.parser.WdlParser
 import wdl.draft3.parser.WdlParser.Ast
-import wdl.draft3.transforms.ast2wdlom.CheckedAtoB
 import wom.core.WorkflowSource
 
 import scala.util.Try

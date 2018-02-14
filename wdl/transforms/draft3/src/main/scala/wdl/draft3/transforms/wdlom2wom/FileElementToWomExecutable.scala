@@ -22,7 +22,7 @@ object FileElementToWomExecutable {
 
 
     def importAndTasksToWorkflow(imports: Vector[ImportElement], tasks: Vector[TaskDefinitionElement]): ErrorOr[Executable] = {
-      implicit val workflowConverter: CheckedAtoB[WorkflowDefinitionElement, WorkflowDefinition] = checkedWorkflowDefinitionElementToWomWorkflowDefinition
+      implicit val workflowConverter: CheckedAtoB[WorkflowDefinitionElement, WorkflowDefinition] = workflowDefinitionElementToWomWorkflowDefinition
 
       val workflowsValidation: ErrorOr[Vector[WorkflowDefinition]] = {
         a.from.workflows.toVector.traverse[ErrorOr, WorkflowDefinition](workflowConverter.run(_).toValidated)

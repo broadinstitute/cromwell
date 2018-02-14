@@ -13,7 +13,7 @@ import scala.util.Try
 
 object StringParser {
 
-  def convert(a: FileParserInput): Checked[Ast] = Try {
+  def convert(a: FileStringParserInput): Checked[Ast] = Try {
     val parser = new WdlParser()
     val tokens = parser.lex(a.workflowSource, a.resource)
     val terminalMap = (tokens.asScala.toVector map {(_, a.workflowSource)}).toMap
@@ -22,12 +22,12 @@ object StringParser {
   }.toChecked
 }
 
-final case class FileParserInput(workflowSource: WorkflowSource, resource: String)
+final case class FileStringParserInput(workflowSource: WorkflowSource, resource: String)
 
 object FileParser {
 
   def convert(a: File): Checked[Ast] = {
-    val parserInput = FileParserInput(a.contentAsString, a.name)
+    val parserInput = FileStringParserInput(a.contentAsString, a.name)
     StringParser.convert(parserInput)
   }
 }

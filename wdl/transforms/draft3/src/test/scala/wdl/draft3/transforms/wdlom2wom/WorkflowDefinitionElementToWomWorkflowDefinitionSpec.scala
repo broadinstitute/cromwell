@@ -13,7 +13,7 @@ class WorkflowDefinitionElementToWomWorkflowDefinitionSpec extends FlatSpec with
   cases foreach { case (testName, workflowDefinitionElement) =>
     it should s"convert the '$testName' into WOM" in {
 
-      checkedWorkflowDefinitionElementToWomWorkflowDefinition.run(workflowDefinitionElement) match {
+      workflowDefinitionElementToWomWorkflowDefinition.run(workflowDefinitionElement) match {
         case Right(_) => // Great!
         case Left(errors) => fail(s"Failed to produce WOM for '$testName': ${errors.toList.mkString(System.lineSeparator, System.lineSeparator, System.lineSeparator)}")
       }

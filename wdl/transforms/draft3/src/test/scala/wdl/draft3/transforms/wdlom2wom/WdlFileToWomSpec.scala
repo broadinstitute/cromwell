@@ -28,7 +28,7 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
 
     testOrIgnore {
       val input = ExecutableMakerInputs(testCase, None)
-      checkedFileToWomExecutable.run(input) match {
+      fileToWomExecutable.run(input) match {
         case Right(_) => // Great!
         case Left(errors) =>
           val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())

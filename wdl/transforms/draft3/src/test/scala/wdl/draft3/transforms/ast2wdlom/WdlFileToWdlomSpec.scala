@@ -4,8 +4,9 @@ import better.files.File
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.model.draft3.elements._
 import wdl.draft3.transforms.ast2wdlom.WdlFileToWdlomSpec._
+import wdl.model.draft3.elements.ExpressionElement._
 import wom.types._
-import wom.values.{WomBoolean, WomFloat, WomInteger, WomSingleFile, WomString}
+import wom.values.{WomBoolean, WomFloat, WomInteger, WomString}
 
 class WdlFileToWdlomSpec extends FlatSpec with Matchers {
 
@@ -85,7 +86,22 @@ object WdlFileToWdlomSpec {
               InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "i", Some(PrimitiveLiteralExpressionElement(WomInteger(5)))),
               InputDeclarationElement(PrimitiveTypeElement(WomStringType), "s", Some(PrimitiveLiteralExpressionElement(WomString("s")))),
               InputDeclarationElement(PrimitiveTypeElement(WomFloatType), "f", Some(PrimitiveLiteralExpressionElement(WomFloat(5.5)))),
-              InputDeclarationElement(PrimitiveTypeElement(WomBooleanType), "b", Some(PrimitiveLiteralExpressionElement(WomBoolean(true)))),
+              InputDeclarationElement(PrimitiveTypeElement(WomBooleanType), "b", Some(PrimitiveLiteralExpressionElement(WomBoolean(true))))
+            )
+          )),
+          outputsSection = Vector.empty)
+        ),
+        tasks = List.empty),
+    "input_expressions" ->
+      FileElement(
+        imports = Vector.empty,
+        workflows = Vector(WorkflowDefinitionElement(
+          name = "input_expressions",
+          inputsSection = Some(InputsSectionElement(
+            inputDeclarations = Vector(
+              InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "four", Some(Add(
+                left = PrimitiveLiteralExpressionElement(WomInteger(2)),
+                right = PrimitiveLiteralExpressionElement(WomInteger(2)))))
             )
           )),
           outputsSection = Vector.empty)

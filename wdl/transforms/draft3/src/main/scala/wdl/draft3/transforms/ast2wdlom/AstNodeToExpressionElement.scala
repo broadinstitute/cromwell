@@ -12,7 +12,7 @@ import scala.util.Try
 object AstNodeToExpressionElement {
   def convert(astNode: AstNode): ErrorOr[ExpressionElement] = astNode match {
 
-    case t: Terminal if asPrimitive.isDefinedAt((t.getTerminalStr, t.getSourceString)) => asPrimitive((t.getTerminalStr, t.getSourceString)).map(PrimitiveLiteralExpression)
+    case t: Terminal if asPrimitive.isDefinedAt((t.getTerminalStr, t.getSourceString)) => asPrimitive((t.getTerminalStr, t.getSourceString)).map(PrimitiveLiteralExpressionElement)
     case t: Terminal => s"No rule available to create ExpressionElement from terminal: ${t.getTerminalStr} ${t.getSourceString}".invalidNel
   }
 

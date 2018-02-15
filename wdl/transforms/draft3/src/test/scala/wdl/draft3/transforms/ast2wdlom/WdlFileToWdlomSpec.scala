@@ -82,10 +82,10 @@ object WdlFileToWdlomSpec {
           name = "input_values",
           inputsSection = Some(InputsSectionElement(
             inputDeclarations = Vector(
-              InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "i", Some(PrimitiveLiteralExpression(WomInteger(5)))),
-              InputDeclarationElement(PrimitiveTypeElement(WomStringType), "s", Some(PrimitiveLiteralExpression(WomString("s")))),
-              InputDeclarationElement(PrimitiveTypeElement(WomFloatType), "f", Some(PrimitiveLiteralExpression(WomFloat(5.5)))),
-              InputDeclarationElement(PrimitiveTypeElement(WomBooleanType), "b", Some(PrimitiveLiteralExpression(WomBoolean(true)))),
+              InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "i", Some(PrimitiveLiteralExpressionElement(WomInteger(5)))),
+              InputDeclarationElement(PrimitiveTypeElement(WomStringType), "s", Some(PrimitiveLiteralExpressionElement(WomString("s")))),
+              InputDeclarationElement(PrimitiveTypeElement(WomFloatType), "f", Some(PrimitiveLiteralExpressionElement(WomFloat(5.5)))),
+              InputDeclarationElement(PrimitiveTypeElement(WomBooleanType), "b", Some(PrimitiveLiteralExpressionElement(WomBoolean(true)))),
             )
           )),
           outputsSection = Vector.empty)

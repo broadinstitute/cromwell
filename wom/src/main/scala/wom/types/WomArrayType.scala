@@ -21,7 +21,7 @@ sealed trait WomArrayType extends WomType {
   }
 
   private val allowEmpty = !guaranteedNonEmpty
-  override def coercion: PartialFunction[Any, WomValue] = {
+  override protected def coercion: PartialFunction[Any, WomValue] = {
     case s: Seq[Any] if allowEmpty || s.nonEmpty => coerceIterable(s)
     case js: JsArray if allowEmpty || js.elements.nonEmpty => coerceIterable(js.elements)
     case javaList: java.util.List[_] if allowEmpty || !javaList.isEmpty => coerceIterable(javaList.asScala)

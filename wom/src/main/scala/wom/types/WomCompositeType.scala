@@ -23,7 +23,7 @@ case class WomCompositeType(typeMap: Map[String, WomType]) extends WomObjectType
     typeMap.toList.traverse[ErrorOr, (String, WomValue)](Function.tupled(validateType(values))).map(_.toMap)
   }
 
-  override def coercion: PartialFunction[Any, WomValue] = {
+  override protected def coercion = {
     case composite: WomObjectLike if isCoerceableFrom(composite.womType) => WomObject.withType(composite.values, this)
     case map: WomMap if WomStringType.isCoerceableFrom(map.womType.keyType) => WomObject.withType(map.value.map({ case (k, v) => k.valueString -> v }), this)
     case jsObject: JsObject => WomObject.withType(jsObject.fields, this)

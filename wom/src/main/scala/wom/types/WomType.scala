@@ -17,7 +17,7 @@ trait WomType {
    * construct `WomBoolean`s for inputs of supported types and contents.  Values for which
    * the partial function is not defined are assumed to not be convertible to the target type.
    */
-  def coercion: PartialFunction[Any, WomValue]
+  protected def coercion: PartialFunction[Any, WomValue]
   def coercionDefined(any: Any) = coercion.isDefinedAt(any)
 
   /**

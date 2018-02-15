@@ -9,7 +9,7 @@ import scala.util.{Failure, Success, Try}
 case object WomStringType extends WomPrimitiveType {
   val toDisplayString: String = "String"
 
-  override def coercion: PartialFunction[Any, WomValue] = {
+  override protected def coercion = {
     case s: String => WomString(s)
     case s: JsString => WomString(s.value)
     case s: WomString => s
@@ -31,15 +31,11 @@ case object WomStringType extends WomPrimitiveType {
   }
 
   override def equals(rhs: WomType): Try[WomType] =
-
     rhs match {
-    case WomOptionalType(wct:WomCoproductType) =>
-      wct.types.exists(_.equals(WomStringType)) match {
-        case true => Success(WomBooleanType)
-        case _ => Failure(new WomExpressionException(s"Type equality could not be asserted because $rhs was not found in the coproduct of ${wct.toDisplayString}"))
-      }
-    case other => comparisonOperator(other, "==")
-  }
+      case WomOptionalType(wct:WomCoproductType) => wct.typeExists(WomStringType)
+      case other => comparisonOperator(other, "==")
+    }
+
   override def lessThan(rhs: WomType): Try[WomType] = comparisonOperator(rhs, "<")
   override def greaterThan(rhs: WomType): Try[WomType] = comparisonOperator(rhs, ">")
 }

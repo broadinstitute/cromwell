@@ -1,14 +1,14 @@
 package wom.types
 
 import spray.json.{JsNumber, JsString}
-import wom.values.{WomInteger, WomString, WomValue}
+import wom.values.{WomInteger, WomString}
 
 import scala.util.{Success, Try}
 
 case object WomIntegerType extends WomPrimitiveType {
   val toDisplayString: String = "Int"
 
-  override def coercion: PartialFunction[Any, WomValue] = {
+  override protected def coercion = {
     case i: Integer => WomInteger(i)
     case n: JsNumber if n.value.isValidInt => WomInteger(n.value.intValue())
     case i: WomInteger => i

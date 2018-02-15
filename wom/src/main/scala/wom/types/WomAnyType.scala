@@ -41,7 +41,7 @@ case object WomAnyType extends WomType {
    * and then it is Map[Float, String].coerce is called on that map. This step
    * should fail at this stage.
    */
-  override def coercion: PartialFunction[Any, WomValue] = {
+  override protected def coercion = {
     case womValue: WomValue => womValue
     case any: Any =>
 

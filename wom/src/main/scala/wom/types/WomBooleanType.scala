@@ -8,7 +8,7 @@ import scala.util.{Success, Try}
 case object WomBooleanType extends WomPrimitiveType {
   val toDisplayString: String = "Boolean"
 
-  override def coercion: PartialFunction[Any, WomValue] = {
+  override protected def coercion = {
     case b: Boolean => WomBoolean(b)
     case s: String if s.equalsIgnoreCase("true") => WomBoolean.True
     case s: String if s.equalsIgnoreCase("false") => WomBoolean.False

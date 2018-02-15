@@ -1,3 +1,7 @@
+# Test is currently broken https://github.com/broadinstitute/cromwell/issues/3270
+ignore: true
+
+# NOTE: When changing Somatic/cnv_common_tasks.wdl you must update _all_ tests that use the shared file
 name: cnv_somatic_panel
 testFormat: workflowsuccess
 

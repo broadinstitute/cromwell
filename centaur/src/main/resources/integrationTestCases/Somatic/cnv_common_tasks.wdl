@@ -1,3 +1,5 @@
+# NOTE: When changing this file you must update _all_ tests that use the shared file
+
 task PreprocessIntervals {
     File? intervals
     File ref_fasta

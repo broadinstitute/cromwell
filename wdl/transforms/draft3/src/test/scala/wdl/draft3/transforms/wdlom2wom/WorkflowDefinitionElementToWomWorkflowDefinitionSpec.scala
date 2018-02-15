@@ -6,7 +6,7 @@ import wdl.model.draft3.elements.WorkflowDefinitionElement
 class WorkflowDefinitionElementToWomWorkflowDefinitionSpec extends FlatSpec with Matchers {
 
   val cases = List(
-    ("empty workflow definition", WorkflowDefinitionElement("empty_workflow"))
+    ("empty workflow definition", WorkflowDefinitionElement("empty_workflow", Vector.empty))
   )
 
 

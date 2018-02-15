@@ -1,17 +1,7 @@
 package wdl.model.draft3.elements
 
-import common.validation.ErrorOr.ErrorOr
-import simulacrum._
-
-import scala.language.implicitConversions
-
-case class WorkflowDefinitionElement(identifier: String
-                                    // TODO: sections
+final case class WorkflowDefinitionElement(name: String,
+                                     workflowOutputs: Vector[WorkflowOutputsElement]
                                     ) extends LanguageElement {
-  override def children: Seq[LanguageElement] = List.empty // TODO: sections
-}
-
-@typeclass
-trait WorkflowDefinitionElementMaker[A] {
-  def convert(a: A): ErrorOr[WorkflowDefinitionElement]
+  override def children: Seq[LanguageElement] = workflowOutputs
 }

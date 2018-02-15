@@ -6,7 +6,7 @@ import common.transforms.CheckedAtoB
 import common.validation.Checked._
 import wdl.draft3.parser.WdlParser.{Ast, AstNode, Terminal}
 import wdl.draft3.transforms.parsing._
-import wdl.model.draft3.elements.{FileElement, ImportElement, TaskDefinitionElement, WorkflowDefinitionElement}
+import wdl.model.draft3.elements._
 
 package object ast2wdlom {
 
@@ -19,6 +19,8 @@ package object ast2wdlom {
   implicit val astNodeToImportElement: CheckedAtoB[AstNode, ImportElement] = astNodeToAst andThen CheckedAtoB.fromCheck(CheckedAstToImportElement.convert)
   implicit val astNodeToTaskDefinitionElement: CheckedAtoB[AstNode, TaskDefinitionElement] = astNodeToAst andThen CheckedAtoB.fromCheck(CheckedAstToTaskDefinitionElement.convert)
   implicit val astNodeToWorkflowDefinitionElement: CheckedAtoB[AstNode, WorkflowDefinitionElement] = astNodeToAst andThen CheckedAtoB.fromErrorOr(CheckedAstToWorkflowDefinitionElement.convert)
+  implicit val checkedAstNodeToWorkflowOutputsElement: CheckedAtoB[AstNode, WorkflowOutputsElement] = astNodeToAst andThen CheckedAtoB.fromErrorOr(CheckedAstToWorkflowOutputsElement.convert)
+  implicit val checkedAstNodeToWorkflowOutputDeclarationElement: CheckedAtoB[AstNode, WorkflowOutputDeclarationElement] = astNodeToAst andThen CheckedAtoB.fromErrorOr(CheckedAstToWorkflowOutputDeclarationElement.convert)
 
   implicit val fileToFileElement: CheckedAtoB[File, FileElement] = fileToAst andThen astToFileElement
 

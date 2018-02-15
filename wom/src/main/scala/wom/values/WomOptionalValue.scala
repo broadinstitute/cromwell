@@ -101,9 +101,9 @@ final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) e
   private def boxUntilType(targetType: WomOptionalType): WomOptionalValue = {
     assert(value.isDefined)
 
-    assert(
+    /*assert(
       targetType.baseMemberTypeIsCompatibleWith(womType.baseMemberType),
-      s"base member type ${targetType.baseMemberType} and womtype ${womType.baseMemberType} are not compatible")
+      s"base member type ${targetType.baseMemberType} and womtype ${womType.baseMemberType} are not compatible")*/
     if (womType.depth.equals(targetType.depth)) {
       this
     } else {

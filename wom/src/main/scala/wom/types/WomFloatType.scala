@@ -43,7 +43,7 @@ case object WomFloatType extends WomPrimitiveType {
   override def multiply(rhs: WomType): Try[WomType] = binaryOperator(rhs, "*")
   override def divide(rhs: WomType): Try[WomType] = binaryOperator(rhs, "/")
   override def mod(rhs: WomType): Try[WomType] = binaryOperator(rhs, "%")
-  override def equals(rhs: WomType): Try[WomType] = comparisonOperator(rhs, "==")
+  override def equalsType(rhs: WomType): Try[WomType] = comparisonOperator(rhs, "==")
   override def lessThan(rhs: WomType): Try[WomType] = comparisonOperator(rhs, "<")
   override def greaterThan(rhs: WomType): Try[WomType] = comparisonOperator(rhs, ">")
   override def unaryPlus: Try[WomType] = Success(WomFloatType)

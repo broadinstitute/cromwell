@@ -28,7 +28,7 @@ trait WomType {
     any match {
       case womValue: WomValue if womValue.womType == this => Success(womValue)
       case womValue: WomValue if !coercion.isDefinedAt(any) => Failure(new IllegalArgumentException(
-        s"No coercion defined from '$womValue' of type" +
+        s"No coercion defined from '${WomValue.takeMaxElements(womValue, 3).toWomString}' of type" +
           s" '${womValue.womType.toDisplayString}' to '$toDisplayString'."))
       case _ if !coercion.isDefinedAt(any) => Failure(new IllegalArgumentException(
         s"No coercion defined from '${ScalaRunTime.stringOf(any, 3)}' of type" +
@@ -51,16 +51,16 @@ trait WomType {
   def multiply(rhs: WomType): Try[WomType] = invalid(s"$this * $rhs")
   def divide(rhs: WomType): Try[WomType] = invalid(s"$this / $rhs")
   def mod(rhs: WomType): Try[WomType] = invalid(s"$this % $rhs")
-  def equals(rhs: WomType): Try[WomType] = invalid(s"$this == $rhs")
-  def notEquals(rhs: WomType): Try[WomType] = equals(rhs) map { _ => WomBooleanType}
+  def equalsType(rhs: WomType): Try[WomType] = invalid(s"$this == $rhs")
+  def notEquals(rhs: WomType): Try[WomType] = equalsType(rhs) map { _ => WomBooleanType}
   def lessThan(rhs: WomType): Try[WomType] = invalid(s"$this < $rhs")
-  def lessThanOrEqual(rhs: WomType): Try[WomType] = (lessThan(rhs), equals(rhs)) match {
+  def lessThanOrEqual(rhs: WomType): Try[WomType] = (lessThan(rhs), equalsType(rhs)) match {
     case (Success(b:WomType), _) if b == WomBooleanType => Success(WomBooleanType)
     case (_, Success(b:WomType)) if b == WomBooleanType => Success(WomBooleanType)
     case (_, _) => invalid(s"$this <= $rhs")
   }
   def greaterThan(rhs: WomType): Try[WomType] = invalid(s"$this > $rhs")
-  def greaterThanOrEqual(rhs: WomType): Try[WomType] = (greaterThan(rhs), equals(rhs)) match {
+  def greaterThanOrEqual(rhs: WomType): Try[WomType] = (greaterThan(rhs), equalsType(rhs)) match {
     case (Success(b:WomType), _) if b == WomBooleanType => Success(WomBooleanType)
     case (_, Success(b:WomType)) if b == WomBooleanType => Success(WomBooleanType)
     case (_, _) => invalid(s"$this >= $rhs")

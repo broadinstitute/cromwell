@@ -60,17 +60,14 @@ case class WomOptionalType(memberType: WomType) extends WomType {
   }
 
   def baseMemberTypeIsCompatibleWith(otherType: WomType): Boolean =
-    baseMemberType match {
-      case WomCoproductType(types) => types.contains(otherType)
-      case other => other.equals(otherType)
-    }
+    baseMemberType.equalsType(otherType).isSuccess
 
   override def add(rhs: WomType): Try[WomType] = memberType.add(rhs)
   override def subtract(rhs: WomType): Try[WomType] = memberType.subtract(rhs)
   override def multiply(rhs: WomType): Try[WomType] = memberType.multiply(rhs)
   override def divide(rhs: WomType): Try[WomType] = memberType.divide(rhs)
   override def mod(rhs: WomType): Try[WomType] = memberType.mod(rhs)
-  override def equals(rhs: WomType): Try[WomType] = memberType.equals(rhs)
+  override def equalsType(rhs: WomType): Try[WomType] = memberType.equalsType(rhs)
   override def lessThan(rhs: WomType): Try[WomType] = memberType.lessThan(rhs)
   override def greaterThan(rhs: WomType): Try[WomType] = memberType.greaterThan(rhs)
   override def or(rhs: WomType): Try[WomType] = memberType.or(rhs)

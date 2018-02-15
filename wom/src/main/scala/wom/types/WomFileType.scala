@@ -23,10 +23,10 @@ case object WomUnlistedDirectoryType extends WomPrimitiveFileType {
     case d: WomUnlistedDirectory => d
   }
 
-  override def equals(rhs: WomType): Try[WomType] = rhs match {
+  override def equalsType(rhs: WomType): Try[WomType] = rhs match {
     case WomUnlistedDirectoryType => Success(WomBooleanType)
     case WomStringType => Success(WomBooleanType)
-    case WomOptionalType(memberType) => equals(memberType)
+    case WomOptionalType(memberType) => equalsType(memberType)
     case _ => invalid(s"$this == $rhs")
   }
 
@@ -47,11 +47,11 @@ case object WomSingleFileType extends WomPrimitiveFileType {
     case f: WomSingleFile => f
   }
 
-  override def equals(rhs: WomType): Try[WomType] = rhs match {
+  override def equalsType(rhs: WomType): Try[WomType] = rhs match {
     case wct:WomCoproductType => wct.typeExists(WomStringType)
     case WomSingleFileType => Success(WomBooleanType)
     case WomStringType => Success(WomBooleanType)
-    case WomOptionalType(memberType) => equals(memberType)
+    case WomOptionalType(memberType) => equalsType(memberType)
     case _ => invalid(s"$this == $rhs")
   }
 
@@ -72,11 +72,11 @@ case object WomGlobFileType extends WomPrimitiveFileType {
     case f: WomGlobFile => f
   }
 
-  override def equals(rhs: WomType): Try[WomType] = rhs match {
+  override def equalsType(rhs: WomType): Try[WomType] = rhs match {
     case wct:WomCoproductType => wct.typeExists(WomStringType)
     case WomGlobFileType => Success(WomBooleanType)
     case WomStringType => Success(WomBooleanType)
-    case WomOptionalType(memberType) => equals(memberType)
+    case WomOptionalType(memberType) => equalsType(memberType)
     case _ => invalid(s"$this == $rhs")
   }
 

@@ -1,13 +1,15 @@
 package wom.types
 import wom.WomExpressionException
-import wom.values.{WomOptionalValue, WomValue}
+import wom.values.{WomCoproductValue, WomOptionalValue, WomValue}
 
 import scala.util.{Failure, Success, Try}
+import mouse.all._
 
 /**
   * Handles the possibility that a value could be one of the specified types.  At present this is only supported by CWL.
   */
-case class WomCoproductType(types: Set[WomType]) extends WomType {
+case class WomCoproductType(types: List[WomType]) extends WomType {
+
   /**
     * Method to be overridden by implementation classes defining a partial function
     * for the conversion of raw input values to specific implementation class value types.
@@ -16,22 +18,22 @@ case class WomCoproductType(types: Set[WomType]) extends WomType {
     * the partial function is not defined are assumed to not be convertible to the target type.
     */
   override def coercion: PartialFunction[Any, WomValue] = {
-    case WomOptionalValue(tpe, Some(value)) =>
-      //todo: Option . get here but I dont know how to override PartialFunction's isDefined to make it not evaluate if type isn't present
-      //todo: Try.get for same reason
-      types.find(_ == tpe).get.coerceRawValue(value).get
-    case any =>
-      val f: PartialFunction[Any, WomValue] = types.map(
-        t =>
-          PartialFunction.apply[Any, WomValue](any =>
-            t.coerceRawValue(any).get)
-      ).reduce(_ orElse _)
+    case wct@WomCoproductValue(tpe, _) if (tpe.equalsType(this).isSuccess) => wct
 
-      f(any)
+    //If we can find this type exactly in our coproduct, use that type for the coercion
+    case womValue: WomValue if (types.contains(womValue.womType)) =>
+      val v: Try[WomValue] = womValue.womType.coerceRawValue(womValue)
+      v.get |> (WomCoproductValue(this, _))
+
+    //If we don't have any information, try to coerce this value one by one, stopping at the first successful try
+    case any =>
+      val triedToCoerce: Try[WomValue] = types.map(_.coerceRawValue(any)).reduce(_ orElse _)
+
+      triedToCoerce.getOrElse(throw new WomTypeException(s"unable to coerce $any to a member of the set of types ${types.mkString(", ")}")) |> (WomCoproductValue(this, _))
   }
 
   def typeExists(tpe: WomType): Try[WomBooleanType.type] =
-    types.exists(_.equals(WomStringType)) match {
+    types.exists(_.equals(tpe)) match {
       case true => Success(WomBooleanType)
       case _ => Failure(new WomExpressionException(s"Type equality assertion failed because $tpe was not found in the coproduct of ${toDisplayString}"))
     }
@@ -39,9 +41,12 @@ case class WomCoproductType(types: Set[WomType]) extends WomType {
   override def toDisplayString: String =
     types.map(_.toDisplayString).mkString("Coproduct[",", ", "]")
 
-  override def equals(rhs: WomType): Try[WomType] =
-    types.exists(_.equals(rhs)) match {
-      case true => Success(WomBooleanType)
+  override def equalsType(rhs: WomType): Try[WomType] =
+    rhs match {
+      case WomCoproductType(tpes) if types.equals(tpes) => Success(WomBooleanType)
+      case _ if types.exists(_.equals(rhs)) =>  Success(WomBooleanType)
       case _ => Failure(new WomExpressionException(s"Type equality could not be asserted because $rhs was found in the coproduct of $toDisplayString"))
     }
+
+
 }

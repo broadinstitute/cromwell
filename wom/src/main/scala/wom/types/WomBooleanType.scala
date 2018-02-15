@@ -25,7 +25,7 @@ case object WomBooleanType extends WomPrimitiveType {
     case _ => invalid(s"$this $symbol $rhs")
   }
 
-  override def equals(rhs: WomType): Try[WomType] = comparisonOperator(rhs, "==")
+  override def equalsType(rhs: WomType): Try[WomType] = comparisonOperator(rhs, "==")
   override def lessThan(rhs: WomType): Try[WomType] = comparisonOperator(rhs, "<")
   override def greaterThan(rhs: WomType): Try[WomType] = comparisonOperator(rhs, ">")
   override def or(rhs: WomType): Try[WomType] = comparisonOperator(rhs, "||")

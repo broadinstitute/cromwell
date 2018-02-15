@@ -127,22 +127,22 @@ class WomFileTypeSpec extends FlatSpec with Matchers with TableDrivenPropertyChe
     }
 
     it should s"equal a $womFileTypeName with a WomStringType" in {
-      womFileType.equals(WomStringType) should be(Success(WomBooleanType))
+      womFileType.equalsType(WomStringType) should be(Success(WomBooleanType))
     }
 
     it should s"equal an optional $womFileTypeName with an optional WomStringType" in {
-      WomOptionalType(womFileType).equals(WomOptionalType(WomStringType)) should be(Success(WomBooleanType))
+      WomOptionalType(womFileType).equalsType(WomOptionalType(WomStringType)) should be(Success(WomBooleanType))
     }
 
     it should s"not compare a $womFileTypeName with a WomFloatType" in {
       the[WomExpressionException] thrownBy {
-        womFileType.equals(WomFloatType).get
+        womFileType.equalsType(WomFloatType).get
       } should have message s"Type evaluation cannot determine type from expression: $womFileTypeName == WomFloatType"
     }
 
     it should s"not compare an optional $womFileTypeName with an optional WomFloatType" in {
       the[WomExpressionException] thrownBy {
-        WomOptionalType(womFileType).equals(WomOptionalType(WomFloatType)).get
+        WomOptionalType(womFileType).equalsType(WomOptionalType(WomFloatType)).get
       } should have message s"Type evaluation cannot determine type from expression: $womFileTypeName == WomFloatType"
     }
   }

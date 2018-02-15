@@ -51,7 +51,7 @@ object WdlFileToWdlomSpec {
     "empty_workflow" ->
       FileElement(
         imports = List.empty,
-        workflows = List(WorkflowDefinitionElement("empty", None, Vector.empty)),
+        workflows = List(WorkflowDefinitionElement("empty", None, None)),
         tasks = List.empty),
     "input_types" ->
       FileElement(
@@ -73,7 +73,7 @@ object WdlFileToWdlomSpec {
                 OptionalTypeElement(
                   PairTypeElement(PrimitiveTypeElement(WomStringType), PrimitiveTypeElement(WomIntegerType)))),
               "lotsa_nesting_array", None)
-          ))), Vector.empty
+          ))), None
         )),
         tasks = Vector.empty),
     "input_values" ->
@@ -89,7 +89,7 @@ object WdlFileToWdlomSpec {
               InputDeclarationElement(PrimitiveTypeElement(WomBooleanType), "b", Some(PrimitiveLiteralExpressionElement(WomBoolean(true))))
             )
           )),
-          outputsSection = Vector.empty)
+          outputsSection = None)
         ),
         tasks = List.empty),
     "input_expressions" ->
@@ -104,7 +104,7 @@ object WdlFileToWdlomSpec {
                 right = PrimitiveLiteralExpressionElement(WomInteger(2)))))
             )
           )),
-          outputsSection = Vector.empty)
+          outputsSection = None)
         ),
         tasks = List.empty),
     "passthrough_workflow" ->
@@ -120,7 +120,7 @@ object WdlFileToWdlomSpec {
     "static_value_workflow" ->
       FileElement(
         imports = Vector.empty,
-        workflows = Vector(WorkflowDefinitionElement("foo", None, Vector(OutputsSectionElement(Vector(OutputElement("Int", "y", "3")))))),
+        workflows = Vector(WorkflowDefinitionElement("foo", None, Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "y", "3")))))),
         tasks = Vector.empty
       )
   )

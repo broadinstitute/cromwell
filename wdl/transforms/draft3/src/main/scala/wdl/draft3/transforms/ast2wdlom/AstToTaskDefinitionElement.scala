@@ -5,7 +5,7 @@ import common.validation.Checked._
 import wdl.draft3.parser.WdlParser.Ast
 import wdl.model.draft3.elements.TaskDefinitionElement
 
-object CheckedAstToTaskDefinitionElement {
+object AstToTaskDefinitionElement {
 
   def convert(a: Ast): Checked[TaskDefinitionElement] =
     "FromAst[TaskDefinitionElement](a: Ast) is not implemented".invalidNelCheck

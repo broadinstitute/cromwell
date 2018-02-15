@@ -2,5 +2,5 @@ package wdl.model.draft3.elements
 
 case class WorkflowDefinitionElement(name: String,
                                      inputsSection: Option[InputsSectionElement],
-                                     outputsSection: Vector[OutputsSectionElement]
+                                     outputsSection: Option[OutputsSectionElement]
                                     ) extends LanguageElement

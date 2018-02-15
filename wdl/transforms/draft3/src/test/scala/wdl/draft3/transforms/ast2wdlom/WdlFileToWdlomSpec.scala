@@ -2,7 +2,7 @@ package wdl.draft3.transforms.ast2wdlom
 
 import better.files.File
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.model.draft3.elements.{FileElement, WorkflowDefinitionElement, WorkflowOutputDeclarationElement, WorkflowOutputsElement}
+import wdl.model.draft3.elements.{FileElement, WorkflowDefinitionElement, OutputElement, OutputsSectionElement}
 import wdl.draft3.transforms.ast2wdlom.WdlFileToWdlomSpec._
 
 class WdlFileToWdlomSpec extends FlatSpec with Matchers {
@@ -63,7 +63,7 @@ object WdlFileToWdlomSpec {
     "static_value_workflow" ->
       FileElement(
         imports = Vector.empty,
-        workflows = Vector(WorkflowDefinitionElement("foo", Vector(WorkflowOutputsElement(Vector(WorkflowOutputDeclarationElement("Int", "y", "3")))))),
+        workflows = Vector(WorkflowDefinitionElement("foo", Vector(OutputsSectionElement(Vector(OutputElement("Int", "y", "3")))))),
         tasks = Vector.empty
       )
   )

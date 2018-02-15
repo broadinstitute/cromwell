@@ -28,7 +28,7 @@ trait WomType {
     any match {
       case womValue: WomValue if womValue.womType == this => Success(womValue)
       case womValue: WomValue if !coercion.isDefinedAt(any) => Failure(new IllegalArgumentException(
-        s"No coercion defined from '${WomValue.takeMaxElements(womValue, 3).toWomString}' of type" +
+        s"No coercion defined from '$womValue' of type" +
           s" '${womValue.womType.toDisplayString}' to '$toDisplayString'."))
       case _ if !coercion.isDefinedAt(any) => Failure(new IllegalArgumentException(
         s"No coercion defined from '${ScalaRunTime.stringOf(any, 3)}' of type" +

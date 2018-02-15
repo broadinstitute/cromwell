@@ -1,6 +1,6 @@
 package wom.types
 import wom.WomExpressionException
-import wom.values.WomValue
+import wom.values.{WomOptionalValue, WomValue}
 
 import scala.util.{Failure, Success, Try}
 
@@ -12,10 +12,16 @@ case class WomCoproductType(types: Set[WomType]) extends WomType {
     * construct `WomBoolean`s for inputs of supported types and contents.  Values for which
     * the partial function is not defined are assumed to not be convertible to the target type.
     */
-  override def coercion(): PartialFunction[Any, WomValue] =
-      types.map(
+  override def coercion(): PartialFunction[Any, WomValue] = {
+    case WomOptionalValue(tpe, Some(value)) =>
+      types.find(_ == tpe).get.coercion()(value)
+    case any =>
+      val f: PartialFunction[Any, WomValue] = types.map(
         _.coercion()
       ).reduce(_ orElse _)
+
+      f(any)
+  }
 
   override def toDisplayString: String =
     types.map(_.toDisplayString).mkString("Coproduct[",", ", "]")

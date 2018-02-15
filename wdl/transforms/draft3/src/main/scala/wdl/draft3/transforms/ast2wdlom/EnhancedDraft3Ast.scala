@@ -33,6 +33,15 @@ object EnhancedDraft3Ast {
     } yield asVector
 
     /**
+      * Will get an attribute on this Ast as an AstNode and then convert that into a single element of
+      * the required type.
+      */
+    def getAttributeAs[A](attr: String)(implicit toA: CheckedAtoB[AstNode, A]): Checked[A] = {
+      val attribute = Option(ast.getAttribute(attr))
+      attribute.map(toA.run).getOrElse(s"No attribute $attr found on Ast '${ast.getName}'".invalidNelCheck)
+    }
+
+    /**
       * Will get an attribute on this Ast as an AstList and then convert that into a vector of Ast
       * @param attr The attribute to read from this Ast
       */

@@ -7,7 +7,6 @@ import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.elements._
 import wdl.draft3.parser.WdlParser.Ast
 import wdl.draft3.transforms.ast2wdlom.EnhancedDraft3Ast._
-import wdl.draft3.transforms.ast2wdlom._
 
 object CheckedAstToFileElement {
 

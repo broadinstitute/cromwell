@@ -16,7 +16,7 @@ case class WomCoproductType(types: Set[WomType]) extends WomType {
   override def coercion: PartialFunction[Any, WomValue] = {
     case WomOptionalValue(tpe, Some(value)) =>
       //todo: Option . get here but I dont know how to override PartialFunction's isDefined to make it not evaluate if type isn't present
-      //todo: Try.get for same reasons
+      //todo: Try.get for same reason
       types.find(_ == tpe).get.coerceRawValue(value).get
     case any =>
       val f: PartialFunction[Any, WomValue] = types.map(
@@ -31,7 +31,7 @@ case class WomCoproductType(types: Set[WomType]) extends WomType {
   def typeExists(tpe: WomType): Try[WomBooleanType.type] =
     types.exists(_.equals(WomStringType)) match {
       case true => Success(WomBooleanType)
-      case _ => Failure(new WomExpressionException(s"Type equality could not be asserted because $tpe was not found in the coproduct of ${toDisplayString}"))
+      case _ => Failure(new WomExpressionException(s"Type equality assertion failed because $tpe was not found in the coproduct of ${toDisplayString}"))
     }
 
   override def toDisplayString: String =

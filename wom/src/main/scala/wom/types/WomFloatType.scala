@@ -26,6 +26,7 @@ case object WomFloatType extends WomPrimitiveType {
   }
 
   private def comparisonOperator(rhs: WomType, symbol: String): Try[WomType] = rhs match {
+    case wct:WomCoproductType => wct.typeExists(WomStringType)
     case WomIntegerType => Success(WomBooleanType)
     case WomFloatType => Success(WomBooleanType)
     case WomOptionalType(memberType) => comparisonOperator(memberType, symbol)

@@ -54,7 +54,7 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
           case expr: ExpressionNode if expr.localName == "x" => expr
         }.getOrElse(fail("Resulting graph did not contain the 'x' ExpressionNode"))
         
-        scatterNode.inputPorts.map(_.upstream) shouldBe Set(scatterExpressionNode.singleExpressionOutputPort)
+        scatterNode.inputPorts.map(_.upstream) shouldBe Set(scatterExpressionNode.singleOutputPort)
         
         val foo_out_output = workflowGraph.nodes.collectFirst {
           case gon: GraphOutputNode if gon.localName == "foo.out" => gon

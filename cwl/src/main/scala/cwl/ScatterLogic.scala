@@ -1,18 +1,15 @@
 package cwl
 
 import cats.data.NonEmptyList
-import cats.syntax.validated._
 import common.Checked
+import cats.syntax.either._
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
 import cwl.ScatterMethod.ScatterMethod
-import cwl.WorkflowStep.WorkflowStepInputFold
-import cwl.command.ParentName
-import shapeless.{Coproduct, Poly1}
-import wom.callable.Callable.InputDefinition
-import wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
-import wom.graph.GraphNodePort.{OutputPort, ScatterGathererPort}
-import wom.graph.ScatterNode.{ScatterCollectionFunctionBuilder, ScatterNodeBuilder, ScatterProcessingFunction, ScatterVariableAndValue}
+import shapeless.Poly1
+import wom.graph.CallNode.CallNodeAndNewNodes
+import wom.graph.GraphNodePort.ScatterGathererPort
+import wom.graph.ScatterNode._
 import wom.graph._
 import wom.graph.expression.ExpressionNode
 import wom.types.{WomArrayType, WomMaybeEmptyArrayType, WomType}
@@ -23,58 +20,22 @@ import scala.annotation.tailrec
 /**
   * Contains methods used to implement the scatter related logic for CWL workflows.
   * The general idea is as follows:
-  * 
-  * # WOM structure:
-  * 
-  * - Every workflow step input gets an ExpressionNode (true even for non scattered steps)
-  * - Every workflow step input **being scattered over** gets its corresponding ScatterVariableNode (SVN)
-  * - The ScatterNode will be depending on all the workflow step input being scattered over
-  * 
-  * In the scatter inner graph, will be found the CallNode, the generated PortBasedGraphOutputNodes (PBGON) for each outputs of the call,
-  * the SVNs, as well as OuterGraphInputNodes (OGIN) for the the call inputs that do not point to a step input being scattered over.
-  * In that case they will point to an OuterGraphInputNode (in the inner graph) that will itself reference the outer ExpressionNode
-  * of the step input.
-  * 
-  * The InputDefinitionPointers will be pointing to either an SVN or an OGIN depending on
-  * whether or not the corresponding step input is being scattered over.
-  * 
-  * e.g for a workflow with 2 inputs, and a single step scattering over the first input:
-  *  ________________    ________________
-  * |                |  |                |
-  * | WorkflowInput1 |  | WorkflowInput2 |
-  * |________________|  |________________|
-  *          |                   |
-  *  ________|_______    ________|_______
-  * |                |  |                |
-  * |   StepInput1   |  |   StepInput2   |
-  * |________________|  |________________|
-  *                |              |
-  *  ______________|______________|______
-  * |ScatterNode   |              |     |
-  * |              |              |     |
-  * |             SVN            OGIN   |
-  * |              |              |     |
-  * |              |              |     |
-  * |              |-- CallNode --      |
-  * |                     |             |
-  * |                   PBGON           |
-  * |___________________________________|
-  * 
-  * Note that the scatter node really only depends on StepInput1 (the only variable being scattered over).
+  *
+  * See WorkflowStep for an example of WOM graph for scatters.
   * 
   * # Scattering over multiple variables
-  * 
+  *
   * When several variables are being scattered over, a scatter method is mandatory to specify how the elements must be combined.
   * Let's use the following 2 arrays as an example:
-  * 
+  *
   * a1: ["one", "two"], a2: ["three", "four"]
-  * 
+  *
   * * DotProduct:
   * DotProduct only works if all the arrays have the same length.
-  * 
+  *
   * Shard 0: "one" - "three"
   * Shard 1: "two" - "four"
-  * 
+  *
   * * CrossProduct (nested or flat):
   * Both cross product methods generate the same shards, the difference is in how they are collected at the end
   *
@@ -82,14 +43,15 @@ import scala.annotation.tailrec
   * Shard 1: "one" - "four"
   * Shard 2: "two" - "three"
   * Shard 3: "two" - "four"
-  * 
+  *
   * To support this, each SVN will have a method which given a shard index will return the index at which the value should be looked up in the array.
-  * 
+  *
   * For dot product, this function is the same for all SVN and will be the identity[Int] function.
   * For cross product, this function depends on the number of elements in each array, which is known at runtime.
   *   When we do have this information we update each SVN with it in the ScatterProcessingFunction and returns the number of shards to be generated.
   */
 object ScatterLogic {
+  case class ScatterFunctions(processing: ScatterProcessingFunction, collection: ScatterCollectionFunctionBuilder)
 
   object ScatterVariablesPoly extends Poly1 {
     implicit def fromString: Case.Aux[String, List[String]] = at[String] { s: String => List(s) }
@@ -111,22 +73,21 @@ object ScatterLogic {
     case _ => innerType: WomType => WomArrayType(innerType)
   }
 
-  // Build a list (potentially empty) of scatter variable nodes. Each node represents an input variable being scattered over
-  def buildScatterVariables(scatter: ScatterVariables, stepInputFold: WorkflowStepInputFold, stepId: String)(implicit parentName: ParentName): Checked[List[ScatterVariableNode]] = {
+  // Build a map (potentially empty) of scatterered input steps with their corresponding SVN node.
+  def buildScatterVariableNodes(scatter: ScatterVariables, stepInputMappings: Map[WorkflowStepInput, ExpressionNode], stepId: String): Checked[Map[WorkflowStepInput, ScatterVariableNode]] = {
     import cats.implicits._
 
-    def buildScatterVariable(scatterVariableName: String): Checked[ScatterVariableNode] = {
+    def buildScatterVariable(scatterVariableName: String): ErrorOr[(WorkflowStepInput, ScatterVariableNode)] = {
       // Assume the variable is a step input (is that always true ??). Find the corresponding expression node
-      val parsedScatterVariable = FileStepAndId(scatterVariableName)
 
-      stepInputFold.stepInputMapping.get(parsedScatterVariable.id) match {
-        case Some(expressionNode) =>
+      stepInputMappings.find({ case (stepInput, _) => stepInput.id == scatterVariableName }) match {
+        case Some((stepInput, expressionNode)) =>
           // find the item type - Can't map over Either in 2.11 so convert back and forth to Validated...
-          (scatterExpressionItemType(expressionNode).toValidated map { itemType =>
+          scatterExpressionItemType(expressionNode).toValidated map { itemType =>
             // create a scatter variable node for other scattered nodes to point to
-            ScatterVariableNode(WomIdentifier(scatterVariableName), expressionNode, itemType)
-          }).toEither
-        case None => s"Could not find a variable ${parsedScatterVariable.id} in the workflow step input to scatter over. Please make sure ${parsedScatterVariable.id} is an input of step $stepId".invalidNelCheck
+            stepInput -> ScatterVariableNode(WomIdentifier(scatterVariableName), expressionNode, itemType)
+          }
+        case None => s"Could not find a variable $scatterVariableName in the workflow step input to scatter over. Please make sure $scatterVariableName is an input of step $stepId".invalidNel
       }
     }
     // Take the scatter field defining the (list of) input(s) to be scattered over
@@ -136,58 +97,22 @@ object ScatterLogic {
       // If there's no scatter make it an empty list
       .getOrElse(List.empty)
       // Traverse the list to create ScatterVariableNodes that will be used later on to create the ScatterNode
-      .traverse[Checked, ScatterVariableNode](buildScatterVariable)
-  }
-
-  // Build the InputDefinitionFold for an input definition for scattered steps
-  def buildScatteredInputFold(inputDefinition: InputDefinition,
-                              scatterVariables: List[ScatterVariableNode],
-                              expressionNode: ExpressionNode,
-                              callNodeBuilder: CallNodeBuilder): ErrorOr[InputDefinitionFold] = {
-    // mapping = Where does this input definition get its value from (in this method it'll always be an output port, but wrapped in a Coproduct[InputDefinitionPointer])
-    // outputPort = output port from which the input definition will get its values
-    // newNode = potentially newly created OGIN to be added to the fold
-    val (mapping, outputPort, newNode) = {
-      scatterVariables.find(_.scatterExpressionNode == expressionNode) match {
-        // This input is being scattered over
-        case Some(scatterVariableNode) =>
-          // Point the input definition to the scatter variable
-          val outputPort = scatterVariableNode.singleOutputPort
-          val mapping = List(inputDefinition -> Coproduct[InputDefinitionPointer](outputPort: OutputPort))
-          (mapping, outputPort, None)
-        // This input is NOT being scattered over
-        case None =>
-          /*
-            * If this input is not being scattered, we need to point at the step input expression node.
-            * However the call node will be in the scatter inner graph, whereas the input expression node is outside of it.
-            * So we create an OuterGraphInputNode to link them together.
-           */
-          val ogin = OuterGraphInputNode(WomIdentifier(inputDefinition.name), expressionNode.singleExpressionOutputPort, preserveScatterIndex = false)
-          val mapping = List(inputDefinition -> Coproduct[InputDefinitionPointer](ogin.singleOutputPort: OutputPort))
-
-          (mapping, ogin.singleOutputPort, Option(ogin))
-      }
-    }
-
-    InputDefinitionFold(
-      mappings = mapping,
-      callInputPorts = Set(callNodeBuilder.makeInputPort(inputDefinition, outputPort)),
-      newExpressionNodes = Set(expressionNode),
-      usedOuterGraphInputNodes = newNode.toSet
-    ).validNel
+      .traverse[ErrorOr, (WorkflowStepInput, ScatterVariableNode)](buildScatterVariable)
+      .toEither
+      .map(_.toMap)
   }
 
   // Prepare the nodes to be returned if this call is being scattered
-  def prepareNodesForScatteredCall(knownNodes: Set[GraphNode],
-                                   callNodeAndNewNodes: CallNodeAndNewNodes,
-                                   stepInputFold: WorkflowStepInputFold,
-                                   scatterVariables: NonEmptyList[ScatterVariableNode],
-                                   scatterMethod: Option[ScatterMethod]): Checked[Set[GraphNode]] = {
+  def buildScatterNode(callNodeAndNewNodes: CallNodeAndNewNodes,
+                       scatterVariableNodes: NonEmptyList[ScatterVariableNode],
+                       ogins: Set[OuterGraphInputNode],
+                       stepExpressionNodes: Set[ExpressionNode],
+                       scatterMethod: Option[ScatterMethod]): Checked[ScatterNode] = {
 
-    val scatterProcessingFunctionCheck = (scatterVariables.size, scatterMethod) match {
+    val scatterProcessingFunctionCheck = (scatterVariableNodes.size, scatterMethod) match {
       // If we scatter over one variable only, the default processing method can handle it
-      case (1, _) => (ScatterNode.DefaultScatterProcessingFunction, ScatterNode.DefaultScatterCollectionFunctionBuilder).validNelCheck
-      case (_, Some(method)) => (processingFunction(method), collectingFunctionBuilder(method)).validNelCheck
+      case (1, _) => ScatterFunctions(ScatterNode.DefaultScatterProcessingFunction, ScatterNode.DefaultScatterCollectionFunctionBuilder).validNelCheck
+      case (_, Some(method)) => ScatterFunctions(processingFunction(method), collectingFunctionBuilder(method)).validNelCheck
       case (_, None) => "When scattering over multiple variables, a scatter method needs to be defined. See http://www.commonwl.org/v1.0/Workflow.html#WorkflowStep".invalidNelCheck
     }
 
@@ -195,30 +120,27 @@ object ScatterLogic {
 
     // We need to generate PBGONs for every output port of the call, so that they can be linked outside the scatter graph
     val portBasedGraphOutputNodes = callNode.outputPorts.map(op => PortBasedGraphOutputNode(op.identifier, op.womType, op))
-    
-    def buildScatterNode(innerGraph: Graph, scatterProcessingFunction: ScatterProcessingFunction, scatterCollectingFunctionBuilder: ScatterCollectionFunctionBuilder) = {
+
+    def buildScatterNode(innerGraph: Graph, scatterFunctions: ScatterFunctions) = {
       val scatterNodeBuilder = new ScatterNodeBuilder
       val outputPorts: Set[ScatterGathererPort] = innerGraph.nodes.collect { case gon: PortBasedGraphOutputNode =>
-        scatterNodeBuilder.makeOutputPort(scatterGatherPortTypeFunction(scatterMethod, scatterVariables)(gon.womType), gon)
+        scatterNodeBuilder.makeOutputPort(scatterGatherPortTypeFunction(scatterMethod, scatterVariableNodes)(gon.womType), gon)
       }
 
-      val scatterNodeWithNewNodes = scatterNodeBuilder.build(innerGraph, outputPorts, scatterVariables.toList, scatterProcessingFunction, scatterCollectingFunctionBuilder)
-      knownNodes ++ scatterNodeWithNewNodes.nodes ++ stepInputFold.generatedNodes
+      scatterNodeBuilder.build(innerGraph, outputPorts, scatterVariableNodes.toList, scatterFunctions.processing, scatterFunctions.collection)
     }
-
-    // TODO POST 2.11 Could be forcomped in 2.12 but not in 2.11 because of the Checked
-    scatterProcessingFunctionCheck match {
-      case Right((scatterProcessingFunction, scatterCollectingFunctionBuilder)) =>
-        Graph.validateAndConstruct(Set(
-          callNodeAndNewNodes.node) ++ 
-          callNodeAndNewNodes.usedOuterGraphInputNodes ++ 
-          scatterVariables.toList ++ 
+    
+    for {
+      scatterProcessingFunctionAndBuilder <- scatterProcessingFunctionCheck
+      graph <- Graph.validateAndConstruct(
+        Set(callNodeAndNewNodes.node) ++
+          ogins ++
+          stepExpressionNodes ++
+          scatterVariableNodes.toList ++
           portBasedGraphOutputNodes
-        ).map(
-          buildScatterNode(_, scatterProcessingFunction, scatterCollectingFunctionBuilder)
-        ).toEither
-      case Left(errors) => Left(errors)
-    }
+      ).toEither
+      scatterNode = buildScatterNode(graph, scatterProcessingFunctionAndBuilder)
+    } yield scatterNode.node
   }
 
   /*
@@ -263,24 +185,24 @@ object ScatterLogic {
           * This list has necessarily 2 elements already because 12 / 2 / 3 = 2. So we can make the final WomArray out of that
         */
         currentList match {
-          case _ :: Nil | Nil => 
+          case _ :: Nil | Nil =>
             WomArray(WomMaybeEmptyArrayType(currentWomType), currentWomValues)
-          case head :: tail => 
+          case head :: tail =>
             val arrayType = WomMaybeEmptyArrayType(currentWomType)
             val womArrays = currentWomValues.grouped(head).toList map { WomArray(arrayType, _) }
             buildCollectorArrayRec(tail, womArrays, arrayType)
         }
       }
-      
+
       def mostInnerType(tpe: WomType): WomType = tpe match {
         case WomArrayType(t) => mostInnerType(t)
         case other => other
       }
-      
+
       def buildEmptyArrays(arraySizeList: List[Int], womType: WomType, womValues: List[WomValue]): WomArray = arraySizeList match {
         case Nil => womType match {
           case arrayType: WomArrayType => WomArray(arrayType, womValues)
-          case _ => 
+          case _ =>
             // This would mean arraySizeList was empty to begin with (otherwise we would have wrapped womType in a WomArrayType at least once)
             // which should be impossible since it would mean there was no scatter variables, so we shouldn't even be here
             throw new RuntimeException("Programmer error ! We should not be collecting scatter nodes if there was no scatter !")
@@ -295,7 +217,7 @@ object ScatterLogic {
           val womArrays = (0 until head).toList map { _ => WomArray(arrayType, womValues) }
           buildEmptyArrays(tail, WomArrayType(womType), womArrays)
       }
-      
+
       /*
        * There are 2 distinct cases.
        * If we have no shards, it means that at least one of the scatter expressions evaluated to an empty array.
@@ -326,17 +248,17 @@ object ScatterLogic {
   // select a processing function based on the scatter method
   private def processingFunction(scatterMethod: ScatterMethod) = scatterMethod match {
     case ScatterMethod.DotProduct => DotProductScatterProcessingFunction
-      // Both cross product methods use the same processing function, the difference is in how we collect results (see collectingFunctionBuilder)
+    // Both cross product methods use the same processing function, the difference is in how we collect results (see collectingFunctionBuilder)
     case ScatterMethod.FlatCrossProduct => CrossProductScatterProcessingFunction
     case ScatterMethod.NestedCrossProduct => CrossProductScatterProcessingFunction
   }
 
   // select a collecting function builder based on the scatter method
   private def collectingFunctionBuilder(scatterMethod: ScatterMethod) = scatterMethod match {
-      // dot product and flat cross product output a flat array, which is the default behavior
+    // dot product and flat cross product output a flat array, which is the default behavior
     case ScatterMethod.DotProduct => ScatterNode.DefaultScatterCollectionFunctionBuilder
     case ScatterMethod.FlatCrossProduct => ScatterNode.DefaultScatterCollectionFunctionBuilder
-      // nested cross product uses a special collecting function to build nested arrays
+    // nested cross product uses a special collecting function to build nested arrays
     case ScatterMethod.NestedCrossProduct => NestedCrossProductScatterCollectionFunctionBuilder
   }
 }

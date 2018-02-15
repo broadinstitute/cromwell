@@ -105,7 +105,7 @@ object Declaration {
     }
     lazy val singleOutputPort = this match {
       case InputDeclarationNode(graphInputNode) => graphInputNode.singleOutputPort
-      case IntermediateValueDeclarationNode(expressionNode) => expressionNode.singleExpressionOutputPort
+      case IntermediateValueDeclarationNode(expressionNode) => expressionNode.singleOutputPort
       case GraphOutputDeclarationNode(outputNode) => outputNode.graphOutputPort
     }
     lazy val localName = toGraphNode.localName

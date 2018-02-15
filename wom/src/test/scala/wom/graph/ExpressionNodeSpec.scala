@@ -36,7 +36,7 @@ class ExpressionNodeSpec extends FlatSpec with Matchers {
     import common.validation.ErrorOr.ShortCircuitingFlatMap
     val graph = for {
       xDeclarationNode <- AnonymousExpressionNode.fromInputMapping(WomIdentifier("x"), ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort), PlainAnonymousExpressionNode.apply)
-      xOutputNode = PortBasedGraphOutputNode(WomIdentifier("x_out"), WomIntegerType, xDeclarationNode.singleExpressionOutputPort)
+      xOutputNode = PortBasedGraphOutputNode(WomIdentifier("x_out"), WomIntegerType, xDeclarationNode.singleOutputPort)
       g <- Graph.validateAndConstruct(Set(iInputNode, jInputNode, xDeclarationNode, xOutputNode))
     } yield g
 

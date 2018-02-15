@@ -54,7 +54,7 @@ private [execution] case class ConditionalKey(node: ConditionalNode, index: Exec
 
   def processRunnable(data: WorkflowExecutionActorData): ErrorOr[WorkflowExecutionDiff] = {
     // This is the output port from the conditional's 'condition' input:
-    val conditionOutputPort = node.conditionExpression.singleExpressionOutputPort
+    val conditionOutputPort = node.conditionExpression.singleOutputPort
     data.valueStore.get(conditionOutputPort, index) match {
       case Some(b: WomBoolean) =>
         val conditionalStatus = if (b.value) ExecutionStatus.Done else ExecutionStatus.Bypassed

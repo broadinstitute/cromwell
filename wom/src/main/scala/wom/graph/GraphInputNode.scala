@@ -5,7 +5,7 @@ import wom.graph.GraphNodePort.GraphNodeOutputPort
 import wom.graph.expression.ExpressionNode
 import wom.types.{WomOptionalType, WomType}
 
-sealed trait GraphInputNode extends GraphNode {
+sealed trait GraphInputNode extends GraphNodeWithSingleOutputPort {
   def womType: WomType
   lazy val singleOutputPort: GraphNodeOutputPort = GraphNodeOutputPort(localName, womType, this)
 
@@ -79,7 +79,7 @@ class OuterGraphInputNode protected(override val identifier: WomIdentifier, val 
 
 final case class ScatterVariableNode(override val identifier: WomIdentifier,
                                      scatterExpressionNode: ExpressionNode,
-                                     override val womType: WomType) extends OuterGraphInputNode(identifier, scatterExpressionNode.singleExpressionOutputPort, preserveScatterIndex = true) {
+                                     override val womType: WomType) extends OuterGraphInputNode(identifier, scatterExpressionNode.singleOutputPort, preserveScatterIndex = true) {
   /*
     * This is the key element of the indexForShard function.
     * Here is an example:

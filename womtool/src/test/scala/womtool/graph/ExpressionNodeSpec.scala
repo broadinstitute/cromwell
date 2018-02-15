@@ -21,7 +21,7 @@ class ExpressionNodeSpec extends WomDotGraphTest {
     val graph = for {
       xDeclarationNode <- ExposedExpressionNode.fromInputMapping(
         WomIdentifier("x"), ijExpression, WomIntegerType, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))
-      xOutputNode = PortBasedGraphOutputNode(WomIdentifier("x_out"), WomIntegerType, xDeclarationNode.singleExpressionOutputPort)
+      xOutputNode = PortBasedGraphOutputNode(WomIdentifier("x_out"), WomIntegerType, xDeclarationNode.singleOutputPort)
       g <- Graph.validateAndConstruct(Set(iInputNode, jInputNode, xDeclarationNode, xOutputNode))
     } yield g
 

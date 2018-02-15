@@ -58,7 +58,7 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
 
     def getScatterArray(scatterVariableNode: ScatterVariableNode): ErrorOr[ScatterVariableAndValue] = {
       val expressionNode = scatterVariableNode.scatterExpressionNode
-      data.valueStore.get(expressionNode.singleExpressionOutputPort, None) map {
+      data.valueStore.get(expressionNode.singleOutputPort, None) map {
         case WomArrayLike(arrayLike) => ScatterVariableAndValue(scatterVariableNode, arrayLike).validNel
         case v: WomValue =>
           s"Scatter collection ${expressionNode.womExpression.sourceString} must evaluate to an array but instead got ${v.womType.toDisplayString}".invalidNel

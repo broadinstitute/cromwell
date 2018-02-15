@@ -22,7 +22,8 @@ final case class ExpressionKey(node: ExpressionNodeLike, index: ExecutionIndex) 
     // directly add the value to the value store in the execution diff
     node.evaluate(valueStore.resolve(index), ioFunctionSet) match {
       case Right(result) => workflowExecutionActor ! ExpressionEvaluationSucceededResponse(this, result)
-      case Left(f) => workflowExecutionActor ! ExpressionEvaluationFailedResponse(this, new RuntimeException(f.toList.mkString(", ")))
+      case Left(f) => 
+        workflowExecutionActor ! ExpressionEvaluationFailedResponse(this, new RuntimeException(f.toList.mkString(", ")))
     }
 
     WorkflowExecutionDiff(Map(this -> ExecutionStatus.Running)).validNel

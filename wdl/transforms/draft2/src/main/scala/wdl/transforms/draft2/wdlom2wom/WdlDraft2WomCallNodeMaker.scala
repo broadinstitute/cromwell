@@ -6,7 +6,7 @@ import cats.data.NonEmptyList
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import shapeless.Coproduct
-import wdl.draft2.model.{WdlCall, WdlTaskCall, WdlWomExpression}
+import wdl.draft2.model.WdlCall
 import wdl.draft2.model.{WdlTaskCall, WdlWomExpression}
 import wom.callable.Callable
 import wom.graph.CallNode._
@@ -94,7 +94,7 @@ object WdlDraft2WomCallNodeMaker extends WomCallNodeMaker[WdlCall] {
           val expressionNode = expressionNodes(inputDefinition.localName)
           InputDefinitionFold(
             mappings = List(inputDefinition -> expressionNode.inputDefinitionPointer),
-            callInputPorts = Set(callNodeBuilder.makeInputPort(inputDefinition, expressionNode.singleExpressionOutputPort)),
+            callInputPorts = Set(callNodeBuilder.makeInputPort(inputDefinition, expressionNode.singleOutputPort)),
             newExpressionNodes = Set(expressionNode)
           )
 

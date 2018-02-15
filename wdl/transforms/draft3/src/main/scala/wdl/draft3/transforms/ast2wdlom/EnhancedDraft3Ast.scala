@@ -2,7 +2,6 @@ package wdl.draft3.transforms.ast2wdlom
 
 import cats.data.NonEmptyList
 import cats.instances.vector._
-import cats.instances.either._
 import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.traverse._
@@ -48,7 +47,10 @@ object EnhancedDraft3Ast {
     def getAttributeAsVector[A](attr: String)(implicit toA: CheckedAtoB[AstNode, A]): Checked[Vector[A]] = {
       for {
         asVector <- getAttributeAsAstNodeVector(attr)
-        result <- asVector.traverse(toA.run)
+        // This toValidated/toEither dance is necessary to
+        // (1) collect all errors from the traverse as an ErrorOr, then
+        // (2) convert back into a Checked for the flatMap
+        result <- asVector.traverse[ErrorOr, A](item => toA.run(item).toValidated).toEither
       } yield result
     }
 

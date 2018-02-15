@@ -5,6 +5,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import wdl.model.draft3.elements._
 import wdl.draft3.transforms.ast2wdlom.WdlFileToWdlomSpec._
 import wom.types._
+import wom.values.{WomBoolean, WomFloat, WomInteger, WomSingleFile, WomString}
 
 class WdlFileToWdlomSpec extends FlatSpec with Matchers {
 
@@ -74,6 +75,22 @@ object WdlFileToWdlomSpec {
           ))), Vector.empty
         )),
         tasks = Vector.empty),
+    "input_values" ->
+      FileElement(
+        imports = Vector.empty,
+        workflows = Vector(WorkflowDefinitionElement(
+          name = "input_values",
+          inputsSection = Some(InputsSectionElement(
+            inputDeclarations = Vector(
+              InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "i", Some(PrimitiveLiteralExpression(WomInteger(5)))),
+              InputDeclarationElement(PrimitiveTypeElement(WomStringType), "s", Some(PrimitiveLiteralExpression(WomString("s")))),
+              InputDeclarationElement(PrimitiveTypeElement(WomFloatType), "f", Some(PrimitiveLiteralExpression(WomFloat(5.5)))),
+              InputDeclarationElement(PrimitiveTypeElement(WomBooleanType), "b", Some(PrimitiveLiteralExpression(WomBoolean(true)))),
+            )
+          )),
+          outputsSection = Vector.empty)
+        ),
+        tasks = List.empty),
     "passthrough_workflow" ->
       FileElement(
         imports = List.empty,

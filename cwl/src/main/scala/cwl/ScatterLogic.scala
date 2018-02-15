@@ -2,6 +2,7 @@ package cwl
 
 import cats.data.NonEmptyList
 import common.Checked
+import cats.syntax.either._
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
 import cwl.ScatterMethod.ScatterMethod

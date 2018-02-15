@@ -75,14 +75,21 @@ trait MetadataSqlDatabase {
 
   def getWorkflowLabels(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Map[String, String]]
 
-  def queryWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],
-                             workflowExecutionUuids: Set[String], labelKeyLabelValues: Set[(String,String)],
-                             startTimestampOption: Option[Timestamp], endTimestampOption: Option[Timestamp],
-                             page: Option[Int], pageSize: Option[Int])
+  def queryWorkflowSummaries(workflowStatuses: Set[String],
+                             workflowNames: Set[String],
+                             workflowExecutionUuids: Set[String],
+                             labelAndKeyLabelValues: Set[(String,String)],
+                             labelOrKeyLabelValues: Set[(String,String)],
+                             startTimestampOption: Option[Timestamp],
+                             endTimestampOption: Option[Timestamp],
+                             page: Option[Int],
+                             pageSize: Option[Int])
                              (implicit ec: ExecutionContext): Future[Traversable[WorkflowMetadataSummaryEntry]]
 
   def countWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],
-                             workflowExecutionUuids: Set[String], labelKeyLabelValues: Set[(String, String)],
+                             workflowExecutionUuids: Set[String],
+                             labelAndKeyLabelValues: Set[(String,String)],
+                             labelOrKeyLabelValues: Set[(String,String)],
                              startTimestampOption: Option[Timestamp],
                              endTimestampOption: Option[Timestamp])
                              (implicit ec: ExecutionContext): Future[Int]

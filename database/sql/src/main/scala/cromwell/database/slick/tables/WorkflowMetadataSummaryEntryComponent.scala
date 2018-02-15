@@ -56,7 +56,8 @@ trait WorkflowMetadataSummaryEntryComponent {
 
   def filterWorkflowMetadataSummaryEntries(workflowStatuses: Set[String], workflowNames: Set[String],
                                            workflowExecutionUuids: Set[String],
-                                           labelKeyLabelValues: Set[(String,String)],
+                                           labelAndKeyValues: Set[(String, String)],
+                                           labelOrKeyValues: Set[(String, String)],
                                            startTimestampOption: Option[Timestamp],
                                            endTimestampOption: Option[Timestamp]):
   (WorkflowMetadataSummaryEntries) => Rep[Boolean] = {
@@ -84,14 +85,18 @@ trait WorkflowMetadataSummaryEntryComponent {
       val workflowStatusFilter = workflowStatuses.
         map(workflowStatus => workflowMetadataSummaryEntry.workflowStatus.fold(ifEmpty = exclude)(_ === workflowStatus)).
         reduceLeftOption(_ || _)
-      // Workflows can be queried by multiple labels, the reduceLeftOption ANDs together all workflows are associated
-      // to all the labels from the query.
-      val labelsFilter = labelKeyLabelValues.map { case (labelKey, labelValue) =>
-          existsWorkflowIdLabelKeyAndValue(workflowMetadataSummaryEntry.workflowExecutionUuid, labelKey, labelValue) }.
-        reduceLeftOption(_ && _)
+      val labelsAndFilter = existsWorkflowLabels(workflowMetadataSummaryEntry, labelAndKeyValues, _ && _)
+      val labelsOrFilter = existsWorkflowLabels(workflowMetadataSummaryEntry, labelOrKeyValues, _ || _)
       // Put all the optional filters above together in one place.
       val optionalFilters: List[Option[Rep[Boolean]]] = List(
-        workflowNameFilter, workflowExecutionUuidFilter, workflowStatusFilter, labelsFilter, startTimestampFilter, endTimestampFilter)
+        workflowNameFilter,
+        workflowExecutionUuidFilter,
+        workflowStatusFilter,
+        labelsAndFilter,
+        labelsOrFilter,
+        startTimestampFilter,
+        endTimestampFilter
+      )
       // Unwrap the optional filters.  If any of these filters are not defined, replace with `include` to include all
       // rows which might otherwise have been filtered.
       val filters = optionalFilters.map(_.getOrElse(include))
@@ -100,12 +105,37 @@ trait WorkflowMetadataSummaryEntryComponent {
     }
   }
 
+  /**
+    * Filters workflows associated with the labels, combining the label matches using using op.
+    *
+    * The op can OR together or AND together the filtered rows.
+    */
+  private def existsWorkflowLabels(workflowMetadataSummaryEntry: WorkflowMetadataSummaryEntries,
+                                   labelKeyValues: Set[(String, String)],
+                                   op: (Rep[Boolean], Rep[Boolean]) => Rep[Boolean]): Option[Rep[Boolean]] = {
+    labelKeyValues
+      .map({
+        case (labelKey, labelValue) =>
+          existsWorkflowIdLabelKeyAndValue(workflowMetadataSummaryEntry.workflowExecutionUuid, labelKey, labelValue)
+      })
+      .reduceLeftOption(op)
+  }
+
   def countWorkflowMetadataSummaryEntries(workflowStatuses: Set[String], workflowNames: Set[String],
-                                          workflowExecutionUuids: Set[String], labelKeyLabelValues: Set[(String,String)],
+                                          workflowExecutionUuids: Set[String],
+                                          labelAndKeyLabelValues: Set[(String,String)],
+                                          labelOrKeyLabelValues: Set[(String,String)],
                                           startTimestampOption: Option[Timestamp],
                                           endTimestampOption: Option[Timestamp]) = {
     val filter = filterWorkflowMetadataSummaryEntries(
-      workflowStatuses, workflowNames, workflowExecutionUuids, labelKeyLabelValues, startTimestampOption, endTimestampOption)
+      workflowStatuses,
+      workflowNames,
+      workflowExecutionUuids,
+      labelAndKeyLabelValues,
+      labelOrKeyLabelValues,
+      startTimestampOption,
+      endTimestampOption
+    )
     workflowMetadataSummaryEntries.filter(filter).length
   }
 
@@ -113,12 +143,21 @@ trait WorkflowMetadataSummaryEntryComponent {
     * Query workflow execution using the filter criteria encapsulated by the `WorkflowExecutionQueryParameters`.
     */
   def queryWorkflowMetadataSummaryEntries(workflowStatuses: Set[String], workflowNames: Set[String],
-                                          workflowExecutionUuids: Set[String], labelKeyLabelValues: Set[(String,String)],
+                                          workflowExecutionUuids: Set[String],
+                                          labelAndKeyLabelValues: Set[(String,String)],
+                                          labelOrKeyLabelValues: Set[(String,String)],
                                           startTimestampOption: Option[Timestamp],
                                           endTimestampOption: Option[Timestamp], page: Option[Int],
                                           pageSize: Option[Int]) = {
     val filter = filterWorkflowMetadataSummaryEntries(
-      workflowStatuses, workflowNames, workflowExecutionUuids, labelKeyLabelValues, startTimestampOption, endTimestampOption)
+      workflowStatuses,
+      workflowNames,
+      workflowExecutionUuids,
+      labelAndKeyLabelValues,
+      labelOrKeyLabelValues,
+      startTimestampOption,
+      endTimestampOption
+    )
     val query = workflowMetadataSummaryEntries.filter(filter)
     (page, pageSize) match {
       case (Some(p), Some(ps)) => query.drop((p - 1) * ps).take(ps)

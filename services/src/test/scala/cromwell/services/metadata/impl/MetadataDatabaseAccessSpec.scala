@@ -217,19 +217,33 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
           val resultsByStatus = response.results groupBy (_.status)
           resultsByStatus.keys.toSet.flatten should equal(Set("Submitted", "Succeeded"))
         }
-        // Filter by label
+        // Filter by label using AND
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
-          WorkflowQueryKey.LabelKeyValue.name -> s"${testLabel2.key}:${testLabel2.value}"))) map { case (response, _) =>
+          WorkflowQueryKey.LabelAndKeyValue.name -> s"${testLabel2.key}:${testLabel2.value}"))) map { case (response, _) =>
           val resultByName = response.results groupBy (_.name)
           resultByName.keys.toSet.flatten should equal(Set(Workflow1Name, Workflow2Name))
         }
-        // Filter by multiple labels
+        // Filter by multiple labels using AND
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(
           Seq(testLabel2, testLabel3)
-            .map(label => WorkflowQueryKey.LabelKeyValue.name -> s"${label.key}:${label.value}"))
+            .map(label => WorkflowQueryKey.LabelAndKeyValue.name -> s"${label.key}:${label.value}"))
         ) map { case (response, _) =>
           val resultByName = response.results groupBy (_.name)
           resultByName.keys.toSet.flatten should equal(Set(Workflow2Name))
+        }
+        // Filter by label using OR
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
+          WorkflowQueryKey.LabelOrKeyValue.name -> s"${testLabel2.key}:${testLabel2.value}"))) map { case (response, _) =>
+          val resultByName = response.results groupBy (_.name)
+          resultByName.keys.toSet.flatten should equal(Set(Workflow1Name, Workflow2Name))
+        }
+        // Filter by multiple labels using OR
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(
+          Seq(testLabel2, testLabel3)
+            .map(label => WorkflowQueryKey.LabelOrKeyValue.name -> s"${label.key}:${label.value}"))
+        ) map { case (response, _) =>
+          val resultByName = response.results groupBy (_.name)
+          resultByName.keys.toSet.flatten should equal(Set(Workflow1Name, Workflow2Name))
         }
         // Filter by start date
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(

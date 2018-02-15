@@ -101,14 +101,9 @@ final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) e
   private def boxUntilType(targetType: WomOptionalType): WomOptionalValue = {
     assert(value.isDefined)
 
-    /* TODO CWL
-      figure out how to reconcile this assertion w/ Coproducts, i.e. where womType is a set of types
-      I think the solution is targetType.possibleBaseMemberTypes.contains(womType.baseMemberType)
-
     assert(
-      targetType.baseMemberType.equals(womType.baseMemberType),
-      s"base member type ${targetType.baseMemberType} and womtype ${womType.baseMemberType} are not equal")
-      */
+      targetType.baseMemberTypeIsCompatibleWith(womType.baseMemberType),
+      s"base member type ${targetType.baseMemberType} and womtype ${womType.baseMemberType} are not compatible")
     if (womType.depth.equals(targetType.depth)) {
       this
     } else {

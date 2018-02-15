@@ -1,10 +1,12 @@
 package wom.types
-import common.validation.ErrorOr.ErrorOr
 import wom.WomExpressionException
 import wom.values.{WomOptionalValue, WomValue}
 
 import scala.util.{Failure, Success, Try}
 
+/**
+  * Handles the possibility that a value could be one of the specified types.  At present this is only supported by CWL.
+  */
 case class WomCoproductType(types: Set[WomType]) extends WomType {
   /**
     * Method to be overridden by implementation classes defining a partial function

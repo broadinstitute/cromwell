@@ -35,7 +35,7 @@ case object WomObjectType extends WomObjectTypeLike {
     throw new UnsupportedOperationException(s"Coercion failed: $errorMessages")
   }
 
-  override def coercion(): PartialFunction[Any, WomValue] = {
+  override def coercion: PartialFunction[Any, WomValue] = {
     case o: WomObject => WomObject(o.values)
     case m: WomMap if isMapCoercable(m) =>
       val coercedMap = m.value map {

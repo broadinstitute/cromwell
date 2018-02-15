@@ -12,12 +12,12 @@ case class WomCoproductType(types: Set[WomType]) extends WomType {
     * construct `WomBoolean`s for inputs of supported types and contents.  Values for which
     * the partial function is not defined are assumed to not be convertible to the target type.
     */
-  override def coercion(): PartialFunction[Any, WomValue] = {
+  override def coercion: PartialFunction[Any, WomValue] = {
     case WomOptionalValue(tpe, Some(value)) =>
-      types.find(_ == tpe).get.coercion()(value)
+      types.find(_ == tpe).get.coercion(value)
     case any =>
       val f: PartialFunction[Any, WomValue] = types.map(
-        _.coercion()
+        _.coercion
       ).reduce(_ orElse _)
 
       f(any)
@@ -26,11 +26,9 @@ case class WomCoproductType(types: Set[WomType]) extends WomType {
   override def toDisplayString: String =
     types.map(_.toDisplayString).mkString("Coproduct[",", ", "]")
 
-  override def equals(rhs: WomType): Try[WomType] = {
-    println("running equals")
+  override def equals(rhs: WomType): Try[WomType] =
     types.exists(_.equals(rhs)) match {
       case true => Success(WomBooleanType)
       case _ => Failure(new WomExpressionException(s"Type equality could not be asserted because $rhs was found in the coproduct of $toDisplayString"))
     }
-  }
 }

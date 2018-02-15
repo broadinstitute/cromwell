@@ -18,7 +18,7 @@ case class WomOptionalType(memberType: WomType) extends WomType {
     * construct `WomBoolean`s for inputs of supported types and contents.  Values for which
     * the partial function is not defined are assumed to not be convertible to the target type.
     */
-  override def coercion(): PartialFunction[Any, WomValue] = {
+  override def coercion: PartialFunction[Any, WomValue] = {
 
     // Javascript null coerces to empty value
     case JsNull => WomOptionalValue(memberType, None)

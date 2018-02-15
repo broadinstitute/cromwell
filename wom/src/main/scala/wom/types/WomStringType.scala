@@ -9,7 +9,7 @@ import scala.util.{Failure, Success, Try}
 case object WomStringType extends WomPrimitiveType {
   val toDisplayString: String = "String"
 
-  override def coercion(): PartialFunction[Any, WomValue] = {
+  override def coercion: PartialFunction[Any, WomValue] = {
     case s: String => WomString(s)
     case s: JsString => WomString(s.value)
     case s: WomString => s

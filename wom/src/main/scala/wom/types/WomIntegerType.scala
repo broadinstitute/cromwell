@@ -8,7 +8,7 @@ import scala.util.{Success, Try}
 case object WomIntegerType extends WomPrimitiveType {
   val toDisplayString: String = "Int"
 
-  override def coercion(): PartialFunction[Any, WomValue] = {
+  override def coercion: PartialFunction[Any, WomValue] = {
     case i: Integer => WomInteger(i)
     case n: JsNumber if n.value.isValidInt => WomInteger(n.value.intValue())
     case i: WomInteger => i

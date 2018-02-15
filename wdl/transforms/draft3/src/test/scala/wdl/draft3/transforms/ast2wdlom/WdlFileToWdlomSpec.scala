@@ -2,8 +2,9 @@ package wdl.draft3.transforms.ast2wdlom
 
 import better.files.File
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.model.draft3.elements.{FileElement, WorkflowDefinitionElement, OutputElement, OutputsSectionElement}
+import wdl.model.draft3.elements._
 import wdl.draft3.transforms.ast2wdlom.WdlFileToWdlomSpec._
+import wom.types._
 
 class WdlFileToWdlomSpec extends FlatSpec with Matchers {
 
@@ -19,10 +20,10 @@ class WdlFileToWdlomSpec extends FlatSpec with Matchers {
   testCases.list.filter(x => x.isRegularFile && x.extension.contains(".wdl")) foreach { testCase =>
 
     val fileName = testCase.name
-    val testName = testCase.nameWithoutExtension
+    val testName = testCase.name.split("\\.").head
 
     val itShouldString = s"create the correct Element structure for $fileName"
-    val testOrIgnore: (=>Any) => Unit = if (testCase.name.endsWith(".ignored.wdl")) {
+    val testOrIgnore: (=>Any) => Unit = if (fileName.endsWith(".ignored.wdl")) {
       (it should itShouldString).ignore _
     } else {
       (it should itShouldString).in _
@@ -48,8 +49,31 @@ object WdlFileToWdlomSpec {
     "empty_workflow" ->
       FileElement(
         imports = List.empty,
-        workflows = List(WorkflowDefinitionElement("empty", Vector.empty)),
+        workflows = List(WorkflowDefinitionElement("empty", None, Vector.empty)),
         tasks = List.empty),
+    "input_types" ->
+      FileElement(
+        imports = Vector.empty,
+        workflows = Vector(WorkflowDefinitionElement(
+          "input_types",
+          Some(InputsSectionElement(Vector(
+            InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "i", None),
+            InputDeclarationElement(PrimitiveTypeElement(WomStringType), "s", None),
+            InputDeclarationElement(PrimitiveTypeElement(WomFloatType), "f", None),
+            InputDeclarationElement(PrimitiveTypeElement(WomBooleanType), "b", None),
+            InputDeclarationElement(PrimitiveTypeElement(WomSingleFileType), "f", None),
+            InputDeclarationElement(ObjectTypeElement, "o", None),
+            InputDeclarationElement(OptionalTypeElement(PrimitiveTypeElement(WomIntegerType)), "maybe_i", None),
+            InputDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomStringType)), "array_s", None),
+            InputDeclarationElement(MapTypeElement(PrimitiveTypeElement(WomIntegerType), PrimitiveTypeElement(WomStringType)), "map_is", None),
+            InputDeclarationElement(
+              ArrayTypeElement(
+                OptionalTypeElement(
+                  PairTypeElement(PrimitiveTypeElement(WomStringType), PrimitiveTypeElement(WomIntegerType)))),
+              "lotsa_nesting_array", None)
+          ))), Vector.empty
+        )),
+        tasks = Vector.empty),
     "passthrough_workflow" ->
       FileElement(
         imports = List.empty,
@@ -63,7 +87,7 @@ object WdlFileToWdlomSpec {
     "static_value_workflow" ->
       FileElement(
         imports = Vector.empty,
-        workflows = Vector(WorkflowDefinitionElement("foo", Vector(OutputsSectionElement(Vector(OutputElement("Int", "y", "3")))))),
+        workflows = Vector(WorkflowDefinitionElement("foo", None, Vector(OutputsSectionElement(Vector(OutputElement("Int", "y", "3")))))),
         tasks = Vector.empty
       )
   )

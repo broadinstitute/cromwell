@@ -11,5 +11,5 @@ object WdlDraft2WomExecutableMaker extends WomExecutableMaker[WdlNamespaceWithWo
     WdlDraft2InputParsing.buildWomExecutable(inputs.from.workflow, inputs.inputs)
   }
 
-  override def toWomExecutable(a: WdlNamespaceWithWorkflow, inputs: Option[String]): Checked[Executable] = toWomExecutable(ExecutableMakerInputs(a, inputs))
+  override def toWomExecutable(a: WdlNamespaceWithWorkflow, inputs: Option[String]): Checked[Executable] = toWomExecutable(ExecutableMakerInputs(a, List.empty, inputs))
 }

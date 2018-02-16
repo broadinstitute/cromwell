@@ -1,21 +1,20 @@
-package languages.wdl
+package languages.wdl.draft2
 
 import cats.data.EitherT.fromEither
 import cats.effect.IO
 import cats.syntax.traverse._
 import common.Checked
-import common.validation.ErrorOr.ErrorOr
-import cromwell.core._
-import wom.core.WorkflowSource
-import wom.graph.GraphNodePort.OutputPort
-import wom.values.WomValue
-import common.validation.ErrorOr._
+import common.validation.ErrorOr.{ErrorOr, _}
 import common.validation.Parse.Parse
+import cromwell.core._
 import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wdl.transforms.draft2.wdlom2wom._
+import wom.core.WorkflowSource
+import wom.graph.GraphNodePort.OutputPort
 import wom.transforms.WomExecutableMaker.ops._
+import wom.values.WomValue
 
 class WdlDraft2LanguageFactory() extends LanguageFactory {
   override def validateNamespace(source: WorkflowSourceFilesCollection,

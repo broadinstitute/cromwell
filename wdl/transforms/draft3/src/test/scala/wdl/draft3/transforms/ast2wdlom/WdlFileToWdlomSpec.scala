@@ -4,9 +4,10 @@ import better.files.File
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.model.draft3.elements._
 import wdl.draft3.transforms.ast2wdlom.WdlFileToWdlomSpec._
-import wdl.model.draft3.elements.ExpressionElement._
 import wom.types._
-import wom.values.{WomBoolean, WomFloat, WomInteger, WomString}
+import wdl.draft3.transforms.ast2wdlom.ExpressionSet._
+import wdl.model.draft3.elements.ExpressionElement.{IdentifierLookup, PrimitiveLiteralExpressionElement, ReadString, StdoutElement}
+import wom.values.WomInteger
 
 class WdlFileToWdlomSpec extends FlatSpec with Matchers {
 
@@ -83,10 +84,10 @@ object WdlFileToWdlomSpec {
           name = "input_values",
           inputsSection = Some(InputsSectionElement(
             inputDeclarations = Vector(
-              InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "i", Some(PrimitiveLiteralExpressionElement(WomInteger(5)))),
-              InputDeclarationElement(PrimitiveTypeElement(WomStringType), "s", Some(PrimitiveLiteralExpressionElement(WomString("s")))),
-              InputDeclarationElement(PrimitiveTypeElement(WomFloatType), "f", Some(PrimitiveLiteralExpressionElement(WomFloat(5.5)))),
-              InputDeclarationElement(PrimitiveTypeElement(WomBooleanType), "b", Some(PrimitiveLiteralExpressionElement(WomBoolean(true))))
+              InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "i", Some(intLiteral)),
+              InputDeclarationElement(PrimitiveTypeElement(WomStringType), "s", Some(stringLiteral)),
+              InputDeclarationElement(PrimitiveTypeElement(WomFloatType), "f", Some(floatLiteral)),
+              InputDeclarationElement(PrimitiveTypeElement(WomBooleanType), "b", Some(booleanLiteral))
             )
           )),
           outputsSection = None)
@@ -99,19 +100,42 @@ object WdlFileToWdlomSpec {
           name = "input_expressions",
           inputsSection = Some(InputsSectionElement(
             inputDeclarations = Vector(
-              InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "four", Some(Add(
-                left = PrimitiveLiteralExpressionElement(WomInteger(2)),
-                right = PrimitiveLiteralExpressionElement(WomInteger(2)))))
+              InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "ten", Some(addExpression)),
+              InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "zero", Some(subtractExpression)),
+              InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "twentyfive", Some(multiplyExpression)),
+              InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "one", Some(divideExpression)),
+              InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "zeroagain", Some(remainderExpression)),
+              InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "tenagain", Some(tenVariableLookup)),
+              InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "pair_expression_member_access", Some(pairExpressionMemberAccess)),
+              InputDeclarationElement(PrimitiveTypeElement(WomBooleanType), "unary_expressions", Some(unaryExpressions)),
+              InputDeclarationElement(PrimitiveTypeElement(WomBooleanType), "comparisons", Some(comparisonExpression)),
+              InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "variableLookupMemberAccesses", Some(chainIdentifierAccess)),
+              InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "expressionMemberAccesses", Some(chainPairAccess)),
+              InputDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)), "is", Some(arrayOfIs)),
+              InputDeclarationElement(ObjectTypeElement, "object_literal", Some(objectLiteralExpression)),
+              InputDeclarationElement(
+                MapTypeElement(PrimitiveTypeElement(WomStringType), PrimitiveTypeElement(WomIntegerType)),
+                "map_literal",
+                Some(mapLiteralExpression)
+              ),
+              InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "ternaryIf", Some(ternaryIfExpression)),
+              InputDeclarationElement(PrimitiveTypeElement(WomStringType), "string_read", Some(ReadString(StdoutElement))),
+              InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "zipped", Some(zippedExpression)),
+              InputDeclarationElement(PrimitiveTypeElement(WomStringType), "subbed", Some(subbedExpression))
             )
           )),
           outputsSection = None)
         ),
-        tasks = List.empty),
+        tasks = Vector.empty),
     "passthrough_workflow" ->
       FileElement(
-        imports = List.empty,
-        workflows = List.empty,
-        tasks = List.empty),
+        imports = Vector(),
+        workflows = Vector(
+          WorkflowDefinitionElement(
+            name = "foo",
+            Some(InputsSectionElement(Vector(InputDeclarationElement(PrimitiveTypeElement(WomIntegerType),"x",None)))),
+            Some(OutputsSectionElement(Vector(DeclarationElement(PrimitiveTypeElement(WomIntegerType), "y", IdentifierLookup("x"))))))),
+        tasks = Vector()),
     "simpleFirstTest" ->
       FileElement(
         imports = List.empty,
@@ -120,7 +144,7 @@ object WdlFileToWdlomSpec {
     "static_value_workflow" ->
       FileElement(
         imports = Vector.empty,
-        workflows = Vector(WorkflowDefinitionElement("foo", None, Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "y", "3")))))),
+        workflows = Vector(WorkflowDefinitionElement("foo", None, Some(OutputsSectionElement(Vector(DeclarationElement(PrimitiveTypeElement(WomIntegerType), "y", PrimitiveLiteralExpressionElement(WomInteger(3)))))))),
         tasks = Vector.empty
       )
   )

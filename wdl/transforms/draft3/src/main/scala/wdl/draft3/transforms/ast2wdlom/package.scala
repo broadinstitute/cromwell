@@ -26,7 +26,7 @@ package object ast2wdlom {
   implicit val astNodeToTaskBodyElement: CheckedAtoB[AstNode, TaskBodyElement] = astNodeToAst andThen CheckedAtoB.fromCheck(AstToTaskBodyElement.convert)
   implicit val astNodeToWorkflowBodyElement: CheckedAtoB[AstNode, WorkflowBodyElement] = astNodeToAst andThen CheckedAtoB.fromCheck(AstToWorkflowBodyElement.convert)
   implicit val astNodeToOutputsSectionElement: CheckedAtoB[AstNode, OutputsSectionElement] = astNodeToAst andThen CheckedAtoB.fromCheck(AstToOutputsSectionElement.convert)
-  implicit val astNodeToOutputDeclarationElement: CheckedAtoB[AstNode, OutputDeclarationElement] = astNodeToAst andThen CheckedAtoB.fromErrorOr(AstToOutputDeclarationElement.convert)
+  implicit val astNodeToOutputDeclarationElement: CheckedAtoB[AstNode, DeclarationElement] = astNodeToAst andThen CheckedAtoB.fromErrorOr(AstToOutputDeclarationElement.convert)
 
   implicit val fileToFileElement: CheckedAtoB[File, FileElement] = fileToAst andThen astToFileElement
 

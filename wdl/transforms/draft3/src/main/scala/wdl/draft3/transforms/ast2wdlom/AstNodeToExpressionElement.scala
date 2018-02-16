@@ -3,8 +3,11 @@ package wdl.draft3.transforms.ast2wdlom
 import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.validated._
+import common.transforms.CheckedAtoB
+import common.validation.Checked._
 import common.validation.Validation._
 import common.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr._
 import wdl.draft3.parser.WdlParser.{Ast, AstNode, Terminal}
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.elements._
@@ -14,26 +17,196 @@ import wom.values._
 import scala.util.Try
 
 object AstNodeToExpressionElement {
+
   def convert(astNode: AstNode): ErrorOr[ExpressionElement] = astNode match {
 
     case t: Terminal if asPrimitive.isDefinedAt((t.getTerminalStr, t.getSourceString)) => asPrimitive((t.getTerminalStr, t.getSourceString)).map(PrimitiveLiteralExpressionElement)
-    case t: Terminal => s"No rule available to create ExpressionElement from terminal: ${t.getTerminalStr} ${t.getSourceString}".invalidNel
+    case t: Terminal if t.getTerminalStr == "identifier" => IdentifierLookup(t.getSourceString).validNel
 
-    case a: Ast if a.getName == "Add" => getLhsAndRhs(a, Add.apply)
+    case a: Ast if lhsRhsOperators.contains(a.getName) => useValidatedLhsAndRhs(a, lhsRhsOperators(a.getName))
+    case a: Ast if unaryOperators.contains(a.getName) => a.getAttributeAs[ExpressionElement]("expression").map(unaryOperators(a.getName)).toValidated
+    case a: Ast if a.getName == "TupleLiteral" => (a.getAttributeAsVector[ExpressionElement]("values") flatMap {
+      case pair if pair.length == 2 => PairLiteral(pair.head, pair(1)).validNelCheck
+      case singleton if singleton.length == 1 => singleton.head.validNelCheck
+      case more => s"No WDL support for ${more.size}-tuples in draft 3".invalidNelCheck
+    }).toValidated
+    case a: Ast if a.getName == "ArrayLiteral" => a.getAttributeAsVector[ExpressionElement]("values").toValidated.map(ArrayLiteral)
+    case a: Ast if a.getName == "MemberAccess" => handleMemberAccess(a)
+    case a: Ast if mapElementMakers.contains(a.getName) =>
+      val astNodeToKvPair: CheckedAtoB[AstNode, KvPair] = CheckedAtoB.fromErrorOr(AstNodeToKvPair.convert)
+      (for {
+        objectKvs <- a.getAttributeAsVector[KvPair]("map")(astNodeToKvPair)
+        asMap = objectKvs.map(kv => kv.key -> kv.value).toMap
+      } yield mapElementMakers(a.getName).apply(asMap)).toValidated
+    case a: Ast if a.getName == "TernaryIf" =>
+      val conditionValidation: ErrorOr[ExpressionElement] = a.getAttributeAs[ExpressionElement]("cond").toValidated
+      val ifTrueValidation: ErrorOr[ExpressionElement] = a.getAttributeAs[ExpressionElement]("iftrue").toValidated
+      val ifFalseValidation: ErrorOr[ExpressionElement] = a.getAttributeAs[ExpressionElement]("iffalse").toValidated
+      (conditionValidation, ifTrueValidation, ifFalseValidation) mapN { (cond, ifTrue, ifFalse) => TernaryIf(cond, ifTrue, ifFalse) }
+    case a: Ast if a.getName == "FunctionCall" =>
+      val functionNameValidation: ErrorOr[String] = a.getAttributeAs[String]("name").toValidated
+      val argsValidation: ErrorOr[Vector[ExpressionElement]] = a.getAttributeAsVector[ExpressionElement]("params").toValidated
+
+      (functionNameValidation, argsValidation) flatMapN {
+        case (name, params) if engineFunctionMakers.contains(name) => engineFunctionMakers(name).apply(params)
+        case (other, _) => s"Unknown engine function: '$other'".invalidNel
+      }
+
+
+    case unknownTerminal: Terminal => s"No rule available to create ExpressionElement from terminal: ${unknownTerminal.getTerminalStr} ${unknownTerminal.getSourceString}".invalidNel
+    case unknownAst: Ast => s"No rule available to create ExpressionElement from Ast: ${unknownAst.getName}".invalidNel
   }
 
-  private def getLhsAndRhs(a: Ast, combiner: (ExpressionElement, ExpressionElement) => ExpressionElement): ErrorOr[ExpressionElement] = {
+  private type BinaryOperatorElementMaker = (ExpressionElement, ExpressionElement) => ExpressionElement
+
+  private val lhsRhsOperators: Map[String, BinaryOperatorElementMaker] = Map(
+    "LogicalOr" -> LogicalOr.apply,
+    "LogicalAnd" -> LogicalAnd.apply,
+    "Equals" -> Equals.apply,
+    "NotEquals" -> NotEquals.apply,
+    "LessThan" -> LessThan.apply,
+    "LessThanOrEqual" -> LessThanOrEquals.apply,
+    "GreaterThan" -> GreaterThan.apply,
+    "GreaterThanOrEqual" -> GreaterThanOrEquals.apply,
+    "Add" -> Add.apply,
+    "Subtract" -> Subtract.apply,
+    "Multiply" -> Multiply.apply,
+    "Divide" -> Divide.apply,
+    "Remainder" -> Remainder.apply
+  )
+
+  private def useValidatedLhsAndRhs(a: Ast, combiner: BinaryOperatorElementMaker): ErrorOr[ExpressionElement] = {
     val lhsValidation: ErrorOr[ExpressionElement] = a.getAttributeAs[ExpressionElement]("lhs").toValidated
     val rhsValidation: ErrorOr[ExpressionElement] = a.getAttributeAs[ExpressionElement]("rhs").toValidated
 
     (lhsValidation, rhsValidation) mapN { combiner }
   }
 
+  private type UnaryOperatorElementMaker = ExpressionElement => ExpressionElement
+
+  private val unaryOperators: Map[String, UnaryOperatorElementMaker] = Map(
+    "LogicalNot" -> LogicalNot.apply,
+    "UnaryPlus" -> UnaryPlus.apply,
+    "UnaryNegation" -> UnaryNegation.apply
+  )
+
   private val asPrimitive: PartialFunction[(String, String), ErrorOr[WomPrimitive]] = {
     case ("integer", i) => Try(WomInteger(i.toInt)).toErrorOr
     case ("float", f) => Try(WomFloat(f.toDouble)).toErrorOr
     case ("boolean", b) => Try(WomBoolean(b.toBoolean)).toErrorOr
     case ("string", s) => WomString(s).validNel
-    case ("file", s) => WomString(s).validNel
+  }
+
+  private type MapElementMaker = Map[String, ExpressionElement] => ExpressionElement
+  private val mapElementMakers: Map[String, MapElementMaker] = Map(
+    "ObjectLiteral" -> ObjectLiteral.apply,
+    "MapLiteral" -> MapLiteral.apply
+  )
+
+  private val engineFunctionMakers: Map[String, Vector[ExpressionElement] => ErrorOr[ExpressionElement]] = Map(
+    // 0-param functions:
+    "stdout" -> validateNoParamEngineFunction(StdoutElement, "stdout"),
+    "stderr" -> validateNoParamEngineFunction(StderrElement, "stderr"),
+
+    // 1-param functions:
+    "read_lines" -> validateOneParamEngineFunction(ReadString, "read_lines"),
+    "read_tsv" -> validateOneParamEngineFunction(ReadString, "read_tsv"),
+    "read_map" -> validateOneParamEngineFunction(ReadString, "read_map"),
+    "read_object" -> validateOneParamEngineFunction(ReadString, "read_object"),
+    "read_objects" -> validateOneParamEngineFunction(ReadString, "read_objects"),
+    "read_json" -> validateOneParamEngineFunction(ReadString, "read_json"),
+    "read_int" -> validateOneParamEngineFunction(ReadString, "read_int"),
+    "read_string" -> validateOneParamEngineFunction(ReadString, "read_string"),
+    "read_float" -> validateOneParamEngineFunction(ReadString, "read_float"),
+    "read_boolean" -> validateOneParamEngineFunction(ReadString, "read_boolean"),
+    "write_lines" -> validateOneParamEngineFunction(ReadString, "write_lines"),
+    "write_tsv" -> validateOneParamEngineFunction(ReadString, "write_tsv"),
+    "write_map" -> validateOneParamEngineFunction(ReadString, "write_map"),
+    "write_object" -> validateOneParamEngineFunction(ReadString, "write_object"),
+    "write_objects" -> validateOneParamEngineFunction(ReadString, "write_objects"),
+    "write_json" -> validateOneParamEngineFunction(ReadString, "write_json"),
+    "range" -> validateOneParamEngineFunction(ReadString, "range"),
+    "transpose" -> validateOneParamEngineFunction(ReadString, "transpose"),
+    "length" -> validateOneParamEngineFunction(ReadString, "length"),
+    "prefix" -> validateOneParamEngineFunction(ReadString, "prefix"),
+    "select_first" -> validateOneParamEngineFunction(ReadString, "select_first"),
+    "select_all" -> validateOneParamEngineFunction(ReadString, "select_all"),
+    "defined" -> validateOneParamEngineFunction(ReadString, "defined"),
+    "basename" -> validateOneParamEngineFunction(ReadString, "basename"),
+    "floor" -> validateOneParamEngineFunction(ReadString, "floor"),
+    "ceil" -> validateOneParamEngineFunction(ReadString, "ceil"),
+    "round" -> validateOneParamEngineFunction(ReadString, "round"),
+
+    // 1- or 2-param functions:
+    "size" -> validateSizeEngineFunction,
+
+    // 2-param functions:
+    "zip" -> validateTwoParamEngineFunction(Zip, "zip"),
+    "cross" -> validateTwoParamEngineFunction(Cross, "cross"),
+
+    // 3-param functions:
+    "sub" -> validateThreeParamEngineFunction(Sub, "sub"),
+  )
+
+  private def validateNoParamEngineFunction(element: ExpressionElement, functionName: String)
+                                           (params: Vector[ExpressionElement]): ErrorOr[ExpressionElement] =
+    if (params.isEmpty) {
+      element.validNel
+    } else {
+      s"Function $functionName expects 0 arguments but got ${params.size}".invalidNel
+    }
+
+  private def validateOneParamEngineFunction(elementMaker: ExpressionElement => ExpressionElement, functionName: String)
+                                            (params: Vector[ExpressionElement]): ErrorOr[ExpressionElement] =
+    if (params.size == 1) {
+      elementMaker.apply(params.head).validNel
+    } else {
+      s"Function $functionName expects exactly 1 argument but got ${params.size}".invalidNel
+    }
+
+  private def validateSizeEngineFunction(params: Vector[ExpressionElement]): ErrorOr[ExpressionElement] =
+    if (params.size == 1) {
+      Size(params.head, None).validNel
+    } else if (params.size == 2) {
+      Size(params.head, Option(params(1))).validNel
+    } else {
+      s"Function size expects 1 or 2 arguments but got ${params.size}".invalidNel
+    }
+
+  private def validateTwoParamEngineFunction(elementMaker: (ExpressionElement, ExpressionElement) => ExpressionElement, functionName: String)
+                                            (params: Vector[ExpressionElement]): ErrorOr[ExpressionElement] =
+    if (params.size == 2) {
+      elementMaker.apply(params.head, params(1)).validNel
+    } else {
+      s"Function $functionName expects exactly 2 arguments but got ${params.size}".invalidNel
+    }
+
+  private def validateThreeParamEngineFunction(elementMaker: (ExpressionElement, ExpressionElement, ExpressionElement) => ExpressionElement, functionName: String)
+                                              (params: Vector[ExpressionElement]): ErrorOr[ExpressionElement] =
+    if (params.size == 3) {
+      elementMaker.apply(params.head, params(1), params(2)).validNel
+    } else {
+      s"Function $functionName expects exactly 3 arguments but got ${params.size}".invalidNel
+    }
+
+  private def handleMemberAccess(ast: Ast): ErrorOr[ExpressionElement] = {
+
+    // Internal simplify method:
+    // If the left-hand side is another member access, we can simplify them together.
+    // If not, we can build a new member access:
+    def simplify(leftExpression: ExpressionElement, suffix: String): ExpressionElement = leftExpression match {
+      case ExpressionMemberAccess(lefterExpression, tail) => ExpressionMemberAccess(lefterExpression, tail :+ suffix)
+      case IdentifierMemberAccess(first, second, tail) => IdentifierMemberAccess(first, second, tail :+ suffix)
+      case IdentifierLookup(identifier) => IdentifierMemberAccess(identifier, suffix, Vector.empty)
+      case _ => ExpressionMemberAccess(leftExpression, Vector(suffix))
+    }
+
+    val leftValidation: ErrorOr[ExpressionElement] = ast.getAttributeAs[ExpressionElement]("value").toValidated
+    val rightValidation: ErrorOr[String] = ast.getAttributeAs[String]("member").toValidated
+
+    (leftValidation, rightValidation) mapN { (lhs, rhs) =>
+      simplify(lhs, rhs)
+    }
+
   }
 }

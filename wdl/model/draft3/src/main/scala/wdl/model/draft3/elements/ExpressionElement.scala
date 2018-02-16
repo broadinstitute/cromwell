@@ -58,7 +58,7 @@ object ExpressionElement {
   sealed trait FunctionCall extends ExpressionElement
   case object StdoutCall extends FunctionCall
   case object StderrCall extends FunctionCall
-  // TODO: and the rest...
+  // TODO: and other engine functions
 
   /**
     * Represents a member access.
@@ -95,6 +95,13 @@ object ExpressionElement {
     *  - But, the second element might be part of the identifier to look up (eg my_task.pair_of_pairs) OR it might
     *      be part of a member access chain (eg pair_of_pairs.left.right). We won't know until we do the linking.
     */
-  case class MemberAccess(firstIdentifier: String, secondIdentifierOrFirstMemberAccess: String, memberAccessTail: Vector[String])
+  case class IdentifierMemberAccess(firstIdentifier: String, secondIdentifierOrFirstMemberAccess: String, memberAccessTail: Vector[String])
 
+  /**
+    * A member access which is based on an expression rather than an identifier.
+    *
+    * eg:
+    * (1, 2).left
+    */
+  case class ExpressionMemberAccess(expression: ExpressionElement, memberAccessTail: Vector[String])
 }

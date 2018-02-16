@@ -60,6 +60,41 @@ object ExpressionElement {
   case object StderrCall extends FunctionCall
   // TODO: and the rest...
 
-
+  /**
+    * Represents a member access.
+    *
+    * But, why the split into firstIdentifier, secondIdentifierOrFirstMemberAccess and memberAccessTail? Take a look at some examples:
+    *
+    * ---
+    *
+    * Example 1: task output lookup expression:
+    * Pair[Pair[String, Int], Int] pair_of_pairs = my_task.pair_of_pairs
+    *
+    * The first identifier is 'my_task', the second identifier is 'pair_of_pairs' and the tail is [ ]
+    *
+    * ---
+    *
+    * Example 2:
+    * Int x = pair_of_pairs.left.right
+    *
+    * The first identifier is 'pair_of_pairs', the second is 'left' and the tail is [ 'right' ]
+    *
+    * ---
+    *
+    * Example 3:
+    * Int x = mytask.pair_of_pair_output.left.right
+    *
+    * The first identifier is mytask, the second is pair_of_pair_output, and the tail is ['left', 'right']
+    *
+    * ---
+    *
+    * Observations:
+    *  - We always get at least two identifiers.
+    *  - The firstIdentifier is *always* part of the identifier we'll need to look up in the value store.
+    *  - The tail will *always* be a chain of member accesses on a WomValue.
+    *  - But, the second element might be part of the identifier to look up (eg my_task.pair_of_pairs) OR it might
+    *      be part of a member access chain (eg pair_of_pairs.left.right). We won't know until we do the linking.
+    */
+  case class MemberAccess(firstIdentifier: String, secondIdentifierOrFirstMemberAccess: String, memberAccessTail: Vector[String])
 
 }

@@ -10,7 +10,7 @@ import wom.graph.LocalName
 import wom.transforms.WomCommandTaskDefinitionMaker
 import wom.types.WomOptionalType
 
-object WdlDraft2WomCommandTaskDefinitionMaker$ extends WomCommandTaskDefinitionMaker[WdlTask] {
+object WdlDraft2WomCommandTaskDefinitionMaker extends WomCommandTaskDefinitionMaker[WdlTask] {
 
   override def toWomTaskDefinition(wdlTask: WdlTask): ErrorOr[CommandTaskDefinition] = {
 

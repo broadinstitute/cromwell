@@ -37,6 +37,13 @@ object Collection {
   final class LabelContainsCollectionException extends Exception(s"Submitted labels contain the key $CollectionLabelName, which is not allowed\n")
   private final case class InvalidLabelsException(labels: String) extends Exception(s"Labels must be a valid JSON object, received: $labels\n")
 
+  /**
+    * Returns the default collection for a user.
+    */
+  def forUser(user: User): Collection = {
+    Collection(user.userId.value)
+  }
+
   implicit val collectionJsonReader = new JsonReader[Collection] {
     import spray.json.DefaultJsonProtocol._
     override def read(json: JsValue): Collection = Collection(json.convertTo[String])

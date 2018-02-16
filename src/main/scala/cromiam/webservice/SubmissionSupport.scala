@@ -60,7 +60,9 @@ trait SubmissionSupport extends RequestSupport {
 
 object SubmissionSupport {
   def extractCollection(user: User): Directive1[Collection] = {
-    formField(CollectionNameKey.?).map(x => Collection(x.getOrElse(user.userId.value)))
+    formField(CollectionNameKey.?) map { maybeCollectionName =>
+      maybeCollectionName.map(Collection(_)).getOrElse(Collection.forUser(user))
+    }
   }
 
   def extractSubmission(user: User): Directive1[WorkflowSubmission] = {

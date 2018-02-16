@@ -61,6 +61,11 @@ object ExpressionElement {
   // TODO: and other engine functions
 
   /**
+    * A single identifier lookup expression, eg Int x = y
+    */
+  case class IdentifierLookup(identifier: String)
+
+  /**
     * Represents a member access.
     *
     * But, why the split into firstIdentifier, secondIdentifierOrFirstMemberAccess and memberAccessTail? Take a look at some examples:

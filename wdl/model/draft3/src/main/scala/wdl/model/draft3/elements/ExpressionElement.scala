@@ -7,10 +7,10 @@ sealed trait ExpressionElement
 object ExpressionElement {
   case class PrimitiveLiteralExpressionElement(value: WomPrimitive) extends ExpressionElement
 
-  case class ObjectLiteral(elements: Map[String, ExpressionElement])
-  case class ArrayLiteral(elements: Array[ExpressionElement])
-  case class MapLiteral(elements: Array[ExpressionElement])
-  case class PairLiteral(left: ExpressionElement, right: ExpressionElement)
+  case class ObjectLiteral(elements: Map[String, ExpressionElement]) extends ExpressionElement
+  case class ArrayLiteral(elements: Array[ExpressionElement]) extends ExpressionElement
+  case class MapLiteral(elements: Array[ExpressionElement]) extends ExpressionElement
+  case class PairLiteral(left: ExpressionElement, right: ExpressionElement) extends ExpressionElement
 
   /**
     * Represents a unary operation (i.e. a operator symbol followed by a single argument expression)
@@ -95,7 +95,7 @@ object ExpressionElement {
     *  - But, the second element might be part of the identifier to look up (eg my_task.pair_of_pairs) OR it might
     *      be part of a member access chain (eg pair_of_pairs.left.right). We won't know until we do the linking.
     */
-  case class IdentifierMemberAccess(firstIdentifier: String, secondIdentifierOrFirstMemberAccess: String, memberAccessTail: Vector[String])
+  case class IdentifierMemberAccess(firstIdentifier: String, secondIdentifierOrFirstMemberAccess: String, memberAccessTail: Vector[String]) extends ExpressionElement
 
   /**
     * A member access which is based on an expression rather than an identifier.
@@ -103,5 +103,5 @@ object ExpressionElement {
     * eg:
     * (1, 2).left
     */
-  case class ExpressionMemberAccess(expression: ExpressionElement, memberAccessTail: Vector[String])
+  case class ExpressionMemberAccess(expression: ExpressionElement, memberAccessTail: Vector[String]) extends ExpressionElement
 }

@@ -10,7 +10,7 @@ object ExpressionElement {
   case class ObjectLiteral(elements: Map[String, ExpressionElement])
   case class ArrayLiteral(elements: Array[ExpressionElement])
   case class MapLiteral(elements: Array[ExpressionElement])
-  case class TupleLiteral(elements: Array[ExpressionElement])
+  case class PairLiteral(left: ExpressionElement, right: ExpressionElement)
 
   /**
     * Represents a unary operation (i.e. a operator symbol followed by a single argument expression)

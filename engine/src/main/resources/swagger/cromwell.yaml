@@ -365,6 +365,19 @@ paths:
             returns workflows with all of the specified label keys. Specify the label key
             and label value pair as separated with
             "label-key:label-value"
+        - name: labelor
+          required: false
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+          pattern: ^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$
+          description: >
+            Returns workflows with the specified label keys.  If specified multiple times,
+            returns workflows with any of the specified label keys. Specify the label key
+            and label value pair as separated with
+            "label-key:label-value"
         - name: additionalQueryResultFields
           required: false
           in: query
@@ -392,7 +405,7 @@ paths:
             - openid
     post:
       summary: Get workflows matching some criteria
-      description: Query workflows by start dates, end dates, names, ids, or statuses.
+      description: Query workflows by start dates, end dates, names, ids, labels, or statuses.
       parameters:
         - $ref: '#/parameters/versionParam'
         - name: parameters

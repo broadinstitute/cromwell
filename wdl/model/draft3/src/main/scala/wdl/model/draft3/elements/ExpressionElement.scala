@@ -7,6 +7,11 @@ sealed trait ExpressionElement
 object ExpressionElement {
   case class PrimitiveLiteralExpressionElement(value: WomPrimitive) extends ExpressionElement
 
+  case class ObjectLiteral(elements: Map[String, ExpressionElement])
+  case class ArrayLiteral(elements: Array[ExpressionElement])
+  case class MapLiteral(elements: Array[ExpressionElement])
+  case class TupleLiteral(elements: Array[ExpressionElement])
+
   /**
     * Represents a unary operation (i.e. a operator symbol followed by a single argument expression)
     */
@@ -54,5 +59,7 @@ object ExpressionElement {
   case object StdoutCall extends FunctionCall
   case object StderrCall extends FunctionCall
   // TODO: and the rest...
+
+
 
 }

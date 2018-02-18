@@ -1,8 +1,5 @@
 name: cwl_scatter_wf1
 testFormat: workflowsuccess
-# Can't run CWL on TES or JES until we have docker working
-backendsMode: "only"
-backends: [Local, LocalNoDocker]
 
 files {
   wdl: cwls/scatter-wf1.cwl

@@ -416,11 +416,18 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     import keys._
 
     val DataStoreUpdate(runnableKeys, updatedData) = data.executionStoreUpdate
-    val runnableCalls = runnableKeys.view collect { case k if k.node.isInstanceOf[CallNode] => k } sortBy { k =>
-      (k.node.fullyQualifiedName, k.index.getOrElse(-1)) } map { _.tag }
-
+    val runnableCalls = runnableKeys.view
+      .collect({ case k: BackendJobDescriptorKey => k })
+      .groupBy(_.node)
+      .map({
+        case (node, keys) => 
+          val tag = node.fullyQualifiedName
+          val shardCount = keys.map(_.index).distinct.size
+          if (shardCount == 1) tag
+          else s"$tag ($shardCount shards)"
+      })
     val mode = if (restarting) "Restarting" else "Starting"
-    if (runnableCalls.nonEmpty) workflowLogger.info(s"$mode calls: " + runnableCalls.mkString(", "))
+    if (runnableCalls.nonEmpty) workflowLogger.info(s"$mode " + runnableCalls.mkString(", "))
 
     val diffValidation = runnableKeys.traverse[ErrorOr, WorkflowExecutionDiff]({
       case key: BackendJobDescriptorKey => processRunnableJob(key, data)

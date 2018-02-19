@@ -41,7 +41,21 @@ trait CromwellInstrumentation {
     * cromwell.[prefix].path
     */
   final private def makeBucket(path: InstrumentationPath, prefix: Option[String]): CromwellBucket = {
-    CromwellBucket(List("cromwell") ++ prefix, path)
+    CromwellBucket(prefix.toList, path)
+  }
+
+  /**
+    * Creates an increment message for the given bucket
+    */
+  private final def countMessage(path: InstrumentationPath, count: Long, prefix: Option[String]): InstrumentationServiceMessage = {
+    InstrumentationServiceMessage(CromwellCount(makeBucket(path, prefix), count))
+  }
+
+  /**
+    * Increment the counter for the given bucket
+    */
+  protected final def count(path: InstrumentationPath, count: Long, prefix: Option[String] = None): Unit = {
+    serviceRegistryActor ! countMessage(path, count, prefix)
   }
   
   /**

@@ -1,6 +1,6 @@
 package cromwell.services.keyvalue.impl
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.services.keyvalue.KeyValueServiceActor
@@ -9,10 +9,10 @@ import cromwell.services.keyvalue.KeyValueServiceActor._
 import scala.concurrent.Future
 
 object SqlKeyValueServiceActor {
-  def props(serviceConfig: Config, globalConfig: Config) = Props(SqlKeyValueServiceActor(serviceConfig, globalConfig)).withDispatcher(ServiceDispatcher)
+  def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) = Props(SqlKeyValueServiceActor(serviceConfig, globalConfig, serviceRegistryActor)).withDispatcher(ServiceDispatcher)
 }
 
-final case class SqlKeyValueServiceActor(serviceConfig: Config, globalConfig: Config)
+final case class SqlKeyValueServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
   extends KeyValueServiceActor with BackendKeyValueDatabaseAccess {
   override implicit val ec = context.dispatcher
   private implicit val system = context.system

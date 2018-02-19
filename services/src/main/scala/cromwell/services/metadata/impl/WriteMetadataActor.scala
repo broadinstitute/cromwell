@@ -5,6 +5,7 @@ import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.actor.BatchingDbWriter._
 import cromwell.core.actor.{BatchingDbWriter, BatchingDbWriterActor}
 import cromwell.services.MetadataServicesStore
+import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.metadata.MetadataEvent
 import cromwell.services.metadata.MetadataService._
 
@@ -13,9 +14,11 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 
-class WriteMetadataActor(override val dbBatchSize: Int, override val dbFlushRate: FiniteDuration)
+class WriteMetadataActor(override val dbBatchSize: Int,
+                         override val dbFlushRate: FiniteDuration,
+                         override val serviceRegistryActor: ActorRef)
   extends LoggingFSM[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData] with ActorLogging with
-  MetadataDatabaseAccess with MetadataServicesStore with BatchingDbWriterActor {
+    MetadataDatabaseAccess with MetadataServicesStore with BatchingDbWriterActor with CromwellInstrumentation {
   import WriteMetadataActor._
 
   implicit val ec: ExecutionContext = context.dispatcher
@@ -45,7 +48,7 @@ class WriteMetadataActor(override val dbBatchSize: Int, override val dbFlushRate
   }
 
   when(WritingToDb) {
-    case Event(CheckPendingWrites, _) => 
+    case Event(CheckPendingWrites, _) =>
       sender() ! HasPendingWrites
       stay()
     case Event(ScheduledFlushToDb, curData) => stay using curData
@@ -70,6 +73,7 @@ class WriteMetadataActor(override val dbBatchSize: Int, override val dbFlushRate
         case Success(_) =>
           self ! DbWriteComplete
           putWithResponse foreach { case(ev, replyTo) => replyTo ! MetadataWriteSuccess(ev) }
+          count(MetadataWritePath, allPutEvents.size.toLong, Option("services"))
         case Failure(regerts) =>
           log.error(regerts, "Failed to properly flush metadata to database")
           self ! DbWriteComplete
@@ -87,7 +91,10 @@ class WriteMetadataActor(override val dbBatchSize: Int, override val dbFlushRate
 }
 
 object WriteMetadataActor {
-  def props(dbBatchSize: Int, flushRate: FiniteDuration): Props = Props(new WriteMetadataActor(dbBatchSize, flushRate)).withDispatcher(ServiceDispatcher)
+  val MetadataWritePath = MetadataServiceActor.MetadataInstrumentationPrefix.::("writes")
+  def props(dbBatchSize: Int,
+            flushRate: FiniteDuration,
+            serviceRegistryActor: ActorRef): Props = Props(new WriteMetadataActor(dbBatchSize, flushRate, serviceRegistryActor)).withDispatcher(ServiceDispatcher)
 
   sealed trait WriteMetadataActorMessage
   case object CheckPendingWrites extends WriteMetadataActorMessage with MetadataServiceAction

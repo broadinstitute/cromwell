@@ -2,8 +2,8 @@ package cromwell.services.metadata.impl.pubsub
 
 import java.time.OffsetDateTime
 
-import akka.actor.{ActorInitializationException, Props}
-import akka.testkit.EventFilter
+import akka.actor.{ActorInitializationException, ActorRef, Props}
+import akka.testkit.{EventFilter, TestProbe}
 import com.google.api.client.auth.oauth2.Credential
 import com.google.api.services.pubsub.model.Topic
 import com.typesafe.config.{Config, ConfigFactory}
@@ -20,10 +20,12 @@ import scala.concurrent.{ExecutionContext, Future}
 class PubSubMetadataServiceActorSpec extends ServicesSpec("PubSubMetadata") {
   import PubSubMetadataServiceActorSpec._
 
+  val registryProbe = TestProbe().ref
+  
   "A PubSubMetadataActor with an empty serviceConfig" should {
     "fail to build" in {
       EventFilter[ActorInitializationException](occurrences = 1) intercept {
-        system.actorOf(Props(new PubSubMetadataServiceActor(emptyConfig, emptyConfig)))
+        system.actorOf(Props(new PubSubMetadataServiceActor(emptyConfig, emptyConfig, registryProbe)))
       }
     }
   }
@@ -31,25 +33,25 @@ class PubSubMetadataServiceActorSpec extends ServicesSpec("PubSubMetadata") {
   "A PubSubMetadataActor with a subscription" should {
     "should ensure topic exists" in {
       EventFilter.info("Ensuring topic bar exists", occurrences = 1) intercept {
-        system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithSubscription, emptyConfig)))
+        system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithSubscription, emptyConfig, registryProbe)))
       }
     }
 
     "should create the requested subscription" in {
       EventFilter.info("Creating subscription baz", occurrences = 1) intercept {
-        system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithSubscription, emptyConfig)))
+        system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithSubscription, emptyConfig, registryProbe)))
       }
     }
 
     "should log to debug on a publish request" in {
       EventFilter.debug(start = "Publishing to", occurrences = 1) intercept {
-        val psma = system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithSubscription, emptyConfig)))
+        val psma = system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithSubscription, emptyConfig, registryProbe)))
         psma ! PutMetadataAction(List(Event))
       }
     }
 
     "should ack on a publish-ack request" in {
-      val psma = system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithSubscription, emptyConfig)))
+      val psma = system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithSubscription, emptyConfig, registryProbe)))
       psma ! PutMetadataActionAndRespond(List(Event), testActor)
       expectMsgClass(classOf[MetadataWriteSuccess])
     }
@@ -58,25 +60,25 @@ class PubSubMetadataServiceActorSpec extends ServicesSpec("PubSubMetadata") {
   "A PubSubMetadataActor without a subscription" should {
     "should ensure topic exists" in {
       EventFilter.info("Ensuring topic bar exists", occurrences = 1) intercept {
-        system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig)))
+        system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)))
       }
     }
 
     "should not be creating a subscription" in {
       EventFilter.info("Not creating a subscription", occurrences = 1) intercept {
-        system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig)))
+        system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)))
       }
     }
 
     "should log to debug on a publish request" in {
       EventFilter.debug(start = "Publishing to", occurrences = 1) intercept {
-        val psma = system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig)))
+        val psma = system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)))
         psma ! PutMetadataAction(List(Event))
       }
     }
 
     "should ack on a publish-ack request" in {
-      val psma = system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig)))
+      val psma = system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)))
       psma ! PutMetadataActionAndRespond(List(Event), testActor)
       expectMsgClass(classOf[MetadataWriteSuccess])
     }
@@ -85,7 +87,7 @@ class PubSubMetadataServiceActorSpec extends ServicesSpec("PubSubMetadata") {
   "A PubSubMetadataActor who fails at all things" should {
     "fail to create a topic" in {
       EventFilter[RuntimeException](start = "Unable to create topic", occurrences = 1) intercept {
-        system.actorOf(Props(new FailingToCreateTopicMockPubSubMetadataServiceActor(configWithSubscription, emptyConfig)))
+        system.actorOf(Props(new FailingToCreateTopicMockPubSubMetadataServiceActor(configWithSubscription, emptyConfig, registryProbe)))
       }
     }
   }
@@ -93,19 +95,19 @@ class PubSubMetadataServiceActorSpec extends ServicesSpec("PubSubMetadata") {
   "A PubSubMetadataActor who fails to publish" should {
     "should ensure topic exists" in {
       EventFilter.info("Ensuring topic bar exists", occurrences = 1) intercept {
-        system.actorOf(Props(new FailToPublishMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig)))
+        system.actorOf(Props(new FailToPublishMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)))
       }
     }
 
     "should log to error on a publish request" in {
       EventFilter[RuntimeException](start = "Failed to post metadata: ", occurrences = 1) intercept {
-        val psma = system.actorOf(Props(new FailToPublishMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig)))
+        val psma = system.actorOf(Props(new FailToPublishMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)))
         psma ! PutMetadataAction(List(Event))
       }
     }
 
     "should ack on a publish-ack request" in {
-      val psma = system.actorOf(Props(new FailToPublishMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig)))
+      val psma = system.actorOf(Props(new FailToPublishMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)))
       psma ! PutMetadataActionAndRespond(List(Event), testActor)
       expectMsgClass(classOf[MetadataWriteFailure])
     }
@@ -114,22 +116,22 @@ class PubSubMetadataServiceActorSpec extends ServicesSpec("PubSubMetadata") {
 
 object PubSubMetadataServiceActorSpec {
   /** A variant of PubSubMetadataServiceActor with a GooglePubSubDAO which will always return success */
-  class SuccessfulMockPubSubMetadataServiceActor(serviceConfig: Config, globalConfig: Config)
-    extends PubSubMetadataServiceActor(serviceConfig, globalConfig) {
+  class SuccessfulMockPubSubMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
+    extends PubSubMetadataServiceActor(serviceConfig, globalConfig, serviceRegistryActor) {
 
     override def createPubSubConnection(): GooglePubSubDAO = new SuccessfulMockGooglePubSubDao
   }
 
   /** A variant of PubSubMetadataServiceActor with a GooglePubSubDAO which will always return failure */
-  class FailingToCreateTopicMockPubSubMetadataServiceActor(serviceConfig: Config, globalConfig: Config)
-    extends PubSubMetadataServiceActor(serviceConfig, globalConfig) {
+  class FailingToCreateTopicMockPubSubMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
+    extends PubSubMetadataServiceActor(serviceConfig, globalConfig, serviceRegistryActor) {
 
     override def createPubSubConnection(): GooglePubSubDAO = new FailingToCreateTopicMockGooglePubSubDao
   }
 
   /** A variant of PubSubMetadataServiceActor which will fail on message publication */
-  class FailToPublishMockPubSubMetadataServiceActor(serviceConfig: Config, globalConfig: Config)
-    extends PubSubMetadataServiceActor(serviceConfig, globalConfig) {
+  class FailToPublishMockPubSubMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
+    extends PubSubMetadataServiceActor(serviceConfig, globalConfig, serviceRegistryActor) {
 
     override def createPubSubConnection(): GooglePubSubDAO = new FailToPublishMockGooglePubSubDao
   }

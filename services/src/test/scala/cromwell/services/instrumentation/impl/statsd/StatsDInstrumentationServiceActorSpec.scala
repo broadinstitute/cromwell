@@ -26,6 +26,7 @@ class StatsDInstrumentationServiceActorSpec extends TestKitSuite with FlatSpecLi
     """.stripMargin
   )
 
+  val registryProbe = TestProbe().ref
   val udpProbe = TestProbe()
   val patience = 1.second
   val testBucket = CromwellBucket(List("test_prefix"), NonEmptyList.of("test", "metric", "bucket"))
@@ -73,7 +74,7 @@ class StatsDInstrumentationServiceActorSpec extends TestKitSuite with FlatSpecLi
   ) foreach {
     case StatsDTestBit(description, metric, expectedPackets) =>
       it should description in {
-        val instrumentationActor = TestActorRef(new StatsDInstrumentationServiceActor(config, ConfigFactory.load()))
+        val instrumentationActor = TestActorRef(new StatsDInstrumentationServiceActor(config, ConfigFactory.load(), registryProbe))
         instrumentationActor ! InstrumentationServiceMessage(metric)
         val received = udpProbe.receiveWhile(patience) {
           case Udp.Received(data, _) => data.utf8String

@@ -21,7 +21,7 @@ abstract class EmptyActor extends Actor {
   override def receive: Receive = Actor.emptyBehavior
 }
 
-class FooServiceActor(config: Config, configp: Config) extends EmptyActor
+class FooServiceActor(config: Config, configp: Config, registryActor: ActorRef) extends EmptyActor
 
 class NoAppropriateConstructorServiceActor extends EmptyActor
 
@@ -33,7 +33,7 @@ object BarServiceActor {
   case object ArbitraryBarMessage extends BarServiceMessage
 }
 
-class BarServiceActor(config: Config, configp: Config) extends Actor {
+class BarServiceActor(config: Config, configp: Config, registryActor: ActorRef) extends Actor {
   var probe: TestProbe = _
   override def receive: Receive = {
     case SetProbe(p) => probe = p

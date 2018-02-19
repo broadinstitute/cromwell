@@ -16,6 +16,8 @@ private object IoInstrumentationImplicits {
   val LocalPath = NonEmptyList.of("local")
   val GcsPath = NonEmptyList.of("gcs")
   val UnknownFileSystemPath = NonEmptyList.of("unknown")
+  
+  val backpressure = NonEmptyList.of("backpressure")
 
   /**
     * Augments IoResult to provide instrumentation conversion methods
@@ -89,6 +91,8 @@ trait IoInstrumentation extends CromwellInstrumentation {
     * Increment an IoResult to the proper bucket depending on the request type and the result (success or failure).
     */
   final def incrementIoResult(ioResult: IoResult): Unit = incrementIo(ioResult.toPath)
+  
+  final def incrementBackpressure(): Unit = incrementIo(backpressure)
 
   /**
     * Increment an IoCommand to the proper bucket depending on the request type.

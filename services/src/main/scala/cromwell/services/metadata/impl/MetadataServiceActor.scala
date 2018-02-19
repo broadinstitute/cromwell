@@ -3,6 +3,7 @@ package cromwell.services.metadata.impl
 
 import akka.actor.SupervisorStrategy.{Decider, Directive, Escalate, Resume}
 import akka.actor.{Actor, ActorContext, ActorInitializationException, ActorLogging, ActorRef, Cancellable, OneForOneStrategy, Props}
+import akka.routing.Listen
 import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.Dispatcher.ServiceDispatcher
@@ -11,7 +12,6 @@ import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataServiceActor._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
-import cromwell.services.metadata.impl.WriteMetadataActor.CheckPendingWrites
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import net.ceedubs.ficus.Ficus._
@@ -93,7 +93,7 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(writeActor))
     case action: PutMetadataAction => writeActor forward action
     case action: PutMetadataActionAndRespond => writeActor forward action
-    case CheckPendingWrites => writeActor forward CheckPendingWrites
+    case ListenToMetadataWriteActor => writeActor forward Listen(sender())
     case v: ValidateWorkflowId => validateWorkflowId(v.possibleWorkflowId, sender())
     case action: ReadAction => readActor forward action
     case RefreshSummary => summaryActor foreach { _ ! SummarizeMetadata(sender()) }

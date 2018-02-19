@@ -1,62 +1,40 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
-import akka.actor.{ActorRef, LoggingFSM, Props}
+import akka.actor.{ActorRef, Props}
 import cats.instances.list._
 import cats.instances.tuple._
 import cats.syntax.foldable._
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.actor.BatchingDbWriter._
-import cromwell.core.actor.{BatchingDbWriter, BatchingDbWriterActor}
+import cromwell.core.actor.BatchActor
+import cromwell.core.actor.BatchActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCacheHashBundle
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor.SaveCallCacheHashes
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-case class CallCacheWriteActor(callCache: CallCache) extends LoggingFSM[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData] with BatchingDbWriterActor {
+case class CallCacheWriteActor(callCache: CallCache) extends BatchActor[CommandAndReplyTo[SaveCallCacheHashes]](CallCacheWriteActor.dbFlushRate, CallCacheWriteActor.dbBatchSize) {
 
-  implicit val ec: ExecutionContext = context.dispatcher
-  
-  override val dbFlushRate = CallCacheWriteActor.dbFlushRate
-  override val dbBatchSize = CallCacheWriteActor.dbBatchSize
-
-  startWith(WaitingToWrite, NoData)
-
-  when(WaitingToWrite) {
-    case Event(command: SaveCallCacheHashes, curData) =>
-      curData.addData(CommandAndReplyTo(command, sender)) match {
-        case newData: HasData[_] if newData.length >= dbBatchSize => goto(WritingToDb) using newData
-        case newData => stay() using newData
-      }
-    case Event(ScheduledFlushToDb, _) =>
-      log.debug("Initiating periodic call cache flush to DB")
-      goto(WritingToDb)
+  def commandToData(snd: ActorRef): PartialFunction[Any, CommandAndReplyTo[SaveCallCacheHashes]] = {
+    case command: SaveCallCacheHashes => CommandAndReplyTo(command, snd)
   }
 
-  when(WritingToDb) {
-    case Event(ScheduledFlushToDb, _) => stay
-    case Event(command: SaveCallCacheHashes, curData) => stay using curData.addData(CommandAndReplyTo(command, sender))
-    case Event(FlushBatchToDb, NoData) =>
-      log.debug("Attempted call cache hash set flush to DB but had nothing to write")
-      goto(WaitingToWrite)
-    case Event(FlushBatchToDb, HasData(data)) =>
-      log.debug("Flushing {} call cache hashes sets to the DB", data.length)
+  override protected def sizeFunction(command: CommandAndReplyTo[SaveCallCacheHashes]) = 1
 
-      // Collect all the bundles of hashes that should be written and all the senders which should be informed of
-      // success or failure.
-      val (bundles, replyTos) = data.foldMap { case CommandAndReplyTo(s: SaveCallCacheHashes, r: ActorRef) => (List(s.bundle), List(r)) }
-      if (bundles.nonEmpty) {
-        val futureMessage = callCache.addToCache(bundles, dbBatchSize) map { _ => CallCacheWriteSuccess } recover { case t => CallCacheWriteFailure(t) }
-        futureMessage map { message =>
-          replyTos foreach { _ ! message }
-          self ! DbWriteComplete
-        }
+  override protected def process(data: Vector[CommandAndReplyTo[SaveCallCacheHashes]]) = {
+    log.debug("Flushing {} call cache hashes sets to the DB", data.length)
+
+    //     Collect all the bundles of hashes that should be written and all the senders which should be informed of
+    //     success or failure.
+    val (bundles, replyTos) = data.toList.foldMap { case CommandAndReplyTo(s: SaveCallCacheHashes, r: ActorRef) => (List(s.bundle), List(r)) }
+    if (bundles.nonEmpty) {
+      val futureMessage = callCache.addToCache(bundles, batchSize) map { _ => CallCacheWriteSuccess } recover { case t => CallCacheWriteFailure(t) }
+      futureMessage map { message =>
+        replyTos foreach { _ ! message }
       }
-      stay using NoData
-    case Event(DbWriteComplete, _) =>
-      log.debug("Flush of cache data complete")
-      goto(WaitingToWrite)
+      futureMessage.map(_ => data.size)
+    } else Future.successful(0)
   }
 }
 

@@ -58,7 +58,7 @@ class ServiceRegistryActor(globalConfig: Config) extends Actor with ActorLogging
   import ServiceRegistryActor._
 
   def serviceProps = serviceNameToPropsMap(globalConfig, self)
-  
+
   val services: Map[String, ActorRef] = serviceProps map {
     case (name, props) => name -> context.actorOf(props, name)
   }
@@ -91,4 +91,3 @@ class ServiceRegistryActor(globalConfig: Config) extends Actor with ActorLogging
     case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
   }
 }
-

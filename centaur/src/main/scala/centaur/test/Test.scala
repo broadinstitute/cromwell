@@ -230,7 +230,7 @@ object Operations {
         val operationError = Option(operation.getError)
         val aborted = operationError.exists(_.getCode == 1) && operationError.exists(_.getMessage.startsWith("Operation canceled"))
         if (!(done && aborted)) {
-          throw new Exception("Underlying JES job was not aborted properly")
+          throw new Exception(s"Underlying JES job was not aborted properly. Done = $done. Error = ${operationError.map(_.getMessage).getOrElse("N/A")}")
         }
       }
 

@@ -84,13 +84,13 @@ object WomTypeConversionSpec extends Properties("CWL -> WOM Conversion"){
     Coproduct[MyriadOutputType](Array(y)).fold(MyriadOutputTypeToWomType) == WomStringType
   }
 
-  property("Output Array of more than one type is not allowed") = secure {
+  property("Output Array of more than one type becomes a coproduct") = secure {
     val y = Coproduct[MyriadOutputInnerType](CwlType.String)
     val z = Coproduct[MyriadOutputInnerType](CwlType.Boolean)
     Coproduct[MyriadOutputType](Array(y, z)).fold(MyriadOutputTypeToWomType) == WomCoproductType(NonEmptyList.of(WomStringType, WomBooleanType))
   }
 
-  property("Output Array of more than one type is not allowed") = secure {
+  property("Output Array of more than one types including a null is an optional coproduct") = secure {
     val x = Coproduct[MyriadOutputInnerType](CwlType.Null)
     val y = Coproduct[MyriadOutputInnerType](CwlType.String)
     val z = Coproduct[MyriadOutputInnerType](CwlType.Boolean)

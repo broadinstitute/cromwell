@@ -24,4 +24,16 @@ class JsUtilSpec extends FlatSpec with Matchers {
 
     result should be(WomString("myValuePlus"))
   }
+
+  it should "eval arrays" in {
+    val values = Map(
+      "myName" -> WomArray(Seq(WomInteger(1),WomInteger(3),WomInteger(2)) )
+    )
+
+    val expr = """myName.sorted"""
+
+    val result: WomValue = JsUtil.eval(expr, values).toTry.get
+
+    result should be(WomArray(Seq(WomInteger(1),WomInteger(2),WomInteger(3))))
+  }
 }

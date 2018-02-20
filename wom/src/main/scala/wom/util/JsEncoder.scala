@@ -1,6 +1,8 @@
 package wom.util
 
-import cats.data.Validated
+import java.util
+
+import cats.data.{NonEmptyList, Validated}
 import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.traverse._

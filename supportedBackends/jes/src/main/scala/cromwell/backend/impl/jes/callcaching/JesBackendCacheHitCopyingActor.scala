@@ -17,6 +17,7 @@ import scala.language.postfixOps
 import scala.util.Try
 
 class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams) {
+  override protected val commandBuilder = GcsBatchCommandBuilder
   private val cachingStrategy = BackendInitializationData
     .as[JesBackendInitializationData](standardParams.backendInitializationDataOption)
     .jesConfiguration.jesAttributes.duplicationStrategy

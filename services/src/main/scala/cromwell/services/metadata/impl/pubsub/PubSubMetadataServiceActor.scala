@@ -2,20 +2,20 @@ package cromwell.services.metadata.impl.pubsub
 
 import java.nio.file.{Files, Paths}
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.Validated.{Invalid, Valid}
+import cats.instances.future._
+import cats.syntax.functor._
 import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.ServiceAccountMode
-import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.{JsonFileFormat, PemFileFormat}
+import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.JsonFileFormat
 import cromwell.core.Dispatcher._
-import cromwell.services.metadata._
 import cromwell.services.metadata.MetadataService.{MetadataWriteFailure, MetadataWriteSuccess, PutMetadataAction, PutMetadataActionAndRespond}
+import cromwell.services.metadata._
 import net.ceedubs.ficus.Ficus._
 import org.broadinstitute.dsde.workbench.google.{GoogleCredentialModes, GooglePubSubDAO, HttpGooglePubSubDAO}
 import spray.json._
-import cats.instances.future._
-import cats.syntax.functor._
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -40,7 +40,7 @@ import scala.util.{Failure, Success}
   *  - Revisit the Alpakka connector instead of the workbench-lib version. There was a bug they fixed but hadn't released
   *     it yet. Also I'm pretty sure that same bug was repeated in a few other places.
   */
-class PubSubMetadataServiceActor(serviceConfig: Config, globalConfig: Config) extends Actor with ActorLogging {
+class PubSubMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with ActorLogging {
   implicit val ec = context.dispatcher
 
   // The auth *must* be a service account auth but it might not be named service-account.
@@ -124,8 +124,8 @@ class PubSubMetadataServiceActor(serviceConfig: Config, globalConfig: Config) ex
 }
 
 object PubSubMetadataServiceActor {
-  def props(serviceConfig: Config, globalConfig: Config) = {
-    Props(new PubSubMetadataServiceActor(serviceConfig, globalConfig)).withDispatcher(ServiceDispatcher)
+  def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) = {
+    Props(new PubSubMetadataServiceActor(serviceConfig, globalConfig, serviceRegistryActor)).withDispatcher(ServiceDispatcher)
   }
 
   implicit class EnhancedMetadataEvents(val e: Iterable[MetadataEvent]) extends AnyVal {

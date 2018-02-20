@@ -2,6 +2,7 @@ package cromwell.services.healthmonitor.impl.workbench
 
 import java.net.URL
 
+import akka.actor.ActorRef
 import cats.data.Validated.{Invalid, Valid}
 import cats.instances.future._
 import cats.syntax.functor._
@@ -22,7 +23,7 @@ import scala.concurrent.Future
   * as GCS and PAPI. This implementation makes some assumptions of Cromwell's configuration which will be true
   * in a Workbench scenario but YMMV otherwise. Caveat emptor and all of that fun stuff.
   */
-class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig: Config)
+class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
   extends HealthMonitorServiceActor
     with DockerHubMonitor
     with EngineDatabaseMonitor {

@@ -114,6 +114,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   override lazy val backendInitializationDataOption: Option[BackendInitializationData] = standardParams.backendInitializationDataOption
   override lazy val serviceRegistryActor: ActorRef = standardParams.serviceRegistryActor
   override lazy val configurationDescriptor: BackendConfigurationDescriptor = standardParams.configurationDescriptor
+  protected val commandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
 
   lazy val destinationCallRootPath: Path = jobPaths.callRoot
   lazy val destinationJobDetritusPaths: Map[String, Path] = jobPaths.detritusPaths
@@ -258,7 +259,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
         val destinationSimpleton = WomValueSimpleton(key, WomSingleFile(destinationPath.pathAsString))
 
-        List(destinationSimpleton) -> Set(DefaultIoCommandBuilder.copyCommand(sourcePath, destinationPath, overwrite = true))
+        List(destinationSimpleton) -> Set(commandBuilder.copyCommand(sourcePath, destinationPath, overwrite = true))
       case nonFileSimpleton => (List(nonFileSimpleton), Set.empty[IoCommand[_]])
     })
 
@@ -289,7 +290,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
         val newDetrituses = detrituses + (detritus -> destinationPath)
 
-        (newDetrituses, commands + DefaultIoCommandBuilder.copyCommand(sourcePath, destinationPath, overwrite = true))
+        (newDetrituses, commands + commandBuilder.copyCommand(sourcePath, destinationPath, overwrite = true))
     })
 
     (destinationDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath), ioCommands)

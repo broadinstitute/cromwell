@@ -1,6 +1,7 @@
 package cromwell.services.keyvalue.impl
 
 import akka.pattern._
+import akka.testkit.TestProbe
 import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowId
 import cromwell.services.ServicesSpec
@@ -21,7 +22,7 @@ class KeyValueServiceActorSpec extends ServicesSpec("KeyValue") {
   )
 
   val emptyConfig = ConfigFactory.empty()
-  val sqlKvServiceActor = system.actorOf(SqlKeyValueServiceActor.props(emptyConfig, emptyConfig))
+  val sqlKvServiceActor = system.actorOf(SqlKeyValueServiceActor.props(emptyConfig, emptyConfig, TestProbe().ref))
   val wfID = WorkflowId.randomId()
 
   val jobKey1 = KvJobKey("some_FQN", Option(-1), 1)

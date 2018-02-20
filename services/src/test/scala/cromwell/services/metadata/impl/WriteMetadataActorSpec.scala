@@ -3,7 +3,8 @@ package cromwell.services.metadata.impl
 import java.time.OffsetDateTime
 import java.util.UUID
 
-import akka.testkit.TestFSMRef
+import akka.actor.ActorRef
+import akka.testkit.{TestFSMRef, TestProbe}
 import cats.data.NonEmptyVector
 import cromwell.core.WorkflowId
 import cromwell.core.actor.BatchingDbWriter
@@ -24,7 +25,7 @@ class WriteMetadataActorSpec extends ServicesSpec("Metadata") with Eventually wi
   var actor: TestFSMRef[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData, DelayingWriteMetadataActor] = _
 
   before {
-    actor = TestFSMRef(new DelayingWriteMetadataActor(), "DelayingWriteMetadataActor-" + UUID.randomUUID())
+    actor = TestFSMRef(new DelayingWriteMetadataActor(TestProbe().ref), "DelayingWriteMetadataActor-" + UUID.randomUUID())
   }
 
   "WriteMetadataActor" should {
@@ -80,7 +81,7 @@ object WriteMetadataActorSpec {
 }
 
 // A WMA that won't (hopefully!) perform a time based flush during this test
-final class DelayingWriteMetadataActor extends WriteMetadataActor(WriteMetadataActorSpec.BatchRate, WriteMetadataActorSpec.FunctionallyForever) {
+final class DelayingWriteMetadataActor(registry: ActorRef) extends WriteMetadataActor(WriteMetadataActorSpec.BatchRate, WriteMetadataActorSpec.FunctionallyForever, registry) {
 
   var writeToDbInProgress: Boolean = false
   var writeToDbCompletionPromise: Option[Promise[Unit]] = None

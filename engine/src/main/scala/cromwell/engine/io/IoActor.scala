@@ -96,6 +96,10 @@ final class IoActor(queueSize: Int,
     .via(throttledFlow)
     .alsoTo(instrumentationSink)  
     .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
+
+  override def onBackpressure() = {
+    incrementBackpressure()
+  }
   
   override def actorReceive: Receive = {
     /* GCS Batch command with context */

@@ -1,6 +1,3 @@
-# Test is currently broken https://github.com/broadinstitute/cromwell/issues/3271
-ignore: true
-
 name: mutect2
 testFormat: workflowsuccess
 

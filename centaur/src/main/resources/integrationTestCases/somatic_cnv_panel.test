@@ -7,6 +7,7 @@ files {
   inputs: Somatic/CNV-Panel/cnv_somatic_panel_workflow_do_gc_wes.inputs
     imports: [
       Somatic/cnv_common_tasks.wdl
+      Somatic/cnv_somatic_oncotator_workflow.wdl
     ]
 }
 

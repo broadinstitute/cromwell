@@ -25,7 +25,7 @@ object WomMocks {
   }
 
   def mockWorkflowDefinition(name: String) = {
-    WorkflowDefinition(name, Graph(Set.empty), Map.empty, Map.empty, List.empty)
+    WorkflowDefinition(name, Graph(Set.empty), Map.empty, Map.empty)
   }
 
   def mockTaskDefinition(name: String) = {

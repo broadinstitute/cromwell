@@ -8,7 +8,7 @@ import wdl.model.draft3.elements._
 import wdl.draft3.parser.WdlParser.Ast
 import wdl.draft3.transforms.ast2wdlom.EnhancedDraft3Ast._
 
-object CheckedAstToFileElement {
+object AstToFileElement {
 
   def convert(ast: Ast): ErrorOr[FileElement] = if (ast.getName == "Draft3File") {
 

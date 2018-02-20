@@ -5,26 +5,26 @@ import wom.values.WomPrimitive
 sealed trait ExpressionElement
 
 object ExpressionElement {
-  case class PrimitiveLiteralExpressionElement(value: WomPrimitive) extends ExpressionElement
+  final case class PrimitiveLiteralExpressionElement(value: WomPrimitive) extends ExpressionElement
 
-  case class ObjectLiteral(elements: Map[String, ExpressionElement]) extends ExpressionElement
-  case class ArrayLiteral(elements: Array[ExpressionElement]) extends ExpressionElement
-  case class MapLiteral(elements: Array[ExpressionElement]) extends ExpressionElement
-  case class PairLiteral(left: ExpressionElement, right: ExpressionElement) extends ExpressionElement
+  final case class ObjectLiteral(elements: Map[String, ExpressionElement]) extends ExpressionElement
+  final case class ArrayLiteral(elements: Array[ExpressionElement]) extends ExpressionElement
+  final case class MapLiteral(elements: Map[String, ExpressionElement]) extends ExpressionElement
+  final case class PairLiteral(left: ExpressionElement, right: ExpressionElement) extends ExpressionElement
 
   /**
     * Represents a unary operation (i.e. a operator symbol followed by a single argument expression)
     */
-  sealed trait UnaryOperation {
+  sealed trait UnaryOperation extends ExpressionElement {
     /**
       * The expression which follows the unary operator. The argument to the operation.
       */
     def argument: ExpressionElement
   }
 
-  case class LogicalNot(override val argument: ExpressionElement) extends UnaryOperation
-  case class UnaryNegation(override val argument: ExpressionElement) extends UnaryOperation
-  case class UnaryBooleanNot(override val argument: ExpressionElement) extends UnaryOperation
+  final case class LogicalNot(override val argument: ExpressionElement) extends UnaryOperation
+  final case class UnaryNegation(override val argument: ExpressionElement) extends UnaryOperation
+  final case class UnaryBooleanNot(override val argument: ExpressionElement) extends UnaryOperation
 
   /**
     * A two-argument expression. Almost certainly comes from an infix operation in WDL (eg the '+' in  '7 + read_int(x)')
@@ -41,29 +41,29 @@ object ExpressionElement {
     def right: ExpressionElement
   }
 
-  case class LogicalOr(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  case class LogicalAnd(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  case class Equals(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  case class NotEquals(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  case class LessThan(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  case class LessThanOrEquals(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  case class GreaterThan(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  case class GreaterThanOrEquals(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  case class Add(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  case class Subtract(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  case class Multiply(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  case class Divide(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  case class Remainder(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
+  final case class LogicalOr(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
+  final case class LogicalAnd(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
+  final case class Equals(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
+  final case class NotEquals(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
+  final case class LessThan(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
+  final case class LessThanOrEquals(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
+  final case class GreaterThan(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
+  final case class GreaterThanOrEquals(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
+  final case class Add(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
+  final case class Subtract(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
+  final case class Multiply(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
+  final case class Divide(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
+  final case class Remainder(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
 
   sealed trait FunctionCall extends ExpressionElement
-  case object StdoutCall extends FunctionCall
-  case object StderrCall extends FunctionCall
+  final case object StdoutCall extends FunctionCall
+  final case object StderrCall extends FunctionCall
   // TODO: and other engine functions
 
   /**
     * A single identifier lookup expression, eg Int x = y
     */
-  case class IdentifierLookup(identifier: String)
+  final case class IdentifierLookup(identifier: String)
 
   /**
     * Represents a member access.
@@ -100,7 +100,7 @@ object ExpressionElement {
     *  - But, the second element might be part of the identifier to look up (eg my_task.pair_of_pairs) OR it might
     *      be part of a member access chain (eg pair_of_pairs.left.right). We won't know until we do the linking.
     */
-  case class IdentifierMemberAccess(firstIdentifier: String, secondIdentifierOrFirstMemberAccess: String, memberAccessTail: Vector[String]) extends ExpressionElement
+  final case class IdentifierMemberAccess(firstIdentifier: String, secondIdentifierOrFirstMemberAccess: String, memberAccessTail: Vector[String]) extends ExpressionElement
 
   /**
     * A member access which is based on an expression rather than an identifier.
@@ -108,5 +108,5 @@ object ExpressionElement {
     * eg:
     * (1, 2).left
     */
-  case class ExpressionMemberAccess(expression: ExpressionElement, memberAccessTail: Vector[String]) extends ExpressionElement
+  final case class ExpressionMemberAccess(expression: ExpressionElement, memberAccessTail: Vector[String]) extends ExpressionElement
 }

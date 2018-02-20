@@ -1,4 +1,5 @@
 package wom.types
+import cats.data.NonEmptyList
 import wom.WomExpressionException
 import wom.values.{WomCoproductValue, WomOptionalValue, WomValue}
 
@@ -8,7 +9,7 @@ import mouse.all._
 /**
   * Handles the possibility that a value could be one of the specified types.  At present this is only supported by CWL.
   */
-case class WomCoproductType(types: List[WomType]) extends WomType {
+case class WomCoproductType(types: NonEmptyList[WomType]) extends WomType {
 
   /**
     * Method to be overridden by implementation classes defining a partial function
@@ -21,15 +22,15 @@ case class WomCoproductType(types: List[WomType]) extends WomType {
     case wct@WomCoproductValue(tpe, _) if (tpe.equalsType(this).isSuccess) => wct
 
     //If we can find this type exactly in our coproduct, use that type for the coercion
-    case womValue: WomValue if (types.contains(womValue.womType)) =>
+    case womValue: WomValue if (types.toList.contains(womValue.womType)) =>
       val v: Try[WomValue] = womValue.womType.coerceRawValue(womValue)
-      v.get |> (WomCoproductValue(this, _))
+      WomCoproductValue(this, v.get)
 
     //If we don't have any information, try to coerce this value one by one, stopping at the first successful try
     case any =>
-      val triedToCoerce: Try[WomValue] = types.map(_.coerceRawValue(any)).reduce(_ orElse _)
+      val triedToCoerce: Try[WomValue] = types.map(_.coerceRawValue(any)).toList.reduce(_ orElse _)
 
-      triedToCoerce.getOrElse(throw new WomTypeException(s"unable to coerce $any to a member of the set of types ${types.mkString(", ")}")) |> (WomCoproductValue(this, _))
+      triedToCoerce.getOrElse(throw new WomTypeException(s"unable to coerce $any to a member of the set of types ${types.toList.mkString(", ")}")) |> (WomCoproductValue(this, _))
   }
 
   def typeExists(tpe: WomType): Try[WomBooleanType.type] =
@@ -39,7 +40,7 @@ case class WomCoproductType(types: List[WomType]) extends WomType {
     }
 
   override def toDisplayString: String =
-    types.map(_.toDisplayString).mkString("Coproduct[",", ", "]")
+    types.map(_.toDisplayString).toList.mkString("Coproduct[",", ", "]")
 
   override def equalsType(rhs: WomType): Try[WomType] =
     rhs match {

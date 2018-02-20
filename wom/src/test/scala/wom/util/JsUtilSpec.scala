@@ -24,19 +24,4 @@ class JsUtilSpec extends FlatSpec with Matchers {
 
     result should be(WomString("myValuePlus"))
   }
-
-   it should "JSON.stringify" in {
-    val values = Map(
-      "myName" -> WomMap(
-        WomMapType(WomBooleanType, WomArrayType(WomStringType)),
-        Map(WomBoolean(true) -> WomArray(WomArrayType(WomStringType), Seq(WomString("myValue"))))
-      )
-    )
-
-    val expr = "JSON.stringify(myName)"
-
-    val result: WomValue = JsUtil.eval(expr, values).toTry.get
-
-    result should be(WomString("""{"true":["myValue"]}"""))
-  }
 }

@@ -49,9 +49,7 @@ object JsUtil {
                     decoder: JsDecoder = new JsDecoder): ErrorOr[WomValue] = {
     for {
       rawJavaScriptValues <- rawValues.traverseValues(encoder.encode)
-      mapJavaScriptValues <- mapValues
-        .mapValues(_.traverseValues(encoder.encode).map(JsMap))
-        .traverseValues(identity)
+      mapJavaScriptValues <- mapValues.mapValues(_.traverseValues(encoder.encode)).traverseValues(identity)
       javaScriptValues = rawJavaScriptValues ++ mapJavaScriptValues
       result <- evalRaw(expr, javaScriptValues.asJava)
       decoded <- decoder.decode(result)

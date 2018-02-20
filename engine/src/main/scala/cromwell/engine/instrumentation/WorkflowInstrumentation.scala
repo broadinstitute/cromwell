@@ -3,7 +3,7 @@ package cromwell.engine.instrumentation
 import cats.data.NonEmptyList
 import cromwell.core.WorkflowState
 import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
-import cromwell.engine.instrumentation.InstrumentationPrefixes._
+import cromwell.core.instrumentation.InstrumentationPrefixes._
 import cromwell.engine.instrumentation.WorkflowInstrumentation._
 import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.instrumentation.CromwellInstrumentation._

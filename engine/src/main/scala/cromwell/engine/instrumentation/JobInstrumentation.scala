@@ -2,7 +2,7 @@ package cromwell.engine.instrumentation
 
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.core.instrumentation.InstrumentationKeys._
-import cromwell.engine.instrumentation.InstrumentationPrefixes._
+import cromwell.core.instrumentation.InstrumentationPrefixes._
 import cromwell.engine.instrumentation.JobInstrumentation._
 import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.instrumentation.CromwellInstrumentation._

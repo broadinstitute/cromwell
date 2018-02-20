@@ -1,4 +1,4 @@
-package cromwell.engine.instrumentation
+package cromwell.core.instrumentation
 
 object InstrumentationPrefixes {
   val ServicesPrefix: Option[String] = Option("services")

@@ -427,7 +427,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
           else s"$tag ($shardCount shards)"
       })
     val mode = if (restarting) "Restarting" else "Starting"
-    if (runnableCalls.nonEmpty) workflowLogger.info(s"$mode " + runnableCalls.mkString(", "))
+    if (runnableCalls.nonEmpty) workflowLogger.info(s"$mode calls: " + runnableCalls.mkString(", "))
 
     val diffValidation = runnableKeys.traverse[ErrorOr, WorkflowExecutionDiff]({
       case key: BackendJobDescriptorKey => processRunnableJob(key, data)

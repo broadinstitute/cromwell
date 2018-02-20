@@ -4,6 +4,7 @@ import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.actor.BatchingDbWriter._
 import cromwell.core.actor.{BatchingDbWriter, BatchingDbWriterActor}
+import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.services.MetadataServicesStore
 import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.metadata.MetadataEvent
@@ -73,7 +74,7 @@ class WriteMetadataActor(override val dbBatchSize: Int,
         case Success(_) =>
           self ! DbWriteComplete
           putWithResponse foreach { case(ev, replyTo) => replyTo ! MetadataWriteSuccess(ev) }
-          count(MetadataWritePath, allPutEvents.size.toLong, Option("services"))
+          count(MetadataWritePath, allPutEvents.size.toLong, InstrumentationPrefixes.ServicesPrefix)
         case Failure(regerts) =>
           log.error(regerts, "Failed to properly flush metadata to database")
           self ! DbWriteComplete
@@ -92,6 +93,7 @@ class WriteMetadataActor(override val dbBatchSize: Int,
 
 object WriteMetadataActor {
   val MetadataWritePath = MetadataServiceActor.MetadataInstrumentationPrefix.::("writes")
+
   def props(dbBatchSize: Int,
             flushRate: FiniteDuration,
             serviceRegistryActor: ActorRef): Props = Props(new WriteMetadataActor(dbBatchSize, flushRate, serviceRegistryActor)).withDispatcher(ServiceDispatcher)

@@ -101,40 +101,4 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike w
 
     system.stop(serviceRegistryActor)
   }
-
-  it should "execute a workflow with scatters" in {
-    val serviceRegistry = mockServiceRegistryActor
-    val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
-    val subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)
-    val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
-    val callCacheWriteActor = system.actorOf(EmptyCallCacheWriteActor.props)
-    val dockerHashActor = system.actorOf(EmptyDockerHashActor.props)
-    val ioActor = system.actorOf(SimpleIoActor.props)
-    val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistry))
-
-    val MockBackendConfigEntry = BackendConfigurationEntry(
-      name = MockBackendName,
-      lifecycleActorFactoryClass = "cromwell.engine.backend.mock.DefaultBackendLifecycleActorFactory",
-      stubbedConfig
-    )
-    CromwellBackends.initBackends(List(MockBackendConfigEntry))
-
-    val workflowId = WorkflowId.randomId()
-    val engineWorkflowDescriptor = createMaterializedEngineWorkflowDescriptor(workflowId, SampleWdl.SimpleScatterWdl.asWorkflowSources(runtime = runtimeSection))
-    val workflowExecutionActor = system.actorOf(
-      WorkflowExecutionActor.props(engineWorkflowDescriptor, ioActor, serviceRegistry, jobStore, subWorkflowStoreActor,
-        callCacheReadActor, callCacheWriteActor, dockerHashActor, jobTokenDispenserActor, MockBackendSingletonCollection, AllBackendInitializationData.empty, startState = Submitted),
-      "WorkflowExecutionActor")
-
-    val scatterLog = "Starting calls: scatter0.inside_scatter:0:1, scatter0.inside_scatter:1:1, scatter0.inside_scatter:2:1, scatter0.inside_scatter:3:1, scatter0.inside_scatter:4:1"
-
-    EventFilter.info(pattern = ".*Final Outputs", occurrences = 1).intercept {
-      EventFilter.info(pattern = scatterLog, occurrences = 1).intercept {
-        EventFilter.info(pattern = "Starting calls: scatter0.outside_scatter:NA:1", occurrences = 1).intercept {
-          workflowExecutionActor ! ExecuteWorkflowCommand
-        }
-      }
-    }
-    system.stop(serviceRegistry)
-  }
 }

@@ -28,3 +28,29 @@ class MyriadInputToWomTypeSpec extends FlatSpec with Matchers {
   }
 
 }
+
+
+class MyriadOutput extends FlatSpec with Matchers {
+  behavior of "Myriad Output To Wom Type"
+
+  it should "convert multiple types into a coproduct type" in {
+    val bool = Coproduct[MyriadOutputInnerType](CwlType.Boolean)
+    val string = Coproduct[MyriadOutputInnerType](CwlType.String)
+    val array = Array(bool, string)
+    val mit = Coproduct[MyriadOutputType](array)
+
+    mit.fold(MyriadOutputTypeToWomType) shouldBe WomCoproductType(NonEmptyList.of(WomBooleanType, WomStringType))
+  }
+
+  it should "convert optional multiple types into an optional coproduct type" in {
+    val Null = Coproduct[MyriadOutputInnerType](CwlType.Null)
+    val bool = Coproduct[MyriadOutputInnerType](CwlType.Boolean)
+    val string = Coproduct[MyriadOutputInnerType](CwlType.String)
+    val array = Array(bool, string, Null)
+    val mit = Coproduct[MyriadOutputType](array)
+
+    mit.fold(MyriadOutputTypeToWomType) shouldBe WomOptionalType(WomCoproductType(NonEmptyList.of(WomBooleanType, WomStringType)))
+  }
+
+}
+

@@ -1,0 +1,14 @@
+name: draft3_declaration_chain
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: draft-3
+
+files {
+  wdl: wdl_draft3/declaration_chain/declaration_chain.wdl
+}
+
+metadata {
+  workflowName: declaration_chain
+  status: Succeeded
+  "outputs.declaration_chain.z": 5
+}

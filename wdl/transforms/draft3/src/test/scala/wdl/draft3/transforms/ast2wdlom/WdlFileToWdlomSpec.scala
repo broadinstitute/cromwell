@@ -179,8 +179,24 @@ object WdlFileToWdlomSpec {
         workflows = Vector(
           WorkflowDefinitionElement(
             name = "foo",
-            inputsSection = Some(InputsSectionElement(Vector(InputDeclarationElement(PrimitiveTypeElement(WomIntegerType),"x",None)))),
+            inputsSection = Some(InputsSectionElement(Vector(
+              InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "x", None)
+            ))),
             graphElements = Set(IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "y", IdentifierLookup("x"))),
+            outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "z", IdentifierLookup("y"))))))),
+        tasks = Vector()),
+    "declaration_chain" ->
+      FileElement(
+        imports = Vector(),
+        workflows = Vector(
+          WorkflowDefinitionElement(
+            name = "foo",
+            inputsSection = None,
+            graphElements = Set(
+              IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "y", IdentifierLookup("x")),
+              IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "a", intLiteral),
+              IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "x", IdentifierLookup("a"))
+            ),
             outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "z", IdentifierLookup("y"))))))),
         tasks = Vector()),
     "simpleFirstTest" ->

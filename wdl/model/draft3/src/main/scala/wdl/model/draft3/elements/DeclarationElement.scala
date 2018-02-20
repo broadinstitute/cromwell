@@ -27,3 +27,11 @@ object OutputDeclarationElement {
   * A declaration in an input block
   */
 final case class InputDeclarationElement(typeElement: TypeElement, name: String, expression: Option[ExpressionElement]) extends LanguageElement with WorkflowGraphNodeElement
+
+object DeclarationElement {
+  def unapply(languageElement: LanguageElement): Option[(TypeElement, String, Option[ExpressionElement])] = languageElement match {
+    case IntermediateValueDeclarationElement(typeElement, name, expr) => Option((typeElement, name, Option(expr)))
+    case OutputDeclarationElement(typeElement, name, expr) => Option((typeElement, name, Option(expr)))
+    case InputDeclarationElement(typeElement, name, expr) => Option((typeElement, name, expr))
+  }
+}

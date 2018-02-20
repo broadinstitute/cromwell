@@ -145,7 +145,7 @@ object AstNodeToExpressionElement {
     "cross" -> validateTwoParamEngineFunction(Cross, "cross"),
 
     // 3-param functions:
-    "sub" -> validateThreeParamEngineFunction(Sub, "sub"),
+    "sub" -> validateThreeParamEngineFunction(Sub, "sub")
   )
 
   private def validateNoParamEngineFunction(element: ExpressionElement, functionName: String)

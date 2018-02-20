@@ -80,12 +80,13 @@ workflow Mutect2 {
     String? m2_extra_filtering_args
     String? split_intervals_extra_args
     Boolean? make_bamout
-    Boolean generate_bamout = select_first([make_bamout, false])
+    Boolean make_bamout_or_default = select_first([make_bamout, false])
     Boolean? compress_vcfs
     Boolean compress = select_first([compress_vcfs, false])
 
     # oncotator inputs
     Boolean? run_oncotator
+    Boolean run_oncotator_or_default = select_first([run_oncotator, false])
     File? onco_ds_tar_gz
     String? onco_ds_local_db_dir
     String? sequencing_center
@@ -94,6 +95,7 @@ workflow Mutect2 {
 
     # funcotator inputs
     Boolean? run_funcotator
+    Boolean run_funcotator_or_default = select_first([run_funcotator, false])
     String? reference_version
     String? data_sources_tar_gz
     String? transcript_selection_mode
@@ -107,10 +109,8 @@ workflow Mutect2 {
     String gatk_docker
     String basic_bash_docker = "ubuntu:16.04"
     String? oncotator_docker
+    String oncotator_docker_or_default = select_first([oncotator_docker, "broadinstitute/oncotator:1.9.6.1"])
     Int? preemptible_attempts
-
-    # Do not populate unless you know what you are doing...
-    File? auth
 
     # Use as a last resort to increase the disk given to every task in case of ill behaving data
     Int? emergency_extra_disk
@@ -139,7 +139,6 @@ workflow Mutect2 {
     String unfiltered_name = output_basename + "-unfiltered"
     String filtered_name = output_basename + "-filtered"
     String funcotated_name = output_basename + "-funcotated"
-
 
     String output_vcf_name = basename(tumor_bam, ".bam") + ".vcf"
 
@@ -176,15 +175,15 @@ workflow Mutect2 {
                 gnomad_index = gnomad_index,
                 preemptible_attempts = preemptible_attempts,
                 m2_extra_args = m2_extra_args,
-                generate_bamout = generate_bamout,
+                make_bamout = make_bamout_or_default,
+                compress = compress,
                 gatk_override = gatk_override,
                 gatk_docker = gatk_docker,
                 preemptible_attempts = preemptible_attempts,
-                disk_space = tumor_bam_size + normal_bam_size + ref_size + gnomad_vcf_size + m2_output_size + disk_pad,
-                auth = auth
+                disk_space = tumor_bam_size + normal_bam_size + ref_size + gnomad_vcf_size + m2_output_size + disk_pad
         }
 
-        Float sub_vcf_size = size(M2.output_vcf, "GB")
+        Float sub_vcf_size = size(M2.unfiltered_vcf, "GB")
         Float sub_bamout_size = size(M2.output_bamOut, "GB")
     }
 
@@ -196,7 +195,8 @@ workflow Mutect2 {
 
     call MergeVCFs {
         input:
-            input_vcfs = M2.output_vcf,
+            input_vcfs = M2.unfiltered_vcf,
+            input_vcf_indices = M2.unfiltered_vcf_index,
             output_name = unfiltered_name,
             compress = compress,
             gatk_override = gatk_override,
@@ -205,7 +205,7 @@ workflow Mutect2 {
             disk_space = ceil(SumSubVcfs.total_size * large_input_to_output_multiplier) + disk_pad
     }
 
-    if (generate_bamout) {
+    if (make_bamout_or_default) {
         call SumFloats as SumSubBamouts {
             input:
                 sizes = sub_bamout_size,
@@ -255,8 +255,7 @@ workflow Mutect2 {
                 normal_bai = normal_bai,
                 variants_for_contamination = variants_for_contamination,
                 variants_for_contamination_index = variants_for_contamination_index,
-                disk_space = tumor_bam_size + ceil(size(variants_for_contamination, "GB") * small_input_to_output_multiplier) + disk_pad,
-                auth = auth
+                disk_space = tumor_bam_size + normal_bam_size + ceil(size(variants_for_contamination, "GB") * small_input_to_output_multiplier) + disk_pad
         }
     }
 
@@ -266,13 +265,13 @@ workflow Mutect2 {
             gatk_docker = gatk_docker,
             intervals = intervals,
             unfiltered_vcf = MergeVCFs.merged_vcf,
+            unfiltered_vcf_index = MergeVCFs.merged_vcf_index,
             output_name = filtered_name,
             compress = compress,
             preemptible_attempts = preemptible_attempts,
             contamination_table = CalculateContamination.contamination_table,
             m2_extra_filtering_args = m2_extra_filtering_args,
-            disk_space = ceil(size(MergeVCFs.merged_vcf, "GB") * small_input_to_output_multiplier) + disk_pad,
-            auth = auth
+            disk_space = ceil(size(MergeVCFs.merged_vcf, "GB") * small_input_to_output_multiplier) + disk_pad
     }
 
     if (run_ob_filter) {
@@ -283,19 +282,18 @@ workflow Mutect2 {
             input:
                 gatk_override = gatk_override,
                 input_vcf = Filter.filtered_vcf,
+                input_vcf_index = Filter.filtered_vcf_index,
                 output_name = filtered_name,
                 compress = compress,
                 gatk_docker = gatk_docker,
                 preemptible_attempts = preemptible_attempts,
                 pre_adapter_metrics = input_artifact_metrics,
                 artifact_modes = artifact_modes,
-                disk_space = ceil(size(Filter.filtered_vcf, "GB") * small_input_to_output_multiplier) + ceil(size(input_artifact_metrics, "GB")) + disk_pad,
-                auth = auth
+                disk_space = ceil(size(Filter.filtered_vcf, "GB") * small_input_to_output_multiplier) + ceil(size(input_artifact_metrics, "GB")) + disk_pad
         }
     }
 
-
-    if (select_first([run_oncotator, false])) {
+    if (run_oncotator_or_default) {
         File oncotate_vcf_input = select_first([FilterByOrientationBias.filtered_vcf, Filter.filtered_vcf])
         call oncotate_m2 {
             input:
@@ -307,17 +305,19 @@ workflow Mutect2 {
                 default_config_file = default_config_file,
                 case_id = M2.tumor_sample[0],
                 control_id = M2.normal_sample[0],
-                oncotator_docker = select_first([oncotator_docker, "NO_ONCOTATOR_DOCKER_GIVEN"]),
+                oncotator_docker = oncotator_docker_or_default,
                 preemptible_attempts = preemptible_attempts,
                 disk_space = ceil(size(oncotate_vcf_input, "GB") * large_input_to_output_multiplier) + onco_tar_size + disk_pad
         }
     }
 
-    if (select_first([run_funcotator, false])) {
+    if (run_funcotator_or_default) {
         File funcotate_vcf_input = select_first([FilterByOrientationBias.filtered_vcf, Filter.filtered_vcf])
+        File funcotate_vcf_input_index = select_first([FilterByOrientationBias.filtered_vcf_index, Filter.filtered_vcf_index])
         call Funcotate {
             input:
                 m2_vcf = funcotate_vcf_input,
+                m2_vcf_index = funcotate_vcf_input_index,
                 ref_fasta = ref_fasta,
                 ref_fai = ref_fai,
                 ref_dict = ref_dict,
@@ -373,7 +373,6 @@ task SplitIntervals {
     Int machine_mem = if defined(mem) then mem * 1000 else 3500
     Int command_mem = machine_mem - 500
 
-
     command {
         set -e
         export GATK_LOCAL_JAR=${default="/root/gatk.jar" gatk_override}
@@ -416,7 +415,11 @@ task M2 {
     File? gnomad
     File? gnomad_index
     String? m2_extra_args
-    Boolean? generate_bamout
+    Boolean? make_bamout
+    Boolean compress
+
+    String output_vcf = "output" + if compress then ".vcf.gz" else ".vcf"
+    String output_vcf_index = output_vcf + if compress then ".tbi" else ".idx"
 
     File? gatk_override
 
@@ -432,17 +435,9 @@ task M2 {
     Int machine_mem = if defined(mem) then mem * 1000 else 3500
     Int command_mem = machine_mem - 500
 
-    # Do not populate this unless you know what you are doing...
-    File? auth
 
     command <<<
         set -e
-
-        if [[ "${auth}" == *.json ]]; then
-            gsutil cp ${auth} /root/.config/gcloud/application_default_credentials.json
-            GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json
-            export GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json
-        fi
 
         export GATK_LOCAL_JAR=${default="/root/gatk.jar" gatk_override}
 
@@ -450,11 +445,11 @@ task M2 {
         touch bamout.bam
         echo "" > normal_name.txt
 
-        gatk --java-options "-Xmx${command_mem}m" GetSampleName -R ${ref_fasta} -I ${tumor_bam} -O tumor_name.txt
+        gatk --java-options "-Xmx${command_mem}m" GetSampleName -R ${ref_fasta} -I ${tumor_bam} -O tumor_name.txt -encode
         tumor_command_line="-I ${tumor_bam} -tumor `cat tumor_name.txt`"
 
         if [[ -f "${normal_bam}" ]]; then
-            gatk --java-options "-Xmx${command_mem}m" GetSampleName -R ${ref_fasta} -I ${normal_bam} -O normal_name.txt
+            gatk --java-options "-Xmx${command_mem}m" GetSampleName -R ${ref_fasta} -I ${normal_bam} -O normal_name.txt -encode
             normal_command_line="-I ${normal_bam} -normal `cat normal_name.txt`"
         fi
 
@@ -465,8 +460,8 @@ task M2 {
             ${"--germline-resource " + gnomad} \
             ${"-pon " + pon} \
             ${"-L " + intervals} \
-            -O "output.vcf.gz" \
-            ${true='--bam-output bamout.bam' false='' generate_bamout} \
+            -O "${output_vcf}" \
+            ${true='--bam-output bamout.bam' false='' make_bamout} \
             ${m2_extra_args}
     >>>
 
@@ -479,7 +474,8 @@ task M2 {
     }
 
     output {
-        File output_vcf = "output.vcf.gz"
+        File unfiltered_vcf = "${output_vcf}"
+        File unfiltered_vcf_index = "${output_vcf_index}"
         File output_bamOut = "bamout.bam"
         String tumor_sample = read_string("tumor_name.txt")
         String normal_sample = read_string("normal_name.txt")
@@ -489,11 +485,11 @@ task M2 {
 task MergeVCFs {
     # inputs
     Array[File] input_vcfs
+    Array[File] input_vcf_indices
     String output_name
     Boolean compress
     String output_vcf = output_name + if compress then ".vcf.gz" else ".vcf"
     String output_vcf_index = output_vcf + if compress then ".tbi" else ".idx"
-
 
     File? gatk_override
 
@@ -507,7 +503,7 @@ task MergeVCFs {
 
     # Mem is in units of GB but our command and memory runtime values are in MB
     Int machine_mem = if defined(mem) then mem * 1000 else 3500
-    Int command_mem = machine_mem - 1
+    Int command_mem = machine_mem - 1000
 
     # using MergeVcfs instead of GatherVcfs so we can create indices
     # WARNING 2015-10-28 15:01:48 GatherVcfs  Index creation not currently supported when gathering block compressed VCFs.
@@ -551,7 +547,7 @@ task MergeBamOuts {
 
     # Mem is in units of GB but our command and memory runtime values are in MB
     Int machine_mem = if defined(mem) then mem * 1000 else 7000
-    Int command_mem = machine_mem - 1
+    Int command_mem = machine_mem - 1000
 
     command <<<
         # This command block assumes that there is at least one file in bam_outs.
@@ -596,7 +592,7 @@ task CollectSequencingArtifactMetrics {
 
     # Mem is in units of GB but our command and memory runtime values are in MB
     Int machine_mem = if defined(mem) then mem * 1000 else 7000
-    Int command_mem = machine_mem - 1
+    Int command_mem = machine_mem - 1000
 
     command {
         set -e
@@ -643,17 +639,8 @@ task CalculateContamination {
     Int machine_mem = if defined(mem) then mem * 1000 else 7000
     Int command_mem = machine_mem - 500
 
-    # Do not populate this unless you know what you are doing...
-    File? auth
-
     command {
         set -e
-
-        if [[ "${auth}" == *.json ]]; then
-            gsutil cp ${auth} /root/.config/gcloud/application_default_credentials.json
-            GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json
-            export GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json
-        fi
 
         export GATK_LOCAL_JAR=${default="/root/gatk.jar" gatk_override}
 
@@ -683,6 +670,7 @@ task Filter {
     # inputs
     File? intervals
     File unfiltered_vcf
+    File unfiltered_vcf_index
     String output_name
     Boolean compress
     String output_vcf = output_name + if compress then ".vcf.gz" else ".vcf"
@@ -704,17 +692,8 @@ task Filter {
     Int machine_mem = if defined(mem) then mem * 1000 else 7000
     Int command_mem = machine_mem - 500
 
-    # Do not populate this unless you know what you are doing...
-    File? auth
-
     command {
         set -e
-
-        if [[ "${auth}" == *.json ]]; then
-            gsutil cp ${auth} /root/.config/gcloud/application_default_credentials.json
-            GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json
-            export GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json
-        fi
 
         export GATK_LOCAL_JAR=${default="/root/gatk.jar" gatk_override}
 
@@ -742,6 +721,7 @@ task FilterByOrientationBias {
     # input
     File? gatk_override
     File input_vcf
+    File input_vcf_index
     String output_name
     Boolean compress
     String output_vcf = output_name + if compress then ".vcf.gz" else ".vcf"
@@ -761,17 +741,8 @@ task FilterByOrientationBias {
     Int machine_mem = if defined(mem) then mem * 1000 else 7000
     Int command_mem = machine_mem - 500
 
-    # Do not populate this unless you know what you are doing...
-    File? auth
-
     command {
         set -e
-
-        if [[ "${auth}" == *.json ]]; then
-            gsutil cp ${auth} /root/.config/gcloud/application_default_credentials.json
-            GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json
-            export GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json
-        fi
 
         export GATK_LOCAL_JAR=${default="/root/gatk.jar" gatk_override}
 
@@ -821,7 +792,6 @@ task oncotate_m2 {
     Int command_mem = machine_mem - 500
 
     command <<<
-
         # fail if *any* command below (not just the last) doesn't return 0, in particular if wget fails
         set -e
 
@@ -893,6 +863,7 @@ task Funcotate {
     File ref_fai
     File ref_dict
     File m2_vcf
+    File m2_vcf_index
     String reference_version
     String output_name
     Boolean compress

@@ -1,6 +1,6 @@
 {
   "CNVSomaticPanelWorkflow.do_explicit_gc_correction": "true",
-  "CNVSomaticPanelWorkflow.gatk_docker": "samuelklee/gatk:sl_wgs_acnv_headers",
+  "CNVSomaticPanelWorkflow.gatk_docker": "us.gcr.io/broad-gatk/gatk",
   "CNVSomaticPanelWorkflow.intervals": "gs://gatk-test-data/cnv/somatic/ice_targets_sample-chr20.interval_list",
   "CNVSomaticPanelWorkflow.normal_bams_list": "gs://gatk-test-data/cnv/somatic/cnv_somatic_panel_wes_input.tsv",
   "CNVSomaticPanelWorkflow.pon_entity_id": "wes-do-gc",

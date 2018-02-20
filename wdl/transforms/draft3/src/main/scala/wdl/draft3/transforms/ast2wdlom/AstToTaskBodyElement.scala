@@ -9,6 +9,7 @@ object AstToTaskBodyElement {
   def convert(ast: Ast): Checked[TaskBodyElement] = ast.getName match {
     case "Inputs" => astNodeToInputsSectionElement(ast)
     case "Outputs" => astNodeToOutputsSectionElement(ast)
+    case "SetDeclaration" => astNodeToDeclarationElement(ast)
     case other => s"No conversion defined for Ast with name $other to TaskBodyElement".invalidNelCheck
   }
 }

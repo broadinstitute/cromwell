@@ -4,7 +4,10 @@ workflow foo {
   input {
     Int x
   }
+
+  Int y = x
+
   output {
-    Int y = x
+    Int z = y
   }
 }

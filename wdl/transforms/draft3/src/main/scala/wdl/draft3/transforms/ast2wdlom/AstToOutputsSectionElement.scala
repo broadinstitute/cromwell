@@ -4,12 +4,12 @@ package wdl.draft3.transforms.ast2wdlom
 import cats.syntax.either._
 
 import wdl.draft3.parser.WdlParser
-import wdl.model.draft3.elements.{DeclarationElement, OutputsSectionElement}
+import wdl.model.draft3.elements.{SetDeclarationElement, OutputsSectionElement}
 import wdl.draft3.transforms.ast2wdlom.EnhancedDraft3Ast._
 import common.Checked
 
 object AstToOutputsSectionElement {
   def convert(a: WdlParser.Ast): Checked[OutputsSectionElement] = {
-    a.getAttributeAsVector[DeclarationElement]("outputs") map OutputsSectionElement
+      a.getAttributeAsVector[SetDeclarationElement]("outputs") map OutputsSectionElement
   }
 }

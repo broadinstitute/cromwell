@@ -10,7 +10,7 @@ object AstToWorkflowBodyElement {
   def convert(ast: Ast): Checked[WorkflowBodyElement] = ast.getName match {
     case "Inputs" => astNodeToInputsSectionElement(ast)
     case "Outputs" => astNodeToOutputsSectionElement(ast)
+    case "SetDeclaration" => astNodeToDeclarationElement(ast)
     case other => s"No conversion defined for Ast with name $other to WorkflowBodyElement".invalidNelCheck
   }
-
 }

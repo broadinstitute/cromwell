@@ -1,0 +1,13 @@
+name: draft3_empty
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: draft-3
+
+files {
+  wdl: wdl_draft3/empty/empty.wdl
+}
+
+metadata {
+  workflowName: empty
+  status: Succeeded
+}

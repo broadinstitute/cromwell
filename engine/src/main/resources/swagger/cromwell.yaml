@@ -63,10 +63,10 @@ paths:
           type: string
           in: formData
         - name: workflowTypeVersion
-          description: The specification version for the workflow language being used. For WDL, Cromwell currently supports draft-2. For CWL, Cromwell currently supports v1.0.
+          description: The specification version for the workflow language being used. For WDL, Cromwell currently supports draft-2 fully and has some support for draft-3. For CWL, Cromwell currently supports v1.0.
           required: false
           type: string
-          enum: [draft-2, v1.0]
+          enum: [draft-2, draft-3, v1.0]
           in: formData
         - name: labels
           description: JSON file containing a set of collection of key/value pairs for labels to apply to this workflow.

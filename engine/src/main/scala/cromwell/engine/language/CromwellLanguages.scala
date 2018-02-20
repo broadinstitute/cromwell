@@ -26,7 +26,7 @@ final case class CromwellLanguages private(languageConfig: List[LanguageConfigur
 }
 
 /**
-  * Holds all the registered versions of a language, and a version decider for unknown/unspecified versions.
+  * Holds all the registered versions of a language.
   */
 final case class LanguageVersions(allVersions: Map[CromwellLanguageVersion, LanguageFactory])
 

@@ -25,7 +25,6 @@ object CheckedAstToWorkflowDefinitionElement {
 
     val outputsValidation: ErrorOr[Vector[OutputsSectionElement]] = (inputsAndOutputs map { _._2 }).toValidated
 
-
     (nameElementValidation, inputsValidation, outputsValidation) mapN { (name, inputs, outputs) => WorkflowDefinitionElement(name, inputs, outputs) }
   }
 }

@@ -53,32 +53,5 @@ object EnhancedDraft3Ast {
         result <- asVector.traverse[ErrorOr, A](item => toA.run(item).toValidated).toEither
       } yield result
     }
-
-    def getAttributeAsVectors[A, B](attr: String, astName1: String, astName2: String)
-                                   (implicit astNodeToA: CheckedAtoB[AstNode, A], astNodeToB: CheckedAtoB[AstNode, B]
-                                   ): (Checked[(Vector[A], Vector[B])]) = {
-
-      ast.getAttributeAsVector[Ast](attr) flatMap { asts =>
-
-        val validated = ( collectByAstName(asts, astName1).traverse[ErrorOr, A] { type1Ast => astNodeToA.run(type1Ast).toValidated },
-          collectByAstName(asts, astName2).traverse[ErrorOr, B] { type2Asts => astNodeToB.run(type2Asts).toValidated },
-          badAstsValidation(asts, Set(astName1, astName2))
-        ) mapN {
-          (type1Values, type2Values, _) => (type1Values, type2Values)
-        }
-        validated.toEither
-      }
-    }
-
-    private def collectByAstName(asts: Vector[Ast], astName: String) = asts collect { case yes if yes.getName == astName => yes }
-    private def badAstsValidation(asts: Vector[Ast], validAstNames: Set[String]): ErrorOr[Unit] = {
-      def badAstDescription(ast: Ast) = s"Unexpected AST type: ${ast.getName} (expected one of: ${validAstNames.mkString(", ")})"
-      asts collect {
-        case no if !validAstNames.contains(no.getName) => no
-      } match {
-        case empty if empty.isEmpty => ().validNel
-        case nonEmpty => (NonEmptyList.fromListUnsafe(nonEmpty.toList) map badAstDescription).invalid
-      }
-    }
   }
 }

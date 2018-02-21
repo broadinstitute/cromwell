@@ -18,14 +18,14 @@ import scala.collection.JavaConverters._
 
 object JsUtil {
   val encoder = new JsEncoder
-  def writeValue(value: Js)(scriptable: Scriptable, context: Context, scope: ScriptableObject): AnyRef =
+  def writeValue(value: Js)(context: Context, scope: ScriptableObject): AnyRef =
     value match {
       case JsObject(fields) => {
         val newObj = context.newObject(scope)
 
         fields.toList.foreach{
           case (name, value) =>
-            val newerObj = writeValue(value)(newObj, context, scope)
+            val newerObj = writeValue(value)(context, scope)
             ScriptableObject.putProperty(newObj, name, newerObj)
         }
         newObj
@@ -37,7 +37,7 @@ object JsUtil {
         array.toList.zipWithIndex.foreach {
           case (js, index) =>
 
-            val newerObj = writeValue(js)
+            val newerObj = writeValue(js)(context, scope)
             ScriptableObject.putProperty(newObj, index, newerObj)
 
         }
@@ -48,8 +48,10 @@ object JsUtil {
         obj
     }
 
-  def writeValue(name: String, value: WomValue)(scriptable: Scriptable, context: Context, scope: ScriptableObject): Validated[NonEmptyList[String], Unit] =
-    encoder.encode(value).map{writeValue(_)(scriptable, context, scope) }
+  def writeValue(value: WomValue)(context: Context, scope: ScriptableObject): ErrorOr[Unit] =
+    encoder.encode(value).map{
+      writeValue(_)(context, scope)
+    }
 
   def evalRaw[A](expr: String)(block: (Context, ScriptableObject) => A): AnyRef = {
     val context = Context.enter()
@@ -89,18 +91,20 @@ object JsUtil {
                     decoder: JsDecoder = new JsDecoder): ErrorOr[WomValue] = {
     evalRaw(expr) { (context, so) =>
 
-      val obj = context.newObject(so)
-
-
-    for {
-      rawJavaScriptValues <- rawValues.toList.traverse[ErrorOr, Unit]{
-        case (key, value) => writeValue(key, value)(obj)
+      val (key, value) = rawValues
+      def writeNestedMap: ErrorOr[Unit] = {
+        mapValues.traverse{
+          case (key, nestedMap) => nestedMap.traverse( )
+        }
       }
-      mapJavaScriptValues <- mapValues.mapValues(_.traverseValues(encoder.encode).map(JsMap)).traverseValues(identity)
-      javaScriptValues = rawJavaScriptValues ++ mapJavaScriptValues
-      result <- evalRaw(expr, javaScriptValues.asJava)
-      decoded <- decoder.decode(result)
-    } yield decoded
+
+      for {
+        rawJavaScriptValues <- writeValue(key, value)(context, so)
+        mapJavaScriptValues <- mapValues.mapValues(_.traverseValues(encoder.encode).map(JsMap)).traverseValues(identity)
+        javaScriptValues = rawJavaScriptValues ++ mapJavaScriptValues
+        result <- evalRaw(expr, javaScriptValues.asJava)
+        decoded <- decoder.decode(result)
+      } yield decoded
     }
   }
 

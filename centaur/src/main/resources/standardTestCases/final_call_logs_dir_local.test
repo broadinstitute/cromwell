@@ -17,4 +17,8 @@ outputExpectations: {
   "/tmp/call_logs/wf_hello/<<UUID>>/call-hello/execution/stderr": 1
   "/tmp/logs/workflow.<<UUID>>.log": 1
   "/tmp/outputs/wf_hello/<<UUID>>/call-hello/execution/test.out": 1
+  "/tmp/outputs/wf_hello/<<UUID>>/call-hello/execution/array.out": 1
+  "/tmp/outputs/wf_hello/<<UUID>>/call-hello/execution/map.out": 1
+  "/tmp/outputs/wf_hello/<<UUID>>/call-hello/execution/left.out": 1
+  "/tmp/outputs/wf_hello/<<UUID>>/call-hello/execution/right.out": 1
 }

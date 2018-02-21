@@ -13,7 +13,7 @@ import cromwell.core.path.{Path, PathCopier, PathFactory}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
-import wom.values.{WomArray, WomMap, WomSingleFile, WomValue}
+import wom.values.{WomSingleFile, WomValue}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -62,10 +62,9 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
 
   private def findFiles(values: Seq[WomValue]): Seq[WomSingleFile] = {
     values flatMap {
-      case file: WomSingleFile => Seq(file)
-      case array: WomArray => findFiles(array.value)
-      case map: WomMap => findFiles(map.value.values.toSeq)
-      case _ => Seq.empty
+      _.collectAsSeq {
+        case file: WomSingleFile => file
+      }
     }
   }
   

@@ -19,7 +19,8 @@ object AstToFileElement {
     (validatedImportElements, validatedFileBodyElements) mapN { (importElements, fileBodyElements) =>
       val workflowElements: Vector[WorkflowDefinitionElement] = fileBodyElements.filterByType[WorkflowDefinitionElement]
       val taskElements: Vector[TaskDefinitionElement] = fileBodyElements.filterByType[TaskDefinitionElement]
-      FileElement(importElements, workflowElements, taskElements)
+      val structElements: Vector[StructElement] = fileBodyElements.filterByType[StructElement]
+      FileElement(importElements, structElements, workflowElements, taskElements)
     }
 
   } else {

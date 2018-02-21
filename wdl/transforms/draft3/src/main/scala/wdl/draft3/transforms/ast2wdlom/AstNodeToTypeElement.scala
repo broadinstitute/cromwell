@@ -17,7 +17,8 @@ object AstNodeToTypeElement {
     case unknownAst: Ast => s"No rule available to create TypeElement from Ast: '${unknownAst.getName}'".invalidNel
     case t: Terminal if typeMap.contains(t.getSourceString) => PrimitiveTypeElement(typeMap(t.getSourceString)).validNel
     case t: Terminal if t.getSourceString == "Object" => ObjectTypeElement.validNel
-    case t: Terminal => s"No rule available to create TypeElement from Terminal: '${t.getSourceString}'".invalidNel
+    case t: Terminal if t.getTerminalStr == "identifier" => TypeAliasElement(t.getSourceString).validNel
+    case t: Terminal => s"No rule available to create TypeElement from '${t.getTerminalStr}' Terminal with value '${t.getSourceString}'".invalidNel
     case _ => s"No rule available to create TypeElement from AstNode: ${astNode.getClass.getSimpleName}".invalidNel
   }
 

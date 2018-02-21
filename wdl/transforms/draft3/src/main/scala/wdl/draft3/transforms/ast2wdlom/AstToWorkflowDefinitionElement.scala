@@ -7,7 +7,7 @@ import common.validation.ErrorOr._
 import common.collections.EnhancedCollections._
 import wdl.draft3.parser.WdlParser.Ast
 import wdl.draft3.transforms.ast2wdlom.EnhancedDraft3Ast._
-import wdl.model.draft3.elements.{InputsSectionElement, OutputsSectionElement, WorkflowBodyElement, WorkflowDefinitionElement}
+import wdl.model.draft3.elements._
 
 
 object AstToWorkflowDefinitionElement {
@@ -23,12 +23,14 @@ object AstToWorkflowDefinitionElement {
 
   private def combineElements(name: String, bodyElements: Vector[WorkflowBodyElement]) = {
 
-      val inputsSectionValidation: ErrorOr[Option[InputsSectionElement]] = validateSize(bodyElements.filterByType[InputsSectionElement], "inputs", 1)
-      val outputsSectionValidation: ErrorOr[Option[OutputsSectionElement]] = validateSize(bodyElements.filterByType[OutputsSectionElement], "outputs", 1)
+    val inputsSectionValidation: ErrorOr[Option[InputsSectionElement]] = validateSize(bodyElements.filterByType[InputsSectionElement], "inputs", 1)
+    val outputsSectionValidation: ErrorOr[Option[OutputsSectionElement]] = validateSize(bodyElements.filterByType[OutputsSectionElement], "outputs", 1)
 
-      (inputsSectionValidation, outputsSectionValidation) mapN { (validInputs, validOutputs) =>
-        WorkflowDefinitionElement(name, validInputs, validOutputs)
-      }
+    val graphSections: Vector[WorkflowGraphNodeElement] = bodyElements.filterByType[WorkflowGraphNodeElement]
+
+    (inputsSectionValidation, outputsSectionValidation) mapN { (validInputs, validOutputs) =>
+      WorkflowDefinitionElement(name, validInputs, graphSections.toSet, validOutputs)
+    }
   }
 
   private def validateSize[A](elements: Vector[A], sectionName: String, numExpected: Int): ErrorOr[Option[A]] = {

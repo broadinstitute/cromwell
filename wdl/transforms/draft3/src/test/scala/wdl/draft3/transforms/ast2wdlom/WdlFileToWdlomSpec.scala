@@ -52,14 +52,18 @@ object WdlFileToWdlomSpec {
     "empty_workflow" ->
       FileElement(
         imports = List.empty,
-        workflows = List(WorkflowDefinitionElement("empty", None, None)),
+        workflows = List(WorkflowDefinitionElement(
+          name = "empty",
+          inputsSection = None,
+          graphElements = Set.empty,
+          outputsSection = None)),
         tasks = List.empty),
     "input_types" ->
       FileElement(
         imports = Vector.empty,
         workflows = Vector(WorkflowDefinitionElement(
-          "input_types",
-          Some(InputsSectionElement(Vector(
+          name = "input_types",
+          inputsSection = Some(InputsSectionElement(Vector(
             InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "i", None),
             InputDeclarationElement(PrimitiveTypeElement(WomStringType), "s", None),
             InputDeclarationElement(PrimitiveTypeElement(WomFloatType), "f", None),
@@ -74,7 +78,9 @@ object WdlFileToWdlomSpec {
                 OptionalTypeElement(
                   PairTypeElement(PrimitiveTypeElement(WomStringType), PrimitiveTypeElement(WomIntegerType)))),
               "lotsa_nesting_array", None)
-          ))), None
+          ))),
+          graphElements = Set.empty,
+          outputsSection = None
         )),
         tasks = Vector.empty),
     "input_values" ->
@@ -90,6 +96,7 @@ object WdlFileToWdlomSpec {
               InputDeclarationElement(PrimitiveTypeElement(WomBooleanType), "b", Some(booleanLiteral))
             )
           )),
+          graphElements = Set.empty,
           outputsSection = None)
         ),
         tasks = List.empty),
@@ -124,6 +131,7 @@ object WdlFileToWdlomSpec {
               InputDeclarationElement(PrimitiveTypeElement(WomStringType), "subbed", Some(subbedExpression))
             )
           )),
+          graphElements = Set.empty,
           outputsSection = None)
         ),
         tasks = Vector.empty),
@@ -133,8 +141,9 @@ object WdlFileToWdlomSpec {
         workflows = Vector(
           WorkflowDefinitionElement(
             name = "foo",
-            Some(InputsSectionElement(Vector(InputDeclarationElement(PrimitiveTypeElement(WomIntegerType),"x",None)))),
-            Some(OutputsSectionElement(Vector(DeclarationElement(PrimitiveTypeElement(WomIntegerType), "y", IdentifierLookup("x"))))))),
+            inputsSection = Some(InputsSectionElement(Vector(InputDeclarationElement(PrimitiveTypeElement(WomIntegerType),"x",None)))),
+            graphElements = Set(IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "y", IdentifierLookup("x"))),
+            outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "z", IdentifierLookup("y"))))))),
         tasks = Vector()),
     "simpleFirstTest" ->
       FileElement(
@@ -144,7 +153,11 @@ object WdlFileToWdlomSpec {
     "static_value_workflow" ->
       FileElement(
         imports = Vector.empty,
-        workflows = Vector(WorkflowDefinitionElement("foo", None, Some(OutputsSectionElement(Vector(DeclarationElement(PrimitiveTypeElement(WomIntegerType), "y", PrimitiveLiteralExpressionElement(WomInteger(3)))))))),
+        workflows = Vector(WorkflowDefinitionElement(
+          name = "foo",
+          inputsSection = None,
+          graphElements = Set.empty,
+          outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "y", PrimitiveLiteralExpressionElement(WomInteger(3)))))))),
         tasks = Vector.empty
       )
   )

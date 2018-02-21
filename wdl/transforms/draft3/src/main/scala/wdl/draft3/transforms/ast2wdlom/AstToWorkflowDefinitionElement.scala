@@ -23,11 +23,8 @@ object AstToWorkflowDefinitionElement {
 
   private def combineElements(name: String, bodyElements: Vector[WorkflowBodyElement]) = {
 
-      val inputs: Vector[InputsSectionElement] = bodyElements.filterByType[InputsSectionElement]
-      val outputs: Vector[OutputsSectionElement] = bodyElements.filterByType[OutputsSectionElement]
-
-      val inputsSectionValidation: ErrorOr[Option[InputsSectionElement]] = validateSize(inputs, "inputs", 1)
-      val outputsSectionValidation: ErrorOr[Option[OutputsSectionElement]] = validateSize(outputs, "outputs", 1)
+      val inputsSectionValidation: ErrorOr[Option[InputsSectionElement]] = validateSize(bodyElements.filterByType[InputsSectionElement], "inputs", 1)
+      val outputsSectionValidation: ErrorOr[Option[OutputsSectionElement]] = validateSize(bodyElements.filterByType[OutputsSectionElement], "outputs", 1)
 
       (inputsSectionValidation, outputsSectionValidation) mapN { (validInputs, validOutputs) =>
         WorkflowDefinitionElement(name, validInputs, validOutputs)

@@ -4,7 +4,7 @@ workflow input_values {
   input {
     # All the primitive types:
     Int i = 5
-    String s = "s"
+    String s = "hello"
     Float f = 5.5
     Boolean b = true
   }

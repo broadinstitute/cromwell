@@ -812,7 +812,9 @@ task oncotate_m2 {
             ln -s oncotator_v1_ds_April052016 onco_dbdir
         fi
 
-        ${default="/root/oncotator_venv/bin/oncotator" oncotator_exe} --db-dir onco_dbdir/ -c $HOME/tx_exact_uniprot_matches.AKT1_CRLF2_FGFR1.txt  \
+
+
+        ${default="/root/oncotator_venv/bin/oncotator" oncotator_exe} --db-dir onco_dbdir/ -c onco_dbdir/tx_exact_uniprot_matches.AKT1_CRLF2_FGFR1.txt  \
             -v ${m2_vcf} ${case_id}.maf.annotated hg19 -i VCF -o TCGAMAF --skip-no-alt --infer-onps --collapse-number-annotations --log_name oncotator.log \
             -a Center:${default="Unknown" sequencing_center} \
             -a source:${default="Unknown" sequence_source} \

@@ -105,11 +105,10 @@ object ExpressionEvaluator {
     expr.fold(EvaluateExpression).apply(parameterContext, expressionLib)
   }
 
-  def paramValues(parameterContext: ParameterContext): (Map[String, WomValue], Map[String, Map[String, WomValue]]) = {
+  def paramValues(parameterContext: ParameterContext): ((String, WomValue), Map[String, Map[String, WomValue]]) = {
     (
-      Map(
         "self" -> parameterContext.self
-      ),
+      ,
       Map(
         "inputs" -> parameterContext.inputs,
         "runtime" -> parameterContext.runtimeOption.map(cwlMap).getOrElse(Map.empty)

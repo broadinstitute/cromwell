@@ -188,6 +188,7 @@ object Settings {
       removeIntermediateContainers = BuildOptions.Remove.Always
     )
   )
+  val womSettings = List(addCompilerPlugin("org.spire-math" %% "kind-projector" % kindProjectorV))
   val backendSettings = List(addCompilerPlugin("org.spire-math" %% "kind-projector" % kindProjectorV))
   val engineSettings = List(resourceGenerators in Compile += writeSwaggerUiVersionConf)
   val rootSettings = GenerateRestApiDocs.generateRestApiDocsSettings

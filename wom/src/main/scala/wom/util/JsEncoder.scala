@@ -6,6 +6,7 @@ import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr._
+import wom.util.JsUtil.{Js, JsField}
 import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomMap, WomObjectLike, WomOptionalValue, WomString, WomValue}
 
 import scala.collection.JavaConverters._
@@ -34,9 +35,9 @@ class JsEncoder {
     * @param value A WOM value.
     * @return The javascript equivalent.
     */
-  def encode(value: WomValue): ErrorOr[AnyRef] = {
+  def encode(value: WomValue): ErrorOr[Js] = {
     value match {
-      case WomOptionalValue(_, None) => Validated.valid(null)
+      case WomOptionalValue(_, None) => Validated.valid(JsField(null))
       case WomOptionalValue(_, Some(innerValue)) => encode(innerValue)
       case WomString(string) => string.valid
       case WomInteger(int) => Int.box(int).valid

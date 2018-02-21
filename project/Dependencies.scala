@@ -279,6 +279,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
     "org.apache.commons" % "commons-text" % commonsTextV,
+    "org.mozilla" % "rhino" % "1.7.8",
     "commons-codec" % "commons-codec" % commonsCodecV
   )
 

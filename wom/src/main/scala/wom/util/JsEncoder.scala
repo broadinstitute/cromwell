@@ -1,6 +1,8 @@
 package wom.util
 
-import cats.data.Validated
+import java.util
+
+import cats.data.{NonEmptyList, Validated}
 import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.traverse._
@@ -42,13 +44,13 @@ class JsEncoder {
       case WomInteger(int) => Int.box(int).valid
       case WomFloat(double) => Double.box(double).valid
       case WomBoolean(boolean) => Boolean.box(boolean).valid
-      case WomArray(_, array) => array.toList.traverse[ErrorOr, AnyRef](encode).map(JsArray)
+      case WomArray(_, array) => array.toList.traverse[ErrorOr, AnyRef](encode).map(_.toArray)
       case WomMap(_, map) => map.traverse({
         case (mapKey, mapValue) => (encodeString(mapKey), encode(mapValue)).mapN((_, _))
-      }).map(JsMap)
+      }).map(_.toMap).map(_.asJava)
       case objectLike: WomObjectLike => objectLike.values.traverse({
         case (key, innerValue) => (key.validNel: ErrorOr[String], encode(innerValue)).mapN((_, _))
-      }).map(JsMap)
+      }).map(_.toMap).map(_.asJava)
       case _ => s"$getClass is unable to encode value: $value".invalidNel
     }
   }

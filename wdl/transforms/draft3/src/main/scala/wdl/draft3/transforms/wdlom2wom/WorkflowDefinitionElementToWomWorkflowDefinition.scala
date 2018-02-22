@@ -56,8 +56,6 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
       ordering.foldLeft[ErrorOr[List[GraphNode]]](List.empty[GraphNode].validNel)(graphNodeCreationFold)
     }
 
-    println(graphNodesValidation)
-
     graphNodesValidation flatMap { graphNodes => WomGraph.validateAndConstruct(graphNodes.toSet) }
   }
 
@@ -68,7 +66,8 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
 
     Graph.from[UnlinkedGraphNode, DiEdge](unlinkedGraphNodes, edges).topologicalSort match {
       case Left(cycleNode) => s"This workflow contains a cyclic dependency on ${cycleNode.value}".invalidNel
-      case Right(topologicalOrder) => topologicalOrder.toList.map(_.value).validNel
+        // This asInstanceOf is not required, but it suppresses an incorrect intelliJ error highlight:
+      case Right(topologicalOrder) => topologicalOrder.toList.map(_.value).asInstanceOf[List[UnlinkedGraphNode]].validNel
     }
   }
 

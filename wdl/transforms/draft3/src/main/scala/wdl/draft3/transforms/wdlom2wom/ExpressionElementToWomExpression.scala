@@ -14,9 +14,9 @@ object ExpressionElementToWomExpression {
     val consumedValues = a.expression.consumedValues
 
     def findConsumedPort(c: ConsumedValue): ErrorOr[(ConsumedValue, FoundConsumedValue)] = c match {
-      case c @ ConsumedSingleValue(sv) if a.availableInputs.contains(sv) => (c -> FoundConsumedValue(a.availableInputs(sv), sv)).validNel
-      case c @ ConsumedLookupValue(first, _) if a.availableInputs.contains(first) => (c -> FoundConsumedValue(a.availableInputs(first), first)).validNel
-      case c @ ConsumedLookupValue(first, second) if a.availableInputs.contains(s"$first.$second") => (c -> FoundConsumedValue(a.availableInputs(s"$first.$second"), s"$first.$second")).validNel
+      case c @ ConsumedSingleValue(sv) if a.availableInputs.contains(sv) => (c -> FoundConsumedValue(sv, a.availableInputs(sv).womType)).validNel
+      case c @ ConsumedLookupValue(first, _) if a.availableInputs.contains(first) => (c -> FoundConsumedValue(first, a.availableInputs(first).womType)).validNel
+      case c @ ConsumedLookupValue(first, second) if a.availableInputs.contains(s"$first.$second") => (c -> FoundConsumedValue(s"$first.$second", a.availableInputs(s"$first.$second").womType)).validNel
       case other => s"No lookup available for $other".invalidNel
     }
 

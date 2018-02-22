@@ -6,7 +6,6 @@ import wdl.draft3.transforms.wdlom2wom.ValueConsumer.ops._
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement.{IdentifierLookup, PrimitiveLiteralExpressionElement}
 import wom.expression.{IoFunctionSet, WomExpression}
-import wom.graph.GraphNodePort.OutputPort
 import wom.types.WomType
 import wom.values.{WomFile, WomValue}
 
@@ -23,7 +22,7 @@ final case class WdlomWomExpression(expressionElement: ExpressionElement, inputM
 
   override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = expressionElement match {
     case PrimitiveLiteralExpressionElement(v) => v.womType.validNel
-    case id: IdentifierLookup => inputMap((id: ExpressionElement).consumedValues.head).outputPort.womType.validNel
+    case id: IdentifierLookup => inputMap((id: ExpressionElement).consumedValues.head).foundType.validNel
     case _ => ??? // TODO other expression elements
   }
 
@@ -32,4 +31,4 @@ final case class WdlomWomExpression(expressionElement: ExpressionElement, inputM
   }
 }
 
-final case class FoundConsumedValue(outputPort: OutputPort, inputName: String)
+final case class FoundConsumedValue(inputName: String, foundType: WomType)

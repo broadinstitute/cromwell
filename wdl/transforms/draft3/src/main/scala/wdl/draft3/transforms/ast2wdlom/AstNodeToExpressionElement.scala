@@ -34,9 +34,8 @@ object AstNodeToExpressionElement {
     case a: Ast if a.getName == "ArrayLiteral" => a.getAttributeAsVector[ExpressionElement]("values").toValidated.map(ArrayLiteral)
     case a: Ast if a.getName == "MemberAccess" => handleMemberAccess(a)
     case a: Ast if a.getName == "ObjectLiteral" =>
-      val astNodeToKvPair: CheckedAtoB[AstNode, KvPair] = CheckedAtoB.fromErrorOr(AstNodeToKvPair.convert)
       (for {
-        objectKvs <- a.getAttributeAsVector[KvPair]("map")(astNodeToKvPair)
+        objectKvs <- a.getAttributeAsVector[KvPair]("map")
         asMap = objectKvs.map(kv => kv.key -> kv.value).toMap
       } yield ObjectLiteral(asMap)).toValidated
     case a: Ast if a.getName == "MapLiteral" =>

@@ -8,7 +8,7 @@ final case class DeclarationContent(typeElement: TypeElement, name: String, expr
 /**
   * A Declaration outside of an input or output block
   */
-final case class IntermediateValueDeclarationElement(typeElement: TypeElement, name: String, expression: ExpressionElement) extends WorkflowGraphElement with TaskBodyElement
+final case class IntermediateValueDeclarationElement(typeElement: TypeElement, name: String, expression: ExpressionElement) extends WorkflowGraphElement with TaskSectionElement
 
 object IntermediateValueDeclarationElement {
   def fromContent(content: DeclarationContent): IntermediateValueDeclarationElement = IntermediateValueDeclarationElement(content.typeElement, content.name, content.expression)

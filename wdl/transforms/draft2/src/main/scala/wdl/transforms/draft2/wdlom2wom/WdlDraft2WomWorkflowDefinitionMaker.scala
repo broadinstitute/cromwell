@@ -16,8 +16,7 @@ object WdlDraft2WomWorkflowDefinitionMaker extends WomWorkflowDefinitionMaker[Wd
         wdlWorkflow.unqualifiedName,
         wg,
         wdlWorkflow.meta,
-        wdlWorkflow.parameterMeta,
-        List.empty)
+        wdlWorkflow.parameterMeta)
     }
   }
 }

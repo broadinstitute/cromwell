@@ -12,7 +12,7 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
     val g: ErrorOr[Graph] = Graph.validateAndConstruct(Set.empty)
 
     g map { graph =>
-      WorkflowDefinition(a.name, graph, Map.empty, Map.empty, List.empty)
+      WorkflowDefinition(a.name, graph, Map.empty, Map.empty)
     }
 
   }

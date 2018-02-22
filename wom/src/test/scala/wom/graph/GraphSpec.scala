@@ -116,7 +116,7 @@ class GraphSpec extends FlatSpec with Matchers {
 
   it should "be able to represent calls to sub-workflows" in {
     val threeStepGraph = makeThreeStep
-    val threeStepWorkflow = WorkflowDefinition("three_step", threeStepGraph, Map.empty, Map.empty, List.empty)
+    val threeStepWorkflow = WorkflowDefinition("three_step", threeStepGraph, Map.empty, Map.empty)
     val threeStepNodeBuilder = new CallNodeBuilder()
 
     val workflowInputNode = RequiredGraphInputNode(WomIdentifier("three_step.cgrep.pattern"), WomStringType, "three_step.cgrep.pattern")

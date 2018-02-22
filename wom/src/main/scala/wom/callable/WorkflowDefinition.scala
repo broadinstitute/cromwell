@@ -1,15 +1,12 @@
 package wom.callable
 
-import common.validation.ErrorOr.ErrorOr
-import wom.expression.WomExpression
 import wom.graph.GraphNode._
 import wom.graph.{CommandCallNode, Graph}
 
 final case class WorkflowDefinition(name: String,
                                     innerGraph: Graph,
                                     meta: Map[String, String],
-                                    parameterMeta: Map[String, String],
-                                    declarations: List[(String, WomExpression)]) extends ExecutableCallable {
+                                    parameterMeta: Map[String, String]) extends ExecutableCallable {
 
   override lazy val toString = s"[Workflow $name]"
   override val graph: Graph = innerGraph

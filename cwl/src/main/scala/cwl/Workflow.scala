@@ -158,15 +158,13 @@ case class Workflow private(
     val name: String = Paths.get(id).getFileName.toString
     val meta: Map[String, String] = Map.empty
     val paramMeta: Map[String, String] = Map.empty
-    val declarations: List[(String, WomExpression)] = List.empty
 
     womGraph(name, validator, expressionLib).map(graph =>
       WorkflowDefinition(
         name,
         graph,
         meta,
-        paramMeta,
-        declarations
+        paramMeta
       )
     )
   }

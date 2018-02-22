@@ -59,6 +59,7 @@ object Dependencies {
   val ravenLogbackV = "8.0.3"
   val reactiveStreamsV = "1.0.1"
   val refinedV = "0.8.3"
+  val rhinoV = "1.7.8"
   val scalaGraphV = "1.12.0"
   val scalaLoggingV = "3.7.1"
   val scalaXmlV = "1.0.6"
@@ -279,7 +280,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
     "org.apache.commons" % "commons-text" % commonsTextV,
-    "org.mozilla" % "rhino" % "1.7.8",
+    "org.mozilla" % "rhino" % rhinoV,
     "commons-codec" % "commons-codec" % commonsCodecV
   )
 

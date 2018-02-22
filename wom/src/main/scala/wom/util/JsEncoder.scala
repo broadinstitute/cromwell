@@ -6,8 +6,9 @@ import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr._
-import wom.util.JsUtil.{Js, JsField}
+import wom.util.JsUtil.{Js, JsArray, JsField, JsObject}
 import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomMap, WomObjectLike, WomOptionalValue, WomString, WomValue}
+import mouse.all._
 
 import scala.collection.JavaConverters._
 
@@ -35,35 +36,42 @@ class JsEncoder {
     * @param value A WOM value.
     * @return The javascript equivalent.
     */
-  def encode(value: WomValue): ErrorOr[Js] = {
+  def encode(value: WomValue): Js = {
     value match {
-      case WomOptionalValue(_, None) => Validated.valid(JsField(null))
+      case WomOptionalValue(_, None) => JsField(null)
       case WomOptionalValue(_, Some(innerValue)) => encode(innerValue)
-      case WomString(string) => string.valid
-      case WomInteger(int) => Int.box(int).valid
-      case WomFloat(double) => Double.box(double).valid
-      case WomBoolean(boolean) => Boolean.box(boolean).valid
-      case WomArray(_, array) => array.toList.traverse[ErrorOr, AnyRef](encode).map(JsArray)
-      case WomMap(_, map) => map.traverse({
-        case (mapKey, mapValue) => (encodeString(mapKey), encode(mapValue)).mapN((_, _))
-      }).map(JsMap)
-      case objectLike: WomObjectLike => objectLike.values.traverse({
-        case (key, innerValue) => (key.validNel: ErrorOr[String], encode(innerValue)).mapN((_, _))
-      }).map(JsMap)
-      case _ => s"$getClass is unable to encode value: $value".invalidNel
+      case WomString(string) => string |> JsField
+      case WomInteger(int) => Int.box(int) |> JsField
+      case WomFloat(double) => Double.box(double) |> JsField
+      case WomBoolean(boolean) => Boolean.box(boolean) |> JsField
+      case WomArray(_, array) => array.toList.map(encode).toArray |> JsArray
+      case WomMap(_, map) => map.map{
+        case (mapKey, mapValue) => (encodeString(mapKey), encode(mapValue))
+      } |> JsObject
+      case objectLike: WomObjectLike => objectLike.values.map{
+        case (key, innerValue) => (key, encode(innerValue))
+      } |> JsObject
+      case _ => throw new RuntimeException(s"$getClass is unable to encode value: $value")
     }
   }
 
-  def encodeString(value: WomValue): ErrorOr[String] = {
-    encode(value) flatMap {
-      case string: String => string.valid
+  def encodeString(value: WomValue): String = {
+    encode(value) match {
+      case JsField(string: String) => string
       case other =>
-        // http://2ality.com/2012/03/converting-to-string.html
-        val jsString = JsUtil.evalRaw(""""" + other""", Map("other" -> other).asJava)
-        jsString flatMap {
-          case string: String => string.valid
-          case unexpected => s"Expected to convert '$value' to a String but ended up with '$unexpected'".invalidNel
-        }
+        val x = other
+        println(x)
+        ???
+      /*
+    case JsField(other) =>
+      TODO
+      // http://2ality.com/2012/03/converting-to-string.html
+      val jsString = JsUtil.evalRaw(""""" + other""", Map("other" -> other))
+      jsString match {
+        case string: String => string
+        case unexpected => throw new RuntimeException(s"Expected to convert '$value' to a String but ended up with '$unexpected'")
+      }
+      */
     }
   }
 }

@@ -92,6 +92,8 @@ object WdlFileToWdlomSpec {
             inputDeclarations = Vector(
               InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "i", Some(intLiteral)),
               InputDeclarationElement(PrimitiveTypeElement(WomStringType), "s", Some(stringLiteral)),
+              InputDeclarationElement(PrimitiveTypeElement(WomStringType), "placeholder", Some(stringPlaceholderExpression)),
+              InputDeclarationElement(PrimitiveTypeElement(WomStringType), "placeholder2", Some(stringPlaceholderExpression)),
               InputDeclarationElement(PrimitiveTypeElement(WomFloatType), "f", Some(floatLiteral)),
               InputDeclarationElement(PrimitiveTypeElement(WomBooleanType), "b", Some(booleanLiteral))
             )

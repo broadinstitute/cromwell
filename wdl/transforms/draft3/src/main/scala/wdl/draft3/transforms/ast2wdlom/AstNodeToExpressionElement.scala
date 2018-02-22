@@ -23,6 +23,7 @@ object AstNodeToExpressionElement {
     case t: Terminal if asPrimitive.isDefinedAt((t.getTerminalStr, t.getSourceString)) => asPrimitive((t.getTerminalStr, t.getSourceString)).map(PrimitiveLiteralExpressionElement)
     case t: Terminal if t.getTerminalStr == "identifier" => IdentifierLookup(t.getSourceString).validNel
 
+    case a: Ast if a.getName == "StringLiteral" => handleStringLiteral(a)
     case a: Ast if lhsRhsOperators.contains(a.getName) => useValidatedLhsAndRhs(a, lhsRhsOperators(a.getName))
     case a: Ast if unaryOperators.contains(a.getName) => a.getAttributeAs[ExpressionElement]("expression").map(unaryOperators(a.getName)).toValidated
     case a: Ast if a.getName == "TupleLiteral" => (a.getAttributeAsVector[ExpressionElement]("values") flatMap {
@@ -32,12 +33,27 @@ object AstNodeToExpressionElement {
     }).toValidated
     case a: Ast if a.getName == "ArrayLiteral" => a.getAttributeAsVector[ExpressionElement]("values").toValidated.map(ArrayLiteral)
     case a: Ast if a.getName == "MemberAccess" => handleMemberAccess(a)
-    case a: Ast if mapElementMakers.contains(a.getName) =>
+    case a: Ast if a.getName == "ObjectLiteral" =>
       val astNodeToKvPair: CheckedAtoB[AstNode, KvPair] = CheckedAtoB.fromErrorOr(AstNodeToKvPair.convert)
       (for {
         objectKvs <- a.getAttributeAsVector[KvPair]("map")(astNodeToKvPair)
         asMap = objectKvs.map(kv => kv.key -> kv.value).toMap
-      } yield mapElementMakers(a.getName).apply(asMap)).toValidated
+      } yield ObjectLiteral(asMap)).toValidated
+    case a: Ast if a.getName == "MapLiteral" =>
+      final case class MapKvPair(key: ExpressionElement, value: ExpressionElement)
+      def convertOnePair(astNode: AstNode): ErrorOr[MapKvPair] = astNode match {
+        case a: Ast if a.getName == "ObjectKV" || a.getName == "MapLiteralKv" =>
+          val keyValidation: ErrorOr[ExpressionElement] = a.getAttributeAs[ExpressionElement]("key").toValidated
+          val valueValidation: ErrorOr[ExpressionElement] = a.getAttributeAs[ExpressionElement]("value").toValidated
+
+          (keyValidation, valueValidation) mapN { (key, value) => MapKvPair(key, value) }
+      }
+
+      val astNodeToKvPair: CheckedAtoB[AstNode, MapKvPair] = CheckedAtoB.fromErrorOr(convertOnePair)
+      (for {
+        mapKvs <- a.getAttributeAsVector[MapKvPair]("map")(astNodeToKvPair)
+        asMap = mapKvs.map(kv => kv.key -> kv.value).toMap
+      } yield MapLiteral(asMap)).toValidated
     case a: Ast if a.getName == "TernaryIf" =>
       val conditionValidation: ErrorOr[ExpressionElement] = a.getAttributeAs[ExpressionElement]("cond").toValidated
       val ifTrueValidation: ErrorOr[ExpressionElement] = a.getAttributeAs[ExpressionElement]("iftrue").toValidated
@@ -96,12 +112,6 @@ object AstNodeToExpressionElement {
     case ("boolean", b) => Try(WomBoolean(b.toBoolean)).toErrorOr
     case ("string", s) => WomString(s).validNel
   }
-
-  private type MapElementMaker = Map[String, ExpressionElement] => ExpressionElement
-  private val mapElementMakers: Map[String, MapElementMaker] = Map(
-    "ObjectLiteral" -> ObjectLiteral.apply,
-    "MapLiteral" -> MapLiteral.apply
-  )
 
   private val engineFunctionMakers: Map[String, Vector[ExpressionElement] => ErrorOr[ExpressionElement]] = Map(
     // 0-param functions:
@@ -208,5 +218,24 @@ object AstNodeToExpressionElement {
       simplify(lhs, rhs)
     }
 
+  }
+
+  private def handleStringLiteral(ast: Ast): ErrorOr[ExpressionElement] = {
+    def convertStringPiece(a: AstNode): ErrorOr[StringPiece] = a match {
+      case simple: Terminal if simple.getTerminalStr == "string" => SimpleStringLiteral(simple.getSourceString).validNel
+      case expr: Ast if expr.getName == "ExpressionPlaceholder" => expr.getAttributeAs[ExpressionElement]("expr").toValidated.map(StringPlaceholder)
+    }
+    implicit val toStringPiece: CheckedAtoB[AstNode, StringPiece] = CheckedAtoB.fromErrorOr(convertStringPiece)
+
+    ast.getAttributeAsVector[StringPiece]("pieces").toValidated map { pieces =>
+      if (pieces.size == 1) {
+        pieces.head match {
+          case s: SimpleStringLiteral => s
+          case _ => PlaceholderedStringLiteral(pieces)
+        }
+      } else {
+        PlaceholderedStringLiteral(pieces)
+      }
+    }
   }
 }

@@ -15,14 +15,10 @@ class CwlJsDecoder extends JsDecoder {
   /**
     * Overrides the base map decoder checking for cwl File or Directory first before calling super.
     */
-  override def decodeMap(map: Map[String, AnyRef]): ErrorOr[WomValue] = {
+  def decodeMap(map: Map[String, AnyRef]): ErrorOr[WomValue] = {
     val partialDecoder = partialDecodeMapToFile().orElse(partialDecodeMapToDirectory())
-    if (partialDecoder.isDefinedAt(map)) {
-      val errorOrCwlFileOrDirectory: ErrorOr[FileOrDirectory] = partialDecoder.apply(map)
-      errorOrCwlFileOrDirectory.flatMap(_.fold(CwlDirectoryOrFileAsWomSingleDirectoryOrFile))
-    } else {
-      super.decodeMap(map)
-    }
+    val errorOrCwlFileOrDirectory: ErrorOr[FileOrDirectory] = partialDecoder.apply(map)
+    errorOrCwlFileOrDirectory.flatMap(_.fold(CwlDirectoryOrFileAsWomSingleDirectoryOrFile))
   }
 
   /**

@@ -26,12 +26,11 @@ class JsDecoder {
   def decode(value: AnyRef): ErrorOr[WomValue] = {
     value match {
 
-        /*
       case arr: NativeArray => arr.toArray.map(_.asInstanceOf[NativeObject]).toList.traverse[ErrorOr, WomValue](decode).map(WomArray)
-      case obj: NativeObject => obj.entrySet().asScala.map {
-        case (key, value) =>
-      }
-      */
+      case obj: NativeObject if (obj.getClassName.contains("File")) =>
+//        obj.entrySet().asScala.map {
+//        case (key, value) =>
+//      }
       case other =>
         val y = other
         println(y)

@@ -12,7 +12,7 @@ import cwl.{Directory, File, FileOrDirectory}
 import org.mozilla.javascript.{NativeArray, NativeObject}
 import shapeless.Coproduct
 import wom.types.WomNothingType
-import wom.values.{WomBoolean, WomFloat, WomInteger, WomMap, WomOptionalValue, WomString, WomValue}
+import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomMap, WomOptionalValue, WomString, WomValue}
 
 import scala.collection.JavaConverters._
 
@@ -24,6 +24,10 @@ class CwlJsDecoder {
       case map: NativeObject if map.get("class") == "Directory" => decodeDirectory(map.asScala.toMap).flatMap(_.asWomValue)
 
       case map: NativeObject => decodeMap(map.asScala.toMap)
+      case array: NativeArray =>
+        val anyList = array.asScala.toList
+        val anyRefArray = anyList.asInstanceOf[List[AnyRef]]
+        anyRefArray.traverse(decode).map(WomArray.apply)
       case null => WomOptionalValue(WomNothingType, None).valid
       case string: String => WomString(string).valid
       case int: java.lang.Integer => WomInteger(int).valid

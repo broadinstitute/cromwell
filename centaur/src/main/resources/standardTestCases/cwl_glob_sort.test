@@ -1,0 +1,14 @@
+name: cwl_glob_sort
+testFormat: workflowsuccess
+workflowType: CWL
+workflowTypeVersion: v1.0
+workflowRoot: globSort
+
+files {
+  wdl: cwl_glob_sort/cwl_glob_sort.cwl
+}
+
+metadata {
+  "submittedFiles.workflowType": CWL
+  "submittedFiles.workflowTypeVersion": v1.0
+}

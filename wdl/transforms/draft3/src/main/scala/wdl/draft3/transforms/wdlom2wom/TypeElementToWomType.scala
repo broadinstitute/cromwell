@@ -5,7 +5,7 @@ import common.validation.Checked._
 import wdl.model.draft3.elements.{PrimitiveTypeElement, TypeElement}
 import wom.types.WomType
 
-object TypeElementToType {
+object TypeElementToWomType {
   def convert(a: TypeElementToWomTypeParameters): Checked[WomType] = a.typeElement match {
     case PrimitiveTypeElement(p) => p.validNelCheck
     case other => s"No implemented conversion to WOM type for '$other'".invalidNelCheck

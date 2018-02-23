@@ -26,7 +26,7 @@ object AstToWorkflowDefinitionElement {
     val inputsSectionValidation: ErrorOr[Option[InputsSectionElement]] = validateSize(bodyElements.filterByType[InputsSectionElement], "inputs", 1)
     val outputsSectionValidation: ErrorOr[Option[OutputsSectionElement]] = validateSize(bodyElements.filterByType[OutputsSectionElement], "outputs", 1)
 
-    val graphSections: Vector[WorkflowGraphNodeElement] = bodyElements.filterByType[WorkflowGraphNodeElement]
+    val graphSections: Vector[WorkflowGraphElement] = bodyElements.filterByType[WorkflowGraphElement]
 
     (inputsSectionValidation, outputsSectionValidation) mapN { (validInputs, validOutputs) =>
       WorkflowDefinitionElement(name, validInputs, graphSections.toSet, validOutputs)

@@ -7,9 +7,9 @@ sealed trait ExpressionElement
 object ExpressionElement {
   final case class PrimitiveLiteralExpressionElement(value: WomPrimitive) extends ExpressionElement
 
-  final case class PlaceholderedStringLiteral(pieces: Seq[StringPiece]) extends ExpressionElement
-  trait StringPiece extends ExpressionElement
-  final case class SimpleStringLiteral(value: String) extends StringPiece
+  final case class StringExpression(pieces: Seq[StringPiece]) extends ExpressionElement
+  trait StringPiece
+  final case class StringLiteral(value: String) extends StringPiece with ExpressionElement
   final case class StringPlaceholder(expr: ExpressionElement) extends StringPiece
 
 

@@ -222,7 +222,7 @@ object AstNodeToExpressionElement {
 
   private def handleStringLiteral(ast: Ast): ErrorOr[ExpressionElement] = {
     def convertStringPiece(a: AstNode): ErrorOr[StringPiece] = a match {
-      case simple: Terminal if simple.getTerminalStr == "string" => SimpleStringLiteral(simple.getSourceString).validNel
+      case simple: Terminal if simple.getTerminalStr == "string" => StringLiteral(simple.getSourceString).validNel
       case expr: Ast if expr.getName == "ExpressionPlaceholder" => expr.getAttributeAs[ExpressionElement]("expr").toValidated.map(StringPlaceholder)
     }
     implicit val toStringPiece: CheckedAtoB[AstNode, StringPiece] = CheckedAtoB.fromErrorOr(convertStringPiece)
@@ -230,11 +230,11 @@ object AstNodeToExpressionElement {
     ast.getAttributeAsVector[StringPiece]("pieces").toValidated map { pieces =>
       if (pieces.size == 1) {
         pieces.head match {
-          case s: SimpleStringLiteral => s
-          case _ => PlaceholderedStringLiteral(pieces)
+          case s: StringLiteral => s
+          case _ => StringExpression(pieces)
         }
       } else {
-        PlaceholderedStringLiteral(pieces)
+        StringExpression(pieces)
       }
     }
   }

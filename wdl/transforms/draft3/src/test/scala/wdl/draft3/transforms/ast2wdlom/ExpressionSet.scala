@@ -4,10 +4,12 @@ import wdl.model.draft3.elements.ExpressionElement._
 import wom.values._
 
 object ExpressionSet {
-  val stringLiteral = PrimitiveLiteralExpressionElement(WomString("hello"))
+  val stringLiteral = StringLiteral("hello")
   val intLiteral = PrimitiveLiteralExpressionElement(WomInteger(5))
   val floatLiteral = PrimitiveLiteralExpressionElement(WomFloat(5.5))
   val booleanLiteral = PrimitiveLiteralExpressionElement(WomBoolean(true))
+
+  val stringPlaceholderExpression = StringExpression(Vector(StringLiteral("h"), StringPlaceholder(IdentifierLookup("s")), StringLiteral("o")))
 
   val addExpression = Add(intLiteral, intLiteral)
   val subtractExpression = Subtract(intLiteral, intLiteral)
@@ -68,9 +70,9 @@ object ExpressionSet {
     "c" -> pairExpression
   ))
   val mapLiteralExpression = MapLiteral(Map(
-    "a" -> intLiteral,
-    "b" -> addExpression,
-    "c" -> subtractExpression
+    StringLiteral("a") -> intLiteral,
+    StringLiteral("b") -> addExpression,
+    StringLiteral("c") -> subtractExpression
   ))
 
   val ternaryIfExpression = TernaryIf(booleanLiteral, intLiteral, intLiteral)

@@ -7,10 +7,16 @@ sealed trait ExpressionElement
 object ExpressionElement {
   final case class PrimitiveLiteralExpressionElement(value: WomPrimitive) extends ExpressionElement
 
+  final case class StringExpression(pieces: Seq[StringPiece]) extends ExpressionElement
+  trait StringPiece
+  final case class StringLiteral(value: String) extends StringPiece with ExpressionElement
+  final case class StringPlaceholder(expr: ExpressionElement) extends StringPiece
+
+
   final case class KvPair(key: String, value: ExpressionElement)
   final case class ObjectLiteral(elements: Map[String, ExpressionElement]) extends ExpressionElement
   final case class ArrayLiteral(elements: Seq[ExpressionElement]) extends ExpressionElement
-  final case class MapLiteral(elements: Map[String, ExpressionElement]) extends ExpressionElement
+  final case class MapLiteral(elements: Map[ExpressionElement, ExpressionElement]) extends ExpressionElement
   final case class PairLiteral(left: ExpressionElement, right: ExpressionElement) extends ExpressionElement
 
   /**

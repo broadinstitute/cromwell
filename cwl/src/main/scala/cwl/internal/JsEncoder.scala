@@ -1,16 +1,10 @@
-package wom.util
+package cwl.internal
 
-import cats.data.Validated
-import cats.instances.list._
-import cats.syntax.apply._
-import cats.syntax.traverse._
-import cats.syntax.validated._
-import common.validation.ErrorOr._
-import wom.util.JsUtil.{Js, JsArray, JsField, JsObject}
-import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomMap, WomObjectLike, WomOptionalValue, WomString, WomValue}
 import mouse.all._
-
-import scala.collection.JavaConverters._
+import JsUtil.{Js, JsArray, JsObject, JsPrimitive}
+import cats.data.Validated.Valid
+import common.validation.ErrorOr.ErrorOr
+import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomMap, WomObjectLike, WomOptionalValue, WomString, WomValue}
 
 /**
   * Converts a WomValue into a javascript compatible value.
@@ -38,12 +32,12 @@ class JsEncoder {
     */
   def encode(value: WomValue): Js = {
     value match {
-      case WomOptionalValue(_, None) => JsField(null)
+      case WomOptionalValue(_, None) => JsPrimitive(null)
       case WomOptionalValue(_, Some(innerValue)) => encode(innerValue)
-      case WomString(string) => string |> JsField
-      case WomInteger(int) => Int.box(int) |> JsField
-      case WomFloat(double) => Double.box(double) |> JsField
-      case WomBoolean(boolean) => Boolean.box(boolean) |> JsField
+      case WomString(string) => string |> JsPrimitive
+      case WomInteger(int) => Int.box(int) |> JsPrimitive
+      case WomFloat(double) => Double.box(double) |> JsPrimitive
+      case WomBoolean(boolean) => Boolean.box(boolean) |> JsPrimitive
       case WomArray(_, array) => array.toList.map(encode).toArray |> JsArray
       case WomMap(_, map) => map.map{
         case (mapKey, mapValue) => (encodeString(mapKey), encode(mapValue))
@@ -57,20 +51,17 @@ class JsEncoder {
 
   def encodeString(value: WomValue): String = {
     encode(value) match {
-      case JsField(string: String) => string
-      case other =>
-        val x = other
-        println(x)
-        ???
+      case JsPrimitive(string: String) => string
+      case _ =>
+        val jsString: ErrorOr[WomValue] = JsUtil.evalStructish(""""" + other""","other" -> value)
+        jsString match {
+          case Valid(WomString(string)) => string
+          case unexpected => throw new RuntimeException(s"Expected to convert '$value' to a String but ended up with '$unexpected'")
+        }
       /*
     case JsField(other) =>
       TODO
       // http://2ality.com/2012/03/converting-to-string.html
-      val jsString = JsUtil.evalRaw(""""" + other""", Map("other" -> other))
-      jsString match {
-        case string: String => string
-        case unexpected => throw new RuntimeException(s"Expected to convert '$value' to a String but ended up with '$unexpected'")
-      }
       */
     }
   }

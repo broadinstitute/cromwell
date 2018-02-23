@@ -1,4 +1,4 @@
-package wom.util
+package cwl.internal
 
 import common.validation.Validation._
 import org.scalatest.{FlatSpec, Matchers}

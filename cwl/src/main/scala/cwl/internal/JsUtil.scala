@@ -1,10 +1,9 @@
-package wom.util
-
+package cwl.internal
 
 import common.validation.ErrorOr._
+import mouse.all._
 import org.mozilla.javascript.{Context, ScriptableObject}
 import wom.values._
-import mouse.all._
 
 object JsUtil {
   val encoder = new JsEncoder
@@ -33,7 +32,7 @@ object JsUtil {
         }
         newObj
 
-      case JsField(obj) =>
+      case JsPrimitive(obj) =>
         obj
     }
 
@@ -53,7 +52,7 @@ object JsUtil {
 
   case class JsObject(fields: Map[String, Js]) extends Js
   case class JsArray(array: Array[Js]) extends Js
-  case class JsField(anyRef: AnyRef) extends Js
+  case class JsPrimitive(anyRef: AnyRef) extends Js
 
 
   /**
@@ -72,7 +71,7 @@ object JsUtil {
                     rawValues: (String, WomValue),
                     mapValues: Map[String, Map[String, WomValue]] = Map.empty,
                     encoder: JsEncoder = new JsEncoder,
-                    decoder: JsDecoder = new JsDecoder): ErrorOr[WomValue] = {
+                    decoder: CwlJsDecoder = new CwlJsDecoder): ErrorOr[WomValue] = {
     evalRaw(expr) { (context, scope) =>
 
       val (key, value) = rawValues

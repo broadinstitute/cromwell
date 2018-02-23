@@ -3,18 +3,20 @@ package cwl
 import cats.instances.list._
 import cats.instances.option._
 import cats.syntax.traverse._
+import cats.syntax.validated._
 import common.validation.ErrorOr._
 import common.validation.Validation._
-import wom.util.JsEncoder
+import cwl.internal.{JsEncoder, JsUtil}
+import cwl.internal.JsUtil.{Js, JsArray, JsObject, JsPrimitive}
 import wom.values.{WomFile, WomGlobFile, WomMaybeListedDirectory, WomMaybePopulatedFile, WomSingleFile, WomUnlistedDirectory, WomValue}
+import mouse.all._
 
-import scala.collection.JavaConverters._
 
 class CwlJsEncoder extends JsEncoder {
   /**
     * Overrides encoding to also support wom file or directory values.
     */
-  override def encode(value: WomValue): ErrorOr[AnyRef] = {
+  override def encode(value: WomValue): Js = {
     value match {
       case file: WomFile => encodeFileOrDirectory(file)
       case _ => super.encode(value)
@@ -24,14 +26,14 @@ class CwlJsEncoder extends JsEncoder {
   /**
     * Encodes a sequence of wom file or directory values.
     */
-  def encodeFileOrDirectories(values: Seq[WomFile]): ErrorOr[Array[java.util.Map[String, AnyRef]]] = {
-    values.toList.traverse(encodeFileOrDirectory).map(_.toArray)
+  def encodeFileOrDirectories(values: Seq[WomFile]): JsArray = {
+    JsArray(values.toList.map(encodeFileOrDirectory).toArray)
   }
 
   /**
     * Encodes a wom file or directory value.
     */
-  def encodeFileOrDirectory(value: WomFile): ErrorOr[java.util.Map[String, AnyRef]] = {
+  def encodeFileOrDirectory(value: WomFile): JsObject = {
     value match {
       case directory: WomUnlistedDirectory => encodeDirectory(WomMaybeListedDirectory(directory.value))
       case file: WomSingleFile => encodeFile(WomMaybePopulatedFile(file.value))
@@ -44,48 +46,36 @@ class CwlJsEncoder extends JsEncoder {
   /**
     * Encodes a wom file.
     */
-  def encodeFile(file: WomMaybePopulatedFile): ErrorOr[java.util.Map[String, AnyRef]] = {
-    val lifted: ErrorOr[Map[String, Option[AnyRef]]] = Map(
-      "class" -> validate(Option("File")),
-      "location" -> validate(Option(file.value)),
-      "path" -> validate(Option(file.value)),
-      "basename" -> validate(Option(File.basename(file.value))),
-      "dirname" -> validate(Option(File.dirname(file.value))),
-      "nameroot" -> validate(Option(File.nameroot(file.value))),
-      "nameext" -> validate(Option(File.nameext(file.value))),
-      "checksum" -> validate(file.checksumOption),
-      "size" -> validate(file.sizeOption.map(Long.box)),
-      "secondaryFiles" -> encodeFileOrDirectories(file.secondaryFiles).map(Option(_)),
-      "format" -> validate(file.formatOption),
-      "contents" -> validate(file.contentsOption)
-    ).sequence
+  def encodeFile(file: WomMaybePopulatedFile): JsObject = {
+    List(
+      Option("class" -> JsPrimitive("File")),
+      file.valueOption.map("location" -> JsPrimitive(_)),
+      file.valueOption.map("path" -> JsPrimitive(_)),
+      Option("basename" ->  (File.basename(file.value) |> JsPrimitive)),
+      Option("dirname" -> (File.dirname(file.value) |> JsPrimitive)),
+      Option("nameroot" -> (File.nameroot(file.value) |> JsPrimitive)),
+       Option("nameext" -> (File.nameext(file.value) |> JsPrimitive)),
+      file.checksumOption.map("checksum" -> JsPrimitive(_)),
+      file.sizeOption.map(Long.box).map("size" -> JsPrimitive(_)),
+      Option("secondaryFiles" -> encodeFileOrDirectories(file.secondaryFiles)),
+      file.formatOption.map("format" -> JsPrimitive(_)),
+      file.contentsOption.map("contents" -> JsPrimitive(_))
+    ).flatten.toMap |> JsObject
 
-    flattenToJava(lifted)
   }
 
   /**
     * Encodes a wom directory.
     */
-  def encodeDirectory(directory: WomMaybeListedDirectory): ErrorOr[java.util.Map[String, AnyRef]] = {
-    val lifted: ErrorOr[Map[String, Option[AnyRef]]] = Map(
-      "class" -> validate(Option("Directory")),
-      "location" -> validate(directory.valueOption),
-      "path" -> validate(Option(directory.value)),
-      "basename" -> validate(Option(Directory.basename(directory.value))),
-      "listing" -> directory.listingOption.traverse(encodeFileOrDirectories)
-    ).sequence
-
-    flattenToJava(lifted)
-  }
-
-  /**
-    * Flattens the None values out of a scala map to a java version compatible with javascript.
-    */
-  def flattenToJava(lifted: ErrorOr[Map[String, Option[AnyRef]]]): ErrorOr[java.util.Map[String, AnyRef]] = {
-    val flattened: ErrorOr[Map[String, AnyRef]] = lifted.map(
-      _ collect { case (key, Some(value)) => (key, value) }
-    )
-
-    flattened.map(_.asJava)
+  def encodeDirectory(directory: WomMaybeListedDirectory): JsObject = {
+    List(
+      Option("class" -> JsPrimitive("Directory")),
+      directory.valueOption.map("location" -> JsPrimitive(_)),
+      Option(directory.value).map("path" -> JsPrimitive(_)),
+      Option("basename" -> JsPrimitive(Directory.basename(directory.value))),
+      directory.listingOption.map(encodeFileOrDirectories).map("listing" -> _)
+    ).flatten.toMap |> JsObject
   }
 }
+
+

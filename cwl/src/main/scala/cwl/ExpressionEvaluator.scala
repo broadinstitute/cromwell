@@ -3,11 +3,11 @@ package cwl
 import cats.syntax.validated._
 import common.validation.ErrorOr._
 import cwl.ExpressionEvaluator.eval
+import cwl.internal.{CwlJsDecoder, JsUtil}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.MatchesRegex
 import shapeless.Witness
 import wom.callable.RuntimeEnvironment
-import wom.util.JsUtil
 import wom.values.{WomFloat, WomInteger, WomString, WomValue}
 
 // http://www.commonwl.org/v1.0/CommandLineTool.html#Expressions

@@ -27,10 +27,10 @@ object BatchActor {
     *  Because they extends ControlMessage, in combination with a control aware mailbox those messages will
     *  be processed in priority.
     */
-  sealed trait BatchActorControleMessage extends ControlMessage
-  case object ProcessingComplete extends BatchActorControleMessage
+  sealed trait BatchActorControlMessage extends ControlMessage
+  case object ProcessingComplete extends BatchActorControlMessage
   case object ScheduledFlushKey
-  case object ScheduledProcessAction extends BatchActorControleMessage
+  case object ScheduledProcessAction extends BatchActorControlMessage
   
   case class CommandAndReplyTo[C](command: C, replyTo: ActorRef)
 
@@ -49,21 +49,19 @@ abstract class BatchActor[C](val flushRate: FiniteDuration,
   implicit val ec = context.dispatcher
   private val name = self.path.name
 
-  def isShuttingDown: Boolean = shuttingDown
-
   override def preStart(): Unit = {
     log.info("{} configured to flush with batch size {} and processHead rate {}.", name, batchSize, flushRate)
     timers.startPeriodicTimer(ScheduledFlushKey, ScheduledProcessAction, flushRate)
   }
 
-  startWith(WaitingToProcess, WeightedQueue.empty[C, Int](sizeFunction))
+  startWith(WaitingToProcess, WeightedQueue.empty[C, Int](weightFunction))
 
   def commandToData(snd: ActorRef): PartialFunction[Any, C]
   
   when(WaitingToProcess) {
     // On a regular event, only process if we're above the batch size is reached
     case Event(command, data) if commandToData(sender).isDefinedAt(command) =>
-      processIfBatchSizedReached(data.enqueue(commandToData(sender)(command)))
+      processIfBatchSizeReached(data.enqueue(commandToData(sender)(command)))
     // On a scheduled process, always process. Use the opportunity to broadcast the current queue weight
     case Event(ScheduledProcessAction, data) =>
       gossip(QueueWeight(data.weight))
@@ -87,17 +85,24 @@ abstract class BatchActor[C](val flushRate: FiniteDuration,
       processHead(data)
     // Processing is complete, re-process only if needed    
     case Event(ProcessingComplete, data) if !shuttingDown =>
-      processIfBatchSizedReached(data)
+      processIfBatchSizeReached(data)
     case Event(ShutdownCommand, _) =>
       shuttingDown = true
       stay()
   }
-  
-  protected def sizeFunction(command: C): Int
-  
+
+  /**
+    * Given a command, return its weight
+    */
+  protected def weightFunction(command: C): Int
+
+  /**
+    * Process the data asynchronously
+    * @return the number of elements processed
+    */
   protected def process(data: Vector[C]): Future[Int]
   
-  private def processIfBatchSizedReached(data: BatchData[C]) = {
+  private def processIfBatchSizeReached(data: BatchData[C]) = {
      if (data.weight >= batchSize) processHead(data)
      else goto(WaitingToProcess) using data
   }

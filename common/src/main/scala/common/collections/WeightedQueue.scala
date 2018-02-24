@@ -36,7 +36,7 @@ case class WeightedQueue[T, W](innerQueue: Queue[T],
   }
   
   def behead(maxWeight: W, maxLength: Option[Int] = None, strict: Boolean = false): (Vector[T], WeightedQueue[T, W]) = {
-    val (head, tail) = innerQueue.takeWhileWeighted(maxWeight, weightFunction, maxLength, strict)
+    val DeQueued(head, tail) = innerQueue.takeWhileWeighted(maxWeight, weightFunction, maxLength, strict)
     head -> this.copy(innerQueue = tail, weight = weight - head.map(weightFunction).sum)
   }
 }

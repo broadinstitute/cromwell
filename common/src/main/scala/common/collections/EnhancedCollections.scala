@@ -7,6 +7,8 @@ import scala.collection.immutable.Queue
 import scala.reflect.ClassTag
 
 object EnhancedCollections {
+  
+  case class DeQueued[A](head: Vector[A], tail: Queue[A])
 
   /**
     * After trying and failing to do this myself, I got this to work by copying the answer from here:
@@ -48,13 +50,15 @@ object EnhancedCollections {
       * The implementation is simple but naive. The more general problem is described here https://en.wikipedia.org/wiki/Knapsack_problem
       * 
       * @tparam W a numeric type for the weight
-      * @return (head, newQueue)
+      * @return a tuple of 
+      *         The elements removed from the queue as a vector
+      *         The rest of the queue (tail)
       */
     def takeWhileWeighted[W](maxWeight: W,
                              weightFunction: A => W,
                              maxHeadLength: Option[Int],
                              strict: Boolean = false)
-                            (implicit n: Numeric[W], c: Ordering[W]): (Vector[A], Queue[A]) = {
+                            (implicit n: Numeric[W], c: Ordering[W]): DeQueued[A] = {
       import n._
 
       @tailrec
@@ -75,11 +79,17 @@ object EnhancedCollections {
         }
       }
 
-      if (queue.isEmpty || maxHeadLength.contains(0)) Vector.empty -> queue
+      if (queue.isEmpty || maxHeadLength.contains(0)) DeQueued(Vector.empty, queue)
       // If strict is enabled, we should never return a head with a weight > maxWeight. So start from the original queue and drop elements over maxWeight if necessary 
-      else if (strict) takeWhileWeightedRec(queue, Vector.empty, n.zero)
+      else if (strict) {
+        val (head, tail) = takeWhileWeightedRec(queue, Vector.empty, n.zero)
+        DeQueued(head, tail)
+      }
       // Otherwise to ensure we don't deadlock, start the recursion with the head of the queue, this way even if it's over maxWeight it'll return a single element head 
-      else takeWhileWeightedRec(queue.tail, queue.headOption.toVector, queue.headOption.map(weightFunction).getOrElse(n.zero))
+      else {
+        val (head, tail) = takeWhileWeightedRec(queue.tail, queue.headOption.toVector, queue.headOption.map(weightFunction).getOrElse(n.zero))
+        DeQueued(head, tail)
+      }
     }
   }
 }

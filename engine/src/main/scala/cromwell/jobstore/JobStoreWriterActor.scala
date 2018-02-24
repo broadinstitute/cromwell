@@ -16,7 +16,7 @@ import scala.util.{Failure, Success}
 case class JobStoreWriterActor(jsd: JobStore, override val batchSize: Int, override val flushRate: FiniteDuration) extends 
   BatchActor[CommandAndReplyTo[JobStoreWriterCommand]](flushRate, batchSize) {
 
-  override protected def sizeFunction(command: CommandAndReplyTo[JobStoreWriterCommand]) = 1
+  override protected def weightFunction(command: CommandAndReplyTo[JobStoreWriterCommand]) = 1
 
   def commandToData(snd: ActorRef): PartialFunction[Any, CommandAndReplyTo[JobStoreWriterCommand]] = {
     case command: JobStoreWriterCommand => CommandAndReplyTo(command, snd)

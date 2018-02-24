@@ -20,7 +20,7 @@ case class CallCacheWriteActor(callCache: CallCache) extends BatchActor[CommandA
     case command: SaveCallCacheHashes => CommandAndReplyTo(command, snd)
   }
 
-  override protected def sizeFunction(command: CommandAndReplyTo[SaveCallCacheHashes]) = 1
+  override protected def weightFunction(command: CommandAndReplyTo[SaveCallCacheHashes]) = 1
 
   override protected def process(data: Vector[CommandAndReplyTo[SaveCallCacheHashes]]) = {
     log.debug("Flushing {} call cache hashes sets to the DB", data.length)

@@ -13,7 +13,7 @@ object InstrumentedBatchActor {
 }
 
 /**
-  * Layer over batch actor than instruments the throughput and queue size
+  * Layer over batch actor that instruments the throughput and queue size
   */
 abstract class InstrumentedBatchActor[C](flushRate: FiniteDuration,
                                          batchSize: Int,

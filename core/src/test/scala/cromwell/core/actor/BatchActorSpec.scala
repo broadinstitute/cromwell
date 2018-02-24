@@ -99,7 +99,7 @@ class BatchActorSpec extends TestKitSuite with FlatSpecLike with Matchers with E
     batch ! "hello"
     batch ! "bonjour"
 
-    // at tha point we've processed the first batch and are waiting for the future to complete
+    // at that point we've processed the first batch and are waiting for the future to complete
     batch.underlyingActor.processed shouldBe Vector("hola", "hello")
 
     eventually {
@@ -114,7 +114,7 @@ class BatchActorSpec extends TestKitSuite with FlatSpecLike with Matchers with E
     batch ! "hello"
     batch ! "bonjour"
 
-    // at tha point we've processed the first batch and are waiting for the future to complete
+    // at that point we've processed the first batch and are waiting for the future to complete
     batch.underlyingActor.processed shouldBe Vector("hola", "hello")
 
     // send more messages to stay over the batch size when the future completes
@@ -171,19 +171,38 @@ class BatchActorSpec extends TestKitSuite with FlatSpecLike with Matchers with E
     }
   }
 
-  class BatchActorTest(processingTime: FiniteDuration = Duration.Zero) extends BatchActor[String](10.hours, 10) {
+  it should "keep going even if a processing fail" in {
+    // Add some processing time so we have time to send more events while a batch is being processed
+    val batch = TestFSMRef(new BatchActorTest(Duration.Zero, true))
+    batch ! "bonjour"
+    batch ! "hello"
+
+    batch.underlyingActor.processed shouldBe Vector.empty
+
+    eventually {
+      // Even if writing bonjour fail we go back to WaitingToProcess and "hello" is still there to be processed later
+      batch.stateName shouldBe WaitingToProcess
+      batch.stateData.weight shouldBe 5
+    }
+  }
+
+  class BatchActorTest(processingTime: FiniteDuration = Duration.Zero, fail: Boolean = false) extends BatchActor[String](10.hours, 10) {
     var processed: Vector[String] = Vector.empty
     override def commandToData(snd: ActorRef) = {
       case command: String => command
     }
-    override protected def sizeFunction(command: String) = command.length
+    override protected def weightFunction(command: String) = command.length
     override protected def process(data: Vector[String]) = {
-      processed = processed ++ data
       if (processingTime != Duration.Zero) {
+        processed = processed ++ data
        val promise = Promise[Int]
-        system.scheduler.scheduleOnce(processingTime) { promise.success(data.map(sizeFunction).sum) }
+        system.scheduler.scheduleOnce(processingTime) { promise.success(data.map(weightFunction).sum) }
         promise.future
-      } else Future.successful(data.map(sizeFunction).sum)
+      } else if (!fail) {
+        processed = processed ++ data
+        Future.successful(data.map(weightFunction).sum)
+      }
+      else Future.failed(new Exception("Oh nose ! (This is a test failure and is expected !)"))
     }
   }
 

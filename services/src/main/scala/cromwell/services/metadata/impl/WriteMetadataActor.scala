@@ -46,7 +46,7 @@ class WriteMetadataActor(override val batchSize: Int,
     dbAction.map(_ => allPutEvents.size)
   }
 
-  override protected def sizeFunction(command: MetadataWriteAction) = command.size
+  override protected def weightFunction(command: MetadataWriteAction) = command.size
 }
 
 object WriteMetadataActor {

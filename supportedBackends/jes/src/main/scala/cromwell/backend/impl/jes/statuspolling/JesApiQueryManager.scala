@@ -162,7 +162,7 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
   private case class BeheadedWorkQueue(workToDo: Option[NonEmptyList[JesApiQuery]], newWorkQueue: Queue[JesApiQuery])
   private def beheadWorkQueue(maxBatchSize: Int): BeheadedWorkQueue = {
     import common.collections.EnhancedCollections._
-    val (head, tail) = workQueue.takeWhileWeighted(maxBatchRequestSize, _.contentLength, Option(maxBatchSize), strict = true)
+    val DeQueued(head, tail) = workQueue.takeWhileWeighted(maxBatchRequestSize, _.contentLength, Option(maxBatchSize), strict = true)
     
     head.toList match {
       case h :: t => BeheadedWorkQueue(Option(NonEmptyList(h, t)), tail)

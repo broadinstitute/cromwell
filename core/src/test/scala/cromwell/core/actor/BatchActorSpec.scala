@@ -171,7 +171,7 @@ class BatchActorSpec extends TestKitSuite with FlatSpecLike with Matchers with E
     }
   }
 
-  it should "keep going even if a processing fail" in {
+  it should "keep going even if processing fail" in {
     // Add some processing time so we have time to send more events while a batch is being processed
     val batch = TestFSMRef(new BatchActorTest(Duration.Zero, true))
     batch ! "bonjour"
@@ -180,7 +180,7 @@ class BatchActorSpec extends TestKitSuite with FlatSpecLike with Matchers with E
     batch.underlyingActor.processed shouldBe Vector.empty
 
     eventually {
-      // Even if writing bonjour fail we go back to WaitingToProcess and "hello" is still there to be processed later
+      // Even if writing bonjour fails we go back to WaitingToProcess and "hello" is still there to be processed later
       batch.stateName shouldBe WaitingToProcess
       batch.stateData.weight shouldBe 5
     }

@@ -2,6 +2,7 @@ package cromwell.services.metadata.impl
 
 import akka.testkit.{TestFSMRef, TestProbe}
 import com.typesafe.config.ConfigFactory
+import cromwell.core.Tags.IntegrationTest
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.database.slick.{EngineSlickDatabase, MetadataSlickDatabase}
 import cromwell.services.ServicesStore.EnhancedSqlDatabase
@@ -13,7 +14,7 @@ import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.concurrent.duration._
 class WriteMetadataActorBenchmark extends TestKitSuite with FlatSpecLike with Eventually with Matchers {
-  override implicit val patienceConfig = PatienceConfig(30.seconds, 1.second)
+  override implicit val patienceConfig = PatienceConfig(scaled(30.seconds), 1.second)
 
   behavior of "WriteMetadataActor"
   
@@ -32,7 +33,7 @@ class WriteMetadataActorBenchmark extends TestKitSuite with FlatSpecLike with Ev
     x
   }
 
-  it should "provide good throughput" in {
+  it should "provide good throughput" taggedAs IntegrationTest in {
     val writeActor = TestFSMRef(new WriteMetadataActor(1000, 5.seconds, registry) {
       override val metadataDatabaseInterface = {
         val databaseConfig = ConfigFactory.load.getConfig("database-test-mysql")

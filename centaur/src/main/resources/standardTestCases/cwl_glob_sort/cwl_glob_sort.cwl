@@ -5,7 +5,9 @@ $graph:
   class: CommandLineTool
   requirements:
     - class: InlineJavascriptRequirement
-
+  hints:
+    DockerRequirement:
+      dockerPull: "debian:stretch-slim"
   inputs: []
   baseCommand: [touch, z, y, x, w, c, b, a]
   outputs:

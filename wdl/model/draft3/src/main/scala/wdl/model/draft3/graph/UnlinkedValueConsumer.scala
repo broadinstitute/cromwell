@@ -1,10 +1,10 @@
-package wdl.draft3.transforms.wdlom2wom.linking
+package wdl.model.draft3.graph
 
 import simulacrum.typeclass
+
 import scala.language.implicitConversions
 
 @typeclass
 trait UnlinkedValueConsumer[A] {
-  def consumedValueNames(a: A): Set[UnlinkedConsumedValueName]
+  def consumedValueHooks(a: A): Set[UnlinkedConsumedValueHook]
 }
-

@@ -20,7 +20,6 @@ import cromwell.util.StopAndLogSupervisor
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric._
 
-import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.concurrent.duration._
 
@@ -58,7 +57,7 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
     * and com.google.api.client.http.javanet.NetHttpRequest
     * 
   */
-  private val maxBatchRequestSize = 14 * 1024 * 1024
+  private val maxBatchRequestSize: Long = 14L * 1024L * 1024L
   private val requestTooLargeException = new JesApiException(new IllegalArgumentException(
     "The task run request has exceeded the maximum PAPI request size." +
       "If you have a task with a very large number of inputs and / or outputs in your workflow you should try to reduce it. " +
@@ -162,32 +161,10 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
   // Intentionally not final, this runs afoul of SI-4440 (I believe)
   private case class BeheadedWorkQueue(workToDo: Option[NonEmptyList[JesApiQuery]], newWorkQueue: Queue[JesApiQuery])
   private def beheadWorkQueue(maxBatchSize: Int): BeheadedWorkQueue = {
-
-    /*
-      * Keep taking from the head of the queue, making sure it stays under maxBatchSize as well as maxBatchRequestSize.
-      * Assumes that each query in the queue can fit in an empty batch (queries with a size > maxBatchSize should no be added to the queue)
-      *
-      * This is a naive approach where we keep adding queries to the head as long as they don't overflow it, and then we stop.
-      * This could leave us with half empty batches and is not very efficient.
-      *
-      * A somewhat less naive approach would be to keep looking in the queue for another query that would fit.
-      *
-      * More generally this is the knapsack problem (https://en.wikipedia.org/wiki/Knapsack_problem) which is NP-Complete.
-      * If this needs further optimization, finding an approximation algorithm that fits well this case would be a place to start.
-      */
-    @tailrec
-    def behead(queue: Queue[JesApiQuery], head: Vector[JesApiQuery]): Vector[JesApiQuery]  = queue.headOption match {
-      case Some(query) if head.size < maxBatchSize && head.map(_.contentLength).sum + query.contentLength < maxBatchRequestSize =>
-        behead(queue.tail, head :+ query)
-      case _ => head
-    }
-
-    // Initialize the head with workQueue.head to avoid deadlocking if the first element is > maxBatchRequestSize, 
-    // which should NOT happen as they should not be inserted in the queue in the first place
-    val head = if (workQueue.isEmpty) Vector.empty else behead(workQueue.tail, workQueue.headOption.toVector).toList
-    val tail = workQueue.drop(head.size)
-
-    head match {
+    import common.collections.EnhancedCollections._
+    val DeQueued(head, tail) = workQueue.takeWhileWeighted(maxBatchRequestSize, _.contentLength, Option(maxBatchSize), strict = true)
+    
+    head.toList match {
       case h :: t => BeheadedWorkQueue(Option(NonEmptyList(h, t)), tail)
       case Nil => BeheadedWorkQueue(None, Queue.empty)
     }

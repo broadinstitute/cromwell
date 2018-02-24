@@ -1,12 +1,12 @@
 package cromwell.jobstore
 
 import akka.testkit.TestFSMRef
+import common.collections.WeightedQueue
 import cromwell.CromwellTestKitWordSpec
-import cromwell.core.actor.BatchingDbWriter
-import cromwell.core.actor.BatchingDbWriter.{BatchingDbWriterState, WritingToDb}
+import cromwell.core.actor.BatchActor.{BatchActorState, CommandAndReplyTo, Processing}
 import cromwell.core.{CallOutputs, WorkflowId}
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
-import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, RegisterJobCompleted, RegisterWorkflowCompleted}
+import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, JobStoreWriterCommand, RegisterJobCompleted, RegisterWorkflowCompleted}
 import org.scalatest.{BeforeAndAfter, Matchers}
 import wom.graph.GraphNodePort.OutputPort
 
@@ -17,7 +17,7 @@ import scala.language.postfixOps
 class JobStoreWriterSpec extends CromwellTestKitWordSpec with Matchers with BeforeAndAfter {
   
   var database: WriteCountingJobStore = _
-  var jobStoreWriter: TestFSMRef[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData, JobStoreWriterActor] = _
+  var jobStoreWriter: TestFSMRef[BatchActorState, WeightedQueue[CommandAndReplyTo[JobStoreWriterCommand], Int], JobStoreWriterActor] = _
   var workflowId: WorkflowId = _
   val successResult: JobResult = JobResultSuccess(Some(0), CallOutputs.empty)
   val flushFrequency = 0.5 second
@@ -67,13 +67,13 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with Matchers with Befo
       sendRegisterCompletion(1)
       val writer = jobStoreWriter.underlyingActor
       eventually {
-        writer.stateName shouldBe WritingToDb
+        writer.stateName shouldBe Processing
       }
 
       // Send some more completions.  These should pile up in the state data.
       List(2, 3) foreach sendRegisterCompletion
 
-      writer.stateData.length should equal(2)
+      writer.stateData.weight should equal(2)
       database.continue()
 
       assertReceived(expectedJobStoreWriteAcks = 3)
@@ -91,14 +91,14 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with Matchers with Befo
       sendRegisterCompletion(1)
       val writer = jobStoreWriter.underlyingActor
       eventually {
-        writer.stateName shouldBe WritingToDb
+        writer.stateName shouldBe Processing
       }
 
       // Send some more completions.  These should pile up in the state data.
       List(2, 3) foreach sendRegisterCompletion
       jobStoreWriter ! RegisterWorkflowCompleted(workflowId)
 
-      writer.stateData.length should equal(3)
+      writer.stateData.weight should equal(3)
       // The testing DB intentionally blocks after the first write until `continue` is called.
       database.continue()
 

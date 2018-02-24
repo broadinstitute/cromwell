@@ -62,8 +62,14 @@ object MetadataService {
     }
   }
 
-  final case class PutMetadataAction(events: Iterable[MetadataEvent]) extends MetadataServiceAction
-  final case class PutMetadataActionAndRespond(events: Iterable[MetadataEvent], replyTo: ActorRef) extends MetadataServiceAction
+  sealed trait MetadataWriteAction extends MetadataServiceAction {
+    def events: Iterable[MetadataEvent]
+    def size: Int = events.size
+  }
+  final case class PutMetadataAction(events: Iterable[MetadataEvent]) extends MetadataWriteAction 
+  final case class PutMetadataActionAndRespond(events: Iterable[MetadataEvent], replyTo: ActorRef) extends MetadataWriteAction
+
+  final case object ListenToMetadataWriteActor extends MetadataServiceAction
 
   final case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
                                              excludeKeysOption: Option[NonEmptyList[String]],

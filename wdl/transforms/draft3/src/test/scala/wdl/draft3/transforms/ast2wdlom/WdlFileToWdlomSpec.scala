@@ -6,8 +6,8 @@ import wdl.model.draft3.elements._
 import wdl.draft3.transforms.ast2wdlom.WdlFileToWdlomSpec._
 import wom.types._
 import wdl.draft3.transforms.ast2wdlom.ExpressionSet._
-import wdl.model.draft3.elements.ExpressionElement.{IdentifierLookup, PrimitiveLiteralExpressionElement, ReadString, StdoutElement}
-import wom.values.WomInteger
+import wdl.model.draft3.elements.ExpressionElement._
+import wom.values.{WomBoolean, WomInteger}
 
 class WdlFileToWdlomSpec extends FlatSpec with Matchers {
 
@@ -52,15 +52,48 @@ object WdlFileToWdlomSpec {
     "empty_workflow" ->
       FileElement(
         imports = List.empty,
+        structs = Vector.empty,
         workflows = List(WorkflowDefinitionElement(
           name = "empty",
           inputsSection = None,
           graphElements = Set.empty,
           outputsSection = None)),
         tasks = List.empty),
+    "struct_definition" -> FileElement(
+      imports = Vector.empty,
+      structs = Vector(StructElement(
+        entries = Vector(
+          StructEntryElement(
+            identifier = "simple",
+            typeElement = PrimitiveTypeElement(WomIntegerType)),
+          StructEntryElement(
+            identifier = "complex",
+            typeElement = PairTypeElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)), MapTypeElement(PrimitiveTypeElement(WomStringType), PrimitiveTypeElement(WomBooleanType))))))
+      ),
+      workflows = Vector(WorkflowDefinitionElement(
+        name = "foo",
+        inputsSection = None,
+        graphElements = Set(),
+        outputsSection = Some(OutputsSectionElement(Vector(
+          OutputDeclarationElement(
+            typeElement = TypeAliasElement("FooStruct"),
+            name = "myFoo",
+            expression = ObjectLiteral(Map(
+              "simple" -> intLiteral,
+              "complex" -> PairLiteral(
+                left = ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(5)))),
+                right = MapLiteral(Map(StringLiteral("t") -> PrimitiveLiteralExpressionElement(WomBoolean(true))))
+              )
+            ))
+          )
+        )))
+      )),
+      tasks = Vector.empty
+    ),
     "input_types" ->
       FileElement(
         imports = Vector.empty,
+        structs = Vector.empty,
         workflows = Vector(WorkflowDefinitionElement(
           name = "input_types",
           inputsSection = Some(InputsSectionElement(Vector(
@@ -86,6 +119,7 @@ object WdlFileToWdlomSpec {
     "input_values" ->
       FileElement(
         imports = Vector.empty,
+        structs = Vector.empty,
         workflows = Vector(WorkflowDefinitionElement(
           name = "input_values",
           inputsSection = Some(InputsSectionElement(
@@ -105,6 +139,7 @@ object WdlFileToWdlomSpec {
     "input_expressions" ->
       FileElement(
         imports = Vector.empty,
+        structs = Vector.empty,
         workflows = Vector(WorkflowDefinitionElement(
           name = "input_expressions",
           inputsSection = Some(InputsSectionElement(
@@ -140,6 +175,7 @@ object WdlFileToWdlomSpec {
     "passthrough_workflow" ->
       FileElement(
         imports = Vector(),
+        structs = Vector.empty,
         workflows = Vector(
           WorkflowDefinitionElement(
             name = "foo",
@@ -150,11 +186,13 @@ object WdlFileToWdlomSpec {
     "simpleFirstTest" ->
       FileElement(
         imports = List.empty,
+        structs = Vector.empty,
         workflows = List.empty,
         tasks = List.empty),
     "static_value_workflow" ->
       FileElement(
         imports = Vector.empty,
+        structs = Vector.empty,
         workflows = Vector(WorkflowDefinitionElement(
           name = "foo",
           inputsSection = None,

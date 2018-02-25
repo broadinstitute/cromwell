@@ -14,3 +14,8 @@ case class OptionalTypeElement(maybeType: TypeElement) extends TypeElement
 case class PairTypeElement(leftType: TypeElement, rightType: TypeElement) extends TypeElement
 case class StructTypeElement(structName: String) extends TypeElement
 case object ObjectTypeElement extends TypeElement
+
+/**
+  * Element to represent something like a Struct name which will eventually have to be linked back to a fixed WOM type.
+  */
+case class TypeAliasElement(alias: String) extends TypeElement

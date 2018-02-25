@@ -9,6 +9,7 @@ object AstToFileBodyElement {
   def convert(ast: Ast): Checked[FileBodyElement] = ast.getName match {
     case "Workflow" => astNodeToWorkflowDefinitionElement(ast)
     case "Task" => astNodeToTaskDefinitionElement(ast)
+    case "Struct" => astNodeToStructEntry(ast)
     case other => s"No conversion defined for Ast with name $other".invalidNelCheck
   }
 }

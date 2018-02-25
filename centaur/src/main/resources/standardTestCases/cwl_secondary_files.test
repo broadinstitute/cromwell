@@ -6,7 +6,6 @@ workflowRoot: main
 backendsMode: "any"
 backends: [Local, LocalNoDocker]
 tags: [localdockertest]
-ignore: true
 
 files {
   wdl: cwl_secondary_files/cwl_secondary_files.cwl

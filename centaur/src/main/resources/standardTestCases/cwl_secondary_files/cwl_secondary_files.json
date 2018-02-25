@@ -1,5 +1,5 @@
 # This command will stat the secondaryFiles and if they're missing bad times
-command: stat $(echo $* | sed 's/.txt/.txt.also/g')
+command: stat $(echo $* | sed 's/.txt/.txt.also/g') > /dev/null
 f:
   class: File
   path: "foo.txt"

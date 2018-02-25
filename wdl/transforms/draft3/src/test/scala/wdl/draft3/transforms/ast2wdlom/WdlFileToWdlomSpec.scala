@@ -82,7 +82,7 @@ object WdlFileToWdlomSpec {
               "simple" -> intLiteral,
               "complex" -> PairLiteral(
                 left = ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(5)))),
-                right = MapLiteral(Map("t" -> PrimitiveLiteralExpressionElement(WomBoolean(true))))
+                right = MapLiteral(Map(StringLiteral("t") -> PrimitiveLiteralExpressionElement(WomBoolean(true))))
               )
             ))
           )

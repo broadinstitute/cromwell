@@ -12,7 +12,6 @@ case class ArrayTypeElement(inner: TypeElement) extends TypeElement
 case class MapTypeElement(keyType: TypeElement, valueType: TypeElement ) extends TypeElement
 case class OptionalTypeElement(maybeType: TypeElement) extends TypeElement
 case class PairTypeElement(leftType: TypeElement, rightType: TypeElement) extends TypeElement
-case class StructTypeElement(structName: String) extends TypeElement
 case object ObjectTypeElement extends TypeElement
 
 /**

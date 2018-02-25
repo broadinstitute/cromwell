@@ -13,7 +13,7 @@ import wom.types.WomType
 
 object LinkedGraphMaker {
   def make(nodes: Set[WorkflowGraphElement],
-          typeAliases: Map[String, WomType]): ErrorOr[LinkedGraph] = {
+           typeAliases: Map[String, WomType]): ErrorOr[LinkedGraph] = {
 
     val generatedValuesByGraphNodeValidation = nodes.toList.traverse[ErrorOr, (WorkflowGraphElement, Set[GeneratedValueHandle])] { node =>
       node.generatedValueHandles(typeAliases).map(node -> _)
@@ -26,7 +26,7 @@ object LinkedGraphMaker {
       graphNodeByGeneratedValue <- reverseMap(generatedValuesByGraphNode)
       consumedValueLookup <- makeConsumedValueLookup(nodes, graphNodeByGeneratedValue.keySet)
       edges = makeEdges(nodes, consumedValuesByGraphNode, consumedValueLookup, graphNodeByGeneratedValue)
-    } yield LinkedGraph(nodes, generatedValuesByGraphNode, edges, consumedValuesByGraphNode, graphNodeByGeneratedValue, consumedValueLookup)
+    } yield LinkedGraph(nodes, generatedValuesByGraphNode, edges, consumedValuesByGraphNode, graphNodeByGeneratedValue, consumedValueLookup, typeAliases)
   }
 
   private def makeEdges(elements: Set[WorkflowGraphElement],

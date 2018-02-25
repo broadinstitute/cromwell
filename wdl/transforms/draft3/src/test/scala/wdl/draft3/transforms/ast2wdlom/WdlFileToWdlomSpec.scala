@@ -63,6 +63,7 @@ object WdlFileToWdlomSpec {
     "struct_definition" -> FileElement(
       imports = Vector.empty,
       structs = Vector(StructElement(
+        name = "FooStruct",
         entries = Vector(
           StructEntryElement(
             identifier = "simple",

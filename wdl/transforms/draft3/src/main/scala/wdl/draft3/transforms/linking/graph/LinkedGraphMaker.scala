@@ -40,7 +40,7 @@ object LinkedGraphMaker {
   } yield LinkedGraphEdge(upstreamElement, downstreamElement)
 
   private def makeConsumedValueLookup(nodes: Set[WorkflowGraphElement],
-                                      availableHandles: Set[GeneratedValueHandle],
+                                      availableHandles: Set[GeneratedValueHandle]
                                      ): ErrorOr[Map[UnlinkedConsumedValueHook, GeneratedValueHandle]] = {
     val consumed: Set[UnlinkedConsumedValueHook] = nodes.flatMap(_.consumedValueHooks)
 

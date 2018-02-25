@@ -22,5 +22,4 @@ package object types {
       }
     }
   }
-
 }

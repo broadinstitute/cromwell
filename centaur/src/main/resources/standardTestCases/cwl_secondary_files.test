@@ -1,0 +1,19 @@
+name: cwl_secondary_files
+testFormat: workflowsuccess
+workflowType: CWL
+workflowTypeVersion: v1.0
+workflowRoot: main
+backendsMode: "any"
+backends: [Local, LocalNoDocker]
+tags: [localdockertest]
+ignore: true
+
+files {
+  wdl: cwl_secondary_files/cwl_secondary_files.cwl
+  inputs: cwl_secondary_files/cwl_secondary_files.json
+}
+
+metadata {
+  "submittedFiles.workflowType": CWL
+  "submittedFiles.workflowTypeVersion": v1.0
+}

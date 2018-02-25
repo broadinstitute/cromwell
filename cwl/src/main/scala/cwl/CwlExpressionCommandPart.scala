@@ -25,7 +25,7 @@ case class CwlExpressionCommandPart(expr: Expression)(expressionLib: ExpressionL
         inputs = stringKeyMap, runtimeOption = Option(runtimeEnvironment)
       )
     ExpressionEvaluator.eval(expr, parameterContext, expressionLib) map { womValue =>
-      List(InstantiatedCommand(valueMapper(womValue).valueString))
+      List(InstantiatedCommand(valueMapper(womValue).valueString.shellQuote))
     }
   }
 }

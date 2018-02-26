@@ -280,7 +280,6 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
     "org.apache.commons" % "commons-text" % commonsTextV,
-    "org.mozilla" % "rhino" % rhinoV,
     "commons-codec" % "commons-codec" % commonsCodecV
   )
 
@@ -298,6 +297,7 @@ object Dependencies {
     "org.scalactic" %% "scalactic" % scalacticV,
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "io.circe" %% "circe-optics" % circeV,
+    "org.mozilla" % "rhino" % rhinoV,
     "org.scalamock" %% "scalamock" % "4.0.0" % Test
   ) ++ circeDependencies ++ womDependencies ++ refinedTypeDependenciesList ++ betterFilesDependencies
 

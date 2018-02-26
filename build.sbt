@@ -7,7 +7,7 @@ lazy val common = project
   .withLibrarySettings("cromwell-common", commonDependencies, crossCompile = true)
 
 lazy val wom = project
-  .withLibrarySettings("cromwell-wom", womDependencies, womSettings, crossCompile = true)
+  .withLibrarySettings("cromwell-wom", womDependencies, crossCompile = true)
   .dependsOn(common)
 
 lazy val wdlRoot = Path("wdl")

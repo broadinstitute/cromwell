@@ -5,7 +5,6 @@ import cats.instances.option._
 import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
-import common.validation.ErrorOr
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cwl.{Directory, File, FileOrDirectory}
@@ -35,11 +34,10 @@ class CwlJsDecoder {
         WomInteger(double.intValue).valid
       case double: java.lang.Double => WomFloat(double).valid
       case boolean: java.lang.Boolean => WomBoolean(boolean).valid
-      case _ => ???
+      case _ => s"While decoding the output of the Javascript interpreter, we encountered $value and were unable to reify it.".invalidNel
     }
 
   def decodeMap(map: Map[Any, Any]): ErrorOr[WomValue] = {
-    //come on, don't BS me
     val realMap: Map[AnyRef, AnyRef] = map.asInstanceOf[Map[AnyRef, AnyRef]]
 
     val tupleList = realMap.toList.traverse[ErrorOr,(WomValue, WomValue)]{ case (k,v) => (decode(k), decode(v)).tupled }
@@ -56,7 +54,6 @@ class CwlJsDecoder {
     value match {
       case map: NativeObject if map.get("class") == "File" => decodeFile(map.asScala.toMap).map(Coproduct[FileOrDirectory](_))
       case map: NativeObject if map.get("class") == "Directory" => decodeDirectory(map.asScala.toMap).map(Coproduct[FileOrDirectory](_))
-      case _: NativeObject => ??? //decodeMap(map).map(Coproduct[FileOrDirectory](_))
       case _ => invalidValue
     }
   }

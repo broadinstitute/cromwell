@@ -5,6 +5,12 @@ import mouse.all._
 import org.mozilla.javascript.{Context, ScriptableObject}
 import wom.values._
 
+/**
+  * This implementation depends on Mozilla Rhino.
+  *
+  * Previously we attempted to use Nashorn which is built into the JDK, but we encountered at least 2 situations where
+  * it didn't work and we found no workarounds to satisfy the use cases.  Namely, JSON.stringify of a Map and calling "sort" on an array.
+  */
 object JsUtil {
   val encoder = new JsEncoder
   def writeValue(value: ECMAScriptVariable)(context: Context, scope: ScriptableObject): AnyRef =
@@ -77,7 +83,6 @@ object JsUtil {
       val jsValue = encoder.encode(value)
       val field = writeValue(jsValue)(context, scope)
       ScriptableObject.putProperty(scope, key, field)
-
 
       val jsMap = mapValues.mapValues{ _.mapValues(encoder.encode) }
 

@@ -52,17 +52,15 @@ class JsEncoder {
   def encodeString(value: WomValue): String = {
     encode(value) match {
       case ESPrimitive(string: String) => string
+
+      //In the case of a non-string, we evaluate a small snippet of Ecma script meant to coerce the object to a string
+      // http://2ality.com/2012/03/converting-to-string.html
       case _ =>
         val jsString: ErrorOr[WomValue] = JsUtil.evalStructish(""""" + other""","other" -> value)
         jsString match {
           case Valid(WomString(string)) => string
           case unexpected => throw new RuntimeException(s"Expected to convert '$value' to a String but ended up with '$unexpected'")
         }
-      /*
-    case JsField(other) =>
-      TODO
-      // http://2ality.com/2012/03/converting-to-string.html
-      */
     }
   }
 }

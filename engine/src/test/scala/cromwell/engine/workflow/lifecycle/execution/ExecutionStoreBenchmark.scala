@@ -11,7 +11,7 @@ import org.scalameter.picklers.Implicits._
 import spray.json.DefaultJsonProtocol
 import wdl.draft2.model.WdlNamespaceWithWorkflow
 import wom.graph.{CommandCallNode, ScatterNode}
-import wdl.transforms.draft2.wdlom2wom._
+import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomExecutableMakers._
 import wom.transforms.WomExecutableMaker.ops._
 
 /**

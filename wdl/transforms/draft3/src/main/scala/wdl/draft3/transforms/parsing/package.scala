@@ -8,7 +8,7 @@ import wdl.draft3.parser.WdlParser.Ast
 import wdl.draft3.transforms.ast2wdlom.fileToFileElement
 import wdl.draft3.transforms.wdlom2wom.fileElementToWomExecutable
 import wom.executable.Executable
-import wom.transforms.WomExecutableMaker.ExecutableMakerInputs
+import wom.transforms.WomExecutableMaker.WomBundleMakerInputs
 
 package object parsing {
   val fileToAst: CheckedAtoB[File, Ast] = CheckedAtoB.fromCheck(FileParser.convert)

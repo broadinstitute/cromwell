@@ -1,8 +1,10 @@
 package womtool.graph
 
+import common.collections.EnhancedCollections._
 import wdl.draft2.model.WdlNamespaceWithWorkflow
-import wdl.transforms.draft2.wdlom2wom._
-import wom.transforms.WomExecutableMaker.ops._
+import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomBundleMakers._
+import wom.callable.WorkflowDefinition
+import wom.transforms.WomBundleMaker.ops._
 
 class OutputNameCollisionSpec extends WomDotGraphTest {
 
@@ -29,8 +31,9 @@ class OutputNameCollisionSpec extends WomDotGraphTest {
 
   val outputCollisionWdlGraph = {
     val namespace = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
-    namespace.toWomExecutable() match {
-      case Right(executable) => executable.graph
+
+    namespace.toWomBundle(List.empty) match {
+      case Right(bundle) => (bundle.callables.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).head.graph
       case Left(errors) => throw new Exception(errors.toList.mkString(", "))
     }
   }

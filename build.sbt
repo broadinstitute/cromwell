@@ -169,8 +169,8 @@ lazy val centaurCwlRunner = project
 
 lazy val womtool = project
   .withExecutableSettings("womtool", womtoolDependencies)
-  .dependsOn(wdlModelDraft2)
   .dependsOn(wdlTransformsDraft2)
+  .dependsOn(wdlTransformsDraft3)
   .dependsOn(cwl)
   .dependsOn(wom % "test->test")
 

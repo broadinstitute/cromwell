@@ -64,9 +64,7 @@ class CwlJsDecoderSpec extends FlatSpec with Matchers with TableDrivenPropertyCh
 
   forAll(decodeTests) { (description, expr, values: Map[String, Map[String, WomValue]], expected) =>
     it should s"decode $description" in {
-      val decoder = new CwlJsDecoder
-      val rawResult = JsUtil.evalStructish(expr, ("fake" -> WomString("unused")), values).toTry.get
-      val result = decoder.decode(rawResult).toTry.get
+      val result = JsUtil.evalStructish(expr, ("fake" -> WomString("unused")), values).toTry.get
       result should be(expected)
     }
   }

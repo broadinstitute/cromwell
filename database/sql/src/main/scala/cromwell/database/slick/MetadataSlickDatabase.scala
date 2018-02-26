@@ -109,8 +109,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     } yield ()
   }
 
-  private def upsertCustomLabelEntry(metadataEntry: MetadataEntry)
-                                    (implicit ec: ExecutionContext): DBIO[Unit] = {
+  private def createCustomLabelEntryIfNecessary(metadataEntry: MetadataEntry)
+                                               (implicit ec: ExecutionContext): DBIO[Unit] = {
     //Extracting the label key from the MetadataEntry key
     val labelKey = metadataEntry.metadataKey.split("\\:", 2)(1)
     val labelValue = metadataEntry.metadataValue.toRawString
@@ -162,7 +162,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       metadataWithoutLabels = metadataEntries.filterNot(_.metadataKey.contains(labelMetadataKey)).groupBy(_.workflowExecutionUuid)
       customLabelEntries = metadataEntries.filter(_.metadataKey.contains(labelMetadataKey))
       _ <- DBIO.sequence(metadataWithoutLabels map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
-      _ <- DBIO.sequence(customLabelEntries map upsertCustomLabelEntry)
+      _ <- DBIO.sequence(customLabelEntries map createCustomLabelEntryIfNecessary)
       maximumMetadataEntryId = previousOrMaximum(previousMetadataEntryId, metadataEntries.map(_.metadataEntryId.get))
       _ <- upsertSummaryStatusEntryMaximumId(
         "WORKFLOW_METADATA_SUMMARY_ENTRY", "METADATA_ENTRY", maximumMetadataEntryId)

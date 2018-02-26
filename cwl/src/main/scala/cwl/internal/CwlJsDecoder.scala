@@ -42,7 +42,9 @@ class CwlJsDecoder {
     //come on, don't BS me
     val realMap: Map[AnyRef, AnyRef] = map.asInstanceOf[Map[AnyRef, AnyRef]]
 
-    realMap.toList.traverse[ErrorOr,(WomValue, WomValue)]{ case (k,v) => (decode(k), decode(v)).tupled }.map(_.toMap).map(WomMap.apply)
+    val tupleList = realMap.toList.traverse[ErrorOr,(WomValue, WomValue)]{ case (k,v) => (decode(k), decode(v)).tupled }
+    val mapWomValues =  tupleList.map(_.toMap)
+    mapWomValues.map(WomMap.apply)
   }
 
   /**

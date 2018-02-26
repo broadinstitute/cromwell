@@ -1,5 +1,6 @@
 package cwl
 
+import cats.data.NonEmptyList
 import cats.syntax.either._
 import cats.syntax.validated._
 import common.Checked
@@ -12,8 +13,9 @@ import wom.RuntimeAttributes
 import wom.callable.{Callable, CallableExpressionTaskDefinition}
 import wom.expression.{IoFunctionSet, ValueAsAnExpression}
 import wom.graph.GraphNodePort.OutputPort
-import wom.types.{WomObjectType, WomType}
-import wom.values.{WomObjectLike, WomString, WomValue}
+import wom.types.{WomMapType, WomObjectType, WomStringType, WomType}
+import wom.values.{WomMap, WomObjectLike, WomString, WomValue}
+import mouse.all._
 
 case class ExpressionTool(
                            inputs: Array[ExpressionToolInputParameter] = Array.empty,
@@ -28,6 +30,16 @@ case class ExpressionTool(
                            cwlVersion: Option[CwlVersion] = None) extends Tool {
 
   def asCwl: Cwl = Coproduct[Cwl](this)
+
+  def castWomValueAsMap(evaluatedExpression: WomValue): Checked[Map[String, WomValue]] = {
+    evaluatedExpression match {
+      case WomMap(WomMapType(WomStringType, _), map) =>  map.map{
+        case (WomString(key), value) => key -> value
+        case (key, _) => throw new RuntimeException(s"saw a non-string value $key in wom map $evaluatedExpression typed with string keys ")
+      }.asRight
+      case _ => Left(s"Could not cast value $evaluatedExpression to a Map[String, WomValue]" |> NonEmptyList.one)
+    }
+  }
 
   def buildTaskDefinition(taskName: String,
                           inputDefinitions: List[_ <: Callable.InputDefinition],
@@ -77,13 +89,9 @@ case class ExpressionTool(
           *   ...
           * }
          */
-        asObject <- WomObjectType.coerceRawValue(evaluatedExpression).toChecked
-        // Unfortunately coerceRawValue returns an abstract WomValue, so we have to explicitly match it
-        values = asObject match {
-          case womObject: WomObjectLike => womObject.values
-          case _ => throw new Exception("This cannot happen otherwise the coercion above would have failed")
-        }
-        mappedValues <- mapPortsToValues(values)
+        womMap <- castWomValueAsMap(evaluatedExpression)
+
+        mappedValues <- mapPortsToValues(womMap)
       } yield mappedValues
     }
 

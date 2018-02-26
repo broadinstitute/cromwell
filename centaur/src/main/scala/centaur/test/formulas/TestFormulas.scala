@@ -102,8 +102,8 @@ object TestFormulas {
         CromwellManager.startCromwell(postRestart)
       case _ =>
     }
-    
-    for {
+
+    val singleTest = for {
       w <- submitWorkflow(workflowDefinition)
       jobId <- pollUntilCallIsRunning(w, callMarker.callKey)
       // The Cromwell call status could be running but the backend job might not have started yet, give it some time
@@ -117,6 +117,9 @@ object TestFormulas {
       _ <- validateMetadata(w, workflowDefinition)
       _ <- validateDirectoryContentsCounts(workflowDefinition, w)
     } yield SubmitResponse(w)
+
+    // These might occasionally work when they shouldn't, so check 5 times:
+    nTimes(singleTest, 5) map (_.head)
   }
 
   def workflowRestart(workflowDefinition: Workflow,

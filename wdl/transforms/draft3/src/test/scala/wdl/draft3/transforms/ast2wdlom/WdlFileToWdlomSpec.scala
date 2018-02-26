@@ -188,6 +188,7 @@ object WdlFileToWdlomSpec {
     "declaration_chain" ->
       FileElement(
         imports = Vector(),
+        structs = Vector.empty,
         workflows = Vector(
           WorkflowDefinitionElement(
             name = "foo",

@@ -1,3 +1,3 @@
 package wdl.model.draft3.elements
 
-case class InputsSectionElement(inputDeclarations: Seq[InputDeclarationElement]) extends WorkflowBodyElement with TaskBodyElement
+final case class InputsSectionElement(inputDeclarations: Seq[InputDeclarationElement]) extends WorkflowBodyElement with TaskSectionElement

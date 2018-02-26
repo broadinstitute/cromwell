@@ -10,7 +10,7 @@ import wdl.model.draft3.elements.ExpressionElement.KvPair
 
 object AstNodeToKvPair {
   def convert(astNode: AstNode): ErrorOr[KvPair] = astNode match {
-    case a: Ast if a.getName == "ObjectKV" || a.getName == "MapLiteralKv" =>
+    case a: Ast if a.getName == "ObjectKV" || a.getName == "MapLiteralKv" || a.getName == "RuntimeAttribute" =>
       val keyValidation: ErrorOr[String] = a.getAttributeAs[String]("key").toValidated
       val valueValidation: ErrorOr[ExpressionElement] = a.getAttributeAs[ExpressionElement]("value").toValidated
 

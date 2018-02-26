@@ -47,7 +47,7 @@ object JsUtil {
       context.setLanguageVersion(Context.VERSION_1_8)
       val scope = context.initStandardObjects
       block(context, scope)
-      context.evaluateString(scope, expr, "not sure where this is used yet", 1, null)
+      context.evaluateString(scope, expr, "<ecmascript>", 1, null)
     } finally {
       Context.exit()
     }

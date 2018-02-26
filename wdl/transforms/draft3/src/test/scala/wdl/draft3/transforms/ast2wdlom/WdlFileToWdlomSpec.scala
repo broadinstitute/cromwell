@@ -6,6 +6,7 @@ import wdl.model.draft3.elements._
 import wdl.draft3.transforms.ast2wdlom.WdlFileToWdlomSpec._
 import wom.types._
 import wdl.draft3.transforms.ast2wdlom.ExpressionSet._
+import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import wdl.model.draft3.elements.ExpressionElement._
 import wom.values.{WomBoolean, WomInteger}
 
@@ -200,7 +201,7 @@ object WdlFileToWdlomSpec {
             ),
             outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "z", IdentifierLookup("y"))))))),
         tasks = Vector()),
-    "simpleFirstTest" ->
+    "simple_first_test" ->
       FileElement(
         imports = List.empty,
         structs = Vector.empty,
@@ -215,7 +216,19 @@ object WdlFileToWdlomSpec {
           inputsSection = None,
           graphElements = Set.empty,
           outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "y", PrimitiveLiteralExpressionElement(WomInteger(3)))))))),
-        tasks = Vector.empty
+        tasks = Vector.empty),
+    "standalone_task" ->
+      FileElement(
+        imports = Vector.empty,
+        structs = Vector.empty,
+        workflows = Vector.empty,
+        tasks = Vector(
+          TaskDefinitionElement(
+            "standalone",
+            Some(InputsSectionElement(Vector(InputDeclarationElement(PrimitiveTypeElement(WomStringType), "bar", None)))),
+            Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomStringType), "out", IdentifierLookup("bar"))))),
+            CommandSectionElement(Vector(StringCommandPartElement("\n    echo "), PlaceholderCommandPartElement(IdentifierLookup("bar")), StringCommandPartElement("\n  "))),
+            Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("someFakeDockerRuntime")))))))
       )
   )
 }

@@ -78,8 +78,8 @@ class SwaggerServiceSpec extends FlatSpec with SwaggerService with ScalatestRout
         assertResult(StatusCodes.OK) {
           status
         }
-        assertResult("<!DOCTYPE html>") {
-          responseAs[String].take(15)
+        assertResult("<!-- HTML for static distribution bundle build -->") {
+          responseAs[String].take(50)
         }
       }
   }

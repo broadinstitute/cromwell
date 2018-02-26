@@ -26,21 +26,21 @@ TableDrivenPropertyChecks with SwaggerResourceHttpService {
 trait SwaggerUiResourceHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerResourceHttpServiceSpec with SwaggerUiResourceHttpService
 
 object SwaggerUiHttpServiceSpec {
-  val TestSwaggerUiVersion = "2.1.1"
+  val TestSwaggerUiVersion = "3.2.2" // TODO: Re-common-ize swagger out of cromwell's engine and reuse.
   val SwaggerIndexPreamble =
-    """
-      |<!DOCTYPE html>
-      |<html>
-      |<head>
-      |  <meta charset="UTF-8">
-      |  <title>Swagger UI</title>""".stripMargin.trim // workaround IDEA's weird formatting of interpolated strings
+    """|<!-- HTML for static distribution bundle build -->
+       |<!DOCTYPE html>
+       |<html lang="en">
+       |<head>
+       |""".stripMargin
 }
 
 class BasicSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
   behavior of "SwaggerUiHttpService"
 
   override protected def rewriteSwaggerIndex(data: String): String =
-    data.replace("your-client-id", "replaced-client-id")
+  // Replace same magic string used in SwaggerUiResourceHttpService.rewriteSwaggerIndex
+    data.replace("window.ui = ui", "replaced-client-id")
 
   it should "redirect / to /swagger" in {
     Get() ~> swaggerUiRoute ~> check {

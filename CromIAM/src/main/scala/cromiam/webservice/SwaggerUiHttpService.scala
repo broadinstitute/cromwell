@@ -74,10 +74,10 @@ trait SwaggerUiHttpService extends Directives {
         StatusCodes.TemporaryRedirect)
     }
 
-    /** Serve a resource from the swagger-ui webjar/bundle */
+    /* Serve a resource from the swagger-ui webjar/bundle */
     val resourceServe: Route = getFromResourceDirectory(s"META-INF/resources/webjars/swagger-ui/$swaggerUiVersion")
 
-    /** Mashup of mapResponseWith and mapResponseEntity */
+    /* Mashup of mapResponseWith and mapResponseEntity */
     def mapResponseEntityWith(f: ResponseEntity => Future[ResponseEntity]): Directive0 = {
       extractExecutionContext flatMap { implicit executionContext =>
         mapRouteResultWithPF {
@@ -89,7 +89,7 @@ trait SwaggerUiHttpService extends Directives {
       }
     }
 
-    /** Server up the index.html, after passing it through a function that rewrites the response. */
+    /* Serve up the index.html, after passing it through a function that rewrites the response. */
     val indexServe: Route = {
       pathPrefixTest("index.html") {
         extractExecutionContext { implicit executionContext =>
@@ -102,7 +102,7 @@ trait SwaggerUiHttpService extends Directives {
       }
     }
 
-    /** Redirect to the index, serve the rewritten index, or a resource from the swaggerUI webjar. */
+    /* Redirect to the index, serve the rewritten index, or a resource from the swaggerUI webjar. */
     val route = get {
       pathPrefix(separateOnSlashes(swaggerUiPath)) {
         concat(indexRedirect, indexServe, resourceServe)
@@ -219,18 +219,35 @@ trait SwaggerUiResourceHttpService extends SwaggerUiHttpService with SwaggerReso
   final def swaggerUiResourceRoute = swaggerUiRoute ~ swaggerResourceRoute
 
   override protected def rewriteSwaggerIndex(data: String): String = {
-    val swaggerOptions =
-      """
-        |        validatorUrl: null,
-        |        apisSorter: "alpha",
-        |        operationsSorter: "alpha",
-      """.stripMargin
+    // via https://github.com/swagger-api/swagger-ui/tree/v3.2.2#swaggeruibundle
 
-    data.replace("your-client-id", oauthConfig.clientId)
-      .replace("your-realms", oauthConfig.realm)
-      .replace("your-app-name", oauthConfig.appName)
-      .replace("scopeSeparator: \",\"", "scopeSeparator: \" \"")
-      .replace("jsonEditor: false,", "jsonEditor: false," + swaggerOptions)
-      .replace("url = \"http://petstore.swagger.io/v2/swagger.json\";", s"url = '/$swaggerDocsPath';")
+    val bundleOriginal = """url: "http://petstore.swagger.io/v2/swagger.json","""
+
+    val bundleReplacement =
+      s"""|url: "/$swaggerDocsPath",
+          |validatorUrl: null,
+          |tagsSorter: "alpha",
+          |operationsSorter: "alpha",
+          |""".stripMargin
+
+    // NOTE: Until engine and cromiam can re-common-ize the swagger code, this needs to be sync'ed with
+    //   cromiam.webservice.BasicSwaggerUiHttpServiceSpec.rewriteSwaggerIndex
+    val initOAuthOriginal = "window.ui = ui"
+
+    val initOAuthReplacement =
+      s"""|
+          |ui.initOAuth({
+          |    clientId: "${oauthConfig.clientId}",
+          |    realm: "${oauthConfig.realm}",
+          |    appName: "${oauthConfig.appName}",
+          |    scopeSeparator: " "
+          |  })
+          |
+          |$initOAuthOriginal
+          |""".stripMargin
+
+    data
+      .replace(initOAuthOriginal, initOAuthReplacement)
+      .replace(bundleOriginal, bundleReplacement)
   }
 }

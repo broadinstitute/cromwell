@@ -26,10 +26,11 @@ object EnhancedDraft3Ast {
 
   implicit class EnhancedAst(val ast: Ast) extends AnyVal {
 
-    def getAttributeAsAstNodeVector(attr: String): Checked[Vector[AstNode]] = for {
-      attributeNode <- Option(ast.getAttribute(attr)).toChecked(s"No attribute $attr found on Ast of type ${ast.getName}")
-      asVector <- attributeNode.astListAsVector
-    } yield asVector
+    def getAttributeAsAstNodeVector(attr: String): Checked[Vector[AstNode]] = Option(ast.getAttribute(attr)) match {
+      case Some(a) => a.astListAsVector
+      case None if ast.getAttributes.containsKey(attr) => Vector.empty.validNelCheck
+      case None => s"No attribute $attr found on Ast of type ${ast.getName}".invalidNelCheck
+    }
 
     /**
       * Will get an attribute on this Ast as an AstNode and then convert that into a single element of

@@ -2,7 +2,7 @@ package cwl
 
 import common.validation.Validation._
 import cwl.internal.JsUtil
-import cwl.internal.JsUtil.{JsArray, JsObject, JsPrimitive}
+import cwl.internal.JsUtil.{ESArray, ESObject, ESPrimitive}
 import org.mozilla.javascript.NativeObject
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
@@ -18,19 +18,19 @@ class CwlJsEncoderSpec extends FlatSpec with Matchers with TableDrivenPropertyCh
     val encoder = new CwlJsEncoder
     val file = WomMaybePopulatedFile("path/to/file.txt")
     val expected = Map(
-      "class" -> JsPrimitive("File"),
-      "location" -> JsPrimitive("path/to/file.txt"),
-      "path" -> JsPrimitive("path/to/file.txt"),
-      "dirname" -> JsPrimitive("path/to"),
-      "basename" -> JsPrimitive("file.txt"),
-      "nameroot" -> JsPrimitive("file"),
-      "nameext" -> JsPrimitive(".txt")
+      "class" -> ESPrimitive("File"),
+      "location" -> ESPrimitive("path/to/file.txt"),
+      "path" -> ESPrimitive("path/to/file.txt"),
+      "dirname" -> ESPrimitive("path/to"),
+      "basename" -> ESPrimitive("file.txt"),
+      "nameroot" -> ESPrimitive("file"),
+      "nameext" -> ESPrimitive(".txt")
     )
-    val result: JsUtil.Js = encoder.encode(file)
-    val resultMap = result.asInstanceOf[JsObject].fields
+    val result: JsUtil.ECMAScriptVariable = encoder.encode(file)
+    val resultMap = result.asInstanceOf[ESObject].fields
     resultMap.filterKeys(_ != "secondaryFiles") should contain theSameElementsAs expected
-    resultMap("secondaryFiles") should be(a[JsArray])
-    resultMap("secondaryFiles").asInstanceOf[JsArray].array should be(empty)
+    resultMap("secondaryFiles") should be(a[ESArray])
+    resultMap("secondaryFiles").asInstanceOf[ESArray].array should be(empty)
   }
 
 }

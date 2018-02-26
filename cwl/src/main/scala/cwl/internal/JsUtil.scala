@@ -7,9 +7,9 @@ import wom.values._
 
 object JsUtil {
   val encoder = new JsEncoder
-  def writeValue(value: Js)(context: Context, scope: ScriptableObject): AnyRef =
+  def writeValue(value: ECMAScriptVariable)(context: Context, scope: ScriptableObject): AnyRef =
     value match {
-      case JsObject(fields) => {
+      case ESObject(fields) => {
         val newObj = context.newObject(scope)
 
         fields.toList.foreach{
@@ -20,7 +20,7 @@ object JsUtil {
         newObj
       }
 
-      case JsArray(array) =>
+      case ESArray(array) =>
         val newObj = context.newArray(scope, array.length)
 
         array.toList.zipWithIndex.foreach {
@@ -32,8 +32,7 @@ object JsUtil {
         }
         newObj
 
-      case JsPrimitive(obj) =>
-        obj
+      case ESPrimitive(obj) => obj
     }
 
   def evalRaw[A](expr: String)(block: (Context, ScriptableObject) => A): AnyRef = {
@@ -48,12 +47,11 @@ object JsUtil {
     }
   }
 
-  sealed trait Js
+  sealed trait ECMAScriptVariable
 
-  case class JsObject(fields: Map[String, Js]) extends Js
-  case class JsArray(array: Array[Js]) extends Js
-  case class JsPrimitive(anyRef: AnyRef) extends Js
-
+  case class ESObject(fields: Map[String, ECMAScriptVariable]) extends ECMAScriptVariable
+  case class ESArray(array: Array[ECMAScriptVariable]) extends ECMAScriptVariable
+  case class ESPrimitive(anyRef: AnyRef) extends ECMAScriptVariable
 
   /**
     * Evaluates a javascript expression using maps of WOM values.

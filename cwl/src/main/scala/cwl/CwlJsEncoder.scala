@@ -7,7 +7,7 @@ import cats.syntax.validated._
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cwl.internal.{JsEncoder, JsUtil}
-import cwl.internal.JsUtil.{Js, JsArray, JsObject, JsPrimitive}
+import cwl.internal.JsUtil.{ECMAScriptVariable, ESArray, ESObject, ESPrimitive}
 import wom.values.{WomFile, WomGlobFile, WomMaybeListedDirectory, WomMaybePopulatedFile, WomSingleFile, WomUnlistedDirectory, WomValue}
 import mouse.all._
 
@@ -16,7 +16,7 @@ class CwlJsEncoder extends JsEncoder {
   /**
     * Overrides encoding to also support wom file or directory values.
     */
-  override def encode(value: WomValue): Js = {
+  override def encode(value: WomValue): ECMAScriptVariable = {
     value match {
       case file: WomFile => encodeFileOrDirectory(file)
       case _ => super.encode(value)
@@ -26,14 +26,14 @@ class CwlJsEncoder extends JsEncoder {
   /**
     * Encodes a sequence of wom file or directory values.
     */
-  def encodeFileOrDirectories(values: Seq[WomFile]): JsArray = {
-    JsArray(values.toList.map(encodeFileOrDirectory).toArray)
+  def encodeFileOrDirectories(values: Seq[WomFile]): ESArray = {
+    ESArray(values.toList.map(encodeFileOrDirectory).toArray)
   }
 
   /**
     * Encodes a wom file or directory value.
     */
-  def encodeFileOrDirectory(value: WomFile): JsObject = {
+  def encodeFileOrDirectory(value: WomFile): ESObject = {
     value match {
       case directory: WomUnlistedDirectory => encodeDirectory(WomMaybeListedDirectory(directory.value))
       case file: WomSingleFile => encodeFile(WomMaybePopulatedFile(file.value))
@@ -46,35 +46,35 @@ class CwlJsEncoder extends JsEncoder {
   /**
     * Encodes a wom file.
     */
-  def encodeFile(file: WomMaybePopulatedFile): JsObject = {
+  def encodeFile(file: WomMaybePopulatedFile): ESObject = {
     List(
-      Option("class" -> JsPrimitive("File")),
-      file.valueOption.map("location" -> JsPrimitive(_)),
-      file.valueOption.map("path" -> JsPrimitive(_)),
-      Option("basename" ->  (File.basename(file.value) |> JsPrimitive)),
-      Option("dirname" -> (File.dirname(file.value) |> JsPrimitive)),
-      Option("nameroot" -> (File.nameroot(file.value) |> JsPrimitive)),
-       Option("nameext" -> (File.nameext(file.value) |> JsPrimitive)),
-      file.checksumOption.map("checksum" -> JsPrimitive(_)),
-      file.sizeOption.map(Long.box).map("size" -> JsPrimitive(_)),
+      Option("class" -> ESPrimitive("File")),
+      file.valueOption.map("location" -> ESPrimitive(_)),
+      file.valueOption.map("path" -> ESPrimitive(_)),
+      Option("basename" ->  (File.basename(file.value) |> ESPrimitive)),
+      Option("dirname" -> (File.dirname(file.value) |> ESPrimitive)),
+      Option("nameroot" -> (File.nameroot(file.value) |> ESPrimitive)),
+       Option("nameext" -> (File.nameext(file.value) |> ESPrimitive)),
+      file.checksumOption.map("checksum" -> ESPrimitive(_)),
+      file.sizeOption.map(Long.box).map("size" -> ESPrimitive(_)),
       Option("secondaryFiles" -> encodeFileOrDirectories(file.secondaryFiles)),
-      file.formatOption.map("format" -> JsPrimitive(_)),
-      file.contentsOption.map("contents" -> JsPrimitive(_))
-    ).flatten.toMap |> JsObject
+      file.formatOption.map("format" -> ESPrimitive(_)),
+      file.contentsOption.map("contents" -> ESPrimitive(_))
+    ).flatten.toMap |> ESObject
 
   }
 
   /**
     * Encodes a wom directory.
     */
-  def encodeDirectory(directory: WomMaybeListedDirectory): JsObject = {
+  def encodeDirectory(directory: WomMaybeListedDirectory): ESObject = {
     List(
-      Option("class" -> JsPrimitive("Directory")),
-      directory.valueOption.map("location" -> JsPrimitive(_)),
-      Option(directory.value).map("path" -> JsPrimitive(_)),
-      Option("basename" -> JsPrimitive(Directory.basename(directory.value))),
+      Option("class" -> ESPrimitive("Directory")),
+      directory.valueOption.map("location" -> ESPrimitive(_)),
+      Option(directory.value).map("path" -> ESPrimitive(_)),
+      Option("basename" -> ESPrimitive(Directory.basename(directory.value))),
       directory.listingOption.map(encodeFileOrDirectories).map("listing" -> _)
-    ).flatten.toMap |> JsObject
+    ).flatten.toMap |> ESObject
   }
 }
 

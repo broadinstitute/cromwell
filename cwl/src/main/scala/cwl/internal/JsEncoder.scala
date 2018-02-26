@@ -1,7 +1,7 @@
 package cwl.internal
 
 import mouse.all._
-import JsUtil.{Js, JsArray, JsObject, JsPrimitive}
+import JsUtil.{ECMAScriptVariable, ESArray, ESObject, ESPrimitive}
 import cats.data.Validated.Valid
 import common.validation.ErrorOr.ErrorOr
 import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomMap, WomObjectLike, WomOptionalValue, WomString, WomValue}
@@ -30,28 +30,28 @@ class JsEncoder {
     * @param value A WOM value.
     * @return The javascript equivalent.
     */
-  def encode(value: WomValue): Js = {
+  def encode(value: WomValue): ECMAScriptVariable = {
     value match {
-      case WomOptionalValue(_, None) => JsPrimitive(null)
+      case WomOptionalValue(_, None) => ESPrimitive(null)
       case WomOptionalValue(_, Some(innerValue)) => encode(innerValue)
-      case WomString(string) => string |> JsPrimitive
-      case WomInteger(int) => Int.box(int) |> JsPrimitive
-      case WomFloat(double) => Double.box(double) |> JsPrimitive
-      case WomBoolean(boolean) => Boolean.box(boolean) |> JsPrimitive
-      case WomArray(_, array) => array.toList.map(encode).toArray |> JsArray
+      case WomString(string) => string |> ESPrimitive
+      case WomInteger(int) => Int.box(int) |> ESPrimitive
+      case WomFloat(double) => Double.box(double) |> ESPrimitive
+      case WomBoolean(boolean) => Boolean.box(boolean) |> ESPrimitive
+      case WomArray(_, array) => array.toList.map(encode).toArray |> ESArray
       case WomMap(_, map) => map.map{
         case (mapKey, mapValue) => (encodeString(mapKey), encode(mapValue))
-      } |> JsObject
+      } |> ESObject
       case objectLike: WomObjectLike => objectLike.values.map{
         case (key, innerValue) => (key, encode(innerValue))
-      } |> JsObject
+      } |> ESObject
       case _ => throw new RuntimeException(s"$getClass is unable to encode value: $value")
     }
   }
 
   def encodeString(value: WomValue): String = {
     encode(value) match {
-      case JsPrimitive(string: String) => string
+      case ESPrimitive(string: String) => string
       case _ =>
         val jsString: ErrorOr[WomValue] = JsUtil.evalStructish(""""" + other""","other" -> value)
         jsString match {

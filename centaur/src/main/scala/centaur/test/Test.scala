@@ -18,6 +18,7 @@ import com.google.auth.oauth2.ServiceAccountCredentials
 import com.google.cloud.compute.{Compute, ComputeOptions}
 import com.google.cloud.storage.{Storage, StorageOptions}
 import com.typesafe.config.Config
+import common.util.TryUtil
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
@@ -119,6 +120,15 @@ object Operations {
     projectOption foreach builder.setProjectId
     val storageOptions = builder.build()
     storageOptions.getService
+  }
+
+  def nTimes[A](test: Test[A], n: Int): Test[Seq[A]] = {
+    new Test[Seq[A]] {
+      override def run: Try[Seq[A]] = TryUtil.sequence(for {
+        _ <- 0 until n
+        thisTest = test.run
+      } yield thisTest)
+    }
   }
 
   def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
@@ -230,7 +240,7 @@ object Operations {
         val operationError = Option(operation.getError)
         val aborted = operationError.exists(_.getCode == 1) && operationError.exists(_.getMessage.startsWith("Operation canceled"))
         if (!(done && aborted)) {
-          throw new Exception(s"Underlying JES job was not aborted properly. Done = $done. Error = ${operationError.map(_.getMessage).getOrElse("N/A")}")
+          throw new Exception(s"Underlying JES job ($jobId) was not aborted properly. Done = $done. Error = ${operationError.map(_.getMessage).getOrElse("N/A")}")
         }
       }
 

@@ -4,7 +4,6 @@ import cats.syntax.validated._
 import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.instances.vector._
-import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
 import common.transforms.CheckedAtoB

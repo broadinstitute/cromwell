@@ -2,6 +2,9 @@ package languages.wdl.draft2
 
 // TODO Scala 2.11: cats.syntax.either._ again
 import cats.syntax.either._
+import cats.instances.either._
+import cats.instances.list._
+import cats.syntax.functor._
 import cats.data.EitherT.fromEither
 import cats.effect.IO
 import cats.syntax.traverse._
@@ -27,11 +30,6 @@ class WdlDraft2LanguageFactory() extends LanguageFactory {
                                     workflowOptions: WorkflowOptions,
                                     importLocalFilesystem: Boolean,
                                     workflowIdForLogging: WorkflowId): Parse[ValidatedWomNamespace] = {
-    import cats.instances.either._
-    import cats.instances.list._
-    import cats.syntax.either._
-    import cats.syntax.functor._
-    import common.validation.Checked._
 
     def checkTypes(namespace: WdlNamespaceWithWorkflow, inputs: Map[OutputPort, WomValue]): Checked[Unit] = {
       val allDeclarations = namespace.workflow.declarations ++ namespace.workflow.calls.flatMap(_.declarations)
@@ -87,14 +85,12 @@ class WdlDraft2LanguageFactory() extends LanguageFactory {
       wdlNamespace <- wdlNamespaceValidation.toEither
       _ <- validateWorkflowNameLengths(wdlNamespace)
       importedUris = evaluateImports(wdlNamespace)
-      womExecutable <- wdlNamespace.toWomExecutable(Option(source.inputsJson)) // wdlNamespace.toWomExecutable(Option(source.inputsJson))
+      womExecutable <- wdlNamespace.toWomExecutable(Option(source.inputsJson))
       validatedWomNamespaceBeforeMetadata <- LanguageFactoryUtil.validateWomNamespace(womExecutable)
       _ <- checkTypes(wdlNamespace, validatedWomNamespaceBeforeMetadata.womValueInputs)
     } yield validatedWomNamespaceBeforeMetadata.copy(importedFileContent = importedUris)
 
-    val errorOr: ErrorOr[ValidatedWomNamespace] = checked.toValidated
-
-    fromEither[IO](errorOr.toEither)
+    fromEither[IO](checked)
   }
 
   private def validateWorkflowNameLengths(namespace: WdlNamespaceWithWorkflow): Checked[Unit] = {

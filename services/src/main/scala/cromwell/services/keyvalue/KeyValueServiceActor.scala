@@ -1,11 +1,13 @@
 package cromwell.services.keyvalue
 
-import akka.actor.{Actor, ActorRef}
-import cromwell.core.{JobKey, MonitoringCompanionHelper, WorkflowId}
+import akka.actor.ActorRef
+import cromwell.core.actor.BatchActor.CommandAndReplyTo
+import cromwell.core.actor.ThrottlerActor
+import cromwell.core.{JobKey, WorkflowId}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import cromwell.services.keyvalue.KeyValueServiceActor._
 
-import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 object KeyValueServiceActor {
@@ -37,27 +39,24 @@ object KeyValueServiceActor {
   final case class KvPutSuccess(action: KvPut) extends KvResponse with KvMessageWithAction
 }
 
-trait KeyValueServiceActor extends Actor with MonitoringCompanionHelper {
-  implicit val ec: ExecutionContextExecutor
-
-  val kvReceive: Receive = {
-    case action: KvGet => respond(sender(), action, doGet(action))
-    case action: KvPut =>
-      addWork()
-      val putAction = doPut(action)
-      putAction andThen { case _ => removeWork() }
-      respond(sender(), action, putAction)
+trait KeyValueServiceActor extends ThrottlerActor[CommandAndReplyTo[KvAction]] {
+  override def commandToData(snd: ActorRef): PartialFunction[Any, CommandAndReplyTo[KvAction]] = {
+    case c: KvAction => CommandAndReplyTo(c, snd)
   }
 
-  override def receive = kvReceive.orElse(monitoringReceive)
+  override def processHead(action: CommandAndReplyTo[KvAction]) = action.command match {
+    case get: KvGet => respond(action.replyTo, get, doGet(get))
+    case put: KvPut => respond(action.replyTo, put, doPut(put))
+  }
 
   def doPut(put: KvPut): Future[KvResponse]
   def doGet(get: KvGet): Future[KvResponse]
 
-  private def respond(replyTo: ActorRef, action: KvAction, response: Future[KvResponse]): Unit = {
+  private def respond(replyTo: ActorRef, action: KvAction, response: Future[KvResponse]): Future[KvResponse] = {
     response.onComplete {
       case Success(x) => replyTo ! x
       case Failure(ex) => replyTo ! KvFailure(action, ex)
     }
+    response
   }
 }

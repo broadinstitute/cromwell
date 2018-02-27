@@ -3,6 +3,7 @@ package cromwell.core.actor
 import akka.actor.ActorRef
 import akka.routing.Listen
 import akka.testkit.{TestFSMRef, TestProbe}
+import cats.data.NonEmptyVector
 import cromwell.core.TestKitSuite
 import cromwell.core.actor.BatchActor._
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
@@ -192,15 +193,15 @@ class BatchActorSpec extends TestKitSuite with FlatSpecLike with Matchers with E
       case command: String => command
     }
     override protected def weightFunction(command: String) = command.length
-    override protected def process(data: Vector[String]) = {
+    override protected def process(data: NonEmptyVector[String]) = {
       if (processingTime != Duration.Zero) {
-        processed = processed ++ data
+        processed = processed ++ data.toVector
        val promise = Promise[Int]
-        system.scheduler.scheduleOnce(processingTime) { promise.success(data.map(weightFunction).sum) }
+        system.scheduler.scheduleOnce(processingTime) { promise.success(data.map(weightFunction).toVector.sum) }
         promise.future
       } else if (!fail) {
-        processed = processed ++ data
-        Future.successful(data.map(weightFunction).sum)
+        processed = processed ++ data.toVector
+        Future.successful(data.map(weightFunction).toVector.sum)
       }
       else Future.failed(new Exception("Oh nose ! (This is a test failure and is expected !)"))
     }

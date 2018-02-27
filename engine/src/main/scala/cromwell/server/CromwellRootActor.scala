@@ -79,7 +79,7 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   lazy val throttlePer = systemConfig.as[Option[FiniteDuration]]("io.per").getOrElse(100 seconds)
   lazy val ioThrottle = Throttle(throttleElements, throttlePer, throttleElements)
   lazy val ioActor = context.actorOf(IoActor.props(1000, Option(ioThrottle), serviceRegistryActor), "IoActor")
-  lazy val ioActorProxy = context.actorOf(IoActorProxy.props(ioActor))
+  lazy val ioActorProxy = context.actorOf(IoActorProxy.props(ioActor), "IoProxy")
 
   lazy val workflowLogCopyRouter: ActorRef = context.actorOf(RoundRobinPool(numberOfWorkflowLogCopyWorkers)
     .withSupervisorStrategy(CopyWorkflowLogsActor.strategy)
@@ -119,7 +119,7 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   }
   lazy val backendSingletonCollection = BackendSingletonCollection(backendSingletons)
 
-  lazy val jobExecutionTokenDispenserActor = context.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistryActor))
+  lazy val jobExecutionTokenDispenserActor = context.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistryActor), "JobExecutionTokenDispenser")
 
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
@@ -135,6 +135,7 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
       workflowManagerActor = workflowManagerActor,
       logCopyRouter = workflowLogCopyRouter,
       jobStoreActor = jobStoreActor,
+      jobTokenDispenser = jobExecutionTokenDispenserActor,
       workflowStoreActor = workflowStoreActor,
       subWorkflowStoreActor = subWorkflowStoreActor,
       callCacheWriteActor = callCacheWriteActor,

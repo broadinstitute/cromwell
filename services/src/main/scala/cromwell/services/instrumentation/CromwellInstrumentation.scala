@@ -32,7 +32,7 @@ object CromwellInstrumentation {
   }
 }
 
-trait CromwellInstrumentation {
+trait CromwellInstrumentation { this: Actor =>
   def serviceRegistryActor: ActorRef
   
   /**

@@ -1,6 +1,7 @@
 package cromwell.jobstore
 
 import akka.actor.{ActorRef, Props}
+import cats.data.NonEmptyVector
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.actor.BatchActor._
 import cromwell.core.actor.BatchActor
@@ -22,7 +23,8 @@ case class JobStoreWriterActor(jsd: JobStore, override val batchSize: Int, overr
     case command: JobStoreWriterCommand => CommandAndReplyTo(command, snd)
   }
 
-  override protected def process(data: Vector[CommandAndReplyTo[JobStoreWriterCommand]]) = {
+  override protected def process(nonEmptyData: NonEmptyVector[CommandAndReplyTo[JobStoreWriterCommand]]) = {
+    val data = nonEmptyData.toVector
     log.debug("Flushing {} job store commands to the DB", data.length)
     val completions = data.collect({ case CommandAndReplyTo(c: JobStoreWriterCommand, _) => c.completion })
 

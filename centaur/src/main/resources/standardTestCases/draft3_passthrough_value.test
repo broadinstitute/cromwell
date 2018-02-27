@@ -1,0 +1,15 @@
+name: draft3_passthrough_value
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: draft-3
+
+files {
+  wdl: wdl_draft3/passthrough_value/passthrough_value.wdl
+  inputs: wdl_draft3/passthrough_value/passthrough_value.inputs.json
+}
+
+metadata {
+  workflowName: passthrough_value
+  status: Succeeded
+  "outputs.passthrough_value.z": 25
+}

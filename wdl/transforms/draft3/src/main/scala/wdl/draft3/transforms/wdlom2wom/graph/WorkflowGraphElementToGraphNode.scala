@@ -18,7 +18,7 @@ object WorkflowGraphElementToGraphNode {
   def convert(a: GraphNodeMakerInputs): ErrorOr[GraphNode] = a.node match {
     case InputDeclarationElement(typeElement, name, None) =>
       typeElement.determineWomType(Map.empty) map { womType =>
-        RequiredGraphInputNode(WomIdentifier(name), womType, name)
+        RequiredGraphInputNode(WomIdentifier(name), womType, s"${a.workflowName}.$name")
       }
     case DeclarationElement(typeElement, name, Some(expr)) =>
       val womExprValidation: ErrorOr[WomExpression] = expr.makeWomExpression(a.linkableValues)

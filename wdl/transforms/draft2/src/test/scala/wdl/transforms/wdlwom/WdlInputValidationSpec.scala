@@ -11,10 +11,10 @@ import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.executable.Executable.ResolvedExecutableInputs
 import wom.graph.Graph.ResolvedExecutableInput
 import wom.graph.GraphNodePort.OutputPort
+import wom.transforms.WomExecutableMaker.ops._
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wdl.transforms.draft2.wdlom2wom._
-import wom.transforms.WomExecutableMaker
-import wom.transforms.WomExecutableMaker.ExecutableMakerInputs
+import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomExecutableMakers._
 import wom.types._
 import wom.values._
 
@@ -55,7 +55,7 @@ class WdlInputValidationSpec extends FlatSpec with Matchers with BeforeAndAfterA
   val u2OutputPort = graph.externalInputNodes.find(_.fullyQualifiedName == "w.u.t2").getOrElse(fail("Failed to find an input node for u2")).singleOutputPort
 
   def validate(inputFile: String): Checked[ResolvedExecutableInputs] = {
-    WomExecutableMaker[WdlNamespaceWithWorkflow].toWomExecutable(ExecutableMakerInputs(namespace, List.empty, Option(inputFile))) match {
+    namespace.toWomExecutable(Option(inputFile)) match {
       case Left(errors) => Left(errors)
       case Right(e) => e.resolvedExecutableInputs.validNelCheck
     }

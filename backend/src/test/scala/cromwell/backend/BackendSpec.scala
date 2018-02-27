@@ -1,8 +1,7 @@
 package cromwell.backend
 
 import _root_.wdl.draft2.model._
-import _root_.wdl.transforms.draft2.wdlom2wom._
-import wom.transforms.WomExecutableMaker.ops._
+import _root_.wdl.transforms.draft2.wdlom2wom.WdlDraft2WomExecutableMakers._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.backend.io.TestWorkflows._
 import cromwell.core.callcaching.NoDocker
@@ -20,6 +19,7 @@ import wom.expression.WomExpression
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.CommandCallNode
 import wom.values.WomValue
+import wom.transforms.WomExecutableMaker.ops._
 
 trait BackendSpec extends ScalaFutures with Matchers with Mockito {
 

@@ -1,31 +1,35 @@
 package languages.wdl.draft2
 
+// TODO Scala 2.11: cats.syntax.either._ again
+import cats.syntax.either._
+import cats.instances.either._
+import cats.instances.list._
+import cats.syntax.functor._
 import cats.data.EitherT.fromEither
 import cats.effect.IO
 import cats.syntax.traverse._
 import common.Checked
+import common.validation.Checked._
 import common.validation.ErrorOr.{ErrorOr, _}
 import common.validation.Parse.Parse
 import cromwell.core._
 import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
-import wdl.transforms.draft2.wdlom2wom._
-import wom.core.WorkflowSource
+import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.graph.GraphNodePort.OutputPort
+import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomExecutableMakers._
+import wom.executable.WomBundle
 import wom.transforms.WomExecutableMaker.ops._
 import wom.values.WomValue
+
+import scala.concurrent.Future
 
 class WdlDraft2LanguageFactory() extends LanguageFactory {
   override def validateNamespace(source: WorkflowSourceFilesCollection,
                                     workflowOptions: WorkflowOptions,
                                     importLocalFilesystem: Boolean,
                                     workflowIdForLogging: WorkflowId): Parse[ValidatedWomNamespace] = {
-    import cats.instances.either._
-    import cats.instances.list._
-    import cats.syntax.either._
-    import cats.syntax.functor._
-    import common.validation.Checked._
 
     def checkTypes(namespace: WdlNamespaceWithWorkflow, inputs: Map[OutputPort, WomValue]): Checked[Unit] = {
       val allDeclarations = namespace.workflow.declarations ++ namespace.workflow.calls.flatMap(_.declarations)
@@ -77,16 +81,16 @@ class WdlDraft2LanguageFactory() extends LanguageFactory {
       collectImportEvents
     }
 
-    val errorOr: ErrorOr[ValidatedWomNamespace] = (for {
+    val checked: Checked[ValidatedWomNamespace] = for {
       wdlNamespace <- wdlNamespaceValidation.toEither
       _ <- validateWorkflowNameLengths(wdlNamespace)
       importedUris = evaluateImports(wdlNamespace)
       womExecutable <- wdlNamespace.toWomExecutable(Option(source.inputsJson))
       validatedWomNamespaceBeforeMetadata <- LanguageFactoryUtil.validateWomNamespace(womExecutable)
       _ <- checkTypes(wdlNamespace, validatedWomNamespaceBeforeMetadata.womValueInputs)
-    } yield validatedWomNamespaceBeforeMetadata.copy(importedFileContent = importedUris)).toValidated
+    } yield validatedWomNamespaceBeforeMetadata.copy(importedFileContent = importedUris)
 
-    fromEither[IO](errorOr.toEither)
+    fromEither[IO](checked)
   }
 
   private def validateWorkflowNameLengths(namespace: WdlNamespaceWithWorkflow): Checked[Unit] = {
@@ -100,14 +104,9 @@ class WdlDraft2LanguageFactory() extends LanguageFactory {
     }
   }
 
-  // TODO WOM: resurect ?
-  //  private def validateDeclarations(namespace: WdlNamespaceWithWorkflow,
-  //                                   options: WorkflowOptions,
-  //                                   coercedInputs: WorkflowCoercedInputs,
-  //                                   pathBuilders: List[PathBuilder]): ErrorOr[WorkflowCoercedInputs] = {
-  //    namespace.staticDeclarationsRecursive(coercedInputs, NoFunctions) match {
-  //      case Success(d) => d.validNel
-  //      case Failure(e) => s"Workflow has invalid declarations: ${e.getMessage}".invalidNel
-  //    }
-  //  }
+  override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[String => Future[Checked[WomBundle]]]): Checked[WomBundle] =
+    "getWomBundle method not implemented in WDL draft 2".invalidNelCheck
+
+  override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson): Checked[ValidatedWomNamespace] =
+    "createExecutable method not implemented in WDL draft 2".invalidNelCheck
 }

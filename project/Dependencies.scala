@@ -79,6 +79,8 @@ object Dependencies {
   val swaggerUiV = "3.2.2"
   val typesafeConfigV = "1.3.1"
   val workbenchGoogleV = "0.15-2fc79a3"
+  val workbenchModelV = "0.10-6800f3a"
+  val workbenchUtilV = "0.3-f3ce961"
 
   /*
   If you see warnings from SBT about evictions, insert a specific dependency version into this list.
@@ -182,7 +184,9 @@ object Dependencies {
   )
 
   private val swaggerUiDependencies = List(
-    "org.webjars" % "swagger-ui" % swaggerUiV
+    "org.webjars" % "swagger-ui" % swaggerUiV,
+    "io.swagger" % "swagger-parser" % swaggerParserV % Test,
+    "org.yaml" % "snakeyaml" % snakeyamlV % Test
   )
 
   private val googleApiClientDependencies = List(
@@ -341,12 +345,18 @@ object Dependencies {
       exclude("com.fasterxml.jackson.module", "jackson-module-scala")
       exclude("org.scala-tools.testing", "test-interface"),
     "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
-    "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
-    "io.swagger" % "swagger-parser" % swaggerParserV % Test,
-    "org.yaml" % "snakeyaml" % snakeyamlV % Test
+    "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV
   ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ circeDependencies
 
   val rootDependencies = slf4jBindingDependencies
+
+  val cromiamDependencies = List(
+    "com.softwaremill.sttp" %% "core" % sttpV,
+    "com.softwaremill.sttp" %% "async-http-client-backend-future" % sttpV,
+    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
+    "org.broadinstitute.dsde.workbench" %% "workbench-model" % workbenchModelV,
+    "org.broadinstitute.dsde.workbench" %% "workbench-util" % workbenchUtilV
+  ) ++ akkaHttpDependencies ++ catsDependencies ++ swaggerUiDependencies
 
   val backendDependencies = List(
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,

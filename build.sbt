@@ -174,6 +174,11 @@ lazy val womtool = project
   .dependsOn(cwl)
   .dependsOn(wom % "test->test")
 
+lazy val cromiam = (project in file("CromIAM")) // TODO: git mv CromIAM to a canonical lowercased name
+  .withExecutableSettings("cromiam", cromiamDependencies, cromiamSettings)
+  .dependsOn(common)
+  .dependsOn(cromwellApiClient)
+
 lazy val languageFactoryRoot = Path("languageFactories")
 
 lazy val languageFactoryCore = (project in languageFactoryRoot / "language-factory-core")
@@ -220,6 +225,7 @@ lazy val root = (project in file("."))
   .aggregate(core)
   .aggregate(cloudSupport)
   .aggregate(cromwellApiClient)
+  .aggregate(cromiam)
   .aggregate(cwl)
   .aggregate(databaseMigration)
   .aggregate(databaseSql)

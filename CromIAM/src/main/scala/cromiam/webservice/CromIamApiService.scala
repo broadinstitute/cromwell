@@ -23,7 +23,7 @@ import scala.concurrent.{ExecutionContextExecutor, Future}
 
 trait SwaggerService extends SwaggerUiResourceHttpService {
   override def swaggerServiceName = "cromiam"
-  override def swaggerUiVersion = "2.1.1"
+  override def swaggerUiVersion = "3.2.2" // TODO: Re-common-ize swagger out of cromwell's engine and reuse.
 }
 
 // NB: collection name *must* follow label value rules in cromwell. This needs to be documented somewhere. (although those restrictions are soon to die)

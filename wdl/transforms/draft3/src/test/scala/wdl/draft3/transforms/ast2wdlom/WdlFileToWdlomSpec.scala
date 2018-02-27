@@ -205,8 +205,23 @@ object WdlFileToWdlomSpec {
       FileElement(
         imports = List.empty,
         structs = Vector.empty,
-        workflows = List.empty,
-        tasks = List.empty),
+        workflows = Vector(WorkflowDefinitionElement(
+         name = "order",
+         inputsSection = Some(InputsSectionElement(Vector(
+           InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "n", Some(PrimitiveLiteralExpressionElement(WomInteger(4)))),
+           InputDeclarationElement(PrimitiveTypeElement(WomStringType), "more", Some(StringLiteral("more")))))),
+         graphElements = Set(CallElement("in_n_out", None, Some(CallBodyElement(Vector(KvPair("total", IdentifierLookup("n")), KvPair("amount", IdentifierLookup("more"))))))),
+         outputsSection = None)),
+        tasks = Vector(TaskDefinitionElement(
+          name = "in_n_out",
+          inputsSection = Some(InputsSectionElement(Vector(
+            InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "total", None),
+            InputDeclarationElement(PrimitiveTypeElement(WomStringType), "amount", None)))),
+          outputsSection = Some(OutputsSectionElement(Vector(
+            OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "out", Add(ReadString(StdoutElement), PrimitiveLiteralExpressionElement(WomInteger(1))))))),
+          commandSection = CommandSectionElement(Vector(StringCommandPartElement(" echo "), PlaceholderCommandPartElement(IdentifierLookup("total")), StringCommandPartElement(" "))),
+          runtimeSection = None
+        ))),
     "static_value_workflow" ->
       FileElement(
         imports = Vector.empty,
@@ -230,14 +245,14 @@ object WdlFileToWdlomSpec {
             commandSection = CommandSectionElement(Vector(StringCommandPartElement("\n    echo "), PlaceholderCommandPartElement(IdentifierLookup("bar")), StringCommandPartElement("\n  "))),
             runtimeSection = Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("someFakeDockerRuntime")))))))
       ),
-    "empty_call_workflow" ->
+    "no_input_no_output_workflow" ->
       FileElement(
         imports = Vector.empty,
         structs = Vector.empty,
         workflows = Vector(WorkflowDefinitionElement(
-          name = "empty_call",
+          name = "no_input_no_output",
           inputsSection = None,
-          graphElements = Set(CallElement("no_inputs", None, Vector.empty)),
+          graphElements = Set(CallElement("no_inputs", None, None)),
           outputsSection = None)
         ),
         tasks = Vector(

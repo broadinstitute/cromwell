@@ -7,8 +7,8 @@ import cromwell.backend.impl.jes.statuspolling.PapiInstrumentation._
 import cromwell.backend.instrumentation.BackendInstrumentation._
 import cromwell.core.instrumentation.InstrumentationKeys._
 import cromwell.filesystems.gcs.GoogleUtil
-import cromwell.services.instrumentation.{CromwellInstrumentation, CromwellInstrumentationActor}
 import cromwell.services.instrumentation.CromwellInstrumentation._
+import cromwell.services.instrumentation.CromwellInstrumentationActor
 
 object PapiInstrumentation {
   private val PapiKey = NonEmptyList.of("papi")

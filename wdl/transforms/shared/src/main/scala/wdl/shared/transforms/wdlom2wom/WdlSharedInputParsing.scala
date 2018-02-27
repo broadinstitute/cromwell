@@ -1,6 +1,7 @@
 package wdl.shared.transforms.wdlom2wom
 
 // TODO 2.11 remove this "import cats.syntax.either._"
+import cats.syntax.either._
 import common.Checked
 import common.validation.Checked._
 import common.collections.EnhancedCollections._

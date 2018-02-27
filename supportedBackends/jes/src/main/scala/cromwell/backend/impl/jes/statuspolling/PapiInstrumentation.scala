@@ -1,12 +1,13 @@
 package cromwell.backend.impl.jes.statuspolling
 
+import akka.actor.Actor
 import cats.data.NonEmptyList
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesApiQueryFailed, JesRunCreationQuery, JesStatusPollQuery}
 import cromwell.backend.impl.jes.statuspolling.PapiInstrumentation._
 import cromwell.backend.instrumentation.BackendInstrumentation._
 import cromwell.core.instrumentation.InstrumentationKeys._
 import cromwell.filesystems.gcs.GoogleUtil
-import cromwell.services.instrumentation.CromwellInstrumentation
+import cromwell.services.instrumentation.{CromwellInstrumentation, CromwellInstrumentationActor}
 import cromwell.services.instrumentation.CromwellInstrumentation._
 
 object PapiInstrumentation {
@@ -26,7 +27,7 @@ object PapiInstrumentation {
   }
 }
 
-trait PapiInstrumentation extends CromwellInstrumentation {
+trait PapiInstrumentation extends CromwellInstrumentationActor { this: Actor =>
   def pollSuccess() = increment(PapiPollKey.concat(SuccessKey))
   def runSuccess() = increment(PapiRunKey.concat(SuccessKey))
 

@@ -1,11 +1,12 @@
 package cromwell.engine.instrumentation
 
+import akka.actor.Actor
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.http.scaladsl.server.Directive0
 import akka.http.scaladsl.server.Directives.{extractRequest, mapResponse}
 import cats.data.NonEmptyList
 import cromwell.core.instrumentation.InstrumentationPrefixes._
-import cromwell.services.instrumentation.CromwellInstrumentation
+import cromwell.services.instrumentation.{CromwellInstrumentation, CromwellInstrumentationActor}
 import cromwell.services.instrumentation.CromwellInstrumentation._
 
 import scala.concurrent.duration._

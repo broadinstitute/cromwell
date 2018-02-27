@@ -20,7 +20,7 @@ abstract class InstrumentedBatchActor[C](flushRate: FiniteDuration,
                                          batchSize: Int,
                                          instrumentationPath: InstrumentationPath,
                                          instrumentationPrefix: Option[String]) extends BatchActor[C](flushRate, batchSize) 
-  with CromwellInstrumentation {
+  with CromwellInstrumentationActor {
   private val writePath = instrumentationPath.::("write")
   private val queueSizePath = instrumentationPath.::("queue")
 

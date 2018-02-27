@@ -5,7 +5,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import wom.types._
 import wom.values._
 
-class JsUtilSpec extends FlatSpec with Matchers {
+class EcmaScriptUtilSpec extends FlatSpec with Matchers {
 
   behavior of "JsUtil"
 
@@ -19,7 +19,7 @@ class JsUtilSpec extends FlatSpec with Matchers {
     // NOTE: By using JsMap a JSObject, myName[true] doesn't work.
     val expr = """myName["true"][0] + 'Plus'"""
 
-    val result: WomValue = JsUtil.evalStructish(expr,  values).toTry.get
+    val result: WomValue = EcmaScriptUtil.evalStructish(expr,  values).toTry.get
 
     result should be(WomString("myValuePlus"))
   }
@@ -35,7 +35,7 @@ class JsUtilSpec extends FlatSpec with Matchers {
 
     val expr = "JSON.stringify(myName)"
 
-    val result: WomValue = JsUtil.evalStructish(expr, values).toTry.get
+    val result: WomValue = EcmaScriptUtil.evalStructish(expr, values).toTry.get
 
     result should be(WomString("""{"true":["myValue"]}"""))
   }

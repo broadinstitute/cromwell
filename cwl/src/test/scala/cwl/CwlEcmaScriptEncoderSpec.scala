@@ -1,21 +1,17 @@
 package cwl
 
-import common.validation.Validation._
-import cwl.internal.JsUtil
-import cwl.internal.JsUtil.{ESArray, ESObject, ESPrimitive}
-import org.mozilla.javascript.NativeObject
+import cwl.internal.{EcmaScriptEncoder, EcmaScriptUtil}
+import cwl.internal.EcmaScriptUtil.{ESArray, ESObject, ESPrimitive}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import wom.values.WomMaybePopulatedFile
 
-import scala.collection.JavaConverters._
-
-class CwlJsEncoderSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class CwlEcmaScriptEncoderSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "CwlJsEncoder"
 
   it should "encode" in {
-    val encoder = new CwlJsEncoder
+    val encoder = new EcmaScriptEncoder
     val file = WomMaybePopulatedFile("path/to/file.txt")
     val expected = Map(
       "class" -> ESPrimitive("File"),
@@ -26,7 +22,7 @@ class CwlJsEncoderSpec extends FlatSpec with Matchers with TableDrivenPropertyCh
       "nameroot" -> ESPrimitive("file"),
       "nameext" -> ESPrimitive(".txt")
     )
-    val result: JsUtil.ECMAScriptVariable = encoder.encode(file)
+    val result: EcmaScriptUtil.ECMAScriptVariable = encoder.encode(file)
     val resultMap = result.asInstanceOf[ESObject].fields
     resultMap.filterKeys(_ != "secondaryFiles") should contain theSameElementsAs expected
     resultMap("secondaryFiles") should be(a[ESArray])

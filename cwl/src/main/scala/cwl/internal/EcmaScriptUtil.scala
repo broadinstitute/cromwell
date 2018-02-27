@@ -11,8 +11,8 @@ import wom.values._
   * Previously we attempted to use Nashorn which is built into the JDK, but we encountered at least 2 situations where
   * it didn't work and we found no workarounds to satisfy the use cases.  Namely, JSON.stringify of a Map and calling "sort" on an array.
   */
-object JsUtil {
-  val encoder = new JsEncoder
+object EcmaScriptUtil {
+  val encoder = new EcmaScriptEncoder
   def writeValue(value: ECMAScriptVariable)(context: Context, scope: ScriptableObject): AnyRef =
     value match {
       case ESObject(fields) => {
@@ -74,8 +74,8 @@ object JsUtil {
   def evalStructish(expr: String,
                     rawValues: (String, WomValue),
                     mapValues: Map[String, Map[String, WomValue]] = Map.empty,
-                    encoder: JsEncoder = new JsEncoder,
-                    decoder: CwlJsDecoder = new CwlJsDecoder): ErrorOr[WomValue] = {
+                    encoder: EcmaScriptEncoder = new EcmaScriptEncoder,
+                    decoder: CwlEcmaScriptDecoder = new CwlEcmaScriptDecoder): ErrorOr[WomValue] = {
     evalRaw(expr) { (context, scope) =>
 
       val (key, value) = rawValues

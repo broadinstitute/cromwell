@@ -3,12 +3,12 @@ package cwl
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor4}
 import org.scalatest.{FlatSpec, Matchers}
 import common.validation.Validation._
-import cwl.internal.{CwlJsDecoder, JsUtil}
+import cwl.internal.{CwlEcmaScriptDecoder, EcmaScriptUtil}
 import wom.values.{WomFloat, WomInteger, WomMaybePopulatedFile, WomString, WomValue}
 
 import scala.collection.JavaConverters._
 
-class CwlJsDecoderSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class CwlEcmaScriptDecoderSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
   behavior of "CwlJsDecoder"
 
   val decodeTests= Table[String, String, Map[String, Map[String, WomValue]], WomValue](
@@ -64,7 +64,7 @@ class CwlJsDecoderSpec extends FlatSpec with Matchers with TableDrivenPropertyCh
 
   forAll(decodeTests) { (description, expr, values: Map[String, Map[String, WomValue]], expected) =>
     it should s"decode $description" in {
-      val result = JsUtil.evalStructish(expr, ("fake" -> WomString("unused")), values).toTry.get
+      val result = EcmaScriptUtil.evalStructish(expr, ("fake" -> WomString("unused")), values).toTry.get
       result should be(expected)
     }
   }

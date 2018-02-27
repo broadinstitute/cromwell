@@ -15,7 +15,7 @@ import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomMap, WomOption
 
 import scala.collection.JavaConverters._
 
-class CwlJsDecoder {
+class CwlEcmaScriptDecoder {
 
   def decode(value: AnyRef): ErrorOr[WomValue] =
     value match {

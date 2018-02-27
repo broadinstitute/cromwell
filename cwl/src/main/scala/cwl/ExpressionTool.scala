@@ -4,6 +4,7 @@ import cats.data.NonEmptyList
 import cats.syntax.either._
 import cats.syntax.validated._
 import common.Checked
+import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cwl.CwlVersion._
@@ -37,7 +38,7 @@ case class ExpressionTool(
         case (WomString(key), value) => key -> value
         case (key, _) => throw new RuntimeException(s"saw a non-string value $key in wom map $evaluatedExpression typed with string keys ")
       }.asRight
-      case _ => Left(s"Could not cast value $evaluatedExpression to a Map[String, WomValue]" |> NonEmptyList.one)
+      case _ => s"Could not cast value $evaluatedExpression to a Map[String, WomValue]".invalidNelCheck
     }
   }
 

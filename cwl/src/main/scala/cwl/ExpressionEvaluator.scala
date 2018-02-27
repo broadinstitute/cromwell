@@ -3,7 +3,7 @@ package cwl
 import cats.syntax.validated._
 import common.validation.ErrorOr._
 import cwl.ExpressionEvaluator.eval
-import cwl.internal.{CwlJsDecoder, JsUtil}
+import cwl.internal.{CwlEcmaScriptDecoder, EcmaScriptUtil, EcmaScriptEncoder}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.MatchesRegex
 import shapeless.Witness
@@ -93,12 +93,12 @@ object ExpressionEvaluator {
     }
   }
 
-  private lazy val cwlJsEncoder = new CwlJsEncoder()
-  private lazy val cwlJsDecoder = new CwlJsDecoder()
+  private lazy val cwlJsEncoder = new EcmaScriptEncoder()
+  private lazy val cwlJsDecoder = new CwlEcmaScriptDecoder()
 
   def eval(expr: String, parameterContext: ParameterContext): ErrorOr[WomValue] = {
     val (rawValues, mapValues) = paramValues(parameterContext)
-    JsUtil.evalStructish(expr, rawValues, mapValues, cwlJsEncoder, cwlJsDecoder)
+    EcmaScriptUtil.evalStructish(expr, rawValues, mapValues, cwlJsEncoder, cwlJsDecoder)
   }
 
   def eval(expr: Expression, parameterContext: ParameterContext, expressionLib: ExpressionLib): ErrorOr[WomValue] = {

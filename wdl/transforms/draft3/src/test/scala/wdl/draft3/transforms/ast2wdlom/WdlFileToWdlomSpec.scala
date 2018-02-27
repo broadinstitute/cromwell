@@ -207,13 +207,18 @@ object WdlFileToWdlomSpec {
         structs = Vector.empty,
         workflows = Vector(WorkflowDefinitionElement(
          name = "order",
-         inputsSection = Some(InputsSectionElement(Vector(InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "n", Some(PrimitiveLiteralExpressionElement(WomInteger(4))))))),
-         graphElements = Set(CallElement(callableName = "in_n_out", None, Some(CallBodyElement(Vector(KvPair("total", IdentifierLookup("n"))))))),
+         inputsSection = Some(InputsSectionElement(Vector(
+           InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "n", Some(PrimitiveLiteralExpressionElement(WomInteger(4)))),
+           InputDeclarationElement(PrimitiveTypeElement(WomStringType), "more", Some(StringLiteral("more")))))),
+         graphElements = Set(CallElement("in_n_out", None, Some(CallBodyElement(Vector(KvPair("total", IdentifierLookup("n")), KvPair("amount", IdentifierLookup("more"))))))),
          outputsSection = None)),
         tasks = Vector(TaskDefinitionElement(
           name = "in_n_out",
-          inputsSection = Some(InputsSectionElement(Vector(InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "total", None)))),
-          outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "out", Add(ReadString(StdoutElement), PrimitiveLiteralExpressionElement(WomInteger(1))))))),
+          inputsSection = Some(InputsSectionElement(Vector(
+            InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "total", None),
+            InputDeclarationElement(PrimitiveTypeElement(WomStringType), "amount", None)))),
+          outputsSection = Some(OutputsSectionElement(Vector(
+            OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "out", Add(ReadString(StdoutElement), PrimitiveLiteralExpressionElement(WomInteger(1))))))),
           commandSection = CommandSectionElement(Vector(StringCommandPartElement(" echo "), PlaceholderCommandPartElement(IdentifierLookup("total")), StringCommandPartElement(" "))),
           runtimeSection = None
         ))),

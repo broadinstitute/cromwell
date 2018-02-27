@@ -205,8 +205,18 @@ object WdlFileToWdlomSpec {
       FileElement(
         imports = List.empty,
         structs = Vector.empty,
-        workflows = List.empty,
-        tasks = List.empty),
+        workflows = Vector(WorkflowDefinitionElement(
+         name = "order",
+         inputsSection = Some(InputsSectionElement(Vector(InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "n", Some(PrimitiveLiteralExpressionElement(WomInteger(4))))))),
+         graphElements = Set(CallElement(callableName = "in_n_out", None, Some(CallBodyElement(Vector(KvPair("total", IdentifierLookup("n"))))))),
+         outputsSection = None)),
+        tasks = Vector(TaskDefinitionElement(
+          name = "in_n_out",
+          inputsSection = Some(InputsSectionElement(Vector(InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "total", None)))),
+          outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "out", Add(ReadString(StdoutElement), PrimitiveLiteralExpressionElement(WomInteger(1))))))),
+          commandSection = CommandSectionElement(Vector(StringCommandPartElement(" echo "), PlaceholderCommandPartElement(IdentifierLookup("total")), StringCommandPartElement(" "))),
+          runtimeSection = None
+        ))),
     "static_value_workflow" ->
       FileElement(
         imports = Vector.empty,
@@ -237,7 +247,7 @@ object WdlFileToWdlomSpec {
         workflows = Vector(WorkflowDefinitionElement(
           name = "empty_call",
           inputsSection = None,
-          graphElements = Set(CallElement("no_inputs", None, Vector.empty)),
+          graphElements = Set(CallElement("no_inputs", None, None)),
           outputsSection = None)
         ),
         tasks = Vector(

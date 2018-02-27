@@ -6,7 +6,7 @@ task in_n_out {
   }
   command { echo ${total} }
   output {
-    Int out = readint(stdout()) + 1
+    Int out = read_int(stdout()) + 1
   }
 }
 

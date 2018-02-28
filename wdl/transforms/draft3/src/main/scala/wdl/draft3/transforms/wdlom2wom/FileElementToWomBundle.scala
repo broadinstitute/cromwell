@@ -30,9 +30,9 @@ object FileElementToWomBundle {
       val importsValidation: ErrorOr[Vector[ImportElement]] = if (a.imports.isEmpty) Vector.empty.valid else "FileElement to WOM conversion of imports not yet implemented.".invalidNel
       val tasksValidation: ErrorOr[Vector[TaskDefinitionElement]] = if (a.imports.isEmpty) Vector.empty.valid else "FileElement to WOM conversion of tasks not yet implemented.".invalidNel
 
-      val structsValidation: ErrorOr[Map[String, WomType]] = a.structs.toList.traverse[ErrorOr, (String, WomType)](mkStruct).map(_.toMap)
+      val structsValidation: ErrorOr[Map[String, WomType]] = a.structs.toList.traverse[ErrorOr, (String, WomType)](makeStruct).map(_.toMap)
 
-      def importAndTasksToWorkflow(imports: Vector[ImportElement], tasks: Vector[TaskDefinitionElement], structs: Map[String, WomType]): ErrorOr[WomBundle] = {
+      def toWorkflowInner(imports: Vector[ImportElement], tasks: Vector[TaskDefinitionElement], structs: Map[String, WomType]): ErrorOr[WomBundle] = {
         implicit val workflowConverter: CheckedAtoB[WorkflowDefinitionConvertInputs, WorkflowDefinition] = workflowDefinitionElementToWomWorkflowDefinition
 
         val tasks: Set[TaskDefinition] = Set.empty
@@ -49,13 +49,13 @@ object FileElementToWomBundle {
         }
       }
 
-      ((importsValidation, tasksValidation, structsValidation) flatMapN { importAndTasksToWorkflow }).toEither
+      ((importsValidation, tasksValidation, structsValidation) flatMapN { toWorkflowInner }).toEither
     }
   }
 
   def convert(a: FileElementAndImportResolvers): Checked[WomBundle] = a.fileElement.toWomBundle(a.importResolvers)
 
-  private def mkStruct(struct: StructElement): ErrorOr[(String, WomType)] = {
+  private def makeStruct(struct: StructElement): ErrorOr[(String, WomType)] = {
 
     def convertStructEntryElement(structEntryElement: StructEntryElement): ErrorOr[(String, WomType)] =
       structEntryElement.typeElement.determineWomType(Map.empty).map((structEntryElement.identifier, _))

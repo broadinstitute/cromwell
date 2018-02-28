@@ -21,7 +21,14 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
 
   def convert(a: WorkflowDefinitionConvertInputs): ErrorOr[WorkflowDefinition] = {
 
-    val graphNodeElements: Set[WorkflowGraphElement] = a.definitionElement.graphElements ++ a.definitionElement.inputsSection.toSeq.flatMap(_.inputDeclarations) ++ a.definitionElement.outputsSection.toSeq.flatMap(_.outputs)
+    // Make the set of workflow graph elements, including:
+    // - Top-level graph elements
+    // - Declarations in the inputs section
+    // - Declarations in the outputs section
+    val graphNodeElements: Set[WorkflowGraphElement] =
+      a.definitionElement.graphElements ++
+        a.definitionElement.inputsSection.toSeq.flatMap(_.inputDeclarations) ++
+        a.definitionElement.outputsSection.toSeq.flatMap(_.outputs)
 
     for {
       linkedGraph <- LinkedGraphMaker.make(nodes = graphNodeElements, typeAliases = a.typeAliases)

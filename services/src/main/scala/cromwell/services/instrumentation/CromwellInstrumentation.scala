@@ -1,6 +1,6 @@
 package cromwell.services.instrumentation
 
-import akka.actor.{Actor, ActorRef, Cancellable}
+import akka.actor.{Actor, ActorRef, Cancellable, Timers}
 import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
 import cromwell.services.instrumentation.CromwellInstrumentation.{InstrumentationPath, _}

@@ -37,8 +37,6 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   val jobIndex = Some(1)
   val jobAttempt = 1
 
-  val executionToken = JobExecutionToken(JobExecutionTokenType("test", None), UUID.randomUUID())
-
   val task = WomMocks.mockTaskDefinition(taskName).copy(
     inputs = List(InputDefinitionWithDefault("inInt", WomIntegerType, mockIntExpression(543))),
     outputs = List(OutputDefinition("outString", WomStringType, mockStringExpression("hello")))

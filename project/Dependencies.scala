@@ -62,6 +62,7 @@ object Dependencies {
   val rhinoV = "1.7.8"
   val scalaGraphV = "1.12.0"
   val scalaLoggingV = "3.7.1"
+  val scalaPoolV = "0.4.1"
   val scalaXmlV = "1.0.6"
   val scalacheckV = "1.13.4"
   val scalacticV = "3.0.1"
@@ -347,7 +348,7 @@ object Dependencies {
       exclude("com.fasterxml.jackson.module", "jackson-module-scala")
       exclude("org.scala-tools.testing", "test-interface"),
     "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
-    "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV
+    "io.github.andrebeat" %% "scala-pool" % scalaPoolV
   ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ circeDependencies
 
   val rootDependencies = slf4jBindingDependencies

@@ -3,11 +3,11 @@ package cromwell.engine.instrumentation
 import akka.actor.Actor
 import cats.data.NonEmptyList
 import cromwell.core.WorkflowState
-import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
 import cromwell.core.instrumentation.InstrumentationPrefixes._
+import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
 import cromwell.engine.instrumentation.WorkflowInstrumentation._
-import cromwell.services.instrumentation.{CromwellInstrumentation, CromwellInstrumentationActor}
 import cromwell.services.instrumentation.CromwellInstrumentation._
+import cromwell.services.instrumentation.CromwellInstrumentationActor
 
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps

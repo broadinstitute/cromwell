@@ -5,7 +5,7 @@ import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.Mailbox.PriorityMailbox
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.services.MetadataServicesStore
-import cromwell.services.instrumentation.{CromwellInstrumentation, InstrumentedBatchActor}
+import cromwell.services.instrumentation.{CromwellInstrumentationActor, InstrumentedBatchActor}
 import cromwell.services.metadata.MetadataEvent
 import cromwell.services.metadata.MetadataService._
 
@@ -18,7 +18,7 @@ class WriteMetadataActor(override val batchSize: Int,
                          override val serviceRegistryActor: ActorRef)
   extends InstrumentedBatchActor[MetadataWriteAction](flushRate, batchSize,
     MetadataServiceActor.MetadataInstrumentationPrefix, InstrumentationPrefixes.ServicesPrefix) with ActorLogging with
-    MetadataDatabaseAccess with MetadataServicesStore with CromwellInstrumentation {
+    MetadataDatabaseAccess with MetadataServicesStore with CromwellInstrumentationActor {
 
   def commandToData(snd: ActorRef): PartialFunction[Any, MetadataWriteAction] = {
     case command: MetadataWriteAction => command

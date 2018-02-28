@@ -5,8 +5,8 @@ import cromwell.backend.BackendJobExecutionActor._
 import cromwell.core.instrumentation.InstrumentationKeys._
 import cromwell.core.instrumentation.InstrumentationPrefixes._
 import cromwell.engine.instrumentation.JobInstrumentation._
-import cromwell.services.instrumentation.{CromwellInstrumentation, CromwellInstrumentationActor}
 import cromwell.services.instrumentation.CromwellInstrumentation._
+import cromwell.services.instrumentation.CromwellInstrumentationActor
 
 import scala.concurrent.duration.FiniteDuration
 

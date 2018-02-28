@@ -191,7 +191,7 @@ object Operations {
           case _ =>
             // Re-add this to discover which test is running forever
             // But beware!! The stdout will break CWL conformance tests so you can't leave it in once the debugging is done:
-            //println(s"Waiting for completion of test '${testDefinition.testName}' as ${workflow.id}")
+            println(s"Waiting for completion of test '${testDefinition.testName}' as ${workflow.id}")
             pollDelay()
             doPerform()
         }

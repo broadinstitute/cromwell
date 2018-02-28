@@ -29,11 +29,10 @@ object EnhancedDraft3Ast {
 
   implicit class EnhancedAst(val ast: Ast) extends AnyVal {
 
-    def getAttributeAsAstNodeVector(attr: String): Checked[Vector[AstNode]] = Option(ast.getAttribute(attr)) match {
-      case Some(a) => a.astListAsVector
-      case None if ast.getAttributes.containsKey(attr) => Vector.empty.validNelCheck
-      case None => s"No attribute $attr found on Ast of type ${ast.getName}".invalidNelCheck
-    }
+    def getAttributeAsAstNodeVector(attr: String): Checked[Vector[AstNode]] = for {
+      attributeNode <- Option(ast.getAttribute(attr)).toChecked(s"No attribute $attr found on Ast of type ${ast.getName}")
+      asVector <- attributeNode.astListAsVector
+    } yield asVector
 
     /**
       * Will get an attribute on this Ast as an AstNode and then convert that into a single element of
@@ -61,13 +60,8 @@ object EnhancedDraft3Ast {
     /**
       * Gets an attribute on this Ast as an Optional Ast, returns an empty Option if the attribute is empty.
       */
-    def getAttributeAsOptionalAst[A](attr: String)(implicit toA: CheckedAtoB[AstNode, Option[A]]): Checked[Option[A]] =  {
+    def getAttributeAsOptional[A](attr: String)(implicit toA: CheckedAtoB[AstNode, Option[A]]): Checked[Option[A]] =  {
       val attribute: Option[AstNode] = Option(ast.getAttribute(attr))
-
-//      match {
-//        case Some(a) => a
-//        case None if ast.getAttributes.containsKey(attr) => s"No attribute $attr found on Ast".invalidNelCheck
-//      }
       attribute.map(toA.run).getOrElse(Option.empty.validNelCheck)
     }
   }

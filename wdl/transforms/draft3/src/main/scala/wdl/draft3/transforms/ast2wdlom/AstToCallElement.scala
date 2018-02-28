@@ -24,7 +24,7 @@ object AstToCallElement {
 
     implicit val astNodeToCallBodyElement: CheckedAtoB[AstNode, Option[CallBodyElement]] = astNodeToAst andThen CheckedAtoB.fromErrorOr(AstToCallBodyElement.convert)
 
-    val callBodyValidation: ErrorOr[Option[CallBodyElement]] = ast.getAttributeAsOptionalAst[CallBodyElement]("body").toValidated
+    val callBodyValidation: ErrorOr[Option[CallBodyElement]] = ast.getAttributeAsOptional[CallBodyElement]("body").toValidated
 
     (callableNameValidation, aliasValidation, callBodyValidation) mapN { (name, alias, body) =>
       CallElement(name, alias, body)

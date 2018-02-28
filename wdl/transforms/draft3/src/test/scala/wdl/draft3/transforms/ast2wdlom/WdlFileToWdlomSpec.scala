@@ -245,12 +245,12 @@ object WdlFileToWdlomSpec {
             commandSection = CommandSectionElement(Vector(StringCommandPartElement("\n    echo "), PlaceholderCommandPartElement(IdentifierLookup("bar")), StringCommandPartElement("\n  "))),
             runtimeSection = Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("someFakeDockerRuntime")))))))
       ),
-    "empty_call_workflow" ->
+    "no_input_no_output_workflow" ->
       FileElement(
         imports = Vector.empty,
         structs = Vector.empty,
         workflows = Vector(WorkflowDefinitionElement(
-          name = "empty_call",
+          name = "no_input_no_output",
           inputsSection = None,
           graphElements = Set(CallElement("no_inputs", None, None)),
           outputsSection = None)

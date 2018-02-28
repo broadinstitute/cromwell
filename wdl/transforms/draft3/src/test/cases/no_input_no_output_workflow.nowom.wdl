@@ -1,6 +1,6 @@
 version draft-3
 
-workflow empty_call {
+workflow no_input_no_output {
   call no_inputs
 }
 

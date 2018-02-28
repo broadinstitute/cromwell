@@ -36,7 +36,7 @@ object WomMap {
 
   def apply(m: Map[WomValue, WomValue]): WomMap = {
     val keyType = WomType.lowestCommonSubtype(m.keys.map(_.womType))
-    val valueType = WomType.lowestCommonSubtype(m.keys.map(_.womType))
+    val valueType = WomType.lowestCommonSubtype(m.values.map(_.womType))
     WomMap(WomMapType(keyType, valueType), m)
   }
 }

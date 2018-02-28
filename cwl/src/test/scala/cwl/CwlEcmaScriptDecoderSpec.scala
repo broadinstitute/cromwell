@@ -1,17 +1,17 @@
 package cwl
 
-import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor4}
 import org.scalatest.{FlatSpec, Matchers}
 import common.validation.Validation._
-import wom.util.JsUtil
-import wom.values.{WomMaybePopulatedFile, WomValue}
+import cwl.internal.{CwlEcmaScriptDecoder, EcmaScriptUtil}
+import wom.values.{WomFloat, WomInteger, WomMaybePopulatedFile, WomString, WomValue}
 
 import scala.collection.JavaConverters._
 
-class CwlJsDecoderSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class CwlEcmaScriptDecoderSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
   behavior of "CwlJsDecoder"
 
-  val decodeTests = Table[String, String, Map[String, AnyRef], WomValue](
+  val decodeTests= Table[String, String, Map[String, Map[String, WomValue]], WomValue](
     (
       "description",
       "expr",
@@ -22,13 +22,13 @@ class CwlJsDecoderSpec extends FlatSpec with Matchers with TableDrivenPropertyCh
       "a passed through file",
       "inputMap",
       Map("inputMap" -> Map(
-        "class" -> "File",
-        "location" -> "path/to/file.txt",
-        "checksum" -> "hash_here",
-        "size" -> Double.box(123.4),
-        "format" -> "file_format",
-        "contents" -> "file_contents"
-      ).asJava),
+        "class" -> WomString("File"),
+        "location" -> WomString("path/to/file.txt"),
+        "checksum" -> WomString("hash_here"),
+        "size" -> WomFloat(Double.box(123.4)),
+        "format" -> WomString("file_format"),
+        "contents" -> WomString("file_contents")
+      )),
       WomMaybePopulatedFile(
         valueOption = Option("path/to/file.txt"),
         checksumOption = Option("hash_here"),
@@ -62,11 +62,9 @@ class CwlJsDecoderSpec extends FlatSpec with Matchers with TableDrivenPropertyCh
     )
   )
 
-  forAll(decodeTests) { (description, expr, values, expected) =>
+  forAll(decodeTests) { (description, expr, values: Map[String, Map[String, WomValue]], expected) =>
     it should s"decode $description" in {
-      val decoder = new CwlJsDecoder
-      val rawResult = JsUtil.evalRaw(expr, values.asJava).toTry.get
-      val result = decoder.decode(rawResult).toTry.get
+      val result = EcmaScriptUtil.evalStructish(expr, ("fake" -> WomString("unused")), values).toTry.get
       result should be(expected)
     }
   }

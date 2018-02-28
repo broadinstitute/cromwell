@@ -3,11 +3,11 @@ package cwl
 import cats.syntax.validated._
 import common.validation.ErrorOr._
 import cwl.ExpressionEvaluator.eval
+import cwl.internal.{CwlEcmaScriptDecoder, EcmaScriptUtil, EcmaScriptEncoder}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.MatchesRegex
 import shapeless.Witness
 import wom.callable.RuntimeEnvironment
-import wom.util.JsUtil
 import wom.values.{WomFloat, WomInteger, WomString, WomValue}
 
 // http://www.commonwl.org/v1.0/CommandLineTool.html#Expressions
@@ -93,23 +93,22 @@ object ExpressionEvaluator {
     }
   }
 
-  private lazy val cwlJsEncoder = new CwlJsEncoder()
-  private lazy val cwlJsDecoder = new CwlJsDecoder()
+  private lazy val cwlJsEncoder = new EcmaScriptEncoder()
+  private lazy val cwlJsDecoder = new CwlEcmaScriptDecoder()
 
   def eval(expr: String, parameterContext: ParameterContext): ErrorOr[WomValue] = {
     val (rawValues, mapValues) = paramValues(parameterContext)
-    JsUtil.evalStructish(expr, rawValues, mapValues, cwlJsEncoder, cwlJsDecoder)
+    EcmaScriptUtil.evalStructish(expr, rawValues, mapValues, cwlJsEncoder, cwlJsDecoder)
   }
 
   def eval(expr: Expression, parameterContext: ParameterContext, expressionLib: ExpressionLib): ErrorOr[WomValue] = {
     expr.fold(EvaluateExpression).apply(parameterContext, expressionLib)
   }
 
-  def paramValues(parameterContext: ParameterContext): (Map[String, WomValue], Map[String, Map[String, WomValue]]) = {
+  def paramValues(parameterContext: ParameterContext): ((String, WomValue), Map[String, Map[String, WomValue]]) = {
     (
-      Map(
         "self" -> parameterContext.self
-      ),
+      ,
       Map(
         "inputs" -> parameterContext.inputs,
         "runtime" -> parameterContext.runtimeOption.map(cwlMap).getOrElse(Map.empty)

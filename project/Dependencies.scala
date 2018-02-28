@@ -59,6 +59,7 @@ object Dependencies {
   val ravenLogbackV = "8.0.3"
   val reactiveStreamsV = "1.0.1"
   val refinedV = "0.8.3"
+  val rhinoV = "1.7.8"
   val scalaGraphV = "1.12.0"
   val scalaLoggingV = "3.7.1"
   val scalaXmlV = "1.0.6"
@@ -300,6 +301,7 @@ object Dependencies {
     "org.scalactic" %% "scalactic" % scalacticV,
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "io.circe" %% "circe-optics" % circeV,
+    "org.mozilla" % "rhino" % rhinoV,
     "org.scalamock" %% "scalamock" % "4.0.0" % Test
   ) ++ circeDependencies ++ womDependencies ++ refinedTypeDependenciesList ++ betterFilesDependencies
 

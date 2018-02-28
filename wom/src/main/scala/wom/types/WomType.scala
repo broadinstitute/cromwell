@@ -51,7 +51,11 @@ trait WomType {
   def multiply(rhs: WomType): Try[WomType] = invalid(s"$this * $rhs")
   def divide(rhs: WomType): Try[WomType] = invalid(s"$this / $rhs")
   def mod(rhs: WomType): Try[WomType] = invalid(s"$this % $rhs")
-  def equalsType(rhs: WomType): Try[WomType] = invalid(s"$this == $rhs")
+  def equalsType(rhs: WomType): Try[WomType] =
+    if(this == rhs)
+      Success(WomBooleanType)
+    else
+      invalid(s"$this == $rhs")
   def notEquals(rhs: WomType): Try[WomType] = equalsType(rhs) map { _ => WomBooleanType}
   def lessThan(rhs: WomType): Try[WomType] = invalid(s"$this < $rhs")
   def lessThanOrEqual(rhs: WomType): Try[WomType] = (lessThan(rhs), equalsType(rhs)) match {

@@ -38,7 +38,7 @@ case class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue]) extends 
         case (Some(dequeuedActor), index) =>
           // Update the tokenQueues with the new queue
           tokenQueues = tokenQueues.updated(index, dequeuedActor.tokenQueue)
-          // Update the index: next time, add one so we don't stay stuck on the same queue
+          // Update the index. Add 1 to force trying all the queues as we call next, even if the first one is available
           pointer = (index + 1) % numberOfQueues
           dequeuedActor.leasedActor
       })

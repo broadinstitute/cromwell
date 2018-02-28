@@ -80,9 +80,9 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
 
   private def release(actor: ActorRef): Unit = {
     tokenAssignments.get(actor) match {
-      case Some(leaedToken) =>
+      case Some(leasedToken) =>
         tokenAssignments -= actor
-        leaedToken.release()
+        leasedToken.release()
         context.unwatch(actor)
         ()
       case None =>  log.error("Job execution token returned from incorrect actor: {}", actor.path.name)

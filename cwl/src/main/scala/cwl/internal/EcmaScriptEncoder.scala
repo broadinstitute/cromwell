@@ -5,7 +5,7 @@ import EcmaScriptUtil.{ECMAScriptVariable, ESArray, ESObject, ESPrimitive}
 import cats.data.Validated.Valid
 import common.validation.ErrorOr.ErrorOr
 import cwl.{Directory, File}
-import wom.values.{WomArray, WomBoolean, WomFile, WomFloat, WomGlobFile, WomInteger, WomMap, WomMaybeListedDirectory, WomMaybePopulatedFile, WomObjectLike, WomOptionalValue, WomSingleFile, WomString, WomUnlistedDirectory, WomValue}
+import wom.values.{WomArray, WomBoolean, WomCoproductValue, WomFile, WomFloat, WomGlobFile, WomInteger, WomMap, WomMaybeListedDirectory, WomMaybePopulatedFile, WomObjectLike, WomOptionalValue, WomSingleFile, WomString, WomUnlistedDirectory, WomValue}
 
 /**
   * Converts a WomValue into a javascript compatible value.
@@ -47,6 +47,7 @@ class EcmaScriptEncoder {
       case objectLike: WomObjectLike => objectLike.values.map{
         case (key, innerValue) => (key, encode(innerValue))
       } |> ESObject
+      case WomCoproductValue(_, value) => encode(value)
       case _ => throw new RuntimeException(s"$getClass is unable to encode value: $value")
     }
   }

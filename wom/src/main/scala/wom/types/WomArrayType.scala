@@ -6,7 +6,7 @@ import wom.values.WomArray.WomArrayLike
 import wom.values.{WomArray, WomSingleFile, WomString, WomValue}
 
 import scala.collection.JavaConverters._
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 sealed trait WomArrayType extends WomType {
 
@@ -60,6 +60,11 @@ sealed trait WomArrayType extends WomType {
 case class WomMaybeEmptyArrayType(memberType: WomType) extends WomArrayType {
   override val toDisplayString: String = s"Array[${memberType.toDisplayString}]"
   override val guaranteedNonEmpty = false
+
+  override def equalsType(rhs: WomType): Try[WomType] = rhs match {
+    case WomMaybeEmptyArrayType(`memberType`) => Success(WomBooleanType)
+    case _ => Failure(new RuntimeException(s"type $rhs was incompatible with $this"))
+  }
 }
 
 object WomMaybeEmptyArrayType {
@@ -69,6 +74,11 @@ object WomMaybeEmptyArrayType {
 case class WomNonEmptyArrayType(memberType: WomType) extends WomArrayType {
   override val toDisplayString: String = s"Array[${memberType.toDisplayString}]+"
   override val guaranteedNonEmpty = true
+
+  override def equalsType(rhs: WomType): Try[WomType] = rhs match {
+    case WomNonEmptyArrayType(`memberType`) => Success(WomBooleanType)
+    case _ => Failure(new RuntimeException(s"type $rhs was incompatible with $this"))
+  }
 }
 
 object WomArrayType {

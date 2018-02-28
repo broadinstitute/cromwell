@@ -25,6 +25,7 @@ case object WomIntegerType extends WomPrimitiveType {
   }
 
   private def comparisonOperator(rhs: WomType, symbol: String): Try[WomType] = rhs match {
+    case wct:WomCoproductType => wct.typeExists(WomStringType)
     case WomIntegerType => Success(WomBooleanType)
     case WomFloatType => Success(WomBooleanType)
     case WomOptionalType(memberType) => comparisonOperator(memberType, symbol)
@@ -42,7 +43,7 @@ case object WomIntegerType extends WomPrimitiveType {
   override def multiply(rhs: WomType): Try[WomType] = binaryOperator(rhs, "*")
   override def divide(rhs: WomType): Try[WomType] = binaryOperator(rhs, "/")
   override def mod(rhs: WomType): Try[WomType] = binaryOperator(rhs, "%")
-  override def equals(rhs: WomType): Try[WomType] = comparisonOperator(rhs, "==")
+  override def equalsType(rhs: WomType): Try[WomType] = comparisonOperator(rhs, "==")
   override def lessThan(rhs: WomType): Try[WomType] = comparisonOperator(rhs, "<")
   override def greaterThan(rhs: WomType): Try[WomType] = comparisonOperator(rhs, ">")
   override def unaryPlus: Try[WomType] = Success(WomIntegerType)

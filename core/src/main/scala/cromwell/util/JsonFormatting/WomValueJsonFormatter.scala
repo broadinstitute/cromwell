@@ -18,6 +18,7 @@ object WomValueJsonFormatter extends DefaultJsonProtocol {
       case q: WomPair => new JsObject(Map("left" -> write(q.left), "right" -> write(q.right)))
       case WomOptionalValue(_, Some(innerValue)) => write(innerValue)
       case WomOptionalValue(_, None) => JsNull
+      case WomCoproductValue(_, innerValue) => write(innerValue)
         // handles WdlExpression
       case v: WomValue => JsString(v.toWomString)
 

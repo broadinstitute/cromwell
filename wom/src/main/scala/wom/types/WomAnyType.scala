@@ -64,7 +64,7 @@ case object WomAnyType extends WomType {
   override def multiply(rhs: WomType): Try[WomType] = Success(WomAnyType)
   override def divide(rhs: WomType): Try[WomType] = Success(WomAnyType)
   override def mod(rhs: WomType): Try[WomType] = Success(WomAnyType)
-  override def equals(rhs: WomType): Try[WomType] = Success(WomAnyType)
+  override def equalsType(rhs: WomType): Try[WomType] = Success(WomAnyType)
   override def notEquals(rhs: WomType): Try[WomType] = Success(WomAnyType)
   override def lessThan(rhs: WomType): Try[WomType] = Success(WomAnyType)
   override def lessThanOrEqual(rhs: WomType): Try[WomType] = Success(WomAnyType)

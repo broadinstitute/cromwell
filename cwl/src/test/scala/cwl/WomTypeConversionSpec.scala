@@ -1,5 +1,6 @@
 package cwl
 
+import cats.data.NonEmptyList
 import org.scalacheck.Properties
 import org.scalacheck.Prop._
 import shapeless.Coproduct
@@ -8,7 +9,7 @@ import mouse.`try`._
 
 import scala.util.Try
 
-class WomTypeConversionSpec extends Properties("CWL -> WOM Conversion"){
+object WomTypeConversionSpec extends Properties("CWL -> WOM Conversion"){
 
   /* ******** Inputs *********** */
   property("ArrayInputSchema") = secure {
@@ -28,10 +29,17 @@ class WomTypeConversionSpec extends Properties("CWL -> WOM Conversion"){
     Coproduct[MyriadInputType](Array(y)).fold(MyriadInputTypeToWomType) == WomStringType
   }
 
-  property("Array of more than one type is not allowed") = throws(classOf[NotImplementedError]){
+  property("Array of more than one type becomes a coproduct") = secure {
     val y = Coproduct[MyriadInputInnerType](CwlType.String)
     val z = Coproduct[MyriadInputInnerType](CwlType.Boolean)
-    Coproduct[MyriadInputType](Array(y, z)).fold(MyriadInputTypeToWomType)
+    Coproduct[MyriadInputType](Array(y, z)).fold(MyriadInputTypeToWomType) == WomCoproductType(NonEmptyList.of(WomStringType, WomBooleanType))
+  }
+
+  property("Array of more than one type and a null becomes an optional coproduct") = secure {
+    val x = Coproduct[MyriadInputInnerType](CwlType.Null)
+    val y = Coproduct[MyriadInputInnerType](CwlType.String)
+    val z = Coproduct[MyriadInputInnerType](CwlType.Boolean)
+    Coproduct[MyriadInputType](Array(x, y, z)).fold(MyriadInputTypeToWomType) == WomOptionalType(WomCoproductType(NonEmptyList.of(WomStringType, WomBooleanType)))
   }
 
   property("a 2-element Array of a single type accompanied by a null is an optional type") = secure {
@@ -39,7 +47,6 @@ class WomTypeConversionSpec extends Properties("CWL -> WOM Conversion"){
     val z = Coproduct[MyriadInputInnerType](CwlType.Null)
     testInputArray(Array(y,z), WomOptionalType(WomStringType))
   }
-
 
   def testInputArray(array: Array[MyriadInputInnerType], assertedType: WomType ) = {
     def f(array: Array[MyriadInputInnerType]) =
@@ -77,10 +84,17 @@ class WomTypeConversionSpec extends Properties("CWL -> WOM Conversion"){
     Coproduct[MyriadOutputType](Array(y)).fold(MyriadOutputTypeToWomType) == WomStringType
   }
 
-  property("Output Array of more than one type is not allowed") = throws(classOf[NotImplementedError]) {
+  property("Output Array of more than one type becomes a coproduct") = secure {
     val y = Coproduct[MyriadOutputInnerType](CwlType.String)
     val z = Coproduct[MyriadOutputInnerType](CwlType.Boolean)
-    Coproduct[MyriadOutputType](Array(y, z)).fold(MyriadOutputTypeToWomType)
+    Coproduct[MyriadOutputType](Array(y, z)).fold(MyriadOutputTypeToWomType) == WomCoproductType(NonEmptyList.of(WomStringType, WomBooleanType))
+  }
+
+  property("Output Array of more than one types including a null is an optional coproduct") = secure {
+    val x = Coproduct[MyriadOutputInnerType](CwlType.Null)
+    val y = Coproduct[MyriadOutputInnerType](CwlType.String)
+    val z = Coproduct[MyriadOutputInnerType](CwlType.Boolean)
+    Coproduct[MyriadOutputType](Array(x, y, z)).fold(MyriadOutputTypeToWomType) == WomOptionalType(WomCoproductType(NonEmptyList.of(WomStringType, WomBooleanType)))
   }
 
   def testOutputArray(array: Array[MyriadOutputInnerType], assertedType: WomType) = {

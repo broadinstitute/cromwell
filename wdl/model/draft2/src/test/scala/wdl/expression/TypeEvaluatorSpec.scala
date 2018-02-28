@@ -38,7 +38,7 @@ class TypeEvaluatorSpec extends FlatSpec with Matchers {
     case "*" => lhs.multiply(rhs)
     case "/" => lhs.divide(rhs)
     case "%" => lhs.mod(rhs)
-    case "==" => lhs.equals(rhs)
+    case "==" => lhs.equalsType(rhs)
     case "!=" => lhs.notEquals(rhs)
     case "<" => lhs.lessThan(rhs)
     case "<=" => lhs.lessThanOrEqual(rhs)

@@ -1,5 +1,6 @@
 package cwl
 
+import cats.data.NonEmptyList
 import cwl.CwlType.CwlType
 import cwl.command.ParentName
 import mouse.all._
@@ -42,10 +43,15 @@ object MyriadOutputTypeToWomType extends Poly1{
       // If there's a single non null type, use that
       case (Array(), Array(singleNonNullType)) =>
         singleNonNullType.fold(MyriadOutputInnerTypeToWomType)
+      case (Array(), array: Array[MyriadOutputInnerType]) if array.size > 1  =>
+        val types = array.map(_.fold(MyriadOutputInnerTypeToWomType))
+        WomCoproductType(NonEmptyList.fromListUnsafe(types.toList))
       // If there's a null type and a single non null type, it's a WomOptionalType
       case (Array(_), Array(singleNonNullType)) =>
         WomOptionalType(singleNonNullType.fold(MyriadOutputInnerTypeToWomType))
-      // Leave other "Coproduct types" unsupported for now
+      case (Array(_), array: Array[MyriadOutputInnerType]) if array.size > 1  =>
+        val types = array.map(_.fold(MyriadOutputInnerTypeToWomType))
+        WomOptionalType(WomCoproductType(NonEmptyList.fromListUnsafe(types.toList)))
       case _ =>
         val readableTypes = types.map(_.fold(MyriadOutputInnerTypeToString)).mkString(", ")
         throw new NotImplementedError(s"Cromwell only supports single types or optionals (as indicated by [null, X]). Instead we saw: $readableTypes")

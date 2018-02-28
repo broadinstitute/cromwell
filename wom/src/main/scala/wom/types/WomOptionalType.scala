@@ -6,6 +6,11 @@ import wom.values.{WomOptionalValue, WomValue}
 import scala.util.Try
 
 case class WomOptionalType(memberType: WomType) extends WomType {
+
+  def depth: Int = memberType match {
+    case recursive: WomOptionalType => 1 + recursive.depth
+    case _ => 1
+  }
   /**
     * Method to be overridden by implementation classes defining a partial function
     * for the conversion of raw input values to specific implementation class value types.
@@ -54,12 +59,15 @@ case class WomOptionalType(memberType: WomType) extends WomType {
     case _ => this
   }
 
+  def baseMemberTypeIsCompatibleWith(otherType: WomType): Boolean =
+    baseMemberType.equalsType(otherType).isSuccess
+
   override def add(rhs: WomType): Try[WomType] = memberType.add(rhs)
   override def subtract(rhs: WomType): Try[WomType] = memberType.subtract(rhs)
   override def multiply(rhs: WomType): Try[WomType] = memberType.multiply(rhs)
   override def divide(rhs: WomType): Try[WomType] = memberType.divide(rhs)
   override def mod(rhs: WomType): Try[WomType] = memberType.mod(rhs)
-  override def equals(rhs: WomType): Try[WomType] = memberType.equals(rhs)
+  override def equalsType(rhs: WomType): Try[WomType] = memberType.equalsType(rhs)
   override def lessThan(rhs: WomType): Try[WomType] = memberType.lessThan(rhs)
   override def greaterThan(rhs: WomType): Try[WomType] = memberType.greaterThan(rhs)
   override def or(rhs: WomType): Try[WomType] = memberType.or(rhs)

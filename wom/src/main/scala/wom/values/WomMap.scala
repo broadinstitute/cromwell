@@ -45,7 +45,7 @@ case class WomMap(womType: WomMapType, value: Map[WomValue, WomValue]) extends W
   val typesUsedInKey = value.map { case (k, _) => k.womType }.toSet
 
   if (typesUsedInKey.size == 1 && typesUsedInKey.head != womType.keyType)
-    throw new UnsupportedOperationException(s"Could not construct a $womType as this value: $value")
+    throw new UnsupportedOperationException(s"Could not construct a $womType with this value: $value")
 
   if (typesUsedInKey.size > 1)
     throw new UnsupportedOperationException(s"Cannot construct $womType with mixed types: $value")

@@ -10,7 +10,7 @@ import scala.concurrent.duration.Duration
 
 /**
   * By removing the periodic flush and setting the batch size to 1,
-  * This transforms the BatchActor into throttler processing commands one at a time.
+  * this transforms the BatchActor into throttler processing commands one at a time.
   */
 abstract class ThrottlerActor[C] extends BatchActor[C](Duration.Zero, 1) {
   override def weightFunction(command: C) = 1

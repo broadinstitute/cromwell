@@ -255,7 +255,8 @@ case class CommandLineTool private(
         stdoutOverride = redirect(stdout),
         stderrOverride = redirect(stderr),
         additionalGlob = Option(WomGlobFile(CwlOutputJson)),
-        customizedOutputEvaluation = outputEvaluationJsonFunction
+        customizedOutputEvaluation = outputEvaluationJsonFunction,
+        homeOverride = Option(_.outputPath)
       )
     }
   }

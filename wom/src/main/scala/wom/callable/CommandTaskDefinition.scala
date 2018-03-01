@@ -85,6 +85,7 @@ sealed trait CommandTaskDefinition extends TaskDefinition {
   def adHocFileCreation: Set[WomExpression]
   def environmentExpressions: Map[String, WomExpression]
   def additionalGlob: Option[WomGlobFile]
+  def homeOverride: Option[RuntimeEnvironment => String]
   /**
     * Provides a custom way to evaluate outputs of the task definition.
     * Return None to leave the evaluation method to the engine.
@@ -147,7 +148,8 @@ final case class CallableTaskDefinition(name: String,
                                         stdoutOverride: Option[WomExpression] = None,
                                         stderrOverride: Option[WomExpression] = None,
                                         additionalGlob: Option[WomGlobFile] = None,
-                                        private [wom] val customizedOutputEvaluation: OutputEvaluationFunction = OutputEvaluationFunction.none
+                                        private [wom] val customizedOutputEvaluation: OutputEvaluationFunction = OutputEvaluationFunction.none,
+                                        homeOverride: Option[RuntimeEnvironment => String] = None
                                        ) extends CommandTaskDefinition {
   def toExecutable: ErrorOr[ExecutableTaskDefinition] = TaskCall.graphFromDefinition(this) map { ExecutableTaskDefinition(this, _) }
 }
@@ -177,6 +179,7 @@ final case class ExecutableTaskDefinition private (callableTaskDefinition: Calla
   override def additionalGlob = callableTaskDefinition.additionalGlob
   override private [wom]  def customizedOutputEvaluation = callableTaskDefinition.customizedOutputEvaluation
   override def toExecutable = this.validNel
+  override def homeOverride = callableTaskDefinition.homeOverride
 }
 
 sealed trait ExpressionTaskDefinition extends TaskDefinition {

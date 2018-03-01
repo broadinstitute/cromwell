@@ -78,7 +78,8 @@ final case class InstantiatedCommand(commandString: String,
                                      evaluatedStdoutOverride: Option[String] = None,
                                      evaluatedStderrOverride: Option[String] = None,
                                      preprocessedInputs: List[(LocalName, WomValue)] = List.empty,
-                                     valueMappedPreprocessedInputs: List[(LocalName, WomValue)] = List.empty)
+                                     valueMappedPreprocessedInputs: List[(LocalName, WomValue)] = List.empty,
+                                     home: String = s"$$HOME")
 
 /**
   * File created as a side effect of instantiating the command.

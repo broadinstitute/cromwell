@@ -34,12 +34,12 @@ trait DynamicRateLimiter { this: Actor with Timers with ActorLogging =>
 
   // When load is high, freeze token distribution
   private def highLoad(doLogging: Boolean = true) = {
-    // This guarantees that even the ResetAction message has already been sent and is in the message queue it will be removed in time
+    // This guarantees that even if the ResetAction message has already been sent and is in the message queue it will be removed in time
     timers.cancel(ResetKey)
     log.warning("{} - High load alert. Freeze token distribution.", self.path.name)
   }
 
-  // When back to normal, restart the token distribution timer if needed and re-initialize the "next rate" timer
+  // When back to normal, restart the token distribution timer if needed
   private def backToNormal() = {
     startDistributionTimer()
     log.info("{} - Load back to normal", self.path.name)

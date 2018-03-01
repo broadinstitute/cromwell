@@ -8,5 +8,5 @@ files {
 metadata {
   workflowName: woot
   status: Succeeded
-  "outputs.woot.notrootUser": "notroot"
+  "outputs.woot.notrootHome": "/home/notroot"
 }

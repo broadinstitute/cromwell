@@ -303,7 +303,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |chmod 777 "$$tmpDir"
         |export _JAVA_OPTIONS=-Djava.io.tmpdir="$$tmpDir"
         |export TMPDIR="$$tmpDir"
-        |export HOME="${runtimeEnvironment.outputPath}"
+        |export HOME="${instantiatedCommand.home}"
         |(
         |cd $cwd
         |SCRIPT_PREAMBLE
@@ -386,9 +386,11 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
       (adHocFileCreationSideEffectFiles, environmentVariables, stdinRedirect, stdoutOverride, stderrOverride) mapN {
         (adHocFiles, env, in, out, err) =>
-        instantiatedCommand.copy(
-          createdFiles = instantiatedCommand.createdFiles ++ adHocFiles, environmentVariables = env.toMap,
-          evaluatedStdinRedirection = in, evaluatedStdoutOverride = out, evaluatedStderrOverride = err)
+          val homeOverride = jobDescriptor.taskCall.callable.homeOverride map { _.apply(runtimeEnvironment) }
+          instantiatedCommand.copy(
+            createdFiles = instantiatedCommand.createdFiles ++ adHocFiles, environmentVariables = env.toMap,
+            evaluatedStdinRedirection = in, evaluatedStdoutOverride = out, evaluatedStderrOverride = err,
+            home = homeOverride.getOrElse(instantiatedCommand.home))
       }
     }
 

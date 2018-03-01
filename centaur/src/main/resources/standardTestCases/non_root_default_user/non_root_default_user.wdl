@@ -1,14 +1,14 @@
 task notroot {
   command {
-    whoami
+    echo $HOME
   }
 
   runtime {
-    docker: "mcovarr/notroot:v1"
+    docker: "broadinstitute/cromwell-docker-test:notroot"
   }
 
   output {
-    String user = read_string(stdout())
+    String home = read_string(stdout())
   }
 }
 
@@ -16,6 +16,6 @@ workflow woot {
   call notroot
 
   output {
-    String notrootUser = notroot.user
+    String notrootHome = notroot.home
   }
 }

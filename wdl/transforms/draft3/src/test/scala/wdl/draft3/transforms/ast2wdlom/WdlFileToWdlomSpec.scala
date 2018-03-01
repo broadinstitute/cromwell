@@ -203,8 +203,23 @@ object WdlFileToWdlomSpec {
       FileElement(
         imports = List.empty,
         structs = Vector.empty,
-        workflows = List.empty,
-        tasks = List.empty),
+        workflows = Vector(WorkflowDefinitionElement(
+         name = "order",
+         inputsSection = Some(InputsSectionElement(Vector(
+           InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "n", Some(PrimitiveLiteralExpressionElement(WomInteger(4)))),
+           InputDeclarationElement(PrimitiveTypeElement(WomStringType), "more", Some(StringLiteral("more")))))),
+         graphElements = Set(CallElement("in_n_out", None, Some(CallBodyElement(Vector(KvPair("total", IdentifierLookup("n")), KvPair("amount", IdentifierLookup("more"))))))),
+         outputsSection = None)),
+        tasks = Vector(TaskDefinitionElement(
+          name = "in_n_out",
+          inputsSection = Some(InputsSectionElement(Vector(
+            InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "total", None),
+            InputDeclarationElement(PrimitiveTypeElement(WomStringType), "amount", None)))),
+          outputsSection = Some(OutputsSectionElement(Vector(
+            OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "out", Add(ReadString(StdoutElement), PrimitiveLiteralExpressionElement(WomInteger(1))))))),
+          commandSection = CommandSectionElement(Vector(StringCommandPartElement(" echo "), PlaceholderCommandPartElement(IdentifierLookup("total")), StringCommandPartElement(" "))),
+          runtimeSection = None
+        ))),
     "static_value_workflow" ->
       FileElement(
         imports = Vector.empty,
@@ -222,11 +237,31 @@ object WdlFileToWdlomSpec {
         workflows = Vector.empty,
         tasks = Vector(
           TaskDefinitionElement(
-            "standalone",
-            Some(InputsSectionElement(Vector(InputDeclarationElement(PrimitiveTypeElement(WomStringType), "bar", None)))),
-            Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomStringType), "out", IdentifierLookup("bar"))))),
-            CommandSectionElement(Vector(StringCommandPartElement("\n    echo "), PlaceholderCommandPartElement(IdentifierLookup("bar")), StringCommandPartElement("\n  "))),
-            Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("someFakeDockerRuntime")))))))
+            name = "standalone",
+            inputsSection = Some(InputsSectionElement(Vector(InputDeclarationElement(PrimitiveTypeElement(WomStringType), "bar", None)))),
+            outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomStringType), "out", IdentifierLookup("bar"))))),
+            commandSection = CommandSectionElement(Vector(StringCommandPartElement("\n    echo "), PlaceholderCommandPartElement(IdentifierLookup("bar")), StringCommandPartElement("\n  "))),
+            runtimeSection = Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("someFakeDockerRuntime")))))))
+      ),
+    "no_input_no_output_workflow" ->
+      FileElement(
+        imports = Vector.empty,
+        structs = Vector.empty,
+        workflows = Vector(WorkflowDefinitionElement(
+          name = "no_input_no_output",
+          inputsSection = None,
+          graphElements = Set(CallElement("no_inputs", None, None)),
+          outputsSection = None)
+        ),
+        tasks = Vector(
+          TaskDefinitionElement(
+            name = "no_inputs",
+            inputsSection = None,
+            outputsSection = None,
+            commandSection = CommandSectionElement(Vector(StringCommandPartElement(" echo Hello World "))),
+            runtimeSection = None
+          )
+        )
       )
   )
 }

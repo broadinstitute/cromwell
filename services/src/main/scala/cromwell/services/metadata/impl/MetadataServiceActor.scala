@@ -93,7 +93,8 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(writeActor))
     case action: PutMetadataAction => writeActor forward action
     case action: PutMetadataActionAndRespond => writeActor forward action
-    case ListenToMetadataWriteActor => writeActor forward Listen(sender())
+    // Assume that listen messages are directed to the write metadata actor
+    case listen: Listen => writeActor forward listen
     case v: ValidateWorkflowId => validateWorkflowId(v.possibleWorkflowId, sender())
     case action: ReadAction => readActor forward action
     case RefreshSummary => summaryActor foreach { _ ! SummarizeMetadata(sender()) }

@@ -12,6 +12,7 @@ object AstToWorkflowBodyElement {
     case "Inputs" => astNodeToInputsSectionElement(ast)
     case "Outputs" => astNodeToOutputsSectionElement(ast)
     case "Declaration" => astNodeToDeclarationContent(ast).map(IntermediateValueDeclarationElement.fromContent)
+    case "Call" => astNodeToCallElement(ast)
     case other => s"No conversion defined for Ast with name $other to WorkflowBodyElement".invalidNelCheck
   }
 }

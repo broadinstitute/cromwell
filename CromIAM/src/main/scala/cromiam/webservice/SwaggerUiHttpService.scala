@@ -226,6 +226,7 @@ trait SwaggerUiResourceHttpService extends SwaggerUiHttpService with SwaggerReso
     val bundleReplacement =
       s"""|url: "/$swaggerDocsPath",
           |validatorUrl: null,
+          |oauth2RedirectUrl: window.location.origin + "/$swaggerDirectory/oauth2-redirect.html",
           |tagsSorter: "alpha",
           |operationsSorter: "alpha",
           |""".stripMargin

@@ -145,8 +145,6 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
     actorRefUnderTest.underlyingActor.tokenAssignments.keySet shouldBe Set(self)
     // Only 1 token should be leased
     actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).pool.leased() shouldBe 1
-    // There should still be 4 available
-    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).pool.size() shouldBe 4
   }
 
 

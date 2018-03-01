@@ -3,8 +3,8 @@ package cromwell.engine.backend.mock
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobSucceededResponse}
 import cromwell.backend._
-import cromwell.core.{CallOutputs, NoIoFunctionSet}
-import wom.expression.IoFunctionSet
+import cromwell.core.CallOutputs
+import wom.expression.{IoFunctionSet, NoIoFunctionSet}
 import wom.graph.CommandCallNode
 
 import scala.concurrent.{ExecutionContext, Future}

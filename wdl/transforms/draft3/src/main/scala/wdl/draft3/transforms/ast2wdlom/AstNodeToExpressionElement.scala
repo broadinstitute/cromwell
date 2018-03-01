@@ -1,5 +1,6 @@
 package wdl.draft3.transforms.ast2wdlom
 
+import cats.data.NonEmptyList
 import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.validated._
@@ -204,10 +205,10 @@ object AstNodeToExpressionElement {
     // If the left-hand side is another member access, we can simplify them together.
     // If not, we can build a new member access:
     def simplify(leftExpression: ExpressionElement, suffix: String): ExpressionElement = leftExpression match {
-      case ExpressionMemberAccess(lefterExpression, tail) => ExpressionMemberAccess(lefterExpression, tail :+ suffix)
+      case ExpressionMemberAccess(lefterExpression, tail) => ExpressionMemberAccess(lefterExpression, NonEmptyList(tail.head, tail.tail :+ suffix))
       case IdentifierMemberAccess(first, second, tail) => IdentifierMemberAccess(first, second, tail :+ suffix)
       case IdentifierLookup(identifier) => IdentifierMemberAccess(identifier, suffix, Vector.empty)
-      case _ => ExpressionMemberAccess(leftExpression, Vector(suffix))
+      case _ => ExpressionMemberAccess(leftExpression, NonEmptyList(suffix, List.empty))
     }
 
     val leftValidation: ErrorOr[ExpressionElement] = ast.getAttributeAs[ExpressionElement]("value").toValidated

@@ -6,11 +6,10 @@ import cats.syntax.validated._
 import com.typesafe.config.Config
 import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
 import common.validation.ErrorOr._
-import cromwell.core.NoIoFunctionSet
 import org.slf4j.Logger
 import wdl.draft2.model.expression.PureStandardLibraryFunctions
 import wdl.draft2.model.{NoLookup, WdlExpression}
-import wom.expression.WomExpression
+import wom.expression.{NoIoFunctionSet, WomExpression}
 import wom.types._
 import wom.values._
 

@@ -15,7 +15,7 @@ import cromwell.core._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import mouse.all._
-import wom.expression.WomExpression
+import wom.expression.{NoIoFunctionSet, WomExpression}
 import wom.graph.CommandCallNode
 import wom.types.WomType
 import wom.values.WomValue

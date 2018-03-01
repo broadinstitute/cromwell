@@ -2,8 +2,7 @@ package cromwell.engine.backend.mock
 
 import akka.actor.{ActorRef, Props}
 import cromwell.backend._
-import cromwell.core.NoIoFunctionSet
-import wom.expression.IoFunctionSet
+import wom.expression.{IoFunctionSet, NoIoFunctionSet}
 import wom.graph.CommandCallNode
 
 import scala.concurrent.ExecutionContext

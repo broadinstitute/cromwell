@@ -1,15 +1,20 @@
 package wdl.model.draft3.elements
 
+import cats.data.NonEmptyList
 import wom.values.WomPrimitive
 
-sealed trait ExpressionElement
+trait ExpressionElement
 
 object ExpressionElement {
   final case class PrimitiveLiteralExpressionElement(value: WomPrimitive) extends ExpressionElement
 
   final case class StringExpression(pieces: Seq[StringPiece]) extends ExpressionElement
-  trait StringPiece
+  sealed trait StringPiece
   final case class StringLiteral(value: String) extends StringPiece with ExpressionElement
+
+  /**
+    * For use within a StringExpression. Cannot be a standalone ExpressionElement.
+    */
   final case class StringPlaceholder(expr: ExpressionElement) extends StringPiece
 
 
@@ -148,7 +153,7 @@ object ExpressionElement {
     *  - But, the second element might be part of the identifier to look up (eg my_task.pair_of_pairs) OR it might
     *      be part of a member access chain (eg pair_of_pairs.left.right). We won't know until we do the linking.
     */
-  final case class IdentifierMemberAccess(firstIdentifier: String, secondIdentifierOrFirstMemberAccess: String, memberAccessTail: Vector[String]) extends ExpressionElement
+  final case class IdentifierMemberAccess(first: String, second: String, memberAccessTail: Seq[String]) extends ExpressionElement
 
   /**
     * A member access which is based on an expression rather than an identifier.
@@ -156,5 +161,5 @@ object ExpressionElement {
     * eg:
     * (1, 2).left
     */
-  final case class ExpressionMemberAccess(expression: ExpressionElement, memberAccessTail: Vector[String]) extends ExpressionElement
+  final case class ExpressionMemberAccess(expression: ExpressionElement, memberAccessTail: NonEmptyList[String]) extends ExpressionElement
 }

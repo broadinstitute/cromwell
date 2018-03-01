@@ -22,6 +22,7 @@ import cromwell.util.WomMocks
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Assertion, FlatSpecLike, OptionValues}
+import wom.expression.NoIoFunctionSet
 import wom.graph.CommandCallNode
 import wom.types._
 import wom.values._

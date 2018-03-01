@@ -55,4 +55,3 @@ class WomArrayTypeSpec extends FlatSpec with Matchers  {
 
   def noLookup(String: String): WomValue = fail("No identifiers should be looked up in this test")
 }
-

@@ -1,6 +1,5 @@
-package cromwell.core
+package wom.expression
 
-import wom.expression.IoFunctionSet
 import wom.values.{WomFloat, WomSingleFile, WomValue}
 
 import scala.concurrent.Future

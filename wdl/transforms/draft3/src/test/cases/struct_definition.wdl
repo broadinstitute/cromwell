@@ -5,7 +5,7 @@ struct FooStruct {
   Pair[Array[Int], Map[String, Boolean]] complex
 }
 
-workflow foo {
+workflow struct_definition {
   output {
     FooStruct myFoo = object {
       simple: 5,

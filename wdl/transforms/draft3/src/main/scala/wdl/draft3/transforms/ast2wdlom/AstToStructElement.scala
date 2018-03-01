@@ -11,10 +11,12 @@ import wdl.model.draft3.elements.{StructElement, StructEntryElement, TypeElement
 import wdl.draft3.transforms.ast2wdlom.EnhancedDraft3Ast._
 
 object AstToStructElement {
-  def convert(a: Ast): Checked[StructElement] = {
+  def convert(a: Ast): ErrorOr[StructElement] = {
     implicit val astNodeToStructEntry: CheckedAtoB[AstNode, StructEntryElement] = astNodeToAst andThen CheckedAtoB.fromErrorOr(convertAstToStructEntry)
-    val entries = a.getAttributeAsVector[StructEntryElement]("entries")
-    entries.map(StructElement)
+    val nameValidation: ErrorOr[String] = a.getAttributeAs[String]("name").toValidated
+    val entriesValidation: ErrorOr[Vector[StructEntryElement]] = a.getAttributeAsVector[StructEntryElement]("entries").toValidated
+
+    (nameValidation, entriesValidation) mapN { (name, entries) => StructElement(name, entries) }
   }
 
   private def convertAstToStructEntry(a: Ast): ErrorOr[StructEntryElement] = {

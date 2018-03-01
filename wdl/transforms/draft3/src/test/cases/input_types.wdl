@@ -5,9 +5,9 @@ workflow input_types {
     # All the primitive types:
     Int i
     String s
-    Float f
+    Float float
     Boolean b
-    File f
+    File file
     Object o
 
     # Simple compound types:

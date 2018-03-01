@@ -10,20 +10,30 @@ import wdl.model.draft3.graph.{LinkedGraph, LinkedGraphEdge}
 import wom.callable.WorkflowDefinition
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.{GraphNode, Graph => WomGraph}
+import wom.types.WomType
 
 import scalax.collection.Graph
 import scalax.collection.GraphEdge.DiEdge
 
 object WorkflowDefinitionElementToWomWorkflowDefinition {
 
-  def convert(a: WorkflowDefinitionElement): ErrorOr[WorkflowDefinition] = {
+  final case class WorkflowDefinitionConvertInputs(definitionElement: WorkflowDefinitionElement, typeAliases: Map[String, WomType])
 
-    val graphNodeElements: Set[WorkflowGraphElement] = a.graphElements ++ a.inputsSection.toSeq.flatMap(_.inputDeclarations) ++ a.outputsSection.toSeq.flatMap(_.outputs)
+  def convert(a: WorkflowDefinitionConvertInputs): ErrorOr[WorkflowDefinition] = {
+
+    // Make the set of workflow graph elements, including:
+    // - Top-level graph elements
+    // - Declarations in the inputs section
+    // - Declarations in the outputs section
+    val graphNodeElements: Set[WorkflowGraphElement] =
+      a.definitionElement.graphElements ++
+        a.definitionElement.inputsSection.toSeq.flatMap(_.inputDeclarations) ++
+        a.definitionElement.outputsSection.toSeq.flatMap(_.outputs)
 
     for {
-      linkedGraph <- LinkedGraphMaker.make(nodes = graphNodeElements, typeAliases = Map.empty)
-      womGraph <- makeWomGraph(linkedGraph, a.name)
-    } yield WorkflowDefinition(a.name, womGraph, Map.empty, Map.empty)
+      linkedGraph <- LinkedGraphMaker.make(nodes = graphNodeElements, typeAliases = a.typeAliases)
+      womGraph <- makeWomGraph(linkedGraph, a.definitionElement.name)
+    } yield WorkflowDefinition(a.definitionElement.name, womGraph, Map.empty, Map.empty)
 
   }
 
@@ -35,7 +45,7 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
           node <- currentList
           port <- node.outputPorts
         } yield port.name -> port).toMap
-        val nextGraphNodeValidation = WorkflowGraphElementToGraphNode.convert(GraphNodeMakerInputs(next, linkedGraph.consumedValueLookup, availableValues, workflowName))
+        val nextGraphNodeValidation = WorkflowGraphElementToGraphNode.convert(GraphNodeMakerInputs(next, linkedGraph.consumedValueLookup, availableValues, linkedGraph.typeAliases, workflowName))
         nextGraphNodeValidation map { nextGraphNode => currentList :+ nextGraphNode }
       }
     }

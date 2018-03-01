@@ -61,33 +61,31 @@ object WdlFileToWdlomSpec {
           outputsSection = None)),
         tasks = List.empty),
     "struct_definition" -> FileElement(
-      imports = Vector.empty,
+      imports = Vector(),
       structs = Vector(StructElement(
+        name = "FooStruct",
         entries = Vector(
           StructEntryElement(
-            identifier = "simple",
-            typeElement = PrimitiveTypeElement(WomIntegerType)),
+            "simple",
+            PrimitiveTypeElement(WomIntegerType)),
           StructEntryElement(
-            identifier = "complex",
-            typeElement = PairTypeElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)), MapTypeElement(PrimitiveTypeElement(WomStringType), PrimitiveTypeElement(WomBooleanType))))))
-      ),
+            "complex",
+            PairTypeElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)),MapTypeElement(PrimitiveTypeElement(WomStringType),PrimitiveTypeElement(WomBooleanType)))
+          )
+        )
+      )),
       workflows = Vector(WorkflowDefinitionElement(
-        name = "foo",
+        name = "struct_definition",
         inputsSection = None,
         graphElements = Set(),
-        outputsSection = Some(OutputsSectionElement(Vector(
-          OutputDeclarationElement(
-            typeElement = TypeAliasElement("FooStruct"),
-            name = "myFoo",
-            expression = ObjectLiteral(Map(
-              "simple" -> intLiteral,
-              "complex" -> PairLiteral(
-                left = ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(5)))),
-                right = MapLiteral(Map(StringLiteral("t") -> PrimitiveLiteralExpressionElement(WomBoolean(true))))
-              )
-            ))
-          )
-        )))
+        outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(
+          typeElement = TypeAliasElement("FooStruct"),
+          name = "myFoo",
+          expression = ObjectLiteral(Map(
+            "simple" -> PrimitiveLiteralExpressionElement(WomInteger(5)),
+            "complex" -> PairLiteral(ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(5)))),MapLiteral(Map(StringLiteral("t") -> PrimitiveLiteralExpressionElement(WomBoolean(true)))))
+          ))
+        ))))
       )),
       tasks = Vector.empty
     ),
@@ -100,9 +98,9 @@ object WdlFileToWdlomSpec {
           inputsSection = Some(InputsSectionElement(Vector(
             InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "i", None),
             InputDeclarationElement(PrimitiveTypeElement(WomStringType), "s", None),
-            InputDeclarationElement(PrimitiveTypeElement(WomFloatType), "f", None),
+            InputDeclarationElement(PrimitiveTypeElement(WomFloatType), "float", None),
             InputDeclarationElement(PrimitiveTypeElement(WomBooleanType), "b", None),
-            InputDeclarationElement(PrimitiveTypeElement(WomSingleFileType), "f", None),
+            InputDeclarationElement(PrimitiveTypeElement(WomSingleFileType), "file", None),
             InputDeclarationElement(ObjectTypeElement, "o", None),
             InputDeclarationElement(OptionalTypeElement(PrimitiveTypeElement(WomIntegerType)), "maybe_i", None),
             InputDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomStringType)), "array_s", None),

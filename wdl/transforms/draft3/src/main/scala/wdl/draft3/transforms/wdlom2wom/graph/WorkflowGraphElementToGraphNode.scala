@@ -17,12 +17,12 @@ import wom.types.WomType
 object WorkflowGraphElementToGraphNode {
   def convert(a: GraphNodeMakerInputs): ErrorOr[GraphNode] = a.node match {
     case InputDeclarationElement(typeElement, name, None) =>
-      typeElement.determineWomType(Map.empty) map { womType =>
+      typeElement.determineWomType(a.availableTypeAliases) map { womType =>
         RequiredGraphInputNode(WomIdentifier(name), womType, s"${a.workflowName}.$name")
       }
     case DeclarationElement(typeElement, name, Some(expr)) =>
       val womExprValidation: ErrorOr[WomExpression] = expr.makeWomExpression(a.linkableValues)
-      val womTypeValidation: ErrorOr[WomType] = typeElement.determineWomType(Map.empty)
+      val womTypeValidation: ErrorOr[WomType] = typeElement.determineWomType(a.availableTypeAliases)
 
       (womExprValidation, womTypeValidation) flatMapN { (womExpr, womType) =>
         a.node match {
@@ -41,4 +41,5 @@ object WorkflowGraphElementToGraphNode {
 final case class GraphNodeMakerInputs(node: WorkflowGraphElement,
                                       linkableValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
                                       linkablePorts: Map[String, OutputPort],
+                                      availableTypeAliases: Map[String, WomType],
                                       workflowName: String)

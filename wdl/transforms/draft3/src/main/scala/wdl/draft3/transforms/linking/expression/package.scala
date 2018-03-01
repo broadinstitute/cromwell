@@ -3,26 +3,50 @@ package wdl.draft3.transforms.linking
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import cats.instances.list._
-
 import common.validation.ErrorOr.ErrorOr
 import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.graph.UnlinkedValueConsumer.ops._
 import wdl.model.draft3.elements.ExpressionElement
-import wdl.model.draft3.elements.ExpressionElement.{IdentifierLookup, PrimitiveLiteralExpressionElement}
+import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.WomExpressionMaker
 import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook, UnlinkedIdentifierHook, UnlinkedValueConsumer}
 import wom.expression.WomExpression
 
 package object expression {
 
-  implicit object identifierLookupUnlinkedValueConsumer extends UnlinkedValueConsumer[IdentifierLookup] {
+  implicit val expressionElementSetUnlinkedValueConsumer: UnlinkedValueConsumer[Set[ExpressionElement]] = new UnlinkedValueConsumer[Set[ExpressionElement]] {
+    override def consumedValueHooks(elements: Set[ExpressionElement]): Set[UnlinkedConsumedValueHook] = elements.flatMap { e: ExpressionElement => e.consumedValueHooks }
+  }
+
+  implicit val identifierLookupUnlinkedValueConsumer: UnlinkedValueConsumer[IdentifierLookup] = new UnlinkedValueConsumer[IdentifierLookup] {
     override def consumedValueHooks(a: IdentifierLookup): Set[UnlinkedConsumedValueHook] = Set(UnlinkedIdentifierHook(a.identifier))
   }
 
-  implicit object expressionElementUnlinkedValueConsumer extends UnlinkedValueConsumer[ExpressionElement] {
+  implicit val objectLiteralUnlinkedValueConsumer: UnlinkedValueConsumer[ObjectLiteral] = new UnlinkedValueConsumer[ObjectLiteral] {
+    override def consumedValueHooks(o: ObjectLiteral): Set[UnlinkedConsumedValueHook] = o.elements.values.toSet[ExpressionElement].consumedValueHooks
+  }
+
+  implicit val mapLiteralUnlinkedValueConsumer: UnlinkedValueConsumer[MapLiteral] = new UnlinkedValueConsumer[MapLiteral] {
+    override def consumedValueHooks(m: MapLiteral): Set[UnlinkedConsumedValueHook] = m.elements.keys.toSet[ExpressionElement].consumedValueHooks ++ m.elements.values.toSet[ExpressionElement].consumedValueHooks
+  }
+
+  implicit val pairLiteralUnlinkedValueConsumer: UnlinkedValueConsumer[PairLiteral] = new UnlinkedValueConsumer[PairLiteral] {
+    override def consumedValueHooks(p: PairLiteral): Set[UnlinkedConsumedValueHook] = p.left.consumedValueHooks ++ p.right.consumedValueHooks
+  }
+
+  implicit val arrayLiteralUnlinkedValueConsumer: UnlinkedValueConsumer[ArrayLiteral] = new UnlinkedValueConsumer[ArrayLiteral] {
+    override def consumedValueHooks(a: ArrayLiteral): Set[UnlinkedConsumedValueHook] = a.elements.toSet.flatMap { e: ExpressionElement => e.consumedValueHooks }
+  }
+
+  implicit val expressionElementUnlinkedValueConsumer: UnlinkedValueConsumer[ExpressionElement] = new UnlinkedValueConsumer[ExpressionElement] {
     override def consumedValueHooks(a: ExpressionElement): Set[UnlinkedConsumedValueHook] = a match {
-      case _: PrimitiveLiteralExpressionElement => Set.empty
+      case _: PrimitiveLiteralExpressionElement | _: StringLiteral => Set.empty
       case id: IdentifierLookup => id.consumedValueHooks
+      case o: ObjectLiteral => o.consumedValueHooks
+      case p: PairLiteral => p.consumedValueHooks
+      case a: ArrayLiteral => a.consumedValueHooks
+      case m: MapLiteral => m.consumedValueHooks
+
       // TODO fill in other expression types
       case other => throw new Exception(s"Cannot generate consumed values for ExpressionElement ${other.getClass.getSimpleName}")
     }

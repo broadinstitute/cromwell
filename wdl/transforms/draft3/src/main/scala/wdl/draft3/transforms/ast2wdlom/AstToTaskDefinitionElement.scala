@@ -24,8 +24,12 @@ object AstToTaskDefinitionElement {
     val commandSectionElement: ErrorOr[CommandSectionElement] = validateExists(bodyElements.filterByType[CommandSectionElement], "command")
     val runtimeSectionElement: ErrorOr[Option[RuntimeAttributesSectionElement]] = validateOneMax(bodyElements.filterByType[RuntimeAttributesSectionElement], "runtime")
 
-    (inputsSectionElement, outputsSectionElement, commandSectionElement, runtimeSectionElement) mapN { (inputs, outputs, command, runtime) =>
-      TaskDefinitionElement(nameElement, inputs, outputs, command, runtime)
+    val metaSectionElement: ErrorOr[Option[MetaSectionElement]] = validateOneMax(bodyElements.filterByType[MetaSectionElement], "meta")
+    val parameterMetaSectionElement: ErrorOr[Option[ParameterMetaSectionElement]] = validateOneMax(bodyElements.filterByType[ParameterMetaSectionElement], "parameterMeta")
+
+    (inputsSectionElement, outputsSectionElement, commandSectionElement, runtimeSectionElement, metaSectionElement, parameterMetaSectionElement) mapN {
+      (inputs, outputs, command, runtime, meta, parameterMeta) =>
+      TaskDefinitionElement(nameElement, inputs, outputs, command, runtime, meta, parameterMeta)
     }
   }
 

@@ -6,8 +6,8 @@ object MetaValueElement {
   // primitives: int, string, float, etc.
   final object MNull extends MetaValueElement
   final case class MBoolean(value: Boolean) extends MetaValueElement
-  final case class MFloat(value: Float) extends MetaValueElement
-  final case class MInt(value: Int) extends MetaValueElement
+  final case class MFloat(value: Double) extends MetaValueElement
+  final case class MInteger(value: Int) extends MetaValueElement
   final case class MString(value: String) extends MetaValueElement
 
   // compounds: maps and arrays

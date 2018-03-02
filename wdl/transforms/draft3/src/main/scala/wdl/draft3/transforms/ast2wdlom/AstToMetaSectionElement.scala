@@ -5,8 +5,7 @@ import cats.syntax.either._
 import common.Checked
 import wdl.draft3.parser.WdlParser.Ast
 import wdl.draft3.transforms.ast2wdlom.EnhancedDraft3Ast._
-import wdl.model.draft3.elements.MetaValueElement._
-import wdl.model.draft3.elements.MetaSectionElement
+import wdl.model.draft3.elements.{MetaKvPair, MetaSectionElement, MetaValueElement}
 
 object AstToMetaSectionElement {
   def convert(ast: Ast): Checked[MetaSectionElement] =  {

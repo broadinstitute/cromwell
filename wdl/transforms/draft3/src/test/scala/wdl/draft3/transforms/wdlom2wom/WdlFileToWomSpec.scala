@@ -45,8 +45,7 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     }
   }
 
-  // NB we only validate if there exists a validator. Otherwise it's a free pass, so make double sure the name matches up!
-  val validators: Map[String, WomBundle => Assertion] = Map(
+  private val validators: Map[String, WomBundle => Assertion] = Map(
     "declaration_chain" -> anyWomWillDo,
     "empty_workflow" -> anyWomWillDo,
     "input_expressions" -> anyWomWillDo,
@@ -72,4 +71,3 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     )
   }
 }
-

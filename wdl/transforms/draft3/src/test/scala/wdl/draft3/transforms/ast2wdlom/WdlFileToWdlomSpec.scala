@@ -243,6 +243,41 @@ object WdlFileToWdlomSpec {
             commandSection = CommandSectionElement(Vector(StringCommandPartElement("\n    echo "), PlaceholderCommandPartElement(IdentifierLookup("bar")), StringCommandPartElement("\n  "))),
             runtimeSection = Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("someFakeDockerRuntime")))))))
       ),
+    "task_with_metas" ->
+      FileElement(
+        imports = Vector.empty,
+        structs = Vector.empty,
+        workflows = Vector.empty,
+        tasks = Vector(
+          TaskDefinitionElement(
+            name = "task_with_metas",
+            inputsSection = Some(InputsSectionElement(
+                                   Vector(
+                                     InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "a", None),
+                                     InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "b", None)
+                                   ))),
+            outputsSection = Some(OutputsSectionElement(
+                                    Vector(
+                                      OutputDeclarationElement(
+                                        PrimitiveTypeElement(WomIntegerType), "out",
+                                        Add(IdentifierLookup("a"), IdentifierLookup("b"))
+                                      )))),
+            commandSection = CommandSectionElement(Vector(
+                                                     StringCommandPartElement("\n    echo $(("),
+                                                     PlaceholderCommandPartElement(IdentifierLookup("a")),
+                                                     StringCommandPartElement(" + "),
+                                                     PlaceholderCommandPartElement(IdentifierLookup("b")),
+                                                     StringCommandPartElement("))\n"))),
+            runtimeSection = Vector.empty,
+            metaSection = MetaSectionElement(Vector(
+                                               ("author", MString("John Doe")),
+                                               ("email", MString("john.doe@yahoo.com"))
+                                             )),
+            parameterMetaSection = ParameterMetaSectionElement(Vector(
+                                                                 ("a", MString("just an integer")),
+                                                                 ("b", MString("an important parameter"))
+                                                               ))
+          ))),
     "no_input_no_output_workflow" ->
       FileElement(
         imports = Vector.empty,

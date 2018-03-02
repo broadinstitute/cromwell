@@ -8,7 +8,7 @@ import io.github.andrebeat.pool._
 
 object TokenPool {
   // 10 Million
-  val MaxCapacity = 10000000
+  val MaxCapacity = 10 * 1000 * 1000
 }
 
 final case class TokenPool(tokenType: JobExecutionTokenType) extends SimplePool[JobExecutionToken](

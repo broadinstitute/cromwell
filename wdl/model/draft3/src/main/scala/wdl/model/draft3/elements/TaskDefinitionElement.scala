@@ -5,5 +5,5 @@ final case class TaskDefinitionElement(name: String,
                                        outputsSection: Option[OutputsSectionElement],
                                        commandSection: CommandSectionElement,
                                        runtimeSection: Option[RuntimeAttributesSectionElement],
-                                       meta: Option[MetaSectionElement],
-                                       parameterMeta: Option[ParameterMetaSectionElement]) extends FileBodyElement
+                                       metaSection: Option[MetaSectionElement],
+                                       parameterMetaSection: Option[ParameterMetaSectionElement]) extends FileBodyElement

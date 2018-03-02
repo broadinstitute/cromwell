@@ -58,7 +58,9 @@ object WdlFileToWdlomSpec {
           name = "empty",
           inputsSection = None,
           graphElements = Set.empty,
-          outputsSection = None)),
+          outputsSection = None,
+          metaSection = None,
+          parameterMetaSection = None)),
         tasks = List.empty),
     "struct_definition" -> FileElement(
       imports = Vector(),
@@ -85,8 +87,9 @@ object WdlFileToWdlomSpec {
             "simple" -> PrimitiveLiteralExpressionElement(WomInteger(5)),
             "complex" -> PairLiteral(ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(5)))),MapLiteral(Map(StringLiteral("t") -> PrimitiveLiteralExpressionElement(WomBoolean(true)))))
           ))
-        ))))
-      )),
+        )))),
+        metaSection = None,
+        parameterMetaSection = None)),
       tasks = Vector.empty
     ),
     "input_types" ->
@@ -112,8 +115,9 @@ object WdlFileToWdlomSpec {
               "lotsa_nesting_array", None)
           ))),
           graphElements = Set.empty,
-          outputsSection = None
-        )),
+          outputsSection = None,
+          metaSection = None,
+          parameterMetaSection = None)),
         tasks = Vector.empty),
     "input_values" ->
       FileElement(
@@ -132,8 +136,9 @@ object WdlFileToWdlomSpec {
             )
           )),
           graphElements = Set.empty,
-          outputsSection = None)
-        ),
+          outputsSection = None,
+          metaSection = None,
+          parameterMetaSection = None)),
         tasks = List.empty),
     "input_expressions" ->
       FileElement(
@@ -168,8 +173,9 @@ object WdlFileToWdlomSpec {
             )
           )),
           graphElements = Set.empty,
-          outputsSection = None)
-        ),
+          outputsSection = None,
+          metaSection = None,
+          parameterMetaSection = None)),
         tasks = Vector.empty),
     "passthrough_workflow" ->
       FileElement(
@@ -182,7 +188,9 @@ object WdlFileToWdlomSpec {
               InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "x", None)
             ))),
             graphElements = Set(IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "y", IdentifierLookup("x"))),
-            outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "z", IdentifierLookup("y"))))))),
+            outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "z", IdentifierLookup("y"))))),
+            metaSection = None,
+            parameterMetaSection = None)),
         tasks = Vector()),
     "declaration_chain" ->
       FileElement(
@@ -197,7 +205,9 @@ object WdlFileToWdlomSpec {
               IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "a", intLiteral),
               IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "x", IdentifierLookup("a"))
             ),
-            outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "z", IdentifierLookup("y"))))))),
+            outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "z", IdentifierLookup("y"))))),
+            metaSection = None,
+            parameterMetaSection = None)),
         tasks = Vector()),
     "simple_first_test" ->
       FileElement(
@@ -209,7 +219,9 @@ object WdlFileToWdlomSpec {
            InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "n", Some(PrimitiveLiteralExpressionElement(WomInteger(4)))),
            InputDeclarationElement(PrimitiveTypeElement(WomStringType), "more", Some(StringLiteral("more")))))),
          graphElements = Set(CallElement("in_n_out", None, Some(CallBodyElement(Vector(KvPair("total", IdentifierLookup("n")), KvPair("amount", IdentifierLookup("more"))))))),
-         outputsSection = None)),
+         outputsSection = None,
+          metaSection = None,
+          parameterMetaSection = None)),
         tasks = Vector(TaskDefinitionElement(
           name = "in_n_out",
           inputsSection = Some(InputsSectionElement(Vector(
@@ -218,7 +230,9 @@ object WdlFileToWdlomSpec {
           outputsSection = Some(OutputsSectionElement(Vector(
             OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "out", Add(ReadString(StdoutElement), PrimitiveLiteralExpressionElement(WomInteger(1))))))),
           commandSection = CommandSectionElement(Vector(StringCommandPartElement(" echo "), PlaceholderCommandPartElement(IdentifierLookup("total")), StringCommandPartElement(" "))),
-          runtimeSection = None
+          runtimeSection = None,
+          metaSection = None,
+          parameterMetaSection = None
         ))),
     "static_value_workflow" ->
       FileElement(
@@ -228,7 +242,9 @@ object WdlFileToWdlomSpec {
           name = "foo",
           inputsSection = None,
           graphElements = Set.empty,
-          outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "y", PrimitiveLiteralExpressionElement(WomInteger(3)))))))),
+          outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "y", PrimitiveLiteralExpressionElement(WomInteger(3)))))),
+          metaSection = None,
+          parameterMetaSection = None)),
         tasks = Vector.empty),
     "standalone_task" ->
       FileElement(
@@ -241,7 +257,9 @@ object WdlFileToWdlomSpec {
             inputsSection = Some(InputsSectionElement(Vector(InputDeclarationElement(PrimitiveTypeElement(WomStringType), "bar", None)))),
             outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomStringType), "out", IdentifierLookup("bar"))))),
             commandSection = CommandSectionElement(Vector(StringCommandPartElement("\n    echo "), PlaceholderCommandPartElement(IdentifierLookup("bar")), StringCommandPartElement("\n  "))),
-            runtimeSection = Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("someFakeDockerRuntime")))))))
+            runtimeSection = Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("someFakeDockerRuntime"))))),
+            metaSection = None,
+            parameterMetaSection = None))
       ),
     "task_with_metas" ->
       FileElement(
@@ -268,15 +286,16 @@ object WdlFileToWdlomSpec {
                                                      StringCommandPartElement(" + "),
                                                      PlaceholderCommandPartElement(IdentifierLookup("b")),
                                                      StringCommandPartElement("))\n"))),
-            runtimeSection = Vector.empty,
-            metaSection = MetaSectionElement(Vector(
-                                               ("author", MString("John Doe")),
-                                               ("email", MString("john.doe@yahoo.com"))
-                                             )),
-            parameterMetaSection = ParameterMetaSectionElement(Vector(
-                                                                 ("a", MString("just an integer")),
-                                                                 ("b", MString("an important parameter"))
-                                                               ))
+            runtimeSection = None,
+            metaSection = Some(MetaSectionElement(Vector(
+                                               (MetaKvPair("author", MetaValueElement.MString("John Doe"))),
+                                               (MetaKvPair("email", MetaValueElement.MString("john.doe@yahoo.com")))
+                                             ))),
+            parameterMetaSection = Some(ParameterMetaSectionElement(
+                                          Vector(
+                                            (MetaKvPair("a", MetaValueElement.MString("just an integer"))),
+                                            (MetaKvPair("b", MetaValueElement.MString("an important parameter")))
+                                          )))
           ))),
     "no_input_no_output_workflow" ->
       FileElement(
@@ -286,15 +305,18 @@ object WdlFileToWdlomSpec {
           name = "no_input_no_output",
           inputsSection = None,
           graphElements = Set(CallElement("no_inputs", None, None)),
-          outputsSection = None)
-        ),
+          outputsSection = None,
+          metaSection = None,
+          parameterMetaSection = None)),
         tasks = Vector(
           TaskDefinitionElement(
             name = "no_inputs",
             inputsSection = None,
             outputsSection = None,
             commandSection = CommandSectionElement(Vector(StringCommandPartElement(" echo Hello World "))),
-            runtimeSection = None
+            runtimeSection = None,
+            metaSection = None,
+            parameterMetaSection = None
           )
         )
       )

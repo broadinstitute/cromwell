@@ -4,5 +4,5 @@ final case class WorkflowDefinitionElement(name: String,
                                            inputsSection: Option[InputsSectionElement],
                                            graphElements: Set[WorkflowGraphElement],
                                            outputsSection: Option[OutputsSectionElement],
-                                           meta: Option[MetaSectionElement],
-                                           parameterMeta: Option[ParameterMetaSectionElement]) extends FileBodyElement
+                                           metaSection: Option[MetaSectionElement],
+                                           parameterMetaSection: Option[ParameterMetaSectionElement]) extends FileBodyElement

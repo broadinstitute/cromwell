@@ -1,13 +1,14 @@
 package cromwell.engine.instrumentation
 
+import akka.actor.Actor
 import cats.data.NonEmptyList
 import cromwell.core.instrumentation.InstrumentationKeys._
-import cromwell.core.io._
 import cromwell.core.instrumentation.InstrumentationPrefixes._
+import cromwell.core.io._
 import cromwell.engine.io.IoActor.IoResult
 import cromwell.filesystems.gcs.{GcsPath, GoogleUtil}
-import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.instrumentation.CromwellInstrumentation._
+import cromwell.services.instrumentation.CromwellInstrumentationActor
 
 /**
   * Implicit methods to help convert Io objects to metric values
@@ -79,7 +80,7 @@ private object IoInstrumentationImplicits {
 /**
   * Helper methods for Io instrumentation
   */
-trait IoInstrumentation extends CromwellInstrumentation {
+trait IoInstrumentation extends CromwellInstrumentationActor { this: Actor =>
   import IoInstrumentationImplicits._
 
   /**

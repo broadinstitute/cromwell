@@ -1,11 +1,12 @@
 package cromwell.engine.instrumentation
 
+import akka.actor.Actor
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.core.instrumentation.InstrumentationKeys._
 import cromwell.core.instrumentation.InstrumentationPrefixes._
 import cromwell.engine.instrumentation.JobInstrumentation._
-import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.instrumentation.CromwellInstrumentation._
+import cromwell.services.instrumentation.CromwellInstrumentationActor
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -21,7 +22,7 @@ object JobInstrumentation {
 /**
   * Provides helper methods for Job instrumentation
   */
-trait JobInstrumentation extends CromwellInstrumentation {
+trait JobInstrumentation extends CromwellInstrumentationActor { this: Actor =>
 
   /**
     * Generic method to increment a workflow related counter metric value

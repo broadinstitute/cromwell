@@ -19,7 +19,7 @@ import scala.language.postfixOps
 class JobStoreActor(jobStore: JobStore, dbBatchSize: Int, dbFlushRate: FiniteDuration) extends Actor with ActorLogging with GracefulShutdownHelper {
   import JobStoreActor._
   val jobStoreWriterActor = context.actorOf(JobStoreWriterActor.props(jobStore, dbBatchSize, dbFlushRate), "JobStoreWriterActor")
-  val jobStoreReaderActor = context.actorOf(JobStoreReaderActor.props(jobStore), "JobStoreReaderActor")
+  val jobStoreReaderActor = context.actorOf(JobStoreReaderActor.props(jobStore), "JobStoreReaderActorRouter")
 
   override def receive: Receive = {
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(jobStoreWriterActor))

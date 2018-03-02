@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{ActorRef, Props}
+import cats.data.NonEmptyVector
 import cats.instances.list._
 import cats.instances.tuple._
 import cats.syntax.foldable._
@@ -22,7 +23,7 @@ case class CallCacheWriteActor(callCache: CallCache) extends BatchActor[CommandA
 
   override protected def weightFunction(command: CommandAndReplyTo[SaveCallCacheHashes]) = 1
 
-  override protected def process(data: Vector[CommandAndReplyTo[SaveCallCacheHashes]]) = {
+  override protected def process(data: NonEmptyVector[CommandAndReplyTo[SaveCallCacheHashes]]) = {
     log.debug("Flushing {} call cache hashes sets to the DB", data.length)
 
     //     Collect all the bundles of hashes that should be written and all the senders which should be informed of
@@ -33,7 +34,7 @@ case class CallCacheWriteActor(callCache: CallCache) extends BatchActor[CommandA
       futureMessage map { message =>
         replyTos foreach { _ ! message }
       }
-      futureMessage.map(_ => data.size)
+      futureMessage.map(_ => data.length)
     } else Future.successful(0)
   }
 }

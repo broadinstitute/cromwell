@@ -1,5 +1,6 @@
 package cromwell.services.instrumentation
 
+import cats.data.NonEmptyVector
 import cromwell.core.actor.BatchActor
 import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import cromwell.services.instrumentation.InstrumentedBatchActor.{QueueSizeTimerAction, QueueSizeTimerKey}
@@ -19,7 +20,7 @@ abstract class InstrumentedBatchActor[C](flushRate: FiniteDuration,
                                          batchSize: Int,
                                          instrumentationPath: InstrumentationPath,
                                          instrumentationPrefix: Option[String]) extends BatchActor[C](flushRate, batchSize) 
-  with CromwellInstrumentation {
+  with CromwellInstrumentationActor {
   private val writePath = instrumentationPath.::("write")
   private val queueSizePath = instrumentationPath.::("queue")
 
@@ -33,8 +34,8 @@ abstract class InstrumentedBatchActor[C](flushRate: FiniteDuration,
   
   protected def processInner(data: Vector[C]): Future[Int]
   
-  override protected final def process(data: Vector[C]) = {
-    val action = processInner(data)
+  override protected final def process(data: NonEmptyVector[C]) = {
+    val action = processInner(data.toVector)
     action foreach { n =>
       count(writePath, n.toLong, instrumentationPrefix)
     }

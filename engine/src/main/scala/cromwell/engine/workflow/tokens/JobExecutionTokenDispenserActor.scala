@@ -9,6 +9,7 @@ import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor._
 import cromwell.engine.workflow.tokens.TokenPool.TokenPoolPop
 import cromwell.services.instrumentation.CromwellInstrumentation._
 import cromwell.services.instrumentation.CromwellInstrumentationScheduler
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 import scala.collection.immutable.Queue
 
@@ -26,6 +27,7 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
     case JobExecutionTokenRequest(tokenType) => sendTokenRequestResult(sender, tokenType)
     case JobExecutionTokenReturn(token) => unassign(sender, token)
     case Terminated(terminee) => onTerminate(terminee)
+    case ShutdownCommand => context stop self
   }
 
   private def sendTokenRequestResult(sndr: ActorRef, tokenType: JobExecutionTokenType): Unit = {

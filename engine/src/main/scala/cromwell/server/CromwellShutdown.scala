@@ -78,6 +78,7 @@ object CromwellShutdown extends GracefulStopSupport {
                              actorSystem: ActorSystem,
                              workflowManagerActor: ActorRef,
                              logCopyRouter: ActorRef,
+                             jobTokenDispenser: ActorRef,
                              jobStoreActor: ActorRef,
                              workflowStoreActor: ActorRef,
                              subWorkflowStoreActor: ActorRef,
@@ -189,7 +190,7 @@ object CromwellShutdown extends GracefulStopSupport {
       * - DockerHashActor
       * - IoActor
     */
-    List(subWorkflowStoreActor, jobStoreActor, callCacheWriteActor, serviceRegistryActor, dockerHashActor, ioActor) foreach {
+    List(jobTokenDispenser, subWorkflowStoreActor, jobStoreActor, callCacheWriteActor, serviceRegistryActor, dockerHashActor, ioActor) foreach {
       shutdownActor(_, PhaseStopIoActivity, ShutdownCommand)
     }
 

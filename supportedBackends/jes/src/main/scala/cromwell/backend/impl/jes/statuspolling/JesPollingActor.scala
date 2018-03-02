@@ -8,20 +8,20 @@ import com.google.api.services.genomics.Genomics
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager._
 import cromwell.backend.impl.jes.statuspolling.JesPollingActor._
 import cromwell.core.Dispatcher.BackendDispatcher
-import cromwell.services.instrumentation.CromwellInstrumentation
+import cromwell.services.instrumentation.CromwellInstrumentationActor
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric._
 
+import scala.collection.JavaConverters._
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
-import scala.concurrent.duration._
-import scala.collection.JavaConverters._
 
 /**
   * Sends batched requests to JES as a worker to the JesApiQueryManager
   */
 class JesPollingActor(val pollingManager: ActorRef, val qps: Int Refined Positive, override val serviceRegistryActor: ActorRef) extends Actor with ActorLogging
-  with StatusPolling with RunCreation with CromwellInstrumentation {
+  with StatusPolling with RunCreation with CromwellInstrumentationActor {
   // The interval to delay between submitting each batch
   lazy val batchInterval = determineBatchInterval(qps)
   log.debug("JES batch polling interval is {}", batchInterval)

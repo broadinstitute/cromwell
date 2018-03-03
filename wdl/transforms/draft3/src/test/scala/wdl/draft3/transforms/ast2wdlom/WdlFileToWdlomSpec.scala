@@ -272,20 +272,9 @@ object WdlFileToWdlomSpec {
             inputsSection = Some(InputsSectionElement(
                                    Vector(
                                      InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "a", None),
-                                     InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "b", None)
                                    ))),
-            outputsSection = Some(OutputsSectionElement(
-                                    Vector(
-                                      OutputDeclarationElement(
-                                        PrimitiveTypeElement(WomIntegerType), "out",
-                                        Add(IdentifierLookup("a"), IdentifierLookup("b"))
-                                      )))),
-            commandSection = CommandSectionElement(Vector(
-                                                     StringCommandPartElement("\n    echo $(("),
-                                                     PlaceholderCommandPartElement(IdentifierLookup("a")),
-                                                     StringCommandPartElement(" + "),
-                                                     PlaceholderCommandPartElement(IdentifierLookup("b")),
-                                                     StringCommandPartElement("))\n"))),
+            outputsSection = Some(OutputsSectionElement(Vector.empty)),
+            commandSection = CommandSectionElement(Vector.empty),
             runtimeSection = None,
             metaSection = Some(MetaSectionElement(Vector(
                                                (MetaKvPair("author", MetaValueElement.MString("John Doe"))),

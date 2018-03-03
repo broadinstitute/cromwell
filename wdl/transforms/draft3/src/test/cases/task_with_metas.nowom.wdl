@@ -2,14 +2,12 @@ version draft-3
 
 task task_with_metas {
   input {
-    Int a
   }
 
   output {
   }
 
-  command {
-  }
+  command { echo Hello World }
 
   meta {
     author: "John Doe"

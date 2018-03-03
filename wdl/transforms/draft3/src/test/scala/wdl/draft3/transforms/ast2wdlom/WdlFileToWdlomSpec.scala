@@ -269,12 +269,9 @@ object WdlFileToWdlomSpec {
         tasks = Vector(
           TaskDefinitionElement(
             name = "task_with_metas",
-            inputsSection = Some(InputsSectionElement(
-                                   Vector(
-                                     InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "a", None),
-                                   ))),
+            inputsSection = Some(InputsSectionElement(Vector.empty)),
             outputsSection = Some(OutputsSectionElement(Vector.empty)),
-            commandSection = CommandSectionElement(Vector.empty),
+            commandSection = CommandSectionElement(Vector(StringCommandPartElement(" echo Hello World "))),
             runtimeSection = None,
             metaSection = Some(MetaSectionElement(Vector(
                                                (MetaKvPair("author", MetaValueElement.MString("John Doe"))),

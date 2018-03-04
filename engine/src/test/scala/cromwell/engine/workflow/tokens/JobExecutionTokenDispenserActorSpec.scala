@@ -1,15 +1,12 @@
 package cromwell.engine.workflow.tokens
 
-import java.util.UUID
-
 import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
-import cromwell.core.JobExecutionToken
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
-import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecutionTokenDenied, JobExecutionTokenDispensed, JobExecutionTokenRequest, JobExecutionTokenReturn}
+import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor._
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActorSpec._
-import cromwell.engine.workflow.tokens.TestTokenGrabbingActor.StoppingSupervisor
 import cromwell.util.AkkaTestUtil
+import cromwell.util.AkkaTestUtil.StoppingSupervisor
 import org.scalatest._
 import org.scalatest.concurrent.Eventually
 
@@ -17,253 +14,212 @@ import scala.concurrent.duration._
 
 class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec")) with ImplicitSender with FlatSpecLike with Matchers with BeforeAndAfter with BeforeAndAfterAll with Eventually {
 
-  val MaxWaitTime = 100.milliseconds
+  val MaxWaitTime = 5.seconds
   implicit val pc: PatienceConfig = PatienceConfig(MaxWaitTime)
 
   behavior of "JobExecutionTokenDispenserActor"
 
   it should "dispense an infinite token correctly" in {
     actorRefUnderTest ! JobExecutionTokenRequest(TestInfiniteTokenType)
-    expectMsgPF(max = MaxWaitTime, hint = "token dispensed message") {
-      case JobExecutionTokenDispensed(token) =>
-        token.jobExecutionTokenType should be(TestInfiniteTokenType)
-    }
+    expectMsg(max = MaxWaitTime, JobExecutionTokenDispensed)
+    actorRefUnderTest.underlyingActor.tokenAssignments.contains(self) shouldBe true
+    actorRefUnderTest.underlyingActor.tokenAssignments(self).get().jobExecutionTokenType shouldBe TestInfiniteTokenType
   }
 
   it should "accept return of an infinite token correctly" in {
     actorRefUnderTest ! JobExecutionTokenRequest(TestInfiniteTokenType)
-    expectMsgPF(max = MaxWaitTime, hint = "token dispensed message") {
-      case JobExecutionTokenDispensed(token) =>
-        actorRefUnderTest ! JobExecutionTokenReturn(token)
-    }
+    expectMsg(max = MaxWaitTime, JobExecutionTokenDispensed)
+    actorRefUnderTest.underlyingActor.tokenAssignments.contains(self) shouldBe true
+    actorRefUnderTest.underlyingActor.tokenAssignments(self).get().jobExecutionTokenType shouldBe TestInfiniteTokenType
+    actorRefUnderTest ! JobExecutionTokenReturn
+    actorRefUnderTest.underlyingActor.tokenAssignments.contains(self) shouldBe false
   }
 
   it should "dispense indefinitely for an infinite token type" in {
-    var currentSet: Set[JobExecutionToken] = Set.empty
-    100 indexedTimes { i =>
-      val sender = TestProbe()
-      actorRefUnderTest.tell(msg = JobExecutionTokenRequest(TestInfiniteTokenType), sender = sender.ref)
-      sender.expectMsgPF(max = MaxWaitTime, hint = "token dispensed message") {
-        case JobExecutionTokenDispensed(token) =>
-          token.jobExecutionTokenType should be(TestInfiniteTokenType)
-          currentSet.contains(token) should be(false)
-          currentSet += token
-      }
-    }
+    val senders = (1 to 20).map(_ => TestProbe())
+    senders.foreach(sender => actorRefUnderTest.tell(msg = JobExecutionTokenRequest(TestInfiniteTokenType), sender = sender.ref))
+    senders.foreach(_.expectMsg(max = MaxWaitTime, JobExecutionTokenDispensed))
+    actorRefUnderTest.underlyingActor.tokenAssignments.size shouldBe 20
+  }
+
+  it should "dispense the correct amount at the specified rate, not more and not faster" in {
+    val senders = (1 to 20).map(_ => TestProbe())
+    senders.foreach(sender => actorRefUnderTest.tell(msg = JobExecutionTokenRequest(TestInfiniteTokenType), sender = sender.ref))
+    // The first 10 should get their token
+    senders.take(10).foreach(_.expectMsg(max = MaxWaitTime, JobExecutionTokenDispensed))
+    // Couldn't figure out a cleaner way to "verify that none of this probes gets a message in the next X seconds"
+    Thread.sleep(1.second.toMillis)
+    // Then the last ten should eventually get it too, but later
+    senders.drop(10).foreach(_.msgAvailable shouldBe false)
+    senders.slice(10, 20).foreach(_.expectMsg(max = MaxWaitTime, JobExecutionTokenDispensed))
   }
 
   it should "dispense a limited token correctly" in {
-
     actorRefUnderTest ! JobExecutionTokenRequest(LimitedTo5Tokens)
-    expectMsgPF(max = MaxWaitTime, hint = "token dispensed message") {
-      case JobExecutionTokenDispensed(token) => token.jobExecutionTokenType should be(LimitedTo5Tokens)
-    }
+    expectMsg(max = MaxWaitTime, JobExecutionTokenDispensed)
+    actorRefUnderTest.underlyingActor.tokenAssignments.contains(self) shouldBe true
+    actorRefUnderTest.underlyingActor.tokenAssignments(self).get().jobExecutionTokenType shouldBe LimitedTo5Tokens
   }
 
   it should "accept return of a limited token type correctly" in {
     actorRefUnderTest ! JobExecutionTokenRequest(LimitedTo5Tokens)
-    expectMsgPF(max = MaxWaitTime, hint = "token dispensed message") {
-      case JobExecutionTokenDispensed(token) => actorRefUnderTest ! JobExecutionTokenReturn(token)
-    }
+    expectMsg(max = MaxWaitTime, JobExecutionTokenDispensed)
+    actorRefUnderTest.underlyingActor.tokenAssignments.contains(self) shouldBe true
+    actorRefUnderTest.underlyingActor.tokenAssignments(self).get().jobExecutionTokenType shouldBe LimitedTo5Tokens
+    actorRefUnderTest ! JobExecutionTokenReturn
+    actorRefUnderTest.underlyingActor.tokenAssignments.contains(self) shouldBe false
   }
 
   it should "limit the dispensing of a limited token type" in {
+    val senders = (1 to 15).map(_ => TestProbe())
+    // Ask for 20 tokens
+    senders.foreach(sender => actorRefUnderTest.tell(msg = JobExecutionTokenRequest(LimitedTo5Tokens), sender = sender.ref))
 
-    var currentTokens: Map[TestProbe, JobExecutionToken] = Map.empty
-    val dummyActors = (0 until 100 map { i => i -> TestProbe("dummy_" + i) }).toMap
+    // Force token distribution
+    actorRefUnderTest ! TokensAvailable(100)
+    senders.take(5).foreach(_.expectMsg(JobExecutionTokenDispensed))
 
-    // Dispense the first 5:
-    5 indexedTimes { i =>
-      val sndr = dummyActors(i)
-      actorRefUnderTest.tell(msg = JobExecutionTokenRequest(LimitedTo5Tokens), sender = sndr.ref)
-      sndr.expectMsgPF(max = MaxWaitTime, hint = "token dispensed message") {
-        case JobExecutionTokenDispensed(token) =>
-          token.jobExecutionTokenType should be(LimitedTo5Tokens)
-          currentTokens.values.toList.contains(token) should be(false) // Check we didn't already get this token
-          currentTokens += sndr -> token
-      }
-    }
+    actorRefUnderTest.underlyingActor.tokenAssignments.size shouldBe 5
+    actorRefUnderTest.underlyingActor.tokenAssignments.keySet should contain theSameElementsAs senders.map(_.ref).take(5).toSet
 
-    // Queue the next 95:
-    95 indexedTimes { i =>
-      val sndr = dummyActors(5 + i)
-      actorRefUnderTest.tell(msg = JobExecutionTokenRequest(LimitedTo5Tokens), sender = sndr.ref)
-      sndr.expectMsgPF(max = MaxWaitTime, hint = "token denied message") {
-        case JobExecutionTokenDenied(positionInQueue) =>
-          positionInQueue should be(i)
-      }
-    }
+    // The last 10 should be queued
+    // At this point [0, 1, 2, 3, 4] are the ones with tokens, and [5, 14] are still queued
+    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).size shouldBe 10
+    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.toList should contain theSameElementsInOrderAs senders.drop(5).map(_.ref)
 
-    // It should allow queued actors to check their position in the queue:
-    95 indexedTimes { i =>
-      val sndr = dummyActors(5 + i)
-      actorRefUnderTest.tell(msg = JobExecutionTokenRequest(LimitedTo5Tokens), sender = sndr.ref)
-      sndr.expectMsgPF(max = MaxWaitTime, hint = "token denied message") {
-        case JobExecutionTokenDenied(positionInQueue) =>
-          positionInQueue should be(i)
-      }
-    }
+    // Force token distribution
+    actorRefUnderTest ! TokensAvailable(100)
+    // The other still should have received nothing
+    senders.drop(5).foreach(_.msgAvailable shouldBe false)
 
-    // It should release tokens as soon as they're available (while there's still a queue...):
-    95 indexedTimes { i =>
-      val returner = dummyActors(i)
-      val nextInLine = dummyActors(i + 5)
-      val tokenBeingReturned = currentTokens(returner)
-      actorRefUnderTest.tell(msg = JobExecutionTokenReturn(tokenBeingReturned), sender = returner.ref)
-      currentTokens -= returner
-      nextInLine.expectMsgPF(max = MaxWaitTime, hint = s"token dispensed message to the next in line actor (#${i + 5})") {
-        case JobExecutionTokenDispensed(token) =>
-          token should be(tokenBeingReturned) // It just gets immediately passed out again!
-          currentTokens += nextInLine -> token
-      }
-    }
+    // Release a few tokens
+    // The next 3 (i.e 5, 6, 7) should get their token at the next distribution cycle
+    senders.take(3).foreach(_.send(actorRefUnderTest, JobExecutionTokenReturn))
+
+    // Force token distribution
+    actorRefUnderTest ! TokensAvailable(100)
+    senders.slice(5, 8).foreach(_.expectMsg(JobExecutionTokenDispensed))
+
+    // At this point [3, 4, 5, 6, 7] are the ones with tokens, and [8, 19] are still queued
+    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.toList should contain theSameElementsInOrderAs senders.slice(8, 20).map(_.ref)
 
     // Double-check the queue state: when we request a token now, we should still be denied:
     actorRefUnderTest ! JobExecutionTokenRequest(LimitedTo5Tokens)
-    expectMsgClass(classOf[JobExecutionTokenDenied])
+    // Force token distribution
+    actorRefUnderTest ! TokensAvailable(100)
+    expectNoMsg()
+    // We should be enqueued and the last in the queue though
+    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.last shouldBe self
 
-    //And finally, silently release the remaining tokens:
-    5 indexedTimes { i =>
-      val returner = dummyActors(i + 95)
-      val tokenBeingReturned = currentTokens(returner)
-      actorRefUnderTest.tell(msg = JobExecutionTokenReturn(tokenBeingReturned), sender = returner.ref)
-      currentTokens -= returner
-    }
+    // Release all currently owned tokens
+    senders.slice(3, 8).foreach(_.send(actorRefUnderTest, JobExecutionTokenReturn))
+    // Force token distribution
+    actorRefUnderTest ! TokensAvailable(100)
+    actorRefUnderTest.underlyingActor.tokenAssignments.keySet should contain theSameElementsAs senders.map(_.ref).slice(8, 13)
+    // Keep accepting and returning tokens immediately
+    senders.slice(8, 13).foreach(_.expectMsg(JobExecutionTokenDispensed))
+    senders.slice(8, 13).foreach(_.reply(JobExecutionTokenReturn))
+    actorRefUnderTest ! TokensAvailable(100)
+    // Last 2 tokens
+    senders.slice(13, 15).foreach(_.expectMsg(JobExecutionTokenDispensed))
 
-    // And we should have gotten our own token by now:
-    expectMsgClass(classOf[JobExecutionTokenDispensed])
+    // We were last on the list but we should have our token now
+    expectMsg(JobExecutionTokenDispensed)
 
-    // Check we didn't get anything else in the meanwhile:
-    msgAvailable should be(false)
-    dummyActors.values foreach { testProbe => testProbe.msgAvailable should be(false) }
+    // Queue should be empty now
+    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).size shouldBe 0
+
+    // There should be 3 assigned tokens: index 18, 19, and this test actor
+    actorRefUnderTest.underlyingActor.tokenAssignments.keySet should contain theSameElementsAs senders.map(_.ref).slice(13, 15) :+ self
   }
 
   it should "resend the same token to an actor which already has one" in {
-    actorRefUnderTest ! JobExecutionTokenRequest(LimitedTo5Tokens)
-    val firstResponse = expectMsgClass(classOf[JobExecutionTokenDispensed])
-
-    5 indexedTimes { i =>
+    5 indexedTimes { _ =>
       actorRefUnderTest ! JobExecutionTokenRequest(LimitedTo5Tokens)
-      expectMsg(MaxWaitTime, s"same token again (attempt ${i + 1})", firstResponse) // Always the same
     }
+    // Force token distribution
+    actorRefUnderTest ! TokensAvailable(100)
+    // Nothing should be queued
+    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).size shouldBe 0
+    // We should be the only actor with an assigned token
+    actorRefUnderTest.underlyingActor.tokenAssignments.keySet shouldBe Set(self)
+    // Only 1 token should be leased
+    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).pool.leased() shouldBe 1
   }
 
 
-  // Incidentally, also covers: it should "not be fooled if the wrong actor returns a token"
+  //Incidentally, also covers: it should "not be fooled if the wrong actor returns a token"
   it should "not be fooled by a doubly-returned token" in {
-    var currentTokens: Map[TestProbe, JobExecutionToken] = Map.empty
-    val dummyActors = (0 until 7 map { i => i -> TestProbe("dummy_" + i) }).toMap
+    val senders = (1 to 7).map(_ => TestProbe())
+    // Ask for 7 tokens
+    senders.foreach(sender => actorRefUnderTest.tell(msg = JobExecutionTokenRequest(LimitedTo5Tokens), sender = sender.ref))
 
-    // Set up by taking all 5 tokens out, and then adding 2 to the queue:
-    5 indexedTimes { i =>
-      val sndr = dummyActors(i)
-      actorRefUnderTest.tell(msg = JobExecutionTokenRequest(LimitedTo5Tokens), sender = sndr.ref)
-      currentTokens += dummyActors(i) -> sndr.expectMsgClass(classOf[JobExecutionTokenDispensed]).jobExecutionToken
-    }
-    2 indexedTimes { i =>
-      val sndr = dummyActors(5 + i)
-      actorRefUnderTest.tell(msg = JobExecutionTokenRequest(LimitedTo5Tokens), sender = sndr.ref)
-      sndr.expectMsgClass(classOf[JobExecutionTokenDenied])
-    }
+    // Force token distribution
+    actorRefUnderTest ! TokensAvailable(5)
+    // Get the first 5
+    senders.take(5).foreach(_.expectMsg(JobExecutionTokenDispensed))
 
-    // The first time we return a token, the next in line should be given it:
-    val returningActor = dummyActors(0)
-    val nextInLine1 = dummyActors(5)
-    val nextInLine2 = dummyActors(6)
-    val tokenBeingReturned = currentTokens(returningActor)
-    currentTokens -= returningActor
-    actorRefUnderTest.tell(msg = JobExecutionTokenReturn(tokenBeingReturned), sender = returningActor.ref)
-    val tokenPassedOn = nextInLine1.expectMsgClass(classOf[JobExecutionTokenDispensed]).jobExecutionToken
-    tokenPassedOn should be(tokenBeingReturned)
-    currentTokens += nextInLine1 -> tokenPassedOn
+    // Sender 0 returns his token
+    actorRefUnderTest.tell(JobExecutionTokenReturn, senders.head.ref)
 
-    // But the next time, nothing should happen because the wrong actor is returning the token:
-    actorRefUnderTest.tell(msg = JobExecutionTokenReturn(tokenBeingReturned), sender = returningActor.ref)
-    nextInLine2.expectNoMsg(MaxWaitTime)
-  }
+    // Force token distribution
+    actorRefUnderTest ! TokensAvailable(1)
+    // Sender 5 gets his
+    senders(5).expectMsg(JobExecutionTokenDispensed)
 
-  it should "not be fooled if an actor returns a token which doesn't exist" in {
-    var currentTokens: Map[TestProbe, JobExecutionToken] = Map.empty
-    val dummyActors = (0 until 6 map { i => i -> TestProbe("dummy_" + i) }).toMap
+    // Now sender 0 again returns a token, although it doesn't have one !
+    actorRefUnderTest.tell(JobExecutionTokenReturn, senders.head.ref)
 
-    // Set up by taking all 5 tokens out, and then adding 2 to the queue:
-    5 indexedTimes { i =>
-      val sndr = dummyActors(i)
-      actorRefUnderTest.tell(msg = JobExecutionTokenRequest(LimitedTo5Tokens), sender = sndr.ref)
-      currentTokens += dummyActors(i) -> sndr.expectMsgClass(classOf[JobExecutionTokenDispensed]).jobExecutionToken
-    }
-    1 indexedTimes { i =>
-      val sndr = dummyActors(5 + i)
-      actorRefUnderTest.tell(msg = JobExecutionTokenRequest(LimitedTo5Tokens), sender = sndr.ref)
-      sndr.expectMsgClass(classOf[JobExecutionTokenDenied])
-    }
-
-    actorRefUnderTest.tell(msg = JobExecutionTokenReturn(JobExecutionToken(LimitedTo5Tokens, UUID.randomUUID())), sender = dummyActors(0).ref)
-    dummyActors(5).expectNoMsg(MaxWaitTime)
+    // Nothing should happen, specifically Sender 6 should not get his token
+    senders(6).expectNoMsg(MaxWaitTime)
   }
 
   AkkaTestUtil.actorDeathMethods(system) foreach { case (name, stopMethod) =>
     it should s"recover tokens lost to actors which are $name before they hand back their token" in {
-      var currentTokens: Map[TestActorRef[TestTokenGrabbingActor], JobExecutionToken] = Map.empty
-      var tokenGrabbingActors: Map[Int, TestActorRef[TestTokenGrabbingActor]] = Map.empty
       val grabberSupervisor = TestActorRef(new StoppingSupervisor())
-
-      // Set up by taking all 5 tokens out, and then adding 2 to the queue:
-      5 indexedTimes { i =>
-        val newGrabbingActor = TestActorRef[TestTokenGrabbingActor](TestTokenGrabbingActor.props(actorRefUnderTest, LimitedTo5Tokens), grabberSupervisor, s"grabber_${name}_" + i)
-        tokenGrabbingActors += i -> newGrabbingActor
-        eventually {
-          newGrabbingActor.underlyingActor.token.isDefined should be(true)
-        }
-        currentTokens += newGrabbingActor -> newGrabbingActor.underlyingActor.token.get
+      // The first 5 get a token and the 6th one is queued
+      val tokenGrabbingActors = (1 to 6).map { i =>
+        TestActorRef[TestTokenGrabbingActor](TestTokenGrabbingActor.props(actorRefUnderTest, LimitedTo5Tokens), grabberSupervisor, s"grabber_${name}_" + i)
       }
 
-      val unassignedActorIndex = 5
-      val newGrabbingActor = TestActorRef(new TestTokenGrabbingActor(actorRefUnderTest, LimitedTo5Tokens), s"grabber_${name}_" + unassignedActorIndex)
-      tokenGrabbingActors += unassignedActorIndex -> newGrabbingActor
-      eventually {
-        newGrabbingActor.underlyingActor.rejections should be(1)
-      }
+      // Force token distribution
+      actorRefUnderTest ! TokensAvailable(5)
+      // Get the first 5
+      tokenGrabbingActors.take(5).foreach(_.underlyingActor.hasToken shouldBe true)
+      tokenGrabbingActors(5).underlyingActor.hasToken shouldBe false
 
-      val actorToStop = tokenGrabbingActors(0)
-      val actorToStopsToken = currentTokens(actorToStop)
-      val nextInLine = tokenGrabbingActors(unassignedActorIndex)
+      // Stop the first one
+      val actorToStop = tokenGrabbingActors.head
+
+      // Expect the last one to get his token
+      val nextInLine = tokenGrabbingActors.last
 
       val deathwatch = TestProbe()
       deathwatch watch actorToStop
       stopMethod(actorToStop)
       deathwatch.expectTerminated(actorToStop)
-      eventually { nextInLine.underlyingActor.token should be(Some(actorToStopsToken)) }
+      eventually { nextInLine.underlyingActor.hasToken shouldBe true }
     }
   }
 
   it should "skip over dead actors when assigning tokens to the actor queue" in {
-    var currentTokens: Map[TestActorRef[TestTokenGrabbingActor], JobExecutionToken] = Map.empty
-    var tokenGrabbingActors: Map[Int, TestActorRef[TestTokenGrabbingActor]] = Map.empty
     val grabberSupervisor = TestActorRef(new StoppingSupervisor())
-
-    // Set up by taking all 5 tokens out, and then adding 2 to the queue:
-    5 indexedTimes { i =>
-      val newGrabbingActor = TestActorRef[TestTokenGrabbingActor](TestTokenGrabbingActor.props(actorRefUnderTest, LimitedTo5Tokens), grabberSupervisor, s"skip_test_" + i)
-      tokenGrabbingActors += i -> newGrabbingActor
-      eventually {
-        newGrabbingActor.underlyingActor.token.isDefined should be(true)
-      }
-      currentTokens += newGrabbingActor -> newGrabbingActor.underlyingActor.token.get
-    }
-    2 indexedTimes { i =>
-      val index = i + 5
-      val newGrabbingActor = TestActorRef[TestTokenGrabbingActor](TestTokenGrabbingActor.props(actorRefUnderTest, LimitedTo5Tokens), grabberSupervisor, s"skip_test_" + index)
-      tokenGrabbingActors += index -> newGrabbingActor
-      eventually {
-        newGrabbingActor.underlyingActor.rejections should be(1)
-      }
+    // The first 5 get a token and the 6th and 7h one are queued
+    val tokenGrabbingActors = (1 to 7).map { i =>
+      TestActorRef[TestTokenGrabbingActor](TestTokenGrabbingActor.props(actorRefUnderTest, LimitedTo5Tokens), grabberSupervisor, s"grabber_" + i)
     }
 
-    val returningActor = tokenGrabbingActors(0)
-    val returnedToken = currentTokens(returningActor)
+    // Force token distribution
+    actorRefUnderTest ! TokensAvailable(5)
+    // Get the first 5
+    tokenGrabbingActors.take(5).foreach(_.underlyingActor.hasToken shouldBe true)
     val nextInLine1 = tokenGrabbingActors(5)
     val nextInLine2 = tokenGrabbingActors(6)
+
+    // Check that the next in lines have no tokens and are indeed in the queue
+    nextInLine1.underlyingActor.hasToken shouldBe false
+    nextInLine2.underlyingActor.hasToken shouldBe false
+    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.toList should contain theSameElementsInOrderAs List(nextInLine1, nextInLine2)
 
     // First, kill off the actor which would otherwise be first in line:
     val deathwatch = TestProbe()
@@ -271,16 +227,17 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
     nextInLine1 ! PoisonPill
     deathwatch.expectTerminated(nextInLine1)
 
-    // Now, stop one of the workers unexpectedly and check that the released token goes to the right place:
-    actorRefUnderTest.tell(msg = JobExecutionTokenReturn(returnedToken), sender = returningActor)
-    eventually { nextInLine2.underlyingActor.token should be(Some(returnedToken)) } // Some is OK. This is the **expected** value!
+    // Now, have an actor return its token and check that the released token goes to nextInLine2:
+    actorRefUnderTest.tell(msg = JobExecutionTokenReturn, sender = tokenGrabbingActors.head)
+    // Force token distribution
+    actorRefUnderTest ! TokensAvailable(1)
+    eventually { nextInLine2.underlyingActor.hasToken shouldBe true } // Some is OK. This is the **expected** value!
   }
 
   var actorRefUnderTest: TestActorRef[JobExecutionTokenDispenserActor] = _
 
   before {
-    actorRefUnderTest = TestActorRef(new JobExecutionTokenDispenserActor(TestProbe().ref))
-
+    actorRefUnderTest = TestActorRef(new JobExecutionTokenDispenserActor(TestProbe().ref, Rate(10, 2.second)))
   }
   after {
     actorRefUnderTest = null

@@ -241,6 +241,19 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   /** Any custom code that should be run within commandScriptContents before the instantiated command. */
   def scriptPreamble: String = ""
 
+  // TODO: Discuss if this lift is appropriate, and if they should be functions
+  //       of lazy vals
+  def cwd: Path = commandDirectory
+  def rcPath: Path = cwd./(jobPaths.returnCodeFilename)
+  private def absolutizeContainerPath(path: String): String = {
+    if (path.startsWith(cwd.pathAsString)) path else cwd.resolve(path).pathAsString
+  }
+
+  def executionStdin: Option[String] = instantiatedCommand.evaluatedStdinRedirection map absolutizeContainerPath
+  def executionStdout: String = instantiatedCommand.evaluatedStdoutOverride.getOrElse(jobPaths.defaultStdoutFilename) |> absolutizeContainerPath
+  def executionStderr: String = instantiatedCommand.evaluatedStderrOverride.getOrElse(jobPaths.defaultStderrFilename) |> absolutizeContainerPath
+  // End added lift code
+
   /** A bash script containing the custom preamble, the instantiated command, and output globbing behavior. */
   def commandScriptContents: ErrorOr[String] = {
     jobLogger.info(s"`${instantiatedCommand.commandString}`")

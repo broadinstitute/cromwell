@@ -112,8 +112,8 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
   private val stringOrExpressionTests = Table(
     ("index", "result"),
     (0, Coproduct[StringOrExpression]("grep")),
-    (1, Coproduct[StringOrExpression](Coproduct[Expression](refineMV[MatchesECMAScript]("$(inputs.pattern)")))),
-    (2, Coproduct[StringOrExpression](Coproduct[Expression](refineMV[MatchesECMAFunction]("$" + "{return inputs.file}")))),
+    (1, Coproduct[StringOrExpression](Coproduct[Expression](refineMV[MatchesECMAScriptExpression]("$(inputs.pattern)")))),
+    (2, Coproduct[StringOrExpression](Coproduct[Expression](refineMV[MatchesECMAScriptFunction]("$" + "{return inputs.file}")))),
     (3, Coproduct[StringOrExpression]("|")),
     (4, Coproduct[StringOrExpression]("wc")),
     (5, Coproduct[StringOrExpression]("-l"))

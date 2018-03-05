@@ -21,10 +21,9 @@ $graph:
           position: 3
       secondaryFiles: [.also]
   outputs:
-    ignored:
-      type: int
+    the_answer:
+      type: string
       outputBinding:
-        glob: "*.txt"
-        outputEval: $(self.length)
+        outputEval: ${ return "$(" + 42 + ")"; }
   baseCommand: []
   arguments: ["bash", "-c", $(inputs.command)]

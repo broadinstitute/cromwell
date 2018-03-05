@@ -14,7 +14,7 @@ class ExpressionEvaluatorSpec extends FlatSpec with Matchers {
       "someother" -> WomBoolean(false)
     )
     val parameterContext = ParameterContext(values)
-    ExpressionEvaluator.eval("inputs.myName", parameterContext).toTry.get should be(WomString("hi"))
-    ExpressionEvaluator.eval("inputs.someother", parameterContext).toTry.get should be(WomBoolean(false))
+    ExpressionEvaluator.eval("inputs.myName", parameterContext, Vector.empty).toTry.get should be(WomString("hi"))
+    ExpressionEvaluator.eval("inputs.someother", parameterContext, Vector.empty).toTry.get should be(WomBoolean(false))
   }
 }

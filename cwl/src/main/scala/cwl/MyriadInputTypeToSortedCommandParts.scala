@@ -23,10 +23,10 @@ object MyriadInputTypeToSortedCommandParts extends Poly1 {
     *         type: array
     *         items: File
     *         inputBinding: { prefix: "-YYY" }
-    *         
+    *
     * Here the array type has an inputBinding but the input itself (arrayInput) does not.
     * This would yield on the command line something like "-YYY arrayItem0 -YYY arrayItem1 ..."
-    * 
+    *
     * On the other hand:
     *     - id: arrayInput
     *       type:
@@ -34,27 +34,39 @@ object MyriadInputTypeToSortedCommandParts extends Poly1 {
     *         items: File
     *         inputBinding: { prefix: "-YYY" }
     *       inputBinding: { prefix: "-XXX" }
-    *       
+    *
     * In this case the input itself has a binding as well, which would yield something like "-XXX -YYY arrayItem0 -YYY arrayItem1 ..."
-    * 
+    *
     * For arrays specifically, the presence of an "itemSeparator" and / or "valueFrom" in the input binding will change the way the array is processed,
     * which is why we need to know about it in this Poly1 that folds over the input types.
-    *   
+    *
     * WomValue: value bound to the element (in the cases above it would be the WomArray)
     * CommandBindingSortingKey: The current sorting key. Because we might need to recurse in nested types we need to propagate the key as we do.
     */
   type CommandPartBuilder = (Option[InputCommandLineBinding], WomValue, CommandBindingSortingKey, ExpressionLib) => CommandPartsList
 
-  implicit def m: Aux[MyriadInputInnerType, CommandPartBuilder] = at[MyriadInputInnerType] { innerType => {
-    case (binding, womValue, sortingKey, expressionLib) =>
-      innerType.fold(MyriadInputInnerTypeToSortedCommandParts).apply(binding, womValue, sortingKey, expressionLib)
-  }
+  implicit def m: Aux[MyriadInputInnerType, CommandPartBuilder] = {
+    at {
+      innerType => {
+        (binding, womValue, sortingKey, expressionLib) =>
+          innerType
+            .fold(MyriadInputInnerTypeToSortedCommandParts)
+            .apply(binding, womValue, sortingKey, expressionLib)
+      }
+    }
   }
 
-  implicit def am: Aux[Array[MyriadInputInnerType], CommandPartBuilder] = at[Array[MyriadInputInnerType]] { types => {
-    case (binding, womValue, sortingKey, expressionLib) =>
-      types.toList.flatMap(_.fold(MyriadInputInnerTypeToSortedCommandParts).apply(binding, womValue, sortingKey, expressionLib))
-  }
+  implicit def am: Aux[Array[MyriadInputInnerType], CommandPartBuilder] = {
+    at {
+      innerTypes => {
+        (binding, womValue, sortingKey, expressionLib) =>
+          innerTypes.toList.flatMap(
+            _
+              .fold(MyriadInputInnerTypeToSortedCommandParts)
+              .apply(binding, womValue, sortingKey, expressionLib)
+          )
+      }
+    }
   }
 }
 
@@ -65,13 +77,18 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
   def ex(component: String) = throw new RuntimeException(s"input type $component not yet supported by WOM!")
 
   // Primitive type: we just need to create a command part from the binding if there's one here.
-  implicit def ct: Aux[CwlType, CommandPartBuilder] =
-    at[CwlType] {
-      case CwlType.Null => {case (_, _,_,_) => List.empty}
-      case _ => {
-        case (binding, womValue, key, expressionLib) => binding.toList.map(_.toCommandPart(key, womValue, expressionLib))
+  implicit def ct: Aux[CwlType, CommandPartBuilder] = {
+    at {
+      cwlType => {
+        (inputBinding, womValue, key, expressionLib) => {
+          cwlType match {
+            case CwlType.Null => CommandPartsList.empty
+            case _ => inputBinding.toList.map(_.toCommandPart(key, womValue, expressionLib))
+          }
+        }
       }
     }
+  }
 
   implicit def irs: Aux[InputRecordSchema, CommandPartBuilder] = at[InputRecordSchema] { irs => {
     def go: CommandPartBuilder = {
@@ -80,8 +97,11 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
       case (inputBinding, WomOptionalValue(_, Some(value)), sortingKey, expressionLib) =>
         go(inputBinding, value, sortingKey, expressionLib)
 
-        //If it's optional and there's no value, do nothing
-      case (_, WomOptionalValue(_, None), _, _) => List.empty
+      // If it's optional and there's no value, do nothing
+      case (_, WomOptionalValue(_, None), _, _) => CommandPartsList.empty
+
+      // If there's no input binding and no input bindings within the irs, do nothing
+      case (None, _, _, _) if !irs.fields.exists(_.exists(_.inputBinding.isDefined)) => CommandPartsList.empty
 
       case (inputBinding, objectLike: WomObjectLike, sortingKey, expressionLib) =>
         // If there's an input binding, make a SortKeyAndCommandPart for it
@@ -124,7 +144,10 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
         go(inputBinding, value, sortingKey, expressionLib)
 
       //If it's optional and there's no value, do nothing
-      case (_, WomOptionalValue(_, None), _, _) => List.empty
+      case (_, WomOptionalValue(_, None), _, _) => CommandPartsList.empty
+
+      // If there's no input binding and no input bindings for the ias, do nothing
+      case (None, _, _, _) if ias.inputBinding.isEmpty => CommandPartsList.empty
 
       case (inputBinding, WomArray.WomArrayLike(womArray), sortingKey, expressionLib) =>
 
@@ -162,5 +185,13 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
     go
   }
 
-  implicit def s: Aux[String, CommandPartBuilder] = at[String] { _ => { case (_, _, _, _) => CommandPartsList.empty } }
+  implicit def s: Aux[String, CommandPartBuilder] = {
+    at {
+      _ => {
+        (_, _, _, _) => {
+          CommandPartsList.empty
+        }
+      }
+    }
+  }
 }

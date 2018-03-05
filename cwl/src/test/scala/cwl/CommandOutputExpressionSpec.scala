@@ -4,7 +4,6 @@ import cats.implicits._
 import cwl.CommandLineTool.CommandOutputParameter
 import cwl.ExpressionEvaluator._
 import eu.timepit.refined._
-import eu.timepit.refined.string.MatchesRegex
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct
 import wom.expression.{IoFunctionSet, PlaceholderIoFunctionSet}
@@ -36,8 +35,9 @@ class CommandOutputExpressionSpec extends FlatSpec with Matchers {
   it should "evaluateValue" in {
     val data = "41.1"
     val tempFile = better.files.File.newTemporaryFile("glob.", ".txt").write(data)
-    val globExpression = Coproduct[Expression](refineMV[MatchesRegex[ECMAScriptExpressionWitness.T]]("$(inputs.myTempFile)"))
-    val outputEvalExpression = Coproduct[Expression](refineMV[MatchesRegex[ECMAScriptExpressionWitness.T]]("$((parseInt(self[0].contents) + 1).toFixed())"))
+    val globExpression = Coproduct[Expression](refineMV[MatchesECMAScriptExpression]("$(inputs.myTempFile)"))
+    val outputEvalExpression = Coproduct[Expression](refineMV[MatchesECMAScriptExpression](
+      "$((parseInt(self[0].contents) + 1).toFixed())"))
     val glob = Coproduct[Glob](Coproduct[StringOrExpression](globExpression))
     val outputEval = Coproduct[StringOrExpression](outputEvalExpression)
     val outputBinding = CommandOutputBinding(Option(glob), Option(true), Option(outputEval))

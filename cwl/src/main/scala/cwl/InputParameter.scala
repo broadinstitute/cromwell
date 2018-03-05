@@ -1,11 +1,14 @@
 package cwl
 
 import cats.syntax.traverse._
+import cats.syntax.validated._
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import shapeless.Poly1
-import wom.types.WomType
-import wom.values.{WomArray, WomValue}
+import wom.callable.Callable.InputDefinition.InputValueMapper
+import wom.expression.IoFunctionSet
+import wom.types.{WomSingleFileType, WomType}
+import wom.values.{WomArray, WomMaybePopulatedFile, WomValue}
 
 trait InputParameter {
   def id: String
@@ -82,6 +85,61 @@ object InputParameter {
             val sprayJson = stringJson.parseJson
             womType.coerceRawValue(sprayJson).toErrorOr
       }
+    }
+  }
+
+  /**
+    * Yet another value mapper. This one is needed because in CWL we might need to "augment" inputs which we can only do
+    * once they have been linked to a WomValue. This input value mapper encapsulates logic to be applied once that is
+    * done. For now, if the inputParameter has an input binding with loadContents = true, load the content of the file.
+    *
+    * This is based on the spec in http://www.commonwl.org/v1.0/CommandLineTool.html#Input_binding
+    *
+    * NOTE: There may be _many_ cases not implemented here that need to be fixed.
+    */
+  def inputValueMapper(inputParameter: InputParameter,
+                       inputType: MyriadInputType,
+                       expressionLib: ExpressionLib): InputValueMapper = {
+    ioFunctionSet: IoFunctionSet => {
+
+      def populateFiles(womValue: WomValue): ErrorOr[WomValue] = {
+        womValue match {
+          case womMaybePopulatedFile: WomMaybePopulatedFile =>
+            val parameterContext = ParameterContext(self = womMaybePopulatedFile)
+            val secondaryFilesFromInputParameter = inputParameter.secondaryFiles
+            val secondaryFilesFromType = inputType.fold(MyriadInputTypeToSecondaryFiles)
+            val secondaryFiles = secondaryFilesFromInputParameter orElse secondaryFilesFromType
+            for {
+              loaded <- maybeLoadContents(womMaybePopulatedFile, ioFunctionSet, inputParameter.loadContents)
+              secondaries <- FileParameter.secondaryFiles(
+                loaded,
+                WomSingleFileType,
+                secondaryFiles,
+                parameterContext,
+                expressionLib
+              )
+              updated = loaded.copy(secondaryFiles = secondaries)
+            } yield updated
+
+          case WomArray(_, values) => values.toList.traverse(populateFiles).map(WomArray(_))
+          case womValue: WomValue =>
+            womValue.valid
+        }
+      }
+
+      womValue => populateFiles(womValue).toTry(s"loading $womValue for ${inputParameter.id}").get
+    }
+  }
+
+  private def maybeLoadContents(womMaybePopulatedFile: WomMaybePopulatedFile,
+                                ioFunctionSet: IoFunctionSet,
+                                loadContents: Boolean): ErrorOr[WomMaybePopulatedFile] = {
+    if (loadContents) {
+      FileParameter.load64KiB(womMaybePopulatedFile.value, ioFunctionSet) map { contents =>
+        womMaybePopulatedFile.copy(contentsOption = Option(contents))
+      }
+    } else {
+      womMaybePopulatedFile.valid
     }
   }
 }

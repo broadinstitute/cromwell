@@ -203,7 +203,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val kvJobKey =
       KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt)
     val scopedKey = ScopedKey(workflowDescriptor.id, kvJobKey, SharedFileSystemAsyncJobExecutionActor.JobIdKey)
-    val kvPair = KvPair(scopedKey, Option(pid))
+    val kvPair = KvPair(scopedKey, pid)
 
     val previousKvPutter = TestProbe()
     val kvPutReq = KvPut(kvPair)

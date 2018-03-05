@@ -16,7 +16,7 @@ object WorkflowInstrumentation {
   private val WorkflowStatePaths: Map[WorkflowState, InstrumentationPath] = WorkflowState.WorkflowStateValues map { state =>
     state -> NonEmptyList.of(state.toString)
   } toMap
-  
+
   // Use "Queued" instead of "Submitted" as it seems to reflect better the actual state
   private val SubmittedPath = NonEmptyList.of("Queued")
   private val RunningPath = NonEmptyList.of(WorkflowStoreState.Running.toString)

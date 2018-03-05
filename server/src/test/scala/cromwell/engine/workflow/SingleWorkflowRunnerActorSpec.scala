@@ -16,7 +16,7 @@ import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
-import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.Rate
+import cromwell.engine.workflow.tokens.DynamicRateLimiter.Rate
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{ExpressionsInInputs, GoodbyeWorld, ThreeStep}

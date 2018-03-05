@@ -4,39 +4,30 @@ import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.services.keyvalue.KeyValueServiceActor
-import cromwell.services.keyvalue.KeyValueServiceActor._
 
-import scala.concurrent.Future
-
+import scala.concurrent.duration._
 object SqlKeyValueServiceActor {
   def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) = Props(SqlKeyValueServiceActor(serviceConfig, globalConfig, serviceRegistryActor)).withDispatcher(ServiceDispatcher)
+  val WriteQueueThreshold = 10 * 1000
+  val ReadQueueThreshold = 10 * 1000
 }
 
 final case class SqlKeyValueServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
-  extends KeyValueServiceActor with BackendKeyValueDatabaseAccess {
-  override implicit val ec = context.dispatcher
-  private implicit val system = context.system
+  extends KeyValueServiceActor {
 
-  override def doPut(put: KvPut): Future[KvResponse] = {
-    put.pair.value match {
-      case Some(_) => updateBackendKeyValuePair(put.pair.key.workflowId,
-        put.pair.key.jobKey,
-        put.pair.key.key,
-        put.pair.value.get).map(_ => KvPutSuccess(put))
-      case None => Future.successful(KvFailure(put, new RuntimeException(s"Failed to find the value associated to key: ${put.pair.key.key}. This key cannot be added to the BackendKVStore.")))
-    }
+  override protected def kvReadActorProps = {
+    SqlKeyValueReadActor.props(
+      SqlKeyValueServiceActor.WriteQueueThreshold,
+      serviceRegistryActor
+    )
   }
 
-  override def doGet(get: KvGet): Future[KvResponse] = {
-    val backendValue = getBackendValueByKey(
-      get.key.workflowId,
-      get.key.jobKey,
-      get.key.key
+  override protected def kvWriteActorProps = {
+    SqlKeyValueWriteActor.props(
+      SqlKeyValueServiceActor.WriteQueueThreshold,
+      serviceRegistryActor,
+      5.seconds,
+      1000
     )
-
-    backendValue map {
-      case Some(maybeValue) => KvPair(get.key, Option(maybeValue))
-      case None => KvKeyLookupFailed(get)
-    }
   }
 }

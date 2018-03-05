@@ -902,7 +902,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     val kvJobKey =
       KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt)
     val scopedKey = ScopedKey(jobDescriptor.workflowDescriptor.id, kvJobKey, jobIdKey)
-    val kvValue = Option(runningJob.jobId)
+    val kvValue = runningJob.jobId
     val kvPair = KvPair(scopedKey, kvValue)
     val kvPut = KvPut(kvPair)
     makeKvRequest(Seq(kvPut)).map(_.head)

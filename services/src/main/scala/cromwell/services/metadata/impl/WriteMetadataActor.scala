@@ -1,13 +1,13 @@
 package cromwell.services.metadata.impl
 
 import akka.actor.{ActorLogging, ActorRef, Props}
+import cats.data.NonEmptyVector
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.Mailbox.PriorityMailbox
 import cromwell.core.instrumentation.InstrumentationPrefixes
-import cromwell.services.MetadataServicesStore
-import cromwell.services.instrumentation.{CromwellInstrumentationActor, InstrumentedBatchActor}
 import cromwell.services.metadata.MetadataEvent
 import cromwell.services.metadata.MetadataService._
+import cromwell.services.{EnhancedBatchActor, MetadataServicesStore}
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -15,16 +15,14 @@ import scala.util.{Failure, Success}
 
 class WriteMetadataActor(override val batchSize: Int,
                          override val flushRate: FiniteDuration,
-                         override val serviceRegistryActor: ActorRef)
-  extends InstrumentedBatchActor[MetadataWriteAction](flushRate, batchSize,
-    MetadataServiceActor.MetadataInstrumentationPrefix, InstrumentationPrefixes.ServicesPrefix) with ActorLogging with
-    MetadataDatabaseAccess with MetadataServicesStore with CromwellInstrumentationActor {
+                         override val serviceRegistryActor: ActorRef,
+                         override val threshold: Int)
+  extends EnhancedBatchActor[MetadataWriteAction](flushRate, batchSize)
+    with ActorLogging
+    with MetadataDatabaseAccess
+    with MetadataServicesStore {
 
-  def commandToData(snd: ActorRef): PartialFunction[Any, MetadataWriteAction] = {
-    case command: MetadataWriteAction => command
-  }
-
-  override def processInner(e: Vector[MetadataWriteAction]) = {
+  override def process(e: NonEmptyVector[MetadataWriteAction]) = instrumentedProcess {
     val empty = (Vector.empty[MetadataEvent], Map.empty[Iterable[MetadataEvent], ActorRef])
 
     val (putWithoutResponse, putWithResponse) = e.foldLeft(empty)({
@@ -46,7 +44,14 @@ class WriteMetadataActor(override val batchSize: Int,
     dbAction.map(_ => allPutEvents.size)
   }
 
+  // EnhancedBatchActor overrides
+  override def receive = enhancedReceive.orElse(super.receive)
   override protected def weightFunction(command: MetadataWriteAction) = command.size
+  override protected def instrumentationPath = MetadataServiceActor.MetadataInstrumentationPrefix
+  override protected def instrumentationPrefix = InstrumentationPrefixes.ServicesPrefix
+  def commandToData(snd: ActorRef): PartialFunction[Any, MetadataWriteAction] = {
+    case command: MetadataWriteAction => command
+  }
 }
 
 object WriteMetadataActor {
@@ -54,8 +59,9 @@ object WriteMetadataActor {
 
   def props(dbBatchSize: Int,
             flushRate: FiniteDuration,
-            serviceRegistryActor: ActorRef): Props =
-    Props(new WriteMetadataActor(dbBatchSize, flushRate, serviceRegistryActor))
+            serviceRegistryActor: ActorRef,
+            threshold: Int): Props =
+    Props(new WriteMetadataActor(dbBatchSize, flushRate, serviceRegistryActor, threshold))
       .withDispatcher(ServiceDispatcher)
       .withMailbox(PriorityMailbox)
 }

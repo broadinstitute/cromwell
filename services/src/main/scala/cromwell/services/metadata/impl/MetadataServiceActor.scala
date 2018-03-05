@@ -33,12 +33,12 @@ object MetadataServiceActor {
 
 final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
   extends Actor with ActorLogging with MetadataDatabaseAccess with MetadataServicesStore with GracefulShutdownHelper {
-  
+
   private val decider: Decider = {
     case _: ActorInitializationException => Escalate
     case _ => Resume
   }
-  
+
   override val supervisorStrategy = new OneForOneStrategy()(decider) {
     override def logFailure(context: ActorContext, child: ActorRef, cause: Throwable, decision: Directive) = {
       val childName = if (child == readActor) "Read" else "Write"
@@ -52,7 +52,8 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
 
   val dbFlushRate = serviceConfig.as[Option[FiniteDuration]]("db-flush-rate").getOrElse(5 seconds)
   val dbBatchSize = serviceConfig.as[Option[Int]]("db-batch-size").getOrElse(200)
-  val writeActor = context.actorOf(WriteMetadataActor.props(dbBatchSize, dbFlushRate, serviceRegistryActor), "WriteMetadataActor")
+  val queueThreshold = 100 * 1000
+  val writeActor = context.actorOf(WriteMetadataActor.props(dbBatchSize, dbFlushRate, serviceRegistryActor, queueThreshold), "WriteMetadataActor")
   implicit val ec = context.dispatcher
   private var summaryRefreshCancellable: Option[Cancellable] = None
 
@@ -93,7 +94,8 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(writeActor))
     case action: PutMetadataAction => writeActor forward action
     case action: PutMetadataActionAndRespond => writeActor forward action
-    case ListenToMetadataWriteActor => writeActor forward Listen(sender())
+    // Assume that listen messages are directed to the write metadata actor
+    case listen: Listen => writeActor forward listen
     case v: ValidateWorkflowId => validateWorkflowId(v.possibleWorkflowId, sender())
     case action: ReadAction => readActor forward action
     case RefreshSummary => summaryActor foreach { _ ! SummarizeMetadata(sender()) }

@@ -78,7 +78,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     val hashResult = DockerHashResult("sha256", "71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950")
     val inputsAndAttributes = (inputs, attributes).validNel
     val prefetchedKey1 = "hello"
-    val prefetchedVal1 = KvPair(helper.scopedKeyMaker(prefetchedKey1), Some("world"))
+    val prefetchedVal1 = KvPair(helper.scopedKeyMaker(prefetchedKey1), "world")
     val prefetchedKey2 = "bonjour"
     val prefetchedVal2 = KvKeyLookupFailed(KvGet(helper.scopedKeyMaker(prefetchedKey2)))
     val prefetchedValues = Map(prefetchedKey1 -> prefetchedVal1, prefetchedKey2 -> prefetchedVal2)

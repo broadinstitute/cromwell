@@ -24,8 +24,7 @@ import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.AbortAllWorkflowsCommand
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor, CallCacheWriteActor}
 import cromwell.engine.workflow.lifecycle.finalization.CopyWorkflowLogsActor
-import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
-import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.Rate
+import cromwell.engine.workflow.tokens.{DynamicRateLimiter, JobExecutionTokenDispenserActor}
 import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowStore, WorkflowStoreActor}
 import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
 import cromwell.services.{EngineServicesStore, ServiceRegistryActor}
@@ -70,7 +69,7 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
     context.actorOf(WorkflowStoreActor.props(workflowStore, serviceRegistryActor, abortJobsOnTerminate), "WorkflowStoreActor")
 
   lazy val jobStore: JobStore = new SqlJobStore(EngineServicesStore.engineDatabaseInterface)
-  lazy val jobStoreActor = context.actorOf(JobStoreActor.props(jobStore), "JobStoreActor")
+  lazy val jobStoreActor = context.actorOf(JobStoreActor.props(jobStore, serviceRegistryActor), "JobStoreActor")
 
   lazy val subWorkflowStore = new SqlSubWorkflowStore(EngineServicesStore.engineDatabaseInterface)
   lazy val subWorkflowStoreActor = context.actorOf(SubWorkflowStoreActor.props(subWorkflowStore), "SubWorkflowStoreActor")
@@ -79,7 +78,7 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   lazy val throttleElements = systemConfig.as[Option[Int]]("io.number-of-requests").getOrElse(100000)
   lazy val throttlePer = systemConfig.as[Option[FiniteDuration]]("io.per").getOrElse(100 seconds)
   lazy val ioThrottle = Throttle(throttleElements, throttlePer, throttleElements)
-  lazy val ioActor = context.actorOf(IoActor.props(1000, Option(ioThrottle), serviceRegistryActor), "IoActor")
+  lazy val ioActor = context.actorOf(IoActor.props(10000, Option(ioThrottle), serviceRegistryActor), "IoActor")
   lazy val ioActorProxy = context.actorOf(IoActorProxy.props(ioActor), "IoProxy")
 
   lazy val workflowLogCopyRouter: ActorRef = context.actorOf(RoundRobinPool(numberOfWorkflowLogCopyWorkers)
@@ -91,10 +90,10 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
 
   lazy val numberOfCacheReadWorkers = config.getConfig("system").as[Option[Int]]("number-of-cache-read-workers").getOrElse(DefaultNumberOfCacheReadWorkers)
   lazy val callCacheReadActor = context.actorOf(RoundRobinPool(numberOfCacheReadWorkers)
-    .props(CallCacheReadActor.props(callCache)),
+    .props(CallCacheReadActor.props(callCache, serviceRegistryActor)),
     "CallCacheReadActor")
 
-  lazy val callCacheWriteActor = context.actorOf(CallCacheWriteActor.props(callCache), "CallCacheWriteActor")
+  lazy val callCacheWriteActor = context.actorOf(CallCacheWriteActor.props(callCache, serviceRegistryActor), "CallCacheWriteActor")
 
   // Docker Actor
   lazy val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
@@ -116,11 +115,11 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
     dockerConf.cacheEntryTtl, dockerConf.cacheSize)(materializer), "DockerHashActor")
 
   lazy val backendSingletons = CromwellBackends.instance.get.backendLifecycleActorFactories map {
-    case (name, factory) => name -> (factory.backendSingletonActorProps(serviceRegistryActor) map context.actorOf)
+    case (name, factory) => name -> (factory.backendSingletonActorProps(serviceRegistryActor) map { context.actorOf(_, s"$name-Singleton") })
   }
   lazy val backendSingletonCollection = BackendSingletonCollection(backendSingletons)
 
-  lazy val rate = Rate(systemConfig.as[Int]("job-rate-control.jobs"), systemConfig.as[FiniteDuration]("job-rate-control.per"))
+  lazy val rate = DynamicRateLimiter.Rate(systemConfig.as[Int]("job-rate-control.jobs"), systemConfig.as[FiniteDuration]("job-rate-control.per"))
 
   lazy val jobExecutionTokenDispenserActor = context.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistryActor, rate), "JobExecutionTokenDispenser")
 

@@ -5,16 +5,17 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.JobExecutionToken._
 import cromwell.core.{ExecutionStatus, JobExecutionToken}
 import cromwell.engine.instrumentation.JobInstrumentation
+import cromwell.engine.workflow.tokens.DynamicRateLimiter.TokensAvailable
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor._
 import cromwell.engine.workflow.tokens.TokenQueue.LeasedActor
 import cromwell.services.instrumentation.CromwellInstrumentation._
 import cromwell.services.instrumentation.CromwellInstrumentationScheduler
+import cromwell.services.loadcontroller.LoadControllerService.ListenToLoadController
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import io.github.andrebeat.pool.Lease
-import scala.concurrent.duration._
 
-class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRef, rate: Rate) extends Actor with ActorLogging 
-  with JobInstrumentation with CromwellInstrumentationScheduler with Timers {
+class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRef, override val distributionRate: DynamicRateLimiter.Rate) extends Actor with ActorLogging
+  with JobInstrumentation with CromwellInstrumentationScheduler with Timers with DynamicRateLimiter {
 
   /**
     * Lazily created token queue. We only create a queue for a token type when we need it
@@ -22,18 +23,20 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
   var tokenQueues: Map[JobExecutionTokenType, TokenQueue] = Map.empty
   var tokenAssignments: Map[ActorRef, Lease[JobExecutionToken]] = Map.empty
 
-  scheduleInstrumentation { 
+  scheduleInstrumentation {
     sendGaugeJob(ExecutionStatus.Running.toString, tokenAssignments.size.toLong)
     sendGaugeJob(ExecutionStatus.QueuedInCromwell.toString, tokenQueues.values.map(_.size).sum.toLong)
   }
 
   override def preStart() = {
-    // Fixed for now, but soon to be modifiable 
-    timers.startPeriodicTimer(TokensTimerKey, TokensAvailable(rate.n), rate.per)
+    ratePreStart()
+    serviceRegistryActor ! ListenToLoadController
     super.preStart()
   }
 
-  override def receive: Actor.Receive = {
+  override def receive: Actor.Receive = tokenDistributionReceive.orElse(rateReceive)
+
+  private def tokenDistributionReceive: Receive = {
     case JobExecutionTokenRequest(tokenType) => enqueue(sender, tokenType)
     case JobExecutionTokenReturn => release(sender)
     case TokensAvailable(n) => distribute(n)
@@ -65,7 +68,7 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
     val iterator = RoundRobinQueueIterator(tokenQueues.values.toList)
 
     val nextTokens = iterator.take(n)
-    
+
     nextTokens.foreach({
       case LeasedActor(actor, lease) if !tokenAssignments.contains(actor) =>
         tokenAssignments = tokenAssignments + (actor -> lease)
@@ -74,7 +77,7 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
       // Only one token per actor, if you've already got one, you don't get this token !
       case LeasedActor(_, lease) => lease.release()
     })
-    
+
     tokenQueues = iterator.updatedQueues.map(queue => queue.tokenType -> queue).toMap
   }
 
@@ -106,11 +109,9 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
 }
 
 object JobExecutionTokenDispenserActor {
-  case class Rate(n: Int, per: FiniteDuration)
   case object TokensTimerKey
-  case class TokensAvailable(n: Int)
 
-  def props(serviceRegistryActor: ActorRef, rate: Rate) = Props(new JobExecutionTokenDispenserActor(serviceRegistryActor, rate)).withDispatcher(EngineDispatcher)
+  def props(serviceRegistryActor: ActorRef, rate: DynamicRateLimiter.Rate) = Props(new JobExecutionTokenDispenserActor(serviceRegistryActor, rate)).withDispatcher(EngineDispatcher)
 
   case class JobExecutionTokenRequest(jobExecutionTokenType: JobExecutionTokenType)
 

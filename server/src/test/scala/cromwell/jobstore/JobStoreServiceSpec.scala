@@ -28,7 +28,7 @@ class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Moc
   "JobStoreService" should {
     "work" in {
       lazy val jobStore: JobStore = new SqlJobStore(EngineServicesStore.engineDatabaseInterface)
-      val jobStoreService = system.actorOf(JobStoreActor.props(jobStore))
+      val jobStoreService = system.actorOf(JobStoreActor.props(jobStore, dummyServiceRegistryActor))
 
       val workflowId = WorkflowId.randomId()
       val mockTask = WomMocks.mockTaskDefinition("bar")

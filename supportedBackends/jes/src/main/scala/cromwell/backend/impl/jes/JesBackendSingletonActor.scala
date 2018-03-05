@@ -5,12 +5,13 @@ import cromwell.backend.BackendSingletonActorAbortWorkflow
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.JesApiQueryManagerRequest
 import cromwell.core.Dispatcher.BackendDispatcher
+import cromwell.core.Mailbox
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 
 final case class JesBackendSingletonActor(qps: Int Refined Positive, serviceRegistryActor: ActorRef) extends Actor with ActorLogging {
 
-  val jesApiQueryManager = context.actorOf(JesApiQueryManager.props(qps, serviceRegistryActor))
+  val jesApiQueryManager = context.actorOf(JesApiQueryManager.props(qps, serviceRegistryActor).withMailbox(Mailbox.PriorityMailbox), "PAPIQueryManager")
 
   override def receive = {
     case abort: BackendSingletonActorAbortWorkflow => jesApiQueryManager.forward(abort)

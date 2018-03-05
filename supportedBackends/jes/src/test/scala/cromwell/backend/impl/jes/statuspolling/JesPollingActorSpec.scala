@@ -41,8 +41,8 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
 
   it should "correctly calculate batch intervals" in {
     import eu.timepit.refined.auto._
-    JesPollingActor.determineBatchInterval(10) should be(11.seconds)
-    JesPollingActor.determineBatchInterval(100000) shouldBe 1.seconds
+    JesPollingActor.determineBatchInterval(10) should be(11111.milliseconds)
+    JesPollingActor.determineBatchInterval(100000) shouldBe 1.millisecond
   }
 
   it should "query for work and wait for a reply" in {

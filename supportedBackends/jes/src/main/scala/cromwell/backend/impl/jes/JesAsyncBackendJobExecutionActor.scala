@@ -16,6 +16,7 @@ import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNo
 import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
 import cromwell.backend.impl.jes.errors.FailedToDelocalizeFailure
 import cromwell.backend.impl.jes.io._
+import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.DoAbortRun
 import cromwell.backend.impl.jes.statuspolling.JesRunCreationClient.JobAbortedException
 import cromwell.backend.impl.jes.statuspolling.{JesRunCreationClient, JesStatusRequestClient}
 import cromwell.backend.io.DirectoryFunctions
@@ -128,7 +129,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   override def tryAbort(job: StandardAsyncJob): Unit = {
-    Run(job, initializationData.genomics).abort()
+    jesBackendSingletonActor ! DoAbortRun(workflowId, Run(job, initializationData.genomics))
   }
 
   override def requestsAbortAndDiesImmediately: Boolean = false
@@ -392,7 +393,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   private def reconnectToExistingJob(jobForResumption: StandardAsyncJob, forceAbort: Boolean = false) = {
     val run = Run(jobForResumption, initializationData.genomics)
-    if (forceAbort) Try(run.abort())
+    if (forceAbort) tryAbort(jobForResumption)
     Future.successful(PendingExecutionHandle(jobDescriptor, jobForResumption, Option(run), previousStatus = None))
   }
 
@@ -519,8 +520,8 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   private def writeFuturePreemptedAndUnexpectedRetryCounts(p: Int, ur: Int): Future[Unit] = {
     val updateRequests = Seq(
-      KvPut(KvPair(ScopedKey(workflowId, futureKvJobKey, JesBackendLifecycleActorFactory.unexpectedRetryCountKey), Option(ur.toString))),
-      KvPut(KvPair(ScopedKey(workflowId, futureKvJobKey, JesBackendLifecycleActorFactory.preemptionCountKey), Option(p.toString)))
+      KvPut(KvPair(ScopedKey(workflowId, futureKvJobKey, JesBackendLifecycleActorFactory.unexpectedRetryCountKey), ur.toString)),
+      KvPut(KvPair(ScopedKey(workflowId, futureKvJobKey, JesBackendLifecycleActorFactory.preemptionCountKey), p.toString))
     )
 
     makeKvRequest(updateRequests).map(_ => ())

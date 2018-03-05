@@ -184,6 +184,13 @@ class TestJesApiQueryManager(qps: Int Refined Positive, createRequestSize: Long,
     testProbes = Queue(statusPollerProbes: _*)
     testPollerCreations = 0
   }
+  
+  override private[statuspolling] lazy val nbWorkers = 1
+  override private[statuspolling] def resetAllWorkers() = {
+    val pollers = Array.fill(1) { makeWorkerActor() }
+    pollers.foreach(context.watch)
+    pollers
+  }
 
   override private[statuspolling] def makeCreateQuery(workflowId: WorkflowId, replyTo: ActorRef, genomics: Genomics, rpr: RunPipelineRequest) = {
     new JesRunCreationQuery(workflowId, replyTo, genomics, rpr) {
@@ -213,7 +220,7 @@ class TestJesApiQueryManager(qps: Int Refined Positive, createRequestSize: Long,
   }
 
   def queueSize = workQueue.size
-  def statusPollerEquals(otherStatusPoller: ActorRef) = statusPoller == otherStatusPoller
+  def statusPollerEquals(otherStatusPoller: ActorRef) = statusPollers sameElements Array(otherStatusPoller)
 }
 
 object TestJesApiQueryManager {

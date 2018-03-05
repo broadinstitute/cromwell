@@ -520,8 +520,8 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   private def writeFuturePreemptedAndUnexpectedRetryCounts(p: Int, ur: Int): Future[Unit] = {
     val updateRequests = Seq(
-      KvPut(KvPair(ScopedKey(workflowId, futureKvJobKey, JesBackendLifecycleActorFactory.unexpectedRetryCountKey), ur.toString)),
-      KvPut(KvPair(ScopedKey(workflowId, futureKvJobKey, JesBackendLifecycleActorFactory.preemptionCountKey), p.toString))
+      KvPut(KvPair(ScopedKey(workflowId, futureKvJobKey, JesBackendLifecycleActorFactory.unexpectedRetryCountKey), Option(ur.toString))),
+      KvPut(KvPair(ScopedKey(workflowId, futureKvJobKey, JesBackendLifecycleActorFactory.preemptionCountKey), Option(p.toString)))
     )
 
     makeKvRequest(updateRequests).map(_ => ())

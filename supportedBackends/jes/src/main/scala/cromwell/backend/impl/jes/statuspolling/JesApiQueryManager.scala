@@ -18,7 +18,6 @@ import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
 import cromwell.core.{CromwellFatalExceptionMarker, WorkflowId}
 import cromwell.services.instrumentation.CromwellInstrumentationScheduler
-import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMetric, NormalLoad}
 import cromwell.util.StopAndLogSupervisor
 import eu.timepit.refined._
 import eu.timepit.refined.api.Refined
@@ -87,19 +86,12 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
   // statusPollers is protected for the unit tests, not intended to be generally overridden
   protected[statuspolling] val statusPollers: Array[ActorRef] = resetAllWorkers()
 
-  def monitorQueueSize() = {
-    val load = if (workQueue.size > JesApiQueryManager.QueueThreshold) HighLoad else NormalLoad
-    serviceRegistryActor ! LoadMetric("PAPIQueryManager", load)
-    timers.startSingleTimer(QueueMonitoringTimerKey, QueueMonitoringTimerAction, 10.seconds)
-  }
-
   override def preStart() = {
     timers.startSingleTimer(QueueMonitoringTimerKey, QueueMonitoringTimerAction, 10.seconds)
     super.preStart()
   }
 
   override def receive = {
-    case QueueMonitoringTimerAction => monitorQueueSize()
     case BackendSingletonActorAbortWorkflow(id) => abort(id)
     case DoPoll(workflowId, run) => workQueue :+= makePollQuery(workflowId, sender, run)
     case DoCreateRun(workflowId, genomics, rpr) =>

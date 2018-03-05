@@ -1,6 +1,5 @@
 package wdl.draft3.transforms.wdlom2wom
 
-import cats.instances.list._
 import cats.instances.vector._
 import cats.syntax.either._
 import cats.syntax.traverse._
@@ -15,9 +14,8 @@ import wom.callable.{TaskDefinition, WorkflowDefinition}
 import wom.executable.WomBundle
 import wom.transforms.WomBundleMaker
 import wom.transforms.WomBundleMaker.ops._
-import wdl.model.draft3.graph.expression.WomTypeMaker.ops._
-import wdl.draft3.transforms.linking.typemakers._
-import wom.types.{WomCompositeType, WomType}
+import wdl.draft3.transforms.wdlom2wom.StructEvaluation.StructEvaluationInputs
+import wom.types.WomType
 
 import scala.concurrent.Future
 
@@ -30,7 +28,10 @@ object FileElementToWomBundle {
       val importsValidation: ErrorOr[Vector[ImportElement]] = if (a.imports.isEmpty) Vector.empty.valid else "FileElement to WOM conversion of imports not yet implemented.".invalidNel
       val tasksValidation: ErrorOr[Vector[TaskDefinitionElement]] = if (a.imports.isEmpty) Vector.empty.valid else "FileElement to WOM conversion of tasks not yet implemented.".invalidNel
 
-      val structsValidation: ErrorOr[Map[String, WomType]] = a.structs.toList.traverse[ErrorOr, (String, WomType)](makeStruct).map(_.toMap)
+      // TODO: Handle imports:
+      val imports: Set[WomBundle] = Set.empty
+
+      val structsValidation: ErrorOr[Map[String, WomType]] = StructEvaluation.convert(StructEvaluationInputs(a.structs, imports.flatMap(_.typeAliases).toMap))
 
       def toWorkflowInner(imports: Vector[ImportElement], tasks: Vector[TaskDefinitionElement], structs: Map[String, WomType]): ErrorOr[WomBundle] = {
         implicit val workflowConverter: CheckedAtoB[WorkflowDefinitionConvertInputs, WorkflowDefinition] = workflowDefinitionElementToWomWorkflowDefinition
@@ -54,15 +55,6 @@ object FileElementToWomBundle {
   }
 
   def convert(a: FileElementAndImportResolvers): Checked[WomBundle] = a.fileElement.toWomBundle(a.importResolvers)
-
-  private def makeStruct(struct: StructElement): ErrorOr[(String, WomType)] = {
-
-    def convertStructEntryElement(structEntryElement: StructEntryElement): ErrorOr[(String, WomType)] =
-      structEntryElement.typeElement.determineWomType(Map.empty).map((structEntryElement.identifier, _))
-
-    val elementsValidation: ErrorOr[List[(String, WomType)]] = struct.entries.toList traverse { convertStructEntryElement }
-    elementsValidation.map(elements => struct.name -> WomCompositeType(elements.toMap))
-  }
 }
 
 final case class FileElementAndImportResolvers(fileElement: FileElement, importResolvers: List[String => Future[Checked[WomBundle]]])

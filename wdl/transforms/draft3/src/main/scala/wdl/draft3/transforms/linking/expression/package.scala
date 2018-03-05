@@ -9,7 +9,7 @@ import wdl.model.draft3.graph.UnlinkedValueConsumer.ops._
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.WomExpressionMaker
-import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook, UnlinkedIdentifierHook, UnlinkedValueConsumer}
+import wdl.model.draft3.graph._
 import wom.expression.WomExpression
 
 package object expression {
@@ -38,14 +38,21 @@ package object expression {
     override def consumedValueHooks(a: ArrayLiteral): Set[UnlinkedConsumedValueHook] = a.elements.toSet.flatMap { e: ExpressionElement => e.consumedValueHooks }
   }
 
+  implicit val identifierMemberAccessUnlinkedValueConsumer: UnlinkedValueConsumer[IdentifierMemberAccess] = new UnlinkedValueConsumer[IdentifierMemberAccess] {
+    override def consumedValueHooks(a: IdentifierMemberAccess): Set[UnlinkedConsumedValueHook] = Set(UnlinkedCallOutputOrIdentifierAndMemberAccessHook(a.first, a.second))
+  }
+
   implicit val expressionElementUnlinkedValueConsumer: UnlinkedValueConsumer[ExpressionElement] = new UnlinkedValueConsumer[ExpressionElement] {
     override def consumedValueHooks(a: ExpressionElement): Set[UnlinkedConsumedValueHook] = a match {
       case _: PrimitiveLiteralExpressionElement | _: StringLiteral => Set.empty
-      case id: IdentifierLookup => id.consumedValueHooks
-      case o: ObjectLiteral => o.consumedValueHooks
-      case p: PairLiteral => p.consumedValueHooks
+      case a: ObjectLiteral => a.consumedValueHooks
+      case a: PairLiteral => a.consumedValueHooks
       case a: ArrayLiteral => a.consumedValueHooks
-      case m: MapLiteral => m.consumedValueHooks
+      case a: MapLiteral => a.consumedValueHooks
+
+      case a: IdentifierLookup => a.consumedValueHooks
+      case a: IdentifierMemberAccess => a.consumedValueHooks
+
 
       // TODO fill in other expression types
       case other => throw new Exception(s"Cannot generate consumed values for ExpressionElement ${other.getClass.getSimpleName}")

@@ -8,8 +8,8 @@ import wom.types._
 import wdl.draft3.transforms.ast2wdlom.ExpressionSet._
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import wdl.model.draft3.elements.ExpressionElement._
+import wom.values.{WomBoolean, WomFloat, WomInteger}
 import wdl.model.draft3.elements.MetaValueElement._
-import wom.values.{WomBoolean, WomInteger}
 
 class WdlFileToWdlomSpec extends FlatSpec with Matchers {
 
@@ -317,6 +317,42 @@ object WdlFileToWdlomSpec {
             parameterMetaSection = None
           )
         )
+      ),
+    "nested_struct" ->
+      FileElement(
+        imports = Vector(),
+        structs = Vector(
+          StructElement(
+            name = "A",
+            entries = Vector(
+              StructEntryElement("i", PrimitiveTypeElement(WomIntegerType)),
+              StructEntryElement("f", PrimitiveTypeElement(WomFloatType)))
+          ),
+          StructElement(
+            name = "B",
+            entries = Vector(
+              StructEntryElement("a", TypeAliasElement("A")),
+              StructEntryElement("i", PrimitiveTypeElement(WomIntegerType)),
+              StructEntryElement("f", PrimitiveTypeElement(WomFloatType)))
+          )),
+        workflows = Vector(WorkflowDefinitionElement(
+          name = "nested_struct",
+          inputsSection = None,
+          graphElements = Set(
+            IntermediateValueDeclarationElement(
+              TypeAliasElement("B"),
+              "b",
+              ObjectLiteral(Map(
+                "a" -> ObjectLiteral(Map(
+                  "i" -> PrimitiveLiteralExpressionElement(WomInteger(5)),
+                  "f" -> PrimitiveLiteralExpressionElement(WomFloat(5.5)))),
+                "i" -> PrimitiveLiteralExpressionElement(WomInteger(6)),
+                "f" -> PrimitiveLiteralExpressionElement(WomFloat(6.6)))))),
+          outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomFloatType),"f",IdentifierMemberAccess("b","a",Vector("f")))))),
+          metaSection = None,
+          parameterMetaSection = None
+        )),
+        tasks = Vector()
       )
   )
 }

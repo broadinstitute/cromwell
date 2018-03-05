@@ -34,11 +34,15 @@ case class InputEnumSchema(
   label: Option[String],
   inputBinding: Option[InputCommandLineBinding])
 
-case class InputArraySchema(
+case class InputArraySchema
+(
   items: MyriadInputType,
   `type`: W.`"array"`.T = Witness("array").value,
   label: Option[String] = None,
-  inputBinding: Option[InputCommandLineBinding] = None)
+  inputBinding: Option[InputCommandLineBinding] = None,
+  // IAS.secondaryFiles are NOT listed in 1.0 spec, but according to jgentry they will be, maybe
+  secondaryFiles: Option[SecondaryFiles] = None
+)
 
 trait CommandLineBinding {
   def loadContents: Option[Boolean]

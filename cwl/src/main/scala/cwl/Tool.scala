@@ -11,15 +11,12 @@ import cwl.command.ParentName
 import cwl.requirement.RequirementToAttributeMap
 import shapeless.Inl
 import wom.RuntimeAttributes
-import wom.callable.Callable.InputDefinition.InputValueMapper
 import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, OutputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, TaskDefinition}
 import wom.executable.Executable
-import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}
+import wom.expression.{ValueAsAnExpression, WomExpression}
 import wom.types.WomOptionalType
-import wom.values.{WomMaybePopulatedFile, WomValue}
-import scala.concurrent.duration._
-import scala.concurrent.Await
+
 import scala.util.Try
 
 object Tool {
@@ -95,19 +92,6 @@ trait Tool {
   private def processRequirement(requirement: Requirement, expressionLib: ExpressionLib): Map[String, WomExpression] = {
     requirement.fold(RequirementToAttributeMap).apply(inputNames, expressionLib)
   }
-  
-  /*
-    * Yet another value mapper. This one is needed because in CWL we might need to "augment" inputs which we can only do
-    * once they have been linked to a WomValue. This input value mapper encapsulates logic to be applied once that is done. 
-    * For now, if the inputParameter has an input binding with loadContents = true, load the content of the file.
-   */
-  private def inputValueMapper(inputParameter: InputParameter): InputValueMapper = { ioFunctionSet: IoFunctionSet => {
-      case womValue: WomMaybePopulatedFile if inputParameter.loadContents =>
-        val content = Await.result(ioFunctionSet.readFile(womValue.value, ReadLimit, failOnOverflow = false), 60.seconds)
-        womValue.copy(contentsOption = Option(content))
-      case womValue: WomValue => womValue
-    }
-  }
 
   def buildTaskDefinition(validator: RequirementsValidator, parentExpressionLib: ExpressionLib): Checked[TaskDefinition] = {
     def build(requirementsAndHints: Seq[cwl.Requirement]) = {
@@ -131,13 +115,24 @@ trait Tool {
             val inputType = tpe.fold(MyriadInputTypeToWomType)
             val inputName = FullyQualifiedName(inputId).id
             val defaultWomValue = default.fold(InputParameter.DefaultToWomValuePoly).apply(inputType).toTry.get
-            InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(defaultWomValue), inputValueMapper(input))
+            InputDefinitionWithDefault(
+              inputName,
+              inputType,
+              ValueAsAnExpression(defaultWomValue),
+              InputParameter.inputValueMapper(input, tpe, expressionLib)
+            )
           case input @ InputParameter.IdAndType(inputId, tpe) =>
             val inputType = tpe.fold(MyriadInputTypeToWomType)
             val inputName = FullyQualifiedName(inputId).id
             inputType match {
-              case optional: WomOptionalType => OptionalInputDefinition(inputName, optional, inputValueMapper(input))
-              case _ => RequiredInputDefinition(inputName, inputType, inputValueMapper(input))
+              case optional: WomOptionalType =>
+                OptionalInputDefinition(inputName, optional, InputParameter.inputValueMapper(input, tpe, expressionLib))
+              case _ =>
+                RequiredInputDefinition(
+                  inputName,
+                  inputType,
+                  InputParameter.inputValueMapper(input, tpe, expressionLib)
+                )
             }
           case other => throw new NotImplementedError(s"command input parameters such as $other are not yet supported")
         }.toList

@@ -1,7 +1,6 @@
 package cwl
 
 import cats.instances.list._
-import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr._
@@ -79,7 +78,7 @@ object CommandOutputBinding {
 
     def secondaryFilesToWomFiles(primaryWomFiles: List[WomFile]): ErrorOr[List[WomFile]] = {
       primaryWomFiles.flatTraverse[ErrorOr, WomFile] { primaryWomFile =>
-        OutputParameter.secondaryFiles(primaryWomFile,
+        FileParameter.secondaryFiles(primaryWomFile,
           primaryWomFile.womFileType, secondaryFilesOption, parameterContext, expressionLib)
       }
     }
@@ -128,22 +127,16 @@ object CommandOutputBinding {
 
     // 4. secondaryFiles: just before returning the value, fill in the secondary files on the return value
     def populateSecondaryFiles(evaluatedWomValue: WomValue): ErrorOr[WomValue] = {
-      evaluatedWomValue match {
-        case womMaybePopulatedFile: WomMaybePopulatedFile =>
-          val secondaryFilesErrorOr = OutputParameter.secondaryFiles(
-            womMaybePopulatedFile,
-            WomSingleFileType,
-            secondaryFilesCoproduct,
-            parameterContext,
-            expressionLib
-          )
-
-          (secondaryFilesErrorOr, formatOptionErrorOr) mapN { (secondaryFiles, formatOption) =>
-            womMaybePopulatedFile.copy(secondaryFiles = secondaryFiles, formatOption = formatOption)
-          }
-        case womArray: WomArray => womArray.value.toList.traverse(populateSecondaryFiles).map(WomArray(_))
-        case womValue: WomValue => womValue.valid
-      }
+      for {
+        formatOption <- formatOptionErrorOr
+        womValue <- FileParameter.populateSecondaryFiles(
+          evaluatedWomValue,
+          secondaryFilesCoproduct,
+          formatOption,
+          parameterContext,
+          expressionLib
+        )
+      } yield womValue
     }
 
     // CWL tells us the type this output is expected to be. Attempt to coerce the actual output into this type.
@@ -241,21 +234,13 @@ object CommandOutputBinding {
                                    commandOutputBinding: CommandOutputBinding)(path: String): ErrorOr[WomFile] = {
     val contentsOptionErrorOr = {
       if (commandOutputBinding.loadContents getOrElse false) {
-        load64KiB(path, ioFunctionSet) map Option.apply
+        FileParameter.load64KiB(path, ioFunctionSet) map Option.apply
       } else {
         None.valid
       }
     }
     contentsOptionErrorOr map { contentsOption =>
       WomMaybePopulatedFile(valueOption = Option(path), contentsOption = contentsOption)
-    }
-  }
-
-  private def load64KiB(path: String, ioFunctionSet: IoFunctionSet): ErrorOr[String] = {
-    // TODO: WOM: propagate Future (or IO?) signature
-    validate {
-      val content = ioFunctionSet.readFile(path, ReadLimit, failOnOverflow = false)
-      Await.result(content, 60.seconds)
     }
   }
 }

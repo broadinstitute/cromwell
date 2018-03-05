@@ -87,6 +87,9 @@ aws {
       scheme = "default"
     }
   ]
+
+  region = "default" // uses region from ~/.aws/config set by aws configure command,
+                     // or us-east-1 by default
 }
 
 engine {

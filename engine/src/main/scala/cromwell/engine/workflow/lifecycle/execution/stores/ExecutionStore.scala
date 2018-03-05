@@ -135,6 +135,7 @@ final case class SealedExecutionStore private[stores](private val statusStore: M
 sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, ExecutionStatus], val needsUpdate: Boolean) {
   // View of the statusStore more suited for lookup based on status
   lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).mapValues(_.keys.toList)
+  lazy val queuedJobsAboveThreshold = queuedJobs > MaxJobsToStartPerTick
 
   def keyForNode(node: GraphNode): Option[JobKey] = {
     statusStore.keys collectFirst { case k if k.node eq node => k }
@@ -154,7 +155,7 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     * Update key statuses
     */
   def updateKeys(values: Map[JobKey, ExecutionStatus]): ExecutionStore = {
-    updateKeys(values, needsUpdate || values.values.exists(_.isTerminalOrRetryable))
+    updateKeys(values, needsUpdate || values.values.exists(_.isTerminalOrRetryable) || queuedJobsAboveThreshold)
   }
 
   /**
@@ -232,7 +233,6 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
   def update: ExecutionStoreUpdate = if (needsUpdate) {
     // When looking for runnable keys, keep track of the ones that are unstartable so we can mark them as such
     var unstartables = Map.empty[JobKey, ExecutionStatus]
-    val runCallNodes = queuedJobs < MaxJobsToStartPerTick
     
     def filterFunction(key: JobKey) = {
       // A key is runnable if all its dependencies are Done
@@ -249,7 +249,7 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
 
     // filter the keys that are runnable. In the process remember the ones that are unreachable
     val readyToStart = keysWithStatus(NotStarted).toStream.filter({
-      case _: CallKey if !runCallNodes => false
+      case _: CallKey if queuedJobsAboveThreshold => false
       case key => filterFunction(key)
     })
 
@@ -263,7 +263,7 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     val updated = if (unstartables.nonEmpty) {
       updateKeys(unstartables, needsUpdate = true)
     // If the list was truncated, set needsUpdate to true because we'll need to do this again to get the truncated keys
-    } else if (truncated || !runCallNodes) {
+    } else if (truncated) {
       withNeedsUpdateTrue
     // Otherwise we can reset it, nothing else will be runnable / unstartable until some new keys become terminal
     } else withNeedsUpdateFalse

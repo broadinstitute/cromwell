@@ -8,7 +8,7 @@ echo "TRAVIS_EVENT_TYPE='$TRAVIS_EVENT_TYPE'"
 
 publish() {
     # ensure we are not logging while accessing docker
-    set -x
+    set +x
 
     docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
     sbt $@ +publish dockerBuildAndPush
@@ -19,7 +19,7 @@ publish() {
 # updating a well known branch in github.
 push_publish_complete() {
     # ensure we are not logging while accessing vault
-    set -x
+    set +x
 
     # Login to vault to access secrets
     docker run --rm \

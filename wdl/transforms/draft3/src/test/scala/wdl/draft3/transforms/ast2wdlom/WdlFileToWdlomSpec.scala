@@ -8,6 +8,7 @@ import wom.types._
 import wdl.draft3.transforms.ast2wdlom.ExpressionSet._
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import wdl.model.draft3.elements.ExpressionElement._
+import wdl.model.draft3.elements.MetaValueElement._
 import wom.values.{WomBoolean, WomInteger}
 
 class WdlFileToWdlomSpec extends FlatSpec with Matchers {
@@ -274,14 +275,22 @@ object WdlFileToWdlomSpec {
             commandSection = CommandSectionElement(Vector(StringCommandPartElement(" echo Hello World "))),
             runtimeSection = None,
             metaSection = Some(MetaSectionElement(Vector(
-                                               (MetaKvPair("author", MetaValueElement.MString("John Doe"))),
-                                               (MetaKvPair("email", MetaValueElement.MString("john.doe@yahoo.com")))
+                                               (MetaKvPair("author", MString("John Doe"))),
+                                               (MetaKvPair("email", MString("john.doe@yahoo.com")))
                                              ))),
             parameterMetaSection = Some(ParameterMetaSectionElement(
                                           Vector(
-                                            (MetaKvPair("a", MetaValueElement.MString("just an integer"))),
-                                            (MetaKvPair("b", MetaValueElement.MString("an important parameter")))
-                                          )))
+                                            (MetaKvPair("a", MString("just an integer"))),
+                                            (MetaKvPair("b", MString("an important parameter"))),
+                                            (MetaKvPair("x", MArray(Vector(MString("A"), MString("B"), MString("C"))))),
+                                            (MetaKvPair("y", MArray(Vector(MInteger(1), MInteger(2), MInteger(3))))),
+                                            (MetaKvPair("yf", MArray(Vector(MFloat(1.1),
+                                                                            MFloat(2.9),
+                                                                            MFloat(3.14))))),
+                                            (MetaKvPair("z", MObject(Map("k1" -> MInteger(1),
+                                                                         "k2" -> MInteger(2),
+                                                                         "k3" -> MInteger(3)))))
+                                        )))
           ))),
     "no_input_no_output_workflow" ->
       FileElement(

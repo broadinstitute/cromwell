@@ -1,3 +1,3 @@
 package wdl.model.draft3.elements
 
-final case class MetaSectionElement(meta: Vector[MetaKvPair]) extends WorkflowBodyElement with TaskSectionElement
+final case class MetaSectionElement(meta: Map[String, MetaValueElement]) extends WorkflowBodyElement with TaskSectionElement

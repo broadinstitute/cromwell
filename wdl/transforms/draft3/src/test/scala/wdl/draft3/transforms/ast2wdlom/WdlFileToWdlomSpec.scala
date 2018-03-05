@@ -274,23 +274,26 @@ object WdlFileToWdlomSpec {
             outputsSection = Some(OutputsSectionElement(Vector.empty)),
             commandSection = CommandSectionElement(Vector(StringCommandPartElement(" echo Hello World "))),
             runtimeSection = None,
-            metaSection = Some(MetaSectionElement(Vector(
-                                               (MetaKvPair("author", MString("John Doe"))),
-                                               (MetaKvPair("email", MString("john.doe@yahoo.com")))
-                                             ))),
+            metaSection = Some(MetaSectionElement(
+                                 Map("author" -> MetaValueElementString("John Doe"),
+                                     "email" -> MetaValueElementString("john.doe@yahoo.com"))
+                               )),
             parameterMetaSection = Some(ParameterMetaSectionElement(
-                                          Vector(
-                                            (MetaKvPair("a", MString("just an integer"))),
-                                            (MetaKvPair("b", MString("an important parameter"))),
-                                            (MetaKvPair("x", MArray(Vector(MString("A"), MString("B"), MString("C"))))),
-                                            (MetaKvPair("y", MArray(Vector(MInteger(1), MInteger(2), MInteger(3))))),
-                                            (MetaKvPair("yf", MArray(Vector(MFloat(1.1),
-                                                                            MFloat(2.9),
-                                                                            MFloat(3.14))))),
-                                            (MetaKvPair("z", MObject(Map("k1" -> MInteger(1),
-                                                                         "k2" -> MInteger(2),
-                                                                         "k3" -> MInteger(3)))))
-                                        )))
+                                          Map("a" -> MetaValueElementString("just an integer"),
+                                              "b" -> MetaValueElementString("an important parameter"),
+                                              "x" -> MetaValueElementArray(Vector(MetaValueElementString("A"),
+                                                                                  MetaValueElementString("B"),
+                                                                                  MetaValueElementString("C"))),
+                                              "y" -> MetaValueElementArray(Vector(MetaValueElementInteger(1),
+                                                                                  MetaValueElementInteger(2),
+                                                                                  MetaValueElementInteger(3))),
+                                              "yf" -> MetaValueElementArray(Vector(MetaValueElementFloat(1.1),
+                                                                                   MetaValueElementFloat(2.9),
+                                                                                   MetaValueElementFloat(3.14))),
+                                              "z" -> MetaValueElementObject(Map("k1" -> MetaValueElementInteger(1),
+                                                                                "k2" -> MetaValueElementInteger(2),
+                                                                                "k3" -> MetaValueElementInteger(3)))
+                                          )))
           ))),
     "no_input_no_output_workflow" ->
       FileElement(

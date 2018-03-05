@@ -10,7 +10,8 @@ import wdl.model.draft3.elements.{MetaKvPair, ParameterMetaSectionElement, MetaV
 object AstToParameterMetaSectionElement {
   def convert(ast: Ast): Checked[ParameterMetaSectionElement] =  {
     ast.getAttributeAsVector[MetaKvPair]("map") map { attributes =>
-      ParameterMetaSectionElement(attributes)
+      val asMap = attributes.map(kv => kv.key -> kv.value).toMap
+      ParameterMetaSectionElement(asMap)
     }
   }
 }

@@ -22,24 +22,24 @@ object AstNodeToMetaValueElement {
       // This is a primitive type, one of {null, boolean, float, int, string}.
     case t: Terminal =>
       (t.getTerminalStr, t.getSourceString) match {
-        case ("integer", i) => Try(MInteger(i.toInt)).toErrorOr
-        case ("float", f) => Try(MFloat(f.toDouble)).toErrorOr
-        case ("boolean", b) => Try(MBoolean(b.toBoolean)).toErrorOr
-        case ("string", s) => MString(s).validNel
-        case ("null", _) => Try(MNull).toErrorOr
-        case (name,other) => Failure(new Exception(s"No conversion defined for Ast ($name, $other) to MetaValueElement")).toErrorOr
+        case ("integer", i) => Try(MetaValueElementInteger(i.toInt)).toErrorOr
+        case ("float", f) => Try(MetaValueElementFloat(f.toDouble)).toErrorOr
+        case ("boolean", b) => Try(MetaValueElementBoolean(b.toBoolean)).toErrorOr
+        case ("string", s) => MetaValueElementString(s).validNel
+        case ("null", _) => MetaValueElementNull.validNel
+        case (name,other) => s"No conversion defined for Ast ($name, $other) to MetaValueElement".invalidNel
       }
 
     case a: Ast if a.getName == "MetaArray" =>
-      a.getAttributeAsVector[MetaValueElement]("values").toValidated.map(MArray)
+      a.getAttributeAsVector[MetaValueElement]("values").toValidated.map(MetaValueElementArray)
 
     case a: Ast if a.getName == "MetaObject" =>
       (for {
         mapKvs <- a.getAttributeAsVector[MetaKvPair]("map")
         asMap = mapKvs.map(kv => kv.key -> kv.value).toMap
-       } yield MObject(asMap)).toValidated
+       } yield MetaValueElementObject(asMap)).toValidated
 
     case other =>
-      Failure(new Exception(s"No conversion defined for Ast $other to MetaValueElement")).toErrorOr
+      Failure(new Exception(s"No conversion defined for AstNode $other to MetaValueElement")).toErrorOr
   }
 }

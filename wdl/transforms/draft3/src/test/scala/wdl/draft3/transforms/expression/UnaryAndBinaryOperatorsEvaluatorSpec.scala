@@ -54,7 +54,7 @@ class UnaryAndBinaryOperatorsEvaluatorSpec extends FlatSpec with Matchers{
     ("5 - 5", Subtract(fiveLiteral, fiveLiteral), WomInteger(0)),
     ("5 * 5", Multiply(fiveLiteral, fiveLiteral), WomInteger(25)),
     ("25 * 5", Divide(PrimitiveLiteralExpressionElement(WomInteger(25)), fiveLiteral), WomInteger(5)),
-    ("27 % 5", Remainder(PrimitiveLiteralExpressionElement(WomInteger(27)), fiveLiteral), WomInteger(2)),
+    ("27 % 5", Remainder(PrimitiveLiteralExpressionElement(WomInteger(27)), fiveLiteral), WomInteger(2))
   )
 
   expressionTests foreach { case (name, expression, expected) =>

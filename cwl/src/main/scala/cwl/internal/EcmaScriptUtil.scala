@@ -86,6 +86,8 @@ object EcmaScriptUtil {
 
       val jsMap = mapValues.mapValues{ _.mapValues(encoder.encode) }
 
+      println(s"map values are: \n${mapValues.mkString("\n")}")
+
       jsMap.map {
         case (scopeId, nestedMap) =>
 

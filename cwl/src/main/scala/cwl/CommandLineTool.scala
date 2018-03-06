@@ -13,7 +13,7 @@ import io.circe.Json
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil, Coproduct, Poly1, Witness}
 import wom.callable.CommandTaskDefinition.{EvaluatedOutputs, OutputFunctionResponse}
-import wom.callable.{Callable, CallableTaskDefinition}
+import wom.callable.{Callable, CallableTaskDefinition, MappedAndUnmappedInputs}
 import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
 import wom.types.{WomOptionalType, WomStringType}
@@ -231,11 +231,11 @@ case class CommandLineTool private(
     }
 
     // This seems like it makes sense only for CommandLineTool and hence is not abstracted in Tool. If this assumption is wrong it could be moved up.
-    val adHocFileCreations: Set[WomExpression] = (for {
+    val adHocFileCreations: Set[MappedAndUnmappedInputs] = (for {
       requirements <- requirements.getOrElse(Array.empty[Requirement])
       initialWorkDirRequirement <- requirements.select[InitialWorkDirRequirement].toArray
       listing <- initialWorkDirRequirement.listings
-    } yield InitialWorkDirFileGeneratorExpression(listing, expressionLib)).toSet[WomExpression]
+    } yield InitialWorkDirFileGeneratorExpression(listing, expressionLib)).toSet[MappedAndUnmappedInputs]
 
     environmentDefs(requirementsAndHints, expressionLib) map { environmentExpressions =>
       CallableTaskDefinition(

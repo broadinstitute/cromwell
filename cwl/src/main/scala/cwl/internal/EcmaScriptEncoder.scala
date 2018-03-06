@@ -77,7 +77,7 @@ class EcmaScriptEncoder {
   /**
     * Encodes a wom file or directory value.
     */
-  def encodeFileOrDirectory(value: WomFile): ESObject = {
+  def encodeFileOrDirectory(value: WomFile): ECMAScriptVariable = {
     value match {
       case directory: WomUnlistedDirectory => encodeDirectory(WomMaybeListedDirectory(directory.value))
       case file: WomSingleFile => encodeFile(WomMaybePopulatedFile(file.value))
@@ -90,7 +90,9 @@ class EcmaScriptEncoder {
   /**
     * Encodes a wom file.
     */
-  def encodeFile(file: WomMaybePopulatedFile): ESObject = {
+  def encodeFile(file: WomMaybePopulatedFile): ESPrimitive = {
+    ESPrimitive(file.value)
+    /*
     List(
       Option("class" -> ESPrimitive("File")),
       file.valueOption.map("location" -> ESPrimitive(_)),
@@ -105,6 +107,7 @@ class EcmaScriptEncoder {
       file.formatOption.map("format" -> ESPrimitive(_)),
       file.contentsOption.map("contents" -> ESPrimitive(_))
     ).flatten.toMap |> ESObject
+    */
 
   }
 

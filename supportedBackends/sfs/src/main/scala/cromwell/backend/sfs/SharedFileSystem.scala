@@ -128,7 +128,8 @@ trait SharedFileSystem extends PathFactory {
     val path = PathFactory.buildPath(pathString, pathBuilders)
     path match {
       case _: DefaultPath if !path.isAbsolute => jobPaths.callExecutionRoot.resolve(path).toAbsolutePath
-      case _: DefaultPath => jobPaths.hostPathFromContainerPath(path.pathAsString)
+      case _: DefaultPath if jobPaths.isInExecution(path.pathAsString) => jobPaths.hostPathFromContainerPath(path.pathAsString)
+      case _: DefaultPath => jobPaths.hostPathFromContainerInputs(path.pathAsString)
     }
   }
 
@@ -139,6 +140,9 @@ trait SharedFileSystem extends PathFactory {
   def mapJobWomFile(jobPaths: JobPaths)(womFile: WomFile): WomFile = {
     val hostPath = hostAbsoluteFilePath(jobPaths, womFile.valueString)
     def hostAbsolute(pathString: String): String = hostAbsoluteFilePath(jobPaths, pathString).pathAsString
+
+    val exist = hostPath.exists
+    println(s"host path exists: $exist : \n$hostPath\n${womFile.valueString}")
 
     if (!hostPath.exists) throw new RuntimeException(s"Could not process output, file not found: ${hostAbsolute(womFile.valueString)}")
 

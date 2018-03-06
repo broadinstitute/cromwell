@@ -32,7 +32,7 @@ object RuntimeEnvironmentBuilder {
        val memoryInMiB: Double =
          MemoryValidation.instance().
            validate(runtimeAttributes).
-           map(_.to(MemoryUnit.MiB).amount).
+           map(_./*to(MemoryUnit.MiB).*/amount).
            getOrElse(minimums.ram.amount)
 
        //TODO: Read these from somewhere else

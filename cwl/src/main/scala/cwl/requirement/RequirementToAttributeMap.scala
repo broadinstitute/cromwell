@@ -40,6 +40,7 @@ object RequirementToAttributeMap extends Poly1 {
 
   implicit def fromResource: Case.Aux[ResourceRequirement, ResourcesToExpressionMap] = at[ResourceRequirement] {
     resource => (inputNames, expressionLib) =>
+      println(s"resource requirement is $resource")
       def toExpression(resourceRequirement: ResourceRequirementType) = resourceRequirement.fold(ResourceRequirementToWomExpression).apply(inputNames, expressionLib)
 
       List(

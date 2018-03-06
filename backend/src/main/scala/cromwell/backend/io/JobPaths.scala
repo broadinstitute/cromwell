@@ -39,6 +39,10 @@ trait JobPaths {
   // just called 'rootWithSlash'.
   private lazy val rootWithSlash = callExecutionRoot.pathAsString.ensureSlashed
 
+  def isInExecution(string: String): Boolean = string.startsWith(rootWithSlash)
+
+  def isInInputs(string: String): Boolean = ???
+
   /**
     * Return a host path corresponding to the specified container path.
     */
@@ -46,6 +50,9 @@ trait JobPaths {
     // No container here, just return a Path of the absolute path to the file.
     callExecutionRoot.resolve(string.stripPrefix(rootWithSlash))
   }
+
+  def hostPathFromContainerInputs(string: String): Path = ???
+
 
   def scriptFilename: String = "script"
   def dockerCidFilename: String = "docker_cid"

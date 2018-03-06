@@ -187,7 +187,7 @@ class TestJesApiQueryManager(qps: Int Refined Positive, createRequestSize: Long,
   
   override private[statuspolling] lazy val nbWorkers = 1
   override private[statuspolling] def resetAllWorkers() = {
-    val pollers = Array.fill(1) { makeWorkerActor() }
+    val pollers = Vector.fill(1) { makeWorkerActor() }
     pollers.foreach(context.watch)
     pollers
   }

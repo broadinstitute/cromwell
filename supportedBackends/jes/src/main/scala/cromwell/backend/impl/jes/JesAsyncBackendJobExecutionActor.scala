@@ -18,7 +18,7 @@ import cromwell.backend.impl.jes.errors.FailedToDelocalizeFailure
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.DoAbortRun
 import cromwell.backend.impl.jes.statuspolling.JesRunCreationClient.JobAbortedException
-import cromwell.backend.impl.jes.statuspolling.{JesRunCreationClient, JesStatusRequestClient}
+import cromwell.backend.impl.jes.statuspolling.{JesAbortClient, JesRunCreationClient, JesStatusRequestClient}
 import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
@@ -83,7 +83,7 @@ object JesAsyncBackendJobExecutionActor {
 
 class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends BackendJobLifecycleActor with StandardAsyncExecutionActor with JesJobCachingActorHelper
-    with JesStatusRequestClient with JesRunCreationClient with KvClient {
+    with JesStatusRequestClient with JesRunCreationClient with JesAbortClient with KvClient {
 
   override lazy val ioCommandBuilder = GcsBatchCommandBuilder
 
@@ -134,7 +134,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override def requestsAbortAndDiesImmediately: Boolean = false
 
-  override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse kvClientReceive orElse super.receive
+  override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse abortActorClientReceive orElse kvClientReceive orElse super.receive
 
   private def gcsAuthParameter: Option[JesInput] = {
     if (jesAttributes.auths.gcs.requiresAuthFile || dockerConfiguration.isDefined)

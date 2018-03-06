@@ -14,7 +14,7 @@ object PapiInstrumentation {
   private val PapiKey = NonEmptyList.of("papi")
   private val PapiPollKey = PapiKey.concat("poll")
   private val PapiRunKey = PapiKey.concat("run")
-  private val PapiAbortKey = PapiKey.concat("run")
+  private val PapiAbortKey = PapiKey.concat("abort")
 
   private val PapiPollFailedKey = PapiPollKey.concat(FailureKey)
   private val PapiRunFailedKey = PapiRunKey.concat(FailureKey)

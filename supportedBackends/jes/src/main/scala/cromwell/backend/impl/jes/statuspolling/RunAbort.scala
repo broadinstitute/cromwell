@@ -6,14 +6,14 @@ import com.google.api.client.googleapis.json.{GoogleJsonError, GoogleJsonErrorCo
 import com.google.api.client.http.{HttpHeaders, HttpRequest}
 import com.google.api.services.genomics.model.Operation
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager._
-import cromwell.backend.standard.StandardAsyncJob
+import cromwell.backend.impl.jes.statuspolling.RunAbort.JesAbortRequestSuccessful
 
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
 
 private[statuspolling] trait RunAbort extends PapiInstrumentation { this: JesPollingActor =>
 
-  private def abortResultHandler(originalRequest: JesApiQuery, completionPromise: Promise[Try[Unit]]) = new JsonBatchCallback[Operation] {
+  private def abortResultHandler(originalRequest: JesAbortQuery, completionPromise: Promise[Try[Unit]]) = new JsonBatchCallback[Operation] {
     override def onSuccess(operation: Operation, responseHeaders: HttpHeaders): Unit = {
       abortSuccess()
       originalRequest.requester ! getJob(operation)
@@ -22,8 +22,15 @@ private[statuspolling] trait RunAbort extends PapiInstrumentation { this: JesPol
     }
 
     override def onFailure(e: GoogleJsonError, responseHeaders: HttpHeaders): Unit = {
-      pollingManager ! JesApiAbortQueryFailed(originalRequest, new JesApiException(GoogleJsonException(e, responseHeaders)))
-      completionPromise.trySuccess(Failure(new Exception(mkErrorString(e))))
+      // No need to fail the request if the job was already cancelled, we're all good
+      if (Option(e.getCode).contains(400) && Option(e.getMessage).contains("Operation has already been canceled")) {
+        originalRequest.requester ! JesAbortRequestSuccessful(originalRequest.run.job.jobId)
+        completionPromise.trySuccess(Success(()))
+      } else {
+        pollingManager ! JesApiAbortQueryFailed(originalRequest, new JesApiException(GoogleJsonException(e, responseHeaders)))
+        completionPromise.trySuccess(Failure(new Exception(mkErrorString(e))))
+      }
+
       ()
     }
   }
@@ -44,5 +51,9 @@ private[statuspolling] trait RunAbort extends PapiInstrumentation { this: JesPol
     ()
   }
 
-  private def getJob(operation: Operation) = StandardAsyncJob(operation.getName)
+  private def getJob(operation: Operation) = JesAbortRequestSuccessful(operation.getName)
+}
+
+object RunAbort {
+  case class JesAbortRequestSuccessful(operationId: String)
 }

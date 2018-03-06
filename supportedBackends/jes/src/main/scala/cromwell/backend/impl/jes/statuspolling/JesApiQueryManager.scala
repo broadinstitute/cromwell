@@ -84,7 +84,7 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
   private def statusPollerProps = JesPollingActor.props(self, workerQps, serviceRegistryActor)
 
   // statusPollers is protected for the unit tests, not intended to be generally overridden
-  protected[statuspolling] val statusPollers: Array[ActorRef] = resetAllWorkers()
+  protected[statuspolling] var statusPollers: Vector[ActorRef] = resetAllWorkers()
 
   override def preStart() = {
     timers.startSingleTimer(QueueMonitoringTimerKey, QueueMonitoringTimerAction, 10.seconds)
@@ -100,8 +100,7 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
       if (creationQuery.contentLength > maxBatchRequestSize) {
         creationQuery.requester ! JesApiRunCreationQueryFailed(creationQuery, requestTooLargeException)
       } else workQueue :+= creationQuery
-    case DoAbortRun(workflowId, run) =>
-      workQueue :+= makeAbortQuery(workflowId, sender, run)
+    case DoAbortRun(workflowId, run) => workQueue :+= makeAbortQuery(workflowId, sender, run)
     case q: JesApiQuery => workQueue :+= q
     case RequestJesPollingWork(maxBatchSize) =>
       log.debug("Request for JES Polling Work received (max batch: {}, current queue size is {})", maxBatchSize, workQueue.size)
@@ -209,11 +208,11 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
   }
 
   private def resetWorker(worker: ActorRef) = {
-    statusPollers.update(statusPollers.indexOf(worker), makeWorkerActor())
+    statusPollers = statusPollers.filterNot(_ == worker) :+ makeWorkerActor()
   }
 
-  private[statuspolling] def resetAllWorkers(): Array[ActorRef] = {
-    val pollers = Array.fill(nbWorkers) { makeWorkerActor() }
+  private[statuspolling] def resetAllWorkers(): Vector[ActorRef] = {
+    val pollers = Vector.fill(nbWorkers) { makeWorkerActor() }
     pollers
   }
 

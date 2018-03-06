@@ -73,7 +73,7 @@ object ExecutionStore {
     }
   }
 
-  case class ExecutionStoreUpdate(runnableKeys: List[JobKey], updatedStore: ExecutionStore)
+  case class ExecutionStoreUpdate(runnableKeys: List[JobKey], updatedStore: ExecutionStore, statusChanges: Map[JobKey, ExecutionStatus])
   
   def empty = ActiveExecutionStore(Map.empty[JobKey, ExecutionStatus], needsUpdate = false)
 
@@ -155,7 +155,7 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     * Update key statuses
     */
   def updateKeys(values: Map[JobKey, ExecutionStatus]): ExecutionStore = {
-    updateKeys(values, needsUpdate || values.values.exists(_.isTerminalOrRetryable) || queuedJobsAboveThreshold)
+    updateKeys(values, needsUpdate || values.values.exists(_.isTerminalOrRetryable))
   }
 
   /**
@@ -232,7 +232,8 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     */
   def update: ExecutionStoreUpdate = if (needsUpdate) {
     // When looking for runnable keys, keep track of the ones that are unstartable so we can mark them as such
-    var unstartables = Map.empty[JobKey, ExecutionStatus]
+    // Also keep track of jobs that need to be updated to WaitingForQueueSpace
+    var internalUpdates = Map.empty[JobKey, ExecutionStatus]
     
     def filterFunction(key: JobKey) = {
       // A key is runnable if all its dependencies are Done
@@ -240,7 +241,7 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
 
       // If the key is not runnable, but all its dependencies are in a terminal status, then it's unreachable
       if (!runnable && key.allDependenciesAreIn(terminalStatus)) {
-        unstartables = unstartables ++ key.nonStartableOutputKeys.map(_ -> Unstartable) + (key -> Unstartable)
+        internalUpdates = internalUpdates ++ key.nonStartableOutputKeys.map(_ -> Unstartable) + (key -> Unstartable)
       }
 
       // returns the runnable value for the filter
@@ -248,8 +249,10 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     }
 
     // filter the keys that are runnable. In the process remember the ones that are unreachable
-    val readyToStart = keysWithStatus(NotStarted).toStream.filter({
-      case _: CallKey if queuedJobsAboveThreshold => false
+    val readyToStart = (keysWithStatus(WaitingForQueueSpace).toStream ++ keysWithStatus(NotStarted).toStream).filter({
+      case callKey: CallKey if queuedJobsAboveThreshold =>
+        internalUpdates = internalUpdates + (callKey -> WaitingForQueueSpace)
+        false
       case key => filterFunction(key)
     })
 
@@ -260,8 +263,8 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     val truncated = keysToStartPlusOne.size > MaxJobsToStartPerTick
 
     // If we found unstartable keys, update their status, and set needsUpdate to true (it might unblock other keys)
-    val updated = if (unstartables.nonEmpty) {
-      updateKeys(unstartables, needsUpdate = true)
+    val updated = if (internalUpdates.nonEmpty) {
+      updateKeys(internalUpdates, needsUpdate = true)
     // If the list was truncated, set needsUpdate to true because we'll need to do this again to get the truncated keys
     } else if (truncated) {
       withNeedsUpdateTrue
@@ -269,6 +272,6 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     } else withNeedsUpdateFalse
     
     // Only take the first ExecutionStore.MaxJobsToStartPerTick from the above list.
-    ExecutionStoreUpdate(keysToStartPlusOne.take(MaxJobsToStartPerTick), updated)
+    ExecutionStoreUpdate(keysToStartPlusOne.take(MaxJobsToStartPerTick), updated, internalUpdates)
   } else ExecutionStoreUpdate(List.empty, this)
 }

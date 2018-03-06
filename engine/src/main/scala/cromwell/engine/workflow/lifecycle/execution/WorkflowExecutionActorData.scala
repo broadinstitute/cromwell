@@ -38,7 +38,7 @@ object WorkflowExecutionActorData {
     )
   }
 
-  final case class DataStoreUpdate(runnableKeys: List[JobKey], newData: WorkflowExecutionActorData)
+  final case class DataStoreUpdate(runnableKeys: List[JobKey], statusChanges: Map[JobKey, ExecutionStatus], newData: WorkflowExecutionActorData)
 }
 
 case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescriptor,
@@ -119,7 +119,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   
   def executionStoreUpdate: DataStoreUpdate = {
     val update = executionStore.update
-    DataStoreUpdate(update.runnableKeys, this.copy(executionStore = update.updatedStore))
+    DataStoreUpdate(update.runnableKeys, update.statusChanges, this.copy(executionStore = update.updatedStore))
   }
 
   def done: Boolean = executionStore.isDone

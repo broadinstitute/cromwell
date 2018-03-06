@@ -12,7 +12,7 @@ import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.RunPipelineRequest
 import cromwell.backend.BackendSingletonActorAbortWorkflow
 import cromwell.backend.impl.jes.Run
-import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesApiException, _}
+import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{PAPIApiException, _}
 import cromwell.backend.impl.jes.statuspolling.JesRunCreationClient.JobAbortedException
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
@@ -61,7 +61,7 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
     * 
   */
   private val maxBatchRequestSize: Long = 14L * 1024L * 1024L
-  private val requestTooLargeException = new JesApiException(new IllegalArgumentException(
+  private val requestTooLargeException = new PAPIApiException(new IllegalArgumentException(
     "The task run request has exceeded the maximum PAPI request size." +
       "If you have a task with a very large number of inputs and / or outputs in your workflow you should try to reduce it. " +
       "Depending on your case you could: 1) Zip your input files together and unzip them in the command. 2) Use a file of file names " +
@@ -75,11 +75,11 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
   scheduleInstrumentation { updateQueueSize(workQueue.size) }
 
   // workQueue is protected for the unit tests, not intended to be generally overridden
-  protected[statuspolling] var workQueue: Queue[JesApiQuery] = Queue.empty
+  protected[statuspolling] var workQueue: Queue[PAPIApiRequest] = Queue.empty
   private var workInProgress: Map[ActorRef, JesPollingWorkBatch] = Map.empty
   // Queries that have been scheduled to be retried through the actor's timer. They will boomerang back to this actor after
   // the scheduled delay, unless the workflow is aborted in the meantime in which case they will be cancelled.
-  private var queriesWaitingForRetry: Set[JesApiQuery] = Set.empty[JesApiQuery]
+  private var queriesWaitingForRetry: Set[PAPIApiRequest] = Set.empty[PAPIApiRequest]
 
   private def statusPollerProps = JesPollingActor.props(self, workerQps, serviceRegistryActor)
 
@@ -101,27 +101,27 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
         creationQuery.requester ! JesApiRunCreationQueryFailed(creationQuery, requestTooLargeException)
       } else workQueue :+= creationQuery
     case DoAbortRun(workflowId, run) => workQueue :+= makeAbortQuery(workflowId, sender, run)
-    case q: JesApiQuery => workQueue :+= q
+    case q: PAPIApiRequest => workQueue :+= q
     case RequestJesPollingWork(maxBatchSize) =>
       log.debug("Request for JES Polling Work received (max batch: {}, current queue size is {})", maxBatchSize, workQueue.size)
       handleJesPollingRequest(sender, maxBatchSize)
-    case failure: JesApiQueryFailed => handleQueryFailure(failure)
+    case failure: PAPIApiRequestFailed => handleQueryFailure(failure)
     case Terminated(actorRef) => onFailure(actorRef, new RuntimeException("Polling stopped itself unexpectedly"))
     case other => log.error(s"Unexpected message to JesPollingManager: $other")
   }
 
   private def abort(workflowId: WorkflowId) = {
-    def aborted(query: JesRunCreationQuery) = query.requester ! JesApiRunCreationQueryFailed(query, JobAbortedException)
+    def aborted(query: PAPIRunCreationRequest) = query.requester ! JesApiRunCreationQueryFailed(query, JobAbortedException)
 
     workQueue = workQueue.filterNot({
-      case query: JesRunCreationQuery if query.workflowId == workflowId =>
+      case query: PAPIRunCreationRequest if query.workflowId == workflowId =>
         aborted(query)
         true
       case _ => false
     })
 
     queriesWaitingForRetry = queriesWaitingForRetry.filterNot({
-      case query: JesRunCreationQuery if query.workflowId == workflowId =>
+      case query: PAPIRunCreationRequest if query.workflowId == workflowId =>
         timers.cancel(query)
         queriesWaitingForRetry = queriesWaitingForRetry - query
         aborted(query)
@@ -131,18 +131,18 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
   }
 
   private [statuspolling] def makeCreateQuery(workflowId: WorkflowId, replyTo: ActorRef, genomics: Genomics, rpr: RunPipelineRequest) = {
-    JesRunCreationQuery(workflowId, replyTo, genomics, rpr)
+    PAPIRunCreationRequest(workflowId, replyTo, genomics, rpr)
   }
 
   private [statuspolling] def makePollQuery(workflowId: WorkflowId, replyTo: ActorRef, run: Run) = {
-    JesStatusPollQuery(workflowId, replyTo, run)
+    PAPIStatusPollRequest(workflowId, replyTo, run)
   }
 
   private [statuspolling] def makeAbortQuery(workflowId: WorkflowId, replyTo: ActorRef, run: Run) = {
-    JesAbortQuery(workflowId, replyTo, run)
+    PAPIAbortRequest(workflowId, replyTo, run)
   }
 
-  private def handleQueryFailure(failure: JesApiQueryFailed) = if (failure.query.failedAttempts < maxRetries) {
+  private def handleQueryFailure(failure: PAPIApiRequestFailed) = if (failure.query.failedAttempts < maxRetries) {
     val nextRequest = failure.query.withFailedAttempt
     val delay = nextRequest.backoff.backoffMillis.millis
     queriesWaitingForRetry = queriesWaitingForRetry + nextRequest
@@ -171,7 +171,7 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
   }
 
   // Intentionally not final, this runs afoul of SI-4440 (I believe)
-  private case class BeheadedWorkQueue(workToDo: Option[NonEmptyList[JesApiQuery]], newWorkQueue: Queue[JesApiQuery])
+  private case class BeheadedWorkQueue(workToDo: Option[NonEmptyList[PAPIApiRequest]], newWorkQueue: Queue[PAPIApiRequest])
   private def beheadWorkQueue(maxBatchSize: Int): BeheadedWorkQueue = {
     import common.collections.EnhancedCollections._
     val DeQueued(head, tail) = workQueue.takeWhileWeighted(maxBatchRequestSize, _.contentLength, Option(maxBatchSize), strict = true)
@@ -190,12 +190,12 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
         log.error(s"The JES API worker actor $terminee unexpectedly terminated while conducting ${work.workBatch.tail.size + 1} polls. Making a new one...")
         workInProgress -= terminee
         work.workBatch.toList.foreach {
-          case statusQuery: JesStatusPollQuery =>
-            self ! JesApiStatusQueryFailed(statusQuery, new JesApiException(throwable))
-          case runCreationQuery: JesRunCreationQuery =>
-            self ! JesApiRunCreationQueryFailed(runCreationQuery, new JesApiException(throwable))
-          case abortQuery: JesAbortQuery =>
-            self ! JesApiAbortQueryFailed(abortQuery, new JesApiException(throwable))
+          case statusQuery: PAPIStatusPollRequest =>
+            self ! JesApiStatusQueryFailed(statusQuery, new PAPIApiException(throwable))
+          case runCreationQuery: PAPIRunCreationRequest =>
+            self ! JesApiRunCreationQueryFailed(runCreationQuery, new PAPIApiException(throwable))
+          case abortQuery: PAPIAbortRequest =>
+            self ! JesApiAbortQueryFailed(abortQuery, new PAPIApiException(throwable))
         }
       case None =>
         // It managed to die while doing absolutely nothing...!?
@@ -247,48 +247,48 @@ object JesApiQueryManager {
     */
   final case class DoAbortRun(workflowId: WorkflowId, run: Run) extends JesApiQueryManagerRequest
 
-  private[statuspolling] sealed trait JesApiQuery {
+  private[statuspolling] sealed trait PAPIApiRequest {
     def workflowId: WorkflowId
     val failedAttempts: Int
     def requester: ActorRef
     def genomicsInterface: Genomics
-    def withFailedAttempt: JesApiQuery
+    def withFailedAttempt: PAPIApiRequest
     def backoff: Backoff
     def httpRequest: HttpRequest
     def contentLength: Long = Option(httpRequest.getContent).map(_.getLength).getOrElse(0L)
   }
-  private object JesApiQuery {
+  private object PAPIApiRequest {
     // This must be a def, we want a new one each time (they're mutable! Boo!)
     def backoff: Backoff = SimpleExponentialBackoff(1.second, 1000.seconds, 1.5d)
   }
 
-  private[statuspolling] case class JesStatusPollQuery(workflowId: WorkflowId, requester: ActorRef, run: Run, failedAttempts: Int = 0, backoff: Backoff = JesApiQuery.backoff) extends JesApiQuery {
+  private[statuspolling] case class PAPIStatusPollRequest(workflowId: WorkflowId, requester: ActorRef, run: Run, failedAttempts: Int = 0, backoff: Backoff = PAPIApiRequest.backoff) extends PAPIApiRequest {
     override val genomicsInterface = run.genomicsInterface
     override lazy val httpRequest = run.getOperationCommand.buildHttpRequest()
     override def withFailedAttempt = this.copy(failedAttempts = failedAttempts + 1, backoff = backoff.next)
   }
 
-  private[statuspolling] case class JesRunCreationQuery(workflowId: WorkflowId, requester: ActorRef, genomicsInterface: Genomics, rpr: RunPipelineRequest, failedAttempts: Int = 0, backoff: Backoff = JesApiQuery.backoff) extends JesApiQuery {
+  private[statuspolling] case class PAPIRunCreationRequest(workflowId: WorkflowId, requester: ActorRef, genomicsInterface: Genomics, rpr: RunPipelineRequest, failedAttempts: Int = 0, backoff: Backoff = PAPIApiRequest.backoff) extends PAPIApiRequest {
     override def withFailedAttempt = this.copy(failedAttempts = failedAttempts + 1, backoff = backoff.next)
     override lazy val httpRequest = genomicsInterface.pipelines().run(rpr).buildHttpRequest()
   }
 
-  private[statuspolling] case class JesAbortQuery(workflowId: WorkflowId, requester: ActorRef, run: Run, failedAttempts: Int = 0, backoff: Backoff = JesApiQuery.backoff) extends JesApiQuery {
+  private[statuspolling] case class PAPIAbortRequest(workflowId: WorkflowId, requester: ActorRef, run: Run, failedAttempts: Int = 0, backoff: Backoff = PAPIApiRequest.backoff) extends PAPIApiRequest {
     override def withFailedAttempt = this.copy(failedAttempts = failedAttempts + 1, backoff = backoff.next)
     override val genomicsInterface = run.genomicsInterface
     override lazy val httpRequest = run.abortRequest()
   }
 
-  sealed trait JesApiQueryFailed {
-    val query: JesApiQuery
-    val cause: JesApiException
+  sealed trait PAPIApiRequestFailed {
+    val query: PAPIApiRequest
+    val cause: PAPIApiException
   }
 
-  final case class JesApiStatusQueryFailed(query: JesApiQuery, cause: JesApiException) extends JesApiQueryFailed
-  final case class JesApiRunCreationQueryFailed(query: JesApiQuery, cause: JesApiException) extends JesApiQueryFailed
-  final case class JesApiAbortQueryFailed(query: JesApiQuery, cause: JesApiException) extends JesApiQueryFailed
+  final case class JesApiStatusQueryFailed(query: PAPIApiRequest, cause: PAPIApiException) extends PAPIApiRequestFailed
+  final case class JesApiRunCreationQueryFailed(query: PAPIApiRequest, cause: PAPIApiException) extends PAPIApiRequestFailed
+  final case class JesApiAbortQueryFailed(query: PAPIApiRequest, cause: PAPIApiException) extends PAPIApiRequestFailed
 
-  private[statuspolling] final case class JesPollingWorkBatch(workBatch: NonEmptyList[JesApiQuery])
+  private[statuspolling] final case class JesPollingWorkBatch(workBatch: NonEmptyList[PAPIApiRequest])
   private[statuspolling] case object NoWorkToDo
 
   private[statuspolling] final case class RequestJesPollingWork(maxBatchSize: Int)
@@ -297,7 +297,7 @@ object JesApiQueryManager {
     override def getMessage: String = e.getMessage
   }
 
-  class JesApiException(val e: Throwable) extends RuntimeException(e) with CromwellFatalExceptionMarker {
+  class PAPIApiException(val e: Throwable) extends RuntimeException(e) with CromwellFatalExceptionMarker {
     override def getMessage: String = "Unable to complete JES Api Request"
   }
 }

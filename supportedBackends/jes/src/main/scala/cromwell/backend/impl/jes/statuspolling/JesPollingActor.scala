@@ -40,16 +40,16 @@ class JesPollingActor(val pollingManager: ActorRef, val qps: Int Refined Positiv
       scheduleCheckForWork()
   }
 
-  private def handleBatch(workBatch: NonEmptyList[JesApiQuery]): Future[List[Try[Unit]]] = {
+  private def handleBatch(workBatch: NonEmptyList[PAPIApiRequest]): Future[List[Try[Unit]]] = {
     // Assume that the auth for the first element is also good enough for everything else:
     val batch: BatchRequest = createBatch(workBatch.head.genomicsInterface)
 
     // Create the batch:
     // WARNING: These call change 'batch' as a side effect. Things might go awry if map runs items in parallel?
     val batchFutures = workBatch map {
-      case pollingRequest: JesStatusPollQuery => enqueueStatusPollInBatch(pollingRequest, batch)
-      case runCreationRequest: JesRunCreationQuery => enqueueRunCreationInBatch(runCreationRequest, batch)
-      case abortRequest: JesAbortQuery => enqueueAbortInBatch(abortRequest, batch)
+      case pollingRequest: PAPIStatusPollRequest => enqueueStatusPollInBatch(pollingRequest, batch)
+      case runCreationRequest: PAPIRunCreationRequest => enqueueRunCreationInBatch(runCreationRequest, batch)
+      case abortRequest: PAPIAbortRequest => enqueueAbortInBatch(abortRequest, batch)
 
       // We do the "successful Failure" thing so that the Future.sequence doesn't short-out immediately when the first one fails.
       case other => Future.successful(Failure(new RuntimeException(s"Cannot handle ${other.getClass.getSimpleName} requests")))

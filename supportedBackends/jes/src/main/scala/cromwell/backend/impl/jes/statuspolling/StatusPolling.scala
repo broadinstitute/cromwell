@@ -22,7 +22,7 @@ import scala.util.{Failure, Try, Success => TrySuccess}
 
 private[statuspolling] trait StatusPolling extends PapiInstrumentation{ this: JesPollingActor =>
 
-  private [statuspolling] def statusPollResultHandler(originalRequest: JesStatusPollQuery, completionPromise: Promise[Try[Unit]]) = new JsonBatchCallback[Operation] {
+  private [statuspolling] def statusPollResultHandler(originalRequest: PAPIStatusPollRequest, completionPromise: Promise[Try[Unit]]) = new JsonBatchCallback[Operation] {
     override def onSuccess(operation: Operation, responseHeaders: HttpHeaders): Unit = {
       pollSuccess()
       originalRequest.requester ! interpretOperationStatus(operation)
@@ -31,13 +31,13 @@ private[statuspolling] trait StatusPolling extends PapiInstrumentation{ this: Je
     }
 
     override def onFailure(e: GoogleJsonError, responseHeaders: HttpHeaders): Unit = {
-      pollingManager ! JesApiStatusQueryFailed(originalRequest, new JesApiException(GoogleJsonException(e, responseHeaders)))
+      pollingManager ! JesApiStatusQueryFailed(originalRequest, new PAPIApiException(GoogleJsonException(e, responseHeaders)))
       completionPromise.trySuccess(Failure(new Exception(mkErrorString(e))))
       ()
     }
   }
 
-  private [statuspolling] def enqueueStatusPollInBatch(pollingRequest: JesStatusPollQuery, batch: BatchRequest): Future[Try[Unit]] = {
+  private [statuspolling] def enqueueStatusPollInBatch(pollingRequest: PAPIStatusPollRequest, batch: BatchRequest): Future[Try[Unit]] = {
     val completionPromise = Promise[Try[Unit]]()
     val resultHandler = statusPollResultHandler(pollingRequest, completionPromise)
     addStatusPollToBatch(pollingRequest.httpRequest, batch, resultHandler)

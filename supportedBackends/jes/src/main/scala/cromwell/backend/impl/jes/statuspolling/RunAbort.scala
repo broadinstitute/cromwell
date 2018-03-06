@@ -13,7 +13,7 @@ import scala.util.{Failure, Success, Try}
 
 private[statuspolling] trait RunAbort extends PapiInstrumentation { this: JesPollingActor =>
 
-  private def abortResultHandler(originalRequest: JesAbortQuery, completionPromise: Promise[Try[Unit]]) = new JsonBatchCallback[Operation] {
+  private def abortResultHandler(originalRequest: PAPIAbortRequest, completionPromise: Promise[Try[Unit]]) = new JsonBatchCallback[Operation] {
     override def onSuccess(operation: Operation, responseHeaders: HttpHeaders): Unit = {
       abortSuccess()
       originalRequest.requester ! getJob(operation)
@@ -27,7 +27,7 @@ private[statuspolling] trait RunAbort extends PapiInstrumentation { this: JesPol
         originalRequest.requester ! JesAbortRequestSuccessful(originalRequest.run.job.jobId)
         completionPromise.trySuccess(Success(()))
       } else {
-        pollingManager ! JesApiAbortQueryFailed(originalRequest, new JesApiException(GoogleJsonException(e, responseHeaders)))
+        pollingManager ! JesApiAbortQueryFailed(originalRequest, new PAPIApiException(GoogleJsonException(e, responseHeaders)))
         completionPromise.trySuccess(Failure(new Exception(mkErrorString(e))))
       }
 
@@ -35,7 +35,7 @@ private[statuspolling] trait RunAbort extends PapiInstrumentation { this: JesPol
     }
   }
 
-  def enqueueAbortInBatch(abortQuery: JesAbortQuery, batch: BatchRequest): Future[Try[Unit]] = {
+  def enqueueAbortInBatch(abortQuery: PAPIAbortRequest, batch: BatchRequest): Future[Try[Unit]] = {
     val completionPromise = Promise[Try[Unit]]()
     val resultHandler = abortResultHandler(abortQuery, completionPromise)
     addAbortToBatch(abortQuery.httpRequest, batch, resultHandler)

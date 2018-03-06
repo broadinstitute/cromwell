@@ -5,7 +5,7 @@ import java.time.OffsetDateTime
 import akka.actor.ActorRef
 import cats.data.NonEmptyList
 import cromwell.core._
-import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
+import cromwell.services.ServiceRegistryActor.{ListenToMessage, ServiceRegistryMessage}
 import common.exception.{MessageAggregation, ThrowableAggregation}
 import wom.core._
 import wom.values._
@@ -69,7 +69,7 @@ object MetadataService {
   final case class PutMetadataAction(events: Iterable[MetadataEvent]) extends MetadataWriteAction 
   final case class PutMetadataActionAndRespond(events: Iterable[MetadataEvent], replyTo: ActorRef) extends MetadataWriteAction
 
-  final case object ListenToMetadataWriteActor extends MetadataServiceAction
+  final case object ListenToMetadataWriteActor extends MetadataServiceAction with ListenToMessage
 
   final case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
                                              excludeKeysOption: Option[NonEmptyList[String]],
@@ -214,7 +214,7 @@ object MetadataService {
         }
         message ++ indexedCauseEvents
 
-      case other @ _ =>
+      case _ =>
         val message = List(MetadataEvent(metadataKey.copy(key = s"$metadataKeyAndFailureIndex:message"), MetadataValue(t.getMessage)))
         val causeKey = metadataKey.copy(key = s"$metadataKeyAndFailureIndex:causedBy")
         val cause = Option(t.getCause) map { cause => throwableToMetadataEvents(causeKey, cause, 0) } getOrElse emptyCauseList

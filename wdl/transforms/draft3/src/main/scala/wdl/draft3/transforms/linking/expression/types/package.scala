@@ -8,28 +8,23 @@ import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
 import wdl.model.draft3.graph.expression.TypeEvaluator
 import wdl.model.draft3.graph.expression.TypeEvaluator.ops._
 import wdl.draft3.transforms.linking.expression.types.LookupEvaluators._
-import wom.types.{WomObjectType, WomType}
+import wdl.draft3.transforms.linking.expression.types.LiteralEvaluators._
+import wdl.draft3.transforms.linking.expression.types.UnaryOperatorEvaluators._
+import wdl.draft3.transforms.linking.expression.types.BinaryOperatorEvaluators._
+import wom.types.WomType
 
 package object types {
-  implicit val primitiveTypeEvaluator: TypeEvaluator[PrimitiveLiteralExpressionElement] = new TypeEvaluator[PrimitiveLiteralExpressionElement] {
-    override def evaluateType(a: PrimitiveLiteralExpressionElement, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]): ErrorOr[WomType] = a.value.womType.validNel
-  }
-
-  implicit val objectLiteralTypeEvaluator: TypeEvaluator[ObjectLiteral] = new TypeEvaluator[ObjectLiteral] {
-    override def evaluateType(a: ObjectLiteral, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]): ErrorOr[WomType] = WomObjectType.validNel
-  }
-
   implicit val expressionTypeEvaluator: TypeEvaluator[ExpressionElement] = new TypeEvaluator[ExpressionElement] {
     override def evaluateType(a: ExpressionElement, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]): ErrorOr[WomType] = {
 
       a match {
         // Literals:
         case a: PrimitiveLiteralExpressionElement => a.evaluateType(linkedValues)
-//        case a: StringLiteral => a.evaluateType(linkedValues)
+        case a: StringLiteral => a.evaluateType(linkedValues)
         case a: ObjectLiteral => a.evaluateType(linkedValues)
-//        case a: MapLiteral => a.evaluateType(linkedValues)
-//        case a: ArrayLiteral => a.evaluateType(linkedValues)
-//        case a: PairLiteral => a.evaluateType(linkedValues)
+        case a: MapLiteral => a.evaluateType(linkedValues)
+        case a: ArrayLiteral => a.evaluateType(linkedValues)
+        case a: PairLiteral => a.evaluateType(linkedValues)
 
         // Lookups and member accesses:
         case a: IdentifierLookup => a.evaluateType(linkedValues)
@@ -37,24 +32,24 @@ package object types {
         case a: IdentifierMemberAccess => a.evaluateType(linkedValues)
 
         // Unary operators:
-//        case a: UnaryNegation => a.evaluateType(linkedValues)
-//        case a: UnaryPlus => a.evaluateType(linkedValues)
-//        case a: LogicalNot => a.evaluateType(linkedValues)
+        case a: UnaryNegation => a.evaluateType(linkedValues)
+        case a: UnaryPlus => a.evaluateType(linkedValues)
+        case a: LogicalNot => a.evaluateType(linkedValues)
 
         // Binary operators (at some point we might want to split these into separate cases):
-//        case a: LogicalOr => a.evaluateType(linkedValues)
-//        case a: LogicalAnd => a.evaluateType(linkedValues)
-//        case a: Equals => a.evaluateType(linkedValues)
-//        case a: NotEquals => a.evaluateType(linkedValues)
-//        case a: LessThan => a.evaluateType(linkedValues)
-//        case a: LessThanOrEquals => a.evaluateType(linkedValues)
-//        case a: GreaterThan => a.evaluateType(linkedValues)
-//        case a: GreaterThanOrEquals => a.evaluateType(linkedValues)
-//        case a: Add => a.evaluateType(linkedValues)
-//        case a: Subtract => a.evaluateType(linkedValues)
-//        case a: Multiply => a.evaluateType(linkedValues)
-//        case a: Divide => a.evaluateType(linkedValues)
-//        case a: Remainder => a.evaluateType(linkedValues)
+        case a: LogicalOr => a.evaluateType(linkedValues)
+        case a: LogicalAnd => a.evaluateType(linkedValues)
+        case a: Equals => a.evaluateType(linkedValues)
+        case a: NotEquals => a.evaluateType(linkedValues)
+        case a: LessThan => a.evaluateType(linkedValues)
+        case a: LessThanOrEquals => a.evaluateType(linkedValues)
+        case a: GreaterThan => a.evaluateType(linkedValues)
+        case a: GreaterThanOrEquals => a.evaluateType(linkedValues)
+        case a: Add => a.evaluateType(linkedValues)
+        case a: Subtract => a.evaluateType(linkedValues)
+        case a: Multiply => a.evaluateType(linkedValues)
+        case a: Divide => a.evaluateType(linkedValues)
+        case a: Remainder => a.evaluateType(linkedValues)
 
 //        case a: TernaryIf => a.evaluateType(linkedValues)
 

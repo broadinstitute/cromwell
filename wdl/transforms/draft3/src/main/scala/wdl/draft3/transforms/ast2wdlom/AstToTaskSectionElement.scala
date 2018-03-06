@@ -15,6 +15,8 @@ object AstToTaskSectionElement {
     case "Declaration" => astNodeToDeclarationContent(ast).map(IntermediateValueDeclarationElement.fromContent)
     case "Runtime" => astNodeToRuntimeAttributesSectionElement(ast)
     case "RawCommand" => astNodeToCommandSectionElement(ast)
+    case "Meta" => astNodeToMetaSectionElement(ast)
+    case "ParameterMeta" => astNodeToParameterMetaSectionElement(ast)
     case other => s"No conversion defined for Ast with name $other to TaskBodyElement".invalidNelCheck
   }
 }

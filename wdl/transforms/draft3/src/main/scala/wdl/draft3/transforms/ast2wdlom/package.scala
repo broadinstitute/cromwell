@@ -41,4 +41,10 @@ package object ast2wdlom {
     case t: Terminal => t.getSourceString.validNelCheck
     case other: AstNode => s"Cannot convert ${other.getClass.getSimpleName} into String".invalidNelCheck
   }}
+
+  // meta sections
+  implicit val astNodeToMetaValueElement: CheckedAtoB[AstNode, MetaValueElement] = CheckedAtoB.fromErrorOr(AstNodeToMetaValueElement.convert)
+  implicit val astNodeToMetaKvPair: CheckedAtoB[AstNode, MetaKvPair] = CheckedAtoB.fromErrorOr(AstNodeToMetaKvPair.convert)
+  implicit val astNodeToMetaSectionElement: CheckedAtoB[AstNode, MetaSectionElement] = astNodeToAst andThen CheckedAtoB.fromCheck(AstToMetaSectionElement.convert)
+  implicit val astNodeToParameterMetaSectionElement: CheckedAtoB[AstNode, ParameterMetaSectionElement] = astNodeToAst andThen CheckedAtoB.fromCheck(AstToParameterMetaSectionElement.convert)
 }

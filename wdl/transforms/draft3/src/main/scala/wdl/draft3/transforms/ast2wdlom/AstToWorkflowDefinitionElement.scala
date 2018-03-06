@@ -28,8 +28,12 @@ object AstToWorkflowDefinitionElement {
 
     val graphSections: Vector[WorkflowGraphElement] = bodyElements.filterByType[WorkflowGraphElement]
 
-    (inputsSectionValidation, outputsSectionValidation) mapN { (validInputs, validOutputs) =>
-      WorkflowDefinitionElement(name, validInputs, graphSections.toSet, validOutputs)
+    val metaSectionValidation: ErrorOr[Option[MetaSectionElement]] = validateSize(bodyElements.filterByType[MetaSectionElement], "meta", 1)
+    val parameterMetaSectionValidation: ErrorOr[Option[ParameterMetaSectionElement]] = validateSize(bodyElements.filterByType[ParameterMetaSectionElement], "parameterMeta", 1)
+
+    (inputsSectionValidation, outputsSectionValidation, metaSectionValidation, parameterMetaSectionValidation) mapN {
+      (validInputs, validOutputs, meta, parameterMeta) =>
+      WorkflowDefinitionElement(name, validInputs, graphSections.toSet, validOutputs, meta, parameterMeta)
     }
   }
 

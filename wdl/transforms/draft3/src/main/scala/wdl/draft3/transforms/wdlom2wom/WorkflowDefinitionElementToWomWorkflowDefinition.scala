@@ -6,7 +6,7 @@ import common.validation.ErrorOr.ErrorOr
 import wdl.draft3.transforms.wdlom2wom.graph.{GraphNodeMakerInputs, WorkflowGraphElementToGraphNode}
 import wdl.model.draft3.elements.{WorkflowDefinitionElement, WorkflowGraphElement}
 import wdl.draft3.transforms.linking.graph._
-import wdl.model.draft3.graph.{LinkedGraph, LinkedGraphEdge}
+import wdl.model.draft3.graph.{GeneratedValueHandle, LinkedGraph, LinkedGraphEdge}
 import wom.callable.WorkflowDefinition
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.{GraphNode, Graph => WomGraph}
@@ -30,14 +30,29 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
         a.definitionElement.inputsSection.toSeq.flatMap(_.inputDeclarations) ++
         a.definitionElement.outputsSection.toSeq.flatMap(_.outputs)
 
-    for {
-      linkedGraph <- LinkedGraphMaker.make(nodes = graphNodeElements, typeAliases = a.typeAliases)
-      womGraph <- makeWomGraph(linkedGraph, a.definitionElement.name)
-    } yield WorkflowDefinition(a.definitionElement.name, womGraph, Map.empty, Map.empty)
-
+    val innerGraph: ErrorOr[WomGraph] = convertGraphElements(GraphLikeConvertInputs(graphNodeElements, Set.empty, a.typeAliases, a.definitionElement.name))
+    innerGraph map { ig =>  WorkflowDefinition(a.definitionElement.name, ig, Map.empty, Map.empty) }
   }
 
-  private def makeWomGraph(linkedGraph: LinkedGraph, workflowName: String): ErrorOr[WomGraph] = {
+  final case class GraphLikeConvertInputs(graphElements: Set[WorkflowGraphElement],
+                                          seedNodes: Set[GraphNode],
+                                          typeAliases: Map[String, WomType],
+                                          workflowName: String)
+
+  def convertGraphElements(a: GraphLikeConvertInputs): ErrorOr[WomGraph] = {
+
+    val seedGeneratedValueHandles = for {
+      seedNode <- a.seedNodes
+      outputPort <- seedNode.outputPorts
+    } yield GeneratedValueHandle(outputPort.name, outputPort.womType)
+
+    for {
+      linkedGraph <- LinkedGraphMaker.make(nodes = a.graphElements, seedGeneratedValueHandles, typeAliases = a.typeAliases)
+      womGraph <- makeWomGraph(linkedGraph, a.seedNodes, a.workflowName)
+    } yield womGraph
+  }
+
+  private def makeWomGraph(linkedGraph: LinkedGraph, seedNodes: Set[GraphNode], workflowName: String): ErrorOr[WomGraph] = {
 
     def graphNodeCreationFold(currentValidation: ErrorOr[List[GraphNode]], next: WorkflowGraphElement): ErrorOr[List[GraphNode]] = {
       currentValidation flatMap { currentList =>
@@ -46,12 +61,12 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
           port <- node.outputPorts
         } yield port.name -> port).toMap
         val nextGraphNodeValidation = WorkflowGraphElementToGraphNode.convert(GraphNodeMakerInputs(next, linkedGraph.consumedValueLookup, availableValues, linkedGraph.typeAliases, workflowName))
-        nextGraphNodeValidation map { nextGraphNode => currentList :+ nextGraphNode }
+        nextGraphNodeValidation map { nextGraphNode => currentList ++ nextGraphNode }
       }
     }
 
     val graphNodesValidation = getOrdering(linkedGraph) flatMap { ordering: List[WorkflowGraphElement] =>
-      ordering.foldLeft[ErrorOr[List[GraphNode]]](List.empty[GraphNode].validNel)(graphNodeCreationFold)
+      ordering.foldLeft[ErrorOr[List[GraphNode]]](seedNodes.toList.validNel)(graphNodeCreationFold)
     }
 
     graphNodesValidation flatMap { graphNodes => WomGraph.validateAndConstruct(graphNodes.toSet) }

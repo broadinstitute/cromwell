@@ -55,7 +55,9 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     "simpleFirstTest" -> anyWomWillDo,
     "static_value_workflow" -> anyWomWillDo,
     "nested_struct" -> anyWomWillDo,
-    "struct_definition" -> validateStructDefinitionWom
+    "struct_definition" -> validateStructDefinitionWom,
+    "simple_scatter" -> anyWomWillDo,
+    "simple_conditional" -> anyWomWillDo
 
   )
 

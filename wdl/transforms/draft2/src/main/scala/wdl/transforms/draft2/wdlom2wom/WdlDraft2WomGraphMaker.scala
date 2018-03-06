@@ -5,10 +5,10 @@ import cats.syntax.validated._
 import common.collections.EnhancedCollections._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import wdl.draft2.model._
+import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
 import wom.graph.CallNode.CallNodeAndNewNodes
 import wom.graph.GraphNode.GeneratedNodeAndNewNodes
 import wom.graph.GraphNodePort.OutputPort
-import wom.graph.expression.ExposedExpressionNode
 import wom.graph._
 import wom.transforms.WomCallNodeMaker.ops._
 import wom.transforms.WomConditionalNodeMaker.ops._
@@ -102,27 +102,12 @@ object WdlDraft2WomGraphMaker extends WomGraphMaker[Scope] {
       _.inputPorts.map(_.upstream.graphNode).filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode]
     }
 
-    // Default outputs are added if we're:
+    // Default outputs should be if we're:
     // - A scatter block
     // - An if block
     // - (NB: top level workflows are already given wildcard outputs in the WDL Workflow building phase)
     def withDefaultOutputs(g: Graph): Graph = scope match {
-      case _: If | _: Scatter =>
-        Graph(g.nodes.union((g.nodes collect {
-          case node: CallNode => node.outputPorts.map(op => {
-            val identifier = node.identifier.combine(op.name)
-            PortBasedGraphOutputNode(identifier, op.womType, op)
-          })
-          case node: ExposedExpressionNode => node.outputPorts.map(op => {
-            PortBasedGraphOutputNode(WomIdentifier(op.name), op.womType, op)
-          })
-          case node: ScatterNode => node.outputMapping.map(op => {
-            PortBasedGraphOutputNode(op.identifier, op.womType, op)
-          })
-          case node: ConditionalNode => node.conditionalOutputPorts.map(op => {
-            PortBasedGraphOutputNode(op.identifier, op.womType, op)
-          })
-        }).flatten))
+      case _: If | _: Scatter => WomGraphMakerTools.addDefaultOutputs(g)
       case _ => g
     }
 

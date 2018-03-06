@@ -154,9 +154,11 @@ case class CommandLineTool private(
     unevaluatableEnvironmentDefs match {
       case Nil =>
         // No unevaluatable environment defs => keep on truckin'
-        effectiveEnvironmentDefs.foldRight(Map.empty[String, WomExpression]) { case ((envName, envValue), acc) =>
+        val y = effectiveEnvironmentDefs.foldRight(Map.empty[String, WomExpression]) {
+          case ((envName, envValue), acc) =>
           acc + (envName -> envValue.fold(StringOrExpressionToWomExpression).apply(inputNames, expressionLib))
         }.validNel
+        y
       case xs =>
         s"Could not evaluate environment variable expressions defined in the call hierarchy of tool $id: ${xs.mkString(", ")}.".invalidNel
     }

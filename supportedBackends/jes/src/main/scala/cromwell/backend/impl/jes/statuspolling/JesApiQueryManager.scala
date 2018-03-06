@@ -69,8 +69,13 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
   ))
 
   private[statuspolling] lazy val nbWorkers = 2
-  private lazy val workerQps = refineV[Positive](Math.max(qps.value / nbWorkers, 1))
-    .getOrElse(throw new IllegalArgumentException("Programmer error ! Keep the min qps at 1 !"))
+
+  private lazy val workerQps = refineV[Positive](Math.max(qps.value / nbWorkers, 1)) match {
+    // This cannot possibly happen as long as qps is >= 1 and the Math.max above is kept, but there's no .get on either
+    // so we have to somehow handle the failure case
+    case Left(error) => throw new IllegalArgumentException(s"Programmer error ! Keep the min qps at 1: $error")
+    case Right(value) => value
+  }
 
   scheduleInstrumentation { updateQueueSize(workQueue.size) }
 

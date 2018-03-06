@@ -6,9 +6,12 @@ import wdl.draft3.transforms.expression.TernaryIfEvaluatorSpec.DontEvaluateMe
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
+import wdl.model.draft3.graph.expression.TypeEvaluator.ops._
 import wom.expression.NoIoFunctionSet
-import wom.values.{WomBoolean, WomInteger, WomValue}
+import wom.values.{WomBoolean, WomFloat, WomInteger, WomValue}
 import wdl.draft3.transforms.linking.expression.values.expressionEvaluator
+import wdl.draft3.transforms.linking.expression.types.expressionTypeEvaluator
+import wom.types.{WomFloatType, WomIntegerType, WomType}
 
 /**
   * Checks that the draft3 value evaluators for ExpressionElements are wired to forward values through to the appropriate
@@ -27,14 +30,27 @@ class TernaryIfEvaluatorSpec extends FlatSpec with Matchers{
 
   // Format:
   // Test name, input expression, output value.
-  val expressionTests: List[(String, ExpressionElement, WomValue)] = List(
+  val valueTests: List[(String, ExpressionElement, WomValue)] = List(
     ("if true then 5 else ???", TernaryIf(trueLiteral, fiveLiteral, DontEvaluateMe), womFive),
     ("if false then ??? else 6", TernaryIf(falseLiteral, DontEvaluateMe, sixLiteral), womSix)
   )
 
-  expressionTests foreach { case (name, expression, expected) =>
+  // Format:
+  // Test name, input expression, output type.
+  val typeTests: List[(String, ExpressionElement, WomType)] = List(
+    ("if true then 5 else 6", TernaryIf(trueLiteral, fiveLiteral, sixLiteral), WomIntegerType),
+    ("if false then 5.5 else 6", TernaryIf(falseLiteral, PrimitiveLiteralExpressionElement(WomFloat(5.5)), sixLiteral), WomFloatType)
+  )
+
+  valueTests foreach { case (name, expression, expected) =>
     it should s"evaluate the expression '$name'" in {
       expression.evaluateValue(Map.empty, NoIoFunctionSet) shouldBeValid expected
+    }
+  }
+
+  typeTests foreach { case (name, expression, expected) =>
+    it should s"evaluate the expression '$name'" in {
+      expression.evaluateType(Map.empty) shouldBeValid expected
     }
   }
 }

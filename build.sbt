@@ -42,6 +42,7 @@ lazy val wdlTransformsDraft3 = (project in wdlTransformsRoot / "draft3")
   .withLibrarySettings("cromwell-wdl-transforms-draft3", wdlDependencies, crossCompile = true)
   .dependsOn(wdlSharedTransforms)
   .dependsOn(wdlModelDraft3)
+  .dependsOn(common % "test->test")
 
 lazy val cwl = project
   .withLibrarySettings("cromwell-cwl", cwlDependencies, crossCompile = true)

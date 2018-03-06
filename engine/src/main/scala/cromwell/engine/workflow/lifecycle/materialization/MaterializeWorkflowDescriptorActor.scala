@@ -38,7 +38,7 @@ import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.services.metadata.MetadataService._
 import net.ceedubs.ficus.Ficus._
 import spray.json._
-import wom.expression.WomExpression
+import wom.expression.{NoIoFunctionSet, WomExpression}
 import wom.graph.CommandCallNode
 import wom.graph.GraphNodePort.OutputPort
 import wom.values.{WomString, WomValue}

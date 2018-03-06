@@ -8,11 +8,10 @@ import cromwell.core.path.BetterFileMethods.OpenOptions
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import wom.executable.Executable.ResolvedExecutableInputs
 import wom.executable.Executable
-import wom.expression.IoFunctionSet
+import wom.expression.{IoFunctionSet, NoIoFunctionSet}
 import wom.graph.GraphNodePort.OutputPort
 import wom.values.{WomSingleFile, WomValue}
 import cromwell.core.CromwellGraphNode.CromwellEnhancedOutputPort
-import cromwell.core.NoIoFunctionSet
 import cromwell.languages.ValidatedWomNamespace
 
 import scala.util.{Failure, Success, Try}

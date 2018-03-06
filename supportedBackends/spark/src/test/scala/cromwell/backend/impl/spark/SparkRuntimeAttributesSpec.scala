@@ -4,7 +4,7 @@ import wdl.draft2.model.ImportResolver
 import cromwell.backend.{BackendWorkflowDescriptor, MemorySize}
 import wom.RuntimeAttributesKeys._
 import cromwell.core.labels.Labels
-import cromwell.core.{NoIoFunctionSet, WorkflowId, WorkflowOptions}
+import cromwell.core.{WorkflowId, WorkflowOptions}
 import common.validation.ErrorOr._
 import org.scalatest.{Matchers, WordSpecLike}
 import spray.json.{JsBoolean, JsNumber, JsObject, JsString, JsValue}
@@ -14,6 +14,7 @@ import wom.graph.GraphNodePort.OutputPort
 import wom.values.WomValue
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wdl.transforms.draft2.wdlom2wom._
+import wom.expression.NoIoFunctionSet
 
 class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
 

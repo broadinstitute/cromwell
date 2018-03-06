@@ -4,7 +4,7 @@ import wdl.draft2.model.LocallyQualifiedName
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.TestProbe
 import cromwell.backend._
-import cromwell.core.{NoIoFunctionSet, WorkflowId}
+import cromwell.core.WorkflowId
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.JobPreparationTestHelper._
@@ -12,6 +12,7 @@ import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, ScopedKey}
 import common.validation.ErrorOr.ErrorOr
 import org.specs2.mock.Mockito
+import wom.expression.NoIoFunctionSet
 import wom.graph.{CommandCallNode, WomIdentifier}
 import wom.values.{WomEvaluatedCallInputs, WomValue}
 

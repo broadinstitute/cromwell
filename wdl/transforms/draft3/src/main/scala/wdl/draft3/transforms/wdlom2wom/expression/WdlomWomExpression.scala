@@ -18,7 +18,8 @@ final case class WdlomWomExpression(expressionElement: ExpressionElement, linked
 
   override def inputs: Set[String] = linkedValues.map(_._2.linkableName).toSet
 
-  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = expressionElement.evaluateValue(inputValues, ioFunctionSet, linkedValues)
+  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] =
+    expressionElement.evaluateValue(inputValues, ioFunctionSet)
 
   // NB types can be determined using the linked values, so we don't need the inputMap:
   override def evaluateType(inputMap: Map[String, WomType]): ErrorOr[WomType] = expressionElement match {

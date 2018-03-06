@@ -6,7 +6,7 @@ import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, J
 import cromwell.backend.io.TestWorkflows._
 import cromwell.core.callcaching.NoDocker
 import cromwell.core.labels.Labels
-import cromwell.core.{NoIoFunctionSet, WorkflowId, WorkflowOptions}
+import cromwell.core.{WorkflowId, WorkflowOptions}
 import common.exception.AggregatedException
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
@@ -15,7 +15,7 @@ import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsValue}
 import wom.callable.Callable.{InputDefinition, RequiredInputDefinition}
 import wom.core.WorkflowSource
-import wom.expression.WomExpression
+import wom.expression.{NoIoFunctionSet, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.CommandCallNode
 import wom.values.WomValue

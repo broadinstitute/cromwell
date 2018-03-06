@@ -11,10 +11,11 @@ import cromwell.backend.impl.bcs.RunStatus.{Finished, TerminalRunStatus}
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path, PathFactory}
 import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.core.{ExecutionEvent, NoIoFunctionSet}
+import cromwell.core.ExecutionEvent
 import cromwell.filesystems.oss.OssPath
 import wom.callable.Callable.OutputDefinition
 import wom.core.FullyQualifiedName
+import wom.expression.NoIoFunctionSet
 import wom.types.WomSingleFileType
 import wom.values._
 

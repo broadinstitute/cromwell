@@ -4,13 +4,13 @@ import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
 import cromwell.backend.wdl.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey}
-import cromwell.core.{CallOutputs, NoIoFunctionSet}
+import cromwell.core.CallOutputs
 import cromwell.util.WomMocks
 import common.validation.ErrorOr.ErrorOr
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import wom.callable.Callable.{InputDefinition, OutputDefinition, RequiredInputDefinition}
-import wom.expression.{IoFunctionSet, WomExpression}
+import wom.expression.{IoFunctionSet, NoIoFunctionSet, WomExpression}
 import wom.graph.WomIdentifier
 import wom.types.{WomIntegerType, WomType}
 import wom.values.{WomFile, WomInteger, WomValue}

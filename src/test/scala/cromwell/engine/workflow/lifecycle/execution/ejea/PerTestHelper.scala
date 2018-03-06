@@ -10,7 +10,7 @@ import cromwell.backend._
 import cromwell.backend.standard.callcaching._
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.callcaching._
-import cromwell.core.{CallOutputs, JobExecutionToken, NoIoFunctionSet, WorkflowId}
+import cromwell.core.{CallOutputs, JobExecutionToken, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
@@ -21,7 +21,7 @@ import cromwell.util.AkkaTestUtil._
 import cromwell.util.WomMocks
 import org.specs2.mock.Mockito
 import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition}
-import wom.expression.IoFunctionSet
+import wom.expression.{IoFunctionSet, NoIoFunctionSet}
 import wom.graph.{CommandCallNode, WomIdentifier}
 import wom.types.{WomIntegerType, WomStringType}
 

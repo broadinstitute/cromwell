@@ -1,5 +1,6 @@
 package wdl.draft3.transforms.ast2wdlom
 
+import cats.data.NonEmptyList
 import wdl.model.draft3.elements.ExpressionElement._
 import wom.values._
 
@@ -20,7 +21,7 @@ object ExpressionSet {
   val pairExpression = PairLiteral(intLiteral, stringLiteral)
 
   val tenVariableLookup = IdentifierLookup("ten")
-  val pairExpressionMemberAccess = ExpressionMemberAccess(pairExpression, Vector("left"))
+  val pairExpressionMemberAccess = ExpressionMemberAccess(pairExpression, NonEmptyList("left", List.empty))
 
   val unaryExpressions = LogicalNot(LessThan(UnaryPlus(intLiteral), UnaryNegation(intLiteral)))
 
@@ -61,7 +62,7 @@ object ExpressionSet {
     )
 
   val chainIdentifierAccess = IdentifierMemberAccess("a", "b", Vector("c", "d", "e", "f", "g"))
-  val chainPairAccess = ExpressionMemberAccess(pairExpression, Vector("a", "b", "c", "d", "e", "f", "g"))
+  val chainPairAccess = ExpressionMemberAccess(pairExpression, NonEmptyList("a", List("b", "c", "d", "e", "f", "g")))
 
   val arrayOfIs = ArrayLiteral(Vector(intLiteral, Multiply(intLiteral, intLiteral), UnaryNegation(intLiteral)))
   val objectLiteralExpression = ObjectLiteral(Map(

@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory
 import wom.CommandSetupSideEffectFile
 import wom.callable.Callable.OutputDefinition
 import wom.core.FullyQualifiedName
+import wom.expression.NoIoFunctionSet
 import wom.types.{WomArrayType, WomSingleFileType}
 import wom.values._
 

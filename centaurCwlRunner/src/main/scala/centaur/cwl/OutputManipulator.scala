@@ -1,18 +1,16 @@
 package centaur.cwl
 
-import spray.json.{JsArray, JsNumber, JsObject, JsString, JsValue}
-import cwl.{MyriadOutputType, File => CwlFile}
-import io.circe.{Json, JsonObject}
-import io.circe.generic.auto._
-import io.circe.literal._
-import io.circe.refined._
-import io.circe.shapes._
-import io.circe.syntax._
-import shapeless.{Inl, Poly1}
-import _root_.cwl._
 import cromwell.core.path.PathBuilder
 import cwl.command.ParentName
+import cwl.{File => CwlFile, _}
+import io.circe.generic.auto._
+import io.circe.literal._
+import io.circe.shapes._
+import io.circe.syntax._
+import io.circe.{Json, JsonObject}
 import org.apache.commons.codec.digest.DigestUtils
+import shapeless.{Inl, Poly1}
+import spray.json.{JsArray, JsNull, JsNumber, JsObject, JsString, JsValue}
 
 //Take cromwell's outputs and format them as expected by the spec
 object OutputManipulator extends Poly1 {
@@ -146,12 +144,13 @@ object OutputManipulator extends Poly1 {
             case (k, v) => k -> resolveOutputViaInnerType(typeMap(k))(v, pathBuilder)
           }).asJson
         } yield outputJson).getOrElse(throw new RuntimeException(s"We currently do not support output arrays with ${tpe.select[OutputArraySchema].get.items} inner type"))
+      case (JsNull, Inl(CwlType.Null)) => Json.Null
       case (json, tpe) => throw new RuntimeException(s"We currently do not support outputs (${json.getClass.getSimpleName}) of $json and type $tpe")
     }
   }
 
   implicit def moit: Case.Aux[MyriadOutputInnerType, (JsValue, PathBuilder) => Json] = at[MyriadOutputInnerType] {
-    resolveOutputViaInnerType(_)
+    resolveOutputViaInnerType
   }
 
   implicit def amoit: Case.Aux[Array[MyriadOutputInnerType], (JsValue, PathBuilder) => Json] =

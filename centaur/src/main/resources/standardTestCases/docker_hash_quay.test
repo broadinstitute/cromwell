@@ -7,5 +7,7 @@ files {
 
 metadata {
   "calls.docker_hash_quay.quay.runtimeAttributes.docker": "quay.io/aptible/ubuntu:12.04",
-  "calls.docker_hash_quay.quay.dockerImageUsed": "quay.io/aptible/ubuntu@sha256:cf53a62c50cd1ec4e48b1c995451b94005d3e85527d06ce9151b51b0f1b6dd87"
+  # NOTE: Whenever aptible updates their tagged images then the sha256's will change.
+  # - https://github.com/aptible/docker-ubuntu
+  "calls.docker_hash_quay.quay.dockerImageUsed": "quay.io/aptible/ubuntu@sha256:6d20de6759adac679e6e3e8356c618d92b6ad800851bf8e1f28c336376a19afb"
 }

@@ -353,6 +353,53 @@ object WdlFileToWdlomSpec {
           parameterMetaSection = None
         )),
         tasks = Vector()
-      )
+      ),
+    "simple_scatter" -> FileElement(
+      imports = Vector.empty,
+      structs = Vector.empty,
+      workflows = Vector(WorkflowDefinitionElement(
+        name= "simple_scatter",
+        inputsSection = None,
+        graphElements = Set(
+          IntermediateValueDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)), "indices", ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(1)), PrimitiveLiteralExpressionElement(WomInteger(2)), PrimitiveLiteralExpressionElement(WomInteger(3))))),
+          ScatterElement(
+            scatterExpression = IdentifierLookup("indices"),
+            scatterVariableName = "i",
+            graphElements = Vector(
+              IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "j", Add(IdentifierLookup("i"), PrimitiveLiteralExpressionElement(WomInteger(10))))
+            )
+          )
+        ),
+        outputsSection = Some(
+          OutputsSectionElement(Vector(OutputDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)), "js", IdentifierLookup("j"))))
+        ),
+        metaSection = None,
+        parameterMetaSection = None
+      )),
+      tasks = Vector.empty
+    ),
+    "simple_conditional" -> FileElement(
+      imports = Vector.empty,
+      structs = Vector.empty,
+      workflows = Vector(WorkflowDefinitionElement(
+        name= "simple_conditional",
+        inputsSection = None,
+        graphElements = Set(
+          IntermediateValueDeclarationElement(PrimitiveTypeElement(WomBooleanType), "bool", PrimitiveLiteralExpressionElement(WomBoolean(true))),
+          IfElement(
+            conditionExpression = IdentifierLookup("bool"),
+            graphElements = Vector(
+              IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "j", Add(IdentifierLookup("i"), PrimitiveLiteralExpressionElement(WomInteger(10))))
+            )
+          )
+        ),
+        outputsSection = Some(
+          OutputsSectionElement(Vector(OutputDeclarationElement(OptionalTypeElement(PrimitiveTypeElement(WomIntegerType)), "j_maybe", IdentifierLookup("j"))))
+        ),
+        metaSection = None,
+        parameterMetaSection = None
+      )),
+      tasks = Vector.empty
+    )
   )
 }

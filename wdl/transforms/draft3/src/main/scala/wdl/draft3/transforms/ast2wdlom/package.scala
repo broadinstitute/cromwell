@@ -35,6 +35,9 @@ package object ast2wdlom {
   implicit val astNodeToCommandSectionElement: CheckedAtoB[AstNode, CommandSectionElement] = astNodeToAst andThen CheckedAtoB.fromCheck(AstToCommandSectionElement.convert)
   implicit val astNodeToCommandPartElement: CheckedAtoB[AstNode, CommandPartElement] = CheckedAtoB.fromErrorOr(AstNodeToCommandPartElement.convert)
   implicit val astNodeToCallElement: CheckedAtoB[AstNode, CallElement] = astNodeToAst andThen CheckedAtoB.fromErrorOr(AstToCallElement.convert)
+  implicit val astNodeToScatterElement: CheckedAtoB[AstNode, ScatterElement] = astNodeToAst andThen CheckedAtoB.fromErrorOr(AstToScatterElement.convert)
+  implicit val astNodeToIfElement: CheckedAtoB[AstNode, IfElement] = astNodeToAst andThen CheckedAtoB.fromErrorOr(AstToIfElement.convert)
+  implicit val astNodeToGraphElement: CheckedAtoB[AstNode, WorkflowGraphElement] = astNodeToAst andThen CheckedAtoB.fromCheck(AstToWorkflowGraphNodeElement.convert)
   implicit val fileToFileElement: CheckedAtoB[File, FileElement] = fileToAst andThen astToFileElement
 
   implicit val astNodeToString: CheckedAtoB[AstNode, String] = CheckedAtoB.fromCheck { (a: AstNode) => a match {

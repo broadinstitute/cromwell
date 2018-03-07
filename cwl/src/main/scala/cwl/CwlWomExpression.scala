@@ -81,11 +81,11 @@ object InitialWorkDirFileGeneratorExpression {
             ExpressionEvaluator.eval(content, ParameterContext(mappedInputValues), expressionLib)
             */
           } else {
-            val entryEvaluation = ExpressionEvaluator.eval(expressionDirent.entry, parameterContext, expressionLib)
+            val entryEvaluation = ExpressionEvaluator.eval(expressionDirent.entry, unmappedParameterContext, expressionLib)
             entryEvaluation flatMap {
               case womFile: WomFile =>
                 val errorOrEntryName: ErrorOr[String] = expressionDirent.entryname match {
-                  case Some(actualEntryName) => actualEntryName.fold(EntryNamePoly).apply(parameterContext, expressionLib)
+                  case Some(actualEntryName) => actualEntryName.fold(EntryNamePoly).apply(unmappedParameterContext, expressionLib)
                   case None => womFile.value.split('/').last.valid
                 }
                 errorOrEntryName flatMap { entryName =>
@@ -97,7 +97,7 @@ object InitialWorkDirFileGeneratorExpression {
                 // We force the entryname to be specified, and then evaluate it:
                 entryNameStringOrExpression <- expressionDirent.entryname.toErrorOr(
                   "Invalid dirent: Entry was a string but no file name was supplied")
-                entryName <- entryNameStringOrExpression.fold(EntryNamePoly).apply(parameterContext, expressionLib)
+                entryName <- entryNameStringOrExpression.fold(EntryNamePoly).apply(unmappedParameterContext, expressionLib)
                 writeFile = ioFunctionSet.writeFile(entryName, contentString)
                 writtenFile <- validate(Await.result(writeFile, Duration.Inf))
               } yield writtenFile
@@ -112,7 +112,7 @@ object InitialWorkDirFileGeneratorExpression {
         stringDirent => {
           (ioFunctionSet, unmappedParameterContext, mappedInputValues, expressionLib) =>
             for {
-              entryName <- stringDirent.entryname.fold(EntryNamePoly).apply(parameterContext, expressionLib)
+              entryName <- stringDirent.entryname.fold(EntryNamePoly).apply(unmappedParameterContext, expressionLib)
               contentString = stringDirent.entry
               writeFile = ioFunctionSet.writeFile(entryName, contentString)
               writtenFile <- validate(Await.result(writeFile, Duration.Inf))
@@ -125,7 +125,7 @@ object InitialWorkDirFileGeneratorExpression {
       at { expression =>
         (_, unmappedParameterContext, mappedInputValues, expressionLib) => {
           // A single expression which must evaluate to an array of Files
-          val expressionEvaluation = ExpressionEvaluator.eval(expression, parameterContext, expressionLib)
+          val expressionEvaluation = ExpressionEvaluator.eval(expression, unmappedParameterContext, expressionLib)
 
           expressionEvaluation flatMap {
             case array: WomArray if WomArrayType(WomSingleFileType).coercionDefined(array) =>
@@ -156,7 +156,7 @@ object InitialWorkDirFileGeneratorExpression {
 
     implicit val caseFile: Case.Aux[File, InitialWorkDirFileEvaluator] = {
       at { file =>
-        (_, _, _) => {
+        (_, _, _, _) => {
           file.asWomValue
         }
       }
@@ -164,7 +164,7 @@ object InitialWorkDirFileGeneratorExpression {
 
     implicit val caseDirectory: Case.Aux[Directory, InitialWorkDirFileEvaluator] = {
       at { directory =>
-        (_, _, _) => {
+        (_, _, _, _) => {
           directory.asWomValue
         }
       }

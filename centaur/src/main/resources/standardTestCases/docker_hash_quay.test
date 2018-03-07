@@ -6,8 +6,6 @@ files {
 }
 
 metadata {
-  "calls.docker_hash_quay.quay.runtimeAttributes.docker": "quay.io/aptible/ubuntu:12.04",
-  # NOTE: Whenever aptible updates their tagged images then the sha256's will change.
-  # - https://github.com/aptible/docker-ubuntu
-  "calls.docker_hash_quay.quay.dockerImageUsed": "quay.io/aptible/ubuntu@sha256:6d20de6759adac679e6e3e8356c618d92b6ad800851bf8e1f28c336376a19afb"
+  "calls.docker_hash_quay.quay.runtimeAttributes.docker": "quay.io/broadinstitute/cromwell-docker-test:centaur",
+  "calls.docker_hash_quay.quay.dockerImageUsed": "quay.io/broadinstitute/cromwell-docker-test@sha256:80f7fd06fa8dcebbcf92eb3e26bf8163fe8341d60009e50a0c36cf3fbadd30a6"
 }

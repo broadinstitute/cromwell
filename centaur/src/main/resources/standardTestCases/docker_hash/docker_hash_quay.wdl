@@ -3,7 +3,7 @@ task quay {
         echo "hello"
     }
     runtime {
-        docker: "quay.io/aptible/ubuntu:12.04"
+        docker: "quay.io/broadinstitute/cromwell-docker-test:centaur"
     }
 }
 

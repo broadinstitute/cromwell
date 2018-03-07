@@ -20,6 +20,8 @@ abstract class KeyValueReadActor(override val threshold: Int, override val servi
       case Success(response) => head.replyTo ! response
       case Failure(f) => head.replyTo ! KvFailure(head.command, f)
     }
+    // This method should return how many "operations" have been performed to enable instrumentation of throughput
+    // In this case it's 1 because we processed 1 KvGet
     processed.map(_ => 1)
   }
   

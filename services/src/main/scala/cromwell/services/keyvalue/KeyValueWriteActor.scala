@@ -25,6 +25,8 @@ abstract class KeyValueWriteActor(override val serviceRegistryActor: ActorRef, f
         case CommandAndReplyTo(command, replyTo) => replyTo ! KvFailure(command, f)
       })
     }
+    // This method should return how many "operations" have been performed to enable instrumentation of throughput
+    // Here we've processed all the KvPuts in "data"
     processed.map(_ => data.length)
   }
 

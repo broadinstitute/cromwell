@@ -2,6 +2,7 @@ package cromwell.engine.workflow.workflowstore
 
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, PoisonPill, Props}
 import cats.data.NonEmptyList
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.Dispatcher._
 import cromwell.core.WorkflowAborting
 import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingResponse}
@@ -14,13 +15,22 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{WorkflowStoreActorState, _}
 import cromwell.services.instrumentation.CromwellInstrumentationScheduler
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
+import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.exception.ExceptionUtils
 
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceRegistryActor: ActorRef, abortAllJobsOnTerminate: Boolean)
+final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceRegistryActor: ActorRef, abortAllJobsOnTerminate: Boolean, config: Config)
   extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging with WorkflowInstrumentation with CromwellInstrumentationScheduler with WorkflowMetadataHelper {
+
+  val cromwellId: Option[String] = config.as[Option[String]]("system.cromwell_id")
+
+  // Entries in the workflow store with a Cromwell ID different from this instance and whose heartbeat timestamps are
+  // older than now - heartbeatTtl are presumed abandoned and up for grabs.
+  val DefaultWorkflowStoreHeartbeatTtl: FiniteDuration = 1.hour
+  val heartbeatTtl: FiniteDuration = config.getOrElse("system.workflow_heartbeat_ttl", DefaultWorkflowStoreHeartbeatTtl)
 
   implicit val ec: ExecutionContext = context.dispatcher
 
@@ -139,7 +149,7 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
   private def newWorkflowMessage(maxWorkflows: Int): Future[WorkflowStoreEngineActorResponse] = {
     def fetchStartableWorkflowsIfNeeded(maxWorkflowsInner: Int) = {
       if (maxWorkflows > 0) {
-        store.fetchStartableWorkflows(maxWorkflowsInner)
+        store.fetchStartableWorkflows(maxWorkflowsInner, cromwellId, heartbeatTtl)
       } else {
         Future.successful(List.empty[WorkflowToStart])
       }
@@ -158,8 +168,8 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
 }
 
 object WorkflowStoreEngineActor {
-  def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef, abortAllJobsOnTerminate: Boolean) = {
-    Props(WorkflowStoreEngineActor(workflowStoreDatabase, serviceRegistryActor, abortAllJobsOnTerminate)).withDispatcher(EngineDispatcher)
+  def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef, abortAllJobsOnTerminate: Boolean, config: Config = ConfigFactory.load()) = {
+    Props(WorkflowStoreEngineActor(workflowStoreDatabase, serviceRegistryActor, abortAllJobsOnTerminate, config)).withDispatcher(EngineDispatcher)
   }
 
   sealed trait WorkflowStoreEngineActorResponse

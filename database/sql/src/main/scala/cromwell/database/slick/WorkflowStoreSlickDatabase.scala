@@ -1,12 +1,17 @@
 package cromwell.database.slick
 
+import java.sql.Timestamp
+import java.text.DateFormat
+
 import cats.instances.future._
 import cats.syntax.functor._
+import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.WorkflowStoreSqlDatabase
 import cromwell.database.sql.tables.WorkflowStoreEntry
 import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
 import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
 
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 
 trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
@@ -22,21 +27,22 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     runTransaction(action).void
   }
 
-  override def markRunningAndAbortingAsRestarted()(implicit ec: ExecutionContext): Future[Unit] = {
-    val action = dataAccess.restartedFlagForRunningAndAborting.update(true)
+  override def markRunningAndAbortingAsRestarted(cromwellId: Option[String])(implicit ec: ExecutionContext): Future[Unit] = {
+    val action = dataAccess.heartbeatTimestamp(cromwellId).update(None)
 
     runTransaction(action).void
   }
 
   /**
     * Set the workflow Id to Aborting state.
-    * @return Some(restarted) if the workflow exists in the store, where restarted is the value of its restarted flag
+    * @return Some(restarted) if the workflow exists in the store, where restarted is true if the workflow's heartbeat
+    *         timestamp was cleared on restart.
     *         None if the workflow does not exist in the store
     */
   override def setToAborting(workflowId: String)
                             (implicit ec: ExecutionContext): Future[Option[Boolean]] = {
     val action =  for {
-      restarted <- dataAccess.workflowRestartedForId(workflowId).result.headOption
+      restarted <- dataAccess.heartbeatClearedForWorkflowId(workflowId).result.headOption
       _ <- dataAccess.workflowStateForId(workflowId).update(WorkflowStoreState.Aborting)
     } yield restarted
     
@@ -49,18 +55,20 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     runTransaction(action).void
   }
 
-  override def fetchStartableWorkflows(limit: Int)
+  private def now: Timestamp = new Timestamp(System.currentTimeMillis())
+
+  override def fetchStartableWorkflows(limit: Int, cromwellId: Option[String], heartbeatTtl: FiniteDuration)
                                       (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]] = {
     val action = for {
-      workflowStoreEntries <- dataAccess.fetchStartableWorkflows(limit.toLong).result
-      _ <- DBIO.sequence(workflowStoreEntries map updateWorkflowStateAndRestartedForWorkflowExecutionUuid)
+      workflowStoreEntries <- dataAccess.fetchStartableWorkflows((limit.toLong, cromwellId, heartbeatTtl.ago)).result
+      _ <- DBIO.sequence(workflowStoreEntries map updateForFetched(cromwellId))
     } yield workflowStoreEntries
 
     runTransaction(action)
   }
 
-  private def updateWorkflowStateAndRestartedForWorkflowExecutionUuid(workflowStoreEntry: WorkflowStoreEntry)
-                                                         (implicit ec: ExecutionContext): DBIO[Unit] = {
+  private def updateForFetched(cromwellId: Option[String])(workflowStoreEntry: WorkflowStoreEntry)
+                                                          (implicit ec: ExecutionContext): DBIO[Unit] = {
     val workflowExecutionUuid = workflowStoreEntry.workflowExecutionUuid
     val updateState = workflowStoreEntry.workflowState match {
         // Submitted workflows become running when fetched
@@ -68,10 +76,13 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
         // Running or Aborting stay as is
       case other => other
     }
+
+    val displayNow = DateFormat.getDateTimeInstance.format(now)
+
     for {
-      // When fetched, the restarted flag is set back to false so we don't pick it up next time.
-      updateCount <- dataAccess.workflowStateAndRestartedForWorkflowExecutionUuid(workflowExecutionUuid).update((updateState, false))
-      _ <- assertUpdateCount(s"Update $workflowExecutionUuid to $updateState", updateCount, 1)
+      // When fetched, the heartbeat timestamp is set to now so we don't pick it up next time.
+      updateCount <- dataAccess.workflowStoreFieldsForPickup(workflowExecutionUuid).update((updateState, cromwellId, Option(now)))
+      _ <- assertUpdateCount(s"Update $workflowExecutionUuid to $updateState, heartbeat timestamp to $displayNow", updateCount, 1)
     } yield ()
   }
 

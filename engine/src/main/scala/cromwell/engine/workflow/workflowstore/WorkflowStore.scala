@@ -4,6 +4,7 @@ import cats.data.NonEmptyList
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
 
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 
 trait WorkflowStore {
@@ -26,7 +27,7 @@ trait WorkflowStore {
     * Retrieves up to n workflows which have not already been pulled into the engine and sets their pickedUp
     * flag to true
     */
-  def fetchStartableWorkflows(n: Int)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]]
+  def fetchStartableWorkflows(n: Int, cromwellId: Option[String], heartbeatTtl: FiniteDuration)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]]
 
   def remove(id: WorkflowId)(implicit ec: ExecutionContext): Future[Boolean]
 }

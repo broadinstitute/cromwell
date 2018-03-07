@@ -331,15 +331,15 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   
   // Handles hash failure responses
   val hashFailureResponseHandler: StateFunction = {
-    // We're getting hash errors but the jobs was already successful, disable call caching and save to job store
+    // We're getting hash errors but the job was already successful, disable call caching and save to job store
     case Event(HashError(t), data: SucceededResponseData) =>
       disableCallCaching(Option(t))
       saveJobCompletionToJobStore(data.copy(hashes = Option(Failure(t))))
-    // We're getting hash errors but the jobs was already failed, disable call caching and save to job store
+    // We're getting hash errors but the job was already failed, disable call caching and save to job store
     case Event(HashError(t), data: FailedResponseData) =>
       disableCallCaching(Option(t))
       saveJobCompletionToJobStore(data.copy(hashes = Option(Failure(t))))
-    // We're getting hash errors but the jobs was already failed, disable call caching and terminate
+    // We're getting hash errors but the job was already failed, disable call caching and terminate
     case Event(HashError(t), data: AbortedResponseData) =>
       disableCallCaching(Option(t))
       forwardAndStop(data.response)

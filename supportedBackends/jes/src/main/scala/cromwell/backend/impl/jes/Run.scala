@@ -1,5 +1,6 @@
 package cromwell.backend.impl.jes
 
+import com.google.api.client.http.HttpRequest
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model._
 import cromwell.backend.BackendJobDescriptor
@@ -75,9 +76,8 @@ final case class Run(job: StandardAsyncJob, genomicsInterface: Genomics) {
 
   def getOperationCommand = genomicsInterface.operations().get(job.jobId)
 
-  def abort(): Unit = {
+  def abortRequest(): HttpRequest = {
     val cancellationRequest: CancelOperationRequest = new CancelOperationRequest()
-    genomicsInterface.operations().cancel(job.jobId, cancellationRequest).execute
-    ()
+    genomicsInterface.operations().cancel(job.jobId, cancellationRequest).buildHttpRequest()
   }
 }

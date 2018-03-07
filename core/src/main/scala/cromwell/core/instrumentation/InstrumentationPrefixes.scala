@@ -1,9 +1,10 @@
 package cromwell.core.instrumentation
 
 object InstrumentationPrefixes {
-  val ServicesPrefix: Option[String] = Option("services")
-  val WorkflowPrefix: Option[String] = Option("workflow")
+  val ApiPrefix: Option[String] = Option("rest-api")
+  val BackendPrefix: Option[String] = Option("backend")
   val JobPrefix: Option[String] = Option("job")
   val IoPrefix: Option[String] = Option("io")
-  val ApiPrefix: Option[String] = Option("rest-api")
+  val ServicesPrefix: Option[String] = Option("services")
+  val WorkflowPrefix: Option[String] = Option("workflow")
 }

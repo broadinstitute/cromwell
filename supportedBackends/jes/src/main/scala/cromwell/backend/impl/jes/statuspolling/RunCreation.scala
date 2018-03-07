@@ -13,7 +13,7 @@ import scala.util.{Failure, Success, Try}
 
 private[statuspolling] trait RunCreation extends PapiInstrumentation { this: JesPollingActor =>
 
-  private def runCreationResultHandler(originalRequest: JesApiQuery, completionPromise: Promise[Try[Unit]]) = new JsonBatchCallback[Operation] {
+  private def runCreationResultHandler(originalRequest: PAPIApiRequest, completionPromise: Promise[Try[Unit]]) = new JsonBatchCallback[Operation] {
     override def onSuccess(operation: Operation, responseHeaders: HttpHeaders): Unit = {
       runSuccess()
       originalRequest.requester ! getJob(operation)
@@ -22,13 +22,13 @@ private[statuspolling] trait RunCreation extends PapiInstrumentation { this: Jes
     }
 
     override def onFailure(e: GoogleJsonError, responseHeaders: HttpHeaders): Unit = {
-      pollingManager ! JesApiRunCreationQueryFailed(originalRequest, new JesApiException(GoogleJsonException(e, responseHeaders)))
+      pollingManager ! JesApiRunCreationQueryFailed(originalRequest, new PAPIApiException(GoogleJsonException(e, responseHeaders)))
       completionPromise.trySuccess(Failure(new Exception(mkErrorString(e))))
       ()
     }
   }
 
-  def enqueueRunCreationInBatch(runCreationQuery: JesRunCreationQuery, batch: BatchRequest): Future[Try[Unit]] = {
+  def enqueueRunCreationInBatch(runCreationQuery: PAPIRunCreationRequest, batch: BatchRequest): Future[Try[Unit]] = {
     val completionPromise = Promise[Try[Unit]]()
     val resultHandler = runCreationResultHandler(runCreationQuery, completionPromise)
     addRunCreationToBatch(runCreationQuery.httpRequest, batch, resultHandler)

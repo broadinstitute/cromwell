@@ -35,11 +35,13 @@ trait CromwellSystem {
 
   def shutdownActorSystem(): Future[Terminated] = {
     // If the actor system is already terminated it's already too late for a clean shutdown
+    // Note: This does not protect again starting 2 shutdowns concurrently
     if (!actorSystem.whenTerminated.isCompleted) {
       Http().shutdownAllConnectionPools() flatMap { _ =>
         shutdownMaterializerAndActorSystem()
       } recoverWith {
         case _ =>
+          // we still want to shutdown the materializer and actor system if shutdownAllConnectionPools failed
           shutdownMaterializerAndActorSystem()
       }
     } else actorSystem.whenTerminated

@@ -17,7 +17,7 @@ class ServiceAccountModeSpec extends FlatSpec with Matchers {
     val serviceAccountMode = ServiceAccountMode(
       "service-account",
       ServiceAccountMode.JsonFileFormat(jsonMockFile.pathAsString),
-      GoogleConfiguration.GoogleScopes)
+      GoogleConfiguration.PipelinesApiScopes)
     val workflowOptions = GoogleAuthModeSpec.emptyOptions
     val exception = intercept[RuntimeException](serviceAccountMode.credential(workflowOptions))
     exception.getMessage should startWith("Google credentials are invalid: ")
@@ -31,7 +31,7 @@ class ServiceAccountModeSpec extends FlatSpec with Matchers {
     val serviceAccountMode = ServiceAccountMode(
       "service-account",
       ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString),
-      GoogleConfiguration.GoogleScopes)
+      GoogleConfiguration.PipelinesApiScopes)
     val workflowOptions = GoogleAuthModeSpec.emptyOptions
     val exception = intercept[RuntimeException](serviceAccountMode.credential(workflowOptions))
     exception.getMessage should startWith("Google credentials are invalid: ")
@@ -44,7 +44,7 @@ class ServiceAccountModeSpec extends FlatSpec with Matchers {
       ServiceAccountMode(
         "service-account",
         ServiceAccountMode.JsonFileFormat(jsonMockFile.pathAsString),
-        GoogleConfiguration.GoogleScopes)
+        GoogleConfiguration.PipelinesApiScopes)
     }
     exception.getMessage should fullyMatch regex "File .*/service-account..*.json does not exist or is not readable"
   }
@@ -55,7 +55,7 @@ class ServiceAccountModeSpec extends FlatSpec with Matchers {
       ServiceAccountMode(
         "service-account",
         ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString),
-        GoogleConfiguration.GoogleScopes)
+        GoogleConfiguration.PipelinesApiScopes)
     }
     exception.getMessage should fullyMatch regex "File .*/service-account..*.pem does not exist or is not readable"
   }
@@ -67,7 +67,7 @@ class ServiceAccountModeSpec extends FlatSpec with Matchers {
     val serviceAccountMode = ServiceAccountMode(
       "service-account",
       ServiceAccountMode.JsonFileFormat(jsonMockFile.pathAsString),
-      GoogleConfiguration.GoogleScopes)
+      GoogleConfiguration.PipelinesApiScopes)
     serviceAccountMode.credentialValidation = _ => ()
     val workflowOptions = GoogleAuthModeSpec.emptyOptions
     val credentials = serviceAccountMode.credential(workflowOptions)
@@ -82,7 +82,7 @@ class ServiceAccountModeSpec extends FlatSpec with Matchers {
     val serviceAccountMode = ServiceAccountMode(
       "service-account",
       ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString),
-      GoogleConfiguration.GoogleScopes)
+      GoogleConfiguration.PipelinesApiScopes)
     serviceAccountMode.credentialValidation = _ => ()
     val workflowOptions = GoogleAuthModeSpec.emptyOptions
     val credentials = serviceAccountMode.credential(workflowOptions)
@@ -97,7 +97,7 @@ class ServiceAccountModeSpec extends FlatSpec with Matchers {
     val serviceAccountMode = ServiceAccountMode(
       "service-account",
       ServiceAccountMode.JsonFileFormat(jsonMockFile.pathAsString),
-      GoogleConfiguration.GoogleScopes)
+      GoogleConfiguration.PipelinesApiScopes)
     val workflowOptions = GoogleAuthModeSpec.emptyOptions
     serviceAccountMode.validate(workflowOptions)
     jsonMockFile.delete(true)
@@ -110,7 +110,7 @@ class ServiceAccountModeSpec extends FlatSpec with Matchers {
     val serviceAccountMode = ServiceAccountMode(
       "service-account",
       ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString),
-      GoogleConfiguration.GoogleScopes)
+      GoogleConfiguration.PipelinesApiScopes)
     val workflowOptions = GoogleAuthModeSpec.emptyOptions
     serviceAccountMode.validate(workflowOptions)
     pemMockFile.delete(true)
@@ -123,7 +123,7 @@ class ServiceAccountModeSpec extends FlatSpec with Matchers {
     val serviceAccountMode = ServiceAccountMode(
       "service-account",
       ServiceAccountMode.JsonFileFormat(jsonMockFile.pathAsString),
-      GoogleConfiguration.GoogleScopes)
+      GoogleConfiguration.PipelinesApiScopes)
     serviceAccountMode.requiresAuthFile should be(false)
     jsonMockFile.delete(true)
   }
@@ -135,7 +135,7 @@ class ServiceAccountModeSpec extends FlatSpec with Matchers {
     val serviceAccountMode = ServiceAccountMode(
       "service-account",
       ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString),
-      GoogleConfiguration.GoogleScopes)
+      GoogleConfiguration.PipelinesApiScopes)
     serviceAccountMode.requiresAuthFile should be(false)
     pemMockFile.delete(true)
   }

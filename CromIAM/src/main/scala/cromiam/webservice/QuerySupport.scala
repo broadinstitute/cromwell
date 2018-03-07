@@ -9,7 +9,6 @@ import cats.data.NonEmptyList
 import cromiam.auth.Collection.CollectionLabelName
 import cromiam.auth.{Collection, User}
 import cromiam.cromwell.CromwellClient
-import cromiam.sam.SamClient
 import cromiam.webservice.QuerySupport._
 
 import scala.concurrent.ExecutionContextExecutor
@@ -17,7 +16,6 @@ import scala.util.{Failure, Success, Try}
 
 trait QuerySupport extends RequestSupport {
   val cromwellClient: CromwellClient
-  val samClient: SamClient
 
   val log: LoggingAdapter
 
@@ -39,7 +37,7 @@ trait QuerySupport extends RequestSupport {
 
   def queryPostRoute: Route = path("api" / "workflows" / Segment / "query") { _ =>
     post {
-      preprocessQuery("GET") { (user, collections, request) =>
+      preprocessQuery("POST") { (user, collections, request) =>
         processLabelsForPostQuery(user, collections) { entity =>
           complete { cromwellClient.forwardToCromwell(request.withEntity(entity)) }
         }

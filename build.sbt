@@ -85,6 +85,7 @@ lazy val databaseMigration = (project in file("database/migration"))
 
 lazy val dockerHashing = project
   .withLibrarySettings("cromwell-docker-hashing")
+  .dependsOn(cloudSupport)
   .dependsOn(core)
   .dependsOn(core % "test->test")
 
@@ -177,7 +178,7 @@ lazy val womtool = project
 
 lazy val cromiam = (project in file("CromIAM")) // TODO: git mv CromIAM to a canonical lowercased name
   .withExecutableSettings("cromiam", cromiamDependencies, cromiamSettings)
-  .dependsOn(common)
+  .dependsOn(cloudSupport)
   .dependsOn(cromwellApiClient)
 
 lazy val languageFactoryRoot = Path("languageFactories")

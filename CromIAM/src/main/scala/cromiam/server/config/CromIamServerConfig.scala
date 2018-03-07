@@ -1,18 +1,25 @@
 package cromiam.server.config
 
 import akka.http.scaladsl.settings.ServerSettings
+import cats.instances.option._
 import cats.syntax.apply._
+import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigFactory}
-import common.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr._
+import common.validation.Validation._
+import cromiam.server.config.CromIamServerConfig._
+import cromwell.cloudsupport.gcp.GoogleConfiguration
+import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
+import net.ceedubs.ficus.Ficus._
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
-import cromiam.server.config.CromIamServerConfig._
 
 final case class CromIamServerConfig(cromIamConfig: CromIamConfig,
                                      cromwellConfig: ServiceConfig,
                                      samConfig: ServiceConfig,
+                                     whitelistAuthModeOption: Option[GoogleAuthMode],
                                      swaggerOauthConfig: SwaggerOauthConfig)
 
 object CromIamServerConfig {
@@ -20,9 +27,11 @@ object CromIamServerConfig {
     val cromIamConfig = CromIamConfig.getFromConfig(conf, "cromiam")
     val cromwellConfig = ServiceConfig.getFromConfig(conf, "cromwell")
     val samConfig = ServiceConfig.getFromConfig(conf, "sam")
-    val googleConfig = SwaggerOauthConfig.getFromConfig(conf, "swagger_oauth")
+    val swaggerOauthConfig = SwaggerOauthConfig.getFromConfig(conf, "swagger_oauth")
+    val whitelistAuthModeOption = WhitelistAuthMode.getFromConfig(conf, "cromiam.whitelist.auth")
 
-    (cromIamConfig, cromwellConfig, samConfig, googleConfig) mapN CromIamServerConfig.apply
+    (cromIamConfig, cromwellConfig, samConfig, whitelistAuthModeOption, swaggerOauthConfig) mapN
+      CromIamServerConfig.apply
   }
 
   private[config] def getValidatedConfigPath[A](conf: Config, path: String, getter: (Config, String) => A, default: Option[A] = None): ErrorOr[A] = {
@@ -80,4 +89,17 @@ object SwaggerOauthConfig {
 
     (getValidatedOption("client_id"), getValidatedOption("realm"), getValidatedOption("app_name")) mapN SwaggerOauthConfig.apply
    }
+}
+
+object WhitelistAuthMode {
+  private val WhitelistScopes: List[String] = Nil // TODO: What scopes do we need for cromiam to query sam's whitelist?
+
+  private[config] def getFromConfig(conf: Config, authNamePath: String): ErrorOr[Option[GoogleAuthMode]] = {
+    conf.getAs[String](authNamePath).traverse[ErrorOr, GoogleAuthMode](authName =>
+      for {
+        googleConfiguration <- validate(GoogleConfiguration(conf, WhitelistScopes))
+        authMode <- googleConfiguration.auth(authName)
+      } yield authMode
+    )
+  }
 }

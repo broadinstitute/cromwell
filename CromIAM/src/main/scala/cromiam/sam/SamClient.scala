@@ -3,15 +3,20 @@ package cromiam.sam
 import akka.actor.ActorSystem
 import akka.event.LoggingAdapter
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers.{Authorization, OAuth2BearerToken}
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
-
-import scala.concurrent.{ExecutionContextExecutor, Future}
 import com.softwaremill.sttp._
 import cromiam.auth.{Collection, User}
 import cromiam.sam.SamClient._
+import cromiam.sam.SamResourceJsonSupport._
 import cromiam.server.status.StatusCheckedSubsystem
+import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
+
+import scala.concurrent.{ExecutionContextExecutor, Future}
 
 /*
   TODO: There exists a swagger codegen Sam client somewhere, and there also exists a Scala wrapper for it in Leo.
@@ -19,16 +24,42 @@ import cromiam.server.status.StatusCheckedSubsystem
      out into workbench-libs. We should replace this with that once the stars line up but for now it doesn't seem
      worth it. If one finds themselves making heavy changes to this file, that statement should be reevaluated.
  */
-class SamClient(scheme: String, interface: String, port: Int, log: LoggingAdapter)(implicit system: ActorSystem,
-                                                                                   ece: ExecutionContextExecutor,
-                                                                                   materializer: ActorMaterializer) extends StatusCheckedSubsystem {
+class SamClient(scheme: String,
+                interface: String,
+                port: Int,
+                whitelistAuthModeOption: Option[GoogleAuthMode],
+                log: LoggingAdapter)
+               (implicit system: ActorSystem,
+                ece: ExecutionContextExecutor,
+                materializer: ActorMaterializer) extends StatusCheckedSubsystem {
   override val statusUri = uri"$samBaseUri/status"
 
-  def collectionsForUser(user: User): Future[List[Collection]] = {
-    import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-    import akka.http.scaladsl.unmarshalling.Unmarshal
-    import SamResourceJsonSupport._
+  /**
+    * Returns a future boolean if the user is on the whitelist, otherwise returns false.
+    *
+    * If the whitelist is not enabled defaults to true.
+    */
+  def isWhitelisted(user: User): Future[Boolean] = {
+    whitelistAuthModeOption match {
+      case None => Future.successful(true)
+      case Some(whiteListAuthMode) =>
+        // TODO: Ask Sam for the whitelist OR ask Sam if the user on the whitelist. For now just ensure we can get a token.
+        // TODO: Update cromiam.server.config.WhitelistAuthMode.WhitelistScopes with the correct scopes!
+        freshWhitelistAuthorization(whiteListAuthMode)
+        //val request = HttpRequest(
+        //  method = HttpMethods.GET,
+        //  uri = samBaseUriForWhitelistUser(user),
+        //  headers = List[HttpHeader](freshWhitelistAuthorization()))
 
+        //for {
+        //  response <- Http().singleRequest(request)
+        //} yield ...
+
+        Future.successful(true)
+    }
+  }
+
+  def collectionsForUser(user: User): Future[List[Collection]] = {
     val request = HttpRequest(method = HttpMethods.GET, uri = samBaseCollectionUri, headers = List[HttpHeader](user.authorization))
 
     for {
@@ -91,6 +122,10 @@ class SamClient(scheme: String, interface: String, port: Int, log: LoggingAdapte
     akka.http.scaladsl.model.Uri(s"${samBaseUriForWorkflow(authorizationRequest.collection)}/action/${authorizationRequest.action}")
   }
 
+  private def freshWhitelistAuthorization(whitelistAuthMode: GoogleAuthMode): Authorization = {
+    Authorization(OAuth2BearerToken(whitelistAuthMode.freshAccessToken()))
+  }
+
   private def samRegisterUri(collection: Collection) = akka.http.scaladsl.model.Uri(samBaseUriForWorkflow(collection))
 
   private def samBaseUriForWorkflow(collection: Collection) = s"$samBaseCollectionUri/${collection.name}"
@@ -109,4 +144,3 @@ object SamClient {
   final case class CollectionAuthorizationRequest(user: User, collection: Collection, action: String)
 
 }
-

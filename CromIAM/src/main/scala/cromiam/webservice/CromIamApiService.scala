@@ -53,7 +53,13 @@ trait CromIamApiService extends RequestSupport
     configuration.cromwellConfig.port,
     log)
 
-  lazy val samClient = new SamClient(configuration.samConfig.scheme, configuration.samConfig.interface, configuration.samConfig.port, log)
+  lazy val samClient = new SamClient(
+    configuration.samConfig.scheme,
+    configuration.samConfig.interface,
+    configuration.samConfig.port,
+    configuration.whitelistAuthModeOption,
+    log
+  )
 
   val statusService: StatusService
 

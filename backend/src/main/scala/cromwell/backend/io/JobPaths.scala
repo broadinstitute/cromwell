@@ -51,7 +51,9 @@ trait JobPaths {
     callExecutionRoot.resolve(string.stripPrefix(rootWithSlash))
   }
 
-  def hostPathFromContainerInputs(string: String): Path = ???
+  def hostPathFromContainerInputs(string: String): Path =
+    // No container here, just return a Path of the absolute path to the file.
+    callExecutionRoot.resolve(string.stripPrefix(rootWithSlash))
 
 
   def scriptFilename: String = "script"

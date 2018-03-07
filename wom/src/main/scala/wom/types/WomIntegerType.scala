@@ -1,7 +1,7 @@
 package wom.types
 
 import spray.json.{JsNumber, JsString}
-import wom.values.{WomInteger, WomLong, WomString}
+import wom.values.{WomInteger, WomString}
 
 import scala.util.{Success, Try}
 
@@ -49,5 +49,3 @@ case object WomIntegerType extends WomPrimitiveType {
   override def unaryPlus: Try[WomType] = Success(WomIntegerType)
   override def unaryMinus: Try[WomType] = Success(WomIntegerType)
 }
-
-

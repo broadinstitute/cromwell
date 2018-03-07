@@ -123,37 +123,4 @@ package object cwl extends TypeAliases {
   type ExpressionLib = Vector[String]
 
   val ReadLimit = Option(64 * 1024)
-
-
-  implicit val stringEncoder = Encoder.encodeString.contramap[WomString](_.value)
-
-  implicit val boolEncoder = Encoder.encodeBoolean.contramap[WomBoolean](_.value)
-
-  implicit val womIntegerEncoder = Encoder.encodeInt.contramap[WomInteger](_.value)
-
-  implicit val womFloatEncoder = Encoder.encodeDouble.contramap[WomFloat](_.value)
-
-  implicit val womValueEncoder = new Encoder[WomValue] {
-    override def apply(a: WomValue): Json = a match {
-      case wi: WomInteger => wi.asJson
-      case wf: WomFloat => wf.asJson
-      case ws: WomString => ws.asJson
-      case b: WomBoolean => b.asJson
-      case a: WomArray => a.asJson
-      case f: WomMaybePopulatedFile => f.value.asJson
-      case WomOptionalValue(_, Some(value)) => apply(value)
-      case WomCoproductValue(_, value) => apply(value)
-      case wo: WomObject => wo.asJson
-      case WomOptionalValue(_, None) => Json.Null
-    }
-  }
-
-  implicit val womArrayEncoder: Encoder[WomArray] = Encoder.encodeSeq[WomValue].contramap[WomArray](_.value)
-
-  implicit val womObjectEncoder: Encoder[WomObject] =
-    Encoder.encodeJsonObject.contramap[WomObject]{
-      wo =>
-        val jsonMap = wo.values.map{ case (key, value) => key -> value.asJson}
-        JsonObject.fromMap(jsonMap)
-    }
 }

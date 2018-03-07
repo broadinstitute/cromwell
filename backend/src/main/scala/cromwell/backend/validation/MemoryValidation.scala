@@ -75,7 +75,6 @@ object MemoryValidation {
     else
       MemorySize(value.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB).validNel
   }
-
 }
 
 class MemoryValidation(attributeName: String = RuntimeAttributesKeys.MemoryKey) extends RuntimeAttributesValidation[MemorySize] {

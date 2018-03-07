@@ -73,35 +73,34 @@ object InitialWorkDirFileGeneratorExpression {
     implicit val caseExpressionDirent: Case.Aux[ExpressionDirent, InitialWorkDirFileEvaluator] = {
       at { expressionDirent =>
         (ioFunctionSet, unmappedParameterContext, mappedInputValues, expressionLib) => {
-          if (expressionDirent.entry == "$(JSON.stringify(inputs))") {
-            val jsonValue: String = io.circe.Printer.noSpaces.pretty(mappedInputValues.asJson)
-            val file = better.files.File.newTemporaryFile().write(jsonValue)
-            WomSingleFile(file.path.toString).validNel
-            /*
-            ExpressionEvaluator.eval(content, ParameterContext(mappedInputValues), expressionLib)
-            */
-          } else {
-            val entryEvaluation = ExpressionEvaluator.eval(expressionDirent.entry, unmappedParameterContext, expressionLib)
-            entryEvaluation flatMap {
-              case womFile: WomFile =>
-                val errorOrEntryName: ErrorOr[String] = expressionDirent.entryname match {
-                  case Some(actualEntryName) => actualEntryName.fold(EntryNamePoly).apply(unmappedParameterContext, expressionLib)
-                  case None => womFile.value.split('/').last.valid
-                }
-                errorOrEntryName flatMap { entryName =>
-                  validate(Await.result(ioFunctionSet.copyFile(womFile.value, entryName), Duration.Inf))
-                }
-              case other => for {
-                coerced <- WomStringType.coerceRawValue(other).toErrorOr
-                contentString = coerced.asInstanceOf[WomString].value
-                // We force the entryname to be specified, and then evaluate it:
-                entryNameStringOrExpression <- expressionDirent.entryname.toErrorOr(
-                  "Invalid dirent: Entry was a string but no file name was supplied")
-                entryName <- entryNameStringOrExpression.fold(EntryNamePoly).apply(unmappedParameterContext, expressionLib)
-                writeFile = ioFunctionSet.writeFile(entryName, contentString)
-                writtenFile <- validate(Await.result(writeFile, Duration.Inf))
-              } yield writtenFile
+
+          val entryEvaluation =
+            expressionDirent.entry match {
+                //we need to catch this special case to feed in "value-mapped" input values
+              case expr@Expression.ECMAScriptExpression(exprString) if exprString.value == "$(JSON.stringify(inputs))" =>
+                ExpressionEvaluator.eval(expr, ParameterContext(mappedInputValues), expressionLib)
+              case _ => ExpressionEvaluator.eval(expressionDirent.entry, unmappedParameterContext, expressionLib)
             }
+
+          entryEvaluation flatMap {
+            case womFile: WomFile =>
+              val errorOrEntryName: ErrorOr[String] = expressionDirent.entryname match {
+                case Some(actualEntryName) => actualEntryName.fold(EntryNamePoly).apply(unmappedParameterContext, expressionLib)
+                case None => womFile.value.split('/').last.valid
+              }
+              errorOrEntryName flatMap { entryName =>
+                validate(Await.result(ioFunctionSet.copyFile(womFile.value, entryName), Duration.Inf))
+              }
+            case other => for {
+              coerced <- WomStringType.coerceRawValue(other).toErrorOr
+              contentString = coerced.asInstanceOf[WomString].value
+              // We force the entryname to be specified, and then evaluate it:
+              entryNameStringOrExpression <- expressionDirent.entryname.toErrorOr(
+                "Invalid dirent: Entry was a string but no file name was supplied")
+              entryName <- entryNameStringOrExpression.fold(EntryNamePoly).apply(unmappedParameterContext, expressionLib)
+              writeFile = ioFunctionSet.writeFile(entryName, contentString)
+              writtenFile <- validate(Await.result(writeFile, Duration.Inf))
+            } yield writtenFile
           }
         }
       }
@@ -203,4 +202,5 @@ object InitialWorkDirFileGeneratorExpression {
       }
     }
   }
+
 }

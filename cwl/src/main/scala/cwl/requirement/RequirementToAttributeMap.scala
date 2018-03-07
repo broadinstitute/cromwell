@@ -40,11 +40,10 @@ object RequirementToAttributeMap extends Poly1 {
 
   implicit def fromResource: Case.Aux[ResourceRequirement, ResourcesToExpressionMap] = at[ResourceRequirement] {
     resource => (inputNames, expressionLib) =>
-      println(s"resource requirement is $resource")
       def toExpression(resourceRequirement: ResourceRequirementType) =
         resourceRequirement.fold(ResourceRequirementToWomExpression).apply(inputNames, expressionLib)
 
-      val x = List(
+      List(
         // Map cpuMin to both cpuMin and cpu keys
         resource.effectiveCoreMin.toList.map(toExpression).flatMap(min => List(CpuMinKey -> min, CpuKey -> min)),
         resource.effectiveCoreMax.toList.map(toExpression).map(CpuMaxKey -> _),
@@ -56,7 +55,6 @@ object RequirementToAttributeMap extends Poly1 {
         resource.effectiveOutdirMin.toList.map(toExpression).map(OutDirMinKey -> _),
         resource.effectiveOutdirMax.toList.map(toExpression).map(OutDirMaxKey -> _)
       ).flatten.toMap
-      x
   }
 
   implicit def fromSubWorkflow: Case.Aux[SubworkflowFeatureRequirement, ResourcesToExpressionMap] = at[SubworkflowFeatureRequirement] {

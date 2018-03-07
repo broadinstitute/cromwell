@@ -614,15 +614,12 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * Used to convert to output paths.
     *
     */
-  def mapOutputWomFile(womFile: WomFile): WomFile = {
-
-    //womFile.mapFile(enginePaths.buildPath(_).pathAsString)
+  def mapOutputWomFile(womFile: WomFile): WomFile =
     womFile.mapFile{
       path =>
-        val x = jobPaths.hostPathFromContainerInputs(path)
-        x.toAbsolutePath.toString
+        val pathFromContainerInputs = jobPaths.hostPathFromContainerInputs(path)
+        pathFromContainerInputs.toAbsolutePath.toString
     }
-  }
 
   /**
     * Tries to evaluate the outputs.

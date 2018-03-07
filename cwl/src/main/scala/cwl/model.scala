@@ -5,7 +5,7 @@ import cwl.WorkflowStepInput.InputSource
 import cwl.internal.GigabytesToBytes
 import eu.timepit.refined._
 import shapeless.syntax.singleton._
-import shapeless.{:+:, CNil, Poly1, Witness}
+import shapeless.{:+:, CNil, Witness}
 import wom.values.WomValue
 
 object WorkflowStepInputSource {
@@ -184,7 +184,6 @@ case class ResourceRequirement(
 
   def effectiveRamMin = ramMin.orElse(ramMax).map(_.fold(GigabytesToBytes))
   def effectiveRamMax = ramMax.orElse(ramMin).map(_.fold(GigabytesToBytes))
-
 
   def effectiveTmpdirMin = tmpdirMin.orElse(tmpdirMax)
   def effectiveTmpdirMax = tmpdirMax.orElse(tmpdirMin)

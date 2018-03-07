@@ -263,46 +263,93 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       // Can't write hashes for this job, but continue to wait for the copy response.
       stay using data.copy(hashes = Option(Failure(t)))
   }
+  
+  // Handles JobSucceededResponse messages
+  val jobSuccessHandler: StateFunction = {
+    // writeToCache is true and all hashes have already been retrieved - save to the cache
+    case Event(response: JobSucceededResponse, data @ ResponsePendingData(_, _, Some(Success(hashes)), _, _, _)) if effectiveCallCachingMode.writeToCache =>
+      eventList ++= response.executionEvents
+      saveCacheResults(hashes, data.withSuccessResponse(response))
+    // Hashes are still missing and we want them (writeToCache is true) - wait for them
+    case Event(response: JobSucceededResponse, data: ResponsePendingData) if effectiveCallCachingMode.writeToCache && data.hashes.isEmpty =>
+      eventList ++= response.executionEvents
+      stay using data.withSuccessResponse(response)
+    // Hashes are missing but writeToCache is OFF - complete the job
+    case Event(response: JobSucceededResponse, data: ResponsePendingData) =>
+      eventList ++= response.executionEvents
+      saveJobCompletionToJobStore(data.withSuccessResponse(response))
+  }
 
-  when(RunningJob) {
+  // Handles BackendJobFailedResponse messages
+  val jobFailedHandler: StateFunction = {
+    // writeToCache is true and all hashes already retrieved - save to job store
+    case Event(response: BackendJobFailedResponse, data @ ResponsePendingData(_, _, Some(Success(_)), _, _, _)) if effectiveCallCachingMode.writeToCache =>
+      saveJobCompletionToJobStore(data.withFailedResponse(response))
+    // Hashes are still missing and we want them (writeToCache is true) - wait for them
+    case Event(response: BackendJobFailedResponse, data: ResponsePendingData) if effectiveCallCachingMode.writeToCache && data.hashes.isEmpty =>
+      stay using data.withFailedResponse(response)
+    // Hashes are missing but writeToCache is OFF - complete the job
+    case Event(response: BackendJobFailedResponse, data: ResponsePendingData) =>
+      saveJobCompletionToJobStore(data.withFailedResponse(response))
+  }
+
+  // Handles JobAbortedResponse messages
+  val jobAbortedHandler: StateFunction = {
+    // If the job is aborted, don't even wait for the hashes we want to abort it ASAP
+    case Event(response: JobAbortedResponse, data: ResponsePendingData) =>
+      // If we happen to have hashes it doesn't hurt to publish them
+      publishHashesToMetadata(data.hashes)
+      // Our work is done, aborted jobs don't get saved to the job store
+      forwardAndStop(response)
+  }
+
+  // Handles hash success responses
+  val hashSuccessResponseHandler: StateFunction = {
+    // We're getting the hashes and the job has already completed successfully, save to the cache
     case Event(hashes: CallCacheHashes, data: SucceededResponseData) =>
       saveCacheResults(hashes, data)
+    // We're getting the hashes and the job has already completed and failed, save to job store
+    case Event(hashes: CallCacheHashes, data: FailedResponseData) =>
+      saveJobCompletionToJobStore(data.withHashes(Option(Success(hashes))))
+    // We're getting the hashes and the job has already completed and aborted.
+    // Since we're not waiting for hashes when the job is aborted this should not happen but if it does,
+    // publish the hashes and terminate
+    case Event(hashes: CallCacheHashes, data: AbortedResponseData) =>
+      publishHashesToMetadata(Option(Success(hashes)))
+      // Our work is done, aborted jobs don't get saved to the job store
+      forwardAndStop(data.response)
+    // We're getting the hashes and the job has not completed yet, save them and stay where we are
     case Event(hashes: CallCacheHashes, data) =>
       addHashesAndStay(data, hashes)
+      
+    // Not sure why this is here but pre-existing so leaving it, there's nothing we can do with it anyway at this point
     case Event(CacheMiss, _) =>
       stay()
     case Event(_: CacheHit, _) =>
       stay()
-
+  }
+  
+  // Handles hash failure responses
+  val hashFailureResponseHandler: StateFunction = {
+    // We're getting hash errors but the jobs was already successful, disable call caching and save to job store
     case Event(HashError(t), data: SucceededResponseData) =>
       disableCallCaching(Option(t))
       saveJobCompletionToJobStore(data.copy(hashes = Option(Failure(t))))
+    // We're getting hash errors but the jobs was already failed, disable call caching and save to job store
+    case Event(HashError(t), data: FailedResponseData) =>
+      disableCallCaching(Option(t))
+      saveJobCompletionToJobStore(data.copy(hashes = Option(Failure(t))))
+    // We're getting hash errors but the jobs was already failed, disable call caching and terminate
+    case Event(HashError(t), data: AbortedResponseData) =>
+      disableCallCaching(Option(t))
+      forwardAndStop(data.response)
+    // We're getting hash errors and the job is still running, disable call caching and stay here to wait for the job to finish
     case Event(HashError(t), data: ResponsePendingData) =>
       disableCallCaching(Option(t))
       stay using data.copy(hashes = Option(Failure(t)))
-
-    // Success
-    // All hashes already retrieved - save to the cache
-    case Event(response: JobSucceededResponse, data @ ResponsePendingData(_, _, Some(Success(hashes)), _, _, _)) if effectiveCallCachingMode.writeToCache =>
-      eventList ++= response.executionEvents
-      saveCacheResults(hashes, data.withSuccessResponse(response))
-    // Some hashes are still missing - waiting for them
-    case Event(response: JobSucceededResponse, data: ResponsePendingData) if effectiveCallCachingMode.writeToCache && data.hashes.isEmpty =>
-      eventList ++= response.executionEvents
-      log.debug(s"Got job result for {}, awaiting hashes", jobTag)
-      stay using data.withSuccessResponse(response)
-    // writeToCache is OFF - complete the job
-    case Event(response: JobSucceededResponse, data: ResponsePendingData) =>
-      eventList ++= response.executionEvents
-      saveJobCompletionToJobStore(data.withSuccessResponse(response))
-
-    // Non-success:
-    // Even if the job failed, wait for the hashes so we can publish them to metadata
-    case Event(response: BackendJobExecutionResponse, data: ResponsePendingData) if effectiveCallCachingMode.writeToCache && data.hashes.isEmpty =>
-      stay() using data.withResponse(response)
-    case Event(response: BackendJobExecutionResponse, data: ResponsePendingData) =>
-      saveJobCompletionToJobStore(data.withResponse(response))
   }
+
+  when(RunningJob)(jobSuccessHandler.orElse(jobFailedHandler).orElse(jobAbortedHandler).orElse(hashSuccessResponseHandler).orElse(hashFailureResponseHandler))
 
   // When UpdatingCallCache, the FSM always has SucceededResponseData.
   when(UpdatingCallCache) {
@@ -609,22 +656,21 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     goto(UpdatingCallCache) using updatedData
   }
 
-  private def saveJobCompletionToJobStore(updatedData: ResponseData) = {
-    updatedData.response match {
-      case JobSucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: CallOutputs, _, _, _) =>
-        publishHashesToMetadata(updatedData.hashes)
+  private def saveJobCompletionToJobStore(updatedData: ShouldBeSavedToJobStoreResponseData) = {
+    updatedData match {
+      case SucceededResponseData(JobSucceededResponse(jobKey, returnCode, jobOutputs, _, _, _), hashes) =>
+        publishHashesToMetadata(hashes)
         saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
-      case JobAbortedResponse(_: BackendJobDescriptorKey) =>
-        log.debug("{}: Won't save aborted job response to JobStore", jobTag)
-        forwardAndStop(updatedData.response)
-      case JobFailedNonRetryableResponse(jobKey, throwable: Throwable, returnCode: Option[Int]) =>
-        publishHashesToMetadata(updatedData.hashes)
+      case FailedResponseData(JobFailedNonRetryableResponse(jobKey, throwable, returnCode), hashes) =>
+        publishHashesToMetadata(hashes)
         writeToMetadata(Map(callCachingAllowReuseMetadataKey -> false))
         saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = false)
-      case JobFailedRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) =>
+      case FailedResponseData(JobFailedRetryableResponse(jobKey, throwable, returnCode), hashes) =>
+        publishHashesToMetadata(hashes)
         writeToMetadata(Map(callCachingAllowReuseMetadataKey -> false))
         saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = true)
     }
+
     updatedData.dockerImageUsed foreach { image => writeToMetadata(Map("dockerImageUsed" -> image)) }
     goto(UpdatingJobStore) using updatedData
   }
@@ -736,12 +782,9 @@ object EngineJobExecutionActor {
 
     def withBackendActor(actorRef: ActorRef) = this.copy(backendJobActor = Option(actorRef))
 
-    def withSuccessResponse(success: JobSucceededResponse) = SucceededResponseData(success, hashes)
-
-    def withResponse(response: BackendJobExecutionResponse) = response match {
-      case success: JobSucceededResponse => SucceededResponseData(success, hashes)
-      case failure => NotSucceededResponseData(failure, hashes)
-    }
+    def withSuccessResponse(success: JobSucceededResponse): SucceededResponseData = SucceededResponseData(success, hashes)
+    def withFailedResponse(failed: BackendJobFailedResponse): FailedResponseData = FailedResponseData(failed, hashes)
+    def withAbortedResponse(aborted: JobAbortedResponse): AbortedResponseData = AbortedResponseData(aborted, hashes)
 
     def withCacheHit(cacheHit: CacheHit) = {
       val newEjeaCacheHit = ejeaCacheHit map { currentCacheHit =>
@@ -760,16 +803,28 @@ object EngineJobExecutionActor {
     def dockerImageUsed: Option[String]
     def withHashes(hashes: Option[Try[CallCacheHashes]]): ResponseData
   }
+  
+  // Only Successes and Failures are saved to the job store, not Aborts. Why ? Because. This could be an improvement AFAICT.
+  private[execution] trait ShouldBeSavedToJobStoreResponseData extends ResponseData
 
   private[execution] case class SucceededResponseData(successResponse: JobSucceededResponse,
-                                                      hashes: Option[Try[CallCacheHashes]] = None) extends ResponseData {
+                                                       hashes: Option[Try[CallCacheHashes]] = None) extends ShouldBeSavedToJobStoreResponseData {
     override def response = successResponse
     override def dockerImageUsed = successResponse.dockerImageUsed
     override def withHashes(hashes: Option[Try[CallCacheHashes]]) = copy(hashes = hashes)
   }
 
-  private[execution] case class NotSucceededResponseData(response: BackendJobExecutionResponse,
-                                                         hashes: Option[Try[CallCacheHashes]] = None) extends ResponseData {
+  private[execution] case class FailedResponseData(failedResponse: BackendJobFailedResponse,
+                                                      hashes: Option[Try[CallCacheHashes]] = None) extends ShouldBeSavedToJobStoreResponseData {
+    override def response = failedResponse
+    // Seems like we should be able to get the docker image used even if the job failed
+    override def dockerImageUsed = None
+    override def withHashes(hashes: Option[Try[CallCacheHashes]]) = copy(hashes = hashes)
+  }
+
+  private[execution] case class AbortedResponseData(abortedResponse: JobAbortedResponse,
+                                                   hashes: Option[Try[CallCacheHashes]] = None) extends ResponseData {
+    override def response = abortedResponse
     override def dockerImageUsed = None
     override def withHashes(hashes: Option[Try[CallCacheHashes]]) = copy(hashes = hashes)
   }

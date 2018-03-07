@@ -7,7 +7,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntry
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CallCacheHashes, FileHashes}
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor.{EJEAData, SucceededResponseData, UpdatingCallCache, UpdatingJobStore}
 import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
-import cromwell.jobstore.{JobResultSuccess, JobStoreKey}
+import cromwell.jobstore.{JobResultFailure, JobResultSuccess, JobStoreKey}
 import cromwell.util.WomMocks
 import org.scalatest.concurrent.Eventually
 import wom.values.{WomInteger, WomString}
@@ -31,7 +31,7 @@ private[ejea] trait CanExpectCacheWrites extends Eventually { self: EngineJobExe
   }
 }
 
-private[ejea] trait CanExpectJobStoreWrites extends CanValidateJobStoreKey { self: EngineJobExecutionActorSpec with HasJobSuccessResponse =>
+private[ejea] trait CanExpectJobStoreWrites extends CanValidateJobStoreKey { self: EngineJobExecutionActorSpec with HasJobSuccessResponse with HasJobFailureResponses =>
 
   def expectJobStoreWrite(expectedData: EJEAData): Unit = {
     helper.jobStoreProbe.expectMsgPF(max = awaitTimeout, hint = "Job Store Write") {
@@ -39,6 +39,19 @@ private[ejea] trait CanExpectJobStoreWrites extends CanValidateJobStoreKey { sel
         validateJobStoreKey(jobKey)
         returnCode should be(successRc)
         jobOutputs should be(successOutputs)
+        ejea.stateName should be(UpdatingJobStore)
+        ejea.stateData should be(expectedData)
+    }
+    ()
+  }
+
+  def expectJobStoreWriteFailed(expectedData: EJEAData, expectedRetryable: Boolean): Unit = {
+    helper.jobStoreProbe.expectMsgPF(max = awaitTimeout, hint = "Job Store Write") {
+      case RegisterJobCompleted(jobKey, JobResultFailure(returnCode, reason, retryable)) =>
+        validateJobStoreKey(jobKey)
+        returnCode should be(failedRc)
+        reason should be(failureReason)
+        retryable shouldBe expectedRetryable
         ejea.stateName should be(UpdatingJobStore)
         ejea.stateData should be(expectedData)
     }

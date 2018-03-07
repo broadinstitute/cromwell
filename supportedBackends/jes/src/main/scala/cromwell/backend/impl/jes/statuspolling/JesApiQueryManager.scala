@@ -17,7 +17,7 @@ import cromwell.backend.impl.jes.statuspolling.JesRunCreationClient.JobAbortedEx
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
 import cromwell.core.{CromwellFatalExceptionMarker, WorkflowId}
-import cromwell.services.instrumentation.CromwellInstrumentationScheduler
+import cromwell.services.instrumentation.{CromwellInstrumentation, CromwellInstrumentationScheduler}
 import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMetric, NormalLoad}
 import cromwell.util.StopAndLogSupervisor
 import eu.timepit.refined._
@@ -93,19 +93,14 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
   protected[statuspolling] var statusPollers: Vector[ActorRef] = resetAllWorkers()
 
   override def preStart() = {
-    timers.startSingleTimer(QueueMonitoringTimerKey, QueueMonitoringTimerAction, 10.seconds)
+    timers.startSingleTimer(QueueMonitoringTimerKey, QueueMonitoringTimerAction, CromwellInstrumentation.InstrumentationRate)
     super.preStart()
   }
 
   def monitorQueueSize() = {
     val load = if (workQueue.size > JesApiQueryManager.QueueThreshold) HighLoad else NormalLoad
     serviceRegistryActor ! LoadMetric("PAPIQueryManager", load)
-    timers.startSingleTimer(QueueMonitoringTimerKey, QueueMonitoringTimerAction, 10.seconds)
-  }
-
-  override def preStart() = {
-    timers.startSingleTimer(QueueMonitoringTimerKey, QueueMonitoringTimerAction, 10.seconds)
-    super.preStart()
+    timers.startSingleTimer(QueueMonitoringTimerKey, QueueMonitoringTimerAction, CromwellInstrumentation.InstrumentationRate)
   }
 
   override def receive = {

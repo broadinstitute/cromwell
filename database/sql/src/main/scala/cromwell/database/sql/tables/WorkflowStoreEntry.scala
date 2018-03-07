@@ -23,9 +23,10 @@ case class WorkflowStoreEntry
   workflowInputs: Option[Clob],
   workflowOptions: Option[Clob],
   workflowState: WorkflowStoreState,
-  restarted: Boolean,
   submissionTime: Timestamp,
   importsZip: Option[Blob],
   customLabels: Clob,
+  cromwellId: Option[String],
+  heartbeatTimestamp: Option[Timestamp],
   workflowStoreEntryId: Option[Int] = None
 )

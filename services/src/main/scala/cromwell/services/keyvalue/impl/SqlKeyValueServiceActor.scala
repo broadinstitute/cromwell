@@ -15,8 +15,8 @@ object SqlKeyValueServiceActor {
 final case class SqlKeyValueServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
   extends KeyValueServiceActor {
 
-  private val dbFlushRate = serviceConfig.as[Option[FiniteDuration]]("db-flush-rate").getOrElse(5.seconds)
-  private val dbBatchSize = serviceConfig.as[Option[Int]]("db-batch-size").getOrElse(200)
+  private lazy val dbFlushRate = serviceConfig.as[Option[FiniteDuration]]("db-flush-rate").getOrElse(5.seconds)
+  private lazy val dbBatchSize = serviceConfig.as[Option[Int]]("db-batch-size").getOrElse(200)
 
   override protected def kvReadActorProps = {
     SqlKeyValueReadActor.props(

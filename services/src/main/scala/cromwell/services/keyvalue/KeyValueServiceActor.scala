@@ -1,6 +1,7 @@
 package cromwell.services.keyvalue
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.SupervisorStrategy.Escalate
+import akka.actor.{Actor, ActorInitializationException, ActorLogging, OneForOneStrategy, Props}
 import cats.data.NonEmptyList
 import cromwell.core.{JobKey, WorkflowId}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
@@ -42,6 +43,11 @@ object KeyValueServiceActor {
 trait KeyValueServiceActor extends Actor with GracefulShutdownHelper with ActorLogging {
   protected def kvReadActorProps: Props
   protected def kvWriteActorProps: Props
+
+  override val supervisorStrategy = OneForOneStrategy() {
+    case _: ActorInitializationException => Escalate
+    case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
+  }
   
   private val kvReadActor = context.actorOf(kvReadActorProps, "KvReadActor")
   private val kvWriteActor = context.actorOf(kvWriteActorProps, "KvWriteActor")

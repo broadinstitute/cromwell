@@ -16,7 +16,7 @@ private[statuspolling] trait RunAbort extends PapiInstrumentation { this: JesPol
   private def abortResultHandler(originalRequest: PAPIAbortRequest, completionPromise: Promise[Try[Unit]]) = new JsonBatchCallback[Operation] {
     override def onSuccess(operation: Operation, responseHeaders: HttpHeaders): Unit = {
       abortSuccess()
-      originalRequest.requester ! PAPIAbortRequestSuccessful(operation.getName)
+      originalRequest.requester ! PAPIAbortRequestSuccessful(originalRequest.run.job.jobId)
       completionPromise.trySuccess(Success(()))
       ()
     }

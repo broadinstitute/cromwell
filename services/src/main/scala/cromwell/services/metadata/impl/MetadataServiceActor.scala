@@ -7,7 +7,7 @@ import akka.routing.Listen
 import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.Dispatcher.ServiceDispatcher
-import cromwell.core.WorkflowId
+import cromwell.core.{LoadConfig, WorkflowId}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataServiceActor._
@@ -52,8 +52,7 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
 
   val dbFlushRate = serviceConfig.as[Option[FiniteDuration]]("db-flush-rate").getOrElse(5 seconds)
   val dbBatchSize = serviceConfig.as[Option[Int]]("db-batch-size").getOrElse(200)
-  val queueThreshold = 100 * 1000
-  val writeActor = context.actorOf(WriteMetadataActor.props(dbBatchSize, dbFlushRate, serviceRegistryActor, queueThreshold), "WriteMetadataActor")
+  val writeActor = context.actorOf(WriteMetadataActor.props(dbBatchSize, dbFlushRate, serviceRegistryActor, LoadConfig.MetadataWriteThreshold), "WriteMetadataActor")
   implicit val ec = context.dispatcher
   private var summaryRefreshCancellable: Option[Cancellable] = None
 

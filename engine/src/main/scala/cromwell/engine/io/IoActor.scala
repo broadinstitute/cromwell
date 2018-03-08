@@ -5,6 +5,7 @@ import javax.net.ssl.SSLException
 
 import akka.NotUsed
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
+import akka.dispatch.ControlMessage
 import akka.stream._
 import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition, Sink, Source}
 import com.google.cloud.storage.StorageException
@@ -166,7 +167,7 @@ object IoActor {
   case class DefaultCommandContext[T](request: IoCommand[T], replyTo: ActorRef, override val clientContext: Option[Any] = None) extends IoCommandContext[T]
   
   case object BackPressureTimerResetKey
-  case object BackPressureTimerResetAction
+  case object BackPressureTimerResetAction extends ControlMessage
 
   /**
     * ATTENTION: Transient failures are retried *forever* 

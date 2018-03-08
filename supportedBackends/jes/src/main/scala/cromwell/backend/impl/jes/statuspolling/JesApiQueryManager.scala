@@ -17,11 +17,10 @@ import cromwell.backend.impl.jes.statuspolling.JesPollingActor.MaxBatchSize
 import cromwell.backend.impl.jes.statuspolling.JesRunCreationClient.JobAbortedException
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
-import cromwell.core.{CromwellFatalExceptionMarker, WorkflowId}
+import cromwell.core.{CromwellFatalExceptionMarker, LoadConfig, WorkflowId}
 import cromwell.services.instrumentation.{CromwellInstrumentation, CromwellInstrumentationScheduler}
 import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMetric, NormalLoad}
 import cromwell.util.StopAndLogSupervisor
-import eu.timepit.refined._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric._
 
@@ -31,7 +30,7 @@ import scala.concurrent.duration._
 /**
   * Holds a set of JES API requests until a JesQueryActor pulls the work.
   */
-class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegistryActor: ActorRef) extends Actor
+class JesApiQueryManager(val qps: Int Refined Positive, requestWorkers: Int Refined Positive, override val serviceRegistryActor: ActorRef) extends Actor
   with ActorLogging with StopAndLogSupervisor with PapiInstrumentation with CromwellInstrumentationScheduler with Timers {
 
   private val maxRetries = 10
@@ -70,7 +69,7 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
       "and localize the files yourself."
   ))
 
-  private[statuspolling] lazy val nbWorkers = 2
+  private[statuspolling] lazy val nbWorkers = requestWorkers.value
 
   // 
   private lazy val workerBatchInterval = determineBatchInterval(qps) * nbWorkers.toLong
@@ -90,12 +89,13 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
   protected[statuspolling] var statusPollers: Vector[ActorRef] = resetAllWorkers()
 
   override def preStart() = {
+    log.info("{} Running with {}", self.path.name, requestWorkers.value)
     timers.startSingleTimer(QueueMonitoringTimerKey, QueueMonitoringTimerAction, CromwellInstrumentation.InstrumentationRate)
     super.preStart()
   }
 
   def monitorQueueSize() = {
-    val load = if (workQueue.size > JesApiQueryManager.QueueThreshold) HighLoad else NormalLoad
+    val load = if (workQueue.size > LoadConfig.PAPIThreshold) HighLoad else NormalLoad
     serviceRegistryActor ! LoadMetric("PAPIQueryManager", load)
     timers.startSingleTimer(QueueMonitoringTimerKey, QueueMonitoringTimerAction, CromwellInstrumentation.InstrumentationRate)
   }
@@ -235,10 +235,9 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
 }
 
 object JesApiQueryManager {
-  val QueueThreshold = 5000
   case object QueueMonitoringTimerKey
   case object QueueMonitoringTimerAction extends ControlMessage
-  def props(qps: Int Refined Positive, serviceRegistryActor: ActorRef): Props = Props(new JesApiQueryManager(qps, serviceRegistryActor)).withDispatcher(BackendDispatcher)
+  def props(qps: Int Refined Positive, requestWorkers: Int Refined Positive, serviceRegistryActor: ActorRef): Props = Props(new JesApiQueryManager(qps, requestWorkers, serviceRegistryActor)).withDispatcher(BackendDispatcher)
 
   /**
     * Given the Genomics API queries per 100 seconds and given MaxBatchSize will determine a batch interval which

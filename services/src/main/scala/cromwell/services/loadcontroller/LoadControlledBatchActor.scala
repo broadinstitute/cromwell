@@ -2,8 +2,8 @@ package cromwell.services.loadcontroller
 
 import akka.actor.ActorRef
 import cats.data.NonEmptyList
+import cromwell.core.LoadConfig
 import cromwell.core.actor.BatchActor
-import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.loadcontroller.LoadControlledBatchActor._
 import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMetric, NormalLoad}
 
@@ -20,7 +20,7 @@ trait LoadControlledBatchActor[C] { this: BatchActor[C] =>
   def serviceRegistryActor: ActorRef
   private val path = if (routed) NonEmptyList.of(context.parent.path.name, self.path.name) else NonEmptyList.one(self.path.name)
 
-  timers.startSingleTimer(LoadControlledBatchActorTimerKey, LoadControlledBatchActorTimerAction, CromwellInstrumentation.InstrumentationRate)
+  timers.startSingleTimer(LoadControlledBatchActorTimerKey, LoadControlledBatchActorTimerAction, LoadConfig.MonitoringFrequency)
 
   private def weightToLoad(weight: Int) = if (weight > threshold) HighLoad else NormalLoad
 

@@ -36,7 +36,6 @@ object KeyValueServiceActor {
   final case class KvKeyLookupFailed(action: KvGet) extends KvResponse with KvMessageWithAction
   final case class KvPutSuccess(action: KvPut) extends KvResponse with KvMessageWithAction
 
-  val QueueThreshold = 10 * 1000
   val InstrumentationPath = NonEmptyList.of("keyvalue")
 }
 

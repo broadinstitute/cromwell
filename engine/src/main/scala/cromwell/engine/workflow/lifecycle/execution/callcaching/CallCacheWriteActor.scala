@@ -6,6 +6,7 @@ import cats.instances.list._
 import cats.instances.tuple._
 import cats.syntax.foldable._
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.core.LoadConfig
 import cromwell.core.actor.BatchActor._
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCacheHashBundle
@@ -48,10 +49,8 @@ case class CallCacheWriteActor(callCache: CallCache, serviceRegistryActor: Actor
 
 object CallCacheWriteActor {
   def props(callCache: CallCache, registryActor: ActorRef): Props = {
-    Props(CallCacheWriteActor(callCache, registryActor, QueueThreshold)).withDispatcher(EngineDispatcher)
+    Props(CallCacheWriteActor(callCache, registryActor, LoadConfig.CallCacheWriteThreshold)).withDispatcher(EngineDispatcher)
   }
-
-  val QueueThreshold = 10 * 1000
 
   case class SaveCallCacheHashes(bundle: CallCacheHashBundle)
 

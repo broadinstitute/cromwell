@@ -9,9 +9,9 @@ import cromwell.core.Mailbox
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 
-final case class JesBackendSingletonActor(qps: Int Refined Positive, serviceRegistryActor: ActorRef) extends Actor with ActorLogging {
+final case class JesBackendSingletonActor(qps: Int Refined Positive, requestWorkers: Int Refined Positive, serviceRegistryActor: ActorRef) extends Actor with ActorLogging {
 
-  val jesApiQueryManager = context.actorOf(JesApiQueryManager.props(qps, serviceRegistryActor).withMailbox(Mailbox.PriorityMailbox), "PAPIQueryManager")
+  val jesApiQueryManager = context.actorOf(JesApiQueryManager.props(qps, requestWorkers, serviceRegistryActor).withMailbox(Mailbox.PriorityMailbox), "PAPIQueryManager")
 
   override def receive = {
     case abort: BackendSingletonActorAbortWorkflow => jesApiQueryManager.forward(abort)
@@ -22,5 +22,5 @@ final case class JesBackendSingletonActor(qps: Int Refined Positive, serviceRegi
 }
 
 object JesBackendSingletonActor {
-  def props(qps: Int Refined Positive, serviceRegistryActor: ActorRef): Props = Props(JesBackendSingletonActor(qps, serviceRegistryActor)).withDispatcher(BackendDispatcher)
+  def props(qps: Int Refined Positive, requestWorkers: Int Refined Positive, serviceRegistryActor: ActorRef): Props = Props(JesBackendSingletonActor(qps, requestWorkers, serviceRegistryActor)).withDispatcher(BackendDispatcher)
 }

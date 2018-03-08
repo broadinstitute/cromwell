@@ -21,6 +21,8 @@ object JesTestConfig {
       |  }
       |}
       |
+      |request-workers = 1
+      |
       |default-runtime-attributes {
       |    cpu: 1
       |    failOnStderr: false

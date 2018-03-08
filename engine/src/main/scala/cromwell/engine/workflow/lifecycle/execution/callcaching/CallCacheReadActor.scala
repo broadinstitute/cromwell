@@ -4,7 +4,7 @@ import akka.actor.{ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.WorkflowId
+import cromwell.core.{LoadConfig, WorkflowId}
 import cromwell.core.actor.BatchActor.CommandAndReplyTo
 import cromwell.core.callcaching.HashResult
 import cromwell.core.instrumentation.InstrumentationPrefixes
@@ -68,10 +68,8 @@ class CallCacheReadActor(cache: CallCache,
 }
 
 object CallCacheReadActor {
-  // Call cache read actor is routed amongst several actors, so set a smaller queue threshold
-  val QueueThreshold = 10 * 1000
   def props(callCache: CallCache, serviceRegistryActor: ActorRef): Props = {
-    Props(new CallCacheReadActor(callCache, serviceRegistryActor, QueueThreshold)).withDispatcher(EngineDispatcher)
+    Props(new CallCacheReadActor(callCache, serviceRegistryActor, LoadConfig.CallCacheReadThreshold)).withDispatcher(EngineDispatcher)
   }
 
   private[CallCacheReadActor] case class RequestTuple(requester: ActorRef, request: CallCacheReadActorRequest)

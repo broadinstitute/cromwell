@@ -3,6 +3,7 @@ package cromwell.jobstore
 import akka.actor.{ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.core.LoadConfig
 import cromwell.core.actor.BatchActor.CommandAndReplyTo
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete, JobStoreReadFailure, QueryJobCompletion}
@@ -11,8 +12,7 @@ import cromwell.services.EnhancedThrottlerActor
 import scala.util.{Failure, Success}
 
 object JobStoreReaderActor {
-  val QueueThreshold = 10 * 1000
-  def props(database: JobStore, registryActor: ActorRef) = Props(new JobStoreReaderActor(database, registryActor, QueueThreshold)).withDispatcher(EngineDispatcher)
+  def props(database: JobStore, registryActor: ActorRef) = Props(new JobStoreReaderActor(database, registryActor, LoadConfig.JobStoreReadThreshold)).withDispatcher(EngineDispatcher)
 }
 
 class JobStoreReaderActor(database: JobStore, override val serviceRegistryActor: ActorRef, override val threshold: Int)

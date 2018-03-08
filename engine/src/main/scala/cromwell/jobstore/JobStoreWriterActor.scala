@@ -3,6 +3,7 @@ package cromwell.jobstore
 import akka.actor.{ActorRef, Props}
 import cats.data.{NonEmptyList, NonEmptyVector}
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.core.LoadConfig
 import cromwell.core.actor.BatchActor._
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
@@ -63,7 +64,6 @@ object JobStoreWriterActor {
             dbBatchSize: Int,
             dbFlushRate: FiniteDuration,
             registryActor: ActorRef): Props = {
-    Props(new JobStoreWriterActor(jobStoreDatabase, dbBatchSize, dbFlushRate, registryActor, QueueThreshold)).withDispatcher(EngineDispatcher)
+    Props(new JobStoreWriterActor(jobStoreDatabase, dbBatchSize, dbFlushRate, registryActor, LoadConfig.JobStoreWriteThreshold)).withDispatcher(EngineDispatcher)
   }
-  val QueueThreshold = 10 * 1000
 }

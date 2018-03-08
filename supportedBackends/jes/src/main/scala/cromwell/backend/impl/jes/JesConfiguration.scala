@@ -21,4 +21,5 @@ class JesConfiguration(val configurationDescriptor: BackendConfigurationDescript
   val dockerCredentials = BackendDockerConfiguration.build(configurationDescriptor.backendConfig).dockerCredentials map JesDockerCredentials.apply
   val needAuthFileUpload = jesAuths.gcs.requiresAuthFile || dockerCredentials.isDefined || jesAttributes.restrictMetadataAccess
   val qps = jesAttributes.qps
+  val papiRequestWorkers = jesAttributes.requestWorkers
 }

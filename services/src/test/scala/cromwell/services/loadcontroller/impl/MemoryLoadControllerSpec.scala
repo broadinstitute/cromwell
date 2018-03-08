@@ -14,7 +14,7 @@ class MemoryLoadControllerSpec extends TestKitSuite with FlatSpecLike with Match
   
   it should "send memory load metrics" in {
     val registry = TestProbe()
-    TestActorRef(new MemoryLoadControllerActorTest(5L, 1.second, registry.ref))
+    TestActorRef(new MemoryLoadControllerActorTest(5, 1.second, registry.ref))
     registry.expectMsgPF(2.seconds){
       case metric: LoadMetric => 
         metric.name.head shouldBe "Memory"
@@ -24,7 +24,7 @@ class MemoryLoadControllerSpec extends TestKitSuite with FlatSpecLike with Match
 
   it should "send high memory load metrics iff all load recordings are high" in {
     val registry = TestProbe()
-    TestActorRef(new MemoryLoadControllerActorTest(20L, 200.milliseconds, registry.ref))
+    TestActorRef(new MemoryLoadControllerActorTest(20, 200.milliseconds, registry.ref))
     var metrics: List[LoadMetric] = List.empty
     registry.receiveWhile(3.seconds) {
       case metric: LoadMetric => metrics = metrics :+ metric 
@@ -37,7 +37,9 @@ class MemoryLoadControllerSpec extends TestKitSuite with FlatSpecLike with Match
     metrics.drop(9).forall(_.loadLevel == HighLoad) shouldBe true 
   }
   
-  class MemoryLoadControllerActorTest(threshold: Long, frequency: FiniteDuration, registry: ActorRef) extends MemoryLoadControllerActor(threshold, frequency, registry) {
+  class MemoryLoadControllerActorTest(threshold: Int, frequency: FiniteDuration, registry: ActorRef) extends MemoryLoadControllerActor(registry) {
     override def getFreeMemory = 10L
+    override private[impl] val memoryThreshold = threshold
+    override private[impl] val monitoringFrequency = frequency
   }
 }

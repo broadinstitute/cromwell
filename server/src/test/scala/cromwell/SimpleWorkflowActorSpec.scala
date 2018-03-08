@@ -180,10 +180,10 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
     }
   }
 
-  private def startingCallsFilter[T](callNames: String*)(block: => T): T = {
+  private def startingCallsFilter[T](callName: String)(block: => T): T = {
     import CromwellTestKitSpec.waitForInfo
     within(TestExecutionTimeout) {
-      waitForInfo(s"Starting calls: ${callNames.mkString("", ":NA:1, ", ":NA:1")}$$") {
+      waitForInfo(s"Starting $callName") {
         block
       }
     }

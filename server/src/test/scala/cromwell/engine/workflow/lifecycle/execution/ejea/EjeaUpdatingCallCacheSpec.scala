@@ -7,7 +7,7 @@ import cromwell.engine.workflow.lifecycle.execution.ejea.HasJobSuccessResponse.S
 
 import scala.util.Success
 
-class EjeaUpdatingCallCacheSpec extends EngineJobExecutionActorSpec with HasJobSuccessResponse with CanExpectJobStoreWrites {
+class EjeaUpdatingCallCacheSpec extends EngineJobExecutionActorSpec with HasJobSuccessResponse with CanExpectJobStoreWrites with HasJobFailureResponses {
 
   override implicit val stateUnderTest = UpdatingCallCache
 

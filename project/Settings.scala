@@ -107,7 +107,10 @@ object Settings {
       case Some((2, 11)) =>
         // Scala 2.11 takes a simplified set of options
         baseSettings
-      case wut => throw new NotImplementedError(s"Found unsupported Scala version $wut. WOM does not support versions of Scala other than 2.11 or 2.12.")
+      case _ =>
+        throw new NotImplementedError(
+          s"Found unsupported Scala version '${scalaVersion.value}'." +
+            s" ${name.value} does not support versions of Scala other than 2.11 or 2.12.")
     }),
     // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874
     scalacOptions in(Compile, doc) ++= baseSettings ++ List("-no-link-warnings"),
@@ -128,8 +131,10 @@ object Settings {
     coverageEnabled := (CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, 12)) => sys.env.get("ENABLE_COVERAGE").exists(_.toBoolean)
       case Some((2, 11)) => false
-      case wut => throw new NotImplementedError(
-        s"Found unsupported Scala version $wut. WOM does not support versions of Scala other than 2.11 or 2.12.")
+      case _ =>
+        throw new NotImplementedError(
+          s"Found unsupported Scala version '${scalaVersion.value}'." +
+            s" ${name.value} does not support versions of Scala other than 2.11 or 2.12.")
     }),
     addCompilerPlugin("org.scalamacros" % "paradise" % paradiseV cross CrossVersion.full)
   )
@@ -193,7 +198,6 @@ object Settings {
   val backendSettings = List(addCompilerPlugin("org.spire-math" %% "kind-projector" % kindProjectorV))
   val engineSettings = swaggerUiSettings
   val cromiamSettings = swaggerUiSettings
-  val rootSettings = GenerateRestApiDocs.generateRestApiDocsSettings
 
   private def buildProject(project: Project,
                            projectName: String,
@@ -246,6 +250,23 @@ object Settings {
       )
 
       buildProject(project, executableName, dependencies, builders)
+    }
+  }
+
+
+  // Adds settings to build the root project
+  implicit class ProjectRootSettings(val project: Project) extends AnyVal {
+    def withRootSettings(): Project = {
+
+      val builders: Seq[Project => Project] = List(
+        addTestSettings,
+        _
+          .disablePlugins(AssemblyPlugin)
+          .settings(publish := {})
+          .settings(GenerateRestApiDocs.generateRestApiDocsSettings)
+      )
+
+      buildProject(project, "root", Nil, builders)
     }
   }
 

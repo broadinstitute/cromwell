@@ -1,10 +1,11 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import EngineJobExecutionActorSpec._
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse}
+import cromwell.backend.BackendJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess}
 import cromwell.engine.workflow.lifecycle.execution.ejea.HasJobSuccessResponse.SuccessfulCallCacheHashes
+
 import scala.util.Success
 
 class EjeaUpdatingJobStoreSpec extends EngineJobExecutionActorSpec with HasJobSuccessResponse with HasJobFailureResponses {
@@ -43,7 +44,12 @@ class EjeaUpdatingJobStoreSpec extends EngineJobExecutionActorSpec with HasJobSu
 
   def ejeaInUpdatingJobStoreState(response: BackendJobExecutionResponse) = {
     val pendingResponseData = ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, Some(Success(SuccessfulCallCacheHashes)))
-    helper.buildEJEA().setStateInline(data = pendingResponseData.withResponse(response))
+    val newData = response match {
+      case success: JobSucceededResponse => pendingResponseData.withSuccessResponse(success)
+      case failed: BackendJobFailedResponse => pendingResponseData.withFailedResponse(failed)
+      case aborted: JobAbortedResponse => pendingResponseData.withAbortedResponse(aborted)
+    }
+    helper.buildEJEA().setStateInline(data = newData)
   }
 
 }

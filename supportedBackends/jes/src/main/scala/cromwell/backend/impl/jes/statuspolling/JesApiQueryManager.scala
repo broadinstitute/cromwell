@@ -72,7 +72,8 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
 
   private[statuspolling] lazy val nbWorkers = 2
 
-  private lazy val workerBatchInterval = determineBatchInterval(qps) / nbWorkers.toLong
+  // 
+  private lazy val workerBatchInterval = determineBatchInterval(qps) * nbWorkers.toLong
 
   scheduleInstrumentation { updateQueueSize(workQueue.size) }
 

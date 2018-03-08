@@ -9,12 +9,11 @@ import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed
 import cromwell.backend.async.RuntimeAttributeValidationFailures
 import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthObject}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
-import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.{GoogleAuthModeSpec, RefreshTokenMode, SimpleClientSecrets}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.Tags.{IntegrationTest, PostWomTest}
-import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.core.logging.LoggingTest._
+import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
@@ -23,6 +22,7 @@ import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
+//noinspection NameBooleanParameters
 class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpec") with FlatSpecLike with Matchers
   with ImplicitSender with Mockito {
   val Timeout: FiniteDuration = 10.second.dilated
@@ -246,7 +246,8 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
 
     val TestingBits(actorRef, _) = buildJesInitializationTestingBits(refreshTokenConfig)
     val actor = actorRef.underlyingActor
-    actor.refreshTokenAuth should be(Some(GcsLocalizing(RefreshTokenMode("user-via-refresh", "secret_id", "secret_secret", GoogleConfiguration.GoogleScopes),  "mytoken")))
+    actor.refreshTokenAuth should be(
+      Some(GcsLocalizing(RefreshTokenMode("user-via-refresh", "secret_id", "secret_secret"),  "mytoken")))
   }
 
   it should "generate the correct json content for no docker token and no refresh token" in {

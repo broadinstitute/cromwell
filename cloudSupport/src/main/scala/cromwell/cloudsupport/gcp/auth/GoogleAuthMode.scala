@@ -10,13 +10,14 @@ import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
 import com.google.auth.http.HttpTransportFactory
-import com.google.auth.oauth2.{GoogleCredentials, ServiceAccountCredentials, UserCredentials}
+import com.google.auth.oauth2._
 import com.google.cloud.NoCredentials
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode._
 import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.{CredentialFileFormat, JsonFileFormat, PemFileFormat}
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 object GoogleAuthMode {
@@ -61,6 +62,21 @@ object GoogleAuthMode {
     }
   }
 
+  /**
+    * Returns a fresh access token from the credentials with a minimum TTL.
+    */
+  def freshAccessToken(minimumTimeToLive: FiniteDuration, credentials: OAuth2Credentials): String = {
+    def accessTokenTTLIsAcceptable(accessToken: AccessToken) = {
+      (accessToken.getExpirationTime.getTime - System.currentTimeMillis()).millis.gteq(minimumTimeToLive)
+    }
+
+    Option(credentials.getAccessToken) match {
+      case Some(accessToken) if accessTokenTTLIsAcceptable(accessToken) => accessToken.getTokenValue
+      case _ =>
+        credentials.refresh()
+        credentials.getAccessToken.getTokenValue
+    }
+  }
 }
 
 
@@ -77,7 +93,19 @@ sealed trait GoogleAuthMode {
   def name: String
 
   // Create a Credential object from the google.api.client.auth library (https://github.com/google/google-api-java-client)
-  def credential(options: OptionLookup): Credentials
+  def credential(options: OptionLookup = Map.empty): Credentials
+
+  /**
+    * Returns an access token valid for at least minimumTimeToLive.
+    */
+  def freshAccessToken(minimumTimeToLive: FiniteDuration = 1.minute, options: OptionLookup = Map.empty): String = {
+    credential(options) match {
+      case oauth2Credentials: OAuth2Credentials => GoogleAuthMode.freshAccessToken(minimumTimeToLive, oauth2Credentials)
+      case other =>
+        throw new RuntimeException(
+          s"Unable to get an access token for ${Option(other).map(_.getClass).getOrElse("<null>")}")
+    }
+  }
 
   def requiresAuthFile: Boolean = false
 
@@ -117,7 +145,7 @@ object ServiceAccountMode {
 
 final case class ServiceAccountMode(override val name: String,
                                     fileFormat: CredentialFileFormat,
-                                    scopes: java.util.List[String]) extends GoogleAuthMode {
+                                    scopes: List[String]) extends GoogleAuthMode {
   private val credentialsFile = File(fileFormat.file)
   checkReadable(credentialsFile)
 
@@ -125,8 +153,11 @@ final case class ServiceAccountMode(override val name: String,
     val serviceAccount = fileFormat match {
       case PemFileFormat(accountId, _) =>
         log.warn("The PEM file format will be deprecated in the upcoming Cromwell version. Please use JSON instead.")
-        ServiceAccountCredentials.fromPkcs8(accountId, accountId, credentialsFile.contentAsString, null, scopes)
-      case _: JsonFileFormat => ServiceAccountCredentials.fromStream(credentialsFile.newInputStream).createScoped(scopes)
+        ServiceAccountCredentials.fromPkcs8(accountId, accountId, credentialsFile.contentAsString, null, scopes.asJava)
+      case _: JsonFileFormat =>
+        ServiceAccountCredentials
+          .fromStream(credentialsFile.newInputStream)
+          .createScoped(scopes.asJava)
     }
 
     // Validate credentials synchronously here, without retry.
@@ -138,7 +169,7 @@ final case class ServiceAccountMode(override val name: String,
   override def credential(options: OptionLookup): Credentials = _credential
 }
 
-final case class UserServiceAccountMode(override val name: String, scopes: java.util.List[String]) extends GoogleAuthMode {
+final case class UserServiceAccountMode(override val name: String, scopes: List[String]) extends GoogleAuthMode {
   private def extractServiceAccount(options: OptionLookup): String = {
     extract(options, UserServiceAccountKey)
   }
@@ -151,16 +182,14 @@ final case class UserServiceAccountMode(override val name: String, scopes: java.
   override def credential(options: OptionLookup): Credentials = {
     ServiceAccountCredentials
       .fromStream(new ByteArrayInputStream(extractServiceAccount(options).getBytes("UTF-8")))
-      .createScoped(scopes)
+      .createScoped(scopes.asJava)
   }
 }
 
 
 final case class UserMode(override val name: String,
                           user: String,
-                          secretsPath: String,
-                          datastoreDir: String,
-                          scopes: java.util.List[String]) extends GoogleAuthMode {
+                          secretsPath: String) extends GoogleAuthMode {
 
   private lazy val secretsStream = {
     val secretsFile = File(secretsPath)
@@ -185,8 +214,7 @@ final case class ApplicationDefaultMode(name: String) extends GoogleAuthMode {
 
 final case class RefreshTokenMode(name: String,
                                   clientId: String,
-                                  clientSecret: String,
-                                  scopes: java.util.List[String]) extends GoogleAuthMode with ClientSecrets {
+                                  clientSecret: String) extends GoogleAuthMode with ClientSecrets {
 
   import GoogleAuthMode._
 

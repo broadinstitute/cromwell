@@ -30,7 +30,6 @@ final case class GoogleConfiguration private (applicationName: String, authsByNa
 }
 
 object GoogleConfiguration {
-  import scala.collection.JavaConverters._
   import scala.concurrent.duration._
   import scala.language.postfixOps
 
@@ -57,14 +56,15 @@ object GoogleConfiguration {
     override val exceptionContext = "Google configuration"
   }
 
-  val GoogleScopes = List(
+  // https://cloud.google.com/genomics/auth#OAuth2Authorizing
+  val PipelinesApiScopes = List(
     StorageScopes.DEVSTORAGE_FULL_CONTROL,
     StorageScopes.DEVSTORAGE_READ_WRITE,
     "https://www.googleapis.com/auth/genomics",
     "https://www.googleapis.com/auth/compute"
-  ).asJava
+  )
 
-  def apply(config: Config): GoogleConfiguration = {
+  def apply(config: Config, defaultScopes: List[String] = PipelinesApiScopes): GoogleConfiguration = {
 
     val googleConfig = config.getConfig("google")
 
@@ -72,37 +72,39 @@ object GoogleConfiguration {
 
     def buildAuth(authConfig: Config): ErrorOr[GoogleAuthMode] = {
 
-      def serviceAccountAuth(authConfig: Config, name: String): ErrorOr[GoogleAuthMode] = validate {
+      def serviceAccountAuth(authConfig: Config, name: String, scopes: List[String]): ErrorOr[GoogleAuthMode] = validate {
         (authConfig.getAs[String]("pem-file"), authConfig.getAs[String]("json-file")) match {
-          case (Some(pem), None) => ServiceAccountMode(name, PemFileFormat(authConfig.as[String]("service-account-id"), pem), GoogleScopes)
-          case (None, Some(json)) => ServiceAccountMode(name, JsonFileFormat(json), GoogleScopes)
+          case (Some(pem), None) =>
+            ServiceAccountMode(name, PemFileFormat(authConfig.as[String]("service-account-id"), pem), scopes)
+          case (None, Some(json)) => ServiceAccountMode(name, JsonFileFormat(json), scopes)
           case (None, None) => throw new ConfigException.Generic(s"""No credential configuration was found for service account "$name". See reference.conf under the google.auth, service-account section for supported credential formats.""")
           case (Some(_), Some(_)) => throw new ConfigException.Generic(s"""Both a pem file and a json file were supplied for service account "$name" in the configuration file. Only one credential file can be supplied for the same service account. Please choose between the two.""")
         }
       }
 
       def userAccountAuth(authConfig: Config, name: String): ErrorOr[GoogleAuthMode] =  validate {
-        UserMode(name, authConfig.as[String]("user"), authConfig.as[String]("secrets-file"), authConfig.as[String]("data-store-dir"), GoogleScopes)
+        UserMode(name, authConfig.as[String]("user"), authConfig.as[String]("secrets-file"))
       }
 
       def refreshTokenAuth(authConfig: Config, name: String): ErrorOr[GoogleAuthMode] = validate {
-        RefreshTokenMode(name, authConfig.as[String]("client-id"), authConfig.as[String]("client-secret"), GoogleScopes)
+        RefreshTokenMode(name, authConfig.as[String]("client-id"), authConfig.as[String]("client-secret"))
       }
 
       def applicationDefaultAuth(name: String): ErrorOr[GoogleAuthMode] = ApplicationDefaultMode(name).validNel
 
-      def userServiceAccountAuth(name: String): ErrorOr[GoogleAuthMode] = validate {
-        UserServiceAccountMode(name, GoogleScopes)
+      def userServiceAccountAuth(name: String, scopes: List[String]): ErrorOr[GoogleAuthMode] = validate {
+        UserServiceAccountMode(name, scopes)
       }
 
       val name = authConfig.getString("name")
       val scheme = authConfig.getString("scheme")
+      val scopes = authConfig.getOrElse("scopes", defaultScopes)
       scheme match {
-        case "service_account" => serviceAccountAuth(authConfig, name)
+        case "service_account" => serviceAccountAuth(authConfig, name, scopes)
         case "user_account" => userAccountAuth(authConfig, name)
         case "refresh_token" => refreshTokenAuth(authConfig, name)
         case "application_default" => applicationDefaultAuth(name)
-        case "user_service_account" => userServiceAccountAuth(name)
+        case "user_service_account" => userServiceAccountAuth(name, scopes)
         case wut => s"Unsupported authentication scheme: $wut".invalidNel
       }
     }
@@ -111,7 +113,7 @@ object GoogleConfiguration {
     val errorOrAuthList: ErrorOr[List[GoogleAuthMode]] = listOfErrorOrAuths.sequence[ErrorOr, GoogleAuthMode]
 
     def uniqueAuthNames(list: List[GoogleAuthMode]): ErrorOr[Unit] = {
-      val duplicateAuthNames = list.groupBy(_.name) collect { case (n, as) if as.size > 1 => n }
+      val duplicateAuthNames = list.groupBy(_.name) collect { case (n, as) if as.lengthCompare(1) > 0 => n }
       if (duplicateAuthNames.nonEmpty) {
         ("Duplicate auth names: " + duplicateAuthNames.mkString(", ")).invalidNel
       } else {

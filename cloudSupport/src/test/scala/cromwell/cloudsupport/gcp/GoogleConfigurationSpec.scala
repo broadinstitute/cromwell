@@ -85,7 +85,6 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
     val user = (auths collectFirst { case a: UserMode => a }).get
     user.name shouldBe "name-user"
     user.secretsPath shouldBe pemMockFile.pathAsString
-    user.datastoreDir shouldBe "/where/the/data/at"
 
     val servicePem = (auths collectFirst { case a: ServiceAccountMode if a.name == "name-pem-service" => a }).get
     servicePem.name shouldBe "name-pem-service"

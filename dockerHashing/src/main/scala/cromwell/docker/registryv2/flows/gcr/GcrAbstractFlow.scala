@@ -3,7 +3,8 @@ package cromwell.docker.registryv2.flows.gcr
 import akka.actor.Scheduler
 import akka.http.scaladsl.model.headers.{Authorization, OAuth2BearerToken}
 import akka.stream.ActorMaterializer
-import com.google.auth.oauth2.{AccessToken, OAuth2Credentials}
+import com.google.auth.oauth2.OAuth2Credentials
+import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.docker.DockerHashActor.DockerHashContext
 import cromwell.docker.registryv2.DockerRegistryV2AbstractFlow
 import cromwell.docker.registryv2.DockerRegistryV2AbstractFlow.HttpDockerFlow
@@ -23,20 +24,9 @@ abstract class GcrAbstractFlow(httpClientFlow: HttpDockerFlow, host: String)(imp
     */
    def buildTokenRequestHeaders(dockerHashContext: DockerHashContext) = {
     dockerHashContext.credentials collect {
-      case credentials: OAuth2Credentials => Authorization(OAuth2BearerToken(freshAccessToken(credentials)))
-    }
-  }
-  
-  private def freshAccessToken(credential: OAuth2Credentials) = {
-    def accessTokenTTLIsAcceptable(accessToken: AccessToken) = {
-      (accessToken.getExpirationTime.getTime - System.currentTimeMillis()).millis.gteq(AccessTokenAcceptableTTL)
-    }
-    
-    Option(credential.getAccessToken) match {
-      case Some(accessToken) if accessTokenTTLIsAcceptable(accessToken) => accessToken.getTokenValue
-      case _ =>
-        credential.refresh()
-        credential.getAccessToken.getTokenValue
+      case credentials: OAuth2Credentials =>
+        val token = GoogleAuthMode.freshAccessToken(AccessTokenAcceptableTTL, credentials)
+        Authorization(OAuth2BearerToken(token))
     }
   }
 }

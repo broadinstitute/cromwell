@@ -30,7 +30,7 @@ object EnhancedDraft3Ast {
   implicit class EnhancedAst(val ast: Ast) extends AnyVal {
 
     def getAttributeAsAstNodeVector(attr: String): Checked[Vector[AstNode]] = for {
-      attributeNode <- Option(ast.getAttribute(attr)).toChecked(s"No attribute $attr found on Ast of type ${ast.getName}")
+      attributeNode <- Option(ast.getAttribute(attr)).toChecked(s"No attribute '$attr' found on Ast of type ${ast.getName}. Did you mean: ${ast.getAttributes.asScala.keys.mkString(", ")}")
       asVector <- attributeNode.astListAsVector
     } yield asVector
 
@@ -40,7 +40,7 @@ object EnhancedDraft3Ast {
       */
     def getAttributeAs[A](attr: String)(implicit toA: CheckedAtoB[AstNode, A]): Checked[A] = {
       val attribute = Option(ast.getAttribute(attr))
-      attribute.map(toA.run).getOrElse(s"No attribute $attr found on Ast '${ast.getName}'".invalidNelCheck)
+      attribute.map(toA.run).getOrElse(s"No attribute '$attr' found on Ast '${ast.getName}'. Did you mean: ${ast.getAttributes.asScala.keys.mkString(", ")}".invalidNelCheck)
     }
 
     /**

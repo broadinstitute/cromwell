@@ -13,13 +13,13 @@ object GigabytesToBytes extends Poly1 {
 
   implicit def string = at[String] {
     s =>
-      //TODO: Scale this by multiplier
+      //TODO: Scale this by multiplier https://github.com/broadinstitute/cromwell/issues/3382
       Coproduct[cwl.ResourceRequirementType](s)
   }
 
   implicit def expression = at[cwl.Expression] {
     e =>
-      //TODO: Scale this by multiplier
+      //TODO: Scale this by multiplier https://github.com/broadinstitute/cromwell/issues/3382
       Coproduct[cwl.ResourceRequirementType](e)
   }
 }

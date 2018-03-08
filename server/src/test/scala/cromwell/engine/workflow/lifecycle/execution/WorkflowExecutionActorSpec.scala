@@ -81,7 +81,7 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike w
       name = "WorkflowExecutionActor",
       supervisor = weaSupervisor.ref)
 
-    EventFilter.info(pattern = "Starting calls: wf_hello.hello", occurrences = 3).intercept {
+    EventFilter.info(pattern = "Starting wf_hello.hello", occurrences = 3).intercept {
       workflowExecutionActor ! ExecuteWorkflowCommand
     }
 

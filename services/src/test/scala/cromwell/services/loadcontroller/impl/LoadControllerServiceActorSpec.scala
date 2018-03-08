@@ -15,11 +15,7 @@ import org.scalatest.{FlatSpecLike, Matchers}
 import scala.concurrent.duration._
 
 object LoadControllerServiceActorSpec {
-  val Config = ConfigFactory.parseString(
-    """
-      |control-frequency = 1 second
-    """.stripMargin
-  )
+  val Config = ConfigFactory.parseString("control-frequency = 1 second")
 }
 
 class LoadControllerServiceActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Eventually with ImplicitSender {

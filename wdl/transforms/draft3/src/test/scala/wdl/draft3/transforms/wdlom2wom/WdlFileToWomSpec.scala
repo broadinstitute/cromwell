@@ -57,8 +57,9 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     "nested_struct" -> anyWomWillDo,
     "struct_definition" -> validateStructDefinitionWom,
     "simple_scatter" -> anyWomWillDo,
+    "ogin_scatter" -> anyWomWillDo,
+    "nested_scatter" -> anyWomWillDo,
     "simple_conditional" -> anyWomWillDo
-
   )
 
   private def anyWomWillDo(b: WomBundle) = Succeeded

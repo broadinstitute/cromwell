@@ -378,6 +378,79 @@ object WdlFileToWdlomSpec {
       )),
       tasks = Vector.empty
     ),
+    "ogin_scatter" -> FileElement(
+      imports = Vector.empty,
+      structs = Vector.empty,
+      workflows = Vector(WorkflowDefinitionElement(
+        name= "ogin_scatter",
+        inputsSection = None,
+        graphElements = Set(
+          IntermediateValueDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)), "indices", ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(1)), PrimitiveLiteralExpressionElement(WomInteger(2)), PrimitiveLiteralExpressionElement(WomInteger(3))))),
+          IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "ogin_me", PrimitiveLiteralExpressionElement(WomInteger(10))),
+          ScatterElement(
+            scatterExpression = IdentifierLookup("indices"),
+            scatterVariableName = "i",
+            graphElements = Vector(
+              IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "j", Add(IdentifierLookup("i"), IdentifierLookup("ogin_me")))
+            )
+          )
+        ),
+        outputsSection = Some(
+          OutputsSectionElement(Vector(OutputDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)), "js", IdentifierLookup("j"))))
+        ),
+        metaSection = None,
+        parameterMetaSection = None
+      )),
+      tasks = Vector.empty
+    ),
+    "nested_scatter" -> FileElement(
+      Vector(),
+      Vector(),
+      Vector(WorkflowDefinitionElement(
+        "nested_scatter",
+        None,
+        Set(
+          IntermediateValueDeclarationElement(
+            ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)),
+            "indices",
+            ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(1)), PrimitiveLiteralExpressionElement(WomInteger(2)), PrimitiveLiteralExpressionElement(WomInteger(3))))
+          ),
+          IntermediateValueDeclarationElement(
+            PrimitiveTypeElement(WomIntegerType),
+            "y",
+            PrimitiveLiteralExpressionElement(WomInteger(55))
+          ),
+          ScatterElement(
+            IdentifierLookup("indices"),
+            "a",
+            Vector(
+              ScatterElement(
+                IdentifierLookup("indices"), "b",
+                Vector(
+                  IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "x", Add(IdentifierLookup("a"),IdentifierLookup("b"))),
+                  ScatterElement(
+                    IdentifierLookup("indices"),
+                    "c",
+                    Vector(
+                      IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "j", Add(Add(Add(IdentifierLookup("a"), IdentifierLookup("b")), IdentifierLookup("c")), IdentifierLookup("x"))))),
+                  ScatterElement(
+                    IdentifierLookup("j"),
+                    "d",
+                    Vector(IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "k", Add(IdentifierLookup("d"), IdentifierLookup("y"))))
+                  )
+                )
+              )
+            )
+          )
+        ),
+        Some(
+          OutputsSectionElement(Vector(OutputDeclarationElement(ArrayTypeElement(ArrayTypeElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)))), "ks", IdentifierLookup("k"))))
+        ),
+        None,
+        None)
+      ),
+      Vector()
+    ),
     "simple_conditional" -> FileElement(
       imports = Vector.empty,
       structs = Vector.empty,

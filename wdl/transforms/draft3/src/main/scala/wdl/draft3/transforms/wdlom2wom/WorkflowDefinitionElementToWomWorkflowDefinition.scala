@@ -30,14 +30,15 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
         a.definitionElement.inputsSection.toSeq.flatMap(_.inputDeclarations) ++
         a.definitionElement.outputsSection.toSeq.flatMap(_.outputs)
 
-    val innerGraph: ErrorOr[WomGraph] = convertGraphElements(GraphLikeConvertInputs(graphNodeElements, Set.empty, a.typeAliases, a.definitionElement.name))
+    val innerGraph: ErrorOr[WomGraph] = convertGraphElements(GraphLikeConvertInputs(graphNodeElements, Set.empty, a.typeAliases, a.definitionElement.name, insideAScatter = false))
     innerGraph map { ig =>  WorkflowDefinition(a.definitionElement.name, ig, Map.empty, Map.empty) }
   }
 
   final case class GraphLikeConvertInputs(graphElements: Set[WorkflowGraphElement],
                                           seedNodes: Set[GraphNode],
                                           typeAliases: Map[String, WomType],
-                                          workflowName: String)
+                                          workflowName: String,
+                                          insideAScatter: Boolean)
 
   def convertGraphElements(a: GraphLikeConvertInputs): ErrorOr[WomGraph] = {
 
@@ -48,11 +49,11 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
 
     for {
       linkedGraph <- LinkedGraphMaker.make(nodes = a.graphElements, seedGeneratedValueHandles, typeAliases = a.typeAliases)
-      womGraph <- makeWomGraph(linkedGraph, a.seedNodes, a.workflowName)
+      womGraph <- makeWomGraph(linkedGraph, a.seedNodes, a.workflowName, a.insideAScatter)
     } yield womGraph
   }
 
-  private def makeWomGraph(linkedGraph: LinkedGraph, seedNodes: Set[GraphNode], workflowName: String): ErrorOr[WomGraph] = {
+  private def makeWomGraph(linkedGraph: LinkedGraph, seedNodes: Set[GraphNode], workflowName: String, insideAScatter: Boolean): ErrorOr[WomGraph] = {
 
     def graphNodeCreationFold(currentValidation: ErrorOr[List[GraphNode]], next: WorkflowGraphElement): ErrorOr[List[GraphNode]] = {
       currentValidation flatMap { currentList =>
@@ -60,7 +61,7 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
           node <- currentList
           port <- node.outputPorts
         } yield port.name -> port).toMap
-        val nextGraphNodeValidation = WorkflowGraphElementToGraphNode.convert(GraphNodeMakerInputs(next, linkedGraph.consumedValueLookup, availableValues, linkedGraph.typeAliases, workflowName))
+        val nextGraphNodeValidation = WorkflowGraphElementToGraphNode.convert(GraphNodeMakerInputs(next, linkedGraph.consumedValueLookup, availableValues, linkedGraph.typeAliases, workflowName, insideAScatter))
         nextGraphNodeValidation map { nextGraphNode => currentList ++ nextGraphNode }
       }
     }

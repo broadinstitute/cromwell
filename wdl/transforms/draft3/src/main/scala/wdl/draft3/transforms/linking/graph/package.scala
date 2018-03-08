@@ -4,7 +4,6 @@ import cats.syntax.apply._
 import cats.syntax.validated._
 import cats.syntax.traverse._
 import cats.instances.list._
-
 import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.graph.GraphElementValueConsumer
 import wdl.model.draft3.graph.GraphElementValueConsumer.ops._
@@ -15,7 +14,7 @@ import wdl.draft3.transforms.linking.expression.consumed._
 import wdl.draft3.transforms.linking.typemakers._
 import wdl.model.draft3.elements.{DeclarationElement, InputDeclarationElement, ScatterElement, WorkflowGraphElement}
 import wdl.model.draft3.graph._
-import wom.types.WomType
+import wom.types.{WomArrayType, WomType}
 
 package object graph {
   implicit val graphElementUnlinkedValueGenerator: UnlinkedValueGenerator[WorkflowGraphElement] = new UnlinkedValueGenerator[WorkflowGraphElement] {
@@ -32,7 +31,10 @@ package object graph {
 
   implicit val scatterElementUnlinkedValueGenerater: UnlinkedValueGenerator[ScatterElement] = new UnlinkedValueGenerator[ScatterElement] {
     override def generatedValueHandles(a: ScatterElement, typeAliases: Map[String, WomType]): ErrorOr[Set[GeneratedValueHandle]] = {
-      a.graphElements.toList.traverse(_.generatedValueHandles(typeAliases)).map(_.toSet.flatten)
+      a.graphElements.toList.traverse(_.generatedValueHandles(typeAliases)).map(_.toSet.flatten) map { _.map {
+        case GeneratedIdentifierValueHandle(id, womType) => GeneratedIdentifierValueHandle(id, WomArrayType(womType))
+        case GeneratedCallOutputValueHandle(first, second, womType) => GeneratedCallOutputValueHandle(first, second, WomArrayType(womType))
+      } }
     }
   }
 

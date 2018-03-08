@@ -96,8 +96,10 @@ object CromwellShutdown extends GracefulStopSupport {
                       message: AnyRef,
                       customTimeout: Option[FiniteDuration] = None)(implicit executionContext: ExecutionContext) = {
       coordinatedShutdown.addTask(phase, s"stop${actor.path.name.capitalize}") { () =>
-        val action = gracefulStop(actor, customTimeout.getOrElse(coordinatedShutdown.timeout(phase)), message)
+        val timeout = coordinatedShutdown.timeout(phase)
+        logger.info(s"Shutting down ${actor.path.name} - Timeout = $timeout")
 
+        val action = gracefulStop(actor, customTimeout.getOrElse(coordinatedShutdown.timeout(phase)), message)
         action onComplete {
           case Success(_) => logger.info(s"${actor.path.name} stopped")
           case Failure(_: AskTimeoutException) => 

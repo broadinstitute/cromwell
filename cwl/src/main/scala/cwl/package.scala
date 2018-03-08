@@ -5,12 +5,9 @@ import common.validation.ErrorOr._
 import cwl.CwlType._
 import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
 import cwl.command.ParentName
-import io.circe.{Encoder, Json, JsonObject}
-import io.circe.syntax._
 import shapeless._
 import wom.executable.Executable
 import wom.types._
-import wom.values._
 
 import scala.util.{Failure, Success, Try}
 
@@ -121,6 +118,4 @@ package object cwl extends TypeAliases {
   }
 
   type ExpressionLib = Vector[String]
-
-  val ReadLimit = Option(64 * 1024)
 }

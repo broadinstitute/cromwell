@@ -171,8 +171,16 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
                 fromInputBinding.map(_.sortingKey).getOrElse(sortingKey)
                   .append(ias.inputBinding, Coproduct[StringOrInt](index))
 
-              // Fold over the item type fo each array element
-              val fromType = ias.items.fold(MyriadInputTypeToSortedCommandParts).apply(ias.inputBinding, item, itemSortingKey.asNewKey, expressionLib)
+              // Even if the item doesn't have an explicit input binding, it should appear in the command so create a default empty one
+              //there is an explicit input binding!
+              //TODO: Figure out precedence order here!
+              val itemInputBinding =
+                ias.
+                  inputBinding.
+                  orElse(inputBinding).
+                  orElse(Option(InputCommandLineBinding.default))
+              // Fold over the item type of each array element
+              val fromType = ias.items.fold(MyriadInputTypeToSortedCommandParts).apply(itemInputBinding, item, itemSortingKey.asNewKey, expressionLib)
               currentMap ++ fromType
           }) ++ fromInputBinding
         }

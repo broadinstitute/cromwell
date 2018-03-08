@@ -148,7 +148,7 @@ workflow release_cromwell {
         updateVersionCommand = versionPrep.updateCommand
        }
   
-  File cromwellJar = "${do_release.executionDir}/target/scala-2.12/cromwell-${versionPrep.currentVersion}.jar"
+  File cromwellJar = "${do_release.executionDir}/server/target/scala-2.12/cromwell-${versionPrep.currentVersion}.jar"
   Int cromwellVersionAsInt = versionPrep.currentVersion
   # Previous version
   Int cromwellPreviousVersionAsInt = cromwellVersionAsInt - 1

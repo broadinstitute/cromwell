@@ -66,7 +66,7 @@ object ExpressionNode {
       (evaluatedType, inputPorts) = combined
       expressionNode = constructor(identifier, expression, evaluatedType, inputPorts)
       _ = graphNodeSetter._graphNode = expressionNode
-    } yield expressionNode).leftMap(es => es.map(e => s"Cannot build expression for '${identifier.localName.value} = ${expression.sourceString}': $e"))
+    } yield expressionNode).leftMap(es => es.map(e => s"Cannot build expression for '${identifier.fullyQualifiedName.value} = ${expression.sourceString}': $e"))
   }
 
   /**

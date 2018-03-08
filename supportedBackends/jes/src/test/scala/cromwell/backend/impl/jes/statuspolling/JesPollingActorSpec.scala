@@ -41,8 +41,8 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
 
   it should "correctly calculate batch intervals" in {
     import eu.timepit.refined.auto._
-    JesPollingActor.determineBatchInterval(10) should be(11111.milliseconds)
-    JesPollingActor.determineBatchInterval(100000) shouldBe 1.millisecond
+    JesApiQueryManager.determineBatchInterval(10) should be(11111.milliseconds)
+    JesApiQueryManager.determineBatchInterval(100000) shouldBe 1.millisecond
   }
 
   it should "query for work and wait for a reply" in {
@@ -106,9 +106,7 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
   * - Mocks out the methods which actually call out to JES, and allows the callbacks to be triggered in a testable way
   * - Also waits a **lot** less time before polls!
   */
-class TestJesPollingActor(manager: ActorRef, qps: Int Refined Positive, registryProbe: ActorRef) extends JesPollingActor(manager, qps, registryProbe) with Mockito {
-
-  override lazy val batchInterval = 10.milliseconds
+class TestJesPollingActor(manager: ActorRef, qps: Int Refined Positive, registryProbe: ActorRef) extends JesPollingActor(manager, 10.milliseconds, registryProbe) with Mockito {
 
   var operationStatusResponses: Queue[RunStatus] = Queue.empty
   var resultHandlers: Queue[JsonBatchCallback[Operation]] = Queue.empty

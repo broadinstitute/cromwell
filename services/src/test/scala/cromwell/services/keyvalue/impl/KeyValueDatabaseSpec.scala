@@ -1,5 +1,7 @@
 package cromwell.services.keyvalue.impl
 
+import java.sql.{BatchUpdateException, SQLIntegrityConstraintViolationException}
+
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.WorkflowId
@@ -9,21 +11,28 @@ import cromwell.services.EngineServicesStore
 import cromwell.services.ServicesStore.EnhancedSqlDatabase
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers, RecoverMethods}
 import org.specs2.mock.Mockito
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
+import scala.reflect.ClassTag
 
-class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
+class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito with RecoverMethods {
 
   implicit val ec = ExecutionContext.global
   implicit val defaultPatience = PatienceConfig(scaled(Span(5, Seconds)), scaled(Span(100, Millis)))
 
-  "SlickDatabase (hsqldb)" should behave like testWith("database")
+  "SlickDatabase (hsqldb)" should behave like testWith[SQLIntegrityConstraintViolationException](
+    "database",
+    "integrity constraint violation: NOT NULL check constraint; SYS_CT_10591 table: JOB_KEY_VALUE_ENTRY column: STORE_VALUE"
+  )
 
-  "SlickDatabase (mysql)" should behave like testWith("database-test-mysql")
+  "SlickDatabase (mysql)" should behave like testWith[BatchUpdateException](
+    "database-test-mysql",
+    "Column 'STORE_VALUE' cannot be null"
+  )
 
-  def testWith(configPath: String): Unit = {
+  def testWith[E <: Throwable](configPath: String, failureMessage: String)(implicit classTag: ClassTag[E]): Unit = {
     lazy val databaseConfig = ConfigFactory.load.getConfig(configPath)
     lazy val dataAccess = new EngineSlickDatabase(databaseConfig)
       .initialized(EngineServicesStore.EngineLiquibaseSettings)
@@ -57,6 +66,15 @@ class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with
       storeValue = "myValueB"
     )
 
+    val wrongKeyValueEntryB = JobKeyValueEntry(
+      workflowExecutionUuid = workflowId,
+      callFullyQualifiedName = callFqn,
+      jobIndex = 0,
+      jobAttempt = 1,
+      storeKey = "myKeyB",
+      storeValue = null
+    )
+
     it should "upsert and retrieve kv pairs correctly" taggedAs DbmsTest in {
       (for {
         // Just add A
@@ -73,6 +91,25 @@ class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with
         valueB <- dataAccess.queryStoreValue(workflowId.toString, callFqn, 0, 1, "myKeyB")
         _ = valueB shouldBe Some("myValueB")
       } yield ()).futureValue
+    }
+
+    it should "fail if one of the inserts fails" taggedAs DbmsTest in {
+      val futureEx = recoverToExceptionIf[E] {
+        dataAccess.addJobKeyValueEntries(Seq(keyValueEntryA, wrongKeyValueEntryB))
+      }
+
+      def verifyValues: Future[Unit] = for {
+        // Values should not have changed
+        valueA2 <- dataAccess.queryStoreValue(workflowId.toString, callFqn, 0, 1, "myKeyA")
+        _ = valueA2 shouldBe Some("myValueA2")
+        // B should also be there
+        valueB <- dataAccess.queryStoreValue(workflowId.toString, callFqn, 0, 1, "myKeyB")
+        _ = valueB shouldBe Some("myValueB")
+      } yield ()
+
+      (futureEx map { ex =>
+        assert(ex.getMessage == failureMessage)
+      }).flatMap(_ => verifyValues).futureValue
     }
   }
 }

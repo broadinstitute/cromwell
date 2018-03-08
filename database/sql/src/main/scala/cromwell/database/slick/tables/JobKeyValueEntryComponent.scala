@@ -1,7 +1,6 @@
 package cromwell.database.slick.tables
 
 import cromwell.database.sql.tables.JobKeyValueEntry
-import slick.jdbc.MySQLProfile
 
 trait JobKeyValueEntryComponent {
 
@@ -32,7 +31,7 @@ trait JobKeyValueEntryComponent {
   }
 
   protected val jobKeyValueEntries = TableQuery[JobKeyValueEntries]
-  lazy val jobKeyValueTableQueryCompiled = MySQLProfile.compileInsert(jobKeyValueEntries.toNode)
+  lazy val jobKeyValueTableQueryCompiled = driver.compileInsert(jobKeyValueEntries.toNode)
 
   val jobKeyValueEntryIdsAutoInc = jobKeyValueEntries returning jobKeyValueEntries.map(_.jobKeyValueEntryId)
 

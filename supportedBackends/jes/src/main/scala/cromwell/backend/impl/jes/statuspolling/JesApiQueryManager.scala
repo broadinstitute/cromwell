@@ -13,6 +13,7 @@ import com.google.api.services.genomics.model.RunPipelineRequest
 import cromwell.backend.BackendSingletonActorAbortWorkflow
 import cromwell.backend.impl.jes.Run
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{PAPIApiException, _}
+import cromwell.backend.impl.jes.statuspolling.JesPollingActor.MaxBatchSize
 import cromwell.backend.impl.jes.statuspolling.JesRunCreationClient.JobAbortedException
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
@@ -71,12 +72,7 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
 
   private[statuspolling] lazy val nbWorkers = 2
 
-  private lazy val workerQps = refineV[Positive](Math.max(qps.value / nbWorkers, 1)) match {
-    // This cannot possibly happen as long as qps is >= 1 and the Math.max above is kept, but there's no .get on either
-    // so we have to somehow handle the failure case
-    case Left(error) => throw new IllegalArgumentException(s"Programmer error ! Keep the min qps at 1: $error")
-    case Right(value) => value
-  }
+  private lazy val workerBatchInterval = determineBatchInterval(qps) / nbWorkers.toLong
 
   scheduleInstrumentation { updateQueueSize(workQueue.size) }
 
@@ -87,7 +83,7 @@ class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegi
   // the scheduled delay, unless the workflow is aborted in the meantime in which case they will be cancelled.
   private var queriesWaitingForRetry: Set[PAPIApiRequest] = Set.empty[PAPIApiRequest]
 
-  private def statusPollerProps = JesPollingActor.props(self, workerQps, serviceRegistryActor)
+  private def statusPollerProps = JesPollingActor.props(self, workerBatchInterval, serviceRegistryActor)
 
   // statusPollers is protected for the unit tests, not intended to be generally overridden
   protected[statuspolling] var statusPollers: Vector[ActorRef] = resetAllWorkers()
@@ -242,6 +238,17 @@ object JesApiQueryManager {
   case object QueueMonitoringTimerKey
   case object QueueMonitoringTimerAction extends ControlMessage
   def props(qps: Int Refined Positive, serviceRegistryActor: ActorRef): Props = Props(new JesApiQueryManager(qps, serviceRegistryActor)).withDispatcher(BackendDispatcher)
+
+  /**
+    * Given the Genomics API queries per 100 seconds and given MaxBatchSize will determine a batch interval which
+    * is at 90% of the quota. The (still crude) delta is to provide some room at the edges for things like new
+    * calls, etc.
+    */
+  def determineBatchInterval(qps: Int Refined Positive): FiniteDuration = {
+    val maxInterval = MaxBatchSize.toDouble / qps.value.toDouble
+    val interval = ((maxInterval / 0.9) * 1000).toInt
+    interval.milliseconds
+  }
 
   sealed trait JesApiQueryManagerRequest
 

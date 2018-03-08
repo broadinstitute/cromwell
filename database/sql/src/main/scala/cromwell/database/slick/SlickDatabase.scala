@@ -103,7 +103,7 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
     * Adapted from https://github.com/slick/slick/issues/1781
    */
   protected[this] def createBatchUpsert[T](description: String,
-                                           compiled: MySQLProfile.JdbcCompiledInsert,
+                                           compiled: dataAccess.driver.JdbcCompiledInsert,
                                            values: Iterable[T]
                                           )(implicit ec: ExecutionContext): DBIO[Unit] = {
     SimpleDBIO { context =>

@@ -16,7 +16,8 @@ class LoadConfigSpec extends FlatSpec with Matchers {
     LoadConfig.MetadataWriteThreshold shouldBe 100000
     LoadConfig.IoThreshold shouldBe 10000
     LoadConfig.MonitoringFrequency shouldBe 5.seconds
-    LoadConfig.MemoryThresholdInMB shouldBe 500
+    LoadConfig.MemoryThresholdInMB shouldBe 1024
     LoadConfig.PAPIThreshold shouldBe 10000
+    LoadConfig.MemoryMeasurementWindow shouldBe 6
   }
 }

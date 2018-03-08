@@ -41,5 +41,6 @@ class MemoryLoadControllerSpec extends TestKitSuite with FlatSpecLike with Match
     override def getFreeMemory = 10L
     override private[impl] val memoryThreshold = threshold
     override private[impl] val monitoringFrequency = frequency
+    override private[impl] val nbRecordings = 10
   }
 }

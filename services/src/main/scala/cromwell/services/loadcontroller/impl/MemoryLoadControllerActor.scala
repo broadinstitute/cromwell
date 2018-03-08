@@ -9,22 +9,22 @@ import cromwell.services.loadcontroller.impl.MemoryLoadControllerActor._
 object MemoryLoadControllerActor {
   case object MemoryLoadControlTimerKey
   case object MemoryLoadControlTimerAction
-  private val runtime = Runtime.getRuntime
   private val FreeMemoryInstrumentationPath = NonEmptyList.one("freeMemoryInMB")
-  private val MB = 1024L * 1024L
-  private def freeMemoryInMB = (runtime.maxMemory() - (runtime.totalMemory() - runtime.freeMemory())) / MB
+  private val MB: Long = 1024L * 1024L
+  private def freeMemoryInMB = (Runtime.getRuntime.maxMemory() - (Runtime.getRuntime.totalMemory() - Runtime.getRuntime.freeMemory())) / MB
   def props(serviceActor: ActorRef) = {
     Props(new MemoryLoadControllerActor(serviceActor))
   }
 }
 
 class MemoryLoadControllerActor(override val serviceRegistryActor: ActorRef) extends Actor with Timers with CromwellInstrumentationActor {
-  private var amortizedLoad: LoadLevel = NormalLoad
-  private val nbRecordings = 10
-  private var index: Int = 0
-  private val loadRecordings = Array.fill[LoadLevel](nbRecordings) { NormalLoad }
+  private [impl] val nbRecordings = LoadConfig.MemoryMeasurementWindow
   private [impl] val monitoringFrequency = LoadConfig.MonitoringFrequency
   private [impl] val memoryThreshold = LoadConfig.MemoryThresholdInMB
+
+  private lazy val loadRecordings = Array.fill[LoadLevel](nbRecordings) { NormalLoad }
+  private var index: Int = 0
+  private var amortizedLoad: LoadLevel = NormalLoad
 
   override def preStart() = {
     timers.startSingleTimer(MemoryLoadControlTimerKey, MemoryLoadControlTimerAction, monitoringFrequency)

@@ -247,7 +247,7 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
 
       key match {
         // Even if the key is runnable, if it's a call key and there's already too many queued jobs,
-        // don't start it and mark it as  WaitingForQueueSpace
+        // don't start it and mark it as WaitingForQueueSpace
         case callKey: CallKey if runnable && queuedJobsAboveThreshold =>
           internalUpdates = internalUpdates + (callKey -> WaitingForQueueSpace)
           false
@@ -255,8 +255,11 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
       }
     }
 
+    // If the queued jobs are not above the threshold, use the nodes that are already waiting for queue space
+    val runnableWaitingForQueueSpace = if (!queuedJobsAboveThreshold) keysWithStatus(WaitingForQueueSpace).toStream else Stream.empty[JobKey]
+    
     // Start with keys that are waiting for queue space as we now they're runnable already. Then filter the not started ones
-    val readyToStart = keysWithStatus(WaitingForQueueSpace).toStream ++ keysWithStatus(NotStarted).toStream.filter(filterFunction)
+    val readyToStart = runnableWaitingForQueueSpace ++ keysWithStatus(NotStarted).toStream.filter(filterFunction)
 
     // Compute the first ExecutionStore.MaxJobsToStartPerTick + 1 runnable keys
     val keysToStartPlusOne = readyToStart.take(MaxJobsToStartPerTick + 1).toList

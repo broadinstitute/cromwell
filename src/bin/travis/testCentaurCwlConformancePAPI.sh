@@ -58,7 +58,7 @@ cd common-workflow-language
 git checkout af9e073634dc6aec4092c55e1c081f335affa54a
 cd ..
 
-CROMWELL_JAR=$(find "$(pwd)/target/scala-2.12" -name "cromwell-*.jar")
+CROMWELL_JAR=$(find "$(pwd)/server/target/scala-2.12" -name "cromwell-*.jar")
 CENTAUR_CWL_RUNNER="$(pwd)/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
 CENTAUR_CWL_RUNNER_MODE="papi"
 GOOGLE_AUTH_MODE="service-account"

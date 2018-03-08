@@ -351,7 +351,7 @@ object Dependencies {
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV
   ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ circeDependencies
 
-  val rootDependencies = slf4jBindingDependencies
+  val serverDependencies = slf4jBindingDependencies
 
   val cromiamDependencies = List(
     "com.softwaremill.sttp" %% "core" % sttpV,

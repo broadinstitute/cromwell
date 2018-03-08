@@ -79,7 +79,7 @@ set -x
 set -e
 
 ASSEMBLY_LOG_LEVEL=error ENABLE_COVERAGE=true sbt assembly --error
-CROMWELL_JAR=$(find "$(pwd)/target/scala-2.12" -name "cromwell-*.jar")
+CROMWELL_JAR=$(find "$(pwd)/server/target/scala-2.12" -name "cromwell-*.jar")
 
 TES_CENTAUR_CONF="$(pwd)/src/bin/travis/resources/tes_centaur.conf"
 FUNNEL_CONF="$(pwd)/src/bin/travis/resources/funnel.conf"

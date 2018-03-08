@@ -5,7 +5,7 @@ import EcmaScriptUtil.{ECMAScriptVariable, ESArray, ESObject, ESPrimitive}
 import cats.data.Validated.Valid
 import common.validation.ErrorOr.ErrorOr
 import cwl.{Directory, File}
-import wom.values.{WomArray, WomBoolean, WomCoproductValue, WomFile, WomFloat, WomGlobFile, WomInteger, WomMap, WomMaybeListedDirectory, WomMaybePopulatedFile, WomObjectLike, WomOptionalValue, WomSingleFile, WomString, WomUnlistedDirectory, WomValue}
+import wom.values.{WomArray, WomBoolean, WomCoproductValue, WomFile, WomFloat, WomGlobFile, WomInteger, WomLong, WomMap, WomMaybeListedDirectory, WomMaybePopulatedFile, WomObjectLike, WomOptionalValue, WomSingleFile, WomString, WomUnlistedDirectory, WomValue}
 
 /**
   * Converts a WomValue into a javascript compatible value.
@@ -38,6 +38,7 @@ class EcmaScriptEncoder {
       case WomOptionalValue(_, Some(innerValue)) => encode(innerValue)
       case WomString(string) => string |> ESPrimitive
       case WomInteger(int) => Int.box(int) |> ESPrimitive
+      case WomLong(long) => Long.box(long) |> ESPrimitive
       case WomFloat(double) => Double.box(double) |> ESPrimitive
       case WomBoolean(boolean) => Boolean.box(boolean) |> ESPrimitive
       case WomArray(_, array) => array.toList.map(encode).toArray |> ESArray

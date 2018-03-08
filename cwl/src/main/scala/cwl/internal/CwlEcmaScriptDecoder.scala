@@ -11,7 +11,7 @@ import cwl.{Directory, File, FileOrDirectory}
 import org.mozilla.javascript.{NativeArray, NativeObject}
 import shapeless.Coproduct
 import wom.types.WomNothingType
-import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomMap, WomOptionalValue, WomString, WomValue}
+import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomLong, WomMap, WomOptionalValue, WomString, WomValue}
 
 import scala.collection.JavaConverters._
 
@@ -30,6 +30,7 @@ class CwlEcmaScriptDecoder {
       case null => WomOptionalValue(WomNothingType, None).valid
       case string: String => WomString(string).valid
       case int: java.lang.Integer => WomInteger(int).valid
+      case long: java.lang.Long => WomLong(long).valid
       case double: java.lang.Double if double == double.doubleValue.floor && !double.isInfinite =>
         WomInteger(double.intValue).valid
       case double: java.lang.Double => WomFloat(double).valid

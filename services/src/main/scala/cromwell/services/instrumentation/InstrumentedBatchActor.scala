@@ -28,14 +28,16 @@ trait InstrumentedBatchActor[C] { this: BatchActor[C] with CromwellInstrumentati
   private val processedPath = makePath("processed")
   private val queueSizePath = makePath("queue")
 
-  timers.startPeriodicTimer(QueueSizeTimerKey, QueueSizeTimerAction, CromwellInstrumentation.InstrumentationRate)
+  timers.startSingleTimer(QueueSizeTimerKey, QueueSizeTimerAction, CromwellInstrumentation.InstrumentationRate)
 
   /**
     * Don't forget to chain this into your receive method to instrument the queue size:
     * override def receive = instrumentationReceive.orElse(super.receive)
     */
   protected def instrumentationReceive: Receive = {
-    case QueueSizeTimerAction => sendGauge(queueSizePath, stateData.weight.toLong, instrumentationPrefix)
+    case QueueSizeTimerAction => 
+      sendGauge(queueSizePath, stateData.weight.toLong, instrumentationPrefix)
+      timers.startSingleTimer(QueueSizeTimerKey, QueueSizeTimerAction, CromwellInstrumentation.InstrumentationRate)
   }
 
   /**

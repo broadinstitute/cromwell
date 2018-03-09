@@ -50,11 +50,22 @@ abstract class BatchActor[C](val flushRate: FiniteDuration,
   implicit val ec = context.dispatcher
   private val name = self.path.name
 
+  /**
+    * Override to false to prevent this actor to log its configuration on startup
+    */
+  protected def logOnStartUp: Boolean = true
+
+  /**
+    * Override to true if this actor is going to be placed behind a routed
+    */
+  protected def routed: Boolean = false
+
   override def preStart(): Unit = {
-    log.info("{} configured to flush with batch size {} and process rate {}.", name, batchSize, flushRate)
+    if (logOnStartUp) log.info("{} configured to flush with batch size {} and process rate {}.", name, batchSize, flushRate)
     if (flushRate != Duration.Zero) {
       timers.startPeriodicTimer(ScheduledFlushKey, ScheduledProcessAction, flushRate)
     }
+    super.preStart()
   }
 
   startWith(WaitingToProcess, WeightedQueue.empty[C, Int](weightFunction))
@@ -65,7 +76,7 @@ abstract class BatchActor[C](val flushRate: FiniteDuration,
     // On a regular event, only process if we're above the batch size is reached
     case Event(command, data) if commandToData(sender).isDefinedAt(command) =>
       processIfBatchSizeReached(data.enqueue(commandToData(sender)(command)))
-    // On a scheduled process, always process. Use the opportunity to broadcast the current queue weight
+    // On a scheduled process, always process
     case Event(ScheduledProcessAction, data) =>
       gossip(QueueWeight(data.weight))
       processHead(data)
@@ -79,8 +90,8 @@ abstract class BatchActor[C](val flushRate: FiniteDuration,
     // Already processing, enqueue the command
     case Event(command, data) if commandToData(sender).isDefinedAt(command) =>
       stay() using data.enqueue(commandToData(sender)(command))
-    // Already processing, can only do one at a time. Use the opportunity to broadcast the current queue weight
-    case Event(ScheduledProcessAction, data) =>
+    // Already processing, can only do one at a time
+    case Event(ScheduledProcessAction, data) => 
       gossip(QueueWeight(data.weight))
       stay()
     // Process is complete and we're shutting down so process even if we're under batch size

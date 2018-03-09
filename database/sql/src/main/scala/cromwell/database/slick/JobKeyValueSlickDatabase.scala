@@ -1,5 +1,7 @@
 package cromwell.database.slick
 
+import cats.instances.future._
+import cats.syntax.functor._
 import cromwell.database.sql.JobKeyValueSqlDatabase
 import cromwell.database.sql.tables.JobKeyValueEntry
 
@@ -16,23 +18,34 @@ trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
       for {
         _ <- dataAccess.jobKeyValueEntryIdsAutoInc.insertOrUpdate(jobKeyValueEntry)
       } yield ()
-    } else {
-      for {
-        updateCount <- dataAccess.
-          storeValuesForJobKeyAndStoreKey((
-            jobKeyValueEntry.workflowExecutionUuid,
-            jobKeyValueEntry.callFullyQualifiedName,
-            jobKeyValueEntry.jobIndex,
-            jobKeyValueEntry.jobAttempt,
-            jobKeyValueEntry.storeKey)).
-          update(jobKeyValueEntry.storeValue)
-        _ <- updateCount match {
-          case 0 => dataAccess.jobKeyValueEntryIdsAutoInc += jobKeyValueEntry
-          case _ => assertUpdateCount("addJobKeyValueEntry", updateCount, 1)
-        }
-      } yield ()
-    }
+    } else manualUpsertQuery(jobKeyValueEntry)
     runTransaction(action)
+  }
+  
+  private def manualUpsertQuery(jobKeyValueEntry: JobKeyValueEntry)
+                       (implicit ec: ExecutionContext) = for {
+    updateCount <- dataAccess.
+      storeValuesForJobKeyAndStoreKey((
+        jobKeyValueEntry.workflowExecutionUuid,
+        jobKeyValueEntry.callFullyQualifiedName,
+        jobKeyValueEntry.jobIndex,
+        jobKeyValueEntry.jobAttempt,
+        jobKeyValueEntry.storeKey)).
+      update(jobKeyValueEntry.storeValue)
+    _ <- updateCount match {
+      case 0 => dataAccess.jobKeyValueEntryIdsAutoInc += jobKeyValueEntry
+      case _ => assertUpdateCount("addJobKeyValueEntry", updateCount, 1)
+    }
+  } yield ()
+
+  def addJobKeyValueEntries(jobKeyValueEntries: Iterable[JobKeyValueEntry])
+                           (implicit ec: ExecutionContext): Future[Unit] = {
+    val action = if (useSlickUpserts) {
+      createBatchUpsert("KeyValueStore", dataAccess.jobKeyValueTableQueryCompiled, jobKeyValueEntries)
+    } else {
+      DBIO.sequence(jobKeyValueEntries.map(manualUpsertQuery))
+    }
+    runTransaction(action).void
   }
 
   override def queryStoreValue(workflowExecutionUuid: String, callFqn: String, jobScatterIndex: Int,

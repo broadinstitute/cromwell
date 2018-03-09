@@ -16,13 +16,6 @@ import scala.concurrent.duration._
 
 object StatsDInstrumentationServiceActor {
   def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) = Props(new StatsDInstrumentationServiceActor(serviceConfig, globalConfig, serviceRegistryActor))
-
-  /* Values inserted between a CromwellBucket prefix and its path when building a StatsD path to make up for the fact
-   * that everything is sent as a gauge which makes differentiating the meaning of the metrics harder.
-  */
-  private val TimingInsert = Option("timing")
-  private val CountInsert = Option("count")
-  
   
   implicit class CromwellBucketEnhanced(val cromwellBucket: CromwellBucket) extends AnyVal {
     /**
@@ -76,7 +69,7 @@ class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Con
     */
   private def meterFor(bucket: CromwellBucket): Meter = {
     // Because everything is a gauge, for clarity prepend "count" for counters so it counts events instead of giving a current value
-    val name = bucket.toStatsDString(CountInsert)
+    val name = bucket.toStatsDString()
     val counterName = metricBaseName.append(name).name
     metricRegistry.getMeters.asScala.get(counterName) match {
         // Make a new one if none is found
@@ -113,6 +106,6 @@ class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Con
     * Adds a new timing value for this bucket
     */
   private def updateTiming(bucket: CromwellBucket, value: FiniteDuration) = {
-    metrics.timer(bucket.toStatsDString(TimingInsert)).update(value)
+    metrics.timer(bucket.toStatsDString()).update(value)
   }
 }

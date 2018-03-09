@@ -96,8 +96,10 @@ object CromwellShutdown extends GracefulStopSupport {
                       message: AnyRef,
                       customTimeout: Option[FiniteDuration] = None)(implicit executionContext: ExecutionContext) = {
       coordinatedShutdown.addTask(phase, s"stop${actor.path.name.capitalize}") { () =>
-        val action = gracefulStop(actor, customTimeout.getOrElse(coordinatedShutdown.timeout(phase)), message)
+        val timeout = coordinatedShutdown.timeout(phase)
+        logger.info(s"Shutting down ${actor.path.name} - Timeout = $timeout")
 
+        val action = gracefulStop(actor, customTimeout.getOrElse(coordinatedShutdown.timeout(phase)), message)
         action onComplete {
           case Success(_) => logger.info(s"${actor.path.name} stopped")
           case Failure(_: AskTimeoutException) => 
@@ -152,9 +154,13 @@ object CromwellShutdown extends GracefulStopSupport {
       *   Use the ShutdownCommand because a PoisonPill could stop the routees in the middle of "transaction"
       *   with the IoActor. The routees handle the ShutdownCommand properly and shutdown only when they have
       *   no outstanding requests to the IoActor. When all routees are dead the router automatically stops itself.
+      *   
+      *  - Stop the job token dispenser: stop it before stopping WMA and its EJEA descendants because
+      *  the dispenser is watching all EJEAs and would be flooded by Terminated messages otherwise  
     */
     shutdownActor(workflowStoreActor, CoordinatedShutdown.PhaseServiceRequestsDone, ShutdownCommand)
     shutdownActor(logCopyRouter, CoordinatedShutdown.PhaseServiceRequestsDone, Broadcast(ShutdownCommand))
+    shutdownActor(jobTokenDispenser, CoordinatedShutdown.PhaseServiceRequestsDone, ShutdownCommand)
     
     /*
       * Aborting is only a special case of shutdown. Instead of sending a PoisonPill, send a AbortAllWorkflowsCommand
@@ -190,7 +196,7 @@ object CromwellShutdown extends GracefulStopSupport {
       * - DockerHashActor
       * - IoActor
     */
-    List(jobTokenDispenser, subWorkflowStoreActor, jobStoreActor, callCacheWriteActor, serviceRegistryActor, dockerHashActor, ioActor) foreach {
+    List(subWorkflowStoreActor, jobStoreActor, callCacheWriteActor, serviceRegistryActor, dockerHashActor, ioActor) foreach {
       shutdownActor(_, PhaseStopIoActivity, ShutdownCommand)
     }
 

@@ -1,6 +1,6 @@
 package cromwell.jobstore
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowId
@@ -16,10 +16,10 @@ import scala.language.postfixOps
   *
   * This level of indirection is a tiny bit awkward but allows the database to be injected.
   */
-class JobStoreActor(jobStore: JobStore, dbBatchSize: Int, dbFlushRate: FiniteDuration) extends Actor with ActorLogging with GracefulShutdownHelper {
+class JobStoreActor(jobStore: JobStore, dbBatchSize: Int, dbFlushRate: FiniteDuration, registryActor: ActorRef) extends Actor with ActorLogging with GracefulShutdownHelper {
   import JobStoreActor._
-  val jobStoreWriterActor = context.actorOf(JobStoreWriterActor.props(jobStore, dbBatchSize, dbFlushRate), "JobStoreWriterActor")
-  val jobStoreReaderActor = context.actorOf(JobStoreReaderActor.props(jobStore), "JobStoreReaderActorRouter")
+  val jobStoreWriterActor = context.actorOf(JobStoreWriterActor.props(jobStore, dbBatchSize, dbFlushRate, registryActor), "JobStoreWriterActor")
+  val jobStoreReaderActor = context.actorOf(JobStoreReaderActor.props(jobStore, registryActor), "JobStoreReaderActor")
 
   override def receive: Receive = {
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(jobStoreWriterActor))
@@ -64,7 +64,7 @@ object JobStoreActor {
 
   case class JobStoreReadFailure(reason: Throwable) extends JobStoreReaderResponse
 
-  def props(database: JobStore) = Props(new JobStoreActor(database, dbBatchSize, dbFlushRate)).withDispatcher(EngineDispatcher)
+  def props(database: JobStore, registryActor: ActorRef) = Props(new JobStoreActor(database, dbBatchSize, dbFlushRate, registryActor)).withDispatcher(EngineDispatcher)
 
   val dbFlushRate = 1 second
 

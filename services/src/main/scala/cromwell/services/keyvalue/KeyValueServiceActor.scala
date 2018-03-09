@@ -1,14 +1,13 @@
 package cromwell.services.keyvalue
 
-import akka.actor.ActorRef
-import cromwell.core.actor.BatchActor.CommandAndReplyTo
-import cromwell.core.actor.ThrottlerActor
+import akka.actor.SupervisorStrategy.Escalate
+import akka.actor.{Actor, ActorInitializationException, ActorLogging, OneForOneStrategy, Props}
+import cats.data.NonEmptyList
 import cromwell.core.{JobKey, WorkflowId}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import cromwell.services.keyvalue.KeyValueServiceActor._
-
-import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import cromwell.util.GracefulShutdownHelper
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 object KeyValueServiceActor {
   final case class KvJobKey(callFqn: String, callIndex: Option[Int], callAttempt: Int)
@@ -33,30 +32,29 @@ object KeyValueServiceActor {
 
   sealed trait KvResponse extends KvMessage
 
-  final case class KvPair(key: ScopedKey, value: Option[String]) extends KvResponse
+  final case class KvPair(key: ScopedKey, value: String) extends KvResponse
   final case class KvFailure(action: KvAction, failure: Throwable) extends KvResponse with KvMessageWithAction
   final case class KvKeyLookupFailed(action: KvGet) extends KvResponse with KvMessageWithAction
   final case class KvPutSuccess(action: KvPut) extends KvResponse with KvMessageWithAction
+
+  val InstrumentationPath = NonEmptyList.of("keyvalue")
 }
 
-trait KeyValueServiceActor extends ThrottlerActor[CommandAndReplyTo[KvAction]] {
-  override def commandToData(snd: ActorRef): PartialFunction[Any, CommandAndReplyTo[KvAction]] = {
-    case c: KvAction => CommandAndReplyTo(c, snd)
+trait KeyValueServiceActor extends Actor with GracefulShutdownHelper with ActorLogging {
+  protected def kvReadActorProps: Props
+  protected def kvWriteActorProps: Props
+
+  override val supervisorStrategy = OneForOneStrategy() {
+    case _: ActorInitializationException => Escalate
+    case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
   }
-
-  override def processHead(action: CommandAndReplyTo[KvAction]) = action.command match {
-    case get: KvGet => respond(action.replyTo, get, doGet(get))
-    case put: KvPut => respond(action.replyTo, put, doPut(put))
-  }
-
-  def doPut(put: KvPut): Future[KvResponse]
-  def doGet(get: KvGet): Future[KvResponse]
-
-  private def respond(replyTo: ActorRef, action: KvAction, response: Future[KvResponse]): Future[KvResponse] = {
-    response.onComplete {
-      case Success(x) => replyTo ! x
-      case Failure(ex) => replyTo ! KvFailure(action, ex)
-    }
-    response
+  
+  private val kvReadActor = context.actorOf(kvReadActorProps, "KvReadActor")
+  private val kvWriteActor = context.actorOf(kvWriteActorProps, "KvWriteActor")
+  
+  override def receive = {
+    case get: KvGet => kvReadActor forward get
+    case put: KvPut => kvWriteActor forward put
+    case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.one(kvWriteActor))
   }
 }

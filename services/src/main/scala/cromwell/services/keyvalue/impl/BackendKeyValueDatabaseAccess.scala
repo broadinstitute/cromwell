@@ -6,9 +6,14 @@ import cromwell.core.WorkflowId
 import cromwell.database.sql.tables.JobKeyValueEntry
 import cromwell.services.EngineServicesStore
 import cromwell.services.keyvalue.KeyValueServiceActor.KvJobKey
+import cromwell.services.keyvalue.impl.BackendKeyValueDatabaseAccess.BackendKeyValuePair
 import cromwell.util.DatabaseUtil._
 
 import scala.concurrent.{ExecutionContext, Future}
+
+object BackendKeyValueDatabaseAccess {
+  type BackendKeyValuePair = (WorkflowId, KvJobKey, String, String)
+}
 
 trait BackendKeyValueDatabaseAccess {
 
@@ -25,5 +30,14 @@ trait BackendKeyValueDatabaseAccess {
     val jobKeyValueEntry = JobKeyValueEntry(workflowId.toString, jobKey.callFqn, jobKey.callIndex.fromIndex,
       jobKey.callAttempt, backendStoreKey, backendStoreValue)
     withRetry(() => EngineServicesStore.engineDatabaseInterface.addJobKeyValueEntry(jobKeyValueEntry))
+  }
+
+  def updateBackendKeyValuePairs(pairs: Iterable[BackendKeyValuePair])(implicit ec: ExecutionContext, actorSystem: ActorSystem): Future[Unit] = {
+    val entries = pairs.map({
+      case (workflowId, jobKey, backendStoreKey, backendStoreValue) =>
+        JobKeyValueEntry(workflowId.toString, jobKey.callFqn, jobKey.callIndex.fromIndex,
+          jobKey.callAttempt, backendStoreKey, backendStoreValue)
+    })
+    withRetry(() => EngineServicesStore.engineDatabaseInterface.addJobKeyValueEntries(entries))
   }
 }

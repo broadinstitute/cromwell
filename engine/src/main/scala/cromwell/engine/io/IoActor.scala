@@ -4,7 +4,8 @@ import java.net.{SocketException, SocketTimeoutException}
 import javax.net.ssl.SSLException
 
 import akka.NotUsed
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
+import akka.dispatch.ControlMessage
 import akka.stream._
 import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition, Sink, Source}
 import com.google.cloud.storage.StorageException
@@ -20,6 +21,9 @@ import cromwell.engine.io.gcs.GcsBatchFlow.BatchFailedException
 import cromwell.engine.io.gcs.{GcsBatchCommandContext, ParallelGcsBatchFlow}
 import cromwell.engine.io.nio.NioFlow
 import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
+import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMetric, NormalLoad}
+
+import scala.concurrent.duration._
 
 /**
   * Actor that performs IO operations asynchronously using akka streams
@@ -33,7 +37,7 @@ import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
 final class IoActor(queueSize: Int,
                     throttle: Option[Throttle],
                     override val serviceRegistryActor: ActorRef)(implicit val materializer: ActorMaterializer) 
-  extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] with IoInstrumentation {
+  extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] with IoInstrumentation with Timers {
   
   implicit private val system = context.system
   implicit val ec = context.dispatcher
@@ -46,7 +50,13 @@ final class IoActor(queueSize: Int,
     incrementIoRetry(commandContext.request, throwable)
   }
   
-  private [io] lazy val defaultFlow = new NioFlow(parallelism = 100, context.system.scheduler, onRetry).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
+  override def preStart() = {
+    // On start up, let the controller know that the load is normal
+    serviceRegistryActor ! LoadMetric("IO", NormalLoad)
+    super.preStart()
+  }
+  
+  private [io] lazy val defaultFlow = new NioFlow(parallelism = 10, context.system.scheduler, onRetry).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   private [io] lazy val gcsBatchFlow = new ParallelGcsBatchFlow(parallelism = 10, batchSize = 100, context.system.scheduler, onRetry).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   
   protected val source = Source.queue[IoCommandContext[_]](queueSize, OverflowStrategy.dropNew)
@@ -99,6 +109,10 @@ final class IoActor(queueSize: Int,
 
   override def onBackpressure() = {
     incrementBackpressure()
+    serviceRegistryActor ! LoadMetric("IO", HighLoad)
+    // Because this method will be called every time we backpressure, the timer will be overridden every
+    // time until we're not backpressuring anymore
+    timers.startSingleTimer(BackPressureTimerResetKey, BackPressureTimerResetAction, 10.seconds)
   }
   
   override def actorReceive: Receive = {
@@ -125,6 +139,7 @@ final class IoActor(queueSize: Int,
       val replyTo = sender()
       val commandContext= DefaultCommandContext(command, replyTo)
       sendToStream(commandContext)
+    case BackPressureTimerResetAction => serviceRegistryActor ! LoadMetric("IO", NormalLoad)
   }
 }
 
@@ -150,6 +165,9 @@ object IoActor {
   val MaxAttemptsNumber = ioConfig.getOrElse[Int]("number-of-attempts", 5)
 
   case class DefaultCommandContext[T](request: IoCommand[T], replyTo: ActorRef, override val clientContext: Option[Any] = None) extends IoCommandContext[T]
+  
+  case object BackPressureTimerResetKey
+  case object BackPressureTimerResetAction extends ControlMessage
 
   /**
     * ATTENTION: Transient failures are retried *forever* 

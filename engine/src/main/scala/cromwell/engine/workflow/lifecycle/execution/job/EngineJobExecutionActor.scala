@@ -446,7 +446,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     jobTokenDispenserActor ! JobExecutionTokenRequest(factory.jobExecutionTokenType)
   }
 
-  private def returnExecutionToken(): Unit = {
+  // Return the execution token (if we have one)
+  private def returnExecutionToken(): Unit = if (stateName != Pending && stateName != RequestingExecutionToken) {
     jobTokenDispenserActor ! JobExecutionTokenReturn
   }
 

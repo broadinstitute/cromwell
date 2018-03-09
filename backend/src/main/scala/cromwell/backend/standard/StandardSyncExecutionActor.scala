@@ -79,7 +79,7 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
   }
   
   private def recovering(executor: ActorRef): Receive = running(executor).orElse {
-    case KvPair(key, Some(jobId)) if key.key == jobIdKey =>
+    case KvPair(key, jobId) if key.key == jobIdKey =>
       // Successful operation ID lookup.
       executor ! Recover(StandardAsyncJob(jobId))
     case KvKeyLookupFailed(_) =>
@@ -88,7 +88,7 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
   }
 
   private def reconnectingToAbort(executor: ActorRef): Receive = running(executor).orElse {
-    case KvPair(key, Some(jobId)) if key.key == jobIdKey =>
+    case KvPair(key, jobId) if key.key == jobIdKey =>
       // Successful operation ID lookup.
       executor ! ReconnectToAbort(StandardAsyncJob(jobId))
     case KvKeyLookupFailed(_) =>
@@ -98,7 +98,7 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
   }
 
   private def reconnecting(executor: ActorRef): Receive = running(executor).orElse {
-    case KvPair(key, Some(jobId)) if key.key == jobIdKey =>
+    case KvPair(key, jobId) if key.key == jobIdKey =>
       // Successful operation ID lookup.
       executor ! Reconnect(StandardAsyncJob(jobId))
     case KvKeyLookupFailed(_) =>

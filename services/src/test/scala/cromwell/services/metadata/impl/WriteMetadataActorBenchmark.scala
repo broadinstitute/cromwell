@@ -34,7 +34,7 @@ class WriteMetadataActorBenchmark extends TestKitSuite with FlatSpecLike with Ev
   }
 
   it should "provide good throughput" taggedAs IntegrationTest in {
-    val writeActor = TestFSMRef(new WriteMetadataActor(1000, 5.seconds, registry) {
+    val writeActor = TestFSMRef(new WriteMetadataActor(1000, 5.seconds, registry, Int.MaxValue) {
       override val metadataDatabaseInterface = {
         val databaseConfig = ConfigFactory.load.getConfig("database-test-mysql")
 

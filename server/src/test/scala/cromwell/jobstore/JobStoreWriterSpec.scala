@@ -1,6 +1,6 @@
 package cromwell.jobstore
 
-import akka.testkit.TestFSMRef
+import akka.testkit.{TestFSMRef, TestProbe}
 import common.collections.WeightedQueue
 import cromwell.CromwellTestKitWordSpec
 import cromwell.core.actor.BatchActor.{BatchActorState, CommandAndReplyTo, Processing}
@@ -25,7 +25,7 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with Matchers with Befo
 
   before {
     database = WriteCountingJobStore.makeNew
-    jobStoreWriter = TestFSMRef(new JobStoreWriterActor(database, 5, flushFrequency))
+    jobStoreWriter = TestFSMRef(new JobStoreWriterActor(database, 5, flushFrequency, TestProbe().ref, 1000))
     workflowId = WorkflowId.randomId()
   }
 

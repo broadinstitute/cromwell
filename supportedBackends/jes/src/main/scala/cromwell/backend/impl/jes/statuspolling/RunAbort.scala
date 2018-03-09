@@ -6,7 +6,7 @@ import com.google.api.client.googleapis.json.{GoogleJsonError, GoogleJsonErrorCo
 import com.google.api.client.http.{HttpHeaders, HttpRequest}
 import com.google.api.services.genomics.model.Operation
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager._
-import cromwell.backend.impl.jes.statuspolling.RunAbort.{PAPIAbortRequestSuccessful, PAPIOperationAlreadyCancelled}
+import cromwell.backend.impl.jes.statuspolling.RunAbort.{PAPIAbortRequestSuccessful, PAPIOperationAlreadyCancelled, PAPIOperationHasAlreadyFinished}
 
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
@@ -16,7 +16,7 @@ private[statuspolling] trait RunAbort extends PapiInstrumentation { this: JesPol
   private def abortResultHandler(originalRequest: PAPIAbortRequest, completionPromise: Promise[Try[Unit]]) = new JsonBatchCallback[Operation] {
     override def onSuccess(operation: Operation, responseHeaders: HttpHeaders): Unit = {
       abortSuccess()
-      originalRequest.requester ! PAPIAbortRequestSuccessful(operation.getName)
+      originalRequest.requester ! PAPIAbortRequestSuccessful(originalRequest.run.job.jobId)
       completionPromise.trySuccess(Success(()))
       ()
     }
@@ -25,6 +25,9 @@ private[statuspolling] trait RunAbort extends PapiInstrumentation { this: JesPol
       // No need to fail the request if the job was already cancelled, we're all good
       if (Option(e.getCode).contains(400) && Option(e.getMessage).contains("Operation has already been canceled")) {
         originalRequest.requester ! PAPIOperationAlreadyCancelled(originalRequest.run.job.jobId)
+        completionPromise.trySuccess(Success(()))
+      } else if (Option(e.getCode).contains(400) && Option(e.getMessage).contains("Operation has already finished")) {
+        originalRequest.requester ! PAPIOperationHasAlreadyFinished(originalRequest.run.job.jobId)
         completionPromise.trySuccess(Success(()))
       } else {
         pollingManager ! JesApiAbortQueryFailed(originalRequest, new PAPIApiException(GoogleJsonException(e, responseHeaders)))
@@ -56,4 +59,5 @@ object RunAbort {
   sealed trait PAPIAbortRequestSuccess
   case class PAPIAbortRequestSuccessful(operationId: String) extends PAPIAbortRequestSuccess
   case class PAPIOperationAlreadyCancelled(operationId: String) extends PAPIAbortRequestSuccess
+  case class PAPIOperationHasAlreadyFinished(operationId: String) extends PAPIAbortRequestSuccess
 }

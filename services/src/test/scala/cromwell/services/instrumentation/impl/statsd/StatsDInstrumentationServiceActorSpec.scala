@@ -51,24 +51,24 @@ class StatsDInstrumentationServiceActorSpec extends TestKitSuite with FlatSpecLi
   // Note: The current StatsD implementation sends everything as StatsD gauges so we expect all packets to be "...|g"
   List(
     StatsDTestBit("increment counters", CromwellIncrement(testBucket),
-      Set("prefix_value.cromwell.test_prefix.count.test.metric.bucket.samples:1|g",
-        "prefix_value.cromwell.test_prefix.count.test.metric.bucket.m1_rate:0.00|g"
+      Set("prefix_value.cromwell.test_prefix.test.metric.bucket.samples:1|g",
+        "prefix_value.cromwell.test_prefix.test.metric.bucket.m1_rate:0.00|g"
       )
     ),
     StatsDTestBit("add count", CromwellCount(testBucket, 80),
-      Set("prefix_value.cromwell.test_prefix.count.test.metric.bucket.samples:81|g",
-        "prefix_value.cromwell.test_prefix.count.test.metric.bucket.m1_rate:0.00|g"
+      Set("prefix_value.cromwell.test_prefix.test.metric.bucket.samples:81|g",
+        "prefix_value.cromwell.test_prefix.test.metric.bucket.m1_rate:0.00|g"
       )
     ),
     StatsDTestBit("set gauges", CromwellGauge(testBucket, 89),
       Set("prefix_value.cromwell.test_prefix.test.metric.bucket:89|g")
     ),
-    StatsDTestBit("set timings", CromwellTiming(testBucket, 5.seconds),
-      Set("prefix_value.cromwell.test_prefix.timing.test.metric.bucket.stddev:0.00|g",
-        "prefix_value.cromwell.test_prefix.timing.test.metric.bucket.samples:1|g",
-        "prefix_value.cromwell.test_prefix.timing.test.metric.bucket.p95:5000.00|g",
-        "prefix_value.cromwell.test_prefix.timing.test.metric.bucket.mean:5000.00|g",
-        "prefix_value.cromwell.test_prefix.timing.test.metric.bucket.m1_rate:0.00|g"
+    StatsDTestBit("set timings", CromwellTiming(testBucket.expand("timing"), 5.seconds),
+      Set("prefix_value.cromwell.test_prefix.test.metric.bucket.timing.stddev:0.00|g",
+        "prefix_value.cromwell.test_prefix.test.metric.bucket.timing.samples:1|g",
+        "prefix_value.cromwell.test_prefix.test.metric.bucket.timing.p95:5000.00|g",
+        "prefix_value.cromwell.test_prefix.test.metric.bucket.timing.mean:5000.00|g",
+        "prefix_value.cromwell.test_prefix.test.metric.bucket.timing.m1_rate:0.00|g"
       )
     )
   ) foreach {

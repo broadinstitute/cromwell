@@ -176,8 +176,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
         val key = BackendJobDescriptorKey(job, None, attempt)
         val runtimeAttributes = makeRuntimeAttributes(job)
         val prefetchedKvEntries = Map(
-          JesBackendLifecycleActorFactory.preemptionCountKey -> KvPair(ScopedKey(workflowDescriptor.id, KvJobKey(key), JesBackendLifecycleActorFactory.preemptionCountKey), Some(previousPreemptions.toString)),
-          JesBackendLifecycleActorFactory.unexpectedRetryCountKey -> KvPair(ScopedKey(workflowDescriptor.id, KvJobKey(key), JesBackendLifecycleActorFactory.unexpectedRetryCountKey), Some(previousUnexpectedRetries.toString)))
+          JesBackendLifecycleActorFactory.preemptionCountKey -> KvPair(ScopedKey(workflowDescriptor.id, KvJobKey(key), JesBackendLifecycleActorFactory.preemptionCountKey), previousPreemptions.toString),
+          JesBackendLifecycleActorFactory.unexpectedRetryCountKey -> KvPair(ScopedKey(workflowDescriptor.id, KvJobKey(key), JesBackendLifecycleActorFactory.unexpectedRetryCountKey), previousUnexpectedRetries.toString))
         BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(Inputs), NoDocker, prefetchedKvEntries)
       case Left(badtimes) => fail(badtimes.toList.mkString(", "))
     }

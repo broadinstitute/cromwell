@@ -2,6 +2,22 @@
 
 ## 31 Release Notes
 
+* **Robustness**
+    + The rate at which jobs are being started can now be controlled using the `system.job-rate-control` configuration stanza.  
+    + A load controller service has been added to allow Cromwell to self-monitor and adjust its load accordingly.
+The load controller is currently a simple on/off switch controlling the job start rate. It gathers metrics from different parts of the system
+to inform its decision to stop the creation of jobs.
+You can find relevant configuration in the `services.LoadController` section of the `cromwell.examples.conf` file,
+as well as in the `load-control` section in `reference.conf`.
+The load level of the monitored sub-systems are instrumented and can be found under the `cromwell.load` statsD path.
+    + The statsD metrics have been re-shuffled a bit. If you had a dashboard you might find that you need to update it.
+Changes include: 
+        + Removed artificially inserted "count" and "timing" the path
+        + Added a `load` section
+        + Metrics were prefixed twice with `cromwell` (`cromwell.cromwell.my_metric`), now they're only prefixed once
+        + Added `processed` and `queue` metrics under various metrics monitoring the throughput and amount of queued work respectively
+        + Added a memory metric representing an estimation of the free memory Cromwell thinks it has left
+
 * Added a configuration option under `docker.hash-lookup.enabled` to disable docker hash lookup.
  Disabling it will also disable call caching for jobs with floating docker tags.
  

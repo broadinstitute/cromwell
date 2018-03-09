@@ -28,13 +28,13 @@ class KeyValueServiceActorSpec extends ServicesSpec("KeyValue") {
   val jobKey1 = KvJobKey("some_FQN", Option(-1), 1)
   val jobKey2 = KvJobKey("some_FQN", Option(-1), 2)
 
-  val kvPair1 = KvPair(ScopedKey(wfID, jobKey1, "k1"), Option("v1"))
-  val kvPair2 = KvPair(ScopedKey(wfID, jobKey1, "k2"), Option("v2"))
-  val kvPair3 = KvPair(ScopedKey(wfID, jobKey2, "k1"), Option("v1"))
+  val kvPair1 = KvPair(ScopedKey(wfID, jobKey1, "k1"), "v1")
+  val kvPair2 = KvPair(ScopedKey(wfID, jobKey1, "k2"), "v2")
+  val kvPair3 = KvPair(ScopedKey(wfID, jobKey2, "k1"), "v1")
 
   "KeyValueServiceActor" should {
     "insert a key/value" in {
-      val kvPut1 = KvPut(KvPair(ScopedKey(wfID, jobKey1, "k1"), Option("v1")))
+      val kvPut1 = KvPut(KvPair(ScopedKey(wfID, jobKey1, "k1"), "v1"))
 
           (for {
             putResult <- (sqlKvServiceActor ? kvPut1).mapTo[KvResponse]
@@ -56,7 +56,7 @@ class KeyValueServiceActorSpec extends ServicesSpec("KeyValue") {
     }
 
     "be able to overwrite values" in {
-      val kvPairOverride = KvPair(ScopedKey(wfID, jobKey1, "k1"), Option("v3"))
+      val kvPairOverride = KvPair(ScopedKey(wfID, jobKey1, "k1"), "v3")
 
       (for {
         putResult <- (sqlKvServiceActor ? KvPut(kvPair2)).mapTo[KvResponse]

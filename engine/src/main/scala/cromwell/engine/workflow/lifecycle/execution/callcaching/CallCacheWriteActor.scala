@@ -1,29 +1,28 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{ActorRef, Props}
-import cats.data.NonEmptyVector
+import cats.data.{NonEmptyList, NonEmptyVector}
 import cats.instances.list._
 import cats.instances.tuple._
 import cats.syntax.foldable._
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.actor.BatchActor
+import cromwell.core.LoadConfig
 import cromwell.core.actor.BatchActor._
+import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCacheHashBundle
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor.SaveCallCacheHashes
+import cromwell.services.EnhancedBatchActor
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-case class CallCacheWriteActor(callCache: CallCache) extends BatchActor[CommandAndReplyTo[SaveCallCacheHashes]](CallCacheWriteActor.dbFlushRate, CallCacheWriteActor.dbBatchSize) {
+case class CallCacheWriteActor(callCache: CallCache, serviceRegistryActor: ActorRef, threshold: Int)
+  extends EnhancedBatchActor[CommandAndReplyTo[SaveCallCacheHashes]](
+    CallCacheWriteActor.dbFlushRate,
+    CallCacheWriteActor.dbBatchSize) {
 
-  def commandToData(snd: ActorRef): PartialFunction[Any, CommandAndReplyTo[SaveCallCacheHashes]] = {
-    case command: SaveCallCacheHashes => CommandAndReplyTo(command, snd)
-  }
-
-  override protected def weightFunction(command: CommandAndReplyTo[SaveCallCacheHashes]) = 1
-
-  override protected def process(data: NonEmptyVector[CommandAndReplyTo[SaveCallCacheHashes]]) = {
+  override protected def process(data: NonEmptyVector[CommandAndReplyTo[SaveCallCacheHashes]]) = instrumentedProcess {
     log.debug("Flushing {} call cache hashes sets to the DB", data.length)
 
     //     Collect all the bundles of hashes that should be written and all the senders which should be informed of
@@ -37,10 +36,21 @@ case class CallCacheWriteActor(callCache: CallCache) extends BatchActor[CommandA
       futureMessage.map(_ => data.length)
     } else Future.successful(0)
   }
+
+  // EnhancedBatchActor overrides
+  override def receive = enhancedReceive.orElse(super.receive)
+  override protected def weightFunction(command: CommandAndReplyTo[SaveCallCacheHashes]) = 1
+  override protected def instrumentationPath = NonEmptyList.of("callcaching", "write")
+  override protected def instrumentationPrefix = InstrumentationPrefixes.JobPrefix
+  def commandToData(snd: ActorRef): PartialFunction[Any, CommandAndReplyTo[SaveCallCacheHashes]] = {
+    case command: SaveCallCacheHashes => CommandAndReplyTo(command, snd)
+  }
 }
 
 object CallCacheWriteActor {
-  def props(callCache: CallCache): Props = Props(CallCacheWriteActor(callCache)).withDispatcher(EngineDispatcher)
+  def props(callCache: CallCache, registryActor: ActorRef): Props = {
+    Props(CallCacheWriteActor(callCache, registryActor, LoadConfig.CallCacheWriteThreshold)).withDispatcher(EngineDispatcher)
+  }
 
   case class SaveCallCacheHashes(bundle: CallCacheHashBundle)
 

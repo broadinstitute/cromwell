@@ -3,6 +3,7 @@ package cromwell.engine.workflow.tokens
 import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
+import cromwell.engine.workflow.tokens.DynamicRateLimiter.{Rate, TokensAvailable}
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor._
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActorSpec._
 import cromwell.util.AkkaTestUtil

@@ -9,8 +9,6 @@ import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager._
 import cromwell.backend.impl.jes.statuspolling.JesPollingActor._
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.services.instrumentation.CromwellInstrumentationActor
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.numeric._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -20,10 +18,9 @@ import scala.util.{Failure, Success, Try}
 /**
   * Sends batched requests to JES as a worker to the JesApiQueryManager
   */
-class JesPollingActor(val pollingManager: ActorRef, val qps: Int Refined Positive, override val serviceRegistryActor: ActorRef) extends Actor with ActorLogging
+class JesPollingActor(val pollingManager: ActorRef, val batchInterval: FiniteDuration, override val serviceRegistryActor: ActorRef) extends Actor with ActorLogging
   with StatusPolling with RunCreation with RunAbort with CromwellInstrumentationActor {
   // The interval to delay between submitting each batch
-  lazy val batchInterval = determineBatchInterval(qps)
   log.info("JES batch polling interval is {}", batchInterval)
 
   self ! NoWorkToDo // Starts the check-for-work cycle when the actor is fully initialized.
@@ -97,21 +94,10 @@ class JesPollingActor(val pollingManager: ActorRef, val qps: Int Refined Positiv
 }
 
 object JesPollingActor {
-  def props(pollingManager: ActorRef, qps: Int Refined Positive, serviceRegistryActor: ActorRef) = {
-    Props(new JesPollingActor(pollingManager, qps, serviceRegistryActor)).withDispatcher(BackendDispatcher)
+  def props(pollingManager: ActorRef, batchInterval: FiniteDuration, serviceRegistryActor: ActorRef) = {
+    Props(new JesPollingActor(pollingManager, batchInterval, serviceRegistryActor)).withDispatcher(BackendDispatcher)
   }
 
   // The Batch API limits us to 100 at a time
   val MaxBatchSize = 100
-
-  /**
-    * Given the Genomics API queries per 100 seconds and given MaxBatchSize will determine a batch interval which
-    * is at 90% of the quota. The (still crude) delta is to provide some room at the edges for things like new
-    * calls, etc.
-    */
-  def determineBatchInterval(qps: Int Refined Positive): FiniteDuration = {
-    val maxInterval = MaxBatchSize.toDouble / qps.value.toDouble
-    val interval = ((maxInterval / 0.9) * 1000).toInt
-    interval.milliseconds
-  }
 }

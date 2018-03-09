@@ -176,7 +176,7 @@ object JesApiQueryManagerSpec {
 /**
   * This test class allows us to hook into the JesApiQueryManager's makeStatusPoller and provide our own TestProbes instead
   */
-class TestJesApiQueryManager(qps: Int Refined Positive, createRequestSize: Long, registry: ActorRef, statusPollerProbes: ActorRef*) extends JesApiQueryManager(qps, registry) {
+class TestJesApiQueryManager(qps: Int Refined Positive, requestWorkers: Int Refined Positive, createRequestSize: Long, registry: ActorRef, statusPollerProbes: ActorRef*) extends JesApiQueryManager(qps, requestWorkers, registry) {
   var testProbes: Queue[ActorRef] = _
   var testPollerCreations: Int = _
 
@@ -227,5 +227,5 @@ object TestJesApiQueryManager {
   import cromwell.backend.impl.jes.JesTestConfig.JesBackendConfigurationDescriptor
   val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
 
-  def props(createRequestSize: Long, registryProbe: ActorRef, statusPollers: ActorRef*): Props = Props(new TestJesApiQueryManager(jesConfiguration.qps, createRequestSize, registryProbe, statusPollers: _*))
+  def props(createRequestSize: Long, registryProbe: ActorRef, statusPollers: ActorRef*): Props = Props(new TestJesApiQueryManager(jesConfiguration.qps, jesConfiguration.papiRequestWorkers, createRequestSize, registryProbe, statusPollers: _*))
 }

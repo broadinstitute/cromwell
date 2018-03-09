@@ -35,13 +35,13 @@ class WomBoolean private(val value: Boolean) extends WomPrimitive {
     case _ => invalid(s"$value > $rhs")
   }
 
-  override def or(rhs: WomValue): Try[WomBoolean] = if (value) Success(WomBoolean(true)) else rhs match {
+  override def or(rhs: WomValue): Try[WomBoolean] = rhs match {
     case r: WomBoolean => Success(WomBoolean(value || r.value))
     case r: WomOptionalValue => evaluateIfDefined("||", r, or)
     case _ => invalid(s"$value || $rhs")
   }
 
-  override def and(rhs: WomValue): Try[WomBoolean] = if (!value) Success(WomBoolean(false)) else rhs match {
+  override def and(rhs: WomValue): Try[WomBoolean] = rhs match {
     case r:WomBoolean => Success(WomBoolean(value && r.value))
     case r: WomOptionalValue => evaluateIfDefined("&&", r, and)
     case _ => invalid(s"$value && $rhs")

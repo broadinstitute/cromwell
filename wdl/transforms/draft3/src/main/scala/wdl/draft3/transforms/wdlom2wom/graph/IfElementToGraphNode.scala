@@ -1,20 +1,13 @@
 package wdl.draft3.transforms.wdlom2wom.graph
 
-import java.util.UUID
-
 import cats.syntax.apply._
 import cats.syntax.validated._
 import cats.syntax.traverse._
 import cats.instances.list._
 import common.validation.ErrorOr.{ErrorOr, _}
-import shapeless.Coproduct
-import wdl.model.draft3.graph.expression.WomTypeMaker.ops._
 import wdl.model.draft3.graph.expression.TypeEvaluator.ops._
 import wdl.model.draft3.graph.GraphElementValueConsumer.ops._
 import wdl.model.draft3.graph.UnlinkedValueGenerator.ops._
-import wdl.model.draft3.graph.expression.WomExpressionMaker.ops._
-import wdl.draft3.transforms.linking.typemakers._
-import wdl.draft3.transforms.linking.expression._
 import wdl.draft3.transforms.linking.expression.types._
 import wdl.draft3.transforms.linking.graph._
 import wdl.draft3.transforms.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition
@@ -23,16 +16,10 @@ import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements._
 import wdl.model.draft3.graph._
 import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
-import wom.callable.Callable.InputDefinition
-import wom.callable.WorkflowDefinition
-import wom.expression.WomExpression
-import wom.graph.CallNode.{CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
-import wom.graph.GraphNode.GraphNodeSetter
-import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort}
+import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
-import wom.graph.expression.{AnonymousExpressionNode, ExposedExpressionNode, PlainAnonymousExpressionNode}
-import wom.types.{WomArrayType, WomBooleanType, WomType}
-import wom.values.WomOptionalValue
+import wom.graph.expression.{AnonymousExpressionNode, PlainAnonymousExpressionNode}
+import wom.types.{WomBooleanType, WomType}
 
 object IfElementToGraphNode {
   def convert(a: ConditionalNodeMakerInputs): ErrorOr[Set[GraphNode]] = {

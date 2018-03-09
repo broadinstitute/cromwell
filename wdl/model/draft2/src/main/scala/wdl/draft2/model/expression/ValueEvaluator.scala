@@ -55,21 +55,27 @@ case class ValueEvaluator(override val lookup: String => WomValue, override val 
       case t: Terminal if t.getTerminalStr == "string" => interpolate(t.getSourceString)
       case a: Ast if a.isBinaryOperator =>
         val lhs = evaluate(a.getAttribute("lhs"))
-        val rhs = evaluate(a.getAttribute("rhs"))
+        val rhs = () => evaluate(a.getAttribute("rhs"))
         a.getName match {
-          case "Add" => for(l <- lhs; r <- rhs) yield l.add(r).get
-          case "Subtract" => for(l <- lhs; r <- rhs) yield l.subtract(r).get
-          case "Multiply" => for(l <- lhs; r <- rhs) yield l.multiply(r).get
-          case "Divide" => for(l <- lhs; r <- rhs) yield l.divide(r).get
-          case "Remainder" => for(l <- lhs; r <- rhs) yield l.mod(r).get
-          case "Equals" => for(l <- lhs; r <- rhs) yield l.equals(r).get
-          case "NotEquals" => for(l <- lhs; r <- rhs) yield l.notEquals(r).get
-          case "LessThan" => for(l <- lhs; r <- rhs) yield l.lessThan(r).get
-          case "LessThanOrEqual" => for(l <- lhs; r <- rhs) yield l.lessThanOrEqual(r).get
-          case "GreaterThan" => for(l <- lhs; r <- rhs) yield l.greaterThan(r).get
-          case "GreaterThanOrEqual" => for(l <- lhs; r <- rhs) yield l.greaterThanOrEqual(r).get
-          case "LogicalOr" => for(l <- lhs; r <- rhs) yield l.or(r).get
-          case "LogicalAnd" => for(l <- lhs; r <- rhs) yield l.and(r).get
+          case "Add" => for(l <- lhs; r <- rhs()) yield l.add(r).get
+          case "Subtract" => for(l <- lhs; r <- rhs()) yield l.subtract(r).get
+          case "Multiply" => for(l <- lhs; r <- rhs()) yield l.multiply(r).get
+          case "Divide" => for(l <- lhs; r <- rhs()) yield l.divide(r).get
+          case "Remainder" => for(l <- lhs; r <- rhs()) yield l.mod(r).get
+          case "Equals" => for(l <- lhs; r <- rhs()) yield l.equals(r).get
+          case "NotEquals" => for(l <- lhs; r <- rhs()) yield l.notEquals(r).get
+          case "LessThan" => for(l <- lhs; r <- rhs()) yield l.lessThan(r).get
+          case "LessThanOrEqual" => for(l <- lhs; r <- rhs()) yield l.lessThanOrEqual(r).get
+          case "GreaterThan" => for(l <- lhs; r <- rhs()) yield l.greaterThan(r).get
+          case "GreaterThanOrEqual" => for(l <- lhs; r <- rhs()) yield l.greaterThanOrEqual(r).get
+          case "LogicalOr" => lhs flatMap {
+            case WomBoolean(true) => Success(WomBoolean(true))
+            case b => rhs() flatMap b.or
+          }
+          case "LogicalAnd" => lhs flatMap {
+            case WomBoolean(false) => Success(WomBoolean(false))
+            case b => rhs() flatMap b.and
+          }
           case _ => Failure(new WomExpressionException(s"Invalid operator: ${a.getName}"))
         }
       case a: Ast if a.isUnaryOperator =>

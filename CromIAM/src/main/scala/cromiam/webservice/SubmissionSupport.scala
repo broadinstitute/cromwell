@@ -30,8 +30,12 @@ trait SubmissionSupport extends RequestSupport {
     post {
       extractUserAndRequest { (user, request) =>
         log.info("Received submission request from user " + user.userId)
-        extractSubmission(user) { submission =>
-          complete { forwardSubmissionToCromwell(user, submission.collection, request.withEntity(submission.entity)) }
+        authorizeAsync(samClient.isSubmitWhitelisted(user)) {
+          extractSubmission(user) { submission =>
+            complete {
+              forwardSubmissionToCromwell(user, submission.collection, request.withEntity(submission.entity))
+            }
+          }
         }
       }
     }

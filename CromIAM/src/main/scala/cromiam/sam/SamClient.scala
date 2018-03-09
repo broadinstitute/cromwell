@@ -3,15 +3,18 @@ package cromiam.sam
 import akka.actor.ActorSystem
 import akka.event.LoggingAdapter
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
-
-import scala.concurrent.{ExecutionContextExecutor, Future}
 import com.softwaremill.sttp._
 import cromiam.auth.{Collection, User}
 import cromiam.sam.SamClient._
+import cromiam.sam.SamResourceJsonSupport._
 import cromiam.server.status.StatusCheckedSubsystem
+
+import scala.concurrent.{ExecutionContextExecutor, Future}
 
 /*
   TODO: There exists a swagger codegen Sam client somewhere, and there also exists a Scala wrapper for it in Leo.
@@ -24,11 +27,24 @@ class SamClient(scheme: String, interface: String, port: Int, log: LoggingAdapte
                                                                                    materializer: ActorMaterializer) extends StatusCheckedSubsystem {
   override val statusUri = uri"$samBaseUri/status"
 
-  def collectionsForUser(user: User): Future[List[Collection]] = {
-    import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-    import akka.http.scaladsl.unmarshalling.Unmarshal
-    import SamResourceJsonSupport._
+  def isSubmitWhitelisted(user: User): Future[Boolean] = {
+    val request = HttpRequest(
+      method = HttpMethods.GET,
+      uri = samSubmitWhitelistUri,
+      headers = List[HttpHeader](user.authorization)
+    )
 
+    for {
+      response <- Http().singleRequest(request)
+      whitelisted <- response.status match {
+        case StatusCodes.OK => Unmarshal(response.entity).to[String].map(_.toBoolean)
+        case _ => Future.successful(false)
+      }
+      _ = if (!whitelisted) log.error("Submit Access Denied for user {}", user.userId)
+    } yield whitelisted
+  }
+
+  def collectionsForUser(user: User): Future[List[Collection]] = {
     val request = HttpRequest(method = HttpMethods.GET, uri = samBaseCollectionUri, headers = List[HttpHeader](user.authorization))
 
     for {
@@ -98,15 +114,16 @@ class SamClient(scheme: String, interface: String, port: Int, log: LoggingAdapte
   private lazy val samBaseUri = s"$scheme://$interface:$port"
   private lazy val samBaseResourceUri = s"$samBaseUri/api/resource"
   private lazy val samBaseCollectionUri = s"$samBaseResourceUri/workflow-collection"
+  private lazy val samSubmitWhitelistUri = s"$samBaseResourceUri/caas/submit/action/get_whitelist"
 
 }
 
 object SamClient {
   case object SamDenialException extends Exception("Access Denied")
-  val SamDenialResponse = HttpResponse(status = StatusCodes.Unauthorized, entity = SamDenialException.getMessage)
+
+  val SamDenialResponse = HttpResponse(status = StatusCodes.Forbidden, entity = SamDenialException.getMessage)
   final case class SamConnectionFailure(phase: String, f: Throwable) extends Exception(s"Unable to connect to Sam during $phase (${f.getMessage})", f)
 
   final case class CollectionAuthorizationRequest(user: User, collection: Collection, action: String)
 
 }
-

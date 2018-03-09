@@ -7,7 +7,7 @@ import common.validation.Validation._
 import cwl.InitialWorkDirFileGeneratorExpression._
 import cwl.InitialWorkDirRequirement.IwdrListingArrayEntry
 import shapeless.Poly1
-import wom.callable.MappedAndUnmappedInputs
+import wom.callable.ContainerizedInputExpression
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.types._
 import wom.values._
@@ -47,9 +47,9 @@ case class ECMAScriptWomExpression(expression: Expression,
   override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType) = Set.empty[WomFile].validNel
 }
 
-final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEntry, expressionLib: ExpressionLib) extends MappedAndUnmappedInputs {
+final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEntry, expressionLib: ExpressionLib) extends ContainerizedInputExpression {
 
-  def evaluateValue(inputValues: Map[String, WomValue], mappedInputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
+  def evaluate(inputValues: Map[String, WomValue], mappedInputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
     val unmappedParameterContext = ParameterContext(inputValues)
     entry.fold(InitialWorkDirFilePoly).apply(ioFunctionSet, unmappedParameterContext, mappedInputValues, expressionLib)
   }
@@ -77,7 +77,7 @@ object InitialWorkDirFileGeneratorExpression {
           val entryEvaluation =
             expressionDirent.entry match {
                 //we need to catch this special case to feed in "value-mapped" input values
-              case expr@Expression.ECMAScriptExpression(exprString) if exprString.value == "$(JSON.stringify(inputs))" =>
+              case expr@Expression.ECMAScriptExpression(exprString) if exprString.value.trim() == "$(JSON.stringify(inputs))" =>
                 ExpressionEvaluator.eval(expr, ParameterContext(mappedInputValues), expressionLib)
               case _ => ExpressionEvaluator.eval(expressionDirent.entry, unmappedParameterContext, expressionLib)
             }

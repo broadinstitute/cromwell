@@ -13,6 +13,7 @@ case object WomIntegerType extends WomPrimitiveType {
     case n: JsNumber if n.value.isValidInt => WomInteger(n.value.intValue())
     case i: WomInteger => i
     case WomLong(i) if (i >= Int.MinValue && i <= Int.MaxValue) => WomInteger(i.toInt)
+    case WomLong(i) => throw new RuntimeException(s"Tried to convert a long value $i into an integer but it was outside the bounds of acceptable Integers, namely ${Int.MinValue} <-> ${Int.MaxValue}")
     case s: WomString => WomInteger(s.value.toInt)
     case s: String => WomInteger(s.toInt)
     case s: JsString => WomInteger(s.value.toInt)

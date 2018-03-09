@@ -5,7 +5,7 @@ import EcmaScriptUtil.{ECMAScriptVariable, ESArray, ESObject, ESPrimitive}
 import cats.data.Validated.Valid
 import common.validation.ErrorOr.ErrorOr
 import cwl.{Directory, File}
-import wom.values.{WomArray, WomBoolean, WomCoproductValue, WomFile, WomFloat, WomGlobFile, WomInteger, WomLong, WomMap, WomMaybeListedDirectory, WomMaybePopulatedFile, WomObjectLike, WomOptionalValue, WomSingleFile, WomString, WomUnlistedDirectory, WomValue}
+import wom.values._
 
 /**
   * Converts a WomValue into a javascript compatible value.

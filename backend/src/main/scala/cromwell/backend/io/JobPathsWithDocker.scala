@@ -29,8 +29,6 @@ case class JobPathsWithDocker private[io] (override val workflowPaths: WorkflowP
 
   override def isInExecution(string: String): Boolean = string.startsWith(callExecutionDockerRootWithSlash)
 
-  override def isInInputs(string: String): Boolean = string.startsWith(callInputsDockerRootWithSlash)
-
   override def hostPathFromContainerPath(string: String): Path = {
     callExecutionRoot.resolve(string.stripPrefix(callExecutionDockerRootWithSlash))
   }

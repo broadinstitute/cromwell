@@ -41,8 +41,6 @@ trait JobPaths {
 
   def isInExecution(string: String): Boolean = string.startsWith(rootWithSlash)
 
-  def isInInputs(string: String): Boolean = throw new RuntimeException(s"Cromwell expected $string to be in execution folder!")
-
   /**
     * Return a host path corresponding to the specified container path.
     */

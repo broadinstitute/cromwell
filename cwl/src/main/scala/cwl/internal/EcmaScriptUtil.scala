@@ -2,8 +2,10 @@ package cwl.internal
 
 import common.validation.ErrorOr._
 import mouse.all._
-import org.mozilla.javascript.{Context, ScriptableObject}
+import org.mozilla.javascript._
 import wom.values._
+
+import scala.concurrent.duration._
 
 /**
   * This implementation depends on Mozilla Rhino.
@@ -11,11 +13,13 @@ import wom.values._
   * Previously we attempted to use Nashorn which is built into the JDK, but we encountered at least 2 situations where
   * it didn't work and we found no workarounds to satisfy the use cases.  Namely, JSON.stringify of a Map and calling "sort" on an array.
   */
+//noinspection VariablePatternShadow
 object EcmaScriptUtil {
   val encoder = new EcmaScriptEncoder
-  def writeValue(value: ECMAScriptVariable)(context: Context, scope: ScriptableObject): AnyRef =
+
+  def writeValue(value: ECMAScriptVariable)(context: Context, scope: Scriptable): AnyRef =
     value match {
-      case ESObject(fields) => {
+      case ESObject(fields) =>
         val newObj = context.newObject(scope)
 
         fields.toList.foreach{
@@ -24,7 +28,6 @@ object EcmaScriptUtil {
             ScriptableObject.putProperty(newObj, name, newerObj)
         }
         newObj
-      }
 
       case ESArray(array) =>
         val newObj = context.newArray(scope, array.length)
@@ -41,16 +44,31 @@ object EcmaScriptUtil {
       case ESPrimitive(obj) => obj
     }
 
-  def evalRaw[A](expr: String)(block: (Context, ScriptableObject) => A): AnyRef = {
-    val context = Context.enter()
-    try {
-      context.setLanguageVersion(Context.VERSION_1_8)
-      val scope = context.initStandardObjects
-      block(context, scope)
-      context.evaluateString(scope, expr, "<ecmascript>", 1, null)
-    } finally {
-      Context.exit()
+  /**
+    * Runs ECMAScript as JS1.8 (aka ES5)
+    *
+    * Uses RhinoSandbox to reduce chances injected JS wreaks havoc on the JVM.
+    *
+    * @see https://en.wikipedia.org/wiki/ECMAScript#Version_correspondence
+    */
+  def evalRaw(expr: String)(block: (Context, Scriptable) => Unit): AnyRef = {
+    // TODO: Parameterize and update callers to pass in source name, max duration, max instructions, etc.?
+    // For now, be very liberal with scripts giving 60 seconds of unrestricted CPU usage and unlimited instructions.
+    val sourceName = "<ecmascript>"
+    val maxDuration: Duration = 60.seconds
+    val maxInstructionsOption: Option[Int] = None
+    val strict = true
+    val languageVersionOption = Option(Context.VERSION_1_8)
+
+    val sandbox = new EnhancedRhinoSandbox(strict, languageVersionOption)
+    if (maxDuration.isFinite) {
+      sandbox.setMaxDuration(maxDuration.toMillis.toInt)
     }
+    maxInstructionsOption foreach sandbox.setInstructionLimit
+    sandbox.setUseSafeStandardObjects(true)
+    sandbox.setUseSealedScope(true)
+
+    sandbox.eval(sourceName, expr)(block)
   }
 
   sealed trait ECMAScriptVariable
@@ -86,11 +104,11 @@ object EcmaScriptUtil {
 
       val jsMap = mapValues.mapValues{ _.mapValues(encoder.encode) }
 
-      jsMap.map {
+      jsMap foreach {
         case (scopeId, nestedMap) =>
 
           val newObj = context.newObject(scope)
-          nestedMap.toList.map{
+          nestedMap.toList foreach {
             case (key, value) =>
               val newerObj = writeValue(value)(context, scope)
               ScriptableObject.putProperty(newObj, key, newerObj)

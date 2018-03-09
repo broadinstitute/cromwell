@@ -29,6 +29,8 @@ trait LoadControlledBatchActor[C] { this: BatchActor[C] =>
     * override def receive = loadControlReceive.orElse(super.receive)
     */
   protected def loadControlReceive: Receive = {
-    case LoadControlledBatchActorTimerAction => serviceRegistryActor ! LoadMetric(path, weightToLoad(stateData.weight))
+    case LoadControlledBatchActorTimerAction => 
+      serviceRegistryActor ! LoadMetric(path, weightToLoad(stateData.weight))
+      timers.startSingleTimer(LoadControlledBatchActorTimerKey, LoadControlledBatchActorTimerAction, LoadConfig.MonitoringFrequency)
   }
 }

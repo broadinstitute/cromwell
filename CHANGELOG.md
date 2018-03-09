@@ -2,6 +2,10 @@
 
 ## 31 Release Notes
 
+* **Cromwell server**  
+The Cromwell server source code is now located under `server/src`. `sbt assembly` will build the runnable Cromwell JAR in 
+`server/target/scala-2.12/` with a name like `cromwell-<VERSION>.jar`.
+
 * **Robustness**
     + The rate at which jobs are being started can now be controlled using the `system.job-rate-control` configuration stanza.  
     + A load controller service has been added to allow Cromwell to self-monitor and adjust its load accordingly.

@@ -20,6 +20,7 @@ object Dependencies {
   val commonsLoggingV = "1.2"
   val commonsTextV = "1.1"
   val configsV = "0.4.4"
+  val delightRhinoSandboxV = "0.0.8"
   val errorProneAnnotationsV = "2.0.19"
   val ficusV = "1.4.1"
   val fs2V = "0.10.0-M7"
@@ -303,6 +304,7 @@ object Dependencies {
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "io.circe" %% "circe-optics" % circeV,
     "org.mozilla" % "rhino" % rhinoV,
+    "org.javadelight" % "delight-rhino-sandbox" % delightRhinoSandboxV,
     "org.scalamock" %% "scalamock" % "4.0.0" % Test
   ) ++ circeDependencies ++ womDependencies ++ refinedTypeDependenciesList ++ betterFilesDependencies
 

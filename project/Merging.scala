@@ -9,7 +9,7 @@ object Merging {
       MergeStrategy.filterDistinctLines
     case PathList(ps@_*) if ps.last == "logback.xml" =>
       MergeStrategy.first
-    case x @ PathList("META-INF", path@_*) =>
+    case x@PathList("META-INF", path@_*) =>
       path map {
         _.toLowerCase
       } match {
@@ -19,6 +19,16 @@ object Merging {
           MergeStrategy.first
         case "maven" :: "com.google.guava" :: xs =>
           MergeStrategy.first
+        case _ =>
+          val oldStrategy = (assemblyMergeStrategy in assembly).value
+          oldStrategy(x)
+      }
+    case x@PathList("OSGI-INF", path@_*) =>
+      path map {
+        _.toLowerCase
+      } match {
+        case "l10n" :: "bundle.properties" :: Nil =>
+          MergeStrategy.concat
         case _ =>
           val oldStrategy = (assemblyMergeStrategy in assembly).value
           oldStrategy(x)

@@ -465,6 +465,7 @@ object WdlFileToWdlomSpec {
         inputsSection = None,
         graphElements = Set(
           IntermediateValueDeclarationElement(PrimitiveTypeElement(WomBooleanType), "bool", PrimitiveLiteralExpressionElement(WomBoolean(true))),
+          IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "i", PrimitiveLiteralExpressionElement(WomInteger(5))),
           IfElement(
             conditionExpression = IdentifierLookup("bool"),
             graphElements = Vector(

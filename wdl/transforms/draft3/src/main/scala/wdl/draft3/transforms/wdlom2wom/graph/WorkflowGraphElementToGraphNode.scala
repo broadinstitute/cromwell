@@ -48,6 +48,10 @@ object WorkflowGraphElementToGraphNode {
     case se: ScatterElement =>
       val scatterMakerInputs = ScatterNodeMakerInputs(se, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter)
       ScatterElementToGraphNode.convert(scatterMakerInputs)
+
+    case ie: IfElement =>
+      val ifMakerInputs = ConditionalNodeMakerInputs(ie, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter)
+      IfElementToGraphNode.convert(ifMakerInputs)
   }
 }
 

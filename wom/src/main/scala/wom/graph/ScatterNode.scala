@@ -73,7 +73,6 @@ object ScatterNode {
     override val usedOuterGraphInputNodes: Set[OuterGraphInputNode] =
       (node.scatterCollectionExpressionNodes.flatMap(_.upstream).toSet.filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode]) ++
       (node.innerGraph.outerGraphInputNodes.map(_.linkToOuterGraphNode).filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode])
-    def nodes: Set[GraphNode] = newExpressions ++ newInputs ++ usedOuterGraphInputNodes ++ Set(node)
   }
 
   /**

@@ -434,7 +434,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         _ <- dataAccess.addWorkflowStoreEntries(workflowStoreEntries)
         queried <- dataAccess.fetchStartableWorkflows(
           limit = Int.MaxValue,
-          cromwellId = Option("crom-f00ba4"),
+          cromwellId = "crom-f00ba4",
           heartbeatTtl = 1.hour)
 
         _ = {

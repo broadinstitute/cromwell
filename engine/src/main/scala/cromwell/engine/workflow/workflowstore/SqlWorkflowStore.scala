@@ -21,14 +21,9 @@ import scala.concurrent.{ExecutionContext, Future}
 case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends WorkflowStore {
   lazy val cromwellId = ConfigFactory.load().as[Option[String]]("system.cromwell_id")
 
-  override def initialize(implicit ec: ExecutionContext): Future[Unit] = {
-    if (ConfigFactory.load().as[Option[Boolean]]("system.workflow-restart").getOrElse(true)) {
-      // Workflows in Running or Aborting state get their restarted flag set to true on restart  
-      sqlDatabase.markRunningAndAbortingAsRestarted(cromwellId)
-    } else {
-      Future.successful(())
-    }
-  }
+  /** This is currently hardcoded to success but used to do stuff, left in place for now as a useful
+    *  startup initialization hook. */
+  override def initialize(implicit ec: ExecutionContext): Future[Unit] = Future.successful(())
 
   override def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
     sqlDatabase.setToAborting(id.toString)
@@ -48,7 +43,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     * Retrieves up to n workflows which have not already been pulled into the engine and sets their pickedUp
     * flag to true
     */
-  override def fetchStartableWorkflows(n: Int, cromwellId: Option[String], heartbeatTtl: FiniteDuration)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
+  override def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
     import cats.instances.list._
     import cats.syntax.traverse._
     import common.validation.Validation._

@@ -5,7 +5,7 @@ import EcmaScriptUtil.{ECMAScriptVariable, ESArray, ESObject, ESPrimitive}
 import cats.data.Validated.Valid
 import common.validation.ErrorOr.ErrorOr
 import cwl.{Directory, File}
-import wom.values.{WomArray, WomBoolean, WomCoproductValue, WomFile, WomFloat, WomGlobFile, WomInteger, WomMap, WomMaybeListedDirectory, WomMaybePopulatedFile, WomObjectLike, WomOptionalValue, WomSingleFile, WomString, WomUnlistedDirectory, WomValue}
+import wom.values._
 
 /**
   * Converts a WomValue into a javascript compatible value.
@@ -38,6 +38,7 @@ class EcmaScriptEncoder {
       case WomOptionalValue(_, Some(innerValue)) => encode(innerValue)
       case WomString(string) => string |> ESPrimitive
       case WomInteger(int) => Int.box(int) |> ESPrimitive
+      case WomLong(long) => Long.box(long) |> ESPrimitive
       case WomFloat(double) => Double.box(double) |> ESPrimitive
       case WomBoolean(boolean) => Boolean.box(boolean) |> ESPrimitive
       case WomArray(_, array) => array.toList.map(encode).toArray |> ESArray
@@ -77,7 +78,7 @@ class EcmaScriptEncoder {
   /**
     * Encodes a wom file or directory value.
     */
-  def encodeFileOrDirectory(value: WomFile): ESObject = {
+  def encodeFileOrDirectory(value: WomFile): ECMAScriptVariable = {
     value match {
       case directory: WomUnlistedDirectory => encodeDirectory(WomMaybeListedDirectory(directory.value))
       case file: WomSingleFile => encodeFile(WomMaybePopulatedFile(file.value))
@@ -90,7 +91,7 @@ class EcmaScriptEncoder {
   /**
     * Encodes a wom file.
     */
-  def encodeFile(file: WomMaybePopulatedFile): ESObject = {
+  def encodeFile(file: WomMaybePopulatedFile): ECMAScriptVariable =
     List(
       Option("class" -> ESPrimitive("File")),
       file.valueOption.map("location" -> ESPrimitive(_)),
@@ -105,8 +106,6 @@ class EcmaScriptEncoder {
       file.formatOption.map("format" -> ESPrimitive(_)),
       file.contentsOption.map("contents" -> ESPrimitive(_))
     ).flatten.toMap |> ESObject
-
-  }
 
   /**
     * Encodes a wom directory.

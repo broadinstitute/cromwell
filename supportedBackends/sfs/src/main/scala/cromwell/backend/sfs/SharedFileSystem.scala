@@ -128,7 +128,8 @@ trait SharedFileSystem extends PathFactory {
     val path = PathFactory.buildPath(pathString, pathBuilders)
     path match {
       case _: DefaultPath if !path.isAbsolute => jobPaths.callExecutionRoot.resolve(path).toAbsolutePath
-      case _: DefaultPath => jobPaths.hostPathFromContainerPath(path.pathAsString)
+      case _: DefaultPath if jobPaths.isInExecution(path.pathAsString) => jobPaths.hostPathFromContainerPath(path.pathAsString)
+      case _: DefaultPath => jobPaths.hostPathFromContainerInputs(path.pathAsString)
     }
   }
 

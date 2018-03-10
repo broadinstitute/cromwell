@@ -139,7 +139,7 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
       ): WomValue)
     validInputs(w2OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomString("hello !"): WomValue)
     validInputs(w3OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomInteger(3): WomValue)
-    validInputs(w4OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomInteger(4): WomValue)
+    validInputs(w4OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomLong(4): WomValue)
     validInputs(w5OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomFloat(5.1D): WomValue)
     validInputs(w6OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomFloat(6.1D): WomValue)
     validInputs(w7OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomBoolean(true): WomValue)

@@ -46,7 +46,7 @@ package object cwl extends TypeAliases {
     case Null => WomNothingType
     case Boolean => WomBooleanType
     case Int => WomIntegerType
-    case Long => WomIntegerType
+    case Long => WomLongType
     case Float => WomFloatType
     case Double => WomFloatType
     case String => WomStringType

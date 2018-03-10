@@ -29,6 +29,7 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
   override def onNumber(value: JsonNumber) = {
     case WomFloatType => WomFloat(value.toDouble).validNel
     case WomIntegerType => value.toInt.map(WomInteger.apply).toValidNel(s"$value is not a valid Int")
+    case WomLongType => value.toLong.map(WomLong.apply).toValidNel(s"$value is not a valid Long")
     case other => other.coerceRawValue(value.toString).toErrorOr
   }
   override def onString(value: String) = simpleCoercion(value)
@@ -43,6 +44,9 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
 
     case WomOptionalType(otherType) =>
       onArray(value).apply(otherType)
+    case WomCoproductType(types) =>
+      val attempts: List[ErrorOr[WomValue]] = types.toList.map(onArray(value)(_))
+      attempts.find(_.isValid).getOrElse(attempts.sequence.map(_.head))
     case other => s"Cannot convert an array input value into a non array type: $other".invalidNel
   }
 
@@ -74,6 +78,10 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
 
       foldedMap.map(WomObject.apply)
     case WomOptionalType(otherType) => onObject(value).apply(otherType)
-    case other => s"Cannot convert an array input value into a non array type: $other".invalidNel
+    case WomCoproductType(types) =>
+      val attempts: List[ErrorOr[WomValue]] = types.toList.map(onObject(value)(_))
+      //these are all Invalid, just taking head to satisfy required type of WomValue instead of List[WomValue]
+      attempts.find(_.isValid).getOrElse(attempts.sequence.map(_.head))
+    case other => s"Cannot convert an object value $value into a non array type: $other".invalidNel
   }
 }

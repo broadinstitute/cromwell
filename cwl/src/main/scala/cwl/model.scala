@@ -2,6 +2,7 @@ package cwl
 
 import cwl.CommandLineTool.{CommandBindingSortingKey, SortKeyAndCommandPart}
 import cwl.WorkflowStepInput.InputSource
+import cwl.internal.GigabytesToBytes
 import eu.timepit.refined._
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil, Witness}
@@ -180,13 +181,13 @@ case class ResourceRequirement(
                                 outdirMax: Option[ResourceRequirementType]) {
   def effectiveCoreMin = coresMin.orElse(coresMax)
   def effectiveCoreMax = coresMax.orElse(coresMin)
-  
-  def effectiveRamMin = ramMin.orElse(ramMax)
-  def effectiveRamMax = ramMax.orElse(ramMin)
-  
+
+  def effectiveRamMin = ramMin.orElse(ramMax).map(_.fold(GigabytesToBytes))
+  def effectiveRamMax = ramMax.orElse(ramMin).map(_.fold(GigabytesToBytes))
+
   def effectiveTmpdirMin = tmpdirMin.orElse(tmpdirMax)
   def effectiveTmpdirMax = tmpdirMax.orElse(tmpdirMin)
-  
+
   def effectiveOutdirMin = outdirMin.orElse(outdirMax)
   def effectiveOutdirMax = outdirMax.orElse(outdirMin)
 }

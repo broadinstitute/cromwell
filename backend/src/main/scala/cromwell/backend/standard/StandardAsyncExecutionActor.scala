@@ -363,7 +363,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       val valueMappedPreprocessedInputs = instantiatedCommand.valueMappedPreprocessedInputs |> makeStringKeyedMap
 
       val adHocFileCreations: ErrorOr[List[WomFile]] = callable.adHocFileCreation.toList.flatTraverse(
-        _.evaluateValue(preprocessedInputs, backendEngineFunctions).flatMap(validateAdHocFile)
+        _.evaluate(preprocessedInputs, valueMappedPreprocessedInputs, backendEngineFunctions).flatMap(validateAdHocFile)
       )
 
       val adHocFileCreationSideEffectFiles: ErrorOr[List[CommandSetupSideEffectFile]] = adHocFileCreations map { _ map {
@@ -614,7 +614,12 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * Used to convert to output paths.
     *
     */
-  def mapOutputWomFile(womFile: WomFile): WomFile = womFile
+  def mapOutputWomFile(womFile: WomFile): WomFile =
+    womFile.mapFile{
+      path =>
+        val pathFromContainerInputs = jobPaths.hostPathFromContainerInputs(path)
+        pathFromContainerInputs.toAbsolutePath.toString
+    }
 
   /**
     * Tries to evaluate the outputs.

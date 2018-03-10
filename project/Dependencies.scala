@@ -285,6 +285,7 @@ object Dependencies {
   val womDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
+    "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "org.apache.commons" % "commons-text" % commonsTextV,
     "commons-codec" % "commons-codec" % commonsCodecV
   )

@@ -40,7 +40,8 @@ object RequirementToAttributeMap extends Poly1 {
 
   implicit def fromResource: Case.Aux[ResourceRequirement, ResourcesToExpressionMap] = at[ResourceRequirement] {
     resource => (inputNames, expressionLib) =>
-      def toExpression(resourceRequirement: ResourceRequirementType) = resourceRequirement.fold(ResourceRequirementToWomExpression).apply(inputNames, expressionLib)
+      def toExpression(resourceRequirement: ResourceRequirementType) =
+        resourceRequirement.fold(ResourceRequirementToWomExpression).apply(inputNames, expressionLib)
 
       List(
         // Map cpuMin to both cpuMin and cpu keys

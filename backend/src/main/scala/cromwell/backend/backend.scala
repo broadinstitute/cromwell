@@ -73,8 +73,11 @@ case class BackendWorkflowDescriptor(id: WorkflowId,
   */
 case class BackendConfigurationDescriptor(backendConfig: Config, globalConfig: Config) {
 
-  lazy val backendRuntimeConfig = if (backendConfig.hasPath("default-runtime-attributes"))
-    Option(backendConfig.getConfig("default-runtime-attributes")) else None
+  lazy val backendRuntimeConfig =
+    if (backendConfig.hasPath("default-runtime-attributes"))
+      Option(backendConfig.getConfig("default-runtime-attributes"))
+    else
+      None
 }
 
 final case class AttemptedLookupResult(name: String, value: Try[WomValue]) {

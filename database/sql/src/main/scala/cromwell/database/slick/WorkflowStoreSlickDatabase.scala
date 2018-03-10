@@ -57,18 +57,23 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
 
   private def now: Timestamp = new Timestamp(System.currentTimeMillis())
 
-  override def fetchStartableWorkflows(limit: Int, cromwellId: Option[String], heartbeatTtl: FiniteDuration)
+  override def fetchStartableWorkflows(limit: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
                                       (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]] = {
     val action = for {
-      workflowStoreEntries <- dataAccess.fetchStartableWorkflows((limit.toLong, cromwellId, heartbeatTtl.ago)).result
+      workflowStoreEntries <- dataAccess.fetchStartableWorkflows((limit.toLong, heartbeatTtl.ago)).result
       _ <- DBIO.sequence(workflowStoreEntries map updateForFetched(cromwellId))
     } yield workflowStoreEntries
 
     runTransaction(action)
   }
 
-  private def updateForFetched(cromwellId: Option[String])(workflowStoreEntry: WorkflowStoreEntry)
-                                                          (implicit ec: ExecutionContext): DBIO[Unit] = {
+  override def releaseWorkflowStoreEntries(cromwellId: String)(implicit ec: ExecutionContext): Future[Unit] = {
+    val action = dataAccess.releaseWorkflowStoreEntries(cromwellId).update((None, None))
+    runTransaction(action).void
+  }
+
+  private def updateForFetched(cromwellId: String)(workflowStoreEntry: WorkflowStoreEntry)
+                                                  (implicit ec: ExecutionContext): DBIO[Unit] = {
     val workflowExecutionUuid = workflowStoreEntry.workflowExecutionUuid
     val updateState = workflowStoreEntry.workflowState match {
         // Submitted workflows become running when fetched
@@ -81,7 +86,7 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
 
     for {
       // When fetched, the heartbeat timestamp is set to now so we don't pick it up next time.
-      updateCount <- dataAccess.workflowStoreFieldsForPickup(workflowExecutionUuid).update((updateState, cromwellId, Option(now)))
+      updateCount <- dataAccess.workflowStoreFieldsForPickup(workflowExecutionUuid).update((updateState, Option(cromwellId), Option(now)))
       _ <- assertUpdateCount(s"Update $workflowExecutionUuid to $updateState, heartbeat timestamp to $displayNow", updateCount, 1)
     } yield ()
   }

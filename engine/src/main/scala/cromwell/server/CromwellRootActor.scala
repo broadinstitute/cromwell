@@ -1,5 +1,7 @@
 package cromwell.server
 
+import java.util.UUID
+
 import akka.actor.SupervisorStrategy.{Escalate, Restart}
 import akka.actor.{Actor, ActorInitializationException, ActorLogging, ActorRef, OneForOneStrategy}
 import akka.event.Logging
@@ -58,6 +60,12 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   private val config = ConfigFactory.load()
   private implicit val system = context.system
 
+  val cromwellId: String = config.as[Option[String]]("system.cromwell_id").getOrElse("cromid-" + UUID.randomUUID().toString.take(7))
+
+  // Entries in the workflow store with heartbeats older than heartbeatTtl ago are presumed abandoned and up for grabs.
+  val DefaultWorkflowStoreHeartbeatTtl: FiniteDuration = 1.hour
+  val heartbeatTtl: FiniteDuration = config.getOrElse("system.workflow_heartbeat_ttl", DefaultWorkflowStoreHeartbeatTtl)
+
   val serverMode: Boolean
 
   lazy val systemConfig = config.getConfig("system")
@@ -66,7 +74,7 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
 
   lazy val workflowStore: WorkflowStore = SqlWorkflowStore(EngineServicesStore.engineDatabaseInterface)
   lazy val workflowStoreActor =
-    context.actorOf(WorkflowStoreActor.props(workflowStore, serviceRegistryActor, abortJobsOnTerminate), "WorkflowStoreActor")
+    context.actorOf(WorkflowStoreActor.props(workflowStore, serviceRegistryActor, abortJobsOnTerminate, cromwellId, heartbeatTtl), "WorkflowStoreActor")
 
   lazy val jobStore: JobStore = new SqlJobStore(EngineServicesStore.engineDatabaseInterface)
   lazy val jobStoreActor = context.actorOf(JobStoreActor.props(jobStore, serviceRegistryActor), "JobStoreActor")
@@ -132,6 +140,7 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   if (gracefulShutdown) {
     // If abortJobsOnTerminate is true, aborting all workflows will be handled by the graceful shutdown process
     CromwellShutdown.registerShutdownTasks(
+      cromwellId = cromwellId,
       abortJobsOnTerminate,
       actorSystem = context.system,
       workflowManagerActor = workflowManagerActor,

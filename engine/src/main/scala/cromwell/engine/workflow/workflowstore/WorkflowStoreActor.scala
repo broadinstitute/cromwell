@@ -7,13 +7,15 @@ import cromwell.core._
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
-final case class WorkflowStoreActor private(store: WorkflowStore, serviceRegistryActor: ActorRef, abortAllJobsOnTerminate: Boolean)
+import scala.concurrent.duration.FiniteDuration
+
+final case class WorkflowStoreActor private(store: WorkflowStore, serviceRegistryActor: ActorRef, abortAllJobsOnTerminate: Boolean, cromwellId: String, heartbeatTtl: FiniteDuration)
   extends Actor with ActorLogging with GracefulShutdownHelper {
   import WorkflowStoreActor._
 
   lazy val workflowStoreSubmitActor: ActorRef = context.actorOf(WorkflowStoreSubmitActor.props(store, serviceRegistryActor), "WorkflowStoreSubmitActor")
   lazy val workflowStoreEngineActor: ActorRef = context.actorOf(
-    WorkflowStoreEngineActor.props(store, serviceRegistryActor, abortAllJobsOnTerminate), "WorkflowStoreEngineActor")
+    WorkflowStoreEngineActor.props(store, serviceRegistryActor, abortAllJobsOnTerminate, cromwellId, heartbeatTtl), "WorkflowStoreEngineActor")
 
   override def receive = {
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(workflowStoreSubmitActor, workflowStoreEngineActor))
@@ -34,7 +36,7 @@ object WorkflowStoreActor {
   final case class SubmitWorkflow(source: WorkflowSourceFilesCollection) extends WorkflowStoreActorSubmitCommand
   final case class BatchSubmitWorkflows(sources: NonEmptyList[WorkflowSourceFilesCollection]) extends WorkflowStoreActorSubmitCommand
 
-  def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef, abortAllJobsOnTerminate: Boolean) = {
-    Props(WorkflowStoreActor(workflowStoreDatabase, serviceRegistryActor, abortAllJobsOnTerminate)).withDispatcher(EngineDispatcher)
+  def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef, abortAllJobsOnTerminate: Boolean, cromwellId: String, heartbeatTtl: FiniteDuration) = {
+    Props(WorkflowStoreActor(workflowStoreDatabase, serviceRegistryActor, abortAllJobsOnTerminate, cromwellId, heartbeatTtl)).withDispatcher(EngineDispatcher)
   }
 }

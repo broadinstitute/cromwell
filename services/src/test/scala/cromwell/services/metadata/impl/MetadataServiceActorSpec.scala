@@ -3,8 +3,9 @@ package cromwell.services.metadata.impl
 import java.time.OffsetDateTime
 
 import akka.pattern._
+import akka.testkit.TestProbe
 import com.typesafe.config.ConfigFactory
-import cromwell.core.WorkflowId
+import cromwell.core._
 import cromwell.services.ServicesSpec
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
@@ -16,7 +17,7 @@ import scala.concurrent.duration._
 class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
   import MetadataServiceActorSpec.Config
   val config = ConfigFactory.parseString(Config)
-  val actor = system.actorOf(MetadataServiceActor.props(config, config))
+  val actor = system.actorOf(MetadataServiceActor.props(config, config, TestProbe().ref))
 
     val workflowId = WorkflowId.randomId()
 

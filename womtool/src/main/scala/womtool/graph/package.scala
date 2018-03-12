@@ -20,12 +20,13 @@ package object graph {
 
     def graphStyle = graphNode match {
       case _: AnonymousExpressionNode => "\"filled,dashed\""
+      case o: OuterGraphInputNode if o.preserveScatterIndex => "\"dashed\""
       case _ => "\"filled,solid\""
     }
 
     def graphName: String = dotSafe(graphNode match {
       case c: CallNode => s"call ${c.localName}"
-      case s: ScatterNode => s"scatter ${s.scatterCollectionExpressionNode.identifier.localName.value} in"
+      case s: ScatterNode => s"scatter ${s.scatterCollectionExpressionNodes.head.identifier.localName.value} in"
       case _: ConditionalNode => "conditional"
       case gin: OptionalGraphInputNodeWithDefault => s"${gin.womType.toDisplayString} ${gin.localName} = ..."
       case gin: GraphInputNode => s"${gin.womType.toDisplayString} ${gin.localName}"

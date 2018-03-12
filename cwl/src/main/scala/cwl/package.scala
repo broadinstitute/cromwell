@@ -1,10 +1,15 @@
 
-import cwl.CwlType.{CwlType, _}
-import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
 import common.Checked
+import common.validation.Checked._
+import common.validation.ErrorOr._
+import cwl.CwlType._
+import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
+import cwl.command.ParentName
 import shapeless._
 import wom.executable.Executable
 import wom.types._
+
+import scala.util.{Failure, Success, Try}
 
 /**
  * This package is intended to parse all CWL files.
@@ -27,33 +32,27 @@ import wom.types._
  */
 package object cwl extends TypeAliases {
 
-  type Cwl = Workflow :+: CommandLineTool :+: CNil
-
+  type CwlFile = Array[Cwl] :+: Cwl :+: CNil
+  type Cwl = Workflow :+: CommandLineTool :+: ExpressionTool :+: CNil
+  
   object Cwl {
     object Workflow { def unapply(cwl: Cwl): Option[Workflow] = cwl.select[Workflow] }
     object CommandLineTool { def unapply(cwl: Cwl): Option[CommandLineTool] = cwl.select[CommandLineTool] }
+    object ExpressionTool { def unapply(cwl: Cwl): Option[ExpressionTool] = cwl.select[ExpressionTool] }
   }
 
-  def cwlTypeToWdlType : CwlType => WomType = {
+  def cwlTypeToWomType : CwlType => WomType = {
+    case CwlType.Any => WomAnyType
     case Null => WomNothingType
     case Boolean => WomBooleanType
     case Int => WomIntegerType
-    case Long => WomIntegerType
+    case Long => WomLongType
     case Float => WomFloatType
     case Double => WomFloatType
     case String => WomStringType
-    case CwlType.File => WomFileType
-    case CwlType.Directory => ???
+    case CwlType.File => WomMaybePopulatedFileType
+    case CwlType.Directory => WomMaybeListedDirectoryType
   }
-
-  /**
-    *
-    * These are supposed to be valid ECMAScript Expressions.
-    * See http://www.commonwl.org/v1.0/Workflow.html#Expressions
-    */
-
-  type StringOrExpression = Expression :+: String :+: CNil
-  type Expression = ECMAScriptExpression :+: ECMAScriptFunction :+: CNil
 
   object StringOrExpression {
     object String {
@@ -79,21 +78,36 @@ package object cwl extends TypeAliases {
     }
   }
 
-  type WdlTypeMap = Map[String, WomType]
+  type WomTypeMap = Map[String, WomType]
+
+  type RequirementsValidator = Requirement => ErrorOr[Requirement]
+  import cats.syntax.validated._
+  val AcceptAllRequirements: RequirementsValidator = _.validNel
 
   implicit class CwlHelper(val cwl: Cwl) extends AnyVal {
-    def womExecutable(inputsFile: Option[String] = None): Checked[Executable] = cwl match {
-      case Cwl.Workflow(w) => w.womExecutable(inputsFile)
-      case Cwl.CommandLineTool(clt) => clt.womExecutable(inputsFile)
+    def womExecutable(validator: RequirementsValidator, inputsFile: Option[String] = None): Checked[Executable] = {
+      def executable = cwl match {
+        case Cwl.Workflow(w) => w.womExecutable(validator, inputsFile)
+        case Cwl.CommandLineTool(clt) => clt.womExecutable(validator, inputsFile)
+        case Cwl.ExpressionTool(et) => et.womExecutable(validator, inputsFile)
+      }
+      Try(executable) match {
+        case Success(s) => s
+        case Failure(f) => f.getMessage.invalidNelCheck
+      }
     }
 
-    def requiredInputs: Map[String, WomType] = cwl match {
-      case Cwl.Workflow(w) => selectWomTypeInputs(w.inputs collect {
-        case i if i.`type`.isDefined => FullyQualifiedName(i.id).id -> i.`type`.get
-      })
-      case Cwl.CommandLineTool(clt) => selectWomTypeInputs(clt.inputs collect {
-        case i if i.`type`.isDefined => FullyQualifiedName(i.id).id -> i.`type`.get
-      })
+    def requiredInputs: Map[String, WomType] = {
+      implicit val parent = ParentName.empty
+      
+      cwl match {
+        case Cwl.Workflow(w) => selectWomTypeInputs(w.inputs collect {
+          case i if i.`type`.isDefined => FullyQualifiedName(i.id).id -> i.`type`.get
+        })
+        case Cwl.CommandLineTool(clt) => selectWomTypeInputs(clt.inputs collect {
+          case i if i.`type`.isDefined => FullyQualifiedName(i.id).id -> i.`type`.get
+        })
+      }
     }
 
     private def selectWomTypeInputs(myriadInputMap: Array[(String, MyriadInputType)]): Map[String, WomType] = {
@@ -102,4 +116,6 @@ package object cwl extends TypeAliases {
       }).toMap
     }
   }
+
+  type ExpressionLib = Vector[String]
 }

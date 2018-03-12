@@ -7,6 +7,7 @@ import cats.syntax.validated._
 import com.typesafe.config.Config
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import common.validation.ErrorOr._
+import wom.RuntimeAttributesKeys
 import wom.types._
 import wom.values._
 
@@ -27,7 +28,7 @@ object ContinueOnReturnCodeValidation {
   lazy val instance: RuntimeAttributesValidation[ContinueOnReturnCode] = new ContinueOnReturnCodeValidation
   def default(runtimeConfig: Option[Config]): RuntimeAttributesValidation[ContinueOnReturnCode] = instance.withDefault(
     configDefaultWdlValue(runtimeConfig) getOrElse WomInteger(0))
-  def configDefaultWdlValue(runtimeConfig: Option[Config]): Option[WomValue] = instance.configDefaultWdlValue(runtimeConfig)
+  def configDefaultWdlValue(runtimeConfig: Option[Config]): Option[WomValue] = instance.configDefaultWomValue(runtimeConfig)
 }
 
 class ContinueOnReturnCodeValidation extends RuntimeAttributesValidation[ContinueOnReturnCode] {

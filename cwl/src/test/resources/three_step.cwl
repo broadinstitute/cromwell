@@ -1,6 +1,15 @@
 cwlVersion: v1.0
 class: Workflow
 id: three_step
+hints:
+# hints can be anything (CwlAny)
+- fee: fi
+  fo: fum
+- eenie: meenie
+  minie: mo
+- 42
+- class: DockerRequirement
+  dockerPull: "ubuntu:latest"
 inputs:
 - id: pattern
   type: string
@@ -24,6 +33,9 @@ steps:
         glob: ps-stdOut.txt
       type: File
     class: CommandLineTool
+    requirements:
+    - class: DockerRequirement
+      dockerPull: "debian:wheezy"
     baseCommand: ps
     stdout: ps-stdOut.txt
 - id: cgrep

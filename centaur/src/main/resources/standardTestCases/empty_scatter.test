@@ -1,0 +1,13 @@
+name: empty_scatter
+testFormat: workflowsuccess
+
+files {
+  wdl: empty_scatter/empty_scatter.wdl
+}
+
+metadata {
+  workflowName: empty_scatter
+  status: Succeeded
+  "outputs.empty_scatter.task_outs_length" : "0"
+  "outputs.empty_scatter.decls_length" : "0"
+}

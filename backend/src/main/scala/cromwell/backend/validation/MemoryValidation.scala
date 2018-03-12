@@ -5,8 +5,9 @@ import com.typesafe.config.Config
 import cromwell.backend.MemorySize
 import common.validation.ErrorOr._
 import wdl4s.parser.MemoryUnit
+import wom.RuntimeAttributesKeys
 import wom.types.{WomIntegerType, WomStringType}
-import wom.values.{WomInteger, WomString, WomValue}
+import wom.values.{WomInteger, WomLong, WomString, WomValue}
 
 import scala.util.{Failure, Success}
 
@@ -67,6 +68,13 @@ object MemoryValidation {
     else
       MemorySize(value.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB).validNel
   }
+
+  def validateMemoryLong(attributeName: String, value: Long): ErrorOr[MemorySize] = {
+    if (value <= 0)
+      wrongAmountFormat.format(attributeName, value).invalidNel
+    else
+      MemorySize(value.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB).validNel
+  }
 }
 
 class MemoryValidation(attributeName: String = RuntimeAttributesKeys.MemoryKey) extends RuntimeAttributesValidation[MemorySize] {
@@ -78,6 +86,7 @@ class MemoryValidation(attributeName: String = RuntimeAttributesKeys.MemoryKey) 
   override def coercion = Seq(WomIntegerType, WomStringType)
 
   override protected def validateValue: PartialFunction[WomValue, ErrorOr[MemorySize]] = {
+    case WomLong(value) => MemoryValidation.validateMemoryLong(key, value)
     case WomInteger(value) => MemoryValidation.validateMemoryInteger(key, value)
     case WomString(value) => MemoryValidation.validateMemoryString(key, value)
   }

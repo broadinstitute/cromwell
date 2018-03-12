@@ -11,7 +11,7 @@ import cromwell.engine.workflow.lifecycle.execution.stores.ExecutionStore._
 import wom.callable.ExecutableCallable
 import wom.graph.GraphNodePort.{ConditionalOutputPort, OutputPort, ScatterGathererPort}
 import wom.graph._
-import wom.graph.expression.ExpressionNode
+import wom.graph.expression.ExpressionNodeLike
 
 object ExecutionStore {
   type StatusTable = Table[GraphNode, ExecutionIndex.ExecutionIndex, JobKey]
@@ -40,6 +40,12 @@ object ExecutionStore {
         // In the general case, the dependencies are held by the upstreamPorts
         case _ => key.node.upstreamPorts forall { p => p.executionNode.isInStatus(chooseIndex(p), statusTable) }
       }
+    }
+    
+    def nonStartableOutputKeys: Set[JobKey] = key match {
+      case scatterKey: ScatterKey => scatterKey.makeCollectors(0, scatterKey.node.scatterCollectionFunctionBuilder(List.empty)).toSet[JobKey]
+      case conditionalKey: ConditionalKey => conditionalKey.collectors.toSet[JobKey]
+      case _ => Set.empty[JobKey]
     }
   }
   
@@ -74,8 +80,8 @@ object ExecutionStore {
   def apply(callable: ExecutableCallable) = {
     // Keys that are added in a NotStarted Status
     val notStartedKeys = callable.graph.nodes collect {
-      case call: TaskCallNode => BackendJobDescriptorKey(call, None, 1)
-      case expression: ExpressionNode => ExpressionKey(expression, None)
+      case call: CommandCallNode => BackendJobDescriptorKey(call, None, 1)
+      case expression: ExpressionNodeLike => ExpressionKey(expression, None)
       case scatterNode: ScatterNode => ScatterKey(scatterNode)
       case conditionalNode: ConditionalNode => ConditionalKey(conditionalNode, None)
       case subworkflow: WorkflowCallNode => SubWorkflowKey(subworkflow, None, 1)
@@ -228,7 +234,9 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
       val runnable = key.allDependenciesAreIn(doneStatus)
       
       // If the key is not runnable, but all its dependencies are in a terminal status, then it's unreachable
-      if (!runnable && key.allDependenciesAreIn(terminalStatus)) unstartables = unstartables + (key -> Unstartable)
+      if (!runnable && key.allDependenciesAreIn(terminalStatus)) {
+        unstartables = unstartables ++ key.nonStartableOutputKeys.map(_ -> Unstartable) + (key -> Unstartable)
+      }
       
       // returns the runnable value for the filter
       runnable

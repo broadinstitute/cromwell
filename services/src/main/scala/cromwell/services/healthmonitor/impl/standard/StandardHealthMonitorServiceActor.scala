@@ -1,5 +1,6 @@
 package cromwell.services.healthmonitor.impl.standard
 
+import akka.actor.ActorRef
 import com.typesafe.config.Config
 import cromwell.services.healthmonitor.HealthMonitorServiceActor
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.MonitoredSubsystem
@@ -8,7 +9,7 @@ import cromwell.services.healthmonitor.impl.common.{DockerHubMonitor, EngineData
 /**
   * A health monitor implementation which only monitors things available to out of the box Cromwell installations
   */
-class StandardHealthMonitorServiceActor(val serviceConfig: Config, globalConfig: Config)
+class StandardHealthMonitorServiceActor(val serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
   extends HealthMonitorServiceActor
     with DockerHubMonitor
     with EngineDatabaseMonitor {

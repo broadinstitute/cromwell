@@ -1,3 +1,7 @@
+#
+# After any edits to this file run `sbt generateRestApiDocs` and commit the generated changes to `docs/api/RESTAPI.md`.
+#
+
 swagger: '2.0'
 info:
   title: Cromwell Server REST API
@@ -23,7 +27,7 @@ paths:
           type: file
           in: formData
         - name: workflowInputs
-          description: JSON or YAML file containing the inputs as an object. For WDL workflows a skeleton file can be generated from wdltool using the "inputs" subcommand. When multiple files are specified, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2. Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.
+          description: JSON or YAML file containing the inputs as an object. For WDL workflows a skeleton file can be generated from WOMtool using the "inputs" subcommand. When multiple files are specified, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2. Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.
           required: false
           type: file
           in: formData
@@ -53,11 +57,16 @@ paths:
           type: file
           in: formData
         - $ref: '#/parameters/workflowTypeParam'
-        - name: workflowTypeVersion
-          description: The specification version for the workflow language being used. For WDL, Cromwell currently supports draft-2.
+        - name: workflowRoot
+          description: The root object to be run. Only necessary for CWL submissions containing multiple objects (in an array).
           required: false
           type: string
-          enum: [draft-2]
+          in: formData
+        - name: workflowTypeVersion
+          description: The specification version for the workflow language being used. For WDL, Cromwell currently supports draft-2 fully and has some support for draft-3. For CWL, Cromwell currently supports v1.0.
+          required: false
+          type: string
+          enum: [draft-2, draft-3, v1.0]
           in: formData
         - name: labels
           description: JSON file containing a set of collection of key/value pairs for labels to apply to this workflow.
@@ -97,7 +106,7 @@ paths:
           type: file
           in: formData
         - name: workflowInputs
-          description: JSON file containing the inputs as an array of objects. Every element of the array will correspond to a single workflow. For WDL workflows a skeleton file can be generated from wdltool using the "inputs" subcommand. When multiple files are specified, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2. Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.
+          description: JSON file containing the inputs as an array of objects. Every element of the array will correspond to a single workflow. For WDL workflows a skeleton file can be generated from WOMtool using the "inputs" subcommand. When multiple files are specified, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2. Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.
           required: true
           type: file
           in: formData
@@ -108,10 +117,10 @@ paths:
           in: formData
         - $ref: '#/parameters/workflowTypeParam'
         - name: workflowTypeVersion
-          description: The specification version for the workflow language being used. Cromwell currently supports draft-2.
+          description: The specification version for the workflow language being used. Cromwell currently supports draft-2. For CWL, Cromwell currently supports v1.0.
           required: false
           type: string
-          enum: [draft-2]
+          enum: [draft-2, v1.0]
           in: formData
         - name: labels
           description: JSON file containing a set of collection of key/value pairs for labels to apply to this workflow.
@@ -356,6 +365,19 @@ paths:
             returns workflows with all of the specified label keys. Specify the label key
             and label value pair as separated with
             "label-key:label-value"
+        - name: labelor
+          required: false
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+          pattern: ^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$
+          description: >
+            Returns workflows with the specified label keys.  If specified multiple times,
+            returns workflows with any of the specified label keys. Specify the label key
+            and label value pair as separated with
+            "label-key:label-value"
         - name: additionalQueryResultFields
           required: false
           in: query
@@ -383,7 +405,7 @@ paths:
             - openid
     post:
       summary: Get workflows matching some criteria
-      description: Query workflows by start dates, end dates, names, ids, or statuses.
+      description: Query workflows by start dates, end dates, names, ids, labels, or statuses.
       parameters:
         - $ref: '#/parameters/versionParam'
         - name: parameters
@@ -796,18 +818,20 @@ definitions:
     description: Response to a workflow query
     required:
       - results
+      - totalResultsCount
     properties:
       results:
         type: array
         items:
           $ref: '#/definitions/WorkflowQueryResult'
+      totalResultsCount:
+        type: integer
   WorkflowQueryResult:
     description: Result for an individual workflow returned by a workflow query
     required:
       - id
       - name
       - status
-      - start
     properties:
       id:
         type: string

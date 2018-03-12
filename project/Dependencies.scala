@@ -3,6 +3,9 @@ import sbt._
 object Dependencies {
   val akkaHttpV = "10.0.10"
   val akkaV = "2.5.4"
+  val alibabaCloudCoreV = "3.2.3"
+  val alibabaCloudOssV = "2.8.3"
+  val alibabaCloudBcsV = "5.1.0"
   val ammoniteOpsV = "1.0.1"
   val apacheHttpClientV = "4.5.3"
   val apacheHttpCoreV = "4.4.6"
@@ -17,9 +20,10 @@ object Dependencies {
   val commonsLoggingV = "1.2"
   val commonsTextV = "1.1"
   val configsV = "0.4.4"
+  val delightRhinoSandboxV = "0.0.8"
   val errorProneAnnotationsV = "2.0.19"
   val ficusV = "1.4.1"
-  val fs2V = "0.9.7"
+  val fs2V = "0.10.0-M7"
   val gaxV = "1.9.0"
   val googleApiClientV = "1.22.0"
   val googleCloudComputeV = "0.26.0-alpha"
@@ -37,6 +41,7 @@ object Dependencies {
   val janinoV = "3.0.7"
   val jodaTimeV = "2.9.4"
   val jsr305V = "3.0.0"
+  val kindProjectorV = "0.9.4"
   val kittensV = "1.0.0-RC0"
   val liquibaseSlf4jV = "2.0.0"
   val liquibaseV = "3.5.1"
@@ -47,6 +52,7 @@ object Dependencies {
   val mouseV = "0.10-MF"
   val mysqlV = "5.1.42"
   val nettyHandlerV = "4.0.51.Final"
+  val paradiseV = "2.1.0"
   val pegdownV = "1.6.0"
   val protoGoogleCommonProtosV = "0.1.21"
   val protoGoogleIamV1V = "0.1.21"
@@ -54,13 +60,16 @@ object Dependencies {
   val ravenLogbackV = "8.0.3"
   val reactiveStreamsV = "1.0.1"
   val refinedV = "0.8.3"
+  val rhinoV = "1.7.8"
   val scalaGraphV = "1.12.0"
-  val scalaLoggingV = "3.6.0"
+  val scalaLoggingV = "3.7.1"
+  val scalaPoolV = "0.4.1"
   val scalaXmlV = "1.0.6"
   val scalacheckV = "1.13.4"
   val scalacticV = "3.0.1"
   val scalameterV = "0.8.2"
   val scalatestV = "3.0.2"
+  val scalazV = "7.2.17"
   val scoptV = "3.6.0"
   val shapelessV = "2.3.2"
   val slf4jV = "1.7.24"
@@ -72,6 +81,9 @@ object Dependencies {
   val swaggerParserV = "1.0.22"
   val swaggerUiV = "3.2.2"
   val typesafeConfigV = "1.3.1"
+  val workbenchGoogleV = "0.15-2fc79a3"
+  val workbenchModelV = "0.10-6800f3a"
+  val workbenchUtilV = "0.3-f3ce961"
 
   /*
   If you see warnings from SBT about evictions, insert a specific dependency version into this list.
@@ -139,10 +151,20 @@ object Dependencies {
     "com.iheart" %% "ficus" % ficusV
   )
 
+  /*
+  Adds a variety of logging libraries required for actual logging. However, some of these aren't always required.
+
+  Ex: If one isn't using akka & slf4j, then 'akka-slf4j' isn't required. However, for now, all executables are using
+  akka & slf4j... so leaving it.
+
+  Similarly, not _all_ executables/logback.xml configs will need logback-access, raven-logback, janino, etc.
+  Still, leaving them as dependencies for simplicity's sake.
+   */
   private val slf4jBindingDependencies = List(
     // http://logback.qos.ch/dependencies.html
     "ch.qos.logback" % "logback-classic" % logbackV,
     "ch.qos.logback" % "logback-access" % logbackV,
+    "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "com.getsentry.raven" % "raven-logback" % ravenLogbackV,
     "org.codehaus.janino" % "janino" % janinoV
   )
@@ -165,7 +187,9 @@ object Dependencies {
   )
 
   private val swaggerUiDependencies = List(
-    "org.webjars" % "swagger-ui" % swaggerUiV
+    "org.webjars" % "swagger-ui" % swaggerUiV,
+    "io.swagger" % "swagger-parser" % swaggerParserV % Test,
+    "org.yaml" % "snakeyaml" % snakeyamlV % Test
   )
 
   private val googleApiClientDependencies = List(
@@ -190,7 +214,22 @@ object Dependencies {
       exclude("com.google.cloud.datastore", "datastore-v1-protos")
       exclude("org.apache.httpcomponents", "httpclient"),
     "com.google.cloud" % "google-cloud-compute" % googleCloudComputeV,
+    "org.broadinstitute.dsde.workbench" %% "workbench-google" % workbenchGoogleV
+      exclude("com.google.apis", "google-api-services-genomics"),
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV
+  )
+
+  private val aliyunOssDependencies = List(
+    "com.aliyun.oss" % "aliyun-sdk-oss" % alibabaCloudOssV
+      exclude("commons-beanutils", "commons-beanutils-core")
+      exclude("commons-collections", "commons-collections")
+  )
+
+  private val aliyunBatchComputeDependencies = List(
+    "com.aliyun" % "aliyun-java-sdk-core" % alibabaCloudCoreV
+      exclude("commons-beanutils", "commons-beanutils-core")
+      exclude("commons-collections", "commons-collections"),
+    "com.aliyun" % "aliyun-java-sdk-batchcompute" % alibabaCloudBcsV
   )
 
   private val dbmsDependencies = List(
@@ -233,13 +272,20 @@ object Dependencies {
     "com.readytalk" % "metrics3-statsd" % metrics3StatsdV
   )
 
+  val ossFileSystemDependencies = googleCloudDependencies ++ aliyunOssDependencies ++ List (
+    "com.github.pathikrit" %% "better-files" % betterFilesV
+  )
+
   val commonDependencies = List(
-    "org.slf4j" % "slf4j-api" % slf4jV
+    "org.slf4j" % "slf4j-api" % slf4jV,
+    "org.typelevel" %% "cats-effect" % catsEffectV,
+    "org.apache.commons" % "commons-lang3" % commonsLang3V
   ) ++ catsDependencies ++ configDependencies
 
   val womDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
+    "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "org.apache.commons" % "commons-text" % commonsTextV,
     "commons-codec" % "commons-codec" % commonsCodecV
   )
@@ -255,20 +301,23 @@ object Dependencies {
 
   val cwlDependencies = List(
     "com.lihaoyi" %% "ammonite-ops" % ammoniteOpsV,
-    "org.typelevel" %% "cats-effect" % catsEffectV,
     "org.scalactic" %% "scalactic" % scalacticV,
-    "org.scalacheck" %% "scalacheck" % scalacheckV % Test
+    "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
+    "io.circe" %% "circe-optics" % circeV,
+    "org.mozilla" % "rhino" % rhinoV,
+    "org.javadelight" % "delight-rhino-sandbox" % delightRhinoSandboxV,
+    "org.scalamock" %% "scalamock" % "4.0.0" % Test
   ) ++ circeDependencies ++ womDependencies ++ refinedTypeDependenciesList ++ betterFilesDependencies
 
   val womtoolDependencies = catsDependencies ++ slf4jBindingDependencies
 
   val centaurCwlRunnerDependencies = List(
-    "com.github.scopt" %% "scopt" % scoptV
-  )
+    "com.github.scopt" %% "scopt" % scoptV,
+    "io.circe" %% "circe-optics" % circeV
+  ) ++ slf4jBindingDependencies ++ circeDependencies
 
   val coreDependencies = List(
     "com.typesafe.akka" %% "akka-actor" % akkaV,
-    "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,
     "com.typesafe.akka" %% "akka-stream" % akkaV,
     "com.typesafe.akka" %% "akka-stream-testkit" % akkaV % Test,
@@ -283,6 +332,8 @@ object Dependencies {
   val databaseMigrationDependencies = liquibaseDependencies ++ dbmsDependencies
 
   val cromwellApiClientDependencies = List(
+    "org.scalaz" %% "scalaz-core" % scalazV,
+    "co.fs2" %% "fs2-io" % fs2V,
     "com.typesafe.akka" %% "akka-actor" % akkaV,
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
     "com.typesafe.akka" %% "akka-stream" % akkaV
@@ -290,7 +341,7 @@ object Dependencies {
 
   val centaurDependencies = List(
     "com.github.kxbmap" %% "configs" % configsV
-  ) ++ circeDependencies
+  ) ++ circeDependencies ++ slf4jBindingDependencies
 
   val engineDependencies = List(
     "commons-codec" % "commons-codec" % commonsCodecV,
@@ -300,18 +351,25 @@ object Dependencies {
       exclude("com.fasterxml.jackson.module", "jackson-module-scala")
       exclude("org.scala-tools.testing", "test-interface"),
     "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
-    "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
-    "io.swagger" % "swagger-parser" % swaggerParserV % Test,
-    "org.yaml" % "snakeyaml" % snakeyamlV % Test
-  ) ++ swaggerUiDependencies ++ akkaHttpDependencies
+    "io.github.andrebeat" %% "scala-pool" % scalaPoolV
+  ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ circeDependencies
 
-  val rootDependencies = slf4jBindingDependencies
+  val serverDependencies = slf4jBindingDependencies
+
+  val cromiamDependencies = List(
+    "com.softwaremill.sttp" %% "core" % sttpV,
+    "com.softwaremill.sttp" %% "async-http-client-backend-future" % sttpV,
+    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
+    "org.broadinstitute.dsde.workbench" %% "workbench-model" % workbenchModelV,
+    "org.broadinstitute.dsde.workbench" %% "workbench-util" % workbenchUtilV
+  ) ++ akkaHttpDependencies ++ catsDependencies ++ swaggerUiDependencies
 
   val backendDependencies = List(
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "co.fs2" %% "fs2-io" % fs2V % Test
   )
 
+  val bcsBackendDependencies = commonDependencies ++ refinedTypeDependenciesList ++ aliyunBatchComputeDependencies
   val tesBackendDependencies = akkaHttpDependencies
   val sparkBackendDependencies = akkaHttpDependencies
 

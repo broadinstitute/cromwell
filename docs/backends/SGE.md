@@ -8,8 +8,8 @@ The backend is specified via the actor factory `ConfigBackendLifecycleActorFacto
 backend {
   providers {
     SGE {
+      actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
       config {
-        actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
         # ... other configuration
       }
     }

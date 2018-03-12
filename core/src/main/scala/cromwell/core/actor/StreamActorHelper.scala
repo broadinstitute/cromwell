@@ -37,6 +37,8 @@ trait StreamActorHelper[T <: StreamContext] { this: Actor with ActorLogging =>
   protected def streamSource: Source[(Any, T), SourceQueueWithComplete[T]]
 
   override def receive = streamReceive.orElse(actorReceive)
+  
+  protected def onBackpressure(): Unit = {}
 
   private [actor] lazy val stream = {
     streamSource
@@ -67,17 +69,21 @@ trait StreamActorHelper[T <: StreamContext] { this: Actor with ActorLogging =>
   private def backpressure(commandContext: StreamContext) = {
     val originalRequest = commandContext.clientContext map { _ -> commandContext.request } getOrElse commandContext.request
     commandContext.replyTo ! BackPressure(originalRequest)
+    onBackpressure()
   }
 
   private def streamReceive: Receive = {
-    case ShutdownCommand => stream.complete()
+    case ShutdownCommand => 
+      stream.complete()
     case EnqueueResponse(Enqueued, _: T @unchecked) => // Good !
 
     case EnqueueResponse(_, commandContext) => backpressure(commandContext)
     case FailedToEnqueue(_, commandContext) => backpressure(commandContext)
       
-    case StreamCompleted => context stop self
-    case StreamFailed(failure) => restart(failure)
+    case StreamCompleted => 
+      context stop self
+    case StreamFailed(failure) => 
+      restart(failure)
   }
 
   /** Throw the exception to force the actor to restart so it can be back in business

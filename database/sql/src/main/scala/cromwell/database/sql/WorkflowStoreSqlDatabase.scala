@@ -3,6 +3,7 @@ package cromwell.database.sql
 import cromwell.database.sql.tables.WorkflowStoreEntry
 import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
 
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 
 trait WorkflowStoreSqlDatabase {
@@ -34,7 +35,7 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
   /**
     * Set restarted flags for all running and aborting workflows to true.
     */
-  def markRunningAndAbortingAsRestarted()
+  def markRunningAndAbortingAsRestarted(cromwellId: Option[String])
                                        (implicit ec: ExecutionContext): Future[Unit]
 
   /**
@@ -55,7 +56,7 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
     * Retrieves up to limit workflows which have not already been pulled into the engine and updates their state.
     * NOTE: Rows are returned with the query state, NOT the update state.
     */
-  def fetchStartableWorkflows(limit: Int)
+  def fetchStartableWorkflows(limit: Int, cromwellId: Option[String], heartbeatTtl: FiniteDuration)
                              (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]]
 
   /**

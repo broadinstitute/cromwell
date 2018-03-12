@@ -1,0 +1,14 @@
+name: cwl_optionals
+testFormat: workflowsuccess
+workflowType: CWL
+workflowTypeVersion: v1.0
+
+files {
+  wdl: cwl_optionals/cwl_optionals.cwl
+  inputs: cwl_optionals/cwl_optionals.json
+}
+
+metadata {
+  "submittedFiles.workflowType": CWL
+  "submittedFiles.workflowTypeVersion": v1.0
+}

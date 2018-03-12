@@ -8,14 +8,14 @@ import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
+import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobLifecycleActor
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import common.validation.ErrorOr.ErrorOr
-import wom.values.WomFile
+import wom.values.{WomFile, WomSingleFile}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -73,18 +73,14 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   // Utility for converting a WomValue so that the path is localized to the
   // container's filesystem.
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
-    val localPath = DefaultPathBuilder.get(womFile.valueString).toAbsolutePath
-
-    localPath match {
-      case p if p.startsWith(tesJobPaths.workflowPaths.DockerRoot) =>
-        val containerPath = p.pathAsString
-        WomFile(containerPath)
-      case p if p.startsWith(tesJobPaths.callExecutionRoot) =>
-        val containerPath = tesJobPaths.containerExec(commandDirectory, localPath.getFileName.pathAsString)
-        WomFile(containerPath)
-      case p =>
-        val containerPath = tesJobPaths.containerInput(p.pathAsString)
-        WomFile(containerPath)
+    womFile mapFile { path =>
+      val localPath = DefaultPathBuilder.get(path).toAbsolutePath
+      localPath match {
+        case p if p.startsWith(tesJobPaths.workflowPaths.DockerRoot) => p.pathAsString
+        case p if p.startsWith(tesJobPaths.callExecutionRoot) =>
+          tesJobPaths.containerExec(commandDirectory, localPath.getFileName.pathAsString)
+        case p => tesJobPaths.containerInput(p.pathAsString)
+      }
     }
   }
 
@@ -110,18 +106,17 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           realDockerImageUsed))
 
     task.map(task => Task(
-      None,
-      None,
-      Option(task.name),
-      Option(task.description),
-      Option(task.project),
-      Option(task.inputs(commandLineValueMapper)),
-      Option(task.outputs),
-      Option(task.resources),
-      task.executors,
-      None,
-      None,
-      None
+      id = None,
+      state = None,
+      name = Option(task.name),
+      description = Option(task.description),
+      inputs = Option(task.inputs(commandLineValueMapper)),
+      outputs = Option(task.outputs),
+      resources = Option(task.resources),
+      executors = task.executors,
+      volumes = None,
+      tags = None,
+      logs = None
     ))
   }
 
@@ -200,7 +195,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
   
-  private val outputWomFiles: Seq[WomFile] = {
+  private val outputWomFiles: Seq[WomSingleFile] = {
     Seq.empty
     // TODO WOM: fix
 //    jobDescriptor.call.task
@@ -209,12 +204,14 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   override def mapOutputWomFile(womFile: WomFile): WomFile = {
-    val absPath: Path = tesJobPaths.callExecutionRoot.resolve(womFile.valueString)
-    womFile match {
-      case fileNotFound if !absPath.exists && outputWomFiles.contains(fileNotFound) =>
-        throw new RuntimeException("Could not process output, file not found: " +
-          s"${absPath.pathAsString}")
-      case _ => WomFile(absPath.pathAsString)
+    womFile mapFile { path =>
+      val absPath: Path = tesJobPaths.callExecutionRoot.resolve(path)
+      absPath match {
+        case _ if !absPath.exists && outputWomFiles.map(_.value).contains(path) =>
+          throw new RuntimeException("Could not process output, file not found: " +
+            s"${absPath.pathAsString}")
+        case _ => absPath.pathAsString
+      }
     }
   }
 

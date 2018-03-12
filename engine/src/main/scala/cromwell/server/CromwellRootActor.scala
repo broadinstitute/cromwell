@@ -10,7 +10,7 @@ import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import cromwell.core.actor.StreamActorHelper.ActorRestartException
 import cromwell.core.io.Throttle
-import cromwell.core.{Dispatcher, DockerConfiguration, DockerLocalLookup, DockerRemoteLookup}
+import cromwell.core._
 import cromwell.docker.DockerHashActor
 import cromwell.docker.DockerHashActor.DockerHashContext
 import cromwell.docker.local.DockerCliFlow
@@ -19,12 +19,12 @@ import cromwell.docker.registryv2.flows.dockerhub.DockerHubFlow
 import cromwell.docker.registryv2.flows.gcr.GoogleFlow
 import cromwell.docker.registryv2.flows.quay.QuayFlow
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
-import cromwell.engine.io.IoActor
+import cromwell.engine.io.{IoActor, IoActorProxy}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.AbortAllWorkflowsCommand
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor, CallCacheWriteActor}
 import cromwell.engine.workflow.lifecycle.finalization.CopyWorkflowLogsActor
-import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
+import cromwell.engine.workflow.tokens.{DynamicRateLimiter, JobExecutionTokenDispenserActor}
 import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowStore, WorkflowStoreActor}
 import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
 import cromwell.services.{EngineServicesStore, ServiceRegistryActor}
@@ -69,7 +69,7 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
     context.actorOf(WorkflowStoreActor.props(workflowStore, serviceRegistryActor, abortJobsOnTerminate), "WorkflowStoreActor")
 
   lazy val jobStore: JobStore = new SqlJobStore(EngineServicesStore.engineDatabaseInterface)
-  lazy val jobStoreActor = context.actorOf(JobStoreActor.props(jobStore), "JobStoreActor")
+  lazy val jobStoreActor = context.actorOf(JobStoreActor.props(jobStore, serviceRegistryActor), "JobStoreActor")
 
   lazy val subWorkflowStore = new SqlSubWorkflowStore(EngineServicesStore.engineDatabaseInterface)
   lazy val subWorkflowStoreActor = context.actorOf(SubWorkflowStoreActor.props(subWorkflowStore), "SubWorkflowStoreActor")
@@ -77,8 +77,11 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   // Io Actor
   lazy val throttleElements = systemConfig.as[Option[Int]]("io.number-of-requests").getOrElse(100000)
   lazy val throttlePer = systemConfig.as[Option[FiniteDuration]]("io.per").getOrElse(100 seconds)
+  lazy val nioParallelism = systemConfig.as[Option[Int]]("io.nio.parallelism").getOrElse(10)
+  lazy val gcsParallelism = systemConfig.as[Option[Int]]("io.gcs.parallelism").getOrElse(10)
   lazy val ioThrottle = Throttle(throttleElements, throttlePer, throttleElements)
-  lazy val ioActor = context.actorOf(IoActor.props(1000, Option(ioThrottle), serviceRegistryActor), "IoActor")
+  lazy val ioActor = context.actorOf(IoActor.props(LoadConfig.IoQueueSize, nioParallelism, gcsParallelism, Option(ioThrottle), serviceRegistryActor), "IoActor")
+  lazy val ioActorProxy = context.actorOf(IoActorProxy.props(ioActor), "IoProxy")
 
   lazy val workflowLogCopyRouter: ActorRef = context.actorOf(RoundRobinPool(numberOfWorkflowLogCopyWorkers)
     .withSupervisorStrategy(CopyWorkflowLogsActor.strategy)
@@ -89,10 +92,10 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
 
   lazy val numberOfCacheReadWorkers = config.getConfig("system").as[Option[Int]]("number-of-cache-read-workers").getOrElse(DefaultNumberOfCacheReadWorkers)
   lazy val callCacheReadActor = context.actorOf(RoundRobinPool(numberOfCacheReadWorkers)
-    .props(CallCacheReadActor.props(callCache)),
+    .props(CallCacheReadActor.props(callCache, serviceRegistryActor)),
     "CallCacheReadActor")
 
-  lazy val callCacheWriteActor = context.actorOf(CallCacheWriteActor.props(callCache), "CallCacheWriteActor")
+  lazy val callCacheWriteActor = context.actorOf(CallCacheWriteActor.props(callCache, serviceRegistryActor), "CallCacheWriteActor")
 
   // Docker Actor
   lazy val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
@@ -114,15 +117,17 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
     dockerConf.cacheEntryTtl, dockerConf.cacheSize)(materializer), "DockerHashActor")
 
   lazy val backendSingletons = CromwellBackends.instance.get.backendLifecycleActorFactories map {
-    case (name, factory) => name -> (factory.backendSingletonActorProps(serviceRegistryActor) map context.actorOf)
+    case (name, factory) => name -> (factory.backendSingletonActorProps(serviceRegistryActor) map { context.actorOf(_, s"$name-Singleton") })
   }
   lazy val backendSingletonCollection = BackendSingletonCollection(backendSingletons)
 
-  lazy val jobExecutionTokenDispenserActor = context.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistryActor))
+  lazy val rate = DynamicRateLimiter.Rate(systemConfig.as[Int]("job-rate-control.jobs"), systemConfig.as[FiniteDuration]("job-rate-control.per"))
+
+  lazy val jobExecutionTokenDispenserActor = context.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistryActor, rate), "JobExecutionTokenDispenser")
 
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
-      workflowStoreActor, ioActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, callCacheWriteActor,
+      workflowStoreActor, ioActorProxy, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, callCacheWriteActor,
       dockerHashActor, jobExecutionTokenDispenserActor, backendSingletonCollection, serverMode),
     "WorkflowManagerActor")
 
@@ -134,10 +139,11 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
       workflowManagerActor = workflowManagerActor,
       logCopyRouter = workflowLogCopyRouter,
       jobStoreActor = jobStoreActor,
+      jobTokenDispenser = jobExecutionTokenDispenserActor,
       workflowStoreActor = workflowStoreActor,
       subWorkflowStoreActor = subWorkflowStoreActor,
       callCacheWriteActor = callCacheWriteActor,
-      ioActor = ioActor,
+      ioActor = ioActorProxy,
       dockerHashActor = dockerHashActor,
       serviceRegistryActor = serviceRegistryActor,
       materializer = materializer

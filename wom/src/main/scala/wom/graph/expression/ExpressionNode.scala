@@ -10,7 +10,7 @@ import shapeless.Coproduct
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.CallNode.InputDefinitionPointer
 import wom.graph.GraphNodePort.{ConnectedInputPort, GraphNodeOutputPort, InputPort, OutputPort}
-import wom.graph.{GraphNode, GraphNodePort, WomIdentifier}
+import wom.graph.{GraphNode, GraphNodePort, GraphNodeWithSingleOutputPort, WomIdentifier}
 import wom.types.WomType
 import wom.values.WomValue
 
@@ -20,16 +20,11 @@ import wom.values.WomValue
 abstract class ExpressionNode(override val identifier: WomIdentifier,
                               val womExpression: WomExpression,
                               val womType: WomType,
-                              val inputMapping: Map[String, InputPort]) extends GraphNode {
-  val singleExpressionOutputPort = GraphNodeOutputPort(identifier, womType, this)
-  override val outputPorts: Set[GraphNodePort.OutputPort] = Set(singleExpressionOutputPort)
+                              val inputMapping: Map[String, InputPort]) extends GraphNodeWithSingleOutputPort with ExpressionNodeLike {
+  override val singleOutputPort = GraphNodeOutputPort(identifier, womType, this)
+  override val outputPorts: Set[GraphNodePort.OutputPort] = Set(singleOutputPort)
   override val inputPorts = inputMapping.values.toSet
   
-  /**
-    * Can be used to use this node as an InputDefinitionPointer
-    */
-  lazy val inputDefinitionPointer = Coproduct[InputDefinitionPointer](singleExpressionOutputPort: OutputPort)
-
   // Again an instance of not so pretty flatMapping with mix of ErrorOrs, Eithers and Tries..
   // TODO: This should return an EitherT or whatever we decide we want to use to package Exceptions + Nel[String]
   /**
@@ -39,6 +34,16 @@ abstract class ExpressionNode(override val identifier: WomIdentifier,
     evaluated <- womExpression.evaluateValue(inputs, ioFunctionSet)
     coerced <- womType.coerceRawValue(evaluated).toErrorOr
   } yield coerced).leftMap(_.map(e => s"Evaluating ${womExpression.sourceString} failed: $e")).toEither
+
+  override final def evaluate(outputPortLookup: OutputPort => ErrorOr[WomValue], ioFunctionSet: IoFunctionSet): Checked[Map[OutputPort, WomValue]] = {
+    import cats.syntax.either._
+    import common.validation.ErrorOr._
+    for {
+      inputs <- inputMapping.traverseValues(inputPort => outputPortLookup(inputPort.upstream)).toEither
+      evaluated <- evaluateAndCoerce(inputs, ioFunctionSet)
+    } yield Map(singleOutputPort -> evaluated)
+  }
+  
 }
 
 object ExpressionNode {
@@ -53,15 +58,15 @@ object ExpressionNode {
     * output ports.
     */
   def buildFromConstructor[E <: ExpressionNode](constructor: ExpressionNodeConstructor[E])
-  (identifier: WomIdentifier, expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[E] = {
+                                               (identifier: WomIdentifier, expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[E] = {
     val graphNodeSetter = new GraphNode.GraphNodeSetter[ExpressionNode]()
 
-    for {
+    (for {
       combined <- linkWithInputs(graphNodeSetter, expression, inputMapping)
       (evaluatedType, inputPorts) = combined
       expressionNode = constructor(identifier, expression, evaluatedType, inputPorts)
       _ = graphNodeSetter._graphNode = expressionNode
-    } yield expressionNode
+    } yield expressionNode).leftMap(es => es.map(e => s"Cannot build expression for '${identifier.fullyQualifiedName.value} = ${expression.sourceString}': $e"))
   }
 
   /**
@@ -70,7 +75,8 @@ object ExpressionNode {
   private def linkWithInputs(graphNodeSetter: GraphNode.GraphNodeSetter[ExpressionNode], expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[(WomType, Map[String, InputPort])] = {
     def linkInput(input: String): ErrorOr[(String, InputPort)] = inputMapping.get(input) match {
       case Some(upstreamPort) => (input, ConnectedInputPort(input, upstreamPort.womType, upstreamPort, graphNodeSetter.get)).validNel
-      case None => s"Expression cannot be connected without the input $input (provided: ${inputMapping.toString})".invalidNel
+      case None => 
+        s"Expression cannot be connected without the input $input (provided: ${inputMapping.toString})".invalidNel
     }
 
     import common.validation.ErrorOr.ShortCircuitingFlatMap

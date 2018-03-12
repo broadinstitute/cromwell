@@ -3,11 +3,11 @@ package cromwell.engine.backend.mock
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobSucceededResponse}
 import cromwell.backend._
-import cromwell.core.{CallOutputs, NoIoFunctionSet}
-import wom.expression.IoFunctionSet
-import wom.graph.TaskCallNode
+import cromwell.core.CallOutputs
+import wom.expression.{IoFunctionSet, NoIoFunctionSet}
+import wom.graph.CommandCallNode
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 object DefaultBackendJobExecutionActor {
   def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor) = Props(DefaultBackendJobExecutionActor(jobDescriptor, configurationDescriptor))
@@ -27,7 +27,7 @@ class DefaultBackendLifecycleActorFactory(val name: String, val configurationDes
   extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 ioActor: ActorRef,
-                                                calls: Set[TaskCallNode],
+                                                calls: Set[CommandCallNode],
                                                 serviceRegistryActor: ActorRef,
                                                 restarting: Boolean): Option[Props] = None
 
@@ -41,6 +41,8 @@ class DefaultBackendLifecycleActorFactory(val name: String, val configurationDes
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                            jobKey: BackendJobDescriptorKey,
-                                           initializationData: Option[BackendInitializationData]): IoFunctionSet = NoIoFunctionSet
+                                           initializationData: Option[BackendInitializationData],
+                                           ioActorProxy: ActorRef,
+                                           ec: ExecutionContext): IoFunctionSet = NoIoFunctionSet
 }
 

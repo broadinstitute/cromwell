@@ -2,16 +2,17 @@ package cromwell.engine.backend.mock
 
 import akka.actor.{ActorRef, Props}
 import cromwell.backend._
-import cromwell.core.NoIoFunctionSet
-import wom.expression.IoFunctionSet
-import wom.graph.TaskCallNode
+import wom.expression.{IoFunctionSet, NoIoFunctionSet}
+import wom.graph.CommandCallNode
+
+import scala.concurrent.ExecutionContext
 
 class RetryableBackendLifecycleActorFactory(val name: String,
                                             val configurationDescriptor: BackendConfigurationDescriptor)
   extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 ioActor: ActorRef,
-                                                calls: Set[TaskCallNode],
+                                                calls: Set[CommandCallNode],
                                                 serviceRegistryActor: ActorRef,
                                                 restarting: Boolean): Option[Props] = None
 
@@ -25,5 +26,7 @@ class RetryableBackendLifecycleActorFactory(val name: String,
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                            jobKey: BackendJobDescriptorKey,
-                                           initializationData: Option[BackendInitializationData]): IoFunctionSet = NoIoFunctionSet
+                                           initializationData: Option[BackendInitializationData],
+                                           ioActorProxy: ActorRef,
+                                           ec: ExecutionContext): IoFunctionSet = NoIoFunctionSet
 }

@@ -2,7 +2,7 @@ package cromwell.services.instrumentation.impl.statsd
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{Actor, Props}
+import akka.actor.{Actor, ActorRef, Props}
 import com.readytalk.metrics.{CromwellStatsD, StatsDReporter}
 import com.typesafe.config.Config
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
@@ -15,14 +15,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
 object StatsDInstrumentationServiceActor {
-  def props(serviceConfig: Config, globalConfig: Config) = Props(new StatsDInstrumentationServiceActor(serviceConfig, globalConfig))
-
-  /* Values inserted between a CromwellBucket prefix and its path when building a StatsD path to make up for the fact
-   * that everything is sent as a gauge which makes differentiating the meaning of the metrics harder.
-  */
-  private val TimingInsert = Option("timing")
-  private val CountInsert = Option("count")
-  
+  def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) = Props(new StatsDInstrumentationServiceActor(serviceConfig, globalConfig, serviceRegistryActor))
   
   implicit class CromwellBucketEnhanced(val cromwellBucket: CromwellBucket) extends AnyVal {
     /**
@@ -47,7 +40,7 @@ object StatsDInstrumentationServiceActor {
   * If performance or statistics accuracy becomes a problem one might implement a more efficient solution
   * by making use of downsampling and / or multi metrics packets: https://github.com/etsy/statsd/blob/master/docs/metric_types.md
   */
-class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Config) extends Actor with DefaultInstrumented {
+class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with DefaultInstrumented {
   val statsDConfig = StatsDConfig(serviceConfig)
 
   override lazy val metricBaseName = MetricName("cromwell")
@@ -76,7 +69,7 @@ class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Con
     */
   private def meterFor(bucket: CromwellBucket): Meter = {
     // Because everything is a gauge, for clarity prepend "count" for counters so it counts events instead of giving a current value
-    val name = bucket.toStatsDString(CountInsert)
+    val name = bucket.toStatsDString()
     val counterName = metricBaseName.append(name).name
     metricRegistry.getMeters.asScala.get(counterName) match {
         // Make a new one if none is found
@@ -113,6 +106,6 @@ class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Con
     * Adds a new timing value for this bucket
     */
   private def updateTiming(bucket: CromwellBucket, value: FiniteDuration) = {
-    metrics.timer(bucket.toStatsDString(TimingInsert)).update(value)
+    metrics.timer(bucket.toStatsDString()).update(value)
   }
 }

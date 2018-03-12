@@ -28,14 +28,13 @@ object PreviousRetryReasons {
   }
 
   private def validatedKvResponse(r: Option[KvResponse], fromKey: String): ErrorOr[Int] = r match {
-    case Some(KvPair(_, v)) => validatedIntOption(v, fromKey)
+    case Some(KvPair(_, v)) => validatedInt(v, fromKey)
     case Some(_: KvKeyLookupFailed) => 0.validNel
     case Some(KvFailure(_, failure)) => s"Failed to get key $fromKey: ${failure.getMessage}".invalidNel
     case Some(_: KvPutSuccess) => s"Programmer Error: Got a KvPutSuccess from a Get request...".invalidNel
     case None => s"Programmer Error: Engine made no effort to prefetch $fromKey".invalidNel
   }
 
-  private def validatedIntOption(s: Option[String], fromKey: String): ErrorOr[Int] = validatedInt(s.getOrElse(""), fromKey)
   private def validatedInt(s: String, fromKey: String): ErrorOr[Int] = {
     Try(s.toInt) match {
       case Success(i) => i.validNel

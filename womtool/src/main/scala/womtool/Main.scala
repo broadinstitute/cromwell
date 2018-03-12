@@ -2,9 +2,9 @@ package womtool
 
 import java.nio.file.Paths
 
-import wdl.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
-import wdl._
 import spray.json._
+import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
+import wdl.draft2.model.{AstTools, WdlNamespace, WdlNamespaceWithWorkflow}
 import womtool.graph.{GraphPrint, WomGraph}
 
 import scala.util.{Failure, Success}
@@ -104,6 +104,7 @@ object Main extends App {
   private[this] def loadWdl(path: String)(f: WdlNamespace => Termination): Termination = {
     WdlNamespace.loadUsingPath(Paths.get(path), None, None) match {
       case Success(namespace) => f(namespace)
+      case Failure(r: RuntimeException) => throw new RuntimeException("Unexpected failure mode", r)
       case Failure(t) => UnsuccessfulTermination(t.getMessage)
     }
   }

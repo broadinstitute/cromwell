@@ -76,7 +76,7 @@ object SharedFileSystem extends StrictLogging {
   }
 
   private def duplicate(description: String, source: Path, dest: Path, strategies: Stream[DuplicationStrategy]): Try[Unit] = {
-    val attempts: Stream[Try[Unit]] = strategies.map(_ (source.followSymbolicLinks, dest))
+    val attempts: Stream[Try[Unit]] = strategies.map(_.apply(source.followSymbolicLinks, dest))
     attempts.find(_.isSuccess) getOrElse {
       TryUtil.sequence(attempts, s"Could not $description $source -> $dest").void
     }
@@ -124,11 +124,12 @@ trait SharedFileSystem extends PathFactory {
     localizePathAlreadyLocalized _ +: mappedDuplicationStrategies
   }
 
-  private def hostAbsoluteFilePath(callRoot: Path, pathString: String): Path = {
-    val wdlPath = PathFactory.buildPath(pathString, pathBuilders)
-    wdlPath match {
-      case _: DefaultPath if !wdlPath.isAbsolute => callRoot.resolve(wdlPath).toAbsolutePath
-      case _ => wdlPath
+  def hostAbsoluteFilePath(jobPaths: JobPaths, pathString: String): Path = {
+    val path = PathFactory.buildPath(pathString, pathBuilders)
+    path match {
+      case _: DefaultPath if !path.isAbsolute => jobPaths.callExecutionRoot.resolve(path).toAbsolutePath
+      case _: DefaultPath if jobPaths.isInExecution(path.pathAsString) => jobPaths.hostPathFromContainerPath(path.pathAsString)
+      case _: DefaultPath => jobPaths.hostPathFromContainerInputs(path.pathAsString)
     }
   }
 
@@ -136,13 +137,15 @@ trait SharedFileSystem extends PathFactory {
     WomFileMapper.mapWomFiles(mapJobWomFile(job))(womValue)
   }
 
-  def mapJobWomFile(job: JobPaths)(womFile: WomFile): WomFile = {
-    womFile match {
-      case fileNotFound: WomFile if !hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).exists =>
-        throw new RuntimeException("Could not process output, file not found: " +
-          s"${hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).pathAsString}")
-      case _ => WomFile(hostAbsoluteFilePath(job.callExecutionRoot, womFile.valueString).pathAsString)
-    }
+  def mapJobWomFile(jobPaths: JobPaths)(womFile: WomFile): WomFile = {
+    val hostPath = hostAbsoluteFilePath(jobPaths, womFile.valueString)
+    def hostAbsolute(pathString: String): String = hostAbsoluteFilePath(jobPaths, pathString).pathAsString
+
+    if (!hostPath.exists) throw new RuntimeException(s"Could not process output, file not found: ${hostAbsolute(womFile.valueString)}")
+
+    // There are composite WomFile types like WomMaybeListedDirectoryType that need to make the paths of contained
+    // WomFiles host absolute, so don't just pass in a `const` of the function call result above.
+    womFile mapFile hostAbsolute
   }
 
   def cacheCopy(sourceFilePath: Path, destinationFilePath: Path): Try[Unit] = {
@@ -196,14 +199,15 @@ trait SharedFileSystem extends PathFactory {
     * @param toDestPath function specifying how to generate the destination path from the source path
     * @param strategies strategies to use for localization
     * @param womFile WomFile to localize
-    * @return localized wdl file
+    * @return localized WomFile
     */
   private def localizeWomFile(toDestPath: (String => Try[PairOfFiles]), strategies: Stream[DuplicationStrategy])
                              (womFile: WomFile): WomFile = {
-    val path = womFile.value
-    val result = toDestPath(path) flatMap {
-      case PairOfFiles(src, dst) => duplicate("localize", src, dst, strategies) map { _ => WomFile(dst.pathAsString) }
+    womFile mapFile { path =>
+      val result = toDestPath(path) flatMap {
+        case PairOfFiles(src, dst) => duplicate("localize", src, dst, strategies).map(_ => dst.pathAsString)
+      }
+      result.get
     }
-    result.get
   }
 }

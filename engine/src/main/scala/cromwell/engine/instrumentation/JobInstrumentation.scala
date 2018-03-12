@@ -1,27 +1,31 @@
 package cromwell.engine.instrumentation
 
+import akka.actor.Actor
+import cats.data.NonEmptyList
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.core.instrumentation.InstrumentationKeys._
-import cromwell.engine.instrumentation.InstrumentationPrefixes._
+import cromwell.core.instrumentation.InstrumentationPrefixes._
 import cromwell.engine.instrumentation.JobInstrumentation._
-import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.instrumentation.CromwellInstrumentation._
+import cromwell.services.instrumentation.CromwellInstrumentationActor
 
 import scala.concurrent.duration.FiniteDuration
 
 object JobInstrumentation {
+  private val jobTimingKey = NonEmptyList.one("timing")
+
   private def backendJobExecutionResponsePaths(response: BackendJobExecutionResponse) = response match {
-    case _: JobSucceededResponse => SuccessKey
-    case _: JobAbortedResponse => AbortedKey
-    case _: JobFailedNonRetryableResponse => FailureKey
-    case _: JobFailedRetryableResponse => RetryKey
+    case _: JobSucceededResponse => jobTimingKey.concat(SuccessKey)
+    case _: JobAbortedResponse => jobTimingKey.concat(AbortedKey)
+    case _: JobFailedNonRetryableResponse => jobTimingKey.concat(FailureKey)
+    case _: JobFailedRetryableResponse => jobTimingKey.concat(RetryKey)
   }
 }
 
 /**
   * Provides helper methods for Job instrumentation
   */
-trait JobInstrumentation extends CromwellInstrumentation {
+trait JobInstrumentation extends CromwellInstrumentationActor { this: Actor =>
 
   /**
     * Generic method to increment a workflow related counter metric value

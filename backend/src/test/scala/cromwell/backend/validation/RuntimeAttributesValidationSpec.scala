@@ -5,6 +5,7 @@ import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.TestConfig
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import wom.RuntimeAttributesKeys
 import wom.types._
 import wom.values._
 
@@ -287,7 +288,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val optionalConfig = Option(TestConfig.allRuntimeAttrsConfig)
 
       val defaultVals = Map(
-        "cpu" -> CpuValidation.configDefaultWdlValue(optionalConfig).get,
+        "cpu" -> CpuValidation.configDefaultWomValue(optionalConfig).get,
         "failOnStderr" -> FailOnStderrValidation.configDefaultWdlValue(optionalConfig).get,
         "continueOnReturnCode" -> ContinueOnReturnCodeValidation.configDefaultWdlValue(optionalConfig).get
       )
@@ -310,7 +311,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
        """.stripMargin))
 
      val defaultVals = Map(
-       "cpu" -> CpuValidation.configDefaultWdlValue(optionalInvalidAttrsConfig).get,
+       "cpu" -> CpuValidation.configDefaultWomValue(optionalInvalidAttrsConfig).get,
        "failOnStderr" -> FailOnStderrValidation.configDefaultWdlValue(optionalInvalidAttrsConfig).get,
        "continueOnReturnCode" -> ContinueOnReturnCodeValidation.configDefaultWdlValue(optionalInvalidAttrsConfig).get
      )
@@ -329,13 +330,19 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
         s"""
            |  default-runtime-attributes {
            |     memory: "2 GB"
+           |     memoryMin: "0.3 GB"
+           |     memoryMax: "0.4 GB"
            |  }
            |""".stripMargin
 
       val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate).getConfig("default-runtime-attributes")
 
       val memoryVal = MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, Some(backendConfig))
+      val memoryMinVal = MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryMinKey, Some(backendConfig))
+      val memoryMaxVal = MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryMaxKey, Some(backendConfig))
       MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryKey, memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some((WomInteger(2000000000)))
+      MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryMinKey, memoryMinVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some((WomInteger(300000000)))
+      MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryMaxKey, memoryMaxVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some((WomInteger(400000000)))
     }
 
     "shouldn't throw up if the value for a default-runtime-attribute key cannot be coerced into an expected WomType" in {

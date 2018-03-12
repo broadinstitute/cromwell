@@ -6,12 +6,13 @@ import cromwell.backend.impl.sfs.config.ConfigConstants._
 import cromwell.backend.sfs._
 import cromwell.backend.standard.{StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.backend.validation.DockerValidation
-import cromwell.core.NoIoFunctionSet
 import cromwell.core.path.Path
-import wdl._
-import wom.InstantiatedCommand
+import wdl.draft2.model._
+import wdl.transforms.draft2.wdlom2wom._
 import wom.callable.Callable.OptionalInputDefinition
+import wom.expression.NoIoFunctionSet
 import wom.values.{WomEvaluatedCallInputs, WomOptionalValue, WomString, WomValue}
+import wom.transforms.WomCommandTaskDefinitionMaker.ops._
 
 /**
   * Base ConfigAsyncJobExecutionActor that reads the config and generates an outer script to submit an inner script
@@ -52,7 +53,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     val task = configInitializationData.wdlNamespace.findTask(taskName).
       getOrElse(throw new RuntimeException(s"Unable to find task $taskName"))
 
-    val taskDefinition = task.womDefinition.toTry.get
+    val taskDefinition = task.toWomTaskDefinition.toTry.get
 
     // Build WOM versions of the provided inputs by correlating with the `InputDefinition`s on the `TaskDefinition`.
     val providedWomInputs: WomEvaluatedCallInputs = (for {
@@ -100,7 +101,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     val allInputs = providedWomInputs ++ optionalsForciblyInitializedToNone
     val womInstantiation = taskDefinition.instantiateCommand(allInputs, NoIoFunctionSet, identity, runtimeEnvironment)
 
-    val InstantiatedCommand(command, _) = womInstantiation.toTry.get
+    val command = womInstantiation.toTry.get.commandString
     jobLogger.info(s"executing: $command")
     val scriptBody =
       s"""|#!/bin/bash
@@ -132,14 +133,14 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
       Map(
         DockerCwdInput -> WomString(jobPathsWithDocker.callDockerRoot.pathAsString),
         DockerCidInput -> dockerCidInputValue,
-        StdoutInput -> WomString(jobPathsWithDocker.toDockerPath(jobPaths.stdout).pathAsString),
-        StderrInput -> WomString(jobPathsWithDocker.toDockerPath(jobPaths.stderr).pathAsString),
+        StdoutInput -> WomString(jobPathsWithDocker.toDockerPath(standardPaths.output).pathAsString),
+        StderrInput -> WomString(jobPathsWithDocker.toDockerPath(standardPaths.error).pathAsString),
         ScriptInput -> WomString(jobPathsWithDocker.toDockerPath(jobPaths.script).pathAsString)
       )
     } else {
       Map(
-        StdoutInput -> WomString(jobPaths.stdout.pathAsString),
-        StderrInput -> WomString(jobPaths.stderr.pathAsString),
+        StdoutInput -> WomString(standardPaths.output.pathAsString),
+        StderrInput -> WomString(standardPaths.error.pathAsString),
         ScriptInput -> WomString(jobPaths.script.pathAsString)
       )
     }

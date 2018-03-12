@@ -6,7 +6,7 @@ import java.util.UUID
 import akka.testkit._
 import akka.pattern.ask
 import akka.util.Timeout
-import cromwell.core.{TestKitSuite, WorkflowId}
+import cromwell.core._
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.webservice.metadata.MetadataBuilderActor
@@ -109,6 +109,10 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
   def makeCallEvent(workflow: WorkflowId)(key: String, value: MetadataValue, offsetDateTime: OffsetDateTime) = {
     val jobKey = MetadataJobKey("fqn", None, 1)
     MetadataEvent(MetadataKey(workflow, Option(jobKey), key), Option(value), offsetDateTime)
+  }
+
+  def makeEmptyValue(workflow: WorkflowId)(key: String, value: MetadataValue, offsetDateTime: OffsetDateTime) = {
+    MetadataEvent(MetadataKey(workflow, None, key), None, offsetDateTime)
   }
 
   def assertMetadataKeyStructure(eventList: List[EventBuilder],
@@ -283,6 +287,20 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
         |     ]""".stripMargin
 
     assertMetadataKeyStructure(eventBuilderList, expectedRes)
+  }
+
+  it should "support nested empty lists" in {
+    val eventBuilderList = List(
+      ("l[0][]", null, OffsetDateTime.now),
+      ("l[1][]", null, OffsetDateTime.now)
+    )
+
+    val expectedRes =
+      """"l": [
+        |       [], []
+        |     ]""".stripMargin
+
+    assertMetadataKeyStructure(eventBuilderList, expectedRes, eventMaker = makeEmptyValue)
   }
 
   it should "override json values if they can't be merged" in {

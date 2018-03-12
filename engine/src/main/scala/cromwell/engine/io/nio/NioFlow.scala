@@ -1,12 +1,15 @@
 package cromwell.engine.io.nio
 
+import java.io.IOException
+import java.nio.charset.StandardCharsets
+
 import akka.actor.{ActorSystem, Scheduler}
 import akka.stream.scaladsl.Flow
 import cromwell.core.io._
 import cromwell.core.path.{DefaultPath, Path}
 import cromwell.core.retry.Retry
-import cromwell.engine.io.IoActor.{DefaultCommandContext, IoResult}
-import cromwell.engine.io.{IoActor, IoCommandContext}
+import cromwell.engine.io.IoActor._
+import cromwell.engine.io.IoCommandContext
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.util.TryWithResource._
 
@@ -23,14 +26,14 @@ object NioFlow {
 class NioFlow(parallelism: Int,
               scheduler: Scheduler,
               onRetry: IoCommandContext[_] => Throwable => Unit = NioFlow.NoopOnRetry,
-              nbAttempts: Int = IoActor.MaxAttemptsNumber)(implicit ec: ExecutionContext, actorSystem: ActorSystem) {
+              nbAttempts: Int = MaxAttemptsNumber)(implicit ec: ExecutionContext, actorSystem: ActorSystem) {
   private val processCommand: DefaultCommandContext[_] => Future[IoResult] = commandContext => {
     val operationResult = Retry.withRetry(
       () => handleSingleCommand(commandContext.request),
       maxRetries = Option(nbAttempts),
       backoff = IoCommand.defaultBackoff,
-      isTransient = IoActor.isTransient,
-      isFatal = IoActor.isFatal,
+      isTransient = isTransient,
+      isFatal = isFatal,
       onRetry = onRetry(commandContext)
     )
 
@@ -48,6 +51,8 @@ class NioFlow(parallelism: Int,
       case readAsStringCommand: IoContentAsStringCommand => readAsString(readAsStringCommand) map readAsStringCommand.success
       case hashCommand: IoHashCommand => hash(hashCommand) map hashCommand.success
       case touchCommand: IoTouchCommand => touch(touchCommand) map touchCommand.success
+      case existsCommand: IoExistsCommand => exists(existsCommand) map existsCommand.success
+      case readLinesCommand: IoReadLinesCommand => readLines(readLinesCommand) map readLinesCommand.success
       case _ => Future.failed(new NotImplementedError("Method not implemented"))
     }
   }
@@ -71,8 +76,17 @@ class NioFlow(parallelism: Int,
     ()
   }
 
-  private def readAsString(read: IoContentAsStringCommand) = Future {
-    read.file.contentAsString
+  private def readAsString(read: IoContentAsStringCommand) = {
+    read.options.maxBytes match {
+      case Some(limit) =>
+        Future(read.file.bytes.take(limit)) map { bytesIterator =>
+          if (read.options.failOnOverflow && bytesIterator.hasNext)
+            throw new IOException(s"File ${read.file.pathAsString} is larger than $limit Bytes")
+          else
+            new String(bytesIterator.toArray, StandardCharsets.UTF_8)
+        }
+      case _ => Future(read.file.contentAsString)
+    }
   }
 
   private def size(size: IoSizeCommand) = Future {
@@ -92,6 +106,14 @@ class NioFlow(parallelism: Int,
 
   private def touch(touch: IoTouchCommand) = Future {
     touch.file.touch()
+  }
+
+  private def exists(exists: IoExistsCommand) = Future {
+    exists.file.exists
+  }
+
+  private def readLines(exists: IoReadLinesCommand) = Future {
+    exists.file.lines
   }
 
   private def createDirectoriesForSFSPath(path: Path) = path match {

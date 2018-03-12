@@ -17,15 +17,15 @@ trait RobustClientHelper { this: Actor with ActorLogging =>
   private [actor] implicit val robustActorHelperEc = context.dispatcher
 
   private final val random = new Random()
-  
+
   // package private for testing
   private [core] var timeouts = Map.empty[Any, (Cancellable, FiniteDuration)]
-  
+
   protected def backpressureTimeout: FiniteDuration = 10 seconds
   protected def backpressureRandomizerFactor: Double = 0.5D
-  
- def robustReceive: Receive = {
-    case BackPressure(request) => 
+
+  def robustReceive: Receive = {
+    case BackPressure(request) =>
       val snd = sender()
       newTimer(request, snd, generateBackpressureTime)
       resetTimeout(request, snd)
@@ -36,12 +36,12 @@ trait RobustClientHelper { this: Actor with ActorLogging =>
   private final def newTimer(msg: Any, to: ActorRef, in: FiniteDuration) = {
     context.system.scheduler.scheduleOnce(in, to, msg)(robustActorHelperEc, self)
   }
-  
+
   def robustSend(msg: Any, to: ActorRef, timeout: FiniteDuration = DefaultRequestLostTimeout): Unit = {
     to ! msg
     addTimeout(msg, to, timeout)
   }
-  
+
   private final def addTimeout(command: Any, to: ActorRef, timeout: FiniteDuration) = {
     val cancellable = newTimer(RequestTimeout(command, to), self, timeout)
     timeouts = timeouts + (command -> (cancellable -> timeout))
@@ -59,16 +59,16 @@ trait RobustClientHelper { this: Actor with ActorLogging =>
     cancelTimeout(command)
     timeout foreach { addTimeout(command, to, _) }
   }
-  
+
   private [actor] final def generateBackpressureTime = {
     val backpressureTimeoutInMillis = backpressureTimeout.toMillis
-    
+
     val delta = backpressureRandomizerFactor * backpressureTimeoutInMillis
     val minInterval = backpressureTimeoutInMillis - delta
     val maxInterval = backpressureTimeoutInMillis + delta
     val randomValue = (minInterval + (random.nextDouble() * (maxInterval - minInterval + 1))).toInt
     randomValue.milliseconds
   }
-  
+
   protected def onTimeout(message: Any, to: ActorRef): Unit
 }

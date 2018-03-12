@@ -4,22 +4,24 @@ import java.net.{SocketException, SocketTimeoutException}
 import javax.net.ssl.SSLException
 
 import akka.NotUsed
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
+import akka.dispatch.ControlMessage
 import akka.stream._
 import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition, Sink, Source}
 import com.google.cloud.storage.StorageException
 import com.typesafe.config.ConfigFactory
-import cromwell.core.Dispatcher
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.actor.StreamActorHelper
 import cromwell.core.actor.StreamIntegration.StreamContext
 import cromwell.core.io.{IoAck, IoCommand, Throttle}
+import cromwell.core.{Dispatcher, LoadConfig}
 import cromwell.engine.instrumentation.IoInstrumentation
 import cromwell.engine.io.IoActor._
 import cromwell.engine.io.gcs.GcsBatchFlow.BatchFailedException
 import cromwell.engine.io.gcs.{GcsBatchCommandContext, ParallelGcsBatchFlow}
 import cromwell.engine.io.nio.NioFlow
 import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
+import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMetric, NormalLoad}
 
 /**
   * Actor that performs IO operations asynchronously using akka streams
@@ -31,9 +33,11 @@ import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
   * @param serviceRegistryActor actorRef for the serviceRegistryActor
   */
 final class IoActor(queueSize: Int,
+                    nioParallelism: Int,
+                    gcsParallelism: Int,
                     throttle: Option[Throttle],
                     override val serviceRegistryActor: ActorRef)(implicit val materializer: ActorMaterializer) 
-  extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] with IoInstrumentation {
+  extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] with IoInstrumentation with Timers {
   
   implicit private val system = context.system
   implicit val ec = context.dispatcher
@@ -46,8 +50,14 @@ final class IoActor(queueSize: Int,
     incrementIoRetry(commandContext.request, throwable)
   }
   
-  private [io] lazy val defaultFlow = new NioFlow(parallelism = 100, context.system.scheduler, onRetry).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
-  private [io] lazy val gcsBatchFlow = new ParallelGcsBatchFlow(parallelism = 10, batchSize = 100, context.system.scheduler, onRetry).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
+  override def preStart() = {
+    // On start up, let the controller know that the load is normal
+    serviceRegistryActor ! LoadMetric("IO", NormalLoad)
+    super.preStart()
+  }
+  
+  private [io] lazy val defaultFlow = new NioFlow(parallelism = nioParallelism, context.system.scheduler, onRetry).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
+  private [io] lazy val gcsBatchFlow = new ParallelGcsBatchFlow(parallelism = gcsParallelism, batchSize = 100, context.system.scheduler, onRetry).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   
   protected val source = Source.queue[IoCommandContext[_]](queueSize, OverflowStrategy.dropNew)
 
@@ -96,6 +106,14 @@ final class IoActor(queueSize: Int,
     .via(throttledFlow)
     .alsoTo(instrumentationSink)  
     .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
+
+  override def onBackpressure() = {
+    incrementBackpressure()
+    serviceRegistryActor ! LoadMetric("IO", HighLoad)
+    // Because this method will be called every time we backpressure, the timer will be overridden every
+    // time until we're not backpressuring anymore
+    timers.startSingleTimer(BackPressureTimerResetKey, BackPressureTimerResetAction, LoadConfig.IoNormalWindow)
+  }
   
   override def actorReceive: Receive = {
     /* GCS Batch command with context */
@@ -121,6 +139,7 @@ final class IoActor(queueSize: Int,
       val replyTo = sender()
       val commandContext= DefaultCommandContext(command, replyTo)
       sendToStream(commandContext)
+    case BackPressureTimerResetAction => serviceRegistryActor ! LoadMetric("IO", NormalLoad)
   }
 }
 
@@ -133,7 +152,7 @@ trait IoCommandContext[T] extends StreamContext {
 
 object IoActor {
   import net.ceedubs.ficus.Ficus._
-  
+
   /** Flow that can consume an IoCommandContext and produce an IoResult */
   type IoFlow = Flow[IoCommandContext[_], IoResult, NotUsed]
   
@@ -146,6 +165,9 @@ object IoActor {
   val MaxAttemptsNumber = ioConfig.getOrElse[Int]("number-of-attempts", 5)
 
   case class DefaultCommandContext[T](request: IoCommand[T], replyTo: ActorRef, override val clientContext: Option[Any] = None) extends IoCommandContext[T]
+  
+  case object BackPressureTimerResetKey
+  case object BackPressureTimerResetAction extends ControlMessage
 
   /**
     * ATTENTION: Transient failures are retried *forever* 
@@ -170,12 +192,20 @@ object IoActor {
     503
   )
   
+  // Error messages not included in the list of built-in GCS retryable errors (com.google.cloud.storage.StorageException) but that we still want to retry
+  val AdditionalRetryableErrorMessages = List(
+    "Connection closed prematurely"
+  ).map(_.toLowerCase)
+  
   /**
     * Failures that are considered retryable.
     * Retrying them should increase the "retry counter"
     */
   def isRetryable(failure: Throwable): Boolean = failure match {
-    case gcs: StorageException => gcs.isRetryable || AdditionalRetryableHttpCodes.contains(gcs.getCode) || isRetryable(gcs.getCause)
+    case gcs: StorageException => gcs.isRetryable || 
+      isRetryable(gcs.getCause) ||
+      AdditionalRetryableHttpCodes.contains(gcs.getCode) || 
+      AdditionalRetryableErrorMessages.exists(gcs.getMessage.toLowerCase.contains)
     case _: SSLException => true
     case _: BatchFailedException => true
     case _: SocketException => true
@@ -185,7 +215,7 @@ object IoActor {
 
   def isFatal(failure: Throwable) = !isRetryable(failure)
   
-  def props(queueSize: Int, throttle: Option[Throttle], serviceRegistryActor: ActorRef)(implicit materializer: ActorMaterializer) = {
-    Props(new IoActor(queueSize, throttle, serviceRegistryActor)).withDispatcher(IoDispatcher)
+  def props(queueSize: Int, nioParallelism: Int, gcsParallelism: Int, throttle: Option[Throttle], serviceRegistryActor: ActorRef)(implicit materializer: ActorMaterializer) = {
+    Props(new IoActor(queueSize, nioParallelism, gcsParallelism, throttle, serviceRegistryActor)).withDispatcher(IoDispatcher)
   }
 }

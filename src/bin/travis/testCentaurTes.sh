@@ -78,30 +78,20 @@ printTravisHeartbeat
 set -x
 set -e
 
-WORKDIR=$(pwd)
-
 ASSEMBLY_LOG_LEVEL=error ENABLE_COVERAGE=true sbt assembly --error
-CROMWELL_JAR=$(find "$(pwd)/target/scala-2.12" -name "cromwell-*.jar")
+CROMWELL_JAR=$(find "$(pwd)/server/target/scala-2.12" -name "cromwell-*.jar")
+
 TES_CENTAUR_CONF="$(pwd)/src/bin/travis/resources/tes_centaur.conf"
-cd $WORKDIR
-
-
 FUNNEL_CONF="$(pwd)/src/bin/travis/resources/funnel.conf"
-wget https://storage.googleapis.com/golang/go1.8.1.linux-amd64.tar.gz
-tar xfz go1.8.1.linux-amd64.tar.gz
-export GOROOT=$WORKDIR/go
-mkdir go-lib
-export GOPATH=$WORKDIR/go-lib
-go get github.com/ohsu-comp-bio/funnel
-cd $GOPATH/src/github.com/ohsu-comp-bio/funnel
-git checkout c4d9134
-make
-cd $WORKDIR
+
+wget https://github.com/ohsu-comp-bio/funnel/releases/download/0.5.0/funnel-linux-amd64-0.5.0.tar.gz
+tar xzf funnel-linux-amd64-0.5.0.tar.gz
+FUNNEL_PATH="$(pwd)/funnel"
+
 mkdir logs
-nohup $GOPATH/bin/funnel server --config ${FUNNEL_CONF} > logs/funnel.log 2>&1 &
+nohup "${FUNNEL_PATH}" server run --config "${FUNNEL_CONF}" > logs/funnel.log 2>&1 &
 
-
-# All tests use ubuntu:latest - make sure it's there before starting the tests 
+# All tests use ubuntu:latest - make sure it's there before starting the tests
 # because pulling the image during some of the tests would cause them to fail 
 # (specifically output_redirection which expects a specific value in stderr)
 docker pull ubuntu:latest

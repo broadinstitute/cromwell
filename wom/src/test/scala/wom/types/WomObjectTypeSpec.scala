@@ -1,7 +1,7 @@
 package wom.types
 
 import org.scalatest.{FlatSpec, Matchers}
-import wom.values.{WomMap, WomObject, WomString}
+import wom.values.{WomInteger, WomMap, WomObject, WomString}
 
 import scala.util.{Failure, Success}
 
@@ -16,6 +16,19 @@ class WomObjectTypeSpec extends FlatSpec with Matchers {
     WomString("a") -> WomString("one"),
     WomString("b") -> WomString("two"),
     WomString("c") -> WomString("three"))
+  )
+
+  val abcMixedTypedObject = WomObject(Map(
+    "a" -> WomString("one"),
+    "b" -> WomInteger(2),
+    "c" -> WomString("three")
+  ))
+
+  val coerceableTypedObject = WomObject.withType(Map(
+    "a" -> WomString("one"),
+    "b" -> WomInteger(2),
+    "c" -> WomString("three")),
+    WomCompositeType(Map("a" -> WomStringType, "b" -> WomIntegerType, "c" -> WomStringType))
   )
 
   val nonCoerceableMap = WomMap(WomMapType(WomStringType, WomObjectType), Map(
@@ -37,6 +50,15 @@ class WomObjectTypeSpec extends FlatSpec with Matchers {
       case Success(v) =>
         v.womType shouldEqual WomObjectType
         v.toWomString shouldEqual abcObject.toWomString
+      case Failure(_) => fail("Failed to coerce a map to an object")
+    }
+  }
+
+  it should "coerce a coerceable typed object into a WomObject" in {
+    WomObjectType.coerceRawValue(coerceableTypedObject) match {
+      case Success(v) =>
+        v.womType shouldEqual WomObjectType
+        v.toWomString shouldEqual abcMixedTypedObject.toWomString
       case Failure(_) => fail("Failed to coerce a map to an object")
     }
   }

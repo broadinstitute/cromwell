@@ -6,7 +6,6 @@ import javax.xml.bind.DatatypeConverter
 import akka.actor.{ActorRef, LoggingFSM, Props, Terminated}
 import cats.data.NonEmptyList
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.{FileHashResponse, SingleFileHashRequest}
-import cromwell.backend.validation.RuntimeAttributesKeys
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, RuntimeAttributeDefinition}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
@@ -14,6 +13,7 @@ import cromwell.core.simpleton.WomValueSimpleton
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.CallCacheHashingJobActorData._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CacheMiss
+import wom.RuntimeAttributesKeys
 import wom.values.WomFile
 
 /**
@@ -147,7 +147,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
 
   private def calculateInitialHashes(nonFileInputs: Iterable[WomValueSimpleton], fileInputs: Iterable[WomValueSimpleton]): Set[HashResult] = {
 
-    val commandTemplateHash = HashResult(HashKey("command template"), jobDescriptor.taskCall.callable.commandTemplateString.md5HashValue)
+    val commandTemplateHash = HashResult(HashKey("command template"), jobDescriptor.taskCall.callable.commandTemplateString(jobDescriptor.evaluatedTaskInputs).md5HashValue)
     val backendNameHash = HashResult(HashKey("backend name"), backendName.md5HashValue)
     val inputCountHash = HashResult(HashKey("input count"), (nonFileInputs.size + fileInputs.size).toString.md5HashValue)
     val outputCountHash = HashResult(HashKey("output count"), jobDescriptor.taskCall.callable.outputs.size.toString.md5HashValue)

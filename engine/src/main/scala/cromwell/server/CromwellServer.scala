@@ -6,6 +6,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.services.instrumentation.CromwellInstrumentationActor
 import cromwell.webservice.{CromwellApiService, SwaggerService}
 
 import scala.concurrent.Future
@@ -23,7 +24,7 @@ object CromwellServer {
 
 class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean)(override implicit val materializer: ActorMaterializer)
   extends CromwellRootActor(gracefulShutdown, abortJobsOnTerminate)
-    with CromwellApiService
+    with CromwellApiService with CromwellInstrumentationActor
     with SwaggerService
     with ActorLogging {
   implicit val actorSystem = context.system

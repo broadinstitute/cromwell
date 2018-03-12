@@ -173,6 +173,8 @@ database {
 }
 ```
 
+To see the full list of possible parameters and values for the `db` stanza see [the slick documentation](http://slick.lightbend.com/doc/3.2.0/api/index.html#slick.jdbc.JdbcBackend$DatabaseFactoryDef@forConfig(String,Config,Driver):Database).
+
 **Cromwell server on MySQL Database**
 
 You can use [docker-compose](https://github.com/broadinstitute/cromwell/tree/develop/scripts) to link together a Cromwell docker image (built locally with `sbt docker` or available on [Dockerhub](https://hub.docker.com/r/broadinstitute/cromwell/)) with a MySQL docker image.
@@ -340,11 +342,11 @@ workflow-options {
 ```
 
 
-**Exporting workflow logs via Sentry**
+**Exception monitoring via Sentry**
 
-Cromwell supports [Sentry](https://docs.sentry.io) for copying workflow logs. Sentry is a service that can be used to monitor exceptions reported in an application’s logs.
+Cromwell supports [Sentry](https://docs.sentry.io) which is a service that can be used to monitor exceptions reported in an application’s logs.
 
-To send the Cromwell logs to Sentry, enter your DSN URL into the configuration value:
+To enable Sentry monitoring in Cromwell, enter your DSN URL into the configuration value:
 
 ```hocon
 sentry.dsn = DSN_URL

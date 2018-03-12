@@ -54,7 +54,7 @@ object GcsPathBuilder {
          |The path '$pathString' does not seem to be a valid GCS path.
          |Please check that it starts with gs:// and that the bucket and object follow GCS naming guidelines at
          |https://cloud.google.com/storage/docs/naming.
-      """.stripMargin.replaceAll("\n", " ").trim
+      """.stripMargin.replace("\n", " ").trim
     }
   }
   final case class UnparseableGcsPath(pathString: String, throwable: Throwable) extends InvalidGcsPath {
@@ -89,7 +89,7 @@ object GcsPathBuilder {
 
   def fromAuthMode(authMode: GoogleAuthMode,
                    applicationName: String,
-                   retrySettings: Option[RetrySettings],
+                   retrySettings: RetrySettings,
                    cloudStorageConfiguration: CloudStorageConfiguration,
                    options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[GcsPathBuilder] = {
     authMode.retryCredential(options) map { credentials =>
@@ -104,14 +104,14 @@ object GcsPathBuilder {
 
   def fromCredentials(credentials: Credentials,
                       applicationName: String,
-                      retrySettings: Option[RetrySettings],
+                      retrySettings: RetrySettings,
                       cloudStorageConfiguration: CloudStorageConfiguration,
                       options: WorkflowOptions): GcsPathBuilder = {
     // Grab the google project from Workflow Options if specified and set
     // that to be the project used by the StorageOptions Builder
     val project =  options.get("google_project").toOption
 
-    val storageOptions = GcsStorage.gcsStorageOptions(credentials, project, retrySettings)
+    val storageOptions = GcsStorage.gcsStorageOptions(credentials, retrySettings, project)
 
     // Create a com.google.api.services.storage.Storage
     // This is the underlying api used by com.google.cloud.storage
@@ -152,7 +152,7 @@ class GcsPathBuilder(apiStorage: com.google.api.services.storage.Storage,
     }
   }
 
-  override def name: String = "Gcs"
+  override def name: String = "Google Cloud Storage"
 }
 
 case class GcsPath private[gcs](nioPath: NioPath,

@@ -3,7 +3,7 @@ package cromwell.backend.impl.jes.statuspolling
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.RunPipelineRequest
-import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesApiException, JesApiRunCreationQueryFailed}
+import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{PAPIApiException, JesApiRunCreationQueryFailed}
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.WorkflowId
 
@@ -16,7 +16,7 @@ object JesRunCreationClient {
     * Exception used to represent the fact that a job was aborted before a creation attempt was made.
     * Meaning it was in the queue when the abort request was made, so it was just removed from the queue.
     */
-  case object JobAbortedException extends JesApiException(new Exception("The job was removed from the queue before a PAPI creation request was made"))
+  case object JobAbortedException extends PAPIApiException(new Exception("The job was removed from the queue before a PAPI creation request was made"))
 }
 
 /**

@@ -1,11 +1,30 @@
 package wom.types
 
+import cats.instances.list._
+import cats.syntax.traverse._
+import common.util.TryUtil
+import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import spray.json.JsObject
 import wom.values._
 
 import scala.util.{Failure, Success, Try}
 
-case object WomObjectType extends WomType {
+trait WomObjectTypeLike extends WomType {
+  /**
+    * Validate the values against the WomObjectTypeLike and return a valid map of values if possible.
+    * This is an indirection from the usual coercion path but it allows WomObject to validate values against the WomObjectTypeLike at
+    * instantiation time and ensure the WomObject is only built if the values match the constraints of the type.
+    * See apply method in WomObject.
+   */
+  def validateAndCoerceValues(values: Map[String, Any]): ErrorOr[Map[String, WomValue]] = {
+    values.toList.traverse[ErrorOr, (String, WomValue)]({
+      case (k, v) => WomAnyType.coerceRawValue(v).toErrorOr.map(k -> _)
+    }).map(_.toMap)
+  }
+}
+
+case object WomObjectType extends WomObjectTypeLike {
   val toDisplayString: String = "Object"
 
   private def handleCoercionFailures(tries: Try[_]*) = {
@@ -17,7 +36,7 @@ case object WomObjectType extends WomType {
   }
 
   override protected def coercion = {
-    case o: WomObject => o
+    case o: WomObject => WomObject(o.values)
     case m: WomMap if isMapCoercable(m) =>
       val coercedMap = m.value map {
         case (k, v) => toWomString(k) -> toWomString(v)
@@ -28,17 +47,20 @@ case object WomObjectType extends WomType {
 
       WomObject(coercedMap)
     case js: JsObject =>
-      val coercedMap = WomMap.coerceMap(js.fields, WomMapType(WomStringType, WomAnyType)).value map {
-        // get is safe because coerceMap above would have failed already if k was not coerceable to WomString
-        case (k, v) => toWomString(k).get.value -> v
-      }
 
-      WomObject(coercedMap)
+      val mapToTry = js.fields map { case (key, value) => key -> WomAnyType.coerceRawValue(value) }
+      val mapOfTry = mapToTry map { kvp => kvp._2 map { kvp._1 -> _ } }
+      // The TryUtil exception is ignored, we only use it to tell whether it worked or not. We use handleCoercionFailures
+      // to compose the errors.
+      TryUtil.sequence(mapOfTry.toList) match {
+        case Success(map) => WomObject(map.toMap)
+        case Failure(_) => handleCoercionFailures(mapOfTry.toSeq: _*)
+      }
   }
 
   private def toWomString(v: WomValue) = WomStringType.coerceRawValue(v).map(_.asInstanceOf[WomString])
 
-  override def isCoerceableFrom(otherType: WomType) = otherType match {
+  override def typeSpecificIsCoerceableFrom(otherType: WomType) = otherType match {
     case WomObjectType => true
     case t: WomMapType if isMapTypeCoercable(t) => true
     case _ => false

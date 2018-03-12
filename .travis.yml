@@ -1,5 +1,6 @@
 sudo: required
 dist: trusty
+group: deprecated-2017Q4
 services:
   - docker
   - mysql
@@ -13,6 +14,7 @@ cache:
   branch: md5deep
   directories:
     - $HOME/.ivy2/cache
+    - $HOME/.coursier/cache
     - $HOME/.sbt/boot/
 before_cache:
   # Tricks to avoid unnecessary cache updates
@@ -33,7 +35,8 @@ env:
     - BUILD_TYPE=centaurJes
     - BUILD_TYPE=centaurLocal
     - BUILD_TYPE=centaurTes
-    - BUILD_TYPE=centaurCwlConformance
+    - BUILD_TYPE=centaurCwlConformanceLocal
+    - BUILD_TYPE=centaurCwlConformancePAPI
 script:
   - sudo apt-get install procps
   - pip install 'requests[security]'

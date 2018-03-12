@@ -1,14 +1,12 @@
 package wom.callable
 
-import wom.expression.WomExpression
 import wom.graph.GraphNode._
-import wom.graph.{Graph, TaskCallNode}
+import wom.graph.{CommandCallNode, Graph}
 
 final case class WorkflowDefinition(name: String,
                                     innerGraph: Graph,
                                     meta: Map[String, String],
-                                    parameterMeta: Map[String, String],
-                                    declarations: List[(String, WomExpression)]) extends ExecutableCallable {
+                                    parameterMeta: Map[String, String]) extends ExecutableCallable {
 
   override lazy val toString = s"[Workflow $name]"
   override val graph: Graph = innerGraph
@@ -18,7 +16,7 @@ final case class WorkflowDefinition(name: String,
   
   override lazy val outputs: List[_ <: Callable.OutputDefinition] = innerGraph.nodes.outputDefinitions.toList
 
-  override lazy val taskCallNodes: Set[TaskCallNode] = innerGraph.allNodes collect {
-    case taskNode: TaskCallNode => taskNode
+  override lazy val taskCallNodes: Set[CommandCallNode] = innerGraph.allNodes collect {
+    case taskNode: CommandCallNode => taskNode
   }
 }

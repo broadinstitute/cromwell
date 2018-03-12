@@ -13,7 +13,8 @@ import common.validation.ErrorOr._
 case class WorkflowQueryParameters private(statuses: Set[String],
                                            names: Set[String],
                                            ids: Set[WorkflowId],
-                                           labels: Set[Label],
+                                           labelsAnd: Set[Label],
+                                           labelsOr: Set[Label],
                                            startDate: Option[OffsetDateTime],
                                            endDate: Option[OffsetDateTime],
                                            page: Option[Int],
@@ -66,7 +67,8 @@ object WorkflowQueryParameters {
     val statusesValidation: ErrorOr[Set[String]] = Status.validate(valuesByCanonicalCapitalization).map(_.toSet)
     val namesValidation: ErrorOr[Set[String]] = Name.validate(valuesByCanonicalCapitalization).map(_.toSet)
     val workflowIdsValidation: ErrorOr[Set[WorkflowId]] = WorkflowQueryKey.Id.validate(valuesByCanonicalCapitalization).map(ids => (ids map WorkflowId.fromString).toSet)
-    val labelsValidation: ErrorOr[Set[Label]] = WorkflowQueryKey.LabelKeyValue.validate(valuesByCanonicalCapitalization).map(_.toSet)
+    val labelsAndValidation: ErrorOr[Set[Label]] = WorkflowQueryKey.LabelAndKeyValue.validate(valuesByCanonicalCapitalization).map(_.toSet)
+    val labelsOrValidation: ErrorOr[Set[Label]] = WorkflowQueryKey.LabelOrKeyValue.validate(valuesByCanonicalCapitalization).map(_.toSet)
     val pageValidation = Page.validate(valuesByCanonicalCapitalization)
     val pageSizeValidation = PageSize.validate(valuesByCanonicalCapitalization)
     val additionalQueryResultFieldsValidation: ErrorOr[Set[String]] = AdditionalQueryResultFields.validate(valuesByCanonicalCapitalization).map(_.toSet)
@@ -82,12 +84,17 @@ object WorkflowQueryParameters {
       statusesValidation,
       namesValidation,
       workflowIdsValidation,
-      labelsValidation,
+      labelsAndValidation,
+      labelsOrValidation,
       startDateValidation,
       endDateValidation,
       pageValidation,
       pageSizeValidation,
-      additionalQueryResultFieldsValidation) mapN { (_, _, statuses, names, ids, labels, startDate, endDate, page, pageSize, additionalQueryResultFields) => WorkflowQueryParameters(statuses, names, ids, labels, startDate, endDate, page, pageSize, additionalQueryResultFields) }
+      additionalQueryResultFieldsValidation
+    ) mapN {
+      (_, _, statuses, names, ids, labelsAnd, labelsOr, startDate, endDate, page, pageSize, additionalQueryResultFields) =>
+        WorkflowQueryParameters(statuses, names, ids, labelsAnd, labelsOr, startDate, endDate, page, pageSize, additionalQueryResultFields)
+    }
   }
 
   def apply(rawParameters: Seq[(String, String)]): WorkflowQueryParameters = {

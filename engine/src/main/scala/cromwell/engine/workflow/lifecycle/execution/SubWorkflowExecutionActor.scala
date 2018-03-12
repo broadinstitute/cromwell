@@ -8,6 +8,7 @@ import cromwell.core._
 import cromwell.core.logging.JobLogging
 import cromwell.engine.backend.{BackendConfiguration, BackendSingletonCollection}
 import cromwell.engine.workflow.WorkflowMetadataHelper
+import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.execution.SubWorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation.{CallPreparationFailed, Start}
@@ -16,7 +17,7 @@ import cromwell.engine.workflow.lifecycle.execution.job.preparation.SubWorkflowP
 import cromwell.engine.workflow.lifecycle.execution.keys.SubWorkflowKey
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.engine.workflow.workflowstore.StartableState
-import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
+import cromwell.engine.{EngineIoFunctions, EngineWorkflowDescriptor}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
@@ -24,7 +25,7 @@ import wom.values.WomEvaluatedCallInputs
 
 class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 parentWorkflow: EngineWorkflowDescriptor,
-                                expressionLanguageFunctions: WdlFunctions,
+                                expressionLanguageFunctions: EngineIoFunctions,
                                 factories: Map[String, BackendLifecycleActorFactory],
                                 ioActor: ActorRef,
                                 override val serviceRegistryActor: ActorRef,
@@ -75,7 +76,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     * subworkflow and would lead to memory leaks.
     */
   when(WaitingForValueStore) {
-    case Event(valueStore: ValueStore, SubWorkflowExecutionActorData(Some(subWorkflowId))) =>
+    case Event(valueStore: ValueStore, SubWorkflowExecutionActorData(Some(subWorkflowId), _)) =>
       prepareSubWorkflow(subWorkflowId, valueStore)
     case Event(_: ValueStore, _) =>
       context.parent ! SubWorkflowFailedResponse(key, Map.empty, new IllegalStateException(
@@ -86,8 +87,8 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   }
 
   when(SubWorkflowPreparingState) {
-    case Event(SubWorkflowPreparationSucceeded(subWorkflowEngineDescriptor, inputs), _) =>
-      startSubWorkflow(subWorkflowEngineDescriptor, inputs)
+    case Event(SubWorkflowPreparationSucceeded(subWorkflowEngineDescriptor, inputs), data) =>
+      startSubWorkflow(subWorkflowEngineDescriptor, inputs, data)
     case Event(failure: CallPreparationFailed, _) =>
       context.parent ! SubWorkflowFailedResponse(key, Map.empty, failure.throwable)
       context stop self
@@ -104,6 +105,9 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     case Event(WorkflowExecutionAbortedResponse(executedJobKeys), _) =>
       context.parent ! SubWorkflowAbortedResponse(key, executedJobKeys)
       goto(SubWorkflowAbortedState)
+    case Event(EngineLifecycleActorAbortCommand, SubWorkflowExecutionActorData(_, Some(actorRef))) =>
+      actorRef ! EngineLifecycleActorAbortCommand
+      stay()
   }
 
   when(SubWorkflowSucceededState) { FSM.NullFunction }
@@ -117,6 +121,9 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     case Event(SubWorkflowStoreFailure(command, reason), _) =>
       jobLogger.error(reason, s"SubWorkflowStore failure for command $command")
       stay()
+    case Event(EngineLifecycleActorAbortCommand, _) =>
+      context.parent ! SubWorkflowAbortedResponse(key, Map.empty)
+      goto(SubWorkflowAbortedState)
   }
 
   onTransition {
@@ -139,14 +146,14 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     case _ -> toState => eventList :+= ExecutionEvent(toState.toString)
   }
 
-  private def startSubWorkflow(subWorkflowEngineDescriptor: EngineWorkflowDescriptor, inputs: WomEvaluatedCallInputs) = {
+  private def startSubWorkflow(subWorkflowEngineDescriptor: EngineWorkflowDescriptor, inputs: WomEvaluatedCallInputs, data: SubWorkflowExecutionActorData) = {
     val subWorkflowActor = createSubWorkflowActor(subWorkflowEngineDescriptor)
 
     subWorkflowActor ! WorkflowExecutionActor.ExecuteWorkflowCommand
     context.parent ! JobRunning(key, inputs)
     pushWorkflowRunningMetadata(subWorkflowEngineDescriptor.backendDescriptor, inputs)
 
-    goto(SubWorkflowRunningState)
+    goto(SubWorkflowRunningState) using data.copy(subWorkflowActor = Option(subWorkflowActor))
   }
 
   private def prepareSubWorkflow(subWorkflowId: WorkflowId, valueStore: ValueStore) = {
@@ -154,12 +161,12 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     context.parent ! JobStarting(key)
     pushCurrentStateToMetadataService(subWorkflowId, WorkflowRunning)
     pushWorkflowStart(subWorkflowId)
-    goto(SubWorkflowPreparingState) using SubWorkflowExecutionActorData(Option(subWorkflowId))
+    goto(SubWorkflowPreparingState) using SubWorkflowExecutionActorData(Option(subWorkflowId), None)
   }
 
   private def requestValueStore(workflowId: WorkflowId) = {
     context.parent ! RequestValueStore
-    goto(WaitingForValueStore) using SubWorkflowExecutionActorData(Option(workflowId))
+    goto(WaitingForValueStore) using SubWorkflowExecutionActorData(Option(workflowId), None)
   }
 
   def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId) = {
@@ -271,16 +278,16 @@ object SubWorkflowExecutionActor {
   }
 
   object SubWorkflowExecutionActorData {
-    def empty = SubWorkflowExecutionActorData(None)
+    def empty = SubWorkflowExecutionActorData(None, None)
   }
-  case class SubWorkflowExecutionActorData(subWorkflowId: Option[WorkflowId])
+  case class SubWorkflowExecutionActorData(subWorkflowId: Option[WorkflowId], subWorkflowActor: Option[ActorRef])
 
   sealed trait EngineWorkflowExecutionActorCommand
   case object Execute
 
   def props(key: SubWorkflowKey,
             parentWorkflow: EngineWorkflowDescriptor,
-            expressionLanguageFunctions: WdlFunctions,
+            expressionLanguageFunctions: EngineIoFunctions,
             factories: Map[String, BackendLifecycleActorFactory],
             ioActor: ActorRef,
             serviceRegistryActor: ActorRef,

@@ -6,11 +6,22 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import better.files.File
 import cats.implicits._
+import common.Checked
+import common.transforms.CheckedAtoB
+import common.validation.Validation._
+import common.collections.EnhancedCollections._
 import cwl.CwlDecoder
+import cwl.preprocessor.CwlPreProcessor
 import spray.json.{JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsValue}
-import wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
-import wom.executable.Executable
+import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
+import wdl.draft3.transforms.wdlom2wom.{FileElementAndImportResolvers, fileElementToWomBundle}
+import wdl.draft3.transforms.ast2wdlom.astToFileElement
+import wdl.draft3.transforms.parsing.fileToAst
+import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomBundleMakers._
+import wom.callable.WorkflowDefinition
+import wom.executable.WomBundle
 import wom.graph._
+import wom.transforms.WomBundleMaker.ops._
 import wom.types._
 import womtool.graph.WomGraph._
 
@@ -60,7 +71,7 @@ class WomGraph(graphName: String, graph: Graph) {
       // Don't include the scatter expression input port here since they're added later in `internalScatterNodesAndLinks`
       // Round up the gathered output ports so it's obvious they're being gathered.
       s"""
-        |${combine((s.inputPorts -- s.scatterCollectionExpressionNode.inputPorts) map portLine)}
+        |${combine((s.inputPorts -- s.scatterCollectionExpressionNodes.flatMap(_.inputPorts)) map portLine)}
         |subgraph $nextCluster {
         |  style=${s.graphStyle};
         |  fillcolor=${s.graphFillColor}
@@ -144,6 +155,8 @@ class WomGraph(graphName: String, graph: Graph) {
 }
 
 object WomGraph {
+  
+  implicit val cwlPreProcessor = CwlPreProcessor.noLogging
 
   final case class WorkflowDigraph(workflowName: String, digraph: NodesAndLinks)
   final case class NodesAndLinks(nodes: Set[String], links: Set[String]) {
@@ -156,33 +169,43 @@ object WomGraph {
   }
 
   def fromFiles(mainFile: String, auxFiles: Seq[String]) = {
-    val womExecutable = if (mainFile.toLowerCase().endsWith("wdl")) womExecutableFromWdl(mainFile) else womExecutableFromCwl(mainFile)
-    new WomGraph(womExecutable.entryPoint.name, womExecutable.graph)
+    val graph = if (mainFile.toLowerCase().endsWith("wdl")) womExecutableFromWdl(mainFile) else womExecutableFromCwl(mainFile)
+    new WomGraph("workflow", graph)
   }
 
   private def readFile(filePath: String): String = Files.readAllLines(Paths.get(filePath)).asScala.mkString(System.lineSeparator())
 
-  private def womExecutableFromWdl(filePath: String): Executable = {
-    val namespace = WdlNamespaceWithWorkflow.load(readFile(filePath), Seq(WdlNamespace.fileResolver _)).get
-    // TODO: Remove this and the 'fakeInput' method with #2867
-    val fakedInputs = JsObject(namespace.workflow.inputs map { i => i._1 -> fakeInput(i._2.womType) })
+  private def womExecutableFromWdl(filePath: String): Graph = {
+    val workflowFileString = readFile(filePath)
 
-    namespace.womExecutable(Option(fakedInputs.prettyPrint)) match {
-      case Right(wom) => wom
-      case Left(e) => throw new Exception(s"Can't build WOM executable from WDL namespace: ${e.toList.mkString("\n", "\n", "\n")}")
+    val womBundle: Checked[WomBundle] = if (workflowFileString.trim.startsWith("version draft-3")) {
+      val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen astToFileElement.map(FileElementAndImportResolvers(_, List.empty)) andThen fileElementToWomBundle
+      converter.run(File(filePath))
+    } else {
+
+      WdlNamespaceWithWorkflow.load(readFile(filePath), Seq(WdlNamespace.fileResolver _)).toChecked.flatMap(_.toWomBundle(List.empty))
+    }
+
+    womBundle match {
+      case Right(wom) if (wom.callables.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).size == 1 => (wom.callables.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).head.graph
+      case Right(_) => throw new Exception("Can only 'wom graph' a WDL with exactly one workflow")
+      case Left(errors) =>
+        val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())
+        throw new Exception(s"Failed to create WOM: $formattedErrors")
     }
   }
 
-  private def womExecutableFromCwl(filePath: String): Executable = {
+  private def womExecutableFromCwl(filePath: String): Graph = {
+    import cwl.AcceptAllRequirements
     (for {
-      clt <- CwlDecoder.decodeAllCwl(File(filePath)).
+      clt <- CwlDecoder.decodeCwlFile(File(filePath)).
         value.
         unsafeRunSync
       inputs = clt.requiredInputs
       fakedInputs = JsObject(inputs map { i => i._1 -> fakeInput(i._2) })
-      wom <- clt.womExecutable(Option(fakedInputs.prettyPrint))
+      wom <- clt.womExecutable(AcceptAllRequirements, Option(fakedInputs.prettyPrint))
     } yield wom) match {
-      case Right(womExecutable) => womExecutable
+      case Right(womExecutable) => womExecutable.graph
       case Left(e) => throw new Exception(s"Can't build WOM executable from CWL: ${e.toList.mkString("\n", "\n", "\n")}")
     }
   }
@@ -190,7 +213,8 @@ object WomGraph {
   def fakeInput(womType: WomType): JsValue = womType match {
     case WomStringType => JsString("hio")
     case WomIntegerType | WomFloatType => JsNumber(25)
-    case WomFileType => JsString("gs://bucket/path/file.txt")
+    case WomUnlistedDirectoryType => JsString("gs://bucket/path")
+    case WomSingleFileType => JsString("gs://bucket/path/file.txt")
     case WomBooleanType => JsBoolean(true)
     case _: WomOptionalType => JsNull
     case WomMapType(_, valueType) => JsObject(Map("0" -> fakeInput(valueType)))

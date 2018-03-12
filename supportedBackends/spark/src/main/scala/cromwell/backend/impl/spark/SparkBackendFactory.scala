@@ -6,11 +6,13 @@ import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
 import cromwell.core.CallContext
 import wom.expression.IoFunctionSet
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
+
+import scala.concurrent.ExecutionContext
 
 case class SparkBackendFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor) extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef,
-                                                calls: Set[TaskCallNode], serviceRegistryActor: ActorRef, restarting: Boolean): Option[Props] = {
+                                                calls: Set[CommandCallNode], serviceRegistryActor: ActorRef, restarting: Boolean): Option[Props] = {
     Option(SparkInitializationActor.props(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor))
   }
 
@@ -19,18 +21,19 @@ case class SparkBackendFactory(name: String, configurationDescriptor: BackendCon
                                       serviceRegistryActor: ActorRef,
                                       ioActor: ActorRef,
                                       backendSingletonActor: Option[ActorRef]): Props = {
-    SparkJobExecutionActor.props(jobDescriptor, configurationDescriptor)
+    SparkJobExecutionActor.props(jobDescriptor, configurationDescriptor, ioActor)
   }
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor, jobKey: BackendJobDescriptorKey,
-                                           initializationData: Option[BackendInitializationData]): IoFunctionSet = {
+                                           initializationData: Option[BackendInitializationData],
+                                           ioActorProxy: ActorRef,
+                                           ec: ExecutionContext): IoFunctionSet = {
     val jobPaths = JobPathsWithDocker(jobKey, workflowDescriptor, configurationDescriptor.backendConfig)
     val callContext = CallContext(
       jobPaths.callExecutionRoot,
-      jobPaths.stdout.toAbsolutePath.toString,
-      jobPaths.stderr.toAbsolutePath.toString
+      jobPaths.standardPaths
     )
 
-    new SharedFileSystemExpressionFunctions(SparkJobExecutionActor.DefaultPathBuilders, callContext)
+    new SharedFileSystemExpressionFunctions(SparkJobExecutionActor.DefaultPathBuilders, callContext, ioActorProxy, ec)
   }
 }

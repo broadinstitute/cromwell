@@ -1,7 +1,7 @@
 package cromwell.backend
 
-import _root_.wdl._
-import cromwell.core.{NoIoFunctionSet, WorkflowOptions}
+import _root_.wdl.draft2.model._
+import cromwell.core.WorkflowOptions
 import cromwell.util.JsonFormatting.WomValueJsonFormatter
 import common.validation.ErrorOr.ErrorOr
 import wom.callable.Callable.InputDefinition
@@ -25,7 +25,7 @@ object RuntimeAttributeDefinition {
                                 evaluatedInputs: Map[InputDefinition, WomValue]): ErrorOr[Map[String, WomValue]] = {
     import common.validation.ErrorOr._
     val inputsMap = evaluatedInputs map { case (x, y) => x.name -> y }
-    unevaluated.attributes.traverseValues(_.evaluateValue(inputsMap, NoIoFunctionSet))
+    unevaluated.attributes.traverseValues(_.evaluateValue(inputsMap, wdlFunctions))
   }
 
   def buildMapBasedLookup(evaluatedDeclarations: Map[InputDefinition, Try[WomValue]])(identifier: String): WomValue = {

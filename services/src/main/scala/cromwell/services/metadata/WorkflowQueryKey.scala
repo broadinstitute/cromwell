@@ -15,7 +15,18 @@ import mouse.boolean._
 import scala.util.{Success, Try}
 
 object WorkflowQueryKey {
-  val ValidKeys = Set(StartDate, EndDate, Name, Id, Status, LabelKeyValue, Page, PageSize, AdditionalQueryResultFields) map { _.name }
+  val ValidKeys = Set(
+    StartDate,
+    EndDate,
+    Name,
+    Id,
+    Status,
+    LabelAndKeyValue,
+    LabelOrKeyValue,
+    Page,
+    PageSize,
+    AdditionalQueryResultFields
+  ) map { _.name }
 
   case object StartDate extends DateTimeWorkflowQueryKey {
     override val name = "Start"
@@ -50,21 +61,28 @@ object WorkflowQueryKey {
     }
   }
 
-  case object LabelKeyValue extends SeqWorkflowQueryKey[Label] {
-    override val name = "Label"
-
+  sealed trait LabelLikeKeyValue extends SeqWorkflowQueryKey[Label] {
     override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[List[Label]] = {
       val values = valuesFromMap(grouped).toList
 
       def validateLabelRegex(labelKeyValue: String): ErrorOr[Label] = {
         labelKeyValue.split("\\:", 2) match {
           case Array(k, v) => Label.validateLabel(k, v)
-          case other @ _ => s"$labelKeyValue".invalidNel
+          case _ => labelKeyValue.invalidNel
         }
       }
       val nels: List[ErrorOr[Label]] = values map validateLabelRegex
       sequenceListOfValidatedNels("Label values do not match allowed pattern label-key:label-value", nels)
     }
+  }
+
+
+  case object LabelAndKeyValue extends LabelLikeKeyValue {
+    override val name = "Label"
+  }
+
+  case object LabelOrKeyValue extends LabelLikeKeyValue {
+    override val name = "Labelor"
   }
 
   case object Id extends SeqWorkflowQueryKey[String] {
@@ -116,7 +134,7 @@ sealed trait WorkflowQueryKey[T] {
 sealed trait DateTimeWorkflowQueryKey extends WorkflowQueryKey[Option[OffsetDateTime]] {
   override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Option[OffsetDateTime]] = {
     valuesFromMap(grouped) match {
-      case vs if vs.size > 1 =>
+      case vs if vs.lengthCompare(1) > 0 =>
         s"Found ${vs.size} values for key '$name' but at most one is allowed.".invalidNel[Option[OffsetDateTime]]
       case Nil => None.validNel[String]
       case v :: Nil =>
@@ -142,7 +160,7 @@ sealed trait SeqWorkflowQueryKey[A] extends WorkflowQueryKey[Seq[A]] {
 sealed trait IntWorkflowQueryKey extends WorkflowQueryKey[Option[Int]] {
   override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Option[Int]] = {
     valuesFromMap(grouped) match {
-      case vs if vs.size > 1 =>
+      case vs if vs.lengthCompare(1) > 0 =>
         s"Found ${vs.size} values for key '$name' but at most one is allowed.".invalidNel[Option[Int]]
       case Nil => None.validNel
       case v :: Nil =>

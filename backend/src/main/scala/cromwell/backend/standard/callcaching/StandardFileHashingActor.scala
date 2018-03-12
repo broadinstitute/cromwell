@@ -2,10 +2,10 @@ package cromwell.backend.standard.callcaching
 
 import java.util.concurrent.TimeoutException
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor.{Actor, ActorLogging, ActorRef, Timers}
 import akka.event.LoggingAdapter
 import cromwell.backend.standard.StandardCachingActorHelper
-import cromwell.backend.standard.callcaching.StandardFileHashingActor.{FileHashResponse, SingleFileHashRequest}
+import cromwell.backend.standard.callcaching.StandardFileHashingActor._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor}
 import cromwell.core.JobKey
 import cromwell.core.callcaching._
@@ -42,7 +42,9 @@ case class DefaultStandardFileHashingActorParams
 
 case class FileHashContext(hashKey: HashKey, file: String)
 
-class DefaultStandardFileHashingActor(standardParams: StandardFileHashingActorParams) extends StandardFileHashingActor(standardParams) with DefaultIoCommandBuilder
+class DefaultStandardFileHashingActor(standardParams: StandardFileHashingActorParams) extends StandardFileHashingActor(standardParams) {
+  override val ioCommandBuilder = DefaultIoCommandBuilder
+}
 
 object StandardFileHashingActor {
   case class FileHashingFunction(work: (SingleFileHashRequest, LoggingAdapter) => Try[String])
@@ -54,16 +56,23 @@ object StandardFileHashingActor {
   case class FileHashResponse(hashResult: HashResult) extends BackendSpecificHasherResponse { override def hashes = Set(hashResult) }
 }
 
-abstract class StandardFileHashingActor(standardParams: StandardFileHashingActorParams) extends Actor with ActorLogging with JobLogging with IoClientHelper with StandardCachingActorHelper {
-  this: IoCommandBuilder =>
+abstract class StandardFileHashingActor(standardParams: StandardFileHashingActorParams)
+  extends Actor
+    with ActorLogging
+    with JobLogging
+    with IoClientHelper
+    with StandardCachingActorHelper
+    with Timers {
   override lazy val ioActor = standardParams.ioActor
   override lazy val jobDescriptor: BackendJobDescriptor = standardParams.jobDescriptor
   override lazy val backendInitializationDataOption: Option[BackendInitializationData] = standardParams.backendInitializationDataOption
   override lazy val serviceRegistryActor: ActorRef = standardParams.serviceRegistryActor
   override lazy val configurationDescriptor: BackendConfigurationDescriptor = standardParams.configurationDescriptor
 
-  def customHashStrategy(fileRequest: SingleFileHashRequest): Option[Try[String]] = None
+  protected def ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
 
+  def customHashStrategy(fileRequest: SingleFileHashRequest): Option[Try[String]] = None
+  
   def fileHashingReceive: Receive = {
     // Hash Request
     case fileRequest: SingleFileHashRequest =>
@@ -89,7 +98,7 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
     val fileAsString = fileRequest.file.value
     val ioHashCommandTry = Try {
       val gcsPath = getPath(fileAsString).get
-      hashCommand(gcsPath)
+      ioCommandBuilder.hashCommand(gcsPath)
     }
 
     ioHashCommandTry match {
@@ -98,9 +107,9 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
     }
   }
 
-  override def receive: Receive = ioReceive orElse fileHashingReceive
+  override def receive: Receive = ioReceive orElse fileHashingReceive 
 
-  protected def onTimeout(message: Any, to: ActorRef): Unit = {
+  override protected def onTimeout(message: Any, to: ActorRef): Unit = {
     message match {
       case (_, ioHashCommand: IoHashCommand) =>
         val fileAsString = ioHashCommand.file.pathAsString

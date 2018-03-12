@@ -1,13 +1,14 @@
 package cromwell.engine.instrumentation
 
+import akka.actor.Actor
 import cats.data.NonEmptyList
+import cromwell.core.instrumentation.InstrumentationKeys._
+import cromwell.core.instrumentation.InstrumentationPrefixes._
 import cromwell.core.io._
-import cromwell.engine.instrumentation.InstrumentationPrefixes._
 import cromwell.engine.io.IoActor.IoResult
 import cromwell.filesystems.gcs.{GcsPath, GoogleUtil}
-import cromwell.core.instrumentation.InstrumentationKeys._
-import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.instrumentation.CromwellInstrumentation._
+import cromwell.services.instrumentation.CromwellInstrumentationActor
 
 /**
   * Implicit methods to help convert Io objects to metric values
@@ -16,6 +17,8 @@ private object IoInstrumentationImplicits {
   val LocalPath = NonEmptyList.of("local")
   val GcsPath = NonEmptyList.of("gcs")
   val UnknownFileSystemPath = NonEmptyList.of("unknown")
+
+  val backpressure = NonEmptyList.of("backpressure")
 
   /**
     * Augments IoResult to provide instrumentation conversion methods
@@ -77,7 +80,7 @@ private object IoInstrumentationImplicits {
 /**
   * Helper methods for Io instrumentation
   */
-trait IoInstrumentation extends CromwellInstrumentation {
+trait IoInstrumentation extends CromwellInstrumentationActor { this: Actor =>
   import IoInstrumentationImplicits._
 
   /**
@@ -89,6 +92,8 @@ trait IoInstrumentation extends CromwellInstrumentation {
     * Increment an IoResult to the proper bucket depending on the request type and the result (success or failure).
     */
   final def incrementIoResult(ioResult: IoResult): Unit = incrementIo(ioResult.toPath)
+
+  final def incrementBackpressure(): Unit = incrementIo(backpressure)
 
   /**
     * Increment an IoCommand to the proper bucket depending on the request type.

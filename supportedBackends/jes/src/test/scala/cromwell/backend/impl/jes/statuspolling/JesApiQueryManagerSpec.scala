@@ -5,7 +5,7 @@ import akka.testkit.{TestActorRef, TestProbe, _}
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.RunPipelineRequest
 import cromwell.backend.BackendSingletonActorAbortWorkflow
-import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesApiRunCreationQueryFailed, JesRunCreationQuery, JesStatusPollQuery}
+import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesApiRunCreationQueryFailed, PAPIRunCreationRequest, PAPIStatusPollRequest}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManagerSpec._
 import cromwell.backend.impl.jes.{JesConfiguration, Run}
 import cromwell.backend.standard.StandardAsyncJob
@@ -60,7 +60,7 @@ class JesApiQueryManagerSpec extends TestKitSuite("JesApiQueryManagerSpec") with
           val zippedWithRequesters = workBatch.toList.zip(requesters)
           zippedWithRequesters foreach { case (pollQuery, (index, testProbe)) =>
             pollQuery.requester should be(testProbe.ref)
-            pollQuery.asInstanceOf[JesStatusPollQuery].run.job should be(StandardAsyncJob(index.toString))
+            pollQuery.asInstanceOf[PAPIStatusPollRequest].run.job should be(StandardAsyncJob(index.toString))
           }
         case other => fail(s"Unexpected message: $other")
       }
@@ -161,7 +161,7 @@ class JesApiQueryManagerSpec extends TestKitSuite("JesApiQueryManagerSpec") with
     // It should remove all and only run requests for workflow A 
     eventually {
       jaqmActor.underlyingActor.queueSize shouldBe 1
-      jaqmActor.underlyingActor.workQueue.head.asInstanceOf[JesApiQueryManager.JesRunCreationQuery].workflowId shouldBe workflowIdB
+      jaqmActor.underlyingActor.workQueue.head.asInstanceOf[JesApiQueryManager.PAPIRunCreationRequest].workflowId shouldBe workflowIdB
     }
   }
 }
@@ -176,7 +176,7 @@ object JesApiQueryManagerSpec {
 /**
   * This test class allows us to hook into the JesApiQueryManager's makeStatusPoller and provide our own TestProbes instead
   */
-class TestJesApiQueryManager(qps: Int Refined Positive, createRequestSize: Long, registry: ActorRef, statusPollerProbes: ActorRef*) extends JesApiQueryManager(qps, registry) {
+class TestJesApiQueryManager(qps: Int Refined Positive, requestWorkers: Int Refined Positive, createRequestSize: Long, registry: ActorRef, statusPollerProbes: ActorRef*) extends JesApiQueryManager(qps, requestWorkers, registry) {
   var testProbes: Queue[ActorRef] = _
   var testPollerCreations: Int = _
 
@@ -184,15 +184,22 @@ class TestJesApiQueryManager(qps: Int Refined Positive, createRequestSize: Long,
     testProbes = Queue(statusPollerProbes: _*)
     testPollerCreations = 0
   }
+  
+  override private[statuspolling] lazy val nbWorkers = 1
+  override private[statuspolling] def resetAllWorkers() = {
+    val pollers = Vector.fill(1) { makeWorkerActor() }
+    pollers.foreach(context.watch)
+    pollers
+  }
 
   override private[statuspolling] def makeCreateQuery(workflowId: WorkflowId, replyTo: ActorRef, genomics: Genomics, rpr: RunPipelineRequest) = {
-    new JesRunCreationQuery(workflowId, replyTo, genomics, rpr) {
+    new PAPIRunCreationRequest(workflowId, replyTo, genomics, rpr) {
       override def contentLength = createRequestSize
     }
   }
 
   override private[statuspolling] def makePollQuery(workflowId: WorkflowId, replyTo: ActorRef, run: Run) = {
-    new JesStatusPollQuery(workflowId, replyTo, run) {
+    new PAPIStatusPollRequest(workflowId, replyTo, run) {
       override def contentLength = 0
     }
   }
@@ -213,12 +220,12 @@ class TestJesApiQueryManager(qps: Int Refined Positive, createRequestSize: Long,
   }
 
   def queueSize = workQueue.size
-  def statusPollerEquals(otherStatusPoller: ActorRef) = statusPoller == otherStatusPoller
+  def statusPollerEquals(otherStatusPoller: ActorRef) = statusPollers sameElements Array(otherStatusPoller)
 }
 
 object TestJesApiQueryManager {
   import cromwell.backend.impl.jes.JesTestConfig.JesBackendConfigurationDescriptor
   val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
 
-  def props(createRequestSize: Long, registryProbe: ActorRef, statusPollers: ActorRef*): Props = Props(new TestJesApiQueryManager(jesConfiguration.qps, createRequestSize, registryProbe, statusPollers: _*))
+  def props(createRequestSize: Long, registryProbe: ActorRef, statusPollers: ActorRef*): Props = Props(new TestJesApiQueryManager(jesConfiguration.qps, jesConfiguration.papiRequestWorkers, createRequestSize, registryProbe, statusPollers: _*))
 }

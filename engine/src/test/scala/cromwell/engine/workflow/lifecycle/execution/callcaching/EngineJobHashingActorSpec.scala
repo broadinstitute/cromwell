@@ -1,7 +1,9 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
+import wdl.draft2.model.command.StringCommandPart
 import akka.actor.{Actor, ActorRef, Props}
 import akka.testkit.{TestActorRef, TestProbe}
+import cats.syntax.validated._
 import cromwell.backend._
 import cromwell.core._
 import cromwell.core.callcaching._
@@ -13,7 +15,6 @@ import cromwell.util.WomMocks
 import org.scalatest.concurrent.Eventually
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
-import _root_.wdl.command.StringCommandPart
 import wom.core.LocallyQualifiedName
 import wom.graph.WomIdentifier
 import wom.values.WomValue
@@ -23,7 +24,7 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
 
   def templateJobDescriptor(inputs: Map[LocallyQualifiedName, WomValue] = Map.empty) = {
     val task = WomMocks.mockTaskDefinition("hello").copy(
-      commandTemplate = List(StringCommandPart("Do the stuff... now!!"))
+      commandTemplateBuilder = Function.const(List(StringCommandPart("Do the stuff... now!!")).validNel)
     )
     val call = WomMocks.mockTaskCall(WomIdentifier("hello", "workflow.hello")).copy(callable = task)
     val workflowDescriptor = mock[BackendWorkflowDescriptor]

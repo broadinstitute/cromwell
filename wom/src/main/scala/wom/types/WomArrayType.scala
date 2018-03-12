@@ -3,10 +3,10 @@ package wom.types
 import common.util.TryUtil
 import spray.json.JsArray
 import wom.values.WomArray.WomArrayLike
-import wom.values.{WomArray, WomFile, WomString, WomValue}
+import wom.values.{WomArray, WomSingleFile, WomString, WomValue}
 
 import scala.collection.JavaConverters._
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 sealed trait WomArrayType extends WomType {
 
@@ -26,9 +26,12 @@ sealed trait WomArrayType extends WomType {
     case js: JsArray if allowEmpty || js.elements.nonEmpty => coerceIterable(js.elements)
     case javaList: java.util.List[_] if allowEmpty || !javaList.isEmpty => coerceIterable(javaList.asScala)
     case WomArray(WomMaybeEmptyArrayType.EmptyArrayType, _) => WomArray(this, Seq.empty)
-    case womArray: WomArray if (allowEmpty || womArray.nonEmpty) && womArray.womType.memberType == WomStringType && memberType == WomFileType =>
-      WomArray(WomArrayType(WomFileType, guaranteedNonEmpty), womArray.value.map(str => WomFile(str.asInstanceOf[WomString].value)).toList)
-    case womArray: WomArray if (allowEmpty || womArray.nonEmpty) && womArray.womType.memberType == memberType => womArray
+    case womArray: WomArray
+      if (allowEmpty || womArray.nonEmpty)
+        && womArray.womType.memberType == WomStringType
+        && memberType == WomSingleFileType =>
+      WomArray(this, womArray.value.map(str => WomSingleFile(str.asInstanceOf[WomString].value)).toList)
+    case womArray: WomArray if (allowEmpty || womArray.nonEmpty) && womArray.womType.memberType == memberType => WomArray(this, womArray.value)
     case womArray: WomArray if (allowEmpty || womArray.nonEmpty) && womArray.womType.memberType == WomAnyType => coerceIterable(womArray.value)
     case womArray: WomArray if (allowEmpty || womArray.nonEmpty) && womArray.womType.memberType.isInstanceOf[WomArrayType] && memberType.isInstanceOf[WomArrayType] =>
       TryUtil.sequence(womArray.value.map(memberType.coerceRawValue)) match {
@@ -45,7 +48,7 @@ sealed trait WomArrayType extends WomType {
       }
   }
 
-  override def isCoerceableFrom(otherType: WomType): Boolean = otherType match {
+  override def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = otherType match {
     case WomArrayType(otherMemberType) => memberType.isCoerceableFrom(otherMemberType) || otherMemberType == WomNothingType
     case mapType: WomMapType => isCoerceableFrom(mapType.equivalentArrayType)
     case _ => false
@@ -57,6 +60,11 @@ sealed trait WomArrayType extends WomType {
 case class WomMaybeEmptyArrayType(memberType: WomType) extends WomArrayType {
   override val toDisplayString: String = s"Array[${memberType.toDisplayString}]"
   override val guaranteedNonEmpty = false
+
+  override def equalsType(rhs: WomType): Try[WomType] = rhs match {
+    case WomMaybeEmptyArrayType(`memberType`) => Success(WomBooleanType)
+    case _ => Failure(new RuntimeException(s"type $rhs was incompatible with $this"))
+  }
 }
 
 object WomMaybeEmptyArrayType {
@@ -66,6 +74,11 @@ object WomMaybeEmptyArrayType {
 case class WomNonEmptyArrayType(memberType: WomType) extends WomArrayType {
   override val toDisplayString: String = s"Array[${memberType.toDisplayString}]+"
   override val guaranteedNonEmpty = true
+
+  override def equalsType(rhs: WomType): Try[WomType] = rhs match {
+    case WomNonEmptyArrayType(`memberType`) => Success(WomBooleanType)
+    case _ => Failure(new RuntimeException(s"type $rhs was incompatible with $this"))
+  }
 }
 
 object WomArrayType {

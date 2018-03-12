@@ -13,8 +13,10 @@ object RunToEmbeddedCwl extends Poly1 {
 
   implicit def string = at[String] {
     fileName =>
-      (cwlMap: Map[String, Cwl]) =>
-        cwlMap(fileName).fold(CwlToRun)
+      (cwlMap: Map[String, Cwl]) => {
+        val cwl = cwlMap(fileName)
+        cwl.fold(CwlToRun)
+      }
   }
 
 

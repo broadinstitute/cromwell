@@ -9,7 +9,7 @@ import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpRequest
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.Operation
-import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesApiException, JesApiQueryFailed, JesStatusPollQuery, RequestJesPollingWork}
+import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{PAPIApiException, PAPIApiRequestFailed, PAPIStatusPollRequest, RequestJesPollingWork}
 import cromwell.backend.impl.jes.statuspolling.TestJesPollingActor.{CallbackFailure, CallbackSuccess, JesBatchCallbackResponse}
 import cromwell.backend.impl.jes.{JesConfiguration, Run, RunStatus}
 import cromwell.core.{ExecutionEvent, TestKitSuite}
@@ -41,8 +41,8 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
 
   it should "correctly calculate batch intervals" in {
     import eu.timepit.refined.auto._
-    JesPollingActor.determineBatchInterval(10) should be(11.seconds)
-    JesPollingActor.determineBatchInterval(100000) shouldBe 1.seconds
+    JesApiQueryManager.determineBatchInterval(10) should be(11111.milliseconds)
+    JesApiQueryManager.determineBatchInterval(100000) shouldBe 1.millisecond
   }
 
   it should "query for work and wait for a reply" in {
@@ -54,11 +54,11 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
     managerProbe.expectMsgClass(max = TestExecutionTimeout, c = classOf[JesApiQueryManager.RequestJesPollingWork])
 
     val requester1 = TestProbe()
-    val query1 = JesStatusPollQuery(null, requester1.ref, Run(null, null))
+    val query1 = PAPIStatusPollRequest(null, requester1.ref, Run(null, null))
     val requester2 = TestProbe()
-    val query2 = JesStatusPollQuery(null, requester2.ref, Run(null, null))
+    val query2 = PAPIStatusPollRequest(null, requester2.ref, Run(null, null))
     val requester3 = TestProbe()
-    val query3 = JesStatusPollQuery(null, requester3.ref, Run(null, null))
+    val query3 = PAPIStatusPollRequest(null, requester3.ref, Run(null, null))
 
     // For two requests the callback succeeds (first with RunStatus.Success, then RunStatus.Failed). The third callback fails (simulating a network timeout, for example):
     jpActor.underlyingActor.callbackResponses :+= CallbackSuccess
@@ -66,7 +66,7 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
     jpActor.underlyingActor.callbackResponses :+= CallbackFailure
 
     val successStatus = RunStatus.Success(Seq.empty[ExecutionEvent], None, None, None)
-    val failureStatus = RunStatus.UnsuccessfulRunStatus(Status.UNIMPLEMENTED, Option.empty[String], Seq.empty[ExecutionEvent], None, None, None)
+    val failureStatus = RunStatus.UnsuccessfulRunStatus(Status.UNIMPLEMENTED, Option.empty[String], Seq.empty[ExecutionEvent], None, None, None, false)
     jpActor.underlyingActor.operationStatusResponses :+= successStatus
     jpActor.underlyingActor.operationStatusResponses :+= failureStatus
 
@@ -86,8 +86,8 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
 
     // Requester3 expected nothing... Instead, the manager expects an API failure notification and then a request for more work:
     managerProbe.expectMsgPF(TestExecutionTimeout) {
-      case failure: JesApiQueryFailed =>
-        if (!failure.cause.isInstanceOf[JesApiException]) fail("Unexpected failure cause class: " + failure.cause.getClass.getSimpleName)
+      case failure: PAPIApiRequestFailed =>
+        if (!failure.cause.isInstanceOf[PAPIApiException]) fail("Unexpected failure cause class: " + failure.cause.getClass.getSimpleName)
         if (failure.query != query2 && failure.query != query3) fail("Unexpected query caused failure: " + failure.query)
     }
     managerProbe.expectMsg(RequestJesPollingWork(JesPollingActor.MaxBatchSize))
@@ -106,9 +106,7 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
   * - Mocks out the methods which actually call out to JES, and allows the callbacks to be triggered in a testable way
   * - Also waits a **lot** less time before polls!
   */
-class TestJesPollingActor(manager: ActorRef, qps: Int Refined Positive, registryProbe: ActorRef) extends JesPollingActor(manager, qps, registryProbe) with Mockito {
-
-  override lazy val batchInterval = 10.milliseconds
+class TestJesPollingActor(manager: ActorRef, qps: Int Refined Positive, registryProbe: ActorRef) extends JesPollingActor(manager, 10.milliseconds, registryProbe) with Mockito {
 
   var operationStatusResponses: Queue[RunStatus] = Queue.empty
   var resultHandlers: Queue[JsonBatchCallback[Operation]] = Queue.empty
@@ -127,7 +125,7 @@ class TestJesPollingActor(manager: ActorRef, qps: Int Refined Positive, registry
     }}
   }
 
-  override private [statuspolling] def enqueueStatusPollInBatch(pollingRequest: JesStatusPollQuery, batch: BatchRequest): Future[Try[Unit]] = {
+  override private [statuspolling] def enqueueStatusPollInBatch(pollingRequest: PAPIStatusPollRequest, batch: BatchRequest): Future[Try[Unit]] = {
     val completionPromise = Promise[Try[Unit]]()
     val resultHandler = statusPollResultHandler(pollingRequest, completionPromise)
     addStatusPollToBatch(null, batch, resultHandler)

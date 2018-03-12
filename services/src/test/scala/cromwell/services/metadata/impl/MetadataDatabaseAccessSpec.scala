@@ -23,6 +23,7 @@ object MetadataDatabaseAccessSpec {
 
   val Workflow1Name = "test1"
   val Workflow2Name = "test2"
+  val Workflow3Name = "test3"
 }
 
 class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
@@ -93,7 +94,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         }
       } yield()).futureValue
     }
-    
+
     it should "sort metadata events by timestamp from older to newer" taggedAs DbmsTest in {
       def unorderedEvents(id: WorkflowId): Future[Vector[MetadataEvent]] = {
         val workflowKey = MetadataKey(id, jobKey = None, key = null)
@@ -111,7 +112,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         
         dataAccess.addMetadataEvents(events) map { _ => expectedEvents }
       }
-      
+
       (for {
         workflow1Id <- baseWorkflowMetadata(Workflow1Name)
         expected <- unorderedEvents(workflow1Id)
@@ -216,19 +217,33 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
           val resultsByStatus = response.results groupBy (_.status)
           resultsByStatus.keys.toSet.flatten should equal(Set("Submitted", "Succeeded"))
         }
-        // Filter by label
+        // Filter by label using AND
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
-          WorkflowQueryKey.LabelKeyValue.name -> s"${testLabel2.key}:${testLabel2.value}"))) map { case (response, _) =>
+          WorkflowQueryKey.LabelAndKeyValue.name -> s"${testLabel2.key}:${testLabel2.value}"))) map { case (response, _) =>
           val resultByName = response.results groupBy (_.name)
           resultByName.keys.toSet.flatten should equal(Set(Workflow1Name, Workflow2Name))
         }
-        // Filter by multiple labels
+        // Filter by multiple labels using AND
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(
           Seq(testLabel2, testLabel3)
-            .map(label => WorkflowQueryKey.LabelKeyValue.name -> s"${label.key}:${label.value}"))
+            .map(label => WorkflowQueryKey.LabelAndKeyValue.name -> s"${label.key}:${label.value}"))
         ) map { case (response, _) =>
           val resultByName = response.results groupBy (_.name)
           resultByName.keys.toSet.flatten should equal(Set(Workflow2Name))
+        }
+        // Filter by label using OR
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
+          WorkflowQueryKey.LabelOrKeyValue.name -> s"${testLabel2.key}:${testLabel2.value}"))) map { case (response, _) =>
+          val resultByName = response.results groupBy (_.name)
+          resultByName.keys.toSet.flatten should equal(Set(Workflow1Name, Workflow2Name))
+        }
+        // Filter by multiple labels using OR
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(
+          Seq(testLabel2, testLabel3)
+            .map(label => WorkflowQueryKey.LabelOrKeyValue.name -> s"${label.key}:${label.value}"))
+        ) map { case (response, _) =>
+          val resultByName = response.results groupBy (_.name)
+          resultByName.keys.toSet.flatten should equal(Set(Workflow1Name, Workflow2Name))
         }
         // Filter by start date
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
@@ -247,6 +262,29 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
           }
         }
       } yield ()).futureValue(Timeout(scaled(Span(30, Seconds))), Interval(scaled(Span(500, Millis))))
+    }
+
+    it should "return totalResultsCount when page and pagesize query params are specified" taggedAs DbmsTest in {
+      val uniqueWorkflow3Name = s"${Workflow3Name}_${WorkflowId.randomId()}".filterNot(_ == '-')
+      (for {
+        _ <- baseWorkflowMetadata(uniqueWorkflow3Name)
+        _ <- baseWorkflowMetadata(uniqueWorkflow3Name)
+        // refresh the metadata
+        _ <- dataAccess.refreshWorkflowMetadataSummaries() map { max =>
+          max should be > 0L
+        }
+        //get totalResultsCount when page and pagesize are specified
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
+          // name being added to the query parameters so as to exclude workflows being populated by the other tests in this spec
+          WorkflowQueryKey.Name.name -> uniqueWorkflow3Name,
+          WorkflowQueryKey.Page.name -> "1", WorkflowQueryKey.PageSize.name -> "1"))) map { case (resp, _) =>
+          resp.totalResultsCount match {
+            case 2 =>
+            case 1 => fail("totalResultsCount is suspiciously equal to the pageSize and not the expected total results count. Please fix!")
+            case other => fail(s"totalResultsCount is expected to be 2 but is actually $other. Something has gone horribly wrong!")
+          }
+        }
+      } yield()).futureValue
     }
 
     it should "close the database" taggedAs DbmsTest in {

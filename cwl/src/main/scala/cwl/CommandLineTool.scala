@@ -1,147 +1,338 @@
 package cwl
 
-import java.nio.file.Paths
-
+import cats.data.Validated.{Invalid, Valid}
+import cats.data.{NonEmptyList, OptionT}
+import cats.syntax.traverse._
+import cats.syntax.validated._
 import common.Checked
+import common.validation.ErrorOr._
+import cwl.CommandLineTool._
+import cwl.CwlVersion._
+import cwl.command.ParentName
+import io.circe.Json
 import shapeless.syntax.singleton._
-import shapeless.{:+:, CNil, Coproduct, Witness}
-import CommandLineTool._
-import CwlType.CwlType
-import CwlVersion._
-import eu.timepit.refined.W
-import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition, RequiredInputDefinition}
-import wom.callable.{Callable, CallableTaskDefinition, ExecutableTaskDefinition}
-import wom.executable.Executable
-import wom.expression.{ValueAsAnExpression, WomExpression}
-import wom.types.WomFileType
+import shapeless.{:+:, CNil, Coproduct, Poly1, Witness}
+import wom.callable.CommandTaskDefinition.{EvaluatedOutputs, OutputFunctionResponse}
+import wom.callable.{Callable, CallableTaskDefinition, ContainerizedInputExpression}
+import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}
+import wom.graph.GraphNodePort.OutputPort
+import wom.types.{WomOptionalType, WomStringType}
+import wom.values.{WomEvaluatedCallInputs, WomGlobFile, WomString, WomValue}
 import wom.{CommandPart, RuntimeAttributes}
 
-import scala.util.Try
+import scala.concurrent.ExecutionContext
+import scala.math.Ordering
 
 /**
   * @param `class` This _should_ always be "CommandLineTool," however the spec does not -er- specify this.
   */
 case class CommandLineTool private(
-                                   inputs: Array[CommandInputParameter],
-                                   outputs: Array[CommandOutputParameter],
-                                   `class`: Witness.`"CommandLineTool"`.T,
-                                   id: String,
-                                   requirements: Option[Array[Requirement]],
+                                    inputs: Array[CommandInputParameter],
+                                    outputs: Array[CommandOutputParameter],
+                                    `class`: Witness.`"CommandLineTool"`.T,
+                                    id: String,
+                                    requirements: Option[Array[Requirement]],
+                                    hints: Option[Array[Hint]],
+                                    label: Option[String],
+                                    doc: Option[String],
+                                    cwlVersion: Option[CwlVersion],
+                                    baseCommand: Option[BaseCommand],
+                                    arguments: Option[Array[CommandLineTool.Argument]],
+                                    stdin: Option[StringOrExpression],
+                                    stderr: Option[StringOrExpression],
+                                    stdout: Option[StringOrExpression],
+                                    successCodes: Option[Array[Int]],
+                                    temporaryFailCodes: Option[Array[Int]],
+                                    permanentFailCodes: Option[Array[Int]]) extends Tool {
 
-                                   //TODO: Fix this when CwlAny parses correctly
-                                   //hints: Option[Array[CwlAny]] = None,
-                                   hints: Option[Array[Map[String, String]]],
+  def asCwl: Cwl = Coproduct[Cwl](this)
 
-                                   label: Option[String],
-                                   doc: Option[String],
-                                   cwlVersion: Option[CwlVersion],
-                                   baseCommand: Option[BaseCommand],
-                                   arguments: Option[Array[CommandLineTool.Argument]],
-                                   stdin: Option[StringOrExpression],
-                                   stderr: Option[StringOrExpression],
-                                   stdout: Option[StringOrExpression],
-                                   successCodes: Option[Array[Int]],
-                                   temporaryFailCodes: Option[Array[Int]],
-                                   permanentFailCodes: Option[Array[Int]]) {
+  /*
+   * The command template is built following the rules described here: http://www.commonwl.org/v1.0/CommandLineTool.html#Input_binding
+   * - The baseCommand goes first
+   * - Then the arguments are assigned a sorting key and transformed into a CommandPart
+   * - Finally the inputs are folded one by one into a CommandPartsList
+   * - arguments and inputs CommandParts are sorted according to their sort key
+   */
+  private [cwl] def buildCommandTemplate(expressionLib: ExpressionLib)(inputValues: WomEvaluatedCallInputs): ErrorOr[List[CommandPart]] = {
+    import cats.instances.list._
+    import cats.syntax.traverse._
 
-  def womExecutable(inputFile: Option[String] = None): Checked[Executable] =
-    CwlExecutableValidation.buildWomExecutable(ExecutableTaskDefinition.tryApply(taskDefinition).toEither, inputFile)
+    val baseCommandPart = baseCommand.toList.flatMap(_.fold(BaseCommandToCommandParts))
 
-  def taskDefinition: CallableTaskDefinition = {
+    val argumentsParts: CommandPartsList =
+    // arguments is an Option[Array[Argument]], the toList.flatten gives a List[Argument]
+      arguments.toList.flatten
+        // zip the index because we need it in the sorting key
+        .zipWithIndex.foldLeft(CommandPartsList.empty)({
+        case (commandPartsList, (argument, index)) =>
+          val part = argument.fold(ArgumentToCommandPart).apply(expressionLib)
+          // Get the position from the binding if there is one
+          val position = argument.select[ArgumentCommandLineBinding].flatMap(_.position)
+            .map(Coproduct[StringOrInt](_)).getOrElse(DefaultPosition)
 
-    val id = this.id
+          // The key consists of the position followed by the index
+          val sortingKey = CommandBindingSortingKey(List(position, Coproduct[StringOrInt](index)))
 
-    val commandTemplate: Seq[CommandPart] = baseCommand.toSeq.flatMap(_.fold(BaseCommandToCommandParts)) ++
-      arguments.toSeq.flatMap(_.map(_.fold(ArgumentToCommandPart))) ++
-      CommandLineTool.orderedForCommandLine(inputs).map(InputParameterCommandPart.apply)
+          commandPartsList :+ SortKeyAndCommandPart(sortingKey, part)
+      })
 
-    val runtimeAttributes: RuntimeAttributes = RuntimeAttributes(Map.empty[String, WomExpression])
+    val inputBindingsCommandParts: ErrorOr[List[SortKeyAndCommandPart]] = inputs.toList.flatTraverse[ErrorOr, SortKeyAndCommandPart]({
+      import cats.syntax.validated._
 
-    val meta: Map[String, String] = Map.empty
-    val parameterMeta: Map[String, String] = Map.empty
+      inputParameter =>
+        val parsedName = FullyQualifiedName(inputParameter.id)(ParentName.empty).id
+        val womType = inputParameter.`type`.map(_.fold(MyriadInputTypeToWomType)).getOrElse(WomStringType)
 
-    /*
-    quoted from: http://www.commonwl.org/v1.0/CommandLineTool.html#CommandOutputBinding :
+        val defaultValue = inputParameter.default.map(_.fold(InputParameter.DefaultToWomValuePoly).apply(womType))
 
-    For inputs and outputs, we only keep the variable name in the definition
+        inputValues
+          .collectFirst({ case (inputDefinition, womValue) if inputDefinition.name == parsedName => womValue.validNel })
+          .orElse(defaultValue) match {
+          case Some(Valid(value)) =>
+            // See http://www.commonwl.org/v1.0/CommandLineTool.html#Input_binding
+            lazy val initialKey = CommandBindingSortingKey.empty
+              .append(inputParameter.inputBinding, Coproduct[StringOrInt](parsedName))
 
-    The output parameter value is generated by applying these operations in the following order:
-
-      glob
-      loadContents
-      outputEval
-      secondaryFiles
-     */
-
-    val inputNames = this.inputs.map(i => FullyQualifiedName(i.id).id).toSet
-
-    val outputs: List[Callable.OutputDefinition] = this.outputs.map {
-      case CommandOutputParameter(cop_id, _, _, _, _, _, Some(outputBinding), Some(outputType)) if outputType.select[CwlType].contains(CwlType.File) =>
-        OutputDefinition(FullyQualifiedName(cop_id).id, WomFileType, CommandOutputExpression(outputBinding, WomFileType, inputNames))
-      case CommandOutputParameter(cop_id, _, _, _, _, _, Some(outputBinding), Some(tpe)) =>
-        val womType = tpe.select[CwlType].map(cwlTypeToWdlType).get //<-- here be `get` dragons
-        OutputDefinition(FullyQualifiedName(cop_id).id, womType, CommandOutputExpression(outputBinding, womType, inputNames))
-    }.toList
-
-    val inputDefinitions: List[_ <: Callable.InputDefinition] =
-      this.inputs.map { cip =>
-        val inputType = cwlTypeToWdlType(cip.`type`.flatMap(_.select[CwlType]).get) // TODO: .get
-        val inputName = FullyQualifiedName(cip.id).id
-        cip.default match {
-          case Some(d) => InputDefinitionWithDefault(inputName, inputType, ValueAsAnExpression(inputType.coerceRawValue(d.toString).get))
-          case None => RequiredInputDefinition(inputName, inputType)
+            inputParameter.`type`.toList.flatMap(_.fold(MyriadInputTypeToSortedCommandParts).apply(inputParameter.inputBinding, value, initialKey.asNewKey, expressionLib)).validNel
+          case Some(Invalid(errors)) => Invalid(errors)
+          case None => s"Could not find an input value for input $parsedName in ${inputValues.prettyString}".invalidNel
         }
-      }.toList
+    })
 
-    def stringOrExpressionToString(soe: Option[StringOrExpression]): Option[String] = soe flatMap {
-      case StringOrExpression.String(str) => Some(str)
-      case StringOrExpression.Expression(_) => None // ... for now!
+    inputBindingsCommandParts map { parts =>
+      baseCommandPart ++ (argumentsParts ++ parts).sorted.map(_.commandPart)
     }
-
-    // The try will succeed if this is a task within a step. If it's a standalone file, the ID will be the file,
-    // so the filename is the fallback.
-    def taskName = Try(FullyQualifiedName(id).id).getOrElse(Paths.get(id).getFileName.toString)
-
-    CallableTaskDefinition(
-      taskName,
-      commandTemplate,
-      runtimeAttributes,
-      meta,
-      parameterMeta,
-      outputs,
-      inputDefinitions,
-      // TODO: This doesn't work in all cases and it feels clunky anyway - find a way to sort that out
-      prefixSeparator = "#",
-      commandPartSeparator = " ",
-      stdoutRedirection = stringOrExpressionToString(stdout),
-      stderrRedirection = stringOrExpressionToString(stderr)
-    )
   }
 
-  def asCwl = Coproduct[Cwl](this)
+  // This seems like it makes sense only for CommandLineTool and hence is not abstracted in Tool. If this assumption is wrong it could be moved up.
+  private def environmentDefs(requirementsAndHints: List[Requirement], expressionLib: ExpressionLib): ErrorOr[Map[String, WomExpression]] = {
+    // For environment variables we need to make sure that we aren't being asked to evaluate expressions from a containing
+    // workflow step or its containing workflow or anything containing the workflow. The current structure of this code
+    // is not prepared to evaluate those expressions. Actually this is true for attributes too and we're totally not
+    // checking for this condition there. Blurgh.
+    // TODO CWL: for runtime attributes, detect unevaluatable expressions in the containment hierarchy.
 
+    // This traverses all `EnvironmentDef`s within all `EnvVarRequirement`s. The spec doesn't appear to say how to handle
+    // duplicate `envName` keys in a single array of `EnvironmentDef`s; this code gives precedence to the last occurrence.
+    val allEnvVarDefs = for {
+      req <- requirementsAndHints
+      envVarReq <- req.select[EnvVarRequirement].toList
+      // Reverse the defs within an env var requirement so that when we fold from the right below the later defs
+      // will take precedence over the earlier defs.
+      envDef <- envVarReq.envDef.toList.reverse
+    } yield envDef
+
+    // Compact the `EnvironmentDef`s. Don't convert to `WomExpression`s yet, the `StringOrExpression`s need to be
+    // compared to the `EnvVarRequirement`s that were defined on this tool.
+    val effectiveEnvironmentDefs = allEnvVarDefs.foldRight(Map.empty[String, StringOrExpression]) {
+      case (envVarReq, envVarMap) => envVarMap + (envVarReq.envName -> envVarReq.envValue)
+    }
+
+    // These are the effective environment defs irrespective of where they were found in the
+    // Run / WorkflowStep / Workflow containment hierarchy.
+    val effectiveExpressionEnvironmentDefs = effectiveEnvironmentDefs filter { case (_, expr) => expr.select[Expression].isDefined }
+
+    // These are only the environment defs defined on this tool.
+    val cltRequirements = requirements.toList.flatten ++ hints.toList.flatten.flatMap(_.select[Requirement])
+    val cltEnvironmentDefExpressions = (for {
+      cltEnvVarRequirement <- cltRequirements flatMap {
+        _.select[EnvVarRequirement]
+      }
+      cltEnvironmentDef <- cltEnvVarRequirement.envDef.toList
+      expr <- cltEnvironmentDef.envValue.select[Expression].toList
+    } yield expr).toSet
+
+    // If there is an expression in an effective environment def that wasn't defined on this tool then error out since
+    // there isn't currently a way of evaluating it.
+    val unevaluatableEnvironmentDefs = for {
+      (name, stringOrExpression) <- effectiveExpressionEnvironmentDefs.toList
+      expression <- stringOrExpression.select[Expression].toList
+      if !cltEnvironmentDefExpressions.contains(expression)
+    } yield name
+
+    unevaluatableEnvironmentDefs match {
+      case Nil =>
+        // No unevaluatable environment defs => keep on truckin'
+        effectiveEnvironmentDefs.foldRight(Map.empty[String, WomExpression]) { case ((envName, envValue), acc) =>
+          acc + (envName -> envValue.fold(StringOrExpressionToWomExpression).apply(inputNames, expressionLib))
+        }.validNel
+      case xs =>
+        s"Could not evaluate environment variable expressions defined in the call hierarchy of tool $id: ${xs.mkString(", ")}.".invalidNel
+    }
+  }
+
+  /*
+    * Custom evaluation of the outputs of the command line tool (custom as in bypasses the engine provided default implementation).
+    * This is needed because the output of a CWL tool might be defined by the presence of a cwl.output.json file in the output directory.
+    * In that case, the content of the file should be used as output. This means that otherwise provided output expressions should not be evaluated.
+    * This method checks for the existence of this file, and optionally return a Map[OutputPort, WomValue] if the file was found.
+    * It ensures all the output ports of the corresponding WomCallNode get a WomValue which is needed for the engine to keep running the workflow properly.
+    * If the json file happens to be missing values for one or more output ports, it's a failure.
+    * If the file is not present, an empty value is returned and the engine will execute its own output evaluation logic.
+    *
+    * TODO: use IO instead of Future ?
+   */
+  final private def outputEvaluationJsonFunction(outputPorts: Set[OutputPort],
+                                                 inputs: Map[String, WomValue],
+                                                 ioFunctionSet: IoFunctionSet,
+                                                 executionContext: ExecutionContext): OutputFunctionResponse = {
+    implicit val ec = executionContext
+    import cats.instances.future._
+    import cats.syntax.either._
+
+    // Convert the parsed json to Wom-usable output values
+    def jsonToOutputs(json: Map[String, Json]): Checked[List[(OutputPort, WomValue)]] = {
+      import cats.instances.list._
+
+      outputPorts.toList.traverse[ErrorOr, (OutputPort, WomValue)]({ outputPort =>
+        // If the type is optional, then we can set the value to none if there's nothing in the json
+        def emptyValue = outputPort.womType match {
+          case optional: WomOptionalType => Option((outputPort -> optional.none).validNel)
+          case _ => None
+        }
+
+        json.get(outputPort.name)
+          .map(_.foldWith(CwlJsonToDelayedCoercionFunction).apply(outputPort.womType).map(outputPort -> _))
+          .orElse(emptyValue)
+          .getOrElse(s"Cannot find a value for output ${outputPort.name} in output json $json".invalidNel)
+      }).toEither
+    }
+
+    // Parse content as json and return output values for each output port
+    def parseContent(content: String): EvaluatedOutputs = {
+      for {
+        parsed <- io.circe.yaml.parser.parse(content).flatMap(_.as[Map[String, Json]]).leftMap(error => NonEmptyList.one(error.getMessage))
+        jobOutputsMap <- jsonToOutputs(parsed)
+      } yield jobOutputsMap.toMap
+    }
+
+    for {
+      // Glob for "cwl.output.json"
+      outputJsonGlobs <- OptionT.liftF { ioFunctionSet.glob(CwlOutputJson) }
+      // There can only be 0 or 1, so try to take the head of the list
+      outputJsonFile <- OptionT.fromOption { outputJsonGlobs.headOption }
+      // Read the content using the ioFunctionSet.readFile function
+      content <- OptionT.liftF { ioFunctionSet.readFile(outputJsonFile, None, failOnOverflow = false) }
+      // parse the content and validate it
+      outputs = parseContent(content)
+    } yield outputs
+  }
+
+  def buildTaskDefinition(taskName: String,
+                          inputDefinitions: List[_ <: Callable.InputDefinition],
+                          outputDefinitions: List[Callable.OutputDefinition],
+                          runtimeAttributes: RuntimeAttributes,
+                          requirementsAndHints: List[cwl.Requirement],
+                          expressionLib: ExpressionLib): ErrorOr[CallableTaskDefinition] = {
+
+    def redirect(soe: Option[StringOrExpression]): Option[WomExpression] = soe map {
+      _.fold(StringOrExpressionToWomExpression).apply(inputNames, expressionLib)
+    }
+
+    // This seems like it makes sense only for CommandLineTool and hence is not abstracted in Tool. If this assumption is wrong it could be moved up.
+    val adHocFileCreations: Set[ContainerizedInputExpression] = (for {
+      requirements <- requirements.getOrElse(Array.empty[Requirement])
+      initialWorkDirRequirement <- requirements.select[InitialWorkDirRequirement].toArray
+      listing <- initialWorkDirRequirement.listings
+    } yield InitialWorkDirFileGeneratorExpression(listing, expressionLib)).toSet[ContainerizedInputExpression]
+
+    environmentDefs(requirementsAndHints, expressionLib) map { environmentExpressions =>
+      CallableTaskDefinition(
+        taskName,
+        buildCommandTemplate(expressionLib),
+        runtimeAttributes,
+        Map.empty,
+        Map.empty,
+        outputDefinitions,
+        inputDefinitions,
+        adHocFileCreation = adHocFileCreations,
+        environmentExpressions = environmentExpressions,
+        // TODO: This doesn't work in all cases and it feels clunky anyway - find a way to sort that out
+        prefixSeparator = "#",
+        commandPartSeparator = " ",
+        stdinRedirection = redirect(stdin),
+        stdoutOverride = redirect(stdout),
+        stderrOverride = redirect(stderr),
+        additionalGlob = Option(WomGlobFile(CwlOutputJson)),
+        customizedOutputEvaluation = outputEvaluationJsonFunction,
+        homeOverride = Option(_.outputPath)
+      )
+    }
+  }
 }
 
 object CommandLineTool {
+  val CwlOutputJson = "cwl.output.json"
 
-  /**
-    * Sort according to position. If position does not exist, use 0 per spec:
-    * http://www.commonwl.org/v1.0/CommandLineTool.html#CommandLineBinding
-    *
-    * If an input binding is not specified, ignore the input parameter.
-    */
-  protected[cwl] def orderedForCommandLine(inputs: Array[CommandInputParameter]):Seq[CommandInputParameter] = {
-    inputs.
-      filter(_.inputBinding.isDefined).
-      sortBy(_.inputBinding.flatMap(_.position).getOrElse(0)).
-      toSeq
+  private val DefaultPosition = Coproduct[StringOrInt](0)
+  // Elements of the sorting key can be either Strings or Ints
+  type StringOrInt = String :+: Int :+: CNil
+  object StringOrInt {
+    object String { def unapply(stringOrInt: StringOrInt): Option[String] = stringOrInt.select[String] }
+    object Int { def unapply(stringOrInt: StringOrInt): Option[Int] = stringOrInt.select[Int] }
   }
+
+  /*
+   * The algorithm described here http://www.commonwl.org/v1.0/CommandLineTool.html#Input_binding to sort the command line parts
+   * uses a sorting key assigned to each binding. This class represents such a key
+   */
+  object CommandBindingSortingKey {
+    def empty = CommandBindingSortingKey(List.empty, List.empty)
+  }
+  case class CommandBindingSortingKey(head: List[StringOrInt],
+                                      tail: List[StringOrInt] = List.empty) {
+    val value = head ++ tail
+
+    def append(binding: Option[CommandLineBinding], name: StringOrInt): CommandBindingSortingKey = binding match {
+      // If there's an input binding, add the position to the key (or 0)
+      case Some(b) =>
+        // The spec is inconsistent about this as it says "If position is not specified, it is not added to the sorting key"
+        // but also that the position defaults to 0. cwltool uses 0 when there's no position so we'll do that too.
+        val position = b.position.map(Coproduct[StringOrInt](_)) getOrElse DefaultPosition
+        copy(head = head :+ position, tail = tail :+ name)
+      // Otherwise do nothing
+      case None => this
+    }
+
+    /**
+      * Creates a new key with head and tail combined into the new head.
+      */
+    def asNewKey = CommandBindingSortingKey(value)
+  }
+
+  // Maps a sorting key to its binding
+  case class SortKeyAndCommandPart(sortingKey: CommandBindingSortingKey, commandPart: CommandPart)
+
+  type CommandPartsList = List[SortKeyAndCommandPart]
+
+  object CommandPartsList {
+    def empty: CommandPartsList = List.empty[SortKeyAndCommandPart]
+  }
+
+  // Ordering for CommandBindingSortingKeyElement
+  implicit val SortingKeyTypeOrdering: Ordering[StringOrInt] = Ordering.fromLessThan[StringOrInt]({
+    // String comparison
+    case (StringOrInt.String(s1), StringOrInt.String(s2)) => s1 < s2
+    // Int comparison
+    case (StringOrInt.Int(i1), StringOrInt.Int(i2)) => i1 < i2
+    // Int < String (from the spec: "Numeric entries sort before strings.")
+    case (StringOrInt.Int(_), StringOrInt.String(_)) => true
+    // String > Int
+    case (StringOrInt.String(_), StringOrInt.Int(_)) => false
+  })
+
+  // Ordering for a CommandBindingSortingKey
+  implicit val SortingKeyOrdering: Ordering[CommandBindingSortingKey] = Ordering.by(_.value.toIterable)
+
+  // Ordering for a CommandPartSortMapping: order by sorting key
+  implicit val SortKeyAndCommandPartOrdering: Ordering[SortKeyAndCommandPart] = Ordering.by(_.sortingKey)
 
   def apply(inputs: Array[CommandInputParameter] = Array.empty,
             outputs: Array[CommandOutputParameter] = Array.empty,
             id: String,
             requirements: Option[Array[Requirement]] = None,
-            hints: Option[Array[Map[String, String]]] = None,
+            hints: Option[Array[Hint]] = None,
             label: Option[String] = None,
             doc: Option[String] = None,
             cwlVersion: Option[CwlVersion] = Option(CwlVersion.Version1),
@@ -152,72 +343,41 @@ object CommandLineTool {
             stdout: Option[StringOrExpression] = None,
             successCodes: Option[Array[Int]] = None,
             temporaryFailCodes: Option[Array[Int]] = None,
-            permanentFailCodes: Option[Array[Int]] = None): CommandLineTool  =
-              CommandLineTool(inputs, outputs, "CommandLineTool".narrow, id, requirements, hints, label, doc, cwlVersion, baseCommand, arguments, stdin, stderr, stdout, successCodes, temporaryFailCodes, permanentFailCodes)
+            permanentFailCodes: Option[Array[Int]] = None): CommandLineTool =
+    CommandLineTool(inputs, outputs, "CommandLineTool".narrow, id, requirements, hints, label, doc, cwlVersion, baseCommand, arguments, stdin, stderr, stdout, successCodes, temporaryFailCodes, permanentFailCodes)
 
-  type BaseCommand = String :+: Array[String] :+: CNil
+  type BaseCommand = SingleOrArrayOfStrings
 
-  type Argument = Expression :+: CommandLineBinding :+: String :+: CNil
+  type Argument = ArgumentCommandLineBinding :+: StringOrExpression :+: CNil
 
   case class CommandInputParameter(
                                     id: String,
                                     label: Option[String] = None,
-                                    secondaryFiles: Option[Array[Expression :+: String :+: CNil]] = None,
-                                    format: Option[Expression :+: Array[String] :+: String :+: CNil] = None, //only valid when type: File
+                                    secondaryFiles: Option[SecondaryFiles] = None,
+                                    format: Option[InputParameterFormat] = None, //only valid when type: File
                                     streamable: Option[Boolean] = None, //only valid when type: File
-                                    doc: Option[String :+: Array[String] :+: CNil] = None,
-                                    inputBinding: Option[CommandLineBinding] = None,
+                                    doc: Option[Doc] = None,
+                                    inputBinding: Option[InputCommandLineBinding] = None,
                                     default: Option[CwlAny] = None,
-                                    `type`: Option[MyriadInputType] = None)
-
-  case class CommandInputRecordSchema(
-                                       `type`: W.`"record"`.T,
-                                       fields: Option[Array[CommandInputRecordField]],
-                                       label: Option[String])
-
-  case class CommandInputRecordField(
-                                      name: String,
-                                      `type`: MyriadInputType,
-                                      doc: Option[String],
-                                      inputBinding: Option[CommandLineBinding],
-                                      label: Option[String])
-
-  case class CommandInputEnumSchema(
-                                     symbols: Array[String],
-                                     `type`: W.`"enum"`.T,
-                                     label: Option[String],
-                                     inputBinding: Option[CommandLineBinding])
-
-  case class CommandInputArraySchema(
-                                      items:
-                                      CwlType :+:
-                                        CommandInputRecordSchema :+:
-                                        CommandInputEnumSchema :+:
-                                        CommandInputArraySchema :+:
-                                        String :+:
-                                        Array[
-                                          CwlType :+:
-                                            CommandInputRecordSchema :+:
-                                            CommandInputEnumSchema :+:
-                                            CommandInputArraySchema :+:
-                                            String :+:
-                                            CNil] :+:
-                                        CNil,
-                                      `type`: W.`"array"`.T,
-                                      label: Option[String],
-                                      inputBinding: Option[CommandLineBinding])
-
+                                    `type`: Option[MyriadInputType] = None) extends InputParameter
 
   case class CommandOutputParameter(
                                      id: String,
                                      label: Option[String] = None,
-                                     secondaryFiles: Option[Expression :+: String :+: Array[Expression :+: String :+: CNil] :+: CNil] = None,
-                                     format: Option[Expression :+: Array[String] :+: String :+: CNil] = None, //only valid when type: File
+                                     secondaryFiles: Option[SecondaryFiles] = None,
+                                     format: Option[OutputParameterFormat] = None, //only valid when type: File
                                      streamable: Option[Boolean] = None, //only valid when type: File
-                                     doc: Option[String :+: Array[String] :+: CNil] = None,
+                                     doc: Option[Doc] = None,
                                      outputBinding: Option[CommandOutputBinding] = None,
-                                     `type`: Option[MyriadOutputType] = None)
+                                     `type`: Option[MyriadOutputType] = None) extends OutputParameter
+}
 
+object StringOrExpressionToWomExpression extends Poly1 {
+  implicit def string: Case.Aux[String, (Set[String], ExpressionLib) => WomExpression] = at[String] { s => (inputNames, expressionLib) =>
+    ValueAsAnExpression(WomString(s))
+  }
 
-
+  implicit def expression: Case.Aux[Expression, (Set[String], ExpressionLib) => WomExpression] = at[Expression] { e => (inputNames, expressionLib) =>
+    cwl.ECMAScriptWomExpression(e, inputNames, expressionLib)
+  }
 }

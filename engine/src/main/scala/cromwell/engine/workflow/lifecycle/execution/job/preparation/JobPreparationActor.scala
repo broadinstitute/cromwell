@@ -1,10 +1,13 @@
 package cromwell.engine.workflow.lifecycle.execution.job.preparation
 
-import _root_.wdl._
+import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, FSM, Props}
 import cats.data.Validated.{Invalid, Valid}
+import common.exception.MessageAggregation
+import common.validation.ErrorOr.ErrorOr
 import cromwell.backend._
-import cromwell.backend.validation.{DockerValidation, RuntimeAttributesKeys}
+import cromwell.backend.validation.DockerValidation
+import cromwell.core.{Dispatcher, DockerConfiguration}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
@@ -16,8 +19,7 @@ import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparat
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.JobPreparationActor._
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvResponse, ScopedKey}
-import common.exception.MessageAggregation
-import common.validation.ErrorOr.ErrorOr
+import wom.RuntimeAttributesKeys
 import wom.callable.Callable.InputDefinition
 import wom.values._
 
@@ -47,8 +49,9 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   override lazy val workflowIdForLogging = workflowDescriptor.id
 
   private[preparation] lazy val noResponseTimeout: FiniteDuration = 3 minutes
+  private[preparation] val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
 
-  private[preparation] lazy val expressionLanguageFunctions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, initializationData)
+  private[preparation] lazy val expressionLanguageFunctions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, initializationData, ioActor, ioEc)
   private[preparation] lazy val dockerHashCredentials = factory.dockerHashCredentials(initializationData)
   private[preparation] lazy val runtimeAttributeDefinitions = factory.runtimeAttributeDefinitions(initializationData)
   private[preparation] lazy val hasDockerDefinition = runtimeAttributeDefinitions.exists(_.name == DockerValidation.instance.key)
@@ -118,9 +121,12 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     }
 
     def handleDockerValue(value: String) = DockerImageIdentifier.fromString(value) match {
-        // If the backend supports docker and we got a tag - we need to lookup the hash
-      case Success(dockerImageId: DockerImageIdentifierWithoutHash) if hasDockerDefinition => 
+        // If the backend supports docker, lookup is enabled, and we got a tag - we need to lookup the hash
+      case Success(dockerImageId: DockerImageIdentifierWithoutHash) if hasDockerDefinition && DockerConfiguration.instance.enabled => 
         sendDockerRequest(dockerImageId)
+        // If the backend supports docker, we got a tag but lookup is disabled, continue with no call caching and no hash
+      case Success(dockerImageId: DockerImageIdentifierWithoutHash) if hasDockerDefinition =>
+        lookupKvsOrBuildDescriptorAndStop(inputs, attributes, FloatingDockerTagWithoutHash(dockerImageId.fullName))
 
       // If the backend doesn't support docker - no need to lookup and we're ok for call caching
       case Success(_: DockerImageIdentifierWithoutHash) if !hasDockerDefinition => 

@@ -1,7 +1,7 @@
 package wom.types
 
 import spray.json.{JsBoolean, JsString}
-import wom.values.WomBoolean
+import wom.values.{WomBoolean, WomValue}
 
 import scala.util.{Success, Try}
 
@@ -19,12 +19,13 @@ case object WomBooleanType extends WomPrimitiveType {
   }
 
   private def comparisonOperator(rhs: WomType, symbol: String): Try[WomType] = rhs match {
+    case wct:WomCoproductType => wct.typeExists(WomStringType)
     case WomBooleanType => Success(WomBooleanType)
     case WomOptionalType(memberType) => comparisonOperator(memberType, symbol)
     case _ => invalid(s"$this $symbol $rhs")
   }
 
-  override def equals(rhs: WomType): Try[WomType] = comparisonOperator(rhs, "==")
+  override def equalsType(rhs: WomType): Try[WomType] = comparisonOperator(rhs, "==")
   override def lessThan(rhs: WomType): Try[WomType] = comparisonOperator(rhs, "<")
   override def greaterThan(rhs: WomType): Try[WomType] = comparisonOperator(rhs, ">")
   override def or(rhs: WomType): Try[WomType] = comparisonOperator(rhs, "||")

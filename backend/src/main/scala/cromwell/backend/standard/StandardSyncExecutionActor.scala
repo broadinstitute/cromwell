@@ -6,7 +6,6 @@ import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, J
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, Reconnect, ReconnectToAbort, Recover}
-import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobExecutionActor}
 import cromwell.core.Dispatcher
 import cromwell.services.keyvalue.KeyValueServiceActor._
 
@@ -80,7 +79,7 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
   }
   
   private def recovering(executor: ActorRef): Receive = running(executor).orElse {
-    case KvPair(key, Some(jobId)) if key.key == jobIdKey =>
+    case KvPair(key, jobId) if key.key == jobIdKey =>
       // Successful operation ID lookup.
       executor ! Recover(StandardAsyncJob(jobId))
     case KvKeyLookupFailed(_) =>
@@ -89,7 +88,7 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
   }
 
   private def reconnectingToAbort(executor: ActorRef): Receive = running(executor).orElse {
-    case KvPair(key, Some(jobId)) if key.key == jobIdKey =>
+    case KvPair(key, jobId) if key.key == jobIdKey =>
       // Successful operation ID lookup.
       executor ! ReconnectToAbort(StandardAsyncJob(jobId))
     case KvKeyLookupFailed(_) =>
@@ -99,7 +98,7 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
   }
 
   private def reconnecting(executor: ActorRef): Receive = running(executor).orElse {
-    case KvPair(key, Some(jobId)) if key.key == jobIdKey =>
+    case KvPair(key, jobId) if key.key == jobIdKey =>
       // Successful operation ID lookup.
       executor ! Reconnect(StandardAsyncJob(jobId))
     case KvKeyLookupFailed(_) =>

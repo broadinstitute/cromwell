@@ -22,7 +22,7 @@ import scala.util.{Failure, Try, Success => TrySuccess}
 
 private[statuspolling] trait StatusPolling extends PapiInstrumentation{ this: JesPollingActor =>
 
-  private [statuspolling] def statusPollResultHandler(originalRequest: JesStatusPollQuery, completionPromise: Promise[Try[Unit]]) = new JsonBatchCallback[Operation] {
+  private [statuspolling] def statusPollResultHandler(originalRequest: PAPIStatusPollRequest, completionPromise: Promise[Try[Unit]]) = new JsonBatchCallback[Operation] {
     override def onSuccess(operation: Operation, responseHeaders: HttpHeaders): Unit = {
       pollSuccess()
       originalRequest.requester ! interpretOperationStatus(operation)
@@ -31,13 +31,13 @@ private[statuspolling] trait StatusPolling extends PapiInstrumentation{ this: Je
     }
 
     override def onFailure(e: GoogleJsonError, responseHeaders: HttpHeaders): Unit = {
-      pollingManager ! JesApiStatusQueryFailed(originalRequest, new JesApiException(GoogleJsonException(e, responseHeaders)))
+      pollingManager ! JesApiStatusQueryFailed(originalRequest, new PAPIApiException(GoogleJsonException(e, responseHeaders)))
       completionPromise.trySuccess(Failure(new Exception(mkErrorString(e))))
       ()
     }
   }
 
-  private [statuspolling] def enqueueStatusPollInBatch(pollingRequest: JesStatusPollQuery, batch: BatchRequest): Future[Try[Unit]] = {
+  private [statuspolling] def enqueueStatusPollInBatch(pollingRequest: PAPIStatusPollRequest, batch: BatchRequest): Future[Try[Unit]] = {
     val completionPromise = Promise[Try[Unit]]()
     val resultHandler = statusPollResultHandler(pollingRequest, completionPromise)
     addStatusPollToBatch(pollingRequest.httpRequest, batch, resultHandler)
@@ -74,15 +74,25 @@ private[statuspolling] object StatusPolling {
           runtimeMetadata <- op.getMetadata.asScala.get("runtimeMetadata")
           computeEngine <- runtimeMetadata.asInstanceOf[GArrayMap[String, Object]].asScala.get("computeEngine")
         } yield computeEngine.asInstanceOf[GArrayMap[String, String]].asScala
+        
         lazy val machineType = computeEngineOption.flatMap(_.get("machineType"))
         lazy val instanceName = computeEngineOption.flatMap(_.get("instanceName"))
         lazy val zone = computeEngineOption.flatMap(_.get("zone"))
+
+        val preemptible = {
+          for {
+            request <- op.getMetadata.asScala.get("request")
+            pipelineArgs <- request.asInstanceOf[GArrayMap[String, Object]].asScala.get("pipelineArgs")
+            resources <- pipelineArgs.asInstanceOf[GArrayMap[String, Object]].asScala.get("resources")
+            preemptible <- resources.asInstanceOf[GArrayMap[String, Object]].asScala.get("preemptible")
+          } yield preemptible.asInstanceOf[Boolean]
+        } getOrElse false
 
         // If there's an error, generate an unsuccessful status. Otherwise, we were successful!
         Option(op.getError) match {
           case Some(error) =>
             val errorCode = Status.fromCodeValue(error.getCode)
-            UnsuccessfulRunStatus(errorCode, Option(error.getMessage), eventList, machineType, zone, instanceName)
+            UnsuccessfulRunStatus(errorCode, Option(error.getMessage), eventList, machineType, zone, instanceName, preemptible)
           case None => Success(eventList, machineType, zone, instanceName)
         }
       } else if (op.hasStarted) {

@@ -1,9 +1,12 @@
 package cwl
 
+import cwl.command.ParentName
 import org.scalatest.{FlatSpec, Matchers}
 
 class FullyQualifiedNameSpec extends FlatSpec with Matchers {
 
+  implicit val parentName = ParentName.empty
+  
   "workflow input id " should "get filename and id" in {
     val wfid = FileAndId("file#id")
 

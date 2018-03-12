@@ -2,8 +2,7 @@ package cromwell.backend.async
 
 import cromwell.core.path.Path
 import common.exception.ThrowableAggregation
-import cromwell.core.NoIoFunctionSet
-import wom.expression.WomExpression
+import wom.expression.{NoIoFunctionSet, WomExpression}
 
 abstract class KnownJobFailureException extends Exception {
   def stderrPath: Option[Path]

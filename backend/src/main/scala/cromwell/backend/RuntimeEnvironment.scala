@@ -1,5 +1,7 @@
 package cromwell.backend
 
+import java.util.UUID
+
 import cromwell.backend.io.JobPaths
 import cromwell.backend.validation.{CpuValidation, MemoryValidation}
 import wdl4s.parser.MemoryUnit
@@ -19,9 +21,13 @@ object RuntimeEnvironmentBuilder {
 
        val outputPath: String = jobPaths.callExecutionRoot.pathAsString
 
-       val tempPath: String = jobPaths.callRoot.pathAsString
+       val tempPath: String = {
+         val uuid = UUID.randomUUID().toString
+         val hash = uuid.substring(0, uuid.indexOf('-'))
+         jobPaths.callRoot.resolve(s"tmp.$hash").pathAsString
+       }
 
-       val cores: Int = CpuValidation.instance.validate(runtimeAttributes).getOrElse(minimums.cores)
+       val cores: Int = CpuValidation.instanceMin.validate(runtimeAttributes).getOrElse(minimums.cores)
 
        val memoryInMiB: Double =
          MemoryValidation.instance().

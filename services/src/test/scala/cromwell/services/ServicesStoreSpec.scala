@@ -305,13 +305,15 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       val workflowUuid = WorkflowId.randomId().toString
       val workflowStoreEntry = WorkflowStoreEntry(
         workflowExecutionUuid = workflowUuid,
+        workflowRoot = Option("main"),
         workflowType = WdlWorkflowType,
         workflowTypeVersion = None,
         workflowDefinition = clobOption,
         workflowInputs = clobOption,
         workflowOptions = clobOption,
         workflowState = WorkflowStoreState.Submitted,
-        restarted = false,
+        cromwellId = None,
+        heartbeatTimestamp = None,
         submissionTime = OffsetDateTime.now.toSystemTimestamp,
         importsZip = Option(emptyBlob),
         customLabels = clob)
@@ -373,20 +375,22 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       import eu.timepit.refined.auto._
       import eu.timepit.refined.collection._
 
-      val testWorkflowState = WorkflowStoreState.Submitted
+      val submittedWorkflowState = WorkflowStoreState.Submitted
       val clob = "".toClob(default = "{}")
       val clobOption = "{}".toClobOption
 
       val emptyWorkflowUuid = WorkflowId.randomId().toString
       val emptyWorkflowStoreEntry = WorkflowStoreEntry(
         workflowExecutionUuid = emptyWorkflowUuid,
+        workflowRoot = Option("main"),
         workflowType = WdlWorkflowType,
         workflowTypeVersion = None,
         workflowDefinition = clobOption,
         workflowInputs = clobOption,
         workflowOptions = clobOption,
-        workflowState = testWorkflowState,
-        restarted = false,
+        workflowState = submittedWorkflowState,
+        cromwellId = None,
+        heartbeatTimestamp = None,
         submissionTime = OffsetDateTime.now.toSystemTimestamp,
         importsZip = Option(Array.empty[Byte]).toBlobOption,
         customLabels = clob)
@@ -394,13 +398,15 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       val noneWorkflowUuid = WorkflowId.randomId().toString
       val noneWorkflowStoreEntry = WorkflowStoreEntry(
         workflowExecutionUuid = noneWorkflowUuid,
+        workflowRoot = Option("main"),
         workflowType = WdlWorkflowType,
         workflowTypeVersion = None,
         workflowDefinition = clobOption,
         workflowInputs = clobOption,
         workflowOptions = clobOption,
-        workflowState = testWorkflowState,
-        restarted = false,
+        workflowState = submittedWorkflowState,
+        cromwellId = None,
+        heartbeatTimestamp = None,
         submissionTime = OffsetDateTime.now.toSystemTimestamp,
         importsZip = None,
         customLabels = clob)
@@ -409,13 +415,15 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       val aByteWorkflowUuid = WorkflowId.randomId().toString
       val aByteWorkflowStoreEntry = WorkflowStoreEntry(
         workflowExecutionUuid = aByteWorkflowUuid,
+        workflowRoot = Option("main"),
         workflowType = WdlWorkflowType,
         workflowTypeVersion = None,
         workflowDefinition = clobOption,
         workflowInputs = clobOption,
         workflowOptions = clobOption,
-        workflowState = testWorkflowState,
-        restarted = false,
+        workflowState = submittedWorkflowState,
+        cromwellId = None,
+        heartbeatTimestamp = None,
         submissionTime = OffsetDateTime.now.toSystemTimestamp,
         importsZip = Option(Array(aByte)).toBlobOption,
         customLabels = clob)
@@ -424,7 +432,11 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
 
       val future = for {
         _ <- dataAccess.addWorkflowStoreEntries(workflowStoreEntries)
-        queried <- dataAccess.fetchStartableWorkflows(Int.MaxValue)
+        queried <- dataAccess.fetchStartableWorkflows(
+          limit = Int.MaxValue,
+          cromwellId = Option("crom-f00ba4"),
+          heartbeatTtl = 1.hour)
+
         _ = {
           val emptyEntry = queried.find(_.workflowExecutionUuid == emptyWorkflowUuid).get
           emptyEntry.importsZip.toBytesOption should be(None)

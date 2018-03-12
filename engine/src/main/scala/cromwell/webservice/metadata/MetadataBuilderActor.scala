@@ -6,7 +6,7 @@ import akka.actor.{ActorRef, LoggingFSM, Props}
 import cromwell.webservice.metadata.MetadataComponent._
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.core.ExecutionIndex.ExecutionIndex
-import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
+import cromwell.core._
 import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
@@ -230,7 +230,7 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
       // Scan events for sub workflow ids
       val subWorkflowIds = eventsList.collect({
         case MetadataEvent(key, value, _) if key.key.endsWith(CallMetadataKeys.SubWorkflowId) => value map { _.value }
-      }).flatten
+      }).flatten.distinct
 
       // If none is found just proceed to build metadata
       if (subWorkflowIds.isEmpty) buildAndStop(query, eventsList, Map.empty)

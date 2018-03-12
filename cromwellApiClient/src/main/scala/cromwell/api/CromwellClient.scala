@@ -67,7 +67,8 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String, val credentia
 
     // Make a set of submissions that represent the batch (so we can zip with the results later):
     val submissionSet = workflow.inputsBatch.map(inputs => WorkflowSingleSubmission(
-      wdl = workflow.wdl,
+      workflowSource = workflow.workflowSource,
+      workflowRoot = workflow.workflowRoot,
       workflowType = workflow.workflowType,
       workflowTypeVersion = workflow.workflowTypeVersion,
       inputsJson = Option(inputs),
@@ -190,7 +191,8 @@ object CromwellClient {
     import cromwell.api.model.LabelsJsonFormatter._
 
     val sourceBodyParts = Map(
-      "workflowSource" -> Option(workflowSubmission.wdl),
+      "workflowSource" -> Option(workflowSubmission.workflowSource),
+      "workflowRoot" -> workflowSubmission.workflowRoot,
       "workflowType" -> workflowSubmission.workflowType,
       "workflowTypeVersion" -> workflowSubmission.workflowTypeVersion,
       "workflowInputs" -> workflowSubmission.inputsJson,

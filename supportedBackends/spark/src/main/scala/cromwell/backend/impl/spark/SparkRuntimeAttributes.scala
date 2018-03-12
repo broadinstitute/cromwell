@@ -5,7 +5,7 @@ import cats.syntax.apply._
 import cats.syntax.validated._
 import cromwell.backend.MemorySize
 import cromwell.backend.validation.RuntimeAttributesDefault._
-import cromwell.backend.validation.RuntimeAttributesKeys._
+import wom.RuntimeAttributesKeys._
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.core._
 import common.exception.MessageAggregation

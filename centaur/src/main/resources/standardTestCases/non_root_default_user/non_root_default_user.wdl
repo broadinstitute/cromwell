@@ -4,7 +4,7 @@ task notroot {
   }
 
   runtime {
-    docker: "mcovarr/notroot:v1"
+    docker: "broadinstitute/cromwell-docker-test:notroot"
   }
 
   output {

@@ -25,7 +25,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val BackendResponseFormat = jsonFormat2(BackendResponse)
   implicit val BuiltStatusResponseFormat = jsonFormat1(BuiltMetadataResponse)
   implicit val callAttempt = jsonFormat2(CallAttempt)
-  implicit val workflowSourceData = jsonFormat7(WorkflowSourceFilesWithoutImports)
+  implicit val workflowSourceData = jsonFormat8(WorkflowSourceFilesWithoutImports)
   implicit val subsystemStatusFormat = jsonFormat2(SubsystemStatus)
   implicit val statusCheckResponseFormat = jsonFormat2(StatusCheckResponse)
 
@@ -37,7 +37,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
     }
   }
 
-  implicit val workflowSourceDataWithImports = jsonFormat8(WorkflowSourceFilesWithDependenciesZip)
+  implicit val workflowSourceDataWithImports = jsonFormat9(WorkflowSourceFilesWithDependenciesZip)
   implicit val errorResponse = jsonFormat3(FailureResponse)
   implicit val successResponse = jsonFormat3(SuccessResponse)
 
@@ -51,5 +51,5 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   }
 
   implicit val workflowQueryResult = jsonFormat7(WorkflowQueryResult)
-  implicit val workflowQueryResponse = jsonFormat1(WorkflowQueryResponse)
+  implicit val workflowQueryResponse = jsonFormat2(WorkflowQueryResponse)
 }

@@ -1,13 +1,20 @@
 package cromwell.backend.wdl
 
-import cromwell.core.path.Path
+import java.io.File
+
+import better.files.File.OpenOptions
+import cats.instances.future._
+import cats.syntax.functor._
+import common.util.StringUtil._
+import cromwell.core.io.AsyncIoFunctions
+import cromwell.core.path.{Path, PathFactory}
 import wom.expression.IoFunctionSet
-import wom.values.WomFile
+import wom.values.WomSingleFile
 
 import scala.concurrent.Future
-import scala.util.Try
 
-trait WriteFunctions extends IoFunctionSet {
+
+trait WriteFunctions extends PathFactory with IoFunctionSet with AsyncIoFunctions {
 
   /**
     * Directory that will be used to write files.
@@ -16,10 +23,24 @@ trait WriteFunctions extends IoFunctionSet {
 
   private lazy val _writeDirectory = writeDirectory.createPermissionedDirectories()
 
-  override def writeFile(path: String, content: String): Future[WomFile] = {
+  override def writeFile(path: String, content: String): Future[WomSingleFile] = {
     val file = _writeDirectory / path
-    Future.fromTry(
-      Try(if (file.notExists) file.write(content)) map { _ => WomFile(file.pathAsString) }
-    )
+    asyncIo.existsAsync(file) flatMap {
+      case false => asyncIo.writeAsync(file, content, OpenOptions.default) as { WomSingleFile(file.pathAsString) }
+      case true => Future.successful(WomSingleFile(file.pathAsString))
+    }
+  }
+
+  private val relativeToLocal = System.getProperty("user.dir").ensureSlashed
+
+  def relativeToAbsolutePath(pathFrom: String): String = if (new File(pathFrom).isAbsolute) pathFrom else relativeToLocal + pathFrom
+
+  override def copyFile(pathFrom: String, targetName: String): Future[WomSingleFile] = {
+    val source = buildPath(relativeToAbsolutePath(pathFrom))
+    val destination = _writeDirectory / targetName
+
+    asyncIo.copyAsync(source, destination).as(WomSingleFile(destination.pathAsString)) recoverWith {
+      case e => Future.failed(new Exception(s"Could not copy ${source.toAbsolutePath} to ${destination.toAbsolutePath}", e))
+    }
   }
 }

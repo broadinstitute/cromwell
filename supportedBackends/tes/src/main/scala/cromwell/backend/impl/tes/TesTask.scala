@@ -1,14 +1,14 @@
 package cromwell.backend.impl.tes
 
-import cromwell.backend.io.GlobFunctions
+import common.util.StringUtil._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
-import cromwell.core.NoIoFunctionSet
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import wdl.FullyQualifiedName
+import wdl.draft2.model.FullyQualifiedName
 import wdl4s.parser.MemoryUnit
 import wom.InstantiatedCommand
 import wom.callable.Callable.OutputDefinition
+import wom.expression.NoIoFunctionSet
 import wom.values._
 
 import scala.language.postfixOps
@@ -36,22 +36,25 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   }
 
   // contains the script to be executed
-  private val commandScript = TaskParameter(
-    Option("commandScript"),
-    Option(fullyQualifiedTaskName + ".commandScript"),
-    None,
-    tesPaths.callExecutionDockerRoot.resolve("script").toString,
-    Option("FILE"),
-    Option(commandScriptContents)
+  private val commandScript = Input(
+    name = Option("commandScript"),
+    description = Option(fullyQualifiedTaskName + ".commandScript"),
+    url = None,
+    path = tesPaths.callExecutionDockerRoot.resolve("script").toString,
+    `type` = Option("FILE"),
+    content = Option(commandScriptContents)
   )
 
-  private val commandScriptOut = commandScript.copy(
+  private val commandScriptOut = Output(
+    name = Option("commandScript"),
+    description = Option(fullyQualifiedTaskName + ".commandScript"),
     url = Option(tesPaths.script.toString),
-    contents = None
+    path = tesPaths.callExecutionDockerRoot.resolve("script").toString,
+    `type` = Option("FILE")
   )
 
   private def writeFunctionFiles: Map[FullyQualifiedName, Seq[WomFile]] =
-    instantiatedCommand.createdFiles map { f => f.value.md5SumShort -> List(f) } toMap
+    instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f.file) } toMap
 
   private val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor
     .fullyQualifiedInputs
@@ -59,30 +62,35 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       _.collectAsSeq { case w: WomFile => w }
     }
 
-  def inputs(commandLineValueMapper: WomValue => WomValue): Seq[TaskParameter] =
+  def inputs(commandLineValueMapper: WomValue => WomValue): Seq[Input] =
     (callInputFiles ++ writeFunctionFiles).flatMap {
-      case (fullyQualifiedName, files) => files.zipWithIndex.map {
-        case (f, index) => TaskParameter(
-          Option(fullyQualifiedName + "." + index),
-          Option(workflowName + "." + fullyQualifiedName + "." + index),
-          Option(f.value),
-          tesPaths.containerInput(f.value),
-          Option("FILE"),
-          None
-        )
+      case (fullyQualifiedName, files) => files.flatMap(_.flattenFiles).zipWithIndex.map {
+        case (f, index) =>
+          val inputType = f match {
+            case _: WomUnlistedDirectory => "DIRECTORY"
+            case _: WomSingleFile => "FILE"
+            case _: WomGlobFile => "FILE"
+          }
+          Input(
+            name = Option(fullyQualifiedName + "." + index),
+            description = Option(workflowName + "." + fullyQualifiedName + "." + index),
+            url = Option(f.value),
+            path = tesPaths.containerInput(f.value),
+            `type` = Option(inputType),
+            content = None
+          )
       }
     }.toList ++ Seq(commandScript)
 
   // TODO add TES logs to standard outputs
   private val standardOutputs = Seq("rc", "stdout", "stderr").map {
     f =>
-      TaskParameter(
-        Option(f),
-        Option(fullyQualifiedTaskName + "." + f),
-        Option(tesPaths.storageOutput(f)),
-        tesPaths.containerOutput(containerWorkDir, f),
-        Option("FILE"),
-        None
+      Output(
+        name = Option(f),
+        description = Option(fullyQualifiedTaskName + "." + f),
+        url = Option(tesPaths.storageOutput(f)),
+        path = tesPaths.containerOutput(containerWorkDir, f),
+        `type` = Option("FILE")
       )
   }
 
@@ -113,48 +121,71 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
   }
 
-  private val womOutputs = outputWomFiles
+  def handleGlobFile(g: WomGlobFile, index: Int) = {
+    val globName = GlobFunctions.globName(g.value)
+    val globDirName = "globDir." + index
+    val globDirectory = globName + "/"
+    val globListName =  "globList." + index
+    val globListFile = globName + ".list"
+    Seq(
+      Output(
+        name = Option(globDirName),
+        description = Option(fullyQualifiedTaskName + "." + globDirName),
+        url = Option(tesPaths.storageOutput(globDirectory)),
+        path = tesPaths.containerOutput(containerWorkDir, globDirectory),
+        `type` = Option("DIRECTORY")
+      ),
+      Output(
+        name  = Option(globListName),
+        description = Option(fullyQualifiedTaskName + "." + globListName),
+        url = Option(tesPaths.storageOutput(globListFile)),
+        path = tesPaths.containerOutput(containerWorkDir, globListFile),
+        `type` = Option("FILE")
+      )
+    )
+  }
+
+  private val womOutputs = outputWomFiles.flatMap(_.flattenFiles)
     .zipWithIndex
     .flatMap {
       case (f: WomSingleFile, index) =>
         val outputFile = f.value
         Seq(
-          TaskParameter(
-            Option(fullyQualifiedTaskName + ".output." + index),
-            Option(fullyQualifiedTaskName + ".output." + index),
-            Option(tesPaths.storageOutput(outputFile)),
-            tesPaths.containerOutput(containerWorkDir, outputFile),
-            Option("FILE"),
-            None
+          Output(
+            name = Option(fullyQualifiedTaskName + ".output." + index),
+            description = Option(fullyQualifiedTaskName + ".output." + index),
+            url = Option(tesPaths.storageOutput(outputFile)),
+            path = tesPaths.containerOutput(containerWorkDir, outputFile),
+            `type` = Option("FILE")
           )
         )
-      case (g: WomGlobFile, index) =>
-        val globName = GlobFunctions.globName(g.value)
-        val globDirName = "globDir." + index
-        val globDirectory = globName + "/"
-        val globListName =  "globList." + index
-        val globListFile = globName + ".list"
+      case (g: WomGlobFile, index) => handleGlobFile(g, index)
+      case (d: WomUnlistedDirectory, index) =>
+        val directoryPathName = "dirPath." + index
+        val directoryPath = d.value.ensureSlashed
+        val directoryListName =  "dirList." + index
+        val directoryList = d.value.ensureUnslashed + ".list"
         Seq(
-          TaskParameter(
-            Option(globDirName),
-            Option(fullyQualifiedTaskName + "." + globDirName),
-            Option(tesPaths.storageOutput(globDirectory)),
-            tesPaths.containerOutput(containerWorkDir, globDirectory),
-            Option("DIRECTORY"),
-            None
+          Output(
+            name = Option(directoryPathName),
+            description = Option(fullyQualifiedTaskName + "." + directoryPathName),
+            url = Option(tesPaths.storageOutput(directoryPath)),
+            path = tesPaths.containerOutput(containerWorkDir, directoryPath),
+            `type` = Option("DIRECTORY")
           ),
-          TaskParameter(
-            Option(globListName),
-            Option(fullyQualifiedTaskName + "." + globListName),
-            Option(tesPaths.storageOutput(globListFile)),
-            tesPaths.containerOutput(containerWorkDir, globListFile),
-            Option("FILE"),
-            None
+          Output(
+            name  = Option(directoryListName),
+            description = Option(fullyQualifiedTaskName + "." + directoryListName),
+            url = Option(tesPaths.storageOutput(directoryList)),
+            path = tesPaths.containerOutput(containerWorkDir, directoryList),
+            `type` = Option("FILE")
           )
         )
     }
 
-  val outputs: Seq[TaskParameter] = womOutputs ++ standardOutputs ++ Seq(commandScriptOut)
+  private val additionalGlobOutput = jobDescriptor.taskCall.callable.additionalGlob.toList.flatMap(handleGlobFile(_, womOutputs.size))
+
+  val outputs: Seq[Output] = womOutputs ++ standardOutputs ++ Seq(commandScriptOut) ++ additionalGlobOutput
 
   private val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
     case Some(x) =>
@@ -164,22 +195,21 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   }
 
   val resources = Resources(
-    runtimeAttributes.cpu,
-    ram,
-    disk,
-    Option(false),
-    None
+    cpu_cores = runtimeAttributes.cpu,
+    ram_gb = ram,
+    disk_gb = disk,
+    preemptible = Option(false),
+    zones = None
   )
 
   val executors = Seq(Executor(
-    dockerImageUsed,
-    Seq("/bin/bash", commandScript.path),
-    runtimeAttributes.dockerWorkingDir,
-    Option(tesPaths.containerOutput(containerWorkDir, "stdout")),
-    Option(tesPaths.containerOutput(containerWorkDir, "stderr")),
-    None,
-    None,
-    None
+    image = dockerImageUsed,
+    command = Seq("/bin/bash", commandScript.path),
+    workdir = runtimeAttributes.dockerWorkingDir,
+    stdout = Option(tesPaths.containerOutput(containerWorkDir, "stdout")),
+    stderr = Option(tesPaths.containerOutput(containerWorkDir, "stderr")),
+    stdin = None,
+    env = None
   ))
 }
 
@@ -188,34 +218,38 @@ final case class Task(id: Option[String],
                       state: Option[String],
                       name: Option[String],
                       description: Option[String],
-                      project: Option[String],
-                      inputs: Option[Seq[TaskParameter]],
-                      outputs: Option[Seq[TaskParameter]],
+                      inputs: Option[Seq[Input]],
+                      outputs: Option[Seq[Output]],
                       resources: Option[Resources],
                       executors: Seq[Executor],
                       volumes: Option[Seq[String]],
                       tags: Option[Map[String, String]],
                       logs: Option[Seq[TaskLog]])
 
-final case class Executor(image_name: String,
-                          cmd: Seq[String],
+final case class Executor(image: String,
+                          command: Seq[String],
                           workdir: Option[String],
                           stdout: Option[String],
                           stderr: Option[String],
                           stdin: Option[String],
-                          environ: Option[Map[String, String]],
-                          ports: Option[Seq[Ports]])
+                          env: Option[Map[String, String]])
 
-final case class TaskParameter(name: Option[String],
-                               description: Option[String],
-                               url: Option[String],
-                               path: String,
-                               `type`: Option[String],
-                               contents: Option[String])
+final case class Input(name: Option[String],
+                       description: Option[String],
+                       url: Option[String],
+                       path: String,
+                       `type`: Option[String],
+                       content: Option[String])
+
+final case class Output(name: Option[String],
+                        description: Option[String],
+                        url: Option[String],
+                        path: String,
+                        `type`: Option[String])
 
 final case class Resources(cpu_cores: Option[Int],
                            ram_gb: Option[Double],
-                           size_gb: Option[Double],
+                           disk_gb: Option[Double],
                            preemptible: Option[Boolean],
                            zones: Option[Seq[String]])
 
@@ -227,15 +261,12 @@ final case class TaskLog(start_time: Option[String],
                          end_time: Option[String],
                          metadata: Option[Map[String, String]],
                          logs: Option[Seq[ExecutorLog]],
-                         outputs: Option[Seq[OutputFileLog]])
+                         outputs: Option[Seq[OutputFileLog]],
+                         system_logs: Option[Seq[String]])
 
 final case class ExecutorLog(start_time: Option[String],
                              end_time: Option[String],
                              stdout: Option[String],
                              stderr: Option[String],
-                             exit_code: Option[Int],
-                             host_ip: Option[String],
-                             ports: Option[Seq[Ports]])
+                             exit_code: Option[Int])
 
-final case class Ports(host: Option[String],
-                       container: String)

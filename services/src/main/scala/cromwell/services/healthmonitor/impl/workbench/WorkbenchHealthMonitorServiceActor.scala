@@ -2,9 +2,11 @@ package cromwell.services.healthmonitor.impl.workbench
 
 import java.net.URL
 
+import akka.actor.ActorRef
 import cats.data.Validated.{Invalid, Valid}
 import cats.instances.future._
 import cats.syntax.functor._
+import com.google.api.gax.retrying.RetrySettings
 import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
@@ -21,7 +23,7 @@ import scala.concurrent.Future
   * as GCS and PAPI. This implementation makes some assumptions of Cromwell's configuration which will be true
   * in a Workbench scenario but YMMV otherwise. Caveat emptor and all of that fun stuff.
   */
-class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig: Config)
+class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
   extends HealthMonitorServiceActor
     with DockerHubMonitor
     with EngineDatabaseMonitor {
@@ -50,7 +52,7 @@ class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig
   private def checkGcs(): Future[SubsystemStatus] = {
     // For any expected production usage of this check, the GCS bucket should be public read */
     val gcsBucketToCheck = serviceConfig.as[String]("gcs-bucket-to-check")
-    val storage = Future(googleAuth.credential(Map.empty)) map { c => GcsStorage.gcsStorage(googleConfig.applicationName, c) }
+    val storage = Future(googleAuth.credential(Map.empty)) map { c => GcsStorage.gcsStorage(googleConfig.applicationName, c, RetrySettings.newBuilder().build()) }
     storage map { _.buckets.get(gcsBucketToCheck).execute() } as OkStatus
   }
 

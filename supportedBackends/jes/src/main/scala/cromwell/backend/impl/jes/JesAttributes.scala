@@ -14,6 +14,7 @@ import eu.timepit.refined.numeric.Positive
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import common.validation.Validation._
+import eu.timepit.refined.refineV
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.{StringReader, ValueReader}
 import org.slf4j.{Logger, LoggerFactory}
@@ -28,11 +29,12 @@ case class JesAttributes(project: String,
                          endpointUrl: URL,
                          maxPollingInterval: Int,
                          qps: Int Refined Positive,
-                         duplicationStrategy: JesCacheHitDuplicationStrategy)
+                         duplicationStrategy: JesCacheHitDuplicationStrategy,
+                         requestWorkers: Int Refined Positive)
 
 object JesAttributes {
-  lazy val Logger = LoggerFactory.getLogger("JesAttributes") 
-  
+  lazy val Logger = LoggerFactory.getLogger("JesAttributes")
+
   val GenomicsApiDefaultQps = 1000
 
   private val jesKeys = Set(
@@ -51,7 +53,8 @@ object JesAttributes {
     "genomics.endpoint-url",
     "filesystems.gcs.auth",
     "filesystems.gcs.caching.duplication-strategy",
-    "genomics-api-queries-per-100-seconds"
+    "genomics-api-queries-per-100-seconds",
+    "request-workers"
   )
 
   private val deprecatedJesKeys: Map[String, String] = Map(
@@ -61,7 +64,7 @@ object JesAttributes {
   private val context = "Jes"
 
   implicit val urlReader: ValueReader[URL] = StringReader.stringValueReader.map { URI.create(_).toURL }
-  
+
   def apply(googleConfig: GoogleConfiguration, backendConfig: Config): JesAttributes = {
     val configKeys = backendConfig.entrySet().asScala.toSet map { entry: java.util.Map.Entry[String, ConfigValue] => entry.getKey }
     warnNotRecognized(configKeys, jesKeys, context, Logger)
@@ -87,20 +90,22 @@ object JesAttributes {
       case "reference" => UseOriginalCachedOutputs
       case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other. Supported strategies are copy and reference. See reference.conf for more details.")
     } }
+    val requestWorkers: ErrorOr[Int Refined Positive] = validatePositiveInt(backendConfig.as[Option[Int]]("request-workers").getOrElse(3), "request-workers")
 
 
     def authGoogleConfigForJesAttributes(project: String,
-                          bucket: String,
-                          endpointUrl: URL,
-                          genomicsName: String,
-                          restrictMetadata: Boolean,
-                          gcsName: String,
-                          qps: Int Refined Positive,
-                          cachingStrategy: JesCacheHitDuplicationStrategy): ErrorOr[JesAttributes] = (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
-      (genomicsAuth, gcsAuth) => JesAttributes(project, computeServiceAccount, JesAuths(genomicsAuth, gcsAuth), restrictMetadata, bucket, endpointUrl, maxPollingInterval, qps, cachingStrategy)
+                                         bucket: String,
+                                         endpointUrl: URL,
+                                         genomicsName: String,
+                                         restrictMetadata: Boolean,
+                                         gcsName: String,
+                                         qps: Int Refined Positive,
+                                         cachingStrategy: JesCacheHitDuplicationStrategy,
+                                         requestWorkers: Int Refined Positive): ErrorOr[JesAttributes] = (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
+      (genomicsAuth, gcsAuth) => JesAttributes(project, computeServiceAccount, JesAuths(genomicsAuth, gcsAuth), restrictMetadata, bucket, endpointUrl, maxPollingInterval, qps, cachingStrategy, requestWorkers)
     }
 
-    (project, executionBucket, endpointUrl, genomicsAuthName, genomicsRestrictMetadataAccess, gcsFilesystemAuthName, qpsValidation, duplicationStrategy) flatMapN authGoogleConfigForJesAttributes match {
+    (project, executionBucket, endpointUrl, genomicsAuthName, genomicsRestrictMetadataAccess, gcsFilesystemAuthName, qpsValidation, duplicationStrategy, requestWorkers) flatMapN authGoogleConfigForJesAttributes match {
       case Valid(r) => r
       case Invalid(f) =>
         throw new IllegalArgumentException with MessageAggregation {
@@ -118,6 +123,13 @@ object JesAttributes {
 
     refineV[Positive](qpsCandidate) match {
       case Left(_) => s"Calculated QPS for Google Genomics API ($qpsCandidate/s) was not a positive integer (supplied value was $qp100s per 100s)".invalidNel
+      case Right(refined) => refined.validNel
+    }
+  }
+  
+  def validatePositiveInt(n: Int, configPath: String) = {
+    refineV[Positive](n) match {
+      case Left(_) => s"Value $n for $configPath is not strictly positive".invalidNel
       case Right(refined) => refined.validNel
     }
   }

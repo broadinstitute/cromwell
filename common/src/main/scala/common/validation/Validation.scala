@@ -9,6 +9,7 @@ import cats.syntax.either._
 import common.Checked
 import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
+import common.validation.Parse.Parse
 import net.ceedubs.ficus.readers.{StringReader, ValueReader}
 import org.slf4j.Logger
 
@@ -67,6 +68,10 @@ object Validation {
 
     def toChecked(errorMessage: String): Checked[A] = {
       Either.fromOption(o, NonEmptyList.of(errorMessage))
+    }
+
+    def toParse(errorMessage: String): Parse[A] = {
+      Parse.checkedParse(Either.fromOption(o, NonEmptyList.of(errorMessage)))
     }
   }
 }

@@ -37,7 +37,9 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
 
       futureId onComplete {
         case Success(id) =>
-          log.info("Workflow {} submitted.", id)
+          val wfType = cmd.source.workflowType.getOrElse("Unspecified type")
+          val wfTypeVersion = cmd.source.workflowTypeVersion.getOrElse("Unspecified version")
+          log.info("{} ({}) workflow {} submitted", wfType, wfTypeVersion, id)
           sndr ! WorkflowSubmittedToStore(id)
           removeWork()
         case Failure(throwable) =>
@@ -120,6 +122,7 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
         MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.Status), MetadataValue(WorkflowSubmitted)),
 
         MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Workflow), MetadataValue(sourceFiles.workflowSource)),
+        MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Root), MetadataValue(sourceFiles.workflowRoot)),
         MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Inputs), MetadataValue(sourceFiles.inputsJson)),
         MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Options), MetadataValue(sourceFiles.workflowOptionsJson)),
         MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Labels), MetadataValue(sourceFiles.labelsJson))

@@ -6,7 +6,6 @@ import cromwell.backend._
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncJob}
-import cromwell.backend.validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import wom.values.WomFile
@@ -98,9 +97,6 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   def jobName: String = s"cromwell_${jobDescriptor.workflowDescriptor.id.shortString}_${jobDescriptor.taskCall.localName}"
 
-  lazy val isDockerRun: Boolean = RuntimeAttributesValidation.extractOption(
-    DockerValidation.instance, validatedRuntimeAttributes).isDefined
-
   /**
     * Localizes the file, run outside of docker.
     */
@@ -112,8 +108,10 @@ trait SharedFileSystemAsyncJobExecutionActor
     * Returns the paths to the file, inside of docker.
     */
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
-    val cleanPath = DefaultPathBuilder.build(womFile.valueString).get
-    WomFile(if (isDockerRun) jobPathsWithDocker.toDockerPath(cleanPath).pathAsString else cleanPath.pathAsString)
+    womFile mapFile { path =>
+      val cleanPath = DefaultPathBuilder.build(path).get
+      if (isDockerRun) jobPathsWithDocker.toDockerPath(cleanPath).pathAsString else cleanPath.pathAsString
+    }
   }
 
   override lazy val commandDirectory: Path = {
@@ -143,6 +141,7 @@ trait SharedFileSystemAsyncJobExecutionActor
       errors => Left(FailedNonRetryableExecutionHandle(new RuntimeException("Unable to start job due to: " + errors.toList.mkString(", ")))),
       {script => jobPaths.script.write(script); Right(())} )
 
+  lazy val standardPaths = jobPaths.standardPaths
   /**
     * Creates a script to submit the script for asynchronous processing. The default implementation assumes the
     * processArgs already runs the script asynchronously. If not, mix in the `BackgroundAsyncJobExecutionActor` that
@@ -151,8 +150,8 @@ trait SharedFileSystemAsyncJobExecutionActor
     * @return A process runner that will relatively quickly submit the script asynchronously.
     */
   def makeProcessRunner(): ProcessRunner = {
-    val stdout = jobPaths.stdout.plusExt("submit")
-    val stderr = jobPaths.stderr.plusExt("submit")
+    val stdout = standardPaths.output.plusExt("submit")
+    val stderr = standardPaths.error.plusExt("submit")
     new ProcessRunner(processArgs.argv, stdout, stderr)
   }
 
@@ -190,8 +189,8 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   def isAlive(job: StandardAsyncJob): Try[Boolean] = Try {
     val argv = checkAliveArgs(job).argv
-    val stdout = jobPaths.stdout.plusExt("check")
-    val stderr = jobPaths.stderr.plusExt("check")
+    val stdout = standardPaths.output.plusExt("check")
+    val stderr = standardPaths.error.plusExt("check")
     val checkAlive = new ProcessRunner(argv, stdout, stderr)
     checkAlive.run() == 0
   }
@@ -208,18 +207,18 @@ trait SharedFileSystemAsyncJobExecutionActor
         // If the process has already completed, there will be an existing rc file.
         returnCodeTmp.delete(true)
     }
-    val stderrTmp = jobPaths.stderr.plusExt("kill")
+    val stderrTmp = standardPaths.error.plusExt("kill")
     stderrTmp.touch()
     try {
-      stderrTmp.moveTo(jobPaths.stderr)
+      stderrTmp.moveTo(standardPaths.error)
     } catch {
       case _: FileAlreadyExistsException =>
         // If the process has already started, there will be an existing stderr file.
         stderrTmp.delete(true)
     }
     val argv = killArgs(job).argv
-    val stdout = jobPaths.stdout.plusExt("kill")
-    val stderr = jobPaths.stderr.plusExt("kill")
+    val stdout = standardPaths.output.plusExt("kill")
+    val stderr = standardPaths.error.plusExt("kill")
     val killer = new ProcessRunner(argv, stdout, stderr)
     killer.run()
     ()

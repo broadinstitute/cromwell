@@ -9,6 +9,8 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object WomArray {
+  def empty = WomArray(WomMaybeEmptyArrayType.EmptyArrayType, List.empty)
+  
   def fromTsv(tsv: String): WomArray = {
     WomArray(WomArrayType(WomArrayType(WomStringType)), tsv.replaceAll("[\r\n]+$", "").split("[\n\r]+").toSeq map { line =>
       WomArray(WomArrayType(WomStringType), line.split("\t").toSeq.map(WomString))
@@ -29,6 +31,8 @@ object WomArray {
       case Failure(f) => throw new UnsupportedOperationException(s"Could not construct array of type $womType with this value: $value", f)
     }
   }
+
+  def apply(value: Seq[WomValue]): WomArray = WomArray.apply(WomArrayType(WomType.homogeneousTypeFromValues(value)), value)
 
   trait WomArrayLike {
     def arrayType: WomArrayType
@@ -55,6 +59,8 @@ sealed abstract case class WomArray(womType: WomArrayType, value: Seq[WomValue])
       case _ => this
     }
   }
+  
+  def size = value.size
 
   def tsvSerialize: Try[String] = {
     womType.memberType match {

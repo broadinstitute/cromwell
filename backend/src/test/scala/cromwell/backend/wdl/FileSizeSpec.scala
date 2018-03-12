@@ -3,18 +3,20 @@ package cromwell.backend.wdl
 import java.nio.file.StandardOpenOption._
 import java.nio.file.{Path, Paths}
 
+import cats.effect.IO
 import com.google.common.io.Files
+import cromwell.backend.io.JobPathsSpecHelper.DummyStandardPaths
 import cromwell.backend.standard.{DefaultStandardExpressionFunctionsParams, StandardExpressionFunctions}
-import cromwell.core.CallContext
 import cromwell.core.Tags.PostWomTest
 import cromwell.core.path.DefaultPathBuilder
-import fs2.{Stream, Task}
-import org.scalatest.{FlatSpec, Matchers}
+import cromwell.core.{CallContext, TestKitSuite}
+import fs2.Stream
+import org.scalatest.{FlatSpecLike, Matchers}
 import wom.values._
 
 import scala.util.{Failure, Success, Try}
 
-class FileSizeSpec extends FlatSpec with Matchers {
+class FileSizeSpec extends TestKitSuite with FlatSpecLike with Matchers {
   val _readLinesLimit = 4
   val _readBoolLimit = 5
   val _readIntLimit = 6
@@ -28,7 +30,11 @@ class FileSizeSpec extends FlatSpec with Matchers {
   val rlf = {
     val path = DefaultPathBuilder.build("/tmp").get
 
-    val dp = DefaultStandardExpressionFunctionsParams(List(cromwell.core.path.DefaultPathBuilder), CallContext(path, "stdout", "stderr"))
+    val dp = DefaultStandardExpressionFunctionsParams(
+      List(cromwell.core.path.DefaultPathBuilder),
+      CallContext(path, DummyStandardPaths),
+      simpleIoActor,
+      scala.concurrent.ExecutionContext.global)
 
     new StandardExpressionFunctions(dp) {
       override val fileSizeLimitationConfig =
@@ -58,8 +64,8 @@ class FileSizeSpec extends FlatSpec with Matchers {
         val fn = tempDir.toString + "/" + scala.util.Random.alphanumeric.take(5).mkString
         val jPath = Paths.get(fn)
         jPath.toFile.deleteOnExit
-        val start = Stream[Task, Byte](1).repeat.take(size.toLong)
-        val end = fs2.io.file.writeAll[Task](jPath, Seq(CREATE_NEW, WRITE))
+        val start = Stream.eval[IO, Byte](IO(1.toByte)).repeat.take(size.toLong)
+        val end = fs2.io.file.writeAll[IO](jPath, Seq(CREATE_NEW, WRITE))
         (start to end).run.unsafeRunSync
         //jPath is now a file of n bytes, we can return it
         jPath

@@ -18,12 +18,14 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
 
   val fooInputDef = RequiredInputDefinition("i", WomIntegerType)
   val task_foo = CallableTaskDefinition(name = "foo",
-    commandTemplate = null,
+    commandTemplateBuilder = null,
     runtimeAttributes = RuntimeAttributes(Map.empty),
     meta = Map.empty,
     parameterMeta = Map.empty,
     outputs = List(OutputDefinition("out", WomStringType, PlaceholderWomExpression(Set.empty, WomStringType))),
-    inputs = List(fooInputDef)
+    inputs = List(fooInputDef),
+    adHocFileCreation = Set.empty,
+    environmentExpressions = Map.empty
   )
 
   /**
@@ -48,14 +50,14 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
     *
     */
   it should "be able to wrap a single task call" in {
-    val xs_inputNode = RequiredGraphInputNode(WomIdentifier("xs"), WomArrayType(WomIntegerType))
+    val xs_inputNode = RequiredGraphInputNode(WomIdentifier("xs"), WomArrayType(WomIntegerType), "xs")
 
     val xsExpression = PlaceholderWomExpression(Set("xs"), WomArrayType(WomIntegerType))
     val xsExpressionAsInput = AnonymousExpressionNode
       .fromInputMapping(WomIdentifier("x"), xsExpression, Map("xs" -> xs_inputNode.singleOutputPort), PlainAnonymousExpressionNode.apply)
       .valueOr(failures => fail(s"Failed to create expression node: ${failures.toList.mkString(", ")}"))
     
-    val x_inputNode = ScatterVariableNode(WomIdentifier("x"), xsExpressionAsInput.singleExpressionOutputPort, WomArrayType(WomIntegerType))
+    val x_inputNode = ScatterVariableNode(WomIdentifier("x"), xsExpressionAsInput, WomArrayType(WomIntegerType))
     val fooNodeBuilder = new CallNodeBuilder()
     val fooInputFold = InputDefinitionFold(
       mappings = List(
@@ -75,7 +77,6 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
 
     val scatterNodeWithInputs = ScatterNode.scatterOverGraph(
       scatterGraph,
-      xsExpressionAsInput,
       x_inputNode
     )
     

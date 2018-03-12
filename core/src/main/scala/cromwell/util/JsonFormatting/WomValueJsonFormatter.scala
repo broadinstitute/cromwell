@@ -11,13 +11,14 @@ object WomValueJsonFormatter extends DefaultJsonProtocol {
       case i: WomInteger => JsNumber(i.value)
       case f: WomFloat => JsNumber(f.value)
       case b: WomBoolean => JsBoolean(b.value)
-      case f: WomFile => JsString(f.value)
-      case o: WomObject => new JsObject(o.value map {case(k, v) => k -> write(v)})
+      case f: WomSingleFile => JsString(f.value)
+      case o: WomObjectLike => new JsObject(o.values map {case(k, v) => k -> write(v)})
       case a: WomArray => new JsArray(a.value.map(write).toVector)
       case m: WomMap => new JsObject(m.value map {case(k,v) => k.valueString -> write(v)})
       case q: WomPair => new JsObject(Map("left" -> write(q.left), "right" -> write(q.right)))
       case WomOptionalValue(_, Some(innerValue)) => write(innerValue)
       case WomOptionalValue(_, None) => JsNull
+      case WomCoproductValue(_, innerValue) => write(innerValue)
         // handles WdlExpression
       case v: WomValue => JsString(v.toWomString)
 
@@ -42,11 +43,11 @@ object WomValueJsonFormatter extends DefaultJsonProtocol {
   }
 }
 
-object WomFileJsonFormatter extends DefaultJsonProtocol {
-  implicit object WomFileJsonFormat extends RootJsonFormat[WomFile] {
-    def write(value: WomFile) = JsString(value.value)
-    def read(value: JsValue): WomFile = value match {
-      case JsString(path) => WomFile(path)
+object WomSingleFileJsonFormatter extends DefaultJsonProtocol {
+  implicit object WomSingleFileJsonFormat extends RootJsonFormat[WomSingleFile] {
+    def write(value: WomSingleFile) = JsString(value.value)
+    def read(value: JsValue): WomSingleFile = value match {
+      case JsString(path) => WomSingleFile(path)
       case unsupported => throw new UnsupportedOperationException(s"Cannot deserialize $unsupported to a WdlFile")
     }
   }

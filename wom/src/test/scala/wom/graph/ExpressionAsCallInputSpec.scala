@@ -2,7 +2,7 @@ package wom.graph
 
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
-import wom.callable.TaskDefinitionSpec
+import wom.callable.CommandTaskDefinitionSpec
 import wom.expression._
 import wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold}
 import wom.graph.expression.{AnonymousExpressionNode, TaskCallInputExpressionNode}
@@ -28,8 +28,8 @@ class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
     */
   it should "create and wire in InstantiatedExpressions where appropriate" in {
     // Two inputs:
-    val iInputNode = RequiredGraphInputNode(WomIdentifier("i"), WomIntegerType)
-    val jInputNode = RequiredGraphInputNode(WomIdentifier("j"), WomIntegerType)
+    val iInputNode = RequiredGraphInputNode(WomIdentifier("i"), WomIntegerType, "i")
+    val jInputNode = RequiredGraphInputNode(WomIdentifier("j"), WomIntegerType, "j")
 
     // Declare an expression that needs both an "i" and a "j":
     val ijExpression = PlaceholderWomExpression(Set("i", "j"), WomIntegerType)
@@ -41,17 +41,17 @@ class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
 
     val callNodeBuilder = new CallNodeBuilder()
 
-    val inputDefinition = TaskDefinitionSpec.oneInputTask.inputs.head
+    val inputDefinition = CommandTaskDefinitionSpec.oneInputTask.inputs.head
     
     val inputDefinitionFold = InputDefinitionFold(
       mappings = List(inputDefinition -> expressionNode.inputDefinitionPointer),
-      callInputPorts = Set(callNodeBuilder.makeInputPort(inputDefinition, expressionNode.singleExpressionOutputPort)),
+      callInputPorts = Set(callNodeBuilder.makeInputPort(inputDefinition, expressionNode.singleOutputPort)),
       newExpressionNodes = Set(expressionNode)
     )
     
     val callNodeWithInputs = callNodeBuilder.build(
       WomIdentifier("foo"),
-      TaskDefinitionSpec.oneInputTask,
+      CommandTaskDefinitionSpec.oneInputTask,
       inputDefinitionFold
     )
 

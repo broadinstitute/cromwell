@@ -1,6 +1,6 @@
 package cromwell
 
-import wdl._
+import wdl.draft2.model._
 import wom.JobOutput
 import wom.values.WomValue
 

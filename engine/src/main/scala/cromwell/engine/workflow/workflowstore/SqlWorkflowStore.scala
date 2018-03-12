@@ -15,13 +15,16 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.collection._
 import net.ceedubs.ficus.Ficus._
 
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
 case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends WorkflowStore {
+  lazy val cromwellId = ConfigFactory.load().as[Option[String]]("system.cromwell_id")
+
   override def initialize(implicit ec: ExecutionContext): Future[Unit] = {
     if (ConfigFactory.load().as[Option[Boolean]]("system.workflow-restart").getOrElse(true)) {
       // Workflows in Running or Aborting state get their restarted flag set to true on restart  
-      sqlDatabase.markRunningAndAbortingAsRestarted()
+      sqlDatabase.markRunningAndAbortingAsRestarted(cromwellId)
     } else {
       Future.successful(())
     }
@@ -45,11 +48,11 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     * Retrieves up to n workflows which have not already been pulled into the engine and sets their pickedUp
     * flag to true
     */
-  override def fetchStartableWorkflows(n: Int)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
+  override def fetchStartableWorkflows(n: Int, cromwellId: Option[String], heartbeatTtl: FiniteDuration)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
     import cats.instances.list._
     import cats.syntax.traverse._
     import common.validation.Validation._
-    sqlDatabase.fetchStartableWorkflows(n) map {
+    sqlDatabase.fetchStartableWorkflows(n, cromwellId, heartbeatTtl) map {
       // .get on purpose here to fail the future if something went wrong
       _.toList.traverse(fromWorkflowStoreEntry).toTry.get
     }
@@ -71,6 +74,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
   private def fromWorkflowStoreEntry(workflowStoreEntry: WorkflowStoreEntry): ErrorOr[WorkflowToStart] = {
     val sources = WorkflowSourceFilesCollection(
       workflowSource = workflowStoreEntry.workflowDefinition.toRawString,
+      workflowRoot = workflowStoreEntry.workflowRoot,
       workflowType = workflowStoreEntry.workflowType,
       workflowTypeVersion = workflowStoreEntry.workflowTypeVersion,
       inputsJson = workflowStoreEntry.workflowInputs.toRawString,
@@ -80,7 +84,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
       warnings = Vector.empty
     )
 
-    fromDbStateStringToStartableState(workflowStoreEntry.workflowState, workflowStoreEntry.restarted) map { startableState =>
+    workflowStoreStateToStartableState(workflowStoreEntry.workflowState, workflowStoreEntry.heartbeatTimestamp.isEmpty) map { startableState =>
       WorkflowToStart(
         WorkflowId.fromString(workflowStoreEntry.workflowExecutionUuid),
         sources,
@@ -95,19 +99,21 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     WorkflowStoreEntry(
       workflowExecutionUuid = WorkflowId.randomId().toString,
       workflowDefinition = workflowSourceFiles.workflowSource.toClobOption,
+      workflowRoot = workflowSourceFiles.workflowRoot,
       workflowType = workflowSourceFiles.workflowType,
       workflowTypeVersion = workflowSourceFiles.workflowTypeVersion,
       workflowInputs = workflowSourceFiles.inputsJson.toClobOption,
       workflowOptions = workflowSourceFiles.workflowOptionsJson.toClobOption,
       customLabels = workflowSourceFiles.labelsJson.toClob(default = nonEmptyJsonString),
       workflowState = WorkflowStoreState.Submitted,
-      restarted = false,
+      cromwellId = None,
+      heartbeatTimestamp = None,
       submissionTime = OffsetDateTime.now.toSystemTimestamp,
       importsZip = workflowSourceFiles.importsZipFileOption.toBlobOption
     )
   }
 
-  private def fromDbStateStringToStartableState(workflowState: WorkflowStoreState, restarted: Boolean): ErrorOr[StartableState] = {
+  private def workflowStoreStateToStartableState(workflowState: WorkflowStoreState, restarted: Boolean): ErrorOr[StartableState] = {
     import cats.syntax.validated._
     // A workflow is startable if
     (workflowState, restarted) match {

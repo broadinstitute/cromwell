@@ -2,19 +2,19 @@ package cromwell.backend.impl.spark
 
 import java.nio.file.attribute.PosixFilePermission
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
+import common.exception.MessageAggregation
 import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
+import cromwell.backend._
 import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
 import cromwell.backend.wdl.Command
 import cromwell.backend.wdl.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
-import cromwell.backend._
 import cromwell.core.path.JavaWriterImplicits._
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}
-import common.exception.MessageAggregation
 
 import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger
@@ -23,12 +23,15 @@ import scala.util.{Failure, Success, Try}
 object SparkJobExecutionActor {
   val DefaultPathBuilders = List(DefaultPathBuilder)
 
-  def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor): Props =
-    Props(new SparkJobExecutionActor(jobDescriptor, configurationDescriptor))
+  def props(jobDescriptor: BackendJobDescriptor,
+            configurationDescriptor: BackendConfigurationDescriptor,
+            ioActorProxy: ActorRef): Props =
+    Props(new SparkJobExecutionActor(jobDescriptor, configurationDescriptor, ioActorProxy))
 }
 
 class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
-                             override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendJobExecutionActor with SharedFileSystem {
+                             override val configurationDescriptor: BackendConfigurationDescriptor,
+                             ioActorProxy: ActorRef) extends BackendJobExecutionActor with SharedFileSystem {
 
   import SparkJobExecutionActor._
 
@@ -51,15 +54,16 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private val executionDir = jobPaths.callExecutionRoot
   private val scriptPath = jobPaths.script
 
-  private lazy val stdoutWriter = extProcess.untailedWriter(jobPaths.stdout)
-  private lazy val stderrWriter = extProcess.tailedWriter(100, jobPaths.stderr)
+  private lazy val standardPaths = jobPaths.standardPaths
+  private lazy val stdoutWriter = extProcess.untailedWriter(standardPaths.output)
+  private lazy val stderrWriter = extProcess.tailedWriter(100, standardPaths.error)
 
-  private lazy val clusterStdoutWriter = clusterExtProcess.untailedWriter(jobPaths.stdout)
-  private lazy val clusterStderrWriter = clusterExtProcess.tailedWriter(100, jobPaths.stderr)
+  private lazy val clusterStdoutWriter = clusterExtProcess.untailedWriter(standardPaths.output)
+  private lazy val clusterStderrWriter = clusterExtProcess.tailedWriter(100, standardPaths.error)
   private lazy val SubmitJobJson = "%s.json"
   private lazy val isClusterMode = isSparkClusterMode(sparkDeployMode, sparkMaster)
 
-  private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, DefaultPathBuilders)
+  private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, DefaultPathBuilders, ioActorProxy, context.dispatcher)
 
   private val executionResponse = Promise[BackendJobExecutionResponse]()
 
@@ -102,7 +106,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   private def resolveExecutionResult(jobReturnCode: Try[Int], failedOnStderr: Boolean): Future[BackendJobExecutionResponse] = {
     (jobReturnCode, failedOnStderr) match {
-      case (Success(0), true) if File(jobPaths.stderr).lines.toList.nonEmpty =>
+      case (Success(0), true) if File(standardPaths.error).lines.toList.nonEmpty =>
         Future.successful(JobFailedNonRetryableResponse(jobDescriptor.key,
           new IllegalStateException(s"Execution process failed although return code is zero but stderr is not empty"), Option(0)))
       case (Success(0), _) => resolveExecutionProcess

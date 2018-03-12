@@ -1,6 +1,7 @@
 package cromwell.core.io
 
 import better.files.File.OpenOptions
+import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
 import cromwell.core.path.Path
 
 object DefaultIoCommand {
@@ -9,7 +10,7 @@ object DefaultIoCommand {
                                   override val overwrite: Boolean) extends IoCopyCommand(
     source, destination, overwrite
   )
-  case class DefaultIoContentAsStringCommand(override val file: Path) extends IoContentAsStringCommand(file)
+  case class DefaultIoContentAsStringCommand(override val file: Path, override val options: IoReadOptions) extends IoContentAsStringCommand(file, options)
   case class DefaultIoSizeCommand(override val file: Path) extends IoSizeCommand(file)
   case class DefaultIoWriteCommand(override val file: Path,
                                    override val content: String,
@@ -22,4 +23,6 @@ object DefaultIoCommand {
   )
   case class DefaultIoHashCommand(override val file: Path) extends IoHashCommand(file)
   case class DefaultIoTouchCommand(override val file: Path) extends IoTouchCommand(file)
+  case class DefaultIoExistsCommand(override val file: Path) extends IoExistsCommand(file)
+  case class DefaultIoReadLinesCommand(override val file: Path) extends IoReadLinesCommand(file)
 }

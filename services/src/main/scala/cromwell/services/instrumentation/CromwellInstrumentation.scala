@@ -1,6 +1,6 @@
 package cromwell.services.instrumentation
 
-import akka.actor.{Actor, ActorRef, Cancellable}
+import akka.actor.{Actor, ActorRef, Cancellable, Timers}
 import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
 import cromwell.services.instrumentation.CromwellInstrumentation.{InstrumentationPath, _}
@@ -32,7 +32,13 @@ object CromwellInstrumentation {
   }
 }
 
+trait CromwellInstrumentationActor extends CromwellInstrumentation { this: Actor =>
+  override def instrumentationSender: ActorRef = self
+}
+
 trait CromwellInstrumentation {
+  protected def instrumentationSender: ActorRef = ActorRef.noSender
+
   def serviceRegistryActor: ActorRef
   
   /**
@@ -41,7 +47,21 @@ trait CromwellInstrumentation {
     * cromwell.[prefix].path
     */
   final private def makeBucket(path: InstrumentationPath, prefix: Option[String]): CromwellBucket = {
-    CromwellBucket(List("cromwell") ++ prefix, path)
+    CromwellBucket(prefix.toList, path)
+  }
+
+  /**
+    * Creates an increment message for the given bucket
+    */
+  private final def countMessage(path: InstrumentationPath, count: Long, prefix: Option[String]): InstrumentationServiceMessage = {
+    InstrumentationServiceMessage(CromwellCount(makeBucket(path, prefix), count))
+  }
+
+  /**
+    * Increment the counter for the given bucket
+    */
+  protected final def count(path: InstrumentationPath, count: Long, prefix: Option[String] = None): Unit = {
+    serviceRegistryActor.tell(countMessage(path, count, prefix), instrumentationSender)
   }
   
   /**
@@ -55,7 +75,7 @@ trait CromwellInstrumentation {
     * Increment the counter for the given bucket
     */
   protected final def increment(path: InstrumentationPath, prefix: Option[String] = None): Unit = {
-    serviceRegistryActor ! incrementMessage(path, prefix)
+    serviceRegistryActor.tell(incrementMessage(path, prefix), instrumentationSender)
   }
 
   /**
@@ -69,7 +89,7 @@ trait CromwellInstrumentation {
     * Set the bucket to the gauge value
     */
   protected final def sendGauge(path: InstrumentationPath, value: Long, prefix: Option[String] = None): Unit = {
-    serviceRegistryActor ! gaugeMessage(path, value, prefix)
+    serviceRegistryActor.tell(gaugeMessage(path, value, prefix), instrumentationSender)
   }
 
   /**
@@ -83,7 +103,7 @@ trait CromwellInstrumentation {
     * Add a timing information for the given bucket
     */
   protected final def sendTiming(path: InstrumentationPath, duration: FiniteDuration, prefix: Option[String] = None) = {
-    serviceRegistryActor ! timingMessage(path, duration, prefix)
+    serviceRegistryActor.tell(timingMessage(path, duration, prefix), instrumentationSender)
   }
 }
 

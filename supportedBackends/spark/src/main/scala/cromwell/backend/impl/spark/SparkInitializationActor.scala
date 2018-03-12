@@ -3,12 +3,12 @@ package cromwell.backend.impl.spark
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.impl.spark.SparkInitializationActor._
 import cromwell.backend.validation.RuntimeAttributesDefault
-import cromwell.backend.validation.RuntimeAttributesKeys._
+import wom.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.WorkflowOptions
 import wom.expression.WomExpression
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 import wom.types.{WomBooleanType, WomIntegerType, WomStringType}
 import wom.values.WomValue
 
@@ -20,14 +20,14 @@ object SparkInitializationActor {
     SparkRuntimeAttributes.NumberOfExecutorsKey, SparkRuntimeAttributes.AppMainClassKey)
 
   def props(workflowDescriptor: BackendWorkflowDescriptor,
-            calls: Set[TaskCallNode],
+            calls: Set[CommandCallNode],
             configurationDescriptor: BackendConfigurationDescriptor,
             serviceRegistryActor: ActorRef): Props =
     Props(new SparkInitializationActor(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor)).withDispatcher(BackendDispatcher)
 }
 
 class SparkInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
-                               override val calls: Set[TaskCallNode],
+                               override val calls: Set[CommandCallNode],
                                override val configurationDescriptor: BackendConfigurationDescriptor,
                                override val serviceRegistryActor: ActorRef) extends BackendWorkflowInitializationActor {
 

@@ -13,6 +13,7 @@ import spray.json._
 
 
 case class WorkflowData(wdl: String,
+                        workflowRoot: Option[String],
                         workflowType: Option[String],
                         workflowTypeVersion: Option[String],
                         inputs: Option[String],
@@ -63,10 +64,12 @@ object WorkflowData {
 
     val workflowType = fullConfig.get[Option[String]]("workflowType").value
     val workflowTypeVersion = fullConfig.get[Option[String]]("workflowTypeVersion").value
+    val workflowRoot = fullConfig.get[Option[String]]("workflowRoot").value
 
     // TODO: The slurps can throw - not a high priority but see #36
     WorkflowData(
       wdl = wdl.slurp,
+      workflowRoot = workflowRoot,
       workflowType = workflowType,
       workflowTypeVersion = workflowTypeVersion,
       inputs = getOptionalPath("inputs") map { _.slurp },

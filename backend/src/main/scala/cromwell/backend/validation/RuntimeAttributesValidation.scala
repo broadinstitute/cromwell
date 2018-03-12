@@ -6,11 +6,10 @@ import cats.syntax.validated._
 import com.typesafe.config.Config
 import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
 import common.validation.ErrorOr._
-import cromwell.core.NoIoFunctionSet
 import org.slf4j.Logger
-import wdl.expression.PureStandardLibraryFunctions
-import wdl.{NoLookup, WdlExpression}
-import wom.expression.WomExpression
+import wdl.draft2.model.expression.PureStandardLibraryFunctions
+import wdl.draft2.model.{NoLookup, WdlExpression}
+import wom.expression.{NoIoFunctionSet, WomExpression}
 import wom.types._
 import wom.values._
 
@@ -405,7 +404,7 @@ trait RuntimeAttributesValidation[ValidatedType] {
     * @param optionalRuntimeConfig Optional default runtime attributes config of a particular backend.
     * @return The new version of this validation.
     */
-  final def configDefaultWdlValue(optionalRuntimeConfig: Option[Config]): Option[WomValue] = {
+  final def configDefaultWomValue(optionalRuntimeConfig: Option[Config]): Option[WomValue] = {
     optionalRuntimeConfig flatMap { config =>
       val value = config.getValue(key).unwrapped()
       coercion.collectFirst({

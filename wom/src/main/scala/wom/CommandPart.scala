@@ -10,5 +10,5 @@ trait CommandPart {
   def instantiate(inputsMap: Map[LocalName, WomValue],
                   functions: IoFunctionSet,
                   valueMapper: WomValue => WomValue,
-                  runtimeEnvironment: RuntimeEnvironment): ErrorOr[InstantiatedCommand]
+                  runtimeEnvironment: RuntimeEnvironment): ErrorOr[List[InstantiatedCommand]]
 }

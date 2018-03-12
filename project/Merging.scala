@@ -7,7 +7,9 @@ object Merging {
     case PathList(ps@_*) if ps.last == "project.properties" =>
       // Merge/Filter project.properties files from Google jars that otherwise collide at merge time.
       MergeStrategy.filterDistinctLines
-    case x @ PathList("META-INF", path@_*) =>
+    case PathList(ps@_*) if ps.last == "logback.xml" =>
+      MergeStrategy.first
+    case x@PathList("META-INF", path@_*) =>
       path map {
         _.toLowerCase
       } match {
@@ -17,6 +19,16 @@ object Merging {
           MergeStrategy.first
         case "maven" :: "com.google.guava" :: xs =>
           MergeStrategy.first
+        case _ =>
+          val oldStrategy = (assemblyMergeStrategy in assembly).value
+          oldStrategy(x)
+      }
+    case x@PathList("OSGI-INF", path@_*) =>
+      path map {
+        _.toLowerCase
+      } match {
+        case "l10n" :: "bundle.properties" :: Nil =>
+          MergeStrategy.concat
         case _ =>
           val oldStrategy = (assemblyMergeStrategy in assembly).value
           oldStrategy(x)

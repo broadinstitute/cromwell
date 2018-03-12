@@ -2,10 +2,10 @@ package cromwell.backend.impl.jes
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.testkit._
-import cromwell.backend.{BackendJobDescriptor, MinimumRuntimeSettings}
 import cromwell.backend.BackendJobExecutionActor.{ExecuteJobCommand, JobFailedNonRetryableResponse}
 import cromwell.backend.impl.jes.ControllableFailingJabjea.JabjeaExplode
 import cromwell.backend.standard.{DefaultStandardSyncExecutionActorParams, StandardSyncExecutionActor, StandardSyncExecutionActorParams}
+import cromwell.backend.{BackendJobDescriptor, MinimumRuntimeSettings}
 import cromwell.core.TestKitSuite
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito

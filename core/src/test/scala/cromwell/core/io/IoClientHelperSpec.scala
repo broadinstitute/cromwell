@@ -83,8 +83,10 @@ class IoClientHelperSpec extends TestKitSuite with FlatSpecLike with Matchers wi
   private class IoClientHelperTestActor(override val ioActor: ActorRef,
                                 delegateTo: ActorRef,
                                 override val backpressureTimeout: FiniteDuration,
-                                noResponseTimeout: FiniteDuration) extends Actor with ActorLogging with IoClientHelper with DefaultIoCommandBuilder {
+                                noResponseTimeout: FiniteDuration) extends Actor with ActorLogging with IoClientHelper {
 
+    implicit val ioCommandBuilder = DefaultIoCommandBuilder
+    
     context.become(ioReceive orElse receive)
 
     override def receive: Receive = {

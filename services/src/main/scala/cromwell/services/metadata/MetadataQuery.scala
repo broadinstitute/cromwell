@@ -3,7 +3,7 @@ package cromwell.services.metadata
 import java.time.OffsetDateTime
 
 import cats.data.NonEmptyList
-import cromwell.core.WorkflowId
+import cromwell.core._
 import org.slf4j.{Logger, LoggerFactory}
 import wom.values._
 
@@ -32,6 +32,7 @@ object MetadataKey {
 
 object MetadataEvent {
   def apply(key: MetadataKey, value: MetadataValue) = new MetadataEvent(key, Option(value), OffsetDateTime.now)
+  def apply(key: MetadataKey, optionalValue: Option[MetadataValue]) = new MetadataEvent(key, optionalValue, OffsetDateTime.now)
   def empty(key: MetadataKey) = new MetadataEvent(key, None, OffsetDateTime.now)
 }
 
@@ -79,11 +80,11 @@ object MetadataType {
   }
 }
 
-case class MetadataValue(value: String, valueType: MetadataType)
+final case class MetadataValue(value: String, valueType: MetadataType)
 
-case class MetadataEvent(key: MetadataKey, value: Option[MetadataValue], offsetDateTime: OffsetDateTime)
+final case class MetadataEvent(key: MetadataKey, value: Option[MetadataValue], offsetDateTime: OffsetDateTime)
 
-case class MetadataQueryJobKey(callFqn: String, index: Option[Int], attempt: Option[Int])
+final case class MetadataQueryJobKey(callFqn: String, index: Option[Int], attempt: Option[Int])
 
 object MetadataQueryJobKey {
   def forMetadataJobKey(jobKey: MetadataJobKey) = MetadataQueryJobKey(jobKey.callFqn, jobKey.index, Option(jobKey.attempt))

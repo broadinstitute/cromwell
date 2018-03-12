@@ -4,28 +4,37 @@ import java.io.IOException
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
+import cats.instances.list._
+import cats.instances.option._
+import cats.syntax.apply._
+import cats.syntax.traverse._
+import cats.syntax.validated._
 import common.exception.MessageAggregation
+import common.util.StringUtil._
 import common.util.TryUtil
-import common.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle, ReturnCodeIsNotAnInt, StderrNonEmpty, SuccessfulExecutionHandle, WrongReturnCode}
-import cromwell.backend.io.GlobFunctions
 import cromwell.backend.validation._
 import cromwell.backend.wdl.OutputEvaluator._
 import cromwell.backend.wdl.{Command, OutputEvaluator}
-import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
+import cromwell.core.io.{AsyncIoActorClient, DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.path.Path
-import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent}
+import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent, StandardPaths}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
+import mouse.all._
 import net.ceedubs.ficus.Ficus._
+import wom.callable.{CommandTaskDefinition, RuntimeEnvironment}
+import wom.expression.WomExpression
+import wom.graph.LocalName
 import wom.values._
-import wom.{InstantiatedCommand, WomFileMapper}
+import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}
 import scala.util.{Failure, Success, Try}
@@ -58,9 +67,11 @@ case class DefaultStandardAsyncExecutionActorParams
   * NOTE: Unlike the parent trait `AsyncBackendJobExecutionActor`, this trait is subject to even more frequent updates
   * as the common behavior among the backends adjusts in unison.
   */
-trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with StandardCachingActorHelper with AsyncIo with DefaultIoCommandBuilder with KvClient {
+trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with StandardCachingActorHelper with AsyncIoActorClient with KvClient {
   this: Actor with ActorLogging with BackendJobLifecycleActor =>
 
+  override lazy val ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
+  
   val SIGTERM = 143
   val SIGINT = 130
   val SIGKILL = 137
@@ -98,12 +109,12 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   /** @see [[Command.instantiate]] */
   lazy val backendEngineFunctions: StandardExpressionFunctions =
-    standardInitializationData.expressionFunctions(jobPaths)
+    standardInitializationData.expressionFunctions(jobPaths, standardParams.ioActor, ec)
 
   lazy val scriptEpilogue = configurationDescriptor.backendConfig.as[Option[String]]("script-epilogue").getOrElse("sync")
 
   lazy val temporaryDirectory = configurationDescriptor.backendConfig
-    .as[Option[String]]("temporary-directory").getOrElse("""$(mktemp -d "$PWD"/tmp.XXXXXX)""")
+    .as[Option[String]]("temporary-directory").getOrElse(s"""$$(mkdir -p "${runtimeEnvironment.tempPath}" && echo "${runtimeEnvironment.tempPath}")""")
 
   /**
     * Maps WomFile objects for use in the commandLinePreProcessor.
@@ -129,7 +140,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     *
     */
   def mapCommandLineWomFile(womFile: WomFile): WomFile =
-    WomSingleFile(workflowPaths.buildPath(womFile.value).pathAsString)
+    womFile.mapFile(workflowPaths.buildPath(_).pathAsString)
 
   /** @see [[Command.instantiate]] */
   final lazy val commandLineValueMapper: WomValue => WomValue = {
@@ -140,6 +151,30 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * The local path where the command will run.
     */
   lazy val commandDirectory: Path = jobPaths.callExecutionRoot
+
+  /**
+    * Returns the shell scripting for finding all files listed within a directory.
+    *
+    * @param directoryFiles The directories.
+    * @return The shell scripting.
+    */
+  def directoryScripts(directoryFiles: Traversable[WomUnlistedDirectory]): String =
+    directoryFiles map directoryScript mkString "\n"
+
+  /**
+    * Returns the shell scripting for finding all files listed within a directory.
+    *
+    * @param unlistedDirectory The directory.
+    * @return The shell scripting.
+    */
+  def directoryScript(unlistedDirectory: WomUnlistedDirectory): String = {
+    val directoryPath = unlistedDirectory.value.ensureUnslashed
+    val directoryList = directoryPath + ".list"
+
+    s"""|# list all the files that match the directory into a file called directory.list
+        |find $directoryPath -type f > $directoryList
+        |""".stripMargin
+  }
 
   /**
     * The local parent directory of the glob file. By default this is the same as the commandDirectory.
@@ -171,15 +206,24 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     val globDir = GlobFunctions.globName(globFile.value)
     val globDirectory = parentDirectory./(globDir)
     val globList = parentDirectory./(s"$globDir.list")
+    val controlFileName = "cromwell_glob_control_file"
+    val controlFileContent =
+      """This file is used by Cromwell to allow for globs that would not match any file.
+        |By its presence it works around the limitation of some backends that do not allow empty globs.
+        |Regardless of the outcome of the glob, this file will not be part of the final list of globbed files.
+      """.stripMargin
 
     s"""|# make the directory which will keep the matching files
         |mkdir $globDirectory
         |
+        |# create the glob control file that will allow for the globbing to succeed even if there is 0 match
+        |echo "${controlFileContent.trim}" > $globDirectory/$controlFileName
+        |
         |# symlink all the files into the glob directory
         |( ln -L ${globFile.value} $globDirectory 2> /dev/null ) || ( ln ${globFile.value} $globDirectory )
         |
-        |# list all the files that match the glob into a file called glob-[md5 of glob].list
-        |ls -1 $globDirectory > $globList
+        |# list all the files (except the control file) that match the glob into a file called glob-[md5 of glob].list
+        |ls -1 $globDirectory | grep -v $controlFileName > $globList
         |""".stripMargin
   }
 
@@ -192,12 +236,63 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
     val cwd = commandDirectory
     val rcPath = cwd./(jobPaths.returnCodeFilename)
+    // It's here at instantiation time that the names of standard input/output/error files are calculated.
+    // The standard input filename can be as ephemeral as the execution: the name needs to match the expectations of
+    // the command, but the standard input file will never be accessed after the command completes. standard output and
+    // error on the other hand will be accessed and the names of those files need to be known to be delocalized and read
+    // by the backend.
+    //
+    // All of these redirections can be expressions and will be given "value-mapped" versions of their inputs, which
+    // means that if any fully qualified filenames are generated they will be container paths. As mentioned above this
+    // doesn't matter for standard input since that's ephemeral to the container, but standard output and error paths
+    // will need to be mapped back to host paths for use outside the command script.
+    //
+    // Absolutize any redirect and overridden paths. All of these files must have absolute paths since the command script
+    // references them outside a (cd "execution dir"; ...) subshell. The default names are known to be relative paths,
+    // the names from redirections may or may not be relative.
+    def absolutizeContainerPath(path: String): String = {
+      if (path.startsWith(cwd.pathAsString)) path else cwd.resolve(path).pathAsString
+    }
+
+    val executionStdin = instantiatedCommand.evaluatedStdinRedirection map absolutizeContainerPath
+    val executionStdout = instantiatedCommand.evaluatedStdoutOverride.getOrElse(jobPaths.defaultStdoutFilename) |> absolutizeContainerPath
+    val executionStderr = instantiatedCommand.evaluatedStderrOverride.getOrElse(jobPaths.defaultStderrFilename) |> absolutizeContainerPath
+
+    def hostPathFromContainerPath(string: String): Path = {
+      val cwdString = cwd.pathAsString.ensureSlashed
+      val relativePath = string.stripPrefix(cwdString)
+      jobPaths.callExecutionRoot.resolve(relativePath)
+    }
+
+    // .get's are safe on stdout and stderr after falling back to default names above.
+    jobPaths.standardPaths = StandardPaths(
+      output = hostPathFromContainerPath(executionStdout),
+      error = hostPathFromContainerPath(executionStderr)
+    )
+
+    // Re-publish stdout and stderr paths that were possibly just updated.
+    tellMetadata(jobPaths.standardOutputAndErrorPaths)
+
+    // The standard input redirection gets a '<' that standard output and error do not since standard input is only
+    // redirected if requested. Standard output and error are always redirected but not necessarily to the default
+    // stdout/stderr file names.
+    val stdinRedirection = executionStdin.map("< " + _.shellQuote).getOrElse("")
+    val stdoutRedirection = executionStdout.shellQuote
+    val stderrRedirection = executionStderr.shellQuote
     val rcTmpPath = rcPath.plusExt("tmp")
 
-    val globFiles: ErrorOr[List[WomGlobFile]] =
+    val errorOrDirectoryOutputs: ErrorOr[List[WomUnlistedDirectory]] =
+      backendEngineFunctions.findDirectoryOutputs(call, jobDescriptor)
+
+    val errorOrGlobFiles: ErrorOr[List[WomGlobFile]] =
       backendEngineFunctions.findGlobOutputs(call, jobDescriptor)
 
-    globFiles.map(globFiles =>
+    lazy val environmentVariables = instantiatedCommand.environmentVariables map { case (k, v) => s"""export $k="$v"""" } mkString("", "\n", "\n")
+
+    // The `tee` trickery below is to be able to redirect to known filenames for CWL while also streaming
+    // stdout and stderr for PAPI to periodically upload to cloud storage.
+    // https://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
+    (errorOrDirectoryOutputs, errorOrGlobFiles).mapN((directoryOutputs, globFiles) =>
     s"""|#!/bin/bash
         |tmpDir=$$(
         |  set -e
@@ -205,38 +300,105 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |  tmpDir="$temporaryDirectory"
         |  echo "$$tmpDir"
         |)
-        |chmod 777 $$tmpDir
-        |export _JAVA_OPTIONS=-Djava.io.tmpdir=$$tmpDir
-        |export TMPDIR=$$tmpDir
+        |chmod 777 "$$tmpDir"
+        |export _JAVA_OPTIONS=-Djava.io.tmpdir="$$tmpDir"
+        |export TMPDIR="$$tmpDir"
+        |export HOME="${instantiatedCommand.home}"
         |(
         |cd $cwd
         |SCRIPT_PREAMBLE
         |)
         |(
         |cd $cwd
+        |ENVIRONMENT_VARIABLES
         |INSTANTIATED_COMMAND
-        |)
+        |) $stdinRedirection > >(tee $stdoutRedirection) 2> >(tee $stderrRedirection >&2)
         |echo $$? > $rcTmpPath
         |(
         |cd $cwd
-        |${globScripts(globFiles)}
-        |)
-        |(
-        |cd $cwd
         |SCRIPT_EPILOGUE
+        |${globScripts(globFiles)}
+        |${directoryScripts(directoryOutputs)}
         |)
         |mv $rcTmpPath $rcPath
         |""".stripMargin
       .replace("SCRIPT_PREAMBLE", scriptPreamble)
+      .replace("ENVIRONMENT_VARIABLES", environmentVariables)
       .replace("INSTANTIATED_COMMAND", instantiatedCommand.commandString)
       .replace("SCRIPT_EPILOGUE", scriptEpilogue))
   }
 
+  def runtimeEnvironmentPathMapper(env: RuntimeEnvironment): RuntimeEnvironment = {
+    def localize(path: String): String = (WomSingleFile(path) |> commandLineValueMapper).valueString
+    env.copy(outputPath = env.outputPath |> localize, tempPath = env.tempPath |> localize)
+  }
+
+  lazy val runtimeEnvironment =
+    RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(standardParams.minimumRuntimeSettings) |> runtimeEnvironmentPathMapper
+
   /** The instantiated command. */
   lazy val instantiatedCommand: InstantiatedCommand = {
-    val runtimeEnvironment = RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(standardParams.minimumRuntimeSettings)
-    Command.instantiate(
-      jobDescriptor, backendEngineFunctions, commandLinePreProcessor, commandLineValueMapper, runtimeEnvironment).toTry.get
+
+    val instantiatedCommandValidation = Command.instantiate(
+      jobDescriptor,
+      backendEngineFunctions,
+      commandLinePreProcessor,
+      commandLineValueMapper,
+      runtimeEnvironment
+    )
+
+    def adHocFileLocalization(womFile: WomFile): String = womFile.value.substring(womFile.value.lastIndexOf("/") + 1)
+
+    def validateAdHocFile(value: WomValue): ErrorOr[List[WomFile]] = value match {
+      case f: WomFile => List(f).valid
+      case a: WomArray => a.value.toList.traverse(validateAdHocFile).map(_.flatten)
+      case other => s"Ad-hoc file creation expression invalidly created a ${other.womType.toDisplayString} result.".invalidNel
+    }
+
+    val callable = jobDescriptor.taskCall.callable
+    def makeStringKeyedMap(list: List[(LocalName, WomValue)]): Map[String, WomValue] = list.toMap map { case (k, v) => k.value -> v }
+
+    val command = instantiatedCommandValidation flatMap { instantiatedCommand =>
+      val preprocessedInputs = instantiatedCommand.preprocessedInputs |> makeStringKeyedMap
+      val valueMappedPreprocessedInputs = instantiatedCommand.valueMappedPreprocessedInputs |> makeStringKeyedMap
+
+      val adHocFileCreations: ErrorOr[List[WomFile]] = callable.adHocFileCreation.toList.flatTraverse(
+        _.evaluate(preprocessedInputs, valueMappedPreprocessedInputs, backendEngineFunctions).flatMap(validateAdHocFile)
+      )
+
+      val adHocFileCreationSideEffectFiles: ErrorOr[List[CommandSetupSideEffectFile]] = adHocFileCreations map { _ map {
+        f => CommandSetupSideEffectFile(f, Option(adHocFileLocalization(f)))
+      }}
+
+      def evaluateEnvironmentExpression(nameAndExpression: (String, WomExpression)): ErrorOr[(String, String)] = {
+        val (name, expression) = nameAndExpression
+        expression.evaluateValue(valueMappedPreprocessedInputs, backendEngineFunctions) map { name -> _.valueString }
+      }
+
+      val environmentVariables = callable.environmentExpressions.toList traverse evaluateEnvironmentExpression
+
+      // Build a list of functions from a CommandTaskDefinition to an Option[WomExpression] representing a possible
+      // redirection or override of the filename of a redirection. Evaluate that expression if present and stringify.
+      val List(stdinRedirect, stdoutOverride, stderrOverride) = List[CommandTaskDefinition => Option[WomExpression]](
+        _.stdinRedirection, _.stdoutOverride, _.stderrOverride) map {
+        _.apply(callable).traverse[ErrorOr, String] { _.evaluateValue(valueMappedPreprocessedInputs, backendEngineFunctions) map { _.valueString} }
+      }
+
+      (adHocFileCreationSideEffectFiles, environmentVariables, stdinRedirect, stdoutOverride, stderrOverride) mapN {
+        (adHocFiles, env, in, out, err) =>
+          val homeOverride = jobDescriptor.taskCall.callable.homeOverride map { _.apply(runtimeEnvironment) }
+          instantiatedCommand.copy(
+            createdFiles = instantiatedCommand.createdFiles ++ adHocFiles, environmentVariables = env.toMap,
+            evaluatedStdinRedirection = in, evaluatedStdoutOverride = out, evaluatedStderrOverride = err,
+            home = homeOverride.getOrElse(instantiatedCommand.home))
+      }
+    }
+
+    // TODO CWL: Is throwing an exception the best way to indicate command generation failure?
+    command.toTry match {
+      case Success(ic) => ic
+      case Failure(e) => throw new Exception("Failed command instantiation", e)
+    }
   }
 
   /**
@@ -248,7 +410,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def redirectOutputs(command: String): String = {
     // > 128 is the cutoff for signal-induced process deaths such as might be observed with abort.
     // http://www.tldp.org/LDP/abs/html/exitcodes.html
-    s"""$command > ${jobPaths.stdout} 2> ${jobPaths.stderr} < /dev/null || { rc=$$?; if [ "$$rc" -gt "128" ]; then echo $$rc; else echo -1; fi } > ${jobPaths.returnCode}"""
+    s"""$command < /dev/null || { rc=$$?; if [ "$$rc" -gt "128" ]; then echo $$rc; else echo -1; fi } > ${jobPaths.returnCode}"""
   }
 
   /** A tag that may be used for logging. */
@@ -441,8 +603,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   /**
     * Output value mapper.
     *
-    * @param womValue The original wdl value.
-    * @return The Try wrapped and mapped wdl value.
+    * @param womValue The original WOM value.
+    * @return The Try wrapped and mapped WOM value.
     */
   final def outputValueMapper(womValue: WomValue): Try[WomValue] = {
     WomFileMapper.mapWomFiles(mapOutputWomFile)(womValue)
@@ -452,7 +614,12 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * Used to convert to output paths.
     *
     */
-  def mapOutputWomFile(womFile: WomFile): WomFile = womFile
+  def mapOutputWomFile(womFile: WomFile): WomFile =
+    womFile.mapFile{
+      path =>
+        val pathFromContainerInputs = jobPaths.hostPathFromContainerInputs(path)
+        pathFromContainerInputs.toAbsolutePath.toString
+    }
 
   /**
     * Tries to evaluate the outputs.
@@ -461,7 +628,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     *
     * @return A Try wrapping evaluated outputs.
     */
-  def evaluateOutputs: EvaluatedJobOutputs = {
+  def evaluateOutputs()(implicit ec: ExecutionContext): Future[EvaluatedJobOutputs] = {
     OutputEvaluator.evaluateOutputs(jobDescriptor, backendEngineFunctions, outputValueMapper)
   }
 
@@ -513,8 +680,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     */
   def handleExecutionSuccess(runStatus: StandardAsyncRunStatus,
                              handle: StandardAsyncPendingExecutionHandle,
-                             returnCode: Int): ExecutionHandle = {
-    evaluateOutputs match {
+                             returnCode: Int)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+    evaluateOutputs() map {
       case ValidJobOutputs(outputs) =>
         SuccessfulExecutionHandle(outputs, returnCode, jobPaths.detritusPaths, getTerminalEvents(runStatus))
       case InvalidJobOutputs(errors) =>
@@ -547,7 +714,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   private var missedAbort = false
   private case class CheckMissedAbort(jobId: StandardAsyncJob)
 
-  context.become(kvClientReceive orElse ioReceive orElse standardReceiveBehavior(None) orElse receive)
+  context.become(kvClientReceive orElse standardReceiveBehavior(None) orElse receive)
 
   def standardReceiveBehavior(jobIdOption: Option[StandardAsyncJob]): Receive = LoggingReceive {
     case AbortJobCommand =>
@@ -561,7 +728,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       }
       postAbort()
     case CheckMissedAbort(jobId: StandardAsyncJob) =>
-      context.become(kvClientReceive orElse ioReceive orElse standardReceiveBehavior(Option(jobId)) orElse receive)
+      context.become(kvClientReceive orElse standardReceiveBehavior(Option(jobId)) orElse receive)
       if (missedAbort)
         self ! AbortJobCommand
   }
@@ -589,7 +756,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   private def executeOrRecoverSuccess(executionHandle: ExecutionHandle): Future[ExecutionHandle] = {
     executionHandle match {
       case handle: PendingExecutionHandle[StandardAsyncJob@unchecked, StandardAsyncRunInfo@unchecked, StandardAsyncRunStatus@unchecked] =>
-        tellKvJobId(handle.pendingJob).map { case _ =>
+        tellKvJobId(handle.pendingJob) map { _ =>
           jobLogger.info(s"job id: ${handle.pendingJob.jobId}")
           tellMetadata(Map(CallMetadataKeys.JobId -> handle.pendingJob.jobId))
           /*
@@ -669,7 +836,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
           customPollStatusFailure orElse {
             case (_: ExecutionHandle, exception: Exception) if isFatal(exception) =>
               // Log exceptions and return the original handle to try again.
-              jobLogger.warn(s"Fatal exception polling for status. Job will fail.")
+              jobLogger.warn(s"Fatal exception polling for status. Job will fail.", exception)
               FailedNonRetryableExecutionHandle(exception)
             case (handle: ExecutionHandle, exception: Exception) =>
               // Log exceptions and return the original handle to try again.
@@ -693,13 +860,15 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     */
   def handleExecutionResult(status: StandardAsyncRunStatus,
                             oldHandle: StandardAsyncPendingExecutionHandle): Future[ExecutionHandle] = {
-      lazy val stderrAsOption: Option[Path] = Option(jobPaths.stderr)
+
+      val stderr = jobPaths.standardPaths.error
+      lazy val stderrAsOption: Option[Path] = Option(stderr)
 
       val stderrSizeAndReturnCode = for {
-        returnCodeAsString <- contentAsStringAsync(jobPaths.returnCode)
+        returnCodeAsString <- asyncIo.contentAsStringAsync(jobPaths.returnCode, None, failOnOverflow = false)
         // Only check stderr size if we need to, otherwise this results in a lot of unnecessary I/O that
         // may fail due to race conditions on quickly-executing jobs.
-        stderrSize <- if (failOnStdErr) sizeAsync(jobPaths.stderr) else Future.successful(0L)
+        stderrSize <- if (failOnStdErr) asyncIo.sizeAsync(stderr) else Future.successful(0L)
       } yield (stderrSize, returnCodeAsString)
 
       stderrSizeAndReturnCode flatMap {
@@ -715,7 +884,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
               case Success(returnCodeAsInt) if !continueOnReturnCode.continueFor(returnCodeAsInt) =>
                 Future.successful(FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption), Option(returnCodeAsInt)))
               case Success(returnCodeAsInt) =>
-                Future.successful(handleExecutionSuccess(status, oldHandle, returnCodeAsInt))
+                handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
               case Failure(_) =>
                 Future.successful(FailedNonRetryableExecutionHandle(ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString, stderrAsOption)))
             }
@@ -738,7 +907,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     val kvJobKey =
       KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt)
     val scopedKey = ScopedKey(jobDescriptor.workflowDescriptor.id, kvJobKey, jobIdKey)
-    val kvValue = Option(runningJob.jobId)
+    val kvValue = runningJob.jobId
     val kvPair = KvPair(scopedKey, kvValue)
     val kvPut = KvPut(kvPair)
     makeKvRequest(Seq(kvPut)).map(_.head)

@@ -6,10 +6,10 @@ import cromwell.backend.standard.callcaching.StandardFileHashingActor.SingleFile
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor}
 import cromwell.core.TestKitSuite
 import cromwell.core.callcaching.HashingFailedMessage
-import cromwell.core.io.{DefaultIoCommandBuilder, IoHashCommand}
+import cromwell.core.io.{IoCommandBuilder, IoHashCommand, PartialIoCommandBuilder}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import org.scalatest.{FlatSpecLike, Matchers}
-import wom.values.WomFile
+import wom.values.WomSingleFile
 
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
@@ -23,11 +23,11 @@ class StandardFileHashingActorSpec extends TestKitSuite("StandardFileHashingActo
   it should "return a failure to the parent when getPath throws an exception" in {
     val parentProbe = TestProbe()
     val params = StandardFileHashingActorSpec.defaultParams()
-    val props = Props(new StandardFileHashingActor(params) with DefaultIoCommandBuilder {
+    val props = Props(new StandardFileHashingActor(params) {
       override def getPath(str: String): Try[Path] = throw new RuntimeException("I am expected during tests")
     })
     val standardFileHashingActorRef = TestActorRef(props, parentProbe.ref)
-    val request = SingleFileHashRequest(null, null, WomFile("/expected/failure/path"), None)
+    val request = SingleFileHashRequest(null, null, WomSingleFile("/expected/failure/path"), None)
     standardFileHashingActorRef ! request
 
     parentProbe.expectMsgPF(1.seconds) {
@@ -42,13 +42,16 @@ class StandardFileHashingActorSpec extends TestKitSuite("StandardFileHashingActo
   it should "return a failure to the parent when hashCommand throws an exception" in {
     val parentProbe = TestProbe()
     val params = StandardFileHashingActorSpec.defaultParams()
-    val props = Props(new StandardFileHashingActor(params) with DefaultIoCommandBuilder {
+    val props = Props(new StandardFileHashingActor(params) {
+      override val ioCommandBuilder = IoCommandBuilder(
+        new PartialIoCommandBuilder {
+          override def hashCommand = throw new RuntimeException("I am expected during tests")
+        }
+      )
       override def getPath(str: String): Try[Path] = Try(DefaultPathBuilder.get(str))
-
-      override def hashCommand(file: Path) = throw new RuntimeException("I am expected during tests")
     })
     val standardFileHashingActorRef = TestActorRef(props, parentProbe.ref)
-    val request = SingleFileHashRequest(null, null, WomFile("/expected/failure/path"), None)
+    val request = SingleFileHashRequest(null, null, WomSingleFile("/expected/failure/path"), None)
     standardFileHashingActorRef ! request
 
     parentProbe.expectMsgPF(10.seconds.dilated) {
@@ -64,13 +67,13 @@ class StandardFileHashingActorSpec extends TestKitSuite("StandardFileHashingActo
     val parentProbe = TestProbe()
     val ioActorProbe = TestProbe()
     val params = StandardFileHashingActorSpec.ioActorParams(ioActorProbe.ref)
-    val props = Props(new StandardFileHashingActor(params) with DefaultIoCommandBuilder {
+    val props = Props(new StandardFileHashingActor(params) {
       override lazy val defaultIoTimeout = 1.second.dilated
 
       override def getPath(str: String): Try[Path] = Try(DefaultPathBuilder.get(str))
     })
     val standardFileHashingActorRef = TestActorRef(props, parentProbe.ref)
-    val request = SingleFileHashRequest(null, null, WomFile("/expected/failure/path"), None)
+    val request = SingleFileHashRequest(null, null, WomSingleFile("/expected/failure/path"), None)
 
     standardFileHashingActorRef ! request
 

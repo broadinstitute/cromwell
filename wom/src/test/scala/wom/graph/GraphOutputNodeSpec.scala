@@ -11,8 +11,8 @@ class GraphOutputNodeSpec extends FlatSpec with Matchers {
 
   it should "construct an ExpressionBasedGraphOutputNode node if inputs are available" in {
     // Two inputs:
-    val iInputNode = RequiredGraphInputNode(WomIdentifier("i"), WomIntegerType)
-    val jInputNode = RequiredGraphInputNode(WomIdentifier("j"), WomIntegerType)
+    val iInputNode = RequiredGraphInputNode(WomIdentifier("i"), WomIntegerType, "i")
+    val jInputNode = RequiredGraphInputNode(WomIdentifier("j"), WomIntegerType, "j")
 
     // Declare a port output from i:
     val jOutput = PortBasedGraphOutputNode(WomIdentifier("j_out"), WomIntegerType, jInputNode.singleOutputPort)

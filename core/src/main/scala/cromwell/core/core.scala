@@ -4,7 +4,9 @@ import cromwell.core.path.Path
 import common.exception.ThrowableAggregation
 
 
-case class CallContext(root: Path, stdout: String, stderr: String)
+case class StandardPaths(output: Path, error: Path)
+
+case class CallContext(root: Path, standardPaths: StandardPaths)
 
 /**  Marker trait for Cromwell exceptions that are to be treated as fatal (non-retryable) */
 trait CromwellFatalExceptionMarker { this: Throwable => }

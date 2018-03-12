@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution
 
-import _root_.wdl._
+import _root_.wdl.draft2.model._
 import akka.actor.{Scope => _, _}
 import cats.data.NonEmptyList
 import cats.instances.list._
@@ -15,6 +15,7 @@ import cromwell.backend._
 import cromwell.core.Dispatcher._
 import cromwell.core.ExecutionStatus._
 import cromwell.core._
+import cromwell.core.io.AsyncIo
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
@@ -25,6 +26,7 @@ import cromwell.engine.workflow.lifecycle.execution.keys.ExpressionKey.{Expressi
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState}
+import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataValue}
 import cromwell.util.StopAndLogSupervisor
@@ -46,7 +48,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   val workflowDescriptor = params.workflowDescriptor
   override val workflowIdForLogging = workflowDescriptor.id
   override val workflowIdForCallMetadata = workflowDescriptor.id
-
+  private val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
   private val restarting = params.startState.restarted
   private val tag = s"WorkflowExecutionActor [UUID(${workflowDescriptor.id.shortString})]"
 
@@ -63,13 +65,15 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
   startWith(
     WorkflowExecutionPendingState,
-    WorkflowExecutionActorData(workflowDescriptor)
+    WorkflowExecutionActorData(workflowDescriptor, ioEc, new AsyncIo(params.ioActor, GcsBatchCommandBuilder))
   )
+  
+  private def sendHeartBeat(): Unit = timers.startSingleTimer(ExecutionHeartBeatKey, ExecutionHeartBeat, ExecutionHeartBeatInterval)
 
   when(WorkflowExecutionPendingState) {
     case Event(ExecuteWorkflowCommand, _) =>
       // Start HeartBeat
-      timers.startPeriodicTimer(ExecutionHeartBeatKey, ExecutionHeartBeat, ExecutionHeartBeatInterval)
+      sendHeartBeat()
 
       /*
         * Note that we don't record the fact that a workflow was failing, therefore we either restart in running or aborting state.
@@ -145,8 +149,11 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   // Most of the Event handling is common to all states, so put it here. Specific behavior is added / overridden in each state
   whenUnhandled {
     case Event(ExecutionHeartBeat, data) if data.executionStore.needsUpdate =>
-      stay() using startRunnableNodes(data)
+      val newData = startRunnableNodes(data)
+      sendHeartBeat()
+      stay() using newData
     case Event(ExecutionHeartBeat, _) =>
+      sendHeartBeat()
       stay()
     case Event(JobStarting(jobKey), stateData) =>
       pushStartingCallMetadata(jobKey)
@@ -176,8 +183,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         handleNonRetryableFailure(currentStateData, jobKey, new Exception(s"Subworkflow produced outputs: [${callOutputs.outputs.keys.mkString(", ")}], but we expected all of [${jobKey.node.subworkflowCallOutputPorts.map(_.name)}]"))
       }
     // Expression
-    case Event(ExpressionEvaluationSucceededResponse(jobKey, callOutputs), stateData) =>
-      handleDeclarationEvaluationSuccessful(jobKey, callOutputs, stateData)
+    case Event(ExpressionEvaluationSucceededResponse(expressionKey, callOutputs), stateData) =>
+      handleDeclarationEvaluationSuccessful(expressionKey, callOutputs, stateData)
 
     // Failure
     // Initialization
@@ -298,7 +305,9 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
     val workflowOutputValuesValidation = workflowOutputNodes
       // Try to find a value for each port in the value store
-      .map(outputNode => outputNode -> data.valueStore.get(outputNode.graphOutputPort, None))
+      .map(outputNode => 
+      outputNode -> data.valueStore.get(outputNode.graphOutputPort, None)
+    )
       .toList.traverse[ErrorOr, (GraphOutputNode, WomValue)]({
       case (name, Some(value)) => (name -> value).validNel
       case (name, None) => s"Cannot find an output value for ${name.identifier.fullyQualifiedName.value}".invalidNel
@@ -395,8 +404,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     stay() using data.callExecutionSuccess(jobKey, outputs).addExecutions(jobExecutionMap)
   }
 
-  private def handleDeclarationEvaluationSuccessful(key: ExpressionKey, value: WomValue, data: WorkflowExecutionActorData) = {
-    stay() using data.expressionEvaluationSuccess(key, value)
+  private def handleDeclarationEvaluationSuccessful(key: ExpressionKey, values: Map[OutputPort, WomValue], data: WorkflowExecutionActorData) = {
+    stay() using data.expressionEvaluationSuccess(key, values)
   }
 
   /**
@@ -407,11 +416,18 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     import keys._
 
     val DataStoreUpdate(runnableKeys, updatedData) = data.executionStoreUpdate
-    val runnableCalls = runnableKeys.view collect { case k if k.node.isInstanceOf[CallNode] => k } sortBy { k =>
-      (k.node.fullyQualifiedName, k.index.getOrElse(-1)) } map { _.tag }
-
+    val runnableCalls = runnableKeys.view
+      .collect({ case k: BackendJobDescriptorKey => k })
+      .groupBy(_.node)
+      .map({
+        case (node, keys) => 
+          val tag = node.fullyQualifiedName
+          val shardCount = keys.map(_.index).distinct.size
+          if (shardCount == 1) tag
+          else s"$tag ($shardCount shards)"
+      })
     val mode = if (restarting) "Restarting" else "Starting"
-    if (runnableCalls.nonEmpty) workflowLogger.info(s"$mode calls: " + runnableCalls.mkString(", "))
+    if (runnableCalls.nonEmpty) workflowLogger.info(s"$mode " + runnableCalls.mkString(", "))
 
     val diffValidation = runnableKeys.traverse[ErrorOr, WorkflowExecutionDiff]({
       case key: BackendJobDescriptorKey => processRunnableJob(key, data)
@@ -448,12 +464,12 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       backendJobDescriptorKey <- Option(jobKey) collectFirst { case k: BackendJobDescriptorKey => k } toChecked s"Job key not a BackendJobDescriptorKey: $jobKey"
       factory <- backendFactoryForTaskCallNode(taskCallNode)
       backendInitializationData = params.initializationData.get(factory.name)
-      functions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, backendJobDescriptorKey, backendInitializationData)
+      functions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, backendJobDescriptorKey, backendInitializationData, params.ioActor, ioEc)
       diff <- key.processRunnable(functions, data.valueStore, self).toEither
     } yield diff).toValidated
   }
 
-  private def backendFactoryForTaskCallNode(taskCallNode: TaskCallNode): Checked[BackendLifecycleActorFactory] = {
+  private def backendFactoryForTaskCallNode(taskCallNode: CommandCallNode): Checked[BackendLifecycleActorFactory] = {
     for {
       name <- workflowDescriptor
         .backendAssignments.get(taskCallNode).toChecked(s"Cannot find an assigned backend for call ${taskCallNode.fullyQualifiedName}")

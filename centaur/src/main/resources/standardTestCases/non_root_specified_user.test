@@ -10,5 +10,5 @@ files {
 metadata {
   workflowName: woot
   status: Succeeded
-  "outputs.woot.nobodyHome": "/nonexistent"
+  "outputs.woot.nobodyUser": "nobody"
 }

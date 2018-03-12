@@ -5,11 +5,12 @@ import java.util.UUID
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorInitializationException, ActorRef, OneForOneStrategy, Props}
+import akka.routing.Listen
 import akka.testkit.TestProbe
 import com.typesafe.config.{Config, ConfigException, ConfigFactory}
 import cromwell.core.TestKitSuite
-import cromwell.services.BarServiceActor.{ArbitraryBarMessage, SetProbe}
-import cromwell.services.ServiceRegistryActor.{ServiceRegistryFailure, ServiceRegistryMessage}
+import cromwell.services.BarServiceActor.{ArbitraryBarMessage, ListenToBarMessage, SetProbe}
+import cromwell.services.ServiceRegistryActor.{ListenToMessage, ServiceRegistryFailure, ServiceRegistryMessage}
 import cromwell.services.ServiceRegistryActorSpec._
 import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
 
@@ -21,7 +22,7 @@ abstract class EmptyActor extends Actor {
   override def receive: Receive = Actor.emptyBehavior
 }
 
-class FooServiceActor(config: Config, configp: Config) extends EmptyActor
+class FooServiceActor(config: Config, configp: Config, registryActor: ActorRef) extends EmptyActor
 
 class NoAppropriateConstructorServiceActor extends EmptyActor
 
@@ -31,9 +32,10 @@ object BarServiceActor {
   }
   final case class SetProbe(probe: TestProbe) extends BarServiceMessage
   case object ArbitraryBarMessage extends BarServiceMessage
+  case object ListenToBarMessage extends BarServiceMessage with ListenToMessage
 }
 
-class BarServiceActor(config: Config, configp: Config) extends Actor {
+class BarServiceActor(config: Config, configp: Config, registryActor: ActorRef) extends Actor {
   var probe: TestProbe = _
   override def receive: Receive = {
     case SetProbe(p) => probe = p
@@ -191,6 +193,21 @@ class ServiceRegistryActorSpec extends TestKitSuite("service-registry-actor-spec
 
     barProbe.expectMsgPF(AwaitTimeout) {
       case ArbitraryBarMessage =>
+      case x => fail("unexpected message: " + x)
+    }
+  }
+  
+  it should "unpack ListenTo messages" in {
+    val snd = TestProbe().ref
+    val configString = buildConfig(classOf[BarServiceActor])
+    val service = buildServiceRegistry(ConfigFactory.parseString(configString))
+
+    val barProbe = TestProbe()
+    service ! SetProbe(barProbe)
+    service.tell(ListenToBarMessage, snd)
+
+    barProbe.expectMsgPF(AwaitTimeout) {
+      case Listen(l) => l shouldBe snd
       case x => fail("unexpected message: " + x)
     }
   }

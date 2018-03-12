@@ -8,23 +8,20 @@ import com.google.api.services.genomics.Genomics
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager._
 import cromwell.backend.impl.jes.statuspolling.JesPollingActor._
 import cromwell.core.Dispatcher.BackendDispatcher
-import cromwell.services.instrumentation.CromwellInstrumentation
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.numeric._
+import cromwell.services.instrumentation.CromwellInstrumentationActor
 
+import scala.collection.JavaConverters._
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
-import scala.concurrent.duration._
-import scala.collection.JavaConverters._
 
 /**
   * Sends batched requests to JES as a worker to the JesApiQueryManager
   */
-class JesPollingActor(val pollingManager: ActorRef, val qps: Int Refined Positive, override val serviceRegistryActor: ActorRef) extends Actor with ActorLogging
-  with StatusPolling with RunCreation with CromwellInstrumentation {
+class JesPollingActor(val pollingManager: ActorRef, val batchInterval: FiniteDuration, override val serviceRegistryActor: ActorRef) extends Actor with ActorLogging
+  with StatusPolling with RunCreation with RunAbort with CromwellInstrumentationActor {
   // The interval to delay between submitting each batch
-  lazy val batchInterval = determineBatchInterval(qps)
-  log.debug("JES batch polling interval is {}", batchInterval)
+  log.info("JES batch polling interval is {}", batchInterval)
 
   self ! NoWorkToDo // Starts the check-for-work cycle when the actor is fully initialized.
 
@@ -40,15 +37,16 @@ class JesPollingActor(val pollingManager: ActorRef, val qps: Int Refined Positiv
       scheduleCheckForWork()
   }
 
-  private def handleBatch(workBatch: NonEmptyList[JesApiQuery]): Future[List[Try[Unit]]] = {
+  private def handleBatch(workBatch: NonEmptyList[PAPIApiRequest]): Future[List[Try[Unit]]] = {
     // Assume that the auth for the first element is also good enough for everything else:
     val batch: BatchRequest = createBatch(workBatch.head.genomicsInterface)
 
     // Create the batch:
     // WARNING: These call change 'batch' as a side effect. Things might go awry if map runs items in parallel?
     val batchFutures = workBatch map {
-      case pollingRequest: JesStatusPollQuery => enqueueStatusPollInBatch(pollingRequest, batch)
-      case runCreationRequest: JesRunCreationQuery => enqueueRunCreationInBatch(runCreationRequest, batch)
+      case pollingRequest: PAPIStatusPollRequest => enqueueStatusPollInBatch(pollingRequest, batch)
+      case runCreationRequest: PAPIRunCreationRequest => enqueueRunCreationInBatch(runCreationRequest, batch)
+      case abortRequest: PAPIAbortRequest => enqueueAbortInBatch(abortRequest, batch)
 
       // We do the "successful Failure" thing so that the Future.sequence doesn't short-out immediately when the first one fails.
       case other => Future.successful(Failure(new RuntimeException(s"Cannot handle ${other.getClass.getSimpleName} requests")))
@@ -96,24 +94,10 @@ class JesPollingActor(val pollingManager: ActorRef, val qps: Int Refined Positiv
 }
 
 object JesPollingActor {
-  def props(pollingManager: ActorRef, qps: Int Refined Positive, serviceRegistryActor: ActorRef) = {
-    Props(new JesPollingActor(pollingManager, qps, serviceRegistryActor)).withDispatcher(BackendDispatcher)
+  def props(pollingManager: ActorRef, batchInterval: FiniteDuration, serviceRegistryActor: ActorRef) = {
+    Props(new JesPollingActor(pollingManager, batchInterval, serviceRegistryActor)).withDispatcher(BackendDispatcher)
   }
 
   // The Batch API limits us to 100 at a time
   val MaxBatchSize = 100
-
-  /**
-    * Given the Genomics API queries per 100 seconds and given MaxBatchSize will determine a batch interval which
-    * is at 90% of the quota. The (still crude) delta is to provide some room at the edges for things like new
-    * calls, etc.
-    *
-    * Forcing the minimum value to be 1 second, for now it seems unlikely to matter and it makes testing a bit
-    * easier
-    */
-  def determineBatchInterval(qps: Int Refined Positive): FiniteDuration = {
-    val maxInterval = MaxBatchSize / qps.value
-    val interval = Math.max(maxInterval / 0.9, 1).toInt
-    interval.seconds
-  }
 }

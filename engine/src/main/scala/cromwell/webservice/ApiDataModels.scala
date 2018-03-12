@@ -2,7 +2,7 @@ package cromwell.webservice
 
 import common.exception.MessageAggregation
 import spray.json._
-import wdl.FullyQualifiedName
+import wdl.draft2.model.FullyQualifiedName
 import wom.values.WomValue
 
 

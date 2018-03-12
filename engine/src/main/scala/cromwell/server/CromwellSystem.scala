@@ -5,7 +5,8 @@ import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
-import cromwell.services.{MetadataServicesStore, EngineServicesStore}
+import cromwell.engine.language.{CromwellLanguages, LanguageConfiguration}
+import cromwell.services.{EngineServicesStore, MetadataServicesStore}
 
 import scala.concurrent.Future
 
@@ -33,11 +34,17 @@ trait CromwellSystem {
   implicit private final lazy val ec = actorSystem.dispatcher
 
   def shutdownActorSystem(): Future[Terminated] = {
-    Http().shutdownAllConnectionPools() flatMap { _ =>
-      shutdownMaterializerAndActorSystem()
-    } recoverWith {
-      case _ => shutdownMaterializerAndActorSystem()
-    }
+    // If the actor system is already terminated it's already too late for a clean shutdown
+    // Note: This does not protect again starting 2 shutdowns concurrently
+    if (!actorSystem.whenTerminated.isCompleted) {
+      Http().shutdownAllConnectionPools() flatMap { _ =>
+        shutdownMaterializerAndActorSystem()
+      } recoverWith {
+        case _ =>
+          // we still want to shutdown the materializer and actor system if shutdownAllConnectionPools failed
+          shutdownMaterializerAndActorSystem()
+      }
+    } else actorSystem.whenTerminated
   }
   
   private def shutdownMaterializerAndActorSystem() = {
@@ -46,4 +53,5 @@ trait CromwellSystem {
   }
 
   CromwellBackends.initBackends(BackendConfiguration.AllBackendEntries)
+  CromwellLanguages.initLanguages(LanguageConfiguration.AllLanguageEntries)
 }

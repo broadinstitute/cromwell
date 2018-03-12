@@ -1,12 +1,13 @@
 package cromwell.backend.sfs
 
-import _root_.wdl.LocallyQualifiedName
+import _root_.wdl.draft2.model.LocallyQualifiedName
 import akka.testkit.{TestDuration, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{JobAbortedResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
 import cromwell.backend.async.WrongReturnCode
+import cromwell.backend.io.JobPathsSpecHelper._
 import cromwell.backend.io.TestWorkflows._
 import cromwell.backend.io.{JobPathsWithDocker, TestWorkflows}
 import cromwell.backend.sfs.TestLocalAsyncJobExecutionActor._
@@ -21,7 +22,8 @@ import cromwell.util.WomMocks
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Assertion, FlatSpecLike, OptionValues}
-import wom.graph.TaskCallNode
+import wom.expression.NoIoFunctionSet
+import wom.graph.CommandCallNode
 import wom.types._
 import wom.values._
 
@@ -201,7 +203,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val kvJobKey =
       KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt)
     val scopedKey = ScopedKey(workflowDescriptor.id, kvJobKey, SharedFileSystemAsyncJobExecutionActor.JobIdKey)
-    val kvPair = KvPair(scopedKey, Option(pid))
+    val kvPair = KvPair(scopedKey, pid)
 
     val previousKvPutter = TestProbe()
     val kvPutReq = KvPut(kvPair)
@@ -240,7 +242,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
   it should "execute shards from a scatter" in {
     val workflowDescriptor = buildWdlWorkflowDescriptor(TestWorkflows.Scatter)
 
-    val call: TaskCallNode = workflowDescriptor.callable.taskCallNodes.head
+    val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
 
     0 to 2 foreach { shard =>
       // This assumes that engine will give us the evaluated value of the scatter item at the correct index
@@ -268,12 +270,12 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions)
     val backend = createBackend(jobDescriptor, TestConfig.backendRuntimeConfigDescriptor)
     val jobPaths = JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, TestConfig.backendRuntimeConfigDescriptor.backendConfig)
-    val expectedA = WomFile(jobPaths.callExecutionRoot.resolve("a").toAbsolutePath.pathAsString)
-    val expectedB = WomFile(jobPaths.callExecutionRoot.resolve("dir").toAbsolutePath.resolve("b").pathAsString)
+    val expectedA = WomSingleFile(jobPaths.callExecutionRoot.resolve("a").toAbsolutePath.pathAsString)
+    val expectedB = WomSingleFile(jobPaths.callExecutionRoot.resolve("dir").toAbsolutePath.resolve("b").pathAsString)
     val expectedOutputs = WomMocks.mockOutputExpectations(Map(
       "o1" -> expectedA,
-      "o2" -> WomArray(WomArrayType(WomFileType), Seq(expectedA, expectedB)),
-      "o3" -> WomFile(inputFile)
+      "o2" -> WomArray(WomArrayType(WomSingleFileType), Seq(expectedA, expectedB)),
+      "o3" -> WomSingleFile(inputFile)
     ))
     val expectedResponse = JobSucceededResponse(jobDescriptor.key, Some(0), expectedOutputs, None, Seq.empty, None)
 

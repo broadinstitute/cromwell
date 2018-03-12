@@ -8,7 +8,7 @@ import cats.instances.option._
 import cats.syntax.functor._
 import cats.syntax.semigroup._
 import cats.syntax.traverse._
-import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
+import cromwell.core._
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, WorkflowQuery}
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
@@ -173,16 +173,30 @@ trait MetadataDatabaseAccess {
   def queryWorkflowSummaries(queryParameters: WorkflowQueryParameters)
                             (implicit ec: ExecutionContext): Future[(WorkflowQueryResponse, Option[QueryMetadata])] = {
 
-    val labelsToQuery = queryParameters.labels.map(label => (label.key, label.value))
+    val labelsAndToQuery = queryParameters.labelsAnd.map(label => (label.key, label.value))
+    val labelsOrToQuery = queryParameters.labelsOr.map(label => (label.key, label.value))
 
     val workflowSummaries = metadataDatabaseInterface.queryWorkflowSummaries(
-      queryParameters.statuses, queryParameters.names, queryParameters.ids.map(_.toString), labelsToQuery,
-      queryParameters.startDate.map(_.toSystemTimestamp), queryParameters.endDate.map(_.toSystemTimestamp),
-      queryParameters.page, queryParameters.pageSize)
+      queryParameters.statuses,
+      queryParameters.names,
+      queryParameters.ids.map(_.toString),
+      labelsAndToQuery,
+      labelsOrToQuery,
+      queryParameters.startDate.map(_.toSystemTimestamp),
+      queryParameters.endDate.map(_.toSystemTimestamp),
+      queryParameters.page,
+      queryParameters.pageSize
+    )
 
-    val workflowSummaryCount = metadataDatabaseInterface.countWorkflowSummaries(
-      queryParameters.statuses, queryParameters.names, queryParameters.ids.map(_.toString), queryParameters.labels.map(label => (label.key, label.value)),
-      queryParameters.startDate.map(_.toSystemTimestamp), queryParameters.endDate.map(_.toSystemTimestamp))
+    val workflowSummaryCount: Future[Int] = metadataDatabaseInterface.countWorkflowSummaries(
+      queryParameters.statuses,
+      queryParameters.names,
+      queryParameters.ids.map(_.toString),
+      labelsAndToQuery,
+      labelsOrToQuery,
+      queryParameters.startDate.map(_.toSystemTimestamp),
+      queryParameters.endDate.map(_.toSystemTimestamp)
+    )
 
     def queryMetadata(count: Int): Option[QueryMetadata] = {
       queryParameters.page.as(QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(count)))
@@ -236,7 +250,7 @@ trait MetadataDatabaseAccess {
       count <- workflowSummaryCount
       workflows <- workflowSummaries
       queryResults <- summariesToQueryResults(workflows)
-    } yield (WorkflowQueryResponse(queryResults.toSeq), queryMetadata(count))
+    } yield (WorkflowQueryResponse(queryResults, count), queryMetadata(count))
 
   }
 }

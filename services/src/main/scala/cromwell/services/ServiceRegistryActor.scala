@@ -2,6 +2,7 @@ package cromwell.services
 
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor.{Actor, ActorInitializationException, ActorLogging, ActorRef, OneForOneStrategy, Props}
+import akka.routing.Listen
 import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory, ConfigObject}
 import cromwell.core.Dispatcher.ServiceDispatcher
@@ -19,23 +20,26 @@ object ServiceRegistryActor {
     def serviceName: String
   }
 
-  def props(config: Config) = Props(new ServiceRegistryActor(serviceNameToPropsMap(config))).withDispatcher(ServiceDispatcher)
+  trait ListenToMessage extends ServiceRegistryMessage
+
+  def props(config: Config) = Props(new ServiceRegistryActor(config)).withDispatcher(ServiceDispatcher)
 
   // To enable testing, this lets us override a config value with a Props of our choice:
   def props(config: Config, overrides: Map[String, Props]) = {
-    val fromConfig = serviceNameToPropsMap(config).filterNot { case (name: String, _: Props) => overrides.keys.toList.contains(name) }
-    Props(new ServiceRegistryActor(fromConfig ++ overrides)).withDispatcher(ServiceDispatcher)
+    Props(new ServiceRegistryActor(config) {
+      override def serviceProps = super.serviceProps ++ overrides
+    }).withDispatcher(ServiceDispatcher)
   }
 
-  def serviceNameToPropsMap(globalConfig: Config): Map[String, Props] = {
+  def serviceNameToPropsMap(globalConfig: Config, registryActor: ActorRef): Map[String, Props] = {
     val serviceNamesToConfigStanzas = globalConfig.getObject("services").entrySet.asScala.map(x => x.getKey -> x.getValue).toMap
     serviceNamesToConfigStanzas map {
-      case (serviceName, config: ConfigObject) => serviceName -> serviceProps(serviceName, globalConfig, config.toConfig)
+      case (serviceName, config: ConfigObject) => serviceName -> serviceProps(serviceName, globalConfig, config.toConfig, registryActor)
       case (serviceName, _) => throw new Exception(s"Invalid configuration for service $serviceName")
     }
   }
 
-  private def serviceProps(serviceName: String, globalConfig: Config, serviceStanza: Config): Props = {
+  private def serviceProps(serviceName: String, globalConfig: Config, serviceStanza: Config, registryActor: ActorRef): Props = {
     val serviceConfigStanza = serviceStanza.as[Option[Config]]("config").getOrElse(ConfigFactory.parseString(""))
 
     val dispatcher = serviceStanza.as[Option[String]]("dispatcher").getOrElse(ServiceDispatcher)
@@ -44,7 +48,7 @@ object ServiceRegistryActor {
     )
 
     try {
-      Props.create(Class.forName(className), serviceConfigStanza, globalConfig).withDispatcher(dispatcher)
+      Props.create(Class.forName(className), serviceConfigStanza, globalConfig, registryActor).withDispatcher(dispatcher)
     } catch {
       case e: ClassNotFoundException => throw new RuntimeException(
         s"Class $className for service $serviceName cannot be found in the class path.", e
@@ -53,17 +57,24 @@ object ServiceRegistryActor {
   }
 }
 
-class ServiceRegistryActor(serviceProps: Map[String, Props]) extends Actor with ActorLogging with GracefulShutdownHelper {
+class ServiceRegistryActor(globalConfig: Config) extends Actor with ActorLogging with GracefulShutdownHelper {
   import ServiceRegistryActor._
+
+  def serviceProps = serviceNameToPropsMap(globalConfig, self)
 
   val services: Map[String, ActorRef] = serviceProps map {
     case (name, props) => name -> context.actorOf(props, name)
+  }
+  
+  private def transform(message: Any, from: ActorRef): Any = message match {
+    case _: ListenToMessage => Listen(from)
+    case _ => message
   }
 
   def receive = {
     case msg: ServiceRegistryMessage =>
       services.get(msg.serviceName) match {
-        case Some(ref) => ref.tell(msg, sender)
+        case Some(ref) => ref.tell(transform(msg, sender), sender)
         case None =>
           log.error("Received ServiceRegistryMessage requesting service '{}' for which no service is configured.  Message: {}", msg.serviceName, msg)
           sender ! ServiceRegistryFailure(msg.serviceName)
@@ -88,4 +99,3 @@ class ServiceRegistryActor(serviceProps: Map[String, Props]) extends Actor with 
     case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
   }
 }
-

@@ -1,48 +1,12 @@
 package cwl
 
-import cats.data.NonEmptyList
-import eu.timepit.refined._
-import cats.syntax.either._
-import shapeless.{:+:, CNil, Witness}
-import shapeless.syntax.singleton._
-import cwl.LinkMergeMethod.LinkMergeMethod
+import cwl.CommandLineTool.{CommandBindingSortingKey, SortKeyAndCommandPart}
 import cwl.WorkflowStepInput.InputSource
-import common.validation.ErrorOr.ErrorOr
-import wom.types.WomType
-import wom.graph.WomIdentifier
-import wom.graph.GraphNodePort.OutputPort
-import wom.graph.expression.ExposedExpressionNode
-
-case class WorkflowStepInput(
-  id: String,
-  source: Option[InputSource] = None,
-  linkMerge: Option[LinkMergeMethod] = None,
-  default: Option[CwlAny] = None,
-  valueFrom: Option[StringOrExpression] = None) {
-
-  def toExpressionNode(sourceMappings: Map[String, OutputPort],
-                       outputTypeMap: Map[String, WomType],
-                       inputs: Set[String]
-                      ): ErrorOr[ExposedExpressionNode] = {
-    val source = this.source.flatMap(_.select[String]).get
-    val lookupId = FullyQualifiedName(source).id
-
-    val outputTypeMapWithIDs = outputTypeMap.map {
-      case (key, value) => FullyQualifiedName(key).id -> value
-    }
-    (for {
-      inputType <- outputTypeMapWithIDs.get(lookupId).
-        toRight(NonEmptyList.one(s"couldn't find $lookupId as derived from $source in map\n${outputTypeMapWithIDs.mkString("\n")}"))
-      womExpression = WorkflowStepInputExpression(this, inputType, inputs)
-      identifier = WomIdentifier(id)
-      ret <- ExposedExpressionNode.fromInputMapping(identifier, womExpression, inputType, sourceMappings).toEither
-    } yield ret).toValidated
-  }
-}
-
-object WorkflowStepInput {
-  type InputSource = String :+: Array[String] :+: CNil
-}
+import cwl.internal.GigabytesToBytes
+import eu.timepit.refined._
+import shapeless.syntax.singleton._
+import shapeless.{:+:, CNil, Witness}
+import wom.values.WomValue
 
 object WorkflowStepInputSource {
   object String {
@@ -51,34 +15,6 @@ object WorkflowStepInputSource {
   object StringArray {
     def unapply(arg: InputSource): Option[Array[String]] = arg.select[Array[String]]
   }
-}
-
-case class InputParameter(
-                           id: String,
-                           label: Option[String] = None,
-                           secondaryFiles:
-                             Option[
-                               Expression :+:
-                               String :+:
-                               Array[
-                                 Expression :+:
-                                 String :+:
-                                 CNil] :+:
-                               CNil] = None,
-                           format:
-                             Option[
-                               Expression :+:
-                               String :+:
-                               Array[String] :+:
-                               CNil] = None,
-                           streamable: Option[Boolean] = None,
-                           doc: Option[String :+: Array[String] :+: CNil] = None,
-                           inputBinding: Option[CommandLineBinding] = None,
-                           default: Option[String] = None, //can be of type "Any" which... sucks.
-                           `type`: Option[MyriadInputType] = None) {
-
-  type `type` = MyriadInputType
-  type Id = String
 }
 
 case class InputRecordSchema(
@@ -90,53 +26,66 @@ case class InputRecordField(
   name: String,
   `type`: MyriadInputType,
   doc: Option[String],
-  inputBinding: Option[CommandLineBinding],
+  inputBinding: Option[InputCommandLineBinding],
   label: Option[String])
 
 case class InputEnumSchema(
   symbols: Array[String],
   `type`: W.`"enum"`.T,
   label: Option[String],
-  inputBinding: Option[CommandLineBinding])
+  inputBinding: Option[InputCommandLineBinding])
 
-case class InputArraySchema(
+case class InputArraySchema
+(
   items: MyriadInputType,
-  `type`: W.`"array"`.T,
-  label: Option[String],
-  inputBinding: Option[CommandLineBinding])
+  `type`: W.`"array"`.T = Witness("array").value,
+  label: Option[String] = None,
+  inputBinding: Option[InputCommandLineBinding] = None,
+  // IAS.secondaryFiles are NOT listed in 1.0 spec, but according to jgentry they will be, maybe
+  secondaryFiles: Option[SecondaryFiles] = None
+)
 
-case class CommandLineBinding(
+trait CommandLineBinding {
+  def loadContents: Option[Boolean]
+  def position: Option[Int]
+  def prefix: Option[String]
+  def separate: Option[Boolean]
+  def itemSeparator: Option[String]
+  def optionalValueFrom: Option[StringOrExpression]
+  def shellQuote: Option[Boolean]
+  // separate defaults to true
+  def effectiveSeparate = separate.getOrElse(true)
+}
+
+object InputCommandLineBinding {
+  def default = InputCommandLineBinding()
+}
+
+case class InputCommandLineBinding(
                                loadContents: Option[Boolean] = None,
                                position: Option[Int] = None,
                                prefix: Option[String] = None,
-                               separate: Option[String] = None,
+                               separate: Option[Boolean] = None,
                                itemSeparator: Option[String] = None,
                                valueFrom: Option[StringOrExpression] = None,
-                               shellQuote: Option[Boolean] = None)
+                               shellQuote: Option[Boolean] = None) extends CommandLineBinding {
+  override val optionalValueFrom = valueFrom
 
-case class WorkflowOutputParameter(
-                                    id: String,
-                                    label: Option[String] = None,
-                                    secondaryFiles:
-                                      Option[
-                                        Expression :+:
-                                        String :+:
-                                        Array[
-                                          Expression :+:
-                                          String :+:
-                                          CNil] :+:
-                                        CNil] = None,
-                                    format: Option[Expression :+: String :+: Array[String] :+: CNil] = None,
-                                    streamable: Option[Boolean] = None,
-                                    doc: Option[String :+: Array[String] :+: CNil] = None,
-                                    outputBinding: Option[CommandOutputBinding] = None,
-                                    outputSource: Option[WorkflowOutputParameter#OutputSource] = None,
-                                    linkMerge: Option[LinkMergeMethod] = None,
-                                    `type`: Option[MyriadOutputType] = None) {
+  def toCommandPart(sortingKey: CommandBindingSortingKey, boundValue: WomValue, expressionLib: ExpressionLib) = {
+    SortKeyAndCommandPart(sortingKey, InputCommandLineBindingCommandPart(this, boundValue)(expressionLib))
+  }
+}
 
-  type OutputSource = String :+: Array[String] :+: CNil
-  type `type` = MyriadOutputType
-  type Id = String
+// valueFrom is required for command line bindings in the argument section: http://www.commonwl.org/v1.0/CommandLineTool.html#CommandLineBinding
+case class ArgumentCommandLineBinding(
+                               valueFrom: StringOrExpression,
+                               loadContents: Option[Boolean] = None,
+                               position: Option[Int] = None,
+                               prefix: Option[String] = None,
+                               separate: Option[Boolean] = None,
+                               itemSeparator: Option[String] = None,
+                               shellQuote: Option[Boolean] = None) extends CommandLineBinding {
+  override val optionalValueFrom = Option(valueFrom)
 }
 
 case class InputBinding(position: Int, prefix: String)
@@ -144,8 +93,7 @@ case class InputBinding(position: Int, prefix: String)
 case class OutputRecordSchema(
   `type`: W.`"record"`.T,
   fields: Option[Array[OutputRecordField]],
-  label: Option[String]
-  )
+  label: Option[String])
 
 case class OutputRecordField(
   name: String,
@@ -163,9 +111,9 @@ case class OutputEnumSchema(
 
 case class OutputArraySchema(
   items: MyriadOutputType,
-  `type`: W.`"array"`.T,
-  label: Option[String],
-  outputBinding: Option[CommandOutputBinding])
+  `type`: W.`"array"`.T = Witness("array").value,
+  label: Option[String] = None,
+  outputBinding: Option[CommandOutputBinding] = None)
 
 
 case class InlineJavascriptRequirement(
@@ -202,31 +150,6 @@ case class SoftwarePackage(
   type Specs = Array[String]
 }
 
-case class InitialWorkDirRequirement(
-  `class`: W.`"InitialWorkDirRequirement"`.T,
-  listing:
-    Array[
-      File :+:
-      Directory :+:
-      Dirent :+:
-      Expression :+:
-      String :+:
-      CNil
-    ] :+:
-    Expression :+:
-    String :+:
-    CNil)
-
-/**
- *  Short for "Directory Entry"
- *  @see <a href="http://www.commonwl.org/v1.0/CommandLineTool.html#Dirent">Dirent Specification</a>
- */
-case class Dirent(
-                   entry: Expression :+: String :+: CNil,
-                   entryName: Option[Expression :+: String :+: CNil],
-                   writable: Option[Boolean])
-
-
 case class EnvVarRequirement(
                               `class`: EnvVarRequirement.ClassType = EnvVarRequirement.`class`,
                               envDef: Array[EnvironmentDef]
@@ -248,14 +171,26 @@ case class ShellCommandRequirement(`class`: W.`"ShellCommandRequirement"`.T = "S
 
 case class ResourceRequirement(
                                 `class`: W.`"ResourceRequirement"`.T,
-                                coresMin: Long :+: Expression :+: String :+: CNil,
-                                coresMax: Int :+: Expression :+: String :+: CNil,
-                                ramMin: Long :+: Expression :+: String :+: CNil,
-                                ramMax: Long :+: Expression :+: String :+: CNil,
-                                tmpdirMin: Long :+: Expression :+: String :+: CNil,
-                                tmpdirMax: Long :+: Expression :+: String :+: CNil,
-                                outdirMin: Long :+: Expression :+: String :+: CNil,
-                                outdirMax: Long :+: Expression :+: String :+: CNil)
+                                coresMin: Option[ResourceRequirementType],
+                                coresMax: Option[ResourceRequirementType],
+                                ramMin: Option[ResourceRequirementType],
+                                ramMax: Option[ResourceRequirementType],
+                                tmpdirMin: Option[ResourceRequirementType],
+                                tmpdirMax: Option[ResourceRequirementType],
+                                outdirMin: Option[ResourceRequirementType],
+                                outdirMax: Option[ResourceRequirementType]) {
+  def effectiveCoreMin = coresMin.orElse(coresMax)
+  def effectiveCoreMax = coresMax.orElse(coresMin)
+
+  def effectiveRamMin = ramMin.orElse(ramMax).map(_.fold(GigabytesToBytes))
+  def effectiveRamMax = ramMax.orElse(ramMin).map(_.fold(GigabytesToBytes))
+
+  def effectiveTmpdirMin = tmpdirMin.orElse(tmpdirMax)
+  def effectiveTmpdirMax = tmpdirMax.orElse(tmpdirMin)
+
+  def effectiveOutdirMin = outdirMin.orElse(outdirMax)
+  def effectiveOutdirMax = outdirMax.orElse(outdirMin)
+}
 
 case class SubworkflowFeatureRequirement(
   `class`: W.`"SubworkflowFeatureRequirement"`.T)

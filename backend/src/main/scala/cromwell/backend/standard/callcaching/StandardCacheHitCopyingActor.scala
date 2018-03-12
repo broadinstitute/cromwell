@@ -19,7 +19,7 @@ import cromwell.core.io._
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.{Path, PathCopier}
 import cromwell.core.simpleton.{WomValueBuilder, WomValueSimpleton}
-import wom.values.WomFile
+import wom.values.WomSingleFile
 
 import scala.util.{Failure, Success, Try}
 
@@ -102,18 +102,19 @@ object StandardCacheHitCopyingActor {
   private[callcaching] case class NextSubSet(commands: Set[IoCommand[_]]) extends CommandSetState
 }
 
-class DefaultStandardCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams) with DefaultIoCommandBuilder
+class DefaultStandardCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams)
 
 /**
   * Standard implementation of a BackendCacheHitCopyingActor.
   */
 abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHitCopyingActorParams)
-  extends FSM[StandardCacheHitCopyingActorState, Option[StandardCacheHitCopyingActorData]] with JobLogging with StandardCachingActorHelper with IoClientHelper { this: IoCommandBuilder =>
+  extends FSM[StandardCacheHitCopyingActorState, Option[StandardCacheHitCopyingActorData]] with JobLogging with StandardCachingActorHelper with IoClientHelper {
 
   override lazy val jobDescriptor: BackendJobDescriptor = standardParams.jobDescriptor
   override lazy val backendInitializationDataOption: Option[BackendInitializationData] = standardParams.backendInitializationDataOption
   override lazy val serviceRegistryActor: ActorRef = standardParams.serviceRegistryActor
   override lazy val configurationDescriptor: BackendConfigurationDescriptor = standardParams.configurationDescriptor
+  protected val commandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
 
   lazy val destinationCallRootPath: Path = jobPaths.callRoot
   lazy val destinationJobDetritusPaths: Map[String, Path] = jobPaths.detritusPaths
@@ -252,13 +253,13 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     */
   protected def processSimpletons(womValueSimpletons: Seq[WomValueSimpleton], sourceCallRootPath: Path): Try[(CallOutputs, Set[IoCommand[_]])] = Try {
     val (destinationSimpletons, ioCommands): (List[WomValueSimpleton], Set[IoCommand[_]]) = womValueSimpletons.toList.foldMap({
-      case WomValueSimpleton(key, wdlFile: WomFile) =>
+      case WomValueSimpleton(key, wdlFile: WomSingleFile) =>
         val sourcePath = getPath(wdlFile.value).get
         val destinationPath = PathCopier.getDestinationFilePath(sourceCallRootPath, sourcePath, destinationCallRootPath)
 
-        val destinationSimpleton = WomValueSimpleton(key, WomFile(destinationPath.pathAsString))
+        val destinationSimpleton = WomValueSimpleton(key, WomSingleFile(destinationPath.pathAsString))
 
-        List(destinationSimpleton) -> Set(copyCommand(sourcePath, destinationPath, overwrite = true))
+        List(destinationSimpleton) -> Set(commandBuilder.copyCommand(sourcePath, destinationPath, overwrite = true))
       case nonFileSimpleton => (List(nonFileSimpleton), Set.empty[IoCommand[_]])
     })
 
@@ -289,7 +290,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
         val newDetrituses = detrituses + (detritus -> destinationPath)
 
-        (newDetrituses, commands + copyCommand(sourcePath, destinationPath, overwrite = true))
+        (newDetrituses, commands + commandBuilder.copyCommand(sourcePath, destinationPath, overwrite = true))
     })
 
     (destinationDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath), ioCommands)

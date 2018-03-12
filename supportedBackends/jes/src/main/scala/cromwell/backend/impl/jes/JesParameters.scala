@@ -18,7 +18,9 @@ final case class JesFileInput(name: String, gcs: String, local: Path, mount: Jes
       new LocalCopy().setDisk(mount.name).setPath(local.pathAsString)
     )
   }
+
   val toGoogleRunParameter: String = gcs
+
   def containerPath: Path = mount.mountPoint.resolve(local)
 }
 

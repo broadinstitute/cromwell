@@ -10,14 +10,48 @@ lazy val wom = project
   .withLibrarySettings("cromwell-wom", womDependencies, crossCompile = true)
   .dependsOn(common)
 
-lazy val wdl = project
-  .withLibrarySettings("cromwell-wdl", wdlDependencies, crossCompile = true)
+lazy val wdlRoot = Path("wdl")
+
+lazy val wdlModelRoot = wdlRoot / "model"
+
+lazy val wdlSharedModel = (project in wdlModelRoot / "shared")
+  .withLibrarySettings("cromwell-wdl-model-core", wdlDependencies, crossCompile = true)
   .dependsOn(wom)
+
+lazy val wdlModelDraft2 = (project in wdlModelRoot / "draft2")
+  .withLibrarySettings("cromwell-wdl-model-draft2", wdlDependencies, crossCompile = true)
+  .dependsOn(wdlSharedModel)
+
+lazy val wdlModelDraft3 = (project in wdlModelRoot / "draft3")
+  .withLibrarySettings("cromwell-wdl-model-draft3", crossCompile = true)
+  .dependsOn(wdlSharedModel)
+
+lazy val wdlTransformsRoot = wdlRoot / "transforms"
+
+lazy val wdlSharedTransforms = (project in wdlTransformsRoot / "shared")
+  .withLibrarySettings("cromwell-wdl-transforms-shared", wdlDependencies, crossCompile = true)
+  .dependsOn(wdlSharedModel)
+  .dependsOn(wom)
+
+lazy val wdlTransformsDraft2 = (project in wdlTransformsRoot / "draft2")
+  .withLibrarySettings("cromwell-wdl-transforms-draft2", wdlDependencies, crossCompile = true)
+  .dependsOn(wdlSharedTransforms)
+  .dependsOn(wdlModelDraft2)
+
+lazy val wdlTransformsDraft3 = (project in wdlTransformsRoot / "draft3")
+  .withLibrarySettings("cromwell-wdl-transforms-draft3", wdlDependencies, crossCompile = true)
+  .dependsOn(wdlSharedTransforms)
+  .dependsOn(wdlModelDraft3)
+  .dependsOn(common % "test->test")
 
 lazy val cwl = project
   .withLibrarySettings("cromwell-cwl", cwlDependencies, crossCompile = true)
   .dependsOn(wom)
   .dependsOn(wom % "test->test")
+
+lazy val cwlEncoder = project
+  .withLibrarySettings("cromwell-cwl-encoder", crossCompile = true)
+  .dependsOn(cwl)
 
 lazy val core = project
   .withLibrarySettings("cromwell-core", coreDependencies)
@@ -35,13 +69,19 @@ lazy val gcsFileSystem = (project in file("filesystems/gcs"))
   .dependsOn(core % "test->test")
   .dependsOn(cloudSupport % "test->test")
 
+lazy val ossFileSystem = (project in file("filesystems/oss"))
+  .withLibrarySettings("cromwell-ossFileSystem", ossFileSystemDependencies)
+  .dependsOn(core)
+  .dependsOn(core % "test->test")
+
 lazy val databaseSql = (project in file("database/sql"))
   .withLibrarySettings("cromwell-database-sql", databaseSqlDependencies)
 
 lazy val databaseMigration = (project in file("database/migration"))
   .withLibrarySettings("cromwell-database-migration", databaseMigrationDependencies)
   .dependsOn(core)
-  .dependsOn(wdl)
+  .dependsOn(wdlModelDraft2)
+  .dependsOn(wdlTransformsDraft2)
 
 lazy val dockerHashing = project
   .withLibrarySettings("cromwell-docker-hashing")
@@ -67,7 +107,7 @@ lazy val services = project
 lazy val backendRoot = Path("supportedBackends")
 
 lazy val backend = project
-  .withLibrarySettings("cromwell-backend", backendDependencies)
+  .withLibrarySettings("cromwell-backend", backendDependencies, backendSettings)
   .dependsOn(services)
   .dependsOn(core % "test->test")
 
@@ -96,18 +136,29 @@ lazy val jesBackend = (project in backendRoot / "jes")
   .dependsOn(gcsFileSystem % "test->test")
   .dependsOn(services % "test->test")
 
+lazy val bcsBackend = (project in backendRoot / "bcs")
+  .withLibrarySettings("cromwell-bcs-backend", bcsBackendDependencies)
+  .dependsOn(backend)
+  .dependsOn(ossFileSystem)
+  .dependsOn(gcsFileSystem)
+  .dependsOn(core % "test->test")
+  .dependsOn(backend % "test->test")
+  .dependsOn(ossFileSystem % "test->test")
+  .dependsOn(services % "test->test")
+
 lazy val engine = project
   .withLibrarySettings("cromwell-engine", engineDependencies, engineSettings)
   .dependsOn(backend)
+  .dependsOn(ossFileSystem)
   .dependsOn(gcsFileSystem)
-  .dependsOn(wdl)
-  .dependsOn(cwl)
+  .dependsOn(languageFactoryCore)
   .dependsOn(core % "test->test")
   .dependsOn(backend % "test->test")
   // In the future we may have a dedicated test backend like the `TestLocalAsyncJobExecutionActor`.
   // For now, all the engine tests run on the "Local" backend, an implementation of an impl.sfs.config backend.
   .dependsOn(sfsBackend % "test->compile")
   .dependsOn(gcsFileSystem % "test->test")
+  .dependsOn(ossFileSystem % "test->test")
 
 // Executables
 
@@ -115,41 +166,91 @@ lazy val centaurCwlRunner = project
   .withExecutableSettings("centaur-cwl-runner", centaurCwlRunnerDependencies, buildDocker = false)
   .dependsOn(cwl)
   .dependsOn(centaur)
+  .dependsOn(gcsFileSystem)
 
 lazy val womtool = project
   .withExecutableSettings("womtool", womtoolDependencies)
-  .dependsOn(wdl)
+  .dependsOn(wdlTransformsDraft2)
+  .dependsOn(wdlTransformsDraft3)
   .dependsOn(cwl)
   .dependsOn(wom % "test->test")
 
-lazy val root = (project in file("."))
-  .withExecutableSettings("cromwell", rootDependencies, rootSettings)
-  // Next level of projects to include in the fat jar (their dependsOn will be transitively included)
+lazy val cromiam = (project in file("CromIAM")) // TODO: git mv CromIAM to a canonical lowercased name
+  .withExecutableSettings("cromiam", cromiamDependencies, cromiamSettings)
+  .dependsOn(common)
+  .dependsOn(cromwellApiClient)
+
+lazy val languageFactoryRoot = Path("languageFactories")
+
+lazy val languageFactoryCore = (project in languageFactoryRoot / "language-factory-core")
+  .withLibrarySettings("language-factory-core")
+  .dependsOn(core)
+
+lazy val wdlDraft2LanguageFactory = (project in languageFactoryRoot / "wdl-draft2")
+  .withLibrarySettings("wdl-draft2")
+  .dependsOn(languageFactoryCore)
+  .dependsOn(wdlModelDraft2)
+  .dependsOn(wdlTransformsDraft2)
+
+lazy val wdlDraft3LanguageFactory = (project in languageFactoryRoot / "wdl-draft3")
+  .withLibrarySettings("wdl-draft3")
+  .dependsOn(languageFactoryCore)
+  .dependsOn(wdlModelDraft3)
+  .dependsOn(wdlTransformsDraft3)
+
+lazy val cwlV1_0LanguageFactory = (project in languageFactoryRoot / "cwl-v1-0")
+  .withLibrarySettings("cwl-v1-0")
+  .dependsOn(languageFactoryCore)
+  .dependsOn(cwl)
+
+lazy val server = project
+  .withExecutableSettings("cromwell", serverDependencies)
   .dependsOn(engine)
   .dependsOn(jesBackend)
+  .dependsOn(bcsBackend)
   .dependsOn(tesBackend)
   .dependsOn(sparkBackend)
+  .dependsOn(cromwellApiClient)
+  .dependsOn(wdlDraft2LanguageFactory)
+  .dependsOn(wdlDraft3LanguageFactory)
+  .dependsOn(cwlV1_0LanguageFactory)
   .dependsOn(engine % "test->test")
+
+lazy val root = (project in file("."))
+  .withRootSettings()
   // Full list of all sub-projects to build with the root (ex: include in `sbt test`)
   .aggregate(backend)
+  .aggregate(bcsBackend)
   .aggregate(centaur)
   .aggregate(centaurCwlRunner)
+  .aggregate(cloudSupport)
   .aggregate(common)
   .aggregate(core)
-  .aggregate(cloudSupport)
+  .aggregate(cromiam)
   .aggregate(cromwellApiClient)
   .aggregate(cwl)
+  .aggregate(cwlV1_0LanguageFactory)
   .aggregate(databaseMigration)
   .aggregate(databaseSql)
   .aggregate(dockerHashing)
   .aggregate(engine)
   .aggregate(gcsFileSystem)
   .aggregate(jesBackend)
+  .aggregate(languageFactoryCore)
+  .aggregate(ossFileSystem)
+  .aggregate(server)
   .aggregate(services)
   .aggregate(sfsBackend)
   .aggregate(sparkBackend)
   .aggregate(tesBackend)
-  .aggregate(wdl)
+  .aggregate(wdlDraft2LanguageFactory)
+  .aggregate(wdlDraft3LanguageFactory)
+  .aggregate(wdlModelDraft2)
+  .aggregate(wdlModelDraft3)
+  .aggregate(wdlSharedModel)
+  .aggregate(wdlSharedTransforms)
+  .aggregate(wdlTransformsDraft2)
+  .aggregate(wdlTransformsDraft3)
   .aggregate(wom)
   .aggregate(womtool)
   // TODO: See comment in plugins.sbt regarding SBT 1.x

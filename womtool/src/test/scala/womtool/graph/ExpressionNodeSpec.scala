@@ -10,8 +10,8 @@ class ExpressionNodeSpec extends WomDotGraphTest {
 
   val expressionNodeGraph = {
     // Two inputs:
-    val iInputNode = RequiredGraphInputNode(WomIdentifier("i"), WomIntegerType)
-    val jInputNode = RequiredGraphInputNode(WomIdentifier("j"), WomIntegerType)
+    val iInputNode = RequiredGraphInputNode(WomIdentifier("i"), WomIntegerType, "i")
+    val jInputNode = RequiredGraphInputNode(WomIdentifier("j"), WomIntegerType, "j")
 
     // Declare an expression that needs both an "i" and a "j":
     val ijExpression = PlaceholderWomExpression(Set("i", "j"), WomIntegerType)
@@ -21,7 +21,7 @@ class ExpressionNodeSpec extends WomDotGraphTest {
     val graph = for {
       xDeclarationNode <- ExposedExpressionNode.fromInputMapping(
         WomIdentifier("x"), ijExpression, WomIntegerType, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort))
-      xOutputNode = PortBasedGraphOutputNode(WomIdentifier("x_out"), WomIntegerType, xDeclarationNode.singleExpressionOutputPort)
+      xOutputNode = PortBasedGraphOutputNode(WomIdentifier("x_out"), WomIntegerType, xDeclarationNode.singleOutputPort)
       g <- Graph.validateAndConstruct(Set(iInputNode, jInputNode, xDeclarationNode, xOutputNode))
     } yield g
 

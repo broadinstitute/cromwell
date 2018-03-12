@@ -13,6 +13,7 @@ import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.filesystems.gcs.GcsPathBuilderFactory
 import common.exception.MessageAggregation
 import common.validation.ErrorOr.ErrorOr
+import cromwell.filesystems.oss.OssPathBuilderFactory
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -31,7 +32,7 @@ object EngineFilesystems {
     
     engineAuthModeValidation map {
       // If the authentication mode is recognized, create a GcsPathBuilderFactory for the engine
-      case Valid(mode) => GcsPathBuilderFactory(mode, googleConf.applicationName)
+      case Valid(mode) => GcsPathBuilderFactory(mode, googleConf.applicationName, None)
       // Otherwise fail
       case Invalid(errors) => throw new RuntimeException() with MessageAggregation {
         override def exceptionContext: String = s"Failed to create authentication mode for $engineAuthModeAsString"
@@ -40,11 +41,30 @@ object EngineFilesystems {
     }
   }
 
+  private val ossPathBuilderFactory: Try[Option[OssPathBuilderFactory]] = Try {
+    for {
+      endpoint <- config.as[Option[String]]("engine.filesystems.oss.auth.endpoint")
+      accessId <- config.as[Option[String]]("engine.filesystems.oss.auth.access-id")
+      accessKey <- config.as[Option[String]]("engine.filesystems.oss.auth.access-key")
+      securityToken = config.as[Option[String]]("engine.filesystems.oss.auth.security-token")
+    } yield OssPathBuilderFactory(endpoint, accessId, accessKey, securityToken)
+  }
+
   private val defaultFileSystem =
     Option(DefaultPathBuilder).filter(_ => config.as[Boolean]("engine.filesystems.local.enabled"))
 
-  def pathBuildersForWorkflow(workflowOptions: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[List[PathBuilder]] = gcsPathBuilderFactory match {
-    case Success(maybeBuilderFactory) => maybeBuilderFactory.toList.traverse(_.withOptions(workflowOptions)).map(_ ++ defaultFileSystem)
-    case Failure(failure) => Future.failed(failure)
+  def pathBuildersForWorkflow(workflowOptions: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[List[PathBuilder]] = {
+    val maybeWithGcs = gcsPathBuilderFactory match {
+      case Success(maybeBuilderFactory) => maybeBuilderFactory.toList.traverse(_.withOptions(workflowOptions)).map(_ ++ defaultFileSystem)
+      case Failure(failure) => Future.failed(failure)
+    }
+
+    ossPathBuilderFactory match {
+      case Success(maybeBuilderFactory) => for {
+          oss <- maybeBuilderFactory.toList.traverse(_.withOptions(workflowOptions))
+          gcs <- maybeWithGcs
+        } yield oss ++ gcs
+      case Failure(failure) => Future.failed(failure)
+    }
   }
 }

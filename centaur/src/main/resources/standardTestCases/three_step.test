@@ -2,13 +2,10 @@ name: three_step_cwl
 testFormat: workflowsuccess
 workflowType: CWL
 workflowTypeVersion: v1.0
-backends: [Local]
-tags: [localdockertest]
 
 files {
   wdl: three_step/three_step.cwl
   inputs: three_step/inputs.json
-  options: three_step/three_step.options
 }
 
 metadata {
@@ -17,4 +14,7 @@ metadata {
   "calls.wc.executionStatus": Done
   "calls.ps.executionStatus": Done
   "calls.cgrep.executionStatus": Done
+  "calls.ps.runtimeAttributes.docker": "ubuntu:bionic"
+  "calls.wc.runtimeAttributes.docker": "ubuntu:latest"
+  "calls.cgrep.runtimeAttributes.docker": "debian:jessie"
 }

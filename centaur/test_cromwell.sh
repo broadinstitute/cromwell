@@ -36,7 +36,7 @@ RUN_DIR=$(pwd)
 TEST_THREAD_COUNT=16
 CENTAUR_SBT_COVERAGE=false
 
-while getopts ":hb:r:c:p:j:gt:s:e:i:" option; do
+while getopts ":hb:r:c:p:j:ge:i:" option; do
     case "$option" in
         h) echo "$usage"
             exit
@@ -51,14 +51,6 @@ while getopts ":hb:r:c:p:j:gt:s:e:i:" option; do
         j) CROMWELL_JAR="${OPTARG}"
             ;;
         g) CENTAUR_SBT_COVERAGE=true
-            ;;
-        t) REFRESH_TOKEN=-Dcentaur.optionalTokenPath="${OPTARG}"
-            ;;
-        s) CENTAUR_GOOGLE_AUTH="-Dcentaur.google.auth=service-account"
-           CENTAUR_GOOGLE_AUTHS_NAME="-Dcentaur.google.auths.0.name=service-account"
-           CENTAUR_GOOGLE_AUTHS_SCHEME="-Dcentaur.google.auths.0.scheme=service_account"
-           CENTAUR_GOOGLE_AUTHS_JSON_FILE="-Dcentaur.google.auths.0.json-file=${OPTARG}"
-           CENTAUR_GOOGLE="${CENTAUR_GOOGLE_AUTH} ${CENTAUR_GOOGLE_AUTHS_NAME} ${CENTAUR_GOOGLE_AUTHS_SCHEME} ${CENTAUR_GOOGLE_AUTHS_JSON_FILE}"
             ;;
         p) TEST_THREAD_COUNT="${OPTARG}"
             ;;
@@ -126,7 +118,7 @@ CENTAUR_CROMWELL_JAR="-Dcentaur.cromwell.jar.path=${CROMWELL_JAR}"
 CENTAUR_CROMWELL_CONF="-Dcentaur.cromwell.jar.conf=${CONFIG_STRING}"
 CENTAUR_CROMWELL_LOG="-Dcentaur.cromwell.jar.log=${CROMWELL_LOG}"
 CENTAUR_CROMWELL_RESTART="-Dcentaur.cromwell.jar.withRestart=true"
-CENTAUR_CONF="${CENTAUR_CROMWELL_MODE} ${CENTAUR_CROMWELL_JAR} ${CENTAUR_CROMWELL_CONF} ${CENTAUR_CROMWELL_LOG} ${CENTAUR_CROMWELL_RESTART} ${CENTAUR_GOOGLE}"
+CENTAUR_CONF="${CENTAUR_CROMWELL_MODE} ${CENTAUR_CROMWELL_JAR} ${CENTAUR_CROMWELL_CONF} ${CENTAUR_CROMWELL_LOG} ${CENTAUR_CROMWELL_RESTART}"
 
 if [[ -n ${EXCLUDE_TAG[*]} ]]; then
     echo "Running Centaur filtering out ${EXCLUDE_TAG[*]} tests"
@@ -134,10 +126,10 @@ if [[ -n ${EXCLUDE_TAG[*]} ]]; then
     for val in "${EXCLUDE_TAG[@]}"; do 
         EXCLUDE="-l $val "${EXCLUDE}
     done
-    TEST_COMMAND="java ${REFRESH_TOKEN} ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -PS${TEST_THREAD_COUNT} "${EXCLUDE}
+    TEST_COMMAND="java ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -PS${TEST_THREAD_COUNT} "${EXCLUDE}
 else
     echo "Running Centaur with sbt test"
-    TEST_COMMAND="java ${REFRESH_TOKEN} ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -PS${TEST_THREAD_COUNT}"
+    TEST_COMMAND="java ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -PS${TEST_THREAD_COUNT}"
 fi
 
 echo "TEST_COMMAND is ${TEST_COMMAND}"

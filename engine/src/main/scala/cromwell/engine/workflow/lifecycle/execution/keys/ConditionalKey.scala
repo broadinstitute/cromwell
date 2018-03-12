@@ -8,7 +8,7 @@ import cromwell.core.{ExecutionStatus, JobKey}
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore.ValueKey
 import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActorData, WorkflowExecutionDiff}
 import wom.graph._
-import wom.graph.expression.ExpressionNode
+import wom.graph.expression.ExpressionNodeLike
 import wom.values.{WomBoolean, WomValue}
 
 /**
@@ -19,6 +19,10 @@ private [execution] case class ConditionalKey(node: ConditionalNode, index: Exec
   override val tag = node.localName
   override val attempt = 1
 
+  lazy val collectors = node.conditionalOutputPorts map {
+    ConditionalCollectorKey(_, index)
+  }
+
   /**
     * Creates ExecutionStore entries for each of the scoped children.
     *
@@ -26,10 +30,6 @@ private [execution] case class ConditionalKey(node: ConditionalNode, index: Exec
     */
   def populate(bypassed: Boolean): Map[JobKey, ExecutionStatus.Value] = {
     val conditionalKeys = node.innerGraph.nodes.flatMap({ node => keyify(node) })
-
-    val collectors = node.conditionalOutputPorts map {
-      ConditionalCollectorKey(_, index)
-    }
 
     val finalStatus = if (bypassed) ExecutionStatus.NotStarted else ExecutionStatus.Bypassed
     (conditionalKeys ++ collectors).map({ _ -> finalStatus }).toMap
@@ -39,9 +39,9 @@ private [execution] case class ConditionalKey(node: ConditionalNode, index: Exec
     * Make a JobKey for all of the contained scopes.
     */
   private def keyify(node: GraphNode): Option[JobKey] = node match {
-    case call: TaskCallNode => Option(BackendJobDescriptorKey(call, index, 1))
+    case call: CommandCallNode => Option(BackendJobDescriptorKey(call, index, 1))
     case call: WorkflowCallNode => Option(SubWorkflowKey(call, index, 1))
-    case declaration: ExpressionNode => Option(ExpressionKey(declaration, index))
+    case expression: ExpressionNodeLike => Option(ExpressionKey(expression, index))
     case conditional: ConditionalNode => Option(ConditionalKey(conditional, index))
     case scatter: ScatterNode if index.isEmpty => Option(ScatterKey(scatter))
     case _: GraphInputNode => None
@@ -54,7 +54,7 @@ private [execution] case class ConditionalKey(node: ConditionalNode, index: Exec
 
   def processRunnable(data: WorkflowExecutionActorData): ErrorOr[WorkflowExecutionDiff] = {
     // This is the output port from the conditional's 'condition' input:
-    val conditionOutputPort = node.conditionExpression.singleExpressionOutputPort
+    val conditionOutputPort = node.conditionExpression.singleOutputPort
     data.valueStore.get(conditionOutputPort, index) match {
       case Some(b: WomBoolean) =>
         val conditionalStatus = if (b.value) ExecutionStatus.Done else ExecutionStatus.Bypassed

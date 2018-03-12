@@ -2,7 +2,10 @@ package cromwell.database.sql
 
 import java.sql.{Blob, Clob, Timestamp}
 import java.time.{OffsetDateTime, ZoneId}
+
 import javax.sql.rowset.serial.{SerialBlob, SerialClob}
+
+import scala.concurrent.duration.FiniteDuration
 
 object SqlConverters {
 
@@ -81,5 +84,9 @@ object SqlConverters {
 
   implicit class BytesToBlobOption(val bytes: Array[Byte]) extends AnyVal {
     def toBlobOption: Option[Blob] = if (bytes.isEmpty) None else Option(new SerialBlob(bytes))
+  }
+
+  implicit class EnhancedFiniteDuration(val duration: FiniteDuration) extends AnyVal {
+    def ago: Timestamp = new Timestamp(System.currentTimeMillis() - duration.toMillis)
   }
 }

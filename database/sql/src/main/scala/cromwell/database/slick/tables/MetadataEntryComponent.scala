@@ -109,9 +109,12 @@ trait MetadataEntryComponent {
     } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
+  // This is only used for metadata summary which should not require metadata sorting if rows are committed
+  // with monotonically increasing IDs. The metadata summary logic records the maximum ID it last saw and uses
+  // that last ID + 1 as the minimum ID for the next query iteration.
   val metadataEntriesForIdGreaterThanOrEqual = Compiled(
     (metadataEntryId: Rep[Long], startMetadataKey: Rep[String], endMetadataKey: Rep[String], nameMetadataKey: Rep[String],
-     statusMetadataKey: Rep[String], likeLabelMetadataKey: Rep[String]) => (for {
+     statusMetadataKey: Rep[String], likeLabelMetadataKey: Rep[String]) => for {
       metadataEntry <- metadataEntries
       if metadataEntry.metadataEntryId >= metadataEntryId
       if (metadataEntry.metadataKey === startMetadataKey || metadataEntry.metadataKey === endMetadataKey ||
@@ -119,7 +122,7 @@ trait MetadataEntryComponent {
         metadataEntry.metadataKey.like(likeLabelMetadataKey)) &&
         (metadataEntry.callFullyQualifiedName.isEmpty && metadataEntry.jobIndex.isEmpty &&
           metadataEntry.jobAttempt.isEmpty)
-    } yield metadataEntry).sortBy(_.metadataTimestamp)
+    } yield metadataEntry
   )
 
   /**

@@ -1,36 +1,39 @@
 package cwl
 
 import cwl.CwlDecoder._
-import org.scalacheck.Prop.BooleanOperators
-import org.scalacheck.Properties
+import org.scalatest.{FlatSpec, Matchers}
 
-class CwlDecoderSpec extends Properties("cwl decoder") {
+class CwlDecoderSpec extends FlatSpec with Matchers {
+
+  behavior of "cwl decoder"
 
   import TestSetup._
 
-  property("read nested workflow") =
-    decodeAllCwl(rootPath/"nestedworkflows.cwl").
-      value.
-      unsafeRunSync match {
+  it should "read nested workflow" in {
+      decodeCwlFile(rootPath / "nestedworkflows.cwl").
+        value.
+        unsafeRunSync match {
         case Right(cwl) =>
           val wf = cwl.select[Workflow].get
-          wf.steps.flatMap(_.run.select[String].toList).size == 0
-        case Left(other) => false :| other.toList.mkString(", ")
+          wf.steps.flatMap(_.run.select[String].toList).length shouldBe 0
+        case Left(other) => fail(other.toList.mkString(", "))
       }
+  }
 
-  property("broken links fail the SALAD preprocessing test") =
-    decodeAllCwl(rootPath/"brokenlinks.cwl").
-      value.
-      unsafeRunSync.
-      isLeft
+  it should "fail to parse broken linked cwl" in {
+      decodeCwlFile(rootPath / "brokenlinks.cwl").
+        value.
+        unsafeRunSync.
+        isLeft shouldBe true
+  }
 
-  property("links fail to parse breaks the SALAD preprocessing test") =
-    decodeAllCwl(rootPath/"links_dont_parse.cwl").
-     value.
-     unsafeRunSync match {
-       case Left(errors) =>
-         errors.filter(_.contains("bad.cwl")).size == 1 &&
-         errors.filter(_.contains("bad2.cwl")).size == 1
-       case Right(_) => false :| "should not have passed!"
-     }
+  it should "fail to parse invalid linked cwl" in {
+      decodeCwlFile(rootPath/"links_dont_parse.cwl").
+        value.
+        unsafeRunSync match {
+        case Left(errors) =>
+          errors.filter(_.contains("bad.cwl")).size + errors.filter(_.contains("bad2.cwl")).size shouldBe 1
+        case Right(_) => fail("should not have passed!")
+      }
+  }
 }

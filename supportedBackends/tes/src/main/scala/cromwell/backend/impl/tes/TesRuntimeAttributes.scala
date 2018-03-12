@@ -6,6 +6,7 @@ import cromwell.backend.MemorySize
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation._
 import common.validation.ErrorOr.ErrorOr
+import wom.RuntimeAttributesKeys
 import wom.values._
 
 case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,

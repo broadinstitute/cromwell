@@ -109,8 +109,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     } yield ()
   }
 
-  private def upsertCustomLabelEntry(metadataEntry: MetadataEntry)
-                                    (implicit ec: ExecutionContext): DBIO[Unit] = {
+  private def createCustomLabelEntryIfNecessary(metadataEntry: MetadataEntry)
+                                               (implicit ec: ExecutionContext): DBIO[Unit] = {
     //Extracting the label key from the MetadataEntry key
     val labelKey = metadataEntry.metadataKey.split("\\:", 2)(1)
     val labelValue = metadataEntry.metadataValue.toRawString
@@ -162,7 +162,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       metadataWithoutLabels = metadataEntries.filterNot(_.metadataKey.contains(labelMetadataKey)).groupBy(_.workflowExecutionUuid)
       customLabelEntries = metadataEntries.filter(_.metadataKey.contains(labelMetadataKey))
       _ <- DBIO.sequence(metadataWithoutLabels map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
-      _ <- DBIO.sequence(customLabelEntries map upsertCustomLabelEntry)
+      _ <- DBIO.sequence(customLabelEntries map createCustomLabelEntryIfNecessary)
       maximumMetadataEntryId = previousOrMaximum(previousMetadataEntryId, metadataEntries.map(_.metadataEntryId.get))
       _ <- upsertSummaryStatusEntryMaximumId(
         "WORKFLOW_METADATA_SUMMARY_ENTRY", "METADATA_ENTRY", maximumMetadataEntryId)
@@ -184,23 +184,31 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action).map(_.toMap)
   }
 
-  override def queryWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],
-                                      workflowExecutionUuids: Set[String], labelKeyLabelValues: Set[(String,String)],
+  override def queryWorkflowSummaries(workflowStatuses: Set[String],
+                                      workflowNames: Set[String],
+                                      workflowExecutionUuids: Set[String],
+                                      labelAndKeyLabelValues: Set[(String,String)],
+                                      labelOrKeyLabelValues: Set[(String,String)],
                                       startTimestampOption: Option[Timestamp],
-                                      endTimestampOption: Option[Timestamp], page: Option[Int], pageSize: Option[Int])
+                                      endTimestampOption: Option[Timestamp],
+                                      page: Option[Int],
+                                      pageSize: Option[Int])
                                      (implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
     val action = dataAccess.queryWorkflowMetadataSummaryEntries(workflowStatuses, workflowNames, workflowExecutionUuids,
-      labelKeyLabelValues, startTimestampOption, endTimestampOption, page, pageSize).result
+      labelAndKeyLabelValues, labelOrKeyLabelValues, startTimestampOption, endTimestampOption, page, pageSize).result
     runTransaction(action)
   }
 
-  override def countWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],
-                                      workflowExecutionUuids: Set[String], labelKeyLabelValues: Set[(String, String)],
+  override def countWorkflowSummaries(workflowStatuses: Set[String],
+                                      workflowNames: Set[String],
+                                      workflowExecutionUuids: Set[String],
+                                      labelAndKeyLabelValues: Set[(String,String)],
+                                      labelOrKeyLabelValues: Set[(String,String)],
                                       startTimestampOption: Option[Timestamp],
                                       endTimestampOption: Option[Timestamp])
                                      (implicit ec: ExecutionContext): Future[Int] = {
     val action = dataAccess.countWorkflowMetadataSummaryEntries(workflowStatuses, workflowNames, workflowExecutionUuids,
-      labelKeyLabelValues, startTimestampOption, endTimestampOption).result
+      labelAndKeyLabelValues, labelOrKeyLabelValues, startTimestampOption, endTimestampOption).result
     runTransaction(action)
   }
 }

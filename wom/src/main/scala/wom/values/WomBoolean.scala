@@ -36,7 +36,7 @@ class WomBoolean private(val value: Boolean) extends WomPrimitive {
   }
 
   override def or(rhs: WomValue): Try[WomBoolean] = rhs match {
-    case r:WomBoolean => Success(WomBoolean(value || r.value))
+    case r: WomBoolean => Success(WomBoolean(value || r.value))
     case r: WomOptionalValue => evaluateIfDefined("||", r, or)
     case _ => invalid(s"$value || $rhs")
   }

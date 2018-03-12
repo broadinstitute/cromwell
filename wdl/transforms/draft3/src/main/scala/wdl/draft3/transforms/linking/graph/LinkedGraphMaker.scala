@@ -8,25 +8,27 @@ import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.elements.WorkflowGraphElement
 import wdl.model.draft3.graph._
 import wdl.model.draft3.graph.UnlinkedValueGenerator.ops._
-import wdl.model.draft3.graph.UnlinkedValueConsumer.ops._
+import wdl.model.draft3.graph.GraphElementValueConsumer.ops._
 import wom.types.WomType
 
 object LinkedGraphMaker {
   def make(nodes: Set[WorkflowGraphElement],
+           externalHandles: Set[GeneratedValueHandle],
            typeAliases: Map[String, WomType]): ErrorOr[LinkedGraph] = {
 
     val generatedValuesByGraphNodeValidation = nodes.toList.traverse[ErrorOr, (WorkflowGraphElement, Set[GeneratedValueHandle])] { node =>
       node.generatedValueHandles(typeAliases).map(node -> _)
     } map (_.toMap)
 
-    val consumedValuesByGraphNode = nodes.toList.map(n => n -> n.consumedValueHooks).toMap
+    val consumedValuesByGraphNodeValidation: ErrorOr[Map[WorkflowGraphElement, Set[UnlinkedConsumedValueHook]]] = nodes.toList.traverse[ErrorOr, (WorkflowGraphElement, Set[UnlinkedConsumedValueHook])](n => n.graphElementConsumedValueHooks(typeAliases).map(n -> _)).map(_.toMap)
 
     for {
       generatedValuesByGraphNode <- generatedValuesByGraphNodeValidation
+      consumedValuesByGraphNode <- consumedValuesByGraphNodeValidation
       graphNodeByGeneratedValue <- reverseMap(generatedValuesByGraphNode)
-      consumedValueLookup <- makeConsumedValueLookup(nodes, graphNodeByGeneratedValue.keySet)
+      consumedValueLookup <- makeConsumedValueLookup(nodes, typeAliases, graphNodeByGeneratedValue.keySet ++ externalHandles)
       edges = makeEdges(nodes, consumedValuesByGraphNode, consumedValueLookup, graphNodeByGeneratedValue)
-    } yield LinkedGraph(nodes, generatedValuesByGraphNode, edges, consumedValuesByGraphNode, graphNodeByGeneratedValue, consumedValueLookup, typeAliases)
+    } yield LinkedGraph(nodes, edges, consumedValueLookup, typeAliases)
   }
 
   private def makeEdges(elements: Set[WorkflowGraphElement],
@@ -36,13 +38,14 @@ object LinkedGraphMaker {
     downstreamElement <- elements
     hook <- consumedValuesByGraphNode(downstreamElement)
     upstreamHandle = consumedValueLookup(hook)
-    upstreamElement = graphElementByGeneratedValueHandle(upstreamHandle)
+    upstreamElement <- graphElementByGeneratedValueHandle.get(upstreamHandle).toList
   } yield LinkedGraphEdge(upstreamElement, downstreamElement)
 
   private def makeConsumedValueLookup(nodes: Set[WorkflowGraphElement],
+                                      typeAliases: Map[String, WomType],
                                       availableHandles: Set[GeneratedValueHandle]
                                      ): ErrorOr[Map[UnlinkedConsumedValueHook, GeneratedValueHandle]] = {
-    val consumed: Set[UnlinkedConsumedValueHook] = nodes.flatMap(_.consumedValueHooks)
+    val consumedValidation: ErrorOr[Set[UnlinkedConsumedValueHook]] = nodes.toList.traverse(n => n.graphElementConsumedValueHooks(typeAliases)).map(_.toSet.flatten)
 
     def isMatch(hook: UnlinkedConsumedValueHook, handle: GeneratedValueHandle): Boolean = (hook, handle) match {
       case (UnlinkedIdentifierHook(id1), GeneratedIdentifierValueHandle(id2, _)) => id1 == id2
@@ -60,7 +63,9 @@ object LinkedGraphMaker {
       }
     }
 
-    consumed.toList.traverse[ErrorOr, (UnlinkedConsumedValueHook, GeneratedValueHandle)] { findHandle } map {_.toMap}
+    consumedValidation.flatMap { consumed =>
+      consumed.toList.traverse[ErrorOr, (UnlinkedConsumedValueHook, GeneratedValueHandle)] { findHandle } map {_.toMap}
+    }
   }
 
   private def reverseMap(mapping: Map[WorkflowGraphElement, Set[GeneratedValueHandle]]): ErrorOr[Map[GeneratedValueHandle, WorkflowGraphElement]] = {

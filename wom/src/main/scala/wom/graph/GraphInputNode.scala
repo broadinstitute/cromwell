@@ -77,6 +77,12 @@ class OuterGraphInputNode protected(override val identifier: WomIdentifier, val 
   lazy val nameToPortMapping: (String, GraphNodeOutputPort) = localName -> singleOutputPort
 }
 
+/**
+  * The input node representing a scatter input variable *in the inner graph*.
+  * @param identifier The variable name
+  * @param scatterExpressionNode The feeding expression node.
+  * @param womType The *inner* type (i.e. NOT the array type of the outer expression)
+  */
 final case class ScatterVariableNode(override val identifier: WomIdentifier,
                                      scatterExpressionNode: ExpressionNode,
                                      override val womType: WomType) extends OuterGraphInputNode(identifier, scatterExpressionNode.singleOutputPort, preserveScatterIndex = true) {

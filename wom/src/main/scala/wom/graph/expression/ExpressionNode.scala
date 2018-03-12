@@ -58,15 +58,15 @@ object ExpressionNode {
     * output ports.
     */
   def buildFromConstructor[E <: ExpressionNode](constructor: ExpressionNodeConstructor[E])
-  (identifier: WomIdentifier, expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[E] = {
+                                               (identifier: WomIdentifier, expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[E] = {
     val graphNodeSetter = new GraphNode.GraphNodeSetter[ExpressionNode]()
 
-    for {
+    (for {
       combined <- linkWithInputs(graphNodeSetter, expression, inputMapping)
       (evaluatedType, inputPorts) = combined
       expressionNode = constructor(identifier, expression, evaluatedType, inputPorts)
       _ = graphNodeSetter._graphNode = expressionNode
-    } yield expressionNode
+    } yield expressionNode).leftMap(es => es.map(e => s"Cannot build expression for '${identifier.fullyQualifiedName.value} = ${expression.sourceString}': $e"))
   }
 
   /**

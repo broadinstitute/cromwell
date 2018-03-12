@@ -16,6 +16,11 @@ package object ast2wdlom {
     case other => s"Cannot convert from AstNode type '${other.getClass.getSimpleName}' into Ast".invalidNelCheck
   }
 
+  implicit val astNodeToTerminal: CheckedAtoB[AstNode, Terminal] = CheckedAtoB.fromCheck {
+    case t: Terminal => t.validNelCheck
+    case other => s"Cannot convert from AstNode type '${other.getClass.getSimpleName}' into Terminal".invalidNelCheck
+  }
+
   implicit val astToFileElement: CheckedAtoB[Ast, FileElement] = CheckedAtoB.fromErrorOr(AstToFileElement.convert)
   implicit val astToFileBodyElement: CheckedAtoB[AstNode, FileBodyElement] = astNodeToAst andThen CheckedAtoB.fromCheck(AstToFileBodyElement.convert)
   implicit val astNodeToStructEntry: CheckedAtoB[AstNode, StructElement] = astNodeToAst andThen CheckedAtoB.fromErrorOr(AstToStructElement.convert)

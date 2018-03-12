@@ -1,20 +1,14 @@
 package wdl.draft3.transforms.wdlom2wom.graph
 
-import java.util.UUID
-
 import cats.syntax.apply._
 import cats.syntax.validated._
 import cats.syntax.traverse._
 import cats.instances.list._
 import common.validation.ErrorOr.{ErrorOr, _}
 import shapeless.Coproduct
-import wdl.model.draft3.graph.expression.WomTypeMaker.ops._
 import wdl.model.draft3.graph.expression.TypeEvaluator.ops._
 import wdl.model.draft3.graph.GraphElementValueConsumer.ops._
 import wdl.model.draft3.graph.UnlinkedValueGenerator.ops._
-import wdl.model.draft3.graph.expression.WomExpressionMaker.ops._
-import wdl.draft3.transforms.linking.typemakers._
-import wdl.draft3.transforms.linking.expression._
 import wdl.draft3.transforms.linking.expression.types._
 import wdl.draft3.transforms.linking.graph._
 import wdl.draft3.transforms.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition
@@ -25,12 +19,11 @@ import wdl.model.draft3.graph._
 import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
 import wom.callable.Callable.InputDefinition
 import wom.callable.WorkflowDefinition
-import wom.expression.WomExpression
 import wom.graph.CallNode.{CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNode.GraphNodeSetter
 import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort}
 import wom.graph._
-import wom.graph.expression.{AnonymousExpressionNode, ExposedExpressionNode, PlainAnonymousExpressionNode}
+import wom.graph.expression.{AnonymousExpressionNode, PlainAnonymousExpressionNode}
 import wom.types.{WomArrayType, WomType}
 
 object ScatterElementToGraphNode {
@@ -102,8 +95,7 @@ object ScatterElementToGraphNode {
       subWorkflowGraph map { WomGraphMakerTools.addDefaultOutputs(_) }
     }
 
-    val name = UUID.randomUUID().toString
-    val subWorkflowDefinitionValidation = subWorkflowGraphValidation map { subWorkflowGraph => WorkflowDefinition(name, subWorkflowGraph, Map.empty, Map.empty) }
+    val subWorkflowDefinitionValidation = subWorkflowGraphValidation map { subWorkflowGraph => WorkflowDefinition(a.node.scatterName, subWorkflowGraph, Map.empty, Map.empty) }
 
     val scatterableGraphValidation = subWorkflowDefinitionValidation map { subWorkflowDefinition =>
       val callNodeBuilder = new CallNodeBuilder()
@@ -115,7 +107,7 @@ object ScatterElementToGraphNode {
       }
       val mapping = mappingAndPorts.map(_._1)
       val inputPorts = mappingAndPorts.map(_._2).toSet
-      val result = callNodeBuilder.build(WomIdentifier(name), subWorkflowDefinition, InputDefinitionFold(mappings = mapping, callInputPorts = inputPorts), compoundOutputIdentifiers = false)
+      val result = callNodeBuilder.build(WomIdentifier(a.node.scatterName), subWorkflowDefinition, InputDefinitionFold(mappings = mapping, callInputPorts = inputPorts), compoundOutputIdentifiers = false)
       graphNodeSetter._graphNode = result.node
       result
     }

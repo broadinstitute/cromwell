@@ -363,6 +363,7 @@ object WdlFileToWdlomSpec {
         graphElements = Set(
           IntermediateValueDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)), "indices", ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(1)), PrimitiveLiteralExpressionElement(WomInteger(2)), PrimitiveLiteralExpressionElement(WomInteger(3))))),
           ScatterElement(
+            scatterName = "ScatterAt6_11",
             scatterExpression = IdentifierLookup("indices"),
             scatterVariableName = "i",
             graphElements = Vector(
@@ -388,6 +389,7 @@ object WdlFileToWdlomSpec {
           IntermediateValueDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)), "indices", ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(1)), PrimitiveLiteralExpressionElement(WomInteger(2)), PrimitiveLiteralExpressionElement(WomInteger(3))))),
           IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "ogin_me", PrimitiveLiteralExpressionElement(WomInteger(10))),
           ScatterElement(
+            scatterName = "ScatterAt8_11",
             scatterExpression = IdentifierLookup("indices"),
             scatterVariableName = "i",
             graphElements = Vector(
@@ -421,19 +423,23 @@ object WdlFileToWdlomSpec {
             PrimitiveLiteralExpressionElement(WomInteger(55))
           ),
           ScatterElement(
+            scatterName = "ScatterAt8_11",
             IdentifierLookup("indices"),
             "a",
             Vector(
               ScatterElement(
+                scatterName = "ScatterAt9_13",
                 IdentifierLookup("indices"), "b",
                 Vector(
                   IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "x", Add(IdentifierLookup("a"),IdentifierLookup("b"))),
                   ScatterElement(
+                    scatterName = "ScatterAt11_15",
                     IdentifierLookup("indices"),
                     "c",
                     Vector(
                       IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "j", Add(Add(Add(IdentifierLookup("a"), IdentifierLookup("b")), IdentifierLookup("c")), IdentifierLookup("x"))))),
                   ScatterElement(
+                    scatterName = "ScatterAt14_15",
                     IdentifierLookup("j"),
                     "d",
                     Vector(IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "k", Add(IdentifierLookup("d"), IdentifierLookup("y"))))

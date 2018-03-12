@@ -77,8 +77,8 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   // Io Actor
   lazy val throttleElements = systemConfig.as[Option[Int]]("io.number-of-requests").getOrElse(100000)
   lazy val throttlePer = systemConfig.as[Option[FiniteDuration]]("io.per").getOrElse(100 seconds)
-  lazy val nioParallelism = systemConfig.as[Int]("io.nio.parallelism")
-  lazy val gcsParallelism = systemConfig.as[Int]("io.gcs.parallelism")
+  lazy val nioParallelism = systemConfig.as[Option[Int]]("io.nio.parallelism").getOrElse(10)
+  lazy val gcsParallelism = systemConfig.as[Option[Int]]("io.gcs.parallelism").getOrElse(10)
   lazy val ioThrottle = Throttle(throttleElements, throttlePer, throttleElements)
   lazy val ioActor = context.actorOf(IoActor.props(LoadConfig.IoQueueSize, nioParallelism, gcsParallelism, Option(ioThrottle), serviceRegistryActor), "IoActor")
   lazy val ioActorProxy = context.actorOf(IoActorProxy.props(ioActor), "IoProxy")

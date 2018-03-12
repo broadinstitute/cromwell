@@ -4,7 +4,6 @@ import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
 import wdl.model.draft3.graph.expression.ValueEvaluator
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wom.expression.IoFunctionSet
@@ -14,6 +13,7 @@ import wdl.draft3.transforms.linking.expression.values.UnaryOperatorEvaluators._
 import wdl.draft3.transforms.linking.expression.values.BinaryOperatorEvaluators._
 import wdl.draft3.transforms.linking.expression.values.LookupEvaluators._
 import wdl.draft3.transforms.linking.expression.values.TernaryIfEvaluator.ternaryIfEvaluator
+import wdl.draft3.transforms.linking.expression.values.EngineFunctionEvaluators._
 
 package object values {
 
@@ -56,7 +56,8 @@ package object values {
 
         case a: TernaryIf => a.evaluateValue(inputs, ioFunctionSet)
 
-
+        // Engine functions:
+        case a: Range => a.evaluateValue(inputs, ioFunctionSet)
 
         case other => s"Unable to process ${other.getClass.getSimpleName}: No evaluateValue exists for that type.".invalidNel
       }

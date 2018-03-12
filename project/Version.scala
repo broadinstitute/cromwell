@@ -5,7 +5,7 @@ import sbt._
 
 object Version {
   // Upcoming release, or current if we're on a master / hotfix branch
-  val cromwellVersion = "31"
+  val cromwellVersion = "32"
 
   // Adapted from SbtGit.versionWithGit
   def cromwellVersionWithGit: Seq[Setting[_]] =

@@ -26,22 +26,22 @@ class HealthMonitorServiceActorSpec extends TestKitSuite with AsyncFlatSpecLike 
   it should "return ok status when all subsystems succeed" in {
     val hm = newHealthMonitorActor(Set(SuccessSubsystem))
     // Need to give a little bit of time for the cache to update
-    Thread.sleep(1000)
+    Thread.sleep(2000)
     hm.ask(GetCurrentStatus).mapTo[StatusCheckResponse] map { resp =>
       assert(resp.ok)
-      assert(resp.systems.collect({ case (name, status) if status.ok => name }).head == SuccessSubsystem.name)
+      assert(resp.systems.collectFirst { case (name, status) if status.ok => name }.contains(SuccessSubsystem.name))
     }
   }
 
   it should "fail if any subsystems fail but correctly bin them" in {
     val hm = newHealthMonitorActor()
     // Need to give a little bit of time for the cache to update
-    Thread.sleep(1000)
+    Thread.sleep(2000)
     hm.ask(GetCurrentStatus).mapTo[StatusCheckResponse] map { resp =>
       assert(!resp.ok)
       val (ok, notOk) = resp.systems.partition { case (_, status) => status.ok }
-      assert(ok.head._1 == SuccessSubsystem.name)
-      assert(notOk.head._1 == FailSubsystem.name)
+      assert(ok.headOption.exists(_._1 == SuccessSubsystem.name))
+      assert(notOk.headOption.exists(_._1 == FailSubsystem.name))
     }
   }
 
@@ -67,26 +67,26 @@ class HealthMonitorServiceActorSpec extends TestKitSuite with AsyncFlatSpecLike 
 
     val hm = newHealthMonitorActor(Set(timeoutSubsystem))
     // Need to give a little bit of time for the cache to update
-    Thread.sleep(1000)
+    Thread.sleep(2000)
     hm.ask(GetCurrentStatus).mapTo[StatusCheckResponse] map { resp =>
       assert(!resp.ok)
-      assert(resp.systems.keySet.head == timeoutSubsystem.name)
+      assert(resp.systems.keySet.headOption.contains(timeoutSubsystem.name))
       val errorMessages = resp.systems("Timeout").messages.get
       assert(errorMessages.size == 1)
-      assert(errorMessages.head.startsWith("Timed out"))
+      assert(errorMessages.headOption.exists(_.startsWith("Timed out")))
     }
   }
 
   it should "record the error messages of the failures" in {
     val hm = newHealthMonitorActor(Set(FailSubsystem))
     // Need to give a little bit of time for the cache to update
-    Thread.sleep(1000)
+    Thread.sleep(2000)
     hm.ask(GetCurrentStatus).mapTo[StatusCheckResponse] map { resp =>
       assert(!resp.ok)
-      assert(resp.systems.keySet.head == FailSubsystem.name)
+      assert(resp.systems.keySet.headOption.contains(FailSubsystem.name))
       val errorMessages = resp.systems("Failure").messages.get
       assert(errorMessages.size == 1)
-      assert(errorMessages.head == "womp womp")
+      assert(errorMessages.headOption.contains("womp womp"))
     }
   }
 

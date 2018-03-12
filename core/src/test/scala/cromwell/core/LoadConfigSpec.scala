@@ -14,7 +14,8 @@ class LoadConfigSpec extends FlatSpec with Matchers {
     LoadConfig.KeyValueReadThreshold shouldBe 10000
     LoadConfig.KeyValueWriteThreshold shouldBe 10000
     LoadConfig.MetadataWriteThreshold shouldBe 100000
-    LoadConfig.IoThreshold shouldBe 10000
+    LoadConfig.IoQueueSize shouldBe 10000
+    LoadConfig.IoNormalWindow shouldBe 10.seconds
     LoadConfig.MonitoringFrequency shouldBe 5.seconds
     LoadConfig.MemoryThresholdInMB shouldBe 1024
     LoadConfig.PAPIThreshold shouldBe 10000

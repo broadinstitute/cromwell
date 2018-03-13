@@ -68,8 +68,7 @@ class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Con
     * We use a meter instead of a counter so we can at least get a rate (events / second)
     * The count is never reset though so the number keeps growing indefinitely until Cromwell is stopped / restarted
     */
-  private [statsd] def meterFor(bucket: CromwellBucket): Meter = {
-    // Because everything is a gauge, for clarity prepend "count" for counters so it counts events instead of giving a current value
+  private def meterFor(bucket: CromwellBucket): Meter = {
     val name = bucket.toStatsDString()
     val counterName = metricBaseName.append(name).name
     metricRegistry.getMeters.asScala.get(counterName) match {

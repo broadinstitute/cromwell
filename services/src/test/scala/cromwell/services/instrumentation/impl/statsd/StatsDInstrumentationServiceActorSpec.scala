@@ -30,6 +30,7 @@ class StatsDInstrumentationServiceActorSpec extends TestKitSuite with FlatSpecLi
   val udpProbe = TestProbe()
   val patience = 1.second
   val testBucket = CromwellBucket(List("test_prefix"), NonEmptyList.of("test", "metric", "bucket"))
+  val testGaugeBucket = CromwellBucket(List("test_prefix"), NonEmptyList.of("test", "gauge", "metric", "bucket"))
   
   var udpListenerActor: ActorRef = _
   
@@ -60,8 +61,8 @@ class StatsDInstrumentationServiceActorSpec extends TestKitSuite with FlatSpecLi
         "prefix_value.cromwell.test_prefix.test.metric.bucket.m1_rate:0.00|g"
       )
     ),
-    StatsDTestBit("set gauges", CromwellGauge(testBucket, 89),
-      Set("prefix_value.cromwell.test_prefix.test.metric.bucket:89|g")
+    StatsDTestBit("set gauges", CromwellGauge(testGaugeBucket, 89),
+      Set("prefix_value.cromwell.test_prefix.test.gauge.metric.bucket:89|g")
     ),
     StatsDTestBit("set timings", CromwellTiming(testBucket.expand("timing"), 5.seconds),
       Set("prefix_value.cromwell.test_prefix.test.metric.bucket.timing.stddev:0.00|g",

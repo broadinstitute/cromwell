@@ -1,10 +1,8 @@
 package cwl
 
 import cats.data.NonEmptyList
-import cats.data.Validated.Valid
-import cats.syntax.either._
+import cats.data.Validated._
 import cwl.WorkflowStepInput.InputSource
-import cwl.command.ParentName
 import org.scalacheck.Prop._
 import org.scalacheck.Properties
 import shapeless.Coproduct
@@ -13,22 +11,19 @@ import wom.graph.WomIdentifier
 import wom.types._
 import wom.values.{WomArray, WomInteger, WomString}
 
-object WorkflowStepInputExpressionSpec extends Properties("Workflow Step Input Expression"){
-
-  implicit val pn = ParentName("_")
-
-  val it = Coproduct[MyriadInputInnerType](CwlType.String)
+object WorkflowStepInputExpressionSpec extends Properties("Workflow Step Input Expression") {
 
   property("assert source arrays are concatenated when merge_flattened LinkMergeMethod is used") = secure {
-    val arrayType = Coproduct[MyriadInputType](Array(it))
-    val inputSource =  Coproduct[InputSource](Array("i1", "i2"))
+    val inputSource = Coproduct[InputSource](Array("i1", "i2"))
     val i1OutputPort = GraphNodeOutputPort(WomIdentifier("i1"), WomStringType, null)
     val i2OutputPort = GraphNodeOutputPort(WomIdentifier("i2"), WomStringType, null)
-    val wsi = WorkflowStepInput("s#h", source = Some(inputSource), linkMerge = Some(LinkMergeMethod.MergeFlattened))
+    val wsi = WorkflowStepInput("s#h", source = Option(inputSource), linkMerge = Option(LinkMergeMethod.MergeFlattened))
 
-    val mergeTpeEither = WorkflowStepInput.determineMergeType(Map("i1" -> WomArrayType(WomStringType), "i2" -> WomArrayType(WomStringType)), Some(LinkMergeMethod.MergeFlattened), Some(arrayType))
+    val mergeTpeEither = wsi.determineMergeType(
+      sources = Map("i1" -> WomArrayType(WomStringType), "i2" -> WomArrayType(WomStringType)),
+      expectedTypeAsWom = Option(WomArrayType(WomStringType)))
     
-    val tpe: WomType = mergeTpeEither.getOrElse(throw new RuntimeException("expected a womType but evaluation of determineType failed"))
+    val tpe: WomType = fromEither(mergeTpeEither).getOrElse(throw new RuntimeException("expected a womType but evaluation of determineType failed"))
 
     val expression = WorkflowStepInputMergeExpression(wsi, tpe, NonEmptyList.of("i1" -> i1OutputPort, "i2" -> i2OutputPort), Vector.empty)
 
@@ -40,7 +35,7 @@ object WorkflowStepInputExpressionSpec extends Properties("Workflow Step Input E
     val inputSource =  Coproduct[InputSource](Array("i1", "i2"))
     val i1OutputPort = GraphNodeOutputPort(WomIdentifier("i1"), WomStringType, null)
     val i2OutputPort = GraphNodeOutputPort(WomIdentifier("i2"), WomStringType, null)
-    val wsi = WorkflowStepInput("s#h", source = Some(inputSource))
+    val wsi = WorkflowStepInput("s#h", source = Option(inputSource))
     val expression = WorkflowStepInputMergeExpression(wsi, null, NonEmptyList.of("i1" -> i1OutputPort, "i2" -> i2OutputPort), Vector.empty)
 
     expression.evaluateValue(Map("i1" -> WomInteger(1), "i2" -> WomInteger(2)), null) ==
@@ -52,7 +47,7 @@ object WorkflowStepInputExpressionSpec extends Properties("Workflow Step Input E
 
   property("list of one entry for when there is only one input link and when merge_nested is used") = secure {
     val inputSource =  Coproduct[InputSource]("i1")
-    val wsi = WorkflowStepInput("s#h", source = Some(inputSource))
+    val wsi = WorkflowStepInput("s#h", source = Option(inputSource))
     val i1OutputPort = GraphNodeOutputPort(WomIdentifier("i1"), WomStringType, null)
     val expression = WorkflowStepInputMergeExpression(wsi, null, NonEmptyList.of("i1" -> i1OutputPort), Vector.empty)
 

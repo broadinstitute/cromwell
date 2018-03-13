@@ -38,7 +38,7 @@ object SharedFileSystem extends StrictLogging {
     * Return a `Success` result if the file has already been localized, otherwise `Failure`.
     */
   private def localizePathAlreadyLocalized(originalPath: Path, executionPath: Path): Try[Unit] = {
-    if (executionPath.exists) Success(()) else Failure(new RuntimeException(s"$originalPath doesn't exists"))
+    if (executionPath.exists) Success(()) else Failure(new RuntimeException(s"$originalPath doesn't exist"))
   }
 
   private def localizePathViaCopy(originalPath: Path, executionPath: Path): Try[Unit] = {

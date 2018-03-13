@@ -297,11 +297,9 @@ case class WorkflowStep(
            *
            * If we don't know about them, we find upstream nodes and build them (see "buildUpstreamNodes").
            */
-          val inputSources: List[String] = workflowStepInput.source.toList.flatMap(_.fold(StringOrStringArrayToStringList))
-
           val baseCase = (Map.empty[String, OutputPort], fold.generatedNodes).asRight[NonEmptyList[String]]
           val inputMappingsAndGraphNodes: Checked[(Map[String, OutputPort], Set[GraphNode])] =
-            inputSources.foldLeft(baseCase){
+            workflowStepInput.sources.foldLeft(baseCase) {
               case (Right((sourceMappings, graphNodes)), inputSource) =>
                 /*
                  * Parse the inputSource (what this input is pointing to)

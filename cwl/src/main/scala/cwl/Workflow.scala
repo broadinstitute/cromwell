@@ -17,11 +17,10 @@ import shapeless._
 import shapeless.syntax.singleton._
 import wom.callable.WorkflowDefinition
 import wom.executable.Executable
-import wom.expression.{ValueAsAnExpression, WomExpression}
-import wom.graph
+import wom.expression.ValueAsAnExpression
 import wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 import wom.graph._
-import wom.types.WomType
+import wom.types.{WomOptionalType, WomType}
 
 case class Workflow private(
                              cwlVersion: Option[CwlVersion],
@@ -87,29 +86,33 @@ case class Workflow private(
           womTypeForInputParameter(i).map(i.id -> _).toList
         }.toMap
 
-    val graphFromInputs: Set[ExternalGraphInputNode] = inputs.map {
-      case inputParameter if inputParameter.default.isDefined =>
-        val parsedInputId = FileAndId(inputParameter.id).id
-        val womType = womTypeForInputParameter(inputParameter).get
+    val externalGraphInputNodes: Set[ExternalGraphInputNode] = inputs.map { wip =>
+      val womType: WomType = womTypeForInputParameter(wip).get
+      val parsedInputId = FileAndId(wip.id).id
+      val womId = WomIdentifier(parsedInputId, wip.id)
 
-        val womValue = inputParameter.default.get.fold(InputParameter.DefaultToWomValuePoly).apply(womType).toTry.get
-        OptionalGraphInputNodeWithDefault(WomIdentifier(parsedInputId, inputParameter.id), womType, ValueAsAnExpression(womValue), parsedInputId)
-      case input =>
-        val parsedInputId = FileAndId(input.id).id
+      def optionalWithDefault(memberType: WomType): OptionalGraphInputNodeWithDefault = {
+        val defaultValue = wip.default.get.fold(InputParameter.DefaultToWomValuePoly).apply(womType).toTry.get
+        OptionalGraphInputNodeWithDefault(womId, memberType, ValueAsAnExpression(defaultValue), parsedInputId)
+      }
 
-        RequiredGraphInputNode(WomIdentifier(parsedInputId, input.id), womTypeForInputParameter(input).get, parsedInputId)
+      womType match {
+        case WomOptionalType(memberType) if wip.default.isDefined => optionalWithDefault(memberType)
+        case _ if wip.default.isDefined => optionalWithDefault(womType)
+        case optional @ WomOptionalType(_) => OptionalGraphInputNode(womId, optional, parsedInputId)
+        case _ => RequiredGraphInputNode(womId, womType, parsedInputId)
+      }
     }.toSet
 
     val workflowInputs: Map[String, GraphNodeOutputPort] =
-      graphFromInputs.map {
-        workflowInput =>
-          workflowInput.localName -> workflowInput.singleOutputPort
+      externalGraphInputNodes.map { egin =>
+        egin.localName -> egin.singleOutputPort
       }.toMap
 
     val graphFromSteps: Checked[Set[GraphNode]] =
       steps.
         toList.
-        foldLeft((Set.empty[GraphNode] ++ graphFromInputs).asRight[NonEmptyList[String]])(
+        foldLeft((Set.empty[GraphNode] ++ externalGraphInputNodes).asRight[NonEmptyList[String]])(
           (nodes, step) => nodes.flatMap(step.callWithInputs(typeMap, this, _, workflowInputs, validator, expressionLib)))
 
     val graphFromOutputs: Checked[Set[GraphNode]] =
@@ -150,7 +153,7 @@ case class Workflow private(
     for {
       outputs <- graphFromOutputs
       steps <- graphFromSteps
-      ret <- Graph.validateAndConstruct(steps ++ graphFromInputs ++ outputs).toEither
+      ret <- Graph.validateAndConstruct(steps ++ externalGraphInputNodes ++ outputs).toEither
     } yield ret
   }
 

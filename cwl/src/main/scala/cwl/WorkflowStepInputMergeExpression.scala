@@ -8,6 +8,7 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
+import cwl.InputParameter.DefaultToWomValuePoly
 import wom.expression.IoFunctionSet
 import wom.graph.GraphNodePort.OutputPort
 import wom.types.WomType
@@ -28,21 +29,28 @@ final case class WorkflowStepInputMergeExpression(input: WorkflowStepInput,
     def lookupValue(key: String): ErrorOr[WomValue] =
       inputValues.
         get(key).
-        toValidNel(s"source value $key not found in input values ${inputValues.mkString("\n")}.  Graph Inputs were ${allStepInputSources.mkString("\n")}")
+        toValidNel(s"source value $key not found in input values ${inputValues.mkString("\n")} and no default value provided.  Graph Inputs were ${allStepInputSources.mkString("\n")}")
 
     def validateSources(sources: List[String]): ErrorOr[List[WomValue]] =
       sources.
         traverse[ErrorOr, WomValue](lookupValue)
 
-    (allStepInputSources, input.effectiveLinkMerge) match {
+    def isEmptyOptionalValue(womValue: WomValue): Boolean = womValue match {
+      case WomOptionalValue(_, None) => true
+      case _ => false
+    }
 
-      //When we have a single source, simply look it up
-      case (List(source), LinkMergeMethod.MergeNested) => lookupValue(source)
+    (allStepInputSources, input.effectiveLinkMerge, input.default) match {
+      // When we have a single source but no value was provided for it and there's a default.
+      case (List(source), LinkMergeMethod.MergeNested, Some(default)) if isEmptyOptionalValue(inputValues(source)) =>
+        default.fold(DefaultToWomValuePoly).apply(cwlExpressionType)
+
+      case (List(source), LinkMergeMethod.MergeNested, _) => lookupValue(source)
 
       //When we have several sources, validate they are all present and provide them as a nested array
-      case (sources, LinkMergeMethod.MergeNested) => validateSources(sources).map(WomArray.apply)
+      case (sources, LinkMergeMethod.MergeNested, _) => validateSources(sources).map(WomArray.apply)
 
-      case (sources, LinkMergeMethod.MergeFlattened) =>
+      case (sources, LinkMergeMethod.MergeFlattened, _) =>
         val validatedSourceValues: Checked[List[WomValue]] =
           validateSources(sources).toEither
 
@@ -57,7 +65,7 @@ final case class WorkflowStepInputMergeExpression(input: WorkflowStepInput,
 
         flattenedValidatedSourceValues.map(list => WomArray(list)).toValidated
 
-      case (List(id), _) => lookupValue(id)
+      case (List(id), _, _) => lookupValue(id)
     }
   }
 

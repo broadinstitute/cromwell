@@ -73,7 +73,6 @@ object ScatterElementToGraphNode {
 
       innerGraph map { ig =>
         val withOutputs = WomGraphMakerTools.addDefaultOutputs(ig, compoundCallIdentifiers = false)
-        println(s"nodes in this scatter: ${withOutputs.nodes.map(n => n.getClass.getSimpleName + " " + n.localName)}")
         val generatedAndNew = ScatterNode.scatterOverGraph(withOutputs, womInnerGraphScatterVariableInput)
         generatedAndNew.nodes
       }

@@ -57,7 +57,41 @@ package object values {
         case a: TernaryIf => a.evaluateValue(inputs, ioFunctionSet)
 
         // Engine functions:
+        case a: ReadLines => a.evaluateValue(inputs, ioFunctionSet)
+        case a: ReadTsv => a.evaluateValue(inputs, ioFunctionSet)
+        case a: ReadMap => a.evaluateValue(inputs, ioFunctionSet)
+        case a: ReadObject => a.evaluateValue(inputs, ioFunctionSet)
+        case a: ReadObjects => a.evaluateValue(inputs, ioFunctionSet)
+        case a: ReadJson => a.evaluateValue(inputs, ioFunctionSet)
+        case a: ReadInt => a.evaluateValue(inputs, ioFunctionSet)
+        case a: ReadString => a.evaluateValue(inputs, ioFunctionSet)
+        case a: ReadFloat => a.evaluateValue(inputs, ioFunctionSet)
+        case a: ReadBoolean => a.evaluateValue(inputs, ioFunctionSet)
+        case a: WriteLines => a.evaluateValue(inputs, ioFunctionSet)
+        case a: WriteTsv => a.evaluateValue(inputs, ioFunctionSet)
+        case a: WriteMap => a.evaluateValue(inputs, ioFunctionSet)
+        case a: WriteObject => a.evaluateValue(inputs, ioFunctionSet)
+        case a: WriteObjects => a.evaluateValue(inputs, ioFunctionSet)
+        case a: WriteJson => a.evaluateValue(inputs, ioFunctionSet)
         case a: Range => a.evaluateValue(inputs, ioFunctionSet)
+        case a: Transpose => a.evaluateValue(inputs, ioFunctionSet)
+        case a: Length => a.evaluateValue(inputs, ioFunctionSet)
+        case a: Flatten => a.evaluateValue(inputs, ioFunctionSet)
+        case a: Prefix => a.evaluateValue(inputs, ioFunctionSet)
+        case a: SelectFirst => a.evaluateValue(inputs, ioFunctionSet)
+        case a: SelectAll => a.evaluateValue(inputs, ioFunctionSet)
+        case a: Defined => a.evaluateValue(inputs, ioFunctionSet)
+        case a: Floor => a.evaluateValue(inputs, ioFunctionSet)
+        case a: Ceil => a.evaluateValue(inputs, ioFunctionSet)
+        case a: Round => a.evaluateValue(inputs, ioFunctionSet)
+
+        case a: Size => a.evaluateValue(inputs, ioFunctionSet)
+        case a: Basename => a.evaluateValue(inputs, ioFunctionSet)
+
+        case a: Zip => a.evaluateValue(inputs, ioFunctionSet)
+        case a: Cross => a.evaluateValue(inputs, ioFunctionSet)
+
+        case a: Sub => a.evaluateValue(inputs, ioFunctionSet)
 
         case other => s"Unable to process ${other.getClass.getSimpleName}: No evaluateValue exists for that type.".invalidNel
       }

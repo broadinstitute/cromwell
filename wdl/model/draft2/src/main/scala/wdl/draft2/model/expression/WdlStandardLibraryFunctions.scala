@@ -6,6 +6,7 @@ import common.exception.AggregatedException
 import common.util.TryUtil
 import spray.json._
 import wdl.draft2.model.expression.WdlStandardLibraryFunctions.{crossProduct => stdLibCrossProduct, _}
+import wdl.shared.transforms.evaluation.values.EngineFunctions
 import wom.TsvSerializable
 import wom.expression.IoFunctionSet
 import wom.types._
@@ -158,32 +159,10 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
   }
 
   def transpose(params: Seq[Try[WomValue]]): Try[WomArray] = {
-    def extractExactlyOneArg: Try[WomValue] = params.size match {
-      case 1 => params.head
+    params.size match {
+      case 1 => params.head flatMap EngineFunctions.transpose
       case n => Failure(new IllegalArgumentException(s"Invalid number of parameters for engine function transpose: $n. Ensure transpose(x: Array[Array[X]]) takes exactly 1 parameters."))
     }
-
-    case class ExpandedTwoDimensionalArray(innerType: WomType, value: Seq[Seq[WomValue]])
-    def validateAndExpand(value: WomValue): Try[ExpandedTwoDimensionalArray] = value match {
-      case WomArray(WomArrayType(WomArrayType(innerType)), array: Seq[WomValue]) => expandWdlArray(array) map { ExpandedTwoDimensionalArray(innerType, _) }
-      case WomArray(WomArrayType(nonArrayType), _) => Failure(new IllegalArgumentException(s"Array must be two-dimensional to be transposed but given array of $nonArrayType"))
-      case otherValue => Failure(new IllegalArgumentException(s"Function 'transpose' must be given a two-dimensional array but instead got ${otherValue.typeName}"))
-    }
-
-    def expandWdlArray(outerArray: Seq[WomValue]): Try[Seq[Seq[WomValue]]] = Try {
-      outerArray map {
-        case array: WomArray => array.value
-        case otherValue => throw new IllegalArgumentException(s"Function 'transpose' must be given a two-dimensional array but instead got WdlArray[${otherValue.typeName}]")
-      }
-    }
-
-    def transpose(expandedTwoDimensionalArray: ExpandedTwoDimensionalArray): Try[WomArray] = Try {
-      val innerType = expandedTwoDimensionalArray.innerType
-      val array = expandedTwoDimensionalArray.value
-      WomArray(WomArrayType(WomArrayType(innerType)), array.transpose map { WomArray(WomArrayType(innerType), _) })
-    }
-
-    extractExactlyOneArg.flatMap(validateAndExpand).flatMap(transpose)
   }
 
   def length(params: Seq[Try[WomValue]]): Try[WomInteger] = {

@@ -56,7 +56,41 @@ package object types {
         case a: TernaryIf => a.evaluateType(linkedValues)
 
         // Engine functions:
+        case a: ReadLines => a.evaluateType(linkedValues)
+        case a: ReadTsv => a.evaluateType(linkedValues)
+        case a: ReadMap => a.evaluateType(linkedValues)
+        case a: ReadObject => a.evaluateType(linkedValues)
+        case a: ReadObjects => a.evaluateType(linkedValues)
+        case a: ReadJson => a.evaluateType(linkedValues)
+        case a: ReadInt => a.evaluateType(linkedValues)
+        case a: ReadString => a.evaluateType(linkedValues)
+        case a: ReadFloat => a.evaluateType(linkedValues)
+        case a: ReadBoolean => a.evaluateType(linkedValues)
+        case a: WriteLines => a.evaluateType(linkedValues)
+        case a: WriteTsv => a.evaluateType(linkedValues)
+        case a: WriteMap => a.evaluateType(linkedValues)
+        case a: WriteObject => a.evaluateType(linkedValues)
+        case a: WriteObjects => a.evaluateType(linkedValues)
+        case a: WriteJson => a.evaluateType(linkedValues)
         case a: Range => a.evaluateType(linkedValues)
+        case a: Transpose => a.evaluateType(linkedValues)
+        case a: Length => a.evaluateType(linkedValues)
+        case a: Flatten => a.evaluateType(linkedValues)
+        case a: Prefix => a.evaluateType(linkedValues)
+        case a: SelectFirst => a.evaluateType(linkedValues)
+        case a: SelectAll => a.evaluateType(linkedValues)
+        case a: Defined => a.evaluateType(linkedValues)
+        case a: Floor => a.evaluateType(linkedValues)
+        case a: Ceil => a.evaluateType(linkedValues)
+        case a: Round => a.evaluateType(linkedValues)
+
+        case a: Size => a.evaluateType(linkedValues)
+        case a: Basename => a.evaluateType(linkedValues)
+
+        case a: Zip => a.evaluateType(linkedValues)
+        case a: Cross => a.evaluateType(linkedValues)
+
+        case a: Sub => a.evaluateType(linkedValues)
 
         case other => s"Unable to process ${other.getClass.getSimpleName}: No evaluateType exists for that type.".invalidNel
       }

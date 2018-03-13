@@ -56,7 +56,6 @@ package object consumed {
       case a: IdentifierLookup => a.expressionConsumedValueHooks
       case a: IdentifierMemberAccess => a.expressionConsumedValueHooks
 
-      // Binary operators (at some point we might want to split these into separate cases):
       case a: LogicalOr => a.expressionConsumedValueHooks
       case a: LogicalAnd => a.expressionConsumedValueHooks
       case a: Equals => a.expressionConsumedValueHooks
@@ -72,7 +71,41 @@ package object consumed {
       case a: Remainder => a.expressionConsumedValueHooks
 
       // Engine functions:
+      case a: ReadLines => a.expressionConsumedValueHooks
+      case a: ReadTsv => a.expressionConsumedValueHooks
+      case a: ReadMap => a.expressionConsumedValueHooks
+      case a: ReadObject => a.expressionConsumedValueHooks
+      case a: ReadObjects => a.expressionConsumedValueHooks
+      case a: ReadJson => a.expressionConsumedValueHooks
+      case a: ReadInt => a.expressionConsumedValueHooks
+      case a: ReadString => a.expressionConsumedValueHooks
+      case a: ReadFloat => a.expressionConsumedValueHooks
+      case a: ReadBoolean => a.expressionConsumedValueHooks
+      case a: WriteLines => a.expressionConsumedValueHooks
+      case a: WriteTsv => a.expressionConsumedValueHooks
+      case a: WriteMap => a.expressionConsumedValueHooks
+      case a: WriteObject => a.expressionConsumedValueHooks
+      case a: WriteObjects => a.expressionConsumedValueHooks
+      case a: WriteJson => a.expressionConsumedValueHooks
       case a: Range => a.expressionConsumedValueHooks
+      case a: Transpose => a.expressionConsumedValueHooks
+      case a: Length => a.expressionConsumedValueHooks
+      case a: Flatten => a.expressionConsumedValueHooks
+      case a: Prefix => a.expressionConsumedValueHooks
+      case a: SelectFirst => a.expressionConsumedValueHooks
+      case a: SelectAll => a.expressionConsumedValueHooks
+      case a: Defined => a.expressionConsumedValueHooks
+      case a: Floor => a.expressionConsumedValueHooks
+      case a: Ceil => a.expressionConsumedValueHooks
+      case a: Round => a.expressionConsumedValueHooks
+
+      case a: Size => a.expressionConsumedValueHooks
+      case a: Basename => a.expressionConsumedValueHooks
+
+      case a: Zip => a.expressionConsumedValueHooks
+      case a: Cross => a.expressionConsumedValueHooks
+
+      case a: Sub => a.expressionConsumedValueHooks
 
       // TODO fill in other expression types
       case other => throw new Exception(s"Cannot generate consumed values for ExpressionElement ${other.getClass.getSimpleName}")

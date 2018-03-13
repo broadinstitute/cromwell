@@ -138,21 +138,22 @@ object AstNodeToExpressionElement {
     "range" -> validateOneParamEngineFunction(Range, "range"),
     "transpose" -> validateOneParamEngineFunction(Transpose, "transpose"),
     "length" -> validateOneParamEngineFunction(Length, "length"),
-    "prefix" -> validateOneParamEngineFunction(Prefix, "prefix"),
+    "flatten" -> validateOneParamEngineFunction(Flatten, "flatten"),
     "select_first" -> validateOneParamEngineFunction(SelectFirst, "select_first"),
     "select_all" -> validateOneParamEngineFunction(SelectAll, "select_all"),
     "defined" -> validateOneParamEngineFunction(Defined, "defined"),
-    "basename" -> validateOneParamEngineFunction(Basename, "basename"),
     "floor" -> validateOneParamEngineFunction(Floor, "floor"),
     "ceil" -> validateOneParamEngineFunction(Ceil, "ceil"),
     "round" -> validateOneParamEngineFunction(Round, "round"),
 
     // 1- or 2-param functions:
-    "size" -> validateSizeEngineFunction,
+    "size" -> validateOneOrTwoParamEngineFunction(Size, "size"),
+    "basename" -> validateOneOrTwoParamEngineFunction(Basename, "basename"),
 
     // 2-param functions:
     "zip" -> validateTwoParamEngineFunction(Zip, "zip"),
     "cross" -> validateTwoParamEngineFunction(Cross, "cross"),
+    "prefix" -> validateTwoParamEngineFunction(Prefix, "prefix"),
 
     // 3-param functions:
     "sub" -> validateThreeParamEngineFunction(Sub, "sub")
@@ -174,13 +175,15 @@ object AstNodeToExpressionElement {
       s"Function $functionName expects exactly 1 argument but got ${params.size}".invalidNel
     }
 
-  private def validateSizeEngineFunction(params: Vector[ExpressionElement]): ErrorOr[ExpressionElement] =
+  private def validateOneOrTwoParamEngineFunction(elementMaker: (ExpressionElement, Option[ExpressionElement]) => ExpressionElement,
+                                                  functionName: String)
+                                                 (params: Vector[ExpressionElement]): ErrorOr[ExpressionElement] =
     if (params.size == 1) {
-      Size(params.head, None).validNel
+      elementMaker(params.head, None).validNel
     } else if (params.size == 2) {
-      Size(params.head, Option(params(1))).validNel
+      elementMaker(params.head, Option(params(1))).validNel
     } else {
-      s"Function size expects 1 or 2 arguments but got ${params.size}".invalidNel
+      s"Function $functionName expects 1 or 2 arguments but got ${params.size}".invalidNel
     }
 
   private def validateTwoParamEngineFunction(elementMaker: (ExpressionElement, ExpressionElement) => ExpressionElement, functionName: String)

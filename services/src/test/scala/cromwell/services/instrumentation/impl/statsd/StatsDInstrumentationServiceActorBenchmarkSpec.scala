@@ -27,7 +27,7 @@ class StatsDInstrumentationServiceActorBenchmarkSpec extends TestKitSuite with F
 
   val registryProbe = TestProbe().ref
   override implicit val patienceConfig: PatienceConfig = PatienceConfig(scaled(3.seconds))
-  val testBucket = CromwellBucket(List("test_prefix"), NonEmptyList.of("test", "metric", "bucket"))
+  val testBucket = CromwellBucket(List("test_prefix"), NonEmptyList.of("test", "metric", "benchmark", "bucket"))
 
 
   it should "have good throughput for gauges" in {

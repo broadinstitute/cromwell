@@ -26,15 +26,15 @@ trait MetadataEntryComponent {
 
     def metadataEntryId = column[Long]("METADATA_JOURNAL_ID", O.PrimaryKey, O.AutoInc)
 
-    def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID") // TODO: rename column via libquibase
+    def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID", O.Length(255)) // TODO: rename column via liquibase
 
-    def callFullyQualifiedName = column[Option[String]]("CALL_FQN") // TODO: rename column via libquibase
+    def callFullyQualifiedName = column[Option[String]]("CALL_FQN", O.Length(255)) // TODO: rename column via liquibase
 
-    def jobIndex = column[Option[Int]]("JOB_SCATTER_INDEX") // TODO: rename column via libquibase
+    def jobIndex = column[Option[Int]]("JOB_SCATTER_INDEX") // TODO: rename column via liquibase
 
-    def jobAttempt = column[Option[Int]]("JOB_RETRY_ATTEMPT") // TODO: rename column via libquibase
+    def jobAttempt = column[Option[Int]]("JOB_RETRY_ATTEMPT") // TODO: rename column via liquibase
 
-    def metadataKey = column[String]("METADATA_KEY")
+    def metadataKey = column[String]("METADATA_KEY", O.Length(255))
 
     def metadataValue = column[Option[Clob]]("METADATA_VALUE")
 
@@ -45,14 +45,14 @@ trait MetadataEntryComponent {
     override def * = (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt, metadataKey, metadataValue,
       metadataValueType, metadataTimestamp, metadataEntryId.?) <> (MetadataEntry.tupled, MetadataEntry.unapply)
 
-    // TODO: rename index via libquibase
+    // TODO: rename index via liquibase
     def ixMetadataEntryWeu = index("METADATA_WORKFLOW_IDX", workflowExecutionUuid, unique = false)
 
-    // TODO: rename index via libquibase
+    // TODO: rename index via liquibase
     def ixMetadataEntryWeuCfqnJiJa = index("METADATA_JOB_IDX",
       (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt), unique = false)
 
-    // TODO: rename index via libquibase, and change column order from WEU_[MK]_CFQN_JI_JA to WEU_CFQN_JI_JA_[MK]
+    // TODO: rename index via liquibase, and change column order from WEU_[MK]_CFQN_JI_JA to WEU_CFQN_JI_JA_[MK]
     def ixMetadataEntryWeuCfqnJiJaMk = index("METADATA_JOB_AND_KEY_IDX",
       (workflowExecutionUuid, metadataKey, callFullyQualifiedName, jobIndex, jobAttempt), unique = false)
   }

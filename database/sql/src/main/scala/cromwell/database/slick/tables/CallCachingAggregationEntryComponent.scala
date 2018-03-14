@@ -12,9 +12,9 @@ trait CallCachingAggregationEntryComponent {
   class CallCachingAggregationEntries(tag: Tag) extends Table[CallCachingAggregationEntry](tag, "CALL_CACHING_AGGREGATION_ENTRY") {
     def callCachingAggregationEntryId = column[Int]("CALL_CACHING_AGGREGATION_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
-    def baseAggregation = column[String]("BASE_AGGREGATION")
+    def baseAggregation = column[String]("BASE_AGGREGATION", O.Length(255))
 
-    def inputFilesAggregation = column[Option[String]]("INPUT_FILES_AGGREGATION")
+    def inputFilesAggregation = column[Option[String]]("INPUT_FILES_AGGREGATION", O.Length(255))
 
     def callCachingEntryId = column[Int]("CALL_CACHING_ENTRY_ID")
 

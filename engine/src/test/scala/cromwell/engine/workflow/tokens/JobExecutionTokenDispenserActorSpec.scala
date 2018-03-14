@@ -15,7 +15,7 @@ import scala.concurrent.duration._
 
 class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec")) with ImplicitSender with FlatSpecLike with Matchers with BeforeAndAfter with BeforeAndAfterAll with Eventually {
 
-  val MaxWaitTime = 5.seconds
+  val MaxWaitTime = 10.seconds
   implicit val pc: PatienceConfig = PatienceConfig(MaxWaitTime)
 
   behavior of "JobExecutionTokenDispenserActor"
@@ -238,7 +238,7 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
   var actorRefUnderTest: TestActorRef[JobExecutionTokenDispenserActor] = _
 
   before {
-    actorRefUnderTest = TestActorRef(new JobExecutionTokenDispenserActor(TestProbe().ref, Rate(10, 2.second)))
+    actorRefUnderTest = TestActorRef(new JobExecutionTokenDispenserActor(TestProbe().ref, Rate(10, 4.second)))
   }
   after {
     actorRefUnderTest = null

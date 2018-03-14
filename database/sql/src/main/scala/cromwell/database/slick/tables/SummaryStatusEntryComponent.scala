@@ -10,9 +10,9 @@ trait SummaryStatusEntryComponent {
   class SummaryStatusEntries(tag: Tag) extends Table[SummaryStatusEntry](tag, "SUMMARY_STATUS_ENTRY") {
     def summaryStatusEntryId = column[Int]("SUMMARY_STATUS_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
-    def summaryTableName = column[String]("SUMMARY_TABLE_NAME")
+    def summaryTableName = column[String]("SUMMARY_TABLE_NAME", O.Length(255))
 
-    def summarizedTableName = column[String]("SUMMARIZED_TABLE_NAME")
+    def summarizedTableName = column[String]("SUMMARIZED_TABLE_NAME", O.Length(255))
 
     def maximumId = column[Long]("MAXIMUM_ID")
 

@@ -73,7 +73,7 @@ object Dependencies {
   val scoptV = "3.6.0"
   val shapelessV = "2.3.2"
   val slf4jV = "1.7.24"
-  val slickV = "3.2.0"
+  val slickV = "3.2.2"
   val snakeyamlV = "1.17"
   val specs2MockV = "3.8.9" // 3.9.X doesn't enjoy the spark backend or refined
   val sprayJsonV = "1.3.3"

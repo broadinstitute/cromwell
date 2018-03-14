@@ -13,9 +13,9 @@ trait JobStoreEntryComponent {
   class JobStoreEntries(tag: Tag) extends Table[JobStoreEntry](tag, "JOB_STORE_ENTRY") {
     def jobStoreEntryId = column[Int]("JOB_STORE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
-    def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID")
+    def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID", O.Length(255))
 
-    def callFullyQualifiedName = column[String]("CALL_FULLY_QUALIFIED_NAME")
+    def callFullyQualifiedName = column[String]("CALL_FULLY_QUALIFIED_NAME", O.Length(255))
 
     def jobIndex = column[Int]("JOB_INDEX")
 

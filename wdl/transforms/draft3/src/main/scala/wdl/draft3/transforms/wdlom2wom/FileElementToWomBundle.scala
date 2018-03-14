@@ -1,6 +1,7 @@
 package wdl.draft3.transforms.wdlom2wom
 
 import cats.instances.vector._
+import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.syntax.validated._
@@ -26,17 +27,21 @@ object FileElementToWomBundle {
     override def toWomBundle(a: FileElement, importResolvers: List[String => Future[Checked[WomBundle]]]): Checked[WomBundle] = {
 
       val importsValidation: ErrorOr[Vector[ImportElement]] = if (a.imports.isEmpty) Vector.empty.valid else "FileElement to WOM conversion of imports not yet implemented.".invalidNel
-      val tasksValidation: ErrorOr[Vector[TaskDefinitionElement]] = if (a.imports.isEmpty) Vector.empty.valid else "FileElement to WOM conversion of tasks not yet implemented.".invalidNel
-
+      val tasksValidation: ErrorOr[Vector[TaskDefinitionElement]] = a.tasks.toVector.validNel
       // TODO: Handle imports:
       val imports: Set[WomBundle] = Set.empty
 
       val structsValidation: ErrorOr[Map[String, WomType]] = StructEvaluation.convert(StructEvaluationInputs(a.structs, imports.flatMap(_.typeAliases).toMap))
 
       def toWorkflowInner(imports: Vector[ImportElement], tasks: Vector[TaskDefinitionElement], structs: Map[String, WomType]): ErrorOr[WomBundle] = {
-        implicit val workflowConverter: CheckedAtoB[WorkflowDefinitionConvertInputs, WorkflowDefinition] = workflowDefinitionElementToWomWorkflowDefinition
+        val workflowConverter: CheckedAtoB[WorkflowDefinitionConvertInputs, WorkflowDefinition] = workflowDefinitionElementToWomWorkflowDefinition
+        val taskConverter: CheckedAtoB[TaskDefinitionElement, TaskDefinition] = taskDefinitionElementToWomTaskDefinition
 
-        val tasks: Set[TaskDefinition] = Set.empty
+        val taskDefs: ErrorOr[Set[TaskDefinition]] = {
+          tasks.traverse[ErrorOr, TaskDefinition] { taskDefinition =>
+            taskConverter.run(taskDefinition).toValidated
+          }.map(_.toSet)
+        }
 
         val workflowsValidation: ErrorOr[Vector[WorkflowDefinition]] = {
           a.workflows.toVector.traverse[ErrorOr, WorkflowDefinition] { workflowDefinition =>
@@ -45,7 +50,7 @@ object FileElementToWomBundle {
           }
         }
 
-        workflowsValidation map { workflows =>
+        (workflowsValidation, taskDefs) mapN { (workflows, tasks) =>
           WomBundle(tasks ++ workflows, structs)
         }
       }

@@ -24,13 +24,13 @@ trait WorkflowStoreEntryComponent {
   class WorkflowStoreEntries(tag: Tag) extends Table[WorkflowStoreEntry](tag, "WORKFLOW_STORE_ENTRY") {
     def workflowStoreEntryId = column[Int]("WORKFLOW_STORE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
-    def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID")
+    def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID", O.Length(255))
 
     def workflowRoot = column[Option[String]]("WORKFLOW_ROOT", O.Length(100))
 
     def workflowType = column[Option[String]]("WORKFLOW_TYPE", O.Length(30))
 
-    def workflowTypeVersion = column[Option[String]]("WORKFLOW_TYPE_VERSION")
+    def workflowTypeVersion = column[Option[String]]("WORKFLOW_TYPE_VERSION", O.Length(255))
 
     def workflowDefinition = column[Option[Clob]]("WORKFLOW_DEFINITION")
 

@@ -14,11 +14,11 @@ trait CallCachingSimpletonEntryComponent {
     extends Table[CallCachingSimpletonEntry](tag, "CALL_CACHING_SIMPLETON_ENTRY") {
     def callCachingSimpletonEntryId = column[Int]("CALL_CACHING_SIMPLETON_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
-    def simpletonKey = column[String]("SIMPLETON_KEY")
+    def simpletonKey = column[String]("SIMPLETON_KEY", O.Length(255))
 
     def simpletonValue = column[Option[Clob]]("SIMPLETON_VALUE")
 
-    def wdlType = column[String]("WDL_TYPE")
+    def wdlType = column[String]("WDL_TYPE", O.Length(255))
 
     def callCachingEntryId = column[Int]("CALL_CACHING_ENTRY_ID")
 

@@ -12,9 +12,9 @@ trait CallCachingHashEntryComponent {
   class CallCachingHashEntries(tag: Tag) extends Table[CallCachingHashEntry](tag, "CALL_CACHING_HASH_ENTRY") {
     def callCachingHashEntryId = column[Int]("CALL_CACHING_HASH_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
-    def hashKey = column[String]("HASH_KEY")
+    def hashKey = column[String]("HASH_KEY", O.Length(255))
 
-    def hashValue = column[String]("HASH_VALUE")
+    def hashValue = column[String]("HASH_VALUE", O.Length(255))
 
     def callCachingEntryId = column[Int]("CALL_CACHING_ENTRY_ID")
 

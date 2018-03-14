@@ -110,6 +110,8 @@ object GraphNode {
       */
     def usedOuterGraphInputNodes: Set[_ <: OuterGraphInputNode]
     def newExpressions: Set[ExpressionNode]
+
+    final def nodes: Set[GraphNode] = newExpressions ++ newInputs ++ usedOuterGraphInputNodes ++ Set(node)
   }
 
   trait GraphNodeWithInnerGraph { this: GraphNode =>

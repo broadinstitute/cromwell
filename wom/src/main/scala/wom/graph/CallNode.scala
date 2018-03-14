@@ -180,9 +180,7 @@ object CallNode {
   // This is a List rather than Map because the order of 'InputDefinition's is important:
   type InputDefinitionMappings = List[(InputDefinition, InputDefinitionPointer)]
 
-  final case class CallNodeAndNewNodes(node: CallNode, newInputs: Set[ExternalGraphInputNode], newExpressions: Set[ExpressionNode], override val usedOuterGraphInputNodes: Set[OuterGraphInputNode]) extends GeneratedNodeAndNewNodes {
-    def nodes: Set[GraphNode] = Set(node) ++ newInputs ++ newExpressions ++ usedOuterGraphInputNodes
-  }
+  final case class CallNodeAndNewNodes(node: CallNode, newInputs: Set[ExternalGraphInputNode], newExpressions: Set[ExpressionNode], override val usedOuterGraphInputNodes: Set[OuterGraphInputNode]) extends GeneratedNodeAndNewNodes
 
   /**
     * Don't use this directly; go via callWithInputs to make sure everything's in order when constructing a CallNode.

@@ -3,6 +3,8 @@ version draft-3
 workflow simple_conditional {
   Boolean bool = true
 
+  Int i = 5
+
   if (bool) {
     Int j = i + 10
   }

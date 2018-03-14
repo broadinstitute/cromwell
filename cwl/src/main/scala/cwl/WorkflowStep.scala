@@ -201,7 +201,7 @@ case class WorkflowStep(
     val haveWeSeenThisStep: Boolean = knownNodes.collect {
       case CommandCallNode(identifier, _, _, _) => identifier
       case ExpressionCallNode(identifier, _, _, _) => identifier
-      case WorkflowCallNode(identifier, _, _, _) => identifier
+      case WorkflowCallNode(identifier, _, _, _, _) => identifier
     }.contains(unqualifiedStepId)
 
     if (haveWeSeenThisStep) Right(knownNodes)

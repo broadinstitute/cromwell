@@ -1,19 +1,22 @@
 package wdl.draft3.transforms.wdlom2wom.graph
 
-import cats.syntax.apply._
 import cats.syntax.validated._
+import cats.syntax.traverse._
+import cats.instances.list._
 import common.validation.ErrorOr.{ErrorOr, _}
 import wdl.model.draft3.graph.expression.WomTypeMaker.ops._
 import wdl.model.draft3.graph.expression.TypeEvaluator.ops._
+import wdl.model.draft3.graph.GraphElementValueConsumer.ops._
 import wdl.model.draft3.graph.expression.WomExpressionMaker.ops._
 import wdl.draft3.transforms.linking.typemakers._
 import wdl.draft3.transforms.linking.expression._
 import wdl.draft3.transforms.linking.expression.types._
+import wdl.draft3.transforms.linking.graph._
 import wdl.draft3.transforms.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition
 import wdl.draft3.transforms.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition.GraphLikeConvertInputs
 import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements._
-import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
+import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedCallOutputOrIdentifierAndMemberAccessHook, UnlinkedConsumedValueHook, UnlinkedIdentifierHook}
 import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.OutputPort
@@ -42,27 +45,9 @@ object WorkflowGraphElementToGraphNode {
         }
       }
 
-    case ScatterElement(scatterExpression, scatterVariableName, graphElements) =>
-      val scatterWomExpression: WdlomWomExpression = WdlomWomExpression(scatterExpression, a.linkableValues)
-      val scatterExpressionNodeValidation: ErrorOr[AnonymousExpressionNode] = AnonymousExpressionNode.fromInputMapping(WomIdentifier(scatterVariableName), scatterWomExpression, a.linkablePorts, PlainAnonymousExpressionNode.apply)
-
-      val scatterVariableTypeValidation: ErrorOr[WomType] = scatterExpression.evaluateType(a.linkableValues) flatMap {
-        case a: WomArrayType => a.memberType.validNel
-        case _ => "Invalid type for scatter variable: ".invalidNel
-      }
-
-      (scatterExpressionNodeValidation, scatterVariableTypeValidation) flatMapN { (expressionNode, scatterVariableType) =>
-        val womInnerGraphScatterVariableInput = ScatterVariableNode(WomIdentifier(scatterVariableName), expressionNode, scatterVariableType)
-
-        val graphLikeConvertInputs = GraphLikeConvertInputs(graphElements.toSet, Set(womInnerGraphScatterVariableInput), a.availableTypeAliases, a.workflowName)
-        val innerGraph: ErrorOr[Graph] = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
-
-        innerGraph map { ig =>
-          val withOutputs = WomGraphMakerTools.addDefaultOutputs(ig)
-          val generatedAndNew = ScatterNode.scatterOverGraph(withOutputs, womInnerGraphScatterVariableInput)
-          generatedAndNew.nodes
-        }
-      }
+    case se: ScatterElement =>
+      val scatterMakerInputs = ScatterNodeMakerInputs(se, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter)
+      ScatterElementToGraphNode.convert(scatterMakerInputs)
   }
 }
 
@@ -70,4 +55,5 @@ final case class GraphNodeMakerInputs(node: WorkflowGraphElement,
                                       linkableValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
                                       linkablePorts: Map[String, OutputPort],
                                       availableTypeAliases: Map[String, WomType],
-                                      workflowName: String)
+                                      workflowName: String,
+                                      insideAScatter: Boolean)

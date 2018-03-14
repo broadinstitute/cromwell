@@ -141,14 +141,17 @@ class WomGraph(graphName: String, graph: Graph) {
     innerGraph.withLinks(outputLinks)
   }
 
-  def internalSubworkflowNodesAndLinks(subworkflow: WorkflowCallNode): NodesAndLinks = listAllGraphNodes(subworkflow.callable.innerGraph) wrapNodes { n =>
-    s"""
-       |subgraph $nextCluster {
-       |  style=filled;
-       |  fillcolor=white;
-       |${indentAndCombine(n)}
-       |}
-       |""".stripMargin
+  def internalSubworkflowNodesAndLinks(subworkflow: WorkflowCallNode): NodesAndLinks = {
+
+    listAllGraphNodes(subworkflow.callable.innerGraph) wrapNodes { n =>
+      s"""
+         |subgraph $nextCluster {
+         |  style=filled;
+         |  fillcolor=white;
+         |${indentAndCombine(n)}
+         |}
+         |""".stripMargin
+    }
   }
 
   private def nextCluster: String = "cluster_" + clusterCount.getAndIncrement()

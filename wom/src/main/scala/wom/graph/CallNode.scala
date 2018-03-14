@@ -22,6 +22,7 @@ import scala.concurrent.ExecutionContext
 sealed abstract class CallNode extends GraphNode {
   def callable: Callable
   def callType: String
+  def compoundOutputIdentifiers = true
 
   def inputDefinitionMappings: InputDefinitionMappings
 }
@@ -70,10 +71,11 @@ final case class CommandCallNode private(override val identifier: WomIdentifier,
   }
 }
 
-final case class WorkflowCallNode private(override val identifier: WomIdentifier,
-                                          callable: WorkflowDefinition,
-                                          override val inputPorts: Set[GraphNodePort.InputPort],
-                                          inputDefinitionMappings: InputDefinitionMappings) extends CallNode {
+final case class WorkflowCallNode private (override val identifier: WomIdentifier,
+                                           callable: WorkflowDefinition,
+                                           override val inputPorts: Set[GraphNodePort.InputPort],
+                                           inputDefinitionMappings: InputDefinitionMappings,
+                                           override val compoundOutputIdentifiers: Boolean) extends CallNode {
   val callType: String = "workflow"
   val subworkflowCallOutputPorts: Set[SubworkflowCallOutputPort] = {
     callable.innerGraph.nodes.collect { case gon: GraphOutputNode => SubworkflowCallOutputPort(gon, this) }
@@ -188,9 +190,10 @@ object CallNode {
   private[graph] def apply(nodeIdentifier: WomIdentifier,
                            callable: Callable,
                            inputPorts: Set[GraphNodePort.InputPort],
-                           inputDefinitionMappings: InputDefinitionMappings): CallNode = callable match {
+                           inputDefinitionMappings: InputDefinitionMappings,
+                           compoundOutputIdentifiers: Boolean): CallNode = callable match {
     case t: CommandTaskDefinition => CommandCallNode(nodeIdentifier, t, inputPorts, inputDefinitionMappings)
-    case w: WorkflowDefinition => WorkflowCallNode(nodeIdentifier, w, inputPorts, inputDefinitionMappings)
+    case w: WorkflowDefinition => WorkflowCallNode(nodeIdentifier, w, inputPorts, inputDefinitionMappings, compoundOutputIdentifiers)
     case w: ExpressionTaskDefinition => ExpressionCallNode(nodeIdentifier, w, inputPorts, inputDefinitionMappings)
   }
 
@@ -211,8 +214,9 @@ object CallNode {
 
     def build(nodeIdentifier: WomIdentifier,
               callable: Callable,
-              inputDefinitionFold: InputDefinitionFold): CallNodeAndNewNodes = {
-      val callNode = CallNode(nodeIdentifier, callable, inputDefinitionFold.callInputPorts, inputDefinitionFold.mappings)
+              inputDefinitionFold: InputDefinitionFold,
+              compoundOutputIdentifiers: Boolean = true): CallNodeAndNewNodes = {
+      val callNode = CallNode(nodeIdentifier, callable, inputDefinitionFold.callInputPorts, inputDefinitionFold.mappings, compoundOutputIdentifiers)
       graphNodeSetter._graphNode = callNode
       CallNodeAndNewNodes(callNode, inputDefinitionFold.newGraphInputNodes, inputDefinitionFold.newExpressionNodes, inputDefinitionFold.usedOuterGraphInputNodes)
     }

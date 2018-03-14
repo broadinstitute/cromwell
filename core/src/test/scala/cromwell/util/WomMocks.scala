@@ -21,7 +21,7 @@ object WomMocks {
   }
   
   def mockWorkflowCall(identifier: WomIdentifier, definition: WorkflowDefinition = EmptyWorkflowDefinition) = {
-    WorkflowCallNode(identifier, definition, Set.empty, List.empty)
+    WorkflowCallNode(identifier, definition, Set.empty, List.empty, compoundOutputIdentifiers = true)
   }
 
   def mockWorkflowDefinition(name: String) = {

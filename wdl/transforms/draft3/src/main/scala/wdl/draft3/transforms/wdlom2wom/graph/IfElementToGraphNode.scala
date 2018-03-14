@@ -60,7 +60,6 @@ object IfElementToGraphNode {
 
       innerGraph map { ig =>
         val withOutputs = WomGraphMakerTools.addDefaultOutputs(ig, compoundCallIdentifiers = false)
-        println(s"nodes in this scatter: ${withOutputs.nodes.map(n => n.getClass.getSimpleName + " " + n.localName)}")
         val generatedAndNew = ConditionalNode.wireInConditional(withOutputs, expressionNode)
         generatedAndNew.nodes
       }

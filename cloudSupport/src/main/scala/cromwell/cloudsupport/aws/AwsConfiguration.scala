@@ -114,9 +114,9 @@ object AwsConfiguration {
         }
         AssumeRoleMode(
           name,
-          None, // TODO: We need to cycle through the list of authentication stanzas
-                //       recursively based on base-auth.
-                //       authConfig.as[String]("base-auth"),
+          // We won't do anything with this now, but it is required for
+          // assignment later
+          authConfig.getString("base-auth"),
           authConfig.getString("role-arn"),
           externalId,
           region
@@ -133,7 +133,45 @@ object AwsConfiguration {
       }
     }
 
-    val listOfErrorOrAuths: List[ErrorOr[AwsAuthMode]] = awsConfig.as[List[Config]]("auths") map buildAuth
+    def assignDependency(dependentAuth: AssumeRoleMode, auths: List[ErrorOr[AwsAuthMode]]): Unit = {
+      // We only care here about valid auth blocks. If something is invalid
+      // we need to throw at some point anyway. This helps unwrap some of the
+      // validation type wrappers that are involved at this point in the code
+      val validAuths = auths
+                        .filter(_.isValid)
+                        .map(_.toOption)
+                        .map{
+                          case Some(o) => o;
+                          case _ => throw new RuntimeException("Should not be reached")
+                        }
+      // Look for the base auth from the config. If we find it, we'll assign
+      // here. Unfortunately, we will rely on a runtime error if the base auth
+      // does not end up getting assigned to the AssumeRoleMode object
+      val baseAuth = { validAuths.collectFirst { case a if a.name == dependentAuth.baseAuthName => a } }
+      baseAuth match {
+        case Some(auth) => dependentAuth.assign(auth)
+        case _ => ()
+      }
+    }
+
+    def assignDependencies(auths: List[ErrorOr[AwsAuthMode]]): List[ErrorOr[AwsAuthMode]] = {
+      // Assume role is somewhat special. We need to process assume role type
+      // auths after its base auth is created. As such, we'll wire in the
+      // base auth element after the list is created
+
+      auths.filter(_.isValid).map(_.toOption).map{
+          case Some(v) => v
+          case _ => throw new RuntimeException(s"this code should not be reached")}
+        .foreach({
+          _ match {
+            case assumeRoleInstance: AssumeRoleMode => assignDependency(assumeRoleInstance, auths)
+            case _ => ()
+          }
+      })
+      auths
+    }
+    val listOfErrorOrAuths: List[ErrorOr[AwsAuthMode]] =
+      assignDependencies(awsConfig.as[List[Config]]("auths").map(buildAuth))
     val errorOrAuthList: ErrorOr[List[AwsAuthMode]] = listOfErrorOrAuths.sequence[ErrorOr, AwsAuthMode]
 
     def uniqueAuthNames(list: List[AwsAuthMode]): ErrorOr[Unit] = {

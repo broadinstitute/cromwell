@@ -100,15 +100,17 @@ class AwsConfigurationSpec extends FlatSpec with Matchers {
 
     val assumeRoleWithId = (auths collectFirst { case a: AssumeRoleMode => a }).get
     assumeRoleWithId.name shouldBe "assume-role-based-on-another-with-external"
-    assumeRoleWithId.baseAuth.get.name shouldBe "default"
+    assumeRoleWithId.baseAuthName shouldBe "default"
+    assumeRoleWithId.baseAuthentication.name shouldBe "default"
     assumeRoleWithId.roleArn shouldBe "my-role-arn"
     assumeRoleWithId.externalId shouldBe "my-external-id"
 
     val assumeRole = (auths.takeRight(1) collectFirst { case a: AssumeRoleMode => a }).get
-    assumeRole.name shouldBe "custom-keys"
-    assumeRole.baseAuth.get.name shouldBe "default"
+    assumeRole.name shouldBe "assume-role-based-on-another"
+    assumeRole.baseAuthName shouldBe "default"
+    assumeRole.baseAuthentication.name shouldBe "default"
     assumeRole.roleArn shouldBe "my-role-arn"
-    assumeRole.externalId shouldBe None
+    assumeRole.externalId shouldBe ""
   }
 
   it should "default region to us-east-1" in {
@@ -314,6 +316,7 @@ class AwsConfigurationSpec extends FlatSpec with Matchers {
         |      name = "name-user"
         |      scheme = "assume_role"
         |      role-arn-botched = "my-role-arn"
+        |      base-auth = "default"
         |    }
         |  ]
         |}

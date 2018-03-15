@@ -134,7 +134,7 @@ final case class DefaultMode(override val name: String, region: String) extends 
 
 
 final case class AssumeRoleMode(override val name: String,
-                          baseAuth: Option[AwsAuthMode],
+                          baseAuthName: String,
                           roleArn: String,
                           externalId: String,
                           region: String
@@ -153,9 +153,9 @@ final case class AssumeRoleMode(override val name: String,
 
     val builder = AWSSecurityTokenServiceClientBuilder.standard.withRegion(region)
     // See comment above regarding builder
-    baseAuth match{
+    baseAuthObj match{
       case Some(auth) => builder.withCredentials(new AWSStaticCredentialsProvider(auth.credential(_ => "")))
-      case None => ()
+      case _ => throw new RuntimeException(s"Base auth configuration required for assume role")
     }
 
     val stsCredentials = builder.build.assumeRole(request).getCredentials
@@ -169,6 +169,24 @@ final case class AssumeRoleMode(override val name: String,
   }
 
   override def credential(options: OptionLookup): AWSCredentials = _credential
+
+  private var baseAuthObj : Option[AwsAuthMode] = None
+
+  def assign(baseAuth: AwsAuthMode) : Unit = {
+    baseAuthObj match {
+      case None => baseAuthObj = Some(baseAuth)
+      case _ => throw new RuntimeException(s"Base auth object has already been assigned")
+    }
+  }
+
+  // We want to allow our tests access to the value
+  // of the baseAuthObj
+  def baseAuthentication() : AwsAuthMode = {
+    baseAuthObj match {
+      case Some(o) => o
+      case _ => throw new RuntimeException(s"Base auth object has not been set")
+    }
+  }
 }
 
 class OptionLookupException(val key: String, cause: Throwable) extends RuntimeException(key, cause)

@@ -73,7 +73,7 @@ object WdlFileToWdlomSpec {
             PrimitiveTypeElement(WomIntegerType)),
           StructEntryElement(
             "complex",
-            PairTypeElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)),MapTypeElement(PrimitiveTypeElement(WomStringType),PrimitiveTypeElement(WomBooleanType)))
+            PairTypeElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)), MapTypeElement(PrimitiveTypeElement(WomStringType), PrimitiveTypeElement(WomBooleanType)))
           )
         )
       )),
@@ -86,7 +86,7 @@ object WdlFileToWdlomSpec {
           name = "myFoo",
           expression = ObjectLiteral(Map(
             "simple" -> PrimitiveLiteralExpressionElement(WomInteger(5)),
-            "complex" -> PairLiteral(ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(5)))),MapLiteral(Map(StringLiteral("t") -> PrimitiveLiteralExpressionElement(WomBoolean(true)))))
+            "complex" -> PairLiteral(ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(5)))), MapLiteral(Map(StringLiteral("t") -> PrimitiveLiteralExpressionElement(WomBoolean(true)))))
           ))
         )))),
         metaSection = None,
@@ -212,15 +212,15 @@ object WdlFileToWdlomSpec {
         tasks = Vector()),
     "simple_first_test" ->
       FileElement(
-        imports = List.empty,
+        imports = Vector.empty,
         structs = Vector.empty,
         workflows = Vector(WorkflowDefinitionElement(
-         name = "order",
-         inputsSection = Some(InputsSectionElement(Vector(
-           InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "n", Some(PrimitiveLiteralExpressionElement(WomInteger(4)))),
-           InputDeclarationElement(PrimitiveTypeElement(WomStringType), "more", Some(StringLiteral("more")))))),
-         graphElements = Set(CallElement("in_n_out", None, Some(CallBodyElement(Vector(KvPair("total", IdentifierLookup("n")), KvPair("amount", IdentifierLookup("more"))))))),
-         outputsSection = None,
+          name = "order",
+          inputsSection = Some(InputsSectionElement(Vector(
+            InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "n", Some(PrimitiveLiteralExpressionElement(WomInteger(4)))),
+            InputDeclarationElement(PrimitiveTypeElement(WomStringType), "more", Some(StringLiteral("more")))))),
+          graphElements = Set(CallElement("in_n_out", None, Some(CallBodyElement(Vector(KvPair("total", IdentifierLookup("n")), KvPair("amount", IdentifierLookup("more"))))))),
+          outputsSection = None,
           metaSection = None,
           parameterMetaSection = None)),
         tasks = Vector(TaskDefinitionElement(
@@ -229,7 +229,7 @@ object WdlFileToWdlomSpec {
             InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "total", None),
             InputDeclarationElement(PrimitiveTypeElement(WomStringType), "amount", None)))),
           outputsSection = Some(OutputsSectionElement(Vector(
-            OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "out", Add(ReadString(StdoutElement), PrimitiveLiteralExpressionElement(WomInteger(1))))))),
+            OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "out", Add(ReadInt(StdoutElement), PrimitiveLiteralExpressionElement(WomInteger(1))))))),
           commandSection = CommandSectionElement(Vector(StringCommandPartElement(" echo "), PlaceholderCommandPartElement(IdentifierLookup("total")), StringCommandPartElement(" "))),
           runtimeSection = None,
           metaSection = None,
@@ -275,25 +275,25 @@ object WdlFileToWdlomSpec {
             commandSection = CommandSectionElement(Vector(StringCommandPartElement(" echo Hello World "))),
             runtimeSection = None,
             metaSection = Some(MetaSectionElement(
-                                 Map("author" -> MetaValueElementString("John Doe"),
-                                     "email" -> MetaValueElementString("john.doe@yahoo.com"))
-                               )),
+              Map("author" -> MetaValueElementString("John Doe"),
+                "email" -> MetaValueElementString("john.doe@yahoo.com"))
+            )),
             parameterMetaSection = Some(ParameterMetaSectionElement(
-                                          Map("a" -> MetaValueElementString("just an integer"),
-                                              "b" -> MetaValueElementString("an important parameter"),
-                                              "x" -> MetaValueElementArray(Vector(MetaValueElementString("A"),
-                                                                                  MetaValueElementString("B"),
-                                                                                  MetaValueElementString("C"))),
-                                              "y" -> MetaValueElementArray(Vector(MetaValueElementInteger(1),
-                                                                                  MetaValueElementInteger(2),
-                                                                                  MetaValueElementInteger(3))),
-                                              "yf" -> MetaValueElementArray(Vector(MetaValueElementFloat(1.1),
-                                                                                   MetaValueElementFloat(2.9),
-                                                                                   MetaValueElementFloat(3.14))),
-                                              "z" -> MetaValueElementObject(Map("k1" -> MetaValueElementInteger(1),
-                                                                                "k2" -> MetaValueElementInteger(2),
-                                                                                "k3" -> MetaValueElementInteger(3)))
-                                          )))
+              Map("a" -> MetaValueElementString("just an integer"),
+                "b" -> MetaValueElementString("an important parameter"),
+                "x" -> MetaValueElementArray(Vector(MetaValueElementString("A"),
+                  MetaValueElementString("B"),
+                  MetaValueElementString("C"))),
+                "y" -> MetaValueElementArray(Vector(MetaValueElementInteger(1),
+                  MetaValueElementInteger(2),
+                  MetaValueElementInteger(3))),
+                "yf" -> MetaValueElementArray(Vector(MetaValueElementFloat(1.1),
+                  MetaValueElementFloat(2.9),
+                  MetaValueElementFloat(3.14))),
+                "z" -> MetaValueElementObject(Map("k1" -> MetaValueElementInteger(1),
+                  "k2" -> MetaValueElementInteger(2),
+                  "k3" -> MetaValueElementInteger(3)))
+              )))
           ))),
     "no_input_no_output_workflow" ->
       FileElement(
@@ -348,7 +348,7 @@ object WdlFileToWdlomSpec {
                   "f" -> PrimitiveLiteralExpressionElement(WomFloat(5.5)))),
                 "i" -> PrimitiveLiteralExpressionElement(WomInteger(6)),
                 "f" -> PrimitiveLiteralExpressionElement(WomFloat(6.6)))))),
-          outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomFloatType),"f",IdentifierMemberAccess("b","a",Vector("f")))))),
+          outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomFloatType), "f", IdentifierMemberAccess("b", "a", Vector("f")))))),
           metaSection = None,
           parameterMetaSection = None
         )),
@@ -358,7 +358,7 @@ object WdlFileToWdlomSpec {
       imports = Vector.empty,
       structs = Vector.empty,
       workflows = Vector(WorkflowDefinitionElement(
-        name= "simple_scatter",
+        name = "simple_scatter",
         inputsSection = None,
         graphElements = Set(
           IntermediateValueDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)), "indices", ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(1)), PrimitiveLiteralExpressionElement(WomInteger(2)), PrimitiveLiteralExpressionElement(WomInteger(3))))),
@@ -383,7 +383,7 @@ object WdlFileToWdlomSpec {
       imports = Vector.empty,
       structs = Vector.empty,
       workflows = Vector(WorkflowDefinitionElement(
-        name= "ogin_scatter",
+        name = "ogin_scatter",
         inputsSection = None,
         graphElements = Set(
           IntermediateValueDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)), "indices", ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(1)), PrimitiveLiteralExpressionElement(WomInteger(2)), PrimitiveLiteralExpressionElement(WomInteger(3))))),
@@ -431,7 +431,7 @@ object WdlFileToWdlomSpec {
                 scatterName = "ScatterAt9_13",
                 IdentifierLookup("indices"), "b",
                 Vector(
-                  IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "x", Add(IdentifierLookup("a"),IdentifierLookup("b"))),
+                  IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "x", Add(IdentifierLookup("a"), IdentifierLookup("b"))),
                   ScatterElement(
                     scatterName = "ScatterAt11_15",
                     IdentifierLookup("indices"),
@@ -461,7 +461,7 @@ object WdlFileToWdlomSpec {
       imports = Vector.empty,
       structs = Vector.empty,
       workflows = Vector(WorkflowDefinitionElement(
-        name= "simple_conditional",
+        name = "simple_conditional",
         inputsSection = None,
         graphElements = Set(
           IntermediateValueDeclarationElement(PrimitiveTypeElement(WomBooleanType), "bool", PrimitiveLiteralExpressionElement(WomBoolean(true))),
@@ -476,6 +476,73 @@ object WdlFileToWdlomSpec {
         outputsSection = Some(
           OutputsSectionElement(Vector(OutputDeclarationElement(OptionalTypeElement(PrimitiveTypeElement(WomIntegerType)), "j_maybe", IdentifierLookup("j"))))
         ),
+        metaSection = None,
+        parameterMetaSection = None
+      )),
+      tasks = Vector.empty
+    ),
+    "lots_of_nesting" -> FileElement(
+      imports = Vector.empty,
+      structs = Vector.empty,
+      workflows = Vector(WorkflowDefinitionElement(
+        name = "lots_of_nesting",
+        inputsSection = None,
+        graphElements = Set(
+          IntermediateValueDeclarationElement(PrimitiveTypeElement(WomBooleanType), "b0", PrimitiveLiteralExpressionElement(WomBoolean(true))),
+          IntermediateValueDeclarationElement(PrimitiveTypeElement(WomBooleanType), "b1", PrimitiveLiteralExpressionElement(WomBoolean(true))),
+          IntermediateValueDeclarationElement(PrimitiveTypeElement(WomBooleanType), "b2", PrimitiveLiteralExpressionElement(WomBoolean(true))),
+          IntermediateValueDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)), "i0s", Range(PrimitiveLiteralExpressionElement(WomInteger(2)))),
+          IntermediateValueDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)), "i1s", Range(PrimitiveLiteralExpressionElement(WomInteger(2)))),
+          IntermediateValueDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)), "i2s", Range(PrimitiveLiteralExpressionElement(WomInteger(2)))),
+          IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "s0", StringLiteral("hello")),
+          IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "s1", StringLiteral("world")),
+          IfElement(
+            conditionExpression = IdentifierLookup("b0"),
+            graphElements = Vector(
+              ScatterElement(
+                scatterName = "ScatterAt17_13",
+                scatterExpression = IdentifierLookup("i0s"),
+                scatterVariableName = "i0",
+                graphElements = Vector(
+                  IfElement(
+                    conditionExpression = IdentifierLookup("b1"),
+                    graphElements = Vector(
+                      ScatterElement(
+                        scatterName = "ScatterAt19_17",
+                        scatterExpression = IdentifierLookup("i1s"),
+                        scatterVariableName = "i1",
+                        graphElements = Vector(
+                          IfElement(
+                            conditionExpression = IdentifierLookup("b2"),
+                            graphElements = Vector(
+                              ScatterElement(
+                                "ScatterAt21_21",
+                                IdentifierLookup("i2s"),
+                                "i2",
+                                Vector(
+                                  IntermediateValueDeclarationElement(
+                                    PrimitiveTypeElement(WomStringType),
+                                    "s",
+                                    Add(IdentifierLookup("s0"), IdentifierLookup("s1"))
+                                  )
+                                )
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        ),
+        outputsSection = Some(OutputsSectionElement(Vector(
+          OutputDeclarationElement(
+            typeElement = OptionalTypeElement(ArrayTypeElement(OptionalTypeElement(ArrayTypeElement(OptionalTypeElement(ArrayTypeElement(PrimitiveTypeElement(WomStringType))))))),
+            name = "s_out",
+            expression = IdentifierLookup("s"))))),
         metaSection = None,
         parameterMetaSection = None
       )),

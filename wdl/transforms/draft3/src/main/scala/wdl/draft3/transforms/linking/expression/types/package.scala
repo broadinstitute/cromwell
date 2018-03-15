@@ -12,6 +12,7 @@ import wdl.draft3.transforms.linking.expression.types.LiteralEvaluators._
 import wdl.draft3.transforms.linking.expression.types.UnaryOperatorEvaluators._
 import wdl.draft3.transforms.linking.expression.types.BinaryOperatorEvaluators._
 import wdl.draft3.transforms.linking.expression.types.TernaryIfEvaluator._
+import wdl.draft3.transforms.linking.expression.types.EngineFunctionEvaluators._
 import wom.types.WomType
 
 package object types {
@@ -54,7 +55,10 @@ package object types {
 
         case a: TernaryIf => a.evaluateType(linkedValues)
 
-        case other => s"Unable to process ${other.getClass.getSimpleName}: No evaluateValue exists for that type.".invalidNel
+        // Engine functions:
+        case a: Range => a.evaluateType(linkedValues)
+
+        case other => s"Unable to process ${other.getClass.getSimpleName}: No evaluateType exists for that type.".invalidNel
       }
     }
   }

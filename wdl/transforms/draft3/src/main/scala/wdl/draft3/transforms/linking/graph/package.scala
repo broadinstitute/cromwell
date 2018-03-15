@@ -12,7 +12,7 @@ import wdl.model.draft3.graph.UnlinkedValueGenerator.ops._
 import wdl.model.draft3.graph.expression.WomTypeMaker.ops._
 import wdl.draft3.transforms.linking.expression.consumed._
 import wdl.draft3.transforms.linking.typemakers._
-import wdl.model.draft3.elements._
+import wdl.model.draft3.elements.{DeclarationElement, _}
 import wdl.model.draft3.graph._
 import wom.types.{WomArrayType, WomType}
 
@@ -30,7 +30,7 @@ package object graph {
     }
   }
 
-  implicit val scatterElementUnlinkedValueGenerater: UnlinkedValueGenerator[ScatterElement] = new UnlinkedValueGenerator[ScatterElement] {
+  implicit val scatterElementUnlinkedValueGenerator: UnlinkedValueGenerator[ScatterElement] = new UnlinkedValueGenerator[ScatterElement] {
     override def generatedValueHandles(a: ScatterElement, typeAliases: Map[String, WomType]): ErrorOr[Set[GeneratedValueHandle]] = {
       a.graphElements.toList.traverse(_.generatedValueHandles(typeAliases)).map(_.toSet.flatten) map { _.map {
         case GeneratedIdentifierValueHandle(id, womType) => GeneratedIdentifierValueHandle(id, WomArrayType(womType))
@@ -39,7 +39,7 @@ package object graph {
     }
   }
 
-  implicit val IfElementUnlinkedValueGenerater: UnlinkedValueGenerator[IfElement] = new UnlinkedValueGenerator[IfElement] {
+  implicit val IfElementUnlinkedValueGenerator: UnlinkedValueGenerator[IfElement] = new UnlinkedValueGenerator[IfElement] {
     override def generatedValueHandles(a: IfElement, typeAliases: Map[String, WomType]): ErrorOr[Set[GeneratedValueHandle]] = {
       a.graphElements.toList.traverse(_.generatedValueHandles(typeAliases)).map(_.toSet.flatten) map { _.map {
         case GeneratedIdentifierValueHandle(id, womType) => GeneratedIdentifierValueHandle(id, WomArrayType(womType))

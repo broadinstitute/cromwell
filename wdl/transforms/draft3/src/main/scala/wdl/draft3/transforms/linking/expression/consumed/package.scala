@@ -5,6 +5,7 @@ import wdl.model.draft3.graph.{UnlinkedCallOutputOrIdentifierAndMemberAccessHook
 import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.draft3.transforms.linking.expression.consumed.BinaryOperatorEvaluators._
+import wdl.draft3.transforms.linking.expression.consumed.EngineFunctionEvaluators._
 
 package object consumed {
 
@@ -69,6 +70,9 @@ package object consumed {
       case a: Multiply => a.expressionConsumedValueHooks
       case a: Divide => a.expressionConsumedValueHooks
       case a: Remainder => a.expressionConsumedValueHooks
+
+      // Engine functions:
+      case a: Range => a.expressionConsumedValueHooks
 
       // TODO fill in other expression types
       case other => throw new Exception(s"Cannot generate consumed values for ExpressionElement ${other.getClass.getSimpleName}")

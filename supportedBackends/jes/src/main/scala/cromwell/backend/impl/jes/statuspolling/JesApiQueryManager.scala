@@ -17,7 +17,7 @@ import cromwell.backend.impl.jes.statuspolling.JesPollingActor.MaxBatchSize
 import cromwell.backend.impl.jes.statuspolling.JesRunCreationClient.JobAbortedException
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
-import cromwell.core.{CromwellFatalExceptionMarker, LoadConfig, WorkflowId}
+import cromwell.core.{CromwellFatalExceptionMarker, LoadConfig, Mailbox, WorkflowId}
 import cromwell.services.instrumentation.{CromwellInstrumentation, CromwellInstrumentationScheduler}
 import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMetric, NormalLoad}
 import cromwell.util.StopAndLogSupervisor
@@ -83,7 +83,7 @@ class JesApiQueryManager(val qps: Int Refined Positive, requestWorkers: Int Refi
   // the scheduled delay, unless the workflow is aborted in the meantime in which case they will be cancelled.
   private var queriesWaitingForRetry: Set[PAPIApiRequest] = Set.empty[PAPIApiRequest]
 
-  private def statusPollerProps = JesPollingActor.props(self, workerBatchInterval, serviceRegistryActor)
+  private def statusPollerProps = JesPollingActor.props(self, workerBatchInterval, serviceRegistryActor).withMailbox(Mailbox.PriorityMailbox)
 
   // statusPollers is protected for the unit tests, not intended to be generally overridden
   protected[statuspolling] var statusPollers: Vector[ActorRef] = resetAllWorkers()
@@ -311,7 +311,7 @@ object JesApiQueryManager {
   private[statuspolling] final case class JesPollingWorkBatch(workBatch: NonEmptyList[PAPIApiRequest])
   private[statuspolling] case object NoWorkToDo
 
-  private[statuspolling] final case class RequestJesPollingWork(maxBatchSize: Int)
+  private[statuspolling] final case class RequestJesPollingWork(maxBatchSize: Int) extends ControlMessage
 
   final case class GoogleJsonException(e: GoogleJsonError, responseHeaders: HttpHeaders) extends IOException with CromwellFatalExceptionMarker {
     override def getMessage: String = e.getMessage

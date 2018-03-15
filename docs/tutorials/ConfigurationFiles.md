@@ -40,7 +40,7 @@ The default Cromwell configuration values are set via Cromwell's `application.co
 One you have created a new configuration file, you can pass the path to Cromwell by setting the system property `config.file`:
 
 ```bash
-java -Dconfig.file=/path/to/your.conf cromwell.jar server
+java -Dconfig.file=/path/to/your.conf -jar cromwell-[VERSION].jar server
 ```
 
 Cromwell should start up as normal. As you haven't actually overridden any values yet, Cromwell should be running with the same settings.

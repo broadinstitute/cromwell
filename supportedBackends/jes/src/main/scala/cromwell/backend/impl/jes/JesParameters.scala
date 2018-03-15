@@ -14,6 +14,7 @@ sealed trait JesInput extends JesParameter
 
 final case class JesFileInput(name: String, gcs: String, local: Path, mount: JesAttachedDisk) extends JesInput {
   def toGooglePipelineParameter = {
+    println(name + " -> " + local.pathAsString)
     new PipelineParameter().setName(name).setLocalCopy(
       new LocalCopy().setDisk(mount.name).setPath(local.pathAsString)
     )

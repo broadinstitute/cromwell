@@ -84,9 +84,13 @@ object AwsConfiguration {
     val appName = validate { awsConfig.as[String]("application-name") }
 
     val region = validate {
-      val entry = awsConfig.as[String]("region")
-      if (entry == null || entry.isEmpty) s"us-east-1" else entry
+      (awsConfig.getAs[String]("region")) match {
+        case Some(region) => region
+        case _ => "us-east-1"
+      }
     }
+    val regionStr = region.getOrElse("us-east-1")
+
     def buildAuth(authConfig: Config): ErrorOr[AwsAuthMode] = {
 
       def customKeyAuth(authConfig: Config, name: String, region: String): ErrorOr[AwsAuthMode] = validate {
@@ -104,27 +108,27 @@ object AwsConfiguration {
       }
 
       def assumeRoleAuth(authConfig: Config, name: String, region: String): ErrorOr[AwsAuthMode] = validate {
+        val externalId = authConfig.hasPath("external-id") match {
+          case true => authConfig.getString("external-id")
+          case _ => ""
+        }
         AssumeRoleMode(
           name,
           None, // TODO: We need to cycle through the list of authentication stanzas
                 //       recursively based on base-auth.
                 //       authConfig.as[String]("base-auth"),
-          authConfig.as[String]("role-arn"),
-          authConfig.as[String]("external-id"),
+          authConfig.getString("role-arn"),
+          externalId,
           region
         )
       }
       val name = authConfig.getString("name")
-      val region = {
-        val entry = authConfig.getString("region")
-        if (entry == null || entry.isEmpty) s"us-east-1" else entry
-      }
       val scheme = authConfig.getString("scheme")
 
       scheme match {
-        case "default" => defaultAuth(authConfig, name, region)
-        case "custom_keys" => customKeyAuth(authConfig, name, region)
-        case "assume_role" => assumeRoleAuth(authConfig, name, region)
+        case "default" => defaultAuth(authConfig, name, regionStr)
+        case "custom_keys" => customKeyAuth(authConfig, name, regionStr)
+        case "assume_role" => assumeRoleAuth(authConfig, name, regionStr)
         case wut => s"Unsupported authentication scheme: $wut".invalidNel
       }
     }

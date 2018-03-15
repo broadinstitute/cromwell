@@ -86,7 +86,7 @@ class AwsConfigurationSpec extends FlatSpec with Matchers {
 
     conf.applicationName shouldBe "cromwell"
     conf.region shouldBe "region"
-    conf.authsByName should have size 2
+    conf.authsByName should have size 4
 
     val auths = conf.authsByName.values
 
@@ -99,7 +99,7 @@ class AwsConfigurationSpec extends FlatSpec with Matchers {
     customKey.secretKey shouldBe "secret_key"
 
     val assumeRoleWithId = (auths collectFirst { case a: AssumeRoleMode => a }).get
-    assumeRoleWithId.name shouldBe "custom-keys"
+    assumeRoleWithId.name shouldBe "assume-role-based-on-another-with-external"
     assumeRoleWithId.baseAuth.get.name shouldBe "default"
     assumeRoleWithId.roleArn shouldBe "my-role-arn"
     assumeRoleWithId.externalId shouldBe "my-external-id"
@@ -290,7 +290,7 @@ class AwsConfigurationSpec extends FlatSpec with Matchers {
         |  auths = [
         |    {
         |      name = "name-refresh"
-        |      scheme = "custom-keys"
+        |      scheme = "custom_keys"
         |      access-key-botched-key = "secret_id"
         |      secret-key = "secret_secret"
         |    }
@@ -300,7 +300,7 @@ class AwsConfigurationSpec extends FlatSpec with Matchers {
 
     the[AwsConfigurationException] thrownBy {
       AwsConfiguration(ConfigFactory.parseString(badKeyInRefreshTokenMode))
-    } should have message "AWS configuration:\nNo configuration setting found for key 'access-key'"
+    } should have message "AWS configuration:\nAccess key and/or secret key missing for service account \"name-refresh\". See reference.conf under the aws.auth, custom key section for details of required configuration."
   }
 
   it should "not parse a configuration stanza without a role-arn in assume-role mode" in {
@@ -312,7 +312,7 @@ class AwsConfigurationSpec extends FlatSpec with Matchers {
         |  auths = [
         |    {
         |      name = "name-user"
-        |      scheme = "assume-role"
+        |      scheme = "assume_role"
         |      role-arn-botched = "my-role-arn"
         |    }
         |  ]

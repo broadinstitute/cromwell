@@ -149,7 +149,7 @@ final case class AssumeRoleMode(override val name: String,
     // The builder is simply mutating itself (ref:
     // https://github.com/aws/aws-sdk-java/blob/4734de6fb0f80fe5768a6587aad3b9d0eaec388f/aws-java-sdk-core/src/main/java/com/amazonaws/client/builder/AwsClientBuilder.java#L395
     // So we can get away with a val and discard the return value
-    if (externalId.isEmpty) request.withExternalId(externalId)
+    if (! externalId.isEmpty) request.withExternalId(externalId)
 
     val builder = AWSSecurityTokenServiceClientBuilder.standard.withRegion(region)
     // See comment above regarding builder

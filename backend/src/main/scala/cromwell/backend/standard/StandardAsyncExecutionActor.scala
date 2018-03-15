@@ -289,6 +289,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
     lazy val environmentVariables = instantiatedCommand.environmentVariables map { case (k, v) => s"""export $k="$v"""" } mkString("", "\n", "\n")
 
+    val homeOverride = jobDescriptor.taskCall.callable.homeOverride.map { _ (runtimeEnvironment) }.getOrElse("$HOME")
+
     // The `tee` trickery below is to be able to redirect to known filenames for CWL while also streaming
     // stdout and stderr for PAPI to periodically upload to cloud storage.
     // https://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
@@ -303,7 +305,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |chmod 777 "$$tmpDir"
         |export _JAVA_OPTIONS=-Djava.io.tmpdir="$$tmpDir"
         |export TMPDIR="$$tmpDir"
-        |export HOME="${instantiatedCommand.home}"
+        |export HOME="$homeOverride"
         |(
         |cd $cwd
         |SCRIPT_PREAMBLE
@@ -386,11 +388,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
       (adHocFileCreationSideEffectFiles, environmentVariables, stdinRedirect, stdoutOverride, stderrOverride) mapN {
         (adHocFiles, env, in, out, err) =>
-          val homeOverride = jobDescriptor.taskCall.callable.homeOverride map { _.apply(runtimeEnvironment) }
           instantiatedCommand.copy(
             createdFiles = instantiatedCommand.createdFiles ++ adHocFiles, environmentVariables = env.toMap,
-            evaluatedStdinRedirection = in, evaluatedStdoutOverride = out, evaluatedStderrOverride = err,
-            home = homeOverride.getOrElse(instantiatedCommand.home))
+            evaluatedStdinRedirection = in, evaluatedStdoutOverride = out, evaluatedStderrOverride = err)
       }
     }
 

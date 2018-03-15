@@ -11,5 +11,5 @@ package object wdlom2wom {
   val commandPartElementToWomCommandPart: CheckedAtoB[CommandPartElement, CommandPart] = CheckedAtoB.fromErrorOr(CommandPartElementToWomCommandPart.convert)
   val taskDefinitionElementToWomTaskDefinition: CheckedAtoB[TaskDefinitionElement, TaskDefinition] = CheckedAtoB.fromErrorOr(TaskDefinitionElementToWomTaskDefinition.convert)
   val workflowDefinitionElementToWomWorkflowDefinition: CheckedAtoB[WorkflowDefinitionConvertInputs, WorkflowDefinition] = CheckedAtoB.fromErrorOr(WorkflowDefinitionElementToWomWorkflowDefinition.convert)
-  val fileElementToWomBundle: CheckedAtoB[FileElementAndImportResolvers, WomBundle] = CheckedAtoB.fromCheck(FileElementToWomBundle.convert)
+  val fileElementToWomBundle: CheckedAtoB[FileElementToWomBundleInputs, WomBundle] = CheckedAtoB.fromCheck(FileElementToWomBundle.convert)
 }

@@ -17,7 +17,7 @@ import scala.concurrent.Future
 object WdlDraft2WomBundleMakers {
 
   implicit val wdlDraft2NamespaceWomBundleMaker: WomBundleMaker[WdlNamespace] = new WomBundleMaker[WdlNamespace] {
-    override def toWomBundle(from: WdlNamespace, importResolvers: List[String => Future[Checked[WomBundle]]]): Checked[WomBundle] = {
+    override def toWomBundle(from: WdlNamespace): Checked[WomBundle] = {
       val workflowaValidation: ErrorOr[List[WorkflowDefinition]] = from.workflows.toList.traverse[ErrorOr, WorkflowDefinition](_.toWomWorkflowDefinition)
       val callsValidation: ErrorOr[List[TaskDefinition]] = from.tasks.toList.traverse[ErrorOr, TaskDefinition](_.toWomTaskDefinition)
 
@@ -27,10 +27,10 @@ object WdlDraft2WomBundleMakers {
   }
 
   implicit val wdlDraft2NamespaceWithWorkflowWomBundleMaker: WomBundleMaker[WdlNamespaceWithWorkflow] = new WomBundleMaker[WdlNamespaceWithWorkflow] {
-    override def toWomBundle(a: WdlNamespaceWithWorkflow, importResolvers: List[String => Future[Checked[WomBundle]]]): Checked[WomBundle] = wdlDraft2NamespaceWomBundleMaker.toWomBundle(a, importResolvers)
+    override def toWomBundle(a: WdlNamespaceWithWorkflow): Checked[WomBundle] = wdlDraft2NamespaceWomBundleMaker.toWomBundle(a)
   }
 
   implicit val wdlDraft2NamespaceWithoutWorkflowWomBundleMaker: WomBundleMaker[WdlNamespaceWithoutWorkflow] = new WomBundleMaker[WdlNamespaceWithoutWorkflow] {
-    override def toWomBundle(a: WdlNamespaceWithoutWorkflow, importResolvers: List[String => Future[Checked[WomBundle]]]): Checked[WomBundle] = wdlDraft2NamespaceWomBundleMaker.toWomBundle(a, importResolvers)
+    override def toWomBundle(a: WdlNamespaceWithoutWorkflow): Checked[WomBundle] = wdlDraft2NamespaceWomBundleMaker.toWomBundle(a)
   }
 }

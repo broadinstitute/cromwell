@@ -14,7 +14,7 @@ import wom.transforms.WomBundleMaker.ops._
 object WdlDraft2WomExecutableMakers {
   implicit val namespaceWomExecutableMaker: WomExecutableMaker[WdlNamespace] = new WomExecutableMaker[WdlNamespace] {
     override def toWomExecutable(a: WdlNamespace, inputs: Option[WorkflowJson]): Checked[Executable] = {
-      a.toWomBundle(List.empty) flatMap { bundle =>
+      a.toWomBundle flatMap { bundle =>
         WdlSharedInputParsing.buildWomExecutable(bundle, inputs)
       }
     }

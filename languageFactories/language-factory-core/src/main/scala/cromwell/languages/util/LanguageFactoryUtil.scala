@@ -18,7 +18,12 @@ import scala.util.{Failure, Success, Try}
 
 object LanguageFactoryUtil {
 
-
+  /**
+    * Unzip the imports.zip and validate that it was good.
+    * @param zipContents the zip contents
+    * @param parentPath if specified, where to unzip to. Otherwise it'll end up somewhere random
+    * @return where the imports were unzipped to
+    */
   def validateImportsDirectory(zipContents: Array[Byte], parentPath: Option[Path] = None): ErrorOr[Path] = {
 
     def makeZipFile: Try[Path] = Try {

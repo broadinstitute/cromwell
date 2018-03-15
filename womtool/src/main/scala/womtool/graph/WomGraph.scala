@@ -14,7 +14,7 @@ import cwl.CwlDecoder
 import cwl.preprocessor.CwlPreProcessor
 import spray.json.{JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsValue}
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
-import wdl.draft3.transforms.wdlom2wom.{FileElementAndImportResolvers, fileElementToWomBundle}
+import wdl.draft3.transforms.wdlom2wom.{FileElementToWomBundleInputs, fileElementToWomBundle}
 import wdl.draft3.transforms.ast2wdlom.astToFileElement
 import wdl.draft3.transforms.parsing.fileToAst
 import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomBundleMakers._
@@ -182,11 +182,11 @@ object WomGraph {
     val workflowFileString = readFile(filePath)
 
     val womBundle: Checked[WomBundle] = if (workflowFileString.trim.startsWith("version draft-3")) {
-      val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen astToFileElement.map(FileElementAndImportResolvers(_, List.empty)) andThen fileElementToWomBundle
+      val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, "{}", List.empty, List.empty)) andThen fileElementToWomBundle
       converter.run(File(filePath))
     } else {
 
-      WdlNamespaceWithWorkflow.load(readFile(filePath), Seq(WdlNamespace.fileResolver _)).toChecked.flatMap(_.toWomBundle(List.empty))
+      WdlNamespaceWithWorkflow.load(readFile(filePath), Seq(WdlNamespace.fileResolver _)).toChecked.flatMap(_.toWomBundle)
     }
 
     womBundle match {

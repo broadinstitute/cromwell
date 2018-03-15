@@ -34,7 +34,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
                               options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
                               runtime: String = "") = {
     val wdlNamespace = WdlNamespaceWithWorkflow.load(workflowSource.replaceAll("RUNTIME", runtime),
-      Seq.empty[ImportResolver]).get
+      Seq.empty[Draft2ImportResolver]).get
     val executable = wdlNamespace.toWomExecutable(inputFileAsJson) match {
       case Left(errors) => fail(s"Fail to build wom executable: ${errors.toList.mkString(", ")}")
       case Right(e) => e

@@ -251,7 +251,7 @@ object WdlFileToWdlomSpec {
       FileElement(
         imports = Vector.empty,
         structs = Vector.empty,
-        workflows = Vector.empty,
+        workflows = Vector(WorkflowDefinitionElement("standalone_task", None, Set.empty, None, None, None)),
         tasks = Vector(
           TaskDefinitionElement(
             name = "standalone",
@@ -547,6 +547,20 @@ object WdlFileToWdlomSpec {
         parameterMetaSection = None
       )),
       tasks = Vector.empty
+    ),
+    "simple_task" -> FileElement(
+        imports = Vector.empty,
+        structs = Vector.empty,
+        workflows = Vector(WorkflowDefinitionElement("simple_task", None, Set.empty, None, None, None)),
+        tasks = Vector(
+          TaskDefinitionElement(
+            name = "simple",
+            inputsSection = None,
+            outputsSection = None,
+            commandSection = CommandSectionElement(Vector(StringCommandPartElement(" echo Hello World "))),
+            runtimeSection = None,
+            metaSection = None,
+            parameterMetaSection = None))
     )
   )
 }

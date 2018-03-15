@@ -7,7 +7,8 @@ import common.transforms.CheckedAtoB
 import org.scalatest.{Assertion, FlatSpec, Matchers, Succeeded}
 import wdl.draft3.transforms.parsing._
 import wdl.draft3.transforms.ast2wdlom._
-import wom.callable.WorkflowDefinition
+import wdl.model.draft3.elements.CommandPartElement.StringCommandPartElement
+import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
 import wom.executable.WomBundle
 import wom.types._
 
@@ -52,7 +53,7 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     "input_types" -> anyWomWillDo,
     "input_values" -> anyWomWillDo,
     "passthrough_workflow" -> anyWomWillDo,
-    "simpleFirstTest" -> anyWomWillDo,
+    "simple_first_test" -> anyWomWillDo,
     "static_value_workflow" -> anyWomWillDo,
     "nested_struct" -> anyWomWillDo,
     "struct_definition" -> validateStructDefinitionWom,
@@ -60,7 +61,9 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     "ogin_scatter" -> anyWomWillDo,
     "nested_scatter" -> anyWomWillDo,
     "simple_conditional" -> anyWomWillDo,
-    "lots_of_nesting" -> anyWomWillDo
+    "lots_of_nesting" -> anyWomWillDo,
+    "standalone_task" -> anyWomWillDo,
+    "simple_task" -> validateTaskDefinitionWom
   )
 
   private def anyWomWillDo(b: WomBundle) = Succeeded
@@ -74,5 +77,11 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
       "simple" -> WomIntegerType,
       "complex" -> WomPairType(WomArrayType(WomIntegerType), WomMapType(WomStringType, WomBooleanType))
     )
+  }
+
+  private def validateTaskDefinitionWom(b: WomBundle): Assertion = {
+    val taskDef: CallableTaskDefinition = (b.callables.filterByType[CallableTaskDefinition]: Set[CallableTaskDefinition]).head
+    taskDef.name shouldBe "simple"
+    taskDef.commandTemplate(Map.empty) shouldBe List(WdlomWomStringCommandPart(StringCommandPartElement(" echo Hello World ")))
   }
 }

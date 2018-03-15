@@ -1,5 +1,7 @@
 version draft-3
 
+workflow standalone_task {}
+
 task standalone {
   input {
     String bar

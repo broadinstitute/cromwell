@@ -1,7 +1,7 @@
 package wom.types
 
 import wom.WomExpressionException
-import wom.values.WomValue
+import wom.values.{WomOptionalValue, WomValue}
 
 import scala.runtime.ScalaRunTime
 import scala.util.{Failure, Success, Try}
@@ -27,6 +27,7 @@ trait WomType {
   final def coerceRawValue(any: Any): Try[WomValue] = {
     any match {
       case womValue: WomValue if womValue.womType == this => Success(womValue)
+      case WomOptionalValue(_, Some(v)) => coerceRawValue(v)
       case womValue: WomValue if !coercion.isDefinedAt(any) => Failure(new IllegalArgumentException(
         s"No coercion defined from '${WomValue.takeMaxElements(womValue, 3).toWomString}' of type" +
           s" '${womValue.womType.toDisplayString}' to '$toDisplayString'."))

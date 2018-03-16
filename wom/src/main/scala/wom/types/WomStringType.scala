@@ -1,9 +1,9 @@
 package wom.types
 
 import spray.json.JsString
-import wom.values.{WomPrimitive, WomPrimitiveFile, WomString, WomValue}
+import wom.values.{WomPrimitive, WomPrimitiveFile, WomString}
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try}
 
 case object WomStringType extends WomPrimitiveType {
   val toDisplayString: String = "String"

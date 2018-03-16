@@ -1,6 +1,7 @@
 task notroot {
+  String empty = ""
   command {
-    echo $HOME
+    echo $HOME ${empty}
   }
 
   runtime {

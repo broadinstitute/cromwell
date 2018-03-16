@@ -83,7 +83,7 @@ class MemoryValidation(attributeName: String = RuntimeAttributesKeys.MemoryKey) 
 
   override def key = attributeName
 
-  override def coercion = Seq(WomIntegerType, WomStringType, WomLongType)
+  override def coercion = Seq(WomIntegerType, WomLongType, WomStringType)
 
   override protected def validateValue: PartialFunction[WomValue, ErrorOr[MemorySize]] = {
     case WomLong(value) => MemoryValidation.validateMemoryLong(key, value)

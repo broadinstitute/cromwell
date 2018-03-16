@@ -2,7 +2,7 @@ package cromwell.webservice
 
 import java.util.UUID
 
-import akka.actor.{Actor, ActorRef, ActorRefFactory}
+import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.{ToEntityMarshaller, ToResponseMarshallable}
 import akka.http.scaladsl.model._
@@ -245,7 +245,7 @@ trait CromwellApiService extends HttpInstrumentation {
     }
 
     def askSubmit(command: WorkflowStoreActor.WorkflowStoreActorSubmitCommand, warnings: Seq[String]): Route = {
-      // NOTE: Do not blindly coppy the akka-http -to- ask-actor pattern below without knowing the pros and cons.
+      // NOTE: Do not blindly copy the akka-http -to- ask-actor pattern below without knowing the pros and cons.
       onComplete(workflowStoreActor.ask(command).mapTo[WorkflowStoreSubmitActor.WorkflowStoreSubmitActorResponse]) {
         case Success(w) =>
           w match {

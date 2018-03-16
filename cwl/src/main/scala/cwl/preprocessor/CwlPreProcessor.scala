@@ -10,8 +10,9 @@ import common.validation.Validation._
 import cwl.command.ParentName
 import cwl.preprocessor.CwlPreProcessor._
 import cwl.{CwlDecoder, FileAndId, FullyQualifiedName}
-import io.circe.{Json, JsonObject}
+import io.circe.Json.JNumber
 import io.circe.optics.JsonPath._
+import io.circe.{Json, JsonNumber, JsonObject}
 import mouse.all._
 import org.slf4j.LoggerFactory
 
@@ -138,10 +139,33 @@ class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
     jsonObject = prefixObject(mappingFunction),
     jsonArray = arr => Json.arr(arr.map(mapFilesAndDirectories(mappingFunction)): _*)
   )
+
+  private def mapNumbers(json: Json): Json = {
+    // Circumvent Circe's scientific format for numbers: convert to a JSON String without exponential notation.
+    def nonScientificNumberFormatting(jsonNumber: JsonNumber): Json = {
+      val conversions = Stream[JsonNumber => Option[Any]](
+        _.toBigInt.map(_.longValue()),
+        _.toBigDecimal.map(_.doubleValue()),
+        Function.const(Option("null")))
+
+      // The `get` is safe because `Option("null")` guarantees a match even if the other two Stream elements
+      // do not satisfy the predicate.
+      conversions.map(_.apply(jsonNumber)).find(_.isDefined).flatten.get.toString |> Json.fromString
+    }
+
+    json.fold(
+      jsonNull = json,
+      jsonBoolean = _ => json,
+      jsonNumber = nonScientificNumberFormatting,
+      jsonString = _ => json,
+      jsonObject = _.mapValues(mapNumbers) |> Json.fromJsonObject,
+      jsonArray = _.map(mapNumbers) |> Json.fromValues
+    )
+  }
   
   def preProcessInputFiles(inputContent: String, mappingFunction: String => String): Parse[String] = for {
     parsed <- parseYaml(inputContent)
-    mapped = mapFilesAndDirectories(mappingFunction)(parsed)
+    mapped = parsed |> mapFilesAndDirectories(mappingFunction) |> mapNumbers
   } yield mapped.printCompact
 
   /**

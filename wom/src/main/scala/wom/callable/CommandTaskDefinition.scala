@@ -51,7 +51,7 @@ object CommandTaskDefinition {
   * Interface for a TaskDefinition.
   * There are 2 types of TaskDefinition:
   *   - CommandTaskDefinition
-  *   - ExpressionTaskDefinition (coming soon)
+  *   - ExpressionTaskDefinition
   */
 sealed trait TaskDefinition extends Callable {
   def runtimeAttributes: RuntimeAttributes

@@ -92,6 +92,7 @@ task makeGithubRelease {
     String githubToken
     String organization
     File cromwellJar
+    File womtoolJar
     Int oldVersion
     Int newVersion
     
@@ -115,11 +116,15 @@ task makeGithubRelease {
         # parse the response to get the release id and the asset upload url
         RELEASE_ID=$(python -c "import sys, json; print json.load(sys.stdin)['id']" < release_response)
         UPLOAD_URL=$(python -c "import sys, json; print json.load(sys.stdin)['upload_url']" < release_response)
-        # Maybe update this when we have basename !
-        UPLOAD_URL=$(sed 's/{.*}/?name=cromwell-${newVersion}.jar/' <<< "$UPLOAD_URL")
+
+        CROMWELL_UPLOAD_URL=$(sed 's/{.*}/?name=cromwell-${newVersion}.jar/' <<< "$UPLOAD_URL")
+        WOMTOOL_UPLOAD_URL=$(sed 's/{.*}/?name=womtool-${newVersion}.jar/' <<< "$UPLOAD_URL")
         
         # Upload the cromwell jar as an asset
-        curl -X POST --data-binary @${cromwellJar} -H "Authorization: token ${githubToken}" -H "Content-Type: application/octet-stream" "$UPLOAD_URL"
+        curl -X POST --data-binary @${cromwellJar} -H "Authorization: token ${githubToken}" -H "Content-Type: application/octet-stream" "$CROMWELL_UPLOAD_URL"
+        
+        # Upload the womtool jar as an asset
+        curl -X POST --data-binary @${womtoolJar} -H "Authorization: token ${githubToken}" -H "Content-Type: application/octet-stream" "$WOMTOOL_UPLOAD_URL"
         
         # Publish the draft
         curl -X PATCH -d '{"draft": false}' https://api.github.com/repos/${organization}/cromwell/releases/"$RELEASE_ID"?access_token=${githubToken}
@@ -149,6 +154,7 @@ workflow release_cromwell {
        }
   
   File cromwellJar = "${do_release.executionDir}/server/target/scala-2.12/cromwell-${versionPrep.currentVersion}.jar"
+  File womtoolJar = "${do_release.executionDir}/womtool/target/scala-2.12/womtool-${versionPrep.currentVersion}.jar"
   Int cromwellVersionAsInt = versionPrep.currentVersion
   # Previous version
   Int cromwellPreviousVersionAsInt = cromwellVersionAsInt - 1
@@ -157,11 +163,13 @@ workflow release_cromwell {
            githubToken = githubToken,
            organization = organization,
            cromwellJar = cromwellJar,
+           womtoolJar = womtoolJar,
            newVersion = cromwellVersionAsInt,
            oldVersion = cromwellPreviousVersionAsInt
   }
   
   output {
     File cromwellReleasedJar = cromwellJar
+    File womtoolReleasedJar = womtoolJar
   }
 }

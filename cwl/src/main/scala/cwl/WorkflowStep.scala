@@ -197,12 +197,16 @@ case class WorkflowStep(
 
     def typedRunInputs: Map[String, Option[MyriadInputType]] = run.fold(RunToInputTypeMap).apply(parentName)
 
+    def allIdentifiersRecursively(nodes: Set[GraphNode]): Set[WomIdentifier] = nodes.flatMap({
+      case WorkflowCallNode(identifier, _, _, _, _) => Set(identifier)
+      case CommandCallNode(identifier, _, _, _) => Set(identifier)
+      case ExpressionCallNode(identifier, _, _, _) => Set(identifier)
+      case scatter: ScatterNode => allIdentifiersRecursively(scatter.innerGraph.nodes)
+      case _ => Set.empty[WomIdentifier]
+    })
+    
     // To avoid duplicating nodes, return immediately if we've already covered this node
-    val haveWeSeenThisStep: Boolean = knownNodes.collect {
-      case CommandCallNode(identifier, _, _, _) => identifier
-      case ExpressionCallNode(identifier, _, _, _) => identifier
-      case WorkflowCallNode(identifier, _, _, _, _) => identifier
-    }.contains(unqualifiedStepId)
+    val haveWeSeenThisStep: Boolean = allIdentifiersRecursively(knownNodes).contains(unqualifiedStepId)
 
     if (haveWeSeenThisStep) Right(knownNodes)
     else {

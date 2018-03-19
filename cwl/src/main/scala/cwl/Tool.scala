@@ -93,6 +93,8 @@ trait Tool {
     requirement.fold(RequirementToAttributeMap).apply(inputNames, expressionLib)
   }
 
+  protected def toolAttributes: Map[String, WomExpression] = Map.empty
+
   def buildTaskDefinition(validator: RequirementsValidator, parentExpressionLib: ExpressionLib): Checked[TaskDefinition] = {
     def build(requirementsAndHints: Seq[cwl.Requirement]) = {
       val id = this.id
@@ -103,11 +105,11 @@ trait Tool {
       // - There is no monoid instance for `WomExpression`s.
       // - We want to fold from the right so the hints and requirements with the lowest precedence are processed first
       //   and later overridden if there are duplicate hints or requirements of the same type with higher precedence.
-      val finalAttributesMap: Map[String, WomExpression] = requirementsAndHints.foldRight(Map.empty[String, WomExpression])({
-        case (requirement, attributesMap) => attributesMap ++ processRequirement(requirement, expressionLib)
+      val attributesMap: Map[String, WomExpression] = requirementsAndHints.foldRight(Map.empty[String, WomExpression])({
+        case (requirement, acc) => acc ++ processRequirement(requirement, expressionLib)
       })
 
-      val runtimeAttributes: RuntimeAttributes = RuntimeAttributes(finalAttributesMap)
+      val runtimeAttributes: RuntimeAttributes = RuntimeAttributes(attributesMap ++ toolAttributes)
 
       val inputDefinitions: List[_ <: Callable.InputDefinition] =
         this.inputs.map {

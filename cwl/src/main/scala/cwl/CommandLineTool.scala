@@ -16,9 +16,9 @@ import wom.callable.CommandTaskDefinition.{EvaluatedOutputs, OutputFunctionRespo
 import wom.callable.{Callable, CallableTaskDefinition, ContainerizedInputExpression}
 import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
-import wom.types.{WomOptionalType, WomStringType}
-import wom.values.{WomEvaluatedCallInputs, WomGlobFile, WomString, WomValue}
-import wom.{CommandPart, RuntimeAttributes}
+import wom.types.{WomArrayType, WomIntegerType, WomOptionalType, WomStringType}
+import wom.values.{WomArray, WomEvaluatedCallInputs, WomGlobFile, WomInteger, WomString, WomValue}
+import wom.{CommandPart, RuntimeAttributes, RuntimeAttributesKeys}
 
 import scala.concurrent.ExecutionContext
 import scala.math.Ordering
@@ -217,6 +217,16 @@ case class CommandLineTool private(
       // parse the content and validate it
       outputs = parseContent(content)
     } yield outputs
+  }
+
+  override protected def toolAttributes: Map[String, WomExpression] = {
+    val codes: List[Int] = successCodes match {
+      case Some(c) => c.toList // Use the provided list of success codes.
+      case None => List(0) // Default to allowing only 0 for a success code.
+    }
+
+    val arr = WomArray(WomArrayType(WomIntegerType), codes map WomInteger.apply)
+    Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> ValueAsAnExpression(arr))
   }
 
   def buildTaskDefinition(taskName: String,

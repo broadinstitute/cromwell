@@ -162,8 +162,7 @@ case class Workflow private(
     val meta: Map[String, String] = Map.empty
     val paramMeta: Map[String, String] = Map.empty
 
-    val value = womGraph(name, validator, expressionLib)
-    value.map(graph =>
+    womGraph(name, validator, expressionLib).map(graph =>
       WorkflowDefinition(
         name,
         graph,

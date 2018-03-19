@@ -201,6 +201,8 @@ case class WorkflowStep(
       case WorkflowCallNode(identifier, _, _, _, _) => Set(identifier)
       case CommandCallNode(identifier, _, _, _) => Set(identifier)
       case ExpressionCallNode(identifier, _, _, _) => Set(identifier)
+      // When a node a call node is being scattered over, it is wrapped inside a scatter node. We still don't want to 
+      // duplicate it though so look inside scatter nodes to see if it's there.
       case scatter: ScatterNode => allIdentifiersRecursively(scatter.innerGraph.nodes)
       case _ => Set.empty[WomIdentifier]
     })

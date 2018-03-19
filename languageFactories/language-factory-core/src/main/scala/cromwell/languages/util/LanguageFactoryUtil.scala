@@ -1,7 +1,9 @@
 package cromwell.languages.util
 
-import cats.data.NonEmptyList
+// TODO 2.11: Remove cats.syntax.either._ import:
+import cats.syntax.either._
 import cats.syntax.validated._
+import cats.data.NonEmptyList
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import cromwell.core.path.BetterFileMethods.OpenOptions

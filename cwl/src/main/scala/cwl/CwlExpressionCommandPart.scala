@@ -69,14 +69,31 @@ abstract class CommandLineBindingCommandPart(commandLineBinding: CommandLineBind
     }
     
     def processValue(womValue: WomValue): List[String] = womValue match {
-      case WomOptionalValue(_, Some(womValue)) => processValue(valueMapper(womValue))
+      case WomOptionalValue(_, Some(womInnerValue)) => processValue(valueMapper(womInnerValue))
       case _: WomString | _: WomInteger | _: WomFile => handlePrefix(valueMapper(womValue).valueString)
       // For boolean values, use the value of the boolean to choose whether to print the prefix or not
       case WomBoolean(false) => List.empty
       case WomBoolean(true) => prefixAsList
       case WomArray(_, values) => commandLineBinding.itemSeparator match {
         case Some(itemSeparator) => handlePrefix(values.map(valueMapper(_).valueString).mkString(itemSeparator))
-        case None if commandLineBinding.optionalValueFrom.isDefined => values.toList.flatMap(processValue)
+
+        /*
+        via: http://www.commonwl.org/v1.0/CommandLineTool.html#CommandLineBinding
+
+        > If itemSeparator is specified, add prefix and the join the array into a single string with itemSeparator
+        > separating the items. Otherwise first add prefix, then recursively process individual elements.
+
+        Not 100% sure if this is conformant, as we are only recurse the head into `processValue` here... However the
+        conformance test "Test InlineJavascriptRequirement with multiple expressions in the same tool" is happy with the
+        behavior.
+         */
+        // InstantiatedCommand elements are generated here when there exists an optionalValueFrom
+        case None if commandLineBinding.optionalValueFrom.isDefined => values.toList match {
+          case head :: tail => processValue(head) ++ tail.map(valueMapper(_).valueString)
+          case Nil => prefixAsList
+        }
+
+        // When there is no optionalValueFrom the InstantiatedCommand elements for the womValue are appended elsewhere
         case _ => prefixAsList
       }
       case _: WomObjectLike => prefixAsList

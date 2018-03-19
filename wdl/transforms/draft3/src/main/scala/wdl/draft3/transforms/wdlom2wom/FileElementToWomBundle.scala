@@ -10,6 +10,7 @@ import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
+import common.validation.Checked._
 import cromwell.languages.LanguageFactory
 import cromwell.languages.LanguageFactory.ImportResolver
 import wdl.draft3.transforms.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition.WorkflowDefinitionConvertInputs
@@ -79,7 +80,21 @@ object FileElementToWomBundle {
 
     val overallConversion = compoundImportResolver andThen compoundLanguageFactory
 
-    overallConversion.run(importElement.importUrl).toValidated
+    (overallConversion.run(importElement.importUrl) flatMap { respectImportRenames(_, importElement.structRenames) }).toValidated
+  }
+
+  private def respectImportRenames(womBundle: WomBundle, importAliases: Map[String, String]): Checked[WomBundle] = {
+    val importedStructs = womBundle.typeAliases
+    val unexpectedAliases = importAliases.keySet.diff(womBundle.typeAliases.keySet)
+    if (unexpectedAliases.isEmpty) {
+      val newStructs = importedStructs map {
+        case (key, value) if importAliases.contains(key) => importAliases(key) -> value
+        case (otherKey, otherValue) => otherKey -> otherValue
+      }
+      womBundle.copy(typeAliases = newStructs).validNelCheck
+    } else {
+      s"Cannot import and rename: [${unexpectedAliases.mkString(", ")}] because the set of imported structs was: [${importedStructs.keySet.mkString(", ")}]".invalidNelCheck
+    }
   }
 }
 

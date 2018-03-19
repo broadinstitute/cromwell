@@ -95,21 +95,39 @@ object ExpressionElement {
   final case class Range(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class Transpose(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class Length(param: ExpressionElement) extends OneParamFunctionCallElement
-  final case class Prefix(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class Flatten(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class SelectFirst(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class SelectAll(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class Defined(param: ExpressionElement) extends OneParamFunctionCallElement
-  final case class Basename(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class Floor(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class Ceil(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class Round(param: ExpressionElement) extends OneParamFunctionCallElement
 
   // 1- or 2-param functions:
-  final case class Size(file: ExpressionElement, unit: Option[ExpressionElement]) extends FunctionCallElement
+  sealed trait OneOrTwoParamFunctionCallElement extends FunctionCallElement {
+    def firstParam: ExpressionElement
+    def secondParam: Option[ExpressionElement]
+  }
+  final case class Size(file: ExpressionElement, unit: Option[ExpressionElement]) extends OneOrTwoParamFunctionCallElement {
+    override def firstParam: ExpressionElement = file
+    override def secondParam: Option[ExpressionElement] = unit
+  }
+  final case class Basename(param: ExpressionElement, suffixToRemove: Option[ExpressionElement]) extends OneOrTwoParamFunctionCallElement {
+    override def firstParam: ExpressionElement = param
+    override def secondParam: Option[ExpressionElement] = suffixToRemove
+  }
 
   // 2-param functions:
-  final case class Zip(array1: ExpressionElement, array2: ExpressionElement) extends FunctionCallElement
-  final case class Cross(array1: ExpressionElement, array2: ExpressionElement) extends FunctionCallElement
+  sealed trait TwoParamFunctionCallElement extends FunctionCallElement {
+    def arg1: ExpressionElement
+    def arg2: ExpressionElement
+  }
+  final case class Zip(arg1: ExpressionElement, arg2: ExpressionElement) extends TwoParamFunctionCallElement
+  final case class Cross(arg1: ExpressionElement, arg2: ExpressionElement) extends TwoParamFunctionCallElement
+  final case class Prefix(prefix: ExpressionElement, array: ExpressionElement) extends TwoParamFunctionCallElement {
+    override def arg1: ExpressionElement = prefix
+    override def arg2: ExpressionElement = array
+  }
 
   // 3-param functions:
   final case class Sub(input: ExpressionElement, pattern: ExpressionElement, replace: ExpressionElement) extends FunctionCallElement

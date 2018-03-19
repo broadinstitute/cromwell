@@ -561,6 +561,50 @@ object WdlFileToWdlomSpec {
             runtimeSection = None,
             metaSection = None,
             parameterMetaSection = None))
+    ),
+    "taskless_engine_functions" -> FileElement(
+      imports = Vector.empty,
+      structs = Vector.empty,
+      workflows = Vector(WorkflowDefinitionElement(
+        name = "taskless_engine_functions",
+        inputsSection = None,
+        graphElements = Set(
+          IntermediateValueDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)), "ints", ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(1)), PrimitiveLiteralExpressionElement(WomInteger(2))))),
+          IntermediateValueDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomStringType)), "strings", ArrayLiteral(Vector(StringLiteral("a"), StringLiteral("b")))),
+          IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "filepath", StringLiteral("gs://not/a/real/file.txt")),
+          IntermediateValueDeclarationElement(ArrayTypeElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType))), "matrix",
+            ArrayLiteral(Vector(
+              ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(1)), PrimitiveLiteralExpressionElement(WomInteger(0)))),
+              ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(1)), PrimitiveLiteralExpressionElement(WomInteger(0))))
+            ))
+          ),
+          IntermediateValueDeclarationElement(ArrayTypeElement(MapTypeElement(PrimitiveTypeElement(WomIntegerType), PrimitiveTypeElement(WomStringType))), "list_of_maps",
+            ArrayLiteral(Vector(
+              MapLiteral(Map(PrimitiveLiteralExpressionElement(WomInteger(1)) -> StringLiteral("one"), PrimitiveLiteralExpressionElement(WomInteger(2)) -> StringLiteral("two"))),
+              MapLiteral(Map(PrimitiveLiteralExpressionElement(WomInteger(11)) -> StringLiteral("eleven"), PrimitiveLiteralExpressionElement(WomInteger(22)) -> StringLiteral("twenty-two")))
+            ))
+          ),
+          IntermediateValueDeclarationElement(PrimitiveTypeElement(WomFloatType), "f", PrimitiveLiteralExpressionElement(WomFloat(1.024)))
+        ),
+        outputsSection = Some(
+          OutputsSectionElement(Vector(
+            OutputDeclarationElement(ArrayTypeElement(PairTypeElement(PrimitiveTypeElement(WomIntegerType),PrimitiveTypeElement(WomStringType))), "int_cross_string", Cross(IdentifierLookup("ints"),IdentifierLookup("strings"))),
+            OutputDeclarationElement(ArrayTypeElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType))), "transposed_matrix", Transpose(IdentifierLookup("matrix"))),
+            OutputDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)), "flattened_matrix", Flatten(IdentifierLookup("matrix"))),
+            OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "matrix_length", Length(IdentifierLookup("matrix"))),
+            OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "flattened_matrix_length", Length(IdentifierLookup("flattened_matrix"))),
+            OutputDeclarationElement(ArrayTypeElement(PairTypeElement(PrimitiveTypeElement(WomIntegerType),PrimitiveTypeElement(WomStringType))), "flattened_map", Flatten(IdentifierLookup("list_of_maps"))),
+            OutputDeclarationElement(PrimitiveTypeElement(WomStringType), "file_basename", Basename(IdentifierLookup("filepath"),None)),
+            OutputDeclarationElement(PrimitiveTypeElement(WomStringType), "file_basename_extensionless", Basename(IdentifierLookup("filepath"),Some(StringLiteral(".txt")))),
+            OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "f_floor",Floor(IdentifierLookup("f"))),
+            OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "f_ceiling",Ceil(IdentifierLookup("f"))),
+            OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "f_round",Round(IdentifierLookup("f")))
+          ))
+        ),
+        metaSection = None,
+        parameterMetaSection = None
+      )),
+      tasks = Vector.empty
     )
   )
 }

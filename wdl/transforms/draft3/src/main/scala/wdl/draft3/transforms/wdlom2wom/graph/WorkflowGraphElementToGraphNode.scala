@@ -41,7 +41,7 @@ object WorkflowGraphElementToGraphNode {
           case _: IntermediateValueDeclarationElement =>
             ExposedExpressionNode.fromInputMapping(WomIdentifier(name), womExpr, womType, a.linkablePorts) map { Set(_) }
           case _: OutputDeclarationElement =>
-            ExpressionBasedGraphOutputNode.fromInputMapping(WomIdentifier(s"${a.workflowName}.$name"), womExpr, womType, a.linkablePorts) map {Set(_)}
+            ExpressionBasedGraphOutputNode.fromInputMapping(WomIdentifier(name, s"${a.workflowName}.$name"), womExpr, womType, a.linkablePorts) map {Set(_)}
         }
       }
 

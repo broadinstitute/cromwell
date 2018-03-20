@@ -1,7 +1,7 @@
 package cromwell.backend.impl.spark
 
 import wdl.draft2.model.Draft2ImportResolver
-import cromwell.backend.{BackendWorkflowDescriptor, MemorySize}
+import cromwell.backend.BackendWorkflowDescriptor
 import wom.RuntimeAttributesKeys._
 import cromwell.core.labels.Labels
 import cromwell.core.{WorkflowId, WorkflowOptions}
@@ -15,6 +15,7 @@ import wom.values.WomValue
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wdl.transforms.draft2.wdlom2wom._
 import wom.expression.NoIoFunctionSet
+import wom.format.MemorySize
 
 class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
 

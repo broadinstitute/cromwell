@@ -1,10 +1,10 @@
 package cromwell.backend.impl.sfs.config
 
-import cromwell.backend.MemorySize
 import cromwell.backend.validation._
 import wdl.draft2.model.expression.NoFunctions
 import wdl.draft2.model.{Declaration, NoLookup, WdlExpression}
 import wdl4s.parser.MemoryUnit
+import wom.format.MemorySize
 import wom.types._
 import wom.values._
 

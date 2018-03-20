@@ -2,11 +2,11 @@ package cromwell.backend.impl.tes
 
 import cats.syntax.validated._
 import com.typesafe.config.Config
-import cromwell.backend.MemorySize
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation._
 import common.validation.ErrorOr.ErrorOr
 import wom.RuntimeAttributesKeys
+import wom.format.MemorySize
 import wom.values._
 
 case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,

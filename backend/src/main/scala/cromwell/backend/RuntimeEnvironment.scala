@@ -6,6 +6,7 @@ import cromwell.backend.io.JobPaths
 import cromwell.backend.validation.{CpuValidation, MemoryValidation}
 import wdl4s.parser.MemoryUnit
 import wom.callable.RuntimeEnvironment
+import wom.format.MemorySize
 import wom.values.WomValue
 
 object RuntimeEnvironmentBuilder {

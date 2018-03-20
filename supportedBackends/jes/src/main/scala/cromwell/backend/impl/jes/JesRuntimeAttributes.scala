@@ -4,12 +4,12 @@ import cats.data.Validated._
 import cats.syntax.apply._
 import cats.syntax.validated._
 import com.typesafe.config.Config
-import cromwell.backend.MemorySize
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation.{BooleanRuntimeAttributesValidation, _}
 import common.validation.ErrorOr._
 import wom.RuntimeAttributesKeys
+import wom.format.MemorySize
 import wom.types._
 import wom.values._
 

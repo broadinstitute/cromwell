@@ -6,17 +6,23 @@ import cats.instances.list._
 import common.validation.ErrorOr._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
+import wom.format.MemorySize
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.ValueEvaluator
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wdl.shared.transforms.evaluation.values.EngineFunctions
+import wdl4s.parser.MemoryUnit
 import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values.WomArray.WomArrayLike
-import wom.values.{WomArray, WomFloat, WomInteger, WomPair, WomString, WomValue}
+import wom.values.{WomArray, WomFloat, WomInteger, WomOptionalValue, WomPair, WomSingleFile, WomString, WomValue}
 import wom.types.coercion.ops._
 import wom.types.coercion.defaults._
 import wom.types.coercion.WomTypeCoercer
+
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
+import scala.util.{Success, Try}
 
 object EngineFunctionEvaluators {
   implicit val readLinesFunctionEvaluator: ValueEvaluator[ReadLines] = new ValueEvaluator[ReadLines] {
@@ -157,7 +163,42 @@ object EngineFunctionEvaluators {
   }
 
   implicit val sizeFunctionEvaluator: ValueEvaluator[Size] = new ValueEvaluator[Size] {
-    override def evaluateValue(a: Size, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
+    override def evaluateValue(a: Size, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
+      // Inner function: get the memory unit from the second (optional) parameter
+      def toUnit(womValue: WomValue): ErrorOr[MemoryUnit] = Try(MemoryUnit.fromSuffix(womValue.valueString)).toErrorOr
+
+      // Inner function: is this a file type, or an optional containing a file type?
+      def isOptionalOfFileType(womType: WomType): Boolean = womType match {
+        case f if WomSingleFileType.isCoerceableFrom(f) => true
+        case WomOptionalType(inner) => isOptionalOfFileType(inner)
+        case _ => false
+      }
+
+      // Inner function: Get the file size, allowing for unpacking of optionals and arrays
+      def optionalSafeFileSize(value: WomValue): ErrorOr[Long] = value match {
+        case f if f.isInstanceOf[WomSingleFile] || WomSingleFileType.isCoerceableFrom(f.womType) =>
+          f.coerceToType[WomSingleFile] flatMap { file => Try(Await.result(ioFunctionSet.size(file.valueString), Duration.Inf)).toErrorOr }
+        case WomOptionalValue(f, Some(o)) if isOptionalOfFileType(f) => optionalSafeFileSize(o)
+        case WomOptionalValue(f, None) if isOptionalOfFileType(f) => 0l.validNel
+        case WomArray(WomArrayType(womType), values) if isOptionalOfFileType(womType) => values.toList.traverse(optionalSafeFileSize).map(_.sum)
+        case _ => s"The 'size' method expects a 'File', 'File?', 'Array[File]' or Array[File?] argument but instead got ${value.womType.toDisplayString}.".invalidNel
+      }
+
+      // Inner function: get the file size and convert into the requested memory unit
+      def fileSize(womValue: ErrorOr[WomValue], convertTo: ErrorOr[MemoryUnit] = MemoryUnit.Bytes.validNel): ErrorOr[Double] = {
+        for {
+          value <- womValue
+          unit <- convertTo
+          fileSize <- optionalSafeFileSize(value)
+        } yield MemorySize(fileSize.toDouble, MemoryUnit.Bytes).to(unit).amount
+      }
+
+      val evaluatedFileValidation: ErrorOr[WomValue] = a.file.evaluateValue(inputs, ioFunctionSet)
+      a.unit map (_.evaluateValue(inputs, ioFunctionSet)) match {
+        case None => fileSize(evaluatedFileValidation) map WomFloat.apply
+        case Some(evaluatedUnitValidation) => fileSize(evaluatedFileValidation, evaluatedUnitValidation flatMap toUnit) map WomFloat.apply
+      }
+    }
   }
 
   implicit val basenameFunctionEvaluator: ValueEvaluator[Basename] = new ValueEvaluator[Basename] {

@@ -4,12 +4,13 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
 import com.typesafe.config.Config
-import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
+import cromwell.backend.RuntimeAttributeDefinition
 import common.validation.ErrorOr._
 import org.slf4j.Logger
 import wdl.draft2.model.expression.PureStandardLibraryFunctions
 import wdl.draft2.model.{NoLookup, WdlExpression}
 import wom.expression.{NoIoFunctionSet, WomExpression}
+import wom.format.MemorySize
 import wom.types._
 import wom.values._
 

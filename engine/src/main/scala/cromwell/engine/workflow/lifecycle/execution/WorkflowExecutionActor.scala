@@ -574,7 +574,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         jobTokenDispenserActor = params.jobTokenDispenserActor,
         params.backendSingletonCollection,
         params.initializationData,
-        params.startState), s"SubWorkflowExecutionActor-${key.tag}"
+        params.startState), s"$workflowIdForLogging-SubWorkflowExecutionActor-${key.tag}"
     )
 
     context watch sweaRef

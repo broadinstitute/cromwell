@@ -1,5 +1,11 @@
 # Cromwell Change Log
 
+## 32 Release Notes
+
+### Bug Fixes
+
+The imports zip no longer unpacks a single (arbitrary) internal directory if it finds one (or more). Instead, import statements should now be made relative to the base of the import zip root.
+
 ## 31 Release Notes
 
 * **Cromwell server**  

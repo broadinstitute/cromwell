@@ -21,6 +21,7 @@ import wom.values.{WomArray, WomEvaluatedCallInputs, WomGlobFile, WomInteger, Wo
 import wom.{CommandPart, RuntimeAttributes, RuntimeAttributesKeys}
 
 import scala.concurrent.ExecutionContext
+import scala.language.postfixOps
 import scala.math.Ordering
 
 /**
@@ -54,11 +55,13 @@ case class CommandLineTool private(
    * - Finally the inputs are folded one by one into a CommandPartsList
    * - arguments and inputs CommandParts are sorted according to their sort key
    */
-  private [cwl] def buildCommandTemplate(expressionLib: ExpressionLib)(inputValues: WomEvaluatedCallInputs): ErrorOr[List[CommandPart]] = {
+  private [cwl] def buildCommandTemplate(requirementsAndHints: List[cwl.Requirement], expressionLib: ExpressionLib)(inputValues: WomEvaluatedCallInputs): ErrorOr[List[CommandPart]] = {
     import cats.instances.list._
     import cats.syntax.traverse._
 
     val baseCommandPart = baseCommand.toList.flatMap(_.fold(BaseCommandToCommandParts))
+
+    val hasShellCommandRequirement: Boolean = requirementsAndHints.exists(_.select[ShellCommandRequirement].nonEmpty)
 
     val argumentsParts: CommandPartsList =
     // arguments is an Option[Array[Argument]], the toList.flatten gives a List[Argument]
@@ -66,7 +69,7 @@ case class CommandLineTool private(
         // zip the index because we need it in the sorting key
         .zipWithIndex.foldLeft(CommandPartsList.empty)({
         case (commandPartsList, (argument, index)) =>
-          val part = argument.fold(ArgumentToCommandPart).apply(expressionLib)
+          val part = argument.fold(ArgumentToCommandPart).apply(hasShellCommandRequirement, expressionLib)
           // Get the position from the binding if there is one
           val position = argument.select[ArgumentCommandLineBinding].flatMap(_.position)
             .map(Coproduct[StringOrInt](_)).getOrElse(DefaultPosition)
@@ -94,7 +97,7 @@ case class CommandLineTool private(
             lazy val initialKey = CommandBindingSortingKey.empty
               .append(inputParameter.inputBinding, Coproduct[StringOrInt](parsedName))
 
-            inputParameter.`type`.toList.flatMap(_.fold(MyriadInputTypeToSortedCommandParts).apply(inputParameter.inputBinding, value, initialKey.asNewKey, expressionLib)).validNel
+            inputParameter.`type`.toList.flatMap(_.fold(MyriadInputTypeToSortedCommandParts).apply(inputParameter.inputBinding, value, initialKey.asNewKey, hasShellCommandRequirement, expressionLib)).validNel
           case Some(Invalid(errors)) => Invalid(errors)
           case None => s"Could not find an input value for input $parsedName in ${inputValues.prettyString}".invalidNel
         }
@@ -250,7 +253,7 @@ case class CommandLineTool private(
     environmentDefs(requirementsAndHints, expressionLib) map { environmentExpressions =>
       CallableTaskDefinition(
         taskName,
-        buildCommandTemplate(expressionLib),
+        buildCommandTemplate(requirementsAndHints, expressionLib),
         runtimeAttributes,
         Map.empty,
         Map.empty,

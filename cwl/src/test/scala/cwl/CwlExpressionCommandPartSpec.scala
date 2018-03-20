@@ -22,7 +22,7 @@ class CwlExpressionCommandPartSpec extends FlatSpec with Matchers {
     // https://community.apigee.com/questions/33936/javascript-parseint-not-converting-to-int-value-ne.html
     val commandPart = CwlExpressionCommandPart(Coproduct[Expression](refineMV[MatchesECMAScriptExpression](
       "$(parseInt(inputs.myStringInt).toFixed())"
-    )))(Vector.empty)
+    )))(false, Vector.empty)
     val result = commandPart.instantiate(Map(LocalName("myStringInt") -> WomString("3")), PlaceholderIoFunctionSet, identity, emptyEnvironment).toTry.get.head.commandString
     result should be("'3'")
   }

@@ -13,7 +13,7 @@ import wom.{CommandPart, InstantiatedCommand}
 
 import scala.language.postfixOps
 
-case class CwlExpressionCommandPart(expr: Expression)(expressionLib: ExpressionLib) extends CommandPart {
+case class CwlExpressionCommandPart(expr: Expression)(hasShellCommandRequirement: Boolean, expressionLib: ExpressionLib) extends CommandPart {
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: (WomValue) => WomValue,
@@ -33,7 +33,7 @@ case class CwlExpressionCommandPart(expr: Expression)(expressionLib: ExpressionL
 /**
   * Generates command parts from a CWL Binding
   */
-abstract class CommandLineBindingCommandPart(commandLineBinding: CommandLineBinding)(expressionLib: ExpressionLib) extends CommandPart {
+abstract class CommandLineBindingCommandPart(commandLineBinding: CommandLineBinding)(hasShellCommandRequirement: Boolean, expressionLib: ExpressionLib) extends CommandPart {
 
   
   private lazy val prefixAsString = commandLineBinding.prefix.getOrElse("")
@@ -64,7 +64,9 @@ abstract class CommandLineBindingCommandPart(commandLineBinding: CommandLineBind
     }
     
     def applyShellQuote(value: String): String = commandLineBinding.shellQuote match {
-      case Some(false) => value
+      // Only honor shellQuote = false if ShellCommandRequirement is enabled.
+      // Conformance test "Test that shell directives are not interpreted."
+      case Some(false) if hasShellCommandRequirement => value
       case _ => value.shellQuote
     }
     
@@ -106,10 +108,14 @@ abstract class CommandLineBindingCommandPart(commandLineBinding: CommandLineBind
   def boundValue: Option[WomValue]
 }
 
-case class InputCommandLineBindingCommandPart(commandLineBinding: InputCommandLineBinding, associatedValue: WomValue)(expressionLib: ExpressionLib) extends CommandLineBindingCommandPart(commandLineBinding)(expressionLib) {
+case class InputCommandLineBindingCommandPart(commandLineBinding: InputCommandLineBinding, associatedValue: WomValue)
+                                             (hasShellCommandRequirement: Boolean, expressionLib: ExpressionLib)
+  extends CommandLineBindingCommandPart(commandLineBinding)(hasShellCommandRequirement, expressionLib) {
   override lazy val boundValue = Option(associatedValue)
 }
 
-case class ArgumentCommandLineBindingCommandPart(commandLineBinding: ArgumentCommandLineBinding)(expressionLib: ExpressionLib) extends CommandLineBindingCommandPart(commandLineBinding)(expressionLib) {
+case class ArgumentCommandLineBindingCommandPart(commandLineBinding: ArgumentCommandLineBinding)
+                                                (hasShellCommandRequirement: Boolean, expressionLib: ExpressionLib)
+  extends CommandLineBindingCommandPart(commandLineBinding)(hasShellCommandRequirement, expressionLib) {
   override lazy val boundValue = None
 }

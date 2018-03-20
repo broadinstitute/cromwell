@@ -71,8 +71,8 @@ case class InputCommandLineBinding(
                                shellQuote: Option[Boolean] = None) extends CommandLineBinding {
   override val optionalValueFrom = valueFrom
 
-  def toCommandPart(sortingKey: CommandBindingSortingKey, boundValue: WomValue, expressionLib: ExpressionLib) = {
-    SortKeyAndCommandPart(sortingKey, InputCommandLineBindingCommandPart(this, boundValue)(expressionLib))
+  def toCommandPart(sortingKey: CommandBindingSortingKey, boundValue: WomValue, hasShellCommandRequirement: Boolean, expressionLib: ExpressionLib) = {
+    SortKeyAndCommandPart(sortingKey, InputCommandLineBindingCommandPart(this, boundValue)(hasShellCommandRequirement, expressionLib))
   }
 }
 

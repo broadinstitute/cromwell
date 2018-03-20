@@ -67,6 +67,7 @@ object WomValueSimpleton {
           }
 
           classSimpleton ++ valueSimpleton ++ checksumSimpleton ++ contentsSimpleton ++ sizeSimpleton ++ formatSimpleton ++ secondaryFilesSimpletons
+        case womCoproduct: WomCoproductValue => womCoproduct.womValue.simplify(name)
         case other => throw new Exception(s"Cannot simplify wdl value $other of type ${other.womType}")
       }
     }

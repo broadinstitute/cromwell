@@ -1,0 +1,15 @@
+name: cwl_input_binding_expression
+testFormat: workflowsuccess
+workflowType: CWL
+workflowTypeVersion: v1.0
+workflowRoot: cwl_input_binding_expression
+
+files {
+  wdl: cwl_input_binding_expression/cwl_input_binding_expression.cwl
+}
+
+metadata {
+  "submittedFiles.workflowType": CWL
+  "submittedFiles.workflowTypeVersion": v1.0
+  "outputs.b.letters": "hello world"
+}

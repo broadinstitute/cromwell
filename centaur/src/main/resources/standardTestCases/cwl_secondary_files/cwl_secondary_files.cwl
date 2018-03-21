@@ -13,12 +13,17 @@ $graph:
       inputBinding:
         position: 2
       secondaryFiles: [.also]
+    - id: of
+      type: File?
+      inputBinding:
+        position: 3
+      secondaryFiles: [.also]
     - id: fs
       type:
         type: array
         items: File
         inputBinding:
-          position: 3
+          position: 4
       secondaryFiles: [.also]
   outputs:
     the_answer:

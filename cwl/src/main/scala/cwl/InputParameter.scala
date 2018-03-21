@@ -118,7 +118,7 @@ object InputParameter {
                 parameterContext,
                 expressionLib
               )
-              updated = loaded.copy(secondaryFiles = secondaries)
+              updated = loaded.copy(secondaryFiles = loaded.secondaryFiles ++ secondaries)
             } yield updated
 
           case WomArray(_, values) => values.toList.traverse(populateFiles).map(WomArray(_))

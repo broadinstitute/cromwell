@@ -14,7 +14,7 @@ import wom.RuntimeAttributes
 import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, OutputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, TaskDefinition}
 import wom.executable.Executable
-import wom.expression.{ValueAsAnExpression, WomExpression}
+import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}
 import wom.types.WomOptionalType
 
 import scala.util.Try
@@ -47,9 +47,9 @@ trait Tool {
   def asCwl: Cwl
 
   /** Builds an `Executable` directly from a `Tool` CWL with no parent workflow. */
-  def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None): Checked[Executable] = {
+  def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None, ioFunctions: IoFunctionSet): Checked[Executable] = {
     val taskDefinition = buildTaskDefinition(validator, Vector.empty)
-    CwlExecutableValidation.buildWomExecutable(taskDefinition, inputFile)
+    CwlExecutableValidation.buildWomExecutable(taskDefinition, inputFile, ioFunctions)
   }
 
   protected def buildTaskDefinition(taskName: String,

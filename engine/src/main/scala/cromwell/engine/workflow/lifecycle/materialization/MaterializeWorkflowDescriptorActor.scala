@@ -228,7 +228,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
           case Some(other) => s"Unknown version '$other' for workflow language '$languageName'".invalidNel
           case _ => language.allVersions.head._2.valid
         }
-        errorOrParse(factory).flatMap(_.validateNamespace(sourceFiles, workflowOptions, importLocalFilesystem, workflowIdForLogging))
+        errorOrParse(factory).flatMap(_.validateNamespace(sourceFiles, workflowOptions, importLocalFilesystem, workflowIdForLogging, engineIoFunctions))
       case Some(other) => fromEither[IO](s"Unknown workflow type: $other".invalidNelCheck[ValidatedWomNamespace])
       case None => fromEither[IO]("Need a workflow type here !".invalidNelCheck[ValidatedWomNamespace])
     }

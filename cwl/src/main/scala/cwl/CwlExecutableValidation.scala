@@ -8,6 +8,7 @@ import io.circe.yaml
 import wom.callable.{ExecutableCallable, TaskDefinition}
 import wom.executable.Executable
 import wom.executable.Executable.{InputParsingFunction, ParsedInputMap}
+import wom.expression.IoFunctionSet
 
 // WARNING! Because of 2.11 vs 2.12 incompatibilities, there are two versions of this file.
 // If you're making changes here, you'll also need to update ../../scala-2.12/cwl/CwlExecutableValidation.scala
@@ -23,18 +24,18 @@ object CwlExecutableValidation {
       }
     }
 
-  def buildWomExecutableCallable(callable: Checked[ExecutableCallable], inputFile: Option[String]): Checked[Executable] = {
+  def buildWomExecutableCallable(callable: Checked[ExecutableCallable], inputFile: Option[String], ioFunctions: IoFunctionSet): Checked[Executable] = {
     for {
       womDefinition <- callable
-      executable <- Executable.withInputs(womDefinition, inputCoercionFunction, inputFile)
+      executable <- Executable.withInputs(womDefinition, inputCoercionFunction, inputFile, ioFunctions)
     } yield executable
   }
 
-  def buildWomExecutable(callableTaskDefinition: Checked[TaskDefinition], inputFile: Option[String]): Checked[Executable] = {
+  def buildWomExecutable(callableTaskDefinition: Checked[TaskDefinition], inputFile: Option[String], ioFunctions: IoFunctionSet): Checked[Executable] = {
     for {
       taskDefinition <- callableTaskDefinition
       executableTaskDefinition = taskDefinition.toExecutable.toEither
-      executable <- CwlExecutableValidation.buildWomExecutableCallable(executableTaskDefinition, inputFile)
+      executable <- CwlExecutableValidation.buildWomExecutableCallable(executableTaskDefinition, inputFile, ioFunctions)
     } yield executable
   }
 }

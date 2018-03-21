@@ -7,6 +7,7 @@ import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
 import cwl.command.ParentName
 import shapeless._
 import wom.executable.Executable
+import wom.expression.{IoFunctionSet, NoIoFunctionSet}
 import wom.types._
 
 import scala.util.{Failure, Success, Try}
@@ -85,11 +86,11 @@ package object cwl extends TypeAliases {
   val AcceptAllRequirements: RequirementsValidator = _.validNel
 
   implicit class CwlHelper(val cwl: Cwl) extends AnyVal {
-    def womExecutable(validator: RequirementsValidator, inputsFile: Option[String] = None): Checked[Executable] = {
+    def womExecutable(validator: RequirementsValidator, inputsFile: Option[String] = None, ioFunctions: IoFunctionSet = NoIoFunctionSet): Checked[Executable] = {
       def executable = cwl match {
-        case Cwl.Workflow(w) => w.womExecutable(validator, inputsFile)
-        case Cwl.CommandLineTool(clt) => clt.womExecutable(validator, inputsFile)
-        case Cwl.ExpressionTool(et) => et.womExecutable(validator, inputsFile)
+        case Cwl.Workflow(w) => w.womExecutable(validator, inputsFile, ioFunctions)
+        case Cwl.CommandLineTool(clt) => clt.womExecutable(validator, inputsFile, ioFunctions)
+        case Cwl.ExpressionTool(et) => et.womExecutable(validator, inputsFile, ioFunctions)
       }
       Try(executable) match {
         case Success(s) => s

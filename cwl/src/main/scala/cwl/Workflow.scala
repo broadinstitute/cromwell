@@ -17,7 +17,7 @@ import shapeless._
 import shapeless.syntax.singleton._
 import wom.callable.WorkflowDefinition
 import wom.executable.Executable
-import wom.expression.ValueAsAnExpression
+import wom.expression.{IoFunctionSet, ValueAsAnExpression}
 import wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 import wom.graph._
 import wom.types.{WomOptionalType, WomType}
@@ -35,8 +35,8 @@ case class Workflow private(
   steps.foreach { _.parentWorkflow = this }
 
   /** Builds an `Executable` from a `Workflow` CWL with no parent `Workflow` */
-  def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None): Checked[Executable] = {
-    CwlExecutableValidation.buildWomExecutableCallable(womDefinition(validator, Vector.empty), inputFile)
+  def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None, ioFunctions: IoFunctionSet): Checked[Executable] = {
+    CwlExecutableValidation.buildWomExecutableCallable(womDefinition(validator, Vector.empty), inputFile, ioFunctions)
   }
 
   // Circe can't create bidirectional links between workflow steps and runs (including `Workflow`s) so this

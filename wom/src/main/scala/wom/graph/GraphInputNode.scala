@@ -1,5 +1,6 @@
 package wom.graph
 
+import wom.callable.Callable
 import wom.callable.Callable.InputDefinition.InputValueMapper
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.GraphNodeOutputPort
@@ -52,19 +53,19 @@ sealed trait ExternalGraphInputNode extends GraphInputNode {
 final case class RequiredGraphInputNode(override val identifier: WomIdentifier,
                                         womType: WomType,
                                         nameInInputSet: String,
-                                        valueMapper: InputValueMapper) extends ExternalGraphInputNode
+                                        valueMapper: InputValueMapper = Callable.InputDefinition.IdentityValueMapper) extends ExternalGraphInputNode
 
 final case class OptionalGraphInputNode(override val identifier: WomIdentifier,
                                         womType: WomOptionalType,
                                         nameInInputSet: String,
-                                        valueMapper: InputValueMapper) extends ExternalGraphInputNode
+                                        valueMapper: InputValueMapper = Callable.InputDefinition.IdentityValueMapper) extends ExternalGraphInputNode
 
 // If we want to allow defaults to be "complex" expressions with dependencies we may need to make it an InstantiatedExpression here instead
 final case class OptionalGraphInputNodeWithDefault(override val identifier: WomIdentifier,
                                                    womType: WomType,
                                                    default: WomExpression,
                                                    nameInInputSet: String,
-                                                   valueMapper: InputValueMapper) extends ExternalGraphInputNode
+                                                   valueMapper: InputValueMapper = Callable.InputDefinition.IdentityValueMapper) extends ExternalGraphInputNode
 
 object OuterGraphInputNode {
   def apply(forIdentifier: WomIdentifier, linkToOuterGraph: GraphNodePort.OutputPort, preserveScatterIndex: Boolean): OuterGraphInputNode = {

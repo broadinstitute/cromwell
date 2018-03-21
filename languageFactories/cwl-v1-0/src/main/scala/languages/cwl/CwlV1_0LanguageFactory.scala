@@ -15,12 +15,14 @@ import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import cwl.CwlDecoder
 import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.executable.WomBundle
+import wom.expression.IoFunctionSet
 
 class CwlV1_0LanguageFactory() extends LanguageFactory {
   override def validateNamespace(source: WorkflowSourceFilesCollection,
                                  workflowOptions: WorkflowOptions,
                                  importLocalFilesystem: Boolean,
-                                 workflowIdForLogging: WorkflowId): Parse[ValidatedWomNamespace] = {
+                                 workflowIdForLogging: WorkflowId,
+                                 ioFunctions: IoFunctionSet): Parse[ValidatedWomNamespace] = {
     // TODO WOM: CwlDecoder takes a file so write it to disk for now
 
     def writeCwlFileToNewTempDir(): Parse[File] = {
@@ -47,7 +49,7 @@ class CwlV1_0LanguageFactory() extends LanguageFactory {
       cwlFile <- writeCwlFileToNewTempDir()
       _ <- unzipDependencies(cwlFile)
       cwl <- CwlDecoder.decodeCwlFile(cwlFile, source.workflowRoot)
-      executable <- fromEither[IO](cwl.womExecutable(AcceptAllRequirements, Option(source.inputsJson)))
+      executable <- fromEither[IO](cwl.womExecutable(AcceptAllRequirements, Option(source.inputsJson), ioFunctions))
       validatedWomNamespace <- fromEither[IO](LanguageFactoryUtil.validateWomNamespace(executable))
       _ <- CwlDecoder.todoDeleteCwlFileParentDirectory(cwlFile.parent)
     } yield validatedWomNamespace
@@ -56,6 +58,6 @@ class CwlV1_0LanguageFactory() extends LanguageFactory {
   override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver], languageFactories: List[LanguageFactory]): Checked[WomBundle] =
     "No getWomBundle method implemented in CWL v1".invalidNelCheck
 
-  override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson): Checked[ValidatedWomNamespace] =
+  override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] =
     "No createExecutable method implemented in CWL v1".invalidNelCheck
 }

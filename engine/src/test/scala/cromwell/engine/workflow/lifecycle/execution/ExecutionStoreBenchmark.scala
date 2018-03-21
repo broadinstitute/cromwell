@@ -12,6 +12,7 @@ import spray.json.DefaultJsonProtocol
 import wdl.draft2.model.WdlNamespaceWithWorkflow
 import wom.graph.{CommandCallNode, ScatterNode}
 import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomExecutableMakers._
+import wom.expression.NoIoFunctionSet
 import wom.transforms.WomExecutableMaker.ops._
 
 /**
@@ -31,7 +32,7 @@ object ExecutionStoreBenchmark extends Bench[Double] with DefaultJsonProtocol {
   
   val inputJson = Option(SampleWdl.PrepareScatterGatherWdl().rawInputs.toJson.compactPrint)
   val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.PrepareScatterGatherWdl().workflowSource(), Seq.empty).get
-  val graph = namespace.toWomExecutable(inputJson).getOrElse(throw new Exception("Failed to build womExecutable")).graph
+  val graph = namespace.toWomExecutable(inputJson, NoIoFunctionSet).getOrElse(throw new Exception("Failed to build womExecutable")).graph
   val prepareCall: CommandCallNode = graph.calls.find(_.localName == "do_prepare").get.asInstanceOf[CommandCallNode]
   val scatterCall: CommandCallNode = graph.allNodes.find(_.localName == "do_scatter").get.asInstanceOf[CommandCallNode]
   val scatter: ScatterNode = graph.scatters.head

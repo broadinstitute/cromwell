@@ -9,6 +9,7 @@ import wom.callable.WorkflowDefinition
 import wom.core.WorkflowJson
 import wom.executable.{Executable, WomBundle}
 import wom.executable.Executable.{InputParsingFunction, ParsedInputMap}
+import wom.expression.IoFunctionSet
 import wom.types.WomType
 
 import scala.util.Try
@@ -27,7 +28,7 @@ object WdlSharedInputParsing {
     }
   }
 
-  def buildWomExecutable(bundle: WomBundle, inputs: Option[WorkflowJson]): Checked[Executable] = {
+  def buildWomExecutable(bundle: WomBundle, inputs: Option[WorkflowJson], ioFunctions: IoFunctionSet): Checked[Executable] = {
 
     val workflows: Set[WorkflowDefinition] = bundle.callables.filterByType[WorkflowDefinition]
     val executableWorkflowCheck = if (workflows.size == 1) {
@@ -38,7 +39,7 @@ object WdlSharedInputParsing {
 
     for {
       executableWorkflow <- executableWorkflowCheck
-      executable <- Executable.withInputs(executableWorkflow, inputCoercionFunction, inputs)
+      executable <- Executable.withInputs(executableWorkflow, inputCoercionFunction, inputs, ioFunctions)
     } yield executable
   }
 }

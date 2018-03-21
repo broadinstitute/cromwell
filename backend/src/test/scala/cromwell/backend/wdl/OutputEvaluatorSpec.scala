@@ -1,12 +1,13 @@
 package cromwell.backend.wdl
 
+import akka.testkit._
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
+import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.wdl.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey}
 import cromwell.core.CallOutputs
 import cromwell.util.WomMocks
-import common.validation.ErrorOr.ErrorOr
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import wom.callable.Callable.{InputDefinition, OutputDefinition, RequiredInputDefinition}
@@ -20,6 +21,8 @@ import scala.concurrent.duration._
 
 class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
   behavior of "OutputEvaluator"
+
+  val FutureTimeout = 20.seconds
   
   // Depends on an input
   def o1Expression = new WomExpression {
@@ -101,7 +104,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     val key = BackendJobDescriptorKey(call, None, 1)
     val jobDescriptor = BackendJobDescriptor(null, key, null, mockInputs, null, null)
     
-    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet)(scala.concurrent.ExecutionContext.global), 2.seconds) match {
+    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet)(scala.concurrent.ExecutionContext.global), FutureTimeout) match {
       case ValidJobOutputs(outputs) => outputs shouldBe CallOutputs(Map(
         jobDescriptor.taskCall.outputPorts.find(_.name == "o1").get -> WomInteger(5),
         jobDescriptor.taskCall.outputPorts.find(_.name == "o2").get -> WomInteger(5)
@@ -121,7 +124,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     val key = BackendJobDescriptorKey(call, None, 1)
     val jobDescriptor = BackendJobDescriptor(null, key, null, mockInputs, null, null)
 
-    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet)(scala.concurrent.ExecutionContext.global), 2.seconds) match {
+    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet)(scala.concurrent.ExecutionContext.global), FutureTimeout) match {
       case InvalidJobOutputs(errors) => errors shouldBe NonEmptyList.of(
         "Bad output 'invalid1': Invalid expression 1", "Bad output 'invalid2': Invalid expression 2"
       )
@@ -139,7 +142,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     val key = BackendJobDescriptorKey(call, None, 1)
     val jobDescriptor = BackendJobDescriptor(null, key, null, mockInputs, null, null)
 
-    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet)(scala.concurrent.ExecutionContext.global), 2.seconds) match {
+    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet)(scala.concurrent.ExecutionContext.global), FutureTimeout) match {
       case JobOutputsEvaluationException(e) => e shouldBe exception
       case _ => fail("Output evaluation should have failed")
     }

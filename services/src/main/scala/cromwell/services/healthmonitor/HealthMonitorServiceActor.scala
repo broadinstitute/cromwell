@@ -49,19 +49,23 @@ trait HealthMonitorServiceActor extends Actor with LazyLogging with Timers {
     subsystems.map((_, CachedSubsystemStatus(UnknownStatus, now))).toMap
   }
 
-  subsystems foreach { s => self ! Check(s, failureRetryCount) }
+  private[healthmonitor] def initialize(): Unit = {
+    subsystems foreach { s => self ! Check(s, failureRetryCount) }
+  }
 
   private def check(subsystem: MonitoredSubsystem, after: FiniteDuration, withRetriesLeft: Int): Unit = {
     timers.startSingleTimer(UUID.randomUUID(), Check(subsystem, withRetriesLeft), after)
   }
 
-  private def scheduleFailedRetryCheck(subsystem: MonitoredSubsystem, retriesLeft: Int): Unit = {
+  private[healthmonitor] def scheduleFailedRetryCheck(subsystem: MonitoredSubsystem, retriesLeft: Int): Unit = {
     check(subsystem, after = failureRetryInterval, withRetriesLeft = retriesLeft - 1)
   }
 
   private[healthmonitor] def scheduleSweepCheck(subsystem: MonitoredSubsystem): Unit = {
     check(subsystem, after = sweepInterval, withRetriesLeft = failureRetryCount)
   }
+
+  initialize()
 
   override def receive: Receive = {
     case Check(subsystem, retriesLeft) =>
@@ -124,8 +128,6 @@ object HealthMonitorServiceActor {
   val DefaultSweepTime: FiniteDuration = 5 minutes
   val DefaultFailureRetryCount: Int = 3
   val DefaultFailureRetryInterval: FiniteDuration = 30 seconds
-
-  private case object CheckTickKey
 
   val OkStatus = SubsystemStatus(true, None)
   val UnknownStatus = SubsystemStatus(false, Option(List("Unknown status")))

@@ -1,13 +1,12 @@
 package cromwell.services
 
 import akka.actor.ActorSystem
-import akka.testkit.TestKit
+import akka.testkit._
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.time.{Millis, Seconds, Span}
+import org.scalatest.time.{Millis, Minute, Span}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-import akka.testkit._
 
 import scala.concurrent.duration._
 
@@ -74,7 +73,7 @@ abstract class ServicesSpec(serviceName: String) extends TestKit(ActorSystem(s"$
 
   implicit val timeout = Timeout(20.seconds.dilated)
   implicit val ec = system.dispatcher
-  implicit val defaultPatience = PatienceConfig(timeout = Span(20, Seconds), interval = Span(100, Millis))
+  implicit val defaultPatience = PatienceConfig(timeout = Span(1, Minute), interval = Span(100, Millis))
 
   override protected def afterAll() = {
     TestKit.shutdownActorSystem(system)

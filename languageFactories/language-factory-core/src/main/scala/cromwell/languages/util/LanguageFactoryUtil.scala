@@ -25,11 +25,7 @@ object LanguageFactoryUtil {
       DefaultPathBuilder.createTempFile("", ".zip", parentPath).writeByteArray(zipContents)(OpenOptions.default)
     }
 
-    def unZipFile(f: Path) = Try {
-      val unzippedFile = f.unzipTo(parentPath)
-      val unzippedFileContents = unzippedFile.list.toSeq.head
-      if (unzippedFileContents.isDirectory) unzippedFileContents else unzippedFile
-    }
+    def unZipFile(f: Path) = Try(f.unzipTo(parentPath))
 
     val importsFile = for {
       zipFile <- makeZipFile

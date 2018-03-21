@@ -67,7 +67,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     WorkflowExecutionPendingState,
     WorkflowExecutionActorData(workflowDescriptor, ioEc, new AsyncIo(params.ioActor, GcsBatchCommandBuilder))
   )
-  
+
   private def sendHeartBeat(): Unit = timers.startSingleTimer(ExecutionHeartBeatKey, ExecutionHeartBeat, ExecutionHeartBeatInterval)
 
   when(WorkflowExecutionPendingState) {
@@ -305,7 +305,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
     val workflowOutputValuesValidation = workflowOutputNodes
       // Try to find a value for each port in the value store
-      .map(outputNode => 
+      .map(outputNode =>
       outputNode -> data.valueStore.get(outputNode.graphOutputPort, None)
     )
       .toList.traverse[ErrorOr, (GraphOutputNode, WomValue)]({
@@ -415,12 +415,12 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   private def startRunnableNodes(data: WorkflowExecutionActorData): WorkflowExecutionActorData = {
     import keys._
 
-    val DataStoreUpdate(runnableKeys, updatedData) = data.executionStoreUpdate
+    val DataStoreUpdate(runnableKeys, statusChanges, updatedData) = data.executionStoreUpdate
     val runnableCalls = runnableKeys.view
       .collect({ case k: BackendJobDescriptorKey => k })
       .groupBy(_.node)
       .map({
-        case (node, keys) => 
+        case (node, keys) =>
           val tag = node.fullyQualifiedName
           val shardCount = keys.map(_.index).distinct.size
           if (shardCount == 1) tag
@@ -428,6 +428,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       })
     val mode = if (restarting) "Restarting" else "Starting"
     if (runnableCalls.nonEmpty) workflowLogger.info(s"$mode " + runnableCalls.mkString(", "))
+
+    statusChanges.collect({
+      case (jobKey, WaitingForQueueSpace) => pushWaitingForQueueSpaceCallMetadata(jobKey)
+    })
 
     val diffValidation = runnableKeys.traverse[ErrorOr, WorkflowExecutionDiff]({
       case key: BackendJobDescriptorKey => processRunnableJob(key, data)
@@ -449,10 +453,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     )
   }
 
-   /*
-    * If this ExpressionKey has a TaskCallInputExpressionNode that feeds a task call input, use the backend IoFunctionSet
-    * instead of the engine's IoFunctionSet to properly handle `writeFile` or `readFile` invocations.
-    */
+  /*
+   * If this ExpressionKey has a TaskCallInputExpressionNode that feeds a task call input, use the backend IoFunctionSet
+   * instead of the engine's IoFunctionSet to properly handle `writeFile` or `readFile` invocations.
+   */
   private def processRunnableTaskCallInputExpression(key: ExpressionKey,
                                                      data: WorkflowExecutionActorData,
                                                      expressionNode: TaskCallInputExpressionNode): ErrorOr[WorkflowExecutionDiff] = {
@@ -541,7 +545,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       backendName,
       workflowDescriptor.callCachingMode,
       command
-     )
+    )
 
     val ejeaRef = context.actorOf(ejeaProps, ejeaName)
     context watch ejeaRef

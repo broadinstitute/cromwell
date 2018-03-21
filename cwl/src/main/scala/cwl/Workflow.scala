@@ -90,17 +90,18 @@ case class Workflow private(
       val womType: WomType = womTypeForInputParameter(wip).get
       val parsedInputId = FileAndId(wip.id).id
       val womId = WomIdentifier(parsedInputId, wip.id)
+      val valueMapper = InputParameter.inputValueMapper(wip, wip.`type`.get, expressionLib)
 
       def optionalWithDefault(memberType: WomType): OptionalGraphInputNodeWithDefault = {
         val defaultValue = wip.default.get.fold(InputParameter.DefaultToWomValuePoly).apply(womType).toTry.get
-        OptionalGraphInputNodeWithDefault(womId, memberType, ValueAsAnExpression(defaultValue), parsedInputId)
+        OptionalGraphInputNodeWithDefault(womId, memberType, ValueAsAnExpression(defaultValue), parsedInputId, valueMapper)
       }
 
       womType match {
         case WomOptionalType(memberType) if wip.default.isDefined => optionalWithDefault(memberType)
         case _ if wip.default.isDefined => optionalWithDefault(womType)
-        case optional @ WomOptionalType(_) => OptionalGraphInputNode(womId, optional, parsedInputId)
-        case _ => RequiredGraphInputNode(womId, womType, parsedInputId)
+        case optional @ WomOptionalType(_) => OptionalGraphInputNode(womId, optional, parsedInputId, valueMapper)
+        case _ => RequiredGraphInputNode(womId, womType, parsedInputId, valueMapper)
       }
     }.toSet
 

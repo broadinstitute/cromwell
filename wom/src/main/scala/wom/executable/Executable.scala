@@ -7,6 +7,7 @@ import shapeless.Coproduct
 import wom.callable.ExecutableCallable
 import wom.executable.Executable.ResolvedExecutableInputs
 import wom.executable.ExecutableValidation._
+import wom.expression.NoIoFunctionSet
 import wom.graph.Graph.ResolvedExecutableInput
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
@@ -42,7 +43,11 @@ object Executable {
     */
   private def parseGraphInputs(graph: Graph, inputCoercionMap: Map[String, DelayedCoercionFunction]): ErrorOr[ResolvedExecutableInputs] = {
     def fromInputMapping(gin: ExternalGraphInputNode): Option[ErrorOr[ResolvedExecutableInput]] = {
-      inputCoercionMap.get(gin.nameInInputSet).map(_(gin.womType).map(Coproduct[ResolvedExecutableInput](_)))
+      inputCoercionMap
+        .get(gin.nameInInputSet)
+        .map(_(gin.womType)
+        .map(gin.valueMapper(NoIoFunctionSet)(_))
+        .map(Coproduct[ResolvedExecutableInput](_)))
     }
 
     def fallBack(gin: ExternalGraphInputNode): ErrorOr[ResolvedExecutableInput] = gin match {

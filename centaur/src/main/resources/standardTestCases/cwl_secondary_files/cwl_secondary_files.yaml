@@ -11,3 +11,7 @@ fs:
     path: "centaur/src/main/resources/standardTestCases/cwl_secondary_files/bar.txt"
   - class: File
     path: "centaur/src/main/resources/standardTestCases/cwl_secondary_files/baz.txt"
+fr:
+  a:
+    class: File
+    path: "centaur/src/main/resources/standardTestCases/cwl_secondary_files/bam.txt"

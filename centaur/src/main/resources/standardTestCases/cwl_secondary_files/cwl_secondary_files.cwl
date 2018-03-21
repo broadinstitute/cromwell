@@ -25,6 +25,15 @@ $graph:
         inputBinding:
           position: 4
       secondaryFiles: [.also]
+    - id: fr
+      secondaryFiles: [.also]
+      type:
+        type: record
+        fields:
+          - name: a
+            type: File
+            inputBinding:
+              position: 5
   outputs:
     the_answer:
       type: string

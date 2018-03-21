@@ -6,10 +6,11 @@ workflowRoot: cwl_input_binding_expression
 
 files {
   wdl: cwl_input_binding_expression/cwl_input_binding_expression.cwl
+  inputs: cwl_input_binding_expression/cwl_input_binding_expression.json
 }
 
 metadata {
   "submittedFiles.workflowType": CWL
   "submittedFiles.workflowTypeVersion": v1.0
-  "outputs.b.letters": "hello world"
+  "outputs.cwl_input_binding_expression.b": "hello world"
 }

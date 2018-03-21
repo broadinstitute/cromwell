@@ -1,6 +1,6 @@
 package cromwell.backend.impl.spark
 
-import wdl.draft2.model.ImportResolver
+import wdl.draft2.model.Draft2ImportResolver
 import cromwell.backend.{BackendWorkflowDescriptor, MemorySize}
 import wom.RuntimeAttributesKeys._
 import cromwell.core.labels.Labels
@@ -129,7 +129,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
                                       inputs: Map[OutputPort, WomValue] = Map.empty,
                                       options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
                                       runtime: String) = {
-    val wdlNamespace = WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime), Seq.empty[ImportResolver]).get
+    val wdlNamespace = WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime), Seq.empty[Draft2ImportResolver]).get
 
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),

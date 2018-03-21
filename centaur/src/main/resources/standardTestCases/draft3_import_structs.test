@@ -1,0 +1,18 @@
+name: draft3_import_structs
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: draft-3
+
+files {
+  wdl: wdl_draft3/import_structs/import_structs.wdl
+  imports: [
+    wdl_draft3/import_structs/structs.wdl
+  ]
+}
+
+metadata {
+  workflowName: import_structs
+  status: Succeeded
+  "outputs.import_structs.b_out.a.i": 5
+  "outputs.import_structs.b_out.a.f": 5.5
+}

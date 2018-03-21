@@ -16,8 +16,8 @@ object AstToScatterElement {
     val bodyValidation: ErrorOr[Vector[WorkflowGraphElement]] = ast.getAttributeAsVector[WorkflowGraphElement]("body").toValidated
 
     (scatterVariableValidation, scatterCollectionExpressionValidation, bodyValidation) mapN { (variable, collection, body) =>
-      val scatterName = s"ScatterAt${variable.line}_${variable.col}"
-      ScatterElement(scatterName, collection, variable.source_string, body)
+      val scatterName = s"ScatterAt${variable.getLine}_${variable.getColumn}"
+      ScatterElement(scatterName, collection, variable.getSourceString, body)
     }
   }
 }

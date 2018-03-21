@@ -12,7 +12,7 @@ package object model {
   type FullyQualifiedName = String
   type LocallyQualifiedName = String
   type EvaluatedTaskInputs = Map[Declaration, WomValue]
-  type ImportResolver = String => WorkflowSource
+  type Draft2ImportResolver = String => WorkflowSource
   type OutputResolver = (WdlGraphNode, Option[Int]) => Try[WomValue]
 
   val NoOutputResolver: OutputResolver = (node: WdlGraphNode, i: Option[Int]) => Failure(OutputVariableLookupException(node, i))

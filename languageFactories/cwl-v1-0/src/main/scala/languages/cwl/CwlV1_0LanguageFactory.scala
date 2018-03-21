@@ -9,13 +9,12 @@ import common.validation.Checked._
 import common.validation.Parse.{Parse, errorOrParse, goParse, tryParse}
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip}
+import cromwell.languages.LanguageFactory.ImportResolver
 import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import cwl.CwlDecoder
 import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.executable.WomBundle
-
-import scala.concurrent.Future
 
 class CwlV1_0LanguageFactory() extends LanguageFactory {
   override def validateNamespace(source: WorkflowSourceFilesCollection,
@@ -54,7 +53,7 @@ class CwlV1_0LanguageFactory() extends LanguageFactory {
     } yield validatedWomNamespace
   }
 
-  override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[String => Future[Checked[WomBundle]]]): Checked[WomBundle] =
+  override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver], languageFactories: List[LanguageFactory]): Checked[WomBundle] =
     "No getWomBundle method implemented in CWL v1".invalidNelCheck
 
   override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson): Checked[ValidatedWomNamespace] =

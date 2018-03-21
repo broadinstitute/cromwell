@@ -3,7 +3,7 @@ package cromwell
 import cromwell.util.SampleWdl
 import org.scalatest.{Matchers, WordSpecLike}
 import wdl.draft2.model.WdlNamespaceWithWorkflow
-import wdl.draft2.model.{FullyQualifiedName, ImportResolver}
+import wdl.draft2.model.{FullyQualifiedName, Draft2ImportResolver}
 import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
 import wom.types.{WomOptionalType, WomSingleFileType, WomStringType}
 
@@ -21,7 +21,7 @@ class DeclarationWorkflowSpec extends Matchers with WordSpecLike {
       /*
        * WARNING: be aware that `workflow.inputs` is used by projects external to Cromwell (eg FC's input enumerator).
        */
-      val actualInputs = WdlNamespaceWithWorkflow.load(SampleWdl.DeclarationsWorkflow.workflowSource(), Seq.empty[ImportResolver]).get.workflow.inputs
+      val actualInputs = WdlNamespaceWithWorkflow.load(SampleWdl.DeclarationsWorkflow.workflowSource(), Seq.empty[Draft2ImportResolver]).get.workflow.inputs
 
       actualInputs foreach {
         case (inputName: FullyQualifiedName, actualRequiredInputDefinition: RequiredInputDefinition) =>

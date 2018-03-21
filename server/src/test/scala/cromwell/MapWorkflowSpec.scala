@@ -3,7 +3,7 @@ package cromwell
 import akka.testkit._
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.SampleWdl
-import wdl.draft2.model.ImportResolver
+import wdl.draft2.model.Draft2ImportResolver
 import wdl.draft2.model.WdlNamespaceWithWorkflow
 import wdl.draft2.model.expression.{NoFunctions, WdlFunctions}
 import wom.types._
@@ -14,7 +14,7 @@ import scala.util.{Success, Try}
 class MapWorkflowSpec extends CromwellTestKitWordSpec {
   private val pwd = DefaultPathBuilder.get(".")
   private val sampleWdl = SampleWdl.MapLiteral(pwd)
-  val ns = WdlNamespaceWithWorkflow.load(sampleWdl.workflowSource(), Seq.empty[ImportResolver]).get
+  val ns = WdlNamespaceWithWorkflow.load(sampleWdl.workflowSource(), Seq.empty[Draft2ImportResolver]).get
   val expectedMap = WomMap(WomMapType(WomSingleFileType, WomStringType), Map(
     WomSingleFile("f1") -> WomString("alice"),
     WomSingleFile("f2") -> WomString("bob"),

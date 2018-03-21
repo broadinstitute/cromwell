@@ -13,6 +13,7 @@ import common.validation.Checked._
 import common.validation.ErrorOr.{ErrorOr, _}
 import common.validation.Parse.Parse
 import cromwell.core._
+import cromwell.languages.LanguageFactory.ImportResolver
 import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
@@ -104,7 +105,7 @@ class WdlDraft2LanguageFactory() extends LanguageFactory {
     }
   }
 
-  override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[String => Future[Checked[WomBundle]]]): Checked[WomBundle] =
+  override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver], languageFactories: List[LanguageFactory]): Checked[WomBundle] =
     "getWomBundle method not implemented in WDL draft 2".invalidNelCheck
 
   override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson): Checked[ValidatedWomNamespace] =

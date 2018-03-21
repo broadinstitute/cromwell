@@ -5,7 +5,6 @@ import wom.executable.{Executable, WomBundle}
 import simulacrum._
 import wom.core.WorkflowJson
 
-import scala.concurrent.Future
 import scala.language.implicitConversions
 
 @typeclass
@@ -15,6 +14,5 @@ trait WomExecutableMaker[A] {
 
 @typeclass
 trait WomBundleMaker[A] {
-  def toWomBundle(a: A, importResolvers: List[String => Future[Checked[WomBundle]]]): Checked[WomBundle]
+  def toWomBundle(a: A): Checked[WomBundle]
 }
-

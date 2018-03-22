@@ -74,6 +74,7 @@ object Settings {
     "-Ywarn-unused:locals",
     "-Ycache-macro-class-loader:last-modified",
     "-Ycache-plugin-class-loader:last-modified",
+    "-Ybackend-parallelism", "3",
     "-Ywarn-unused:patvars"
   )
 

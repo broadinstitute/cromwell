@@ -21,7 +21,7 @@ object LookupEvaluators {
                                ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
       inputs.get(a.identifier) match {
         case Some(value) => value.validNel
-        case None => s"No suitable input for identifier lookup '${a.identifier}' amongst {${inputs.keys.mkString(", ")}}".invalidNel
+        case None => s"ValueEvaluator[IdentifierLookup]: No suitable input for '${a.identifier}' amongst {${inputs.keys.mkString(", ")}}".invalidNel
       }
     }
   }

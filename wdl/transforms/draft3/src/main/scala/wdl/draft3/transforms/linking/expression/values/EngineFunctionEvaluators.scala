@@ -127,7 +127,18 @@ object EngineFunctionEvaluators {
   }
 
   implicit val selectFirstFunctionEvaluator: ValueEvaluator[SelectFirst] = new ValueEvaluator[SelectFirst] {
-    override def evaluateValue(a: SelectFirst, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
+    override def evaluateValue(a: SelectFirst, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
+      processValidatedSingleValue[WomArray](a.param.evaluateValue(inputs, ioFunctionSet)) { array =>
+        val firstValue = array.value collectFirst {
+          case WomOptionalValue(_, Some(yay)) => yay
+        }
+
+        firstValue match {
+          case Some(first) => first.validNel
+          case None => s"select_first was called with ${array.size} empty values. We needed at least one to be filled.".invalidNel
+        }
+      } (coercer = WomArrayType(WomOptionalType(WomAnyType)))
+    }
   }
 
   implicit val selectAllFunctionEvaluator: ValueEvaluator[SelectAll] = new ValueEvaluator[SelectAll] {

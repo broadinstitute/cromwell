@@ -32,13 +32,16 @@ package cromwell.cloudsupport.aws.auth
 
 import java.io.{ByteArrayInputStream, FileNotFoundException}
 
-import com.amazonaws.{AmazonClientException, AmazonServiceException}
-import com.amazonaws.auth.{BasicAWSCredentials, AnonymousAWSCredentials,
-                           AWSCredentials, AWSStaticCredentialsProvider,
-                           DefaultAWSCredentialsProviderChain, BasicSessionCredentials}
-import com.amazonaws.regions.{Region, Regions}
-import com.amazonaws.services.securitytoken.{AWSSecurityTokenService, AWSSecurityTokenServiceClientBuilder}
-import com.amazonaws.services.securitytoken.model.{GetCallerIdentityRequest, GetCallerIdentityResult, AssumeRoleRequest}
+import software.amazon.awssdk.core.auth.{AwsCredentials,
+                                         AwsSessionCredentials,
+                                         AnonymousCredentialsProvider,
+                                         DefaultCredentialsProvider,
+                                         StaticCredentialsProvider}
+import software.amazon.awssdk.core.regions.Region
+import software.amazon.awssdk.services.sts.{STSClient}
+import software.amazon.awssdk.services.sts.model.{GetCallerIdentityRequest,
+                                                  GetCallerIdentityResponse,
+                                                  AssumeRoleRequest}
 
 import cromwell.cloudsupport.aws.auth.AwsAuthMode.OptionLookup
 
@@ -63,7 +66,7 @@ sealed trait AwsAuthMode {
 
   def name: String
 
-  def credential(options: OptionLookup): AWSCredentials
+  def credential(options: OptionLookup): AwsCredentials
 
   /**
     * Enables swapping out credential validation for various testing purposes ONLY.
@@ -71,18 +74,18 @@ sealed trait AwsAuthMode {
     * All traits in this file are sealed, all classes final, meaning things
     * like Mockito or other java/scala overrides cannot work.
     */
-   private[auth] var credentialValidation: ((AWSCredentials, String) => Unit) =
-     (credentials: AWSCredentials, region: String) => {
-       AWSSecurityTokenServiceClientBuilder
-          .standard
-          .withCredentials(new AWSStaticCredentialsProvider(credentials))
-          .withRegion(region)
+   private[auth] var credentialValidation: ((AwsCredentials, String) => Unit) =
+     (credentials: AwsCredentials, region: String) => {
+       STSClient
+          .builder
+          .region(Region.of(region))
+          .credentialsProvider(StaticCredentialsProvider.create(credentials))
           .build
-          .getCallerIdentity(new GetCallerIdentityRequest())
+          .getCallerIdentity(GetCallerIdentityRequest.builder.build)
        ()
      }
 
-  protected def validateCredential(credential: AWSCredentials, region: String) = {
+  protected def validateCredential(credential: AwsCredentials, region: String) = {
     Try(credentialValidation(credential, region)) match {
       case Failure(ex) => throw new RuntimeException(s"Credentials are invalid: ${ex.getMessage}", ex)
       case Success(_) => credential
@@ -93,9 +96,9 @@ sealed trait AwsAuthMode {
 case object MockAuthMode extends AwsAuthMode {
   override val name = "no_auth"
 
-  val _credential = new AnonymousAWSCredentials
+  lazy val _credential = AnonymousCredentialsProvider.create.getCredentials
 
-  override def credential(options: OptionLookup): AWSCredentials = _credential
+  override def credential(options: OptionLookup): AwsCredentials = _credential
 }
 
 object CustomKeyMode
@@ -105,18 +108,18 @@ final case class CustomKeyMode(override val name: String,
                                     secretKey: String,
                                     region: String
                                     ) extends AwsAuthMode {
-  private lazy val _credential: AWSCredentials = {
+  private lazy val _credential: AwsCredentials = {
     // Validate credentials synchronously here, without retry.
     // It's very unlikely to fail as it should not happen more than a few times
     // (one for the engine and for each backend using it) per Cromwell instance.
-    validateCredential(new BasicAWSCredentials(accessKey, secretKey), region)
+    validateCredential(AwsCredentials.create(accessKey, secretKey), region)
   }
 
-  override def credential(options: OptionLookup): AWSCredentials = _credential
+  override def credential(options: OptionLookup): AwsCredentials = _credential
 }
 
 final case class DefaultMode(override val name: String, region: String) extends AwsAuthMode {
-  private lazy val _credential: AWSCredentials = {
+  private lazy val _credential: AwsCredentials = {
     //
     // The ProfileCredentialsProvider will return your [default]
     // credential profile by reading from the credentials file located at
@@ -126,10 +129,10 @@ final case class DefaultMode(override val name: String, region: String) extends 
     // Validate credentials synchronously here, without retry.
     // It's very unlikely to fail as it should not happen more than a few times
     // (one for the engine and for each backend using it) per Cromwell instance.
-    validateCredential(DefaultAWSCredentialsProviderChain.getInstance.getCredentials, region)
+    validateCredential(DefaultCredentialsProvider.create.getCredentials, region)
   }
 
-  override def credential(options: OptionLookup): AWSCredentials = _credential
+  override def credential(options: OptionLookup): AwsCredentials = _credential
 }
 
 
@@ -140,35 +143,37 @@ final case class AssumeRoleMode(override val name: String,
                           region: String
                           ) extends AwsAuthMode {
 
-  private lazy val _credential: AWSCredentials = {
-    val request = new AssumeRoleRequest()
-                    .withRoleSessionName("cromwell")
-                    .withRoleArn(roleArn)
-                    .withDurationSeconds(3600)
+  private lazy val _credential: AwsCredentials = {
+    val requestBuilder = AssumeRoleRequest
+                           .builder
+                           .roleSessionName("cromwell")
+                           .roleArn(roleArn)
+                           .durationSeconds(3600)
 
-    // The builder is simply mutating itself (ref:
-    // https://github.com/aws/aws-sdk-java/blob/4734de6fb0f80fe5768a6587aad3b9d0eaec388f/aws-java-sdk-core/src/main/java/com/amazonaws/client/builder/AwsClientBuilder.java#L395
+    // The builder is simply mutating itself (TODO: find good ref, as v2
+    // uses generated code)
     // So we can get away with a val and discard the return value
-    if (! externalId.isEmpty) request.withExternalId(externalId)
+    if (! externalId.isEmpty) requestBuilder.externalId(externalId)
+    val request = requestBuilder.build
 
-    val builder = AWSSecurityTokenServiceClientBuilder.standard.withRegion(region)
+    val builder = STSClient.builder.region(Region of region)
     // See comment above regarding builder
     baseAuthObj match{
-      case Some(auth) => builder.withCredentials(new AWSStaticCredentialsProvider(auth.credential(_ => "")))
+      case Some(auth) => builder.credentialsProvider(StaticCredentialsProvider.create(auth.credential(_ => "")))
       case _ => throw new RuntimeException(s"Base auth configuration required for assume role")
     }
 
-    val stsCredentials = builder.build.assumeRole(request).getCredentials
+    val stsCredentials = builder.build.assumeRole(request).credentials
 
-    val sessionCredentials = new BasicSessionCredentials(
-                               stsCredentials.getAccessKeyId,
-                               stsCredentials.getSecretAccessKey,
-                               stsCredentials.getSessionToken)
+    val sessionCredentials = AwsSessionCredentials.create(
+                               stsCredentials.accessKeyId,
+                               stsCredentials.secretAccessKey,
+                               stsCredentials.sessionToken)
 
-    validateCredential(new AWSStaticCredentialsProvider(sessionCredentials).getCredentials, region)
+    validateCredential(sessionCredentials, region)
   }
 
-  override def credential(options: OptionLookup): AWSCredentials = _credential
+  override def credential(options: OptionLookup): AwsCredentials = _credential
 
   private var baseAuthObj : Option[AwsAuthMode] = None
 

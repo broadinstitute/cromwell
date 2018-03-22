@@ -7,7 +7,9 @@ import common.transforms.CheckedAtoB
 import org.scalatest.{Assertion, FlatSpec, Matchers, Succeeded}
 import wdl.draft3.transforms.parsing._
 import wdl.draft3.transforms.ast2wdlom._
+import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.CommandPartElement.StringCommandPartElement
+import wdl.model.draft3.elements.ExpressionElement.StringLiteral
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
 import wom.executable.WomBundle
 import wom.types._
@@ -65,7 +67,8 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     "standalone_task" -> anyWomWillDo,
     "simple_task" -> validateTaskDefinitionWom,
     "lots_of_nesting" -> anyWomWillDo,
-    "taskless_engine_functions" -> anyWomWillDo
+    "taskless_engine_functions" -> anyWomWillDo,
+    "command_syntaxes" -> validateCommandSyntaxes
   )
 
   private def anyWomWillDo(b: WomBundle) = Succeeded
@@ -84,6 +87,24 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
   private def validateTaskDefinitionWom(b: WomBundle): Assertion = {
     val taskDef: CallableTaskDefinition = (b.callables.filterByType[CallableTaskDefinition]: Set[CallableTaskDefinition]).head
     taskDef.name shouldBe "simple"
-    taskDef.commandTemplate(Map.empty) shouldBe List(WdlomWomStringCommandPart(StringCommandPartElement(" echo Hello World ")))
+    taskDef.commandTemplate(Map.empty) shouldBe List(WdlomWomStringCommandPart(StringCommandPartElement("echo Hello World ")))
+  }
+
+  private def validateCommandSyntaxes(b: WomBundle) = {
+    b.callables.size should be(2)
+    b.callables.find { _.name == "a" } match {
+      case Some(taskA) =>
+        taskA.inputs.map(_.name).toSet should be(Set("rld", "world1", "world2"))
+        taskA.outputs.map(_.name).toSet should be(Set("out"))
+        taskA.asInstanceOf[CallableTaskDefinition].runtimeAttributes.attributes("docker").asInstanceOf[WdlomWomExpression].expressionElement should be(StringLiteral("ubuntu:latest"))
+      case None => fail("Expected a task called 'a'")
+    }
+    b.callables.find { _.name == "b" } match {
+      case Some(taskB) =>
+        taskB.inputs.map(_.name) should be(Seq("world"))
+        taskB.outputs.map(_.name) should be(Seq("out"))
+        taskB.asInstanceOf[CallableTaskDefinition].runtimeAttributes.attributes("docker").asInstanceOf[WdlomWomExpression].expressionElement should be(StringLiteral("ubuntu:latest"))
+      case None => fail("Expected a task called 'b'")
+    }
   }
 }

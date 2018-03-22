@@ -20,6 +20,7 @@ import wom.executable.WomBundle
 import wom.transforms.WomBundleMaker
 import wom.transforms.WomBundleMaker.ops._
 import wdl.draft3.transforms.wdlom2wom.StructEvaluation.StructEvaluationInputs
+import wdl.draft3.transforms.wdlom2wom.TaskDefinitionElementToWomTaskDefinition.TaskDefinitionElementToWomInputs
 import wom.core.{WorkflowOptionsJson, WorkflowSource}
 import wom.types.WomType
 
@@ -34,13 +35,13 @@ object FileElementToWomBundle {
 
       def toWorkflowInner(imports: Vector[WomBundle], tasks: Vector[TaskDefinitionElement], structs: Map[String, WomType]): ErrorOr[WomBundle] = {
         val workflowConverter: CheckedAtoB[WorkflowDefinitionConvertInputs, WorkflowDefinition] = workflowDefinitionElementToWomWorkflowDefinition
-        val taskConverter: CheckedAtoB[TaskDefinitionElement, TaskDefinition] = taskDefinitionElementToWomTaskDefinition
+        val taskConverter: CheckedAtoB[TaskDefinitionElementToWomInputs, TaskDefinition] = taskDefinitionElementToWomTaskDefinition
 
         val allStructs = structs ++ imports.flatMap(_.typeAliases)
 
         val taskDefs: ErrorOr[Set[TaskDefinition]] = {
           tasks.traverse[ErrorOr, TaskDefinition] { taskDefinition =>
-            taskConverter.run(taskDefinition).toValidated
+            taskConverter.run(TaskDefinitionElementToWomInputs(taskDefinition, structs)).toValidated
           }.map(_.toSet)
         }
 

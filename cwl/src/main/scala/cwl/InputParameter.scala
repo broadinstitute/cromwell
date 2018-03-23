@@ -1,5 +1,6 @@
 package cwl
 
+import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr._
@@ -8,7 +9,7 @@ import shapeless.Poly1
 import wom.callable.Callable.InputDefinition.InputValueMapper
 import wom.expression.IoFunctionSet
 import wom.types.{WomSingleFileType, WomType}
-import wom.values.{WomArray, WomMaybePopulatedFile, WomValue}
+import wom.values.{WomArray, WomMaybePopulatedFile, WomObject, WomObjectLike, WomOptionalValue, WomValue}
 
 trait InputParameter {
   def id: String
@@ -122,6 +123,19 @@ object InputParameter {
             } yield updated
 
           case WomArray(_, values) => values.toList.traverse(populateFiles).map(WomArray(_))
+          case WomOptionalValue(_, Some(innerValue)) => populateFiles(innerValue).map(WomOptionalValue(_))
+          case obj: WomObjectLike =>
+            // Map the values
+            obj.values.toList.traverse[ErrorOr, (String, WomValue)]({
+              case (key, value) => populateFiles(value).map(key -> _)
+            })
+              .map(_.toMap)
+              // transform to Either so we can flatMap
+              .toEither
+              // Validate new types are still valid w.r.t the object
+              .flatMap(WomObject.withTypeChecked(_, obj.womObjectTypeLike))
+              // re-transform to ErrorOr
+              .toValidated
           case womValue: WomValue =>
             womValue.valid
         }

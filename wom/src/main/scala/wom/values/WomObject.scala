@@ -1,5 +1,8 @@
 package wom.values
 
+import cats.data.{NonEmptyList, Validated}
+import common.Checked
+import common.validation.ErrorOr.ErrorOr
 import wom.TsvSerializable
 import wom.types._
 import wom.util.FileUtil
@@ -75,7 +78,15 @@ object WomObject {
   
   def withType(values: Map[String, Any], objectTypeLike: WomObjectTypeLike) = {
     import common.validation.Validation._
-    objectTypeLike.validateAndCoerceValues(values).map(new WomObject(_, objectTypeLike)).toTry.get
+    withTypeErrorOr(values, objectTypeLike).toTry.get
+  }
+
+  def withTypeErrorOr(values: Map[String, Any], objectTypeLike: WomObjectTypeLike): ErrorOr[WomObject] = {
+    objectTypeLike.validateAndCoerceValues(values).map(new WomObject(_, objectTypeLike))
+  }
+
+  def withTypeChecked(values: Map[String, Any], objectTypeLike: WomObjectTypeLike): Checked[WomObject] = {
+    withTypeErrorOr(values, objectTypeLike).toEither
   }
 
 }

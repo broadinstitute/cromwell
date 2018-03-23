@@ -22,8 +22,8 @@ case class CwlExpressionCommandPart(expr: Expression)(hasShellCommandRequirement
       case (LocalName(localName), value) => localName -> valueMapper(value)
     }
     val parameterContext = ParameterContext(
-        inputs = stringKeyMap, runtimeOption = Option(runtimeEnvironment)
-      )
+      inputs = stringKeyMap, runtimeOption = Option(runtimeEnvironment)
+    )
     ExpressionEvaluator.eval(expr, parameterContext, expressionLib) map { womValue =>
       List(InstantiatedCommand(valueMapper(womValue).valueString.shellQuote))
     }
@@ -35,7 +35,7 @@ case class CwlExpressionCommandPart(expr: Expression)(hasShellCommandRequirement
   */
 abstract class CommandLineBindingCommandPart(commandLineBinding: CommandLineBinding)(hasShellCommandRequirement: Boolean, expressionLib: ExpressionLib) extends CommandPart {
 
-  
+
   private lazy val prefixAsString = commandLineBinding.prefix.getOrElse("")
   private lazy val prefixAsList = commandLineBinding.prefix.toList
   private lazy val separate = commandLineBinding.effectiveSeparate
@@ -44,32 +44,52 @@ abstract class CommandLineBindingCommandPart(commandLineBinding: CommandLineBind
     if (separate) prefixAsList :+ value else List(s"$prefixAsString$value")
   }
 
+  /**
+    * Value bound to this command part.
+    * InputCommandLineBindingCommandPart has one
+    * ArgumentCommandLineBindingCommandPart does not
+    */
+  def boundValue: Option[WomValue]
+
+  // If the bound value is defined but contains an empty optional value, we should not evaluate the valueFrom
+  // Conformance test "stage-unprovided-file" tests this behavior
+  private lazy val evaluateValueFrom = boundValue.forall {
+    case WomOptionalValue(_, None) => false
+    case _ => true
+  }
+
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: (WomValue) => WomValue,
                            runtimeEnvironment: RuntimeEnvironment): ErrorOr[List[InstantiatedCommand]] = {
-      val stringInputsMap = inputsMap map {
-        case (LocalName(localName), value) => localName -> valueMapper(value)
-      }
-      val parameterContext = ParameterContext(inputs = stringInputsMap, runtimeOption = Option(runtimeEnvironment))
+    lazy val stringInputsMap = inputsMap map {
+      case (LocalName(localName), value) => localName -> valueMapper(value)
+    }
 
-    val evaluatedValueFrom = commandLineBinding.optionalValueFrom map {
-      case StringOrExpression.Expression(expression) => ExpressionEvaluator.eval(expression, parameterContext, expressionLib) map valueMapper
-      case StringOrExpression.String(string) => WomString(string).validNel
+    lazy val parameterContext = ParameterContext(
+      inputs = stringInputsMap,
+      runtimeOption = Option(runtimeEnvironment),
+      self = boundValue.getOrElse(ParameterContext.EmptySelf)
+    )
+
+    val evaluatedValueFrom = commandLineBinding.optionalValueFrom flatMap {
+      case StringOrExpression.Expression(expression) if evaluateValueFrom => Option(ExpressionEvaluator.eval(expression, parameterContext, expressionLib) map valueMapper)
+      case StringOrExpression.String(string) if evaluateValueFrom => Option(WomString(string).validNel)
+      case _ => None
     }
 
     val evaluatedWomValue: Checked[WomValue] = evaluatedValueFrom.orElse(boundValue.map(_.validNel)) match {
       case Some(womValue) => womValue.map(valueMapper).toEither
       case None => "Command line binding has no valueFrom field and no bound value".invalidNelCheck
     }
-    
+
     def applyShellQuote(value: String): String = commandLineBinding.shellQuote match {
       // Only honor shellQuote = false if ShellCommandRequirement is enabled.
       // Conformance test "Test that shell directives are not interpreted."
       case Some(false) if hasShellCommandRequirement => value
       case _ => value.shellQuote
     }
-    
+
     def processValue(womValue: WomValue): List[String] = womValue match {
       case WomOptionalValue(_, Some(value)) => processValue(valueMapper(value))
       case WomOptionalValue(_, None) => List.empty
@@ -105,8 +125,6 @@ abstract class CommandLineBindingCommandPart(commandLineBinding: CommandLineBind
 
     evaluatedWomValue map { v => processValue(v) map applyShellQuote map (InstantiatedCommand(_)) } toValidated
   }
-  
-  def boundValue: Option[WomValue]
 }
 
 case class InputCommandLineBindingCommandPart(commandLineBinding: InputCommandLineBinding, associatedValue: WomValue)

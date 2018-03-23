@@ -205,6 +205,7 @@ object Dependencies {
   )
 
   private val awsCloudDependencies = List(
+    "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonV,
     "software.amazon.awssdk" % "aws-sdk-java" % awsSdkV
   )
 

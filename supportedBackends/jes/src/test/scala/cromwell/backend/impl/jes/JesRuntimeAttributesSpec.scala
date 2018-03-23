@@ -3,13 +3,14 @@ package cromwell.backend.impl.jes
 import cats.data.NonEmptyList
 import cromwell.backend.impl.jes.io.{DiskType, JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
-import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
+import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.core.WorkflowOptions
 import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.helpers.NOPLogger
 import org.specs2.mock.Mockito
 import spray.json._
 import wdl4s.parser.MemoryUnit
+import wom.format.MemorySize
 import wom.types._
 import wom.values._
 

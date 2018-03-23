@@ -1,11 +1,12 @@
 package cromwell.backend.impl.tes
 
 import cromwell.backend.validation.ContinueOnReturnCodeSet
-import cromwell.backend.{BackendConfigurationDescriptor, MemorySize, RuntimeAttributeDefinition, TestConfig}
+import cromwell.backend.{BackendConfigurationDescriptor, RuntimeAttributeDefinition, TestConfig}
 import cromwell.core.WorkflowOptions
 import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.helpers.NOPLogger
 import spray.json._
+import wom.format.MemorySize
 import wom.types._
 import wom.values._
 

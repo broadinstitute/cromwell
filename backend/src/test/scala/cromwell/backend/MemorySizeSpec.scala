@@ -4,6 +4,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpec, Matchers, TryValues}
 import wdl4s.parser.MemoryUnit
+import wom.format.MemorySize
 
 class MemorySizeSpec extends FlatSpec with Matchers with TryValues {
   "MemorySize" should "stringify properly for integer values" in {

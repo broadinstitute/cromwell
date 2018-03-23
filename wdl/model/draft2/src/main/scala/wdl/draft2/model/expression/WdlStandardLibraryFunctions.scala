@@ -7,13 +7,15 @@ import common.util.TryUtil
 import spray.json._
 import wdl.draft2.model.expression.WdlStandardLibraryFunctions.{crossProduct => stdLibCrossProduct, _}
 import wdl.shared.transforms.evaluation.values.EngineFunctions
+import wdl4s.parser.MemoryUnit
 import wom.TsvSerializable
 import wom.expression.IoFunctionSet
+import wom.format.MemorySize
 import wom.types._
 import wom.values.WomArray.WomArrayLike
 import wom.values._
 
-import scala.concurrent.Await
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
 
@@ -330,7 +332,40 @@ object WdlStandardLibraryFunctions {
 
     override def globHelper(pattern: String): Seq[String] = Await.result(ioFunctionSet.glob(pattern), Duration.Inf)
 
-    override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Try(Await.result(ioFunctionSet.size(params), Duration.Inf))
+    override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = {
+        // Inner function: get the memory unit from the second (optional) parameter
+        def toUnit(womValue: Try[WomValue]) = womValue flatMap { unit => Try(MemoryUnit.fromSuffix(unit.valueString)) }
+
+        // Inner function: is this a file type, or an optional containing a file type?
+        def isOptionalOfFileType(womType: WomType): Boolean = womType match {
+          case f if WomSingleFileType.isCoerceableFrom(f) => true
+          case WomOptionalType(inner) => isOptionalOfFileType(inner)
+          case _ => false
+        }
+
+        // Inner function: Get the file size, allowing for unpacking of optionals
+        def optionalSafeFileSize(value: WomValue): Try[Long] = value match {
+          case f if f.isInstanceOf[WomSingleFile] || WomSingleFileType.isCoerceableFrom(f.womType) => Try(Await.result(ioFunctionSet.size(f.valueString), Duration.Inf))
+          case WomOptionalValue(_, Some(o)) => optionalSafeFileSize(o)
+          case WomOptionalValue(f, None) if isOptionalOfFileType(f) => Success(0l)
+          case _ => Failure(new Exception(s"The 'size' method expects a 'File' or 'File?' argument but instead got ${value.womType.toDisplayString}."))
+        }
+
+        // Inner function: get the file size and convert into the requested memory unit
+        def fileSize(womValue: Try[WomValue], convertTo: Try[MemoryUnit] = Success(MemoryUnit.Bytes)): Try[Double] = {
+          for {
+            value <- womValue
+            unit <- convertTo
+            fileSize <- optionalSafeFileSize(value)
+          } yield MemorySize(fileSize.toDouble, MemoryUnit.Bytes).to(unit).amount
+        }
+
+        params match {
+          case _ if params.length == 1 => fileSize(params.head) map WomFloat.apply
+          case _ if params.length == 2 => fileSize(params.head, toUnit(params.tail.head)) map WomFloat.apply
+          case _ => Failure(new UnsupportedOperationException(s"Expected one or two parameters but got ${params.length} instead."))
+        }
+    }
   }
 
   def crossProduct[A, B](as: Seq[A], bs: Seq[B]): Seq[(A, B)] = for {

@@ -1,5 +1,4 @@
-package cromwell.backend
-
+package wom.format
 
 import cats.data.Validated._
 import cats.syntax.apply._
@@ -7,11 +6,10 @@ import cats.syntax.either._
 import cats.syntax.validated._
 import common.validation.ErrorOr._
 import mouse.string._
-
-import scala.util.{Failure, Success, Try}
 import wdl4s.parser.MemoryUnit
 
 import scala.language.postfixOps
+import scala.util.{Failure, Success, Try}
 
 
 object MemorySize {

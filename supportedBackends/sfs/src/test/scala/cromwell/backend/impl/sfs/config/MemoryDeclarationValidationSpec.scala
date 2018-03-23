@@ -1,12 +1,12 @@
 package cromwell.backend.impl.sfs.config
 
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.MemorySize
 import cromwell.backend.impl.sfs.config.ConfigConstants.{MemoryRuntimeAttribute, _}
 import cromwell.backend.validation.ValidatedRuntimeAttributes
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.parser.MemoryUnit
+import wom.format.MemorySize
 import wom.values.{WomFloat, WomInteger}
 
 class MemoryDeclarationValidationSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {

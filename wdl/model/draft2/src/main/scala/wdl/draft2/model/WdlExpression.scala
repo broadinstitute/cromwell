@@ -27,7 +27,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.language.postfixOps
-import scala.util.Try
+import scala.util.{Failure, Try}
 
 case object NoLookup extends ScopedLookupFunction {
   def apply(value: String): WomValue =
@@ -233,7 +233,7 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope) ext
 
       override def globHelper(pattern: String): Seq[String] = Await.result(ioFunctionSet.glob(pattern), Duration.Inf)
 
-      override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Try(Await.result(ioFunctionSet.size(params), Duration.Inf))
+      override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new Exception("You shouldn't call 'size' from a FileEvaluator"))
     }
     wdlExpression.evaluateFiles(inputTypes.apply, wdlFunctions, coerceTo).toErrorOr.map(_.toSet[WomFile])
   }

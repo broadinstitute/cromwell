@@ -6,7 +6,8 @@ workflowTypeVersion: draft-3
 files {
   wdl: wdl_draft3/import_structs/import_structs.wdl
   imports: [
-    wdl_draft3/import_structs/structs.wdl
+    wdl_draft3/import_structs/structs.wdl,
+    wdl_draft3/import_structs/badly_named_struct.wdl
   ]
 }
 
@@ -15,4 +16,6 @@ metadata {
   status: Succeeded
   "outputs.import_structs.b_out.a.i": 5
   "outputs.import_structs.b_out.a.f": 5.5
+  "outputs.import_structs.sc_out": 5
+  "outputs.import_structs.sc2_out": "hi"
 }

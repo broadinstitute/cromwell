@@ -1,4 +1,5 @@
 package wdl.model.draft3.elements
 
 final case class ImportElement(importUrl: String,
-                         alias: Option[String]) extends LanguageElement
+                               namespace: Option[String],
+                               structRenames: Map[String, String]) extends LanguageElement

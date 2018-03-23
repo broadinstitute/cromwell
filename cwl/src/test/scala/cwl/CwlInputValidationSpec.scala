@@ -5,7 +5,7 @@ import cwl.CwlDecoder.decodeCwlFile
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import shapeless.Coproduct
-import wom.expression.WomExpression
+import wom.expression.{NoIoFunctionSet, WomExpression}
 import wom.graph.Graph.ResolvedExecutableInput
 import wom.graph.GraphNodePort
 import wom.types.{WomArrayType, WomStringType}
@@ -87,7 +87,7 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
   lazy val w10OutputPort = getOutputPort(10)
   
   def validate(inputFile: String): Map[GraphNodePort.OutputPort, ResolvedExecutableInput] = {
-    cwlWorkflow.womExecutable(AcceptAllRequirements, Option(inputFile)) match {
+    cwlWorkflow.womExecutable(AcceptAllRequirements, Option(inputFile), NoIoFunctionSet) match {
       case Left(errors) => fail(s"Failed to build a wom executable: ${errors.toList.mkString(", ")}")
       case Right(executable) => executable.resolvedExecutableInputs
     }
@@ -178,7 +178,7 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
         w2: hello !
       """.stripMargin
 
-    cwlWorkflow.womExecutable(AcceptAllRequirements, Option(inputFile)) match {
+    cwlWorkflow.womExecutable(AcceptAllRequirements, Option(inputFile), NoIoFunctionSet) match {
       case Right(booh) => fail(s"Expected failed validation but got valid input map: $booh")
       case Left(errors) => errors.toList.toSet shouldBe Set(
         "Required workflow input 'w1' not specified",

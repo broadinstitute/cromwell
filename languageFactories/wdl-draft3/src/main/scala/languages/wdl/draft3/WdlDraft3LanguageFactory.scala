@@ -27,6 +27,7 @@ import wdl.draft3.transforms.wdlom2wom._
 import wdl.draft3.transforms.wdlom2wom.WomBundleToWomExecutable._
 import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.executable.WomBundle
+import wom.expression.IoFunctionSet
 import wom.transforms.WomExecutableMaker.ops._
 
 import scala.util.Try
@@ -35,14 +36,15 @@ class WdlDraft3LanguageFactory() extends LanguageFactory {
   override def validateNamespace(source: WorkflowSourceFilesCollection,
                                     workflowOptions: WorkflowOptions,
                                     importLocalFilesystem: Boolean,
-                                    workflowIdForLogging: WorkflowId): Parse[ValidatedWomNamespace] = {
+                                    workflowIdForLogging: WorkflowId,
+                                    ioFunctions: IoFunctionSet): Parse[ValidatedWomNamespace] = {
 
     val factories: List[LanguageFactory] = List(this)
     val importResolvers: List[ImportResolver] = source.importsZipFileOption.map(zippedImportsResolver).toList
 
     val errorOr: Checked[ValidatedWomNamespace] = for {
       bundle <- getWomBundle(source.workflowSource, source.workflowOptionsJson, importResolvers, factories)
-      executable <- createExecutable(bundle, source.inputsJson)
+      executable <- createExecutable(bundle, source.inputsJson, ioFunctions)
     } yield executable
 
     fromEither[IO](errorOr)
@@ -53,9 +55,9 @@ class WdlDraft3LanguageFactory() extends LanguageFactory {
     converter.run(FileStringParserInput(workflowSource, "input.wdl"))
   }
 
-  override def createExecutable(womBundle: WomBundle, inputsJson: WorkflowJson): Checked[ValidatedWomNamespace] = {
+  override def createExecutable(womBundle: WomBundle, inputsJson: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = {
 
-    womBundle.toWomExecutable(Option(inputsJson)) flatMap { executable =>
+    womBundle.toWomExecutable(Option(inputsJson), ioFunctions) flatMap { executable =>
       LanguageFactoryUtil.validateWomNamespace(executable)
     }
   }

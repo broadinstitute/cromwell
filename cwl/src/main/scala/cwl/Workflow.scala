@@ -17,7 +17,7 @@ import shapeless._
 import shapeless.syntax.singleton._
 import wom.callable.WorkflowDefinition
 import wom.executable.Executable
-import wom.expression.ValueAsAnExpression
+import wom.expression.{IoFunctionSet, ValueAsAnExpression}
 import wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 import wom.graph._
 import wom.types.{WomOptionalType, WomType}
@@ -35,8 +35,8 @@ case class Workflow private(
   steps.foreach { _.parentWorkflow = this }
 
   /** Builds an `Executable` from a `Workflow` CWL with no parent `Workflow` */
-  def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None): Checked[Executable] = {
-    CwlExecutableValidation.buildWomExecutableCallable(womDefinition(validator, Vector.empty), inputFile)
+  def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None, ioFunctions: IoFunctionSet): Checked[Executable] = {
+    CwlExecutableValidation.buildWomExecutableCallable(womDefinition(validator, Vector.empty), inputFile, ioFunctions)
   }
 
   // Circe can't create bidirectional links between workflow steps and runs (including `Workflow`s) so this
@@ -90,17 +90,18 @@ case class Workflow private(
       val womType: WomType = womTypeForInputParameter(wip).get
       val parsedInputId = FileAndId(wip.id).id
       val womId = WomIdentifier(parsedInputId, wip.id)
+      val valueMapper = InputParameter.inputValueMapper(wip, wip.`type`.get, expressionLib)
 
       def optionalWithDefault(memberType: WomType): OptionalGraphInputNodeWithDefault = {
         val defaultValue = wip.default.get.fold(InputParameter.DefaultToWomValuePoly).apply(womType).toTry.get
-        OptionalGraphInputNodeWithDefault(womId, memberType, ValueAsAnExpression(defaultValue), parsedInputId)
+        OptionalGraphInputNodeWithDefault(womId, memberType, ValueAsAnExpression(defaultValue), parsedInputId, valueMapper)
       }
 
       womType match {
         case WomOptionalType(memberType) if wip.default.isDefined => optionalWithDefault(memberType)
         case _ if wip.default.isDefined => optionalWithDefault(womType)
-        case optional @ WomOptionalType(_) => OptionalGraphInputNode(womId, optional, parsedInputId)
-        case _ => RequiredGraphInputNode(womId, womType, parsedInputId)
+        case optional @ WomOptionalType(_) => OptionalGraphInputNode(womId, optional, parsedInputId, valueMapper)
+        case _ => RequiredGraphInputNode(womId, womType, parsedInputId, valueMapper)
       }
     }.toSet
 

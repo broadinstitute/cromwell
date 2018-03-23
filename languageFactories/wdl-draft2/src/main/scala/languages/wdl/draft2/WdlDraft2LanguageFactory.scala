@@ -21,6 +21,7 @@ import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.graph.GraphNodePort.OutputPort
 import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomExecutableMakers._
 import wom.executable.WomBundle
+import wom.expression.IoFunctionSet
 import wom.transforms.WomExecutableMaker.ops._
 import wom.values.WomValue
 
@@ -30,7 +31,8 @@ class WdlDraft2LanguageFactory() extends LanguageFactory {
   override def validateNamespace(source: WorkflowSourceFilesCollection,
                                     workflowOptions: WorkflowOptions,
                                     importLocalFilesystem: Boolean,
-                                    workflowIdForLogging: WorkflowId): Parse[ValidatedWomNamespace] = {
+                                    workflowIdForLogging: WorkflowId,
+                                    ioFunctions: IoFunctionSet): Parse[ValidatedWomNamespace] = {
 
     def checkTypes(namespace: WdlNamespaceWithWorkflow, inputs: Map[OutputPort, WomValue]): Checked[Unit] = {
       val allDeclarations = namespace.workflow.declarations ++ namespace.workflow.calls.flatMap(_.declarations)
@@ -86,7 +88,7 @@ class WdlDraft2LanguageFactory() extends LanguageFactory {
       wdlNamespace <- wdlNamespaceValidation.toEither
       _ <- validateWorkflowNameLengths(wdlNamespace)
       importedUris = evaluateImports(wdlNamespace)
-      womExecutable <- wdlNamespace.toWomExecutable(Option(source.inputsJson))
+      womExecutable <- wdlNamespace.toWomExecutable(Option(source.inputsJson), ioFunctions)
       validatedWomNamespaceBeforeMetadata <- LanguageFactoryUtil.validateWomNamespace(womExecutable)
       _ <- checkTypes(wdlNamespace, validatedWomNamespaceBeforeMetadata.womValueInputs)
     } yield validatedWomNamespaceBeforeMetadata.copy(importedFileContent = importedUris)
@@ -108,6 +110,6 @@ class WdlDraft2LanguageFactory() extends LanguageFactory {
   override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver], languageFactories: List[LanguageFactory]): Checked[WomBundle] =
     "getWomBundle method not implemented in WDL draft 2".invalidNelCheck
 
-  override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson): Checked[ValidatedWomNamespace] =
+  override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] =
     "createExecutable method not implemented in WDL draft 2".invalidNelCheck
 }

@@ -7,6 +7,7 @@ import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection
 import cromwell.languages.LanguageFactory.ImportResolver
 import wom.core._
 import wom.executable.WomBundle
+import wom.expression.IoFunctionSet
 
 trait LanguageFactory {
   def getWomBundle(workflowSource: WorkflowSource,
@@ -15,12 +16,14 @@ trait LanguageFactory {
                    languageFactories: List[LanguageFactory]): Checked[WomBundle]
 
   def createExecutable(womBundle: WomBundle,
-                       inputs: WorkflowJson): Checked[ValidatedWomNamespace]
+                       inputs: WorkflowJson,
+                       ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace]
 
   def validateNamespace(source: WorkflowSourceFilesCollection,
                         workflowOptions: WorkflowOptions,
                         importLocalFilesystem: Boolean,
-                        workflowIdForLogging: WorkflowId): Parse[ValidatedWomNamespace]
+                        workflowIdForLogging: WorkflowId,
+                        ioFunctions: IoFunctionSet): Parse[ValidatedWomNamespace]
 }
 
 object LanguageFactory {

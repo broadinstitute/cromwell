@@ -32,7 +32,8 @@ case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                                 runtimeAttributes: Map[LocallyQualifiedName, WomValue],
                                 evaluatedTaskInputs: WomEvaluatedCallInputs,
                                 maybeCallCachingEligible: MaybeCallCachingEligible,
-                                prefetchedKvStoreEntries: Map[String, KvResponse]) {
+                                prefetchedKvStoreEntries: Map[String, KvResponse],
+                                jobRetries: Option[Int] = None) {
   val fullyQualifiedInputs = evaluatedTaskInputs map { case (declaration, value) =>
     key.call.identifier.combine(declaration.name).fullyQualifiedName.value -> value
   }
@@ -46,8 +47,9 @@ object BackendWorkflowDescriptor {
             callable: ExecutableCallable,
             knownValues: Map[OutputPort, WomValue],
             workflowOptions: WorkflowOptions,
-            customLabels: Labels) = {
-    new BackendWorkflowDescriptor(id, callable, knownValues, workflowOptions, customLabels, List.empty)
+            customLabels: Labels,
+            jobRetries: Option[Int] = None) = {
+    new BackendWorkflowDescriptor(id, callable, knownValues, workflowOptions, customLabels, List.empty, jobRetries)
   }
 }
 
@@ -59,7 +61,8 @@ case class BackendWorkflowDescriptor(id: WorkflowId,
                                      knownValues: Map[OutputPort, WomValue],
                                      workflowOptions: WorkflowOptions,
                                      customLabels: Labels,
-                                     breadCrumbs: List[BackendJobBreadCrumb]) {
+                                     breadCrumbs: List[BackendJobBreadCrumb],
+                                     jobRetries: Option[Int]) {
 
   val rootWorkflow = breadCrumbs.headOption.map(_.callable).getOrElse(callable)
   val rootWorkflowId = breadCrumbs.headOption.map(_.id).getOrElse(id)

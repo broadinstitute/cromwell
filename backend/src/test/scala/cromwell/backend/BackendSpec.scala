@@ -39,7 +39,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
       case Left(errors) => fail(s"Fail to build wom executable: ${errors.toList.mkString(", ")}")
       case Right(e) => e
     }
-    
+
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
       executable.entryPoint,
@@ -53,7 +53,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
                               inputFileAsJson: Option[String] = None,
                               options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
                               runtime: String = "") = {
-    
+
     buildWorkflowDescriptor(workflowSource, inputFileAsJson, options, runtime)
   }
 
@@ -67,7 +67,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
 
   def fqnMapToDeclarationMap(m: Map[OutputPort, WomValue]): Map[InputDefinition, WomValue] = {
     m map {
-      case (outputPort, womValue) => RequiredInputDefinition(outputPort.name, womValue.womType) -> womValue 
+      case (outputPort, womValue) => RequiredInputDefinition(outputPort.name, womValue.womType) -> womValue
     }
   }
 
@@ -77,7 +77,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
                                           runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition]): BackendJobDescriptor = {
     val call = workflowDescriptor.callable.graph.nodes.collectFirst({ case t: CommandCallNode => t}).get
     val jobKey = BackendJobDescriptorKey(call, None, 1)
-    
+
     val inputDeclarations: Map[InputDefinition, WomValue] = call.inputDefinitionMappings.map {
       case (inputDef, resolved) => inputDef ->
         resolved.select[WomValue].orElse(
@@ -95,7 +95,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     }.toMap
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.callable.runtimeAttributes, NoIoFunctionSet, Map.empty).getOrElse(fail("Failed to evaluate runtime attributes")) // .get is OK here because this is a test
     val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
-    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, NoDocker, Map.empty)
+    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, NoDocker, Map.empty, None)
   }
 
   def jobDescriptorFromSingleCallWorkflow(wdl: WorkflowSource,
@@ -107,7 +107,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.knownValues)
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.callable.runtimeAttributes, NoIoFunctionSet, inputDeclarations).getOrElse(fail("Failed to evaluate runtime attributes")) // .get is OK here because this is a test
     val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
-    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, NoDocker, Map.empty)
+    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, NoDocker, Map.empty, None)
   }
 
   def jobDescriptorFromSingleCallWorkflow(wdl: WorkflowSource,
@@ -121,7 +121,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.knownValues)
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.callable.runtimeAttributes, NoIoFunctionSet, inputDeclarations).getOrElse(fail("Failed to evaluate runtime attributes")) // .get is OK here because this is a test
     val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
-    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, NoDocker, Map.empty)
+    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, NoDocker, Map.empty, None)
   }
 
   def assertResponse(executionResponse: BackendJobExecutionResponse, expectedResponse: BackendJobExecutionResponse) = {

@@ -22,6 +22,10 @@ The two types of GPU supported are `nvidia-tesla-k80` and `nvidia-tesla-p100`
 
 **Important**: Before adding a GPU, make sure it is available in the zone the job is running in: https://cloud.google.com/compute/docs/gpus/  
 
+### Workflow Options
+
+A new workflow option `job_retry_count` has been implemented for the `Google/JES backend`. This is the number of times all failed jobs in a workflow will be retried, assuming the job failed for any reason except preemption.
+
 ### Bug Fixes
 
 The imports zip no longer unpacks a single (arbitrary) internal directory if it finds one (or more). Instead, import statements should now be made relative to the base of the import zip root.

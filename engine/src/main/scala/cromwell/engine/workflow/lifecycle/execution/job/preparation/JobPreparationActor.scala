@@ -187,7 +187,10 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
                                                     runtimeAttributes: Map[LocallyQualifiedName, WomValue],
                                                     maybeCallCachingEligible: MaybeCallCachingEligible,
                                                     prefetchedJobStoreEntries: Map[String, KvResponse]): BackendJobPreparationSucceeded = {
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, runtimeAttributes, inputEvaluation, maybeCallCachingEligible, prefetchedJobStoreEntries)
+    val backendWorkflowDescriptor = workflowDescriptor.backendDescriptor
+    val jobDescriptor = BackendJobDescriptor(backendWorkflowDescriptor, jobKey, runtimeAttributes, inputEvaluation,
+      maybeCallCachingEligible, prefetchedJobStoreEntries, backendWorkflowDescriptor.jobRetries)
+
     BackendJobPreparationSucceeded(jobDescriptor, jobExecutionProps(jobDescriptor, initializationData, serviceRegistryActor, ioActor, backendSingletonActor))
   }
 

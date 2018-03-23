@@ -62,10 +62,10 @@ case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor
       case _ => List.empty[Any]
     }
   }
-  override val requestedKeyValueStoreKeys: Seq[String] = Seq(preemptionCountKey, unexpectedRetryCountKey)
+  override val requestedKeyValueStoreKeys: Seq[String] = Seq(preemptionCountKey, failureCountKey)
 }
 
 object JesBackendLifecycleActorFactory {
   val preemptionCountKey = "PreemptionCount"
-  val unexpectedRetryCountKey = "UnexpectedRetryCount"
+  val failureCountKey = "FailureCount"
 }

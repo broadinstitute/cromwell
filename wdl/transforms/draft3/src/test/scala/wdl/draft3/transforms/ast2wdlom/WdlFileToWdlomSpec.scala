@@ -562,6 +562,7 @@ object WdlFileToWdlomSpec {
             metaSection = None,
             parameterMetaSection = None))
     ),
+    "default_input_overrides" -> null,
     "taskless_engine_functions" -> FileElement(
       imports = Vector.empty,
       structs = Vector.empty,

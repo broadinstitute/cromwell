@@ -42,7 +42,7 @@ object InputDeclarationElementToGraphNode {
       womTypeValidation flatMap { womType =>
         val optionalInputIdentifier = s"__$name"
         val optionalInputType = WomOptionalType(womType).flatOptionalType
-        val optionalInputNode = OptionalGraphInputNode(WomIdentifier(optionalInputIdentifier), WomOptionalType(womType).flatOptionalType, nameInInputSet)
+        val optionalInputNode = OptionalGraphInputNode(WomIdentifier(optionalInputIdentifier), optionalInputType, nameInInputSet)
         val optionalInputNodeGeneratedValue = GeneratedIdentifierValueHandle(optionalInputIdentifier, optionalInputType)
         val collectorExpressionElement: ExpressionElement = SelectFirst(ArrayLiteral(Seq(IdentifierLookup(optionalInputIdentifier), expr)))
         val collectorExpressionExtraConsumedValueEntry = UnlinkedIdentifierHook(optionalInputIdentifier) -> optionalInputNodeGeneratedValue

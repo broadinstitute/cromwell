@@ -86,7 +86,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
 
-  lazy val TestableCallContext = CallContext(mockPathBuilder.build("gs://root").get, DummyStandardPaths)
+  lazy val TestableCallContext = CallContext(mockPathBuilder.build("gs://root").get, DummyStandardPaths, isDocker = false)
 
   lazy val TestableStandardExpressionFunctionsParams = new StandardExpressionFunctionsParams {
     override lazy val pathBuilders: List[PathBuilder] = List(mockPathBuilder)

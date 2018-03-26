@@ -6,7 +6,7 @@ import common.exception.ThrowableAggregation
 
 case class StandardPaths(output: Path, error: Path)
 
-case class CallContext(root: Path, standardPaths: StandardPaths)
+case class CallContext(root: Path, standardPaths: StandardPaths, isDocker: Boolean)
 
 /**  Marker trait for Cromwell exceptions that are to be treated as fatal (non-retryable) */
 trait CromwellFatalExceptionMarker { this: Throwable => }

@@ -19,6 +19,7 @@ case class JobPathsWithDocker private[io] (override val workflowPaths: WorkflowP
   import JobPaths._
 
   override lazy val callExecutionRoot = { callRoot.resolve("execution") }
+  override def isDocker: Boolean = true
   val callDockerRoot = callPathBuilder(workflowPaths.dockerWorkflowRoot, jobKey)
   val callExecutionDockerRoot = callDockerRoot.resolve("execution")
   val callInputsRoot = callRoot.resolve("inputs")

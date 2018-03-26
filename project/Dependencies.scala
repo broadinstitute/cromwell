@@ -68,6 +68,7 @@ object Dependencies {
   val scalacheckV = "1.13.4"
   val scalacticV = "3.0.1"
   val scalameterV = "0.8.2"
+  val scalamockV = "4.0.0"
   val scalatestV = "3.0.2"
   val scalazV = "7.2.17"
   val scoptV = "3.6.0"
@@ -306,7 +307,8 @@ object Dependencies {
     "io.circe" %% "circe-optics" % circeV,
     "org.mozilla" % "rhino" % rhinoV,
     "org.javadelight" % "delight-rhino-sandbox" % delightRhinoSandboxV,
-    "org.scalamock" %% "scalamock" % "4.0.0" % Test
+    "org.scalamock" %% "scalamock" % scalamockV % Test,
+    "commons-io" % "commons-io" % commonsIoV % Test
   ) ++ circeDependencies ++ womDependencies ++ refinedTypeDependenciesList ++ betterFilesDependencies
 
   val womtoolDependencies = catsDependencies ++ slf4jBindingDependencies

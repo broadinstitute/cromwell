@@ -54,30 +54,21 @@ object EcmaScriptUtil {
   def evalRaw(expr: String)(block: (Context, Scriptable) => Unit): AnyRef = {
     // TODO: Parameterize and update callers to pass in source name, max duration, max instructions, etc.?
     // For now, be very liberal with scripts giving 60 seconds of unrestricted CPU usage and unlimited instructions.
-//    val sourceName = "<ecmascript>"
-//    val maxDuration: Duration = 60.seconds
-//    val maxInstructionsOption: Option[Int] = None
-//    val strict = true
-//    val languageVersionOption = Option(Context.VERSION_1_8)
-//
-//    val sandbox = new EnhancedRhinoSandbox(strict, languageVersionOption)
-//    if (maxDuration.isFinite) {
-//      sandbox.setMaxDuration(maxDuration.toMillis.toInt)
-//    }
-//    maxInstructionsOption foreach sandbox.setInstructionLimit
-//    sandbox.setUseSafeStandardObjects(true)
-//    sandbox.setUseSealedScope(true)
-//
-//    sandbox.eval(sourceName, expr)(block)
-    val context = Context.enter()
-    try {
-      context.setLanguageVersion(Context.VERSION_1_8)
-      val scope = context.initStandardObjects
-      block(context, scope)
-      context.evaluateString(scope, expr, "<ecmascript>", 1, null)
-    } finally {
-      Context.exit()
+    val sourceName = "<ecmascript>"
+    val maxDuration: Duration = 60.seconds
+    val maxInstructionsOption: Option[Int] = None
+    val strict = true
+    val languageVersionOption = Option(Context.VERSION_1_8)
+
+    val sandbox = new EnhancedRhinoSandbox(strict, languageVersionOption)
+    if (maxDuration.isFinite) {
+      sandbox.setMaxDuration(maxDuration.toMillis.toInt)
     }
+    maxInstructionsOption foreach sandbox.setInstructionLimit
+    sandbox.setUseSafeStandardObjects(true)
+    sandbox.setUseSealedScope(true)
+
+    sandbox.eval(sourceName, expr)(block)
   }
 
   sealed trait ECMAScriptVariable

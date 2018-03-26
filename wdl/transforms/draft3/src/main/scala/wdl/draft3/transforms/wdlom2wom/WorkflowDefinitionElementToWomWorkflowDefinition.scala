@@ -7,7 +7,7 @@ import wdl.draft3.transforms.wdlom2wom.graph.{GraphNodeMakerInputs, WorkflowGrap
 import wdl.model.draft3.elements.{WorkflowDefinitionElement, WorkflowGraphElement}
 import wdl.draft3.transforms.linking.graph._
 import wdl.model.draft3.graph.{GeneratedValueHandle, LinkedGraph, LinkedGraphEdge}
-import wom.callable.WorkflowDefinition
+import wom.callable.{Callable, CallableTaskDefinition, TaskDefinition, WorkflowDefinition}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.{GraphNode, Graph => WomGraph}
 import wom.types.WomType
@@ -17,7 +17,7 @@ import scalax.collection.GraphEdge.DiEdge
 
 object WorkflowDefinitionElementToWomWorkflowDefinition {
 
-  final case class WorkflowDefinitionConvertInputs(definitionElement: WorkflowDefinitionElement, typeAliases: Map[String, WomType])
+  final case class WorkflowDefinitionConvertInputs(definitionElement: WorkflowDefinitionElement, typeAliases: Map[String, WomType], tasks: ErrorOr[Set[CallableTaskDefinition]])
 
   def convert(a: WorkflowDefinitionConvertInputs): ErrorOr[WorkflowDefinition] = {
 
@@ -30,15 +30,11 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
         a.definitionElement.inputsSection.toSeq.flatMap(_.inputDeclarations) ++
         a.definitionElement.outputsSection.toSeq.flatMap(_.outputs)
 
-    val innerGraph: ErrorOr[WomGraph] = convertGraphElements(GraphLikeConvertInputs(graphNodeElements, Set.empty, a.typeAliases, a.definitionElement.name, insideAScatter = false))
+    val innerGraph: ErrorOr[WomGraph] = convertGraphElements(GraphLikeConvertInputs(graphNodeElements, Set.empty, a.typeAliases, a.definitionElement.name, insideAScatter = false, a.tasks))
     innerGraph map { ig =>  WorkflowDefinition(a.definitionElement.name, ig, Map.empty, Map.empty) }
   }
 
-  final case class GraphLikeConvertInputs(graphElements: Set[WorkflowGraphElement],
-                                          seedNodes: Set[GraphNode],
-                                          typeAliases: Map[String, WomType],
-                                          workflowName: String,
-                                          insideAScatter: Boolean)
+  final case class GraphLikeConvertInputs(graphElements: Set[WorkflowGraphElement], seedNodes: Set[GraphNode], typeAliases: Map[String, WomType], workflowName: String, insideAScatter: Boolean, tasks: ErrorOr[Set[CallableTaskDefinition]])
 
   def convertGraphElements(a: GraphLikeConvertInputs): ErrorOr[WomGraph] = {
 
@@ -49,11 +45,11 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
 
     for {
       linkedGraph <- LinkedGraphMaker.make(nodes = a.graphElements, seedGeneratedValueHandles, typeAliases = a.typeAliases)
-      womGraph <- makeWomGraph(linkedGraph, a.seedNodes, a.workflowName, a.insideAScatter)
+      womGraph <- makeWomGraph(linkedGraph, a.seedNodes, a.workflowName, a.insideAScatter, a.tasks)
     } yield womGraph
   }
 
-  private def makeWomGraph(linkedGraph: LinkedGraph, seedNodes: Set[GraphNode], workflowName: String, insideAScatter: Boolean): ErrorOr[WomGraph] = {
+  private def makeWomGraph(linkedGraph: LinkedGraph, seedNodes: Set[GraphNode], workflowName: String, insideAScatter: Boolean, tasks: ErrorOr[Set[CallableTaskDefinition]]): ErrorOr[WomGraph] = {
 
     def graphNodeCreationFold(currentValidation: ErrorOr[List[GraphNode]], next: WorkflowGraphElement): ErrorOr[List[GraphNode]] = {
       currentValidation flatMap { currentList =>
@@ -61,7 +57,7 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
           node <- currentList
           port <- node.outputPorts
         } yield port.name -> port).toMap
-        val nextGraphNodeValidation = WorkflowGraphElementToGraphNode.convert(GraphNodeMakerInputs(next, linkedGraph.consumedValueLookup, availableValues, linkedGraph.typeAliases, workflowName, insideAScatter))
+        val nextGraphNodeValidation = WorkflowGraphElementToGraphNode.convert(GraphNodeMakerInputs(next, linkedGraph.consumedValueLookup, availableValues, linkedGraph.typeAliases, workflowName, insideAScatter, tasks))
         nextGraphNodeValidation map { nextGraphNode => currentList ++ nextGraphNode }
       }
     }

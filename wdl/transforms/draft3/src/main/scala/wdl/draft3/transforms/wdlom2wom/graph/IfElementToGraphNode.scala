@@ -16,6 +16,7 @@ import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements._
 import wdl.model.draft3.graph._
 import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
+import wom.callable.CallableTaskDefinition
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.graph.expression.{AnonymousExpressionNode, PlainAnonymousExpressionNode}
@@ -55,7 +56,7 @@ object IfElementToGraphNode {
         OuterGraphInputNode(WomIdentifier(name), port, preserveScatterIndex = false)
       }).toSet
 
-      val graphLikeConvertInputs = GraphLikeConvertInputs(graphElements.toSet, ogins, a.availableTypeAliases, a.workflowName, insideAScatter = true)
+      val graphLikeConvertInputs = GraphLikeConvertInputs(graphElements.toSet, ogins, a.availableTypeAliases, a.workflowName, insideAScatter = true, a.tasks)
       val innerGraph: ErrorOr[Graph] = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
 
       innerGraph map { ig =>
@@ -67,9 +68,4 @@ object IfElementToGraphNode {
   }
 }
 
-final case class ConditionalNodeMakerInputs(node: IfElement,
-                                            linkableValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
-                                            linkablePorts: Map[String, OutputPort],
-                                            availableTypeAliases: Map[String, WomType],
-                                            workflowName: String,
-                                            insideAnotherScatter: Boolean)
+final case class ConditionalNodeMakerInputs(node: IfElement, linkableValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle], linkablePorts: Map[String, OutputPort], availableTypeAliases: Map[String, WomType], workflowName: String, insideAnotherScatter: Boolean, tasks: ErrorOr[Set[CallableTaskDefinition]])

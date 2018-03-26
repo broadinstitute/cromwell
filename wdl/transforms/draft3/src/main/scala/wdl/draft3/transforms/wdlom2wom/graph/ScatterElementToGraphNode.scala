@@ -18,7 +18,7 @@ import wdl.model.draft3.elements._
 import wdl.model.draft3.graph._
 import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
 import wom.callable.Callable.InputDefinition
-import wom.callable.WorkflowDefinition
+import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
 import wom.graph.CallNode.{CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNode.GraphNodeSetter
 import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort}
@@ -68,7 +68,7 @@ object ScatterElementToGraphNode {
         OuterGraphInputNode(WomIdentifier(name), port, preserveScatterIndex = false)
       }).toSet
 
-      val graphLikeConvertInputs = GraphLikeConvertInputs(graphElements.toSet, ogins ++ Set(womInnerGraphScatterVariableInput), a.availableTypeAliases, a.workflowName, insideAScatter = true)
+      val graphLikeConvertInputs = GraphLikeConvertInputs(graphElements.toSet, ogins ++ Set(womInnerGraphScatterVariableInput), a.availableTypeAliases, a.workflowName, insideAScatter = true, a.tasks)
       val innerGraph: ErrorOr[Graph] = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
 
       innerGraph map { ig =>
@@ -89,7 +89,7 @@ object ScatterElementToGraphNode {
     }
 
     val subWorkflowGraphValidation: ErrorOr[Graph] = subWorkflowInputsValidation flatMap { subWorkflowInputs =>
-      val graphLikeConvertInputs = GraphLikeConvertInputs(Set(a.node), subWorkflowInputs, a.availableTypeAliases, a.workflowName, insideAScatter = false)
+      val graphLikeConvertInputs = GraphLikeConvertInputs(Set(a.node), subWorkflowInputs, a.availableTypeAliases, a.workflowName, insideAScatter = false, a.tasks)
       val subWorkflowGraph = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
       subWorkflowGraph map { WomGraphMakerTools.addDefaultOutputs(_) }
     }
@@ -122,4 +122,5 @@ final case class ScatterNodeMakerInputs(node: ScatterElement,
                                         linkablePorts: Map[String, OutputPort],
                                         availableTypeAliases: Map[String, WomType],
                                         workflowName: String,
-                                        insideAnotherScatter: Boolean)
+                                        insideAnotherScatter: Boolean,
+                                        tasks: ErrorOr[Set[CallableTaskDefinition]])

@@ -15,7 +15,7 @@ import cromwell.languages.LanguageFactory
 import cromwell.languages.LanguageFactory.ImportResolver
 import wdl.draft3.transforms.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition.WorkflowDefinitionConvertInputs
 import wdl.model.draft3.elements._
-import wom.callable.{TaskDefinition, WorkflowDefinition}
+import wom.callable.{CallableTaskDefinition, TaskDefinition, WorkflowDefinition}
 import wom.executable.WomBundle
 import wom.transforms.WomBundleMaker
 import wom.transforms.WomBundleMaker.ops._
@@ -23,6 +23,7 @@ import wdl.draft3.transforms.wdlom2wom.StructEvaluation.StructEvaluationInputs
 import wdl.draft3.transforms.wdlom2wom.TaskDefinitionElementToWomTaskDefinition.TaskDefinitionElementToWomInputs
 import wom.core.{WorkflowOptionsJson, WorkflowSource}
 import wom.types.WomType
+import wom.callable.{CallableTaskDefinition, TaskDefinition, WorkflowDefinition}
 
 object FileElementToWomBundle {
 
@@ -35,19 +36,19 @@ object FileElementToWomBundle {
 
       def toWorkflowInner(imports: Vector[WomBundle], tasks: Vector[TaskDefinitionElement], structs: Map[String, WomType]): ErrorOr[WomBundle] = {
         val workflowConverter: CheckedAtoB[WorkflowDefinitionConvertInputs, WorkflowDefinition] = workflowDefinitionElementToWomWorkflowDefinition
-        val taskConverter: CheckedAtoB[TaskDefinitionElementToWomInputs, TaskDefinition] = taskDefinitionElementToWomTaskDefinition
+        val taskConverter: CheckedAtoB[TaskDefinitionElementToWomInputs, CallableTaskDefinition] = taskDefinitionElementToWomTaskDefinition
 
         val allStructs = structs ++ imports.flatMap(_.typeAliases)
 
-        val taskDefs: ErrorOr[Set[TaskDefinition]] = {
-          tasks.traverse[ErrorOr, TaskDefinition] { taskDefinition =>
+        val taskDefs: ErrorOr[Set[CallableTaskDefinition]] = {
+          tasks.traverse[ErrorOr, CallableTaskDefinition] { taskDefinition =>
             taskConverter.run(TaskDefinitionElementToWomInputs(taskDefinition, structs)).toValidated
           }.map(_.toSet)
         }
 
         val workflowsValidation: ErrorOr[Vector[WorkflowDefinition]] = {
           a.fileElement.workflows.toVector.traverse[ErrorOr, WorkflowDefinition] { workflowDefinition =>
-            val convertInputs = WorkflowDefinitionConvertInputs(workflowDefinition, allStructs)
+            val convertInputs = WorkflowDefinitionConvertInputs(workflowDefinition, allStructs, taskDefs)
             workflowConverter.run(convertInputs).toValidated
           }
         }

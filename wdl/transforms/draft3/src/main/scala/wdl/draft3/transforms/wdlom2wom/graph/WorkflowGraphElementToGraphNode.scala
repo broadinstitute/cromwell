@@ -7,7 +7,9 @@ import wdl.model.draft3.graph.expression.WomExpressionMaker.ops._
 import wdl.draft3.transforms.linking.typemakers._
 import wdl.draft3.transforms.linking.expression._
 import wdl.model.draft3.elements._
-import wdl.model.draft3.graph._
+import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedCallOutputOrIdentifierAndMemberAccessHook, UnlinkedConsumedValueHook, UnlinkedIdentifierHook}
+import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
+import wom.callable.{CallableTaskDefinition, TaskDefinition}
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
@@ -36,18 +38,17 @@ object WorkflowGraphElementToGraphNode {
       }
 
     case se: ScatterElement =>
-      val scatterMakerInputs = ScatterNodeMakerInputs(se, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter)
+      val scatterMakerInputs = ScatterNodeMakerInputs(se, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter, a.tasks)
       ScatterElementToGraphNode.convert(scatterMakerInputs)
 
     case ie: IfElement =>
-      val ifMakerInputs = ConditionalNodeMakerInputs(ie, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter)
+      val ifMakerInputs = ConditionalNodeMakerInputs(ie, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter, a.tasks)
       IfElementToGraphNode.convert(ifMakerInputs)
+
+    case ce: CallElement =>
+      val callableNodeMakerInputs = CallableNodeMakerInputs(ce, a.tasks, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter)
+      CallElementToGraphNode.convert(callableNodeMakerInputs)
   }
 }
 
-final case class GraphNodeMakerInputs(node: WorkflowGraphElement,
-                                      linkableValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
-                                      linkablePorts: Map[String, OutputPort],
-                                      availableTypeAliases: Map[String, WomType],
-                                      workflowName: String,
-                                      insideAScatter: Boolean)
+final case class GraphNodeMakerInputs(node: WorkflowGraphElement, linkableValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle], linkablePorts: Map[String, OutputPort], availableTypeAliases: Map[String, WomType], workflowName: String, insideAScatter: Boolean, tasks: ErrorOr[Set[CallableTaskDefinition]])

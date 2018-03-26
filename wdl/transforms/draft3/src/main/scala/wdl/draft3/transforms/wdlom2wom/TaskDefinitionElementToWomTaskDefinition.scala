@@ -13,6 +13,7 @@ import wdl.model.draft3.elements._
 import wdl.model.draft3.graph.LinkedGraph
 import wom.{CommandPart, RuntimeAttributes}
 import wom.callable.{Callable, CallableTaskDefinition, TaskDefinition}
+
 import wdl.model.draft3.graph.expression.WomExpressionMaker.ops._
 import wdl.draft3.transforms.linking.expression._
 import wom.callable.Callable._
@@ -23,12 +24,11 @@ import wdl.draft3.transforms.linking.expression.consumed._
 import wdl.model.draft3.elements.ExpressionElement.KvPair
 import wom.expression.WomExpression
 import wom.types.{WomOptionalType, WomType}
-
 object TaskDefinitionElementToWomTaskDefinition {
 
   final case class TaskDefinitionElementToWomInputs(taskDefinitionElement: TaskDefinitionElement, typeAliases: Map[String, WomType])
 
-  def convert(a: TaskDefinitionElementToWomInputs): ErrorOr[TaskDefinition] = {
+  def convert(a: TaskDefinitionElementToWomInputs): ErrorOr[CallableTaskDefinition] = {
     val inputElements = a.taskDefinitionElement.inputsSection.map(_.inputDeclarations).getOrElse(Seq.empty)
     val declarations = a.taskDefinitionElement.declarations
     val outputElements = a.taskDefinitionElement.outputsSection.map(_.outputs).getOrElse(Seq.empty)

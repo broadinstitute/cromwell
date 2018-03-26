@@ -4,6 +4,8 @@ import cats.syntax.apply._
 import cats.syntax.validated._
 import cats.syntax.traverse._
 import cats.instances.list._
+import cats.instances.vector._
+import cats.syntax.either._
 import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.graph.GraphElementValueConsumer
 import wdl.model.draft3.graph.GraphElementValueConsumer.ops._
@@ -24,7 +26,7 @@ package object graph {
         typeElement.determineWomType(typeAliases) map { t => Set(GeneratedIdentifierValueHandle(name, t)) }
       case a: ScatterElement => a.generatedValueHandles(typeAliases)
       case a: IfElement => a.generatedValueHandles(typeAliases)
-
+      case a: CallElement => a.generatedValueHandles(typeAliases)
       // TODO fill in other expression types
       case other => s"Cannot generate generated values for WorkflowGraphNodeElement $other".invalidNel
     }
@@ -48,14 +50,33 @@ package object graph {
     }
   }
 
+  implicit val callElementUnlinkedValueGenerator: UnlinkedValueGenerator[CallElement] = new UnlinkedValueGenerator[CallElement] {
+    override def generatedValueHandles(a: CallElement, typeAliases: Map[String, WomType]): ErrorOr[Set[GeneratedValueHandle]] = {
+      // TODO this will need to be filled in for calls with outputs
+      Set[GeneratedValueHandle]().empty.valid
+    }
+  }
+
   implicit val graphElementUnlinkedValueConsumer: GraphElementValueConsumer[WorkflowGraphElement] = new GraphElementValueConsumer[WorkflowGraphElement] {
     override def graphElementConsumedValueHooks(a: WorkflowGraphElement, typeAliases: Map[String, WomType]): ErrorOr[Set[UnlinkedConsumedValueHook]] = a match {
       case InputDeclarationElement(_, _, None) => Set.empty[UnlinkedConsumedValueHook].validNel
       case DeclarationElement(_, _, Some(expr)) => expr.expressionConsumedValueHooks.validNel
       case a: ScatterElement => a.graphElementConsumedValueHooks(typeAliases)
       case a: IfElement => a.graphElementConsumedValueHooks(typeAliases)
+      case a: CallElement => a.graphElementConsumedValueHooks(typeAliases)
       // TODO fill in other expression types
       case other => throw new Exception(s"Cannot generate consumed values for WorkflowGraphNodeElement $other")
+    }
+  }
+
+  implicit val callElementUnlinkedValueConsumer: GraphElementValueConsumer[CallElement] = new GraphElementValueConsumer[CallElement] {
+    override def graphElementConsumedValueHooks(a: CallElement, typeAliases: Map[String, WomType]): ErrorOr[Set[UnlinkedConsumedValueHook]] = {
+      a.body match {
+        case Some(callBodyElement: CallBodyElement) => callBodyElement.inputs.toSet.flatten { input: ExpressionElement.KvPair =>
+          input.expressionConsumedValueHooks
+        }.valid
+        case None => Set.empty[UnlinkedConsumedValueHook].valid
+      }
     }
   }
 

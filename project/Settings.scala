@@ -72,9 +72,6 @@ object Settings {
     "-Ywarn-unused:implicits",
     "-Ywarn-unused:privates",
     "-Ywarn-unused:locals",
-    "-Ycache-macro-class-loader:last-modified",
-    "-Ycache-plugin-class-loader:last-modified",
-    "-Ybackend-parallelism", "3",
     "-Ywarn-unused:patvars"
   )
 
@@ -93,7 +90,7 @@ object Settings {
   )
 
   val ScalaVersion211 = "2.11.11"
-  val ScalaVersion212 = "2.12.5"
+  val ScalaVersion212 = "2.12.4"
   val ScalaVersion = ScalaVersion212
   val sharedSettings = ReleasePlugin.projectSettings ++
     cromwellVersionWithGit ++ publishingSettings ++ List(

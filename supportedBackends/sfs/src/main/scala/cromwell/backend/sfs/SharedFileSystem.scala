@@ -141,7 +141,7 @@ trait SharedFileSystem extends PathFactory {
     val hostPath = hostAbsoluteFilePath(jobPaths, womFile.valueString)
     def hostAbsolute(pathString: String): String = hostAbsoluteFilePath(jobPaths, pathString).pathAsString
 
-    if (!hostPath.exists) throw new RuntimeException(s"Could not process output, file not found: ${hostAbsolute(womFile.valueString)}")
+    if (!hostPath.exists) throw new FileNotFoundException(s"Could not process output, file not found: ${hostAbsolute(womFile.valueString)}")
 
     // There are composite WomFile types like WomMaybeListedDirectoryType that need to make the paths of contained
     // WomFiles host absolute, so don't just pass in a `const` of the function call result above.

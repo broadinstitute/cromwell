@@ -1,5 +1,7 @@
 package wom
 
+import java.io.FileNotFoundException
+
 import common.util.TryUtil
 import wom.values._
 
@@ -42,9 +44,14 @@ object WomFileMapper {
           (WomPair.apply _).tupled
         }
       case optionalValue: WomOptionalValue =>
+        // Build a `WomOptionalValue` from an `Option[WomValue]`.
+        def buildWomOptionalValue(optionalWomValue: Option[WomValue]) = WomOptionalValue(optionalValue.innerType, optionalWomValue)
+
         val mappedOptional: Option[Try[WomValue]] = optionalValue.value.map(mapWomFiles(mapper))
-        TryUtil.sequenceOption(mappedOptional) map {
-          WomOptionalValue(optionalValue.innerType, _)
+        mappedOptional match {
+          case Some(o) =>
+            o map Option.apply recover { case _: FileNotFoundException => None } map buildWomOptionalValue
+          case None => Success(buildWomOptionalValue(None))
         }
       case other => Success(other)
     }

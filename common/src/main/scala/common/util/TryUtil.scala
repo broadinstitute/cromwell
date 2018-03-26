@@ -21,7 +21,7 @@ object TryUtil {
   def stringifyFailures[T](possibleFailures: Traversable[Try[T]]): Traversable[String] =
     possibleFailures.collect { case failure: Failure[T] => stringifyFailure(failure) }
 
-  private def sequenceIterable[T](tries: Iterable[Try[_]], unbox: () => T, prefixErrorMessage: String) = {
+  private def sequenceIterable[T](tries: Iterable[Try[_]], unbox: () => T, prefixErrorMessage: String): Try[T] = {
     tries collect { case f: Failure[_] => f } match {
       case failures if failures.nonEmpty =>
         val exceptions = failures.toSeq.map(_.exception)

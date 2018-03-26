@@ -1,6 +1,5 @@
 package cromwell.backend.wdl
 
-import akka.testkit._
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr

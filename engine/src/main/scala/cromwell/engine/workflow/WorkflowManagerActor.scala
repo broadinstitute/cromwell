@@ -282,7 +282,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     reasons map {
       case reason: ThrowableAggregation => expandFailureReasons(reason.throwables.toSeq)
       case reason: KnownJobFailureException =>
-        val stderrMessage = reason.stderrPath map { path => s"\nCheck the content of stderr for potential additional information: ${path.pathAsString}" } getOrElse ""
+        val stderrMessage = reason.stderrPath map { path => s"\nCheck the content of stderr for potential additional information: ${path.pathAsString}.\n ${path.contentAsString}" } getOrElse ""
         reason.getMessage + stderrMessage
       case reason =>
         reason.getMessage + "\n" + ExceptionUtils.getStackTrace(reason)

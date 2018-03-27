@@ -666,7 +666,7 @@ object WdlFileToWdlomSpec {
           ))),
           commandSection = CommandSectionElement(Vector(
             CommandSectionLine(Vector(
-              StringCommandPartElement("echo hello ${world}"),
+              StringCommandPartElement("echo hello ${world}")
             )),
             CommandSectionLine(Vector(
               StringCommandPartElement("echo goodbye "),

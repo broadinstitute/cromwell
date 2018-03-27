@@ -7,7 +7,7 @@ import akka.testkit._
 import akka.actor.{Actor, ActorRef, ActorSystem, Props, Terminated}
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import cromwell.core._
 import cromwell.core.path.BetterFileMethods.Cmds
 import cromwell.core.path.DefaultPathBuilder
@@ -178,21 +178,9 @@ object CromwellTestKitSpec {
     }
   }
 
-  lazy val DefaultConfig = ConfigFactory.load
-  lazy val DefaultLocalBackendConfig = ConfigFactory.parseString(
-    """
-      |  {
-      |    root: "cromwell-executions"
-      |
-      |    filesystems {
-      |      local {
-      |        localization: [
-      |          "hard-link", "soft-link", "copy"
-      |        ]
-      |      }
-      |    }
-      |  }
-    """.stripMargin)
+  lazy val DefaultConfig = ConfigFactory.load.withValue(
+    "services.LoadController.class", ConfigValueFactory.fromAnyRef("cromwell.services.NooPServiceActor")
+  )
 
   lazy val JesBackendConfig = ConfigFactory.parseString(
     """

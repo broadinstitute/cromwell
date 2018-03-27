@@ -631,7 +631,7 @@ object WdlFileToWdlomSpec {
           name = "a",
           inputsSection = Some(InputsSectionElement(Vector(
             InputDeclarationElement(PrimitiveTypeElement(WomStringType), "world1", Some(StringExpression(Seq(StringLiteral("wo"), StringPlaceholder(IdentifierLookup("rld")))))),
-            InputDeclarationElement(PrimitiveTypeElement(WomStringType), "world2", Some(StringExpression(Seq(StringLiteral("wo"), StringPlaceholder(IdentifierLookup("rld")))))),
+            InputDeclarationElement(PrimitiveTypeElement(WomStringType), "world2", Some(StringExpression(Seq(StringLiteral("wo"), StringPlaceholder(IdentifierLookup("rld"))))))
           ))),
           declarations = Vector(
             IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "rld", StringLiteral("rld"))

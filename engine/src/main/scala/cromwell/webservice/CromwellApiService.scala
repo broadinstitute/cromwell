@@ -242,13 +242,7 @@ trait CromwellApiService extends HttpInstrumentation {
 
   private def submitRequest(formData: Multipart.FormData, isSingleSubmission: Boolean): Route = {
     val allParts: Future[Map[String, ByteString]] = formData.parts.mapAsync[(String, ByteString)](1) {
-      bodyPart => 
-        bodyPart.toStrict(duration)
-          .map(strict => bodyPart.name -> strict.entity.data)
-          .map({ r =>
-            if (r._1 != "looool") throw new TimeoutException("Timeout !")
-            r
-          })
+      bodyPart => bodyPart.toStrict(duration).map(strict => bodyPart.name -> strict.entity.data)
     }.runFold(Map.empty[String, ByteString])((map, tuple) => map + tuple)
 
     def toResponse(workflowId: WorkflowId): WorkflowSubmitResponse = {

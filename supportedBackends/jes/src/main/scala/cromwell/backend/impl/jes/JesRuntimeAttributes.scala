@@ -8,22 +8,33 @@ import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation.{BooleanRuntimeAttributesValidation, _}
 import common.validation.ErrorOr._
+import cromwell.backend.impl.jes.GpuResource.GpuType.GpuType
 import wom.RuntimeAttributesKeys
 import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
+object GpuResource {
+  object GpuType extends Enumeration {
+    type GpuType = Value
+    val NVIDIATeslaP100 = Value("nvidia-tesla-p100")
+    val NVIDIATeslaK80 = Value("nvidia-tesla-k80")
+  }
+}
 
-case class JesRuntimeAttributes(cpu: Int,
-                                zones: Vector[String],
-                                preemptible: Int,
-                                bootDiskSize: Int,
-                                memory: MemorySize,
-                                disks: Seq[JesAttachedDisk],
-                                dockerImage: String,
-                                failOnStderr: Boolean,
-                                continueOnReturnCode: ContinueOnReturnCode,
-                                noAddress: Boolean)
+final case class GpuResource(gpuType: GpuType, gpuCount: Int)
+
+final case class JesRuntimeAttributes(cpu: Int,
+                                      gpuResource: Option[GpuResource],
+                                      zones: Vector[String],
+                                      preemptible: Int,
+                                      bootDiskSize: Int,
+                                      memory: MemorySize,
+                                      disks: Seq[JesAttachedDisk],
+                                      dockerImage: String,
+                                      failOnStderr: Boolean,
+                                      continueOnReturnCode: ContinueOnReturnCode,
+                                      noAddress: Boolean)
 
 object JesRuntimeAttributes {
 
@@ -52,6 +63,12 @@ object JesRuntimeAttributes {
 
   private def cpuMinValidation(runtimeConfig: Option[Config]):RuntimeAttributesValidation[Int] = CpuValidation.instanceMin
     .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
+
+  private def gpuTypeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[GpuType] = GpuTypeValidation.optional
+
+  private def gpuValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Int] = GpuValidation.optional
+
+  private def gpuMinValidation(runtimeConfig: Option[Config]):OptionalRuntimeAttributesValidation[Int] = GpuValidation.optionalMin
 
   private def failOnStderrValidation(runtimeConfig: Option[Config]) = FailOnStderrValidation.default(runtimeConfig)
 
@@ -89,8 +106,11 @@ object JesRuntimeAttributes {
   def runtimeAttributesBuilder(jesConfiguration: JesConfiguration): StandardValidatedRuntimeAttributesBuilder = {
     val runtimeConfig = jesConfiguration.runtimeConfig
     StandardValidatedRuntimeAttributesBuilder.default(runtimeConfig).withValidation(
+      gpuValidation(runtimeConfig),
+      gpuTypeValidation(runtimeConfig),
       cpuValidation(runtimeConfig),
       cpuMinValidation(runtimeConfig),
+      gpuMinValidation(runtimeConfig),
       disksValidation(runtimeConfig),
       zonesValidation(runtimeConfig),
       preemptibleValidation(runtimeConfig),
@@ -104,6 +124,17 @@ object JesRuntimeAttributes {
 
   def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, runtimeAttrsConfig: Option[Config]): JesRuntimeAttributes = {
     val cpu: Int = RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+
+    // GPU
+    val gpuType: Option[GpuType] = RuntimeAttributesValidation.extractOption(gpuTypeValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
+    val gpu: Option[Int] = RuntimeAttributesValidation.extractOption(gpuValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
+    val gpuResource = (gpuType, gpu) match {
+      case (Some(t), Some(g)) => Option(GpuResource(t, g))
+      case (Some(_), None) => throw new RuntimeException(s"Please specify how many GPU should be attached to the instance.")
+      case (None, Some(_)) => throw new RuntimeException(s"Please specify a GPU type: ${GpuResource.GpuType.values.mkString(", ")}")
+      case (None, None) => None
+    }
+
     val zones: Vector[String] = RuntimeAttributesValidation.extract(ZonesValidation, validatedRuntimeAttributes)
     val preemptible: Int = RuntimeAttributesValidation.extract(preemptibleValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val bootDiskSize: Int = RuntimeAttributesValidation.extract(bootDiskSizeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
@@ -116,6 +147,7 @@ object JesRuntimeAttributes {
 
     new JesRuntimeAttributes(
       cpu,
+      gpuResource,
       zones,
       preemptible,
       bootDiskSize,

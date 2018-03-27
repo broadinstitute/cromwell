@@ -60,7 +60,7 @@ class IntRuntimeAttributesValidation(override val key: String) extends
 
   override val womType = WomIntegerType
 
-  override protected def validateCoercedValue(womValue: WomInteger): ErrorOr[Int] = womValue.value.toInt.validNel
+  override protected def validateCoercedValue(womValue: WomInteger): ErrorOr[Int] = womValue.value.validNel
 
   override protected def typeString: String = "an Integer"
 }

@@ -38,7 +38,7 @@ import cromwell.webservice.metadata.{MetadataBuilderActor, WorkflowQueryPaginati
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.util.{Failure, Success, Try}
 
 trait CromwellApiService extends HttpInstrumentation {
@@ -61,6 +61,7 @@ trait CromwellApiService extends HttpInstrumentation {
       get {
         onComplete(workflowManagerActor.ask(WorkflowManagerActor.EngineStatsCommand).mapTo[EngineStatsActor.EngineStats]) {
           case Success(stats) => complete(ToResponseMarshallable(stats))
+          case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
           case Failure(_) => new RuntimeException("Unable to gather engine stats").failRequest(StatusCodes.InternalServerError)
         }
       }
@@ -73,6 +74,7 @@ trait CromwellApiService extends HttpInstrumentation {
         case Success(status) =>
           val httpCode = if (status.ok) StatusCodes.OK else StatusCodes.InternalServerError
           complete(ToResponseMarshallable((httpCode, status.systems)))
+        case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
         case Failure(_) => new RuntimeException("Unable to gather engine status").failRequest(StatusCodes.InternalServerError)
       }
     }
@@ -141,6 +143,7 @@ trait CromwellApiService extends HttpInstrumentation {
                   case Success(r: FailedCallCacheDiffResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)
                   case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
                   case Failure(e: CachedCallNotFoundException) => e.errorRequest(StatusCodes.NotFound)
+                  case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
                   case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
                 }
               case Invalid(errors) =>
@@ -178,6 +181,7 @@ trait CromwellApiService extends HttpInstrumentation {
               case Success(WorkflowAbortFailureResponse(_, e: WorkflowNotFoundException)) => e.errorRequest(StatusCodes.NotFound)
               case Success(WorkflowAbortFailureResponse(_, e)) => e.errorRequest(StatusCodes.InternalServerError)
               case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
+              case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
               case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
             }
           }
@@ -205,6 +209,7 @@ trait CromwellApiService extends HttpInstrumentation {
                 onComplete(response) {
                   case Success(r: BuiltLabelsManagerResponse) => complete(r.response)
                   case Success(e: FailedLabelsManagerResponse) => e.reason.failRequest(StatusCodes.InternalServerError)
+                  case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
                   case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
 
                 }
@@ -237,7 +242,13 @@ trait CromwellApiService extends HttpInstrumentation {
 
   private def submitRequest(formData: Multipart.FormData, isSingleSubmission: Boolean): Route = {
     val allParts: Future[Map[String, ByteString]] = formData.parts.mapAsync[(String, ByteString)](1) {
-      bodyPart => bodyPart.toStrict(duration).map(strict => bodyPart.name -> strict.entity.data)
+      bodyPart => 
+        bodyPart.toStrict(duration)
+          .map(strict => bodyPart.name -> strict.entity.data)
+          .map({ r =>
+            if (r._1 != "looool") throw new TimeoutException("Timeout !")
+            r
+          })
     }.runFold(Map.empty[String, ByteString])((map, tuple) => map + tuple)
 
     def toResponse(workflowId: WorkflowId): WorkflowSubmitResponse = {
@@ -257,8 +268,8 @@ trait CromwellApiService extends HttpInstrumentation {
               throwable.failRequest(StatusCodes.BadRequest, warnings)
           }
         case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
-        case Failure(e) =>
-          e.failRequest(StatusCodes.InternalServerError, warnings)
+        case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
+        case Failure(e) => e.failRequest(StatusCodes.InternalServerError, warnings)
       }
     }
 
@@ -280,6 +291,7 @@ trait CromwellApiService extends HttpInstrumentation {
               warnings)
           case Failure(t) => t.failRequest(StatusCodes.BadRequest)
         }
+      case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
       case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
     }
   }
@@ -306,6 +318,7 @@ trait CromwellApiService extends HttpInstrumentation {
       case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
       case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
       case Failure(e: InvalidWorkflowException) => e.failRequest(StatusCodes.BadRequest)
+      case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
       case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
     }
   }
@@ -321,6 +334,7 @@ trait CromwellApiService extends HttpInstrumentation {
         }
       case Success(w: WorkflowQueryFailure) => w.reason.failRequest(StatusCodes.BadRequest)
       case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
+      case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
       case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
     }
   }

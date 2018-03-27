@@ -3,16 +3,16 @@ package wdl.draft3.transforms.expression.values
 import cats.data.Validated.{Invalid, Valid}
 import common.validation.ErrorOr.ErrorOr
 import org.scalatest.{Assertion, FlatSpec, Matchers}
-import wom.expression.IoFunctionSet
+import wdl.draft3.transforms.expression.values.Draft3SizeFunctionSpec.testFunctions
+import wdl.draft3.transforms.linking.expression.values.EngineFunctionEvaluators.sizeFunctionEvaluator
+import wdl.model.draft3.elements.ExpressionElement.{IdentifierLookup, PrimitiveLiteralExpressionElement, Size}
+import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
+import wom.expression.{IoFunctionSet, NotImplementedIoFunctionSet}
 import wom.types._
 import wom.values._
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
-import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
-import wdl.draft3.transforms.linking.expression.values.EngineFunctionEvaluators.sizeFunctionEvaluator
-import wdl.draft3.transforms.expression.values.Draft3SizeFunctionSpec.testFunctions
-import wdl.model.draft3.elements.ExpressionElement.{IdentifierLookup, PrimitiveLiteralExpressionElement, Size}
 
 class Draft3SizeFunctionSpec extends FlatSpec with Matchers {
 
@@ -148,21 +148,9 @@ class Draft3SizeFunctionSpec extends FlatSpec with Matchers {
 }
 
 object Draft3SizeFunctionSpec {
-  def testFunctions(sizeResult: Try[Long]): IoFunctionSet = new IoFunctionSet {
-    override def copyFile(pathFrom: String, targetName: String): Future[WomSingleFile] = ???
-
-    override def stdout(params: Seq[Try[WomValue]]): Try[WomSingleFile] = ???
-
-    override def glob(pattern: String): Future[Seq[String]] = ???
-
-    override def stderr(params: Seq[Try[WomValue]]): Try[WomSingleFile] = ???
-
+  case class TestIo(sizeResult: Try[Long]) extends NotImplementedIoFunctionSet {
     override def size(path: String): Future[Long] = Future.fromTry(sizeResult)
-
-    override def readFile(path: String, maxBytes: Option[Int], failOnOverflow: Boolean): Future[String] = ???
-
-    override def writeFile(path: String, content: String): Future[WomSingleFile] = ???
-
-    override def listAllFilesUnderDirectory(dirPath: String): Future[Seq[String]] = ???
   }
+
+  def testFunctions(sizeResult: Try[Long]): IoFunctionSet = TestIo(sizeResult)
 }

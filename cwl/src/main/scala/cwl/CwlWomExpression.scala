@@ -91,7 +91,7 @@ object InitialWorkDirFileGeneratorExpression {
             case womFile: WomFile =>
               val errorOrEntryName: ErrorOr[String] = expressionDirent.entryname match {
                 case Some(actualEntryName) => actualEntryName.fold(EntryNamePoly).apply(unmappedParameterContext)
-                case None => womFile.value.split('/').last.valid
+                case None => unmappedParameterContext.ioFunctionSet.pathFunctions.name(womFile.value).valid
               }
               errorOrEntryName flatMap { entryName =>
                 validate {
@@ -137,7 +137,7 @@ object InitialWorkDirFileGeneratorExpression {
             // TODO WomFile could be a WomMaybePopulatedFile with secondary files but this code only stages in
             // the primary file.
             // The file should be staged to the initial work dir using the base filename.
-            val baseFileName = file.value.substring(file.value.lastIndexOf('/') + 1)
+            val baseFileName = unmappedParameterContext.ioFunctionSet.pathFunctions.name(file.value)
             unmappedParameterContext.ioFunctionSet.copyFile(file.value, baseFileName)
           }
 

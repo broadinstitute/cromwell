@@ -6,9 +6,12 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, _}
 import common.validation.Validation._
+import cwl.FileParameter._
 import eu.timepit.refined._
+import mouse.all._
 import shapeless.Poly1
 import shapeless.syntax.singleton._
+import wom.expression.{IoFunctionSet, PathFunctionSet}
 import wom.types.WomFileType
 import wom.values._
 
@@ -107,18 +110,46 @@ object File {
       ""
     }
   }
+  
+  private def recursivelyBuildDirectory(directory: String, ioFunctions: IoFunctionSet): WomMaybeListedDirectory = {
+    val listing: Iterator[WomFile] = sync(ioFunctions.listDirectory(directory)).map({
+      case entry if sync(ioFunctions.isDirectory(entry)) => recursivelyBuildDirectory(entry, ioFunctions)
+      case entry => WomMaybePopulatedFile(entry)
+    })
+
+    WomMaybeListedDirectory(Option(directory), Option(listing.toList))
+  }
+  
+  private def asAbsoluteSiblingOfPrimary(primary: WomFile, pathFunctions: PathFunctionSet)(path: String) = {
+    pathFunctions.absoluteSibling(primary.value, path)
+  }
 
   def secondaryStringFile(primaryWomFile: WomFile,
                           stringWomFileType: WomFileType,
-                          secondaryValue: String): ErrorOr[WomFile] = {
-    validate(WomFile(stringWomFileType, File.relativeFileName(primaryWomFile.value, secondaryValue)))
+                          secondaryValue: String,
+                          ioFunctions: IoFunctionSet): ErrorOr[WomFile] = {
+    val secondaryRelativeFileName = File.relativeFileName(primaryWomFile.value, secondaryValue)
+
+    // If the primary file is an absolute path, and the secondary is not, make the secondary file an absolute path and a sibling of the primary
+    // http://www.commonwl.org/v1.0/CommandLineTool.html#CommandInputParameter
+    val filePath = asAbsoluteSiblingOfPrimary(primaryWomFile, ioFunctions.pathFunctions)(secondaryRelativeFileName)
+
+    // If the secondary file is in fact a directory, look into it and build its listing
+    val file = if (sync(ioFunctions.isDirectory(filePath))) {
+      recursivelyBuildDirectory(filePath, ioFunctions)
+    } else {
+      WomFile(stringWomFileType, filePath)
+    }
+    validate(file)
   }
 
   def secondaryExpressionFiles(primaryWomFile: WomFile,
                                stringWomFileType: WomFileType,
                                expression: Expression,
                                parameterContext: ParameterContext,
-                               expressionLib: ExpressionLib): ErrorOr[List[WomFile]] = {
+                               expressionLib: ExpressionLib,
+                               ioFunctions: IoFunctionSet): ErrorOr[List[WomFile]] = {
+    
     /*
     If the value is an expression, the value of self in the expression must be the primary input or output File object
     to which this binding applies.
@@ -132,9 +163,12 @@ object File {
      */
     def parseResult(nestedLevel: Int)(womValue: WomValue): ErrorOr[List[WomFile]] = {
       womValue match {
-        case womString: WomString => List(WomFile(stringWomFileType, womString.value)).valid
-        case womMaybeListedDirectory: WomMaybeListedDirectory => List(womMaybeListedDirectory).valid
-        case womMaybePopulatedFile: WomMaybePopulatedFile => List(womMaybePopulatedFile).valid
+        case womString: WomString => 
+          List(WomFile(stringWomFileType, womString.value |> asAbsoluteSiblingOfPrimary(primaryWomFile, ioFunctions.pathFunctions))).valid
+        case womMaybeListedDirectory: WomMaybeListedDirectory => 
+          List(womMaybeListedDirectory.mapFile(asAbsoluteSiblingOfPrimary(primaryWomFile, ioFunctions.pathFunctions))).valid
+        case womMaybePopulatedFile: WomMaybePopulatedFile => 
+          List(womMaybePopulatedFile.mapFile(asAbsoluteSiblingOfPrimary(primaryWomFile, ioFunctions.pathFunctions))).valid
         case womArray: WomArray if nestedLevel == 0 =>
           womArray.value.toList flatTraverse parseResult(nestedLevel + 1)
         case other => s"Not a valid secondary file: $other".invalidNel

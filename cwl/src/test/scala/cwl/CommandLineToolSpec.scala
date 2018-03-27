@@ -7,7 +7,7 @@ import org.scalatest.{FlatSpec, Matchers, ParallelTestExecution}
 import shapeless.Coproduct
 import wom.callable.Callable.RequiredInputDefinition
 import wom.callable.RuntimeEnvironment
-import wom.expression.PlaceholderIoFunctionSet
+import wom.expression.NoIoFunctionSet
 import wom.types._
 import wom.values.{WomArray, WomBoolean, WomEvaluatedCallInputs, WomInteger, WomObject, WomSingleFile, WomString, WomValue}
 
@@ -29,7 +29,9 @@ class CommandLineToolSpec extends FlatSpec with Matchers with ParallelTestExecut
   )
   
   val localNameValues = inputs.map({ case (k, v) => k.localName -> v })
-
+  
+  val noIoFunctionSet = NoIoFunctionSet
+  
   val runtimeEnv = RuntimeEnvironment("", "", 0, 0D, 0L, 0L)
   
   def validate(tool: String, expectation: List[String]) = {
@@ -44,7 +46,7 @@ class CommandLineToolSpec extends FlatSpec with Matchers with ParallelTestExecut
       .buildCommandTemplate(List.empty, Vector.empty)(inputs)
       .valueOr(errors => fail(errors.toList.mkString(", ")))
     template
-      .flatTraverse[ErrorOr, String](_.instantiate(localNameValues, PlaceholderIoFunctionSet, identity[WomValue], runtimeEnv).map(_.map(_.commandString)))
+      .flatTraverse[ErrorOr, String](_.instantiate(localNameValues, noIoFunctionSet, identity[WomValue], runtimeEnv).map(_.map(_.commandString)))
       .valueOr(errors => fail(errors.toList.mkString(", "))) shouldBe expectation
     
     cltFile.delete(true)

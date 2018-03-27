@@ -1,12 +1,14 @@
 package centaur.cwl
 
+import better.files.File
 import com.typesafe.config.Config
-import common.validation.Parse.Parse
-import common.validation.Parse._
+import common.validation.Parse.{Parse, _}
 import common.validation.Validation._
 import cromwell.cloudsupport.gcp.GoogleConfiguration
+import cromwell.core.path.Obsolete.Paths
 import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
 import cromwell.filesystems.gcs.GcsPathBuilderFactory
+import cwl.preprocessor.CwlPreProcessor
 
 sealed trait CentaurCwlRunnerRunMode {
   /**
@@ -31,7 +33,7 @@ sealed trait CentaurCwlRunnerRunMode {
     *
     * For example, may prefix relative paths so that absolute URLs are used.
     */
-  def preProcessInput(input: String): Parse[String] = input.validParse
+  def preProcessInput(path: File): Parse[String] = path.contentAsString.validParse
 }
 
 object CentaurCwlRunnerRunMode {
@@ -45,8 +47,18 @@ object CentaurCwlRunnerRunMode {
 }
 
 case object LocalRunMode extends CentaurCwlRunnerRunMode {
+  val cwlPreProcessor = new CwlPreProcessor()
   override lazy val description: String = "local"
   override lazy val pathBuilderFactory: PathBuilderFactory = DefaultPathBuilderFactory
+  /*
+    * If the file is a relative local path, resolve it against the path of the input json.
+   */
+  private def inputFilesMapper(inputJsonPath: File)(file: String) = {
+    if (!Paths.get(file).isAbsolute) inputJsonPath.sibling(file).toString
+    else file
+  }
+
+  override def preProcessInput(input: File): Parse[String] = cwlPreProcessor.preProcessInputFiles(input.contentAsString, inputFilesMapper(input))
 }
 
 case class PapiRunMode(conf: Config) extends CentaurCwlRunnerRunMode {
@@ -63,5 +75,5 @@ case class PapiRunMode(conf: Config) extends CentaurCwlRunnerRunMode {
 
   override def preProcessWorkflow(workflow: String): String = preprocessor.preProcessWorkflow(workflow)
 
-  override def preProcessInput(input: String): Parse[String] = preprocessor.preProcessInput(input)
+  override def preProcessInput(input: File): Parse[String] = preprocessor.preProcessInput(input.contentAsString)
 }

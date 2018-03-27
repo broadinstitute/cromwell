@@ -2,21 +2,16 @@ package cwl
 
 import java.nio.file.{Files, Paths}
 
-import wom.expression.IoFunctionSet
-import wom.values.{WomFloat, WomSingleFile, WomValue}
+import wom.expression.EmptyIoFunctionSet
 
 import scala.collection.JavaConverters._
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Success, Try}
+import scala.concurrent.Future
+import scala.util.Try
 
 /**
   * Test io functions that can read from local file systems.
   */
-object LocalIoFunctionSet extends IoFunctionSet {
-  private def unsupported(description: String): Nothing = {
-    throw new UnsupportedOperationException(description)
-  }
-
+object LocalIoFunctionSet extends EmptyIoFunctionSet {
   private def stripLocalPrefix(path: String): String = {
     path.stripPrefix("file://")
   }
@@ -41,28 +36,10 @@ object LocalIoFunctionSet extends IoFunctionSet {
     })
   }
 
-  override def writeFile(path: String, content: String): Future[WomSingleFile] = unsupported(s"write file $path")
-
-  override def copyFile(pathFrom: String, targetName: String): Future[WomSingleFile] = {
-    unsupported(s"copy file $pathFrom to $targetName")
-  }
-
-  override def stdout(params: Seq[Try[WomValue]]) = unsupported(s"stdout for $params")
-
-  override def stderr(params: Seq[Try[WomValue]]) = unsupported(s"stderr for $params")
-
-  override def glob(pattern: String): Future[Seq[String]] = unsupported(s"glob for $pattern")
-
-  override def listAllFilesUnderDirectory(dirPath: String): Future[Seq[String]] = {
-    unsupported(s"listAllFilesUnderDirectory $dirPath")
-  }
-
   override def size(params: String): Future[Long] = {
     Future.fromTry(Try {
         fileSize(params)
     }
     )
   }
-
-  override implicit def ec: ExecutionContext = ???
 }

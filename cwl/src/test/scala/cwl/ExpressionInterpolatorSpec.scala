@@ -7,7 +7,7 @@ import wom.callable.RuntimeEnvironment
 import wom.values._
 import common.validation.Validation._
 import cwl.ExpressionInterpolator.SubstitutionException
-import wom.expression.PlaceholderIoFunctionSet
+import wom.expression.DefaultSizeIoFunctionSet
 
 class ExpressionInterpolatorSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
 
@@ -24,7 +24,7 @@ class ExpressionInterpolatorSpec extends FlatSpec with Matchers with TableDriven
       "cram" -> WomSingleFile("/path/to/my.cram"),
       "file1" -> WomSingleFile("/path/to/my.file.txt")
     )
-    ParameterContext(PlaceholderIoFunctionSet, expressionLib, inputs = inputs, runtimeOption = Option(runtime))
+    ParameterContext(DefaultSizeIoFunctionSet, expressionLib, inputs = inputs, runtimeOption = Option(runtime))
   }
 
   private def evaluator(string: String): ErrorOr[WomValue] = {

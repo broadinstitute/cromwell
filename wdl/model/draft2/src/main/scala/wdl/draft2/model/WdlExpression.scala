@@ -8,10 +8,9 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import wdl.draft2.model.AstTools.{EnhancedAstNode, VariableReference}
 import wdl.draft2.model.WdlExpression._
-import wdl.draft2.model.formatter.SyntaxHighlighter
-import wdl.draft2.model.types.WdlExpressionType
 import wdl.draft2.model.expression._
-import wdl.draft2.model.formatter.NullSyntaxHighlighter
+import wdl.draft2.model.formatter.{NullSyntaxHighlighter, SyntaxHighlighter}
+import wdl.draft2.model.types.WdlExpressionType
 import wdl.draft2.model.{FullyQualifiedName => _}
 import wdl.draft2.parser.WdlParser
 import wdl.draft2.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
@@ -21,13 +20,13 @@ import wom.graph._
 import wom.graph.expression.AnonymousExpressionNode
 import wom.graph.expression.AnonymousExpressionNode.AnonymousExpressionConstructor
 import wom.types.{WomAnyType, WomType}
-import wom.values.{WomFile, WomFloat, WomValue}
+import wom.values.{WomFile, WomFloat, WomSingleFile, WomValue}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.language.postfixOps
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 case object NoLookup extends ScopedLookupFunction {
   def apply(value: String): WomValue =
@@ -227,9 +226,9 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope) ext
 
       override def writeFile(path: String, content: String): Try[WomFile] = Try(Await.result(ioFunctionSet.writeFile(path, content), Duration.Inf))
 
-      override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = ioFunctionSet.stdout(params)
+      override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = Success(WomSingleFile(ioFunctionSet.pathFunctions.stdout))
 
-      override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = ioFunctionSet.stderr(params)
+      override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = Success(WomSingleFile(ioFunctionSet.pathFunctions.stderr))
 
       override def globHelper(pattern: String): Seq[String] = Await.result(ioFunctionSet.glob(pattern), Duration.Inf)
 

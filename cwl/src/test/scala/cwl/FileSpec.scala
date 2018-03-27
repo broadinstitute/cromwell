@@ -7,7 +7,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import wom.callable.Callable.InputDefinition
 import wom.callable.{CallableTaskDefinition, RuntimeEnvironment}
-import wom.expression.PlaceholderIoFunctionSet
+import wom.expression.NoIoFunctionSet
 import wom.graph.OptionalGraphInputNodeWithDefault
 import wom.values.WomValue
 
@@ -17,7 +17,7 @@ class FileSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
 
   private val fileTests = Table(
     ("description", "filePath", "ioFunctionSet", "expectedCommand"),
-    ("get the basename of a file", "file_example.cwl", PlaceholderIoFunctionSet, """   'echo' 'example.txt'   """.trim),
+    ("get the basename of a file", "file_example.cwl", NoIoFunctionSet, """   'echo' 'example.txt'   """.trim),
     ("get the size of a file", "file_size_example.cwl", LocalIoFunctionSet, """   'echo' '12'   """.trim)
   )
 

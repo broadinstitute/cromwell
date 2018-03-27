@@ -5,7 +5,7 @@ import wom.values.{WomSingleFile, WomValue}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Try}
 
-case object NoIoFunctionSet extends IoFunctionSet {
+class EmptyIoFunctionSet extends IoFunctionSet {
   override def readFile(path: String, maxBytes: Option[Int] = None, failOnOverflow: Boolean = false): Future[String] = Future.failed(new NotImplementedError("readFile is not available here"))
 
   override def writeFile(path: String, content: String): Future[WomSingleFile] = {
@@ -16,14 +16,6 @@ case object NoIoFunctionSet extends IoFunctionSet {
     throw new Exception("copyFile is not available here")
   }
 
-  override def stdout(params: Seq[Try[WomValue]]): Try[WomSingleFile] = {
-    Failure(new NotImplementedError("stdout is not available here"))
-  }
-
-  override def stderr(params: Seq[Try[WomValue]]): Try[WomSingleFile] = {
-    Failure(new NotImplementedError("stderr is not available here"))
-  }
-
   override def glob(pattern: String): Future[Seq[String]] = throw new NotImplementedError("glob is not available here")
 
   override def listAllFilesUnderDirectory(dirPath: String): Nothing =
@@ -32,4 +24,19 @@ case object NoIoFunctionSet extends IoFunctionSet {
   override def size(path: String): Future[Long] = Future.failed(new NotImplementedError("size is not available here"))
 
   override implicit def ec: ExecutionContext = null
+  override def pathFunctions = NoPathFunctionSet
+  override def listDirectory(path: String) = throw new NotImplementedError("listDirectory is not available here")
+  override def isDirectory(path: String) = throw new NotImplementedError("isDirectory is not available here")
 }
+
+class EmptyPathFunctionSet extends PathFunctionSet {
+  override def sibling(of: String, path: String) = throw new NotImplementedError("sibling is not available here")
+  override def isAbsolute(path: String) = false
+  override def relativeToHostCallRoot(path: String) = path
+  override def name(path: String) = throw new NotImplementedError("name is not available here")
+  override def stdout = throw new NotImplementedError("stdout is not available here")
+  override def stderr = throw new NotImplementedError("stderr is not available here")
+}
+
+case object NoIoFunctionSet extends EmptyIoFunctionSet
+case object NoPathFunctionSet extends EmptyPathFunctionSet

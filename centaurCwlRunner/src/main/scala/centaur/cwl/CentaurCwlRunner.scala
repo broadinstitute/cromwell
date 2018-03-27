@@ -116,7 +116,6 @@ object CentaurCwlRunner extends StrictLogging {
 
     val workflowContents = centaurCwlRunnerRunMode.preProcessWorkflow(preProcessedWorkflow)
     val inputContents = args.workflowInputs
-      .map(_.contentAsString)
       .map(centaurCwlRunnerRunMode.preProcessInput)
       .map(preProcessed => {
         preProcessed.value.unsafeRunSync() match {

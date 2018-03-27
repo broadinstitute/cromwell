@@ -228,9 +228,13 @@ object WdlFileToWdlomSpec {
           inputsSection = Some(InputsSectionElement(Vector(
             InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "total", None),
             InputDeclarationElement(PrimitiveTypeElement(WomStringType), "amount", None)))),
+          declarations = Vector.empty,
           outputsSection = Some(OutputsSectionElement(Vector(
             OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "out", Add(ReadInt(StdoutElement), PrimitiveLiteralExpressionElement(WomInteger(1))))))),
-          commandSection = CommandSectionElement(Vector(StringCommandPartElement(" echo "), PlaceholderCommandPartElement(IdentifierLookup("total")), StringCommandPartElement(" "))),
+          commandSection = CommandSectionElement(Vector(CommandSectionLine(Vector(
+            StringCommandPartElement("echo "),
+            PlaceholderCommandPartElement(IdentifierLookup("total"))
+          )))),
           runtimeSection = None,
           metaSection = None,
           parameterMetaSection = None
@@ -256,8 +260,14 @@ object WdlFileToWdlomSpec {
           TaskDefinitionElement(
             name = "standalone",
             inputsSection = Some(InputsSectionElement(Vector(InputDeclarationElement(PrimitiveTypeElement(WomStringType), "bar", None)))),
+            declarations = Vector.empty,
             outputsSection = Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomStringType), "out", IdentifierLookup("bar"))))),
-            commandSection = CommandSectionElement(Vector(StringCommandPartElement("\n    echo "), PlaceholderCommandPartElement(IdentifierLookup("bar")), StringCommandPartElement("\n  "))),
+            commandSection = CommandSectionElement(Vector(
+              CommandSectionLine(Vector(
+                StringCommandPartElement("echo "),
+                PlaceholderCommandPartElement(IdentifierLookup("bar"))
+              ))
+            )),
             runtimeSection = Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("someFakeDockerRuntime"))))),
             metaSection = None,
             parameterMetaSection = None))
@@ -271,8 +281,11 @@ object WdlFileToWdlomSpec {
           TaskDefinitionElement(
             name = "task_with_metas",
             inputsSection = Some(InputsSectionElement(Vector.empty)),
+            declarations = Vector.empty,
             outputsSection = Some(OutputsSectionElement(Vector.empty)),
-            commandSection = CommandSectionElement(Vector(StringCommandPartElement(" echo Hello World "))),
+            commandSection = CommandSectionElement(Vector(CommandSectionLine(Vector(
+              StringCommandPartElement("echo Hello World ")
+            )))),
             runtimeSection = None,
             metaSection = Some(MetaSectionElement(
               Map("author" -> MetaValueElementString("John Doe"),
@@ -310,8 +323,9 @@ object WdlFileToWdlomSpec {
           TaskDefinitionElement(
             name = "no_inputs",
             inputsSection = None,
+            declarations = Vector.empty,
             outputsSection = None,
-            commandSection = CommandSectionElement(Vector(StringCommandPartElement(" echo Hello World "))),
+            commandSection = CommandSectionElement(Vector(CommandSectionLine(Vector(StringCommandPartElement("echo Hello World "))))),
             runtimeSection = None,
             metaSection = None,
             parameterMetaSection = None
@@ -556,8 +570,9 @@ object WdlFileToWdlomSpec {
           TaskDefinitionElement(
             name = "simple",
             inputsSection = None,
+            declarations = Vector.empty,
             outputsSection = None,
-            commandSection = CommandSectionElement(Vector(StringCommandPartElement(" echo Hello World "))),
+            commandSection = CommandSectionElement(Vector(CommandSectionLine(Vector(StringCommandPartElement("echo Hello World "))))),
             runtimeSection = None,
             metaSection = None,
             parameterMetaSection = None))
@@ -606,6 +621,65 @@ object WdlFileToWdlomSpec {
         parameterMetaSection = None
       )),
       tasks = Vector.empty
+    ),
+    "command_syntaxes" -> FileElement(
+      imports = Vector.empty,
+      structs = Vector.empty,
+      workflows = Vector.empty,
+      tasks = Vector(
+        TaskDefinitionElement(
+          name = "a",
+          inputsSection = Some(InputsSectionElement(Vector(
+            InputDeclarationElement(PrimitiveTypeElement(WomStringType), "world1", Some(StringExpression(Seq(StringLiteral("wo"), StringPlaceholder(IdentifierLookup("rld")))))),
+            InputDeclarationElement(PrimitiveTypeElement(WomStringType), "world2", Some(StringExpression(Seq(StringLiteral("wo"), StringPlaceholder(IdentifierLookup("rld"))))))
+          ))),
+          declarations = Vector(
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "rld", StringLiteral("rld"))
+          ),
+          outputsSection = Some(OutputsSectionElement(Seq(
+            OutputDeclarationElement(PrimitiveTypeElement(WomStringType), "out", ReadString(StdoutElement))
+          ))),
+          commandSection = CommandSectionElement(Vector(
+            CommandSectionLine(Vector(
+              StringCommandPartElement("echo hello "),
+              PlaceholderCommandPartElement(IdentifierLookup("world1"))
+            )),
+            CommandSectionLine(Vector(
+              StringCommandPartElement("echo goodbye "),
+              PlaceholderCommandPartElement(IdentifierLookup("world2"))
+            )
+          ))),
+          runtimeSection = Some(RuntimeAttributesSectionElement(Vector(
+            KvPair("docker", StringLiteral("ubuntu:latest"))
+          ))),
+          metaSection = None,
+          parameterMetaSection = None
+        ),
+        TaskDefinitionElement(
+          name = "b",
+          inputsSection = Some(InputsSectionElement(Vector(
+            InputDeclarationElement(PrimitiveTypeElement(WomStringType), "world", Some(StringLiteral("world")))
+          ))),
+          declarations = Vector.empty,
+          outputsSection = Some(OutputsSectionElement(Seq(
+            OutputDeclarationElement(PrimitiveTypeElement(WomStringType), "out", ReadString(StdoutElement))
+          ))),
+          commandSection = CommandSectionElement(Vector(
+            CommandSectionLine(Vector(
+              StringCommandPartElement("echo hello ${world}")
+            )),
+            CommandSectionLine(Vector(
+              StringCommandPartElement("echo goodbye "),
+              PlaceholderCommandPartElement(IdentifierLookup("world"))
+            )
+            ))),
+          runtimeSection = Some(RuntimeAttributesSectionElement(Vector(
+            KvPair("docker", StringLiteral("ubuntu:latest"))
+          ))),
+          metaSection = None,
+          parameterMetaSection = None
+        )
+      )
     )
   )
 }

@@ -45,9 +45,18 @@ package object consumed {
       Set[UnlinkedConsumedValueHook](UnlinkedCallOutputOrIdentifierAndMemberAccessHook(a.first, a.second))
   }
 
+  implicit val stringExpressionUnlinkedValueConsumer: ExpressionValueConsumer[StringExpression] = new ExpressionValueConsumer[StringExpression] {
+    override def expressionConsumedValueHooks(a: StringExpression): Set[UnlinkedConsumedValueHook] =
+      a.pieces.flatMap {
+          case StringLiteral(_) => List.empty
+          case StringPlaceholder(expr) => expr.expressionConsumedValueHooks.toList
+      }.toSet
+  }
+
   implicit val expressionElementUnlinkedValueConsumer: ExpressionValueConsumer[ExpressionElement] = new ExpressionValueConsumer[ExpressionElement] {
     override def expressionConsumedValueHooks(a: ExpressionElement): Set[UnlinkedConsumedValueHook] = a match {
       case _: PrimitiveLiteralExpressionElement | _: StringLiteral => Set.empty[UnlinkedConsumedValueHook]
+      case a: StringExpression => a.expressionConsumedValueHooks
       case a: ObjectLiteral => a.expressionConsumedValueHooks
       case a: PairLiteral => a.expressionConsumedValueHooks
       case a: ArrayLiteral => a.expressionConsumedValueHooks
@@ -71,6 +80,9 @@ package object consumed {
       case a: Remainder => a.expressionConsumedValueHooks
 
       // Engine functions:
+      case StdoutElement => StdoutElement.expressionConsumedValueHooks
+      case StderrElement => StderrElement.expressionConsumedValueHooks
+
       case a: ReadLines => a.expressionConsumedValueHooks
       case a: ReadTsv => a.expressionConsumedValueHooks
       case a: ReadMap => a.expressionConsumedValueHooks

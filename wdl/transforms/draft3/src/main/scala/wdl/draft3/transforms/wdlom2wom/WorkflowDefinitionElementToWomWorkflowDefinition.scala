@@ -66,21 +66,10 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
       }
     }
 
-    val graphNodesValidation = getOrdering(linkedGraph) flatMap { ordering: List[WorkflowGraphElement] =>
+    val graphNodesValidation = LinkedGraphMaker.getOrdering(linkedGraph) flatMap { ordering: List[WorkflowGraphElement] =>
       ordering.foldLeft[ErrorOr[List[GraphNode]]](seedNodes.toList.validNel)(graphNodeCreationFold)
     }
 
     graphNodesValidation flatMap { graphNodes => WomGraph.validateAndConstruct(graphNodes.toSet) }
-  }
-
-  private def getOrdering(linkedGraph: LinkedGraph): ErrorOr[List[WorkflowGraphElement]] = {
-    // Find the topological order in which we must create the graph nodes:
-    val edges = linkedGraph.edges map { case LinkedGraphEdge(from, to) => DiEdge(from, to) }
-
-    Graph.from[WorkflowGraphElement, DiEdge](linkedGraph.elements, edges).topologicalSort match {
-      case Left(cycleNode) => s"This workflow contains a cyclic dependency on ${cycleNode.value}".invalidNel
-        // This asInstanceOf is not required, but it suppresses an incorrect intelliJ error highlight:
-      case Right(topologicalOrder) => topologicalOrder.toList.map(_.value).asInstanceOf[List[WorkflowGraphElement]].validNel
-    }
   }
 }

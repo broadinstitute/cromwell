@@ -11,6 +11,9 @@ import wdl.model.draft3.graph.UnlinkedValueGenerator.ops._
 import wdl.model.draft3.graph.GraphElementValueConsumer.ops._
 import wom.types.WomType
 
+import scalax.collection.Graph
+import scalax.collection.GraphEdge.DiEdge
+
 object LinkedGraphMaker {
   def make(nodes: Set[WorkflowGraphElement],
            externalHandles: Set[GeneratedValueHandle],
@@ -26,9 +29,21 @@ object LinkedGraphMaker {
       generatedValuesByGraphNode <- generatedValuesByGraphNodeValidation
       consumedValuesByGraphNode <- consumedValuesByGraphNodeValidation
       graphNodeByGeneratedValue <- reverseMap(generatedValuesByGraphNode)
-      consumedValueLookup <- makeConsumedValueLookup(nodes, typeAliases, graphNodeByGeneratedValue.keySet ++ externalHandles)
+      allHandles = graphNodeByGeneratedValue.keySet ++ externalHandles
+      consumedValueLookup <- makeConsumedValueLookup(nodes, typeAliases, allHandles)
       edges = makeEdges(nodes, consumedValuesByGraphNode, consumedValueLookup, graphNodeByGeneratedValue)
-    } yield LinkedGraph(nodes, edges, consumedValueLookup, typeAliases)
+    } yield LinkedGraph(nodes, edges, allHandles, consumedValueLookup, typeAliases)
+  }
+
+  def getOrdering(linkedGraph: LinkedGraph): ErrorOr[List[WorkflowGraphElement]] = {
+    // Find the topological order in which we must create the graph nodes:
+    val edges = linkedGraph.edges map { case LinkedGraphEdge(from, to) => DiEdge(from, to) }
+
+    Graph.from[WorkflowGraphElement, DiEdge](linkedGraph.elements, edges).topologicalSort match {
+      case Left(cycleNode) => s"This workflow contains a cyclic dependency on ${cycleNode.value}".invalidNel
+      // This asInstanceOf is not required, but it suppresses an incorrect intelliJ error highlight:
+      case Right(topologicalOrder) => topologicalOrder.toList.map(_.value).asInstanceOf[List[WorkflowGraphElement]].validNel
+    }
   }
 
   private def makeEdges(elements: Set[WorkflowGraphElement],
@@ -47,6 +62,10 @@ object LinkedGraphMaker {
                                      ): ErrorOr[Map[UnlinkedConsumedValueHook, GeneratedValueHandle]] = {
     val consumedValidation: ErrorOr[Set[UnlinkedConsumedValueHook]] = nodes.toList.traverse(n => n.graphElementConsumedValueHooks(typeAliases)).map(_.toSet.flatten)
 
+    consumedValidation.flatMap { consumed => makeConsumedValueLookup(consumed, availableHandles) }
+  }
+
+  def makeConsumedValueLookup(consumedValues: Set[UnlinkedConsumedValueHook], availableHandles: Set[GeneratedValueHandle]): ErrorOr[Map[UnlinkedConsumedValueHook, GeneratedValueHandle]] = {
     def isMatch(hook: UnlinkedConsumedValueHook, handle: GeneratedValueHandle): Boolean = (hook, handle) match {
       case (UnlinkedIdentifierHook(id1), GeneratedIdentifierValueHandle(id2, _)) => id1 == id2
       case (UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first, _), GeneratedIdentifierValueHandle(id2, _)) if first == id2 => true
@@ -63,9 +82,9 @@ object LinkedGraphMaker {
       }
     }
 
-    consumedValidation.flatMap { consumed =>
-      consumed.toList.traverse[ErrorOr, (UnlinkedConsumedValueHook, GeneratedValueHandle)] { findHandle } map {_.toMap}
-    }
+
+    consumedValues.toList.traverse[ErrorOr, (UnlinkedConsumedValueHook, GeneratedValueHandle)] { findHandle } map {_.toMap}
+
   }
 
   private def reverseMap(mapping: Map[WorkflowGraphElement, Set[GeneratedValueHandle]]): ErrorOr[Map[GeneratedValueHandle, WorkflowGraphElement]] = {

@@ -7,6 +7,14 @@ import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
 
 object EngineFunctionEvaluators {
 
+  implicit val stdoutElementValueConsumer: ExpressionValueConsumer[StdoutElement.type] = new ExpressionValueConsumer[ExpressionElement.StdoutElement.type] {
+    override def expressionConsumedValueHooks(a: ExpressionElement.StdoutElement.type): Set[UnlinkedConsumedValueHook] = Set.empty
+  }
+
+  implicit val stderrElementValueConsumer: ExpressionValueConsumer[StderrElement.type] = new ExpressionValueConsumer[ExpressionElement.StderrElement.type] {
+    override def expressionConsumedValueHooks(a: ExpressionElement.StderrElement.type): Set[UnlinkedConsumedValueHook] = Set.empty
+  }
+
   implicit val readLinesValueConsumer: ExpressionValueConsumer[ReadLines] = forOneParamFunction
   implicit val readTsvValueConsumer: ExpressionValueConsumer[ReadTsv] = forOneParamFunction
   implicit val readMapValueConsumer: ExpressionValueConsumer[ReadMap] = forOneParamFunction

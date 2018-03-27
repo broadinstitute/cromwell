@@ -8,7 +8,7 @@ import cats.syntax.validated._
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cwl.{Directory, File, FileOrDirectory}
-import org.mozilla.javascript.{NativeArray, NativeObject}
+import org.mozilla.javascript.{ConsString, NativeArray, NativeObject}
 import shapeless.Coproduct
 import wom.types.WomNothingType
 import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomLong, WomMap, WomOptionalValue, WomString, WomValue}
@@ -29,6 +29,7 @@ class CwlEcmaScriptDecoder {
         anyRefArray.traverse(decode).map(WomArray.apply)
       case null => WomOptionalValue(WomNothingType, None).valid
       case string: String => WomString(string).valid
+      case consString: ConsString => WomString(consString.toString).valid
       case int: java.lang.Integer => WomInteger(int).valid
       case long: java.lang.Long => WomLong(long).valid
       case double: java.lang.Double if double == double.doubleValue.floor && !double.isInfinite =>

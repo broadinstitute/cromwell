@@ -1,8 +1,8 @@
 package wom.expression
 
-import wom.values.{WomFloat, WomSingleFile, WomValue}
+import wom.values.{WomSingleFile, WomValue}
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Try}
 
 case object NoIoFunctionSet extends IoFunctionSet {
@@ -30,4 +30,6 @@ case object NoIoFunctionSet extends IoFunctionSet {
     throw new NotImplementedError("listAllFilesUnderDirectory is not available here")
 
   override def size(path: String): Future[Long] = Future.failed(new NotImplementedError("size is not available here"))
+
+  override implicit def ec: ExecutionContext = null
 }

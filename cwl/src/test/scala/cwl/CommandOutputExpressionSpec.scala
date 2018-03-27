@@ -10,7 +10,7 @@ import wom.expression.{IoFunctionSet, PlaceholderIoFunctionSet}
 import wom.types.WomIntegerType
 import wom.values._
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 class CommandOutputExpressionSpec extends FlatSpec with Matchers {
@@ -30,6 +30,7 @@ class CommandOutputExpressionSpec extends FlatSpec with Matchers {
       override def listAllFilesUnderDirectory(dirPath: String): Nothing =
         fail("listAllFilesUnderDirectory should not be used in this test")
       override def size(path: String): Future[Long] = fail("size should not be used in this test")
+      override implicit def ec: ExecutionContext = fail("ec should not be used in this test")
     }
 
   it should "evaluateValue" in {

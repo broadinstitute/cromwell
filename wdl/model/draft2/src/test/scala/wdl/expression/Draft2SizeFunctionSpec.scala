@@ -2,10 +2,10 @@ package wdl.expression
 
 import org.scalatest.{Assertion, FlatSpec, Matchers}
 import wdl.draft2.model.expression.WdlStandardLibraryFunctions
-import wom.expression.IoFunctionSet
+import wdl.expression.Draft2SizeFunctionSpec.testFunctions
+import wom.expression.NotImplementedIoFunctionSet
 import wom.types._
 import wom.values._
-import wdl.expression.Draft2SizeFunctionSpec.testFunctions
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -103,21 +103,8 @@ class Draft2SizeFunctionSpec extends FlatSpec with Matchers {
 }
 
 object Draft2SizeFunctionSpec {
-  def testFunctions(sizeResult: Try[Long]): WdlStandardLibraryFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet( new IoFunctionSet {
-    override def copyFile(pathFrom: String, targetName: String): Future[WomSingleFile] = ???
-
-    override def stdout(params: Seq[Try[WomValue]]): Try[WomSingleFile] = ???
-
-    override def glob(pattern: String): Future[Seq[String]] = ???
-
-    override def stderr(params: Seq[Try[WomValue]]): Try[WomSingleFile] = ???
-
+  case class TestIo(sizeResult: Try[Long]) extends NotImplementedIoFunctionSet {
     override def size(path: String): Future[Long] = Future.fromTry(sizeResult)
-
-    override def readFile(path: String, maxBytes: Option[Int], failOnOverflow: Boolean): Future[String] = ???
-
-    override def writeFile(path: String, content: String): Future[WomSingleFile] = ???
-
-    override def listAllFilesUnderDirectory(dirPath: String): Future[Seq[String]] = ???
-  })
+  }
+  def testFunctions(sizeResult: Try[Long]): WdlStandardLibraryFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(TestIo(sizeResult))
 }

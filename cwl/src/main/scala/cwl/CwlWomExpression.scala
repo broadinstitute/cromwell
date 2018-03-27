@@ -1,7 +1,6 @@
 package cwl
 
 import cats.syntax.validated._
-import io.circe.syntax._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.Validation._
 import cwl.InitialWorkDirFileGeneratorExpression._
@@ -12,8 +11,9 @@ import wom.expression.{IoFunctionSet, WomExpression}
 import wom.types._
 import wom.values._
 
-import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
+import scala.util.Try
 
 trait CwlWomExpression extends WomExpression {
 
@@ -109,7 +109,7 @@ object InitialWorkDirFileGeneratorExpression {
     implicit val caseStringDirent: Case.Aux[StringDirent, InitialWorkDirFileEvaluator] = {
       at {
         stringDirent => {
-          (ioFunctionSet, unmappedParameterContext, mappedInputValues, expressionLib) =>
+          (ioFunctionSet, unmappedParameterContext, _, expressionLib) =>
             for {
               entryName <- stringDirent.entryname.fold(EntryNamePoly).apply(unmappedParameterContext, expressionLib)
               contentString = stringDirent.entry
@@ -122,16 +122,40 @@ object InitialWorkDirFileGeneratorExpression {
 
     implicit val caseExpression: Case.Aux[Expression, InitialWorkDirFileEvaluator] = {
       at { expression =>
-        (_, unmappedParameterContext, mappedInputValues, expressionLib) => {
-          // A single expression which must evaluate to an array of Files
+        (ioFunctionSet, unmappedParameterContext, _, expressionLib) => {
+          // A single expression which should evaluate to a File or an array of Files.
           val expressionEvaluation = ExpressionEvaluator.eval(expression, unmappedParameterContext, expressionLib)
 
+          def stageFile(file: WomFile): Future[WomSingleFile] = {
+            // TODO WomFile could be a WomMaybePopulatedFile with secondary files but this code only stages in
+            // the primary file.
+            // The file should be staged to the initial work dir using the base filename.
+            val baseFileName = file.value.substring(file.value.lastIndexOf('/') + 1)
+            ioFunctionSet.copyFile(file.value, baseFileName)
+          }
+
+          def stageFiles(unstagedInputValue: Try[WomValue]): ErrorOr[WomValue] = {
+            implicit val ec = ioFunctionSet.ec
+
+            import common.validation.ErrorOr._
+            for {
+              womArray <- unstagedInputValue.toErrorOr.map(_.asInstanceOf[WomArray])
+              unstagedFiles = womArray.value.map(_.asInstanceOf[WomFile])
+              stagedFiles = Await.result(Future.sequence(unstagedFiles map stageFile), Duration.Inf)
+              arrayOfStagedFiles <- womArray.womType.coerceRawValue(stagedFiles).toErrorOr
+            } yield arrayOfStagedFiles
+          }
+
+          import mouse.all._
           expressionEvaluation flatMap {
             case array: WomArray if WomArrayType(WomSingleFileType).coercionDefined(array) =>
-              WomArrayType(WomSingleFileType).coerceRawValue(array).toErrorOr
-            case file: WomFile => file.valid
+              WomArrayType(WomSingleFileType).coerceRawValue(array) |> stageFiles
+            case array: WomArray if WomArrayType(WomMaybePopulatedFileType).coercionDefined(array) =>
+              WomArrayType(WomMaybePopulatedFileType).coerceRawValue(array) |> stageFiles
+            case file: WomFile =>
+              validate(Await.result(stageFile(file), Duration.Inf))
             case other =>
-              val error = "InitialWorkDirRequirement listing expression must be Array[File] but got %s: %s"
+              val error = "InitialWorkDirRequirement listing expression must be File or Array[File] but got %s: %s"
                 .format(other, other.womType.toDisplayString)
               error.invalidNel
           }

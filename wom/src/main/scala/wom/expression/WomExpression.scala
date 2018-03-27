@@ -6,7 +6,7 @@ import common.validation.ErrorOr.ErrorOr
 import wom.types.WomType
 import wom.values._
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 trait WomExpression {
@@ -38,6 +38,10 @@ trait IoFunctionSet {
   def glob(pattern: String): Future[Seq[String]]
   def listAllFilesUnderDirectory(dirPath: String): Future[Seq[String]]
   def size(path: String): Future[Long]
+  /**
+    * To map/flatMap over IO results
+    */
+  implicit def ec: ExecutionContext
 }
 
 /**

@@ -4,7 +4,7 @@
 
 ### API
 
-* More accurately returns 503 instead of 500 when Cromwell is overloaded
+* More accurately returns 503 instead of 500 when Cromwell can not respond in a timely manner
 
 ### Bug Fixes
 

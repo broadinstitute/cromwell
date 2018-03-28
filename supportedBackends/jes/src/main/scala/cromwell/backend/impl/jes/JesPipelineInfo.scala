@@ -19,8 +19,8 @@ trait JesPipelineInfoBuilder {
   def setGpu(resources: PipelineResources, runtimeAttributes: JesRuntimeAttributes) = {
     runtimeAttributes.gpuResource match {
       case Some(GpuResource(gpuType, gpuCount)) => resources
-        .set("acceleratorType", gpuType)
-        .set("acceleratorCount", gpuCount)
+        .set("acceleratorType", gpuType.toString)
+        .set("acceleratorCount", gpuCount.toString)
       case _ => resources
     }
   }

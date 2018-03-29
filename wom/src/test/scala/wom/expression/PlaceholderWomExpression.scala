@@ -19,7 +19,7 @@ final case class PlaceholderWomExpression(inputs: Set[String], fixedWomType: Wom
     Valid(Set.empty)
 }
 
-case object PlaceholderIoFunctionSet extends IoFunctionSet {
+trait NotImplementedIoFunctionSet extends IoFunctionSet {
   val DefaultFileSize = -12345L
 
   override def readFile(path: String, maxBytes: Option[Int] = None, failOnOverflow: Boolean = false): Future[String] = ???

@@ -6,7 +6,7 @@ import wom.expression.IoFunctionSet
 import wom.values.{WomFloat, WomSingleFile, WomValue}
 
 import scala.collection.JavaConverters._
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Success, Try}
 
 /**
@@ -63,4 +63,6 @@ object LocalIoFunctionSet extends IoFunctionSet {
     }
     )
   }
+
+  override implicit def ec: ExecutionContext = ???
 }

@@ -36,7 +36,7 @@ class CwlEcmaScriptDecoder {
         WomInteger(double.intValue).valid
       case double: java.lang.Double => WomFloat(double).valid
       case boolean: java.lang.Boolean => WomBoolean(boolean).valid
-      case _ => s"While decoding the output of the Javascript interpreter, we encountered $value and were unable to reify it.".invalidNel
+      case unknown => s"While decoding the output $value of the Javascript interpreter, we encountered $unknown and were unable to reify it.".invalidNel
     }
 
   def decodeMap(map: Map[Any, Any]): ErrorOr[WomValue] = {

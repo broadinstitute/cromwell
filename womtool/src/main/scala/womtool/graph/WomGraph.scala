@@ -22,7 +22,8 @@ import wom.callable.WorkflowDefinition
 import wom.executable.WomBundle
 import wom.graph._
 import wom.transforms.WomBundleMaker.ops._
-import wom.types._
+import wom.types.{WomMaybePopulatedFileType, _}
+import wom.values.WomSingleFile
 import womtool.graph.WomGraph._
 
 import scala.collection.JavaConverters._
@@ -215,10 +216,11 @@ object WomGraph {
 
   def fakeInput(womType: WomType): JsValue = womType match {
     case WomStringType => JsString("hio")
-    case WomIntegerType | WomFloatType => JsNumber(25)
+    case WomIntegerType | WomFloatType | WomLongType => JsNumber(25)
     case WomUnlistedDirectoryType => JsString("gs://bucket/path")
     case WomSingleFileType => JsString("gs://bucket/path/file.txt")
     case WomBooleanType => JsBoolean(true)
+    case WomMaybePopulatedFileType => JsString("x")
     case _: WomOptionalType => JsNull
     case WomMapType(_, valueType) => JsObject(Map("0" -> fakeInput(valueType)))
     case WomArrayType(innerType) => JsArray(Vector(fakeInput(innerType)))

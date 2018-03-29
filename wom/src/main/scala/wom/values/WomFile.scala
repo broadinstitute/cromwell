@@ -22,7 +22,7 @@ sealed trait WomFile extends WomValue {
     * - Convert a cloud path to a path on a mounted disk.
     *
     * WomFile such as WomMaybePopulatedFile and WomMaybeListedDirectory may contain references to other WomFile. mapFile
-    * will traverse any files definied within file, also converting the values within those files too.
+    * will traverse any referenced files, also converting the values within those files too.
     *
     * @param f The function to update the location.
     * @return A new WomFile with the updated location.
@@ -30,6 +30,23 @@ sealed trait WomFile extends WomValue {
     * @see [[wom.WomFileMapper.mapWomFiles]]
     */
   def mapFile(f: String => String): WomFile
+
+  /**
+    * Converts a file if defined at the partial function.
+    *
+    * A caller may need a modification to the file, for example:
+    *
+    * - Fill in the size of the file before the path is localized.
+    *
+    * WomFile such as WomMaybePopulatedFile and WomMaybeListedDirectory may contain references to other WomFile.
+    * mapPartial will traverse any referenced files, also converting the values within those files too.
+    *
+    * @param f The function to update the location.
+    * @return A new WomFile with the updated location.
+    * @see [[wom.values.WomValue.collectAsSeq]]
+    * @see [[wom.WomFileMapper.mapWomFiles]]
+    */
+  def mapPartial(f: PartialFunction[WomFile, WomFile]): WomFile
 
   /**
     * Returns the WomPrimitiveFile instances recursively referenced by this instance.
@@ -101,6 +118,10 @@ final case class WomUnlistedDirectory(value: String) extends WomPrimitiveFile {
   override def mapFile(f: String => String): WomUnlistedDirectory = {
     this.copy(value = f(value))
   }
+
+  override def mapPartial(f: PartialFunction[WomFile, WomFile]): WomFile = {
+    f.applyOrElse[WomFile, WomFile](this, identity)
+  }
 }
 
 /**
@@ -128,6 +149,10 @@ final case class WomSingleFile(value: String) extends WomPrimitiveFile {
 
   override def mapFile(f: String => String): WomSingleFile = {
     this.copy(value = f(value))
+  }
+
+  override def mapPartial(f: PartialFunction[WomFile, WomFile]): WomFile = {
+    f.applyOrElse[WomFile, WomFile](this, identity)
   }
 }
 
@@ -160,6 +185,10 @@ final case class WomGlobFile(value: String) extends WomPrimitiveFile {
   }
 
   override def mapFile(f: String => String): WomGlobFile = this.copy(value = f(value))
+
+  override def mapPartial(f: PartialFunction[WomFile, WomFile]): WomFile = {
+    f.applyOrElse[WomFile, WomFile](this, identity)
+  }
 }
 
 
@@ -183,6 +212,12 @@ final case class WomMaybeListedDirectory(valueOption: Option[String] = None,
   override def mapFile(f: String => String): WomMaybeListedDirectory = {
     this.copy(valueOption = valueOption.map(f), listingOption.map(_.map(_.mapFile(f))))
   }
+
+  override def mapPartial(f: PartialFunction[WomFile, WomFile]): WomFile = {
+    val copy = this.copy(listingOption = listingOption.map(_.map(_.mapPartial(f))))
+    f.applyOrElse[WomFile, WomFile](copy, identity)
+  }
+
 }
 
 object WomMaybeListedDirectory {
@@ -216,6 +251,11 @@ final case class WomMaybePopulatedFile(valueOption: Option[String] = None,
 
   override def mapFile(f: String => String): WomMaybePopulatedFile = {
     this.copy(valueOption = valueOption.map(f), secondaryFiles = secondaryFiles.map(_.mapFile(f)))
+  }
+
+  override def mapPartial(f: PartialFunction[WomFile, WomFile]): WomFile = {
+    val copy = this.copy(secondaryFiles = secondaryFiles.map(_.mapPartial(f)))
+    f.applyOrElse[WomFile, WomFile](copy, identity)
   }
 }
 

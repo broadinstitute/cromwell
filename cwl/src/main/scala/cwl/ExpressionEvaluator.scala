@@ -31,15 +31,19 @@ object ExpressionEvaluator {
   type MatchesECMAScriptFunction = MatchesRegex[ECMAScriptFunctionWitness.T]
   type ECMAScriptFunction = String Refined MatchesECMAScriptFunction
 
-  def evalExpression(expression: ECMAScriptExpression, parameterContext: ParameterContext, expressionLib: ExpressionLib): ErrorOr[WomValue] = {
+  def eval(expr: Expression, parameterContext: ParameterContext): ErrorOr[WomValue] = {
+    expr.fold(EvaluateExpression).apply(parameterContext)
+  }
+
+  def evalExpression(expression: ECMAScriptExpression)(parameterContext: ParameterContext): ErrorOr[WomValue] = {
     def evaluator(string: String): ErrorOr[WomValue] = {
-      eval(string, parameterContext, expressionLib)
+      eval(string, parameterContext)
     }
 
     ExpressionInterpolator.interpolate(expression.value, evaluator)
   }
 
-  def evalFunction(function: ECMAScriptFunction, parameterContext: ParameterContext, expressionLib: ExpressionLib): ErrorOr[WomValue] = {
+  def evalFunction(function: ECMAScriptFunction)(parameterContext: ParameterContext): ErrorOr[WomValue] = {
     function.value match {
       case ECMAScriptFunctionRegex(script) =>
 
@@ -49,23 +53,28 @@ object ExpressionEvaluator {
               |})();
               |""".stripMargin.replace("FUNCTION_BODY", script)
 
-        eval(functionExpression, parameterContext, expressionLib)
+        eval(functionExpression, parameterContext)
       case unmatched =>
         s"Expression '$unmatched' was unable to be matched to regex '${ECMAScriptFunctionWitness.value}'".invalidNel
     }
   }
 
-  private lazy val cwlJsEncoder = new EcmaScriptEncoder()
   private lazy val cwlJsDecoder = new CwlEcmaScriptDecoder()
 
-  def eval(expr: String, parameterContext: ParameterContext, expressionLib: ExpressionLib): ErrorOr[WomValue] = {
-    val script = if (expressionLib.isEmpty) expr else expressionLib.mkString("", ";", s";$expr")
+  def eval(expr: String, parameterContext: ParameterContext): ErrorOr[WomValue] = {
+    val script = if (parameterContext.expressionLib.isEmpty) {
+      expr
+    } else {
+      parameterContext.expressionLib.mkString("", ";", s";$expr")
+    }
     val (rawValues, mapValues) = paramValues(parameterContext)
-    EcmaScriptUtil.evalStructish(script, rawValues, mapValues, cwlJsEncoder, cwlJsDecoder)
-  }
-
-  def eval(expr: Expression, parameterContext: ParameterContext, expressionLib: ExpressionLib): ErrorOr[WomValue] = {
-    expr.fold(EvaluateExpression).apply(parameterContext, expressionLib)
+    EcmaScriptUtil.evalStructish(
+      script,
+      rawValues,
+      mapValues,
+      new EcmaScriptEncoder(parameterContext.ioFunctionSet),
+      cwlJsDecoder
+    )
   }
 
   def paramValues(parameterContext: ParameterContext): ((String, WomValue), Map[String, Map[String, WomValue]]) = {

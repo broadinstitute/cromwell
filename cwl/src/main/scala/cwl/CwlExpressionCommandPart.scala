@@ -22,9 +22,11 @@ case class CwlExpressionCommandPart(expr: Expression)(hasShellCommandRequirement
       case (LocalName(localName), value) => localName -> valueMapper(value)
     }
     val parameterContext = ParameterContext(
+      functions,
+      expressionLib,
       inputs = stringKeyMap, runtimeOption = Option(runtimeEnvironment)
     )
-    ExpressionEvaluator.eval(expr, parameterContext, expressionLib) map { womValue =>
+    ExpressionEvaluator.eval(expr, parameterContext) map { womValue =>
       List(InstantiatedCommand(valueMapper(womValue).valueString.shellQuote))
     }
   }
@@ -62,18 +64,19 @@ abstract class CommandLineBindingCommandPart(commandLineBinding: CommandLineBind
                            functions: IoFunctionSet,
                            valueMapper: (WomValue) => WomValue,
                            runtimeEnvironment: RuntimeEnvironment): ErrorOr[List[InstantiatedCommand]] = {
-    lazy val stringInputsMap = inputsMap map {
-      case (LocalName(localName), value) => localName -> valueMapper(value)
-    }
-
-    lazy val parameterContext = ParameterContext(
+      val stringInputsMap = inputsMap map {
+        case (LocalName(localName), value) => localName -> valueMapper(value)
+      }
+    val parameterContext = ParameterContext(
+      functions,
+      expressionLib,
       inputs = stringInputsMap,
       runtimeOption = Option(runtimeEnvironment),
       self = boundValue.getOrElse(ParameterContext.EmptySelf)
     )
 
     val evaluatedValueFrom = commandLineBinding.optionalValueFrom flatMap {
-      case StringOrExpression.Expression(expression) if evaluateValueFrom => Option(ExpressionEvaluator.eval(expression, parameterContext, expressionLib) map valueMapper)
+      case StringOrExpression.Expression(expression) if evaluateValueFrom => Option(ExpressionEvaluator.eval(expression, parameterContext) map valueMapper)
       case StringOrExpression.String(string) if evaluateValueFrom => Option(WomString(string).validNel)
       case _ => None
     }

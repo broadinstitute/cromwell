@@ -1,17 +1,18 @@
 package cwl
 
-import cwl.internal.{EcmaScriptEncoder, EcmaScriptUtil}
 import cwl.internal.EcmaScriptUtil.{ESArray, ESObject, ESPrimitive}
+import cwl.internal.{EcmaScriptEncoder, EcmaScriptUtil}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
+import wom.expression.PlaceholderIoFunctionSet
 import wom.values.WomMaybePopulatedFile
 
 class CwlEcmaScriptEncoderSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
 
-  behavior of "CwlJsEncoder"
+  behavior of "EcmaScriptEncoder"
 
   it should "encode" in {
-    val encoder = new EcmaScriptEncoder
+    val encoder = new EcmaScriptEncoder(PlaceholderIoFunctionSet)
     val file = WomMaybePopulatedFile("path/to/file.txt")
     val expected = Map(
       "class" -> ESPrimitive("File"),
@@ -20,7 +21,8 @@ class CwlEcmaScriptEncoderSpec extends FlatSpec with Matchers with TableDrivenPr
       "dirname" -> ESPrimitive("path/to"),
       "basename" -> ESPrimitive("file.txt"),
       "nameroot" -> ESPrimitive("file"),
-      "nameext" -> ESPrimitive(".txt")
+      "nameext" -> ESPrimitive(".txt"),
+      "size" -> ESPrimitive(Long.box(PlaceholderIoFunctionSet.DefaultFileSize))
     )
     val result: EcmaScriptUtil.ECMAScriptVariable = encoder.encode(file)
     val resultMap = result.asInstanceOf[ESObject].fields

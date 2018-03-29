@@ -1,16 +1,19 @@
 package cwl.internal
 
-import mouse.all._
-import EcmaScriptUtil.{ECMAScriptVariable, ESArray, ESObject, ESPrimitive}
 import cats.data.Validated.Valid
 import common.validation.ErrorOr.ErrorOr
-import cwl.{Directory, File}
+import cwl.internal.EcmaScriptUtil.{ECMAScriptVariable, ESArray, ESObject, ESPrimitive}
+import cwl.{Directory, File, FileParameter}
+import mouse.all._
+import wom.expression.IoFunctionSet
 import wom.values._
 
 /**
   * Converts a WomValue into a javascript compatible value.
+  *
+  * @param ioFunctionSet Used for filling in the size of cwl files.
   */
-class EcmaScriptEncoder {
+class EcmaScriptEncoder(ioFunctionSet: IoFunctionSet) {
 
   /**
     * Base implementation converts any WomPrimitive (except WomFile) into a javascript compatible value.
@@ -48,7 +51,7 @@ class EcmaScriptEncoder {
       case objectLike: WomObjectLike => objectLike.values.map{
         case (key, innerValue) => (key, encode(innerValue))
       } |> ESObject
-      case WomCoproductValue(_, value) => encode(value)
+      case WomCoproductValue(_, womValue) => encode(womValue)
       case _ => throw new RuntimeException(s"$getClass is unable to encode value: $value")
     }
   }
@@ -60,7 +63,7 @@ class EcmaScriptEncoder {
       //In the case of a non-string, we evaluate a small snippet of Ecma script meant to coerce the object to a string
       // http://2ality.com/2012/03/converting-to-string.html
       case _ =>
-        val jsString: ErrorOr[WomValue] = EcmaScriptUtil.evalStructish(""""" + other""","other" -> value)
+        val jsString: ErrorOr[WomValue] = EcmaScriptUtil.evalStructish(""""" + other""","other" -> value, encoder = this)
         jsString match {
           case Valid(WomString(string)) => string
           case unexpected => throw new RuntimeException(s"Expected to convert '$value' to a String but ended up with '$unexpected'")
@@ -96,16 +99,23 @@ class EcmaScriptEncoder {
       Option("class" -> ESPrimitive("File")),
       file.valueOption.map("location" -> ESPrimitive(_)),
       file.valueOption.map("path" -> ESPrimitive(_)),
-      Option("basename" ->  (File.basename(file.value) |> ESPrimitive)),
+      Option("basename" -> (File.basename(file.value) |> ESPrimitive)),
       Option("dirname" -> (File.dirname(file.value) |> ESPrimitive)),
       Option("nameroot" -> (File.nameroot(file.value) |> ESPrimitive)),
       Option("nameext" -> (File.nameext(file.value) |> ESPrimitive)),
       file.checksumOption.map("checksum" -> ESPrimitive(_)),
-      file.sizeOption.map(Long.box).map("size" -> ESPrimitive(_)),
+      file.sizeOption.orElse(maybeSizeFile(file)).map(Long.box).map("size" -> ESPrimitive(_)),
       Option("secondaryFiles" -> encodeFileOrDirectories(file.secondaryFiles)),
       file.formatOption.map("format" -> ESPrimitive(_)),
       file.contentsOption.map("contents" -> ESPrimitive(_))
     ).flatten.toMap |> ESObject
+
+  /**
+    * Gets the size of a wom file, maybe. If there's an error obtaining the size, no size will be populated.
+    */
+  private def maybeSizeFile(file: WomMaybePopulatedFile): Option[Long] = {
+    FileParameter.getSize(file, ioFunctionSet).toOption
+  }
 
   /**
     * Encodes a wom directory.

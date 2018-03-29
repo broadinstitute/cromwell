@@ -19,7 +19,9 @@ final case class PlaceholderWomExpression(inputs: Set[String], fixedWomType: Wom
     Valid(Set.empty)
 }
 
-trait NotImplementedIoFunctionSet extends IoFunctionSet {
+case object PlaceholderIoFunctionSet extends IoFunctionSet {
+  val DefaultFileSize = -12345L
+
   override def readFile(path: String, maxBytes: Option[Int] = None, failOnOverflow: Boolean = false): Future[String] = ???
   override def writeFile(path: String, content: String): Future[WomSingleFile] = ???
   override def copyFile(pathFrom: String, targetName: String): Future[WomSingleFile] = ???
@@ -27,7 +29,7 @@ trait NotImplementedIoFunctionSet extends IoFunctionSet {
   override def stderr(params: Seq[Try[WomValue]]) = ???
   override def glob(pattern: String): Future[Seq[String]] = ???
   override def listAllFilesUnderDirectory(dirPath: String): Future[Seq[String]] = ???
-  override def size(path: String): Future[Long] = ???
+  override def size(path: String): Future[Long] = Future.successful(DefaultFileSize)
   override implicit def ec: ExecutionContext = ???
 }
 

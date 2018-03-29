@@ -141,7 +141,7 @@ object File {
       }
     }
 
-    val possibleArrayErrorOr: ErrorOr[WomValue] = ExpressionEvaluator.eval(expression, secondaryParameterContext, expressionLib)
+    val possibleArrayErrorOr: ErrorOr[WomValue] = ExpressionEvaluator.eval(expression, secondaryParameterContext)
     possibleArrayErrorOr.flatMap(parseResult(nestedLevel = 0))
   }
 

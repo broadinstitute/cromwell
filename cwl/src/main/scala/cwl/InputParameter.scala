@@ -106,12 +106,18 @@ object InputParameter {
       def populateFiles(womValue: WomValue): ErrorOr[WomValue] = {
         womValue match {
           case womMaybePopulatedFile: WomMaybePopulatedFile =>
-            val parameterContext = ParameterContext(self = womMaybePopulatedFile)
+            val parameterContext = ParameterContext(ioFunctionSet, expressionLib, self = womMaybePopulatedFile)
             val secondaryFilesFromInputParameter = inputParameter.secondaryFiles
             val secondaryFilesFromType = inputType.fold(MyriadInputTypeToSecondaryFiles)
             val secondaryFiles = secondaryFilesFromInputParameter orElse secondaryFilesFromType
+
             for {
-              loaded <- maybeLoadContents(womMaybePopulatedFile, ioFunctionSet, inputParameter.loadContents)
+              contentsOption <- FileParameter.maybeLoadContents(
+                womMaybePopulatedFile,
+                ioFunctionSet,
+                inputParameter.loadContents
+              )
+              loaded = womMaybePopulatedFile.copy(contentsOption = contentsOption)
               secondaries <- FileParameter.secondaryFiles(
                 loaded,
                 WomSingleFileType,
@@ -119,7 +125,7 @@ object InputParameter {
                 parameterContext,
                 expressionLib
               )
-              updated = loaded.copy(secondaryFiles = loaded.secondaryFiles ++ secondaries)
+              updated = loaded.copy(secondaryFiles = loaded.secondaryFiles ++  secondaries)
             } yield updated
 
           case WomArray(_, values) => values.toList.traverse(populateFiles).map(WomArray(_))
@@ -142,18 +148,6 @@ object InputParameter {
       }
 
       womValue => populateFiles(womValue).toTry(s"loading $womValue for ${inputParameter.id}").get
-    }
-  }
-
-  private def maybeLoadContents(womMaybePopulatedFile: WomMaybePopulatedFile,
-                                ioFunctionSet: IoFunctionSet,
-                                loadContents: Boolean): ErrorOr[WomMaybePopulatedFile] = {
-    if (loadContents) {
-      FileParameter.load64KiB(womMaybePopulatedFile.value, ioFunctionSet) map { contents =>
-        womMaybePopulatedFile.copy(contentsOption = Option(contents))
-      }
-    } else {
-      womMaybePopulatedFile.valid
     }
   }
 }

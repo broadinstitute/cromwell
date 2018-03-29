@@ -43,8 +43,9 @@ object CommandOutputBinding {
                         outputWomType: WomType,
                         commandOutputBinding: CommandOutputBinding,
                         secondaryFilesOption: Option[SecondaryFiles],
+                        ioFunctionSet: IoFunctionSet,
                         expressionLib: ExpressionLib): ErrorOr[Set[WomFile]] = {
-    val parameterContext = ParameterContext(inputs = inputValues)
+    val parameterContext = ParameterContext(ioFunctionSet, expressionLib, inputs = inputValues)
 
     /*
     CWL can output two types of "glob" path types:
@@ -108,7 +109,7 @@ object CommandOutputBinding {
                              secondaryFilesCoproduct: Option[SecondaryFiles],
                              formatCoproduct: Option[StringOrExpression],
                              expressionLib: ExpressionLib): ErrorOr[WomValue] = {
-    val parameterContext = ParameterContext(inputs = inputValues)
+    val parameterContext = ParameterContext(ioFunctionSet, expressionLib, inputs = inputValues)
 
     // 3. outputEval: pass in the primary files to an expression to generate our return value
     def evaluateWomValue(womFilesArray: WomArray): ErrorOr[WomValue] = {
@@ -116,7 +117,7 @@ object CommandOutputBinding {
         case Some(StringOrExpression.String(string)) => WomString(string).valid
         case Some(StringOrExpression.Expression(expression)) =>
           val outputEvalParameterContext = parameterContext.copy(self = womFilesArray)
-          ExpressionEvaluator.eval(expression, outputEvalParameterContext, expressionLib)
+          ExpressionEvaluator.eval(expression, outputEvalParameterContext)
         case None =>
           womFilesArray.valid
       }

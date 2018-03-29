@@ -119,26 +119,37 @@ case class Workflow private(
     val graphFromOutputs: Checked[Set[GraphNode]] =
       outputs.toList.traverse[ErrorOr, GraphNode] {
         case WorkflowOutputParameter(id, _, _, _, _, _, _, Some(Inl(outputSource: String)), _, Some(tpe)) =>
-          val womType:WomType = tpe.fold(MyriadOutputTypeToWomType)
+          val womType: WomType = tpe.fold(MyriadOutputTypeToWomType)
 
           val parsedWorkflowOutput = FileAndId(id)
-          val parsedOutputSource = FileStepAndId(outputSource)
+          val parsedOutputSource = FullyQualifiedName(outputSource)
 
           // Try to find an output port for this cwl output in the set of available nodes
-          def lookupOutputSource(outputId: FileStepAndId): Checked[OutputPort] = {
+          def lookupOutputSource(fqn: FullyQualifiedName): Checked[OutputPort] = {
             def isRightOutputPort(op: GraphNodePort.OutputPort) = FullyQualifiedName.maybeApply(op.name) match {
-              case Some(fqn) => fqn.id == outputId.id
-              case None => op.name == outputId.id
+              case Some(f) => f.id == fqn.id
+              case None => op.name == fqn.id
+            }
+
+            def sourceNode(graph: Set[GraphNode]): Checked[GraphNode] = {
+              val findSource: PartialFunction[GraphNode, GraphNode] = fqn match {
+                // A step output becoming a workflow output.
+                case fsi: FileStepAndId => {
+                  case callNode: CallNode if callNode.localName == fsi.stepId => callNode
+                  case scatterNode: ScatterNode if scatterNode.innerGraph.calls.exists(_.localName == fsi.stepId) => scatterNode
+                }
+                // A workflow input recycled back to be an output.
+                case fi: FileAndId => {
+                  case gin: ExternalGraphInputNode if gin.nameInInputSet == fi.id => gin
+                }
+              }
+              graph collectFirst findSource toRight NonEmptyList.one(s"Call Node by name $fqn was not found in set $graph")
             }
 
             for {
               set <- graphFromSteps
-              node <- set.collectFirst({
-                case callNode: CallNode if callNode.localName == outputId.stepId => callNode
-                case scatterNode: ScatterNode if scatterNode.innerGraph.calls.exists(_.localName == outputId.stepId) => scatterNode
-              }).
-                toRight(NonEmptyList.one(s"Call Node by name ${outputId.stepId} was not found in set $set"))
-              output <- node.outputPorts.find(isRightOutputPort).toChecked(s"looking for ${outputId.id} in call $node output ports ${node.outputPorts}")
+              node <- sourceNode(set)
+              output <- node.outputPorts.find(isRightOutputPort).toChecked(s"looking for ${fqn.id} in call $node output ports ${node.outputPorts}")
             } yield output
           }
 

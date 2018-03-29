@@ -12,7 +12,7 @@ CENTAUR_CWL_RUNNER="$(pwd)/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
 git clone https://github.com/common-workflow-language/common-workflow-language.git
 cd common-workflow-language
 # checkout a known git hash to prevent the tests from changing out from under us
-git checkout af9e073634dc6aec4092c55e1c081f335affa54a
+git checkout 1646a398eacee14899d56945204c0162372fb5d8
 cd ..
 
 CWL_TEST_DIR=$(pwd)/common-workflow-language/v1.0/v1.0

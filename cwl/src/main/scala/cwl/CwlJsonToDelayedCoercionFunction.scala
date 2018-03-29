@@ -47,6 +47,13 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
     case WomCoproductType(types) =>
       val attempts: List[ErrorOr[WomValue]] = types.toList.map(onArray(value)(_))
       attempts.find(_.isValid).getOrElse(attempts.sequence.map(_.head))
+    case WomAnyType =>
+      // Make an array of WomAny
+      value.toList
+        .traverse[ErrorOr, WomValue](_.foldWith(this).apply(WomAnyType))
+        .map {
+          WomArray(WomArrayType(WomAnyType), _)
+        }
     case other => s"Cannot convert an array input value into a non array type: $other".invalidNel
   }
 

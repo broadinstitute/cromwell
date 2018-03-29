@@ -19,18 +19,20 @@ import wom.graph._
 import wom.transforms.WomCallNodeMaker
 
 object WdlDraft2WomCallNodeMaker extends WomCallNodeMaker[WdlCall] {
-  override def toWomCallNode(taskCall: WdlCall, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[CallNode.CallNodeAndNewNodes] = {
-    buildWomNodeAndInputs(taskCall, localLookup, outerLookup, preserveIndexForOuterLookups)
-  }
+  override def toWomCallNode(wdlCall: WdlCall, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean, inASubworkflow: Boolean): ErrorOr[CallNode.CallNodeAndNewNodes] = {
 
-  private def buildWomNodeAndInputs(wdlCall: WdlCall, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[CallNodeAndNewNodes] = {
     import common.validation.ErrorOr._
 
     val callNodeBuilder = new CallNode.CallNodeBuilder()
 
     // A validation that all inputs to the call were actually wanted:
     def allInputsWereWantedValidation(callable: Callable): ErrorOr[Unit] = {
-      val callableExpectedInputs = callable.inputs.map(_.localName.value)
+      val callableExpectedInputs = callable.inputs.collect {
+        case r: RequiredInputDefinition => r
+        case o: OptionalInputDefinition => o
+        // Draft 2 values are non-overridable if they have upstream dependencies, so filter for those:
+        case id: InputDefinitionWithDefault if id.default.inputs.isEmpty => id
+      }.map(_.localName.value)
       val unexpectedInputs: Option[NonEmptyList[String]] = NonEmptyList.fromList(wdlCall.inputMappings.toList collect {
         case (inputName, _) if !callableExpectedInputs.contains(inputName) => inputName
       })
@@ -38,7 +40,7 @@ object WdlDraft2WomCallNodeMaker extends WomCallNodeMaker[WdlCall] {
       unexpectedInputs match {
         case None => ().validNel
         case Some(unexpectedInputsNel) => (unexpectedInputsNel map { unexpectedInput =>
-          s"Invalid call to '${callable.name}': Didn't expect the input '$unexpectedInput'. Check that this input is declared in the task or workflow. Note that sub-workflow declarations with values that depend on previous values cannot be overridden."
+          s"Invalid call to '${callable.name}': Didn't expect the input '$unexpectedInput'. Check that this input is declared in the task or workflow. Note that intermediate values (declarations with values that depend on previous values) cannot be overridden."
         }).invalid
       }
     }
@@ -90,6 +92,7 @@ object WdlDraft2WomCallNodeMaker extends WomCallNodeMaker[WdlCall] {
 
       callable.inputs.foldMap {
         // If there is an input mapping for this input definition, use that
+        // (NB: we already verified that all inputs in the call _ { input: ... } section were wanted so don't need to re-check):
         case inputDefinition if expressionNodes.contains(inputDefinition.localName) =>
           val expressionNode = expressionNodes(inputDefinition.localName)
           InputDefinitionFold(
@@ -98,11 +101,16 @@ object WdlDraft2WomCallNodeMaker extends WomCallNodeMaker[WdlCall] {
             newExpressionNodes = Set(expressionNode)
           )
 
-        // No input mapping, use the default expression
-        case withDefault@InputDefinitionWithDefault(_, _, expression, _) =>
+        // No input mapping, either not an input or in a subworkflow: use the default expression
+        case withDefault@InputDefinitionWithDefault(_, _, expression, _) if inASubworkflow || expression.inputs.nonEmpty =>
           InputDefinitionFold(
             mappings = List(withDefault -> Coproduct[InputDefinitionPointer](expression))
           )
+
+        // No input mapping and in a top-level workflow: add an input with a default
+        case withDefault@InputDefinitionWithDefault(n, womType, expression, _) =>
+          val identifier = wdlCall.womIdentifier.combine(n)
+          withGraphInputNode(withDefault, OptionalGraphInputNodeWithDefault(identifier, womType, expression, identifier.fullyQualifiedName.value))
 
         // No input mapping, required and we don't have a default value, create a new RequiredGraphInputNode
         // so that it can be satisfied via workflow inputs

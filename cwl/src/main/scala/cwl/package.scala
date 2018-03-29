@@ -86,11 +86,11 @@ package object cwl extends TypeAliases {
   val AcceptAllRequirements: RequirementsValidator = _.validNel
 
   implicit class CwlHelper(val cwl: Cwl) extends AnyVal {
-    def womExecutable(validator: RequirementsValidator, inputsFile: Option[String] = None, ioFunctions: IoFunctionSet = NoIoFunctionSet): Checked[Executable] = {
+    def womExecutable(validator: RequirementsValidator, inputsFile: Option[String], ioFunctions: IoFunctionSet, strictValidation: Boolean): Checked[Executable] = {
       def executable = cwl match {
-        case Cwl.Workflow(w) => w.womExecutable(validator, inputsFile, ioFunctions)
-        case Cwl.CommandLineTool(clt) => clt.womExecutable(validator, inputsFile, ioFunctions)
-        case Cwl.ExpressionTool(et) => et.womExecutable(validator, inputsFile, ioFunctions)
+        case Cwl.Workflow(w) => w.womExecutable(validator, inputsFile, ioFunctions, strictValidation)
+        case Cwl.CommandLineTool(clt) => clt.womExecutable(validator, inputsFile, ioFunctions, strictValidation)
+        case Cwl.ExpressionTool(et) => et.womExecutable(validator, inputsFile, ioFunctions, strictValidation)
       }
       Try(executable) match {
         case Success(s) => s

@@ -10,7 +10,7 @@ import scala.language.implicitConversions
 
 @typeclass
 trait WomExecutableMaker[A] {
-  def toWomExecutable(a: A, inputs: Option[WorkflowJson], ioFunctions: IoFunctionSet): Checked[Executable]
+  def toWomExecutable(a: A, inputs: Option[WorkflowJson], ioFunctions: IoFunctionSet, strictValidation: Boolean): Checked[Executable]
 }
 
 @typeclass

@@ -54,7 +54,7 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
       resource = None,
       importResolver = Some(Seq(innerResolver))).get.asInstanceOf[WdlNamespaceWithWorkflow]
 
-    val outerWorkflowGraph = namespace.workflow.toWomWorkflowDefinition.map(_.graph)
+    val outerWorkflowGraph = namespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).map(_.graph)
 
     outerWorkflowGraph match {
       case Valid(g) => validateOuter(g)
@@ -145,7 +145,7 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
       resource = None,
       importResolver = Some(Seq(innerResolver))).get.asInstanceOf[WdlNamespaceWithWorkflow]
 
-    val outerWorkflowGraph = namespace.workflow.toWomWorkflowDefinition.map(_.graph)
+    val outerWorkflowGraph = namespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).map(_.graph)
 
     outerWorkflowGraph match {
       case Valid(g) => validateOuter(g)
@@ -207,7 +207,7 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
       resource = None,
       importResolver = Some(Seq(innerResolver))).get.asInstanceOf[WdlNamespaceWithWorkflow]
 
-    val outerWorkflowGraph = namespace.workflow.toWomWorkflowDefinition.map(_.graph)
+    val outerWorkflowGraph = namespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).map(_.graph)
 
     outerWorkflowGraph match {
       case Valid(g) => validateOuter(g)

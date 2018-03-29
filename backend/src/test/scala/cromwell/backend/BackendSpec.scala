@@ -17,7 +17,7 @@ import wom.callable.Callable.{InputDefinition, RequiredInputDefinition}
 import wom.core.WorkflowSource
 import wom.expression.{NoIoFunctionSet, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
-import wom.graph.CommandCallNode
+import wom.graph.{CommandCallNode, OptionalGraphInputNodeWithDefault}
 import wom.values.WomValue
 import wom.transforms.WomExecutableMaker.ops._
 
@@ -35,7 +35,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
                               runtime: String = "") = {
     val wdlNamespace = WdlNamespaceWithWorkflow.load(workflowSource.replaceAll("RUNTIME", runtime),
       Seq.empty[Draft2ImportResolver]).get
-    val executable = wdlNamespace.toWomExecutable(inputFileAsJson, NoIoFunctionSet) match {
+    val executable = wdlNamespace.toWomExecutable(inputFileAsJson, NoIoFunctionSet, strictValidation = true) match {
       case Left(errors) => fail(s"Fail to build wom executable: ${errors.toList.mkString(", ")}")
       case Right(e) => e
     }
@@ -86,12 +86,16 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
               _.evaluateValue(inputs, NoIoFunctionSet).getOrElse(fail("Can't evaluate input"))
             )
         ).orElse(
-          workflowDescriptor.knownValues
-            .get(resolved.select[OutputPort].get)
-        )
-          .getOrElse {
-            inputs(inputDef.name)
+          resolved.select[OutputPort] flatMap {
+            case known if workflowDescriptor.knownValues.contains(known) => Option(workflowDescriptor.knownValues(known))
+            case hasDefault if hasDefault.graphNode.isInstanceOf[OptionalGraphInputNodeWithDefault] =>
+              Option(hasDefault.graphNode.asInstanceOf[OptionalGraphInputNodeWithDefault].default
+                .evaluateValue(inputs, NoIoFunctionSet).getOrElse(fail("Can't evaluate input")))
+            case _ => None
           }
+        ).getOrElse {
+          inputs(inputDef.name)
+        }
     }.toMap
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.callable.runtimeAttributes, NoIoFunctionSet, Map.empty).getOrElse(fail("Failed to evaluate runtime attributes")) // .get is OK here because this is a test
     val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)

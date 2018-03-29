@@ -33,7 +33,7 @@ class OutputNameCollisionSpec extends WomDotGraphTest {
     val namespace = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
 
     namespace.toWomBundle match {
-      case Right(bundle) => (bundle.callables.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).head.graph
+      case Right(bundle) => (bundle.allCallables.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).head.graph
       case Left(errors) => throw new Exception(errors.toList.mkString(", "))
     }
   }

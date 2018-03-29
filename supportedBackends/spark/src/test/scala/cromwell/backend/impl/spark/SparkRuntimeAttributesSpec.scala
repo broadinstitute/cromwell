@@ -134,7 +134,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      wdlNamespace.workflow.toWomWorkflowDefinition.getOrElse(fail("Cannot build Wom Workflow")),
+      wdlNamespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("Cannot build Wom Workflow")),
       inputs,
       options,
       Labels.empty

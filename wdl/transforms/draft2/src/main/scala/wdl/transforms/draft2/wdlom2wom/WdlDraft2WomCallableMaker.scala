@@ -10,7 +10,7 @@ import wom.transforms.WomCommandTaskDefinitionMaker.ops._
 
 object WdlDraft2WomCallableMaker extends WomCallableMaker[WdlCallable] {
   override def toWomCallable(callable: WdlCallable): ErrorOr[Callable] = callable match {
-    case wf: WdlWorkflow => wf.toWomWorkflowDefinition
+    case wf: WdlWorkflow => wf.toWomWorkflowDefinition(isASubworkflow = true)
     case t: WdlTask => t.toWomTaskDefinition
   }
 }

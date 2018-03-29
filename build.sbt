@@ -174,9 +174,9 @@ lazy val centaurCwlRunner = project
 
 lazy val womtool = project
   .withExecutableSettings("womtool", womtoolDependencies)
-  .dependsOn(wdlTransformsDraft2)
-  .dependsOn(wdlTransformsDraft3)
-  .dependsOn(cwl)
+  .dependsOn(wdlDraft2LanguageFactory)
+  .dependsOn(wdlDraft3LanguageFactory)
+  .dependsOn(cwlV1_0LanguageFactory)
   .dependsOn(wom % "test->test")
 
 lazy val cromiam = (project in file("CromIAM")) // TODO: git mv CromIAM to a canonical lowercased name

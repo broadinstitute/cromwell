@@ -47,9 +47,9 @@ trait Tool {
   def asCwl: Cwl
 
   /** Builds an `Executable` directly from a `Tool` CWL with no parent workflow. */
-  def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None, ioFunctions: IoFunctionSet): Checked[Executable] = {
+  def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None, ioFunctions: IoFunctionSet, strictValidation: Boolean): Checked[Executable] = {
     val taskDefinition = buildTaskDefinition(validator, Vector.empty)
-    CwlExecutableValidation.buildWomExecutable(taskDefinition, inputFile, ioFunctions)
+    CwlExecutableValidation.buildWomExecutable(taskDefinition, inputFile, ioFunctions, strictValidation)
   }
 
   protected def buildTaskDefinition(taskName: String,

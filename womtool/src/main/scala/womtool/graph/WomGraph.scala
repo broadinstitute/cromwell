@@ -20,6 +20,7 @@ import wdl.draft3.transforms.parsing.fileToAst
 import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomBundleMakers._
 import wom.callable.WorkflowDefinition
 import wom.executable.WomBundle
+import wom.expression.NoIoFunctionSet
 import wom.graph._
 import wom.transforms.WomBundleMaker.ops._
 import wom.types.{WomMaybePopulatedFileType, _}
@@ -172,7 +173,7 @@ object WomGraph {
     val empty = NodesAndLinks(Set.empty, Set.empty)
   }
 
-  def fromFiles(mainFile: String, auxFiles: Seq[String]) = {
+  def fromFiles(mainFile: String) = {
     val graph = if (mainFile.toLowerCase().endsWith("wdl")) womExecutableFromWdl(mainFile) else womExecutableFromCwl(mainFile)
     new WomGraph("workflow", graph)
   }
@@ -191,7 +192,7 @@ object WomGraph {
     }
 
     womBundle match {
-      case Right(wom) if (wom.callables.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).size == 1 => (wom.callables.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).head.graph
+      case Right(wom) if (wom.allCallables.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).size == 1 => (wom.allCallables.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).head.graph
       case Right(_) => throw new Exception("Can only 'wom graph' a WDL with exactly one workflow")
       case Left(errors) =>
         val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())
@@ -207,7 +208,7 @@ object WomGraph {
         unsafeRunSync
       inputs = clt.requiredInputs
       fakedInputs = JsObject(inputs map { i => i._1 -> fakeInput(i._2) })
-      wom <- clt.womExecutable(AcceptAllRequirements, Option(fakedInputs.prettyPrint))
+      wom <- clt.womExecutable(AcceptAllRequirements, Option(fakedInputs.prettyPrint), NoIoFunctionSet, strictValidation = false)
     } yield wom) match {
       case Right(womExecutable) => womExecutable.graph
       case Left(e) => throw new Exception(s"Can't build WOM executable from CWL: ${e.toList.mkString("\n", "\n", "\n")}")

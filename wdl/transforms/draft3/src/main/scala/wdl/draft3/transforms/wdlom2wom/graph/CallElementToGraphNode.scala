@@ -5,7 +5,8 @@ import cats.syntax.either._
 import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.elements.{CallElement, IfElement}
 import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
-import wom.callable.{CallableTaskDefinition, TaskDefinition}
+import wom.callable.{Callable, CallableTaskDefinition, CommandTaskDefinition, TaskDefinition}
+import wom.graph.CallNode.{CallNodeBuilder, InputDefinitionFold}
 import wom.{callable, graph}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.{CommandCallNode, GraphNode, WomIdentifier}
@@ -13,15 +14,22 @@ import wom.types.WomType
 
 object CallElementToGraphNode extends Object {
   def convert(a: CallableNodeMakerInputs): ErrorOr[Set[GraphNode]] = {
-    val task = a.tasks.map[CallableTaskDefinition](_.filter(_.name == a.node.callableName).head)
-    task map { task =>  Set(CommandCallNode.apply(WomIdentifier(a.node.callableName), task, Set.empty, List.empty)) }
+    val callable: ErrorOr[Callable] = a.callables.find(_.name == a.node.callableName) match {
+      case Some(task: CommandTaskDefinition) => task.valid
+      case Some(c: Callable) => c.valid
+      case None => s"Cannot resolve a callable with name ${a.node.callableName}".invalidNel
+    }
+
+    callable map { callable =>
+      new CallNodeBuilder().build(WomIdentifier(a.node.callableName), callable, InputDefinitionFold(), true).nodes
+    }
   }
 }
 
 final case class CallableNodeMakerInputs(node: CallElement,
-                                         tasks: ErrorOr[Set[CallableTaskDefinition]],
                                          linkableValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
-                                         linkablePorts: Map[String, OutputPort],
+                                         linkablePorts: Map[String, Any],
                                          availableTypeAliases: Map[String, WomType],
                                          workflowName: String,
-                                         insideAnotherScatter: Boolean)
+                                         insideAnotherScatter: Boolean,
+                                         callables: Set[Callable])

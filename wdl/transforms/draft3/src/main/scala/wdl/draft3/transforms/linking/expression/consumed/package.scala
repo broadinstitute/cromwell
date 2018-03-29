@@ -36,7 +36,7 @@ package object consumed {
   }
 
   implicit val kvPairUnlinkedValueConsumer: ExpressionValueConsumer[KvPair] = new ExpressionValueConsumer[KvPair] {
-    override def expressionConsumedValueHooks(a: KvPair): Set[UnlinkedConsumedValueHook] =
+    override def expressionConsumedValueHooks(a: ExpressionElement.KvPair): Set[UnlinkedConsumedValueHook] =
       a.value.expressionConsumedValueHooks
   }
 

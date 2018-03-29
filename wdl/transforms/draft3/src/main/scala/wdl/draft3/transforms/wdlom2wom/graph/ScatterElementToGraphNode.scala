@@ -18,7 +18,7 @@ import wdl.model.draft3.elements._
 import wdl.model.draft3.graph._
 import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
 import wom.callable.Callable.InputDefinition
-import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
+import wom.callable.{Callable, CallableTaskDefinition, WorkflowDefinition}
 import wom.graph.CallNode.{CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNode.GraphNodeSetter
 import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort}
@@ -47,8 +47,8 @@ object ScatterElementToGraphNode {
     }
 
     val requiredOuterValuesValidation: ErrorOr[Set[String]] = {
-      val required: ErrorOr[Set[UnlinkedConsumedValueHook]] = (graphElements.toList.traverse { element => element.graphElementConsumedValueHooks(a.availableTypeAliases) }).map(_.toSet.flatten)
-      val generated: ErrorOr[Set[GeneratedValueHandle]] = (graphElements.toList.traverse { element => element.generatedValueHandles(a.availableTypeAliases) }).map(_.toSet.flatten)
+      val required: ErrorOr[Set[UnlinkedConsumedValueHook]] = graphElements.toList.traverse { element => element.graphElementConsumedValueHooks(a.availableTypeAliases, a.callables) }.map(_.toSet.flatten)
+      val generated: ErrorOr[Set[GeneratedValueHandle]] = graphElements.toList.traverse { element => element.generatedValueHandles(a.availableTypeAliases, a.callables) }.map(_.toSet.flatten)
 
       (required, generated) mapN { (r, g) => r collect {
         case hook @ UnlinkedIdentifierHook(id) if id != scatterVariableName && !g.exists(_.linkableName == id) => a.linkableValues(hook).linkableName
@@ -68,7 +68,7 @@ object ScatterElementToGraphNode {
         OuterGraphInputNode(WomIdentifier(name), port, preserveScatterIndex = false)
       }).toSet
 
-      val graphLikeConvertInputs = GraphLikeConvertInputs(graphElements.toSet, ogins ++ Set(womInnerGraphScatterVariableInput), a.availableTypeAliases, a.workflowName, insideAScatter = true, a.tasks)
+      val graphLikeConvertInputs = GraphLikeConvertInputs(graphElements.toSet, ogins ++ Set(womInnerGraphScatterVariableInput), a.availableTypeAliases, a.workflowName, insideAScatter = true, a.callables)
       val innerGraph: ErrorOr[Graph] = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
 
       innerGraph map { ig =>
@@ -81,7 +81,7 @@ object ScatterElementToGraphNode {
 
   def convertInnerScatter(a: ScatterNodeMakerInputs): ErrorOr[Set[GraphNode]] = {
 
-    val requiredOuterValuesValidation: ErrorOr[Set[UnlinkedConsumedValueHook]] = a.node.graphElementConsumedValueHooks(a.availableTypeAliases)
+    val requiredOuterValuesValidation: ErrorOr[Set[UnlinkedConsumedValueHook]] = a.node.graphElementConsumedValueHooks(a.availableTypeAliases, a.callables)
 
     val subWorkflowInputsValidation: ErrorOr[Set[GraphNode]] = requiredOuterValuesValidation map { requiredOuterValues =>
       val requiredLinkableNames: Set[(String, WomType)] = requiredOuterValues map { hook => (a.linkableValues(hook).linkableName, a.linkableValues(hook).womType) }
@@ -89,7 +89,7 @@ object ScatterElementToGraphNode {
     }
 
     val subWorkflowGraphValidation: ErrorOr[Graph] = subWorkflowInputsValidation flatMap { subWorkflowInputs =>
-      val graphLikeConvertInputs = GraphLikeConvertInputs(Set(a.node), subWorkflowInputs, a.availableTypeAliases, a.workflowName, insideAScatter = false, a.tasks)
+      val graphLikeConvertInputs = GraphLikeConvertInputs(Set(a.node), subWorkflowInputs, a.availableTypeAliases, a.workflowName, insideAScatter = false, a.callables)
       val subWorkflowGraph = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
       subWorkflowGraph map { WomGraphMakerTools.addDefaultOutputs(_) }
     }
@@ -123,4 +123,4 @@ final case class ScatterNodeMakerInputs(node: ScatterElement,
                                         availableTypeAliases: Map[String, WomType],
                                         workflowName: String,
                                         insideAnotherScatter: Boolean,
-                                        tasks: ErrorOr[Set[CallableTaskDefinition]])
+                                        callables: Set[Callable])

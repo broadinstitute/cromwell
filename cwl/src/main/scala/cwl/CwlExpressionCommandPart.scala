@@ -101,6 +101,7 @@ abstract class CommandLineBindingCommandPart(commandLineBinding: CommandLineBind
       case WomBoolean(false) => List.empty
       case WomBoolean(true) => prefixAsList
       case WomArray(_, values) => commandLineBinding.itemSeparator match {
+        case Some(_) if values.isEmpty => List.empty
         case Some(itemSeparator) => handlePrefix(values.map(valueMapper(_).valueString).mkString(itemSeparator))
 
         /*

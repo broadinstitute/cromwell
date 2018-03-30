@@ -131,7 +131,6 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
     }
 
     // w0 has no input value in the input file, so it should fallback to the default value
-    // TODO WOM: when we have string value for wom expression, check that it's "hi !"
     validInputs(w0OutputPort.name).select[WomExpression].get.sourceString shouldBe "hi w0 !"
     validInputs(w1OutputPort.name) shouldBe
       Coproduct[ResolvedExecutableInput](WomMaybePopulatedFile(

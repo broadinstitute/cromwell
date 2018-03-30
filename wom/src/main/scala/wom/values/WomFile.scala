@@ -1,7 +1,12 @@
 package wom.values
 
+import java.io.FileNotFoundException
+import java.nio.file.NoSuchFileException
+
+import wom.expression.IoFunctionSet
 import wom.types._
 
+import scala.concurrent.Future
 import scala.util.{Success, Try}
 
 sealed trait WomFile extends WomValue {
@@ -72,6 +77,16 @@ sealed trait WomFile extends WomValue {
         }
       case womPrimitiveFile: WomPrimitiveFile => List(womPrimitiveFile)
     }
+  }
+
+  /**
+    * If relevant, load the size of the file.
+    */
+  def withSize(ioFunctionSet: IoFunctionSet): Future[WomFile] = Future.successful(this)
+  
+  protected val recoverFileNotFound: PartialFunction[Throwable, this.type] = {
+    case _: NoSuchFileException | _: FileNotFoundException => this
+    case e if recoverFileNotFound.isDefinedAt(e.getCause) => recoverFileNotFound.apply(e.getCause)
   }
 }
 
@@ -153,6 +168,12 @@ final case class WomSingleFile(value: String) extends WomPrimitiveFile {
 
   override def collect(f: PartialFunction[WomFile, WomFile]): WomFile = {
     f.applyOrElse[WomFile, WomFile](this, identity)
+  }
+
+  override def withSize(ioFunctionSet: IoFunctionSet): Future[WomFile] = {
+    ioFunctionSet.size(value)
+      .map(s => WomMaybePopulatedFile(valueOption = Option(value), sizeOption = Option(s)))(ioFunctionSet.ec)
+      .recover(recoverFileNotFound)(ioFunctionSet.ec)
   }
 }
 
@@ -256,6 +277,16 @@ final case class WomMaybePopulatedFile(valueOption: Option[String] = None,
   override def collect(f: PartialFunction[WomFile, WomFile]): WomFile = {
     val copy = this.copy(secondaryFiles = secondaryFiles.map(_.collect(f)))
     f.applyOrElse[WomFile, WomFile](copy, identity)
+  }
+  
+  override def withSize(ioFunctionSet: IoFunctionSet): Future[WomMaybePopulatedFile] = {   
+    (sizeOption, contentsOption) match {
+      case (Some(_), _) => Future.successful(this)
+      case (None, Some(contents)) => Future.successful(this.copy(sizeOption = Option(contents.length.toLong)))
+      case _ => ioFunctionSet.size(value)
+        .map(s => this.copy(sizeOption = Option(s)))(ioFunctionSet.ec)
+        .recover(recoverFileNotFound)(ioFunctionSet.ec)
+    }
   }
 }
 

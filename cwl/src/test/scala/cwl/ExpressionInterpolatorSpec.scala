@@ -63,7 +63,7 @@ class ExpressionInterpolatorSpec extends FlatSpec with Matchers with TableDriven
     ("a string containing a start prefix", """$("$(")""", WomString("$(")),
     ("a replacement returning a json object",
       "$({'output': (inputs.i1 == 'the-default' ? 1 : 2)})",
-      WomMap(Map(WomString("output") -> WomInteger(2))))
+      WomObject(Map("output" -> WomInteger(2))))
   )
 
   forAll(validTests) { (description, expression, expected) =>
@@ -102,9 +102,9 @@ class ExpressionInterpolatorSpec extends FlatSpec with Matchers with TableDriven
   private val semiSupportedTests = Table(
     ("description", "expression", "expected"),
     ("an array", """$(["hello", "world"])""", """["hello", "world"]"""),
-    ("a map", """$({"hello": "world"})""", """{"hello": "world"}"""),
-    ("an array of maps", """$([{"hello": "world"}])""", """[{"hello": "world"}]"""),
-    ("a map of arrays", """$({"hello": ["world"]})""", """{"hello": ["world"]}""")
+    ("a map", """$({"hello": "world"})""", """object {hello: "world"}"""),
+    ("an array of maps", """$([{"hello": "world"}])""", """[object {hello: "world"}]"""),
+    ("a map of arrays", """$({"hello": ["world"]})""", """object {hello: ["world"]}""")
   )
 
   forAll(semiSupportedTests) { (description, expression, expected) =>

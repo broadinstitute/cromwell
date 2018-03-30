@@ -58,7 +58,8 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
   def isTransient(throwable: Throwable): Boolean = false
 
   private def withRetry[A](work: () => Future[A], backOff: SimpleExponentialBackoff): Future[A] = {
-    Retry.withRetry(work, isTransient = isTransient, isFatal = isFatal, backoff = backOff)(context.system)
+    Retry
+      .withRetry(work, isTransient = isTransient, isFatal = isFatal, backoff = backOff)(context.system)
   }
 
   private def robustExecuteOrRecover(mode: ExecutionMode) = {

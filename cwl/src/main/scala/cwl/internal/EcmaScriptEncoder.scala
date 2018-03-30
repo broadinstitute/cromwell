@@ -2,8 +2,9 @@ package cwl.internal
 
 import cats.data.Validated.Valid
 import common.validation.ErrorOr.ErrorOr
+import cwl.FileParameter._
 import cwl.internal.EcmaScriptUtil.{ECMAScriptVariable, ESArray, ESObject, ESPrimitive}
-import cwl.{Directory, File, FileParameter}
+import cwl.{Directory, File}
 import mouse.all._
 import wom.expression.IoFunctionSet
 import wom.values._
@@ -104,18 +105,11 @@ class EcmaScriptEncoder(ioFunctionSet: IoFunctionSet) {
       Option("nameroot" -> (File.nameroot(file.value) |> ESPrimitive)),
       Option("nameext" -> (File.nameext(file.value) |> ESPrimitive)),
       file.checksumOption.map("checksum" -> ESPrimitive(_)),
-      file.sizeOption.orElse(maybeSizeFile(file)).map(Long.box).map("size" -> ESPrimitive(_)),
+      file.sizeOption.map(Long.box).map("size" -> ESPrimitive(_)),
       Option("secondaryFiles" -> encodeFileOrDirectories(file.secondaryFiles)),
       file.formatOption.map("format" -> ESPrimitive(_)),
       file.contentsOption.map("contents" -> ESPrimitive(_))
     ).flatten.toMap |> ESObject
-
-  /**
-    * Gets the size of a wom file, maybe. If there's an error obtaining the size, no size will be populated.
-    */
-  private def maybeSizeFile(file: WomMaybePopulatedFile): Option[Long] = {
-    FileParameter.getSize(file, ioFunctionSet).toOption
-  }
 
   /**
     * Encodes a wom directory.

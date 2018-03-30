@@ -1,4 +1,5 @@
 package centaur.cwl
+import better.files.File
 import com.typesafe.config.Config
 import common.validation.Parse.Parse
 import cwl.preprocessor.CwlPreProcessor
@@ -22,7 +23,7 @@ class PAPIPreprocessor(config: Config) {
   val DefaultDockerPull = "dockerPull" -> Json.fromString("ubuntu:latest")
   
   // Default docker image to be injected in a pre-existing requirements array
-  private val DefaultDockerRequirement: Json = {
+  private val DefaultDockerHint: Json = {
     Json.obj(
       "class" -> Json.fromString("DockerRequirement"),
       DefaultDockerPull
@@ -30,9 +31,9 @@ class PAPIPreprocessor(config: Config) {
   }
 
   // Requirements array with default docker requirement
-  private val DefaultDockerRequirementList: Json = {
+  private val DefaultDockerHintList: Json = {
     Json.obj(
-      "requirements" -> Json.arr(DefaultDockerRequirement)
+      "hints" -> Json.arr(DefaultDockerHint)
     )
   }
 
@@ -49,7 +50,9 @@ class PAPIPreprocessor(config: Config) {
     process(value, f, yaml.Printer.spaces2.copy(stringStyle = StringStyle.DoubleQuoted).pretty)
 
   // Prefix the string at "key" with the gcs prefix
-  private def prefixLocationWithGcs(value: String): String = gcsPrefix + value
+  private def prefixLocationWithGcs(value: String): String = {
+    gcsPrefix + File(value.stripPrefix("file://")).name
+  }
 
   // Function to check if the given json has the provided key / value pair
   private def hasKeyValue(key: String, value: String): Json => Boolean = {
@@ -73,7 +76,7 @@ class PAPIPreprocessor(config: Config) {
   def hasDocker(json: Json): Boolean = hasDocker(root.hints)(json) || hasDocker(root.requirements)(json)
 
   // Add a default docker requirement to the workflow if it doesn't have one
-  private def addDefaultDocker(workflow: Json) = if (!hasDocker(workflow)) {
+  private val addDefaultDocker: Json => Json = workflow => if (!hasDocker(workflow)) {
     /*
       * deepMerge does not combine objects together but replaces keys which would overwrite existing requirements
       * so first check if there are requirements already and if so add our docker one.
@@ -81,16 +84,18 @@ class PAPIPreprocessor(config: Config) {
       * When it gets saladed the object is transformed to an array but because we deal with unsaladed cwl here
       * we have to handle both cases.
      */
-    val requirementsAsArray = root.requirements.arr.modifyOption(_ :+ DefaultDockerRequirement)(workflow)
-    val requirementsAsObject = root.requirements.obj.modifyOption(_.add("DockerRequirement", Json.obj(DefaultDockerPull)))(workflow)
+    val hintsAsArray = root.hints.arr.modifyOption(_ :+ DefaultDockerHint)(workflow)
+    val hintsAsObject = root.hints.obj.modifyOption(_.add("DockerRequirement", Json.obj(DefaultDockerPull)))(workflow)
 
-    requirementsAsArray
-      .orElse(requirementsAsObject)
-      .getOrElse(workflow.deepMerge(DefaultDockerRequirementList))
+    hintsAsArray
+      .orElse(hintsAsObject)
+      .getOrElse(workflow.deepMerge(DefaultDockerHintList))
   } else workflow
+  
+  private val prefixDefaultFilesInCwl = cwlPreProcessor.mapFilesAndDirectories(prefixLocationWithGcs) _
 
   /**
     * Pre-process the workflow by adding a default docker hint iff it doesn't have one
     */
-  def preProcessWorkflow(workflow: String) = processYaml(workflow)(addDefaultDocker)
+  def preProcessWorkflow(workflow: String): String = processYaml(workflow)(addDefaultDocker.andThen(prefixDefaultFilesInCwl))
 }

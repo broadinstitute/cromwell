@@ -24,8 +24,9 @@ trait ExecutableCallable extends Callable {
 
 object Callable {
   object InputDefinition {
-    type InputValueMapper = IoFunctionSet => WomValue => WomValue
-    val IdentityValueMapper: InputValueMapper = { _ => value => value}
+    import cats.syntax.validated._
+    type InputValueMapper = IoFunctionSet => WomValue => ErrorOr[WomValue]
+    val IdentityValueMapper: InputValueMapper = { _ => value => value.validNel}
   }
   sealed trait InputDefinition {
     def localName: LocalName

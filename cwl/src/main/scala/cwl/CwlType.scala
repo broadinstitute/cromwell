@@ -6,7 +6,7 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, _}
 import common.validation.Validation._
-import cwl.FileParameter._
+import cwl.FileParameter.{sync, _}
 import eu.timepit.refined._
 import mouse.all._
 import shapeless.Poly1
@@ -111,13 +111,14 @@ object File {
     }
   }
   
-  private def recursivelyBuildDirectory(directory: String, ioFunctions: IoFunctionSet): WomMaybeListedDirectory = {
-    val listing: Iterator[WomFile] = sync(ioFunctions.listDirectory(directory)).map({
-      case entry if sync(ioFunctions.isDirectory(entry)) => recursivelyBuildDirectory(entry, ioFunctions)
-      case entry => WomMaybePopulatedFile(entry)
-    })
-
-    WomMaybeListedDirectory(Option(directory), Option(listing.toList))
+  private def recursivelyBuildDirectory(directory: String, ioFunctions: IoFunctionSet): ErrorOr[WomMaybeListedDirectory] = {
+    for {
+      listing <- sync(ioFunctions.listDirectory(directory)).toErrorOr
+      fileListing <- listing.toList.traverse[ErrorOr, WomFile] {
+        case e if sync(ioFunctions.isDirectory(e)).getOrElse(false) => recursivelyBuildDirectory(e, ioFunctions)
+        case e => WomMaybePopulatedFile(e).validNel
+      }
+    } yield WomMaybeListedDirectory(Option(directory), Option(fileListing))
   }
   
   private def asAbsoluteSiblingOfPrimary(primary: WomFile, pathFunctions: PathFunctionSet)(path: String) = {
@@ -135,12 +136,10 @@ object File {
     val filePath = asAbsoluteSiblingOfPrimary(primaryWomFile, ioFunctions.pathFunctions)(secondaryRelativeFileName)
 
     // If the secondary file is in fact a directory, look into it and build its listing
-    val file = if (sync(ioFunctions.isDirectory(filePath))) {
-      recursivelyBuildDirectory(filePath, ioFunctions)
-    } else {
-      WomFile(stringWomFileType, filePath)
-    }
-    validate(file)
+    for {
+      isDirectory <- sync(ioFunctions.isDirectory(filePath)).toErrorOr
+      file <- if (isDirectory) recursivelyBuildDirectory(filePath, ioFunctions) else WomFile(stringWomFileType, filePath).validNel
+    } yield file
   }
 
   def secondaryExpressionFiles(primaryWomFile: WomFile,

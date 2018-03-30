@@ -11,7 +11,7 @@ import cwl.{Directory, File, FileOrDirectory}
 import org.mozilla.javascript.{ConsString, NativeArray, NativeObject}
 import shapeless.Coproduct
 import wom.types.WomNothingType
-import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomLong, WomMap, WomOptionalValue, WomString, WomValue}
+import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomLong, WomObject, WomOptionalValue, WomString, WomValue}
 
 import scala.collection.JavaConverters._
 
@@ -42,9 +42,11 @@ class CwlEcmaScriptDecoder {
   def decodeMap(map: Map[Any, Any]): ErrorOr[WomValue] = {
     val realMap: Map[AnyRef, AnyRef] = map.asInstanceOf[Map[AnyRef, AnyRef]]
 
-    val tupleList = realMap.toList.traverse[ErrorOr,(WomValue, WomValue)]{ case (k,v) => (decode(k), decode(v)).tupled }
+    val tupleList = realMap.toList.traverse[ErrorOr,(String, WomValue)]{ 
+      case (k,v) => (k.toString.validNel: ErrorOr[String], decode(v)).tupled
+    }
     val mapWomValues =  tupleList.map(_.toMap)
-    mapWomValues.map(WomMap.apply)
+    mapWomValues.map(WomObject.apply)
   }
 
   /**

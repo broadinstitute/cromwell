@@ -5,6 +5,7 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr._
 import common.validation.Validation._
+import cwl.FileParameter._
 import shapeless.Poly1
 import wom.callable.Callable.InputDefinition.InputValueMapper
 import wom.expression.IoFunctionSet
@@ -106,7 +107,8 @@ object InputParameter {
       def populateFiles(womValue: WomValue): ErrorOr[WomValue] = {
         womValue match {
           case womMaybePopulatedFile: WomMaybePopulatedFile =>
-            val parameterContext = ParameterContext(ioFunctionSet, expressionLib, self = womMaybePopulatedFile)
+            // Don't include the secondary files in the self variables
+            val parameterContext = ParameterContext(ioFunctionSet, expressionLib, self = womMaybePopulatedFile.copy(secondaryFiles = List.empty))
             val secondaryFilesFromInputParameter = inputParameter.secondaryFiles
             val secondaryFilesFromType = inputType.fold(MyriadInputTypeToSecondaryFiles)
             val secondaryFiles = secondaryFilesFromInputParameter orElse secondaryFilesFromType
@@ -117,7 +119,8 @@ object InputParameter {
                 ioFunctionSet,
                 inputParameter.loadContents
               )
-              loaded = womMaybePopulatedFile.copy(contentsOption = contentsOption)
+              withSize <- sync(womMaybePopulatedFile.withSize(ioFunctionSet)).toErrorOr
+              loaded = withSize.copy(contentsOption = contentsOption)
               secondaries <- FileParameter.secondaryFiles(
                 loaded,
                 WomSingleFileType,
@@ -148,7 +151,7 @@ object InputParameter {
         }
       }
 
-      womValue => populateFiles(womValue).toTry(s"loading $womValue for ${inputParameter.id}").get
+      womValue => populateFiles(womValue)
     }
   }
 }

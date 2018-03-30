@@ -3,13 +3,14 @@ package cwl
 import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.future._
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values._
 
-import scala.concurrent.Await
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 
 /** @see <a href="http://www.commonwl.org/v1.0/Workflow.html#CommandOutputBinding">CommandOutputBinding</a> */
@@ -110,6 +111,7 @@ object CommandOutputBinding {
                              formatCoproduct: Option[StringOrExpression],
                              expressionLib: ExpressionLib): ErrorOr[WomValue] = {
     val parameterContext = ParameterContext(ioFunctionSet, expressionLib, inputs = inputValues)
+    implicit val ec = ioFunctionSet.ec
 
     // 3. outputEval: pass in the primary files to an expression to generate our return value
     def evaluateWomValue(womFilesArray: WomArray): ErrorOr[WomValue] = {
@@ -176,8 +178,11 @@ object CommandOutputBinding {
 
       // Make globbed files absolute paths by prefixing them with the output dir if necessary
       absolutePaths = primaryAsDirectoryOrFiles.map(_.mapFile(ioFunctionSet.pathFunctions.relativeToHostCallRoot))
+      
+      // Load file size
+      withFileSizes <- FileParameter.sync(absolutePaths.traverse[Future, WomFile](_.withSize(ioFunctionSet))).toErrorOr
 
-      womFilesArray = WomArray(absolutePaths)
+      womFilesArray = WomArray(withFileSizes)
 
       // 3. outputEval: pass in the primary files to an expression to generate our return value
       evaluatedWomValue <- evaluateWomValue(womFilesArray)

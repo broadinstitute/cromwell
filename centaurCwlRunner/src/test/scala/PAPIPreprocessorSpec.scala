@@ -81,8 +81,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
     )
   }
 
-  // Ignored because until cwltool accepts gcs paths in workflows we can't prefix default locations
-  it should "prefix files and directories in workflow" ignore {
+  it should "prefix files and directories in workflow" in {
     validate(
       pAPIPreprocessor.preProcessWorkflow(
         """|class: CommandLineTool
@@ -143,7 +142,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
            |arguments: ["bwa", "mem"]
            |""".stripMargin),
       """|class: CommandLineTool
-         |requirements:
+         |hints:
          |  - class: DockerRequirement
          |    dockerPull: ubuntu:latest
          |cwlVersion: v1.0
@@ -165,7 +164,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
     validate(
       pAPIPreprocessor.preProcessWorkflow(
         """|class: CommandLineTool
-           |requirements:
+           |hints:
            |  - class: EnvVarRequirement
            |    envDef:
            |      TEST_ENV: $(inputs.in)
@@ -182,7 +181,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
            |arguments: ["bwa", "mem"]
            |""".stripMargin),
       """|class: CommandLineTool
-         |requirements:
+         |hints:
          |  - class: EnvVarRequirement
          |    envDef:
          |      TEST_ENV: $(inputs.in)
@@ -203,7 +202,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
     )
   }
 
-  it should "append default docker image to existing requirements as an object" in {
+  it should "append default docker image to existing hints as an object" in {
     validate(
       pAPIPreprocessor.preProcessWorkflow(
         """|class: CommandLineTool
@@ -216,7 +215,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
            |    outputBinding:
            |      glob: out
            |
-           |requirements:
+           |hints:
            |  EnvVarRequirement:
            |    envDef:
            |      TEST_ENV: $(inputs.in)
@@ -235,7 +234,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
          |    outputBinding:
          |      glob: out
          |
-         |requirements:
+         |hints:
          |  EnvVarRequirement:
          |    envDef:
          |      TEST_ENV: $(inputs.in)

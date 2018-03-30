@@ -60,8 +60,7 @@ case class WorkflowStep(
   lazy val allRequirements: List[Requirement] = requirements.toList.flatten ++ parentWorkflow.allRequirements
 
   lazy val schemaDefRequirement: SchemaDefRequirement = allRequirements.flatMap{
-    case Inr(Inl(sdr: SchemaDefRequirement)) => List(sdr)
-    case _ => List()
+    _.select[SchemaDefRequirement].toList
   }.headOption.getOrElse(SchemaDefRequirement())
 
 

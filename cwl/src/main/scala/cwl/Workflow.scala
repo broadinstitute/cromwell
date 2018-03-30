@@ -73,7 +73,7 @@ case class Workflow private(
   def womGraph(workflowName: String, validator: RequirementsValidator, expressionLib: ExpressionLib): Checked[Graph] = {
     val workflowNameIdentifier = explicitWorkflowName.value.map(WomIdentifier.apply).getOrElse(WomIdentifier(workflowName))
     val schemaDefRequirement: SchemaDefRequirement = allRequirements.flatMap{
-      case Inr(Inl(sdr: SchemaDefRequirement)) => List(sdr)
+      _.select[SchemaDefRequirement].toList
       case _ => List()
     }.headOption.getOrElse(SchemaDefRequirement())
 

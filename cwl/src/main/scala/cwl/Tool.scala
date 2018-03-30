@@ -112,8 +112,7 @@ trait Tool {
       val runtimeAttributes: RuntimeAttributes = RuntimeAttributes(attributesMap ++ toolAttributes)
 
       val schemaDefRequirement: SchemaDefRequirement = requirementsAndHints.flatMap{
-        case Inr(Inl(sdr: SchemaDefRequirement)) => List(sdr)
-        case _ => List()
+        _.select[SchemaDefRequirement].toList
       }.headOption.getOrElse(SchemaDefRequirement())
 
       val inputDefinitions: List[_ <: Callable.InputDefinition] =

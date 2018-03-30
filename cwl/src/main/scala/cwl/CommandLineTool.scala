@@ -90,8 +90,7 @@ case class CommandLineTool private(
         val parsedName = FullyQualifiedName(inputParameter.id)(ParentName.empty).id
 
         val schemaDefRequirement: SchemaDefRequirement = requirementsAndHints.flatMap{
-          case Inr(Inl(sdr: SchemaDefRequirement)) => List(sdr)
-          case _ => List()
+          _.select[SchemaDefRequirement].toList
         }.headOption.getOrElse(SchemaDefRequirement())
 
         val womType = inputParameter.`type`.map(_.fold(MyriadInputTypeToWomType).apply(schemaDefRequirement)).getOrElse(WomStringType)

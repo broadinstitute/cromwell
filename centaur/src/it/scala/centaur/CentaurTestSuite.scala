@@ -22,7 +22,7 @@ object CentaurTestSuite {
   
   def runSequential(testCase: CentaurTestCase) = testCase.testFormat match {
     case _: RestartFormat| _: ScheduledAbort | InstantAbort => true
-    case _ => testCase.workflow.data.workflowType.exists(_.equalsIgnoreCase("cwl"))
+    case _ => false
   }
   
   def runParallel(testCase: CentaurTestCase) = !runSequential(testCase)

@@ -622,7 +622,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def publishHitFailure(cache: EJEACacheHit, failure: Throwable) = {
-    import MetadataKey._
+    import WomValueSimpleton._
     import cromwell.services.metadata.MetadataService._
 
     cache.details foreach { details =>

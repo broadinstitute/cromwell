@@ -51,3 +51,5 @@ database {
   db.driver = "com.mysql.jdbc.Driver"
   profile = "slick.jdbc.MySQLProfile$"
 }
+
+backend.providers.BCS.config.concurrent-job-limit = 20

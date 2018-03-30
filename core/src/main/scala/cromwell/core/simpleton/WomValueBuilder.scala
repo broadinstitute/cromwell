@@ -15,16 +15,23 @@ import scala.language.postfixOps
 object WomValueBuilder {
 
   /**
-    * Looks for a WOM identifier possibly followed by a metacharacter and more stuff.
+    * Looks for a WOM identifier possibly followed by a metacharacter and more stuff. A 'WOM identifier' is kind of a
+    * made up term that encompasses anything preceding an open square brace or colon (used for encoding simpleton paths).
     *
     * Capture groups:
     *
     * <ol>
-    * <li>A WOM identifier</li>
-    * <li>Possibly a metacharacter and more stuff after the WOM identifier</li>
+    * <li>A WOM identifier (nongreedy match of one or more of any character)</li>
+    * <li>Either:
+    *   <ol>
+    *     <li>An open square bracket or colon followed by anything.</li>
+    *     <li>Nothing at all, forcing the initial nongreedy match to consume everything.</li>
+    *   </ol>
+    * </li>
     * </ol>
+    *
     */
-  private val IdentifierAndPathPattern = "^([a-zA-Z][a-zA-Z0-9_]*)(.*)".r
+  private val IdentifierAndPathPattern = raw"^(.+?)([\[:].*|)".r
 
   /**
     * Looks for an array element reference: square braces surrounding digits, possibly followed by a metacharacter and

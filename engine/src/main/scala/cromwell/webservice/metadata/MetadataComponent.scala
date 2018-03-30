@@ -1,12 +1,13 @@
 package cromwell.webservice.metadata
 
-import cats.{Monoid, Semigroup}
-import cats.instances.map._
 import cats.instances.list._
+import cats.instances.map._
 import cats.syntax.foldable._
+import cats.{Monoid, Semigroup}
 import cromwell.core._
+import cromwell.core.simpleton.WomValueSimpleton._
 import cromwell.services.metadata._
-import spray.json.{JsArray, _}
+import spray.json._
 
 import scala.collection.immutable.TreeMap
 import scala.language.postfixOps
@@ -117,7 +118,6 @@ object MetadataComponent {
   }
   
   def fromMetadataKeyAndPrimitive(metadataKey: String, innerComponent: MetadataComponent) = {
-    import MetadataKey._
     metadataKey.split(KeySplitter).map(_.unescapeMeta).foldRight(innerComponent)(parseKeyChunk)
   }
 }

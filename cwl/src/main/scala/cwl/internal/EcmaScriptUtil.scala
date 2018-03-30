@@ -15,8 +15,6 @@ import scala.concurrent.duration._
   */
 //noinspection VariablePatternShadow
 object EcmaScriptUtil {
-  val encoder = new EcmaScriptEncoder
-
   def writeValue(value: ECMAScriptVariable)(context: Context, scope: Scriptable): AnyRef =
     value match {
       case ESObject(fields) =>
@@ -74,7 +72,9 @@ object EcmaScriptUtil {
   sealed trait ECMAScriptVariable
 
   case class ESObject(fields: Map[String, ECMAScriptVariable]) extends ECMAScriptVariable
-  case class ESArray(array: Array[ECMAScriptVariable]) extends ECMAScriptVariable
+  case class ESArray(array: Array[ECMAScriptVariable]) extends ECMAScriptVariable {
+    override def toString: String = s"ESArray(${array.toList})"
+  }
   case class ESPrimitive(anyRef: AnyRef) extends ECMAScriptVariable
 
   /**
@@ -92,7 +92,7 @@ object EcmaScriptUtil {
   def evalStructish(expr: String,
                     rawValues: (String, WomValue),
                     mapValues: Map[String, Map[String, WomValue]] = Map.empty,
-                    encoder: EcmaScriptEncoder = new EcmaScriptEncoder,
+                    encoder: EcmaScriptEncoder,
                     decoder: CwlEcmaScriptDecoder = new CwlEcmaScriptDecoder): ErrorOr[WomValue] = {
     evalRaw(expr) { (context, scope) =>
 

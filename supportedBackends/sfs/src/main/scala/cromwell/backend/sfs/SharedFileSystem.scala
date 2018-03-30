@@ -203,11 +203,18 @@ trait SharedFileSystem extends PathFactory {
     */
   private def localizeWomFile(toDestPath: (String => Try[PairOfFiles]), strategies: Stream[DuplicationStrategy])
                              (womFile: WomFile): WomFile = {
-    womFile mapFile { path =>
+    val localized = womFile mapFile { path =>
       val result = toDestPath(path) flatMap {
         case PairOfFiles(src, dst) => duplicate("localize", src, dst, strategies).map(_ => dst.pathAsString)
       }
       result.get
     }
+    val sized = localized collect {
+      case womMaybePopulatedFile@WomMaybePopulatedFile(Some(path), _, None, _, _, _) =>
+        val pair = toDestPath(path).get
+        val srcSize = pair.src.size
+        womMaybePopulatedFile.copy(sizeOption = Option(srcSize))
+    }
+    sized
   }
 }

@@ -23,10 +23,10 @@ trait CwlWomExpression extends WomExpression {
 
   def expressionLib: ExpressionLib
 
-  def evaluate(inputs: Map[String, WomValue], parameterContext: ParameterContext, expression: Expression, expressionLib: ExpressionLib): ErrorOr[WomValue] =
+  def evaluate(inputs: Map[String, WomValue], parameterContext: ParameterContext, expression: Expression): ErrorOr[WomValue] =
     expression.
       fold(EvaluateExpression).
-      apply(parameterContext, expressionLib)
+      apply(parameterContext)
 }
 
 case class ECMAScriptWomExpression(expression: Expression,
@@ -40,8 +40,8 @@ case class ECMAScriptWomExpression(expression: Expression,
   }
 
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet) = {
-    val pc = ParameterContext(inputValues)
-    evaluate(inputValues, pc, expression, expressionLib)
+    val pc = ParameterContext(ioFunctionSet, expressionLib, inputValues)
+    evaluate(inputValues, pc, expression)
   }
 
   override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType) = Set.empty[WomFile].validNel
@@ -50,13 +50,13 @@ case class ECMAScriptWomExpression(expression: Expression,
 final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEntry, expressionLib: ExpressionLib) extends ContainerizedInputExpression {
 
   def evaluate(inputValues: Map[String, WomValue], mappedInputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
-    val unmappedParameterContext = ParameterContext(inputValues)
-    entry.fold(InitialWorkDirFilePoly).apply(ioFunctionSet, unmappedParameterContext, mappedInputValues, expressionLib)
+    val unmappedParameterContext = ParameterContext(ioFunctionSet, expressionLib, inputValues)
+    entry.fold(InitialWorkDirFilePoly).apply(unmappedParameterContext, mappedInputValues)
   }
 }
 
 object InitialWorkDirFileGeneratorExpression {
-  type InitialWorkDirFileEvaluator = (IoFunctionSet, ParameterContext, Map[String, WomValue], ExpressionLib) => ErrorOr[WomValue]
+  type InitialWorkDirFileEvaluator = (ParameterContext, Map[String, WomValue]) => ErrorOr[WomValue]
 
   /**
     * Converts an InitialWorkDir.
@@ -72,24 +72,31 @@ object InitialWorkDirFileGeneratorExpression {
   object InitialWorkDirFilePoly extends Poly1 {
     implicit val caseExpressionDirent: Case.Aux[ExpressionDirent, InitialWorkDirFileEvaluator] = {
       at { expressionDirent =>
-        (ioFunctionSet, unmappedParameterContext, mappedInputValues, expressionLib) => {
+        (unmappedParameterContext, mappedInputValues) => {
 
           val entryEvaluation =
             expressionDirent.entry match {
                 //we need to catch this special case to feed in "value-mapped" input values
               case expr@Expression.ECMAScriptExpression(exprString) if exprString.value.trim() == "$(JSON.stringify(inputs))" =>
-                ExpressionEvaluator.eval(expr, ParameterContext(mappedInputValues), expressionLib)
-              case _ => ExpressionEvaluator.eval(expressionDirent.entry, unmappedParameterContext, expressionLib)
+                val specialParameterContext = ParameterContext(
+                  unmappedParameterContext.ioFunctionSet,
+                  unmappedParameterContext.expressionLib,
+                  mappedInputValues
+                )
+                ExpressionEvaluator.eval(expr, specialParameterContext)
+              case _ => ExpressionEvaluator.eval(expressionDirent.entry, unmappedParameterContext)
             }
 
           entryEvaluation flatMap {
             case womFile: WomFile =>
               val errorOrEntryName: ErrorOr[String] = expressionDirent.entryname match {
-                case Some(actualEntryName) => actualEntryName.fold(EntryNamePoly).apply(unmappedParameterContext, expressionLib)
+                case Some(actualEntryName) => actualEntryName.fold(EntryNamePoly).apply(unmappedParameterContext)
                 case None => womFile.value.split('/').last.valid
               }
               errorOrEntryName flatMap { entryName =>
-                validate(Await.result(ioFunctionSet.copyFile(womFile.value, entryName), Duration.Inf))
+                validate {
+                  Await.result(unmappedParameterContext.ioFunctionSet.copyFile(womFile.value, entryName), Duration.Inf)
+                }
               }
             case other => for {
               coerced <- WomStringType.coerceRawValue(other).toErrorOr
@@ -97,8 +104,8 @@ object InitialWorkDirFileGeneratorExpression {
               // We force the entryname to be specified, and then evaluate it:
               entryNameStringOrExpression <- expressionDirent.entryname.toErrorOr(
                 "Invalid dirent: Entry was a string but no file name was supplied")
-              entryName <- entryNameStringOrExpression.fold(EntryNamePoly).apply(unmappedParameterContext, expressionLib)
-              writeFile = ioFunctionSet.writeFile(entryName, contentString)
+              entryName <- entryNameStringOrExpression.fold(EntryNamePoly).apply(unmappedParameterContext)
+              writeFile = unmappedParameterContext.ioFunctionSet.writeFile(entryName, contentString)
               writtenFile <- validate(Await.result(writeFile, Duration.Inf))
             } yield writtenFile
           }
@@ -109,11 +116,11 @@ object InitialWorkDirFileGeneratorExpression {
     implicit val caseStringDirent: Case.Aux[StringDirent, InitialWorkDirFileEvaluator] = {
       at {
         stringDirent => {
-          (ioFunctionSet, unmappedParameterContext, _, expressionLib) =>
+          (unmappedParameterContext, _) =>
             for {
-              entryName <- stringDirent.entryname.fold(EntryNamePoly).apply(unmappedParameterContext, expressionLib)
+              entryName <- stringDirent.entryname.fold(EntryNamePoly).apply(unmappedParameterContext)
               contentString = stringDirent.entry
-              writeFile = ioFunctionSet.writeFile(entryName, contentString)
+              writeFile = unmappedParameterContext.ioFunctionSet.writeFile(entryName, contentString)
               writtenFile <- validate(Await.result(writeFile, Duration.Inf))
             } yield writtenFile
         }
@@ -122,20 +129,20 @@ object InitialWorkDirFileGeneratorExpression {
 
     implicit val caseExpression: Case.Aux[Expression, InitialWorkDirFileEvaluator] = {
       at { expression =>
-        (ioFunctionSet, unmappedParameterContext, _, expressionLib) => {
-          // A single expression which should evaluate to a File or an array of Files.
-          val expressionEvaluation = ExpressionEvaluator.eval(expression, unmappedParameterContext, expressionLib)
+        (unmappedParameterContext, _) => {
+          // A single expression which must evaluate to an array of Files
+          val expressionEvaluation = ExpressionEvaluator.eval(expression, unmappedParameterContext)
 
           def stageFile(file: WomFile): Future[WomSingleFile] = {
             // TODO WomFile could be a WomMaybePopulatedFile with secondary files but this code only stages in
             // the primary file.
             // The file should be staged to the initial work dir using the base filename.
             val baseFileName = file.value.substring(file.value.lastIndexOf('/') + 1)
-            ioFunctionSet.copyFile(file.value, baseFileName)
+            unmappedParameterContext.ioFunctionSet.copyFile(file.value, baseFileName)
           }
 
           def stageFiles(unstagedInputValue: Try[WomValue]): ErrorOr[WomValue] = {
-            implicit val ec = ioFunctionSet.ec
+            implicit val ec = unmappedParameterContext.ioFunctionSet.ec
 
             import common.validation.ErrorOr._
             for {
@@ -165,7 +172,7 @@ object InitialWorkDirFileGeneratorExpression {
 
     implicit val caseString: Case.Aux[String, InitialWorkDirFileEvaluator] = {
       at { string =>
-        (_, _, _, _) => {
+        (_, _) => {
           WomSingleFile(string).valid
         }
       }
@@ -179,7 +186,7 @@ object InitialWorkDirFileGeneratorExpression {
 
     implicit val caseFile: Case.Aux[File, InitialWorkDirFileEvaluator] = {
       at { file =>
-        (_, _, _, _) => {
+        (_, _) => {
           file.asWomValue
         }
       }
@@ -187,7 +194,7 @@ object InitialWorkDirFileGeneratorExpression {
 
     implicit val caseDirectory: Case.Aux[Directory, InitialWorkDirFileEvaluator] = {
       at { directory =>
-        (_, _, _, _) => {
+        (_, _) => {
           directory.asWomValue
         }
       }
@@ -195,13 +202,13 @@ object InitialWorkDirFileGeneratorExpression {
 
   }
 
-  type EntryNameEvaluator = (ParameterContext, ExpressionLib) => ErrorOr[String]
+  type EntryNameEvaluator = ParameterContext => ErrorOr[String]
 
   object EntryNamePoly extends Poly1 {
     implicit val caseString: Case.Aux[String, EntryNameEvaluator] = {
       at {
         string => {
-          (_, _) =>
+          _ =>
             string.valid
         }
       }
@@ -210,9 +217,9 @@ object InitialWorkDirFileGeneratorExpression {
     implicit val caseExpression: Case.Aux[Expression, EntryNameEvaluator] = {
       at {
         expression => {
-          (parameterContext, expressionLib) =>
+          parameterContext =>
             for {
-              entryNameExpressionEvaluated <- ExpressionEvaluator.eval(expression, parameterContext, expressionLib)
+              entryNameExpressionEvaluated <- ExpressionEvaluator.eval(expression, parameterContext)
               entryNameValidated <- mustBeString(entryNameExpressionEvaluated)
             } yield entryNameValidated
         }

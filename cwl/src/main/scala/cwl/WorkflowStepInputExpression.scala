@@ -37,9 +37,9 @@ final case class WorkflowStepInputExpression(inputName: String,
           case None => WomOptionalValue(WomNothingType, None)
         }
 
-        val pc = ParameterContext(inputValues, selfValue)
+        val parameterContext = ParameterContext(ioFunctionSet, expressionLib, inputValues, selfValue)
 
-        expression.fold(EvaluateExpression).apply(pc, expressionLib)
+        expression.fold(EvaluateExpression).apply(parameterContext)
     }
   }
 

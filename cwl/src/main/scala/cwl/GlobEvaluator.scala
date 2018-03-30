@@ -42,7 +42,7 @@ object GlobEvaluator {
       at {
         expression =>
           (parameterContext, expressionLib) => {
-            ExpressionEvaluator.eval(expression, parameterContext, expressionLib) flatMap {
+            ExpressionEvaluator.eval(expression, parameterContext) flatMap {
               case WomArray(_, values) if values.isEmpty => Nil.valid
               case WomString(value) => List(value).valid
               case WomArray(WomArrayType(WomStringType), values) => values.toList.map(_.valueString).valid

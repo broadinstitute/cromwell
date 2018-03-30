@@ -268,12 +268,12 @@ case class WorkflowStep(
 
           def fromStepOutput(stepId: String, stepOutputId: String, accumulatedNodes: Set[GraphNode]): Checked[(Map[String, OutputPort], Set[GraphNode])] = {
             // First check if we've already built the WOM node for this step, and if so return the associated output port
-            findThisInputInSet(accumulatedNodes, stepId, stepOutputId).map(outputPort => (Map(stepOutputId -> outputPort), accumulatedNodes))
+            findThisInputInSet(accumulatedNodes, stepId, stepOutputId).map(outputPort => (Map(s"$stepId/$stepOutputId" -> outputPort), accumulatedNodes))
               .orElse {
                 // Otherwise build the upstream nodes and look again in those newly created nodes
                 for {
                   newNodes <- buildUpstreamNodes(stepId, accumulatedNodes)
-                  sourceMappings <- findThisInputInSet(newNodes, stepId, stepOutputId).map(outputPort => Map(stepOutputId -> outputPort))
+                  sourceMappings <- findThisInputInSet(newNodes, stepId, stepOutputId).map(outputPort => Map(s"$stepId/$stepOutputId" -> outputPort))
                 } yield (sourceMappings, newNodes ++ accumulatedNodes)
               }
           }

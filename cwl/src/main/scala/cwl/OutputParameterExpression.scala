@@ -40,6 +40,7 @@ case class OutputParameterExpression(parameter: OutputParameter,
       coerceTo,
       outputBinding,
       secondaryFilesOption,
+      ioFunctionSet,
       expressionLib
     )
   }

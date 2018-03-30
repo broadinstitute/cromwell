@@ -8,10 +8,11 @@ import common.validation.Validation.validate
 import shapeless.Poly1
 import wom.expression.IoFunctionSet
 import wom.types.{WomFileType, WomSingleFileType}
-import wom.values.{WomArray, WomFile, WomMaybePopulatedFile, WomValue}
+import wom.values.{WomArray, WomFile, WomMaybePopulatedFile, WomSingleFile, WomValue}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.util.Success
 
 object FileParameter {
   private val ReadLimit = Option(64 * 1024)
@@ -47,6 +48,38 @@ object FileParameter {
     }
   }
 
+  /**
+    * Populates the size if it isn't loaded already.
+    */
+  def getSize(womMaybePopulatedFile: WomMaybePopulatedFile,
+              ioFunctionSet: IoFunctionSet): ErrorOr[Long] = {
+    (womMaybePopulatedFile.sizeOption, womMaybePopulatedFile.contentsOption) match {
+      case (Some(size), _) => size.valid
+      case (_, Some(contents)) => contents.length.toLong.valid
+      case _ => FileParameter.getSize(womMaybePopulatedFile.value, ioFunctionSet)
+    }
+  }
+
+  /**
+    * Populates the contents if they aren't loaded already.
+    */
+  def maybeLoadContents(womMaybePopulatedFile: WomMaybePopulatedFile,
+                        ioFunctionSet: IoFunctionSet,
+                        loadContents: Boolean): ErrorOr[Option[String]] = {
+    womMaybePopulatedFile.contentsOption match {
+      case someContents@Some(_) => someContents.valid
+      case None if !loadContents => None.valid
+      case _ => FileParameter.load64KiB(womMaybePopulatedFile.value, ioFunctionSet).map(Option(_))
+    }
+  }
+
+  def getSize(path: String, ioFunctionSet: IoFunctionSet): ErrorOr[Long] = {
+    // TODO: WOM: propagate Future (or IO?) signature
+    validate {
+      val size = ioFunctionSet.size(path)
+      Await.result(size, ReadTimeout)
+    }
+  }
 
   def load64KiB(path: String, ioFunctionSet: IoFunctionSet): ErrorOr[String] = {
     // TODO: WOM: propagate Future (or IO?) signature

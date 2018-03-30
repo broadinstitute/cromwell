@@ -4,12 +4,15 @@ import common.validation.Validation._
 import delight.rhinosandox.exceptions.ScriptDurationException
 import org.mozilla.javascript.{EcmaError, EvaluatorException}
 import org.scalatest.{FlatSpec, Matchers}
+import wom.expression.PlaceholderIoFunctionSet
 import wom.types._
 import wom.values._
 
 class EcmaScriptUtilSpec extends FlatSpec with Matchers {
 
   behavior of "EcmaScriptUtil"
+
+  private lazy val encoder = new EcmaScriptEncoder(PlaceholderIoFunctionSet)
 
   it should "lookup a map entry with a string key" in {
     val values =
@@ -18,7 +21,7 @@ class EcmaScriptUtilSpec extends FlatSpec with Matchers {
         Map(WomBoolean(true) -> WomArray(WomArrayType(WomStringType), Seq(WomString("myValue"))))
       )
     val expr = """myName["true"][0] + 'Plus'"""
-    val result: WomValue = EcmaScriptUtil.evalStructish(expr, values).toTry.get
+    val result: WomValue = EcmaScriptUtil.evalStructish(expr, values, encoder = encoder).toTry.get
     result should be(WomString("myValuePlus"))
   }
 
@@ -29,7 +32,7 @@ class EcmaScriptUtilSpec extends FlatSpec with Matchers {
         Map(WomBoolean(true) -> WomArray(WomArrayType(WomStringType), Seq(WomString("myValue"))))
       )
     val expr = "myName[true][0] + 'PlusPlus'"
-    val result = EcmaScriptUtil.evalStructish(expr, values).toTry.get
+    val result = EcmaScriptUtil.evalStructish(expr, values, encoder = encoder).toTry.get
     result should be(WomString("myValuePlusPlus"))
   }
 
@@ -40,7 +43,7 @@ class EcmaScriptUtilSpec extends FlatSpec with Matchers {
         Map(WomBoolean(true) -> WomArray(WomArrayType(WomStringType), Seq(WomString("myValue"))))
       )
     val expr = "JSON.stringify(myName)"
-    val result: WomValue = EcmaScriptUtil.evalStructish(expr, values).toTry.get
+    val result: WomValue = EcmaScriptUtil.evalStructish(expr, values, encoder = encoder).toTry.get
     result should be(WomString("""{"true":["myValue"]}"""))
   }
 
@@ -48,7 +51,7 @@ class EcmaScriptUtilSpec extends FlatSpec with Matchers {
     val values = "myName" -> WomArray(List("hello", "world", "alpha", "zulu", "indigo").map(WomString))
     val expr = "myName.sort()"
     val expected = WomArray(List("alpha", "hello", "indigo", "world", "zulu").map(WomString))
-    val result = EcmaScriptUtil.evalStructish(expr, values).toTry.get
+    val result = EcmaScriptUtil.evalStructish(expr, values, encoder = encoder).toTry.get
     result should be(expected)
   }
 

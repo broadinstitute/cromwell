@@ -48,7 +48,7 @@ object OutputParameter {
       at {
         expression =>
           (parameterContext, expressionLib) =>
-            val result: ErrorOr[WomValue] = ExpressionEvaluator.eval(expression, parameterContext, expressionLib)
+            val result: ErrorOr[WomValue] = ExpressionEvaluator.eval(expression, parameterContext)
             result flatMap {
               case womString: WomString => womString.value.valid
               case other => s"Not a valid file format: $other".invalidNel

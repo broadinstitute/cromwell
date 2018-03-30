@@ -54,7 +54,11 @@ case class CommandLineTool private(
    * - Finally the inputs are folded one by one into a CommandPartsList
    * - arguments and inputs CommandParts are sorted according to their sort key
    */
-  private [cwl] def buildCommandTemplate(requirementsAndHints: List[cwl.Requirement], expressionLib: ExpressionLib)(inputValues: WomEvaluatedCallInputs): ErrorOr[List[CommandPart]] = {
+  private [cwl] def buildCommandTemplate(
+    requirementsAndHints: List[cwl.Requirement],
+    expressionLib: ExpressionLib)(
+    inputValues: WomEvaluatedCallInputs): ErrorOr[List[CommandPart]] = {
+
     import cats.instances.list._
     import cats.syntax.traverse._
 
@@ -84,7 +88,14 @@ case class CommandLineTool private(
 
       inputParameter =>
         val parsedName = FullyQualifiedName(inputParameter.id)(ParentName.empty).id
-        val womType = inputParameter.`type`.map(_.fold(MyriadInputTypeToWomType)).getOrElse(WomStringType)
+
+        val schemaDefRequirement: SchemaDefRequirement = requirementsAndHints.flatMap{
+          case sdr: SchemaDefRequirement => List(sdr)
+          case _ => List()
+        }.headOption.getOrElse(SchemaDefRequirement())
+
+        val womType = inputParameter.`type`.map(_.fold(MyriadInputTypeToWomType).apply(schemaDefRequirement)).getOrElse(WomStringType)
+
 
         val defaultValue = inputParameter.default.map(_.fold(InputParameter.DefaultToWomValuePoly).apply(womType))
 

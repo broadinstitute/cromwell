@@ -136,8 +136,19 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
     go
   }}
 
-  implicit def ies: Aux[InputEnumSchema, CommandPartBuilder] = at[InputEnumSchema] { iesType =>
-    throw new RuntimeException(s"input type $iesType not yet supported by WOM!")
+  implicit def ies: Aux[InputEnumSchema, CommandPartBuilder] = at[InputEnumSchema] { inputEnumSchema =>
+    //(Option[InputCommandLineBinding], WomValue, CommandBindingSortingKey, Boolean, ExpressionLib) => CommandPartsList
+    def go: CommandPartBuilder = {
+      case (inputBinding, value, sortingKey, hasShellCommandRequirement, expressionLib) =>
+        // If there's an input binding, make a SortKeyAndCommandPart for it
+        val fromInputBinding =
+          inputBinding.map(_.toCommandPart(sortingKey, value, hasShellCommandRequirement, expressionLib)).toList
+
+        val fromIes = inputEnumSchema.inputBinding.map(_.toCommandPart(sortingKey, value, hasShellCommandRequirement, expressionLib)).toList
+
+        fromInputBinding ++ fromIes
+    }
+    go
   }
 
   implicit def ias: Aux[InputArraySchema, CommandPartBuilder] = at[InputArraySchema] { ias =>

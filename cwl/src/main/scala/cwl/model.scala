@@ -1,11 +1,14 @@
 package cwl
 
+import cats.data.NonEmptyList
 import cwl.CommandLineTool.{CommandBindingSortingKey, SortKeyAndCommandPart}
+import cwl.SchemaDefRequirement.SchemaDefTypes
 import cwl.WorkflowStepInput.InputSource
 import cwl.internal.GigabytesToBytes
 import eu.timepit.refined._
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil, Witness}
+import wom.types.WomEnumerationType
 import wom.values.WomValue
 
 object WorkflowStepInputSource {
@@ -18,9 +21,12 @@ object WorkflowStepInputSource {
 }
 
 case class InputRecordSchema(
+  name: String,
   `type`: W.`"record"`.T,
   fields: Option[Array[InputRecordField]],
-  label: Option[String])
+  label: Option[String]) {
+
+}
 
 case class InputRecordField(
   name: String,
@@ -29,11 +35,20 @@ case class InputRecordField(
   inputBinding: Option[InputCommandLineBinding],
   label: Option[String])
 
+trait EnumSchema {
+
+  val symbols: Array[String]
+  val `type`: W.`"enum"`.T
+  val label: Option[String]
+
+  def toWomEnumerationType: WomEnumerationType = WomEnumerationType(NonEmptyList.fromListUnsafe(symbols.toList))
+}
+
 case class InputEnumSchema(
   symbols: Array[String],
   `type`: W.`"enum"`.T,
   label: Option[String],
-  inputBinding: Option[InputCommandLineBinding])
+  inputBinding: Option[InputCommandLineBinding]) extends EnumSchema
 
 case class InputArraySchema
 (
@@ -105,7 +120,10 @@ case class OutputEnumSchema(
   symbols: Array[String],
   `type`: W.`"enum"`.T,
   label: Option[String],
-  outputBinding: Option[CommandOutputBinding])
+  outputBinding: Option[CommandOutputBinding]) {
+
+  def toWomEnumerationType: WomEnumerationType = WomEnumerationType(NonEmptyList.fromListUnsafe(symbols.toList))
+}
 
 
 
@@ -121,9 +139,13 @@ case class InlineJavascriptRequirement(
   expressionLib: Option[Array[String]] = None)
 
 case class SchemaDefRequirement(
-  `class`: W.`"SchemaDefRequirement"`.T,
-  types: Array[InputRecordSchema :+: InputEnumSchema :+: InputArraySchema :+: CNil]
+  `class`: W.`"SchemaDefRequirement"`.T = Witness("SchemaDefRequirement").value,
+  types: Array[SchemaDefTypes] = Array.empty
   )
+
+object SchemaDefRequirement {
+  type SchemaDefTypes = InputRecordSchema :+: InputEnumSchema :+: InputArraySchema :+: CNil
+}
 
 //There is a large potential for regex refinements on these string types
 case class DockerRequirement(

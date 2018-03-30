@@ -46,7 +46,7 @@ object MyriadOutputInnerTypeToWomValue extends Poly1 {
   def ex(component: String) = throw new RuntimeException(s"output type $component cannot yield a wom value")
 
   implicit def cwlType: Aux[CwlType, EvaluationFunction => ErrorOr[WomValue]] = at[CwlType] { cwlType => _ =>
-    "No output binding is defined. Are you expecting the output to be infered from a cwl.output.json file ? If so please make sure the file was effectively created.".invalidNel
+    "No output binding is defined. Are you expecting the output to be inferred from a cwl.output.json file ? If so please make sure the file was effectively created.".invalidNel
   }
 
   implicit def ors: Aux[OutputRecordSchema, EvaluationFunction => ErrorOr[WomValue]] = at[OutputRecordSchema] {
@@ -77,8 +77,12 @@ object MyriadOutputInnerTypeToWomValue extends Poly1 {
     case ors => ors.toString |> ex
   }
 
-  implicit def oes: Aux[OutputEnumSchema, EvaluationFunction => ErrorOr[WomValue]] = at[OutputEnumSchema]{ oes => _ =>
-    oes.toString |> ex
+  implicit def oes: Aux[OutputEnumSchema, EvaluationFunction => ErrorOr[WomValue]] = at[OutputEnumSchema]{
+    //DB: I tried to do a pattern match as the overall function here but the compiler exploded
+    oes => f => oes match {
+      case oes@OutputEnumSchema(_, _, _, Some(outputBinding)) => f(outputBinding, oes.toWomEnumerationType)
+      case _ => s"The enumeration type $oes requires an outputbinding to be evaluated.".invalidNel
+    }
   }
 
   implicit def oas: Aux[OutputArraySchema, EvaluationFunction => ErrorOr[WomValue]] = at[OutputArraySchema]{

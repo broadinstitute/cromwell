@@ -79,9 +79,7 @@ object MyriadOutputInnerTypeToWomType extends Poly1 {
     case ors => ors.toString |> ex
   }
 
-  implicit def oes: Aux[OutputEnumSchema, WomType] = at[OutputEnumSchema] {
-    _.toString |> ex
-  }
+  implicit def oes: Aux[OutputEnumSchema, WomType] = at[OutputEnumSchema] { _.toWomEnumerationType }
 
   implicit def oas: Aux[OutputArraySchema, WomType] = at[OutputArraySchema] {
     oas =>

@@ -188,8 +188,7 @@ trait SharedFileSystem extends PathFactory {
       val dest = if (inputsRoot.isParentOf(localInputPath)) localInputPath
       else {
         // Concatenate call directory with absolute input path
-        val random = scala.util.Random.nextString(5)
-        DefaultPathBuilder.get(inputsRoot.pathAsString, random)
+        DefaultPathBuilder.get(inputsRoot.pathAsString, localInputPath.pathAsString.hashCode.toString)
       }
 
       PairOfFiles(src, dest)

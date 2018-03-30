@@ -59,6 +59,12 @@ case class WorkflowStep(
 
   lazy val allRequirements: List[Requirement] = requirements.toList.flatten ++ parentWorkflow.allRequirements
 
+  lazy val schemaDefRequirement: SchemaDefRequirement = allRequirements.flatMap{
+    case sdr: SchemaDefRequirement => List(sdr)
+    case _ => List()
+  }.headOption.getOrElse(SchemaDefRequirement())
+
+
   lazy val womFqn: wom.graph.FullyQualifiedName = {
     implicit val parentName = parentWorkflow.explicitWorkflowName
     val localFqn = FullyQualifiedName.maybeApply(id).map(_.id).getOrElse(id)
@@ -285,7 +291,7 @@ case class WorkflowStep(
 
             val isThisStepScattered = isStepScattered(workflowStepInputId)
 
-            workflowStepInput.toMergeNode(sourceMappings, expressionLib, typeExpectedByRunInput, isThisStepScattered) match {
+            workflowStepInput.toMergeNode(sourceMappings, expressionLib, typeExpectedByRunInput, isThisStepScattered, schemaDefRequirement) match {
               // If the input needs a merge node, build it and add it to the input fold
               case Some(mergeNode) =>
                 mergeNode.toEither.map({ node =>
@@ -399,7 +405,7 @@ case class WorkflowStep(
             val typeExpectedByRunInput: Option[cwl.MyriadInputType] = typedRunInputs.get(stepInput.parsedId).flatten
             val isThisStepScattered = isStepScattered(stepInput.parsedId)
 
-            stepInput.toExpressionNode(valueFrom, typeExpectedByRunInput, isThisStepScattered, sharedInputMap, updatedTypeMap, expressionLib).map(stepInput.parsedId -> _)
+            stepInput.toExpressionNode(valueFrom, typeExpectedByRunInput, isThisStepScattered, sharedInputMap, updatedTypeMap, expressionLib, schemaDefRequirement).map(stepInput.parsedId -> _)
         })
           .sequence[ErrorOr, (String, ExpressionNode)]
           .toEither

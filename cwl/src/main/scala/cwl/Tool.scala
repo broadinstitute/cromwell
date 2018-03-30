@@ -111,10 +111,14 @@ trait Tool {
 
       val runtimeAttributes: RuntimeAttributes = RuntimeAttributes(attributesMap ++ toolAttributes)
 
+      val schemaDefRequirement: SchemaDefRequirement = requirementsAndHints.flatMap{
+        case sdr: SchemaDefRequirement => List(sdr)
+        case _ => List()
+      }.headOption.getOrElse(SchemaDefRequirement())
       val inputDefinitions: List[_ <: Callable.InputDefinition] =
         this.inputs.map {
           case input @ InputParameter.IdDefaultAndType(inputId, default, tpe) =>
-            val inputType = tpe.fold(MyriadInputTypeToWomType)
+            val inputType = tpe.fold(MyriadInputTypeToWomType).apply(schemaDefRequirement)
             val inputName = FullyQualifiedName(inputId).id
             val defaultWomValue = default.fold(InputParameter.DefaultToWomValuePoly).apply(inputType).toTry.get
             InputDefinitionWithDefault(
@@ -124,7 +128,7 @@ trait Tool {
               InputParameter.inputValueMapper(input, tpe, expressionLib)
             )
           case input @ InputParameter.IdAndType(inputId, tpe) =>
-            val inputType = tpe.fold(MyriadInputTypeToWomType)
+            val inputType = tpe.fold(MyriadInputTypeToWomType).apply(schemaDefRequirement)
             val inputName = FullyQualifiedName(inputId).id
             inputType match {
               case optional: WomOptionalType =>

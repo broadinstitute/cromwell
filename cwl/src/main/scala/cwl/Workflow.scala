@@ -72,9 +72,13 @@ case class Workflow private(
 
   def womGraph(workflowName: String, validator: RequirementsValidator, expressionLib: ExpressionLib): Checked[Graph] = {
     val workflowNameIdentifier = explicitWorkflowName.value.map(WomIdentifier.apply).getOrElse(WomIdentifier(workflowName))
+    val schemaDefRequirement: SchemaDefRequirement = allRequirements.flatMap{
+      case sdr: SchemaDefRequirement => List(sdr)
+      case _ => List()
+    }.headOption.getOrElse(SchemaDefRequirement())
 
     def womTypeForInputParameter(input: InputParameter): Option[WomType] = {
-      input.`type`.map(_.fold(MyriadInputTypeToWomType))
+      input.`type`.map(_.fold(MyriadInputTypeToWomType).apply(schemaDefRequirement))
     }
 
     val typeMap: WomTypeMap =

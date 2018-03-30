@@ -92,20 +92,20 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
     }
 
     "validate a valid gpu entry (1)" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpu" -> WomInteger(1), "gpuType" -> WomString("nvidia-tesla-k80"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpuCount" -> WomInteger(1), "gpuType" -> WomString("nvidia-tesla-k80"))
       val expectedRuntimeAttributes = expectedDefaults.copy(gpuResource = Option(GpuResource(gpuCount = 1, gpuType = GpuType.NVIDIATeslaK80)))
       assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "validate a valid gpu entry (2)" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpu" -> WomInteger(2), "gpuType" -> WomString("nvidia-tesla-p100"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpuCount" -> WomInteger(2), "gpuType" -> WomString("nvidia-tesla-p100"))
       val expectedRuntimeAttributes = expectedDefaults.copy(gpuResource = Option(GpuResource(gpuCount = 2, gpuType = GpuType.NVIDIATeslaP100)))
       assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     // Missing gpu type
     "fail to validate an invalid gpu entry (1)" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpu" -> WomInteger(1))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpuCount" -> WomInteger(1))
       assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Please specify a GPU type: nvidia-tesla-p100, nvidia-tesla-k80")
     }
 
@@ -117,14 +117,14 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
 
     // unrecoginzed gpu type
     "fail to validate an invalid gpu entry (3)" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpu" -> WomInteger(1), "gpuType" -> WomString("not-a-gpu"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpuCount" -> WomInteger(1), "gpuType" -> WomString("not-a-gpu"))
       assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "not-a-gpu is not a supported GPU type. Supported types are nvidia-tesla-k80, nvidia-tesla-p100")
     }
 
     // gpu count is not an int
     "fail to validate an invalid gpu entry (4)" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpu" -> WomString("value"))
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting gpu runtime attribute to be an Integer")
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpuCount" -> WomString("value"))
+      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting gpuCount runtime attribute to be an Integer")
     }
 
     "validate a valid cpu entry" in {

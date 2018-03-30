@@ -13,9 +13,9 @@ object RuntimeAttributesKeys {
   /**
     * Equivalent to GPUMinKey
     */
-  val GpuKey = "gpu"
-  val GpuMinKey = "gpuMin"
-  val GpuMaxKey = "gpuMax"
+  val GpuKey = "gpuCount"
+  val GpuMinKey = "gpuCountMin"
+  val GpuMaxKey = "gpuCountMax"
   val GpuTypeKey = "gpuType"
   /**
     * Equivalent to MemoryMinKey

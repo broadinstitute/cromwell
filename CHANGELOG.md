@@ -13,7 +13,7 @@ The PAPI backend now supports specifying GPU through WDL runtime attributes:
 ```wdl
 runtime {
     gpuType: "nvidia-tesla-k80"
-    gpu: 2
+    gpuCount: 2
     zones: ["us-central1-c"]
 }
 ```

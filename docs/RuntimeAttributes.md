@@ -278,6 +278,19 @@ runtime {
 
 Defaults to 0.
 
+## `gpuCount` and `gpuType`
+
+Attach GPUs to the instance when running on the Pipelines API: https://cloud.google.com/compute/docs/gpus/
+Make sure to choose a zone for which the type of GPU you want to attach is available.
+
+The two types of GPU supported are `nvidia-tesla-k80` and `nvidia-tesla-p100`.
+
+runtime {
+    gpuType: "nvidia-tesla-k80"
+    gpuCount: 2
+    zones: ["us-central1-c"]
+}
+
 ## Backend Support
 
 [Backends](backends/Backends) only support certain attributes. See table below:

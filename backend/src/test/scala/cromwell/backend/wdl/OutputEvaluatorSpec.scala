@@ -128,7 +128,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     val key = BackendJobDescriptorKey(call, None, 1)
     val jobDescriptor = BackendJobDescriptor(null, key, null, mockInputs, null, null)
 
-    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet)(scala.concurrent.ExecutionContext.global), FutureTimeout) match {
+    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet), FutureTimeout) match {
       case InvalidJobOutputs(errors) => errors shouldBe NonEmptyList.of(
         "Bad output 'invalid1': Invalid expression 1", "Bad output 'invalid2': Invalid expression 2"
       )
@@ -146,7 +146,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     val key = BackendJobDescriptorKey(call, None, 1)
     val jobDescriptor = BackendJobDescriptor(null, key, null, mockInputs, null, null)
 
-    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet)(scala.concurrent.ExecutionContext.global), FutureTimeout) match {
+    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet), FutureTimeout) match {
       case JobOutputsEvaluationException(e) => e shouldBe exception
       case _ => fail("Output evaluation should have failed")
     }

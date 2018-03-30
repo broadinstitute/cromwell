@@ -13,14 +13,6 @@ case class MetadataKey private (workflowId: WorkflowId, jobKey: Option[MetadataJ
 
 object MetadataKey {
 
-  implicit class KeyMetacharacterEscaper(val key: String) extends AnyVal {
-    // The escapes are necessary on the first arguments to `replaceAll` since they're treated like regular expressions
-    // and square braces are character class delimiters.  Backslashes must be escaped in both parameters.
-    // Ignore the red in some of the "raw" strings, IntelliJ and GitHub don't seem to understand them.
-    def escapeMeta = key.replaceAll(raw"\[", raw"\\[").replaceAll(raw"\]", raw"\\]").replaceAll(":", raw"\\:")
-    def unescapeMeta = key.replaceAll(raw"\\\[", "[").replaceAll(raw"\\\]", "]").replaceAll(raw"\\:", ":")
-  }
-
   val KeySeparator = ':'
 
   def apply(workflowId: WorkflowId, jobKey: Option[MetadataJobKey], keys: String*): MetadataKey = {

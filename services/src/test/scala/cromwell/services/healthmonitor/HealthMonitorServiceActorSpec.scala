@@ -1,6 +1,8 @@
 package cromwell.services.healthmonitor
 
-import akka.actor.{ActorRef, Props}
+import java.util.concurrent.Executors
+
+import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.testkit.TestActorRef
 import akka.util.Timeout
@@ -11,13 +13,15 @@ import cromwell.services.healthmonitor.HealthMonitorServiceActorSpec._
 import org.scalatest.{Assertion, FlatSpecLike}
 import org.scalatest.concurrent.Eventually
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future}
 import scala.language.postfixOps
 
 class HealthMonitorServiceActorSpec extends TestKitSuite with FlatSpecLike with Eventually {
   implicit val timeout = Timeout(5.seconds)
+  final implicit val blockingEc: ExecutionContextExecutor = ExecutionContext.fromExecutor(
+    Executors.newCachedThreadPool()
+  )
 
   override val patienceConfig = PatienceConfig(timeout = scaled(20 seconds), interval = scaled(1 second))
   implicit val patience = patienceConfig

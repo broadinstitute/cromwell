@@ -1,0 +1,20 @@
+name: cwl_restart_local_with_recover
+testFormat: CromwellRestartWithRecover
+callMark: cromwell_killer
+backendsMode: "only"
+backends: [Local, LocalNoDocker]
+tags: [localdockertest]
+
+files {
+  wdl: cwl_restart/cwl_restart.cwl
+}
+
+metadata {
+  status: Succeeded
+  "calls.first_step.executionStatus": Done
+  "calls.cromwell_killer.executionStatus": Done
+  "calls.third_step.executionStatus": Done
+}
+
+workflowType: CWL
+workflowTypeVersion: v1.0

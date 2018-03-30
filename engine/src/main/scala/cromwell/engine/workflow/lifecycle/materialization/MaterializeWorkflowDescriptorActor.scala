@@ -268,7 +268,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
   private def importedFilesMetadata(imported: Map[String, String]): Iterable[MetadataEvent] = {
     def metadataEventForImportedFile(uri: String, value: String): MetadataEvent = {
-      import MetadataKey._
+      import cromwell.core.simpleton.WomValueSimpleton._
       import WorkflowMetadataKeys._
       // This should only be called on namespaces that are known to have a defined `importUri` so the .get is safe.
       val escapedUri = uri.escapeMeta

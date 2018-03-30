@@ -73,11 +73,11 @@ object WomValueSimpleton {
     }
   }
 
-  implicit class WomValuesSimplifier(wdlValues: Map[String, WomValue]) {
-    def simplify: Iterable[WomValueSimpleton] = wdlValues flatMap { case (name, value) => value.simplify(name) }
+  implicit class WomValuesSimplifier(womValues: Map[String, WomValue]) {
+    def simplify: Iterable[WomValueSimpleton] = womValues flatMap { case (name, value) => value.simplify(name) }
   }
 
-  implicit class WomValuesSimplifierPort(wdlValues: Map[OutputPort, WomValue]) {
-    def simplify: Iterable[WomValueSimpleton] = wdlValues flatMap { case (port, value) => value.simplify(port.name) }
+  implicit class WomValuesSimplifierPort(womValues: Map[OutputPort, WomValue]) {
+    def simplify: Iterable[WomValueSimpleton] = womValues flatMap { case (port, value) => value.simplify(port.name) }
   }
 }

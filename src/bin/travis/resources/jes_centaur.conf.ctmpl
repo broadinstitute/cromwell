@@ -96,5 +96,9 @@ database {
   profile = "slick.jdbc.MySQLProfile$"
 }
 
+backend.providers.Jes.config.concurrent-job-limit = 20
+backend.providers.Jes-Refresh.config.concurrent-job-limit = 20
+backend.providers.Jes-Caching-No-Copy.config.concurrent-job-limit = 20
+
 {{end}}
 {{end}}

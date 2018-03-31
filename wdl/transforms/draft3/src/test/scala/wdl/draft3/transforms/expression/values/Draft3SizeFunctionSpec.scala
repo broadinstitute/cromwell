@@ -7,7 +7,7 @@ import wdl.draft3.transforms.expression.values.Draft3SizeFunctionSpec.testFuncti
 import wdl.draft3.transforms.linking.expression.values.EngineFunctionEvaluators.sizeFunctionEvaluator
 import wdl.model.draft3.elements.ExpressionElement.{IdentifierLookup, PrimitiveLiteralExpressionElement, Size}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
-import wom.expression.{IoFunctionSet, NotImplementedIoFunctionSet}
+import wom.expression.{EmptyIoFunctionSet, IoFunctionSet}
 import wom.types._
 import wom.values._
 
@@ -148,9 +148,7 @@ class Draft3SizeFunctionSpec extends FlatSpec with Matchers {
 }
 
 object Draft3SizeFunctionSpec {
-  case class TestIo(sizeResult: Try[Long]) extends NotImplementedIoFunctionSet {
+  def testFunctions(sizeResult: Try[Long]): IoFunctionSet = new EmptyIoFunctionSet {
     override def size(path: String): Future[Long] = Future.fromTry(sizeResult)
   }
-
-  def testFunctions(sizeResult: Try[Long]): IoFunctionSet = TestIo(sizeResult)
 }

@@ -1,5 +1,7 @@
 package cromwell.backend.wdl
 
+import java.util.concurrent.Executors
+
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
@@ -15,13 +17,16 @@ import wom.graph.WomIdentifier
 import wom.types.{WomIntegerType, WomType}
 import wom.values.{WomFile, WomInteger, WomValue}
 
-import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor}
 
 class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
   behavior of "OutputEvaluator"
 
   val FutureTimeout = 20.seconds
+  final implicit val blockingEc: ExecutionContextExecutor = ExecutionContext.fromExecutor(
+    Executors.newCachedThreadPool()
+  )
   
   // Depends on an input
   def o1Expression = new WomExpression {
@@ -103,7 +108,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     val key = BackendJobDescriptorKey(call, None, 1)
     val jobDescriptor = BackendJobDescriptor(null, key, null, mockInputs, null, null)
     
-    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet)(scala.concurrent.ExecutionContext.global), FutureTimeout) match {
+    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet), FutureTimeout) match {
       case ValidJobOutputs(outputs) => outputs shouldBe CallOutputs(Map(
         jobDescriptor.taskCall.outputPorts.find(_.name == "o1").get -> WomInteger(5),
         jobDescriptor.taskCall.outputPorts.find(_.name == "o2").get -> WomInteger(5)

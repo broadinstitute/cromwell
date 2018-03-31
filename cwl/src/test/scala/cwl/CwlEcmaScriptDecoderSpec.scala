@@ -4,7 +4,7 @@ import common.validation.Validation._
 import cwl.internal.{EcmaScriptEncoder, EcmaScriptUtil}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import wom.expression.PlaceholderIoFunctionSet
+import wom.expression.DefaultSizeIoFunctionSet
 import wom.values.{WomFloat, WomMaybePopulatedFile, WomString, WomValue}
 
 class CwlEcmaScriptDecoderSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
@@ -67,7 +67,7 @@ class CwlEcmaScriptDecoderSpec extends FlatSpec with Matchers with TableDrivenPr
         expr,
         "fake" -> WomString("unused"),
         values,
-        new EcmaScriptEncoder(PlaceholderIoFunctionSet)
+        new EcmaScriptEncoder(DefaultSizeIoFunctionSet)
       ).toTry.get
       result should be(expected)
     }

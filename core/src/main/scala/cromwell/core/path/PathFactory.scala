@@ -1,5 +1,7 @@
 package cromwell.core.path
 
+import cromwell.core.path.PathFactory.PathBuilders
+
 import scala.util.Success
 
 /**
@@ -9,7 +11,7 @@ trait PathFactory {
   /**
     * Path builders to be applied (in order) to attempt to build a Path from a string.
     */
-  def pathBuilders: List[PathBuilder]
+  def pathBuilders: PathBuilders
 
   /**
     * Function applied after a string is successfully resolved to a Path
@@ -28,6 +30,8 @@ trait PathFactory {
 }
 
 object PathFactory {
+  type PathBuilders = List[PathBuilder]
+
   /**
     * Attempts to build a Path from a String
     */

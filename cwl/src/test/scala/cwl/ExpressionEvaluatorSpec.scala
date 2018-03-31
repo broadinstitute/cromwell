@@ -2,7 +2,7 @@ package cwl
 
 import common.validation.Validation._
 import org.scalatest.{FlatSpec, Matchers}
-import wom.expression.PlaceholderIoFunctionSet
+import wom.expression.DefaultSizeIoFunctionSet
 import wom.values.{WomBoolean, WomString, WomValue}
 
 class ExpressionEvaluatorSpec extends FlatSpec with Matchers {
@@ -14,7 +14,7 @@ class ExpressionEvaluatorSpec extends FlatSpec with Matchers {
       "myName" -> WomString("hi"),
       "someother" -> WomBoolean(false)
     )
-    val parameterContext = ParameterContext(PlaceholderIoFunctionSet, Vector.empty, values)
+    val parameterContext = ParameterContext(DefaultSizeIoFunctionSet, Vector.empty, values)
     ExpressionEvaluator.eval("inputs.myName", parameterContext).toTry.get should be(WomString("hi"))
     ExpressionEvaluator.eval("inputs.someother", parameterContext).toTry.get should be(WomBoolean(false))
   }

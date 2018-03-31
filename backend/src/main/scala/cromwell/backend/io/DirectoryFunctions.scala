@@ -14,6 +14,7 @@ import wom.graph.CommandCallNode
 import wom.values.{WomFile, WomGlobFile, WomMaybeListedDirectory, WomMaybePopulatedFile, WomSingleFile, WomUnlistedDirectory}
 
 import scala.concurrent.Future
+import scala.util.Try
 
 trait DirectoryFunctions extends IoFunctionSet with PathFactory {
 
@@ -25,6 +26,10 @@ trait DirectoryFunctions extends IoFunctionSet with PathFactory {
       }
     }
   }
+
+  override def isDirectory(path: String) = Future.fromTry(Try(buildPath(path).isDirectory))
+
+  override def listDirectory(path: String): Future[Iterator[String]] = Future.fromTry(Try(buildPath(path.ensureSlashed).list.map(_.pathAsString)))
 
   override def listAllFilesUnderDirectory(dirPath: String): Future[Seq[String]] = {
     temporaryImplListPaths(dirPath)
@@ -41,25 +46,7 @@ trait DirectoryFunctions extends IoFunctionSet with PathFactory {
 }
 
 object DirectoryFunctions {
-  def listFiles(path: Path): ErrorOr[List[Path]] = {
-    def listPaths(path: Path, checkedPaths: Set[Path]): ErrorOr[Set[Path]] = {
-      val newCheckedPaths = checkedPaths ++ Set(path)
-      if (path.isDirectory) {
-        for {
-          pathListing <- validate(path.list.toSet)
-          uncheckedPaths = pathListing -- newCheckedPaths
-          pathsPerListing <-
-            uncheckedPaths.toList.traverse[ErrorOr, List[Path]](listPaths(_, newCheckedPaths).map(_.toList))
-        } yield checkedPaths ++ pathsPerListing.flatten.toSet
-      } else {
-        newCheckedPaths.valid
-      }
-    }
-
-    val allPaths = listPaths(path, Set.empty).map(_.toList)
-    val allFiles = allPaths.map(_.filterNot(_.isDirectory))
-    allFiles
-  }
+  def listFiles(path: Path): ErrorOr[List[Path]] = path.listRecursively.filterNot(_.isDirectory).toList.validNel
 
   def listWomSingleFiles(womFile: WomFile, pathFactory: PathFactory): ErrorOr[List[WomSingleFile]] = {
     def listWomSingleFiles(womFile: WomFile): ErrorOr[List[WomSingleFile]] = {

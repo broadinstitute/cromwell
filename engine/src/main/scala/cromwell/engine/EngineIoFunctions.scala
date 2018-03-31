@@ -1,18 +1,13 @@
 package cromwell.engine
 
 import cromwell.backend.wdl.ReadLikeFunctions
-import cromwell.core.io.AsyncIo
+import cromwell.core.io.{AsyncIo, WorkflowCorePathFunctions}
 import cromwell.core.path.PathBuilder
-import wom.values.{WomSingleFile, WomValue}
+import wom.values.WomSingleFile
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Try}
 
-class EngineIoFunctions(val pathBuilders: List[PathBuilder], override val asyncIo: AsyncIo, override val ec: ExecutionContext) extends ReadLikeFunctions {
-  private def fail(name: String) = Failure(new NotImplementedError(s"$name() not supported at the workflow level yet"))
-
-  override def stdout(params: Seq[Try[WomValue]]): Try[WomSingleFile] = fail("stdout")
-  override def stderr(params: Seq[Try[WomValue]]): Try[WomSingleFile] = fail("stderr")
+class EngineIoFunctions(val pathBuilders: List[PathBuilder], override val asyncIo: AsyncIo, override val ec: ExecutionContext) extends ReadLikeFunctions with WorkflowCorePathFunctions {
   override def glob(pattern: String): Future[Seq[String]] = throw new NotImplementedError(s"glob(path, pattern) not implemented yet")
 
   override def writeFile(path: String, content: String): Future[WomSingleFile] =
@@ -23,4 +18,8 @@ class EngineIoFunctions(val pathBuilders: List[PathBuilder], override val asyncI
 
   override def listAllFilesUnderDirectory(dirPath: String): Nothing =
     throw new NotImplementedError(s"listAllFilesUnderDirectory not implemented yet")
+
+  override def listDirectory(path: String) = throw new NotImplementedError(s"listDirectory not implemented yet")
+
+  override def isDirectory(path: String) = Future.successful(buildPath(path).isDirectory)
 }

@@ -123,7 +123,8 @@ object InputParameter {
                 WomSingleFileType,
                 secondaryFiles,
                 parameterContext,
-                expressionLib
+                expressionLib,
+                ioFunctionSet
               )
               updated = loaded.copy(secondaryFiles = loaded.secondaryFiles ++  secondaries)
             } yield updated

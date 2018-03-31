@@ -1,7 +1,5 @@
 package cromwell.backend.wdl
 
-import java.io.File
-
 import better.files.File.OpenOptions
 import cats.instances.future._
 import cats.syntax.functor._
@@ -12,7 +10,6 @@ import wom.expression.IoFunctionSet
 import wom.values.WomSingleFile
 
 import scala.concurrent.Future
-
 
 trait WriteFunctions extends PathFactory with IoFunctionSet with AsyncIoFunctions {
 
@@ -33,7 +30,7 @@ trait WriteFunctions extends PathFactory with IoFunctionSet with AsyncIoFunction
 
   private val relativeToLocal = System.getProperty("user.dir").ensureSlashed
 
-  def relativeToAbsolutePath(pathFrom: String): String = if (new File(pathFrom).isAbsolute) pathFrom else relativeToLocal + pathFrom
+  def relativeToAbsolutePath(pathFrom: String): String = if (buildPath(pathFrom).isAbsolute) pathFrom else relativeToLocal + pathFrom
 
   override def copyFile(pathFrom: String, targetName: String): Future[WomSingleFile] = {
     val source = buildPath(relativeToAbsolutePath(pathFrom))

@@ -57,9 +57,9 @@ object MetadataValue {
       case WomOptionalValue(_, Some(o)) => apply(o)
       case WomOptionalValue(_, None) => new MetadataValue("", MetadataNull)
       case value: WomValue => new MetadataValue(value.valueString, MetadataString)
-      case _: Int | Long => new MetadataValue(value.toString, MetadataInt)
-      case _: Double | Float => new MetadataValue(value.toString, MetadataNumber)
-      case _: Boolean => new MetadataValue(value.toString, MetadataBoolean)
+      case _: Int | Long | _: java.lang.Long | _: java.lang.Integer => new MetadataValue(value.toString, MetadataInt)
+      case _: Double | Float | _: java.lang.Double | _: java.lang.Float => new MetadataValue(value.toString, MetadataNumber)
+      case _: Boolean | _: java.lang.Boolean => new MetadataValue(value.toString, MetadataBoolean)
       case other => new MetadataValue(other.toString, MetadataString)
     }
   }

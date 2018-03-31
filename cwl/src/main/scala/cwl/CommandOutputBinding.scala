@@ -19,15 +19,15 @@ case class CommandOutputBinding(glob: Option[Glob] = None,
 
 object CommandOutputBinding {
   /**
-   * TODO: WOM: WOMFILE: Need to support returning globs for primary and secondary.
-   *
-   * Right now, when numerous glob files are created, the backends place each glob result into a different subdirectory.
-   * Later, when the secondary files are being generated each of their globs are in different sub-directories.
-   * Unfortunately, the secondary file resolution assumes that the secondaries are _next to_ the primaries, not in
-   * sibling directories.
-   *
-   * While this is being worked on, instead of looking up globs return regular files until this can be fixed.
-   */
+    * TODO: WOM: WOMFILE: Need to support returning globs for primary and secondary.
+    *
+    * Right now, when numerous glob files are created, the backends place each glob result into a different subdirectory.
+    * Later, when the secondary files are being generated each of their globs are in different sub-directories.
+    * Unfortunately, the secondary file resolution assumes that the secondaries are _next to_ the primaries, not in
+    * sibling directories.
+    *
+    * While this is being worked on, instead of looking up globs return regular files until this can be fixed.
+    */
   def isRegularFile(path: String): Boolean = {
     path match {
       case _ if path.contains("*") => false
@@ -77,17 +77,17 @@ object CommandOutputBinding {
       }
     }
 
-    def secondaryFilesToWomFiles(primaryWomFiles: List[WomFile]): ErrorOr[List[WomFile]] = {
+    def secondaryFilesToWomFiles(primaryWomFiles: List[WomFile], ioFunctionSet: IoFunctionSet): ErrorOr[List[WomFile]] = {
       primaryWomFiles.flatTraverse[ErrorOr, WomFile] { primaryWomFile =>
         FileParameter.secondaryFiles(primaryWomFile,
-          primaryWomFile.womFileType, secondaryFilesOption, parameterContext, expressionLib)
+          primaryWomFile.womFileType, secondaryFilesOption, parameterContext, expressionLib, ioFunctionSet)
       }
     }
 
     for {
       primaryPaths <- GlobEvaluator.globs(commandOutputBinding.glob, parameterContext, expressionLib)
       primaryWomFiles <- primaryPathsToWomFiles(primaryPaths)
-      secondaryWomFiles <- secondaryFilesToWomFiles(primaryWomFiles)
+      secondaryWomFiles <- secondaryFilesToWomFiles(primaryWomFiles, ioFunctionSet)
     } yield (primaryWomFiles ++ secondaryWomFiles).toSet
   }
 
@@ -135,7 +135,8 @@ object CommandOutputBinding {
           secondaryFilesCoproduct,
           formatOption,
           parameterContext,
-          expressionLib
+          expressionLib,
+          ioFunctionSet
         )
       } yield womValue
     }
@@ -172,7 +173,11 @@ object CommandOutputBinding {
       primaryAsDirectoryOrFiles <- primaryPaths.flatTraverse[ErrorOr, WomFile] {
         loadPrimaryWithContents(ioFunctionSet, outputWomType, commandOutputBinding)
       }
-      womFilesArray = WomArray(primaryAsDirectoryOrFiles)
+
+      // Make globbed files absolute paths by prefixing them with the output dir if necessary
+      absolutePaths = primaryAsDirectoryOrFiles.map(_.mapFile(ioFunctionSet.pathFunctions.relativeToHostCallRoot))
+
+      womFilesArray = WomArray(absolutePaths)
 
       // 3. outputEval: pass in the primary files to an expression to generate our return value
       evaluatedWomValue <- evaluateWomValue(womFilesArray)

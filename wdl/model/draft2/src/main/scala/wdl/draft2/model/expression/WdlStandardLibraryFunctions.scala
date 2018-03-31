@@ -326,9 +326,9 @@ object WdlStandardLibraryFunctions {
 
     override def writeFile(path: String, content: String): Try[WomFile] = Try(Await.result(ioFunctionSet.writeFile(path, content), Duration.Inf))
 
-    override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = ioFunctionSet.stdout(params)
+    override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = Success(WomSingleFile(ioFunctionSet.pathFunctions.stdout))
 
-    override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = ioFunctionSet.stderr(params)
+    override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = Success(WomSingleFile(ioFunctionSet.pathFunctions.stderr))
 
     override def globHelper(pattern: String): Seq[String] = Await.result(ioFunctionSet.glob(pattern), Duration.Inf)
 

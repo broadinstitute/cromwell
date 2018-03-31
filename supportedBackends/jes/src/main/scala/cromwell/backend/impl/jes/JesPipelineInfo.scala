@@ -15,15 +15,26 @@ trait JesPipelineInfoBuilder {
     val docker = new DockerExecutor()
     docker.setImageName(dockerImage).setCmd(commandLine)
   }
+  
+  def setGpu(resources: PipelineResources, runtimeAttributes: JesRuntimeAttributes) = {
+    runtimeAttributes.gpuResource match {
+      case Some(GpuResource(gpuType, gpuCount)) => resources
+        .set("acceleratorType", gpuType.toString)
+        .set("acceleratorCount", gpuCount.toString)
+      case _ => resources
+    }
+  }
 
   def buildResources(runtimeAttributes: JesRuntimeAttributes): PipelineResources = {
-    new PipelineResources()
+    val resources = new PipelineResources()
       .setMinimumRamGb(runtimeAttributes.memory.to(MemoryUnit.GB).amount)
       .setMinimumCpuCores(runtimeAttributes.cpu)
       .setZones(runtimeAttributes.zones.asJava)
       .setDisks(runtimeAttributes.disks.map(_.toGoogleDisk).asJava)
       .setBootDiskSizeGb(runtimeAttributes.bootDiskSize)
-      .set(Run.NoAddressFieldName, runtimeAttributes.noAddress)
+      .setNoAddress(runtimeAttributes.noAddress)
+
+      setGpu(resources, runtimeAttributes)
   }
 
   def build(commandLine: String, runtimeAttributes: JesRuntimeAttributes, docker: String): JesPipelineInfo

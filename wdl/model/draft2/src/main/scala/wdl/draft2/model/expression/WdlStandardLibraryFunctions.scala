@@ -50,7 +50,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
 
   def read_objects(params: Seq[Try[WomValue]]): Try[WomArray] = extractObjects("read_objects", params) map { WomArray(WomArrayType(WomObjectType), _) }
   def read_string(params: Seq[Try[WomValue]]): Try[WomString] = readContentsFromSingleFileParameter("read_string", params).map(s => WomString(s.trim))
-  def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = readContentsFromSingleFileParameter("read_json", params).map(_.parseJson).flatMap(WomAnyType.coerceRawValue)
+  def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = readContentsFromSingleFileParameter("read_json", params).map(_.parseJson).flatMap(WomObjectType.coerceRawValue)
   def read_int(params: Seq[Try[WomValue]]): Try[WomInteger] = read_string(params) map { s => WomInteger(s.value.trim.toInt) }
   def read_float(params: Seq[Try[WomValue]]): Try[WomFloat] = read_string(params) map { s => WomFloat(s.value.trim.toDouble) }
 

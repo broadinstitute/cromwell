@@ -4,6 +4,7 @@ import cats.data.NonEmptyList
 import cromwell.backend.impl.jes.io.{DiskType, JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
 import cromwell.backend.RuntimeAttributeDefinition
+import cromwell.backend.impl.jes.GpuResource.GpuType
 import cromwell.core.WorkflowOptions
 import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.helpers.NOPLogger
@@ -22,7 +23,7 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
     )))
   }
 
-  val expectedDefaults = new JesRuntimeAttributes(1, Vector("us-central1-b", "us-central1-a"), 0, 10,
+  val expectedDefaults = new JesRuntimeAttributes(1, None, Vector("us-central1-b", "us-central1-a"), 0, 10,
     MemorySize(2, MemoryUnit.GB), Vector(JesWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
     ContinueOnReturnCodeSet(Set(0)), false)
 
@@ -88,6 +89,42 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
     "fail to validate an invalid continueOnReturnCode entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomString("value"))
       assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]")
+    }
+
+    "validate a valid gpu entry (1)" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpuCount" -> WomInteger(1), "gpuType" -> WomString("nvidia-tesla-k80"))
+      val expectedRuntimeAttributes = expectedDefaults.copy(gpuResource = Option(GpuResource(gpuCount = 1, gpuType = GpuType.NVIDIATeslaK80)))
+      assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "validate a valid gpu entry (2)" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpuCount" -> WomInteger(2), "gpuType" -> WomString("nvidia-tesla-p100"))
+      val expectedRuntimeAttributes = expectedDefaults.copy(gpuResource = Option(GpuResource(gpuCount = 2, gpuType = GpuType.NVIDIATeslaP100)))
+      assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    // Missing gpu type
+    "fail to validate an invalid gpu entry (1)" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpuCount" -> WomInteger(1))
+      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Please specify a GPU type: nvidia-tesla-p100, nvidia-tesla-k80")
+    }
+
+    // Missing gpu count
+    "fail to validate an invalid gpu entry (2)" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpuType" -> WomString("nvidia-tesla-p100"))
+      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Please specify how many GPU should be attached to the instance.")
+    }
+
+    // unrecoginzed gpu type
+    "fail to validate an invalid gpu entry (3)" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpuCount" -> WomInteger(1), "gpuType" -> WomString("not-a-gpu"))
+      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "not-a-gpu is not a supported GPU type. Supported types are nvidia-tesla-k80, nvidia-tesla-p100")
+    }
+
+    // gpu count is not an int
+    "fail to validate an invalid gpu entry (4)" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpuCount" -> WomString("value"))
+      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting gpuCount runtime attribute to be an Integer")
     }
 
     "validate a valid cpu entry" in {

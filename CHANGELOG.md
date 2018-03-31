@@ -6,6 +6,22 @@
 
 * More accurately returns 503 instead of 500 when Cromwell can not respond in a timely manner
 
+### GPU
+
+The PAPI backend now supports specifying GPU through WDL runtime attributes:
+
+```wdl
+runtime {
+    gpuType: "nvidia-tesla-k80"
+    gpuCount: 2
+    zones: ["us-central1-c"]
+}
+```
+
+The two types of GPU supported are `nvidia-tesla-k80` and `nvidia-tesla-p100`
+
+**Important**: Before adding a GPU, make sure it is available in the zone the job is running in: https://cloud.google.com/compute/docs/gpus/  
+
 ### Bug Fixes
 
 The imports zip no longer unpacks a single (arbitrary) internal directory if it finds one (or more). Instead, import statements should now be made relative to the base of the import zip root.

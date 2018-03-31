@@ -16,8 +16,6 @@ object Run {
     "https://www.googleapis.com/auth/compute"
   ).asJava
 
-  val NoAddressFieldName = "noAddress"
-
   val slf4jLogger = LoggerFactory.getLogger(Run.getClass)
 
   def makeRunPipelineRequest(jobDescriptor: BackendJobDescriptor,

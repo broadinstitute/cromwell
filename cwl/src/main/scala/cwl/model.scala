@@ -4,6 +4,7 @@ import cats.data.NonEmptyList
 import cwl.CommandLineTool.{CommandBindingSortingKey, SortKeyAndCommandPart}
 import cwl.SchemaDefRequirement.SchemaDefTypes
 import cwl.WorkflowStepInput.InputSource
+import cwl.command.ParentName
 import cwl.internal.GigabytesToBytes
 import eu.timepit.refined._
 import shapeless.syntax.singleton._
@@ -41,7 +42,12 @@ trait EnumSchema {
   val `type`: W.`"enum"`.T
   val label: Option[String]
 
-  def toWomEnumerationType: WomEnumerationType = WomEnumerationType(NonEmptyList.fromListUnsafe(symbols.toList))
+  def toWomEnumerationType: WomEnumerationType = {
+    val symbolIds = symbols.toList.map{
+      s => s.substring(s.lastIndexOf("/") + 1)
+    }
+    WomEnumerationType(NonEmptyList.fromListUnsafe(symbolIds))
+  }
 }
 
 case class InputEnumSchema(

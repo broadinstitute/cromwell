@@ -9,7 +9,7 @@ import cwl.CwlVersion.CwlVersion
 import cwl.Tool.inlineJavascriptRequirements
 import cwl.command.ParentName
 import cwl.requirement.RequirementToAttributeMap
-import shapeless.Inl
+import shapeless.{Inl, Inr}
 import wom.RuntimeAttributes
 import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, OutputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, TaskDefinition}
@@ -112,9 +112,10 @@ trait Tool {
       val runtimeAttributes: RuntimeAttributes = RuntimeAttributes(attributesMap ++ toolAttributes)
 
       val schemaDefRequirement: SchemaDefRequirement = requirementsAndHints.flatMap{
-        case sdr: SchemaDefRequirement => List(sdr)
+        case Inr(Inl(sdr: SchemaDefRequirement)) => List(sdr)
         case _ => List()
       }.headOption.getOrElse(SchemaDefRequirement())
+
       val inputDefinitions: List[_ <: Callable.InputDefinition] =
         this.inputs.map {
           case input @ InputParameter.IdDefaultAndType(inputId, default, tpe) =>

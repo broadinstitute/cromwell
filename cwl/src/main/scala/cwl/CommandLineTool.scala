@@ -11,7 +11,7 @@ import cwl.CwlVersion._
 import cwl.command.ParentName
 import io.circe.Json
 import shapeless.syntax.singleton._
-import shapeless.{:+:, CNil, Coproduct, Poly1, Witness}
+import shapeless.{:+:, CNil, Coproduct, Inl, Inr, Poly1, Witness}
 import wom.callable.CommandTaskDefinition.{EvaluatedOutputs, OutputFunctionResponse}
 import wom.callable.{Callable, CallableTaskDefinition, ContainerizedInputExpression}
 import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}
@@ -90,7 +90,7 @@ case class CommandLineTool private(
         val parsedName = FullyQualifiedName(inputParameter.id)(ParentName.empty).id
 
         val schemaDefRequirement: SchemaDefRequirement = requirementsAndHints.flatMap{
-          case sdr: SchemaDefRequirement => List(sdr)
+          case Inr(Inl(sdr: SchemaDefRequirement)) => List(sdr)
           case _ => List()
         }.headOption.getOrElse(SchemaDefRequirement())
 

@@ -14,11 +14,16 @@ import scala.concurrent.Future
 trait WriteFunctions extends PathFactory with IoFunctionSet with AsyncIoFunctions {
 
   /**
+    * True if the writeDirectory will be mounted onto a docker container
+    */
+  def isDocker: Boolean
+  
+  /**
     * Directory that will be used to write files.
     */
   def writeDirectory: Path
 
-  private lazy val _writeDirectory = writeDirectory.createPermissionedDirectories()
+  private lazy val _writeDirectory = if (isDocker) writeDirectory.createPermissionedDirectories() else writeDirectory.createDirectories()
 
   override def writeFile(path: String, content: String): Future[WomSingleFile] = {
     val file = _writeDirectory / path

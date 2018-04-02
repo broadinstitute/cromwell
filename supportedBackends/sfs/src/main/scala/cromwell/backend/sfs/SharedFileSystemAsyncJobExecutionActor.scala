@@ -119,7 +119,8 @@ trait SharedFileSystemAsyncJobExecutionActor
   }
 
   override def execute(): ExecutionHandle = {
-    jobPaths.callExecutionRoot.createPermissionedDirectories()
+    if (isDockerRun) jobPaths.callExecutionRoot.createPermissionedDirectories() 
+    else jobPaths.callExecutionRoot.createDirectories()
     writeScriptContents().fold(
       identity,
       { _ =>

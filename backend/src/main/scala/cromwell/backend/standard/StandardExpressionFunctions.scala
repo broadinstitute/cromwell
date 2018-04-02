@@ -41,4 +41,6 @@ class StandardExpressionFunctions(val standardParams: StandardExpressionFunction
   val callContext: CallContext = standardParams.callContext
 
   val writeDirectory: Path = callContext.root
+  
+  val isDocker: Boolean = callContext.isDocker
 }

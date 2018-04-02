@@ -117,7 +117,7 @@ class NioFlow(parallelism: Int,
   }
 
   private def createDirectoriesForSFSPath(path: Path) = path match {
-    case _: DefaultPath => path.parent.createPermissionedDirectories()
+    case _: DefaultPath => path.parent.createDirectories()
     case _ =>
   }
 }

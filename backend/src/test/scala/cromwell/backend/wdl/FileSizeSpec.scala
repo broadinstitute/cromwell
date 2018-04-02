@@ -32,7 +32,7 @@ class FileSizeSpec extends TestKitSuite with FlatSpecLike with Matchers {
 
     val dp = DefaultStandardExpressionFunctionsParams(
       List(cromwell.core.path.DefaultPathBuilder),
-      CallContext(path, DummyStandardPaths),
+      CallContext(path, DummyStandardPaths, isDocker = false),
       simpleIoActor,
       scala.concurrent.ExecutionContext.global)
 

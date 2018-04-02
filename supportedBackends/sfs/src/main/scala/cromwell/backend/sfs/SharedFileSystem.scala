@@ -32,38 +32,43 @@ object SharedFileSystem extends StrictLogging {
   }
 
   case class PairOfFiles(src: Path, dst: Path)
-  type DuplicationStrategy = (Path, Path) => Try[Unit]
+  type DuplicationStrategy = (Path, Path, Boolean) => Try[Unit]
+  
+  private def createParentDirectory(executionPath: Path, docker: Boolean) = {
+    if (docker) executionPath.parent.createPermissionedDirectories()
+    else executionPath.parent.createDirectories()
+  }
 
   /**
     * Return a `Success` result if the file has already been localized, otherwise `Failure`.
     */
-  private def localizePathAlreadyLocalized(originalPath: Path, executionPath: Path): Try[Unit] = {
+  private def localizePathAlreadyLocalized(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] = {
     if (executionPath.exists) Success(()) else Failure(new RuntimeException(s"$originalPath doesn't exist"))
   }
 
-  private def localizePathViaCopy(originalPath: Path, executionPath: Path): Try[Unit] = {
+  private def localizePathViaCopy(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] = {
     val action = Try {
-      executionPath.parent.createPermissionedDirectories()
+      createParentDirectory(executionPath, docker)
       val executionTmpPath = executionPath.plusExt("tmp")
       originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true)
     }.void
     logOnFailure(action, "copy")
   }
 
-  private def localizePathViaHardLink(originalPath: Path, executionPath: Path): Try[Unit] = {
+  private def localizePathViaHardLink(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] = {
     val action = Try {
-      executionPath.parent.createPermissionedDirectories()
+      createParentDirectory(executionPath, docker)
       originalPath.linkTo(executionPath)
     }.void
     logOnFailure(action, "hard link")
   }
 
-  private def localizePathViaSymbolicLink(originalPath: Path, executionPath: Path): Try[Unit] = {
+  private def localizePathViaSymbolicLink(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] = {
       if (originalPath.isDirectory) Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
       else if (!originalPath.exists) Failure(new FileNotFoundException(originalPath.pathAsString))
       else {
         val action = Try {
-          executionPath.parent.createPermissionedDirectories()
+          createParentDirectory(executionPath, docker)
           executionPath.linkTo(originalPath, symbolic = true)
         }.void
         logOnFailure(action, "symbolic link")
@@ -75,8 +80,8 @@ object SharedFileSystem extends StrictLogging {
     action
   }
 
-  private def duplicate(description: String, source: Path, dest: Path, strategies: Stream[DuplicationStrategy]): Try[Unit] = {
-    val attempts: Stream[Try[Unit]] = strategies.map(_.apply(source.followSymbolicLinks, dest))
+  private def duplicate(description: String, source: Path, dest: Path, strategies: Stream[DuplicationStrategy], docker: Boolean): Try[Unit] = {
+    val attempts: Stream[Try[Unit]] = strategies.map(_.apply(source.followSymbolicLinks, dest, docker))
     attempts.find(_.isSuccess) getOrElse {
       TryUtil.sequence(attempts, s"Could not $description $source -> $dest").void
     }
@@ -149,7 +154,7 @@ trait SharedFileSystem extends PathFactory {
   }
 
   def cacheCopy(sourceFilePath: Path, destinationFilePath: Path): Try[Unit] = {
-    duplicate("cache", sourceFilePath, destinationFilePath, Cachers.toStream)
+    duplicate("cache", sourceFilePath, destinationFilePath, Cachers.toStream, docker = false)
   }
 
   /**
@@ -190,7 +195,7 @@ trait SharedFileSystem extends PathFactory {
     }
 
     // Optional function to adjust the path to "docker path" if the call runs in docker
-    localizeWomFile(toCallPath _, strategies.toStream)(value)
+    localizeWomFile(toCallPath _, strategies.toStream, docker)(value)
   }
 
   /**
@@ -201,11 +206,11 @@ trait SharedFileSystem extends PathFactory {
     * @param womFile WomFile to localize
     * @return localized WomFile
     */
-  private def localizeWomFile(toDestPath: (String => Try[PairOfFiles]), strategies: Stream[DuplicationStrategy])
+  private def localizeWomFile(toDestPath: (String => Try[PairOfFiles]), strategies: Stream[DuplicationStrategy], docker: Boolean)
                              (womFile: WomFile): WomFile = {
     val localized = womFile mapFile { path =>
       val result = toDestPath(path) flatMap {
-        case PairOfFiles(src, dst) => duplicate("localize", src, dst, strategies).map(_ => dst.pathAsString)
+        case PairOfFiles(src, dst) => duplicate("localize", src, dst, strategies, docker).map(_ => dst.pathAsString)
       }
       result.get
     }

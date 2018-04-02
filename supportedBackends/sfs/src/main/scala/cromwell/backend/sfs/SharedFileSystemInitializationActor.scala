@@ -51,7 +51,7 @@ class SharedFileSystemInitializationActor(standardParams: StandardInitialization
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     initializationData map { data =>
       publishWorkflowRoot(data.workflowPaths.workflowRoot.pathAsString)
-      data.workflowPaths.workflowRoot.createPermissionedDirectories()
+      data.workflowPaths.workflowRoot.createDirectories()
       Option(data)
     }
   }

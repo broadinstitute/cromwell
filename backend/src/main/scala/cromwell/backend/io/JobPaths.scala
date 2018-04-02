@@ -34,6 +34,7 @@ trait JobPaths {
   def returnCodeFilename: String = "rc"
   def defaultStdoutFilename = "stdout"
   def defaultStderrFilename = "stderr"
+  def isDocker: Boolean = false
 
   // In this non-Docker version of `JobPaths` there is no distinction between host and container roots so this is
   // just called 'rootWithSlash'.
@@ -103,5 +104,5 @@ trait JobPaths {
   lazy val detritusPaths = commonDetritusPaths ++ customDetritusPaths
   lazy val logPaths = commonLogPaths ++ customLogPaths
 
-  lazy val callContext = CallContext(callExecutionRoot, standardPaths)
+  lazy val callContext = CallContext(callExecutionRoot, standardPaths, isDocker)
 }

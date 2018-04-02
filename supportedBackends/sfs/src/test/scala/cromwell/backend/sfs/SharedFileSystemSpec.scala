@@ -27,7 +27,7 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
                        linkNb: Int = 1) = {
     val callDir = DefaultPathBuilder.createTempDirectory("SharedFileSystem")
     val orig = if (fileInCallDir) callDir.createChild("inputFile") else DefaultPathBuilder.createTempFile("inputFile")
-    val dest = if (fileInCallDir) orig else callDir./(orig.pathAsString.hashCode.toString())./(orig.name)
+    val dest = if (fileInCallDir) orig else callDir./(orig.root.pathAsString.hashCode.toString())./(orig.name)
     orig.touch()
     if (fileAlreadyExists) {
       dest.parent.createPermissionedDirectories()

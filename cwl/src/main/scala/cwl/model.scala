@@ -42,16 +42,22 @@ trait EnumSchema {
   val `type`: W.`"enum"`.T
   val label: Option[String]
 
+<<<<<<< d3537f71db19bcca947ed68ca8fc81947b7099be
 <<<<<<< 510abf4b993c1c8cda6b74d7aaa0b248d270fb45
+=======
+>>>>>>> the rabbit hole goes deep
   def toWomEnumerationType: WomEnumerationType = {
     val symbolIds = symbols.toList.map{
       s => s.substring(s.lastIndexOf("/") + 1)
     }
     WomEnumerationType(NonEmptyList.fromListUnsafe(symbolIds))
   }
+<<<<<<< d3537f71db19bcca947ed68ca8fc81947b7099be
 =======
   def toWomEnumerationType: WomEnumerationType = WomEnumerationType(NonEmptyList.fromListUnsafe(symbols.toList))
 >>>>>>> ready for testing
+=======
+>>>>>>> the rabbit hole goes deep
 }
 
 case class InputEnumSchema(

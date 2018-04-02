@@ -85,11 +85,12 @@ object MyriadInputInnerTypeToWomType extends Poly1 {
         val arrayType: WomType = ias.items.fold(MyriadInputTypeToWomType).apply(lookup)
         WomArrayType(arrayType)
   }
+
   implicit def s: Aux[String, SchemaLookup] = at[String]{
     string =>
       schemaReq =>
         schemaReq.types.toList.flatMap{
-          case Inl(inputRecordSchema: InputRecordSchema) if inputRecordSchema.name == string.drop(1) =>
+          case Inl(inputRecordSchema: InputRecordSchema) if inputRecordSchema.name == string =>
             List(inputRecordSchemaToWomType(inputRecordSchema).apply(schemaReq))
           case _ => List()
         }.headOption.getOrElse(throw new RuntimeException(s"Custom type $string was referred to but not found."))

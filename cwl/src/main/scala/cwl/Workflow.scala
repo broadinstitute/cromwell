@@ -74,7 +74,6 @@ case class Workflow private(
     val workflowNameIdentifier = explicitWorkflowName.value.map(WomIdentifier.apply).getOrElse(WomIdentifier(workflowName))
     val schemaDefRequirement: SchemaDefRequirement = allRequirements.flatMap{
       _.select[SchemaDefRequirement].toList
-      case _ => List()
     }.headOption.getOrElse(SchemaDefRequirement())
 
     def womTypeForInputParameter(input: InputParameter): Option[WomType] = {

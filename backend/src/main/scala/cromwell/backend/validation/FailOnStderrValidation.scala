@@ -1,7 +1,6 @@
 package cromwell.backend.validation
 
 import com.typesafe.config.Config
-import wom.RuntimeAttributesKeys
 import wom.values._
 
 /**

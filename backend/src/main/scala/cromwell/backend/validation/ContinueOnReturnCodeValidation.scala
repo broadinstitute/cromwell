@@ -7,7 +7,6 @@ import cats.syntax.validated._
 import com.typesafe.config.Config
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import common.validation.ErrorOr._
-import wom.RuntimeAttributesKeys
 import wom.types._
 import wom.values._
 

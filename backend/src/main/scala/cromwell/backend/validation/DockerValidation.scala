@@ -2,7 +2,6 @@ package cromwell.backend.validation
 
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
-import wom.RuntimeAttributesKeys
 import wom.values._
 
 /**

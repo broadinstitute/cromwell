@@ -4,7 +4,6 @@ import cats.syntax.validated._
 import com.typesafe.config.Config
 import common.validation.ErrorOr._
 import wdl4s.parser.MemoryUnit
-import wom.RuntimeAttributesKeys
 import wom.format.MemorySize
 import wom.types.{WomIntegerType, WomLongType, WomStringType}
 import wom.values.{WomInteger, WomLong, WomString, WomValue}

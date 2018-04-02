@@ -26,7 +26,7 @@ class MapWorkflowSpec extends CromwellTestKitWordSpec {
   "A task which contains a parameter " should {
     "accept an array for the value" in {
       val sampleWdl = SampleWdl.MapLiteral(pwd)
-      val callDir = "<<PWD>>/cromwell-executions/wf/<<UUID>>/call-write_map/inputs<<PWD>>"
+      val callDir = "<<PWD>>/cromwell-executions/wf/<<UUID>>/call-write_map/inputs"
       runWdlAndAssertOutputs(
         sampleWdl = sampleWdl,
         EventFilter.info(pattern = "Starting calls: wf.read_map:NA:1, wf.write_map:NA:1", occurrences = 1),
@@ -36,7 +36,8 @@ class MapWorkflowSpec extends CromwellTestKitWordSpec {
             WomString("y") -> WomInteger(600),
             WomString("z") -> WomInteger(700)
           )),
-          "wf.write_map.contents" -> WomString(s"$callDir/f1\talice\n$callDir/f2\tbob\n$callDir/f3\tchuck")
+      //This is not working because the inputs are being written to some special pre-known place, and we need that location to get hashcode to unique-ify
+          "wf.write_map.contents" -> WomString(s"$callDir/${callDir.hashCode().toString}/f1\talice\n$callDir/${callDir.hashCode().toString}/f2\tbob\n$callDir/${callDir.hashCode().toString}/f3\tchuck")
         )
       )
       sampleWdl.cleanup()

@@ -5,6 +5,7 @@ import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.TestConfig
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import wom.RuntimeAttributesKeys
 import wom.types._
 import wom.values._
 

@@ -17,17 +17,14 @@ object WorkflowStepInputSource {
   }
 }
 
-case class InputRecordSchema(
-  `type`: W.`"record"`.T,
-  fields: Option[Array[InputRecordField]],
-  label: Option[String])
+trait EnumSchema {
 
-case class InputRecordField(
-  name: String,
-  `type`: MyriadInputType,
-  doc: Option[String],
-  inputBinding: Option[InputCommandLineBinding],
-  label: Option[String])
+  val symbols: Array[String]
+  val `type`: W.`"enum"`.T
+  val label: Option[String]
+
+  def toWomEnumerationType: WomEnumerationType = WomEnumerationType(NonEmptyList.fromListUnsafe(symbols.toList))
+}
 
 case class InputEnumSchema(
   symbols: Array[String],
@@ -89,17 +86,6 @@ case class ArgumentCommandLineBinding(
 }
 
 case class InputBinding(position: Int, prefix: String)
-
-case class OutputRecordSchema(
-  `type`: W.`"record"`.T,
-  fields: Option[Array[OutputRecordField]],
-  label: Option[String])
-
-case class OutputRecordField(
-  name: String,
-  `type`: MyriadOutputType,
-  doc: Option[String],
-  outputBinding: Option[CommandOutputBinding])
 
 case class OutputEnumSchema(
   symbols: Array[String],

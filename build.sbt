@@ -259,3 +259,6 @@ lazy val root = (project in file("."))
   .aggregate(womtool)
   // TODO: See comment in plugins.sbt regarding SBT 1.x
   .enablePlugins(CrossPerProjectPlugin)
+
+  ensimeScalaVersion in ThisBuild := "2.12.4"
+

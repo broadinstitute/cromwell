@@ -69,8 +69,15 @@ object MyriadInputInnerTypeToWomType extends Poly1 {
 
       WomArrayType(arrayType)
   }
-  implicit def s: Aux[String, WomType] = at[String]{
-    _.toString |> ex
+
+  implicit def s: Aux[String, SchemaLookup] = at[String]{
+    string =>
+      schemaReq =>
+        schemaReq.types.toList.flatMap{
+          case Inl(inputRecordSchema: InputRecordSchema) if inputRecordSchema.name == string.drop(1) =>
+            List(inputRecordSchemaToWomType(inputRecordSchema).apply(schemaReq))
+          case _ => List()
+        }.headOption.getOrElse(throw new RuntimeException(s"Custom type $string was referred to but not found."))
   }
 
 }

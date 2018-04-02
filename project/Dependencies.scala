@@ -9,6 +9,7 @@ object Dependencies {
   val ammoniteOpsV = "1.0.1"
   val apacheHttpClientV = "4.5.3"
   val apacheHttpCoreV = "4.4.6"
+  val awsSdkV = "2.0.0-preview-9"
   val betterFilesV = "2.17.1"
   val catsEffectV = "0.4"
   val catsV = "1.0.0-MF"
@@ -37,7 +38,7 @@ object Dependencies {
   val grpcV = "1.5.0"
   val guavaV = "22.0"
   val hsqldbV = "2.3.4"
-  val jacksonV = "2.8.9"
+  val jacksonV = "2.9.4"
   val janinoV = "3.0.7"
   val jodaTimeV = "2.9.4"
   val jsr305V = "3.0.0"
@@ -205,6 +206,11 @@ object Dependencies {
       exclude("com.google.guava", "guava-jdk5")
   )
 
+  private val awsCloudDependencies = List(
+    "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonV,
+    "software.amazon.awssdk" % "aws-sdk-java" % awsSdkV
+  )
+
   private val googleCloudDependencies = List(
     "io.grpc" % "grpc-core" % grpcV,
     "com.google.guava" % "guava" % guavaV,
@@ -263,7 +269,7 @@ object Dependencies {
 
   // Sub-project dependencies, added in addition to any dependencies inherited from .dependsOn().
 
-  val cloudSupportDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies
+  val cloudSupportDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies
 
   val databaseSqlDependencies = configDependencies ++ catsDependencies ++ slickDependencies ++ dbmsDependencies ++
     refinedTypeDependenciesList

@@ -68,6 +68,7 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     "simple_task" -> validateTaskDefinitionWom,
     "lots_of_nesting" -> anyWomWillDo,
     "taskless_engine_functions" -> anyWomWillDo,
+    "no_input_no_output_workflow" -> anyWomWillDo,
     "command_syntaxes" -> validateCommandSyntaxes
   )
 

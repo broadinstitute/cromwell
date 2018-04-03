@@ -13,7 +13,7 @@ import cromiam.auth.{Collection, User}
 import cromiam.cromwell.CromwellClient._
 import cromwell.api.{CromwellClient => CromwellApiClient}
 import cromiam.server.status.StatusCheckedSubsystem
-import cromwell.api.model.{WorkflowId, WorkflowLabels}
+import cromwell.api.model.{WorkflowId, WorkflowLabels, WorkflowMetadata}
 import spray.json._
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
@@ -63,6 +63,33 @@ class CromwellClient(scheme: String, interface: String, port: Int, log: LoggingA
       Http().singleRequest(cromwellRequest)
   } recoverWith {
     case e => Future.failed(CromwellConnectionFailure(e))
+  }
+
+  /**
+    * Retrieve the root workflow ID for a workflow ID. This is used in case the user is inquiring about a subworkflow.
+    */
+  def getRootWorkflow(workflowId: String, user: User): Future[String] = {
+    def metadataToRootWorkflowId(metadata: WorkflowMetadata): String = {
+      import spray.json._
+      /*
+          Parse the JSON and then look for a top level field in the response object called rootWorkflowId, and return.
+          If for some reason there's not a root workflow ID (not a subworkflow and/or this is an old workflow), just
+          use the current workflow id.
+
+          This is all called from inside the context of a Future, so exceptions will be properly caught.
+      */
+      metadata.value.parseJson.asJsObject.fields.get("rootWorkflowId").map(_.toString).getOrElse(workflowId)
+    }
+
+    // FIXME: See FIXME in collectionForWorkflow
+    val client = new CromwellApiClient(cromwellUrl, cromwellApiVersion, Option(user.authorization.credentials))
+    log.info("Looking up root workflow ID for " + workflowId + "for user " + user.userId + " from metadata")
+
+    /*
+      Grab the metadata from Cromwell filtered down to the rootWorkflowId. Then transform the response to get just the
+      root workflow ID itself
+     */
+    client.metadata(WorkflowId.fromString(workflowId), Option(Map("includeKey" -> List("rootWorkflowId")))).map(metadataToRootWorkflowId)
   }
 }
 

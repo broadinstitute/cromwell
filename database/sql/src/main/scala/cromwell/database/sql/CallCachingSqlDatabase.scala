@@ -21,8 +21,8 @@ trait CallCachingSqlDatabase {
   def queryResultsForCacheId(callCachingEntryId: Int)
                             (implicit ec: ExecutionContext): Future[Option[CallCachingJoin]]
   
-  def cacheEntryExistsForCall(workflowExecutionUuid: String, callFqn: String, index: Int)
-                             (implicit ec: ExecutionContext): Future[Boolean]
+  def callCacheJoinForCall(workflowExecutionUuid: String, callFqn: String, index: Int)
+                          (implicit ec: ExecutionContext): Future[Option[CallCachingJoin]]
 
   def invalidateCall(callCachingEntryId: Int)
                     (implicit ec: ExecutionContext): Future[Option[CallCachingEntry]]

@@ -13,14 +13,16 @@ import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core._
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
+import cromwell.core.path.DefaultPathBuilder
 import cromwell.core.simpleton.WomValueSimpleton
+import cromwell.database.sql.joins.CallCachingJoin
 import cromwell.database.sql.tables.CallCachingEntry
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.instrumentation.JobInstrumentation
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.RequestValueStore
 import cromwell.engine.workflow.lifecycle.execution._
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCacheHashBundle
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.{CallCacheHashBundle, _}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor._
@@ -148,10 +150,10 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   // to call cache to another job that finished while this one was running (before the restart).
   when(CheckingCacheEntryExistence) {
     // There was already a cache entry for this job
-    case Event(HasCallCacheEntry(_), NoData) =>
-      // Disable call caching
-      effectiveCallCachingMode = CallCachingOff
-      requestValueStore()
+    case Event(join: CallCachingJoin, NoData) =>
+      val jobSuccess = join.toJobSuccess(jobDescriptorKey, List(DefaultPathBuilder))
+      publishHashResultsToMetadata(Option(Success(join.callCacheHashes)))
+      saveJobCompletionToJobStore(SucceededResponseData(jobSuccess, None))
     // No cache entry for this job - keep going
     case Event(NoCallCacheEntry(_), NoData) =>
       requestValueStore()
@@ -402,9 +404,11 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       stay
   }
 
-  private def publishHashesToMetadata(maybeHashes: Option[Try[CallCacheHashes]]) = maybeHashes match {
+  private def publishHashesToMetadata(maybeHashes: Option[Try[CallCacheHashes]]) = publishHashResultsToMetadata(maybeHashes.map(_.map(_.hashes)))
+
+  private def publishHashResultsToMetadata(maybeHashes: Option[Try[Set[HashResult]]]) = maybeHashes match {
     case Some(Success(hashes)) =>
-      val hashMap = hashes.hashes.collect({
+      val hashMap = hashes.collect({
         case HashResult(HashKey(useInCallCaching, keyComponents), HashValue(value)) if useInCallCaching =>
           (callCachingHashes + MetadataKey.KeySeparator + keyComponents.mkString(MetadataKey.KeySeparator.toString)) -> value
       }).toMap

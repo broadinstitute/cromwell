@@ -32,6 +32,13 @@ trait CallCachingAggregationEntryComponent {
 
   val callCachingAggregationEntryIdsAutoInc = callCachingAggregationEntries returning
     callCachingAggregationEntries.map(_.callCachingAggregationEntryId)
+  
+  val callCachingAggregationForCacheEntryId = Compiled(
+    (callCachingEntryId: Rep[Int]) => for {
+      callCachingAggregationEntry <- callCachingAggregationEntries 
+      if callCachingAggregationEntry.callCachingEntryId === callCachingEntryId
+    } yield callCachingAggregationEntry
+  )
 
   val existsCallCachingEntriesForBaseAggregationHash = Compiled(
     (baseAggregation: Rep[String]) => (for {

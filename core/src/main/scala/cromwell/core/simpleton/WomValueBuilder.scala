@@ -224,10 +224,10 @@ object WomValueBuilder {
   private case class SimpletonComponent(path: String, value: WomValue)
 
   def toJobOutputs(taskOutputs: Traversable[OutputPort], simpletons: Traversable[WomValueSimpleton]): CallOutputs = {
-    CallOutputs(toWdlValues(taskOutputs, simpletons))
+    CallOutputs(toWomValues(taskOutputs, simpletons))
   }
 
-  def toWdlValues(taskOutputs: Traversable[OutputPort], simpletons: Traversable[WomValueSimpleton]): Map[OutputPort, WomValue] = {
+  def toWomValues(taskOutputs: Traversable[OutputPort], simpletons: Traversable[WomValueSimpleton]): Map[OutputPort, WomValue] = {
 
     def simpletonToComponent(name: String)(simpleton: WomValueSimpleton): SimpletonComponent = {
       SimpletonComponent(simpleton.simpletonKey.drop(name.length), simpleton.simpletonValue)

@@ -143,11 +143,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   // When we're restarting but the job store says the job is not complete.
   // This is to cover for the case where Cromwell was stopped after writing Cache Info to the DB but before
-  // writing to the JobStore. In that case, we don't want to cache to ourselves (turn cache read off), nor do we want to 
-  // try and write the cache info again, which would fail (turn cache write off).
-  // This means call caching should be disabled.
-  // Note that we check that there is not a Cache entry for *this* current job. It's still technically possible
-  // to call cache to another job that finished while this one was running (before the restart).
+  // writing to the JobStore. In that case, we can re-use the cached results and save them to the job store directly.
+  // Note that this checks that *this* particular job has a cache entry, not that there is *a* cache hit (possibly from another jobs)
+  // There's no need to copy the outputs because they're already *this* job's outputs
   when(CheckingCacheEntryExistence) {
     // There was already a cache entry for this job
     case Event(join: CallCachingJoin, NoData) =>

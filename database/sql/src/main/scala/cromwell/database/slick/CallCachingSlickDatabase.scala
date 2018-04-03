@@ -92,12 +92,31 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
     runTransaction(action)
   }
 
-  override def cacheEntryExistsForCall(workflowExecutionUuid: String, callFqn: String, index: Int)
-                                      (implicit ec: ExecutionContext): Future[Boolean] = {
+  private def callCacheJoinFromEntryQuery(callCachingEntry: CallCachingEntry)
+                            (implicit ec: ExecutionContext) = {
+    val callCachingEntryId = callCachingEntry.callCachingEntryId.get
+    for {
+      callCachingSimpletonEntries <- dataAccess.
+        callCachingSimpletonEntriesForCallCachingEntryId(callCachingEntryId).result
+      callCachingDetritusEntries <- dataAccess.
+        callCachingDetritusEntriesForCallCachingEntryId(callCachingEntryId).result
+      callCachingHashEntries <- dataAccess.
+        callCachingHashEntriesForCallCachingEntryId(callCachingEntryId).result
+      callCachingAggregationEntries <- dataAccess.
+        callCachingAggregationForCacheEntryId(callCachingEntryId).result.headOption
+    } yield CallCachingJoin(callCachingEntry, callCachingHashEntries, callCachingAggregationEntries, callCachingSimpletonEntries, callCachingDetritusEntries)
+  }
+
+  override def callCacheJoinForCall(workflowExecutionUuid: String, callFqn: String, index: Int)
+                                   (implicit ec: ExecutionContext): Future[Option[CallCachingJoin]] = {
     val action = for {
       callCachingEntryOption <- dataAccess.
         callCachingEntriesForWorkflowFqnIndex((workflowExecutionUuid, callFqn, index)).result.headOption
-    } yield callCachingEntryOption.nonEmpty
+      callCacheJoin <- callCachingEntryOption match {
+        case Some(entry) => callCacheJoinFromEntryQuery(entry).map(Option.apply)
+        case _ => DBIO.successful(None)
+      }
+    } yield callCacheJoin
 
     runTransaction(action)
   }

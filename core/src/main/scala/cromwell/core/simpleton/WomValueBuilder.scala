@@ -15,13 +15,13 @@ import scala.language.postfixOps
 object WomValueBuilder {
 
   /**
-    * Looks for a WDL identifier possibly followed by a metacharacter and more stuff.
+    * Looks for a WOM identifier possibly followed by a metacharacter and more stuff.
     *
     * Capture groups:
     *
     * <ol>
-    * <li>A WDL identifier</li>
-    * <li>Possibly a metacharacter and more stuff after the WDL identifier</li>
+    * <li>A WOM identifier</li>
+    * <li>Possibly a metacharacter and more stuff after the WOM identifier</li>
     * </ol>
     */
   private val IdentifierAndPathPattern = "^([a-zA-Z][a-zA-Z0-9_]*)(.*)".r
@@ -143,13 +143,13 @@ object WomValueBuilder {
       case arrayType: WomArrayType =>
         WomArray(arrayType, components.asArray map { toWomValue(arrayType.memberType, _) })
       case mapType: WomMapType =>
-        // map keys are guaranteed by the WDL spec to be primitives, so the "coerceRawValue(..).get" is safe.
+        // map keys are guaranteed by WOM to be primitives, so the "coerceRawValue(..).get" is safe.
         WomMap(mapType, components.asMap map { case (k, ss) => mapType.keyType.coerceRawValue(k).get -> toWomValue(mapType.valueType, ss) })
       case pairType: WomPairType =>
         val groupedByLeftOrRight: Map[PairLeftOrRight, Traversable[SimpletonComponent]] = group(components map descendIntoPair)
         WomPair(toWomValue(pairType.leftType, groupedByLeftOrRight(PairLeft)), toWomValue(pairType.rightType, groupedByLeftOrRight(PairRight)))
       case WomObjectType =>
-        // map keys are guaranteed by the WDL spec to be primitives, so the "coerceRawValue(..).get" is safe.
+        // map keys are guaranteed by WOM to be primitives, so the "coerceRawValue(..).get" is safe.
         val map: Map[String, WomValue] = components.asMap map { case (k, ss) => k -> toWomValue(WomAnyType, ss) }
         WomObject(map)
       case composite: WomCompositeType =>
@@ -212,13 +212,13 @@ object WomValueBuilder {
     * path to the element.  e.g. for a `WomValueSimpleton` of
     *
     * {{{
-    * WomValueSimpleton("foo:bar[0]", WdlString("baz"))
+    * WomValueSimpleton("foo:bar[0]", WomString("baz"))
     * }}}
     *
     * the corresponding `SimpletonComponent` would be
     *
     * {{{
-    * SimpletonComponent(":bar[0]", WdlString("baz"))
+    * SimpletonComponent(":bar[0]", WomString("baz"))
     * }}}
     */
   private case class SimpletonComponent(path: String, value: WomValue)
@@ -233,7 +233,7 @@ object WomValueBuilder {
       SimpletonComponent(simpleton.simpletonKey.drop(name.length), simpleton.simpletonValue)
     }
 
-    // This is meant to "rehydrate" simpletonized WdlValues back to WdlValues.  It is assumed that these WdlValues were
+    // This is meant to "rehydrate" simpletonized WomValues back to WomValues.  It is assumed that these WomValues were
     // "dehydrated" to WomValueSimpletons correctly. This code is not robust to corrupt input whatsoever.
     val types = taskOutputs map { o => o -> o.womType } toMap
     val simpletonsByOutputName = simpletons groupBy { _.simpletonKey match { case IdentifierAndPathPattern(i, _) => i } }

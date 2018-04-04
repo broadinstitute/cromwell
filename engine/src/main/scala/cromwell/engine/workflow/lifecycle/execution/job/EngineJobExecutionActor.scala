@@ -143,7 +143,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   // When we're restarting but the job store says the job is not complete.
   // This is to cover for the case where Cromwell was stopped after writing Cache Info to the DB but before
   // writing to the JobStore. In that case, we can re-use the cached results and save them to the job store directly.
-  // Note that this checks that *this* particular job has a cache entry, not that there is *a* cache hit (possibly from another jobs)
+  // Note that this checks that *this* particular job has a cache entry, not that there is *a* cache hit (possibly from another job)
   // There's no need to copy the outputs because they're already *this* job's outputs
   when(CheckingCacheEntryExistence) {
     // There was already a cache entry for this job
@@ -276,6 +276,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     // writeToCache is true and all hashes have already been retrieved - save to the cache
     case Event(response: JobSucceededResponse, data @ ResponsePendingData(_, _, Some(Success(hashes)), _, _, _)) if effectiveCallCachingMode.writeToCache =>
       eventList ++= response.executionEvents
+      // Publish the image used now that we have it as we might lose the information if Cromwell is restarted
+      // in between writing to the cache and writing to the job store
+      response.dockerImageUsed foreach publishDockerImageUsed
       saveCacheResults(hashes, data.withSuccessResponse(response))
     // Hashes are still missing and we want them (writeToCache is true) - wait for them
     case Event(response: JobSucceededResponse, data: ResponsePendingData) if effectiveCallCachingMode.writeToCache && data.hashes.isEmpty =>
@@ -410,7 +413,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def publishHashesToMetadata(maybeHashes: Option[Try[CallCacheHashes]]) = publishHashResultsToMetadata(maybeHashes.map(_.map(_.hashes)))
-
+  private def publishDockerImageUsed(image: String) = writeToMetadata(Map("dockerImageUsed" -> image))
   private def publishHashResultsToMetadata(maybeHashes: Option[Try[Set[HashResult]]]) = maybeHashes match {
     case Some(Success(hashes)) =>
       val hashMap = hashes.collect({
@@ -681,7 +684,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = true)
     }
 
-    updatedData.dockerImageUsed foreach { image => writeToMetadata(Map("dockerImageUsed" -> image)) }
+    updatedData.dockerImageUsed foreach publishDockerImageUsed
     goto(UpdatingJobStore) using updatedData
   }
 

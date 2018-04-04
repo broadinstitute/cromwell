@@ -112,10 +112,8 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
     val action = for {
       callCachingEntryOption <- dataAccess.
         callCachingEntriesForWorkflowFqnIndex((workflowExecutionUuid, callFqn, index)).result.headOption
-      callCacheJoin <- callCachingEntryOption match {
-        case Some(entry) => callCacheJoinFromEntryQuery(entry).map(Option.apply)
-        case _ => DBIO.successful(None)
-      }
+      callCacheJoin <- callCachingEntryOption
+        .fold[DBIOAction[Option[CallCachingJoin], NoStream, Effect.Read]](DBIO.successful(None))(callCacheJoinFromEntryQuery(_).map(Option.apply))
     } yield callCacheJoin
 
     runTransaction(action)

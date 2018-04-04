@@ -149,6 +149,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     // There was already a cache entry for this job
     case Event(join: CallCachingJoin, NoData) =>
       Try(join.toJobSuccess(jobDescriptorKey, factory.pathBuilders(initializationData))).map({ jobSuccess =>
+        // We can't create a CallCacheHashes to give to the SucceededResponseData here because it involves knowledge of
+        // which hashes are file hashes and which are not. We can't know that (nor do we care) when pulling them from the 
+        // database. So instead manually publish the hashes here.
         publishHashResultsToMetadata(Option(Success(join.callCacheHashes)))
         saveJobCompletionToJobStore(SucceededResponseData(jobSuccess, None))
       }).recover({

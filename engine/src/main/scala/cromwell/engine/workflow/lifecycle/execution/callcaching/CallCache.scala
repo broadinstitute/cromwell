@@ -147,7 +147,7 @@ object CallCache {
                                          )
   
   implicit class EnhancedCallCachingJoin(val callCachingJoin: CallCachingJoin) extends AnyVal {
-    def toJobSuccess(key: BackendJobDescriptorKey, pathBuilders: List[PathBuilder]) = {
+    def toJobSuccess(key: BackendJobDescriptorKey, pathBuilders: List[PathBuilder]): JobSucceededResponse = {
       import cromwell.Simpletons._
       import cromwell.core.path.PathFactory._
       val detritus = callCachingJoin.callCachingDetritusEntries.map({ jobDetritusEntry =>

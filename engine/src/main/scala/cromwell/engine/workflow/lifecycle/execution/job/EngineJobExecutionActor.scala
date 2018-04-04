@@ -13,7 +13,6 @@ import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core._
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
-import cromwell.core.path.DefaultPathBuilder
 import cromwell.core.simpleton.WomValueSimpleton
 import cromwell.database.sql.joins.CallCachingJoin
 import cromwell.database.sql.tables.CallCachingEntry
@@ -149,9 +148,14 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   when(CheckingCacheEntryExistence) {
     // There was already a cache entry for this job
     case Event(join: CallCachingJoin, NoData) =>
-      val jobSuccess = join.toJobSuccess(jobDescriptorKey, List(DefaultPathBuilder))
-      publishHashResultsToMetadata(Option(Success(join.callCacheHashes)))
-      saveJobCompletionToJobStore(SucceededResponseData(jobSuccess, None))
+      Try(join.toJobSuccess(jobDescriptorKey, factory.pathBuilders(initializationData))).map({ jobSuccess =>
+        publishHashResultsToMetadata(Option(Success(join.callCacheHashes)))
+        saveJobCompletionToJobStore(SucceededResponseData(jobSuccess, None))
+      }).recover({
+        case f =>
+          // If for some reason the above fails, fail the job cleanly
+          saveJobCompletionToJobStore(FailedResponseData(JobFailedNonRetryableResponse(jobDescriptorKey, f, None), None))
+      }).get
     // No cache entry for this job - keep going
     case Event(NoCallCacheEntry(_), NoData) =>
       requestValueStore()

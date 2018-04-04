@@ -3,7 +3,9 @@ package cromwell.database.slick
 import cats.data.NonEmptyList
 import cats.instances.list._
 import cats.instances.tuple._
+import cats.syntax.apply._
 import cats.syntax.foldable._
+import com.rms.miu.slickcats.DBIOInstances._
 import cromwell.database.sql._
 import cromwell.database.sql.joins.CallCachingJoin
 import cromwell.database.sql.tables._
@@ -93,18 +95,21 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
   }
 
   private def callCacheJoinFromEntryQuery(callCachingEntry: CallCachingEntry)
-                            (implicit ec: ExecutionContext) = {
+                            (implicit ec: ExecutionContext): DBIO[CallCachingJoin] = {
     val callCachingEntryId = callCachingEntry.callCachingEntryId.get
-    for {
-      callCachingSimpletonEntries <- dataAccess.
-        callCachingSimpletonEntriesForCallCachingEntryId(callCachingEntryId).result
-      callCachingDetritusEntries <- dataAccess.
-        callCachingDetritusEntriesForCallCachingEntryId(callCachingEntryId).result
-      callCachingHashEntries <- dataAccess.
-        callCachingHashEntriesForCallCachingEntryId(callCachingEntryId).result
-      callCachingAggregationEntries <- dataAccess.
-        callCachingAggregationForCacheEntryId(callCachingEntryId).result.headOption
-    } yield CallCachingJoin(callCachingEntry, callCachingHashEntries, callCachingAggregationEntries, callCachingSimpletonEntries, callCachingDetritusEntries)
+    val callCachingSimpletonEntries: DBIO[Seq[CallCachingSimpletonEntry]] = dataAccess.
+      callCachingSimpletonEntriesForCallCachingEntryId(callCachingEntryId).result
+    val callCachingDetritusEntries: DBIO[Seq[CallCachingDetritusEntry]] = dataAccess.
+      callCachingDetritusEntriesForCallCachingEntryId(callCachingEntryId).result
+    val callCachingHashEntries: DBIO[Seq[CallCachingHashEntry]] = dataAccess.
+      callCachingHashEntriesForCallCachingEntryId(callCachingEntryId).result
+    val callCachingAggregationEntries: DBIO[Option[CallCachingAggregationEntry]] = dataAccess.
+      callCachingAggregationForCacheEntryId(callCachingEntryId).result.headOption
+    
+    (callCachingHashEntries, callCachingAggregationEntries, callCachingSimpletonEntries, callCachingDetritusEntries) mapN { 
+      case (hashes, aggregation, simpletons, detrituses) =>
+        CallCachingJoin(callCachingEntry, hashes, aggregation, simpletons, detrituses)
+    }
   }
 
   override def callCacheJoinForCall(workflowExecutionUuid: String, callFqn: String, index: Int)
@@ -113,7 +118,7 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
       callCachingEntryOption <- dataAccess.
         callCachingEntriesForWorkflowFqnIndex((workflowExecutionUuid, callFqn, index)).result.headOption
       callCacheJoin <- callCachingEntryOption
-        .fold[DBIOAction[Option[CallCachingJoin], NoStream, Effect.Read]](DBIO.successful(None))(callCacheJoinFromEntryQuery(_).map(Option.apply))
+        .fold[DBIOAction[Option[CallCachingJoin], NoStream, Effect.All]](DBIO.successful(None))(callCacheJoinFromEntryQuery(_).map(Option.apply))
     } yield callCacheJoin
 
     runTransaction(action)

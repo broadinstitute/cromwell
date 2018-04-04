@@ -188,7 +188,7 @@ trait SharedFileSystem extends PathFactory {
       val dest = if (inputsRoot.isParentOf(localInputPath)) localInputPath
       else {
         // Concatenate call directory with absolute input path
-        DefaultPathBuilder.get(inputsRoot.pathAsString, localInputPath.parent.pathAsString.hashCode.toString + "/" + localInputPath.name)
+        DefaultPathBuilder.get(inputsRoot.pathAsString, localInputPath.parent.pathAsString.hashCode.toString, localInputPath.name)
       }
 
       PairOfFiles(src, dest)

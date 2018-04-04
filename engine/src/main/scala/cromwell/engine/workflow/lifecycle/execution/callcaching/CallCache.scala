@@ -162,9 +162,9 @@ object CallCache {
     
     def callCacheHashes: Set[HashResult] = {
       val hashResults = callCachingJoin.callCachingHashEntries.map({
-        case CallCachingHashEntry(k, v, _, _) => HashResult(HashKey(k), HashValue(v)) 
+        case CallCachingHashEntry(k, v, _, _) => HashResult(HashKey.deserialize(k), HashValue(v)) 
       }) ++ callCachingJoin.callCachingAggregationEntry.collect({
-        case CallCachingAggregationEntry(k, Some(v), _, _) => HashResult(HashKey(k), HashValue(v))
+        case CallCachingAggregationEntry(k, Some(v), _, _) => HashResult(HashKey.deserialize(k), HashValue(v))
       })
 
       hashResults.toSet

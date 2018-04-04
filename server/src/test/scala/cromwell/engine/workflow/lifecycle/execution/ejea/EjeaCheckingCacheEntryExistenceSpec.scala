@@ -7,6 +7,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadAct
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec.EnhancedTestEJEA
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
 import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
+import cromwell.services.metadata.MetadataService.PutMetadataAction
 
 class EjeaCheckingCacheEntryExistenceSpec extends EngineJobExecutionActorSpec {
 
@@ -17,11 +18,14 @@ class EjeaCheckingCacheEntryExistenceSpec extends EngineJobExecutionActorSpec {
       createCheckingCacheEntryExistenceEjea()
       
       ejea ! CallCachingJoin(CallCachingEntry(helper.workflowId.toString, helper.jobFqn, 0, None, None, allowResultReuse = true),
-        List.empty,
+        List(CallCachingHashEntry("runtime attribute: docker", "HASHVALUE")),
         None,
         List.empty,
         List.empty
       )
+      helper.serviceRegistryProbe.expectMsgPF(awaitTimeout) {
+        case put: PutMetadataAction => put.events.find(_.key.key.endsWith("runtime attribute:docker"))flatMap(_.value.map(_.value)) shouldBe Option("HASHVALUE")
+      }
       helper.jobStoreProbe.expectMsgClass(classOf[RegisterJobCompleted])
       ejea.stateName should be(UpdatingJobStore)
     }

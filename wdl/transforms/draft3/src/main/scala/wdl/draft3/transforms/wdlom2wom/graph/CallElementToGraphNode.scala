@@ -9,19 +9,16 @@ import cats.instances.vector._
 import cats.syntax.validated._
 import cats.instances.map._
 import cats.syntax.traverse._
-import cats.syntax.either._
 import common.validation.ErrorOr._
 import shapeless.Coproduct
-import wdl.draft3.transforms.wdlom2wom.expression.{WdlomWomExpression, WdlomWomExpressionToGraphNode}
-import wdl.model.draft3.elements.ExpressionElement.KvPair
-import wdl.model.draft3.elements.{CallElement, ExpressionElement, IfElement}
+import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
+import wdl.model.draft3.elements.CallElement
 import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
 import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
-import wom.callable.{Callable, CallableTaskDefinition, CommandTaskDefinition, TaskDefinition}
+import wom.callable.Callable
 import wom.graph.CallNode.{CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNode.GraphNodeSetter
-import wom.{callable, graph}
-import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort}
+import wom.graph.GraphNodePort.OutputPort
 import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode, PlainAnonymousExpressionNode, TaskCallInputExpressionNode}
 import wom.graph._
 import wom.types.WomType

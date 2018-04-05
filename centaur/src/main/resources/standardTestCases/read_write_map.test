@@ -1,0 +1,18 @@
+name: read_write_map
+testFormat: workflowsuccess
+
+files {
+  wdl: read_write_map/read_write_map.wdl
+}
+
+metadata {
+  workflowName: read_write_map
+  status: Succeeded
+  "outputs.wf.read_map.out_map" = "{
+    "y": 600,
+    "x": 500,
+    "z": 700
+  }"
+  "outputs.wf.write_map.contents" = "f1\talice\nf2\tbob\nf3\tchuck"
+}
+

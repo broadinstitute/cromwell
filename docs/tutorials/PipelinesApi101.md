@@ -112,7 +112,6 @@ backend {
       config {
         // Google project
         project = "<google-project-id>"
-        compute-service-account = "default"
 
         // Base bucket for workflow executions
         root = "gs://<google-bucket-name>/cromwell-execution"
@@ -133,6 +132,8 @@ backend {
           auth = "application-default"
           // Endpoint for APIs, no reason to change this unless directed by Google.
           endpoint-url = "https://genomics.googleapis.com/"
+          // This allows you to use an alternative service account to launch jobs, by default uses default service account
+          compute-service-account = "default"
         }
 
         filesystems {

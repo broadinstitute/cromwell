@@ -32,6 +32,16 @@ trait CallCachingHashEntryComponent {
 
   val callCachingHashEntryIdsAutoInc = callCachingHashEntries returning
     callCachingHashEntries.map(_.callCachingHashEntryId)
+  
+  /**
+    * Find all hashes for a CALL_CACHING_ENTRY_ID
+    */
+  val callCachingHashEntriesForCallCachingEntryId = Compiled(
+    (callCachingHashEntryId: Rep[Int]) => for {
+      callCachingHashEntry <- callCachingHashEntries
+      if callCachingHashEntry.callCachingEntryId === callCachingHashEntryId
+    } yield callCachingHashEntry
+  )
 
   /**
     * Returns true if there exists a row in callCachingHashEntries that matches the parameters.

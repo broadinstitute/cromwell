@@ -1,12 +1,13 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import cats.data.NonEmptyList
+import cromwell.backend.BackendJobDescriptorKey
 import cromwell.backend.BackendJobExecutionActor.{JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.core.ExecutionIndex.{ExecutionIndex, IndexEnhancedIndex}
-import cromwell.core.callcaching.HashResult
-import cromwell.core.path.Path
-import cromwell.core.simpleton.WomValueSimpleton
+import cromwell.core.callcaching.{HashKey, HashResult, HashValue}
+import cromwell.core.path.{Path, PathBuilder}
 import cromwell.core.simpleton.WomValueSimpleton._
+import cromwell.core.simpleton.{WomValueBuilder, WomValueSimpleton}
 import cromwell.core.{CallOutputs, WorkflowId}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql._
@@ -94,8 +95,8 @@ class CallCache(database: CallCachingSqlDatabase) {
     database.queryResultsForCacheId(callCachingEntryId.id)
   }
 
-  def cacheEntryExistsForCall(workflowUuid: String, callFqn: String, index: Int)(implicit ec: ExecutionContext): Future[Boolean] = {
-    database.cacheEntryExistsForCall(workflowUuid, callFqn, index)
+  def callCachingJoinForCall(workflowUuid: String, callFqn: String, index: Int)(implicit ec: ExecutionContext): Future[Option[CallCachingJoin]] = {
+    database.callCacheJoinForCall(workflowUuid, callFqn, index)
   }
 
   def invalidate(callCachingEntryId: CallCachingEntryId)(implicit ec: ExecutionContext) = {
@@ -144,4 +145,29 @@ object CallCache {
                                            callOutputs: CallOutputs,
                                            jobDetritusFiles: Option[Map[String, Path]]
                                          )
+  
+  implicit class EnhancedCallCachingJoin(val callCachingJoin: CallCachingJoin) extends AnyVal {
+    def toJobSuccess(key: BackendJobDescriptorKey, pathBuilders: List[PathBuilder]): JobSucceededResponse = {
+      import cromwell.Simpletons._
+      import cromwell.core.path.PathFactory._
+      val detritus = callCachingJoin.callCachingDetritusEntries.map({ jobDetritusEntry =>
+        jobDetritusEntry.detritusKey -> buildPath(jobDetritusEntry.detritusValue.toRawString, pathBuilders)
+      }).toMap
+
+      val outputs = if (callCachingJoin.callCachingSimpletonEntries.isEmpty) CallOutputs(Map.empty)
+      else WomValueBuilder.toJobOutputs(key.call.outputPorts, callCachingJoin.callCachingSimpletonEntries map toSimpleton)
+      
+      JobSucceededResponse(key, callCachingJoin.callCachingEntry.returnCode,outputs, Option(detritus), Seq.empty, None)
+    }
+    
+    def callCacheHashes: Set[HashResult] = {
+      val hashResults = callCachingJoin.callCachingHashEntries.map({
+        case CallCachingHashEntry(k, v, _, _) => HashResult(HashKey.deserialize(k), HashValue(v)) 
+      }) ++ callCachingJoin.callCachingAggregationEntry.collect({
+        case CallCachingAggregationEntry(k, Some(v), _, _) => HashResult(HashKey.deserialize(k), HashValue(v))
+      })
+
+      hashResults.toSet
+    }
+  }
 }

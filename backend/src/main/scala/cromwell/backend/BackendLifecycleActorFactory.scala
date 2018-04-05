@@ -6,6 +6,7 @@ import cromwell.backend.io.WorkflowPathsWithDocker
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.CallOutputs
 import cromwell.core.path.Path
+import cromwell.core.path.PathFactory.PathBuilders
 import net.ceedubs.ficus.Ficus._
 import wom.expression.{IoFunctionSet, NoIoFunctionSet}
 import wom.graph.CommandCallNode
@@ -96,6 +97,8 @@ trait BackendLifecycleActorFactory {
                                   initializationData: Option[BackendInitializationData],
                                   ioActor: ActorRef,
                                   ec: ExecutionContext): IoFunctionSet = NoIoFunctionSet
+  
+  def pathBuilders(initializationDataOption: Option[BackendInitializationData]): PathBuilders = List.empty
 
   def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config, initializationData: Option[BackendInitializationData]): Path = {
     new WorkflowPathsWithDocker(workflowDescriptor, backendConfig).executionRoot

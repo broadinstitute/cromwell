@@ -1,24 +1,33 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import cromwell.core.callcaching.CallCachingOff
-import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
+import cromwell.database.sql.joins.CallCachingJoin
+import cromwell.database.sql.tables._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.RequestValueStore
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec.EnhancedTestEJEA
+import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
+import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
+import cromwell.services.metadata.MetadataService.PutMetadataAction
 
 class EjeaCheckingCacheEntryExistenceSpec extends EngineJobExecutionActorSpec {
 
   override implicit val stateUnderTest = CheckingJobStore
 
   "An EJEA in EjeaCheckingCacheEntryExistence state should" should {
-    "disable call caching and prepare job if a cache entry already exists for this job" in {
+    "re-use the results from the cache hit" in {
       createCheckingCacheEntryExistenceEjea()
       
-      ejea ! HasCallCacheEntry(CallCacheEntryForCall(helper.workflowId, helper.jobDescriptorKey))
-      helper.replyToProbe.expectMsg(RequestValueStore)
-      ejea.stateName should be(WaitingForValueStore)
-      
-      ejea.underlyingActor.effectiveCallCachingMode shouldBe CallCachingOff
+      ejea ! CallCachingJoin(CallCachingEntry(helper.workflowId.toString, helper.jobFqn, 0, None, None, allowResultReuse = true),
+        List(CallCachingHashEntry("runtime attribute: docker", "HASHVALUE")),
+        None,
+        List.empty,
+        List.empty
+      )
+      helper.serviceRegistryProbe.expectMsgPF(awaitTimeout) {
+        case put: PutMetadataAction => put.events.find(_.key.key.endsWith("runtime attribute:docker"))flatMap(_.value.map(_.value)) shouldBe Option("HASHVALUE")
+      }
+      helper.jobStoreProbe.expectMsgClass(classOf[RegisterJobCompleted])
+      ejea.stateName should be(UpdatingJobStore)
     }
 
     "prepare job if no cache entry already exists" in {

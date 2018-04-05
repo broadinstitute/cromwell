@@ -13,6 +13,4 @@ files {
 metadata {
   "submittedFiles.workflowType": CWL
   "submittedFiles.workflowTypeVersion": v1.0
-# TODO CWL: Re-add this check when outputs are stable:
-#  "outputs.count_output": "12"
 }

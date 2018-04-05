@@ -5,10 +5,11 @@ import java.nio.file.Path
 import better.files.File
 import cats.data.Validated._
 import com.typesafe.config.Config
+import common.validation.ErrorOr.ErrorOr
 import configs.Result.{Failure, Success}
 import configs.syntax._
 import cromwell.api.model.Label
-import common.validation.ErrorOr.ErrorOr
+import net.ceedubs.ficus.Ficus._
 import spray.json._
 
 
@@ -23,13 +24,13 @@ case class WorkflowData(workflowContent: String,
 
 object WorkflowData {
   def fromConfig(filesConfig: Config, fullConfig: Config, basePath: Path): ErrorOr[WorkflowData] = {
-    filesConfig.get[Path]("workflow") match {
-      case Success(workflow) => Valid(WorkflowData(
+    filesConfig.as[Option[String]]("workflow") match {
+      case Some(workflow) => Valid(WorkflowData(
         workflowPath = basePath.resolve(workflow),
         filesConfig = filesConfig,
         fullConfig = fullConfig,
         basePath = basePath))
-      case Failure(_) => invalidNel("No workflow path provided")
+      case None => invalidNel(s"No 'workflow' path provided.")
     }
   }
 

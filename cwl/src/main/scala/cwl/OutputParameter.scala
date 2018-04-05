@@ -16,6 +16,7 @@ trait OutputParameter {
   def doc: Option[String :+: Array[String] :+: CNil]
   def outputBinding: Option[CommandOutputBinding]
   def `type`: Option[MyriadOutputType]
+  def cacheString: String = toString
 }
 
 object OutputParameter {

@@ -28,12 +28,20 @@ object WomValueSimpleton {
     def unescapeMeta = key.replaceAll(raw"\\\[", "[").replaceAll(raw"\\\]", "]").replaceAll(raw"\\:", ":")
   }
 
+  case class SimplifyMode(forCaching: Boolean)
+
   implicit class WomValueSimplifier(womValue: WomValue) {
     private def toStringSimpleton(key: String)(value: String) = WomValueSimpleton(key, WomString(value))
     private def toNumberSimpleton(key: String)(value: Long) = WomValueSimpleton(key, WomInteger(value.toInt))
-    
-    def simplify(name: String): Iterable[WomValueSimpleton] = {
+
+    // Pass the simplifyMode down to recursive calls without having to sling the parameter around explicitly.
+    def simplify(name: String)(implicit simplifyMode: SimplifyMode = SimplifyMode(forCaching = false)): Iterable[WomValueSimpleton] = {
       def suffix(suffix: String) = s"$name:$suffix"
+      val fileValueSimplifier: String => String => WomValueSimpleton =
+        if (simplifyMode.forCaching) key => value => WomValueSimpleton(key, WomSingleFile(value)) else toStringSimpleton
+      // What should this even do? Maybe just pick out the last bit of the path and store that as a String?
+      val directoryValueSimplifier: String => String => WomValueSimpleton =
+        if (simplifyMode.forCaching) key => value => WomValueSimpleton(key, WomString(value.substring(value.lastIndexOf("/" + 1)))) else toStringSimpleton
 
       womValue match {
         case prim: WomPrimitive => List(WomValueSimpleton(name, prim))
@@ -48,7 +56,7 @@ object WomValueSimpleton {
           // This simpleton is not strictly part of the WomFile but is used to record the type of this WomValue so it can
           // be re-built appropriately in the WomValueBuilder
           val classSimpleton = Option(toStringSimpleton(suffix(ClassKey))(DirectoryClass))
-          val valueSimpleton = valueOption.map(toStringSimpleton(suffix("value")))
+          val valueSimpleton = valueOption.map(directoryValueSimplifier(suffix("value")))
           val listingSimpletons = listingOption.toList.flatMap(files =>
             files.zipWithIndex flatMap { case (arrayItem, index) => arrayItem.simplify(suffix(s"listing[$index]")) }
           )
@@ -57,7 +65,7 @@ object WomValueSimpleton {
           // This simpleton is not strictly part of the WomFile but is used to record the type of this WomValue so it can
           // be re-built appropriately in the WomValueBuilder
           val classSimpleton = Option(toStringSimpleton(suffix(ClassKey))(FileClass))
-          val valueSimpleton = womMaybePopulatedFile.valueOption.map(toStringSimpleton(suffix("value")))
+          val valueSimpleton = womMaybePopulatedFile.valueOption.map(fileValueSimplifier(suffix("value")))
           val checksumSimpleton = womMaybePopulatedFile.checksumOption.map(toStringSimpleton(suffix("checksum")))
           val contentsSimpleton = womMaybePopulatedFile.contentsOption.map(toStringSimpleton(suffix("contents")))
           val sizeSimpleton = womMaybePopulatedFile.sizeOption.map(toNumberSimpleton(suffix("size")))
@@ -74,7 +82,7 @@ object WomValueSimpleton {
   }
 
   implicit class WomValuesSimplifier(womValues: Map[String, WomValue]) {
-    def simplify: Iterable[WomValueSimpleton] = womValues flatMap { case (name, value) => value.simplify(name) }
+    def simplifyForCaching: Iterable[WomValueSimpleton] = womValues flatMap { case (name, value) => value.simplify(name)(simplifyMode = SimplifyMode(forCaching = true)) }
   }
 
   implicit class WomValuesSimplifierPort(womValues: Map[OutputPort, WomValue]) {

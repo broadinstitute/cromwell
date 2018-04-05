@@ -1,9 +1,9 @@
 package cromwell.services.instrumentation
 
-import akka.actor.{Actor, ActorRef, Cancellable, Timers}
+import akka.actor.{Actor, ActorRef, Cancellable}
 import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
-import cromwell.services.instrumentation.CromwellInstrumentation.{InstrumentationPath, _}
+import cromwell.services.instrumentation.CromwellInstrumentation._
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import net.ceedubs.ficus.Ficus._
 

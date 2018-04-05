@@ -22,7 +22,8 @@ import cromwell.engine.workflow.lifecycle.initialization.WorkflowInitializationA
 import cromwell.engine.workflow.lifecycle.initialization.WorkflowInitializationActor.{StartInitializationCommand, WorkflowInitializationFailedResponse, WorkflowInitializationResponse, WorkflowInitializationSucceededResponse}
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
-import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.WorkflowStoreWriteHeartbeatCommand
+import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState, WorkflowHeartbeatConfig}
 import cromwell.subworkflowstore.SubWorkflowStoreActor.WorkflowComplete
 import cromwell.webservice.EngineStatsActor
 
@@ -38,6 +39,7 @@ object WorkflowActor {
   sealed trait WorkflowActorCommand
   case object StartWorkflowCommand extends WorkflowActorCommand
   case object AbortWorkflowCommand extends WorkflowActorCommand
+  case object SendWorkflowHeartbeatCommand extends WorkflowActorCommand
 
   /**
     * Responses from the WorkflowActor
@@ -153,8 +155,10 @@ object WorkflowActor {
             callCacheWriteActor: ActorRef,
             dockerHashActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
+            workflowStoreActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
-            serverMode: Boolean): Props = {
+            serverMode: Boolean,
+            workflowHeartbeatConfig: WorkflowHeartbeatConfig): Props = {
     Props(
       new WorkflowActor(
         workflowId = workflowId,
@@ -170,8 +174,10 @@ object WorkflowActor {
         callCacheWriteActor = callCacheWriteActor,
         dockerHashActor = dockerHashActor,
         jobTokenDispenserActor = jobTokenDispenserActor,
+        workflowStoreActor = workflowStoreActor,
         backendSingletonCollection = backendSingletonCollection,
-        serverMode = serverMode)).withDispatcher(EngineDispatcher)
+        serverMode = serverMode,
+        workflowHeartbeatConfig = workflowHeartbeatConfig)).withDispatcher(EngineDispatcher)
   }
 }
 
@@ -191,10 +197,12 @@ class WorkflowActor(val workflowId: WorkflowId,
                     callCacheWriteActor: ActorRef,
                     dockerHashActor: ActorRef,
                     jobTokenDispenserActor: ActorRef,
+                    workflowStoreActor: ActorRef,
                     backendSingletonCollection: BackendSingletonCollection,
-                    serverMode: Boolean)
+                    serverMode: Boolean,
+                    workflowHeartbeatConfig: WorkflowHeartbeatConfig)
   extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with WorkflowMetadataHelper
-  with WorkflowInstrumentation {
+  with WorkflowInstrumentation with Timers {
 
   implicit val ec = context.dispatcher
   override val workflowIdForLogging = workflowId
@@ -209,6 +217,10 @@ class WorkflowActor(val workflowId: WorkflowId,
   startWith(WorkflowUnstartedState, WorkflowActorData(initialStartableState))
 
   pushCurrentStateToMetadataService(workflowId, WorkflowUnstartedState.workflowState)
+  sendHeartbeat()
+
+  // Send heartbeats possibly redundantly but unacked.
+  timers.startPeriodicTimer(workflowId, SendWorkflowHeartbeatCommand, workflowHeartbeatConfig.heartbeatInterval)
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() {
     case exception if stateName == MaterializingWorkflowDescriptorState =>
@@ -364,6 +376,9 @@ class WorkflowActor(val workflowId: WorkflowId,
   when(WorkflowSucceededState) { FSM.NullFunction }
 
   whenUnhandled {
+    case Event(SendWorkflowHeartbeatCommand, _) =>
+      sendHeartbeat()
+      stay()
     // If the workflow is being restarted, then we have to keep going to try and reconnect to the jobs - but remember that workflow is now in abort mode
     case Event(AbortWorkflowCommand, data: WorkflowActorData) if restarting =>
       stay() using data.copy(effectiveStartableState = RestartableAborting)
@@ -467,5 +482,7 @@ class WorkflowActor(val workflowId: WorkflowId,
     finalizationActor ! StartFinalizationCommand
     goto(FinalizingWorkflowState) using data.copy(lastStateReached = StateCheckpoint (stateName, failures))
   }
+
+  private def sendHeartbeat(): Unit = workflowStoreActor ! WorkflowStoreWriteHeartbeatCommand(workflowId)
 
 }

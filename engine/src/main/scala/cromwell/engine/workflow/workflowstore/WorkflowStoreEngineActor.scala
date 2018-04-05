@@ -16,12 +16,14 @@ import cromwell.services.instrumentation.CromwellInstrumentationScheduler
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceRegistryActor: ActorRef, abortAllJobsOnTerminate: Boolean,
-                                                  cromwellId: String, heartbeatTtl: FiniteDuration)
+final case class WorkflowStoreEngineActor private(
+                                                   store: WorkflowStore,
+                                                   serviceRegistryActor: ActorRef,
+                                                   abortAllJobsOnTerminate: Boolean,
+                                                   workflowHeartbeatConfig: WorkflowHeartbeatConfig)
   extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging with WorkflowInstrumentation with CromwellInstrumentationScheduler with WorkflowMetadataHelper {
 
   implicit val ec: ExecutionContext = context.dispatcher
@@ -141,7 +143,7 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
   private def newWorkflowMessage(maxWorkflows: Int): Future[WorkflowStoreEngineActorResponse] = {
     def fetchStartableWorkflowsIfNeeded(maxWorkflowsInner: Int) = {
       if (maxWorkflows > 0) {
-        store.fetchStartableWorkflows(maxWorkflowsInner, cromwellId, heartbeatTtl)
+        store.fetchStartableWorkflows(maxWorkflowsInner, workflowHeartbeatConfig.cromwellId, workflowHeartbeatConfig.ttl)
       } else {
         Future.successful(List.empty[WorkflowToStart])
       }
@@ -160,9 +162,13 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
 }
 
 object WorkflowStoreEngineActor {
-  def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef, abortAllJobsOnTerminate: Boolean,
-            cromwellId: String, heartbeatTtl: FiniteDuration) = {
-    Props(WorkflowStoreEngineActor(workflowStoreDatabase, serviceRegistryActor, abortAllJobsOnTerminate, cromwellId, heartbeatTtl)).withDispatcher(EngineDispatcher)
+  def props(
+             workflowStoreDatabase: WorkflowStore,
+             serviceRegistryActor: ActorRef,
+             abortAllJobsOnTerminate: Boolean,
+             workflowHeartbeatConfig: WorkflowHeartbeatConfig
+             ) = {
+    Props(WorkflowStoreEngineActor(workflowStoreDatabase, serviceRegistryActor, abortAllJobsOnTerminate, workflowHeartbeatConfig)).withDispatcher(EngineDispatcher)
   }
 
   sealed trait WorkflowStoreEngineActorResponse

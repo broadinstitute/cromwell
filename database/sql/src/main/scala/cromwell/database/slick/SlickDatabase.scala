@@ -8,7 +8,7 @@ import cromwell.database.sql.SqlDatabase
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.LoggerFactory
 import slick.basic.DatabaseConfig
-import slick.jdbc.{JdbcCapabilities, JdbcProfile, MySQLProfile}
+import slick.jdbc.{JdbcCapabilities, JdbcProfile}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}

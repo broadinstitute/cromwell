@@ -72,6 +72,13 @@ trait WorkflowStoreEntryComponent {
     } yield workflowStoreEntry
   )
 
+  val heartbeatForWorkflowStoreEntry = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
+      workflowStoreEntry <- workflowStoreEntries
+      if workflowStoreEntry.workflowExecutionUuid === workflowExecutionUuid
+    } yield workflowStoreEntry.heartbeatTimestamp
+  )
+
   /**
     * Returns up to "limit" startable workflows, sorted by submission time.
     */

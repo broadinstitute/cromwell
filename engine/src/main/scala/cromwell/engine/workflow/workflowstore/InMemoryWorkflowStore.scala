@@ -70,6 +70,9 @@ class InMemoryWorkflowStore extends WorkflowStore {
       Future.successful(None)
     }
   }
+
+  override def writeWorkflowHeartbeats(workflowIds: List[WorkflowId])(implicit ec: ExecutionContext): Future[Int] =
+    Future.successful(workflowIds.size)
 }
 
 final case class SubmittedWorkflow(id: WorkflowId, sources: WorkflowSourceFilesCollection)

@@ -25,7 +25,6 @@ import wom.types.WomType
 
 object CallElementToGraphNode {
   def convert(a: CallNodeMakerInputs): ErrorOr[Set[GraphNode]] = {
-
     val callNodeBuilder = new CallNode.CallNodeBuilder()
 
     /**
@@ -54,7 +53,7 @@ object CallElementToGraphNode {
       }
     }
 
-    /*
+    /**
       * Fold over the input definitions and
       * 1) assign each input definition its InputDefinitionPointer
       * 2) if necessary, create a graph input node and assign its output port to the input definition

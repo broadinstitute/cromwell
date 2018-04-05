@@ -11,6 +11,8 @@ import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
 import wom.expression.{IoFunctionSet, WomExpression}
+import wom.graph.expression.AnonymousExpressionNode
+import wom.graph.{GraphNodePort, LocalName, WomIdentifier}
 import wom.types.WomType
 import wom.values.{WomFile, WomValue}
 

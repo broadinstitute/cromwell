@@ -6,6 +6,9 @@ task write_map {
   output {
     String contents = read_string(stdout())
   }
+  runtime {
+    docker: "ubuntu:latest"
+  }
 }
 
 task read_map {
@@ -17,6 +20,9 @@ task read_map {
   >>>
   output {
     Map[String, Int] out_map = read_map(stdout())
+  }
+  runtime {
+    docker: "ubuntu:latest"
   }
 }
 

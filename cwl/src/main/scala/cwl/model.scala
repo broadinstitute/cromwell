@@ -2,12 +2,13 @@ package cwl
 
 import cwl.CommandLineTool.{CommandBindingSortingKey, SortKeyAndCommandPart}
 import cwl.SchemaDefRequirement.SchemaDefTypes
+import cwl.CwlType.CwlType
 import cwl.WorkflowStepInput.InputSource
 import cwl.command.ParentName
 import cwl.internal.GigabytesToBytes
 import eu.timepit.refined._
 import shapeless.syntax.singleton._
-import shapeless.{:+:, CNil, Coproduct, Inl, Inr, Witness}
+import shapeless.{:+:, CNil, Coproduct, Inl, Inr, Poly1, Witness}
 import wom.types.WomType
 import wom.values.WomValue
 import mouse.all._
@@ -98,6 +99,60 @@ case class ArgumentCommandLineBinding(
 
 case class InputBinding(position: Int, prefix: String)
 
+object MyriadOutputInnerTypeCacheableString extends Poly1 {
+  import Case._
+
+  private def cacheableOutputRecordFieldString(field: OutputRecordField): String = {
+    val fieldType = field.`type`.fold(MyriadOutputTypeCacheableString)
+    val lqn = field.name.substring(field.name.lastIndexOf('#') + 1)
+    s"OutputRecordField($lqn,$fieldType,${field.doc},${field.outputBinding})"
+  }
+
+  implicit def recordSchema: Aux[OutputRecordSchema, String] = at[OutputRecordSchema] {
+    s =>
+      val t = s.`type`
+      s"OutputRecordSchema($t,${s.fields.map(a => "Array(" + a.map(cacheableOutputRecordFieldString).mkString(",") + ")" )},${s.label})"
+  }
+
+  implicit def arraySchema: Aux[OutputArraySchema, String] = at[OutputArraySchema] {
+    a =>
+      val is: String = a.items.fold(MyriadOutputTypeCacheableString)
+      val t = a.`type`
+      s"OutputArraySchema($is,$t,${a.label},${a.outputBinding})"
+  }
+
+  implicit def enumSchema: Aux[OutputEnumSchema, String] = at[OutputEnumSchema] { _.toString }
+  implicit def cwlType: Aux[CwlType, String] = at[CwlType] { _.toString }
+  implicit def string: Aux[String, String] = at[String] { identity }
+}
+
+
+object MyriadOutputTypeCacheableString extends Poly1 {
+  import Case._
+
+  implicit def one: Aux[MyriadOutputInnerType, String] = at[MyriadOutputInnerType] {
+    _.fold(MyriadOutputInnerTypeCacheableString)
+  }
+
+  implicit def many: Aux[Array[MyriadOutputInnerType], String] = at[Array[MyriadOutputInnerType]] { a =>
+    val strings: Array[String] = a.map(_.fold(MyriadOutputInnerTypeCacheableString))
+    "Array(" + strings.mkString(",") + ")"
+  }
+}
+
+object SecondaryFilesCacheableString extends Poly1 {
+  import Case._
+
+  implicit def one: Aux[StringOrExpression, String] = at[StringOrExpression] {
+    _.toString
+  }
+
+  implicit def array: Aux[Array[StringOrExpression], String] = at[Array[StringOrExpression]] {
+    _.mkString("Array(", ",", ")")
+  }
+
+}
+
 case class OutputRecordSchema(
   `type`: W.`"record"`.T,
   fields: Option[Array[OutputRecordField]],
@@ -114,7 +169,6 @@ case class OutputArraySchema(
   `type`: W.`"array"`.T = Witness("array").value,
   label: Option[String] = None,
   outputBinding: Option[CommandOutputBinding] = None)
-
 
 case class InlineJavascriptRequirement(
   `class`: W.`"InlineJavascriptRequirement"`.T = "InlineJavascriptRequirement".narrow,

@@ -36,7 +36,7 @@ class EngineJobHashingActor(receiver: ActorRef,
   private [callcaching] var initialHash: Option[InitialHashingResult] = None
 
   private [callcaching] val callCacheReadingJobActor = if (activity.readFromCache) {
-    Option(context.actorOf(callCacheReadingJobActorProps))
+    Option(context.actorOf(callCacheReadingJobActorProps, s"CCReadingJobActor-${workflowId.shortString}-$jobTag"))
   } else None
 
   override def preStart(): Unit = {
@@ -49,7 +49,7 @@ class EngineJobHashingActor(receiver: ActorRef,
       fileHashingActorProps,
       activity.writeToCache,
       callCachingEligible
-    ))
+    ), s"CCHashingJobActor-${workflowId.shortString}-$jobTag")
     super.preStart()
   }
 

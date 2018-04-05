@@ -345,7 +345,29 @@ object CommandLineTool {
                                      streamable: Option[Boolean] = None, //only valid when type: File
                                      doc: Option[Doc] = None,
                                      outputBinding: Option[CommandOutputBinding] = None,
-                                     `type`: Option[MyriadOutputType] = None) extends OutputParameter
+                                     `type`: Option[MyriadOutputType] = None) extends OutputParameter {
+
+    /** Overridden to strip off the intentionally uniquified bits and leave only the stuff that we want to look
+      * at for the purposes of determining cache hits.
+      *
+      * before:
+      *
+      * CommandOutputParameter(file:///var/folders/qh/vvrlr2q92mvb9bb45sttxll4y3gg2g/T/e17762d1-9921-46c5-833e-cb47e3c3bdfd.temp.1197611185902619026/e17762d1-9921-46c5-833e-cb47e3c3bdfd.cwl#ps/ea5165fc-8948-43ae-8dec-3c0468b56bcb/ps-stdOut,None,None,None,None,None,Some(CommandOutputBinding(Some(Inl(Inr(Inl(ps-stdOut.txt)))),None,None)),Some(Inl(Inl(File))))
+      *
+      * after:
+      *
+      * CommandOutputParameter(ps-stdOut,None,None,None,None,None,Some(CommandOutputBinding(Some(Inl(Inr(Inl(ps-stdOut.txt)))),None,None)),Some(Inl(Inl(File))))
+      *
+      * This is possibly too strict (i.e. some of these fields may be irrelevant for cache hit determination), but preferable
+      * to having false positives.
+      * Also two coproduct types that can be either single or Arrays have custom stringifying folds for arrays. */
+    override def cacheString: String = {
+      val cacheableId: String = id.substring(id.lastIndexOf('/') + 1)
+      val cacheableSecondaryFiles = secondaryFiles map { _.fold(SecondaryFilesCacheableString)}
+      val cacheableType: Option[String] = `type`.map(_.fold(MyriadOutputTypeCacheableString))
+      s"CommandOutputParameter($cacheableId,$label,$cacheableSecondaryFiles,$format,$streamable,$doc,$outputBinding,$cacheableType)"
+    }
+  }
 }
 
 object StringOrExpressionToWomExpression extends Poly1 {

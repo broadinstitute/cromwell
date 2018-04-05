@@ -26,10 +26,14 @@ class MemoryDeclarationValidationSpec extends FlatSpec with Matchers with TableD
     ("Float memory_gb", Option(2), None, Option(WomFloat(2))),
     ("Float memory_gb = 3.0", None, Option(3), None),
     ("Float memory_gb = 3.0", Option(2), Option(3), Option(WomFloat(2))),
+    ("Float memory_gb = 3", None, Option(3), None),
+    ("Float memory_gb = 3", Option(2), Option(3), Option(WomFloat(2))),
     ("Float? memory_gb", None, None, None),
     ("Float? memory_gb", Option(2), None, Option(WomFloat(2))),
     ("Float? memory_gb = 3.0", None, Option(3), None),
     ("Float? memory_gb = 3.0", Option(2), Option(3), Option(WomFloat(2))),
+    ("Float? memory_gb = 3", None, Option(3), None),
+    ("Float? memory_gb = 3", Option(2), Option(3), Option(WomFloat(2))),
     ("Int memoryMin", Option(2), None, Option(WomInteger(2 * 1000 * 1000 * 1000))),
     ("Int memoryMin_gb", Option(2), None, Option(WomInteger(2))),
     ("Int memoryMin_gb = 3", None, Option(3), None),
@@ -103,8 +107,7 @@ class MemoryDeclarationValidationSpec extends FlatSpec with Matchers with TableD
 
   val badSyntaxDeclarations = Table(
     "declaration",
-    "Int memory_gb = 3.0",
-    "Float memory_gb = 3"
+    "Int memory_gb = 3.0"
   )
 
   forAll(badSyntaxDeclarations) { declaration =>

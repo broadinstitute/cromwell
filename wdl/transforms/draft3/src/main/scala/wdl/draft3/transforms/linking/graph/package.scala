@@ -17,6 +17,7 @@ import wdl.draft3.transforms.linking.typemakers._
 import wdl.model.draft3.elements.{DeclarationElement, _}
 import wdl.model.draft3.graph._
 import wom.callable.Callable
+import wom.callable.Callable.OutputDefinition
 import wom.types.{WomArrayType, WomType}
 
 package object graph {
@@ -55,8 +56,13 @@ package object graph {
 
   implicit val callElementUnlinkedValueGenerator: UnlinkedValueGenerator[CallElement] = new UnlinkedValueGenerator[CallElement] {
     override def generatedValueHandles(a: CallElement, typeAliases: Map[String, WomType], callables: Set[Callable]): ErrorOr[Set[GeneratedValueHandle]] = {
-      // TODO this will need to be filled in for calls with outputs
-      Set[GeneratedValueHandle]().empty.valid
+      def callableOutputToHandle(callable: Callable)(callableOutput: OutputDefinition): GeneratedValueHandle =
+        GeneratedCallOutputValueHandle(callable.name, callableOutput.name, callableOutput.womType)
+
+      callables.find(_.name == a.callableName) match {
+        case Some(callable) => callable.outputs.map(callableOutputToHandle(callable)).toSet.validNel
+        case None => s"Cannot generate outputs for 'call ${a.callableName}'. No such callable exists.".invalidNel
+      }
     }
   }
 

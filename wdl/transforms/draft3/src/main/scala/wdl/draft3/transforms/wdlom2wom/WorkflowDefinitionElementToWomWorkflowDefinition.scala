@@ -9,9 +9,8 @@ import wdl.draft3.transforms.linking.graph._
 import wdl.model.draft3.graph.{GeneratedValueHandle, LinkedGraph, LinkedGraphEdge}
 import wom.callable.{Callable, CallableTaskDefinition, TaskDefinition, WorkflowDefinition}
 import wom.graph.GraphNodePort.OutputPort
-import wom.graph.{GraphNode, Graph => WomGraph}
+import wom.graph.{CallNode, GraphNode, Graph => WomGraph}
 import wom.types.WomType
-
 import scalax.collection.Graph
 import scalax.collection.GraphEdge.DiEdge
 
@@ -61,11 +60,16 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
                            callables: Set[Callable]): ErrorOr[WomGraph] = {
 
     def graphNodeCreationFold(currentValidation: ErrorOr[List[GraphNode]], next: WorkflowGraphElement): ErrorOr[List[GraphNode]] = {
+      def outputName(node: GraphNode, port: OutputPort) = node match {
+        case _: CallNode => port.identifier.fullyQualifiedName.value
+        case _ => port.identifier.localName.value
+      }
+
       currentValidation flatMap { currentList =>
         val availableValues: Map[String, OutputPort] = (for {
           node <- currentList
           port <- node.outputPorts
-        } yield port.name -> port).toMap
+        } yield outputName(node, port) -> port).toMap
         val nextGraphNodeValidation = WorkflowGraphElementToGraphNode.convert(GraphNodeMakerInputs(next, linkedGraph.consumedValueLookup, availableValues, linkedGraph.typeAliases, workflowName, insideAScatter, callables))
         nextGraphNodeValidation map { nextGraphNode => currentList ++ nextGraphNode }
       }

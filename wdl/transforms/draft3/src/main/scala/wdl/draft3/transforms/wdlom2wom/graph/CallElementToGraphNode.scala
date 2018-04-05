@@ -1,6 +1,5 @@
 package wdl.draft3.transforms.wdlom2wom.graph
 
-import cats.syntax.validated._
 import cats.syntax.either._
 import cats.instances.list._
 import cats.syntax.foldable._
@@ -9,15 +8,14 @@ import cats.instances.vector._
 import cats.syntax.validated._
 import cats.instances.map._
 import cats.syntax.traverse._
-import common.validation.ErrorOr._
+import common.validation.ErrorOr.{ErrorOr, _}
 import shapeless.Coproduct
 import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.CallElement
 import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
 import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
-import wom.callable.Callable
+import wom.callable.{Callable, CallableTaskDefinition, CommandTaskDefinition}
 import wom.graph.CallNode.{CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
-import wom.graph.GraphNode.GraphNodeSetter
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode, PlainAnonymousExpressionNode, TaskCallInputExpressionNode}
 import wom.graph._
@@ -27,21 +25,31 @@ object CallElementToGraphNode {
   def convert(a: CallNodeMakerInputs): ErrorOr[Set[GraphNode]] = {
     val callNodeBuilder = new CallNode.CallNodeBuilder()
 
+    // match the call element to a callable
+    def callableValidation: ErrorOr[Callable] =
+      a.callables.find(_.name == a.node.callableName) match {
+        // pass in specific constructor depending on callable type
+        case Some(c: Callable) => c.valid
+        case None => s"Cannot resolve a callable with name ${a.node.callableName}".invalidNel
+      }
+
     /**
-      * Each input definition KV pair becomes an entry, LocalName(key) mapped to ExpressionNode(value).
+      * Each input definition KV pair becomes an entry in map.
       *
       * i.e.
       * call foo {
       *   input: key = value
-      * }
+      *
+      * @return ErrorOr of LocalName(key) mapped to ExpressionNode(value).
       */
-    def expressionNodeMappings: ErrorOr[Map[LocalName, AnonymousExpressionNode]] = {
+    def expressionNodeMappings(callable: Callable): ErrorOr[Map[LocalName, AnonymousExpressionNode]] = {
       a.node.body match {
         case Some(body) =>
           body.inputs.map(input => input.key -> input.value).toMap.traverse {
             case (name, expression) =>
               val identifier = WomIdentifier(name)
-              val constructor = a.callableValidation match {
+              val constructor = callable match {
+                case _: CallableTaskDefinition => TaskCallInputExpressionNode.apply _
                 case _ => PlainAnonymousExpressionNode.apply _
               }
 
@@ -58,7 +66,7 @@ object CallElementToGraphNode {
       * 1) assign each input definition its InputDefinitionPointer
       * 2) if necessary, create a graph input node and assign its output port to the input definition
       *
-      * The InputDefinitionFold accumulates the input definition mappings, the create graph input nodes, and the expression nodes.
+      * @return InputDefinitionFold accumulates the input definition mappings, the create graph input nodes, and the expression nodes.
      */
     def foldInputDefinitions(expressionNodes: Map[LocalName, ExpressionNode], callable: Callable): InputDefinitionFold = {
       // Updates the fold with a new graph input node. Happens when an optional or required undefined input without an
@@ -101,13 +109,11 @@ object CallElementToGraphNode {
       }
     }
 
-    (a.callableValidation, expressionNodeMappings) flatMapN { (callable, mappings) =>
-
-      val graphNodeSetter = new GraphNodeSetter[CallNode]
-      val result = callNodeBuilder.build(WomIdentifier(a.node.callableName), callable, foldInputDefinitions(mappings, callable))
-      graphNodeSetter._graphNode = result.node
-      result.nodes.valid
-    }
+    for {
+      callable <- callableValidation
+      mappings <- expressionNodeMappings(callable)
+      result = callNodeBuilder.build(WomIdentifier(a.node.callableName), callable, foldInputDefinitions(mappings, callable))
+    } yield result.nodes
   }
 }
 
@@ -117,11 +123,4 @@ case class CallNodeMakerInputs(node: CallElement,
                                availableTypeAliases: Map[String, WomType],
                                workflowName: String,
                                insideAnotherScatter: Boolean,
-                               callables: Set[Callable]) {
-  // match the call element to a callable
-  val callableValidation: ErrorOr[Callable] = callables.find(_.name == node.callableName) match {
-    // pass in specific constructor depending on callable type
-    case Some(c: Callable) => c.valid
-    case None => s"Cannot resolve a callable with name ${node.callableName}".invalidNel
-  }
-}
+                               callables: Set[Callable])

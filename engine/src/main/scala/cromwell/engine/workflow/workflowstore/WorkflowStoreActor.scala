@@ -7,20 +7,40 @@ import cromwell.core._
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
-import scala.concurrent.duration.FiniteDuration
-
-final case class WorkflowStoreActor private(store: WorkflowStore, serviceRegistryActor: ActorRef, abortAllJobsOnTerminate: Boolean, cromwellId: String, heartbeatTtl: FiniteDuration)
+final case class WorkflowStoreActor private(
+                                             workflowStoreDatabase: WorkflowStore,
+                                             serviceRegistryActor: ActorRef,
+                                             abortAllJobsOnTerminate: Boolean,
+                                             workflowHeartbeatConfig: WorkflowHeartbeatConfig)
   extends Actor with ActorLogging with GracefulShutdownHelper {
   import WorkflowStoreActor._
 
-  lazy val workflowStoreSubmitActor: ActorRef = context.actorOf(WorkflowStoreSubmitActor.props(store, serviceRegistryActor), "WorkflowStoreSubmitActor")
+  lazy val workflowStoreSubmitActor: ActorRef = context.actorOf(
+    WorkflowStoreSubmitActor.props(
+      workflowStoreDatabase = workflowStoreDatabase,
+      serviceRegistryActor = serviceRegistryActor),
+    "WorkflowStoreSubmitActor")
+
   lazy val workflowStoreEngineActor: ActorRef = context.actorOf(
-    WorkflowStoreEngineActor.props(store, serviceRegistryActor, abortAllJobsOnTerminate, cromwellId, heartbeatTtl), "WorkflowStoreEngineActor")
+    WorkflowStoreEngineActor.props(
+      workflowStoreDatabase = workflowStoreDatabase,
+      serviceRegistryActor = serviceRegistryActor,
+      abortAllJobsOnTerminate = abortAllJobsOnTerminate,
+      workflowHeartbeatConfig = workflowHeartbeatConfig),
+    "WorkflowStoreEngineActor")
+
+  lazy val workflowStoreHeartbeatWriteActor: ActorRef = context.actorOf(
+    WorkflowStoreHeartbeatWriteActor.props(
+      workflowStoreDatabase = workflowStoreDatabase,
+      workflowHeartbeatConfig = workflowHeartbeatConfig,
+      serviceRegistryActor = serviceRegistryActor),
+    "WorkflowStoreHeartbeatWriteActor")
 
   override def receive = {
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(workflowStoreSubmitActor, workflowStoreEngineActor))
     case cmd: WorkflowStoreActorSubmitCommand => workflowStoreSubmitActor forward cmd
     case cmd: WorkflowStoreActorEngineCommand => workflowStoreEngineActor forward cmd
+    case cmd: WorkflowStoreWriteHeartbeatCommand => workflowStoreHeartbeatWriteActor forward cmd
   }
 }
 
@@ -36,7 +56,18 @@ object WorkflowStoreActor {
   final case class SubmitWorkflow(source: WorkflowSourceFilesCollection) extends WorkflowStoreActorSubmitCommand
   final case class BatchSubmitWorkflows(sources: NonEmptyList[WorkflowSourceFilesCollection]) extends WorkflowStoreActorSubmitCommand
 
-  def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef, abortAllJobsOnTerminate: Boolean, cromwellId: String, heartbeatTtl: FiniteDuration) = {
-    Props(WorkflowStoreActor(workflowStoreDatabase, serviceRegistryActor, abortAllJobsOnTerminate, cromwellId, heartbeatTtl)).withDispatcher(EngineDispatcher)
+  case class WorkflowStoreWriteHeartbeatCommand(workflowId: WorkflowId)
+
+  def props(
+             workflowStoreDatabase: WorkflowStore,
+             serviceRegistryActor: ActorRef,
+             abortAllJobsOnTerminate: Boolean,
+             workflowHeartbeatConfig: WorkflowHeartbeatConfig
+      ) = {
+    Props(WorkflowStoreActor(
+      workflowStoreDatabase = workflowStoreDatabase,
+      serviceRegistryActor = serviceRegistryActor,
+      abortAllJobsOnTerminate = abortAllJobsOnTerminate,
+      workflowHeartbeatConfig = workflowHeartbeatConfig)).withDispatcher(EngineDispatcher)
   }
 }

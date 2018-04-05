@@ -17,16 +17,16 @@ import scala.util.{Failure, Success}
 object BatchActor {
   type BatchData[C] = WeightedQueue[C, Int]
 
-  val logger = LoggerFactory.getLogger("BatchBufferActor")
+  val logger = LoggerFactory.getLogger("BatchActor")
 
   /** The states for BatchActor. */
   sealed trait BatchActorState
   case object WaitingToProcess extends BatchActorState
   case object Processing extends BatchActorState
 
-  /** The control messages for BatchActor.
-    *  Because they extends ControlMessage, in combination with a control aware mailbox those messages will
-    *  be processed in priority.
+  /**
+    * The control messages for BatchActor. Because they extend ControlMessage, in combination with a
+    * control aware mailbox those messages will be processed in priority.
     */
   sealed trait BatchActorControlMessage extends ControlMessage
   case object ProcessingComplete extends BatchActorControlMessage
@@ -51,12 +51,12 @@ abstract class BatchActor[C](val flushRate: FiniteDuration,
   private val name = self.path.name
 
   /**
-    * Override to false to prevent this actor to log its configuration on startup
+    * Override to false to prevent this actor from logging its configuration on startup.
     */
   protected def logOnStartUp: Boolean = true
 
   /**
-    * Override to true if this actor is going to be placed behind a routed
+    * Override to true if this actor is going to be placed behind a router.
     */
   protected def routed: Boolean = false
 
@@ -73,7 +73,7 @@ abstract class BatchActor[C](val flushRate: FiniteDuration,
   def commandToData(snd: ActorRef): PartialFunction[Any, C]
 
   when(WaitingToProcess) {
-    // On a regular event, only process if we're above the batch size is reached
+    // On a regular event, only process if the batch size has been reached.
     case Event(command, data) if commandToData(sender).isDefinedAt(command) =>
       processIfBatchSizeReached(data.enqueue(commandToData(sender)(command)))
     // On a scheduled process, always process
@@ -94,7 +94,7 @@ abstract class BatchActor[C](val flushRate: FiniteDuration,
     case Event(ScheduledProcessAction, data) => 
       gossip(QueueWeight(data.weight))
       stay()
-    // Process is complete and we're shutting down so process even if we're under batch size
+    // Process is complete and we're shutting down so process even if we're under the batch size.
     case Event(ProcessingComplete, data) if shuttingDown =>
       logger.info(s"{} Shutting down: processing ${data.weight} queued messages", self.path.name)
       processHead(data)

@@ -1,13 +1,14 @@
 package cromwell.subworkflowstore
 
 import akka.testkit.TestProbe
+import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestKitWordSpec
 import cromwell.core.ExecutionIndex._
 import cromwell.core.{JobKey, WorkflowId, WorkflowSourceFilesWithoutImports}
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowSubmittedToStore
-import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowStoreActor}
+import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowHeartbeatConfig, WorkflowStoreActor}
 import cromwell.services.EngineServicesStore
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
 import cromwell.subworkflowstore.SubWorkflowStoreSpec._
@@ -32,7 +33,8 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with Matchers with Mo
       val subWorkflowStoreService = system.actorOf(SubWorkflowStoreActor.props(subWorkflowStore))
 
       lazy val workflowStore = SqlWorkflowStore(EngineServicesStore.engineDatabaseInterface)
-      val workflowStoreService = system.actorOf(WorkflowStoreActor.props(workflowStore, TestProbe().ref, abortAllJobsOnTerminate = false, cromwellId = "f00ba4", heartbeatTtl = 1.hour))
+      val workflowHeartbeatConfig = WorkflowHeartbeatConfig(ConfigFactory.load())
+      val workflowStoreService = system.actorOf(WorkflowStoreActor.props(workflowStore, TestProbe().ref, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
 
       val parentWorkflowId = WorkflowId.randomId()
       val subWorkflowId = WorkflowId.randomId()

@@ -30,13 +30,30 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String, val credentia
   lazy val submitEndpoint = s"$cromwellUrl/api/workflows/$apiVersion"
   // Everything else is a suffix off the submit endpoint:
   lazy val batchSubmitEndpoint = s"$submitEndpoint/batch"
-  private def workflowSpecificEndpoint(workflowId: WorkflowId, endpoint: String) = s"$submitEndpoint/$workflowId/$endpoint"
-  def abortEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "abort")
-  def statusEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "status")
-  def metadataEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "metadata")
-  def outputsEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "outputs")
-  def labelsEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "labels")
-  def logsEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "logs")
+
+  /**
+    * @param args an optional map of HTTP arguments which will be added to the URL
+    */
+  private def workflowSpecificGetEndpoint(workflowId: WorkflowId, endpoint: String, args: Option[Map[String, List[String]]] = None) = {
+    // Converts the args map to an HTTP argument string, e.g. "foo=bar&baz=qux"
+    def argMapToString(argMap: Map[String, List[String]]): Iterable[String] = {
+      for {
+        arg <- argMap
+        value <- arg._2
+      } yield s"${arg._1}=$value"
+    }
+
+    val argString = args.map(argMapToString)
+    val url = s"$submitEndpoint/$workflowId/$endpoint"
+    argString.fold(url)(a => s"$url?$a")
+  }
+
+  def abortEndpoint(workflowId: WorkflowId): String = workflowSpecificGetEndpoint(workflowId, "abort")
+  def statusEndpoint(workflowId: WorkflowId): String = workflowSpecificGetEndpoint(workflowId, "status")
+  def metadataEndpoint(workflowId: WorkflowId, args: Option[Map[String, List[String]]] = None): String = workflowSpecificGetEndpoint(workflowId, "metadata", args)
+  def outputsEndpoint(workflowId: WorkflowId): String = workflowSpecificGetEndpoint(workflowId, "outputs")
+  def labelsEndpoint(workflowId: WorkflowId): String = workflowSpecificGetEndpoint(workflowId, "labels")
+  def logsEndpoint(workflowId: WorkflowId): String = workflowSpecificGetEndpoint(workflowId, "logs")
   def diffEndpoint(workflowA: WorkflowId, callA: String, indexA: ShardIndex, workflowB: WorkflowId, callB: String, indexB: ShardIndex): String = {
     def shardParam(aOrB: String, s: ShardIndex) = s.index.map(i => s"&index$aOrB=$i.toString").getOrElse("")
     s"$submitEndpoint/callcaching/diff?workflowA=$workflowA&callA=$callA&workflowB=$workflowB&callB=$callB${shardParam("A", indexA)}${shardParam("B", indexB)}"
@@ -86,7 +103,11 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String, val credentia
 
   def abort(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStatus] = simpleRequest[CromwellStatus](uri = abortEndpoint(workflowId), method = HttpMethods.POST) map WorkflowStatus.apply
   def status(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStatus] = simpleRequest[CromwellStatus](statusEndpoint(workflowId)) map WorkflowStatus.apply
-  def metadata(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowMetadata] = simpleRequest[String](metadataEndpoint(workflowId)) map WorkflowMetadata
+
+  def metadata(workflowId: WorkflowId, args: Option[Map[String, List[String]]] = None)(implicit ec: ExecutionContext): Future[WorkflowMetadata] = {
+    simpleRequest[String](metadataEndpoint(workflowId)) map WorkflowMetadata
+  }
+
   def outputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowOutputs] = simpleRequest[WorkflowOutputs](outputsEndpoint(workflowId))
   def labels(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowLabels] = simpleRequest[WorkflowLabels](labelsEndpoint(workflowId))
   def logs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowLogs] = simpleRequest[WorkflowLogsStruct](outputsEndpoint(workflowId)) map WorkflowLogs.apply

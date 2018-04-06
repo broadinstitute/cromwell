@@ -157,8 +157,10 @@ trait CromIamApiService extends RequestSupport
       }
     }
 
+
     (for {
-      collections <- Future.sequence(workflowIds.map(id => cromwellClient.collectionForWorkflow(id, user))).map(_.distinct)
+      rootWorkflowIds <- Future.sequence(workflowIds.map(id => cromwellClient.getRootWorkflow(id, user)))
+      collections <- Future.sequence(rootWorkflowIds.map(id => cromwellClient.collectionForWorkflow(id, user))).map(_.distinct)
       _ <- collections traverse authForCollection
       resp <- cromwellClient.forwardToCromwell(request)
     } yield resp) recover {

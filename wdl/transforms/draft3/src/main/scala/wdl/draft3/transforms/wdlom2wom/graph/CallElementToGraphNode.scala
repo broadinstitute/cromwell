@@ -33,7 +33,7 @@ object CallElementToGraphNode {
         case None => s"Cannot resolve a callable with name ${a.node.callableName}".invalidNel
       }
 
-    /**
+    /*
       * Each input definition KV pair becomes an entry in map.
       *
       * i.e.
@@ -61,7 +61,7 @@ object CallElementToGraphNode {
       }
     }
 
-    /**
+    /*
       * Fold over the input definitions and
       * 1) assign each input definition its InputDefinitionPointer
       * 2) if necessary, create a graph input node and assign its output port to the input definition

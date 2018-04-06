@@ -41,7 +41,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       |}
     """.stripMargin)
   val unstructuredFile = "fubar badness!"
-  val invalidOptionsFile = """ { "job_retries": 2.0 } """
+  val invalidOptionsFile = """ { "job_retries": 2.5 } """
   val validOptionsFile =""" { "write_to_cache": "true" } """
   val validCustomLabelsFile="""{ "label1": "value1", "label2": "value2" }"""
   val badCustomLabelsFile="""{ "Label1": "valu£1", "--label2": "valuevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevalue" }"""
@@ -467,7 +467,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       system.stop(materializeWfActor)
     }
 
-    "reject an options file with invalid keys or values" in {
+    "reject an options file with invalid values" in {
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false, ioActorProxy = ioActor))
       val sources = WorkflowSourceFilesWithoutImports(
         workflowSource = workflowSourceNoDocker,

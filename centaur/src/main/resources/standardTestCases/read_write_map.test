@@ -6,13 +6,11 @@ files {
 }
 
 metadata {
-  workflowName: read_write_map
+  workflowName: wf
   status: Succeeded
-  "outputs.wf.read_map.out_map" = "{
-    "y": 600,
-    "x": 500,
-    "z": 700
-  }"
-  "outputs.wf.write_map.contents" = "f1\talice\nf2\tbob\nf3\tchuck"
+  "outputs.wf.out.x" = "500"
+  "outputs.wf.out.y" = "600"
+  "outputs.wf.out.z" = "700"
+  "outputs.wf.contents" = "f1\talice\nf2\tbob\nf3\tchuck"
 }
 

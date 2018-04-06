@@ -22,7 +22,7 @@ task read_map {
     Map[String, Int] out_map = read_map(stdout())
   }
   runtime {
-    docker: "ubuntu:latest"
+    docker: "python:3.5.0"
   }
 }
 
@@ -30,4 +30,8 @@ workflow wf {
   Map[String, String] map = {"f1": "alice", "f2": "bob", "f3": "chuck"}
   call write_map {input: file_to_name = map}
   call read_map
+  output {
+     Map[String, Int] out = read_map.out_map
+     String contents = write_map.contents
+     }
 }

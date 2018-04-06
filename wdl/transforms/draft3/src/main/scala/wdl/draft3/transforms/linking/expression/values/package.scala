@@ -57,6 +57,9 @@ package object values {
         case a: TernaryIf => a.evaluateValue(inputs, ioFunctionSet)
 
         // Engine functions:
+        case StdoutElement => StdoutElement.evaluateValue(inputs, ioFunctionSet)
+        case StderrElement => StderrElement.evaluateValue(inputs, ioFunctionSet)
+
         case a: ReadLines => a.evaluateValue(inputs, ioFunctionSet)
         case a: ReadTsv => a.evaluateValue(inputs, ioFunctionSet)
         case a: ReadMap => a.evaluateValue(inputs, ioFunctionSet)

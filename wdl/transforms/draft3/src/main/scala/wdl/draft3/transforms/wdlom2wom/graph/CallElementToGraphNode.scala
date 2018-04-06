@@ -15,7 +15,7 @@ import wdl.model.draft3.elements.CallElement
 import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
 import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, CallableTaskDefinition, CommandTaskDefinition}
-import wom.graph.CallNode.{CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
+import wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode, PlainAnonymousExpressionNode, TaskCallInputExpressionNode}
 import wom.graph._
@@ -98,7 +98,7 @@ object CallElementToGraphNode {
         // No input mapping, required and we don't have a default value, create a new RequiredGraphInputNode
         // so that it can be satisfied via workflow inputs
         case required@RequiredInputDefinition(n, womType, _) =>
-          val identifier = WomIdentifier(n.value)
+          val identifier = WomIdentifier(s"${a.workflowName}.${a.node.alias.getOrElse(a.node.callableName)}.${n.value}")
           withGraphInputNode(required, RequiredGraphInputNode(identifier, womType, identifier.fullyQualifiedName.value))
 
         // No input mapping, no default value but optional, create a OptionalGraphInputNode
@@ -109,10 +109,20 @@ object CallElementToGraphNode {
       }
     }
 
+    def updateTaskCallNodeInputs(callNodeAndNewNodes: CallNodeAndNewNodes, mappings: Map[LocalName, AnonymousExpressionNode]): Unit = {
+      for {
+        taskCallNode <- List(callNodeAndNewNodes.node) collect { case c: CommandCallNode => c }
+        taskCallInputExpression <- mappings.values.toList collect { case t: TaskCallInputExpressionNode => t }
+        _ = taskCallInputExpression.taskCallNodeReceivingInput._graphNode = taskCallNode
+      } yield ()
+      ()
+    }
+
     for {
       callable <- callableValidation
       mappings <- expressionNodeMappings(callable)
-      result = callNodeBuilder.build(WomIdentifier(a.node.callableName), callable, foldInputDefinitions(mappings, callable))
+      result = callNodeBuilder.build(WomIdentifier(s"${a.workflowName}.${a.node.alias.getOrElse(a.node.callableName)}"), callable, foldInputDefinitions(mappings, callable))
+      _ = updateTaskCallNodeInputs(result, mappings)
     } yield result.nodes
   }
 }

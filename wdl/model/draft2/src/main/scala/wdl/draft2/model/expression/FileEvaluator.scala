@@ -5,6 +5,7 @@ import wdl.draft2.model.AstTools.EnhancedAstNode
 import wdl.draft2.model.TernaryIf
 import wdl.draft2.model.WdlExpression._
 import wdl.draft2.parser.WdlParser.{Ast, AstNode}
+import wdl.shared.model.expression.FileEvaluatorUtil
 import wom.WomExpressionException
 import wom.types._
 import wom.values._
@@ -35,8 +36,6 @@ class FileEvaluatorWdlFunctions
  */
 case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WomType = WomAnyType) {
 
-  def lookup = (s:String) => Seq.empty[WomFile]
-
   private def evalValue(ast: AstNode): Try[WomValue] = valueEvaluator.evaluate(ast)
 
   private def evalValueToWdlFile(ast: AstNode): Try[WomFile] = {
@@ -47,24 +46,10 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WomType = Wom
     }
   }
 
-  private def findWdlFiles(value: WomValue, coerce: Boolean = true): Seq[WomFile] = {
-    val coercedValue = if (coerce) coerceTo.coerceRawValue(value) else Success(value)
-    coercedValue match {
-      case Success(f: WomFile) => Seq(f)
-      case Success(a: WomArray) =>
-        a.value.flatMap(findWdlFiles(_, coerce=false))
-      case Success(m: WomMap) =>
-        m.value flatMap { case (k, v) => Seq(k, v) } flatMap(findWdlFiles(_, coerce=false)) toSeq
-      case Success(WomOptionalValue(_, Some(v))) => findWdlFiles(v, coerce=false)
-      case Success(WomPair(l, r)) => findWdlFiles(l, coerce = false) ++ findWdlFiles(r, coerce = false)
-      case _ => Seq.empty[WomFile]
-    }
-  }
-
   def evaluate(ast: AstNode, anticipatedType: WomType = coerceTo): Try[Seq[WomFile]] = {
     valueEvaluator.evaluate(ast) match {
         // If the ast can successfully be evaluated, then just find the WdlFiles that it contains
-      case Success(v) => Success(findWdlFiles(v))
+      case Success(v) => Success(FileEvaluatorUtil.findFilesToDelocalize(v, coerceTo))
       case Failure(_) => evaluateRecursive(ast, anticipatedType)
     }
   }

@@ -61,7 +61,7 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
 
     def graphNodeCreationFold(currentValidation: ErrorOr[List[GraphNode]], next: WorkflowGraphElement): ErrorOr[List[GraphNode]] = {
       def outputName(node: GraphNode, port: OutputPort) = node match {
-        case _: CallNode => port.identifier.fullyQualifiedName.value
+        case _: CallNode => port.identifier.workflowLocalName
         case _ => port.identifier.localName.value
       }
 

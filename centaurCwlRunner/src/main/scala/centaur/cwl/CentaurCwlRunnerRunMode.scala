@@ -3,8 +3,6 @@ package centaur.cwl
 import better.files.File
 import com.typesafe.config.Config
 import common.validation.Parse.{Parse, _}
-import common.validation.Validation._
-import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.path.Obsolete.Paths
 import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
 import cromwell.filesystems.gcs.GcsPathBuilderFactory
@@ -62,15 +60,13 @@ case object LocalRunMode extends CentaurCwlRunnerRunMode {
 }
 
 case class PapiRunMode(conf: Config) extends CentaurCwlRunnerRunMode {
-  private lazy val googleConf = GoogleConfiguration(conf)
-  private lazy val authName = conf.getString("google.auth")
-  private lazy val auth = googleConf.auth(authName).toTry.get
+  private lazy val googleConfig = conf.getConfig("google")
   private lazy val preprocessor = new PAPIPreprocessor(conf)
 
-  override lazy val description: String = s"papi $authName"
+  override lazy val description: String = s"papi ${googleConfig.getString("auth")}"
 
   override lazy val pathBuilderFactory: PathBuilderFactory = {
-    GcsPathBuilderFactory(auth, googleConf.applicationName, None)
+    GcsPathBuilderFactory(conf, googleConfig)
   }
 
   override def preProcessWorkflow(workflow: String): String = preprocessor.preProcessWorkflow(workflow)

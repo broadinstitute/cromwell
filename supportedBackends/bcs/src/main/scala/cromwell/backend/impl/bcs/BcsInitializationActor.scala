@@ -28,21 +28,9 @@ final class BcsInitializationActor(params: BcsInitializationActorParams)
   extends StandardInitializationActor(params) {
 
   private val bcsConfiguration = params.bcsConfiguration
-  private implicit val system = context.system
-
-  lazy val ossPathBuilderFactory: Option[OssPathBuilderFactory] = {
-    for {
-      endpoint <- configurationDescriptor.backendConfig.as[Option[String]]("filesystems.oss.auth.endpoint")
-      accessId <- configurationDescriptor.backendConfig.as[Option[String]]("filesystems.oss.auth.access-id")
-      accessKey <- configurationDescriptor.backendConfig.as[Option[String]]("filesystems.oss.auth.access-key")
-      securityToken = configurationDescriptor.backendConfig.as[Option[String]]("filesystems.oss.auth.security-token")
-    } yield new OssPathBuilderFactory(endpoint, accessId, accessKey, securityToken)
-  }
-
 
   override lazy val pathBuilders: Future[List[PathBuilder]] =
-    ossPathBuilderFactory.toList.traverse(_.withOptions(workflowDescriptor.workflowOptions)).map(_ ++ Option(DefaultPathBuilder))
-
+    standardParams.configurationDescriptor.pathBuildersWithDefault(workflowDescriptor.workflowOptions)
 
   override lazy val workflowPaths: Future[BcsWorkflowPaths] = pathBuilders map {
     BcsWorkflowPaths(workflowDescriptor, bcsConfiguration.configurationDescriptor.backendConfig, _)

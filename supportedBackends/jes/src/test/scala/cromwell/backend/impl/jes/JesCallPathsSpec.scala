@@ -26,7 +26,7 @@ class JesCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
-    val workflowPaths = JesWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), jesConfiguration)
+    val workflowPaths = JesWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), jesConfiguration, pathBuilders)
     
     val callPaths = JesJobPaths(workflowPaths, jobDescriptorKey)
     
@@ -45,7 +45,7 @@ class JesCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
-    val workflowPaths = JesWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), jesConfiguration)
+    val workflowPaths = JesWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), jesConfiguration, pathBuilders)
 
     val callPaths = JesJobPaths(workflowPaths, jobDescriptorKey)
     
@@ -68,7 +68,7 @@ class JesCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
-    val workflowPaths = JesWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), jesConfiguration)
+    val workflowPaths = JesWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), jesConfiguration, pathBuilders)
 
     val callPaths = JesJobPaths(workflowPaths, jobDescriptorKey)
     

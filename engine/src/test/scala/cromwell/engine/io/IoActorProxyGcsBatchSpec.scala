@@ -4,7 +4,7 @@ import java.util.UUID
 
 import akka.stream.ActorMaterializer
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
-import cromwell.cloudsupport.gcp.auth.ApplicationDefaultMode
+import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.IntegrationTest
 import cromwell.core.io._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
@@ -13,8 +13,8 @@ import cromwell.filesystems.gcs.{GcsPathBuilder, GcsPathBuilderFactory}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.{FlatSpecLike, Matchers}
 
-import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext}
 import scala.language.postfixOps
 
 class IoActorProxyGcsBatchSpec extends TestKitSuite with FlatSpecLike with Matchers with ImplicitSender with Eventually {
@@ -23,6 +23,8 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with FlatSpecLike with Match
   implicit val actorSystem = system
   implicit val ec: ExecutionContext = system.dispatcher
   implicit val materializer = ActorMaterializer()
+  
+  val instanceConfig = ConfigFactory.parseString("auth = \"application-default\"")
 
   override def afterAll() = {
     materializer.shutdown()
@@ -33,7 +35,7 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with FlatSpecLike with Match
     super.afterAll()
   }
   
-  lazy val gcsPathBuilder = GcsPathBuilderFactory(ApplicationDefaultMode("default"), "cromwell-test", None)
+  lazy val gcsPathBuilder = GcsPathBuilderFactory(ConfigFactory.load(), instanceConfig)
   lazy val pathBuilder: GcsPathBuilder = Await.result(gcsPathBuilder.withOptions(WorkflowOptions.empty), 1 second)
 
   lazy val randomUUID = UUID.randomUUID().toString

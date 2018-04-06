@@ -12,7 +12,7 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
 import common.validation.Checked._
 import cromwell.languages.LanguageFactory
-import cromwell.languages.LanguageFactory.ImportResolver
+import cromwell.languages.util.ImportResolver._
 import wdl.draft3.transforms.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition.WorkflowDefinitionConvertInputs
 import wdl.model.draft3.elements._
 import wom.callable.{CallableTaskDefinition, TaskDefinition, WorkflowDefinition, Callable}
@@ -54,7 +54,12 @@ object FileElementToWomBundle {
           }
 
           workflowsValidation map { workflows =>
-            WomBundle(taskSet ++ workflows, allStructs)
+            val primary = if (workflows.size == 1) {
+              workflows.headOption
+            } else if (workflows.isEmpty && tasks.size == 1) {
+              taskSet.headOption
+            } else None
+            WomBundle(primary, taskSet ++ workflows, allStructs)
           }
         }
       }

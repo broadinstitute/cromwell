@@ -44,7 +44,7 @@ class WdlInputValidationSpec extends FlatSpec with Matchers with BeforeAndAfterA
     """.stripMargin
 
   val namespace = WdlNamespace.loadUsingSource(wdlWorkflow, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
-  val graph = namespace.workflow.toWomWorkflowDefinition
+  val graph = namespace.workflow.toWomWorkflowDefinition(isASubworkflow = false)
     .valueOr(errors => fail(s"Failed to build a wom definition: ${errors.toList.mkString(", ")}"))
     .graph
 
@@ -56,7 +56,7 @@ class WdlInputValidationSpec extends FlatSpec with Matchers with BeforeAndAfterA
   val u2OutputPort = graph.externalInputNodes.find(_.fullyQualifiedName == "w.u.t2").getOrElse(fail("Failed to find an input node for u2")).singleOutputPort
 
   def validate(inputFile: String): Checked[ResolvedExecutableInputs] = {
-    namespace.toWomExecutable(Option(inputFile), NoIoFunctionSet) match {
+    namespace.toWomExecutable(Option(inputFile), NoIoFunctionSet, strictValidation = true) match {
       case Left(errors) => Left(errors)
       case Right(e) => e.resolvedExecutableInputs.validNelCheck
     }

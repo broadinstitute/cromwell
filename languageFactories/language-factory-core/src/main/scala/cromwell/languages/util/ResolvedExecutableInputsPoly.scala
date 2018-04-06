@@ -11,6 +11,7 @@ object ResolvedExecutableInputsPoly extends Poly1 {
     _: IoFunctionSet => wdlValue.validNel 
   }
   implicit def fromWomExpression: Case.Aux[WomExpression, IoFunctionSet => ErrorOr[WomValue]] = at[WomExpression] { womExpression =>
-    ioFunctions: IoFunctionSet => womExpression.evaluateValue(Map.empty, ioFunctions)
+    ioFunctions: IoFunctionSet => womExpression.evaluateValue(Map.empty, ioFunctions).leftMap { errors => errors.map { e => s"Unable to evaluate expression '${womExpression.sourceString}': '$e'"}
+    }
   }
 }

@@ -1,15 +1,21 @@
 package cromwell.languages
 
 import common.Checked
-import common.transforms.CheckedAtoB
 import common.validation.Parse.Parse
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
-import cromwell.languages.LanguageFactory.ImportResolver
+import cromwell.languages.util.ImportResolver.ImportResolver
 import wom.core._
 import wom.executable.WomBundle
 import wom.expression.IoFunctionSet
 
 trait LanguageFactory {
+
+  // Passed in by the constructor:
+  def config: Map[String, Any]
+
+  // Override if you want to accumulate extra options instead of throwing an exception:
+  lazy val standardConfig: StandardLanguageFactoryConfig = StandardLanguageFactoryConfig.parse(config, allowExtras = false)
+
   def getWomBundle(workflowSource: WorkflowSource,
                    workflowOptionsJson: WorkflowOptionsJson,
                    importResolvers: List[ImportResolver],
@@ -26,6 +32,3 @@ trait LanguageFactory {
                         ioFunctions: IoFunctionSet): Parse[ValidatedWomNamespace]
 }
 
-object LanguageFactory {
-  type ImportResolver = CheckedAtoB[String, WorkflowSource]
-}

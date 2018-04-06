@@ -9,18 +9,18 @@ final case class CromwellLanguages private(languageConfig: List[LanguageConfigur
   val languages: Map[CromwellLanguageName, LanguageVersions] = makeLanguages
 
   private def makeLanguages = (languageConfig map { lc =>
-    val versions = lc.versions map { case (languageVersion, className) =>
-      languageVersion -> makeLanguageFactory(className)
+    val versions = lc.versions map { case (languageVersion, languageConfigEntryFields) =>
+      languageVersion -> makeLanguageFactory(languageConfigEntryFields.className, languageConfigEntryFields.config)
     }
 
     lc.name.toUpperCase -> LanguageVersions(versions)
   }).toMap
 
 
-  private def makeLanguageFactory(className: String) = {
+  private def makeLanguageFactory(className: String, config: Map[String, Any]) = {
     Class.forName(className)
-      .getConstructor()
-      .newInstance()
+      .getConstructor(classOf[Map[String, Any]])
+      .newInstance(config)
       .asInstanceOf[LanguageFactory]
   }
 }
@@ -28,7 +28,7 @@ final case class CromwellLanguages private(languageConfig: List[LanguageConfigur
 /**
   * Holds all the registered versions of a language.
   */
-final case class LanguageVersions(allVersions: Map[CromwellLanguageVersion, LanguageFactory])
+final case class LanguageVersions private(allVersions: Map[CromwellLanguageVersion, LanguageFactory])
 
 object CromwellLanguages {
   type CromwellLanguageName = String

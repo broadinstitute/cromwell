@@ -2,77 +2,66 @@ package womtool
 
 import better.files._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
-import womtool.MainSpec._
-import womtool.SampleWdl.{EmptyInvalid, EmptyTask, EmptyWorkflow, ThreeStep}
+import womtool.WomtoolMainSpec._
+import womtool.SampleWdl.{EmptyTask, EmptyWorkflow, ThreeStep}
 
-class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
+class WomtoolMainSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 
-  import Main._
+  import WomtoolMain._
 
   behavior of "Main"
 
   val threeStep = ThreeStep.wdlSource()
 
   it should "print usage" in {
-    Main.dispatchCommand(Seq.empty[String]) shouldBe BadUsageTermination
-  }
-
-  it should "validate" in {
-    testWdl(ThreeStep) { wdlAndInputs =>
-      Main.dispatchCommand(Seq("validate", wdlAndInputs.wdl)) shouldBe SuccessfulTermination("")
-    }
-  }
-
-  it should "not validate invalid wdl" in {
-    testWdl(EmptyInvalid) { wdlAndInputs =>
-      val res = Main.dispatchCommand(Seq("validate", wdlAndInputs.wdl))
-      assert(res.isInstanceOf[UnsuccessfulTermination])
-      res.output should include("Finished parsing without consuming all tokens")
+    WomtoolMain.runWomtool(Seq.empty[String]) match{
+      case BadUsageTermination(msg) => msg should include("Usage: java -jar womtool.jar [validate|inputs|parse|highlight|graph|womgraph] [options] workflow-source")
+      case other => fail(s"Expected BadUsageTermination but got $other")
     }
   }
 
   it should "parse" in {
     testWdl(ThreeStep) { wdlAndInputs =>
-      val res = Main.dispatchCommand(Seq("parse", wdlAndInputs.wdl))
+      val res = WomtoolMain.runWomtool(Seq("parse", wdlAndInputs.wdl))
       assert(res.isInstanceOf[SuccessfulTermination])
-      res.output should include("(Namespace:")
+      res.stdout.get should include("(Namespace:")
     }
   }
 
   it should "highlight" in {
     testWdl(ThreeStep) { wdlAndInputs =>
-      val res = Main.dispatchCommand(Seq("highlight", wdlAndInputs.wdl, "html"))
+      val res = WomtoolMain.runWomtool(Seq("highlight", "-h", "html", wdlAndInputs.wdl))
       assert(res.isInstanceOf[SuccessfulTermination])
-      res.output.stripLineEnd should be(HighlightedWdlHtml)
+      res.stdout.get.stripLineEnd should be(HighlightedWdlHtml)
     }
   }
 
   it should "highlight using console highlighting" in {
     testWdl(EmptyWorkflow) { wdlAndInputs =>
-      val res = Main.dispatchCommand(Seq("highlight", wdlAndInputs.wdl, "console"))
+      val res = WomtoolMain.runWomtool(Seq("highlight", wdlAndInputs.wdl, "--highlight-mode", "console"))
       assert(res.isInstanceOf[SuccessfulTermination])
-      res.output.stripLineEnd should include("empty_workflow")
+      res.stdout.get.stripLineEnd should include("empty_workflow")
     }
   }
 
   it should "return inputs" in {
     testWdl(ThreeStep) { wdlAndInputs =>
-      val res = Main.dispatchCommand(Seq("inputs", wdlAndInputs.wdl))
+      val res = WomtoolMain.runWomtool(Seq("inputs", wdlAndInputs.wdl))
       assert(res.isInstanceOf[SuccessfulTermination])
-      res.output should include("\"three_step.cgrep.pattern\"")
+      res.stdout.get should include("\"three_step.cgrep.pattern\"")
     }
   }
 
   it should "not return inputs when there is no workflow" in {
     testWdl(EmptyTask) { wdlAndInputs =>
-      val res = Main.dispatchCommand(Seq("inputs", wdlAndInputs.wdl))
+      val res = WomtoolMain.runWomtool(Seq("inputs", wdlAndInputs.wdl))
       assert(res.isInstanceOf[SuccessfulTermination])
-      res.output should include("WDL does not have a local workflow")
+      res.stdout.get should include("WDL does not have a local workflow")
     }
   }
 }
 
-object MainSpec {
+object WomtoolMainSpec {
   /**
     * Tests running a sample wdl, providing the inputs, and cleaning up the temp files only if no exceptions occur.
     *

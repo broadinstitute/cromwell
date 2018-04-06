@@ -23,7 +23,7 @@ object WdlDraft2WomGraphMaker extends WomGraphMaker[Scope] {
     * - Adds in any extras from 'includeGraphNode' which the call knows should also be in the Graph (eg the Scatter variable's InputGraphNode which this method doesn't know exists)
     * - Builds them all together into a Graph
     */
-  override def toWomGraph(scope: Scope, includeGraphNodes: Set[GraphNode], outerLookup: Map[String, OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[Graph] = {
+  override def toWomGraph(scope: Scope, includeGraphNodes: Set[GraphNode], outerLookup: Map[String, OutputPort], preserveIndexForOuterLookups: Boolean, inASubworkflow: Boolean): ErrorOr[Graph] = {
 
     final case class FoldState(nodes: Set[GraphNode], availableInputs: Map[String, GraphNodePort.OutputPort])
 
@@ -65,7 +65,7 @@ object WdlDraft2WomGraphMaker extends WomGraphMaker[Scope] {
     def buildNode(acc: FoldState, node: WdlGraphNode): ErrorOr[FoldState] = node match {
 
       case wdlCall: WdlCall =>
-        wdlCall.toWomCallNode(acc.availableInputs, outerLookup, preserveIndexForOuterLookups) map { cnani: CallNodeAndNewNodes =>
+        wdlCall.toWomCallNode(acc.availableInputs, outerLookup, preserveIndexForOuterLookups, inASubworkflow) map { cnani: CallNodeAndNewNodes =>
           foldInGeneratedNodeAndNewInputs(acc, cnani.node.localName + ".")(cnani)
         }
 
@@ -87,9 +87,9 @@ object WdlDraft2WomGraphMaker extends WomGraphMaker[Scope] {
       }
 
       case scatter: Scatter =>
-        scatter.toWomScatterNode(acc.availableInputs, outerLookup, preserveIndexForOuterLookups) map { foldInGeneratedNodeAndNewInputs(acc, "")(_) }
+        scatter.toWomScatterNode(acc.availableInputs, outerLookup, preserveIndexForOuterLookups, inASubworkflow) map { foldInGeneratedNodeAndNewInputs(acc, "")(_) }
       case ifBlock: If =>
-        ifBlock.toWomConditionalNode(acc.availableInputs, outerLookup, preserveIndexForOuterLookups) map { foldInGeneratedNodeAndNewInputs(acc, "")(_) }
+        ifBlock.toWomConditionalNode(acc.availableInputs, outerLookup, preserveIndexForOuterLookups, inASubworkflow) map { foldInGeneratedNodeAndNewInputs(acc, "")(_) }
 
       case _ => s"Cannot process WdlGraphNodes of type ${node.getClass.getSimpleName} yet!".invalidNel
     }

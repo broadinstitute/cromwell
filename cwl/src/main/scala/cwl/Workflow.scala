@@ -35,8 +35,8 @@ case class Workflow private(
   steps.foreach { _.parentWorkflow = this }
 
   /** Builds an `Executable` from a `Workflow` CWL with no parent `Workflow` */
-  def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None, ioFunctions: IoFunctionSet): Checked[Executable] = {
-    CwlExecutableValidation.buildWomExecutableCallable(womDefinition(validator, Vector.empty), inputFile, ioFunctions)
+  def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None, ioFunctions: IoFunctionSet, strictValidation: Boolean): Checked[Executable] = {
+    CwlExecutableValidation.buildWomExecutableCallable(womDefinition(validator, Vector.empty), inputFile, ioFunctions, strictValidation)
   }
 
   // Circe can't create bidirectional links between workflow steps and runs (including `Workflow`s) so this

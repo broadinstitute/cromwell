@@ -7,8 +7,8 @@ import cromwell.engine.language.CromwellLanguages.{CromwellLanguageName, Cromwel
 
 import scala.collection.JavaConverters._
 
-case class LanguageConfigurationEntry(name: CromwellLanguageName, versions: Map[CromwellLanguageVersion, String])
-
+final case class LanguageConfigurationEntry(name: CromwellLanguageName, versions: Map[CromwellLanguageVersion, LanguageConfigurationEntryFields])
+final case class LanguageConfigurationEntryFields(className: String, config: Map[String, Any])
 
 object LanguageConfiguration {
   private val LanguagesConfig = ConfigFactory.load.getConfig("languages")
@@ -21,7 +21,11 @@ object LanguageConfiguration {
     val languageVersionNames: Set[String] = versionSet.entrySet().asScala.map(findFirstKey).toSet
 
     val versions = (languageVersionNames.toList map { languageVersionName =>
-      languageVersionName -> versionSet.getConfig(s""""$languageVersionName"""").getString("language-factory")
+      val configEntry = versionSet.getConfig(s""""$languageVersionName"""")
+      val className: String = configEntry.getString("language-factory")
+      val factoryConfig: Map[String, Any] = if (configEntry.hasPath("config")) { configEntry.getObject("config").unwrapped().asScala.toMap } else Map.empty[String, Any]
+      val fields = LanguageConfigurationEntryFields(className, factoryConfig)
+      languageVersionName -> fields
     }).toMap
 
     LanguageConfigurationEntry(languageName, versions)

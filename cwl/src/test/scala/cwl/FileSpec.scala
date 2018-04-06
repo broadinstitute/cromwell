@@ -24,7 +24,7 @@ class FileSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
   forAll(fileTests) { (description, filePath, ioFunctionSet, expectedCommand) =>
     it should description in {
       val cwl = decodeCwlFile(rootPath / filePath).value.unsafeRunSync.right.get
-      val executable = cwl.womExecutable(AcceptAllRequirements, None).right.get
+      val executable = cwl.womExecutable(AcceptAllRequirements, None, NoIoFunctionSet, strictValidation = false).right.get
       val call = executable.graph.calls.head
       val runtimeEnvironment = RuntimeEnvironment("output/path", "temp/path", 1, 2e10, 100, 100)
       val defaultCallInputs = executable.graph.nodes.collect({

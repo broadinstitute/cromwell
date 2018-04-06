@@ -33,7 +33,7 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
         |}""".stripMargin
 
     val namespace = WdlNamespace.loadUsingSource(scatterTest, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
-    val scatterTestGraph = namespace.workflow.toWomWorkflowDefinition.map(_.graph)
+    val scatterTestGraph = namespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).map(_.graph)
 
     scatterTestGraph match {
       case Valid(g) => validateGraph(g)
@@ -134,7 +134,7 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
         |}""".stripMargin
 
     val namespace = WdlNamespace.loadUsingSource(scatterTest, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
-    val scatterTestGraph = namespace.workflow.toWomWorkflowDefinition.map(_.graph)
+    val scatterTestGraph = namespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).map(_.graph)
 
     scatterTestGraph match {
       case Valid(g) => validateGraph(g)
@@ -176,7 +176,7 @@ class WdlScatterWomSpec extends FlatSpec with Matchers {
         |""".stripMargin
 
     val namespace = WdlNamespace.loadUsingSource(scatterTest, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
-    val scatterTestGraph = namespace.workflow.toWomWorkflowDefinition.map(_.graph)
+    val scatterTestGraph = namespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).map(_.graph)
 
     scatterTestGraph match {
       case Valid(g) => validateGraph(g)

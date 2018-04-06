@@ -2,6 +2,14 @@
 
 ## 32 Release Notes
 
+### Input Validation
+Cromwell can now validate that your inputs files do not supply inputs with no impact on the workflow. Strict validation will be disabled by default in WDL draft 2 and CWL but enabled in WDL draft 3. See the 'Language Factory Config' below for details.
+
+### Language Factory Config
+All language factories can now be configured on a per-language-version basis. All languages and versions will support the following options:
+* `enabled`: Defaults to `true`. Set to `false` to disallow workflows of this language and version.
+* `strict-validation`: Defaults to `true` for WDL draft 3 and `false` for WDL draft 2 and CWL. Specifies whether workflows fail if the inputs JSON (or YAML) file contains values which the workflow did not ask for (and will therefore have no effect). Additional strict checks may be added in the future.
+
 ### API
 
 * More accurately returns 503 instead of 500 when Cromwell can not respond in a timely manner

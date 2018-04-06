@@ -44,7 +44,7 @@ class WdlNestedConditionalWomSpec extends FlatSpec with Matchers {
 
       def mkTestGraph: ErrorOr[Graph] = {
         val namespace = WdlNamespace.loadUsingSource(wdl, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
-        namespace.workflow.toWomWorkflowDefinition.map(_.graph)
+        namespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).map(_.graph)
       }
 
       // Run each WDL through 20 times because the topological ordering of WdlGraphNodes is sometimes non-deterministic

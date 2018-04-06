@@ -18,7 +18,7 @@ object WdlDraft2WomConditionalNodeMaker extends WomConditionalNodeMaker[If] {
   /**
     * @param preserveIndexForOuterLookups When we're evaluating the condition boolean, should we preserve scatter index if we have to use the outerLookup?
     */
-  override def toWomConditionalNode(ifBlock: If, localLookup: Map[String, OutputPort], outerLookup: Map[String, OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[ConditionalNodeWithNewNodes] = {
+  override def toWomConditionalNode(ifBlock: If, localLookup: Map[String, OutputPort], outerLookup: Map[String, OutputPort], preserveIndexForOuterLookups: Boolean, inASubworkflow: Boolean): ErrorOr[ConditionalNodeWithNewNodes] = {
 
     /*
       * Why? Imagine that we're building three nested levels of a innerGraph.
@@ -53,7 +53,8 @@ object WdlDraft2WomConditionalNodeMaker extends WomConditionalNodeMaker[If] {
     val innerGraphValidation: ErrorOr[Graph] = (ifBlock: Scope).toWomGraph(
       Set.empty,
       outerLookup = localLookup ++ possiblyNeededNestedOginPorts,
-      preserveIndexForOuterLookups = true
+      preserveIndexForOuterLookups = true,
+      inASubworkflow = inASubworkflow
     )
 
     (ifConditionGraphInputExpressionValidation, ifConditionTypeValidation, innerGraphValidation) mapN { (ifConditionGraphInputExpression, _, innerGraph) =>

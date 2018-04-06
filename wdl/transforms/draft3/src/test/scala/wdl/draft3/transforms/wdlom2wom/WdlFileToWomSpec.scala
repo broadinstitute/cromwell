@@ -75,7 +75,7 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
   private def anyWomWillDo(b: WomBundle) = Succeeded
 
   private def validateStructDefinitionWom(b: WomBundle): Assertion = {
-    val wfDef: WorkflowDefinition = (b.callables.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).head
+    val wfDef: WorkflowDefinition = (b.allCallables.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).head
     b.typeAliases.keySet shouldBe Set("FooStruct")
     val structOutputType = (wfDef.graph.outputNodes.map(_.womType).filterByType[WomCompositeType]: Set[WomCompositeType]).head
 
@@ -86,21 +86,21 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
   }
 
   private def validateTaskDefinitionWom(b: WomBundle): Assertion = {
-    val taskDef: CallableTaskDefinition = (b.callables.filterByType[CallableTaskDefinition]: Set[CallableTaskDefinition]).head
+    val taskDef: CallableTaskDefinition = (b.allCallables.filterByType[CallableTaskDefinition]: Set[CallableTaskDefinition]).head
     taskDef.name shouldBe "simple"
     taskDef.commandTemplate(Map.empty) shouldBe List(WdlomWomStringCommandPart(StringCommandPartElement("echo Hello World ")))
   }
 
   private def validateCommandSyntaxes(b: WomBundle) = {
-    b.callables.size should be(2)
-    b.callables.find { _.name == "a" } match {
+    b.allCallables.size should be(2)
+    b.allCallables.find { _.name == "a" } match {
       case Some(taskA) =>
         taskA.inputs.map(_.name).toSet should be(Set("rld", "world1", "world2"))
         taskA.outputs.map(_.name).toSet should be(Set("out"))
         taskA.asInstanceOf[CallableTaskDefinition].runtimeAttributes.attributes("docker").asInstanceOf[WdlomWomExpression].expressionElement should be(StringLiteral("ubuntu:latest"))
       case None => fail("Expected a task called 'a'")
     }
-    b.callables.find { _.name == "b" } match {
+    b.allCallables.find { _.name == "b" } match {
       case Some(taskB) =>
         taskB.inputs.map(_.name) should be(Seq("world"))
         taskB.outputs.map(_.name) should be(Seq("out"))

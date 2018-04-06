@@ -46,8 +46,8 @@ object WorkflowGraphElementToGraphNode {
       IfElementToGraphNode.convert(ifMakerInputs)
 
     case ce: CallElement =>
-      val callableNodeMakerInputs = CallableNodeMakerInputs(ce, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter, a.callables)
-      CallElementToGraphNode.convert(callableNodeMakerInputs)
+      val callNodeMakerInputs = CallNodeMakerInputs(ce, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter, a.callables)
+      CallElementToGraphNode.convert(callNodeMakerInputs)
   }
 }
 

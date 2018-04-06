@@ -17,4 +17,8 @@ workflow order {
     String more = "more"
   }
   call in_n_out { input: total = n, amount = more }
+
+  output {
+    Int out = in_n_out.out
+  }
 }

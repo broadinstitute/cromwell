@@ -36,11 +36,7 @@ The `actor-factory` above tells cromwell that you will be using the `config` sec
 You'll likely also want to change the default backend to your new backend, by setting this configuration value:
 
 ```hocon
-backend {
-  providers {
-    default = SGE
-  }
-}
+backend.default = SGE
 ```
 
 #### Specifying the runtime attributes for your HPC tasks

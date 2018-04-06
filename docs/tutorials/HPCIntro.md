@@ -141,12 +141,12 @@ backend.providers.SGE.config {
 When Cromwell runs a task, it will fill in a template for the job using the declared runtime attributes. This specific template will vary depending on the requirements of your HPC cluster. For example, say you normally submit jobs to SGE using:
 
 ```bash
-qsub -terse -V -b n -N my_job_name \
+qsub -terse -V -b y -N my_job_name \
   -wd /path/to/working_directory \
   -o /path/to/stdout \
   -e /path/to/stderr \
   -pe smp 1 -l mem_free=0.5g -q short \
-  myScript.bash
+  bash myScript.bash
 ```
 
 For this particular SGE cluster, the above sets the working directory, stdout and stderr paths, the number of cpus to 1, the memory to half a gigabyte, and runs on the short queue.
@@ -159,7 +159,7 @@ backend.providers.SGE.config {
   qsub \
   -terse \
   -V \
-  -b n \
+  -b y \
   -N ${job_name} \
   -wd ${cwd} \
   -o ${out} \
@@ -168,7 +168,7 @@ backend.providers.SGE.config {
   ${"-l mem_free=" + memory_gb + "g"} \
   ${"-q " + sge_queue} \
   ${"-P " + sge_project} \
-  ${script}
+  /bin/bash ${script}
   """
 }
 ```
@@ -236,7 +236,7 @@ backend {
         qsub \
         -terse \
         -V \
-        -b n \
+        -b y \
         -N ${job_name} \
         -wd ${cwd} \
         -o ${out} \
@@ -245,7 +245,7 @@ backend {
         ${"-l mem_free=" + memory_gb + "g"} \
         ${"-q " + sge_queue} \
         ${"-P " + sge_project} \
-        ${script}
+        /bin/bash ${script}
         """
     
         job-id-regex = "(\\d+)"

@@ -86,7 +86,7 @@ sealed trait WomFile extends WomValue {
   
   protected val recoverFileNotFound: PartialFunction[Throwable, this.type] = {
     case _: NoSuchFileException | _: FileNotFoundException => this
-    case e if recoverFileNotFound.isDefinedAt(e.getCause) => recoverFileNotFound.apply(e.getCause)
+    case e if e.getCause != null && recoverFileNotFound.isDefinedAt(e.getCause) => recoverFileNotFound.apply(e.getCause)
   }
 }
 
@@ -280,12 +280,13 @@ final case class WomMaybePopulatedFile(valueOption: Option[String] = None,
   }
   
   override def withSize(ioFunctionSet: IoFunctionSet): Future[WomMaybePopulatedFile] = {   
+    implicit val ec = ioFunctionSet.ec
     (sizeOption, contentsOption) match {
       case (Some(_), _) => Future.successful(this)
       case (None, Some(contents)) => Future.successful(this.copy(sizeOption = Option(contents.length.toLong)))
       case _ => ioFunctionSet.size(value)
-        .map(s => this.copy(sizeOption = Option(s)))(ioFunctionSet.ec)
-        .recover(recoverFileNotFound)(ioFunctionSet.ec)
+        .map(s => this.copy(sizeOption = Option(s)))(ec)
+        .recover(recoverFileNotFound)(ec)
     }
   }
 }

@@ -87,7 +87,7 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
   lazy val w10OutputPort = getOutputPort(10)
   
   def validate(inputFile: String): Map[GraphNodePort.OutputPort, ResolvedExecutableInput] = {
-    cwlWorkflow.womExecutable(AcceptAllRequirements, Option(inputFile), NoIoFunctionSet, strictValidation = false) match {
+    cwlWorkflow.womExecutable(AcceptAllRequirements, Option(inputFile), LocalIoFunctionSet, strictValidation = false) match {
       case Left(errors) => fail(s"Failed to build a wom executable: ${errors.toList.mkString(", ")}")
       case Right(executable) => executable.resolvedExecutableInputs
     }

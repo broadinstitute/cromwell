@@ -89,11 +89,11 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val symConf = templateConf("soft-link")
     val copyConf = templateConf("copy")
 
-    val jsonInputFile = createCannedFile("localize", "content from json inputs").pathAsString
-    val callInputFile = createCannedFile("localize", "content from call inputs").pathAsString
+    val jsonInputFile = createCannedFile("localize", "content from json inputs")
+    val callInputFile = createCannedFile("localize", "content from call inputs")
     val inputs = Option(s"""{
-      "wf_localize.workflowFile": "$callInputFile",
-      "wf_localize.localize.inputFileFromJson": "$jsonInputFile"
+      "wf_localize.workflowFile": "${callInputFile.pathAsString}",
+      "wf_localize.localize.inputFileFromJson": "${jsonInputFile.pathAsString}"
     }""")
 
     val expectedOutputs: CallOutputs = WomMocks.mockOutputExpectations(
@@ -135,8 +135,8 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
       whenReady(backend.execute) { executionResponse =>
         assertResponse(executionResponse, expectedResponse)
-        val localizedJsonInputFile = DefaultPathBuilder.get(jobPaths.callInputsRoot.pathAsString, jsonInputFile)
-        val localizedCallInputFile = DefaultPathBuilder.get(jobPaths.callInputsRoot.pathAsString, callInputFile)
+        val localizedJsonInputFile = DefaultPathBuilder.get(jobPaths.callInputsRoot.pathAsString, jsonInputFile.parent.pathAsString.hashCode.toString + "/" + jsonInputFile.name)
+        val localizedCallInputFile = DefaultPathBuilder.get(jobPaths.callInputsRoot.pathAsString, callInputFile.parent.pathAsString.hashCode.toString + "/" + callInputFile.name)
 
         localizedJsonInputFile.isSymbolicLink shouldBe isSymlink
         val realJsonInputFile =

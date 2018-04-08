@@ -283,7 +283,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
         case Invalid(e) => assert(e.head == "Failed to get cpu mandatory key from runtime attributes")
       }
     }
-    
+
     "return default values as WdlValues when they can be coerced into expected WdlTypes" in {
       val optionalConfig = Option(TestConfig.allRuntimeAttrsConfig)
 

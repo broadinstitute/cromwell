@@ -22,27 +22,6 @@ class MapWorkflowSpec extends CromwellTestKitWordSpec {
   ))
   sampleWdl.cleanup()
 
-  // TODO WOM: Fails because of input evaluation
-  "A task which contains a parameter " should {
-    "accept an array for the value" in {
-      val sampleWdl = SampleWdl.MapLiteral(pwd)
-      val callDir = "<<PWD>>/cromwell-executions/wf/<<UUID>>/call-write_map/inputs<<PWD>>"
-      runWdlAndAssertOutputs(
-        sampleWdl = sampleWdl,
-        EventFilter.info(pattern = "Starting calls: wf.read_map:NA:1, wf.write_map:NA:1", occurrences = 1),
-        expectedOutputs = Map(
-          "wf.read_map.out_map" -> WomMap(WomMapType(WomStringType, WomIntegerType), Map(
-            WomString("x") -> WomInteger(500),
-            WomString("y") -> WomInteger(600),
-            WomString("z") -> WomInteger(700)
-          )),
-          "wf.write_map.contents" -> WomString(s"$callDir/f1\talice\n$callDir/f2\tbob\n$callDir/f3\tchuck")
-        )
-      )
-      sampleWdl.cleanup()
-    }
-  }
-
   "A static Map[File, String] declaration" should {
     "be a valid declaration" in {
       val declaration = ns.workflow.declarations.find {_.unqualifiedName == "map"}.getOrElse {

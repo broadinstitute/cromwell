@@ -41,6 +41,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       |}
     """.stripMargin)
   val unstructuredFile = "fubar badness!"
+  val invalidOptionsFile = """ { "job_retries": 2.5 } """
   val validOptionsFile =""" { "write_to_cache": "true" } """
   val validCustomLabelsFile="""{ "label1": "value1", "label2": "value2" }"""
   val badCustomLabelsFile="""{ "Label1": "valu£1", "--label2": "valuevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevalue" }"""
@@ -460,6 +461,34 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
             reason.getMessage should include("Invalid value for File input 'foo.bad_three': empty value")
           case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
           case unknown => fail(s"Unexpected materialization response: $unknown")
+        }
+      }
+
+      system.stop(materializeWfActor)
+    }
+
+    "reject an options file with invalid values" in {
+      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false, ioActorProxy = ioActor))
+      val sources = WorkflowSourceFilesWithoutImports(
+        workflowSource = workflowSourceNoDocker,
+        workflowRoot = None,
+        workflowType = Option("WDL"),
+        workflowTypeVersion = None,
+        inputsJson = validInputsJson,
+        workflowOptionsJson = invalidOptionsFile,
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
+
+      within(Timeout) {
+        expectMsgPF() {
+          case MaterializeWorkflowDescriptorFailureResponse(reason) =>
+            val message = reason.getMessage
+            message should startWith("Workflow input processing failed:")
+            message should include("Require a positive Int value for workflow option job_retries.")
+          case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded with invalid workflow options!")
+          case unknown =>
+            fail(s"Unexpected materialization response: $unknown")
         }
       }
 

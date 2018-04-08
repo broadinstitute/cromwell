@@ -58,8 +58,6 @@ object JesAsyncBackendJobExecutionActor {
 
   private def stringifyMap(m: Map[String, String]): String = m map { case(k, v) => s"  $k -> $v"} mkString "\n"
 
-  val maxUnexpectedRetries = 2
-
   val JesFailedToDelocalize = 5
   val JesUnexpectedTermination = 13
   val JesPreemption = 14
@@ -128,6 +126,14 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     case Valid(PreviousRetryReasons(p, _)) => p < maxPreemption
     case _ => false
   }
+
+  private lazy val maxRetries: Int = jobDescriptor.jobRetries.getOrElse(0)
+
+  private lazy val retryFailedJob: Boolean = previousRetryReasons match {
+    case Valid(PreviousRetryReasons(_, f)) => f < maxRetries
+    case _ => false
+  }
+
 
   override def tryAbort(job: StandardAsyncJob): Unit = {
     jesBackendSingletonActor ! DoAbortRun(workflowId, Run(job, initializationData.genomics))
@@ -503,13 +509,20 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus,
                               handle: StandardAsyncPendingExecutionHandle,
                               returnCode: Option[Int]): Future[ExecutionHandle] = {
-      (runStatus.errorCode, runStatus.jesCode) match {
-        case (Status.NOT_FOUND, Some(JesFailedToDelocalize)) => Future.successful(FailedNonRetryableExecutionHandle(FailedToDelocalizeFailure(runStatus.prettyPrintedError, jobTag, Option(standardPaths.error))))
-        case (Status.ABORTED, Some(JesUnexpectedTermination)) => handleUnexpectedTermination(runStatus.errorCode, runStatus.prettyPrintedError, returnCode)
-        case _ => Future.successful(FailedNonRetryableExecutionHandle(StandardException(
-          runStatus.errorCode, runStatus.prettyPrintedError, jobTag, returnCode, standardPaths.error), returnCode))
+
+      if (retryFailedJob) {
+        handleJobRetry(runStatus.errorCode, runStatus.prettyPrintedError, returnCode)
+      }
+      else {
+        (runStatus.errorCode, runStatus.jesCode) match {
+          case (Status.NOT_FOUND, Some(JesFailedToDelocalize)) => Future.successful(FailedNonRetryableExecutionHandle(
+            FailedToDelocalizeFailure(runStatus.prettyPrintedError, jobTag, Option(standardPaths.error))))
+          case _ => Future.successful(FailedNonRetryableExecutionHandle(StandardException(
+            runStatus.errorCode, runStatus.prettyPrintedError, jobTag, returnCode, standardPaths.error), returnCode))
+        }
       }
     }
+
 
     runStatus match {
       case preemptedStatus: RunStatus.Preempted if preemptible => handlePreemption(preemptedStatus, returnCode)
@@ -519,38 +532,35 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
-  private def writeFuturePreemptedAndUnexpectedRetryCounts(p: Int, ur: Int): Future[Unit] = {
+  private def writeFuturePreemptedAndFailedCounts(p: Int, f: Int): Future[Unit] = {
     val updateRequests = Seq(
-      KvPut(KvPair(ScopedKey(workflowId, futureKvJobKey, JesBackendLifecycleActorFactory.unexpectedRetryCountKey), ur.toString)),
+      KvPut(KvPair(ScopedKey(workflowId, futureKvJobKey, JesBackendLifecycleActorFactory.failureCountKey), f.toString)),
       KvPut(KvPair(ScopedKey(workflowId, futureKvJobKey, JesBackendLifecycleActorFactory.preemptionCountKey), p.toString))
     )
 
     makeKvRequest(updateRequests).map(_ => ())
   }
 
-  private def handleUnexpectedTermination(errorCode: Status, errorMessage: String, jobReturnCode: Option[Int]): Future[ExecutionHandle] = {
+  private def handleJobRetry(errorCode: Status, errorMessage: String, jobReturnCode: Option[Int]): Future[ExecutionHandle] = {
+    import common.numeric.IntegerUtil._
 
-    val msg = s"Retrying. $errorMessage"
-
+    // Increment failed job retry count and preemption count stays the same
     previousRetryReasons match {
-      case Valid(PreviousRetryReasons(p, ur)) =>
-        val thisUnexpectedRetry = ur + 1
-        if (thisUnexpectedRetry <= maxUnexpectedRetries) {
-          // Increment unexpected retry count and preemption count stays the same
-          writeFuturePreemptedAndUnexpectedRetryCounts(p, thisUnexpectedRetry).map { _ =>
-            FailedRetryableExecutionHandle(StandardException(
-              errorCode, msg, jobTag, jobReturnCode, standardPaths.error), jobReturnCode)
-          }
-        }
-        else {
-          Future.successful(FailedNonRetryableExecutionHandle(StandardException(
-            errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error), jobReturnCode))
+      case Valid(PreviousRetryReasons(p, f)) =>
+        val totalFailedAttempts = f + 1
+        val taskName = s"${workflowDescriptor.id}:${call.localName}"
+        val baseMsg = s"Task $taskName failed for the ${totalFailedAttempts.toOrdinal} time."
+
+        writeFuturePreemptedAndFailedCounts(p, totalFailedAttempts).map { _ =>
+          val msg = s"""$baseMsg The call will be restarted. Max failed retry attempts is $maxRetries. Error code $errorCode.$errorMessage""".stripMargin
+          FailedRetryableExecutionHandle(StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error), jobReturnCode)
         }
       case Invalid(_) =>
-        Future.successful(FailedNonRetryableExecutionHandle(StandardException(
-          errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error), jobReturnCode))
+        Future.successful(FailedNonRetryableExecutionHandle(StandardException(errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error), jobReturnCode))
     }
+
   }
+
 
   private def handlePreemption(runStatus: RunStatus.Preempted, jobReturnCode: Option[Int]): Future[ExecutionHandle] = {
     import common.numeric.IntegerUtil._
@@ -558,14 +568,14 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     val errorCode: Status = runStatus.errorCode
     val prettyPrintedError: String = runStatus.prettyPrintedError
     previousRetryReasons match {
-      case Valid(PreviousRetryReasons(p, ur)) =>
+      case Valid(PreviousRetryReasons(p, f)) =>
         val thisPreemption = p + 1
         val taskName = s"${workflowDescriptor.id}:${call.localName}"
         val baseMsg = s"Task $taskName was preempted for the ${thisPreemption.toOrdinal} time."
 
-        writeFuturePreemptedAndUnexpectedRetryCounts(thisPreemption, ur).map { _ =>
+        writeFuturePreemptedAndFailedCounts(thisPreemption, f).map { _ =>
           if (thisPreemption < maxPreemption) {
-            // Increment preemption count and unexpectedRetryCount stays the same
+            // Increment preemption count and failure count stays the same
             val msg =
               s"""$baseMsg The call will be restarted with another preemptible VM (max preemptible attempts number is $maxPreemption). Error code $errorCode.$prettyPrintedError""".stripMargin
             FailedRetryableExecutionHandle(StandardException(

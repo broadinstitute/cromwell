@@ -310,10 +310,12 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
     val callCachingModeValidation = validateCallCachingMode(workflowOptions, conf)
 
-    (failureModeValidation, backendAssignmentsValidation, callCachingModeValidation) mapN {
-      case (failureMode, backendAssignments, callCachingMode) =>
+    val jobRetriesValidation = validateJobRetries(workflowOptions, conf)
+
+    (failureModeValidation, backendAssignmentsValidation, callCachingModeValidation, jobRetriesValidation) mapN {
+      case (failureMode, backendAssignments, callCachingMode, jobRetries) =>
         val callable = womNamespace.executable.entryPoint
-        val backendDescriptor = BackendWorkflowDescriptor(id, callable, womNamespace.womValueInputs, workflowOptions, labels)
+        val backendDescriptor = BackendWorkflowDescriptor(id, callable, womNamespace.womValueInputs, workflowOptions, labels, jobRetries)
         EngineWorkflowDescriptor(callable, backendDescriptor, backendAssignments, failureMode, pathBuilders, callCachingMode)
     }
   }
@@ -401,4 +403,19 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       case Failure(t) => t.getMessage.invalidNel
     }
   }
+
+  private def validateJobRetries(workflowOptions: WorkflowOptions, conf: Config): ErrorOr[Option[Int]] = {
+
+    val jobRetriesRequirement = "Require a positive Int value for workflow option job_retries."
+
+    workflowOptions.jsObject.fields.get(WorkflowOptions.JobRetries.name) match {
+      case Some(JsNumber(num)) if num.isValidInt && num > 0 => Option(num.toInt).validNel
+      case Some(JsNumber(num)) =>
+        s"Invalid value submitted for key 'job_retries': $num. $jobRetriesRequirement".invalidNel
+      case Some(jsVal: JsValue) =>
+        s"Invalid JsValue submitted for key 'job_retries': $jsVal. $jobRetriesRequirement".invalidNel
+      case None => conf.as[Option[Int]]("workflow-options.job-retries").validNel
+    }
+  }
+
 }

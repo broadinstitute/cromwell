@@ -255,7 +255,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
       val runtimeAttributes: Map[LocallyQualifiedName, WomValue] = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, WorkflowOptions.empty)(evaluatedAttributes)
 
       val jobDescriptor: BackendJobDescriptor =
-        BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, Option(shard), 1), runtimeAttributes, fqnWdlMapToDeclarationMap(symbolMaps), NoDocker, Map.empty)
+        BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, Option(shard), 1), runtimeAttributes, fqnWdlMapToDeclarationMap(symbolMaps), NoDocker, Map.empty, None)
       val backend = createBackend(jobDescriptor, TestConfig.backendRuntimeConfigDescriptor)
       val response =
         JobSucceededResponse(mock[BackendJobDescriptorKey], Some(0), WomMocks.mockOutputExpectations(Map("out" -> WomInteger(shard))), None, Seq.empty, None)

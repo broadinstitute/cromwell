@@ -57,6 +57,7 @@ object WorkflowOptions {
   // Misc.
   case object DefaultRuntimeOptions extends WorkflowOption("default_runtime_attributes")
   case object WorkflowFailureMode extends WorkflowOption("workflow_failure_mode")
+  case object JobRetries extends WorkflowOption("job_retries")
 
   private lazy val WorkflowOptionsConf = ConfigFactory.load.getConfig("workflow-options")
   private lazy val EncryptedFields: Seq[String] = WorkflowOptionsConf.getStringList("encrypted-fields").asScala

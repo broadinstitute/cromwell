@@ -7,24 +7,24 @@ import cats.syntax.apply._
 
 import scala.util.{Failure, Success, Try}
 import JesBackendLifecycleActorFactory.preemptionCountKey
-import JesBackendLifecycleActorFactory.unexpectedRetryCountKey
+import JesBackendLifecycleActorFactory.failureCountKey
 
-case class PreviousRetryReasons(preempted: Int, unexpectedRetry: Int)
+case class PreviousRetryReasons(preempted: Int, failed: Int)
 
 object PreviousRetryReasons {
   def tryApply(prefetchedKvEntries: Map[String, KvResponse], attemptNumber: Int): ErrorOr[PreviousRetryReasons] = {
     val validatedPreemptionCount = validatedKvResponse(prefetchedKvEntries.get(preemptionCountKey), preemptionCountKey)
-    val validatedUnexpectedRetryCount = validatedKvResponse(prefetchedKvEntries.get(unexpectedRetryCountKey), unexpectedRetryCountKey)
+    val validatedFailedCount = validatedKvResponse(prefetchedKvEntries.get(failureCountKey), failureCountKey)
 
-    (validatedPreemptionCount, validatedUnexpectedRetryCount) mapN { PreviousRetryReasons.apply }
+    (validatedPreemptionCount, validatedFailedCount) mapN { PreviousRetryReasons.apply }
   }
 
-  def apply(knownPreemptedCount: Int, knownUnexpectedRetryCount: Int, attempt: Int): PreviousRetryReasons = {
-    // If we have anything unaccounted for, we can top up the unexpected retry count.
+  def apply(knownPreemptedCount: Int, knownFailureCount: Int, attempt: Int): PreviousRetryReasons = {
+    // If we have anything unaccounted for, we can top up the general retry count.
     // NB: 'attempt' is 1-indexed, so, magic number:
     // NB2: for sanity's sake, I won't let this unaccounted for drop below 0, just in case...
-    val unaccountedFor = Math.max(attempt - 1 - knownPreemptedCount - knownUnexpectedRetryCount, 0)
-    PreviousRetryReasons(knownPreemptedCount, knownUnexpectedRetryCount + unaccountedFor)
+    val unaccountedFor = Math.max(attempt - 1 - knownPreemptedCount - knownFailureCount, 0)
+    PreviousRetryReasons(knownPreemptedCount, knownFailureCount + unaccountedFor)
   }
 
   private def validatedKvResponse(r: Option[KvResponse], fromKey: String): ErrorOr[Int] = r match {

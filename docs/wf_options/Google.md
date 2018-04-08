@@ -10,6 +10,7 @@ Keys | Possible Values | Description
 `refresh_token` |`string` |   Only used if `localizeWithRefreshToken` is specified in the [Configuration](../Configuring).
 `auth_bucket` |`string` |     A GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`). Defaults to the the value in [jes_gcs_root](#jes_gcs_root).
 `monitoring_script` |`string` |   Specifies a GCS URL to a script that will be invoked prior to the user command being run.  For example, if the value for monitoring_script is `"gs://bucket/script.sh"`, it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
+`job_retries` |`int` | Specifies the number of times a failed job is retried (excluding Preemption failures)
 
 # Example
 ```json
@@ -19,6 +20,7 @@ Keys | Possible Values | Description
   "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x",
   "google_compute_service_account": " my-new-svcacct@my-google-project.iam.gserviceaccount.com"
   "auth_bucket": "gs://my-auth-bucket/private",
-  "monitoring_script": "gs://bucket/script.sh"
+  "monitoring_script": "gs://bucket/script.sh",
+  "job_retries": 3
 }
 ```

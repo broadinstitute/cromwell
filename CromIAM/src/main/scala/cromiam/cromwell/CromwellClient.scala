@@ -6,7 +6,8 @@ import akka.actor.ActorSystem
 import akka.event.LoggingAdapter
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
+import akka.http.scaladsl.model.headers.Authorization
+import akka.http.scaladsl.model.{HttpHeader, HttpRequest, HttpResponse}
 import akka.stream.ActorMaterializer
 import com.softwaremill.sttp._
 import cromiam.auth.{Collection, User}
@@ -33,21 +34,15 @@ class CromwellClient(scheme: String, interface: String, port: Int, log: LoggingA
 
   override val statusUri = uri"$cromwellUrl/engine/$cromwellApiVersion/status"
 
-  /**
-    FIXME:
+  val cromwellApiClient: CromwellApiClient =  new CromwellApiClient(cromwellUrl, cromwellApiVersion)
 
-    Creating a new client here every time sucks but currently headers on the CromwellClient are per-client and
-    we need them to be per-request. A minor change to Cromwell, but beyond the skateboard we currently have
-  */
   def collectionForWorkflow(workflowId: String, user: User): Future[Collection] = {
     import CromwellClient.EnhancedWorkflowLabels
 
     log.info("Requesting collection for " + workflowId + " for user " + user.userId + " from metadata")
 
-    val client = new CromwellApiClient(cromwellUrl, cromwellApiVersion, Option(user.authorization.credentials))
-
     // Look up in Cromwell what the collection is for this workflow. If it doesn't exist, fail the Future
-    client.labels(WorkflowId.fromString(workflowId)) flatMap {
+    cromwellApiClient.labels(WorkflowId.fromString(workflowId), headers=List(user.authorization)) flatMap {
       _.caasCollection match {
         case Some(c) => Future.successful(c)
         case None => Future.failed(new IllegalArgumentException(s"Workflow $workflowId has no associated collection"))
@@ -78,18 +73,18 @@ class CromwellClient(scheme: String, interface: String, port: Int, log: LoggingA
 
           This is all called from inside the context of a Future, so exceptions will be properly caught.
       */
-      metadata.value.parseJson.asJsObject.fields.get("rootWorkflowId").map(_.toString).getOrElse(workflowId)
+      metadata.value.parseJson.asJsObject.fields.get("rootWorkflowId").map(_.convertTo[String]).getOrElse(workflowId)
     }
 
-    // FIXME: See FIXME in collectionForWorkflow
-    val client = new CromwellApiClient(cromwellUrl, cromwellApiVersion, Option(user.authorization.credentials))
     log.info("Looking up root workflow ID for " + workflowId + "for user " + user.userId + " from metadata")
 
     /*
       Grab the metadata from Cromwell filtered down to the rootWorkflowId. Then transform the response to get just the
       root workflow ID itself
      */
-    client.metadata(WorkflowId.fromString(workflowId), Option(Map("includeKey" -> List("rootWorkflowId")))).map(metadataToRootWorkflowId)
+    cromwellApiClient.metadata(WorkflowId.fromString(workflowId),
+      args=Option(Map("includeKey" -> List("rootWorkflowId"))),
+      headers=List(user.authorization)).map(metadataToRootWorkflowId)
   }
 }
 

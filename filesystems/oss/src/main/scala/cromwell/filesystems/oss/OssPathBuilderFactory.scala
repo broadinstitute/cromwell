@@ -16,9 +16,7 @@ final case class OssPathBuilderFactory(globalConfig: Config, instanceConfig: Con
     validate { instanceConfig.as[String]("auth.access-id") },
     validate { instanceConfig.as[String]("auth.access-key") },
     validate { instanceConfig.as[Option[String]]("auth.security-token") }
-  ).mapN({
-    case (e, i, k, t) => (e, i, k, t)
-  }).unsafe("OSS filesystem configuration is invalid")
+  ).tupled.unsafe("OSS filesystem configuration is invalid")
   
   def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext) = {
     Future.successful(OssPathBuilder.fromConfiguration(endpoint, accessId, accessKey, securityToken, options))

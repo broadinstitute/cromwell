@@ -19,7 +19,7 @@ import scala.collection.JavaConverters._
 import scala.util.{Failure, Try}
 
 /**
-  * Validates filesystem configuration and provide methods to build PathBuilderFactories.
+  * Validates filesystem configuration and provides methods to build PathBuilderFactories.
   */
 class CromwellFileSystems(globalConfig: Config) {
   // Validate the configuration and creates a Map of PathBuilderFactory constructors
@@ -40,7 +40,7 @@ class CromwellFileSystems(globalConfig: Config) {
     constructor <- createConstructor(key, clazz)
   } yield constructor
 
-  // Create a constructor from a class name
+  // Getting a constructor from a class name
   private def createConstructor(filesystem: String, className: String): Checked[(String, Constructor[_])] = Try (
     filesystem -> Class.forName(className).getConstructor(classOf[Config], classOf[Config])
   ).recoverWith({
@@ -48,11 +48,11 @@ class CromwellFileSystems(globalConfig: Config) {
       new RuntimeException(s"Class $className for filesystem $filesystem cannot be found in the class path.", e)
     )
     case e: NoSuchMethodException => Failure(
-      new RuntimeException(s"Class $className for filesystem $filesystem does not have the required constructor signature.", e)
+      new RuntimeException(s"Class $className for filesystem $filesystem does not have the required constructor signature: (com.typesafe.config.Config, com.typesafe.config.Config)", e)
     )
   }).toChecked
 
-  // Instantiate a PathBuilderFactor from its constructor and instance config
+  // Instantiate a PathBuilderFactory from its constructor and instance config
   private def instantiate(name: String, constructor: Constructor[_], instanceConfig: Config): Checked[PathBuilderFactory] = {
     for {
       instance <- Try(constructor.newInstance(globalConfig, instanceConfig)).toChecked
@@ -66,7 +66,7 @@ class CromwellFileSystems(globalConfig: Config) {
     .toChecked(s"Cannot find a filesystem with name $fileSystemName in the configuration. Available filesystems: ${factoryBuilders.keySet.mkString(", ")}")
 
   /**
-    * Try to find a configured filesystem with the given name and to build a PathFactory for it
+    * Try to find a configured filesystem with the given name and build a PathFactory for it
     * @param name name of the filesystem
     * @param instanceConfig filesystem specific configuration for this instance of the factory to build
     */

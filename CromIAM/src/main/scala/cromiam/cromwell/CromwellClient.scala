@@ -103,10 +103,7 @@ object CromwellClient {
     import Collection.collectionJsonReader
 
     def caasCollection: Option[Collection] = {
-      wl.labels.fields.get(CollectionLabelName) map {
-        _.convertTo[Collection]
-      }
+      wl.labels.fields.get(CollectionLabelName).map(_.convertTo[Collection])
     }
   }
-
 }

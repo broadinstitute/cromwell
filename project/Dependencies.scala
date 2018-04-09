@@ -10,7 +10,7 @@ object Dependencies {
   val apacheHttpClientV = "4.5.3"
   val apacheHttpCoreV = "4.4.6"
   val betterFilesV = "2.17.1"
-  val catsEffectV = "0.4"
+  val catsEffectV = "0.10"
   val catsV = "1.0.1"
   val circeV = "0.9.0-M1"
   val circeYamlV = "0.7.0"
@@ -23,7 +23,7 @@ object Dependencies {
   val delightRhinoSandboxV = "0.0.8"
   val errorProneAnnotationsV = "2.0.19"
   val ficusV = "1.4.1"
-  val fs2V = "0.10.0-M7"
+  val fs2V = "0.10.2"
   val gaxV = "1.9.0"
   val googleApiClientV = "1.22.0"
   val googleCloudComputeV = "0.26.0-alpha"
@@ -76,7 +76,7 @@ object Dependencies {
   val simulacrumV = "0.12.0"
   val slf4jV = "1.7.24"
   val slickV = "3.2.3"
-  val slickCatsV = "0.7-MF"
+  val slickCatsV = "0.7.1"
   val snakeyamlV = "1.17"
   val specs2MockV = "3.8.9" // 3.9.X doesn't enjoy the spark backend or refined
   val sprayJsonV = "1.3.3"
@@ -344,7 +344,7 @@ object Dependencies {
 
   val cromwellApiClientDependencies = List(
     "org.scalaz" %% "scalaz-core" % scalazV,
-    "co.fs2" %% "fs2-io" % fs2V,
+    "co.fs2" %% "fs2-io" % fs2V % Test,
     "com.typesafe.akka" %% "akka-actor" % akkaV,
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
     "com.typesafe.akka" %% "akka-stream" % akkaV

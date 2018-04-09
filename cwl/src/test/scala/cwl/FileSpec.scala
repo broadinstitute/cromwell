@@ -17,7 +17,7 @@ class FileSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
 
   private val fileTests = Table(
     ("description", "filePath", "ioFunctionSet", "expectedCommand"),
-    ("get the basename of a file", "file_example.cwl", NoIoFunctionSet, """   'echo' 'example.txt'   """.trim),
+    ("get the basename of a file", "file_example.cwl", LocalIoFunctionSet, """   'echo' 'example.txt'   """.trim),
     ("get the size of a file", "file_size_example.cwl", LocalIoFunctionSet, """   'echo' '12'   """.trim)
   )
 

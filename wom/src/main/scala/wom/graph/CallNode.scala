@@ -3,6 +3,7 @@ package wom.graph
 import cats.data.Validated.Valid
 import cats.instances.list._
 import cats.kernel.Monoid
+import cats.syntax.validated._
 import cats.syntax.foldable._
 import cats.syntax.traverse._
 import common.validation.ErrorOr.ErrorOr
@@ -22,7 +23,6 @@ import scala.concurrent.ExecutionContext
 sealed abstract class CallNode extends GraphNode {
   def callable: Callable
   def callType: String
-  def compoundOutputIdentifiers = true
 
   def inputDefinitionMappings: InputDefinitionMappings
 }
@@ -30,10 +30,11 @@ sealed abstract class CallNode extends GraphNode {
 final case class ExpressionCallNode private(override val identifier: WomIdentifier,
                                       callable: ExpressionTaskDefinition,
                                       override val inputPorts: Set[GraphNodePort.InputPort],
-                                      inputDefinitionMappings: InputDefinitionMappings) extends CallNode with ExpressionNodeLike {
+                                      inputDefinitionMappings: InputDefinitionMappings,
+                                      outputIdentifierCompoundingFunction: (WomIdentifier, String) => WomIdentifier) extends CallNode with ExpressionNodeLike {
   val callType: String = "expression task"
   lazy val expressionBasedOutputPorts: List[ExpressionBasedOutputPort] = {
-    callable.outputs.map(o => ExpressionBasedOutputPort(o.localName, o.womType, this, o.expression))
+    callable.outputs.map(o => ExpressionBasedOutputPort(outputIdentifierCompoundingFunction(identifier, o.localName.value), o.womType, this, o.expression))
   }
 
   override lazy val outputPorts: Set[OutputPort] = expressionBasedOutputPorts.toSet[OutputPort]
@@ -54,10 +55,11 @@ final case class ExpressionCallNode private(override val identifier: WomIdentifi
 final case class CommandCallNode private(override val identifier: WomIdentifier,
                                          callable: CommandTaskDefinition,
                                          override val inputPorts: Set[GraphNodePort.InputPort],
-                                         inputDefinitionMappings: InputDefinitionMappings) extends CallNode {
+                                         inputDefinitionMappings: InputDefinitionMappings,
+                                         outputIdentifierCompoundingFunction: (WomIdentifier, String) => WomIdentifier) extends CallNode {
   val callType: String = "task"
   lazy val expressionBasedOutputPorts: List[ExpressionBasedOutputPort] = {
-    callable.outputs.map(o => ExpressionBasedOutputPort(o.localName, o.womType, this, o.expression))
+    callable.outputs.map(o => ExpressionBasedOutputPort(outputIdentifierCompoundingFunction(identifier, o.localName.value), o.womType, this, o.expression))
   }
 
   override lazy val outputPorts: Set[OutputPort] = expressionBasedOutputPorts.toSet[OutputPort]
@@ -75,10 +77,10 @@ final case class WorkflowCallNode private (override val identifier: WomIdentifie
                                            callable: WorkflowDefinition,
                                            override val inputPorts: Set[GraphNodePort.InputPort],
                                            inputDefinitionMappings: InputDefinitionMappings,
-                                           override val compoundOutputIdentifiers: Boolean) extends CallNode {
+                                           outputIdentifierCompoundingFunction: (WomIdentifier, String) => WomIdentifier) extends CallNode {
   val callType: String = "workflow"
   val subworkflowCallOutputPorts: Set[SubworkflowCallOutputPort] = {
-    callable.innerGraph.nodes.collect { case gon: GraphOutputNode => SubworkflowCallOutputPort(gon, this) }
+    callable.innerGraph.nodes.collect { case gon: GraphOutputNode => SubworkflowCallOutputPort(outputIdentifierCompoundingFunction(identifier, gon.localName), gon, this) }
   }
   override val outputPorts: Set[OutputPort] = subworkflowCallOutputPorts.toSet[OutputPort]
 }
@@ -96,9 +98,9 @@ object TaskCall {
     // The FQN combines the name of the task to the name of the input or output
     def identifier(name: LocalName) = WomIdentifier(name, taskDefinitionLocalName.combineToFullyQualifiedName(name))
 
-    def linkOutput(call: GraphNode)(output: OutputDefinition): ErrorOr[GraphNode] = call.outputByName(output.name).map(out => PortBasedGraphOutputNode(
-      identifier(output.localName), output.womType, out
-    ))
+//    def linkOutput(call: GraphNode)(output: OutputDefinition): ErrorOr[GraphNode] = call.outputByName(output.name).map(out => PortBasedGraphOutputNode(
+//      identifier(output.localName), output.womType, out
+//    ))
     import common.validation.ErrorOr.ShortCircuitingFlatMap
 
     val callNodeBuilder = new CallNodeBuilder()
@@ -122,13 +124,18 @@ object TaskCall {
     val uniqueIdentifier = WomIdentifier(taskDefinition.name)
     val callWithInputs = callNodeBuilder.build(uniqueIdentifier, taskDefinition, inputDefinitionFold)
 
-    for {
-      outputs <- taskDefinition.outputs.traverse(linkOutput(callWithInputs.node) _)
+    val outputNodes: ErrorOr[Seq[GraphOutputNode]] = callWithInputs.node.outputPorts.map(output => PortBasedGraphOutputNode(
+      identifier(LocalName(output.internalName)), output.womType, output
+    )).toList.validNel
+    val result = for {
+      outputs <- outputNodes // taskDefinition.outputs.traverse(linkOutput(callWithInputs.node) _)
       callSet = Set[GraphNode](callWithInputs.node)
       inputsSet = callWithInputs.newInputs.toSet[GraphNode]
       outputsSet = outputs.toSet[GraphNode]
       graph <- Graph.validateAndConstruct(callSet ++ inputsSet ++ outputsSet)
     } yield graph
+
+    result
   }
 }
 
@@ -189,10 +196,10 @@ object CallNode {
                            callable: Callable,
                            inputPorts: Set[GraphNodePort.InputPort],
                            inputDefinitionMappings: InputDefinitionMappings,
-                           compoundOutputIdentifiers: Boolean): CallNode = callable match {
-    case t: CommandTaskDefinition => CommandCallNode(nodeIdentifier, t, inputPorts, inputDefinitionMappings)
-    case w: WorkflowDefinition => WorkflowCallNode(nodeIdentifier, w, inputPorts, inputDefinitionMappings, compoundOutputIdentifiers)
-    case w: ExpressionTaskDefinition => ExpressionCallNode(nodeIdentifier, w, inputPorts, inputDefinitionMappings)
+                           outputIdentifierCompoundingFunction: (WomIdentifier, String) => WomIdentifier): CallNode = callable match {
+    case t: CommandTaskDefinition => CommandCallNode(nodeIdentifier, t, inputPorts, inputDefinitionMappings, outputIdentifierCompoundingFunction)
+    case w: WorkflowDefinition => WorkflowCallNode(nodeIdentifier, w, inputPorts, inputDefinitionMappings, outputIdentifierCompoundingFunction)
+    case w: ExpressionTaskDefinition => ExpressionCallNode(nodeIdentifier, w, inputPorts, inputDefinitionMappings, outputIdentifierCompoundingFunction)
   }
 
   /**
@@ -213,10 +220,15 @@ object CallNode {
     def build(nodeIdentifier: WomIdentifier,
               callable: Callable,
               inputDefinitionFold: InputDefinitionFold,
-              compoundOutputIdentifiers: Boolean = true): CallNodeAndNewNodes = {
-      val callNode = CallNode(nodeIdentifier, callable, inputDefinitionFold.callInputPorts, inputDefinitionFold.mappings, compoundOutputIdentifiers)
+              outputIdentifierCompoundingFunction: (WomIdentifier, String) => WomIdentifier = defaultOutputIdentifierCompounder
+             ): CallNodeAndNewNodes = {
+      val callNode = CallNode(nodeIdentifier, callable, inputDefinitionFold.callInputPorts, inputDefinitionFold.mappings, outputIdentifierCompoundingFunction)
       graphNodeSetter._graphNode = callNode
       CallNodeAndNewNodes(callNode, inputDefinitionFold.newGraphInputNodes, inputDefinitionFold.newExpressionNodes, inputDefinitionFold.usedOuterGraphInputNodes)
+    }
+
+    def defaultOutputIdentifierCompounder(callIdentifier: WomIdentifier, outputName: String): WomIdentifier = {
+      callIdentifier.combine(outputName)
     }
   }
 }

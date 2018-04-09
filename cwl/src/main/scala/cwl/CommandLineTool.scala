@@ -195,10 +195,10 @@ case class CommandLineTool private(
           case _ => None
         }
 
-        json.get(outputPort.name)
+        json.get(outputPort.internalName)
           .map(_.foldWith(CwlJsonToDelayedCoercionFunction).apply(outputPort.womType).map(outputPort -> _))
           .orElse(emptyValue)
-          .getOrElse(s"Cannot find a value for output ${outputPort.name} in output json $json".invalidNel)
+          .getOrElse(s"Cannot find a value for output ${outputPort.internalName} in output json $json".invalidNel)
       }).toEither
     }
 
@@ -232,7 +232,7 @@ case class CommandLineTool private(
     Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> ValueAsAnExpression(arr))
   }
 
-  def buildTaskDefinition(taskName: String,
+  override def buildTaskDefinition(taskName: String,
                           inputDefinitions: List[_ <: Callable.InputDefinition],
                           outputDefinitions: List[Callable.OutputDefinition],
                           runtimeAttributes: RuntimeAttributes,

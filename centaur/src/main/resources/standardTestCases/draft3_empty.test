@@ -2,6 +2,7 @@ name: draft3_empty
 testFormat: workflowsuccess
 workflowType: WDL
 workflowTypeVersion: draft-3
+tags: ["draft-3"]
 
 files {
   workflow: wdl_draft3/empty/empty.wdl

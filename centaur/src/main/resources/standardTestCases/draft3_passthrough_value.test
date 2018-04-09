@@ -2,6 +2,7 @@ name: draft3_passthrough_value
 testFormat: workflowsuccess
 workflowType: WDL
 workflowTypeVersion: draft-3
+tags: ["draft-3"]
 
 files {
   workflow: wdl_draft3/passthrough_value/passthrough_value.wdl

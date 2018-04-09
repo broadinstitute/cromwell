@@ -11,6 +11,7 @@ import wom.expression.NoIoFunctionSet
 import wom.values.{WomBoolean, WomFloat, WomInteger, WomValue}
 import wdl.draft3.transforms.linking.expression.values.expressionEvaluator
 import wdl.draft3.transforms.linking.expression.types.expressionTypeEvaluator
+import wdl.model.draft3.graph.expression.EvaluatedValue
 import wom.types.{WomFloatType, WomIntegerType, WomType}
 
 /**
@@ -44,7 +45,7 @@ class TernaryIfEvaluatorSpec extends FlatSpec with Matchers{
 
   valueTests foreach { case (name, expression, expected) =>
     it should s"evaluate the expression '$name'" in {
-      expression.evaluateValue(Map.empty, NoIoFunctionSet) shouldBeValid expected
+      expression.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expected, Seq.empty)
     }
   }
 

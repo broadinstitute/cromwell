@@ -158,6 +158,13 @@ object WdlExpression {
           s"$key:$value"
         }
         s"{${evaluatedMap.mkString(",")}}"
+      case a: Ast if a.isObjectLiteral =>
+        val evaluatedMap = a.getAttribute("map").astListAsVector map { kv =>
+          val key = toString(kv.asInstanceOf[Ast].getAttribute("key"), highlighter)
+          val value = toString(kv.asInstanceOf[Ast].getAttribute("value"), highlighter)
+          s"$key:$value"
+        }
+        s"{${evaluatedMap.mkString(",")}}"
       case a: Ast if a.isMemberAccess =>
         val lhs = toString(a.getAttribute("lhs"), highlighter)
         val rhs = toString(a.getAttribute("rhs"), highlighter)
@@ -259,7 +266,7 @@ object WdlWomExpression {
           // It might be a local value or it might be an OGIN already created by another Node for an outerLookup.
           Valid(name -> port)
         case (None, Some(port)) => Valid(name -> OuterGraphInputNode(WomIdentifier(name), port, preserveIndexForOuterLookups).singleOutputPort)
-        case (None, None) => s"No input $name found evaluating inputs for expression ${expression.wdlExpression.toWomString}".invalidNel
+        case (None, None) => s"No input $name found evaluating inputs for expression ${expression.wdlExpression.toWomString} in (${(innerLookup.keys ++ outerLookup.keys).mkString(", ")})".invalidNel
       }
     }
 

@@ -38,7 +38,7 @@ object OutputEvaluator {
       val allKnownValues: Map[String, WomValue] = accumulated match {
         case Valid(outputs) =>
           // The evaluateValue methods needs a Map[String, WomValue], use the output port name for already computed outputs
-          outputs.toMap[OutputPort, WomValue].map({ case (port, value) => port.name -> value }) ++ taskInputValues
+          outputs.toMap[OutputPort, WomValue].map({ case (port, value) => port.internalName -> value }) ++ taskInputValues
         case Invalid(_) => taskInputValues
       }
 

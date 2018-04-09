@@ -2,6 +2,7 @@ name: draft3_nested_struct
 testFormat: workflowsuccess
 workflowType: WDL
 workflowTypeVersion: draft-3
+tags: ["draft-3"]
 
 files {
   workflow: wdl_draft3/nested_struct/nested_struct.wdl

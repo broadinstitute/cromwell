@@ -40,7 +40,7 @@ case class CentaurTestCase(workflow: Workflow,
     val backendSupported = workflow.backends match {
       case AllBackendsRequired(allBackends) => allBackends forall supportedBackends.contains
       case AnyBackendRequired(anyBackend) => anyBackend exists supportedBackends.contains
-      case OnlyBackendsAllowed(onlyBackends) => onlyBackends.toSet == supportedBackends.toSet
+      case OnlyBackendsAllowed(onlyBackends) => supportedBackends forall onlyBackends.contains
     }
 
     testOptions.ignore || !backendSupported

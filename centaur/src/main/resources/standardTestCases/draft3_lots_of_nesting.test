@@ -2,6 +2,7 @@ name: draft3_lots_of_nesting
 testFormat: workflowsuccess
 workflowType: WDL
 workflowTypeVersion: draft-3
+tags: ["draft-3"]
 
 files {
   workflow: wdl_draft3/lots_of_nesting/lots_of_nesting.wdl

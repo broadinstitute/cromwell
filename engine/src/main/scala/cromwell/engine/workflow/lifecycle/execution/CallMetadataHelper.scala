@@ -73,7 +73,7 @@ trait CallMetadataHelper {
         List(MetadataEvent.empty(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Outputs}")))
       case _ =>
         outputs.outputs flatMap { case (outputPort, outputValue) =>
-          womValueToMetadataEvents(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Outputs}:${outputPort.name}"), outputValue) 
+          womValueToMetadataEvents(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Outputs}:${outputPort.internalName}"), outputValue)
         }
     }
 

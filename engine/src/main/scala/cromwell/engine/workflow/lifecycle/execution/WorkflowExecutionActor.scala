@@ -180,7 +180,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       if(subworkflowOutputs.size == callOutputs.outputs.size) {
         handleCallSuccessful(jobKey, CallOutputs(subworkflowOutputs), None, currentStateData, descendantJobKeys)
       } else {
-        handleNonRetryableFailure(currentStateData, jobKey, new Exception(s"Subworkflow produced outputs: [${callOutputs.outputs.keys.mkString(", ")}], but we expected all of [${jobKey.node.subworkflowCallOutputPorts.map(_.name)}]"))
+        handleNonRetryableFailure(currentStateData, jobKey, new Exception(s"Subworkflow produced outputs: [${callOutputs.outputs.keys.mkString(", ")}], but we expected all of [${jobKey.node.subworkflowCallOutputPorts.map(_.internalName)}]"))
       }
     // Expression
     case Event(ExpressionEvaluationSucceededResponse(expressionKey, callOutputs), stateData) =>
@@ -310,7 +310,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     )
       .toList.traverse[ErrorOr, (GraphOutputNode, WomValue)]({
       case (name, Some(value)) => (name -> value).validNel
-      case (name, None) => s"Cannot find an output value for ${name.identifier.fullyQualifiedName.value}".invalidNel
+      case (name, None) =>
+        s"Cannot find an output value for ${name.identifier.fullyQualifiedName.value}".invalidNel
     })
       // Convert the list of tuples to a Map
       .map(_.toMap)

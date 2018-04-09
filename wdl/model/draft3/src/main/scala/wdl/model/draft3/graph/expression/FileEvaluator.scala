@@ -8,7 +8,6 @@ import wdl.shared.model.expression.FileEvaluatorUtil
 import wom.expression.IoFunctionSet
 import wom.types.WomType
 import wom.values.{WomFile, WomValue}
-import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 
 import scala.language.implicitConversions
 
@@ -19,8 +18,8 @@ trait FileEvaluator[A] {
                                           ioFunctionSet: IoFunctionSet,
                                           coerceTo: WomType)
                                          (implicit valueEvaluator: ValueEvaluator[A]): ErrorOr[Set[WomFile]] = {
-    a.evaluateValue(inputs, ioFunctionSet) match {
-      case Valid(womValue) => FileEvaluatorUtil.findFilesToDelocalize(womValue, coerceTo).toSet.validNel
+    valueEvaluator.evaluateValue(a, inputs, ioFunctionSet, None) match {
+      case Valid(womValue) => FileEvaluatorUtil.findFilesToDelocalize(womValue.value, coerceTo).toSet.validNel
       case _ => predictFilesNeededToEvaluate(a, inputs, ioFunctionSet, coerceTo)
     }
   }

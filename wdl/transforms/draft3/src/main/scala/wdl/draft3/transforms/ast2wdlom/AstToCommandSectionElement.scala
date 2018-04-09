@@ -46,7 +46,11 @@ object AstToCommandSectionElement {
   }
 
   private def dropEmpties(line: CommandSectionLine): CommandSectionLine = {
-    CommandSectionLine(line.parts.filterNot(allWhitespace))
+    def empty(c: CommandPartElement): Boolean = c match {
+      case StringCommandPartElement(s) if s.isEmpty => true
+      case _ => false
+    }
+    CommandSectionLine(line.parts.filterNot(empty))
   }
 
   private def minimumStartLength(lines: Vector[CommandSectionLine]): Int = {

@@ -171,7 +171,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
             FailedOrError
 
           case s if s.contains("ERROR") =>
-            jobLogger.info(s"TES reported an error for Job ${handle.pendingJob.jobId}")
+            jobLogger.info(s"TES reported an error for Job ${handle.pendingJob.jobId}: '$s'")
             FailedOrError
 
           case _ => Running

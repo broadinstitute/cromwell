@@ -8,12 +8,14 @@ import eu.timepit.refined._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless._
+import spray.json.{JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsValue, RootJsonFormat}
 import wom.WomMatchers._
 import wom.callable.{Callable, CommandTaskDefinition, WorkflowDefinition}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.graph.expression.ExpressionNode
 import wom.types.{WomMaybePopulatedFileType, WomStringType, WomType}
+import wom.values.{WomArray, WomBoolean, WomFile, WomFloat, WomInteger, WomMap, WomObjectLike, WomOptionalValue, WomPair, WomString, WomValue}
 
 class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
   import TestSetup._
@@ -97,7 +99,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
           }.get.inputPorts.map(_.upstream).head
 
           compileUpstreamExpressionPort.name shouldBe s"file://$rootPath/1st-workflow.cwl#compile/src.merge"
-          compileUpstreamExpressionPort.graphNode.asInstanceOf[ExpressionNode].inputPorts.map(_.upstream.name).count(_ == "example_out") shouldBe 1
+          compileUpstreamExpressionPort.graphNode.asInstanceOf[ExpressionNode].inputPorts.map(_.upstream.internalName).count(_ == "example_out") shouldBe 1
 
           nodes.collect {
             case c: PortBasedGraphOutputNode => c

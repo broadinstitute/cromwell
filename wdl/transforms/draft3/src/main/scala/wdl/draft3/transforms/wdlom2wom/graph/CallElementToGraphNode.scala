@@ -121,7 +121,9 @@ object CallElementToGraphNode {
     for {
       callable <- callableValidation
       mappings <- expressionNodeMappings(callable)
-      result = callNodeBuilder.build(WomIdentifier(s"${a.workflowName}.${a.node.alias.getOrElse(a.node.callableName)}"), callable, foldInputDefinitions(mappings, callable))
+      localName = s"${a.node.alias.getOrElse(a.node.callableName)}"
+      identifier = WomIdentifier(localName = localName, fullyQualifiedName = a.workflowName + "." + localName)
+      result = callNodeBuilder.build(identifier, callable, foldInputDefinitions(mappings, callable))
       _ = updateTaskCallNodeInputs(result, mappings)
     } yield result.nodes
   }

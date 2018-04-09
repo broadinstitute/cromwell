@@ -3,6 +3,7 @@ package wdl.draft3.transforms.linking
 import cats.syntax.apply._
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr._
 import common.validation.Validation._
 import wdl.model.draft3.elements._
 import wdl.model.draft3.graph.expression.WomTypeMaker
@@ -36,6 +37,15 @@ package object typemakers {
     }
   }
 
+  implicit val nonEmptyTypeElementConverter: WomTypeMaker[NonEmptyTypeElement] = new WomTypeMaker[NonEmptyTypeElement] {
+    override def determineWomType(a: NonEmptyTypeElement, availableAliases: Map[String, WomType]): ErrorOr[WomType] = {
+      a.arrayType.determineWomType(availableAliases) flatMap {
+        case WomArrayType(memberType) => WomNonEmptyArrayType(memberType).validNel
+        case other: WomType => s"Cannot declare a non-empty $other (+ is only applicable to Array[_] types)".invalidNel
+      }
+    }
+  }
+
   implicit val pairTypeElementConverter: WomTypeMaker[PairTypeElement] = new WomTypeMaker[PairTypeElement] {
     override def determineWomType(a: PairTypeElement, availableAliases: Map[String, WomType]): ErrorOr[WomType] = {
       (a.leftType.determineWomType(availableAliases),
@@ -55,6 +65,7 @@ package object typemakers {
       case a: ArrayTypeElement => a.determineWomType(availableAliases)
       case m: MapTypeElement => m.determineWomType(availableAliases)
       case o: OptionalTypeElement => o.determineWomType(availableAliases)
+      case n: NonEmptyTypeElement => n.determineWomType(availableAliases)
       case p: PairTypeElement => p.determineWomType(availableAliases)
       case s: TypeAliasElement => s.determineWomType(availableAliases)
       case ObjectTypeElement => WomObjectType.validNel

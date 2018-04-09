@@ -135,8 +135,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
         responseOutputs.outputs foreach {
           case (fqn, out) =>
             val expectedOut = expectedOutputs.outputs.collectFirst({case (p, v) if p.name == fqn.name => v})
-            expectedOut.isDefined shouldBe true
-            expectedOut.get.valueString shouldBe out.valueString
+            expectedOut.getOrElse(fail(s"Output ${fqn.name} not found in ${expectedOutputs.outputs.map(_._1.name)}")).valueString shouldBe out.valueString
         }
       case (JobFailedNonRetryableResponse(_, failure, _), JobFailedNonRetryableResponse(_, expectedFailure, _)) =>
         failure.getClass shouldBe expectedFailure.getClass

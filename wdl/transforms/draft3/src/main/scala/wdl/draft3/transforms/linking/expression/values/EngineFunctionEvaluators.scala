@@ -6,152 +6,376 @@ import cats.instances.list._
 import common.validation.ErrorOr._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
-import wdl.draft3.transforms.linking.expression.values.EngineFunctionEvaluators.processValidatedSingleValue
 import wom.format.MemorySize
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.model.draft3.graph.expression.ValueEvaluator
+import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wdl.shared.transforms.evaluation.values.EngineFunctions
 import wdl4s.parser.MemoryUnit
 import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values.WomArray.WomArrayLike
-import wom.values.{WomArray, WomFloat, WomInteger, WomOptionalValue, WomPair, WomSingleFile, WomString, WomValue}
+import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomMap, WomObject, WomOptionalValue, WomPair, WomSingleFile, WomString, WomValue}
 import wom.types.coercion.ops._
 import wom.types.coercion.defaults._
 import wom.types.coercion.WomTypeCoercer
+import spray.json._
+import wdl.draft3.transforms.linking.expression.values.EngineFunctionEvaluators.processTwoValidatedValues
+import wdl.shared.model.expression.ValueEvaluation
+import wom.CommandSetupSideEffectFile
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
-import scala.util.{Success, Try}
+import scala.concurrent.Await
+import scala.util.Try
 
 object EngineFunctionEvaluators {
   implicit val stdoutFunctionEvaluator: ValueEvaluator[StdoutElement.type] = new ValueEvaluator[StdoutElement.type] {
-    override def evaluateValue(a: StdoutElement.type, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = WomSingleFile(ioFunctionSet.pathFunctions.stdout).validNel
+    override def evaluateValue(a: StdoutElement.type,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomSingleFile]] =
+      EvaluatedValue(WomSingleFile(ioFunctionSet.pathFunctions.stdout), Seq.empty).validNel
   }
 
   implicit val stderrFunctionEvaluator: ValueEvaluator[StderrElement.type] = new ValueEvaluator[StderrElement.type] {
-    override def evaluateValue(a: StderrElement.type, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = WomSingleFile(ioFunctionSet.pathFunctions.stderr).validNel
+    override def evaluateValue(a: StderrElement.type,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomSingleFile]] =
+      EvaluatedValue(WomSingleFile(ioFunctionSet.pathFunctions.stderr), Seq.empty).validNel
   }
 
   implicit val readLinesFunctionEvaluator: ValueEvaluator[ReadLines] = new ValueEvaluator[ReadLines] {
-    override def evaluateValue(a: ReadLines, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
+    override def evaluateValue(a: ReadLines,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomArray]] = {
+      processValidatedSingleValue[WomSingleFile, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
+        val tryResult = for {
+          read <- Try(Await.result(ioFunctionSet.readFile(fileToRead.value, None, failOnOverflow = true), 10.seconds))
+          lines = read.split(System.lineSeparator)
+        } yield EvaluatedValue(WomArray(lines map WomString.apply), Seq.empty)
+        tryResult.toErrorOr.contextualizeErrors(s"""read_lines("${fileToRead.value}")""")
+      }
+    }
   }
 
   implicit val readTsvFunctionEvaluator: ValueEvaluator[ReadTsv] = new ValueEvaluator[ReadTsv] {
-    override def evaluateValue(a: ReadTsv, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
+    override def evaluateValue(a: ReadTsv,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomArray]] = {
+      processValidatedSingleValue[WomSingleFile, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
+        val tryResult = for {
+          read <- Try(Await.result(ioFunctionSet.readFile(fileToRead.value, None, failOnOverflow = true), 10.seconds))
+          tsv <- Try(WomArray.fromTsv(read))
+        } yield EvaluatedValue(tsv, Seq.empty)
+        tryResult.toErrorOr.contextualizeErrors(s"""read_tsv("${fileToRead.value}")""")
+      }
+    }
   }
 
   implicit val readMapFunctionEvaluator: ValueEvaluator[ReadMap] = new ValueEvaluator[ReadMap] {
-    override def evaluateValue(a: ReadMap, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
+    override def evaluateValue(a: ReadMap,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomMap]] = {
+      processValidatedSingleValue[WomSingleFile, WomMap](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
+        val tryResult = for {
+          read <- Try(Await.result(ioFunctionSet.readFile(fileToRead.value, None, failOnOverflow = true), 10.seconds))
+          map <- WomMap.fromTsv(read)
+        } yield EvaluatedValue(map, Seq.empty)
+        tryResult.toErrorOr.contextualizeErrors(s"""read_map("${fileToRead.value}")""")
+      }
+    }
   }
 
   implicit val readObjectFunctionEvaluator: ValueEvaluator[ReadObject] = new ValueEvaluator[ReadObject] {
-    override def evaluateValue(a: ReadObject, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
+    override def evaluateValue(a: ReadObject,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomObject]] = {
+      processValidatedSingleValue[WomSingleFile, WomObject](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
+        val tryResult = for {
+          read <- Try(Await.result(ioFunctionSet.readFile(fileToRead.value, None, failOnOverflow = true), 10.seconds))
+          obj <- WomObject.fromTsv(read)
+        } yield obj
+        val rightSize: ErrorOr[WomObject] = tryResult.toErrorOr flatMap {
+          case oneItem: Array[WomObject] if oneItem.length == 1 => oneItem.head.validNel
+          case other: Array[WomObject] => s"Exactly 1 TSV object expected in input file (ie 2 lines: headers and data), but instead got an array of ${other.length} entries.".invalidNel
+        }
+        rightSize.map(EvaluatedValue(_, Seq.empty)).contextualizeErrors(s"""read_object("${fileToRead.value}")""")
+      }
+    }
   }
 
   implicit val readObjectsFunctionEvaluator: ValueEvaluator[ReadObjects] = new ValueEvaluator[ReadObjects] {
-    override def evaluateValue(a: ReadObjects, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
+    override def evaluateValue(a: ReadObjects,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomArray]] = {
+      processValidatedSingleValue[WomSingleFile, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
+        val tryResult = for {
+          read <- Try(Await.result(ioFunctionSet.readFile(fileToRead.value, None, failOnOverflow = true), 10.seconds))
+          objects <- WomObject.fromTsv(read)
+        } yield WomArray(objects)
+
+        tryResult.map(EvaluatedValue(_, Seq.empty)).toErrorOr.contextualizeErrors(s"""read_objects("${fileToRead.value}")""")
+      }
+    }
   }
 
   implicit val readJsonFunctionEvaluator: ValueEvaluator[ReadJson] = new ValueEvaluator[ReadJson] {
-    override def evaluateValue(a: ReadJson, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
+    override def evaluateValue(a: ReadJson,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomObject]] = {
+      processValidatedSingleValue[WomSingleFile, WomObject](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
+        val tryResult: Try[WomObject] = for {
+          read <- Try(Await.result(ioFunctionSet.readFile(fileToRead.value, None, failOnOverflow = true), 10.seconds))
+          jsValue <- Try(read.parseJson)
+          coerced <- WomObjectType.coerceRawValue(jsValue)
+          womObject <- Try(coerced.asInstanceOf[WomObject])
+        } yield womObject
+
+        tryResult.map(EvaluatedValue(_, Seq.empty)).toErrorOr.contextualizeErrors(s"""read_json("${fileToRead.value}")""")
+      }
+    }
   }
 
   implicit val readIntFunctionEvaluator: ValueEvaluator[ReadInt] = new ValueEvaluator[ReadInt] {
-    override def evaluateValue(a: ReadInt, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
-      processValidatedSingleValue[WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet)) { fileToRead =>
+    override def evaluateValue(a: ReadInt,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomInteger]] = {
+      processValidatedSingleValue[WomSingleFile, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
         val tryResult = for {
           read <- Try(Await.result(ioFunctionSet.readFile(fileToRead.value, None, failOnOverflow = true), 10.seconds))
           asInt <- Try(read.trim.toInt)
         } yield WomInteger(asInt)
-        tryResult.toErrorOr.contextualizeErrors(s"""readInt("${fileToRead.value}")""")
+        tryResult.map(EvaluatedValue(_, Seq.empty)).toErrorOr.contextualizeErrors(s"""read_int("${fileToRead.value}")""")
       }
     }
   }
 
   implicit val readStringFunctionEvaluator: ValueEvaluator[ReadString] = new ValueEvaluator[ReadString] {
-    override def evaluateValue(a: ReadString, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
+    override def evaluateValue(a: ReadString,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomString]] = {
+      processValidatedSingleValue[WomSingleFile, WomString](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
+        val tryResult = for {
+          read <- Try(Await.result(ioFunctionSet.readFile(fileToRead.value, None, failOnOverflow = true), 10.seconds))
+        } yield WomString(read.trim)
+        tryResult.map(EvaluatedValue(_, Seq.empty)).toErrorOr.contextualizeErrors(s"""read_string("${fileToRead.value}")""")
+      }
+    }
   }
 
   implicit val readFloatFunctionEvaluator: ValueEvaluator[ReadFloat] = new ValueEvaluator[ReadFloat] {
-    override def evaluateValue(a: ReadFloat, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
+    override def evaluateValue(a: ReadFloat,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomFloat]] = {
+      processValidatedSingleValue[WomSingleFile, WomFloat](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
+        val tryResult = for {
+          read <- Try(Await.result(ioFunctionSet.readFile(fileToRead.value, None, failOnOverflow = true), 10.seconds))
+          asFloat <- Try(read.trim.toDouble)
+        } yield WomFloat(asFloat)
+        tryResult.map(EvaluatedValue(_, Seq.empty)).toErrorOr.contextualizeErrors(s"""read_float("${fileToRead.value}")""")
+      }
+    }
   }
 
   implicit val readBooleanFunctionEvaluator: ValueEvaluator[ReadBoolean] = new ValueEvaluator[ReadBoolean] {
-    override def evaluateValue(a: ReadBoolean, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
+    override def evaluateValue(a: ReadBoolean,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomBoolean]] = {
+      processValidatedSingleValue[WomSingleFile, WomBoolean](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
+        val tryResult = for {
+          read <- Try(Await.result(ioFunctionSet.readFile(fileToRead.value, None, failOnOverflow = true), 10.seconds))
+          asBool <- Try(read.trim.toBoolean)
+        } yield WomBoolean(asBool)
+        tryResult.map(EvaluatedValue(_, Seq.empty)).toErrorOr.contextualizeErrors(s"""read_int("${fileToRead.value}")""")
+      }
+    }
+  }
+
+  private def writeContent(functionName: String, ioFunctionSet: IoFunctionSet, content: String): Try[WomSingleFile] = {
+    import wom.values.HashableString
+    Try(Await.result(ioFunctionSet.writeFile(s"${functionName}_${content.md5Sum}.tmp", content) , Duration.Inf))
   }
 
   implicit val writeLinesFunctionEvaluator: ValueEvaluator[WriteLines] = new ValueEvaluator[WriteLines] {
-    override def evaluateValue(a: WriteLines, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
+    override def evaluateValue(a: WriteLines,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomSingleFile]] = {
+      val functionName = "write_lines"
+      processValidatedSingleValue[WomArray, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { stringsToWrite =>
+        val tryResult = for {
+          serialized <- ValueEvaluation.serializeWomValue(functionName, stringsToWrite, defaultIfOptionalEmpty = WomArray(WomArrayType(WomStringType), Seq.empty))
+          written <- writeContent(functionName, ioFunctionSet, serialized)
+        } yield written
+
+        tryResult.map(v => EvaluatedValue(v, Seq(CommandSetupSideEffectFile(v)))).toErrorOr.contextualizeErrors(s"""$functionName(...)""")
+      } (coercer = WomArrayType(WomStringType))
+    }
   }
 
   implicit val writeTsvFunctionEvaluator: ValueEvaluator[WriteTsv] = new ValueEvaluator[WriteTsv] {
-    override def evaluateValue(a: WriteTsv, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
+    override def evaluateValue(a: WriteTsv,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomSingleFile]] = {
+      val functionName = "write_tsv"
+      processValidatedSingleValue[WomArray, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { objectToWrite =>
+
+        val tryResult = for {
+          serialized <- ValueEvaluation.serializeWomValue(functionName, objectToWrite, defaultIfOptionalEmpty = WomArray(WomArrayType(WomStringType), List.empty[WomValue]))
+          written <- writeContent(functionName, ioFunctionSet, serialized)
+        } yield written
+
+        tryResult.map(v => EvaluatedValue(v, Seq(CommandSetupSideEffectFile(v)))).toErrorOr.contextualizeErrors(s"""$functionName(...)""")
+      } (coercer = WomArrayType(WomAnyType))
+    }
   }
 
   implicit val writeMapFunctionEvaluator: ValueEvaluator[WriteMap] = new ValueEvaluator[WriteMap] {
-    override def evaluateValue(a: WriteMap, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
+    override def evaluateValue(a: WriteMap,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomSingleFile]] = {
+      val functionName = "write_map"
+      processValidatedSingleValue[WomObject, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { objectToWrite =>
+        val tryResult = for {
+          serialized <- ValueEvaluation.serializeWomValue(functionName, objectToWrite, defaultIfOptionalEmpty = WomObject(Map.empty))
+          written <- writeContent(functionName, ioFunctionSet, serialized)
+        } yield written
+
+        tryResult.map(v => EvaluatedValue(v, Seq(CommandSetupSideEffectFile(v)))).toErrorOr.contextualizeErrors(s"""$functionName(...)""")
+      }
+    }
   }
 
   implicit val writeObjectFunctionEvaluator: ValueEvaluator[WriteObject] = new ValueEvaluator[WriteObject] {
-    override def evaluateValue(a: WriteObject, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
+    override def evaluateValue(a: WriteObject,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomSingleFile]] = {
+      val functionName = "write_object"
+      processValidatedSingleValue[WomObject, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { objectToWrite =>
+        val tryResult = for {
+          serialized <- ValueEvaluation.serializeWomValue(functionName, objectToWrite, defaultIfOptionalEmpty = WomObject(Map.empty))
+          written <- writeContent(functionName, ioFunctionSet, serialized)
+        } yield written
+
+        tryResult.map(v => EvaluatedValue(v, Seq(CommandSetupSideEffectFile(v)))).toErrorOr.contextualizeErrors(s"""$functionName(...)""")
+      }
+    }
   }
 
   implicit val writeObjectsFunctionEvaluator: ValueEvaluator[WriteObjects] = new ValueEvaluator[WriteObjects] {
-    override def evaluateValue(a: WriteObjects, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
+    override def evaluateValue(a: WriteObjects,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomSingleFile]] = {
+      val functionName = "write_objects"
+      processValidatedSingleValue[WomArray, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { objectToWrite =>
+        val tryResult = for {
+          serialized <- ValueEvaluation.serializeWomValue(functionName, objectToWrite, defaultIfOptionalEmpty = WomObject(Map.empty))
+          written <- writeContent(functionName, ioFunctionSet, serialized)
+        } yield written
+
+        tryResult.map(v => EvaluatedValue(v, Seq(CommandSetupSideEffectFile(v)))).toErrorOr.contextualizeErrors(s"""$functionName(...)""")
+      } (coercer = WomArrayType(WomArrayType(WomObjectType)))
+    }
   }
 
   implicit val writeJsonFunctionEvaluator: ValueEvaluator[WriteJson] = new ValueEvaluator[WriteJson] {
-    override def evaluateValue(a: WriteJson, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
+    override def evaluateValue(a: WriteJson,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomSingleFile]] = {
+      val functionName = "write_json"
+      processValidatedSingleValue[WomObject, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { objectToWrite =>
+        val serialized = ValueEvaluation.valueToJson(objectToWrite)
+        val tryResult = for {
+          written <- writeContent(functionName, ioFunctionSet, serialized.compactPrint)
+        } yield written
+
+        tryResult.map(v => EvaluatedValue(v, Seq(CommandSetupSideEffectFile(v)))).toErrorOr.contextualizeErrors(s"""$functionName(...)""")
+      }
+    }
   }
 
   implicit val rangeFunctionEvaluator: ValueEvaluator[Range] = new ValueEvaluator[Range] {
-    override def evaluateValue(a: Range, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
-      processValidatedSingleValue[WomInteger](a.param.evaluateValue(inputs, ioFunctionSet)) { integer =>
-        WomArray(
+    override def evaluateValue(a: Range,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomArray]] = {
+      processValidatedSingleValue[WomInteger, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { integer =>
+        val array = WomArray(
           womType = WomArrayType(WomIntegerType, guaranteedNonEmpty = integer.value > 0),
           value = (0 until integer.value).map(WomInteger)
-        ).validNel
+        )
+        EvaluatedValue(array, Seq.empty).validNel
       }
     }
   }
 
   implicit val transposeFunctionEvaluator: ValueEvaluator[Transpose] = new ValueEvaluator[Transpose] {
-    override def evaluateValue(a: Transpose, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] =
-      processValidatedSingleValue[WomArray](a.param.evaluateValue(inputs, ioFunctionSet)) { array =>
-        EngineFunctions.transpose(array).toErrorOr
+    override def evaluateValue(a: Transpose,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomArray]] = {
+      processValidatedSingleValue[WomArray, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { array =>
+        EngineFunctions.transpose(array).map(EvaluatedValue(_, Seq.empty)).toErrorOr
       }
+    }
   }
 
   implicit val lengthFunctionEvaluator: ValueEvaluator[Length] = new ValueEvaluator[Length] {
-    override def evaluateValue(a: Length, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] =
-      processValidatedSingleValue[WomArray](a.param.evaluateValue(inputs, ioFunctionSet)) { a => WomInteger(a.value.size).validNel }
+    override def evaluateValue(a: Length,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomInteger]] = {
+      processValidatedSingleValue[WomArray, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { a =>
+        EvaluatedValue(WomInteger(a.value.size), Seq.empty).validNel
+      }
+    }
   }
 
   implicit val flattenFunctionEvaluator: ValueEvaluator[Flatten] = new ValueEvaluator[Flatten] {
-    override def evaluateValue(a: Flatten, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
+    override def evaluateValue(a: Flatten,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomArray]] = {
       def flatValues(v: WomValue): ErrorOr[Seq[WomValue]] = v match {
         case WomArrayLike(arrayLike) => arrayLike.value.validNel
         case other => s"inner item ${other.toWomString} was not an array-like".invalidNel
       }
 
-      processValidatedSingleValue[WomArray](a.param.evaluateValue(inputs, ioFunctionSet)) { array =>
+      processValidatedSingleValue[WomArray, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { array =>
         val expandedValidation = array.value.toList.traverse[ErrorOr, Seq[WomValue]] { flatValues }
-        expandedValidation map { expanded => WomArray(expanded.flatten) }
+        expandedValidation map { expanded => EvaluatedValue(WomArray(expanded.flatten), Seq.empty) }
       } (coercer = WomArrayType(WomArrayType(WomAnyType)))
     }
   }
 
   implicit val selectFirstFunctionEvaluator: ValueEvaluator[SelectFirst] = new ValueEvaluator[SelectFirst] {
-    override def evaluateValue(a: SelectFirst, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
-      processValidatedSingleValue[WomArray](a.param.evaluateValue(inputs, ioFunctionSet)) { array =>
+    override def evaluateValue(a: SelectFirst,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomValue]] = {
+      processValidatedSingleValue[WomArray, WomValue](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { array =>
         val firstValue = array.value collectFirst {
           case WomOptionalValue(_, Some(yay)) => yay
         }
 
         firstValue match {
-          case Some(first) => first.validNel
+          case Some(first) => EvaluatedValue(first, Seq.empty).validNel
           case None => s"select_first was called with ${array.size} empty values. We needed at least one to be filled.".invalidNel
         }
       } (coercer = WomArrayType(WomOptionalType(WomAnyType)))
@@ -159,39 +383,68 @@ object EngineFunctionEvaluators {
   }
 
   implicit val selectAllFunctionEvaluator: ValueEvaluator[SelectAll] = new ValueEvaluator[SelectAll] {
-    override def evaluateValue(a: SelectAll, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
+    override def evaluateValue(a: SelectAll,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomArray]] = {
+      processValidatedSingleValue[WomArray, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { array =>
+        val goodValues = array.value.collect {
+          case WomOptionalValue.Flattened(Some(value)) => value
+        }
+        EvaluatedValue(WomArray(goodValues), Seq.empty).validNel
+      } (coercer = WomArrayType(WomOptionalType(WomAnyType)))
+    }
   }
 
   implicit val definedFunctionEvaluator: ValueEvaluator[Defined] = new ValueEvaluator[Defined] {
-    override def evaluateValue(a: Defined, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
+    override def evaluateValue(a: Defined,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomBoolean]] = {
+      processValidatedSingleValue[WomOptionalValue, WomBoolean](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { optionalValue =>
+        EvaluatedValue(WomBoolean(optionalValue.value.isDefined), Seq.empty).validNel
+      }
+    }
   }
 
   implicit val floorFunctionEvaluator: ValueEvaluator[Floor] = new ValueEvaluator[Floor] {
-    override def evaluateValue(a: Floor, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
-      processValidatedSingleValue[WomFloat](a.param.evaluateValue(inputs, ioFunctionSet)) { float =>
-        WomInteger(math.floor(float.value).toInt).validNel
+    override def evaluateValue(a: Floor,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomInteger]] = {
+      processValidatedSingleValue[WomFloat, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { float =>
+        EvaluatedValue(WomInteger(math.floor(float.value).toInt), Seq.empty).validNel
       }
     }
   }
 
   implicit val ceilFunctionEvaluator: ValueEvaluator[Ceil] = new ValueEvaluator[Ceil] {
-    override def evaluateValue(a: Ceil, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
-      processValidatedSingleValue[WomFloat](a.param.evaluateValue(inputs, ioFunctionSet)) { float =>
-        WomInteger(math.ceil(float.value).toInt).validNel
+    override def evaluateValue(a: Ceil,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomInteger]] = {
+      processValidatedSingleValue[WomFloat, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { float =>
+        EvaluatedValue(WomInteger(math.ceil(float.value).toInt), Seq.empty).validNel
       }
     }
   }
 
   implicit val roundFunctionEvaluator: ValueEvaluator[Round] = new ValueEvaluator[Round] {
-    override def evaluateValue(a: Round, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
-      processValidatedSingleValue[WomFloat](a.param.evaluateValue(inputs, ioFunctionSet)) { float =>
-        WomInteger(math.round(float.value).toInt).validNel
+    override def evaluateValue(a: Round,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomInteger]] = {
+      processValidatedSingleValue[WomFloat, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { float =>
+        EvaluatedValue(WomInteger(math.round(float.value).toInt), Seq.empty).validNel
       }
     }
   }
 
   implicit val sizeFunctionEvaluator: ValueEvaluator[Size] = new ValueEvaluator[Size] {
-    override def evaluateValue(a: Size, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
+    override def evaluateValue(a: Size,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomFloat]] = {
       // Inner function: get the memory unit from the second (optional) parameter
       def toUnit(womValue: WomValue): ErrorOr[MemoryUnit] = Try(MemoryUnit.fromSuffix(womValue.valueString)).toErrorOr
 
@@ -213,45 +466,50 @@ object EngineFunctionEvaluators {
       }
 
       // Inner function: get the file size and convert into the requested memory unit
-      def fileSize(womValue: ErrorOr[WomValue], convertTo: ErrorOr[MemoryUnit] = MemoryUnit.Bytes.validNel): ErrorOr[Double] = {
+      def fileSize(womValue: ErrorOr[EvaluatedValue[_ <: WomValue]], convertToOption: Option[ErrorOr[EvaluatedValue[_ <: WomValue]]]): ErrorOr[EvaluatedValue[WomFloat]] = {
+        val convertTo: ErrorOr[EvaluatedValue[_ <: WomValue]] = convertToOption.getOrElse(EvaluatedValue(WomString("B"), Seq.empty).validNel)
         for {
           value <- womValue
-          unit <- convertTo
-          fileSize <- optionalSafeFileSize(value)
-        } yield MemorySize(fileSize.toDouble, MemoryUnit.Bytes).to(unit).amount
+          evaluatedUnitValue <- convertTo
+          convertToUnit <- toUnit(evaluatedUnitValue.value)
+          fileSize <- optionalSafeFileSize(value.value)
+        } yield EvaluatedValue(WomFloat(MemorySize(fileSize.toDouble, MemoryUnit.Bytes).to(convertToUnit).amount), value.sideEffectFiles ++ evaluatedUnitValue.sideEffectFiles)
       }
 
-      val evaluatedFileValidation: ErrorOr[WomValue] = a.file.evaluateValue(inputs, ioFunctionSet)
-      a.unit map (_.evaluateValue(inputs, ioFunctionSet)) match {
-        case None => fileSize(evaluatedFileValidation) map WomFloat.apply
-        case Some(evaluatedUnitValidation) => fileSize(evaluatedFileValidation, evaluatedUnitValidation flatMap toUnit) map WomFloat.apply
-      }
+      val evaluatedFileValidation: ErrorOr[EvaluatedValue[_ <: WomValue]] = a.file.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
+      fileSize(evaluatedFileValidation, a.unit map (_.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)))
     }
   }
 
   implicit val basenameFunctionEvaluator: ValueEvaluator[Basename] = new ValueEvaluator[Basename] {
-    override def evaluateValue(a: Basename, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
+    override def evaluateValue(a: Basename,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomString]] = {
       def simpleBasename(fileNameAsString: WomString) = fileNameAsString.valueString.split('/').last
 
       a.suffixToRemove match {
-        case None => processValidatedSingleValue[WomString](a.param.evaluateValue(inputs, ioFunctionSet)) { str =>
-          WomString(simpleBasename(str)).validNel
+        case None => processValidatedSingleValue[WomString, WomString](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { str =>
+          EvaluatedValue(WomString(simpleBasename(str)), Seq.empty).validNel
         }
-        case Some(suffixToRemove) => processTwoValidatedValues[WomString, WomString](
-          a.param.evaluateValue(inputs, ioFunctionSet),
-          suffixToRemove.evaluateValue(inputs, ioFunctionSet)) { (name, suffix) =>
-            WomString(simpleBasename(name).stripSuffix(suffix.valueString)).validNel
+        case Some(suffixToRemove) => processTwoValidatedValues[WomString, WomString, WomString](
+          a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions),
+          suffixToRemove.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { (name, suffix) =>
+            EvaluatedValue(WomString(simpleBasename(name).stripSuffix(suffix.valueString)), Seq.empty).validNel
           }
       }
     }
   }
 
   implicit val zipFunctionEvaluator: ValueEvaluator[Zip] = new ValueEvaluator[Zip] {
-    override def evaluateValue(a: Zip, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
-      processTwoValidatedValues[WomArray, WomArray](a.arg1.evaluateValue(inputs, ioFunctionSet), a.arg2.evaluateValue(inputs, ioFunctionSet)) { (arr1, arr2) =>
+    override def evaluateValue(a: Zip,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomArray]] = {
+      processTwoValidatedValues[WomArray, WomArray, WomArray](a.arg1.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions), a.arg2.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { (arr1, arr2) =>
         if (arr1.size == arr2.size) {
           val pairs = arr1.value.zip(arr2.value) map { case (a, b) => WomPair(a, b) }
-          WomArray(WomArrayType(WomPairType(arr1.arrayType.memberType, arr2.arrayType.memberType)), pairs).validNel
+          EvaluatedValue(WomArray(WomArrayType(WomPairType(arr1.arrayType.memberType, arr2.arrayType.memberType)), pairs), Seq.empty).validNel
         } else {
           s"Mismatching array sizes for zip function: ${arr1.size} vs ${arr2.size}".invalidNel
         }
@@ -260,39 +518,74 @@ object EngineFunctionEvaluators {
   }
 
   implicit val crossFunctionEvaluator: ValueEvaluator[Cross] = new ValueEvaluator[Cross] {
-    override def evaluateValue(a: Cross, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
-      processTwoValidatedValues[WomArray, WomArray](a.arg1.evaluateValue(inputs, ioFunctionSet), a.arg2.evaluateValue(inputs, ioFunctionSet)) { (arr1, arr2) =>
+    override def evaluateValue(a: Cross,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomArray]] = {
+      processTwoValidatedValues[WomArray, WomArray, WomArray](a.arg1.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions), a.arg2.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { (arr1, arr2) =>
         val pairs = for {
           a <- arr1.value
           b <- arr2.value
         } yield WomPair(a, b)
-        WomArray(WomArrayType(WomPairType(arr1.arrayType.memberType, arr2.arrayType.memberType)), pairs).validNel
+        EvaluatedValue(WomArray(WomArrayType(WomPairType(arr1.arrayType.memberType, arr2.arrayType.memberType)), pairs), Seq.empty).validNel
       }
     }
   }
 
   implicit val prefixFunctionEvaluator: ValueEvaluator[Prefix] = new ValueEvaluator[Prefix] {
-    override def evaluateValue(a: Prefix, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
-  }
-
-  implicit val subFunctionEvaluator: ValueEvaluator[Sub] = new ValueEvaluator[Sub] {
-    override def evaluateValue(a: Sub, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
-  }
-
-  private def processValidatedSingleValue[A <: WomValue](arg: ErrorOr[WomValue])(f: A => ErrorOr[WomValue])(implicit coercer: WomTypeCoercer[A]): ErrorOr[WomValue] = {
-    arg flatMap {
-      case a: WomValue if a.coercionDefined[A] => a.coerceToType[A] flatMap { f.apply }
-      case other => s"Expected ${coercer.toDisplayString} argument but got ${other.womType.toDisplayString}".invalidNel
+    override def evaluateValue(a: Prefix,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomArray]] = {
+      processTwoValidatedValues[WomString, WomArray, WomArray](a.prefix.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions), a.array.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { (prefix, array) =>
+        EvaluatedValue(WomArray(array.value.map(value => WomString(prefix.value + value.valueString))), Seq.empty).validNel
+      }
     }
   }
 
-  private def processTwoValidatedValues[A <: WomValue, B <: WomValue](arg1: ErrorOr[WomValue], arg2: ErrorOr[WomValue])
-                                                                     (f: (A, B) => ErrorOr[WomValue])
+  implicit val subFunctionEvaluator: ValueEvaluator[Sub] = new ValueEvaluator[Sub] {
+    override def evaluateValue(a: Sub,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomString]] = {
+      processThreeValidatedValues[WomString, WomString, WomString, WomString](
+        a.input.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions),
+        a.pattern.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions),
+        a.replace.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { (input, pattern, replace) =>
+        EvaluatedValue(WomString(pattern.valueString.r.replaceAllIn(input.valueString, replace.valueString)), Seq.empty).validNel
+      }
+    }
+  }
+
+  private def processValidatedSingleValue[A <: WomValue, B <: WomValue](arg: ErrorOr[EvaluatedValue[_]])
+                                                                       (f: A => ErrorOr[EvaluatedValue[B]])
+                                                                       (implicit coercer: WomTypeCoercer[A]): ErrorOr[EvaluatedValue[B]] = {
+    arg flatMap {
+      case EvaluatedValue(a: WomValue, previousSideEffectFiles) if a.coercionDefined[A] => a.coerceToType[A] flatMap { f.apply } map { result => result.copy(sideEffectFiles = result.sideEffectFiles ++ previousSideEffectFiles) }
+      case other => s"Expected ${coercer.toDisplayString} argument but got ${other.value.womType.toDisplayString}".invalidNel
+    }
+  }
+
+  private def processTwoValidatedValues[A <: WomValue, B <: WomValue, R <: WomValue](arg1: ErrorOr[EvaluatedValue[_ <: WomValue]], arg2: ErrorOr[EvaluatedValue[_ <: WomValue]])
+                                                                     (f: (A, B) => ErrorOr[EvaluatedValue[R]])
                                                                      (implicit coercerA: WomTypeCoercer[A],
-                                                                      coercerB: WomTypeCoercer[B]): ErrorOr[WomValue] = {
+                                                                      coercerB: WomTypeCoercer[B]): ErrorOr[EvaluatedValue[R]] = {
     (arg1, arg2) flatMapN {
-      case (a, b) if a.coercionDefined[A] && b.coercionDefined[B] => (a.coerceToType[A], b.coerceToType[B]) flatMapN { f.apply }
-      case (otherA, otherB) => s"Expected (${coercerA.toDisplayString}, ${coercerB.toDisplayString}) argument but got (${otherA.womType.toDisplayString}, ${otherB.womType.toDisplayString})".invalidNel
+      case (EvaluatedValue(a: WomValue, previousSideEffectFilesA), EvaluatedValue(b: WomValue, previousSideEffectFilesB)) if a.coercionDefined[A] && b.coercionDefined[B] =>
+        (a.coerceToType[A], b.coerceToType[B]) flatMapN { f.apply } map { result => result.copy(sideEffectFiles = result.sideEffectFiles ++ previousSideEffectFilesA ++ previousSideEffectFilesB) }
+      case (otherA, otherB) => s"Expected (${coercerA.toDisplayString}, ${coercerB.toDisplayString}) argument but got (${otherA.value.womType.toDisplayString}, ${otherB.value.womType.toDisplayString})".invalidNel
+    }
+  }
+
+  private def processThreeValidatedValues[A <: WomValue, B <: WomValue, C <: WomValue, R <: WomValue](arg1: ErrorOr[EvaluatedValue[_ <: WomValue]], arg2: ErrorOr[EvaluatedValue[_ <: WomValue]], arg3: ErrorOr[EvaluatedValue[_ <: WomValue]])
+                                                                                      (f: (A, B, C) => ErrorOr[EvaluatedValue[R]])
+                                                                                      (implicit coercerA: WomTypeCoercer[A],
+                                                                                       coercerB: WomTypeCoercer[B],
+                                                                                       coercerC: WomTypeCoercer[C]): ErrorOr[EvaluatedValue[R]] = {
+    (arg1, arg2, arg3) flatMapN {
+      case (EvaluatedValue(a, previousSideEffectFilesA), EvaluatedValue(b, previousSideEffectFilesB), EvaluatedValue(c, previousSideEffectFilesC)) if a.coercionDefined[A] && b.coercionDefined[B] && c.coercionDefined[C] =>
+        (a.coerceToType[A], b.coerceToType[B], c.coerceToType[C]) flatMapN { f.apply } map { result => result.copy(sideEffectFiles = result.sideEffectFiles ++ previousSideEffectFilesA ++ previousSideEffectFilesB ++ previousSideEffectFilesC) }
+      case (otherA, otherB, otherC) => s"Expected (${coercerA.toDisplayString}, ${coercerB.toDisplayString}, ${coercerB.toDisplayString}) argument but got (${otherA.value.womType.toDisplayString}, ${otherB.value.womType.toDisplayString}, ${otherC.value.womType.toDisplayString})".invalidNel
     }
   }
 }

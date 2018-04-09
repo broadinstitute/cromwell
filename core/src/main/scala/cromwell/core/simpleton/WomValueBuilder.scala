@@ -246,7 +246,7 @@ object WomValueBuilder {
     val simpletonsByOutputName = simpletons groupBy { _.simpletonKey match { case IdentifierAndPathPattern(i, _) => i } }
     val simpletonComponentsByOutputName: Map[String, Traversable[SimpletonComponent]] =
       simpletonsByOutputName map { case (name, ss) => name -> (ss map simpletonToComponent(name)) }
-    types map { case (outputPort, outputType) => outputPort -> toWomValue(outputType, simpletonComponentsByOutputName.getOrElse(outputPort.name, Seq.empty))}
+    types map { case (outputPort, outputType) => outputPort -> toWomValue(outputType, simpletonComponentsByOutputName.getOrElse(outputPort.internalName, Seq.empty))}
   }
 }
 

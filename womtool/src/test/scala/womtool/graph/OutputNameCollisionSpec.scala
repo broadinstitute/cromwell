@@ -47,9 +47,9 @@ class OutputNameCollisionSpec extends WomDotGraphTest {
       |  subgraph cluster_0 {
       |    style="filled,solid";
       |    fillcolor=white;
-      |    "NODE2" [shape=plaintext label="call tsk"]
-      |    "PORT0" [shape=hexagon label="Array[Array[File]] out"];
-      |    "PORT3" [shape=hexagon label="Array[File] reads_1"];
+      |    "NODE2" [shape=plaintext label="call wf.tsk (tsk)"]
+      |    "PORT0" [shape=hexagon label="Array[Array[File]] tsk.out"];
+      |    "PORT3" [shape=hexagon label="Array[File] tsk.reads_1"];
       |  }
       |  subgraph cluster_1 {
       |    style="filled,solid";

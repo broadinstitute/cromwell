@@ -140,4 +140,11 @@ object WomOptionalValue {
   }
 
   def none(womType: WomType) = WomOptionalValue(womType, None)
+
+  object Flattened {
+    def unapply(value: WomValue): Option[Option[WomValue]] = value match {
+      case opt: WomOptionalValue => Some(opt.flattenOptional.value)
+      case _ => None
+    }
+  }
 }

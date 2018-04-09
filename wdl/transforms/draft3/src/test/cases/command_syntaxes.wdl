@@ -7,7 +7,7 @@ task a {
     String world2 = "wo~{rld}"
   }
   command {
-    echo hello ${world1}
+    echo ~{"hello"} ${world1}
     echo goodbye ~{world2}
   }
   runtime {

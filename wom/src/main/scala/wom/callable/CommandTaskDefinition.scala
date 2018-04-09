@@ -36,7 +36,7 @@ object CommandTaskDefinition {
     val none: OutputEvaluationFunction = { case (_ ,_, _, _) => OptionT[Future, EvaluatedOutputs](Future.successful(None)) }
   }
 
-  private implicit val instantiatedCommandMonoid = cats.derive.monoid[InstantiatedCommand]
+  private implicit val instantiatedCommandMonoid = cats.derived.MkMonoid[InstantiatedCommand]
   object CommandTemplateBuilder {
     def fromValues(values: Seq[CommandPart]) = new CommandTemplateBuilder {
       override def build(inputs: WomEvaluatedCallInputs): ErrorOr[Seq[CommandPart]] = values.validNel

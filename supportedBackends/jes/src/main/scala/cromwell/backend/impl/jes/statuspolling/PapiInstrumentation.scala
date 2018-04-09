@@ -12,16 +12,16 @@ import cromwell.services.instrumentation.CromwellInstrumentationActor
 
 object PapiInstrumentation {
   private val PapiKey = NonEmptyList.of("papi")
-  private val PapiPollKey = PapiKey.concat("poll")
-  private val PapiRunKey = PapiKey.concat("run")
-  private val PapiAbortKey = PapiKey.concat("abort")
+  private val PapiPollKey = PapiKey.concatNel("poll")
+  private val PapiRunKey = PapiKey.concatNel("run")
+  private val PapiAbortKey = PapiKey.concatNel("abort")
 
-  private val PapiPollFailedKey = PapiPollKey.concat(FailureKey)
-  private val PapiRunFailedKey = PapiRunKey.concat(FailureKey)
-  private val PapiAbortFailedKey = PapiAbortKey.concat(FailureKey)
-  private val PapiPollRetriedKey = PapiPollKey.concat(RetryKey)
-  private val PapiRunRetriedKey = PapiRunKey.concat(RetryKey)
-  private val PapiAbortRetriedKey = PapiAbortKey.concat(RetryKey)
+  private val PapiPollFailedKey = PapiPollKey.concatNel(FailureKey)
+  private val PapiRunFailedKey = PapiRunKey.concatNel(FailureKey)
+  private val PapiAbortFailedKey = PapiAbortKey.concatNel(FailureKey)
+  private val PapiPollRetriedKey = PapiPollKey.concatNel(RetryKey)
+  private val PapiRunRetriedKey = PapiRunKey.concatNel(RetryKey)
+  private val PapiAbortRetriedKey = PapiAbortKey.concatNel(RetryKey)
 
   implicit class StatsDPathGoogleEnhanced(val statsDPath: InstrumentationPath) extends AnyVal {
     def withGoogleThrowable(failure: Throwable) = {
@@ -31,9 +31,9 @@ object PapiInstrumentation {
 }
 
 trait PapiInstrumentation extends CromwellInstrumentationActor { this: Actor =>
-  def pollSuccess() = increment(PapiPollKey.concat(SuccessKey), BackendPrefix)
-  def runSuccess() = increment(PapiRunKey.concat(SuccessKey), BackendPrefix)
-  def abortSuccess() = increment(PapiAbortKey.concat(SuccessKey), BackendPrefix)
+  def pollSuccess() = increment(PapiPollKey.concatNel(SuccessKey), BackendPrefix)
+  def runSuccess() = increment(PapiRunKey.concatNel(SuccessKey), BackendPrefix)
+  def abortSuccess() = increment(PapiAbortKey.concatNel(SuccessKey), BackendPrefix)
 
   def failedQuery(failedQuery: PAPIApiRequestFailed) = failedQuery.query match {
     case _: PAPIStatusPollRequest => increment(PapiPollFailedKey.withGoogleThrowable(failedQuery.cause.e), BackendPrefix)
@@ -47,5 +47,5 @@ trait PapiInstrumentation extends CromwellInstrumentationActor { this: Actor =>
     case _: PAPIAbortRequest => increment(PapiAbortRetriedKey.withGoogleThrowable(failedQuery.cause.e), BackendPrefix)
   }
 
-  def updateQueueSize(size: Int) = sendGauge(PapiKey.concat("queue_size"), size.toLong, BackendPrefix)
+  def updateQueueSize(size: Int) = sendGauge(PapiKey.concatNel("queue_size"), size.toLong, BackendPrefix)
 }

@@ -23,7 +23,7 @@ object CromwellInstrumentation {
   
   implicit class EnhancedStatsDPath(val path: InstrumentationPath) extends AnyVal {
     def withStatusCodeFailure(code: Option[Int]) = code
-      .map(c => path.concat(NonEmptyList.of(c.toString)))
+      .map(c => path.concatNel(NonEmptyList.of(c.toString)))
       .getOrElse(path)
 
     def withThrowable(failure: Throwable, statusCodeExtractor: Throwable => Option[Int]) = {

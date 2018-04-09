@@ -21,9 +21,9 @@ trait InstrumentedBatchActor[C] { this: BatchActor[C] with CromwellInstrumentati
 
   // If this actor is behind a router, add its name to the instrumentation path so that all routees don't override each other's values
   private def makePath(name: String) = if (routed)
-    instrumentationPath.concat(NonEmptyList.of(self.path.name, name))
+    instrumentationPath.concatNel(NonEmptyList.of(self.path.name, name))
   else
-    instrumentationPath.concat(NonEmptyList.one(name))
+    instrumentationPath.concatNel(NonEmptyList.one(name))
 
   private val processedPath = makePath("processed")
   private val queueSizePath = makePath("queue")

@@ -11,9 +11,9 @@ object Dependencies {
   val apacheHttpCoreV = "4.4.6"
   val betterFilesV = "2.17.1"
   val catsEffectV = "0.4"
-  val catsV = "1.0.0-MF"
+  val catsV = "1.0.1"
   val circeV = "0.9.0-M1"
-  val circeYamlV = "0.7.0-M1"
+  val circeYamlV = "0.7.0"
   val commonsCodecV = "1.10"
   val commonsIoV = "2.5"
   val commonsLang3V = "3.5"
@@ -42,7 +42,7 @@ object Dependencies {
   val jodaTimeV = "2.9.4"
   val jsr305V = "3.0.0"
   val kindProjectorV = "0.9.4"
-  val kittensV = "1.0.0-RC0"
+  val kittensV = "1.0.0-RC3"
   val liquibaseSlf4jV = "2.0.0"
   val liquibaseV = "3.5.1"
   val logbackV = "1.2.3"
@@ -72,7 +72,8 @@ object Dependencies {
   val scalatestV = "3.0.2"
   val scalazV = "7.2.17"
   val scoptV = "3.6.0"
-  val shapelessV = "2.3.2"
+  val shapelessV = "2.3.3"
+  val simulacrumV = "0.12.0"
   val slf4jV = "1.7.24"
   val slickV = "3.2.3"
   val slickCatsV = "0.7-MF"
@@ -253,6 +254,7 @@ object Dependencies {
   )
 
   private val circeYamlDependency = "io.circe" %% "circe-yaml" % circeYamlV
+
   private val circeDependencies = List(
     "core",
     "parser",
@@ -301,6 +303,10 @@ object Dependencies {
     "com.softwaremill.sttp" %% "async-http-client-backend-cats" % sttpV,
     "org.mock-server" % "mockserver-netty" % mockserverNettyV % Test
   ) ++ betterFilesDependencies
+
+  val wdlModelDraft3Dependencies = List(
+    "com.github.mpilquist" %% "simulacrum" % simulacrumV
+  )
 
   val cwlDependencies = List(
     "com.lihaoyi" %% "ammonite-ops" % ammoniteOpsV,

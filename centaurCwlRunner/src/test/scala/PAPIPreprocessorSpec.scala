@@ -125,7 +125,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
     )
   }
 
-  it should "add default docker image if there's no requirements" in {
+  it should "add default docker image if there's no hint" in {
     validate(
       pAPIPreprocessor.preProcessWorkflow(
         """|class: CommandLineTool
@@ -160,7 +160,7 @@ class PAPIPreprocessorSpec extends FlatSpec with Matchers {
     )
   }
 
-  it should "append default docker image to existing requirements as an array" in {
+  it should "append default docker image to existing hint as an array" in {
     validate(
       pAPIPreprocessor.preProcessWorkflow(
         """|class: CommandLineTool

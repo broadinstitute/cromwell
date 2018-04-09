@@ -6,7 +6,7 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, _}
 import common.validation.Validation._
-import cwl.FileParameter.{sync, _}
+import cwl.FileParameter._
 import eu.timepit.refined._
 import mouse.all._
 import shapeless.Poly1

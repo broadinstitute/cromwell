@@ -1,17 +1,20 @@
 package cwl
 
 import java.nio.file.{Files, Paths}
+import java.util.concurrent.Executors
 
 import wom.expression.EmptyIoFunctionSet
 
 import scala.collection.JavaConverters._
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 /**
   * Test io functions that can read from local file systems.
   */
 object LocalIoFunctionSet extends EmptyIoFunctionSet {
+  override implicit def ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(1))
+  
   private def stripLocalPrefix(path: String): String = {
     path.stripPrefix("file://")
   }

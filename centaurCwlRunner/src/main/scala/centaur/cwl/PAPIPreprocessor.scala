@@ -30,7 +30,7 @@ class PAPIPreprocessor(config: Config) {
     )
   }
 
-  // Requirements array with default docker requirement
+  // hints array with default docker requirement
   private val DefaultDockerHintList: Json = {
     Json.obj(
       "hints" -> Json.arr(DefaultDockerHint)
@@ -75,12 +75,12 @@ class PAPIPreprocessor(config: Config) {
   // Check if the given Json has a docker image in hints or requirements
   def hasDocker(json: Json): Boolean = hasDocker(root.hints)(json) || hasDocker(root.requirements)(json)
 
-  // Add a default docker requirement to the workflow if it doesn't have one
+  // Add a default docker hint to the workflow if it doesn't have one
   private val addDefaultDocker: Json => Json = workflow => if (!hasDocker(workflow)) {
     /*
-      * deepMerge does not combine objects together but replaces keys which would overwrite existing requirements
-      * so first check if there are requirements already and if so add our docker one.
-      * Also turns out that the requirements section can be either an array or an object.
+      * deepMerge does not combine objects together but replaces keys which would overwrite existing hints
+      * so first check if there are hints already and if so add our docker one.
+      * Also turns out that the hints section can be either an array or an object.
       * When it gets saladed the object is transformed to an array but because we deal with unsaladed cwl here
       * we have to handle both cases.
      */

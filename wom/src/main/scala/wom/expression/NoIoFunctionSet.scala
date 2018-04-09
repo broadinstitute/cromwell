@@ -24,7 +24,7 @@ class EmptyIoFunctionSet extends IoFunctionSet {
 
   override def size(path: String): Future[Long] = Future.failed(new NotImplementedError("size is not available here"))
 
-  override implicit def ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(1))
+  override implicit def ec: ExecutionContext = null//ExecutionContext.fromExecutor(Executors.newFixedThreadPool(1))
   override def pathFunctions = NoPathFunctionSet
   override def listDirectory(path: String) = throw new NotImplementedError("listDirectory is not available here")
   override def isDirectory(path: String) = throw new NotImplementedError("isDirectory is not available here")

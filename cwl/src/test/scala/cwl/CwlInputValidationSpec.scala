@@ -15,8 +15,10 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
   behavior of "CWL Wom executable"
 
   var cwlFile: BFile = _
+  var inputTempFile: BFile = _
   
   override def beforeAll(): Unit = {
+    inputTempFile = BFile.newTemporaryFile()
     cwlFile = BFile.newTemporaryFile().write(
       """
         |cwlVersion: v1.0
@@ -60,6 +62,7 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
   
   override def afterAll(): Unit = {
     cwlFile.delete()
+    inputTempFile.delete()
     ()
   }
 
@@ -95,10 +98,10 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
 
   it should "parse and validate a valid input file" in {
     val inputFile =
-      """
+      s"""
         w1:
           class: File
-          path: my_file.txt
+          path: ${inputTempFile.toString()}
           secondaryFiles:
             - class: File
               path: secondaryFile.txt
@@ -134,8 +137,9 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
     validInputs(w0OutputPort.name).select[WomExpression].get.sourceString shouldBe "hi w0 !"
     validInputs(w1OutputPort.name) shouldBe
       Coproduct[ResolvedExecutableInput](WomMaybePopulatedFile(
-        valueOption = Option("my_file.txt"),
-        secondaryFiles = List(WomMaybePopulatedFile("secondaryFile.txt"))
+        valueOption = Option(inputTempFile.toString()),
+        secondaryFiles = List(WomMaybePopulatedFile("secondaryFile.txt")),
+        sizeOption = Option(0)
       ): WomValue)
     validInputs(w2OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomString("hello !"): WomValue)
     validInputs(w3OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomInteger(3): WomValue)

@@ -11,7 +11,7 @@ import cwl.{Directory, File, FileOrDirectory}
 import org.mozilla.javascript.{ConsString, NativeArray, NativeObject}
 import shapeless.Coproduct
 import wom.types.WomNothingType
-import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomLong, WomObject, WomOptionalValue, WomString, WomValue}
+import wom.values._
 
 import scala.collection.JavaConverters._
 

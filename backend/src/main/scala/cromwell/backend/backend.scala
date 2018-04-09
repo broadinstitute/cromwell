@@ -83,7 +83,7 @@ case class BackendConfigurationDescriptor(backendConfig: Config, globalConfig: C
     else
       None
 
-  private lazy val configuredPathBuilderFactories: Map[String, PathBuilderFactory] = {
+  private [backend] lazy val configuredPathBuilderFactories: Map[String, PathBuilderFactory] = {
     CromwellFileSystems.instance.factoriesFromConfig(backendConfig).unsafe("Failed to instantiate backend filesystem")
   }
 

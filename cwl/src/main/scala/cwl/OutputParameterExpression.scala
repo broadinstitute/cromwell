@@ -9,7 +9,8 @@ import wom.values.{WomFile, WomValue}
 case class OutputParameterExpression(parameter: OutputParameter,
                                      override val cwlExpressionType: WomType,
                                      override val inputs: Set[String],
-                                     override val expressionLib: ExpressionLib) extends CwlWomExpression {
+                                     override val expressionLib: ExpressionLib,
+                                     schemaDefRequirement: SchemaDefRequirement) extends CwlWomExpression {
 
   override def sourceString = parameter.toString
 
@@ -50,7 +51,10 @@ case class OutputParameterExpression(parameter: OutputParameter,
       parameter.outputBinding.map(evaluateOutputBinding(inputValues, ioFunctionSet, parameter.secondaryFiles, parameter.format)(_, cwlExpressionType))
 
     def fromType =
-      parameter.`type`.map(_.fold(MyriadOutputTypeToWomValue).apply(evaluateOutputBinding(inputValues, ioFunctionSet, parameter.secondaryFiles, parameter.format)))
+      parameter.`type`.map(_.fold(MyriadOutputTypeToWomValue).apply(
+        evaluateOutputBinding(inputValues, ioFunctionSet, parameter.secondaryFiles, parameter.format),
+        schemaDefRequirement
+      ))
 
     fromOutputBinding.orElse(fromType).getOrElse(s"Cannot evaluate ${parameter.toString}".invalidNel)
   }

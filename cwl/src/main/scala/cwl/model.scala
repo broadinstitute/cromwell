@@ -8,8 +8,8 @@ import cwl.command.ParentName
 import cwl.internal.GigabytesToBytes
 import eu.timepit.refined._
 import shapeless.syntax.singleton._
-import shapeless.{:+:, CNil, Witness}
-import wom.types.WomEnumerationType
+import shapeless.{:+:, CNil, Inl, Witness}
+import wom.types.{WomEnumerationType, WomType}
 import wom.values.WomValue
 
 object WorkflowStepInputSource {
@@ -157,10 +157,19 @@ case class InlineJavascriptRequirement(
 case class SchemaDefRequirement(
   `class`: W.`"SchemaDefRequirement"`.T = Witness("SchemaDefRequirement").value,
   types: Array[SchemaDefTypes] = Array.empty
-  )
+  ) {
+
+  def lookupType(tpe: String): Option[WomType] =
+    types.toList.flatMap{
+      case Inl(inputRecordSchema: InputRecordSchema) if inputRecordSchema.name == string =>
+        List(MyriadInputInnerTypeToWomType.inputRecordSchemaToWomType(inputRecordSchema).apply(this))
+      case _ => List()
+    }.headOption
+}
 
 object SchemaDefRequirement {
   type SchemaDefTypes = InputRecordSchema :+: InputEnumSchema :+: InputArraySchema :+: CNil
+
 }
 
 //There is a large potential for regex refinements on these string types

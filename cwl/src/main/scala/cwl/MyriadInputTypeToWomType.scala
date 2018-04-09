@@ -89,11 +89,7 @@ object MyriadInputInnerTypeToWomType extends Poly1 {
   implicit def s: Aux[String, SchemaLookup] = at[String]{
     string =>
       schemaReq =>
-        schemaReq.types.toList.flatMap{
-          case Inl(inputRecordSchema: InputRecordSchema) if inputRecordSchema.name == string =>
-            List(inputRecordSchemaToWomType(inputRecordSchema).apply(schemaReq))
-          case _ => List()
-        }.headOption.getOrElse(throw new RuntimeException(s"Custom type $string was referred to but not found."))
+        schemaReq.lookupType(string).getOrElse(throw new RuntimeException(s"Custom type $string was referred to but not found in schema def ${schemaReq}."))
   }
 
 }

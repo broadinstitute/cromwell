@@ -71,35 +71,35 @@ object WomTypeConversionSpec extends Properties("CWL -> WOM Conversion"){
     val y = Coproduct[MyriadOutputInnerType](CwlType.String)
     val x = OutputArraySchema(items = Coproduct[MyriadOutputType](y))
     val z = Coproduct[MyriadOutputInnerType](x)
-    Coproduct[MyriadOutputType](z).fold(MyriadOutputTypeToWomType) == WomArrayType(WomStringType)
+    Coproduct[MyriadOutputType](z).fold(MyriadOutputTypeToWomType).apply(SchemaDefRequirement()) == WomArrayType(WomStringType)
   }
 
   property("Cwl String") = secure {
     val y = Coproduct[MyriadOutputInnerType](CwlType.String)
-    Coproduct[MyriadOutputType](y).fold(MyriadOutputTypeToWomType) == WomStringType
+    Coproduct[MyriadOutputType](y).fold(MyriadOutputTypeToWomType).apply(SchemaDefRequirement()) == WomStringType
   }
 
   property("Array of a single type is the same as one type not in an array") = secure {
     val y = Coproduct[MyriadOutputInnerType](CwlType.String)
-    Coproduct[MyriadOutputType](Array(y)).fold(MyriadOutputTypeToWomType) == WomStringType
+    Coproduct[MyriadOutputType](Array(y)).fold(MyriadOutputTypeToWomType).apply(SchemaDefRequirement()) == WomStringType
   }
 
   property("Output Array of more than one type becomes a coproduct") = secure {
     val y = Coproduct[MyriadOutputInnerType](CwlType.String)
     val z = Coproduct[MyriadOutputInnerType](CwlType.Boolean)
-    Coproduct[MyriadOutputType](Array(y, z)).fold(MyriadOutputTypeToWomType) == WomCoproductType(NonEmptyList.of(WomStringType, WomBooleanType))
+    Coproduct[MyriadOutputType](Array(y, z)).fold(MyriadOutputTypeToWomType).apply(SchemaDefRequirement()) == WomCoproductType(NonEmptyList.of(WomStringType, WomBooleanType))
   }
 
   property("Output Array of more than one types including a null is an optional coproduct") = secure {
     val x = Coproduct[MyriadOutputInnerType](CwlType.Null)
     val y = Coproduct[MyriadOutputInnerType](CwlType.String)
     val z = Coproduct[MyriadOutputInnerType](CwlType.Boolean)
-    Coproduct[MyriadOutputType](Array(x, y, z)).fold(MyriadOutputTypeToWomType) == WomOptionalType(WomCoproductType(NonEmptyList.of(WomStringType, WomBooleanType)))
+    Coproduct[MyriadOutputType](Array(x, y, z)).fold(MyriadOutputTypeToWomType).apply(SchemaDefRequirement()) == WomOptionalType(WomCoproductType(NonEmptyList.of(WomStringType, WomBooleanType)))
   }
 
   def testOutputArray(array: Array[MyriadOutputInnerType], assertedType: WomType) = {
     def f(array: Array[MyriadOutputInnerType]) =
-      Try(Coproduct[MyriadOutputType](array).fold(MyriadOutputTypeToWomType)).cata(
+      Try(Coproduct[MyriadOutputType](array).fold(MyriadOutputTypeToWomType).apply(SchemaDefRequirement())).cata(
         success => (success == assertedType) :| "input should evaluate to an optional string type",
         failure => false :| s"expected an optional string type but received a failure"
       )

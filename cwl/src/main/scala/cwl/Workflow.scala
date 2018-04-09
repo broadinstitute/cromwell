@@ -122,7 +122,7 @@ case class Workflow private(
     val graphFromOutputs: Checked[Set[GraphNode]] =
       outputs.toList.traverse[ErrorOr, GraphNode] {
         case WorkflowOutputParameter(id, _, _, _, _, _, _, Some(Inl(outputSource: String)), _, Some(tpe)) =>
-          val womType: WomType = tpe.fold(MyriadOutputTypeToWomType)
+          val womType: WomType = tpe.fold(MyriadOutputTypeToWomType).apply(schemaDefRequirement)
 
           val parsedWorkflowOutput = FileAndId(id)
           val parsedOutputSource = FullyQualifiedName(outputSource)

@@ -145,8 +145,8 @@ trait Tool {
 
       val outputDefinitions: List[Callable.OutputDefinition] = this.outputs.map {
         case p @ OutputParameter.IdAndType(cop_id, tpe) =>
-          val womType = tpe.fold(MyriadOutputTypeToWomType)
-          OutputDefinition(FullyQualifiedName(cop_id).id, womType, OutputParameterExpression(p, womType, inputNames, expressionLib))
+          val womType = tpe.fold(MyriadOutputTypeToWomType).apply(schemaDefRequirement)
+          OutputDefinition(FullyQualifiedName(cop_id).id, womType, OutputParameterExpression(p, womType, inputNames, expressionLib, schemaDefRequirement))
         case other => throw new NotImplementedError(s"Command output parameters such as $other are not yet supported")
       }.toList
 

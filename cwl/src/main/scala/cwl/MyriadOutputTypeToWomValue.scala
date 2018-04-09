@@ -24,16 +24,19 @@ object MyriadOutputTypeToWomValue extends Poly1 {
   // MyriadOutputTypes and evaluate values as we do.
   type EvaluationFunction = (CommandOutputBinding, WomType) => ErrorOr[WomValue]
 
+  //Our overall return type gives us the evaluator function and custom types; returns WomValues
+  type Output = (EvaluationFunction, SchemaDefRequirement) => ErrorOr[WomValue]
+
   import Case._
 
-  implicit def cwlType: Aux[MyriadOutputInnerType, EvaluationFunction => ErrorOr[WomValue]] = at[MyriadOutputInnerType]{
-    _.fold(MyriadOutputInnerTypeToWomValue)
+  implicit def cwlType: Aux[MyriadOutputInnerType, Output] = at[MyriadOutputInnerType]{
+    moit => (evalFunction, sdr) => moit.fold(MyriadOutputInnerTypeToWomValue).apply(evalFunction, sdr)
   }
 
   // TODO: Not sure what the right thing to do is here, for now go over the list of types and use the first evaluation that yields success
-  implicit def acwl: Aux[Array[MyriadOutputInnerType], EvaluationFunction => ErrorOr[WomValue]] = at[Array[MyriadOutputInnerType]] { types =>
-    evalFunction =>
-      types.toList.map(_.fold(MyriadOutputInnerTypeToWomValue).apply(evalFunction)).collectFirst({
+  implicit def acwl: Aux[Array[MyriadOutputInnerType], Output] = at[Array[MyriadOutputInnerType]] { types =>
+    (evalFunction,sdr) =>
+      types.toList.map(_.fold(MyriadOutputInnerTypeToWomValue).apply(evalFunction, sdr)).collectFirst({
         case Valid(validValue) => validValue
       }).toValidNel(s"Cannot find a suitable type to build a WomValue from in ${types.mkString(", ")}")
   }
@@ -42,23 +45,22 @@ object MyriadOutputTypeToWomValue extends Poly1 {
 object MyriadOutputInnerTypeToWomValue extends Poly1 {
 
   import Case._
+  import MyriadOutputTypeToWomValue.Output
 
   def ex(component: String) = throw new RuntimeException(s"output type $component cannot yield a wom value")
 
-  implicit def cwlType: Aux[CwlType, EvaluationFunction => ErrorOr[WomValue]] = at[CwlType] { cwlType => _ =>
+  implicit def cwlType: Aux[CwlType, Output] = at[CwlType] { cwlType => (_,_) =>
     "No output binding is defined. Are you expecting the output to be inferred from a cwl.output.json file ? If so please make sure the file was effectively created.".invalidNel
   }
 
-  implicit def ors: Aux[OutputRecordSchema, EvaluationFunction => ErrorOr[WomValue]] = at[OutputRecordSchema] {
+  implicit def ors: Aux[OutputRecordSchema, Output] = at[OutputRecordSchema] { ors => (evalFunction, sdr) => ors match {
     case OutputRecordSchema(_, Some(fields), _) =>
-      evalFunction =>
-
         // Go over each field and evaluate the binding if there's one, otherwise keep folding over field types
         def evaluateValues = fields.toList.traverse[ErrorOr, ((String, WomValue), (String, WomType))]({ field =>
-          val womType = field.`type`.fold(MyriadOutputTypeToWomType)
+          val womType = field.`type`.fold(MyriadOutputTypeToWomType).apply(sdr)
           val womValue: ErrorOr[WomValue] = field.outputBinding match {
             case Some(binding) => evalFunction(binding, womType)
-            case None => field.`type`.fold(MyriadOutputTypeToWomValue).apply(evalFunction)
+            case None => field.`type`.fold(MyriadOutputTypeToWomValue).apply(evalFunction, sdr)
           }
 
           // TODO: ParentName might need to be passed in here ?
@@ -75,26 +77,25 @@ object MyriadOutputInnerTypeToWomValue extends Poly1 {
           WomObject.withType(valueMap.toMap, WomCompositeType(typeMap.toMap))
         }
     case ors => ors.toString |> ex
-  }
+  }}
 
-  implicit def oes: Aux[OutputEnumSchema, EvaluationFunction => ErrorOr[WomValue]] = at[OutputEnumSchema]{
+  implicit def oes: Aux[OutputEnumSchema, Output] = at[OutputEnumSchema]{
     //DB: I tried to do a pattern match as the overall function here but the compiler exploded
-    oes => f => oes match {
+    oes => (f, sdr) => oes match {
       case oes@OutputEnumSchema(_, _, _, Some(outputBinding)) => f(outputBinding, oes.toWomEnumerationType)
       case _ => s"The enumeration type $oes requires an outputbinding to be evaluated.".invalidNel
     }
   }
 
-  implicit def oas: Aux[OutputArraySchema, EvaluationFunction => ErrorOr[WomValue]] = at[OutputArraySchema]{
+  implicit def oas: Aux[OutputArraySchema, Output] = at[OutputArraySchema]{ oas => (evalFunction, sdr) => oas match {
     case OutputArraySchema(itemsType, _, _, outputBinding) =>
-      evalFunction =>
-        lazy val itemsWomType = itemsType.fold(MyriadOutputTypeToWomType)
-        def fromBinding = outputBinding.map(evalFunction(_, WomArrayType(itemsWomType)))
-        def fromTypes = itemsType.fold(MyriadOutputTypeToWomValue).apply(evalFunction)
-        fromBinding.getOrElse(fromTypes)
-  }
+      lazy val itemsWomType = itemsType.fold(MyriadOutputTypeToWomType).apply(sdr)
+      def fromBinding = outputBinding.map(evalFunction(_, WomArrayType(itemsWomType)))
+      def fromTypes = itemsType.fold(MyriadOutputTypeToWomValue).apply(evalFunction, sdr)
+      fromBinding.getOrElse(fromTypes)
+  }}
 
-  implicit def s: Aux[String, EvaluationFunction => ErrorOr[WomValue]] = at[String]{ s => _ =>
+  implicit def s: Aux[String, Output] = at[String]{ s => (_, _) =>
     s.toString |> ex
   }
 }

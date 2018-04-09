@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.backend.google.pipelines.common.GpuResource.GpuType
 import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.{googleConfiguration, jesAttributes, _}
-import cromwell.backend.google.pipelines.common.io.{DiskType, JesAttachedDisk, JesWorkingDisk}
+import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiAttachedDisk, PipelinesApiWorkingDisk}
 import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
 import cromwell.core.WorkflowOptions
 import org.scalatest.{Matchers, WordSpecLike}
@@ -25,7 +25,7 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
   }
 
   val expectedDefaults = new PipelinesApiRuntimeAttributes(1, None, Vector("us-central1-b", "us-central1-a"), 0, 10,
-    MemorySize(2, MemoryUnit.GB), Vector(JesWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
+    MemorySize(2, MemoryUnit.GB), Vector(PipelinesApiWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
     ContinueOnReturnCodeSet(Set(0)), false)
 
   "JesRuntimeAttributes" should {
@@ -192,7 +192,7 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
 
     "validate a valid disks entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString("local-disk 20 SSD"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(disks = Seq(JesAttachedDisk.parse("local-disk 20 SSD").get))
+      val expectedRuntimeAttributes = expectedDefaults.copy(disks = Seq(PipelinesApiAttachedDisk.parse("local-disk 20 SSD").get))
       assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -203,7 +203,7 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
 
     "validate a valid disks array entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomArray(WomArrayType(WomStringType), Array(WomString("local-disk 20 SSD"), WomString("local-disk 30 SSD"))))
-      val expectedRuntimeAttributes = expectedDefaults.copy(disks = Seq(JesAttachedDisk.parse("local-disk 20 SSD").get, JesAttachedDisk.parse("local-disk 30 SSD").get))
+      val expectedRuntimeAttributes = expectedDefaults.copy(disks = Seq(PipelinesApiAttachedDisk.parse("local-disk 20 SSD").get, PipelinesApiAttachedDisk.parse("local-disk 30 SSD").get))
       assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 

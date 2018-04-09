@@ -32,12 +32,14 @@ env:
     # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
     - BUILD_TYPE=sbt
     - BUILD_TYPE=checkPublish
-    - BUILD_TYPE=centaurJes
+    - BUILD_TYPE=centaurPAPIv1
+    - BUILD_TYPE=centaurPAPIv2
     - BUILD_TYPE=centaurLocal
     - BUILD_TYPE=centaurTes
     - BUILD_TYPE=centaurBcs
     - BUILD_TYPE=centaurCwlConformanceLocal
-    - BUILD_TYPE=centaurCwlConformancePAPI
+    - BUILD_TYPE=centaurCwlConformancePAPIv1
+    - BUILD_TYPE=centaurCwlConformancePAPIv2
 script:
   - sudo apt-get install procps
   - pip install 'requests[security]'

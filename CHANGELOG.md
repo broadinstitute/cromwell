@@ -2,6 +2,29 @@
 
 ## 32 Release Notes
 
+### Backends
+
+#### Pipelines API V2
+Initial support for Google [Pipelines API version 2](https://cloud.google.com/genomics/reference/rest/).
+Expect feature parity except for the following that are not supported at the moment (but for which support is planned in the near future):
+* Private dockerhub images
+* GPUs
+* Docker containers running as non root
+
+In addition, the following changes are to be expected:
+* Error messages for failed jobs might differ from V1
+* The Pipelines API log file content might differ from V1
+
+**Important (If you're running Cromwell with a Google backend, read this)**:
+Cromwell configurations with a Google backend will automatically be switched to use Pipelines API version 2.
+If you wish to stay on V1 for the moment, change the `actor-factory` value in your backend configuration from `cromwell.backend.impl.jes.JesBackendLifecycleActorFactory` to `cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory`.
+Generally, we recommend that you change this value regardless as it is being deprecated. The factories for v1 and v2 are as follow:
+
+|    | actor-factory                                                                |
+|----|------------------------------------------------------------------------------|
+| V1 | cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory |
+| V2 | cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory |
+
 ### Labels
 * Cromwell has removed most of the formatting restrictions from custom labels. Please check the [README](README.md#label-format) for more detailed documentation.
 * Custom labels won't be submitted to Google backend as they are now decoupled from Google's default labels.

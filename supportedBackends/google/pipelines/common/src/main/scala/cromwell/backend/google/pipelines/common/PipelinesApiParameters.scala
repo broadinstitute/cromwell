@@ -1,26 +1,41 @@
 package cromwell.backend.google.pipelines.common
 
-import cromwell.backend.google.pipelines.common.io.JesAttachedDisk
+import akka.http.scaladsl.model.ContentType
+import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk
 import cromwell.core.path.Path
 
-sealed trait JesParameter {
+sealed trait PipelinesParameter {
   def name: String
-  def toGoogleRunParameter: String
 }
 
-sealed trait JesInput extends JesParameter
+sealed trait PipelinesApiFileParameter extends PipelinesParameter {
+  /**
+    * This HAS to be GCS, for now
+    * The file already exists in GCS for input files, but does not for output files
+    */
+  def cloudPath: String
 
-final case class JesFileInput(name: String, gcs: String, local: Path, mount: JesAttachedDisk) extends JesInput {
-  val toGoogleRunParameter: String = gcs
-
-  def containerPath: Path = mount.mountPoint.resolve(local)
+  /**
+    * Path in the docker container. It must be mounted on the docker from / to its hostPath
+    */
+  def containerPath: String
 }
 
-final case class JesLiteralInput(name: String, value: String) extends JesInput {
-  val toGoogleRunParameter: String = value
+sealed trait PipelinesApiInput extends PipelinesParameter
+
+final case class PipelinesApiFileInput(name: String,
+                                       cloudPath: String,
+                                       local: Path,
+                                       mount: PipelinesApiAttachedDisk) extends PipelinesApiFileParameter with PipelinesApiInput {
+  def containerPath: String = mount.mountPoint.resolve(local).pathAsString
 }
 
-final case class JesFileOutput(name: String, gcs: String, local: Path, mount: JesAttachedDisk) extends JesParameter {
-
-  val toGoogleRunParameter: String = gcs
+final case class PipelinesApiFileOutput(name: String,
+                                        cloudPath: String,
+                                        local: Path,
+                                        mount: PipelinesApiAttachedDisk,
+                                        contentType: Option[ContentType] = None) extends PipelinesApiFileParameter {
+  def containerPath: String = mount.mountPoint.resolve(local).pathAsString
 }
+
+final case class PipelinesApiLiteralInput(name: String, value: String) extends PipelinesApiInput

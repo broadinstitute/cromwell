@@ -6,7 +6,7 @@ import cats.syntax.validated._
 import com.typesafe.config.Config
 import common.validation.ErrorOr._
 import cromwell.backend.google.pipelines.common.GpuResource.GpuType.GpuType
-import cromwell.backend.google.pipelines.common.io.{JesAttachedDisk, JesWorkingDisk}
+import cromwell.backend.google.pipelines.common.io.{PipelinesApiAttachedDisk, PipelinesApiWorkingDisk}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation.{BooleanRuntimeAttributesValidation, _}
 import wom.RuntimeAttributesKeys
@@ -30,7 +30,7 @@ final case class PipelinesApiRuntimeAttributes(cpu: Int,
                                                preemptible: Int,
                                                bootDiskSize: Int,
                                                memory: MemorySize,
-                                               disks: Seq[JesAttachedDisk],
+                                               disks: Seq[PipelinesApiAttachedDisk],
                                                dockerImage: String,
                                                failOnStderr: Boolean,
                                                continueOnReturnCode: ContinueOnReturnCode,
@@ -54,9 +54,9 @@ object PipelinesApiRuntimeAttributes {
   private val NoAddressDefaultValue = WomBoolean(false)
 
   val DisksKey = "disks"
-  private val DisksDefaultValue = WomString(s"${JesWorkingDisk.Name} 10 SSD")
+  private val DisksDefaultValue = WomString(s"${PipelinesApiWorkingDisk.Name} 10 SSD")
 
-  private val MemoryDefaultValue = "2 GB"
+  private val MemoryDefaultValue = "3.75 GB"
 
   private def cpuValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] = CpuValidation.instance
     .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
@@ -74,7 +74,7 @@ object PipelinesApiRuntimeAttributes {
 
   private def continueOnReturnCodeValidation(runtimeConfig: Option[Config]) = ContinueOnReturnCodeValidation.default(runtimeConfig)
 
-  private def disksValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Seq[JesAttachedDisk]] = DisksValidation
+  private def disksValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Seq[PipelinesApiAttachedDisk]] = DisksValidation
     .withDefault(DisksValidation.configDefaultWomValue(runtimeConfig) getOrElse DisksDefaultValue)
 
   private def zonesValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Vector[String]] = ZonesValidation
@@ -139,7 +139,7 @@ object PipelinesApiRuntimeAttributes {
     val preemptible: Int = RuntimeAttributesValidation.extract(preemptibleValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val bootDiskSize: Int = RuntimeAttributesValidation.extract(bootDiskSizeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val memory: MemorySize = RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val disks: Seq[JesAttachedDisk] = RuntimeAttributesValidation.extract(disksValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val disks: Seq[PipelinesApiAttachedDisk] = RuntimeAttributesValidation.extract(disksValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
     val failOnStderr: Boolean = RuntimeAttributesValidation.extract(failOnStderrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(continueOnReturnCodeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
@@ -176,43 +176,43 @@ object ZonesValidation extends RuntimeAttributesValidation[Vector[String]] {
     s"Expecting $key runtime attribute to be either a whitespace separated String or an Array[String]"
 }
 
-object DisksValidation extends RuntimeAttributesValidation[Seq[JesAttachedDisk]] {
+object DisksValidation extends RuntimeAttributesValidation[Seq[PipelinesApiAttachedDisk]] {
   override def key: String = PipelinesApiRuntimeAttributes.DisksKey
 
   override def coercion: Traversable[WomType] = Set(WomStringType, WomArrayType(WomStringType))
 
-  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Seq[JesAttachedDisk]]] = {
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Seq[PipelinesApiAttachedDisk]]] = {
     case WomString(value) => validateLocalDisks(value.split(",\\s*").toSeq)
     case WomArray(womType, values) if womType.memberType == WomStringType =>
       validateLocalDisks(values.map(_.valueString))
   }
 
-  private def validateLocalDisks(disks: Seq[String]): ErrorOr[Seq[JesAttachedDisk]] = {
-    val diskNels: Seq[ErrorOr[JesAttachedDisk]] = disks map validateLocalDisk
-    val sequenced: ErrorOr[Seq[JesAttachedDisk]] = sequenceNels(diskNels)
-    val defaulted: ErrorOr[Seq[JesAttachedDisk]] = addDefault(sequenced)
+  private def validateLocalDisks(disks: Seq[String]): ErrorOr[Seq[PipelinesApiAttachedDisk]] = {
+    val diskNels: Seq[ErrorOr[PipelinesApiAttachedDisk]] = disks map validateLocalDisk
+    val sequenced: ErrorOr[Seq[PipelinesApiAttachedDisk]] = sequenceNels(diskNels)
+    val defaulted: ErrorOr[Seq[PipelinesApiAttachedDisk]] = addDefault(sequenced)
     defaulted
   }
 
-  private def validateLocalDisk(disk: String): ErrorOr[JesAttachedDisk] = {
-    JesAttachedDisk.parse(disk) match {
+  private def validateLocalDisk(disk: String): ErrorOr[PipelinesApiAttachedDisk] = {
+    PipelinesApiAttachedDisk.parse(disk) match {
       case scala.util.Success(attachedDisk) => attachedDisk.validNel
       case scala.util.Failure(ex) => ex.getMessage.invalidNel
     }
   }
 
-  private def sequenceNels(nels: Seq[ErrorOr[JesAttachedDisk]]): ErrorOr[Seq[JesAttachedDisk]] = {
-    val emptyDiskNel: ErrorOr[Vector[JesAttachedDisk]] = Vector.empty[JesAttachedDisk].validNel
-    val disksNel: ErrorOr[Vector[JesAttachedDisk]] = nels.foldLeft(emptyDiskNel) {
+  private def sequenceNels(nels: Seq[ErrorOr[PipelinesApiAttachedDisk]]): ErrorOr[Seq[PipelinesApiAttachedDisk]] = {
+    val emptyDiskNel: ErrorOr[Vector[PipelinesApiAttachedDisk]] = Vector.empty[PipelinesApiAttachedDisk].validNel
+    val disksNel: ErrorOr[Vector[PipelinesApiAttachedDisk]] = nels.foldLeft(emptyDiskNel) {
       (acc, v) => (acc, v) mapN { (a, v) => a :+ v }
     }
     disksNel
   }
 
-  private def addDefault(disksNel: ErrorOr[Seq[JesAttachedDisk]]): ErrorOr[Seq[JesAttachedDisk]] = {
+  private def addDefault(disksNel: ErrorOr[Seq[PipelinesApiAttachedDisk]]): ErrorOr[Seq[PipelinesApiAttachedDisk]] = {
     disksNel map {
-      case disks if disks.exists(_.name == JesWorkingDisk.Name) => disks
-      case disks => disks :+ JesWorkingDisk.Default
+      case disks if disks.exists(_.name == PipelinesApiWorkingDisk.Name) => disks
+      case disks => disks :+ PipelinesApiWorkingDisk.Default
     }
   }
 

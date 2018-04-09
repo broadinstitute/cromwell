@@ -4,7 +4,7 @@ if [ "$TRAVIS_SECURE_ENV_VARS" = "false" ]; then
     echo "************************************************************************************************"
     echo "************************************************************************************************"
     echo "**                                                                                            **"
-    echo "**  WARNING: Encrypted keys are unavailable to automatically test JES with centaur. Exiting.  **"
+    echo "**  WARNING: Encrypted keys are unavailable to automatically test PAPI with centaur. Exiting. **"
     echo "**                                                                                            **"
     echo "************************************************************************************************"
     echo "************************************************************************************************"
@@ -145,9 +145,9 @@ docker run --rm \
 
 ASSEMBLY_LOG_LEVEL=error ENABLE_COVERAGE=true sbt assembly --error
 CROMWELL_JAR=$(find "$(pwd)/server/target/scala-2.12" -name "cromwell-*.jar")
-JES_CONF="$(pwd)/jes_centaur.conf"
+PAPI_CONF="$(pwd)/papiv2_centaur.conf"
 GOOGLE_AUTH_MODE="service-account"
-GOOGLE_REFRESH_TOKEN_PATH="$(pwd)/jes_refresh_token.txt"
+GOOGLE_REFRESH_TOKEN_PATH="$(pwd)/papi_refresh_token.txt"
 GOOGLE_SERVICE_ACCOUNT_JSON="$(pwd)/cromwell-service-account.json"
 
 # pass integration directory to the inputs json otherwise remove it from the inputs file
@@ -157,21 +157,22 @@ else
     INTEGRATION_TESTS="-i$INTEGRATION_TESTS_DIR"
 fi
 
-# All tests use ubuntu:latest - make sure it's there before starting the tests
-# because pulling the image during some of the tests would cause them to fail
-# (specifically output_redirection which expects a specific value in stderr)
-docker pull ubuntu:latest
-
 # Export variables used in conf files
 export GOOGLE_AUTH_MODE
 export GOOGLE_REFRESH_TOKEN_PATH
 export GOOGLE_SERVICE_ACCOUNT_JSON
 
+# Excluded tests:
+# docker_hash_dockerhub_private: TODO create ticket 
+# gpu_on_papi: TODO create ticket 
+
 centaur/test_cromwell.sh \
   -j${CROMWELL_JAR} \
   -g \
-  -c${JES_CONF} \
-  -elocaldockertest \
+  -c${PAPI_CONF} \
+  -e localdockertest \
+  -e docker_hash_dockerhub_private \
+  -e gpu_on_papi \
   -p100 \
   $INTEGRATION_TESTS
 

@@ -4,7 +4,7 @@ workflowType: WDL
 workflowTypeVersion: 1.0
 tags: [localdockertest, "wdl_1.0"]
 backendsMode: "only"
-backends: [Local, LocalNoDocker, Jes]
+backends: [Local, LocalNoDocker, Papi]
 
 files {
   workflow: wdl_draft3/read_write_functions/read_write_functions.wdl

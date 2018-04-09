@@ -8,7 +8,7 @@ import spray.json.{JsString, JsValue}
  * Interface for Authentication information that can be included as a json object in the file uploaded to GCS
  * upon workflow creation and used in the VM.
  */
-sealed trait JesAuthObject {
+sealed trait PipelinesApiAuthObject {
   def context: String
   def map: Map[String, JsValue]
 
@@ -18,7 +18,7 @@ sealed trait JesAuthObject {
 /**
  * Authentication information for data (de)localization as the user.
  */
-case class GcsLocalizing(clientSecrets: ClientSecrets, token: String) extends JesAuthObject {
+case class GcsLocalizing(clientSecrets: ClientSecrets, token: String) extends PipelinesApiAuthObject {
   override val context = "boto"
   override val map = Map(
     "client_id" -> JsString(clientSecrets.clientId),
@@ -27,15 +27,15 @@ case class GcsLocalizing(clientSecrets: ClientSecrets, token: String) extends Je
   )
 }
 
-object JesDockerCredentials {
-  def apply(dockerCredentials: DockerCredentials): JesDockerCredentials = apply(dockerCredentials.account, dockerCredentials.token)
-  def apply(account: String, token: String): JesDockerCredentials = new JesDockerCredentials(account, token)
+object PipelinesApiDockerCredentials {
+  def apply(dockerCredentials: DockerCredentials): PipelinesApiDockerCredentials = apply(dockerCredentials.account, dockerCredentials.token)
+  def apply(account: String, token: String): PipelinesApiDockerCredentials = new PipelinesApiDockerCredentials(account, token)
 }
 
 /**
  * Authentication information to pull docker images as the user.
  */
-class JesDockerCredentials(account: String, token: String) extends DockerCredentials(account, token) with JesAuthObject {
+class PipelinesApiDockerCredentials(account: String, token: String) extends DockerCredentials(account, token) with PipelinesApiAuthObject {
   override val context = "docker"
   override val map = Map(
     "account" -> JsString(account),

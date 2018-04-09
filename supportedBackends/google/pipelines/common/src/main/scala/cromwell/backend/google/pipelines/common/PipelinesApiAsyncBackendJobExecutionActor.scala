@@ -12,13 +12,13 @@ import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend._
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.{CreatePipelineParameters, DetritusInputParameters, DetritusOutputParameters, InputOutputParameters}
 import cromwell.backend.google.pipelines.common.api.RunStatus.TerminalRunStatus
 import cromwell.backend.google.pipelines.common.api._
 import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiRunCreationClient.JobAbortedException
 import cromwell.backend.google.pipelines.common.api.clients.{PipelinesApiAbortClient, PipelinesApiRunCreationClient, PipelinesApiStatusRequestClient}
 import cromwell.backend.google.pipelines.common.errors.FailedToDelocalizeFailure
-import cromwell.backend.google.pipelines.common.io.{JesAttachedDisk, JesWorkingDisk, _}
+import cromwell.backend.google.pipelines.common.io.{PipelinesApiAttachedDisk, PipelinesApiWorkingDisk, _}
 import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
@@ -102,11 +102,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     initialInterval = 3 seconds, maxInterval = 20 seconds, multiplier = 1.1)
 
   protected lazy val cmdInput =
-    JesFileInput(PipelinesApiJobPaths.JesExecParamName, jesCallPaths.script.pathAsString, DefaultPathBuilder.get(jesCallPaths.scriptFilename), workingDisk)
-  protected lazy val jesCommandLine = s"/bin/bash ${cmdInput.containerPath}"
-  protected lazy val rcJesOutput = JesFileOutput(returnCodeFilename, returnCodeGcsPath.pathAsString, DefaultPathBuilder.get(returnCodeFilename), workingDisk)
-
-  protected lazy val standardParameters = Seq(rcJesOutput)
+    PipelinesApiFileInput(PipelinesApiJobPaths.JesExecParamName, pipelinesApiCallPaths.script.pathAsString, DefaultPathBuilder.get(pipelinesApiCallPaths.scriptFilename), workingDisk)
 
   protected lazy val dockerConfiguration = jesConfiguration.dockerCredentials
 
@@ -127,9 +123,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse abortActorClientReceive orElse kvClientReceive orElse super.receive
 
-  private def gcsAuthParameter: Option[JesInput] = {
+  private def gcsAuthParameter: Option[PipelinesApiLiteralInput] = {
     if (jesAttributes.auths.gcs.requiresAuthFile || dockerConfiguration.isDefined)
-      Option(JesLiteralInput(ExtraConfigParamName, jesCallPaths.workflowPaths.gcsAuthFilePath.pathAsString))
+      Option(PipelinesApiLiteralInput(ExtraConfigParamName, pipelinesApiCallPaths.workflowPaths.gcsAuthFilePath.pathAsString))
     else None
   }
 
@@ -139,10 +135,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   private def jesInputsFromWomFiles(jesNamePrefix: String,
                                     remotePathArray: Seq[WomFile],
                                     localPathArray: Seq[WomFile],
-                                    jobDescriptor: BackendJobDescriptor): Iterable[JesInput] = {
+                                    jobDescriptor: BackendJobDescriptor): Iterable[PipelinesApiFileInput] = {
     (remotePathArray zip localPathArray zipWithIndex) flatMap {
       case ((remotePath, localPath), index) =>
-        Seq(JesFileInput(s"$jesNamePrefix-$index", remotePath.valueString, DefaultPathBuilder.get(localPath.valueString), workingDisk))
+        Seq(PipelinesApiFileInput(s"$jesNamePrefix-$index", remotePath.valueString, DefaultPathBuilder.get(localPath.valueString), workingDisk))
     }
   }
 
@@ -161,7 +157,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     )
   }
 
-  private[pipelines] def generateJesInputs(jobDescriptor: BackendJobDescriptor): Set[JesInput] = {
+  private[pipelines] def generateJesInputs(jobDescriptor: BackendJobDescriptor): Set[PipelinesApiFileInput] = {
     // We need to tell PAPI about files that were created as part of command instantiation (these need to be defined
     // as inputs that will be localized down to the VM). Make up 'names' for these files that are just the short
     // md5's of their paths.
@@ -179,7 +175,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         val arrays: Seq[WomArray] = womFile collectAsSeq {
           case womFile: WomFile =>
             val files: List[WomSingleFile] = DirectoryFunctions
-              .listWomSingleFiles(womFile, jesCallPaths.workflowPaths)
+              .listWomSingleFiles(womFile, pipelinesApiCallPaths.workflowPaths)
               .toTry(s"Error getting single files for $womFile").get
             WomArray(WomArrayType(WomSingleFileType), files)
         }
@@ -203,9 +199,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     *
     * @throws Exception if the `path` does not live in one of the supplied `disks`
     */
-  private def relativePathAndAttachedDisk(path: String, disks: Seq[JesAttachedDisk]): (Path, JesAttachedDisk) = {
+  private def relativePathAndAttachedDisk(path: String, disks: Seq[PipelinesApiAttachedDisk]): (Path, PipelinesApiAttachedDisk) = {
     val absolutePath = DefaultPathBuilder.get(path) match {
-      case p if !p.isAbsolute => JesWorkingDisk.MountPoint.resolve(p)
+      case p if !p.isAbsolute => PipelinesApiWorkingDisk.MountPoint.resolve(p)
       case p => p
     }
 
@@ -224,7 +220,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     if (referenceName.length <= 127) referenceName else referenceName.md5Sum
   }
 
-  private[pipelines] def generateJesOutputs(jobDescriptor: BackendJobDescriptor): Set[JesFileOutput] = {
+  private[pipelines] def generateJesOutputs(jobDescriptor: BackendJobDescriptor): Set[PipelinesApiFileOutput] = {
     import cats.syntax.validated._
     def evaluateFiles(output: OutputDefinition): List[WomFile] = {
       Try(
@@ -235,7 +231,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
     val womFileOutputs = jobDescriptor.taskCall.callable.outputs.flatMap(evaluateFiles) map relativeLocalizationPath
 
-    val outputs: Seq[JesFileOutput] = womFileOutputs.distinct flatMap {
+    val outputs: Seq[PipelinesApiFileOutput] = womFileOutputs.distinct flatMap {
       _.flattenFiles flatMap {
         case unlistedDirectory: WomUnlistedDirectory => generateUnlistedDirectoryOutputs(unlistedDirectory)
         case singleFile: WomSingleFile => generateJesSingleFileOutputs(singleFile)
@@ -248,7 +244,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     outputs.toSet ++ additionalGlobOutput
   }
 
-  private def generateUnlistedDirectoryOutputs(womFile: WomUnlistedDirectory): List[JesFileOutput] = {
+  private def generateUnlistedDirectoryOutputs(womFile: WomUnlistedDirectory): List[PipelinesApiFileOutput] = {
     val directoryPath = womFile.value.ensureSlashed
     val directoryListFile = womFile.value.ensureUnslashed + ".list"
     val gcsDirDestinationPath = callRootPath.resolve(directoryPath).pathAsString
@@ -259,14 +255,14 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     // We need both the collection directory and the collection list:
     List(
       // The collection directory:
-      JesFileOutput(
+      PipelinesApiFileOutput(
         makeSafeJesReferenceName(directoryListFile),
         gcsListDestinationPath,
         DefaultPathBuilder.get(directoryListFile),
         directoryDisk
       ),
       // The collection list file:
-      JesFileOutput(
+      PipelinesApiFileOutput(
         makeSafeJesReferenceName(directoryPath),
         gcsDirDestinationPath,
         DefaultPathBuilder.get(directoryPath + "*"),
@@ -275,14 +271,14 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     )
   }
 
-  private def generateJesSingleFileOutputs(womFile: WomSingleFile): List[JesFileOutput] = {
+  private def generateJesSingleFileOutputs(womFile: WomSingleFile): List[PipelinesApiFileOutput] = {
     val destination = callRootPath.resolve(womFile.value.stripPrefix("/")).pathAsString
     val (relpath, disk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
-    val jesFileOutput = JesFileOutput(makeSafeJesReferenceName(womFile.value), destination, relpath, disk)
+    val jesFileOutput = PipelinesApiFileOutput(makeSafeJesReferenceName(womFile.value), destination, relpath, disk)
     List(jesFileOutput)
   }
 
-  private def generateJesGlobFileOutputs(womFile: WomGlobFile): List[JesFileOutput] = {
+  private def generateJesGlobFileOutputs(womFile: WomGlobFile): List[PipelinesApiFileOutput] = {
     val globName = GlobFunctions.globName(womFile.value)
     val globDirectory = globName + "/"
     val globListFile = globName + ".list"
@@ -294,31 +290,31 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     // We need both the glob directory and the glob list:
     List(
       // The glob directory:
-      JesFileOutput(makeSafeJesReferenceName(globDirectory), gcsGlobDirectoryDestinationPath, DefaultPathBuilder.get(globDirectory + "*"), globDirectoryDisk),
+      PipelinesApiFileOutput(makeSafeJesReferenceName(globDirectory), gcsGlobDirectoryDestinationPath, DefaultPathBuilder.get(globDirectory + "*"), globDirectoryDisk),
       // The glob list file:
-      JesFileOutput(makeSafeJesReferenceName(globListFile), gcsGlobListFileDestinationPath, DefaultPathBuilder.get(globListFile), globDirectoryDisk)
+      PipelinesApiFileOutput(makeSafeJesReferenceName(globListFile), gcsGlobListFileDestinationPath, DefaultPathBuilder.get(globListFile), globDirectoryDisk)
     )
   }
 
   lazy val jesMonitoringParamName: String = PipelinesApiJobPaths.JesMonitoringKey
-  lazy val localMonitoringLogPath: Path = DefaultPathBuilder.get(jesCallPaths.jesMonitoringLogFilename)
-  lazy val localMonitoringScriptPath: Path = DefaultPathBuilder.get(jesCallPaths.jesMonitoringScriptFilename)
+  lazy val localMonitoringLogPath: Path = DefaultPathBuilder.get(pipelinesApiCallPaths.jesMonitoringLogFilename)
+  lazy val localMonitoringScriptPath: Path = DefaultPathBuilder.get(pipelinesApiCallPaths.jesMonitoringScriptFilename)
 
-  lazy val monitoringScript: Option[JesInput] = {
-    jesCallPaths.workflowPaths.monitoringScriptPath map { path =>
-      JesFileInput(s"$jesMonitoringParamName-in", path.pathAsString, localMonitoringScriptPath, workingDisk)
+  lazy val monitoringScript: Option[PipelinesApiFileInput] = {
+    pipelinesApiCallPaths.workflowPaths.monitoringScriptPath map { path =>
+      PipelinesApiFileInput(s"$jesMonitoringParamName-in", path.pathAsString, localMonitoringScriptPath, workingDisk)
     }
   }
 
-  lazy val monitoringOutput: Option[JesFileOutput] = monitoringScript map { _ =>
-    JesFileOutput(s"$jesMonitoringParamName-out",
-      jesCallPaths.jesMonitoringLogPath.pathAsString, localMonitoringLogPath, workingDisk)
+  lazy val monitoringOutput: Option[PipelinesApiFileOutput] = monitoringScript map { _ =>
+    PipelinesApiFileOutput(s"$jesMonitoringParamName-out",
+      pipelinesApiCallPaths.jesMonitoringLogPath.pathAsString, localMonitoringLogPath, workingDisk)
   }
 
-  override lazy val commandDirectory: Path = JesWorkingDisk.MountPoint
+  override lazy val commandDirectory: Path = PipelinesApiWorkingDisk.MountPoint
 
-  private val DockerMonitoringLogPath: Path = JesWorkingDisk.MountPoint.resolve(jesCallPaths.jesMonitoringLogFilename)
-  private val DockerMonitoringScriptPath: Path = JesWorkingDisk.MountPoint.resolve(jesCallPaths.jesMonitoringScriptFilename)
+  private val DockerMonitoringLogPath: Path = PipelinesApiWorkingDisk.MountPoint.resolve(pipelinesApiCallPaths.jesMonitoringLogFilename)
+  private val DockerMonitoringScriptPath: Path = PipelinesApiWorkingDisk.MountPoint.resolve(pipelinesApiCallPaths.jesMonitoringScriptFilename)
 
   override def scriptPreamble: String = {
     if (monitoringOutput.isDefined) {
@@ -348,15 +344,15 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
   }
 
-  private def createPipelineParameters(jesParameters: Seq[JesParameter]): CreatePipelineParameters = {
+  private def createPipelineParameters(inputOutputParameters: InputOutputParameters): CreatePipelineParameters = {
     CreatePipelineParameters(
       jobDescriptor = jobDescriptor,
       runtimeAttributes = runtimeAttributes,
       dockerImage = jobDockerImage,
-      callRootPath = callRootPath.pathAsString,
-      commandLine = jesCommandLine,
-      logFileName = jesLogFilename,
-      jesParameters,
+      cloudCallRoot = callRootPath,
+      commandScriptContainerPath = cmdInput.containerPath,
+      logGcsPath = jesLogPath, 
+      inputOutputParameters,
       googleProject(jobDescriptor.workflowDescriptor),
       computeServiceAccount(jobDescriptor.workflowDescriptor),
       backendLabels,
@@ -387,12 +383,22 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     // Want to force runtimeAttributes to evaluate so we can fail quickly now if we need to:
     def evaluateRuntimeAttributes = Future.fromTry(Try(runtimeAttributes))
 
-    def generateJesParameters = Future.fromTry(Try {
-      val generatedJesInputs = generateJesInputs(jobDescriptor)
-      val jesInputs: Set[JesInput] = generatedJesInputs ++ monitoringScript + cmdInput
-      val jesOutputs: Set[JesFileOutput] = generateJesOutputs(jobDescriptor) ++ monitoringOutput
+    def generateInputOutputParameters: Future[InputOutputParameters] = Future.fromTry(Try {
+      val rcFileOutput = PipelinesApiFileOutput(returnCodeFilename, returnCodeGcsPath.pathAsString, DefaultPathBuilder.get(returnCodeFilename), workingDisk)
 
-      standardParameters ++ gcsAuthParameter ++ jesInputs ++ jesOutputs
+      InputOutputParameters(
+        DetritusInputParameters(
+          executionScriptInputParameter = cmdInput,
+          monitoringScriptInputParameter = monitoringScript
+        ),
+        generateJesInputs(jobDescriptor).toList,
+        generateJesOutputs(jobDescriptor).toList,
+        DetritusOutputParameters(
+          monitoringScriptOutputParameter = monitoringOutput,
+          rcFileOutputParameter = rcFileOutput
+        ),
+        gcsAuthParameter.toList
+      )
     })
 
     def uploadScriptFile = commandScriptContents.fold(
@@ -402,7 +408,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     val runPipelineResponse = for {
       _ <- evaluateRuntimeAttributes
       _ <- uploadScriptFile
-      jesParameters <- generateJesParameters
+      jesParameters <- generateInputOutputParameters
       createParameters = createPipelineParameters(jesParameters)
       runId <- runPipeline(workflowId, createParameters)
     } yield runId
@@ -444,10 +450,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     womFileToGcsPath(generateJesOutputs(jobDescriptor))(womFile)
   }
 
-  private[pipelines] def womFileToGcsPath(jesOutputs: Set[JesFileOutput])(womFile: WomFile): WomFile = {
+  private[pipelines] def womFileToGcsPath(jesOutputs: Set[PipelinesApiFileOutput])(womFile: WomFile): WomFile = {
     womFile mapFile { path =>
       jesOutputs collectFirst {
-        case jesOutput if jesOutput.name == makeSafeJesReferenceName(path) => jesOutput.gcs
+        case jesOutput if jesOutput.name == makeSafeJesReferenceName(path) => jesOutput.cloudPath
       } getOrElse path
     }
   }

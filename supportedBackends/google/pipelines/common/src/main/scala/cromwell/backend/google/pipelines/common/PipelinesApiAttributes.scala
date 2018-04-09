@@ -10,7 +10,7 @@ import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiAuths
-import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, JesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
+import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, PipelinesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
@@ -29,7 +29,7 @@ case class PipelinesApiAttributes(project: String,
                                   endpointUrl: URL,
                                   maxPollingInterval: Int,
                                   qps: Int Refined Positive,
-                                  duplicationStrategy: JesCacheHitDuplicationStrategy,
+                                  duplicationStrategy: PipelinesCacheHitDuplicationStrategy,
                                   requestWorkers: Int Refined Positive)
 
 object PipelinesApiAttributes {
@@ -100,7 +100,7 @@ object PipelinesApiAttributes {
                                          restrictMetadata: Boolean,
                                          gcsName: String,
                                          qps: Int Refined Positive,
-                                         cachingStrategy: JesCacheHitDuplicationStrategy,
+                                         cachingStrategy: PipelinesCacheHitDuplicationStrategy,
                                          requestWorkers: Int Refined Positive): ErrorOr[PipelinesApiAttributes] = (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
       (genomicsAuth, gcsAuth) => PipelinesApiAttributes(project, computeServiceAccount, PipelinesApiAuths(genomicsAuth, gcsAuth), restrictMetadata, bucket, endpointUrl, maxPollingInterval, qps, cachingStrategy, requestWorkers)
     }

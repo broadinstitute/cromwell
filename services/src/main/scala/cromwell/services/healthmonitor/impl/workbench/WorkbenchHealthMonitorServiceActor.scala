@@ -8,7 +8,7 @@ import cats.instances.future._
 import cats.syntax.functor._
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.gax.retrying.RetrySettings
-import com.google.api.services.genomics.Genomics
+import com.google.api.services.genomics.v2alpha1.Genomics
 import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
 import com.typesafe.config.Config
@@ -71,7 +71,7 @@ class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig
     val genomicsFactory = GenomicsFactory(googleConfig.applicationName, googleAuth, endpointUrl)
     val genomicsInterface = Future(googleAuth.credential(Map.empty)) map genomicsFactory.fromCredentials
 
-    genomicsInterface map { _.pipelines().list().setProjectId(papiProjectId).setPageSize(1).execute() } as OkStatus
+    genomicsInterface map { _.projects().operations().list(papiProjectId).setPageSize(1).execute() } as OkStatus
   }
 }
 
@@ -97,4 +97,3 @@ object WorkbenchHealthMonitorServiceActor {
     }
   }
 }
-

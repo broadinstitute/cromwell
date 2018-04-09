@@ -1,4 +1,4 @@
-package cromwell.backend.google.pipelines.v1alpha2.api
+package cromwell.backend.google.pipelines.v1alpha2.api.request
 
 import akka.actor.ActorRef
 import com.google.api.client.googleapis.batch.BatchRequest
@@ -6,13 +6,13 @@ import com.google.api.client.googleapis.batch.json.JsonBatchCallback
 import com.google.api.client.googleapis.json.{GoogleJsonError, GoogleJsonErrorContainer}
 import com.google.api.client.http.{HttpHeaders, HttpRequest}
 import com.google.api.services.genomics.model.Operation
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{GoogleJsonException, PipelinesApiAbortQueryFailed, PAPIAbortRequest, PAPIApiException}
 import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiAbortClient.{PAPIAbortRequestSuccessful, PAPIOperationAlreadyCancelled, PAPIOperationHasAlreadyFinished}
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{GoogleJsonException, JesApiAbortQueryFailed, PAPIAbortRequest, PAPIApiException}
 
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
 
-trait AbortRequestBatchHandler { this: BatchHandler =>
+trait AbortRequestHandler { this: RequestHandler =>
   private def abortResultHandler(originalRequest: PAPIAbortRequest, completionPromise: Promise[Try[Unit]], pollingManager: ActorRef) = new JsonBatchCallback[Operation] {
     override def onSuccess(operation: Operation, responseHeaders: HttpHeaders): Unit = {
       originalRequest.requester ! PAPIAbortRequestSuccessful(originalRequest.jobId.jobId)
@@ -29,7 +29,7 @@ trait AbortRequestBatchHandler { this: BatchHandler =>
         originalRequest.requester ! PAPIOperationHasAlreadyFinished(originalRequest.jobId.jobId)
         completionPromise.trySuccess(Success(()))
       } else {
-        pollingManager ! JesApiAbortQueryFailed(originalRequest, new PAPIApiException(GoogleJsonException(e, responseHeaders)))
+        pollingManager ! PipelinesApiAbortQueryFailed(originalRequest, new PAPIApiException(GoogleJsonException(e, responseHeaders)))
         completionPromise.trySuccess(Failure(new Exception(mkErrorString(e))))
       }
 

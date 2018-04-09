@@ -1,6 +1,6 @@
 name: refresh_token_failure
 testFormat: workflowfailure
-backends: [Jes-Refresh]
+backends: [Papi-Refresh]
 
 files {
   workflow: refresh_token_failure/refresh_token_failure.wdl

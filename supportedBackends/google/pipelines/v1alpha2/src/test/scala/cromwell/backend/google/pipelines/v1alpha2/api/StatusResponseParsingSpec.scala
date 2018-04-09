@@ -6,6 +6,7 @@ import java.util
 import com.google.api.client.util.ArrayMap
 import com.google.api.services.genomics.model.Operation
 import cromwell.backend.google.pipelines.common.api.RunStatus.Success
+import cromwell.backend.google.pipelines.v1alpha2.api.request.GetRequestHandler
 import cromwell.core.ExecutionEvent
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.{Mockito => MockitoTrait}
@@ -19,19 +20,19 @@ class StatusResponseParsingSpec extends FlatSpec with Matchers with MockitoTrait
     val op: Operation = new Operation()
     op.setMetadata(eventsMetadata.asJava)
 
-    val list = StatusRequestBatchHandler.getEventList(op)
+    val list = GetRequestHandler.getEventList(op)
     list should contain theSameElementsAs eventsExpected
   }
 
   it should "require operation be non-null" in {
-    val exception = intercept[RuntimeException](StatusRequestBatchHandler.interpretOperationStatus(null))
+    val exception = intercept[RuntimeException](GetRequestHandler.interpretOperationStatus(null))
     exception.getMessage should be("requirement failed: Operation must not be null.")
   }
 
   it should "catch and wrap null pointer exceptions in an empty operation" in {
     val op = new Operation()
 
-    val exception = intercept[RuntimeException](StatusRequestBatchHandler.interpretOperationStatus(op))
+    val exception = intercept[RuntimeException](GetRequestHandler.interpretOperationStatus(op))
     exception.getMessage should be("Caught NPE while processing operation null: {}")
   }
 
@@ -39,7 +40,7 @@ class StatusResponseParsingSpec extends FlatSpec with Matchers with MockitoTrait
     val op = new Operation()
     op.setName("my/customName")
 
-    val exception = intercept[RuntimeException](StatusRequestBatchHandler.interpretOperationStatus(op))
+    val exception = intercept[RuntimeException](GetRequestHandler.interpretOperationStatus(op))
     exception.getMessage should be("Caught NPE while processing operation my/customName: {name=my/customName}")
   }
 
@@ -49,7 +50,7 @@ class StatusResponseParsingSpec extends FlatSpec with Matchers with MockitoTrait
     op.setDone(true)
     op.setMetadata(eventsMetadata.asJava)
 
-    val runStatus = StatusRequestBatchHandler.interpretOperationStatus(op)
+    val runStatus = GetRequestHandler.interpretOperationStatus(op)
 
     runStatus should be(a[Success])
 
@@ -70,7 +71,7 @@ class StatusResponseParsingSpec extends FlatSpec with Matchers with MockitoTrait
     val metadata = eventsMetadata ++ Map("runtimeMetadata" -> runtimeMetadata)
     op.setMetadata(metadata.asJava)
 
-    val runStatus = StatusRequestBatchHandler.interpretOperationStatus(op)
+    val runStatus = GetRequestHandler.interpretOperationStatus(op)
     runStatus should be(a[Success])
 
     val success = runStatus.asInstanceOf[Success]
@@ -93,7 +94,7 @@ class StatusResponseParsingSpec extends FlatSpec with Matchers with MockitoTrait
     val metadata = eventsMetadata ++ Map("runtimeMetadata" -> runtimeMetadata)
     op.setMetadata(metadata.asJava)
 
-    val runStatus = StatusRequestBatchHandler.interpretOperationStatus(op)
+    val runStatus = GetRequestHandler.interpretOperationStatus(op)
     runStatus should be(a[Success])
 
     val success = runStatus.asInstanceOf[Success]
@@ -117,7 +118,7 @@ class StatusResponseParsingSpec extends FlatSpec with Matchers with MockitoTrait
     val metadata = eventsMetadata ++ Map("runtimeMetadata" -> runtimeMetadata)
     op.setMetadata(metadata.asJava)
 
-    val runStatus = StatusRequestBatchHandler.interpretOperationStatus(op)
+    val runStatus = GetRequestHandler.interpretOperationStatus(op)
 
     runStatus should be(a[Success])
 
@@ -144,7 +145,7 @@ class StatusResponseParsingSpec extends FlatSpec with Matchers with MockitoTrait
     val metadata = eventsMetadata ++ Map("runtimeMetadata" -> runtimeMetadata)
     op.setMetadata(metadata.asJava)
 
-    val runStatus = StatusRequestBatchHandler.interpretOperationStatus(op)
+    val runStatus = GetRequestHandler.interpretOperationStatus(op)
 
     runStatus should be(a[Success])
 

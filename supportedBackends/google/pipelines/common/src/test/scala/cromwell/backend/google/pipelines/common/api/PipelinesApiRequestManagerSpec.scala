@@ -5,7 +5,7 @@ import akka.testkit.{TestActorRef, TestProbe, _}
 import com.google.api.client.googleapis.batch.BatchRequest
 import cromwell.backend.BackendSingletonActorAbortWorkflow
 import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{JesApiRunCreationQueryFailed, PAPIRunCreationRequest, PAPIStatusPollRequest}
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{PipelinesApiRunCreationQueryFailed, PAPIRunCreationRequest, PAPIStatusPollRequest}
 import cromwell.backend.google.pipelines.common.api.TestPipelinesApiRequestManagerSpec._
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.{TestKitSuite, WorkflowId}
@@ -16,6 +16,7 @@ import org.scalatest.concurrent.Eventually
 import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.collection.immutable.Queue
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.Random
 
@@ -45,7 +46,7 @@ class PipelinesApiRequestManagerSpec extends TestKitSuite("PipelinesApiRequestMa
     var statusRequesters = ((0 until BatchSize * 2) map { i => i -> TestProbe(name = s"StatusRequester_$i") }).toMap
 
     // Initially, we should have no work:
-    jaqmActor.tell(msg = PipelinesApiRequestManager.RequestJesPollingWork(BatchSize), sender = statusPoller.ref)
+    jaqmActor.tell(msg = PipelinesApiRequestManager.PipelinesWorkerRequestWork(BatchSize), sender = statusPoller.ref)
     statusPoller.expectMsg(max = TestExecutionTimeout, obj = PipelinesApiRequestManager.NoWorkToDo)
 
     // Send a few status poll requests:
@@ -58,7 +59,7 @@ class PipelinesApiRequestManagerSpec extends TestKitSuite("PipelinesApiRequestMa
 
     // Verify batches:
     2 times {
-      jaqmActor.tell(msg = PipelinesApiRequestManager.RequestJesPollingWork(BatchSize), sender = statusPoller.ref)
+      jaqmActor.tell(msg = PipelinesApiRequestManager.PipelinesWorkerRequestWork(BatchSize), sender = statusPoller.ref)
       statusPoller.expectMsgPF(max = TestExecutionTimeout) {
         case PipelinesApiRequestManager.PipelinesApiWorkBatch(workBatch) =>
           val requesters = statusRequesters.take(BatchSize)
@@ -74,7 +75,7 @@ class PipelinesApiRequestManagerSpec extends TestKitSuite("PipelinesApiRequestMa
     }
 
     // Finally, we should have no work:
-    jaqmActor.tell(msg = PipelinesApiRequestManager.RequestJesPollingWork(BatchSize), sender = statusPoller.ref)
+    jaqmActor.tell(msg = PipelinesApiRequestManager.PipelinesWorkerRequestWork(BatchSize), sender = statusPoller.ref)
     statusPoller.expectMsg(max = TestExecutionTimeout, obj = PipelinesApiRequestManager.NoWorkToDo)
 
     jaqmActor.underlyingActor.testPollerCreations should be(1)
@@ -90,7 +91,7 @@ class PipelinesApiRequestManagerSpec extends TestKitSuite("PipelinesApiRequestMa
     val request = makeCreateRequest(15 * 1024 * 1024, statusRequester.ref)
     jaqmActor.tell(msg = request, sender = statusRequester.ref)
 
-    statusRequester.expectMsgClass(classOf[JesApiRunCreationQueryFailed])
+    statusRequester.expectMsgClass(classOf[PipelinesApiRunCreationQueryFailed])
 
     jaqmActor.underlyingActor.queueSize shouldBe 0
   }
@@ -109,7 +110,7 @@ class PipelinesApiRequestManagerSpec extends TestKitSuite("PipelinesApiRequestMa
     }
 
     // ask for a batch
-    jaqmActor.tell(msg = PipelinesApiRequestManager.RequestJesPollingWork(BatchSize), sender = statusPoller.ref)
+    jaqmActor.tell(msg = PipelinesApiRequestManager.PipelinesWorkerRequestWork(BatchSize), sender = statusPoller.ref)
 
     // We should get only 2 requests back
     statusPoller.expectMsgPF(max = TestExecutionTimeout) {
@@ -143,7 +144,7 @@ class PipelinesApiRequestManagerSpec extends TestKitSuite("PipelinesApiRequestMa
         jaqmActor.tell(msg = request, sender = emptyActor)
       }
 
-      jaqmActor.tell(msg = PipelinesApiRequestManager.RequestJesPollingWork(BatchSize), sender = statusPoller1)
+      jaqmActor.tell(msg = PipelinesApiRequestManager.PipelinesWorkerRequestWork(BatchSize), sender = statusPoller1)
 
       stopMethod(statusPoller1)
 
@@ -224,9 +225,10 @@ class TestPipelinesApiRequestManager(qps: Int Refined Positive, requestWorkers: 
   def statusPollerEquals(otherStatusPoller: ActorRef) = statusPollers sameElements Array(otherStatusPoller)
 }
 
-class MockPipelinesRequestHandler extends PipelinesApiBatchHandler {
+class MockPipelinesRequestHandler extends PipelinesApiRequestHandler {
   override def makeBatchRequest = ???
-  override def enqueue[T <: PipelinesApiRequestManager.PAPIApiRequest](papiApiRequest: T, batchRequest: BatchRequest, pollingManager: ActorRef) = ???
+  override def enqueue[T <: PipelinesApiRequestManager.PAPIApiRequest](papiApiRequest: T, batchRequest: BatchRequest, pollingManager: ActorRef)
+                                                                      (implicit ec: ExecutionContext)= ???
 }
 
 object TestPipelinesApiRequestManager {

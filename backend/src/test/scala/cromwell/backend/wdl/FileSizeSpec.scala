@@ -66,7 +66,7 @@ class FileSizeSpec extends TestKitSuite with FlatSpecLike with Matchers {
         jPath.toFile.deleteOnExit
         val start = Stream.eval[IO, Byte](IO(1.toByte)).repeat.take(size.toLong)
         val end = fs2.io.file.writeAll[IO](jPath, Seq(CREATE_NEW, WRITE))
-        (start to end).run.unsafeRunSync
+        (start to end).compile.drain.unsafeRunSync()
         //jPath is now a file of n bytes, we can return it
         jPath
       }

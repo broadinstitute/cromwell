@@ -305,10 +305,6 @@ object Dependencies {
     "org.mock-server" % "mockserver-netty" % mockserverNettyV % Test
   ) ++ betterFilesDependencies
 
-  val wdlModelDraft3Dependencies = List(
-    "com.github.mpilquist" %% "simulacrum" % simulacrumV
-  )
-
   val cwlDependencies = List(
     "com.lihaoyi" %% "ammonite-ops" % ammoniteOpsV,
     "org.scalactic" %% "scalactic" % scalacticV,

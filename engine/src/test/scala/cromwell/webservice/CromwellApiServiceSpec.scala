@@ -601,6 +601,8 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
               |{
               |  "id": "$workflowId",
               |  "labels": {
+              |    "key1": "label1",
+              |    "key2": "label2",
               |    "label-key-1":"label-value-1",
               |    "label-key-2":"label-value-2"
               |  }

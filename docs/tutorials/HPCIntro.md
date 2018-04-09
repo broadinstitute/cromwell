@@ -146,7 +146,7 @@ qsub -terse -V -b y -N my_job_name \
   -o /path/to/stdout \
   -e /path/to/stderr \
   -pe smp 1 -l mem_free=0.5g -q short \
-  bash myScript.bash
+  /usr/bin/env bash myScript.bash
 ```
 
 For this particular SGE cluster, the above sets the working directory, stdout and stderr paths, the number of cpus to 1, the memory to half a gigabyte, and runs on the short queue.
@@ -168,7 +168,7 @@ backend.providers.SGE.config {
   ${"-l mem_free=" + memory_gb + "g"} \
   ${"-q " + sge_queue} \
   ${"-P " + sge_project} \
-  /bin/bash ${script}
+  /usr/bin/env bash ${script}
   """
 }
 ```
@@ -245,11 +245,11 @@ backend {
         ${"-l mem_free=" + memory_gb + "g"} \
         ${"-q " + sge_queue} \
         ${"-P " + sge_project} \
-        /bin/bash ${script}
+        /usr/bin/env bash ${script}
         """
-    
+
         job-id-regex = "(\\d+)"
-    
+
         kill = "qdel ${job_id}"
         check-alive = "qstat -j ${job_id}"
       }

@@ -83,6 +83,11 @@ sealed trait WomFile extends WomValue {
     * If relevant, load the size of the file.
     */
   def withSize(ioFunctionSet: IoFunctionSet): Future[WomFile] = Future.successful(this)
+  
+  protected val recoverFileNotFound: PartialFunction[Throwable, this.type] = {
+    case _: NoSuchFileException | _: FileNotFoundException => this
+    case e if e.getCause != null && recoverFileNotFound.isDefinedAt(e.getCause) => recoverFileNotFound.apply(e.getCause)
+  }
 }
 
 object WomFile {
@@ -168,6 +173,7 @@ final case class WomSingleFile(value: String) extends WomPrimitiveFile {
   override def withSize(ioFunctionSet: IoFunctionSet): Future[WomFile] = {
     ioFunctionSet.size(value)
       .map(s => WomMaybePopulatedFile(valueOption = Option(value), sizeOption = Option(s)))(ioFunctionSet.ec)
+      .recover(recoverFileNotFound)(ioFunctionSet.ec)
   }
 }
 
@@ -280,6 +286,7 @@ final case class WomMaybePopulatedFile(valueOption: Option[String] = None,
       case (None, Some(contents)) => Future.successful(this.copy(sizeOption = Option(contents.length.toLong)))
       case _ => ioFunctionSet.size(value)
         .map(s => this.copy(sizeOption = Option(s)))(ec)
+        .recover(recoverFileNotFound)(ec)
     }
   }
 }

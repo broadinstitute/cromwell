@@ -101,7 +101,7 @@ lazy val centaur = project
   .dependsOn(cromwellApiClient)
 
 lazy val services = project
-  .withLibrarySettings("cromwell-services")
+  .withLibrarySettings("cromwell-services", googlePipelinesV1Alpha2Dependencies)
   .dependsOn(databaseSql)
   .dependsOn(databaseMigration)
   .dependsOn(cloudSupport)
@@ -114,6 +114,38 @@ lazy val backend = project
   .withLibrarySettings("cromwell-backend", backendDependencies, backendSettings)
   .dependsOn(services)
   .dependsOn(core % "test->test")
+
+lazy val googlePipelinesCommon = (project in backendRoot / "google" / "pipelines" / "common")
+  .withLibrarySettings("cromwell-pipelines-common")
+  .dependsOn(backend)
+  .dependsOn(gcsFileSystem)
+  .dependsOn(backend % "test->test")
+  .dependsOn(gcsFileSystem % "test->test")
+  .dependsOn(services % "test->test")
+  // Manually exclude any genomics api dependency brought in transitively by the services project
+  .settings(
+  projectDependencies := {
+    Seq(
+      (projectID in services).value.exclude("com.google.apis", "google-api-services-genomics"),
+      (projectID in services).value.exclude("com.google.apis", "google-api-services-genomics") % "test->test"
+    )
+  }
+)
+
+lazy val googlePipelinesV1Alpha2 = (project in backendRoot / "google" / "pipelines" / "v1alpha2")
+  .withLibrarySettings("cromwell-pipelines-v1-backend", googlePipelinesV1Alpha2Dependencies)
+  .dependsOn(googlePipelinesCommon)
+  .dependsOn(core % "test->test")
+
+lazy val googlePipelinesV2Alpha1 = (project in backendRoot / "google" / "pipelines" / "v2alpha1")
+  .withLibrarySettings("cromwell-pipelines-v2-backend", googlePipelinesV2Alpha1Dependencies)
+  .dependsOn(googlePipelinesCommon)
+  .dependsOn(core % "test->test")
+
+// Legacy, inherits all its code from googlePipelinesV1Alpha2
+lazy val jesBackend = (project in backendRoot / "jes")
+  .withLibrarySettings("cromwell-jes-backend")  
+  .dependsOn(googlePipelinesV1Alpha2)
 
 lazy val sfsBackend = (project in backendRoot / "sfs")
   .withLibrarySettings("cromwell-sfs-backend")
@@ -131,14 +163,6 @@ lazy val sparkBackend = (project in backendRoot / "spark")
   .withLibrarySettings("cromwell-spark-backend", sparkBackendDependencies)
   .dependsOn(sfsBackend)
   .dependsOn(backend % "test->test")
-
-lazy val jesBackend = (project in backendRoot / "jes")
-  .withLibrarySettings("cromwell-jes-backend")
-  .dependsOn(backend)
-  .dependsOn(gcsFileSystem)
-  .dependsOn(backend % "test->test")
-  .dependsOn(gcsFileSystem % "test->test")
-  .dependsOn(services % "test->test")
 
 lazy val bcsBackend = (project in backendRoot / "bcs")
   .withLibrarySettings("cromwell-bcs-backend", bcsBackendDependencies)
@@ -210,6 +234,7 @@ lazy val cwlV1_0LanguageFactory = (project in languageFactoryRoot / "cwl-v1-0")
 lazy val server = project
   .withExecutableSettings("cromwell", serverDependencies)
   .dependsOn(engine)
+  .dependsOn(googlePipelinesV1Alpha2)
   .dependsOn(jesBackend)
   .dependsOn(bcsBackend)
   .dependsOn(tesBackend)
@@ -239,6 +264,8 @@ lazy val root = (project in file("."))
   .aggregate(dockerHashing)
   .aggregate(engine)
   .aggregate(gcsFileSystem)
+  .aggregate(googlePipelinesCommon)
+  .aggregate(googlePipelinesV1Alpha2)
   .aggregate(jesBackend)
   .aggregate(languageFactoryCore)
   .aggregate(ossFileSystem)

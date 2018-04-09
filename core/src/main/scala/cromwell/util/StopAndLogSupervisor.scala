@@ -10,6 +10,7 @@ trait StopAndLogSupervisor { this: Actor =>
   final val stopAndLogStrategy: SupervisorStrategy = {
     def stoppingDecider: Decider = {
       case e: Exception =>
+        e.printStackTrace()
         onFailure(sender(), e)
         Stop
     }

@@ -6,14 +6,19 @@ import akka.actor.ActorRef
 import cats.data.Validated.{Invalid, Valid}
 import cats.instances.future._
 import cats.syntax.functor._
+import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.gax.retrying.RetrySettings
+import com.google.api.services.genomics.Genomics
+import com.google.auth.Credentials
+import com.google.auth.http.HttpCredentialsAdapter
 import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
+import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
-import cromwell.cloudsupport.gcp.genomics.GenomicsFactory
 import cromwell.services.healthmonitor.HealthMonitorServiceActor
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.{MonitoredSubsystem, OkStatus, SubsystemStatus}
 import cromwell.services.healthmonitor.impl.common.{DockerHubMonitor, EngineDatabaseMonitor}
+import cromwell.services.healthmonitor.impl.workbench.WorkbenchHealthMonitorServiceActor.GenomicsFactory
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.Future
@@ -67,6 +72,29 @@ class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig
     val genomicsInterface = Future(googleAuth.credential(Map.empty)) map genomicsFactory.fromCredentials
 
     genomicsInterface map { _.pipelines().list().setProjectId(papiProjectId).setPageSize(1).execute() } as OkStatus
+  }
+}
+
+object WorkbenchHealthMonitorServiceActor {
+  case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, endpointUrl: URL) {
+    def fromCredentials(credentials: Credentials) = {
+      val httpRequestInitializer = {
+        val delegate = new HttpCredentialsAdapter(credentials)
+        new HttpRequestInitializer() {
+          def initialize(httpRequest: HttpRequest) = {
+            delegate.initialize(httpRequest)
+          }
+        }
+      }
+
+      new Genomics.Builder(
+        GoogleAuthMode.httpTransport,
+        GoogleAuthMode.jsonFactory,
+        httpRequestInitializer)
+        .setApplicationName(applicationName)
+        .setRootUrl(endpointUrl.toString)
+        .build
+    }
   }
 }
 

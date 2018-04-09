@@ -3,6 +3,7 @@ import Merging.customMergeStrategy
 import Publishing._
 import Testing._
 import Version._
+import org.apache.ivy.plugins.conflict.NoConflictManager
 import sbt.Keys._
 import sbt._
 import sbtassembly.AssemblyPlugin
@@ -221,6 +222,7 @@ object Settings {
           .settings(if (crossCompile) crossVersionSettings else List.empty)
           .settings(resourceGenerators in Compile += writeProjectVersionConf)
           .settings(customSettings)
+          .settings(conflictManager := ConflictManager.all)
       )
 
       buildProject(project, libraryName, dependencies, builders)
@@ -241,6 +243,7 @@ object Settings {
           .settings(assemblySettings)
           .settings(resourceGenerators in Compile += writeProjectVersionConf)
           .settings(customSettings)
+          .settings(conflictManager := ConflictManager.all)
       )
 
       buildProject(project, executableName, dependencies, builders)

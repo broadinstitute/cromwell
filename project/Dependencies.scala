@@ -30,6 +30,7 @@ object Dependencies {
   val googleCloudCoreV = "1.8.0"
   val googleCloudNioV = "0.20.1-alpha"
   val googleCredentialsV = "0.8.0"
+  val googleGenomicsServicesV2ApiV = "v2alpha1-rev8-1.23.0"
   val googleGenomicsServicesApiV = "v1alpha2-rev64-1.22.0"
   val googleHttpClientV = googleApiClientV
   val googleOauth2V = "0.8.0"
@@ -207,12 +208,20 @@ object Dependencies {
     "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV
       exclude("com.google.guava", "guava-jdk5")
   )
+  
+  private val googleGenomicsV1Dependency = List(
+    "com.google.apis" % "google-api-services-genomics" % googleGenomicsServicesApiV
+      exclude("com.google.guava", "guava-jdk5")
+  )
 
+  private val googleGenomicsV2Dependency = List(
+    "com.google.apis" % "google-api-services-genomics" % googleGenomicsServicesV2ApiV
+      exclude("com.google.guava", "guava-jdk5")
+  )
+  
   private val googleCloudDependencies = List(
     "io.grpc" % "grpc-core" % grpcV,
     "com.google.guava" % "guava" % guavaV,
-    "com.google.apis" % "google-api-services-genomics" % googleGenomicsServicesApiV
-      exclude("com.google.guava", "guava-jdk5"),
     "com.google.cloud" % "google-cloud-nio" % googleCloudNioV
       exclude("com.google.api.grpc", "grpc-google-common-protos")
       exclude("com.google.cloud.datastore", "datastore-v1-protos")
@@ -222,6 +231,10 @@ object Dependencies {
       exclude("com.google.apis", "google-api-services-genomics"),
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV
   )
+
+  val googlePipelinesV1Alpha2Dependencies = googleCloudDependencies ++ googleGenomicsV1Dependency
+
+  val googlePipelinesV2Alpha1Dependencies = googleCloudDependencies ++ googleGenomicsV2Dependency
 
   private val aliyunOssDependencies = List(
     "com.aliyun.oss" % "aliyun-sdk-oss" % alibabaCloudOssV
@@ -348,7 +361,7 @@ object Dependencies {
 
   val centaurDependencies = List(
     "com.github.kxbmap" %% "configs" % configsV
-  ) ++ circeDependencies ++ slf4jBindingDependencies
+  ) ++ circeDependencies ++ slf4jBindingDependencies ++ googlePipelinesV1Alpha2Dependencies
 
   val engineDependencies = List(
     "commons-codec" % "commons-codec" % commonsCodecV,

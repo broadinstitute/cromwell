@@ -8,7 +8,7 @@ backend {
   providers {
     Local.config.filesystems.gcs.auth = "service_account"
     Jes {
-      actor-factory = "cromwell.backend.impl.jes.JesBackendLifecycleActorFactory"
+      actor-factory = "cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory"
       config {
         project = "broad-dsde-cromwell-dev"
         root = "gs://cloud-cromwell-dev/cromwell_execution/travis"
@@ -27,7 +27,7 @@ backend {
       }
     }
     Jes-Refresh {
-      actor-factory = "cromwell.backend.impl.jes.JesBackendLifecycleActorFactory"
+      actor-factory = "cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory"
       config {
         project = "broad-dsde-cromwell-dev"
         root = "gs://centaur-refresh-private/cromwell_execution/travis"
@@ -42,7 +42,7 @@ backend {
       }
     }
     Jes-Caching-No-Copy {
-      actor-factory = "cromwell.backend.impl.jes.JesBackendLifecycleActorFactory"
+      actor-factory = "cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory"
       config {
         project = "broad-dsde-cromwell-dev"
         root = "gs://cloud-cromwell-dev/cromwell_execution/travis"

@@ -35,7 +35,7 @@ abstract class KeyValueWriteActor(override val serviceRegistryActor: ActorRef, f
   // EnhancedBatchActor overrides
   override def receive = enhancedReceive.orElse(super.receive)
   override protected def weightFunction(command: CommandAndReplyTo[KvPut]) = 1
-  override protected def instrumentationPath = KeyValueServiceActor.InstrumentationPath.concat(NonEmptyList.one("write"))
+  override protected def instrumentationPath = KeyValueServiceActor.InstrumentationPath.concatNel(NonEmptyList.one("write"))
   override protected def instrumentationPrefix = InstrumentationPrefixes.ServicesPrefix
   override def commandToData(snd: ActorRef) = {
     case put: KvPut => CommandAndReplyTo(put, snd)

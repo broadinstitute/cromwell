@@ -3,6 +3,9 @@
 .DS_Store
 .artifactory
 .idea/*
+.ensime_cache/*
+.ensime
+tags
 !/.idea/inspectionProfiles/
 .idea/inspectionProfiles/*
 !/.idea/inspectionProfiles/Project_Default.xml

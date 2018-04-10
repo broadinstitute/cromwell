@@ -34,7 +34,7 @@ class WomGraph(graphName: String, graph: Graph) {
   def indent(s: String) = s.lines.map(x => s"  $x").mkString(System.lineSeparator)
   def combine(ss: Iterable[String]) = ss.mkString(start="", sep=System.lineSeparator, end=System.lineSeparator)
   def indentAndCombine(ss: Iterable[String]) = combine(ss.map(indent))
-  implicit val monoid = cats.derive.monoid[NodesAndLinks]
+  implicit val monoid = cats.derived.MkMonoid[NodesAndLinks]
 
   val digraphDot: String = {
 
@@ -53,7 +53,7 @@ class WomGraph(graphName: String, graph: Graph) {
   private lazy val clusterCount: AtomicInteger = new AtomicInteger(0)
 
   private[graph] def listAllGraphNodes(graph: Graph): NodesAndLinks = {
-    graph.nodes foldMap nodesAndLinks
+    graph.nodes.toList foldMap nodesAndLinks
   }
 
   private def upstreamLinks(graphNode: GraphNode): Set[String] = graphNode match {

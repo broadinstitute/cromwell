@@ -15,7 +15,7 @@ object CromwellBucket {
   * This allow for deferred insertion of control elements in between prefix and key when building a bucket string.
   */
 case class CromwellBucket(prefix: List[String], path: InstrumentationPath) {
-  def expand(key: String): CromwellBucket = this.copy(path = path.concat(NonEmptyList.of(key)))
+  def expand(key: String): CromwellBucket = this.copy(path = path.concatNel(NonEmptyList.of(key)))
 }
 
 /**

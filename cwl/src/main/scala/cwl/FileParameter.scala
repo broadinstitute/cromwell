@@ -6,19 +6,19 @@ import cats.syntax.validated._
 import common.validation.ErrorOr._
 import common.validation.Validation.validate
 import shapeless.Poly1
-import wom.expression.{IoFunctionSet, PathFunctionSet}
+import wom.expression.IoFunctionSet
 import wom.types.{WomFileType, WomSingleFileType}
-import wom.values.{WomArray, WomFile, WomMaybePopulatedFile, WomSingleFile, WomValue}
+import wom.values.{WomArray, WomFile, WomMaybePopulatedFile, WomValue}
 
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
-import scala.util.Success
+import scala.concurrent.{Await, Future}
+import scala.util.Try
 
 object FileParameter {
   private val ReadLimit = Option(64 * 1024)
   val ReadTimeout = 60.seconds
 
-  def sync[A](f: Future[A]) = Await.result(f, FileParameter.ReadTimeout)
+  def sync[A](f: Future[A]): Try[A] = Try(Await.result(f, FileParameter.ReadTimeout))
 
   def populateSecondaryFiles(womValue: WomValue,
                              secondaryFilesCoproduct: Option[SecondaryFiles],
@@ -53,18 +53,6 @@ object FileParameter {
   }
 
   /**
-    * Populates the size if it isn't loaded already.
-    */
-  def getSize(womMaybePopulatedFile: WomMaybePopulatedFile,
-              ioFunctionSet: IoFunctionSet): ErrorOr[Long] = {
-    (womMaybePopulatedFile.sizeOption, womMaybePopulatedFile.contentsOption) match {
-      case (Some(size), _) => size.valid
-      case (_, Some(contents)) => contents.length.toLong.valid
-      case _ => FileParameter.getSize(womMaybePopulatedFile.value, ioFunctionSet)
-    }
-  }
-
-  /**
     * Populates the contents if they aren't loaded already.
     */
   def maybeLoadContents(womMaybePopulatedFile: WomMaybePopulatedFile,
@@ -74,14 +62,6 @@ object FileParameter {
       case someContents@Some(_) => someContents.valid
       case None if !loadContents => None.valid
       case _ => FileParameter.load64KiB(womMaybePopulatedFile.value, ioFunctionSet).map(Option(_))
-    }
-  }
-
-  def getSize(path: String, ioFunctionSet: IoFunctionSet): ErrorOr[Long] = {
-    // TODO: WOM: propagate Future (or IO?) signature
-    validate {
-      val size = ioFunctionSet.size(path)
-      Await.result(size, ReadTimeout)
     }
   }
 

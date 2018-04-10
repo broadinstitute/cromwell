@@ -1,11 +1,12 @@
 package cwl.internal
 
 import common.validation.ErrorOr._
-import mouse.all._
+import common.validation.Validation._
 import org.mozilla.javascript._
 import wom.values._
 
 import scala.concurrent.duration._
+import scala.util.Try
 
 /**
   * This implementation depends on Mozilla Rhino.
@@ -94,7 +95,7 @@ object EcmaScriptUtil {
                     mapValues: Map[String, Map[String, WomValue]] = Map.empty,
                     encoder: EcmaScriptEncoder,
                     decoder: CwlEcmaScriptDecoder = new CwlEcmaScriptDecoder): ErrorOr[WomValue] = {
-    evalRaw(expr) { (context, scope) =>
+    def evaluate = evalRaw(expr) { (context, scope) =>
 
       val (key, value) = rawValues
 
@@ -116,6 +117,11 @@ object EcmaScriptUtil {
           ScriptableObject.putProperty(scope, scopeId, newObj)
       }
 
-    } |> decoder.decode
+    }
+    
+    for {
+      evaluated <- Try(evaluate).toErrorOr
+      decoded <- decoder.decode(evaluated)
+    } yield decoded
   }
 }

@@ -131,7 +131,7 @@ class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
   }
 
   // Fold over the json recursively and prefix all files
-  private def mapFilesAndDirectories(mappingFunction: String => String)(json: Json): Json = json.fold(
+  def mapFilesAndDirectories(mappingFunction: String => String)(json: Json): Json = json.fold(
     jsonNull = json,
     jsonBoolean = _ => json,
     jsonNumber = _ => json,

@@ -1,5 +1,7 @@
 package cwl
 
+import java.util.concurrent.Executors
+
 import cats.implicits._
 import cwl.CommandLineTool.CommandOutputParameter
 import cwl.ExpressionEvaluator._
@@ -10,7 +12,7 @@ import wom.expression.{EmptyIoFunctionSet, NoIoFunctionSet}
 import wom.types.WomIntegerType
 import wom.values._
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 class CommandOutputExpressionSpec extends FlatSpec with Matchers {
 
@@ -18,6 +20,7 @@ class CommandOutputExpressionSpec extends FlatSpec with Matchers {
 
   def ioFunctionSet(data: String) =
     new EmptyIoFunctionSet {
+      override implicit def ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(1))
       override def readFile(path: String, maxBytes: Option[Int] = None, failOnOverflow: Boolean = false) = Future.successful(data)
       // For this test just "match" the submitted file.
       override def glob(pattern: String): Future[Seq[String]] = Future.successful(List(pattern))

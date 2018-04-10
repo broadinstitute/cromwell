@@ -49,7 +49,7 @@ object Executable {
       inputCoercionMap
         .get(gin.nameInInputSet)
         .map { _.apply(gin.womType)
-          .map(gin.valueMapper(ioFunctions)(_))
+          .flatMap(gin.valueMapper(ioFunctions)(_))
           .map(Coproduct[ResolvedExecutableInput](_))
         }
     }

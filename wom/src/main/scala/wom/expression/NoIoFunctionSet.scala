@@ -1,9 +1,10 @@
 package wom.expression
 
-import wom.values.{WomSingleFile, WomValue}
+import java.util.concurrent.Executors
+
+import wom.values.WomSingleFile
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Try}
 
 class EmptyIoFunctionSet extends IoFunctionSet {
   override def readFile(path: String, maxBytes: Option[Int] = None, failOnOverflow: Boolean = false): Future[String] = Future.failed(new NotImplementedError("readFile is not available here"))

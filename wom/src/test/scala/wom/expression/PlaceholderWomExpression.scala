@@ -1,12 +1,14 @@
 package wom.expression
 
+import java.util.concurrent.Executors
+
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import common.validation.ErrorOr.ErrorOr
 import wom.types.WomType
 import wom.values.{WomFile, WomValue}
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 final case class PlaceholderWomExpression(inputs: Set[String], fixedWomType: WomType) extends WomExpression {
   override def sourceString: String = "placeholder"
@@ -20,5 +22,6 @@ final case class PlaceholderWomExpression(inputs: Set[String], fixedWomType: Wom
 
 case object DefaultSizeIoFunctionSet extends EmptyIoFunctionSet {
   val DefaultFileSize = -12345L
+  override implicit def ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(1))
   override def size(path: String): Future[Long] = Future.successful(DefaultFileSize)
 }

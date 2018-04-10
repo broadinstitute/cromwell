@@ -124,6 +124,7 @@ abstract class CommandLineBindingCommandPart(commandLineBinding: CommandLineBind
         case _ => prefixAsList
       }
       case _: WomObjectLike => prefixAsList
+      case WomEnumerationValue(_, value) => List(value)
       case w => throw new RuntimeException(s"Unhandled CwlExpressionCommandPart value '$w' of type ${w.womType.toDisplayString}")
     }
 

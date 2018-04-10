@@ -1,6 +1,5 @@
 package cwl
 
-import cats.data.NonEmptyList
 import cwl.CommandLineTool.{CommandBindingSortingKey, SortKeyAndCommandPart}
 import cwl.SchemaDefRequirement.SchemaDefTypes
 import cwl.WorkflowStepInput.InputSource
@@ -8,9 +7,10 @@ import cwl.command.ParentName
 import cwl.internal.GigabytesToBytes
 import eu.timepit.refined._
 import shapeless.syntax.singleton._
-import shapeless.{:+:, CNil, Inl, Witness}
-import wom.types.{WomEnumerationType, WomType}
+import shapeless.{:+:, CNil, Coproduct, Inl, Inr, Witness}
+import wom.types.WomType
 import wom.values.WomValue
+import mouse.all._
 
 object WorkflowStepInputSource {
   object String {
@@ -35,26 +35,6 @@ case class InputRecordField(
   doc: Option[String],
   inputBinding: Option[InputCommandLineBinding],
   label: Option[String])
-
-trait EnumSchema {
-
-  val symbols: Array[String]
-  val `type`: W.`"enum"`.T
-  val label: Option[String]
-
-  def toWomEnumerationType: WomEnumerationType = {
-    val symbolIds = symbols.toList.map{
-      s => s.substring(s.lastIndexOf("/") + 1)
-    }
-    WomEnumerationType(NonEmptyList.fromListUnsafe(symbolIds))
-  }
-}
-
-case class InputEnumSchema(
-  symbols: Array[String],
-  `type`: W.`"enum"`.T,
-  label: Option[String],
-  inputBinding: Option[InputCommandLineBinding]) extends EnumSchema
 
 case class InputArraySchema
 (
@@ -122,17 +102,6 @@ case class OutputRecordField(
   doc: Option[String],
   outputBinding: Option[CommandOutputBinding])
 
-case class OutputEnumSchema(
-  symbols: Array[String],
-  `type`: W.`"enum"`.T,
-  label: Option[String],
-  outputBinding: Option[CommandOutputBinding]) {
-
-  def toWomEnumerationType: WomEnumerationType = WomEnumerationType(NonEmptyList.fromListUnsafe(symbols.toList))
-}
-
-
-
 case class OutputArraySchema(
   items: MyriadOutputType,
   `type`: W.`"array"`.T = Witness("array").value,
@@ -150,10 +119,19 @@ case class SchemaDefRequirement(
   ) {
 
   def lookupType(tpe: String): Option[WomType] =
-    types.toList.flatMap{
-      case Inl(inputRecordSchema: InputRecordSchema) if inputRecordSchema.name == string =>
-        List(MyriadInputInnerTypeToWomType.inputRecordSchemaToWomType(inputRecordSchema).apply(this))
-      case _ => List()
+    lookupCwlType(tpe).flatMap{
+      case Inl(inputRecordSchema) => MyriadInputInnerTypeToWomType.inputRecordSchemaToWomType(inputRecordSchema).apply(this) |> Option.apply
+      case _ => None
+    }
+
+  //Currently only InputRecordSchema has a name in the spec, so it is the only thing that can be referenced via string
+  def lookupCwlType(tpe: String): Option[SchemaDefTypes] =
+    types.toList.flatMap {
+    case Inl(inputRecordSchema: InputRecordSchema) if FileAndId(inputRecordSchema.name)(ParentName.empty).id equalsIgnoreCase tpe=>
+          List(Coproduct[SchemaDefTypes](inputRecordSchema))
+    case Inr(Inl(inputEnumSchema: InputEnumSchema)) if FileAndId(inputEnumSchema.name)(ParentName.empty).id equalsIgnoreCase tpe=>
+      List(Coproduct[SchemaDefTypes](inputEnumSchema))
+    case _ => List()
     }.headOption
 }
 

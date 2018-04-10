@@ -11,7 +11,7 @@ import cwl.CwlVersion._
 import cwl.command.ParentName
 import io.circe.Json
 import shapeless.syntax.singleton._
-import shapeless.{:+:, CNil, Coproduct, Inl, Inr, Poly1, Witness}
+import shapeless.{:+:, CNil, Coproduct, Poly1, Witness}
 import wom.callable.CommandTaskDefinition.{EvaluatedOutputs, OutputFunctionResponse}
 import wom.callable.{Callable, CallableTaskDefinition, ContainerizedInputExpression}
 import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}
@@ -47,6 +47,7 @@ case class CommandLineTool private(
 
   def asCwl: Cwl = Coproduct[Cwl](this)
 
+
   /*
    * The command template is built following the rules described here: http://www.commonwl.org/v1.0/CommandLineTool.html#Input_binding
    * - The baseCommand goes first
@@ -59,8 +60,7 @@ case class CommandLineTool private(
     expressionLib: ExpressionLib)(
     inputValues: WomEvaluatedCallInputs): ErrorOr[List[CommandPart]] = {
 
-    import cats.instances.list._
-    import cats.syntax.traverse._
+    val schemaDefRequirement = requirementsAndHints.flatMap(_.select[SchemaDefRequirement]).headOption.getOrElse(SchemaDefRequirement())
 
     val baseCommandPart = baseCommand.toList.flatMap(_.fold(BaseCommandToCommandParts))
 
@@ -83,38 +83,10 @@ case class CommandLineTool private(
           commandPartsList :+ SortKeyAndCommandPart(sortingKey, part)
       })
 
-    val inputBindingsCommandParts: ErrorOr[List[SortKeyAndCommandPart]] = inputs.toList.flatTraverse[ErrorOr, SortKeyAndCommandPart]({
-      import cats.syntax.validated._
 
-      inputParameter =>
-        val parsedName = FullyQualifiedName(inputParameter.id)(ParentName.empty).id
-
-        val schemaDefRequirement: SchemaDefRequirement = requirementsAndHints.flatMap{
-          _.select[SchemaDefRequirement].toList
-        }.headOption.getOrElse(SchemaDefRequirement())
-
-        val womType = inputParameter.`type`.map(_.fold(MyriadInputTypeToWomType).apply(schemaDefRequirement)).getOrElse(WomStringType)
-
-
-        val defaultValue = inputParameter.default.map(_.fold(InputParameter.DefaultToWomValuePoly).apply(womType))
-
-        inputValues
-          .collectFirst({ case (inputDefinition, womValue) if inputDefinition.name == parsedName => womValue.validNel })
-          .orElse(defaultValue) match {
-          case Some(Valid(value)) =>
-            // See http://www.commonwl.org/v1.0/CommandLineTool.html#Input_binding
-            lazy val initialKey = CommandBindingSortingKey.empty
-              .append(inputParameter.inputBinding, Coproduct[StringOrInt](parsedName))
-
-            inputParameter.`type`.toList.flatMap(_.fold(MyriadInputTypeToSortedCommandParts).apply(inputParameter.inputBinding, value, initialKey.asNewKey, hasShellCommandRequirement, expressionLib)).validNel
-          case Some(Invalid(errors)) => Invalid(errors)
-          case None => s"Could not find an input value for input $parsedName in ${inputValues.prettyString}".invalidNel
-        }
-    })
-
-    inputBindingsCommandParts map { parts =>
+    CommandPartSortingAlgorithm.inputBindingsCommandParts(inputs).map { parts =>
       baseCommandPart ++ (argumentsParts ++ parts).sorted.map(_.commandPart)
-    }
+    }.run((schemaDefRequirement, expressionLib, inputValues, hasShellCommandRequirement))
   }
 
   // This seems like it makes sense only for CommandLineTool and hence is not abstracted in Tool. If this assumption is wrong it could be moved up.

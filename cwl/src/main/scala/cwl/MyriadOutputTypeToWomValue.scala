@@ -82,7 +82,7 @@ object MyriadOutputInnerTypeToWomValue extends Poly1 {
   implicit def oes: Aux[OutputEnumSchema, Output] = at[OutputEnumSchema]{
     //DB: I tried to do a pattern match as the overall function here but the compiler exploded
     oes => (f, sdr) => oes match {
-      case oes@OutputEnumSchema(_, _, _, Some(outputBinding)) => f(outputBinding, oes.toWomEnumerationType)
+      case oes@OutputEnumSchema(_, _, _, _, Some(outputBinding)) => f(outputBinding, oes.toWomEnumerationType)
       case _ => s"The enumeration type $oes requires an outputbinding to be evaluated.".invalidNel
     }
   }

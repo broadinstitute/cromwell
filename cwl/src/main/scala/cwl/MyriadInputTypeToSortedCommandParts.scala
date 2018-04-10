@@ -3,9 +3,13 @@ package cwl
 import cwl.CommandLineTool.{CommandBindingSortingKey, CommandPartsList, SortKeyAndCommandPart, StringOrInt}
 import cwl.CwlType.CwlType
 import cwl.MyriadInputTypeToSortedCommandParts.CommandPartBuilder
+import cwl.SchemaDefRequirement.SchemaDefTypes
 import cwl.command.ParentName
 import shapeless.{Coproduct, Poly1}
-import wom.values.{WomArray, WomObjectLike, WomOptionalValue, WomValue}
+import cats.syntax.foldable._
+import cats.instances.list._
+import wom.types.WomType
+import wom.values.{WomArray, WomCoproductValue, WomObjectLike, WomOptionalValue, WomValue}
 
 /**
   * Poly1 to fold over a MyriadInputType and create a List of SortingKeyAndCommandPart based on the rules described here:
@@ -43,15 +47,15 @@ object MyriadInputTypeToSortedCommandParts extends Poly1 {
     * WomValue: value bound to the element (in the cases above it would be the WomArray)
     * CommandBindingSortingKey: The current sorting key. Because we might need to recurse in nested types we need to propagate the key as we do.
     */
-  type CommandPartBuilder = (Option[InputCommandLineBinding], WomValue, CommandBindingSortingKey, Boolean, ExpressionLib) => CommandPartsList
+  type CommandPartBuilder = (Option[InputCommandLineBinding], WomValue, CommandBindingSortingKey, Boolean, ExpressionLib, SchemaDefRequirement) => CommandPartsList
 
   implicit def m: Aux[MyriadInputInnerType, CommandPartBuilder] = {
     at {
       innerType => {
-        (binding, womValue, sortingKey, hasShellCommandRequirement, expressionLib) =>
+        (binding, womValue, sortingKey, hasShellCommandRequirement, expressionLib, sdr) =>
           innerType
             .fold(MyriadInputInnerTypeToSortedCommandParts)
-            .apply(binding, womValue, sortingKey, hasShellCommandRequirement, expressionLib)
+            .apply(binding, womValue, sortingKey, hasShellCommandRequirement, expressionLib, sdr)
       }
     }
   }
@@ -59,11 +63,11 @@ object MyriadInputTypeToSortedCommandParts extends Poly1 {
   implicit def am: Aux[Array[MyriadInputInnerType], CommandPartBuilder] = {
     at {
       innerTypes => {
-        (binding, womValue, sortingKey, hasShellCommandRequirement, expressionLib) =>
+        (binding, womValue, sortingKey, hasShellCommandRequirement, expressionLib, sdr) =>
           innerTypes.toList.flatMap(
             _
               .fold(MyriadInputInnerTypeToSortedCommandParts)
-              .apply(binding, womValue, sortingKey, hasShellCommandRequirement, expressionLib)
+              .apply(binding, womValue, sortingKey, hasShellCommandRequirement, expressionLib, sdr)
           )
       }
     }
@@ -80,7 +84,7 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
   implicit def ct: Aux[CwlType, CommandPartBuilder] = {
     at {
       cwlType => {
-        (inputBinding, womValue, key, hasShellCommandRequirement, expressionLib) => {
+        (inputBinding, womValue, key, hasShellCommandRequirement, expressionLib, _) => {
           cwlType match {
             case CwlType.Null => CommandPartsList.empty
             case _ => inputBinding.toList.map(_.toCommandPart(key, womValue, hasShellCommandRequirement, expressionLib))
@@ -94,43 +98,50 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
     def go: CommandPartBuilder = {
 
       //If the value is optional and is supplied, recurse over the value provided
-      case (inputBinding, WomOptionalValue(_, Some(value)), sortingKey, hasShellCommandRequirement, expressionLib) =>
-        go(inputBinding, value, sortingKey, hasShellCommandRequirement, expressionLib)
+      case (inputBindingFromInputParameter, WomCoproductValue(_, value), sortingKey, hasShellCommandRequirement, expressionLib, sdr) =>
+        go(inputBindingFromInputParameter, value, sortingKey, hasShellCommandRequirement, expressionLib, sdr)
+
+      //If the value is optional and is supplied, recurse over the value provided
+      case (inputBindingFromInputParameter, WomOptionalValue(_, Some(value)), sortingKey, hasShellCommandRequirement, expressionLib, sdr) =>
+        go(inputBindingFromInputParameter, value, sortingKey, hasShellCommandRequirement, expressionLib, sdr)
 
       // If it's optional and there's no value, do nothing
-      case (_, WomOptionalValue(_, None), _, _, _) => CommandPartsList.empty
+      case (_, WomOptionalValue(_, None), _, _, _, _) => CommandPartsList.empty
 
       // If there's no input binding and no input bindings within the irs, do nothing
-      case (None, _, _, _, _) if !irs.fields.exists(_.exists(_.inputBinding.isDefined)) => CommandPartsList.empty
+      case (None, _, _, _, _, _) if !irs.fields.exists(_.exists(_.inputBinding.isDefined)) => CommandPartsList.empty
 
-      case (inputBinding, objectLike: WomObjectLike, sortingKey, hasShellCommandRequirement, expressionLib) =>
+      case (inputBindingFromInputParameter, objectLike: WomObjectLike, sortingKey, hasShellCommandRequirement, expressionLib, sdr) =>
         // If there's an input binding, make a SortKeyAndCommandPart for it
-        val fromInputBinding: Option[SortKeyAndCommandPart] =
-          inputBinding.map(_.toCommandPart(sortingKey, objectLike, hasShellCommandRequirement, expressionLib))
+        val sortingKeyFromInputBindingFromInputParameter: Option[SortKeyAndCommandPart] =
+          inputBindingFromInputParameter.map(_.toCommandPart(sortingKey, objectLike, hasShellCommandRequirement, expressionLib))
 
         // Go over the fields an fold over their type
-        irs.fields.toList.flatten
-          .foldLeft(CommandPartsList.empty)({
-            case (currentMap, field) =>
-              // Parse the name to get a clean id
-              val parsedName = FullyQualifiedName(field.name)(ParentName.empty).id
+        val partsFromFields =
+          irs.fields.toList.flatten.
+            foldMap{
+              field =>
+                // Parse the name to get a clean id
+                val parsedName = FullyQualifiedName(field.name)(ParentName.empty).id
 
-              // The field name needs to be added to the key after the input binding (as per the spec)
-              // Also start from the key from the input binding if there was one
-              val fieldSortingKey =
-              fromInputBinding.map(_.sortingKey).getOrElse(sortingKey)
-                .append(field.inputBinding, Coproduct[StringOrInt](parsedName))
+                // The field name needs to be added to the key after the input binding (as per the spec)
+                // Also start from the key from the input binding if there was one
+                val fieldSortingKey =
+                  sortingKeyFromInputBindingFromInputParameter.
+                    map(_.sortingKey).
+                    getOrElse(sortingKey).
+                    append(field.inputBinding, Coproduct[StringOrInt](parsedName))
 
-              // Get the value of this field from the objectLike
-              // TODO: Could this fail ?
-              val innerValue = objectLike.values(parsedName)
+                // Get the value of this field from the objectLike
+                // TODO: Could this fail ?
+                val innerValueOption: Option[WomValue] = objectLike.values.get(parsedName)
 
-              val fromType = field.`type`.fold(MyriadInputTypeToSortedCommandParts).
-                apply(field.inputBinding, innerValue, fieldSortingKey.asNewKey, hasShellCommandRequirement, expressionLib)
+                innerValueOption.toList.flatMap( field.`type`.fold(MyriadInputTypeToSortedCommandParts).
+                  apply(field.inputBinding, _, fieldSortingKey.asNewKey, hasShellCommandRequirement, expressionLib, sdr))
+            }
 
-              currentMap ++ fromType
-          }) ++ fromInputBinding
-      case (_, other, _, _, _) => ex(s"Value $other cannot be used for an input of type InputRecordSchema")
+        partsFromFields ++ sortingKeyFromInputBindingFromInputParameter
+      case (_, other, _, _, _, _) => throw new RuntimeException(s"Value $other cannot be used for an input of type InputRecordSchema")
     }
 
     go
@@ -139,7 +150,7 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
   implicit def ies: Aux[InputEnumSchema, CommandPartBuilder] = at[InputEnumSchema] { inputEnumSchema =>
     //(Option[InputCommandLineBinding], WomValue, CommandBindingSortingKey, Boolean, ExpressionLib) => CommandPartsList
     def go: CommandPartBuilder = {
-      case (inputBinding, value, sortingKey, hasShellCommandRequirement, expressionLib) =>
+      case (inputBinding, value, sortingKey, hasShellCommandRequirement, expressionLib, _) =>
         // If there's an input binding, make a SortKeyAndCommandPart for it
         val fromInputBinding =
           inputBinding.map(_.toCommandPart(sortingKey, value, hasShellCommandRequirement, expressionLib)).toList
@@ -153,36 +164,41 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
 
   implicit def ias: Aux[InputArraySchema, CommandPartBuilder] = at[InputArraySchema] { ias =>
     def go: CommandPartBuilder = {
-      case (inputBinding, WomOptionalValue(_, Some(value)), sortingKey, hasShellCommandRequirement, expressionLib) =>
-        go(inputBinding, value, sortingKey, hasShellCommandRequirement, expressionLib)
+      case (inputBindingFromInputParameterParent, WomOptionalValue(_, Some(value)), sortingKey, hasShellCommandRequirement, expressionLib, sdr) =>
+        go(inputBindingFromInputParameterParent, value, sortingKey, hasShellCommandRequirement, expressionLib, sdr)
 
       //If it's optional and there's no value, do nothing
-      case (_, WomOptionalValue(_, None), _, _, _) => CommandPartsList.empty
+      case (_, WomOptionalValue(_, None), _, _, _, _) => CommandPartsList.empty
 
       // If there's no input binding and no input bindings for the ias, do nothing
-      case (None, _, _, _, _) if ias.inputBinding.isEmpty => CommandPartsList.empty
+      case (None, _, _, _, _, _) if ias.inputBinding.isEmpty => CommandPartsList.empty
 
-      case (inputBinding, WomArray.WomArrayLike(womArray), sortingKey, hasShellCommandRequirement, expressionLib) =>
+      case (inputBindingFromInputParameterParent, WomArray.WomArrayLike(womArray), sortingKey, hasShellCommandRequirement, expressionLib, sdr) =>
 
         // If there's an input binding, make a SortKeyAndCommandPart for it
-        val fromInputBinding: Option[SortKeyAndCommandPart] = inputBinding.map(_.toCommandPart(sortingKey, womArray, hasShellCommandRequirement, expressionLib))
+        val sortKeyFromInputBindingFromInputerParameterParent: Option[SortKeyAndCommandPart] =
+          inputBindingFromInputParameterParent.
+            map(_.toCommandPart(sortingKey, womArray, hasShellCommandRequirement, expressionLib))
 
         // Now depending on whether we have an itemSeparator and/or valueFrom or not, we're going to recurse over each element of the array (or not).
         // See http://www.commonwl.org/v1.0/CommandLineTool.html#CommandLineBinding
-        if (inputBinding.flatMap(_.itemSeparator).isDefined || inputBinding.flatMap(_.valueFrom).isDefined) {
+        if (inputBindingFromInputParameterParent.flatMap(_.itemSeparator).isDefined || inputBindingFromInputParameterParent.flatMap(_.valueFrom).isDefined) {
           // If there's an item separator or a valueFrom we can stop here.
           // When the command part is instantiated (see CommandLineBindingCommandPart) it will evaluate the valueFrom (if defined) and join the items together (if there's an itemSeparator).
-          fromInputBinding.toList
+          sortKeyFromInputBindingFromInputerParameterParent.toList
         } else {
           // If neither valueFrom nor itemSeparator were defined, we need to process each item of the array
           womArray.value.zipWithIndex.foldLeft(CommandPartsList.empty)({
             case (currentMap, (item, index)) =>
               // Update the sorting key with the binding position (if any), add the index
-              val itemSortingKey =
+              val itemSortingKey = {
+
               // The index needs to be added to the key after the input binding (as per the spec)
               // Also start from the key from the input binding if there was one
-                fromInputBinding.map(_.sortingKey).getOrElse(sortingKey)
-                  .append(ias.inputBinding, Coproduct[StringOrInt](index))
+                val sortKey = sortKeyFromInputBindingFromInputerParameterParent.fold(sortingKey)(_.sortingKey)
+
+                sortKey.append(ias.inputBinding, Coproduct[StringOrInt](index))
+              }
 
               // Even if the item doesn't have an explicit input binding, it should appear in the command so create a default empty one
               //there is an explicit input binding!
@@ -190,16 +206,16 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
               val itemInputBinding =
                 ias.
                   inputBinding.
-                  orElse(inputBinding).
+                  orElse(inputBindingFromInputParameterParent).
                   orElse(Option(InputCommandLineBinding.default))
               // Fold over the item type of each array element
               val fromType = ias.items.fold(MyriadInputTypeToSortedCommandParts).
-                apply(itemInputBinding, item, itemSortingKey.asNewKey, hasShellCommandRequirement, expressionLib)
+                apply(itemInputBinding, item, itemSortingKey.asNewKey, hasShellCommandRequirement, expressionLib, sdr)
               currentMap ++ fromType
-          }) ++ fromInputBinding
+          }) ++ sortKeyFromInputBindingFromInputerParameterParent
         }
 
-      case (_, other, _, _, _) => ex(s"Value $other cannot be used for an input of type InputArraySchema")
+      case (_, other, _, _, _, _) => ex(s"Value $other cannot be used for an input of type InputArraySchema")
     }
 
     go
@@ -207,9 +223,12 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
 
   implicit def s: Aux[String, CommandPartBuilder] = {
     at {
-      _ => {
-        (_, _, _, _, _) => {
-          CommandPartsList.empty
+      s => {
+        (commandLineBindingFromInput, womValue, sortingKey, boolean, expressionLib, sdr) => {
+          val id = FileAndId(s)(ParentName.empty).id
+          val womType: SchemaDefTypes = sdr.lookupCwlType(id).getOrElse(throw new RuntimeException(s"Looked for type $s in custom types $sdr but no match was found!"))
+
+          womType.fold(this).apply(commandLineBindingFromInput, womValue, sortingKey, boolean, expressionLib, sdr)
         }
       }
     }

@@ -1,5 +1,7 @@
 package cwl
 
+import java.net.URI
+
 import cats.data.NonEmptyList
 import cwl.CwlType.CwlType
 import cwl.MyriadInputTypeToWomType.SchemaLookup
@@ -89,7 +91,8 @@ object MyriadInputInnerTypeToWomType extends Poly1 {
   implicit def s: Aux[String, SchemaLookup] = at[String]{
     string =>
       schemaReq =>
-        schemaReq.lookupType(string).getOrElse(throw new RuntimeException(s"Custom type $string was referred to but not found in schema def ${schemaReq}."))
+        val fileAndId = FileAndId(string)(ParentName.empty)
+        schemaReq.lookupType(fileAndId.id).getOrElse(throw new RuntimeException(s"Custom type $string was referred to but not found in schema def ${schemaReq}."))
   }
 
 }

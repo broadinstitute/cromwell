@@ -61,7 +61,7 @@ class CromwellFileSystemsSpec extends FlatSpec with Matchers {
 
   val wrongSignatureException = AggregatedMessageException(
     "Failed to initialize Cromwell filesystems",
-    List("Class cromwell.core.filesystem.MockPathBuilderFactoryWrongSignature for filesystem fs1 does not have the required constructor signature.")
+    List("Class cromwell.core.filesystem.MockPathBuilderFactoryWrongSignature for filesystem fs1 does not have the required constructor signature: (com.typesafe.config.Config, com.typesafe.config.Config)")
   )
 
   val invalidConfigException = AggregatedMessageException(

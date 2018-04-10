@@ -8,7 +8,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import common.validation.Validation._
 import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed, InitializationSuccess, Initialize}
 import cromwell.backend.async.RuntimeAttributeValidationFailures
-import cromwell.backend.impl.jes.JesTestConfig.{JesBackendConfig, cromwellFileSystems}
+import cromwell.backend.impl.jes.JesTestConfig.JesBackendConfig
 import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthObject}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
@@ -168,7 +168,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       | """.stripMargin))
 
   val defaultBackendConfig = new BackendConfigurationDescriptor(backendConfig, globalConfig) {
-    override lazy val configuredPathBuilderFactories = cromwellFileSystems.factoriesFromConfig(JesBackendConfig).unsafe("Failed to instantiate backend filesystem")
+    override lazy val configuredPathBuilderFactories = JesTestConfig.mockFilesystems.factoriesFromConfig(JesBackendConfig).unsafe("Failed to instantiate backend filesystem")
   }
 
   val refreshTokenConfig: Config = ConfigFactory.parseString(refreshTokenConfigTemplate)

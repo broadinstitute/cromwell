@@ -50,9 +50,9 @@ class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSy
     "log a warning message when there are unsupported runtime attributes" in {
       within(Timeout) {
         val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { unsupported: 1 }""")
-        val cromwellFileSystems = new CromwellFileSystems(ConfigFactory.empty())
+        val mockFileSystems = new CromwellFileSystems(ConfigFactory.empty())
         val conf = new BackendConfigurationDescriptor(TestConfig.sampleBackendRuntimeConfig, ConfigFactory.empty()) {
-          override lazy val configuredPathBuilderFactories = cromwellFileSystems.factoriesFromConfig(TestConfig.sampleBackendRuntimeConfig).unsafe("Failed to instantiate backend filesystem")
+          override lazy val configuredPathBuilderFactories = mockFileSystems.factoriesFromConfig(TestConfig.sampleBackendRuntimeConfig).unsafe("Failed to instantiate backend filesystem")
         }
         val backend: ActorRef = getActorRef(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, conf)
         val pattern = "Key/s [unsupported] is/are not supported by backend. " +

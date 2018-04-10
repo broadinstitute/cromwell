@@ -92,9 +92,9 @@ object JesTestConfig {
   val JesBackendConfig = ConfigFactory.parseString(JesBackendConfigString)
   val JesGlobalConfig = ConfigFactory.parseString(JesGlobalConfigString)
   val JesBackendNoDefaultConfig = ConfigFactory.parseString(NoDefaultsConfigString)
-  val cromwellFileSystems = new CromwellFileSystems(JesGlobalConfig)
+  val mockFilesystems = new CromwellFileSystems(JesGlobalConfig)
   val JesBackendConfigurationDescriptor = new BackendConfigurationDescriptor(JesBackendConfig, JesGlobalConfig) {
-    override lazy val configuredPathBuilderFactories = cromwellFileSystems.factoriesFromConfig(JesBackendConfig).unsafe("Failed to instantiate backend filesystem")
+    override lazy val configuredPathBuilderFactories = mockFilesystems.factoriesFromConfig(JesBackendConfig).unsafe("Failed to instantiate backend filesystem")
   }
   def pathBuilders()(implicit as: ActorSystem) = Await.result(JesBackendConfigurationDescriptor.pathBuilders(WorkflowOptions.empty), 5.seconds)
   val NoDefaultsConfigurationDescriptor = BackendConfigurationDescriptor(JesBackendNoDefaultConfig, JesGlobalConfig)

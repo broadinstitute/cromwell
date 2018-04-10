@@ -40,7 +40,9 @@ class JesFinalizationActor(val jesParams: JesFinalizationActorParams)
 
   private def deleteAuthenticationFile(): Future[Unit] = {
     (jesConfiguration.needAuthFileUpload, workflowPaths) match {
-      case (true, Some(paths: JesWorkflowPaths)) => asyncIo.deleteAsync(paths.gcsAuthFilePath)
+      case (true, Some(paths: JesWorkflowPaths)) =>
+        println(s"DELETING AUTH FILE PATH ${paths.gcsAuthFilePath.pathAsString}")
+        asyncIo.deleteAsync(paths.gcsAuthFilePath)
       case _ => Future.successful(())
     }
   }

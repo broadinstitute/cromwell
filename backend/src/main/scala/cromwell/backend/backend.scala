@@ -82,9 +82,12 @@ case class BackendConfigurationDescriptor(backendConfig: Config, globalConfig: C
       Option(backendConfig.getConfig("default-runtime-attributes"))
     else
       None
+  
+  // So it can be overridden in tests
+  private [backend] lazy val cromwellFileSystems = CromwellFileSystems.instance
 
   private [backend] lazy val configuredPathBuilderFactories: Map[String, PathBuilderFactory] = {
-    CromwellFileSystems.instance.factoriesFromConfig(backendConfig).unsafe("Failed to instantiate backend filesystem")
+    cromwellFileSystems.factoriesFromConfig(backendConfig).unsafe("Failed to instantiate backend filesystem")
   }
 
   private lazy val configuredFactoriesWithDefault = if (configuredPathBuilderFactories.values.exists(_ == DefaultPathBuilderFactory)) {

@@ -292,14 +292,8 @@ trait CromwellApiService extends HttpInstrumentation {
       case Success(data) =>
         PartialWorkflowSources.fromSubmitRoute(data, allowNoInputs = isSingleSubmission) match {
           case Success(workflowSourceFiles) if isSingleSubmission && workflowSourceFiles.size == 1 =>
-            {
               val warnings = workflowSourceFiles.flatMap(_.warnings)
-
-              println("-------------------------------")
-              println(workflowSourceFiles.head)
               askSubmit(WorkflowStoreActor.SubmitWorkflow(workflowSourceFiles.head), warnings, getWorkflowState(workflowSourceFiles.head.workflowOnHold))
-
-            }
           // Catches the case where someone has gone through the single submission endpoint w/ more than one workflow
           case Success(workflowSourceFiles) if isSingleSubmission =>
             val warnings = workflowSourceFiles.flatMap(_.warnings)
@@ -325,8 +319,7 @@ trait CromwellApiService extends HttpInstrumentation {
           case UnrecognizedWorkflowId => throw UnrecognizedWorkflowException(w)
           case FailedToCheckWorkflowId(t) => throw t
         }
-      case Failure(_) =>
-        Future.failed(InvalidWorkflowException(possibleWorkflowId))
+      case Failure(_) => Future.failed(InvalidWorkflowException(possibleWorkflowId))
     }
   }
 

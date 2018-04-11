@@ -14,7 +14,8 @@ import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingRespon
 import cromwell.core._
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
-import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{AbortWorkflowCommand, BatchSubmitWorkflows, SubmitWorkflow}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{AbortWorkflowCommand, BatchSubmitWorkflows, SubmitWorkflow, WorkflowOnHoldToSubmittedCommand}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{WorkflowOnHoldToSubmittedFailure, WorkflowOnHoldToSubmittedSuccess}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse, SubsystemStatus}
 import cromwell.services.metadata.MetadataService._
@@ -214,6 +215,44 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           responseAs[String].parseJson.prettyPrint
         }
         assertResult(StatusCodes.Created) {
+          status
+        }
+        headers should be(Seq.empty)
+      }
+  }
+
+  it should "return 200 when a workflow is switched from on hold to submitted" in {
+    val id = ExistingWorkflowId
+    Post(s"/workflows/$version/$id/onHoldToSubmitted") ~>
+      akkaHttpService.workflowRoutes ~>
+      check {
+        assertResult(
+          s"""{
+             |  "id": "${CromwellApiServiceSpec.ExistingWorkflowId.toString}",
+             |  "status": "Submitted"
+             |}""".stripMargin) {
+          responseAs[String].parseJson.prettyPrint
+        }
+        assertResult(StatusCodes.OK) {
+          status
+        }
+        headers should be(Seq.empty)
+      }
+  }
+
+  it should "return 500 when invalid workflow id is submitted to onHoldToSubmitted API end point" in {
+    val id = UnrecognizedWorkflowId
+    Post(s"/workflows/$version/$id/onHoldToSubmitted") ~>
+      akkaHttpService.workflowRoutes ~>
+      check {
+        assertResult(
+          s"""{
+             |  "status": "error",
+             |  "message": "Unrecognized workflow ID: ${CromwellApiServiceSpec.UnrecognizedWorkflowId.toString}"
+             |}""".stripMargin) {
+          responseAs[String].parseJson.prettyPrint
+        }
+        assertResult(StatusCodes.InternalServerError) {
           status
         }
         headers should be(Seq.empty)
@@ -714,6 +753,10 @@ object CromwellApiServiceSpec {
 
   class MockWorkflowStoreActor extends Actor {
     override def receive = {
+      case command: WorkflowOnHoldToSubmittedCommand if command.id == ExistingWorkflowId =>
+        sender ! WorkflowOnHoldToSubmittedSuccess(command.id)
+      case command: WorkflowOnHoldToSubmittedCommand if command.id == UnrecognizedWorkflowId =>
+        sender ! WorkflowOnHoldToSubmittedFailure(command.id, new Exception("Cannot switch to submitted"))
       case SubmitWorkflow(_) => sender ! WorkflowSubmittedToStore(ExistingWorkflowId, WorkflowSubmitted)
       case BatchSubmitWorkflows(sources) =>
         val response = WorkflowsBatchSubmittedToStore(sources map { _ => ExistingWorkflowId }, WorkflowSubmitted)

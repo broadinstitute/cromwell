@@ -6,7 +6,7 @@ backends: [Local, LocalNoDocker]
 tags: [localdockertest]
 
 files {
-  wdl: cromwell_restart/cromwell_restart.wdl
+  workflow: cromwell_restart/cromwell_restart.wdl
 }
 
 metadata {

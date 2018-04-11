@@ -2,7 +2,7 @@ name: hello_yaml
 testFormat: workflowsuccess
 
 files {
-  wdl: hello/hello.wdl
+  workflow: hello/hello.wdl
   inputs: hello/hello_yaml.inputs
 }
 

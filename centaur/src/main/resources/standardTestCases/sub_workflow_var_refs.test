@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 tags: [subworkflow]
 
 files {
-  wdl: sub_workflow_var_refs/sub_workflow_var_refs.wdl
+  workflow: sub_workflow_var_refs/sub_workflow_var_refs.wdl
   imports: [
     sub_workflow_var_refs/sub_workflow_var_refs_import.wdl
   ]

@@ -2,7 +2,7 @@ name: workflow_output_declarations
 testFormat: workflowsuccess
 
 files {
-  wdl: workflow_output_declarations/workflow_output_declarations.wdl
+  workflow: workflow_output_declarations/workflow_output_declarations.wdl
 }
 
 metadata {

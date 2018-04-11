@@ -7,7 +7,7 @@ backends: [Local]
 tags: [localdockertest]
 
 files {
-  wdl: input_localization/input_localization.wdl
+  workflow: input_localization/input_localization.wdl
   options: input_localization/input_localization.options
 }
 

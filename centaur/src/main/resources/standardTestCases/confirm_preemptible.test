@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 backends: [Jes]
 
 files {
-  wdl: confirm_preemptible/confirm_preemptible.wdl
+  workflow: confirm_preemptible/confirm_preemptible.wdl
 }
 
 metadata {

@@ -5,7 +5,7 @@ workflowType: CWL
 workflowTypeVersion: v1.0
 
 files {
-  wdl: expressionLib/expressionLib.cwl
+  workflow: expressionLib/expressionLib.cwl
 }
 
 metadata {

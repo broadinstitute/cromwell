@@ -5,7 +5,7 @@ tags: [subworkflow]
 
 
 files {
-  wdl: refresh_token_sub_workflow/refresh_token_sub_workflow.wdl
+  workflow: refresh_token_sub_workflow/refresh_token_sub_workflow.wdl
   inputs: refresh_token_sub_workflow/refresh_token_sub_workflow.inputs
   options: refresh_token_sub_workflow/refresh_token_sub_workflow.options
   imports: [

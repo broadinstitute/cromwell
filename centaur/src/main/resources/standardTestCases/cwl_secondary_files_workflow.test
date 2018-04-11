@@ -8,7 +8,7 @@ backends: [Local, LocalNoDocker]
 tags: [localdockertest]
 
 files {
-  wdl: cwl_secondary_files_workflow/cwl_secondary_files_workflow.cwl
+  workflow: cwl_secondary_files_workflow/cwl_secondary_files_workflow.cwl
   inputs: cwl_secondary_files_workflow/cwl_secondary_files_workflow.yaml
   options: cwl_secondary_files_workflow/cwl_secondary_files_workflow.options
 }

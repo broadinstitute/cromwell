@@ -5,7 +5,7 @@ workflowTypeVersion: v1.0
 workflowRoot: interpolatedStrings
 
 files {
-  wdl: cwl_interpolated_strings/cwl_interpolated_strings.cwl
+  workflow: cwl_interpolated_strings/cwl_interpolated_strings.cwl
   inputs: cwl_interpolated_strings/cwl_interpolated_strings.json
 }
 

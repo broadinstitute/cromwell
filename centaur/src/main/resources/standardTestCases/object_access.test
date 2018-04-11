@@ -2,7 +2,7 @@ name: object_access
 testFormat: workflowsuccess
 
 files {
-  wdl: object_access/object_access.wdl
+  workflow: object_access/object_access.wdl
 }
 
 metadata {

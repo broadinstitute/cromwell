@@ -4,7 +4,7 @@ testFormat: scheduledabort
 callMark: sub_workflow_abort.inner_abort
 
 files {
-  wdl: abort/sub_workflow_abort.wdl
+  workflow: abort/sub_workflow_abort.wdl
   imports: [
     abort/sub_workflow_aborted_import.wdl
   ]

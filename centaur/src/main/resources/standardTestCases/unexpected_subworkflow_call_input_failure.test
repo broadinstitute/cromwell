@@ -3,7 +3,7 @@ testFormat: workflowfailure
 tags: [subworkflow]
 
 files {
-  wdl: unexpected_subworkflow_call_input_failure/unexpected_subworkflow_call_input_failure.wdl
+  workflow: unexpected_subworkflow_call_input_failure/unexpected_subworkflow_call_input_failure.wdl
   imports: [ unexpected_subworkflow_call_input_failure/unexpected_subworkflow_call_input_failure_import.wdl ]
 }
 

@@ -4,7 +4,7 @@ workflowType: WDL
 workflowTypeVersion: draft-3
 
 files {
-  wdl: wdl_draft3/struct_output/struct_output.wdl
+  workflow: wdl_draft3/struct_output/struct_output.wdl
 }
 
 metadata {

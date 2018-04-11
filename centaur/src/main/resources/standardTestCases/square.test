@@ -2,7 +2,7 @@ name: square
 testFormat: workflowsuccess
 
 files {
-  wdl: square/square.wdl
+  workflow: square/square.wdl
 }
 
 metadata {

@@ -2,7 +2,7 @@ name: array_io
 testFormat: workflowsuccess
 
 files {
-  wdl: array_io/array_io.wdl
+  workflow: array_io/array_io.wdl
 }
 
 metadata {

@@ -5,7 +5,7 @@ workflowTypeVersion: v1.0
 workflowRoot: cwl_input_binding_expression
 
 files {
-  wdl: cwl_input_binding_expression/cwl_input_binding_expression.cwl
+  workflow: cwl_input_binding_expression/cwl_input_binding_expression.cwl
   inputs: cwl_input_binding_expression/cwl_input_binding_expression.json
 }
 

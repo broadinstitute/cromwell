@@ -3,7 +3,7 @@ testFormat: workflowfailure
 tags: [ labels ]
 
 files {
-  wdl: hello/hello.wdl
+  workflow: hello/hello.wdl
   inputs: hello/hello.inputs
   labels: labels/invalid.labels
 }

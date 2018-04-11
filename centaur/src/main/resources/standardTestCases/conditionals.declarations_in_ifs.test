@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 tags: [ conditionals ]
 
 files {
-  wdl: conditionals_tests/declarations_in_ifs/declarations_in_ifs.wdl
+  workflow: conditionals_tests/declarations_in_ifs/declarations_in_ifs.wdl
 }
 
 metadata {

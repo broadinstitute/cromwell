@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 tags: [subworkflow]
 
 files {
-  wdl: sub_workflow_interactions_scatter/sub_workflow_interactions_scatter.wdl
+  workflow: sub_workflow_interactions_scatter/sub_workflow_interactions_scatter.wdl
   imports: [
     sub_workflow_interactions/sub_workflow_interactions_import.wdl
   ]

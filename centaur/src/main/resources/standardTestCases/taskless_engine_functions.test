@@ -2,7 +2,7 @@ name: taskless_engine_functions
 testFormat: workflowsuccess
 
 files {
-  wdl: taskless_engine_functions/taskless_engine_functions.wdl
+  workflow: taskless_engine_functions/taskless_engine_functions.wdl
 }
 
 metadata {

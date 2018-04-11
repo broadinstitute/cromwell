@@ -2,7 +2,7 @@ name: prefix
 testFormat: workflowsuccess
 
 files {
-  wdl: prefix/prefix.wdl
+  workflow: prefix/prefix.wdl
 }
 
 metadata {

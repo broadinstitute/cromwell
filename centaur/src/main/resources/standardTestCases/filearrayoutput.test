@@ -2,5 +2,5 @@ name: filearrayoutput
 testFormat: workflowsuccess
 
 files {
-  wdl: filearrayoutput/filearrayoutput.wdl
+  workflow: filearrayoutput/filearrayoutput.wdl
 }

@@ -2,7 +2,7 @@ name: length
 testFormat: workflowsuccess
 
 files {
-  wdl: length/length.wdl
+  workflow: length/length.wdl
 }
 
 metadata {

@@ -2,7 +2,7 @@ name: arrays
 testFormat: workflowsuccess
 
 files {
-  wdl: green/arrays/arrays.wdl
+  workflow: green/arrays/arrays.wdl
   inputs: green/arrays/arrays.inputs
   options: green/arrays/arrays.options
 }

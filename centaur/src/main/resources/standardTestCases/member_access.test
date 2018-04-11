@@ -4,7 +4,7 @@ name: member_access
 testFormat: workflowsuccess
 
 files {
-  wdl: member_access/member_access.wdl
+  workflow: member_access/member_access.wdl
 }
 
 metadata {

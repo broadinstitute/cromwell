@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 backends: [Jes]
 
 files {
-  wdl: custom_mount_point/custom_mount_point.wdl
+  workflow: custom_mount_point/custom_mount_point.wdl
 }
 
 metadata {

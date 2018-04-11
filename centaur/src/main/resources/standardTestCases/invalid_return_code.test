@@ -2,7 +2,7 @@ name: invalid_return_code
 testFormat: workflowfailure
 
 files {
-  wdl: invalid_return_code/invalid_return_code.wdl
+  workflow: invalid_return_code/invalid_return_code.wdl
 }
 
 metadata {

@@ -2,7 +2,7 @@ name: dot_dir_stuck_running
 testFormat: workflowsuccess
 
 files {
-  wdl: dot_dir_stuck_running/dot_dir_stuck_running.wdl
+  workflow: dot_dir_stuck_running/dot_dir_stuck_running.wdl
 }
 
 # https://github.com/broadinstitute/cromwell/pull/2512

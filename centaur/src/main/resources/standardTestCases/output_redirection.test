@@ -2,7 +2,7 @@ name: output_redirection
 testFormat: workflowsuccess
 
 files {
-  wdl: output_redirection/output_redirection.wdl
+  workflow: output_redirection/output_redirection.wdl
 }
 
 metadata {

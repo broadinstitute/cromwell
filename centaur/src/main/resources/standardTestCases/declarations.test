@@ -4,7 +4,7 @@ name: declarations
 testFormat: workflowsuccess
 
 files {
-  wdl: declarations/declarations.wdl
+  workflow: declarations/declarations.wdl
   inputs: declarations/declarations.inputs
 }
 

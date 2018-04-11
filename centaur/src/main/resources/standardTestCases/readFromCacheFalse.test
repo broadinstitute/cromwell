@@ -2,7 +2,7 @@ name: readFromCacheFalse
 testFormat: runtwiceexpectingnocallcaching
 
 files {
-  wdl: readFromCacheFalse/readFromCache.wdl
+  workflow: readFromCacheFalse/readFromCache.wdl
   options: readFromCacheFalse/readFromCache.options
 }
 

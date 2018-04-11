@@ -6,7 +6,7 @@ backends: [Local, LocalNoDocker]
 tags: [localdockertest]
 
 files {
-  wdl: failures/restart_while_failing/restart_while_failing.wdl
+  workflow: failures/restart_while_failing/restart_while_failing.wdl
 }
 
 metadata {

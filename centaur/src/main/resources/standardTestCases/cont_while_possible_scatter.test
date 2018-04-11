@@ -3,7 +3,7 @@ testFormat: workflowfailure
 backends: [Local]
 
 files {
-  wdl: cont_while_possible/cont_while_possible_scatter.wdl
+  workflow: cont_while_possible/cont_while_possible_scatter.wdl
   options: cont_while_possible/cont_while_possible.options
 }
 

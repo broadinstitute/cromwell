@@ -2,7 +2,7 @@ name: defined_function
 testFormat: workflowsuccess
 
 files {
-  wdl: defined_function/defined_function.wdl
+  workflow: defined_function/defined_function.wdl
 }
 
 metadata {

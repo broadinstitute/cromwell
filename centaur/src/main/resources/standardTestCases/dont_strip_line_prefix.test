@@ -2,7 +2,7 @@ name: dont_strip_line_prefix
 testFormat: workflowsuccess
 
 files {
-  wdl: dont_strip_line_prefix/dont_strip_line_prefix.wdl
+  workflow: dont_strip_line_prefix/dont_strip_line_prefix.wdl
 }
 
 metadata {

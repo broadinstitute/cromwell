@@ -2,7 +2,7 @@ name: workflowenginefunctions
 testFormat: workflowsuccess
 
 files {
-  wdl: workflowenginefunctions/workflowenginefunctions.wdl
+  workflow: workflowenginefunctions/workflowenginefunctions.wdl
 }
 
 metadata {

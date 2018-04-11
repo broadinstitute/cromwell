@@ -2,7 +2,7 @@ name: exit
 testFormat: workflowsuccess
 
 files {
-  wdl: exit/exit.wdl
+  workflow: exit/exit.wdl
 }
 
 metadata {

@@ -3,7 +3,7 @@ name: inter_scatter_dependencies
 testFormat: workflowsuccess
 
 files {
-  wdl: inter_scatter_dependencies/inter_scatter_dependencies.wdl
+  workflow: inter_scatter_dependencies/inter_scatter_dependencies.wdl
 }
 
 metadata {

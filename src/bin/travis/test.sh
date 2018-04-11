@@ -4,6 +4,11 @@ set -e
 
 SCRIPT_DIR=src/bin/travis
 
+# Delete ~/.sbt/boot to fix consistent, almost immediate failures on sub-builds (usually TES but sometimes others).
+# Even purging Travis caches didn't always fix the problem. Fortunately stackoverflow knew what to do:
+# https://stackoverflow.com/questions/24539576/sbt-scala-2-10-4-missing-scala-tools-nsc-global
+rm -rf ~/.sbt/boot/
+
 # $TRAVIS_EVENT_TYPE will be cron if this build was initiated by a cron job
 case "$TRAVIS_EVENT_TYPE" in
     push|pull_request|api)

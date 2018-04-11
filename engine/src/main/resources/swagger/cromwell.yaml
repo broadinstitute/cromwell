@@ -26,6 +26,11 @@ paths:
           required: true
           type: file
           in: formData
+        - name: workflowOnHold
+          description: Put workflow on hold upon submission?
+          required: false
+          type: boolean
+          in: formData
         - name: workflowInputs
           description: JSON or YAML file containing the inputs as an object. For WDL workflows a skeleton file can be generated from WOMtool using the "inputs" subcommand. When multiple files are specified, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2. Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.
           required: false
@@ -104,6 +109,11 @@ paths:
           description: The workflow source file to submit for execution.
           required: true
           type: file
+          in: formData
+        - name: workflowOnHold
+          description: Put workflow on hold upon submission?
+          required: false
+          type: boolean
           in: formData
         - name: workflowInputs
           description: JSON file containing the inputs as an array of objects. Every element of the array will correspond to a single workflow. For WDL workflows a skeleton file can be generated from WOMtool using the "inputs" subcommand. When multiple files are specified, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2. Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.
@@ -229,6 +239,29 @@ paths:
       security:
         - google_oauth:
             - openid
+  '/api/workflows/{version}/{id}/onHoldToSubmitted':
+      post:
+        summary: Switch a workflow from 'On Hold' to 'Submitted' status
+        description: Request Cromwell to switch the status of a workflow from 'On Hold' to 'Submitted' so it can be picked for running. For instance this might be necessary in cases where you have submitted a workflow with workflowOnHold = true. Cromwell will change the status from 'On Hold' to 'Submitted' so it can be picked for running.
+        parameters:
+          - $ref: '#/parameters/versionParam'
+          - $ref: '#/parameters/singleId'
+        tags:
+          - Workflows
+        responses:
+          '200':
+            $ref: '#/responses/OkIdAndStatus'
+          '400':
+            $ref: '#/responses/BadRequest'
+          '403':
+            $ref: '#/responses/Forbidden'
+          '404':
+            $ref: '#/responses/NotFound'
+          '500':
+            $ref: '#/responses/ServerError'
+        security:
+          - google_oauth:
+              - openid
   '/api/workflows/{version}/{id}/status':
     get:
       summary: Retrieves the current state for a workflow

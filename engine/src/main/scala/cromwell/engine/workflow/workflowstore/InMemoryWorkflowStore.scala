@@ -4,6 +4,7 @@ import cats.data.NonEmptyList
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
 import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowSubmissionResponse
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
@@ -16,10 +17,15 @@ class InMemoryWorkflowStore extends WorkflowStore {
     * Adds the requested WorkflowSourceFiles to the store and returns a WorkflowId for each one (in order)
     * for tracking purposes.
     */
-  override def add(sources: NonEmptyList[WorkflowSourceFilesCollection])(implicit ec: ExecutionContext): Future[NonEmptyList[WorkflowId]] = {
-    val submittedWorkflows = sources map { SubmittedWorkflow(WorkflowId.randomId(), _) -> WorkflowStoreState.Submitted }
+  override def add(sources: NonEmptyList[WorkflowSourceFilesCollection])(implicit ec: ExecutionContext): Future[NonEmptyList[WorkflowSubmissionResponse]] = {
+    val actualWorkflowState = if (sources.head.workflowOnHold)
+      WorkflowStoreState.OnHold
+    else WorkflowStoreState.Submitted
+    val submittedWorkflows = sources map { SubmittedWorkflow(WorkflowId.randomId(), _) -> actualWorkflowState }
     workflowStore = workflowStore ++ submittedWorkflows.toList.toMap
-    Future.successful(submittedWorkflows map { _._1.id })
+    Future.successful(submittedWorkflows map {
+      case (SubmittedWorkflow(id, _), _) => WorkflowSubmissionResponse(actualWorkflowState, id)
+    })
   }
 
   /**
@@ -73,6 +79,8 @@ class InMemoryWorkflowStore extends WorkflowStore {
 
   override def writeWorkflowHeartbeats(workflowIds: List[WorkflowId])(implicit ec: ExecutionContext): Future[Int] =
     Future.successful(workflowIds.size)
+
+  override def switchOnHoldToSubmitted(id: WorkflowId)(implicit ec: ExecutionContext): Future[Unit] = Future.successful(())
 }
 
 final case class SubmittedWorkflow(id: WorkflowId, sources: WorkflowSourceFilesCollection)

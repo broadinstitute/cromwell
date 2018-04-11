@@ -198,6 +198,28 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
     }
 
+  it should "return 201 for a successful workflow submission with onHold = true" in {
+    val workflowSource = Multipart.FormData.BodyPart("workflowSource", HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
+    val workflowInputs = Multipart.FormData.BodyPart("workflowInputs", HttpEntity(MediaTypes.`application/json`, HelloWorld.rawInputs.toJson.toString()))
+    val onHold =  Multipart.FormData.BodyPart("workflowOnHold", HttpEntity("true"))
+    val formData = Multipart.FormData(workflowSource, workflowInputs, onHold).toEntity()
+    Post(s"/workflows/$version", formData) ~>
+      akkaHttpService.workflowRoutes ~>
+      check {
+        assertResult(
+          s"""{
+             |  "id": "${CromwellApiServiceSpec.ExistingWorkflowId.toString}",
+             |  "status": "On Hold"
+             |}""".stripMargin) {
+          responseAs[String].parseJson.prettyPrint
+        }
+        assertResult(StatusCodes.Created) {
+          status
+        }
+        headers should be(Seq.empty)
+      }
+  }
+
   it should "return 201 with warnings for a successful v1 workflow submission still using wdlSource" in {
     val workflowSource = Multipart.FormData.BodyPart("wdlSource",
       HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
@@ -692,9 +714,9 @@ object CromwellApiServiceSpec {
 
   class MockWorkflowStoreActor extends Actor {
     override def receive = {
-      case SubmitWorkflow(_) => sender ! WorkflowSubmittedToStore(ExistingWorkflowId)
+      case SubmitWorkflow(_) => sender ! WorkflowSubmittedToStore(ExistingWorkflowId, WorkflowSubmitted)
       case BatchSubmitWorkflows(sources) =>
-        val response = WorkflowsBatchSubmittedToStore(sources map { _ => ExistingWorkflowId })
+        val response = WorkflowsBatchSubmittedToStore(sources map { _ => ExistingWorkflowId }, WorkflowSubmitted)
         sender ! response
       case AbortWorkflowCommand(id) =>
         val message = id match {

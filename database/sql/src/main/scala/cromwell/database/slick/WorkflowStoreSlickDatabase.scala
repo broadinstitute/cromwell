@@ -110,4 +110,13 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     val action = dataAccess.workflowStoreStats.result
     runTransaction(action) map { _.toMap }
   }
+
+  override def setOnHoldToSubmitted(workflowId: String)(implicit ec: ExecutionContext): Future[Unit] = {
+    val action = for {
+        updated <- dataAccess.workflowForIdAndOnHold(workflowId).update(WorkflowStoreState.Submitted)
+        _ <- if (updated == 0) DBIO.failed(new Exception(s"Couldn't change status of workflow $workflowId to 'Submitted' because the workflow is not in 'On Hold' state")) else DBIO.successful(())
+    } yield ()
+
+    runTransaction(action)
+  }
 }

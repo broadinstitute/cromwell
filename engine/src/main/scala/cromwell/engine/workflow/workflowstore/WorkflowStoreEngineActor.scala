@@ -3,7 +3,7 @@ package cromwell.engine.workflow.workflowstore
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, PoisonPill, Props}
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
-import cromwell.core.WorkflowAborting
+import cromwell.core.{WorkflowAborting, WorkflowId, WorkflowSubmitted}
 import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingResponse}
 import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
 import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
@@ -119,6 +119,17 @@ final case class WorkflowStoreEngineActor private(
           log.info(s"Aborting all running workflows.")
           self ! PoisonPill
         }
+      case WorkflowOnHoldToSubmittedCommand(id) =>
+        store.switchOnHoldToSubmitted(id) map { _ =>
+          sndr ! WorkflowOnHoldToSubmittedSuccess(id)
+          pushCurrentStateToMetadataService(id, WorkflowSubmitted)
+          log.info(s"Status changed to 'Submitted' for $id")
+        } recover {
+          case t =>
+            val message = s"Couldn't change the status to 'Submitted' from 'On Hold' for workflow $id"
+            log.error(message)
+            sndr ! WorkflowOnHoldToSubmittedFailure(id, t)
+        }
       case oops =>
         log.error("Unexpected type of start work command: {}", oops.getClass.getSimpleName)
         Future.successful(self ! WorkDone)
@@ -190,4 +201,8 @@ object WorkflowStoreEngineActor {
   case object Unstarted extends WorkflowStoreActorState
   case object Working extends WorkflowStoreActorState
   case object Idle extends WorkflowStoreActorState
+
+  sealed trait WorkflowOnHoldToSubmittedResponse
+  case class WorkflowOnHoldToSubmittedSuccess(workflowId: WorkflowId) extends WorkflowOnHoldToSubmittedResponse
+  case class WorkflowOnHoldToSubmittedFailure(workflowId: WorkflowId, failure: Throwable) extends WorkflowOnHoldToSubmittedResponse
 }

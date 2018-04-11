@@ -98,7 +98,8 @@ trait WorkflowStoreEntryComponent {
         // The current code only writes heartbeats on initial pickup; this needs to be fixed by instrumenting workflow
         // heartbeats into Cromwell appropriately.  But in the meantime any other Cromwell's workflows will appear
         // to be abandoned if they were picked up before `heartbeatThreshold`.
-        if row.heartbeatTimestamp.isEmpty || row.heartbeatTimestamp < heartbeatThreshold
+//        _ = println(row.heartbeatTimestamp.toString + row.workflowState.toString)
+        if (row.heartbeatTimestamp.isEmpty || row.heartbeatTimestamp < heartbeatThreshold) && !(row.workflowState === WorkflowStoreState.OnHold)
       } yield row
       query.forUpdate.sortBy(_.submissionTime.asc).take(limit)
     }
@@ -161,6 +162,19 @@ trait WorkflowStoreEntryComponent {
       workflowStoreEntry <- workflowStoreEntries
       if workflowStoreEntry.workflowExecutionUuid === workflowId
     } yield workflowStoreEntry.workflowState
+  )
+
+  /**
+    * Useful for updating a given workflow to a 'Submitted' state when it's currently 'On Hold'
+    */
+  val workflowForIdAndOnHold = Compiled(
+    (workflowId: Rep[String]) => {
+       for {
+        workflowStoreEntry <- workflowStoreEntries
+        if workflowStoreEntry.workflowExecutionUuid === workflowId
+        if workflowStoreEntry.workflowState === WorkflowStoreState.OnHold
+      } yield workflowStoreEntry.workflowState
+    }
   )
 
   /**

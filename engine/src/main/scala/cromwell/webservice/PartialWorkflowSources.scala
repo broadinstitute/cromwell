@@ -27,7 +27,8 @@ final case class PartialWorkflowSources(workflowSource: WorkflowSource,
                                         workflowOptions: Option[WorkflowOptionsJson] = None,
                                         customLabels: Option[WorkflowJson] = None,
                                         zippedImports: Option[Array[Byte]] = None,
-                                        warnings: Seq[String] = List.empty)
+                                        warnings: Seq[String] = List.empty,
+                                        workflowOnHold: Boolean)
 
 object PartialWorkflowSources {
   val log = LoggerFactory.getLogger(classOf[PartialWorkflowSources])
@@ -43,9 +44,10 @@ object PartialWorkflowSources {
   val labelsKey = "labels"
   val WdlDependenciesKey = "wdlDependencies"
   val WorkflowDependenciesKey = "workflowDependencies"
+  val workflowOnHoldKey = "workflowOnHold"
 
   val allKeys = List(WdlSourceKey, WorkflowRootKey, WorkflowSourceKey, WorkflowTypeKey, WorkflowTypeVersionKey, WorkflowInputsKey,
-    WorkflowOptionsKey, labelsKey, WdlDependenciesKey, WorkflowDependenciesKey)
+    WorkflowOptionsKey, labelsKey, WdlDependenciesKey, WorkflowDependenciesKey, workflowOnHoldKey)
 
   val allPrefixes = List(WorkflowInputsAuxPrefix)
 
@@ -58,6 +60,9 @@ object PartialWorkflowSources {
 
     val partialSources: ErrorOr[PartialWorkflowSources] = {
       def getStringValue(key: String) = formData.get(key).map(_.utf8String)
+      def getBooleanValue(key: String) = getStringValue(key) map { b =>
+        Try(b.toBoolean).toErrorOr
+      }
       def getArrayValue(key: String) = formData.get(key).map(_.toArray)
 
       // unrecognized keys
@@ -120,8 +125,10 @@ object PartialWorkflowSources {
         case (None, None) => None.validNel
       }
 
-      (unrecognized, workflowSourceFinal, workflowInputs, workflowInputsAux, workflowDependenciesFinal) mapN {
-        case (_, source, inputs, aux, dep) => PartialWorkflowSources(
+      val onHold: ErrorOr[Boolean] = getBooleanValue(workflowOnHoldKey).getOrElse(false.validNel)
+
+      (unrecognized, workflowSourceFinal, workflowInputs, workflowInputsAux, workflowDependenciesFinal, onHold) mapN {
+        case (_, source, inputs, aux, dep, onHold) => PartialWorkflowSources(
           workflowSource = source,
           workflowRoot = getStringValue(WorkflowRootKey),
           workflowType = getStringValue(WorkflowTypeKey),
@@ -131,7 +138,8 @@ object PartialWorkflowSources {
           workflowOptions = getStringValue(WorkflowOptionsKey),
           customLabels = getStringValue(labelsKey),
           zippedImports = dep,
-          warnings = wdlSourceWarning.toVector ++ wdlDependenciesWarning.toVector
+          warnings = wdlSourceWarning.toVector ++ wdlDependenciesWarning.toVector,
+          workflowOnHold = onHold
         )
       }
     }
@@ -196,7 +204,8 @@ object PartialWorkflowSources {
               workflowOptionsJson = wfOptions.asPrettyJson,
               labelsJson = partialSource.customLabels.getOrElse("{}"),
               importsFile = partialSource.zippedImports,
-              warnings = partialSource.warnings))
+              warnings = partialSource.warnings,
+              workflowOnHold = partialSource.workflowOnHold))
         }
       case Invalid(err) => err.invalid
     }

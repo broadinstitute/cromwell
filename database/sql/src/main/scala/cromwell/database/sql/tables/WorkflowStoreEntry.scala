@@ -10,6 +10,7 @@ object WorkflowStoreEntry {
     val Submitted = Value("Submitted")
     val Running = Value("Running")
     val Aborting = Value("Aborting")
+    val OnHold = Value("On Hold")
   }
 }
 

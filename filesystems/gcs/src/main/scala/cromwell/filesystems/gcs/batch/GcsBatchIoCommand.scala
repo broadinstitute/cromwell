@@ -78,6 +78,9 @@ case class GcsBatchDeleteCommand(
   private val blob = file.blob
   def operation = file.apiStorage.objects().delete(blob.getBucket, blob.getName)
   override protected def mapGoogleResponse(response: Void): Unit = ()
+  override def onFailure(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders) = {
+    if (swallowIOExceptions) Option(Left(())) else None
+  }
 }
 
 /**

@@ -1,8 +1,14 @@
 package cromwell.backend.impl.jes
 
+import akka.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
+import common.validation.Validation._
 import cromwell.backend.BackendConfigurationDescriptor
+import cromwell.core.WorkflowOptions
+import cromwell.core.filesystem.CromwellFileSystems
 
+import scala.concurrent.Await
+import scala.concurrent.duration._
 object JesTestConfig {
 
   private val JesBackendConfigString =
@@ -15,11 +21,7 @@ object JesTestConfig {
       |  endpoint-url = "https://genomics.googleapis.com/"
       |}
       |
-      |filesystems {
-      |  gcs {
-      |    auth = "application-default"
-      |  }
-      |}
+      |filesystems.gcs.auth = "application-default"
       |
       |request-workers = 1
       |
@@ -67,6 +69,12 @@ object JesTestConfig {
        |  ]
        |}
        |
+       |filesystems {
+       |  gcs {
+       |    class = "cromwell.filesystems.gcs.GcsPathBuilderFactory"
+       |  }
+       |}
+       |
        |backend {
        |  default = "JES"
        |  providers {
@@ -84,6 +92,10 @@ object JesTestConfig {
   val JesBackendConfig = ConfigFactory.parseString(JesBackendConfigString)
   val JesGlobalConfig = ConfigFactory.parseString(JesGlobalConfigString)
   val JesBackendNoDefaultConfig = ConfigFactory.parseString(NoDefaultsConfigString)
-  val JesBackendConfigurationDescriptor = BackendConfigurationDescriptor(JesBackendConfig, JesGlobalConfig)
+  val mockFilesystems = new CromwellFileSystems(JesGlobalConfig)
+  val JesBackendConfigurationDescriptor = new BackendConfigurationDescriptor(JesBackendConfig, JesGlobalConfig) {
+    override lazy val configuredPathBuilderFactories = mockFilesystems.factoriesFromConfig(JesBackendConfig).unsafe("Failed to instantiate backend filesystem")
+  }
+  def pathBuilders()(implicit as: ActorSystem) = Await.result(JesBackendConfigurationDescriptor.pathBuilders(WorkflowOptions.empty), 5.seconds)
   val NoDefaultsConfigurationDescriptor = BackendConfigurationDescriptor(JesBackendNoDefaultConfig, JesGlobalConfig)
 }

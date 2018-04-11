@@ -1,17 +1,9 @@
 package cromwell.backend.impl.tes
 
 import akka.actor.ActorRef
-import cats.data.Validated.{Invalid, Valid}
-import cats.instances.future._
-import cats.instances.list._
-import cats.syntax.traverse._
 import cromwell.backend.standard._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
-import cromwell.cloudsupport.gcp.GoogleConfiguration
-import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
-import cromwell.filesystems.gcs.GcsPathBuilderFactory
-import common.exception.MessageAggregation
-import net.ceedubs.ficus.Ficus._
+import cromwell.core.path.{PathBuilder, PathBuilderFactory}
 import wom.graph.CommandCallNode
 
 import scala.concurrent.Future
@@ -31,27 +23,9 @@ class TesInitializationActor(params: TesInitializationActorParams)
 
   private val tesConfiguration = params.tesConfiguration
   
-  private implicit val system = context.system
-
-  /**
-    * If the backend sets a gcs authentication mode, try to create a PathBuilderFactory with it.
-    */
-  lazy val gcsPathBuilderFactory: Option[GcsPathBuilderFactory] = {
-    configurationDescriptor.backendConfig.as[Option[String]]("filesystems.gcs.auth") map { configAuth =>
-      val googleConfiguration = GoogleConfiguration(configurationDescriptor.globalConfig)
-      googleConfiguration.auth(configAuth) match {
-        case Valid(auth) => GcsPathBuilderFactory(auth, googleConfiguration.applicationName, None)
-        case Invalid(error) => throw new MessageAggregation {
-          override def exceptionContext: String = "Failed to parse gcs auth configuration"
-
-          override def errorMessages: Traversable[String] = error.toList
-        }
-      }
-    }
+  override lazy val pathBuilders: Future[List[PathBuilder]] = {
+    standardParams.configurationDescriptor.pathBuildersWithDefault(workflowDescriptor.workflowOptions)
   }
-
-  override lazy val pathBuilders: Future[List[PathBuilder]] =
-    gcsPathBuilderFactory.toList.traverse(_.withOptions(workflowDescriptor.workflowOptions)).map(_ ++ Option(DefaultPathBuilder))
 
   override lazy val workflowPaths: Future[TesWorkflowPaths] = pathBuilders map {
     new TesWorkflowPaths(workflowDescriptor, tesConfiguration.configurationDescriptor.backendConfig, _)

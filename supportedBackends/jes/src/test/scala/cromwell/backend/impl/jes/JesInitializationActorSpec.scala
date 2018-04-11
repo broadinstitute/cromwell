@@ -5,16 +5,18 @@ import java.util.UUID
 import akka.actor.Props
 import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory}
+import common.validation.Validation._
 import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed, InitializationSuccess, Initialize}
 import cromwell.backend.async.RuntimeAttributeValidationFailures
+import cromwell.backend.impl.jes.JesTestConfig.JesBackendConfig
 import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthObject}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.{GoogleAuthModeSpec, RefreshTokenMode, SimpleClientSecrets}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.Tags.{IntegrationTest, PostWomTest}
-import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.core.logging.LoggingTest._
+import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
@@ -32,21 +34,21 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
 
   val HelloWorld: String =
     s"""
-      |task hello {
-      |  String addressee = "you"
-      |  command {
-      |    echo "Hello $${addressee}!"
-      |  }
-      |  output {
-      |    String salutation = read_string(stdout())
-      |  }
-      |
+       |task hello {
+       |  String addressee = "you"
+       |  command {
+       |    echo "Hello $${addressee}!"
+       |  }
+       |  output {
+       |    String salutation = read_string(stdout())
+       |  }
+       |
       |  RUNTIME
-      |}
-      |
+       |}
+       |
       |workflow wf_hello {
-      |  call hello
-      |}
+       |  call hello
+       |}
     """.stripMargin
 
   val globalConfig: Config = ConfigFactory.parseString(
@@ -165,7 +167,9 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       |}
       | """.stripMargin))
 
-  val defaultBackendConfig = BackendConfigurationDescriptor(backendConfig, globalConfig)
+  val defaultBackendConfig = new BackendConfigurationDescriptor(backendConfig, globalConfig) {
+    override lazy val configuredPathBuilderFactories = JesTestConfig.mockFilesystems.factoriesFromConfig(JesBackendConfig).unsafe("Failed to instantiate backend filesystem")
+  }
 
   val refreshTokenConfig: Config = ConfigFactory.parseString(refreshTokenConfigTemplate)
 

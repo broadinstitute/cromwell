@@ -24,7 +24,7 @@ class JesWorkflowPathsSpec extends TestKitSuite with FlatSpecLike with Matchers 
     )
     val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
 
-    val workflowPaths = JesWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), jesConfiguration)(system)
+    val workflowPaths = JesWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), jesConfiguration, pathBuilders)
     workflowPaths.executionRoot.pathAsString should be("gs://my-cromwell-workflows-bucket/")
     workflowPaths.workflowRoot.pathAsString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/")

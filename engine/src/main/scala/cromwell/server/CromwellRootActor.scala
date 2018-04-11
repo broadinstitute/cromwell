@@ -10,6 +10,7 @@ import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import cromwell.core._
 import cromwell.core.actor.StreamActorHelper.ActorRestartException
+import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.io.Throttle
 import cromwell.docker.DockerHashActor
 import cromwell.docker.DockerHashActor.DockerHashContext
@@ -53,6 +54,9 @@ import scala.util.{Failure, Success, Try}
   */
 abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean)(implicit materializer: ActorMaterializer) extends Actor with ActorLogging with GracefulShutdownHelper {
   import CromwellRootActor._
+  
+  // Make sure the filesystems are initialized at startup
+  val _ = CromwellFileSystems.instance
 
   private val logger = Logging(context.system, this)
   private val config = ConfigFactory.load()

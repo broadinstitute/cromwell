@@ -209,7 +209,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   private def workflowOptionsAndPathBuilders(sourceFiles: WorkflowSourceFilesCollection): ErrorOr[(WorkflowOptions, Future[List[PathBuilder]])] = {
     val workflowOptionsValidation = validateWorkflowOptions(sourceFiles.workflowOptionsJson)
     workflowOptionsValidation map { workflowOptions =>
-      val pathBuilders = EngineFilesystems.pathBuildersForWorkflow(workflowOptions)(context.system, context.dispatcher)
+      val pathBuilders = EngineFilesystems.pathBuildersForWorkflow(workflowOptions)(context.system)
       (workflowOptions, pathBuilders)
     }
   }

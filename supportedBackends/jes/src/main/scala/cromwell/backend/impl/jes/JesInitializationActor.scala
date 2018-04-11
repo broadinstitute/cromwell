@@ -43,7 +43,6 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
   override lazy val ioActor = jesParams.ioActor
   private val jesConfiguration = jesParams.jesConfiguration
   private val workflowOptions = workflowDescriptor.workflowOptions
-  implicit private val system = context.system
 
   override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
     JesRuntimeAttributes.runtimeAttributesBuilder(jesConfiguration)
@@ -73,7 +72,8 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
   override lazy val workflowPaths: Future[JesWorkflowPaths] = for {
     gcsCred <- gcsCredentials
     genomicsCred <- genomicsCredentials
-  } yield new JesWorkflowPaths(workflowDescriptor, gcsCred, genomicsCred, jesConfiguration)
+    validatedPathBuilders <- pathBuilders
+  } yield new JesWorkflowPaths(workflowDescriptor, gcsCred, genomicsCred, jesConfiguration, validatedPathBuilders)
 
   override lazy val initializationData: Future[JesBackendInitializationData] = for {
     jesWorkflowPaths <- workflowPaths

@@ -11,6 +11,7 @@ import cromwell.backend.async.RuntimeAttributeValidationFailures
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
 import cromwell.core.Tags.PostWomTest
 import cromwell.core.TestKitSuite
+import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.logging.LoggingTest._
 import org.scalatest.{Matchers, WordSpecLike}
 import wom.graph.CommandCallNode
@@ -73,7 +74,9 @@ class TesInitializationActorSpec extends TestKitSuite("TesInitializationActorSpe
   }
 
   val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate)
-  val conf = BackendConfigurationDescriptor(backendConfig, globalConfig)
+  val conf = new BackendConfigurationDescriptor(backendConfig, globalConfig) {
+    override private[backend] lazy val cromwellFileSystems = new CromwellFileSystems(globalConfig)
+  } 
 
   // TODO WOM: needs runtime attributes validation working again
   "TesInitializationActor" should {

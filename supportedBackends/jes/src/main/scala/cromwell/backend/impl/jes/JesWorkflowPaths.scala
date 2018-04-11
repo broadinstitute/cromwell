@@ -9,7 +9,8 @@ import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.WorkflowOptions
-import cromwell.core.path.{Path, PathBuilder}
+import cromwell.core.path.Path
+import cromwell.core.path.PathFactory.PathBuilders
 import cromwell.filesystems.gcs.GcsPathBuilder
 
 import scala.language.postfixOps
@@ -22,14 +23,13 @@ object JesWorkflowPaths {
 case class JesWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
                             gcsCredentials: Credentials,
                             genomicsCredentials: Credentials,
-                            jesConfiguration: JesConfiguration)(implicit actorSystem: ActorSystem) extends WorkflowPaths {
+                            jesConfiguration: JesConfiguration,
+                            override val pathBuilders: PathBuilders) extends WorkflowPaths {
 
   override lazy val executionRootString: String =
     workflowDescriptor.workflowOptions.getOrElse(JesWorkflowPaths.GcsRootOptionKey, jesConfiguration.root)
 
   private val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions
-
-  private val gcsPathBuilder: GcsPathBuilder = jesConfiguration.gcsPathBuilderFactory.fromCredentials(workflowOptions, gcsCredentials)
 
   val gcsAuthFilePath: Path = {
     // The default auth file bucket is always at the root of the root workflow
@@ -67,5 +67,4 @@ case class JesWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
   override protected def withDescriptor(workflowDescriptor: BackendWorkflowDescriptor): WorkflowPaths = this.copy(workflowDescriptor = workflowDescriptor)
 
   override def config: Config = jesConfiguration.configurationDescriptor.backendConfig
-  override def pathBuilders: List[PathBuilder] = List(gcsPathBuilder)
 }

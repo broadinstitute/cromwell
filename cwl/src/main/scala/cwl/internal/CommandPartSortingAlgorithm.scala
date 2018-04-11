@@ -53,8 +53,8 @@ object CommandPartSortingAlgorithm {
             .append(inputParameter.inputBinding, Coproduct[StringOrInt](parsedName))
 
           inputParameter.`type`.toList.
-            flatMap{t =>
-              val y = t.fold(MyriadInputTypeToSortedCommandParts).
+            flatMap{
+              _.fold(MyriadInputTypeToSortedCommandParts).
                 apply(
                   inputParameter.inputBinding,
                   value,
@@ -62,7 +62,6 @@ object CommandPartSortingAlgorithm {
                   hintsAndRequirements.hasShellCommandRequirement,
                   expressionLib,
                   hintsAndRequirements.schemaDefRequirement)
-          y
             }.validNel
         case Some(Invalid(errors)) => Invalid(errors)
         case None => s"Could not find an input value for input $parsedName in ${inputValues.prettyString}".invalidNel

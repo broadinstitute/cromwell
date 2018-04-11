@@ -23,7 +23,7 @@ object WorkflowStepInputSource {
 
 case class InputRecordSchema(
   name: String,
-  `type`: W.`"record"`.T,
+  `type`: W.`"record"`.T = Witness("record").value,
   fields: Option[Array[InputRecordField]],
   label: Option[String]) {
 

@@ -1,13 +1,11 @@
 package cwl
 
-import java.net.URI
-
 import cats.data.NonEmptyList
 import cwl.CwlType.CwlType
 import cwl.MyriadInputTypeToWomType.SchemaLookup
 import cwl.command.ParentName
 import mouse.all._
-import shapeless.{Inl, Inr, Poly1}
+import shapeless.Poly1
 import wom.types._
 
 object MyriadInputInnerTypeToString extends Poly1 {

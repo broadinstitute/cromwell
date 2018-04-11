@@ -1,4 +1,5 @@
 
+import cats.data.ReaderT
 import common.Checked
 import common.validation.Checked._
 import common.validation.ErrorOr._
@@ -9,6 +10,7 @@ import shapeless._
 import wom.executable.Executable
 import wom.expression.IoFunctionSet
 import wom.types._
+import wom.values.WomEvaluatedCallInputs
 
 import scala.util.{Failure, Success, Try}
 
@@ -122,4 +124,8 @@ package object cwl extends TypeAliases {
   }
 
   type ExpressionLib = Vector[String]
+
+  type Inputs = (RequirementsAndHints, ExpressionLib, WomEvaluatedCallInputs)
+
+  type CommandPartFunc[A] = ReaderT[ErrorOr, Inputs, A]
 }

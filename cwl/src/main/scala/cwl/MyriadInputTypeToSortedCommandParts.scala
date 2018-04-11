@@ -8,7 +8,6 @@ import cwl.command.ParentName
 import shapeless.{Coproduct, Poly1}
 import cats.syntax.foldable._
 import cats.instances.list._
-import wom.types.WomType
 import wom.values.{WomArray, WomCoproductValue, WomObjectLike, WomOptionalValue, WomValue}
 
 /**
@@ -84,10 +83,12 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
   implicit def ct: Aux[CwlType, CommandPartBuilder] = {
     at {
       cwlType => {
-        (inputBinding, womValue, key, hasShellCommandRequirement, expressionLib, _) => {
-          cwlType match {
-            case CwlType.Null => CommandPartsList.empty
-            case _ => inputBinding.toList.map(_.toCommandPart(key, womValue, hasShellCommandRequirement, expressionLib))
+        case (_, WomOptionalValue(_, None), _, _, _, _) => CommandPartsList.empty
+        case (inputBinding, womValue, key, hasShellCommandRequirement, expressionLib, _) => {
+          (cwlType, womValue) match {
+            case (CwlType.Null, _) => CommandPartsList.empty
+            case (_, WomOptionalValue(_, None)) => CommandPartsList.empty
+            case (_,_) => inputBinding.toList.map(_.toCommandPart(key, womValue, hasShellCommandRequirement, expressionLib))
           }
         }
       }
@@ -136,11 +137,11 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
                 // TODO: Could this fail ?
                 val innerValueOption: Option[WomValue] = objectLike.values.get(parsedName)
 
-                innerValueOption.toList.flatMap( field.`type`.fold(MyriadInputTypeToSortedCommandParts).
+                innerValueOption.toList.flatMap(field.`type`.fold(MyriadInputTypeToSortedCommandParts).
                   apply(field.inputBinding, _, fieldSortingKey.asNewKey, hasShellCommandRequirement, expressionLib, sdr))
             }
 
-        partsFromFields ++ sortingKeyFromInputBindingFromInputParameter
+        partsFromFields //++ sortingKeyFromInputBindingFromInputParameter
       case (_, other, _, _, _, _) => throw new RuntimeException(s"Value $other cannot be used for an input of type InputRecordSchema")
     }
 
@@ -150,14 +151,17 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
   implicit def ies: Aux[InputEnumSchema, CommandPartBuilder] = at[InputEnumSchema] { inputEnumSchema =>
     //(Option[InputCommandLineBinding], WomValue, CommandBindingSortingKey, Boolean, ExpressionLib) => CommandPartsList
     def go: CommandPartBuilder = {
-      case (inputBinding, value, sortingKey, hasShellCommandRequirement, expressionLib, _) =>
+      case (_, WomOptionalValue(_, None), _, _, _, _) => CommandPartsList.empty
+      case (_, value, sortingKey, hasShellCommandRequirement, expressionLib, _) =>
+        /*
         // If there's an input binding, make a SortKeyAndCommandPart for it
         val fromInputBinding =
           inputBinding.map(_.toCommandPart(sortingKey, value, hasShellCommandRequirement, expressionLib)).toList
+          */
 
         val fromIes = inputEnumSchema.inputBinding.map(_.toCommandPart(sortingKey, value, hasShellCommandRequirement, expressionLib)).toList
 
-        fromInputBinding ++ fromIes
+        /*fromInputBinding ++*/ fromIes
     }
     go
   }
@@ -212,7 +216,7 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
               val fromType = ias.items.fold(MyriadInputTypeToSortedCommandParts).
                 apply(itemInputBinding, item, itemSortingKey.asNewKey, hasShellCommandRequirement, expressionLib, sdr)
               currentMap ++ fromType
-          }) ++ sortKeyFromInputBindingFromInputerParameterParent
+          }) //++ sortKeyFromInputBindingFromInputerParameterParent
         }
 
       case (_, other, _, _, _, _) => ex(s"Value $other cannot be used for an input of type InputArraySchema")
@@ -224,7 +228,8 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
   implicit def s: Aux[String, CommandPartBuilder] = {
     at {
       s => {
-        (commandLineBindingFromInput, womValue, sortingKey, boolean, expressionLib, sdr) => {
+        case (_, WomOptionalValue(_, None), _, _, _, _) => CommandPartsList.empty
+        case (commandLineBindingFromInput, womValue, sortingKey, boolean, expressionLib, sdr) => {
           val id = FileAndId(s)(ParentName.empty).id
           val womType: SchemaDefTypes = sdr.lookupCwlType(id).getOrElse(throw new RuntimeException(s"Looked for type $s in custom types $sdr but no match was found!"))
 

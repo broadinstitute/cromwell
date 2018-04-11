@@ -12,7 +12,7 @@ import common.validation.ErrorOr.ErrorOr
 import spray.json._
 
 
-case class WorkflowData(wdl: String,
+case class WorkflowData(workflowContent: String,
                         workflowRoot: Option[String],
                         workflowType: Option[String],
                         workflowTypeVersion: Option[String],
@@ -23,17 +23,17 @@ case class WorkflowData(wdl: String,
 
 object WorkflowData {
   def fromConfig(filesConfig: Config, fullConfig: Config, basePath: Path): ErrorOr[WorkflowData] = {
-    filesConfig.get[Path]("wdl") match {
-      case Success(wdl) => Valid(WorkflowData(
-        wdl = basePath.resolve(wdl),
+    filesConfig.get[Path]("workflow") match {
+      case Success(workflow) => Valid(WorkflowData(
+        workflowPath = basePath.resolve(workflow),
         filesConfig = filesConfig,
         fullConfig = fullConfig,
         basePath = basePath))
-      case Failure(_) => invalidNel("No wdl path provided")
+      case Failure(_) => invalidNel("No workflow path provided")
     }
   }
 
-  def apply(wdl: Path, filesConfig: Config, fullConfig: Config, basePath: Path): WorkflowData = {
+  def apply(workflowPath: Path, filesConfig: Config, fullConfig: Config, basePath: Path): WorkflowData = {
     def getOptionalPath(name: String) = filesConfig.get[Option[Path]](name) valueOrElse None map basePath.resolve
 
     def getImports = filesConfig.get[List[Path]]("imports") match {
@@ -45,7 +45,7 @@ object WorkflowData {
       val zippedDir = imports match {
         case Nil => None
         case _ =>
-          val importsDirName = wdl.getFileName.toString.replaceAll("\\.[^.]*$", "")
+          val importsDirName = workflowPath.getFileName.toString.replaceAll("\\.[^.]*$", "")
           val importsDir = File.newTemporaryDirectory(importsDirName + "_imports")
           imports foreach { p =>
             val srcFile = File(p.toAbsolutePath.toString)
@@ -68,7 +68,7 @@ object WorkflowData {
 
     // TODO: The slurps can throw - not a high priority but see #36
     WorkflowData(
-      wdl = wdl.slurp,
+      workflowContent = workflowPath.slurp,
       workflowRoot = workflowRoot,
       workflowType = workflowType,
       workflowTypeVersion = workflowTypeVersion,

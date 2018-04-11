@@ -6,7 +6,7 @@ backends: [Jes]
 testFormat: workflowsuccess
 
 files {
-  wdl: final_call_logs_dir/final_call_logs_dir.wdl
+  workflow: final_call_logs_dir/final_call_logs_dir.wdl
   options: final_call_logs_dir/final_call_logs_dir_jes.options
 }
 

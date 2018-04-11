@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 backends: [Jes]
 
 files {
-  wdl: cwl_resources/cwl_resources.cwl
+  workflow: cwl_resources/cwl_resources.cwl
 }
 
 metadata {

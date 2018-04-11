@@ -2,7 +2,7 @@ name: unexpected_call_input_failure
 testFormat: workflowfailure
 
 files {
-  wdl: unexpected_call_input_failure/unexpected_call_input_failure.wdl
+  workflow: unexpected_call_input_failure/unexpected_call_input_failure.wdl
 }
 
 metadata {

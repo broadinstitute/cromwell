@@ -4,7 +4,7 @@ workflowType: WDL
 workflowTypeVersion: draft-3
 
 files {
-  wdl: wdl_draft3/nested_scatter/nested_scatter.wdl
+  workflow: wdl_draft3/nested_scatter/nested_scatter.wdl
 }
 
 metadata {

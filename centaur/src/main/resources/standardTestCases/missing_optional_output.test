@@ -2,7 +2,7 @@ name: missing_optional_output
 testFormat: workflowfailure
 
 files {
-  wdl: missing_optional_output/missing_optional_output.wdl
+  workflow: missing_optional_output/missing_optional_output.wdl
 }
 
 metadata {

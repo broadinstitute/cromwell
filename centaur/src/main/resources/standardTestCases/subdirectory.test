@@ -2,5 +2,5 @@ name: subdirectory
 testFormat: workflowsuccess
 
 files {
-  wdl: subdirectory/subdirectory.wdl
+  workflow: subdirectory/subdirectory.wdl
 }

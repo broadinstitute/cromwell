@@ -4,7 +4,7 @@ workflowType: WDL
 workflowTypeVersion: draft-3
 
 files {
-  wdl: wdl_draft3/empty/empty.wdl
+  workflow: wdl_draft3/empty/empty.wdl
 }
 
 metadata {

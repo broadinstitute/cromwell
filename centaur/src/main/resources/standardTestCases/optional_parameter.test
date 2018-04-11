@@ -5,7 +5,7 @@ name: optional_parameter
 testFormat: workflowsuccess
 
 files {
-  wdl: optional_parameter/optional_parameter.wdl
+  workflow: optional_parameter/optional_parameter.wdl
   inputs: optional_parameter/optional_parameter.inputs
 }
 

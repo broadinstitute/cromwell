@@ -8,7 +8,7 @@ backends: [Local, LocalNoDocker]
 tags: [localdockertest]
 
 files {
-  wdl: cwl_docker_size/cwl_docker_size.cwl
+  workflow: cwl_docker_size/cwl_docker_size.cwl
   inputs: cwl_docker_size/cwl_docker_size.yaml
   options: cwl_docker_size/cwl_docker_size.options
 }

@@ -2,7 +2,7 @@ name: empty_scatter
 testFormat: workflowsuccess
 
 files {
-  wdl: empty_scatter/empty_scatter.wdl
+  workflow: empty_scatter/empty_scatter.wdl
 }
 
 metadata {

@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 tags: [import, subworkflow, alias]
 
 files {
-  wdl: aliased_subworkflows/aliased_subworkflows.wdl
+  workflow: aliased_subworkflows/aliased_subworkflows.wdl
   imports: [
     aliased_subworkflows/subworkflow.wdl
   ]

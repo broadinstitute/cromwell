@@ -4,7 +4,7 @@ workflowType: WDL
 workflowTypeVersion: draft-3
 
 files {
-  wdl: wdl_draft3/default_input_overrides/default_input_overrides.wdl
+  workflow: wdl_draft3/default_input_overrides/default_input_overrides.wdl
   inputs: wdl_draft3/default_input_overrides/default_input_overrides.inputs.json
 }
 

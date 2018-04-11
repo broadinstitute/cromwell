@@ -2,7 +2,7 @@ name: arrays_scatters_ifs
 testFormat: workflowsuccess
 
 files {
-  wdl: arrays_scatters_ifs/arrays_scatters_ifs.wdl
+  workflow: arrays_scatters_ifs/arrays_scatters_ifs.wdl
 }
 
 metadata {

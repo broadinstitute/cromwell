@@ -4,7 +4,7 @@ testFormat: scheduledabort
 callMark: scheduled_abort.aborted
 
 files {
-  wdl: abort/scheduled_abort.wdl
+  workflow: abort/scheduled_abort.wdl
 }
 
 metadata {

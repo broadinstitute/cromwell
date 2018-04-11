@@ -2,7 +2,7 @@ name: docker_hash_quay
 testFormat: workflowsuccess
 
 files {
-  wdl: docker_hash/docker_hash_quay.wdl
+  workflow: docker_hash/docker_hash_quay.wdl
 }
 
 metadata {

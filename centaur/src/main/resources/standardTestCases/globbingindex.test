@@ -2,7 +2,7 @@ name: globbingindex
 testFormat: workflowsuccess
 
 files {
-  wdl: globbingindex/globbingindex.wdl
+  workflow: globbingindex/globbingindex.wdl
 }
 
 metadata {

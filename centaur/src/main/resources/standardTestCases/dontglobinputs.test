@@ -2,7 +2,7 @@ name: dontglobinputs
 testFormat: workflowsuccess
 
 files {
-  wdl: dontglobinputs/dontglobinputs.wdl
+  workflow: dontglobinputs/dontglobinputs.wdl
 }
 
 metadata {

@@ -2,7 +2,7 @@ name: composedenginefunctions
 testFormat: workflowsuccess
 
 files {
-  wdl: composedenginefunctions/composedenginefunctions.wdl
+  workflow: composedenginefunctions/composedenginefunctions.wdl
 }
 
 metadata {

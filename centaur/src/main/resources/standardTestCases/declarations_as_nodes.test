@@ -2,7 +2,7 @@ name: declarations_as_nodes
 testFormat: workflowsuccess
 
 files {
-  wdl: declarations_as_nodes/declarations_as_nodes.wdl
+  workflow: declarations_as_nodes/declarations_as_nodes.wdl
 }
 
 metadata {

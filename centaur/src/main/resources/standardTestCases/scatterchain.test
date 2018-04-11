@@ -2,7 +2,7 @@ name: scatterchain
 testFormat: workflowsuccess
 
 files {
-  wdl: scatter_chain/scatter_chain.wdl
+  workflow: scatter_chain/scatter_chain.wdl
 }
 
 metadata {

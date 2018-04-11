@@ -2,7 +2,7 @@ name: tmp_dir
 testFormat: workflowsuccess
 
 files {
-  wdl: tmp_dir/tmp_dir.wdl
+  workflow: tmp_dir/tmp_dir.wdl
 }
 
 metadata {

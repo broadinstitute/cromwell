@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 tags: [ conditionals ]
 
 files {
-  wdl: conditionals_tests/nested_lookups/nested_lookups.wdl
+  workflow: conditionals_tests/nested_lookups/nested_lookups.wdl
   inputs: conditionals_tests/nested_lookups/nested_lookups.inputs.json
 }
 

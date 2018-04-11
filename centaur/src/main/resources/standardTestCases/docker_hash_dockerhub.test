@@ -2,7 +2,7 @@ name: docker_hash_dockerhub
 testFormat: workflowsuccess
 
 files {
-  wdl: docker_hash/docker_hash_dockerhub.wdl
+  workflow: docker_hash/docker_hash_dockerhub.wdl
 }
 
 metadata {

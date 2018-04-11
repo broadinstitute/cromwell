@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 backends: [Jes, Local]
 
 files {
-  wdl: local_gcs/local_gcs.wdl
+  workflow: local_gcs/local_gcs.wdl
 }
 
 metadata {

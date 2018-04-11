@@ -2,7 +2,7 @@ name: wdl_empty_glob
 testFormat: workflowsuccess
 
 files {
-  wdl: wdl_empty_glob/wdl_empty_glob.wdl
+  workflow: wdl_empty_glob/wdl_empty_glob.wdl
 }
 
 metadata {

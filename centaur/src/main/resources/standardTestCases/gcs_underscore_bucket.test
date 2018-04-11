@@ -4,7 +4,7 @@ backends: [Jes]
 
 files {
   inputs: gcs_underscore_bucket/gcs_underscore_bucket.inputs
-  wdl: gcs_underscore_bucket/gcs_underscore_bucket.wdl
+  workflow: gcs_underscore_bucket/gcs_underscore_bucket.wdl
 }
 
 metadata {

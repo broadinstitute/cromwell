@@ -5,7 +5,7 @@ workflowTypeVersion: v1.0
 workflowRoot: globSort
 
 files {
-  wdl: cwl_glob_sort/cwl_glob_sort.cwl
+  workflow: cwl_glob_sort/cwl_glob_sort.cwl
 }
 
 metadata {

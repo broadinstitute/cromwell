@@ -4,7 +4,7 @@ workflowType: WDL
 workflowTypeVersion: draft-3
 
 files {
-  wdl: wdl_draft3/lots_of_nesting/lots_of_nesting.wdl
+  workflow: wdl_draft3/lots_of_nesting/lots_of_nesting.wdl
 }
 
 metadata {

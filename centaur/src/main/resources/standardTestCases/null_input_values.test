@@ -2,7 +2,7 @@ name: null_input_values
 testFormat: workflowsuccess
 
 files {
-  wdl: null_input_values/null_input_values.wdl
+  workflow: null_input_values/null_input_values.wdl
   inputs: null_input_values/null_input_values.inputs
 }
 

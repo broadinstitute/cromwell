@@ -6,5 +6,5 @@ tags: [localdockertest]
 
 
 files {
-  wdl: short_circuit/short_circuit.wdl
+  workflow: short_circuit/short_circuit.wdl
 }

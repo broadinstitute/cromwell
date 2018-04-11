@@ -2,7 +2,7 @@ name: forkjoin
 testFormat: workflowsuccess
 
 files {
-  wdl: forkjoin/forkjoin.wdl
+  workflow: forkjoin/forkjoin.wdl
   inputs: forkjoin/forkjoin.inputs
 }
 

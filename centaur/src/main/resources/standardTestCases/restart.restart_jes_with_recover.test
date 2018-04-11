@@ -4,7 +4,7 @@ callMark: cromwell_restart.cromwell_killer
 backends: [Jes]
 
 files {
-  wdl: cromwell_restart/cromwell_restart.wdl
+  workflow: cromwell_restart/cromwell_restart.wdl
 }
 
 metadata {

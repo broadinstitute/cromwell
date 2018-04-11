@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 backends: [Jes]
 
 files {
-  wdl: docker_hash/docker_hash_gcr_private.wdl
+  workflow: docker_hash/docker_hash_gcr_private.wdl
 }
 
 metadata {

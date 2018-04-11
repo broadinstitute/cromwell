@@ -2,6 +2,6 @@ name: bad_docker_name
 testFormat: workflowfailure
 
 files {
-  wdl: bad_docker_name/bad_docker_name.wdl
+  workflow: bad_docker_name/bad_docker_name.wdl
   inputs: hello/hello.inputs
 }

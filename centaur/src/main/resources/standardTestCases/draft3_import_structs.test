@@ -4,7 +4,7 @@ workflowType: WDL
 workflowTypeVersion: draft-3
 
 files {
-  wdl: wdl_draft3/import_structs/import_structs.wdl
+  workflow: wdl_draft3/import_structs/import_structs.wdl
   imports: [
     wdl_draft3/import_structs/structs.wdl,
     wdl_draft3/import_structs/badly_named_struct.wdl

@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 tags: [import, subworkflow, alias]
 
 files {
-  wdl: public_http_import/public_http_import.wdl
+  workflow: public_http_import/public_http_import.wdl
 }
 
 metadata {

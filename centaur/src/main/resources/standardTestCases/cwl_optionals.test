@@ -4,7 +4,7 @@ workflowType: CWL
 workflowTypeVersion: v1.0
 
 files {
-  wdl: cwl_optionals/cwl_optionals.cwl
+  workflow: cwl_optionals/cwl_optionals.cwl
   inputs: cwl_optionals/cwl_optionals.json
 }
 

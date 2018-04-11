@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 backends: [Jes, Local]
 
 files {
-  wdl: call_cache_capoeira/call_cache_capoeira_jes.wdl
+  workflow: call_cache_capoeira/call_cache_capoeira_jes.wdl
 }
 
 metadata {

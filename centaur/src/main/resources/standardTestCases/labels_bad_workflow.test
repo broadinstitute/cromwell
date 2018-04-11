@@ -5,7 +5,7 @@ testFormat: workflowfailure
 tags: [ labels ]
 
 files {
-  wdl: labels_bad_workflow/badWorkflow.wdl
+  workflow: labels_bad_workflow/badWorkflow.wdl
   inputs: labels_bad_workflow/badWorkflow.inputs
   labels: labels/valid.labels
 }

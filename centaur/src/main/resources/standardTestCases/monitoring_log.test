@@ -5,7 +5,7 @@ testFormat: workflowsuccess
 backends: [Jes]
 
 files {
-  wdl: monitoring_log/monitoring_log.wdl
+  workflow: monitoring_log/monitoring_log.wdl
   options: monitoring_log/monitoring_log.options
 }
 

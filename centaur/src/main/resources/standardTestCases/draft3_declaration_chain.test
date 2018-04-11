@@ -4,7 +4,7 @@ workflowType: WDL
 workflowTypeVersion: draft-3
 
 files {
-  wdl: wdl_draft3/declaration_chain/declaration_chain.wdl
+  workflow: wdl_draft3/declaration_chain/declaration_chain.wdl
 }
 
 metadata {

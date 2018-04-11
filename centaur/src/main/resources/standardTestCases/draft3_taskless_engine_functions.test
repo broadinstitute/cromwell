@@ -4,7 +4,7 @@ workflowType: WDL
 workflowTypeVersion: draft-3
 
 files {
-  wdl: wdl_draft3/taskless_engine_functions/taskless_engine_functions.wdl
+  workflow: wdl_draft3/taskless_engine_functions/taskless_engine_functions.wdl
 }
 
 metadata {

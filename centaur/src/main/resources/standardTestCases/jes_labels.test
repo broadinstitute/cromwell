@@ -4,7 +4,7 @@ tags: [ labels ]
 backends: [Jes]
 
 files {
-  wdl: labels/jes_labels.wdl
+  workflow: labels/jes_labels.wdl
   labels: labels/valid.labels
 }
 

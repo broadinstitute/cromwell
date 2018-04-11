@@ -2,7 +2,7 @@ name: input_mirror
 testFormat: workflowsuccess
 
 files {
-  wdl: input_mirror/input_mirror.wdl
+  workflow: input_mirror/input_mirror.wdl
 }
 
 metadata {

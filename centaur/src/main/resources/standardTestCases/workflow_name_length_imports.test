@@ -3,7 +3,7 @@ testFormat: workflowfailure
 tags: [localdockertest]
 
 files {
-  wdl: workflow_name_length/importer.wdl
+  workflow: workflow_name_length/importer.wdl
   imports: [
     workflow_name_length/workflow_name_length.wdl
   ]

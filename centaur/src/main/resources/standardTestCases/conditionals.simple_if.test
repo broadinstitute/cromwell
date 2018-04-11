@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 tags: [ conditionals ]
 
 files {
-  wdl: conditionals_tests/simple_if/simple_if.wdl
+  workflow: conditionals_tests/simple_if/simple_if.wdl
 }
 
 metadata {

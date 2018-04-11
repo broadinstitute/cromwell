@@ -5,7 +5,7 @@ workflowRoot: iwdr_inline_file
 workflowTypeVersion: v1.0
 
 files {
-  wdl: InitialWorkDirRequirement/inline_file.cwl
+  workflow: InitialWorkDirRequirement/inline_file.cwl
 }
 
 metadata {

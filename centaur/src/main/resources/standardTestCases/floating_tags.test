@@ -2,7 +2,7 @@ name: floating_tags
 testFormat: runtwiceexpectingcallcaching
 
 files {
-  wdl: floating_tags/floating_tags.wdl
+  workflow: floating_tags/floating_tags.wdl
   options: floating_tags/floating_tags.options
 }
 

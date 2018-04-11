@@ -2,7 +2,7 @@ name: curl
 testFormat: workflowsuccess
 
 files {
-  wdl: curl/curl.wdl
+  workflow: curl/curl.wdl
 }
 
 metadata {

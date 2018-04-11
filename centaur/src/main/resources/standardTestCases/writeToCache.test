@@ -2,7 +2,7 @@ name: writeToCache
 testFormat: workflowsuccess
 
 files {
-  wdl: writeToCache/writeToCache.wdl
+  workflow: writeToCache/writeToCache.wdl
   options: writeToCache/writeToCache.options
 }
 

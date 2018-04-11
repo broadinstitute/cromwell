@@ -4,7 +4,7 @@ workflowType: WDL
 workflowTypeVersion: draft-3
 
 files {
-  wdl: wdl_draft3/passthrough_value/passthrough_value.wdl
+  workflow: wdl_draft3/passthrough_value/passthrough_value.wdl
   inputs: wdl_draft3/passthrough_value/passthrough_value.inputs.json
 }
 

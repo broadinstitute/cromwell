@@ -7,7 +7,7 @@ backends: [Local, LocalNoDocker]
 tags: [localdockertest]
 
 files {
-  wdl: abort/scheduled_abort.wdl
+  workflow: abort/scheduled_abort.wdl
 }
 
 metadata {

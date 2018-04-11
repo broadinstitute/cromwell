@@ -4,7 +4,7 @@ backends: [Local]
 tags: [localdockertest]
 
 files {
-  wdl: symlink_localization/symlink_localization.wdl
+  workflow: symlink_localization/symlink_localization.wdl
   options: symlink_localization/symlink_localization.options
 }
 

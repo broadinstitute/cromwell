@@ -4,7 +4,7 @@ The following configuration can be used as a base to allow Cromwell to interact 
 LSF {
   actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
   config {
-    submit = "bsub -J ${job_name} -cwd ${cwd} -o ${out} -e ${err} /bin/bash ${script}"
+    submit = "bsub -J ${job_name} -cwd ${cwd} -o ${out} -e ${err} /usr/bin/env bash ${script}"
     kill = "bkill ${job_id}"
     check-alive = "bjobs ${job_id}"
     job-id-regex = "Job <(\\d+)>.*"

@@ -23,8 +23,8 @@ trait EnumSchema {
 case class InputEnumSchema(
   name: String,
   symbols: Array[String],
-  `type`: Witness.`"enum"`.T,
-  label: Option[String],
+  `type`: Witness.`"enum"`.T = Witness("enum").value,
+  label: Option[String] = None,
   inputBinding: Option[InputCommandLineBinding]) extends EnumSchema
 
 case class OutputEnumSchema(

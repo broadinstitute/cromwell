@@ -25,16 +25,16 @@ case class InputRecordSchema(
   name: String,
   `type`: W.`"record"`.T = Witness("record").value,
   fields: Option[Array[InputRecordField]],
-  label: Option[String]) {
+  label: Option[String] = None) {
 
 }
 
 case class InputRecordField(
   name: String,
   `type`: MyriadInputType,
-  doc: Option[String],
+  doc: Option[String] = None,
   inputBinding: Option[InputCommandLineBinding],
-  label: Option[String])
+  label: Option[String] = None)
 
 case class InputArraySchema
 (

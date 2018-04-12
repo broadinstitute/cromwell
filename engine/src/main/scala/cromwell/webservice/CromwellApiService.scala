@@ -239,7 +239,7 @@ trait CromwellApiService extends HttpInstrumentation {
       }
     }
   } ~
-  path("workflows" / Segment / Segment / "onHoldToSubmitted") { (_, possibleWorkflowId) =>
+  path("workflows" / Segment / Segment / "release") { (_, possibleWorkflowId) =>
     post {
       instrumentRequest {
         val response = validateWorkflowId(possibleWorkflowId) flatMap { workflowId =>

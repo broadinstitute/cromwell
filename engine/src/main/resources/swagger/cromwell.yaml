@@ -239,10 +239,10 @@ paths:
       security:
         - google_oauth:
             - openid
-  '/api/workflows/{version}/{id}/onHoldToSubmitted':
+  '/api/workflows/{version}/{id}/release':
       post:
         summary: Switch a workflow from 'On Hold' to 'Submitted' status
-        description: Request Cromwell to switch the status of a workflow from 'On Hold' to 'Submitted' so it can be picked for running. For instance this might be necessary in cases where you have submitted a workflow with workflowOnHold = true. Cromwell will change the status from 'On Hold' to 'Submitted' so it can be picked for running.
+        description: Request Cromwell to release the hold on a workflow. It will switch the status of a workflow from 'On Hold' to 'Submitted' so it can be picked for running. For instance this might be necessary in cases where you have submitted a workflow with workflowOnHold = true.
         parameters:
           - $ref: '#/parameters/versionParam'
           - $ref: '#/parameters/singleId'

@@ -3,6 +3,7 @@ package cromwell.filesystems.gcs
 import akka.actor.ActorSystem
 import com.google.api.client.http.HttpResponseException
 import com.google.auth.Credentials
+import com.google.cloud.BaseServiceException
 import cromwell.cloudsupport.gcp.auth.{GoogleAuthMode, OptionLookupException}
 import cromwell.core.retry.Retry
 import cromwell.core.{CromwellFatalExceptionMarker, WorkflowOptions}
@@ -16,6 +17,7 @@ object GoogleUtil {
   def extractStatusCode(exception: Throwable): Option[Int] = {
     exception match {
       case t: HttpResponseException => Option(t.getStatusCode)
+      case t: BaseServiceException => Option(t.getCode)
       case _ => None
     }
   }

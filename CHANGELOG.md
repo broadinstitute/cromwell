@@ -13,6 +13,8 @@ All language factories can now be configured on a per-language-version basis. Al
 ### API
 
 * More accurately returns 503 instead of 500 when Cromwell can not respond in a timely manner
+* Cromwell now allows a user to submit a workflow but in a state where it will not automatically be picked up for execution. This new state is called 'On Hold'. To do this you need to set the parameter workflowOnHold to true while submitting the workflow.
+* API end point 'release' will allow the user to send a signal to Cromwell to allow a workflow to be startable, at which point it will be picked up by normal execution schemes.
 
 ### GPU
 

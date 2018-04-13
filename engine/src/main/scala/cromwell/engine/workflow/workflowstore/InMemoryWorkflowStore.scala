@@ -18,9 +18,7 @@ class InMemoryWorkflowStore extends WorkflowStore {
     * for tracking purposes.
     */
   override def add(sources: NonEmptyList[WorkflowSourceFilesCollection])(implicit ec: ExecutionContext): Future[NonEmptyList[WorkflowSubmissionResponse]] = {
-    val actualWorkflowState = if (sources.head.workflowOnHold)
-      WorkflowStoreState.OnHold
-    else WorkflowStoreState.Submitted
+    val actualWorkflowState = if (sources.head.workflowOnHold) WorkflowStoreState.OnHold else WorkflowStoreState.Submitted
     val submittedWorkflows = sources map { SubmittedWorkflow(WorkflowId.randomId(), _) -> actualWorkflowState }
     workflowStore = workflowStore ++ submittedWorkflows.toList.toMap
     Future.successful(submittedWorkflows map {

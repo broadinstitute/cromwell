@@ -60,9 +60,7 @@ object PartialWorkflowSources {
 
     val partialSources: ErrorOr[PartialWorkflowSources] = {
       def getStringValue(key: String) = formData.get(key).map(_.utf8String)
-      def getBooleanValue(key: String) = getStringValue(key) map { b =>
-        Try(b.toBoolean).toErrorOr
-      }
+      def getBooleanValue(key: String) = getStringValue(key).map(b => Try(b.toBoolean).toErrorOr)
       def getArrayValue(key: String) = formData.get(key).map(_.toArray)
 
       // unrecognized keys

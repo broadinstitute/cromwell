@@ -98,7 +98,6 @@ trait WorkflowStoreEntryComponent {
         // The current code only writes heartbeats on initial pickup; this needs to be fixed by instrumenting workflow
         // heartbeats into Cromwell appropriately.  But in the meantime any other Cromwell's workflows will appear
         // to be abandoned if they were picked up before `heartbeatThreshold`.
-//        _ = println(row.heartbeatTimestamp.toString + row.workflowState.toString)
         if (row.heartbeatTimestamp.isEmpty || row.heartbeatTimestamp < heartbeatThreshold) && !(row.workflowState === WorkflowStoreState.OnHold)
       } yield row
       query.forUpdate.sortBy(_.submissionTime.asc).take(limit)

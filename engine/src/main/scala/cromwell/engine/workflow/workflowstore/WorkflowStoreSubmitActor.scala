@@ -43,7 +43,7 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
           val wfType = cmd.source.workflowType.getOrElse("Unspecified type")
           val wfTypeVersion = cmd.source.workflowTypeVersion.getOrElse("Unspecified version")
           log.info("{} ({}) workflow {} submitted", wfType, wfTypeVersion, futureResponse.id)
-          sndr ! WorkflowSubmittedToStore(futureResponse.id, getWorkflowState(futureResponse.state))
+          sndr ! WorkflowSubmittedToStore(futureResponse.id, convertDatabaseStateToApiState(futureResponse.state))
           removeWork()
         case Failure(throwable) =>
           log.error("Workflow {} submit failed.", throwable)
@@ -63,7 +63,7 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
       futureResponses onComplete {
         case Success(futureResponses) =>
           log.info("Workflows {} submitted.", futureResponses.toList.map(res => res.id).mkString(", "))
-          sndr ! WorkflowsBatchSubmittedToStore(futureResponses.map(res => res.id), getWorkflowState(futureResponses.head.state))
+          sndr ! WorkflowsBatchSubmittedToStore(futureResponses.map(res => res.id), convertDatabaseStateToApiState(futureResponses.head.state))
           removeWork()
         case Failure(throwable) =>
           log.error("Workflow {} submit failed.", throwable)
@@ -74,7 +74,7 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
   
   override def receive = workflowStoreReceive.orElse(monitoringReceive)
 
-  private def getWorkflowState(workflowStoreState: WorkflowStoreState): WorkflowState ={
+  private def convertDatabaseStateToApiState(workflowStoreState: WorkflowStoreState): WorkflowState ={
     workflowStoreState match {
       case WorkflowStoreState.Submitted => WorkflowSubmitted
       case WorkflowStoreState.OnHold => WorkflowOnHold

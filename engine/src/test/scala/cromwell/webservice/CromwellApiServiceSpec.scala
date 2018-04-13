@@ -223,7 +223,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
 
   it should "return 200 when a workflow is switched from on hold to submitted" in {
     val id = ExistingWorkflowId
-    Post(s"/workflows/$version/$id/release") ~>
+    Post(s"/workflows/$version/$id/releaseHold") ~>
       akkaHttpService.workflowRoutes ~>
       check {
         assertResult(
@@ -242,7 +242,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
 
   it should "return 500 when invalid workflow id is submitted to onHoldToSubmitted API end point" in {
     val id = UnrecognizedWorkflowId
-    Post(s"/workflows/$version/$id/release") ~>
+    Post(s"/workflows/$version/$id/releaseHold") ~>
       akkaHttpService.workflowRoutes ~>
       check {
         assertResult(

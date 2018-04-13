@@ -18,7 +18,7 @@ import scala.concurrent.duration._
 
 class WorkflowStoreSlickSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
   implicit val ec = ExecutionContext.global
-  implicit val defaultPatience = PatienceConfig(scaled(Span(5, Seconds)), scaled(Span(100, Millis)))
+  implicit val defaultPatience = PatienceConfig(scaled(Span(10, Seconds)), scaled(Span(100, Millis)))
 
   "SlickDatabase (hsqldb)" should behave like testWith("database")
 

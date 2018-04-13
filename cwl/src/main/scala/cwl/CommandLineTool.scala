@@ -67,7 +67,7 @@ case class CommandLineTool private(
 
         val after = lst.sorted
         println(after.mkString("\n"))
-        after.map(_.commandPart)
+        after.flatMap(_.sortedCommandParts)
       }.
       map(baseCommandPart ++ _)
 
@@ -279,7 +279,13 @@ object CommandLineTool {
   }
 
   // Maps a sorting key to its (sorted) bindings
-  case class SortKeyAndCommandPart(sortingKey: CommandBindingSortingKey, commandPart: List[CommandPart])
+  case class SortKeyAndCommandPart(
+    sortingKey: CommandBindingSortingKey,
+    commandPart: CommandPart,
+    nestedCommandParts: List[SortKeyAndCommandPart] = List.empty) {
+      def sortedCommandParts:List[CommandPart] =
+        List(commandPart) ++ nestedCommandParts.sorted.flatMap(_.sortedCommandParts)
+    }
 
   type CommandPartsList = List[SortKeyAndCommandPart]
 

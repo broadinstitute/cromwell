@@ -51,7 +51,7 @@ import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import scala.util.Success
 
-class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
+class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("PipelinesApiAsyncBackendJobExecutionActorSpec")
   with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
   val mockPathBuilder: GcsPathBuilder = GcsPathBuilder.fromCredentials(NoCredentials.getInstance(),
     "test-cromwell", RetrySettings.newBuilder().build(), GcsStorage.DefaultCloudStorageConfiguration, WorkflowOptions.empty)

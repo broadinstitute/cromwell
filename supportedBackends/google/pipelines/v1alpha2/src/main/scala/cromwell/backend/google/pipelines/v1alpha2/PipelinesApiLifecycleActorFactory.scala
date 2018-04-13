@@ -5,7 +5,7 @@ import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.google.pipelines.common.{PipelinesApiBackendLifecycleActorFactory, PipelinesApiBackendSingletonActor, PipelinesApiConfiguration}
 import cromwell.backend.google.pipelines.v1alpha2.api.BatchHandler
 
-class PipelinesApiLifecycleFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
+class PipelinesApiLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
   extends PipelinesApiBackendLifecycleActorFactory(name, configurationDescriptor) {
   private val genomicsFactory = GenomicsFactory(googleConfig.applicationName, jesAttributes.auths.genomics, jesAttributes.endpointUrl)
   override protected val jesConfiguration = PipelinesApiConfiguration(configurationDescriptor, genomicsFactory, googleConfig, jesAttributes)

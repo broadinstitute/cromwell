@@ -66,7 +66,7 @@ case class CommandLineTool private(
       map{ lst =>
 
         val after = lst.sorted
-        println(lst.groupBy(_.sortingKey).mapValues(v => (v.size, v)).mkString("\n"))
+        println(after.mkString("\n"))
         after.map(_.commandPart)
       }.
       map(baseCommandPart ++ _)

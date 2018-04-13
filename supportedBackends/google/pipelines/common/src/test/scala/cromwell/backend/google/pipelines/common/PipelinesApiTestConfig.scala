@@ -8,6 +8,7 @@ import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterfac
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.WorkflowOptions
+import cromwell.core.filesystem.CromwellFileSystems
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -95,7 +96,9 @@ object PipelinesApiTestConfig {
   val JesBackendConfig = ConfigFactory.parseString(JesBackendConfigString)
   val JesGlobalConfig = ConfigFactory.parseString(JesGlobalConfigString)
   val JesBackendNoDefaultConfig = ConfigFactory.parseString(NoDefaultsConfigString)
-  val JesBackendConfigurationDescriptor = BackendConfigurationDescriptor(JesBackendConfig, JesGlobalConfig)
+  val JesBackendConfigurationDescriptor = new BackendConfigurationDescriptor(JesBackendConfig, JesGlobalConfig) {
+    override private[backend] lazy val cromwellFileSystems = new CromwellFileSystems(JesGlobalConfig)
+  }
   val NoDefaultsConfigurationDescriptor = BackendConfigurationDescriptor(JesBackendNoDefaultConfig, JesGlobalConfig)
   val genomicsFactory = new PipelinesApiFactoryInterface {
     override def fromCredentials(credentials: Credentials) = new PipelinesApiRequestFactory {

@@ -61,7 +61,7 @@ object MyriadInputInnerTypeToWomType extends Poly1 {
 
   def inputRecordSchemaToWomType(irs: InputRecordSchema): SchemaLookup = { schemaLookup: SchemaDefRequirement =>
     irs match {
-      case InputRecordSchema(_, _, Some(fields), _) =>
+      case InputRecordSchema(_,  Some(fields), _, _) =>
         val typeMap = fields.map({ field =>
           FullyQualifiedName(field.name)(ParentName.empty).id -> field.`type`.fold(MyriadInputTypeToWomType).apply(schemaLookup)
         }).toMap

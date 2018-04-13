@@ -23,8 +23,8 @@ object WorkflowStepInputSource {
 
 case class InputRecordSchema(
   name: String,
-  `type`: W.`"record"`.T = Witness("record").value,
-  fields: Option[Array[InputRecordField]],
+  fields: Option[Array[InputRecordField]] = None,
+  `type`: W.`"record"`.T = W("record").value,
   label: Option[String] = None) {
 
 }
@@ -114,8 +114,8 @@ case class InlineJavascriptRequirement(
   expressionLib: Option[Array[String]] = None)
 
 case class SchemaDefRequirement(
-  `class`: W.`"SchemaDefRequirement"`.T = Witness("SchemaDefRequirement").value,
-  types: Array[SchemaDefTypes] = Array.empty
+  types: Array[SchemaDefTypes] = Array.empty,
+    `class`: W.`"SchemaDefRequirement"`.T = Witness("SchemaDefRequirement").value
   ) {
 
   def lookupType(tpe: String): Option[WomType] =

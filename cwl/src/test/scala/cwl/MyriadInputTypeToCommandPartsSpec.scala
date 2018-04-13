@@ -15,12 +15,7 @@ class MyriadInputTypeToCommandPartsSpec extends FlatSpec with Matchers{
 
   "two types w/ overlapping field names" should "only produce command parts from one type" in {
 
-    val miit = CwlType.Int.inject[MyriadInputInnerType]
-    val miit2 = CwlType.Null.inject[MyriadInputInnerType]
-
-    val mit = Array(miit, miit2).inject[MyriadInputType]
-
-    val cip = CommandInputParameter(id = "x", `type` = Some(mit))
+    //val cip = CommandInputParameter(id = "x", `type` = Some(mit))
 
     val enum1 = "map1"
     val enum2 = "map2"
@@ -35,6 +30,7 @@ class MyriadInputTypeToCommandPartsSpec extends FlatSpec with Matchers{
     val otherField = "o"
 
     val ies1 = InputEnumSchema(commonEnumFieldName, Array(enum1))
+    val ies2 = InputEnumSchema(commonEnumFieldName, Array(enum1))
 
     val wit = WomIntegerType
 
@@ -48,17 +44,17 @@ class MyriadInputTypeToCommandPartsSpec extends FlatSpec with Matchers{
     val map1 = InputRecordSchema(
       name = "s#Map1",
       fields = Some(Array(
-        InputRecordField(s"x#Map1/$commonEnumFieldName", wetMap1.inject[MyriadInputInnerType].inject[MyriadInputType], inputBinding = Some(InputCommandLineBinding(position = Some(0)))),
-        InputRecordField(s"x#Map1/$commonIntField", wit.inject[MyriadInputInnerType].inject[MyriadInputType], inputBinding = Some(InputCommandLineBinding(position = Some(2)))),
-        InputRecordField(s"x#Map1/$otherField", wit.inject[MyriadInputInnerType].inject[MyriadInputType], inputBinding = Some(InputCommandLineBinding(position = Some(2))))
-      ))).inject[SchemaDefTypes]
+        InputRecordField(s"x#Map1/$commonEnumFieldName", ies1.inject[MyriadInputInnerType].inject[MyriadInputType], inputBinding = Some(InputCommandLineBinding(position = Some(0)))),
+        InputRecordField(s"x#Map1/$commonIntField", CwlType.Int.inject[MyriadInputInnerType].inject[MyriadInputType], inputBinding = Some(InputCommandLineBinding(position = Some(2)))),
+        InputRecordField(s"x#Map1/$otherField", CwlType.Int.inject[MyriadInputInnerType].inject[MyriadInputType], inputBinding = Some(InputCommandLineBinding(position = Some(2))))
+      )))
 
     val map2 = InputRecordSchema(
       name = "s#Map2",
       fields = Some(Array(
-        InputRecordField(s"x#Map2/$commonEnumFieldName", wetMap2.inject[MyriadInputInnerType].inject[MyriadInputType], inputBinding = Some(InputCommandLineBinding(position = Some(0)))),
-        InputRecordField(s"x#Map2/$commonIntField", wit.inject[MyriadInputInnerType].inject[MyriadInputType], inputBinding = Some(InputCommandLineBinding(position = Some(2)))),
-      ))).inject[SchemaDefTypes]
+        InputRecordField(s"x#Map2/$commonEnumFieldName", ies2.inject[MyriadInputInnerType].inject[MyriadInputType], inputBinding = Some(InputCommandLineBinding(position = Some(0)))),
+        InputRecordField(s"x#Map2/$commonIntField", CwlType.Int.inject[MyriadInputInnerType].inject[MyriadInputType], inputBinding = Some(InputCommandLineBinding(position = Some(2)))),
+      )))
 
     val stage = InputRecordSchema(
       name = "s#Stage",
@@ -66,12 +62,12 @@ class MyriadInputTypeToCommandPartsSpec extends FlatSpec with Matchers{
         InputRecordField(
           s"x#Stage/$commonEnumFieldName",
           Array(
-            wetMap1.inject[MyriadInputInnerType],
-            wetMap2.inject[MyriadInputInnerType]
+            map1.inject[MyriadInputInnerType],
+            map2.inject[MyriadInputInnerType]
           ).inject[MyriadInputType], inputBinding = Some(InputCommandLineBinding(position = Some(2))))
-      ))).inject[SchemaDefTypes]
+      )))
 
-    val x: MyriadInputType =  Array(wct.inject[MyriadInputInnerType], wct2.inject[MyriadInputInnerType]).inject[MyriadInputType]
+    val x: MyriadInputType =  Array(map1.inject[MyriadInputInnerType], map2.inject[MyriadInputInnerType], stage.inject[MyriadInputInnerType]).inject[MyriadInputType]
 
     //(Option[InputCommandLineBinding], WomValue, CommandBindingSortingKey, Boolean, ExpressionLib, SchemaDefRequirement) => CommandPartsList
     val wo = WomObject(Map(
@@ -93,6 +89,10 @@ class MyriadInputTypeToCommandPartsSpec extends FlatSpec with Matchers{
     val result: Seq[CommandLineTool.SortKeyAndCommandPart] = x.fold(MyriadInputTypeToSortedCommandParts).apply(iclb, womValue, cbsk, bool, expressionLib, sdr)
 
     result.size shouldBe 3
+  }
+
+  "an input record schema" should "produce a structured output" in {
+
   }
 
 }

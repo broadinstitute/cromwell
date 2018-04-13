@@ -66,14 +66,23 @@ object MyriadInputTypeToSortedCommandParts extends Poly1 {
 
   implicit def am: Aux[Array[MyriadInputInnerType], CommandPartBuilder] = {
     at {
-      innerTypes => {
+      types => {
         (binding, womValue, sortingKey, hasShellCommandRequirement, expressionLib, sdr) =>
-          innerTypes.toList.map(
+          def lookupTypes(innerTypes: Array[MyriadInputInnerType]) = {
+            innerTypes.toList.map{
               _.fold(MyriadInputInnerTypeToSortedCommandParts)
-              .apply(binding, womValue, sortingKey, hasShellCommandRequirement, expressionLib, sdr)
-          ).reduce(_ orElse _).
-            get
-
+                .apply(binding, womValue, sortingKey, hasShellCommandRequirement, expressionLib, sdr)
+            }.reduce(_ orElse _)
+          }
+          val result: Option[CommandPartsList] =
+            types.partition(_.select[CwlType].contains(CwlType.Null)) match {
+              case (Array(_), types) => lookupTypes(types) orElse Some(List.empty[SortKeyAndCommandPart])
+              case (Array(), types) => lookupTypes(types)
+            }
+          result.fold(
+            throw new RuntimeException(s"could not produce command line parts from input $womValue and types $types"))(
+            identity
+          )
       }
     }
   }
@@ -129,9 +138,9 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
         val partsFromFields:Option[CommandPartsList] =
           irs.fields.toList.flatten.
             flatTraverse[Option, SortKeyAndCommandPart]{
-              field =>
+            case InputRecordField(name, tpe, _, inputBinding, _) =>
                 // Parse the name to get a clean id
-                val parsedName = FullyQualifiedName(field.name)(ParentName.empty).id
+                val parsedName = FullyQualifiedName(name)(ParentName.empty).id
 
                 // The field name needs to be added to the key after the input binding (as per the spec)
                 // Also start from the key from the input binding if there was one
@@ -139,17 +148,18 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
                   sortingKeyFromInputBindingFromInputParameter.
                     map(_.sortingKey).
                     getOrElse(sortingKey).
-                    append(field.inputBinding, Coproduct[StringOrInt](parsedName))
+                    append(inputBinding, Coproduct[StringOrInt](parsedName))
 
                 // Get the value of this field from the objectLike
                 // TODO: Could this fail ?
                 val innerValueOption: Option[WomValue] = objectLike.values.get(parsedName)
 
-                innerValueOption.map(field.`type`.fold(MyriadInputTypeToSortedCommandParts).
-                  apply(field.inputBinding, _, fieldSortingKey.asNewKey, hasShellCommandRequirement, expressionLib, sdr))
+                val folded = innerValueOption.map(tpe.fold(MyriadInputTypeToSortedCommandParts).
+                  apply(inputBinding, _, fieldSortingKey.asNewKey, hasShellCommandRequirement, expressionLib, sdr))
+              folded
             }
 
-        (partsFromFields,  sortingKeyFromInputBindingFromInputParameter).mapN(_ ++ List(_))
+        /*(*/partsFromFields/*,  sortingKeyFromInputBindingFromInputParameter).mapN(_ ++ List(_))*/
       case (_, other, _, _, _, _) => throw new RuntimeException(s"Value $other cannot be used for an input of type InputRecordSchema")
     }
 

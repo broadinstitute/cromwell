@@ -25,7 +25,7 @@ case class InputEnumSchema(
   symbols: Array[String],
   `type`: Witness.`"enum"`.T = Witness("enum").value,
   label: Option[String] = None,
-  inputBinding: Option[InputCommandLineBinding]) extends EnumSchema
+  inputBinding: Option[InputCommandLineBinding] = None) extends EnumSchema
 
 case class OutputEnumSchema(
   name: String,

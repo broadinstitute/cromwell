@@ -181,7 +181,7 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
     workInProgress.get(terminee) match {
       case Some(work) =>
         // Most likely due to an unexpected HTTP error, push the work back on the queue and keep going
-        log.error(s"The JES API worker actor $terminee unexpectedly terminated while conducting ${work.workBatch.tail.size + 1} polls. Making a new one...")
+        log.error(throwable, s"The JES API worker actor $terminee unexpectedly terminated while conducting ${work.workBatch.tail.size + 1} polls. Making a new one...")
         workInProgress -= terminee
         work.workBatch.toList.foreach {
           case statusQuery: PAPIStatusPollRequest =>

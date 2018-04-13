@@ -278,8 +278,8 @@ object CommandLineTool {
     def asNewKey = CommandBindingSortingKey(value)
   }
 
-  // Maps a sorting key to its binding
-  case class SortKeyAndCommandPart(sortingKey: CommandBindingSortingKey, commandPart: CommandPart)
+  // Maps a sorting key to its (sorted) bindings
+  case class SortKeyAndCommandPart(sortingKey: CommandBindingSortingKey, commandPart: List[CommandPart])
 
   type CommandPartsList = List[SortKeyAndCommandPart]
 

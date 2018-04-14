@@ -135,11 +135,13 @@ lazy val googlePipelinesCommon = (project in backendRoot / "google" / "pipelines
 lazy val googlePipelinesV1Alpha2 = (project in backendRoot / "google" / "pipelines" / "v1alpha2")
   .withLibrarySettings("cromwell-pipelines-v1-backend", googlePipelinesV1Alpha2Dependencies)
   .dependsOn(googlePipelinesCommon)
+  .dependsOn(googlePipelinesCommon % "test->test")
   .dependsOn(core % "test->test")
 
 lazy val googlePipelinesV2Alpha1 = (project in backendRoot / "google" / "pipelines" / "v2alpha1")
   .withLibrarySettings("cromwell-pipelines-v2-backend", googlePipelinesV2Alpha1Dependencies)
   .dependsOn(googlePipelinesCommon)
+  .dependsOn(googlePipelinesCommon % "test->test")
   .dependsOn(core % "test->test")
 
 // Legacy, inherits all its code from googlePipelinesV1Alpha2

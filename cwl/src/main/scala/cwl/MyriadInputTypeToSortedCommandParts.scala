@@ -138,7 +138,7 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
         val partsFromFields:Option[CommandPartsList] =
           irs.fields.toList.flatten.
             flatTraverse[Option, SortKeyAndCommandPart]{
-            case InputRecordField(name, tpe, _, inputBinding, _) =>
+              case InputRecordField(name, tpe, _, inputBinding, _) =>
                 // Parse the name to get a clean id
                 val parsedName = FullyQualifiedName(name)(ParentName.empty).id
 
@@ -150,16 +150,14 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
                     getOrElse(sortingKey).
                     append(inputBinding, Coproduct[StringOrInt](parsedName))
 
-                // Get the value of this field from the objectLike
-                // TODO: Could this fail ?
                 val innerValueOption: Option[WomValue] = objectLike.values.get(parsedName)
 
                 val folded = innerValueOption.map(tpe.fold(MyriadInputTypeToSortedCommandParts).
                   apply(inputBinding, _, fieldSortingKey.asNewKey, hasShellCommandRequirement, expressionLib, sdr))
-              folded
+                folded
             }
 
-        /*(*/partsFromFields/*,  sortingKeyFromInputBindingFromInputParameter).mapN(_ ++ List(_))*/
+            (sortingKeyFromInputBindingFromInputParameter, partsFromFields).mapN{ (p, k) => List(p.copy(nestedCommandParts = k)) }
       case (_, other, _, _, _, _) => throw new RuntimeException(s"Value $other cannot be used for an input of type InputRecordSchema")
     }
 

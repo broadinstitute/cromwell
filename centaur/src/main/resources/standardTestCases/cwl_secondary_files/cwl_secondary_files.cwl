@@ -29,6 +29,7 @@ $graph:
       secondaryFiles: [.also]
       type:
         type: record
+        name: foo
         fields:
           - name: a
             type: File

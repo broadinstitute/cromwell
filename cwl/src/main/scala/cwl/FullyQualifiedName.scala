@@ -37,6 +37,8 @@ object FileStepAndId {
   }
 }
 
+case class ArbitrarilyNested(fileName: String, parent: Option[String], id: String) extends FullyQualifiedName
+
 case class FileStepUUID(fileName: String, parent: Option[String], id: String, uuid: String, stepId: String) extends FullyQualifiedName
 
 object FullyQualifiedName {
@@ -51,7 +53,7 @@ object FullyQualifiedName {
           case step :: uuid :: id :: Nil => Option(FileStepUUID(file, parent.value, id, uuid, step))
           case step :: id :: Nil => Option(FileStepAndId(file, parent.value, step, id))
           case id :: Nil => Option(FileAndId(file, parent.value, id))
-          case _ => None
+          case many => Option(ArbitrarilyNested(file, parent.value, many.last))
         }
       case _ => None
     }

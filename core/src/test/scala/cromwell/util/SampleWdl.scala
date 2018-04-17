@@ -17,7 +17,8 @@ trait SampleWdl extends TestFileUtil {
                         workflowOptions: String = "{}",
                         labels: String = "{}",
                         workflowType: Option[String] = Option("WDL"),
-                        workflowTypeVersion: Option[String] = None) = {
+                        workflowTypeVersion: Option[String] = None,
+                        workflowOnHold: Boolean = false) = {
     WorkflowSourceFilesWithoutImports(
       workflowSource = workflowSource(runtime),
       workflowRoot = None,
@@ -26,7 +27,8 @@ trait SampleWdl extends TestFileUtil {
       labelsJson = labels,
       workflowType = workflowType,
       workflowTypeVersion = workflowTypeVersion,
-      warnings = Vector.empty)
+      warnings = Vector.empty,
+      workflowOnHold = workflowOnHold)
   }
 
   val rawInputs: ExecutableInputMap

@@ -14,6 +14,7 @@ sealed trait WorkflowSourceFilesCollection {
   def labelsJson: WorkflowJson
   def workflowType: Option[WorkflowType]
   def workflowTypeVersion: Option[WorkflowTypeVersion]
+  def workflowOnHold: Boolean
 
   def warnings: Seq[String]
 
@@ -37,6 +38,7 @@ object WorkflowSourceFilesCollection {
             workflowOptionsJson: WorkflowOptionsJson,
             labelsJson: WorkflowJson,
             importsFile: Option[Array[Byte]],
+            workflowOnHold: Boolean,
             warnings: Seq[String]): WorkflowSourceFilesCollection = importsFile match {
     case Some(imports) =>
       WorkflowSourceFilesWithDependenciesZip(
@@ -48,6 +50,7 @@ object WorkflowSourceFilesCollection {
         workflowOptionsJson = workflowOptionsJson,
         labelsJson = labelsJson,
         importsZip = imports,
+        workflowOnHold = workflowOnHold,
         warnings = warnings)
     case None =>
       WorkflowSourceFilesWithoutImports(
@@ -58,6 +61,7 @@ object WorkflowSourceFilesCollection {
         inputsJson = inputsJson,
         workflowOptionsJson = workflowOptionsJson,
         labelsJson = labelsJson,
+        workflowOnHold = workflowOnHold,
         warnings = warnings)
   }
 }
@@ -69,6 +73,7 @@ final case class WorkflowSourceFilesWithoutImports(workflowSource: WorkflowSourc
                                                    inputsJson: WorkflowJson,
                                                    workflowOptionsJson: WorkflowOptionsJson,
                                                    labelsJson: WorkflowJson,
+                                                   workflowOnHold: Boolean = false,
                                                    warnings: Seq[String]) extends WorkflowSourceFilesCollection
 
 final case class WorkflowSourceFilesWithDependenciesZip(workflowSource: WorkflowSource,
@@ -79,6 +84,7 @@ final case class WorkflowSourceFilesWithDependenciesZip(workflowSource: Workflow
                                                         workflowOptionsJson: WorkflowOptionsJson,
                                                         labelsJson: WorkflowJson,
                                                         importsZip: Array[Byte],
+                                                        workflowOnHold: Boolean = false,
                                                         warnings: Seq[String]) extends WorkflowSourceFilesCollection {
   override def toString = {
     s"WorkflowSourceFilesWithDependenciesZip($workflowSource, $workflowType, $workflowTypeVersion," +

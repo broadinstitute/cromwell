@@ -5,6 +5,7 @@ import java.text.DateFormat
 
 import cats.instances.future._
 import cats.syntax.functor._
+import cromwell.database.slick.WorkflowStoreSlickDatabase.NotInOnHoldStateException
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.WorkflowStoreSqlDatabase
 import cromwell.database.sql.tables.WorkflowStoreEntry
@@ -13,6 +14,10 @@ import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.Workfl
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
+
+object WorkflowStoreSlickDatabase {
+  case class NotInOnHoldStateException(workflowId: String) extends Exception(s"Couldn't change status of workflow $workflowId to 'Submitted' because the workflow is not in 'On Hold' state")
+}
 
 trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
   this: EngineSlickDatabase =>
@@ -109,5 +114,14 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
   override def stats(implicit ec: ExecutionContext): Future[Map[WorkflowStoreState, Int]] = {
     val action = dataAccess.workflowStoreStats.result
     runTransaction(action) map { _.toMap }
+  }
+
+  override def setOnHoldToSubmitted(workflowId: String)(implicit ec: ExecutionContext): Future[Unit] = {
+    val action = for {
+        updated <- dataAccess.workflowForIdAndOnHold(workflowId).update(WorkflowStoreState.Submitted)
+        _ <- if (updated == 0) DBIO.failed(NotInOnHoldStateException(workflowId)) else DBIO.successful(())
+    } yield ()
+
+    runTransaction(action)
   }
 }

@@ -191,16 +191,19 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
       // If there's no input binding and no input bindings for the ias, do nothing
       case (None, _, _, _, _, _) if ias.inputBinding.isEmpty => CommandPartsList.empty.some
 
-      case (inputBindingFromInputParameterParent, WomArray.WomArrayLike(womArray), sortingKey, hasShellCommandRequirement, expressionLib, schemaDefRequirement) =>
+      case (inputBinding, WomArray.WomArrayLike(womArray), sortingKey, hasShellCommandRequirement, expressionLib, schemaDefRequirement) =>
 
+        val itemInputBinding =
+          inputBinding.
+            orElse(Option(InputCommandLineBinding.default))
         // If there's an input binding, make a SortKeyAndCommandPart for it
         val sortKeyFromInputBindingFromInputerParameterParent: Option[SortKeyAndCommandPart] =
-          inputBindingFromInputParameterParent.
+          itemInputBinding.
             map(_.toCommandPart(sortingKey, womArray, hasShellCommandRequirement, expressionLib))
 
         // Now depending on whether we have an itemSeparator and/or valueFrom or not, we're going to recurse over each element of the array (or not).
         // See http://www.commonwl.org/v1.0/CommandLineTool.html#CommandLineBinding
-        if (inputBindingFromInputParameterParent.flatMap(_.itemSeparator).isDefined || inputBindingFromInputParameterParent.flatMap(_.valueFrom).isDefined) {
+        if (itemInputBinding.flatMap(_.itemSeparator).isDefined || itemInputBinding.flatMap(_.valueFrom).isDefined) {
           // If there's an item separator or a valueFrom we can stop here.
           // When the command part is instantiated (see CommandLineBindingCommandPart) it will evaluate the valueFrom (if defined) and join the items together (if there's an itemSeparator).
           sortKeyFromInputBindingFromInputerParameterParent.toList.some
@@ -221,13 +224,13 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
               // Even if the item doesn't have an explicit input binding, it should appear in the command so create a default empty one
               //there is an explicit input binding!
               //TODO: Figure out precedence order here!
-              val itemInputBinding =
+              val arrayItemInputBinding =
                 ias.
                   inputBinding.
-                  orElse(inputBindingFromInputParameterParent).
+                  orElse(itemInputBinding).
                   orElse(Option(InputCommandLineBinding.default))
               // Fold over the item type of each array element
-              Option(ias.items.fold(MyriadInputTypeToSortedCommandParts).apply(itemInputBinding, item, itemSortingKey.asNewKey, hasShellCommandRequirement, expressionLib, schemaDefRequirement))
+              Option(ias.items.fold(MyriadInputTypeToSortedCommandParts).apply(arrayItemInputBinding, item, itemSortingKey.asNewKey, hasShellCommandRequirement, expressionLib, schemaDefRequirement))
           })
           //(fromArray, sortKeyFromInputBindingFromInputerParameterParent).mapN(_ ++ List(_))
           (sortKeyFromInputBindingFromInputerParameterParent, fromArray).mapN{ (p, k) => List(p.copy(nestedCommandParts = k)) }

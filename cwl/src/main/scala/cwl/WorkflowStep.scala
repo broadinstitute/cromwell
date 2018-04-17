@@ -57,12 +57,7 @@ case class WorkflowStep(
   // hierarchy. There is always a workflow containing a workflow step so this is not an `Option`.
   private[cwl] var parentWorkflow: Workflow = _
 
-  lazy val allRequirements: List[Requirement] = requirements.toList.flatten ++ parentWorkflow.allRequirements
-
-  lazy val schemaDefRequirement: SchemaDefRequirement = allRequirements.flatMap{
-    _.select[SchemaDefRequirement].toList
-  }.headOption.getOrElse(SchemaDefRequirement())
-
+  lazy val allRequirements = RequirementsAndHints(requirements.toList.flatten ++ parentWorkflow.allRequirements)
 
   lazy val womFqn: wom.graph.FullyQualifiedName = {
     implicit val parentName = parentWorkflow.explicitWorkflowName
@@ -86,7 +81,7 @@ case class WorkflowStep(
   def typedOutputs: WomTypeMap = {
     implicit val parentName = ParentName.empty
     // Find the type of the outputs of the run section
-    val runOutputTypes = run.fold(RunOutputsToTypeMap).apply(schemaDefRequirement)
+    val runOutputTypes = run.fold(RunOutputsToTypeMap).apply(allRequirements.schemaDefRequirement)
       .map({
         case (runOutputId, womType) => FullyQualifiedName(runOutputId).id -> womType
       })
@@ -290,7 +285,7 @@ case class WorkflowStep(
 
             val isThisStepScattered = isStepScattered(workflowStepInputId)
 
-            workflowStepInput.toMergeNode(sourceMappings, expressionLib, typeExpectedByRunInput, isThisStepScattered, schemaDefRequirement) match {
+            workflowStepInput.toMergeNode(sourceMappings, expressionLib, typeExpectedByRunInput, isThisStepScattered, allRequirements.schemaDefRequirement) match {
               // If the input needs a merge node, build it and add it to the input fold
               case Some(mergeNode) =>
                 mergeNode.toEither.map({ node =>
@@ -404,7 +399,7 @@ case class WorkflowStep(
             val typeExpectedByRunInput: Option[cwl.MyriadInputType] = typedRunInputs.get(stepInput.parsedId).flatten
             val isThisStepScattered = isStepScattered(stepInput.parsedId)
 
-            stepInput.toExpressionNode(valueFrom, typeExpectedByRunInput, isThisStepScattered, sharedInputMap, updatedTypeMap, expressionLib, schemaDefRequirement).map(stepInput.parsedId -> _)
+            stepInput.toExpressionNode(valueFrom, typeExpectedByRunInput, isThisStepScattered, sharedInputMap, updatedTypeMap, expressionLib, allRequirements.schemaDefRequirement).map(stepInput.parsedId -> _)
         })
           .sequence[ErrorOr, (String, ExpressionNode)]
           .toEither

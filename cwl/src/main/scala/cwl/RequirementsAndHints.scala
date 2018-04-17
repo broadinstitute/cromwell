@@ -6,6 +6,4 @@ case class RequirementsAndHints(list: List[Requirement]) {
 
   //Should we add up all the types instead?  This would mean subworkflows can inherit their parent schemas
   lazy val schemaDefRequirement = list.flatMap(_.select[SchemaDefRequirement]).headOption.getOrElse(SchemaDefRequirement())
-
-
 }

@@ -115,8 +115,7 @@ case class InlineJavascriptRequirement(
 
 case class SchemaDefRequirement(
   types: Array[SchemaDefTypes] = Array.empty,
-    `class`: W.`"SchemaDefRequirement"`.T = Witness("SchemaDefRequirement").value
-  ) {
+  `class`: W.`"SchemaDefRequirement"`.T = Witness("SchemaDefRequirement").value) {
 
   def lookupType(tpe: String): Option[WomType] =
     lookupCwlType(tpe).flatMap{

@@ -1,6 +1,5 @@
 package cwl
 
-import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, OptionT}
 import cats.syntax.traverse._
 import cats.syntax.apply._
@@ -9,7 +8,6 @@ import common.Checked
 import common.validation.ErrorOr._
 import cwl.CommandLineTool._
 import cwl.CwlVersion._
-import cwl.command.ParentName
 import cwl.internal.CommandPartSortingAlgorithm
 import io.circe.Json
 import shapeless.syntax.singleton._
@@ -18,7 +16,7 @@ import wom.callable.CommandTaskDefinition.{EvaluatedOutputs, OutputFunctionRespo
 import wom.callable.{Callable, CallableTaskDefinition, ContainerizedInputExpression}
 import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
-import wom.types.{WomArrayType, WomIntegerType, WomOptionalType, WomStringType}
+import wom.types.{WomArrayType, WomIntegerType, WomOptionalType}
 import wom.values.{WomArray, WomEvaluatedCallInputs, WomGlobFile, WomInteger, WomString, WomValue}
 import wom.{CommandPart, RuntimeAttributes, RuntimeAttributesKeys}
 
@@ -213,10 +211,13 @@ case class CommandLineTool private(
       listing <- initialWorkDirRequirement.listings
     } yield InitialWorkDirFileGeneratorExpression(listing, expressionLib)).toSet[ContainerizedInputExpression]
 
+    def inputsToCommandParts(inputs: WomEvaluatedCallInputs) : ErrorOr[Seq[CommandPart]] =
+     buildCommandTemplate.run((RequirementsAndHints(requirementsAndHints), expressionLib, inputs))
+
     environmentDefs(requirementsAndHints, expressionLib) map { environmentExpressions =>
       CallableTaskDefinition(
         taskName,
-        {inputs => buildCommandTemplate.run((RequirementsAndHints(requirementsAndHints), expressionLib, inputs))},
+        inputsToCommandParts,
         runtimeAttributes,
         Map.empty,
         Map.empty,

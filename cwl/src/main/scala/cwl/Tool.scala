@@ -72,7 +72,7 @@ trait Tool {
     import cats.instances.list._
     import cats.syntax.traverse._
 
-    val allRequirements = requirements.toList.flatten ++ parentWorkflowStep.toList.flatMap(_.allRequirements)
+    val allRequirements = requirements.toList.flatten ++ parentWorkflowStep.toList.flatMap(_.allRequirements.list)
     // All requirements must validate or this fails.
     val errorOrValidatedRequirements: ErrorOr[List[Requirement]] = allRequirements traverse validator
 

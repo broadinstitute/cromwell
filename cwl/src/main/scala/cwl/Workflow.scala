@@ -44,7 +44,7 @@ case class Workflow private(
   // requirements in the containment hierarchy. There isn't always a containing workflow step so this is an `Option`.
   private[cwl] var parentWorkflowStep: Option[WorkflowStep] = None
 
-  val allRequirements: List[Requirement] = requirements.toList.flatten ++ parentWorkflowStep.toList.flatMap { _.allRequirements }
+  val allRequirements: List[Requirement] = requirements.toList.flatten ++ parentWorkflowStep.toList.flatMap { _.allRequirements.list }
 
   private [cwl] implicit val explicitWorkflowName = ParentName(id)
   

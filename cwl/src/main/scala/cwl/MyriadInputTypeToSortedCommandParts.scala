@@ -2,17 +2,14 @@ package cwl
 
 import cwl.CommandLineTool.{CommandBindingSortingKey, CommandPartsList, SortKeyAndCommandPart, StringOrInt}
 import cwl.CwlType.CwlType
-import cwl.MyriadInputTypeToSortedCommandParts.CommandPartBuilder
 import cwl.SchemaDefRequirement.SchemaDefTypes
 import cwl.command.ParentName
 import shapeless.{Coproduct, Poly1}
 import cats.syntax.apply._
-import cats.syntax.foldable._
 import cats.instances.list._
 import cats.instances.option._
 import wom.values.{WomArray, WomCoproductValue, WomObjectLike, WomOptionalValue, WomValue}
 import cats.syntax.option._
-import cats.syntax.monoid._
 import cats.syntax.traverse._
 
 /**
@@ -95,8 +92,6 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
 
   import Case._
 
-  def ex(component: String) = throw new RuntimeException(s"input type $component not yet supported by WOM!")
-
   // Primitive type: we just need to create a command part from the binding if there's one here.
   implicit def ct: Aux[CwlType, CommandPartBuilder] = {
     at {
@@ -117,12 +112,12 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
     def go: CommandPartBuilder = {
 
       //If the value is optional and is supplied, recurse over the value provided
-      case (inputBindingFromInputParameter, WomCoproductValue(_, value), sortingKey, hasShellCommandRequirement, expressionLib, sdr) =>
-        go(inputBindingFromInputParameter, value, sortingKey, hasShellCommandRequirement, expressionLib, sdr)
+      case (inputBinding, WomCoproductValue(_, value), sortingKey, hasShellCommandRequirement, expressionLib, sdr) =>
+        go(inputBinding, value, sortingKey, hasShellCommandRequirement, expressionLib, sdr)
 
       //If the value is optional and is supplied, recurse over the value provided
-      case (inputBindingFromInputParameter, WomOptionalValue(_, Some(value)), sortingKey, hasShellCommandRequirement, expressionLib, sdr) =>
-        go(inputBindingFromInputParameter, value, sortingKey, hasShellCommandRequirement, expressionLib, sdr)
+      case (inputBinding, WomOptionalValue(_, Some(value)), sortingKey, hasShellCommandRequirement, expressionLib, sdr) =>
+        go(inputBinding, value, sortingKey, hasShellCommandRequirement, expressionLib, sdr)
 
       // If it's optional and there's no value, do nothing
       case (_, WomOptionalValue(_, None), _, _, _, _) => CommandPartsList.empty.some
@@ -130,9 +125,9 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
       // If there's no input binding and no input bindings within the irs, do nothing
       case (None, _, _, _, _, _) if !irs.fields.exists(_.exists(_.inputBinding.isDefined)) => CommandPartsList.empty.some
 
-      case (inputBindingFromInputParameter, objectLike: WomObjectLike, sortingKey, hasShellCommandRequirement, expressionLib, sdr) =>
+      case (inputBinding, objectLike: WomObjectLike, sortingKey, hasShellCommandRequirement, expressionLib, sdr) =>
         val itemInputBinding =
-            inputBindingFromInputParameter.
+            inputBinding.
             orElse(Option(InputCommandLineBinding.default))
         // If there's an input binding, make a SortKeyAndCommandPart for it
         val sortingKeyFromInputBindingFromInputParameter: Option[SortKeyAndCommandPart] =
@@ -171,7 +166,6 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
   }}
 
   implicit def ies: Aux[InputEnumSchema, CommandPartBuilder] = at[InputEnumSchema] { inputEnumSchema =>
-    //(Option[InputCommandLineBinding], WomValue, CommandBindingSortingKey, Boolean, ExpressionLib) => CommandPartsList
     def go: CommandPartBuilder = {
       case (_, WomOptionalValue(_, None), _, _, _, _) => CommandPartsList.empty.some
       case (inputBinding, value, sortingKey, hasShellCommandRequirement, expressionLib, _) =>
@@ -239,7 +233,7 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
           (sortKeyFromInputBindingFromInputerParameterParent, fromArray).mapN{ (p, k) => List(p.copy(nestedCommandParts = k)) }
         }
 
-      case (_, other, _, _, _, _) => ex(s"Value $other cannot be used for an input of type InputArraySchema")
+      case (_, other, _, _, _, _) => throw new RuntimeException(s"Value $other cannot be used for an input of type InputArraySchema")
     }
 
     go

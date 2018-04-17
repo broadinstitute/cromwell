@@ -66,37 +66,40 @@ object MyriadOutputInnerTypeToWomType extends Poly1 {
   import Case._
   import MyriadOutputTypeToWomType.SchemaDefToWomType
 
-  def ex(component: String) = throw new RuntimeException(s"input type $component not yet suported by WOM!")
-
-  implicit def cwlType: Aux[CwlType, SchemaDefToWomType] = at[CwlType]{
-    cwltype => _ => cwl.cwlTypeToWomType(cwltype)
-  }
+  implicit def cwlType: Aux[CwlType, SchemaDefToWomType] =
+    at[CwlType]{
+      cwl.cwlTypeToWomType andThen Function.const
+    }
 
   implicit def ors: Aux[OutputRecordSchema, SchemaDefToWomType] = at[OutputRecordSchema] {
     ors => sdr =>
-    def go: OutputRecordSchema => WomType = {
+      ors.fields.fold(
+        WomCompositeType(Map.empty))(
+        {fields =>
+          val typeMap = fields.map({ field =>
+            val parsedName = FullyQualifiedName(field.name)(ParentName.empty).id
+            parsedName -> field.`type`.fold(MyriadOutputTypeToWomType).apply(sdr)
+          }).toMap
+          WomCompositeType(typeMap)
+        }
+      )
+  }
 
-      case OutputRecordSchema(_, Some(fields), _) =>
-        val typeMap = fields.map({ field =>
-          val parsedName = FullyQualifiedName(field.name)(ParentName.empty).id
-          parsedName -> field.`type`.fold(MyriadOutputTypeToWomType).apply(sdr)
-        }).toMap
-        WomCompositeType(typeMap)
-      case ors => ors.toString |> ex
+  implicit def oes: Aux[OutputEnumSchema, MyriadOutputTypeToWomType.SchemaDefToWomType] =
+    at[OutputEnumSchema] {
+      oes => oes.toWomEnumerationType |> Function.const
     }
 
-      go(ors)
-  }
+  implicit def oas: Aux[OutputArraySchema, MyriadOutputTypeToWomType.SchemaDefToWomType] =
+    at[OutputArraySchema] {
+      oas => sdr =>
+        val arrayType: WomType = oas.items.fold(MyriadOutputTypeToWomType).apply(sdr)
+        WomArrayType(arrayType)
+    }
 
-  implicit def oes: Aux[OutputEnumSchema, MyriadOutputTypeToWomType.SchemaDefToWomType] = at[OutputEnumSchema] { oes => _ => oes.toWomEnumerationType }
-
-  implicit def oas: Aux[OutputArraySchema, MyriadOutputTypeToWomType.SchemaDefToWomType] = at[OutputArraySchema] {
-    oas => sdr =>
-      val arrayType: WomType = oas.items.fold(MyriadOutputTypeToWomType).apply(sdr)
-
-      WomArrayType(arrayType)
-  }
-  implicit def s: Aux[String, MyriadOutputTypeToWomType.SchemaDefToWomType] =  at[String] { string => schemaReq =>
-    schemaReq.lookupType(string).getOrElse(throw new RuntimeException(s"Custom type $string was referred to but not found in schema def ${schemaReq}."))
-  }
+  implicit def s: Aux[String, MyriadOutputTypeToWomType.SchemaDefToWomType] =
+    at[String] {
+      string => schemaReq =>
+        schemaReq.lookupType(string).getOrElse(throw new RuntimeException(s"Custom type $string was referred to but not found in schema def ${schemaReq}."))
+    }
 }

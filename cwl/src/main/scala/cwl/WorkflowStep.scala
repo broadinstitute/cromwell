@@ -57,7 +57,7 @@ case class WorkflowStep(
   // hierarchy. There is always a workflow containing a workflow step so this is not an `Option`.
   private[cwl] var parentWorkflow: Workflow = _
 
-  lazy val allRequirements = RequirementsAndHints(requirements.toList.flatten ++ parentWorkflow.allRequirements)
+  lazy val allRequirements = RequirementsAndHints(requirements.toList.flatten ++ parentWorkflow.allRequirements.list)
 
   lazy val womFqn: wom.graph.FullyQualifiedName = {
     implicit val parentName = parentWorkflow.explicitWorkflowName

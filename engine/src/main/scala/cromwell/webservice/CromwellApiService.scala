@@ -21,6 +21,7 @@ import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.core.abort.{AbortResponse, WorkflowAbortFailureResponse, WorkflowAbortingResponse}
 import cromwell.core.labels.Labels
 import cromwell.core.{path => _, _}
+import cromwell.database.slick.WorkflowStoreSlickDatabase.NotInOnHoldStateException
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor
@@ -246,7 +247,8 @@ trait CromwellApiService extends HttpInstrumentation {
           workflowStoreActor.ask(WorkflowStoreActor.WorkflowOnHoldToSubmittedCommand(workflowId)).mapTo[WorkflowStoreEngineActor.WorkflowOnHoldToSubmittedResponse]
         }
         onComplete(response){
-          case Success(r: WorkflowStoreEngineActor.WorkflowOnHoldToSubmittedFailure) => r.failure.errorRequest(StatusCodes.BadRequest)
+          case Success(WorkflowStoreEngineActor.WorkflowOnHoldToSubmittedFailure(_, e: NotInOnHoldStateException)) => e.errorRequest(StatusCodes.Forbidden)
+          case Success(WorkflowStoreEngineActor.WorkflowOnHoldToSubmittedFailure(_, e)) => e.errorRequest(StatusCodes.InternalServerError)
           case Success(r: WorkflowStoreEngineActor.WorkflowOnHoldToSubmittedSuccess) => completeResponse(StatusCodes.OK, toResponse(r.workflowId, WorkflowSubmitted), Seq.empty)
           case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
         }

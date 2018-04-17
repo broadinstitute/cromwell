@@ -30,13 +30,13 @@ object MyriadOutputTypeToWomValue extends Poly1 {
   import Case._
 
   implicit def cwlType: Aux[MyriadOutputInnerType, Output] = at[MyriadOutputInnerType]{
-    moit => (evalFunction, sdr) => moit.fold(MyriadOutputInnerTypeToWomValue).apply(evalFunction, sdr)
+    moit => (evalFunction, schemaDefRequirement) => moit.fold(MyriadOutputInnerTypeToWomValue).apply(evalFunction, schemaDefRequirement)
   }
 
   // TODO: Not sure what the right thing to do is here, for now go over the list of types and use the first evaluation that yields success
   implicit def acwl: Aux[Array[MyriadOutputInnerType], Output] = at[Array[MyriadOutputInnerType]] { types =>
-    (evalFunction,sdr) =>
-      types.toList.map(_.fold(MyriadOutputInnerTypeToWomValue).apply(evalFunction, sdr)).collectFirst({
+    (evalFunction,schemaDefRequirement) =>
+      types.toList.map(_.fold(MyriadOutputInnerTypeToWomValue).apply(evalFunction, schemaDefRequirement)).collectFirst({
         case Valid(validValue) => validValue
       }).toValidNel(s"Cannot find a suitable type to build a WomValue from in ${types.mkString(", ")}")
   }
@@ -53,14 +53,14 @@ object MyriadOutputInnerTypeToWomValue extends Poly1 {
     "No output binding is defined. Are you expecting the output to be inferred from a cwl.output.json file ? If so please make sure the file was effectively created.".invalidNel
   }
 
-  implicit def ors: Aux[OutputRecordSchema, Output] = at[OutputRecordSchema] { ors => (evalFunction, sdr) => ors match {
+  implicit def ors: Aux[OutputRecordSchema, Output] = at[OutputRecordSchema] { ors => (evalFunction, schemaDefRequirement) => ors match {
     case OutputRecordSchema(_, Some(fields), _) =>
         // Go over each field and evaluate the binding if there's one, otherwise keep folding over field types
         def evaluateValues = fields.toList.traverse[ErrorOr, ((String, WomValue), (String, WomType))]({ field =>
-          val womType = field.`type`.fold(MyriadOutputTypeToWomType).apply(sdr)
+          val womType = field.`type`.fold(MyriadOutputTypeToWomType).apply(schemaDefRequirement)
           val womValue: ErrorOr[WomValue] = field.outputBinding match {
             case Some(binding) => evalFunction(binding, womType)
-            case None => field.`type`.fold(MyriadOutputTypeToWomValue).apply(evalFunction, sdr)
+            case None => field.`type`.fold(MyriadOutputTypeToWomValue).apply(evalFunction, schemaDefRequirement)
           }
 
           // TODO: ParentName might need to be passed in here ?
@@ -81,17 +81,17 @@ object MyriadOutputInnerTypeToWomValue extends Poly1 {
 
   implicit def oes: Aux[OutputEnumSchema, Output] = at[OutputEnumSchema]{
     //DB: I tried to do a pattern match as the overall function here but the compiler exploded
-    oes => (f, sdr) => oes match {
+    oes => (f, schemaDefRequirement) => oes match {
       case oes@OutputEnumSchema(_, _, _, _, Some(outputBinding)) => f(outputBinding, oes.toWomEnumerationType)
       case _ => s"The enumeration type $oes requires an outputbinding to be evaluated.".invalidNel
     }
   }
 
-  implicit def oas: Aux[OutputArraySchema, Output] = at[OutputArraySchema]{ oas => (evalFunction, sdr) => oas match {
+  implicit def oas: Aux[OutputArraySchema, Output] = at[OutputArraySchema]{ oas => (evalFunction, schemaDefRequirement) => oas match {
     case OutputArraySchema(itemsType, _, _, outputBinding) =>
-      lazy val itemsWomType = itemsType.fold(MyriadOutputTypeToWomType).apply(sdr)
+      lazy val itemsWomType = itemsType.fold(MyriadOutputTypeToWomType).apply(schemaDefRequirement)
       def fromBinding = outputBinding.map(evalFunction(_, WomArrayType(itemsWomType)))
-      def fromTypes = itemsType.fold(MyriadOutputTypeToWomValue).apply(evalFunction, sdr)
+      def fromTypes = itemsType.fold(MyriadOutputTypeToWomValue).apply(evalFunction, schemaDefRequirement)
       fromBinding.getOrElse(fromTypes)
   }}
 

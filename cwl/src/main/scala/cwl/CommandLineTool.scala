@@ -56,17 +56,13 @@ case class CommandLineTool private(
    * - Finally the inputs are folded one by one into a CommandPartsList
    * - arguments and inputs CommandParts are sorted according to their sort key
    */
-  private [cwl] def buildCommandTemplate: CommandPartFunc[List[CommandPart]] =
+  private [cwl] def buildCommandTemplate: CommandPartExpression[List[CommandPart]] =
     (
       CommandPartSortingAlgorithm.inputBindingsCommandParts(inputs),
       CommandPartSortingAlgorithm.argumentCommandParts(arguments)
     ).mapN ( _ ++ _ ).
-      map{ lst =>
-
-        val after = lst.sorted
-        println(after.mkString("\n"))
-        after.flatMap(_.sortedCommandParts)
-      }.
+      //sort the highest level, then recursively pull in the nested (and sorted) command parts within each SortKeyAndCommandPart
+      map{ _.sorted.flatMap(_.sortedCommandParts) }.
       map(baseCommandPart ++ _)
 
   // This seems like it makes sense only for CommandLineTool and hence is not abstracted in Tool. If this assumption is wrong it could be moved up.

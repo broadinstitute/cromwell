@@ -36,23 +36,23 @@ object MyriadOutputTypeToWomType extends Poly1{
 
   type SchemaDefToWomType = SchemaDefRequirement => WomType
 
-  implicit def cwlType: Aux[MyriadOutputInnerType, SchemaDefToWomType] = at[MyriadOutputInnerType]{ moit => sdr =>
-    moit.fold(MyriadOutputInnerTypeToWomType).apply(sdr)
+  implicit def cwlType: Aux[MyriadOutputInnerType, SchemaDefToWomType] = at[MyriadOutputInnerType]{ moit => schemaDefRequirement =>
+    moit.fold(MyriadOutputInnerTypeToWomType).apply(schemaDefRequirement)
   }
 
-  implicit def acwl: Aux[Array[MyriadOutputInnerType], SchemaDefToWomType] = at[Array[MyriadOutputInnerType]] { types => sdr =>
+  implicit def acwl: Aux[Array[MyriadOutputInnerType], SchemaDefToWomType] = at[Array[MyriadOutputInnerType]] { types => schemaDefRequirement =>
     types.partition(_.select[CwlType].contains(CwlType.Null)) match {
       // If there's a single non null type, use that
       case (Array(), Array(singleNonNullType)) =>
-        singleNonNullType.fold(MyriadOutputInnerTypeToWomType).apply(sdr)
+        singleNonNullType.fold(MyriadOutputInnerTypeToWomType).apply(schemaDefRequirement)
       case (Array(), array: Array[MyriadOutputInnerType]) if array.size > 1  =>
-        val types = array.map(_.fold(MyriadOutputInnerTypeToWomType).apply(sdr))
+        val types = array.map(_.fold(MyriadOutputInnerTypeToWomType).apply(schemaDefRequirement))
         WomCoproductType(NonEmptyList.fromListUnsafe(types.toList))
       // If there's a null type and a single non null type, it's a WomOptionalType
       case (Array(_), Array(singleNonNullType)) =>
-        WomOptionalType(singleNonNullType.fold(MyriadOutputInnerTypeToWomType).apply(sdr))
+        WomOptionalType(singleNonNullType.fold(MyriadOutputInnerTypeToWomType).apply(schemaDefRequirement))
       case (Array(_), array: Array[MyriadOutputInnerType]) if array.size > 1  =>
-        val types = array.map(_.fold(MyriadOutputInnerTypeToWomType).apply(sdr))
+        val types = array.map(_.fold(MyriadOutputInnerTypeToWomType).apply(schemaDefRequirement))
         WomOptionalType(WomCoproductType(NonEmptyList.fromListUnsafe(types.toList)))
       case _ =>
         val readableTypes = types.map(_.fold(MyriadOutputInnerTypeToString)).mkString(", ")
@@ -72,13 +72,13 @@ object MyriadOutputInnerTypeToWomType extends Poly1 {
     }
 
   implicit def ors: Aux[OutputRecordSchema, SchemaDefToWomType] = at[OutputRecordSchema] {
-    ors => sdr =>
+    ors => schemaDefRequirement =>
       ors.fields.fold(
         WomCompositeType(Map.empty))(
         {fields =>
           val typeMap = fields.map({ field =>
             val parsedName = FullyQualifiedName(field.name)(ParentName.empty).id
-            parsedName -> field.`type`.fold(MyriadOutputTypeToWomType).apply(sdr)
+            parsedName -> field.`type`.fold(MyriadOutputTypeToWomType).apply(schemaDefRequirement)
           }).toMap
           WomCompositeType(typeMap)
         }
@@ -92,8 +92,8 @@ object MyriadOutputInnerTypeToWomType extends Poly1 {
 
   implicit def oas: Aux[OutputArraySchema, MyriadOutputTypeToWomType.SchemaDefToWomType] =
     at[OutputArraySchema] {
-      oas => sdr =>
-        val arrayType: WomType = oas.items.fold(MyriadOutputTypeToWomType).apply(sdr)
+      oas => schemaDefRequirement =>
+        val arrayType: WomType = oas.items.fold(MyriadOutputTypeToWomType).apply(schemaDefRequirement)
         WomArrayType(arrayType)
     }
 

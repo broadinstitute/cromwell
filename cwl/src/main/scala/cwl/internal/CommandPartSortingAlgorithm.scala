@@ -8,18 +8,18 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import cwl.CommandLineTool._
 import cwl.command.ParentName
-import cwl.{ArgumentCommandLineBinding, ArgumentToCommandPart, CommandLineTool, CommandPartFunc, FullyQualifiedName, InputParameter, MyriadInputTypeToSortedCommandParts, MyriadInputTypeToWomType}
+import cwl.{ArgumentCommandLineBinding, ArgumentToCommandPart, CommandLineTool, CommandPartExpression, FullyQualifiedName, InputParameter, MyriadInputTypeToSortedCommandParts, MyriadInputTypeToWomType}
 import shapeless.Coproduct
 import wom.types.WomStringType
 
 object CommandPartSortingAlgorithm {
-  def argumentCommandParts(arguments: Option[Array[CommandLineTool.Argument]]): CommandPartFunc[List[SortKeyAndCommandPart]] =
+  def argumentCommandParts(arguments: Option[Array[CommandLineTool.Argument]]): CommandPartExpression[List[SortKeyAndCommandPart]] =
       // arguments is an Option[Array[Argument]], the toList.flatten gives a List[Argument]
     arguments.toList.flatten
       // zip the index because we need it in the sorting key
-      .zipWithIndex.flatTraverse[CommandPartFunc, SortKeyAndCommandPart](argumentToCommandPart.tupled)
+      .zipWithIndex.flatTraverse[CommandPartExpression, SortKeyAndCommandPart](argumentToCommandPart.tupled)
 
-  def argumentToCommandPart: (Argument, Int) => CommandPartFunc[List[SortKeyAndCommandPart]] = (argument, index) => ReaderT {
+  def argumentToCommandPart: (Argument, Int) => CommandPartExpression[List[SortKeyAndCommandPart]] = (argument, index) => ReaderT {
     case ((requirementsAndHints, expressionLib, _)) =>
       val part = argument.fold(ArgumentToCommandPart).apply(requirementsAndHints.hasShellCommandRequirement, expressionLib)
       // Get the position from the binding if there is one
@@ -33,10 +33,10 @@ object CommandPartSortingAlgorithm {
 
   }
 
-  def inputBindingsCommandParts(inputs: Array[CommandInputParameter]): CommandPartFunc[List[SortKeyAndCommandPart]] =
-    inputs.toList.flatTraverse[CommandPartFunc, SortKeyAndCommandPart](inputBindingsCommandPart)
+  def inputBindingsCommandParts(inputs: Array[CommandInputParameter]): CommandPartExpression[List[SortKeyAndCommandPart]] =
+    inputs.toList.flatTraverse[CommandPartExpression, SortKeyAndCommandPart](inputBindingsCommandPart)
 
-  def inputBindingsCommandPart(inputParameter: CommandInputParameter): CommandPartFunc[List[SortKeyAndCommandPart]] =
+  def inputBindingsCommandPart(inputParameter: CommandInputParameter): CommandPartExpression[List[SortKeyAndCommandPart]] =
     ReaderT{ case ((hintsAndRequirements, expressionLib, inputValues)) =>
       val parsedName = FullyQualifiedName(inputParameter.id)(ParentName.empty).id
 

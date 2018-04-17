@@ -127,5 +127,5 @@ package object cwl extends TypeAliases {
 
   type Inputs = (RequirementsAndHints, ExpressionLib, WomEvaluatedCallInputs)
 
-  type CommandPartFunc[A] = ReaderT[ErrorOr, Inputs, A]
+  type CommandPartExpression[A] = ReaderT[ErrorOr, Inputs, A]
 }

@@ -4,7 +4,7 @@ workflowType: WDL
 workflowTypeVersion: draft-3
 
 files {
-  wdl: wdl_draft3/forkjoin/forkjoin.wdl
+  workflow: wdl_draft3/forkjoin/forkjoin.wdl
   inputs: wdl_draft3/forkjoin/forkjoin.inputs
 }
 

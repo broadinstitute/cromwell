@@ -55,8 +55,8 @@ object MyriadInputInnerTypeToWomType extends Poly1 {
   def ex(component: String) = throw new RuntimeException(s"input type $component not yet suported by WOM!")
 
   implicit def ct: Aux[CwlType, SchemaLookup] = at[CwlType]{
-    ct => _ =>
-    cwl.cwlTypeToWomType(ct)
+    ct =>
+      cwl.cwlTypeToWomType(ct) |> Function.const
   }
 
   def inputRecordSchemaToWomType(irs: InputRecordSchema): SchemaLookup = { schemaLookup: SchemaDefRequirement =>
@@ -75,8 +75,8 @@ object MyriadInputInnerTypeToWomType extends Poly1 {
   }
 
   implicit def ies: Aux[InputEnumSchema, SchemaLookup] = at[InputEnumSchema]{
-    ies => _ =>
-      ies.toWomEnumerationType
+    ies =>
+      ies.toWomEnumerationType |> Function.const
   }
 
   implicit def ias: Aux[InputArraySchema, SchemaLookup] = at[InputArraySchema]{

@@ -7,7 +7,6 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import cwl.CwlType.CwlType
-import cwl.MyriadOutputTypeToWomValue.EvaluationFunction
 import cwl.command.ParentName
 import mouse.all._
 import shapeless.Poly1

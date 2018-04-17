@@ -36,7 +36,7 @@ object CwlDecoder {
     fromEither[IO](cwlToolResult flatMap resultToEither)
   }
 
-  private lazy val cwlPreProcessor = new CwlPreProcessor()
+  private lazy val cwlPreProcessor: CwlPreProcessor = new CwlPreProcessor()
 
   // TODO: WOM: During conformance testing the saladed-CWLs are referring to files in the temp directory.
   // Thus we can't delete the temp directory until after the workflow is complete, like the workflow logs.

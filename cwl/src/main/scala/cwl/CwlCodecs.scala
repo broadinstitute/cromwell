@@ -18,16 +18,16 @@ import shapeless.Coproduct
 object CwlCodecs {
 
   import cwl.decoder._
-  implicit val cwlTypeDecoder = Decoder.enumDecoder(CwlType)
-  implicit val cwlVersionDecoder = Decoder.enumDecoder(CwlVersion)
-  implicit val scatterMethodDecoder = Decoder.enumDecoder(ScatterMethod)
-  implicit val linkMergeMethodDecoder = Decoder.enumDecoder(LinkMergeMethod)
+  implicit val cwlTypeDecoder        : Decoder[CwlType.Value]         = Decoder.enumDecoder(CwlType)
+  implicit val cwlVersionDecoder     : Decoder[CwlVersion.Value]      = Decoder.enumDecoder(CwlVersion)
+  implicit val scatterMethodDecoder  : Decoder[ScatterMethod.Value]   = Decoder.enumDecoder(ScatterMethod)
+  implicit val linkMergeMethodDecoder: Decoder[LinkMergeMethod.Value] = Decoder.enumDecoder(LinkMergeMethod)
 
   //According to automatic derivation, these instances should not be required.  But
   //removing these breaks decodeCwl, so...
-  implicit val wfD = implicitly[Decoder[Workflow]]
-  implicit val cltD = implicitly[Decoder[CommandLineTool]]
-  implicit val etD = implicitly[Decoder[ExpressionTool]]
+  implicit val wfD : Decoder[Workflow]        = implicitly[Decoder[Workflow]]
+  implicit val cltD: Decoder[CommandLineTool] = implicitly[Decoder[CommandLineTool]]
+  implicit val etD : Decoder[ExpressionTool]  = implicitly[Decoder[ExpressionTool]]
 
   def decodeCwl(json: Json): Checked[Cwl] = {
     findClass(json) match {

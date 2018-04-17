@@ -126,12 +126,9 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
       case (None, _, _, _, _, _) if !irs.fields.exists(_.exists(_.inputBinding.isDefined)) => CommandPartsList.empty.some
 
       case (inputBinding, objectLike: WomObjectLike, sortingKey, hasShellCommandRequirement, expressionLib, schemaDefRequirement) =>
-        val itemInputBinding =
-            inputBinding.
-            orElse(Option(InputCommandLineBinding.default))
         // If there's an input binding, make a SortKeyAndCommandPart for it
         val sortingKeyFromInputBindingFromInputParameter: Option[SortKeyAndCommandPart] =
-          itemInputBinding.map(_.toCommandPart(sortingKey, objectLike, hasShellCommandRequirement, expressionLib))
+          inputBinding.map(_.toCommandPart(sortingKey, objectLike, hasShellCommandRequirement, expressionLib))
 
         // Go over the fields an fold over their type
         val partsFromFields:Option[CommandPartsList] =
@@ -153,12 +150,14 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
 
                 val folded = innerValueOption.map(tpe.fold(MyriadInputTypeToSortedCommandParts).
                   apply(inputBinding, _, fieldSortingKey.asNewKey, hasShellCommandRequirement, expressionLib, schemaDefRequirement))
-                println(s"got value $folded from field $parsedName value ${objectLike.values.get(parsedName)}")
                 folded
             }
-            println(s"got parts from fields $partsFromFields \nand sortinkey $sortingKeyFromInputBindingFromInputParameter")
 
-            (sortingKeyFromInputBindingFromInputParameter, partsFromFields).mapN{ (p, k) => List(p.copy(nestedCommandParts = k)) }
+        sortingKeyFromInputBindingFromInputParameter.fold(
+          partsFromFields )(
+          sortingKeyFromInputBindingFromInputParameter =>
+            partsFromFields.map{k => List(sortingKeyFromInputBindingFromInputParameter.copy(nestedCommandParts = k)) }
+        )
       case (_, other, _, _, _, _) => throw new RuntimeException(s"Value $other cannot be used for an input of type InputRecordSchema")
     }
 
@@ -193,17 +192,15 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
 
       case (inputBinding, WomArray.WomArrayLike(womArray), sortingKey, hasShellCommandRequirement, expressionLib, schemaDefRequirement) =>
 
-        val itemInputBinding =
-          inputBinding.
-            orElse(Option(InputCommandLineBinding.default))
+
         // If there's an input binding, make a SortKeyAndCommandPart for it
         val sortKeyFromInputBindingFromInputerParameterParent: Option[SortKeyAndCommandPart] =
-          itemInputBinding.
+          inputBinding.
             map(_.toCommandPart(sortingKey, womArray, hasShellCommandRequirement, expressionLib))
 
         // Now depending on whether we have an itemSeparator and/or valueFrom or not, we're going to recurse over each element of the array (or not).
         // See http://www.commonwl.org/v1.0/CommandLineTool.html#CommandLineBinding
-        if (itemInputBinding.flatMap(_.itemSeparator).isDefined || itemInputBinding.flatMap(_.valueFrom).isDefined) {
+        if (inputBinding.flatMap(_.itemSeparator).isDefined || inputBinding.flatMap(_.valueFrom).isDefined) {
           // If there's an item separator or a valueFrom we can stop here.
           // When the command part is instantiated (see CommandLineBindingCommandPart) it will evaluate the valueFrom (if defined) and join the items together (if there's an itemSeparator).
           sortKeyFromInputBindingFromInputerParameterParent.toList.some
@@ -227,13 +224,15 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
               val arrayItemInputBinding =
                 ias.
                   inputBinding.
-                  orElse(itemInputBinding).
+                  orElse(inputBinding).
                   orElse(Option(InputCommandLineBinding.default))
               // Fold over the item type of each array element
               Option(ias.items.fold(MyriadInputTypeToSortedCommandParts).apply(arrayItemInputBinding, item, itemSortingKey.asNewKey, hasShellCommandRequirement, expressionLib, schemaDefRequirement))
           })
-          //(fromArray, sortKeyFromInputBindingFromInputerParameterParent).mapN(_ ++ List(_))
-          (sortKeyFromInputBindingFromInputerParameterParent, fromArray).mapN{ (p, k) => List(p.copy(nestedCommandParts = k)) }
+          sortKeyFromInputBindingFromInputerParameterParent.fold(fromArray){
+            sortKeyFromInputBindingFromInputerParameterParent =>
+              fromArray.map{k => List(sortKeyFromInputBindingFromInputerParameterParent.copy(nestedCommandParts = k)) }
+          }
         }
 
       case (_, other, _, _, _, _) => throw new RuntimeException(s"Value $other cannot be used for an input of type InputArraySchema")

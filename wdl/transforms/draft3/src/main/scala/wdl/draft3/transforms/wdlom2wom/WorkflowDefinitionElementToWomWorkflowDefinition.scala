@@ -60,10 +60,7 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
                            callables: Set[Callable]): ErrorOr[WomGraph] = {
 
     def graphNodeCreationFold(currentValidation: ErrorOr[List[GraphNode]], next: WorkflowGraphElement): ErrorOr[List[GraphNode]] = {
-      def outputName(node: GraphNode, port: OutputPort) = node match {
-//        case _: CallNode => port.identifier.localName.value
-        case _ => port.identifier.localName.value
-      }
+      def outputName(node: GraphNode, port: OutputPort): String = port.identifier.localName.value
 
       currentValidation flatMap { currentList =>
         val availableValues: Map[String, OutputPort] = (for {

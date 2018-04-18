@@ -198,9 +198,9 @@ case class WorkflowStep(
     def typedRunInputs: Map[String, Option[MyriadInputType]] = run.fold(RunToInputTypeMap).apply(parentName)
 
     def allIdentifiersRecursively(nodes: Set[GraphNode]): Set[WomIdentifier] = nodes.flatMap({
-      case WorkflowCallNode(identifier, _, _, _, _) => Set(identifier)
-      case CommandCallNode(identifier, _, _, _, _) => Set(identifier)
-      case ExpressionCallNode(identifier, _, _, _, _) => Set(identifier)
+      case w: WorkflowCallNode=> Set(w.identifier)
+      case c: CommandCallNode => Set(c.identifier)
+      case e: ExpressionCallNode => Set(e.identifier)
       // When a node a call node is being scattered over, it is wrapped inside a scatter node. We still don't want to 
       // duplicate it though so look inside scatter nodes to see if it's there.
       case scatter: ScatterNode => allIdentifiersRecursively(scatter.innerGraph.nodes)

@@ -57,11 +57,8 @@ object GraphNodePort {
     }
   }
   case class GraphNodeOutputPort(override val identifier: WomIdentifier, womType: WomType, graphNode: GraphNode) extends OutputPort
-  object ExpressionBasedOutputPort {
-//    def apply(outputIdentifier: WomIdentifier, womType: WomType, graphNode: GraphNode, expression: WomExpression): ExpressionBasedOutputPort = {
-//      new ExpressionBasedOutputPort(outputIdentifier, womType, graphNode, expression)
-//    }
-  }
+
+  object ExpressionBasedOutputPort
   case class ExpressionBasedOutputPort(override val identifier: WomIdentifier, womType: WomType, graphNode: GraphNode, expression: WomExpression) extends OutputPort
 
   /**

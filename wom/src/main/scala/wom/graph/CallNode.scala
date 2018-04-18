@@ -98,9 +98,6 @@ object TaskCall {
     // The FQN combines the name of the task to the name of the input or output
     def identifier(name: LocalName) = WomIdentifier(name, taskDefinitionLocalName.combineToFullyQualifiedName(name))
 
-//    def linkOutput(call: GraphNode)(output: OutputDefinition): ErrorOr[GraphNode] = call.outputByName(output.name).map(out => PortBasedGraphOutputNode(
-//      identifier(output.localName), output.womType, out
-//    ))
     import common.validation.ErrorOr.ShortCircuitingFlatMap
 
     val callNodeBuilder = new CallNodeBuilder()
@@ -128,7 +125,7 @@ object TaskCall {
       identifier(LocalName(output.internalName)), output.womType, output
     )).toList.validNel
     val result = for {
-      outputs <- outputNodes // taskDefinition.outputs.traverse(linkOutput(callWithInputs.node) _)
+      outputs <- outputNodes
       callSet = Set[GraphNode](callWithInputs.node)
       inputsSet = callWithInputs.newInputs.toSet[GraphNode]
       outputsSet = outputs.toSet[GraphNode]

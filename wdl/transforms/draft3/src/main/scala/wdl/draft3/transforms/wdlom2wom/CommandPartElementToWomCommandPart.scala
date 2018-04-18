@@ -47,5 +47,10 @@ case class WdlomWomPlaceholderCommandPart(attributes: Map[String, String], expre
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: WomValue => WomValue,
-                           runtimeEnvironment: RuntimeEnvironment): ErrorOr[List[InstantiatedCommand]] = ???
+                           runtimeEnvironment: RuntimeEnvironment): ErrorOr[List[InstantiatedCommand]] = {
+    val inputsValues = inputsMap map { case (localName, value) => localName.value -> valueMapper(value) }
+    expression.evaluateValue(inputsValues, functions) map { evaluatedExpression =>
+      List(InstantiatedCommand(evaluatedExpression.valueString))
+    }
+  }
 }

@@ -6,6 +6,7 @@ import cats.instances.list._
 import common.validation.ErrorOr._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
+import wdl.draft3.transforms.linking.expression.values.EngineFunctionEvaluators.processValidatedSingleValue
 import wom.format.MemorySize
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.ValueEvaluator
@@ -20,11 +21,19 @@ import wom.types.coercion.ops._
 import wom.types.coercion.defaults._
 import wom.types.coercion.WomTypeCoercer
 
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.util.{Success, Try}
 
 object EngineFunctionEvaluators {
+  implicit val stdoutFunctionEvaluator: ValueEvaluator[StdoutElement.type] = new ValueEvaluator[StdoutElement.type] {
+    override def evaluateValue(a: StdoutElement.type, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = WomSingleFile(ioFunctionSet.pathFunctions.stdout).validNel
+  }
+
+  implicit val stderrFunctionEvaluator: ValueEvaluator[StderrElement.type] = new ValueEvaluator[StderrElement.type] {
+    override def evaluateValue(a: StderrElement.type, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = WomSingleFile(ioFunctionSet.pathFunctions.stderr).validNel
+  }
+
   implicit val readLinesFunctionEvaluator: ValueEvaluator[ReadLines] = new ValueEvaluator[ReadLines] {
     override def evaluateValue(a: ReadLines, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
   }
@@ -50,7 +59,15 @@ object EngineFunctionEvaluators {
   }
 
   implicit val readIntFunctionEvaluator: ValueEvaluator[ReadInt] = new ValueEvaluator[ReadInt] {
-    override def evaluateValue(a: ReadInt, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = ???
+    override def evaluateValue(a: ReadInt, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
+      processValidatedSingleValue[WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet)) { fileToRead =>
+        val tryResult = for {
+          read <- Try(Await.result(ioFunctionSet.readFile(fileToRead.value, None, failOnOverflow = true), 10.seconds))
+          asInt <- Try(read.trim.toInt)
+        } yield WomInteger(asInt)
+        tryResult.toErrorOr.contextualizeErrors(s"""readInt("${fileToRead.value}")""")
+      }
+    }
   }
 
   implicit val readStringFunctionEvaluator: ValueEvaluator[ReadString] = new ValueEvaluator[ReadString] {

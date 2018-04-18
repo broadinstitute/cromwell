@@ -19,7 +19,7 @@ import scala.util.Try
 
 object CwlDecoder {
 
-  implicit val composedApplicative = Applicative[IO] compose Applicative[ErrorOr]
+  implicit val composedApplicative: Applicative[λ[α => IO[ErrorOr[α]]]] = Applicative[IO] compose Applicative[ErrorOr]
 
   def saladCwlFile(path: BFile): Parse[String] = {
     def resultToEither(cr: CommandResult) =

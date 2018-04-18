@@ -29,9 +29,9 @@ object CwlCodecs {
 
   //According to automatic derivation, these instances should not be required.  But
   //removing these breaks decodeCwl, so...
-  implicit lazy val wfD : Decoder[Workflow] = implicitly[Decoder[Workflow]]
-  implicit lazy val cltD: Decoder[CommandLineTool] = implicitly[Decoder[CommandLineTool]]
-  implicit lazy val etD : Decoder[ExpressionTool] = implicitly[Decoder[ExpressionTool]]
+  implicit val wfD : Decoder[Workflow] = implicitly[Decoder[Workflow]]
+  implicit val cltD: Decoder[CommandLineTool] = implicitly[Decoder[CommandLineTool]]
+  implicit val etD : Decoder[ExpressionTool] = implicitly[Decoder[ExpressionTool]]
 
   def decodeCwl(json: Json): Checked[Cwl] = {
     findClass(json) match {

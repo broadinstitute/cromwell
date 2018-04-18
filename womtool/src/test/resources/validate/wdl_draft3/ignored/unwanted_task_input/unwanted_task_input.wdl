@@ -7,9 +7,10 @@ workflow unwanted_value_provided {
 task has_unoverridable_value {
   input {
     Int x
+    Int y = x
   }
 
-  Int y = x
+  Int z = x
 
   command { echo ~{y} }
 

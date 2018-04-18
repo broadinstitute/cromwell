@@ -123,4 +123,4 @@ final case class ScatterNodeMakerInputs(node: ScatterElement,
                                         availableTypeAliases: Map[String, WomType],
                                         workflowName: String,
                                         insideAnotherScatter: Boolean,
-                                        callables: Set[Callable])
+                                        callables: Map[String, Callable])

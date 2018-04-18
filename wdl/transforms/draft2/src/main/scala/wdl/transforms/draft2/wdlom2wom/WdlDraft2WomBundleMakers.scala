@@ -25,7 +25,7 @@ object WdlDraft2WomBundleMakers {
         } else if (workflows.isEmpty && tasks.size == 1) {
           tasks.headOption
         } else None
-        WomBundle(primary, (tasks ++ workflows).toSet, Map.empty) }
+        WomBundle(primary, (tasks ++ workflows).map(c => c.name -> c).toMap, Map.empty) }
       errorOr.toEither
     }
   }

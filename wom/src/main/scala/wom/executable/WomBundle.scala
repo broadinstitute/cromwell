@@ -9,7 +9,7 @@ import wom.types.WomType
   * Represents a set of static WOM items that might be imported from a file.
   */
 final case class WomBundle(primaryCallable: Option[Callable],
-                           allCallables: Set[Callable],
+                           allCallables: Map[String, Callable],
                            typeAliases: Map[String, WomType]) {
   def toExecutableCallable: Checked[ExecutableCallable] = primaryCallable match {
     case Some(w: WorkflowDefinition) => w.validNelCheck

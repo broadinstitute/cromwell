@@ -9,5 +9,5 @@ import scala.language.implicitConversions
 
 @typeclass
 trait UnlinkedValueGenerator[A] {
-  def generatedValueHandles(a: A, typeAliases: Map[String, WomType], callables: Set[Callable]): ErrorOr[Set[GeneratedValueHandle]]
+  def generatedValueHandles(a: A, typeAliases: Map[String, WomType], callables: Map[String, Callable]): ErrorOr[Set[GeneratedValueHandle]]
 }

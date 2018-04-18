@@ -14,7 +14,7 @@ import wom.types.WomType
 
 object WorkflowDefinitionElementToWomWorkflowDefinition {
 
-  final case class WorkflowDefinitionConvertInputs(definitionElement: WorkflowDefinitionElement, typeAliases: Map[String, WomType], callables: Set[Callable])
+  final case class WorkflowDefinitionConvertInputs(definitionElement: WorkflowDefinitionElement, typeAliases: Map[String, WomType], callables: Map[String, Callable])
 
   def convert(a: WorkflowDefinitionConvertInputs): ErrorOr[WorkflowDefinition] = {
 
@@ -36,7 +36,7 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
                                           typeAliases: Map[String, WomType],
                                           workflowName: String,
                                           insideAScatter: Boolean,
-                                          callables: Set[Callable])
+                                          callables: Map[String, Callable])
 
   def convertGraphElements(a: GraphLikeConvertInputs): ErrorOr[WomGraph] = {
 
@@ -55,7 +55,7 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
                            seedNodes: Set[GraphNode],
                            workflowName: String,
                            insideAScatter: Boolean,
-                           callables: Set[Callable]): ErrorOr[WomGraph] = {
+                           callables: Map[String, Callable]): ErrorOr[WomGraph] = {
 
     def graphNodeCreationFold(currentValidation: ErrorOr[List[GraphNode]], next: WorkflowGraphElement): ErrorOr[List[GraphNode]] = {
       def outputName(node: GraphNode, port: OutputPort): String = port.identifier.localName.value

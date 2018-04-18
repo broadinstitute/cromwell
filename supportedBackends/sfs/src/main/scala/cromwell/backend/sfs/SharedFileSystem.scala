@@ -58,7 +58,7 @@ object SharedFileSystem extends StrictLogging {
   private def localizePathViaHardLink(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] = {
     val action = Try {
       createParentDirectory(executionPath, docker)
-      originalPath.linkTo(executionPath)
+      executionPath.linkTo(originalPath)
     }.void
     logOnFailure(action, "hard link")
   }

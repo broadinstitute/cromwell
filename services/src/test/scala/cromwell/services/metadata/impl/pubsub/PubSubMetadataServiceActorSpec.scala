@@ -4,7 +4,6 @@ import java.time.OffsetDateTime
 
 import akka.actor.{ActorInitializationException, ActorRef, Props}
 import akka.testkit.{EventFilter, TestProbe}
-import com.google.api.client.auth.oauth2.Credential
 import com.google.api.services.pubsub.model.Topic
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.WorkflowId

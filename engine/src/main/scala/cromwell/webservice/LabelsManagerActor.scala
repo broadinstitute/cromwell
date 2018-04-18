@@ -8,9 +8,6 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.LabelsManagerActor._
 import spray.json.{DefaultJsonProtocol, JsObject, JsString}
 
-import scala.language.postfixOps
-
-
 object LabelsManagerActor {
 
   def props(serviceRegistryActor: ActorRef): Props = Props(new LabelsManagerActor(serviceRegistryActor)).withDispatcher(Dispatcher.ApiDispatcher)

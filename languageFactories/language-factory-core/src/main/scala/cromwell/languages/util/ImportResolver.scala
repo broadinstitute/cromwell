@@ -2,7 +2,6 @@ package cromwell.languages.util
 
 import java.nio.file.Paths
 import better.files.File
-import cats.syntax.either._
 import cats.syntax.validated._
 import common.Checked
 import common.transforms.CheckedAtoB

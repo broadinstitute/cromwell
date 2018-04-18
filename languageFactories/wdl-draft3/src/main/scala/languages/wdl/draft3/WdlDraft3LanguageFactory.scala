@@ -1,12 +1,9 @@
 package languages.wdl.draft3
 
-// TODO 2.11: Yup, cats.syntax.either._ again:
-import cats.syntax.either._
 import cats.instances.either._
 import cats.data.EitherT.fromEither
 import cats.effect.IO
 import common.Checked
-import common.validation.Checked._
 import common.transforms.CheckedAtoB
 import common.validation.Parse.Parse
 import cromwell.core._

@@ -14,7 +14,6 @@ import wdl.draft2.model.types.WdlCallOutputsObjectType
 import wdl.draft2.model.exception._
 import wdl.draft2.model.expression.{NoFunctions, WdlStandardLibraryFunctionsType}
 import wdl.draft2.model.types.WdlNamespaceType
-import wdl.draft2.model.{FullyQualifiedName => _, LocallyQualifiedName => _, _}
 import wdl.draft2.parser.WdlParser
 import wdl.draft2.parser.WdlParser._
 import wom.core._

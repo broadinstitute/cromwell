@@ -3,7 +3,6 @@ package wdl.draft3.transforms.ast2wdlom
 import cats.syntax.apply._
 import cats.syntax.either._
 import cats.instances.either._
-import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.ErrorOr.ErrorOr
 import wdl.draft3.parser.WdlParser.{Ast, AstNode}

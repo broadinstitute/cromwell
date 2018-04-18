@@ -7,9 +7,8 @@ import wdl.model.draft3.graph.expression.WomExpressionMaker.ops._
 import wdl.draft3.transforms.linking.typemakers._
 import wdl.draft3.transforms.linking.expression._
 import wdl.model.draft3.elements._
-import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedCallOutputOrIdentifierAndMemberAccessHook, UnlinkedConsumedValueHook, UnlinkedIdentifierHook}
-import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
-import wom.callable.{CallableTaskDefinition, Callable, CommandTaskDefinition, TaskDefinition}
+import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
+import wom.callable.Callable
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._

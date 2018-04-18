@@ -2,6 +2,12 @@
 
 ## 32 Release Notes
 
+### Scala 2.11 Removed
+From version 32 onwards we will no longer be publishing build artifacts compatible with Scala 2.11. 
+
+* If you don't import the classes into your own scala project then this should have no impact on you.
+* If you **are** importing the classes into your own scala project, make sure you are using Scala 2.12.
+
 ### Input Validation
 Cromwell can now validate that your inputs files do not supply inputs with no impact on the workflow. Strict validation will be disabled by default in WDL draft 2 and CWL but enabled in WDL draft 3. See the 'Language Factory Config' below for details.
 

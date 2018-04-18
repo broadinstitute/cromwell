@@ -1,7 +1,5 @@
 package wdl.transforms.draft2.wdlom2wom
 
-// TODO: 2.11: cats.syntax.either._ AND typeclass longhand form, oh my!
-import cats.syntax.either._
 import common.Checked
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow, WdlNamespaceWithoutWorkflow}
 import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomBundleMakers._

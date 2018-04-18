@@ -4,7 +4,6 @@ import java.util.UUID
 
 import cromwell.core._
 import common.exception.AggregatedException
-import cromwell.core
 import cromwell.services.metadata
 import org.scalactic.Equality
 import org.scalatest.prop.TableDrivenPropertyChecks

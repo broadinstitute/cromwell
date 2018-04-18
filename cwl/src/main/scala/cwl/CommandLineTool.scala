@@ -21,7 +21,6 @@ import wom.values.{WomArray, WomEvaluatedCallInputs, WomGlobFile, WomInteger, Wo
 import wom.{CommandPart, RuntimeAttributes, RuntimeAttributesKeys}
 
 import scala.concurrent.ExecutionContext
-import scala.language.postfixOps
 import scala.math.Ordering
 
 /**

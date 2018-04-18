@@ -14,7 +14,6 @@ import cromwell.core.path.DefaultPathBuilder
 import cromwell.docker.DockerHashActor.DockerHashSuccessResponse
 import cromwell.docker.{DockerHashRequest, DockerHashResult}
 import cromwell.engine.backend.BackendConfigurationEntry
-import cromwell.engine.language.LanguageConfigurationEntry
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheLookupNoHit, CacheLookupRequest}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor.SaveCallCacheHashes

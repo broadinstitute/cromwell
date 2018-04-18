@@ -1,6 +1,6 @@
 package wom.values
 
-import wom.types.{WomCoproductType, WomType}
+import wom.types.WomCoproductType
 
 case class WomCoproductValue(womType: WomCoproductType, womValue: WomValue) extends WomValue {
 

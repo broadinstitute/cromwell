@@ -1,7 +1,5 @@
 package cromwell.languages.util
 
-// TODO 2.11: Remove cats.syntax.either._ import:
-import cats.syntax.either._
 import cats.syntax.validated._
 import cats.data.NonEmptyList
 import common.Checked

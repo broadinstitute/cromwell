@@ -2,7 +2,7 @@ package wdl.model.draft3.graph.expression
 
 import common.validation.ErrorOr.ErrorOr
 import simulacrum.typeclass
-import wom.{CommandSetupSideEffectFile, InstantiatedCommand}
+import wom.CommandSetupSideEffectFile
 import wom.expression.IoFunctionSet
 import wom.values.WomValue
 

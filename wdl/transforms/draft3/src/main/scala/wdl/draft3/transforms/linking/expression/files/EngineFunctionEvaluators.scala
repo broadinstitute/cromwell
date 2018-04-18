@@ -1,33 +1,18 @@
 package wdl.draft3.transforms.linking.expression.files
 
 import cats.syntax.apply._
-import cats.syntax.traverse._
 import cats.syntax.validated._
-import cats.instances.list._
 import common.validation.ErrorOr._
 import common.validation.ErrorOr.ErrorOr
-import common.validation.Validation._
-import wdl.draft3.transforms.linking.expression.values.EngineFunctionEvaluators.processValidatedSingleValue
 import wdl.model.draft3.elements.ExpressionElement
-import wom.format.MemorySize
 import wdl.draft3.transforms.linking.expression.values._
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.model.draft3.graph.expression.{EvaluatedValue, FileEvaluator, ValueEvaluator}
+import wdl.model.draft3.graph.expression.{EvaluatedValue, FileEvaluator}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wdl.model.draft3.graph.expression.FileEvaluator.ops._
-import wdl.shared.transforms.evaluation.values.EngineFunctions
-import wdl4s.parser.MemoryUnit
 import wom.expression.IoFunctionSet
 import wom.types._
-import wom.values.WomArray.WomArrayLike
-import wom.values.{WomArray, WomFile, WomFloat, WomInteger, WomOptionalValue, WomPair, WomPrimitive, WomSingleFile, WomString, WomValue}
-import wom.types.coercion.ops._
-import wom.types.coercion.defaults._
-import wom.types.coercion.WomTypeCoercer
-
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
-import scala.util.{Success, Try}
+import wom.values._
 
 object EngineFunctionEvaluators {
 

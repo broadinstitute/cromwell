@@ -1,7 +1,5 @@
 package languages.wdl.draft2
 
-// TODO Scala 2.11: cats.syntax.either._ again
-import cats.syntax.either._
 import cats.instances.either._
 import cats.instances.list._
 import cats.syntax.functor._

@@ -12,8 +12,6 @@ import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.transforms.WomCommandTaskDefinitionMaker.ops._
 import wom.transforms.WomBundleMaker
 
-import scala.concurrent.Future
-
 object WdlDraft2WomBundleMakers {
 
   implicit val wdlDraft2NamespaceWomBundleMaker: WomBundleMaker[WdlNamespace] = new WomBundleMaker[WdlNamespace] {

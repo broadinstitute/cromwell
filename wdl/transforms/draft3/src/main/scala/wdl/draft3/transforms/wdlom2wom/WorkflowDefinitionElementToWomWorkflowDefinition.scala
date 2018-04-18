@@ -6,13 +6,11 @@ import common.validation.ErrorOr.ErrorOr
 import wdl.draft3.transforms.wdlom2wom.graph.{GraphNodeMakerInputs, WorkflowGraphElementToGraphNode}
 import wdl.model.draft3.elements.{WorkflowDefinitionElement, WorkflowGraphElement}
 import wdl.draft3.transforms.linking.graph._
-import wdl.model.draft3.graph.{GeneratedValueHandle, LinkedGraph, LinkedGraphEdge}
-import wom.callable.{Callable, CallableTaskDefinition, TaskDefinition, WorkflowDefinition}
+import wdl.model.draft3.graph.{GeneratedValueHandle, LinkedGraph}
+import wom.callable.{Callable, WorkflowDefinition}
 import wom.graph.GraphNodePort.OutputPort
-import wom.graph.{CallNode, GraphNode, Graph => WomGraph}
+import wom.graph.{GraphNode, Graph => WomGraph}
 import wom.types.WomType
-import scalax.collection.Graph
-import scalax.collection.GraphEdge.DiEdge
 
 object WorkflowDefinitionElementToWomWorkflowDefinition {
 

@@ -1,6 +1,5 @@
 package wom.values
 
-import cats.data.{NonEmptyList, Validated}
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import wom.TsvSerializable

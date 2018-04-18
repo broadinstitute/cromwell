@@ -3,12 +3,12 @@ package cwl
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterEach, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
-import spray.json.{DefaultJsonProtocol, JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsValue, RootJsonFormat}
+import spray.json.DefaultJsonProtocol
 import wom.graph.ScatterNode.ScatterVariableAndValue
 import wom.graph.expression.PlainAnonymousExpressionNode
 import wom.graph.{ScatterNode, ScatterVariableNode, WomIdentifier}
 import wom.types.{WomArrayType, WomStringType}
-import wom.values.{WomArray, WomBoolean, WomFile, WomFloat, WomInteger, WomMap, WomObjectLike, WomOptionalValue, WomPair, WomString, WomValue}
+import wom.values.{WomArray, WomString, WomValue}
 
 class ScatterLogicSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks with Mockito  with DefaultJsonProtocol with BeforeAndAfterEach {
   private val expressionNode = PlainAnonymousExpressionNode(WomIdentifier("name"), null, WomStringType, Map.empty)

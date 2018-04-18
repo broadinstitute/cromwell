@@ -2,8 +2,6 @@ package wdl.model.draft3.elements
 
 import wom.types.WomPrimitiveType
 
-import scala.language.implicitConversions
-
 sealed trait TypeElement extends LanguageElement
 
 case class PrimitiveTypeElement(primitiveType: WomPrimitiveType) extends TypeElement

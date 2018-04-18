@@ -3,10 +3,8 @@ package wdl.draft3.transforms
 import common.transforms.CheckedAtoB
 import wdl.draft3.transforms.wdlom2wom.TaskDefinitionElementToWomTaskDefinition.TaskDefinitionElementToWomInputs
 import wdl.draft3.transforms.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition.WorkflowDefinitionConvertInputs
-import wdl.model.draft3.elements.{CommandPartElement, TaskDefinitionElement}
-import wom.CommandPart
-import wom.callable.{CallableTaskDefinition, TaskDefinition, WorkflowDefinition}
-import wom.callable.{TaskDefinition, WorkflowDefinition}
+import wom.callable.CallableTaskDefinition
+import wom.callable.WorkflowDefinition
 import wom.executable.WomBundle
 
 package object wdlom2wom {

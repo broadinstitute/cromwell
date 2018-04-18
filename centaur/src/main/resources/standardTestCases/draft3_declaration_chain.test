@@ -2,6 +2,7 @@ name: draft3_declaration_chain
 testFormat: workflowsuccess
 workflowType: WDL
 workflowTypeVersion: draft-3
+tags: ["draft-3"]
 
 files {
   workflow: wdl_draft3/declaration_chain/declaration_chain.wdl

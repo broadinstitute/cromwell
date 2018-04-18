@@ -234,7 +234,8 @@ object WdlFileToWdlomSpec {
             OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "out", Add(ReadInt(StdoutElement), PrimitiveLiteralExpressionElement(WomInteger(1))))))),
           commandSection = CommandSectionElement(Vector(CommandSectionLine(Vector(
             StringCommandPartElement("echo "),
-            PlaceholderCommandPartElement(IdentifierLookup("total"))
+            PlaceholderCommandPartElement(IdentifierLookup("total"), Map.empty),
+            StringCommandPartElement(" ")
           )))),
           runtimeSection = None,
           metaSection = None,
@@ -266,7 +267,7 @@ object WdlFileToWdlomSpec {
             commandSection = CommandSectionElement(Vector(
               CommandSectionLine(Vector(
                 StringCommandPartElement("echo "),
-                PlaceholderCommandPartElement(IdentifierLookup("bar"))
+                PlaceholderCommandPartElement(IdentifierLookup("bar"), Map.empty)
               ))
             )),
             runtimeSection = Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("someFakeDockerRuntime"))))),
@@ -631,23 +632,25 @@ object WdlFileToWdlomSpec {
         TaskDefinitionElement(
           name = "a",
           inputsSection = Some(InputsSectionElement(Vector(
-            InputDeclarationElement(PrimitiveTypeElement(WomStringType), "world1", Some(StringExpression(Seq(StringLiteral("wo"), StringPlaceholder(IdentifierLookup("rld")))))),
-            InputDeclarationElement(PrimitiveTypeElement(WomStringType), "world2", Some(StringExpression(Seq(StringLiteral("wo"), StringPlaceholder(IdentifierLookup("rld"))))))
+            InputDeclarationElement(PrimitiveTypeElement(WomStringType), "world1", Some(StringExpression(Vector(StringLiteral("wo"), StringPlaceholder(IdentifierLookup("rld")))))),
+            InputDeclarationElement(PrimitiveTypeElement(WomStringType), "world2", Some(StringExpression(Vector(StringLiteral("wo"), StringPlaceholder(IdentifierLookup("rld"))))))
           ))),
           declarations = Vector(
             IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "rld", StringLiteral("rld"))
           ),
-          outputsSection = Some(OutputsSectionElement(Seq(
+          outputsSection = Some(OutputsSectionElement(Vector(
             OutputDeclarationElement(PrimitiveTypeElement(WomStringType), "out", ReadString(StdoutElement))
           ))),
           commandSection = CommandSectionElement(Vector(
             CommandSectionLine(Vector(
-              StringCommandPartElement("echo hello "),
-              PlaceholderCommandPartElement(IdentifierLookup("world1"))
+              StringCommandPartElement("echo "),
+              PlaceholderCommandPartElement(StringLiteral("hello"), Map.empty),
+              StringCommandPartElement(" "),
+              PlaceholderCommandPartElement(IdentifierLookup("world1"), Map.empty)
             )),
             CommandSectionLine(Vector(
               StringCommandPartElement("echo goodbye "),
-              PlaceholderCommandPartElement(IdentifierLookup("world2"))
+              PlaceholderCommandPartElement(IdentifierLookup("world2"), Map.empty)
             )
           ))),
           runtimeSection = Some(RuntimeAttributesSectionElement(Vector(
@@ -662,7 +665,7 @@ object WdlFileToWdlomSpec {
             InputDeclarationElement(PrimitiveTypeElement(WomStringType), "world", Some(StringLiteral("world")))
           ))),
           declarations = Vector.empty,
-          outputsSection = Some(OutputsSectionElement(Seq(
+          outputsSection = Some(OutputsSectionElement(Vector(
             OutputDeclarationElement(PrimitiveTypeElement(WomStringType), "out", ReadString(StdoutElement))
           ))),
           commandSection = CommandSectionElement(Vector(
@@ -671,7 +674,7 @@ object WdlFileToWdlomSpec {
             )),
             CommandSectionLine(Vector(
               StringCommandPartElement("echo goodbye "),
-              PlaceholderCommandPartElement(IdentifierLookup("world"))
+              PlaceholderCommandPartElement(IdentifierLookup("world"), Map.empty)
             )
             ))),
           runtimeSection = Some(RuntimeAttributesSectionElement(Vector(

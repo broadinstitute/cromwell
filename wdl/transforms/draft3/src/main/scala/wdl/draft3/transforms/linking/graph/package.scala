@@ -56,8 +56,10 @@ package object graph {
 
   implicit val callElementUnlinkedValueGenerator: UnlinkedValueGenerator[CallElement] = new UnlinkedValueGenerator[CallElement] {
     override def generatedValueHandles(a: CallElement, typeAliases: Map[String, WomType], callables: Set[Callable]): ErrorOr[Set[GeneratedValueHandle]] = {
-      def callableOutputToHandle(callable: Callable)(callableOutput: OutputDefinition): GeneratedValueHandle =
-        GeneratedCallOutputValueHandle(callable.name, callableOutput.name, callableOutput.womType)
+      def callableOutputToHandle(callable: Callable)(callableOutput: OutputDefinition): GeneratedValueHandle = {
+        val callAlias = a.alias.getOrElse(callable.name)
+        GeneratedCallOutputValueHandle(callAlias, callableOutput.name, callableOutput.womType)
+      }
 
       callables.find(_.name == a.callableName) match {
         case Some(callable) => callable.outputs.map(callableOutputToHandle(callable)).toSet.validNel

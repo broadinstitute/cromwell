@@ -78,6 +78,6 @@ object WomValueSimpleton {
   }
 
   implicit class WomValuesSimplifierPort(womValues: Map[OutputPort, WomValue]) {
-    def simplify: Iterable[WomValueSimpleton] = womValues flatMap { case (port, value) => value.simplify(port.name) }
+    def simplify: Iterable[WomValueSimpleton] = womValues flatMap { case (port, value) => value.simplify(port.internalName) }
   }
 }

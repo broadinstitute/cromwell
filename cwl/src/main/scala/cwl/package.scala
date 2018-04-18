@@ -108,6 +108,9 @@ package object cwl extends TypeAliases {
         case Cwl.CommandLineTool(clt) => selectWomTypeInputs(clt.inputs collect {
           case i if i.`type`.isDefined => FullyQualifiedName(i.id).id -> i.`type`.get
         })
+        case Cwl.ExpressionTool(et) => selectWomTypeInputs(et.inputs collect {
+          case i if i.`type`.isDefined => FullyQualifiedName(i.id).id -> i.`type`.get
+        })
       }
     }
 

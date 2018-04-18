@@ -101,7 +101,7 @@ object ScatterNode {
   class ScatterNodeBuilder {
     private val graphNodeSetter = new GraphNode.GraphNodeSetter[ScatterNode]()
     
-    def makeOutputPort(womType: WomArrayType, nodeToGather: PortBasedGraphOutputNode) = {
+    def makeOutputPort(womType: WomArrayType, nodeToGather: PortBasedGraphOutputNode): ScatterGathererPort = {
       ScatterGathererPort(womType, nodeToGather, graphNodeSetter.get)
     }
     

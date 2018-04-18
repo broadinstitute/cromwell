@@ -12,7 +12,7 @@ import wdl.model.draft3.elements.ExpressionElement
 import wom.format.MemorySize
 import wdl.draft3.transforms.linking.expression.values._
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.model.draft3.graph.expression.{FileEvaluator, ValueEvaluator}
+import wdl.model.draft3.graph.expression.{EvaluatedValue, FileEvaluator, ValueEvaluator}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wdl.model.draft3.graph.expression.FileEvaluator.ops._
 import wdl.shared.transforms.evaluation.values.EngineFunctions
@@ -32,8 +32,8 @@ import scala.util.{Success, Try}
 object EngineFunctionEvaluators {
 
   private def evaluateToFile(forFunction: String, a: ExpressionElement, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomSingleFile] = {
-    a.evaluateValue(inputs, ioFunctionSet) flatMap {
-      case p: WomPrimitive => WomSingleFile(p.valueString).validNel
+    a.evaluateValue(inputs, ioFunctionSet, None) flatMap {
+      case EvaluatedValue(p: WomPrimitive, _) => WomSingleFile(p.valueString).validNel
       case other => s"Could not predict files to delocalize from '$a' for $forFunction. Expected a primitive but got ${other.getClass.getSimpleName}".invalidNel
     }
   }

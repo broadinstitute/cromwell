@@ -13,6 +13,7 @@ import wom.types._
 object AstNodeToTypeElement {
   def convert(astNode: AstNode): ErrorOr[TypeElement] = astNode match {
     case a: Ast if a.getName == "OptionalType" => convert(a.getAttribute("innerType")) map OptionalTypeElement
+    case a: Ast if a.getName == "NonEmptyType" => convert(a.getAttribute("innerType")) map NonEmptyTypeElement
     case a: Ast if a.getName == "Type" => compoundType(a).toValidated
     case unknownAst: Ast => s"No rule available to create TypeElement from Ast: '${unknownAst.getName}'".invalidNel
     case t: Terminal if typeMap.contains(t.getSourceString) => PrimitiveTypeElement(typeMap(t.getSourceString)).validNel

@@ -72,7 +72,7 @@ case class ExpressionTool(
 
         val coercedValues: List[ErrorOr[(OutputPort, WomValue)]] = for {
           outputPort <- outputPorts
-          value <- values.get(outputPort.name)
+          value <- values.get(outputPort.internalName)
           coerced = coerce(value, outputPort.womType).toValidated
         } yield coerced.map(outputPort -> _)
 

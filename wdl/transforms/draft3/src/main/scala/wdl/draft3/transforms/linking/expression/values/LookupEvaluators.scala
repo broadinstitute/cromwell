@@ -5,9 +5,8 @@ import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.model.draft3.graph.expression.ValueEvaluator
+import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
-import wdl.model.draft3.graph._
 import wom.expression.IoFunctionSet
 import wom.types.{WomCompositeType, WomOptionalType}
 import wom.values.{WomObject, WomOptionalValue, WomPair, WomValue}
@@ -18,9 +17,12 @@ object LookupEvaluators {
   implicit val identifierLookupEvaluator: ValueEvaluator[IdentifierLookup] = new ValueEvaluator[IdentifierLookup] {
     override def evaluateValue(a: IdentifierLookup,
                                inputs: Map[String, WomValue],
-                               ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
       inputs.get(a.identifier) match {
-        case Some(value) => value.validNel
+        case Some(value) =>
+          val mapped = forCommandInstantiationOptions.fold(value)(_.valueMapper(value))
+          EvaluatedValue(mapped, Seq.empty).validNel
         case None => s"ValueEvaluator[IdentifierLookup]: No suitable input for '${a.identifier}' amongst {${inputs.keys.mkString(", ")}}".invalidNel
       }
     }
@@ -29,15 +31,19 @@ object LookupEvaluators {
   implicit val expressionMemberAccessEvaluator: ValueEvaluator[ExpressionMemberAccess] = new ValueEvaluator[ExpressionMemberAccess] {
     override def evaluateValue(a: ExpressionMemberAccess,
                                inputs: Map[String, WomValue],
-                               ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
-      a.expression.evaluateValue(inputs, ioFunctionSet) flatMap { doLookup(_, a.memberAccessTail) }
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
+      a.expression.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions) flatMap { evaluated =>
+        doLookup(evaluated.value, a.memberAccessTail) map { EvaluatedValue(_, evaluated.sideEffectFiles) }
+      }
     }
   }
 
   implicit val identifierMemberAccessEvaluator: ValueEvaluator[IdentifierMemberAccess] = new ValueEvaluator[IdentifierMemberAccess] {
     override def evaluateValue(a: IdentifierMemberAccess,
                                inputs: Map[String, WomValue],
-                               ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
 
       // Do the first lookup and decide whether any more lookups are needed:
       val generatedValueAndLookups: ErrorOr[(WomValue, Seq[String])] = {
@@ -50,8 +56,8 @@ object LookupEvaluators {
       }
 
       generatedValueAndLookups flatMap { case (foundValue, lookups) => NonEmptyList.fromList(lookups.toList) match {
-        case Some(lookupNel) => doLookup(foundValue, lookupNel)
-        case None => foundValue.validNel
+        case Some(lookupNel) => doLookup(foundValue, lookupNel) map { EvaluatedValue(_, Seq.empty) }
+        case None => EvaluatedValue(foundValue, Seq.empty).validNel
       }}
     }
   }

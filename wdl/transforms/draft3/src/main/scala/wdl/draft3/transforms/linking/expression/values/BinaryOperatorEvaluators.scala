@@ -4,9 +4,8 @@ import common.validation.Validation._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.model.draft3.graph.expression.ValueEvaluator
+import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
-import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
 import wom.expression.IoFunctionSet
 import wom.values.WomValue
 
@@ -31,8 +30,12 @@ object BinaryOperatorEvaluators {
   private def forOperation[A <: BinaryOperation](op: (WomValue, WomValue) => Try[WomValue]) = new ValueEvaluator[A] {
     override def evaluateValue(a: A,
                                inputs: Map[String, WomValue],
-                               ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] =
-      (a.left.evaluateValue(inputs, ioFunctionSet),
-        a.right.evaluateValue(inputs, ioFunctionSet)) flatMapN { (left, right) => op(left, right).toErrorOr }
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[_ <: WomValue]] =
+      (a.left.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions),
+        a.right.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) flatMapN { (left, right) => {
+
+        op(left.value, right.value).toErrorOr map { newValue => EvaluatedValue(newValue, left.sideEffectFiles ++ right.sideEffectFiles) }
+      }}
   }
 }

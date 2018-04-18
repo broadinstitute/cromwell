@@ -8,6 +8,7 @@ import wdl.draft3.parser.WdlParser.{Ast, AstNode, Terminal}
 import wdl.draft3.transforms.parsing._
 import wdl.model.draft3.elements.ExpressionElement.KvPair
 import wdl.model.draft3.elements._
+import collection.JavaConverters._
 
 package object ast2wdlom {
 
@@ -47,6 +48,7 @@ package object ast2wdlom {
 
   implicit val astNodeToString: CheckedAtoB[AstNode, String] = CheckedAtoB.fromCheck { (a: AstNode) => a match {
     case t: Terminal => t.getSourceString.validNelCheck
+    case a: Ast => s"Cannot convert Ast of type ${a.getName} into String. Did you want one of its attributes (${a.getAttributes.asScala.keys.mkString(", ")})?".invalidNelCheck
     case other: AstNode => s"Cannot convert ${other.getClass.getSimpleName} into String".invalidNelCheck
   }}
 

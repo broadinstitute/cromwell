@@ -30,9 +30,9 @@ object CwlCodecs {
 
   //According to automatic derivation, these instances should not be required.  But
   //removing these breaks decodeCwl, so...
-  implicit private val wfD : Decoder[Workflow]        = implicitly[Decoder[Workflow]]
-  implicit private val cltD: Decoder[CommandLineTool] = implicitly[Decoder[CommandLineTool]]
-  implicit private val etD : Decoder[ExpressionTool]  = implicitly[Decoder[ExpressionTool]]
+  implicit private val wfD_impl : Decoder[Workflow]        = deriveDecoder[Workflow]
+  implicit private val cltD_impl: Decoder[CommandLineTool] = deriveDecoder[CommandLineTool]
+  implicit private val etD_impl : Decoder[ExpressionTool]  = deriveDecoder[ExpressionTool]
 
   def decodeCwl(json: Json): Checked[Cwl] = {
     findClass(json) match {

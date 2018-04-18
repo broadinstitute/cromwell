@@ -11,6 +11,10 @@ import common.Checked
 import common.validation.Checked._
 import cats.syntax.either._
 import cats.syntax.show._
+import cwl.CwlType.CwlType
+import cwl.CwlVersion.CwlVersion
+import cwl.LinkMergeMethod.LinkMergeMethod
+import cwl.ScatterMethod.ScatterMethod
 import io.circe.Json._
 import io.circe.DecodingFailure._
 import shapeless.Coproduct
@@ -18,10 +22,10 @@ import shapeless.Coproduct
 object CwlCodecs {
 
   import cwl.decoder._
-  implicit val cwlTypeDecoder        : Decoder[CwlType.Value]         = Decoder.enumDecoder(CwlType)
-  implicit val cwlVersionDecoder     : Decoder[CwlVersion.Value]      = Decoder.enumDecoder(CwlVersion)
-  implicit val scatterMethodDecoder  : Decoder[ScatterMethod.Value]   = Decoder.enumDecoder(ScatterMethod)
-  implicit val linkMergeMethodDecoder: Decoder[LinkMergeMethod.Value] = Decoder.enumDecoder(LinkMergeMethod)
+  implicit val cwlTypeDecoder        : Decoder[CwlType]         = Decoder.enumDecoder(CwlType)
+  implicit val cwlVersionDecoder     : Decoder[CwlVersion]      = Decoder.enumDecoder(CwlVersion)
+  implicit val scatterMethodDecoder  : Decoder[ScatterMethod]   = Decoder.enumDecoder(ScatterMethod)
+  implicit val linkMergeMethodDecoder: Decoder[LinkMergeMethod] = Decoder.enumDecoder(LinkMergeMethod)
 
   //According to automatic derivation, these instances should not be required.  But
   //removing these breaks decodeCwl, so...

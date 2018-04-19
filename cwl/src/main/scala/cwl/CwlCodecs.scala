@@ -4,7 +4,6 @@ import cats.data.NonEmptyList
 import io.circe._
 import io.circe.parser._
 import io.circe.generic.auto._
-import io.circe.generic.semiauto._
 import eu.timepit.refined.string._
 import io.circe.refined._
 import io.circe.literal._
@@ -30,9 +29,9 @@ object CwlCodecs {
 
   //According to automatic derivation, these instances should not be required.  But
   //removing these breaks decodeCwl, so...
-  implicit private val wfD_impl : Decoder[Workflow]        = deriveDecoder[Workflow]
-  implicit private val cltD_impl: Decoder[CommandLineTool] = deriveDecoder[CommandLineTool]
-  implicit private val etD_impl : Decoder[ExpressionTool]  = deriveDecoder[ExpressionTool]
+  implicit private val wfD  = implicitly[Decoder[Workflow]]
+  implicit private val cltD = implicitly[Decoder[CommandLineTool]]
+  implicit private val etD  = implicitly[Decoder[ExpressionTool]]
 
   def decodeCwl(json: Json): Checked[Cwl] = {
     findClass(json) match {

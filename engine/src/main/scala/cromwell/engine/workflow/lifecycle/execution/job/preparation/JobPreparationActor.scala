@@ -18,7 +18,7 @@ import cromwell.engine.workflow.WorkflowDockerLookupActor.{WorkflowDockerLookupF
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation._
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.JobPreparationActor._
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
-import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvResponse, ScopedKey}
+import cromwell.services.keyvalue.KeyValueServiceActor._
 import wom.RuntimeAttributesKeys
 import wom.callable.Callable.InputDefinition
 import wom.values._
@@ -60,7 +60,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   when(Idle) {
     case Event(Start(valueStore), JobPreparationActorNoData) =>
-      evaluateInputsAndAttributes(valueStore) match {
+       evaluateInputsAndAttributes(valueStore) match {
         case Valid((inputs, attributes)) => fetchDockerHashesIfNecessary(inputs, attributes)
         case Invalid(failure) => sendFailureAndStop(new MessageAggregation {
           override def exceptionContext: String = s"Call input and runtime attributes evaluation failed for ${jobKey.call.localName}"
@@ -94,12 +94,12 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
       stay()
   }
 
-  private[preparation] lazy val kvStoreKeysToPrefetch = factory.requestedKeyValueStoreKeys
+  private[preparation] lazy val kvStoreKeysToPrefetch: Seq[String] = factory.requestedKeyValueStoreKeys ++ factory.defaultKeyValueStoreKeys
   private[preparation] def scopedKey(key: String) = ScopedKey(workflowDescriptor.id, KvJobKey(jobKey), key)
   private[preparation] def lookupKeyValueEntries(inputs: WomEvaluatedCallInputs,
                                                  attributes: Map[LocallyQualifiedName, WomValue],
                                                  maybeCallCachingEligible: MaybeCallCachingEligible) = {
-    val keysToLookup: Seq[ScopedKey] = kvStoreKeysToPrefetch map scopedKey
+    val keysToLookup = kvStoreKeysToPrefetch map scopedKey
     keysToLookup foreach { serviceRegistryActor ! KvGet(_) }
     goto(FetchingKeyValueStoreEntries) using JobPreparationKeyLookupData(PartialKeyValueLookups(Map.empty, keysToLookup), maybeCallCachingEligible, inputs, attributes)
   }

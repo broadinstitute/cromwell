@@ -1,4 +1,4 @@
-package cromwell.backend.google.pipelines.common
+package cromwell.backend.impl.jes
 
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import common.validation.ErrorOr.ErrorOr
@@ -6,12 +6,14 @@ import cats.syntax.validated._
 import cats.syntax.apply._
 
 import scala.util.{Failure, Success, Try}
-import PipelinesApiBackendLifecycleActorFactory.preemptionCountKey
-import PipelinesApiBackendLifecycleActorFactory.unexpectedRetryCountKey
+import cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory.preemptionCountKey
+import cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory.unexpectedRetryCountKey
+import common.validation.ErrorOr
 
 case class PreviousRetryReasons(preempted: Int, unexpectedRetry: Int)
 
 object PreviousRetryReasons {
+
   def tryApply(prefetchedKvEntries: Map[String, KvResponse], attemptNumber: Int): ErrorOr[PreviousRetryReasons] = {
     val validatedPreemptionCount = validatedKvResponse(prefetchedKvEntries.get(preemptionCountKey), preemptionCountKey)
     val validatedUnexpectedRetryCount = validatedKvResponse(prefetchedKvEntries.get(unexpectedRetryCountKey), unexpectedRetryCountKey)

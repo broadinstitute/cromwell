@@ -220,17 +220,16 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
   }
 
   override def handleExecutionFailure(runStatus: RunStatus,
-                                      handle: StandardAsyncPendingExecutionHandle,
-                                      returnCode: Option[Int]): Future[ExecutionHandle] = {
+                                      returnCode: Option[Int]): ExecutionHandle = {
     runStatus match {
       case RunStatus.Failed(jobId, Some(errorMessage), _) =>
         val exception = new Exception(s"Job id $jobId failed: '$errorMessage'")
-        Future.successful(FailedNonRetryableExecutionHandle(exception, returnCode))
-      case _ => super.handleExecutionFailure(runStatus, handle, returnCode)
+        FailedNonRetryableExecutionHandle(exception, returnCode)
+      case _ => super.handleExecutionFailure(runStatus, returnCode)
     }
   }
 
-  override def isSuccess(runStatus: RunStatus): Boolean = {
+  override def isDone(runStatus: RunStatus): Boolean = {
     runStatus match {
       case _: Finished =>
         runtimeAttributes.autoReleaseJob match {

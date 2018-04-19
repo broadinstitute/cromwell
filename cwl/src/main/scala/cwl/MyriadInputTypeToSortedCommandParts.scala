@@ -245,8 +245,7 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
       s => {
         case (_, WomOptionalValue(_, None), _, _, _, _) => List.empty.some
         case (commandLineBindingFromInput, womValue, sortingKey, boolean, expressionLib, schemaDefRequirement) => {
-          val id = FileAndId(s)(ParentName.empty).id
-          val womType: SchemaDefTypes = schemaDefRequirement.lookupCwlType(id).getOrElse(throw new RuntimeException(s"Looked for type $s in custom types $schemaDefRequirement but no match was found!"))
+          val womType: SchemaDefTypes = schemaDefRequirement.lookupCwlType(s).getOrElse(throw new RuntimeException(s"Looked for type $s in custom types $schemaDefRequirement but no match was found!"))
 
           womType.fold(this).apply(commandLineBindingFromInput, womValue, sortingKey, boolean, expressionLib, schemaDefRequirement)
         }

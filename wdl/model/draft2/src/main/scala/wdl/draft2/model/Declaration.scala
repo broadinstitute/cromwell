@@ -149,6 +149,7 @@ object Declaration {
       case RequiredInputDefinition(_, womType, _) => RequiredGraphInputNode(decl.womIdentifier, womType, decl.womIdentifier.fullyQualifiedName.value)
       case OptionalInputDefinition(_, optionalType, _) => OptionalGraphInputNode(decl.womIdentifier, optionalType, decl.womIdentifier.fullyQualifiedName.value)
       case InputDefinitionWithDefault(_, womType, default, _) => OptionalGraphInputNodeWithDefault(decl.womIdentifier, womType, default, decl.womIdentifier.fullyQualifiedName.value)
+      case other => throw new RuntimeException(s"Programmer Error! Draft 2 isn't set up to produce or handle ${other.getClass.getSimpleName}")
     }
 
     (decl.asWorkflowInput, decl) match {

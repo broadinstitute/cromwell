@@ -37,6 +37,7 @@ class DeclarationWorkflowSpec extends Matchers with WordSpecLike {
           inputDefinition.localName.value should be ("two_step.static_string")
           inputName should be("two_step.static_string")
           inputDefinition.womType should be(WomStringType)
+        case other => throw new RuntimeException(s"Programmer Error! Draft 2 isn't set up to produce or handle ${other.getClass.getSimpleName}")
       }
     }
   }

@@ -27,10 +27,10 @@ trait PipelinesApiAbortClient { this: Actor with ActorLogging with JobLogging wi
     case PAPIAbortRequestSuccessful(jobId) =>
       abortSuccess()
       jobLogger.info(s"Successfully requested cancellation of $jobId")
-    // In this case we could immediately return an aborted handle and spare ourselves a d round of polling
+    // In this case we could immediately return an aborted handle and spare ourselves a round of polling
     case PAPIOperationAlreadyCancelled(jobId) =>
       jobLogger.info(s"Operation $jobId was already cancelled")
-    // In this case we could immediately return an aborted handle and spare ourselves a d round of polling
+    // In this case we could immediately return an aborted handle and spare ourselves a round of polling
     case PAPIOperationHasAlreadyFinished(jobId) =>
       jobLogger.info(s"Operation $jobId has already finished")
     case JesApiAbortQueryFailed(jobId, e) =>

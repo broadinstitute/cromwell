@@ -25,7 +25,7 @@ object Dependencies {
   val ficusV = "1.4.1"
   val fs2V = "0.10.2"
   val gaxV = "1.9.0"
-  val googleApiClientV = "1.22.0"
+  val googleApiClientV = "1.23.0"
   val googleCloudComputeV = "0.26.0-alpha"
   val googleCloudCoreV = "1.8.0"
   val googleCloudNioV = "0.20.1-alpha"

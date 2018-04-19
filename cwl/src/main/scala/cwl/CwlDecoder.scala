@@ -12,10 +12,13 @@ import common.validation.ErrorOr._
 import common.validation.Parse._
 import cwl.preprocessor.CwlPreProcessor
 import io.circe.Json
+import org.slf4j.LoggerFactory
 
 import scala.util.Try
 
 object CwlDecoder {
+
+  private val Log = LoggerFactory.getLogger("CwlDecoder")
 
   implicit val composedApplicative = Applicative[IO] compose Applicative[ErrorOr]
 
@@ -46,7 +49,7 @@ object CwlDecoder {
     }
   }
 
-  def parseJson(json: Json): Parse[Cwl] = fromEither[IO](CwlCodecs.decodeCwl(json))
+  def parseJson(json: Json, file: BFile): Parse[Cwl] = fromEither[IO](CwlCodecs.decodeCwl(json).leftMap(_.prepend(s"error when parsing file $file")))
 
   /**
     * Notice it gives you one instance of Cwl.  This has transformed all embedded files into scala object state
@@ -55,7 +58,8 @@ object CwlDecoder {
                     workflowRoot: Option[String] = None)(implicit processor: CwlPreProcessor = cwlPreProcessor): Parse[Cwl] =
     for {
       standaloneWorkflow <- processor.preProcessCwlFile(fileName, workflowRoot)
-      parsedCwl <- parseJson(standaloneWorkflow)
+      _ = Log.info(s"parsing $fileName")
+      parsedCwl <- parseJson(standaloneWorkflow, fileName)
     } yield parsedCwl
 
   def decodeCwlString(cwl: String, zipOption: Option[BFile] = None, rootName: Option[String] = None): Parse[Cwl] = {

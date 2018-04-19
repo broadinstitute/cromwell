@@ -100,6 +100,6 @@ object MyriadOutputInnerTypeToWomType extends Poly1 {
   implicit def s: Aux[String, MyriadOutputTypeToWomType.SchemaDefToWomType] =
     at[String] {
       string => schemaReq =>
-        schemaReq.lookupType(string).getOrElse(throw new RuntimeException(s"Custom type $string was referred to but not found in schema def ${schemaReq}."))
+        schemaReq.lookupType(string).getOrElse(throw new RuntimeException(s"Custom type $string was referred to but not found in schema def ${schemaReq.types.mkString(", ")}."))
     }
 }

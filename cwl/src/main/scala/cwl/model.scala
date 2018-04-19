@@ -131,14 +131,20 @@ case class SchemaDefRequirement(
     }
 
   //Currently only InputRecordSchema has a name in the spec, so it is the only thing that can be referenced via string
-  def lookupCwlType(tpe: String): Option[SchemaDefTypes] =
+  def lookupCwlType(tpe: String): Option[SchemaDefTypes] = {
+
+    def matchesType(inputEnumSchema: InputEnumSchema): Boolean = {
+      inputEnumSchema.name.fold(false){name => FileAndId(name)(ParentName.empty).id equalsIgnoreCase FullyQualifiedName(tpe)(ParentName.empty).id}
+    }
+
     types.toList.flatMap {
-    case Inl(inputRecordSchema: InputRecordSchema) if FileAndId(inputRecordSchema.name)(ParentName.empty).id equalsIgnoreCase tpe=>
+    case Inl(inputRecordSchema: InputRecordSchema) if FileAndId(inputRecordSchema.name)(ParentName.empty).id equalsIgnoreCase FullyQualifiedName(tpe)(ParentName.empty).id=>
           List(Coproduct[SchemaDefTypes](inputRecordSchema))
-    case Inr(Inl(inputEnumSchema: InputEnumSchema)) if FileAndId(inputEnumSchema.name)(ParentName.empty).id equalsIgnoreCase tpe=>
+    case Inr(Inl(inputEnumSchema: InputEnumSchema)) if matchesType(inputEnumSchema)=>
       List(Coproduct[SchemaDefTypes](inputEnumSchema))
     case _ => List()
     }.headOption
+  }
 }
 
 object SchemaDefRequirement {

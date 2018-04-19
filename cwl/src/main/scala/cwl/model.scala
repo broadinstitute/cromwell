@@ -21,6 +21,13 @@ object WorkflowStepInputSource {
   }
 }
 
+/**
+  * Describes a bespoke type.
+  *
+  * @param name This field actually does _not_ appear in the v1.0 schema, but it is used anyway in the conformance tests.
+  *             After some consideration it was determined that we should close our eyes and pretend it is in the spec.  It
+  *             makes its formal appearance as a required field in v1.1.
+  */
 case class InputRecordSchema(
   name: String,
   fields: Option[Array[InputRecordField]] = None,

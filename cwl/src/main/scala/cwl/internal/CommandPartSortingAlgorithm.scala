@@ -2,7 +2,7 @@ package cwl.internal
 
 import cats.data.Kleisli._
 import cats.data.ReaderT
-import cats.data.Validated.{Invalid, Valid, _}
+import cats.data.Validated._
 import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._

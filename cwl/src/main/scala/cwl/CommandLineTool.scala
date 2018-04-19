@@ -286,10 +286,6 @@ object CommandLineTool {
 
   type CommandPartsList = List[SortKeyAndCommandPart]
 
-  object CommandPartsList {
-    def empty: CommandPartsList = List.empty[SortKeyAndCommandPart]
-  }
-
   // Ordering for CommandBindingSortingKeyElement
   implicit val SortingKeyTypeOrdering: Ordering[StringOrInt] = Ordering.fromLessThan[StringOrInt]({
     // String comparison

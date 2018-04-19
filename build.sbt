@@ -101,7 +101,7 @@ lazy val centaur = project
   .dependsOn(cromwellApiClient)
 
 lazy val services = project
-  .withLibrarySettings("cromwell-services", googlePipelinesV1Alpha2Dependencies)
+  .withLibrarySettings("cromwell-services")
   .dependsOn(databaseSql)
   .dependsOn(databaseMigration)
   .dependsOn(cloudSupport)
@@ -122,24 +122,15 @@ lazy val googlePipelinesCommon = (project in backendRoot / "google" / "pipelines
   .dependsOn(backend % "test->test")
   .dependsOn(gcsFileSystem % "test->test")
   .dependsOn(services % "test->test")
-  // Manually exclude any genomics api dependency brought in transitively by the services project
-  .settings(
-  projectDependencies := {
-    Seq(
-      (projectID in services).value.exclude("com.google.apis", "google-api-services-genomics"),
-      (projectID in services).value.exclude("com.google.apis", "google-api-services-genomics") % "test->test"
-    )
-  }
-)
 
 lazy val googlePipelinesV1Alpha2 = (project in backendRoot / "google" / "pipelines" / "v1alpha2")
-  .withLibrarySettings("cromwell-pipelines-v1-backend", googlePipelinesV1Alpha2Dependencies)
+  .withLibrarySettings("cromwell-pipelines-v1-backend")
   .dependsOn(googlePipelinesCommon)
   .dependsOn(googlePipelinesCommon % "test->test")
   .dependsOn(core % "test->test")
 
 lazy val googlePipelinesV2Alpha1 = (project in backendRoot / "google" / "pipelines" / "v2alpha1")
-  .withLibrarySettings("cromwell-pipelines-v2-backend", googlePipelinesV2Alpha1Dependencies)
+  .withLibrarySettings("cromwell-pipelines-v2-backend")
   .dependsOn(googlePipelinesCommon)
   .dependsOn(googlePipelinesCommon % "test->test")
   .dependsOn(core % "test->test")

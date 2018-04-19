@@ -75,10 +75,10 @@ trait CromIamApiService extends RequestSupport
     }
   }
 
-  def releaseHoldRoute: Route =  path("api" / "workflows" / Segment / Segment / "releaseHold") { (_, workflowId) =>
+  def releaseHoldRoute: Route =  path("api" / "workflows" / Segment / Segment / ReleaseHold) { (_, workflowId) =>
     post {
       extractUserAndRequest { (user, req) =>
-        logUserWorkflowAction(user, workflowId, "release")
+        logUserWorkflowAction(user, workflowId, ReleaseHold)
         complete {
           authorizeUpdateThenForwardToCromwell(user, workflowId, req)
         }
@@ -204,4 +204,5 @@ object CromIamApiService {
 
   val Abort = "abort"
   val Labels = "labels"
+  val ReleaseHold = "releaseHold"
 }

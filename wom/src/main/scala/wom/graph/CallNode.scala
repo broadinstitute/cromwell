@@ -5,7 +5,6 @@ import cats.instances.list._
 import cats.kernel.Monoid
 import cats.syntax.validated._
 import cats.syntax.foldable._
-import cats.syntax.traverse._
 import common.validation.ErrorOr.ErrorOr
 import shapeless.{:+:, CNil, Coproduct}
 import wom.callable.Callable._
@@ -40,7 +39,6 @@ final case class ExpressionCallNode private(override val identifier: WomIdentifi
   override lazy val outputPorts: Set[OutputPort] = expressionBasedOutputPorts.toSet[OutputPort]
 
   override def evaluate(outputPortLookup: OutputPort => ErrorOr[WomValue], ioFunctionSet: IoFunctionSet) = {
-    import cats.syntax.either._
     for {
       // Evaluate the inputs to get a lookup to evaluate the actual expression
       womEvaluatedInputs <- CallNode.resolveAndEvaluateInputs(this, ioFunctionSet, outputPortLookup).toEither

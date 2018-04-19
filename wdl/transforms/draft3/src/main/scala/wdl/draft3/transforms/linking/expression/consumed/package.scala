@@ -1,7 +1,7 @@
 package wdl.draft3.transforms.linking.expression
 
 import wdl.model.draft3.elements.ExpressionElement
-import wdl.model.draft3.graph.{UnlinkedCallOutputOrIdentifierAndMemberAccessHook, UnlinkedConsumedValueHook, UnlinkedIdentifierHook, ExpressionValueConsumer}
+import wdl.model.draft3.graph.{UnlinkedConsumedValueHook, ExpressionValueConsumer}
 import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.draft3.transforms.linking.expression.consumed.UnaryOperatorEvaluators._

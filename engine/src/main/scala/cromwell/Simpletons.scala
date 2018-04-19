@@ -7,7 +7,6 @@ import wom.types.{WomBooleanType, WomFloatType, WomIntegerType, WomStringType}
 import wom.values.{WomPrimitive, WomSingleFile, WomValue}
 
 import scala.util.Try
-import WomValueSimpleton._
 
 /** Converts database simpletons to `WomValueSimpleton`s, explicitly instantiating objects of "File" type
   * to `WdlSingleFile` instances.

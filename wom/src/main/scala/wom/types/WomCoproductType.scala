@@ -1,7 +1,7 @@
 package wom.types
 import cats.data.NonEmptyList
 import wom.WomExpressionException
-import wom.values.{WomCoproductValue, WomOptionalValue, WomValue}
+import wom.values.{WomCoproductValue, WomValue}
 
 import scala.util.{Failure, Success, Try}
 import mouse.all._

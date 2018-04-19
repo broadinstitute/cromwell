@@ -1,7 +1,6 @@
 package womtool
 
 import java.nio.file.Paths
-import javax.swing.text.Highlighter
 
 import spray.json._
 import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter, SyntaxHighlighter}

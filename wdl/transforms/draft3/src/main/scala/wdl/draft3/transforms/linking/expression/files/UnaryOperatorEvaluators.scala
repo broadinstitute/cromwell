@@ -1,6 +1,5 @@
 package wdl.draft3.transforms.linking.expression.files
 
-import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.FileEvaluator

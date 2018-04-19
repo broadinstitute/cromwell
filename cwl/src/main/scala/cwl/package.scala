@@ -7,7 +7,7 @@ import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
 import cwl.command.ParentName
 import shapeless._
 import wom.executable.Executable
-import wom.expression.{IoFunctionSet, NoIoFunctionSet}
+import wom.expression.IoFunctionSet
 import wom.types._
 
 import scala.util.{Failure, Success, Try}

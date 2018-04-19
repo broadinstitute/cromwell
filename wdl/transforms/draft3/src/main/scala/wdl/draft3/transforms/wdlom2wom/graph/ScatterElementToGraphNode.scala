@@ -18,7 +18,7 @@ import wdl.model.draft3.elements._
 import wdl.model.draft3.graph._
 import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
 import wom.callable.Callable.InputDefinition
-import wom.callable.{Callable, CallableTaskDefinition, WorkflowDefinition}
+import wom.callable.{Callable, WorkflowDefinition}
 import wom.graph.CallNode.{CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNode.GraphNodeSetter
 import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort}

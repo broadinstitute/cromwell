@@ -2,7 +2,6 @@ package wdl.draft3.transforms.wdlom2wom
 
 import cats.syntax.apply._
 import cats.syntax.validated._
-import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.instances.list._
 import common.validation.ErrorOr._
@@ -12,7 +11,7 @@ import wdl.model.draft3.elements.CommandPartElement.StringCommandPartElement
 import wdl.model.draft3.elements._
 import wdl.model.draft3.graph.LinkedGraph
 import wom.{CommandPart, RuntimeAttributes}
-import wom.callable.{Callable, CallableTaskDefinition, TaskDefinition}
+import wom.callable.{Callable, CallableTaskDefinition}
 
 import wdl.model.draft3.graph.expression.WomExpressionMaker.ops._
 import wdl.draft3.transforms.linking.expression._

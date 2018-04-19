@@ -2,14 +2,8 @@ package cromwell.backend.wdl
 
 import cromwell.core.io.AsyncIoFunctions
 import cromwell.core.path.PathFactory
-import wdl4s.parser.MemoryUnit
 import wom.expression.IoFunctionSet
-import wom.format.MemorySize
-import wom.types._
-import wom.values._
-
 import scala.concurrent.Future
-import scala.util.{Success, Try}
 
 trait ReadLikeFunctions extends PathFactory with IoFunctionSet with AsyncIoFunctions {
   

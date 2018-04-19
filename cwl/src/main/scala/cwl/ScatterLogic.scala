@@ -2,7 +2,6 @@ package cwl
 
 import cats.data.NonEmptyList
 import common.Checked
-import cats.syntax.either._
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
 import cwl.ScatterMethod.ScatterMethod
@@ -82,7 +81,6 @@ object ScatterLogic {
 
       stepInputMappings.find({ case (stepInput, _) => stepInput.id == scatterVariableName }) match {
         case Some((stepInput, expressionNode)) =>
-          // find the item type - Can't map over Either in 2.11 so convert back and forth to Validated...
           scatterExpressionItemType(expressionNode).toValidated map { itemType =>
             // create a scatter variable node for other scattered nodes to point to
             stepInput -> ScatterVariableNode(WomIdentifier(scatterVariableName), expressionNode, itemType)

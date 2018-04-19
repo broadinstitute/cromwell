@@ -1,21 +1,16 @@
 package wdl.draft3.transforms.wdlom2wom.graph
 
-import cats.syntax.either._
 import cats.instances.list._
 import cats.syntax.foldable._
-import cats.instances.option._
-import cats.instances.vector._
 import cats.syntax.validated._
-import cats.instances.map._
-import cats.syntax.traverse._
 import common.validation.ErrorOr.{ErrorOr, _}
 import shapeless.Coproduct
 import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.CallElement
 import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
 import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
-import wom.callable.{Callable, CallableTaskDefinition, CommandTaskDefinition}
-import wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
+import wom.callable.{Callable, CallableTaskDefinition}
+import wom.graph.CallNode.{CallNodeAndNewNodes, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode, PlainAnonymousExpressionNode, TaskCallInputExpressionNode}
 import wom.graph._

@@ -10,7 +10,6 @@ import wom.WomExpressionException
 import wom.types._
 import wom.values._
 
-import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 class FileEvaluatorWdlFunctions

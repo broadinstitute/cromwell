@@ -20,9 +20,7 @@ import cromwell.engine.workflow.workflowstore.{StartableState, Submitted, Workfl
 import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
-
 import scala.concurrent.duration._
-import scala.language.postfixOps
 
 class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorBuilder with BeforeAndAfter with Eventually {
   override implicit val actorSystem = system

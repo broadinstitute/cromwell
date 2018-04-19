@@ -16,7 +16,7 @@ import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements._
 import wdl.model.draft3.graph._
 import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
-import wom.callable.{Callable, CallableTaskDefinition}
+import wom.callable.Callable
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.graph.expression.{AnonymousExpressionNode, PlainAnonymousExpressionNode}

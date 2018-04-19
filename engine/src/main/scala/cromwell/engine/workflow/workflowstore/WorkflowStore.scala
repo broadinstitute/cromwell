@@ -2,7 +2,6 @@ package cromwell.engine.workflow.workflowstore
 
 import cats.data.NonEmptyList
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
-import cromwell.database.sql.tables.WorkflowStoreEntry
 import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowSubmissionResponse
 

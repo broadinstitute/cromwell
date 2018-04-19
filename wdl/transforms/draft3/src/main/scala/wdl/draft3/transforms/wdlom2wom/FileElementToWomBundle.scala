@@ -1,7 +1,6 @@
 package wdl.draft3.transforms.wdlom2wom
 
 import cats.instances.vector._
-import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.syntax.validated._
@@ -15,7 +14,7 @@ import cromwell.languages.LanguageFactory
 import cromwell.languages.util.ImportResolver._
 import wdl.draft3.transforms.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition.WorkflowDefinitionConvertInputs
 import wdl.model.draft3.elements._
-import wom.callable.{CallableTaskDefinition, TaskDefinition, WorkflowDefinition, Callable}
+import wom.callable.Callable
 import wom.executable.WomBundle
 import wom.transforms.WomBundleMaker
 import wom.transforms.WomBundleMaker.ops._
@@ -23,7 +22,7 @@ import wdl.draft3.transforms.wdlom2wom.StructEvaluation.StructEvaluationInputs
 import wdl.draft3.transforms.wdlom2wom.TaskDefinitionElementToWomTaskDefinition.TaskDefinitionElementToWomInputs
 import wom.core.{WorkflowOptionsJson, WorkflowSource}
 import wom.types.WomType
-import wom.callable.{CallableTaskDefinition, TaskDefinition, WorkflowDefinition}
+import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
 
 object FileElementToWomBundle {
 

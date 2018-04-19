@@ -4,8 +4,6 @@ import cats.syntax.apply._
 import cats.syntax.validated._
 import cats.syntax.traverse._
 import cats.instances.list._
-import cats.instances.vector._
-import cats.syntax.either._
 import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.graph.GraphElementValueConsumer
 import wdl.model.draft3.graph.GraphElementValueConsumer.ops._

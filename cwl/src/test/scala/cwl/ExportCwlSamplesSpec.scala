@@ -2,7 +2,7 @@ package cwl
 
 import cwl.CommandLineTool.{BaseCommand, CommandInputParameter}
 import cwl.Workflow.{WorkflowInputParameter, WorkflowOutputParameter}
-import cwl.WorkflowStep.{WorkflowStepOutputInnerType, WorkflowStepOutputType}
+import cwl.WorkflowStep.WorkflowStepOutputInnerType
 import cwl.WorkflowStepInput.InputSource
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct

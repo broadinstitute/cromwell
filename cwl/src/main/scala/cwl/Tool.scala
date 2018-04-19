@@ -9,7 +9,7 @@ import cwl.CwlVersion.CwlVersion
 import cwl.Tool.inlineJavascriptRequirements
 import cwl.command.ParentName
 import cwl.requirement.RequirementToAttributeMap
-import shapeless.{Inl, Inr}
+import shapeless.Inl
 import wom.RuntimeAttributes
 import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, OutputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, TaskDefinition}

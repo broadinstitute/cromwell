@@ -5,7 +5,6 @@ import cwl.CwlType.CwlType
 import cwl.SchemaDefRequirement.SchemaDefTypes
 import cwl.command.ParentName
 import shapeless.{Coproduct, Poly1}
-import cats.syntax.apply._
 import cats.instances.list._
 import cats.instances.option._
 import wom.values.{WomArray, WomCoproductValue, WomObjectLike, WomOptionalValue, WomValue}

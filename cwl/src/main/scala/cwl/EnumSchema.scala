@@ -1,7 +1,7 @@
 package cwl
 
 import cats.data.NonEmptyList
-import shapeless.{:+:, CNil, Inl, Witness}
+import shapeless.Witness
 import wom.types.WomEnumerationType
 
 trait EnumSchema {

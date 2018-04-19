@@ -76,8 +76,7 @@ object Settings {
   )
 
   val consoleHostileSettings = List(
-    // Commented until 04/01/18 00:00:00.000 to reduce burden of supporting 2.11
-    // "-Ywarn-unused:imports", // warns about every unused import on every command.
+    "-Ywarn-unused:imports", // warns about every unused import on every command.
     "-Xfatal-warnings"       // makes those warnings fatal.
   )
 
@@ -89,9 +88,8 @@ object Settings {
       sys.env.get("ASSEMBLY_LOG_LEVEL").flatMap(Level.apply).getOrElse((logLevel in assembly).value)
   )
 
-  val ScalaVersion211 = "2.11.11"
-  val ScalaVersion212 = "2.12.4"
-  val ScalaVersion = ScalaVersion212
+  val Scala2_12Version = "2.12.4"
+  val ScalaVersion = Scala2_12Version
   val sharedSettings = ReleasePlugin.projectSettings ++
     cromwellVersionWithGit ++ publishingSettings ++ List(
     organization := "org.broadinstitute",
@@ -104,13 +102,10 @@ object Settings {
         // The default scalacOptions includes console-hostile options.  These options are overridden specifically below
         // for the `console` target.
         baseSettings ++ warningSettings ++ consoleHostileSettings
-      case Some((2, 11)) =>
-        // Scala 2.11 takes a simplified set of options
-        baseSettings
       case _ =>
         throw new NotImplementedError(
           s"Found unsupported Scala version '${scalaVersion.value}'." +
-            s" ${name.value} does not support versions of Scala other than 2.11 or 2.12.")
+            s" ${name.value} does not support versions of Scala other than 2.12.")
     }),
     // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874
     scalacOptions in(Compile, doc) ++= baseSettings ++ List("-no-link-warnings"),
@@ -130,17 +125,16 @@ object Settings {
      */
     coverageEnabled := (CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, 12)) => sys.env.get("ENABLE_COVERAGE").exists(_.toBoolean)
-      case Some((2, 11)) => false
       case _ =>
         throw new NotImplementedError(
           s"Found unsupported Scala version '${scalaVersion.value}'." +
-            s" ${name.value} does not support versions of Scala other than 2.11 or 2.12.")
+            s" ${name.value} does not support versions of Scala other than 2.12.")
     }),
     addCompilerPlugin("org.scalamacros" % "paradise" % paradiseV cross CrossVersion.full)
   )
 
   val crossVersionSettings = List(
-    crossScalaVersions := List(ScalaVersion212, ScalaVersion211)
+    crossScalaVersions := List(Scala2_12Version)
   )
 
   val dockerTags = settingKey[Seq[String]]("The tags for docker builds.")

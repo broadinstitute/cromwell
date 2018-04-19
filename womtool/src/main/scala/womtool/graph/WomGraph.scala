@@ -24,7 +24,6 @@ import wom.expression.NoIoFunctionSet
 import wom.graph._
 import wom.transforms.WomBundleMaker.ops._
 import wom.types.{WomMaybePopulatedFileType, _}
-import wom.values.WomSingleFile
 import womtool.graph.WomGraph._
 
 import scala.collection.JavaConverters._

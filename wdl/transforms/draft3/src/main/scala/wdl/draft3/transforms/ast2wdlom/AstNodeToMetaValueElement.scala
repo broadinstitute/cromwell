@@ -1,13 +1,9 @@
 package wdl.draft3.transforms.ast2wdlom
 
-import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.validated._
-import common.transforms.CheckedAtoB
-import common.validation.Checked._
 import common.validation.Validation._
 import common.validation.ErrorOr.ErrorOr
-import common.validation.ErrorOr._
 import wdl.draft3.parser.WdlParser.{Ast, AstNode, Terminal}
 import wdl.model.draft3.elements.{MetaKvPair, MetaValueElement}
 import wdl.model.draft3.elements.MetaValueElement._

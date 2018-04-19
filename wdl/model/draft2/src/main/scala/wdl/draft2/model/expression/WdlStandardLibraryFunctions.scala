@@ -6,6 +6,7 @@ import common.exception.AggregatedException
 import common.util.TryUtil
 import spray.json._
 import wdl.draft2.model.expression.WdlStandardLibraryFunctions.{crossProduct => stdLibCrossProduct, _}
+import wdl.shared.model.expression.ValueEvaluation
 import wdl.shared.transforms.evaluation.values.EngineFunctions
 import wdl4s.parser.MemoryUnit
 import wom.TsvSerializable
@@ -15,7 +16,7 @@ import wom.types._
 import wom.values.WomArray.WomArrayLike
 import wom.values._
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
 
@@ -33,18 +34,10 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
   private def writeContent(baseName: String, content: String): Try[WomFile] = writeFile(s"${baseName}_${content.md5Sum}.tmp", content)
 
   private def writeToTsv[A <: WomValue with TsvSerializable](functionName: String, params: Seq[Try[WomValue]], defaultIfOptionalEmpty: A): Try[WomFile] = {
-    val wdlClass = defaultIfOptionalEmpty.getClass
-    def castOrDefault(womValue: WomValue): A = womValue match {
-      case WomOptionalValue(_, None) => defaultIfOptionalEmpty
-      case WomOptionalValue(_, Some(v)) => wdlClass.cast(v)
-      case _ => wdlClass.cast(womValue)
-    }
-
     for {
       singleArgument <- extractSingleArgument(functionName, params)
-      downcast <- Try(castOrDefault(singleArgument))
-      tsvSerialized <- downcast.tsvSerialize
-      file <- writeContent(functionName, tsvSerialized)
+      serialized <- ValueEvaluation.serializeWomValue(functionName, singleArgument, defaultIfOptionalEmpty)
+      file <- writeContent(functionName, serialized)
     } yield file
   }
 
@@ -61,25 +54,9 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
   def write_tsv(params: Seq[Try[WomValue]]): Try[WomFile] = writeToTsv("write_tsv", params, WomArray(WomArrayType(WomStringType), List.empty[WomValue]))
   def write_json(params: Seq[Try[WomValue]]): Try[WomFile] = for {
     value <- extractSingleArgument("write_json", params)
-    jsonContent = valueToJson(value)
+    jsonContent = ValueEvaluation.valueToJson(value)
     written <- writeContent("write_json", jsonContent.compactPrint)
   } yield written
-
-  private def valueToJson(womValue: WomValue): JsValue = womValue match {
-    case WomInteger(i) => JsNumber(i)
-    case WomFloat(f) => JsNumber(f)
-    case WomString(s) => JsString(s)
-    case WomBoolean(b) => JsBoolean(b)
-    case f: WomFile => JsString(f.value)
-    case WomPair(left, right) => JsObject(Map("left" -> valueToJson(left), "right" -> valueToJson(right)))
-    case WomArray(_, values) => JsArray(values.map(valueToJson).toVector)
-    case WomMap(_, value) => JsObject(value map { case (k, v) => k.valueString -> valueToJson(v) })
-    case o: WomObjectLike => JsObject(o.values map { case (k, v) => k -> valueToJson(v) })
-    case opt: WomOptionalValue => opt.value match {
-      case Some(inner) => valueToJson(inner)
-      case None => JsNull
-    }
-  }
 
   def read_lines(params: Seq[Try[WomValue]]): Try[WomArray] = {
     for {
@@ -121,7 +98,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
       womString <- WomStringType.coerceRawValue(pattern)
       patternString = womString.valueString
       filePaths <- Try(globHelper(patternString))
-    } yield WomArray(WomArrayType(WomSingleFileType), filePaths.map(WomSingleFile(_)))
+    } yield WomArray(WomArrayType(WomSingleFileType), filePaths.map(WomSingleFile))
   }
 
   def basename(params: Seq[Try[WomValue]]): Try[WomString] = {

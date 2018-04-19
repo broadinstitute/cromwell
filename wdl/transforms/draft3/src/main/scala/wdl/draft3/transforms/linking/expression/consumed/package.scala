@@ -1,11 +1,15 @@
 package wdl.draft3.transforms.linking.expression
 
 import wdl.model.draft3.elements.ExpressionElement
-import wdl.model.draft3.graph.{UnlinkedCallOutputOrIdentifierAndMemberAccessHook, UnlinkedConsumedValueHook, UnlinkedIdentifierHook, ExpressionValueConsumer}
+import wdl.model.draft3.graph.{UnlinkedConsumedValueHook, ExpressionValueConsumer}
 import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
 import wdl.model.draft3.elements.ExpressionElement._
+import wdl.draft3.transforms.linking.expression.consumed.UnaryOperatorEvaluators._
 import wdl.draft3.transforms.linking.expression.consumed.BinaryOperatorEvaluators._
 import wdl.draft3.transforms.linking.expression.consumed.EngineFunctionEvaluators._
+import wdl.draft3.transforms.linking.expression.consumed.LiteralEvaluators._
+import wdl.draft3.transforms.linking.expression.consumed.LookupEvaluators._
+import wdl.draft3.transforms.linking.expression.consumed.TernaryIfEvaluator._
 
 package object consumed {
 
@@ -14,48 +18,9 @@ package object consumed {
       elements.flatMap { e: ExpressionElement => e.expressionConsumedValueHooks }
   }
 
-  implicit val identifierLookupUnlinkedValueConsumer: ExpressionValueConsumer[IdentifierLookup] = new ExpressionValueConsumer[IdentifierLookup] {
-    override def expressionConsumedValueHooks(a: IdentifierLookup): Set[UnlinkedConsumedValueHook] =
-      Set[UnlinkedConsumedValueHook](UnlinkedIdentifierHook(a.identifier))
-  }
-
-  implicit val objectLiteralUnlinkedValueConsumer: ExpressionValueConsumer[ObjectLiteral] = new ExpressionValueConsumer[ObjectLiteral] {
-    override def expressionConsumedValueHooks(o: ObjectLiteral): Set[UnlinkedConsumedValueHook] =
-      o.elements.values.toSet[ExpressionElement].expressionConsumedValueHooks
-  }
-
-  implicit val mapLiteralUnlinkedValueConsumer: ExpressionValueConsumer[MapLiteral] = new ExpressionValueConsumer[MapLiteral] {
-    override def expressionConsumedValueHooks(m: MapLiteral): Set[UnlinkedConsumedValueHook] =
-      m.elements.keys.toSet[ExpressionElement].expressionConsumedValueHooks ++
-        m.elements.values.toSet[ExpressionElement].expressionConsumedValueHooks
-  }
-
-  implicit val pairLiteralUnlinkedValueConsumer: ExpressionValueConsumer[PairLiteral] = new ExpressionValueConsumer[PairLiteral] {
-    override def expressionConsumedValueHooks(p: PairLiteral): Set[UnlinkedConsumedValueHook] =
-      p.left.expressionConsumedValueHooks ++ p.right.expressionConsumedValueHooks
-  }
-
   implicit val kvPairUnlinkedValueConsumer: ExpressionValueConsumer[KvPair] = new ExpressionValueConsumer[KvPair] {
     override def expressionConsumedValueHooks(a: ExpressionElement.KvPair): Set[UnlinkedConsumedValueHook] =
       a.value.expressionConsumedValueHooks
-  }
-
-  implicit val arrayLiteralUnlinkedValueConsumer: ExpressionValueConsumer[ArrayLiteral] = new ExpressionValueConsumer[ArrayLiteral] {
-    override def expressionConsumedValueHooks(a: ArrayLiteral): Set[UnlinkedConsumedValueHook] =
-      a.elements.toSet[ExpressionElement].expressionConsumedValueHooks
-  }
-
-  implicit val identifierMemberAccessUnlinkedValueConsumer: ExpressionValueConsumer[IdentifierMemberAccess] = new ExpressionValueConsumer[IdentifierMemberAccess] {
-    override def expressionConsumedValueHooks(a: IdentifierMemberAccess): Set[UnlinkedConsumedValueHook] =
-      Set[UnlinkedConsumedValueHook](UnlinkedCallOutputOrIdentifierAndMemberAccessHook(a.first, a.second))
-  }
-
-  implicit val stringExpressionUnlinkedValueConsumer: ExpressionValueConsumer[StringExpression] = new ExpressionValueConsumer[StringExpression] {
-    override def expressionConsumedValueHooks(a: StringExpression): Set[UnlinkedConsumedValueHook] =
-      a.pieces.flatMap {
-          case StringLiteral(_) => List.empty
-          case StringPlaceholder(expr) => expr.expressionConsumedValueHooks.toList
-      }.toSet
   }
 
   implicit val expressionElementUnlinkedValueConsumer: ExpressionValueConsumer[ExpressionElement] = new ExpressionValueConsumer[ExpressionElement] {
@@ -67,9 +32,17 @@ package object consumed {
       case a: ArrayLiteral => a.expressionConsumedValueHooks
       case a: MapLiteral => a.expressionConsumedValueHooks
 
+      // Member access:
       case a: IdentifierLookup => a.expressionConsumedValueHooks
       case a: IdentifierMemberAccess => a.expressionConsumedValueHooks
+      case a: ExpressionMemberAccess => a.expressionConsumedValueHooks
 
+      // Unary operators:
+      case a: UnaryNegation => a.expressionConsumedValueHooks
+      case a: UnaryPlus => a.expressionConsumedValueHooks
+      case a: LogicalNot => a.expressionConsumedValueHooks
+
+      // Binary operators:
       case a: LogicalOr => a.expressionConsumedValueHooks
       case a: LogicalAnd => a.expressionConsumedValueHooks
       case a: Equals => a.expressionConsumedValueHooks
@@ -83,6 +56,8 @@ package object consumed {
       case a: Multiply => a.expressionConsumedValueHooks
       case a: Divide => a.expressionConsumedValueHooks
       case a: Remainder => a.expressionConsumedValueHooks
+
+      case a: TernaryIf => a.expressionConsumedValueHooks
 
       // Engine functions:
       case StdoutElement => StdoutElement.expressionConsumedValueHooks

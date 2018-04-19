@@ -2,7 +2,6 @@ package wom.types
 
 import cats.data.NonEmptyList
 import org.scalatest.{FlatSpec, Matchers}
-import shapeless.Coproduct
 import wom.values.{WomBoolean, WomCoproductValue, WomString}
 
 class WomCoproductSpec extends FlatSpec with Matchers {

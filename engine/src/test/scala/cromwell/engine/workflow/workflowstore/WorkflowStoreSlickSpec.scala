@@ -6,14 +6,13 @@ import cromwell.core.Tags.DbmsTest
 import cromwell.core.WorkflowSourceFilesCollection
 import cromwell.database.slick.EngineSlickDatabase
 import cromwell.services.EngineServicesStore
-import cromwell.services.EngineServicesStore.engineDatabaseConfig
 import cromwell.services.ServicesStore.EnhancedSqlDatabase
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 class WorkflowStoreSlickSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {

@@ -6,13 +6,11 @@ import common.validation.ErrorOr.ErrorOr
 import wdl.draft3.transforms.wdlom2wom.graph.{GraphNodeMakerInputs, WorkflowGraphElementToGraphNode}
 import wdl.model.draft3.elements.{WorkflowDefinitionElement, WorkflowGraphElement}
 import wdl.draft3.transforms.linking.graph._
-import wdl.model.draft3.graph.{GeneratedValueHandle, LinkedGraph, LinkedGraphEdge}
-import wom.callable.{Callable, CallableTaskDefinition, TaskDefinition, WorkflowDefinition}
+import wdl.model.draft3.graph.{GeneratedValueHandle, LinkedGraph}
+import wom.callable.{Callable, WorkflowDefinition}
 import wom.graph.GraphNodePort.OutputPort
-import wom.graph.{CallNode, GraphNode, Graph => WomGraph}
+import wom.graph.{GraphNode, Graph => WomGraph}
 import wom.types.WomType
-import scalax.collection.Graph
-import scalax.collection.GraphEdge.DiEdge
 
 object WorkflowDefinitionElementToWomWorkflowDefinition {
 
@@ -60,10 +58,7 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
                            callables: Set[Callable]): ErrorOr[WomGraph] = {
 
     def graphNodeCreationFold(currentValidation: ErrorOr[List[GraphNode]], next: WorkflowGraphElement): ErrorOr[List[GraphNode]] = {
-      def outputName(node: GraphNode, port: OutputPort) = node match {
-        case _: CallNode => port.identifier.fullyQualifiedName.value
-        case _ => port.identifier.localName.value
-      }
+      def outputName(node: GraphNode, port: OutputPort): String = port.identifier.localName.value
 
       currentValidation flatMap { currentList =>
         val availableValues: Map[String, OutputPort] = (for {

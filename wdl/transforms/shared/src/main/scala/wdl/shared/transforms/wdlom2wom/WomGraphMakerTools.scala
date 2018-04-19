@@ -9,9 +9,9 @@ object WomGraphMakerTools {
   // - A scatter block
   // - An if block
   // - (NB: top level workflows are already given wildcard outputs in the WDL Workflow building phase)
-  def addDefaultOutputs(g: Graph, compoundCallIdentifiers: Boolean = true): Graph = Graph(g.nodes.union((g.nodes collect {
+  def addDefaultOutputs(g: Graph, outputIdentifierCompoundingFunction: (WomIdentifier, String) => WomIdentifier): Graph = Graph(g.nodes.union((g.nodes collect {
     case node: CallNode => node.outputPorts.map(op => {
-      val identifier = if (node.compoundOutputIdentifiers) node.identifier.combine(op.name) else WomIdentifier(op.name)
+      val identifier = outputIdentifierCompoundingFunction(node.identifier, op.identifier.localName.value)
       PortBasedGraphOutputNode(identifier, op.womType, op)
     })
     case node: ExposedExpressionNode => node.outputPorts.map(op => {

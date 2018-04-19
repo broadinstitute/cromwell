@@ -2,8 +2,6 @@ package womtool.input
 
 import java.nio.file.{Files, Paths}
 
-// TODO: 2.11:
-import cats.syntax.either._
 import common.Checked
 import common.validation.Validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}

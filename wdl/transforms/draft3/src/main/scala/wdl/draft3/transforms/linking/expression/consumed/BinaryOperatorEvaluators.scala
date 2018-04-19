@@ -1,11 +1,9 @@
 package wdl.draft3.transforms.linking.expression.consumed
 
-
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.UnlinkedConsumedValueHook
 import wdl.model.draft3.graph.ExpressionValueConsumer
 import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
-import wom.types.WomType
 
 object BinaryOperatorEvaluators {
   implicit val logicalOrEvaluator: ExpressionValueConsumer[LogicalOr] = forOperation

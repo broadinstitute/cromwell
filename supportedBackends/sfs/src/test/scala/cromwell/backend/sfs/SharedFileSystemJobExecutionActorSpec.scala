@@ -40,7 +40,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     StandardValidatedRuntimeAttributesBuilder.default(Some(TestConfig.optionalRuntimeConfig)).definitions.toSet
 
   def executeSpec(docker: Boolean): Any = {
-    val expectedOutputs: CallOutputs = WomMocks.mockOutputExpectations(Map("salutation" -> WomString("Hello you !")))
+    val expectedOutputs: CallOutputs = WomMocks.mockOutputExpectations(Map("hello.salutation" -> WomString("Hello you !")))
     
     val expectedResponse = JobSucceededResponse(mock[BackendJobDescriptorKey], Some(0), expectedOutputs, None, Seq.empty, None)
     val runtime = if (docker) """runtime { docker: "ubuntu:latest" }""" else ""
@@ -98,7 +98,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
     val expectedOutputs: CallOutputs = WomMocks.mockOutputExpectations(
       Map(
-        "out" -> WomArray(WomArrayType(WomStringType),
+        "localize.out" -> WomArray(WomArrayType(WomStringType),
           Array(
             WomString("content from json inputs"),
             WomString("content from call inputs")))
@@ -258,7 +258,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
         BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, Option(shard), 1), runtimeAttributes, fqnWdlMapToDeclarationMap(symbolMaps), NoDocker, Map.empty)
       val backend = createBackend(jobDescriptor, TestConfig.backendRuntimeConfigDescriptor)
       val response =
-        JobSucceededResponse(mock[BackendJobDescriptorKey], Some(0), WomMocks.mockOutputExpectations(Map("out" -> WomInteger(shard))), None, Seq.empty, None)
+        JobSucceededResponse(mock[BackendJobDescriptorKey], Some(0), WomMocks.mockOutputExpectations(Map("scattering.out" -> WomInteger(shard))), None, Seq.empty, None)
       executeJobAndAssertOutputs(backend, response)
     }
   }
@@ -275,9 +275,9 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val expectedA = WomSingleFile(jobPaths.callExecutionRoot.resolve("a").toAbsolutePath.pathAsString)
     val expectedB = WomSingleFile(jobPaths.callExecutionRoot.resolve("dir").toAbsolutePath.resolve("b").pathAsString)
     val expectedOutputs = WomMocks.mockOutputExpectations(Map(
-      "o1" -> expectedA,
-      "o2" -> WomArray(WomArrayType(WomSingleFileType), Seq(expectedA, expectedB)),
-      "o3" -> WomSingleFile(inputFile)
+      "localize.o1" -> expectedA,
+      "localize.o2" -> WomArray(WomArrayType(WomSingleFileType), Seq(expectedA, expectedB)),
+      "localize.o3" -> WomSingleFile(inputFile)
     ))
     val expectedResponse = JobSucceededResponse(jobDescriptor.key, Some(0), expectedOutputs, None, Seq.empty, None)
 

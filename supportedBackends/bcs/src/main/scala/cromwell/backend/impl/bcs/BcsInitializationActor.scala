@@ -3,12 +3,7 @@ package cromwell.backend.impl.bcs
 import akka.actor.ActorRef
 import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
-import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
-import cromwell.filesystems.oss.OssPathBuilderFactory
-import net.ceedubs.ficus.Ficus._
-import cats.instances.future._
-import cats.instances.list._
-import cats.syntax.traverse._
+import cromwell.core.path.PathBuilder
 
 import scala.concurrent.Future
 import wom.graph.CommandCallNode

@@ -10,7 +10,6 @@ import common.validation.Validation._
 import cwl.command.ParentName
 import cwl.preprocessor.CwlPreProcessor._
 import cwl.{CwlDecoder, FileAndId, FullyQualifiedName}
-import io.circe.Json.JNumber
 import io.circe.optics.JsonPath._
 import io.circe.{Json, JsonNumber, JsonObject}
 import mouse.all._

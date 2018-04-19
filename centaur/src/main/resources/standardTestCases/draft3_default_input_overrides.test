@@ -2,6 +2,7 @@ name: draft3_default_input_overrides
 testFormat: workflowsuccess
 workflowType: WDL
 workflowTypeVersion: draft-3
+tags: ["draft-3"]
 
 files {
   workflow: wdl_draft3/default_input_overrides/default_input_overrides.wdl

@@ -1,6 +1,5 @@
 package wom.executable
 
-import cats.syntax.either._
 import common.Checked
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr

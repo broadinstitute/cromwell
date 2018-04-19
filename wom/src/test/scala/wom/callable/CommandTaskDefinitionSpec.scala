@@ -105,7 +105,7 @@ object CommandTaskDefinitionSpec {
     meta = Map.empty,
     parameterMeta = Map.empty,
     outputs = List(Callable.OutputDefinition(LocalName("bar"), WomStringType, null)),
-    inputs = List(Callable.RequiredInputDefinition(LocalName("bar"), WomStringType)),
+    inputs = List(Callable.RequiredInputDefinition(LocalName("bar"), WomStringType), Callable.RequiredInputDefinition(LocalName("bar"), WomStringType)),
     adHocFileCreation = Set.empty,
     environmentExpressions = Map.empty
   )

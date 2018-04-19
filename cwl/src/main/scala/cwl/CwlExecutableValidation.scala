@@ -1,6 +1,5 @@
 package cwl
 
-import cats.syntax.either._
 import common.Checked
 import common.validation.Checked._
 import io.circe.Json

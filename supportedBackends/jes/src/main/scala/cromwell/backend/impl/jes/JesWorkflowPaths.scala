@@ -1,6 +1,5 @@
 package cromwell.backend.impl.jes
 
-import akka.actor.ActorSystem
 import com.google.api.gax.retrying.RetrySettings
 import com.google.auth.Credentials
 import com.typesafe.config.Config

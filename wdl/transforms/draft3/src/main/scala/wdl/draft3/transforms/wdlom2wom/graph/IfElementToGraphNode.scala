@@ -16,7 +16,7 @@ import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements._
 import wdl.model.draft3.graph._
 import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
-import wom.callable.{Callable, CallableTaskDefinition}
+import wom.callable.Callable
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.graph.expression.{AnonymousExpressionNode, PlainAnonymousExpressionNode}
@@ -60,7 +60,7 @@ object IfElementToGraphNode {
       val innerGraph: ErrorOr[Graph] = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
 
       innerGraph map { ig =>
-        val withOutputs = WomGraphMakerTools.addDefaultOutputs(ig, compoundCallIdentifiers = false)
+        val withOutputs = WomGraphMakerTools.addDefaultOutputs(ig, (_, localName) => WomIdentifier(localName))
         val generatedAndNew = ConditionalNode.wireInConditional(withOutputs, expressionNode)
         generatedAndNew.nodes
       }

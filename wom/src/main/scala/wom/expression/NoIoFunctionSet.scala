@@ -1,7 +1,5 @@
 package wom.expression
 
-import java.util.concurrent.Executors
-
 import wom.values.WomSingleFile
 
 import scala.concurrent.{ExecutionContext, Future}

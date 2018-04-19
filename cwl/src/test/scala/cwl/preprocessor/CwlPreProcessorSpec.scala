@@ -2,13 +2,10 @@ package cwl.preprocessor
 
 import better.files.File
 import cats.data.NonEmptyList
-import cats.syntax.either._
 import common.validation.Parse.Parse
 import org.scalamock.function.MockFunction1
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
-
-import scala.language.postfixOps
 
 class CwlPreProcessorSpec extends FlatSpec with Matchers with MockFactory {
   behavior of "CwlPreProcessor"

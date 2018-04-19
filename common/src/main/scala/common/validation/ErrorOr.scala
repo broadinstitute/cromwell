@@ -9,6 +9,13 @@ import cats.instances.list._
 object ErrorOr {
   type ErrorOr[+A] = Validated[NonEmptyList[String], A]
 
+  implicit class EnhancedErrorOr[A](val eoa: ErrorOr[A]) extends AnyVal {
+    def contextualizeErrors(s: String): ErrorOr[A] = eoa.leftMap { errors =>
+      val total = errors.size
+      errors.zipWithIndex map { case (e, i) => s"Failed to $s (reason ${i + 1} of $total): $e" }
+    }
+  }
+
   implicit class ShortCircuitingFlatMap[A](val fa: ErrorOr[A]) extends AnyVal {
     /**
       * Not consistent with `Applicative#ap` but useful in for comprehensions.

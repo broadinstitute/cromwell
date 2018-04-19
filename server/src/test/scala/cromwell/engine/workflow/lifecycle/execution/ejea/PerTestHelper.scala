@@ -1,16 +1,13 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import java.util.UUID
-
 import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{TestFSMRef, TestProbe}
 import cromwell.backend.BackendJobExecutionActor.{ExecuteJobCommand, RecoverJobCommand}
 import cromwell.backend._
 import cromwell.backend.standard.callcaching._
-import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.callcaching._
-import cromwell.core.{CallOutputs, JobExecutionToken, WorkflowId}
+import cromwell.core.{CallOutputs, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._

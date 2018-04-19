@@ -6,10 +6,8 @@ import better.files.{File => BFile}
 import cats.data.EitherT._
 import cats.data.NonEmptyList
 import cats.effect.IO
-import cats.instances.try_._
 import cats.syntax.either._
 import cats.{Applicative, Monad}
-import common.legacy.TwoElevenSupport._
 import common.validation.ErrorOr._
 import common.validation.Parse._
 import cwl.preprocessor.CwlPreProcessor
@@ -29,9 +27,9 @@ object CwlDecoder {
       }
 
     val cwlToolResult =
-      Try(%%("cwltool", "--quiet", "--print-pre", path.toString)).
-        tacticalToEither.
-        leftMap(t => NonEmptyList.one(s"running cwltool on file ${path.toString} failed with ${t.getMessage}"))
+      Try(%%("cwltool", "--quiet", "--print-pre", path.toString))
+        .toEither
+        .leftMap(t => NonEmptyList.one(s"running cwltool on file ${path.toString} failed with ${t.getMessage}"))
 
     fromEither[IO](cwlToolResult flatMap resultToEither)
   }

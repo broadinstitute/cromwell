@@ -7,7 +7,7 @@ import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
 import cwl.command.ParentName
 import shapeless._
 import wom.executable.Executable
-import wom.expression.{IoFunctionSet, NoIoFunctionSet}
+import wom.expression.IoFunctionSet
 import wom.types._
 
 import scala.util.{Failure, Success, Try}
@@ -106,6 +106,9 @@ package object cwl extends TypeAliases {
           case i if i.`type`.isDefined => FullyQualifiedName(i.id).id -> i.`type`.get
         })
         case Cwl.CommandLineTool(clt) => selectWomTypeInputs(clt.inputs collect {
+          case i if i.`type`.isDefined => FullyQualifiedName(i.id).id -> i.`type`.get
+        })
+        case Cwl.ExpressionTool(et) => selectWomTypeInputs(et.inputs collect {
           case i if i.`type`.isDefined => FullyQualifiedName(i.id).id -> i.`type`.get
         })
       }

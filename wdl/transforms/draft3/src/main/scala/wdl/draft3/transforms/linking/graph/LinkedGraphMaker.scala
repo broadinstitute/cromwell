@@ -102,7 +102,7 @@ object LinkedGraphMaker {
     if (reversed.lengthCompare(reversedMap.size) == 0) {
       reversedMap.validNel
     } else {
-      s"Duplicated generated value handles found in ${reversedMap.keys.map(_.linkableName)}".invalidNel
+      s"Duplicate generated values found in: ${reversed.map(_._1.linkableName).sorted.mkString(", ")}".invalidNel
     }
   }
 }

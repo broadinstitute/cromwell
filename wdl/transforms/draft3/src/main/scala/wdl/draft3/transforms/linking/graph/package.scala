@@ -4,8 +4,6 @@ import cats.syntax.apply._
 import cats.syntax.validated._
 import cats.syntax.traverse._
 import cats.instances.list._
-import cats.instances.vector._
-import cats.syntax.either._
 import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.graph.GraphElementValueConsumer
 import wdl.model.draft3.graph.GraphElementValueConsumer.ops._
@@ -56,8 +54,10 @@ package object graph {
 
   implicit val callElementUnlinkedValueGenerator: UnlinkedValueGenerator[CallElement] = new UnlinkedValueGenerator[CallElement] {
     override def generatedValueHandles(a: CallElement, typeAliases: Map[String, WomType], callables: Set[Callable]): ErrorOr[Set[GeneratedValueHandle]] = {
-      def callableOutputToHandle(callable: Callable)(callableOutput: OutputDefinition): GeneratedValueHandle =
-        GeneratedCallOutputValueHandle(callable.name, callableOutput.name, callableOutput.womType)
+      def callableOutputToHandle(callable: Callable)(callableOutput: OutputDefinition): GeneratedValueHandle = {
+        val callAlias = a.alias.getOrElse(callable.name)
+        GeneratedCallOutputValueHandle(callAlias, callableOutput.name, callableOutput.womType)
+      }
 
       callables.find(_.name == a.callableName) match {
         case Some(callable) => callable.outputs.map(callableOutputToHandle(callable)).toSet.validNel

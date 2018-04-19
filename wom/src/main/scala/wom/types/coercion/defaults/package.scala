@@ -15,7 +15,9 @@ package object defaults {
   implicit val womFloatCoercer: WomTypeCoercer[WomFloat] = defaultCoercionForType[WomFloat](WomFloatType)
   implicit val womStringCoercer: WomTypeCoercer[WomString] = defaultCoercionForType[WomString](WomStringType)
   implicit val womSingleFileCoercer: WomTypeCoercer[WomSingleFile] = defaultCoercionForType[WomSingleFile](WomSingleFileType)
+  implicit val womObjectCoercer: WomTypeCoercer[WomObject] = defaultCoercionForType[WomObject](WomObjectType)
 
+  implicit val womOptionalOfAnyCoercer = defaultCoercionForType[WomOptionalValue](WomOptionalType(WomAnyType))
   implicit val womArrayOfAnyCoercer = defaultCoercionForType[WomArray](WomArrayType(WomAnyType))
   implicit def womArrayTypeCoercer(arrayType: WomArrayType): WomTypeCoercer[WomArray] = defaultCoercionForType[WomArray](arrayType)
 

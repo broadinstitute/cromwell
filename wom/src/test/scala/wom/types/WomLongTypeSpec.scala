@@ -1,7 +1,7 @@
 package wom.types
 
-import wom.values.{WomInteger, WomLong, WomString, WomValue}
-import org.scalacheck.{Arbitrary, Gen, Properties}
+import wom.values.{WomInteger, WomLong, WomString}
+import org.scalacheck.Properties
 import org.scalacheck.Prop._
 import spray.json.{JsNumber, JsString}
 

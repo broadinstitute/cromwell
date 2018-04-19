@@ -128,7 +128,7 @@ case class Workflow private(
           def lookupOutputSource(fqn: FullyQualifiedName): Checked[OutputPort] = {
             def isRightOutputPort(op: GraphNodePort.OutputPort) = FullyQualifiedName.maybeApply(op.name) match {
               case Some(f) => f.id == fqn.id
-              case None => op.name == fqn.id
+              case None => op.internalName == fqn.id
             }
 
             def sourceNode(graph: Set[GraphNode]): Checked[GraphNode] = {

@@ -26,7 +26,7 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
   workflowDescriptor.id returns WorkflowId.randomId()
   executionData.workflowDescriptor returns workflowDescriptor
   val jobKey = mock[BackendJobDescriptorKey]
-  val call = CommandCallNode(WomIdentifier("JobPreparationSpec_call"), null, null, null)
+  val call = CommandCallNode(WomIdentifier("JobPreparationSpec_call"), null, null, null, null)
   jobKey.call returns call
   val serviceRegistryProbe = TestProbe()
   val ioActor = TestProbe()

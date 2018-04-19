@@ -3,7 +3,7 @@ package cromwell.backend.impl.tes
 import akka.actor.ActorRef
 import cromwell.backend.standard._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
-import cromwell.core.path.{PathBuilder, PathBuilderFactory}
+import cromwell.core.path.PathBuilder
 import wom.graph.CommandCallNode
 
 import scala.concurrent.Future

@@ -4,7 +4,6 @@ import cromwell.backend.BackendInitializationData
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.standard.{StandardExpressionFunctions, StandardInitializationActor, StandardInitializationActorParams}
 import cromwell.backend.wfs.WorkflowPathBuilder
-import cromwell.core.path.PathBuilderFactory
 
 import scala.concurrent.Future
 

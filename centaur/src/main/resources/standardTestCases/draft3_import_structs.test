@@ -2,6 +2,7 @@ name: draft3_import_structs
 testFormat: workflowsuccess
 workflowType: WDL
 workflowTypeVersion: draft-3
+tags: ["draft-3"]
 
 files {
   workflow: wdl_draft3/import_structs/import_structs.wdl

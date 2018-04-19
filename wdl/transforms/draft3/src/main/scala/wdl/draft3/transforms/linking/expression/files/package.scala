@@ -35,6 +35,7 @@ package object files {
         case a: IdentifierLookup => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
         case a: ExpressionMemberAccess => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
         case a: IdentifierMemberAccess => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
+        case a: IndexAccess => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
 
         // Unary operators:
         case a: UnaryNegation => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)

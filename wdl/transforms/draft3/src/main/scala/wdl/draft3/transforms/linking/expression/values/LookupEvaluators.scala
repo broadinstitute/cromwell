@@ -8,8 +8,8 @@ import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wom.expression.IoFunctionSet
-import wom.types.{WomCompositeType, WomOptionalType}
-import wom.values.{WomObject, WomOptionalValue, WomPair, WomValue}
+import wom.types._
+import wom.values._
 
 
 object LookupEvaluators {
@@ -59,6 +59,32 @@ object LookupEvaluators {
         case Some(lookupNel) => doLookup(foundValue, lookupNel) map { EvaluatedValue(_, Seq.empty) }
         case None => EvaluatedValue(foundValue, Seq.empty).validNel
       }}
+    }
+  }
+
+  implicit val indexAccessValueEvaluator: ValueEvaluator[IndexAccess] = (a, inputs, ioFunctionSet, forCommandInstantiationOptions) => {
+    (a.expressionElement.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions), a.index.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) flatMapN { (lhs, rhs) =>
+      val value: ErrorOr[WomValue] = (lhs.value, rhs.value) match {
+        case (array: WomArray, WomInteger(index)) =>
+          if (array.value.length > index)
+            array.value(index).validNel
+          else
+            s"Bad array access $a: Array size ${array.value.length} does not have an index value '$index'".invalidNel
+        case (WomObject(values, _), WomString(index)) =>
+          if(values.contains(index))
+            values(index).validNel
+          else
+            s"Bad Object access $a: Object with keys [${values.keySet.mkString(", ")}] does not have an index value [$index]".invalidNel
+        case (WomMap(mapType, values), index) =>
+          if(values.contains(index))
+            values(index).validNel
+          else
+            s"Bad Map access $a: This ${mapType.toDisplayString} does not have a ${index.womType.toDisplayString} index value [${index.toWomString}]".invalidNel
+        case (otherCollection, otherKey) =>
+          s"Bad index access $a: Cannot use '${otherKey.womType.toDisplayString}' to index '${otherCollection.womType.toDisplayString}'".invalidNel
+      }
+
+      value map { EvaluatedValue(_, lhs.sideEffectFiles ++ rhs.sideEffectFiles) }
     }
   }
 

@@ -33,6 +33,10 @@ object AstNodeToExpressionElement {
       case more => s"No WDL support for ${more.size}-tuples in draft 3".invalidNelCheck
     }).toValidated
     case a: Ast if a.getName == "ArrayLiteral" => a.getAttributeAsVector[ExpressionElement]("values").toValidated.map(ArrayLiteral)
+    case a: Ast if a.getName == "ArrayOrMapLookup" => {
+      (a.getAttributeAs[ExpressionElement]("lhs").toValidated : ErrorOr[ExpressionElement],
+        a.getAttributeAs[ExpressionElement]("rhs").toValidated : ErrorOr[ExpressionElement]) mapN IndexAccess
+    }
     case a: Ast if a.getName == "MemberAccess" => handleMemberAccess(a)
     case a: Ast if a.getName == "ObjectLiteral" =>
       (for {

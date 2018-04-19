@@ -60,3 +60,11 @@ The backend/filesystem pairings are as follows:
 
 Additional filesystems capabilities can be added depending on the backend.
 For instance, an HPC backend can be configured to work with files on Google Cloud Storage. See the [HPC documentation](HPC) for more details.
+
+**Choosing a Backend**
+
+The order of operations to choose a backend are:
+
+    Check if a default backend is declared within the workflow options.
+    Check if the task definition includes the runtime attribute key backend.
+    Check if a default backend is declared.

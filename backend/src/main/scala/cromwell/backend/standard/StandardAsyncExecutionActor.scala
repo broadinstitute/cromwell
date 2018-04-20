@@ -707,7 +707,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def handleExecutionFailure(runStatus: StandardAsyncRunStatus,
                              handle: StandardAsyncPendingExecutionHandle,
                              returnCode: Option[Int]): Future[ExecutionHandle] = {
-    Future.successful(FailedNonRetryableExecutionHandle(new Exception(s"Task failed for unknown reason: $runStatus"), returnCode))
+    val exception = new RuntimeException(s"Task ${handle.pendingJob.jobId} failed for unknown reason: $runStatus")
+    Future.successful(FailedNonRetryableExecutionHandle(exception, returnCode))
   }
 
   // See executeOrRecoverSuccess

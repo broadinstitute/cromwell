@@ -406,20 +406,20 @@ trait RuntimeAttributesValidation[ValidatedType] {
     * @return The new version of this validation.
     */
   final def configDefaultWomValue(optionalRuntimeConfig: Option[Config]): Option[WomValue] = {
-    optionalRuntimeConfig flatMap { config =>
-      val value = config.getValue(key).unwrapped()
-      coercion.collectFirst({
-        case womType if womType.coerceRawValue(value).isSuccess => {
-          womType.coerceRawValue(value).get
+    optionalRuntimeConfig collect {
+      case config if config.hasPath(key) =>
+        val value = config.getValue(key).unwrapped()
+        coercion collectFirst {
+          case womType if womType.coerceRawValue(value).isSuccess => womType.coerceRawValue(value).get
+        } getOrElse {
+          BadDefaultAttribute(WomString(value.toString))
         }
-      }) orElse Option(BadDefaultAttribute(WomString(value.toString)))
     }
   }
 
   final def configDefaultValue(optionalRuntimeConfig: Option[Config]): Option[String] = {
-    optionalRuntimeConfig match {
-      case Some(config) if config.hasPath(key) => Option(config.getValue(key).unwrapped().toString)
-      case _ => None
+    optionalRuntimeConfig collect {
+      case config if config.hasPath(key) => config.getValue(key).unwrapped().toString
     }
   }
 

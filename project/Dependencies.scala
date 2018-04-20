@@ -3,9 +3,9 @@ import sbt._
 object Dependencies {
   val akkaHttpV = "10.0.10"
   val akkaV = "2.5.4"
-  val alibabaCloudCoreV = "3.2.3"
-  val alibabaCloudOssV = "2.8.3"
-  val alibabaCloudBcsV = "5.1.0"
+  val alibabaCloudCoreV = "3.6.0"
+  val alibabaCloudOssV = "3.1.0"
+  val alibabaCloudBcsV = "5.3.2"
   val ammoniteOpsV = "1.0.1"
   val apacheHttpClientV = "4.5.3"
   val apacheHttpCoreV = "4.4.6"
@@ -225,14 +225,12 @@ object Dependencies {
 
   private val aliyunOssDependencies = List(
     "com.aliyun.oss" % "aliyun-sdk-oss" % alibabaCloudOssV
-      exclude("commons-beanutils", "commons-beanutils-core")
-      exclude("commons-collections", "commons-collections")
+      // stax is included twice by oss 3.1.0 and cause assembly merge conflicts via stax vs. javax.xml.stream
+      exclude("stax", "stax-api")
   )
 
   private val aliyunBatchComputeDependencies = List(
-    "com.aliyun" % "aliyun-java-sdk-core" % alibabaCloudCoreV
-      exclude("commons-beanutils", "commons-beanutils-core")
-      exclude("commons-collections", "commons-collections"),
+    "com.aliyun" % "aliyun-java-sdk-core" % alibabaCloudCoreV,
     "com.aliyun" % "aliyun-java-sdk-batchcompute" % alibabaCloudBcsV
   )
 

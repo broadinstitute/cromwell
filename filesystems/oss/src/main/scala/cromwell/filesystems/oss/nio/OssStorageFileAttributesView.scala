@@ -4,6 +4,7 @@ import java.nio.file.NoSuchFileException
 import java.nio.file.attribute.{BasicFileAttributeView, FileTime}
 
 import com.aliyun.oss.OSSClient
+import com.aliyun.oss.model.GenericRequest
 
 import scala.util.Try
 
@@ -17,7 +18,9 @@ final case class OssStorageFileAttributesView(ossClient: OSSClient, path: OssSto
       return OssStorageDirectoryAttributes(path)
     }
 
-    if (!ossClient.doesObjectExist(ossPath.bucket, ossPath.key)) {
+    val request = new GenericRequest(ossPath.bucket, ossPath.key)
+    request.setLogEnabled(false)
+    if (!ossClient.doesObjectExist(request)) {
       throw new NoSuchFileException(path.toString)
     }
 

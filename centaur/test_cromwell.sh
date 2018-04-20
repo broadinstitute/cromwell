@@ -24,8 +24,7 @@ Arguments:
     -r    Directory where script is run (defaults to current directory)
     -g    Generate code coverage output for the centaur main classes
     -c    If supplied, the config file to pass to Cromwell
-    -t    If supplied, the file containing a Refresh Token that can be passed into the appropriate options file
-    -s    If supplied, the Google service account json that should be used for various centaur operations
+    -t    If supplied, the timeout for request-plus-response from Centaur to Cromwell
     -e    If supplied, will exclude tests with this tag
     -p    If supplied, number of tests to be run in parallel. 16 is the default
     -i    If supplied, will run the tests in this directory instead of the standard tests
@@ -35,8 +34,9 @@ INITIAL_DIR=$(pwd)
 RUN_DIR=$(pwd)
 TEST_THREAD_COUNT=16
 CENTAUR_SBT_COVERAGE=false
+CROMWELL_TIMEOUT=10s
 
-while getopts ":hb:r:c:p:j:ge:i:" option; do
+while getopts ":hb:r:c:p:j:gt:e:i:" option; do
     case "$option" in
         h) echo "$usage"
             exit
@@ -51,6 +51,8 @@ while getopts ":hb:r:c:p:j:ge:i:" option; do
         j) CROMWELL_JAR="${OPTARG}"
             ;;
         g) CENTAUR_SBT_COVERAGE=true
+            ;;
+        t) CROMWELL_TIMEOUT="${OPTARG}"
             ;;
         p) TEST_THREAD_COUNT="${OPTARG}"
             ;;
@@ -118,7 +120,8 @@ CENTAUR_CROMWELL_JAR="-Dcentaur.cromwell.jar.path=${CROMWELL_JAR}"
 CENTAUR_CROMWELL_CONF="-Dcentaur.cromwell.jar.conf=${CONFIG_STRING}"
 CENTAUR_CROMWELL_LOG="-Dcentaur.cromwell.jar.log=${CROMWELL_LOG}"
 CENTAUR_CROMWELL_RESTART="-Dcentaur.cromwell.jar.withRestart=true"
-CENTAUR_CONF="${CENTAUR_CROMWELL_MODE} ${CENTAUR_CROMWELL_JAR} ${CENTAUR_CROMWELL_CONF} ${CENTAUR_CROMWELL_LOG} ${CENTAUR_CROMWELL_RESTART}"
+CENTAUR_SEND_RECEIVE_TIMEOUT="-Dcentaur.sendReceiveTimeout='${CROMWELL_TIMEOUT}'"
+CENTAUR_CONF="${CENTAUR_CROMWELL_MODE} ${CENTAUR_CROMWELL_JAR} ${CENTAUR_CROMWELL_CONF} ${CENTAUR_CROMWELL_LOG} ${CENTAUR_CROMWELL_RESTART} ${CENTAUR_SEND_RECEIVE_TIMEOUT}"
 
 if [[ -n ${EXCLUDE_TAG[*]} ]]; then
     echo "Running Centaur filtering out ${EXCLUDE_TAG[*]} tests"

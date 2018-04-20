@@ -30,7 +30,9 @@ class LoadControllerServiceActor(serviceConfig: Config,
                                  override val serviceRegistryActor: ActorRef
                                 ) extends Actor
   with ActorLogging with Listeners with Timers with CromwellInstrumentation {
-  private val controlFrequency = serviceConfig.as[Option[FiniteDuration]]("control-frequency").getOrElse(5.seconds)
+  private val controlFrequency = serviceConfig
+    .as[Option[FiniteDuration]]("control-frequency")
+    .getOrElse(5.seconds)
 
   private [impl] var loadLevel: LoadLevel = NormalLoad
   private [impl] var monitoredActors: Set[ActorRef] = Set.empty
@@ -39,8 +41,10 @@ class LoadControllerServiceActor(serviceConfig: Config,
   override def receive = listenerManagement.orElse(controlReceive)
 
   override def preStart() = {
-    timers.startPeriodicTimer(LoadControlTimerKey, LoadControlTimerAction, controlFrequency)
-    context.actorOf(MemoryLoadControllerActor.props(serviceRegistryActor))
+    if (controlFrequency != Duration.Zero) 
+      timers.startPeriodicTimer(LoadControlTimerKey, LoadControlTimerAction, controlFrequency)
+    else 
+      log.info("Load control disabled")
     super.preStart()
   }
 
@@ -69,7 +73,10 @@ class LoadControllerServiceActor(serviceConfig: Config,
     // Back to normal if we were not normal before but now are
     val backToNormal = loadLevel != NormalLoad && newLoadLevel == NormalLoad
     // If there's something to say, let it out !
-    if (escalates || backToNormal) gossip(newLoadLevel)
+    if (escalates || backToNormal) {
+      if (newLoadLevel == HighLoad) log.info(s"The following components have reported being overloaded: $highLoadMetricsForLogging")
+      gossip(newLoadLevel)
+    }
     loadLevel = newLoadLevel
     sendGauge(NonEmptyList.one("global"), loadLevel.level.toLong, LoadInstrumentationPrefix)
   }
@@ -79,5 +86,11 @@ class LoadControllerServiceActor(serviceConfig: Config,
     loadMetrics = loadMetrics.filterKeys({
       case ActorAndMetric(actor, _) => actor != terminee
     })
+  }
+  
+  private def highLoadMetricsForLogging = {
+    loadMetrics.collect({
+      case (ActorAndMetric(_, metricPath), HighLoad) => metricPath.head
+    }).toSet.mkString(", ")
   }
 }

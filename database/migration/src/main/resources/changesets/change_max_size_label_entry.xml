@@ -3,8 +3,9 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <include file="metadata_changesets/move_sql_metadata_changelog.xml" relativeToChangelogFile="true" />
-    <include file="changesets/change_max_size_label_entry.xml" relativeToChangelogFile="true" />
+    <changeSet author="sshah" id="change_max_size_for_key_and_value_in_label">
+        <modifyDataType tableName="CUSTOM_LABEL_ENTRY" columnName="CUSTOM_LABEL_KEY" newDataType="VARCHAR(255)"/>
+        <modifyDataType tableName="CUSTOM_LABEL_ENTRY" columnName="CUSTOM_LABEL_VALUE" newDataType="VARCHAR(255)"/>
+    </changeSet>
 
 </databaseChangeLog>
-<!-- See Dos and Don'ts in changelog.xml -->

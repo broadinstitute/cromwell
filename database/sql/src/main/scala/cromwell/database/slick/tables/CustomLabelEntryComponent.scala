@@ -13,9 +13,9 @@ trait CustomLabelEntryComponent {
     extends Table[CustomLabelEntry](tag, "CUSTOM_LABEL_ENTRY") {
     def customLabelEntryId = column[Long]("CUSTOM_LABEL_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
-    def customLabelKey = column[String]("CUSTOM_LABEL_KEY", O.Length(63))
+    def customLabelKey = column[String]("CUSTOM_LABEL_KEY", O.Length(255))
 
-    def customLabelValue = column[String]("CUSTOM_LABEL_VALUE", O.Length(63))
+    def customLabelValue = column[String]("CUSTOM_LABEL_VALUE", O.Length(255))
 
     def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID", O.Length(100))
 

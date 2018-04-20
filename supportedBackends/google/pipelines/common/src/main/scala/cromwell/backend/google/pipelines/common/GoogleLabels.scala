@@ -1,18 +1,21 @@
 package cromwell.backend.google.pipelines.common
 
 import cats.data.Validated.Valid
+import common.validation.ErrorOr.ErrorOr
 import cromwell.core.labels.{Label, Labels}
+import cats.syntax.validated._
+import scala.util.matching.Regex
 
 object GoogleLabels {
 
-  val MaxLabelLength = Label.MaxLabelLength
-  val GoogleLabelsRegexPattern = Label.LabelKeyRegex
+  val MaxLabelLength = 63
+  val GoogleLabelsRegexPattern = "[a-z]([-a-z0-9]*[a-z0-9])?"
 
   // This function is used to coerce a string into one that meets the requirements for a label submission to JES.
   // See 'labels' in https://cloud.google.com/genomics/reference/rpc/google.genomics.v1alpha2#google.genomics.v1alpha2.RunPipelineArgs
   def safeGoogleName(mainText: String, emptyAllowed: Boolean = false): String = {
 
-    Label.validateLabelRegex(mainText, GoogleLabelsRegexPattern.r) match {
+    validateLabelRegex(mainText, GoogleLabelsRegexPattern.r) match {
       case Valid(labelText) => labelText
       case invalid @ _ if mainText.equals("") && emptyAllowed => mainText
       case invalid @ _ =>
@@ -43,6 +46,16 @@ object GoogleLabels {
         }
     }
   }
+
+  def validateLabelRegex(s: String, regexAllowed: Regex): ErrorOr[String] = {
+    (regexAllowed.pattern.matcher(s).matches, s.length <= MaxLabelLength) match {
+      case (true, true) => s.validNel
+      case (false, false) => s"Invalid label: `$s` did not match regex $regexAllowed and it is ${s.length} characters. The maximum is $MaxLabelLength.".invalidNel
+      case (false, _) => s"Invalid label: `$s` did not match the regex $regexAllowed.".invalidNel
+      case (_, false) => s"Invalid label: `$s` is ${s.length} characters. The maximum is $MaxLabelLength.".invalidNel
+    }
+  }
+
 
   def toLabels(values: (String, String)*): Labels = {
 

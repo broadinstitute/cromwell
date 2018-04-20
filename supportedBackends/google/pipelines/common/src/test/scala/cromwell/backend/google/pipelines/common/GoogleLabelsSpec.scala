@@ -24,7 +24,7 @@ class GoogleLabelsSpec extends FlatSpec with Matchers {
 
   googleLabelConversions foreach { case (label: String, conversion: String) =>
     it should s"not validate the bad label string '$label'" in {
-      Label.validateLabelRegex(label, GoogleLabels.GoogleLabelsRegexPattern.r) match {
+      GoogleLabels.validateLabelRegex(label, GoogleLabels.GoogleLabelsRegexPattern.r) match {
         case Invalid(_) => // Good!
         case Valid(_) => fail(s"Label validation succeeded but should have failed.")
       }

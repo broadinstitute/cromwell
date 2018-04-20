@@ -56,7 +56,7 @@ trait PipelinesApiJobCachingActorHelper extends StandardCachingActorHelper {
     ) ++ subWorkflowLabels ++ aliasLabels
   }
 
-  lazy val originalLabels: Labels = defaultLabels ++ workflowDescriptor.customLabels
+  lazy val originalLabels: Labels = defaultLabels
 
   lazy val backendLabels: Labels = GoogleLabels.toLabels(originalLabels.asTuple :_*)
 

@@ -31,7 +31,7 @@ class LoadControllerServiceActor(serviceConfig: Config,
                                 ) extends Actor
   with ActorLogging with Listeners with Timers with CromwellInstrumentation {
   private val controlFrequency = serviceConfig
-    .as[Option[FiniteDuration]]("control-frequency")
+    .as[Option[Duration]]("control-frequency")
     .getOrElse(5.seconds)
 
   private [impl] var loadLevel: LoadLevel = NormalLoad
@@ -41,8 +41,8 @@ class LoadControllerServiceActor(serviceConfig: Config,
   override def receive = listenerManagement.orElse(controlReceive)
 
   override def preStart() = {
-    if (controlFrequency != Duration.Zero) 
-      timers.startPeriodicTimer(LoadControlTimerKey, LoadControlTimerAction, controlFrequency)
+    if (controlFrequency.isFinite()) 
+      timers.startPeriodicTimer(LoadControlTimerKey, LoadControlTimerAction, controlFrequency.asInstanceOf[FiniteDuration])
     else 
       log.info("Load control disabled")
     super.preStart()

@@ -1,0 +1,6 @@
+package cromwell.backend.google.pipelines.common.callcaching
+
+sealed trait JesCacheHitDuplicationStrategy
+
+case object CopyCachedOutputs extends JesCacheHitDuplicationStrategy
+case object UseOriginalCachedOutputs extends JesCacheHitDuplicationStrategy

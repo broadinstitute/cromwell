@@ -5,7 +5,7 @@ import akka.testkit.TestDuration
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestKitWordSpec
 import cromwell.core.CromwellGraphNode._
-import cromwell.core.labels.{Label, Labels}
+import cromwell.core.labels.Labels
 import cromwell.core.{SimpleIoActor, WorkflowId, WorkflowOptions, WorkflowSourceFilesWithoutImports}
 import cromwell.engine.backend.{BackendConfigurationEntry, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor

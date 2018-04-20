@@ -1,7 +1,6 @@
 package cromwell.backend.google.pipelines.common
 
 import cats.data.Validated.{Invalid, Valid}
-import cromwell.core.labels.Label
 import org.scalatest.{FlatSpec, Matchers}
 
 class GoogleLabelsSpec extends FlatSpec with Matchers {

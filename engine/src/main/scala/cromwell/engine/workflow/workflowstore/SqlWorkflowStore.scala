@@ -98,7 +98,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
       workflowOnHold = false
     )
 
-    workflowStoreStateToStartableState(workflowStoreEntry.workflowState, workflowStoreEntry.heartbeatTimestamp.isEmpty) map { startableState =>
+    workflowStoreStateToStartableState(workflowStoreEntry) map { startableState =>
       WorkflowToStart(
         WorkflowId.fromString(workflowStoreEntry.workflowExecutionUuid),
         sources,
@@ -136,7 +136,9 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     )
   }
 
-  private def workflowStoreStateToStartableState(workflowState: WorkflowStoreState, restarted: Boolean): ErrorOr[StartableState] = {
+  private def workflowStoreStateToStartableState(workflowStoreEntry: WorkflowStoreEntry): ErrorOr[StartableState] = {
+    val workflowState = workflowStoreEntry.workflowState
+    val restarted = workflowStoreEntry.heartbeatTimestamp.isEmpty
     import cats.syntax.validated._
     // A workflow is startable if
     (workflowState, restarted) match {
@@ -146,7 +148,10 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
       case (WorkflowStoreState.Running, true) => RestartableRunning.validNel
         // It's in Aborting state and is being restarted
       case (WorkflowStoreState.Aborting, true) => RestartableAborting.validNel
-      case _ => s"Workflow in state $workflowState, and restarted = $restarted cannot be started and should not have been fetched.".invalidNel
+      case _ =>
+        "Workflow %s in state %s and restarted = %b cannot be started and should not have been fetched."
+          .format(workflowStoreEntry.workflowExecutionUuid, workflowState, restarted)
+          .invalidNel
     }
   }
 }

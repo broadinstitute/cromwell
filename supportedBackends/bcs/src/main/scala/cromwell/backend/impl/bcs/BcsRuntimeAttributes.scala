@@ -3,16 +3,16 @@ package cromwell.backend.impl.bcs
 import cats.data.Validated._
 import cats.syntax.apply._
 import cats.syntax.validated._
-
 import com.typesafe.config.Config
+import common.validation.ErrorOr._
+import cromwell.backend.impl.bcs.BcsClusterIdOrConfiguration.BcsClusterIdOrConfiguration
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation._
-import common.validation.ErrorOr._
+import net.ceedubs.ficus.Ficus._
 import wom.types._
 import wom.values._
 
 import scala.util.{Failure, Success, Try}
-import BcsClusterIdOrConfiguration.BcsClusterIdOrConfiguration
 
 
 trait OptionalWithDefault[A] {
@@ -90,12 +90,11 @@ object BcsRuntimeAttributes {
 
   private def tagValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = TagValidation.optionalWithDefault(runtimeConfig)
 
-  def runtimeAttributesBuilder(backendRuntimeConfig: Option[Config]): StandardValidatedRuntimeAttributesBuilder =
-    StandardValidatedRuntimeAttributesBuilder.default(backendRuntimeConfig).withValidation(
+  def runtimeAttributesBuilder(backendRuntimeConfig: Option[Config]): StandardValidatedRuntimeAttributesBuilder = {
+    val defaults = StandardValidatedRuntimeAttributesBuilder.default(backendRuntimeConfig).withValidation(
       mountsValidation(backendRuntimeConfig),
       userDataValidation(backendRuntimeConfig),
       clusterValidation(backendRuntimeConfig),
-      dockerValidation(backendRuntimeConfig),
       systemDiskValidation(backendRuntimeConfig),
       dataDiskValidation(backendRuntimeConfig),
       reserveOnFailValidation(backendRuntimeConfig),
@@ -106,6 +105,14 @@ object BcsRuntimeAttributes {
       vpcValidation(backendRuntimeConfig),
       tagValidation(backendRuntimeConfig)
     )
+
+    // TODO: docker trips up centaur testing, for now https://github.com/broadinstitute/cromwell/issues/3518
+    if (backendRuntimeConfig.exists(_.getOrElse("ignoreDocker", false))) {
+      defaults
+    } else {
+      defaults.withValidation(dockerValidation(backendRuntimeConfig))
+    }
+  }
 
   def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, backendRuntimeConfig: Option[Config]): BcsRuntimeAttributes = {
     val failOnStderr: Boolean =

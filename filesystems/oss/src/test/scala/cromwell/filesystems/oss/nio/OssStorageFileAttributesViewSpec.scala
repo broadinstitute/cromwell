@@ -1,6 +1,7 @@
 package cromwell.filesystems.oss.nio
 
 import com.aliyun.oss.OSSClient
+import com.aliyun.oss.model.GenericRequest
 import org.mockito.Mockito._
 import org.mockito.Matchers._
 
@@ -20,7 +21,7 @@ class OssStorageFileAttributesViewSpec extends OssNioUtilSpec {
 
   it should "return an object attr" in {
     val ossClient = mock[OSSClient]
-    when(ossClient.doesObjectExist(anyString(), anyString())).thenReturn(true)
+    when(ossClient.doesObjectExist(any[GenericRequest]())).thenReturn(true)
     val meta = getObjectMeta
     when(ossClient.getObjectMetadata(anyString(), anyString())).thenReturn(meta)
 
@@ -30,7 +31,7 @@ class OssStorageFileAttributesViewSpec extends OssNioUtilSpec {
 
   it should "return an dir attr" in {
     val ossClient = mock[OSSClient]
-    when(ossClient.doesObjectExist(anyString(), anyString())).thenReturn(true)
+    when(ossClient.doesObjectExist(any[GenericRequest]())).thenReturn(true)
     val view = OssStorageFileAttributesView(ossClient, getDir)
     view.readAttributes shouldBe a [OssStorageDirectoryAttributes]
   }

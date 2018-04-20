@@ -3,7 +3,7 @@ package cromwell.filesystems.oss.nio
 import java.io.{ByteArrayInputStream, OutputStream}
 
 import com.aliyun.oss.OSSClient
-import com.aliyun.oss.model.AppendObjectRequest
+import com.aliyun.oss.model.{AppendObjectRequest, GenericRequest}
 
 import scala.util.Try
 
@@ -12,7 +12,9 @@ final case class OssAppendOutputStream(ossClient: OSSClient, path: OssStoragePat
   var position: Long = {
     val exist = OssStorageRetry.fromTry(
       () => Try{
-        ossClient.doesObjectExist(path.bucket, path.key)
+        val request = new GenericRequest(path.bucket, path.key)
+        request.setLogEnabled(false)
+        ossClient.doesObjectExist(request)
       }
     )
 

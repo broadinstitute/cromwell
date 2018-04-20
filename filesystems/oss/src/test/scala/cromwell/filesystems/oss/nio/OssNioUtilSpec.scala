@@ -3,11 +3,11 @@ package cromwell.filesystems.oss.nio
 import java.io.ByteArrayInputStream
 
 import com.aliyun.oss.OSSClient
-import org.scalatest.mockito.MockitoSugar
 import org.scalatest._
+import org.scalatest.mockito.MockitoSugar
 
-import scala.util.{Failure, Success, Try}
 import scala.util.control.Breaks
+import scala.util.{Failure, Success, Try}
 
 object NeedAK extends Tag("this test need oss storage access id and key")
 
@@ -32,8 +32,7 @@ trait OssNioUtilSpec extends FlatSpecLike with MockitoSugar with Matchers {
     if (test.tags.contains(NeedAK.name)) {
       Try(ossConf) match {
         case Success(_) => super.withFixture(test)
-        case Failure(_) => assume(false, NeedAK.name)
-          Canceled(NeedAK.name)
+        case Failure(_) => cancel(NeedAK.name)
       }
     } else {
       super.withFixture(test)
@@ -64,14 +63,7 @@ trait OssNioUtilSpec extends FlatSpecLike with MockitoSugar with Matchers {
   val fileName = DEFAULT_FILE_NAME
   val fileContent = DEFAULT_CONTENT
 
-
-  lazy val ossClient: OSSClient =
-    ossConf.stsToken match {
-      case Some(token: String) =>
-        new OSSClient(ossConf.endpoint, ossConf.accessId, ossConf.accessKey, token)
-      case None =>
-        new OSSClient(ossConf.endpoint, ossConf.accessId, ossConf.accessKey)
-    }
+  lazy val ossClient: OSSClient = mockOssConf.newOssClient()
 
   def contentAsString(path: OssStoragePath): String = {
     val ossObject = ossClient.getObject(path.bucket, path.key)
@@ -109,6 +101,6 @@ trait OssNioUtilSpec extends FlatSpecLike with MockitoSugar with Matchers {
     OssStorageRetry.from{
       () => ossClient.putObject(path.bucket, path.key, new ByteArrayInputStream(fileContent.getBytes()))
     }
-    return
+    ()
   }
 }

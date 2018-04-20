@@ -35,6 +35,7 @@ env:
     - BUILD_TYPE=centaurJes
     - BUILD_TYPE=centaurLocal
     - BUILD_TYPE=centaurTes
+    - BUILD_TYPE=centaurBcs
     - BUILD_TYPE=centaurCwlConformanceLocal
     - BUILD_TYPE=centaurCwlConformancePAPI
 script:

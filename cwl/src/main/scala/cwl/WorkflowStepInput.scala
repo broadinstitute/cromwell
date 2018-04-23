@@ -30,7 +30,8 @@ case class WorkflowStepInput(
                        isScattered: Boolean,
                        sourceMappings:Map[String, OutputPort],
                        outputTypeMap: Map[String, WomType],
-                       expressionLib: ExpressionLib
+                       expressionLib: ExpressionLib,
+                       schemaDefRequirement: SchemaDefRequirement
                       )(implicit parentName: ParentName): ErrorOr[ExpressionNode] = {
     val inputs = sourceMappings.keySet
     val upstreamMergeType = outputTypeMap.get(parsedId)
@@ -38,7 +39,7 @@ case class WorkflowStepInput(
     (for {
       // we may have several sources, we make sure to have a type common to all of them.
       // In the case where there's no input source, we currently wrap the valueFrom value in a WomString (see WorkflowStepInputExpression)
-      inputType <- WorkflowStepInput.determineValueFromType(upstreamMergeType, runInputExpectedType, isScattered)
+      inputType <- WorkflowStepInput.determineValueFromType(upstreamMergeType, runInputExpectedType, isScattered, schemaDefRequirement)
       womExpression = WorkflowStepInputExpression(parsedId, valueFromExpression, inputType, inputs, expressionLib)
       identifier = WomIdentifier(id).combine("expression")
       ret <- ExposedExpressionNode.fromInputMapping(identifier, womExpression, inputType, sourceMappings).toEither
@@ -54,13 +55,14 @@ case class WorkflowStepInput(
   def toMergeNode(sourceMappings: Map[String, OutputPort],
                   expressionLib: ExpressionLib,
                   matchingRunInputType: Option[MyriadInputType],
-                  isScattered: Boolean
+                  isScattered: Boolean,
+                  schemaDefRequirement: SchemaDefRequirement
                  ): Option[ErrorOr[ExpressionNode]] = {
 
     val identifier = WomIdentifier(id).combine("merge")
     val mapType = sourceMappings.map({ case (k, v) => k -> v.womType })
 
-    val maybeMatchingRunInputWomType: Option[WomType] = matchingRunInputType.map(_.fold(MyriadInputTypeToWomType))
+    val maybeMatchingRunInputWomType: Option[WomType] = matchingRunInputType.map(_.fold(MyriadInputTypeToWomType).apply(schemaDefRequirement))
 
     def makeNode(head: (String, OutputPort), tail: List[(String, OutputPort)]) = for {
       inputType <- determineMergeType(mapType, maybeMatchingRunInputWomType)
@@ -100,8 +102,9 @@ object WorkflowStepInput {
 
   def determineValueFromType(mergedSourcesType: Option[WomType],
                              expectedType: Option[MyriadInputType],
-                             isScattered: Boolean): Checked[WomType] = {
-    val expectedTypeAsWom: Option[WomType] = expectedType.map(_.fold(MyriadInputTypeToWomType))
+                             isScattered: Boolean,
+                             schemaDefRequirement: SchemaDefRequirement): Checked[WomType] = {
+    val expectedTypeAsWom: Option[WomType] = expectedType.map(_.fold(MyriadInputTypeToWomType).apply(schemaDefRequirement))
 
     expectedTypeAsWom.getOrElse(WomStringType).asRight
   }

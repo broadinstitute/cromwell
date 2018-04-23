@@ -16,8 +16,15 @@ case object WomIntegerType extends WomPrimitiveType {
     case WomLong(i) if i.inIntRange => WomInteger(i.toInt)
     case WomLong(i) => throw new RuntimeException(
       s"Tried to convert a Long value $i into an Int but it was outside the bounds of acceptable Ints, namely ${Int.MinValue} <-> ${Int.MaxValue}")
-    case s: WomString => WomInteger(s.value.toInt)
-    case s: String => WomInteger(s.toInt)
+    case s: WomString => {
+        WomInteger(s.value.toInt)
+    }
+    case s: String =>
+      val bigTry = Try(BigDecimal(s))
+      if (bigTry.isSuccess)
+        WomInteger(bigTry.get.intValue())
+      else
+        WomInteger(s.toInt)
     case s: JsString => WomInteger(s.value.toInt)
   }
 

@@ -45,7 +45,7 @@ class WomTypeSpec extends FlatSpec with Matchers {
       WomInteger(0),
       WomBooleanType,
       classOf[IllegalArgumentException],
-      "No coercion defined from '0' of type 'Int' to 'Boolean'."
+      """No coercion defined from wom value\(s\) '0' of type 'Int' to 'Boolean'."""
     ),
     (
       0,
@@ -77,19 +77,19 @@ class WomTypeSpec extends FlatSpec with Matchers {
       ),
       WomOptionalType(WomMaybeEmptyArrayType(WomIntegerType)),
       classOf[IllegalArgumentException],
-      """No coercion defined from '\[0, 1, 2\]' of type 'Array\[Int\?\]' to 'Array\[Int\]\?'."""
+      """No coercion defined from wom value\(s\) '\[0, 1, 2\]' of type 'Array\[Int\?\]' to 'Array\[Int\]\?'."""
     ),
     (
       WomArray(WomArrayType(WomOptionalType(WomIntegerType)), Seq(WomOptionalValue.none(WomIntegerType))),
       WomOptionalType(WomMaybeEmptyArrayType(WomIntegerType)),
       classOf[IllegalArgumentException],
-      """No coercion defined from '\[null\]' of type 'Array\[Int\?\]' to 'Array\[Int\]\?'."""
+      """No coercion defined from wom value\(s\) '\[null\]' of type 'Array\[Int\?\]' to 'Array\[Int\]\?'."""
     ),
     (
       WomOptionalValue.none(WomArrayType(WomIntegerType)),
       WomMaybeEmptyArrayType(WomOptionalType(WomIntegerType)),
       classOf[IllegalArgumentException],
-      """No coercion defined from 'null' of type 'Array\[Int\]\?' to 'Array\[Int\?\]'."""
+      """No coercion defined from wom value\(s\) 'null' of type 'Array\[Int\]\?' to 'Array\[Int\?\]'."""
     )
   )
 

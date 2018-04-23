@@ -1,12 +1,16 @@
 package cwl
 
 import cwl.CommandLineTool.{CommandBindingSortingKey, SortKeyAndCommandPart}
+import cwl.SchemaDefRequirement.SchemaDefTypes
 import cwl.WorkflowStepInput.InputSource
+import cwl.command.ParentName
 import cwl.internal.GigabytesToBytes
 import eu.timepit.refined._
 import shapeless.syntax.singleton._
-import shapeless.{:+:, CNil, Witness}
+import shapeless.{:+:, CNil, Coproduct, Inl, Inr, Witness}
+import wom.types.WomType
 import wom.values.WomValue
+import mouse.all._
 
 object WorkflowStepInputSource {
   object String {
@@ -17,23 +21,27 @@ object WorkflowStepInputSource {
   }
 }
 
+/**
+  * Describes a bespoke type.
+  *
+  * @param name This field actually does _not_ appear in the v1.0 schema, but it is used anyway in the conformance tests.
+  *             After some consideration it was determined that we should close our eyes and pretend it is in the spec.  It
+  *             makes its formal appearance as a required field in v1.1.
+  */
 case class InputRecordSchema(
-  `type`: W.`"record"`.T,
-  fields: Option[Array[InputRecordField]],
-  label: Option[String])
+  name: String,
+  fields: Option[Array[InputRecordField]] = None,
+  `type`: W.`"record"`.T = W("record").value,
+  label: Option[String] = None) {
+
+}
 
 case class InputRecordField(
   name: String,
   `type`: MyriadInputType,
-  doc: Option[String],
+  doc: Option[String] = None,
   inputBinding: Option[InputCommandLineBinding],
-  label: Option[String])
-
-case class InputEnumSchema(
-  symbols: Array[String],
-  `type`: W.`"enum"`.T,
-  label: Option[String],
-  inputBinding: Option[InputCommandLineBinding])
+  label: Option[String] = None)
 
 case class InputArraySchema
 (
@@ -101,14 +109,6 @@ case class OutputRecordField(
   doc: Option[String],
   outputBinding: Option[CommandOutputBinding])
 
-case class OutputEnumSchema(
-  symbols: Array[String],
-  `type`: W.`"enum"`.T,
-  label: Option[String],
-  outputBinding: Option[CommandOutputBinding])
-
-
-
 case class OutputArraySchema(
   items: MyriadOutputType,
   `type`: W.`"array"`.T = Witness("array").value,
@@ -121,9 +121,36 @@ case class InlineJavascriptRequirement(
   expressionLib: Option[Array[String]] = None)
 
 case class SchemaDefRequirement(
-  `class`: W.`"SchemaDefRequirement"`.T,
-  types: Array[InputRecordSchema :+: InputEnumSchema :+: InputArraySchema :+: CNil]
-  )
+  types: Array[SchemaDefTypes] = Array.empty,
+  `class`: W.`"SchemaDefRequirement"`.T = Witness("SchemaDefRequirement").value) {
+
+  def lookupType(tpe: String): Option[WomType] =
+    lookupCwlType(tpe).flatMap{
+      case Inl(inputRecordSchema) => MyriadInputInnerTypeToWomType.inputRecordSchemaToWomType(inputRecordSchema).apply(this) |> Option.apply
+      case _ => None
+    }
+
+  //Currently only InputRecordSchema has a name in the spec, so it is the only thing that can be referenced via string
+  def lookupCwlType(tpe: String): Option[SchemaDefTypes] = {
+
+    def matchesType(inputEnumSchema: InputEnumSchema): Boolean = {
+      inputEnumSchema.name.fold(false){name => FileAndId(name)(ParentName.empty).id equalsIgnoreCase FullyQualifiedName(tpe)(ParentName.empty).id}
+    }
+
+    types.toList.flatMap {
+    case Inl(inputRecordSchema: InputRecordSchema) if FileAndId(inputRecordSchema.name)(ParentName.empty).id equalsIgnoreCase FullyQualifiedName(tpe)(ParentName.empty).id=>
+          List(Coproduct[SchemaDefTypes](inputRecordSchema))
+    case Inr(Inl(inputEnumSchema: InputEnumSchema)) if matchesType(inputEnumSchema)=>
+      List(Coproduct[SchemaDefTypes](inputEnumSchema))
+    case _ => List()
+    }.headOption
+  }
+}
+
+object SchemaDefRequirement {
+  type SchemaDefTypes = InputRecordSchema :+: InputEnumSchema :+: InputArraySchema :+: CNil
+
+}
 
 //There is a large potential for regex refinements on these string types
 case class DockerRequirement(

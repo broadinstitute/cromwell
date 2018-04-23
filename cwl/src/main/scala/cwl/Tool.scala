@@ -72,7 +72,7 @@ trait Tool {
     import cats.instances.list._
     import cats.syntax.traverse._
 
-    val allRequirements = requirements.toList.flatten ++ parentWorkflowStep.toList.flatMap(_.allRequirements)
+    val allRequirements = requirements.toList.flatten ++ parentWorkflowStep.toList.flatMap(_.allRequirements.list)
     // All requirements must validate or this fails.
     val errorOrValidatedRequirements: ErrorOr[List[Requirement]] = allRequirements traverse validator
 
@@ -111,10 +111,14 @@ trait Tool {
 
       val runtimeAttributes: RuntimeAttributes = RuntimeAttributes(attributesMap ++ toolAttributes)
 
+      val schemaDefRequirement: SchemaDefRequirement = requirementsAndHints.flatMap{
+        _.select[SchemaDefRequirement].toList
+      }.headOption.getOrElse(SchemaDefRequirement())
+
       val inputDefinitions: List[_ <: Callable.InputDefinition] =
         this.inputs.map {
           case input @ InputParameter.IdDefaultAndType(inputId, default, tpe) =>
-            val inputType = tpe.fold(MyriadInputTypeToWomType)
+            val inputType = tpe.fold(MyriadInputTypeToWomType).apply(schemaDefRequirement)
             val inputName = FullyQualifiedName(inputId).id
             val defaultWomValue = default.fold(InputParameter.DefaultToWomValuePoly).apply(inputType).toTry.get
             InputDefinitionWithDefault(
@@ -124,7 +128,7 @@ trait Tool {
               InputParameter.inputValueMapper(input, tpe, expressionLib)
             )
           case input @ InputParameter.IdAndType(inputId, tpe) =>
-            val inputType = tpe.fold(MyriadInputTypeToWomType)
+            val inputType = tpe.fold(MyriadInputTypeToWomType).apply(schemaDefRequirement)
             val inputName = FullyQualifiedName(inputId).id
             inputType match {
               case optional: WomOptionalType =>
@@ -141,8 +145,8 @@ trait Tool {
 
       val outputDefinitions: List[Callable.OutputDefinition] = this.outputs.map {
         case p @ OutputParameter.IdAndType(cop_id, tpe) =>
-          val womType = tpe.fold(MyriadOutputTypeToWomType)
-          OutputDefinition(FullyQualifiedName(cop_id).id, womType, OutputParameterExpression(p, womType, inputNames, expressionLib))
+          val womType = tpe.fold(MyriadOutputTypeToWomType).apply(schemaDefRequirement)
+          OutputDefinition(FullyQualifiedName(cop_id).id, womType, OutputParameterExpression(p, womType, inputNames, expressionLib, schemaDefRequirement))
         case other => throw new NotImplementedError(s"Command output parameters such as $other are not yet supported")
       }.toList
 

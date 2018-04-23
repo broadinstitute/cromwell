@@ -44,7 +44,7 @@ case class Workflow private(
   // requirements in the containment hierarchy. There isn't always a containing workflow step so this is an `Option`.
   private[cwl] var parentWorkflowStep: Option[WorkflowStep] = None
 
-  val allRequirements: List[Requirement] = requirements.toList.flatten ++ parentWorkflowStep.toList.flatMap { _.allRequirements }
+  val allRequirements: RequirementsAndHints = RequirementsAndHints(requirements.toList.flatten ++ parentWorkflowStep.toList.flatMap { _.allRequirements.list })
 
   private [cwl] implicit val explicitWorkflowName = ParentName(id)
   
@@ -74,7 +74,7 @@ case class Workflow private(
     val workflowNameIdentifier = explicitWorkflowName.value.map(WomIdentifier.apply).getOrElse(WomIdentifier(workflowName))
 
     def womTypeForInputParameter(input: InputParameter): Option[WomType] = {
-      input.`type`.map(_.fold(MyriadInputTypeToWomType))
+      input.`type`.map(_.fold(MyriadInputTypeToWomType).apply(allRequirements.schemaDefRequirement))
     }
 
     val typeMap: WomTypeMap =
@@ -119,7 +119,7 @@ case class Workflow private(
     val graphFromOutputs: Checked[Set[GraphNode]] =
       outputs.toList.traverse[ErrorOr, GraphNode] {
         case WorkflowOutputParameter(id, _, _, _, _, _, _, Some(Inl(outputSource: String)), _, Some(tpe)) =>
-          val womType: WomType = tpe.fold(MyriadOutputTypeToWomType)
+          val womType: WomType = tpe.fold(MyriadOutputTypeToWomType).apply(allRequirements.schemaDefRequirement)
 
           val parsedWorkflowOutput = FileAndId(id)
           val parsedOutputSource = FullyQualifiedName(outputSource)

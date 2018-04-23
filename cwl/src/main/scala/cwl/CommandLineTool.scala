@@ -1,14 +1,14 @@
 package cwl
 
-import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, OptionT}
 import cats.syntax.traverse._
+import cats.syntax.apply._
 import cats.syntax.validated._
 import common.Checked
 import common.validation.ErrorOr._
 import cwl.CommandLineTool._
 import cwl.CwlVersion._
-import cwl.command.ParentName
+import cwl.internal.CommandPartSortingAlgorithm
 import io.circe.Json
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil, Coproduct, Poly1, Witness}
@@ -16,7 +16,7 @@ import wom.callable.CommandTaskDefinition.{EvaluatedOutputs, OutputFunctionRespo
 import wom.callable.{Callable, CallableTaskDefinition, ContainerizedInputExpression}
 import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
-import wom.types.{WomArrayType, WomIntegerType, WomOptionalType, WomStringType}
+import wom.types.{WomArrayType, WomIntegerType, WomOptionalType}
 import wom.values.{WomArray, WomEvaluatedCallInputs, WomGlobFile, WomInteger, WomString, WomValue}
 import wom.{CommandPart, RuntimeAttributes, RuntimeAttributesKeys}
 
@@ -47,6 +47,8 @@ case class CommandLineTool private(
 
   def asCwl: Cwl = Coproduct[Cwl](this)
 
+  lazy val baseCommandPart: List[CommandPart] = baseCommand.toList.flatMap(_.fold(BaseCommandToCommandParts))
+
   /*
    * The command template is built following the rules described here: http://www.commonwl.org/v1.0/CommandLineTool.html#Input_binding
    * - The baseCommand goes first
@@ -54,58 +56,14 @@ case class CommandLineTool private(
    * - Finally the inputs are folded one by one into a CommandPartsList
    * - arguments and inputs CommandParts are sorted according to their sort key
    */
-  private [cwl] def buildCommandTemplate(requirementsAndHints: List[cwl.Requirement], expressionLib: ExpressionLib)(inputValues: WomEvaluatedCallInputs): ErrorOr[List[CommandPart]] = {
-    import cats.instances.list._
-    import cats.syntax.traverse._
-
-    val baseCommandPart = baseCommand.toList.flatMap(_.fold(BaseCommandToCommandParts))
-
-    val hasShellCommandRequirement: Boolean = requirementsAndHints.exists(_.select[ShellCommandRequirement].nonEmpty)
-
-    val argumentsParts: CommandPartsList =
-    // arguments is an Option[Array[Argument]], the toList.flatten gives a List[Argument]
-      arguments.toList.flatten
-        // zip the index because we need it in the sorting key
-        .zipWithIndex.foldLeft(CommandPartsList.empty)({
-        case (commandPartsList, (argument, index)) =>
-          val part = argument.fold(ArgumentToCommandPart).apply(hasShellCommandRequirement, expressionLib)
-          // Get the position from the binding if there is one
-          val position = argument.select[ArgumentCommandLineBinding].flatMap(_.position)
-            .map(Coproduct[StringOrInt](_)).getOrElse(DefaultPosition)
-
-          // The key consists of the position followed by the index
-          val sortingKey = CommandBindingSortingKey(List(position, Coproduct[StringOrInt](index)))
-
-          commandPartsList :+ SortKeyAndCommandPart(sortingKey, part)
-      })
-
-    val inputBindingsCommandParts: ErrorOr[List[SortKeyAndCommandPart]] = inputs.toList.flatTraverse[ErrorOr, SortKeyAndCommandPart]({
-      import cats.syntax.validated._
-
-      inputParameter =>
-        val parsedName = FullyQualifiedName(inputParameter.id)(ParentName.empty).id
-        val womType = inputParameter.`type`.map(_.fold(MyriadInputTypeToWomType)).getOrElse(WomStringType)
-
-        val defaultValue = inputParameter.default.map(_.fold(InputParameter.DefaultToWomValuePoly).apply(womType))
-
-        inputValues
-          .collectFirst({ case (inputDefinition, womValue) if inputDefinition.name == parsedName => womValue.validNel })
-          .orElse(defaultValue) match {
-          case Some(Valid(value)) =>
-            // See http://www.commonwl.org/v1.0/CommandLineTool.html#Input_binding
-            lazy val initialKey = CommandBindingSortingKey.empty
-              .append(inputParameter.inputBinding, Coproduct[StringOrInt](parsedName))
-
-            inputParameter.`type`.toList.flatMap(_.fold(MyriadInputTypeToSortedCommandParts).apply(inputParameter.inputBinding, value, initialKey.asNewKey, hasShellCommandRequirement, expressionLib)).validNel
-          case Some(Invalid(errors)) => Invalid(errors)
-          case None => s"Could not find an input value for input $parsedName in ${inputValues.prettyString}".invalidNel
-        }
-    })
-
-    inputBindingsCommandParts map { parts =>
-      baseCommandPart ++ (argumentsParts ++ parts).sorted.map(_.commandPart)
-    }
-  }
+  private [cwl] def buildCommandTemplate: CommandPartExpression[List[CommandPart]] =
+    (
+      CommandPartSortingAlgorithm.inputBindingsCommandParts(inputs),
+      CommandPartSortingAlgorithm.argumentCommandParts(arguments)
+    ).mapN ( _ ++ _ ).
+      //sort the highest level, then recursively pull in the nested (and sorted) command parts within each SortKeyAndCommandPart
+      map{ _.sorted.flatMap(_.sortedCommandParts) }.
+      map(baseCommandPart ++ _)
 
   // This seems like it makes sense only for CommandLineTool and hence is not abstracted in Tool. If this assumption is wrong it could be moved up.
   private def environmentDefs(requirementsAndHints: List[Requirement], expressionLib: ExpressionLib): ErrorOr[Map[String, WomExpression]] = {
@@ -249,10 +207,13 @@ case class CommandLineTool private(
       listing <- initialWorkDirRequirement.listings
     } yield InitialWorkDirFileGeneratorExpression(listing, expressionLib)).toSet[ContainerizedInputExpression]
 
+    def inputsToCommandParts(inputs: WomEvaluatedCallInputs) : ErrorOr[Seq[CommandPart]] =
+     buildCommandTemplate.run((RequirementsAndHints(requirementsAndHints), expressionLib, inputs))
+
     environmentDefs(requirementsAndHints, expressionLib) map { environmentExpressions =>
       CallableTaskDefinition(
         taskName,
-        buildCommandTemplate(requirementsAndHints, expressionLib),
+        inputsToCommandParts,
         runtimeAttributes,
         Map.empty,
         Map.empty,
@@ -277,7 +238,8 @@ case class CommandLineTool private(
 object CommandLineTool {
   val CwlOutputJson = "cwl.output.json"
 
-  private val DefaultPosition = Coproduct[StringOrInt](0)
+  val DefaultPosition = Coproduct[StringOrInt](0)
+
   // Elements of the sorting key can be either Strings or Ints
   type StringOrInt = String :+: Int :+: CNil
   object StringOrInt {
@@ -313,14 +275,16 @@ object CommandLineTool {
     def asNewKey = CommandBindingSortingKey(value)
   }
 
-  // Maps a sorting key to its binding
-  case class SortKeyAndCommandPart(sortingKey: CommandBindingSortingKey, commandPart: CommandPart)
+  // Maps a sorting key to its (sorted) bindings
+  case class SortKeyAndCommandPart(
+    sortingKey: CommandBindingSortingKey,
+    commandPart: CommandPart,
+    nestedCommandParts: List[SortKeyAndCommandPart] = List.empty) {
+      def sortedCommandParts:List[CommandPart] =
+        List(commandPart) ++ nestedCommandParts.sorted.flatMap(_.sortedCommandParts)
+    }
 
   type CommandPartsList = List[SortKeyAndCommandPart]
-
-  object CommandPartsList {
-    def empty: CommandPartsList = List.empty[SortKeyAndCommandPart]
-  }
 
   // Ordering for CommandBindingSortingKeyElement
   implicit val SortingKeyTypeOrdering: Ordering[StringOrInt] = Ordering.fromLessThan[StringOrInt]({

@@ -36,7 +36,7 @@ class CommandOutputExpressionSpec extends FlatSpec with Matchers {
     val outputEval = Coproduct[StringOrExpression](outputEvalExpression)
     val outputBinding = CommandOutputBinding(Option(glob), Option(true), Option(outputEval))
     val commandOutputParameter = CommandOutputParameter("id", outputBinding = Option(outputBinding))
-    val commandOutputExpression = OutputParameterExpression(commandOutputParameter, WomIntegerType, Set.empty, Vector.empty)
+    val commandOutputExpression = OutputParameterExpression(commandOutputParameter, WomIntegerType, Set.empty, Vector.empty, SchemaDefRequirement())
     val inputValues = Map("myTempFile" -> WomString(tempFile.pathAsString))
     val result = commandOutputExpression.evaluateValue(inputValues, ioFunctionSet(data))
     result should be(WomInteger(42).valid)
@@ -46,7 +46,7 @@ class CommandOutputExpressionSpec extends FlatSpec with Matchers {
     val glob = Coproduct[Glob](Coproduct[StringOrExpression]("stdout"))
     val outputBinding = CommandOutputBinding(Option(glob))
     val commandOutputParameter = CommandOutputParameter("id", outputBinding = Option(outputBinding))
-    val commandOutputExpression = OutputParameterExpression(commandOutputParameter, WomIntegerType, Set.empty, Vector.empty)
+    val commandOutputExpression = OutputParameterExpression(commandOutputParameter, WomIntegerType, Set.empty, Vector.empty, SchemaDefRequirement())
     val result = commandOutputExpression.evaluateFiles(Map.empty, NoIoFunctionSet, WomIntegerType)
     // TODO: This should be a glob. See [[cwl.CommandOutputBinding.dependingIfGlobLike]]
     result shouldBe Set(WomSingleFile("stdout")).valid

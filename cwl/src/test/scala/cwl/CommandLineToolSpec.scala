@@ -43,7 +43,7 @@ class CommandLineToolSpec extends FlatSpec with Matchers with ParallelTestExecut
     }
 
     val template = clt
-      .buildCommandTemplate(List.empty, Vector.empty)(inputs)
+      .buildCommandTemplate.run((RequirementsAndHints(List.empty), Vector.empty,inputs))
       .valueOr(errors => fail(errors.toList.mkString(", ")))
     template
       .flatTraverse[ErrorOr, String](_.instantiate(localNameValues, noIoFunctionSet, identity[WomValue], runtimeEnv).map(_.map(_.commandString)))

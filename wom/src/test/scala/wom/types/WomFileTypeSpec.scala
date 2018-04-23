@@ -59,26 +59,26 @@ class WomFileTypeSpec extends FlatSpec with Matchers with TableDrivenPropertyChe
       "No coercion defined from '6.28318' of type 'spray.json.JsNumber' to 'Glob'."),
 
     ("a wom float to a dir", WomUnlistedDirectoryType, WomFloat(6.28318),
-      "No coercion defined from '6.28318' of type 'Float' to 'Directory'."),
+      "No coercion defined from wom value(s) '6.28318' of type 'Float' to 'Directory'."),
     ("a wom float to a file", WomSingleFileType, WomFloat(6.28318),
-      "No coercion defined from '6.28318' of type 'Float' to 'File'."),
+      "No coercion defined from wom value(s) '6.28318' of type 'Float' to 'File'."),
     ("a wom float to a glob", WomGlobFileType, WomFloat(6.28318),
-      "No coercion defined from '6.28318' of type 'Float' to 'Glob'."),
+      "No coercion defined from wom value(s) '6.28318' of type 'Float' to 'Glob'."),
 
     ("a wom file to a dir", WomUnlistedDirectoryType, WomSingleFile("example/file"),
-      """No coercion defined from '"example/file"' of type 'File' to 'Directory'."""),
+      """No coercion defined from wom value(s) '"example/file"' of type 'File' to 'Directory'."""),
     ("a wom glob to a dir", WomUnlistedDirectoryType, WomGlobFile("example/glob*"),
-      """No coercion defined from 'glob("example/glob*")' of type 'Glob' to 'Directory'."""),
+      """No coercion defined from wom value(s) 'glob("example/glob*")' of type 'Glob' to 'Directory'."""),
 
     ("a wom dir to a file", WomSingleFileType, WomUnlistedDirectory("example/dir"),
-      """No coercion defined from '"example/dir"' of type 'Directory' to 'File'."""),
+      """No coercion defined from wom value(s) '"example/dir"' of type 'Directory' to 'File'."""),
     ("a wom glob to a file", WomSingleFileType, WomGlobFile("example/glob*"),
-      """No coercion defined from 'glob("example/glob*")' of type 'Glob' to 'File'."""),
+      """No coercion defined from wom value(s) 'glob("example/glob*")' of type 'Glob' to 'File'."""),
 
     ("a wom dir to a glob", WomGlobFileType, WomUnlistedDirectory("example/dir"),
-      """No coercion defined from '"example/dir"' of type 'Directory' to 'Glob'."""),
+      """No coercion defined from wom value(s) '"example/dir"' of type 'Directory' to 'Glob'."""),
     ("a wom file to a glob", WomGlobFileType, WomSingleFile("example/file"),
-      """No coercion defined from '"example/file"' of type 'File' to 'Glob'.""")
+      """No coercion defined from wom value(s) '"example/file"' of type 'File' to 'Glob'.""")
   )
 
   forAll(failedCoercionTests) { (description, womFileType, value, expected) =>

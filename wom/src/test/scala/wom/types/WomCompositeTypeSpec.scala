@@ -22,7 +22,7 @@ class WomCompositeTypeSpec() extends WomCoercionSpec(goodCoercionTable, badCoerc
       )
     }
 
-    wrongType.getMessage shouldBe "Error(s):\nNo coercion defined from '\"a\"' of type 'String' to 'Boolean'."
+    wrongType.getMessage shouldBe "Error(s):\nNo coercion defined from wom value(s) '\"a\"' of type 'String' to 'Boolean'."
 
     val missingValues = the[Exception] thrownBy {
       WomObject.withType(

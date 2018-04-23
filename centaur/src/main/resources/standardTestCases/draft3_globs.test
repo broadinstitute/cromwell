@@ -3,6 +3,8 @@ testFormat: workflowsuccess
 workflowType: WDL
 workflowTypeVersion: draft-3
 tags: ["draft-3"]
+backendsMode: "only"
+backends: [Local, LocalNoDocker, Jes, Tes]
 
 files {
   workflow: wdl_draft3/globs/globs.wdl

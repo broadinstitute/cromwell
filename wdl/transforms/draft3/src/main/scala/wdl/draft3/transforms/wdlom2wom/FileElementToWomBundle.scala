@@ -58,7 +58,7 @@ object FileElementToWomBundle {
             val primary: Option[Callable] = if (workflows.size == 1) {
               workflows.headOption
             } else if (workflows.isEmpty && tasks.size == 1) {
-              localTaskMapping.headOption.map(_._2)
+              localTaskMapping.headOption map { case (_, callable) => callable }
             } else None
 
             val bundledCallableMap = (localTaskMapping.values.toSet ++ workflows).map(c => c.name -> c).toMap

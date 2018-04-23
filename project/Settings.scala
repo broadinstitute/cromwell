@@ -189,7 +189,9 @@ object Settings {
   )
 
   val swaggerUiSettings = List(resourceGenerators in Compile += writeSwaggerUiVersionConf)
-  val backendSettings = List(addCompilerPlugin("org.spire-math" %% "kind-projector" % kindProjectorV))
+  val kindProjectorSettings = List(addCompilerPlugin("org.spire-math" %% "kind-projector" % kindProjectorV))
+  val backendSettings = kindProjectorSettings
+  val cwlSettings = kindProjectorSettings
   val engineSettings = swaggerUiSettings
   val cromiamSettings = swaggerUiSettings
 

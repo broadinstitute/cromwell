@@ -17,7 +17,7 @@ import scala.util.Try
 
 object CwlDecoder {
 
-  implicit val composedApplicative = Applicative[IO] compose Applicative[ErrorOr]
+  implicit val composedApplicative: Applicative[λ[α => IO[ErrorOr[α]]]] = Applicative[IO] compose Applicative[ErrorOr]
 
   def saladCwlFile(path: BFile): Parse[String] = {
     def resultToEither(cr: CommandResult) =
@@ -34,7 +34,7 @@ object CwlDecoder {
     fromEither[IO](cwlToolResult flatMap resultToEither)
   }
 
-  private lazy val cwlPreProcessor = new CwlPreProcessor()
+  private lazy val cwlPreProcessor: CwlPreProcessor = new CwlPreProcessor()
 
   // TODO: WOM: During conformance testing the saladed-CWLs are referring to files in the temp directory.
   // Thus we can't delete the temp directory until after the workflow is complete, like the workflow logs.

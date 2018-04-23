@@ -49,7 +49,7 @@ lazy val wdlTransformsDraft3 = (project in wdlTransformsRoot / "draft3")
   .dependsOn(wom % "test->test")
 
 lazy val cwl = project
-  .withLibrarySettings("cromwell-cwl", cwlDependencies, crossCompile = true)
+  .withLibrarySettings("cromwell-cwl", cwlDependencies, cwlSettings, crossCompile = true)
   .dependsOn(wom)
   .dependsOn(wom % "test->test")
 

@@ -95,12 +95,13 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
   implicit def ct: Aux[CwlType, CommandPartBuilder] = {
     at {
       cwlType => {
-        case (_, WomOptionalValue(_, None), _, _, _, _) => List.empty.some
         case (inputBinding, womValue, key, hasShellCommandRequirement, expressionLib, _) => {
-          (cwlType, womValue) match {
-            case (CwlType.Null, _) => List.empty.some
-            case (_, WomOptionalValue(_, None)) => List.empty.some
-            case (_,_) => inputBinding.toList.map(_.toCommandPart(key, womValue, hasShellCommandRequirement, expressionLib)).some
+          (inputBinding, cwlType, womValue) match {
+            case (_, CwlType.Null, _) => List.empty.some
+            case (Some(InputCommandLineBinding(_,_,_,_,_,Some(_),_)),_, WomOptionalValue(_, None)) =>
+              inputBinding.toList.map(_.toCommandPart(key, womValue, hasShellCommandRequirement, expressionLib)).some
+            case (_,_, WomOptionalValue(_, None)) => List.empty.some
+            case (_, _,_) => inputBinding.toList.map(_.toCommandPart(key, womValue, hasShellCommandRequirement, expressionLib)).some
           }
         }
       }

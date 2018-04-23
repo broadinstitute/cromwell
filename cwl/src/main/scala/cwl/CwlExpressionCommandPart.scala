@@ -53,13 +53,6 @@ abstract class CommandLineBindingCommandPart(commandLineBinding: CommandLineBind
     */
   def boundValue: Option[WomValue]
 
-  // If the bound value is defined but contains an empty optional value, we should not evaluate the valueFrom
-  // Conformance test "stage-unprovided-file" tests this behavior
-  private lazy val evaluateValueFrom = boundValue.forall {
-    case WomOptionalValue(_, None) => false
-    case _ => true
-  }
-
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: (WomValue) => WomValue,
@@ -76,8 +69,10 @@ abstract class CommandLineBindingCommandPart(commandLineBinding: CommandLineBind
     )
 
     val evaluatedValueFrom = commandLineBinding.optionalValueFrom flatMap {
-      case StringOrExpression.Expression(expression) if evaluateValueFrom => Option(ExpressionEvaluator.eval(expression, parameterContext) map valueMapper)
-      case StringOrExpression.String(string) if evaluateValueFrom => Option(WomString(string).validNel)
+      case StringOrExpression.Expression(expression) =>
+        Option(ExpressionEvaluator.eval(expression, parameterContext) map valueMapper)
+      case StringOrExpression.String(string) =>
+        Option(WomString(string).validNel)
       case _ => None
     }
 

@@ -163,6 +163,13 @@ object EngineFunctionEvaluators {
       a.param.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
   }
 
+  implicit val globFunctionEvaluator: FileEvaluator[Glob] = (a, inputs, ioFunctionSet, _) => {
+    a.param.evaluateValue(inputs, ioFunctionSet, None) flatMap {
+      case EvaluatedValue(p: WomPrimitive, _) => Set[WomFile](WomGlobFile(p.valueString)).validNel
+      case other => s"Could not predict files to delocalize from '$a' for 'glob'. Expected a primitive but got ${other.getClass.getSimpleName}".invalidNel
+    }
+  }
+
   implicit val sizeFunctionEvaluator: FileEvaluator[Size] = new FileEvaluator[Size] {
     override def predictFilesNeededToEvaluate(a: Size, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
       (evaluateToFile("size", a.file, inputs, ioFunctionSet).map(Set(_)): ErrorOr[Set[WomFile]],

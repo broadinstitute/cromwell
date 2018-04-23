@@ -84,6 +84,7 @@ package object types {
         case a: Floor => a.evaluateType(linkedValues)
         case a: Ceil => a.evaluateType(linkedValues)
         case a: Round => a.evaluateType(linkedValues)
+        case a: Glob => a.evaluateType(linkedValues)
 
         case a: Size => a.evaluateType(linkedValues)
         case a: Basename => a.evaluateType(linkedValues)

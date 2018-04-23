@@ -92,6 +92,7 @@ package object values {
         case a: Floor => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
         case a: Ceil => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
         case a: Round => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
+        case a: Glob => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
 
         case a: Size => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
         case a: Basename => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)

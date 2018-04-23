@@ -2,7 +2,5 @@
   "label-key-1":"label-value-1",
   "label-key-2":"label-value-2",
   "only-key": "",
-  "fc-id": "0123-abcd-4567-efgh",
-  "0-label-key-1":"0-label-value-1",
-  "the-maximum-allowed-character-length-for-label-pairs-is-255": "cromwell-please-validate-these-labels"
+  "fc-id": "0123-abcd-4567-efgh"
 }

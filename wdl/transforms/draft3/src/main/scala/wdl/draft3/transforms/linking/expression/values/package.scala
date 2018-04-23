@@ -37,6 +37,7 @@ package object values {
         case a: IdentifierLookup => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
         case a: ExpressionMemberAccess => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
         case a: IdentifierMemberAccess => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
+        case a: IndexAccess => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
 
         // Unary operators:
         case a: UnaryNegation => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)

@@ -32,6 +32,7 @@ package object types {
         case a: IdentifierLookup => a.evaluateType(linkedValues)
         case a: ExpressionMemberAccess => a.evaluateType(linkedValues)
         case a: IdentifierMemberAccess => a.evaluateType(linkedValues)
+        case a: IndexAccess => a.evaluateType(linkedValues)
 
         // Unary operators:
         case a: UnaryNegation => a.evaluateType(linkedValues)

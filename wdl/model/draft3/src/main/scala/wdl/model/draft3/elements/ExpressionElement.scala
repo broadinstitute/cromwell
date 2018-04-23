@@ -181,4 +181,11 @@ object ExpressionElement {
     * (1, 2).left
     */
   final case class ExpressionMemberAccess(expression: ExpressionElement, memberAccessTail: NonEmptyList[String]) extends ExpressionElement
+
+  /**
+    *
+    * @param expressionElement The element being accessed
+    * @param index The index expression
+    */
+  final case class IndexAccess(expressionElement: ExpressionElement, index: ExpressionElement) extends ExpressionElement
 }

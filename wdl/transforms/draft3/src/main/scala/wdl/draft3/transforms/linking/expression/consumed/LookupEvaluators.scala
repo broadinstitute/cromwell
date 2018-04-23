@@ -6,17 +6,15 @@ import wdl.model.draft3.graph.{ExpressionValueConsumer, UnlinkedCallOutputOrIden
 
 object LookupEvaluators {
 
-  implicit val identifierLookupUnlinkedValueConsumer: ExpressionValueConsumer[IdentifierLookup] = new ExpressionValueConsumer[IdentifierLookup] {
-    override def expressionConsumedValueHooks(a: IdentifierLookup): Set[UnlinkedConsumedValueHook] =
-      Set[UnlinkedConsumedValueHook](UnlinkedIdentifierHook(a.identifier))
-  }
+  implicit val identifierLookupUnlinkedValueConsumer: ExpressionValueConsumer[IdentifierLookup] =
+    (a: IdentifierLookup) => Set[UnlinkedConsumedValueHook](UnlinkedIdentifierHook(a.identifier))
 
-  implicit val identifierMemberAccessUnlinkedValueConsumer: ExpressionValueConsumer[IdentifierMemberAccess] = new ExpressionValueConsumer[IdentifierMemberAccess] {
-    override def expressionConsumedValueHooks(a: IdentifierMemberAccess): Set[UnlinkedConsumedValueHook] =
-      Set[UnlinkedConsumedValueHook](UnlinkedCallOutputOrIdentifierAndMemberAccessHook(a.first, a.second))
-  }
+  implicit val identifierMemberAccessUnlinkedValueConsumer: ExpressionValueConsumer[IdentifierMemberAccess] =
+    (a: IdentifierMemberAccess) => Set[UnlinkedConsumedValueHook](UnlinkedCallOutputOrIdentifierAndMemberAccessHook(a.first, a.second))
 
-  implicit val expressionMemberAccessUnlinkedValueConsumer: ExpressionValueConsumer[ExpressionMemberAccess] = new ExpressionValueConsumer[ExpressionMemberAccess] {
-    override def expressionConsumedValueHooks(a: ExpressionMemberAccess): Set[UnlinkedConsumedValueHook] = a.expression.expressionConsumedValueHooks
-  }
+  implicit val expressionMemberAccessUnlinkedValueConsumer: ExpressionValueConsumer[ExpressionMemberAccess] =
+    (a: ExpressionMemberAccess) => a.expression.expressionConsumedValueHooks
+
+  implicit val indexAccessUnlinkedValueConsumer: ExpressionValueConsumer[IndexAccess] =
+    (a: IndexAccess) => a.expressionElement.expressionConsumedValueHooks ++ a.index.expressionConsumedValueHooks
 }

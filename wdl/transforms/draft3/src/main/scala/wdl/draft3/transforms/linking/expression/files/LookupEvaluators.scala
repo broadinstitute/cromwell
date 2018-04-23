@@ -1,5 +1,6 @@
 package wdl.draft3.transforms.linking.expression.files
 
+import cats.syntax.apply._
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.elements.ExpressionElement._
@@ -35,5 +36,10 @@ object LookupEvaluators {
                                               ioFunctionSet: IoFunctionSet,
                                               coerceTo: WomType): ErrorOr[Set[WomFile]] =
       Set.empty[WomFile].validNel
+  }
+
+  implicit val indexAccessFileEvaluator: FileEvaluator[IndexAccess] = (a, inputs, ioFunctionSet, coerceTo) => {
+    (a.expressionElement.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo),
+    a.index.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)) mapN { _ ++ _ }
   }
 }

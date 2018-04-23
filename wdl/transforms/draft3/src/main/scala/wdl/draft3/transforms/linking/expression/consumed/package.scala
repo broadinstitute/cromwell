@@ -36,6 +36,7 @@ package object consumed {
       case a: IdentifierLookup => a.expressionConsumedValueHooks
       case a: IdentifierMemberAccess => a.expressionConsumedValueHooks
       case a: ExpressionMemberAccess => a.expressionConsumedValueHooks
+      case a: IndexAccess => a.expressionConsumedValueHooks
 
       // Unary operators:
       case a: UnaryNegation => a.expressionConsumedValueHooks

@@ -17,7 +17,5 @@ object LoadConfig {
   val IoNormalWindow = conf.as[FiniteDuration]("io-normal-window")
   val MetadataWriteThreshold = conf.as[Int]("metadata-write")
   val MonitoringFrequency = conf.as[FiniteDuration]("monitoring-frequency")
-  val MemoryThresholdInMB = conf.as[Int]("memory-threshold-in-mb")
-  val MemoryMeasurementWindow = conf.as[Int]("memory-measurement-window")
   val PAPIThreshold = conf.as[Int]("papi-requests")
 }

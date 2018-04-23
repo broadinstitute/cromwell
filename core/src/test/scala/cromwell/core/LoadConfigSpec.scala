@@ -17,8 +17,6 @@ class LoadConfigSpec extends FlatSpec with Matchers {
     LoadConfig.IoQueueSize shouldBe 10000
     LoadConfig.IoNormalWindow shouldBe 10.seconds
     LoadConfig.MonitoringFrequency shouldBe 5.seconds
-    LoadConfig.MemoryThresholdInMB shouldBe 1024
     LoadConfig.PAPIThreshold shouldBe 10000
-    LoadConfig.MemoryMeasurementWindow shouldBe 6
   }
 }

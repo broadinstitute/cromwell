@@ -12,13 +12,10 @@ import common.validation.ErrorOr._
 import common.validation.Parse._
 import cwl.preprocessor.CwlPreProcessor
 import io.circe.Json
-import org.slf4j.LoggerFactory
 
 import scala.util.Try
 
 object CwlDecoder {
-
-  private val Log = LoggerFactory.getLogger("CwlDecoder")
 
   implicit val composedApplicative = Applicative[IO] compose Applicative[ErrorOr]
 
@@ -58,7 +55,6 @@ object CwlDecoder {
                     workflowRoot: Option[String] = None)(implicit processor: CwlPreProcessor = cwlPreProcessor): Parse[Cwl] =
     for {
       standaloneWorkflow <- processor.preProcessCwlFile(fileName, workflowRoot)
-      _ = Log.info(s"parsing $fileName")
       parsedCwl <- parseJson(standaloneWorkflow, fileName)
     } yield parsedCwl
 

@@ -63,8 +63,10 @@ For instance, an HPC backend can be configured to work with files on Google Clou
 
 **Choosing a Backend**
 
-The order of operations to choose a backend are:
+Backend choice is resolved in this order:
 
-    Check if a default backend is declared within the workflow options.
-    Check if the task definition includes the runtime attribute key backend.
-    Check if a default backend is declared.
+* Workflow options file key 'backend'
+* Task definition runtime attribute 'backend'
+* Workflow options file 'default_runtime_attributes' key 'backend'
+* Config file default backend
+

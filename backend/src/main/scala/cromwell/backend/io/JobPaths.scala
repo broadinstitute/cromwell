@@ -60,7 +60,7 @@ trait JobPaths {
 
   def jobKey: BackendJobDescriptorKey
   lazy val callRoot = callPathBuilder(workflowPaths.workflowRoot, jobKey)
-  lazy val callExecutionRoot = callRoot
+  lazy val callExecutionRoot: Path = callRoot
 
   // Use default stdout and stderr names by default. This StandardPaths `var` may be reassigned later to
   // enable dynamic standard output and error file names for languages like CWL that support this feature.

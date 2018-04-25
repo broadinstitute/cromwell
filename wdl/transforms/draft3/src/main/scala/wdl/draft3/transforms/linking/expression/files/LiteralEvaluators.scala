@@ -10,8 +10,8 @@ import wdl.model.draft3.graph.expression.FileEvaluator
 import wdl.model.draft3.graph.expression.FileEvaluator.ops._
 import wdl.draft3.transforms.linking.expression.values._
 import wom.expression.IoFunctionSet
-import wom.types.WomType
-import wom.values.{WomFile, WomValue}
+import wom.types.{WomCompositeType, WomSingleFileType, WomType}
+import wom.values.{WomFile, WomSingleFile, WomValue}
 
 
 object LiteralEvaluators {
@@ -26,7 +26,10 @@ object LiteralEvaluators {
     override def predictFilesNeededToEvaluate(a: StringLiteral,
                                               inputs: Map[String, WomValue],
                                               ioFunctionSet: IoFunctionSet,
-                                              coerceTo: WomType): ErrorOr[Set[WomFile]] = Set.empty[WomFile].validNel
+                                              coerceTo: WomType): ErrorOr[Set[WomFile]] = coerceTo match {
+      case WomSingleFileType => Set[WomFile](WomSingleFile(a.value)).validNel
+      case _ => Set.empty[WomFile].validNel
+    }
   }
 
   implicit val objectLiteralEvaluator: FileEvaluator[ObjectLiteral] = new FileEvaluator[ObjectLiteral] {
@@ -34,7 +37,18 @@ object LiteralEvaluators {
                                               inputs: Map[String, WomValue],
                                               ioFunctionSet: IoFunctionSet,
                                               coerceTo: WomType): ErrorOr[Set[WomFile]] = {
-      a.elements.values.toList.traverse(_.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)).map(_.toSet.flatten)
+      def filesInObjectField(fieldAndWomTypeTuple: (String, WomType)): ErrorOr[Set[WomFile]] = {
+        val (field, womType) = fieldAndWomTypeTuple
+        a.elements.get(field) match {
+          case Some(fieldElement) => fieldElement.predictFilesNeededToEvaluate(inputs, ioFunctionSet, womType)
+          case None => s"Invalid assignment to struct. Required field $field was not specified.".invalidNel
+        }
+      }
+
+      coerceTo match {
+        case WomCompositeType(mapping) => mapping.toList.traverse(filesInObjectField).map(_.flatten.toSet)
+        case _ => a.elements.values.toList.traverse(_.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)).map(_.toSet.flatten)
+      }
     }
   }
 

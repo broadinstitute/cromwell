@@ -90,6 +90,7 @@ package object files {
         case a: Floor => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
         case a: Ceil => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
         case a: Round => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
+        case a: Glob => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
 
         case a: Size => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
         case a: Basename => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)

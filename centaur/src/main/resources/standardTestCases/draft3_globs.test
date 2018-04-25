@@ -1,0 +1,15 @@
+name: draft3_globs
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: draft-3
+tags: ["draft-3"]
+
+files {
+  workflow: wdl_draft3/globs/globs.wdl
+}
+
+metadata {
+  workflowName: globs
+  status: Succeeded
+  "outputs.globs.sum": 15
+}

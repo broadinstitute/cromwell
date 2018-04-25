@@ -443,6 +443,16 @@ object EngineFunctionEvaluators {
     }
   }
 
+  implicit val globFunctionValueEvaluator: ValueEvaluator[Glob] = (a, inputs, ioFunctionSet, forCommandInstantiationOptions) => {
+    processValidatedSingleValue[WomString, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { globString =>
+      for {
+        globbed <- Try(Await.result(ioFunctionSet.glob(globString.valueString), ReadWaitTimeout)).toErrorOr
+        files = globbed map WomSingleFile
+        array = WomArray(files)
+      } yield EvaluatedValue(array, Seq.empty)
+    }
+  }
+
   implicit val sizeFunctionEvaluator: ValueEvaluator[Size] = new ValueEvaluator[Size] {
     override def evaluateValue(a: Size,
                                inputs: Map[String, WomValue],

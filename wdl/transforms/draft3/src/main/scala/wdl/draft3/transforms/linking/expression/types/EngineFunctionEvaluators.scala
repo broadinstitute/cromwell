@@ -183,6 +183,10 @@ object EngineFunctionEvaluators {
     }
   }
 
+  implicit val globFunctionTypeEvaluator: TypeEvaluator[Glob] = (a, linkedValues) => {
+    validateParamType(a.param, linkedValues, WomStringType).map(_ => WomArrayType(WomSingleFileType))
+  }
+
   implicit val sizeFunctionEvaluator: TypeEvaluator[Size] = new TypeEvaluator[Size] {
     override def evaluateType(a: Size, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]): ErrorOr[WomType] = {
       val validatedSecondArg: ErrorOr[Unit] = a.secondParam match {

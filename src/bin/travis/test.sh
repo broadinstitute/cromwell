@@ -24,7 +24,8 @@ case "$TRAVIS_EVENT_TYPE" in
             "${SCRIPT_DIR}"/testCentaurLocal.sh
             ;;
         centaurBcs)
-            "${SCRIPT_DIR}"/testCentaurBcs.sh
+            # Moved below to cron until https://github.com/broadinstitute/cromwell/issues/3554
+            exit 0
             ;;
         centaurCwlConformanceLocal)
             "${SCRIPT_DIR}"/testCentaurCwlConformanceLocal.sh
@@ -49,7 +50,11 @@ case "$TRAVIS_EVENT_TYPE" in
         centaurJes)
             "${SCRIPT_DIR}"/testCentaurJes.sh -i
             ;;
-        centaurTes|centaurLocal|centaurBcs|centaurCwlConformanceLocal|centaurCwlConformancePAPI|sbt|checkPublish)
+        centaurBcs)
+            # Disabled even here in cron until https://github.com/broadinstitute/cromwell/issues/3555
+            exit 0
+            ;;
+        centaurTes|centaurLocal|centaurCwlConformanceLocal|centaurCwlConformancePAPI|sbt|checkPublish)
             exit 0
             ;;
         *)

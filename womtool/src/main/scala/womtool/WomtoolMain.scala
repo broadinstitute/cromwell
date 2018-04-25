@@ -43,8 +43,8 @@ object WomtoolMain extends App {
     case h: HighlightCommandLine => highlight(h.workflowSource.pathAsString, h.highlightMode)
     case i: InputsCommandLine => inputs(i.workflowSource.pathAsString)
     case g: WomtoolGraphCommandLine => graph(g.workflowSource.pathAsString)
-    case g: WomtoolWomGraphCommandLine => womGraph(g.workflowSource.pathAsString)
     case _: WomtoolDraft3UpgradeCommandLine => ???
+    case g: WomtoolWomGraphCommandLine => womGraph(g.workflowSource.pathAsString)
     case _ => BadUsageTermination(WomtoolCommandLineParser.instance.usage)
   }
 

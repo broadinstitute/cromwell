@@ -18,8 +18,8 @@ object WomtoolCommandLineParser {
     case PartialWomtoolCommandLineArguments(Some(Parse), Some(mainFile), None, None) => Option(ParseCommandLine(mainFile))
     case PartialWomtoolCommandLineArguments(Some(Highlight), Some(mainFile), None, Some(mode)) => Option(HighlightCommandLine(mainFile, mode))
     case PartialWomtoolCommandLineArguments(Some(Graph), Some(mainFile), None, None) => Option(WomtoolGraphCommandLine(mainFile))
-    case PartialWomtoolCommandLineArguments(Some(WomGraph), Some(mainFile), None, None) => Option(WomtoolWomGraphCommandLine(mainFile))
     case PartialWomtoolCommandLineArguments(Some(D3Upgrade), Some(mainFile), None, None) => Option(WomtoolDraft3UpgradeCommandLine(mainFile))
+    case PartialWomtoolCommandLineArguments(Some(WomGraph), Some(mainFile), None, None) => Option(WomtoolWomGraphCommandLine(mainFile))
     case _ => None
   }
 }
@@ -75,11 +75,12 @@ class WomtoolCommandLineParser extends scopt.OptionParser[PartialWomtoolCommandL
     .action((_, c) => c.copy(command = Option(Graph)))
     .text("Generate and output a graph visualization of the workflow in .dot format" + System.lineSeparator)
 
+  cmd("d3upgrade")
+    .action((_, c) => c.copy(command = Option(D3Upgrade)))
+    .text("Automatically upgrade the WDL to draft-3. For an input wdl my_wdl.wdl, the draft-3 version will be written to my_wdl.d3.wdl.")
+
   cmd("womgraph")
     .action((_, c) => c.copy(command = Option(WomGraph)))
     .text("(Advanced) Generate and output a graph visualization of Cromwell's internal Workflow Object Model structure for this workflow in .dot format" + System.lineSeparator)
 
-  cmd("d3upgrade")
-    .action((_, c) => c.copy(command = Option(D3Upgrade)))
-    .text("Automatically upgrade the WDL to draft-3. For an input wdl my_wdl.wdl, the draft-3 version will be written to my_wdl.d3.wdl.")
 }

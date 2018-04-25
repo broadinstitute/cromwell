@@ -125,7 +125,8 @@ object OutputManipulator extends Poly1 {
 
       updateFileOrDirectoryWithNestedFiles(withBasename, "secondaryFiles", isDirectory)
     } else if (isDirectory) {
-      updateFileOrDirectoryWithNestedFiles(updatedLocation, "listing", isDirectory)
+      updateFileOrDirectoryWithNestedFiles(updatedLocation, "listing", isDirectory).
+        add("basename", path.nameWithoutExtension |> Json.fromString)
     } else throw new RuntimeException(s"${path.pathAsString} is neither a valid file or a directory")
   }
 

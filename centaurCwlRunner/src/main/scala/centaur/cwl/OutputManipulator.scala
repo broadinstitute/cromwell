@@ -173,8 +173,7 @@ object OutputManipulator extends Poly1 {
           fields <- schema.fields
           typeMap = fields.flatMap(processField).toMap
           outputJson = metadata.map({
-            case (k, v) =>
-              k -> resolveOutputViaInnerType(typeMap(k))(v, pathBuilder)
+            case (k, v) => k -> resolveOutputViaInnerType(typeMap(k))(v, pathBuilder)
           }).asJson
         } yield outputJson).getOrElse(throw new RuntimeException(s"We currently do not support output record schemas with ${tpe.select[OutputArraySchema].get.items} inner type"))
       case (JsNull, Inl(CwlType.Null)) => Json.Null

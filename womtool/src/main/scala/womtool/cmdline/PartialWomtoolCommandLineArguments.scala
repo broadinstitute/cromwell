@@ -17,6 +17,7 @@ final case class HighlightCommandLine(workflowSource: Path,
 final case class InputsCommandLine(workflowSource: Path) extends ValidatedWomtoolCommandLine
 final case class WomtoolGraphCommandLine(workflowSource: Path) extends ValidatedWomtoolCommandLine
 final case class WomtoolWomGraphCommandLine(workflowSource: Path) extends ValidatedWomtoolCommandLine
+final case class WomtoolDraft3UpgradeCommandLine(workflowSource: Path) extends ValidatedWomtoolCommandLine
 
 sealed trait WomtoolCommand
 
@@ -27,6 +28,7 @@ object WomtoolCommand {
   case object Inputs extends WomtoolCommand
   case object Graph extends WomtoolCommand
   case object WomGraph extends WomtoolCommand
+  case object D3Upgrade extends WomtoolCommand
 }
 
 sealed trait HighlightMode

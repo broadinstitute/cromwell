@@ -44,6 +44,7 @@ object WomtoolMain extends App {
     case i: InputsCommandLine => inputs(i.workflowSource.pathAsString)
     case g: WomtoolGraphCommandLine => graph(g.workflowSource.pathAsString)
     case g: WomtoolWomGraphCommandLine => womGraph(g.workflowSource.pathAsString)
+    case _: WomtoolDraft3UpgradeCommandLine => ???
     case _ => BadUsageTermination(WomtoolCommandLineParser.instance.usage)
   }
 

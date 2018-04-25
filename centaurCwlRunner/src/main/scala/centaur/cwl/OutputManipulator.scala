@@ -10,7 +10,7 @@ import io.circe.syntax._
 import io.circe.{Json, JsonObject}
 import org.apache.commons.codec.digest.DigestUtils
 import shapeless.{Inl, Poly1}
-import spray.json.{JsArray, JsNull, JsNumber, JsObject, JsString, JsValue}
+import spray.json.{JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsValue}
 import mouse.all._
 
 //Take cromwell's outputs and format them as expected by the spec
@@ -144,6 +144,17 @@ object OutputManipulator extends Poly1 {
       case (JsNumber(metadata), Inl(CwlType.Double)) => metadata.doubleValue.asJson
       case (JsNumber(metadata), Inl(CwlType.Int)) => metadata.intValue.asJson
       case (JsString(metadata), Inl(CwlType.String)) => metadata.asJson
+
+      //The Anys.  They have to be done for each type so that the asJson can use this type information when going back to Json representation
+      case (JsString(metadata), Inl(CwlType.Any)) => metadata.asJson
+      case (JsNumber(metadata), Inl(CwlType.Any)) => metadata.asJson
+      case (obj: JsObject, Inl(CwlType.Any)) =>
+        import io.circe.parser._
+        parse(obj.compactPrint).right.getOrElse(throw new Exception("Failed to parse Json output as Json... something is very wrong"))
+      case (JsBoolean(metadata), Inl(CwlType.Any)) => metadata.asJson
+      case (JsArray(metadata), Inl(CwlType.Any)) => metadata.asJson
+      case (JsNull, Inl(CwlType.Any)) => Json.Null
+
       case (JsArray(metadata), tpe) if tpe.select[OutputArraySchema].isDefined =>
         (for {
           schema <- tpe.select[OutputArraySchema]
@@ -164,7 +175,7 @@ object OutputManipulator extends Poly1 {
           outputJson = metadata.map({
             case (k, v) => k -> resolveOutputViaInnerType(typeMap(k))(v, pathBuilder)
           }).asJson
-        } yield outputJson).getOrElse(throw new RuntimeException(s"We currently do not support output arrays with ${tpe.select[OutputArraySchema].get.items} inner type"))
+        } yield outputJson).getOrElse(throw new RuntimeException(s"We currently do not support output record schemas with ${tpe.select[OutputArraySchema].get.items} inner type"))
       case (JsNull, Inl(CwlType.Null)) => Json.Null
       case (json, tpe) => throw new RuntimeException(s"We currently do not support outputs (${json.getClass.getSimpleName}) of $json and type $tpe")
     }

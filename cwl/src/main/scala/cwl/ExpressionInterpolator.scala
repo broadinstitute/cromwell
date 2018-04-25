@@ -4,6 +4,7 @@ import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr._
+import wom.types.WomNothingType
 import wom.values._
 
 import scala.collection.JavaConverters._
@@ -162,7 +163,11 @@ object ExpressionInterpolator {
     }
     parts.push(WomString(scan).valid)
     return parts.asScala.toList.sequence[ErrorOr, WomValue] map { list =>
-      WomString(list.map(_.valueString).mkString(""))
+      WomString(list.map{
+        //we represent nulls as this type because Wom doesn't have a "null" value, but it does have a nothing type
+        case WomOptionalValue(WomNothingType, None) => "null"
+        case other => other.valueString
+      }.mkString(""))
     }
   }
 }

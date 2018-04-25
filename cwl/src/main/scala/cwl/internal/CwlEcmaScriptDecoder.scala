@@ -27,7 +27,11 @@ class CwlEcmaScriptDecoder {
         val anyList = array.asScala.toList
         val anyRefArray = anyList.asInstanceOf[List[AnyRef]]
         anyRefArray.traverse(decode).map(WomArray.apply)
+
+      //we represent nulls as this type because Wom doesn't have a "null" value, but it does have a nothing type
+      //If you wish this to be otherwise please tidy up the Expression interpolator as well
       case null => WomOptionalValue(WomNothingType, None).valid
+
       case string: String => WomString(string).valid
       case consString: ConsString => WomString(consString.toString).valid
       case int: java.lang.Integer => WomInteger(int).valid

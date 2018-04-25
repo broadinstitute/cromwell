@@ -3,12 +3,19 @@ package cromwell.engine.workflow.workflowstore
 import java.time.OffsetDateTime
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import cats.Monad
+import cats.data.EitherT._
 import cats.data.NonEmptyList
 import cats.instances.future._
 import cats.instances.list._
+import cats.instances.vector._
 import cats.syntax.traverse._
+import cats.syntax.validated._
+import common.validation.ErrorOr._
+import common.validation.Parse._
 import cromwell.core.Dispatcher._
 import cromwell.core._
+import cromwell.core.labels.{Label, Labels}
 import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
 import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
 import cromwell.engine.instrumentation.WorkflowInstrumentation
@@ -18,10 +25,11 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmitFailed, WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import spray.json.{JsObject, JsString, JsValue, _}
 import wom.core.WorkflowOptionsJson
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryActor: ActorRef) extends Actor 
   with ActorLogging with WorkflowMetadataHelper with MonitoringCompanionHelper with WorkflowInstrumentation {
@@ -43,6 +51,8 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
           val wfType = cmd.source.workflowType.getOrElse("Unspecified type")
           val wfTypeVersion = cmd.source.workflowTypeVersion.getOrElse("Unspecified version")
           log.info("{} ({}) workflow {} submitted", wfType, wfTypeVersion, futureResponse.id)
+          //********** trying to test something **** remove in future ***********
+          validateLabels(cmd.source.labelsJson) foreach { labels => publishLabelsToMetadata(futureResponse.id, labels); () }
           sndr ! WorkflowSubmittedToStore(futureResponse.id, convertDatabaseStateToApiState(futureResponse.state))
           removeWork()
         case Failure(throwable) =>
@@ -96,6 +106,36 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
     val listFutures: List[Future[WorkflowSourceFilesCollection]] = nelFutures.toList
     val futureLists: Future[List[WorkflowSourceFilesCollection]] = Future.sequence(listFutures)
     futureLists.map(seq => NonEmptyList.fromList(seq).get)
+  }
+
+  private def validateLabels(json: String): ErrorOr[Labels] = {
+
+    def toLabels(inputs: Map[String, JsValue]): ErrorOr[Labels] = {
+      val vectorOfValidatedLabel: Vector[ErrorOr[Label]] = inputs.toVector map {
+        case (key, JsString(s)) => Label.validateLabel(key, s)
+        case (key, other) => s"Invalid label $key: $other : Labels must be strings. ${Label.LabelExpectationsMessage}".invalidNel
+      }
+
+      vectorOfValidatedLabel.sequence[ErrorOr, Label] map { validatedVectorofLabel => Labels(validatedVectorofLabel) }
+    }
+
+    Try(json.parseJson) match {
+      case Success(JsObject(inputs)) => toLabels(inputs)
+      case Failure(reason: Throwable) => s"Workflow contains invalid labels JSON: ${reason.getMessage}".invalidNel
+      case _ => """Invalid workflow labels JSON. Expected a JsObject of "labelKey": "labelValue" values.""".invalidNel
+    }
+  }
+
+  private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, labels: Labels): Parse[Unit] = {
+    val defaultLabel = "cromwell-workflow-id" -> s"cromwell-$rootWorkflowId"
+    val customLabels = labels.asMap
+    Monad[Parse].pure(labelsToMetadata(customLabels + defaultLabel, rootWorkflowId))
+  }
+
+  protected def labelsToMetadata(labels: Map[String, String], workflowId: WorkflowId): Unit = {
+    labels foreach { case (k, v) =>
+      serviceRegistryActor ! PutMetadataAction(MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Labels}:$k"), MetadataValue(v)))
+    }
   }
 
   /**

@@ -235,12 +235,8 @@ case class Directory private
 
   lazy val asWomValue: ErrorOr[WomFile] = {
     errorOrListingOption flatMap { listingOption =>
-      val valueOption = path.orElse(location).orElse(basename)
-      (valueOption, listingOption) match {
-        case (None, None) =>
-          "Cannot convert CWL File to WomValue without either a location, a path, a basename, or a listing".invalidNel
-        case (_, _) => WomMaybeListedDirectory(valueOption, listingOption).valid
-      }
+      val valueOption = path.orElse(location).orElse(basename).orElse(Option(better.files.File.newTemporaryDirectory().pathAsString))
+      WomMaybeListedDirectory(valueOption, listingOption).valid
     }
   }
 }

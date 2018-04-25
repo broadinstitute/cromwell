@@ -74,7 +74,7 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
         case Right(file@File(_, None, None, _, _,_,_,_,Some(contents))) => {
           val tempDir = better.files.File.newTemporaryDirectory()
           val cwlFile: better.files.File = tempDir./(s"${contents.hashCode}").write(contents)
-          file.asWomValue.map(_.copy(valueOption = Some(cwlFile.path.toString)))
+          file.asWomValue.map(_.copy(valueOption = Option(cwlFile.path.toString)))
         }
         case Right(file) => file.asWomValue
       }

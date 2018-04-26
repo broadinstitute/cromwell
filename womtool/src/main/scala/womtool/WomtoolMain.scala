@@ -2,6 +2,8 @@ package womtool
 
 import java.nio.file.Paths
 
+import common.Checked
+import common.transforms.CheckedAtoB
 import spray.json._
 import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter, SyntaxHighlighter}
 import wdl.draft2.model.{AstTools, WdlNamespace, WdlNamespaceWithWorkflow}
@@ -43,7 +45,7 @@ object WomtoolMain extends App {
     case h: HighlightCommandLine => highlight(h.workflowSource.pathAsString, h.highlightMode)
     case i: InputsCommandLine => inputs(i.workflowSource.pathAsString)
     case g: WomtoolGraphCommandLine => graph(g.workflowSource.pathAsString)
-    case _: WomtoolDraft3UpgradeCommandLine => ???
+    case u: WomtoolDraft3UpgradeCommandLine => d3upgrade(u.workflowSource.pathAsString)
     case g: WomtoolWomGraphCommandLine => womGraph(g.workflowSource.pathAsString)
     case _ => BadUsageTermination(WomtoolCommandLineParser.instance.usage)
   }
@@ -78,6 +80,23 @@ object WomtoolMain extends App {
 
   def parse(workflowSourcePath: String): Termination = {
     SuccessfulTermination(AstTools.getAst(Paths.get(workflowSourcePath)).toPrettyString)
+  }
+
+  def d3upgrade(workflowSourcePath: String): Termination = {
+    import wdl.draft2.parser.WdlParser.Ast
+    import wdl.model.draft3.elements.FileElement
+    import cats.implicits._
+
+    def astToModelConverter: CheckedAtoB[Ast, FileElement] = ???
+    def modelToStringConverter: CheckedAtoB[FileElement, String] = ???
+
+    val ast: wdl.draft2.parser.WdlParser.Ast = AstTools.getAst(Paths.get(workflowSourcePath))
+    val converted: Checked[String] = (astToModelConverter andThen modelToStringConverter).run(ast)
+
+    converted match {
+      case Right(wdl) => SuccessfulTermination(wdl)
+      case Left(errorList) => UnsuccessfulTermination(errorList.toList.mkString("[", ",", "]"))
+    }
   }
 
   def graph(workflowSourcePath: String): Termination = {

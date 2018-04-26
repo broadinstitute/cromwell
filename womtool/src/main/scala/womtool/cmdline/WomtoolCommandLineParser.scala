@@ -77,7 +77,7 @@ class WomtoolCommandLineParser extends scopt.OptionParser[PartialWomtoolCommandL
 
   cmd("d3upgrade")
     .action((_, c) => c.copy(command = Option(D3Upgrade)))
-    .text("Automatically upgrade the WDL to draft-3. For an input wdl my_wdl.wdl, the draft-3 version will be written to my_wdl.d3.wdl.")
+    .text("Automatically upgrade the WDL to draft-3 and output the result.")
 
   cmd("womgraph")
     .action((_, c) => c.copy(command = Option(WomGraph)))

@@ -8,7 +8,7 @@ import shapeless.Coproduct
 import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.CallElement
 import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
-import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
+import wom.callable.Callable._
 import wom.callable.{Callable, CallableTaskDefinition}
 import wom.graph.CallNode.{CallNodeAndNewNodes, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNodePort.OutputPort
@@ -40,10 +40,14 @@ object CallElementToGraphNode {
       * @return ErrorOr of LocalName(key) mapped to ExpressionNode(value).
       */
     def expressionNodeMappings(callable: Callable): ErrorOr[Map[LocalName, AnonymousExpressionNode]] = {
+      def validInput(name: String, definition: Callable.InputDefinition): Boolean = {
+        definition.name == name && !definition.isInstanceOf[FixedInputDefinition]
+      }
+
       a.node.body match {
         case Some(body) =>
           body.inputs.map(input => input.key -> input.value).toMap.traverse {
-            case (name, expression) =>
+            case (name, expression) if callable.inputs.exists(i => validInput(name, i)) =>
               val identifier = WomIdentifier(name)
               val constructor = callable match {
                 case _: CallableTaskDefinition => TaskCallInputExpressionNode.apply _
@@ -53,6 +57,12 @@ object CallElementToGraphNode {
               AnonymousExpressionNode.fromInputMapping[AnonymousExpressionNode](identifier, WdlomWomExpression(expression, a.linkableValues), a.linkablePorts, constructor) map {
                 LocalName(name) -> _
               }
+            case (name, _) if callable.inputs.exists(i => i.name == name) =>
+              val callNameAlias = a.node.alias match {
+                case Some(alias) => s" (as '$alias')"
+                case None => ""
+              }
+              s"Invalid call to '${callable.name}'$callNameAlias: Didn't expect the input '$name'".invalidNel
           }
         case None => Map.empty[LocalName, AnonymousExpressionNode].valid
       }
@@ -91,6 +101,9 @@ object CallElementToGraphNode {
           InputDefinitionFold(
             mappings = List(withDefault -> Coproduct[InputDefinitionPointer](expression))
           )
+        case fixedExpression @ FixedInputDefinition(_,_,expression,_) => InputDefinitionFold(
+          mappings = List(fixedExpression -> Coproduct[InputDefinitionPointer](expression))
+        )
 
         // No input mapping, required and we don't have a default value, create a new RequiredGraphInputNode
         // so that it can be satisfied via workflow inputs

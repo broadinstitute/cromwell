@@ -84,7 +84,7 @@ object TaskDefinitionElementToWomTaskDefinition {
           val expressionValidation = expression.makeWomExpression(linked.typeAliases, linked.consumedValueLookup)
 
           (typeValidation, expressionValidation) mapN { (womType, womExpression) =>
-            accumulator.copy(inputs = accumulator.inputs :+ InputDefinitionWithDefault(name, womType, womExpression))
+            accumulator.copy(inputs = accumulator.inputs :+ FixedInputDefinition(name, womType, womExpression))
           }
         case InputDeclarationElement(womTypeElement, name, None) =>
           womTypeElement.determineWomType(linked.typeAliases) map { womType =>

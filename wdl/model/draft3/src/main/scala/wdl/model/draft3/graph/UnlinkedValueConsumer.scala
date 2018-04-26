@@ -9,7 +9,7 @@ import scala.language.implicitConversions
 
 @typeclass
 trait GraphElementValueConsumer[A] {
-  def graphElementConsumedValueHooks(a: A, typeAliases: Map[String, WomType], callables: Set[Callable]): ErrorOr[Set[UnlinkedConsumedValueHook]]
+  def graphElementConsumedValueHooks(a: A, typeAliases: Map[String, WomType], callables: Map[String, Callable]): ErrorOr[Set[UnlinkedConsumedValueHook]]
 }
 
 @typeclass

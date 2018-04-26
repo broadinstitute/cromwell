@@ -71,7 +71,7 @@ object TaskDefinitionElementToWomTaskDefinition {
                               outputs: Seq[OutputDeclarationElement],
                               typeAliases: Map[String, WomType]): ErrorOr[TaskGraph] = {
     val combined: Set[WorkflowGraphElement] = (inputs ++ declarations ++ outputs).toSet
-    LinkedGraphMaker.make(combined, Set.empty, typeAliases, Set.empty) flatMap { linked =>
+    LinkedGraphMaker.make(combined, Set.empty, typeAliases, Map.empty) flatMap { linked =>
       val ordered = LinkedGraphMaker.getOrdering(linked)
 
       def foldFunction(currentGraphValidation: ErrorOr[TaskGraph], next: WorkflowGraphElement): ErrorOr[TaskGraph] = {

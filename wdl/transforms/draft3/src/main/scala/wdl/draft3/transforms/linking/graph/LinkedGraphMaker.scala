@@ -19,7 +19,7 @@ object LinkedGraphMaker {
   def make(nodes: Set[WorkflowGraphElement],
            externalHandles: Set[GeneratedValueHandle],
            typeAliases: Map[String, WomType],
-           callables: Set[Callable]): ErrorOr[LinkedGraph] = {
+           callables: Map[String, Callable]): ErrorOr[LinkedGraph] = {
 
     val generatedValuesByGraphNodeValidation = nodes.toList.traverse[ErrorOr, (WorkflowGraphElement, Set[GeneratedValueHandle])] { node =>
       node.generatedValueHandles(typeAliases, callables).map(node -> _)
@@ -61,7 +61,7 @@ object LinkedGraphMaker {
   private def makeConsumedValueLookup(nodes: Set[WorkflowGraphElement],
                                       typeAliases: Map[String, WomType],
                                       availableHandles: Set[GeneratedValueHandle],
-                                      callables: Set[Callable]
+                                      callables: Map[String, Callable]
                                      ): ErrorOr[Map[UnlinkedConsumedValueHook, GeneratedValueHandle]] = {
     val consumedValidation: ErrorOr[Set[UnlinkedConsumedValueHook]] = nodes.toList.traverse(n => n.graphElementConsumedValueHooks(typeAliases, callables)).map(_.toSet.flatten)
 

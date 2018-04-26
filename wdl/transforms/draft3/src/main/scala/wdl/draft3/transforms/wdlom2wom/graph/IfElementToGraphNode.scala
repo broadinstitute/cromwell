@@ -74,4 +74,4 @@ final case class ConditionalNodeMakerInputs(node: IfElement,
                                             availableTypeAliases: Map[String, WomType],
                                             workflowName: String,
                                             insideAnotherScatter: Boolean,
-                                            callables: Set[Callable])
+                                            callables: Map[String, Callable])

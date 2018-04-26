@@ -23,19 +23,18 @@ package object graph {
 
     override def generatedValueHandles(a: WorkflowGraphElement,
                                        typeAliases: Map[String, WomType],
-                                       callables: Set[Callable]): ErrorOr[Set[GeneratedValueHandle]] = a match {
+                                       callables: Map[String, Callable]): ErrorOr[Set[GeneratedValueHandle]] = a match {
       case DeclarationElement(typeElement, name, _) =>
         typeElement.determineWomType(typeAliases) map { t => Set(GeneratedIdentifierValueHandle(name, t)) }
       case a: ScatterElement => a.generatedValueHandles(typeAliases, callables)
       case a: IfElement => a.generatedValueHandles(typeAliases, callables)
       case a: CallElement => a.generatedValueHandles(typeAliases, callables)
-      // TODO fill in other expression types
       case other => s"Cannot generate generated values for WorkflowGraphNodeElement $other".invalidNel
     }
   }
 
   implicit val scatterElementUnlinkedValueGenerator: UnlinkedValueGenerator[ScatterElement] = new UnlinkedValueGenerator[ScatterElement] {
-    override def generatedValueHandles(a: ScatterElement, typeAliases: Map[String, WomType], callables: Set[Callable]): ErrorOr[Set[GeneratedValueHandle]] = {
+    override def generatedValueHandles(a: ScatterElement, typeAliases: Map[String, WomType], callables: Map[String, Callable]): ErrorOr[Set[GeneratedValueHandle]] = {
       a.graphElements.toList.traverse(_.generatedValueHandles(typeAliases, callables)).map(_.toSet.flatten) map { _.map {
         case GeneratedIdentifierValueHandle(id, womType) => GeneratedIdentifierValueHandle(id, WomArrayType(womType))
         case GeneratedCallOutputValueHandle(first, second, womType) => GeneratedCallOutputValueHandle(first, second, WomArrayType(womType))
@@ -44,7 +43,7 @@ package object graph {
   }
 
   implicit val IfElementUnlinkedValueGenerator: UnlinkedValueGenerator[IfElement] = new UnlinkedValueGenerator[IfElement] {
-    override def generatedValueHandles(a: IfElement, typeAliases: Map[String, WomType], callables: Set[Callable]): ErrorOr[Set[GeneratedValueHandle]] = {
+    override def generatedValueHandles(a: IfElement, typeAliases: Map[String, WomType], callables: Map[String, Callable]): ErrorOr[Set[GeneratedValueHandle]] = {
       a.graphElements.toList.traverse(_.generatedValueHandles(typeAliases, callables)).map(_.toSet.flatten) map { _.map {
         case GeneratedIdentifierValueHandle(id, womType) => GeneratedIdentifierValueHandle(id, WomArrayType(womType))
         case GeneratedCallOutputValueHandle(first, second, womType) => GeneratedCallOutputValueHandle(first, second, WomArrayType(womType))
@@ -53,21 +52,21 @@ package object graph {
   }
 
   implicit val callElementUnlinkedValueGenerator: UnlinkedValueGenerator[CallElement] = new UnlinkedValueGenerator[CallElement] {
-    override def generatedValueHandles(a: CallElement, typeAliases: Map[String, WomType], callables: Set[Callable]): ErrorOr[Set[GeneratedValueHandle]] = {
+    override def generatedValueHandles(a: CallElement, typeAliases: Map[String, WomType], callables: Map[String, Callable]): ErrorOr[Set[GeneratedValueHandle]] = {
       def callableOutputToHandle(callable: Callable)(callableOutput: OutputDefinition): GeneratedValueHandle = {
         val callAlias = a.alias.getOrElse(callable.name)
         GeneratedCallOutputValueHandle(callAlias, callableOutput.name, callableOutput.womType)
       }
 
-      callables.find(_.name == a.callableName) match {
+      callables.get(a.callableReference) match {
         case Some(callable) => callable.outputs.map(callableOutputToHandle(callable)).toSet.validNel
-        case None => s"Cannot generate outputs for 'call ${a.callableName}'. No such callable exists.".invalidNel
+        case None => s"Cannot generate outputs for 'call ${a.callableReference}'. No such callable exists in [${callables.keySet.mkString(", ")}]".invalidNel
       }
     }
   }
 
   implicit val graphElementUnlinkedValueConsumer: GraphElementValueConsumer[WorkflowGraphElement] = new GraphElementValueConsumer[WorkflowGraphElement] {
-    override def graphElementConsumedValueHooks(a: WorkflowGraphElement, typeAliases: Map[String, WomType], callables: Set[Callable]): ErrorOr[Set[UnlinkedConsumedValueHook]] = a match {
+    override def graphElementConsumedValueHooks(a: WorkflowGraphElement, typeAliases: Map[String, WomType], callables: Map[String, Callable]): ErrorOr[Set[UnlinkedConsumedValueHook]] = a match {
       case InputDeclarationElement(_, _, None) => Set.empty[UnlinkedConsumedValueHook].validNel
       case DeclarationElement(_, _, Some(expr)) => expr.expressionConsumedValueHooks.validNel
       case a: ScatterElement => a.graphElementConsumedValueHooks(typeAliases, callables)
@@ -79,7 +78,7 @@ package object graph {
   }
 
   implicit val callElementUnlinkedValueConsumer: GraphElementValueConsumer[CallElement] = new GraphElementValueConsumer[CallElement] {
-    override def graphElementConsumedValueHooks(a: CallElement, typeAliases: Map[String, WomType], callables: Set[Callable]): ErrorOr[Set[UnlinkedConsumedValueHook]] = {
+    override def graphElementConsumedValueHooks(a: CallElement, typeAliases: Map[String, WomType], callables: Map[String, Callable]): ErrorOr[Set[UnlinkedConsumedValueHook]] = {
       a.body match {
         case Some(callBodyElement: CallBodyElement) => callBodyElement.inputs.flatMap(_.expressionConsumedValueHooks).toSet.validNel
         case None => Set.empty[UnlinkedConsumedValueHook].valid
@@ -88,7 +87,7 @@ package object graph {
   }
 
   implicit val scatterElementUnlinkedValueConsumer: GraphElementValueConsumer[ScatterElement] = new GraphElementValueConsumer[ScatterElement] {
-    override def graphElementConsumedValueHooks(a: ScatterElement, typeAliases: Map[String, WomType], callables: Set[Callable]): ErrorOr[Set[UnlinkedConsumedValueHook]] = {
+    override def graphElementConsumedValueHooks(a: ScatterElement, typeAliases: Map[String, WomType], callables: Map[String, Callable]): ErrorOr[Set[UnlinkedConsumedValueHook]] = {
       val bodyConsumedValuesValidation: ErrorOr[Set[UnlinkedConsumedValueHook]] = a.graphElements.toList.traverse(_.graphElementConsumedValueHooks(typeAliases, callables)).map(_.toSet.flatten)
       val scatterExpressionHooks: Set[UnlinkedConsumedValueHook] = a.scatterExpression.expressionConsumedValueHooks
 
@@ -106,7 +105,7 @@ package object graph {
   }
 
   implicit val ifElementUnlinkedValueConsumer: GraphElementValueConsumer[IfElement] = new GraphElementValueConsumer[IfElement] {
-    override def graphElementConsumedValueHooks(a: IfElement, typeAliases: Map[String, WomType], callables: Set[Callable]): ErrorOr[Set[UnlinkedConsumedValueHook]] = {
+    override def graphElementConsumedValueHooks(a: IfElement, typeAliases: Map[String, WomType], callables: Map[String, Callable]): ErrorOr[Set[UnlinkedConsumedValueHook]] = {
       val bodyConsumedValuesValidation: ErrorOr[Set[UnlinkedConsumedValueHook]] = a.graphElements.toList.traverse(_.graphElementConsumedValueHooks(typeAliases, callables)).map(_.toSet.flatten)
       val scatterExpressionHooks: Set[UnlinkedConsumedValueHook] = a.conditionExpression.expressionConsumedValueHooks
 

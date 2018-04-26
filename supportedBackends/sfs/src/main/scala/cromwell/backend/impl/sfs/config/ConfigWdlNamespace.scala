@@ -94,6 +94,7 @@ object ConfigWdlNamespace {
        |String $StdoutInput
        |String $StderrInput
        |String $ScriptInput
+       |String $JobShellInput
        |""".stripMargin
 
   /**
@@ -112,5 +113,6 @@ object ConfigWdlNamespace {
     s"""
        |String $JobIdInput
        |String $DockerCidInput
+       |String $JobShellInput
        |""".stripMargin
 }

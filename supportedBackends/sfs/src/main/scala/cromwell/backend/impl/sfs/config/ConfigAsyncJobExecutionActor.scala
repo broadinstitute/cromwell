@@ -78,7 +78,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
      *   --cidfile ${docker_cid} \
      *   --rm -i \
      *   ${"--user " + docker_user} \
-     *   --entrypoint /bin/bash \
+     *   --entrypoint ${job_shell} \
      *   -v ${cwd}:${docker_cwd} \
      *   ${docker} ${script}
      *  """
@@ -135,13 +135,15 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
         DockerCidInput -> dockerCidInputValue,
         StdoutInput -> WomString(jobPathsWithDocker.toDockerPath(standardPaths.output).pathAsString),
         StderrInput -> WomString(jobPathsWithDocker.toDockerPath(standardPaths.error).pathAsString),
-        ScriptInput -> WomString(jobPathsWithDocker.toDockerPath(jobPaths.script).pathAsString)
+        ScriptInput -> WomString(jobPathsWithDocker.toDockerPath(jobPaths.script).pathAsString),
+        JobShellInput -> WomString(jobShell)
       )
     } else {
       Map(
         StdoutInput -> WomString(standardPaths.output.pathAsString),
         StderrInput -> WomString(standardPaths.error.pathAsString),
-        ScriptInput -> WomString(jobPaths.script.pathAsString)
+        ScriptInput -> WomString(jobPaths.script.pathAsString),
+        JobShellInput -> WomString(jobShell)
       )
     }
   }

@@ -113,9 +113,10 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   lazy val scriptEpilogue = configurationDescriptor.backendConfig.as[Option[String]]("script-epilogue").getOrElse("sync")
 
-  lazy val temporaryDirectory = configurationDescriptor.backendConfig
-    .as[Option[String]]("temporary-directory").getOrElse(s"""$$(mkdir -p "${runtimeEnvironment.tempPath}" && echo "${runtimeEnvironment.tempPath}")""")
-
+  lazy val temporaryDirectory = configurationDescriptor.backendConfig.getOrElse(
+      path = "temporary-directory",
+      default = s"""mkdir -p "${runtimeEnvironment.tempPath}" && echo "${runtimeEnvironment.tempPath}""""
+    )
   /**
     * Maps WomFile objects for use in the commandLinePreProcessor.
     *
@@ -146,6 +147,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   final lazy val commandLineValueMapper: WomValue => WomValue = {
     womValue => WomFileMapper.mapWomFiles(mapCommandLineWomFile)(womValue).get
   }
+
+  lazy val jobShell: String = configurationDescriptor.backendConfig.getOrElse("job-shell",
+    configurationDescriptor.globalConfig.getOrElse("system.job-shell", "/bin/bash"))
 
   /**
     * The local path where the command will run.
@@ -290,18 +294,17 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     lazy val environmentVariables = instantiatedCommand.environmentVariables map { case (k, v) => s"""export $k="$v"""" } mkString("", "\n", "\n")
 
     val home = jobDescriptor.taskCall.callable.homeOverride.map { _ (runtimeEnvironment) }.getOrElse("$HOME")
+    val shortId = jobDescriptor.workflowDescriptor.id.shortString
+    // Give the out and error FIFO variables names that are unlikely to conflict with anything the user is doing.
+    val (out, err) = (s"out$shortId", s"err$shortId")
 
     // The `tee` trickery below is to be able to redirect to known filenames for CWL while also streaming
     // stdout and stderr for PAPI to periodically upload to cloud storage.
     // https://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
     (errorOrDirectoryOutputs, errorOrGlobFiles).mapN((directoryOutputs, globFiles) =>
-    s"""|#!/bin/bash
-        |tmpDir=$$(
-        |  set -e
-        |  cd $cwd
-        |  tmpDir="$temporaryDirectory"
-        |  echo "$$tmpDir"
-        |)
+    s"""|#!$jobShell
+        |cd $cwd
+        |tmpDir=`$temporaryDirectory`
         |chmod 777 "$$tmpDir"
         |export _JAVA_OPTIONS=-Djava.io.tmpdir="$$tmpDir"
         |export TMPDIR="$$tmpDir"
@@ -310,11 +313,16 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |cd $cwd
         |SCRIPT_PREAMBLE
         |)
+        |$out="$${tmpDir}/out.$$$$" $err="$${tmpDir}/err.$$$$"
+        |mkfifo "$$$out" "$$$err"
+        |trap 'rm "$$$out" "$$$err"' EXIT
+        |tee $stdoutRedirection < "$$$out" &
+        |tee $stderrRedirection < "$$$err" >&2 &
         |(
         |cd $cwd
         |ENVIRONMENT_VARIABLES
         |INSTANTIATED_COMMAND
-        |) $stdinRedirection > >(tee $stdoutRedirection) 2> >(tee $stderrRedirection >&2)
+        |) $stdinRedirection > "$$$out" 2> "$$$err"
         |echo $$? > $rcTmpPath
         |(
         |cd $cwd

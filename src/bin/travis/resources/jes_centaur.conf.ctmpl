@@ -100,5 +100,7 @@ backend.providers.Jes.config.concurrent-job-limit = 20
 backend.providers.Jes-Refresh.config.concurrent-job-limit = 20
 backend.providers.Jes-Caching-No-Copy.config.concurrent-job-limit = 20
 
+system.job-shell=/bin/sh
+
 {{end}}
 {{end}}

@@ -40,7 +40,26 @@ runtime {
 
 The two types of GPU supported are `nvidia-tesla-k80` and `nvidia-tesla-p100`
 
-**Important**: Before adding a GPU, make sure it is available in the zone the job is running in: https://cloud.google.com/compute/docs/gpus/  
+**Important**: Before adding a GPU, make sure it is available in the zone the job is running in: https://cloud.google.com/compute/docs/gpus/
+
+### Job Shell
+
+Cromwell now allows for system-wide or per-backend job shell configuration for running user commands rather than always
+using the default `/bin/bash`. To set the job shell on a system-wide basis use the configuration key `system.job-shell` or on a
+per-backend basis with `<config-key-for-backend>.job-shell`. For example:
+
+```
+# system-wide setting, all backends get this
+-Dsystem.job-shell=/bin/sh
+```
+
+```
+# override for just the Local backend
+-Dbackend.providers.Local.config.job-shell=/bin/sh
+```
+
+For the Config backend the value of the job shell will be available in the `${job_shell}` variable. See Cromwell's `reference.conf` for an example
+of how this is used for the default configuration of the `Local` backend.
 
 ### Bug Fixes
 

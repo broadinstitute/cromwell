@@ -33,6 +33,7 @@ java \
   -Xmx2g \
   -Dsystem.new-workflow-poll-rate=1 \
   -Dbackend.providers.Local.config.script-epilogue="sleep 5 && sync" \
+  -Dsystem.job-shell=/bin/sh \
   -jar ${CROMWELL_JAR} \
   server &
 CROMWELL_PID=$$

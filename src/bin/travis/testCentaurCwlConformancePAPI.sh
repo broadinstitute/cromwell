@@ -99,9 +99,11 @@ cat <<JSON >${CWL_CONFORMANCE_TEST_INPUTS}
 }
 JSON
 
+# The PAPI CWL conformance make_summary call is currently a mass of bash so this has to use /bin/bash.
 java \
   -Xmx2g \
   -Dbackend.providers.Local.config.concurrent-job-limit=${CWL_CONFORMANCE_TEST_PARALLELISM} \
+  -Dsystem.job-shell=/bin/bash \
   -jar ${CROMWELL_JAR} \
   run ${CWL_CONFORMANCE_TEST_WDL} \
   -i ${CWL_CONFORMANCE_TEST_INPUTS}

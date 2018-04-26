@@ -95,7 +95,7 @@ object WomtoolMain extends App {
   }
 
   object BogusWhatWillThisDo2 {
-    def convert(ast: FileElement): Checked[String] = Right("Meaningless string!")
+    def convert(fileModel: FileElement): Checked[String] = Right("Meaningless string!")
   }
 
   def d3upgrade(workflowSourcePath: String): Termination = {

@@ -51,7 +51,7 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
           val wfType = cmd.source.workflowType.getOrElse("Unspecified type")
           val wfTypeVersion = cmd.source.workflowTypeVersion.getOrElse("Unspecified version")
           log.info("{} ({}) workflow {} submitted", wfType, wfTypeVersion, futureResponse.id)
-          //********** trying to test something **** remove in future ***********
+          //********** trying to test something **** remove before creating pull request ***********
           validateLabels(cmd.source.labelsJson) foreach { labels => publishLabelsToMetadata(futureResponse.id, labels); () }
           sndr ! WorkflowSubmittedToStore(futureResponse.id, convertDatabaseStateToApiState(futureResponse.state))
           removeWork()

@@ -1,0 +1,16 @@
+name: SmartSeq2SingleSample
+testFormat: workflowsuccess
+
+files {
+  workflow: hca/SmartSeq2SingleSample/SmartSeq2SingleSample.wdl
+  inputs: hca/SmartSeq2SingleSample/SmartSeq2SingleSample.inputs.json
+  options: hca/SmartSeq2SingleSample/SmartSeq2SingleSample.labels.json
+}
+
+metadata {
+  workflowName: SmartSeq2SingleCell
+  status: Succeeded
+  "labels.project": "mint-pipeline-dev"
+  "labels.pipeline": "ss2"
+  "labels.name": "pipeline"
+}

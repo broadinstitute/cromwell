@@ -57,12 +57,16 @@ object CallElementToGraphNode {
               AnonymousExpressionNode.fromInputMapping[AnonymousExpressionNode](identifier, WdlomWomExpression(expression, a.linkableValues), a.linkablePorts, constructor) map {
                 LocalName(name) -> _
               }
-            case (name, _) if callable.inputs.exists(i => i.name == name) =>
+            case (name, _) =>
               val callNameAlias = a.node.alias match {
                 case Some(alias) => s" (as '$alias')"
                 case None => ""
               }
-              s"Invalid call to '${callable.name}'$callNameAlias: Didn't expect the input '$name'".invalidNel
+              if (callable.inputs.exists(i => i.name == name)) {
+                s"Invalid call to '${callable.name}'$callNameAlias: The declaration '$name' must be within the called task or sub-workflow's input { } section to be exposed as an input".invalidNel
+              } else {
+                s"Invalid call to '${callable.name}'$callNameAlias: No such value '$name' exists within the called task or sub-workflow's 'input { }' section".stripMargin.invalidNel
+              }
           }
         case None => Map.empty[LocalName, AnonymousExpressionNode].valid
       }

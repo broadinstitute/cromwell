@@ -1,0 +1,19 @@
+ERROR: Call supplied an unexpected input: The 'subwf' task doesn't have an input called 'j':
+
+  call subwf.subwf { input: i = 10, j = 20 }
+                                    ^
+
+Options:
+ - Add the input 'j' to the 'subwf' task (defined on line 1).
+ - When calling a workflow, values that depend on previous values are considered intermediate values rather than overridable inputs.
+  - You can allow overriding intermediate values by having an optional override input and a select_first, eg:
+     # This is an optional input to the workflow:
+     Int? override_x
+
+     # This is a value based on some upstream task or declaration:
+     Int some_previous_result = ...
+
+     # This allows us to override an upstream result with override_x, or just use the previous result otherwise:
+     Int x = select_first(override_x, some_previous_result)
+
+ - Remove 'j = ...' from subwf's inputs (on line 4).

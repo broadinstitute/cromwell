@@ -2,6 +2,10 @@
 
 ## 32 Release Notes
 
+### Labels
+* Cromwell has removed most of the formatting restrictions from custom labels. Please check the [README](README.md#label-format) for more detailed documentation.
+* Custom labels won't be submitted to Google backend as they are now decoupled from Google's default labels.
+
 ### Scala 2.11 Removed
 From version 32 onwards we will no longer be publishing build artifacts compatible with Scala 2.11. 
 

@@ -149,19 +149,17 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
       }
     }
 
-    "reject labels with invalid format for AND" in {
-      val badLabelKey = "0-label-key"
+    "valid labels with invalid format for AND" in {
+      val goodLabelKey = "0-label-key"
       val rawParameters = Seq(
         LabelAndKeyValue.name -> "label-key:label-value",
-        LabelAndKeyValue.name -> s"$badLabelKey:label-value"
+        LabelAndKeyValue.name -> s"$goodLabelKey:label-value"
       )
       val result = WorkflowQueryParameters.runValidation(rawParameters)
       result match {
-        case Valid(r) =>
-          throw new RuntimeException(s"Unexpected success: $r")
+        case Valid(_) => //good
         case Invalid(fs) =>
           fs.toList should have size 1
-          fs.toList.head should include(s"Invalid label: `$badLabelKey` did not match the regex ${Label.LabelKeyRegex}")
       }
     }
 
@@ -181,19 +179,17 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
       }
     }
     
-    "reject labels with invalid format for OR" in {
-      val badLabelKey = "0-label-key"
+    "valid labels with invalid format for OR" in {
+      val goodLabelKey = "0-label-key"
       val rawParameters = Seq(
         LabelOrKeyValue.name -> "label-key:label-value",
-        LabelOrKeyValue.name -> s"$badLabelKey:label-value"
+        LabelOrKeyValue.name -> s"$goodLabelKey:label-value"
       )
       val result = WorkflowQueryParameters.runValidation(rawParameters)
       result match {
-        case Valid(r) =>
-          throw new RuntimeException(s"Unexpected success: $r")
+        case Valid(_) => //good
         case Invalid(fs) =>
           fs.toList should have size 1
-          fs.toList.head should include(s"Invalid label: `$badLabelKey` did not match the regex ${Label.LabelKeyRegex}")
       }
     }
 

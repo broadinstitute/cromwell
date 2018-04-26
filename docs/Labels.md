@@ -25,13 +25,9 @@ After adding labels to your workflows, you can take advantage of features like [
 
 When labels are supplied to Cromwell, it will fail any request containing invalid label strings. Below are the requirements for a valid label key/value pair in Cromwell:
 
-* Label keys and values can't contain characters other than `[a-z]`, `[0-9]` or `-`.
-* Label keys must start with `[a-z]` and end with `[a-z]` or `[0-9]`.
-* Label values must start and end with `[a-z]` or `[0-9]`.
 * Label keys may not be empty but label values may be empty.
-* Label key and values have a max char limit of 63.
+* Label key and values have a max char limit of 255.
 
-Google has a different schema for label syntax requirements, where label key and value strings must match the regex `[a-z]([-a-z0-9]*[a-z0-9])?` and be no more than 63 characters in length.
 For [default labels](backends/Google#google-labels) applied by the Google backend, Cromwell will modify workflow/task/call names to fit the schema, according to the following rules:
 
 * Any capital letters are converted to lowercase.

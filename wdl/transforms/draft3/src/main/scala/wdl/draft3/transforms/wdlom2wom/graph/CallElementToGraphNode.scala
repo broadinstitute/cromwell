@@ -47,7 +47,7 @@ object CallElementToGraphNode {
       a.node.body match {
         case Some(body) =>
           body.inputs.map(input => input.key -> input.value).toMap.traverse {
-            case (name, expression) if callable.inputs.exists(validInput(name, _)) =>
+            case (name, expression) if callable.inputs.exists(i => validInput(name, i)) =>
               val identifier = WomIdentifier(name)
               val constructor = callable match {
                 case _: CallableTaskDefinition => TaskCallInputExpressionNode.apply _
@@ -57,7 +57,7 @@ object CallElementToGraphNode {
               AnonymousExpressionNode.fromInputMapping[AnonymousExpressionNode](identifier, WdlomWomExpression(expression, a.linkableValues), a.linkablePorts, constructor) map {
                 LocalName(name) -> _
               }
-            case (name, _) if callable.inputs.exists(_.name == name) =>
+            case (name, _) if callable.inputs.exists(i => i.name == name) =>
               val callNameAlias = a.node.alias match {
                 case Some(alias) => s" (as '$alias')"
                 case None => ""

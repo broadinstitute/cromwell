@@ -82,13 +82,27 @@ object WomtoolMain extends App {
     SuccessfulTermination(AstTools.getAst(Paths.get(workflowSourcePath)).toPrettyString)
   }
 
+  // TODO: move to an appropriate location
+  import wdl.draft2.parser.WdlParser.Ast
+  import wdl.model.draft3.elements.FileElement
+  import wdl.model.draft3.elements.TaskDefinitionElement
+  import wdl.model.draft3.elements.CommandSectionElement
+
+  object BogusWhatWillThisDo {
+    def convert(ast: Ast): Checked[FileElement] = ast.getName match {
+      case _ => Right(FileElement(Seq(), Seq(), Seq(), Seq(TaskDefinitionElement(name = "bogus", None, Seq(), None, CommandSectionElement(parts = Seq()), None, None, None))))
+    }
+  }
+
+  object BogusWhatWillThisDo2 {
+    def convert(ast: FileElement): Checked[String] = Right("Meaningless string!")
+  }
+
   def d3upgrade(workflowSourcePath: String): Termination = {
-    import wdl.draft2.parser.WdlParser.Ast
-    import wdl.model.draft3.elements.FileElement
     import cats.implicits._
 
-    def astToModelConverter: CheckedAtoB[Ast, FileElement] = ???
-    def modelToStringConverter: CheckedAtoB[FileElement, String] = ???
+    def astToModelConverter: CheckedAtoB[Ast, FileElement] = CheckedAtoB.fromCheck(BogusWhatWillThisDo.convert)
+    def modelToStringConverter: CheckedAtoB[FileElement, String] = CheckedAtoB.fromCheck(BogusWhatWillThisDo2.convert)
 
     val ast: wdl.draft2.parser.WdlParser.Ast = AstTools.getAst(Paths.get(workflowSourcePath))
     val converted: Checked[String] = (astToModelConverter andThen modelToStringConverter).run(ast)

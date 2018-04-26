@@ -46,6 +46,8 @@ trait WorkflowPaths extends PathFactory {
     * @return The paths for the job.
     */
   def toJobPaths(jobKey: BackendJobDescriptorKey, jobWorkflowDescriptor: BackendWorkflowDescriptor): JobPaths = {
+    val x = jobWorkflowDescriptor.workflowOptions.toMap
+    println(s"workflow options:\n ${x.mkString("\n")}")
     // If the descriptors are the same, no need to create a new WorkflowPaths
     if (workflowDescriptor == jobWorkflowDescriptor) toJobPaths(this, jobKey)
     else toJobPaths(withDescriptor(jobWorkflowDescriptor), jobKey)

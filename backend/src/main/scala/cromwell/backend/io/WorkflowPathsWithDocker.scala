@@ -3,12 +3,14 @@ package cromwell.backend.io
 import com.typesafe.config.Config
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder}
+import shapeless.tag.@@
 
 object WorkflowPathsWithDocker {
   val DockerRoot: Path = DefaultPathBuilder.get("/cromwell-executions")
 }
 
-final case class WorkflowPathsWithDocker(workflowDescriptor: BackendWorkflowDescriptor, config: Config, pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) extends WorkflowPaths {
+final case class WorkflowPathsWithDocker(workflowDescriptor: BackendWorkflowDescriptor,
+                                         config: Config, pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) extends WorkflowPaths {
   val dockerWorkflowRoot: Path = workflowPathBuilder(WorkflowPathsWithDocker.DockerRoot)
 
   override def toJobPaths(workflowPaths: WorkflowPaths, jobKey: BackendJobDescriptorKey): JobPathsWithDocker = {

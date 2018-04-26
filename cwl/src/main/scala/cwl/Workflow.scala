@@ -53,8 +53,16 @@ case class Workflow private(
   
   lazy val womFqn: Option[wom.graph.FullyQualifiedName] = {
     explicitWorkflowName.value map { workflowName =>
-      parentWorkflowStep.map(_.womFqn.combine(workflowName))
-        .getOrElse(wom.graph.FullyQualifiedName(workflowName))
+      // Sometimes the workflow name is of the form "parentWorkflowStepName/UUID"
+      // In that case, we don't want the fqn to look like "parentWorkflowStepName.parentWorkflowStepName/UUID"
+      // To avoid that, strip the parentWorkflowStepName from the workflowName
+      val cleanWorkflowName = parentWorkflowStep
+        .map(_.womFqn.value + "/")
+        .map(workflowName.stripPrefix)
+        .getOrElse(workflowName)
+
+      parentWorkflowStep.map(_.womFqn.combine(cleanWorkflowName))
+        .getOrElse(wom.graph.FullyQualifiedName(cleanWorkflowName))
     }
   }
 

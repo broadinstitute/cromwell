@@ -1,9 +1,11 @@
 package cwl.preprocessor
 
 import better.files.{File => BFile}
+import cats.Applicative
 import cats.data.{EitherT, NonEmptyList}
 import cats.effect.IO
 import cats.syntax.either._
+import common.validation.ErrorOr.ErrorOr
 import common.validation.Parse
 import common.validation.Parse._
 import common.validation.Validation._
@@ -15,6 +17,8 @@ import io.circe.optics.JsonPath._
 import io.circe.{Json, JsonNumber, JsonObject}
 import mouse.all._
 import org.slf4j.LoggerFactory
+import cats.syntax.traverse._
+import cats.instances.list._
 
 object CwlPreProcessor {
   private val Log = LoggerFactory.getLogger("CwlPreProcessor")
@@ -91,7 +95,11 @@ object CwlPreProcessor {
     def asReference: Option[CwlReference] = CwlReference.fromString(id)
     def stripFilePrefix = id.stripPrefix(LocalScheme)
   }
-  
+
+  private [preprocessor] implicit class EnhancedCwlFromJsonRun(val jsonObject: JsonObject) extends AnyVal {
+    def id: Option[String] = jsonObject.kleisli("id").get.asString
+  }
+
   def noLogging = new CwlPreProcessor(CwlDecoder.saladCwlFile)
 }
 
@@ -100,6 +108,8 @@ object CwlPreProcessor {
   * @param saladFunction function that takes a file and produce a saladed version of the content
   */
 class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
+
+  implicit val composedApplicative = Applicative[IO] compose Applicative[ErrorOr]
 
   // Modify the string at "key" using the mappingFunction
   private def mapStringValue(key: String, mappingFunction: String => String): Json => Json = root.selectDynamic(key).string.modify(mappingFunction)
@@ -162,7 +172,7 @@ class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
       jsonArray = _.map(mapNumbers) |> Json.fromValues
     )
   }
-  
+
   def preProcessInputFiles(inputContent: String, mappingFunction: String => String): Parse[String] = for {
     parsed <- parseYaml(inputContent)
     mapped = parsed |> mapFilesAndDirectories(mappingFunction) |> mapNumbers
@@ -289,7 +299,7 @@ class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
                                     (checkedProcessedReferences: Parse[ProcessedReferences],
                                      cwlReference: CwlReference): Parse[ProcessedReferences] = {
     def processReference(processedReferences: ProcessedReferences) = {
-      
+
       val result: Parse[ProcessedJsonAndDependencies] = unProcessedReferences.get(cwlReference) match {
         case Some(unProcessedReferenceJson) =>
           // Found the json in the unprocessed map, no need to reparse the file, just flatten this json
@@ -367,26 +377,50 @@ class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
     val namespacesJson = addJsonKeyValue(saladedJson, JsonKeyNamespaces, namespacesJsonOption)
     val schemasJson = addJsonKeyValue(namespacesJson, JsonKeySchemas, schemasJsonOption)
 
-    // TODO: it would be nice to accumulate failures here somehow (while still folding and be able to re-use
-    // successfully processed references, so I don't know if ErrorOr would work)
-    val parsedReferences = findRunReferences(schemasJson.json).foldLeft(processedReferences.validParse)(foldFunction)
-    parsedReferences map { newKnownReferences =>
+    import cats.syntax.apply._
+
+    // Take the processed runs and inject them in the json
+    def inlineProcessedJsons(newKnownReferences: ProcessedReferences, inlinedRunWorkflows: Map[String, ProcessedJsonAndDependencies]) = {
       // Provide a function to swap the run reference with its json content
-      val lookupFunction = {
+      val lookupFunction: Json => Json = {
         json: Json => {
-          val fromMap = for {
+          val fromRunReferenceMap = for {
             asString <- json.asString
             reference <- asString.asReference
             embbeddedJson <- newKnownReferences.get(reference)
           } yield embbeddedJson.json
 
-          fromMap.getOrElse(json)
+          val fromInlinedWorkflow = for {
+            asObject <- json.asObject
+            id <- asObject.kleisli("id")
+            idAsString <- id.asString
+            embbeddedJson <- inlinedRunWorkflows.get(idAsString)
+          } yield embbeddedJson.processedJson
+
+          fromRunReferenceMap.orElse(fromInlinedWorkflow).getOrElse(json)
         }
       }
 
-      val modifiedJson = root.steps.each.run.json.modify(lookupFunction)(schemasJson.json)
-      ProcessedJsonAndDependencies(modifiedJson, newKnownReferences)
+      val flattenedJson = root.steps.each.run.json.modify(lookupFunction)(schemasJson.json)
+      
+      ProcessedJsonAndDependencies(flattenedJson, newKnownReferences ++ inlinedRunWorkflows.values.flatMap(_.processedDependencies))
     }
+    
+    // Recursively process the run references (where run is a string pointing to another Workflow / Tool)
+    // TODO: it would be nice to accumulate failures here somehow (while still folding and be able to re-use
+    // successfully processed references, so I don't know if ErrorOr would work)     
+    val processedRunReferences: Parse[ProcessedReferences] = findRunReferences(schemasJson.json).foldLeft(processedReferences.validParse)(foldFunction)
+    
+    // Recursively process the inlined run workflows (where run is a Json object representing a workflow)
+    val processedInlineReferences: Parse[Map[String, ProcessedJsonAndDependencies]] = (for {
+      inlineWorkflowReferences <- Parse.errorOrParse[Map[String, Json]] { findRunInlinedWorkflows(saladedJson.json) }
+      flattenedWorkflows <- inlineWorkflowReferences.toList.traverse[Parse, (String, ProcessedJsonAndDependencies)]({
+        case (id, value) => flattenJson(value, unProcessedReferences, processedReferences, breadCrumbs, namespacesJsonOption, schemasJsonOption).map(id -> _)
+      })
+    } yield flattenedWorkflows).map(_.toMap)
+
+    // Replace the unprocessed runs with their processed value
+    (processedRunReferences, processedInlineReferences).tupled.map(Function.tupled(inlineProcessedJsons))
   }
 
   /**
@@ -413,6 +447,37 @@ class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
     json.asArray match {
       case Some(cwls) => cwls.toList.flatMap(findRunReferences)
       case _ => root.steps.each.run.string.getAll(json).flatMap(_.asReference).distinct
+    }
+  }
+
+  /**
+    * Given a json, collects all "steps.run" values that are JSON Objects representing a workflow.
+    * A saladed JSON is assumed.
+    * @return a Map[String, Json], where the key is the cwl id of the workflow, and the value its content
+    */
+  private def findRunInlinedWorkflows(json: Json): ErrorOr[Map[String, Json]] = {
+    import cats.instances.list._
+    import cats.syntax.traverse._
+
+    json.asArray match {
+      case Some(cwls) => cwls.toList
+        // Those shenanigans are because I can't get traverse to work on map directly, so there's some conversion
+        // back and forth between list and map
+        .flatTraverse[ErrorOr, (String, Json)](findRunInlinedWorkflows(_)
+        .map(_.toList))
+        .map(_.toMap)
+      case _ =>
+        // Look for all the "run" steps that are json objects
+        root.steps.each.run.obj.getAll(json)
+          .map(Json.fromJsonObject)
+          // Only keep the workflows (CommandLineTools don't have steps so no need to process them)
+          .filter(root.`class`.string.exist(_.equalsIgnoreCase("Workflow")))
+          .traverse[ErrorOr, (String, Json)]( obj =>
+          // Find the id of the workflow
+          root.id.string.getOption(obj)
+            .toErrorOr("Programmer error: Workflow did not contain an id. Make sure the cwl has been saladed")
+            .map(_ -> obj)
+        ).map(_.toMap)
     }
   }
 

@@ -70,7 +70,7 @@ class CwlPreProcessorSpec extends FlatSpec with Matchers with MockFactory {
     }
   }
 
-  it should "inline inlined workflows" in {
+  it should "pre-process inlined workflows" in {
     val testRoot = makeTestRoot("deep_nesting")
 
     val subWorkflow1 = testRoot / "wc-tool.cwl"

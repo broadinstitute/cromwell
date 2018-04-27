@@ -40,7 +40,7 @@ object ExpressionEvaluator {
       eval(string, parameterContext)
     }
 
-    ExpressionInterpolator.interpolate(expression.value, evaluator)
+    ExpressionInterpolator.interpolate(expression.value, evaluator, strip_whitespace = false)
   }
 
   def evalFunction(function: ECMAScriptFunction)(parameterContext: ParameterContext): ErrorOr[WomValue] = {

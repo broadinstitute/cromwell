@@ -2,6 +2,7 @@ package womtool
 
 import java.nio.file.Paths
 
+import cats.data.NonEmptyList
 import common.Checked
 import common.transforms.CheckedAtoB
 import spray.json._
@@ -86,23 +87,99 @@ object WomtoolMain extends App {
   import wdl.draft2.parser.WdlParser.Ast
   import wdl.model.draft3.elements.FileElement
   import wdl.model.draft3.elements.TaskDefinitionElement
-  import wdl.model.draft3.elements.CommandSectionElement
+//  import wdl.model.draft3.elements.CommandSectionElement
+//  import wdl.model.draft3.elements.FileBodyElement
+  import wdl.model.draft3.elements.ImportElement
+  import wdl.draft2.model.AstTools._
+  import wdl.model.draft3.elements.WorkflowDefinitionElement
+  import wdl.model.draft3.elements.InputsSectionElement
+  import wdl.model.draft3.elements.OutputsSectionElement
+  import wdl.model.draft3.elements.{OutputDeclarationElement, PrimitiveTypeElement}
+  import wdl.model.draft3.elements.TypeElement
+//  import wdl.draft2.parser.WdlParser.AstNode
+  import wom.types.WomStringType
+  import wdl.model.draft3.elements.ExpressionElement.StringLiteral
 
-  object BogusWhatWillThisDo {
-    def convert(ast: Ast): Checked[FileElement] = ast.getName match {
-      case _ => Right(FileElement(Seq(), Seq(), Seq(), Seq(TaskDefinitionElement(name = "bogus", None, Seq(), None, CommandSectionElement(parts = Seq()), None, None, None))))
-    }
+  def convertAstToFile(ast: Ast): Checked[FileElement] = ast.getName match {
+    case "Namespace" =>
+      val bodyElements: Seq[Ast] = ast.getAttribute("body").astListAsVector.collect({ case a: Ast => a })
+      val imports: Seq[Ast] = ast.getAttribute("imports").astListAsVector.collect({ case a: Ast => a })
+
+      val tasks = bodyElements.filter(_.getName == "Task")
+      val workflows = bodyElements.filter(_.getName == "Workflow")
+
+      // TODO: better way to provide this guarantee - match statement with _ that throws exception?
+      assert(tasks.size + workflows.size == bodyElements.size, "Missed something!")
+
+      Right(FileElement(
+        workflows = workflows.map(convertAstToWorkflow),
+        imports = imports.map(convertAstToImport),
+        structs = Seq(), // no structs in draft-2 I think?
+        tasks = tasks.map(convertAstToTask)))
+    case _ => Left(NonEmptyList("What are you doing?", Nil))
   }
 
-  object BogusWhatWillThisDo2 {
-    def convert(fileModel: FileElement): Checked[String] = Right("Meaningless string!")
+  def convertAstToWorkflow(ast: Ast): WorkflowDefinitionElement = {
+    val name = ast.getAttribute("name").sourceString
+    val bodyElements: Seq[Ast] = ast.getAttribute("body").astListAsVector.collect({ case a: Ast => a })
+
+    val outputs: Ast = bodyElements.filter(_.getName == "WorkflowOutputs").head
+
+    WorkflowDefinitionElement(
+      name = name,
+      inputsSection = None,
+      graphElements = Set.empty,
+      outputsSection = convertAstToOutputsSection(outputs),
+      metaSection = None,
+      parameterMetaSection = None
+    )
   }
+
+  def convertAstToOutputsSection(ast: Ast): Option[OutputsSectionElement] = {
+    val outputElements: Seq[Ast] = ast.getAttribute("outputs").astListAsVector.collect({ case a: Ast => a })
+
+    if (outputElements.nonEmpty)
+      Some(OutputsSectionElement(outputs = outputElements.map(convertAstToOutputDeclarationElement)))
+    else
+      None
+  }
+
+  def convertAstToOutputDeclarationElement(ast: Ast): OutputDeclarationElement = {
+    //    val typeElement = ast.getAttribute("typeElement")
+    //    val name = ast.getAttribute("name")
+    //    val expression = ast.getAttribute("expression")
+
+    OutputDeclarationElement(
+      typeElement = PrimitiveTypeElement(WomStringType),
+      name = "asdf",
+      expression = StringLiteral("wasd")
+    )
+  }
+
+  def convertAstToTypeElement(ast: Ast): TypeElement = ???
+
+  def convertAstToInputsSectionElement(ast: Ast): InputsSectionElement = ???
+
+  def convertAstToTask(ast: Ast): TaskDefinitionElement = ???
+
+  def convertAstToImport(ast: Ast): ImportElement = ???
+
+  def convertFileElementToString(fileModel: FileElement): Checked[String] = Right("Meaningless string!")
+
+//  object AstToFileBodyElement {
+//    def convert(ast: Ast): Checked[FileBodyElement] = ast.getName match {
+//      case "Workflow" => astNodeToWorkflowDefinitionElement(ast)
+//      case "Task" => astNodeToTaskDefinitionElement(ast)
+//      case "Struct" => astNodeToStructEntry(ast)
+//      case other => s"No conversion defined for Ast with name $other".invalidNelCheck
+//    }
+//  }
 
   def d3upgrade(workflowSourcePath: String): Termination = {
     import cats.implicits._
 
-    def astToModelConverter: CheckedAtoB[Ast, FileElement] = CheckedAtoB.fromCheck(BogusWhatWillThisDo.convert)
-    def modelToStringConverter: CheckedAtoB[FileElement, String] = CheckedAtoB.fromCheck(BogusWhatWillThisDo2.convert)
+    def astToModelConverter: CheckedAtoB[Ast, FileElement] = CheckedAtoB.fromCheck(convertAstToFile)
+    def modelToStringConverter: CheckedAtoB[FileElement, String] = CheckedAtoB.fromCheck(convertFileElementToString)
 
     val ast: wdl.draft2.parser.WdlParser.Ast = AstTools.getAst(Paths.get(workflowSourcePath))
     val converted: Checked[String] = (astToModelConverter andThen modelToStringConverter).run(ast)

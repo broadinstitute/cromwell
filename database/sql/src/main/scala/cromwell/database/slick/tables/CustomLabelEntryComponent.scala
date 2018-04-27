@@ -25,8 +25,8 @@ trait CustomLabelEntryComponent {
     def fkCustomLabelEntryWorkflowExecutionUuid = foreignKey("FK_CUSTOM_LABEL_ENTRY_WORKFLOW_EXECUTION_UUID",
       workflowExecutionUuid, workflowMetadataSummaryEntries)(_.workflowExecutionUuid, onDelete = Cascade)
 
-    def ucCustomLabelEntryClkClvWeu = index("UC_CUSTOM_LABEL_ENTRY_CLK_CLV_WEU",
-      (customLabelKey, customLabelValue, workflowExecutionUuid), unique = true)
+    def ucCustomLabelEntryClkWeu = index("UC_CUSTOM_LABEL_ENTRY_CLK_WEU",
+      (customLabelKey, workflowExecutionUuid), unique = true)
 }
 
   val customLabelEntries = TableQuery[CustomLabelEntries]
@@ -34,14 +34,12 @@ trait CustomLabelEntryComponent {
   val customLabelEntryIdsAutoInc = customLabelEntries returning
     customLabelEntries.map(_.customLabelEntryId)
 
-  val existsWorkflowIdLabelKeyAndValue = Compiled(
-    (workflowUuid: Rep[String], labelKey: Rep[String], labelValue: Rep[String]) => (for {
+  val customLabelEntriesForWorkflowExecutionUuidAndLabelKey = Compiled(
+    (workflowExecutionUuid: Rep[String], labelKey: Rep[String]) => for {
       customLabelEntry <- customLabelEntries
-      if customLabelEntry.workflowExecutionUuid === workflowUuid &&
-        customLabelEntry.customLabelKey === labelKey &&
-        customLabelEntry.customLabelValue === labelValue
-    } yield ()).exists
-  )
+      if customLabelEntry.workflowExecutionUuid === workflowExecutionUuid &&
+        customLabelEntry.customLabelKey === labelKey
+    } yield customLabelEntry)
 
   def existsWorkflowIdLabelKeyAndValue(workflowId: Rep[String],
                                        labelKey: Rep[String],

@@ -46,6 +46,33 @@ The two types of GPU supported are `nvidia-tesla-k80` and `nvidia-tesla-p100`
 
 The imports zip no longer unpacks a single (arbitrary) internal directory if it finds one (or more). Instead, import statements should now be made relative to the base of the import zip root.
 
+#### Reverting Custom Labels
+
+Reverting to a prior custom label value now works.
+
+["Retrieves the current labels for a workflow"](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/#retrieves-the-current-labels-for-a-workflow)
+will return the most recently summarized custom label value.
+
+The above endpoint may still return the prior value for a short period of time after using
+["Updated labels for a workflow"](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/#update-labels-for-a-workflow)
+until the background metadata summary process completes.
+
+#### Deleting Duplicate Custom Label Rows
+
+If you never used the REST API to revert a custom label back to a prior value you will not be affected. This only applies to workflows previously updated using
+["Updated labels for a workflow"](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/#update-labels-for-a-workflow).
+
+The database table storing custom labels will delete duplicate rows for any workflow label key. For efficiency purposes
+the values are not regenerated automatically from the potentially large metadata table.
+
+In rare cases where one tried to revert to a prior custom label value you may continue to see different results
+depending on the REST API used. After the database update
+["Retrieves the current labels for a workflow"](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/#retrieves-the-current-labels-for-a-workflow)
+will return the most-recent-unique value while
+["Get workflow and call-level metadata for a specified workflow"](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/#get-workflow-and-call-level-metadata-for-a-specified-workflow)
+will return the up-to-date value. For example, if one previously updated a value from `"value-1"` > `"value-2"` >
+`"value-3"` > `"value-2"` then the former REST API will return `value-3` while the latter will return `value-2`.
+
 ## 31 Release Notes
 
 * **Cromwell server**  

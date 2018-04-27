@@ -1,10 +1,11 @@
 package cwl.preprocessor
 
 import better.files.{File => BFile}
-import cats.Applicative
 import cats.data.{EitherT, NonEmptyList}
 import cats.effect.IO
+import cats.instances.list._
 import cats.syntax.either._
+import cats.syntax.traverse._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Parse
 import common.validation.Parse._
@@ -17,8 +18,6 @@ import io.circe.optics.JsonPath._
 import io.circe.{Json, JsonNumber, JsonObject}
 import mouse.all._
 import org.slf4j.LoggerFactory
-import cats.syntax.traverse._
-import cats.instances.list._
 
 object CwlPreProcessor {
   private val Log = LoggerFactory.getLogger("CwlPreProcessor")
@@ -108,9 +107,6 @@ object CwlPreProcessor {
   * @param saladFunction function that takes a file and produce a saladed version of the content
   */
 class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
-
-  implicit val composedApplicative = Applicative[IO] compose Applicative[ErrorOr]
-
   // Modify the string at "key" using the mappingFunction
   private def mapStringValue(key: String, mappingFunction: String => String): Json => Json = root.selectDynamic(key).string.modify(mappingFunction)
 

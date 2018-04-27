@@ -10,21 +10,21 @@ regenerate.
 
 
 <a name="overview"></a>
-**Overview**  
+**Overview**
 Describes the REST API provided by a Cromwell server
 
 
-**Version information**  
+**Version information**
 *Version* : 30
 
 
-**License information**  
-*License* : BSD  
-*License URL* : https://github.com/broadinstitute/cromwell/blob/develop/LICENSE.txt  
+**License information**
+*License* : BSD
+*License URL* : https://github.com/broadinstitute/cromwell/blob/develop/LICENSE.txt
 *Terms of service* : null
 
 
-**Produces**  
+**Produces**
 
 * `application/json`
 
@@ -48,7 +48,7 @@ Submits a workflow to Cromwell. Note that this endpoint can accept an unlimited 
 |Type|Name|Description|Schema|Default|
 |---|---|---|---|---|
 |**Path**|**version**  <br>*required*|Cromwell API Version|string|`"v1"`|
-|**FormData**|**labels**  <br>*optional*|JSON file containing a set of collection of key/value pairs for labels to apply to this workflow.|file||
+|**FormData**|**labels**  <br>*optional*|JSON object of labels to apply to this workflow.|file||
 |**FormData**|**workflowDependencies**  <br>*optional*|ZIP file containing workflow source files that are used to resolve local imports. This zip bundle will be unpacked in a sandbox accessible to this workflow.|file||
 |**FormData**|**workflowInputs**  <br>*optional*|JSON or YAML file containing the inputs as an object. For WDL workflows a skeleton file can be generated from WOMtool using the "inputs" subcommand. When multiple files are specified, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2. Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.|file||
 |**FormData**|**workflowInputs_2**  <br>*optional*|A second JSON or YAML file containing inputs.|file||
@@ -142,7 +142,7 @@ In instances where you want to run the same workflow multiple times with varying
 |Type|Name|Description|Schema|Default|
 |---|---|---|---|---|
 |**Path**|**version**  <br>*required*|Cromwell API Version|string|`"v1"`|
-|**FormData**|**labels**  <br>*optional*|JSON file containing a set of collection of key/value pairs for labels to apply to this workflow.|file||
+|**FormData**|**labels**  <br>*optional*|JSON object of labels to apply to this workflow.|file||
 |**FormData**|**workflowDependencies**  <br>*optional*|ZIP file containing workflow source files that are used to resolve local imports. This zip bundle will be unpacked in a sandbox accessible to these workflows.|file||
 |**FormData**|**workflowInputs**  <br>*required*|JSON file containing the inputs as an array of objects. Every element of the array will correspond to a single workflow. For WDL workflows a skeleton file can be generated from WOMtool using the "inputs" subcommand. When multiple files are specified, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2. Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.|file||
 |**FormData**|**workflowOnHold**  <br>*optional*|Put workflow on hold upon submission. By default, it is taken as false.|boolean||
@@ -927,8 +927,8 @@ Result for an individual workflow returned by a workflow query
 
 <a name="google_oauth"></a>
 ### google_oauth
-*Type* : oauth2  
-*Flow* : implicit  
+*Type* : oauth2
+*Flow* : implicit
 *Token URL* : https://accounts.google.com/o/oauth2/auth
 
 

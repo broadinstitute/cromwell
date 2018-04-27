@@ -74,7 +74,7 @@ paths:
           enum: [draft-2, draft-3, v1.0]
           in: formData
         - name: labels
-          description: JSON file containing a set of collection of key/value pairs for labels to apply to this workflow.
+          description: JSON object of labels to apply to this workflow.
           required: false
           type: file
           in: formData

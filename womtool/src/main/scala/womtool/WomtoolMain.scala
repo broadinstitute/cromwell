@@ -156,6 +156,8 @@ object WomtoolMain extends App {
     )
   }
 
+  // Is this just duplicating wdl.draft3.transforms.ast2wdlom.AstNodeToTypeElement.convert?
+  // Not exactly, because it's a different Ast version. How do we find out the differences?
   def convertAstToTypeElement(ast: Ast): TypeElement = ???
 
   def convertAstToInputsSectionElement(ast: Ast): InputsSectionElement = ???

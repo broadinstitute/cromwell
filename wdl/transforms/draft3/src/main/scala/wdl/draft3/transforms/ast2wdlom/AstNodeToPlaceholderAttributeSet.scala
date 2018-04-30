@@ -49,8 +49,8 @@ object AstNodeToPlaceholderAttributeSet {
 
     folded match {
       case (_, nel) if nel.nonEmpty => Left(NonEmptyList.fromListUnsafe(nel))
-      case (PlaceholderAttributeSet(_, Some(t), None, _), _) => s"Cannot specify 'true=$t' without also having a 'false=...' attribute".invalidNelCheck
-      case (PlaceholderAttributeSet(_, None, Some(f), _), _) => s"Cannot specify 'false=$f' without also having a 'true=...' attribute".invalidNelCheck
+      case (PlaceholderAttributeSet(_, Some(t), None, _), _) => s"""Cannot specify 'true="$t"' without also having a 'false="..."' attribute""".invalidNelCheck
+      case (PlaceholderAttributeSet(_, None, Some(f), _), _) => s"""Cannot specify 'false="$f"' without also having a 'true="..."' attribute""".invalidNelCheck
       case (valid, _) => valid.validNelCheck
     }
   }

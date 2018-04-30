@@ -383,15 +383,15 @@ class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
           val fromRunReferenceMap = for {
             asString <- json.asString
             reference <- asString.asReference
-            embbeddedJson <- newKnownReferences.get(reference)
-          } yield embbeddedJson.json
+            embeddedJson <- newKnownReferences.get(reference)
+          } yield embeddedJson.json
 
           val fromInlinedWorkflow = for {
             asObject <- json.asObject
             id <- asObject.kleisli("id")
             idAsString <- id.asString
-            embbeddedJson <- inlinedRunWorkflows.get(idAsString)
-          } yield embbeddedJson.processedJson
+            embeddedJson <- inlinedRunWorkflows.get(idAsString)
+          } yield embeddedJson.processedJson
 
           fromRunReferenceMap.orElse(fromInlinedWorkflow).getOrElse(json)
         }

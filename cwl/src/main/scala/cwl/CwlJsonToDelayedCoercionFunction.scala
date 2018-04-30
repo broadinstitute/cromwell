@@ -70,6 +70,8 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
           define new files on a runtime. The maximum size of contents is 64 kilobytes.
 
           As this is <= 64 KB of data and is being put in a temp dir, the author doesn't anticipate needing a formal cleanup.
+          The author is often mistaken, however, and defers the decision to due process:
+          https://github.com/broadinstitute/cromwell/issues/3568
          */
         case Right(file@File(_, None, None, _, _,_,_,_,Some(contents))) => {
           val tempDir = better.files.File.newTemporaryDirectory()

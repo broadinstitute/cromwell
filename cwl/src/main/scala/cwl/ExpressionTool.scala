@@ -26,7 +26,10 @@ case class ExpressionTool(
                            hints: Option[Array[Hint]] = None,
                            label: Option[String] = None,
                            doc: Option[String] = None,
-                           cwlVersion: Option[CwlVersion] = None) extends Tool {
+                           cwlVersion: Option[CwlVersion] = None,
+                           `$namespaces`: Option[Map[String, String]] = None,
+                           `$schemas`: Option[Array[String]] = None
+                         ) extends Tool {
 
   def asCwl: Cwl = Coproduct[Cwl](this)
 

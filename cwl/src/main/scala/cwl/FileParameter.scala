@@ -5,6 +5,7 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr._
 import common.validation.Validation.validate
+import cwl.ontology.Schema
 import shapeless.Poly1
 import wom.expression.IoFunctionSet
 import wom.types.{WomFileType, WomSingleFileType}
@@ -49,6 +50,25 @@ object FileParameter {
         ).map(WomArray(_))
 
       case womValue: WomValue => womValue.valid
+    }
+  }
+
+  /**
+    * Checks if the file is compatible with a format.
+    */
+  def checkFormat(womMaybePopulatedFile: WomMaybePopulatedFile,
+                  formatsOption: Option[List[String]],
+                  schemaOption: Option[Schema]): ErrorOr[Unit] = {
+    validate {
+      for {
+        schema <- schemaOption
+        fileFormat <- womMaybePopulatedFile.formatOption
+        formats <- formatsOption
+      } yield {
+        if (!formats.exists(schema.isSubClass(fileFormat, _)))
+          throw new RuntimeException(s"$fileFormat is not compatible with ${formats.mkString(", ")}")
+      }
+      ()
     }
   }
 

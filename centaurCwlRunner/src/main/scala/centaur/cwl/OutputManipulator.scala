@@ -2,6 +2,7 @@ package centaur.cwl
 
 import cromwell.core.path.{Path, PathBuilder}
 import cwl.command.ParentName
+import cwl.ontology.Schema
 import cwl.{File => CwlFile, _}
 import io.circe.generic.auto._
 import io.circe.literal._
@@ -17,8 +18,11 @@ import mouse.all._
 object OutputManipulator extends Poly1 {
 
   //In an Ideal world I'd return a Coproduct of these types and leave the asJson-ing to the handleOutput
-  def resolveOutput(jsValue: JsValue, pathBuilder: PathBuilder, mot: MyriadOutputType): Json  = {
-    mot.fold(this).apply(jsValue, pathBuilder)
+  def resolveOutput(jsValue: JsValue,
+                    pathBuilder: PathBuilder,
+                    mot: MyriadOutputType,
+                    schemaOption: Option[Schema]): Json  = {
+    mot.fold(this).apply(jsValue, pathBuilder, schemaOption)
   }
 
   private def hashFile(path: Path): Option[String] = path.exists.option("sha1$" + path.sha1.toLowerCase)
@@ -38,8 +42,12 @@ object OutputManipulator extends Poly1 {
     * @param isInsideDirectory Conformance tests expect "basename" to be filled in for files iff the file is listed
     *                          in a directory. This field lets us know whether or not that's the case and if we should
     *                          add the "basename" field to the output JSON.
+    * @param schemaOption      Optional schema.
     */
-  private def populateFileFields(pathBuilder: PathBuilder, isInsideDirectory: Boolean)(obj: JsonObject): JsonObject = {
+  private def populateFileFields(pathBuilder: PathBuilder,
+                                 isInsideDirectory: Boolean,
+                                 schemaOption: Option[Schema]
+                                )(obj: JsonObject): JsonObject = {
     val path = pathBuilder.build(obj.kleisli("location").get.asString.get).get
     val isFile = obj.kleisli("class").exists(_.asString.contains("File"))
     val isDirectory = obj.kleisli("class").exists(_.asString.contains("Directory"))
@@ -56,7 +64,7 @@ object OutputManipulator extends Poly1 {
 
       def populateInnerFile(file: Json): Json = {
         file.asObject
-          .map(populateFileFields(pathBuilder, isInsideDirectory))
+          .map(populateFileFields(pathBuilder, isInsideDirectory, schemaOption))
           .map(Json.fromJsonObject)
           .orElse(file.asString.map(stringToFile(_, pathBuilder)))
           .getOrElse(file)
@@ -90,6 +98,18 @@ object OutputManipulator extends Poly1 {
     // The cwl test runner expects only the name, not the full path
     val updatedLocation = obj.add("location", Json.fromString(path.name))
 
+    // Get the format
+    def formatOption: Option[String] = for {
+      klesliFormat <- obj.kleisli("format")
+      format <- klesliFormat.asString
+    } yield format
+
+    // Lookup the full format using the namespaces
+    def fullFormatOption: Option[String] = for {
+      format <- formatOption
+      schema <- schemaOption
+    } yield schema.fullIri(format)
+
     if (isFile) {
       /*
         * In order of priority use: 
@@ -113,6 +133,13 @@ object OutputManipulator extends Poly1 {
         Option(valueOrNull("basename", path.exists.option(path.nameWithoutExtension).map(Json.fromString).getOrElse(Json.Null)))
       } else None
 
+      /*
+      In order of priority use:
+      1) the full format if $namespaces are available
+      2) the original format
+       */
+      val defaultFormatOption: Option[Json] = fullFormatOption.orElse(formatOption).map(Json.fromString)
+
       val withChecksumAndSize = updatedLocation
         .add("checksum", checksum)
         .add("size", size)
@@ -123,14 +150,21 @@ object OutputManipulator extends Poly1 {
         .map(withChecksumAndSize.add("basename", _))
         .getOrElse(withChecksumAndSize)
 
-      updateFileOrDirectoryWithNestedFiles(withBasename, "secondaryFiles", isDirectory)
+      val withFormat = defaultFormatOption
+        .map(withBasename.add("format", _))
+        .getOrElse(withBasename)
+
+      updateFileOrDirectoryWithNestedFiles(withFormat, "secondaryFiles", isDirectory)
     } else if (isDirectory) {
       updateFileOrDirectoryWithNestedFiles(updatedLocation, "listing", isDirectory).
         add("basename", path.nameWithoutExtension |> Json.fromString)
     } else throw new RuntimeException(s"${path.pathAsString} is neither a valid file or a directory")
   }
 
-  private def resolveOutputViaInnerType(mot: MyriadOutputInnerType)(jsValue: JsValue, pathBuilder: PathBuilder): Json = {
+  private def resolveOutputViaInnerType(mot: MyriadOutputInnerType)
+                                       (jsValue: JsValue,
+                                        pathBuilder: PathBuilder,
+                                        schemaOption: Option[Schema]): Json = {
     (jsValue, mot) match {
       //CWL expects quite a few enhancements to the File structure, hence...
       case (JsString(metadata), Inl(CwlType.File)) => stringToFile(metadata, pathBuilder)
@@ -139,7 +173,7 @@ object OutputManipulator extends Poly1 {
       case (obj: JsObject, Inl(CwlType.File) | Inl(CwlType.Directory)) =>
         import io.circe.parser._
         val json = parse(obj.compactPrint).right.getOrElse(throw new Exception("Failed to parse Json output as Json... something is very wrong"))
-        json.mapObject(populateFileFields(pathBuilder, isInsideDirectory = false))
+        json.mapObject(populateFileFields(pathBuilder, isInsideDirectory = false, schemaOption))
       case (JsNumber(metadata), Inl(CwlType.Long)) => metadata.longValue.asJson
       case (JsNumber(metadata), Inl(CwlType.Float)) => metadata.floatValue.asJson
       case (JsNumber(metadata), Inl(CwlType.Double)) => metadata.doubleValue.asJson
@@ -161,7 +195,8 @@ object OutputManipulator extends Poly1 {
           schema <- tpe.select[OutputArraySchema]
           items = schema.items
           innerType <- items.select[MyriadOutputInnerType]
-          outputJson = metadata.map(m => resolveOutputViaInnerType(innerType)(m, pathBuilder)).asJson
+          outputJson = metadata.map(m =>
+            resolveOutputViaInnerType(innerType)(m, pathBuilder, schemaOption)).asJson
         } yield outputJson).getOrElse(throw new RuntimeException(s"We currently do not support output arrays with ${tpe.select[OutputArraySchema].get.items} inner type"))
       case (JsObject(metadata), tpe) if tpe.select[OutputRecordSchema].isDefined =>
         def processField(field: OutputRecordField) = {
@@ -174,7 +209,7 @@ object OutputManipulator extends Poly1 {
           fields <- schema.fields
           typeMap = fields.flatMap(processField).toMap
           outputJson = metadata.map({
-            case (k, v) => k -> resolveOutputViaInnerType(typeMap(k))(v, pathBuilder)
+            case (k, v) => k -> resolveOutputViaInnerType(typeMap(k))(v, pathBuilder, schemaOption)
           }).asJson
         } yield outputJson).getOrElse(throw new RuntimeException(s"We currently do not support output record schemas with ${tpe.select[OutputArraySchema].get.items} inner type"))
       case (JsNull, Inl(CwlType.Null)) => Json.Null
@@ -182,12 +217,12 @@ object OutputManipulator extends Poly1 {
     }
   }
 
-  implicit def moit: Case.Aux[MyriadOutputInnerType, (JsValue, PathBuilder) => Json] = at[MyriadOutputInnerType] {
+  implicit val moit: Case.Aux[MyriadOutputInnerType, (JsValue, PathBuilder, Option[Schema]) => Json] = at {
     resolveOutputViaInnerType
   }
 
-  implicit def amoit: Case.Aux[Array[MyriadOutputInnerType], (JsValue, PathBuilder) => Json] =
-    at[Array[MyriadOutputInnerType]] {
+  implicit val amoit: Case.Aux[Array[MyriadOutputInnerType], (JsValue, PathBuilder, Option[Schema]) => Json] =
+    at {
       amoit =>
         resolveOutputViaInnerType(amoit.head)
     }

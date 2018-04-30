@@ -454,7 +454,7 @@ class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
   private def findRunInlinedWorkflows(json: Json): ErrorOr[Map[String, Json]] = {
     import cats.instances.list._
     import cats.syntax.traverse._
-    type Test[A] = Map[String, A]
+
     json.asArray match {
       case Some(cwls) => cwls.toList
         .flatTraverse[ErrorOr, (String, Json)](findRunInlinedWorkflows(_).map(_.toList))

@@ -454,13 +454,10 @@ class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
   private def findRunInlinedWorkflows(json: Json): ErrorOr[Map[String, Json]] = {
     import cats.instances.list._
     import cats.syntax.traverse._
-
+    type Test[A] = Map[String, A]
     json.asArray match {
       case Some(cwls) => cwls.toList
-        // Those shenanigans are because I can't get traverse to work on map directly, so there's some conversion
-        // back and forth between list and map
-        .flatTraverse[ErrorOr, (String, Json)](findRunInlinedWorkflows(_)
-        .map(_.toList))
+        .flatTraverse[ErrorOr, (String, Json)](findRunInlinedWorkflows(_).map(_.toList))
         .map(_.toMap)
       case _ =>
         // Look for all the "run" steps that are json objects

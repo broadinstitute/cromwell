@@ -199,7 +199,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
     }
 
-  it should "return 201 for a successful workflow submission with onHold = true" in {
+    it should "return 201 for a successful workflow submission with onHold = true" in {
     val workflowSource = Multipart.FormData.BodyPart("workflowSource", HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
     val workflowInputs = Multipart.FormData.BodyPart("workflowInputs", HttpEntity(MediaTypes.`application/json`, HelloWorld.rawInputs.toJson.toString()))
     val onHold =  Multipart.FormData.BodyPart("workflowOnHold", HttpEntity("true"))
@@ -221,7 +221,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
       }
   }
 
-  it should "return 200 when a workflow is switched from on hold to submitted" in {
+    it should "return 200 when a workflow is switched from on hold to submitted" in {
     val id = ExistingWorkflowId
     Post(s"/workflows/$version/$id/releaseHold") ~>
       akkaHttpService.workflowRoutes ~>
@@ -240,7 +240,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
       }
   }
 
-  it should "return 500 when invalid workflow id is submitted to onHoldToSubmitted API end point" in {
+    it should "return 500 when invalid workflow id is submitted to onHoldToSubmitted API end point" in {
     val id = UnrecognizedWorkflowId
     Post(s"/workflows/$version/$id/releaseHold") ~>
       akkaHttpService.workflowRoutes ~>
@@ -259,7 +259,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
       }
   }
 
-  it should "return 201 with warnings for a successful v1 workflow submission still using wdlSource" in {
+    it should "return 201 with warnings for a successful v1 workflow submission still using wdlSource" in {
     val workflowSource = Multipart.FormData.BodyPart("wdlSource",
       HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
     val formData = Multipart.FormData(workflowSource).toEntity()
@@ -337,6 +337,25 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
       val workflowSource = Multipart.FormData.BodyPart("workflowSource", HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
       val workflowInputs = Multipart.FormData.BodyPart("workflowOptions", HttpEntity(MediaTypes.`application/json`, options))
       val formData = Multipart.FormData(workflowSource, workflowInputs).toEntity()
+
+      Post(s"/workflows/$version", formData) ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          assertResult(StatusCodes.BadRequest) {
+            status
+          }
+        }
+    }
+
+    it should "return 400 for a workflow submission with invalid workflow custom labels" in {
+      val labels = s"""
+                      |{"key with characters more than 255-at vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpas":"value with characters more than 255-at vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa"}
+                      |""".stripMargin
+
+      val workflowSource = Multipart.FormData.BodyPart("workflowSource", HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
+      val customLabels =  Multipart.FormData.BodyPart("labels", HttpEntity(MediaTypes.`application/json`, labels))
+      val onHold =  Multipart.FormData.BodyPart("workflowOnHold", HttpEntity("true"))
+      val formData = Multipart.FormData(workflowSource, customLabels, onHold).toEntity()
 
       Post(s"/workflows/$version", formData) ~>
         akkaHttpService.workflowRoutes ~>

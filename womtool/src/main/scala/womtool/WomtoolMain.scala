@@ -94,11 +94,11 @@ object WomtoolMain extends App {
   import wdl.model.draft3.elements.WorkflowDefinitionElement
   import wdl.model.draft3.elements.InputsSectionElement
   import wdl.model.draft3.elements.OutputsSectionElement
-  import wdl.model.draft3.elements.{OutputDeclarationElement, PrimitiveTypeElement}
+  import wdl.model.draft3.elements.OutputDeclarationElement
   import wdl.model.draft3.elements.TypeElement
+  import wdl.model.draft3.elements.ExpressionElement
 //  import wdl.draft2.parser.WdlParser.AstNode
-  import wom.types.WomStringType
-  import wdl.model.draft3.elements.ExpressionElement.StringLiteral
+//  import wom.types.WomStringType
 
   def convertAstToFile(ast: Ast): Checked[FileElement] = ast.getName match {
     case "Namespace" =>
@@ -146,19 +146,48 @@ object WomtoolMain extends App {
 
   def convertAstToOutputDeclarationElement(ast: Ast): OutputDeclarationElement = {
     //    val typeElement = ast.getAttribute("typeElement")
-    //    val name = ast.getAttribute("name")
     //    val expression = ast.getAttribute("expression")
 
     OutputDeclarationElement(
-      typeElement = PrimitiveTypeElement(WomStringType),
-      name = "asdf",
-      expression = StringLiteral("wasd")
+      typeElement = convertAstToTypeElement(ast),
+      name = ast.getAttribute("name").sourceString,
+      expression = convertAstToExpression(ast)
     )
   }
 
   // Is this just duplicating wdl.draft3.transforms.ast2wdlom.AstNodeToTypeElement.convert?
   // Not exactly, because it's a different Ast version. How do we find out the differences?
-  def convertAstToTypeElement(ast: Ast): TypeElement = ???
+  def convertAstToTypeElement(ast: Ast): TypeElement = {
+    ???
+  }
+
+  def convertAstToExpression(ast: Ast): ExpressionElement = {
+    // TODO: I'd like to prove to the reader somehow that this handling is exhaustive.
+    import wdl.draft2.model.AstTools.AstNodeName._
+
+    ast.getAttribute("expression").sourceString match {
+      case Task => ???
+      case Workflow => ???
+      case Command => ???
+      case Output => ???
+      case CommandParameter => ???
+      case Call => ???
+      case IOMapping => ???
+      case Inputs => ???
+      case MemberAccess => ???
+      case Runtime => ???
+      case RuntimeAttribute => ???
+      case Declaration => ???
+      case WorkflowOutputWildcard => ???
+      case WorkflowOutputDeclaration => ???
+      case WorkflowOutputs => ???
+      case Scatter => ???
+      case Meta => ???
+      case ParameterMeta => ???
+      case Namespace => ???
+      case If => ???
+    }
+  }
 
   def convertAstToInputsSectionElement(ast: Ast): InputsSectionElement = ???
 

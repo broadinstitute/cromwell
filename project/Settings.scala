@@ -130,7 +130,7 @@ object Settings {
           s"Found unsupported Scala version '${scalaVersion.value}'." +
             s" ${name.value} does not support versions of Scala other than 2.12.")
     }),
-    addCompilerPlugin("org.scalamacros" % "paradise" % paradiseV cross CrossVersion.full)
+    addCompilerPlugin(paradisePlugin cross CrossVersion.full)
   )
 
   val crossVersionSettings = List(
@@ -189,7 +189,7 @@ object Settings {
   )
 
   val swaggerUiSettings = List(resourceGenerators in Compile += writeSwaggerUiVersionConf)
-  val backendSettings = List(addCompilerPlugin("org.spire-math" %% "kind-projector" % kindProjectorV))
+  val backendSettings = List(addCompilerPlugin(kindProjectorPlugin))
   val engineSettings = swaggerUiSettings
   val cromiamSettings = swaggerUiSettings
 

@@ -1,0 +1,5 @@
+# Pass a fastq in as a fasta, but without passing the format
+reference:
+  class: File
+  #format: edam:format_1930
+  path: "centaur/src/main/resources/standardTestCases/cwl_format/foo.fastq"

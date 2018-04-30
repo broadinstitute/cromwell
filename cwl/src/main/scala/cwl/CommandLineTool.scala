@@ -43,7 +43,10 @@ case class CommandLineTool private(
                                     stdout: Option[StringOrExpression],
                                     successCodes: Option[Array[Int]],
                                     temporaryFailCodes: Option[Array[Int]],
-                                    permanentFailCodes: Option[Array[Int]]) extends Tool {
+                                    permanentFailCodes: Option[Array[Int]],
+                                    `$namespaces`: Option[Map[String, String]],
+                                    `$schemas`: Option[Array[String]]
+                                  ) extends Tool {
 
   def asCwl: Cwl = Coproduct[Cwl](this)
 
@@ -319,8 +322,32 @@ object CommandLineTool {
             stdout: Option[StringOrExpression] = None,
             successCodes: Option[Array[Int]] = None,
             temporaryFailCodes: Option[Array[Int]] = None,
-            permanentFailCodes: Option[Array[Int]] = None): CommandLineTool =
-    CommandLineTool(inputs, outputs, "CommandLineTool".narrow, id, requirements, hints, label, doc, cwlVersion, baseCommand, arguments, stdin, stderr, stdout, successCodes, temporaryFailCodes, permanentFailCodes)
+            permanentFailCodes: Option[Array[Int]] = None,
+            namespaces: Option[Map[String, String]] = None,
+            schemas: Option[Array[String]] = None
+           ): CommandLineTool = {
+    CommandLineTool(
+      inputs,
+      outputs,
+      "CommandLineTool".narrow,
+      id,
+      requirements,
+      hints,
+      label,
+      doc,
+      cwlVersion,
+      baseCommand,
+      arguments,
+      stdin,
+      stderr,
+      stdout,
+      successCodes,
+      temporaryFailCodes,
+      permanentFailCodes,
+      namespaces,
+      schemas
+    )
+  }
 
   type BaseCommand = SingleOrArrayOfStrings
 

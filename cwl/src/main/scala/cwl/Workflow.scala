@@ -30,7 +30,10 @@ case class Workflow private(
                              outputs: Array[WorkflowOutputParameter],
                              steps: Array[WorkflowStep],
                              requirements: Option[Array[Requirement]],
-                             hints: Option[Array[Hint]]) {
+                             hints: Option[Array[Hint]],
+                             `$namespaces`: Option[Map[String, String]],
+                             `$schemas`: Option[Array[String]]
+                           ) {
 
   steps.foreach { _.parentWorkflow = this }
 
@@ -90,7 +93,8 @@ case class Workflow private(
       val womType: WomType = womTypeForInputParameter(wip).get
       val parsedInputId = FileAndId(wip.id).id
       val womId = WomIdentifier(parsedInputId, wip.id)
-      val valueMapper = InputParameter.inputValueMapper(wip, wip.`type`.get, expressionLib)
+      val valueMapper =
+        InputParameter.inputValueMapper(wip, wip.`type`.get, expressionLib, asCwl.schemaOption)
 
       def optionalWithDefault(memberType: WomType): OptionalGraphInputNodeWithDefault = {
         val defaultValue = wip.default.get.fold(InputParameter.DefaultToWomValuePoly).apply(womType).toTry.get
@@ -219,6 +223,9 @@ object Workflow {
             outputs: Array[WorkflowOutputParameter] = Array.empty,
             steps: Array[WorkflowStep] = Array.empty,
             requirements: Option[Array[Requirement]] = None,
-            hints: Option[Array[Hint]] = None): Workflow  =
-    Workflow(cwlVersion, "Workflow".narrow, id, inputs, outputs, steps, requirements, hints)
+            hints: Option[Array[Hint]] = None,
+            namespaces: Option[Map[String, String]] = None,
+            schemas: Option[Array[String]] = None
+           ): Workflow  =
+    Workflow(cwlVersion, "Workflow".narrow, id, inputs, outputs, steps, requirements, hints, namespaces, schemas)
 }

@@ -125,19 +125,23 @@ trait Tool {
               inputName,
               inputType,
               ValueAsAnExpression(defaultWomValue),
-              InputParameter.inputValueMapper(input, tpe, expressionLib)
+              InputParameter.inputValueMapper(input, tpe, expressionLib, asCwl.schemaOption)
             )
           case input @ InputParameter.IdAndType(inputId, tpe) =>
             val inputType = tpe.fold(MyriadInputTypeToWomType).apply(schemaDefRequirement)
             val inputName = FullyQualifiedName(inputId).id
             inputType match {
               case optional: WomOptionalType =>
-                OptionalInputDefinition(inputName, optional, InputParameter.inputValueMapper(input, tpe, expressionLib))
+                OptionalInputDefinition(
+                  inputName,
+                  optional,
+                  InputParameter.inputValueMapper(input, tpe, expressionLib, asCwl.schemaOption)
+                )
               case _ =>
                 RequiredInputDefinition(
                   inputName,
                   inputType,
-                  InputParameter.inputValueMapper(input, tpe, expressionLib)
+                  InputParameter.inputValueMapper(input, tpe, expressionLib, asCwl.schemaOption)
                 )
             }
           case other => throw new NotImplementedError(s"command input parameters such as $other are not yet supported")

@@ -51,7 +51,9 @@ object TaskDefinitionElementToWomTaskDefinition {
   }
 
   private def expandLines(lines: Seq[CommandSectionLine]): Seq[CommandPartElement] = {
-    def expandNonFinalLine(line: CommandSectionLine): Seq[CommandPartElement] = {
+    def expandNonFinalLine(line: CommandSectionLine): Seq[CommandPartElement] = if (line.parts.isEmpty) {
+      Seq(StringCommandPartElement(System.lineSeparator))
+    } else {
       val finalElements = line.parts.lastOption match {
         case Some(StringCommandPartElement(str)) => Seq(StringCommandPartElement(str + System.lineSeparator))
         case Some(other) => Seq(other, StringCommandPartElement(System.lineSeparator))

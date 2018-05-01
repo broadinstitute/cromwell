@@ -684,6 +684,29 @@ object WdlFileToWdlomSpec {
           parameterMetaSection = None
         )
       )
+    ),
+    "gap_in_command" -> FileElement(
+      imports = Vector.empty,
+      structs = Vector.empty,
+      workflows = Vector(WorkflowDefinitionElement(
+        "my_workflow",
+        None,
+        Set(CallElement("my_task",None,None)),
+        None,
+        None,
+        None
+      )),
+      tasks = Vector(TaskDefinitionElement(
+        "my_task",
+        None,
+        Vector(),
+        Some(OutputsSectionElement(
+          Vector(OutputDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomStringType)),"lines",ReadLines(StdoutElement)))
+        )),
+        CommandSectionElement(Vector(CommandSectionLine(Vector(StringCommandPartElement("""    echo "hi""""))), CommandSectionLine(Vector()), CommandSectionLine(Vector(StringCommandPartElement("""    echo "bye""""))))),
+        None,
+        None,
+        None))
     )
   )
 }

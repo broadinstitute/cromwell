@@ -4,10 +4,13 @@ import java.nio.file.Paths
 
 import cats.data.NonEmptyList
 import common.Checked
-import common.transforms.CheckedAtoB
 import spray.json._
 import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter, SyntaxHighlighter}
 import wdl.draft2.model.{AstTools, WdlNamespace, WdlNamespaceWithWorkflow}
+import wdl.model.draft3.elements.ExpressionElement.{Add, Equals, PrimitiveLiteralExpressionElement}
+import wdl.model.draft3.elements.{IfElement, IntermediateValueDeclarationElement, PrimitiveTypeElement}
+import wom.types.WomBooleanType
+import wom.values.{WomBoolean, WomInteger}
 import womtool.cmdline.HighlightMode.{ConsoleHighlighting, HtmlHighlighting, UnrecognizedHighlightingMode}
 import womtool.cmdline._
 import womtool.graph.{GraphPrint, WomGraph}
@@ -207,18 +210,35 @@ object WomtoolMain extends App {
 //  }
 
   def d3upgrade(workflowSourcePath: String): Termination = {
-    import cats.implicits._
+//    import cats.implicits._
+//
+//    def astToModelConverter: CheckedAtoB[Ast, FileElement] = CheckedAtoB.fromCheck(convertAstToFile)
+//    def modelToStringConverter: CheckedAtoB[FileElement, String] = CheckedAtoB.fromCheck(convertFileElementToString)
+//
+//    val ast: wdl.draft2.parser.WdlParser.Ast = AstTools.getAst(Paths.get(workflowSourcePath))
+//    val converted: Checked[String] = (astToModelConverter andThen modelToStringConverter).run(ast)
 
-    def astToModelConverter: CheckedAtoB[Ast, FileElement] = CheckedAtoB.fromCheck(convertAstToFile)
-    def modelToStringConverter: CheckedAtoB[FileElement, String] = CheckedAtoB.fromCheck(convertFileElementToString)
+//    converted match {
+//      case Right(wdl) => SuccessfulTermination(wdl)
+//      case Left(errorList) => UnsuccessfulTermination(errorList.toList.mkString("[", ",", "]"))
+//    }
 
-    val ast: wdl.draft2.parser.WdlParser.Ast = AstTools.getAst(Paths.get(workflowSourcePath))
-    val converted: Checked[String] = (astToModelConverter andThen modelToStringConverter).run(ast)
+    val guineaPig = IfElement(
+      conditionExpression = Equals(
+        Add(
+          PrimitiveLiteralExpressionElement(WomInteger(2)),
+          PrimitiveLiteralExpressionElement(WomInteger(2))
+        ),
+        PrimitiveLiteralExpressionElement(WomInteger(4))
+      ),
+      graphElements = Seq(
+        IntermediateValueDeclarationElement(PrimitiveTypeElement(WomBooleanType), "is_1984", PrimitiveLiteralExpressionElement(WomBoolean(false)))
+      )
+    )
 
-    converted match {
-      case Right(wdl) => SuccessfulTermination(wdl)
-      case Left(errorList) => UnsuccessfulTermination(errorList.toList.mkString("[", ",", "]"))
-    }
+    import wdl.draft3.transforms.ast2wdl.WdlWriter.ops._
+
+    SuccessfulTermination(guineaPig.toWdl)
   }
 
   def graph(workflowSourcePath: String): Termination = {

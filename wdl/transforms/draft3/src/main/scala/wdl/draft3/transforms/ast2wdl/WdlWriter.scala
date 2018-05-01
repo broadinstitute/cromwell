@@ -40,7 +40,7 @@ object WdlWriter {
       case a: BinaryOperation => a.toWdl
       case _: TernaryIf => ???
       case _: FunctionCallElement => ???
-      case _: IdentifierLookup => ???
+      case a: IdentifierLookup => a.identifier
       case _: IdentifierMemberAccess => ???
       case _: ExpressionMemberAccess => ???
       case _: IndexAccess => ???
@@ -71,13 +71,49 @@ object WdlWriter {
 
   implicit val graphElementWriter: WdlWriter[WorkflowGraphElement] = new WdlWriter[WorkflowGraphElement] {
     def toWdl(a: WorkflowGraphElement) = a match {
-      case _: CallElement => ???
-      case a: IntermediateValueDeclarationElement => s"${a.typeElement.toWdl} ${a.name} = ${a.expression.toWdl}"
+      case a: CallElement => a.toWdl
+      case a: IntermediateValueDeclarationElement => a.toWdl
       case _: OutputDeclarationElement => ???
       case _: InputDeclarationElement => ???
       case a: IfElement => a.toWdl
       case _: ScatterElement => ???
     }
+  }
+
+  implicit val callBodyElement: WdlWriter[CallBodyElement] = new WdlWriter[CallBodyElement] {
+    def toWdl(a: CallBodyElement): String = {
+      if (a.inputs.nonEmpty) {
+        s"""input:
+           |  ${a.inputs.map(_.toWdl).mkString(",\n")}
+         """.stripMargin
+      } else {
+        ""
+      }
+    }
+  }
+
+  implicit val callElementWriter: WdlWriter[CallElement] = new WdlWriter[CallElement] {
+    def toWdl(a: CallElement) = {
+      val aliasExpression = a.alias match {
+        case Some(alias) => s" as $alias"
+        case None => ""
+      }
+
+      val bodyExpression = a.body match {
+        case Some(body) => body.toWdl
+        case None => ""
+      }
+
+      s"""call ${a.callableName}$aliasExpression {
+         |  $bodyExpression
+         |}
+       """.stripMargin
+    }
+  }
+
+  implicit val intermediateValueDeclarationElement: WdlWriter[IntermediateValueDeclarationElement] = new WdlWriter[IntermediateValueDeclarationElement] {
+    def toWdl(a: IntermediateValueDeclarationElement) =
+      s"${a.typeElement.toWdl} ${a.name} = ${a.expression.toWdl}"
   }
 
   implicit val typeElementWriter: WdlWriter[TypeElement] = new WdlWriter[TypeElement] {
@@ -95,6 +131,36 @@ object WdlWriter {
 
   implicit val primitiveTypeElementWriter: WdlWriter[WomPrimitiveType] = new WdlWriter[WomPrimitiveType] {
     def toWdl(a: WomPrimitiveType) = a.toDisplayString
+  }
+
+  implicit val workflowDefinitionElementWriter: WdlWriter[WorkflowDefinitionElement] = new WdlWriter[WorkflowDefinitionElement] {
+    def toWdl(a: WorkflowDefinitionElement) = {
+      s"""workflow ${a.name} {
+         |  ${a.graphElements.map(_.toWdl).mkString("\n")}
+         |}
+       """.stripMargin
+    }
+  }
+
+  implicit val taskDefinitionTypeElementWriter: WdlWriter[TaskDefinitionElement] = new WdlWriter[TaskDefinitionElement] {
+    def toWdl(a: TaskDefinitionElement) = {
+      s"""task ${a.name} {
+         |  ${a.declarations.map(_.toWdl).mkString("\n")}
+         |}
+       """.stripMargin
+    }
+  }
+
+  implicit val fileElementWriter: WdlWriter[FileElement] = new WdlWriter[FileElement] {
+    def toWdl(a: FileElement) = {
+      a.workflows.map(_.toWdl).mkString("\n") +
+      "\n" +
+      a.tasks.map(_.toWdl).mkString("\n")
+    }
+  }
+
+  implicit val kvPairWriter: WdlWriter[KvPair] = new WdlWriter[KvPair] {
+    def toWdl(a: KvPair): String = s"${a.key} = ${a.value.toWdl}"
   }
 
   implicit val primitiveLiteralExpressionElementWriter: WdlWriter[PrimitiveLiteralExpressionElement] = new WdlWriter[PrimitiveLiteralExpressionElement] {

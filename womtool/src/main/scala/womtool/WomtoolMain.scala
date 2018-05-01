@@ -7,10 +7,10 @@ import common.Checked
 import spray.json._
 import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter, SyntaxHighlighter}
 import wdl.draft2.model.{AstTools, WdlNamespace, WdlNamespaceWithWorkflow}
-import wdl.model.draft3.elements.ExpressionElement.{Add, Equals, PrimitiveLiteralExpressionElement}
-import wdl.model.draft3.elements.{IfElement, IntermediateValueDeclarationElement, PrimitiveTypeElement}
-import wom.types.WomBooleanType
-import wom.values.{WomBoolean, WomInteger}
+//import wdl.model.draft3.elements.ExpressionElement.{Add, Equals, PrimitiveLiteralExpressionElement}
+//import wdl.model.draft3.elements.{IfElement, IntermediateValueDeclarationElement, PrimitiveTypeElement}
+//import wom.types.WomBooleanType
+//import wom.values.{WomBoolean, WomInteger}
 import womtool.cmdline.HighlightMode.{ConsoleHighlighting, HtmlHighlighting, UnrecognizedHighlightingMode}
 import womtool.cmdline._
 import womtool.graph.{GraphPrint, WomGraph}
@@ -217,28 +217,31 @@ object WomtoolMain extends App {
 //
 //    val ast: wdl.draft2.parser.WdlParser.Ast = AstTools.getAst(Paths.get(workflowSourcePath))
 //    val converted: Checked[String] = (astToModelConverter andThen modelToStringConverter).run(ast)
+    //    val guineaPig = IfElement(
+    //      conditionExpression = Equals(
+    //        Add(
+    //          PrimitiveLiteralExpressionElement(WomInteger(2)),
+    //          PrimitiveLiteralExpressionElement(WomInteger(2))
+    //        ),
+    //        PrimitiveLiteralExpressionElement(WomInteger(4))
+    //      ),
+    //      graphElements = Seq(
+    //        IntermediateValueDeclarationElement(PrimitiveTypeElement(WomBooleanType), "is_1984", PrimitiveLiteralExpressionElement(WomBoolean(false)))
+    //      )
+    //    )
 
-//    converted match {
-//      case Right(wdl) => SuccessfulTermination(wdl)
-//      case Left(errorList) => UnsuccessfulTermination(errorList.toList.mkString("[", ",", "]"))
-//    }
-
-    val guineaPig = IfElement(
-      conditionExpression = Equals(
-        Add(
-          PrimitiveLiteralExpressionElement(WomInteger(2)),
-          PrimitiveLiteralExpressionElement(WomInteger(2))
-        ),
-        PrimitiveLiteralExpressionElement(WomInteger(4))
-      ),
-      graphElements = Seq(
-        IntermediateValueDeclarationElement(PrimitiveTypeElement(WomBooleanType), "is_1984", PrimitiveLiteralExpressionElement(WomBoolean(false)))
-      )
-    )
-
+    import cats.implicits._
+    import wdl.draft3.transforms.ast2wdlom.astToFileElement
+    import wdl.draft3.transforms.parsing.fileToAst
     import wdl.draft3.transforms.ast2wdl.WdlWriter.ops._
 
-    SuccessfulTermination(guineaPig.toWdl)
+    val loader = fileToAst andThen astToFileElement
+    val model: Checked[FileElement] = loader.run(Paths.get(workflowSourcePath))
+
+    model match {
+      case Right(wdlModel) => SuccessfulTermination(wdlModel.toWdl)
+      case Left(errorList) => UnsuccessfulTermination(errorList.toList.mkString("[", ",", "]"))
+    }
   }
 
   def graph(workflowSourcePath: String): Termination = {

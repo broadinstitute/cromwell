@@ -162,7 +162,7 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
 
       val evaluatedOutputs = evaluateOutputs(ns.workflow, workflowInputs, NoFunctions, outputResolver)
       evaluatedOutputs match {
-        case Success(v) => v map { case (output, outputValue) => output.unqualifiedName -> outputValue } should contain theSameElementsAs evaluationExpectations
+        case Success(v) => v.map { case (output, outputValue) => output.unqualifiedName -> outputValue }.toList should contain theSameElementsAs evaluationExpectations
         case Failure(e) => fail(e)
       }
     }

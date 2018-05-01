@@ -55,7 +55,7 @@ object MyriadOutputInnerTypeToWomValue extends Poly1 {
   implicit def ors: Aux[OutputRecordSchema, Output] = at[OutputRecordSchema] { ors => (evalFunction, schemaDefRequirement) => ors match {
     case OutputRecordSchema(_, Some(fields), _) =>
         // Go over each field and evaluate the binding if there's one, otherwise keep folding over field types
-        def evaluateValues = fields.toList.traverse[ErrorOr, ((String, WomValue), (String, WomType))]({ field =>
+        def evaluateValues = fields.toList.traverse({ field =>
           val womType = field.`type`.fold(MyriadOutputTypeToWomType).apply(schemaDefRequirement)
           val womValue: ErrorOr[WomValue] = field.outputBinding match {
             case Some(binding) => evalFunction(binding, womType)

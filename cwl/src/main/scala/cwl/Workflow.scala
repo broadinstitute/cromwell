@@ -133,7 +133,7 @@ case class Workflow private(
           (nodes, step) => nodes.flatMap(step.callWithInputs(typeMap, this, _, workflowInputs, validator, expressionLib)))
 
     val graphFromOutputs: Checked[Set[GraphNode]] =
-      outputs.toList.traverse[ErrorOr, GraphNode] {
+      outputs.toList.traverse{
         case WorkflowOutputParameter(id, _, _, _, _, _, _, Some(Inl(outputSource: String)), _, Some(tpe)) =>
           val womType: WomType = tpe.fold(MyriadOutputTypeToWomType).apply(allRequirements.schemaDefRequirement)
 

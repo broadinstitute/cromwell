@@ -372,7 +372,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       val preprocessedInputs = instantiatedCommand.preprocessedInputs |> makeStringKeyedMap
       val valueMappedPreprocessedInputs = instantiatedCommand.valueMappedPreprocessedInputs |> makeStringKeyedMap
 
-      val adHocFileCreations: ErrorOr[List[WomFile]] = callable.adHocFileCreation.toList.flatTraverse(
+      val adHocFileCreations = callable.adHocFileCreation.toList.flatTraverse(
         _.evaluate(preprocessedInputs, valueMappedPreprocessedInputs, backendEngineFunctions).flatMap(validateAdHocFile)
       )
 
@@ -391,7 +391,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       // redirection or override of the filename of a redirection. Evaluate that expression if present and stringify.
       val List(stdinRedirect, stdoutOverride, stderrOverride) = List[CommandTaskDefinition => Option[WomExpression]](
         _.stdinRedirection, _.stdoutOverride, _.stderrOverride) map {
-        _.apply(callable).traverse[ErrorOr, String] { _.evaluateValue(valueMappedPreprocessedInputs, backendEngineFunctions) map { _.valueString} }
+        _.apply(callable).traverse{ _.evaluateValue(valueMappedPreprocessedInputs, backendEngineFunctions) map { _.valueString} }
       }
 
       (adHocFileCreationSideEffectFiles, environmentVariables, stdinRedirect, stdoutOverride, stderrOverride) mapN {

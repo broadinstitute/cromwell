@@ -22,7 +22,7 @@ object MyriadOutputTypeToWomFiles extends Poly1 {
 
   implicit def acwl: Aux[Array[MyriadOutputInnerType], EvaluationFunction => ErrorOr[Set[WomFile]]] = at[Array[MyriadOutputInnerType]] { types => 
     evalFunction =>
-      types.toList.traverse[ErrorOr, Set[WomFile]](_.fold(MyriadOutputInnerTypeToWomFiles).apply(evalFunction)).map(_.toSet.flatten)
+      types.toList.traverse(_.fold(MyriadOutputInnerTypeToWomFiles).apply(evalFunction)).map(_.toSet.flatten)
   }
 }
 
@@ -39,7 +39,7 @@ object MyriadOutputInnerTypeToWomFiles extends Poly1 {
   implicit def ors: Aux[OutputRecordSchema, EvaluationFunction => ErrorOr[Set[WomFile]]] = at[OutputRecordSchema] {
     case OutputRecordSchema(_, Some(fields), _) =>
       evalFunction =>
-        fields.toList.traverse[ErrorOr, Set[WomFile]]({ field =>
+        fields.toList.traverse({ field =>
           field.outputBinding match {
             case Some(binding) => evalFunction(binding)
             case None => field.`type`.fold(MyriadOutputTypeToWomFiles).apply(evalFunction)

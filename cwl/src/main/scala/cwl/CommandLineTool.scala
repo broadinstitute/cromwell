@@ -148,7 +148,7 @@ case class CommandLineTool private(
     def jsonToOutputs(json: Map[String, Json]): Checked[List[(OutputPort, WomValue)]] = {
       import cats.instances.list._
 
-      outputPorts.toList.traverse[ErrorOr, (OutputPort, WomValue)]({ outputPort =>
+      outputPorts.toList.traverse({ outputPort =>
         // If the type is optional, then we can set the value to none if there's nothing in the json
         def emptyValue = outputPort.womType match {
           case optional: WomOptionalType => Option((outputPort -> optional.none).validNel)

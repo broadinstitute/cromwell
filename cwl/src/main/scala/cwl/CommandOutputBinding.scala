@@ -79,7 +79,7 @@ object CommandOutputBinding {
     }
 
     def secondaryFilesToWomFiles(primaryWomFiles: List[WomFile], ioFunctionSet: IoFunctionSet): ErrorOr[List[WomFile]] = {
-      primaryWomFiles.flatTraverse[ErrorOr, WomFile] { primaryWomFile =>
+      primaryWomFiles.flatTraverse{ primaryWomFile =>
         FileParameter.secondaryFiles(primaryWomFile,
           primaryWomFile.womFileType, secondaryFilesOption, parameterContext, expressionLib, ioFunctionSet)
       }
@@ -172,7 +172,7 @@ object CommandOutputBinding {
       primaryPaths <- GlobEvaluator.globs(commandOutputBinding.glob, parameterContext, expressionLib)
 
       // 2. loadContents: load the contents of the primary files
-      primaryAsDirectoryOrFiles <- primaryPaths.flatTraverse[ErrorOr, WomFile] {
+      primaryAsDirectoryOrFiles <- primaryPaths.flatTraverse{
         loadPrimaryWithContents(ioFunctionSet, outputWomType, commandOutputBinding)
       }
 

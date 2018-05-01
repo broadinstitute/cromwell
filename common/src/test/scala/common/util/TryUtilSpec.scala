@@ -63,7 +63,7 @@ class TryUtilSpec extends FlatSpec with Matchers {
   it should "sequence successful maps" in {
     val result: Try[Map[String, String]] = sequenceMap(Map("key" -> Success("success")), "prefix")
     result.isSuccess should be(true)
-    result.get should contain theSameElementsAs Map("key" -> "success")
+    result.get.toList should contain theSameElementsAs Map("key" -> "success")
   }
 
   it should "sequence failed maps" in {
@@ -80,7 +80,7 @@ class TryUtilSpec extends FlatSpec with Matchers {
     val result: Try[Map[String, String]] = sequenceKeyValues(
       Map(Success("success key") -> Success("success value")), "prefix")
     result.isSuccess should be(true)
-    result.get should contain theSameElementsAs Map("success key" -> "success value")
+    result.get.toList should contain theSameElementsAs Map("success key" -> "success value")
   }
 
   it should "sequence successful keys and failed values" in {

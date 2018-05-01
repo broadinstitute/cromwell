@@ -23,7 +23,7 @@ abstract class ThrottlerActor[C] extends BatchActor[C](Duration.Zero, 1) {
     // there's a bug in the batch actor.
     if (data.tail.nonEmpty) {
       log.error("{} is throttled and is not supposed to process more than one element at a time !", self.path.name)
-      data.toVector.traverse[Future, Any](processHead).map(_.length)
+      data.toVector.traverse(processHead).map(_.length)
     } else processHead(data.head).map(_ => 1)
   }
   def processHead(head: C): Future[Int]

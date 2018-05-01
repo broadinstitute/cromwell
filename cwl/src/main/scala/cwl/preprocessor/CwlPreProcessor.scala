@@ -410,7 +410,7 @@ class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
     // Recursively process the inlined run workflows (where run is a Json object representing a workflow)
     val processedInlineReferences: Parse[Map[String, ProcessedJsonAndDependencies]] = (for {
       inlineWorkflowReferences <- Parse.errorOrParse[Map[String, Json]] { findRunInlinedWorkflows(saladedJson.json) }
-      flattenedWorkflows <- inlineWorkflowReferences.toList.traverse[Parse, (String, ProcessedJsonAndDependencies)]({
+      flattenedWorkflows <- inlineWorkflowReferences.toList.traverse({
         case (id, value) => flattenJson(value, unProcessedReferences, processedReferences, breadCrumbs, namespacesJsonOption, schemasJsonOption).map(id -> _)
       })
     } yield flattenedWorkflows).map(_.toMap)
@@ -457,7 +457,7 @@ class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
 
     json.asArray match {
       case Some(cwls) => cwls.toList
-        .flatTraverse[ErrorOr, (String, Json)](findRunInlinedWorkflows(_).map(_.toList))
+        .flatTraverse(findRunInlinedWorkflows(_).map(_.toList))
         .map(_.toMap)
       case _ =>
         // Look for all the "run" steps that are json objects
@@ -465,7 +465,7 @@ class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
           .map(Json.fromJsonObject)
           // Only keep the workflows (CommandLineTools don't have steps so no need to process them)
           .filter(root.`class`.string.exist(_.equalsIgnoreCase("Workflow")))
-          .traverse[ErrorOr, (String, Json)]( obj =>
+          .traverse( obj =>
           // Find the id of the workflow
           root.id.string.getOption(obj)
             .toErrorOr("Programmer error: Workflow did not contain an id. Make sure the cwl has been saladed")

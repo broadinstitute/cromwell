@@ -27,7 +27,7 @@ object OutputParameter {
   def format(formatOption: Option[StringOrExpression],
              parameterContext: ParameterContext,
              expressionLib: ExpressionLib): ErrorOr[Option[String]] = {
-    formatOption.traverse[ErrorOr, String] {
+    formatOption.traverse{
       format(_, parameterContext, expressionLib)
     }
   }

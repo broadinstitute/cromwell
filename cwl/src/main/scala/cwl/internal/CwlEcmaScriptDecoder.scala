@@ -79,7 +79,7 @@ class CwlEcmaScriptDecoder {
     * Called to decode a map value using a supplied function.
     */
   def decodeMapValue[A](map: Map[Any, Any], key: String, f: Any => A): ErrorOr[Option[A]] = {
-    map.get(key).traverse[ErrorOr, A](anyRef => validate(f(anyRef)))
+    map.get(key).traverse(anyRef => validate(f(anyRef)))
   }
 
   /**

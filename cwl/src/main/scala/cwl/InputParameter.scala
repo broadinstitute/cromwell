@@ -59,7 +59,7 @@ object InputParameter {
           womType =>
             fileOrDirectoryArray
               .toList
-              .traverse[ErrorOr, WomValue](_.fold(this).apply(womType))
+              .traverse(_.fold(this).apply(womType))
               .map(WomArray(_))
       }
     }
@@ -169,7 +169,7 @@ object InputParameter {
           case WomOptionalValue(_, Some(innerValue)) => populateFiles(innerValue).map(WomOptionalValue(_))
           case obj: WomObjectLike =>
             // Map the values
-            obj.values.toList.traverse[ErrorOr, (String, WomValue)]({
+            obj.values.toList.traverse({
               case (key, value) => populateFiles(value).map(key -> _)
             })
               .map(_.toMap)

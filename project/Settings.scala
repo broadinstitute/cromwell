@@ -67,6 +67,7 @@ object Settings {
     "-Yno-adapted-args",
     "-Ywarn-dead-code",
     "-Ywarn-numeric-widen",
+    "-Ypartial-unification",
     "-Ywarn-value-discard",
     "-Ywarn-inaccessible",
     "-Ywarn-unused:implicits",

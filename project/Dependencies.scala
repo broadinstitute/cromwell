@@ -61,7 +61,7 @@ object Dependencies {
   private val protobufJavaV = "3.3.1"
   private val ravenLogbackV = "8.0.3"
   private val reactiveStreamsV = "1.0.1"
-  private val refinedV = "0.8.3"
+  private val refinedV = "0.8.6"
   private val rhinoV = "1.7.8"
   private val scalaGraphV = "1.12.0"
   private val scalaLoggingV = "3.7.1"
@@ -259,6 +259,7 @@ object Dependencies {
   )
 
   private val refinedTypeDependenciesList = List(
+    "eu.timepit" %% "refined-cats" % refinedV,
     "eu.timepit" %% "refined" % refinedV
   )
 

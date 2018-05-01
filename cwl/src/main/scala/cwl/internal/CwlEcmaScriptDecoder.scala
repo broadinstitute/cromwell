@@ -1,17 +1,23 @@
 package cwl.internal
 
+import cats.data.{NonEmptyList, OptionT}
 import cats.instances.list._
 import cats.instances.option._
 import cats.syntax.apply._
 import cats.syntax.traverse._
+import cats.syntax.either._
 import cats.syntax.validated._
+import cats.instances.either._
+import common.Checked
 import common.validation.ErrorOr._
 import common.validation.Validation._
+import cwl.File.SixtyFourKBMaxString
 import cwl.{Directory, File, FileOrDirectory}
 import org.mozilla.javascript.{ConsString, NativeArray, NativeObject}
 import shapeless.Coproduct
 import wom.types.WomNothingType
 import wom.values._
+import eu.timepit.refined._
 
 import scala.collection.JavaConverters._
 
@@ -103,7 +109,19 @@ class CwlEcmaScriptDecoder {
     val format = decodeMapValue(map, "format", _.toString)
     val contents = decodeMapValue(map, "contents", _.toString)
 
-    (location, path, basename, checksum, size, secondaryFiles, format, contents).mapN(
+    type CheckedOptionString = OptionT[Checked, SixtyFourKBMaxString]
+
+    def restrictedContents: CheckedOptionString =
+      for {
+        unrestrictedContentsOption <- OptionT(contents.toEither)
+        sixtyFourKBLimitedString <- OptionT.liftF(
+          (refineV(unrestrictedContentsOption): Either[String, SixtyFourKBMaxString]).leftMap(NonEmptyList.one)
+        )
+
+      } yield sixtyFourKBLimitedString
+
+
+    (location, path, basename, checksum, size, secondaryFiles, format, restrictedContents.value.toValidated: ErrorOr[Option[SixtyFourKBMaxString]]).mapN(
       File(_, _, _, _, _, _, _, _)
     )
   }

@@ -6,8 +6,12 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, _}
 import common.validation.Validation._
+import cwl.File.SixtyFourKBMaxString
 import cwl.FileParameter._
 import eu.timepit.refined._
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.collection.MaxSize
+import eu.timepit.refined.string.MatchesRegex
 import mouse.all._
 import shapeless.Poly1
 import shapeless.syntax.singleton._
@@ -42,7 +46,7 @@ case class File private
   size: Option[Long],
   secondaryFiles: Option[Array[FileOrDirectory]],
   format: Option[String],
-  contents: Option[String]
+  contents: Option[SixtyFourKBMaxString]
 ) {
   lazy val effectivePath = path.orElse(location)
 
@@ -60,13 +64,19 @@ case class File private
         case (None, None) =>
           "Cannot convert CWL File to WomValue without either a location, a path, a basename, or contents".invalidNel
         case (_, _) =>
-          WomMaybePopulatedFile(valueOption, checksum, size, format, contents, secondaryFiles).valid
+          WomMaybePopulatedFile(valueOption, checksum, size, format, contents.map(_.value), secondaryFiles).valid
       }
     }
   }
 }
 
 object File {
+
+  //This restriction makes the assumptions of a) UTF-8 and b)US-ASCII
+  //b) is not strictly true for CWL input (not in the spec) but otherwise UTF-8 is variable-encoded and thus difficult to enforce in this manner
+  type SixtyFourKBRestriction = MaxSize[W.`65536`.T]
+  type SixtyFourKBMaxString = String Refined SixtyFourKBRestriction
+
   def apply(
              location: Option[String] = None, //TODO refine w/ regex  of IRI
              path: Option[String] = None,
@@ -75,7 +85,7 @@ object File {
              size: Option[Long] = None,
              secondaryFiles: Option[Array[FileOrDirectory]] = None,
              format: Option[String] = None,
-             contents: Option[String] = None): File =
+             contents: Option[SixtyFourKBMaxString] = None): File =
     new cwl.File(
       "File".narrow,
       location,

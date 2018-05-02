@@ -3,13 +3,11 @@ package wdl.draft3.transforms.ast2wdlom
 import cats.syntax.apply._
 import cats.syntax.validated._
 import cats.syntax.either._
-import cats.instances.either._
-import common.transforms.CheckedAtoB
 import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
 import wdl.draft3.parser.WdlParser._
 import wdl.draft3.transforms.ast2wdlom.EnhancedDraft3Ast._
-import wdl.model.draft3.elements.{CommandPartElement, ExpressionElement}
+import wdl.model.draft3.elements.{CommandPartElement, ExpressionElement, PlaceholderAttributeSet}
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import wdl.model.draft3.elements.ExpressionElement.{PrimitiveLiteralExpressionElement, StringExpression, StringLiteral}
 
@@ -18,10 +16,7 @@ object AstNodeToCommandPartElement {
     case t: Terminal => astNodeToString(t).toValidated map StringCommandPartElement
     case a: Ast =>
       val expressionElementV: ErrorOr[ExpressionElement] = a.getAttributeAs[ExpressionElement]("expr").toValidated
-
-      implicit val attributeConverter: CheckedAtoB[AstNode, (String, String)] = astNodeToAst andThen CheckedAtoB.fromErrorOr(convertAttributeKvp)
-
-      val attributesV: ErrorOr[Map[String, String]] = a.getAttributeAsVector[(String, String)]("attributes").map(_.toMap).toValidated
+      val attributesV: ErrorOr[PlaceholderAttributeSet] = a.getAttributeAs[PlaceholderAttributeSet]("attributes").toValidated
 
       (expressionElementV, attributesV) mapN { (expressionElement, attributes) => PlaceholderCommandPartElement(expressionElement, attributes) }
     case other => s"Conversion for $other not supported".invalidNel

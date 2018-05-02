@@ -92,6 +92,11 @@ will return the most-recent-unique value while
 will return the up-to-date value. For example, if one previously updated a value from `"value-1"` > `"value-2"` >
 `"value-3"` > `"value-2"` then the former REST API will return `value-3` while the latter will return `value-2`.
 
+#### Workflow options `google_project` output in metadata
+
+Workflow metadata for jobs run on a Google Pipelines API backend will report the `google_project` specified via a
+[workflow options json](http://cromwell.readthedocs.io/en/develop/wf_options/Google/#google-pipelines-api-workflow-options).
+
 ## 31 Release Notes
 
 * **Cromwell server**  

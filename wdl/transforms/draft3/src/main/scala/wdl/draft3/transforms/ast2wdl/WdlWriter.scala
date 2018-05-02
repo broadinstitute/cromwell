@@ -39,7 +39,7 @@ object WdlWriter {
       case _: UnaryOperation => ???
       case a: BinaryOperation => a.toWdl
       case _: TernaryIf => ???
-      case _: FunctionCallElement => ???
+      case a: FunctionCallElement => a.toWdl
       case a: IdentifierLookup => a.identifier
       case _: IdentifierMemberAccess => ???
       case _: ExpressionMemberAccess => ???
@@ -74,7 +74,7 @@ object WdlWriter {
       case a: CallElement => a.toWdl
       case a: IntermediateValueDeclarationElement => a.toWdl
       case _: OutputDeclarationElement => ???
-      case _: InputDeclarationElement => ???
+      case a: InputDeclarationElement => a.toWdl
       case a: IfElement => a.toWdl
       case _: ScatterElement => ???
     }
@@ -144,10 +144,132 @@ object WdlWriter {
 
   implicit val taskDefinitionTypeElementWriter: WdlWriter[TaskDefinitionElement] = new WdlWriter[TaskDefinitionElement] {
     def toWdl(a: TaskDefinitionElement) = {
+//      a.inputsSection X
+//      a.declarations X
+//      a.outputsSection
+//      a.commandSection
+//      a.runtimeSection
+//      a.metaSection
+//      a.parameterMetaSection
+      val inputs = a.inputsSection match {
+        case Some(i) => i.toWdl
+        case None => ""
+      }
+      val outputs = a.outputsSection match {
+        case Some(o) => o.toWdl
+        case None => ""
+      }
+
       s"""task ${a.name} {
+         |  $inputs
          |  ${a.declarations.map(_.toWdl).mkString("\n")}
+         |  $outputs
          |}
        """.stripMargin
+    }
+  }
+
+  implicit val inputsSectionElementWriter: WdlWriter[InputsSectionElement] = new WdlWriter[InputsSectionElement] {
+    def toWdl(a: InputsSectionElement): String = {
+      s"""input {
+         |  ${a.inputDeclarations.map(_.toWdl).mkString("\n")}
+         |}
+       """.stripMargin
+    }
+  }
+
+  implicit val inputDeclarationElementWriter: WdlWriter[InputDeclarationElement] = new WdlWriter[InputDeclarationElement] {
+    def toWdl(a: InputDeclarationElement): String = {
+      val expression = a.expression match {
+        case Some(expr) => s" = ${expr.toWdl}"
+        case None => ""
+      }
+
+      s"${a.typeElement.toWdl} ${a.name}$expression"
+    }
+  }
+
+  implicit val outputsSectionElementWriter: WdlWriter[OutputsSectionElement] = new WdlWriter[OutputsSectionElement] {
+    def toWdl(a: OutputsSectionElement): String = {
+      s"""output {
+         |  ${a.outputs.map(_.toWdl).mkString("\n")}
+         |}
+       """.stripMargin
+    }
+  }
+
+  implicit val outputDeclarationElementWriter: WdlWriter[OutputDeclarationElement] = new WdlWriter[OutputDeclarationElement] {
+    def toWdl(a: OutputDeclarationElement): String = {
+      s"${a.typeElement.toWdl} ${a.name} = ${a.expression.toWdl}"
+    }
+  }
+
+  implicit val functionCallElementWriter: WdlWriter[FunctionCallElement] = new WdlWriter[FunctionCallElement] {
+    def toWdl(a: FunctionCallElement): String = a match {
+      case _: StdoutElement.type => "stdout()"
+      case _: StderrElement.type => "stderr()"
+      case a: OneParamFunctionCallElement => a.toWdl
+      case a: OneOrTwoParamFunctionCallElement => a.toWdl
+      case a: TwoParamFunctionCallElement => a.toWdl
+      case _: Sub => ???
+    }
+  }
+
+  implicit val oneParamFunctionCallElementWriter: WdlWriter[OneParamFunctionCallElement] = new WdlWriter[OneParamFunctionCallElement] {
+    def toWdl(a: OneParamFunctionCallElement): String = {
+      def functionCall(name: String) = s"$name(${a.param.toWdl})"
+
+      a match {
+        case _: ReadLines =>    functionCall("read_lines")
+        case _: ReadTsv =>      functionCall("read_tsv")
+        case _: ReadMap =>      functionCall("read_map")
+        case _: ReadObject =>   functionCall("read_object")
+        case _: ReadObjects =>  functionCall("read_objects")
+        case _: ReadJson =>     functionCall("read_json")
+        case _: ReadInt =>      functionCall("read_int")
+        case _: ReadString =>   functionCall("read_string")
+        case _: ReadFloat =>    functionCall("read_float")
+        case _: ReadBoolean =>  functionCall("read_boolean")
+        case _: WriteLines =>   functionCall("write_lines")
+        case _: WriteTsv =>     functionCall("write_tsv")
+        case _: WriteMap =>     functionCall("write_map")
+        case _: WriteObject =>  functionCall("write_object")
+        case _: WriteObjects => functionCall("write_objects")
+        case _: WriteJson =>    functionCall("write_json")
+        case _: Range =>        functionCall("range")
+        case _: Transpose =>    functionCall("transpose")
+        case _: Length =>       functionCall("length")
+        case _: Flatten =>      functionCall("flatten")
+        case _: SelectFirst =>  functionCall("select_first")
+        case _: SelectAll =>    functionCall("select_all")
+        case _: Defined =>      functionCall("defined")
+        case _: Floor =>        functionCall("floor")
+        case _: Ceil =>         functionCall("ceil")
+        case _: Round =>        functionCall("round")
+      }
+    }
+  }
+
+  implicit val oneOrTwoParamFunctionCallElementWriter: WdlWriter[OneOrTwoParamFunctionCallElement] = new WdlWriter[OneOrTwoParamFunctionCallElement] {
+    def toWdl(a: OneOrTwoParamFunctionCallElement): String = {
+      (a, a.secondParam) match {
+        case (_: Size, Some(unit)) => s"size(${a.firstParam.toWdl}, ${unit.toWdl})"
+        case (_: Size, None) => s"size(${a.firstParam.toWdl})"
+        case (_: Basename, Some(suffix)) => s"basename(${a.firstParam.toWdl}, ${suffix.toWdl})"
+        case (_: Basename, None) => s"basename(${a.firstParam.toWdl})"
+      }
+    }
+  }
+
+  implicit val twoParamFunctionCallElementWriter: WdlWriter[TwoParamFunctionCallElement] = new WdlWriter[TwoParamFunctionCallElement] {
+    def toWdl(a: TwoParamFunctionCallElement): String = {
+      def functionCall(name: String) = s"$name(${a.arg1}, ${a.arg2})"
+
+      a match {
+        case _: Zip => functionCall("zip")
+        case _: Cross => functionCall("cross")
+        case _: Prefix => functionCall("prefix")
+      }
     }
   }
 

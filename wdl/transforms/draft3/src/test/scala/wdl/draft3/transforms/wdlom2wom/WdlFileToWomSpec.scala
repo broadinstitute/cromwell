@@ -69,7 +69,11 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     "lots_of_nesting" -> anyWomWillDo,
     "taskless_engine_functions" -> anyWomWillDo,
     "no_input_no_output_workflow" -> anyWomWillDo,
-    "command_syntaxes" -> validateCommandSyntaxes
+    "command_syntaxes" -> validateCommandSyntaxes,
+    "standalone_task" -> anyWomWillDo,
+    "task_with_metas" -> anyWomWillDo,
+    "input_values" -> anyWomWillDo,
+    "gap_in_command" -> anyWomWillDo
   )
 
   private def anyWomWillDo(b: WomBundle) = Succeeded

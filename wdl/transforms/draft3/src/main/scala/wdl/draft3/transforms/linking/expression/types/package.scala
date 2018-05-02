@@ -23,6 +23,7 @@ package object types {
         // Literals:
         case a: PrimitiveLiteralExpressionElement => a.evaluateType(linkedValues)
         case a: StringLiteral => a.evaluateType(linkedValues)
+        case a: StringExpression => a.evaluateType(linkedValues)
         case a: ObjectLiteral => a.evaluateType(linkedValues)
         case a: MapLiteral => a.evaluateType(linkedValues)
         case a: ArrayLiteral => a.evaluateType(linkedValues)

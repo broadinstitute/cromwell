@@ -3,7 +3,7 @@ package cromwell.webservice
 import _root_.io.circe.yaml
 import akka.util.ByteString
 import cats.data.NonEmptyList
-import cats.data.Validated.{Invalid, Valid}
+import cats.data.Validated._
 import cats.instances.option._
 import cats.syntax.apply._
 import cats.syntax.functor._
@@ -192,11 +192,7 @@ object PartialWorkflowSources {
 
     def validateLabels(labels: WorkflowJson) : ErrorOr[WorkflowJson] = {
 
-      def validateKeyValuePair(key: String, value: String): ErrorOr[Unit] = {
-        (Label.validateLabelKey(key), Label.validateLabelValue(value)) mapN {
-          case (_, _) =>
-        }
-      }
+      def validateKeyValuePair(key: String, value: String): ErrorOr[Unit] = (Label.validateLabelKey(key), Label.validateLabelValue(value)).tupled.void
 
       def validateLabelRestrictions(inputs: Map[String, JsValue]): ErrorOr[Unit] = {
         inputs.toList.traverse[ErrorOr, Unit]({

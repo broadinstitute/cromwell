@@ -87,7 +87,7 @@ object CentaurCwlRunner extends StrictLogging {
         action((s, c) =>
           c.copy(outdir = Option(File(s))))
 
-      opt[String]("skip-file").text("A tsv file describing workflows to be skipped based on their name.").optional().
+      opt[String]("skip-file").text("A csv file describing workflows to be skipped based on their name.").optional().
         action((s, c) =>
           c.copy(skipFile = Option(File(s))))
     }

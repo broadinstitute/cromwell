@@ -1,4 +1,4 @@
-version draft-3
+version 1.0
 
 workflow unwanted_value_provided {
   call has_unoverridable_value { input: x = 5, z = 6 }

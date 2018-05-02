@@ -29,7 +29,11 @@ object WomGraphMaker {
 
     readFile(mainFile.toAbsolutePath.pathAsString) flatMap { mainFileContents =>
       val languageFactory = if (mainFile.name.toLowerCase().endsWith("wdl")) {
-        if (mainFileContents.startsWith("version draft-3")) new WdlDraft3LanguageFactory(Map.empty) else new WdlDraft2LanguageFactory(Map.empty)
+        if (mainFileContents.startsWith("version 1.0") || mainFileContents.startsWith("version draft-3")) {
+          new WdlDraft3LanguageFactory(Map.empty)
+        } else  {
+          new WdlDraft2LanguageFactory(Map.empty)
+        }
       } else new CwlV1_0LanguageFactory(Map.empty)
 
       val womBundleCheck = languageFactory.getWomBundle(mainFileContents, "{}", importResolvers, List(languageFactory))

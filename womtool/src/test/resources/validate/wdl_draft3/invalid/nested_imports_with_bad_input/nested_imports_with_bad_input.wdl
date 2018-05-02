@@ -1,4 +1,4 @@
-version draft-3
+version 1.0
 
 import "import_layer_1.wdl"
 

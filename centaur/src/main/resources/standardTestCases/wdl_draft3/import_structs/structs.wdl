@@ -1,4 +1,4 @@
-version draft-3
+version 1.0
 
 import "badly_named_struct.wdl" alias StructCollision as StructCollision2
 

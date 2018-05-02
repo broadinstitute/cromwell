@@ -1,4 +1,4 @@
-version draft-3
+version 1.0
 
 workflow multiple_sourced_array {
     call source as source1 { input: delay=1 }

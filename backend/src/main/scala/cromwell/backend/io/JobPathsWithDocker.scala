@@ -4,6 +4,7 @@ import com.typesafe.config.Config
 import common.util.StringUtil._
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder}
+import shapeless.tag
 import shapeless.tag._
 
 object JobPathsWithDocker {
@@ -12,13 +13,15 @@ object JobPathsWithDocker {
             config: Config,
             pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) = {
     val workflowPaths = new WorkflowPathsWithDocker(workflowDescriptor, config, pathBuilders)
-    new JobPathsWithDocker(workflowPaths, jobKey)
+    new JobPathsWithDocker(workflowPaths, jobKey, Option(tag[DockerOutputDirectory]("/other")))
   }
 }
 
 trait DockerOutputDirectory
 
-case class JobPathsWithDocker private[io] (override val workflowPaths: WorkflowPathsWithDocker, jobKey: BackendJobDescriptorKey, overrideDockerRoot: Option[String @@ DockerOutputDirectory]) extends JobPaths {
+case class JobPathsWithDocker private[io] (override val workflowPaths: WorkflowPathsWithDocker,
+                                           jobKey: BackendJobDescriptorKey,
+                                           overrideDockerRoot: Option[String @@ DockerOutputDirectory]) extends JobPaths {
   import JobPaths._
 
   override lazy val callExecutionRoot = { callRoot.resolve("execution") }

@@ -53,7 +53,7 @@ case class File private
     }
   }
 
-  lazy val asWomValue: ErrorOr[WomFile] = {
+  lazy val asWomValue: ErrorOr[WomMaybePopulatedFile] = {
     errorOrSecondaryFiles flatMap { secondaryFiles =>
       val valueOption = path.orElse(location).orElse(basename)
       (valueOption, contents) match {

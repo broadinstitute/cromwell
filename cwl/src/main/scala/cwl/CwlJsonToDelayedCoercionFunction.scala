@@ -62,6 +62,11 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
     case WomSingleFileType | WomMaybePopulatedFileType if value.toMap.get("class").flatMap(_.asString).contains("File") =>
       Json.fromJsonObject(value).as[File] match {
         case Left(errors) => errors.message.invalidNel
+        case Right(file@File(_, None, None, _, _,_,_,_,Some(contents))) => {
+          val tempDir = better.files.File.newTemporaryDirectory()
+          val cwlFile: better.files.File = tempDir./(s"${contents.hashCode}").write(contents)
+          file.asWomValue.map(_.copy(valueOption = Option(cwlFile.path.toString)))
+        }
         case Right(file) => file.asWomValue
       }
     case WomMaybeListedDirectoryType | WomUnlistedDirectoryType if value.toMap.get("class").flatMap(_.asString).contains("Directory") =>

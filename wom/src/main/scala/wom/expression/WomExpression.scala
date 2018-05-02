@@ -19,7 +19,7 @@ trait WomExpression {
   def inputs: Set[String]
   def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue]
   def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType]
-  def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]]
+  def evaluateFiles(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]]
 }
 
 /**

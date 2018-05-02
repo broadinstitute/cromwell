@@ -37,7 +37,7 @@ object FileElementToWomBundle {
         val allStructs = structs ++ imports.flatMap(_.typeAliases)
 
         val localTasksValidation: ErrorOr[Map[String, Callable]] = {
-          tasks.traverse[ErrorOr, (String, CallableTaskDefinition)] { taskDefinition =>
+          tasks.traverse { taskDefinition =>
             taskConverter
               .run(TaskDefinitionElementToWomInputs(taskDefinition, structs))
               .map(t => t.name -> t).toValidated
@@ -47,7 +47,7 @@ object FileElementToWomBundle {
         localTasksValidation flatMap { localTaskMapping =>
 
           val workflowsValidation: ErrorOr[Vector[WorkflowDefinition]] = {
-            a.fileElement.workflows.toVector.traverse[ErrorOr, WorkflowDefinition] { workflowDefinition =>
+            a.fileElement.workflows.toVector.traverse { workflowDefinition =>
 
               val convertInputs = WorkflowDefinitionConvertInputs(workflowDefinition, allStructs, localTaskMapping ++ imports.flatMap(_.allCallables))
               workflowConverter.run(convertInputs).toValidated
@@ -69,7 +69,7 @@ object FileElementToWomBundle {
       }
 
       val taskDefValidation: ErrorOr[Vector[TaskDefinitionElement]] = a.fileElement.tasks.toVector.validNel
-      val importsValidation: ErrorOr[Vector[WomBundle]] = a.fileElement.imports.toVector.traverse[ErrorOr, WomBundle] { importWomBundle(_, a.workflowOptionsJson, a.importResolvers, a.languageFactories) }
+      val importsValidation: ErrorOr[Vector[WomBundle]] = a.fileElement.imports.toVector.traverse { importWomBundle(_, a.workflowOptionsJson, a.importResolvers, a.languageFactories) }
 
       (importsValidation flatMap { imports =>
         val structsValidation: ErrorOr[Map[String, WomType]] = StructEvaluation.convert(StructEvaluationInputs(a.fileElement.structs, imports.flatMap(_.typeAliases).toMap))

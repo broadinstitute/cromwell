@@ -10,7 +10,7 @@ import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values._
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Await
 import scala.concurrent.duration._
 
 /** @see <a href="http://www.commonwl.org/v1.0/Workflow.html#CommandOutputBinding">CommandOutputBinding</a> */
@@ -79,7 +79,7 @@ object CommandOutputBinding {
     }
 
     def secondaryFilesToWomFiles(primaryWomFiles: List[WomFile], ioFunctionSet: IoFunctionSet): ErrorOr[List[WomFile]] = {
-      primaryWomFiles.flatTraverse[ErrorOr, WomFile] { primaryWomFile =>
+      primaryWomFiles.flatTraverse{ primaryWomFile =>
         FileParameter.secondaryFiles(primaryWomFile,
           primaryWomFile.womFileType, secondaryFilesOption, parameterContext, expressionLib, ioFunctionSet)
       }
@@ -172,7 +172,7 @@ object CommandOutputBinding {
       primaryPaths <- GlobEvaluator.globs(commandOutputBinding.glob, parameterContext, expressionLib)
 
       // 2. loadContents: load the contents of the primary files
-      primaryAsDirectoryOrFiles <- primaryPaths.flatTraverse[ErrorOr, WomFile] {
+      primaryAsDirectoryOrFiles <- primaryPaths.flatTraverse{
         loadPrimaryWithContents(ioFunctionSet, outputWomType, commandOutputBinding)
       }
 
@@ -180,7 +180,7 @@ object CommandOutputBinding {
       absolutePaths = primaryAsDirectoryOrFiles.map(_.mapFile(ioFunctionSet.pathFunctions.relativeToHostCallRoot))
       
       // Load file size
-      withFileSizes <- FileParameter.sync(absolutePaths.traverse[Future, WomFile](_.withSize(ioFunctionSet))).toErrorOr
+      withFileSizes <- FileParameter.sync(absolutePaths.traverse(_.withSize(ioFunctionSet))).toErrorOr
 
       womFilesArray = WomArray(withFileSizes)
 

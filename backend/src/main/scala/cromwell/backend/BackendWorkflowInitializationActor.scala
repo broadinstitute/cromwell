@@ -79,7 +79,7 @@ object BackendWorkflowInitializationActor {
       //This map append will overwrite default key/values with runtime settings upon key collisions
       val lookups = defaultRuntimeAttributes.mapValues(_.asWomExpression) ++ runtimeAttributes
 
-      runtimeAttributeValidators.toList.traverse[ValidatedNel[RuntimeAttributeValidationFailure, ?], Unit]{
+      runtimeAttributeValidators.toList.traverse{
         case (attributeName, validator) =>
           val runtimeAttributeValue: Option[WomExpression] = lookups.get(attributeName)
           validator(runtimeAttributeValue).fold(
@@ -154,7 +154,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
       defaultRuntimeAttributes <- coerceDefaultRuntimeAttributes(workflowDescriptor.workflowOptions) |> Future.fromTry _
       taskList = calls.toList.map(_.callable).map(t => t.name -> t.runtimeAttributes.attributes)
       _ <- taskList.
-            traverse[ValidatedNel[RuntimeAttributeValidationFailure, ?], Unit]{
+            traverse{
               case (name, runtimeAttributes) => validateRuntimeAttributes(name, defaultRuntimeAttributes, runtimeAttributes, runtimeAttributeValidators)
             }.toFuture(errors => RuntimeAttributeValidationFailures(errors.toList))
       _ <- validate()

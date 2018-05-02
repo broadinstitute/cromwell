@@ -54,7 +54,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
   private val backendFactories: Map[String, BackendLifecycleActorFactory] = {
     val factoriesValidation = workflowDescriptor.backendAssignments.values.toList
-      .traverse[ErrorOr, (String, BackendLifecycleActorFactory)] {
+      .traverse {
       backendName => CromwellBackends.backendLifecycleFactoryActorByName(backendName) map { backendName -> _ }
     }
 
@@ -308,7 +308,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       .map(outputNode =>
       outputNode -> data.valueStore.get(outputNode.graphOutputPort, None)
     )
-      .toList.traverse[ErrorOr, (GraphOutputNode, WomValue)]({
+      .toList.traverse({
       case (name, Some(value)) => (name -> value).validNel
       case (name, None) =>
         s"Cannot find an output value for ${name.identifier.fullyQualifiedName.value}".invalidNel
@@ -434,7 +434,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       case (jobKey, WaitingForQueueSpace) => pushWaitingForQueueSpaceCallMetadata(jobKey)
     })
 
-    val diffValidation = runnableKeys.traverse[ErrorOr, WorkflowExecutionDiff]({
+    val diffValidation = runnableKeys.traverse({
       case key: BackendJobDescriptorKey => processRunnableJob(key, data)
       case key: SubWorkflowKey => processRunnableSubWorkflow(key, data)
       case key: ConditionalCollectorKey => key.processRunnable(data)

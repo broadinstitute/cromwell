@@ -39,7 +39,7 @@ object TaskDefinitionElementToWomTaskDefinition {
       }
 
       val validCommand: ErrorOr[Seq[CommandPart]] = {
-        expandLines(a.taskDefinitionElement.commandSection.parts).toList.traverse[ErrorOr, CommandPart] { parts =>
+        expandLines(a.taskDefinitionElement.commandSection.parts).toList.traverse { parts =>
           CommandPartElementToWomCommandPart.convert(parts, taskGraph.linkedGraph.typeAliases, taskGraph.linkedGraph.generatedHandles)
         }.map(_.toSeq)
       }

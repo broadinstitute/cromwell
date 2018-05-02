@@ -95,7 +95,7 @@ object ScatterLogic {
       // If there's no scatter make it an empty list
       .getOrElse(List.empty)
       // Traverse the list to create ScatterVariableNodes that will be used later on to create the ScatterNode
-      .traverse[ErrorOr, (WorkflowStepInput, ScatterVariableNode)](buildScatterVariable)
+      .traverse(buildScatterVariable)
       .toEither
       .map(_.toMap)
   }

@@ -48,7 +48,7 @@ case class File private
 
   lazy val errorOrSecondaryFiles: ErrorOr[List[WomFile]] = {
     val dirsOrFiles: List[FileOrDirectory] = secondaryFiles.getOrElse(Array.empty).toList
-    dirsOrFiles.traverse[ErrorOr, WomFile] {
+    dirsOrFiles.traverse{
       _.fold(CwlDirectoryOrFileAsWomSingleDirectoryOrFile)
     }
   }
@@ -114,7 +114,7 @@ object File {
   private def recursivelyBuildDirectory(directory: String, ioFunctions: IoFunctionSet): ErrorOr[WomMaybeListedDirectory] = {
     for {
       listing <- sync(ioFunctions.listDirectory(directory)).toErrorOr
-      fileListing <- listing.toList.traverse[ErrorOr, WomFile] {
+      fileListing <- listing.toList.traverse{
         case e if sync(ioFunctions.isDirectory(e)).getOrElse(false) => recursivelyBuildDirectory(e, ioFunctions)
         case e => WomMaybePopulatedFile(e).validNel
       }
@@ -226,7 +226,7 @@ case class Directory private
   lazy val errorOrListingOption: ErrorOr[Option[List[WomFile]]] = {
     val maybeErrorOrList: Option[ErrorOr[List[WomFile]]] =
       listing map {
-        _.toList.traverse[ErrorOr, WomFile] {
+        _.toList.traverse {
           _.fold(CwlDirectoryOrFileAsWomSingleDirectoryOrFile)
         }
       }

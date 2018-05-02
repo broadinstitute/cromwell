@@ -43,7 +43,7 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
     val result = sharedFS.localizeInputs(callDir, docker = docker)(inputs)
 
     result.isSuccess shouldBe true
-    result.get should contain theSameElementsAs localizedinputs
+    result.get.toList should contain theSameElementsAs localizedinputs
 
     dest.exists shouldBe true
     countLinks(dest) should be(linkNb)

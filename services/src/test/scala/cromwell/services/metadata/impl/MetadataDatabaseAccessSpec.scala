@@ -295,7 +295,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         for {
           _ <- dataAccess.addMetadataEvents(metadataEvents)
           _ <- dataAccess.refreshWorkflowMetadataSummaries().map(_ should be > 0L)
-          _ <- dataAccess.getWorkflowLabels(workflowId).map(_ should contain(customLabelKey -> customLabelValue))
+          _ <- dataAccess.getWorkflowLabels(workflowId).map(_.toList should contain(customLabelKey -> customLabelValue))
         } yield ()
       }
 

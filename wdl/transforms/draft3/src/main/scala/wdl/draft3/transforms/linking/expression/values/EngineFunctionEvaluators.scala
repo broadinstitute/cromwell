@@ -361,7 +361,7 @@ object EngineFunctionEvaluators {
       }
 
       processValidatedSingleValue[WomArray, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { array =>
-        val expandedValidation = array.value.toList.traverse[ErrorOr, Seq[WomValue]] { flatValues }
+        val expandedValidation = array.value.toList.traverse{ flatValues }
         expandedValidation map { expanded => EvaluatedValue(WomArray(expanded.flatten), Seq.empty) }
       } (coercer = WomArrayType(WomArrayType(WomAnyType)))
     }

@@ -33,7 +33,7 @@ final case class WorkflowStepInputMergeExpression(input: WorkflowStepInput,
 
     def validateSources(sources: List[String]): ErrorOr[List[WomValue]] =
       sources.
-        traverse[ErrorOr, WomValue](lookupValue)
+        traverse(lookupValue)
 
     def isEmptyOptionalValue(womValue: WomValue): Boolean = womValue match {
       case WomOptionalValue(_, None) => true

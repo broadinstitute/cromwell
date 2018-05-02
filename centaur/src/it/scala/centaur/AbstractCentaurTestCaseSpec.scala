@@ -6,7 +6,6 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.instances.list._
 import cats.syntax.traverse._
 import centaur.test.standard.CentaurTestCase
-import common.validation.ErrorOr.ErrorOr
 import org.scalatest.{DoNotDiscover, FlatSpec, Matchers, Tag}
 
 @DoNotDiscover
@@ -14,7 +13,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
 
   private def testCases(basePath: Path): List[CentaurTestCase] = {
     val files = basePath.toFile.listFiles.toList collect { case x if x.isFile => x.toPath }
-    val testCases = files.traverse[ErrorOr, CentaurTestCase](CentaurTestCase.fromPath)
+    val testCases = files.traverse(CentaurTestCase.fromPath)
 
     testCases match {
       case Valid(l) => l

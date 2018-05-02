@@ -32,10 +32,10 @@ object LiteralEvaluators {
   implicit val mapLiteralTypeEvaluator: TypeEvaluator[MapLiteral] = new TypeEvaluator[MapLiteral] {
     override def evaluateType(a: MapLiteral, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]): ErrorOr[WomType] = {
 
-      val keyTypes = a.elements.keySet.toList.traverse[ErrorOr, WomType] { x: ExpressionElement => x.evaluateType(linkedValues) }
+      val keyTypes = a.elements.keySet.toList.traverse { x: ExpressionElement => x.evaluateType(linkedValues) }
       val commonKeyType: ErrorOr[WomType] = keyTypes.map(WomType.homogeneousTypeFromTypes)
 
-      val valueTypes = a.elements.keySet.toList.traverse[ErrorOr, WomType] { x: ExpressionElement => x.evaluateType(linkedValues) }
+      val valueTypes = a.elements.keySet.toList.traverse { x: ExpressionElement => x.evaluateType(linkedValues) }
       val commonValueType: ErrorOr[WomType] = valueTypes.map(WomType.homogeneousTypeFromTypes)
 
       (commonKeyType, commonValueType) mapN { (k, v) => WomMapType(k, v) }
@@ -45,7 +45,7 @@ object LiteralEvaluators {
   implicit val arrayLiteralTypeEvaluator: TypeEvaluator[ArrayLiteral] = new TypeEvaluator[ArrayLiteral] {
     override def evaluateType(a: ArrayLiteral, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]): ErrorOr[WomType] = {
 
-      val types = a.elements.toList.traverse[ErrorOr, WomType] { x: ExpressionElement => x.evaluateType(linkedValues) }
+      val types = a.elements.toList.traverse { x: ExpressionElement => x.evaluateType(linkedValues) }
       val commonType: ErrorOr[WomType] = types.map(WomType.homogeneousTypeFromTypes)
 
       commonType.map(WomArrayType.apply(_, guaranteedNonEmpty = a.elements.nonEmpty))

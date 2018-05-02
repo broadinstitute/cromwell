@@ -1,6 +1,7 @@
 package wdl.draft3.transforms.ast2wdl
 
 import simulacrum.typeclass
+import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.elements._
 import wom.types._
@@ -41,9 +42,19 @@ object WdlWriter {
       case _: TernaryIf => ???
       case a: FunctionCallElement => a.toWdl
       case a: IdentifierLookup => a.identifier
-      case _: IdentifierMemberAccess => ???
+      case a: IdentifierMemberAccess => a.toWdl
       case _: ExpressionMemberAccess => ???
       case _: IndexAccess => ???
+    }
+  }
+
+  implicit val identifierMemberAccessWriter: WdlWriter[IdentifierMemberAccess] = new WdlWriter[IdentifierMemberAccess] {
+    def toWdl(a: IdentifierMemberAccess): String = {
+      s"${a.first}.${a.second}" + (if (a.memberAccessTail.nonEmpty) {
+        a.memberAccessTail.mkString(".")
+      } else {
+        ""
+      })
     }
   }
 
@@ -135,8 +146,19 @@ object WdlWriter {
 
   implicit val workflowDefinitionElementWriter: WdlWriter[WorkflowDefinitionElement] = new WdlWriter[WorkflowDefinitionElement] {
     def toWdl(a: WorkflowDefinitionElement) = {
+      val inputs = a.inputsSection match {
+        case Some(i) => i.toWdl
+        case None => ""
+      }
+      val outputs = a.outputsSection match {
+        case Some(o) => o.toWdl
+        case None => ""
+      }
+
       s"""workflow ${a.name} {
+         |  $inputs
          |  ${a.graphElements.map(_.toWdl).mkString("\n")}
+         |  $outputs
          |}
        """.stripMargin
     }
@@ -146,7 +168,7 @@ object WdlWriter {
     def toWdl(a: TaskDefinitionElement) = {
 //      a.inputsSection X
 //      a.declarations X
-//      a.outputsSection
+//      a.outputsSection X
 //      a.commandSection
 //      a.runtimeSection
 //      a.metaSection
@@ -164,8 +186,32 @@ object WdlWriter {
          |  $inputs
          |  ${a.declarations.map(_.toWdl).mkString("\n")}
          |  $outputs
+         |  ${a.commandSection.toWdl}
          |}
        """.stripMargin
+    }
+  }
+
+  implicit val commandSectionElementWriter: WdlWriter[CommandSectionElement] = new WdlWriter[CommandSectionElement] {
+    def toWdl(a: CommandSectionElement): String = {
+      s"""command {
+         |  ${a.parts.map(_.toWdl).mkString("\n")}
+         |}
+       """.stripMargin
+    }
+  }
+
+  implicit val commandSectionLineWriter: WdlWriter[CommandSectionLine] = new WdlWriter[CommandSectionLine] {
+    def toWdl(a: CommandSectionLine): String = {
+      a.parts.map(_.toWdl).mkString(" ")
+    }
+  }
+
+  implicit val commandPartElementWriter: WdlWriter[CommandPartElement] = new WdlWriter[CommandPartElement] {
+    def toWdl(a: CommandPartElement): String = a match {
+      case a: StringCommandPartElement => a.value
+      case a: PlaceholderCommandPartElement =>
+        s"$${${a.expressionElement.toWdl}}" // TODO: attributes
     }
   }
 

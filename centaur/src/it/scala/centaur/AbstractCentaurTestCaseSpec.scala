@@ -6,7 +6,6 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.instances.list._
 import cats.syntax.traverse._
 import centaur.test.standard.CentaurTestCase
-import common.validation.ErrorOr.ErrorOr
 import org.scalatest.{DoNotDiscover, FlatSpec, Matchers, Tag}
 
 @DoNotDiscover

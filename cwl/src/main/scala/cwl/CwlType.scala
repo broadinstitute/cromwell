@@ -226,7 +226,7 @@ case class Directory private
   lazy val errorOrListingOption: ErrorOr[Option[List[WomFile]]] = {
     val maybeErrorOrList: Option[ErrorOr[List[WomFile]]] =
       listing map {
-        _.toList.traverse[ErrorOr, WomFile] {
+        _.toList.traverse {
           _.fold(CwlDirectoryOrFileAsWomSingleDirectoryOrFile)
         }
       }

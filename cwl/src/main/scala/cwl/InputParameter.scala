@@ -142,7 +142,7 @@ object InputParameter {
             val secondaryFilesFromType = inputType.fold(MyriadInputTypeToSecondaryFiles)
             val secondaryFiles = secondaryFilesFromInputParameter orElse secondaryFilesFromType
             val inputFormatsErrorOr = inputParameter.format
-                .traverse[ErrorOr, List[String]](_.fold(InputParameterFormatPoly).apply(parameterContext))
+                .traverse(_.fold(InputParameterFormatPoly).apply(parameterContext))
 
             for {
               inputFormatsOption <- inputFormatsErrorOr

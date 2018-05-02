@@ -20,7 +20,7 @@ case class WomCompositeType(typeMap: Map[String, WomType]) extends WomObjectType
   }
 
   override def validateAndCoerceValues(values: Map[String, Any]): ErrorOr[Map[String, WomValue]] = {
-    typeMap.toList.traverse[ErrorOr, (String, WomValue)](Function.tupled(validateType(values))).map(_.toMap)
+    typeMap.toList.traverse(Function.tupled(validateType(values))).map(_.toMap)
   }
 
   override protected def coercion = {

@@ -6,7 +6,6 @@ import cats.syntax.traverse._
 import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.Checked._
-import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import wdl.draft3.parser.WdlParser.{Ast, AstList, AstNode}
 
@@ -47,7 +46,7 @@ object EnhancedDraft3Ast {
         // This toValidated/toEither dance is necessary to
         // (1) collect all errors from the traverse as an ErrorOr, then
         // (2) convert back into a Checked for the flatMap
-        result <- asVector.traverse[ErrorOr, A](item => toA.run(item).toValidated).toEither
+        result <- asVector.traverse(item => toA.run(item).toValidated).toEither
       } yield result
     }
 

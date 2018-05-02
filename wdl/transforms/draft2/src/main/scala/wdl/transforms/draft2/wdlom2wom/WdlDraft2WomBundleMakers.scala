@@ -16,8 +16,8 @@ object WdlDraft2WomBundleMakers {
 
   implicit val wdlDraft2NamespaceWomBundleMaker: WomBundleMaker[WdlNamespace] = new WomBundleMaker[WdlNamespace] {
     override def toWomBundle(from: WdlNamespace): Checked[WomBundle] = {
-      val workflowsValidation: ErrorOr[List[WorkflowDefinition]] = from.workflows.toList.traverse[ErrorOr, WorkflowDefinition](_.toWomWorkflowDefinition(isASubworkflow = false))
-      val tasksValidation: ErrorOr[List[TaskDefinition]] = from.tasks.toList.traverse[ErrorOr, TaskDefinition](_.toWomTaskDefinition)
+      val workflowsValidation: ErrorOr[List[WorkflowDefinition]] = from.workflows.toList.traverse(_.toWomWorkflowDefinition(isASubworkflow = false))
+      val tasksValidation: ErrorOr[List[TaskDefinition]] = from.tasks.toList.traverse(_.toWomTaskDefinition)
 
       val errorOr = (workflowsValidation, tasksValidation) mapN { (workflows, tasks) =>
         val primary = if (workflows.size == 1) {

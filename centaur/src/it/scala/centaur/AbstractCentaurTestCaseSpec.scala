@@ -14,7 +14,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
 
   private def testCases(basePath: Path): List[CentaurTestCase] = {
     val files = basePath.toFile.listFiles.toList collect { case x if x.isFile => x.toPath }
-    val testCases = files.traverse[ErrorOr, CentaurTestCase](CentaurTestCase.fromPath)
+    val testCases = files.traverse(CentaurTestCase.fromPath)
 
     testCases match {
       case Valid(l) => l

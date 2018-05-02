@@ -72,6 +72,7 @@ object Settings {
     "-Ywarn-unused:implicits",
     "-Ywarn-unused:privates",
     "-Ywarn-unused:locals",
+    "-Ypartial-unification",
     "-Ywarn-unused:patvars"
   )
 

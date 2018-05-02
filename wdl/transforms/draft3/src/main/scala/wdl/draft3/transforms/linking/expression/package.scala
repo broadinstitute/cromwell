@@ -22,7 +22,7 @@ package object expression {
                                    consumedValueLookup: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]): ErrorOr[WomExpression] = {
       val consumedValueHooks = a.expressionConsumedValueHooks
 
-      val neededLinkedValues = consumedValueHooks.toList.traverse[ErrorOr, (UnlinkedConsumedValueHook, GeneratedValueHandle)] {
+      val neededLinkedValues = consumedValueHooks.toList.traverse {
         case c if consumedValueLookup.contains(c) => (c -> consumedValueLookup(c)).validNel
         case missing => s"Could not create WOM expression for '$a': Found no generated value for consumed value $missing".invalidNel
       }

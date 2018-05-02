@@ -9,7 +9,6 @@ import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigFactory, ConfigObject}
 import common.Checked
 import common.validation.Checked._
-import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
 import net.ceedubs.ficus.Ficus._
@@ -26,7 +25,7 @@ class CromwellFileSystems(globalConfig: Config) {
   private [filesystem] val factoryBuilders: Map[String, Constructor[_]] = if (globalConfig.hasPath("filesystems")) {
     val rawConfigSet = globalConfig.getObject("filesystems").entrySet.asScala
     val configMap = rawConfigSet.toList.map({ entry => entry.getKey -> entry.getValue })
-    val constructorMap = configMap.traverse[ErrorOr, (String, Constructor[_])]({
+    val constructorMap = configMap.traverse({
       case (key, fsConfig: ConfigObject) => createConstructor(key, fsConfig).toValidated
       case (key, _) => s"Invalid filesystem configuration for $key".invalidNel
     }).map(_.toMap)
@@ -87,7 +86,7 @@ class CromwellFileSystems(globalConfig: Config) {
       val rawConfigSet = filesystemsConfig.getObject("filesystems").entrySet().asScala
       val configMap = rawConfigSet.toList.map({ entry => entry.getKey -> entry.getValue })
 
-      configMap.traverse[ErrorOr, (String, PathBuilderFactory)]({
+      configMap.traverse({
         // build the factory for each entry
         case (key, config: ConfigObject) => buildFactory(key, config.toConfig).toValidated.map(key -> _)
         case (key, _) => s"Invalid filesystem backend configuration for $key".invalidNel

@@ -4,6 +4,7 @@
 .artifactory
 .idea/*
 .ensime_cache/*
+.config/*
 .ensime
 tags
 !/.idea/inspectionProfiles/

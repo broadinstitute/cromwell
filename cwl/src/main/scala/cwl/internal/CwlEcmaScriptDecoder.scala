@@ -46,7 +46,7 @@ class CwlEcmaScriptDecoder {
   def decodeMap(map: Map[Any, Any]): ErrorOr[WomValue] = {
     val realMap: Map[AnyRef, AnyRef] = map.asInstanceOf[Map[AnyRef, AnyRef]]
 
-    val tupleList = realMap.toList.traverse[ErrorOr,(String, WomValue)]{ 
+    val tupleList = realMap.toList.traverse{
       case (k,v) => (k.toString.validNel: ErrorOr[String], decode(v)).tupled
     }
     val mapWomValues =  tupleList.map(_.toMap)
@@ -71,7 +71,7 @@ class CwlEcmaScriptDecoder {
     */
   def decodeDirectoryOrFiles(value: Any): ErrorOr[Array[FileOrDirectory]] = {
     value match {
-      case na: NativeArray => na.asScala.toList.traverse[ErrorOr, FileOrDirectory](decodeDirectoryOrFile).map(_.toArray)
+      case na: NativeArray => na.asScala.toList.traverse(decodeDirectoryOrFile).map(_.toArray)
     }
   }
 
@@ -87,7 +87,7 @@ class CwlEcmaScriptDecoder {
     */
   def decodeMapDirectoryOrFiles(map: Map[Any, Any],
                                 key: String): ErrorOr[Option[Array[FileOrDirectory]]] = {
-    map.get(key).traverse[ErrorOr, Array[FileOrDirectory]](decodeDirectoryOrFiles)
+    map.get(key).traverse(decodeDirectoryOrFiles)
   }
 
   /**

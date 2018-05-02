@@ -65,7 +65,7 @@ case class Schema(schemaIris: Seq[String],
     }
 
     val errorOr: ErrorOr[Unit] = for {
-      ontologies <- schemaIris.toList.traverse[ErrorOr, OWLOntology](loadOntologyFromIri(ontologyManager))
+      ontologies <- schemaIris.toList.traverse(loadOntologyFromIri(ontologyManager))
       _ = ontologies.foreach(addToSchema)
     } yield ()
     errorOr.toTry("Error loading schemas").get

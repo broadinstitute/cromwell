@@ -153,7 +153,7 @@ case class CommandLineTool private(
         }
 
         json.get(outputPort.internalName)
-          .map(_.foldWith(CwlJsonToDelayedCoercionFunction).apply(outputPort.womType).map(outputPort -> _))
+          .map(_.foldWith(CwlJsonToDelayedCoercionFunction).apply(ioFunctionSet, outputPort.womType).map(outputPort -> _))
           .orElse(emptyValue)
           .getOrElse(s"Cannot find a value for output ${outputPort.internalName} in output json $json".invalidNel)
       }).toEither

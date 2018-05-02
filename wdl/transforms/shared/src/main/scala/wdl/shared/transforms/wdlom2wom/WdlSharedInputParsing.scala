@@ -17,7 +17,7 @@ object WdlSharedInputParsing {
 
     Try(inputString.parseJson).toErrorOr.toEither flatMap {
       case JsObject(fields) => fields.map({
-        case (key, jsValue) => key -> { womType: WomType => womType.coerceRawValue(jsValue).toErrorOr }
+        case (key, jsValue) => key -> { (_: IoFunctionSet, womType: WomType) => womType.coerceRawValue(jsValue).toErrorOr }
       }).validNelCheck
       case other => s"WDL input file must be a valid Json object. Found a ${other.getClass.getSimpleName}".invalidNelCheck[ParsedInputMap]
     }

@@ -99,10 +99,17 @@ trait IoFunctionSet {
   def writeFile(path: String, content: String): Future[WomSingleFile]
 
   /**
+    * Write "content" to the specified "path" location
+    */
+  def writeTemporaryFile(content: String): Future[WomSingleFile] = writeFile(createTemporaryFilePath, content)
+
+  /**
     * Copy pathFrom to targetName
     * @return destination as a WomSingleFile
     */
   def copyFile(source: String, destination: String): Future[WomSingleFile]
+
+  protected def createTemporaryFilePath: String
 
   /**
     * Glob files and directories using the provided pattern.

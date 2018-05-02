@@ -26,6 +26,8 @@ class EmptyIoFunctionSet extends IoFunctionSet {
   override def pathFunctions = NoPathFunctionSet
   override def listDirectory(path: String) = throw new NotImplementedError("listDirectory is not available here")
   override def isDirectory(path: String) = throw new NotImplementedError("isDirectory is not available here")
+
+  override protected def createTemporaryFilePath: String = throw new RuntimeException("can't create temporary file path in empty io function set")
 }
 
 class EmptyPathFunctionSet extends PathFunctionSet {

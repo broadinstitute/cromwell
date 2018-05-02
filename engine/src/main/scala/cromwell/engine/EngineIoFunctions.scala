@@ -22,4 +22,6 @@ class EngineIoFunctions(val pathBuilders: List[PathBuilder], override val asyncI
   override def listDirectory(path: String) = throw new NotImplementedError(s"listDirectory not implemented yet")
 
   override def isDirectory(path: String) = Future.successful(buildPath(path).isDirectory)
+
+  override protected def createTemporaryFilePath: String = throw new NotImplementedError("Cromwell does not support generating temporary paths from a workflow context")
 }

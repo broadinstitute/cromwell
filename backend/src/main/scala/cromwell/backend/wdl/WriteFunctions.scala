@@ -37,6 +37,8 @@ trait WriteFunctions extends PathFactory with IoFunctionSet with AsyncIoFunction
 
   def relativeToAbsolutePath(pathFrom: String): String = if (buildPath(pathFrom).isAbsolute) pathFrom else relativeToLocal + pathFrom
 
+  override protected def createTemporaryFilePath: String = writeDirectory.createTempFile().pathAsString
+
   override def copyFile(pathFrom: String, targetName: String): Future[WomSingleFile] = {
     val source = buildPath(relativeToAbsolutePath(pathFrom))
     val destination = _writeDirectory / targetName

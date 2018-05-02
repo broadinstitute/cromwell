@@ -30,7 +30,7 @@ object Executable {
    */
   type InputParsingFunction = String => Checked[ParsedInputMap]
   type ParsedInputMap = Map[String, DelayedCoercionFunction]
-  type DelayedCoercionFunction = WomType => ErrorOr[WomValue]
+  type DelayedCoercionFunction = (IoFunctionSet, WomType) => ErrorOr[WomValue]
   
   /*
     * Maps output ports from graph input nodes to ResolvedExecutableInput
@@ -48,7 +48,7 @@ object Executable {
     def fromInputMapping(gin: ExternalGraphInputNode): Option[ErrorOr[ResolvedExecutableInput]] = {
       inputCoercionMap
         .get(gin.nameInInputSet)
-        .map { _.apply(gin.womType)
+        .map { _.apply(ioFunctions,gin.womType)
           .flatMap(gin.valueMapper(ioFunctions)(_))
           .map(Coproduct[ResolvedExecutableInput](_))
         }

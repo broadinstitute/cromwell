@@ -2,15 +2,9 @@ package womtool
 
 import java.nio.file.Paths
 
-import cats.data.NonEmptyList
-import common.Checked
 import spray.json._
 import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter, SyntaxHighlighter}
 import wdl.draft2.model.{AstTools, WdlNamespace, WdlNamespaceWithWorkflow}
-//import wdl.model.draft3.elements.ExpressionElement.{Add, Equals, PrimitiveLiteralExpressionElement}
-//import wdl.model.draft3.elements.{IfElement, IntermediateValueDeclarationElement, PrimitiveTypeElement}
-//import wom.types.WomBooleanType
-//import wom.values.{WomBoolean, WomInteger}
 import womtool.cmdline.HighlightMode.{ConsoleHighlighting, HtmlHighlighting, UnrecognizedHighlightingMode}
 import womtool.cmdline._
 import womtool.graph.{GraphPrint, WomGraph}
@@ -86,154 +80,13 @@ object WomtoolMain extends App {
     SuccessfulTermination(AstTools.getAst(Paths.get(workflowSourcePath)).toPrettyString)
   }
 
-  // TODO: move to an appropriate location
-  import wdl.draft2.parser.WdlParser.Ast
-  import wdl.model.draft3.elements.FileElement
-  import wdl.model.draft3.elements.TaskDefinitionElement
-//  import wdl.model.draft3.elements.CommandSectionElement
-//  import wdl.model.draft3.elements.FileBodyElement
-  import wdl.model.draft3.elements.ImportElement
-  import wdl.draft2.model.AstTools._
-  import wdl.model.draft3.elements.WorkflowDefinitionElement
-  import wdl.model.draft3.elements.InputsSectionElement
-  import wdl.model.draft3.elements.OutputsSectionElement
-  import wdl.model.draft3.elements.OutputDeclarationElement
-  import wdl.model.draft3.elements.TypeElement
-  import wdl.model.draft3.elements.ExpressionElement
-//  import wdl.draft2.parser.WdlParser.AstNode
-//  import wom.types.WomStringType
-
-  def convertAstToFile(ast: Ast): Checked[FileElement] = ast.getName match {
-    case "Namespace" =>
-      val bodyElements: Seq[Ast] = ast.getAttribute("body").astListAsVector.collect({ case a: Ast => a })
-      val imports: Seq[Ast] = ast.getAttribute("imports").astListAsVector.collect({ case a: Ast => a })
-
-      val tasks = bodyElements.filter(_.getName == "Task")
-      val workflows = bodyElements.filter(_.getName == "Workflow")
-
-      // TODO: better way to provide this guarantee - match statement with _ that throws exception?
-      assert(tasks.size + workflows.size == bodyElements.size, "Missed something!")
-
-      Right(FileElement(
-        workflows = workflows.map(convertAstToWorkflow),
-        imports = imports.map(convertAstToImport),
-        structs = Seq(), // no structs in draft-2 I think?
-        tasks = tasks.map(convertAstToTask)))
-    case _ => Left(NonEmptyList("What are you doing?", Nil))
-  }
-
-  def convertAstToWorkflow(ast: Ast): WorkflowDefinitionElement = {
-    val name = ast.getAttribute("name").sourceString
-    val bodyElements: Seq[Ast] = ast.getAttribute("body").astListAsVector.collect({ case a: Ast => a })
-
-    val outputs: Ast = bodyElements.filter(_.getName == "WorkflowOutputs").head
-
-    WorkflowDefinitionElement(
-      name = name,
-      inputsSection = None,
-      graphElements = Set.empty,
-      outputsSection = convertAstToOutputsSection(outputs),
-      metaSection = None,
-      parameterMetaSection = None
-    )
-  }
-
-  def convertAstToOutputsSection(ast: Ast): Option[OutputsSectionElement] = {
-    val outputElements: Seq[Ast] = ast.getAttribute("outputs").astListAsVector.collect({ case a: Ast => a })
-
-    if (outputElements.nonEmpty)
-      Some(OutputsSectionElement(outputs = outputElements.map(convertAstToOutputDeclarationElement)))
-    else
-      None
-  }
-
-  def convertAstToOutputDeclarationElement(ast: Ast): OutputDeclarationElement = {
-    //    val typeElement = ast.getAttribute("typeElement")
-    //    val expression = ast.getAttribute("expression")
-
-    OutputDeclarationElement(
-      typeElement = convertAstToTypeElement(ast),
-      name = ast.getAttribute("name").sourceString,
-      expression = convertAstToExpression(ast)
-    )
-  }
-
-  // Is this just duplicating wdl.draft3.transforms.ast2wdlom.AstNodeToTypeElement.convert?
-  // Not exactly, because it's a different Ast version. How do we find out the differences?
-  def convertAstToTypeElement(ast: Ast): TypeElement = {
-    ???
-  }
-
-  def convertAstToExpression(ast: Ast): ExpressionElement = {
-    // TODO: I'd like to prove to the reader somehow that this handling is exhaustive.
-    import wdl.draft2.model.AstTools.AstNodeName._
-
-    ast.getAttribute("expression").sourceString match {
-      case Task => ???
-      case Workflow => ???
-      case Command => ???
-      case Output => ???
-      case CommandParameter => ???
-      case Call => ???
-      case IOMapping => ???
-      case Inputs => ???
-      case MemberAccess => ???
-      case Runtime => ???
-      case RuntimeAttribute => ???
-      case Declaration => ???
-      case WorkflowOutputWildcard => ???
-      case WorkflowOutputDeclaration => ???
-      case WorkflowOutputs => ???
-      case Scatter => ???
-      case Meta => ???
-      case ParameterMeta => ???
-      case Namespace => ???
-      case If => ???
-    }
-  }
-
-  def convertAstToInputsSectionElement(ast: Ast): InputsSectionElement = ???
-
-  def convertAstToTask(ast: Ast): TaskDefinitionElement = ???
-
-  def convertAstToImport(ast: Ast): ImportElement = ???
-
-  def convertFileElementToString(fileModel: FileElement): Checked[String] = Right("Meaningless string!")
-
-//  object AstToFileBodyElement {
-//    def convert(ast: Ast): Checked[FileBodyElement] = ast.getName match {
-//      case "Workflow" => astNodeToWorkflowDefinitionElement(ast)
-//      case "Task" => astNodeToTaskDefinitionElement(ast)
-//      case "Struct" => astNodeToStructEntry(ast)
-//      case other => s"No conversion defined for Ast with name $other".invalidNelCheck
-//    }
-//  }
-
   def d3upgrade(workflowSourcePath: String): Termination = {
-//    import cats.implicits._
-//
-//    def astToModelConverter: CheckedAtoB[Ast, FileElement] = CheckedAtoB.fromCheck(convertAstToFile)
-//    def modelToStringConverter: CheckedAtoB[FileElement, String] = CheckedAtoB.fromCheck(convertFileElementToString)
-//
-//    val ast: wdl.draft2.parser.WdlParser.Ast = AstTools.getAst(Paths.get(workflowSourcePath))
-//    val converted: Checked[String] = (astToModelConverter andThen modelToStringConverter).run(ast)
-    //    val guineaPig = IfElement(
-    //      conditionExpression = Equals(
-    //        Add(
-    //          PrimitiveLiteralExpressionElement(WomInteger(2)),
-    //          PrimitiveLiteralExpressionElement(WomInteger(2))
-    //        ),
-    //        PrimitiveLiteralExpressionElement(WomInteger(4))
-    //      ),
-    //      graphElements = Seq(
-    //        IntermediateValueDeclarationElement(PrimitiveTypeElement(WomBooleanType), "is_1984", PrimitiveLiteralExpressionElement(WomBoolean(false)))
-    //      )
-    //    )
-
     import cats.implicits._
+    import common.Checked
     import wdl.draft3.transforms.ast2wdlom.astToFileElement
     import wdl.draft3.transforms.parsing.fileToAst
     import wdl.draft3.transforms.wdlom2wdl.WdlWriter.ops._
+    import wdl.model.draft3.elements.FileElement
 
     val loader = fileToAst andThen astToFileElement
     val model: Checked[FileElement] = loader.run(Paths.get(workflowSourcePath))

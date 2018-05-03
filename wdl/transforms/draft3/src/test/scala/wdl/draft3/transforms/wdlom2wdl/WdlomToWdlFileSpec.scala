@@ -12,7 +12,7 @@ import wdl.model.draft3.elements.FileElement
 
 class WdlomToWdlFileSpec extends FlatSpec with Matchers {
 
-  it should "write out a file that parses to the same AST" in {
+  it should "write out a file that re-evaluates into the same case class structure" in {
     val file = Paths.get("wdl/transforms/draft3/src/test/cases/simple_first_test.wdl")
 
     val model: Checked[FileElement] = (fileToAst andThen astToFileElement).run(file)
@@ -22,6 +22,7 @@ class WdlomToWdlFileSpec extends FlatSpec with Matchers {
 
         val newModel = (stringToAst andThen astToFileElement).run(FileStringParserInput(wdlModel.toWdl, "simple_first_test.wdl"))
 
+        // Scala case class deep equality is so nice here
         newModel shouldEqual model
       case Left(_) => fail("Could not load original AST")
     }

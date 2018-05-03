@@ -20,7 +20,7 @@ trait PipelineInfoBuilder {
   
   def setGpu(resources: PipelineResources, runtimeAttributes: PipelinesApiRuntimeAttributes) = {
     runtimeAttributes.gpuResource match {
-      case Some(GpuResource(gpuType, gpuCount)) => resources
+      case Some(GpuResource(gpuType, gpuCount, _)) => resources
         .setAcceleratorType(gpuType.toString)
         .setAcceleratorCount(gpuCount.toLong)
       case _ => resources

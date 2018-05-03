@@ -219,11 +219,11 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
 
               // Even if the item doesn't have an explicit input binding, it should appear in the command so create a default empty one
               //there is an explicit input binding!
-              //TODO: Figure out precedence order here!
               val arrayItemInputBinding =
                 ias.
                   inputBinding.
                   orElse(Option(InputCommandLineBinding.default))
+
               // Fold over the item type of each array element
               Option(ias.items.fold(MyriadInputTypeToSortedCommandParts).apply(arrayItemInputBinding, item, itemSortingKey.asNewKey, hasShellCommandRequirement, expressionLib, schemaDefRequirement))
           })

@@ -13,12 +13,15 @@ import centaur.test.workflow.Workflow
 import centaur.{CentaurConfig, CromwellManager}
 import cromwell.api.CromwellClient
 import cromwell.api.model.{CromwellBackends, SubmittedWorkflow, WorkflowId, WorkflowOutputs, WorkflowStatus}
+import org.slf4j.LoggerFactory
 
 import scala.concurrent._
 import scala.concurrent.duration._
-import scala.util.Try
+import scala.util.{Failure, Try}
 
 object CentaurCromwellClient {
+  val logger = LoggerFactory.getLogger("CentaurCromwellClient")
+
   // Do not use scala.concurrent.ExecutionContext.Implicits.global as long as this is using Await.result
   // See https://github.com/akka/akka-http/issues/602
   // And https://github.com/viktorklang/blog/blob/master/Futures-in-Scala-2.12-part-7.md
@@ -92,6 +95,9 @@ object CentaurCromwellClient {
           attempt < awaitMaxAttempts =>
         Thread.sleep(awaitSleep.toMillis)
         awaitFutureCompletion(x, timeout, attempt + 1)
+      case other =>
+        logger.error(s"Future timed out and was not recovered", other)
+        Failure(other)
     }
   }
 

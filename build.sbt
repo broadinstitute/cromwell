@@ -138,7 +138,7 @@ lazy val googlePipelinesV2Alpha1 = (project in backendRoot / "google" / "pipelin
 // Legacy, inherits all its code from googlePipelinesV1Alpha2
 lazy val jesBackend = (project in backendRoot / "jes")
   .withLibrarySettings("cromwell-jes-backend")  
-  .dependsOn(googlePipelinesV2Alpha1)
+  .dependsOn(googlePipelinesV1Alpha2)
 
 lazy val sfsBackend = (project in backendRoot / "sfs")
   .withLibrarySettings("cromwell-sfs-backend")

@@ -6,21 +6,23 @@
 
 #### Pipelines API V2
 Initial support for Google [Pipelines API version 2](https://cloud.google.com/genomics/reference/rest/).
-Expect feature parity except for Private dockerhub images which are not supported at the moment, but will be in the very near future.
+Expect feature parity except for private dockerhub images which are not supported at the moment, but will be in the near future.
 
 In addition, the following changes are to be expected:
 * Error messages for failed jobs might differ from V1
 * The Pipelines API log file content might differ from V1
 
 **Important (If you're running Cromwell with a Google backend, read this)**:
-Cromwell configurations with a Google backend will automatically be switched to use Pipelines API version 2.
-If you wish to stay on V1 for the moment, change the `actor-factory` value in your backend configuration from `cromwell.backend.impl.jes.JesBackendLifecycleActorFactory` to `cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory`.
-Generally, we recommend that you change this value regardless as it is being deprecated. The factories for v1 and v2 are as follow:
+The `actor-factory` value for the google backend (`cromwell.backend.impl.jes.JesBackendLifecycleActorFactory`) is being deprecated.
+Please update your configuration accordingly.
 
-|    | actor-factory                                                                |
-|----|------------------------------------------------------------------------------|
-| V1 | cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory |
-| V2 | cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory |
+| PAPI Version |                                 actor-factory                                |
+|--------------|:----------------------------------------------------------------------------:|
+|      V1      | cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory |
+|      V2      | cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory |
+
+If you don't update the `actor-factory` value, you'll get a deprecation warning in the logs, and Cromwell will default back to
+**PAPI V1**
 
 ### Labels
 * Cromwell has removed most of the formatting restrictions from custom labels. Please check the [README](README.md#label-format) for more detailed documentation.

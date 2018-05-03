@@ -97,8 +97,18 @@ object WdlWriter {
       case _: OutputDeclarationElement => ???
       case a: InputDeclarationElement => a.toWdl
       case a: IfElement => a.toWdl
-      case _: ScatterElement => ???
+      case a: ScatterElement => a.toWdl
     }
+  }
+
+  // TODO: failing due to differences in scatterName
+  implicit val scatterElementWriter: WdlWriter[ScatterElement] = new WdlWriter[ScatterElement] {
+    override def toWdl(a: ScatterElement): String =
+      s"""
+         |scatter (${a.scatterVariableName} in ${a.scatterExpression.toWdl}) {
+         |  ${a.graphElements.map(_.toWdl).mkString("\n  ")}
+         |}
+       """.stripMargin
   }
 
   implicit val callBodyElement: WdlWriter[CallBodyElement] = new WdlWriter[CallBodyElement] {
@@ -144,7 +154,7 @@ object WdlWriter {
       case a: PrimitiveTypeElement => a.primitiveType.toWdl
       case a: ArrayTypeElement => s"Array[${typeElementWriter.toWdl(a.inner)}]"
       case a: MapTypeElement => s"Map[${typeElementWriter.toWdl(a.keyType)}, ${typeElementWriter.toWdl(a.valueType)}]"
-      case _: OptionalTypeElement => ???
+      case a: OptionalTypeElement => s"${typeElementWriter.toWdl(a.maybeType)}?"
       case _: NonEmptyTypeElement => ???
       case a: PairTypeElement => s"Pair[${typeElementWriter.toWdl(a.leftType)}, ${typeElementWriter.toWdl(a.rightType)}]"
       case _: ObjectTypeElement.type => ???

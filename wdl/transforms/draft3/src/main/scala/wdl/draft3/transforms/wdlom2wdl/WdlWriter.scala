@@ -35,14 +35,17 @@ object WdlWriter {
     }
   }
 
-  implicit val expressionWriter: WdlWriter[ExpressionElement] = new WdlWriter[ExpressionElement] {
+  implicit val expressionElementWriter: WdlWriter[ExpressionElement] = new WdlWriter[ExpressionElement] {
     override def toWdl(a: ExpressionElement) = a match {
       case a: PrimitiveLiteralExpressionElement => a.toWdl
       case a: StringExpression => "\"" + a.pieces.map(_.toWdl).mkString + "\""
       case a: StringLiteral => "\"" + a.value + "\""
       case _: ObjectLiteral => ???
-      case _: ArrayLiteral => ???
-      case _: MapLiteral => ???
+      case a: ArrayLiteral => "[" + a.elements.map(expressionElementWriter.toWdl).mkString(", ") + "]"
+      case a: MapLiteral =>
+        "{ " + a.elements.map { pair =>
+          expressionElementWriter.toWdl(pair._1) + ": " + expressionElementWriter.toWdl(pair._2)
+        }.mkString(", ") + " }"
       case _: PairLiteral => ???
       case _: UnaryOperation => ???
       case a: BinaryOperation => a.toWdl
@@ -140,7 +143,7 @@ object WdlWriter {
     override def toWdl(a: TypeElement) = a match {
       case a: PrimitiveTypeElement => a.primitiveType.toWdl
       case a: ArrayTypeElement => s"Array[${typeElementWriter.toWdl(a.inner)}]"
-      case _: MapTypeElement => ???
+      case a: MapTypeElement => s"Map[${typeElementWriter.toWdl(a.keyType)}, ${typeElementWriter.toWdl(a.valueType)}]"
       case _: OptionalTypeElement => ???
       case _: NonEmptyTypeElement => ???
       case a: PairTypeElement => s"Pair[${typeElementWriter.toWdl(a.leftType)}, ${typeElementWriter.toWdl(a.rightType)}]"

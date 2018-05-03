@@ -172,7 +172,7 @@ object WdlWriter {
       case _: NonEmptyTypeElement => ???
       case a: PairTypeElement => s"Pair[${typeElementWriter.toWdl(a.leftType)}, ${typeElementWriter.toWdl(a.rightType)}]"
       case _: ObjectTypeElement.type => "Object"
-      case _: TypeAliasElement => ???
+      case a: TypeAliasElement => a.alias
     }
   }
 
@@ -361,9 +361,23 @@ object WdlWriter {
     }
   }
 
+  implicit val structElementWriter: WdlWriter[StructElement] = new WdlWriter[StructElement] {
+    override def toWdl(a: StructElement): String =
+      s"""
+         |struct ${a.name} {
+         |  ${a.entries.map(_.toWdl).mkString("\n  ")}
+         |}
+       """.stripMargin
+  }
+
+  implicit val structEntryElementWriter: WdlWriter[StructEntryElement] = new WdlWriter[StructEntryElement] {
+    override def toWdl(a: StructEntryElement): String = s"${a.typeElement.toWdl} ${a.identifier}"
+  }
+
   implicit val fileElementWriter: WdlWriter[FileElement] = new WdlWriter[FileElement] {
     override def toWdl(a: FileElement) = {
       "version draft-3\n" +
+      a.structs.map(_.toWdl).mkString("\n") +
       a.tasks.map(_.toWdl).mkString("\n") +
       "\n" +
       a.workflows.map(_.toWdl).mkString("\n")

@@ -28,10 +28,18 @@ import scala.concurrent.duration.Duration
   */
 object CentaurCwlRunner extends StrictLogging {
 
+  case class SkippedTest(sourceName: String, inputsName: String) {
+    def shouldSkip(args: CommandLineArguments) = {
+      args.workflowSource.exists(_.name.equalsIgnoreCase(sourceName)) &&
+        args.workflowInputs.exists(_.name.equalsIgnoreCase(inputsName))
+    }
+  }
+
   case class CommandLineArguments(workflowSource: Option[File] = None,
                                   workflowInputs: Option[File] = None,
                                   quiet: Boolean = false,
-                                  outdir: Option[File] = None)
+                                  outdir: Option[File] = None,
+                                  skipFile: Option[File] = None)
 
   // TODO: This would be cleaner with Enumeratum
   object ExitCode extends Enumeration {
@@ -78,6 +86,10 @@ object CentaurCwlRunner extends StrictLogging {
       opt[String]("outdir").text("Output directory, default current directory.").optional().
         action((s, c) =>
           c.copy(outdir = Option(File(s))))
+
+      opt[String]("skip-file").text("A csv file describing workflows to be skipped based on their name.").optional().
+        action((s, c) =>
+          c.copy(skipFile = Option(File(s))))
     }
   }
 
@@ -195,9 +207,20 @@ object CentaurCwlRunner extends StrictLogging {
     }
   }
 
+  private def skip(args: CommandLineArguments): Boolean =
+    args.skipFile
+      .map(_.lines).getOrElse(List.empty)
+      .map(_.split(','))
+      .map({
+        case Array(source, inputs) => SkippedTest(source, inputs)
+        case invalid => throw new RuntimeException(s"Invalid skipped_tests file: $invalid")
+      })
+      .exists(_.shouldSkip(args))
+
   def main(args: Array[String]): Unit = {
     val parsedArgsOption = parser.parse(args, CommandLineArguments())
     val exitCode = parsedArgsOption match {
+      case Some(parsedArgs) if skip(parsedArgs) => ExitCode.NotImplemented
       case Some(parsedArgs) => runCentaur(parsedArgs)
       case None => showUsage()
     }

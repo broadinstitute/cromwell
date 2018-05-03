@@ -5,7 +5,6 @@ import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartEleme
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.elements._
 import wom.types._
-import wom.values.{WomBoolean, WomEnumerationValue, WomFile, WomFloat, WomInteger, WomLong, WomString}
 
 import scala.language.implicitConversions
 
@@ -29,10 +28,17 @@ object WdlWriter {
     }
   }
 
+  implicit val stringPieceWriter: WdlWriter[StringPiece] = new WdlWriter[StringPiece] {
+    override def toWdl(a: StringPiece): String = a match {
+      case a: StringLiteral     => a.value
+      case a: StringPlaceholder => "~{" + a.expr.toWdl + "}"
+    }
+  }
+
   implicit val expressionWriter: WdlWriter[ExpressionElement] = new WdlWriter[ExpressionElement] {
     override def toWdl(a: ExpressionElement) = a match {
       case a: PrimitiveLiteralExpressionElement => a.toWdl
-      case _: StringExpression => ???
+      case a: StringExpression => "\"" + a.pieces.map(_.toWdl).mkString + "\""
       case a: StringLiteral => "\"" + a.value + "\""
       case _: ObjectLiteral => ???
       case _: ArrayLiteral => ???
@@ -133,11 +139,11 @@ object WdlWriter {
   implicit val typeElementWriter: WdlWriter[TypeElement] = new WdlWriter[TypeElement] {
     override def toWdl(a: TypeElement) = a match {
       case a: PrimitiveTypeElement => a.primitiveType.toWdl
-      case _: ArrayTypeElement => ???
+      case a: ArrayTypeElement => s"Array[${typeElementWriter.toWdl(a.inner)}]"
       case _: MapTypeElement => ???
       case _: OptionalTypeElement => ???
       case _: NonEmptyTypeElement => ???
-      case _: PairTypeElement => ???
+      case a: PairTypeElement => s"Pair[${typeElementWriter.toWdl(a.leftType)}, ${typeElementWriter.toWdl(a.rightType)}]"
       case _: ObjectTypeElement.type => ???
       case _: TypeAliasElement => ???
     }
@@ -342,14 +348,6 @@ object WdlWriter {
   }
 
   implicit val primitiveLiteralExpressionElementWriter: WdlWriter[PrimitiveLiteralExpressionElement] = new WdlWriter[PrimitiveLiteralExpressionElement] {
-    override def toWdl(a: PrimitiveLiteralExpressionElement) = a.value match {
-      case a: WomBoolean => a.value.toString
-      case _: WomEnumerationValue => ???
-      case _: WomFile => ???
-      case _: WomFloat => ???
-      case a: WomInteger => a.value.toString
-      case _: WomLong => ???
-      case a: WomString => a.value
-    }
+    override def toWdl(a: PrimitiveLiteralExpressionElement) = a.value.toWomString
   }
 }

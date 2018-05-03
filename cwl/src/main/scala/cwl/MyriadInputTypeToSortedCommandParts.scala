@@ -189,7 +189,7 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
       // If there's no input binding and no input bindings for the ias, do nothing
       case (None, _, _, _, _, _) if ias.inputBinding.isEmpty => List.empty.some
 
-      case (inputBinding, WomArray.WomArrayLike(womArray), sortingKey, hasShellCommandRequirement, expressionLib, schemaDefRequirement) =>
+      case (inputBinding, WomArray.WomArrayLike(womArray: WomArray), sortingKey, hasShellCommandRequirement, expressionLib, schemaDefRequirement) =>
 
 
         // If there's an input binding, make a SortKeyAndCommandPart for it
@@ -223,7 +223,6 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
               val arrayItemInputBinding =
                 ias.
                   inputBinding.
-                  orElse(inputBinding).
                   orElse(Option(InputCommandLineBinding.default))
               // Fold over the item type of each array element
               Option(ias.items.fold(MyriadInputTypeToSortedCommandParts).apply(arrayItemInputBinding, item, itemSortingKey.asNewKey, hasShellCommandRequirement, expressionLib, schemaDefRequirement))

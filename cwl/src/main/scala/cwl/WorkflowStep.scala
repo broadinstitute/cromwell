@@ -79,7 +79,7 @@ case class WorkflowStep(
   }
 
   def typedOutputs: WomTypeMap = {
-    implicit val parentName = ParentName.empty
+    implicit val parentName = ParentName(id)
     // Find the type of the outputs of the run section
     val runOutputTypes = run.fold(RunOutputsToTypeMap).apply(allRequirements.schemaDefRequirement)
       .map({

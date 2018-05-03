@@ -23,6 +23,7 @@ package object types {
         // Literals:
         case a: PrimitiveLiteralExpressionElement => a.evaluateType(linkedValues)
         case a: StringLiteral => a.evaluateType(linkedValues)
+        case a: StringExpression => a.evaluateType(linkedValues)
         case a: ObjectLiteral => a.evaluateType(linkedValues)
         case a: MapLiteral => a.evaluateType(linkedValues)
         case a: ArrayLiteral => a.evaluateType(linkedValues)
@@ -84,6 +85,7 @@ package object types {
         case a: Floor => a.evaluateType(linkedValues)
         case a: Ceil => a.evaluateType(linkedValues)
         case a: Round => a.evaluateType(linkedValues)
+        case a: Glob => a.evaluateType(linkedValues)
 
         case a: Size => a.evaluateType(linkedValues)
         case a: Basename => a.evaluateType(linkedValues)

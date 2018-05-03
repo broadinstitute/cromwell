@@ -19,13 +19,13 @@ object LinkedGraphMaker {
   def make(nodes: Set[WorkflowGraphElement],
            externalHandles: Set[GeneratedValueHandle],
            typeAliases: Map[String, WomType],
-           callables: Set[Callable]): ErrorOr[LinkedGraph] = {
+           callables: Map[String, Callable]): ErrorOr[LinkedGraph] = {
 
-    val generatedValuesByGraphNodeValidation = nodes.toList.traverse[ErrorOr, (WorkflowGraphElement, Set[GeneratedValueHandle])] { node =>
+    val generatedValuesByGraphNodeValidation = nodes.toList.traverse{ node =>
       node.generatedValueHandles(typeAliases, callables).map(node -> _)
     } map (_.toMap)
 
-    val consumedValuesByGraphNodeValidation: ErrorOr[Map[WorkflowGraphElement, Set[UnlinkedConsumedValueHook]]] = nodes.toList.traverse[ErrorOr, (WorkflowGraphElement, Set[UnlinkedConsumedValueHook])](n => n.graphElementConsumedValueHooks(typeAliases, callables).map(n -> _)).map(_.toMap)
+    val consumedValuesByGraphNodeValidation: ErrorOr[Map[WorkflowGraphElement, Set[UnlinkedConsumedValueHook]]] = nodes.toList.traverse(n => n.graphElementConsumedValueHooks(typeAliases, callables).map(n -> _)).map(_.toMap)
 
     for {
       generatedValuesByGraphNode <- generatedValuesByGraphNodeValidation
@@ -61,7 +61,7 @@ object LinkedGraphMaker {
   private def makeConsumedValueLookup(nodes: Set[WorkflowGraphElement],
                                       typeAliases: Map[String, WomType],
                                       availableHandles: Set[GeneratedValueHandle],
-                                      callables: Set[Callable]
+                                      callables: Map[String, Callable]
                                      ): ErrorOr[Map[UnlinkedConsumedValueHook, GeneratedValueHandle]] = {
     val consumedValidation: ErrorOr[Set[UnlinkedConsumedValueHook]] = nodes.toList.traverse(n => n.graphElementConsumedValueHooks(typeAliases, callables)).map(_.toSet.flatten)
 
@@ -86,7 +86,7 @@ object LinkedGraphMaker {
     }
 
 
-    consumedValues.toList.traverse[ErrorOr, (UnlinkedConsumedValueHook, GeneratedValueHandle)] { findHandle } map {_.toMap}
+    consumedValues.toList.traverse { findHandle } map {_.toMap}
 
   }
 

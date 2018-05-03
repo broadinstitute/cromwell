@@ -10,10 +10,16 @@ import scala.concurrent.{ExecutionContext, Future}
 
 trait WomExpression {
   def sourceString: String
+
+  /**
+    * Produce a String suitable for caching, i.e. should not include references to memory locations or ephemeral, UUID-containing
+    * file paths, and should have all the essentials for determining if two `WomExpression` are conceptually the same.
+    */
+  def cacheString = sourceString
   def inputs: Set[String]
   def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue]
   def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType]
-  def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]]
+  def evaluateFiles(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]]
 }
 
 /**

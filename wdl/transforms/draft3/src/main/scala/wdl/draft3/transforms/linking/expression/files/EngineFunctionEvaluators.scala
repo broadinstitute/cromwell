@@ -16,10 +16,14 @@ import wom.values._
 
 object EngineFunctionEvaluators {
 
-  private def evaluateToFile(forFunction: String, a: ExpressionElement, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomSingleFile] = {
-    a.evaluateValue(inputs, ioFunctionSet, None) flatMap {
-      case EvaluatedValue(p: WomPrimitive, _) => WomSingleFile(p.valueString).validNel
-      case other => s"Could not predict files to delocalize from '$a' for $forFunction. Expected a primitive but got ${other.getClass.getSimpleName}".invalidNel
+  private def evaluateToFile(forFunction: String, a: ExpressionElement, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[Set[WomFile]] = {
+    a match {
+      case _: IdentifierLookup | _: IdentifierMemberAccess => Set.empty[WomFile].validNel
+      case _ =>
+        a.evaluateValue(inputs, ioFunctionSet, None) flatMap {
+          case EvaluatedValue(p: WomPrimitive, _) => Set[WomFile](WomSingleFile(p.valueString)).validNel
+          case other => s"Could not predict files to delocalize from '$a' for $forFunction. Expected a primitive but got ${other.getClass.getSimpleName}".invalidNel
+        }
     }
   }
 
@@ -35,52 +39,52 @@ object EngineFunctionEvaluators {
 
   implicit val readLinesFunctionEvaluator: FileEvaluator[ReadLines] = new FileEvaluator[ReadLines] {
     override def predictFilesNeededToEvaluate(a: ReadLines, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
-      evaluateToFile("read_lines", a.param, inputs, ioFunctionSet).map(Set(_))
+      evaluateToFile("read_lines", a.param, inputs, ioFunctionSet)
   }
 
   implicit val readTsvFunctionEvaluator: FileEvaluator[ReadTsv] = new FileEvaluator[ReadTsv] {
     override def predictFilesNeededToEvaluate(a: ReadTsv, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
-      evaluateToFile("read_tsv", a.param, inputs, ioFunctionSet).map(Set(_))
+      evaluateToFile("read_tsv", a.param, inputs, ioFunctionSet)
   }
 
   implicit val readMapFunctionEvaluator: FileEvaluator[ReadMap] = new FileEvaluator[ReadMap] {
     override def predictFilesNeededToEvaluate(a: ReadMap, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
-      evaluateToFile("read_map", a.param, inputs, ioFunctionSet).map(Set(_))
+      evaluateToFile("read_map", a.param, inputs, ioFunctionSet)
   }
 
   implicit val readObjectFunctionEvaluator: FileEvaluator[ReadObject] = new FileEvaluator[ReadObject] {
     override def predictFilesNeededToEvaluate(a: ReadObject, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
-      evaluateToFile("read_object", a.param, inputs, ioFunctionSet).map(Set(_))
+      evaluateToFile("read_object", a.param, inputs, ioFunctionSet)
   }
 
   implicit val readObjectsFunctionEvaluator: FileEvaluator[ReadObjects] = new FileEvaluator[ReadObjects] {
     override def predictFilesNeededToEvaluate(a: ReadObjects, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
-      evaluateToFile("read_objects", a.param, inputs, ioFunctionSet).map(Set(_))
+      evaluateToFile("read_objects", a.param, inputs, ioFunctionSet)
   }
 
   implicit val readJsonFunctionEvaluator: FileEvaluator[ReadJson] = new FileEvaluator[ReadJson] {
     override def predictFilesNeededToEvaluate(a: ReadJson, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
-      evaluateToFile("read_json", a.param, inputs, ioFunctionSet).map(Set(_))
+      evaluateToFile("read_json", a.param, inputs, ioFunctionSet)
   }
 
   implicit val readIntFunctionEvaluator: FileEvaluator[ReadInt] = new FileEvaluator[ReadInt] {
     override def predictFilesNeededToEvaluate(a: ReadInt, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
-      evaluateToFile("read_int", a.param, inputs, ioFunctionSet).map(Set(_))
+      evaluateToFile("read_int", a.param, inputs, ioFunctionSet)
   }
 
   implicit val readStringFunctionEvaluator: FileEvaluator[ReadString] = new FileEvaluator[ReadString] {
     override def predictFilesNeededToEvaluate(a: ReadString, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
-      evaluateToFile("read_string", a.param, inputs, ioFunctionSet).map(Set(_))
+      evaluateToFile("read_string", a.param, inputs, ioFunctionSet)
   }
 
   implicit val readFloatFunctionEvaluator: FileEvaluator[ReadFloat] = new FileEvaluator[ReadFloat] {
     override def predictFilesNeededToEvaluate(a: ReadFloat, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
-      evaluateToFile("read_float", a.param, inputs, ioFunctionSet).map(Set(_))
+      evaluateToFile("read_float", a.param, inputs, ioFunctionSet)
   }
 
   implicit val readBooleanFunctionEvaluator: FileEvaluator[ReadBoolean] = new FileEvaluator[ReadBoolean] {
     override def predictFilesNeededToEvaluate(a: ReadBoolean, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
-      evaluateToFile("read_boolean", a.param, inputs, ioFunctionSet).map(Set(_))
+      evaluateToFile("read_boolean", a.param, inputs, ioFunctionSet)
   }
 
   implicit val writeLinesFunctionEvaluator: FileEvaluator[WriteLines] = new FileEvaluator[WriteLines] {
@@ -163,9 +167,16 @@ object EngineFunctionEvaluators {
       a.param.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
   }
 
+  implicit val globFunctionEvaluator: FileEvaluator[Glob] = (a, inputs, ioFunctionSet, _) => {
+    a.param.evaluateValue(inputs, ioFunctionSet, None) flatMap {
+      case EvaluatedValue(p: WomPrimitive, _) => Set[WomFile](WomGlobFile(p.valueString)).validNel
+      case other => s"Could not predict files to delocalize from '$a' for 'glob'. Expected a primitive but got ${other.getClass.getSimpleName}".invalidNel
+    }
+  }
+
   implicit val sizeFunctionEvaluator: FileEvaluator[Size] = new FileEvaluator[Size] {
     override def predictFilesNeededToEvaluate(a: Size, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
-      (evaluateToFile("size", a.file, inputs, ioFunctionSet).map(Set(_)): ErrorOr[Set[WomFile]],
+      (evaluateToFile("size", a.file, inputs, ioFunctionSet): ErrorOr[Set[WomFile]],
         a.unit.fold(Set.empty[WomFile].validNel: ErrorOr[Set[WomFile]])(_.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo))) mapN { _ ++ _ }
   }
 

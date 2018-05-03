@@ -16,6 +16,7 @@ trait OutputParameter {
   def doc: Option[String :+: Array[String] :+: CNil]
   def outputBinding: Option[CommandOutputBinding]
   def `type`: Option[MyriadOutputType]
+  def cacheString: String = toString
 }
 
 object OutputParameter {
@@ -26,7 +27,7 @@ object OutputParameter {
   def format(formatOption: Option[StringOrExpression],
              parameterContext: ParameterContext,
              expressionLib: ExpressionLib): ErrorOr[Option[String]] = {
-    formatOption.traverse[ErrorOr, String] {
+    formatOption.traverse{
       format(_, parameterContext, expressionLib)
     }
   }

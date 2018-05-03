@@ -103,7 +103,7 @@ object PartialWorkflowSources {
         case Some(inputs) => workflowInputsValidation(inputs)
         case None => Vector.empty.validNel
       }
-      val workflowInputsAux: ErrorOr[Map[Int, String]] = formData.toList.flatTraverse[ErrorOr, (Int, String)]({
+      val workflowInputsAux: ErrorOr[Map[Int, String]] = formData.toList.flatTraverse({
         case (name, value) if name.startsWith(WorkflowInputsAuxPrefix) =>
           Try(name.stripPrefix(WorkflowInputsAuxPrefix).toInt).toErrorOr.map(index => List((index, value.utf8String)))
         case _ => List.empty.validNel

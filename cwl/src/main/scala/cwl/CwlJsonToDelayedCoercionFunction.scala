@@ -37,7 +37,7 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
   override def onArray(value: Vector[Json]) = {
     case womArrayType: WomArrayType =>
       value.toList
-        .traverse[ErrorOr, WomValue](_.foldWith(this).apply(womArrayType.memberType))
+        .traverse(_.foldWith(this).apply(womArrayType.memberType))
         .map {
           WomArray(womArrayType, _)
         }
@@ -50,7 +50,7 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
     case WomAnyType =>
       // Make an array of WomAny
       value.toList
-        .traverse[ErrorOr, WomValue](_.foldWith(this).apply(WomAnyType))
+        .traverse(_.foldWith(this).apply(WomAnyType))
         .map {
           WomArray(WomArrayType(WomAnyType), _)
         }
@@ -70,7 +70,7 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
         case Right(directory) => directory.asWomValue
       }
     case composite: WomCompositeType =>
-      val foldedMap = value.toList.traverse[ErrorOr, (String, WomValue)]({
+      val foldedMap = value.toList.traverse({
         case (k, v) =>
           composite.typeMap.get(k).map({ valueType =>
             v.foldWith(this).apply(valueType).map(k -> _)
@@ -79,7 +79,7 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
 
       foldedMap.map(WomObject.withType(_, composite))
     case WomObjectType =>
-      val foldedMap = value.toList.traverse[ErrorOr, (String, WomValue)]({
+      val foldedMap = value.toList.traverse({
         case (k, v) => v.foldWith(this).apply(WomAnyType).map(k -> _)
       }).map(_.toMap[String, WomValue])
 

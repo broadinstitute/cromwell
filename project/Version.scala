@@ -25,7 +25,7 @@ object Version {
   }
 
   val writeSwaggerUiVersionConf: Def.Initialize[Task[Seq[File]]] = Def.task {
-    writeVersionConf("swagger-ui", (resourceManaged in Compile).value, swaggerUiV)
+    writeVersionConf("swagger-ui", (resourceManaged in Compile).value, swaggerUiVersion)
   }
 
   /**

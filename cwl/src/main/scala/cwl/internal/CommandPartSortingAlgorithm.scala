@@ -17,7 +17,7 @@ object CommandPartSortingAlgorithm {
       // arguments is an Option[Array[Argument]], the toList.flatten gives a List[Argument]
     arguments.toList.flatten
       // zip the index because we need it in the sorting key
-      .zipWithIndex.flatTraverse[CommandPartExpression, SortKeyAndCommandPart](argumentToCommandPart.tupled)
+      .zipWithIndex.flatTraverse(argumentToCommandPart.tupled)
 
   def argumentToCommandPart: (Argument, Int) => CommandPartExpression[List[SortKeyAndCommandPart]] = (argument, index) => ReaderT {
     case ((requirementsAndHints, expressionLib, _)) =>
@@ -34,7 +34,7 @@ object CommandPartSortingAlgorithm {
   }
 
   def inputBindingsCommandParts(inputs: Array[CommandInputParameter]): CommandPartExpression[List[SortKeyAndCommandPart]] =
-    inputs.toList.flatTraverse[CommandPartExpression, SortKeyAndCommandPart](inputBindingsCommandPart)
+    inputs.toList.flatTraverse(inputBindingsCommandPart)
 
   def inputBindingsCommandPart(inputParameter: CommandInputParameter): CommandPartExpression[List[SortKeyAndCommandPart]] =
     ReaderT{ case ((hintsAndRequirements, expressionLib, inputValues)) =>

@@ -10,7 +10,7 @@ import centaur.test.standard.CentaurTestFormat._
 import centaur.test.submit.{SubmitHttpResponse, SubmitResponse}
 import centaur.test.workflow.{AllBackendsRequired, AnyBackendRequired, OnlyBackendsAllowed, Workflow}
 import com.typesafe.config.{Config, ConfigFactory}
-import common.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr._
 import cromwell.api.model.{Failed, Succeeded}
 
 import scala.util.{Failure, Success, Try}
@@ -51,10 +51,7 @@ object CentaurTestCase {
   def fromPath(path: Path): ErrorOr[CentaurTestCase] = {
     Try(ConfigFactory.parseFile(path.toFile)) match {
       case Success(c) =>
-        CentaurTestCase.fromConfig(c, path.getParent) match {
-          case Valid(testCase) => validateTestCase(testCase)
-          case invalid: Invalid[_] => invalid
-        }
+        CentaurTestCase.fromConfig(c, path.getParent) flatMap validateTestCase leftMap { s"Error in test file '$path'." :: _ }
       case Failure(f) => invalidNel(s"Invalid test config: $path (${f.getMessage})")
     }
   }

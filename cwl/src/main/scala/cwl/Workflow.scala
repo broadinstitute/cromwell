@@ -30,7 +30,10 @@ case class Workflow private(
                              outputs: Array[WorkflowOutputParameter],
                              steps: Array[WorkflowStep],
                              requirements: Option[Array[Requirement]],
-                             hints: Option[Array[Hint]]) {
+                             hints: Option[Array[Hint]],
+                             `$namespaces`: Option[Map[String, String]],
+                             `$schemas`: Option[Array[String]]
+                           ) {
 
   steps.foreach { _.parentWorkflow = this }
 
@@ -39,19 +42,29 @@ case class Workflow private(
     CwlExecutableValidation.buildWomExecutableCallable(womDefinition(validator, Vector.empty), inputFile, ioFunctions, strictValidation)
   }
 
-  // Circe can't create bidirectional links between workflow steps and runs (including `Workflow`s) so this
-  // ugly var is here to link back to a possible parent workflow step. This is needed to navigate upward for finding
-  // requirements in the containment hierarchy. There isn't always a containing workflow step so this is an `Option`.
+  /* Circe can't create bidirectional links between workflow steps and runs (including `Workflow`s) so this
+   * ugly var is here to link back to a possible parent workflow step. This is needed to navigate upward for finding
+   * requirements in the containment hierarchy. There isn't always a containing workflow step so this is an `Option`.
+   */
   private[cwl] var parentWorkflowStep: Option[WorkflowStep] = None
 
   val allRequirements: RequirementsAndHints = RequirementsAndHints(requirements.toList.flatten ++ parentWorkflowStep.toList.flatMap { _.allRequirements.list })
 
   private [cwl] implicit val explicitWorkflowName = ParentName(id)
-  
+
   lazy val womFqn: Option[wom.graph.FullyQualifiedName] = {
     explicitWorkflowName.value map { workflowName =>
-      parentWorkflowStep.map(_.womFqn.combine(workflowName))
-        .getOrElse(wom.graph.FullyQualifiedName(workflowName))
+      /* Sometimes the workflow name is of the form "parentWorkflowStepName/UUID"
+       * In that case, we don't want the fqn to look like "parentWorkflowStepName.parentWorkflowStepName/UUID"
+       * To avoid that, strip the parentWorkflowStepName from the workflowName
+       */
+      val cleanWorkflowName = parentWorkflowStep
+        .map(_.womFqn.value + "/")
+        .map(workflowName.stripPrefix)
+        .getOrElse(workflowName)
+
+      parentWorkflowStep.map(_.womFqn.combine(cleanWorkflowName))
+        .getOrElse(wom.graph.FullyQualifiedName(cleanWorkflowName))
     }
   }
 
@@ -64,9 +77,10 @@ case class Workflow private(
   val fileNames: List[String] = steps.toList.flatMap(_.run.select[String].toList)
 
   def outputsTypeMap: WomTypeMap = steps.foldLeft(Map.empty[String, WomType]) {
-    // Not implemented as a `foldMap` because there is no semigroup instance for `WomType`s.  `foldMap` doesn't know that
-    // we don't need a semigroup instance since the map keys should be unique and therefore map values would never need
-    // to be combined under the same key.
+    /* Not implemented as a `foldMap` because there is no semigroup instance for `WomType`s.  `foldMap` doesn't know that
+     * we don't need a semigroup instance since the map keys should be unique and therefore map values would never need
+     * to be combined under the same key.
+     */
     (acc, s) => acc ++ s.typedOutputs
   }
 
@@ -79,9 +93,10 @@ case class Workflow private(
 
     val typeMap: WomTypeMap =
       outputsTypeMap ++
-        // Note this is only looking at the workflow inputs and not recursing into steps, because our current thinking
-        // is that in CWL graph inputs can only be defined at the workflow level.  It's possible that's not actually
-        // correct, but that's the assumption being made here.
+        /* Note this is only looking at the workflow inputs and not recursing into steps, because our current thinking
+         * is that in CWL graph inputs can only be defined at the workflow level.  It's possible that's not actually
+         * correct, but that's the assumption being made here.
+         */
         inputs.toList.flatMap { i =>
           womTypeForInputParameter(i).map(i.id -> _).toList
         }.toMap
@@ -90,7 +105,8 @@ case class Workflow private(
       val womType: WomType = womTypeForInputParameter(wip).get
       val parsedInputId = FileAndId(wip.id).id
       val womId = WomIdentifier(parsedInputId, wip.id)
-      val valueMapper = InputParameter.inputValueMapper(wip, wip.`type`.get, expressionLib)
+      val valueMapper =
+        InputParameter.inputValueMapper(wip, wip.`type`.get, expressionLib, asCwl.schemaOption)
 
       def optionalWithDefault(memberType: WomType): OptionalGraphInputNodeWithDefault = {
         val defaultValue = wip.default.get.fold(InputParameter.DefaultToWomValuePoly).apply(womType).toTry.get
@@ -219,6 +235,9 @@ object Workflow {
             outputs: Array[WorkflowOutputParameter] = Array.empty,
             steps: Array[WorkflowStep] = Array.empty,
             requirements: Option[Array[Requirement]] = None,
-            hints: Option[Array[Hint]] = None): Workflow  =
-    Workflow(cwlVersion, "Workflow".narrow, id, inputs, outputs, steps, requirements, hints)
+            hints: Option[Array[Hint]] = None,
+            namespaces: Option[Map[String, String]] = None,
+            schemas: Option[Array[String]] = None
+           ): Workflow  =
+    Workflow(cwlVersion, "Workflow".narrow, id, inputs, outputs, steps, requirements, hints, namespaces, schemas)
 }

@@ -102,6 +102,7 @@ object ExpressionElement {
   final case class Floor(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class Ceil(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class Round(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class Glob(param: ExpressionElement) extends OneParamFunctionCallElement
 
   // 1- or 2-param functions:
   sealed trait OneOrTwoParamFunctionCallElement extends FunctionCallElement {

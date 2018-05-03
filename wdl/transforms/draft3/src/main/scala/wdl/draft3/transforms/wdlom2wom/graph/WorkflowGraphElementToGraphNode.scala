@@ -56,4 +56,4 @@ final case class GraphNodeMakerInputs(node: WorkflowGraphElement,
                                       availableTypeAliases: Map[String, WomType],
                                       workflowName: String,
                                       insideAScatter: Boolean,
-                                      callables: Set[Callable])
+                                      callables: Map[String, Callable])

@@ -1,9 +1,9 @@
 package cromwell.webservice
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import cromwell.core.labels.Labels
 import cromwell.core._
-import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import cromwell.core.labels.Labels
+import cromwell.services.metadata.MetadataEvent
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.LabelsManagerActor._
 import spray.json.{DefaultJsonProtocol, JsObject, JsString}
@@ -30,10 +30,6 @@ object LabelsManagerActor {
     ))
   }
 
-  def labelsToMetadataEvents(labels: Labels, workflowId: WorkflowId): Iterable[MetadataEvent] = {
-    labels.value map { l => MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Labels}:${l.key}"), MetadataValue(l.value)) }
-  }
-
   sealed abstract class LabelsManagerActorResponse
   final case class BuiltLabelsManagerResponse(response: JsObject) extends LabelsManagerActorResponse
   final case class FailedLabelsManagerResponse(reason: Throwable) extends LabelsManagerActorResponse
@@ -54,7 +50,8 @@ class LabelsManagerActor(serviceRegistryActor: ActorRef) extends Actor with Acto
       wfId = Option(data.workflowId)
       newLabels = Option(data.labels)
       target = sender()
-      serviceRegistryActor ! PutMetadataActionAndRespond(labelsToMetadataEvents(data.labels, data.workflowId), self)
+      val metadataEvents = MetadataEvent.labelsToMetadataEvents(data.labels, data.workflowId)
+      serviceRegistryActor ! PutMetadataActionAndRespond(metadataEvents, self)
     case MetadataWriteSuccess(_) =>
       /*
         Ask the metadata store for the current set of labels, so we can return the full label set to the user.

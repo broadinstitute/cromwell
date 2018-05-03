@@ -132,7 +132,7 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
         // iterate through the fields and fold over their type
         val partsFromFields:Option[CommandPartsList] =
           irs.fields.toList.flatten.
-            flatTraverse[Option, SortKeyAndCommandPart]{
+            flatTraverse{
               case InputRecordField(name, tpe, _, inputBinding, _) =>
                 // Parse the name to get a clean id
                 val parsedName = FullyQualifiedName(name)(ParentName.empty).id
@@ -205,7 +205,7 @@ object MyriadInputInnerTypeToSortedCommandParts extends Poly1 {
           sortKeyFromInputBindingFromInputerParameterParent.toList.some
         } else {
           // If neither valueFrom nor itemSeparator were defined, we need to process each item of the array
-          val fromArray: Option[CommandPartsList] = womArray.value.zipWithIndex.toList.flatTraverse[Option, SortKeyAndCommandPart]({
+          val fromArray: Option[CommandPartsList] = womArray.value.zipWithIndex.toList.flatTraverse({
             case (item, index) =>
               // Update the sorting key with the binding position (if any), add the index
               val itemSortingKey = {

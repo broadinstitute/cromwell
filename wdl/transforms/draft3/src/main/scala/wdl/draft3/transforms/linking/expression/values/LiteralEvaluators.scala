@@ -36,7 +36,7 @@ object LiteralEvaluators {
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
-      val evaluatedPieces = a.pieces.toList.traverse[ErrorOr, EvaluatedValue[_]] {
+      val evaluatedPieces = a.pieces.toList.traverse{
         case e: StringPlaceholder => e.expr.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
         case s: StringLiteral => s.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
       }

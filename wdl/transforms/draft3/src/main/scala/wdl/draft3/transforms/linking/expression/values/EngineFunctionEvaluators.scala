@@ -361,7 +361,7 @@ object EngineFunctionEvaluators {
       }
 
       processValidatedSingleValue[WomArray, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { array =>
-        val expandedValidation = array.value.toList.traverse[ErrorOr, Seq[WomValue]] { flatValues }
+        val expandedValidation = array.value.toList.traverse{ flatValues }
         expandedValidation map { expanded => EvaluatedValue(WomArray(expanded.flatten), Seq.empty) }
       } (coercer = WomArrayType(WomArrayType(WomAnyType)))
     }
@@ -440,6 +440,16 @@ object EngineFunctionEvaluators {
       processValidatedSingleValue[WomFloat, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { float =>
         EvaluatedValue(WomInteger(math.round(float.value).toInt), Seq.empty).validNel
       }
+    }
+  }
+
+  implicit val globFunctionValueEvaluator: ValueEvaluator[Glob] = (a, inputs, ioFunctionSet, forCommandInstantiationOptions) => {
+    processValidatedSingleValue[WomString, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { globString =>
+      for {
+        globbed <- Try(Await.result(ioFunctionSet.glob(globString.valueString), ReadWaitTimeout)).toErrorOr
+        files = globbed map WomSingleFile
+        array = WomArray(files)
+      } yield EvaluatedValue(array, Seq.empty)
     }
   }
 

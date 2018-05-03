@@ -36,35 +36,40 @@ object FileElementToWomBundle {
 
         val allStructs = structs ++ imports.flatMap(_.typeAliases)
 
-        val tasksValidation: ErrorOr[Set[Callable]] = {
-          tasks.traverse[ErrorOr, CallableTaskDefinition] { taskDefinition =>
-            taskConverter.run(TaskDefinitionElementToWomInputs(taskDefinition, structs)).toValidated
-          }.map(_.toSet)
+        val localTasksValidation: ErrorOr[Map[String, Callable]] = {
+          tasks.traverse { taskDefinition =>
+            taskConverter
+              .run(TaskDefinitionElementToWomInputs(taskDefinition, structs))
+              .map(t => t.name -> t).toValidated
+          }.map(_.toMap)
         }
 
-        tasksValidation flatMap { taskSet =>
+        localTasksValidation flatMap { localTaskMapping =>
 
           val workflowsValidation: ErrorOr[Vector[WorkflowDefinition]] = {
-            a.fileElement.workflows.toVector.traverse[ErrorOr, WorkflowDefinition] { workflowDefinition =>
+            a.fileElement.workflows.toVector.traverse { workflowDefinition =>
 
-              val convertInputs = WorkflowDefinitionConvertInputs(workflowDefinition, allStructs, taskSet)
+              val convertInputs = WorkflowDefinitionConvertInputs(workflowDefinition, allStructs, localTaskMapping ++ imports.flatMap(_.allCallables))
               workflowConverter.run(convertInputs).toValidated
             }
           }
 
           workflowsValidation map { workflows =>
-            val primary = if (workflows.size == 1) {
+            val primary: Option[Callable] = if (workflows.size == 1) {
               workflows.headOption
             } else if (workflows.isEmpty && tasks.size == 1) {
-              taskSet.headOption
+              localTaskMapping.headOption map { case (_, callable) => callable }
             } else None
-            WomBundle(primary, taskSet ++ workflows, allStructs)
+
+            val bundledCallableMap = (localTaskMapping.values.toSet ++ workflows).map(c => c.name -> c).toMap
+
+            WomBundle(primary, bundledCallableMap, allStructs)
           }
         }
       }
 
       val taskDefValidation: ErrorOr[Vector[TaskDefinitionElement]] = a.fileElement.tasks.toVector.validNel
-      val importsValidation: ErrorOr[Vector[WomBundle]] = a.fileElement.imports.toVector.traverse[ErrorOr, WomBundle] { importWomBundle(_, a.workflowOptionsJson, a.importResolvers, a.languageFactories) }
+      val importsValidation: ErrorOr[Vector[WomBundle]] = a.fileElement.imports.toVector.traverse { importWomBundle(_, a.workflowOptionsJson, a.importResolvers, a.languageFactories) }
 
       (importsValidation flatMap { imports =>
         val structsValidation: ErrorOr[Map[String, WomType]] = StructEvaluation.convert(StructEvaluationInputs(a.fileElement.structs, imports.flatMap(_.typeAliases).toMap))
@@ -90,7 +95,22 @@ object FileElementToWomBundle {
 
     val overallConversion = compoundImportResolver andThen compoundLanguageFactory
 
-    (overallConversion.run(importElement.importUrl) flatMap { respectImportRenames(_, importElement.structRenames) }).toValidated
+    overallConversion
+      .run(importElement.importUrl)
+      .map { applyNamespace(_, importElement) }
+      .flatMap { respectImportRenames(_, importElement.structRenames) }
+      .toValidated
+  }
+
+  private def applyNamespace(womBundle: WomBundle, importElement: ImportElement): WomBundle = {
+    val namespace = importElement.namespace match {
+      case Some(n) => n
+      case None => importElement.importUrl.split('/').last.stripSuffix(".wdl")
+    }
+
+    def applyNamespace(tuple: (String, Callable)): (String, Callable) = s"$namespace.${tuple._1}" -> tuple._2
+
+    womBundle.copy(allCallables = womBundle.allCallables.map(applyNamespace))
   }
 
   private def respectImportRenames(womBundle: WomBundle, importAliases: Map[String, String]): Checked[WomBundle] = {

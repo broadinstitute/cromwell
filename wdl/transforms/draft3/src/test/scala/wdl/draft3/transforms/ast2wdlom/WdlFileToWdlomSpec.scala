@@ -234,7 +234,7 @@ object WdlFileToWdlomSpec {
             OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "out", Add(ReadInt(StdoutElement), PrimitiveLiteralExpressionElement(WomInteger(1))))))),
           commandSection = CommandSectionElement(Vector(CommandSectionLine(Vector(
             StringCommandPartElement("echo "),
-            PlaceholderCommandPartElement(IdentifierLookup("total"), Map.empty),
+            PlaceholderCommandPartElement(IdentifierLookup("total"), PlaceholderAttributeSet.empty),
             StringCommandPartElement(" ")
           )))),
           runtimeSection = None,
@@ -267,7 +267,7 @@ object WdlFileToWdlomSpec {
             commandSection = CommandSectionElement(Vector(
               CommandSectionLine(Vector(
                 StringCommandPartElement("echo "),
-                PlaceholderCommandPartElement(IdentifierLookup("bar"), Map.empty)
+                PlaceholderCommandPartElement(IdentifierLookup("bar"), PlaceholderAttributeSet.empty)
               ))
             )),
             runtimeSection = Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("someFakeDockerRuntime"))))),
@@ -644,13 +644,13 @@ object WdlFileToWdlomSpec {
           commandSection = CommandSectionElement(Vector(
             CommandSectionLine(Vector(
               StringCommandPartElement("echo "),
-              PlaceholderCommandPartElement(StringLiteral("hello"), Map.empty),
+              PlaceholderCommandPartElement(StringLiteral("hello"), PlaceholderAttributeSet.empty),
               StringCommandPartElement(" "),
-              PlaceholderCommandPartElement(IdentifierLookup("world1"), Map.empty)
+              PlaceholderCommandPartElement(IdentifierLookup("world1"), PlaceholderAttributeSet.empty)
             )),
             CommandSectionLine(Vector(
               StringCommandPartElement("echo goodbye "),
-              PlaceholderCommandPartElement(IdentifierLookup("world2"), Map.empty)
+              PlaceholderCommandPartElement(IdentifierLookup("world2"), PlaceholderAttributeSet.empty)
             )
           ))),
           runtimeSection = Some(RuntimeAttributesSectionElement(Vector(
@@ -674,7 +674,7 @@ object WdlFileToWdlomSpec {
             )),
             CommandSectionLine(Vector(
               StringCommandPartElement("echo goodbye "),
-              PlaceholderCommandPartElement(IdentifierLookup("world"), Map.empty)
+              PlaceholderCommandPartElement(IdentifierLookup("world"), PlaceholderAttributeSet.empty)
             )
             ))),
           runtimeSection = Some(RuntimeAttributesSectionElement(Vector(
@@ -684,6 +684,29 @@ object WdlFileToWdlomSpec {
           parameterMetaSection = None
         )
       )
+    ),
+    "gap_in_command" -> FileElement(
+      imports = Vector.empty,
+      structs = Vector.empty,
+      workflows = Vector(WorkflowDefinitionElement(
+        "my_workflow",
+        None,
+        Set(CallElement("my_task",None,None)),
+        None,
+        None,
+        None
+      )),
+      tasks = Vector(TaskDefinitionElement(
+        "my_task",
+        None,
+        Vector(),
+        Some(OutputsSectionElement(
+          Vector(OutputDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomStringType)),"lines",ReadLines(StdoutElement)))
+        )),
+        CommandSectionElement(Vector(CommandSectionLine(Vector(StringCommandPartElement("""    echo "hi""""))), CommandSectionLine(Vector()), CommandSectionLine(Vector(StringCommandPartElement("""    echo "bye""""))))),
+        None,
+        None,
+        None))
     )
   )
 }

@@ -23,7 +23,8 @@ object LookupEvaluators {
         case Some(value) =>
           val mapped = forCommandInstantiationOptions.fold(value)(_.valueMapper(value))
           EvaluatedValue(mapped, Seq.empty).validNel
-        case None => s"ValueEvaluator[IdentifierLookup]: No suitable input for '${a.identifier}' amongst {${inputs.keys.mkString(", ")}}".invalidNel
+        case None =>
+          s"ValueEvaluator[IdentifierLookup]: No suitable input for '${a.identifier}' amongst {${inputs.keys.mkString(", ")}}".invalidNel
       }
     }
   }

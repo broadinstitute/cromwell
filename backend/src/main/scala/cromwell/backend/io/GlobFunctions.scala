@@ -18,7 +18,7 @@ trait GlobFunctions extends IoFunctionSet with AsyncIoFunctions {
   def callContext: CallContext
 
   def findGlobOutputs(call: CommandCallNode, jobDescriptor: BackendJobDescriptor): ErrorOr[List[WomGlobFile]] = {
-    def fromOutputs = call.callable.outputs.flatTraverse[ErrorOr, WomGlobFile] { outputDefinition =>
+    def fromOutputs = call.callable.outputs.flatTraverse { outputDefinition =>
       outputDefinition.expression.evaluateFiles(jobDescriptor.localInputs, this, outputDefinition.womType) map {
         _.toList.flatMap(_.flattenFiles) collect { case glob: WomGlobFile => glob }
       }

@@ -57,4 +57,5 @@ object ConfigConstants {
   val StderrInput = "err"
   val ScriptInput = "script"
   val JobIdInput = "job_id"
+  val JobShellInput = "job_shell"
 }

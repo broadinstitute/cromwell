@@ -61,7 +61,7 @@ object LanguageFactoryUtil {
    */
   private def validateExecutableInputs(inputs: ResolvedExecutableInputs, ioFunctions: IoFunctionSet): ErrorOr[Map[OutputPort, WomValue]] = {
     import common.validation.ErrorOr.MapTraversal
-    inputs.traverse[OutputPort, WomValue] {
+    inputs.traverse {
       case (key, value) => value.fold(ResolvedExecutableInputsPoly).apply(ioFunctions) map { key -> _ }
     }
   }

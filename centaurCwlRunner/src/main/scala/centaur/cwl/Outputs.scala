@@ -4,12 +4,12 @@ import centaur.api.CentaurCromwellClient
 import cromwell.api.model.SubmittedWorkflow
 import cromwell.core.path.PathBuilder
 import common.validation.Parse._
+import cwl.ontology.Schema
 import cwl.{Cwl, CwlDecoder, MyriadOutputType}
 import io.circe.Json
 import io.circe.syntax._
 import shapeless.Poly1
 import spray.json.{JsObject, JsString, JsValue}
-
 import scalaz.syntax.std.map._
 
 object Outputs {
@@ -19,8 +19,8 @@ object Outputs {
     val metadata: Map[String, JsValue] = CentaurCromwellClient.metadata(submittedWorkflow).get.value
 
     // Wrapper function to provide the right signature for `intersectWith` below.
-    def outputResolver(jsValue: JsValue, mot: MyriadOutputType): Json = {
-      OutputManipulator.resolveOutput(jsValue, pathBuilder, mot)
+    def outputResolver(schemaOption: Option[Schema])(jsValue: JsValue, mot: MyriadOutputType): Json = {
+      OutputManipulator.resolveOutput(jsValue, pathBuilder, mot, schemaOption)
     }
 
     //Sorry for all the nesting, but spray json JsValue doesn't have optional access methods like Argonaut/circe,
@@ -46,7 +46,7 @@ object Outputs {
 
                 mungeOutputMap.
                   //This lets us operate on the values of the output values and types for a particular output key
-                  intersectWith(mungeTypeMap)(outputResolver).
+                  intersectWith(mungeTypeMap)(outputResolver(cwl.schemaOption)).
                   //converting the whole response to Json using Circe's auto-encoder derivation
                   asJson.
                   //drop null values so that we don't print when Option == None

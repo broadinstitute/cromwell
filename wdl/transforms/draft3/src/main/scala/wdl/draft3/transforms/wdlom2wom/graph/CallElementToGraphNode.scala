@@ -8,7 +8,7 @@ import shapeless.Coproduct
 import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.CallElement
 import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
-import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
+import wom.callable.Callable._
 import wom.callable.{Callable, CallableTaskDefinition}
 import wom.graph.CallNode.{CallNodeAndNewNodes, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNodePort.OutputPort
@@ -20,12 +20,14 @@ object CallElementToGraphNode {
   def convert(a: CallNodeMakerInputs): ErrorOr[Set[GraphNode]] = {
     val callNodeBuilder = new CallNode.CallNodeBuilder()
 
+    val callName = a.node.alias.getOrElse(a.node.callableReference.split("\\.").last)
+
     // match the call element to a callable
     def callableValidation: ErrorOr[Callable] =
-      a.callables.find(_.name == a.node.callableName) match {
+      a.callables.get(a.node.callableReference) match {
         // pass in specific constructor depending on callable type
         case Some(c: Callable) => c.valid
-        case None => s"Cannot resolve a callable with name ${a.node.callableName}".invalidNel
+        case None => s"Cannot resolve a callable with name ${a.node.callableReference}".invalidNel
       }
 
     /*
@@ -38,10 +40,14 @@ object CallElementToGraphNode {
       * @return ErrorOr of LocalName(key) mapped to ExpressionNode(value).
       */
     def expressionNodeMappings(callable: Callable): ErrorOr[Map[LocalName, AnonymousExpressionNode]] = {
+      def validInput(name: String, definition: Callable.InputDefinition): Boolean = {
+        definition.name == name && !definition.isInstanceOf[FixedInputDefinition]
+      }
+
       a.node.body match {
         case Some(body) =>
           body.inputs.map(input => input.key -> input.value).toMap.traverse {
-            case (name, expression) =>
+            case (name, expression) if callable.inputs.exists(i => validInput(name, i)) =>
               val identifier = WomIdentifier(name)
               val constructor = callable match {
                 case _: CallableTaskDefinition => TaskCallInputExpressionNode.apply _
@@ -50,6 +56,16 @@ object CallElementToGraphNode {
 
               AnonymousExpressionNode.fromInputMapping[AnonymousExpressionNode](identifier, WdlomWomExpression(expression, a.linkableValues), a.linkablePorts, constructor) map {
                 LocalName(name) -> _
+              }
+            case (name, _) =>
+              val callNameAlias = a.node.alias match {
+                case Some(alias) => s" (as '$alias')"
+                case None => ""
+              }
+              if (callable.inputs.exists(i => i.name == name)) {
+                s"Invalid call to '${callable.name}'$callNameAlias: The declaration '$name' must be within the called task or sub-workflow's input { } section to be exposed as an input".invalidNel
+              } else {
+                s"Invalid call to '${callable.name}'$callNameAlias: No such value '$name' exists within the called task or sub-workflow's 'input { }' section".stripMargin.invalidNel
               }
           }
         case None => Map.empty[LocalName, AnonymousExpressionNode].valid
@@ -89,11 +105,14 @@ object CallElementToGraphNode {
           InputDefinitionFold(
             mappings = List(withDefault -> Coproduct[InputDefinitionPointer](expression))
           )
+        case fixedExpression @ FixedInputDefinition(_,_,expression,_) => InputDefinitionFold(
+          mappings = List(fixedExpression -> Coproduct[InputDefinitionPointer](expression))
+        )
 
         // No input mapping, required and we don't have a default value, create a new RequiredGraphInputNode
         // so that it can be satisfied via workflow inputs
         case required@RequiredInputDefinition(n, womType, _) =>
-          val identifier = WomIdentifier(s"${a.workflowName}.${a.node.alias.getOrElse(a.node.callableName)}.${n.value}")
+          val identifier = WomIdentifier(s"${a.workflowName}.$callName.${n.value}")
           withGraphInputNode(required, RequiredGraphInputNode(identifier, womType, identifier.fullyQualifiedName.value))
 
         // No input mapping, no default value but optional, create a OptionalGraphInputNode
@@ -116,8 +135,7 @@ object CallElementToGraphNode {
     for {
       callable <- callableValidation
       mappings <- expressionNodeMappings(callable)
-      localName = s"${a.node.alias.getOrElse(a.node.callableName)}"
-      identifier = WomIdentifier(localName = localName, fullyQualifiedName = a.workflowName + "." + localName)
+      identifier = WomIdentifier(localName = callName, fullyQualifiedName = a.workflowName + "." + callName)
       result = callNodeBuilder.build(identifier, callable, foldInputDefinitions(mappings, callable))
       _ = updateTaskCallNodeInputs(result, mappings)
     } yield result.nodes
@@ -130,4 +148,4 @@ case class CallNodeMakerInputs(node: CallElement,
                                availableTypeAliases: Map[String, WomType],
                                workflowName: String,
                                insideAnotherScatter: Boolean,
-                               callables: Set[Callable])
+                               callables: Map[String, Callable])

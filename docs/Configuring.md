@@ -351,3 +351,23 @@ To enable Sentry monitoring in Cromwell, enter your DSN URL into the configurati
 ```hocon
 sentry.dsn = DSN_URL
 ```
+
+
+### Job shell configuration
+
+Cromwell allows for system-wide or per-backend job shell configuration for running user commands rather than always
+using the default `/bin/bash`. To set the job shell on a system-wide basis use the configuration key `system.job-shell` or on a
+per-backend basis with `<config-key-for-backend>.job-shell`. For example:
+
+```
+# system-wide setting, all backends get this
+-Dsystem.job-shell=/bin/sh
+```
+
+```
+# override for just the Local backend
+-Dbackend.providers.Local.config.job-shell=/bin/sh
+```
+
+For the Config backend the value of the job shell will be available in the `${job_shell}` variable. See Cromwell's `reference.conf` for an example
+of how this is used for the default configuration of the `Local` backend.

@@ -18,7 +18,7 @@ trait WomObjectTypeLike extends WomType {
     * See apply method in WomObject.
    */
   def validateAndCoerceValues(values: Map[String, Any]): ErrorOr[Map[String, WomValue]] = {
-    values.toList.traverse[ErrorOr, (String, WomValue)]({
+    values.toList.traverse({
       case (k, v) => WomAnyType.coerceRawValue(v).toErrorOr.map(k -> _)
     }).map(_.toMap)
   }

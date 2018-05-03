@@ -1,10 +1,10 @@
 version draft-3
 
-import "import_layer_1.wdl"
+import "import_layer_1.wdl" alias OuterStruct as OoterStraact
 
 workflow nested_imports_with_input {
   input {
-    OuterStruct os
+    OoterStraact os
   }
 
   output {

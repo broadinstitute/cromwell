@@ -91,6 +91,7 @@ package object consumed {
       case a: Floor => a.expressionConsumedValueHooks
       case a: Ceil => a.expressionConsumedValueHooks
       case a: Round => a.expressionConsumedValueHooks
+      case a: Glob => a.expressionConsumedValueHooks
 
       case a: Size => a.expressionConsumedValueHooks
       case a: Basename => a.expressionConsumedValueHooks

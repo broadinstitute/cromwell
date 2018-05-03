@@ -1,0 +1,10 @@
+Invalid placeholder attribute: tre
+Invalid placeholder attribute: fale
+Invalid placeholder attribute: defult
+Invalid placeholder attribute: seep
+Cannot specify 'true="good"' without also having a 'false="..."' attribute
+Cannot specify 'false="good"' without also having a 'true="..."' attribute
+Cannot supply 'true="what"' because it is already supplied as 'true="good"'
+Cannot supply 'false="what"' because it is already supplied as 'false="bad"'
+Cannot supply 'default="even worse"' because it is already supplied as 'default="bad"'
+Cannot supply 'sep="uuuuh"' because it is already supplied as 'sep="___"'

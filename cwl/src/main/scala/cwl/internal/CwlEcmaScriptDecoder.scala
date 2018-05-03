@@ -27,7 +27,11 @@ class CwlEcmaScriptDecoder {
         val anyList = array.asScala.toList
         val anyRefArray = anyList.asInstanceOf[List[AnyRef]]
         anyRefArray.traverse(decode).map(WomArray.apply)
+
+      //we represent nulls as this type because Wom doesn't have a "null" value, but it does have a nothing type
+      //If you wish this to be otherwise please tidy up the Expression interpolator as well
       case null => WomOptionalValue(WomNothingType, None).valid
+
       case string: String => WomString(string).valid
       case consString: ConsString => WomString(consString.toString).valid
       case int: java.lang.Integer => WomInteger(int).valid
@@ -42,7 +46,7 @@ class CwlEcmaScriptDecoder {
   def decodeMap(map: Map[Any, Any]): ErrorOr[WomValue] = {
     val realMap: Map[AnyRef, AnyRef] = map.asInstanceOf[Map[AnyRef, AnyRef]]
 
-    val tupleList = realMap.toList.traverse[ErrorOr,(String, WomValue)]{ 
+    val tupleList = realMap.toList.traverse{
       case (k,v) => (k.toString.validNel: ErrorOr[String], decode(v)).tupled
     }
     val mapWomValues =  tupleList.map(_.toMap)
@@ -67,7 +71,7 @@ class CwlEcmaScriptDecoder {
     */
   def decodeDirectoryOrFiles(value: Any): ErrorOr[Array[FileOrDirectory]] = {
     value match {
-      case na: NativeArray => na.asScala.toList.traverse[ErrorOr, FileOrDirectory](decodeDirectoryOrFile).map(_.toArray)
+      case na: NativeArray => na.asScala.toList.traverse(decodeDirectoryOrFile).map(_.toArray)
     }
   }
 
@@ -75,7 +79,7 @@ class CwlEcmaScriptDecoder {
     * Called to decode a map value using a supplied function.
     */
   def decodeMapValue[A](map: Map[Any, Any], key: String, f: Any => A): ErrorOr[Option[A]] = {
-    map.get(key).traverse[ErrorOr, A](anyRef => validate(f(anyRef)))
+    map.get(key).traverse(anyRef => validate(f(anyRef)))
   }
 
   /**
@@ -83,7 +87,7 @@ class CwlEcmaScriptDecoder {
     */
   def decodeMapDirectoryOrFiles(map: Map[Any, Any],
                                 key: String): ErrorOr[Option[Array[FileOrDirectory]]] = {
-    map.get(key).traverse[ErrorOr, Array[FileOrDirectory]](decodeDirectoryOrFiles)
+    map.get(key).traverse(decodeDirectoryOrFiles)
   }
 
   /**

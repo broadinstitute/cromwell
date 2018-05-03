@@ -149,6 +149,7 @@ object AstNodeToExpressionElement {
     "floor" -> validateOneParamEngineFunction(Floor, "floor"),
     "ceil" -> validateOneParamEngineFunction(Ceil, "ceil"),
     "round" -> validateOneParamEngineFunction(Round, "round"),
+    "glob" -> validateOneParamEngineFunction(Glob, "glob"),
 
     // 1- or 2-param functions:
     "size" -> validateOneOrTwoParamEngineFunction(Size, "size"),

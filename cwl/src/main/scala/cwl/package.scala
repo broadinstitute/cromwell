@@ -6,6 +6,7 @@ import common.validation.ErrorOr._
 import cwl.CwlType._
 import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
 import cwl.command.ParentName
+import cwl.ontology.Schema
 import shapeless._
 import wom.executable.Executable
 import wom.expression.IoFunctionSet
@@ -116,10 +117,29 @@ package object cwl extends TypeAliases {
       }
     }
 
+    def schemaOption: Option[Schema] = cwl.fold(CwlSchemaOptionPoly)
+
     private def selectWomTypeInputs(myriadInputMap: Array[(String, MyriadInputType)]): Map[String, WomType] = {
       (myriadInputMap collect {
         case (key, MyriadInputType.WomType(w)) => key -> w
       }).toMap
+    }
+  }
+
+  object CwlSchemaOptionPoly extends Poly1 {
+    implicit val caseWorkflow: Case.Aux[Workflow, Option[Schema]] = at {
+      workflow => getSchema(workflow.`$schemas`, workflow.`$namespaces`)
+    }
+    implicit val caseCommandLineTool: Case.Aux[CommandLineTool, Option[Schema]] = at {
+      commandLineTool => getSchema(commandLineTool.`$schemas`, commandLineTool.`$namespaces`)
+    }
+    implicit val caseExpressionTool: Case.Aux[ExpressionTool, Option[Schema]] = at {
+      expressionTool => getSchema(expressionTool.`$schemas`, expressionTool.`$namespaces`)
+    }
+
+    private def getSchema(schemasOption: Option[Array[String]],
+                          namespacesOption: Option[Map[String, String]]): Option[Schema] = {
+      schemasOption.map(Schema(_, namespacesOption getOrElse Map.empty))
     }
   }
 

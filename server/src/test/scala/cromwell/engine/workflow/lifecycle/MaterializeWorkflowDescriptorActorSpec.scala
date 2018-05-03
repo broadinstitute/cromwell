@@ -5,7 +5,7 @@ import akka.testkit.TestDuration
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestKitWordSpec
 import cromwell.core.CromwellGraphNode._
-import cromwell.core.labels.{Label, Labels}
+import cromwell.core.labels.Labels
 import cromwell.core.{SimpleIoActor, WorkflowId, WorkflowOptions, WorkflowSourceFilesWithoutImports}
 import cromwell.engine.backend.{BackendConfigurationEntry, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor
@@ -42,8 +42,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
     """.stripMargin)
   val unstructuredFile = "fubar badness!"
   val validOptionsFile =""" { "write_to_cache": "true" } """
-  val validCustomLabelsFile="""{ "label1": "value1", "label2": "value2" }"""
-  val badCustomLabelsFile="""{ "Label1": "valu£1", "--label2": "valuevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevalue" }"""
+  val validCustomLabelsFile="""{ "label1": "value1", "label2": "value2", "Label1": "valu£1" }"""
+  val badCustomLabelsFile="""{ "key with characters more than 255-at vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpas": "value with characters more than 255-at vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa" }"""
 
   val validInputsJson = HelloWorld.rawInputs.toJson.toString()
   val workflowSourceWithDocker = HelloWorld.workflowSource(""" runtime { docker: "ubuntu:latest" } """)
@@ -83,7 +83,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
             wfDesc.knownValues.head._2 shouldBe WomString("world")
             wfDesc.getWorkflowOption(WorkflowOptions.WriteToCache) shouldBe Option("true")
             wfDesc.getWorkflowOption(WorkflowOptions.ReadFromCache) shouldBe None
-            wfDesc.backendDescriptor.customLabels shouldBe Labels("label1" -> "value1", "label2" -> "value2")
+            wfDesc.backendDescriptor.customLabels shouldBe Labels("label1" -> "value1", "label2" -> "value2", "Label1" -> "valu£1")
             // Default backend assignment is "Local":
             wfDesc.backendAssignments foreach {
               case (call, assignment) if call.callable.name.equals("hello") => assignment shouldBe "Local"
@@ -320,10 +320,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
           case MaterializeWorkflowDescriptorFailureResponse(reason) =>
             val expectedMessage =
               s"""Workflow input processing failed:
-                  |Invalid label: `Label1` did not match the regex ${Label.LabelKeyRegex}.
-                  |Invalid label: `valu£1` did not match the regex ${Label.LabelValueRegex}.
-                  |Invalid label: `--label2` did not match the regex ${Label.LabelKeyRegex}.
-                  |Invalid label: `valuevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevalue` is 65 characters. The maximum is 63.""".stripMargin
+                  |Invalid label: `key with characters more than 255-at vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpas` is 261 characters. The maximum is 255.
+                  |Invalid label: `value with characters more than 255-at vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa` is 262 characters. The maximum is 255.""".stripMargin
             reason.getMessage shouldBe expectedMessage
           case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
           case unknown =>

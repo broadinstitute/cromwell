@@ -3,14 +3,14 @@ package wdl.draft3.transforms.wdlom2wom
 import cats.syntax.validated._
 import common.validation.ErrorOr._
 import common.validation.ErrorOr.ErrorOr
-import wdl.model.draft3.elements.CommandPartElement
+import wdl.model.draft3.elements.{CommandPartElement, PlaceholderAttributeSet}
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import wdl.model.draft3.graph.GeneratedValueHandle
 import wom.callable.RuntimeEnvironment
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.{CommandPart, InstantiatedCommand}
 import wom.graph.LocalName
-import wom.values.{WomArray, WomOptionalValue, WomPrimitive, WomValue}
+import wom.values.{WomArray, WomBoolean, WomOptionalValue, WomPrimitive, WomValue}
 import wdl.model.draft3.graph.expression.WomExpressionMaker.ops._
 import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
 import wdl.draft3.transforms.linking.expression._
@@ -35,7 +35,7 @@ object CommandPartElementToWomCommandPart {
     }
   }
 
-  private def validatePlaceholderType(womExpression: WomExpression, attributes: Map[String, String]): ErrorOr[Unit] = ().validNel
+  private def validatePlaceholderType(womExpression: WomExpression, attributes: PlaceholderAttributeSet): ErrorOr[Unit] = ().validNel
 }
 
 case class WdlomWomStringCommandPart(stringCommandPartElement: StringCommandPartElement) extends CommandPart {
@@ -45,7 +45,7 @@ case class WdlomWomStringCommandPart(stringCommandPartElement: StringCommandPart
                            runtimeEnvironment: RuntimeEnvironment): ErrorOr[List[InstantiatedCommand]] = List(InstantiatedCommand(stringCommandPartElement.value)).validNel
 }
 
-case class WdlomWomPlaceholderCommandPart(attributes: Map[String, String], expression: WdlomWomExpression) extends CommandPart {
+case class WdlomWomPlaceholderCommandPart(attributes: PlaceholderAttributeSet, expression: WdlomWomExpression) extends CommandPart {
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: WomValue => WomValue,
@@ -57,15 +57,21 @@ case class WdlomWomPlaceholderCommandPart(attributes: Map[String, String], expre
   }
 
   private def instantiateFromValue(value: EvaluatedValue[_], valueMapper: WomValue => WomValue): ErrorOr[InstantiatedCommand] = value.value match {
+    case WomBoolean(b) if attributes.trueAttribute.isDefined && attributes.falseAttribute.isDefined =>
+      InstantiatedCommand(
+        commandString = if (b) { attributes.trueAttribute.get } else { attributes.falseAttribute.get },
+        createdFiles = value.sideEffectFiles.toList
+      ).validNel
     case p: WomPrimitive => InstantiatedCommand(valueMapper(p).valueString, createdFiles = value.sideEffectFiles.toList).validNel
     case WomOptionalValue(_, Some(v)) => instantiateFromValue(value.copy(value = v), valueMapper)
-    case WomOptionalValue(_, None) => attributes.get("default") match {
+    case WomOptionalValue(_, None) => attributes.defaultAttribute match {
       case Some(default) => InstantiatedCommand(commandString = default, createdFiles = value.sideEffectFiles.toList).validNel
       case None => "Optional value was not set and no 'default' attribute was provided".invalidNel
     }
-    case WomArray(WomArrayType(_ : WomPrimitiveType), arrayValue) => attributes.get("sep") match {
+    case WomArray(WomArrayType(_ : WomPrimitiveType), arrayValue) => attributes.sepAttribute match {
       case Some(separator) => InstantiatedCommand(commandString = arrayValue.map(valueMapper(_).valueString).mkString(separator), createdFiles = value.sideEffectFiles.toList).validNel
       case None => "Array value was given but no 'sep' attribute was provided".invalidNel
     }
+    case other => s"Cannot interpolate ${other.womType.toDisplayString} into a command string with attribute set [$attributes]".invalidNel
   }
 }

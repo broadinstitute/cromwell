@@ -2,7 +2,6 @@ package cwl
 
 import cats.instances.list._
 import cats.syntax.traverse._
-import common.validation.ErrorOr.ErrorOr
 import org.scalatest.{FlatSpec, Matchers, ParallelTestExecution}
 import shapeless.Coproduct
 import wom.callable.Callable.RequiredInputDefinition
@@ -46,7 +45,7 @@ class CommandLineToolSpec extends FlatSpec with Matchers with ParallelTestExecut
       .buildCommandTemplate.run((RequirementsAndHints(List.empty), Vector.empty,inputs))
       .valueOr(errors => fail(errors.toList.mkString(", ")))
     template
-      .flatTraverse[ErrorOr, String](_.instantiate(localNameValues, noIoFunctionSet, identity[WomValue], runtimeEnv).map(_.map(_.commandString)))
+      .flatTraverse(_.instantiate(localNameValues, noIoFunctionSet, identity[WomValue], runtimeEnv).map(_.map(_.commandString)))
       .valueOr(errors => fail(errors.toList.mkString(", "))) shouldBe expectation
     
     cltFile.delete(true)

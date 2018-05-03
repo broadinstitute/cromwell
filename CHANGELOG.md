@@ -2,6 +2,10 @@
 
 ## 32 Release Notes
 
+### Labels
+* Cromwell has removed most of the formatting restrictions from custom labels. Please check the [README](README.md#label-format) for more detailed documentation.
+* Custom labels won't be submitted to Google backend as they are now decoupled from Google's default labels.
+
 ### Scala 2.11 Removed
 From version 32 onwards we will no longer be publishing build artifacts compatible with Scala 2.11. 
 
@@ -36,11 +40,57 @@ runtime {
 
 The two types of GPU supported are `nvidia-tesla-k80` and `nvidia-tesla-p100`
 
-**Important**: Before adding a GPU, make sure it is available in the zone the job is running in: https://cloud.google.com/compute/docs/gpus/  
+**Important**: Before adding a GPU, make sure it is available in the zone the job is running in: https://cloud.google.com/compute/docs/gpus/
+
+### Job Shell
+
+Cromwell now allows for system-wide or per-backend job shell configuration for running user commands rather than always
+using the default `/bin/bash`. To set the job shell on a system-wide basis use the configuration key `system.job-shell` or on a
+per-backend basis with `<config-key-for-backend>.job-shell`. For example:
+
+```
+# system-wide setting, all backends get this
+-Dsystem.job-shell=/bin/sh
+```
+
+```
+# override for just the Local backend
+-Dbackend.providers.Local.config.job-shell=/bin/sh
+```
+
+For the Config backend the value of the job shell will be available in the `${job_shell}` variable. See Cromwell's `reference.conf` for an example
+of how this is used for the default configuration of the `Local` backend.
 
 ### Bug Fixes
 
 The imports zip no longer unpacks a single (arbitrary) internal directory if it finds one (or more). Instead, import statements should now be made relative to the base of the import zip root.
+
+#### Reverting Custom Labels
+
+Reverting to a prior custom label value now works.
+
+["Retrieves the current labels for a workflow"](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/#retrieves-the-current-labels-for-a-workflow)
+will return the most recently summarized custom label value.
+
+The above endpoint may still return the prior value for a short period of time after using
+["Updated labels for a workflow"](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/#update-labels-for-a-workflow)
+until the background metadata summary process completes.
+
+#### Deleting Duplicate Custom Label Rows
+
+If you never used the REST API to revert a custom label back to a prior value you will not be affected. This only applies to workflows previously updated using
+["Updated labels for a workflow"](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/#update-labels-for-a-workflow).
+
+The database table storing custom labels will delete duplicate rows for any workflow label key. For efficiency purposes
+the values are not regenerated automatically from the potentially large metadata table.
+
+In rare cases where one tried to revert to a prior custom label value you may continue to see different results
+depending on the REST API used. After the database update
+["Retrieves the current labels for a workflow"](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/#retrieves-the-current-labels-for-a-workflow)
+will return the most-recent-unique value while
+["Get workflow and call-level metadata for a specified workflow"](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/#get-workflow-and-call-level-metadata-for-a-specified-workflow)
+will return the up-to-date value. For example, if one previously updated a value from `"value-1"` > `"value-2"` >
+`"value-3"` > `"value-2"` then the former REST API will return `value-3` while the latter will return `value-2`.
 
 ## 31 Release Notes
 

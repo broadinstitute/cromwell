@@ -32,7 +32,7 @@ class RuntimeAttributesDefaultSpec extends FlatSpec with Matchers {
 
     val defaults = workflowOptionsDefault(workflowOptions, coercionMap)
     defaults.isSuccess shouldBe true
-    defaults.get should contain theSameElementsAs Map(
+    defaults.get.toList should contain theSameElementsAs Map(
       "str" -> WomString("myString"),
       "bool" -> WomBoolean.True,
       "number" -> WomInteger(8),
@@ -52,7 +52,7 @@ class RuntimeAttributesDefaultSpec extends FlatSpec with Matchers {
 
     val defaults = workflowOptionsDefault(workflowOptions, coercionMap)
     defaults.isSuccess shouldBe true
-    defaults.get should contain theSameElementsAs Map(
+    defaults.get.toList should contain theSameElementsAs Map(
       "str" -> WomString("myString"),
       "number" -> WomInteger(8)
     )
@@ -96,7 +96,7 @@ class RuntimeAttributesDefaultSpec extends FlatSpec with Matchers {
       "c" -> WomString("c")
     )
 
-    withDefaults(rawAttributes, List(default1, default2)) should contain theSameElementsAs Map(
+    withDefaults(rawAttributes, List(default1, default2)).toList should contain theSameElementsAs Map(
       "a" -> WomString("a"),
       "b" -> WomString("b"),
       "c" -> WomString("c")

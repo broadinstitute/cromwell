@@ -39,7 +39,7 @@ object TaskDefinitionElementToWomTaskDefinition {
       }
 
       val validCommand: ErrorOr[Seq[CommandPart]] = {
-        expandLines(a.taskDefinitionElement.commandSection.parts).toList.traverse[ErrorOr, CommandPart] { parts =>
+        expandLines(a.taskDefinitionElement.commandSection.parts).toList.traverse { parts =>
           CommandPartElementToWomCommandPart.convert(parts, taskGraph.linkedGraph.typeAliases, taskGraph.linkedGraph.generatedHandles)
         }.map(_.toSeq)
       }
@@ -51,7 +51,9 @@ object TaskDefinitionElementToWomTaskDefinition {
   }
 
   private def expandLines(lines: Seq[CommandSectionLine]): Seq[CommandPartElement] = {
-    def expandNonFinalLine(line: CommandSectionLine): Seq[CommandPartElement] = {
+    def expandNonFinalLine(line: CommandSectionLine): Seq[CommandPartElement] = if (line.parts.isEmpty) {
+      Seq(StringCommandPartElement(System.lineSeparator))
+    } else {
       val finalElements = line.parts.lastOption match {
         case Some(StringCommandPartElement(str)) => Seq(StringCommandPartElement(str + System.lineSeparator))
         case Some(other) => Seq(other, StringCommandPartElement(System.lineSeparator))
@@ -71,7 +73,7 @@ object TaskDefinitionElementToWomTaskDefinition {
                               outputs: Seq[OutputDeclarationElement],
                               typeAliases: Map[String, WomType]): ErrorOr[TaskGraph] = {
     val combined: Set[WorkflowGraphElement] = (inputs ++ declarations ++ outputs).toSet
-    LinkedGraphMaker.make(combined, Set.empty, typeAliases, Set.empty) flatMap { linked =>
+    LinkedGraphMaker.make(combined, Set.empty, typeAliases, Map.empty) flatMap { linked =>
       val ordered = LinkedGraphMaker.getOrdering(linked)
 
       def foldFunction(currentGraphValidation: ErrorOr[TaskGraph], next: WorkflowGraphElement): ErrorOr[TaskGraph] = {
@@ -84,7 +86,7 @@ object TaskDefinitionElementToWomTaskDefinition {
           val expressionValidation = expression.makeWomExpression(linked.typeAliases, linked.consumedValueLookup)
 
           (typeValidation, expressionValidation) mapN { (womType, womExpression) =>
-            accumulator.copy(inputs = accumulator.inputs :+ InputDefinitionWithDefault(name, womType, womExpression))
+            accumulator.copy(inputs = accumulator.inputs :+ FixedInputDefinition(name, womType, womExpression))
           }
         case InputDeclarationElement(womTypeElement, name, None) =>
           womTypeElement.determineWomType(linked.typeAliases) map { womType =>

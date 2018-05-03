@@ -67,6 +67,17 @@ object Callable {
     */
   final case class InputDefinitionWithDefault(localName: LocalName, womType: WomType, default: WomExpression, valueMapper: InputValueMapper = InputDefinition.IdentityValueMapper) extends InputDefinition
 
+  object FixedInputDefinition {
+    def apply(name: String, womType: WomType, default: WomExpression): FixedInputDefinition = {
+      FixedInputDefinition(LocalName(name), womType, default, InputDefinition.IdentityValueMapper)
+    }
+  }
+
+  /**
+    * An input whose value should always be calculated from the default, and is not allowed to be overridden.
+    */
+  final case class FixedInputDefinition(localName: LocalName, womType: WomType, default: WomExpression, valueMapper: InputValueMapper = InputDefinition.IdentityValueMapper) extends InputDefinition
+
   object OptionalInputDefinition {
     def apply(name: String, womType: WomOptionalType): OptionalInputDefinition = OptionalInputDefinition(LocalName(name), womType, InputDefinition.IdentityValueMapper)
     def apply(name: String, womType: WomOptionalType, valueMapper: InputValueMapper): OptionalInputDefinition = OptionalInputDefinition(LocalName(name), womType, valueMapper)

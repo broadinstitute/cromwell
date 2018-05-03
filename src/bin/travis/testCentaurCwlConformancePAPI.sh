@@ -55,7 +55,7 @@ ENABLE_COVERAGE=true sbt assembly
 git clone https://github.com/common-workflow-language/common-workflow-language.git
 cd common-workflow-language
 # checkout a known git hash to prevent the tests from changing out from under us
-git checkout 1646a398eacee14899d56945204c0162372fb5d8
+git checkout 2a8b4d57975c43f226f71bb81daf7e47b821286a
 cd ..
 
 CROMWELL_JAR=$(find "$(pwd)/server/target/scala-2.12" -name "cromwell-*.jar")
@@ -99,9 +99,11 @@ cat <<JSON >${CWL_CONFORMANCE_TEST_INPUTS}
 }
 JSON
 
+# The PAPI CWL conformance make_summary call is currently a mass of bash so this has to use /bin/bash.
 java \
   -Xmx2g \
   -Dbackend.providers.Local.config.concurrent-job-limit=${CWL_CONFORMANCE_TEST_PARALLELISM} \
+  -Dsystem.job-shell=/bin/bash \
   -jar ${CROMWELL_JAR} \
   run ${CWL_CONFORMANCE_TEST_WDL} \
   -i ${CWL_CONFORMANCE_TEST_INPUTS}

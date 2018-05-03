@@ -3,9 +3,11 @@ package cwl
 import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.option._
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cwl.FileParameter._
+import cwl.ontology.Schema
 import shapeless.Poly1
 import wom.callable.Callable.InputDefinition.InputValueMapper
 import wom.expression.IoFunctionSet
@@ -57,7 +59,7 @@ object InputParameter {
           womType =>
             fileOrDirectoryArray
               .toList
-              .traverse[ErrorOr, WomValue](_.fold(this).apply(womType))
+              .traverse(_.fold(this).apply(womType))
               .map(WomArray(_))
       }
     }
@@ -90,6 +92,32 @@ object InputParameter {
     }
   }
 
+  object InputParameterFormatPoly extends Poly1 {
+    implicit val caseExpression: Case.Aux[Expression, ParameterContext => ErrorOr[List[String]]] = {
+      at { expression =>
+        parameterContext =>
+          ExpressionEvaluator.eval(expression, parameterContext) map {
+            case WomArray(_, values) => values.toList.map(_.valueString)
+            case womValue => List(womValue.valueString)
+          }
+      }
+    }
+
+    implicit val caseString: Case.Aux[String, ParameterContext => ErrorOr[List[String]]] = {
+      at { string =>
+        _ =>
+          List(string).valid
+      }
+    }
+
+    implicit val caseArrayString: Case.Aux[Array[String], ParameterContext => ErrorOr[List[String]]] = {
+      at { array =>
+        _ =>
+          array.toList.valid
+      }
+    }
+  }
+
   /**
     * Yet another value mapper. This one is needed because in CWL we might need to "augment" inputs which we can only do
     * once they have been linked to a WomValue. This input value mapper encapsulates logic to be applied once that is
@@ -101,7 +129,8 @@ object InputParameter {
     */
   def inputValueMapper(inputParameter: InputParameter,
                        inputType: MyriadInputType,
-                       expressionLib: ExpressionLib): InputValueMapper = {
+                       expressionLib: ExpressionLib,
+                       schemaOption: Option[Schema]): InputValueMapper = {
     ioFunctionSet: IoFunctionSet => {
 
       def populateFiles(womValue: WomValue): ErrorOr[WomValue] = {
@@ -112,8 +141,12 @@ object InputParameter {
             val secondaryFilesFromInputParameter = inputParameter.secondaryFiles
             val secondaryFilesFromType = inputType.fold(MyriadInputTypeToSecondaryFiles)
             val secondaryFiles = secondaryFilesFromInputParameter orElse secondaryFilesFromType
+            val inputFormatsErrorOr = inputParameter.format
+                .traverse(_.fold(InputParameterFormatPoly).apply(parameterContext))
 
             for {
+              inputFormatsOption <- inputFormatsErrorOr
+              _ <- checkFormat(womMaybePopulatedFile, inputFormatsOption, schemaOption)
               contentsOption <- FileParameter.maybeLoadContents(
                 womMaybePopulatedFile,
                 ioFunctionSet,
@@ -136,7 +169,7 @@ object InputParameter {
           case WomOptionalValue(_, Some(innerValue)) => populateFiles(innerValue).map(WomOptionalValue(_))
           case obj: WomObjectLike =>
             // Map the values
-            obj.values.toList.traverse[ErrorOr, (String, WomValue)]({
+            obj.values.toList.traverse({
               case (key, value) => populateFiles(value).map(key -> _)
             })
               .map(_.toMap)

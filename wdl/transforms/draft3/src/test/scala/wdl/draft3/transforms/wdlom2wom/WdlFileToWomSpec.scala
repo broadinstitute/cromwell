@@ -69,13 +69,17 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     "lots_of_nesting" -> anyWomWillDo,
     "taskless_engine_functions" -> anyWomWillDo,
     "no_input_no_output_workflow" -> anyWomWillDo,
-    "command_syntaxes" -> validateCommandSyntaxes
+    "command_syntaxes" -> validateCommandSyntaxes,
+    "standalone_task" -> anyWomWillDo,
+    "task_with_metas" -> anyWomWillDo,
+    "input_values" -> anyWomWillDo,
+    "gap_in_command" -> anyWomWillDo
   )
 
   private def anyWomWillDo(b: WomBundle) = Succeeded
 
   private def validateStructDefinitionWom(b: WomBundle): Assertion = {
-    val wfDef: WorkflowDefinition = (b.allCallables.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).head
+    val wfDef: WorkflowDefinition = (b.allCallables.values.toSet.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).head
     b.typeAliases.keySet shouldBe Set("FooStruct")
     val structOutputType = (wfDef.graph.outputNodes.map(_.womType).filterByType[WomCompositeType]: Set[WomCompositeType]).head
 
@@ -86,21 +90,21 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
   }
 
   private def validateTaskDefinitionWom(b: WomBundle): Assertion = {
-    val taskDef: CallableTaskDefinition = (b.allCallables.filterByType[CallableTaskDefinition]: Set[CallableTaskDefinition]).head
+    val taskDef: CallableTaskDefinition = (b.allCallables.values.toSet.filterByType[CallableTaskDefinition]: Set[CallableTaskDefinition]).head
     taskDef.name shouldBe "simple"
     taskDef.commandTemplate(Map.empty) shouldBe List(WdlomWomStringCommandPart(StringCommandPartElement("echo Hello World ")))
   }
 
   private def validateCommandSyntaxes(b: WomBundle) = {
     b.allCallables.size should be(2)
-    b.allCallables.find { _.name == "a" } match {
+    b.allCallables.get("a")match {
       case Some(taskA) =>
         taskA.inputs.map(_.name).toSet should be(Set("rld", "world1", "world2"))
         taskA.outputs.map(_.name).toSet should be(Set("out"))
         taskA.asInstanceOf[CallableTaskDefinition].runtimeAttributes.attributes("docker").asInstanceOf[WdlomWomExpression].expressionElement should be(StringLiteral("ubuntu:latest"))
       case None => fail("Expected a task called 'a'")
     }
-    b.allCallables.find { _.name == "b" } match {
+    b.allCallables.get("b") match {
       case Some(taskB) =>
         taskB.inputs.map(_.name) should be(Seq("world"))
         taskB.outputs.map(_.name) should be(Seq("out"))

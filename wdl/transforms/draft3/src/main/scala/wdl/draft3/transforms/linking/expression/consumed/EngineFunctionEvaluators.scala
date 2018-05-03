@@ -41,6 +41,7 @@ object EngineFunctionEvaluators {
   implicit val floorValueConsumer: ExpressionValueConsumer[Floor] = forOneParamFunction
   implicit val ceilValueConsumer: ExpressionValueConsumer[Ceil] = forOneParamFunction
   implicit val roundValueConsumer: ExpressionValueConsumer[Round] = forOneParamFunction
+  implicit val globValueConsumer: ExpressionValueConsumer[Glob] = forOneParamFunction
 
   implicit val sizeValueConsumer: ExpressionValueConsumer[Size] = forOneOrTwoParamFunction
   implicit val basenameValueConsumer: ExpressionValueConsumer[Basename] = forOneOrTwoParamFunction

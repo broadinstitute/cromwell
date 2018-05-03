@@ -201,21 +201,66 @@ object WdlWriter {
     }
   }
 
+  implicit val runtimeAttributesSectionElementWriter: WdlWriter[RuntimeAttributesSectionElement] = new WdlWriter[RuntimeAttributesSectionElement] {
+    override def toWdl(a: RuntimeAttributesSectionElement): String =
+      s"""
+         |runtime {
+         |  ${a.runtimeAttributes.map(_.toWdl).mkString("\n  ")}
+         |}
+       """.stripMargin
+  }
+
+  implicit val metaValueElementWriter: WdlWriter[MetaValueElement] = new WdlWriter[MetaValueElement] {
+    override def toWdl(a: MetaValueElement): String = "asdf"
+  }
+
+
+  implicit val metaSectionElementWriter: WdlWriter[MetaSectionElement] = new WdlWriter[MetaSectionElement] {
+    override def toWdl(a: MetaSectionElement): String = {
+      val map = a.meta.map { pair =>
+        s"${pair._1}: ${pair._2.toWdl}"
+      }
+      s"""
+         |meta {
+         |  $map
+         |}
+       """.stripMargin
+    }
+  }
+
+  implicit val parameterMetaSectionElementWriter: WdlWriter[ParameterMetaSectionElement] = new WdlWriter[ParameterMetaSectionElement] {
+    override def toWdl(a: ParameterMetaSectionElement): String = {
+      val map = a.metaAttributes.map { pair =>
+        s"${pair._1}: ${pair._2.toWdl}"
+      }
+      s"""
+         |meta {
+         |  $map
+         |}
+       """.stripMargin
+    }
+  }
+
   implicit val taskDefinitionTypeElementWriter: WdlWriter[TaskDefinitionElement] = new WdlWriter[TaskDefinitionElement] {
     override def toWdl(a: TaskDefinitionElement) = {
-//      a.inputsSection X
-//      a.declarations X
-//      a.outputsSection X
-//      a.commandSection X
-//      a.runtimeSection
-//      a.metaSection
-//      a.parameterMetaSection
       val inputs = a.inputsSection match {
         case Some(i) => i.toWdl
         case None => ""
       }
       val outputs = a.outputsSection match {
         case Some(o) => o.toWdl
+        case None => ""
+      }
+      val runtime = a.runtimeSection match {
+        case Some(r) => r.toWdl
+        case None => ""
+      }
+      val meta = a.metaSection match {
+        case Some(m) => m.toWdl
+        case None => ""
+      }
+      val parameterMeta = a.parameterMetaSection match {
+        case Some(p) => p.toWdl
         case None => ""
       }
 
@@ -225,6 +270,9 @@ object WdlWriter {
          |  ${a.declarations.map(_.toWdl).mkString("\n")}
          |  $outputs
          |  ${a.commandSection.toWdl}
+         |  $runtime
+         |  $meta
+         |  $parameterMeta
          |}
        """.stripMargin
     }

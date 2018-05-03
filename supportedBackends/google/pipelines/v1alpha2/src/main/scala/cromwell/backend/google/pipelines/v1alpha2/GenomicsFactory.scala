@@ -5,9 +5,11 @@ import java.net.URL
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model._
+import cromwell.backend.google.pipelines.common.{PipelinesApiFileOutput, PipelinesApiInput}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterface, PipelinesApiRequestFactory}
 import cromwell.backend.google.pipelines.v1alpha2.PipelinesConversions._
+import cromwell.backend.google.pipelines.v1alpha2.ToParameter.ops._
 import cromwell.backend.google.pipelines.v1alpha2.api.{NonPreemptiblePipelineInfoBuilder, PreemptiblePipelineInfoBuilder}
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
@@ -32,8 +34,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         val pipelineInfoBuilder = if (createPipelineParameters.preemptible) PreemptiblePipelineInfoBuilder else NonPreemptiblePipelineInfoBuilder
         val pipelineInfo = pipelineInfoBuilder.build(commandLine, createPipelineParameters.runtimeAttributes, createPipelineParameters.dockerImage)
 
-        val inputParameters = createPipelineParameters.inputParameters.map({ i => i.name -> i }).toMap
-        val outputParameters = createPipelineParameters.outputParameters.map({ o => o.name -> o }).toMap
+        val inputParameters: Map[String, PipelinesApiInput] = createPipelineParameters.inputParameters.map({ i => i.name -> i }).toMap
+        val outputParameters: Map[String, PipelinesApiFileOutput] = createPipelineParameters.outputParameters.map({ o => o.name -> o }).toMap
 
         val pipeline = new Pipeline()
           .setProjectId(createPipelineParameters.projectId)

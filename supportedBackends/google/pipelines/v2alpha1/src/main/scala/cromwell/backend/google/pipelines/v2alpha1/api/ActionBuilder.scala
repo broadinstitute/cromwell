@@ -39,8 +39,6 @@ object ActionBuilder {
       .setCommands((List("gsutil") ++ command.toList).asJava)
       .setFlags(flags |> javaFlags)
       .setMounts(mounts.asJava)
-      .setLabels(
-        (Map("command" -> command.mkString(start = "gsutil ", sep = " ", end = "")) ++ description.map("description" -> _)).asJava
-      )
+      .setLabels(description.map("description" -> _).toMap.asJava)
   }
 }

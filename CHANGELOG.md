@@ -6,10 +6,7 @@
 
 #### Pipelines API V2
 Initial support for Google [Pipelines API version 2](https://cloud.google.com/genomics/reference/rest/).
-Expect feature parity except for the following that are not supported at the moment (but for which support is planned in the near future):
-* Private dockerhub images
-* GPUs
-* Docker containers running as non root
+Expect feature parity except for Private dockerhub images which are not supported at the moment, but will be in the very near future.
 
 In addition, the following changes are to be expected:
 * Error messages for failed jobs might differ from V1

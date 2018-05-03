@@ -163,8 +163,7 @@ export GOOGLE_REFRESH_TOKEN_PATH
 export GOOGLE_SERVICE_ACCOUNT_JSON
 
 # Excluded tests:
-# docker_hash_dockerhub_private: TODO create ticket 
-# gpu_on_papi: TODO create ticket 
+# docker_hash_dockerhub_private: https://github.com/broadinstitute/cromwell/issues/3587
 
 centaur/test_cromwell.sh \
   -j${CROMWELL_JAR} \
@@ -172,7 +171,6 @@ centaur/test_cromwell.sh \
   -c${PAPI_CONF} \
   -e localdockertest \
   -e docker_hash_dockerhub_private \
-  -e gpu_on_papi \
   -p100 \
   $INTEGRATION_TESTS
 

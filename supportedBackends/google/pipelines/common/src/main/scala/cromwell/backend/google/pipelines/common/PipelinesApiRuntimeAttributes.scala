@@ -13,8 +13,10 @@ import wom.RuntimeAttributesKeys
 import wom.format.MemorySize
 import wom.types._
 import wom.values._
+import net.ceedubs.ficus.Ficus._
 
 object GpuResource {
+  val DefaultNvidiaDriverVersion = "390.46"
   object GpuType extends Enumeration {
     type GpuType = Value
     val NVIDIATeslaP100 = Value("nvidia-tesla-p100")
@@ -22,7 +24,7 @@ object GpuResource {
   }
 }
 
-final case class GpuResource(gpuType: GpuType, gpuCount: Int)
+final case class GpuResource(gpuType: GpuType, gpuCount: Int, nvidiaDriverVersion: String = GpuResource.DefaultNvidiaDriverVersion)
 
 final case class PipelinesApiRuntimeAttributes(cpu: Int,
                                                gpuResource: Option[GpuResource],
@@ -56,7 +58,7 @@ object PipelinesApiRuntimeAttributes {
   val DisksKey = "disks"
   private val DisksDefaultValue = WomString(s"${PipelinesApiWorkingDisk.Name} 10 SSD")
 
-  private val MemoryDefaultValue = "3.75 GB"
+  private val MemoryDefaultValue = "2 GB"
 
   private def cpuValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] = CpuValidation.instance
     .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
@@ -126,10 +128,11 @@ object PipelinesApiRuntimeAttributes {
     val cpu: Int = RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
 
     // GPU
+    lazy val nvidiaDriverVersion = runtimeAttrsConfig.flatMap(_.as[Option[String]]("nvidia-driver-version")).getOrElse(GpuResource.DefaultNvidiaDriverVersion)
     val gpuType: Option[GpuType] = RuntimeAttributesValidation.extractOption(gpuTypeValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
     val gpu: Option[Int] = RuntimeAttributesValidation.extractOption(gpuValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
     val gpuResource = (gpuType, gpu) match {
-      case (Some(t), Some(g)) => Option(GpuResource(t, g))
+      case (Some(t), Some(g)) => Option(GpuResource(t, g, nvidiaDriverVersion))
       case (Some(_), None) => throw new RuntimeException(s"Please specify how many GPU should be attached to the instance.")
       case (None, Some(_)) => throw new RuntimeException(s"Please specify a GPU type: ${GpuResource.GpuType.values.mkString(", ")}")
       case (None, None) => None

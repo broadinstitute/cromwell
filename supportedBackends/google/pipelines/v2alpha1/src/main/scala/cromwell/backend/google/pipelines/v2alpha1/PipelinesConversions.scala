@@ -2,17 +2,14 @@ package cromwell.backend.google.pipelines.v2alpha1
 
 import java.time.OffsetDateTime
 
-import com.google.api.services.genomics.model.UnexpectedExitStatusEvent
 import com.google.api.services.genomics.v2alpha1.model._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk
-import cromwell.backend.google.pipelines.common.{PipelinesApiFileInput, PipelinesApiFileOutput, PipelinesApiLiteralInput, PipelinesApiRuntimeAttributes}
+import cromwell.backend.google.pipelines.common._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionFlag
 import cromwell.core.ExecutionEvent
 import wdl4s.parser.MemoryUnit
-
-import scala.collection.JavaConverters._
 
 object PipelinesConversions {
   implicit class EnhancedEvent(val event: Event) extends AnyVal {
@@ -75,14 +72,7 @@ object PipelinesConversions {
     }
   }
 
-  implicit class UnexpectedExitStatusEventDeserialization(val event: UnexpectedExitStatusEvent) extends AnyVal {
-    def toErrorMessage(actions: List[Action]): Option[String] = {
-      for {
-        action <- actions.lift(event.getActionId - 1)
-        labels = action.getLabels.asScala.withDefaultValue("N/A")
-        description = labels("description")
-        command <- labels.get("command")
-      } yield s"Action #${event.getActionId} failed. Description: $description. Command: $command Exit Code: ${event.getExitStatus}"
-    }
+  implicit class EnhancedGpuResource(val gpuResource: GpuResource) extends AnyVal {
+    def toAccelerator = new Accelerator().setCount(gpuResource.gpuCount.toLong).setType(gpuResource.gpuType.toString)
   }
 }

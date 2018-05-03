@@ -129,14 +129,10 @@ trait GetRequestHandler { this: RequestHandler =>
   }
 
   private def augmentedErrorMessage(events: List[Event], actions: List[Action], error: String): String = {
-    import cats.instances.list._
-    import cats.syntax.traverse._
-    import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
-
+    val failedEvent = classOf[FailedEvent].getSimpleName
+    val unexpectedExistStatus = classOf[UnexpectedExitStatusEvent].getSimpleName
     error + events
-      .flatMap(_.details[UnexpectedExitStatusEvent].map(_.toErrorOr))
-      .sequence[ErrorOr, UnexpectedExitStatusEvent]
-      .map(_.flatMap(_.toErrorMessage(actions)).mkString(start = "\n", sep = "\n", end = ""))
-      .getOrElse("")
+      .filter(e => e.hasDetailsClass(unexpectedExistStatus) || e.hasDetailsClass(failedEvent))
+      .map(_.getDescription).mkString(start = "\n", sep = "\n", end = "")
   }
 }

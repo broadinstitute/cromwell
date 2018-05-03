@@ -48,7 +48,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val environment = Map.empty[String, String].asJava
 
       val userAction = ActionBuilder.userAction(
-        createPipelineParameters.dockerImage, 
+        createPipelineParameters.dockerImage,
         createPipelineParameters.commandScriptContainerPath,
         mounts
       )
@@ -66,6 +66,9 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val network = new Network()
         .setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
 
+      val accelerators = createPipelineParameters.runtimeAttributes
+        .gpuResource.map(_.toAccelerator).toList.asJava
+
       val virtualMachine = new VirtualMachine()
         .setDisks(disks.asJava)
         .setPreemptible(createPipelineParameters.preemptible)
@@ -74,6 +77,11 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         .setBootDiskSizeGb(createPipelineParameters.runtimeAttributes.bootDiskSize)
         .setLabels(createPipelineParameters.labels.asJavaMap)
         .setNetwork(network)
+        .setAccelerators(accelerators)
+
+      createPipelineParameters.runtimeAttributes.gpuResource foreach { resource =>
+        virtualMachine.setNvidiaDriverVersion(resource.nvidiaDriverVersion)
+      }
 
       val resources = new Resources()
         .setProjectId(createPipelineParameters.projectId)

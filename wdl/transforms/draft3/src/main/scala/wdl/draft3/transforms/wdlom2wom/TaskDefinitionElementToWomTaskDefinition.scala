@@ -63,9 +63,12 @@ object TaskDefinitionElementToWomTaskDefinition {
       line.parts.init ++ finalElements
     }
 
-    (lines.init flatMap expandNonFinalLine) ++ lines.last.parts
+    if (lines.isEmpty) {
+      Seq(StringCommandPartElement(""))
+    } else {
+      (lines.init flatMap expandNonFinalLine) ++ lines.last.parts
+    }
   }
-
 
   private final case class TaskGraph(inputs: List[Callable.InputDefinition], outputs: List[Callable.OutputDefinition], linkedGraph: LinkedGraph)
   private def createTaskGraph(inputs: Seq[InputDeclarationElement],

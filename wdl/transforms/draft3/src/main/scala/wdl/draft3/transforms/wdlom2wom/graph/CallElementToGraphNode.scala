@@ -100,11 +100,12 @@ object CallElementToGraphNode {
             newExpressionNodes = Set(expressionNode)
           )
 
-        // No input mapping, use the default expression
-        case withDefault@InputDefinitionWithDefault(_, _, expression, _) =>
-          InputDefinitionFold(
-            mappings = List(withDefault -> Coproduct[InputDefinitionPointer](expression))
-          )
+        // No input mapping, add an optional input using the default expression
+        case withDefault@InputDefinitionWithDefault(n, womType, expression, _) =>
+          val identifier = WomIdentifier(s"${a.workflowName}.$callName.${n.value}")
+          withGraphInputNode(withDefault, OptionalGraphInputNodeWithDefault(identifier, womType, expression, identifier.fullyQualifiedName.value))
+
+        // Not an input, use the default expression:
         case fixedExpression @ FixedInputDefinition(_,_,expression,_) => InputDefinitionFold(
           mappings = List(fixedExpression -> Coproduct[InputDefinitionPointer](expression))
         )
@@ -118,7 +119,7 @@ object CallElementToGraphNode {
         // No input mapping, no default value but optional, create a OptionalGraphInputNode
         // so that it can be satisfied via workflow inputs
         case optional@OptionalInputDefinition(n, womType, _) =>
-          val identifier = WomIdentifier(n.value)
+          val identifier = WomIdentifier(s"${a.workflowName}.$callName.${n.value}")
           withGraphInputNode(optional, OptionalGraphInputNode(identifier, womType, identifier.fullyQualifiedName.value))
       }
     }

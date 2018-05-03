@@ -292,6 +292,7 @@ object WdlWriter {
         case _: Floor =>        functionCall("floor")
         case _: Ceil =>         functionCall("ceil")
         case _: Round =>        functionCall("round")
+        case _: Glob =>         functionCall("glob")
       }
     }
   }

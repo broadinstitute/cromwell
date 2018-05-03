@@ -233,7 +233,7 @@ object WomtoolMain extends App {
     import cats.implicits._
     import wdl.draft3.transforms.ast2wdlom.astToFileElement
     import wdl.draft3.transforms.parsing.fileToAst
-    import wdl.draft3.transforms.ast2wdl.WdlWriter.ops._
+    import wdl.draft3.transforms.wdlom2wdl.WdlWriter.ops._
 
     val loader = fileToAst andThen astToFileElement
     val model: Checked[FileElement] = loader.run(Paths.get(workflowSourcePath))

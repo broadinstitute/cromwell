@@ -1,4 +1,4 @@
-package wdl.draft3.transforms.ast2wdl
+package wdl.draft3.transforms.wdlom2wdl
 
 import simulacrum.typeclass
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
@@ -32,7 +32,7 @@ object WdlWriter {
     def toWdl(a: ExpressionElement) = a match {
       case a: PrimitiveLiteralExpressionElement => a.toWdl
       case _: StringExpression => ???
-      case a: StringLiteral => a.value
+      case a: StringLiteral => "\"" + a.value + "\""
       case _: ObjectLiteral => ???
       case _: ArrayLiteral => ???
       case _: MapLiteral => ???
@@ -169,7 +169,7 @@ object WdlWriter {
 //      a.inputsSection X
 //      a.declarations X
 //      a.outputsSection X
-//      a.commandSection
+//      a.commandSection X
 //      a.runtimeSection
 //      a.metaSection
 //      a.parameterMetaSection
@@ -209,7 +209,7 @@ object WdlWriter {
 
   implicit val commandPartElementWriter: WdlWriter[CommandPartElement] = new WdlWriter[CommandPartElement] {
     def toWdl(a: CommandPartElement): String = a match {
-      case a: StringCommandPartElement => a.value
+      case a: StringCommandPartElement => a.value.trim
       case a: PlaceholderCommandPartElement =>
         s"$${${a.expressionElement.toWdl}}" // TODO: attributes
     }
@@ -321,9 +321,10 @@ object WdlWriter {
 
   implicit val fileElementWriter: WdlWriter[FileElement] = new WdlWriter[FileElement] {
     def toWdl(a: FileElement) = {
-      a.workflows.map(_.toWdl).mkString("\n") +
+      "version draft-3\n" +
+      a.tasks.map(_.toWdl).mkString("\n") +
       "\n" +
-      a.tasks.map(_.toWdl).mkString("\n")
+      a.workflows.map(_.toWdl).mkString("\n")
     }
   }
 

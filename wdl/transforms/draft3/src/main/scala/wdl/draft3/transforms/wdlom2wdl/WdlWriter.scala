@@ -40,28 +40,42 @@ object WdlWriter {
       case a: PrimitiveLiteralExpressionElement => a.toWdl
       case a: StringExpression => "\"" + a.pieces.map(_.toWdl).mkString + "\""
       case a: StringLiteral => "\"" + a.value + "\""
-      case _: ObjectLiteral => ???
-      case a: ArrayLiteral => "[" + a.elements.map(expressionElementWriter.toWdl).mkString(", ") + "]"
+      case a: ObjectLiteral =>
+        "object { " + a.elements.map { pair =>
+          pair._1 + ": " + expressionElementWriter.toWdl(pair._2)
+        }.mkString(", ") + " }"
+      case a: ArrayLiteral =>
+        "[" + a.elements.map(expressionElementWriter.toWdl).mkString(", ") + "]"
       case a: MapLiteral =>
         "{ " + a.elements.map { pair =>
           expressionElementWriter.toWdl(pair._1) + ": " + expressionElementWriter.toWdl(pair._2)
         }.mkString(", ") + " }"
-      case _: PairLiteral => ???
-      case _: UnaryOperation => ???
+      case a: PairLiteral =>
+        s"(${expressionElementWriter.toWdl(a.left)}, ${expressionElementWriter.toWdl(a.right)})"
+      case a: UnaryOperation => a.toWdl
       case a: BinaryOperation => a.toWdl
-      case _: TernaryIf => ???
+      case a: TernaryIf =>
+        s"if ${expressionElementWriter.toWdl(a.condition)} then ${expressionElementWriter.toWdl(a.ifTrue)} else ${expressionElementWriter.toWdl(a.ifFalse)}"
       case a: FunctionCallElement => a.toWdl
       case a: IdentifierLookup => a.identifier
       case a: IdentifierMemberAccess => a.toWdl
-      case _: ExpressionMemberAccess => ???
+      case a: ExpressionMemberAccess => s"${expressionElementWriter.toWdl(a.expression)}.${a.memberAccessTail.toList.mkString(".")}"
       case _: IndexAccess => ???
+    }
+  }
+
+  implicit val unaryOperationWriter: WdlWriter[UnaryOperation] = new WdlWriter[UnaryOperation] {
+    override def toWdl(a: UnaryOperation): String = a match {
+      case a: LogicalNot    => s"!(${a.argument.toWdl})"
+      case a: UnaryNegation => "-" + a.argument.toWdl
+      case a: UnaryPlus     => "+" + a.argument.toWdl
     }
   }
 
   implicit val identifierMemberAccessWriter: WdlWriter[IdentifierMemberAccess] = new WdlWriter[IdentifierMemberAccess] {
     override def toWdl(a: IdentifierMemberAccess): String = {
       s"${a.first}.${a.second}" + (if (a.memberAccessTail.nonEmpty) {
-        a.memberAccessTail.mkString(".")
+        "." + a.memberAccessTail.mkString(".")
       } else {
         ""
       })
@@ -132,15 +146,15 @@ object WdlWriter {
       }
 
       val bodyExpression = a.body match {
-        case Some(body) => body.toWdl
+        case Some(body) =>
+          s""" {
+             |  ${body.toWdl}
+             |}
+           """.stripMargin
         case None => ""
       }
 
-      s"""
-         |call ${a.callableReference}$aliasExpression {
-         |  $bodyExpression
-         |}
-       """.stripMargin
+      s"call ${a.callableReference}$aliasExpression$bodyExpression"
     }
   }
 
@@ -157,7 +171,7 @@ object WdlWriter {
       case a: OptionalTypeElement => s"${typeElementWriter.toWdl(a.maybeType)}?"
       case _: NonEmptyTypeElement => ???
       case a: PairTypeElement => s"Pair[${typeElementWriter.toWdl(a.leftType)}, ${typeElementWriter.toWdl(a.rightType)}]"
-      case _: ObjectTypeElement.type => ???
+      case _: ObjectTypeElement.type => "Object"
       case _: TypeAliasElement => ???
     }
   }
@@ -234,7 +248,7 @@ object WdlWriter {
 
   implicit val commandPartElementWriter: WdlWriter[CommandPartElement] = new WdlWriter[CommandPartElement] {
     override def toWdl(a: CommandPartElement): String = a match {
-      case a: StringCommandPartElement => a.value.trim
+      case a: StringCommandPartElement => a.value // .trim?
       case a: PlaceholderCommandPartElement =>
         s"$${${a.expressionElement.toWdl}}" // TODO: attributes
     }
@@ -284,7 +298,7 @@ object WdlWriter {
       case a: OneParamFunctionCallElement => a.toWdl
       case a: OneOrTwoParamFunctionCallElement => a.toWdl
       case a: TwoParamFunctionCallElement => a.toWdl
-      case _: Sub => ???
+      case a: Sub => s"sub(${a.input.toWdl}, ${a.pattern.toWdl}, ${a.replace.toWdl})"
     }
   }
 
@@ -337,7 +351,7 @@ object WdlWriter {
 
   implicit val twoParamFunctionCallElementWriter: WdlWriter[TwoParamFunctionCallElement] = new WdlWriter[TwoParamFunctionCallElement] {
     override def toWdl(a: TwoParamFunctionCallElement): String = {
-      def functionCall(name: String) = s"$name(${a.arg1}, ${a.arg2})"
+      def functionCall(name: String) = s"$name(${a.arg1.toWdl}, ${a.arg2.toWdl})"
 
       a match {
         case _: Zip => functionCall("zip")

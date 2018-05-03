@@ -5,23 +5,21 @@ import java.util.concurrent.Executors
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.HttpRequest
+import akka.http.scaladsl.model.{HttpRequest, StatusCodes}
 import akka.http.scaladsl.unmarshalling.Unmarshaller.UnsupportedContentTypeException
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings, StreamTcpException}
 import centaur.test.metadata.WorkflowMetadata
 import centaur.test.workflow.Workflow
 import centaur.{CentaurConfig, CromwellManager}
 import cromwell.api.CromwellClient
+import cromwell.api.CromwellClient.UnsuccessfulRequestException
 import cromwell.api.model.{CromwellBackends, SubmittedWorkflow, WorkflowId, WorkflowOutputs, WorkflowStatus}
-import org.slf4j.LoggerFactory
 
 import scala.concurrent._
 import scala.concurrent.duration._
-import scala.util.{Failure, Try}
+import scala.util.Try
 
 object CentaurCromwellClient {
-  val logger = LoggerFactory.getLogger("CentaurCromwellClient")
-
   // Do not use scala.concurrent.ExecutionContext.Implicits.global as long as this is using Await.result
   // See https://github.com/akka/akka-http/issues/602
   // And https://github.com/viktorklang/blog/blob/master/Futures-in-Scala-2.12-part-7.md
@@ -89,15 +87,15 @@ object CentaurCromwellClient {
            _: UnsupportedContentTypeException if attempt < awaitMaxAttempts =>
         Thread.sleep(awaitSleep.toMillis)
         awaitFutureCompletion(x, timeout, attempt + 1)
+      case unsuccessful: UnsuccessfulRequestException if unsuccessful.httpResponse.status == StatusCodes.NotFound && attempt < awaitMaxAttempts =>
+        Thread.sleep(awaitSleep.toMillis)
+        awaitFutureCompletion(x, timeout, attempt + 1)
       // see https://github.com/akka/akka-http/issues/768
       case unexpected: RuntimeException
         if unexpected.getMessage.contains("The http server closed the connection unexpectedly") &&
           attempt < awaitMaxAttempts =>
         Thread.sleep(awaitSleep.toMillis)
         awaitFutureCompletion(x, timeout, attempt + 1)
-      case other =>
-        logger.error(s"Future timed out and was not recovered", other)
-        Failure(other)
     }
   }
 

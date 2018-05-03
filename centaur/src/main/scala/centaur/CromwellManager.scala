@@ -13,7 +13,7 @@ import scala.language.postfixOps
   */
 object CromwellManager {
   val ManagedCromwellPort = 8008
-  val timeout = 30 seconds
+  val timeout = 60 seconds
   private val interval = 1 second
   private var cromwellProcess: Option[Process] = None
   private var _ready: Boolean = false

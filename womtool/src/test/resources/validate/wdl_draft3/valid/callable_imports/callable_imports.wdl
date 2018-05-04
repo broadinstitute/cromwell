@@ -1,4 +1,4 @@
-version draft-3
+version 1.0
 
 import "my_task.wdl"
 import "my_workflow.wdl" as mai_workflau

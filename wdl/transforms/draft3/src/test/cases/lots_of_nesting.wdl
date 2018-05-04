@@ -1,4 +1,4 @@
-version draft-3
+version 1.0
 
 workflow lots_of_nesting {
 

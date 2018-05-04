@@ -3,6 +3,7 @@ package wdl.draft3.transforms.wdlom2wdl
 import simulacrum.typeclass
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import wdl.model.draft3.elements.ExpressionElement._
+import wdl.model.draft3.elements.MetaValueElement._
 import wdl.model.draft3.elements._
 import wom.types._
 
@@ -211,7 +212,18 @@ object WdlWriter {
   }
 
   implicit val metaValueElementWriter: WdlWriter[MetaValueElement] = new WdlWriter[MetaValueElement] {
-    override def toWdl(a: MetaValueElement): String = "asdf"
+    override def toWdl(a: MetaValueElement): String = a match {
+      case _: MetaValueElementNull.type => "null"
+      case a: MetaValueElementBoolean => a.value.toString
+      case a: MetaValueElementFloat => a.value.toString
+      case a: MetaValueElementInteger => a.value.toString
+      case a: MetaValueElementString => "\"" + a.value + "\""
+      case a: MetaValueElementObject =>
+        "{" + a.value.map { pair =>
+          s"${pair._1}: ${metaValueElementWriter.toWdl(pair._2)}"
+        }.mkString(", ") + "}"
+      case a: MetaValueElementArray => "[" + a.value.map(metaValueElementWriter.toWdl).mkString(", ") + "]"
+    }
   }
 
 
@@ -222,7 +234,7 @@ object WdlWriter {
       }
       s"""
          |meta {
-         |  $map
+         |  ${map.mkString("\n  ")}
          |}
        """.stripMargin
     }
@@ -234,8 +246,8 @@ object WdlWriter {
         s"${pair._1}: ${pair._2.toWdl}"
       }
       s"""
-         |meta {
-         |  $map
+         |parameter_meta {
+         |  ${map.mkString("\n  ")}
          |}
        """.stripMargin
     }

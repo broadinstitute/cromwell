@@ -5,11 +5,10 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.util.StringUtil._
 import common.validation.ErrorOr._
-import common.validation.Validation._
 import cromwell.backend.BackendJobDescriptor
-import cromwell.backend.io.DirectoryFunctions._
 import cromwell.core.path.{Path, PathFactory}
 import wom.expression.IoFunctionSet
+import wom.expression.IoFunctionSet.{IoDirectory, IoElement, IoFile}
 import wom.graph.CommandCallNode
 import wom.values.{WomFile, WomGlobFile, WomMaybeListedDirectory, WomMaybePopulatedFile, WomSingleFile, WomUnlistedDirectory}
 
@@ -29,19 +28,21 @@ trait DirectoryFunctions extends IoFunctionSet with PathFactory {
 
   override def isDirectory(path: String) = Future.fromTry(Try(buildPath(path).isDirectory))
 
-  override def listDirectory(path: String): Future[Iterator[String]] = Future.fromTry(Try(buildPath(path.ensureSlashed).list.map(_.pathAsString)))
+  override def listDirectory(path: String)(visited: Vector[String] = Vector.empty): Future[Iterator[IoElement]] = {
+    Future.fromTry(Try {
+      val visitedPaths = visited.map(buildPath)
+      val cromwellPath = buildPath(path.ensureSlashed)
 
-  override def listAllFilesUnderDirectory(dirPath: String): Future[Seq[String]] = {
-    temporaryImplListPaths(dirPath)
-  }
+      // To prevent infinite recursion through symbolic links make sure we don't visit the same directory twice
+      def hasBeenVisited(other: Path) = visitedPaths.exists(_.isSameFileAs(other))
 
-  // TODO: WOM: WOMFILE: This will likely use a Tuple2(tar file, dir list file) for each dirPath.
-  private final def temporaryImplListPaths(dirPath: String): Future[Seq[String]] = {
-    val errorOrPaths = for {
-      dir <- validate(buildPath(dirPath.ensureSlashed))
-      files <- listFiles(dir)
-    } yield files.map(_.pathAsString)
-    Future.fromTry(errorOrPaths.toTry(s"Error listing files under $dirPath"))
+      cromwellPath.list.collect({
+        case directory if directory.isDirectory &&
+          !cromwellPath.isSamePathAs(directory) &&
+          !hasBeenVisited(directory) => IoDirectory(directory.pathAsString)
+        case file => IoFile(file.pathAsString)
+      })
+    })
   }
 }
 

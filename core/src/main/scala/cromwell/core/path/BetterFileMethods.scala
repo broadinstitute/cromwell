@@ -307,7 +307,7 @@ trait BetterFileMethods {
 
   final def listRecursively: Paths = betterFile.listRecursively.map(newPath)
 
-  final def walk(maxDepth: Int = Int.MaxValue): Paths = betterFile.walk(maxDepth).map(newPath)
+  final def walk(maxDepth: Int = Int.MaxValue)(implicit visitOptions: VisitOptions = VisitOptions.default): Paths = betterFile.walk(maxDepth).map(newPath)
 
   final def pathMatcher(syntax: PathMatcherSyntax)(pattern: String): PathMatcher =
     betterFile.pathMatcher(syntax)(pattern)

@@ -3,6 +3,7 @@ package wom.expression
 import cats.data.Validated._
 import cats.syntax.option._
 import common.validation.ErrorOr.ErrorOr
+import wom.expression.IoFunctionSet.IoElement
 import wom.types.WomType
 import wom.values._
 
@@ -74,6 +75,18 @@ trait PathFunctionSet {
   def stderr: String
 }
 
+object IoFunctionSet {
+  /**
+    * Simple wrapper class providing information on whether a path is a File or a Directory
+    * Avoids repeated calls to isDirectory.
+    */
+  sealed trait IoElement {
+    def path: String
+  }
+  case class IoFile(path: String) extends IoElement
+  case class IoDirectory(path: String) extends IoElement
+}
+
 /**
   * Utility functions to perform various I/O and path related operations
   * Because at this time WOM does not assume anything in terms of implementation,
@@ -111,16 +124,9 @@ trait IoFunctionSet {
   def glob(pattern: String): Future[Seq[String]]
 
   /**
-    * Recursively list all files (and only files, not directories) under "dirPath"
-    * dirPath MUST BE a directory
-    * @return The list of all files under "dirPath"
-    */
-  def listAllFilesUnderDirectory(dirPath: String): Future[Seq[String]]
-
-  /**
     * List entries in a directory non recursively. Includes directories
     */
-  def listDirectory(path: String): Future[Iterator[String]]
+  def listDirectory(path: String)(visited: Vector[String] = Vector.empty): Future[Iterator[IoElement]]
 
   /**
     * Return true if path points to a directory, false otherwise

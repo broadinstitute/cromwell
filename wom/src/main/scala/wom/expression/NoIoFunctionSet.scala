@@ -17,14 +17,11 @@ class EmptyIoFunctionSet extends IoFunctionSet {
 
   override def glob(pattern: String): Future[Seq[String]] = throw new NotImplementedError("glob is not available here")
 
-  override def listAllFilesUnderDirectory(dirPath: String): Nothing =
-    throw new NotImplementedError("listAllFilesUnderDirectory is not available here")
-
   override def size(path: String): Future[Long] = Future.failed(new NotImplementedError("size is not available here"))
 
   override implicit def ec: ExecutionContext = null
   override def pathFunctions = NoPathFunctionSet
-  override def listDirectory(path: String) = throw new NotImplementedError("listDirectory is not available here")
+  override def listDirectory(path: String)(visited: Vector[String] = Vector.empty) = throw new NotImplementedError("listDirectory is not available here")
   override def isDirectory(path: String) = throw new NotImplementedError("isDirectory is not available here")
 }
 

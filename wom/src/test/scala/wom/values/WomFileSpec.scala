@@ -103,6 +103,12 @@ class WomFileSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks 
     }
   }
 
+  forAll(mapFileTests) { (description, womFile, expected) =>
+    it should s"map $description with mapWomFile" in {
+      womFile.mapWomFile("prepend/" + _.value) should be(expected)
+    }
+  }
+
   val flattenFileTests = Table(
     ("description", "womFile", "expected"),
     ("a single directory", singleDir, List(WomUnlistedDirectory("single/dir"))),

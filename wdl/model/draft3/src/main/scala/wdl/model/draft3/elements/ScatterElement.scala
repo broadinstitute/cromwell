@@ -3,4 +3,17 @@ package wdl.model.draft3.elements
 final case class ScatterElement(scatterName: String,
                                 scatterExpression: ExpressionElement,
                                 scatterVariableName: String,
-                                graphElements: Seq[WorkflowGraphElement]) extends WorkflowGraphElement
+                                graphElements: Seq[WorkflowGraphElement]) extends WorkflowGraphElement {
+
+  // Scatter names do not contain intrinsic information about the scatter; rather they are a sort
+  // of hash based on the declarations's physical location in the source.
+  override def equals(other: scala.Any): Boolean = {
+    other match {
+      case otherScatter: ScatterElement =>
+        this.scatterExpression == otherScatter.scatterExpression &&
+        this.scatterVariableName == otherScatter.scatterVariableName &&
+        this.graphElements == otherScatter.graphElements
+      case _ => false
+    }
+  }
+}

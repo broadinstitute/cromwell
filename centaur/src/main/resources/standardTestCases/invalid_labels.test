@@ -1,5 +1,5 @@
 name: invalid_labels
-testFormat: workflowfailure
+testFormat: submitfailure
 tags: [ labels ]
 
 files {
@@ -8,7 +8,10 @@ files {
   labels: labels/invalid.labels
 }
 
-metadata {
-  "failures.0.message": "Workflow input processing failed"
-  "failures.0.causedBy.0.message": "Invalid label: `` can't be empty"
+submit {
+  statusCode: 400
+  message: """{
+  "status": "fail",
+  "message": "Error(s): Invalid label: `` can't be empty"
+}"""
 }

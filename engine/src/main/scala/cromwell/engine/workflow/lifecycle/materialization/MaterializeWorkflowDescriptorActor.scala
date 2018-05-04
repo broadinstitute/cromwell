@@ -7,10 +7,8 @@ import cats.data.EitherT._
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import cats.effect.IO
-import cats.instances.vector._
 import cats.syntax.apply._
 import cats.syntax.either._
-import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
@@ -34,8 +32,8 @@ import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor._
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
-import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.services.metadata.MetadataService._
+import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import net.ceedubs.ficus.Ficus._
 import spray.json._
 import wom.expression.{NoIoFunctionSet, WomExpression}
@@ -233,10 +231,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       case None => fromEither[IO]("Need a workflow type here !".invalidNelCheck[ValidatedWomNamespace])
     }
 
-    val labelsValidation: Parse[Labels] = fromEither[IO](validateLabels(sourceFiles.labelsJson).toEither)
+    val labels = convertJsonToLabels(sourceFiles.labelsJson)
 
     for {
-      labels <- labelsValidation
       _ <- publishLabelsToMetadata(id, labels)
 
       validatedNamespace <- namespaceValidation
@@ -268,8 +265,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
   private def importedFilesMetadata(imported: Map[String, String]): Iterable[MetadataEvent] = {
     def metadataEventForImportedFile(uri: String, value: String): MetadataEvent = {
-      import cromwell.core.simpleton.WomValueSimpleton._
       import WorkflowMetadataKeys._
+      import cromwell.core.simpleton.WomValueSimpleton._
       // This should only be called on namespaces that are known to have a defined `importUri` so the .get is safe.
       val escapedUri = uri.escapeMeta
       MetadataEvent(MetadataKey(
@@ -281,6 +278,15 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   private def wfNameMetadata(name: String): MetadataEvent = {
     // Workflow name:
     MetadataEvent(MetadataKey(workflowIdForLogging, None, WorkflowMetadataKeys.Name), MetadataValue(name))
+  }
+
+  private def convertJsonToLabels(json: String): Labels = {
+    json.parseJson match {
+      case JsObject(inputs) => Labels(inputs.toVector.collect({
+        case (key, JsString(value)) => Label(key, value)
+      }))
+      case _ => Labels(Vector.empty)
+    }
   }
 
   private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, labels: Labels): Parse[Unit] = {
@@ -361,24 +367,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
         // TODO WOM: need access to a "source string" for WomExpressions
         // TODO WOM: ErrorOrify this ?
         throw AggregatedMessageException(s"Dynamic backends are not currently supported! Cannot assign backend '$backendNameAsExp' for Call: $callName", errors.toList)
-    }
-  }
-
-  private def validateLabels(json: String): ErrorOr[Labels] = {
-
-    def toLabels(inputs: Map[String, JsValue]): ErrorOr[Labels] = {
-      val vectorOfValidatedLabel: Vector[ErrorOr[Label]] = inputs.toVector map {
-        case (key, JsString(s)) => Label.validateLabel(key, s)
-        case (key, other) => s"Invalid label $key: $other : Labels must be strings. ${Label.LabelExpectationsMessage}".invalidNel
-      }
-
-      vectorOfValidatedLabel.sequence[ErrorOr, Label] map { validatedVectorofLabel => Labels(validatedVectorofLabel) }
-    }
-
-    Try(json.parseJson) match {
-      case Success(JsObject(inputs)) => toLabels(inputs)
-      case Failure(reason: Throwable) => s"Workflow contains invalid labels JSON: ${reason.getMessage}".invalidNel
-      case _ => """Invalid workflow labels JSON. Expected a JsObject of "labelKey": "labelValue" values.""".invalidNel
     }
   }
 

@@ -274,64 +274,6 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       system.stop(materializeWfActor)
     }
 
-    "reject an unstructured labels file" in {
-      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false, ioActorProxy = ioActor))
-      val sources = WorkflowSourceFilesWithoutImports(
-        workflowSource = workflowSourceNoDocker,
-        workflowRoot = None,
-        workflowType = Option("WDL"),
-        workflowTypeVersion = None,
-        inputsJson = validInputsJson,
-        workflowOptionsJson = validOptionsFile,
-        labelsJson = unstructuredFile,
-        warnings = Vector.empty)
-      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
-
-      within(Timeout) {
-        expectMsgPF() {
-          case MaterializeWorkflowDescriptorFailureResponse(reason) =>
-            reason.getMessage should startWith(
-              """Workflow input processing failed:
-                |Workflow contains invalid labels JSON: Unexpected character 'u'""".stripMargin)
-          case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
-          case unknown =>
-            fail(s"Unexpected materialization response: $unknown")
-        }
-      }
-
-      system.stop(materializeWfActor)
-    }
-
-    "reject invalid labels" in {
-      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false, ioActorProxy = ioActor))
-      val sources = WorkflowSourceFilesWithoutImports(
-        workflowSource = workflowSourceNoDocker,
-        workflowRoot = None,
-        workflowType = Option("WDL"),
-        workflowTypeVersion = None,
-        inputsJson = validInputsJson,
-        workflowOptionsJson = validOptionsFile,
-        labelsJson = badCustomLabelsFile,
-        warnings = Vector.empty)
-      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
-
-      within(Timeout) {
-        expectMsgPF() {
-          case MaterializeWorkflowDescriptorFailureResponse(reason) =>
-            val expectedMessage =
-              s"""Workflow input processing failed:
-                  |Invalid label: `key with characters more than 255-at vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpas` is 261 characters. The maximum is 255.
-                  |Invalid label: `value with characters more than 255-at vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa` is 262 characters. The maximum is 255.""".stripMargin
-            reason.getMessage shouldBe expectedMessage
-          case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
-          case unknown =>
-            fail(s"Unexpected materialization response: $unknown")
-        }
-      }
-
-      system.stop(materializeWfActor)
-    }
-
     "reject an invalid workflow inputs file" in {
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false, ioActorProxy = ioActor))
       val sources = WorkflowSourceFilesWithoutImports(

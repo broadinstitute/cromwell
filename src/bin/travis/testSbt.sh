@@ -7,7 +7,7 @@ docker pull ubuntu:latest
 
 ENABLE_COVERAGE=true sbt \
   -Dbackend.providers.Local.config.filesystems.local.localization.0=copy \
-  +clean nointegration:test
+  +clean +nointegration:test
 
 if [ "$TRAVIS_EVENT_TYPE" != "cron" ]; then
     sbt coverageReport --warn

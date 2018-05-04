@@ -279,5 +279,3 @@ lazy val root = (project in file("."))
   .aggregate(wdlTransformsDraft3)
   .aggregate(wom)
   .aggregate(womtool)
-
-  inThisBuild(logLevel in assembly := Level.Error)

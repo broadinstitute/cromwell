@@ -1,6 +1,7 @@
 package centaur.cwl
 
-import cromwell.core.path.{Path, PathBuilder}
+import cromwell.core.path.{DefaultPath, Path, PathBuilder}
+import cromwell.filesystems.gcs.GcsPath
 import cwl.command.ParentName
 import cwl.ontology.Schema
 import cwl.{File => CwlFile, _}
@@ -9,10 +10,10 @@ import io.circe.literal._
 import io.circe.shapes._
 import io.circe.syntax._
 import io.circe.{Json, JsonObject}
+import mouse.all._
 import org.apache.commons.codec.digest.DigestUtils
 import shapeless.{Inl, Poly1}
 import spray.json.{JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsValue}
-import mouse.all._
 
 //Take cromwell's outputs and format them as expected by the spec
 object OutputManipulator extends Poly1 {
@@ -21,8 +22,9 @@ object OutputManipulator extends Poly1 {
   def resolveOutput(jsValue: JsValue,
                     pathBuilder: PathBuilder,
                     mot: MyriadOutputType,
-                    schemaOption: Option[Schema]): Json  = {
-    mot.fold(this).apply(jsValue, pathBuilder, schemaOption)
+                    schemaOption: Option[Schema],
+                    callRoots: List[Path]): Json  = {
+    mot.fold(this).apply(jsValue, pathBuilder, schemaOption, callRoots)
   }
 
   private def hashFile(path: Path): Option[String] = path.exists.option("sha1$" + path.sha1.toLowerCase)
@@ -46,7 +48,8 @@ object OutputManipulator extends Poly1 {
     */
   private def populateFileFields(pathBuilder: PathBuilder,
                                  isInsideDirectory: Boolean,
-                                 schemaOption: Option[Schema]
+                                 schemaOption: Option[Schema],
+                                 callRootPaths: List[Path]
                                 )(obj: JsonObject): JsonObject = {
     val path = pathBuilder.build(obj.kleisli("location").get.asString.get).get
     val isFile = obj.kleisli("class").exists(_.asString.contains("File"))
@@ -64,7 +67,7 @@ object OutputManipulator extends Poly1 {
 
       def populateInnerFile(file: Json): Json = {
         file.asObject
-          .map(populateFileFields(pathBuilder, isInsideDirectory, schemaOption))
+          .map(populateFileFields(pathBuilder, isInsideDirectory, schemaOption, callRootPaths))
           .map(Json.fromJsonObject)
           .orElse(file.asString.map(stringToFile(_, pathBuilder)))
           .getOrElse(file)
@@ -95,8 +98,17 @@ object OutputManipulator extends Poly1 {
     // We need this because some task return a "File" object that actually does not exist on disk but has its content provided directly instead
     def sizeContent: Option[Long] = obj.kleisli("contents").flatMap(_.asString.map(_.length.toLong))
 
-    // The cwl test runner expects only the name, not the full path
-    val updatedLocation = obj.add("location", Json.fromString(path.name))
+    val cleanName = callRootPaths.find(path.startsWith) match {
+      case Some(localRoot: DefaultPath) =>
+        // For local paths, the root doesn't have "execution" in it but that's where the outputs are
+        val withExecution = localRoot / "execution"
+        path.pathAsString.stripPrefix(withExecution.pathAsString)
+      case Some(gcsRoot: GcsPath) =>
+        path.pathAsString.stripPrefix(gcsRoot.pathAsString)
+      case _ => path.name
+    }
+
+    val updatedLocation = obj.add("location", Json.fromString(cleanName))
 
     // Get the format
     def formatOption: Option[String] = for {
@@ -164,7 +176,8 @@ object OutputManipulator extends Poly1 {
   private def resolveOutputViaInnerType(mot: MyriadOutputInnerType)
                                        (jsValue: JsValue,
                                         pathBuilder: PathBuilder,
-                                        schemaOption: Option[Schema]): Json = {
+                                        schemaOption: Option[Schema],
+                                        callRootPaths: List[Path]): Json = {
     (jsValue, mot) match {
       //CWL expects quite a few enhancements to the File structure, hence...
       case (JsString(metadata), Inl(CwlType.File)) => stringToFile(metadata, pathBuilder)
@@ -173,7 +186,7 @@ object OutputManipulator extends Poly1 {
       case (obj: JsObject, Inl(CwlType.File) | Inl(CwlType.Directory)) =>
         import io.circe.parser._
         val json = parse(obj.compactPrint).right.getOrElse(throw new Exception("Failed to parse Json output as Json... something is very wrong"))
-        json.mapObject(populateFileFields(pathBuilder, isInsideDirectory = false, schemaOption))
+        json.mapObject(populateFileFields(pathBuilder, isInsideDirectory = false, schemaOption, callRootPaths))
       case (JsNumber(metadata), Inl(CwlType.Long)) => metadata.longValue.asJson
       case (JsNumber(metadata), Inl(CwlType.Float)) => metadata.floatValue.asJson
       case (JsNumber(metadata), Inl(CwlType.Double)) => metadata.doubleValue.asJson
@@ -196,7 +209,7 @@ object OutputManipulator extends Poly1 {
           items = schema.items
           innerType <- items.select[MyriadOutputInnerType]
           outputJson = metadata.map(m =>
-            resolveOutputViaInnerType(innerType)(m, pathBuilder, schemaOption)).asJson
+            resolveOutputViaInnerType(innerType)(m, pathBuilder, schemaOption, callRootPaths)).asJson
         } yield outputJson).getOrElse(throw new RuntimeException(s"We currently do not support output arrays with ${tpe.select[OutputArraySchema].get.items} inner type"))
       case (JsObject(metadata), tpe) if tpe.select[OutputRecordSchema].isDefined =>
         def processField(field: OutputRecordField) = {
@@ -209,7 +222,7 @@ object OutputManipulator extends Poly1 {
           fields <- schema.fields
           typeMap = fields.flatMap(processField).toMap
           outputJson = metadata.map({
-            case (k, v) => k -> resolveOutputViaInnerType(typeMap(k))(v, pathBuilder, schemaOption)
+            case (k, v) => k -> resolveOutputViaInnerType(typeMap(k))(v, pathBuilder, schemaOption, callRootPaths)
           }).asJson
         } yield outputJson).getOrElse(throw new RuntimeException(s"We currently do not support output record schemas with ${tpe.select[OutputArraySchema].get.items} inner type"))
       case (JsNull, Inl(CwlType.Null)) => Json.Null
@@ -217,11 +230,11 @@ object OutputManipulator extends Poly1 {
     }
   }
 
-  implicit val moit: Case.Aux[MyriadOutputInnerType, (JsValue, PathBuilder, Option[Schema]) => Json] = at {
+  implicit val moit: Case.Aux[MyriadOutputInnerType, (JsValue, PathBuilder, Option[Schema], List[Path]) => Json] = at {
     resolveOutputViaInnerType
   }
 
-  implicit val amoit: Case.Aux[Array[MyriadOutputInnerType], (JsValue, PathBuilder, Option[Schema]) => Json] =
+  implicit val amoit: Case.Aux[Array[MyriadOutputInnerType], (JsValue, PathBuilder, Option[Schema], List[Path]) => Json] =
     at {
       amoit =>
         resolveOutputViaInnerType(amoit.head)

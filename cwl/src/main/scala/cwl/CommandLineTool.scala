@@ -209,6 +209,11 @@ case class CommandLineTool private(
       initialWorkDirRequirement <- requirements.select[InitialWorkDirRequirement].toArray
       listing <- initialWorkDirRequirement.listings
     } yield InitialWorkDirFileGeneratorExpression(listing, expressionLib)).toSet[ContainerizedInputExpression]
+    
+    val dockerOutputDirectory = requirementsAndHints
+      .flatMap(_.select[DockerRequirement])
+      .flatMap(_.dockerOutputDirectory)
+      .headOption
 
     def inputsToCommandParts(inputs: WomEvaluatedCallInputs) : ErrorOr[Seq[CommandPart]] =
      buildCommandTemplate.run((RequirementsAndHints(requirementsAndHints), expressionLib, inputs))
@@ -232,7 +237,8 @@ case class CommandLineTool private(
         stderrOverride = redirect(stderr),
         additionalGlob = Option(WomGlobFile(CwlOutputJson)),
         customizedOutputEvaluation = outputEvaluationJsonFunction,
-        homeOverride = Option(_.outputPath)
+        homeOverride = Option(_.outputPath),
+        dockerOutputDirectory = dockerOutputDirectory
       )
     }
   }

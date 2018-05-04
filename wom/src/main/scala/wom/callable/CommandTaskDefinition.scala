@@ -74,6 +74,7 @@ sealed trait TaskDefinition extends Callable {
   * Can be Callable only or CallableExecutable
   */
 sealed trait CommandTaskDefinition extends TaskDefinition {
+  def dockerOutputDirectory: Option[String]
   def stdoutOverride: Option[WomExpression]
   def stderrOverride: Option[WomExpression]
   def commandTemplateBuilder: WomEvaluatedCallInputs => ErrorOr[Seq[CommandPart]]
@@ -149,7 +150,8 @@ final case class CallableTaskDefinition(name: String,
                                         stderrOverride: Option[WomExpression] = None,
                                         additionalGlob: Option[WomGlobFile] = None,
                                         private [wom] val customizedOutputEvaluation: OutputEvaluationFunction = OutputEvaluationFunction.none,
-                                        homeOverride: Option[RuntimeEnvironment => String] = None
+                                        homeOverride: Option[RuntimeEnvironment => String] = None,
+                                        dockerOutputDirectory: Option[String] = None
                                        ) extends CommandTaskDefinition {
   def toExecutable: ErrorOr[ExecutableTaskDefinition] = TaskCall.graphFromDefinition(this) map { ExecutableTaskDefinition(this, _) }
 }
@@ -180,6 +182,7 @@ final case class ExecutableTaskDefinition private (callableTaskDefinition: Calla
   override private [wom]  def customizedOutputEvaluation = callableTaskDefinition.customizedOutputEvaluation
   override def toExecutable = this.validNel
   override def homeOverride = callableTaskDefinition.homeOverride
+  override def dockerOutputDirectory = callableTaskDefinition.dockerOutputDirectory
 }
 
 sealed trait ExpressionTaskDefinition extends TaskDefinition {

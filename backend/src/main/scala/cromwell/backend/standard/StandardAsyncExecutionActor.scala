@@ -298,11 +298,16 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     // Give the out and error FIFO variables names that are unlikely to conflict with anything the user is doing.
     val (out, err) = (s"out$shortId", s"err$shortId")
 
+    val dockerOutputDir = jobDescriptor.taskCall.callable.dockerOutputDirectory map { d =>
+      s"ln -s $cwd $d"
+    } getOrElse ""
+
     // The `tee` trickery below is to be able to redirect to known filenames for CWL while also streaming
     // stdout and stderr for PAPI to periodically upload to cloud storage.
     // https://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
     (errorOrDirectoryOutputs, errorOrGlobFiles).mapN((directoryOutputs, globFiles) =>
     s"""|#!$jobShell
+        |DOCKER_OUTPUT_DIR_LINK
         |cd $cwd
         |tmpDir=`$temporaryDirectory`
         |chmod 777 "$$tmpDir"
@@ -335,7 +340,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       .replace("SCRIPT_PREAMBLE", scriptPreamble)
       .replace("ENVIRONMENT_VARIABLES", environmentVariables)
       .replace("INSTANTIATED_COMMAND", instantiatedCommand.commandString)
-      .replace("SCRIPT_EPILOGUE", scriptEpilogue))
+      .replace("SCRIPT_EPILOGUE", scriptEpilogue)
+      .replace("DOCKER_OUTPUT_DIR_LINK", dockerOutputDir))
   }
 
   def runtimeEnvironmentPathMapper(env: RuntimeEnvironment): RuntimeEnvironment = {

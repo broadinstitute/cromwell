@@ -14,6 +14,7 @@ import mouse.all._
 import org.apache.commons.codec.digest.DigestUtils
 import shapeless.{Inl, Poly1}
 import spray.json.{JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsValue}
+import common.util.StringUtil._
 
 //Take cromwell's outputs and format them as expected by the spec
 object OutputManipulator extends Poly1 {
@@ -102,9 +103,9 @@ object OutputManipulator extends Poly1 {
       case Some(localRoot: DefaultPath) =>
         // For local paths, the root doesn't have "execution" in it but that's where the outputs are
         val withExecution = localRoot / "execution"
-        path.pathAsString.stripPrefix(withExecution.pathAsString)
+        path.pathAsString.stripPrefix(withExecution.pathAsString.ensureSlashed)
       case Some(gcsRoot: GcsPath) =>
-        path.pathAsString.stripPrefix(gcsRoot.pathAsString)
+        path.pathAsString.stripPrefix(gcsRoot.pathAsString.ensureSlashed)
       case _ => path.name
     }
 

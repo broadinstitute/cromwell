@@ -203,12 +203,17 @@ object WdlWriter {
   }
 
   implicit val runtimeAttributesSectionElementWriter: WdlWriter[RuntimeAttributesSectionElement] = new WdlWriter[RuntimeAttributesSectionElement] {
-    override def toWdl(a: RuntimeAttributesSectionElement): String =
+    override def toWdl(a: RuntimeAttributesSectionElement): String = {
+      val runtimeMap = a.runtimeAttributes map { pair =>
+        s"${pair.key}: ${pair.value.toWdl}"
+      }
+
       s"""
          |runtime {
-         |  ${a.runtimeAttributes.map(_.toWdl).mkString("\n  ")}
+         |  ${runtimeMap.mkString("\n")}
          |}
        """.stripMargin
+    }
   }
 
   implicit val metaValueElementWriter: WdlWriter[MetaValueElement] = new WdlWriter[MetaValueElement] {

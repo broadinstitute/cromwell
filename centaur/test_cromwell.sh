@@ -109,7 +109,7 @@ cd "${RUN_DIR}"
 TEST_STATUS="failed"
 
 ENABLE_COVERAGE=${CENTAUR_SBT_COVERAGE} sbt centaur/it:compile
-CP=$(ENABLE_COVERAGE=${CENTAUR_SBT_COVERAGE} sbt "export centaur/it:dependencyClasspath" --error)
+CP=$(ENABLE_COVERAGE=${CENTAUR_SBT_COVERAGE} sbt "early(error)" "export centaur/it:dependencyClasspath")
 
 if [ -n "${TEST_CASE_DIR}" ]; then
     RUN_SPECIFIED_TEST_DIR_CMD="-Dcentaur.standardTestCasePath=${TEST_CASE_DIR}"
@@ -126,7 +126,7 @@ CENTAUR_CONF="${CENTAUR_CROMWELL_MODE} ${CENTAUR_CROMWELL_JAR} ${CENTAUR_CROMWEL
 if [[ -n ${EXCLUDE_TAG[*]} ]]; then
     echo "Running Centaur filtering out ${EXCLUDE_TAG[*]} tests"
     EXCLUDE=""
-    for val in "${EXCLUDE_TAG[@]}"; do 
+    for val in "${EXCLUDE_TAG[@]}"; do
         EXCLUDE="-l $val "${EXCLUDE}
     done
     TEST_COMMAND="java ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -PS${TEST_THREAD_COUNT} "${EXCLUDE}

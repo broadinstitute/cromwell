@@ -85,9 +85,10 @@ object Settings {
   lazy val assemblySettings = Seq(
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar",
     test in assembly := {},
-    assemblyMergeStrategy in assembly := customMergeStrategy.value,
-    logLevel in assembly :=
-      sys.env.get("ASSEMBLY_LOG_LEVEL").flatMap(Level.apply).getOrElse((logLevel in assembly).value)
+    logLevel in assembly := Level.Error,
+    assemblyMergeStrategy in assembly := customMergeStrategy.value//,
+    //logLevel in assembly :=
+      //sys.env.get("ASSEMBLY_LOG_LEVEL").flatMap(Level.apply).getOrElse((logLevel in assembly).value)
   )
 
   val Scala2_12Version = "2.12.4"

@@ -137,7 +137,7 @@ lazy val googlePipelinesV2Alpha1 = (project in backendRoot / "google" / "pipelin
 
 // Legacy, inherits all its code from googlePipelinesV1Alpha2
 lazy val jesBackend = (project in backendRoot / "jes")
-  .withLibrarySettings("cromwell-jes-backend")  
+  .withLibrarySettings("cromwell-jes-backend")
   .dependsOn(googlePipelinesV1Alpha2)
 
 lazy val sfsBackend = (project in backendRoot / "sfs")
@@ -279,3 +279,5 @@ lazy val root = (project in file("."))
   .aggregate(wdlTransformsDraft3)
   .aggregate(wom)
   .aggregate(womtool)
+
+  inThisBuild(logLevel in assembly := Level.Error)

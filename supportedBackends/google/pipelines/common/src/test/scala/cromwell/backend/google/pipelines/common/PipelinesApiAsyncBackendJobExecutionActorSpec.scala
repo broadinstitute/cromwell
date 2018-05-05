@@ -55,7 +55,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
   with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
   val mockPathBuilder: GcsPathBuilder = GcsPathBuilder.fromCredentials(NoCredentials.getInstance(),
     "test-cromwell", RetrySettings.newBuilder().build(), GcsStorage.DefaultCloudStorageConfiguration, WorkflowOptions.empty)
-  
+
   var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor))
 
   import PipelinesApiTestConfig._
@@ -443,7 +443,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
 
   private val dockerAndDiskWdlNamespace = WdlNamespaceWithWorkflow.load(SampleWdl.CurrentDirectory.asWorkflowSources(DockerAndDiskRuntime).workflowSource,
     Seq.empty[Draft2ImportResolver]).get
-  
+
   it should "generate correct JesFileInputs from a WdlMap" taggedAs PostWomTest ignore {
     val inputs: Map[String, WomValue] = Map(
       "stringToFileMap" -> WomMap(WomMapType(WomStringType, WomSingleFileType), Map(
@@ -463,7 +463,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
         WomString("stringToString2") -> WomString("path/to/stringToString2")
       ))
     )
-    
+
     val workflowInputs = inputs map {
       case (k, v) => s"wf_whereami.whereami$k" -> v
     }
@@ -835,6 +835,75 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
 
     val descriptorWithMax2AndKey2 = attempt2(max = 2)
     descriptorWithMax2AndKey2.preemptible shouldBe true
+  }
+
+  it should "return the project from the workflow options in the start metadata" in {
+    val googleProject = "baa-ram-ewe"
+    val jesGcsRoot = "gs://anorexic/duck"
+    val workflowId = WorkflowId.randomId()
+    val workflowDescriptor = BackendWorkflowDescriptor(
+      workflowId,
+      WdlNamespaceWithWorkflow
+        .load(
+          SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).workflowSource,
+          Seq.empty[Draft2ImportResolver]
+        )
+        .get
+        .workflow
+        .toWomWorkflowDefinition(isASubworkflow = false)
+        .getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
+      Map.empty,
+      WorkflowOptions.fromJsonString(
+        s"""|{
+            |  "google_project": "$googleProject",
+            |  "jes_gcs_root": "$jesGcsRoot"
+            |}
+            |""".stripMargin
+      ).get,
+      Labels.empty
+    )
+
+    val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == "goodbye").get
+    val key = BackendJobDescriptorKey(call, None, 1)
+    val runtimeAttributes = makeRuntimeAttributes(call)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
+
+    val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+    val testActorRef = TestActorRef[TestableJesJobExecutionActor](
+      props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
+
+    val jesBackend = testActorRef.underlyingActor
+
+    val actual = jesBackend.startMetadataKeyValues.mapValues(_.toString)
+    actual should be(
+      Map(
+        "backendLabels:cromwell-workflow-id" -> s"cromwell-$workflowId",
+        "backendLabels:wdl-task-name" -> "goodbye",
+        "backendLogs:log" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/goodbye.log",
+        "callRoot" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye",
+        "jes:endpointUrl" -> "https://genomics.googleapis.com/",
+        "jes:executionBucket" -> jesGcsRoot,
+        "jes:googleProject" -> googleProject,
+        "labels:cromwell-workflow-id" -> s"cromwell-$workflowId",
+        "labels:wdl-task-name" -> "goodbye",
+        "preemptible" -> "false",
+        "runtimeAttributes:bootDiskSizeGb" -> "10",
+        "runtimeAttributes:continueOnReturnCode" -> "0",
+        "runtimeAttributes:cpu" -> "1",
+        "runtimeAttributes:cpuMin" -> "1",
+        "runtimeAttributes:disks" -> "local-disk 200 SSD",
+        "runtimeAttributes:docker" -> "ubuntu:latest",
+        "runtimeAttributes:failOnStderr" -> "false",
+        "runtimeAttributes:memory" -> "2 GB",
+        "runtimeAttributes:memoryMin" -> "2 GB",
+        "runtimeAttributes:noAddress" -> "false",
+        "runtimeAttributes:preemptible" -> "0",
+        "runtimeAttributes:zones" -> "us-central1-b,us-central1-a",
+        "stderr" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/goodbye-stderr.log",
+        "stdout" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/goodbye-stdout.log"
+      )
+    )
+
   }
 
   private def makeRuntimeAttributes(job: CommandCallNode) = {

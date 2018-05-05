@@ -183,13 +183,6 @@ object SampleWdl {
     )
   }
 
-
-  object EmptyWorkflow extends SampleWdl {
-    override def workflowSource(runtime: String = "") = "workflow empty_workflow {}"
-
-    val rawInputs = Map.empty[String, Any]
-  }
-
   object CoercionNotDefined extends SampleWdl {
     override def workflowSource(runtime: String = "") = {
       s"""

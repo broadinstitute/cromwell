@@ -20,8 +20,6 @@ workflow cwl_conformance_test {
 
     call make_summary {
         input:
-            stdouts = run_test_index.out,
-            stderrs = run_test_index.err,
             test_count = get_test_count.test_count,
             test_result_codes = run_test_index.test_result_code,
             conformance_expected_failures = conformance_expected_failures
@@ -70,14 +68,12 @@ task run_test_index {
 
     output {
         Int test_result_code = read_int("test_result_code")
-        String out = read_string(stdout())
-        String err = read_string(stderr())
+        File out = stdout()
+        File err = stderr()
     }
 }
 
 task make_summary {
-    Array[String] stdouts
-    Array[String] stderrs
     Int test_count
     Array[Int] test_result_codes
     String conformance_expected_failures
@@ -114,8 +110,6 @@ task make_summary {
             printf 'Unexpected passing tests: (%s)\n' "${varBegin}UNEXPECTED_PASS[*]${varEnd}" >> summary_result_text
             printf 'Unexpected failing tests: (%s)\n' "${varBegin}UNEXPECTED_FAIL[*]${varEnd}" >> summary_result_text
             printf 'Does ${conformance_expected_failures} need to be updated?\n' >> summary_result_text
-            printf '${sep = "\n" stderrs}\n' >> summary_result_text
-            printf '${sep = "\n" stdouts}\n' >> summary_result_text
             echo 1 > summary_result_code
         else
             echo 0 > summary_result_code

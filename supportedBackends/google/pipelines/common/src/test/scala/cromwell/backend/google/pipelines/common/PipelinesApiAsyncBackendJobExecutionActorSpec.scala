@@ -868,8 +868,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
 
-    val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
-    val testActorRef = TestActorRef[TestableJesJobExecutionActor](
+    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+    val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     val jesBackend = testActorRef.underlyingActor

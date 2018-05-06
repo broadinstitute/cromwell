@@ -83,13 +83,12 @@ object CentaurCromwellClient {
       case _: TimeoutException |
            _: StreamTcpException |
            _: IOException |
-           _: UnsupportedContentTypeException if !CromwellManager.isReady && attempt < awaitMaxAttempts =>
+           _: UnsupportedContentTypeException if attempt < awaitMaxAttempts =>
         Thread.sleep(awaitSleep.toMillis)
         awaitFutureCompletion(x, timeout, attempt + 1)
       // see https://github.com/akka/akka-http/issues/768
       case unexpected: RuntimeException
         if unexpected.getMessage.contains("The http server closed the connection unexpectedly") &&
-          !CromwellManager.isReady &&
           attempt < awaitMaxAttempts =>
         Thread.sleep(awaitSleep.toMillis)
         awaitFutureCompletion(x, timeout, attempt + 1)

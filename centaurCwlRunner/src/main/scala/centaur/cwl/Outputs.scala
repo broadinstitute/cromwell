@@ -2,7 +2,7 @@ package centaur.cwl
 
 import centaur.api.CentaurCromwellClient
 import cromwell.api.model.SubmittedWorkflow
-import cromwell.core.path.{Path, PathBuilder}
+import cromwell.core.path.PathBuilder
 import common.validation.Parse._
 import cwl.ontology.Schema
 import cwl.{Cwl, CwlDecoder, MyriadOutputType}
@@ -10,13 +10,7 @@ import io.circe.Json
 import io.circe.syntax._
 import shapeless.Poly1
 import spray.json.{JsObject, JsString, JsValue}
-
 import scalaz.syntax.std.map._
-import cats.syntax.traverse._
-import cats.syntax.validated._
-import cats.instances.list._
-import common.validation.ErrorOr.ErrorOr
-import common.validation.Validation._
 
 object Outputs {
 
@@ -24,15 +18,9 @@ object Outputs {
   def handleOutput(submittedWorkflow: SubmittedWorkflow, pathBuilder: PathBuilder): String = {
     val metadata: Map[String, JsValue] = CentaurCromwellClient.metadata(submittedWorkflow).get.value
 
-    val callRoots = metadata.toList.flatTraverse[ErrorOr, Path]({
-      case (k, v) if k.endsWith("callRoot") => pathBuilder.build(v.asInstanceOf[JsString].value).toErrorOr.map(List(_))
-      case _ => List.empty.validNel
-    }) // Not sure what to do here, fail or continue without the roots ?
-      .getOrElse(List.empty)
-
     // Wrapper function to provide the right signature for `intersectWith` below.
     def outputResolver(schemaOption: Option[Schema])(jsValue: JsValue, mot: MyriadOutputType): Json = {
-      OutputManipulator.resolveOutput(jsValue, pathBuilder, mot, schemaOption, callRoots)
+      OutputManipulator.resolveOutput(jsValue, pathBuilder, mot, schemaOption)
     }
 
     //Sorry for all the nesting, but spray json JsValue doesn't have optional access methods like Argonaut/circe,

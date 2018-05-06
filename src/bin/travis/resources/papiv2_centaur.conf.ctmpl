@@ -3,12 +3,13 @@
 include "application.conf"
 
 backend {
-  default = "Jes"
-  enabled = ["Jes", "Jes-Refresh"]
+  default = "Papi"
+  enabled = ["Papi", "Papiv2", "Papi-Caching-No-Copy"]
   providers {
     Local.config.filesystems.gcs.auth = "service_account"
-    Jes {
-      actor-factory = "cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory"
+    # Default papi v2 backend
+    Papi {
+      actor-factory = "cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory"
       config {
         project = "broad-dsde-cromwell-dev"
         root = "gs://cloud-cromwell-dev/cromwell_execution/travis"
@@ -17,32 +18,29 @@ backend {
           auth = "service_account"
           endpoint-url = "https://genomics.googleapis.com/"
         }
-        dockerhub {
-          account = "{{$cromwellDockerhub.Data.account}}"
-          token = "{{$cromwellDockerhub.Data.token}}"
-        }
         filesystems {
           gcs.auth = "service_account"
         }
       }
     }
-    Jes-Refresh {
-      actor-factory = "cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory"
+    # Same as Papi, but with a v2 specific name so it can be targeted in centaur tests
+    Papiv2 {
+      actor-factory = "cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory"
       config {
         project = "broad-dsde-cromwell-dev"
-        root = "gs://centaur-refresh-private/cromwell_execution/travis"
+        root = "gs://cloud-cromwell-dev/cromwell_execution/travis"
         maximum-polling-interval = 600
         genomics {
           auth = "service_account"
           endpoint-url = "https://genomics.googleapis.com/"
         }
         filesystems {
-          gcs.auth = "refresh_token"
+          gcs.auth = "service_account"
         }
       }
     }
-    Jes-Caching-No-Copy {
-      actor-factory = "cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory"
+    Papi-Caching-No-Copy {
+      actor-factory = "cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory"
       config {
         project = "broad-dsde-cromwell-dev"
         root = "gs://cloud-cromwell-dev/cromwell_execution/travis"
@@ -96,11 +94,9 @@ database {
   profile = "slick.jdbc.MySQLProfile$"
 }
 
-backend.providers.Jes.config.concurrent-job-limit = 20
-backend.providers.Jes-Refresh.config.concurrent-job-limit = 20
-backend.providers.Jes-Caching-No-Copy.config.concurrent-job-limit = 20
-
-system.job-shell=/bin/sh
+backend.providers.Papi.config.concurrent-job-limit = 20
+backend.providers.Papiv2.config.concurrent-job-limit = 20
+backend.providers.Papi-Caching-No-Copy.config.concurrent-job-limit = 20
 
 {{end}}
 {{end}}

@@ -3,6 +3,7 @@ import Merging.customMergeStrategy
 import Publishing._
 import Testing._
 import Version._
+import org.apache.ivy.plugins.conflict.NoConflictManager
 import sbt.Keys._
 import sbt._
 import sbtassembly.AssemblyPlugin

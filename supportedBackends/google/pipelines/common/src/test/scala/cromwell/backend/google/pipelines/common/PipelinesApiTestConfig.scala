@@ -1,7 +1,7 @@
 package cromwell.backend.google.pipelines.common
 
 import akka.actor.ActorSystem
-import com.google.auth.Credentials
+import com.google.api.client.http.HttpRequestInitializer
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterface, PipelinesApiRequestFactory}
@@ -101,10 +101,10 @@ object PipelinesApiTestConfig {
   }
   val NoDefaultsConfigurationDescriptor = BackendConfigurationDescriptor(JesBackendNoDefaultConfig, JesGlobalConfig)
   val genomicsFactory = new PipelinesApiFactoryInterface {
-    override def fromCredentials(credentials: Credentials) = new PipelinesApiRequestFactory {
-      override def abortRequest(job: StandardAsyncJob) = ???
-      override def getOperationRequest(job: StandardAsyncJob) = ???
-      override def makeRunPipelineRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters) = ???
+    override def build(httpRequestInitializer: HttpRequestInitializer) = new PipelinesApiRequestFactory {
+      override def cancelRequest(job: StandardAsyncJob) = ???
+      override def getRequest(job: StandardAsyncJob) = ???
+      override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters) = ???
     }
   }
   def pathBuilders()(implicit as: ActorSystem) = Await.result(JesBackendConfigurationDescriptor.pathBuilders(WorkflowOptions.empty), 5.seconds)

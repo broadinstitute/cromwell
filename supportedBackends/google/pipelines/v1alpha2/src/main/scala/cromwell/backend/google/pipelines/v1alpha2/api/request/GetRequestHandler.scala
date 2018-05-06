@@ -1,4 +1,4 @@
-package cromwell.backend.google.pipelines.v1alpha2.api
+package cromwell.backend.google.pipelines.v1alpha2.api.request
 
 import java.time.OffsetDateTime
 import java.util.{ArrayList => JArrayList}
@@ -21,7 +21,7 @@ import scala.concurrent.{Future, Promise}
 import scala.language.postfixOps
 import scala.util.{Failure, Try, Success => TrySuccess}
 
-trait StatusRequestBatchHandler { this: BatchHandler =>
+trait GetRequestHandler { this: RequestHandler =>
   private [api] def statusPollResultHandler(originalRequest: PAPIStatusPollRequest, completionPromise: Promise[Try[Unit]], pollingManager: ActorRef) = new JsonBatchCallback[Operation] {
     override def onSuccess(operation: Operation, responseHeaders: HttpHeaders): Unit = {
       originalRequest.requester ! interpretOperationStatus(operation)
@@ -30,7 +30,7 @@ trait StatusRequestBatchHandler { this: BatchHandler =>
     }
 
     override def onFailure(e: GoogleJsonError, responseHeaders: HttpHeaders): Unit = {
-      pollingManager ! JesApiStatusQueryFailed(originalRequest, new PAPIApiException(GoogleJsonException(e, responseHeaders)))
+      pollingManager ! PipelinesApiStatusQueryFailed(originalRequest, new PAPIApiException(GoogleJsonException(e, responseHeaders)))
       completionPromise.trySuccess(Failure(new Exception(mkErrorString(e))))
       ()
     }
@@ -44,7 +44,7 @@ trait StatusRequestBatchHandler { this: BatchHandler =>
   }
 
   // Done so that the specs can override this behavior
-  private [api] def interpretOperationStatus(op: Operation) = StatusRequestBatchHandler.interpretOperationStatus(op)
+  private [api] def interpretOperationStatus(op: Operation) = GetRequestHandler.interpretOperationStatus(op)
 
   private def addStatusPollToBatch(request: HttpRequest, batch: BatchRequest, resultHandler: JsonBatchCallback[Operation]): Unit = {
     /*
@@ -56,7 +56,7 @@ trait StatusRequestBatchHandler { this: BatchHandler =>
   }
 }
 
-private[api] object StatusRequestBatchHandler {
+private[api] object GetRequestHandler {
 
   private val AcceptableEvents = Set("start", "pulling-image", "localizing-files", "running-docker", "delocalizing-files", "ok", "fail", "start-shutdown", "preempted")
 

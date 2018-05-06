@@ -8,8 +8,8 @@ import com.google.api.client.googleapis.batch.json.JsonBatchCallback
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpRequest
 import cromwell.backend.google.pipelines.common.PipelinesApiConfiguration
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{PAPIApiException, PAPIApiRequestFailed, PAPIStatusPollRequest, RequestJesPollingWork}
-import cromwell.backend.google.pipelines.common.api.TestPipelinesApiRequestWorker.{CallbackFailure, CallbackSuccess, JesBatchCallbackResponse}
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{PAPIApiException, PAPIApiRequestFailed, PAPIStatusPollRequest, PipelinesWorkerRequestWork}
+import cromwell.backend.google.pipelines.common.api.TestPipelinesApiRequestWorker.{CallbackFailure, CallbackSuccess, PipelinesApiBatchCallbackResponse}
 import cromwell.core.{ExecutionEvent, TestKitSuite}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
@@ -44,12 +44,12 @@ abstract class PipelinesApiRequestWorkerSpec[O >: Null]
   }
 
   it should "query for work and wait for a reply" in {
-    managerProbe.expectMsgClass(max = TestExecutionTimeout, c = classOf[PipelinesApiRequestManager.RequestJesPollingWork])
+    managerProbe.expectMsgClass(max = TestExecutionTimeout, c = classOf[PipelinesApiRequestManager.PipelinesWorkerRequestWork])
     managerProbe.expectNoMsg(max = AwaitAlmostNothing)
   }
 
   it should "respond correctly with various run statuses" in {
-    managerProbe.expectMsgClass(max = TestExecutionTimeout, c = classOf[PipelinesApiRequestManager.RequestJesPollingWork])
+    managerProbe.expectMsgClass(max = TestExecutionTimeout, c = classOf[PipelinesApiRequestManager.PipelinesWorkerRequestWork])
 
     val requester1 = TestProbe()
     val query1 = PAPIStatusPollRequest(null, requester1.ref, null, null)
@@ -87,7 +87,7 @@ abstract class PipelinesApiRequestWorkerSpec[O >: Null]
         if (!failure.cause.isInstanceOf[PAPIApiException]) fail("Unexpected failure cause class: " + failure.cause.getClass.getSimpleName)
         if (failure.query != query2 && failure.query != query3) fail("Unexpected query caused failure: " + failure.query)
     }
-    managerProbe.expectMsg(RequestJesPollingWork(PipelinesApiRequestWorker.MaxBatchSize))
+    managerProbe.expectMsg(PipelinesWorkerRequestWork(PipelinesApiRequestWorker.MaxBatchSize))
     managerProbe.expectNoMsg(max = AwaitAlmostNothing)
   }
 }
@@ -98,10 +98,10 @@ class TestPipelinesApiRequestWorker(manager: ActorRef, qps: Int Refined Positive
   override def runBatch(batch: BatchRequest) = batchHandler.runBatch()
 }
 
-abstract class TestPipelinesApiBatchHandler[O >: Null] extends PipelinesApiBatchHandler {
+abstract class TestPipelinesApiBatchHandler[O >: Null] extends PipelinesApiRequestHandler {
   var operationStatusResponses: Queue[RunStatus] = Queue.empty
   var resultHandlers: Queue[JsonBatchCallback[O]] = Queue.empty
-  var callbackResponses: Queue[JesBatchCallbackResponse] = Queue.empty
+  var callbackResponses: Queue[PipelinesApiBatchCallbackResponse] = Queue.empty
   var runBatchRequested: Boolean = false
 
   def createBatch(genomicsInterface: O): BatchRequest = null
@@ -139,7 +139,7 @@ object TestPipelinesApiRequestWorker {
               (implicit batchHandler: TestPipelinesApiBatchHandler[_]) = 
     Props(new TestPipelinesApiRequestWorker(manager, jesConfiguration.qps, registryProbe))
   
-  sealed trait JesBatchCallbackResponse
-  case object CallbackSuccess extends JesBatchCallbackResponse
-  case object CallbackFailure extends JesBatchCallbackResponse
+  sealed trait PipelinesApiBatchCallbackResponse
+  case object CallbackSuccess extends PipelinesApiBatchCallbackResponse
+  case object CallbackFailure extends PipelinesApiBatchCallbackResponse
 }

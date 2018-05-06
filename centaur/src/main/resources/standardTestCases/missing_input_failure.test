@@ -1,6 +1,6 @@
 name: missing_input_failure
 testFormat: workflowfailure
-backends: [Jes]
+backends: [Papi]
 
 files {
   workflow: missing_input_failure/missing_input_failure.wdl

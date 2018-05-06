@@ -10,7 +10,7 @@ sealed trait CheckFiles {
   def countObjectsAtPath: String => Int
 }
 
-case object JesCheckFiles extends CheckFiles {
+case object PipelinesCheckFiles extends CheckFiles {
   import GCS._
 
   private lazy val storage = Operations.storage

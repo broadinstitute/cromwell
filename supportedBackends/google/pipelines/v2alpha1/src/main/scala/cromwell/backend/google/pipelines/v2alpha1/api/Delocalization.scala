@@ -42,11 +42,11 @@ trait Delocalization {
     val gcsLegacyLogPath = createPipelineParameters.logGcsPath.pathAsString
 
     val stdoutPath = createPipelineParameters.logGcsPath
-      .sibling(createPipelineParameters.logGcsPath.nameWithoutExtension + "-stdout.log")
+      .sibling(createPipelineParameters.logGcsPath.nameWithoutExtensionNoIo + "-stdout.log")
       .pathAsString
 
     val stderrPath = createPipelineParameters.logGcsPath
-      .sibling(createPipelineParameters.logGcsPath.nameWithoutExtension + "-stderr.log")
+      .sibling(createPipelineParameters.logGcsPath.nameWithoutExtensionNoIo + "-stderr.log")
       .pathAsString
 
     createPipelineParameters.outputParameters.map(_.toAction(mounts)) ++

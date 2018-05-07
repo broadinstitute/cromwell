@@ -165,7 +165,7 @@ object WdlWriter {
       case a: ArrayTypeElement => s"Array[${typeElementWriter.toWdl(a.inner)}]"
       case a: MapTypeElement => s"Map[${typeElementWriter.toWdl(a.keyType)}, ${typeElementWriter.toWdl(a.valueType)}]"
       case a: OptionalTypeElement => s"${typeElementWriter.toWdl(a.maybeType)}?"
-      case _: NonEmptyTypeElement => ???
+      case a: NonEmptyTypeElement => s"${typeElementWriter.toWdl(a.arrayType)}+"
       case a: PairTypeElement => s"Pair[${typeElementWriter.toWdl(a.leftType)}, ${typeElementWriter.toWdl(a.rightType)}]"
       case _: ObjectTypeElement.type => "Object"
       case a: TypeAliasElement => a.alias

@@ -4,6 +4,8 @@ workflow taskless_engine_functions {
 
   Array[Int] ints = [ 1, 2 ]
 
+  Array[Int]+ definitelyInts = [ 1, 2 ]
+
   Array[String] strings = ["a", "b"]
 
   String filepath = "gs://not/a/real/file.txt"

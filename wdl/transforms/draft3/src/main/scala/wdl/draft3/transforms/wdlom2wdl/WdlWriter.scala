@@ -280,8 +280,8 @@ object WdlWriter {
 
   implicit val commandSectionElementWriter: WdlWriter[CommandSectionElement] = new WdlWriter[CommandSectionElement] {
     override def toWdl(a: CommandSectionElement): String = {
-      s"""command {
-         |${combine(a.parts.map(_.toWdl))}}""".stripMargin
+      s"""command <<<
+         |${combine(a.parts.map(_.toWdl))}>>>""".stripMargin
     }
   }
 

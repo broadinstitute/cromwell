@@ -155,7 +155,7 @@ object WdlWriter {
     }
   }
 
-  implicit val intermediateValueDeclarationElement: WdlWriter[IntermediateValueDeclarationElement] = new WdlWriter[IntermediateValueDeclarationElement] {
+  implicit val intermediateValueDeclarationElementWriter: WdlWriter[IntermediateValueDeclarationElement] = new WdlWriter[IntermediateValueDeclarationElement] {
     override def toWdl(a: IntermediateValueDeclarationElement) =
       s"${a.typeElement.toWdl} ${a.name} = ${a.expression.toWdl}"
   }

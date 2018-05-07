@@ -11,9 +11,13 @@ import wdl.model.draft3.elements.FileElement
 
 class WdlomToWdlFileSpec extends FlatSpec with Matchers {
 
-  val testCases = File("wdl/transforms/draft3/src/test/cases")
+  val testDirectory = File("wdl/transforms/draft3/src/test/cases")
 
-  testCases.list.foreach { file =>
+  val testFiles = testDirectory.list
+
+  assert(testFiles.nonEmpty)
+
+  testFiles.foreach { file =>
 
     it should s"write a file that re-evaluates to the same case classes for ${file.name}" in {
 

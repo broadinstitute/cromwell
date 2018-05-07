@@ -112,7 +112,7 @@ object WdlWriter {
     override def toWdl(a: WorkflowGraphElement) = a match {
       case a: CallElement => a.toWdl
       case a: IntermediateValueDeclarationElement => a.toWdl
-      case _: OutputDeclarationElement => ???
+      case a: OutputDeclarationElement => a.toWdl
       case a: InputDeclarationElement => a.toWdl
       case a: IfElement => a.toWdl
       case a: ScatterElement => a.toWdl

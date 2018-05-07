@@ -129,7 +129,7 @@ object WdlWriter {
     override def toWdl(a: CallBodyElement): String = {
       if (a.inputs.nonEmpty) {
         s"""input:
-           |${indentAndCombine(a.inputs.map(_.toWdl))}""".stripMargin
+           |${indent(indent(a.inputs.map(_.toWdl).mkString(", ")))}""".stripMargin
       } else {
         ""
       }
@@ -146,7 +146,8 @@ object WdlWriter {
       val bodyExpression = a.body match {
         case Some(body) =>
           s""" {
-             |  ${body.toWdl}}""".stripMargin
+             |  ${body.toWdl}
+             |}""".stripMargin
         case None => ""
       }
 

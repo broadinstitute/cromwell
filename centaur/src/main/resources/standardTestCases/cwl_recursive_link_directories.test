@@ -1,6 +1,7 @@
 name: cwl_recursive_link_directories
 testFormat: workflowsuccess
 backends: [Local]
+backendsMode: only
 tags: [localdockertest]
 
 files {

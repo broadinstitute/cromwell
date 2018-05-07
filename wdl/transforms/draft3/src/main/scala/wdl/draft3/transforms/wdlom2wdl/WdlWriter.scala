@@ -12,6 +12,11 @@ import scala.language.implicitConversions
 @typeclass
 trait WdlWriter[A] {
   def toWdl(a: A): String
+
+  // Stolen from WomGraph.scala
+  def indent(s: String) = s.lines.map(x => s"  $x").mkString(System.lineSeparator)
+  def combine(ss: Iterable[String]) = ss.mkString(start="", sep=System.lineSeparator, end=System.lineSeparator)
+  def indentAndCombine(ss: Iterable[String]) = combine(ss.map(indent))
 }
 
 object WdlWriter {
@@ -22,8 +27,7 @@ object WdlWriter {
   implicit val ifWriter: WdlWriter[IfElement] = new WdlWriter[IfElement] {
     override def toWdl(a: IfElement) = {
       s"""if (${a.conditionExpression.toWdl}) {
-         |  ${a.graphElements.map(_.toWdl).mkString("\n")}
-         |}""".stripMargin
+         |${indentAndCombine(a.graphElements.map(_.toWdl))}}""".stripMargin
     }
   }
 
@@ -115,19 +119,17 @@ object WdlWriter {
     }
   }
 
-  // TODO: failing due to differences in scatterName
   implicit val scatterElementWriter: WdlWriter[ScatterElement] = new WdlWriter[ScatterElement] {
     override def toWdl(a: ScatterElement): String =
       s"""scatter (${a.scatterVariableName} in ${a.scatterExpression.toWdl}) {
-         |  ${a.graphElements.map(_.toWdl).mkString("\n  ")}
-         |}""".stripMargin
+         |${indentAndCombine(a.graphElements.map(_.toWdl))}}""".stripMargin
   }
 
   implicit val callBodyElement: WdlWriter[CallBodyElement] = new WdlWriter[CallBodyElement] {
     override def toWdl(a: CallBodyElement): String = {
       if (a.inputs.nonEmpty) {
         s"""input:
-           |  ${a.inputs.map(_.toWdl).mkString(",\n  ")}""".stripMargin
+           |${indentAndCombine(a.inputs.map(_.toWdl))}""".stripMargin
       } else {
         ""
       }
@@ -144,8 +146,7 @@ object WdlWriter {
       val bodyExpression = a.body match {
         case Some(body) =>
           s""" {
-             |  ${body.toWdl}
-             |}""".stripMargin
+             |  ${body.toWdl}}""".stripMargin
         case None => ""
       }
 
@@ -187,9 +188,9 @@ object WdlWriter {
       }
 
       s"""workflow ${a.name} {
-         |  $inputs
-         |  ${a.graphElements.map(_.toWdl).mkString("\n")}
-         |  $outputs
+         |${indent(inputs)}
+         |${indentAndCombine(a.graphElements.map(_.toWdl))}
+         |${indent(outputs)}
          |}""".stripMargin
     }
   }
@@ -201,8 +202,7 @@ object WdlWriter {
       }
 
       s"""runtime {
-         |  ${runtimeMap.mkString("\n")}
-         |}""".stripMargin
+         |${indentAndCombine(runtimeMap)}}""".stripMargin
     }
   }
 
@@ -228,7 +228,7 @@ object WdlWriter {
         s"${pair._1}: ${pair._2.toWdl}"
       }
       s"""meta {
-         |  ${map.mkString("\n  ")}
+         |${indentAndCombine(map)}
          |}""".stripMargin
     }
   }
@@ -239,7 +239,7 @@ object WdlWriter {
         s"${pair._1}: ${pair._2.toWdl}"
       }
       s"""parameter_meta {
-         |  ${map.mkString("\n  ")}
+         |${indentAndCombine(map)}
          |}""".stripMargin
     }
   }
@@ -268,13 +268,13 @@ object WdlWriter {
       }
 
       s"""task ${a.name} {
-         |  $inputs
-         |  ${a.declarations.map(_.toWdl).mkString("\n")}
-         |  $outputs
-         |  ${a.commandSection.toWdl}
-         |  $runtime
-         |  $meta
-         |  $parameterMeta
+         |${indent(inputs)}
+         |${indentAndCombine(a.declarations.map(_.toWdl))}
+         |${indent(outputs)}
+         |${indent(a.commandSection.toWdl)}
+         |${indent(runtime)}
+         |${indent(meta)}
+         |${indent(parameterMeta)}
          |}""".stripMargin
     }
   }
@@ -282,14 +282,14 @@ object WdlWriter {
   implicit val commandSectionElementWriter: WdlWriter[CommandSectionElement] = new WdlWriter[CommandSectionElement] {
     override def toWdl(a: CommandSectionElement): String = {
       s"""command {
-         |  ${a.parts.map(_.toWdl).mkString("\n")}
+         |${indentAndCombine(a.parts.map(_.toWdl))}
          |}""".stripMargin
     }
   }
 
   implicit val commandSectionLineWriter: WdlWriter[CommandSectionLine] = new WdlWriter[CommandSectionLine] {
     override def toWdl(a: CommandSectionLine): String = {
-      a.parts.map(_.toWdl).mkString(" ")
+      a.parts.map(_.toWdl).mkString
     }
   }
 
@@ -297,15 +297,35 @@ object WdlWriter {
     override def toWdl(a: CommandPartElement): String = a match {
       case a: StringCommandPartElement => a.value // .trim?
       case a: PlaceholderCommandPartElement =>
-        s"$${${a.expressionElement.toWdl}}" // TODO: attributes
+        val attributes = a.attributes.toWdl
+
+        if (attributes.nonEmpty)
+          s"~{$attributes ${a.expressionElement.toWdl}}"
+        else
+          s"~{${a.expressionElement.toWdl}}"
+    }
+  }
+
+  implicit val placeholderAttributeSetWriter: WdlWriter[PlaceholderAttributeSet] = new WdlWriter[PlaceholderAttributeSet] {
+    override def toWdl(a: PlaceholderAttributeSet): String = {
+      Map(
+        "sep" -> a.sepAttribute,
+        "true" -> a.trueAttribute,
+        "false" -> a.falseAttribute,
+        "default" -> a.defaultAttribute
+      ).map({ case (attrKey: String, maybeValue: Option[String]) =>
+        maybeValue match {
+          case Some(value) => attrKey + "=\"" + value + "\""
+          case None => ""
+        }
+      }).filterNot(_.length == 0).mkString(sep = " ")
     }
   }
 
   implicit val inputsSectionElementWriter: WdlWriter[InputsSectionElement] = new WdlWriter[InputsSectionElement] {
     override def toWdl(a: InputsSectionElement): String = {
       s"""input {
-         |  ${a.inputDeclarations.map(_.toWdl).mkString("\n  ")}
-         |}""".stripMargin
+         |${indentAndCombine(a.inputDeclarations.map(_.toWdl))}}""".stripMargin
     }
   }
 
@@ -323,8 +343,7 @@ object WdlWriter {
   implicit val outputsSectionElementWriter: WdlWriter[OutputsSectionElement] = new WdlWriter[OutputsSectionElement] {
     override def toWdl(a: OutputsSectionElement): String = {
       s"""output {
-         |  ${a.outputs.map(_.toWdl).mkString("\n")}
-         |}""".stripMargin
+         |${indentAndCombine(a.outputs.map(_.toWdl))}}""".stripMargin
     }
   }
 
@@ -407,8 +426,7 @@ object WdlWriter {
   implicit val structElementWriter: WdlWriter[StructElement] = new WdlWriter[StructElement] {
     override def toWdl(a: StructElement): String =
       s"""struct ${a.name} {
-         |  ${a.entries.map(_.toWdl).mkString("\n  ")}
-         |}""".stripMargin
+         |${indentAndCombine(a.entries.map(_.toWdl))}}""".stripMargin
   }
 
   implicit val structEntryElementWriter: WdlWriter[StructEntryElement] = new WdlWriter[StructEntryElement] {
@@ -418,9 +436,9 @@ object WdlWriter {
   implicit val fileElementWriter: WdlWriter[FileElement] = new WdlWriter[FileElement] {
     override def toWdl(a: FileElement) = {
       "version draft-3\n" +
-      a.structs.map(_.toWdl).mkString("\n") +
-      a.tasks.map(_.toWdl).mkString("\n") +
-      a.workflows.map(_.toWdl).mkString("\n")
+      combine(a.structs.map(_.toWdl)) +
+      combine(a.tasks.map(_.toWdl)) +
+      combine(a.workflows.map(_.toWdl))
     }
   }
 

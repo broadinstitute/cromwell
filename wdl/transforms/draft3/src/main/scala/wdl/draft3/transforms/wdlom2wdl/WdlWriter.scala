@@ -191,8 +191,7 @@ object WdlWriter {
       s"""workflow ${a.name} {
          |${indent(inputs)}
          |${indentAndCombine(a.graphElements.map(_.toWdl))}
-         |${indent(outputs)}
-         |}""".stripMargin
+         |${indent(outputs)}}""".stripMargin
     }
   }
 
@@ -272,18 +271,17 @@ object WdlWriter {
          |${indent(inputs)}
          |${indentAndCombine(a.declarations.map(_.toWdl))}
          |${indent(outputs)}
-         |${indent(a.commandSection.toWdl)}
+         |${a.commandSection.toWdl}
          |${indent(runtime)}
          |${indent(meta)}
-         |${indent(parameterMeta)}
-         |}""".stripMargin
+         |${indent(parameterMeta)}}""".stripMargin
     }
   }
 
   implicit val commandSectionElementWriter: WdlWriter[CommandSectionElement] = new WdlWriter[CommandSectionElement] {
     override def toWdl(a: CommandSectionElement): String = {
       s"""command {
-         |${indentAndCombine(a.parts.map(_.toWdl))}}""".stripMargin
+         |${combine(a.parts.map(_.toWdl))}}""".stripMargin
     }
   }
 

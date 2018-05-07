@@ -90,7 +90,7 @@ object Settings {
       sys.env.get("ASSEMBLY_LOG_LEVEL").flatMap(Level.apply).getOrElse((logLevel in assembly).value)
   )
 
-  val Scala2_12Version = "2.12.4"
+  val Scala2_12Version = "2.12.6"
   val ScalaVersion = Scala2_12Version
   val sharedSettings = ReleasePlugin.projectSettings ++
     cromwellVersionWithGit ++ publishingSettings ++ List(

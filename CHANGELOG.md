@@ -2,9 +2,32 @@
 
 ## 32 Release Notes
 
+### Backends
+
+#### Pipelines API V2
+Initial support for Google [Pipelines API version 2](https://cloud.google.com/genomics/reference/rest/).
+Expect feature parity except for private dockerhub images which are not supported at the moment, but will be in the near future.
+
+In addition, the following changes are to be expected:
+* Error messages for failed jobs might differ from V1
+* The Pipelines API log file content might differ from V1
+
+**Important (If you're running Cromwell with a Google backend, read this)**:
+The `actor-factory` value for the google backend (`cromwell.backend.impl.jes.JesBackendLifecycleActorFactory`) is being deprecated.
+Please update your configuration accordingly.
+
+| PAPI Version |                                 actor-factory                                |
+|--------------|:----------------------------------------------------------------------------:|
+|      V1      | cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory |
+|      V2      | cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory |
+
+If you don't update the `actor-factory` value, you'll get a deprecation warning in the logs, and Cromwell will default back to
+**PAPI V1**
+
 ### Labels
 * Cromwell has removed most of the formatting restrictions from custom labels. Please check the [README](README.md#label-format) for more detailed documentation.
 * Custom labels won't be submitted to Google backend as they are now decoupled from Google's default labels.
+* Cromwell now publishes the labels as soon as the workflow is submitted (whether started or on hold). If the labels are invalid, the workflow will not be submitted and request will fail.
 
 ### Scala 2.11 Removed
 From version 32 onwards we will no longer be publishing build artifacts compatible with Scala 2.11. 
@@ -91,6 +114,11 @@ will return the most-recent-unique value while
 ["Get workflow and call-level metadata for a specified workflow"](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/#get-workflow-and-call-level-metadata-for-a-specified-workflow)
 will return the up-to-date value. For example, if one previously updated a value from `"value-1"` > `"value-2"` >
 `"value-3"` > `"value-2"` then the former REST API will return `value-3` while the latter will return `value-2`.
+
+#### Workflow options `google_project` output in metadata
+
+Workflow metadata for jobs run on a Google Pipelines API backend will report the `google_project` specified via a
+[workflow options json](http://cromwell.readthedocs.io/en/develop/wf_options/Google/#google-pipelines-api-workflow-options).
 
 ## 31 Release Notes
 

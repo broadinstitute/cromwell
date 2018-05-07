@@ -2,7 +2,7 @@ package cromwell.backend.google.pipelines.common.api.clients
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import cromwell.backend.google.pipelines.common.PapiInstrumentation
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.JesApiStatusQueryFailed
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.PipelinesApiStatusQueryFailed
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiRequestFactory, PipelinesApiRequestManager, RunStatus}
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.WorkflowId
@@ -28,7 +28,7 @@ trait PipelinesApiStatusRequestClient { this: Actor with ActorLogging with PapiI
       log.debug(s"Polled status received: $r")
       pollSuccess()
       completePromise(Success(r))
-    case JesApiStatusQueryFailed(_, e) =>
+    case PipelinesApiStatusQueryFailed(_, e) =>
       log.debug("JES poll failed!")
       completePromise(Failure(e))
   }
@@ -42,7 +42,7 @@ trait PipelinesApiStatusRequestClient { this: Actor with ActorLogging with PapiI
     pollingActorClientPromise match {
       case Some(p) => p.future
       case None =>
-        papiApiActor ! PipelinesApiRequestManager.PAPIStatusPollRequest(workflowId, self, requestFactory.getOperationRequest(jobId), jobId)
+        papiApiActor ! PipelinesApiRequestManager.PAPIStatusPollRequest(workflowId, self, requestFactory.getRequest(jobId), jobId)
         val newPromise = Promise[RunStatus]()
         pollingActorClientPromise = Option(newPromise)
         newPromise.future

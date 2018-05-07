@@ -14,8 +14,11 @@ case "$TRAVIS_EVENT_TYPE" in
     push|pull_request|api)
     # BUILD_TYPE is coming in from the Travis build matrix
         case "$BUILD_TYPE" in
-        centaurJes)
-            "${SCRIPT_DIR}"/testCentaurJes.sh
+        centaurPAPIv1)
+            "${SCRIPT_DIR}"/testCentaurPapiv1.sh
+            ;;
+        centaurPAPIv2)
+            "${SCRIPT_DIR}"/testCentaurPapiv2.sh
             ;;
         centaurTes)
             "${SCRIPT_DIR}"/testCentaurTes.sh
@@ -30,8 +33,11 @@ case "$TRAVIS_EVENT_TYPE" in
         centaurCwlConformanceLocal)
             "${SCRIPT_DIR}"/testCentaurCwlConformanceLocal.sh
             ;;
-        centaurCwlConformancePAPI)
-            "${SCRIPT_DIR}"/testCentaurCwlConformancePAPI.sh
+        centaurCwlConformancePAPIv1)
+            "${SCRIPT_DIR}"/testCentaurCwlConformancePAPIv1.sh
+            ;;
+        centaurCwlConformancePAPIv2)
+            "${SCRIPT_DIR}"/testCentaurCwlConformancePAPIv2.sh
             ;;
         sbt)
             "${SCRIPT_DIR}"/testSbt.sh

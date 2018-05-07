@@ -8,9 +8,7 @@ import cromwell.core.io.AsyncIoActorClient
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import wom.graph.CommandCallNode
 
-import scala.concurrent.Future
-
-case class JesFinalizationActorParams
+case class PipelinesApiFinalizationActorParams
 (
   workflowDescriptor: BackendWorkflowDescriptor,
   ioActor: ActorRef,
@@ -23,27 +21,12 @@ case class JesFinalizationActorParams
   override val configurationDescriptor: BackendConfigurationDescriptor = jesConfiguration.configurationDescriptor
 }
 
-class JesFinalizationActor(val jesParams: JesFinalizationActorParams)
-  extends StandardFinalizationActor(jesParams) with AsyncIoActorClient {
+class PipelinesApiFinalizationActor(val pipelinesParams: PipelinesApiFinalizationActorParams)
+  extends StandardFinalizationActor(pipelinesParams) with AsyncIoActorClient {
 
-  lazy val jesConfiguration: PipelinesApiConfiguration = jesParams.jesConfiguration
+  lazy val jesConfiguration: PipelinesApiConfiguration = pipelinesParams.jesConfiguration
 
   override lazy val ioCommandBuilder = GcsBatchCommandBuilder
 
-  override def afterAll(): Future[Unit] = {
-    for {
-      // NOTE: These are currently in series, not in parallel. Not sure how many threads to throw at finalization
-      _ <- deleteAuthenticationFile()
-      _ <- super.afterAll()
-    } yield ()
-  }
-
-  private def deleteAuthenticationFile(): Future[Unit] = {
-    (jesConfiguration.needAuthFileUpload, workflowPaths) match {
-      case (true, Some(paths: PipelinesApiWorkflowPaths)) => asyncIo.deleteAsync(paths.gcsAuthFilePath)
-      case _ => Future.successful(())
-    }
-  }
-
-  override def ioActor: ActorRef = jesParams.ioActor
+  override def ioActor: ActorRef = pipelinesParams.ioActor
 }

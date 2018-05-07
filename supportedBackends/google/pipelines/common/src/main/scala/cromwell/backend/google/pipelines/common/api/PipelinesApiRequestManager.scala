@@ -29,7 +29,7 @@ import scala.concurrent.duration._
   * Holds a set of JES API requests until a JesQueryActor pulls the work.
   */
 class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: Int Refined Positive, override val serviceRegistryActor: ActorRef)
-                                   (implicit batchHandler: PipelinesApiBatchHandler) extends Actor
+                                   (implicit batchHandler: PipelinesApiRequestHandler) extends Actor
   with ActorLogging with StopAndLogSupervisor with PapiInstrumentation with CromwellInstrumentationScheduler with Timers {
 
   private val maxRetries = 10
@@ -105,10 +105,10 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
     case status: PAPIStatusPollRequest => workQueue :+= status
     case create: PAPIRunCreationRequest =>
       if (create.contentLength > maxBatchRequestSize) {
-        create.requester ! JesApiRunCreationQueryFailed(create, requestTooLargeException)
+        create.requester ! PipelinesApiRunCreationQueryFailed(create, requestTooLargeException)
       } else workQueue :+= create
     case abort: PAPIAbortRequest => workQueue :+= abort
-    case RequestJesPollingWork(maxBatchSize) =>
+    case PipelinesWorkerRequestWork(maxBatchSize) =>
       log.debug("Request for JES Polling Work received (max batch: {}, current queue size is {})", maxBatchSize, workQueue.size)
       handleJesPollingRequest(sender, maxBatchSize)
     case failure: PAPIApiRequestFailed => handleQueryFailure(failure)
@@ -117,7 +117,7 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
   }
 
   private def abort(workflowId: WorkflowId) = {
-    def aborted(query: PAPIRunCreationRequest) = query.requester ! JesApiRunCreationQueryFailed(query, JobAbortedException)
+    def aborted(query: PAPIRunCreationRequest) = query.requester ! PipelinesApiRunCreationQueryFailed(query, JobAbortedException)
 
     workQueue = workQueue.filterNot({
       case query: PAPIRunCreationRequest if query.workflowId == workflowId =>
@@ -185,11 +185,11 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
         workInProgress -= terminee
         work.workBatch.toList.foreach {
           case statusQuery: PAPIStatusPollRequest =>
-            self ! JesApiStatusQueryFailed(statusQuery, new PAPIApiException(throwable))
+            self ! PipelinesApiStatusQueryFailed(statusQuery, new PAPIApiException(throwable))
           case runCreationQuery: PAPIRunCreationRequest =>
-            self ! JesApiRunCreationQueryFailed(runCreationQuery, new PAPIApiException(throwable))
+            self ! PipelinesApiRunCreationQueryFailed(runCreationQuery, new PAPIApiException(throwable))
           case abortQuery: PAPIAbortRequest =>
-            self ! JesApiAbortQueryFailed(abortQuery, new PAPIApiException(throwable))
+            self ! PipelinesApiAbortQueryFailed(abortQuery, new PAPIApiException(throwable))
         }
       case None =>
         // It managed to die while doing absolutely nothing...!?
@@ -222,7 +222,7 @@ object PipelinesApiRequestManager {
   case object QueueMonitoringTimerKey
   case object QueueMonitoringTimerAction extends ControlMessage
   def props(qps: Int Refined Positive, requestWorkers: Int Refined Positive, serviceRegistryActor: ActorRef)
-              (implicit batchHandler: PipelinesApiBatchHandler): Props = Props(new PipelinesApiRequestManager(qps, requestWorkers, serviceRegistryActor)).withDispatcher(BackendDispatcher)
+              (implicit batchHandler: PipelinesApiRequestHandler): Props = Props(new PipelinesApiRequestManager(qps, requestWorkers, serviceRegistryActor)).withDispatcher(BackendDispatcher)
 
   /**
     * Given the Genomics API queries per 100 seconds and given MaxBatchSize will determine a batch interval which
@@ -280,14 +280,14 @@ object PipelinesApiRequestManager {
     val cause: PAPIApiException
   }
 
-  final case class JesApiStatusQueryFailed(query: PAPIApiRequest, cause: PAPIApiException) extends PAPIApiRequestFailed
-  final case class JesApiRunCreationQueryFailed(query: PAPIApiRequest, cause: PAPIApiException) extends PAPIApiRequestFailed
-  final case class JesApiAbortQueryFailed(query: PAPIApiRequest, cause: PAPIApiException) extends PAPIApiRequestFailed
+  final case class PipelinesApiStatusQueryFailed(query: PAPIApiRequest, cause: PAPIApiException) extends PAPIApiRequestFailed
+  final case class PipelinesApiRunCreationQueryFailed(query: PAPIApiRequest, cause: PAPIApiException) extends PAPIApiRequestFailed
+  final case class PipelinesApiAbortQueryFailed(query: PAPIApiRequest, cause: PAPIApiException) extends PAPIApiRequestFailed
 
   private[api] final case class PipelinesApiWorkBatch(workBatch: NonEmptyList[PAPIApiRequest])
   private[api] case object NoWorkToDo
 
-  private[api] final case class RequestJesPollingWork(maxBatchSize: Int) extends ControlMessage
+  private[api] final case class PipelinesWorkerRequestWork(maxBatchSize: Int) extends ControlMessage
 
   final case class GoogleJsonException(e: GoogleJsonError, responseHeaders: HttpHeaders) extends IOException with CromwellFatalExceptionMarker {
     override def getMessage: String = e.getMessage

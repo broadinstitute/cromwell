@@ -1,4 +1,4 @@
-version draft-3
+version 1.0
 
 workflow use_previous_file_outputs {
   call read_previous_string

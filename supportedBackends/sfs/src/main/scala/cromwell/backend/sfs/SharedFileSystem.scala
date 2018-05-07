@@ -181,14 +181,18 @@ trait SharedFileSystem extends PathFactory {
       * The new path matches the original path, it only "moves" the root to be the call directory.
       */
 
-    def toCallPath(path: String): Try[PairOfFiles] = Try {
+    def toCallPath(womFile: WomFile)(path: String): Try[PairOfFiles] = Try {
       val src = buildPath(path)
       // Strip out potential prefix protocol
       val localInputPath = stripProtocolScheme(src)
       val dest = if (inputsRoot.isParentOf(localInputPath)) localInputPath
       else {
+        val nameOverride = womFile match {
+          case directory: WomMaybeListedDirectory => directory.basename
+          case _ => None
+        }
         // Concatenate call directory with absolute input path
-        DefaultPathBuilder.get(inputsRoot.pathAsString, localInputPath.parent.pathAsString.hashCode.toString, localInputPath.name)
+        DefaultPathBuilder.get(inputsRoot.pathAsString, localInputPath.parent.pathAsString.hashCode.toString, nameOverride.getOrElse(localInputPath.name))
       }
 
       PairOfFiles(src, dest)
@@ -206,17 +210,17 @@ trait SharedFileSystem extends PathFactory {
     * @param womFile WomFile to localize
     * @return localized WomFile
     */
-  private def localizeWomFile(toDestPath: (String => Try[PairOfFiles]), strategies: Stream[DuplicationStrategy], docker: Boolean)
+  private def localizeWomFile(toDestPath: (WomFile => String => Try[PairOfFiles]), strategies: Stream[DuplicationStrategy], docker: Boolean)
                              (womFile: WomFile): WomFile = {
-    val localized = womFile mapFile { path =>
-      val result = toDestPath(path) flatMap {
+    val localized = womFile mapWomFile { file =>
+      val result = toDestPath(file)(file.value) flatMap {
         case PairOfFiles(src, dst) => duplicate("localize", src, dst, strategies, docker).map(_ => dst.pathAsString)
       }
       result.get
     }
     val sized = localized collect {
       case womMaybePopulatedFile@WomMaybePopulatedFile(Some(path), _, None, _, _, _) =>
-        val pair = toDestPath(path).get
+        val pair = toDestPath(womMaybePopulatedFile)(path).get
         val srcSize = pair.src.size
         womMaybePopulatedFile.copy(sizeOption = Option(srcSize))
     }

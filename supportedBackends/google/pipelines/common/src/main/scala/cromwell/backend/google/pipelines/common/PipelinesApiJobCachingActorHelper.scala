@@ -1,7 +1,7 @@
 package cromwell.backend.google.pipelines.common
 
 import akka.actor.Actor
-import cromwell.backend.google.pipelines.common.io.{JesAttachedDisk, JesWorkingDisk}
+import cromwell.backend.google.pipelines.common.io.{PipelinesApiAttachedDisk, PipelinesApiWorkingDisk}
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogging
@@ -19,16 +19,16 @@ trait PipelinesApiJobCachingActorHelper extends StandardCachingActorHelper {
 
   lazy val jesConfiguration: PipelinesApiConfiguration = initializationData.jesConfiguration
 
-  lazy val jesCallPaths: PipelinesApiJobPaths = jobPaths.asInstanceOf[PipelinesApiJobPaths]
+  lazy val pipelinesApiCallPaths: PipelinesApiJobPaths = jobPaths.asInstanceOf[PipelinesApiJobPaths]
 
   lazy val runtimeAttributes = PipelinesApiRuntimeAttributes(validatedRuntimeAttributes, jesConfiguration.runtimeConfig)
 
-  lazy val workingDisk: JesAttachedDisk = runtimeAttributes.disks.find(_.name == JesWorkingDisk.Name).get
+  lazy val workingDisk: PipelinesApiAttachedDisk = runtimeAttributes.disks.find(_.name == PipelinesApiWorkingDisk.Name).get
 
-  lazy val callRootPath: Path = jesCallPaths.callExecutionRoot
-  lazy val returnCodeFilename: String = jesCallPaths.returnCodeFilename
-  lazy val returnCodeGcsPath: Path = jesCallPaths.returnCode
-  lazy val jesLogFilename: String = jesCallPaths.jesLogFilename
+  lazy val callRootPath: Path = pipelinesApiCallPaths.callExecutionRoot
+  lazy val returnCodeFilename: String = pipelinesApiCallPaths.returnCodeFilename
+  lazy val returnCodeGcsPath: Path = pipelinesApiCallPaths.returnCode
+  lazy val jesLogPath: Path = pipelinesApiCallPaths.jesLogPath
 
   lazy val maxPreemption: Int = runtimeAttributes.preemptible
   def preemptible: Boolean
@@ -69,8 +69,8 @@ trait PipelinesApiJobCachingActorHelper extends StandardCachingActorHelper {
       .workflowPaths
       .workflowDescriptor
       .workflowOptions
-      .get(PipelinesApiMetadataKeys.GoogleProject)
-      .getOrElse(jesAttributes.project) 
+      .get(WorkflowOptionKeys.GoogleProject)
+      .getOrElse(jesAttributes.project)
 
     Map(
       PipelinesApiMetadataKeys.GoogleProject -> googleProject,

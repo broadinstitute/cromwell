@@ -3,7 +3,7 @@ package cromwell.backend.google.pipelines.common.api.clients
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import cromwell.backend.google.pipelines.common.PapiInstrumentation
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{JesApiAbortQueryFailed, PAPIAbortRequest}
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{PipelinesApiAbortQueryFailed, PAPIAbortRequest}
 import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiAbortClient.{PAPIAbortRequestSuccessful, PAPIOperationAlreadyCancelled, PAPIOperationHasAlreadyFinished}
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.logging.JobLogging
@@ -20,7 +20,7 @@ trait PipelinesApiAbortClient { this: Actor with ActorLogging with JobLogging wi
   val requestFactory: PipelinesApiRequestFactory
   
   def abortJob(jobId: StandardAsyncJob) = {
-    papiApiActor ! PAPIAbortRequest(workflowId, self, requestFactory.abortRequest(jobId), jobId)
+    papiApiActor ! PAPIAbortRequest(workflowId, self, requestFactory.cancelRequest(jobId), jobId)
   }
 
   def abortActorClientReceive: Actor.Receive = {
@@ -33,7 +33,7 @@ trait PipelinesApiAbortClient { this: Actor with ActorLogging with JobLogging wi
     // In this case we could immediately return an aborted handle and spare ourselves a round of polling
     case PAPIOperationHasAlreadyFinished(jobId) =>
       jobLogger.info(s"Operation $jobId has already finished")
-    case JesApiAbortQueryFailed(jobId, e) =>
+    case PipelinesApiAbortQueryFailed(jobId, e) =>
       jobLogger.error(s"Could not request cancellation of job $jobId", e)
   }
 }

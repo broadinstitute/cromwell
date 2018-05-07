@@ -3,7 +3,7 @@ package cromwell.webservice
 import _root_.io.circe.yaml
 import akka.util.ByteString
 import cats.data.NonEmptyList
-import cats.data.Validated.{Invalid, Valid}
+import cats.data.Validated._
 import cats.instances.option._
 import cats.syntax.apply._
 import cats.syntax.functor._
@@ -11,10 +11,13 @@ import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.core._
-import org.slf4j.LoggerFactory
-import spray.json.{JsObject, JsValue}
+import cromwell.core.labels.Label
 import wdl.draft2.model.WorkflowJson
+import org.slf4j.LoggerFactory
+import spray.json.{JsObject, JsValue, _}
 import wom.core._
+import cats.instances.list._
+import cats.syntax.traverse._
 
 import scala.util.{Failure, Success, Try}
 
@@ -187,12 +190,31 @@ object PartialWorkflowSources {
       }
     }
 
+    def validateLabels(labels: WorkflowJson) : ErrorOr[WorkflowJson] = {
+
+      def validateKeyValuePair(key: String, value: String): ErrorOr[Unit] = (Label.validateLabelKey(key), Label.validateLabelValue(value)).tupled.void
+
+      def validateLabelRestrictions(inputs: Map[String, JsValue]): ErrorOr[Unit] = {
+        inputs.toList.traverse[ErrorOr, Unit]({
+          case (key, JsString(s)) => validateKeyValuePair(key, s)
+          case (key, other) => s"Invalid label $key: $other : Labels must be strings. ${Label.LabelExpectationsMessage}".invalidNel
+        }).void
+      }
+
+
+      Try(labels.parseJson) match {
+        case Success(JsObject(inputs)) => validateLabelRestrictions(inputs).map(_ => labels)
+        case Failure(reason: Throwable) => s"Workflow contains invalid labels JSON: ${reason.getMessage}".invalidNel
+        case _ => """Invalid workflow labels JSON. Expected a JsObject of "labelKey": "labelValue" values.""".invalidNel
+      }
+    }
+
     partialSources match {
       case Valid(partialSource) =>
         (validateInputs(partialSource),
           validateOptions(partialSource.workflowOptions), validateWorkflowType(partialSource),
-          validateWorkflowTypeVersion(partialSource)) mapN {
-          case (wfInputs, wfOptions, workflowType, workflowTypeVersion) =>
+          validateWorkflowTypeVersion(partialSource), validateLabels(partialSource.customLabels.getOrElse("{}"))) mapN {
+          case (wfInputs, wfOptions, workflowType, workflowTypeVersion, workflowLabels) =>
             wfInputs.map(inputsJson => WorkflowSourceFilesCollection(
               workflowSource = partialSource.workflowSource,
               workflowRoot = partialSource.workflowRoot,
@@ -200,7 +222,7 @@ object PartialWorkflowSources {
               workflowTypeVersion = workflowTypeVersion,
               inputsJson = inputsJson,
               workflowOptionsJson = wfOptions.asPrettyJson,
-              labelsJson = partialSource.customLabels.getOrElse("{}"),
+              labelsJson = workflowLabels,
               importsFile = partialSource.zippedImports,
               warnings = partialSource.warnings,
               workflowOnHold = partialSource.workflowOnHold))

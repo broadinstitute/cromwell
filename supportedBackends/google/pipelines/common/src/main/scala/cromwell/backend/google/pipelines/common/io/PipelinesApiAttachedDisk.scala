@@ -12,21 +12,21 @@ import scala.util.Try
 import scala.util.matching.Regex
 
 
-object JesAttachedDisk {
+object PipelinesApiAttachedDisk {
   val Identifier = "[a-zA-Z0-9-_]+"
   val Directory = """/[^\s]+"""
   val Integer = "[1-9][0-9]*"
-  val WorkingDiskPattern: Regex = s"""${JesWorkingDisk.Name}\\s+($Integer)\\s+($Identifier)""".r
+  val WorkingDiskPattern: Regex = s"""${PipelinesApiWorkingDisk.Name}\\s+($Integer)\\s+($Identifier)""".r
   val MountedDiskPattern: Regex = s"""($Directory)\\s+($Integer)\\s+($Identifier)""".r
 
-  def parse(s: String): Try[JesAttachedDisk] = {
+  def parse(s: String): Try[PipelinesApiAttachedDisk] = {
 
     def sizeGbValidation(sizeGbString: String): ErrorOr[Int] = validateLong(sizeGbString).map(_.toInt)
     def diskTypeValidation(diskTypeString: String): ErrorOr[DiskType] = validateDiskType(diskTypeString)
 
-    val validation: ErrorOr[JesAttachedDisk] = s match {
-      case WorkingDiskPattern(sizeGb, diskType) => (validateDiskType(diskType), sizeGbValidation(sizeGb)) mapN { JesWorkingDisk.apply }
-      case MountedDiskPattern(mountPoint, sizeGb, diskType) => (sizeGbValidation(sizeGb), diskTypeValidation(diskType)) mapN { (s, dt) => JesEmptyMountedDisk(dt, s, DefaultPathBuilder.get(mountPoint)) }
+    val validation: ErrorOr[PipelinesApiAttachedDisk] = s match {
+      case WorkingDiskPattern(sizeGb, diskType) => (validateDiskType(diskType), sizeGbValidation(sizeGb)) mapN { PipelinesApiWorkingDisk.apply }
+      case MountedDiskPattern(mountPoint, sizeGb, diskType) => (sizeGbValidation(sizeGb), diskTypeValidation(diskType)) mapN { (s, dt) => PipelinesApiEmptyMountedDisk(dt, s, DefaultPathBuilder.get(mountPoint)) }
       case _ => s"Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE' but got: '$s'".invalidNel
     }
 
@@ -58,26 +58,26 @@ object JesAttachedDisk {
   }
 }
 
-trait JesAttachedDisk {
+trait PipelinesApiAttachedDisk {
   def name: String
   def diskType: DiskType
   def sizeGb: Int
   def mountPoint: Path
 }
 
-case class JesEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPoint: Path) extends JesAttachedDisk {
+case class PipelinesApiEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPoint: Path) extends PipelinesApiAttachedDisk {
   val name = s"d-${mountPoint.pathAsString.md5Sum}"
   override def toString: String = s"$mountPoint $sizeGb ${diskType.diskTypeName}"
 }
 
-object JesWorkingDisk {
+object PipelinesApiWorkingDisk {
   val MountPoint: Path = DefaultPathBuilder.get("/cromwell_root")
   val Name = "local-disk"
-  val Default = JesWorkingDisk(DiskType.SSD, 10)
+  val Default = PipelinesApiWorkingDisk(DiskType.SSD, 10)
 }
 
-case class JesWorkingDisk(diskType: DiskType, sizeGb: Int) extends JesAttachedDisk {
-  val mountPoint = JesWorkingDisk.MountPoint
-  val name = JesWorkingDisk.Name
+case class PipelinesApiWorkingDisk(diskType: DiskType, sizeGb: Int) extends PipelinesApiAttachedDisk {
+  val mountPoint = PipelinesApiWorkingDisk.MountPoint
+  val name = PipelinesApiWorkingDisk.Name
   override def toString: String = s"$name $sizeGb ${diskType.diskTypeName}"
 }

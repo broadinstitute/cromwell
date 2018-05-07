@@ -1,18 +1,18 @@
-package cromwell.backend.google.pipelines.v1alpha2
+package cromwell.backend.google.pipelines.v1alpha2.api
 
 import com.google.api.services.genomics.model.{DockerExecutor, PipelineResources}
 import cromwell.backend.google.pipelines.common.{GpuResource, PipelinesApiRuntimeAttributes}
-import cromwell.backend.google.pipelines.v1alpha2.PipelinesImplicits._
+import cromwell.backend.google.pipelines.v1alpha2.PipelinesConversions._
 import wdl4s.parser.MemoryUnit
 
 import scala.collection.JavaConverters._
 
-sealed trait JesPipelineInfo {
+sealed trait PipelineInfo {
   def resources: PipelineResources
   def docker: DockerExecutor
 }
 
-trait JesPipelineInfoBuilder {
+trait PipelineInfoBuilder {
   def buildDockerExecutor(commandLine: String, dockerImage: String): DockerExecutor = {
     val docker = new DockerExecutor()
     docker.setImageName(dockerImage).setCmd(commandLine)
@@ -20,7 +20,7 @@ trait JesPipelineInfoBuilder {
   
   def setGpu(resources: PipelineResources, runtimeAttributes: PipelinesApiRuntimeAttributes) = {
     runtimeAttributes.gpuResource match {
-      case Some(GpuResource(gpuType, gpuCount)) => resources
+      case Some(GpuResource(gpuType, gpuCount, _)) => resources
         .setAcceleratorType(gpuType.toString)
         .setAcceleratorCount(gpuCount.toLong)
       case _ => resources
@@ -39,22 +39,22 @@ trait JesPipelineInfoBuilder {
       setGpu(resources, runtimeAttributes)
   }
 
-  def build(commandLine: String, runtimeAttributes: PipelinesApiRuntimeAttributes, docker: String): JesPipelineInfo
+  def build(commandLine: String, runtimeAttributes: PipelinesApiRuntimeAttributes, docker: String): PipelineInfo
 }
 
-object NonPreemptibleJesPipelineInfoBuilder extends JesPipelineInfoBuilder {
-  def build(commandLine: String, runtimeAttributes: PipelinesApiRuntimeAttributes, dockerImage: String): JesPipelineInfo = {
+object NonPreemptiblePipelineInfoBuilder extends PipelineInfoBuilder {
+  def build(commandLine: String, runtimeAttributes: PipelinesApiRuntimeAttributes, dockerImage: String): PipelineInfo = {
     val resources = buildResources(runtimeAttributes).setPreemptible(false)
-    new NonPreemptibleJesPipelineInfoBuilder(resources, buildDockerExecutor(commandLine, dockerImage))
+    new NonPreemptiblePipelineInfoBuilder(resources, buildDockerExecutor(commandLine, dockerImage))
   }
 }
 
-object PreemptibleJesPipelineInfoBuilder extends JesPipelineInfoBuilder {
-  def build(commandLine: String, runtimeAttributes: PipelinesApiRuntimeAttributes, dockerImage: String): JesPipelineInfo = {
+object PreemptiblePipelineInfoBuilder extends PipelineInfoBuilder {
+  def build(commandLine: String, runtimeAttributes: PipelinesApiRuntimeAttributes, dockerImage: String): PipelineInfo = {
     val resources = buildResources(runtimeAttributes).setPreemptible(true)
-    new PreemptibleJesPipelineInfoBuilder(resources, buildDockerExecutor(commandLine, dockerImage))
+    new PreemptiblePipelineInfoBuilder(resources, buildDockerExecutor(commandLine, dockerImage))
   }
 }
 
-case class NonPreemptibleJesPipelineInfoBuilder private(resources: PipelineResources, docker: DockerExecutor) extends JesPipelineInfo
-case class PreemptibleJesPipelineInfoBuilder private(resources: PipelineResources, docker: DockerExecutor) extends JesPipelineInfo
+case class NonPreemptiblePipelineInfoBuilder private(resources: PipelineResources, docker: DockerExecutor) extends PipelineInfo
+case class PreemptiblePipelineInfoBuilder private(resources: PipelineResources, docker: DockerExecutor) extends PipelineInfo

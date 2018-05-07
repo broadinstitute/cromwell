@@ -1,6 +1,6 @@
 name: refresh_token_sub_workflow
 testFormat: workflowsuccess
-backends: [Jes-Refresh]
+backends: [Papi-Refresh]
 tags: [subworkflow]
 
 
@@ -16,5 +16,5 @@ files {
 metadata {
   workflowName: refresh_token_sub_workflow
   status: Succeeded
-  "calls.refresh_token_sub_workflow.hello.backend": "Jes-Refresh"
+  "calls.refresh_token_sub_workflow.hello.backend": "Papi-Refresh"
 }

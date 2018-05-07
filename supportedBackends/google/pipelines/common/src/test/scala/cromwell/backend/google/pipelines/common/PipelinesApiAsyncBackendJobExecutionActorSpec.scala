@@ -18,7 +18,7 @@ import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecu
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.PAPIStatusPollRequest
 import cromwell.backend.google.pipelines.common.api.RunStatus.UnsuccessfulRunStatus
-import cromwell.backend.google.pipelines.common.io.{DiskType, JesWorkingDisk}
+import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
 import cromwell.backend.io.JobPathsSpecHelper._
 import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardExpressionFunctionsParams}
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
@@ -51,11 +51,11 @@ import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import scala.util.Success
 
-class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("PipelinesApiAsyncBackendJobExecutionActorSpec")
+class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
   with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
   val mockPathBuilder: GcsPathBuilder = GcsPathBuilder.fromCredentials(NoCredentials.getInstance(),
     "test-cromwell", RetrySettings.newBuilder().build(), GcsStorage.DefaultCloudStorageConfiguration, WorkflowOptions.empty)
-  
+
   var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor))
 
   import PipelinesApiTestConfig._
@@ -105,14 +105,14 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
     val workflowPaths = PipelinesApiWorkflowPaths(jobDescriptor.workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), configuration, pathBuilders)
     val runtimeAttributesBuilder = PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(configuration)
     val requestFactory = new PipelinesApiRequestFactory {
-      override def abortRequest(job: StandardAsyncJob) = null
-      override def getOperationRequest(job: StandardAsyncJob) = null
-      override def makeRunPipelineRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters) = null
+      override def cancelRequest(job: StandardAsyncJob) = null
+      override def getRequest(job: StandardAsyncJob) = null
+      override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters) = null
     }
     PipelinesApiBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null, requestFactory)
   }
 
-  class TestableJesJobExecutionActor(params: StandardAsyncExecutionActorParams, functions: PipelinesApiExpressionFunctions)
+  class TestablePipelinesApiJobExecutionActor(params: StandardAsyncExecutionActorParams, functions: PipelinesApiExpressionFunctions)
     extends PipelinesApiAsyncBackendJobExecutionActor(params) {
 
     def this(jobDescriptor: BackendJobDescriptor,
@@ -148,7 +148,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
 
 
   private val runtimeAttributesBuilder = PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(jesConfiguration)
-  private val workingDisk = JesWorkingDisk(DiskType.SSD, 200)
+  private val workingDisk = PipelinesApiWorkingDisk(DiskType.SSD, 200)
 
   val DockerAndDiskRuntime: String =
     """
@@ -201,7 +201,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
     val run = Run(job)
     val handle = new JesPendingExecutionHandle(jobDescriptor, run.job, Option(run), None)
 
-    class ExecuteOrRecoverActor extends TestableJesJobExecutionActor(jobDescriptor, promise, jesConfiguration, jesSingletonActor = jesSingletonActor) {
+    class ExecuteOrRecoverActor extends TestablePipelinesApiJobExecutionActor(jobDescriptor, promise, jesConfiguration, jesSingletonActor = jesSingletonActor) {
       override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
         if(preemptible == shouldBePreemptible) Future.successful(handle)
         else Future.failed(new Exception(s"Test expected preemptible to be $shouldBePreemptible but got $preemptible"))
@@ -231,10 +231,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
     Await.result(promise.future, Timeout)
   }
 
-  def buildPreemptibleTestActorRef(attempt: Int, preemptible: Int): TestActorRef[TestableJesJobExecutionActor] = {
+  def buildPreemptibleTestActorRef(attempt: Int, preemptible: Int): TestActorRef[TestablePipelinesApiJobExecutionActor] = {
     // For this test we say that all previous attempts were preempted:
     val jobDescriptor = buildPreemptibleJobDescriptor(preemptible, attempt - 1, 0)
-    val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(),
+    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(),
       jesConfiguration,
       TestableJesExpressionFunctions,
       emptyActor,
@@ -412,8 +412,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
         val runtimeAttributes = makeRuntimeAttributes(call)
         val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
 
-        val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
-        val testActorRef = TestActorRef[TestableJesJobExecutionActor](
+        val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+        val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
           props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
 
@@ -443,7 +443,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
 
   private val dockerAndDiskWdlNamespace = WdlNamespaceWithWorkflow.load(SampleWdl.CurrentDirectory.asWorkflowSources(DockerAndDiskRuntime).workflowSource,
     Seq.empty[Draft2ImportResolver]).get
-  
+
   it should "generate correct JesFileInputs from a WdlMap" taggedAs PostWomTest ignore {
     val inputs: Map[String, WomValue] = Map(
       "stringToFileMap" -> WomMap(WomMapType(WomStringType, WomSingleFileType), Map(
@@ -463,7 +463,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
         WomString("stringToString2") -> WomString("path/to/stringToString2")
       ))
     )
-    
+
     val workflowInputs = inputs map {
       case (k, v) => s"wf_whereami.whereami$k" -> v
     }
@@ -485,27 +485,27 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
         val key = BackendJobDescriptorKey(job, None, 1)
         val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
 
-        val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
-        val testActorRef = TestActorRef[TestableJesJobExecutionActor](
+        val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+        val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
           props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
         val jesInputs = testActorRef.underlyingActor.generateJesInputs(jobDescriptor)
         jesInputs should have size 8
-        jesInputs should contain(JesFileInput(
+        jesInputs should contain(PipelinesApiFileInput(
           "stringToFileMap-0", "gs://path/to/stringTofile1", DefaultPathBuilder.get("path/to/stringTofile1"), workingDisk))
-        jesInputs should contain(JesFileInput(
+        jesInputs should contain(PipelinesApiFileInput(
           "stringToFileMap-1", "gs://path/to/stringTofile2", DefaultPathBuilder.get("path/to/stringTofile2"), workingDisk))
-        jesInputs should contain(JesFileInput(
+        jesInputs should contain(PipelinesApiFileInput(
           "fileToStringMap-0", "gs://path/to/fileToString1", DefaultPathBuilder.get("path/to/fileToString1"), workingDisk))
-        jesInputs should contain(JesFileInput(
+        jesInputs should contain(PipelinesApiFileInput(
           "fileToStringMap-1", "gs://path/to/fileToString2", DefaultPathBuilder.get("path/to/fileToString2"), workingDisk))
-        jesInputs should contain(JesFileInput(
+        jesInputs should contain(PipelinesApiFileInput(
           "fileToFileMap-0", "gs://path/to/fileToFile1Key", DefaultPathBuilder.get("path/to/fileToFile1Key"), workingDisk))
-        jesInputs should contain(JesFileInput(
+        jesInputs should contain(PipelinesApiFileInput(
           "fileToFileMap-1", "gs://path/to/fileToFile1Value", DefaultPathBuilder.get("path/to/fileToFile1Value"), workingDisk))
-        jesInputs should contain(JesFileInput(
+        jesInputs should contain(PipelinesApiFileInput(
           "fileToFileMap-2", "gs://path/to/fileToFile2Key", DefaultPathBuilder.get("path/to/fileToFile2Key"), workingDisk))
-        jesInputs should contain(JesFileInput(
+        jesInputs should contain(PipelinesApiFileInput(
           "fileToFileMap-3", "gs://path/to/fileToFile2Value", DefaultPathBuilder.get("path/to/fileToFile2Value"), workingDisk))
 
       case Left(badness) => fail(badness.toList.mkString(", "))
@@ -514,7 +514,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
 
   def makeJesActorRef(sampleWdl: SampleWdl, callName: LocallyQualifiedName, inputs: Map[FullyQualifiedName, WomValue],
                       functions: PipelinesApiExpressionFunctions = TestableJesExpressionFunctions):
-  TestActorRef[TestableJesJobExecutionActor] = {
+  TestActorRef[TestablePipelinesApiJobExecutionActor] = {
     val womWorkflow = WdlNamespaceWithWorkflow.load(sampleWdl.asWorkflowSources(DockerAndDiskRuntime).workflowSource,
       Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
     dockerAndDiskWdlNamespace.toWomExecutable(Option(inputs.toJson.compactPrint), NoIoFunctionSet, strictValidation = true) match {
@@ -533,8 +533,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
         val runtimeAttributes = makeRuntimeAttributes(call)
         val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
 
-        val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration, functions))
-        TestActorRef[TestableJesJobExecutionActor](props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
+        val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration, functions))
+        TestActorRef[TestablePipelinesApiJobExecutionActor](props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
       case Left(badness) => fail(badness.toList.mkString(", "))
     }
   }
@@ -548,10 +548,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
     val workflowId = jesBackend.workflowId
     val jesInputs = jesBackend.generateJesInputs(jobDescriptor)
     jesInputs should have size 1
-    jesInputs should contain(JesFileInput("in-0", "gs://blah/b/c.txt", DefaultPathBuilder.get("blah/b/c.txt"), workingDisk))
+    jesInputs should contain(PipelinesApiFileInput("in-0", "gs://blah/b/c.txt", DefaultPathBuilder.get("blah/b/c.txt"), workingDisk))
     val jesOutputs = jesBackend.generateJesOutputs(jobDescriptor)
     jesOutputs should have size 1
-    jesOutputs should contain(JesFileOutput("out",
+    jesOutputs should contain(PipelinesApiFileOutput("out",
       s"gs://my-cromwell-workflows-bucket/file_passing/$workflowId/call-a/out", DefaultPathBuilder.get("out"), workingDisk))
   }
 
@@ -560,18 +560,18 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
       "strs" -> WomArray(WomArrayType(WomStringType), Seq("A", "B", "C").map(WomString))
     )
 
-    class TestJesExpressionFunctions extends PipelinesApiExpressionFunctions(TestableStandardExpressionFunctionsParams) {
+    class TestPipelinesApiExpressionFunctions extends PipelinesApiExpressionFunctions(TestableStandardExpressionFunctionsParams) {
       override def writeFile(path: String, content: String): Future[WomSingleFile] = {
         Future.fromTry(Success(WomSingleFile(s"gs://some/path/file.txt")))
       }
     }
 
-    val functions = new TestJesExpressionFunctions
+    val functions = new TestPipelinesApiExpressionFunctions
     val jesBackend = makeJesActorRef(SampleWdl.ArrayIO, "serialize", inputs, functions).underlyingActor
     val jobDescriptor = jesBackend.jobDescriptor
     val jesInputs = jesBackend.generateJesInputs(jobDescriptor)
     jesInputs should have size 1
-    jesInputs should contain(JesFileInput(
+    jesInputs should contain(PipelinesApiFileInput(
       "c6fd5c91-0", "gs://some/path/file.txt", DefaultPathBuilder.get("some/path/file.txt"), workingDisk))
     val jesOutputs = jesBackend.generateJesOutputs(jobDescriptor)
     jesOutputs should have size 0
@@ -600,14 +600,14 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
         val key = BackendJobDescriptorKey(job, None, 1)
         val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
 
-        val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
-        val testActorRef = TestActorRef[TestableJesJobExecutionActor](
+        val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+        val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
           props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
         val jesInputs = testActorRef.underlyingActor.generateJesInputs(jobDescriptor)
         jesInputs should have size 2
-        jesInputs should contain(JesFileInput("fileArray-0", "gs://path/to/file1", DefaultPathBuilder.get("path/to/file1"), workingDisk))
-        jesInputs should contain(JesFileInput("fileArray-1", "gs://path/to/file2", DefaultPathBuilder.get("path/to/file2"), workingDisk))
+        jesInputs should contain(PipelinesApiFileInput("fileArray-0", "gs://path/to/file1", DefaultPathBuilder.get("path/to/file1"), workingDisk))
+        jesInputs should contain(PipelinesApiFileInput("fileArray-1", "gs://path/to/file2", DefaultPathBuilder.get("path/to/file2"), workingDisk))
       case Left(badness) => fail(badness.toList.mkString(", "))
     }
   }
@@ -635,14 +635,14 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
         val key = BackendJobDescriptorKey(job, None, 1)
         val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
 
-        val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
-        val testActorRef = TestActorRef[TestableJesJobExecutionActor](
+        val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+        val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
           props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
         val jesInputs = testActorRef.underlyingActor.generateJesInputs(jobDescriptor)
         jesInputs should have size 2
-        jesInputs should contain(JesFileInput("file1-0", "gs://path/to/file1", DefaultPathBuilder.get("path/to/file1"), workingDisk))
-        jesInputs should contain(JesFileInput("file2-0", "gs://path/to/file2", DefaultPathBuilder.get("path/to/file2"), workingDisk))
+        jesInputs should contain(PipelinesApiFileInput("file1-0", "gs://path/to/file1", DefaultPathBuilder.get("path/to/file1"), workingDisk))
+        jesInputs should contain(PipelinesApiFileInput("file2-0", "gs://path/to/file2", DefaultPathBuilder.get("path/to/file2"), workingDisk))
 
       case Left(badness) => fail(badness.toList.mkString(", "))
     }
@@ -650,15 +650,15 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
 
   it should "convert local Paths back to corresponding GCS paths in JesOutputs" in {
     val jesOutputs = Set(
-      JesFileOutput("/cromwell_root/path/to/file1", "gs://path/to/file1",
+      PipelinesApiFileOutput("/cromwell_root/path/to/file1", "gs://path/to/file1",
         DefaultPathBuilder.get("/cromwell_root/path/to/file1"), workingDisk),
-      JesFileOutput("/cromwell_root/path/to/file2", "gs://path/to/file2",
+      PipelinesApiFileOutput("/cromwell_root/path/to/file2", "gs://path/to/file2",
         DefaultPathBuilder.get("/cromwell_root/path/to/file2"), workingDisk),
-      JesFileOutput("/cromwell_root/path/to/file3", "gs://path/to/file3",
+      PipelinesApiFileOutput("/cromwell_root/path/to/file3", "gs://path/to/file3",
         DefaultPathBuilder.get("/cromwell_root/path/to/file3"), workingDisk),
-      JesFileOutput("/cromwell_root/path/to/file4", "gs://path/to/file4",
+      PipelinesApiFileOutput("/cromwell_root/path/to/file4", "gs://path/to/file4",
         DefaultPathBuilder.get("/cromwell_root/path/to/file4"), workingDisk),
-      JesFileOutput("/cromwell_root/path/to/file5", "gs://path/to/file5",
+      PipelinesApiFileOutput("/cromwell_root/path/to/file5", "gs://path/to/file5",
         DefaultPathBuilder.get("/cromwell_root/path/to/file5"), workingDisk)
     )
     val outputValues = Seq(
@@ -684,11 +684,11 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
 
-    val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
-    val testActorRef = TestActorRef[TestableJesJobExecutionActor](
+    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+    val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
-    def wdlValueToGcsPath(jesOutputs: Set[JesFileOutput])(womValue: WomValue): WomValue = {
+    def wdlValueToGcsPath(jesOutputs: Set[PipelinesApiFileOutput])(womValue: WomValue): WomValue = {
       WomFileMapper.mapWomFiles(testActorRef.underlyingActor.womFileToGcsPath(jesOutputs))(womValue).get
     }
 
@@ -718,12 +718,12 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
     val key = BackendJobDescriptorKey(job, None, 1)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
 
-    val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
-    val testActorRef = TestActorRef[TestableJesJobExecutionActor](
+    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+    val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     testActorRef.underlyingActor.monitoringScript shouldBe
-      Some(JesFileInput("monitoring-in", "gs://path/to/script", DefaultPathBuilder.get("monitoring.sh"), workingDisk))
+      Some(PipelinesApiFileInput("monitoring-in", "gs://path/to/script", DefaultPathBuilder.get("monitoring.sh"), workingDisk))
   }
 
   it should "not create a JesFileInput for the monitoring script, when not specified" in {
@@ -741,8 +741,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
     val runtimeAttributes = makeRuntimeAttributes(job)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
 
-    val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
-    val testActorRef = TestActorRef[TestableJesJobExecutionActor](
+    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+    val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     testActorRef.underlyingActor.monitoringScript shouldBe None
@@ -764,20 +764,20 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
 
-    val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
-    val testActorRef = TestActorRef[TestableJesJobExecutionActor](
+    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+    val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     val jesBackend = testActorRef.underlyingActor
 
-    jesBackend.jesCallPaths.stdout should be(a[GcsPath])
-    jesBackend.jesCallPaths.stdout.pathAsString shouldBe
+    jesBackend.pipelinesApiCallPaths.stdout should be(a[GcsPath])
+    jesBackend.pipelinesApiCallPaths.stdout.pathAsString shouldBe
       "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stdout.log"
-    jesBackend.jesCallPaths.stderr should be(a[GcsPath])
-    jesBackend.jesCallPaths.stderr.pathAsString shouldBe
+    jesBackend.pipelinesApiCallPaths.stderr should be(a[GcsPath])
+    jesBackend.pipelinesApiCallPaths.stderr.pathAsString shouldBe
       "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stderr.log"
-    jesBackend.jesCallPaths.jesLogPath should be(a[GcsPath])
-    jesBackend.jesCallPaths.jesLogPath.pathAsString shouldBe
+    jesBackend.pipelinesApiCallPaths.jesLogPath should be(a[GcsPath])
+    jesBackend.pipelinesApiCallPaths.jesLogPath.pathAsString shouldBe
       "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello.log"
   }
 
@@ -797,20 +797,20 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
 
-    val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
-    val testActorRef = TestActorRef[TestableJesJobExecutionActor](
+    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+    val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     val jesBackend = testActorRef.underlyingActor
 
-    jesBackend.jesCallPaths.stdout should be(a[GcsPath])
-    jesBackend.jesCallPaths.stdout.pathAsString shouldBe
+    jesBackend.pipelinesApiCallPaths.stdout should be(a[GcsPath])
+    jesBackend.pipelinesApiCallPaths.stdout.pathAsString shouldBe
       "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2-stdout.log"
-    jesBackend.jesCallPaths.stderr should be(a[GcsPath])
-    jesBackend.jesCallPaths.stderr.pathAsString shouldBe
+    jesBackend.pipelinesApiCallPaths.stderr should be(a[GcsPath])
+    jesBackend.pipelinesApiCallPaths.stderr.pathAsString shouldBe
       "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2-stderr.log"
-    jesBackend.jesCallPaths.jesLogPath should be(a[GcsPath])
-    jesBackend.jesCallPaths.jesLogPath.pathAsString shouldBe
+    jesBackend.pipelinesApiCallPaths.jesLogPath should be(a[GcsPath])
+    jesBackend.pipelinesApiCallPaths.jesLogPath.pathAsString shouldBe
       "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2.log"
   }
 
@@ -835,6 +835,75 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("Pipeli
 
     val descriptorWithMax2AndKey2 = attempt2(max = 2)
     descriptorWithMax2AndKey2.preemptible shouldBe true
+  }
+
+  it should "return the project from the workflow options in the start metadata" in {
+    val googleProject = "baa-ram-ewe"
+    val jesGcsRoot = "gs://anorexic/duck"
+    val workflowId = WorkflowId.randomId()
+    val workflowDescriptor = BackendWorkflowDescriptor(
+      workflowId,
+      WdlNamespaceWithWorkflow
+        .load(
+          SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).workflowSource,
+          Seq.empty[Draft2ImportResolver]
+        )
+        .get
+        .workflow
+        .toWomWorkflowDefinition(isASubworkflow = false)
+        .getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
+      Map.empty,
+      WorkflowOptions.fromJsonString(
+        s"""|{
+            |  "google_project": "$googleProject",
+            |  "jes_gcs_root": "$jesGcsRoot"
+            |}
+            |""".stripMargin
+      ).get,
+      Labels.empty
+    )
+
+    val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == "goodbye").get
+    val key = BackendJobDescriptorKey(call, None, 1)
+    val runtimeAttributes = makeRuntimeAttributes(call)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
+
+    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+    val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
+      props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
+
+    val jesBackend = testActorRef.underlyingActor
+
+    val actual = jesBackend.startMetadataKeyValues.mapValues(_.toString)
+    actual should be(
+      Map(
+        "backendLabels:cromwell-workflow-id" -> s"cromwell-$workflowId",
+        "backendLabels:wdl-task-name" -> "goodbye",
+        "backendLogs:log" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/goodbye.log",
+        "callRoot" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye",
+        "jes:endpointUrl" -> "https://genomics.googleapis.com/",
+        "jes:executionBucket" -> jesGcsRoot,
+        "jes:googleProject" -> googleProject,
+        "labels:cromwell-workflow-id" -> s"cromwell-$workflowId",
+        "labels:wdl-task-name" -> "goodbye",
+        "preemptible" -> "false",
+        "runtimeAttributes:bootDiskSizeGb" -> "10",
+        "runtimeAttributes:continueOnReturnCode" -> "0",
+        "runtimeAttributes:cpu" -> "1",
+        "runtimeAttributes:cpuMin" -> "1",
+        "runtimeAttributes:disks" -> "local-disk 200 SSD",
+        "runtimeAttributes:docker" -> "ubuntu:latest",
+        "runtimeAttributes:failOnStderr" -> "false",
+        "runtimeAttributes:memory" -> "2 GB",
+        "runtimeAttributes:memoryMin" -> "2 GB",
+        "runtimeAttributes:noAddress" -> "false",
+        "runtimeAttributes:preemptible" -> "0",
+        "runtimeAttributes:zones" -> "us-central1-b,us-central1-a",
+        "stderr" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/goodbye-stderr.log",
+        "stdout" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/goodbye-stdout.log"
+      )
+    )
+
   }
 
   private def makeRuntimeAttributes(job: CommandCallNode) = {

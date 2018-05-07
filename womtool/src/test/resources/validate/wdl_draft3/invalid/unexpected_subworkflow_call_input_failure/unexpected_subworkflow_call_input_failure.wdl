@@ -1,4 +1,4 @@
-version draft-3
+version 1.0
 
 import "unexpected_subworkflow_call_input_failure_import.wdl" as subwf
 

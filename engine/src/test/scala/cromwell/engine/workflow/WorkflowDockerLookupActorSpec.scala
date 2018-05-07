@@ -44,7 +44,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
     dockerHashingActor.expectMsg(LatestRequest)
     dockerHashingActor.reply(BackPressure(LatestRequest))
     // Give a couple of seconds of margin to account for test latency etc...
-    dockerHashingActor.expectMsg(backpressureWaitTime.+(2 seconds), LatestRequest)
+    dockerHashingActor.expectMsg(backpressureWaitTime.+(5 seconds), LatestRequest)
   }
 
   it should "not look up the same tag again after a successful lookup" in {

@@ -41,6 +41,11 @@ case class MemorySize(amount: Double, unit: MemoryUnit) {
 
   def to(unit: MemoryUnit): MemorySize = MemorySize(this.bytes / unit.bytes, unit)
 
+  def asRoundedUpMultipleOf(n: Int) = {
+    require(n > 0, "The multiple factor must be strictly positive")
+    MemorySize(((amount / n).ceil.toInt * n).toDouble, unit)
+  }
+
   override def toString: String = {
     val adjustedAmount = (unit, amount) match {
       case (MemoryUnit.Bytes, a) => a.ceil.toLong.toString

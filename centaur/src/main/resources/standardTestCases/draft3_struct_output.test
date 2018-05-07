@@ -1,8 +1,8 @@
 name: draft3_struct_output
 testFormat: workflowsuccess
 workflowType: WDL
-workflowTypeVersion: draft-3
-tags: ["draft-3"]
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
 
 files {
   workflow: wdl_draft3/struct_output/struct_output.wdl

@@ -1,8 +1,8 @@
 # Test to confirm the output of the monitoring script will be written to a monitoring.log file
 
-name: monitoring_log
+name: monitoring_log_papiv1
 testFormat: workflowsuccess
-backends: [Jes]
+backends: [Papiv1]
 
 files {
   workflow: monitoring_log/monitoring_log.wdl

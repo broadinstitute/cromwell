@@ -102,12 +102,14 @@ trait CallMetadataHelper {
       MetadataEvent(metadataKey, metadataValue)
     }
     
-    eventList.headOption foreach { firstEvent =>
+    val sortedEvents = eventList.sortBy(_.offsetDateTime)
+
+    sortedEvents.headOption foreach { firstEvent =>
       // The final event is only used as the book-end for the final pairing so the name is never actually used...
       val offset = firstEvent.offsetDateTime.getOffset
       val now = OffsetDateTime.now.withOffsetSameInstant(offset)
       val lastEvent = ExecutionEvent("!!Bring Back the Monarchy!!", now)
-      val tailedEventList = eventList :+ lastEvent
+      val tailedEventList = sortedEvents :+ lastEvent
       val events = tailedEventList.sliding(2) flatMap {
         case Seq(eventCurrent, eventNext) =>
           val eventKey = s"${CallMetadataKeys.ExecutionEvents}[$randomNumberString]"

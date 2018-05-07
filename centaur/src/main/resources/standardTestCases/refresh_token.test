@@ -1,6 +1,6 @@
 name: refresh_token
 testFormat: workflowsuccess
-backends: [Jes-Refresh]
+backends: [Papi-Refresh]
 
 files {
   workflow: refresh_token/refresh_token.wdl
@@ -11,5 +11,5 @@ files {
 metadata {
   workflowName: refresh_token
   status: Succeeded
-  "calls.refresh_token.hello.backend": "Jes-Refresh"
+  "calls.refresh_token.hello.backend": "Papi-Refresh"
 }

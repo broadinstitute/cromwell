@@ -1,6 +1,6 @@
 package cromwell.backend.google.pipelines.common
 
-import cromwell.backend.google.pipelines.common.io.{DiskType, JesAttachedDisk, JesEmptyMountedDisk, JesWorkingDisk}
+import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiAttachedDisk, PipelinesApiEmptyMountedDisk, PipelinesApiWorkingDisk}
 import cromwell.core.path.DefaultPathBuilder
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
@@ -11,15 +11,15 @@ import scala.util.Failure
 class PipelinesApiAttachedDiskSpec extends FlatSpec with Matchers with TryValues {
   val validTable = Table(
     ("unparsed", "parsed"),
-    ("/mnt 3 SSD", JesEmptyMountedDisk(DiskType.SSD, 3, DefaultPathBuilder.get("/mnt"))),
-    ("/mnt/my_path 10 HDD", JesEmptyMountedDisk(DiskType.HDD, 10, DefaultPathBuilder.get("/mnt/my_path"))),
-    ("local-disk 100 SSD", JesWorkingDisk(DiskType.SSD, 100)),
-    ("local-disk 100 LOCAL", JesWorkingDisk(DiskType.LOCAL, 100))
+    ("/mnt 3 SSD", PipelinesApiEmptyMountedDisk(DiskType.SSD, 3, DefaultPathBuilder.get("/mnt"))),
+    ("/mnt/my_path 10 HDD", PipelinesApiEmptyMountedDisk(DiskType.HDD, 10, DefaultPathBuilder.get("/mnt/my_path"))),
+    ("local-disk 100 SSD", PipelinesApiWorkingDisk(DiskType.SSD, 100)),
+    ("local-disk 100 LOCAL", PipelinesApiWorkingDisk(DiskType.LOCAL, 100))
   )
 
   it should "parse" in {
     forAll(validTable) { (unparsed, parsed) =>
-      JesAttachedDisk.parse(unparsed).get shouldEqual parsed
+      PipelinesApiAttachedDisk.parse(unparsed).get shouldEqual parsed
     }
   }
 
@@ -39,7 +39,7 @@ class PipelinesApiAttachedDiskSpec extends FlatSpec with Matchers with TryValues
 
   it should "reject malformed disk mounts" in {
     forAll(invalidTable) { (unparsed) =>
-      JesAttachedDisk.parse(unparsed) should be(a[Failure[_]])
+      PipelinesApiAttachedDisk.parse(unparsed) should be(a[Failure[_]])
     }
   }
 }

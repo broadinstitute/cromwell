@@ -347,6 +347,25 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
     }
 
+    it should "return 400 for a workflow submission with invalid workflow custom labels" in {
+      val labels = s"""
+                      |{"key with more than 255 characters-at vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpas":"value with more than 255 characters-at vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa"}
+                      |""".stripMargin
+
+      val workflowSource = Multipart.FormData.BodyPart("workflowSource", HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
+      val customLabels =  Multipart.FormData.BodyPart("labels", HttpEntity(MediaTypes.`application/json`, labels))
+      val onHold =  Multipart.FormData.BodyPart("workflowOnHold", HttpEntity("true"))
+      val formData = Multipart.FormData(workflowSource, customLabels, onHold).toEntity()
+
+      Post(s"/workflows/$version", formData) ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          assertResult(StatusCodes.BadRequest) {
+            status
+          }
+        }
+    }
+
     behavior of "REST API batch submission endpoint"
     it should "return 200 for a successful workflow submission " in {
       val inputs = HelloWorld.rawInputs.toJson

@@ -35,5 +35,8 @@ workflow taskless_engine_functions {
     Int f_floor = floor(f)
     Int f_ceiling = ceil(f)
     Int f_round = round(f)
+
+    Int m1 = matrix[1]
+    Int m2 = matrix[1][1]
   }
 }

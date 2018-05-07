@@ -64,7 +64,7 @@ object WdlWriter {
       case a: IdentifierLookup => a.identifier
       case a: IdentifierMemberAccess => a.toWdl
       case a: ExpressionMemberAccess => s"${expressionElementWriter.toWdl(a.expression)}.${a.memberAccessTail.toList.mkString(".")}"
-      case _: IndexAccess => ???
+      case a: IndexAccess => s"${expressionElementWriter.toWdl(a.expressionElement)}[${expressionElementWriter.toWdl(a.index)}]"
     }
   }
 
@@ -282,8 +282,7 @@ object WdlWriter {
   implicit val commandSectionElementWriter: WdlWriter[CommandSectionElement] = new WdlWriter[CommandSectionElement] {
     override def toWdl(a: CommandSectionElement): String = {
       s"""command {
-         |${indentAndCombine(a.parts.map(_.toWdl))}
-         |}""".stripMargin
+         |${indentAndCombine(a.parts.map(_.toWdl))}}""".stripMargin
     }
   }
 

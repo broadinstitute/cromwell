@@ -6,7 +6,7 @@ services:
   - mysql
 language: scala
 scala:
-  - 2.12.5
+  - 2.12.4
 jdk:
   - oraclejdk8
 cache:
@@ -14,8 +14,7 @@ cache:
   branch: md5deep
   directories:
     - $HOME/.ivy2/cache
-      # Until coursier is confirmed to work
-      # - $HOME/.coursier/cache
+    - $HOME/.coursier/cache
     - $HOME/.sbt/boot/
 before_cache:
   # Tricks to avoid unnecessary cache updates

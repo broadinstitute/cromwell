@@ -21,6 +21,8 @@ trait EvenBetterPathMethods {
 
   final def swapExt(oldExt: String, newExt: String): Path = swapSuffix(s".$oldExt", s".$newExt")
 
+  final def nameWithoutExtensionNoIo: String = if (name contains ".") name.substring(0, name lastIndexOf ".") else name
+
   final def plusSuffix(suffix: String): Path = swapSuffix("", suffix)
 
   final def swapSuffix(oldSuffix: String, newSuffix: String): Path = {

@@ -588,6 +588,7 @@ object WdlFileToWdlomSpec {
         inputsSection = None,
         graphElements = Set(
           IntermediateValueDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)), "ints", ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(1)), PrimitiveLiteralExpressionElement(WomInteger(2))))),
+          IntermediateValueDeclarationElement(NonEmptyTypeElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType))), "definitelyInts", ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(1)), PrimitiveLiteralExpressionElement(WomInteger(2))))),
           IntermediateValueDeclarationElement(ArrayTypeElement(PrimitiveTypeElement(WomStringType)), "strings", ArrayLiteral(Vector(StringLiteral("a"), StringLiteral("b")))),
           IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "filepath", StringLiteral("gs://not/a/real/file.txt")),
           IntermediateValueDeclarationElement(ArrayTypeElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType))), "matrix",
@@ -616,7 +617,12 @@ object WdlFileToWdlomSpec {
             OutputDeclarationElement(PrimitiveTypeElement(WomStringType), "file_basename_extensionless", Basename(IdentifierLookup("filepath"),Some(StringLiteral(".txt")))),
             OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "f_floor",Floor(IdentifierLookup("f"))),
             OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "f_ceiling",Ceil(IdentifierLookup("f"))),
-            OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "f_round",Round(IdentifierLookup("f")))
+            OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "f_round",Round(IdentifierLookup("f"))),
+            OutputDeclarationElement(
+              PrimitiveTypeElement(WomIntegerType), "m1", IndexAccess(IdentifierLookup("matrix"),PrimitiveLiteralExpressionElement(WomInteger(1)))),
+            OutputDeclarationElement(
+              PrimitiveTypeElement(WomIntegerType),"m2", IndexAccess(
+                IndexAccess(IdentifierLookup("matrix"),PrimitiveLiteralExpressionElement(WomInteger(1))),PrimitiveLiteralExpressionElement(WomInteger(1))))
           ))
         ),
         metaSection = None,
@@ -651,8 +657,13 @@ object WdlFileToWdlomSpec {
             CommandSectionLine(Vector(
               StringCommandPartElement("echo goodbye "),
               PlaceholderCommandPartElement(IdentifierLookup("world2"), PlaceholderAttributeSet.empty)
-            )
-          ))),
+            )),
+            CommandSectionLine(Vector(
+              StringCommandPartElement("echo "),
+              PlaceholderCommandPartElement(IdentifierLookup("world1"),
+              PlaceholderAttributeSet(Some("foo"), Some("--yes"), Some("--no"), Some(", ")))
+            ))
+          )),
           runtimeSection = Some(RuntimeAttributesSectionElement(Vector(
             KvPair("docker", StringLiteral("ubuntu:latest"))
           ))),

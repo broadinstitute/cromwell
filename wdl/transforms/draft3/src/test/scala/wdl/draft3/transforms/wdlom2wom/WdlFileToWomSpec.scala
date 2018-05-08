@@ -10,6 +10,7 @@ import wdl.draft3.transforms.ast2wdlom._
 import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.CommandPartElement.StringCommandPartElement
 import wdl.model.draft3.elements.ExpressionElement.StringLiteral
+import wom.callable.Callable.{FixedInputDefinition, OptionalInputDefinition}
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
 import wom.executable.WomBundle
 import wom.types._
@@ -99,7 +100,9 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     b.allCallables.size should be(2)
     b.allCallables.get("a")match {
       case Some(taskA) =>
-        taskA.inputs.map(_.name).toSet should be(Set("rld", "world1", "world2"))
+        taskA.inputs.filter(_.isInstanceOf[FixedInputDefinition]).map(_.name).toSet should be(Set("rld", "__world1", "__world2"))
+        taskA.inputs.filter(_.isInstanceOf[OptionalInputDefinition]).map(_.name).toSet should be(Set("world1", "world2"))
+        taskA.inputs.map(_.name).toSet should be(Set("rld", "__world1", "__world2", "world1", "world2"))
         taskA.outputs.map(_.name).toSet should be(Set("out"))
         taskA.asInstanceOf[CallableTaskDefinition].runtimeAttributes.attributes("docker").asInstanceOf[WdlomWomExpression].expressionElement should be(StringLiteral("ubuntu:latest"))
       case None => fail("Expected a task called 'a'")

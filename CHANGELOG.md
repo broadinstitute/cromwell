@@ -7,6 +7,7 @@
 #### Pipelines API V2
 Initial support for Google [Pipelines API version 2](https://cloud.google.com/genomics/reference/rest/).
 Expect feature parity except for private dockerhub images which are not supported at the moment, but will be in the near future.
+Additionally, the "refresh token" authentication mode is **NOT** supported on PAPI V2.
 
 In addition, the following changes are to be expected:
 * Error messages for failed jobs might differ from V1

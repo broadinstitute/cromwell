@@ -96,7 +96,7 @@ task size_in_task_places {
   runtime { docker: "ubuntu:latest" }
 
   output {
-    Array[String] lines = read_string(stdout())
+    Array[String] lines = read_lines(stdout())
     Int file_size_1_in_outputs = round(size(input_file_1))
     Int file_size_2_in_outputs = round(size(input_file_2))
     Int array_size_in_outputs = round(size(input_files))

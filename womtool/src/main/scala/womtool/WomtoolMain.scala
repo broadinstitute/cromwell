@@ -43,7 +43,7 @@ object WomtoolMain extends App {
     case h: HighlightCommandLine => highlight(h.workflowSource.pathAsString, h.highlightMode)
     case i: InputsCommandLine => inputs(i.workflowSource.pathAsString)
     case g: WomtoolGraphCommandLine => graph(g.workflowSource.pathAsString)
-    case u: WomtoolDraft3UpgradeCommandLine => d3upgrade(u.workflowSource.pathAsString)
+    case u: WomtoolWdlV1UpgradeCommandLine => v1upgrade(u.workflowSource.pathAsString)
     case g: WomtoolWomGraphCommandLine => womGraph(g.workflowSource.pathAsString)
     case _ => BadUsageTermination(WomtoolCommandLineParser.instance.usage)
   }
@@ -80,19 +80,20 @@ object WomtoolMain extends App {
     SuccessfulTermination(AstTools.getAst(Paths.get(workflowSourcePath)).toPrettyString)
   }
 
-  def d3upgrade(workflowSourcePath: String): Termination = {
+  def v1upgrade(workflowSourcePath: String): Termination = {
     import cats.implicits._
     import common.Checked
     import wdl.draft3.transforms.ast2wdlom.astToFileElement
     import wdl.draft3.transforms.parsing.fileToAst
     import wdl.draft3.transforms.wdlom2wdl.WdlWriter.ops._
+    import wdl.draft3.transforms.wdlom2wdl.WdlWriterImpl.fileElementWriter
     import wdl.model.draft3.elements.FileElement
 
     val loader = fileToAst andThen astToFileElement
     val model: Checked[FileElement] = loader.run(Paths.get(workflowSourcePath))
 
     model match {
-      case Right(wdlModel) => SuccessfulTermination(wdlModel.toWdl)
+      case Right(wdlModel) => SuccessfulTermination(wdlModel.toWdlV1)
       case Left(errorList) => UnsuccessfulTermination(errorList.toList.mkString("[", ",", "]"))
     }
   }

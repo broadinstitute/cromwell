@@ -3,10 +3,11 @@ package cwl
 import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.Validation._
+import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
 import cwl.InitialWorkDirFileGeneratorExpression._
 import cwl.InitialWorkDirRequirement.IwdrListingArrayEntry
 import shapeless.Poly1
-import wom.callable.ContainerizedInputExpression
+import wom.callable.{AdHocValue, ContainerizedInputExpression}
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.types._
 import wom.values._
@@ -49,14 +50,14 @@ case class ECMAScriptWomExpression(expression: Expression,
 
 final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEntry, expressionLib: ExpressionLib) extends ContainerizedInputExpression {
 
-  def evaluate(inputValues: Map[String, WomValue], mappedInputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
+  def evaluate(inputValues: Map[String, WomValue], mappedInputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[AdHocValue] = {
     val unmappedParameterContext = ParameterContext(ioFunctionSet, expressionLib, inputValues)
     entry.fold(InitialWorkDirFilePoly).apply(unmappedParameterContext, mappedInputValues)
   }
 }
 
 object InitialWorkDirFileGeneratorExpression {
-  type InitialWorkDirFileEvaluator = (ParameterContext, Map[String, WomValue]) => ErrorOr[WomValue]
+  type InitialWorkDirFileEvaluator = (ParameterContext, Map[String, WomValue]) => ErrorOr[AdHocValue]
 
   /**
     * Converts an InitialWorkDir.
@@ -74,6 +75,8 @@ object InitialWorkDirFileGeneratorExpression {
       at { expressionDirent =>
         (unmappedParameterContext, mappedInputValues) => {
 
+          val mutableInputOption = expressionDirent.entry.fold(ExpressionToMutableInputOptionPoly)
+
           val entryEvaluation =
             expressionDirent.entry match {
                 //we need to catch this special case to feed in "value-mapped" input values
@@ -87,7 +90,7 @@ object InitialWorkDirFileGeneratorExpression {
               case _ => ExpressionEvaluator.eval(expressionDirent.entry, unmappedParameterContext)
             }
 
-          entryEvaluation flatMap {
+          val womValueErrorOr: ErrorOr[WomSingleFile] = entryEvaluation flatMap {
             case womFile: WomFile =>
               val errorOrEntryName: ErrorOr[String] = expressionDirent.entryname match {
                 case Some(actualEntryName) => actualEntryName.fold(EntryNamePoly).apply(unmappedParameterContext)
@@ -109,6 +112,8 @@ object InitialWorkDirFileGeneratorExpression {
               writtenFile <- validate(Await.result(writeFile, Duration.Inf))
             } yield writtenFile
           }
+
+          womValueErrorOr.map(AdHocValue(_, mutableInputOption))
         }
       }
     }
@@ -117,12 +122,14 @@ object InitialWorkDirFileGeneratorExpression {
       at {
         stringDirent => {
           (unmappedParameterContext, _) =>
-            for {
+            val womValueErrorOr = for {
               entryName <- stringDirent.entryname.fold(EntryNamePoly).apply(unmappedParameterContext)
               contentString = stringDirent.entry
               writeFile = unmappedParameterContext.ioFunctionSet.writeFile(entryName, contentString)
               writtenFile <- validate(Await.result(writeFile, Duration.Inf))
             } yield writtenFile
+
+            womValueErrorOr.map(AdHocValue(_, mutableInputOption = None))
         }
       }
     }
@@ -154,7 +161,7 @@ object InitialWorkDirFileGeneratorExpression {
           }
 
           import mouse.all._
-          expressionEvaluation flatMap {
+          val womValueErrorOr = expressionEvaluation flatMap {
             case array: WomArray if WomArrayType(WomSingleFileType).coercionDefined(array) =>
               WomArrayType(WomSingleFileType).coerceRawValue(array) |> stageFiles
             case array: WomArray if WomArrayType(WomMaybePopulatedFileType).coercionDefined(array) =>
@@ -166,6 +173,8 @@ object InitialWorkDirFileGeneratorExpression {
                 .format(other, other.womType.toDisplayString)
               error.invalidNel
           }
+
+          womValueErrorOr.map(AdHocValue(_, mutableInputOption = None))
         }
       }
     }
@@ -173,7 +182,7 @@ object InitialWorkDirFileGeneratorExpression {
     implicit val caseString: Case.Aux[String, InitialWorkDirFileEvaluator] = {
       at { string =>
         (_, _) => {
-          WomSingleFile(string).valid
+          AdHocValue(WomSingleFile(string), mutableInputOption = None).valid
         }
       }
     }
@@ -187,7 +196,7 @@ object InitialWorkDirFileGeneratorExpression {
     implicit val caseFile: Case.Aux[File, InitialWorkDirFileEvaluator] = {
       at { file =>
         (_, _) => {
-          file.asWomValue
+          file.asWomValue.map(AdHocValue(_, mutableInputOption = None))
         }
       }
     }
@@ -195,7 +204,7 @@ object InitialWorkDirFileGeneratorExpression {
     implicit val caseDirectory: Case.Aux[Directory, InitialWorkDirFileEvaluator] = {
       at { directory =>
         (_, _) => {
-          directory.asWomValue
+          directory.asWomValue.map(AdHocValue(_, mutableInputOption = None))
         }
       }
     }
@@ -234,4 +243,21 @@ object InitialWorkDirFileGeneratorExpression {
     }
   }
 
+  /**
+    * Searches for ECMAScript expressions that mutate input paths.
+    *
+    * @see [[AdHocValue]]
+    */
+  object ExpressionToMutableInputOptionPoly extends Poly1 {
+    private val MutableInputRegex = """(?s)\s*\$\(\s*inputs\.(\w+)\s*\)\s*""".r
+    implicit val caseECMAScriptExpression: Case.Aux[ECMAScriptExpression, Option[String]] = {
+      at { eCMAScriptExpression =>
+        eCMAScriptExpression.value match {
+          case MutableInputRegex(mutableInput) => Option(mutableInput)
+          case _ => None
+        }
+      }
+    }
+    implicit val caseECMAScriptFunction: Case.Aux[ECMAScriptFunction, Option[String]] = at { _ => None }
+  }
 }

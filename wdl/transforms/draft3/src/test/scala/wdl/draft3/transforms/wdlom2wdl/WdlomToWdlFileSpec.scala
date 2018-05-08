@@ -7,6 +7,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import wdl.draft3.transforms.ast2wdlom.astToFileElement
 import wdl.draft3.transforms.parsing.{FileStringParserInput, fileToAst, stringToAst}
 import wdl.draft3.transforms.wdlom2wdl.WdlWriter.ops._
+import wdl.draft3.transforms.wdlom2wdl.WdlWriterImpl.fileElementWriter
 import wdl.model.draft3.elements.FileElement
 
 class WdlomToWdlFileSpec extends FlatSpec with Matchers {
@@ -25,7 +26,7 @@ class WdlomToWdlFileSpec extends FlatSpec with Matchers {
         model match {
         case Right(wdlModel) =>
 
-          val newModel = (stringToAst andThen astToFileElement).run(FileStringParserInput(wdlModel.toWdl, file.name))
+          val newModel = (stringToAst andThen astToFileElement).run(FileStringParserInput(wdlModel.toWdlV1, file.name))
 
           // Scala case class deep equality is so nice here
           newModel shouldEqual model

@@ -41,7 +41,7 @@ Paste the following into a file called `inputs.json`:
 
 # Run the server
 
-1. Run `java -jar cromwell-[version].jar server` (replace [version] with actual version).  Not that there is a `server` argument, this is the special sauce!
+1. Run `java -jar cromwell-[version].jar server` (replace [version] with actual version).  Note that there is a `server` argument, this is the special sauce!
 2. Visit <a href="http://localhost:8000">localhost:8000</a> in your browser
 
 # Start the job

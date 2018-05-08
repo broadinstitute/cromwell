@@ -76,9 +76,9 @@ class WomtoolCommandLineParser extends scopt.OptionParser[PartialWomtoolCommandL
     .text("Generate and output a graph visualization of the workflow in .dot format" + System.lineSeparator)
 
   // Undocumented until fully-working
-  cmd("v1upgrade")
-    .action((_, c) => c.copy(command = Option(V1Upgrade)))
-    .text("Automatically upgrade the WDL to version 1.0 and output the result." + System.lineSeparator)
+  //  cmd("v1upgrade")
+  //    .action((_, c) => c.copy(command = Option(V1Upgrade)))
+  //    .text("Automatically upgrade the WDL to version 1.0 and output the result." + System.lineSeparator)
 
   cmd("womgraph")
     .action((_, c) => c.copy(command = Option(WomGraph)))

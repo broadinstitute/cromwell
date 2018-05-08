@@ -5,7 +5,9 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.util.StringUtil._
 import common.validation.ErrorOr._
+import common.validation.Validation._
 import cromwell.backend.BackendJobDescriptor
+import cromwell.backend.io.DirectoryFunctions.listFiles
 import cromwell.core.path.{Path, PathFactory}
 import wom.expression.IoFunctionSet
 import wom.expression.IoFunctionSet.{IoDirectory, IoElement, IoFile}
@@ -43,6 +45,19 @@ trait DirectoryFunctions extends IoFunctionSet with PathFactory {
         case file => IoFile(file.pathAsString)
       })
     })
+  }
+
+  override def listAllFilesUnderDirectory(dirPath: String): Future[Seq[String]] = {
+    temporaryImplListPaths(dirPath)
+  }
+
+  // TODO: WOM: WOMFILE: This will likely use a Tuple2(tar file, dir list file) for each dirPath.
+  private final def temporaryImplListPaths(dirPath: String): Future[Seq[String]] = {
+    val errorOrPaths = for {
+      dir <- validate(buildPath(dirPath.ensureSlashed))
+      files <- listFiles(dir)
+    } yield files.map(_.pathAsString)
+    Future.fromTry(errorOrPaths.toTry(s"Error listing files under $dirPath"))
   }
 }
 

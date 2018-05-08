@@ -124,6 +124,13 @@ trait IoFunctionSet {
   def glob(pattern: String): Future[Seq[String]]
 
   /**
+    * Recursively list all files (and only files, not directories) under "dirPath"
+    * dirPath MUST BE a directory
+    * @return The list of all files under "dirPath"
+    */
+  def listAllFilesUnderDirectory(dirPath: String): Future[Seq[String]]
+
+  /**
     * List entries in a directory non recursively. Includes directories
     */
   def listDirectory(path: String)(visited: Vector[String] = Vector.empty): Future[Iterator[IoElement]]

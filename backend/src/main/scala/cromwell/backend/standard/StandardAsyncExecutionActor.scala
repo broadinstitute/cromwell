@@ -30,7 +30,7 @@ import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
-import wom.callable.{CommandTaskDefinition, RuntimeEnvironment}
+import wom.callable.{AdHocValue, CommandTaskDefinition, RuntimeEnvironment}
 import wom.expression.WomExpression
 import wom.graph.LocalName
 import wom.values._
@@ -355,35 +355,86 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   /** The instantiated command. */
   lazy val instantiatedCommand: InstantiatedCommand = {
 
+    /*
+    NOTE: This method jumps through hoops to keep track of inputs and paths especially for ad hoc files.
+
+    If / when the [[WomFile.value]] is differentiated into cloud paths, VM paths & docker container paths then a lot of
+    this will need to be refactored.
+     */
+
+    def validateAdHocFile(value: WomValue): ErrorOr[List[WomFile]] = value match {
+      case womFile: WomFile => List(womFile).valid
+      case womArray: WomArray => womArray.value.toList.traverse(validateAdHocFile).map(_.flatten)
+      case other =>
+        s"Ad-hoc file creation expression invalidly created a ${other.womType.toDisplayString} result.".invalidNel
+    }
+
+    def validateAdHocValue(value: AdHocValue): ErrorOr[List[(WomFile, Option[String])]] = {
+      value.womValue match {
+        case womFile: WomFile => List(womFile -> value.mutableInputOption).valid
+        case other => validateAdHocFile(other).map(_.map(_ -> None))
+      }
+    }
+
+    /*
+      * Try to map the command line values.
+      *
+      * May not work as the commandLineValueMapper was originally meant to modify paths in the later stages of command
+      * line instantiation. However, due to [[AdHocValue]] support the command line instantiation itself currently needs
+      * to use the commandLineValue mapper. So the commandLineValueMapper is attempted first, and if that fails then
+      * returns the original womValue.
+      */
+    def tryCommandLineValueMapper(womValue: WomValue): WomValue = {
+      Try(commandLineValueMapper(womValue)).getOrElse(womValue)
+    }
+
+    val callable = jobDescriptor.taskCall.callable
+
+    val unmappedInputs: Map[String, WomValue] = jobDescriptor.evaluatedTaskInputs.map({
+      case (inputDefinition, womValue) => inputDefinition.localName.value -> womValue
+    })
+    val mappedInputs: Map[String, WomValue] = unmappedInputs.mapValues(tryCommandLineValueMapper).map(identity)
+    val adHocFileCreations: ErrorOr[List[(WomFile, Option[String])]] = callable.adHocFileCreation.toList.flatTraverse(
+      _.evaluate(unmappedInputs, mappedInputs, backendEngineFunctions).flatMap(validateAdHocValue)
+    )
+
+    // Replace input files with the ad hoc updated version
+    def adHocFilePreProcessor(in: WomEvaluatedCallInputs): Try[WomEvaluatedCallInputs] = {
+      adHocFileCreations.toTry("Error evaluating ad hoc files") map { adHocFiles =>
+        in map {
+          case (inputDefinition, originalWomValue) =>
+            inputDefinition -> adHocFiles.collectFirst({
+              case (mutatedWomValue, Some(inputName)) if inputName == inputDefinition.localName.value => mutatedWomValue
+            }).getOrElse(originalWomValue)
+        }
+      }
+    }
+
+    // Gets the inputs that will be mutated by instantiating the command.
+    def mutatingPreProcessor(in: WomEvaluatedCallInputs): Try[WomEvaluatedCallInputs] = {
+      for {
+        commandLineProcessed <- commandLinePreProcessor(in)
+        adHocProcessed <- adHocFilePreProcessor(commandLineProcessed)
+      } yield adHocProcessed
+    }
+
     val instantiatedCommandValidation = Command.instantiate(
       jobDescriptor,
       backendEngineFunctions,
-      commandLinePreProcessor,
+      mutatingPreProcessor,
       commandLineValueMapper,
       runtimeEnvironment
     )
 
     def adHocFileLocalization(womFile: WomFile): String = womFile.value.substring(womFile.value.lastIndexOf("/") + 1)
 
-    def validateAdHocFile(value: WomValue): ErrorOr[List[WomFile]] = value match {
-      case f: WomFile => List(f).valid
-      case a: WomArray => a.value.toList.traverse(validateAdHocFile).map(_.flatten)
-      case other => s"Ad-hoc file creation expression invalidly created a ${other.womType.toDisplayString} result.".invalidNel
-    }
-
-    val callable = jobDescriptor.taskCall.callable
     def makeStringKeyedMap(list: List[(LocalName, WomValue)]): Map[String, WomValue] = list.toMap map { case (k, v) => k.value -> v }
 
     val command = instantiatedCommandValidation flatMap { instantiatedCommand =>
-      val preprocessedInputs = instantiatedCommand.preprocessedInputs |> makeStringKeyedMap
       val valueMappedPreprocessedInputs = instantiatedCommand.valueMappedPreprocessedInputs |> makeStringKeyedMap
 
-      val adHocFileCreations = callable.adHocFileCreation.toList.flatTraverse(
-        _.evaluate(preprocessedInputs, valueMappedPreprocessedInputs, backendEngineFunctions).flatMap(validateAdHocFile)
-      )
-
       val adHocFileCreationSideEffectFiles: ErrorOr[List[CommandSetupSideEffectFile]] = adHocFileCreations map { _ map {
-        f => CommandSetupSideEffectFile(f, Option(adHocFileLocalization(f)))
+        case (womFile, _) => CommandSetupSideEffectFile(womFile, Option(adHocFileLocalization(womFile)))
       }}
 
       def evaluateEnvironmentExpression(nameAndExpression: (String, WomExpression)): ErrorOr[(String, String)] = {
@@ -405,7 +456,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
           instantiatedCommand.copy(
             createdFiles = instantiatedCommand.createdFiles ++ adHocFiles, environmentVariables = env.toMap,
             evaluatedStdinRedirection = in, evaluatedStdoutOverride = out, evaluatedStderrOverride = err)
-      }
+      }: ErrorOr[InstantiatedCommand]
     }
 
     // TODO CWL: Is throwing an exception the best way to indicate command generation failure?

@@ -29,7 +29,8 @@ object InputDeclarationElementToGraphNode {
       val womExprValidation: ErrorOr[WomExpression] = expr.makeWomExpression(a.availableTypeAliases, a.linkableValues)
       val womTypeValidation: ErrorOr[WomType] = typeElement.determineWomType(a.availableTypeAliases)
       (womExprValidation, womTypeValidation) mapN { (womExpr, womType) =>
-        Set[GraphNode](OptionalGraphInputNodeWithDefault.apply(WomIdentifier(name), womType, womExpr, name))
+        val nameInInputSet = s"${a.workflowName}.$name"
+        Set[GraphNode](OptionalGraphInputNodeWithDefault.apply(WomIdentifier(name), womType, womExpr, nameInInputSet))
       }
     // This input must have upstream dependencies but WOM won't allow that, so make two WOM nodes:
     // - An optional input graph node

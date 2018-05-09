@@ -38,6 +38,10 @@ task prime_sieve {
     CODE
   >>>
 
+  runtime {
+    docker: "python:latest"
+  }
+
   output {
     Array[Int] primes = read_lines(stdout())
   }

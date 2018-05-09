@@ -12,6 +12,13 @@ import scala.collection.JavaConverters._
   * Utility singleton to create high level actions.
   */
 object ActionBuilder {
+  implicit class EnhancedAction(val action: Action) extends AnyVal {
+    private def javaFlags(flags: List[ActionFlag]) = flags.map(_.toString).asJava
+    
+    def withFlags(flags: List[ActionFlag]): Action = action.setFlags(flags |> javaFlags)
+    def withMounts(mounts: List[Mount]): Action = action.setMounts(mounts.asJava)
+  }
+  
   object Gsutil {
     private val contentTypeText = ContentTypes.`text/plain(UTF-8)`.toString()
     val ContentTypeTextHeader = s"Content-Type: $contentTypeText"
@@ -19,9 +26,10 @@ object ActionBuilder {
 
   private val cloudSdkImage = "google/cloud-sdk:alpine"
   def cloudSdkAction: Action = new Action().setImageUri(cloudSdkImage)
-
-  private def javaFlags(flags: List[ActionFlag]) = flags.map(_.toString).asJava
   
+  def withImage(image: String) = new Action()
+    .setImageUri(image)
+
   def userAction(docker: String, scriptContainerPath: String, mounts: List[Mount]): Action = {
     new Action()
       .setImageUri(docker)
@@ -37,7 +45,7 @@ object ActionBuilder {
   def gsutil(command: String*)(mounts: List[Mount] = List.empty, flags: List[ActionFlag] = List.empty, description: Option[String] = None): Action = {
     cloudSdkAction
       .setCommands((List("gsutil") ++ command.toList).asJava)
-      .setFlags(flags |> javaFlags)
+      .withFlags(flags)
       .setMounts(mounts.asJava)
       .setLabels(description.map("description" -> _).toMap.asJava)
   }

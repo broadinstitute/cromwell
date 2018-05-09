@@ -25,7 +25,6 @@ final case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWo
   override def defaultStdoutFilename: String = s"$jesLogBasename-stdout.log"
   override def defaultStderrFilename: String = s"$jesLogBasename-stderr.log"
   override val scriptFilename: String = s"${PipelinesApiJobPaths.JesExecParamName}.sh"
-
   val jesLogFilename: String = s"$jesLogBasename.log"
   lazy val jesLogPath: Path = callExecutionRoot.resolve(jesLogFilename)
 

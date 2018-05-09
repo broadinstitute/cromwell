@@ -143,9 +143,19 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def mapCommandLineWomFile(womFile: WomFile): WomFile =
     womFile.mapFile(workflowPaths.buildPath(_).pathAsString)
 
+  // This is a trickery to allow the mapCommandLineWomFile above to call isAdHoc file without creating an
+  // infinite recursion. This should really go away when we finally can have a sane implementation
+  // keeping track of the paths cleanly without so many value mappers 
+  def mapCommandLineJobInputWomFile(womFile: WomFile): WomFile = mapCommandLineWomFile(womFile)
+
   /** @see [[Command.instantiate]] */
   final lazy val commandLineValueMapper: WomValue => WomValue = {
     womValue => WomFileMapper.mapWomFiles(mapCommandLineWomFile)(womValue).get
+  }
+
+  /** @see [[Command.instantiate]] */
+  final lazy val commandLineJobInputValueMapper: WomValue => WomValue = {
+    womValue => WomFileMapper.mapWomFiles(mapCommandLineJobInputWomFile)(womValue).get
   }
 
   lazy val jobShell: String = configurationDescriptor.backendConfig.getOrElse("job-shell",
@@ -349,12 +359,13 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     env.copy(outputPath = env.outputPath |> localize, tempPath = env.tempPath |> localize)
   }
 
-  lazy val runtimeEnvironment =
+  lazy val runtimeEnvironment = {
     RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(standardParams.minimumRuntimeSettings) |> runtimeEnvironmentPathMapper
-
-  /** The instantiated command. */
-  lazy val instantiatedCommand: InstantiatedCommand = {
-
+  }
+  
+  lazy val evaluatedAdHocFiles = {
+    val callable = jobDescriptor.taskCall.callable
+    
     /*
     NOTE: This method jumps through hoops to keep track of inputs and paths especially for ad hoc files.
 
@@ -385,18 +396,28 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       * returns the original womValue.
       */
     def tryCommandLineValueMapper(womValue: WomValue): WomValue = {
-      Try(commandLineValueMapper(womValue)).getOrElse(womValue)
+      Try(commandLineJobInputValueMapper(womValue)).getOrElse(womValue)
     }
-
-    val callable = jobDescriptor.taskCall.callable
-
+    
     val unmappedInputs: Map[String, WomValue] = jobDescriptor.evaluatedTaskInputs.map({
       case (inputDefinition, womValue) => inputDefinition.localName.value -> womValue
     })
     val mappedInputs: Map[String, WomValue] = unmappedInputs.mapValues(tryCommandLineValueMapper).map(identity)
-    val adHocFileCreations: ErrorOr[List[(WomFile, Option[String])]] = callable.adHocFileCreation.toList.flatTraverse(
+    callable.adHocFileCreation.toList.flatTraverse(
       _.evaluate(unmappedInputs, mappedInputs, backendEngineFunctions).flatMap(validateAdHocValue)
     )
+  }
+  
+  protected def isAdHocFile(womFile: WomFile) = evaluatedAdHocFiles map { _.exists({
+      case (file, _) => file.value == womFile.value
+    })
+  } getOrElse false
+
+  /** The instantiated command. */
+  lazy val instantiatedCommand: InstantiatedCommand = {
+    val callable = jobDescriptor.taskCall.callable
+
+    val adHocFileCreations: ErrorOr[List[(WomFile, Option[String])]] = evaluatedAdHocFiles
 
     // Replace input files with the ad hoc updated version
     def adHocFilePreProcessor(in: WomEvaluatedCallInputs): Try[WomEvaluatedCallInputs] = {

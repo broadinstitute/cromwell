@@ -16,9 +16,31 @@ trait WorkflowPaths extends PathFactory {
   def workflowDescriptor: BackendWorkflowDescriptor
   def config: Config
 
+  /**
+    * Path (as a String) of the root directory Cromwell should use for ALL workflows.
+    */
   protected lazy val executionRootString: String = config.as[Option[String]]("root").getOrElse("cromwell-executions")
 
-  def getPath(url: String): Try[Path] = Try(PathFactory.buildPath(url, pathBuilders))
+  /**
+    * Path of the root directory Cromwell will use for ALL workflows.
+    */
+  lazy val executionRoot: Path = buildPath(executionRootString).toAbsolutePath
+
+  /**
+    * This MUST be a directory that can be accessed by Cromwell in a read and write fashion.
+    * It will contain all files that Cromwell will create for this workflow as well as outputs
+    * from the jobs.
+    * The structure under this directory is relatively stable but should not be relied upon too heavily
+    * as it might be subject to changes.
+    *
+    * This can be either a Shared Filesystem or Cloud Filesystem Path as long as Cromwell's filesystems are configured accordingly.
+    */
+  lazy val workflowRoot: Path = workflowPathBuilder(executionRoot)
+
+  /**
+    * Attempts to build a cromwell.core.Path from the String using the available Filesystems.
+    */
+  def getPath(url: String): Try[Path] = Try(buildPath(url))
 
   // Rebuild potential intermediate call directories in case of a sub workflow
   protected def workflowPathBuilder(root: Path): Path = {
@@ -27,8 +49,6 @@ trait WorkflowPaths extends PathFactory {
     }).resolve(workflowDescriptor.callable.name).resolve(workflowDescriptor.id.toString + "/")
   }
 
-  lazy val executionRoot: Path = PathFactory.buildPath(executionRootString, pathBuilders).toAbsolutePath
-  lazy val workflowRoot: Path = workflowPathBuilder(executionRoot)
   lazy val finalCallLogsPath: Option[Path] =
     workflowDescriptor.getWorkflowOption(FinalCallLogsDir) map getPath map { _.get }
 
@@ -50,8 +70,8 @@ trait WorkflowPaths extends PathFactory {
     if (workflowDescriptor == jobWorkflowDescriptor) toJobPaths(this, jobKey)
     else toJobPaths(withDescriptor(jobWorkflowDescriptor), jobKey)
   }
-  
+
   protected def toJobPaths(workflowPaths: WorkflowPaths, jobKey: BackendJobDescriptorKey): JobPaths
-  
+
   protected def withDescriptor(workflowDescriptor: BackendWorkflowDescriptor): WorkflowPaths
 }

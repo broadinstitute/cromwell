@@ -49,7 +49,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
 
       val userAction = ActionBuilder.userAction(
         createPipelineParameters.dockerImage,
-        createPipelineParameters.commandScriptContainerPath,
+        createPipelineParameters.commandScriptContainerPath.pathAsString,
         mounts
       )
 

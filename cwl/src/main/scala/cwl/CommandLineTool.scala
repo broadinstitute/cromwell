@@ -17,7 +17,7 @@ import wom.callable.{Callable, CallableTaskDefinition, ContainerizedInputExpress
 import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
 import wom.types.{WomArrayType, WomIntegerType, WomOptionalType}
-import wom.values.{WomArray, WomEvaluatedCallInputs, WomGlobFile, WomInteger, WomString, WomValue}
+import wom.values.{WomArray, WomEvaluatedCallInputs, WomFile, WomGlobFile, WomInteger, WomString, WomValue}
 import wom.{CommandPart, RuntimeAttributes, RuntimeAttributesKeys}
 
 import scala.concurrent.ExecutionContext
@@ -148,7 +148,7 @@ case class CommandLineTool private(
     def jsonToOutputs(json: Map[String, Json]): Checked[List[(OutputPort, WomValue)]] = {
       import cats.instances.list._
 
-      outputPorts.toList.traverse({ outputPort =>
+      outputPorts.toList.traverse[ErrorOr, (OutputPort, WomValue)]({ outputPort =>
         // If the type is optional, then we can set the value to none if there's nothing in the json
         def emptyValue = outputPort.womType match {
           case optional: WomOptionalType => Option((outputPort -> optional.none).validNel)
@@ -156,7 +156,14 @@ case class CommandLineTool private(
         }
 
         json.get(outputPort.internalName)
-          .map(_.foldWith(CwlJsonToDelayedCoercionFunction).apply(outputPort.womType).map(outputPort -> _))
+          .map(
+            _.foldWith(CwlJsonToDelayedCoercionFunction).apply(outputPort.womType)
+              .map({
+                case womFile: WomFile => womFile.mapFile(ioFunctionSet.pathFunctions.relativeToHostCallRoot)
+                case womValue => womValue
+              })
+              .map(outputPort -> _)
+          )
           .orElse(emptyValue)
           .getOrElse(s"Cannot find a value for output ${outputPort.internalName} in output json $json".invalidNel)
       }).toEither

@@ -100,6 +100,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(
     initialInterval = 3 seconds, maxInterval = 20 seconds, multiplier = 1.1)
+  
+  override lazy val runtimeEnvironment = {
+    RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, PipelinesApiWorkingDisk.MountPoint, PipelinesApiWorkingDisk.MountPoint)(standardParams.minimumRuntimeSettings)
+  }
 
   protected lazy val cmdInput =
     PipelinesApiFileInput(PipelinesApiJobPaths.JesExecParamName, pipelinesApiCallPaths.script.pathAsString, DefaultPathBuilder.get(pipelinesApiCallPaths.scriptFilename), workingDisk)
@@ -157,14 +161,27 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     )
   }
 
+  private def fileName(file: WomFile): WomFile = {
+    file.mapFile(value =>
+      getPath(value) match {
+        case Success(path) => path.name
+        case _ => value
+      }
+    )
+  }
+
   private[pipelines] def generateJesInputs(jobDescriptor: BackendJobDescriptor): Set[PipelinesApiFileInput] = {
     // We need to tell PAPI about files that were created as part of command instantiation (these need to be defined
     // as inputs that will be localized down to the VM). Make up 'names' for these files that are just the short
     // md5's of their paths.
     val writeFunctionFiles = instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f) } toMap
 
-    def localizationPath(f: CommandSetupSideEffectFile) =
-      f.relativeLocalPath.fold(ifEmpty = relativeLocalizationPath(f.file))(WomFile(f.file.womFileType, _))
+    def localizationPath(f: CommandSetupSideEffectFile) = {
+      if (isAdHocFile(f.file))
+        f.relativeLocalPath.fold(ifEmpty = fileName(f.file))(WomFile(f.file.womFileType, _))
+      else
+        f.relativeLocalPath.fold(ifEmpty = relativeLocalizationPath(f.file))(WomFile(f.file.womFileType, _))
+    }
     val writeFunctionInputs = writeFunctionFiles flatMap {
       case (name, files) => jesInputsFromWomFiles(name, files.map(_.file), files.map(localizationPath), jobDescriptor)
     }
@@ -572,6 +589,20 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   }
 
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
+    womFile.mapFile(value =>
+      getPath(value) match {
+        case Success(gcsPath: GcsPath) if isAdHocFile(womFile) => 
+          // Ad hoc files will be placed directly at the root ("/cromwell_root/ad_hoc_file.txt") unlike other input files
+          // for which the full path is being propagated ("/cromwell_root/path/to/input_file.txt")
+          workingDisk.mountPoint.resolve(gcsPath.name).pathAsString
+        case Success(gcsPath: GcsPath) => 
+          workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString
+        case _ => value
+      }
+    )
+  }
+
+  override def mapCommandLineJobInputWomFile(womFile: WomFile): WomFile = {
     womFile.mapFile(value =>
       getPath(value) match {
         case Success(gcsPath: GcsPath) => workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString

@@ -1,0 +1,46 @@
+name: draft3_size_of_optionals
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+
+files {
+  workflow: wdl_draft3/draft3_size_of_optionals/draft3_size_of_optionals.wdl
+  imports: [
+     wdl_draft3/draft3_size_of_optionals/size_in_workflow_places.wdl
+   ]
+}
+
+metadata {
+  workflowName: draft3_size_of_optionals
+  status: Succeeded
+  "outputs.draft3_size_of_optionals.immediate_made_file_size": 22,
+  "outputs.draft3_size_of_optionals.immediate_not_made_file_size": null,
+
+  "outputs.draft3_size_of_optionals.made_file_sizes.0": 22,
+  "outputs.draft3_size_of_optionals.made_file_sizes.1": 0,
+  "outputs.draft3_size_of_optionals.total_made_file_size": 22,
+
+  "outputs.draft3_size_of_optionals.lines.0": "22",
+  "outputs.draft3_size_of_optionals.lines.1": "0",
+  "outputs.draft3_size_of_optionals.lines.2": "22",
+  "outputs.draft3_size_of_optionals.lines.3": "22",
+  "outputs.draft3_size_of_optionals.lines.4": "0",
+  "outputs.draft3_size_of_optionals.lines.5": "22"
+
+  "outputs.draft3_size_of_optionals.file_size_1_in_outputs": 22,
+  "outputs.draft3_size_of_optionals.file_size_2_in_outputs": 0,
+  "outputs.draft3_size_of_optionals.array_size_in_outputs": 22,
+
+  "outputs.draft3_size_of_optionals.siwp_file_size_1_in_inputs_out": 22,
+  "outputs.draft3_size_of_optionals.siwp_file_size_2_in_inputs_out": 0,
+  "outputs.draft3_size_of_optionals.siwp_array_size_in_inputs_out": 22,
+
+  "outputs.draft3_size_of_optionals.siwp_file_size_1_in_declaration_out": 22,
+  "outputs.draft3_size_of_optionals.siwp_file_size_2_in_declaration_out": 0,
+  "outputs.draft3_size_of_optionals.siwp_array_size_in_declaration_out": 22,
+
+  "outputs.draft3_size_of_optionals.siwp_file_size_1_in_outputs": 22,
+  "outputs.draft3_size_of_optionals.siwp_file_size_2_in_outputs": 0
+  "outputs.draft3_size_of_optionals.siwp_array_size_in_outputs": 22,
+}

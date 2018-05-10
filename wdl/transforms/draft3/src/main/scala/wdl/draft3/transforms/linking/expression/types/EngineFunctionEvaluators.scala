@@ -188,13 +188,23 @@ object EngineFunctionEvaluators {
   }
 
   implicit val sizeFunctionEvaluator: TypeEvaluator[Size] = new TypeEvaluator[Size] {
+    private def suitableSizeType(womType: WomType): Boolean = womType match {
+      case WomSingleFileType => true
+      case WomOptionalType(inner) => suitableSizeType(inner)
+      case WomArrayType(inner) => suitableSizeType(inner)
+      case _ => false
+    }
+
     override def evaluateType(a: Size, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]): ErrorOr[WomType] = {
       val validatedSecondArg: ErrorOr[Unit] = a.secondParam match {
         case None => ().validNel
         case Some(arg) => validateParamType(arg, linkedValues, WomStringType)
       }
-      (validateParamType(a.firstParam, linkedValues, WomSingleFileType),
-        validatedSecondArg) mapN { (_, _) => WomFloatType }
+      val validatedFirstArg: ErrorOr[Unit] = a.firstParam.evaluateType(linkedValues).flatMap {
+        case t if suitableSizeType(t) => ().validNel
+        case other => s"Invalid first 'size' parameter. Expected File, File? Array[File] or Array[File?] but got ${other.toDisplayString}".invalidNel
+      }
+      (validatedFirstArg, validatedSecondArg) mapN { (_, _) => WomFloatType }
     }
   }
 

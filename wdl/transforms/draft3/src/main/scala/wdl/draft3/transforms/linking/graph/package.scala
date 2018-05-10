@@ -16,7 +16,7 @@ import wdl.model.draft3.elements.{DeclarationElement, _}
 import wdl.model.draft3.graph._
 import wom.callable.Callable
 import wom.callable.Callable.OutputDefinition
-import wom.types.{WomArrayType, WomType}
+import wom.types.{WomArrayType, WomOptionalType, WomType}
 
 package object graph {
   implicit val graphElementUnlinkedValueGenerator: UnlinkedValueGenerator[WorkflowGraphElement] = new UnlinkedValueGenerator[WorkflowGraphElement] {
@@ -45,8 +45,8 @@ package object graph {
   implicit val IfElementUnlinkedValueGenerator: UnlinkedValueGenerator[IfElement] = new UnlinkedValueGenerator[IfElement] {
     override def generatedValueHandles(a: IfElement, typeAliases: Map[String, WomType], callables: Map[String, Callable]): ErrorOr[Set[GeneratedValueHandle]] = {
       a.graphElements.toList.traverse(_.generatedValueHandles(typeAliases, callables)).map(_.toSet.flatten) map { _.map {
-        case GeneratedIdentifierValueHandle(id, womType) => GeneratedIdentifierValueHandle(id, WomArrayType(womType))
-        case GeneratedCallOutputValueHandle(first, second, womType) => GeneratedCallOutputValueHandle(first, second, WomArrayType(womType))
+        case GeneratedIdentifierValueHandle(id, womType) => GeneratedIdentifierValueHandle(id, WomOptionalType(womType))
+        case GeneratedCallOutputValueHandle(first, second, womType) => GeneratedCallOutputValueHandle(first, second, WomOptionalType(womType))
       } }
     }
   }

@@ -1,0 +1,25 @@
+name: draft3_inline_python
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+
+files {
+  workflow: wdl_draft3/draft3_inline_python/draft3_inline_python.wdl
+  inputs: wdl_draft3/draft3_inline_python/draft3_inline_python.inputs.json
+}
+
+metadata {
+  workflowName: draft3_inline_python
+  status: Succeeded
+  "outputs.draft3_inline_python.primes.0": 2
+  "outputs.draft3_inline_python.primes.1": 3
+  "outputs.draft3_inline_python.primes.2": 5
+  "outputs.draft3_inline_python.primes.3": 7
+  "outputs.draft3_inline_python.primes.4": 11
+  "outputs.draft3_inline_python.primes.5": 13
+  "outputs.draft3_inline_python.primes.6": 17
+  "outputs.draft3_inline_python.primes.7": 19
+
+  "outputs.draft3_inline_python.prime_count": 8
+}

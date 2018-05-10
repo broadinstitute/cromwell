@@ -96,7 +96,7 @@ object OutputManipulator extends Poly1 {
     def sizeContent: Option[Long] = obj.kleisli("contents").flatMap(_.asString.map(_.length.toLong))
 
     // The cwl test runner expects only the name, not the full path
-    val updatedLocation = obj.add("location", Json.fromString(path.name))
+    val updatedLocation = obj.add("location", Json.fromString(path.pathAsString))
 
     // Get the format
     def formatOption: Option[String] = for {

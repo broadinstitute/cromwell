@@ -24,7 +24,7 @@ class EmptyIoFunctionSet extends IoFunctionSet {
 
   override implicit def ec: ExecutionContext = null
   override def pathFunctions = NoPathFunctionSet
-  override def listDirectory(path: String) = throw new NotImplementedError("listDirectory is not available here")
+  override def listDirectory(path: String)(visited: Vector[String] = Vector.empty) = throw new NotImplementedError("listDirectory is not available here")
   override def isDirectory(path: String) = throw new NotImplementedError("isDirectory is not available here")
 }
 

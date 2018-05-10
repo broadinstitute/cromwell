@@ -1,12 +1,13 @@
 package cwl
 
+import cats.instances.future._
 import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
-import cats.instances.future._
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import wom.expression.IoFunctionSet
+import wom.expression.IoFunctionSet.{IoDirectory, IoFile}
 import wom.types._
 import wom.values._
 
@@ -215,7 +216,7 @@ object CommandOutputBinding {
     womMaybeListedDirectoryOrFileType match {
       case WomMaybeListedDirectoryType =>
         // Even if multiple directories are _somehow_ requested, a single flattened directory is returned.
-        loadDirectoryWithListing(cwlPath, ioFunctionSet, commandOutputBinding).map(List(_))
+        loadDirectoryWithListing(ioFunctionSet, commandOutputBinding)(cwlPath).map(List(_))
       case WomMaybePopulatedFileType if isRegularFile(cwlPath) =>
         val globs = List(cwlPath)
         globs traverse loadFileWithContents(ioFunctionSet, commandOutputBinding)
@@ -235,13 +236,15 @@ object CommandOutputBinding {
   /**
     * Loads a directory with the files listed, each file with contents populated.
     */
-  private def loadDirectoryWithListing(path: String,
-                                       ioFunctionSet: IoFunctionSet,
-                                       commandOutputBinding: CommandOutputBinding): ErrorOr[WomMaybeListedDirectory] = {
-    val listing = Await.result(ioFunctionSet.listAllFilesUnderDirectory(path), Duration.Inf)
-    listing.toList traverse loadFileWithContents(ioFunctionSet, commandOutputBinding) map { listing =>
+  private def loadDirectoryWithListing(ioFunctionSet: IoFunctionSet,
+                                       commandOutputBinding: CommandOutputBinding)(path: String, visited: Vector[String] = Vector.empty): ErrorOr[WomMaybeListedDirectory] = {
+    val listing = Await.result(ioFunctionSet.listDirectory(path)(visited), Duration.Inf).toList
+    listing.traverse[ErrorOr, WomFile]({
+      case IoFile(p) => loadFileWithContents(ioFunctionSet, commandOutputBinding)(p)
+      case IoDirectory(p) => loadDirectoryWithListing(ioFunctionSet, commandOutputBinding)(p, visited :+ path)
+    }).map({ listing =>
       WomMaybeListedDirectory(valueOption = Option(path), listingOption = Option(listing))
-    }
+    })
   }
 
   /**

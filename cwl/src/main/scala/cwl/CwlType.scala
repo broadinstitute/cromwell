@@ -11,6 +11,7 @@ import eu.timepit.refined._
 import mouse.all._
 import shapeless.Poly1
 import shapeless.syntax.singleton._
+import wom.expression.IoFunctionSet.{IoDirectory, IoFile}
 import wom.expression.{IoFunctionSet, PathFunctionSet}
 import wom.types.WomFileType
 import wom.values._
@@ -111,12 +112,12 @@ object File {
     }
   }
   
-  private def recursivelyBuildDirectory(directory: String, ioFunctions: IoFunctionSet): ErrorOr[WomMaybeListedDirectory] = {
+  def recursivelyBuildDirectory(directory: String, ioFunctions: IoFunctionSet)(visited: Vector[String] = Vector.empty): ErrorOr[WomMaybeListedDirectory] = {
     for {
-      listing <- sync(ioFunctions.listDirectory(directory)).toErrorOr
+      listing <- sync(ioFunctions.listDirectory(directory)(visited)).toErrorOr
       fileListing <- listing.toList.traverse{
-        case e if sync(ioFunctions.isDirectory(e)).getOrElse(false) => recursivelyBuildDirectory(e, ioFunctions)
-        case e => WomMaybePopulatedFile(e).validNel
+        case IoDirectory(e) => recursivelyBuildDirectory(e, ioFunctions)(visited :+ directory)
+        case IoFile(e) => WomMaybePopulatedFile(e).validNel
       }
     } yield WomMaybeListedDirectory(Option(directory), Option(fileListing))
   }
@@ -138,7 +139,7 @@ object File {
     // If the secondary file is in fact a directory, look into it and build its listing
     for {
       isDirectory <- sync(ioFunctions.isDirectory(filePath)).toErrorOr
-      file <- if (isDirectory) recursivelyBuildDirectory(filePath, ioFunctions) else WomFile(stringWomFileType, filePath).validNel
+      file <- if (isDirectory) recursivelyBuildDirectory(filePath, ioFunctions)() else WomFile(stringWomFileType, filePath).validNel
     } yield file
   }
 

@@ -19,7 +19,7 @@ class EngineIoFunctions(val pathBuilders: List[PathBuilder], override val asyncI
   override def listAllFilesUnderDirectory(dirPath: String): Nothing =
     throw new NotImplementedError(s"listAllFilesUnderDirectory not implemented yet")
 
-  override def listDirectory(path: String) = throw new NotImplementedError(s"listDirectory not implemented yet")
+  override def listDirectory(path: String)(visited: Vector[String]) = throw new NotImplementedError(s"listDirectory not implemented yet")
 
   override def isDirectory(path: String) = Future.successful(buildPath(path).isDirectory)
 }

@@ -8,6 +8,7 @@ import wdl.draft2.model.{AstTools, WdlNamespace, WdlNamespaceWithWorkflow}
 import womtool.cmdline.HighlightMode.{ConsoleHighlighting, HtmlHighlighting, UnrecognizedHighlightingMode}
 import womtool.cmdline._
 import womtool.graph.{GraphPrint, WomGraph}
+import womtool.inputs.Inputs
 import womtool.validate.Validate
 
 import scala.util.{Failure, Success}
@@ -41,7 +42,7 @@ object WomtoolMain extends App {
     case v: ValidateCommandLine => Validate.validate(v.workflowSource, v.inputs)
     case p: ParseCommandLine => parse(p.workflowSource.pathAsString)
     case h: HighlightCommandLine => highlight(h.workflowSource.pathAsString, h.highlightMode)
-    case i: InputsCommandLine => inputs(i.workflowSource.pathAsString)
+    case i: InputsCommandLine => Inputs.inputsJson(i.workflowSource, i.showOptionals)
     case g: WomtoolGraphCommandLine => graph(g.workflowSource.pathAsString)
     case u: WomtoolWdlV1UpgradeCommandLine => v1upgrade(u.workflowSource.pathAsString)
     case g: WomtoolWomGraphCommandLine => womGraph(g.workflowSource.pathAsString)

@@ -1,0 +1,6 @@
+{
+  "multiple_overridable_optionals.foo.x": "Int?",
+  "multiple_overridable_optionals.foo_a.y": "Int (default = PrimitiveLiteralExpressionElement(WomInteger(5)))",
+  "multiple_overridable_optionals.foo.y": "Int (default = PrimitiveLiteralExpressionElement(WomInteger(5)))",
+  "multiple_overridable_optionals.foo_a.x": "Int?"
+}

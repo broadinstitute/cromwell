@@ -1,0 +1,17 @@
+{
+  "HaplotypeCallerGvcf_GATK4.gatk_docker": "String",
+  "HaplotypeCallerGvcf_GATK4.MergeGVCFs.mem_size": "String",
+  "HaplotypeCallerGvcf_GATK4.scattered_calling_intervals_list": "File",
+  "HaplotypeCallerGvcf_GATK4.MergeGVCFs.disk_size": "Int",
+  "HaplotypeCallerGvcf_GATK4.gatk_path": "String",
+  "HaplotypeCallerGvcf_GATK4.ref_dict": "File",
+  "HaplotypeCallerGvcf_GATK4.HaplotypeCaller.mem_size": "String",
+  "HaplotypeCallerGvcf_GATK4.HaplotypeCaller.java_opt": "String",
+  "HaplotypeCallerGvcf_GATK4.ref_fasta_index": "File",
+  "HaplotypeCallerGvcf_GATK4.HaplotypeCaller.preemptible_tries": "Int",
+  "HaplotypeCallerGvcf_GATK4.ref_fasta": "File",
+  "HaplotypeCallerGvcf_GATK4.MergeGVCFs.java_opt": "String",
+  "HaplotypeCallerGvcf_GATK4.MergeGVCFs.preemptible_tries": "Int",
+  "HaplotypeCallerGvcf_GATK4.HaplotypeCaller.disk_size": "Int",
+  "HaplotypeCallerGvcf_GATK4.input_bam": "WomCompositeType {\n bam -> File\nindex -> File \n}"
+}

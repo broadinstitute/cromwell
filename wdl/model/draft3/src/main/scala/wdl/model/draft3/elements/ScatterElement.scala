@@ -17,7 +17,7 @@ final case class ScatterElement(scatterName: String,
     }
   }
 
-  // Shorthand to ignore specific members for hashing purposes
+  // Shorthand to only include certain members for hashing purposes
   // https://stackoverflow.com/a/31915429/818054
   override def hashCode(): Int = (scatterExpression, scatterVariableName, graphElements).##
 }

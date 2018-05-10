@@ -236,7 +236,9 @@ object AstNodeToExpressionElement {
     implicit val toStringPiece: CheckedAtoB[AstNode, StringPiece] = CheckedAtoB.fromErrorOr(convertStringPiece)
 
     ast.getAttributeAsVector[StringPiece]("pieces").toValidated map { pieces =>
-      if (pieces.size == 1) {
+      if (pieces.isEmpty) {
+        StringLiteral("")
+      } else if (pieces.size == 1) {
         pieces.head match {
           case s: StringLiteral => s
           case _ => StringExpression(pieces)

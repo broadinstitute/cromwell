@@ -58,7 +58,7 @@ object AstToCommandSectionElement {
       case _ => 0
     }
 
-    lines.map(startLength).min
+    if (lines.nonEmpty) lines.map(startLength).min else 0
   }
 
   private def stripStarts(lines: Vector[CommandSectionLine], prefix: String): Vector[CommandSectionLine] = {

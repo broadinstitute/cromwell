@@ -131,7 +131,16 @@ object ExpressionElement {
   }
 
   // 3-param functions:
-  final case class Sub(input: ExpressionElement, pattern: ExpressionElement, replace: ExpressionElement) extends FunctionCallElement
+  sealed trait ThreeParamFunctionCallElement extends FunctionCallElement {
+    def arg1: ExpressionElement
+    def arg2: ExpressionElement
+    def arg3: ExpressionElement
+  }
+  final case class Sub(input: ExpressionElement, pattern: ExpressionElement, replace: ExpressionElement) extends ThreeParamFunctionCallElement {
+    override def arg1: ExpressionElement = input
+    override def arg2: ExpressionElement = pattern
+    override def arg3: ExpressionElement = replace
+  }
 
   /**
     * A single identifier lookup expression, eg Int x = y

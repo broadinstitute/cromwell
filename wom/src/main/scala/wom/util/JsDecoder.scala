@@ -1,2 +1,0 @@
-package wom.util
-

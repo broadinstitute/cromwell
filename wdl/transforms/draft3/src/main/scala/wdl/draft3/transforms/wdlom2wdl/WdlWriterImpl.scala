@@ -75,23 +75,23 @@ object WdlWriterImpl {
 
   implicit val binaryOperationWriter: WdlWriter[BinaryOperation] = new WdlWriter[BinaryOperation] {
     override def toWdlV1(a: BinaryOperation) = {
-      def sandwich(opString: String) = s"(${a.left.toWdlV1} $opString ${a.right.toWdlV1})"
-
-      a match {
-        case _: LogicalOr           => sandwich("||")
-        case _: LogicalAnd          => sandwich("&&")
-        case _: Equals              => sandwich("==")
-        case _: NotEquals           => sandwich("!=")
-        case _: LessThan            => sandwich("<")
-        case _: LessThanOrEquals    => sandwich("<=")
-        case _: GreaterThan         => sandwich(">")
-        case _: GreaterThanOrEquals => sandwich(">=")
-        case _: Add                 => sandwich("+")
-        case _: Subtract            => sandwich("-")
-        case _: Multiply            => sandwich("*")
-        case _: Divide              => sandwich("/")
-        case _: Remainder           => sandwich("%")
+      val op = a match {
+        case _: LogicalOr           => "||"
+        case _: LogicalAnd          => "&&"
+        case _: Equals              => "=="
+        case _: NotEquals           => "!="
+        case _: LessThan            => "<"
+        case _: LessThanOrEquals    => "<="
+        case _: GreaterThan         => ">"
+        case _: GreaterThanOrEquals => ">="
+        case _: Add                 => "+"
+        case _: Subtract            => "-"
+        case _: Multiply            => "*"
+        case _: Divide              => "/"
+        case _: Remainder           => "%"
       }
+
+      s"(${a.left.toWdlV1} $op ${a.right.toWdlV1})"
     }
   }
 
@@ -352,37 +352,37 @@ object WdlWriterImpl {
 
   implicit val oneParamFunctionCallElementWriter: WdlWriter[OneParamFunctionCallElement] = new WdlWriter[OneParamFunctionCallElement] {
     override def toWdlV1(a: OneParamFunctionCallElement): String = {
-      def functionCall(name: String) = s"$name(${a.param.toWdlV1})"
-
-      a match {
-        case _: ReadLines =>    functionCall("read_lines")
-        case _: ReadTsv =>      functionCall("read_tsv")
-        case _: ReadMap =>      functionCall("read_map")
-        case _: ReadObject =>   functionCall("read_object")
-        case _: ReadObjects =>  functionCall("read_objects")
-        case _: ReadJson =>     functionCall("read_json")
-        case _: ReadInt =>      functionCall("read_int")
-        case _: ReadString =>   functionCall("read_string")
-        case _: ReadFloat =>    functionCall("read_float")
-        case _: ReadBoolean =>  functionCall("read_boolean")
-        case _: WriteLines =>   functionCall("write_lines")
-        case _: WriteTsv =>     functionCall("write_tsv")
-        case _: WriteMap =>     functionCall("write_map")
-        case _: WriteObject =>  functionCall("write_object")
-        case _: WriteObjects => functionCall("write_objects")
-        case _: WriteJson =>    functionCall("write_json")
-        case _: Range =>        functionCall("range")
-        case _: Transpose =>    functionCall("transpose")
-        case _: Length =>       functionCall("length")
-        case _: Flatten =>      functionCall("flatten")
-        case _: SelectFirst =>  functionCall("select_first")
-        case _: SelectAll =>    functionCall("select_all")
-        case _: Defined =>      functionCall("defined")
-        case _: Floor =>        functionCall("floor")
-        case _: Ceil =>         functionCall("ceil")
-        case _: Round =>        functionCall("round")
-        case _: Glob =>         functionCall("glob")
+      val fn = a match {
+        case _: ReadLines    => "read_lines"
+        case _: ReadTsv      => "read_tsv"
+        case _: ReadMap      => "read_map"
+        case _: ReadObject   => "read_object"
+        case _: ReadObjects  => "read_objects"
+        case _: ReadJson     => "read_json"
+        case _: ReadInt      => "read_int"
+        case _: ReadString   => "read_string"
+        case _: ReadFloat    => "read_float"
+        case _: ReadBoolean  => "read_boolean"
+        case _: WriteLines   => "write_lines"
+        case _: WriteTsv     => "write_tsv"
+        case _: WriteMap     => "write_map"
+        case _: WriteObject  => "write_object"
+        case _: WriteObjects => "write_objects"
+        case _: WriteJson    => "write_json"
+        case _: Range        => "range"
+        case _: Transpose    => "transpose"
+        case _: Length       => "length"
+        case _: Flatten      => "flatten"
+        case _: SelectFirst  => "select_first"
+        case _: SelectAll    => "select_all"
+        case _: Defined      => "defined"
+        case _: Floor        => "floor"
+        case _: Ceil         => "ceil"
+        case _: Round        => "round"
+        case _: Glob         => "glob"
       }
+
+      s"$fn(${a.param.toWdlV1})"
     }
   }
 

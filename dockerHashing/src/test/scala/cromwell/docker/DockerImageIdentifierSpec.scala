@@ -19,6 +19,8 @@ class DockerImageIdentifierSpec extends FlatSpec with Matchers with TableDrivenP
       ("ubuntu:latest",                           None,               None,                   "ubuntu",     "latest"),
       ("ubuntu:1235-SNAP",                        None,               None,                   "ubuntu",     "1235-SNAP"),
       ("ubuntu:V3.8-5_1",                         None,               None,                   "ubuntu",     "V3.8-5_1"),
+      ("index.docker.io:9999/ubuntu:170904",  Some("index.docker.io:9999"), None,             "ubuntu",    "170904"),
+      ("localhost:5000/capture/transwf:170904", Some("localhost:5000"), Some("capture"),      "transwf",    "170904"),
       ("quay.io/biocontainers/platypus-variant:0.8.1.1--htslib1.5_0", Option("quay.io"), Some("biocontainers"), "platypus-variant", "0.8.1.1--htslib1.5_0")
     )
     

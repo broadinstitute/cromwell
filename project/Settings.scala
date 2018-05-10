@@ -43,8 +43,8 @@ object Settings {
     "-explaintypes",
     "-Xmax-classfile-name", "200",
     "-Ybackend-parallelism", "3",
-    "-Ycache-plugin-class-loader",
-    "-Ycache-macro-class-loader",
+    "-Ycache-plugin-class-loader:last-modified",
+    "-Ycache-macro-class-loader:last-modified",
     "-target:jvm-1.8",
     "-encoding", "UTF-8"
   )

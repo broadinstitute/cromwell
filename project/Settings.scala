@@ -98,7 +98,7 @@ object Settings {
     scalaVersion := ScalaVersion,
     resolvers ++= commonResolvers,
     parallelExecution := false,
-    dependencyOverrides ++= cromwellDependencyOverrides.toSet, // TODO: Remove .toSet for SBT 1.x
+    dependencyOverrides ++= cromwellDependencyOverrides,
     scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, 12)) =>
         // The default scalacOptions includes console-hostile options.  These options are overridden specifically below

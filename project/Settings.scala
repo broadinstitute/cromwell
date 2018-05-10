@@ -42,6 +42,12 @@ object Settings {
     "-feature",
     "-explaintypes",
     "-Xmax-classfile-name", "200",
+
+    // the backend runs bytecode serialization, classfile writing and method-local
+    // optimizations (-opt:l:method) in parallel on N threads
+    "-Ybackend-parallelism", "3",
+    "-Ycache-plugin-class-loader:last-modified",
+    "-Ycache-macro-class-loader:last-modified",
     "-target:jvm-1.8",
     "-encoding", "UTF-8"
   )
@@ -90,7 +96,7 @@ object Settings {
       sys.env.get("ASSEMBLY_LOG_LEVEL").flatMap(Level.apply).getOrElse((logLevel in assembly).value)
   )
 
-  val Scala2_12Version = "2.12.4"
+  val Scala2_12Version = "2.12.6"
   val ScalaVersion = Scala2_12Version
   val sharedSettings = ReleasePlugin.projectSettings ++
     cromwellVersionWithGit ++ publishingSettings ++ List(

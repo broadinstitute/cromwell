@@ -42,6 +42,9 @@ object Settings {
     "-feature",
     "-explaintypes",
     "-Xmax-classfile-name", "200",
+
+    // the backend runs bytecode serialization, classfile writing and method-local
+    // optimizations (-opt:l:method) in parallel on N threads
     "-Ybackend-parallelism", "3",
     "-Ycache-plugin-class-loader:last-modified",
     "-Ycache-macro-class-loader:last-modified",

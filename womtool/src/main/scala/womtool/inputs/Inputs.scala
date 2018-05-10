@@ -6,6 +6,9 @@ import womtool.input.WomGraphMaker
 import wom.graph.{ExternalGraphInputNode, OptionalGraphInputNode, OptionalGraphInputNodeWithDefault, RequiredGraphInputNode}
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import wom.expression.WomExpression
+import wom.types.{WomCompositeType, WomOptionalType, WomType}
+
 import scala.util.{Failure, Success, Try}
 
 object Inputs {
@@ -13,7 +16,7 @@ object Inputs {
 
     WomGraphMaker.fromFiles(main, inputs = None) match {
       case Right(graph) =>
-        Try(graph.externalInputNodes.toJson(inputNodeFormatter(showOptionals)).prettyPrint) match {
+        Try(graph.externalInputNodes.toJson(inputNodeWriter(showOptionals)).prettyPrint) match {
           case Success(json) => SuccessfulTermination(json + System.lineSeparator)
           case Failure(error) => UnsuccessfulTermination(error.getMessage)
         }
@@ -21,14 +24,29 @@ object Inputs {
     }
   }
 
-  private def inputNodeFormatter(showOptionals: Boolean): JsonWriter[Set[ExternalGraphInputNode]] = set => {
+  private def inputNodeWriter(showOptionals: Boolean): JsonWriter[Set[ExternalGraphInputNode]] = set => {
 
     val valueMap: Seq[(String, JsValue)] = set.toList collect {
-      case RequiredGraphInputNode(_, womType, nameInInputSet, _) => nameInInputSet -> JsString(womType.toDisplayString)
-      case OptionalGraphInputNode(_, womOptionalType, nameInInputSet, _) if showOptionals => nameInInputSet -> JsString(womOptionalType.toDisplayString)
-      case OptionalGraphInputNodeWithDefault(_, womType, default, nameInInputSet, _) if showOptionals => nameInInputSet -> JsString(s"${womType.toDisplayString} (default = ${default.sourceString})")
+      case RequiredGraphInputNode(_, womType, nameInInputSet, _) => nameInInputSet -> womTypeToJson(womType, None)
+      case OptionalGraphInputNode(_, womOptionalType, nameInInputSet, _) if showOptionals => nameInInputSet -> womTypeToJson(womOptionalType, None)
+      case OptionalGraphInputNodeWithDefault(_, womType, default, nameInInputSet, _) if showOptionals => nameInInputSet -> womTypeToJson(womType, Option(default))
     }
 
     valueMap.toMap.toJson
   }
+
+  private def womTypeToJson(womType: WomType, default: Option[WomExpression]): JsValue = womType match {
+    case WomCompositeType(typeMap) => JsObject(typeMap.map {
+      case (name, wt) => name -> womTypeToJson(wt, None)
+    })
+    case _ =>
+      val defaultString = default.map(d => s"default = ${d.sourceString}").toList
+      val optionalString = if (womType.isInstanceOf[WomOptionalType] || default.isDefined) List("optional") else List.empty
+
+      val suffixStrings = optionalString ++ defaultString
+      val suffixString = if (suffixStrings.nonEmpty) suffixStrings.mkString(" (", ", ", ")") else ""
+
+      JsString(womType.toDisplayString + suffixString)
+  }
+
 }

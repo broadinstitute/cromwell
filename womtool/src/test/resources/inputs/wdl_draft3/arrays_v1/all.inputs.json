@@ -25,6 +25,6 @@
   "Arrays.analysis_version_number": "Int",
   "Arrays.control_sample_vcf_index_file": "File",
   "Arrays.dbSNP_vcf": "File",
-  "Arrays.bead_pool_manifest_filename": "String?",
+  "Arrays.bead_pool_manifest_filename": "String? (optional)",
   "Arrays.dbSNP_vcf_index": "File"
 }

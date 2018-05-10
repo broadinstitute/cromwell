@@ -13,5 +13,8 @@
   "HaplotypeCallerGvcf_GATK4.MergeGVCFs.java_opt": "String",
   "HaplotypeCallerGvcf_GATK4.MergeGVCFs.preemptible_tries": "Int",
   "HaplotypeCallerGvcf_GATK4.HaplotypeCaller.disk_size": "Int",
-  "HaplotypeCallerGvcf_GATK4.input_bam": "WomCompositeType {\n bam -> File\nindex -> File \n}"
+  "HaplotypeCallerGvcf_GATK4.input_bam": {
+    "bam": "File",
+    "index": "File"
+  }
 }

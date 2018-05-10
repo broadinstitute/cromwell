@@ -1,3 +1,7 @@
 {
-  "nested_imports_with_input.os": "WomCompositeType {\n is -> WomCompositeType {\n i -> Int \n} \n}"
+  "nested_imports_with_input.os": {
+    "is": {
+      "i": "Int"
+    }
+  }
 }

@@ -1,5 +1,5 @@
 {
   "subworkflow_input.subwf.i": "Int",
   "subworkflow_input.subwf.j": "Int",
-  "subworkflow_input.subwf.k": "Int (default = 5)"
+  "subworkflow_input.subwf.k": "Int (optional, default = 5)"
 }

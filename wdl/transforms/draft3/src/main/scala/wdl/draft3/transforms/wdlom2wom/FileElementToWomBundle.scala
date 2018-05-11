@@ -7,6 +7,7 @@ import cats.syntax.validated._
 import cats.instances.either._
 import common.Checked
 import common.transforms.CheckedAtoB
+import common.validation.Validation._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
 import common.validation.Checked._
@@ -99,6 +100,7 @@ object FileElementToWomBundle {
       .run(importElement.importUrl)
       .map { applyNamespace(_, importElement) }
       .flatMap { respectImportRenames(_, importElement.structRenames) }
+      .contextualizeErrors(s"import from ${importElement.importUrl}")
       .toValidated
   }
 

@@ -1,0 +1,3 @@
+indir:
+  class: Directory
+  location: centaur/src/main/resources/standardTestCases/cwl_dynamic_initial_workdir/testdir

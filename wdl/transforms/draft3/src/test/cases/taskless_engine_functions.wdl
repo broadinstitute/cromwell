@@ -4,6 +4,8 @@ workflow taskless_engine_functions {
 
   Array[Int] ints = [ 1, 2 ]
 
+  Array[Int]+ definitelyInts = [ 1, 2 ]
+
   Array[String] strings = ["a", "b"]
 
   String filepath = "gs://not/a/real/file.txt"
@@ -35,5 +37,8 @@ workflow taskless_engine_functions {
     Int f_floor = floor(f)
     Int f_ceiling = ceil(f)
     Int f_round = round(f)
+
+    Int m1 = matrix[1]
+    Int m2 = matrix[1][1]
   }
 }

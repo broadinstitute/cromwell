@@ -9,6 +9,7 @@ task a {
   command {
     echo ~{"hello"} ${world1}
     echo goodbye ~{world2}
+    echo ~{sep=", " true="--yes" false="--no" default="foo" world1}
   }
   runtime {
     docker: "ubuntu:latest"

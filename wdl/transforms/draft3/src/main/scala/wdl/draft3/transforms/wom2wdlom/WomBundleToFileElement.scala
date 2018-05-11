@@ -3,6 +3,7 @@ package wdl.draft3.transforms.wom2wdlom
 import wdl.model.draft3.elements._
 import wom.executable.WomBundle
 import common.collections.EnhancedCollections.EnhancedTraversableLike
+import wdl.model.draft3.elements.ExpressionElement.StringLiteral
 import wdl.model.draft3.elements.MetaValueElement.MetaValueElementString
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
 import wom.graph._
@@ -43,7 +44,7 @@ object WorkflowDefinitionToTaskDefinitionElement {
     WorkflowDefinitionElement(
       a.name,
       None,
-      Set.empty,
+      a.graph.nodes.map(GraphNodeToWorkflowGraphElement.convert),
       None,
       MapToMetaSectionElement.convert(a.meta),
       MapToParameterMetaSectionElement.convert(a.parameterMeta)
@@ -56,27 +57,68 @@ object GraphNodeToWorkflowGraphElement {
     a match {
       case a: CallNode =>
         CallNodeToCallElement.convert(a)
-      case _: ConditionalNode =>
-        ???
-      case _: ExpressionNodeLike =>
-        ???
-      case _: GraphNodeWithSingleOutputPort =>
-        ???
-      case _: GraphOutputNode =>
-        ???
-      case _: ScatterNode =>
-        ???
+      case a: ConditionalNode =>
+        ScatterElement(
+          scatterName = a.identifier.localName.value,
+          scatterExpression = StringLiteral("wasd"),
+          scatterVariableName = "a",
+          graphElements = Seq()
+        )
+      case a: ExpressionNodeLike =>
+        ScatterElement(
+          scatterName = a.identifier.localName.value,
+          scatterExpression = StringLiteral("wasd"),
+          scatterVariableName = "a",
+          graphElements = Seq()
+        )
+      case a: GraphNodeWithSingleOutputPort =>
+        ScatterElement(
+          scatterName = a.identifier.localName.value,
+          scatterExpression = StringLiteral("wasd"),
+          scatterVariableName = "a",
+          graphElements = Seq()
+        )
+      case a: GraphOutputNode =>
+        ScatterElement(
+          scatterName = a.identifier.localName.value,
+          scatterExpression = StringLiteral("wasd"),
+          scatterVariableName = "a",
+          graphElements = Seq()
+        )
+      case a: ScatterNode =>
+        ScatterElement(
+          scatterName = a.identifier.localName.value,
+          scatterExpression = StringLiteral("wasd"),
+          scatterVariableName = "a",
+          graphElements = Seq()
+        )
     }
   }
 }
+//object ExpressionNodeLikeToCallElement {
+//  def convert(a: ExpressionNodeLike): CallElement = {
+//    a match {
+//      ExpressionCallNode
+//    }
+//  }
+//}
 
 object CallNodeToCallElement {
   def convert(a: CallNode): CallElement = {
-    CallElement(
-      a.callable.name,
-      None,
-      None
-    )
+    a match {
+      case a: ExpressionCallNode =>
+        a.callable.inputs map { input =>
+          input.valueMapper
+
+        }
+        CallElement(
+          a.callable.name,
+          None,
+          None
+        )
+      case _: CommandCallNode => ???
+      case _: WorkflowCallNode => ???
+    }
   }
 }
 

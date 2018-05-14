@@ -13,7 +13,7 @@ import cwl.InitialWorkDirRequirement.IwdrListingArrayEntry
 import shapeless.Poly1
 import wom.callable.{AdHocValue, ContainerizedInputExpression}
 import wom.expression.IoFunctionSet.{IoDirectory, IoFile}
-import wom.expression.{IoFunctionSet, WomExpression}
+import wom.expression.{FileEvaluation, IoFunctionSet, WomExpression}
 import wom.types._
 import wom.values._
 
@@ -49,7 +49,7 @@ case class ECMAScriptWomExpression(expression: Expression,
     evaluate(inputValues, pc, expression)
   }
 
-  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType) = Set.empty[WomFile].validNel
+  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType) = Set.empty[FileEvaluation].validNel
 }
 
 final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEntry, expressionLib: ExpressionLib) extends ContainerizedInputExpression {

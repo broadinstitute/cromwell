@@ -8,7 +8,7 @@ import cwl.ExpressionEvaluator._
 import eu.timepit.refined._
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct
-import wom.expression.{EmptyIoFunctionSet, NoIoFunctionSet}
+import wom.expression.{EmptyIoFunctionSet, FileEvaluation, NoIoFunctionSet}
 import wom.types.WomIntegerType
 import wom.values._
 
@@ -49,6 +49,6 @@ class CommandOutputExpressionSpec extends FlatSpec with Matchers {
     val commandOutputExpression = OutputParameterExpression(commandOutputParameter, WomIntegerType, Set.empty, Vector.empty, SchemaDefRequirement())
     val result = commandOutputExpression.evaluateFiles(Map.empty, NoIoFunctionSet, WomIntegerType)
     // TODO: This should be a glob. See [[cwl.CommandOutputBinding.dependingIfGlobLike]]
-    result shouldBe Set(WomSingleFile("stdout")).valid
+    result shouldBe Set(FileEvaluation.requiredFile(WomSingleFile("stdout"))).valid
   }
 }

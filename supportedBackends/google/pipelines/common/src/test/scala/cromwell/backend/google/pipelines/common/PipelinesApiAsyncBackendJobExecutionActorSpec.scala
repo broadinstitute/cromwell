@@ -302,7 +302,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val runId = StandardAsyncJob(UUID.randomUUID().toString)
     val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
-    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), true)
+    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), wasPreemptible = true)
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
     val result = Await.result(executionResult, timeout)
     result.isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
@@ -316,7 +316,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val runId = StandardAsyncJob(UUID.randomUUID().toString)
     val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
-    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), true)
+    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), wasPreemptible = true)
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
     val result = Await.result(executionResult, timeout)
     result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
@@ -331,7 +331,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val runId = StandardAsyncJob(UUID.randomUUID().toString)
     val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
-    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), true)
+    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), wasPreemptible = true)
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
     val result = Await.result(executionResult, timeout)
     result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
@@ -346,7 +346,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val runId = StandardAsyncJob(UUID.randomUUID().toString)
     val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
-    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option("13: Retryable Error."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), true)
+    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option("13: Retryable Error."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), wasPreemptible = true)
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
     val result = Await.result(executionResult, timeout)
     result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
@@ -362,7 +362,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
     def checkFailedResult(errorCode: Status, errorMessage: Option[String]): ExecutionHandle = {
-      val failed = UnsuccessfulRunStatus(errorCode, errorMessage, Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), true)
+      val failed = UnsuccessfulRunStatus(errorCode, errorMessage, Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), wasPreemptible = true)
       Await.result(jesBackend.handleExecutionResult(failed, handle), timeout)
     }
 
@@ -552,7 +552,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val jesOutputs = jesBackend.generateJesOutputs(jobDescriptor)
     jesOutputs should have size 1
     jesOutputs should contain(PipelinesApiFileOutput("out",
-      s"gs://my-cromwell-workflows-bucket/file_passing/$workflowId/call-a/out", DefaultPathBuilder.get("out"), workingDisk))
+      s"gs://my-cromwell-workflows-bucket/file_passing/$workflowId/call-a/out", DefaultPathBuilder.get("out"), workingDisk, optional = true))
   }
 
   it should "generate correct JesInputs when a command line contains a write_lines call in it" taggedAs PostWomTest ignore {
@@ -651,15 +651,15 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
   it should "convert local Paths back to corresponding GCS paths in JesOutputs" in {
     val jesOutputs = Set(
       PipelinesApiFileOutput("/cromwell_root/path/to/file1", "gs://path/to/file1",
-        DefaultPathBuilder.get("/cromwell_root/path/to/file1"), workingDisk),
+        DefaultPathBuilder.get("/cromwell_root/path/to/file1"), workingDisk, optional = true),
       PipelinesApiFileOutput("/cromwell_root/path/to/file2", "gs://path/to/file2",
-        DefaultPathBuilder.get("/cromwell_root/path/to/file2"), workingDisk),
+        DefaultPathBuilder.get("/cromwell_root/path/to/file2"), workingDisk, optional = true),
       PipelinesApiFileOutput("/cromwell_root/path/to/file3", "gs://path/to/file3",
-        DefaultPathBuilder.get("/cromwell_root/path/to/file3"), workingDisk),
+        DefaultPathBuilder.get("/cromwell_root/path/to/file3"), workingDisk, optional = true),
       PipelinesApiFileOutput("/cromwell_root/path/to/file4", "gs://path/to/file4",
-        DefaultPathBuilder.get("/cromwell_root/path/to/file4"), workingDisk),
+        DefaultPathBuilder.get("/cromwell_root/path/to/file4"), workingDisk, optional = true),
       PipelinesApiFileOutput("/cromwell_root/path/to/file5", "gs://path/to/file5",
-        DefaultPathBuilder.get("/cromwell_root/path/to/file5"), workingDisk)
+        DefaultPathBuilder.get("/cromwell_root/path/to/file5"), workingDisk, optional = true)
     )
     val outputValues = Seq(
       WomSingleFile("/cromwell_root/path/to/file1"),

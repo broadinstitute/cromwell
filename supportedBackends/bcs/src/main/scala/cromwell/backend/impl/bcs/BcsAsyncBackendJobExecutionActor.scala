@@ -122,7 +122,7 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
     import cats.syntax.validated._
     def evaluateFiles(output: OutputDefinition): List[WomFile] = {
       Try (
-        output.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, output.womType).map(_.toList)
+        output.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, output.womType).map(_.toList map { _.file })
       ).getOrElse(List.empty[WomFile].validNel)
         .getOrElse(List.empty)
     }

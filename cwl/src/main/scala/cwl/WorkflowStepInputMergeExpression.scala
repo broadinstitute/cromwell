@@ -9,7 +9,7 @@ import cats.syntax.validated._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import cwl.InputParameter.DefaultToWomValuePoly
-import wom.expression.IoFunctionSet
+import wom.expression.{FileEvaluation, IoFunctionSet}
 import wom.graph.GraphNodePort.OutputPort
 import wom.types.WomType
 import wom.values.{WomArray, WomFile, WomOptionalValue, WomValue}
@@ -69,7 +69,7 @@ final case class WorkflowStepInputMergeExpression(input: WorkflowStepInput,
     }
   }
 
-  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = {
+  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = {
     if (allStepInputMappings.size > 1) {
       // TODO add MultipleInputFeatureRequirement logic in here
       "MultipleInputFeatureRequirement not supported yet".invalidNel
@@ -77,7 +77,7 @@ final case class WorkflowStepInputMergeExpression(input: WorkflowStepInput,
       val (inputName, _) = allStepInputMappings.head
       inputTypes(inputName).collectAsSeq({
         case file: WomFile => file
-      }).toSet.validNel
+      }).toSet[WomFile].map(FileEvaluation.requiredFile).validNel
     }
   }
 }

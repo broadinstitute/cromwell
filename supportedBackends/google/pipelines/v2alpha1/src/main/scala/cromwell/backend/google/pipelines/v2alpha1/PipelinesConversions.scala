@@ -7,7 +7,6 @@ import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.C
 import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk
 import cromwell.backend.google.pipelines.common._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
-import cromwell.backend.google.pipelines.v2alpha1.api.ActionFlag
 import cromwell.core.ExecutionEvent
 import wdl4s.parser.MemoryUnit
 
@@ -47,9 +46,7 @@ object PipelinesConversions {
   implicit class EnhancedFileOutput(val fileOutput: PipelinesApiFileOutput) extends AnyVal {
     def toEnvironment = Map(fileOutput.name -> fileOutput.containerPath.pathAsString)
 
-    def toAction(mounts: List[Mount], gsutilFlags: List[String] = List.empty) = {
-      gsutil("cp", fileOutput.containerPath.pathAsString, fileOutput.cloudPath)(mounts, List(ActionFlag.AlwaysRun), description = Option("delocalizing"))
-    }
+    def toAction(mounts: List[Mount]): Action = delocalize(fileOutput, mounts)
 
     def toMount = {
       new Mount()

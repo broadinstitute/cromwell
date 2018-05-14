@@ -7,7 +7,7 @@ import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.ExpressionElement.StringLiteral
 import wdl.model.draft3.elements.MetaValueElement.MetaValueElementString
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
-import wom.expression.{InputLookupExpression, ValueAsAnExpression}
+import wom.expression.{InputLookupExpression, NoIoFunctionSet, ValueAsAnExpression}
 import wom.graph._
 import wom.graph.expression._
 import wom.types._
@@ -158,9 +158,10 @@ object CallNodeToCallElement {
   def convert(a: CallNode): CallElement = {
     a match {
       case a: ExpressionCallNode =>
+        // We need to make list of inputs as kv pairs
+        // An InputDefinition has a valueMapper, which seems like a callable function to obtain the input value?
         a.callable.inputs map { input =>
-          input.valueMapper
-
+          input.valueMapper(NoIoFunctionSet)(???)
         }
         CallElement(
           a.callable.name,

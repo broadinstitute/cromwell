@@ -9,6 +9,12 @@ import wom.values._
 
 import scala.concurrent.{ExecutionContext, Future}
 
+object FileEvaluation {
+  def requiredFile(file: WomFile): FileEvaluation = FileEvaluation(file = file, optional = false)
+}
+
+case class FileEvaluation(file: WomFile, optional: Boolean)
+
 trait WomExpression {
   def sourceString: String
 
@@ -20,7 +26,7 @@ trait WomExpression {
   def inputs: Set[String]
   def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue]
   def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType]
-  def evaluateFiles(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]]
+  def evaluateFiles(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]]
 }
 
 /**
@@ -30,7 +36,7 @@ final case class ValueAsAnExpression(value: WomValue) extends WomExpression {
   override def sourceString: String = value.valueString
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = Valid(value)
   override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = Valid(value.womType)
-  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = Valid(Set.empty)
+  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = Valid(Set.empty)
   override val inputs: Set[String] = Set.empty
 }
 
@@ -163,9 +169,9 @@ case class InputLookupExpression(tpe: WomType, id: String) extends WomExpression
 
   override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = validNel(tpe)
 
-  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
+  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] =
     evaluateValue(inputTypes, ioFunctionSet).map{
-      case x: WomFile => Set(x)
+      case x: WomFile => Set(FileEvaluation.requiredFile(x))
       case _ => Set.empty
     }
 

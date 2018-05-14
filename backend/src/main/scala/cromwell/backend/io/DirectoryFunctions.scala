@@ -23,7 +23,7 @@ trait DirectoryFunctions extends IoFunctionSet with PathFactory {
                            jobDescriptor: BackendJobDescriptor): ErrorOr[List[WomUnlistedDirectory]] = {
     call.callable.outputs.flatTraverse[ErrorOr, WomUnlistedDirectory] { outputDefinition =>
       outputDefinition.expression.evaluateFiles(jobDescriptor.localInputs, this, outputDefinition.womType) map {
-        _.toList.flatMap(_.flattenFiles) collect { case unlistedDirectory: WomUnlistedDirectory => unlistedDirectory }
+        _.toList.flatMap(_.file.flattenFiles) collect { case unlistedDirectory: WomUnlistedDirectory => unlistedDirectory }
       }
     }
   }

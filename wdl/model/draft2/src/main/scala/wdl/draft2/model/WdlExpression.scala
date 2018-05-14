@@ -227,7 +227,7 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope) ext
     // case in the brave new WOM-world.
     wdlExpression.evaluateType(inputTypes.apply, new WdlStandardLibraryFunctionsType, Option(from)).toErrorOr
 
-  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = {
+  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = {
     lazy val wdlFunctions = new WdlStandardLibraryFunctions {
       override def readFile(path: String): String = Await.result(ioFunctionSet.readFile(path, None, failOnOverflow = false), Duration.Inf)
 
@@ -241,7 +241,7 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope) ext
 
       override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new Exception("You shouldn't call 'size' from a FileEvaluator"))
     }
-    wdlExpression.evaluateFiles(inputTypes.apply, wdlFunctions, coerceTo).toErrorOr.map(_.toSet[WomFile])
+    wdlExpression.evaluateFiles(inputTypes.apply, wdlFunctions, coerceTo).toErrorOr.map(_.toSet[WomFile] map FileEvaluation.requiredFile)
   }
 }
 

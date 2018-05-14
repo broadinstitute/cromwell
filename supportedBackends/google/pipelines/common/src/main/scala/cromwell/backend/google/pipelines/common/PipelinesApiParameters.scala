@@ -34,6 +34,7 @@ final case class PipelinesApiFileOutput(name: String,
                                         cloudPath: String,
                                         local: Path,
                                         mount: PipelinesApiAttachedDisk,
+                                        optional: Boolean,
                                         contentType: Option[ContentType] = None) extends PipelinesApiFileParameter {
   def containerPath: Path = mount.mountPoint.resolve(local)
 }

@@ -2,9 +2,13 @@ package cwl
 
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
-import wom.expression.IoFunctionSet
+import cwl.CwlType.CwlType
+import shapeless.Poly1
+import wom.expression.{FileEvaluation, IoFunctionSet}
 import wom.types._
 import wom.values.{WomFile, WomValue}
+
+import scala.Function.const
 
 case class OutputParameterExpression(parameter: OutputParameter,
                                      override val cwlExpressionType: WomType,
@@ -62,7 +66,7 @@ case class OutputParameterExpression(parameter: OutputParameter,
   }
 
   /**
-    * Returns the list of files that _will be_ output after the command is run.
+    * Returns the list of files that _will be_ output after the command is run, unless they are optional and if so _may be_.
     *
     * In CWL, a list of outputs is specified as glob, say `*.bam`, plus a list of secondary files that may be in the
     * form of paths or specified using carets such as `^.bai`.
@@ -73,7 +77,7 @@ case class OutputParameterExpression(parameter: OutputParameter,
     * - WomMaybeListedDirectoryType
     * - WomArrayType(WomMaybeListedDirectoryType) (Possible according to the way the spec is written, but not likely?)
     */
-  override def evaluateFiles(inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = {
+  override def evaluateFiles(inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = {
     import cats.syntax.apply._
     
     def fromOutputBinding: ErrorOr[Set[WomFile]] = parameter
@@ -85,7 +89,18 @@ case class OutputParameterExpression(parameter: OutputParameter,
       .`type`
       .map(_.fold(MyriadOutputTypeToWomFiles).apply(evaluateOutputBindingFiles(inputs, ioFunctionSet, parameter.secondaryFiles, coerceTo)))
       .getOrElse(Set.empty[WomFile].validNel)
-    
-    (fromOutputBinding, fromType) mapN (_ ++ _)
+
+    val optional: Boolean = parameter.`type`.exists(_.fold(OutputTypeIsOptional))
+
+    (fromOutputBinding, fromType) mapN (_ ++ _) map { _ map { FileEvaluation(_, optional) } }
+  }
+}
+
+object OutputTypeIsOptional extends Poly1 {
+  implicit val one: Case.Aux[MyriadOutputInnerType, Boolean] = at[MyriadOutputInnerType] { const(false) }
+
+  implicit val arr: Case.Aux[Array[MyriadOutputInnerType], Boolean] = at[Array[MyriadOutputInnerType]] {
+    // Possibly too broad, would return true for just single 'null'.
+    _.exists(_.select[CwlType].contains(CwlType.Null))
   }
 }

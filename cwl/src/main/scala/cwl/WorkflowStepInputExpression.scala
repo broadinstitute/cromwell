@@ -1,7 +1,7 @@
 package cwl
 
 import cats.syntax.validated._
-import wom.expression.IoFunctionSet
+import wom.expression.{FileEvaluation, IoFunctionSet}
 import wom.types._
 import wom.values._
 
@@ -45,6 +45,6 @@ final case class WorkflowStepInputExpression(inputName: String,
 
   //this is input, so not producing any output files
   override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType) =
-    Set.empty[WomFile].validNel
+    Set.empty[FileEvaluation].validNel
 }
 

@@ -12,10 +12,10 @@ import cromwell.util.WomMocks
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import wom.callable.Callable.{InputDefinition, OutputDefinition, RequiredInputDefinition}
-import wom.expression.{IoFunctionSet, NoIoFunctionSet, WomExpression}
+import wom.expression.{FileEvaluation, IoFunctionSet, NoIoFunctionSet, WomExpression}
 import wom.graph.WomIdentifier
 import wom.types.{WomIntegerType, WomType}
-import wom.values.{WomFile, WomInteger, WomValue}
+import wom.values.{WomInteger, WomValue}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor}
@@ -36,7 +36,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
       Validated.fromOption(inputValues.get("input"), NonEmptyList.one("Can't find a value for 'input'"))
     }
     override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = ???
-    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = ???
+    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = ???
   }
 
   // Depends on a previous output
@@ -47,7 +47,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
       Validated.fromOption(inputValues.get("o1"), NonEmptyList.one("Can't find a value for 'o1'"))
     }
     override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = ???
-    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = ???
+    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = ???
   }
 
   def invalidWomExpression1 = new WomExpression {
@@ -59,7 +59,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = {
       "Invalid expression 1".invalidNel
     }
-    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = {
+    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = {
       "Invalid expression 1".invalidNel
     }
   }
@@ -73,7 +73,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = {
       "Invalid expression 2".invalidNel
     }
-    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = {
+    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = {
       "Invalid expression 2".invalidNel
     }
   }
@@ -89,7 +89,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = {
       throw exception
     }
-    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = {
+    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = {
       throw exception
     }
   }

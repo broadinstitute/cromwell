@@ -35,6 +35,7 @@ object WorkflowManagerActor {
     */
   case object PreventNewWorkflowsFromStarting extends WorkflowManagerActorMessage
   sealed trait WorkflowManagerActorCommand extends WorkflowManagerActorMessage
+  case object RetrieveNewWorkflowsKey
   case object RetrieveNewWorkflows extends WorkflowManagerActorCommand
   final case class AbortWorkflowCommand(id: WorkflowId, restarted: Boolean) extends WorkflowManagerActorCommand
   case object AbortAllWorkflowsCommand extends WorkflowManagerActorCommand
@@ -117,7 +118,7 @@ case class WorkflowManagerActorParams(config: Config,
                                       workflowHeartbeatConfig: WorkflowHeartbeatConfig)
 
 class WorkflowManagerActor(params: WorkflowManagerActorParams)
-  extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with WorkflowMetadataHelper {
+  extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with WorkflowMetadataHelper with Timers {
 
   private val config = params.config
   override val serviceRegistryActor = params.serviceRegistryActor
@@ -129,11 +130,9 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   private val logger = Logging(context.system, this)
   private val tag = self.path.name
 
-  private var nextPollCancellable: Option[Cancellable] = None
-
   override def preStart(): Unit = {
     // Starts the workflow polling cycle
-    self ! RetrieveNewWorkflows
+    timers.startSingleTimer(RetrieveNewWorkflowsKey, RetrieveNewWorkflows, Duration.Zero)
   }
 
   startWith(Running, WorkflowManagerData(workflows = Map.empty))
@@ -235,7 +234,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
 
   whenUnhandled {
     case Event(PreventNewWorkflowsFromStarting, _) =>
-      nextPollCancellable foreach { _.cancel() }
+      timers.cancel(RetrieveNewWorkflowsKey)
       sender() ! akka.Done
       goto(RunningAndNotStartingNewWorkflows)
     // Uninteresting transition and current state notifications.
@@ -303,7 +302,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   }
 
   private def scheduleNextNewWorkflowPoll() = {
-    nextPollCancellable = Option(context.system.scheduler.scheduleOnce(newWorkflowPollRate, self, RetrieveNewWorkflows)(context.dispatcher))
+    timers.startSingleTimer(RetrieveNewWorkflowsKey, RetrieveNewWorkflows, newWorkflowPollRate)
   }
 
   private def expandFailureReasons(reasons: Seq[Throwable]): String = {

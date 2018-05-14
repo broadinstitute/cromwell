@@ -1,7 +1,7 @@
 package cromwell.server
 
 import akka.actor.SupervisorStrategy.{Escalate, Restart}
-import akka.actor.{Actor, ActorInitializationException, ActorLogging, ActorRef, OneForOneStrategy}
+import akka.actor.{Actor, ActorInitializationException, ActorLogging, ActorRef, DeadLetter, OneForOneStrategy, Props}
 import akka.event.Logging
 import akka.http.scaladsl.Http
 import akka.pattern.GracefulStopSupport
@@ -63,9 +63,13 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   private implicit val system = context.system
 
   private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(config)
-  logger.info("Workflow heartbeat configuation:\n{}", workflowHeartbeatConfig)
+  logger.info("Workflow heartbeat configuration:\n{}", workflowHeartbeatConfig)
 
   val serverMode: Boolean
+
+  // This sets up our own dead letter listener that we can shut off during shutdown
+  val deadLetterListener = system.actorOf(Props(classOf[CromwellDeadLetterListener]))
+  system.eventStream.subscribe(deadLetterListener, classOf[DeadLetter])
 
   lazy val systemConfig = config.getConfig("system")
   lazy val serviceRegistryActor: ActorRef = context.actorOf(ServiceRegistryActor.props(config), "ServiceRegistryActor")

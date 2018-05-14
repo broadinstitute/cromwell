@@ -9,7 +9,8 @@ import wdl.model.draft3.elements.MetaValueElement.MetaValueElementString
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
 import wom.expression.{InputLookupExpression, ValueAsAnExpression}
 import wom.graph._
-import wom.graph.expression.{ExpressionNode, ExpressionNodeLike}
+import wom.graph.expression._
+import wom.types._
 
 object WomBundleToFileElement {
   def convert(a: WomBundle): FileElement = {
@@ -20,7 +21,7 @@ object WomBundleToFileElement {
     FileElement(
       Seq(),
       Seq(),
-      workflows.map(WorkflowDefinitionToTaskDefinitionElement.convert).toSeq,
+      workflows.map(WorkflowDefinitionToWorkflowDefinitionElement.convert).toSeq,
       tasks.map(CallableTaskDefinitionToTaskDefinitionElement.convert).toSeq
     )
   }
@@ -41,7 +42,7 @@ object CallableTaskDefinitionToTaskDefinitionElement {
   }
 }
 
-object WorkflowDefinitionToTaskDefinitionElement {
+object WorkflowDefinitionToWorkflowDefinitionElement {
   def convert(a: WorkflowDefinition): WorkflowDefinitionElement = {
     WorkflowDefinitionElement(
       a.name,
@@ -65,12 +66,20 @@ object GraphNodeToWorkflowGraphElement {
           graphElements = Seq() //a.innerGraph.nodes
         )
       case a: ExpressionNodeLike =>
-        ScatterElement(
-          scatterName = a.identifier.localName.value,
-          scatterExpression = StringLiteral("wasd"),
-          scatterVariableName = "a",
-          graphElements = Seq()
-        )
+        a match {
+          case a: ExpressionNode =>
+            IntermediateValueDeclarationElement(
+              typeElement = WomTypeToTypeElement.convert(a.womType),
+              name = a.identifier.localName.value,
+              expression = ExpressionNodeToExpressionElement.convert(a))
+          case _: ExpressionCallNode => ???
+        }
+//        ScatterElement(
+//          scatterName = a.identifier.localName.value,
+//          scatterExpression = StringLiteral("wasd"),
+//          scatterVariableName = "a",
+//          graphElements = Seq()
+//        )
       case a: GraphNodeWithSingleOutputPort =>
         ScatterElement(
           scatterName = a.identifier.localName.value,
@@ -105,13 +114,42 @@ object GraphNodeToWorkflowGraphElement {
 //  }
 //}
 
+object WomTypeToTypeElement {
+  def convert(a: WomType): TypeElement = {
+    a match {
+      case a: WomArrayType =>
+        if (a.guaranteedNonEmpty)
+          NonEmptyTypeElement(ArrayTypeElement(WomTypeToTypeElement.convert(a.memberType)))
+        else
+          ArrayTypeElement(WomTypeToTypeElement.convert(a.memberType))
+      case _: WomCoproductType => ???
+      case _: WomFileType => PrimitiveTypeElement(WomSingleFileType) // TODO: questionable assumption
+      case a: WomMapType => MapTypeElement(WomTypeToTypeElement.convert(a.keyType), WomTypeToTypeElement.convert(a.valueType))
+      case _: WomNothingType.type => ???
+      case _: WomObjectType.type => ObjectTypeElement
+      case a: WomOptionalType => OptionalTypeElement(WomTypeToTypeElement.convert(a.memberType))
+      case a: WomPairType => PairTypeElement(WomTypeToTypeElement.convert(a.leftType), WomTypeToTypeElement.convert(a.rightType))
+      case a: WomPrimitiveType => WomPrimitiveTypeToPrimitiveTypeElement.convert(a)
+    }
+  }
+}
+
+object WomPrimitiveTypeToPrimitiveTypeElement {
+  def convert(a: WomPrimitiveType): PrimitiveTypeElement = PrimitiveTypeElement(a)
+}
+
 object ExpressionNodeToExpressionElement {
   def convert(a: ExpressionNode): ExpressionElement = {
     a.womExpression match {
       case _: WdlomWomExpression => ???
+//      case _: WdlWomExpression TODO: cannot import / does not make sense to have? Yet shows up.
       case _: ValueAsAnExpression => ???
       case _: InputLookupExpression => ???
-      case _ => throw new Exception("Unknown type")
+      case _: PlainAnonymousExpressionNode => ???
+      case _: TaskCallInputExpressionNode => ???
+      case _: ExposedExpressionNode => ???
+//      case _ => throw new Exception("Unknown type")
+      case _ => StringLiteral("todo")
     }
   }
 }

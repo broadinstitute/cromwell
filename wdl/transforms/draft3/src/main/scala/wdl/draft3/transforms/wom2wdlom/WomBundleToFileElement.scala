@@ -3,11 +3,13 @@ package wdl.draft3.transforms.wom2wdlom
 import wdl.model.draft3.elements._
 import wom.executable.WomBundle
 import common.collections.EnhancedCollections.EnhancedTraversableLike
+import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.ExpressionElement.StringLiteral
 import wdl.model.draft3.elements.MetaValueElement.MetaValueElementString
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
+import wom.expression.{InputLookupExpression, ValueAsAnExpression}
 import wom.graph._
-import wom.graph.expression.ExpressionNodeLike
+import wom.graph.expression.{ExpressionNode, ExpressionNodeLike}
 
 object WomBundleToFileElement {
   def convert(a: WomBundle): FileElement = {
@@ -58,11 +60,9 @@ object GraphNodeToWorkflowGraphElement {
       case a: CallNode =>
         CallNodeToCallElement.convert(a)
       case a: ConditionalNode =>
-        ScatterElement(
-          scatterName = a.identifier.localName.value,
-          scatterExpression = StringLiteral("wasd"),
-          scatterVariableName = "a",
-          graphElements = Seq()
+        IfElement(
+          conditionExpression = ExpressionNodeToExpressionElement.convert(a.conditionExpression),
+          graphElements = Seq() //a.innerGraph.nodes
         )
       case a: ExpressionNodeLike =>
         ScatterElement(
@@ -85,12 +85,14 @@ object GraphNodeToWorkflowGraphElement {
           scatterVariableName = "a",
           graphElements = Seq()
         )
+      // a.scatterCollectionExpressionNodes.head.womExpression.sourceString
+      // a.scatterCollectionExpressionNodes.head.womExpression.asInstanceOf[WdlWomExpression].wdlExpression
       case a: ScatterNode =>
         ScatterElement(
           scatterName = a.identifier.localName.value,
           scatterExpression = StringLiteral("wasd"),
-          scatterVariableName = "a",
-          graphElements = Seq()
+          scatterVariableName = a.inputPorts.toList.head.name,
+          graphElements = a.innerGraph.nodes.toList.map(GraphNodeToWorkflowGraphElement.convert)
         )
     }
   }
@@ -102,6 +104,17 @@ object GraphNodeToWorkflowGraphElement {
 //    }
 //  }
 //}
+
+object ExpressionNodeToExpressionElement {
+  def convert(a: ExpressionNode): ExpressionElement = {
+    a.womExpression match {
+      case _: WdlomWomExpression => ???
+      case _: ValueAsAnExpression => ???
+      case _: InputLookupExpression => ???
+      case _ => throw new Exception("Unknown type")
+    }
+  }
+}
 
 object CallNodeToCallElement {
   def convert(a: CallNode): CallElement = {
@@ -116,8 +129,18 @@ object CallNodeToCallElement {
           None,
           None
         )
-      case _: CommandCallNode => ???
-      case _: WorkflowCallNode => ???
+      case _: CommandCallNode =>
+        CallElement(
+          a.callable.name,
+          None,
+          None
+        )
+      case _: WorkflowCallNode =>
+        CallElement(
+          a.callable.name,
+          None,
+          None
+        )
     }
   }
 }

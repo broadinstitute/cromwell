@@ -68,7 +68,7 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   val serverMode: Boolean
 
   // This sets up our own dead letter listener that we can shut off during shutdown
-  val deadLetterListener = system.actorOf(Props(classOf[CromwellDeadLetterListener]))
+  val deadLetterListener = system.actorOf(Props(classOf[CromwellDeadLetterListener]), "DeadLetterListenerActor")
   system.eventStream.subscribe(deadLetterListener, classOf[DeadLetter])
 
   lazy val systemConfig = config.getConfig("system")

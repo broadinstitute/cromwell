@@ -70,6 +70,4 @@ class WomtoolInputsSpec extends FlatSpec with Matchers {
   }
 
   private def mustExist(file: java.io.File): java.io.File = if (file.exists) file else fail(s"No such file: ${file.getAbsolutePath}")
-//  private def ifExists(file: java.io.File): Option[java.io.File] = if (file.exists) Option(file) else None
-
 }

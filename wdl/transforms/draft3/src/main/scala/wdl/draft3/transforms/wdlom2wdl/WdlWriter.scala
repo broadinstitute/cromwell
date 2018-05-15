@@ -8,7 +8,7 @@ trait WdlWriter[A] {
   def toWdlV1(a: A): String
 
   // Stolen from WomGraph.scala
-  def indent(s: String) = s.lines.map(x => s"  $x").mkString(System.lineSeparator)
-  def combine(ss: Iterable[String]) = ss.mkString(start="", sep=System.lineSeparator, end=System.lineSeparator)
-  def indentAndCombine(ss: Iterable[String]) = combine(ss.map(indent))
+  final def indent(s: String) = s.lines.map(x => s"  $x").mkString(System.lineSeparator)
+  final def combine(ss: Iterable[String]) = ss.mkString(start="", sep=System.lineSeparator, end=System.lineSeparator)
+  final def indentAndCombine(ss: Iterable[String]) = combine(ss.map(indent))
 }

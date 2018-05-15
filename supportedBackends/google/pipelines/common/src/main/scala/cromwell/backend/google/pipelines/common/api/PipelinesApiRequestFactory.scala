@@ -59,7 +59,7 @@ object PipelinesApiRequestFactory {
                                       runtimeAttributes: PipelinesApiRuntimeAttributes,
                                       dockerImage: String,
                                       cloudCallRoot: Path,
-                                      commandScriptContainerPath: String,
+                                      commandScriptContainerPath: Path,
                                       logGcsPath: Path,
                                       inputOutputParameters: InputOutputParameters,
                                       projectId: String,

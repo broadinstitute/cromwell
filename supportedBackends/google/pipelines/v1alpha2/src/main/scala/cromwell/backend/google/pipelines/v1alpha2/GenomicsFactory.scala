@@ -29,7 +29,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
 
       override def runRequest(createPipelineParameters: CreatePipelineParameters) = {
         lazy val workflow = createPipelineParameters.jobDescriptor.workflowDescriptor
-        val commandLine = s"/bin/bash ${createPipelineParameters.commandScriptContainerPath}"
+        val commandLine = s"/bin/bash ${createPipelineParameters.commandScriptContainerPath.pathAsString}"
         
         val pipelineInfoBuilder = if (createPipelineParameters.preemptible) PreemptiblePipelineInfoBuilder else NonPreemptiblePipelineInfoBuilder
         val pipelineInfo = pipelineInfoBuilder.build(commandLine, createPipelineParameters.runtimeAttributes, createPipelineParameters.dockerImage)

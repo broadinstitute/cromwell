@@ -33,9 +33,6 @@ case "$TRAVIS_EVENT_TYPE" in
         centaurCwlConformanceLocal)
             "${SCRIPT_DIR}"/testCentaurCwlConformanceLocal.sh
             ;;
-        centaurCwlConformancePAPIv1)
-            "${SCRIPT_DIR}"/testCentaurCwlConformancePAPIv1.sh
-            ;;
         centaurCwlConformancePAPIv2)
             "${SCRIPT_DIR}"/testCentaurCwlConformancePAPIv2.sh
             ;;

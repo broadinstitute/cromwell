@@ -50,7 +50,9 @@ case class GcsBatchCopyCommand(
   val destinationBlob = destination.blob
   
   override def operation: StorageRequest[RewriteResponse] = {
-    val rewriteOperation = source.apiStorage.objects().rewrite(sourceBlob.getBucket, sourceBlob.getName, destinationBlob.getBucket, destinationBlob.getName, null)
+    val rewriteOperation = source.apiStorage.objects()
+      .rewrite(sourceBlob.getBucket, sourceBlob.getName, destinationBlob.getBucket, destinationBlob.getName, null)
+      .setUserProject(source.projectId)
     // Set the rewrite token if present
     rewriteToken foreach rewriteOperation.setRewriteToken 
     rewriteOperation
@@ -76,7 +78,7 @@ case class GcsBatchDeleteCommand(
                                   override val swallowIOExceptions: Boolean
                                 ) extends IoDeleteCommand(file, swallowIOExceptions) with GcsBatchIoCommand[Unit, Void] {
   private val blob = file.blob
-  def operation = file.apiStorage.objects().delete(blob.getBucket, blob.getName)
+  def operation = file.apiStorage.objects().delete(blob.getBucket, blob.getName).setUserProject(file.projectId)
   override protected def mapGoogleResponse(response: Void): Unit = ()
   override def onFailure(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders) = {
     if (swallowIOExceptions) Option(Left(())) else None
@@ -89,7 +91,7 @@ case class GcsBatchDeleteCommand(
 sealed trait GcsBatchGetCommand[T] extends GcsBatchIoCommand[T, StorageObject] {
   def file: GcsPath
   private val blob = file.blob
-  override def operation: StorageRequest[StorageObject] = file.apiStorage.objects().get(blob.getBucket, blob.getName)
+  override def operation: StorageRequest[StorageObject] = file.apiStorage.objects().get(blob.getBucket, blob.getName).setUserProject(file.projectId)
 }
 
 case class GcsBatchSizeCommand(override val file: GcsPath) extends IoSizeCommand(file) with GcsBatchGetCommand[Long] {

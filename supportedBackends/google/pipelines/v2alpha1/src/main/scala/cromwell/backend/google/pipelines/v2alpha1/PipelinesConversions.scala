@@ -34,7 +34,7 @@ object PipelinesConversions {
   implicit class EnhancedFileInput(val fileInput: PipelinesApiFileInput) extends AnyVal {
     def toEnvironment = Map(fileInput.name -> fileInput.containerPath)
 
-    def toAction(mounts: List[Mount]) = gsutil("cp", fileInput.cloudPath, fileInput.containerPath.pathAsString)(mounts, description = Option("localizing"))
+    def toAction(mounts: List[Mount], projectId: String) = gsutil("-u", projectId, "cp", fileInput.cloudPath, fileInput.containerPath.pathAsString)(mounts, description = Option("localizing"))
 
     def toMount = {
       new Mount()
@@ -46,7 +46,7 @@ object PipelinesConversions {
   implicit class EnhancedFileOutput(val fileOutput: PipelinesApiFileOutput) extends AnyVal {
     def toEnvironment = Map(fileOutput.name -> fileOutput.containerPath.pathAsString)
 
-    def toAction(mounts: List[Mount]): Action = delocalize(fileOutput, mounts)
+    def toAction(mounts: List[Mount], projectId: String): Action = delocalize(fileOutput, mounts, projectId)
 
     def toMount = {
       new Mount()

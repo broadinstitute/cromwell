@@ -25,6 +25,20 @@ Please update your configuration accordingly.
 If you don't update the `actor-factory` value, you'll get a deprecation warning in the logs, and Cromwell will default back to
 **PAPI V1**
 
+**Requester Pays**
+
+Cromwell now supports [Requester Pays](https://cloud.google.com/storage/docs/requester-pays) feature for Cloud Storage. With Requester Pays enabled on your bucket,
+you can require requesters to include a billing project in their requests, thus billing the requester's project. If the bucket you are accessing has requester pays enabled,
+to access the file inside that bucket you need to mention the Google project id which can be billed for that request. The billing project information can be added in below ways. Cromwell will
+look for them in decreasing order of priorities.
+1. It can be added as `'google_project':'project-id'` as part of workflow options during workflow submission
+2. It can be included inside configuration file as shown in [`Getting started on Google Pipelines API`](http://cromwell.readthedocs.io/en/develop/tutorials/PipelinesApi101/) where you need to replace the `<google-billing-project-id>` with the project id **(HIGHLY RECOMMENDED)**
+3. If it is not mentioned using above 2 ways, Cromwell will use the default project that has been configured with gcloud
+
+It is highly recommended to add the project id as part of configuration if you don't want to specify as part of workflow options each time you submit request. The above ways are in
+descending order of priority, overriding the one below it if mentioned. So if you mention the project id using all three, Cromwell will use the one specified along with workflow options.
+Although, you just need to mention the project id using one way.
+
 ### Labels
 * Cromwell has removed most of the formatting restrictions from custom labels. Please check the [README](README.md#label-format) for more detailed documentation.
 * Custom labels won't be submitted to Google backend as they are now decoupled from Google's default labels.
@@ -48,7 +62,7 @@ All language factories can now be configured on a per-language-version basis. Al
 
 * More accurately returns 503 instead of 500 when Cromwell can not respond in a timely manner
 * Cromwell now allows a user to submit a workflow but in a state where it will not automatically be picked up for execution. This new state is called 'On Hold'. To do this you need to set the parameter workflowOnHold to true while submitting the workflow.
-* API end point 'release' will allow the user to send a signal to Cromwell to allow a workflow to be startable, at which point it will be picked up by normal execution schemes.
+* API end point 'releaseHold' will allow the user to send a signal to Cromwell to allow a workflow to be startable, at which point it will be picked up by normal execution schemes.
 
 ### GPU
 

@@ -180,19 +180,7 @@ object CromwellShutdown extends GracefulStopSupport {
       shutdownActor(workflowManagerActor, CoordinatedShutdown.PhaseServiceRequestsDone, PoisonPill)
     }
 
-    /* 4) Stop system level actors that require writing to the database or I/O
-      * - SubWorkflowStoreActor
-      * - JobStoreActor
-      * - CallCacheWriteActor
-      * - ServiceRegistryActor
-      * - DockerHashActor
-      * - IoActor
-    */
-    List(subWorkflowStoreActor, jobStoreActor, callCacheWriteActor, serviceRegistryActor, dockerHashActor, ioActor) foreach {
-      shutdownActor(_, PhaseStopIoActivity, ShutdownCommand)
-    }
-
-    /* 5) Shutdown connection pools
+    /* 4) Shutdown connection pools
       * This will close all akka http opened connection pools tied to the actor system.
       * The pools stop accepting new work but are given a chance to execute the work submitted prior to the shutdown call.
       * When this future returns, all outstanding connections to client will be terminated.
@@ -203,6 +191,18 @@ object CromwellShutdown extends GracefulStopSupport {
         logger.info("Connection pools shut down")
         Done
       }
+    }
+
+    /* 5) Stop system level actors that require writing to the database or I/O
+      * - SubWorkflowStoreActor
+      * - JobStoreActor
+      * - CallCacheWriteActor
+      * - ServiceRegistryActor
+      * - DockerHashActor
+      * - IoActor
+    */
+    List(subWorkflowStoreActor, jobStoreActor, callCacheWriteActor, serviceRegistryActor, dockerHashActor, ioActor) foreach {
+      shutdownActor(_, PhaseStopIoActivity, ShutdownCommand)
     }
 
     // 6) Close database and stream materializer

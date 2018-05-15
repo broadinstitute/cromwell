@@ -19,7 +19,7 @@ object WomtoolCommandLineParser {
     case PartialWomtoolCommandLineArguments(Some(Highlight), Some(mainFile), None, None, Some(mode)) => Option(HighlightCommandLine(mainFile, mode))
     case PartialWomtoolCommandLineArguments(Some(Graph), Some(mainFile), None, None, None) => Option(WomtoolGraphCommandLine(mainFile))
     case PartialWomtoolCommandLineArguments(Some(WomGraph), Some(mainFile), None, None, None) => Option(WomtoolWomGraphCommandLine(mainFile))
-    case PartialWomtoolCommandLineArguments(Some(V1Upgrade), Some(mainFile), None, None) => Option(WomtoolWdlV1UpgradeCommandLine(mainFile))
+    case PartialWomtoolCommandLineArguments(Some(V1Upgrade), Some(mainFile), None, None, None) => Option(WomtoolWdlV1UpgradeCommandLine(mainFile))
     case _ => None
   }
 }

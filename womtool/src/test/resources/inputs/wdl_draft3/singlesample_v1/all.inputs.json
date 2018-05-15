@@ -6,7 +6,7 @@
   "PairedEndSingleSampleWorkflow.wgs_evaluation_interval_list": "File",
   "PairedEndSingleSampleWorkflow.contamination_sites_vcf": "File",
   "PairedEndSingleSampleWorkflow.ValidateAggregatedSamFile.ignore": "Array[String]? (optional)",
-  "PairedEndSingleSampleWorkflow.bwa_commandline": "String (optional, default = StringLiteral(bwa mem -K 100000000 -p -v 3 -t 16 -Y $bash_ref_fasta))",
+  "PairedEndSingleSampleWorkflow.bwa_commandline": "String (optional, default = \"bwa mem -K 100000000 -p -v 3 -t 16 -Y $bash_ref_fasta\")",
   "PairedEndSingleSampleWorkflow.agg_medium_disk": "Int",
   "PairedEndSingleSampleWorkflow.contamination_sites_vcf_index": "File",
   "PairedEndSingleSampleWorkflow.wgs_coverage_interval_list": "File",

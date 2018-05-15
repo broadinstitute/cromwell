@@ -38,7 +38,7 @@
   "JointGenotyping.snp_recalibration_annotation_values": "Array[String]",
   "JointGenotyping.dbsnp_vcf": "File",
   "JointGenotyping.ImportGVCFs.java_opt": "String",
-  "JointGenotyping.excess_het_threshold": "Float (optional, default = PrimitiveLiteralExpressionElement(WomFloat(54.69)))",
+  "JointGenotyping.excess_het_threshold": "Float (optional, default = 54.69)",
   "JointGenotyping.SitesOnlyGatherVcf.mem_size": "String",
   "JointGenotyping.callset_name": "String",
   "JointGenotyping.unpadded_intervals_file": "File",

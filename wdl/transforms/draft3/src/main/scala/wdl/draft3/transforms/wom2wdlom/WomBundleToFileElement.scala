@@ -1,13 +1,14 @@
 package wdl.draft3.transforms.wom2wdlom
 
-import wdl.model.draft3.elements._
+import wdl.model.draft3.elements.{WorkflowGraphElement, _}
 import wom.executable.WomBundle
 import common.collections.EnhancedCollections.EnhancedTraversableLike
 import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.ExpressionElement.StringLiteral
 import wdl.model.draft3.elements.MetaValueElement.MetaValueElementString
-import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
-import wom.expression.{InputLookupExpression, NoIoFunctionSet, ValueAsAnExpression}
+import wom.callable.{Callable, CallableTaskDefinition, WorkflowDefinition}
+import wom.expression.{InputLookupExpression, ValueAsAnExpression, WomExpression}
+import wom.graph.CallNode.InputDefinitionPointer
 import wom.graph._
 import wom.graph.expression._
 import wom.types._
@@ -55,6 +56,7 @@ object WorkflowDefinitionToWorkflowDefinitionElement {
   }
 }
 
+// TODO: eliminate nested matches - they are impossible to read
 object GraphNodeToWorkflowGraphElement {
   def convert(a: GraphNode): WorkflowGraphElement = {
     a match {
@@ -74,26 +76,10 @@ object GraphNodeToWorkflowGraphElement {
               expression = ExpressionNodeToExpressionElement.convert(a))
           case _: ExpressionCallNode => ???
         }
-//        ScatterElement(
-//          scatterName = a.identifier.localName.value,
-//          scatterExpression = StringLiteral("wasd"),
-//          scatterVariableName = "a",
-//          graphElements = Seq()
-//        )
       case a: GraphNodeWithSingleOutputPort =>
-        ScatterElement(
-          scatterName = a.identifier.localName.value,
-          scatterExpression = StringLiteral("wasd"),
-          scatterVariableName = "a",
-          graphElements = Seq()
-        )
+        GraphNodeWithSingleOutputPortToWorkflowGraphElement.convert(a)
       case a: GraphOutputNode =>
-        ScatterElement(
-          scatterName = a.identifier.localName.value,
-          scatterExpression = StringLiteral("wasd"),
-          scatterVariableName = "a",
-          graphElements = Seq()
-        )
+        GraphOutputNodeToWorkflowGraphElement.convert(a)
       // a.scatterCollectionExpressionNodes.head.womExpression.sourceString
       // a.scatterCollectionExpressionNodes.head.womExpression.asInstanceOf[WdlWomExpression].wdlExpression
       case a: ScatterNode =>
@@ -113,6 +99,44 @@ object GraphNodeToWorkflowGraphElement {
 //    }
 //  }
 //}
+
+object GraphOutputNodeToWorkflowGraphElement {
+  def convert(a: GraphOutputNode): WorkflowGraphElement = {
+    a match {
+      case a: PortBasedGraphOutputNode =>
+        OutputDeclarationElement(
+          WomTypeToTypeElement.convert(a.womType),
+          a.identifier.localName.value,
+          StringLiteral("bogus") // TODO
+        )
+      case a: ExpressionBasedGraphOutputNode =>
+        OutputDeclarationElement(
+          WomTypeToTypeElement.convert(a.womType),
+          a.identifier.localName.value,
+          WomExpressionToExpressionElement.convert(a.womExpression)
+        )
+    }
+  }
+}
+
+object GraphNodeWithSingleOutputPortToWorkflowGraphElement {
+  def convert(a: GraphNodeWithSingleOutputPort): WorkflowGraphElement = {
+    a match {
+      case a: GraphInputNode =>
+        InputDeclarationElement(
+          WomTypeToTypeElement.convert(a.womType),
+          a.identifier.localName.value,
+          None
+        )
+      case a: ExpressionNode =>
+        IntermediateValueDeclarationElement(
+          WomTypeToTypeElement.convert(a.womType),
+          a.identifier.localName.value,
+          WomExpressionToExpressionElement.convert(a.womExpression)
+        )
+    }
+  }
+}
 
 object WomTypeToTypeElement {
   def convert(a: WomType): TypeElement = {
@@ -138,17 +162,24 @@ object WomPrimitiveTypeToPrimitiveTypeElement {
   def convert(a: WomPrimitiveType): PrimitiveTypeElement = PrimitiveTypeElement(a)
 }
 
+// TODO: Possibly the wrong conversion
 object ExpressionNodeToExpressionElement {
   def convert(a: ExpressionNode): ExpressionElement = {
-    a.womExpression match {
+    WomExpressionToExpressionElement.convert(a.womExpression)
+  }
+}
+
+object WomExpressionToExpressionElement {
+  def convert(a: WomExpression): ExpressionElement = {
+    a match {
       case _: WdlomWomExpression => ???
-//      case _: WdlWomExpression TODO: cannot import / does not make sense to have? Yet shows up.
+      //      case _: WdlWomExpression TODO: cannot import / does not make sense to have? Yet shows up.
       case _: ValueAsAnExpression => ???
       case _: InputLookupExpression => ???
       case _: PlainAnonymousExpressionNode => ???
       case _: TaskCallInputExpressionNode => ???
       case _: ExposedExpressionNode => ???
-//      case _ => throw new Exception("Unknown type")
+      //      case _ => throw new Exception("Unknown type")
       case _ => StringLiteral("todo")
     }
   }
@@ -156,13 +187,16 @@ object ExpressionNodeToExpressionElement {
 
 object CallNodeToCallElement {
   def convert(a: CallNode): CallElement = {
+    a.inputDefinitionMappings map { case (defn: Callable.InputDefinition, defnPtr: InputDefinitionPointer) =>
+      (defn.localName, defnPtr)
+    }
     a match {
       case a: ExpressionCallNode =>
         // We need to make list of inputs as kv pairs
         // An InputDefinition has a valueMapper, which seems like a callable function to obtain the input value?
-        a.callable.inputs map { input =>
-          input.valueMapper(NoIoFunctionSet)(???)
-        }
+//        a.callable.inputs map { input =>
+//          input.valueMapper(NoIoFunctionSet)(???)
+//        }
         CallElement(
           a.callable.name,
           None,
@@ -183,6 +217,8 @@ object CallNodeToCallElement {
     }
   }
 }
+
+// <<< Below this line, believed to be fully working >>>
 
 object MapToMetaSectionElement {
   def convert(a: Map[String, String]): Option[MetaSectionElement] = {

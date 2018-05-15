@@ -28,7 +28,19 @@ object BackendJobExecutionActor {
   sealed trait BackendJobExecutionActorResponse extends BackendWorkflowLifecycleActorResponse
 
   sealed trait BackendJobExecutionResponse extends BackendJobExecutionActorResponse { def jobKey: JobKey }
-  case class JobSucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: CallOutputs, jobDetritusFiles: Option[Map[String, Path]], executionEvents: Seq[ExecutionEvent], dockerImageUsed: Option[String]) extends BackendJobExecutionResponse
+  case class JobSucceededResponse(jobKey: BackendJobDescriptorKey,
+                                  returnCode: Option[Int],
+                                  jobOutputs: CallOutputs,
+                                  jobDetritusFiles: Option[Map[String, Path]],
+                                  executionEvents: Seq[ExecutionEvent],
+                                  dockerImageUsed: Option[String],
+                                  resultGenerationMode: ResultGenerationMode) extends BackendJobExecutionResponse
+
+  sealed trait ResultGenerationMode
+  case object RunOnBackend extends ResultGenerationMode
+  case object CallCached extends ResultGenerationMode
+  case object FetchedFromJobStore extends ResultGenerationMode
+
   case class JobAbortedResponse(jobKey: BackendJobDescriptorKey) extends BackendJobExecutionResponse
   
   sealed trait BackendJobFailedResponse extends BackendJobExecutionResponse {  def throwable: Throwable; def returnCode: Option[Int] }

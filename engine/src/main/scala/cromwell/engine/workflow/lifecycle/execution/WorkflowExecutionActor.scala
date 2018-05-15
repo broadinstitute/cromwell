@@ -167,11 +167,12 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     //Success
     // Job
     case Event(r: JobSucceededResponse, stateData) =>
-      workflowLogger.info(s"Job succeeded: '${r.jobKey.call.fullyQualifiedName}' (scatter index: ${r.jobKey.index}, attempt ${r.jobKey.attempt})")
+      if (r.resultGenerationMode != RunOnBackend) {
+        workflowLogger.info(s"Job results retrieved (${r.resultGenerationMode}): '${r.jobKey.call.fullyQualifiedName}' (scatter index: ${r.jobKey.index}, attempt ${r.jobKey.attempt})")
+      }
       handleCallSuccessful(r.jobKey, r.jobOutputs, r.returnCode, stateData, Map.empty)
     // Sub Workflow
     case Event(SubWorkflowSucceededResponse(jobKey, descendantJobKeys, callOutputs), currentStateData) =>
-      workflowLogger.info(s"Sub-workflow succeeded: '${jobKey.node.fullyQualifiedName}' (scatter index: ${jobKey.index}, attempt ${jobKey.attempt})")
       // Update call outputs to come from sub-workflow output ports:
       val subworkflowOutputs: Map[OutputPort, WomValue] = callOutputs.outputs flatMap { case (port, value) =>
         jobKey.node.subworkflowCallOutputPorts collectFirst {
@@ -187,8 +188,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     // Expression
     case Event(ExpressionEvaluationSucceededResponse(expressionKey, callOutputs), stateData) =>
       expressionKey.node match {
-        case _: ExposedExpressionNode | _: ExpressionBasedGraphOutputNode =>
-          workflowLogger.info(s"Expression evaluation succeeded: '${expressionKey.node.fullyQualifiedName}' (scatter index: ${expressionKey.index}, attempt: ${expressionKey.attempt})")
+        case _: ExposedExpressionNode | _: ExpressionBasedGraphOutputNode if workflowLogger.isDebugEnabled =>
+          workflowLogger.debug(s"Expression evaluation succeeded: '${expressionKey.node.fullyQualifiedName}' (scatter index: ${expressionKey.index}, attempt: ${expressionKey.attempt})")
         case _ => // No logging; anonymous node
       }
 

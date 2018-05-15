@@ -54,7 +54,7 @@ import scala.util.Success
 class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
   with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
   val mockPathBuilder: GcsPathBuilder = GcsPathBuilder.fromCredentials(NoCredentials.getInstance(),
-    "test-cromwell", RetrySettings.newBuilder().build(), GcsStorage.DefaultCloudStorageConfiguration, WorkflowOptions.empty)
+    "test-cromwell", RetrySettings.newBuilder().build(), GcsStorage.DefaultCloudStorageConfiguration, WorkflowOptions.empty, Option("default_project") )
 
   var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor))
 

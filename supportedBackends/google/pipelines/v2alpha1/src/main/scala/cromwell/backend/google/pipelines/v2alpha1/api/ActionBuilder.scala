@@ -54,11 +54,11 @@ object ActionBuilder {
       .setLabels(description.map("description" -> _).toMap.asJava)
   }
 
-  def delocalize(fileOutput: PipelinesApiFileOutput, mounts: List[Mount]) = {
+  def delocalize(fileOutput: PipelinesApiFileOutput, mounts: List[Mount], projectId: String) = {
     // The command String runs in Bourne shell to get the conditional logic for optional outputs so shell metacharacters in filenames must be escaped.
     val List(containerPath, cloudPath) = List(fileOutput.containerPath.pathAsString, fileOutput.cloudPath) map ESCAPE_XSI.translate
 
-    val copy = s"gsutil cp $containerPath $cloudPath"
+    val copy = s"gsutil -u $projectId cp $containerPath $cloudPath"
     lazy val copyOnlyIfExists = s"if [[ -a $containerPath ]]; then $copy; fi"
 
     cloudSdkAction

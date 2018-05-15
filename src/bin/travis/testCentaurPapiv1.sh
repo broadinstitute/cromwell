@@ -167,6 +167,7 @@ centaur/test_cromwell.sh \
   -g \
   -c${PAPI_CONF} \
   -elocaldockertest \
+  -e gpu_on_papi \
   -p100 \
   $INTEGRATION_TESTS
 

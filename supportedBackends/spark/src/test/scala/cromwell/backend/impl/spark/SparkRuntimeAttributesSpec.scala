@@ -1,21 +1,20 @@
 package cromwell.backend.impl.spark
 
-import wdl.draft2.model.Draft2ImportResolver
+import common.validation.ErrorOr._
 import cromwell.backend.BackendWorkflowDescriptor
-import wom.RuntimeAttributesKeys._
 import cromwell.core.labels.Labels
 import cromwell.core.{WorkflowId, WorkflowOptions}
-import common.validation.ErrorOr._
 import org.scalatest.{Matchers, WordSpecLike}
 import spray.json.{JsBoolean, JsNumber, JsObject, JsString, JsValue}
-import wdl.draft2.model.WdlNamespaceWithWorkflow
-import wom.core.WorkflowSource
-import wom.graph.GraphNodePort.OutputPort
-import wom.values.WomValue
-import wom.transforms.WomWorkflowDefinitionMaker.ops._
+import squants.information.Gigabytes
+import wdl.draft2.model.{Draft2ImportResolver, WdlNamespaceWithWorkflow}
 import wdl.transforms.draft2.wdlom2wom._
+import wom.RuntimeAttributesKeys._
+import wom.core.WorkflowSource
 import wom.expression.NoIoFunctionSet
-import wom.format.MemorySize
+import wom.graph.GraphNodePort.OutputPort
+import wom.transforms.WomWorkflowDefinitionMaker.ops._
+import wom.values.WomValue
 
 class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
@@ -39,7 +38,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
   val emptyWorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
 
-  val staticDefaults = SparkRuntimeAttributes(1, MemorySize.parse("1 GB").get, None, None, None, failOnStderr = false)
+  val staticDefaults = SparkRuntimeAttributes(1, Gigabytes(1), None, None, None, failOnStderr = false)
 
   def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]) = {
     WorkflowOptions(JsObject(Map(

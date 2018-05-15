@@ -4,13 +4,15 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
 import com.typesafe.config.Config
-import cromwell.backend.RuntimeAttributeDefinition
 import common.validation.ErrorOr._
+import cromwell.backend.RuntimeAttributeDefinition
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Positive
 import org.slf4j.Logger
+import squants.information.Information
 import wdl.draft2.model.expression.PureStandardLibraryFunctions
 import wdl.draft2.model.{NoLookup, WdlExpression}
 import wom.expression.{NoIoFunctionSet, WomExpression}
-import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
@@ -36,11 +38,11 @@ object RuntimeAttributesValidation {
     validateWithValidation(value, ContinueOnReturnCodeValidation.instance, onMissingKey)
   }
 
-  def validateMemory(value: Option[WomValue], onMissingKey: => ErrorOr[MemorySize]): ErrorOr[MemorySize] = {
+  def validateMemory(value: Option[WomValue], onMissingKey: => ErrorOr[Information]): ErrorOr[Information] = {
     validateWithValidation(value, MemoryValidation.instance(), onMissingKey)
   }
 
-  def validateCpu(cpu: Option[WomValue], onMissingKey: => ErrorOr[Int]): ErrorOr[Int] = {
+  def validateCpu(cpu: Option[WomValue], onMissingKey: => ErrorOr[Int Refined Positive]): ErrorOr[Int Refined Positive] = {
     validateWithValidation(cpu, CpuValidation.instance, onMissingKey)
   }
 
@@ -72,11 +74,11 @@ object RuntimeAttributesValidation {
     }
   }
 
-  def parseMemoryString(k: String, s: WomString): ErrorOr[MemorySize] = {
+  def parseMemoryString(k: String, s: WomString): ErrorOr[Information] = {
     MemoryValidation.validateMemoryString(k, s)
   }
 
-  def parseMemoryInteger(k: String, i: WomInteger): ErrorOr[MemorySize] = {
+  def parseMemoryInteger(k: String, i: WomInteger): ErrorOr[Information] = {
     MemoryValidation.validateMemoryInteger(k, i)
   }
 

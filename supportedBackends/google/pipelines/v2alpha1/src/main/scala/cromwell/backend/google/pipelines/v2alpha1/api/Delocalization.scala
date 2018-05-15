@@ -6,6 +6,7 @@ import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
 import common.util.StringUtil._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
+import cromwell.backend.google.pipelines.v2alpha1.ToParameter.ops._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
 import cromwell.backend.google.pipelines.v2alpha1.api.Delocalization._
 
@@ -115,7 +116,7 @@ trait Delocalization {
 
     val projectId = createPipelineParameters.projectId
 
-    createPipelineParameters.outputParameters.map(_.toAction(mounts, projectId)) ++
+    createPipelineParameters.outputParameters.flatMap(_.toActions(mounts, projectId)) ++
       List(parseAction, delocalizeAction) ++
       copyLogsToLegacyPaths(stdoutPath, stderrPath, userActionNumber, gcsLegacyLogPath, projectId) :+
       delocalizeLogsAction(gcsLogDirectoryPath.pathAsString, projectId)

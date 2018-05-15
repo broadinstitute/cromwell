@@ -5,6 +5,9 @@ import com.typesafe.config.Config
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation._
 import common.validation.ErrorOr.ErrorOr
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Positive
+import squants.information.Information
 import wom.RuntimeAttributesKeys
 import wom.format.MemorySize
 import wom.values._
@@ -22,15 +25,15 @@ object TesRuntimeAttributes {
   val DockerWorkingDirKey = "dockerWorkingDir"
   val DiskSizeKey = "disk"
 
-  private def cpuValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Int] = CpuValidation.optional
+  private def cpuValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Int Refined Positive] = CpuValidation.optional
 
   private def failOnStderrValidation(runtimeConfig: Option[Config]) = FailOnStderrValidation.default(runtimeConfig)
 
   private def continueOnReturnCodeValidation(runtimeConfig: Option[Config]) = ContinueOnReturnCodeValidation.default(runtimeConfig)
 
-  private def diskSizeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[MemorySize] = MemoryValidation.optional(DiskSizeKey)
+  private def diskSizeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Information] = MemoryValidation.optional(DiskSizeKey)
 
-  private def memoryValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[MemorySize] = MemoryValidation.optional(RuntimeAttributesKeys.MemoryKey)
+  private def memoryValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Information] = MemoryValidation.optional(RuntimeAttributesKeys.MemoryKey)
 
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
 

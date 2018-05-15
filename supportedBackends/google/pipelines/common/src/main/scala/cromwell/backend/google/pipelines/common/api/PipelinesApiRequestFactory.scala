@@ -46,13 +46,13 @@ object PipelinesApiRequestFactory {
     */
   case class InputOutputParameters(
                                     detritusInputParameters: DetritusInputParameters,
-                                    jobInputParameters: List[PipelinesApiFileInput],
-                                    jobOutputParameters: List[PipelinesApiFileOutput],
+                                    jobInputParameters: List[PipelinesApiInput],
+                                    jobOutputParameters: List[PipelinesApiOutput],
                                     detritusOutputParameters: DetritusOutputParameters,
                                     literalInputParameters: List[PipelinesApiLiteralInput]
                                   ) {
-    lazy val fileInputParameters: List[PipelinesApiFileInput] = jobInputParameters ++ detritusInputParameters.all
-    lazy val fileOutputParameters: List[PipelinesApiFileOutput] = jobOutputParameters ++ detritusOutputParameters.all
+    lazy val fileInputParameters: List[PipelinesApiInput] = jobInputParameters ++ detritusInputParameters.all
+    lazy val fileOutputParameters: List[PipelinesApiOutput] = jobOutputParameters ++ detritusOutputParameters.all
   }
   
   case class CreatePipelineParameters(jobDescriptor: BackendJobDescriptor,
@@ -66,7 +66,8 @@ object PipelinesApiRequestFactory {
                                       computeServiceAccount: String,
                                       labels: Labels,
                                       preemptible: Boolean) {
-    def inputParameters = inputOutputParameters.literalInputParameters ++ inputOutputParameters.fileInputParameters
+    def literalInputs = inputOutputParameters.literalInputParameters
+    def inputParameters = inputOutputParameters.fileInputParameters
     def outputParameters = inputOutputParameters.fileOutputParameters
     def allParameters = inputParameters ++ outputParameters
   }

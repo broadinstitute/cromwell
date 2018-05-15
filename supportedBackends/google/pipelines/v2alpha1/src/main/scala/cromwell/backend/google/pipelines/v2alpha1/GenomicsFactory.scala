@@ -7,6 +7,9 @@ import com.google.api.services.genomics.v2alpha1.Genomics
 import com.google.api.services.genomics.v2alpha1.model._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterface, PipelinesApiRequestFactory}
+import cromwell.backend.google.pipelines.v2alpha1.AttributesConversion.ops._
+import cromwell.backend.google.pipelines.v2alpha1.CreatePipelineParametersConversion.ops._
+import cromwell.backend.google.pipelines.v2alpha1.GpuResourceConversion.ops._
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2alpha1.api.{ActionBuilder, Delocalization, Localization}
 import cromwell.backend.standard.StandardAsyncJob

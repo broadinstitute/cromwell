@@ -258,7 +258,10 @@ object Directory {
            ): Directory =
     new cwl.Directory("Directory".narrow, location, path, basename, listing)
 
-  def basename(value: String): String = value.stripSuffix("/").substring(value.lastIndexOf('/') + 1)
+  def basename(value: String): String = {
+    val stripped = value.stripSuffix("/")
+    stripped.substring(stripped.lastIndexOf('/') + 1)
+  }
 }
 
 private[cwl] object CwlDirectoryOrFileAsWomSingleDirectoryOrFile extends Poly1 {

@@ -82,6 +82,7 @@ object Dependencies {
   private val snakeyamlV = "1.17"
   private val specs2MockV = "3.8.9" // 3.9.X doesn't enjoy the spark backend or refined
   private val sprayJsonV = "1.3.3"
+  private val squantV = "1.3.0"
   private val sttpV = "0.0.16"
   private val swaggerParserV = "1.0.22"
   private val swaggerUiV = "3.2.2"
@@ -147,6 +148,7 @@ object Dependencies {
 
   private val catsDependencies = List(
     "org.typelevel" %% "cats-core" % catsV,
+    "org.typelevel" %% "alleycats-core" % catsV,
     "com.github.benhutchison" %% "mouse" % mouseV,
     "org.typelevel" %% "kittens" % kittensV
   )
@@ -369,7 +371,8 @@ object Dependencies {
     "com.typesafe.akka" %% "akka-stream-testkit" % akkaV % Test,
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
     "com.chuusai" %% "shapeless" % shapelessV,
-    "com.github.scopt" %% "scopt" % scoptV
+    "com.github.scopt" %% "scopt" % scoptV,
+    "org.typelevel"  %% "squants"  % squantV
   ) ++ configDependencies ++ catsDependencies ++ googleApiClientDependencies ++ statsDDependencies ++
     betterFilesDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.

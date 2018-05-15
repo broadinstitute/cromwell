@@ -188,7 +188,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     // Expression
     case Event(ExpressionEvaluationSucceededResponse(expressionKey, callOutputs), stateData) =>
       expressionKey.node match {
-        case _: ExposedExpressionNode | _: ExpressionBasedGraphOutputNode if workflowLogger.isDebugEnabled =>
+        case _: ExposedExpressionNode | _: ExpressionBasedGraphOutputNode =>
           workflowLogger.debug(s"Expression evaluation succeeded: '${expressionKey.node.fullyQualifiedName}' (scatter index: ${expressionKey.index}, attempt: ${expressionKey.attempt})")
         case _ => // No logging; anonymous node
       }

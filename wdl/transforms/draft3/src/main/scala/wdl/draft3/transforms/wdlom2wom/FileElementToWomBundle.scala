@@ -100,7 +100,7 @@ object FileElementToWomBundle {
       .run(importElement.importUrl)
       .map { applyNamespace(_, importElement) }
       .flatMap { respectImportRenames(_, importElement.structRenames) }
-      .contextualizeErrors(s"import from ${importElement.importUrl}")
+      .contextualizeErrors(s"import '${importElement.importUrl}'")
       .toValidated
   }
 

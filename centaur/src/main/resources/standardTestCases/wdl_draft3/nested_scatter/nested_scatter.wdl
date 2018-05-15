@@ -17,7 +17,15 @@ workflow nested_scatter {
     }
   }
 
+  scatter (i in indices) {
+    String string_in_scatter = "hello " + i
+    if (i > 1) {
+      String string_in_if_in_scatter = string_in_scatter
+    }
+  }
+
   output {
     Array[Array[Array[Int]]] ks = k
+    Array[String?] strings_in_if_in_scatter = string_in_if_in_scatter
   }
 }

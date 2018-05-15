@@ -102,11 +102,13 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   }
 
   def mergeExecutionDiff(diff: WorkflowExecutionDiff): WorkflowExecutionActorData = {
-    this.copy(
+    val result = this.copy(
       executionStore = executionStore.updateKeys(diff.executionStoreChanges),
       valueStore = valueStore.add(diff.valueStoreAdditions),
       jobKeyActorMappings = jobKeyActorMappings ++ diff.jobKeyActorMappings
     )
+//    println(s"%%% REMOVE ME %%% Merging diff.${System.lineSeparator()}New ExecutionStore: $executionStore${System.lineSeparator()}New ValueStore: $valueStore")
+    result
   }
 
   def mergeExecutionDiffs(diffs: Traversable[WorkflowExecutionDiff]): WorkflowExecutionActorData = {

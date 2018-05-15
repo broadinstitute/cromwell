@@ -28,7 +28,7 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
         a.definitionElement.outputsSection.toSeq.flatMap(_.outputs)
 
     val innerGraph: ErrorOr[WomGraph] = convertGraphElements(GraphLikeConvertInputs(graphNodeElements, Set.empty, a.typeAliases, a.definitionElement.name, insideAScatter = false, a.callables))
-    innerGraph map { ig =>  WorkflowDefinition(a.definitionElement.name, ig, Map.empty, Map.empty) }
+    (innerGraph map { ig =>  WorkflowDefinition(a.definitionElement.name, ig, Map.empty, Map.empty) }).contextualizeErrors(s"process workflow definition '${a.definitionElement.name}'")
   }
 
   final case class GraphLikeConvertInputs(graphElements: Set[WorkflowGraphElement],

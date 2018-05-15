@@ -88,7 +88,7 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
   protected[api] var statusPollers: Vector[ActorRef] = resetAllWorkers()
 
   override def preStart() = {
-    log.info("{} Running with {}", self.path.name, requestWorkers.value)
+    log.info("{} Running with {} workers", self.path.name, requestWorkers.value)
     timers.startSingleTimer(QueueMonitoringTimerKey, QueueMonitoringTimerAction, CromwellInstrumentation.InstrumentationRate)
     super.preStart()
   }

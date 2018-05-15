@@ -1,0 +1,16 @@
+name: draft3_optional_addition
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+
+files {
+  workflow: wdl_draft3/draft3_optional_addition/draft3_optional_addition.wdl
+}
+
+metadata {
+  workflowName: draft3_optional_addition
+  status: Succeeded
+  "outputs.draft3_optional_addition.lines.0": "cmd --only-with-maybe_i 0"
+  "outputs.draft3_optional_addition.lines.1": "cmd"
+}

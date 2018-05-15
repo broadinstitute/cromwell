@@ -34,7 +34,7 @@ import cromwell.webservice.EngineStatsActor
 import org.apache.commons.lang3.StringUtils
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
-import wom.graph.expression.TaskCallInputExpressionNode
+import wom.graph.expression.{ExposedExpressionNode, TaskCallInputExpressionNode}
 import wom.values._
 
 import scala.concurrent.duration._
@@ -167,9 +167,11 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     //Success
     // Job
     case Event(r: JobSucceededResponse, stateData) =>
+      workflowLogger.info(s"Job succeeded: '${r.jobKey.call.fullyQualifiedName}' (scatter index: ${r.jobKey.index}, attempt ${r.jobKey.attempt})")
       handleCallSuccessful(r.jobKey, r.jobOutputs, r.returnCode, stateData, Map.empty)
     // Sub Workflow
     case Event(SubWorkflowSucceededResponse(jobKey, descendantJobKeys, callOutputs), currentStateData) =>
+      workflowLogger.info(s"Sub-workflow succeeded: '${jobKey.node.fullyQualifiedName}' (scatter index: ${jobKey.index}, attempt ${jobKey.attempt})")
       // Update call outputs to come from sub-workflow output ports:
       val subworkflowOutputs: Map[OutputPort, WomValue] = callOutputs.outputs flatMap { case (port, value) =>
         jobKey.node.subworkflowCallOutputPorts collectFirst {
@@ -184,6 +186,12 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       }
     // Expression
     case Event(ExpressionEvaluationSucceededResponse(expressionKey, callOutputs), stateData) =>
+      expressionKey.node match {
+        case _: ExposedExpressionNode | _: ExpressionBasedGraphOutputNode =>
+          workflowLogger.info(s"Expression evaluation succeeded: '${expressionKey.node.fullyQualifiedName}' (scatter index: ${expressionKey.index}, attempt: ${expressionKey.attempt})")
+        case _ => // No logging; anonymous node
+      }
+
       handleDeclarationEvaluationSuccessful(expressionKey, callOutputs, stateData)
 
     // Failure
@@ -438,7 +446,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       case key: BackendJobDescriptorKey => processRunnableJob(key, data)
       case key: SubWorkflowKey => processRunnableSubWorkflow(key, data)
       case key: ConditionalCollectorKey => key.processRunnable(data)
-      case key: ConditionalKey => key.processRunnable(data)
+      case key: ConditionalKey => key.processRunnable(data, workflowLogger)
       case key @ ExpressionKey(expr: TaskCallInputExpressionNode, _) => processRunnableTaskCallInputExpression(key, data, expr)
       case key: ExpressionKey => key.processRunnable(data.expressionLanguageFunctions, data.valueStore, self)
       case key: ScatterCollectorKey => key.processRunnable(data)

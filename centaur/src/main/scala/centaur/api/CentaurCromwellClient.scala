@@ -14,14 +14,12 @@ import centaur.{CentaurConfig, CromwellManager}
 import cromwell.api.CromwellClient
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
 import cromwell.api.model.{CromwellBackends, SubmittedWorkflow, WorkflowId, WorkflowOutputs, WorkflowStatus}
-import org.slf4j.LoggerFactory
 
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.Try
 
 object CentaurCromwellClient {
-  val logger = LoggerFactory.getLogger("CentaurCromwellClient")
   // Do not use scala.concurrent.ExecutionContext.Implicits.global as long as this is using Await.result
   // See https://github.com/akka/akka-http/issues/602
   // And https://github.com/viktorklang/blog/blob/master/Futures-in-Scala-2.12-part-7.md
@@ -87,18 +85,18 @@ object CentaurCromwellClient {
            _: StreamTcpException |
            _: IOException |
            _: UnsupportedContentTypeException) if attempt < awaitMaxAttempts =>
-        logger.error("Failed to execute request to Cromwell, retrying", e)
+        Console.err.println("Failed to execute request to Cromwell, retrying", e)
         Thread.sleep(awaitSleep.toMillis)
         awaitFutureCompletion(x, timeout, attempt + 1)
       case unsuccessful: UnsuccessfulRequestException if unsuccessful.httpResponse.status == StatusCodes.NotFound && attempt < awaitMaxAttempts =>
-        logger.error("Failed to execute request to Cromwell, retrying", unsuccessful)
+        Console.err.println("Failed to execute request to Cromwell, retrying", unsuccessful)
         Thread.sleep(awaitSleep.toMillis)
         awaitFutureCompletion(x, timeout, attempt + 1)
       // see https://github.com/akka/akka-http/issues/768
       case unexpected: RuntimeException
         if unexpected.getMessage.contains("The http server closed the connection unexpectedly") &&
           attempt < awaitMaxAttempts =>
-        logger.error("Failed to execute request to Cromwell, retrying", unexpected)
+        Console.err.println("Failed to execute request to Cromwell, retrying", unexpected)
         Thread.sleep(awaitSleep.toMillis)
         awaitFutureCompletion(x, timeout, attempt + 1)
     }

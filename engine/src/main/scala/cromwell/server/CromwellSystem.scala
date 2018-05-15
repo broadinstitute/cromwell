@@ -1,8 +1,10 @@
 package cromwell.server
 
-import akka.actor.{ActorSystem, Terminated}
+import akka.actor.{Actor, ActorRef, ActorSystem, DeadLetter, Terminated}
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
+import cats.Show
+import cats.syntax.show._
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import cromwell.engine.language.{CromwellLanguages, LanguageConfiguration}
@@ -55,3 +57,15 @@ trait CromwellSystem {
   CromwellBackends.initBackends(BackendConfiguration.AllBackendEntries)
   CromwellLanguages.initLanguages(LanguageConfiguration.AllLanguageEntries)
 }
+
+class DeadLettersActor(log: String => Unit) extends Actor {
+
+ implicit val showActor: Show[ActorRef]  = Show.show(actor =>
+   s"Actor of path ${actor.path} toString ${actor.toString()}"
+ )
+  override def receive: Receive = {
+    case DeadLetter(msg, from, to) => log(s"got a dead letter sent by\n${from.show}\nto ${to.show}\n consisting of message: $msg\n ")
+  }
+}
+
+

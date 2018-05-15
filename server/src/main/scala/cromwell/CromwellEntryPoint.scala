@@ -1,6 +1,6 @@
 package cromwell
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, DeadLetter, Props}
 import akka.pattern.GracefulStopSupport
 import akka.stream.ActorMaterializer
 import cats.data.Validated._
@@ -15,7 +15,7 @@ import cromwell.core.path.Path
 import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
-import cromwell.server.{CromwellServer, CromwellSystem}
+import cromwell.server.{CromwellServer, CromwellSystem, DeadLettersActor}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import net.ceedubs.ficus.Ficus._
@@ -42,6 +42,8 @@ object CromwellEntryPoint extends GracefulStopSupport {
     */
   def runServer() = {
     val system = buildCromwellSystem(Server)
+    val logDeadLetters = system.actorSystem.actorOf(Props(new DeadLettersActor(EntryPointLogger.info)))
+    system.actorSystem.eventStream.subscribe(logDeadLetters, classOf[DeadLetter])
     waitAndExit(CromwellServer.run(gracefulShutdown, abortJobsOnTerminate.getOrElse(false)) _, system)
   }
 

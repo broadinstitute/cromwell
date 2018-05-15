@@ -56,6 +56,19 @@ object WorkflowDefinitionToWorkflowDefinitionElement {
   }
 }
 
+object ExpressionNodeLikeToWorkflowGraphElement {
+  def convert(a: ExpressionNodeLike): WorkflowGraphElement = {
+    a match {
+      case a: ExpressionNode =>
+        IntermediateValueDeclarationElement(
+          typeElement = WomTypeToTypeElement.convert(a.womType),
+          name = a.identifier.localName.value,
+          expression = ExpressionNodeToExpressionElement.convert(a))
+      case _: ExpressionCallNode => ???
+    }
+  }
+}
+
 // TODO: eliminate nested matches - they are impossible to read
 object GraphNodeToWorkflowGraphElement {
   def convert(a: GraphNode): WorkflowGraphElement = {
@@ -68,14 +81,7 @@ object GraphNodeToWorkflowGraphElement {
           graphElements = Seq() //a.innerGraph.nodes
         )
       case a: ExpressionNodeLike =>
-        a match {
-          case a: ExpressionNode =>
-            IntermediateValueDeclarationElement(
-              typeElement = WomTypeToTypeElement.convert(a.womType),
-              name = a.identifier.localName.value,
-              expression = ExpressionNodeToExpressionElement.convert(a))
-          case _: ExpressionCallNode => ???
-        }
+        ExpressionNodeLikeToWorkflowGraphElement.convert(a)
       case a: GraphNodeWithSingleOutputPort =>
         GraphNodeWithSingleOutputPortToWorkflowGraphElement.convert(a)
       case a: GraphOutputNode =>
@@ -173,7 +179,7 @@ object WomExpressionToExpressionElement {
   def convert(a: WomExpression): ExpressionElement = {
     a match {
       case _: WdlomWomExpression => ???
-      //      case _: WdlWomExpression TODO: cannot import / does not make sense to have? Yet shows up.
+      //      case _: WdlWomExpression TODO: cannot import / does not make sense to have? Yet shows up at runtime.
       case _: ValueAsAnExpression => ???
       case _: InputLookupExpression => ???
       case _: PlainAnonymousExpressionNode => ???

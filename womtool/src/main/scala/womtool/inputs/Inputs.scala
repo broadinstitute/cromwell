@@ -35,18 +35,12 @@ object Inputs {
     valueMap.toMap.toJson
   }
 
-  private def womTypeToJson(womType: WomType, default: Option[WomExpression]): JsValue = womType match {
-    case WomCompositeType(typeMap) => JsObject(typeMap.map {
-      case (name, wt) => name -> womTypeToJson(wt, None)
-    })
-    case _ =>
-      val defaultString = default.map(d => s"default = ${d.sourceString}").toList
-      val optionalString = if (womType.isInstanceOf[WomOptionalType] || default.isDefined) List("optional") else List.empty
-
-      val suffixStrings = optionalString ++ defaultString
-      val suffixString = if (suffixStrings.nonEmpty) suffixStrings.mkString(" (", ", ", ")") else ""
-
-      JsString(womType.toDisplayString + suffixString)
+  private def womTypeToJson(womType: WomType, default: Option[WomExpression]): JsValue = (womType, default) match {
+    case (WomCompositeType(typeMap), _) => JsObject(
+      typeMap.map { case (name, wt) => name -> womTypeToJson(wt, None) }
+    )
+    case (_, Some(d)) => JsString(s"${womType.toDisplayString} (optional, default = ${d.sourceString})")
+    case (_: WomOptionalType, _) => JsString(s"${womType.toDisplayString} (optional)")
+    case (_, _) => JsString(s"${womType.toDisplayString}")
   }
-
 }

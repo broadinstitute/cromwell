@@ -1,7 +1,6 @@
 package cromwell.backend.io
 
 import common.util.StringUtil._
-import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.path.Path
 import cromwell.core.{CallContext, JobKey, StandardPaths}
 import cromwell.services.metadata.CallMetadataKeys
@@ -58,7 +57,7 @@ trait JobPaths {
   def scriptFilename: String = "script"
   def dockerCidFilename: String = "docker_cid"
 
-  def jobKey: BackendJobDescriptorKey
+  def jobKey: JobKey
   lazy val callRoot = callPathBuilder(workflowPaths.workflowRoot, jobKey)
   lazy val callExecutionRoot = callRoot
 

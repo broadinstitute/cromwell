@@ -1,8 +1,9 @@
 package cromwell.backend.impl.tes
 
 import com.typesafe.config.Config
-import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.backend.io.{JobPaths, WorkflowPaths}
+import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
+import cromwell.core.JobKey
 import cromwell.core.path._
 
 object TesJobPaths {
@@ -16,7 +17,7 @@ object TesJobPaths {
 }
 
 case class TesJobPaths private[tes] (override val workflowPaths: TesWorkflowPaths,
-                  jobKey: BackendJobDescriptorKey) extends JobPaths {
+                  jobKey: JobKey) extends JobPaths {
 
   import JobPaths._
 

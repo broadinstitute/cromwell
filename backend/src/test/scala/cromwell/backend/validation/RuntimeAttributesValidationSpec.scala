@@ -188,7 +188,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val result = RuntimeAttributesValidation.validateMemory(memoryValue,
         "Failed to get memory mandatory key from runtime attributes".invalidNel)
       result match {
-        case Valid(x) => assert(x.amount == expectedGb)
+        case Valid(x) => assert(x.toGigabytes == expectedGb)
         case Invalid(e) => fail(e.toList.mkString(" "))
       }
     }
@@ -209,7 +209,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val result = RuntimeAttributesValidation.validateMemory(memoryValue,
         "Failed to get memory mandatory key from runtime attributes".invalidNel)
       result match {
-        case Valid(x) => assert(x.amount == expectedGb)
+        case Valid(x) => assert(x.toGigabytes == expectedGb)
         case Invalid(e) => fail(e.toList.mkString(" "))
       }
     }
@@ -259,7 +259,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val result = RuntimeAttributesValidation.validateCpu(cpuValue,
         "Failed to get cpu mandatory key from runtime attributes".invalidNel)
       result match {
-        case Valid(x) => assert(x == 1)
+        case Valid(x) => assert(x.value == 1)
         case Invalid(e) => fail(e.toList.mkString(" "))
       }
     }

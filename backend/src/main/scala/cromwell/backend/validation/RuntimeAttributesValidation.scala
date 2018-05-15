@@ -4,13 +4,15 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
 import com.typesafe.config.Config
-import cromwell.backend.RuntimeAttributeDefinition
 import common.validation.ErrorOr._
+import cromwell.backend.RuntimeAttributeDefinition
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Positive
 import org.slf4j.Logger
+import squants.information.{Information, Megabytes}
 import wdl.draft2.model.expression.PureStandardLibraryFunctions
 import wdl.draft2.model.{NoLookup, WdlExpression}
 import wom.expression.{NoIoFunctionSet, WomExpression}
-import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
@@ -36,11 +38,11 @@ object RuntimeAttributesValidation {
     validateWithValidation(value, ContinueOnReturnCodeValidation.instance, onMissingKey)
   }
 
-  def validateMemory(value: Option[WomValue], onMissingKey: => ErrorOr[MemorySize]): ErrorOr[MemorySize] = {
+  def validateMemory(value: Option[WomValue], onMissingKey: => ErrorOr[Information]): ErrorOr[Information] = {
     validateWithValidation(value, MemoryValidation.instance(), onMissingKey)
   }
 
-  def validateCpu(cpu: Option[WomValue], onMissingKey: => ErrorOr[Int]): ErrorOr[Int] = {
+  def validateCpu(cpu: Option[WomValue], onMissingKey: => ErrorOr[Int Refined Positive]): ErrorOr[Int Refined Positive] = {
     validateWithValidation(cpu, CpuValidation.instance, onMissingKey)
   }
 
@@ -72,12 +74,8 @@ object RuntimeAttributesValidation {
     }
   }
 
-  def parseMemoryString(k: String, s: WomString): ErrorOr[MemorySize] = {
+  def parseMemoryString(k: String, s: WomString): ErrorOr[Information] = {
     MemoryValidation.validateMemoryString(k, s)
-  }
-
-  def parseMemoryInteger(k: String, i: WomInteger): ErrorOr[MemorySize] = {
-    MemoryValidation.validateMemoryInteger(k, i)
   }
 
   def withDefault[ValidatedType](validation: RuntimeAttributesValidation[ValidatedType],
@@ -140,6 +138,8 @@ object RuntimeAttributesValidation {
 
     val attributes: Map[String, String] = attributeOptions collect {
       case (name, Some(values: Traversable[_])) => (name, values.mkString(","))
+      // For information, format it in MB instead of the default toString which prints in Bytes 
+      case (name, Some(information: Information)) => (name, information.toString(Megabytes).toString)
       case (name, Some(value)) => (name, value.toString)
     }
 

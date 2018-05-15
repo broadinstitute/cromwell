@@ -1,5 +1,7 @@
 package cromwell.backend
 
+import java.util.UUID
+
 import better.files.File.OpenOptions
 import cats.instances.future._
 import cats.syntax.functor._
@@ -24,6 +26,13 @@ trait WriteFunctions extends PathFactory with IoFunctionSet with AsyncIoFunction
   def writeDirectory: Path
 
   private lazy val _writeDirectory = if (isDocker) writeDirectory.createPermissionedDirectories() else writeDirectory.createDirectories()
+
+  override def createTemporaryDirectory(name: Option[String]) = {
+    val tempDirPath = _writeDirectory / name.getOrElse(UUID.randomUUID().toString)
+    // This is evil, but has the added advantage to work both for cloud and local
+    val tempDirHiddenFile = tempDirPath / ".file"
+    asyncIo.writeAsync(tempDirHiddenFile, "", OpenOptions.default).map(_ => tempDirPath.pathAsString)
+  }
 
   override def writeFile(path: String, content: String): Future[WomSingleFile] = {
     val file = _writeDirectory / path

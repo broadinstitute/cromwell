@@ -3,6 +3,7 @@ package cromwell.backend.io
 import com.typesafe.config.Config
 import common.util.StringUtil._
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
+import cromwell.core.JobKey
 import cromwell.core.path.{Path, PathBuilder}
 
 object JobPathsWithDocker {
@@ -15,7 +16,7 @@ object JobPathsWithDocker {
   }
 }
 
-case class JobPathsWithDocker private[io] (override val workflowPaths: WorkflowPathsWithDocker, jobKey: BackendJobDescriptorKey) extends JobPaths {
+case class JobPathsWithDocker private[io] (override val workflowPaths: WorkflowPathsWithDocker, jobKey: JobKey) extends JobPaths {
   import JobPaths._
 
   override lazy val callExecutionRoot = { callRoot.resolve("execution") }

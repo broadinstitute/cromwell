@@ -6,13 +6,14 @@ import cromwell.backend.google.pipelines.common._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.labels.Labels
+import cromwell.core.logging.JobLogger
 import cromwell.core.path.Path
 
 /**
   * The PipelinesApiRequestFactory defines the HttpRequests needed to run jobs
   */
 trait PipelinesApiRequestFactory {
-  def runRequest(createPipelineParameters: CreatePipelineParameters): HttpRequest
+  def runRequest(createPipelineParameters: CreatePipelineParameters, jobLogger: JobLogger): HttpRequest
   def getRequest(job: StandardAsyncJob): HttpRequest
   def cancelRequest(job: StandardAsyncJob): HttpRequest
 }
@@ -46,13 +47,13 @@ object PipelinesApiRequestFactory {
     */
   case class InputOutputParameters(
                                     detritusInputParameters: DetritusInputParameters,
-                                    jobInputParameters: List[PipelinesApiFileInput],
-                                    jobOutputParameters: List[PipelinesApiFileOutput],
+                                    jobInputParameters: List[PipelinesApiInput],
+                                    jobOutputParameters: List[PipelinesApiOutput],
                                     detritusOutputParameters: DetritusOutputParameters,
                                     literalInputParameters: List[PipelinesApiLiteralInput]
                                   ) {
-    lazy val fileInputParameters: List[PipelinesApiFileInput] = jobInputParameters ++ detritusInputParameters.all
-    lazy val fileOutputParameters: List[PipelinesApiFileOutput] = jobOutputParameters ++ detritusOutputParameters.all
+    lazy val fileInputParameters: List[PipelinesApiInput] = jobInputParameters ++ detritusInputParameters.all
+    lazy val fileOutputParameters: List[PipelinesApiOutput] = jobOutputParameters ++ detritusOutputParameters.all
   }
   
   case class CreatePipelineParameters(jobDescriptor: BackendJobDescriptor,
@@ -65,8 +66,10 @@ object PipelinesApiRequestFactory {
                                       projectId: String,
                                       computeServiceAccount: String,
                                       labels: Labels,
-                                      preemptible: Boolean) {
-    def inputParameters = inputOutputParameters.literalInputParameters ++ inputOutputParameters.fileInputParameters
+                                      preemptible: Boolean,
+                                      jobShell: String) {
+    def literalInputs = inputOutputParameters.literalInputParameters
+    def inputParameters = inputOutputParameters.fileInputParameters
     def outputParameters = inputOutputParameters.fileOutputParameters
     def allParameters = inputParameters ++ outputParameters
   }

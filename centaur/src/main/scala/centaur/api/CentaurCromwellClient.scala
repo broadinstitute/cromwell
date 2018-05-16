@@ -85,18 +85,18 @@ object CentaurCromwellClient {
            _: StreamTcpException |
            _: IOException |
            _: UnsupportedContentTypeException) if attempt < awaitMaxAttempts =>
-        Console.err.println("Failed to execute request to Cromwell, retrying", e)
+        Console.err.println(s"Failed to execute request to Cromwell, retrying: ${e.getMessage}")
         Thread.sleep(awaitSleep.toMillis)
         awaitFutureCompletion(x, timeout, attempt + 1)
       case unsuccessful: UnsuccessfulRequestException if unsuccessful.httpResponse.status == StatusCodes.NotFound && attempt < awaitMaxAttempts =>
-        Console.err.println("Failed to execute request to Cromwell, retrying", unsuccessful)
+        Console.err.println(s"Failed to execute request to Cromwell, retrying: ${unsuccessful.getMessage}")
         Thread.sleep(awaitSleep.toMillis)
         awaitFutureCompletion(x, timeout, attempt + 1)
       // see https://github.com/akka/akka-http/issues/768
       case unexpected: RuntimeException
         if unexpected.getMessage.contains("The http server closed the connection unexpectedly") &&
           attempt < awaitMaxAttempts =>
-        Console.err.println("Failed to execute request to Cromwell, retrying", unexpected)
+        Console.err.println(s"Failed to execute request to Cromwell, retrying: ${unexpected.getMessage}")
         Thread.sleep(awaitSleep.toMillis)
         awaitFutureCompletion(x, timeout, attempt + 1)
     }

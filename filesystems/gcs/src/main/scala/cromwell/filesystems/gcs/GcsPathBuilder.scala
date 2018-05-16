@@ -181,10 +181,12 @@ case class GcsPath private[gcs](nioPath: NioPath,
   }
 
   /***
-    * This method needs to be overridden to make it work with requester pays. We need to go around NioPath
-    * as currently it doesn't support to set the billing project id. In future when it is supported, remove
-    * this method and pass the billing project inside options parameter
-   */
+    * This method needs to be overridden to make it work with requester pays. We need to go around Nio
+    * as currently it doesn't support to set the billing project id. Google Cloud Storage already has
+    * code in place to set the billing project (inside HttpStorageRpc) but Nio does not pass it even though
+    * it's available. In future when it is supported, remove this method and wire billing project into code
+    * wherever necessary
+    */
   override def mediaInputStream: InputStream = {
     Try{
       apiStorage.objects().get(blob.getBucket, blob.getName).setUserProject(projectId).executeMediaAsInputStream()
@@ -195,9 +197,11 @@ case class GcsPath private[gcs](nioPath: NioPath,
   }
 
   /***
-    * This method needs to be overridden to make it work with requester pays. We need to go around NioPath
-    * as currently it doesn't support to set the billing project id. In future when it is supported, remove
-    * this method and pass the billing project inside options parameter
+    * This method needs to be overridden to make it work with requester pays. We need to go around Nio
+    * as currently it doesn't support to set the billing project id. Google Cloud Storage already has
+    * code in place to set the billing project (inside HttpStorageRpc) but Nio does not pass it even though
+    * it's available. In future when it is supported, remove this method and wire billing project into code
+    * wherever necessary
     */
   override def readContentAsString(implicit codec: Codec): String = {
     val storageObject = apiStorage.objects().get(blob.getBucket, blob.getName).setUserProject(projectId)
@@ -214,9 +218,11 @@ case class GcsPath private[gcs](nioPath: NioPath,
   }
 
   /***
-    * This method needs to be overridden to make it work with requester pays. We need to go around NioPath
-    * as currently it doesn't support to set the billing project id. In future when it is supported, remove
-    * this method and pass the billing project inside options parameter
+    * This method needs to be overridden to make it work with requester pays. We need to go around Nio
+    * as currently it doesn't support to set the billing project id. Google Cloud Storage already has
+    * code in place to set the billing project (inside HttpStorageRpc) but Nio does not pass it even though
+    * it's available. In future when it is supported, remove this method and wire billing project into code
+    * wherever necessary
     */
   override def readAllLinesInFile(implicit codec: Codec): Traversable[String] = {
     val storageObject = apiStorage.objects().get(blob.getBucket, blob.getName).setUserProject(projectId)

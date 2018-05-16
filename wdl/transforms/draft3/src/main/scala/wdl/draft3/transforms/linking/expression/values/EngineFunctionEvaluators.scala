@@ -54,6 +54,7 @@ object EngineFunctionEvaluators {
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomArray]] = {
       processValidatedSingleValue[WomSingleFile, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
         val tryResult = for {
+          //validate
           read <- readFile(fileToRead, ioFunctionSet)
           lines = read.split(System.lineSeparator)
         } yield EvaluatedValue(WomArray(lines map WomString.apply), Seq.empty)

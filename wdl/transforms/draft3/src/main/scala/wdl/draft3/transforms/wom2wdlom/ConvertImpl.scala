@@ -13,20 +13,54 @@ import wom.graph._
 import wom.graph.expression._
 import wom.types._
 
-object WomBundleToFileElement {
-  def convert(a: WomBundle): FileElement = {
+object ConvertImpl {
 
-    val tasks: Iterable[CallableTaskDefinition] = a.allCallables.values.filterByType[CallableTaskDefinition]
-    val workflows: Iterable[WorkflowDefinition] = a.allCallables.values.filterByType[WorkflowDefinition]
+  implicit val graphOutputNodeToWorkflowGraphElement: Convert[GraphOutputNode, WorkflowGraphElement] = new Convert[GraphOutputNode, WorkflowGraphElement] {
+    override def convert(a: GraphOutputNode): WorkflowGraphElement = a match {
+      case a: PortBasedGraphOutputNode =>
+        OutputDeclarationElement(
+          WomTypeToTypeElement.convert(a.womType),
+          a.identifier.localName.value,
+          StringLiteral("bogus") // TODO
+        )
+      case a: ExpressionBasedGraphOutputNode =>
+        OutputDeclarationElement(
+          WomTypeToTypeElement.convert(a.womType),
+          a.identifier.localName.value,
+          WomExpressionToExpressionElement.convert(a.womExpression)
+        )
+    }
+  }
 
-    FileElement(
-      Seq(),
-      Seq(),
-      workflows.map(WorkflowDefinitionToWorkflowDefinitionElement.convert).toSeq,
-      tasks.map(CallableTaskDefinitionToTaskDefinitionElement.convert).toSeq
-    )
+  implicit val womBundleToFileElement: Convert[WomBundle, FileElement] = new Convert[WomBundle, FileElement] {
+    override def convert(a: WomBundle): FileElement = {
+      val tasks: Iterable[CallableTaskDefinition] = a.allCallables.values.filterByType[CallableTaskDefinition]
+      val workflows: Iterable[WorkflowDefinition] = a.allCallables.values.filterByType[WorkflowDefinition]
+
+      FileElement(
+        Seq(),
+        Seq(),
+        workflows.map(WorkflowDefinitionToWorkflowDefinitionElement.convert).toSeq,
+        tasks.map(CallableTaskDefinitionToTaskDefinitionElement.convert).toSeq
+      )
+    }
   }
 }
+
+//object WomBundleToFileElement {
+//  def convert(a: WomBundle): FileElement = {
+//
+//    val tasks: Iterable[CallableTaskDefinition] = a.allCallables.values.filterByType[CallableTaskDefinition]
+//    val workflows: Iterable[WorkflowDefinition] = a.allCallables.values.filterByType[WorkflowDefinition]
+//
+//    FileElement(
+//      Seq(),
+//      Seq(),
+//      workflows.map(WorkflowDefinitionToWorkflowDefinitionElement.convert).toSeq,
+//      tasks.map(CallableTaskDefinitionToTaskDefinitionElement.convert).toSeq
+//    )
+//  }
+//}
 
 object CallableTaskDefinitionToTaskDefinitionElement {
   def convert(a: CallableTaskDefinition): TaskDefinitionElement = {
@@ -85,7 +119,9 @@ object GraphNodeToWorkflowGraphElement {
       case a: GraphNodeWithSingleOutputPort =>
         GraphNodeWithSingleOutputPortToWorkflowGraphElement.convert(a)
       case a: GraphOutputNode =>
-        GraphOutputNodeToWorkflowGraphElement.convert(a)
+        import ConvertImpl.graphOutputNodeToWorkflowGraphElement
+        import Convert.ops._
+        a.convert
       // a.scatterCollectionExpressionNodes.head.womExpression.sourceString
       // a.scatterCollectionExpressionNodes.head.womExpression.asInstanceOf[WdlWomExpression].wdlExpression
       case a: ScatterNode =>
@@ -106,24 +142,6 @@ object GraphNodeToWorkflowGraphElement {
 //  }
 //}
 
-object GraphOutputNodeToWorkflowGraphElement {
-  def convert(a: GraphOutputNode): WorkflowGraphElement = {
-    a match {
-      case a: PortBasedGraphOutputNode =>
-        OutputDeclarationElement(
-          WomTypeToTypeElement.convert(a.womType),
-          a.identifier.localName.value,
-          StringLiteral("bogus") // TODO
-        )
-      case a: ExpressionBasedGraphOutputNode =>
-        OutputDeclarationElement(
-          WomTypeToTypeElement.convert(a.womType),
-          a.identifier.localName.value,
-          WomExpressionToExpressionElement.convert(a.womExpression)
-        )
-    }
-  }
-}
 
 object GraphNodeWithSingleOutputPortToWorkflowGraphElement {
   def convert(a: GraphNodeWithSingleOutputPort): WorkflowGraphElement = {
@@ -152,10 +170,10 @@ object WomTypeToTypeElement {
           NonEmptyTypeElement(ArrayTypeElement(WomTypeToTypeElement.convert(a.memberType)))
         else
           ArrayTypeElement(WomTypeToTypeElement.convert(a.memberType))
-      case _: WomCoproductType => ???
+      case _: WomCoproductType => throw UnrepresentableException
       case _: WomFileType => PrimitiveTypeElement(WomSingleFileType) // TODO: questionable assumption
       case a: WomMapType => MapTypeElement(WomTypeToTypeElement.convert(a.keyType), WomTypeToTypeElement.convert(a.valueType))
-      case _: WomNothingType.type => ???
+      case _: WomNothingType.type => throw UnrepresentableException
       case _: WomObjectType.type => ObjectTypeElement
       case a: WomOptionalType => OptionalTypeElement(WomTypeToTypeElement.convert(a.memberType))
       case a: WomPairType => PairTypeElement(WomTypeToTypeElement.convert(a.leftType), WomTypeToTypeElement.convert(a.rightType))
@@ -179,6 +197,7 @@ object WomExpressionToExpressionElement {
   def convert(a: WomExpression): ExpressionElement = {
     a match {
       case _: WdlomWomExpression => ???
+//      case a: wdl.draft2.model.WdlWomExpression
       //      case _: WdlWomExpression TODO: cannot import / does not make sense to have? Yet shows up at runtime.
       case _: ValueAsAnExpression => ???
       case _: InputLookupExpression => ???
@@ -225,6 +244,8 @@ object CallNodeToCallElement {
 }
 
 // <<< Below this line, believed to be fully working >>>
+
+case object UnrepresentableException extends Exception("Value has no representation in the destination format (WDL)")
 
 object MapToMetaSectionElement {
   def convert(a: Map[String, String]): Option[MetaSectionElement] = {

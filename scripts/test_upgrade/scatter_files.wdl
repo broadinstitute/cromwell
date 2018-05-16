@@ -26,10 +26,10 @@ task catFile {
 }
 
 task gather {
- Array[File] files_input
+ Array[File] inputs
 
  command {
-   cat ${sep=" " files_input}
+   cat ${sep=" " inputs}
  }
 
  output {
@@ -56,5 +56,5 @@ workflow scatter_files {
   call catFile { input: f_in = mkFile.f}
  }
 
- call gather { input: files_input = catFile.f }
+ call gather { input: inputs = catFile.f }
 }

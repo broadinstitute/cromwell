@@ -1,17 +1,20 @@
 package wdl.draft3.transforms.wdlom2wom.graph
 
-import cats.syntax.apply._
+import common.validation.ErrorOr._
 import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.graph.expression.WomTypeMaker.ops._
 import wdl.model.draft3.graph.expression.WomExpressionMaker.ops._
 import wdl.draft3.transforms.linking.typemakers._
 import wdl.draft3.transforms.linking.expression._
+import wdl.draft3.transforms.wdlom2wom.graph.WorkflowGraphElementToGraphNode.validateAssignmentType
 import wdl.model.draft3.elements._
 import wdl.model.draft3.graph._
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.types.{WomOptionalType, WomType}
+import wdl.draft3.transforms.wdlom2wdl.WdlWriter.ops._
+import wdl.draft3.transforms.wdlom2wdl.WdlWriterImpl._
 
 object InputDeclarationElementToGraphNode {
   def convert(a: GraphInputNodeMakerInputs): ErrorOr[Set[GraphNode]] = a.node match {
@@ -26,10 +29,13 @@ object InputDeclarationElementToGraphNode {
       // in the WorkflowDefinitionElementToWomWorkflowDefinition convert step.
       val womExprValidation: ErrorOr[WomExpression] = expr.makeWomExpression(a.availableTypeAliases, a.linkableValues)
       val womTypeValidation: ErrorOr[WomType] = typeElement.determineWomType(a.availableTypeAliases)
-      (womExprValidation, womTypeValidation) mapN { (womExpr, womType) =>
-        val nameInInputSet = s"${a.workflowName}.$name"
-        Set[GraphNode](OptionalGraphInputNodeWithDefault.apply(WomIdentifier(name), womType, womExpr, nameInInputSet))
+      val result = (womExprValidation, womTypeValidation) flatMapN { (womExpr, womType) =>
+        validateAssignmentType(womExpr, womType) map { _ =>
+          val nameInInputSet = s"${a.workflowName}.$name"
+          Set[GraphNode](OptionalGraphInputNodeWithDefault.apply(WomIdentifier(name), womType, womExpr, nameInInputSet))
+        }
       }
+      result.contextualizeErrors(s"process input declaration '${typeElement.toWdlV1} $name = ${expr.toWdlV1}'")
   }
 }
 

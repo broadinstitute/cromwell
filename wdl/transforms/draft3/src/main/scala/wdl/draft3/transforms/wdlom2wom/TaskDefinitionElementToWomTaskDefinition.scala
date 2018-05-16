@@ -61,7 +61,7 @@ object TaskDefinitionElementToWomTaskDefinition {
     case class NewInputElementsSet(original: InputDeclarationElement, newInput: InputDeclarationElement, newDeclaration: IntermediateValueDeclarationElement)
 
     val inputElementsWithUpstreams: Seq[NewInputElementsSet] = a.taskDefinitionElement.inputsSection.map(_.inputDeclarations).getOrElse(Seq.empty) collect {
-      case ide @ InputDeclarationElement(typeElement,name, Some(expression)) if expression.expressionConsumedValueHooks.nonEmpty =>
+      case ide @ InputDeclarationElement(typeElement,name, Some(expression)) => // if expression.expressionConsumedValueHooks.nonEmpty =>
         val input = InputDeclarationElement(OptionalTypeElement(typeElement), name, None)
 
         val selecterExpression = SelectFirst(ArrayLiteral(Seq(IdentifierLookup(name), expression)))

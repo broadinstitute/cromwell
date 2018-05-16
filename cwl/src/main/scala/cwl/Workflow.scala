@@ -68,7 +68,7 @@ case class Workflow private(
     }
   }
 
-  val allHints: List[Requirement] = {
+  lazy val allHints: List[Requirement] = {
     // Just ignore any hint that isn't a Requirement.
     val requirementHints = hints.toList.flatten.flatMap { _.select[Requirement] }
     requirementHints ++ parentWorkflowStep.toList.flatMap { _.allHints }

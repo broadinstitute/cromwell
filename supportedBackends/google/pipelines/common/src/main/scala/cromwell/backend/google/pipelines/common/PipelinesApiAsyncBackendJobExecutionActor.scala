@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory
 import wom.CommandSetupSideEffectFile
 import wom.callable.Callable.OutputDefinition
 import wom.core.FullyQualifiedName
-import wom.expression.NoIoFunctionSet
+import wom.expression.{FileEvaluation, NoIoFunctionSet}
 import wom.types.{WomArrayType, WomSingleFileType}
 import wom.values._
 
@@ -100,6 +100,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(
     initialInterval = 3 seconds, maxInterval = 20 seconds, multiplier = 1.1)
+  
+  override lazy val runtimeEnvironment = {
+    RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, PipelinesApiWorkingDisk.MountPoint, PipelinesApiWorkingDisk.MountPoint)(standardParams.minimumRuntimeSettings)
+  }
 
   protected lazy val cmdInput =
     PipelinesApiFileInput(PipelinesApiJobPaths.JesExecParamName, pipelinesApiCallPaths.script.pathAsString, DefaultPathBuilder.get(pipelinesApiCallPaths.scriptFilename), workingDisk)
@@ -157,14 +161,27 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     )
   }
 
+  private def fileName(file: WomFile): WomFile = {
+    file.mapFile(value =>
+      getPath(value) match {
+        case Success(path) => path.name
+        case _ => value
+      }
+    )
+  }
+
   private[pipelines] def generateJesInputs(jobDescriptor: BackendJobDescriptor): Set[PipelinesApiFileInput] = {
     // We need to tell PAPI about files that were created as part of command instantiation (these need to be defined
     // as inputs that will be localized down to the VM). Make up 'names' for these files that are just the short
     // md5's of their paths.
     val writeFunctionFiles = instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f) } toMap
 
-    def localizationPath(f: CommandSetupSideEffectFile) =
-      f.relativeLocalPath.fold(ifEmpty = relativeLocalizationPath(f.file))(WomFile(f.file.womFileType, _))
+    def localizationPath(f: CommandSetupSideEffectFile) = {
+      if (isAdHocFile(f.file))
+        f.relativeLocalPath.fold(ifEmpty = fileName(f.file))(WomFile(f.file.womFileType, _))
+      else
+        f.relativeLocalPath.fold(ifEmpty = relativeLocalizationPath(f.file))(WomFile(f.file.womFileType, _))
+    }
     val writeFunctionInputs = writeFunctionFiles flatMap {
       case (name, files) => jesInputsFromWomFiles(name, files.map(_.file), files.map(localizationPath), jobDescriptor)
     }
@@ -222,20 +239,24 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   private[pipelines] def generateJesOutputs(jobDescriptor: BackendJobDescriptor): Set[PipelinesApiFileOutput] = {
     import cats.syntax.validated._
-    def evaluateFiles(output: OutputDefinition): List[WomFile] = {
+    def evaluateFiles(output: OutputDefinition): List[FileEvaluation] = {
       Try(
         output.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, output.womType).map(_.toList)
-      ).getOrElse(List.empty[WomFile].validNel)
+      ).getOrElse(List.empty[FileEvaluation].validNel)
         .getOrElse(List.empty)
     }
 
-    val womFileOutputs = jobDescriptor.taskCall.callable.outputs.flatMap(evaluateFiles) map relativeLocalizationPath
+    def relativeFileEvaluation(evaluation: FileEvaluation): FileEvaluation = {
+      evaluation.copy(file = relativeLocalizationPath(evaluation.file))
+    }
 
-    val outputs: Seq[PipelinesApiFileOutput] = womFileOutputs.distinct flatMap {
-      _.flattenFiles flatMap {
-        case unlistedDirectory: WomUnlistedDirectory => generateUnlistedDirectoryOutputs(unlistedDirectory)
-        case singleFile: WomSingleFile => generateJesSingleFileOutputs(singleFile)
-        case globFile: WomGlobFile => generateJesGlobFileOutputs(globFile)
+    val womFileOutputs = jobDescriptor.taskCall.callable.outputs.flatMap(evaluateFiles) map relativeFileEvaluation
+
+    val outputs: Seq[PipelinesApiFileOutput] = womFileOutputs.distinct flatMap { case FileEvaluation(file, optional) =>
+      file.flattenFiles flatMap {
+        case unlistedDirectory: WomUnlistedDirectory => generateUnlistedDirectoryOutputs(unlistedDirectory, optional)
+        case singleFile: WomSingleFile => generateJesSingleFileOutputs(singleFile, optional)
+        case globFile: WomGlobFile => generateJesGlobFileOutputs(globFile) // Assumes optional = false for globs.
       }
     }
 
@@ -244,7 +265,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     outputs.toSet ++ additionalGlobOutput
   }
 
-  private def generateUnlistedDirectoryOutputs(womFile: WomUnlistedDirectory): List[PipelinesApiFileOutput] = {
+  private def generateUnlistedDirectoryOutputs(womFile: WomUnlistedDirectory, optional: Boolean): List[PipelinesApiFileOutput] = {
     val directoryPath = womFile.value.ensureSlashed
     val directoryListFile = womFile.value.ensureUnslashed + ".list"
     val gcsDirDestinationPath = callRootPath.resolve(directoryPath).pathAsString
@@ -259,22 +280,24 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         makeSafeJesReferenceName(directoryListFile),
         gcsListDestinationPath,
         DefaultPathBuilder.get(directoryListFile),
-        directoryDisk
+        directoryDisk,
+        optional
       ),
       // The collection list file:
       PipelinesApiFileOutput(
         makeSafeJesReferenceName(directoryPath),
         gcsDirDestinationPath,
         DefaultPathBuilder.get(directoryPath + "*"),
-        directoryDisk
+        directoryDisk,
+        optional
       )
     )
   }
 
-  private def generateJesSingleFileOutputs(womFile: WomSingleFile): List[PipelinesApiFileOutput] = {
+  private def generateJesSingleFileOutputs(womFile: WomSingleFile, optional: Boolean): List[PipelinesApiFileOutput] = {
     val destination = callRootPath.resolve(womFile.value.stripPrefix("/")).pathAsString
     val (relpath, disk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
-    val jesFileOutput = PipelinesApiFileOutput(makeSafeJesReferenceName(womFile.value), destination, relpath, disk)
+    val jesFileOutput = PipelinesApiFileOutput(makeSafeJesReferenceName(womFile.value), destination, relpath, disk, optional)
     List(jesFileOutput)
   }
 
@@ -290,9 +313,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     // We need both the glob directory and the glob list:
     List(
       // The glob directory:
-      PipelinesApiFileOutput(makeSafeJesReferenceName(globDirectory), gcsGlobDirectoryDestinationPath, DefaultPathBuilder.get(globDirectory + "*"), globDirectoryDisk),
+      PipelinesApiFileOutput(makeSafeJesReferenceName(globDirectory), gcsGlobDirectoryDestinationPath, DefaultPathBuilder.get(globDirectory + "*"), globDirectoryDisk, optional = false),
       // The glob list file:
-      PipelinesApiFileOutput(makeSafeJesReferenceName(globListFile), gcsGlobListFileDestinationPath, DefaultPathBuilder.get(globListFile), globDirectoryDisk)
+      PipelinesApiFileOutput(makeSafeJesReferenceName(globListFile), gcsGlobListFileDestinationPath, DefaultPathBuilder.get(globListFile), globDirectoryDisk, optional = false)
     )
   }
 
@@ -308,7 +331,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   lazy val monitoringOutput: Option[PipelinesApiFileOutput] = monitoringScript map { _ =>
     PipelinesApiFileOutput(s"$jesMonitoringParamName-out",
-      pipelinesApiCallPaths.jesMonitoringLogPath.pathAsString, localMonitoringLogPath, workingDisk)
+      pipelinesApiCallPaths.jesMonitoringLogPath.pathAsString, localMonitoringLogPath, workingDisk, optional = false)
   }
 
   override lazy val commandDirectory: Path = PipelinesApiWorkingDisk.MountPoint
@@ -384,7 +407,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     def evaluateRuntimeAttributes = Future.fromTry(Try(runtimeAttributes))
 
     def generateInputOutputParameters: Future[InputOutputParameters] = Future.fromTry(Try {
-      val rcFileOutput = PipelinesApiFileOutput(returnCodeFilename, returnCodeGcsPath.pathAsString, DefaultPathBuilder.get(returnCodeFilename), workingDisk)
+      val rcFileOutput = PipelinesApiFileOutput(returnCodeFilename, returnCodeGcsPath.pathAsString, DefaultPathBuilder.get(returnCodeFilename), workingDisk, optional = false)
 
       InputOutputParameters(
         DetritusInputParameters(
@@ -572,6 +595,20 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   }
 
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
+    womFile.mapFile(value =>
+      getPath(value) match {
+        case Success(gcsPath: GcsPath) if isAdHocFile(womFile) => 
+          // Ad hoc files will be placed directly at the root ("/cromwell_root/ad_hoc_file.txt") unlike other input files
+          // for which the full path is being propagated ("/cromwell_root/path/to/input_file.txt")
+          workingDisk.mountPoint.resolve(gcsPath.name).pathAsString
+        case Success(gcsPath: GcsPath) => 
+          workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString
+        case _ => value
+      }
+    )
+  }
+
+  override def mapCommandLineJobInputWomFile(womFile: WomFile): WomFile = {
     womFile.mapFile(value =>
       getPath(value) match {
         case Success(gcsPath: GcsPath) => workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString

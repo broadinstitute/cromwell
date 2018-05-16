@@ -4,7 +4,7 @@ if [ "$TRAVIS_SECURE_ENV_VARS" = "false" ]; then
     echo "************************************************************************************************"
     echo "************************************************************************************************"
     echo "**                                                                                            **"
-    echo "**  WARNING: Encrypted keys are unavailable to automatically test PAPI with centaur. Exiting. **"
+    echo "**  WARNING: Encrypted keys are unavailable to automatically test BCS with centaur. Exiting.  **"
     echo "**                                                                                            **"
     echo "************************************************************************************************"
     echo "************************************************************************************************"
@@ -13,7 +13,7 @@ fi
 
 printTravisHeartbeat() {
     # Sleep one minute between printouts, but don't zombie for more than two hours
-    for ((i=0; i < 180; i++)); do
+    for ((i=0; i < 120; i++)); do
         sleep 60
         printf "…"
     done &
@@ -89,36 +89,6 @@ printTravisHeartbeat
 set -x
 set -e
 
-PROGNAME="$(basename "$0")"
-RUN_INTEGRATION_TESTS=0
-
-usage="
-$PROGNAME [-i ]
-
-Builds and runs Cromwell and runs Centaur against it.
-
-Arguments:
-    -i    Flag that if supplied, will run centaur integration tests instead of standardtests
-"
-
-while getopts ":hi" option; do
-    case "$option" in
-        h) echo "$usage"
-            exit
-            ;;
-        i) RUN_INTEGRATION_TESTS=1
-            ;;
-        :) printf "Missing argument for -%s\n" "$OPTARG" >&2
-            echo "$usage" >&2
-            exit 1
-            ;;
-        \?) printf "Illegal option: -%s\n" "$OPTARG" >&2
-            echo "$usage" >&2
-            exit 1
-            ;;
-        esac
-done
-
 # TURN OFF LOGGING WHILE WE TALK TO DOCKER/VAULT
 set +x
 
@@ -136,7 +106,7 @@ set -x
 # Render secrets
 docker run --rm \
     -v $HOME:/root:rw \
-    -v $PWD/src/bin/travis/resources:/working \
+    -v $PWD/src/bin/ci/resources:/working \
     -v $PWD:/output \
     -e ENVIRONMENT=not_used \
     -e INPUT_PATH=/working \
@@ -145,34 +115,62 @@ docker run --rm \
 
 ASSEMBLY_LOG_LEVEL=error ENABLE_COVERAGE=true sbt assembly --error
 CROMWELL_JAR=$(find "$(pwd)/server/target/scala-2.12" -name "cromwell-*.jar")
-PAPI_CONF="$(pwd)/papiv2_centaur.conf"
-GOOGLE_AUTH_MODE="service-account"
-GOOGLE_REFRESH_TOKEN_PATH="$(pwd)/papi_refresh_token.txt"
-GOOGLE_SERVICE_ACCOUNT_JSON="$(pwd)/cromwell-service-account.json"
+BCS_CONF="$(pwd)/bcs_centaur.conf"
 
-# pass integration directory to the inputs json otherwise remove it from the inputs file
-if [ $RUN_INTEGRATION_TESTS -ne 1 ]; then
-    INTEGRATION_TESTS=""
-else
-    INTEGRATION_TESTS="-i$INTEGRATION_TESTS_DIR"
-fi
+# All tests that run on the hardwired Local backend use ubuntu:latest - make sure it's there before starting the tests
+# because pulling the image during some of the tests would cause them to fail 
+# (specifically output_redirection which expects a specific value in stderr)
+docker pull ubuntu:latest
 
-# Export variables used in conf files
-export GOOGLE_AUTH_MODE
-export GOOGLE_REFRESH_TOKEN_PATH
-export GOOGLE_SERVICE_ACCOUNT_JSON
+# https://github.com/broadinstitute/cromwell/issues/3522
+# https://github.com/broadinstitute/cromwell/issues/3523
+# https://github.com/broadinstitute/cromwell/issues/3524
+exclude_known_bugs=" \
+  -e bad_file_string \
+  -e bad_output_task \
+  -e tmp_dir \
+"
 
-# Excluded tests:
-# docker_hash_dockerhub_private: https://github.com/broadinstitute/cromwell/issues/3587
+# https://github.com/broadinstitute/cromwell/issues/3518
+exclude_docker_tests=" \
+  -e curl \
+  -e docker_hash_dockerhub \
+  -e docker_hash_gcr \
+  -e docker_hash_quay \
+  -e dont_cache_to_failed_jobs \
+  -e hello \
+  -e hello_yaml \
+  -e inline_file \
+  -e inline_file_custom_entryname \
+  -e iwdr_input_string \
+  -e iwdr_input_string_function \
+  -e non_root_default_user \
+  -e three_step_cwl \
+"
+
+# https://github.com/broadinstitute/cromwell/issues/3519
+exclude_glob_tests=" \
+  -e cwl_glob_sort \
+  -e cwl_interpolated_strings \
+  -e dontglobinputs \
+  -e globbingbehavior \
+  -e globbingindex \
+  -e globbingscatter \
+  -e lots_of_inputs \
+  -e space \
+  -e wdl_empty_glob \
+"
 
 centaur/test_cromwell.sh \
-  -j${CROMWELL_JAR} \
+  -j"${CROMWELL_JAR}" \
   -g \
-  -c${PAPI_CONF} \
-  -e localdockertest \
-  -e docker_hash_dockerhub_private \
+  -c${BCS_CONF} \
+  -elocaldockertest \
   -p100 \
-  $INTEGRATION_TESTS
+  -t1m \
+  $exclude_known_bugs \
+  $exclude_docker_tests \
+  $exclude_glob_tests \
 
 if [ "$TRAVIS_EVENT_TYPE" != "cron" ]; then
     sbt coverageReport --warn

@@ -39,18 +39,17 @@ env:
     - BUILD_TYPE=centaurTes
     - BUILD_TYPE=centaurBcs
     - BUILD_TYPE=centaurCwlConformanceLocal
-    - BUILD_TYPE=centaurCwlConformancePAPIv1
     - BUILD_TYPE=centaurCwlConformancePAPIv2
 script:
   - sudo apt-get install procps
   - pip install 'requests[security]'
   - sudo pip install --ignore-installed cwltool
-  - src/bin/travis/test.sh
+  - src/bin/ci/test.sh
 after_success:
-  - src/bin/travis/afterSuccess.sh
+  - src/bin/ci/afterSuccess.sh
 deploy:
   provider: script
-  script: src/bin/travis/publishRelease.sh
+  script: src/bin/ci/publishRelease.sh
   on:
     tags: true
 notifications:

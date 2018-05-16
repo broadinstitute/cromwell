@@ -1,20 +1,24 @@
 package cwl
 
+import java.nio.file.Paths
+
+import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.Validation._
 import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
+import cwl.FileParameter.sync
 import cwl.InitialWorkDirFileGeneratorExpression._
 import cwl.InitialWorkDirRequirement.IwdrListingArrayEntry
 import shapeless.Poly1
 import wom.callable.{AdHocValue, ContainerizedInputExpression}
-import wom.expression.{IoFunctionSet, WomExpression}
+import wom.expression.IoFunctionSet.{IoDirectory, IoFile}
+import wom.expression.{FileEvaluation, IoFunctionSet, WomExpression}
 import wom.types._
 import wom.values._
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
-import scala.util.Try
 
 trait CwlWomExpression extends WomExpression {
 
@@ -45,13 +49,35 @@ case class ECMAScriptWomExpression(expression: Expression,
     evaluate(inputValues, pc, expression)
   }
 
-  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType) = Set.empty[WomFile].validNel
+  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType) = Set.empty[FileEvaluation].validNel
 }
 
 final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEntry, expressionLib: ExpressionLib) extends ContainerizedInputExpression {
 
   def evaluate(inputValues: Map[String, WomValue], mappedInputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[AdHocValue] = {
-    val unmappedParameterContext = ParameterContext(ioFunctionSet, expressionLib, inputValues)
+    def recursivelyBuildDirectory(directory: String): ErrorOr[WomMaybeListedDirectory] = {
+      import cats.instances.list._
+      import cats.syntax.traverse._
+      for {
+        listing <- sync(ioFunctionSet.listDirectory(directory)()).toErrorOr
+        fileListing <- listing.toList.traverse[ErrorOr, WomFile] {
+          case IoDirectory(e) => recursivelyBuildDirectory(e)
+          case IoFile(e) => WomSingleFile(e).validNel
+        }
+      } yield WomMaybeListedDirectory(Option(directory), Option(fileListing))
+    }
+    val updatedValues = inputValues map {
+      case (k, v: WomMaybeListedDirectory) => k -> {
+        val absolutePathString = Paths.get(v.value).toAbsolutePath.toString
+        recursivelyBuildDirectory(absolutePathString) match {
+          case Valid(d) => d
+          case Invalid(es) => throw new RuntimeException(es.toList.mkString("Error building directory: ", ", ", ""))
+        }
+      }
+      case (k, v: WomMaybePopulatedFile) => k -> WomSingleFile(v.value)
+      case kv => kv
+    }
+    val unmappedParameterContext = ParameterContext(ioFunctionSet, expressionLib, updatedValues)
     entry.fold(InitialWorkDirFilePoly).apply(unmappedParameterContext, mappedInputValues)
   }
 }
@@ -148,24 +174,16 @@ object InitialWorkDirFileGeneratorExpression {
             unmappedParameterContext.ioFunctionSet.copyFile(file.value, baseFileName)
           }
 
-          def stageFiles(unstagedInputValue: Try[WomValue]): ErrorOr[WomValue] = {
+          def stageFiles(womArray: WomArray): ErrorOr[WomValue] = {
             implicit val ec = unmappedParameterContext.ioFunctionSet.ec
 
-            import common.validation.ErrorOr._
-            for {
-              womArray <- unstagedInputValue.toErrorOr.map(_.asInstanceOf[WomArray])
-              unstagedFiles = womArray.value.map(_.asInstanceOf[WomFile])
-              stagedFiles = Await.result(Future.sequence(unstagedFiles map stageFile), Duration.Inf)
-              arrayOfStagedFiles <- womArray.womType.coerceRawValue(stagedFiles).toErrorOr
-            } yield arrayOfStagedFiles
+            val unstagedFiles = womArray.value.map(_.asInstanceOf[WomFile])
+            val stagedFiles = Await.result(Future.sequence(unstagedFiles map stageFile), Duration.Inf)
+            womArray.womType.coerceRawValue(stagedFiles).toErrorOr
           }
 
-          import mouse.all._
           val womValueErrorOr = expressionEvaluation flatMap {
-            case array: WomArray if WomArrayType(WomSingleFileType).coercionDefined(array) =>
-              WomArrayType(WomSingleFileType).coerceRawValue(array) |> stageFiles
-            case array: WomArray if WomArrayType(WomMaybePopulatedFileType).coercionDefined(array) =>
-              WomArrayType(WomMaybePopulatedFileType).coerceRawValue(array) |> stageFiles
+            case array: WomArray if array.value.forall(_.isInstanceOf[WomFile]) => stageFiles(array)
             case file: WomFile =>
               validate(Await.result(stageFile(file), Duration.Inf))
             case other =>

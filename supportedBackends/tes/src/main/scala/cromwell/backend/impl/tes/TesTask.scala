@@ -114,7 +114,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     // if it fails we just want to fallback to an empty list anyway...
     def evaluateFiles(output: OutputDefinition): List[WomFile] = {
       Try (
-        output.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, output.womType).map(_.toList)
+        output.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, output.womType).map(_.toList map { _.file })
       ).getOrElse(List.empty[WomFile].validNel)
        .getOrElse(List.empty)
     }

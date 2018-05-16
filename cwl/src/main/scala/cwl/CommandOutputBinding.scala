@@ -80,7 +80,7 @@ object CommandOutputBinding {
     }
 
     def secondaryFilesToWomFiles(primaryWomFiles: List[WomFile], ioFunctionSet: IoFunctionSet): ErrorOr[List[WomFile]] = {
-      primaryWomFiles.flatTraverse{ primaryWomFile =>
+      primaryWomFiles.flatTraverse[ErrorOr, WomFile] { primaryWomFile =>
         FileParameter.secondaryFiles(primaryWomFile,
           primaryWomFile.womFileType, secondaryFilesOption, parameterContext, expressionLib, ioFunctionSet)
       }

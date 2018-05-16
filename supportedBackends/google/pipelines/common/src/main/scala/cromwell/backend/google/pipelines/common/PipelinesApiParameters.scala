@@ -18,7 +18,7 @@ sealed trait PipelinesApiFileParameter extends PipelinesParameter {
   /**
     * Path in the docker container. It must be mounted on the docker from / to its hostPath
     */
-  def containerPath: String
+  def containerPath: Path
 }
 
 sealed trait PipelinesApiInput extends PipelinesParameter
@@ -27,15 +27,16 @@ final case class PipelinesApiFileInput(name: String,
                                        cloudPath: String,
                                        local: Path,
                                        mount: PipelinesApiAttachedDisk) extends PipelinesApiFileParameter with PipelinesApiInput {
-  def containerPath: String = mount.mountPoint.resolve(local).pathAsString
+  def containerPath: Path = mount.mountPoint.resolve(local)
 }
 
 final case class PipelinesApiFileOutput(name: String,
                                         cloudPath: String,
                                         local: Path,
                                         mount: PipelinesApiAttachedDisk,
+                                        optional: Boolean,
                                         contentType: Option[ContentType] = None) extends PipelinesApiFileParameter {
-  def containerPath: String = mount.mountPoint.resolve(local).pathAsString
+  def containerPath: Path = mount.mountPoint.resolve(local)
 }
 
 final case class PipelinesApiLiteralInput(name: String, value: String) extends PipelinesApiInput

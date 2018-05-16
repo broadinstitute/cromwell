@@ -2,7 +2,7 @@
 
 set -e
 
-SCRIPT_DIR=src/bin/travis
+SCRIPT_DIR=src/bin/ci
 
 # Delete ~/.sbt/boot to fix consistent, almost immediate failures on sub-builds (usually TES but sometimes others).
 # Even purging Travis caches didn't always fix the problem. Fortunately stackoverflow knew what to do:
@@ -32,9 +32,6 @@ case "$TRAVIS_EVENT_TYPE" in
             ;;
         centaurCwlConformanceLocal)
             "${SCRIPT_DIR}"/testCentaurCwlConformanceLocal.sh
-            ;;
-        centaurCwlConformancePAPIv1)
-            "${SCRIPT_DIR}"/testCentaurCwlConformancePAPIv1.sh
             ;;
         centaurCwlConformancePAPIv2)
             "${SCRIPT_DIR}"/testCentaurCwlConformancePAPIv2.sh

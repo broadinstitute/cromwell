@@ -25,7 +25,7 @@ import scala.util.{Failure, Success}
   */
 object CromwellShutdown extends GracefulStopSupport {
   private val logger = LoggerFactory.getLogger("CromwellShutdown")
-  
+
   // Includes DB writing actors, I/O Actor and DockerHashActor
   private val PhaseStopIoActivity = "stop-io-activity"
   // Shutdown phase allocated when "abort-jobs-on-terminate" is true to give time to the system to abort all workflows
@@ -98,7 +98,7 @@ object CromwellShutdown extends GracefulStopSupport {
                       customTimeout: Option[FiniteDuration] = None)(implicit executionContext: ExecutionContext) = {
       coordinatedShutdown.addTask(phase, s"stop${actor.path.name.capitalize}") { () =>
         val timeout = coordinatedShutdown.timeout(phase)
-        logger.info(s"Shutting down ${actor.path.name} - Timeout = $timeout")
+        logger.info(s"Shutting down ${actor.path.name} - Timeout = ${timeout.toSeconds} seconds")
 
         val action = gracefulStop(actor, customTimeout.getOrElse(coordinatedShutdown.timeout(phase)), message)
         action onComplete {

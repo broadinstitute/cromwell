@@ -81,19 +81,22 @@ object CentaurCromwellClient {
     // We can't recover the future itself with a "recoverWith retry pattern" because it'll timeout anyway from the Await.result
     // We want to keep timing out to catch cases where Cromwell becomes unresponsive
     Try(Await.result(x(), timeout)) recoverWith {
-      case _: TimeoutException |
+      case e @ (_: TimeoutException |
            _: StreamTcpException |
            _: IOException |
-           _: UnsupportedContentTypeException if attempt < awaitMaxAttempts =>
+           _: UnsupportedContentTypeException) if attempt < awaitMaxAttempts =>
+        Console.err.println(s"Failed to execute request to Cromwell, retrying: ${e.getMessage}")
         Thread.sleep(awaitSleep.toMillis)
         awaitFutureCompletion(x, timeout, attempt + 1)
       case unsuccessful: UnsuccessfulRequestException if unsuccessful.httpResponse.status == StatusCodes.NotFound && attempt < awaitMaxAttempts =>
+        Console.err.println(s"Failed to execute request to Cromwell, retrying: ${unsuccessful.getMessage}")
         Thread.sleep(awaitSleep.toMillis)
         awaitFutureCompletion(x, timeout, attempt + 1)
       // see https://github.com/akka/akka-http/issues/768
       case unexpected: RuntimeException
         if unexpected.getMessage.contains("The http server closed the connection unexpectedly") &&
           attempt < awaitMaxAttempts =>
+        Console.err.println(s"Failed to execute request to Cromwell, retrying: ${unexpected.getMessage}")
         Thread.sleep(awaitSleep.toMillis)
         awaitFutureCompletion(x, timeout, attempt + 1)
     }

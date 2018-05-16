@@ -55,7 +55,7 @@ ENABLE_COVERAGE=true sbt assembly
 git clone https://github.com/common-workflow-language/common-workflow-language.git
 cd common-workflow-language
 # checkout a known git hash to prevent the tests from changing out from under us
-git checkout 2a8b4d57975c43f226f71bb81daf7e47b821286a
+git checkout dbca5a59e33b677a3b0fe4095e2f5ee33703044e
 cd ..
 
 CROMWELL_JAR=$(find "$(pwd)/server/target/scala-2.12" -name "cromwell-*.jar")

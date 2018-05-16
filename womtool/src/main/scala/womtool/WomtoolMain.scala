@@ -8,8 +8,8 @@ import wdl.draft2.model.{AstTools, WdlNamespace, WdlNamespaceWithWorkflow}
 import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomBundleMakers.wdlDraft2NamespaceWomBundleMaker
 import wdl.draft3.transforms.wdlom2wdl.WdlWriter.ops._
 import wdl.draft3.transforms.wdlom2wdl.WdlWriterImpl.fileElementWriter
-import wdl.draft3.transforms.wom2wdlom.Convert.ops._
-import wdl.draft3.transforms.wom2wdlom.ConvertImpl.womBundleToFileElement
+import wdl.draft3.transforms.wom2wdlom.WomToWdlom.ops._
+import wdl.draft3.transforms.wom2wdlom.WomToWdlomImpl.womBundleToFileElement
 import wdl.model.draft3.elements.FileElement
 import wom.executable.WomBundle
 import womtool.cmdline.HighlightMode.{ConsoleHighlighting, HtmlHighlighting, UnrecognizedHighlightingMode}

@@ -15,11 +15,11 @@ import wom.types._
 
 case object UnrepresentableException extends Exception("Value has no representation in the destination format (WDL)")
 
-object ConvertImpl {
+object WomToWdlomImpl {
 
-  import Convert.ops._
+  import WomToWdlom.ops._
 
-  implicit val graphOutputNodeToWorkflowGraphElement: Convert[GraphOutputNode, WorkflowGraphElement] = {
+  implicit val graphOutputNodeToWorkflowGraphElement: WomToWdlom[GraphOutputNode, WorkflowGraphElement] = {
     case a: PortBasedGraphOutputNode =>
       OutputDeclarationElement(
         a.womType.convert,
@@ -34,7 +34,7 @@ object ConvertImpl {
       )
   }
 
-  implicit val womBundleToFileElement: Convert[WomBundle, FileElement] = (a: WomBundle) => {
+  implicit val womBundleToFileElement: WomToWdlom[WomBundle, FileElement] = (a: WomBundle) => {
     val tasks: Iterable[CallableTaskDefinition] = a.allCallables.values.filterByType[CallableTaskDefinition]
     val workflows: Iterable[WorkflowDefinition] = a.allCallables.values.filterByType[WorkflowDefinition]
 
@@ -46,7 +46,7 @@ object ConvertImpl {
     )
   }
 
-  implicit val mapToMetaSectionElement: Convert[Map[String, String], Option[MetaSectionElement]] = (a: Map[String, String]) => {
+  implicit val mapToMetaSectionElement: WomToWdlom[Map[String, String], Option[MetaSectionElement]] = (a: Map[String, String]) => {
     if (a.nonEmpty)
       Some(MetaSectionElement(a map { case (key, value) =>
         key -> MetaValueElementString(value) // draft-2: strings only
@@ -55,7 +55,7 @@ object ConvertImpl {
       None
   }
 
-  implicit val mapToParameterMetaSectionElement: Convert[Map[String, String], Option[ParameterMetaSectionElement]] = (a: Map[String, String]) => {
+  implicit val mapToParameterMetaSectionElement: WomToWdlom[Map[String, String], Option[ParameterMetaSectionElement]] = (a: Map[String, String]) => {
     if (a.nonEmpty)
       Some(ParameterMetaSectionElement(a map { case (key, value) =>
         key -> MetaValueElementString(value) // draft-2: strings only
@@ -64,7 +64,7 @@ object ConvertImpl {
       None
   }
 
-  implicit val callableTaskDefinitionToTaskDefinitionElement: Convert[CallableTaskDefinition, TaskDefinitionElement] = (a: CallableTaskDefinition) => {
+  implicit val callableTaskDefinitionToTaskDefinitionElement: WomToWdlom[CallableTaskDefinition, TaskDefinitionElement] = (a: CallableTaskDefinition) => {
     TaskDefinitionElement(
       a.name,
       None,
@@ -77,7 +77,7 @@ object ConvertImpl {
     )
   }
 
-  implicit val workflowDefinitionToWorkflowDefinitionElement: Convert[WorkflowDefinition, WorkflowDefinitionElement] = (a: WorkflowDefinition) => {
+  implicit val workflowDefinitionToWorkflowDefinitionElement: WomToWdlom[WorkflowDefinition, WorkflowDefinitionElement] = (a: WorkflowDefinition) => {
     WorkflowDefinitionElement(
       a.name,
       None,
@@ -88,7 +88,7 @@ object ConvertImpl {
     )
   }
 
-  implicit val expressionNodeLikeToWorkflowGraphElement: Convert[ExpressionNodeLike, WorkflowGraphElement] = {
+  implicit val expressionNodeLikeToWorkflowGraphElement: WomToWdlom[ExpressionNodeLike, WorkflowGraphElement] = {
     case a: ExpressionNode =>
       IntermediateValueDeclarationElement(
         typeElement = a.womType.convert,
@@ -97,7 +97,7 @@ object ConvertImpl {
     case _: ExpressionCallNode => ???
   }
 
-  implicit val graphNodeToWorkflowGraphElement: Convert[GraphNode, WorkflowGraphElement] = {
+  implicit val graphNodeToWorkflowGraphElement: WomToWdlom[GraphNode, WorkflowGraphElement] = {
     case a: CallNode =>
       a.convert
     case a: ConditionalNode =>
@@ -122,7 +122,7 @@ object ConvertImpl {
       )
   }
 
-  implicit val graphNodeWithSingleOutputPortToWorkflowGraphElement: Convert[GraphNodeWithSingleOutputPort, WorkflowGraphElement] = {
+  implicit val graphNodeWithSingleOutputPortToWorkflowGraphElement: WomToWdlom[GraphNodeWithSingleOutputPort, WorkflowGraphElement] = {
     case a: GraphInputNode =>
       InputDeclarationElement(
         a.womType.convert,
@@ -137,7 +137,7 @@ object ConvertImpl {
       )
   }
 
-  implicit val womTypeToTypeElement: Convert[WomType, TypeElement] = {
+  implicit val womTypeToTypeElement: WomToWdlom[WomType, TypeElement] = {
     case a: WomArrayType =>
       if (a.guaranteedNonEmpty)
         NonEmptyTypeElement(ArrayTypeElement(womTypeToTypeElement.convert(a.memberType)))
@@ -153,14 +153,14 @@ object ConvertImpl {
     case a: WomPrimitiveType => a.convert
   }
 
-  implicit val womPrimitiveTypeToPrimitiveTypeElement: Convert[WomPrimitiveType, PrimitiveTypeElement] = (a: WomPrimitiveType) => PrimitiveTypeElement(a)
+  implicit val womPrimitiveTypeToPrimitiveTypeElement: WomToWdlom[WomPrimitiveType, PrimitiveTypeElement] = (a: WomPrimitiveType) => PrimitiveTypeElement(a)
 
   // TODO: Possibly the wrong conversion
-  implicit val expressionNodeToExpressionElement: Convert[ExpressionNode, ExpressionElement] = (a: ExpressionNode) => {
+  implicit val expressionNodeToExpressionElement: WomToWdlom[ExpressionNode, ExpressionElement] = (a: ExpressionNode) => {
     a.womExpression.convert
   }
 
-  implicit val womExpressionToExpressionElement: Convert[WomExpression, ExpressionElement] = {
+  implicit val womExpressionToExpressionElement: WomToWdlom[WomExpression, ExpressionElement] = {
     case _: WdlomWomExpression => ???
     //      case a: wdl.draft2.model.WdlWomExpression
     //      case _: WdlWomExpression TODO: cannot import / does not make sense to have? Yet shows up at runtime.
@@ -173,7 +173,7 @@ object ConvertImpl {
     case _ => StringLiteral("todo")
   }
 
-  implicit val callNodeToCallElement: Convert[CallNode, CallElement] = (a: CallNode) => {
+  implicit val callNodeToCallElement: WomToWdlom[CallNode, CallElement] = (a: CallNode) => {
     a.inputDefinitionMappings map { case (defn: Callable.InputDefinition, defnPtr: InputDefinitionPointer) =>
       (defn.localName, defnPtr)
     }

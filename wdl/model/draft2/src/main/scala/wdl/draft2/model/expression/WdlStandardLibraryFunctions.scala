@@ -31,6 +31,8 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
 
   def size(params: Seq[Try[WomValue]]): Try[WomFloat]
 
+  protected def size(path: String): Try[Long] = ???
+
   private def writeContent(baseName: String, content: String): Try[WomFile] = writeFile(s"${baseName}_${content.md5Sum}.tmp", content)
 
   private def writeToTsv[A <: WomValue with TsvSerializable](functionName: String, params: Seq[Try[WomValue]], defaultIfOptionalEmpty: A): Try[WomFile] = {
@@ -60,10 +62,21 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
 
   def read_lines(params: Seq[Try[WomValue]]): Try[WomArray] = {
     for {
+      _ <- validateFileSizeIsWithinLimits("read_lines", params, 0)
       contents <- readContentsFromSingleFileParameter("read_lines", params)
       lines = contents.split("\n")
     } yield WomArray(WomArrayType(WomStringType), lines map WomString)
   }
+
+  def validateFileSizeIsWithinLimits(functionName: String, params: Seq[Try[WomValue]], limit: Int): Try[Unit] =
+    for {
+      fileName <- extractSingleArgument(functionName, params)
+      fileSize <- size(fileName.valueString)
+      _ = if (fileSize > limit) {
+        val errorMsg = s"Use of $fileName failed because the file was too big ($fileSize bytes when only files of up to $limit bytes are permissible"
+        throw new RuntimeException(errorMsg)
+      }
+    } yield ()
 
   def read_map(params: Seq[Try[WomValue]]): Try[WomMap] = {
     for {
@@ -322,7 +335,8 @@ object WdlStandardLibraryFunctions {
 
         // Inner function: Get the file size, allowing for unpacking of optionals
         def optionalSafeFileSize(value: WomValue): Try[Long] = value match {
-          case f if f.isInstanceOf[WomSingleFile] || WomSingleFileType.isCoerceableFrom(f.womType) => Try(Await.result(ioFunctionSet.size(f.valueString), Duration.Inf))
+          case f if f.isInstanceOf[WomSingleFile] || WomSingleFileType.isCoerceableFrom(f.womType) =>
+            size(f.valueString)
           case WomOptionalValue(_, Some(o)) => optionalSafeFileSize(o)
           case WomOptionalValue(f, None) if isOptionalOfFileType(f) => Success(0l)
           case _ => Failure(new Exception(s"The 'size' method expects a 'File' or 'File?' argument but instead got ${value.womType.toDisplayString}."))
@@ -343,6 +357,8 @@ object WdlStandardLibraryFunctions {
           case _ => Failure(new UnsupportedOperationException(s"Expected one or two parameters but got ${params.length} instead."))
         }
     }
+
+    override def size(path: String): Try[Long] = Try(Await.result(ioFunctionSet.size(path), Duration.Inf))
   }
 
   def crossProduct[A, B](as: Seq[A], bs: Seq[B]): Seq[(A, B)] = for {

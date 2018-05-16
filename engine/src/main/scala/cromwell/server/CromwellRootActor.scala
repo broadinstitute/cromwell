@@ -63,7 +63,7 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   private implicit val system = context.system
 
   private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(config)
-  logger.info("Workflow heartbeat configuation:\n{}", workflowHeartbeatConfig)
+  logger.info("Workflow heartbeat configuration:\n{}", workflowHeartbeatConfig)
 
   val serverMode: Boolean
 

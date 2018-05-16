@@ -15,7 +15,7 @@ import cromwell.core.path.Path
 import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
-import cromwell.server.{CromwellServer, CromwellSystem}
+import cromwell.server.{CromwellServer, CromwellShutdown, CromwellSystem}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import net.ceedubs.ficus.Ficus._
@@ -58,7 +58,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
     val runner = cromwellSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
 
     import cromwell.util.PromiseActor.EnhancedActorRef
-    waitAndExit(_ => runner.askNoTimeout(RunWorkflow), cromwellSystem)
+    waitAndExit(() => runner.askNoTimeout(RunWorkflow), () => CromwellShutdown.instance(cromwellSystem.actorSystem).run())
   }
 
   def submitToServer(args: CommandLineArguments): Unit = {

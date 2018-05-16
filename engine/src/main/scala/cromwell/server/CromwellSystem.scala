@@ -1,6 +1,6 @@
 package cromwell.server
 
-import akka.actor.{ActorSystem, Terminated}
+import akka.actor.{ActorSystem, DeadLetter, Props, Terminated}
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
@@ -28,7 +28,14 @@ trait CromwellSystem {
   protected def systemName = "cromwell-system"
   val conf = ConfigFactory.load()
   
-  protected def newActorSystem(): ActorSystem = ActorSystem(systemName, conf)
+  protected def newActorSystem(): ActorSystem = {
+    val system = ActorSystem(systemName, conf)
+    // This sets up our own dead letter listener that we can shut off during shutdown
+    lazy val deadLetterListener = system.actorOf(Props(classOf[CromwellDeadLetterListener]), "DeadLetterListenerActor")
+    system.eventStream.subscribe(deadLetterListener, classOf[DeadLetter])
+    system
+  }
+
   implicit final lazy val actorSystem = newActorSystem()
   implicit final lazy val materializer = ActorMaterializer()
   implicit private final lazy val ec = actorSystem.dispatcher

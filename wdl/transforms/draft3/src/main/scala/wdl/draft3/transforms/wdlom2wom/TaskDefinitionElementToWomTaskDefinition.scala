@@ -24,6 +24,7 @@ import wdl.draft3.transforms.wdlom2wom.expression.renaming.expressionEvaluator
 import wdl.model.draft3.elements.ExpressionElement.{ArrayLiteral, IdentifierLookup, KvPair, SelectFirst}
 import wom.expression.WomExpression
 import wom.types.{WomOptionalType, WomType}
+
 object TaskDefinitionElementToWomTaskDefinition {
 
   final case class TaskDefinitionElementToWomInputs(taskDefinitionElement: TaskDefinitionElement, typeAliases: Map[String, WomType])

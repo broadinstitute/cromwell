@@ -9,7 +9,7 @@ import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.CallElement
 import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
 import wom.callable.Callable._
-import wom.callable.{Callable, CallableTaskDefinition}
+import wom.callable.{Callable, CallableTaskDefinition, TaskDefinition, WorkflowDefinition}
 import wom.graph.CallNode.{CallNodeAndNewNodes, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode, PlainAnonymousExpressionNode, TaskCallInputExpressionNode}
@@ -44,6 +44,13 @@ object CallElementToGraphNode {
         definition.name == name && !definition.isInstanceOf[FixedInputDefinition]
       }
 
+      def hasDeclaration(callable: Callable, name: String): Boolean = callable match {
+        case t: TaskDefinition =>
+          t.inputs.map(_.name).contains(name)
+        case w: WorkflowDefinition =>
+          w.graph.nodes.map(_.localName).contains(name)
+      }
+
       a.node.body match {
         case Some(body) =>
           lazy val callNameAlias = a.node.alias match {
@@ -63,7 +70,7 @@ object CallElementToGraphNode {
                 LocalName(name) -> _
               }
             case (name, _) =>
-              if (callable.inputs.exists(i => i.name == name)) {
+              if (hasDeclaration(callable, name)) {
                 s"The call tried to supply a value '$name' that isn't overridable for this task (or sub-workflow). To be able to supply this value, move it into the task (or sub-workflow)'s inputs { } section.".invalidNel
               } else {
                 s"The call supplied a value '$name' that doesn't exist in the task (or sub-workflow)".stripMargin.invalidNel

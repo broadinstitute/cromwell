@@ -3,6 +3,7 @@ package wdl.draft3.transforms.wom2wdlom
 import wdl.model.draft3.elements._
 import wom.executable.WomBundle
 import common.collections.EnhancedCollections.EnhancedTraversableLike
+import wdl.draft2.model.WdlWomExpression
 import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.ExpressionElement.StringLiteral
 import wdl.model.draft3.elements.MetaValueElement.MetaValueElementString
@@ -160,17 +161,18 @@ object WomToWdlomImpl {
     a.womExpression.convert
   }
 
-  implicit val womExpressionToExpressionElement: WomToWdlom[WomExpression, ExpressionElement] = {
-    case _: WdlomWomExpression => ???
-    //      case a: wdl.draft2.model.WdlWomExpression
-    //      case _: WdlWomExpression TODO: cannot import / does not make sense to have? Yet shows up at runtime.
-    case _: ValueAsAnExpression => ???
-    case _: InputLookupExpression => ???
-    case _: PlainAnonymousExpressionNode => ???
-    case _: TaskCallInputExpressionNode => ???
-    case _: ExposedExpressionNode => ???
-    //      case _ => throw new Exception("Unknown type")
-    case _ => StringLiteral("todo")
+  implicit val womExpressionToExpressionElement: WomToWdlom[WomExpression, ExpressionElement] = (a: WomExpression) => {
+    a match {
+      case _: WdlomWomExpression => ???
+      case a: WdlWomExpression => StringLiteral(a.sourceString)
+      case _: ValueAsAnExpression => ???
+      case _: InputLookupExpression => ???
+      case _: PlainAnonymousExpressionNode => ???
+      case _: TaskCallInputExpressionNode => ???
+      case _: ExposedExpressionNode => ???
+      //      case _ => throw new Exception("Unknown type")
+      case _ => StringLiteral("todo")
+    }
   }
 
   implicit val callNodeToCallElement: WomToWdlom[CallNode, CallElement] = (a: CallNode) => {

@@ -44,6 +44,7 @@ lazy val wdlTransformsDraft3 = (project in wdlTransformsRoot / "draft3")
   .withLibrarySettings("cromwell-wdl-transforms-draft3", wdlDependencies, crossCompile = true)
   .dependsOn(wdlSharedTransforms)
   .dependsOn(wdlModelDraft3)
+  .dependsOn(wdlModelDraft2) // necessary for dealing with bits of the draft-2 type system present in WOM at runtime, when upgrading to V1
   .dependsOn(languageFactoryCore)
   .dependsOn(common % "test->test")
   .dependsOn(wom % "test->test")

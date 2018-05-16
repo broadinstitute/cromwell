@@ -88,21 +88,6 @@ object WomtoolMain extends App {
   }
 
   def v1upgrade(workflowSourcePath: String): Termination = {
-//    import cats.implicits._
-//    import common.Checked
-//    import wdl.draft3.transforms.ast2wdlom.astToFileElement
-//    import wdl.draft3.transforms.parsing.fileToAst
-
-//    import wdl.model.draft3.elements.FileElement
-//
-//    val loader = fileToAst andThen astToFileElement
-//    val model: Checked[FileElement] = loader.run(Paths.get(workflowSourcePath))
-//
-//    model match {
-//      case Right(wdlModel) => SuccessfulTermination(wdlModel.toWdlV1)
-//      case Left(errorList) => UnsuccessfulTermination(errorList.toList.mkString("[", ",", "]"))
-//    }
-
     val file = Paths.get(workflowSourcePath)
     val wdl: WdlNamespace = WdlNamespace.loadUsingPath(file, None, None).get
 

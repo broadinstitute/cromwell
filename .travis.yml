@@ -44,12 +44,12 @@ script:
   - sudo apt-get install procps
   - pip install 'requests[security]'
   - sudo pip install --ignore-installed cwltool
-  - src/bin/travis/test.sh
+  - src/bin/ci/test.sh
 after_success:
-  - src/bin/travis/afterSuccess.sh
+  - src/bin/ci/afterSuccess.sh
 deploy:
   provider: script
-  script: src/bin/travis/publishRelease.sh
+  script: src/bin/ci/publishRelease.sh
   on:
     tags: true
 notifications:

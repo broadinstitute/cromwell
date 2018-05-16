@@ -36,7 +36,7 @@ docker run --rm \
 # Render secrets
 docker run --rm \
     -v "$HOME:/root:rw" \
-    -v "$PWD/src/bin/travis/resources:/working" \
+    -v "$PWD/src/bin/ci/resources:/working" \
     -v "$PWD:/output" \
     -e ENVIRONMENT=not_used \
     -e INPUT_PATH=/working \
@@ -63,11 +63,12 @@ CENTAUR_CWL_RUNNER="$(pwd)/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
 CENTAUR_CWL_RUNNER_MODE="papi"
 GOOGLE_AUTH_MODE="service-account"
 GOOGLE_SERVICE_ACCOUNT_JSON="$(pwd)/cromwell-service-account.json"
-CONFORMANCE_EXPECTED_FAILURES=$(pwd)/src/bin/travis/resources/papi_conformance_expected_failures.txt
+CONFORMANCE_EXPECTED_FAILURES=$(pwd)/src/bin/ci/resources/papi_conformance_expected_failures.txt
 CWL_DIR=$(pwd)/common-workflow-language
 CWL_TEST_DIR=$(pwd)/common-workflow-language/v1.0/v1.0
-CWL_CONFORMANCE_TEST_WDL=$(pwd)/src/bin/travis/resources/cwl_conformance_test.wdl
+CWL_CONFORMANCE_TEST_WDL=$(pwd)/src/bin/ci/resources/cwl_conformance_test.wdl
 CWL_CONFORMANCE_TEST_INPUTS=$(pwd)/cwl_conformance_test.inputs.json
+CWL_CONFORMANCE_TEST_OUTPUT=$(pwd)/cwl_conformance_test.out.txt
 CWL_CONFORMANCE_TEST_PARALLELISM=10 # Set too high and it will cause false negatives due to cromwell server timeouts.
 PAPI_INPUT_GCS_PREFIX=gs://centaur-cwl-conformance/cwl-inputs/
 
@@ -81,29 +82,42 @@ export GOOGLE_AUTH_MODE
 export GOOGLE_SERVICE_ACCOUNT_JSON
 export PAPI_INPUT_GCS_PREFIX
 
+exitScript() {
+    echo "CONFORMANCE TEST LOG"
+    if [ -f "${CWL_CONFORMANCE_TEST_OUTPUT}" ]; then
+        cat "${CWL_CONFORMANCE_TEST_OUTPUT}"
+    fi
+    if [ -z "${CROMWELL_PID}" ]; then
+        kill ${CROMWELL_PID}
+    fi
+}
+
+trap exitScript EXIT
+trap exitScript TERM
+
 java \
   -Xmx2g \
   -Dconfig.file="$PAPI_CONF" \
   -Dsystem.new-workflow-poll-rate=1 \
   -jar "${CROMWELL_JAR}" server &
 
-CROMWELL_PID=$$
+CROMWELL_PID=$!
 
 sleep 30
 
 cat <<JSON >${CWL_CONFORMANCE_TEST_INPUTS}
 {
   "cwl_conformance_test.cwl_dir": "$CWL_DIR",
+  "cwl_conformance_test.test_result_output": "$CWL_CONFORMANCE_TEST_OUTPUT",
   "cwl_conformance_test.centaur_cwl_runner": "$CENTAUR_CWL_RUNNER",
   "cwl_conformance_test.conformance_expected_failures": "$CONFORMANCE_EXPECTED_FAILURES"
 }
 JSON
 
-# The PAPI CWL conformance make_summary call is currently a mass of bash so this has to use /bin/bash.
 java \
   -Xmx2g \
   -Dbackend.providers.Local.config.concurrent-job-limit=${CWL_CONFORMANCE_TEST_PARALLELISM} \
-  -Dsystem.job-shell=/bin/bash \
+  -Dsystem.job-shell=/bin/sh \
   -jar ${CROMWELL_JAR} \
   run ${CWL_CONFORMANCE_TEST_WDL} \
   -i ${CWL_CONFORMANCE_TEST_INPUTS}

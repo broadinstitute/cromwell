@@ -136,7 +136,7 @@ set -x
 # Render secrets
 docker run --rm \
     -v $HOME:/root:rw \
-    -v $PWD/src/bin/travis/resources:/working \
+    -v $PWD/src/bin/ci/resources:/working \
     -v $PWD:/output \
     -e ENVIRONMENT=not_used \
     -e INPUT_PATH=/working \

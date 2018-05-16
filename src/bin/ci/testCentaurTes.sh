@@ -81,8 +81,8 @@ set -e
 ASSEMBLY_LOG_LEVEL=error ENABLE_COVERAGE=true sbt assembly --error
 CROMWELL_JAR=$(find "$(pwd)/server/target/scala-2.12" -name "cromwell-*.jar")
 
-TES_CENTAUR_CONF="$(pwd)/src/bin/travis/resources/tes_centaur.conf"
-FUNNEL_CONF="$(pwd)/src/bin/travis/resources/funnel.conf"
+TES_CENTAUR_CONF="$(pwd)/src/bin/ci/resources/tes_centaur.conf"
+FUNNEL_CONF="$(pwd)/src/bin/ci/resources/funnel.conf"
 
 wget https://github.com/ohsu-comp-bio/funnel/releases/download/0.5.0/funnel-linux-amd64-0.5.0.tar.gz
 tar xzf funnel-linux-amd64-0.5.0.tar.gz

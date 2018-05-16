@@ -16,7 +16,7 @@ git checkout 2a8b4d57975c43f226f71bb81daf7e47b821286a
 cd ..
 
 CWL_TEST_DIR=$(pwd)/common-workflow-language/v1.0/v1.0
-CONFORMANCE_EXPECTED_FAILURES=$(pwd)/src/bin/travis/resources/local_conformance_expected_failures.txt
+CONFORMANCE_EXPECTED_FAILURES=$(pwd)/src/bin/ci/resources/local_conformance_expected_failures.txt
 
 shutdownCromwell() {
     if [ -z "${CROMWELL_PID}" ]; then
@@ -36,7 +36,7 @@ java \
   -Dsystem.job-shell=/bin/sh \
   -jar ${CROMWELL_JAR} \
   server &
-CROMWELL_PID=$$
+CROMWELL_PID=$!
 cd $CURRENT_DIR
 
 sleep 5

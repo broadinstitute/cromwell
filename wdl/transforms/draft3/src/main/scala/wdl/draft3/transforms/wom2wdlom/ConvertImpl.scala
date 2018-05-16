@@ -1,6 +1,6 @@
 package wdl.draft3.transforms.wom2wdlom
 
-import wdl.model.draft3.elements.{WorkflowGraphElement, _}
+import wdl.model.draft3.elements._
 import wom.executable.WomBundle
 import common.collections.EnhancedCollections.EnhancedTraversableLike
 import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
@@ -9,7 +9,7 @@ import wdl.model.draft3.elements.MetaValueElement.MetaValueElementString
 import wom.callable.{Callable, CallableTaskDefinition, WorkflowDefinition}
 import wom.expression.{InputLookupExpression, ValueAsAnExpression, WomExpression}
 import wom.graph.CallNode.InputDefinitionPointer
-import wom.graph.{GraphNodeWithSingleOutputPort, _}
+import wom.graph._
 import wom.graph.expression._
 import wom.types._
 

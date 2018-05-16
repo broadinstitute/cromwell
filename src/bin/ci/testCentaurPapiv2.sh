@@ -136,7 +136,7 @@ set -x
 # Render secrets
 docker run --rm \
     -v $HOME:/root:rw \
-    -v $PWD/src/bin/travis/resources:/working \
+    -v $PWD/src/bin/ci/resources:/working \
     -v $PWD:/output \
     -e ENVIRONMENT=not_used \
     -e INPUT_PATH=/working \
@@ -145,7 +145,7 @@ docker run --rm \
 
 ASSEMBLY_LOG_LEVEL=error ENABLE_COVERAGE=true sbt assembly --error
 CROMWELL_JAR=$(find "$(pwd)/server/target/scala-2.12" -name "cromwell-*.jar")
-PAPI_CONF="$(pwd)/papiv1_centaur.conf"
+PAPI_CONF="$(pwd)/papiv2_centaur.conf"
 GOOGLE_AUTH_MODE="service-account"
 GOOGLE_REFRESH_TOKEN_PATH="$(pwd)/papi_refresh_token.txt"
 GOOGLE_SERVICE_ACCOUNT_JSON="$(pwd)/cromwell-service-account.json"
@@ -162,11 +162,15 @@ export GOOGLE_AUTH_MODE
 export GOOGLE_REFRESH_TOKEN_PATH
 export GOOGLE_SERVICE_ACCOUNT_JSON
 
+# Excluded tests:
+# docker_hash_dockerhub_private: https://github.com/broadinstitute/cromwell/issues/3587
+
 centaur/test_cromwell.sh \
   -j${CROMWELL_JAR} \
   -g \
   -c${PAPI_CONF} \
-  -elocaldockertest \
+  -e localdockertest \
+  -e docker_hash_dockerhub_private \
   -e gpu_on_papi \
   -p100 \
   $INTEGRATION_TESTS

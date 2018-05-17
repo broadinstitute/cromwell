@@ -8,7 +8,7 @@ import scala.concurrent.Future
 trait ReadLikeFunctions extends PathFactory with IoFunctionSet with AsyncIoFunctions {
   
   // TODO WOM: https://github.com/broadinstitute/cromwell/issues/2611
-  val fileSizeLimitationConfig = FileSizeLimitationConfig.fileSizeLimitationConfig
+  //val fileSizeLimitationConfig = FileSizeLimitationConfig.fileSizeLimitationConfig
 
   override def readFile(path: String, maxBytes: Option[Int], failOnOverflow: Boolean): Future[String] = asyncIo.contentAsStringAsync(buildPath(path), maxBytes, failOnOverflow)
 

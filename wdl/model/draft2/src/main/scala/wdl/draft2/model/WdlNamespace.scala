@@ -464,8 +464,8 @@ object WdlNamespace {
                 None
             }
           }
-        case Failure(f) =>
-          println(f)
+        case Failure(e) =>
+          println(e)
           None
       }
     }

@@ -12,6 +12,7 @@ import cromwell.core.path.DefaultPathBuilder
 import cromwell.core.{CallContext, TestKitSuite}
 import fs2.Stream
 import org.scalatest.{FlatSpecLike, Matchers}
+//import wdl.shared.FileSizeLimitationConfig
 import wom.values._
 
 import scala.util.{Failure, Success, Try}
@@ -37,6 +38,7 @@ class FileSizeSpec extends TestKitSuite with FlatSpecLike with Matchers {
       scala.concurrent.ExecutionContext.global)
 
     new StandardExpressionFunctions(dp) {
+      /*
       override val fileSizeLimitationConfig =
         new FileSizeLimitationConfig {
           val readLinesLimit = _readLinesLimit
@@ -49,6 +51,7 @@ class FileSizeSpec extends TestKitSuite with FlatSpecLike with Matchers {
           val readObjectLimit = _readObjectLimit
           val readBoolLimit = _readBoolLimit
         }
+        */
     }
   }
 

@@ -1,8 +1,8 @@
-package cromwell.backend.wdl
+package wdl.shared
 
 import com.typesafe.config.ConfigFactory
-import net.ceedubs.ficus.readers.ValueReader
 import net.ceedubs.ficus.Ficus._
+import net.ceedubs.ficus.readers.ValueReader
 
 trait FileSizeLimitationConfig {
 

@@ -6,6 +6,7 @@ import common.exception.AggregatedException
 import common.util.TryUtil
 import spray.json._
 import wdl.draft2.model.expression.WdlStandardLibraryFunctions.{crossProduct => stdLibCrossProduct, _}
+import wdl.shared.FileSizeLimitationConfig
 import wdl.shared.model.expression.ValueEvaluation
 import wdl.shared.transforms.evaluation.values.EngineFunctions
 import wdl4s.parser.MemoryUnit
@@ -60,22 +61,26 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
     written <- writeContent("write_json", jsonContent.compactPrint)
   } yield written
 
+
+  val fileSizeLimitationConfig = FileSizeLimitationConfig.fileSizeLimitationConfig
+
   def read_lines(params: Seq[Try[WomValue]]): Try[WomArray] = {
     for {
-      _ <- validateFileSizeIsWithinLimits("read_lines", params, 0)
+      //_ <- validateFileSizeIsWithinLimits("read_lines", params, fileSizeLimitationConfig.readLinesLimit.toLong)
       contents <- readContentsFromSingleFileParameter("read_lines", params)
       lines = contents.split("\n")
     } yield WomArray(WomArrayType(WomStringType), lines map WomString)
   }
 
-  def validateFileSizeIsWithinLimits(functionName: String, params: Seq[Try[WomValue]], limit: Int): Try[Unit] =
+  def validateFileSizeIsWithinLimits(functionName: String, params: Seq[Try[WomValue]], limit: Long): Try[Unit] =
     for {
       fileName <- extractSingleArgument(functionName, params)
-      fileSize <- size(fileName.valueString)
-      _ = if (fileSize > limit) {
+      fileSize <- size(params)
+      _ <- if (fileSize.value.toLong > limit) {
         val errorMsg = s"Use of $fileName failed because the file was too big ($fileSize bytes when only files of up to $limit bytes are permissible"
-        throw new RuntimeException(errorMsg)
+        Failure(new RuntimeException(errorMsg))
       }
+        else Try(())
     } yield ()
 
   def read_map(params: Seq[Try[WomValue]]): Try[WomMap] = {

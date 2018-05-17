@@ -24,6 +24,7 @@ backend {
         }
         filesystems {
           gcs.auth = "service_account"
+          gcs.project = "broad-dsde-cromwell-dev"
         }
       }
     }
@@ -44,6 +45,7 @@ backend {
         }
         filesystems {
           gcs.auth = "service_account"
+          gcs.project = "broad-dsde-cromwell-dev"
         }
       }
     }
@@ -59,6 +61,7 @@ backend {
         }
         filesystems {
           gcs.auth = "refresh_token"
+          gcs.project = "broad-dsde-cromwell-dev"
         }
       }
     }
@@ -74,6 +77,7 @@ backend {
         }
         filesystems {
           gcs.auth = "service_account"
+          gcs.project = "broad-dsde-cromwell-dev"
           gcs.caching.duplication-strategy = "reference"
         }
       }
@@ -106,6 +110,7 @@ call-caching {
 engine {
   filesystems {
     gcs.auth = "service_account"
+    gcs.project = "broad-dsde-cromwell-dev"
   }
 }
 

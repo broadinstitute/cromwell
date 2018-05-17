@@ -1,7 +1,7 @@
 package wdl.draft3.transforms.wom2wdlom
 
 trait WomToWdlom[A, B] {
-  def convert(a: A): B
+  def toWdlom(a: A): B
 }
 
 object WomToWdlom {
@@ -9,10 +9,10 @@ object WomToWdlom {
   def apply[A, B](implicit converter: WomToWdlom[A, B]): WomToWdlom[A, B] = converter
 
   object ops {
-    def convert[A, B](a: A)(implicit converter: WomToWdlom[A, B]): B = converter.convert(a)
+    def toWdlom[A, B](a: A)(implicit converter: WomToWdlom[A, B]): B = converter.toWdlom(a)
 
     implicit class WomToWdlomOps[A, B](a: A)(implicit converter: WomToWdlom[A, B]) {
-      def toWdlom(implicit converter: WomToWdlom[A, B]): B = converter.convert(a)
+      def toWdlom(implicit converter: WomToWdlom[A, B]): B = converter.toWdlom(a)
     }
   }
 }

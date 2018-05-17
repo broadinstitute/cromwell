@@ -94,8 +94,8 @@ object WomToWdlomImpl {
       },
       CommandSectionElement(Seq()),
       a.runtimeAttributes.toWdlom,
-      mapToMetaSectionElement.convert(a.meta), // TODO: why do these require explicit notation?
-      mapToParameterMetaSectionElement.convert(a.parameterMeta)
+      mapToMetaSectionElement.toWdlom(a.meta), // TODO: why do these require explicit notation?
+      mapToParameterMetaSectionElement.toWdlom(a.parameterMeta)
     )
   }
 
@@ -104,9 +104,12 @@ object WomToWdlomImpl {
       a.name,
       Some(InputsSectionElement(Seq())),
       a.graph.nodes.map(_.toWdlom),
-      Some(OutputsSectionElement(Seq())), // TODO: should not always be present
-      mapToMetaSectionElement.convert(a.meta),
-      mapToParameterMetaSectionElement.convert(a.parameterMeta)
+      {
+        val outputs = a.outputs.map(outputDefinitionToOutputDeclarationElement.toWdlom) // TODO: unclear why this one has to be explicit
+        if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None
+      },
+      mapToMetaSectionElement.toWdlom(a.meta),
+      mapToParameterMetaSectionElement.toWdlom(a.parameterMeta)
     )
   }
 
@@ -140,7 +143,7 @@ object WomToWdlomImpl {
         scatterName = a.identifier.localName.value,
         scatterExpression = StringLiteral("wasd"),
         scatterVariableName = a.inputPorts.toList.head.name,
-        graphElements = a.innerGraph.nodes.toList.map(graphNodeToWorkflowGraphElement.convert)
+        graphElements = a.innerGraph.nodes.toList.map(graphNodeToWorkflowGraphElement.toWdlom)
       )
   }
 
@@ -162,16 +165,16 @@ object WomToWdlomImpl {
   implicit val womTypeToTypeElement: WomToWdlom[WomType, TypeElement] = {
     case a: WomArrayType =>
       if (a.guaranteedNonEmpty)
-        NonEmptyTypeElement(ArrayTypeElement(womTypeToTypeElement.convert(a.memberType)))
+        NonEmptyTypeElement(ArrayTypeElement(womTypeToTypeElement.toWdlom(a.memberType)))
       else
-        ArrayTypeElement(womTypeToTypeElement.convert(a.memberType))
+        ArrayTypeElement(womTypeToTypeElement.toWdlom(a.memberType))
     case _: WomCoproductType => throw UnrepresentableException
     case _: WomFileType => PrimitiveTypeElement(WomSingleFileType) // TODO: questionable assumption
-    case a: WomMapType => MapTypeElement(womTypeToTypeElement.convert(a.keyType), womTypeToTypeElement.convert(a.valueType))
+    case a: WomMapType => MapTypeElement(womTypeToTypeElement.toWdlom(a.keyType), womTypeToTypeElement.toWdlom(a.valueType))
     case _: WomNothingType.type => throw UnrepresentableException
     case _: WomObjectType.type => ObjectTypeElement
-    case a: WomOptionalType => OptionalTypeElement(womTypeToTypeElement.convert(a.memberType))
-    case a: WomPairType => PairTypeElement(womTypeToTypeElement.convert(a.leftType), womTypeToTypeElement.convert(a.rightType))
+    case a: WomOptionalType => OptionalTypeElement(womTypeToTypeElement.toWdlom(a.memberType))
+    case a: WomPairType => PairTypeElement(womTypeToTypeElement.toWdlom(a.leftType), womTypeToTypeElement.toWdlom(a.rightType))
     case a: WomPrimitiveType => a.toWdlom
   }
 

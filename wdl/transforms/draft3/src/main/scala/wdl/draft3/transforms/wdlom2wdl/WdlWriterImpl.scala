@@ -52,6 +52,7 @@ object WdlWriterImpl {
       case a: IdentifierMemberAccess => a.toWdlV1
       case a: ExpressionMemberAccess => s"${expressionElementWriter.toWdlV1(a.expression)}.${a.memberAccessTail.toList.mkString(".")}"
       case a: IndexAccess => s"${expressionElementWriter.toWdlV1(a.expressionElement)}[${expressionElementWriter.toWdlV1(a.index)}]"
+      case a: ExpressionLiteralElement => a.expression
     }
   }
 

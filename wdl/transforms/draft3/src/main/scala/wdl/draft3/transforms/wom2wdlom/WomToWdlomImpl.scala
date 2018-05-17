@@ -5,7 +5,7 @@ import wom.executable.WomBundle
 import common.collections.EnhancedCollections.EnhancedTraversableLike
 import wdl.draft2.model.WdlWomExpression
 import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
-import wdl.model.draft3.elements.ExpressionElement.StringLiteral
+import wdl.model.draft3.elements.ExpressionElement.{ExpressionLiteralElement, StringLiteral}
 import wdl.model.draft3.elements.MetaValueElement.MetaValueElementString
 import wom.callable.{Callable, CallableTaskDefinition, WorkflowDefinition}
 import wom.expression.{InputLookupExpression, ValueAsAnExpression, WomExpression}
@@ -164,14 +164,12 @@ object WomToWdlomImpl {
   implicit val womExpressionToExpressionElement: WomToWdlom[WomExpression, ExpressionElement] = (a: WomExpression) => {
     a match {
       case _: WdlomWomExpression => ???
-      case a: WdlWomExpression => StringLiteral(a.sourceString)
+      case a: WdlWomExpression => ExpressionLiteralElement(a.sourceString)
       case _: ValueAsAnExpression => ???
       case _: InputLookupExpression => ???
       case _: PlainAnonymousExpressionNode => ???
       case _: TaskCallInputExpressionNode => ???
       case _: ExposedExpressionNode => ???
-      //      case _ => throw new Exception("Unknown type")
-      case _ => StringLiteral("todo")
     }
   }
 

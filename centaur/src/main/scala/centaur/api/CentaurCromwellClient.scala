@@ -11,6 +11,7 @@ import akka.stream.{ActorMaterializer, ActorMaterializerSettings, StreamTcpExcep
 import centaur.test.metadata.WorkflowMetadata
 import centaur.test.workflow.Workflow
 import centaur.{CentaurConfig, CromwellManager}
+import com.typesafe.config.ConfigFactory
 import cromwell.api.CromwellClient
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
 import cromwell.api.model.{CromwellBackends, SubmittedWorkflow, WorkflowId, WorkflowOutputs, WorkflowStatus}
@@ -18,8 +19,10 @@ import cromwell.api.model.{CromwellBackends, SubmittedWorkflow, WorkflowId, Work
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.Try
+import net.ceedubs.ficus.Ficus._
 
 object CentaurCromwellClient {
+  val LogFailures = ConfigFactory.load().as[Option[Boolean]]("centaur.log-request-failures").getOrElse(false)
   // Do not use scala.concurrent.ExecutionContext.Implicits.global as long as this is using Await.result
   // See https://github.com/akka/akka-http/issues/602
   // And https://github.com/viktorklang/blog/blob/master/Futures-in-Scala-2.12-part-7.md
@@ -85,18 +88,18 @@ object CentaurCromwellClient {
            _: StreamTcpException |
            _: IOException |
            _: UnsupportedContentTypeException) if attempt < awaitMaxAttempts =>
-        Console.err.println(s"Failed to execute request to Cromwell, retrying: ${e.getMessage}")
+        if (LogFailures) Console.err.println(s"Failed to execute request to Cromwell, retrying: ${e.getMessage}")
         Thread.sleep(awaitSleep.toMillis)
         awaitFutureCompletion(x, timeout, attempt + 1)
       case unsuccessful: UnsuccessfulRequestException if unsuccessful.httpResponse.status == StatusCodes.NotFound && attempt < awaitMaxAttempts =>
-        Console.err.println(s"Failed to execute request to Cromwell, retrying: ${unsuccessful.getMessage}")
+        if (LogFailures) Console.err.println(s"Failed to execute request to Cromwell, retrying: ${unsuccessful.getMessage}")
         Thread.sleep(awaitSleep.toMillis)
         awaitFutureCompletion(x, timeout, attempt + 1)
       // see https://github.com/akka/akka-http/issues/768
       case unexpected: RuntimeException
         if unexpected.getMessage.contains("The http server closed the connection unexpectedly") &&
           attempt < awaitMaxAttempts =>
-        Console.err.println(s"Failed to execute request to Cromwell, retrying: ${unexpected.getMessage}")
+        if (LogFailures) Console.err.println(s"Failed to execute request to Cromwell, retrying: ${unexpected.getMessage}")
         Thread.sleep(awaitSleep.toMillis)
         awaitFutureCompletion(x, timeout, attempt + 1)
     }

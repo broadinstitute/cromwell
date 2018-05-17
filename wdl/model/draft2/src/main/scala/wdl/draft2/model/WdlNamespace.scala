@@ -447,7 +447,8 @@ object WdlNamespace {
   }
 
   private def typeCheckDeclaration(decl: DeclarationInterface, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Option[SyntaxError] = {
-    decl.expression flatMap { expr =>
+    val expr = decl.expression
+    expr flatMap { expr =>
       expr.evaluateType(lookupType(decl), new WdlStandardLibraryFunctionsType, Option(decl)) match {
         case Success(womType) =>
           if (!decl.womType.isCoerceableFrom(womType)) {
@@ -458,10 +459,14 @@ object WdlNamespace {
             expr.evaluate(NoLookup, NoFunctions) match {
               case Success(value) if decl.womType.coerceRawValue(value).isFailure =>
                 Option(new SyntaxError(wdlSyntaxErrorFormatter.declarationExpressionNotCoerceableToTargetType(declarationName(decl.ast), decl.womType, value.womType)))
-              case _ => None
+              case e =>
+                println(e)
+                None
             }
           }
-        case Failure(_) => None
+        case Failure(f) =>
+          println(f)
+          None
       }
     }
   }

@@ -6,11 +6,11 @@ import common.validation.ErrorOr._
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
+import wom.OptionalNotSuppliedException
 import wom.expression.IoFunctionSet
-import wom.values.WomValue
+import wom.values.{WomString, WomValue}
 
 import scala.util.Try
-
 
 object BinaryOperatorEvaluators {
   implicit val logicalOrEvaluator: ValueEvaluator[LogicalOr] = forOperation(_.or(_))
@@ -35,7 +35,14 @@ object BinaryOperatorEvaluators {
       (a.left.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions),
         a.right.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) flatMapN { (left, right) => {
 
-        op(left.value, right.value).toErrorOr map { newValue => EvaluatedValue(newValue, left.sideEffectFiles ++ right.sideEffectFiles) }
+        val rawResult = op(left.value, right.value)
+
+        // Allow unsupplied optionals, but only if we're instantiating a command:
+        val handleOptionals = rawResult.recover {
+          case OptionalNotSuppliedException(_) if forCommandInstantiationOptions.isDefined => WomString("")
+        }
+
+        handleOptionals.toErrorOr map { newValue => EvaluatedValue(newValue, left.sideEffectFiles ++ right.sideEffectFiles) }
       }}
   }
 }

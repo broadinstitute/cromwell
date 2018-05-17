@@ -130,7 +130,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
 
   def assertResponse(executionResponse: BackendJobExecutionResponse, expectedResponse: BackendJobExecutionResponse) = {
     (executionResponse, expectedResponse) match {
-      case (JobSucceededResponse(_, _, responseOutputs, _, _, _), JobSucceededResponse(_, _, expectedOutputs, _, _, _)) =>
+      case (JobSucceededResponse(_, _, responseOutputs, _, _, _, _), JobSucceededResponse(_, _, expectedOutputs, _, _, _, _)) =>
         responseOutputs.outputs.size shouldBe expectedOutputs.outputs.size
         responseOutputs.outputs foreach {
           case (fqn, out) =>

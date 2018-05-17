@@ -2,12 +2,14 @@ package womtool
 
 import java.nio.file.Paths
 
-import spray.json._
+import common.validation.Validation._
+import cromwell.core.path.Path
 import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter, SyntaxHighlighter}
-import wdl.draft2.model.{AstTools, WdlNamespace, WdlNamespaceWithWorkflow}
+import wdl.draft2.model.{AstTools, WdlNamespace}
 import womtool.cmdline.HighlightMode.{ConsoleHighlighting, HtmlHighlighting, UnrecognizedHighlightingMode}
 import womtool.cmdline._
 import womtool.graph.{GraphPrint, WomGraph}
+import womtool.input.WomGraphMaker
 import womtool.inputs.Inputs
 import womtool.validate.Validate
 
@@ -44,8 +46,8 @@ object WomtoolMain extends App {
     case h: HighlightCommandLine => highlight(h.workflowSource.pathAsString, h.highlightMode)
     case i: InputsCommandLine => Inputs.inputsJson(i.workflowSource, i.showOptionals)
     case g: WomtoolGraphCommandLine => graph(g.workflowSource.pathAsString)
+    case g: WomtoolWomGraphCommandLine => womGraph(g.workflowSource)
     case u: WomtoolWdlV1UpgradeCommandLine => v1upgrade(u.workflowSource.pathAsString)
-    case g: WomtoolWomGraphCommandLine => womGraph(g.workflowSource.pathAsString)
     case _ => BadUsageTermination(WomtoolCommandLineParser.instance.usage)
   }
 
@@ -62,18 +64,6 @@ object WomtoolMain extends App {
       case HtmlHighlighting => highlight(HtmlSyntaxHighlighter)
       case ConsoleHighlighting => highlight(AnsiSyntaxHighlighter)
       case UnrecognizedHighlightingMode(m) => BadUsageTermination(s"Unknown highlighter mode: $m")
-    }
-  }
-
-  def inputs(workflowSourcePath: String): Termination = {
-    loadWdl(workflowSourcePath) { namespace =>
-      import wom.types.WomTypeJsonFormatter._
-      val msg = namespace match {
-        case x: WdlNamespaceWithWorkflow => x.workflow.inputs.toJson.prettyPrint
-        case _ => "WDL does not have a local workflow"
-      }
-
-      SuccessfulTermination(msg)
     }
   }
 
@@ -112,8 +102,11 @@ object WomtoolMain extends App {
       SuccessfulTermination(result.stripMargin)
   }
 
-  def womGraph(workflowSourcePath: String): Termination = {
-    SuccessfulTermination(WomGraph.fromFiles(workflowSourcePath).digraphDot)
+  def womGraph(workflowSourcePath: Path): Termination = {
+    WomGraphMaker.fromFiles(mainFile = workflowSourcePath, inputs = None).contextualizeErrors("create wom Graph") match {
+      case Right(graph) => SuccessfulTermination (new WomGraph(graphName = "workflow", graph).digraphDot)
+      case Left(errors) => UnsuccessfulTermination(errors.toList.mkString(System.lineSeparator, System.lineSeparator, System.lineSeparator))
+    }
   }
 
   private[this] def loadWdl(path: String)(f: WdlNamespace => Termination): Termination = {

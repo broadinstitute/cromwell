@@ -9,7 +9,7 @@ import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.CallElement
 import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
 import wom.callable.Callable._
-import wom.callable.{Callable, CallableTaskDefinition}
+import wom.callable.{Callable, CallableTaskDefinition, TaskDefinition, WorkflowDefinition}
 import wom.graph.CallNode.{CallNodeAndNewNodes, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode, PlainAnonymousExpressionNode, TaskCallInputExpressionNode}
@@ -44,9 +44,21 @@ object CallElementToGraphNode {
         definition.name == name && !definition.isInstanceOf[FixedInputDefinition]
       }
 
+      def hasDeclaration(callable: Callable, name: String): Boolean = callable match {
+        case t: TaskDefinition =>
+          t.inputs.map(_.name).contains(name)
+        case w: WorkflowDefinition =>
+          w.graph.nodes.map(_.localName).contains(name)
+      }
+
       a.node.body match {
         case Some(body) =>
-          body.inputs.map(input => input.key -> input.value).toMap.traverse {
+          lazy val callNameAlias = a.node.alias match {
+            case Some(alias) => s" (as '$alias')"
+            case None => ""
+          }
+
+          val result = body.inputs.map(input => input.key -> input.value).toMap.traverse {
             case (name, expression) if callable.inputs.exists(i => validInput(name, i)) =>
               val identifier = WomIdentifier(name)
               val constructor = callable match {
@@ -58,16 +70,14 @@ object CallElementToGraphNode {
                 LocalName(name) -> _
               }
             case (name, _) =>
-              val callNameAlias = a.node.alias match {
-                case Some(alias) => s" (as '$alias')"
-                case None => ""
-              }
-              if (callable.inputs.exists(i => i.name == name)) {
-                s"Invalid call to '${callable.name}'$callNameAlias: The declaration '$name' must be within the called task or sub-workflow's input { } section to be exposed as an input".invalidNel
+              if (hasDeclaration(callable, name)) {
+                s"The call tried to supply a value '$name' that isn't overridable for this task (or sub-workflow). To be able to supply this value, move it into the task (or sub-workflow)'s inputs { } section.".invalidNel
               } else {
-                s"Invalid call to '${callable.name}'$callNameAlias: No such value '$name' exists within the called task or sub-workflow's 'input { }' section".stripMargin.invalidNel
+                s"The call supplied a value '$name' that doesn't exist in the task (or sub-workflow)".stripMargin.invalidNel
               }
           }
+          result.contextualizeErrors(s"make call to '${callable.name}'$callNameAlias")
+
         case None => Map.empty[LocalName, AnonymousExpressionNode].valid
       }
     }

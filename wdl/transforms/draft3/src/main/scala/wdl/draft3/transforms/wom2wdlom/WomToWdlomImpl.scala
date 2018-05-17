@@ -67,8 +67,8 @@ object WomToWdlomImpl {
   }
 
   implicit val runtimeAttributesToRuntimeAttributesSectionElement: WomToWdlom[RuntimeAttributes, Option[RuntimeAttributesSectionElement]] = (a: RuntimeAttributes) => {
-    def tupleToKvPair(old: (String, WomExpression)): ExpressionElement.KvPair =
-      ExpressionElement.KvPair(old._1, old._2.convert)
+    def tupleToKvPair(tuple: (String, WomExpression)): ExpressionElement.KvPair =
+      ExpressionElement.KvPair(tuple._1, tuple._2.convert)
 
     val kvPairs = (a.attributes map tupleToKvPair).toVector
 
@@ -81,9 +81,9 @@ object WomToWdlomImpl {
   implicit val callableTaskDefinitionToTaskDefinitionElement: WomToWdlom[CallableTaskDefinition, TaskDefinitionElement] = (a: CallableTaskDefinition) => {
     TaskDefinitionElement(
       a.name,
-      None,
+      Some(InputsSectionElement(Seq())),
       Seq(),
-      None,
+      Some(OutputsSectionElement(Seq())),
       CommandSectionElement(Seq()),
       a.runtimeAttributes.convert,
       mapToMetaSectionElement.convert(a.meta), // TODO: why do these require explicit notation?
@@ -94,9 +94,9 @@ object WomToWdlomImpl {
   implicit val workflowDefinitionToWorkflowDefinitionElement: WomToWdlom[WorkflowDefinition, WorkflowDefinitionElement] = (a: WorkflowDefinition) => {
     WorkflowDefinitionElement(
       a.name,
-      None,
+      Some(InputsSectionElement(Seq())),
       a.graph.nodes.map(_.convert),
-      None,
+      Some(OutputsSectionElement(Seq())),
       mapToMetaSectionElement.convert(a.meta),
       mapToParameterMetaSectionElement.convert(a.parameterMeta)
     )

@@ -7,6 +7,7 @@ import wdl.draft2.model.WdlWomExpression
 import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.ExpressionElement.{ExpressionLiteralElement, StringLiteral}
 import wdl.model.draft3.elements.MetaValueElement.MetaValueElementString
+import wom.RuntimeAttributes
 import wom.callable.{Callable, CallableTaskDefinition, WorkflowDefinition}
 import wom.expression.{InputLookupExpression, ValueAsAnExpression, WomExpression}
 import wom.graph.CallNode.InputDefinitionPointer
@@ -65,6 +66,18 @@ object WomToWdlomImpl {
       None
   }
 
+  implicit val runtimeAttributesToRuntimeAttributesSectionElement: WomToWdlom[RuntimeAttributes, Option[RuntimeAttributesSectionElement]] = (a: RuntimeAttributes) => {
+    def tupleToKvPair(old: (String, WomExpression)): ExpressionElement.KvPair =
+      ExpressionElement.KvPair(old._1, old._2.convert)
+
+    val kvPairs = (a.attributes map tupleToKvPair).toVector
+
+    if (kvPairs.nonEmpty)
+      Some(RuntimeAttributesSectionElement(kvPairs))
+    else
+      None
+  }
+
   implicit val callableTaskDefinitionToTaskDefinitionElement: WomToWdlom[CallableTaskDefinition, TaskDefinitionElement] = (a: CallableTaskDefinition) => {
     TaskDefinitionElement(
       a.name,
@@ -72,7 +85,7 @@ object WomToWdlomImpl {
       Seq(),
       None,
       CommandSectionElement(Seq()),
-      None,
+      a.runtimeAttributes.convert,
       mapToMetaSectionElement.convert(a.meta), // TODO: why do these require explicit notation?
       mapToParameterMetaSectionElement.convert(a.parameterMeta)
     )

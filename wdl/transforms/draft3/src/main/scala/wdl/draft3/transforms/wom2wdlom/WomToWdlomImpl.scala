@@ -8,6 +8,7 @@ import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.ExpressionElement.{ExpressionLiteralElement, StringLiteral}
 import wdl.model.draft3.elements.MetaValueElement.MetaValueElementString
 import wom.RuntimeAttributes
+import wom.callable.Callable.OutputDefinition
 import wom.callable.{Callable, CallableTaskDefinition, WorkflowDefinition}
 import wom.expression.{InputLookupExpression, ValueAsAnExpression, WomExpression}
 import wom.graph.CallNode.InputDefinitionPointer
@@ -24,15 +25,15 @@ object WomToWdlomImpl {
   implicit val graphOutputNodeToWorkflowGraphElement: WomToWdlom[GraphOutputNode, WorkflowGraphElement] = {
     case a: PortBasedGraphOutputNode =>
       OutputDeclarationElement(
-        a.womType.convert,
+        a.womType.toWdlom,
         a.identifier.localName.value,
         StringLiteral("bogus") // TODO
       )
     case a: ExpressionBasedGraphOutputNode =>
       OutputDeclarationElement(
-        a.womType.convert,
+        a.womType.toWdlom,
         a.identifier.localName.value,
-        a.womExpression.convert
+        a.womExpression.toWdlom
       )
   }
 
@@ -43,8 +44,8 @@ object WomToWdlomImpl {
     FileElement(
       Seq(),
       Seq(),
-      workflows.map(_.convert).toSeq,
-      tasks.map(_.convert).toSeq
+      workflows.map(_.toWdlom).toSeq,
+      tasks.map(_.toWdlom).toSeq
     )
   }
 
@@ -68,7 +69,7 @@ object WomToWdlomImpl {
 
   implicit val runtimeAttributesToRuntimeAttributesSectionElement: WomToWdlom[RuntimeAttributes, Option[RuntimeAttributesSectionElement]] = (a: RuntimeAttributes) => {
     def tupleToKvPair(tuple: (String, WomExpression)): ExpressionElement.KvPair =
-      ExpressionElement.KvPair(tuple._1, tuple._2.convert)
+      ExpressionElement.KvPair(tuple._1, tuple._2.toWdlom)
 
     val kvPairs = (a.attributes map tupleToKvPair).toVector
 
@@ -78,14 +79,21 @@ object WomToWdlomImpl {
       None
   }
 
+  implicit val outputDefinitionToOutputDeclarationElement: WomToWdlom[OutputDefinition, OutputDeclarationElement] = (a: OutputDefinition) => {
+    OutputDeclarationElement(a.womType.toWdlom, a.localName.value, a.expression.toWdlom)
+  }
+
   implicit val callableTaskDefinitionToTaskDefinitionElement: WomToWdlom[CallableTaskDefinition, TaskDefinitionElement] = (a: CallableTaskDefinition) => {
     TaskDefinitionElement(
       a.name,
       Some(InputsSectionElement(Seq())),
       Seq(),
-      Some(OutputsSectionElement(Seq())),
+      {
+        val outputs = a.outputs.map(_.toWdlom)
+        if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None
+      },
       CommandSectionElement(Seq()),
-      a.runtimeAttributes.convert,
+      a.runtimeAttributes.toWdlom,
       mapToMetaSectionElement.convert(a.meta), // TODO: why do these require explicit notation?
       mapToParameterMetaSectionElement.convert(a.parameterMeta)
     )
@@ -95,8 +103,8 @@ object WomToWdlomImpl {
     WorkflowDefinitionElement(
       a.name,
       Some(InputsSectionElement(Seq())),
-      a.graph.nodes.map(_.convert),
-      Some(OutputsSectionElement(Seq())),
+      a.graph.nodes.map(_.toWdlom),
+      Some(OutputsSectionElement(Seq())), // TODO: should not always be present
       mapToMetaSectionElement.convert(a.meta),
       mapToParameterMetaSectionElement.convert(a.parameterMeta)
     )
@@ -105,26 +113,26 @@ object WomToWdlomImpl {
   implicit val expressionNodeLikeToWorkflowGraphElement: WomToWdlom[ExpressionNodeLike, WorkflowGraphElement] = {
     case a: ExpressionNode =>
       IntermediateValueDeclarationElement(
-        typeElement = a.womType.convert,
+        typeElement = a.womType.toWdlom,
         name = a.identifier.localName.value,
-        expression = a.convert)
+        expression = a.toWdlom)
     case _: ExpressionCallNode => ???
   }
 
   implicit val graphNodeToWorkflowGraphElement: WomToWdlom[GraphNode, WorkflowGraphElement] = {
     case a: CallNode =>
-      a.convert
+      a.toWdlom
     case a: ConditionalNode =>
       IfElement(
-        conditionExpression = a.conditionExpression.convert,
+        conditionExpression = a.conditionExpression.toWdlom,
         graphElements = Seq() //a.innerGraph.nodes
       )
     case a: ExpressionNodeLike =>
-      a.convert
+      a.toWdlom
     case a: GraphNodeWithSingleOutputPort =>
-      a.convert
+      a.toWdlom
     case a: GraphOutputNode =>
-      a.convert
+      a.toWdlom
     // a.scatterCollectionExpressionNodes.head.womExpression.sourceString
     // a.scatterCollectionExpressionNodes.head.womExpression.asInstanceOf[WdlWomExpression].wdlExpression
     case a: ScatterNode =>
@@ -139,15 +147,15 @@ object WomToWdlomImpl {
   implicit val graphNodeWithSingleOutputPortToWorkflowGraphElement: WomToWdlom[GraphNodeWithSingleOutputPort, WorkflowGraphElement] = {
     case a: GraphInputNode =>
       InputDeclarationElement(
-        a.womType.convert,
+        a.womType.toWdlom,
         a.identifier.localName.value,
         None
       )
     case a: ExpressionNode =>
       IntermediateValueDeclarationElement(
-        a.womType.convert,
+        a.womType.toWdlom,
         a.identifier.localName.value,
-        a.womExpression.convert
+        a.womExpression.toWdlom
       )
   }
 
@@ -164,14 +172,14 @@ object WomToWdlomImpl {
     case _: WomObjectType.type => ObjectTypeElement
     case a: WomOptionalType => OptionalTypeElement(womTypeToTypeElement.convert(a.memberType))
     case a: WomPairType => PairTypeElement(womTypeToTypeElement.convert(a.leftType), womTypeToTypeElement.convert(a.rightType))
-    case a: WomPrimitiveType => a.convert
+    case a: WomPrimitiveType => a.toWdlom
   }
 
   implicit val womPrimitiveTypeToPrimitiveTypeElement: WomToWdlom[WomPrimitiveType, PrimitiveTypeElement] = (a: WomPrimitiveType) => PrimitiveTypeElement(a)
 
   // TODO: Possibly the wrong conversion
   implicit val expressionNodeToExpressionElement: WomToWdlom[ExpressionNode, ExpressionElement] = (a: ExpressionNode) => {
-    a.womExpression.convert
+    a.womExpression.toWdlom
   }
 
   implicit val womExpressionToExpressionElement: WomToWdlom[WomExpression, ExpressionElement] = (a: WomExpression) => {

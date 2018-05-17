@@ -93,7 +93,7 @@ object WomtoolMain extends App {
 
     val womBundle: WomBundle = wdlDraft2NamespaceWomBundleMaker.toWomBundle(wdl).getOrElse(???)
 
-    val fileElement: FileElement = womBundle.convert
+    val fileElement: FileElement = womBundle.toWdlom
 
     SuccessfulTermination(fileElement.toWdlV1)
   }

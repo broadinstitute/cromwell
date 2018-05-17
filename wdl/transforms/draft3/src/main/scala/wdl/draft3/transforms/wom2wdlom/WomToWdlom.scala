@@ -12,7 +12,7 @@ object WomToWdlom {
     def convert[A, B](a: A)(implicit converter: WomToWdlom[A, B]): B = converter.convert(a)
 
     implicit class WomToWdlomOps[A, B](a: A)(implicit converter: WomToWdlom[A, B]) {
-      def convert(implicit converter: WomToWdlom[A, B]): B = converter.convert(a)
+      def toWdlom(implicit converter: WomToWdlom[A, B]): B = converter.convert(a)
     }
   }
 }

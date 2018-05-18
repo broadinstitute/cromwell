@@ -5,6 +5,7 @@ import wom.executable.WomBundle
 import common.collections.EnhancedCollections.EnhancedTraversableLike
 import wdl.draft2.model.WdlWomExpression
 import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
+import wom.callable.Callable._
 import wdl.model.draft3.elements.ExpressionElement.{ExpressionLiteralElement, StringLiteral}
 import wdl.model.draft3.elements.MetaValueElement.MetaValueElementString
 import wom.RuntimeAttributes
@@ -83,15 +84,23 @@ object WomToWdlomImpl {
     OutputDeclarationElement(a.womType.toWdlom, a.localName.value, a.expression.toWdlom)
   }
 
+  implicit val inputDefinitionToInputDeclarationElement: WomToWdlom[InputDefinition, InputDeclarationElement] = {
+    case a: RequiredInputDefinition => InputDeclarationElement(a.womType.toWdlom, a.localName.value, None)
+    case a: InputDefinitionWithDefault => InputDeclarationElement(a.womType.toWdlom, a.localName.value, Some(a.default.toWdlom))
+    case a: FixedInputDefinition => InputDeclarationElement(a.womType.toWdlom, a.localName.value, Some(a.default.toWdlom))
+    case a: OptionalInputDefinition => InputDeclarationElement(a.womType.toWdlom, a.localName.value, None)
+  }
+
   implicit val callableTaskDefinitionToTaskDefinitionElement: WomToWdlom[CallableTaskDefinition, TaskDefinitionElement] = (a: CallableTaskDefinition) => {
+    // TODO: why does _.toWdlom not work here?
+    val inputs = a.inputs.map(inputDefinitionToInputDeclarationElement.toWdlom)
+    val outputs = a.outputs.map(outputDefinitionToOutputDeclarationElement.toWdlom)
+
     TaskDefinitionElement(
       a.name,
-      Some(InputsSectionElement(Seq())),
+      if (inputs.nonEmpty) Some(InputsSectionElement(inputs)) else None,
       Seq(),
-      {
-        val outputs = a.outputs.map(_.toWdlom)
-        if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None
-      },
+      if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
       CommandSectionElement(Seq()),
       a.runtimeAttributes.toWdlom,
       mapToMetaSectionElement.toWdlom(a.meta), // TODO: why do these require explicit notation?
@@ -100,14 +109,14 @@ object WomToWdlomImpl {
   }
 
   implicit val workflowDefinitionToWorkflowDefinitionElement: WomToWdlom[WorkflowDefinition, WorkflowDefinitionElement] = (a: WorkflowDefinition) => {
+    val inputs = a.inputs.map(inputDefinitionToInputDeclarationElement.toWdlom)
+    val outputs = a.outputs.map(outputDefinitionToOutputDeclarationElement.toWdlom)
+
     WorkflowDefinitionElement(
       a.name,
-      Some(InputsSectionElement(Seq())),
+      if (inputs.nonEmpty) Some(InputsSectionElement(inputs)) else None,
       a.graph.nodes.map(_.toWdlom),
-      {
-        val outputs = a.outputs.map(outputDefinitionToOutputDeclarationElement.toWdlom) // TODO: unclear why this one has to be explicit
-        if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None
-      },
+      if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
       mapToMetaSectionElement.toWdlom(a.meta),
       mapToParameterMetaSectionElement.toWdlom(a.parameterMeta)
     )
@@ -173,10 +182,13 @@ object WomToWdlomImpl {
     case a: WomMapType => MapTypeElement(womTypeToTypeElement.toWdlom(a.keyType), womTypeToTypeElement.toWdlom(a.valueType))
     case _: WomNothingType.type => throw UnrepresentableException
     case _: WomObjectType.type => ObjectTypeElement
-    case a: WomOptionalType => OptionalTypeElement(womTypeToTypeElement.toWdlom(a.memberType))
+    case a: WomOptionalType => a.toWdlom
     case a: WomPairType => PairTypeElement(womTypeToTypeElement.toWdlom(a.leftType), womTypeToTypeElement.toWdlom(a.rightType))
     case a: WomPrimitiveType => a.toWdlom
   }
+
+  implicit val womOptionalTypeToOptionalTypeElement: WomToWdlom[WomOptionalType, OptionalTypeElement] = (a: WomOptionalType) =>
+    OptionalTypeElement(womTypeToTypeElement.toWdlom(a.memberType))
 
   implicit val womPrimitiveTypeToPrimitiveTypeElement: WomToWdlom[WomPrimitiveType, PrimitiveTypeElement] = (a: WomPrimitiveType) => PrimitiveTypeElement(a)
 

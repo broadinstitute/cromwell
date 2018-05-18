@@ -260,7 +260,7 @@ object WdlWriterImpl {
          |${indent(inputs)}
          |${indentAndCombine(a.declarations.map(_.toWdlV1))}
          |${indent(outputs)}
-         |${a.commandSection.toWdlV1}
+         |${indent(a.commandSection.toWdlV1)}
          |${indent(runtime)}
          |${indent(meta)}
          |${indent(parameterMeta)}}""".stripMargin

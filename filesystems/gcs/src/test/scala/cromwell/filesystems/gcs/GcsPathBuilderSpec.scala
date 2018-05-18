@@ -23,7 +23,8 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       "cromwell-test",
       RetrySettings.newBuilder().build(),
       CloudStorageConfiguration.DEFAULT,
-      wfOptionsWithProject
+      wfOptionsWithProject,
+      Option("default_project")
     )
 
     gcsPathBuilderWithProjectInfo.projectId shouldBe "my_project"
@@ -319,7 +320,8 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       "cromwell-test",
       RetrySettings.newBuilder().build(),
       CloudStorageConfiguration.DEFAULT,
-      WorkflowOptions.empty
+      WorkflowOptions.empty,
+      Option("default_project")
     )
   }
 }

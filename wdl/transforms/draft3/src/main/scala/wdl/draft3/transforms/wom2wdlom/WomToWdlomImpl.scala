@@ -10,12 +10,13 @@ import wdl.model.draft3.elements.ExpressionElement.{ExpressionLiteralElement, St
 import wdl.model.draft3.elements.MetaValueElement.MetaValueElementString
 import wom.RuntimeAttributes
 import wom.callable.Callable.OutputDefinition
-import wom.callable.{Callable, CallableTaskDefinition, WorkflowDefinition}
+import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
 import wom.expression.{InputLookupExpression, ValueAsAnExpression, WomExpression}
 import wom.graph.CallNode.InputDefinitionPointer
 import wom.graph._
 import wom.graph.expression._
 import wom.types._
+import wom.values.WomValue
 
 case object UnrepresentableException extends Exception("Value has no representation in the destination format (WDL)")
 
@@ -99,7 +100,7 @@ object WomToWdlomImpl {
     TaskDefinitionElement(
       a.name,
       if (inputs.nonEmpty) Some(InputsSectionElement(inputs)) else None,
-      Seq(),
+      Seq(), // TODO: maybe these don't exist in draft-2?
       if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
       CommandSectionElement(Seq()),
       a.runtimeAttributes.toWdlom,
@@ -209,34 +210,24 @@ object WomToWdlomImpl {
     }
   }
 
-  implicit val callNodeToCallElement: WomToWdlom[CallNode, CallElement] = (a: CallNode) => {
-    a.inputDefinitionMappings map { case (defn: Callable.InputDefinition, defnPtr: InputDefinitionPointer) =>
-      (defn.localName, defnPtr)
-    }
+  implicit val inputDefinitionPointerToExpressionElement: WomToWdlom[InputDefinitionPointer, ExpressionElement] = (a: InputDefinitionPointer) => {
     a match {
-      case a: ExpressionCallNode =>
-        // We need to make list of inputs as kv pairs
-        // An InputDefinition has a valueMapper, which seems like a callable function to obtain the input value?
-        //        a.callable.inputs map { input =>
-        //          input.valueMapper(NoIoFunctionSet)(???)
-        //        }
-        CallElement(
-          a.callable.name,
-          None,
-          None
-        )
-      case _: CommandCallNode =>
-        CallElement(
-          a.callable.name,
-          None,
-          None
-        )
-      case _: WorkflowCallNode =>
-        CallElement(
-          a.callable.name,
-          None,
-          None
-        )
+      case a: WomExpression => womExpressionToExpressionElement.toWdlom(a)
+      case a: WomValue => womExpressionToExpressionElement.toWdlom(a.asWomExpression)
+      case _ => StringLiteral("cake")
     }
+  }
+
+  implicit val callNodeToCallElement: WomToWdlom[CallNode, CallElement] = (a: CallNode) => {
+    def tupleToKvPair(tuple: (InputDefinition, InputDefinitionPointer)): ExpressionElement.KvPair =
+      ExpressionElement.KvPair(tuple._1.name, tuple._2.toWdlom)
+
+    val inputs = (a.inputDefinitionMappings map tupleToKvPair).toVector
+
+    CallElement(
+      a.callable.name,
+      None,
+      if (inputs.nonEmpty) Some(CallBodyElement(inputs)) else None
+    )
   }
 }

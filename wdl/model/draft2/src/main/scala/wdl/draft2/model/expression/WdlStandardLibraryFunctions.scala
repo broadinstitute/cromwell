@@ -106,7 +106,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
     } yield WomArray(WomArrayType(WomStringType), lines map WomString)
   }
 
-  private val fileSizeLimitationConfig = FileSizeLimitationConfig.fileSizeLimitationConfig
+  protected def fileSizeLimitationConfig: FileSizeLimitationConfig
 
   private def validateFileSizeIsWithinLimits(functionName: String, params: Seq[Try[WomValue]], limit: Long): Try[Unit] =
     for {
@@ -412,6 +412,8 @@ object WdlStandardLibraryFunctions {
     }
 
     override def size(path: String): Try[Long] = Try(Await.result(ioFunctionSet.size(path), Duration.Inf))
+
+    override protected val fileSizeLimitationConfig: FileSizeLimitationConfig = FileSizeLimitationConfig.fileSizeLimitationConfig
   }
 
   def crossProduct[A, B](as: Seq[A], bs: Seq[B]): Seq[(A, B)] = for {
@@ -451,6 +453,8 @@ trait PureStandardLibraryFunctionsLike extends WdlStandardLibraryFunctions {
   override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError(s"stdout not available in $className."))
   override def globHelper(pattern: String): Seq[String] = throw new NotImplementedError(s"glob not available in $className.")
   override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError(s"stderr not available in $className."))
+
+  override def fileSizeLimitationConfig: FileSizeLimitationConfig = throw new NotImplementedError(s"file limits config not available in $className.")
 }
 
 case object PureStandardLibraryFunctions extends PureStandardLibraryFunctionsLike
@@ -570,4 +574,6 @@ case object NoFunctions extends WdlStandardLibraryFunctions {
   override def floor(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new NotImplementedError())
   override def round(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new NotImplementedError())
   override def ceil(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new NotImplementedError())
+
+  override protected def fileSizeLimitationConfig: FileSizeLimitationConfig = throw new NotImplementedError()
 }

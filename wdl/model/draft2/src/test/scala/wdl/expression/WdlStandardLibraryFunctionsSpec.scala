@@ -3,6 +3,7 @@ package wdl.expression
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.draft2.model.expression.{WdlStandardLibraryFunctions, WdlStandardLibraryFunctionsType}
+import wdl.shared.FileSizeLimitationConfig
 import wom.types.{WomArrayType, WomIntegerType, WomOptionalType}
 import wom.values._
 
@@ -64,6 +65,8 @@ case object TestableFunctions extends WdlStandardLibraryFunctions {
   override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = throw new NotImplementedError
   override def globHelper(pattern: String): Seq[String] = throw new NotImplementedError
   override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = throw new NotImplementedError
+
+  override protected def fileSizeLimitationConfig: FileSizeLimitationConfig = ???
 }
 
 case object TestableFunctionTypes extends WdlStandardLibraryFunctionsType

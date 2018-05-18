@@ -235,8 +235,16 @@ case class Directory private
   }
 
   lazy val asWomValue: ErrorOr[WomFile] = {
+    // Callers expect the directory's last component to match the basename if this Directory has a basename.
+    def tempDirectory: String = {
+      val dir = better.files.File.newTemporaryDirectory()
+      basename match {
+        case None => dir.pathAsString
+        case Some(b) => dir.createChild(b, asDirectory = true)().pathAsString
+      }
+    }
     errorOrListingOption flatMap { listingOption =>
-      val valueOption = path.orElse(location).orElse(basename).orElse(Option(better.files.File.newTemporaryDirectory().pathAsString))
+      val valueOption = path.orElse(location).orElse(Option(tempDirectory))
       WomMaybeListedDirectory(valueOption, listingOption, basename).valid
     }
   }

@@ -11,7 +11,8 @@ import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.TypeEvaluator
 import wdl.model.draft3.graph.expression.TypeEvaluator.ops._
 import wom.types._
-import wom.values.WomArray.WomArrayLike
+import wdl.draft3.transforms.wdlom2wdl.WdlWriter.ops._
+import wdl.draft3.transforms.wdlom2wdl.WdlWriterImpl.expressionElementWriter
 
 object EngineFunctionEvaluators {
 
@@ -219,29 +220,20 @@ object EngineFunctionEvaluators {
     }
   }
 
-  implicit val zipFunctionEvaluator: TypeEvaluator[Zip] = new TypeEvaluator[Zip] {
-    override def evaluateType(a: Zip, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]): ErrorOr[WomType] = {
-      (a.arg1.evaluateType(linkedValues), a.arg2.evaluateType(linkedValues)) match {
-        case (Valid(WomArrayLike(left)), Valid(WomArrayLike(right))) => WomPairType(left.arrayType.memberType, right.arrayType.memberType).validNel
-        case (Valid(otherLeft), Valid(WomArrayLike(_))) => s"Invalid left parameter '${a.arg1}'. Expected Array type but got '${otherLeft.toDisplayString}'".invalidNel
-        case (Valid(WomArrayLike(_)), Valid(otherRight)) => s"Invalid right parameter '${a.arg2}'. Expected Array type but got '${otherRight.toDisplayString}'".invalidNel
-        // One or more are invalid, so mapN function won't actually ever run:
-        case (otherLeft, otherRight) => (otherLeft, otherRight) mapN { (_, _) => WomNothingType }
-      }
+  private def crossOrZipType(arg1: ExpressionElement, arg2: ExpressionElement, linkedValues:  Map[UnlinkedConsumedValueHook, GeneratedValueHandle]): ErrorOr[WomType] = {
+    (arg1.evaluateType(linkedValues), arg2.evaluateType(linkedValues)) match {
+      case (Valid(WomArrayType(left)), Valid(WomArrayType(right))) =>
+        WomArrayType(WomPairType(left, right)).validNel
+      case (Valid(otherLeft), Valid(WomArrayType(_))) => s"Invalid left parameter '${arg1.toWdlV1}'. Expected Array type but got '${otherLeft.toDisplayString}'".invalidNel
+      case (Valid(WomArrayType(_)), Valid(otherRight)) => s"Invalid right parameter '${arg2.toWdlV1}'. Expected Array type but got '${otherRight.toDisplayString}'".invalidNel
+      case (Valid(otherLeft), Valid(otherRight)) => s"Invalid left and right parameters '(${arg1.toWdlV1}, ${arg2.toWdlV1})'. Expected two Array types but got '(${otherLeft.toDisplayString}, ${otherRight.toDisplayString})'".invalidNel
+      // One or more are invalid, so mapN function won't actually ever run:
+      case (otherLeft, otherRight) => (otherLeft, otherRight) mapN { (_, _) => WomNothingType }
     }
   }
 
-  implicit val crossFunctionEvaluator: TypeEvaluator[Cross] = new TypeEvaluator[Cross] {
-    override def evaluateType(a: Cross, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]): ErrorOr[WomType] = {
-      (a.arg1.evaluateType(linkedValues), a.arg2.evaluateType(linkedValues)) match {
-        case (Valid(WomArrayLike(left)), Valid(WomArrayLike(right))) => WomPairType(left.arrayType.memberType, right.arrayType.memberType).validNel
-        case (Valid(otherLeft), Valid(WomArrayLike(_))) => s"Invalid left parameter '${a.arg1}'. Expected Array type but got '${otherLeft.toDisplayString}'".invalidNel
-        case (Valid(WomArrayLike(_)), Valid(otherRight)) => s"Invalid right parameter '${a.arg2}'. Expected Array type but got '${otherRight.toDisplayString}'".invalidNel
-        // One or more are invalid, so mapN function won't actually ever run:
-        case (otherLeft, otherRight) => (otherLeft, otherRight) mapN { (_, _) => WomNothingType }
-      }
-    }
-  }
+  implicit val zipFunctionEvaluator: TypeEvaluator[Zip] = (a, linkedValues) => crossOrZipType(a.arg1, a.arg2, linkedValues)
+  implicit val crossFunctionEvaluator: TypeEvaluator[Cross] = (a, linkedValues) => crossOrZipType(a.arg1, a.arg2, linkedValues)
 
   implicit val prefixFunctionEvaluator: TypeEvaluator[Prefix] = new TypeEvaluator[Prefix] {
     override def evaluateType(a: Prefix, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]): ErrorOr[WomType] = {

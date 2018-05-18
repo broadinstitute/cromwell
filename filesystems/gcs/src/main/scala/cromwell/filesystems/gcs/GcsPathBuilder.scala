@@ -1,6 +1,8 @@
 package cromwell.filesystems.gcs
 
+import java.io.{BufferedReader, IOException, InputStream, InputStreamReader}
 import java.net.URI
+import java.nio.charset.Charset
 
 import akka.actor.ActorSystem
 import com.google.api.gax.retrying.RetrySettings
@@ -14,10 +16,12 @@ import cromwell.core.WorkflowOptions
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.gcs.GcsPathBuilder._
 import cromwell.filesystems.gcs.GoogleUtil._
+import cromwell.util.TryWithResource.tryWithResource
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.io.Codec
 import scala.language.postfixOps
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 object GcsPathBuilder {
   /*
@@ -91,13 +95,15 @@ object GcsPathBuilder {
                    applicationName: String,
                    retrySettings: RetrySettings,
                    cloudStorageConfiguration: CloudStorageConfiguration,
-                   options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[GcsPathBuilder] = {
+                   options: WorkflowOptions,
+                   defaultProject: Option[String])(implicit as: ActorSystem, ec: ExecutionContext): Future[GcsPathBuilder] = {
     authMode.retryCredential(options) map { credentials =>
       fromCredentials(credentials,
         applicationName,
         retrySettings,
         cloudStorageConfiguration,
-        options
+        options,
+        defaultProject
       )
     }
   }
@@ -106,10 +112,15 @@ object GcsPathBuilder {
                       applicationName: String,
                       retrySettings: RetrySettings,
                       cloudStorageConfiguration: CloudStorageConfiguration,
-                      options: WorkflowOptions): GcsPathBuilder = {
+                      options: WorkflowOptions,
+                      defaultProject: Option[String]): GcsPathBuilder = {
     // Grab the google project from Workflow Options if specified and set
-    // that to be the project used by the StorageOptions Builder
-    val project =  options.get("google_project").toOption
+    // that to be the project used by the StorageOptions Builder. If it's not
+    // specified use the default project mentioned in config file
+    val project: Option[String] =  options.get("google_project").toOption match {
+      case Some(googleProject) => Option(googleProject)
+      case None => defaultProject
+    }
 
     val storageOptions = GcsStorage.gcsStorageOptions(credentials, retrySettings, project)
 
@@ -145,7 +156,7 @@ class GcsPathBuilder(apiStorage: com.google.api.services.storage.Storage,
           val fileSystem = CloudStorageFileSystem.forBucket(bucket, cloudStorageConfiguration, storageOptions)
           val cloudStoragePath = fileSystem.getPath(path)
           val cloudStorage = storageOptions.getService
-          GcsPath(cloudStoragePath, apiStorage, cloudStorage)
+          GcsPath(cloudStoragePath, apiStorage, cloudStorage, projectId)
         }
       case PossiblyValidRelativeGcsPath => Failure(new IllegalArgumentException(s"$string does not have a gcs scheme"))
       case invalid: InvalidGcsPath => Failure(new IllegalArgumentException(invalid.errorMessage))
@@ -157,16 +168,72 @@ class GcsPathBuilder(apiStorage: com.google.api.services.storage.Storage,
 
 case class GcsPath private[gcs](nioPath: NioPath,
                                 apiStorage: com.google.api.services.storage.Storage,
-                                cloudStorage: com.google.cloud.storage.Storage
-                               ) extends Path {
+                                cloudStorage: com.google.cloud.storage.Storage,
+                                projectId: String) extends Path {
   lazy val blob = BlobId.of(cloudStoragePath.bucket, cloudStoragePath.toRealPath().toString)
 
-  override protected def newPath(nioPath: NioPath): GcsPath = GcsPath(nioPath, apiStorage, cloudStorage)
+  override protected def newPath(nioPath: NioPath): GcsPath = GcsPath(nioPath, apiStorage, cloudStorage, projectId)
 
   override def pathAsString: String = {
     val host = cloudStoragePath.bucket().stripSuffix("/")
     val path = cloudStoragePath.toString.stripPrefix("/")
     s"${CloudStorageFileSystem.URI_SCHEME}://$host/$path"
+  }
+
+  /***
+    * This method needs to be overridden to make it work with requester pays. We need to go around Nio
+    * as currently it doesn't support to set the billing project id. Google Cloud Storage already has
+    * code in place to set the billing project (inside HttpStorageRpc) but Nio does not pass it even though
+    * it's available. In future when it is supported, remove this method and wire billing project into code
+    * wherever necessary
+    */
+  override def mediaInputStream: InputStream = {
+    Try{
+      apiStorage.objects().get(blob.getBucket, blob.getName).setUserProject(projectId).executeMediaAsInputStream()
+    } match {
+      case Success(inputStream) => inputStream
+      case Failure(e) => throw new IOException(s"Failed to open an input stream for $pathAsString", e)
+    }
+  }
+
+  /***
+    * This method needs to be overridden to make it work with requester pays. We need to go around Nio
+    * as currently it doesn't support to set the billing project id. Google Cloud Storage already has
+    * code in place to set the billing project (inside HttpStorageRpc) but Nio does not pass it even though
+    * it's available. In future when it is supported, remove this method and wire billing project into code
+    * wherever necessary
+    */
+  override def readContentAsString(implicit codec: Codec): String = {
+    openInputStream(readLinesAsString)
+  }
+
+  private def readLinesAsString(inputStream: InputStream)(implicit codec: Codec): String = {
+    val byteArray = Stream.continually(inputStream.read).takeWhile(_ != -1).map(_.toByte).toArray
+    new String(byteArray, Charset.forName(codec.name))
+  }
+
+  /***
+    * This method needs to be overridden to make it work with requester pays. We need to go around Nio
+    * as currently it doesn't support to set the billing project id. Google Cloud Storage already has
+    * code in place to set the billing project (inside HttpStorageRpc) but Nio does not pass it even though
+    * it's available. In future when it is supported, remove this method and wire billing project into code
+    * wherever necessary
+    */
+  override def readAllLinesInFile(implicit codec: Codec): Traversable[String] = {
+    openInputStream(readLinesAsStringTraversable)
+  }
+
+  private def readLinesAsStringTraversable(inputStream: InputStream)(implicit codec: Codec): Traversable[String] = {
+    val reader = new BufferedReader(new InputStreamReader(inputStream, codec.name))
+    Stream.continually(reader.readLine()).takeWhile(_ != null).toList
+  }
+
+  private def openInputStream[A](f: InputStream => A): A = {
+    val storageObject = apiStorage.objects().get(blob.getBucket, blob.getName).setUserProject(projectId)
+
+    val output = tryWithResource(() => storageObject.executeMediaAsInputStream())(inputStream => f(inputStream))
+
+    output.getOrElse(throw new IOException(s"Failed to open an input stream for $pathAsString"))
   }
 
   override def pathWithoutScheme: String = {

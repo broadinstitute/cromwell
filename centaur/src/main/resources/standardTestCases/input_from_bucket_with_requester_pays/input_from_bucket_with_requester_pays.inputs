@@ -1,0 +1,3 @@
+{
+  "input_from_bucket_with_requester_pays.file": "gs://cromwell_bucket_with_requester_pays/gumby.png"
+}

@@ -26,7 +26,12 @@ object CallElementToGraphNode {
     def callableValidation: ErrorOr[Callable] =
       a.callables.get(a.node.callableReference) match {
         // pass in specific constructor depending on callable type
-        case Some(c: Callable) => c.valid
+        case Some(w: WorkflowDefinition) =>
+          val unsuppliedInputs = w.inputs.collect {
+            case r: RequiredInputDefinition if r.localName.value.contains(".") => r.localName.value
+          }
+          if (unsuppliedInputs.isEmpty) { w.validNel } else { s"Cannot call '${a.node.callableReference}'. To be called as a sub-workflow it must declare and pass-through the following values via workflow inputs: ${unsuppliedInputs.mkString(", ")}".invalidNel }
+        case Some(c: Callable) => c.validNel
         case None => s"Cannot resolve a callable with name ${a.node.callableReference}".invalidNel
       }
 

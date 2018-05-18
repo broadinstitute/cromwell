@@ -300,7 +300,6 @@ object WdlWriterImpl {
         "false" -> a.falseAttribute,
         "default" -> a.defaultAttribute
       ).collect({ case (attrKey: String, Some(value)) => attrKey + "=\"" + value + "\"" })
-        .filterNot(_.length == 0)
 
       if (attrStrings.isEmpty) "" else attrStrings.mkString(start = "", sep = " ", end = " ")
     }

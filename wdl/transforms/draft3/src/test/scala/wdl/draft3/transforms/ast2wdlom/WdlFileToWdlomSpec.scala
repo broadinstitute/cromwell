@@ -619,7 +619,7 @@ object WdlFileToWdlomSpec {
             OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "f_ceiling",Ceil(IdentifierLookup("f"))),
             OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "f_round",Round(IdentifierLookup("f"))),
             OutputDeclarationElement(
-              PrimitiveTypeElement(WomIntegerType), "m1", IndexAccess(IdentifierLookup("matrix"),PrimitiveLiteralExpressionElement(WomInteger(1)))),
+              ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)), "m1", IndexAccess(IdentifierLookup("matrix"),PrimitiveLiteralExpressionElement(WomInteger(1)))),
             OutputDeclarationElement(
               PrimitiveTypeElement(WomIntegerType),"m2", IndexAccess(
                 IndexAccess(IdentifierLookup("matrix"),PrimitiveLiteralExpressionElement(WomInteger(1))),PrimitiveLiteralExpressionElement(WomInteger(1))))

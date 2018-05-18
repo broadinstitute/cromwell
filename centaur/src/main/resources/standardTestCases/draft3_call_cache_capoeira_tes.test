@@ -6,7 +6,7 @@ workflowTypeVersion: 1.0
 tags: ["wdl_1.0", localdockertest]
 
 files {
-  workflow: wdl_draft3/draft3_call_cache_capoeira/draft3_call_cache_capoeira_tes.wdl
+  workflow: wdl_draft3/call_cache_capoeira/draft3_call_cache_capoeira_tes.wdl
 }
 
 metadata {

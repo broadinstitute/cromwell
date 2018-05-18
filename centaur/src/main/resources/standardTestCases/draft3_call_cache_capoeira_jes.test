@@ -6,7 +6,7 @@ workflowTypeVersion: 1.0
 tags: ["wdl_1.0"]
 
 files {
-  workflow: wdl_draft3/draft3_call_cache_capoeira/draft3_call_cache_capoeira_jes.wdl
+  workflow: wdl_draft3/call_cache_capoeira/draft3_call_cache_capoeira_jes.wdl
 }
 
 metadata {

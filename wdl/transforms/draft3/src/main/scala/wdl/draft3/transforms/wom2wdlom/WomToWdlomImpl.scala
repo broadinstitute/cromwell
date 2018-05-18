@@ -24,22 +24,23 @@ object WomToWdlomImpl {
 
   import WomToWdlom.ops._
 
-  implicit val graphOutputNodeToWorkflowGraphElement: WomToWdlom[GraphOutputNode, WorkflowGraphElement] = new WomToWdlom[GraphOutputNode, WorkflowGraphElement] {
-    override def toWdlom(a: GraphOutputNode): WorkflowGraphElement = a match {
-      case a: PortBasedGraphOutputNode =>
-        OutputDeclarationElement(
-          a.womType.toWdlom,
-          a.identifier.localName.value,
-          StringLiteral("bogus") // TODO
-        )
-      case a: ExpressionBasedGraphOutputNode =>
-        OutputDeclarationElement(
-          a.womType.toWdlom,
-          a.identifier.localName.value,
-          a.womExpression.toWdlom
-        )
+  implicit val graphOutputNodeToWorkflowGraphElement: WomToWdlom[GraphOutputNode, WorkflowGraphElement] =
+    new WomToWdlom[GraphOutputNode, WorkflowGraphElement] {
+      override def toWdlom(a: GraphOutputNode): WorkflowGraphElement = a match {
+        case a: PortBasedGraphOutputNode =>
+          OutputDeclarationElement(
+            a.womType.toWdlom,
+            a.identifier.localName.value,
+            StringLiteral("bogus") // TODO
+          )
+        case a: ExpressionBasedGraphOutputNode =>
+          OutputDeclarationElement(
+            a.womType.toWdlom,
+            a.identifier.localName.value,
+            a.womExpression.toWdlom
+          )
+      }
     }
-  }
 
   implicit val womBundleToFileElement: WomToWdlom[WomBundle, FileElement] = new WomToWdlom[WomBundle, FileElement] {
     override def toWdlom(a: WomBundle): FileElement = {
@@ -55,104 +56,112 @@ object WomToWdlomImpl {
     }
   }
 
-  implicit val mapToMetaSectionElement: WomToWdlom[Map[String, String], Option[MetaSectionElement]] = new WomToWdlom[Map[String, String], Option[MetaSectionElement]] {
-    override def toWdlom(a: Map[String, String]): Option[MetaSectionElement] = {
-      if (a.nonEmpty)
-        Some(MetaSectionElement(a map { case (key, value) =>
-          key -> MetaValueElementString(value) // draft-2: strings only
-        }))
-      else
-        None
+  implicit val mapToMetaSectionElement: WomToWdlom[Map[String, String], Option[MetaSectionElement]] =
+    new WomToWdlom[Map[String, String], Option[MetaSectionElement]] {
+      override def toWdlom(a: Map[String, String]): Option[MetaSectionElement] = {
+        if (a.nonEmpty)
+          Some(MetaSectionElement(a map { case (key, value) =>
+            key -> MetaValueElementString(value) // draft-2: strings only
+          }))
+        else
+          None
+      }
     }
-  }
 
-  implicit val mapToParameterMetaSectionElement: WomToWdlom[Map[String, String], Option[ParameterMetaSectionElement]] = new WomToWdlom[Map[String, String], Option[ParameterMetaSectionElement]] {
-    override def toWdlom(a: Map[String, String]): Option[ParameterMetaSectionElement] = {
-      if (a.nonEmpty)
-        Some(ParameterMetaSectionElement(a map { case (key, value) =>
-          key -> MetaValueElementString(value) // draft-2: strings only
-        }))
-      else
-        None
+  implicit val mapToParameterMetaSectionElement: WomToWdlom[Map[String, String], Option[ParameterMetaSectionElement]] =
+    new WomToWdlom[Map[String, String], Option[ParameterMetaSectionElement]] {
+      override def toWdlom(a: Map[String, String]): Option[ParameterMetaSectionElement] = {
+        if (a.nonEmpty)
+          Some(ParameterMetaSectionElement(a map { case (key, value) =>
+            key -> MetaValueElementString(value) // draft-2: strings only
+          }))
+        else
+          None
+      }
     }
-  }
 
-  implicit val runtimeAttributesToRuntimeAttributesSectionElement: WomToWdlom[RuntimeAttributes, Option[RuntimeAttributesSectionElement]] = new WomToWdlom[RuntimeAttributes, Option[RuntimeAttributesSectionElement]] {
-    override def toWdlom(a: RuntimeAttributes): Option[RuntimeAttributesSectionElement] = {
-      def tupleToKvPair(tuple: (String, WomExpression)): ExpressionElement.KvPair =
-        ExpressionElement.KvPair(tuple._1, tuple._2.toWdlom)
+  implicit val runtimeAttributesToRuntimeAttributesSectionElement: WomToWdlom[RuntimeAttributes, Option[RuntimeAttributesSectionElement]] =
+    new WomToWdlom[RuntimeAttributes, Option[RuntimeAttributesSectionElement]] {
+      override def toWdlom(a: RuntimeAttributes): Option[RuntimeAttributesSectionElement] = {
+        def tupleToKvPair(tuple: (String, WomExpression)): ExpressionElement.KvPair =
+          ExpressionElement.KvPair(tuple._1, tuple._2.toWdlom)
 
-      val kvPairs = (a.attributes map tupleToKvPair).toVector
+        val kvPairs = (a.attributes map tupleToKvPair).toVector
 
-      if (kvPairs.nonEmpty)
-        Some(RuntimeAttributesSectionElement(kvPairs))
-      else
-        None
+        if (kvPairs.nonEmpty)
+          Some(RuntimeAttributesSectionElement(kvPairs))
+        else
+          None
+      }
     }
-  }
 
-  implicit val outputDefinitionToOutputDeclarationElement: WomToWdlom[OutputDefinition, OutputDeclarationElement] = new WomToWdlom[OutputDefinition, OutputDeclarationElement] {
-    override def toWdlom(a: OutputDefinition): OutputDeclarationElement = OutputDeclarationElement(a.womType.toWdlom, a.name, a.expression.toWdlom)
-  }
-
-  implicit val inputDefinitionToInputDeclarationElement: WomToWdlom[InputDefinition, InputDeclarationElement] = new WomToWdlom[InputDefinition, InputDeclarationElement] {
-    override def toWdlom(a: InputDefinition): InputDeclarationElement = a match {
-      case a: RequiredInputDefinition => InputDeclarationElement(a.womType.toWdlom, a.localName.value, None)
-      case a: InputDefinitionWithDefault => InputDeclarationElement(a.womType.toWdlom, a.localName.value, Some(a.default.toWdlom))
-      case a: FixedInputDefinition => InputDeclarationElement(a.womType.toWdlom, a.localName.value, Some(a.default.toWdlom))
-      case a: OptionalInputDefinition => InputDeclarationElement(a.womType.toWdlom, a.localName.value, None)
+  implicit val outputDefinitionToOutputDeclarationElement: WomToWdlom[OutputDefinition, OutputDeclarationElement] =
+    new WomToWdlom[OutputDefinition, OutputDeclarationElement] {
+      override def toWdlom(a: OutputDefinition): OutputDeclarationElement = OutputDeclarationElement(a.womType.toWdlom, a.name, a.expression.toWdlom)
     }
-  }
 
-  implicit val callableTaskDefinitionToTaskDefinitionElement: WomToWdlom[CallableTaskDefinition, TaskDefinitionElement] = new WomToWdlom[CallableTaskDefinition, TaskDefinitionElement] {
-    override def toWdlom(a: CallableTaskDefinition): TaskDefinitionElement = {
-      // TODO: why does _.toWdlom not work here?
-      val inputs = a.inputs.map(inputDefinitionToInputDeclarationElement.toWdlom)
-      val outputs = a.outputs.map(outputDefinitionToOutputDeclarationElement.toWdlom)
-
-      TaskDefinitionElement(
-        a.name,
-        if (inputs.nonEmpty) Some(InputsSectionElement(inputs)) else None,
-        Seq(), // TODO: maybe these don't exist in draft-2?
-        if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
-        CommandSectionElement(Seq()),
-        a.runtimeAttributes.toWdlom,
-        mapToMetaSectionElement.toWdlom(a.meta), // TODO: why do these require explicit notation?
-        mapToParameterMetaSectionElement.toWdlom(a.parameterMeta)
-      )
+  implicit val inputDefinitionToInputDeclarationElement: WomToWdlom[InputDefinition, InputDeclarationElement] =
+    new WomToWdlom[InputDefinition, InputDeclarationElement] {
+      override def toWdlom(a: InputDefinition): InputDeclarationElement = a match {
+        case a: RequiredInputDefinition => InputDeclarationElement(a.womType.toWdlom, a.localName.value, None)
+        case a: InputDefinitionWithDefault => InputDeclarationElement(a.womType.toWdlom, a.localName.value, Some(a.default.toWdlom))
+        case a: FixedInputDefinition => InputDeclarationElement(a.womType.toWdlom, a.localName.value, Some(a.default.toWdlom))
+        case a: OptionalInputDefinition => InputDeclarationElement(a.womType.toWdlom, a.localName.value, None)
+      }
     }
-  }
 
-  implicit val workflowDefinitionToWorkflowDefinitionElement: WomToWdlom[WorkflowDefinition, WorkflowDefinitionElement] = new WomToWdlom[WorkflowDefinition, WorkflowDefinitionElement] {
-    override def toWdlom(a: WorkflowDefinition): WorkflowDefinitionElement = {
-      val inputs = a.inputs.map(inputDefinitionToInputDeclarationElement.toWdlom)
-      val outputs = a.outputs.map(outputDefinitionToOutputDeclarationElement.toWdlom)
+  implicit val callableTaskDefinitionToTaskDefinitionElement: WomToWdlom[CallableTaskDefinition, TaskDefinitionElement] =
+    new WomToWdlom[CallableTaskDefinition, TaskDefinitionElement] {
+      override def toWdlom(a: CallableTaskDefinition): TaskDefinitionElement = {
+        // TODO: why does _.toWdlom not work here?
+        val inputs = a.inputs.map(inputDefinitionToInputDeclarationElement.toWdlom)
+        val outputs = a.outputs.map(outputDefinitionToOutputDeclarationElement.toWdlom)
 
-      val expressions: Set[GraphNode] = a.graph.nodes.filterByType[ExposedExpressionNode]
-      val scatters: Set[GraphNode] = a.graph.nodes.filterByType[ScatterNode]
-      val calls: Set[GraphNode] = a.graph.nodes.filterByType[CallNode]
-
-      WorkflowDefinitionElement(
-        a.name,
-        if (inputs.nonEmpty) Some(InputsSectionElement(inputs)) else None,
-        (expressions ++ scatters ++ calls).map(_.toWdlom),
-        if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
-        mapToMetaSectionElement.toWdlom(a.meta),
-        mapToParameterMetaSectionElement.toWdlom(a.parameterMeta)
-      )
+        TaskDefinitionElement(
+          a.name,
+          if (inputs.nonEmpty) Some(InputsSectionElement(inputs)) else None,
+          Seq(), // TODO: maybe these don't exist in draft-2?
+          if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
+          CommandSectionElement(Seq()),
+          a.runtimeAttributes.toWdlom,
+          mapToMetaSectionElement.toWdlom(a.meta), // TODO: why do these require explicit notation?
+          mapToParameterMetaSectionElement.toWdlom(a.parameterMeta)
+        )
+      }
     }
-  }
 
-  implicit val expressionNodeLikeToWorkflowGraphElement: WomToWdlom[ExpressionNodeLike, WorkflowGraphElement] = new WomToWdlom[ExpressionNodeLike, WorkflowGraphElement] {
-    override def toWdlom(a: ExpressionNodeLike): WorkflowGraphElement = a match {
-      case a: ExpressionNode =>
-        IntermediateValueDeclarationElement(
-          typeElement = a.womType.toWdlom,
-          name = a.identifier.localName.value,
-          expression = a.toWdlom)
-      case _: ExpressionCallNode => ???
+  implicit val workflowDefinitionToWorkflowDefinitionElement: WomToWdlom[WorkflowDefinition, WorkflowDefinitionElement] =
+    new WomToWdlom[WorkflowDefinition, WorkflowDefinitionElement] {
+      override def toWdlom(a: WorkflowDefinition): WorkflowDefinitionElement = {
+        val inputs = a.inputs.map(inputDefinitionToInputDeclarationElement.toWdlom)
+        val outputs = a.outputs.map(outputDefinitionToOutputDeclarationElement.toWdlom)
+
+        val expressions: Set[GraphNode] = a.graph.nodes.filterByType[ExposedExpressionNode]
+        val scatters: Set[GraphNode] = a.graph.nodes.filterByType[ScatterNode]
+        val calls: Set[GraphNode] = a.graph.nodes.filterByType[CallNode]
+
+        WorkflowDefinitionElement(
+          a.name,
+          if (inputs.nonEmpty) Some(InputsSectionElement(inputs)) else None,
+          (expressions ++ scatters ++ calls).map(_.toWdlom),
+          if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
+          mapToMetaSectionElement.toWdlom(a.meta),
+          mapToParameterMetaSectionElement.toWdlom(a.parameterMeta)
+        )
+      }
     }
-  }
+
+  implicit val expressionNodeLikeToWorkflowGraphElement: WomToWdlom[ExpressionNodeLike, WorkflowGraphElement] =
+    new WomToWdlom[ExpressionNodeLike, WorkflowGraphElement] {
+      override def toWdlom(a: ExpressionNodeLike): WorkflowGraphElement = a match {
+        case a: ExpressionNode =>
+          IntermediateValueDeclarationElement(
+            typeElement = a.womType.toWdlom,
+            name = a.identifier.localName.value,
+            expression = a.toWdlom)
+        case _: ExpressionCallNode => ???
+      }
+    }
 
   implicit val graphNodeToWorkflowGraphElement: WomToWdlom[GraphNode, WorkflowGraphElement] = new WomToWdlom[GraphNode, WorkflowGraphElement] {
     override def toWdlom(a: GraphNode): WorkflowGraphElement = {
@@ -183,22 +192,23 @@ object WomToWdlomImpl {
     }
   }
 
-  implicit val graphNodeWithSingleOutputPortToWorkflowGraphElement: WomToWdlom[GraphNodeWithSingleOutputPort, WorkflowGraphElement] = new WomToWdlom[GraphNodeWithSingleOutputPort, WorkflowGraphElement] {
-    override def toWdlom(a: GraphNodeWithSingleOutputPort): WorkflowGraphElement = a match {
-      case a: GraphInputNode =>
-        InputDeclarationElement(
-          a.womType.toWdlom,
-          a.identifier.localName.value,
-          None
-        )
-      case a: ExpressionNode =>
-        IntermediateValueDeclarationElement(
-          a.womType.toWdlom,
-          a.identifier.localName.value,
-          a.womExpression.toWdlom
-        )
+  implicit val graphNodeWithSingleOutputPortToWorkflowGraphElement: WomToWdlom[GraphNodeWithSingleOutputPort, WorkflowGraphElement] =
+    new WomToWdlom[GraphNodeWithSingleOutputPort, WorkflowGraphElement] {
+      override def toWdlom(a: GraphNodeWithSingleOutputPort): WorkflowGraphElement = a match {
+        case a: GraphInputNode =>
+          InputDeclarationElement(
+            a.womType.toWdlom,
+            a.identifier.localName.value,
+            None
+          )
+        case a: ExpressionNode =>
+          IntermediateValueDeclarationElement(
+            a.womType.toWdlom,
+            a.identifier.localName.value,
+            a.womExpression.toWdlom
+          )
+      }
     }
-  }
 
   implicit val womTypeToTypeElement: WomToWdlom[WomType, TypeElement] = new WomToWdlom[WomType, TypeElement] {
     override def toWdlom(a: WomType): TypeElement = a match {
@@ -243,13 +253,14 @@ object WomToWdlomImpl {
     }
   }
 
-  implicit val inputDefinitionPointerToExpressionElement: WomToWdlom[InputDefinitionPointer, ExpressionElement] = new WomToWdlom[InputDefinitionPointer, ExpressionElement] {
-    override def toWdlom(a: InputDefinitionPointer): ExpressionElement = a match {
-      case a: WomExpression => womExpressionToExpressionElement.toWdlom(a)
-      case a: WomValue => womExpressionToExpressionElement.toWdlom(a.asWomExpression)
-      case _ => StringLiteral("cake")
+  implicit val inputDefinitionPointerToExpressionElement: WomToWdlom[InputDefinitionPointer, ExpressionElement] =
+    new WomToWdlom[InputDefinitionPointer, ExpressionElement] {
+      override def toWdlom(a: InputDefinitionPointer): ExpressionElement = a match {
+        case a: WomExpression => womExpressionToExpressionElement.toWdlom(a)
+        case a: WomValue => womExpressionToExpressionElement.toWdlom(a.asWomExpression)
+        case _ => StringLiteral("cake")
+      }
     }
-  }
 
   implicit val callNodeToCallElement: WomToWdlom[CallNode, CallElement] = new WomToWdlom[CallNode, CallElement] {
     override def toWdlom(a: CallNode): CallElement = {

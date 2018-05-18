@@ -29,15 +29,13 @@ If you don't update the `actor-factory` value, you'll get a deprecation warning 
 
 Cromwell now supports [Requester Pays](https://cloud.google.com/storage/docs/requester-pays) feature for Cloud Storage. With Requester Pays enabled on your bucket,
 you can require requesters to include a billing project in their requests, thus billing the requester's project. If the bucket you are accessing has requester pays enabled,
-to access the file inside that bucket you need to mention the Google project id which can be billed for that request. The billing project information can be added in below ways. Cromwell will
-look for them in decreasing order of priorities.
+to access the file inside that bucket you need to mention the Google project id which can be billed for that request. The billing project information can be added in ways described below. Cromwell will
+look for this information in this order.
 1. It can be added as `'google_project':'project-id'` as part of workflow options during workflow submission
 2. It can be included inside configuration file as shown in [`Getting started on Google Pipelines API`](http://cromwell.readthedocs.io/en/develop/tutorials/PipelinesApi101/) where you need to replace the `<google-billing-project-id>` with the project id **(HIGHLY RECOMMENDED)**
-3. If it is not mentioned using above 2 ways, Cromwell will use the default project that has been configured with gcloud
+3. Cromwell will use the default project that has been configured with gcloud
 
-It is highly recommended to add the project id as part of configuration if you don't want to specify as part of workflow options each time you submit request. The above ways are in
-descending order of priority, overriding the one below it if mentioned. So if you mention the project id using all three, Cromwell will use the one specified along with workflow options.
-Although, you just need to mention the project id using one way.
+It is highly recommended to add the project id as part of configuration if you don't want to specify as part of workflow options each time you submit request.
 
 ### Labels
 * Cromwell has removed most of the formatting restrictions from custom labels. Please check the [README](README.md#label-format) for more detailed documentation.

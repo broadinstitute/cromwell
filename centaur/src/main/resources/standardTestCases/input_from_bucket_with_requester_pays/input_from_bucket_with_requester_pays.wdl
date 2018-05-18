@@ -1,5 +1,9 @@
+version 1.0
+
 task size_task {
-  Float sz
+  input {
+    Float sz
+   }
 
   command {
     echo "file has size ${sz}"
@@ -13,7 +17,9 @@ task size_task {
 }
 
 workflow input_from_bucket_with_requester_pays {
-  File file
+  input {
+    File file
+  }
   call size_task { input: sz = size(file) }
 
   output {

@@ -1,8 +1,12 @@
+version 1.0
+
 task concat_task{
-    Array[String] array
+    input {
+      Array[String] array
+    }
 
     command {
-        echo $${sep = ' ' array} > concat
+        echo ${sep = ' ' array} > concat
       }
       output {
         String out = read_string("concat")
@@ -14,8 +18,14 @@ task concat_task{
 
 
 workflow read_file_from_bucket_with_requester_pays {
-    File file
+    input{
+        File file
+    }
     Array[String] in_array = read_lines(file)
 
     call concat_task{input: array = in_array}
+
+    output {
+        String out = concat_task.out
+    }
 }

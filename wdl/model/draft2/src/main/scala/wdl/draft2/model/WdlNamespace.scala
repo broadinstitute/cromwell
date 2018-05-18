@@ -449,6 +449,9 @@ object WdlNamespace {
   private def typeCheckDeclaration(decl: DeclarationInterface, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Option[SyntaxError] = {
     val expr = decl.expression
     expr flatMap { expr =>
+      /*
+      _Attempt_ a type evaluation
+       */
       expr.evaluateType(lookupType(decl), new WdlStandardLibraryFunctionsType, Option(decl)) match {
         case Success(womType) =>
           if (!decl.womType.isCoerceableFrom(womType)) {

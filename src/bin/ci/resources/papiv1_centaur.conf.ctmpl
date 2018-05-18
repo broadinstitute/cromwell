@@ -23,8 +23,10 @@ backend {
           token = "{{$cromwellDockerhub.Data.token}}"
         }
         filesystems {
-          gcs.auth = "service_account"
-          gcs.project = "broad-dsde-cromwell-dev"
+          gcs {
+            auth = "service_account"
+            project = "broad-dsde-cromwell-dev"
+          }
         }
       }
     }
@@ -44,8 +46,10 @@ backend {
           token = "{{$cromwellDockerhub.Data.token}}"
         }
         filesystems {
-          gcs.auth = "service_account"
-          gcs.project = "broad-dsde-cromwell-dev"
+          gcs {
+            auth = "service_account"
+            project = "broad-dsde-cromwell-dev"
+          }
         }
       }
     }
@@ -60,8 +64,10 @@ backend {
           endpoint-url = "https://genomics.googleapis.com/"
         }
         filesystems {
-          gcs.auth = "refresh_token"
-          gcs.project = "broad-dsde-cromwell-dev"
+          gcs {
+            auth = "refresh_token"
+            project = "broad-dsde-cromwell-dev"
+          }
         }
       }
     }
@@ -76,9 +82,11 @@ backend {
           endpoint-url = "https://genomics.googleapis.com/"
         }
         filesystems {
-          gcs.auth = "service_account"
-          gcs.project = "broad-dsde-cromwell-dev"
-          gcs.caching.duplication-strategy = "reference"
+          gcs {
+            auth = "service_account"
+            project = "broad-dsde-cromwell-dev"
+            caching.duplication-strategy = "reference"
+          }
         }
       }
     }
@@ -109,8 +117,10 @@ call-caching {
 
 engine {
   filesystems {
-    gcs.auth = "service_account"
-    gcs.project = "broad-dsde-cromwell-dev"
+    gcs {
+      auth = "service_account"
+      project = "broad-dsde-cromwell-dev"
+    }
   }
 }
 

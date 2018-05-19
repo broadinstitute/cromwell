@@ -1,4 +1,4 @@
-package cromwell.backend.wdl
+package cromwell.backend
 
 import cromwell.core.io.AsyncIoFunctions
 import cromwell.core.path.PathFactory

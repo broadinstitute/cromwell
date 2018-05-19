@@ -1,8 +1,7 @@
-package cromwell.backend.wdl
+package cromwell.backend
 
 import common.validation.ErrorOr._
 import common.validation.Validation._
-import cromwell.backend.BackendJobDescriptor
 import wom.InstantiatedCommand
 import wom.callable.RuntimeEnvironment
 import wom.expression.IoFunctionSet

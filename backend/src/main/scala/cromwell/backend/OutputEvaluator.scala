@@ -1,4 +1,4 @@
-package cromwell.backend.wdl
+package cromwell.backend
 
 import cats.data.EitherT._
 import cats.data.Validated.{Invalid, Valid}
@@ -10,7 +10,6 @@ import cats.syntax.validated._
 import common.util.TryUtil
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
-import cromwell.backend.BackendJobDescriptor
 import cromwell.core.CallOutputs
 import wom.expression.IoFunctionSet
 import wom.graph.GraphNodePort.{ExpressionBasedOutputPort, OutputPort}

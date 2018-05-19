@@ -4,8 +4,7 @@ import akka.actor.ActorLogging
 import akka.event.LoggingReceive
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor._
-import cromwell.backend.wdl.OutputEvaluator
-import cromwell.backend.wdl.OutputEvaluator.EvaluatedJobOutputs
+import cromwell.backend.OutputEvaluator.EvaluatedJobOutputs
 import cromwell.core.path.Path
 import cromwell.core._
 import wom.expression.IoFunctionSet

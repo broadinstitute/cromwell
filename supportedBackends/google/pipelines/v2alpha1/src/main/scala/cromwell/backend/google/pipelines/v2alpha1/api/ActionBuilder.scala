@@ -37,6 +37,7 @@ object ActionBuilder {
   def userAction(docker: String, scriptContainerPath: String, mounts: List[Mount]): Action = {
     new Action()
       .setImageUri(docker)
+      // TODO shouldn't this be using the job shell?
       .setCommands(List("/bin/bash", scriptContainerPath).asJava)
       .setMounts(mounts.asJava)
       .setEntrypoint("")
@@ -60,7 +61,7 @@ object ActionBuilder {
 
     // To re-enable requester pays, this need to be added back: -u $projectId
     val copy = s"gsutil cp $containerPath $cloudPath"
-    lazy val copyOnlyIfExists = s"if [[ -a $containerPath ]]; then $copy; fi"
+    lazy val copyOnlyIfExists = s"if [[ -e $containerPath ]]; then $copy; fi"
 
     cloudSdkAction
       .withCommand("/bin/sh", "-c", if (fileOutput.optional) copyOnlyIfExists else copy)

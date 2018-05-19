@@ -10,8 +10,8 @@ import cromwell.backend._
 import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
-import cromwell.backend.wdl.Command
-import cromwell.backend.wdl.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
+import cromwell.backend.Command
+import cromwell.backend.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
 import cromwell.core.path.JavaWriterImplicits._
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}

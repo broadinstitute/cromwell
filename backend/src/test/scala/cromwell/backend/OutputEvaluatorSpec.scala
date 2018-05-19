@@ -1,12 +1,11 @@
-package cromwell.backend.wdl
+package cromwell.backend
 
 import java.util.concurrent.Executors
 
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
-import cromwell.backend.wdl.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
-import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey}
+import cromwell.backend.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
 import cromwell.core.CallOutputs
 import cromwell.util.WomMocks
 import org.scalatest.{FlatSpec, Matchers}

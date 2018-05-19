@@ -3,7 +3,7 @@ package cromwell.backend.google.pipelines.common.api.clients
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import cromwell.backend.google.pipelines.common.PapiInstrumentation
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{PipelinesApiRunCreationQueryFailed, PAPIApiException}
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{PAPIApiException, PipelinesApiRunCreationQueryFailed}
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiRequestFactory, PipelinesApiRequestManager}
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.WorkflowId

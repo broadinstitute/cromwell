@@ -18,10 +18,10 @@ import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, J
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
-import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle, ReturnCodeIsNotAnInt, StderrNonEmpty, SuccessfulExecutionHandle, WrongReturnCode}
+import cromwell.backend.async._
 import cromwell.backend.validation._
-import cromwell.backend.wdl.OutputEvaluator._
-import cromwell.backend.wdl.{Command, OutputEvaluator}
+import cromwell.backend.OutputEvaluator._
+import cromwell.backend.{Command, OutputEvaluator}
 import cromwell.core.io.{AsyncIoActorClient, DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.path.Path
 import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent, StandardPaths}

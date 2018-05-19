@@ -1,6 +1,6 @@
 package cromwell.engine
 
-import cromwell.backend.wdl.ReadLikeFunctions
+import cromwell.backend.ReadLikeFunctions
 import cromwell.core.io.{AsyncIo, WorkflowCorePathFunctions}
 import cromwell.core.path.PathBuilder
 import wom.values.WomSingleFile

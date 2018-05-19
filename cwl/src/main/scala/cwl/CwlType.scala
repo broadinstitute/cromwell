@@ -1,5 +1,6 @@
 package cwl
 
+import better.files
 import cats.instances.list._
 import cats.instances.option._
 import cats.syntax.traverse._
@@ -31,6 +32,16 @@ object CwlType extends Enumeration {
   val String = Value("string")
   val File = Value("File")
   val Directory = Value("Directory")
+
+  // Callers expect the last component to match the basename if a basename is specified.
+  private [cwl] def tempFile(basename: Option[String], asDirectory: Boolean): files.File = {
+    lazy val dir = better.files.File.newTemporaryDirectory()
+    basename match {
+      case None if asDirectory => dir
+      case None => better.files.File.newTemporaryFile()
+      case Some(b) => dir.createChild(b, asDirectory = asDirectory)()
+    }
+  }
 }
 
 case class File private
@@ -76,10 +87,19 @@ object File {
              size: Option[Long] = None,
              secondaryFiles: Option[Array[FileOrDirectory]] = None,
              format: Option[String] = None,
-             contents: Option[String] = None): File =
+             contents: Option[String] = None): File = {
+
+    import CwlType._
+    val isLiteral = location.isEmpty && path.isEmpty && contents.isDefined
+    val safeLocation = if (isLiteral) {
+      val temporaryFile = tempFile(basename, asDirectory = false)
+      contents foreach { c => temporaryFile.write(c) }
+      Option(temporaryFile.pathAsString)
+    } else location
+
     new cwl.File(
       "File".narrow,
-      location,
+      safeLocation,
       path,
       basename,
       checksum,
@@ -88,6 +108,7 @@ object File {
       format,
       contents
     )
+  }
 
   def dirname(value: String): String = {
     val index = value.lastIndexOf('/')
@@ -111,7 +132,7 @@ object File {
       ""
     }
   }
-  
+
   def recursivelyBuildDirectory(directory: String, ioFunctions: IoFunctionSet)(visited: Vector[String] = Vector.empty): ErrorOr[WomMaybeListedDirectory] = {
     for {
       listing <- sync(ioFunctions.listDirectory(directory)(visited)).toErrorOr
@@ -121,7 +142,7 @@ object File {
       }
     } yield WomMaybeListedDirectory(Option(directory), Option(fileListing))
   }
-  
+
   private def asAbsoluteSiblingOfPrimary(primary: WomFile, pathFunctions: PathFunctionSet)(path: String) = {
     pathFunctions.absoluteSibling(primary.value, path)
   }
@@ -149,7 +170,7 @@ object File {
                                parameterContext: ParameterContext,
                                expressionLib: ExpressionLib,
                                ioFunctions: IoFunctionSet): ErrorOr[List[WomFile]] = {
-    
+
     /*
     If the value is an expression, the value of self in the expression must be the primary input or output File object
     to which this binding applies.
@@ -163,11 +184,11 @@ object File {
      */
     def parseResult(nestedLevel: Int)(womValue: WomValue): ErrorOr[List[WomFile]] = {
       womValue match {
-        case womString: WomString => 
+        case womString: WomString =>
           List(WomFile(stringWomFileType, womString.value |> asAbsoluteSiblingOfPrimary(primaryWomFile, ioFunctions.pathFunctions))).valid
-        case womMaybeListedDirectory: WomMaybeListedDirectory => 
+        case womMaybeListedDirectory: WomMaybeListedDirectory =>
           List(womMaybeListedDirectory.mapFile(asAbsoluteSiblingOfPrimary(primaryWomFile, ioFunctions.pathFunctions))).valid
-        case womMaybePopulatedFile: WomMaybePopulatedFile => 
+        case womMaybePopulatedFile: WomMaybePopulatedFile =>
           List(womMaybePopulatedFile.mapFile(asAbsoluteSiblingOfPrimary(primaryWomFile, ioFunctions.pathFunctions))).valid
         case womArray: WomArray if nestedLevel == 0 =>
           womArray.value.toList flatTraverse parseResult(nestedLevel + 1)
@@ -235,16 +256,9 @@ case class Directory private
   }
 
   lazy val asWomValue: ErrorOr[WomFile] = {
-    // Callers expect the directory's last component to match the basename if this Directory has a basename.
-    def tempDirectory: String = {
-      val dir = better.files.File.newTemporaryDirectory()
-      basename match {
-        case None => dir.pathAsString
-        case Some(b) => dir.createChild(b, asDirectory = true)().pathAsString
-      }
-    }
+    import CwlType._
     errorOrListingOption flatMap { listingOption =>
-      val valueOption = path.orElse(location).orElse(Option(tempDirectory))
+      val valueOption = path.orElse(location).orElse(Option(tempFile(basename, asDirectory = true).pathAsString))
       WomMaybeListedDirectory(valueOption, listingOption, basename).valid
     }
   }

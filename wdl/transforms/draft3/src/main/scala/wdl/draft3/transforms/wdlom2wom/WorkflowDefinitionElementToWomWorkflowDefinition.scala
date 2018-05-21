@@ -10,12 +10,13 @@ import wdl.model.draft3.elements.ExpressionElement.{ArrayLiteral, IdentifierLook
 import wdl.model.draft3.graph.{GeneratedValueHandle, LinkedGraph}
 import wom.callable.{Callable, WorkflowDefinition}
 import wom.graph.GraphNodePort.OutputPort
-import wom.graph.{GraphNode, Graph => WomGraph}
+import wom.graph.{GraphNode, WomIdentifier, Graph => WomGraph}
 import wom.types.WomType
 import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
 import wdl.draft3.transforms.linking.expression.consumed._
 import wdl.draft3.transforms.wdlom2wom.graph.renaming.GraphIdentifierLookupRenamer.ops._
 import wdl.draft3.transforms.wdlom2wom.graph.renaming._
+import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
 
 object WorkflowDefinitionElementToWomWorkflowDefinition {
 
@@ -35,7 +36,13 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
         a.definitionElement.outputsSection.toSeq.flatMap(_.outputs)
 
     val innerGraph: ErrorOr[WomGraph] = convertGraphElements(GraphLikeConvertInputs(graphNodeElements, Set.empty, a.typeAliases, a.definitionElement.name, insideAScatter = false, a.callables))
-    (innerGraph map { ig =>  WorkflowDefinition(a.definitionElement.name, ig, Map.empty, Map.empty) }).contextualizeErrors(s"process workflow definition '${a.definitionElement.name}'")
+    // NB: isEmpty means "not isDefined". We specifically do NOT add defaults if the output section is defined but empty.
+    val withDefaultOutputs: ErrorOr[WomGraph] = if (a.definitionElement.outputsSection.isEmpty) {
+      innerGraph map { WomGraphMakerTools.addDefaultOutputs(_, Some(WomIdentifier(a.definitionElement.name))) }
+    } else {
+      innerGraph
+    }
+    (withDefaultOutputs map { ig =>  WorkflowDefinition(a.definitionElement.name, ig, Map.empty, Map.empty) }).contextualizeErrors(s"process workflow definition '${a.definitionElement.name}'")
   }
 
   final case class GraphLikeConvertInputs(graphElements: Set[WorkflowGraphElement],

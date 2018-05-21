@@ -72,7 +72,7 @@ object ScatterElementToGraphNode {
       val innerGraph: ErrorOr[Graph] = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
 
       innerGraph map { ig =>
-        val withOutputs = WomGraphMakerTools.addDefaultOutputs(ig, (_, localName) => WomIdentifier(localName = localName))
+        val withOutputs = WomGraphMakerTools.addDefaultOutputs(ig)
         val generatedAndNew = ScatterNode.scatterOverGraph(withOutputs, womInnerGraphScatterVariableInput)
         generatedAndNew.nodes
       }
@@ -91,7 +91,7 @@ object ScatterElementToGraphNode {
     val subWorkflowGraphValidation: ErrorOr[Graph] = subWorkflowInputsValidation flatMap { subWorkflowInputs =>
       val graphLikeConvertInputs = GraphLikeConvertInputs(Set(a.node), subWorkflowInputs, a.availableTypeAliases, a.workflowName, insideAScatter = false, a.callables)
       val subWorkflowGraph = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
-      subWorkflowGraph map { WomGraphMakerTools.addDefaultOutputs(_, (_, localName) => WomIdentifier(localName = localName)) }
+      subWorkflowGraph map { WomGraphMakerTools.addDefaultOutputs(_) }
     }
 
     val subWorkflowDefinitionValidation = subWorkflowGraphValidation map { subWorkflowGraph => WorkflowDefinition(a.node.scatterName, subWorkflowGraph, Map.empty, Map.empty) }

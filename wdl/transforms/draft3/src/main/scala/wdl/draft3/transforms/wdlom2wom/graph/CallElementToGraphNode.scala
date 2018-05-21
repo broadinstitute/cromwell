@@ -1,6 +1,7 @@
 package wdl.draft3.transforms.wdlom2wom.graph
 
 import cats.instances.list._
+import cats.syntax.apply._
 import cats.syntax.foldable._
 import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, _}
@@ -32,7 +33,13 @@ object CallElementToGraphNode {
           val unsuppliedInputs = w.inputs.collect {
             case r: RequiredInputDefinition if r.localName.value.contains(".") => r.localName.value
           }
-          if (unsuppliedInputs.isEmpty) { w.validNel } else { s"Cannot call '${a.node.callableReference}'. To be called as a sub-workflow it must declare and pass-through the following values via workflow inputs: ${unsuppliedInputs.mkString(", ")}".invalidNel }
+          val unsuppliedInputsValidation: ErrorOr[Unit] = if (unsuppliedInputs.isEmpty) { ().validNel } else { s"Cannot call '${a.node.callableReference}'. To be called as a sub-workflow it must declare and pass-through the following values via workflow inputs: ${unsuppliedInputs.mkString(", ")}".invalidNel }
+
+          val unspecifiedOutputs = w.graph.outputNodes.map(_.localName).filter(_.contains("."))
+          val unspecifiedOutputsValidation: ErrorOr[Unit] = if (unspecifiedOutputs.isEmpty) { ().validNel } else { s"Cannot call '${a.node.callableReference}'. To be called as a sub-workflow it must specify all outputs using an output section. This workflow may wish to declare outputs for: ${unspecifiedOutputs.mkString(", ")}".invalidNel }
+
+          (unsuppliedInputsValidation, unspecifiedOutputsValidation) mapN { (_,_) => w }
+
         case Some(c: Callable) => c.validNel
         case None => s"Cannot resolve a callable with name ${a.node.callableReference}".invalidNel
       }

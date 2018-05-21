@@ -6,6 +6,10 @@ workflow sub_wf {
   }
   # Calls foo but doesn't provide an 'x'. That's fine because the inputs are optional
   call foo { input: y = y }
+
+  output {
+    Int z = foo.z
+  }
 }
 
 task foo {

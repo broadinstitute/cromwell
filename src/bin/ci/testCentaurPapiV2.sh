@@ -1,182 +1,43 @@
 #!/usr/bin/env bash
 
-if [ "$TRAVIS_SECURE_ENV_VARS" = "false" ]; then
-    echo "************************************************************************************************"
-    echo "************************************************************************************************"
-    echo "**                                                                                            **"
-    echo "**  WARNING: Encrypted keys are unavailable to automatically test PAPI with centaur. Exiting. **"
-    echo "**                                                                                            **"
-    echo "************************************************************************************************"
-    echo "************************************************************************************************"
-    exit 0
-fi
-
-printTravisHeartbeat() {
-    # Sleep one minute between printouts, but don't zombie for more than two hours
-    for ((i=0; i < 180; i++)); do
-        sleep 60
-        printf "…"
-    done &
-    TRAVIS_HEARTBEAT_PID=$!
-}
-
-cromwellLogTail() {
- (
-   while [ ! -f logs/cromwell.log ];
-   do
-     sleep 2
-     printf "(Cr)"
-   done
-   tail -f logs/cromwell.log &
-   CROMWELL_LOG_TAIL_PID=$!
- ) &
- CROMWELL_LOG_WAIT_PID=$!
-}
-
-centaurLogTail() {
- (
-   while [ ! -f logs/centaur.log ];
-   do
-     sleep 2
-     printf "(Ce)"
-   done
-   tail -f logs/centaur.log &
-   CENTAUR_LOG_TAIL_PID=$!
- ) &
- CENTAUR_LOG_WAIT_PID=$!
-}
-
-killTravisHeartbeat() {
-    if [ -n "${TRAVIS_HEARTBEAT_PID+set}" ]; then
-        kill ${TRAVIS_HEARTBEAT_PID} || true
-    fi
-}
-
-killCromwellLogTail() {
-    if [ -n "${CROMWELL_LOG_TAIL_PID+set}" ]; then
-        kill ${CROMWELL_LOG_TAIL_PID} || true
-    else
-        if [ -n "${CROMWELL_LOG_WAIT_PID+set}" ]; then
-            kill ${CROMWELL_LOG_WAIT_PID} || true
-        fi
-    fi
-}
-
-killCentaurLogTail() {
-    if [ -n "${CENTAUR_LOG_TAIL_PID+set}" ]; then
-        kill ${CENTAUR_LOG_TAIL_PID} || true
-    else
-        if [ -n "${CENTAUR_LOG_WAIT_PID+set}" ]; then
-            kill ${CENTAUR_LOG_WAIT_PID} || true
-        fi
-    fi
-}
-
-exitScript() {
-    echo "CENTAUR LOG"
-    cat logs/centaur.log
-    killTravisHeartbeat
-    killCromwellLogTail
-    killCentaurLogTail
-}
-
-trap exitScript EXIT
-trap exitScript TERM
-cromwellLogTail
-centaurLogTail
-printTravisHeartbeat
-
-set -x
 set -e
+export CROMWELL_BUILD_SUPPORTS_CRON=true
+# import in shellcheck / CI / IntelliJ compatible ways
+# shellcheck source=/dev/null
+source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
-PROGNAME="$(basename "$0")"
-RUN_INTEGRATION_TESTS=0
+cromwell::build::setup_secure_environment
 
-usage="
-$PROGNAME [-i ]
+cromwell::build::setup_centaur_environment
 
-Builds and runs Cromwell and runs Centaur against it.
+cromwell::build::assemble_jars
 
-Arguments:
-    -i    Flag that if supplied, will run centaur integration tests instead of standardtests
-"
-
-while getopts ":hi" option; do
-    case "$option" in
-        h) echo "$usage"
-            exit
-            ;;
-        i) RUN_INTEGRATION_TESTS=1
-            ;;
-        :) printf "Missing argument for -%s\n" "$OPTARG" >&2
-            echo "$usage" >&2
-            exit 1
-            ;;
-        \?) printf "Illegal option: -%s\n" "$OPTARG" >&2
-            echo "$usage" >&2
-            exit 1
-            ;;
-        esac
-done
-
-# TURN OFF LOGGING WHILE WE TALK TO DOCKER/VAULT
-set +x
-
-# Login to docker to access the dsde-toolbox
-docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
-
-# Login to vault to access secrets
-docker run --rm \
-    -v $HOME:/root:rw \
-    broadinstitute/dsde-toolbox \
-    vault auth "$JES_TOKEN" < /dev/null > /dev/null && echo vault auth success
-
-set -x
-
-# Render secrets
-docker run --rm \
-    -v $HOME:/root:rw \
-    -v $PWD/src/bin/ci/resources:/working \
-    -v $PWD:/output \
-    -e ENVIRONMENT=not_used \
-    -e INPUT_PATH=/working \
-    -e OUT_PATH=/output \
-    broadinstitute/dsde-toolbox render-templates.sh
-
-ASSEMBLY_LOG_LEVEL=error ENABLE_COVERAGE=true sbt assembly --error
-CROMWELL_JAR=$(find "$(pwd)/server/target/scala-2.12" -name "cromwell-*.jar")
-PAPI_CONF="$(pwd)/papiv2_centaur.conf"
 GOOGLE_AUTH_MODE="service-account"
-GOOGLE_REFRESH_TOKEN_PATH="$(pwd)/papi_refresh_token.txt"
-GOOGLE_SERVICE_ACCOUNT_JSON="$(pwd)/cromwell-service-account.json"
-
-# pass integration directory to the inputs json otherwise remove it from the inputs file
-if [ $RUN_INTEGRATION_TESTS -ne 1 ]; then
-    INTEGRATION_TESTS=""
-else
-    INTEGRATION_TESTS="-i$INTEGRATION_TESTS_DIR"
-fi
+GOOGLE_REFRESH_TOKEN_PATH="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/papi_refresh_token.txt"
+GOOGLE_SERVICE_ACCOUNT_JSON="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/cromwell-service-account.json"
 
 # Export variables used in conf files
 export GOOGLE_AUTH_MODE
 export GOOGLE_REFRESH_TOKEN_PATH
 export GOOGLE_SERVICE_ACCOUNT_JSON
 
+# pass integration directory to the inputs json otherwise remove it from the inputs file
+INTEGRATION_TESTS=()
+if [ "${CROMWELL_BUILD_IS_CRON}" = "true" ]; then
+    INTEGRATION_TESTS=(-i "${CROMWELL_BUILD_CENTAUR_INTEGRATION_TESTS}")
+fi
+
 # Excluded tests:
 # docker_hash_dockerhub_private: https://github.com/broadinstitute/cromwell/issues/3587
 
 centaur/test_cromwell.sh \
-  -j${CROMWELL_JAR} \
-  -g \
-  -c${PAPI_CONF} \
-  -e localdockertest \
-  -e docker_hash_dockerhub_private \
-  -e gpu_on_papi \
-  -p100 \
-  $INTEGRATION_TESTS
+    -j "${CROMWELL_BUILD_JAR}" \
+    -c "${CROMWELL_BUILD_SCRIPTS_RESOURCES}/papi_v2_application.conf" \
+    -p 100 \
+    -g \
+    -e localdockertest \
+    -e docker_hash_dockerhub_private \
+    -e gpu_on_papi \
+    "${INTEGRATION_TESTS[@]}"
 
-if [ "$TRAVIS_EVENT_TYPE" != "cron" ]; then
-    sbt coverageReport --warn
-    sbt coverageAggregate --warn
-    bash <(curl -s https://codecov.io/bash) >/dev/null
-fi
+cromwell::build::generate_code_coverage

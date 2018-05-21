@@ -1,80 +1,20 @@
 #!/usr/bin/env bash
 
-if [ "$TRAVIS_SECURE_ENV_VARS" = "false" ]; then
-    echo "************************************************************************************************"
-    echo "************************************************************************************************"
-    echo "**                                                                                            **"
-    echo "**  WARNING: Encrypted keys are unavailable to automatically test PAPI with centaur. Exiting. **"
-    echo "**                                                                                            **"
-    echo "************************************************************************************************"
-    echo "************************************************************************************************"
-    exit 0
-fi
-
 set -e
+# import in shellcheck / CI / IntelliJ compatible ways
+# shellcheck source=/dev/null
+source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
-sudo -H pip install --upgrade pip
-sudo -H pip install cwltest
+cromwell::build::setup_secure_environment
 
-# -- BEGIN PAPI related conf generation
+cromwell::build::setup_conformance_environment
 
-# TURN OFF LOGGING WHILE WE TALK TO DOCKER/VAULT
-set +x
+cromwell::build::assemble_jars
 
-# Login to docker to access the dsde-toolbox
-docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
-
-# Login to vault to access secrets
-docker run --rm \
-    -v "$HOME:/root:rw" \
-    broadinstitute/dsde-toolbox \
-    vault auth "$JES_TOKEN" < /dev/null > /dev/null && echo vault auth success
-
-# For now, leave logging off
-#set -x
-
-# Render secrets
-docker run --rm \
-    -v "$HOME:/root:rw" \
-    -v "$PWD/src/bin/ci/resources:/working" \
-    -v "$PWD:/output" \
-    -e ENVIRONMENT=not_used \
-    -e INPUT_PATH=/working \
-    -e OUT_PATH=/output \
-    broadinstitute/dsde-toolbox render-templates.sh
-
-PAPI_CONF="$(pwd)/papiv2_centaur.conf"
-
-# -- END PAPI related conf generation
-
-# Turn off call caching as hashing doesn't work since it sees local and not GCS paths.
-sed -i '/^call-caching\s*/{N;s/enabled.*/  enabled: false/;}' ${PAPI_CONF}
-
-ENABLE_COVERAGE=true sbt assembly
-
-git clone https://github.com/common-workflow-language/common-workflow-language.git
-cd common-workflow-language
-# checkout a known git hash to prevent the tests from changing out from under us
-git checkout e7ae597e79d426feca3d4faa474806070c3fa7d5
-cd ..
-
-CROMWELL_JAR=$(find "$(pwd)/server/target/scala-2.12" -name "cromwell-*.jar")
-CENTAUR_CWL_RUNNER="$(pwd)/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
 CENTAUR_CWL_RUNNER_MODE="papi"
 GOOGLE_AUTH_MODE="service-account"
-GOOGLE_SERVICE_ACCOUNT_JSON="$(pwd)/cromwell-service-account.json"
-CONFORMANCE_EXPECTED_FAILURES=$(pwd)/src/bin/ci/resources/papi_conformance_expected_failures.txt
-CWL_DIR=$(pwd)/common-workflow-language
-CWL_TEST_DIR=$(pwd)/common-workflow-language/v1.0/v1.0
-CWL_CONFORMANCE_TEST_WDL=$(pwd)/src/bin/ci/resources/cwl_conformance_test.wdl
-CWL_CONFORMANCE_TEST_INPUTS=$(pwd)/cwl_conformance_test.inputs.json
-CWL_CONFORMANCE_TEST_OUTPUT=$(pwd)/cwl_conformance_test.out.txt
-CWL_CONFORMANCE_TEST_PARALLELISM=10 # Set too high and it will cause false negatives due to cromwell server timeouts.
+GOOGLE_SERVICE_ACCOUNT_JSON="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/cromwell-service-account.json"
 PAPI_INPUT_GCS_PREFIX=gs://centaur-cwl-conformance/cwl-inputs/
-
-CURRENT_DIR=$(pwd)
-# The java programs must run from the directory that contains a number of the cwl imports or the tests won't pass.
-cd ${CWL_TEST_DIR}
 
 # Export variables used in conf files and commands
 export CENTAUR_CWL_RUNNER_MODE
@@ -82,50 +22,48 @@ export GOOGLE_AUTH_MODE
 export GOOGLE_SERVICE_ACCOUNT_JSON
 export PAPI_INPUT_GCS_PREFIX
 
-exitScript() {
-    echo "CONFORMANCE TEST LOG"
-    if [ -f "${CWL_CONFORMANCE_TEST_OUTPUT}" ]; then
-        cat "${CWL_CONFORMANCE_TEST_OUTPUT}"
-    fi
-    if [ -z "${CROMWELL_PID}" ]; then
-        kill ${CROMWELL_PID}
+shutdown_cromwell() {
+    if [ -n "${CROMWELL_PID+set}" ]; then
+        cromwell::build::kill_tree "${CROMWELL_PID}"
     fi
 }
 
-trap exitScript EXIT
-trap exitScript TERM
+cromwell::build::add_exit_function shutdown_cromwell
 
+# Start the Cromwell server in the directory containing input files so it can access them via their relative path
+cd "${CROMWELL_BUILD_CWL_TEST_RESOURCES}"
+
+# Turn off call caching as hashing doesn't work since it sees local and not GCS paths.
+# CWL conformance uses alpine images that do not have bash.
 java \
-  -Xmx2g \
-  -Dconfig.file="$PAPI_CONF" \
-  -Dsystem.new-workflow-poll-rate=1 \
-  -jar "${CROMWELL_JAR}" server &
+    -Xmx2g \
+    -Dconfig.file="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/papi_v2_application.conf" \
+    -Dcall-caching.enabled=false \
+    -Dsystem.job-shell=/bin/sh \
+    -jar "${CROMWELL_BUILD_JAR}" \
+    server &
 
 CROMWELL_PID=$!
 
 sleep 30
 
-cat <<JSON >${CWL_CONFORMANCE_TEST_INPUTS}
+cat <<JSON >"${CROMWELL_BUILD_CWL_TEST_INPUTS}"
 {
-  "cwl_conformance_test.cwl_dir": "$CWL_DIR",
-  "cwl_conformance_test.test_result_output": "$CWL_CONFORMANCE_TEST_OUTPUT",
-  "cwl_conformance_test.centaur_cwl_runner": "$CENTAUR_CWL_RUNNER",
-  "cwl_conformance_test.conformance_expected_failures": "$CONFORMANCE_EXPECTED_FAILURES"
+    "cwl_conformance_test.cwl_dir": "${CROMWELL_BUILD_CWL_TEST_DIRECTORY}",
+    "cwl_conformance_test.test_result_output": "${CROMWELL_BUILD_CWL_TEST_OUTPUT}",
+    "cwl_conformance_test.centaur_cwl_runner": "${CROMWELL_BUILD_CWL_TEST_RUNNER}",
+    "cwl_conformance_test.conformance_expected_failures":
+        "${CROMWELL_BUILD_SCRIPTS_RESOURCES}/papi_conformance_expected_failures.txt"
 }
 JSON
 
 java \
-  -Xmx2g \
-  -Dbackend.providers.Local.config.concurrent-job-limit=${CWL_CONFORMANCE_TEST_PARALLELISM} \
-  -Dsystem.job-shell=/bin/sh \
-  -jar ${CROMWELL_JAR} \
-  run ${CWL_CONFORMANCE_TEST_WDL} \
-  -i ${CWL_CONFORMANCE_TEST_INPUTS}
+    -Xmx2g \
+    -Dbackend.providers.Local.config.concurrent-job-limit="${CROMWELL_BUILD_CWL_TEST_PARALLELISM}" \
+    -jar "${CROMWELL_BUILD_JAR}" \
+    run "${CROMWELL_BUILD_CWL_TEST_WDL}" \
+    -i "${CROMWELL_BUILD_CWL_TEST_INPUTS}"
 
-cd $CURRENT_DIR
+cd "${CROMWELL_BUILD_ROOT_DIRECTORY}"
 
-if [ "$TRAVIS_EVENT_TYPE" != "cron" ]; then
-    sbt coverageReport --warn
-    sbt coverageAggregate --warn
-    bash <(curl -s https://codecov.io/bash) >/dev/null
-fi
+cromwell::build::generate_code_coverage

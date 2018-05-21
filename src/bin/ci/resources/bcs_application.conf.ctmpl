@@ -1,13 +1,7 @@
+include required(classpath("application.conf"))
+include "build_application.inc.conf"
+
 {{with $cromwellBcs := vault (printf "secret/dsde/cromwell/common/cromwell-bcs")}}
-include required(classpath("application"))
-
-# This removes the:
-# > 05:08:59 WARN  - JobExecutionTokenDispenser - High load alert. Freeze token distribution.
-#
-# The Travis instance doesn't have much memory, and we need the tests to run asap. This is especially true as the BCS
-# AutoCluster takes a few minutes to spin up our VMs for each job.
-load-control.memory-threshold-in-mb = 0
-
 backend {
   default = "BCS"
 
@@ -69,10 +63,6 @@ backend {
   }
 }
 
-call-caching {
-  enabled = true
-}
-
 engine {
   filesystems {
     oss {
@@ -84,13 +74,4 @@ engine {
     }
   }
 }
-
-database {
-  db.url = "jdbc:mysql://localhost/cromwell_test?rewriteBatchedStatements=true"
-  db.user = "travis"
-  db.password = ""
-  db.driver = "com.mysql.jdbc.Driver"
-  profile = "slick.jdbc.MySQLProfile$"
-}
-
 {{end}}

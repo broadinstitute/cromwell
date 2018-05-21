@@ -1,92 +1,63 @@
 #!/usr/bin/env bash
 
 set -e
+# import in shellcheck / CI / IntelliJ compatible ways
+# shellcheck source=/dev/null
+source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
-sudo -H pip install --upgrade pip
-sudo -H pip install cwltest
+cromwell::build::setup_everyone_environment
 
-ENABLE_COVERAGE=true sbt assembly
-CROMWELL_JAR=$(find "$(pwd)/server/target/scala-2.12" -name "cromwell-*.jar")
-CENTAUR_CWL_RUNNER="$(pwd)/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
+cromwell::build::setup_conformance_environment
 
-git clone https://github.com/common-workflow-language/common-workflow-language.git
-cd common-workflow-language
-# checkout a known git hash to prevent the tests from changing out from under us
-git checkout e7ae597e79d426feca3d4faa474806070c3fa7d5
-cd ..
+cromwell::build::assemble_jars
 
-CWL_TEST_DIR=$(pwd)/common-workflow-language/v1.0/v1.0
-CONFORMANCE_EXPECTED_FAILURES=$(pwd)/src/bin/ci/resources/local_conformance_expected_failures.txt
+CENTAUR_CWL_RUNNER_MODE="local"
 
-shutdownCromwell() {
-    if [ -z "${CROMWELL_PID}" ]; then
-        kill ${CROMWELL_PID}
+# Export variables used in conf files and commands
+export CENTAUR_CWL_RUNNER_MODE
+
+shutdown_cromwell() {
+    if [ -n "${CROMWELL_PID+set}" ]; then
+        cromwell::build::kill_tree "${CROMWELL_PID}"
     fi
 }
 
-trap "shutdownCromwell" EXIT
+cromwell::build::add_exit_function shutdown_cromwell
 
 # Start the Cromwell server in the directory containing input files so it can access them via their relative path
-CURRENT_DIR=$(pwd)
-cd $CWL_TEST_DIR
+cd "${CROMWELL_BUILD_CWL_TEST_RESOURCES}"
+
+# Turn off call caching as hashing doesn't work since it sees local and not GCS paths.
+# CWL conformance uses alpine images that do not have bash.
 java \
-  -Xmx2g \
-  -Dsystem.new-workflow-poll-rate=1 \
-  -Dbackend.providers.Local.config.script-epilogue="sleep 5 && sync" \
-  -Dsystem.job-shell=/bin/sh \
-  -jar ${CROMWELL_JAR} \
-  server &
+    -Xmx2g \
+    -Dconfig.file="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/local_application.conf" \
+    -Dcall-caching.enabled=false \
+    -Dsystem.job-shell=/bin/sh \
+    -jar "${CROMWELL_BUILD_JAR}" \
+    server &
+
 CROMWELL_PID=$!
-cd $CURRENT_DIR
 
-sleep 5
+sleep 30
 
-UNEXPECTED_PASS=()
-UNEXPECTED_FAIL=()
+cat <<JSON >"${CROMWELL_BUILD_CWL_TEST_INPUTS}"
+{
+    "cwl_conformance_test.cwl_dir": "${CROMWELL_BUILD_CWL_TEST_DIRECTORY}",
+    "cwl_conformance_test.test_result_output": "${CROMWELL_BUILD_CWL_TEST_OUTPUT}",
+    "cwl_conformance_test.centaur_cwl_runner": "${CROMWELL_BUILD_CWL_TEST_RUNNER}",
+    "cwl_conformance_test.conformance_expected_failures":
+        "${CROMWELL_BUILD_SCRIPTS_RESOURCES}/local_conformance_expected_failures.txt"
+}
+JSON
 
-cd common-workflow-language
-TEST_COUNT=$(./run_test.sh RUNNER="${CENTAUR_CWL_RUNNER}" -l | grep '^\[' | wc -l)
+java \
+    -Xmx2g \
+    -Dbackend.providers.Local.config.concurrent-job-limit="${CROMWELL_BUILD_CWL_TEST_PARALLELISM}" \
+    -jar "${CROMWELL_BUILD_JAR}" \
+    run "${CROMWELL_BUILD_CWL_TEST_WDL}" \
+    -i "${CROMWELL_BUILD_CWL_TEST_INPUTS}"
 
-echo Test count is ${TEST_COUNT}
+cd "${CROMWELL_BUILD_ROOT_DIRECTORY}"
 
-TEST_PASSING=0
-
-set +e
-for TEST_NUMBER in $(seq ${TEST_COUNT}); do
-    # Check if test is supposed to fail
-    grep -q '^'${TEST_NUMBER}'$' ${CONFORMANCE_EXPECTED_FAILURES}
-    TEST_IN_EXPECTED_FAILED=$?
-
-    # Run the test
-    ./run_test.sh RUNNER="${CENTAUR_CWL_RUNNER}" -n${TEST_NUMBER}
-    TEST_RESULT_CODE=$?
-
-    if [ ${TEST_RESULT_CODE} -eq 0 ]; then
-        TEST_PASSING=$(($TEST_PASSING + 1))
-    fi
-
-    # Check for unexpected results
-    if [ ${TEST_IN_EXPECTED_FAILED} -eq 0 ] && [ ${TEST_RESULT_CODE} -eq 0 ]; then
-        UNEXPECTED_PASS+=(${TEST_NUMBER})
-    elif [ ! ${TEST_IN_EXPECTED_FAILED} -eq 0 ] && [ ! ${TEST_RESULT_CODE} -eq 0 ]; then
-        UNEXPECTED_FAIL+=(${TEST_NUMBER})
-    fi
-done
-set -e
-
-cd $CURRENT_DIR
-
-echo Conformance percentage at "$(echo 100 '*' ${TEST_PASSING} '/' ${TEST_COUNT} | bc)%"
-
-if [ ! $(( ${#UNEXPECTED_PASS[@]} + ${#UNEXPECTED_FAIL[@]} )) -eq 0 ]; then
-    printf 'Unexpected passing tests: (%s)\n' "${UNEXPECTED_PASS[*]}"
-    printf 'Unexpected failing tests: (%s)\n' "${UNEXPECTED_FAIL[*]}"
-    printf 'Does %s need to be updated?\n' "${CONFORMANCE_EXPECTED_FAILURES}"
-    exit 1
-fi
-
-if [ "$TRAVIS_EVENT_TYPE" != "cron" ]; then
-    sbt coverageReport --warn
-    sbt coverageAggregate --warn
-    bash <(curl -s https://codecov.io/bash) >/dev/null
-fi
+cromwell::build::generate_code_coverage

@@ -20,7 +20,7 @@ trait Localization {
       )
       .setMounts(mounts.asJava)
 
-    val jobInputLocalization = createPipelineParameters.inputOutputParameters.fileInputParameters.map(_.toAction(mounts))
+    val jobInputLocalization = createPipelineParameters.inputOutputParameters.fileInputParameters.map(_.toAction(mounts, createPipelineParameters.projectId))
     
     List(containerRootSetup) ++ jobInputLocalization
   }

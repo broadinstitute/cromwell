@@ -1,6 +1,6 @@
 package cromwell.engine.io.nio
 
-import java.io.IOException
+import java.io.{IOException, InputStream}
 import java.nio.charset.StandardCharsets
 
 import akka.actor.{ActorSystem, Scheduler}
@@ -76,16 +76,18 @@ class NioFlow(parallelism: Int,
     ()
   }
 
+  private def readBytes(read: IoContentAsStringCommand, limit: Int, inputStream: InputStream) : String = {
+    val bytesIterator = Iterator.continually(inputStream.read).takeWhile(_ != -1).map(_.toByte).take(limit)
+    if (read.options.failOnOverflow && bytesIterator.hasNext)
+      throw new IOException(s"File ${read.file.pathAsString} is larger than $limit Bytes")
+    else
+      new String(bytesIterator.toArray, StandardCharsets.UTF_8)
+  }
+
   private def readAsString(read: IoContentAsStringCommand) = {
     read.options.maxBytes match {
-      case Some(limit) =>
-        Future(read.file.bytes.take(limit)) map { bytesIterator =>
-          if (read.options.failOnOverflow && bytesIterator.hasNext)
-            throw new IOException(s"File ${read.file.pathAsString} is larger than $limit Bytes")
-          else
-            new String(bytesIterator.toArray, StandardCharsets.UTF_8)
-        }
-      case _ => Future(read.file.contentAsString)
+      case Some(limit) => Future(tryWithResource(() => read.file.mediaInputStream)(inputStream => readBytes(read, limit, inputStream)).get)
+      case _ => Future(read.file.readContentAsString)
     }
   }
 
@@ -113,7 +115,7 @@ class NioFlow(parallelism: Int,
   }
 
   private def readLines(exists: IoReadLinesCommand) = Future {
-    exists.file.lines
+    exists.file.readAllLinesInFile
   }
 
   private def createDirectoriesForSFSPath(path: Path) = path match {

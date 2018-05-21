@@ -8,6 +8,9 @@ import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.C
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
 import cromwell.backend.google.pipelines.v2alpha1.api.Delocalization._
+import cromwell.backend.io.JobPaths
+import cromwell.core.StandardPaths
+import cromwell.core.path.Path
 
 import scala.collection.JavaConverters._
 
@@ -87,21 +90,23 @@ trait Delocalization {
     */
   def deLocalizeActions(createPipelineParameters: CreatePipelineParameters,
                         mounts: List[Mount],
-                        userActionNumber: Int): List[Action] = {
+                        userActionNumber: Int,
+                        jobPaths: Option[JobPaths]): List[Action] = {
     val cloudCallRoot = createPipelineParameters.cloudCallRoot.pathAsString
     val callExecutionContainerRoot = createPipelineParameters.commandScriptContainerPath.parent.pathAsString
 
     val gcsLogDirectoryPath = createPipelineParameters.cloudCallRoot / "pipelines-logs"
     val gcsLegacyLogPath = createPipelineParameters.logGcsPath.pathAsString
 
-    val stdoutPath = createPipelineParameters.logGcsPath
-      .sibling(createPipelineParameters.logGcsPath.nameWithoutExtensionNoIo + "-stdout.log")
-      .pathAsString
+    val parent = createPipelineParameters.logGcsPath.parent
 
-    val stderrPath = createPipelineParameters.logGcsPath
-      .sibling(createPipelineParameters.logGcsPath.nameWithoutExtensionNoIo + "-stderr.log")
-      .pathAsString
-    
+    val standardFile: (StandardPaths => Path, String) => String = (get, name) =>
+      jobPaths.map(j => parent.resolve(get(j.standardPaths).getFileName))
+        .getOrElse(parent.resolve(createPipelineParameters.logGcsPath.nameWithoutExtensionNoIo + s"-$name.log"))
+        .pathAsString
+
+    val List(stdoutPath, stderrPath) = List[(StandardPaths => Path, String)]((_.output, "stdout"), (_.error, "stderr")) map standardFile.tupled
+
     /*
      * CWL specific delocalization. For now this always runs, even for WDL jobs.
      * Ideally temporaryFofnForCwlOutputJson should be somewhere else than the execution directory (we could mount anther directory)

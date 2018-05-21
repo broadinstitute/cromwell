@@ -5,6 +5,7 @@ import com.google.api.client.http.HttpRequestInitializer
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterface, PipelinesApiRequestFactory}
+import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.WorkflowOptions
@@ -104,7 +105,7 @@ object PipelinesApiTestConfig {
     override def build(httpRequestInitializer: HttpRequestInitializer) = new PipelinesApiRequestFactory {
       override def cancelRequest(job: StandardAsyncJob) = ???
       override def getRequest(job: StandardAsyncJob) = ???
-      override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters) = ???
+      override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters, jobPath: Option[JobPaths] = None) = ???
     }
   }
   def pathBuilders()(implicit as: ActorSystem) = Await.result(JesBackendConfigurationDescriptor.pathBuilders(WorkflowOptions.empty), 5.seconds)

@@ -3,8 +3,9 @@ package cromwell.backend.google.pipelines.common.api.clients
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import cromwell.backend.google.pipelines.common.PapiInstrumentation
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{PipelinesApiRunCreationQueryFailed, PAPIApiException}
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{PAPIApiException, PipelinesApiRunCreationQueryFailed}
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiRequestFactory, PipelinesApiRequestManager}
+import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.WorkflowId
 
@@ -44,12 +45,12 @@ trait PipelinesApiRunCreationClient { this: Actor with ActorLogging with PapiIns
     runCreationClientPromise = None
   }
 
-  def runPipeline(workflowId: WorkflowId, createPipelineParameters: CreatePipelineParameters): Future[StandardAsyncJob] = {
+  def runPipeline(workflowId: WorkflowId, createPipelineParameters: CreatePipelineParameters, jobPaths: JobPaths): Future[StandardAsyncJob] = {
     runCreationClientPromise match {
       case Some(p) =>
         p.future
       case None =>
-        papiApiActor ! PipelinesApiRequestManager.PAPIRunCreationRequest(workflowId, self, requestFactory.runRequest(createPipelineParameters))
+        papiApiActor ! PipelinesApiRequestManager.PAPIRunCreationRequest(workflowId, self, requestFactory.runRequest(createPipelineParameters, Option(jobPaths)))
         val newPromise = Promise[StandardAsyncJob]()
         runCreationClientPromise = Option(newPromise)
         newPromise.future

@@ -19,6 +19,7 @@ import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.PAPIStatusPollRequest
 import cromwell.backend.google.pipelines.common.api.RunStatus.UnsuccessfulRunStatus
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
+import cromwell.backend.io.JobPaths
 import cromwell.backend.io.JobPathsSpecHelper._
 import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardExpressionFunctionsParams}
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
@@ -107,7 +108,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val requestFactory = new PipelinesApiRequestFactory {
       override def cancelRequest(job: StandardAsyncJob) = null
       override def getRequest(job: StandardAsyncJob) = null
-      override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters) = null
+      override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters, jobPaths: Option[JobPaths]) = null
     }
     PipelinesApiBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null, requestFactory)
   }

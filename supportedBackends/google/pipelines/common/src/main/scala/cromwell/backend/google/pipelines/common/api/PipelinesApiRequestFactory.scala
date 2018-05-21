@@ -4,6 +4,7 @@ import com.google.api.client.http.HttpRequest
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.google.pipelines.common._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
+import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.labels.Labels
 import cromwell.core.path.Path
@@ -12,7 +13,7 @@ import cromwell.core.path.Path
   * The PipelinesApiRequestFactory defines the HttpRequests needed to run jobs
   */
 trait PipelinesApiRequestFactory {
-  def runRequest(createPipelineParameters: CreatePipelineParameters): HttpRequest
+  def runRequest(createPipelineParameters: CreatePipelineParameters, jobPaths: Option[JobPaths]): HttpRequest
   def getRequest(job: StandardAsyncJob): HttpRequest
   def cancelRequest(job: StandardAsyncJob): HttpRequest
 }

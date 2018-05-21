@@ -10,48 +10,30 @@ scala:
 jdk:
   - oraclejdk8
 cache:
-  # md5deep - https://github.com/travis-ci/travis-ci/issues/3122
-  branch: md5deep
   directories:
     - $HOME/.ivy2/cache
     - $HOME/.coursier/cache
-    - $HOME/.sbt/boot/
+    # see cromwell::private::delete_sbt_boot for more info
+    #- $HOME/.sbt/boot/
 before_cache:
   # Tricks to avoid unnecessary cache updates
   - find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
   - find $HOME/.coursier/cache -name "ivydata-*.properties" -print -delete
   - find $HOME/.sbt -name "*.lock" -print -delete
-before_install:
-  # https://github.com/travis-ci/travis-ci/issues/7940#issuecomment-310759657
-  - sudo rm -f /etc/boto.cfg
-  - mysql -u root -e "SET GLOBAL sql_mode = 'STRICT_ALL_TABLES';"
-  - mysql -u root -e "CREATE DATABASE IF NOT EXISTS cromwell_test;"
 env:
-  global:
-    - INTEGRATION_TESTS_DIR=centaur/src/main/resources/integrationTestCases
   matrix:
     # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
-    - BUILD_TYPE=sbt
-    - BUILD_TYPE=checkPublish
-    - BUILD_TYPE=centaurPAPIv1
-    - BUILD_TYPE=centaurPAPIv2
-    - BUILD_TYPE=centaurLocal
-    - BUILD_TYPE=centaurTes
     - BUILD_TYPE=centaurBcs
-    - BUILD_TYPE=centaurCwlConformanceLocal
-    - BUILD_TYPE=centaurCwlConformancePAPIv2
+    - BUILD_TYPE=centaurLocal
+    - BUILD_TYPE=centaurPapiV1
+    - BUILD_TYPE=centaurPapiV2
+    - BUILD_TYPE=centaurTes
+    - BUILD_TYPE=checkPublish
+    - BUILD_TYPE=conformanceLocal
+    - BUILD_TYPE=conformancePapiV2
+    - BUILD_TYPE=sbt
 script:
-  - sudo apt-get install procps
-  - pip install 'requests[security]'
-  - sudo pip install --ignore-installed cwltool
   - src/bin/ci/test.sh
-after_success:
-  - src/bin/ci/afterSuccess.sh
-deploy:
-  provider: script
-  script: src/bin/ci/publishRelease.sh
-  on:
-    tags: true
 notifications:
   slack:
     rooms:

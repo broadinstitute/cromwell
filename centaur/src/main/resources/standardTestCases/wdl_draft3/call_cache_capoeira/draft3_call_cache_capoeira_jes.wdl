@@ -425,7 +425,7 @@ task read_files_failOnStderr_expression {
   }
   command {
     # Comment to change hash from d2 capoeira
-     cat ~{a} ~{b} > out
+    cat ~{a} ~{b} > out
   }
   output {
     Boolean done = true

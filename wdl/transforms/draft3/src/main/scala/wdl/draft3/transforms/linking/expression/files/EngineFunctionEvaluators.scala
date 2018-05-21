@@ -13,17 +13,19 @@ import wdl.model.draft3.graph.expression.FileEvaluator.ops._
 import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values._
+import wdl.draft3.transforms.wdlom2wdl.WdlWriter.ops._
+import wdl.draft3.transforms.wdlom2wdl.WdlWriterImpl.expressionElementWriter
 
 object EngineFunctionEvaluators {
 
   private def evaluateToFile(forFunction: String, a: ExpressionElement, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[Set[WomFile]] = {
     a match {
-      case _: IdentifierLookup | _: IdentifierMemberAccess => Set.empty[WomFile].validNel
+      case _: IdentifierLookup | _: IdentifierMemberAccess | _: IndexAccess => Set.empty[WomFile].validNel
       case _ =>
-        a.evaluateValue(inputs, ioFunctionSet, None) flatMap {
+        (a.evaluateValue(inputs, ioFunctionSet, None) flatMap {
           case EvaluatedValue(p: WomPrimitive, _) => Set[WomFile](WomSingleFile(p.valueString)).validNel
-          case other => s"Could not predict files to delocalize from '$a' for $forFunction. Expected a primitive but got ${other.getClass.getSimpleName}".invalidNel
-        }
+          case other => s"Expected a primitive but got ${other.getClass.getSimpleName}".invalidNel
+        }).contextualizeErrors(s"predict files needed to de-localize from '${a.toWdlV1}' for $forFunction")
     }
   }
 

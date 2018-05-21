@@ -69,6 +69,8 @@ task make_files {
     Boolean ready
   }
   command {
+    # Comment to change hash from d2 capoeira
+
     echo bananeira > bananeira.txt
     chmod go+w bananeira.txt
     echo balanca > balanca.txt
@@ -90,6 +92,8 @@ task modify_file_sfs {
     # String file_path = sub(file_path_raw, "file://", "")
   }
   command {
+    # Comment to change hash from d2 capoeira
+
     echo "ginga" > ~{file_path_raw}
   }
   output {
@@ -109,7 +113,10 @@ task read_files {
     File a
     File b
   }
-  command { cat ~{a} ~{b} > out }
+  command {
+    # Comment to change hash from d2 capoeira
+    cat ~{a} ~{b} > out
+  }
   output {
     Boolean done = true
     String s = read_string("out") }
@@ -125,7 +132,10 @@ task sleep {
     Int duration
     Boolean ready
   }
-  command { sleep ~{duration} }
+  command {
+    # Comment to change hash from d2 capoeira
+    sleep ~{duration}
+  }
   output { Boolean done = true }
   runtime {
     docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
@@ -142,7 +152,10 @@ task read_copied_files {
     File a
     File b
   }
-  command { cat ~{a} ~{b} > out }
+  command {
+    # Comment to change hash from d2 capoeira
+    cat ~{a} ~{b} > out
+  }
   output {
     Boolean done = true
     String s = read_string("out") }
@@ -160,7 +173,10 @@ task read_files_swapped {
     File a
     File b
   }
-  command { cat ~{b} ~{a} > out }
+  command {
+    # Comment to change hash from d2 capoeira
+    cat ~{b} ~{a} > out
+  }
   output {
     Boolean done = true
     String s = read_string("out") }
@@ -180,7 +196,11 @@ task read_files_whitespace {
     File a
   }
   command {
-    cat ~{a} ~{b} > out
+
+
+
+      # Comment to change hash from d2 capoeira
+      cat ~{a} ~{b} > out
   }
   output {
     String s = read_string("out")
@@ -201,6 +221,8 @@ task read_files_new_command {
     File b
   }
   command {
+    # Comment to change hash from d2 capoeira
+
     for i in ~{a} ~{b}
     do
     cat $i >> out
@@ -223,7 +245,10 @@ task read_files_new_output_expressions {
     File a
     File b
   }
-  command { cat ~{a} ~{b} > out }
+  command {
+    # Comment to change hash from d2 capoeira
+    cat ~{a} ~{b} > out
+  }
   output {
     Boolean done = true
     String s = read_string("out") + "_suffix" }
@@ -241,7 +266,10 @@ task read_files_new_output_names {
     File a
     File b
   }
-  command { cat ~{a} ~{b} > out }
+  command {
+    # Comment to change hash from d2 capoeira
+    cat ~{a} ~{b} > out
+  }
   output {
     Boolean dunn = true
     String ess = read_string("out") }
@@ -259,7 +287,10 @@ task read_files_inputs_renamed {
     File c
     File d
   }
-  command { cat ~{c} ~{d} > out }
+  command {
+    # Comment to change hash from d2 capoeira
+    cat ~{c} ~{d} > out
+  }
   output {
     Boolean done = true
     String s = read_string("out") }
@@ -277,7 +308,10 @@ task read_files_different_docker {
     File a
     File b
   }
-  command { cat ~{a} ~{b} > out }
+  command {
+    # Comment to change hash from d2 capoeira
+    cat ~{a} ~{b} > out
+  }
   output {
     Boolean done = true
     String s = read_string("out") }
@@ -295,7 +329,10 @@ task read_files_without_docker {
     File a
     File b
   }
-  command { cat ~{a} ~{b} > out }
+  command {
+    # Comment to change hash from d2 capoeira
+    cat ~{a} ~{b} > out
+  }
   output {
     Boolean done = true
     String s = read_string("out") }
@@ -312,7 +349,10 @@ task read_files_different_continueOnReturnCode {
     File a
     File b
   }
-  command { cat ~{a} ~{b} > out }
+  command {
+    # Comment to change hash from d2 capoeira
+    cat ~{a} ~{b} > out
+  }
   output {
     Boolean done = true
     String s = read_string("out") }
@@ -330,7 +370,10 @@ task read_files_different_continueOnReturnCode {
     File a
     File b
   }
-    command { cat ~{a} ~{b} > out }
+  command {
+    # Comment to change hash from d2 capoeira
+    cat ~{a} ~{b} > out
+  }
     output {
       Boolean done = true
       String s = read_string("out") }
@@ -348,7 +391,10 @@ task read_files_without_continueOnReturnCode {
     File a
     File b
   }
-  command { cat ~{a} ~{b} > out }
+  command {
+    # Comment to change hash from d2 capoeira
+    cat ~{a} ~{b} > out
+  }
   output {
     Boolean done = true
     String s = read_string("out") }
@@ -365,7 +411,10 @@ task read_files_different_failOnStderr {
     File a
     File b
   }
-  command { cat ~{a} ~{b} > out }
+  command {
+    # Comment to change hash from d2 capoeira
+    cat ~{a} ~{b} > out
+  }
   output {
     Boolean done = true
     String s = read_string("out") }
@@ -383,7 +432,10 @@ task read_files_without_failOnStderr {
     File a
     File b
   }
-  command { cat ~{a} ~{b} > out }
+  command {
+    # Comment to change hash from d2 capoeira
+    cat ~{a} ~{b} > out
+  }
   output {
     Boolean done = true
     String s = read_string("out") }
@@ -400,7 +452,10 @@ task read_files_failOnStderr_expression {
     File a
     File b
   }
-  command { cat ~{a} ~{b} > out }
+  command {
+    # Comment to change hash from d2 capoeira
+    cat ~{a} ~{b} > out
+  }
   output {
     Boolean done = true
     String s = read_string("out") }
@@ -418,7 +473,10 @@ task read_array_files {
     Array[File] a
     Array[File] b
   }
-  command { cat ~{sep = " " a} ~{sep = " " b} > out }
+  command {
+    # Comment to change hash from d2 capoeira
+    cat ~{sep = " " a} ~{sep = " " b} > out
+  }
   output {
     Boolean done = true
     String s = read_string("out") }

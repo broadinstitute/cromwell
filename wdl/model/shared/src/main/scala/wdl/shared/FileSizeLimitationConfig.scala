@@ -28,6 +28,18 @@ trait FileSizeLimitationConfig {
 object FileSizeLimitationConfig {
   private val config = ConfigFactory.load.getConfig("system")
 
+  def default: FileSizeLimitationConfig = new FileSizeLimitationConfig {
+    override def readLinesLimit: Int = Int.MaxValue
+    override def readBoolLimit: Int = Int.MaxValue
+    override def readIntLimit: Int = Int.MaxValue
+    override def readFloatLimit: Int = Int.MaxValue
+    override def readStringLimit: Int = Int.MaxValue
+    override def readJsonLimit: Int = Int.MaxValue
+    override def readTsvLimit: Int = Int.MaxValue
+    override def readMapLimit: Int = Int.MaxValue
+    override def readObjectLimit: Int = Int.MaxValue
+  }
+
   def fileSizeLimitationConfig: FileSizeLimitationConfig = config.as[FileSizeLimitationConfig]("input-read-limits")
 
   implicit val configReader : ValueReader[FileSizeLimitationConfig] = ValueReader.relative{c =>

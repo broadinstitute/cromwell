@@ -2,12 +2,15 @@ package wdl.draft2.model
 
 import wdl.draft2.model.AstTools.{AstNodeName, EnhancedAstNode}
 import wdl.draft2.parser.WdlParser.{Ast, AstList}
+import wdl.shared.FileSizeLimitationConfig
 import wom.RuntimeAttributes
 
 import scala.collection.JavaConverters._
 
 case class WdlRuntimeAttributes(attrs: Map[String, WdlExpression]) {
-  def toWomRuntimeAttributes(task: WdlTask) = RuntimeAttributes(attrs.mapValues(WdlWomExpression(_, task)))
+  def toWomRuntimeAttributes(task: WdlTask): FileSizeLimitationConfig => RuntimeAttributes =
+    fileSizeLimitationConfig =>
+      RuntimeAttributes(attrs.mapValues(WdlWomExpression(_, task, fileSizeLimitationConfig)))
 }
 
 object WdlRuntimeAttributes {

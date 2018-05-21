@@ -364,7 +364,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
 }
 
 object WdlStandardLibraryFunctions {
-  def fromIoFunctionSet(ioFunctionSet: IoFunctionSet) = new WdlStandardLibraryFunctions {
+  def fromIoFunctionSet(ioFunctionSet: IoFunctionSet, _fileSizeLimitationConfig: FileSizeLimitationConfig) = new WdlStandardLibraryFunctions {
     override def readFile(path: String): String = Await.result(ioFunctionSet.readFile(path, None, failOnOverflow = false), Duration.Inf)
 
     override def writeFile(path: String, content: String): Try[WomFile] = Try(Await.result(ioFunctionSet.writeFile(path, content), Duration.Inf))
@@ -413,7 +413,7 @@ object WdlStandardLibraryFunctions {
 
     override def size(path: String): Try[Long] = Try(Await.result(ioFunctionSet.size(path), Duration.Inf))
 
-    override protected val fileSizeLimitationConfig: FileSizeLimitationConfig = FileSizeLimitationConfig.fileSizeLimitationConfig
+    override protected val fileSizeLimitationConfig: FileSizeLimitationConfig = _fileSizeLimitationConfig
   }
 
   def crossProduct[A, B](as: Seq[A], bs: Seq[B]): Seq[(A, B)] = for {
@@ -454,7 +454,25 @@ trait PureStandardLibraryFunctionsLike extends WdlStandardLibraryFunctions {
   override def globHelper(pattern: String): Seq[String] = throw new NotImplementedError(s"glob not available in $className.")
   override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError(s"stderr not available in $className."))
 
-  override def fileSizeLimitationConfig: FileSizeLimitationConfig = throw new NotImplementedError(s"file limits config not available in $className.")
+  override def fileSizeLimitationConfig: FileSizeLimitationConfig = new FileSizeLimitationConfig {
+    override def readLinesLimit: Int = 9999
+
+    override def readBoolLimit: Int = 9999
+
+    override def readIntLimit: Int = 9999
+
+    override def readFloatLimit: Int = 9999
+
+    override def readStringLimit: Int = 9999
+
+    override def readJsonLimit: Int = 9999
+
+    override def readTsvLimit: Int = 9999
+
+    override def readMapLimit: Int = 9999
+
+    override def readObjectLimit: Int = 9999
+  }
 }
 
 case object PureStandardLibraryFunctions extends PureStandardLibraryFunctionsLike

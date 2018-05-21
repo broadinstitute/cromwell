@@ -214,12 +214,12 @@ case class WdlExpression(ast: AstNode) extends WomValue {
   * @param from The Scope in which the WdlExpression is found, needed to adjust member access expressions located in
   *             conditionals (wrapped in optionals) or scatters (wrapped in arrays).
   */
-final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope) extends WomExpression {
+final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope, fileSizeLimitationConfig: FileSizeLimitationConfig) extends WomExpression { self =>
   override def sourceString = wdlExpression.valueString
   override def inputs: Set[String] = wdlExpression.variableReferences(from) map { _.referencedVariableName } toSet
 
   override def evaluateValue(variableValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
-    lazy val wdlFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(ioFunctionSet)
+    lazy val wdlFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(ioFunctionSet, fileSizeLimitationConfig)
     wdlExpression.evaluate(variableValues.apply, wdlFunctions).toErrorOr
   }
 
@@ -243,7 +243,7 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope) ext
 
       override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new Exception("You shouldn't call 'size' from a FileEvaluator"))
 
-      override protected val fileSizeLimitationConfig: FileSizeLimitationConfig = FileSizeLimitationConfig.fileSizeLimitationConfig
+      override protected val fileSizeLimitationConfig: FileSizeLimitationConfig = self.fileSizeLimitationConfig
     }
     wdlExpression.evaluateFiles(inputTypes.apply, wdlFunctions, coerceTo).toErrorOr.map(_.toSet[WomFile])
   }

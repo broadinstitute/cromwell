@@ -5,6 +5,7 @@ import wdl.draft2.model.exception.{ValidationException, VariableLookupException,
 import wdl.draft2.model.expression.WdlFunctions
 import wdl.draft2.model.exception.{ValidationException, VariableLookupException}
 import wdl.draft2.parser.WdlParser.{Ast, SyntaxError, Terminal}
+import wdl.shared.FileSizeLimitationConfig
 import wom.callable.Callable._
 import wom.types.WomOptionalType
 import wom.values.{WomOptionalValue, WomValue}
@@ -84,7 +85,11 @@ sealed abstract class WdlCall(val alias: Option[String],
     *
     * NB Only used in tests, womtool and some external tools (eg FC's workflow input enumerator)
     */
-  def workflowInputs: Seq[InputDefinition] = declarations.filterNot(i => inputMappings.contains(i.unqualifiedName)).flatMap(_.asWorkflowInput)
+  def workflowInputs: FileSizeLimitationConfig => Seq[InputDefinition] =
+    fileSizeLimitationConfig =>
+      declarations.
+        filterNot(i => inputMappings.contains(i.unqualifiedName)).
+        flatMap(_.asWorkflowInput(fileSizeLimitationConfig))
 
   override def toString: String = s"[Call $fullyQualifiedName]"
 

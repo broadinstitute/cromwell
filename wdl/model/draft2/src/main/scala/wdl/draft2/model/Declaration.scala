@@ -6,6 +6,7 @@ import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import wdl.draft2.model
 import wdl.draft2.model.AstTools.EnhancedAstNode
 import wdl.draft2.parser.WdlParser.{Ast, AstNode}
+import wdl.shared.FileSizeLimitationConfig
 import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
 import wom.graph._
 import wom.graph.expression.{ExposedExpressionNode, ExpressionNode}
@@ -71,14 +72,14 @@ trait DeclarationInterface extends WdlGraphNodeWithUpstreamReferences {
   /**
     * Decide whether this declaration should be exposed as a workflow input, and if so, what kind
     */
-  def asWorkflowInput: Option[InputDefinition] = (expression, womType) match {
+  def asWorkflowInput: FileSizeLimitationConfig => Option[InputDefinition] = fileSizeLimitationconfig => (expression, womType) match {
     case (None, optionalType: WomOptionalType) =>
       Some(OptionalInputDefinition(fullyQualifiedName, optionalType.flatOptionalType))
     case (None, nonOptionalType) =>
       Some(RequiredInputDefinition(fullyQualifiedName, nonOptionalType))
     // We only make declarations with expressions into inputs if they don't depend on previous tasks or decls:
     case (Some(expr), other) if upstreamAncestry.isEmpty =>
-      Some(InputDefinitionWithDefault(fullyQualifiedName, other, WdlWomExpression(expr, this)))
+      Some(InputDefinitionWithDefault(fullyQualifiedName, other, WdlWomExpression(expr, this, fileSizeLimitationconfig)))
     case _ =>
       None
   }
@@ -127,10 +128,13 @@ object Declaration {
     )
   }
 
-  def buildWdlDeclarationNode(decl: DeclarationInterface, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[WdlDeclarationNode] = {
+  def buildWdlDeclarationNode(decl: DeclarationInterface,
+                              localLookup: Map[String, GraphNodePort.OutputPort],
+                              outerLookup: Map[String, GraphNodePort.OutputPort],
+                              preserveIndexForOuterLookups: Boolean): FileSizeLimitationConfig => ErrorOr[WdlDeclarationNode] = { fileSizeLimitationConfig =>
 
     def declarationAsExpressionNode(wdlExpression: WdlExpression) = {
-      val womExpression = WdlWomExpression(wdlExpression, decl)
+      val womExpression = WdlWomExpression(wdlExpression, decl, fileSizeLimitationConfig)
       for {
         inputMapping <- WdlWomExpression.findInputsforExpression(womExpression, localLookup, outerLookup, preserveIndexForOuterLookups, decl)
         expressionNode <- ExposedExpressionNode.fromInputMapping(decl.womIdentifier, womExpression, decl.womType, inputMapping)
@@ -138,7 +142,7 @@ object Declaration {
     }
 
     def workflowOutputAsGraphOutputNode(wdlExpression: WdlExpression) = {
-      val womExpression = WdlWomExpression(wdlExpression, decl)
+      val womExpression = WdlWomExpression(wdlExpression, decl, fileSizeLimitationConfig)
       for {
         inputMapping <- WdlWomExpression.findInputsforExpression(womExpression, localLookup, outerLookup, preserveIndexForOuterLookups, decl)
         graphOutputNode <- ExpressionBasedGraphOutputNode.fromInputMapping(decl.womIdentifier, womExpression, decl.womType, inputMapping)
@@ -152,7 +156,7 @@ object Declaration {
       case other => throw new RuntimeException(s"Programmer Error! If you got here you probably changed draft 2 to try to do some draft 3 like things, but this draft 2 function isn't set up to produce or handle ${other.getClass.getSimpleName} yet!")
     }
 
-    (decl.asWorkflowInput, decl) match {
+    (decl.asWorkflowInput(fileSizeLimitationConfig), decl) match {
       case (_, WorkflowOutput(_, _, expr, _, _)) => workflowOutputAsGraphOutputNode(expr)
       case (Some(inputDefinition), _) => Valid(InputDeclarationNode(asWorkflowInput(inputDefinition)))
       case (None, Declaration(_, _, Some(expr), _, _)) => declarationAsExpressionNode(expr)

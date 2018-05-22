@@ -1,12 +1,20 @@
 version 1.0
 
-task globbing_behavior_task{
-    command {
+workflow draft3_glob_access{
+    call access_glob_index_task
+
+    output {
+        String globArrayContent = access_glob_index_task.globArrayContent
+    }
+}
+
+task access_glob_index_task {
+    command <<<
         echo "staticFile" > staticFile.txt
         echo "staticArray" > staticArray.txt
         echo "globFile" > globFile.txt
         echo "globArray" > globArray.txt
-    }
+    >>>
 
     output {
         Array[File] globArray = glob("*.txt")
@@ -14,15 +22,6 @@ task globbing_behavior_task{
     }
 
     runtime {
-        docker: "us.gcr.io/google-containers/ubuntu-slim:0.14"
-    }
-}
-
-
-workflow globbing_behavior_with_requester_pays{
-    call globbing_behavior_task
-
-    output {
-        String globArrayContent = globbing_behavior_task.globArrayContent
+        docker: "ubuntu:latest"
     }
 }

@@ -5,9 +5,9 @@ set -e
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
-cromwell::build::setup_everyone_environment
+cromwell::build::setup_common_environment
 
-ENABLE_COVERAGE=true sbt \
+CROMWELL_SBT_COVERAGE=true sbt \
     -Dbackend.providers.Local.config.filesystems.local.localization.0=copy \
     +clean +nointegration:test
 

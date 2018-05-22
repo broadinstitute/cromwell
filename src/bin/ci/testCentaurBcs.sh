@@ -10,11 +10,13 @@ set -e
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
-cromwell::build::setup_secure_environment
+cromwell::build::setup_common_environment
 
 cromwell::build::setup_centaur_environment
 
 cromwell::build::assemble_jars
+
+cromwell::build::setup_secure_resources
 
 # https://github.com/broadinstitute/cromwell/issues/3522
 # https://github.com/broadinstitute/cromwell/issues/3523

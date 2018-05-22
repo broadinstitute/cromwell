@@ -161,44 +161,45 @@ object OutputManipulator extends Poly1 {
     } else throw new RuntimeException(s"${path.pathAsString} is neither a valid file or a directory")
   }
 
-  private def resolveOutputViaInnerType(mot: MyriadOutputInnerType)
+  private def resolveOutputViaInnerType(moits: Array[MyriadOutputInnerType])
                                        (jsValue: JsValue,
                                         pathBuilder: PathBuilder,
                                         schemaOption: Option[Schema]): Json = {
-    (jsValue, mot) match {
+
+    (jsValue, moits) match {
       //CWL expects quite a few enhancements to the File structure, hence...
-      case (JsString(metadata), Inl(CwlType.File)) => stringToFile(metadata, pathBuilder)
+      case (JsString(metadata), Array(Inl(CwlType.File))) => stringToFile(metadata, pathBuilder)
       // If it's a JsObject it means it's already in the right format, we just want to fill in some values that might not
       // have been populated like "checksum" and "size"
-      case (obj: JsObject, Inl(CwlType.File) | Inl(CwlType.Directory)) =>
+      case (obj: JsObject, a) if a.contains(Inl(CwlType.File)) || a.contains(Inl(CwlType.Directory)) =>
         import io.circe.parser._
         val json = parse(obj.compactPrint).right.getOrElse(throw new Exception("Failed to parse Json output as Json... something is very wrong"))
         json.mapObject(populateFileFields(pathBuilder, isInsideDirectory = false, schemaOption))
-      case (JsNumber(metadata), Inl(CwlType.Long)) => metadata.longValue.asJson
-      case (JsNumber(metadata), Inl(CwlType.Float)) => metadata.floatValue.asJson
-      case (JsNumber(metadata), Inl(CwlType.Double)) => metadata.doubleValue.asJson
-      case (JsNumber(metadata), Inl(CwlType.Int)) => metadata.intValue.asJson
-      case (JsString(metadata), Inl(CwlType.String)) => metadata.asJson
+      case (JsNumber(metadata), Array(Inl(CwlType.Long))) => metadata.longValue.asJson
+      case (JsNumber(metadata), Array(Inl(CwlType.Float))) => metadata.floatValue.asJson
+      case (JsNumber(metadata), Array(Inl(CwlType.Double))) => metadata.doubleValue.asJson
+      case (JsNumber(metadata), Array(Inl(CwlType.Int))) => metadata.intValue.asJson
+      case (JsString(metadata), Array(Inl(CwlType.String))) => metadata.asJson
 
       //The Anys.  They have to be done for each type so that the asJson can use this type information when going back to Json representation
-      case (JsString(metadata), Inl(CwlType.Any)) => metadata.asJson
-      case (JsNumber(metadata), Inl(CwlType.Any)) => metadata.asJson
-      case (obj: JsObject, Inl(CwlType.Any)) =>
+      case (JsString(metadata), Array(Inl(CwlType.Any))) => metadata.asJson
+      case (JsNumber(metadata), Array(Inl(CwlType.Any))) => metadata.asJson
+      case (obj: JsObject, Array(Inl(CwlType.Any))) =>
         import io.circe.parser._
         parse(obj.compactPrint).right.getOrElse(throw new Exception("Failed to parse Json output as Json... something is very wrong"))
-      case (JsBoolean(metadata), Inl(CwlType.Any)) => metadata.asJson
-      case (JsArray(metadata), Inl(CwlType.Any)) => metadata.asJson
-      case (JsNull, Inl(CwlType.Any)) => Json.Null
+      case (JsBoolean(metadata), Array(Inl(CwlType.Any))) => metadata.asJson
+      case (JsArray(metadata), Array(Inl(CwlType.Any))) => metadata.asJson
+      case (JsNull, a) if a.contains(Inl(CwlType.Any)) || a.contains(Inl(CwlType.Null)) => Json.Null
 
-      case (JsArray(metadata), tpe) if tpe.select[OutputArraySchema].isDefined =>
+      case (JsArray(metadata), Array(tpe)) if tpe.select[OutputArraySchema].isDefined =>
         (for {
           schema <- tpe.select[OutputArraySchema]
           items = schema.items
           innerType <- items.select[MyriadOutputInnerType]
           outputJson = metadata.map(m =>
-            resolveOutputViaInnerType(innerType)(m, pathBuilder, schemaOption)).asJson
+            resolveOutputViaInnerType(Array(innerType))(m, pathBuilder, schemaOption)).asJson
         } yield outputJson).getOrElse(throw new RuntimeException(s"We currently do not support output arrays with ${tpe.select[OutputArraySchema].get.items} inner type"))
-      case (JsObject(metadata), tpe) if tpe.select[OutputRecordSchema].isDefined =>
+      case (JsObject(metadata), Array(tpe)) if tpe.select[OutputRecordSchema].isDefined =>
         def processField(field: OutputRecordField) = {
           val parsedName = FullyQualifiedName(field.name)(ParentName.empty).id
           field.`type`.select[MyriadOutputInnerType] map { parsedName -> _ }
@@ -209,21 +210,19 @@ object OutputManipulator extends Poly1 {
           fields <- schema.fields
           typeMap = fields.flatMap(processField).toMap
           outputJson = metadata.map({
-            case (k, v) => k -> resolveOutputViaInnerType(typeMap(k))(v, pathBuilder, schemaOption)
+            case (k, v) => k -> resolveOutputViaInnerType(Array(typeMap(k)))(v, pathBuilder, schemaOption)
           }).asJson
         } yield outputJson).getOrElse(throw new RuntimeException(s"We currently do not support output record schemas with ${tpe.select[OutputArraySchema].get.items} inner type"))
-      case (JsNull, Inl(CwlType.Null)) => Json.Null
       case (json, tpe) => throw new RuntimeException(s"We currently do not support outputs (${json.getClass.getSimpleName}) of $json and type $tpe")
     }
   }
 
-  implicit val moit: Case.Aux[MyriadOutputInnerType, (JsValue, PathBuilder, Option[Schema]) => Json] = at {
-    resolveOutputViaInnerType
+  implicit val moit: Case.Aux[MyriadOutputInnerType, (JsValue, PathBuilder, Option[Schema]) => Json] = at { t =>
+    resolveOutputViaInnerType(Array(t))
   }
 
   implicit val amoit: Case.Aux[Array[MyriadOutputInnerType], (JsValue, PathBuilder, Option[Schema]) => Json] =
-    at {
-      amoit =>
-        resolveOutputViaInnerType(amoit.head)
+    at { amoit =>
+      resolveOutputViaInnerType(amoit)
     }
 }

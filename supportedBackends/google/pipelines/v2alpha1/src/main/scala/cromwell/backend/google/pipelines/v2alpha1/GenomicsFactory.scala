@@ -9,6 +9,7 @@ import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.C
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterface, PipelinesApiRequestFactory}
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2alpha1.api.{ActionBuilder, Delocalization, Localization}
+import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 
@@ -35,7 +36,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       genomics.projects().operations().get(job.jobId).buildHttpRequest()
     }
 
-    override def runRequest(createPipelineParameters: CreatePipelineParameters) = {
+    override def runRequest(createPipelineParameters: CreatePipelineParameters, jobPaths: Option[JobPaths]) = {
       // Disks defined in the runtime attributes
       val disks = createPipelineParameters.toDisks
       // Mounts for disks defined in the runtime attributes
@@ -43,7 +44,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
 
       val localization: List[Action] = localizeActions(createPipelineParameters, mounts)
       // localization.size + 1 because action indices are 1-based and the next action after localization will be the user's
-      val deLocalization: List[Action] = deLocalizeActions(createPipelineParameters, mounts, localization.size + 1)
+      val deLocalization: List[Action] = deLocalizeActions(createPipelineParameters, mounts, localization.size + 1, jobPaths)
 
       val environment = Map.empty[String, String].asJava
 

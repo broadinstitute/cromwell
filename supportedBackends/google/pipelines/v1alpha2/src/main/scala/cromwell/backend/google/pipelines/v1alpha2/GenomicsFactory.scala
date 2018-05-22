@@ -11,6 +11,7 @@ import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterfac
 import cromwell.backend.google.pipelines.v1alpha2.PipelinesConversions._
 import cromwell.backend.google.pipelines.v1alpha2.ToParameter.ops._
 import cromwell.backend.google.pipelines.v1alpha2.api.{NonPreemptiblePipelineInfoBuilder, PreemptiblePipelineInfoBuilder}
+import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 
@@ -27,7 +28,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         .setRootUrl(endpointUrl.toString)
         .build
 
-      override def runRequest(createPipelineParameters: CreatePipelineParameters) = {
+      override def runRequest(createPipelineParameters: CreatePipelineParameters, jobPaths: Option[JobPaths]) = {
         lazy val workflow = createPipelineParameters.jobDescriptor.workflowDescriptor
         val commandLine = s"/bin/bash ${createPipelineParameters.commandScriptContainerPath.pathAsString}"
         

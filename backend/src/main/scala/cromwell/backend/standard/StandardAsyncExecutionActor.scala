@@ -18,7 +18,7 @@ import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, J
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
-import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle, ReturnCodeIsNotAnInt, StderrNonEmpty, SuccessfulExecutionHandle, WrongReturnCode}
+import cromwell.backend.async._
 import cromwell.backend.validation._
 import cromwell.backend.wdl.OutputEvaluator._
 import cromwell.backend.wdl.{Command, OutputEvaluator}
@@ -234,7 +234,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |echo "${controlFileContent.trim}" > $globDirectory/$controlFileName
         |
         |# symlink all the files into the glob directory
-        |( ln -L ${globFile.value} $globDirectory 2> /dev/null ) || ( ln ${globFile.value} $globDirectory )
+        |( ln -L ${globFile.value} $globDirectory 2> /dev/null ) || ( ln ${globFile.value} $globDirectory 2> /dev/null)
         |
         |# list all the files (except the control file) that match the glob into a file called glob-[md5 of glob].list
         |ls -1 $globDirectory | grep -v $controlFileName > $globList

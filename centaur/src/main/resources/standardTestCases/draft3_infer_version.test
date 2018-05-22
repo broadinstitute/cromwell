@@ -1,0 +1,15 @@
+name: draft3_infer_version
+testFormat: workflowsuccess
+workflowType: WDL
+# Note: no workflowTypeVersion specified!
+tags: ["wdl_1.0"]
+
+files {
+  workflow: wdl_draft3/draft3_infer_version/draft3_infer_version.wdl
+}
+
+metadata {
+  workflowName: draft3_infer_version
+  status: Succeeded
+  "outputs.draft3_infer_version.j": 660
+}

@@ -54,4 +54,11 @@ class WdlDraft3LanguageFactory(override val config: Map[String, Any]) extends La
       validated <- LanguageFactoryUtil.validateWomNamespace(executable)
     } yield validated
   }
+
+  override def looksParsable(content: String): Boolean = {
+    val trimStart = content.lines.dropWhile { l =>
+      l.forall(_.isWhitespace) || l.dropWhile(_.isWhitespace).startsWith("#")
+    }
+    trimStart.next.dropWhile(_.isWhitespace).startsWith("version 1.0")
+  }
 }

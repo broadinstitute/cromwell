@@ -30,5 +30,10 @@ trait LanguageFactory {
                         importLocalFilesystem: Boolean,
                         workflowIdForLogging: WorkflowId,
                         ioFunctions: IoFunctionSet): Parse[ValidatedWomNamespace]
-}
 
+  /**
+    * In case no version is specified: does this language factory feel like it might be suitable for this file?
+    * @param content The workflow description
+    */
+  def looksParsable(content: String): Boolean = false
+}

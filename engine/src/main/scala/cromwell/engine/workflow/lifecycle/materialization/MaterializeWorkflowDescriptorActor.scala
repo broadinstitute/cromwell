@@ -218,13 +218,15 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       workflowOptions: WorkflowOptions,
                                       pathBuilders: List[PathBuilder],
                                       engineIoFunctions: EngineIoFunctions): Parse[EngineWorkflowDescriptor] = {
+    def chooseFactory(factories: List[LanguageFactory]) = factories.find(_.looksParsable(sourceFiles.workflowSource)).getOrElse(factories.head)
+
     val namespaceValidation: Parse[ValidatedWomNamespace] = sourceFiles.workflowType match {
       case Some(languageName) if CromwellLanguages.instance.languages.contains(languageName.toUpperCase) =>
         val language = CromwellLanguages.instance.languages(languageName.toUpperCase)
         val factory: ErrorOr[LanguageFactory] = sourceFiles.workflowTypeVersion match {
           case Some(v) if language.allVersions.contains(v) => language.allVersions(v).valid
           case Some(other) => s"Unknown version '$other' for workflow language '$languageName'".invalidNel
-          case _ => language.allVersions.head._2.valid
+          case _ => chooseFactory(language.allVersions.values.toList).valid
         }
         errorOrParse(factory).flatMap(_.validateNamespace(sourceFiles, workflowOptions, importLocalFilesystem, workflowIdForLogging, engineIoFunctions))
       case Some(other) => fromEither[IO](s"Unknown workflow type: $other".invalidNelCheck[ValidatedWomNamespace])

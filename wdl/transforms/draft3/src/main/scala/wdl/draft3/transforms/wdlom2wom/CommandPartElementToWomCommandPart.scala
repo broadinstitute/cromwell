@@ -19,6 +19,9 @@ import wdl.draft3.transforms.linking.graph.LinkedGraphMaker
 import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions}
 import wom.types.{WomArrayType, WomPrimitiveType, WomType}
+import wdl.draft3.transforms.wdlom2wdl.WdlWriter.ops._
+import wdl.draft3.transforms.wdlom2wdl.WdlWriterImpl.placeholderAttributeSetWriter
+import wdl.draft3.transforms.wdlom2wdl.WdlWriterImpl.expressionElementWriter
 
 object CommandPartElementToWomCommandPart {
   def convert(commandPart: CommandPartElement, typeAliases: Map[String, WomType], availableHandles: Set[GeneratedValueHandle]): ErrorOr[CommandPart] = commandPart match {
@@ -39,6 +42,7 @@ object CommandPartElementToWomCommandPart {
 }
 
 case class WdlomWomStringCommandPart(stringCommandPartElement: StringCommandPartElement) extends CommandPart {
+  override def toString: String = stringCommandPartElement.value
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: WomValue => WomValue,
@@ -46,6 +50,10 @@ case class WdlomWomStringCommandPart(stringCommandPartElement: StringCommandPart
 }
 
 case class WdlomWomPlaceholderCommandPart(attributes: PlaceholderAttributeSet, expression: WdlomWomExpression) extends CommandPart {
+  def attributesToString: String = attributes.toWdlV1
+  // Yes, it's sad that we need to put ${} here, but otherwise we won't cache hit from draft-2 command sections
+  override def toString: String = "${" + s"$attributesToString${expression.expressionElement.toWdlV1}" + "}"
+
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
                            valueMapper: WomValue => WomValue,

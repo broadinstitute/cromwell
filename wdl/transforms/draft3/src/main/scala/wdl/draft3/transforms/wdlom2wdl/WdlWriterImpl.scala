@@ -294,17 +294,14 @@ object WdlWriterImpl {
 
   implicit val placeholderAttributeSetWriter: WdlWriter[PlaceholderAttributeSet] = new WdlWriter[PlaceholderAttributeSet] {
     override def toWdlV1(a: PlaceholderAttributeSet): String = {
-      Map(
+      val attrStrings = Map(
         "sep" -> a.sepAttribute,
         "true" -> a.trueAttribute,
         "false" -> a.falseAttribute,
         "default" -> a.defaultAttribute
-      ).map({ case (attrKey: String, maybeValue: Option[String]) =>
-        maybeValue match {
-          case Some(value) => attrKey + "=\"" + value + "\""
-          case None => ""
-        }
-      }).filterNot(_.length == 0).mkString(sep = " ")
+      ).collect({ case (attrKey: String, Some(value)) => attrKey + "=\"" + value + "\"" })
+
+      if (attrStrings.isEmpty) "" else attrStrings.mkString(start = "", sep = " ", end = " ")
     }
   }
 

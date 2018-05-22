@@ -102,12 +102,13 @@ trait Delocalization {
 
     val parent = createPipelineParameters.logGcsPath.parent
 
-    val standardFile: (StandardPaths => Path, String) => String = (get, name) =>
-      jobPaths.map(j => parent.resolve(get(j.standardPaths).getFileName))
+    // The cloud path of the standard output or error file as a String.
+    def cloudStandardFile(path: StandardPaths => Path, name: String): String =
+      jobPaths.map(j => parent.resolve(path(j.standardPaths).getFileName))
         .getOrElse(parent.resolve(createPipelineParameters.logGcsPath.nameWithoutExtensionNoIo + s"-$name.log"))
         .pathAsString
 
-    val List(stdoutPath, stderrPath) = List[(StandardPaths => Path, String)]((_.output, "stdout"), (_.error, "stderr")) map standardFile.tupled
+    val List(stdoutPath, stderrPath) = List[(StandardPaths => Path, String)]((_.output, "stdout"), (_.error, "stderr")) map (cloudStandardFile _).tupled
 
     /*
      * CWL specific delocalization. For now this always runs, even for WDL jobs.

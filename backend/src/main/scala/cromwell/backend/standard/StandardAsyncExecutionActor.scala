@@ -234,7 +234,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |echo "${controlFileContent.trim}" > $globDirectory/$controlFileName
         |
         |# symlink all the files into the glob directory
-        |( ln -L ${globFile.value} $globDirectory 2> /dev/null ) || ( ln ${globFile.value} $globDirectory )
+        |( ln -L ${globFile.value} $globDirectory 2> /dev/null ) || ( ln ${globFile.value} $globDirectory 2> /dev/null)
         |
         |# list all the files (except the control file) that match the glob into a file called glob-[md5 of glob].list
         |ls -1 $globDirectory | grep -v $controlFileName > $globList

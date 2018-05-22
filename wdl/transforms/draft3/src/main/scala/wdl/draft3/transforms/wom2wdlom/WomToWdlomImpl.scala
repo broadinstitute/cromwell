@@ -3,6 +3,7 @@ package wdl.draft3.transforms.wom2wdlom
 import wdl.model.draft3.elements._
 import wom.executable.WomBundle
 import common.collections.EnhancedCollections.EnhancedTraversableLike
+import shapeless.{Inl, Inr}
 import wdl.draft2.model.WdlWomExpression
 import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wom.callable.Callable._
@@ -13,6 +14,7 @@ import wom.callable.Callable.OutputDefinition
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
 import wom.expression.{InputLookupExpression, ValueAsAnExpression, WomExpression}
 import wom.graph.CallNode.InputDefinitionPointer
+import wom.graph.GraphNodePort.GraphNodeOutputPort
 import wom.graph._
 import wom.graph.expression._
 import wom.types._
@@ -179,14 +181,16 @@ object WomToWdlomImpl {
           a.toWdlom
         case a: GraphOutputNode =>
           a.toWdlom
-        // a.scatterCollectionExpressionNodes.head.womExpression.sourceString
-        // a.scatterCollectionExpressionNodes.head.womExpression.asInstanceOf[WdlWomExpression].wdlExpression
         case a: ScatterNode =>
+          // Why do we filter (here and other places)? WOM has some explicit representations that are
+          // implicit in WDL; they are necessary for execution, but do not sensibly belong in WDL source.
+          val scatterGraph = a.innerGraph.calls ++ a.innerGraph.workflowCalls ++ a.innerGraph.conditionals ++ a.innerGraph.scatters
+
           ScatterElement(
             scatterName = a.identifier.localName.value,
             scatterExpression = a.scatterCollectionExpressionNodes.head.toWdlom, // TODO: can't just take the first node, probably
             scatterVariableName = a.inputPorts.toList.head.name,
-            graphElements = a.innerGraph.nodes.toList.map(graphNodeToWorkflowGraphElement.toWdlom)
+            graphElements = scatterGraph.toList.map(graphNodeToWorkflowGraphElement.toWdlom)
           )
       }
     }
@@ -258,7 +262,10 @@ object WomToWdlomImpl {
       override def toWdlom(a: InputDefinitionPointer): ExpressionElement = a match {
         case a: WomExpression => womExpressionToExpressionElement.toWdlom(a)
         case a: WomValue => womExpressionToExpressionElement.toWdlom(a.asWomExpression)
-        case _ => StringLiteral("cake")
+        case Inl(a: GraphNodeOutputPort) =>
+          a.graphNode.asInstanceOf[TaskCallInputExpressionNode].womExpression.toWdlom
+        case Inr(_) => throw UnrepresentableException
+        case _ => throw UnrepresentableException
       }
     }
 

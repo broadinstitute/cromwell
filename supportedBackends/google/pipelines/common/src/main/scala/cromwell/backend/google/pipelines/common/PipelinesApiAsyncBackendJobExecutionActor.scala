@@ -1,5 +1,6 @@
 package cromwell.backend.google.pipelines.common
 
+import java.io.FileNotFoundException
 import java.net.SocketTimeoutException
 
 import _root_.io.grpc.Status
@@ -470,7 +471,11 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   }
 
   override def mapOutputWomFile(womFile: WomFile): WomFile = {
-    womFileToGcsPath(generateJesOutputs(jobDescriptor))(womFile)
+    val cloudOutputWomFile: WomFile = womFileToGcsPath(generateJesOutputs(jobDescriptor))(womFile)
+    val cloudOutputPath: Path = backendEngineFunctions.buildPath(cloudOutputWomFile.value)
+    // This is not really exceptional for optional output files.
+    if (!cloudOutputPath.exists) throw new FileNotFoundException(s"Could not process output, file not found: ${cloudOutputPath.pathAsString}")
+    cloudOutputWomFile
   }
 
   private[pipelines] def womFileToGcsPath(jesOutputs: Set[PipelinesApiFileOutput])(womFile: WomFile): WomFile = {

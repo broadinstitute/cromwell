@@ -9,19 +9,27 @@ object WomGraphMakerTools {
   // - A scatter block
   // - An if block
   // - (NB: top level workflows are already given wildcard outputs in the WDL Workflow building phase)
-  def addDefaultOutputs(g: Graph, outputIdentifierCompoundingFunction: (WomIdentifier, String) => WomIdentifier): Graph = Graph(g.nodes.union((g.nodes collect {
-    case node: CallNode => node.outputPorts.map(op => {
-      val identifier = outputIdentifierCompoundingFunction(node.identifier, op.identifier.localName.value)
-      PortBasedGraphOutputNode(identifier, op.womType, op)
-    })
-    case node: ExposedExpressionNode => node.outputPorts.map(op => {
-      PortBasedGraphOutputNode(WomIdentifier(op.name), op.womType, op)
-    })
-    case node: ScatterNode => node.outputMapping.map(op => {
-      PortBasedGraphOutputNode(op.identifier, op.womType, op)
-    })
-    case node: ConditionalNode => node.conditionalOutputPorts.map(op => {
-      PortBasedGraphOutputNode(op.identifier, op.womType, op)
-    })
-  }).flatten))
+  def addDefaultOutputs(g: Graph, forWorkflowOutputs: Option[WomIdentifier] = None): Graph = {
+
+    def makeIdentifier(original: WomIdentifier): WomIdentifier = forWorkflowOutputs match {
+      case None => original
+      case Some(wfIdentifier) => wfIdentifier.combine(original.localName.value)
+    }
+
+    Graph(g.nodes.union((g.nodes collect {
+      case node: CallNode => node.outputPorts.map(op => {
+        val identifier = makeIdentifier(WomIdentifier(op.identifier.localName.value))
+        PortBasedGraphOutputNode(identifier, op.womType, op)
+      })
+      case node: ExposedExpressionNode if forWorkflowOutputs.isEmpty => node.outputPorts.map(op => {
+        PortBasedGraphOutputNode(makeIdentifier(WomIdentifier(op.name)), op.womType, op)
+      })
+      case node: ScatterNode => node.outputMapping.map(op => {
+        PortBasedGraphOutputNode(makeIdentifier(op.identifier), op.womType, op)
+      })
+      case node: ConditionalNode => node.conditionalOutputPorts.map(op => {
+        PortBasedGraphOutputNode(makeIdentifier(op.identifier), op.womType, op)
+      })
+    }).flatten))
+  }
 }

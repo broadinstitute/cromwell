@@ -1,0 +1,17 @@
+name: draft3_omitting_outputs
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+
+files {
+  workflow: wdl_draft3/draft3_omitting_outputs/draft3_omitting_outputs.wdl
+  imports: [ wdl_draft3/draft3_omitting_outputs/import_me.wdl ]
+}
+
+metadata {
+  workflowName: draft3_omitting_outputs
+  status: Succeeded
+  "outputs.draft3_omitting_outputs.foo.x": "hi"
+  "outputs.draft3_omitting_outputs.foo2.x.0": "hi"
+}

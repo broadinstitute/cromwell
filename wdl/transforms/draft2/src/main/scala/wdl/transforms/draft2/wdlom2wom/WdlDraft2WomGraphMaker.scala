@@ -107,7 +107,7 @@ object WdlDraft2WomGraphMaker extends WomGraphMaker[Scope] {
     // - An if block
     // - (NB: top level workflows are already given wildcard outputs in the WDL Workflow building phase)
     def withDefaultOutputs(g: Graph): Graph = scope match {
-      case _: If | _: Scatter => WomGraphMakerTools.addDefaultOutputs(g, (_, localName) => WomIdentifier(localName = localName))
+      case _: If | _: Scatter => WomGraphMakerTools.addDefaultOutputs(g)
       case _ => g
     }
 

@@ -6,6 +6,9 @@ workflow sub_wf {
   }
   # Calls foo but doesn't provide an 'x'. That's fine because the input was optional, but now the outer WF cannot override it.
   call foo { input: y = y }
+
+  # No outputs, but we don't want that to be the error:
+  output { }
 }
 
 task foo {

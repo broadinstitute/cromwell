@@ -60,7 +60,7 @@ object IfElementToGraphNode {
       val innerGraph: ErrorOr[Graph] = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
 
       innerGraph map { ig =>
-        val withOutputs = WomGraphMakerTools.addDefaultOutputs(ig, (_, localName) => WomIdentifier(localName))
+        val withOutputs = WomGraphMakerTools.addDefaultOutputs(ig)
         val generatedAndNew = ConditionalNode.wireInConditional(withOutputs, expressionNode)
         generatedAndNew.nodes
       }

@@ -3,13 +3,17 @@ package wdl.draft3.transforms.wom2wdlom
 import wdl.model.draft3.elements._
 import wom.executable.WomBundle
 import common.collections.EnhancedCollections.EnhancedTraversableLike
+import wdl.draft2.model.command.{ParameterCommandPart, StringCommandPart}
+import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
+//import common.validation.ErrorOr.ErrorOr
 import shapeless.{Inl, Inr}
 import wdl.draft2.model.WdlWomExpression
 import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wom.callable.Callable._
-import wdl.model.draft3.elements.ExpressionElement.{ExpressionLiteralElement, StringLiteral}
+import wdl.model.draft3.elements.ExpressionElement.ExpressionLiteralElement
 import wdl.model.draft3.elements.MetaValueElement.MetaValueElementString
 import wom.RuntimeAttributes
+//import wom.{CommandPart, RuntimeAttributes}
 import wom.callable.Callable.OutputDefinition
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
 import wom.expression.{InputLookupExpression, ValueAsAnExpression, WomExpression}
@@ -29,12 +33,13 @@ object WomToWdlomImpl {
   implicit val graphOutputNodeToWorkflowGraphElement: WomToWdlom[GraphOutputNode, WorkflowGraphElement] =
     new WomToWdlom[GraphOutputNode, WorkflowGraphElement] {
       override def toWdlom(a: GraphOutputNode): WorkflowGraphElement = a match {
-        case a: PortBasedGraphOutputNode =>
-          OutputDeclarationElement(
-            a.womType.toWdlom,
-            a.identifier.localName.value,
-            StringLiteral("bogus") // TODO
-          )
+        case _: PortBasedGraphOutputNode =>
+          ??? // Don't yet know when this would happen
+//          OutputDeclarationElement(
+//            a.womType.toWdlom,
+//            a.identifier.localName.value,
+//            StringLiteral("bogus") // TODO
+//          )
         case a: ExpressionBasedGraphOutputNode =>
           OutputDeclarationElement(
             a.womType.toWdlom,
@@ -119,12 +124,21 @@ object WomToWdlomImpl {
         val inputs = a.inputs.map(inputDefinitionToInputDeclarationElement.toWdlom)
         val outputs = a.outputs.map(outputDefinitionToOutputDeclarationElement.toWdlom)
 
+        val command = a.commandTemplateBuilder(Map()).getOrElse(???)
+
+        import wdl.model.draft3.elements.ExpressionElement.StringLiteral
+
+        val commandLine = CommandSectionLine(command map {
+          case s: StringCommandPart => StringCommandPartElement(s.literal)
+          case p: ParameterCommandPart => PlaceholderCommandPartElement(StringLiteral(p.toString), PlaceholderAttributeSet.empty)
+        })
+
         TaskDefinitionElement(
           a.name,
           if (inputs.nonEmpty) Some(InputsSectionElement(inputs)) else None,
           Seq(), // TODO: maybe these don't exist in draft-2?
           if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
-          CommandSectionElement(Seq()),
+          CommandSectionElement(Seq(commandLine)),
           a.runtimeAttributes.toWdlom,
           mapToMetaSectionElement.toWdlom(a.meta), // TODO: why do these require explicit notation?
           mapToParameterMetaSectionElement.toWdlom(a.parameterMeta)
@@ -264,8 +278,10 @@ object WomToWdlomImpl {
         case a: WomValue => womExpressionToExpressionElement.toWdlom(a.asWomExpression)
         case Inl(a: GraphNodeOutputPort) =>
           a.graphNode.asInstanceOf[TaskCallInputExpressionNode].womExpression.toWdlom
-        case Inr(_) => throw UnrepresentableException
-        case _ => throw UnrepresentableException
+        case Inr(_) =>
+          throw UnrepresentableException // TODO: happens in germline single sample, needs addressing
+        case _ =>
+          throw UnrepresentableException
       }
     }
 

@@ -60,7 +60,7 @@ object ActionBuilder {
     val List(containerPath, cloudPath) = List(fileOutput.containerPath.pathAsString, fileOutput.cloudPath) map ESCAPE_XSI.translate
 
     val copy = s"gsutil -u $projectId cp $containerPath $cloudPath"
-    lazy val copyOnlyIfExists = s"if [[ -r $containerPath ]]; then $copy; fi"
+    lazy val copyOnlyIfExists = s"if [[ -e $containerPath ]]; then $copy; fi"
 
     cloudSdkAction
       .withCommand("/bin/sh", "-c", if (fileOutput.optional) copyOnlyIfExists else copy)

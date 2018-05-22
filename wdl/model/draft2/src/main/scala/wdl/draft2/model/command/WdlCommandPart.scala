@@ -14,8 +14,6 @@ import wom.{CommandPart, InstantiatedCommand}
 
 trait WdlCommandPart extends CommandPart {
 
-  def fileSizeLimitationConfig: FileSizeLimitationConfig
-
   def instantiate(declarations: Seq[Declaration],
                   inputsMap: Map[String, WomValue],
                   functions: WdlFunctions[WomValue],
@@ -25,7 +23,7 @@ trait WdlCommandPart extends CommandPart {
                            functions: IoFunctionSet,
                            valueMapper: WomValue => WomValue,
                            runtimeEnvironment: RuntimeEnvironment): ErrorOr[List[InstantiatedCommand]] = {
-    val wdlFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(functions, fileSizeLimitationConfig)
+    val wdlFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(functions, FileSizeLimitationConfig.fileSizeLimitationConfig)
     instantiate(Seq.empty, inputsMap.map({case (localName, value) => localName.value -> value}), wdlFunctions, valueMapper)
   }
 }

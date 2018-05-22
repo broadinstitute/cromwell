@@ -1,0 +1,12 @@
+name: read_file_limits
+testFormat: workflowfailure
+
+files {
+  workflow: read_file_limits/read_file_limits.wdl
+  options: read_file_limits/read_file_limits.options
+}
+
+metadata {
+  workflowName: read_file_limits
+  status: Failed
+}

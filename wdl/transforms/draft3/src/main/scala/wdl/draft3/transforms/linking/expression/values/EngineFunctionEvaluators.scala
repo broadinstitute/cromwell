@@ -20,6 +20,7 @@ import wom.types.coercion.ops._
 import wom.types.coercion.defaults._
 import wom.types.coercion.WomTypeCoercer
 import spray.json._
+import wdl.shared.FileSizeLimitationConfig
 import wdl.shared.model.expression.ValueEvaluation
 import wom.CommandSetupSideEffectFile
 
@@ -28,6 +29,8 @@ import scala.concurrent.Await
 import scala.util.Try
 
 object EngineFunctionEvaluators {
+  private val fileSizeLimitationConfig = FileSizeLimitationConfig.fileSizeLimitationConfig
+
   implicit val stdoutFunctionEvaluator: ValueEvaluator[StdoutElement.type] = new ValueEvaluator[StdoutElement.type] {
     override def evaluateValue(a: StdoutElement.type,
                                inputs: Map[String, WomValue],
@@ -45,7 +48,9 @@ object EngineFunctionEvaluators {
   }
 
   private val ReadWaitTimeout = 10.seconds
-  private def readFile(fileToRead: WomSingleFile, ioFunctionSet: IoFunctionSet) = Try(Await.result(ioFunctionSet.readFile(fileToRead.value, None, failOnOverflow = true), ReadWaitTimeout))
+  private def readFile(fileToRead: WomSingleFile, ioFunctionSet: IoFunctionSet, sizeLimit: Int) = {
+    Try(Await.result(ioFunctionSet.readFile(fileToRead.value, Option(sizeLimit), failOnOverflow = true), ReadWaitTimeout))
+  }
 
   implicit val readLinesFunctionEvaluator: ValueEvaluator[ReadLines] = new ValueEvaluator[ReadLines] {
     override def evaluateValue(a: ReadLines,
@@ -55,7 +60,7 @@ object EngineFunctionEvaluators {
       processValidatedSingleValue[WomSingleFile, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
         val tryResult = for {
           //validate
-          read <- readFile(fileToRead, ioFunctionSet)
+          read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readLinesLimit)
           lines = read.split(System.lineSeparator)
         } yield EvaluatedValue(WomArray(lines map WomString.apply), Seq.empty)
         tryResult.toErrorOr.contextualizeErrors(s"""read_lines("${fileToRead.value}")""")
@@ -70,7 +75,7 @@ object EngineFunctionEvaluators {
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomArray]] = {
       processValidatedSingleValue[WomSingleFile, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
         val tryResult = for {
-          read <- readFile(fileToRead, ioFunctionSet)
+          read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readTsvLimit)
           tsv <- Try(WomArray.fromTsv(read))
         } yield EvaluatedValue(tsv, Seq.empty)
         tryResult.toErrorOr.contextualizeErrors(s"""read_tsv("${fileToRead.value}")""")
@@ -85,7 +90,7 @@ object EngineFunctionEvaluators {
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomMap]] = {
       processValidatedSingleValue[WomSingleFile, WomMap](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
         val tryResult = for {
-          read <- readFile(fileToRead, ioFunctionSet)
+          read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readMapLimit)
           map <- WomMap.fromTsv(read)
         } yield EvaluatedValue(map, Seq.empty)
         tryResult.toErrorOr.contextualizeErrors(s"""read_map("${fileToRead.value}")""")
@@ -100,7 +105,7 @@ object EngineFunctionEvaluators {
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomObject]] = {
       processValidatedSingleValue[WomSingleFile, WomObject](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
         val tryResult = for {
-          read <- readFile(fileToRead, ioFunctionSet)
+          read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readObjectLimit)
           obj <- WomObject.fromTsv(read)
         } yield obj
         val rightSize: ErrorOr[WomObject] = tryResult.toErrorOr flatMap {
@@ -119,7 +124,7 @@ object EngineFunctionEvaluators {
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomArray]] = {
       processValidatedSingleValue[WomSingleFile, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
         val tryResult = for {
-          read <- readFile(fileToRead, ioFunctionSet)
+          read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readObjectLimit)
           objects <- WomObject.fromTsv(read)
         } yield WomArray(objects)
 
@@ -135,7 +140,7 @@ object EngineFunctionEvaluators {
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomObject]] = {
       processValidatedSingleValue[WomSingleFile, WomObject](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
         val tryResult: Try[WomObject] = for {
-          read <- readFile(fileToRead, ioFunctionSet)
+          read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readJsonLimit)
           jsValue <- Try(read.parseJson)
           coerced <- WomObjectType.coerceRawValue(jsValue)
           womObject <- Try(coerced.asInstanceOf[WomObject])
@@ -153,7 +158,7 @@ object EngineFunctionEvaluators {
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomInteger]] = {
       processValidatedSingleValue[WomSingleFile, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
         val tryResult = for {
-          read <- readFile(fileToRead, ioFunctionSet)
+          read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readIntLimit)
           asInt <- Try(read.trim.toInt)
         } yield WomInteger(asInt)
         tryResult.map(EvaluatedValue(_, Seq.empty)).toErrorOr.contextualizeErrors(s"""read_int("${fileToRead.value}")""")
@@ -168,7 +173,7 @@ object EngineFunctionEvaluators {
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomString]] = {
       processValidatedSingleValue[WomSingleFile, WomString](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
         val tryResult = for {
-          read <- readFile(fileToRead, ioFunctionSet)
+          read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readStringLimit)
         } yield WomString(read.trim)
         tryResult.map(EvaluatedValue(_, Seq.empty)).toErrorOr.contextualizeErrors(s"""read_string("${fileToRead.value}")""")
       }
@@ -182,7 +187,7 @@ object EngineFunctionEvaluators {
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomFloat]] = {
       processValidatedSingleValue[WomSingleFile, WomFloat](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
         val tryResult = for {
-          read <- readFile(fileToRead, ioFunctionSet)
+          read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readFloatLimit)
           asFloat <- Try(read.trim.toDouble)
         } yield WomFloat(asFloat)
         tryResult.map(EvaluatedValue(_, Seq.empty)).toErrorOr.contextualizeErrors(s"""read_float("${fileToRead.value}")""")
@@ -197,7 +202,7 @@ object EngineFunctionEvaluators {
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[WomBoolean]] = {
       processValidatedSingleValue[WomSingleFile, WomBoolean](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
         val tryResult = for {
-          read <- readFile(fileToRead, ioFunctionSet)
+          read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readBoolLimit)
           asBool <- Try(read.trim.toBoolean)
         } yield WomBoolean(asBool)
         tryResult.map(EvaluatedValue(_, Seq.empty)).toErrorOr.contextualizeErrors(s"""read_int("${fileToRead.value}")""")

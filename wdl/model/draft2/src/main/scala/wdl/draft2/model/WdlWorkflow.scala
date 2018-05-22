@@ -2,7 +2,6 @@ package wdl.draft2.model
 
 import wdl.draft2.model.AstTools._
 import wdl.draft2.parser.WdlParser._
-import wdl.shared.FileSizeLimitationConfig
 import wom.callable.Callable.InputDefinition
 import wom.types.WomType
 
@@ -59,9 +58,8 @@ case class WdlWorkflow(unqualifiedName: String,
     (children.toSet.filterByType[WdlGraphNode]: Set[WdlGraphNode]) ++ outputs
   }
 
-  def unsatisfiedCallInputs: FileSizeLimitationConfig => Set[InputDefinition] =
-    fileSizeLimitationConfig =>
-      calls.flatMap(_.workflowInputs(fileSizeLimitationConfig))
+  def unsatisfiedCallInputs: Set[InputDefinition] =
+      calls.flatMap(_.workflowInputs)
 
   /**
    * FQNs for all inputs to this workflow and their associated types and possible postfix quantifiers.
@@ -69,14 +67,14 @@ case class WdlWorkflow(unqualifiedName: String,
    * @return a Map[FullyQualifiedName, WorkflowInput] representing the
    *         inputs that the user needs to provide to this workflow
    */
-  def inputs: FileSizeLimitationConfig => Map[FullyQualifiedName, InputDefinition] = { fileSizeLimitationConfig =>
+  def inputs: Map[FullyQualifiedName, InputDefinition] = {
 
     val declarationInputs = for {
       declaration <- declarations
-      input <- declaration.asWorkflowInput(fileSizeLimitationConfig)
+      input <- declaration.asWorkflowInput
     } yield input
 
-    (unsatisfiedCallInputs(fileSizeLimitationConfig) ++ declarationInputs) map { input => input.name -> input } toMap
+    (unsatisfiedCallInputs ++ declarationInputs) map { input => input.name -> input } toMap
   }
 
   /** First tries to find any Call with name `name`.  If not found,

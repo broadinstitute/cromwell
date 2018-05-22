@@ -57,7 +57,7 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
   class TestValueFunctions extends WdlStandardLibraryFunctions {
     override def globHelper(pattern: String): Seq[String] = throw new NotImplementedError()
 
-    override def readFile(path: String): String = throw new NotImplementedError()
+    override def readFile(path: String, sizeLimit: Int): String = throw new NotImplementedError()
 
     override def writeFile(path: String, content: String): Try[WomSingleFile] = Failure(new NotImplementedError())
 

@@ -52,7 +52,7 @@ class WdlStandardLibraryFunctionsSpec extends FlatSpec with Matchers {
 case object TestableFunctions extends WdlStandardLibraryFunctions {
   // No need to test the ones that are overridden anyway:
   // TODO: Can replace with "OnlyPureFunctions when that branch merges..."
-  override def readFile(path: String): String = throw new NotImplementedError
+  override def readFile(path: String, sizeLimit: Int): String = throw new NotImplementedError
   override def writeFile(path: String, content: String): Try[WomFile] = throw new NotImplementedError
   override def range(params: Seq[Try[WomValue]]): Try[WomArray] = throw new NotImplementedError
   override def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = throw new NotImplementedError

@@ -214,12 +214,12 @@ case class WdlExpression(ast: AstNode) extends WomValue {
   * @param from The Scope in which the WdlExpression is found, needed to adjust member access expressions located in
   *             conditionals (wrapped in optionals) or scatters (wrapped in arrays).
   */
-final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope, fileSizeLimitationConfig: FileSizeLimitationConfig) extends WomExpression { self =>
+final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope) extends WomExpression {
   override def sourceString = wdlExpression.valueString
   override def inputs: Set[String] = wdlExpression.variableReferences(from) map { _.referencedVariableName } toSet
 
   override def evaluateValue(variableValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
-    lazy val wdlFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(ioFunctionSet, fileSizeLimitationConfig)
+    lazy val wdlFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(ioFunctionSet, FileSizeLimitationConfig.fileSizeLimitationConfig)
     wdlExpression.evaluate(variableValues.apply, wdlFunctions).toErrorOr
   }
 
@@ -231,7 +231,7 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope, fil
   override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = {
     lazy val wdlFunctions = new WdlStandardLibraryFunctions {
 
-      override def readFile(path: String): String = Await.result(ioFunctionSet.readFile(path, None, failOnOverflow = false), Duration.Inf)
+      override def readFile(path: String, sizeLimit: Int): String = Await.result(ioFunctionSet.readFile(path, Option(sizeLimit), failOnOverflow = true), Duration.Inf)
 
       override def writeFile(path: String, content: String): Try[WomFile] = Try(Await.result(ioFunctionSet.writeFile(path, content), Duration.Inf))
 
@@ -243,7 +243,7 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope, fil
 
       override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new Exception("You shouldn't call 'size' from a FileEvaluator"))
 
-      override protected val fileSizeLimitationConfig: FileSizeLimitationConfig = self.fileSizeLimitationConfig
+      override protected val fileSizeLimitationConfig: FileSizeLimitationConfig = FileSizeLimitationConfig.fileSizeLimitationConfig
     }
     wdlExpression.evaluateFiles(inputTypes.apply, wdlFunctions, coerceTo).toErrorOr.map(_.toSet[WomFile] map FileEvaluation.requiredFile)
   }

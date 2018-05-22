@@ -22,7 +22,7 @@ import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
 
 trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
-  def readFile(path: String): String
+  def readFile(path: String, sizeLimit: Int): String 
 
   def writeFile(path: String, content: String): Try[WomFile]
 
@@ -32,7 +32,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
 
   def size(params: Seq[Try[WomValue]]): Try[WomFloat]
 
-  protected def size(path: String): Try[Long] = ???
+  protected def fileSizeLimitationConfig: FileSizeLimitationConfig
 
   private def writeContent(baseName: String, content: String): Try[WomFile] = writeFile(s"${baseName}_${content.md5Sum}.tmp", content)
 
@@ -44,47 +44,11 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
     } yield file
   }
 
-  def read_objects(params: Seq[Try[WomValue]]): Try[WomArray] =  {
-    val functionName = "read_objects"
-    for {
-      _ <- validateFileSizeIsWithinLimits(functionName, params, fileSizeLimitationConfig.readObjectLimit.toLong)
-      objects <- extractObjects(functionName, params)
-    } yield WomArray(WomArrayType(WomObjectType), objects)
-  }
-
-  def read_string(params: Seq[Try[WomValue]]): Try[WomString] = {
-    val functionName = "read_string"
-    for {
-      _ <- validateFileSizeIsWithinLimits(functionName, params, fileSizeLimitationConfig.readStringLimit.toLong)
-      string <- readContentsFromSingleFileParameter(functionName, params)
-    } yield WomString(string.trim)
-  }
-
-  def read_json(params: Seq[Try[WomValue]]): Try[WomValue] =
-  {
-    val functionName = "read_json"
-    for {
-      _ <- validateFileSizeIsWithinLimits(functionName, params, fileSizeLimitationConfig.readJsonLimit.toLong)
-      contents <- readContentsFromSingleFileParameter(functionName, params).map(_.parseJson)
-      womObject <- WomObjectType.coerceRawValue(contents)
-    } yield womObject
-  }
-
-  def read_int(params: Seq[Try[WomValue]]): Try[WomInteger] = {
-    val functionName = "read_int"
-    for {
-      _ <- validateFileSizeIsWithinLimits(functionName, params, fileSizeLimitationConfig.readIntLimit.toLong)
-      string <- read_string(params)
-    } yield WomInteger(string.value.trim.toInt)
-  }
-
-  def read_float(params: Seq[Try[WomValue]]): Try[WomFloat] = {
-    val functionName = "read_int"
-    for {
-      _ <- validateFileSizeIsWithinLimits(functionName, params, fileSizeLimitationConfig.readFloatLimit.toLong)
-      string <- read_string(params)
-    } yield WomFloat(string.value.trim.toDouble)
-  }
+  def read_objects(params: Seq[Try[WomValue]]): Try[WomArray] = extractObjects("read_objects", params) map { WomArray(WomArrayType(WomObjectType), _) }
+  def read_string(params: Seq[Try[WomValue]]): Try[WomString] = readContentsFromSingleFileParameter("read_string", params, fileSizeLimitationConfig.readStringLimit).map(s => WomString(s.trim))
+  def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = readContentsFromSingleFileParameter("read_json", params, fileSizeLimitationConfig.readJsonLimit).map(_.parseJson).flatMap(WomObjectType.coerceRawValue)
+  def read_int(params: Seq[Try[WomValue]]): Try[WomInteger] = readContentsFromSingleFileParameter("read_int", params, fileSizeLimitationConfig.readIntLimit).map(s => WomString(s.trim)) map { s => WomInteger(s.value.trim.toInt) }
+  def read_float(params: Seq[Try[WomValue]]): Try[WomFloat] = readContentsFromSingleFileParameter("read_float", params, fileSizeLimitationConfig.readFloatLimit).map(s => WomString(s.trim)) map { s => WomFloat(s.value.trim.toDouble) }
 
   def write_lines(params: Seq[Try[WomValue]]): Try[WomFile] = writeToTsv("write_lines", params, WomArray(WomArrayType(WomStringType), List.empty[WomValue]))
   def write_map(params: Seq[Try[WomValue]]): Try[WomFile] = writeToTsv("write_map", params, WomMap(WomMapType(WomStringType, WomStringType), Map.empty[WomValue, WomValue]))
@@ -98,62 +62,35 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
   } yield written
 
   def read_lines(params: Seq[Try[WomValue]]): Try[WomArray] = {
-    val functionName = "read_lines"
     for {
-      _ <- validateFileSizeIsWithinLimits(functionName, params, fileSizeLimitationConfig.readLinesLimit.toLong)
-      contents <- readContentsFromSingleFileParameter(functionName, params)
+      contents <- readContentsFromSingleFileParameter("read_lines", params, fileSizeLimitationConfig.readLinesLimit)
       lines = contents.split("\n")
     } yield WomArray(WomArrayType(WomStringType), lines map WomString)
   }
 
-  protected def fileSizeLimitationConfig: FileSizeLimitationConfig
-
-  private def validateFileSizeIsWithinLimits(functionName: String, params: Seq[Try[WomValue]], limit: Long): Try[Unit] =
-    for {
-      fileName <- extractSingleArgument(functionName, params)
-      fileSize <- size(params)
-      _ <- if (fileSize.value.toLong > limit) {
-        val errorMsg = s"Use of $fileName failed because the file was too big ($fileSize bytes when only files of up to $limit bytes are permissible"
-        Failure(new RuntimeException(errorMsg))
-      }
-        else Try(())
-    } yield ()
-
   def read_map(params: Seq[Try[WomValue]]): Try[WomMap] = {
-    val functionName = "read_map"
     for {
-      _ <- validateFileSizeIsWithinLimits(functionName, params, fileSizeLimitationConfig.readMapLimit.toLong)
-      contents <- readContentsFromSingleFileParameter(functionName, params)
+      contents <- readContentsFromSingleFileParameter("read_map", params, fileSizeLimitationConfig.readMapLimit)
       wdlMap <- WomMap.fromTsv(contents, WomMapType(WomAnyType, WomAnyType))
     } yield wdlMap
   }
 
   def read_object(params: Seq[Try[WomValue]]): Try[WomObject] = {
-    val functionName = "read_object"
-    for {
-      _ <- validateFileSizeIsWithinLimits(functionName, params, fileSizeLimitationConfig.readObjectLimit.toLong)
-      womObject <- extractObjects(functionName, params) map {
-        case array if array.length == 1 => array.head
-        case _ => throw new IllegalArgumentException("read_object yields an Object and thus can only read 2-rows TSV files. Try using read_objects instead.")
-      }
-    } yield womObject
+    extractObjects("read_object", params) map {
+      case array if array.length == 1 => array.head
+      case _ => throw new IllegalArgumentException("read_object yields an Object and thus can only read 2-rows TSV files. Try using read_objects instead.")
+    }
   }
 
   def read_tsv(params: Seq[Try[WomValue]]): Try[WomArray] = {
-    val functionName = "read_tsv"
     for {
-      _ <- validateFileSizeIsWithinLimits(functionName, params, fileSizeLimitationConfig.readTsvLimit.toLong)
-      contents <- readContentsFromSingleFileParameter(functionName, params)
+      contents <- readContentsFromSingleFileParameter("read_tsv", params, fileSizeLimitationConfig.readTsvLimit)
       wdlArray = WomArray.fromTsv(contents)
     } yield wdlArray
   }
 
   def read_boolean(params: Seq[Try[WomValue]]): Try[WomBoolean] = {
-    val functionName = "read_tsv"
-    for {
-      _ <- validateFileSizeIsWithinLimits(functionName, params, fileSizeLimitationConfig.readBoolLimit.toLong)
-      string <- read_string(params)
-    } yield WomBoolean(java.lang.Boolean.parseBoolean(string.value.trim.toLowerCase))
+    readContentsFromSingleFileParameter("read_boolean", params, fileSizeLimitationConfig.readBoolLimit).map(s => WomString(s.trim)) map { s => WomBoolean(java.lang.Boolean.parseBoolean(s.value.trim.toLowerCase)) }
   }
 
   def globHelper(pattern: String): Seq[String]
@@ -350,22 +287,22 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
     * as a File and attempts to read the contents of that file and returns back the contents
     * as a String
     */
-  private def readContentsFromSingleFileParameter(functionName: String, params: Seq[Try[WomValue]]): Try[String] = {
+  private def readContentsFromSingleFileParameter(functionName: String, params: Seq[Try[WomValue]], sizeLimit: Int): Try[String] = {
     for {
       singleArgument <- extractSingleArgument(functionName, params)
-      string = readFile(singleArgument.valueString)
+      string = readFile(singleArgument.valueString, sizeLimit)
     } yield string
   }
 
   private def extractObjects(functionName: String, params: Seq[Try[WomValue]]): Try[Array[WomObject]] = for {
-    contents <- readContentsFromSingleFileParameter(functionName, params)
+    contents <- readContentsFromSingleFileParameter(functionName, params, fileSizeLimitationConfig.readObjectLimit)
     wdlObjects <- WomObject.fromTsv(contents)
   } yield wdlObjects
 }
 
 object WdlStandardLibraryFunctions {
   def fromIoFunctionSet(ioFunctionSet: IoFunctionSet, _fileSizeLimitationConfig: FileSizeLimitationConfig) = new WdlStandardLibraryFunctions {
-    override def readFile(path: String): String = Await.result(ioFunctionSet.readFile(path, None, failOnOverflow = false), Duration.Inf)
+    override def readFile(path: String, sizeLimit: Int): String = Await.result(ioFunctionSet.readFile(path, Option(sizeLimit), failOnOverflow = true), Duration.Inf)
 
     override def writeFile(path: String, content: String): Try[WomFile] = Try(Await.result(ioFunctionSet.writeFile(path, content), Duration.Inf))
 
@@ -388,8 +325,7 @@ object WdlStandardLibraryFunctions {
 
         // Inner function: Get the file size, allowing for unpacking of optionals
         def optionalSafeFileSize(value: WomValue): Try[Long] = value match {
-          case f if f.isInstanceOf[WomSingleFile] || WomSingleFileType.isCoerceableFrom(f.womType) =>
-            size(f.valueString)
+          case f if f.isInstanceOf[WomSingleFile] || WomSingleFileType.isCoerceableFrom(f.womType) => Try(Await.result(ioFunctionSet.size(f.valueString), Duration.Inf))
           case WomOptionalValue(_, Some(o)) => optionalSafeFileSize(o)
           case WomOptionalValue(f, None) if isOptionalOfFileType(f) => Success(0l)
           case _ => Failure(new Exception(s"The 'size' method expects a 'File' or 'File?' argument but instead got ${value.womType.toDisplayString}."))
@@ -410,8 +346,6 @@ object WdlStandardLibraryFunctions {
           case _ => Failure(new UnsupportedOperationException(s"Expected one or two parameters but got ${params.length} instead."))
         }
     }
-
-    override def size(path: String): Try[Long] = Try(Await.result(ioFunctionSet.size(path), Duration.Inf))
 
     override protected val fileSizeLimitationConfig: FileSizeLimitationConfig = _fileSizeLimitationConfig
   }
@@ -444,7 +378,7 @@ trait PureStandardLibraryFunctionsLike extends WdlStandardLibraryFunctions {
 
   def className = this.getClass.getCanonicalName
 
-  override def readFile(path: String): String = throw new NotImplementedError(s"readFile not available in $className.")
+  override def readFile(path: String, sizeLimit: Int): String = throw new NotImplementedError(s"readFile not available in $className.")
   override def writeFile(path: String, content: String): Try[WomFile] = throw new NotImplementedError(s"writeFile not available in $className.")
   override def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = Failure(new NotImplementedError(s"read_json not available in $className."))
   override def write_json(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError(s"write_json not available in $className."))
@@ -571,14 +505,14 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WomType] {
 
 case object NoFunctions extends WdlStandardLibraryFunctions {
   override def globHelper(pattern: String): Seq[String] = throw new NotImplementedError()
-  override def readFile(path: String): String = throw new NotImplementedError()
+  override def readFile(path: String, sizeLimit: Int): String = throw new NotImplementedError()
   override def writeFile(path: String, content: String): Try[WomFile] = throw new NotImplementedError()
   override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError())
   override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError())
   override def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = Failure(new NotImplementedError())
   override def write_tsv(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError())
   override def write_json(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError())
-  override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = throw new NotImplementedError()
+  override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new NotImplementedError())
   override def length(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new NotImplementedError())
   override def flatten(params: Seq[Try[WomValue]]): Try[WomValue] = Failure(new NotImplementedError())
   override def sub(params: Seq[Try[WomValue]]): Try[WomString] = Failure(new NotImplementedError())

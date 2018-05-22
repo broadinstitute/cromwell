@@ -2,7 +2,6 @@ package wdl.draft2.model
 
 import wdl.draft2.model.AstTools.EnhancedAstNode
 import wdl.draft2.parser.WdlParser.Ast
-import wdl.shared.FileSizeLimitationConfig
 import wom.callable.Callable.OutputDefinition
 import wom.graph._
 import wom.types.WomType
@@ -15,14 +14,14 @@ object TaskOutput {
     TaskOutput(name, womType, expression, ast, parent)
   }
 
-  def buildWomOutputDefinition(taskOutput: TaskOutput): FileSizeLimitationConfig => OutputDefinition = { fileSizeLimitationConfig =>
+  def buildWomOutputDefinition(taskOutput: TaskOutput): OutputDefinition = {
     OutputDefinition(
       LocalName(taskOutput.unqualifiedName),
       taskOutput.womType,
-      WdlWomExpression(taskOutput.requiredExpression, from = taskOutput, fileSizeLimitationConfig = fileSizeLimitationConfig))
+      WdlWomExpression(taskOutput.requiredExpression, from = taskOutput))
   }
 }
 
 final case class TaskOutput(unqualifiedName: String, womType: WomType, requiredExpression: WdlExpression, ast: Ast, override val parent: Option[Scope]) extends Output {
-  lazy val womOutputDefinition: FileSizeLimitationConfig => OutputDefinition =  TaskOutput.buildWomOutputDefinition(this)
+  lazy val womOutputDefinition: OutputDefinition = TaskOutput.buildWomOutputDefinition(this)
 }

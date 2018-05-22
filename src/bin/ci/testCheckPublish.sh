@@ -5,6 +5,6 @@ set -e
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
-cromwell::build::setup_everyone_environment
+cromwell::build::setup_common_environment
 
 sbt +clean +package assembly +doc

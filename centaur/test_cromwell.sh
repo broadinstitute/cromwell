@@ -108,8 +108,8 @@ cd "${RUN_DIR}"
 
 TEST_STATUS="failed"
 
-ENABLE_COVERAGE=${CENTAUR_SBT_COVERAGE} sbt centaur/it:compile
-CP=$(ENABLE_COVERAGE=${CENTAUR_SBT_COVERAGE} sbt "export centaur/it:dependencyClasspath" -error)
+CROMWELL_SBT_COVERAGE=${CENTAUR_SBT_COVERAGE} sbt centaur/it:compile
+CP=$(CROMWELL_SBT_COVERAGE=${CENTAUR_SBT_COVERAGE} sbt "export centaur/it:dependencyClasspath" -error)
 
 if [ -n "${TEST_CASE_DIR}" ]; then
     RUN_SPECIFIED_TEST_DIR_CMD="-Dcentaur.standardTestCasePath=${TEST_CASE_DIR}"

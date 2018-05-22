@@ -6,11 +6,13 @@ export CROMWELL_BUILD_SUPPORTS_CRON=true
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
-cromwell::build::setup_secure_environment
+cromwell::build::setup_common_environment
 
 cromwell::build::setup_centaur_environment
 
 cromwell::build::assemble_jars
+
+cromwell::build::setup_secure_resources
 
 GOOGLE_AUTH_MODE="service-account"
 GOOGLE_REFRESH_TOKEN_PATH="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/papi_refresh_token.txt"

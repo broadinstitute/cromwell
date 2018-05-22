@@ -127,10 +127,7 @@ object Declaration {
     )
   }
 
-  def buildWdlDeclarationNode(decl: DeclarationInterface,
-                              localLookup: Map[String, GraphNodePort.OutputPort],
-                              outerLookup: Map[String, GraphNodePort.OutputPort],
-                              preserveIndexForOuterLookups: Boolean): ErrorOr[WdlDeclarationNode] = {
+  def buildWdlDeclarationNode(decl: DeclarationInterface, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[WdlDeclarationNode] = {
 
     def declarationAsExpressionNode(wdlExpression: WdlExpression) = {
       val womExpression = WdlWomExpression(wdlExpression, decl)

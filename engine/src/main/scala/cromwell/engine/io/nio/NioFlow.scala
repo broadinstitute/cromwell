@@ -79,7 +79,7 @@ class NioFlow(parallelism: Int,
   private def readBytes(read: IoContentAsStringCommand, limit: Int, inputStream: InputStream) : String = {
     val bytesIterator = Iterator.continually(inputStream.read).takeWhile(_ != -1).map(_.toByte).take(limit)
     if (read.options.failOnOverflow && bytesIterator.hasNext)
-      throw new IOException(s"File ${read.file.pathAsString} is larger than $limit Bytes")
+      throw new IOException(s"File ${read.file.pathAsString} is larger than $limit Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits.")
     else
       new String(bytesIterator.toArray, StandardCharsets.UTF_8)
   }

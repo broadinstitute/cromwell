@@ -3,6 +3,7 @@ package wdl.draft2.model
 import wdl.draft2.model.AstTools.EnhancedAstNode
 import wdl.draft2.model.exception.{ValidationException, VariableLookupException, VariableNotFoundException}
 import wdl.draft2.model.expression.WdlFunctions
+import wdl.draft2.model.exception.{ValidationException, VariableLookupException}
 import wdl.draft2.parser.WdlParser.{Ast, SyntaxError, Terminal}
 import wom.callable.Callable._
 import wom.types.WomOptionalType
@@ -83,10 +84,7 @@ sealed abstract class WdlCall(val alias: Option[String],
     *
     * NB Only used in tests, womtool and some external tools (eg FC's workflow input enumerator)
     */
-  def workflowInputs: Seq[InputDefinition] =
-      declarations.
-        filterNot(i => inputMappings.contains(i.unqualifiedName)).
-        flatMap(_.asWorkflowInput)
+  def workflowInputs: Seq[InputDefinition] = declarations.filterNot(i => inputMappings.contains(i.unqualifiedName)).flatMap(_.asWorkflowInput)
 
   override def toString: String = s"[Call $fullyQualifiedName]"
 

@@ -40,7 +40,7 @@ object FileSizeLimitationConfig {
     override def readObjectLimit: Int = Int.MaxValue
   }
 
-  def fileSizeLimitationConfig: FileSizeLimitationConfig = config.as[FileSizeLimitationConfig]("input-read-limits")
+  lazy val fileSizeLimitationConfig: FileSizeLimitationConfig = config.as[FileSizeLimitationConfig]("input-read-limits")
 
   implicit val configReader : ValueReader[FileSizeLimitationConfig] = ValueReader.relative{c =>
     def f(s: String) = c.as[Int](s)

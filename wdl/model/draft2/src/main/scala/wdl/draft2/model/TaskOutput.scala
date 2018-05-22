@@ -14,11 +14,8 @@ object TaskOutput {
     TaskOutput(name, womType, expression, ast, parent)
   }
 
-  def buildWomOutputDefinition(taskOutput: TaskOutput): OutputDefinition = {
-    OutputDefinition(
-      LocalName(taskOutput.unqualifiedName),
-      taskOutput.womType,
-      WdlWomExpression(taskOutput.requiredExpression, from = taskOutput))
+  def buildWomOutputDefinition(taskOutput: TaskOutput) = {
+    OutputDefinition(LocalName(taskOutput.unqualifiedName), taskOutput.womType, WdlWomExpression(taskOutput.requiredExpression, from = taskOutput))
   }
 }
 

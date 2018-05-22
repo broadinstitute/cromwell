@@ -347,7 +347,7 @@ object WdlStandardLibraryFunctions {
         }
     }
 
-    override protected val fileSizeLimitationConfig: FileSizeLimitationConfig = _fileSizeLimitationConfig
+    override protected def fileSizeLimitationConfig: FileSizeLimitationConfig = _fileSizeLimitationConfig
   }
 
   def crossProduct[A, B](as: Seq[A], bs: Seq[B]): Seq[(A, B)] = for {
@@ -387,26 +387,7 @@ trait PureStandardLibraryFunctionsLike extends WdlStandardLibraryFunctions {
   override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError(s"stdout not available in $className."))
   override def globHelper(pattern: String): Seq[String] = throw new NotImplementedError(s"glob not available in $className.")
   override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError(s"stderr not available in $className."))
-
-  override def fileSizeLimitationConfig: FileSizeLimitationConfig = new FileSizeLimitationConfig {
-    override def readLinesLimit: Int = 9999
-
-    override def readBoolLimit: Int = 9999
-
-    override def readIntLimit: Int = 9999
-
-    override def readFloatLimit: Int = 9999
-
-    override def readStringLimit: Int = 9999
-
-    override def readJsonLimit: Int = 9999
-
-    override def readTsvLimit: Int = 9999
-
-    override def readMapLimit: Int = 9999
-
-    override def readObjectLimit: Int = 9999
-  }
+  override def fileSizeLimitationConfig: FileSizeLimitationConfig = FileSizeLimitationConfig.default
 }
 
 case object PureStandardLibraryFunctions extends PureStandardLibraryFunctionsLike
@@ -526,6 +507,5 @@ case object NoFunctions extends WdlStandardLibraryFunctions {
   override def floor(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new NotImplementedError())
   override def round(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new NotImplementedError())
   override def ceil(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new NotImplementedError())
-
-  override protected def fileSizeLimitationConfig: FileSizeLimitationConfig = throw new NotImplementedError()
+  override protected def fileSizeLimitationConfig: FileSizeLimitationConfig = FileSizeLimitationConfig.default
 }

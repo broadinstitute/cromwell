@@ -76,7 +76,7 @@ case class WdlWorkflow(unqualifiedName: String,
       input <- declaration.asWorkflowInput(fileSizeLimitationConfig)
     } yield input
 
-    (unsatisfiedCallInputs ++ declarationInputs) map { input => input.name -> input } toMap
+    (unsatisfiedCallInputs(fileSizeLimitationConfig) ++ declarationInputs) map { input => input.name -> input } toMap
   }
 
   /** First tries to find any Call with name `name`.  If not found,

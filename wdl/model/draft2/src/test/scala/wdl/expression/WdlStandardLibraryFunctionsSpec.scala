@@ -65,8 +65,7 @@ case object TestableFunctions extends WdlStandardLibraryFunctions {
   override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = throw new NotImplementedError
   override def globHelper(pattern: String): Seq[String] = throw new NotImplementedError
   override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = throw new NotImplementedError
-
-  override protected def fileSizeLimitationConfig: FileSizeLimitationConfig = ???
+  override protected def fileSizeLimitationConfig: FileSizeLimitationConfig = throw new NotImplementedError
 }
 
 case object TestableFunctionTypes extends WdlStandardLibraryFunctionsType

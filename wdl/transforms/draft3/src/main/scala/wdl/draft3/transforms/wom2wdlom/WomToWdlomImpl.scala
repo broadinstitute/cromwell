@@ -5,7 +5,6 @@ import wom.executable.WomBundle
 import common.collections.EnhancedCollections.EnhancedTraversableLike
 import wdl.draft2.model.command.{ParameterCommandPart, StringCommandPart}
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
-//import common.validation.ErrorOr.ErrorOr
 import shapeless.{Inl, Inr}
 import wdl.draft2.model.WdlWomExpression
 import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
@@ -13,7 +12,6 @@ import wom.callable.Callable._
 import wdl.model.draft3.elements.ExpressionElement.ExpressionLiteralElement
 import wdl.model.draft3.elements.MetaValueElement.MetaValueElementString
 import wom.RuntimeAttributes
-//import wom.{CommandPart, RuntimeAttributes}
 import wom.callable.Callable.OutputDefinition
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
 import wom.expression.{InputLookupExpression, ValueAsAnExpression, WomExpression}
@@ -104,7 +102,9 @@ object WomToWdlomImpl {
 
   implicit val outputDefinitionToOutputDeclarationElement: WomToWdlom[OutputDefinition, OutputDeclarationElement] =
     new WomToWdlom[OutputDefinition, OutputDeclarationElement] {
-      override def toWdlom(a: OutputDefinition): OutputDeclarationElement = OutputDeclarationElement(a.womType.toWdlom, a.name, a.expression.toWdlom)
+      override def toWdlom(a: OutputDefinition): OutputDeclarationElement =
+        // TODO: fix bogus name mangling (I think we have outputs that shouldn't exist)
+        OutputDeclarationElement(a.womType.toWdlom, a.name.replace('.', '_'), a.expression.toWdlom)
     }
 
   implicit val inputDefinitionToInputDeclarationElement: WomToWdlom[InputDefinition, InputDeclarationElement] =

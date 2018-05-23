@@ -8,6 +8,8 @@ files {
 
 metadata {
   workflowName: forkjoin
+  "actualWorkflowLanguage": WDL
+  "actualWorkflowLanguageVersion": draft-2
   "calls.forkjoin.wc.outputs.count": 1000
   "calls.forkjoin.grep.outputs.count": 21
   "calls.forkjoin.join.outputs.proportion": 47

@@ -21,6 +21,9 @@ import wom.transforms.WomExecutableMaker.ops._
 
 class WdlDraft3LanguageFactory(override val config: Map[String, Any]) extends LanguageFactory {
 
+  override val languageName: String = "WDL"
+  override val languageVersionName: String = "1.0"
+
   override def validateNamespace(source: WorkflowSourceFilesCollection,
                                     workflowOptions: WorkflowOptions,
                                     importLocalFilesystem: Boolean,

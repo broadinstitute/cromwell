@@ -1,6 +1,6 @@
 name: draft3_infer_version
 testFormat: workflowsuccess
-workflowType: WDL
+# Note: no workflowType specified!
 # Note: no workflowTypeVersion specified!
 tags: ["wdl_1.0"]
 
@@ -12,4 +12,6 @@ metadata {
   workflowName: draft3_infer_version
   status: Succeeded
   "outputs.draft3_infer_version.j": 660
+  "actualWorkflowLanguage": WDL
+  "actualWorkflowLanguageVersion": 1.0
 }

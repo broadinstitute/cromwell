@@ -16,6 +16,9 @@ object WorkflowMetadataKeys {
   val ParentWorkflowId = "parentWorkflowId"
   val RootWorkflowId = "rootWorkflowId"
 
+  val LanguageName = "actualWorkflowLanguage"
+  val LanguageVersionName = "actualWorkflowLanguageVersion"
+
   val SubmissionSection = "submittedFiles"
   val SubmissionSection_Workflow = "workflow"
   val SubmissionSection_Root = "root"

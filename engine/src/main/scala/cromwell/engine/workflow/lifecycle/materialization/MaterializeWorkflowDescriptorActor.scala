@@ -13,7 +13,6 @@ import cats.syntax.validated._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import common.exception.{AggregatedMessageException, MessageAggregation}
-import common.validation.Checked._
 import common.validation.ErrorOr._
 import common.validation.Parse._
 import cromwell.backend.BackendWorkflowDescriptor
@@ -218,20 +217,29 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       workflowOptions: WorkflowOptions,
                                       pathBuilders: List[PathBuilder],
                                       engineIoFunctions: EngineIoFunctions): Parse[EngineWorkflowDescriptor] = {
-    def chooseFactory(factories: List[LanguageFactory]) = factories.find(_.looksParsable(sourceFiles.workflowSource)).getOrElse(factories.head)
+    def chooseFactory(factories: List[LanguageFactory]): Option[LanguageFactory] = factories.find(_.looksParsable(sourceFiles.workflowSource))
 
-    val namespaceValidation: Parse[ValidatedWomNamespace] = sourceFiles.workflowType match {
+    val factory: ErrorOr[LanguageFactory] = sourceFiles.workflowType match {
       case Some(languageName) if CromwellLanguages.instance.languages.contains(languageName.toUpperCase) =>
         val language = CromwellLanguages.instance.languages(languageName.toUpperCase)
-        val factory: ErrorOr[LanguageFactory] = sourceFiles.workflowTypeVersion match {
+        sourceFiles.workflowTypeVersion match {
           case Some(v) if language.allVersions.contains(v) => language.allVersions(v).valid
           case Some(other) => s"Unknown version '$other' for workflow language '$languageName'".invalidNel
-          case _ => chooseFactory(language.allVersions.values.toList).valid
+          case _ => chooseFactory(language.allVersions.values.toList).getOrElse(language.default).valid
         }
-        errorOrParse(factory).flatMap(_.validateNamespace(sourceFiles, workflowOptions, importLocalFilesystem, workflowIdForLogging, engineIoFunctions))
-      case Some(other) => fromEither[IO](s"Unknown workflow type: $other".invalidNelCheck[ValidatedWomNamespace])
-      case None => fromEither[IO]("Need a workflow type here !".invalidNelCheck[ValidatedWomNamespace])
+      case Some(other) => s"Unknown workflow type: $other".invalidNel[LanguageFactory]
+      case None =>
+        val allFactories = CromwellLanguages.instance.languages.values.flatMap(_.allVersions.values)
+        chooseFactory(allFactories.toList).getOrElse(CromwellLanguages.instance.default.default).validNel
     }
+
+    factory foreach { validFactory =>
+      workflowLogger.info(s"Parsing workflow as ${validFactory.languageName} ${validFactory.languageVersionName}")
+      pushLanguageToMetadata(validFactory.languageName, validFactory.languageVersionName)
+    }
+
+    val namespaceValidation: Parse[ValidatedWomNamespace] =
+      errorOrParse(factory).flatMap(_.validateNamespace(sourceFiles, workflowOptions, importLocalFilesystem, workflowIdForLogging, engineIoFunctions))
 
     val labels = convertJsonToLabels(sourceFiles.labelsJson)
 
@@ -249,6 +257,14 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     val wfInputsMetadataEvents = wfInputsMetadata(validatedNamespace.womValueInputs)
     val wfNameMetadataEvent = wfNameMetadata(validatedNamespace.executable.entryPoint.name)
     serviceRegistryActor ! PutMetadataAction(importsMetadata.toVector ++ wfInputsMetadataEvents :+ wfNameMetadataEvent)
+  }
+
+  private def pushLanguageToMetadata(languageName: String, languageVersion: String): Unit = {
+    val events = List (
+      MetadataEvent(MetadataKey(workflowIdForLogging, None, WorkflowMetadataKeys.LanguageName), MetadataValue(languageName)),
+      MetadataEvent(MetadataKey(workflowIdForLogging, None, WorkflowMetadataKeys.LanguageVersionName), MetadataValue(languageVersion))
+    )
+    serviceRegistryActor ! PutMetadataAction(events)
   }
 
   private def wfInputsMetadata(workflowInputs: Map[OutputPort, WomValue]): Iterable[MetadataEvent] = {

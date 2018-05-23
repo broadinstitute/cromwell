@@ -15,9 +15,6 @@
 #   - CROMWELL_BUILD_*
 #     Variables for use in other scripts.
 #
-#   - CROMWELL_SECURE_*
-#     Should not be used/printed/echoed!
-#
 #   - crmdbg
 #     Quick debug scripts. Example: `crmdbg=y src/bin/ci/testCentaulLocal.sh`
 #
@@ -143,16 +140,6 @@ cromwell::private::verify_cron_build() {
     fi
 }
 
-cromwell::private::setup_secure_variables() {
-    if cromwell::private::is_xtrace_enabled; then
-        cromwell::private::exec_silent_function cromwell::private::setup_secure_variables
-    else
-        CROMWELL_SECURE_DOCKER_USERNAME="${DOCKER_USERNAME}"
-        CROMWELL_SECURE_DOCKER_PASSWORD="${DOCKER_PASSWORD}"
-        CROMWELL_SECURE_VAULT_TOKEN="${JES_TOKEN}"
-    fi
-}
-
 cromwell::private::export_conformance_variables() {
     CROMWELL_BUILD_CWL_TEST_RUNNER="${CROMWELL_BUILD_ROOT_DIRECTORY}/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
     CROMWELL_BUILD_CWL_TEST_DIRECTORY="${CROMWELL_BUILD_ROOT_DIRECTORY}/common-workflow-language"
@@ -236,14 +223,11 @@ cromwell::private::docker_login() {
         cromwell::private::exec_silent_function cromwell::private::docker_login
     else
         local dockerhub_auth_include
-        dockerhub_auth_include="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/dockerhub_auth.sh"
+        dockerhub_auth_include="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/dockerhub_auth.inc.sh"
         if [ -f "${dockerhub_auth_include}" ]; then
             # shellcheck source=/dev/null
             source "${dockerhub_auth_include}"
         fi
-        docker login \
-            --username "${CROMWELL_SECURE_DOCKER_USERNAME}" \
-            --password "${CROMWELL_SECURE_DOCKER_PASSWORD}"
     fi
 }
 
@@ -252,10 +236,13 @@ cromwell::private::vault_login() {
         cromwell::private::exec_silent_function cromwell::private::vault_login
     else
         # Login to vault to access secrets
+        local vault_token
+        vault_token="${JES_TOKEN}"
         docker run --rm \
             -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
             broadinstitute/dsde-toolbox \
-            vault auth "${CROMWELL_SECURE_VAULT_TOKEN}" < /dev/null > /dev/null && echo vault auth success
+            vault auth "${vault_token}" < /dev/null > /dev/null && echo vault auth success
+        unset vault_token
     fi
 }
 
@@ -281,9 +268,6 @@ cromwell::private::render_secure_resources() {
 
 cromwell::private::setup_secure_resources() {
     if [ "${CROMWELL_BUILD_IS_CI}" = "true" ]; then
-            cromwell::private::setup_secure_variables
-            # Ignore premature login errors that occur once dsde-toolbox is public and u/p are only in vault
-            cromwell::private::docker_login || true
             cromwell::private::vault_login
             cromwell::private::render_secure_resources
             cromwell::private::docker_login

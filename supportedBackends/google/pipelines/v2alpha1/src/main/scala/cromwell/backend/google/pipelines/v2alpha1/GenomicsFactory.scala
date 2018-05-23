@@ -68,13 +68,20 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
 
       val accelerators = createPipelineParameters.runtimeAttributes
         .gpuResource.map(_.toAccelerator).toList.asJava
+      
+      /*
+       * Adjust for the additional docker images Cromwell uses for (de)localization
+       * At the moment, google/cloud-sdk:alpine (173MB) and stedolan/jq:latest (182MB)
+       * Round it up to 1GB
+       */
+      val adjustedBootDiskSize = createPipelineParameters.runtimeAttributes.bootDiskSize + 1
 
       val virtualMachine = new VirtualMachine()
         .setDisks(disks.asJava)
         .setPreemptible(createPipelineParameters.preemptible)
         .setServiceAccount(serviceAccount)
         .setMachineType(createPipelineParameters.runtimeAttributes.toMachineType)
-        .setBootDiskSizeGb(createPipelineParameters.runtimeAttributes.bootDiskSize)
+        .setBootDiskSizeGb(adjustedBootDiskSize)
         .setLabels(createPipelineParameters.labels.asJavaMap)
         .setNetwork(network)
         .setAccelerators(accelerators)

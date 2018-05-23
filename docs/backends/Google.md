@@ -169,16 +169,21 @@ workflows using the Google backend.
 
 #### Requester Pays
 
-Cromwell supports [Requester Pays](https://cloud.google.com/storage/docs/requester-pays) feature for Cloud Storage. With Requester Pays enabled on your bucket,
-you can require requesters to include a billing project in their requests, thus billing the requester's project. If the bucket you are accessing has requester pays enabled,
-to access the file inside that bucket you need to mention the Google project id which can be billed for that request. The billing project information can be added in ways described below. Cromwell will
-look for this information in this order.
-1. It can be added as `'google_project':'project-id'` as part of workflow options during workflow submission
-2. It can be included inside configuration file as shown in [`Getting started on Google Pipelines API`](http://cromwell.readthedocs.io/en/develop/tutorials/PipelinesApi101/) where you need to replace the `<google-billing-project-id>` with the project id **(HIGHLY RECOMMENDED)**
-3. Cromwell will use the default project that has been configured with gcloud
+For a description of requester pays see the relevant Cloud Storage documentation: [Requester Pays](https://cloud.google.com/storage/docs/requester-pays)
+In order to support access to requester pays buckets, Cromwell needs to know which project to bill.
+Cromwell will look at the following locations, in order, to determine the project value:
 
-It is highly recommended to add the project id as part of configuration if you don't want to specify as part of workflow options each time you submit request.
+1. The `google_project` workflow option
+2. The `project` key in the `gcs` filesystem configuration stanza
+Note that there might be several `gcs` stanza in your configuration.
+For instance, the `engine.filesystems` might have a `gcs` stanza to allow the Cromwell engine to access GCS.
+If a PAPI backend is configured, you very likely also have a `filesystems.gcs` stanza in the backend `config` section.
+If you do not consistently pass the project through workflow options, we **strongly** recommend that you set this configuration value instead of relying on option 3 below. 
+3. The default project configured on the machine where Cromwell runs if it is authenticated using [`gcloud auth`](https://cloud.google.com/sdk/gcloud/reference/auth/)
+See also [`glcoud config`](https://cloud.google.com/sdk/gcloud/reference/config/) to set a default project
 
+Permission: The users or service accounts used through Cromwell **need** to have a role that has the `serviceusage.services.use` permission. See [Requester Pays Requirements](https://cloud.google.com/storage/docs/requester-pays#requirements).
+This is actually true regardless of whether or not trying to access requester pays bucket through Cromwell, as it will *always* explicitly set the project to be billed when accessing GCS.
 
 #### Google Labels
 

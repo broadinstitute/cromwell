@@ -27,10 +27,16 @@ If you don't update the `actor-factory` value, you'll get a deprecation warning 
 
 **Requester Pays**
 
-Cromwell now supports [Requester Pays](https://cloud.google.com/storage/docs/requester-pays) feature for Cloud Storage. With Requester Pays enabled on your bucket,
-you can require requesters to include a billing project in their requests, thus billing the requester's project. More information about it and how to include billing project can be found [here](backends/Google#requester-pays).
-It is highly recommended to add the billing project id as part of google configuration as shown in [`Getting started on Google Pipelines API`](http://cromwell.readthedocs.io/en/develop/tutorials/PipelinesApi101/)
-by replacing the `<google-billing-project-id>` with the project id.
+Initial support for Google Cloud Storage [Requester Pays](https://cloud.google.com/storage/docs/requester-pays) feature has been added.
+
+*Important notes*:
+* Full support only works using the Pipelines API v2 backend.
+* **Regardless of whether or not you switch to PAPI V2, you will need to ensure that the user credentials or service accounts used in Cromwell have a role which has the following permission: `serviceusage.services.use`**. See [Requester Pays Requirements](https://cloud.google.com/storage/docs/requester-pays#requirements).
+Once again this is true **even if you stay on PAPI V1**. The reason for this change is that Cromwell will now **always** explicitly set the project to be billed when it accesses files in GCS, even if requester pays is not enabled on the bucket.
+Read the [Cromwell documentation about requester pays](backends/Google#requester-pays) for more information about which project will be set as the billing project.
+* Please pay careful attention to the configuration considerations described in the documentation linked above, as they affect which projects are being billed.
+ 
+See also [Getting started on Google Pipelines API](http://cromwell.readthedocs.io/en/develop/tutorials/PipelinesApi101/)
 
 ### Labels
 * Cromwell has removed most of the formatting restrictions from custom labels. Please check the [README](README.md#label-format) for more detailed documentation.

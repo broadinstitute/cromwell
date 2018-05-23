@@ -173,6 +173,8 @@ For a description of requester pays see the relevant Cloud Storage documentation
 In order to support access to requester pays buckets, Cromwell needs to know which project to bill.
 Cromwell will look at the following locations, in order, to determine the project value:
 
+##### Project
+
 1. The `google_project` workflow option
 2. The `project` key in the `gcs` filesystem configuration stanza
 Note that there might be several `gcs` stanza in your configuration.
@@ -182,8 +184,45 @@ If you do not consistently pass the project through workflow options, we **stron
 3. The default project configured on the machine where Cromwell runs if it is authenticated using [`gcloud auth`](https://cloud.google.com/sdk/gcloud/reference/auth/)
 See also [`glcoud config`](https://cloud.google.com/sdk/gcloud/reference/config/) to set a default project
 
-Permission: The users or service accounts used through Cromwell **need** to have a role that has the `serviceusage.services.use` permission. See [Requester Pays Requirements](https://cloud.google.com/storage/docs/requester-pays#requirements).
+##### Permission
+
+The users or service accounts used through Cromwell **need** to have a role that has the `serviceusage.services.use` permission. See [Requester Pays Requirements](https://cloud.google.com/storage/docs/requester-pays#requirements).
 This is actually true regardless of whether or not trying to access requester pays bucket through Cromwell, as it will *always* explicitly set the project to be billed when accessing GCS.
+
+##### Engine vs Backend
+
+Cromwell engine (as in the Cromwell instance running on a JVM) can access requester pays bucket (since Cromwell 32).
+This is useful in situations where you are accessing files in your workflow.
+
+For example:
+
+```wdl
+workflow my_workflow {
+    String content = read_string("gs://my_bucket/some/file.txt")
+}
+```
+
+This workflow effectively asks the Cromwell program to read the content of the object located at `gs://my_bucket/some/file.txt`
+If the bucket "my_bucket" has requester pays enabled, Cromwell will be able to do that, provided that the configuration and permissions are set correctly (see above).
+
+However, there is a notable difference from a workflow such as
+
+```wdl
+task cat {
+    File input_file = "gs://my_bucket/some/file.txt"
+    command {
+        cat ${input_file}
+    }
+}
+workflow my_workflow {
+    call cat
+}
+```
+
+We assume here the task `cat` will run on a Pipelines API Cromwell backend.
+Consequently, Pipelines API will allocate a Virtual Machine for the task `cat`, which will in turn "localize" the file down from the GCS to a local disk.
+This operation is done on the VM itself, not by the Cromwell instance.
+Due to limitations on Pipelines API v1, localizing an object located in a bucket with requester pays enabled **can only be achieve on PAPI v2**.
 
 #### Google Labels
 

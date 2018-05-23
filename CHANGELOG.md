@@ -2,6 +2,18 @@
 
 ## 32 Release Notes
 
+### Important Notes
+
+Cromwell instances configured to interact with **Google Cloud Storage** in any fashion, including but not limited to configurations with a **Pipelines API backend** (formerly JES backend) should **read the following section carefully**:
+
+As described in more details below, Cromwell 32 introduces initial support for PAPI v2, as well as Requester Pays.
+A direct consequence of those features is that user credentials and service accounts used in Cromwell now **require** a role which has the following permission: `serviceusage.services.use`. See [Requester Pays Requirements](https://cloud.google.com/storage/docs/requester-pays#requirements).
+This statement is **true regardless of the backend you are using, and only depends on whether Cromwell needs to communicate with GCS** (which is the case for **PAPI V1 and PAPI V2** backends).
+It is important to note that even though this permission is now always required, you will **ONLY** be charged for accessing buckets with requester pays enabled.
+
+Please read carefully the [requester pays documentation]((backends/Google#requester-pays)) even if you don't plan on making use of requester pays as it contains important information.
+More information can also be found here on [Granting Roles on Service Accounts](https://cloud.google.com/iam/docs/granting-roles-to-service-accounts).
+
 ### Backends
 
 #### Pipelines API V2
@@ -22,20 +34,16 @@ Please update your configuration accordingly.
 |      V1      | cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory |
 |      V2      | cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory |
 
-If you don't update the `actor-factory` value, you'll get a deprecation warning in the logs, and Cromwell will default back to
-**PAPI V1**
+If you don't update the `actor-factory` value, you'll get a deprecation warning in the logs, and Cromwell will default back to **PAPI V1**
 
 **Requester Pays**
 
 Initial support for Google Cloud Storage [Requester Pays](https://cloud.google.com/storage/docs/requester-pays) feature has been added.
 
-*Important notes*:
+*Important*:
 * Full support only works using the Pipelines API v2 backend.
-* **Regardless of whether or not you switch to PAPI V2, you will need to ensure that the user credentials or service accounts used in Cromwell have a role which has the following permission: `serviceusage.services.use`**. See [Requester Pays Requirements](https://cloud.google.com/storage/docs/requester-pays#requirements).
-Once again this is true **even if you stay on PAPI V1**. The reason for this change is that Cromwell will now **always** explicitly set the project to be billed when it accesses files in GCS, even if requester pays is not enabled on the bucket.
-Read the [Cromwell documentation about requester pays](backends/Google#requester-pays) for more information about which project will be set as the billing project.
-* Please pay careful attention to the configuration considerations described in the documentation linked above, as they affect which projects are being billed.
- 
+* Read carefully the [Cromwell documentation about requester pays](backends/Google#requester-pays) for detailed information
+
 See also [Getting started on Google Pipelines API](http://cromwell.readthedocs.io/en/develop/tutorials/PipelinesApi101/)
 
 ### Labels

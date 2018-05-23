@@ -26,7 +26,7 @@ trait FileSizeLimitationConfig {
 }
 
 object FileSizeLimitationConfig {
-  private val config = ConfigFactory.load.getConfig("system")
+  private lazy val config = ConfigFactory.load.getConfig("system")
 
   def default: FileSizeLimitationConfig = new FileSizeLimitationConfig {
     override def readLinesLimit: Int = Int.MaxValue

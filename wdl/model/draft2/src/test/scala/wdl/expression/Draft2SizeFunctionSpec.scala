@@ -3,6 +3,7 @@ package wdl.expression
 import org.scalatest.{Assertion, FlatSpec, Matchers}
 import wdl.draft2.model.expression.WdlStandardLibraryFunctions
 import wdl.expression.Draft2SizeFunctionSpec.testFunctions
+import wdl.shared.FileSizeLimitationConfig
 import wom.expression.EmptyIoFunctionSet
 import wom.types._
 import wom.values._
@@ -105,5 +106,5 @@ class Draft2SizeFunctionSpec extends FlatSpec with Matchers {
 object Draft2SizeFunctionSpec {
   def testFunctions(sizeResult: Try[Long]): WdlStandardLibraryFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet( new EmptyIoFunctionSet {
     override def size(path: String): Future[Long] = Future.fromTry(sizeResult)
-  })
+  }, FileSizeLimitationConfig.default)
 }

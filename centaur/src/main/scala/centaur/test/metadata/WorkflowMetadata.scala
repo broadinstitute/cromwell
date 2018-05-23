@@ -9,6 +9,7 @@ import spray.json._
 import centaur.json.JsonUtils.EnhancedJsValue
 import configs.Result
 import common.validation.ErrorOr.ErrorOr
+import mouse.all._
 
 import scala.util.{Failure, Success, Try}
 
@@ -20,7 +21,7 @@ case class WorkflowMetadata(value: Map[String, JsValue]) extends AnyVal {
     val workflowRoot = actual.value.get("workflowRoot").collectFirst { case JsString(r) => r } getOrElse "No Workflow Root"
     val missingErrors = value.keySet.diff(actual.value.keySet) map { k => s"Missing key: $k" }
     val mismatchErrors = value.keySet.intersect(actual.value.keySet) flatMap { k => diffValues(k, value(k), actual.value(k),
-                                                                                               workflowID, workflowRoot, cacheHitUUID)}
+      workflowID, workflowRoot, cacheHitUUID)}
 
     mismatchErrors ++ missingErrors
   }
@@ -41,17 +42,21 @@ case class WorkflowMetadata(value: Map[String, JsValue]) extends AnyVal {
       case None => substitutedValue
     }
 
-    val isMatch = actual match {
-      case o: JsString => cacheSubstitutions == o.toString
-      case o: JsNumber => expected == JsString(o.value.toString)
-      case o: JsBoolean => expected == JsString(o.value.toString)
-      case o: JsArray => expected == JsString(o.toString)
-      case JsNull => expected == JsNull
-      case _ => false
+    def stripQuotes(str: String) = str.stripPrefix("\"").stripSuffix("\"")
+
+    val matchError = actual match {
+      case o: JsString if stripQuotes(cacheSubstitutions).startsWith("~~") =>
+        val stripped = stripQuotes(cacheSubstitutions).stripPrefix("~~")
+        (!stripQuotes(o.toString).contains(stripped)).option(s"Actual value ${o.toString()} does not contain $stripped")
+      case o: JsString => (cacheSubstitutions != o.toString).option(s"expected: $cacheSubstitutions but got: $actual")
+      case o: JsNumber => (expected != JsString(o.value.toString)).option(s"expected: $cacheSubstitutions but got: $actual")
+      case o: JsBoolean => (expected != JsString(o.value.toString)).option(s"expected: $cacheSubstitutions but got: $actual")
+      case o: JsArray => (expected != JsString(o.toString)).option(s"expected: $cacheSubstitutions but got: $actual")
+      case JsNull => (expected != JsNull).option(s"expected: $cacheSubstitutions but got: $actual")
+      case _ => Option(s"expected: $cacheSubstitutions but got: $actual")
     }
 
-    if (isMatch) None
-    else Option(s"Metadata mismatch for $key - expected: $cacheSubstitutions but got: $actual")
+    matchError.map(s"Metadata mismatch for $key - " + _)
   }
 }
 

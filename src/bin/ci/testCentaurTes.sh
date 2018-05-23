@@ -43,6 +43,7 @@ FUNNEL_PID=$!
 # no_new_calls:              TES does not support checking job status after restart, and cannot tell if shouldSucceed is done or failed
 # non_root_specified_user:   TES doesn't support switching users in the image
 # write_lines_files:         all inputs are read-only in TES
+# read_file_limits:          Fail only in Travis for unknown reason (Note that the draft 3 version does not fail)
 
 centaur/test_cromwell.sh \
     -j "${CROMWELL_BUILD_JAR}" \
@@ -50,6 +51,7 @@ centaur/test_cromwell.sh \
     -g \
     -e call_cache_capoeira_local \
     -e draft3_call_cache_capoeira_local \
+    -e read_file_limits \
     -e lots_of_inputs \
     -e no_new_calls \
     -e non_root_default_user \

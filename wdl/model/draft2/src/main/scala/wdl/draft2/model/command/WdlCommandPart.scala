@@ -4,6 +4,7 @@ import common.validation.ErrorOr.ErrorOr
 import wdl.draft2.model.Declaration
 import wdl.draft2.model.expression.{WdlFunctions, WdlStandardLibraryFunctions}
 import wdl.draft2.model.expression.WdlStandardLibraryFunctions
+import wdl.shared.FileSizeLimitationConfig
 import wom.callable.RuntimeEnvironment
 import wom.expression.IoFunctionSet
 import wom.graph.LocalName
@@ -12,6 +13,7 @@ import wom.{CommandPart, InstantiatedCommand}
 
 
 trait WdlCommandPart extends CommandPart {
+
   def instantiate(declarations: Seq[Declaration],
                   inputsMap: Map[String, WomValue],
                   functions: WdlFunctions[WomValue],
@@ -21,7 +23,7 @@ trait WdlCommandPart extends CommandPart {
                            functions: IoFunctionSet,
                            valueMapper: WomValue => WomValue,
                            runtimeEnvironment: RuntimeEnvironment): ErrorOr[List[InstantiatedCommand]] = {
-    val wdlFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(functions)
+    val wdlFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(functions, FileSizeLimitationConfig.fileSizeLimitationConfig)
     instantiate(Seq.empty, inputsMap.map({case (localName, value) => localName.value -> value}), wdlFunctions, valueMapper)
   }
 }

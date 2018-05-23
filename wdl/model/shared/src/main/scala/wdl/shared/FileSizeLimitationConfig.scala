@@ -1,8 +1,8 @@
-package cromwell.backend.wdl
+package wdl.shared
 
 import com.typesafe.config.ConfigFactory
-import net.ceedubs.ficus.readers.ValueReader
 import net.ceedubs.ficus.Ficus._
+import net.ceedubs.ficus.readers.ValueReader
 
 trait FileSizeLimitationConfig {
 
@@ -26,9 +26,21 @@ trait FileSizeLimitationConfig {
 }
 
 object FileSizeLimitationConfig {
-  private val config = ConfigFactory.load.getConfig("system")
+  private lazy val config = ConfigFactory.load.getConfig("system")
 
-  def fileSizeLimitationConfig: FileSizeLimitationConfig = config.as[FileSizeLimitationConfig]("input-read-limits")
+  def default: FileSizeLimitationConfig = new FileSizeLimitationConfig {
+    override def readLinesLimit: Int = Int.MaxValue
+    override def readBoolLimit: Int = Int.MaxValue
+    override def readIntLimit: Int = Int.MaxValue
+    override def readFloatLimit: Int = Int.MaxValue
+    override def readStringLimit: Int = Int.MaxValue
+    override def readJsonLimit: Int = Int.MaxValue
+    override def readTsvLimit: Int = Int.MaxValue
+    override def readMapLimit: Int = Int.MaxValue
+    override def readObjectLimit: Int = Int.MaxValue
+  }
+
+  lazy val fileSizeLimitationConfig: FileSizeLimitationConfig = config.as[FileSizeLimitationConfig]("input-read-limits")
 
   implicit val configReader : ValueReader[FileSizeLimitationConfig] = ValueReader.relative{c =>
     def f(s: String) = c.as[Int](s)

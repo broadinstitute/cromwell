@@ -260,7 +260,7 @@ object WdlWriterImpl {
          |${indent(inputs)}
          |${indentAndCombine(a.declarations.map(_.toWdlV1))}
          |${indent(outputs)}
-         |${indent(a.commandSection.toWdlV1)}
+         |${a.commandSection.toWdlV1}
          |${indent(runtime)}
          |${indent(meta)}
          |${indent(parameterMeta)}}""".stripMargin
@@ -269,8 +269,8 @@ object WdlWriterImpl {
 
   implicit val commandSectionElementWriter: WdlWriter[CommandSectionElement] = new WdlWriter[CommandSectionElement] {
     override def toWdlV1(a: CommandSectionElement): String = {
-      s"""command <<<
-         |${combine(a.parts.map(_.toWdlV1))}>>>""".stripMargin
+      s"""  command <<<
+         |${combine(a.parts.map(_.toWdlV1))}  >>>""".stripMargin
     }
   }
 

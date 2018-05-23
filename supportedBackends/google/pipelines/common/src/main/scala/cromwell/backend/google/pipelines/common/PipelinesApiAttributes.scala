@@ -38,23 +38,34 @@ object PipelinesApiAttributes {
   val GenomicsApiDefaultQps = 1000
 
   private val jesKeys = Set(
-    "concurrent-job-limit",
     "project",
     "root",
     "maximum-polling-interval",
-    "genomics.compute-service-account",
-    "dockerhub",
-    "dockerhub.account",
-    "dockerhub.token",
     "genomics",
-    "filesystems",
+    "genomics.compute-service-account",
     "genomics.auth",
     "genomics.restrict-metadata-access",
     "genomics.endpoint-url",
+    "genomics-api-queries-per-100-seconds",
+    "dockerhub",
+    "dockerhub.account",
+    "dockerhub.token",
+    "filesystems",
     "filesystems.gcs.auth",
     "filesystems.gcs.caching.duplication-strategy",
-    "genomics-api-queries-per-100-seconds",
-    "request-workers"
+    "concurrent-job-limit",
+    "request-workers",
+    "default-runtime-attributes",
+    "default-runtime-attributes.cpu",
+    "default-runtime-attributes.failOnStderr",
+    "default-runtime-attributes.continueOnReturnCode",
+    "default-runtime-attributes.docker",
+    "default-runtime-attributes.memory",
+    "default-runtime-attributes.bootDiskSizeGb",
+    "default-runtime-attributes.disks",
+    "default-runtime-attributes.noAddress",
+    "default-runtime-attributes.preemptible",
+    "default-runtime-attributes.zones"
   )
 
   private val deprecatedJesKeys: Map[String, String] = Map(

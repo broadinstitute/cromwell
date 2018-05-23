@@ -126,11 +126,20 @@ object WomToWdlomImpl {
 
         val command = a.commandTemplateBuilder(Map()).getOrElse(???)
 
-        import wdl.model.draft3.elements.ExpressionElement.StringLiteral
-
         val commandLine = CommandSectionLine(command map {
-          case s: StringCommandPart => StringCommandPartElement(s.literal)
-          case p: ParameterCommandPart => PlaceholderCommandPartElement(StringLiteral(p.toString), PlaceholderAttributeSet.empty)
+          case s: StringCommandPart =>
+            StringCommandPartElement(s.literal)
+          case p: ParameterCommandPart =>
+            val attrs = PlaceholderAttributeSet(
+              defaultAttribute = p.attributes.get("default"),
+              trueAttribute = p.attributes.get("true"),
+              falseAttribute = p.attributes.get("false"),
+              sepAttribute = p.attributes.get("sep")
+            )
+
+            // TODO: it can't be anything but a Terminal, but this is not the best way to express that
+            import wdl.draft2.parser.WdlParser.Terminal
+            PlaceholderCommandPartElement(ExpressionLiteralElement(p.expression.ast.asInstanceOf[Terminal].getSourceString), attrs)
         })
 
         TaskDefinitionElement(

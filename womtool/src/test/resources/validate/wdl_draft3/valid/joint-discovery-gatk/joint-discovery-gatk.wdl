@@ -318,15 +318,15 @@ workflow JointGenotyping {
 
   output {
     # outputs from the small callset path through the wdl
-    File FinalGatherVcf_output_vcf = FinalGatherVcf.output_vcf
-    File FinalGatherVcf_output_vcf_index = FinalGatherVcf.output_vcf_index
-    File CollectMetricsOnFullVcf_detail_metrics_file = CollectMetricsOnFullVcf.detail_metrics_file
-    File CollectMetricsOnFullVcf_summary_metrics_file = CollectMetricsOnFullVcf.summary_metrics_file
+    File? FinalGatherVcf_output_vcf = FinalGatherVcf.output_vcf
+    File? FinalGatherVcf_output_vcf_index = FinalGatherVcf.output_vcf_index
+    File? CollectMetricsOnFullVcf_detail_metrics_file = CollectMetricsOnFullVcf.detail_metrics_file
+    File? CollectMetricsOnFullVcf_summary_metrics_file = CollectMetricsOnFullVcf.summary_metrics_file
 
     # outputs from the large callset path through the wdl
     # (note that we do not list ApplyRecalibration here because it is run in both paths)
-    File GatherMetrics_detail_metrics_file = GatherMetrics.detail_metrics_file
-    File GatherMetrics_summary_metrics_file = GatherMetrics.summary_metrics_file
+    File? GatherMetrics_detail_metrics_file = GatherMetrics.detail_metrics_file
+    File? GatherMetrics_summary_metrics_file = GatherMetrics.summary_metrics_file
 
     # output the interval list generated/used by this run workflow
     File DynamicallyCombineIntervals_output_intervals = DynamicallyCombineIntervals.output_intervals

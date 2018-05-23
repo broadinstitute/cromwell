@@ -671,7 +671,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private def saveJobCompletionToJobStore(updatedData: ShouldBeSavedToJobStoreResponseData) = {
     updatedData match {
-      case SucceededResponseData(JobSucceededResponse(jobKey, returnCode, jobOutputs, _, _, _), hashes) =>
+      case SucceededResponseData(JobSucceededResponse(jobKey, returnCode, jobOutputs, _, _, _, _), hashes) =>
         publishHashesToMetadata(hashes)
         saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
       case FailedResponseData(JobFailedNonRetryableResponse(jobKey, throwable, returnCode), hashes) =>

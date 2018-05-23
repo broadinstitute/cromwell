@@ -2,7 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import cats.data.NonEmptyList
 import cromwell.backend.BackendJobDescriptorKey
-import cromwell.backend.BackendJobExecutionActor.{JobFailedNonRetryableResponse, JobSucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{CallCached, JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.core.ExecutionIndex.{ExecutionIndex, IndexEnhancedIndex}
 import cromwell.core.callcaching.{HashKey, HashResult, HashValue}
 import cromwell.core.path.{Path, PathBuilder}
@@ -157,7 +157,7 @@ object CallCache {
       val outputs = if (callCachingJoin.callCachingSimpletonEntries.isEmpty) CallOutputs(Map.empty)
       else WomValueBuilder.toJobOutputs(key.call.outputPorts, callCachingJoin.callCachingSimpletonEntries map toSimpleton)
       
-      JobSucceededResponse(key, callCachingJoin.callCachingEntry.returnCode,outputs, Option(detritus), Seq.empty, None)
+      JobSucceededResponse(key, callCachingJoin.callCachingEntry.returnCode,outputs, Option(detritus), Seq.empty, None, resultGenerationMode = CallCached)
     }
     
     def callCacheHashes: Set[HashResult] = {

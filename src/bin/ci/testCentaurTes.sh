@@ -1,122 +1,59 @@
 #!/usr/bin/env bash
 
-printTravisHeartbeat() {
-    # Sleep one minute between printouts, but don't zombie for more than two hours
-    for ((i=0; i < 120; i++)); do
-        sleep 60
-        printf "…"
-    done &
-    TRAVIS_HEARTBEAT_PID=$!
-}
-
-cromwellLogTail() {
- (
-   while [ ! -f logs/cromwell.log ];
-   do
-     sleep 2
-     printf "(Cr)"
-   done
-   tail -f logs/cromwell.log &
-   CROMWELL_LOG_TAIL_PID=$!
- ) &
- CROMWELL_LOG_WAIT_PID=$!
-}
-
-centaurLogTail() {
- (
-   while [ ! -f logs/centaur.log ];
-   do
-     sleep 2
-     printf "(Ce)"
-   done
-   tail -f logs/centaur.log &
-   CENTAUR_LOG_TAIL_PID=$!
- ) &
- CENTAUR_LOG_WAIT_PID=$!
-}
-
-killTravisHeartbeat() {
-    if [ -n "${TRAVIS_HEARTBEAT_PID+set}" ]; then
-        kill ${TRAVIS_HEARTBEAT_PID} || true
-    fi
-}
-
-killCromwellLogTail() {
-    if [ -n "${CROMWELL_LOG_TAIL_PID+set}" ]; then
-        kill ${CROMWELL_LOG_TAIL_PID} || true
-    else
-        if [ -n "${CROMWELL_LOG_WAIT_PID+set}" ]; then
-            kill ${CROMWELL_LOG_WAIT_PID} || true
-        fi
-    fi
-}
-
-killCentaurLogTail() {
-    if [ -n "${CENTAUR_LOG_TAIL_PID+set}" ]; then
-        kill ${CENTAUR_LOG_TAIL_PID} || true
-    else
-        if [ -n "${CENTAUR_LOG_WAIT_PID+set}" ]; then
-            kill ${CENTAUR_LOG_WAIT_PID} || true
-        fi
-    fi
-}
-
-exitScript() {
-    echo "CENTAUR LOG"
-    cat logs/centaur.log
-    killTravisHeartbeat
-    killCromwellLogTail
-    killCentaurLogTail
-}
-
-trap exitScript EXIT
-trap exitScript TERM
-cromwellLogTail
-centaurLogTail
-printTravisHeartbeat
-
-set -x
 set -e
+# import in shellcheck / CI / IntelliJ compatible ways
+# shellcheck source=/dev/null
+source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
-ASSEMBLY_LOG_LEVEL=error ENABLE_COVERAGE=true sbt assembly --error
-CROMWELL_JAR=$(find "$(pwd)/server/target/scala-2.12" -name "cromwell-*.jar")
+cromwell::build::setup_common_environment
 
-TES_CENTAUR_CONF="$(pwd)/src/bin/ci/resources/tes_centaur.conf"
-FUNNEL_CONF="$(pwd)/src/bin/ci/resources/funnel.conf"
+cromwell::build::setup_centaur_environment
 
-wget https://github.com/ohsu-comp-bio/funnel/releases/download/0.5.0/funnel-linux-amd64-0.5.0.tar.gz
-tar xzf funnel-linux-amd64-0.5.0.tar.gz
-FUNNEL_PATH="$(pwd)/funnel"
+cromwell::build::assemble_jars
 
-mkdir logs
+FUNNEL_PATH="${CROMWELL_BUILD_ROOT_DIRECTORY}/funnel"
+FUNNEL_CONF="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/funnel.conf"
+
+# Increase max open files to the maximum allowed. Attempt to help on macos due to the default soft ulimit -n -S 256.
+ulimit -n "$(ulimit -n -H)"
+if [ ! -f "${FUNNEL_PATH}" ]; then
+    FUNNEL_TAR_GZ="funnel-${CROMWELL_BUILD_OS}-amd64-0.5.0.tar.gz"
+    curl "https://github.com/ohsu-comp-bio/funnel/releases/download/0.5.0/${FUNNEL_TAR_GZ}" -o "${FUNNEL_TAR_GZ}" -L
+    tar xzf "${FUNNEL_TAR_GZ}"
+fi
+
+shutdown_funnel() {
+    if [ -n "${FUNNEL_PID+set}" ]; then
+        cromwell::build::kill_tree "${FUNNEL_PID}"
+    fi
+}
+
+cromwell::build::add_exit_function shutdown_funnel
+
+mkdir -p logs
 nohup "${FUNNEL_PATH}" server run --config "${FUNNEL_CONF}" > logs/funnel.log 2>&1 &
 
-# All tests use ubuntu:latest - make sure it's there before starting the tests
-# because pulling the image during some of the tests would cause them to fail 
-# (specifically output_redirection which expects a specific value in stderr)
-docker pull ubuntu:latest
+FUNNEL_PID=$!
 
 # The following tests are skipped:
 #
 # call_cache_capoeira_local: fails on task 'read_files_without_docker' since the 'docker' runtime key is required for this backend
+# draft3_call_cache_capoeira_local: same as above
 # lots_of_inputs:            Funnel mounts in each input separately, this task surpasses the docker limit for volumes
 # no_new_calls:              TES does not support checking job status after restart, and cannot tell if shouldSucceed is done or failed
 # non_root_specified_user:   TES doesn't support switching users in the image
 # write_lines_files:         all inputs are read-only in TES
 
 centaur/test_cromwell.sh \
--j ${CROMWELL_JAR} \
--g \
--c ${TES_CENTAUR_CONF} \
--e call_cache_capoeira_local \
--e lots_of_inputs \
--e no_new_calls \
--e non_root_default_user \
--e non_root_specified_user \
--e write_lines_files \
+    -j "${CROMWELL_BUILD_JAR}" \
+    -c "${CROMWELL_BUILD_SCRIPTS_RESOURCES}/tes_application.conf" \
+    -g \
+    -e call_cache_capoeira_local \
+    -e draft3_call_cache_capoeira_local \
+    -e lots_of_inputs \
+    -e no_new_calls \
+    -e non_root_default_user \
+    -e non_root_specified_user \
+    -e write_lines_files \
 
-if [ "$TRAVIS_EVENT_TYPE" != "cron" ]; then
-    sbt coverageReport --warn
-    sbt coverageAggregate --warn
-    bash <(curl -s https://codecov.io/bash) >/dev/null
-fi
+cromwell::build::generate_code_coverage

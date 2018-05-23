@@ -1,7 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import cromwell.backend.BackendJobDescriptor
-import cromwell.backend.BackendJobExecutionActor.{JobAbortedResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
+import cromwell.backend.BackendJobExecutionActor._
 import cromwell.core.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CallCacheHashes, FileHashes}
@@ -91,7 +91,7 @@ private[ejea] trait CanExpectCacheInvalidation extends Eventually { self: Engine
 private[ejea] trait HasJobSuccessResponse { self: EngineJobExecutionActorSpec =>
   val successRc = Option(171)
   val successOutputs = WomMocks.mockOutputExpectations(Map("a" -> WomInteger(3), "b" -> WomString("bee")))
-  def successResponse = JobSucceededResponse(helper.jobDescriptorKey, successRc, successOutputs, None, Seq.empty, None)
+  def successResponse = JobSucceededResponse(helper.jobDescriptorKey, successRc, successOutputs, None, Seq.empty, None, resultGenerationMode = RunOnBackend)
 }
 private[ejea] object HasJobSuccessResponse {
   val SuccessfulCallCacheHashes = CallCacheHashes(

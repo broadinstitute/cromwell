@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 
 set -e
-set -x
+# import in shellcheck / CI / IntelliJ compatible ways
+# shellcheck source=/dev/null
+source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
-docker pull ubuntu:latest
+cromwell::build::setup_common_environment
 
-ENABLE_COVERAGE=true sbt \
-  -Dbackend.providers.Local.config.filesystems.local.localization.0=copy \
-  +clean +nointegration:test
+CROMWELL_SBT_COVERAGE=true sbt \
+    -Dbackend.providers.Local.config.filesystems.local.localization.0=copy \
+    +clean +nointegration:test
 
-if [ "$TRAVIS_EVENT_TYPE" != "cron" ]; then
-    sbt coverageReport --warn
-    sbt coverageAggregate --warn
-    bash <(curl -s https://codecov.io/bash) >/dev/null
-fi
+cromwell::build::generate_code_coverage
+
+cromwell::build::publish_artifacts

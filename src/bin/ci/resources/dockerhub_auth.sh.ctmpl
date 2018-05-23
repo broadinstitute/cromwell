@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+# Used to login docker from the command line. If/when there is a better way to command line docker login please update
+# test.inc.sh and remove all traces of this include.
+
+{{with $cromwellDockerhub := vault (printf "secret/dsde/cromwell/common/cromwell-dockerhub")}}
+CROMWELL_SECURE_DOCKER_USERNAME="{{$cromwellDockerhub.Data.username}}"
+CROMWELL_SECURE_DOCKER_PASSWORD="{{$cromwellDockerhub.Data.password}}"
+{{end}}

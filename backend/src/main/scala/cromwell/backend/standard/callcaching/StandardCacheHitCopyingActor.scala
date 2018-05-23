@@ -8,7 +8,7 @@ import cats.instances.set._
 import cats.instances.tuple._
 import cats.syntax.foldable._
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
-import cromwell.backend.BackendJobExecutionActor.{JobAbortedResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{CallCached, JobAbortedResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardCachingActorHelper
@@ -219,7 +219,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   def succeedAndStop(returnCode: Option[Int], copiedJobOutputs: CallOutputs, detritusMap: DetritusMap) = {
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), startMetadataKeyValues)
-    context.parent ! JobSucceededResponse(jobDescriptor.key, returnCode, copiedJobOutputs, Option(detritusMap), Seq.empty, None)
+    context.parent ! JobSucceededResponse(jobDescriptor.key, returnCode, copiedJobOutputs, Option(detritusMap), Seq.empty, None, resultGenerationMode = CallCached)
     context stop self
     stay()
   }

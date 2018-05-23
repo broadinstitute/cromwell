@@ -25,6 +25,13 @@ Please update your configuration accordingly.
 If you don't update the `actor-factory` value, you'll get a deprecation warning in the logs, and Cromwell will default back to
 **PAPI V1**
 
+**Requester Pays**
+
+Cromwell now supports [Requester Pays](https://cloud.google.com/storage/docs/requester-pays) feature for Cloud Storage. With Requester Pays enabled on your bucket,
+you can require requesters to include a billing project in their requests, thus billing the requester's project. More information about it and how to include billing project can be found [here](backends/Google#requester-pays).
+It is highly recommended to add the billing project id as part of google configuration as shown in [`Getting started on Google Pipelines API`](http://cromwell.readthedocs.io/en/develop/tutorials/PipelinesApi101/)
+by replacing the `<google-billing-project-id>` with the project id.
+
 ### Labels
 * Cromwell has removed most of the formatting restrictions from custom labels. Please check the [README](README.md#label-format) for more detailed documentation.
 * Custom labels won't be submitted to Google backend as they are now decoupled from Google's default labels.
@@ -48,7 +55,7 @@ All language factories can now be configured on a per-language-version basis. Al
 
 * More accurately returns 503 instead of 500 when Cromwell can not respond in a timely manner
 * Cromwell now allows a user to submit a workflow but in a state where it will not automatically be picked up for execution. This new state is called 'On Hold'. To do this you need to set the parameter workflowOnHold to true while submitting the workflow.
-* API end point 'release' will allow the user to send a signal to Cromwell to allow a workflow to be startable, at which point it will be picked up by normal execution schemes.
+* API end point 'releaseHold' will allow the user to send a signal to Cromwell to allow a workflow to be startable, at which point it will be picked up by normal execution schemes.
 
 ### GPU
 

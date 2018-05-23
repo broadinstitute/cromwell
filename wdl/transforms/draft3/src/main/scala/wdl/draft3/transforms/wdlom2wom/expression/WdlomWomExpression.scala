@@ -15,9 +15,11 @@ import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
 import wom.expression.{FileEvaluation, IoFunctionSet, WomExpression}
 import wom.types.WomType
 import wom.values.WomValue
+import wdl.draft3.transforms.wdlom2wdl.WdlWriter.ops._
+import wdl.draft3.transforms.wdlom2wdl.WdlWriterImpl.expressionElementWriter
 
 final case class WdlomWomExpression(expressionElement: ExpressionElement, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]) extends WomExpression {
-  override def sourceString: String = expressionElement.toString
+  override def sourceString: String = expressionElement.toWdlV1
 
   override def inputs: Set[String] = {
     expressionElement.expressionConsumedValueHooks map { hook => linkedValues(hook).linkableName }

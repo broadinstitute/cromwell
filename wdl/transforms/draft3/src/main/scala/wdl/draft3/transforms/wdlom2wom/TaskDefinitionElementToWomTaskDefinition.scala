@@ -24,6 +24,7 @@ import wdl.draft3.transforms.wdlom2wom.expression.renaming.expressionEvaluator
 import wdl.model.draft3.elements.ExpressionElement.{ArrayLiteral, IdentifierLookup, KvPair, SelectFirst}
 import wom.expression.WomExpression
 import wom.types.{WomOptionalType, WomType}
+
 object TaskDefinitionElementToWomTaskDefinition {
 
   final case class TaskDefinitionElementToWomInputs(taskDefinitionElement: TaskDefinitionElement, typeAliases: Map[String, WomType])
@@ -36,7 +37,7 @@ object TaskDefinitionElementToWomTaskDefinition {
     val declarations = a.taskDefinitionElement.declarations
     val outputElements = a.taskDefinitionElement.outputsSection.map(_.outputs).getOrElse(Seq.empty)
 
-    createTaskGraph(inputElements, declarations, outputElements, a.typeAliases) flatMap { taskGraph =>
+    val conversion = createTaskGraph(inputElements, declarations, outputElements, a.typeAliases) flatMap { taskGraph =>
       val validRuntimeAttributes: ErrorOr[RuntimeAttributes] = a.taskDefinitionElement.runtimeSection match {
         case Some(attributeSection) => createRuntimeAttributes(attributeSection, taskGraph.linkedGraph)
         case None => RuntimeAttributes(Map.empty).validNel
@@ -52,6 +53,8 @@ object TaskDefinitionElementToWomTaskDefinition {
         CallableTaskDefinition(a.taskDefinitionElement.name, Function.const(command.validNel), runtime, Map.empty, Map.empty, taskGraph.outputs, taskGraph.inputs, Set.empty, Map.empty)
       }
     }
+
+    conversion.contextualizeErrors(s"process task definition '${b.taskDefinitionElement.name}'")
   }
 
   private def eliminateInputDependencies(a: TaskDefinitionElementToWomInputs): TaskDefinitionElementToWomInputs = {

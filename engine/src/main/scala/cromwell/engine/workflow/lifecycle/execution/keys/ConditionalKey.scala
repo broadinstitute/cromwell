@@ -4,6 +4,7 @@ import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionIndex.ExecutionIndex
+import cromwell.core.logging.WorkflowLogger
 import cromwell.core.{ExecutionStatus, JobKey}
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore.ValueKey
 import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActorData, WorkflowExecutionDiff}
@@ -52,12 +53,18 @@ private [execution] case class ConditionalKey(node: ConditionalNode, index: Exec
       throw new UnsupportedOperationException(s"Scope ${e.getClass.getName} is not supported in an If block.")
   }
 
-  def processRunnable(data: WorkflowExecutionActorData): ErrorOr[WorkflowExecutionDiff] = {
+  def processRunnable(data: WorkflowExecutionActorData, workflowLogger: WorkflowLogger): ErrorOr[WorkflowExecutionDiff] = {
     // This is the output port from the conditional's 'condition' input:
     val conditionOutputPort = node.conditionExpression.singleOutputPort
     data.valueStore.get(conditionOutputPort, index) match {
       case Some(b: WomBoolean) =>
-        val conditionalStatus = if (b.value) ExecutionStatus.Done else ExecutionStatus.Bypassed
+        val conditionalStatus = if (b.value) {
+          workflowLogger.info(s"Condition met: '${node.conditionExpression.womExpression.sourceString}'. Running conditional section")
+          ExecutionStatus.Done
+        } else {
+          workflowLogger.info(s"Condition NOT met: '${node.conditionExpression.womExpression.sourceString}'. Bypassing conditional section")
+          ExecutionStatus.Bypassed
+        }
 
         val valueStoreAdditions: Map[ValueKey, WomValue] = if (!b.value) {
           node.conditionalOutputPorts.map(op => ValueKey(op, index) -> op.womType.none).toMap

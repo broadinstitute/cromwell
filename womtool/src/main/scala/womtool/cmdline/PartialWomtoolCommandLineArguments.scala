@@ -5,6 +5,7 @@ import cromwell.core.path.Path
 final case class PartialWomtoolCommandLineArguments(command: Option[WomtoolCommand] = None,
                                                     workflowSource: Option[Path] = None,
                                                     workflowInputs: Option[Path] = None,
+                                                    displayOptionalInputs: Option[Boolean] = None,
                                                     highlightMode: Option[HighlightMode] = None
                                                    )
 
@@ -14,7 +15,7 @@ final case class ValidateCommandLine(workflowSource: Path,
                                      inputs: Option[Path]) extends ValidatedWomtoolCommandLine
 final case class HighlightCommandLine(workflowSource: Path,
                                       highlightMode: HighlightMode) extends ValidatedWomtoolCommandLine
-final case class InputsCommandLine(workflowSource: Path) extends ValidatedWomtoolCommandLine
+final case class InputsCommandLine(workflowSource: Path, showOptionals: Boolean) extends ValidatedWomtoolCommandLine
 final case class WomtoolGraphCommandLine(workflowSource: Path) extends ValidatedWomtoolCommandLine
 final case class WomtoolWdlV1UpgradeCommandLine(workflowSource: Path) extends ValidatedWomtoolCommandLine
 final case class WomtoolWomGraphCommandLine(workflowSource: Path) extends ValidatedWomtoolCommandLine

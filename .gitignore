@@ -21,3 +21,14 @@ local-cromwell-executions
 log
 native
 scripts/docker-compose-mysql/compose/mysql/data
+/logs/
+/common-workflow-language/
+bcs_application.conf
+cromwell-service-account.json
+cwl_conformance_test.inputs.json
+dockerhub_provider_config.inc.conf
+github_private_deploy_key
+papi_application.inc.conf
+papi_refresh_token.txt
+artifactory_credentials.properties
+dockerhub_auth.sh

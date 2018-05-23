@@ -93,7 +93,7 @@ object Settings {
     test in assembly := {},
     assemblyMergeStrategy in assembly := customMergeStrategy.value,
     logLevel in assembly :=
-      sys.env.get("ASSEMBLY_LOG_LEVEL").flatMap(Level.apply).getOrElse((logLevel in assembly).value)
+      sys.env.get("CROMWELL_SBT_ASSEMBLY_LOG_LEVEL").flatMap(Level.apply).getOrElse((logLevel in assembly).value)
   )
 
   val Scala2_12Version = "2.12.6"
@@ -127,12 +127,12 @@ object Settings {
     NOTE: Like below, gave up coming with an SBT setting. Using an environment variable instead.
 
     Once 2.11 is gone, instead of
-      `ENABLE_COVERAGE=true sbt +test coverageReport`
+      `CROMWELL_SBT_COVERAGE=true sbt +test coverageReport`
     one can run
       `sbt coverage test coverageReport`
      */
     coverageEnabled := (CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 12)) => sys.env.get("ENABLE_COVERAGE").exists(_.toBoolean)
+      case Some((2, 12)) => sys.env.get("CROMWELL_SBT_COVERAGE").exists(_.toBoolean)
       case _ =>
         throw new NotImplementedError(
           s"Found unsupported Scala version '${scalaVersion.value}'." +
@@ -158,11 +158,13 @@ object Settings {
       ArrayBuffer(broadinstitute/womtool:30, broadinstitute/womtool:30-c33be41-SNAP)
       ArrayBuffer(broadinstitute/cromwell:30, broadinstitute/cromwell:30-c33be41-SNAP)
 
-    `CROMWELL_DOCKER_TAGS=dev,develop sbt 'show docker::imageNames'` returns:
+    `CROMWELL_SBT_DOCKER_TAGS=dev,develop sbt 'show docker::imageNames'` returns:
       ArrayBuffer(broadinstitute/womtool:dev, broadinstitute/womtool:develop)
       ArrayBuffer(broadinstitute/cromwell:dev, broadinstitute/cromwell:develop)
     */
-    dockerTags := sys.env.getOrElse("CROMWELL_DOCKER_TAGS", s"$cromwellVersion,${version.value}").split(","),
+    dockerTags := sys.env
+      .getOrElse("CROMWELL_SBT_DOCKER_TAGS", s"$cromwellVersion,${version.value}")
+      .split(","),
     imageNames in docker := dockerTags.value map { tag =>
       ImageName(namespace = Option("broadinstitute"), repository = name.value, tag = Option(tag))
     },

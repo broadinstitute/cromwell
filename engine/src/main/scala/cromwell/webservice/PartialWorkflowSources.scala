@@ -176,10 +176,6 @@ object PartialWorkflowSources {
     def validateOptions(options: Option[WorkflowOptionsJson]): ErrorOr[WorkflowOptions] =
       WorkflowOptions.fromJsonString(options.getOrElse("{}")).toErrorOr leftMap { _ map { i => s"Invalid workflow options provided: $i" } }
 
-    def validateWorkflowType(partialSource: PartialWorkflowSources): Option[WorkflowType] = partialSource.workflowType
-
-    def validateWorkflowTypeVersion(partialSource: PartialWorkflowSources): Option[WorkflowTypeVersion] = partialSource.workflowTypeVersion
-
     def validateLabels(labels: WorkflowJson) : ErrorOr[WorkflowJson] = {
 
       def validateKeyValuePair(key: String, value: String): ErrorOr[Unit] = (Label.validateLabelKey(key), Label.validateLabelValue(value)).tupled.void
@@ -208,8 +204,8 @@ object PartialWorkflowSources {
             wfInputs.map(inputsJson => WorkflowSourceFilesCollection(
               workflowSource = partialSource.workflowSource,
               workflowRoot = partialSource.workflowRoot,
-              workflowType = validateWorkflowType(partialSource),
-              workflowTypeVersion = validateWorkflowTypeVersion(partialSource),
+              workflowType = partialSource.workflowType,
+              workflowTypeVersion = partialSource.workflowTypeVersion,
               inputsJson = inputsJson,
               workflowOptionsJson = wfOptions.asPrettyJson,
               labelsJson = workflowLabels,

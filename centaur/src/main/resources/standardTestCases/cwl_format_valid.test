@@ -1,5 +1,7 @@
 name: cwl_format_valid
 testFormat: workflowsuccess
+workflowType: CWL
+workflowTypeVersion: v1.0
 workflowRoot: main
 backendsMode: "any"
 backends: [Local, LocalNoDocker]

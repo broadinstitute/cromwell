@@ -7,9 +7,9 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
 cromwell::build::setup_common_environment
 
-CROMWELL_SBT_COVERAGE=true sbt \
+sbt \
     -Dbackend.providers.Local.config.filesystems.local.localization.0=copy \
-    +clean +nointegration:test
+    clean coverage nointegration:test
 
 cromwell::build::generate_code_coverage
 

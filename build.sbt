@@ -4,10 +4,10 @@ import Settings._
 // Libraries
 
 lazy val common = project
-  .withLibrarySettings("cromwell-common", commonDependencies, crossCompile = true)
+  .withLibrarySettings("cromwell-common", commonDependencies)
 
 lazy val wom = project
-  .withLibrarySettings("cromwell-wom", womDependencies, crossCompile = true)
+  .withLibrarySettings("cromwell-wom", womDependencies)
   .dependsOn(common)
 
 lazy val wdlRoot = Path("wdl")
@@ -15,33 +15,33 @@ lazy val wdlRoot = Path("wdl")
 lazy val wdlModelRoot = wdlRoot / "model"
 
 lazy val wdlSharedModel = (project in wdlModelRoot / "shared")
-  .withLibrarySettings("cromwell-wdl-model-core", wdlDependencies, crossCompile = true)
+  .withLibrarySettings("cromwell-wdl-model-core", wdlDependencies)
   .dependsOn(wom)
 
 lazy val wdlModelDraft2 = (project in wdlModelRoot / "draft2")
-  .withLibrarySettings("cromwell-wdl-model-draft2", wdlDependencies, crossCompile = true)
+  .withLibrarySettings("cromwell-wdl-model-draft2", wdlDependencies)
   .dependsOn(wdlSharedTransforms)
   .dependsOn(wdlSharedModel)
   .dependsOn(wom % "test->test")
 
 lazy val wdlModelDraft3 = (project in wdlModelRoot / "draft3")
-  .withLibrarySettings("cromwell-wdl-model-draft3", crossCompile = true)
+  .withLibrarySettings("cromwell-wdl-model-draft3")
   .dependsOn(wdlSharedModel)
 
 lazy val wdlTransformsRoot = wdlRoot / "transforms"
 
 lazy val wdlSharedTransforms = (project in wdlTransformsRoot / "shared")
-  .withLibrarySettings("cromwell-wdl-transforms-shared", wdlDependencies, crossCompile = true)
+  .withLibrarySettings("cromwell-wdl-transforms-shared", wdlDependencies)
   .dependsOn(wdlSharedModel)
   .dependsOn(wom)
 
 lazy val wdlTransformsDraft2 = (project in wdlTransformsRoot / "draft2")
-  .withLibrarySettings("cromwell-wdl-transforms-draft2", wdlDependencies, crossCompile = true)
+  .withLibrarySettings("cromwell-wdl-transforms-draft2", wdlDependencies)
   .dependsOn(wdlSharedTransforms)
   .dependsOn(wdlModelDraft2)
 
 lazy val wdlTransformsDraft3 = (project in wdlTransformsRoot / "draft3")
-  .withLibrarySettings("cromwell-wdl-transforms-draft3", wdlDependencies, crossCompile = true)
+  .withLibrarySettings("cromwell-wdl-transforms-draft3", wdlDependencies)
   .dependsOn(wdlSharedTransforms)
   .dependsOn(wdlModelDraft3)
   .dependsOn(languageFactoryCore)
@@ -49,12 +49,12 @@ lazy val wdlTransformsDraft3 = (project in wdlTransformsRoot / "draft3")
   .dependsOn(wom % "test->test")
 
 lazy val cwl = project
-  .withLibrarySettings("cromwell-cwl", cwlDependencies, crossCompile = true)
+  .withLibrarySettings("cromwell-cwl", cwlDependencies)
   .dependsOn(wom)
   .dependsOn(wom % "test->test")
 
 lazy val cwlEncoder = project
-  .withLibrarySettings("cromwell-cwl-encoder", crossCompile = true)
+  .withLibrarySettings("cromwell-cwl-encoder")
   .dependsOn(cwl)
 
 lazy val core = project

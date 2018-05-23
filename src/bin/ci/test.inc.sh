@@ -283,11 +283,11 @@ cromwell::private::generate_code_coverage() {
 }
 
 cromwell::private::publish_artifacts_only() {
-    sbt "$@" +publish
+    sbt "$@" publish
 }
 
 cromwell::private::publish_artifacts_and_docker() {
-    sbt "$@" +publish dockerBuildAndPush
+    sbt "$@" publish dockerBuildAndPush
 }
 
 # Some CI environments want to know when new docker images are published. They do not currently poll dockerhub but do
@@ -463,7 +463,7 @@ cromwell::build::setup_conformance_environment() {
 
 cromwell::build::assemble_jars() {
     if [ "${CROMWELL_BUILD_IS_CI}" = "true" ]; then
-        CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error CROMWELL_SBT_COVERAGE=true sbt assembly -error
+        CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error sbt coverage assembly -error
     fi
     CROMWELL_BUILD_JAR="$( \
         find "${CROMWELL_BUILD_ROOT_DIRECTORY}/server/target/scala-2.12" -name "cromwell-*.jar" \

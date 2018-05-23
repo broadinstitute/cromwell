@@ -3,7 +3,6 @@ import Merging.customMergeStrategy
 import Publishing._
 import Testing._
 import Version._
-import org.apache.ivy.plugins.conflict.NoConflictManager
 import sbt.Keys._
 import sbt._
 import sbtassembly.AssemblyPlugin
@@ -11,7 +10,6 @@ import sbtassembly.AssemblyPlugin.autoImport._
 import sbtdocker.DockerPlugin
 import sbtdocker.DockerPlugin.autoImport._
 import sbtrelease.ReleasePlugin
-import scoverage.ScoverageKeys._
 
 object Settings {
 
@@ -105,44 +103,13 @@ object Settings {
     resolvers ++= commonResolvers,
     parallelExecution := false,
     dependencyOverrides ++= cromwellDependencyOverrides,
-    scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 12)) =>
-        // The default scalacOptions includes console-hostile options.  These options are overridden specifically below
-        // for the `console` target.
-        baseSettings ++ warningSettings ++ consoleHostileSettings
-      case _ =>
-        throw new NotImplementedError(
-          s"Found unsupported Scala version '${scalaVersion.value}'." +
-            s" ${name.value} does not support versions of Scala other than 2.12.")
-    }),
+    scalacOptions ++= baseSettings ++ warningSettings ++ consoleHostileSettings,
     // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874
     scalacOptions in(Compile, doc) ++= baseSettings ++ List("-no-link-warnings"),
     // No console-hostile options, otherwise the console is effectively unusable.
     // https://github.com/sbt/sbt/issues/1815
     scalacOptions in(Compile, console) --= consoleHostileSettings,
-    //
-    /*
-    Only enable coverage for 2.12.
-
-    NOTE: Like below, gave up coming with an SBT setting. Using an environment variable instead.
-
-    Once 2.11 is gone, instead of
-      `CROMWELL_SBT_COVERAGE=true sbt +test coverageReport`
-    one can run
-      `sbt coverage test coverageReport`
-     */
-    coverageEnabled := (CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 12)) => sys.env.get("CROMWELL_SBT_COVERAGE").exists(_.toBoolean)
-      case _ =>
-        throw new NotImplementedError(
-          s"Found unsupported Scala version '${scalaVersion.value}'." +
-            s" ${name.value} does not support versions of Scala other than 2.12.")
-    }),
-    addCompilerPlugin(paradisePlugin cross CrossVersion.full)
-  )
-
-  val crossVersionSettings = List(
-    crossScalaVersions := List(Scala2_12Version)
+    addCompilerPlugin(paradisePlugin)
   )
 
   val dockerTags = settingKey[Seq[String]]("The tags for docker builds.")
@@ -220,15 +187,13 @@ object Settings {
     def withLibrarySettings(libraryName: String,
                             dependencies: Seq[ModuleID] = List.empty,
                             customSettings: Seq[Setting[_]] = List.empty,
-                            integrationTests: Boolean = false,
-                            crossCompile: Boolean = false): Project = {
+                            integrationTests: Boolean = false): Project = {
 
       val builders: Seq[Project => Project] = List(
         addTestSettings,
         if (integrationTests) addIntegrationTestSettings else identity,
         _
           .disablePlugins(AssemblyPlugin)
-          .settings(if (crossCompile) crossVersionSettings else List.empty)
           .settings(resourceGenerators in Compile += writeProjectVersionConf)
           .settings(customSettings)
       )

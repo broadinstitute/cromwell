@@ -420,7 +420,7 @@ object Dependencies {
   ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
 
   val kindProjectorPlugin = "org.spire-math" %% "kind-projector" % kindProjectorV
-  val paradisePlugin = "org.scalamacros" % "paradise" % paradiseV
+  val paradisePlugin = "org.scalamacros" % "paradise" % paradiseV cross CrossVersion.full
 
   // Version of the swagger UI to write into config files
   val swaggerUiVersion = swaggerUiV

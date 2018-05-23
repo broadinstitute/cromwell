@@ -222,7 +222,7 @@ workflow my_workflow {
 We assume here the task `cat` will run on a Pipelines API Cromwell backend.
 Consequently, Pipelines API will allocate a Virtual Machine for the task `cat`, which will in turn "localize" the file down from the GCS to a local disk.
 This operation is done on the VM itself, not by the Cromwell instance.
-Due to limitations on Pipelines API v1, localizing an object located in a bucket with requester pays enabled **can only be achieve on PAPI v2**.
+Due to limitations on Pipelines API v1, localizing an object located in a bucket with requester pays enabled **can only be achieved on PAPI v2**.
 
 #### Google Labels
 

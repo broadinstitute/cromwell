@@ -276,6 +276,23 @@ cromwell::private::setup_secure_resources() {
     fi
 }
 
+cromwell::private::find_cromwell_jar() {
+    CROMWELL_BUILD_JAR="$( \
+        find "${CROMWELL_BUILD_ROOT_DIRECTORY}/server/target/scala-2.12" -name "cromwell-*.jar" \
+        | head -n 1 \
+        2> /dev/null \
+        )"
+    export CROMWELL_BUILD_JAR
+}
+
+cromwell::private::exists_cromwell_jar() {
+    test -s "${CROMWELL_BUILD_JAR}"
+}
+
+cromwell::private::assemble_jars() {
+    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error sbt coverage assembly -error
+}
+
 cromwell::private::generate_code_coverage() {
     sbt coverageReport -warn
     sbt coverageAggregate -warn
@@ -462,15 +479,16 @@ cromwell::build::setup_conformance_environment() {
 }
 
 cromwell::build::assemble_jars() {
-    if [ "${CROMWELL_BUILD_IS_CI}" = "true" ]; then
-        CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error sbt coverage assembly -error
+    cromwell::private::find_cromwell_jar
+    if [ "${CROMWELL_BUILD_IS_CI}" = "true" ] || ! cromwell::private::exists_cromwell_jar; then
+        echo "Please wait, building jars…"
+        cromwell::private::assemble_jars
     fi
-    CROMWELL_BUILD_JAR="$( \
-        find "${CROMWELL_BUILD_ROOT_DIRECTORY}/server/target/scala-2.12" -name "cromwell-*.jar" \
-        | head -n 1 \
-        )"
-    [ -s "${CROMWELL_BUILD_JAR}" ] || exit 1
-    export CROMWELL_BUILD_JAR
+    cromwell::private::find_cromwell_jar
+    if ! cromwell::private::exists_cromwell_jar; then
+        echo "Error: find_cromwell_jar did not locate a cromwell jar even after assembly" >&2
+        exit 1
+    fi
 }
 
 cromwell::build::generate_code_coverage() {

@@ -11,7 +11,6 @@ import common.validation.Parse._
 import common.validation.Validation._
 import cromwell.CommandLineArguments._
 import cromwell.CromwellApp.Command
-import cromwell.core.WorkflowOptions
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cwl.preprocessor.CwlPreProcessor
 import org.slf4j.Logger
@@ -36,8 +35,8 @@ case class CommandLineArguments(command: Option[Command] = None,
                                 workflowRoot: Option[String] = None,
                                 workflowInputs: Option[Path] = None,
                                 workflowOptions: Option[Path] = None,
-                                workflowType: Option[String] = WorkflowOptions.defaultWorkflowType,
-                                workflowTypeVersion: Option[String] = WorkflowOptions.defaultWorkflowTypeVersion,
+                                workflowType: Option[String] = None,
+                                workflowTypeVersion: Option[String] = None,
                                 workflowLabels: Option[Path] = None,
                                 imports: Option[Path] = None,
                                 metadataOutput: Option[Path] = None,

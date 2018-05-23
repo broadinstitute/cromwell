@@ -29,6 +29,9 @@ import wom.values.WomValue
 
 class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends LanguageFactory {
 
+  override val languageName: String = "WDL"
+  override val languageVersionName: String = "draft-2"
+
   override def validateNamespace(source: WorkflowSourceFilesCollection,
                                     workflowOptions: WorkflowOptions,
                                     importLocalFilesystem: Boolean,
@@ -128,4 +131,7 @@ class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends La
     executable <- WdlSharedInputParsing.buildWomExecutable(womBundle, Option(inputs), ioFunctions, standardConfig.strictValidation)
     validatedNamespace <- LanguageFactoryUtil.validateWomNamespace(executable)
   } yield validatedNamespace
+
+  // Commentary: we'll set this as the default in the reference.conf, so most people will get WDL draft 2 if nothing else looks parsable.
+  override def looksParsable(content: String): Boolean = false
 }

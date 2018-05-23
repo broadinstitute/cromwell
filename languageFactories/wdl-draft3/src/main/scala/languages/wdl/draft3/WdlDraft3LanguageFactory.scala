@@ -21,6 +21,9 @@ import wom.transforms.WomExecutableMaker.ops._
 
 class WdlDraft3LanguageFactory(override val config: Map[String, Any]) extends LanguageFactory {
 
+  override val languageName: String = "WDL"
+  override val languageVersionName: String = "1.0"
+
   override def validateNamespace(source: WorkflowSourceFilesCollection,
                                     workflowOptions: WorkflowOptions,
                                     importLocalFilesystem: Boolean,
@@ -53,5 +56,12 @@ class WdlDraft3LanguageFactory(override val config: Map[String, Any]) extends La
       executable <- womBundle.toWomExecutable(Option(inputsJson), ioFunctions, standardConfig.strictValidation)
       validated <- LanguageFactoryUtil.validateWomNamespace(executable)
     } yield validated
+  }
+
+  override def looksParsable(content: String): Boolean = {
+    val trimStart = content.lines.dropWhile { l =>
+      l.forall(_.isWhitespace) || l.dropWhile(_.isWhitespace).startsWith("#")
+    }
+    trimStart.next.dropWhile(_.isWhitespace).startsWith("version 1.0")
   }
 }

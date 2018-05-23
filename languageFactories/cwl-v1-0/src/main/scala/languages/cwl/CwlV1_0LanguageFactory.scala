@@ -19,6 +19,9 @@ import wom.expression.IoFunctionSet
 
 class CwlV1_0LanguageFactory(override val config: Map[String, Any]) extends LanguageFactory {
 
+  override val languageName: String = "CWL"
+  override val languageVersionName: String = "v1.0"
+
   override def validateNamespace(source: WorkflowSourceFilesCollection,
                                  workflowOptions: WorkflowOptions,
                                  importLocalFilesystem: Boolean,
@@ -62,4 +65,9 @@ class CwlV1_0LanguageFactory(override val config: Map[String, Any]) extends Lang
 
   override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] =
     standardConfig.enabledCheck flatMap { _ => "No createExecutable method implemented in CWL v1".invalidNelCheck }
+
+  override def looksParsable(content: String): Boolean = content.lines.exists { l =>
+    val trimmed = l.trim.stripSuffix(",")
+    trimmed == """"cwlVersion": "v1.0"""" || trimmed == "cwlVersion: v1.0"
+  }
 }

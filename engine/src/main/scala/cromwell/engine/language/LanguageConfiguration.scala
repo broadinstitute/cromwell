@@ -7,28 +7,36 @@ import cromwell.engine.language.CromwellLanguages.{CromwellLanguageName, Cromwel
 
 import scala.collection.JavaConverters._
 
-final case class LanguageConfigurationEntry(name: CromwellLanguageName, versions: Map[CromwellLanguageVersion, LanguageConfigurationEntryFields])
-final case class LanguageConfigurationEntryFields(className: String, config: Map[String, Any])
+final case class LanguagesConfiguration(languages: List[LanguageVersionConfigurationEntry], default: Option[String])
+final case class LanguageVersionConfigurationEntry(name: CromwellLanguageName, versions: Map[CromwellLanguageVersion, LanguageVersionConfigurationEntryFields], default: Option[String])
+final case class LanguageVersionConfigurationEntryFields(className: String, config: Map[String, Any])
 
 object LanguageConfiguration {
   private val LanguagesConfig = ConfigFactory.load.getConfig("languages")
-  private val LanguageNames: Set[String] = LanguagesConfig.entrySet().asScala.map(findFirstKey).toSet
+  private val DefaultLanguageName: Option[String] = if (LanguagesConfig.hasPath("default")) Option(LanguagesConfig.getString("default")) else None
 
-  val AllLanguageEntries: List[LanguageConfigurationEntry] = LanguageNames.toList map { languageName =>
+  private val LanguageNames: Set[String] = LanguagesConfig.entrySet().asScala.map(findFirstKey).filterNot(_ == "default").toSet
 
-    val languageConfig = LanguagesConfig.getConfig(languageName)
-    val versionSet = languageConfig.getConfig("versions")
-    val languageVersionNames: Set[String] = versionSet.entrySet().asScala.map(findFirstKey).toSet
+  val AllLanguageEntries: LanguagesConfiguration = {
+    val languages = LanguageNames.toList map { languageName =>
 
-    val versions = (languageVersionNames.toList map { languageVersionName =>
-      val configEntry = versionSet.getConfig(s""""$languageVersionName"""")
-      val className: String = configEntry.getString("language-factory")
-      val factoryConfig: Map[String, Any] = if (configEntry.hasPath("config")) { configEntry.getObject("config").unwrapped().asScala.toMap } else Map.empty[String, Any]
-      val fields = LanguageConfigurationEntryFields(className, factoryConfig)
-      languageVersionName -> fields
-    }).toMap
+      val languageConfig = LanguagesConfig.getConfig(languageName)
+      val defaultVersionName: Option[String] = if (LanguagesConfig.hasPath("default")) { Option(LanguagesConfig.getString("default")) } else None
+      val versionSet = languageConfig.getConfig("versions")
+      val languageVersionNames: Set[String] = versionSet.entrySet().asScala.map(findFirstKey).filterNot(_ == "default").toSet
 
-    LanguageConfigurationEntry(languageName, versions)
+      val versions = (languageVersionNames.toList map { languageVersionName =>
+        val configEntry = versionSet.getConfig(s""""$languageVersionName"""")
+        val className: String = configEntry.getString("language-factory")
+        val factoryConfig: Map[String, Any] = if (configEntry.hasPath("config")) { configEntry.getObject("config").unwrapped().asScala.toMap } else Map.empty[String, Any]
+        val fields = LanguageVersionConfigurationEntryFields(className, factoryConfig)
+        languageVersionName -> fields
+      }).toMap
+
+      LanguageVersionConfigurationEntry(languageName, versions, defaultVersionName)
+    }
+
+    LanguagesConfiguration(languages, DefaultLanguageName)
   }
 
   // Gets the first key in a hocon key entry (which might contain several keys, perhaps surrounded by quotes)
@@ -42,12 +50,15 @@ object LanguageConfiguration {
   // Called on the entry on line 2, returns '1.0'
   // Called on the entry on line 3, returns 'x.y'
   private def findFirstKey(entry: Entry[String, _]): String = {
-    val NoQuoteFirstKey = """([^.]*)\.(.*)""".r
+    val NoQuoteFirstKey = """([^/.]*)\.(.*)""".r
     val SingleQuotedFirstKey = """"(.*)"\.(.*)""".r
+    val NoQuoteNoDot = """([^\.\"]*)""".r
 
     entry.getKey match {
       case SingleQuotedFirstKey(firstKey, _) => firstKey
       case NoQuoteFirstKey(firstKey, _) => firstKey
+      case NoQuoteNoDot(key) => key
+      case other => throw new IllegalArgumentException(s"Unexpected key format: $other")
     }
   }
 }

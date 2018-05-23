@@ -369,7 +369,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
     }
 
     "return failure when tries to validate an invalid maxRetries entry" in {
-      val maxRetries = Some(WomInteger(-1))
+      val maxRetries = Option(WomInteger(-1))
       val result = RuntimeAttributesValidation.validateMaxRetries(maxRetries,
         "Failed to get maxRetries key from runtime attributes".invalidNel)
       result match {

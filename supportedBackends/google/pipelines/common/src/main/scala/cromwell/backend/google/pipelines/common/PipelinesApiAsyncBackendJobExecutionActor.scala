@@ -27,6 +27,7 @@ import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
+import cromwell.google.pipelines.common.PreviousRetryReasons
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import org.slf4j.LoggerFactory
@@ -508,21 +509,21 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   private lazy val standardPaths = jobPaths.standardPaths
 
   override def handleExecutionFailure(runStatus: RunStatus,
-                                      returnCode: Option[Int]): ExecutionHandle = {
+                                      returnCode: Option[Int]): Future[ExecutionHandle] = {
     // Inner function: Handles a 'Failed' runStatus (or Preempted if preemptible was false)
     def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus,
-                              returnCode: Option[Int]): ExecutionHandle = {
+                              returnCode: Option[Int]): Future[ExecutionHandle] = {
       (runStatus.errorCode, runStatus.jesCode) match {
-        case (Status.NOT_FOUND, Some(JesFailedToDelocalize)) => FailedNonRetryableExecutionHandle(FailedToDelocalizeFailure(runStatus.prettyPrintedError, jobTag, Option(standardPaths.error)))
+        case (Status.NOT_FOUND, Some(JesFailedToDelocalize)) => Future.successful(FailedNonRetryableExecutionHandle(FailedToDelocalizeFailure(runStatus.prettyPrintedError, jobTag, Option(standardPaths.error))))
         case (Status.ABORTED, Some(JesUnexpectedTermination)) => handleUnexpectedTermination(runStatus.errorCode, runStatus.prettyPrintedError, returnCode)
-        case _ => FailedNonRetryableExecutionHandle(StandardException(
-          runStatus.errorCode, runStatus.prettyPrintedError, jobTag, returnCode, standardPaths.error), returnCode)
+        case _ => Future.successful(FailedNonRetryableExecutionHandle(StandardException(
+          runStatus.errorCode, runStatus.prettyPrintedError, jobTag, returnCode, standardPaths.error), returnCode))
       }
     }
 
     runStatus match {
       case preemptedStatus: RunStatus.Preempted if preemptible => handlePreemption(preemptedStatus, returnCode)
-      case _: RunStatus.Cancelled => AbortedExecutionHandle
+      case _: RunStatus.Cancelled => Future.successful(AbortedExecutionHandle)
       case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus, returnCode)
       case unknown => throw new RuntimeException(s"handleExecutionFailure not called with RunStatus.Failed or RunStatus.Preempted. Instead got $unknown")
     }
@@ -537,7 +538,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     makeKvRequest(updateRequests).map(_ => ())
   }
 
-  private def handleUnexpectedTermination(errorCode: Status, errorMessage: String, jobReturnCode: Option[Int]): ExecutionHandle = {
+  private def handleUnexpectedTermination(errorCode: Status, errorMessage: String, jobReturnCode: Option[Int]): Future[ExecutionHandle] = {
 
     val msg = s"Retrying. $errorMessage"
 
@@ -546,22 +547,22 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         val thisUnexpectedRetry = ur + 1
         if (thisUnexpectedRetry <= maxUnexpectedRetries) {
           // Increment unexpected retry count and preemption count stays the same
-          writeFuturePreemptedAndUnexpectedRetryCounts(p, thisUnexpectedRetry)
-          FailedRetryableExecutionHandle(StandardException(
+          writeFuturePreemptedAndUnexpectedRetryCounts(p, thisUnexpectedRetry).map { _ =>
+            FailedRetryableExecutionHandle(StandardException(
               errorCode, msg, jobTag, jobReturnCode, standardPaths.error), jobReturnCode)
-
+          }
         }
         else {
-          FailedNonRetryableExecutionHandle(StandardException(
-            errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error), jobReturnCode)
+          Future.successful(FailedNonRetryableExecutionHandle(StandardException(
+            errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error), jobReturnCode))
         }
       case Invalid(_) =>
-        FailedNonRetryableExecutionHandle(StandardException(
-          errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error), jobReturnCode)
+        Future.successful(FailedNonRetryableExecutionHandle(StandardException(
+          errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error), jobReturnCode))
     }
   }
 
-  private def handlePreemption(runStatus: RunStatus.Preempted, jobReturnCode: Option[Int]): ExecutionHandle = {
+  private def handlePreemption(runStatus: RunStatus.Preempted, jobReturnCode: Option[Int]): Future[ExecutionHandle] = {
     import common.numeric.IntegerUtil._
 
     val errorCode: Status = runStatus.errorCode
@@ -572,22 +573,23 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         val taskName = s"${workflowDescriptor.id}:${call.localName}"
         val baseMsg = s"Task $taskName was preempted for the ${thisPreemption.toOrdinal} time."
 
-        writeFuturePreemptedAndUnexpectedRetryCounts(thisPreemption, ur)
-        if (thisPreemption < maxPreemption) {
-          // Increment preemption count and unexpectedRetryCount stays the same
-          val msg =
-            s"""$baseMsg The call will be restarted with another preemptible VM (max preemptible attempts number is $maxPreemption). Error code $errorCode.$prettyPrintedError""".stripMargin
-          FailedRetryableExecutionHandle(StandardException(
-            errorCode, msg, jobTag, jobReturnCode, standardPaths.error), jobReturnCode)
-        }
-        else {
-          val msg = s"""$baseMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The call will be restarted with a non-preemptible VM. Error code $errorCode.$prettyPrintedError)""".stripMargin
-          FailedRetryableExecutionHandle(StandardException(
-            errorCode, msg, jobTag, jobReturnCode, standardPaths.error), jobReturnCode)
+        writeFuturePreemptedAndUnexpectedRetryCounts(thisPreemption, ur).map { _ =>
+          if (thisPreemption < maxPreemption) {
+            // Increment preemption count and unexpectedRetryCount stays the same
+            val msg =
+              s"""$baseMsg The call will be restarted with another preemptible VM (max preemptible attempts number is $maxPreemption). Error code $errorCode.$prettyPrintedError""".stripMargin
+            FailedRetryableExecutionHandle(StandardException(
+              errorCode, msg, jobTag, jobReturnCode, standardPaths.error), jobReturnCode)
+          }
+          else {
+            val msg = s"""$baseMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The call will be restarted with a non-preemptible VM. Error code $errorCode.$prettyPrintedError)""".stripMargin
+            FailedRetryableExecutionHandle(StandardException(
+              errorCode, msg, jobTag, jobReturnCode, standardPaths.error), jobReturnCode)
+          }
         }
       case Invalid(_) =>
-        FailedNonRetryableExecutionHandle(StandardException(
-          errorCode, prettyPrintedError, jobTag, jobReturnCode, standardPaths.error), jobReturnCode)
+        Future.successful(FailedNonRetryableExecutionHandle(StandardException(
+          errorCode, prettyPrintedError, jobTag, jobReturnCode, standardPaths.error), jobReturnCode))
     }
   }
 

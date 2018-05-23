@@ -520,14 +520,12 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   /**
     * Returns the max number of times that a failed job should be retried, obtained by converting `maxRetries` to an Int.
-    *
-    * @return the behavior for max retries.
     */
   lazy val maxRetries: Int = RuntimeAttributesValidation.extract(
     MaxRetriesValidation.instance, validatedRuntimeAttributes)
 
 
-  lazy val previousFailedRetries: Int = jobDescriptor.prefetchedKvStoreEntries.get(BackendLifecycleActorFactory.failedRetryCountKey) match {
+  lazy val previousFailedRetries: Int = jobDescriptor.prefetchedKvStoreEntries.get(BackendLifecycleActorFactory.FailedRetryCountKey) match {
     case Some(KvPair(_,v)) => v.toInt
     case _ => 0
   }
@@ -640,10 +638,10 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def getTerminalEvents(runStatus: StandardAsyncRunStatus): Seq[ExecutionEvent] = Seq.empty
 
   /**
-    * Returns true if the status represents a success.
+    * Returns true if the status represents a completion.
     *
     * @param runStatus The run status.
-    * @return True if the job is a done.
+    * @return True if the job is done.
     */
   def isDone(runStatus: StandardAsyncRunStatus): Boolean = true
 
@@ -805,17 +803,16 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @return The execution handle.
     */
   def retryElseFail(runStatus: StandardAsyncRunStatus,
-                    backendExecutionStatus: ExecutionHandle): Future[ExecutionHandle] = {
+                    backendExecutionStatus: Future[ExecutionHandle]): Future[ExecutionHandle] = {
 
     val retryable = previousFailedRetries < maxRetries
 
-    backendExecutionStatus match {
+    backendExecutionStatus flatMap {
       case failed: FailedNonRetryableExecutionHandle if retryable =>
         incrementFailedRetryCount map { _ =>
           FailedRetryableExecutionHandle(failed.throwable, failed.returnCode)
         }
-      case _ =>
-        Future.successful(backendExecutionStatus)
+      case _ => backendExecutionStatus
     }
   }
 
@@ -826,9 +823,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @return The execution handle.
     */
   def handleExecutionFailure(runStatus: StandardAsyncRunStatus,
-                             returnCode: Option[Int]): ExecutionHandle = {
+                             returnCode: Option[Int]): Future[ExecutionHandle] = {
     val exception = new RuntimeException(s"Task ${jobDescriptor.key.tag} failed for unknown reason: $runStatus")
-    FailedNonRetryableExecutionHandle(exception, returnCode)
+    Future.successful(FailedNonRetryableExecutionHandle(exception, returnCode))
   }
 
   // See executeOrRecoverSuccess
@@ -999,15 +996,16 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
           if (isDone(status)) {
             tryReturnCodeAsInt match {
               case Success(returnCodeAsInt) if failOnStdErr && stderrSize.intValue > 0 =>
-                retryElseFail(status, FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, stderrSize, stderrAsOption), Option(returnCodeAsInt)))
+                val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, stderrSize, stderrAsOption), Option(returnCodeAsInt)))
+                retryElseFail(status, executionHandle)
               case Success(returnCodeAsInt) if isAbort(returnCodeAsInt) =>
                 Future.successful(AbortedExecutionHandle)
               case Success(returnCodeAsInt) if !continueOnReturnCode.continueFor(returnCodeAsInt) =>
-                retryElseFail(status, FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption), Option(returnCodeAsInt)))
+                val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption), Option(returnCodeAsInt)))
+                retryElseFail(status, executionHandle)
               case Success(returnCodeAsInt) =>
                 handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
               case Failure(_) =>
-                //What does it mean that there is no return code-- should this be retried??
                 Future.successful(FailedNonRetryableExecutionHandle(ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString, stderrAsOption)))
             }
           } else {
@@ -1045,7 +1043,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def incrementFailedRetryCount: Future[KvResponse] = {
     val futureKvJobKey =
       KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
-    val scopedKey = ScopedKey(jobDescriptor.workflowDescriptor.id, futureKvJobKey, BackendLifecycleActorFactory.failedRetryCountKey)
+    val scopedKey = ScopedKey(jobDescriptor.workflowDescriptor.id, futureKvJobKey, BackendLifecycleActorFactory.FailedRetryCountKey)
     val kvValue = (previousFailedRetries + 1).toString
     val kvPair = KvPair(scopedKey, kvValue)
     val kvPut = KvPut(kvPair)

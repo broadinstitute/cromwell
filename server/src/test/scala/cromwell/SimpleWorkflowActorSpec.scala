@@ -149,7 +149,6 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
       probe.expectTerminated(workflowActor, 2.seconds)
       supervisor.expectMsgPF(AwaitAlmostNothing, "parent should get a failed response") {
         case x: WorkflowFailedResponse =>
-          println(s"${x.reasons.head.getMessage}")
           x.workflowId should be(workflowId)
           x.reasons.size should be(1)
           x.reasons.head.getMessage.contains(expectedError) should be(true)

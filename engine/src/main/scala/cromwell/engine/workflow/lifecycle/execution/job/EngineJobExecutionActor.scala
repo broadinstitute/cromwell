@@ -36,7 +36,6 @@ import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecu
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore._
 import cromwell.services.EngineServicesStore
-import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys.CallCachingKeys
 import cromwell.services.metadata.{CallMetadataKeys, MetadataJobKey, MetadataKey}
 import cromwell.webservice.EngineStatsActor
@@ -62,7 +61,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               backendName: String,
                               callCachingMode: CallCachingMode,
                               command: BackendJobExecutionActorCommand) extends LoggingFSM[EngineJobExecutionActorState, EJEAData]
-  with WorkflowLogging with CallMetadataHelper with JobInstrumentation with KvClient {
+  with WorkflowLogging with CallMetadataHelper with JobInstrumentation {
 
   override val workflowIdForLogging = workflowDescriptor.id
   override val workflowIdForCallMetadata = workflowDescriptor.id
@@ -332,7 +331,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     // We're getting the hashes and the job has not completed yet, save them and stay where we are
     case Event(hashes: CallCacheHashes, data) =>
       addHashesAndStay(data, hashes)
-
     // Not sure why this is here but pre-existing so leaving it, there's nothing we can do with it anyway at this point
     case Event(CacheMiss, _) =>
       stay()
@@ -675,7 +673,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       case SucceededResponseData(JobSucceededResponse(jobKey, returnCode, jobOutputs, _, _, _, _), hashes) =>
         publishHashesToMetadata(hashes)
         saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
-      case FailedResponseData(JobFailedNonRetryableResponse(jobKey, throwable, returnCode), hashes)  =>
+      case FailedResponseData(JobFailedNonRetryableResponse(jobKey, throwable, returnCode), hashes) =>
         publishHashesToMetadata(hashes)
         writeToMetadata(Map(callCachingAllowReuseMetadataKey -> false))
         saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = false)

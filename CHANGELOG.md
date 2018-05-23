@@ -45,7 +45,7 @@ Initial support for Google Cloud Storage [Requester Pays](https://cloud.google.c
 See also [Getting started on Google Pipelines API](http://cromwell.readthedocs.io/en/develop/tutorials/PipelinesApi101/)
 
 ### Task Retries
-Cromwell now supports retrying failed tasks upto a specified count by declaring a value for the [maxRetries](RuntimeAttributes.md#maxRetries) key through the WDL runtime attributes.
+Cromwell now supports retrying failed tasks up to a specified count by declaring a value for the [maxRetries](RuntimeAttributes.md#maxRetries) key through the WDL runtime attributes.
 
 ### Labels
 * Cromwell has removed most of the formatting restrictions from custom labels. Please check the [README](README.md#label-format) for more detailed documentation.

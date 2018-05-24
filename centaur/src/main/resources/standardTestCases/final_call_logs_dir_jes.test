@@ -12,8 +12,8 @@ files {
 
 fileSystemCheck: "gcs"
 outputExpectations {
-  "gs://cloud-cromwell-dev/callLogs/wf_hello/<<UUID>>/call-hello/hello-stdout.log": 1
-  "gs://cloud-cromwell-dev/callLogs/wf_hello/<<UUID>>/call-hello/hello-stderr.log": 1
+  "gs://cloud-cromwell-dev/callLogs/wf_hello/<<UUID>>/call-hello/stdout": 1
+  "gs://cloud-cromwell-dev/callLogs/wf_hello/<<UUID>>/call-hello/stderr": 1
   "gs://cloud-cromwell-dev/callLogs/wf_hello/<<UUID>>/call-hello/hello.log": 1
   "gs://cloud-cromwell-dev/workflowLogDir/workflow.<<UUID>>.log": 1
   "gs://cloud-cromwell-dev/outputs/wf_hello/<<UUID>>/call-hello/test.out": 1

@@ -95,13 +95,9 @@ trait Delocalization {
     val gcsLogDirectoryPath = createPipelineParameters.cloudCallRoot / "pipelines-logs"
     val gcsLegacyLogPath = createPipelineParameters.logGcsPath.pathAsString
 
-    val stdoutPath = createPipelineParameters.logGcsPath
-      .sibling(createPipelineParameters.logGcsPath.nameWithoutExtensionNoIo + "-stdout.log")
-      .pathAsString
+    val stdoutPath = createPipelineParameters.logGcsPath.sibling("stdout").pathAsString
 
-    val stderrPath = createPipelineParameters.logGcsPath
-      .sibling(createPipelineParameters.logGcsPath.nameWithoutExtensionNoIo + "-stderr.log")
-      .pathAsString
+    val stderrPath = createPipelineParameters.logGcsPath.sibling("stderr").pathAsString
     
     /*
      * CWL specific delocalization. For now this always runs, even for WDL jobs.

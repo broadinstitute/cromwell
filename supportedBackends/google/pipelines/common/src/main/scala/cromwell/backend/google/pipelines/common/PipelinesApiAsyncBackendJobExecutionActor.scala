@@ -410,13 +410,24 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     def generateInputOutputParameters: Future[InputOutputParameters] = Future.fromTry(Try {
       val rcFileOutput = PipelinesApiFileOutput(returnCodeFilename, returnCodeGcsPath.pathAsString, DefaultPathBuilder.get(returnCodeFilename), workingDisk, optional = false)
 
+      case class StandardStream(name: String, f: StandardPaths => Path) {
+        val filename = f(pipelinesApiCallPaths.standardPaths).name
+      }
+
+      val standardStreams = List(
+        StandardStream("stdout", _.output),
+        StandardStream("stderr", _.error)
+      ) map { s =>
+        PipelinesApiFileOutput(s.name, returnCodeGcsPath.sibling(s.filename).pathAsString, DefaultPathBuilder.get(s.filename), workingDisk, optional = false)
+      }
+
       InputOutputParameters(
         DetritusInputParameters(
           executionScriptInputParameter = cmdInput,
           monitoringScriptInputParameter = monitoringScript
         ),
         generateJesInputs(jobDescriptor).toList,
-        generateJesOutputs(jobDescriptor).toList,
+        generateJesOutputs(jobDescriptor).toList ++ standardStreams,
         DetritusOutputParameters(
           monitoringScriptOutputParameter = monitoringOutput,
           rcFileOutputParameter = rcFileOutput

@@ -2,13 +2,11 @@
 
 ## 32 Release Notes
 
-### Important Notes
+### Breaking Changes
 
-Cromwell instances configured to interact with **Google Cloud Storage** in any fashion, including but not limited to configurations with a **Pipelines API (PAPI) backend** (formerly JES backend) should **read the following section carefully**:
+Cromwell instances configured to interact with Google in any fashion should **read the following section carefully**:
 
-As described in more details below, Cromwell 32 introduces initial support for PAPI v2, as well as Requester Pays.
-A direct consequence of those features is that user credentials and service accounts used in Cromwell now **require** a role which has the following permission: `serviceusage.services.use`. See [Requester Pays Requirements](https://cloud.google.com/storage/docs/requester-pays#requirements).
-This statement is **true regardless of the backend you are using, and only depends on whether Cromwell needs to communicate with GCS** (which is the case for **PAPI V1 and PAPI V2** backends).
+User credentials and service accounts used in Cromwell now **require** a role which has the following permission: `serviceusage.services.use`.
 It is important to note that even though this permission is now always required, you will **ONLY** be charged for accessing buckets with requester pays enabled.
 
 Please read carefully the [requester pays documentation]((backends/Google#requester-pays)) even if you don't plan on making use of requester pays as it contains important information.

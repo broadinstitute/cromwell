@@ -8,7 +8,7 @@ import common.transforms.CheckedAtoB
 import common.validation.Parse.Parse
 import cromwell.core._
 import cromwell.languages.util.ImportResolver._
-import cromwell.languages.util.LanguageFactoryUtil
+import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import wdl.draft3.transforms.ast2wdlom._
 import wdl.draft3.transforms.parsing._
@@ -32,7 +32,7 @@ class WdlDraft3LanguageFactory(override val config: Map[String, Any]) extends La
 
     val factories: List[LanguageFactory] = List(this)
     val localFilesystemResolvers = if (importLocalFilesystem) List(localFileResolver) else List.empty
-    val importResolvers: List[ImportResolver] = source.importsZipFileOption.map(zippedImportsResolver).toList ++ localFilesystemResolvers
+    val importResolvers: List[ImportResolver] = source.importsZipFileOption.map(zippedImportsResolver).toList ++ localFilesystemResolvers :+ ImportResolver.httpResolver
 
     val errorOr: Checked[ValidatedWomNamespace] = for {
       _ <- standardConfig.enabledCheck

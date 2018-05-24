@@ -204,11 +204,11 @@ lazy val cromiam = (project in file("CromIAM")) // TODO: git mv CromIAM to a can
 lazy val languageFactoryRoot = Path("languageFactories")
 
 lazy val languageFactoryCore = (project in languageFactoryRoot / "language-factory-core")
-  .withLibrarySettings("language-factory-core")
+  .withLibrarySettings("language-factory-core", languageFactoryDependencies)
   .dependsOn(core)
 
 lazy val wdlDraft2LanguageFactory = (project in languageFactoryRoot / "wdl-draft2")
-  .withLibrarySettings("wdl-draft2")
+  .withLibrarySettings("wdl-draft2", draft2LanguageFactoryDependencies)
   .dependsOn(languageFactoryCore)
   .dependsOn(wdlModelDraft2)
   .dependsOn(wdlTransformsDraft2)

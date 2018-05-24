@@ -5,6 +5,7 @@ import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.elements.MetaValueElement._
 import wdl.model.draft3.elements._
 import wom.types._
+import WdlWriter._
 
 object WdlWriterImpl {
 

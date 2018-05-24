@@ -899,6 +899,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         "runtimeAttributes:noAddress" -> "false",
         "runtimeAttributes:preemptible" -> "0",
         "runtimeAttributes:zones" -> "us-central1-b,us-central1-a",
+        "runtimeAttributes:maxRetries" -> "0",
         "stderr" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/goodbye-stderr.log",
         "stdout" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/goodbye-stdout.log"
       )

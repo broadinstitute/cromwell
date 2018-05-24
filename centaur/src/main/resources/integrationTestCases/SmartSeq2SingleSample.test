@@ -4,7 +4,7 @@ testFormat: workflowsuccess
 files {
   workflow: hca/SmartSeq2SingleSample/SmartSeq2SingleSample.wdl
   inputs: hca/SmartSeq2SingleSample/SmartSeq2SingleSample.inputs.json
-  options: hca/SmartSeq2SingleSample/SmartSeq2SingleSample.labels.json
+  labels: hca/SmartSeq2SingleSample/SmartSeq2SingleSample.labels.json
   imports: [
     hca/HISAT2.wdl,
     hca/Picard.wdl,

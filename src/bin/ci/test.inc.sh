@@ -60,6 +60,13 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_BRANCH="${TRAVIS_BRANCH}"
     CROMWELL_BUILD_EVENT="${TRAVIS_EVENT_TYPE}"
     CROMWELL_BUILD_TAG="${TRAVIS_TAG}"
+    CROMWELL_BUILD_NUMBER="${TRAVIS_JOB_NUMBER}"
+
+    if [ "${TRAVIS}" = "true" ]; then
+        CROMWELL_BUILD_PROVIDER="travis"
+    else
+        CROMWELL_BUILD_PROVIDER="unknown"
+    fi
 
     # simplified from https://stackoverflow.com/a/18434831/3320205
     CROMWELL_BUILD_OS_DARWIN="darwin";
@@ -92,6 +99,8 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_BRANCH
     export CROMWELL_BUILD_EVENT
     export CROMWELL_BUILD_TAG
+    export CROMWELL_BUILD_NUMBER
+    export CROMWELL_BUILD_PROVIDER
     export CROMWELL_BUILD_OS
     export CROMWELL_BUILD_OS_DARWIN
     export CROMWELL_BUILD_OS_LINUX
@@ -108,13 +117,19 @@ cromwell::private::create_build_variables() {
 }
 
 cromwell::private::echo_build_variables() {
+    echo "CROMWELL_BUILD_IS_CI='${CROMWELL_BUILD_IS_CI}'"
+    echo "CROMWELL_BUILD_IS_CRON='${CROMWELL_BUILD_IS_CRON}'"
+    echo "CROMWELL_BUILD_IS_SECURE='${CROMWELL_BUILD_IS_SECURE}'"
     echo "CROMWELL_BUILD_TYPE='${CROMWELL_BUILD_TYPE}'"
     echo "CROMWELL_BUILD_BRANCH='${CROMWELL_BUILD_BRANCH}'"
     echo "CROMWELL_BUILD_EVENT='${CROMWELL_BUILD_EVENT}'"
     echo "CROMWELL_BUILD_TAG='${CROMWELL_BUILD_TAG}'"
+    echo "CROMWELL_BUILD_NUMBER='${CROMWELL_BUILD_NUMBER}'"
+    echo "CROMWELL_BUILD_PROVIDER='${CROMWELL_BUILD_PROVIDER}'"
+    echo "CROMWELL_BUILD_OS='${CROMWELL_BUILD_OS}'"
 }
 
-cromwell::private::verify_secure_variables() {
+cromwell::private::verify_is_secure() {
     if [ "${CROMWELL_BUILD_IS_SECURE}" = "false" ]; then
         echo "********************************************************"
         echo "********************************************************"
@@ -450,6 +465,9 @@ cromwell::build::setup_common_environment() {
 }
 
 cromwell::build::setup_secure_resources() {
+    if [ "${CROMWELL_BUILD_IS_CI}" = "true" ]; then
+        cromwell::private::verify_is_secure
+    fi
     cromwell::private::setup_secure_resources
 }
 

@@ -42,12 +42,12 @@ workflow Arrays {
   Int disk_size
   Int preemptible_tries
 
-  call UpdateChipWellBarcodeIndex {
-    input:
-      params_file = params_file,
-      disk_size = disk_size,
-      preemptible_tries = preemptible_tries
-  }
+  #call UpdateChipWellBarcodeIndex {
+  #  input:
+  #    params_file = params_file,
+  #    disk_size = disk_size,
+  #    preemptible_tries = preemptible_tries
+  #}
 
   call AutoCall {
     input:
@@ -79,19 +79,19 @@ workflow Arrays {
         preemptible_tries = preemptible_tries
     }
 
-    call UploadArraysMetrics as UploadEmptyArraysMetrics {
-      input:
-        arrays_variant_calling_detail_metrics = GenerateEmptyVariantCallingMetricsFile.detail_metrics,
-        disk_size = disk_size,
-        preemptible_tries = preemptible_tries
-    }
+    #call UploadArraysMetrics as UploadEmptyArraysMetrics {
+    #  input:
+    #    arrays_variant_calling_detail_metrics = GenerateEmptyVariantCallingMetricsFile.detail_metrics,
+    #    disk_size = disk_size,
+    #    preemptible_tries = preemptible_tries
+    #}
 
-    call BlacklistBarcode {
-      input:
-        upload_metrics_output = UploadEmptyArraysMetrics.upload_metrics_empty_file,
-        chip_well_barcode = idat_dir_name,
-        preemptible_tries = preemptible_tries
-    }
+    #call BlacklistBarcode {
+    #  input:
+    #    upload_metrics_output = UploadEmptyArraysMetrics.upload_metrics_empty_file,
+    #    chip_well_barcode = idat_dir_name,
+    #    preemptible_tries = preemptible_tries
+    #}
   }
 
   if (defined(gender_cluster_file)) {
@@ -225,19 +225,19 @@ workflow Arrays {
     }
   }
 
-  call UploadArraysMetrics {
-    input:
-      arrays_variant_calling_detail_metrics = CollectArraysVariantCallingMetrics.detail_metrics,
-      arrays_variant_calling_summary_metrics = CollectArraysVariantCallingMetrics.summary_metrics,
-      arrays_control_code_summary_metrics = CollectArraysVariantCallingMetrics.control_metrics,
-      fingerprinting_detail_metrics = CheckFingerprint.detail_metrics,
-      fingerprinting_summary_metrics = CheckFingerprint.summary_metrics,
-      genotype_concordance_summary_metrics = GenotypeConcordance.summary_metrics,
-      genotype_concordance_detail_metrics  = GenotypeConcordance.detail_metrics,
-      genotype_concordance_contingency_metrics = GenotypeConcordance.contingency_metrics,
-      disk_size = disk_size,
-      preemptible_tries = preemptible_tries
-  }
+  #call UploadArraysMetrics {
+  #  input:
+  #    arrays_variant_calling_detail_metrics = CollectArraysVariantCallingMetrics.detail_metrics,
+  #    arrays_variant_calling_summary_metrics = CollectArraysVariantCallingMetrics.summary_metrics,
+  #    arrays_control_code_summary_metrics = CollectArraysVariantCallingMetrics.control_metrics,
+  #    fingerprinting_detail_metrics = CheckFingerprint.detail_metrics,
+  #    fingerprinting_summary_metrics = CheckFingerprint.summary_metrics,
+  #    genotype_concordance_summary_metrics = GenotypeConcordance.summary_metrics,
+  #    genotype_concordance_detail_metrics  = GenotypeConcordance.detail_metrics,
+  #    genotype_concordance_contingency_metrics = GenotypeConcordance.contingency_metrics,
+  #    disk_size = disk_size,
+  #    preemptible_tries = preemptible_tries
+  #}
 }
   File ArraysVariantCallingDetailMetrics = if (defined(CollectArraysVariantCallingMetrics.detail_metrics)) then select_first([CollectArraysVariantCallingMetrics.detail_metrics]) else select_first([GenerateEmptyVariantCallingMetricsFile.detail_metrics])
 

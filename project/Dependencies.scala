@@ -308,11 +308,17 @@ object Dependencies {
   val wdlDependencies = List(
     "commons-io" % "commons-io" % commonsIoV,
     "org.scala-graph" %% "graph-core" % scalaGraphV,
-    "com.chuusai" %% "shapeless" % shapelessV,
-    "com.softwaremill.sttp" %% "core" % sttpV,
-    "com.softwaremill.sttp" %% "async-http-client-backend-cats" % sttpV,
-    "org.mock-server" % "mockserver-netty" % mockserverNettyV % Test
+    "com.chuusai" %% "shapeless" % shapelessV
   ) ++ betterFilesDependencies
+
+  val languageFactoryDependencies = List(
+    "com.softwaremill.sttp" %% "core" % sttpV,
+    "com.softwaremill.sttp" %% "async-http-client-backend-cats" % sttpV
+  )
+
+  val draft2LanguageFactoryDependencies = List(
+    "org.mock-server" % "mockserver-netty" % mockserverNettyV % Test
+  )
 
   /*
   The distro artifact contains the actual impl, but transitively includes OSGI bundles that conflict with assembly:

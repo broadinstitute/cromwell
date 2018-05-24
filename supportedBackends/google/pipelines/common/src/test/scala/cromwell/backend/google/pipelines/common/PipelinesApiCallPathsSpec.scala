@@ -29,9 +29,9 @@ class PipelinesApiCallPathsSpec extends TestKitSuite with FlatSpecLike with Matc
     
     val callPaths = PipelinesApiJobPaths(workflowPaths, jobDescriptorKey)
     
-    callPaths.returnCodeFilename should be("hello-rc.txt")
-    callPaths.stderr.getFileName.pathAsString should be("gs://my-cromwell-workflows-bucket/hello-stderr.log")
-    callPaths.stdout.getFileName.pathAsString should be("gs://my-cromwell-workflows-bucket/hello-stdout.log")
+    callPaths.returnCodeFilename should be("rc")
+    callPaths.stderr.getFileName.pathAsString should be("gs://my-cromwell-workflows-bucket/stderr")
+    callPaths.stdout.getFileName.pathAsString should be("gs://my-cromwell-workflows-bucket/stdout")
     callPaths.jesLogFilename should be("hello.log")
   }
 
@@ -48,11 +48,11 @@ class PipelinesApiCallPathsSpec extends TestKitSuite with FlatSpecLike with Matc
     val callPaths = PipelinesApiJobPaths(workflowPaths, jobDescriptorKey)
     
     callPaths.returnCode.pathAsString should
-      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello-rc.txt")
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/rc")
     callPaths.stdout.pathAsString should
-      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello-stdout.log")
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/stdout")
     callPaths.stderr.pathAsString should
-      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello-stderr.log")
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/stderr")
     callPaths.jesLogPath.pathAsString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello.log")
   }
@@ -72,9 +72,9 @@ class PipelinesApiCallPathsSpec extends TestKitSuite with FlatSpecLike with Matc
     callPaths.callContext.root.pathAsString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello")
     callPaths.callContext.stdout should
-      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello-stdout.log")
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/stdout")
     callPaths.callContext.stderr should
-      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello-stderr.log")
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/stderr")
   }
 
 }

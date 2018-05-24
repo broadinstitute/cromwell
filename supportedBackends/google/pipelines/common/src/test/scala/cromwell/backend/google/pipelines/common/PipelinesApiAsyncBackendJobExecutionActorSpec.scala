@@ -772,10 +772,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
 
     jesBackend.pipelinesApiCallPaths.stdout should be(a[GcsPath])
     jesBackend.pipelinesApiCallPaths.stdout.pathAsString shouldBe
-      "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stdout.log"
+      "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/stdout"
     jesBackend.pipelinesApiCallPaths.stderr should be(a[GcsPath])
     jesBackend.pipelinesApiCallPaths.stderr.pathAsString shouldBe
-      "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stderr.log"
+      "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/stderr"
     jesBackend.pipelinesApiCallPaths.jesLogPath should be(a[GcsPath])
     jesBackend.pipelinesApiCallPaths.jesLogPath.pathAsString shouldBe
       "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello.log"
@@ -900,8 +900,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         "runtimeAttributes:preemptible" -> "0",
         "runtimeAttributes:zones" -> "us-central1-b,us-central1-a",
         "runtimeAttributes:maxRetries" -> "0",
-        "stderr" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/goodbye-stderr.log",
-        "stdout" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/goodbye-stdout.log"
+        "stderr" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/stderr",
+        "stdout" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/stdout"
       )
     )
 

@@ -44,6 +44,10 @@ object RuntimeAttributesValidation {
     validateWithValidation(cpu, CpuValidation.instance, onMissingKey)
   }
 
+  def validateMaxRetries(maxRetries: Option[WomValue], onMissingKey: => ErrorOr[Int]): ErrorOr[Int] = {
+    validateWithValidation(maxRetries, MaxRetriesValidation.instance, onMissingKey)
+  }
+
   private def validateWithValidation[T](valueOption: Option[WomValue],
                                         validation: RuntimeAttributesValidation[T],
                                         onMissingValue: => ErrorOr[T]): ErrorOr[T] = {

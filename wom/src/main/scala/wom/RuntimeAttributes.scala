@@ -4,6 +4,7 @@ import wom.expression.WomExpression
 
 object RuntimeAttributesKeys {
   val DockerKey = "docker"
+  val MaxRetriesKey = "maxRetries"
   /**
     * Equivalent to CPUMinKey
     */

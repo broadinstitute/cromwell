@@ -189,7 +189,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     runStatus.isTerminal
   }
 
-  override def isSuccess(runStatus: TesRunStatus): Boolean = {
+  override def isDone(runStatus: TesRunStatus): Boolean = {
     runStatus match {
       case Complete => true
       case _ => false

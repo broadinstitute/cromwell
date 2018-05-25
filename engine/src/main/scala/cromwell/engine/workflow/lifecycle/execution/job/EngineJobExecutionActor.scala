@@ -150,7 +150,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(join: CallCachingJoin, NoData) =>
       Try(join.toJobSuccess(jobDescriptorKey, factory.pathBuilders(initializationData))).map({ jobSuccess =>
         // We can't create a CallCacheHashes to give to the SucceededResponseData here because it involves knowledge of
-        // which hashes are file hashes and which are not. We can't know that (nor do we care) when pulling them from the 
+        // which hashes are file hashes and which are not. We can't know that (nor do we care) when pulling them from the
         // database. So instead manually publish the hashes here.
         publishHashResultsToMetadata(Option(Success(join.callCacheHashes)))
         saveJobCompletionToJobStore(SucceededResponseData(jobSuccess, None))
@@ -270,7 +270,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       // Can't write hashes for this job, but continue to wait for the copy response.
       stay using data.copy(hashes = Option(Failure(t)))
   }
-  
+
   // Handles JobSucceededResponse messages
   val jobSuccessHandler: StateFunction = {
     // writeToCache is true and all hashes have already been retrieved - save to the cache
@@ -331,14 +331,13 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     // We're getting the hashes and the job has not completed yet, save them and stay where we are
     case Event(hashes: CallCacheHashes, data) =>
       addHashesAndStay(data, hashes)
-      
     // Not sure why this is here but pre-existing so leaving it, there's nothing we can do with it anyway at this point
     case Event(CacheMiss, _) =>
       stay()
     case Event(_: CacheHit, _) =>
       stay()
   }
-  
+
   // Handles hash failure responses
   val hashFailureResponseHandler: StateFunction = {
     // We're getting hash errors but the job was already successful, disable call caching and save to job store
@@ -480,7 +479,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     context stop self
     stay()
   }
-  
+
   // Note: StatsD will automatically add a counter value so ne need to separately increment a counter.
   private def instrumentJobComplete(response: BackendJobExecutionResponse) = {
     setJobTimePerState(response, (System.currentTimeMillis() - jobStartTime).millis)
@@ -516,7 +515,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     jobPreparationActor ! CallPreparation.Start(valueStore)
     goto(PreparingJob)
   }
-  
+
   def requestValueStore() = {
     replyTo ! RequestValueStore
     goto(WaitingForValueStore)
@@ -578,8 +577,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private [job] def createBackendJobExecutionActor(data: ResponsePendingData) = {
     context.actorOf(data.bjeaProps, BackendJobExecutionActor.buildJobExecutionActorName(workflowIdForLogging, data.jobDescriptor.key))
-  } 
-  
+  }
+
   private def runJob(data: ResponsePendingData) = {
     val backendJobExecutionActor = createBackendJobExecutionActor(data)
     backendJobExecutionActor ! command

@@ -6,7 +6,7 @@ import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineV
 import mouse.all._
 import org.slf4j.Logger
-import squants.information.{Bytes, Gigabytes, Information, Megabytes}
+import squants.information._
 
 object MachineConstraints {
   implicit class EnhancedInformation(val information: Information) extends AnyVal {
@@ -16,9 +16,9 @@ object MachineConstraints {
 
   // https://cloud.google.com/compute/docs/instances/creating-instance-with-custom-machine-type
   // https://cloud.google.com/compute/docs/instances/creating-instance-with-custom-machine-type#specifications
-  private val minMemoryPerCpu = Gigabytes(0.9)
-  private val maxMemoryPerCpu = Gigabytes(6.5)
-  private val memoryFactor = Megabytes(256)
+  private val minMemoryPerCpu = Gibibytes(0.9)
+  private val maxMemoryPerCpu = Gibibytes(6.5)
+  private val memoryFactor = Mebibytes(256)
 
   private def validateCpu(cpu: Int Refined Positive) = cpu.value match {
     // One CPU is cool
@@ -73,6 +73,6 @@ object MachineConstraints {
   def machineType(memory: Information, cpu: Int Refined Positive, jobLogger: Logger) = {
     val (validCpu, validMemory) = balanceMemoryAndCpu(memory |> validateMemory, cpu |> validateCpu)
     logAdjustment(cpu.value, validCpu, memory, validMemory, jobLogger)
-    s"custom-$validCpu-${validMemory.toMegabytes.intValue()}"
+    s"custom-$validCpu-${validMemory.toMebibytes.intValue()}"
   }
 }

@@ -12,7 +12,6 @@ import wdl.draft3.transforms.wdlom2wdl.WdlWriterImpl.fileElementWriter
 import wdl.draft3.transforms.wom2wdlom.WomToWdlom.ops._
 import wdl.draft3.transforms.wom2wdlom.WomToWdlomImpl.womBundleToFileElement
 import wdl.model.draft3.elements.FileElement
-import wom.executable.WomBundle
 import womtool.cmdline.HighlightMode.{ConsoleHighlighting, HtmlHighlighting, UnrecognizedHighlightingMode}
 import womtool.cmdline._
 import womtool.graph.{GraphPrint, WomGraph}
@@ -54,7 +53,7 @@ object WomtoolMain extends App {
     case i: InputsCommandLine => Inputs.inputsJson(i.workflowSource, i.showOptionals)
     case g: WomtoolGraphCommandLine => graph(g.workflowSource.pathAsString)
     case g: WomtoolWomGraphCommandLine => womGraph(g.workflowSource)
-    case u: WomtoolWdlV1UpgradeCommandLine => v1upgrade(u.workflowSource.pathAsString)
+    case u: WomtoolWdlUpgradeCommandLine => upgrade(u.workflowSource.pathAsString)
     case _ => BadUsageTermination(WomtoolCommandLineParser.instance.usage)
   }
 
@@ -78,15 +77,24 @@ object WomtoolMain extends App {
     SuccessfulTermination(AstTools.getAst(Paths.get(workflowSourcePath)).toPrettyString)
   }
 
-  def v1upgrade(workflowSourcePath: String): Termination = {
+  def upgrade(workflowSourcePath: String): Termination = {
     val file = Paths.get(workflowSourcePath)
-    val wdl: WdlNamespace = WdlNamespace.loadUsingPath(file, None, None).get
+    val maybeWdl = WdlNamespace.loadUsingPath(file, None, None)
 
-    val womBundle: WomBundle = wdlDraft2NamespaceWomBundleMaker.toWomBundle(wdl).getOrElse(???)
+    maybeWdl match {
+      case Success(wdl) =>
+        val maybeWomBundle = wdlDraft2NamespaceWomBundleMaker.toWomBundle(wdl)
 
-    val fileElement: FileElement = womBundle.toWdlom
-
-    SuccessfulTermination(fileElement.toWdlV1)
+        maybeWomBundle match {
+          case Right(womBundle) =>
+            val fileElement: FileElement = womBundle.toWdlom
+            SuccessfulTermination(fileElement.toWdlV1)
+          case Left(errors) =>
+            UnsuccessfulTermination(s"WDL parsing succeeded but could not create WOM: ${errors.toList.mkString("[", ",", "]")}")
+        }
+      case Failure(throwable) =>
+        UnsuccessfulTermination(s"Failed to load WDL source: ${throwable.getMessage}")
+    }
   }
 
   def graph(workflowSourcePath: String): Termination = {

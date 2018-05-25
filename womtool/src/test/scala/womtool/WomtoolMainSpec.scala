@@ -15,7 +15,7 @@ class WomtoolMainSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 
   it should "print usage" in {
     WomtoolMain.runWomtool(Seq.empty[String]) match{
-      case BadUsageTermination(msg) => msg should include("Usage: java -jar womtool.jar [validate|inputs|parse|highlight|graph|v1upgrade|womgraph] [options] workflow-source")
+      case BadUsageTermination(msg) => msg should include("Usage: java -jar womtool.jar [validate|inputs|parse|highlight|graph|upgrade|womgraph] [options] workflow-source")
       case other => fail(s"Expected BadUsageTermination but got $other")
     }
   }

@@ -1,8 +1,6 @@
 package cromwell.filesystems.gcs
 
-import java.io.{BufferedReader, IOException, InputStream, InputStreamReader}
 import java.net.URI
-import java.nio.charset.Charset
 
 import akka.actor.ActorSystem
 import com.google.api.gax.retrying.RetrySettings
@@ -16,12 +14,10 @@ import cromwell.core.WorkflowOptions
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.gcs.GcsPathBuilder._
 import cromwell.filesystems.gcs.GoogleUtil._
-import cromwell.util.TryWithResource.tryWithResource
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.io.Codec
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Try}
 
 object GcsPathBuilder {
   /*
@@ -180,6 +176,11 @@ case class GcsPath private[gcs](nioPath: NioPath,
     s"${CloudStorageFileSystem.URI_SCHEME}://$host/$path"
   }
 
+  /*
+   * This is commented out for now as it forces service accounts and users to have a specific role with permssion
+   * to use Cromwell. However it is needed to enable Requester pays. This code can be uncommented / adjusted when fully
+   * enable requester pays.
+  
   /***
     * This method needs to be overridden to make it work with requester pays. We need to go around Nio
     * as currently it doesn't support to set the billing project id. Google Cloud Storage already has
@@ -235,6 +236,7 @@ case class GcsPath private[gcs](nioPath: NioPath,
 
     output.getOrElse(throw new IOException(s"Failed to open an input stream for $pathAsString"))
   }
+  */
 
   override def pathWithoutScheme: String = {
     val gcsPath = cloudStoragePath

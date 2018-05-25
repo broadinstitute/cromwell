@@ -490,9 +490,7 @@ cromwell::build::setup_conformance_environment() {
     fi
     cromwell::private::checkout_pinned_cwl
     cromwell::private::start_build_heartbeat
-    if [ "${CROMWELL_BUILD_IS_CI}" = "true" ]; then
-        cromwell::private::add_exit_function cromwell::private::cat_conformance_log
-    fi
+    cromwell::private::add_exit_function cromwell::private::cat_conformance_log
     cromwell::private::add_exit_function cromwell::private::kill_build_heartbeat
 }
 

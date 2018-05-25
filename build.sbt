@@ -45,6 +45,7 @@ lazy val wdlTransformsDraft3 = (project in wdlTransformsRoot / "draft3")
   .dependsOn(wdlSharedTransforms)
   .dependsOn(wdlModelDraft3)
   .dependsOn(wdlModelDraft2) // necessary for dealing with bits of the draft-2 type system present in WOM at runtime, when upgrading to V1
+  .dependsOn(wdlTransformsDraft2) // similar to above, need for V1 upgrade tests
   .dependsOn(languageFactoryCore)
   .dependsOn(common % "test->test")
   .dependsOn(wom % "test->test")

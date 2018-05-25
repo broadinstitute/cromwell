@@ -280,15 +280,22 @@ object WomToWdlomImpl {
     }
   }
 
-  implicit val inputDefinitionPointerToExpressionElement: WomToWdlom[InputDefinitionPointer, ExpressionElement] =
-    new WomToWdlom[InputDefinitionPointer, ExpressionElement] {
-      override def toWdlom(a: InputDefinitionPointer): ExpressionElement = a match {
-        case a: WomExpression => womExpressionToExpressionElement.toWdlom(a)
-        case a: WomValue => womExpressionToExpressionElement.toWdlom(a.asWomExpression)
-        case Inl(a: GraphNodeOutputPort) =>
-          a.graphNode.asInstanceOf[TaskCallInputExpressionNode].womExpression.toWdlom
+  implicit val inputDefinitionPointerToExpressionElement: WomToWdlom[InputDefinitionPointer, Option[ExpressionElement]] =
+    new WomToWdlom[InputDefinitionPointer, Option[ExpressionElement]] {
+      override def toWdlom(a: InputDefinitionPointer): Option[ExpressionElement] = a match {
+        case a: WomExpression => Some(womExpressionToExpressionElement.toWdlom(a))
+        case a: WomValue => Some(womExpressionToExpressionElement.toWdlom(a.asWomExpression))
+        case Inl(a: GraphNodeOutputPort) => a.graphNode match {
+          case _: OptionalGraphInputNode =>
+            None
+          case _: OptionalGraphInputNodeWithDefault =>
+            None
+          case a: PlainAnonymousExpressionNode => Some(a.womExpression.toWdlom)
+          case a: TaskCallInputExpressionNode => Some(a.womExpression.toWdlom)
+        }
+        case Inr(Inl(a: WdlWomExpression)) => Some(womExpressionToExpressionElement.toWdlom(a))
         case Inr(_) =>
-          throw UnrepresentableException // TODO: happens in germline single sample, needs addressing
+          throw UnrepresentableException
         case _ =>
           throw UnrepresentableException
       }
@@ -296,10 +303,14 @@ object WomToWdlomImpl {
 
   implicit val callNodeToCallElement: WomToWdlom[CallNode, CallElement] = new WomToWdlom[CallNode, CallElement] {
     override def toWdlom(a: CallNode): CallElement = {
-      def tupleToKvPair(tuple: (InputDefinition, InputDefinitionPointer)): ExpressionElement.KvPair =
-        ExpressionElement.KvPair(tuple._1.name, tuple._2.toWdlom)
+      def tupleToKvPair(tuple: (InputDefinition, InputDefinitionPointer)): Option[ExpressionElement.KvPair] = {
+        tuple._2.toWdlom match {
+          case Some(value) => Some(ExpressionElement.KvPair(tuple._1.name, value))
+          case _ => None
+        }
+      }
 
-      val inputs = (a.inputDefinitionMappings map tupleToKvPair).toVector
+      val inputs = (a.inputDefinitionMappings flatMap tupleToKvPair).toVector
 
       CallElement(
         a.callable.name,

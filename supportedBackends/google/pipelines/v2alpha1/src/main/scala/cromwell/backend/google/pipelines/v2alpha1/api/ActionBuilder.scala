@@ -58,7 +58,8 @@ object ActionBuilder {
     // The command String runs in Bourne shell to get the conditional logic for optional outputs so shell metacharacters in filenames must be escaped.
     val List(containerPath, cloudPath) = List(fileOutput.containerPath.pathAsString, fileOutput.cloudPath) map ESCAPE_XSI.translate
 
-    val copy = s"gsutil -u $projectId cp $containerPath $cloudPath"
+    // To re-enable requester pays, this need to be added back: -u $projectId
+    val copy = s"gsutil cp $containerPath $cloudPath"
     lazy val copyOnlyIfExists = s"if [[ -a $containerPath ]]; then $copy; fi"
 
     cloudSdkAction

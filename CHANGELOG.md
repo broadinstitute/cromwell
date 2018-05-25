@@ -2,16 +2,6 @@
 
 ## 32 Release Notes
 
-### Breaking Changes
-
-Cromwell instances configured to interact with Google in any fashion should **read the following section carefully**:
-
-User credentials and service accounts used in Cromwell now **require** a role which has the following permission: `serviceusage.services.use`.
-It is important to note that even though this permission is now always required, you will **ONLY** be charged for accessing buckets with requester pays enabled.
-
-Please read carefully the [requester pays documentation]((backends/Google#requester-pays)) even if you don't plan on making use of requester pays as it contains important information.
-More information can also be found here on [Granting Roles on Service Accounts](https://cloud.google.com/iam/docs/granting-roles-to-service-accounts).
-
 ### Backends
 
 #### Pipelines API V2
@@ -33,16 +23,6 @@ Please update your configuration accordingly.
 |      V2      | cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory |
 
 If you don't update the `actor-factory` value, you'll get a deprecation warning in the logs, and Cromwell will default back to **PAPI V1**
-
-**Requester Pays**
-
-Initial support for Google Cloud Storage [Requester Pays](https://cloud.google.com/storage/docs/requester-pays) feature has been added.
-
-*Important*:
-* Full support only works using the Pipelines API v2 backend.
-* Read carefully the [Cromwell documentation about requester pays](backends/Google#requester-pays) for detailed information
-
-See also [Getting started on Google Pipelines API](http://cromwell.readthedocs.io/en/develop/tutorials/PipelinesApi101/)
 
 ### Task Retries
 Cromwell now supports retrying failed tasks up to a specified count by declaring a value for the [maxRetries](RuntimeAttributes.md#maxRetries) key through the WDL runtime attributes.

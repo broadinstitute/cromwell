@@ -62,8 +62,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       _.collectAsSeq { case w: WomFile => w }
     }
 
-  def inputs(commandLineValueMapper: WomValue => WomValue): Seq[Input] =
-    (callInputFiles ++ writeFunctionFiles).flatMap {
+  def inputs(commandLineValueMapper: WomValue => WomValue): Seq[Input] = {
+    val result = (callInputFiles ++ writeFunctionFiles).flatMap {
       case (fullyQualifiedName, files) => files.flatMap(_.flattenFiles).zipWithIndex.map {
         case (f, index) =>
           val inputType = f match {
@@ -81,6 +81,9 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
           )
       }
     }.toList ++ Seq(commandScript)
+    jobLogger.info(s"Calculated TES inputs (found ${result.size}): " + result.mkString(System.lineSeparator(),System.lineSeparator(),System.lineSeparator()))
+    result
+  }
 
   // TODO add TES logs to standard outputs
   private val standardOutputs = Seq("rc", "stdout", "stderr").map {
@@ -111,7 +114,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     // if it fails we just want to fallback to an empty list anyway...
     def evaluateFiles(output: OutputDefinition): List[WomFile] = {
       Try (
-        output.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, output.womType).map(_.toList)
+        output.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, output.womType).map(_.toList map { _.file })
       ).getOrElse(List.empty[WomFile].validNel)
        .getOrElse(List.empty)
     }
@@ -185,7 +188,13 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   private val additionalGlobOutput = jobDescriptor.taskCall.callable.additionalGlob.toList.flatMap(handleGlobFile(_, womOutputs.size))
 
-  val outputs: Seq[Output] = womOutputs ++ standardOutputs ++ Seq(commandScriptOut) ++ additionalGlobOutput
+  val outputs: Seq[Output] = {
+    val result = womOutputs ++ standardOutputs ++ Seq(commandScriptOut) ++ additionalGlobOutput
+
+    jobLogger.info(s"Calculated TES outputs (found ${result.size}): " + result.mkString(System.lineSeparator(),System.lineSeparator(),System.lineSeparator()))
+
+    result
+  }
 
   private val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
     case Some(x) =>

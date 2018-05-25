@@ -24,8 +24,9 @@ trait ExecutableCallable extends Callable {
 
 object Callable {
   object InputDefinition {
-    type InputValueMapper = IoFunctionSet => WomValue => WomValue
-    val IdentityValueMapper: InputValueMapper = { _ => value => value}
+    import cats.syntax.validated._
+    type InputValueMapper = IoFunctionSet => WomValue => ErrorOr[WomValue]
+    val IdentityValueMapper: InputValueMapper = { _ => value => value.validNel}
   }
   sealed trait InputDefinition {
     def localName: LocalName
@@ -65,6 +66,17 @@ object Callable {
     * An input definition that has a default value supplied. Typical WDL example would be a declaration like: "Int x = 5"
     */
   final case class InputDefinitionWithDefault(localName: LocalName, womType: WomType, default: WomExpression, valueMapper: InputValueMapper = InputDefinition.IdentityValueMapper) extends InputDefinition
+
+  object FixedInputDefinition {
+    def apply(name: String, womType: WomType, default: WomExpression): FixedInputDefinition = {
+      FixedInputDefinition(LocalName(name), womType, default, InputDefinition.IdentityValueMapper)
+    }
+  }
+
+  /**
+    * An input whose value should always be calculated from the default, and is not allowed to be overridden.
+    */
+  final case class FixedInputDefinition(localName: LocalName, womType: WomType, default: WomExpression, valueMapper: InputValueMapper = InputDefinition.IdentityValueMapper) extends InputDefinition
 
   object OptionalInputDefinition {
     def apply(name: String, womType: WomOptionalType): OptionalInputDefinition = OptionalInputDefinition(LocalName(name), womType, InputDefinition.IdentityValueMapper)

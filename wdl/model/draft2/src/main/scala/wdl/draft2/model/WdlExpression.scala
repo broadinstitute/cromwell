@@ -8,26 +8,26 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import wdl.draft2.model.AstTools.{EnhancedAstNode, VariableReference}
 import wdl.draft2.model.WdlExpression._
-import wdl.draft2.model.formatter.SyntaxHighlighter
-import wdl.draft2.model.types.WdlExpressionType
 import wdl.draft2.model.expression._
-import wdl.draft2.model.formatter.NullSyntaxHighlighter
+import wdl.draft2.model.formatter.{NullSyntaxHighlighter, SyntaxHighlighter}
+import wdl.draft2.model.types.WdlExpressionType
 import wdl.draft2.model.{FullyQualifiedName => _}
 import wdl.draft2.parser.WdlParser
 import wdl.draft2.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
+import wdl.shared.FileSizeLimitationConfig
 import wom.core._
 import wom.expression._
 import wom.graph._
 import wom.graph.expression.AnonymousExpressionNode
 import wom.graph.expression.AnonymousExpressionNode.AnonymousExpressionConstructor
 import wom.types.{WomAnyType, WomType}
-import wom.values.{WomFile, WomFloat, WomValue}
+import wom.values.{WomFile, WomFloat, WomSingleFile, WomValue}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.language.postfixOps
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 case object NoLookup extends ScopedLookupFunction {
   def apply(value: String): WomValue =
@@ -91,6 +91,7 @@ object WdlExpression {
     "read_lines",
     "read_map",
     "read_object",
+    "read_objects",
     "read_tsv",
     "read_json",
     "size"
@@ -159,6 +160,13 @@ object WdlExpression {
           s"$key:$value"
         }
         s"{${evaluatedMap.mkString(",")}}"
+      case a: Ast if a.isObjectLiteral =>
+        val evaluatedMap = a.getAttribute("map").astListAsVector map { kv =>
+          val key = toString(kv.asInstanceOf[Ast].getAttribute("key"), highlighter)
+          val value = toString(kv.asInstanceOf[Ast].getAttribute("value"), highlighter)
+          s"$key:$value"
+        }
+        s"{${evaluatedMap.mkString(",")}}"
       case a: Ast if a.isMemberAccess =>
         val lhs = toString(a.getAttribute("lhs"), highlighter)
         val rhs = toString(a.getAttribute("rhs"), highlighter)
@@ -212,7 +220,7 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope) ext
   override def inputs: Set[String] = wdlExpression.variableReferences(from) map { _.referencedVariableName } toSet
 
   override def evaluateValue(variableValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
-    lazy val wdlFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(ioFunctionSet)
+    lazy val wdlFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(ioFunctionSet, FileSizeLimitationConfig.fileSizeLimitationConfig)
     wdlExpression.evaluate(variableValues.apply, wdlFunctions).toErrorOr
   }
 
@@ -221,21 +229,24 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope) ext
     // case in the brave new WOM-world.
     wdlExpression.evaluateType(inputTypes.apply, new WdlStandardLibraryFunctionsType, Option(from)).toErrorOr
 
-  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = {
+  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = {
     lazy val wdlFunctions = new WdlStandardLibraryFunctions {
-      override def readFile(path: String): String = Await.result(ioFunctionSet.readFile(path, None, failOnOverflow = false), Duration.Inf)
+
+      override def readFile(path: String, sizeLimit: Int): String = Await.result(ioFunctionSet.readFile(path, Option(sizeLimit), failOnOverflow = true), Duration.Inf)
 
       override def writeFile(path: String, content: String): Try[WomFile] = Try(Await.result(ioFunctionSet.writeFile(path, content), Duration.Inf))
 
-      override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = ioFunctionSet.stdout(params)
+      override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = Success(WomSingleFile(ioFunctionSet.pathFunctions.stdout))
 
-      override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = ioFunctionSet.stderr(params)
+      override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = Success(WomSingleFile(ioFunctionSet.pathFunctions.stderr))
 
       override def globHelper(pattern: String): Seq[String] = Await.result(ioFunctionSet.glob(pattern), Duration.Inf)
 
-      override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Try(Await.result(ioFunctionSet.size(params), Duration.Inf))
+      override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new Exception("You shouldn't call 'size' from a FileEvaluator"))
+
+      override protected val fileSizeLimitationConfig: FileSizeLimitationConfig = FileSizeLimitationConfig.fileSizeLimitationConfig
     }
-    wdlExpression.evaluateFiles(inputTypes.apply, wdlFunctions, coerceTo).toErrorOr.map(_.toSet[WomFile])
+    wdlExpression.evaluateFiles(inputTypes.apply, wdlFunctions, coerceTo).toErrorOr.map(_.toSet[WomFile] map FileEvaluation.requiredFile)
   }
 }
 
@@ -260,7 +271,7 @@ object WdlWomExpression {
           // It might be a local value or it might be an OGIN already created by another Node for an outerLookup.
           Valid(name -> port)
         case (None, Some(port)) => Valid(name -> OuterGraphInputNode(WomIdentifier(name), port, preserveIndexForOuterLookups).singleOutputPort)
-        case (None, None) => s"No input $name found evaluating inputs for expression ${expression.wdlExpression.toWomString}".invalidNel
+        case (None, None) => s"No input $name found evaluating inputs for expression ${expression.wdlExpression.toWomString} in (${(innerLookup.keys ++ outerLookup.keys).mkString(", ")})".invalidNel
       }
     }
 

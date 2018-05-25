@@ -3,7 +3,7 @@ name: bad_output_task
 testFormat: workflowfailure
 
 files {
-  wdl: bad_output_task/bad_output_task.wdl
+  workflow: bad_output_task/bad_output_task.wdl
 }
 
 metadata {

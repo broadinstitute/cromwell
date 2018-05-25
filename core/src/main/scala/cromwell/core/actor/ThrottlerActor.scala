@@ -11,7 +11,6 @@ import scala.concurrent.duration._
 /**
   * By removing the periodic flush and setting the batch size to 1,
   * this actor modifies the behavior of BatchActor so that it throttles processing commands one at a time.
-  * Having 
   */
 abstract class ThrottlerActor[C] extends BatchActor[C](Duration.Zero, 1) {
   override protected def logOnStartUp = false
@@ -24,7 +23,7 @@ abstract class ThrottlerActor[C] extends BatchActor[C](Duration.Zero, 1) {
     // there's a bug in the batch actor.
     if (data.tail.nonEmpty) {
       log.error("{} is throttled and is not supposed to process more than one element at a time !", self.path.name)
-      data.toVector.traverse[Future, Any](processHead).map(_.length)
+      data.toVector.traverse(processHead).map(_.length)
     } else processHead(data.head).map(_ => 1)
   }
   def processHead(head: C): Future[Int]

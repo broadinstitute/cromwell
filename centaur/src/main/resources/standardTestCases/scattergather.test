@@ -2,5 +2,5 @@ name: scattergather
 testFormat: workflowsuccess
 
 files {
-  wdl: scattergather/scattergather.wdl
+  workflow: scattergather/scattergather.wdl
 }

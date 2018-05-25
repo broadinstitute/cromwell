@@ -72,7 +72,7 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
       // Get all the iteration nodes (there will be as many as variables we're scattering over)
       .scatterVariableNodes
       // Retrieve the values of the collection nodes value from the ValueStore
-      .traverse[ErrorOr, ScatterVariableAndValue](getScatterArray)
+      .traverse(getScatterArray)
       // Convert to either so we can flatMap later
       .toEither
 

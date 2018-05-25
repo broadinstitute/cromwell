@@ -2,7 +2,7 @@ name: cont_while_possible
 testFormat: workflowfailure
 
 files {
-  wdl: cont_while_possible/cont_while_possible.wdl
+  workflow: cont_while_possible/cont_while_possible.wdl
   options: cont_while_possible/cont_while_possible.options
 }
 

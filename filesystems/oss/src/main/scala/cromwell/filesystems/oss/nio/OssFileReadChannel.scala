@@ -4,7 +4,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.{Channels, SeekableByteChannel}
 
 import com.aliyun.oss.OSSClient
-import com.aliyun.oss.model.GetObjectRequest
+import com.aliyun.oss.model.{GenericRequest, GetObjectRequest}
 
 import scala.util.Try
 
@@ -70,7 +70,9 @@ final case class OssFileReadChannel(ossClient: OSSClient, pos: Long, path: OssSt
   override def size(): Long = {
     OssStorageRetry.fromTry(
       () => Try {
-        ossClient.getSimplifiedObjectMeta(path.bucket, path.key).getSize
+        val request = new GenericRequest(path.bucket, path.key)
+        request.setLogEnabled(false)
+        ossClient.getSimplifiedObjectMeta(request).getSize
       }
     )
   }

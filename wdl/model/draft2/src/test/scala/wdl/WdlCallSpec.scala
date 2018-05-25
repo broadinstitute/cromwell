@@ -154,7 +154,7 @@ class WdlCallSpec extends WordSpec with Matchers {
     
     
     val functionsWithRead = new PureStandardLibraryFunctionsLike {
-      override def readFile(path: String): String = {
+      override def readFile(path: String, sizeLimit: Int): String = {
         import better.files._
         File(path).contentAsString
       }

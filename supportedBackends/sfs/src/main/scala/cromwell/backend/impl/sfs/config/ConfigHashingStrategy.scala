@@ -16,7 +16,7 @@ import scala.util.{Failure, Try}
 
 object ConfigHashingStrategy {
   val logger: Logger = LoggerFactory.getLogger(getClass)
-  val defaultStrategy = HashFileStrategy(false)
+  val defaultStrategy = HashFileStrategy(checkSiblingMd5 = false)
 
   def apply(hashingConfig: Config): ConfigHashingStrategy = {
       val checkSiblingMd5 = hashingConfig.as[Option[Boolean]]("check-sibling-md5").getOrElse(false)

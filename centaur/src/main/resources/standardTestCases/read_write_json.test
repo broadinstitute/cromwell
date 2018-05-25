@@ -2,7 +2,7 @@ name: read_write_json
 testFormat: workflowsuccess
 
 files {
-  wdl: read_write_json/read_write_json.wdl
+  workflow: read_write_json/read_write_json.wdl
 }
 
 metadata {

@@ -5,6 +5,7 @@ import java.text.DateFormat
 
 import cats.instances.future._
 import cats.syntax.functor._
+import cromwell.database.slick.WorkflowStoreSlickDatabase.NotInOnHoldStateException
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.WorkflowStoreSqlDatabase
 import cromwell.database.sql.tables.WorkflowStoreEntry
@@ -13,6 +14,10 @@ import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.Workfl
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
+
+object WorkflowStoreSlickDatabase {
+  case class NotInOnHoldStateException(workflowId: String) extends Exception(s"Couldn't change status of workflow $workflowId to 'Submitted' because the workflow is not in 'On Hold' state")
+}
 
 trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
   this: EngineSlickDatabase =>
@@ -57,18 +62,33 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
 
   private def now: Timestamp = new Timestamp(System.currentTimeMillis())
 
-  override def fetchStartableWorkflows(limit: Int, cromwellId: Option[String], heartbeatTtl: FiniteDuration)
+  override def fetchStartableWorkflows(limit: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
                                       (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]] = {
     val action = for {
-      workflowStoreEntries <- dataAccess.fetchStartableWorkflows((limit.toLong, cromwellId, heartbeatTtl.ago)).result
+      workflowStoreEntries <- dataAccess.fetchStartableWorkflows((limit.toLong, heartbeatTtl.ago)).result
       _ <- DBIO.sequence(workflowStoreEntries map updateForFetched(cromwellId))
     } yield workflowStoreEntries
 
     runTransaction(action)
   }
 
-  private def updateForFetched(cromwellId: Option[String])(workflowStoreEntry: WorkflowStoreEntry)
-                                                          (implicit ec: ExecutionContext): DBIO[Unit] = {
+  override def writeWorkflowHeartbeats(workflowExecutionUuids: List[String])(implicit ec: ExecutionContext): Future[Int] = {
+    val optionNow = Option(now)
+    // Return the count of heartbeats written. This could legitimately be less than the size of the `workflowExecutionUuids`
+    // List if any of those workflows completed and their workflow store entries were removed.
+    val action = for {
+      counts <- DBIO.sequence(workflowExecutionUuids map { i => dataAccess.heartbeatForWorkflowStoreEntry(i).update(optionNow) })
+    } yield counts.sum
+    runTransaction(action)
+  }
+
+  override def releaseWorkflowStoreEntries(cromwellId: String)(implicit ec: ExecutionContext): Future[Unit] = {
+    val action = dataAccess.releaseWorkflowStoreEntries(cromwellId).update((None, None))
+    runTransaction(action).void
+  }
+
+  private def updateForFetched(cromwellId: String)(workflowStoreEntry: WorkflowStoreEntry)
+                                                  (implicit ec: ExecutionContext): DBIO[Unit] = {
     val workflowExecutionUuid = workflowStoreEntry.workflowExecutionUuid
     val updateState = workflowStoreEntry.workflowState match {
         // Submitted workflows become running when fetched
@@ -81,7 +101,7 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
 
     for {
       // When fetched, the heartbeat timestamp is set to now so we don't pick it up next time.
-      updateCount <- dataAccess.workflowStoreFieldsForPickup(workflowExecutionUuid).update((updateState, cromwellId, Option(now)))
+      updateCount <- dataAccess.workflowStoreFieldsForPickup(workflowExecutionUuid).update((updateState, Option(cromwellId), Option(now)))
       _ <- assertUpdateCount(s"Update $workflowExecutionUuid to $updateState, heartbeat timestamp to $displayNow", updateCount, 1)
     } yield ()
   }
@@ -94,5 +114,14 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
   override def stats(implicit ec: ExecutionContext): Future[Map[WorkflowStoreState, Int]] = {
     val action = dataAccess.workflowStoreStats.result
     runTransaction(action) map { _.toMap }
+  }
+
+  override def setOnHoldToSubmitted(workflowId: String)(implicit ec: ExecutionContext): Future[Unit] = {
+    val action = for {
+        updated <- dataAccess.workflowForIdAndOnHold(workflowId).update(WorkflowStoreState.Submitted)
+        _ <- if (updated == 0) DBIO.failed(NotInOnHoldStateException(workflowId)) else DBIO.successful(())
+    } yield ()
+
+    runTransaction(action)
   }
 }

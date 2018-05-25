@@ -33,6 +33,10 @@ object AstNodeToExpressionElement {
       case more => s"No WDL support for ${more.size}-tuples in draft 3".invalidNelCheck
     }).toValidated
     case a: Ast if a.getName == "ArrayLiteral" => a.getAttributeAsVector[ExpressionElement]("values").toValidated.map(ArrayLiteral)
+    case a: Ast if a.getName == "ArrayOrMapLookup" => {
+      (a.getAttributeAs[ExpressionElement]("lhs").toValidated : ErrorOr[ExpressionElement],
+        a.getAttributeAs[ExpressionElement]("rhs").toValidated : ErrorOr[ExpressionElement]) mapN IndexAccess
+    }
     case a: Ast if a.getName == "MemberAccess" => handleMemberAccess(a)
     case a: Ast if a.getName == "ObjectLiteral" =>
       (for {
@@ -119,40 +123,42 @@ object AstNodeToExpressionElement {
     "stderr" -> validateNoParamEngineFunction(StderrElement, "stderr"),
 
     // 1-param functions:
-    "read_lines" -> validateOneParamEngineFunction(ReadString, "read_lines"),
-    "read_tsv" -> validateOneParamEngineFunction(ReadString, "read_tsv"),
-    "read_map" -> validateOneParamEngineFunction(ReadString, "read_map"),
-    "read_object" -> validateOneParamEngineFunction(ReadString, "read_object"),
-    "read_objects" -> validateOneParamEngineFunction(ReadString, "read_objects"),
-    "read_json" -> validateOneParamEngineFunction(ReadString, "read_json"),
-    "read_int" -> validateOneParamEngineFunction(ReadString, "read_int"),
+    "read_lines" -> validateOneParamEngineFunction(ReadLines, "read_lines"),
+    "read_tsv" -> validateOneParamEngineFunction(ReadTsv, "read_tsv"),
+    "read_map" -> validateOneParamEngineFunction(ReadMap, "read_map"),
+    "read_object" -> validateOneParamEngineFunction(ReadObject, "read_object"),
+    "read_objects" -> validateOneParamEngineFunction(ReadObjects, "read_objects"),
+    "read_json" -> validateOneParamEngineFunction(ReadJson, "read_json"),
+    "read_int" -> validateOneParamEngineFunction(ReadInt, "read_int"),
     "read_string" -> validateOneParamEngineFunction(ReadString, "read_string"),
-    "read_float" -> validateOneParamEngineFunction(ReadString, "read_float"),
-    "read_boolean" -> validateOneParamEngineFunction(ReadString, "read_boolean"),
-    "write_lines" -> validateOneParamEngineFunction(ReadString, "write_lines"),
-    "write_tsv" -> validateOneParamEngineFunction(ReadString, "write_tsv"),
-    "write_map" -> validateOneParamEngineFunction(ReadString, "write_map"),
-    "write_object" -> validateOneParamEngineFunction(ReadString, "write_object"),
-    "write_objects" -> validateOneParamEngineFunction(ReadString, "write_objects"),
-    "write_json" -> validateOneParamEngineFunction(ReadString, "write_json"),
-    "range" -> validateOneParamEngineFunction(ReadString, "range"),
-    "transpose" -> validateOneParamEngineFunction(ReadString, "transpose"),
-    "length" -> validateOneParamEngineFunction(ReadString, "length"),
-    "prefix" -> validateOneParamEngineFunction(ReadString, "prefix"),
-    "select_first" -> validateOneParamEngineFunction(ReadString, "select_first"),
-    "select_all" -> validateOneParamEngineFunction(ReadString, "select_all"),
-    "defined" -> validateOneParamEngineFunction(ReadString, "defined"),
-    "basename" -> validateOneParamEngineFunction(ReadString, "basename"),
-    "floor" -> validateOneParamEngineFunction(ReadString, "floor"),
-    "ceil" -> validateOneParamEngineFunction(ReadString, "ceil"),
-    "round" -> validateOneParamEngineFunction(ReadString, "round"),
+    "read_float" -> validateOneParamEngineFunction(ReadFloat, "read_float"),
+    "read_boolean" -> validateOneParamEngineFunction(ReadBoolean, "read_boolean"),
+    "write_lines" -> validateOneParamEngineFunction(WriteLines, "write_lines"),
+    "write_tsv" -> validateOneParamEngineFunction(WriteTsv, "write_tsv"),
+    "write_map" -> validateOneParamEngineFunction(WriteMap, "write_map"),
+    "write_object" -> validateOneParamEngineFunction(WriteObject, "write_object"),
+    "write_objects" -> validateOneParamEngineFunction(WriteObjects, "write_objects"),
+    "write_json" -> validateOneParamEngineFunction(WriteJson, "write_json"),
+    "range" -> validateOneParamEngineFunction(Range, "range"),
+    "transpose" -> validateOneParamEngineFunction(Transpose, "transpose"),
+    "length" -> validateOneParamEngineFunction(Length, "length"),
+    "flatten" -> validateOneParamEngineFunction(Flatten, "flatten"),
+    "select_first" -> validateOneParamEngineFunction(SelectFirst, "select_first"),
+    "select_all" -> validateOneParamEngineFunction(SelectAll, "select_all"),
+    "defined" -> validateOneParamEngineFunction(Defined, "defined"),
+    "floor" -> validateOneParamEngineFunction(Floor, "floor"),
+    "ceil" -> validateOneParamEngineFunction(Ceil, "ceil"),
+    "round" -> validateOneParamEngineFunction(Round, "round"),
+    "glob" -> validateOneParamEngineFunction(Glob, "glob"),
 
     // 1- or 2-param functions:
-    "size" -> validateSizeEngineFunction,
+    "size" -> validateOneOrTwoParamEngineFunction(Size, "size"),
+    "basename" -> validateOneOrTwoParamEngineFunction(Basename, "basename"),
 
     // 2-param functions:
     "zip" -> validateTwoParamEngineFunction(Zip, "zip"),
     "cross" -> validateTwoParamEngineFunction(Cross, "cross"),
+    "prefix" -> validateTwoParamEngineFunction(Prefix, "prefix"),
 
     // 3-param functions:
     "sub" -> validateThreeParamEngineFunction(Sub, "sub")
@@ -174,13 +180,15 @@ object AstNodeToExpressionElement {
       s"Function $functionName expects exactly 1 argument but got ${params.size}".invalidNel
     }
 
-  private def validateSizeEngineFunction(params: Vector[ExpressionElement]): ErrorOr[ExpressionElement] =
+  private def validateOneOrTwoParamEngineFunction(elementMaker: (ExpressionElement, Option[ExpressionElement]) => ExpressionElement,
+                                                  functionName: String)
+                                                 (params: Vector[ExpressionElement]): ErrorOr[ExpressionElement] =
     if (params.size == 1) {
-      Size(params.head, None).validNel
+      elementMaker(params.head, None).validNel
     } else if (params.size == 2) {
-      Size(params.head, Option(params(1))).validNel
+      elementMaker(params.head, Option(params(1))).validNel
     } else {
-      s"Function size expects 1 or 2 arguments but got ${params.size}".invalidNel
+      s"Function $functionName expects 1 or 2 arguments but got ${params.size}".invalidNel
     }
 
   private def validateTwoParamEngineFunction(elementMaker: (ExpressionElement, ExpressionElement) => ExpressionElement, functionName: String)
@@ -228,7 +236,9 @@ object AstNodeToExpressionElement {
     implicit val toStringPiece: CheckedAtoB[AstNode, StringPiece] = CheckedAtoB.fromErrorOr(convertStringPiece)
 
     ast.getAttributeAsVector[StringPiece]("pieces").toValidated map { pieces =>
-      if (pieces.size == 1) {
+      if (pieces.isEmpty) {
+        StringLiteral("")
+      } else if (pieces.size == 1) {
         pieces.head match {
           case s: StringLiteral => s
           case _ => StringExpression(pieces)

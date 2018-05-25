@@ -14,7 +14,7 @@ import wom.RuntimeAttributes
 import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, OutputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, TaskDefinition}
 import wom.executable.Executable
-import wom.expression.{ValueAsAnExpression, WomExpression}
+import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}
 import wom.types.WomOptionalType
 
 import scala.util.Try
@@ -47,9 +47,9 @@ trait Tool {
   def asCwl: Cwl
 
   /** Builds an `Executable` directly from a `Tool` CWL with no parent workflow. */
-  def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None): Checked[Executable] = {
+  def womExecutable(validator: RequirementsValidator, inputFile: Option[String] = None, ioFunctions: IoFunctionSet, strictValidation: Boolean): Checked[Executable] = {
     val taskDefinition = buildTaskDefinition(validator, Vector.empty)
-    CwlExecutableValidation.buildWomExecutable(taskDefinition, inputFile)
+    CwlExecutableValidation.buildWomExecutable(taskDefinition, inputFile, ioFunctions, strictValidation)
   }
 
   protected def buildTaskDefinition(taskName: String,
@@ -72,7 +72,7 @@ trait Tool {
     import cats.instances.list._
     import cats.syntax.traverse._
 
-    val allRequirements = requirements.toList.flatten ++ parentWorkflowStep.toList.flatMap(_.allRequirements)
+    val allRequirements = requirements.toList.flatten ++ parentWorkflowStep.toList.flatMap(_.allRequirements.list)
     // All requirements must validate or this fails.
     val errorOrValidatedRequirements: ErrorOr[List[Requirement]] = allRequirements traverse validator
 
@@ -93,6 +93,8 @@ trait Tool {
     requirement.fold(RequirementToAttributeMap).apply(inputNames, expressionLib)
   }
 
+  protected def toolAttributes: Map[String, WomExpression] = Map.empty
+
   def buildTaskDefinition(validator: RequirementsValidator, parentExpressionLib: ExpressionLib): Checked[TaskDefinition] = {
     def build(requirementsAndHints: Seq[cwl.Requirement]) = {
       val id = this.id
@@ -103,35 +105,43 @@ trait Tool {
       // - There is no monoid instance for `WomExpression`s.
       // - We want to fold from the right so the hints and requirements with the lowest precedence are processed first
       //   and later overridden if there are duplicate hints or requirements of the same type with higher precedence.
-      val finalAttributesMap: Map[String, WomExpression] = requirementsAndHints.foldRight(Map.empty[String, WomExpression])({
-        case (requirement, attributesMap) => attributesMap ++ processRequirement(requirement, expressionLib)
+      val attributesMap: Map[String, WomExpression] = requirementsAndHints.foldRight(Map.empty[String, WomExpression])({
+        case (requirement, acc) => acc ++ processRequirement(requirement, expressionLib)
       })
 
-      val runtimeAttributes: RuntimeAttributes = RuntimeAttributes(finalAttributesMap)
+      val runtimeAttributes: RuntimeAttributes = RuntimeAttributes(attributesMap ++ toolAttributes)
+
+      val schemaDefRequirement: SchemaDefRequirement = requirementsAndHints.flatMap{
+        _.select[SchemaDefRequirement].toList
+      }.headOption.getOrElse(SchemaDefRequirement())
 
       val inputDefinitions: List[_ <: Callable.InputDefinition] =
         this.inputs.map {
           case input @ InputParameter.IdDefaultAndType(inputId, default, tpe) =>
-            val inputType = tpe.fold(MyriadInputTypeToWomType)
+            val inputType = tpe.fold(MyriadInputTypeToWomType).apply(schemaDefRequirement)
             val inputName = FullyQualifiedName(inputId).id
             val defaultWomValue = default.fold(InputParameter.DefaultToWomValuePoly).apply(inputType).toTry.get
             InputDefinitionWithDefault(
               inputName,
               inputType,
               ValueAsAnExpression(defaultWomValue),
-              InputParameter.inputValueMapper(input, tpe, expressionLib)
+              InputParameter.inputValueMapper(input, tpe, expressionLib, asCwl.schemaOption)
             )
           case input @ InputParameter.IdAndType(inputId, tpe) =>
-            val inputType = tpe.fold(MyriadInputTypeToWomType)
+            val inputType = tpe.fold(MyriadInputTypeToWomType).apply(schemaDefRequirement)
             val inputName = FullyQualifiedName(inputId).id
             inputType match {
               case optional: WomOptionalType =>
-                OptionalInputDefinition(inputName, optional, InputParameter.inputValueMapper(input, tpe, expressionLib))
+                OptionalInputDefinition(
+                  inputName,
+                  optional,
+                  InputParameter.inputValueMapper(input, tpe, expressionLib, asCwl.schemaOption)
+                )
               case _ =>
                 RequiredInputDefinition(
                   inputName,
                   inputType,
-                  InputParameter.inputValueMapper(input, tpe, expressionLib)
+                  InputParameter.inputValueMapper(input, tpe, expressionLib, asCwl.schemaOption)
                 )
             }
           case other => throw new NotImplementedError(s"command input parameters such as $other are not yet supported")
@@ -139,8 +149,8 @@ trait Tool {
 
       val outputDefinitions: List[Callable.OutputDefinition] = this.outputs.map {
         case p @ OutputParameter.IdAndType(cop_id, tpe) =>
-          val womType = tpe.fold(MyriadOutputTypeToWomType)
-          OutputDefinition(FullyQualifiedName(cop_id).id, womType, OutputParameterExpression(p, womType, inputNames, expressionLib))
+          val womType = tpe.fold(MyriadOutputTypeToWomType).apply(schemaDefRequirement)
+          OutputDefinition(FullyQualifiedName(cop_id).id, womType, OutputParameterExpression(p, womType, inputNames, expressionLib, schemaDefRequirement))
         case other => throw new NotImplementedError(s"Command output parameters such as $other are not yet supported")
       }.toList
 

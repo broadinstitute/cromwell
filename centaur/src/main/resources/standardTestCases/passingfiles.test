@@ -2,7 +2,7 @@ name: passingfiles
 testFormat: workflowsuccess
 
 files {
-  wdl: passingfiles/passingfiles.wdl
+  workflow: passingfiles/passingfiles.wdl
 }
 
 metadata {

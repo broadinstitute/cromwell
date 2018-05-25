@@ -37,7 +37,7 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
   override def onArray(value: Vector[Json]) = {
     case womArrayType: WomArrayType =>
       value.toList
-        .traverse[ErrorOr, WomValue](_.foldWith(this).apply(womArrayType.memberType))
+        .traverse(_.foldWith(this).apply(womArrayType.memberType))
         .map {
           WomArray(womArrayType, _)
         }
@@ -47,6 +47,13 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
     case WomCoproductType(types) =>
       val attempts: List[ErrorOr[WomValue]] = types.toList.map(onArray(value)(_))
       attempts.find(_.isValid).getOrElse(attempts.sequence.map(_.head))
+    case WomAnyType =>
+      // Make an array of WomAny
+      value.toList
+        .traverse(_.foldWith(this).apply(WomAnyType))
+        .map {
+          WomArray(WomArrayType(WomAnyType), _)
+        }
     case other => s"Cannot convert an array input value into a non array type: $other".invalidNel
   }
 
@@ -55,6 +62,25 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
     case WomSingleFileType | WomMaybePopulatedFileType if value.toMap.get("class").flatMap(_.asString).contains("File") =>
       Json.fromJsonObject(value).as[File] match {
         case Left(errors) => errors.message.invalidNel
+
+        /*
+          From the CWL spec:
+          If no location or path is specified, a file object must specify contents with the UTF-8 text content of the file.
+          This is a "file literal". File literals do not correspond to external resources, but are created on disk with
+          contents with when needed for a executing a tool. Where appropriate, expressions can return file literals to
+          define new files on a runtime. The maximum size of contents is 64 kilobytes.
+
+
+          NOTE WELL:
+          This implementation is incompatible with cloud backends, as the file is local and thus inaccessible from
+          those environments.  Please see this issue:
+          https://github.com/broadinstitute/cromwell/issues/3581
+        */
+        case Right(file@File(_, None, None, _, _,_,_,_,Some(contents))) => {
+          val tempDir = better.files.File.newTemporaryDirectory()
+          val cwlFile: better.files.File = tempDir./(s"${contents.hashCode}").write(contents)
+          file.asWomValue.map(_.copy(valueOption = Option(cwlFile.path.toString)))
+        }
         case Right(file) => file.asWomValue
       }
     case WomMaybeListedDirectoryType | WomUnlistedDirectoryType if value.toMap.get("class").flatMap(_.asString).contains("Directory") =>
@@ -63,7 +89,7 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
         case Right(directory) => directory.asWomValue
       }
     case composite: WomCompositeType =>
-      val foldedMap = value.toList.traverse[ErrorOr, (String, WomValue)]({
+      val foldedMap = value.toList.traverse({
         case (k, v) =>
           composite.typeMap.get(k).map({ valueType =>
             v.foldWith(this).apply(valueType).map(k -> _)
@@ -72,7 +98,7 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
 
       foldedMap.map(WomObject.withType(_, composite))
     case WomObjectType =>
-      val foldedMap = value.toList.traverse[ErrorOr, (String, WomValue)]({
+      val foldedMap = value.toList.traverse({
         case (k, v) => v.foldWith(this).apply(WomAnyType).map(k -> _)
       }).map(_.toMap[String, WomValue])
 

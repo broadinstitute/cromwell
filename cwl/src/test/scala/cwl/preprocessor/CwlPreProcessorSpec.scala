@@ -2,13 +2,11 @@ package cwl.preprocessor
 
 import better.files.File
 import cats.data.NonEmptyList
-import cats.syntax.either._
 import common.validation.Parse.Parse
+import io.circe.Printer
 import org.scalamock.function.MockFunction1
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
-
-import scala.language.postfixOps
 
 class CwlPreProcessorSpec extends FlatSpec with Matchers with MockFactory {
   behavior of "CwlPreProcessor"
@@ -72,11 +70,24 @@ class CwlPreProcessorSpec extends FlatSpec with Matchers with MockFactory {
     }
   }
 
+  it should "pre-process inlined workflows" in {
+    val testRoot = makeTestRoot("deep_nesting")
+
+    val subWorkflow1 = testRoot / "wc-tool.cwl"
+    val subWorkflow2 =  testRoot / "parseInt-tool.cwl"
+
+    validate(testRoot, None, uuidExtractor = Option("step0/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/")) { mockSaladingFunction =>
+      mockSaladingFunction.expects(subWorkflow1).onCall(CwlPreProcessor.saladCwlFile)
+      mockSaladingFunction.expects(subWorkflow2).onCall(CwlPreProcessor.saladCwlFile)
+    }
+  }
+
   def makeTestRoot(testDirectoryName: String) = resourcesRoot / testDirectoryName
 
   def validate[T](testRoot: File,
                   root: Option[String],
-                  expectedFailure: Option[NonEmptyList[String]] = None
+                  expectedFailure: Option[NonEmptyList[String]] = None,
+                  uuidExtractor: Option[String] = None
                  )(additionalValidation: MockFunction1[File, Parse[String]] => T) = {
     val rootWorkflow = testRoot / "root_workflow.cwl"
 
@@ -97,8 +108,11 @@ class CwlPreProcessorSpec extends FlatSpec with Matchers with MockFactory {
       case (Left(errors), Some(failures)) => errors shouldBe failures
       case (Left(errors), None) => fail("Unexpected failure to pre-process workflow: " + errors.toList.mkString(", "))
       case (Right(result), None) =>
-        val expectationContent = (testRoot / "expected_result.json").contentAsString
+        val content = (testRoot / "expected_result.json").contentAsString
+        val uuid = uuidExtractor.flatMap(_.r.findFirstMatchIn(result.pretty(Printer.noSpaces)).map(_.group(1)))
+        val expectationContent = content
           .replaceAll("<<RESOURCES_ROOT>>", resourcesRoot.pathAsString)
+          .replaceAll("<<RANDOM_UUID>>", uuid.getOrElse(""))
 
         result shouldBe io.circe.parser.parse(expectationContent).getOrElse(fail("Failed to parse expectation. Your test is broken !"))
       case (Right(_), Some(failures)) => fail("Unexpected success to pre-process workflow, was expecting failures: " + failures.toList.mkString(", "))

@@ -12,13 +12,14 @@ import cromwell.core.{WorkflowAborted, WorkflowId}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
-import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor}
+import cromwell.engine.workflow.workflowstore.{WorkflowHeartbeatConfig, WorkflowStoreActor, WorkflowStoreEngineActor}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.webservice.EngineStatsActor
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.duration._
+import scala.util.Try
 
 object WorkflowManagerActor {
   val DefaultMaxWorkflowsToRun = 5000
@@ -34,6 +35,7 @@ object WorkflowManagerActor {
     */
   case object PreventNewWorkflowsFromStarting extends WorkflowManagerActorMessage
   sealed trait WorkflowManagerActorCommand extends WorkflowManagerActorMessage
+  case object RetrieveNewWorkflowsKey
   case object RetrieveNewWorkflows extends WorkflowManagerActorCommand
   final case class AbortWorkflowCommand(id: WorkflowId, restarted: Boolean) extends WorkflowManagerActorCommand
   case object AbortAllWorkflowsCommand extends WorkflowManagerActorCommand
@@ -51,10 +53,23 @@ object WorkflowManagerActor {
             dockerHashActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
-            serverMode: Boolean): Props = {
-    val params = WorkflowManagerActorParams(ConfigFactory.load, workflowStore, ioActor, serviceRegistryActor,
-      workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, callCacheWriteActor,
-      dockerHashActor, jobTokenDispenserActor, backendSingletonCollection, serverMode)
+            serverMode: Boolean,
+            workflowHeartbeatConfig: WorkflowHeartbeatConfig): Props = {
+    val params = WorkflowManagerActorParams(
+      config = ConfigFactory.load,
+      workflowStore = workflowStore,
+      ioActor = ioActor,
+      serviceRegistryActor = serviceRegistryActor,
+      workflowLogCopyRouter = workflowLogCopyRouter,
+      jobStoreActor = jobStoreActor,
+      subWorkflowStoreActor = subWorkflowStoreActor,
+      callCacheReadActor = callCacheReadActor,
+      callCacheWriteActor = callCacheWriteActor,
+      dockerHashActor = dockerHashActor,
+      jobTokenDispenserActor = jobTokenDispenserActor,
+      backendSingletonCollection = backendSingletonCollection,
+      serverMode = serverMode,
+      workflowHeartbeatConfig = workflowHeartbeatConfig)
     Props(new WorkflowManagerActor(params)).withDispatcher(EngineDispatcher)
   }
 
@@ -99,10 +114,11 @@ case class WorkflowManagerActorParams(config: Config,
                                       dockerHashActor: ActorRef,
                                       jobTokenDispenserActor: ActorRef,
                                       backendSingletonCollection: BackendSingletonCollection,
-                                      serverMode: Boolean)
+                                      serverMode: Boolean,
+                                      workflowHeartbeatConfig: WorkflowHeartbeatConfig)
 
 class WorkflowManagerActor(params: WorkflowManagerActorParams)
-  extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with WorkflowMetadataHelper {
+  extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with WorkflowMetadataHelper with Timers {
 
   private val config = params.config
   override val serviceRegistryActor = params.serviceRegistryActor
@@ -114,11 +130,9 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   private val logger = Logging(context.system, this)
   private val tag = self.path.name
 
-  private var nextPollCancellable: Option[Cancellable] = None
-
   override def preStart(): Unit = {
     // Starts the workflow polling cycle
-    self ! RetrieveNewWorkflows
+    timers.startSingleTimer(RetrieveNewWorkflowsKey, RetrieveNewWorkflows, Duration.Zero)
   }
 
   startWith(Running, WorkflowManagerData(workflows = Map.empty))
@@ -220,7 +234,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
 
   whenUnhandled {
     case Event(PreventNewWorkflowsFromStarting, _) =>
-      nextPollCancellable foreach { _.cancel() }
+      timers.cancel(RetrieveNewWorkflowsKey)
       sender() ! akka.Done
       goto(RunningAndNotStartingNewWorkflows)
     // Uninteresting transition and current state notifications.
@@ -261,10 +275,24 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       logger.info(s"$tag Starting workflow UUID($workflowId)")
     }
 
-    val wfProps = WorkflowActor.props(workflowId, workflow.state, workflow.sources, config, params.ioActor, params.serviceRegistryActor,
-      params.workflowLogCopyRouter, params.jobStoreActor, params.subWorkflowStoreActor, params.callCacheReadActor, params.callCacheWriteActor,
-      params.dockerHashActor, params.jobTokenDispenserActor,
-      params.backendSingletonCollection, params.serverMode)
+    val wfProps = WorkflowActor.props(
+      workflowId = workflowId,
+      startMode = workflow.state,
+      workflowSourceFilesCollection = workflow.sources,
+      conf = config,
+      ioActor = params.ioActor,
+      serviceRegistryActor = params.serviceRegistryActor,
+      workflowLogCopyRouter = params.workflowLogCopyRouter,
+      jobStoreActor = params.jobStoreActor,
+      subWorkflowStoreActor = params.subWorkflowStoreActor,
+      callCacheReadActor = params.callCacheReadActor,
+      callCacheWriteActor = params.callCacheWriteActor,
+      dockerHashActor = params.dockerHashActor,
+      jobTokenDispenserActor = params.jobTokenDispenserActor,
+      workflowStoreActor = params.workflowStore,
+      backendSingletonCollection = params.backendSingletonCollection,
+      serverMode = params.serverMode,
+      workflowHeartbeatConfig = params.workflowHeartbeatConfig)
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")
 
     wfActor ! SubscribeTransitionCallBack(self)
@@ -274,7 +302,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   }
 
   private def scheduleNextNewWorkflowPoll() = {
-    nextPollCancellable = Option(context.system.scheduler.scheduleOnce(newWorkflowPollRate, self, RetrieveNewWorkflows)(context.dispatcher))
+    timers.startSingleTimer(RetrieveNewWorkflowsKey, RetrieveNewWorkflows, newWorkflowPollRate)
   }
 
   private def expandFailureReasons(reasons: Seq[Throwable]): String = {
@@ -282,7 +310,12 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     reasons map {
       case reason: ThrowableAggregation => expandFailureReasons(reason.throwables.toSeq)
       case reason: KnownJobFailureException =>
-        val stderrMessage = reason.stderrPath map { path => s"\nCheck the content of stderr for potential additional information: ${path.pathAsString}" } getOrElse ""
+        val stderrMessage = reason.stderrPath map { path => 
+          val content = Try(path.contentAsString).recover({
+            case e => s"Could not retrieve content: ${e.getMessage}"
+          }).get
+          s"\nCheck the content of stderr for potential additional information: ${path.pathAsString}.\n $content" 
+        } getOrElse ""
         reason.getMessage + stderrMessage
       case reason =>
         reason.getMessage + "\n" + ExceptionUtils.getStackTrace(reason)

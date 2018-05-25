@@ -14,13 +14,14 @@ import cromwell.core._
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.simpleton.WomValueSimpleton
+import cromwell.database.sql.joins.CallCachingJoin
 import cromwell.database.sql.tables.CallCachingEntry
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.instrumentation.JobInstrumentation
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.RequestValueStore
 import cromwell.engine.workflow.lifecycle.execution._
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCacheHashBundle
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.{CallCacheHashBundle, _}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor._
@@ -141,17 +142,23 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   // When we're restarting but the job store says the job is not complete.
   // This is to cover for the case where Cromwell was stopped after writing Cache Info to the DB but before
-  // writing to the JobStore. In that case, we don't want to cache to ourselves (turn cache read off), nor do we want to 
-  // try and write the cache info again, which would fail (turn cache write off).
-  // This means call caching should be disabled.
-  // Note that we check that there is not a Cache entry for *this* current job. It's still technically possible
-  // to call cache to another job that finished while this one was running (before the restart).
+  // writing to the JobStore. In that case, we can re-use the cached results and save them to the job store directly.
+  // Note that this checks that *this* particular job has a cache entry, not that there is *a* cache hit (possibly from another job)
+  // There's no need to copy the outputs because they're already *this* job's outputs
   when(CheckingCacheEntryExistence) {
     // There was already a cache entry for this job
-    case Event(HasCallCacheEntry(_), NoData) =>
-      // Disable call caching
-      effectiveCallCachingMode = CallCachingOff
-      requestValueStore()
+    case Event(join: CallCachingJoin, NoData) =>
+      Try(join.toJobSuccess(jobDescriptorKey, factory.pathBuilders(initializationData))).map({ jobSuccess =>
+        // We can't create a CallCacheHashes to give to the SucceededResponseData here because it involves knowledge of
+        // which hashes are file hashes and which are not. We can't know that (nor do we care) when pulling them from the
+        // database. So instead manually publish the hashes here.
+        publishHashResultsToMetadata(Option(Success(join.callCacheHashes)))
+        saveJobCompletionToJobStore(SucceededResponseData(jobSuccess, None))
+      }).recover({
+        case f =>
+          // If for some reason the above fails, fail the job cleanly
+          saveJobCompletionToJobStore(FailedResponseData(JobFailedNonRetryableResponse(jobDescriptorKey, f, None), None))
+      }).get
     // No cache entry for this job - keep going
     case Event(NoCallCacheEntry(_), NoData) =>
       requestValueStore()
@@ -263,12 +270,15 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       // Can't write hashes for this job, but continue to wait for the copy response.
       stay using data.copy(hashes = Option(Failure(t)))
   }
-  
+
   // Handles JobSucceededResponse messages
   val jobSuccessHandler: StateFunction = {
     // writeToCache is true and all hashes have already been retrieved - save to the cache
     case Event(response: JobSucceededResponse, data @ ResponsePendingData(_, _, Some(Success(hashes)), _, _, _)) if effectiveCallCachingMode.writeToCache =>
       eventList ++= response.executionEvents
+      // Publish the image used now that we have it as we might lose the information if Cromwell is restarted
+      // in between writing to the cache and writing to the job store
+      response.dockerImageUsed foreach publishDockerImageUsed
       saveCacheResults(hashes, data.withSuccessResponse(response))
     // Hashes are still missing and we want them (writeToCache is true) - wait for them
     case Event(response: JobSucceededResponse, data: ResponsePendingData) if effectiveCallCachingMode.writeToCache && data.hashes.isEmpty =>
@@ -321,14 +331,13 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     // We're getting the hashes and the job has not completed yet, save them and stay where we are
     case Event(hashes: CallCacheHashes, data) =>
       addHashesAndStay(data, hashes)
-      
     // Not sure why this is here but pre-existing so leaving it, there's nothing we can do with it anyway at this point
     case Event(CacheMiss, _) =>
       stay()
     case Event(_: CacheHit, _) =>
       stay()
   }
-  
+
   // Handles hash failure responses
   val hashFailureResponseHandler: StateFunction = {
     // We're getting hash errors but the job was already successful, disable call caching and save to job store
@@ -402,9 +411,11 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       stay
   }
 
-  private def publishHashesToMetadata(maybeHashes: Option[Try[CallCacheHashes]]) = maybeHashes match {
+  private def publishHashesToMetadata(maybeHashes: Option[Try[CallCacheHashes]]) = publishHashResultsToMetadata(maybeHashes.map(_.map(_.hashes)))
+  private def publishDockerImageUsed(image: String) = writeToMetadata(Map("dockerImageUsed" -> image))
+  private def publishHashResultsToMetadata(maybeHashes: Option[Try[Set[HashResult]]]) = maybeHashes match {
     case Some(Success(hashes)) =>
-      val hashMap = hashes.hashes.collect({
+      val hashMap = hashes.collect({
         case HashResult(HashKey(useInCallCaching, keyComponents), HashValue(value)) if useInCallCaching =>
           (callCachingHashes + MetadataKey.KeySeparator + keyComponents.mkString(MetadataKey.KeySeparator.toString)) -> value
       }).toMap
@@ -468,7 +479,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     context stop self
     stay()
   }
-  
+
   // Note: StatsD will automatically add a counter value so ne need to separately increment a counter.
   private def instrumentJobComplete(response: BackendJobExecutionResponse) = {
     setJobTimePerState(response, (System.currentTimeMillis() - jobStartTime).millis)
@@ -504,7 +515,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     jobPreparationActor ! CallPreparation.Start(valueStore)
     goto(PreparingJob)
   }
-  
+
   def requestValueStore() = {
     replyTo ! RequestValueStore
     goto(WaitingForValueStore)
@@ -566,8 +577,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private [job] def createBackendJobExecutionActor(data: ResponsePendingData) = {
     context.actorOf(data.bjeaProps, BackendJobExecutionActor.buildJobExecutionActorName(workflowIdForLogging, data.jobDescriptor.key))
-  } 
-  
+  }
+
   private def runJob(data: ResponsePendingData) = {
     val backendJobExecutionActor = createBackendJobExecutionActor(data)
     backendJobExecutionActor ! command
@@ -610,7 +621,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def publishHitFailure(cache: EJEACacheHit, failure: Throwable) = {
-    import MetadataKey._
+    import WomValueSimpleton._
     import cromwell.services.metadata.MetadataService._
 
     cache.details foreach { details =>
@@ -659,7 +670,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private def saveJobCompletionToJobStore(updatedData: ShouldBeSavedToJobStoreResponseData) = {
     updatedData match {
-      case SucceededResponseData(JobSucceededResponse(jobKey, returnCode, jobOutputs, _, _, _), hashes) =>
+      case SucceededResponseData(JobSucceededResponse(jobKey, returnCode, jobOutputs, _, _, _, _), hashes) =>
         publishHashesToMetadata(hashes)
         saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
       case FailedResponseData(JobFailedNonRetryableResponse(jobKey, throwable, returnCode), hashes) =>
@@ -672,7 +683,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = true)
     }
 
-    updatedData.dockerImageUsed foreach { image => writeToMetadata(Map("dockerImageUsed" -> image)) }
+    updatedData.dockerImageUsed foreach publishDockerImageUsed
     goto(UpdatingJobStore) using updatedData
   }
 

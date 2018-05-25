@@ -2,7 +2,7 @@ name: docker_hash_gcr
 testFormat: workflowsuccess
 
 files {
-  wdl: docker_hash/docker_hash_gcr.wdl
+  workflow: docker_hash/docker_hash_gcr.wdl
 }
 
 metadata {

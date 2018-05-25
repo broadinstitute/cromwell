@@ -2,7 +2,7 @@ name: if_then_else_expressions
 testFormat: workflowsuccess
 
 files {
-  wdl: if_then_else_expressions/if_then_else_expressions.wdl
+  workflow: if_then_else_expressions/if_then_else_expressions.wdl
 }
 
 metadata {

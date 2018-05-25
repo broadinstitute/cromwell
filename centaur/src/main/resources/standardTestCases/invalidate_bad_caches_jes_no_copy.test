@@ -1,9 +1,9 @@
 name: invalidate_bad_caches_jes_no_copy
 testFormat: workflowsuccess
-backends: [Jes-Caching-No-Copy]
+backends: [Papi-Caching-No-Copy]
 
 files {
-  wdl: invalidate_bad_caches/invalidate_bad_caches_no_copy.wdl
+  workflow: invalidate_bad_caches/invalidate_bad_caches_no_copy.wdl
 }
 
 metadata {

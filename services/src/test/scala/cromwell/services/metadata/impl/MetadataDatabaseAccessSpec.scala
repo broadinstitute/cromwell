@@ -5,11 +5,11 @@ import java.time.OffsetDateTime
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.DbmsTest
 import cromwell.core._
-import cromwell.core.labels.Label
+import cromwell.core.labels.{Label, Labels}
 import cromwell.database.slick.{EngineSlickDatabase, MetadataSlickDatabase}
-import cromwell.services.{EngineServicesStore, MetadataServicesStore}
 import cromwell.services.ServicesStore.EnhancedSqlDatabase
 import cromwell.services.metadata._
+import cromwell.services.{EngineServicesStore, MetadataServicesStore}
 import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
@@ -35,7 +35,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
 
   implicit val ec = ExecutionContext.global
 
-  implicit val defaultPatience = PatienceConfig(scaled(Span(5, Seconds)), scaled(Span(100, Millis)))
+  implicit val defaultPatience = PatienceConfig(scaled(Span(30, Seconds)), scaled(Span(100, Millis)))
 
   def testWith(configPath: String): Unit = {
     lazy val dataAccess = new MetadataDatabaseAccess with MetadataServicesStore {
@@ -285,6 +285,28 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
           }
         }
       } yield()).futureValue
+    }
+
+    it should "revert to an prior label value" taggedAs DbmsTest in {
+      def upsertLabelAndValidate(workflowId: WorkflowId, customLabelValue: String): Future[Unit] = {
+        val customLabelKey = "key-1"
+        val metadataEvents =
+          MetadataEvent.labelsToMetadataEvents(Labels(customLabelKey -> customLabelValue), workflowId)
+        for {
+          _ <- dataAccess.addMetadataEvents(metadataEvents)
+          _ <- dataAccess.refreshWorkflowMetadataSummaries().map(_ should be > 0L)
+          _ <- dataAccess.getWorkflowLabels(workflowId).map(_.toList should contain(customLabelKey -> customLabelValue))
+        } yield ()
+      }
+
+      (for {
+        workflowId <- baseWorkflowMetadata("revert-label-value")
+        _ <- upsertLabelAndValidate(workflowId, "value-1")
+        _ <- upsertLabelAndValidate(workflowId, "")
+        _ <- upsertLabelAndValidate(workflowId, "value-2")
+        _ <- upsertLabelAndValidate(workflowId, "")
+
+      } yield ()).futureValue(Timeout(scaled(Span(30, Seconds))), Interval(scaled(Span(500, Millis))))
     }
 
     it should "close the database" taggedAs DbmsTest in {

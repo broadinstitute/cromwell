@@ -1,11 +1,13 @@
 package cwl
 
+import cats.instances.future._
 import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import wom.expression.IoFunctionSet
+import wom.expression.IoFunctionSet.{IoDirectory, IoFile}
 import wom.types._
 import wom.values._
 
@@ -19,15 +21,15 @@ case class CommandOutputBinding(glob: Option[Glob] = None,
 
 object CommandOutputBinding {
   /**
-   * TODO: WOM: WOMFILE: Need to support returning globs for primary and secondary.
-   *
-   * Right now, when numerous glob files are created, the backends place each glob result into a different subdirectory.
-   * Later, when the secondary files are being generated each of their globs are in different sub-directories.
-   * Unfortunately, the secondary file resolution assumes that the secondaries are _next to_ the primaries, not in
-   * sibling directories.
-   *
-   * While this is being worked on, instead of looking up globs return regular files until this can be fixed.
-   */
+    * TODO: WOM: WOMFILE: Need to support returning globs for primary and secondary.
+    *
+    * Right now, when numerous glob files are created, the backends place each glob result into a different subdirectory.
+    * Later, when the secondary files are being generated each of their globs are in different sub-directories.
+    * Unfortunately, the secondary file resolution assumes that the secondaries are _next to_ the primaries, not in
+    * sibling directories.
+    *
+    * While this is being worked on, instead of looking up globs return regular files until this can be fixed.
+    */
   def isRegularFile(path: String): Boolean = {
     path match {
       case _ if path.contains("*") => false
@@ -43,8 +45,9 @@ object CommandOutputBinding {
                         outputWomType: WomType,
                         commandOutputBinding: CommandOutputBinding,
                         secondaryFilesOption: Option[SecondaryFiles],
+                        ioFunctionSet: IoFunctionSet,
                         expressionLib: ExpressionLib): ErrorOr[Set[WomFile]] = {
-    val parameterContext = ParameterContext(inputs = inputValues)
+    val parameterContext = ParameterContext(ioFunctionSet, expressionLib, inputs = inputValues)
 
     /*
     CWL can output two types of "glob" path types:
@@ -76,17 +79,17 @@ object CommandOutputBinding {
       }
     }
 
-    def secondaryFilesToWomFiles(primaryWomFiles: List[WomFile]): ErrorOr[List[WomFile]] = {
+    def secondaryFilesToWomFiles(primaryWomFiles: List[WomFile], ioFunctionSet: IoFunctionSet): ErrorOr[List[WomFile]] = {
       primaryWomFiles.flatTraverse[ErrorOr, WomFile] { primaryWomFile =>
         FileParameter.secondaryFiles(primaryWomFile,
-          primaryWomFile.womFileType, secondaryFilesOption, parameterContext, expressionLib)
+          primaryWomFile.womFileType, secondaryFilesOption, parameterContext, expressionLib, ioFunctionSet)
       }
     }
 
     for {
       primaryPaths <- GlobEvaluator.globs(commandOutputBinding.glob, parameterContext, expressionLib)
       primaryWomFiles <- primaryPathsToWomFiles(primaryPaths)
-      secondaryWomFiles <- secondaryFilesToWomFiles(primaryWomFiles)
+      secondaryWomFiles <- secondaryFilesToWomFiles(primaryWomFiles, ioFunctionSet)
     } yield (primaryWomFiles ++ secondaryWomFiles).toSet
   }
 
@@ -108,7 +111,8 @@ object CommandOutputBinding {
                              secondaryFilesCoproduct: Option[SecondaryFiles],
                              formatCoproduct: Option[StringOrExpression],
                              expressionLib: ExpressionLib): ErrorOr[WomValue] = {
-    val parameterContext = ParameterContext(inputs = inputValues)
+    val parameterContext = ParameterContext(ioFunctionSet, expressionLib, inputs = inputValues)
+    implicit val ec = ioFunctionSet.ec
 
     // 3. outputEval: pass in the primary files to an expression to generate our return value
     def evaluateWomValue(womFilesArray: WomArray): ErrorOr[WomValue] = {
@@ -116,7 +120,7 @@ object CommandOutputBinding {
         case Some(StringOrExpression.String(string)) => WomString(string).valid
         case Some(StringOrExpression.Expression(expression)) =>
           val outputEvalParameterContext = parameterContext.copy(self = womFilesArray)
-          ExpressionEvaluator.eval(expression, outputEvalParameterContext, expressionLib)
+          ExpressionEvaluator.eval(expression, outputEvalParameterContext)
         case None =>
           womFilesArray.valid
       }
@@ -134,7 +138,8 @@ object CommandOutputBinding {
           secondaryFilesCoproduct,
           formatOption,
           parameterContext,
-          expressionLib
+          expressionLib,
+          ioFunctionSet
         )
       } yield womValue
     }
@@ -168,10 +173,17 @@ object CommandOutputBinding {
       primaryPaths <- GlobEvaluator.globs(commandOutputBinding.glob, parameterContext, expressionLib)
 
       // 2. loadContents: load the contents of the primary files
-      primaryAsDirectoryOrFiles <- primaryPaths.flatTraverse[ErrorOr, WomFile] {
+      primaryAsDirectoryOrFiles <- primaryPaths.flatTraverse{
         loadPrimaryWithContents(ioFunctionSet, outputWomType, commandOutputBinding)
       }
-      womFilesArray = WomArray(primaryAsDirectoryOrFiles)
+
+      // Make globbed files absolute paths by prefixing them with the output dir if necessary
+      absolutePaths = primaryAsDirectoryOrFiles.map(_.mapFile(ioFunctionSet.pathFunctions.relativeToHostCallRoot))
+      
+      // Load file size
+      withFileSizes <- FileParameter.sync(absolutePaths.traverse(_.withSize(ioFunctionSet))).toErrorOr
+
+      womFilesArray = WomArray(withFileSizes)
 
       // 3. outputEval: pass in the primary files to an expression to generate our return value
       evaluatedWomValue <- evaluateWomValue(womFilesArray)
@@ -204,12 +216,18 @@ object CommandOutputBinding {
     womMaybeListedDirectoryOrFileType match {
       case WomMaybeListedDirectoryType =>
         // Even if multiple directories are _somehow_ requested, a single flattened directory is returned.
-        loadDirectoryWithListing(cwlPath, ioFunctionSet, commandOutputBinding).map(List(_))
+        loadDirectoryWithListing(ioFunctionSet, commandOutputBinding)(cwlPath).map(List(_))
       case WomMaybePopulatedFileType if isRegularFile(cwlPath) =>
         val globs = List(cwlPath)
         globs traverse loadFileWithContents(ioFunctionSet, commandOutputBinding)
       case WomMaybePopulatedFileType =>
-        val globs = Await.result(ioFunctionSet.glob(cwlPath), Duration.Inf)
+        val globs: Seq[String] = Await.result(ioFunctionSet.glob(cwlPath), Duration.Inf).
+
+        //TODO: HACK ALERT - DB: I am starting on ticket https://github.com/broadinstitute/cromwell/issues/3472 which will redeem me of this mortal sin.
+          filterNot{s =>
+            s.endsWith("rc.tmp") || s.endsWith("docker_cid") || s.endsWith("script") || s.endsWith("script.background") || s.endsWith("script.submit") || s.endsWith("stderr") || s.endsWith("stderr.background") || s.endsWith("stdout") || s.endsWith("stdout.background")
+          }
+
         globs.toList traverse loadFileWithContents(ioFunctionSet, commandOutputBinding)
       case other => s"Program error: $other type was not expected".invalidNel
     }
@@ -218,13 +236,15 @@ object CommandOutputBinding {
   /**
     * Loads a directory with the files listed, each file with contents populated.
     */
-  private def loadDirectoryWithListing(path: String,
-                                       ioFunctionSet: IoFunctionSet,
-                                       commandOutputBinding: CommandOutputBinding): ErrorOr[WomMaybeListedDirectory] = {
-    val listing = Await.result(ioFunctionSet.listAllFilesUnderDirectory(path), Duration.Inf)
-    listing.toList traverse loadFileWithContents(ioFunctionSet, commandOutputBinding) map { listing =>
+  private def loadDirectoryWithListing(ioFunctionSet: IoFunctionSet,
+                                       commandOutputBinding: CommandOutputBinding)(path: String, visited: Vector[String] = Vector.empty): ErrorOr[WomMaybeListedDirectory] = {
+    val listing = Await.result(ioFunctionSet.listDirectory(path)(visited), Duration.Inf).toList
+    listing.traverse[ErrorOr, WomFile]({
+      case IoFile(p) => loadFileWithContents(ioFunctionSet, commandOutputBinding)(p)
+      case IoDirectory(p) => loadDirectoryWithListing(ioFunctionSet, commandOutputBinding)(p, visited :+ path)
+    }).map({ listing =>
       WomMaybeListedDirectory(valueOption = Option(path), listingOption = Option(listing))
-    }
+    })
   }
 
   /**

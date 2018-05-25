@@ -14,7 +14,7 @@ import cromwell.core.actor.BatchActor.QueueWeight
 import cromwell.core.path.Path
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
-import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
+import cromwell.engine.workflow.WorkflowManagerActor.{PreventNewWorkflowsFromStarting, RetrieveNewWorkflows}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreSubmitActor}
 import cromwell.jobstore.EmptyJobStoreActor
@@ -60,10 +60,12 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
   }
 
   when (SubmittedWorkflow) {
-    case Event(WorkflowStoreSubmitActor.WorkflowSubmittedToStore(id), SubmittedSwraData(replyTo)) =>
+    case Event(WorkflowStoreSubmitActor.WorkflowSubmittedToStore(id, WorkflowSubmitted), SubmittedSwraData(replyTo)) =>
       log.info(s"$Tag: Workflow submitted UUID($id)")
       // Since we only have a single workflow, force the WorkflowManagerActor's hand in case the polling rate is long
       workflowManagerActor ! RetrieveNewWorkflows
+      // After that - prevent the WMA from trying to start new workflows
+      workflowManagerActor ! PreventNewWorkflowsFromStarting
       schedulePollRequest()
       goto(RunningWorkflow) using RunningSwraData(replyTo, id)
   }
@@ -154,15 +156,17 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
 
   private def issueSuccessReply(replyTo: ActorRef): State = {
     replyTo.tell(msg = (), sender = self) // Because replyTo ! () is the parameterless call replyTo.!()
-    context.stop(self)
+    done
     stay()
   }
 
   private def issueFailureReply(replyTo: ActorRef, e: Throwable): State = {
     replyTo ! Status.Failure(e)
-    context.stop(self)
+    done
     stay()
   }
+  
+  private [workflow] def done() = {}
 
   private def issueReply(data: TerminalSwraData) = {
     data match {
@@ -178,7 +182,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
     data match {
       case EmptySwraData =>
         log.error(e, "Cannot issue response. Need a 'replyTo' address to issue the exception response")
-        context.stop(self)
+        done
         stay()
       case SubmittedSwraData(replyTo) =>
         issueFailureReply(replyTo, e)

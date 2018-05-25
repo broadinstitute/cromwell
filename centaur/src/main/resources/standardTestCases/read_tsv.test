@@ -2,7 +2,7 @@ name: read_tsv
 testFormat: workflowsuccess
 
 files {
-  wdl: read_tsv/read_tsv.wdl
+  workflow: read_tsv/read_tsv.wdl
 }
 
 metadata {

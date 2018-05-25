@@ -4,7 +4,7 @@ import common.collections.Table
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionIndex.ExecutionIndex
 import cromwell.core.ExecutionStatus._
-import cromwell.core.{ExecutionIndex, JobKey}
+import cromwell.core.{CallKey, ExecutionIndex, ExecutionStatus, JobKey}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{apply => _}
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.execution.stores.ExecutionStore._
@@ -41,14 +41,14 @@ object ExecutionStore {
         case _ => key.node.upstreamPorts forall { p => p.executionNode.isInStatus(chooseIndex(p), statusTable) }
       }
     }
-    
+
     def nonStartableOutputKeys: Set[JobKey] = key match {
       case scatterKey: ScatterKey => scatterKey.makeCollectors(0, scatterKey.node.scatterCollectionFunctionBuilder(List.empty)).toSet[JobKey]
       case conditionalKey: ConditionalKey => conditionalKey.collectors.toSet[JobKey]
       case _ => Set.empty[JobKey]
     }
   }
-  
+
   implicit class EnhancedOutputPort(val outputPort: OutputPort) extends AnyVal {
     /**
       * Node that should be considered to determine upstream dependencies
@@ -73,8 +73,8 @@ object ExecutionStore {
     }
   }
 
-  case class ExecutionStoreUpdate(runnableKeys: List[JobKey], updatedStore: ExecutionStore)
-  
+  case class ExecutionStoreUpdate(runnableKeys: List[JobKey], updatedStore: ExecutionStore, statusChanges: Map[JobKey, ExecutionStatus])
+
   def empty = ActiveExecutionStore(Map.empty[JobKey, ExecutionStatus], needsUpdate = false)
 
   def apply(callable: ExecutableCallable) = {
@@ -104,8 +104,8 @@ final case class ActiveExecutionStore private[stores](private val statusStore: M
     this.copy(statusStore = statusStore ++ values, needsUpdate = needsUpdate)
   }
   override def seal: SealedExecutionStore = SealedExecutionStore(statusStore.filterNot(_._2 == NotStarted), needsUpdate)
-  override def withNeedsUpdateFalse: ExecutionStore = this.copy(needsUpdate = false)
-  override def withNeedsUpdateTrue: ExecutionStore = this.copy(needsUpdate = true)
+  override def withNeedsUpdateFalse: ExecutionStore = if (!needsUpdate) this else this.copy(needsUpdate = false)
+  override def withNeedsUpdateTrue: ExecutionStore = if (needsUpdate) this else this.copy(needsUpdate = true)
 }
 
 /**
@@ -128,23 +128,29 @@ final case class SealedExecutionStore private[stores](private val statusStore: M
   * @param statusStore status of job keys
   * @param needsUpdate This is a boolean meant to tell the WEA whether or not it should call "update".
   *                    The idea is to avoid unnecessary calls to "update" which is an expansive method.
-  *                    
+  *
   *                    when true, something happened since the last update that could yield new runnable keys, so update should be called
   *                    when false, nothing happened between the last update and now that will yield different results so no need to call the update method
   */
 sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, ExecutionStatus], val needsUpdate: Boolean) {
   // View of the statusStore more suited for lookup based on status
   lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).mapValues(_.keys.toList)
+  lazy val queuedJobsAboveThreshold = queuedJobs > MaxJobsToStartPerTick
 
   def keyForNode(node: GraphNode): Option[JobKey] = {
     statusStore.keys collectFirst { case k if k.node eq node => k }
   }
 
   /**
+    * Number of queued jobs
+    */
+  lazy val queuedJobs = store.get(ExecutionStatus.QueuedInCromwell).map(_.length).getOrElse(0)
+
+  /**
     * Update key statuses and needsUpdate
     */
   protected def updateKeys(values: Map[JobKey, ExecutionStatus], needsUpdate: Boolean): ExecutionStore
-  
+
   /**
     * Update key statuses
     */
@@ -166,7 +172,7 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     * Resets the needsUpdate Boolean to false.
     */
   protected def withNeedsUpdateFalse: ExecutionStore
-  
+
   /*
     * Create 2 Tables, one for keys in done status and one for keys in terminal status.
     * A Table is nothing more than a Map[R, Map[C, V]], see Table trait for more details
@@ -219,45 +225,59 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     * Only computes the first MaxJobsToStartPerTick runnable keys.
     * In the process, identifies and updates the status of keys that are unstartable.
     * Returns an ExecutionStoreUpdate which is the list of runnable keys and an updated execution store.
-    * 
+    *
     * If needsUpdate, returns an empty list of runnable keys and this instance of the store.
-    * 
+    *
     * This method can expansive to run for very large workflows if needsUpdate is true.
     */
   def update: ExecutionStoreUpdate = if (needsUpdate) {
     // When looking for runnable keys, keep track of the ones that are unstartable so we can mark them as such
-    var unstartables = Map.empty[JobKey, ExecutionStatus]
+    // Also keep track of jobs that need to be updated to WaitingForQueueSpace
+    var internalUpdates = Map.empty[JobKey, ExecutionStatus]
 
-    // filter the keys that are runnable. In the process remember the ones that are unreachable
-    val readyToStart = keysWithStatus(NotStarted).toStream.filter(key => {
+    // Returns true if a key should be run now. Update its status if necessary
+    def filterFunction(key: JobKey): Boolean = {
       // A key is runnable if all its dependencies are Done
       val runnable = key.allDependenciesAreIn(doneStatus)
-      
+
       // If the key is not runnable, but all its dependencies are in a terminal status, then it's unreachable
       if (!runnable && key.allDependenciesAreIn(terminalStatus)) {
-        unstartables = unstartables ++ key.nonStartableOutputKeys.map(_ -> Unstartable) + (key -> Unstartable)
+        internalUpdates = internalUpdates ++ key.nonStartableOutputKeys.map(_ -> Unstartable) + (key -> Unstartable)
       }
-      
-      // returns the runnable value for the filter
-      runnable
-    })
+
+      key match {
+        // Even if the key is runnable, if it's a call key and there's already too many queued jobs,
+        // don't start it and mark it as WaitingForQueueSpace
+        // TODO maybe also limit the number of expression keys to run somehow ?
+        case callKey: CallKey if runnable && queuedJobsAboveThreshold =>
+          internalUpdates = internalUpdates + (callKey -> WaitingForQueueSpace)
+          false
+        case _ => runnable
+      }
+    }
+
+    // If the queued jobs are not above the threshold, use the nodes that are already waiting for queue space
+    val runnableWaitingForQueueSpace = if (!queuedJobsAboveThreshold) keysWithStatus(WaitingForQueueSpace).toStream else Stream.empty[JobKey]
+    
+    // Start with keys that are waiting for queue space as we know they're runnable already. Then filter the not started ones
+    val readyToStart = runnableWaitingForQueueSpace ++ keysWithStatus(NotStarted).toStream.filter(filterFunction)
 
     // Compute the first ExecutionStore.MaxJobsToStartPerTick + 1 runnable keys
     val keysToStartPlusOne = readyToStart.take(MaxJobsToStartPerTick + 1).toList
-    
+
     // Will be true if the result is truncated, in which case we'll need to do another pass later
     val truncated = keysToStartPlusOne.size > MaxJobsToStartPerTick
 
     // If we found unstartable keys, update their status, and set needsUpdate to true (it might unblock other keys)
-    val updated = if (unstartables.nonEmpty) {
-      updateKeys(unstartables, needsUpdate = true)
-    // If the list was truncated, set needsUpdate to true because we'll need to do this again to get the truncated keys
+    val updated = if (internalUpdates.nonEmpty) {
+      updateKeys(internalUpdates, needsUpdate = true)
+      // If the list was truncated, set needsUpdate to true because we'll need to do this again to get the truncated keys
     } else if (truncated) {
       withNeedsUpdateTrue
-    // Otherwise we can reset it, nothing else will be runnable / unstartable until some new keys become terminal
+      // Otherwise we can reset it, nothing else will be runnable / unstartable until some new keys become terminal
     } else withNeedsUpdateFalse
-    
+
     // Only take the first ExecutionStore.MaxJobsToStartPerTick from the above list.
-    ExecutionStoreUpdate(keysToStartPlusOne.take(MaxJobsToStartPerTick), updated)
-  } else ExecutionStoreUpdate(List.empty, this)
+    ExecutionStoreUpdate(keysToStartPlusOne.take(MaxJobsToStartPerTick), updated, internalUpdates)
+  } else ExecutionStoreUpdate(List.empty, this, Map.empty)
 }

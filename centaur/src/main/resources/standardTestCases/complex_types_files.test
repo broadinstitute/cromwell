@@ -2,7 +2,7 @@ name: complex_types_files
 testFormat: workflowsuccess
 
 files {
-  wdl: complex_types_files/complex_types_files.wdl
+  workflow: complex_types_files/complex_types_files.wdl
 }
 
 metadata {

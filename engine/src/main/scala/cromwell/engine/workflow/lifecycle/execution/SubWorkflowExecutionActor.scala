@@ -203,7 +203,8 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     val events = List(
       MetadataEvent(parentWorkflowMetadataKey, MetadataValue(subWorkflowId)),
       MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.Name), MetadataValue(key.node.callable.name)),
-      MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.ParentWorkflowId), MetadataValue(parentWorkflow.id))
+      MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.ParentWorkflowId), MetadataValue(parentWorkflow.id)),
+      MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.RootWorkflowId), MetadataValue(parentWorkflow.rootWorkflow.id))
     )
 
     val inputEvents = workflowInputs match {

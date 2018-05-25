@@ -2,7 +2,7 @@ package cromwell.webservice
 
 import java.util.UUID
 
-import akka.actor.{Actor, ActorRef, ActorRefFactory}
+import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.{ToEntityMarshaller, ToResponseMarshallable}
 import akka.http.scaladsl.model._
@@ -20,14 +20,15 @@ import common.util.VersionUtil
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.core.abort.{AbortResponse, WorkflowAbortFailureResponse, WorkflowAbortingResponse}
 import cromwell.core.labels.Labels
-import cromwell.core.{WorkflowAborting, WorkflowId, WorkflowSubmitted}
+import cromwell.core.{path => _, _}
+import cromwell.database.slick.WorkflowStoreSlickDatabase.NotInOnHoldStateException
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.{AbortWorkflowCommand, WorkflowNotFoundException}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{BuiltCallCacheDiffResponse, CachedCallNotFoundException, CallCacheDiffActorResponse, FailedCallCacheDiffResponse}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheDiffActor, CallCacheDiffQueryParameter}
-import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreSubmitActor}
+import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
 import cromwell.server.CromwellShutdown
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse}
 import cromwell.services.metadata.MetadataService._
@@ -38,7 +39,7 @@ import cromwell.webservice.metadata.{MetadataBuilderActor, WorkflowQueryPaginati
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.util.{Failure, Success, Try}
 
 trait CromwellApiService extends HttpInstrumentation {
@@ -61,6 +62,7 @@ trait CromwellApiService extends HttpInstrumentation {
       get {
         onComplete(workflowManagerActor.ask(WorkflowManagerActor.EngineStatsCommand).mapTo[EngineStatsActor.EngineStats]) {
           case Success(stats) => complete(ToResponseMarshallable(stats))
+          case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
           case Failure(_) => new RuntimeException("Unable to gather engine stats").failRequest(StatusCodes.InternalServerError)
         }
       }
@@ -73,6 +75,7 @@ trait CromwellApiService extends HttpInstrumentation {
         case Success(status) =>
           val httpCode = if (status.ok) StatusCodes.OK else StatusCodes.InternalServerError
           complete(ToResponseMarshallable((httpCode, status.systems)))
+        case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
         case Failure(_) => new RuntimeException("Unable to gather engine status").failRequest(StatusCodes.InternalServerError)
       }
     }
@@ -141,6 +144,7 @@ trait CromwellApiService extends HttpInstrumentation {
                   case Success(r: FailedCallCacheDiffResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)
                   case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
                   case Failure(e: CachedCallNotFoundException) => e.errorRequest(StatusCodes.NotFound)
+                  case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
                   case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
                 }
               case Invalid(errors) =>
@@ -178,6 +182,7 @@ trait CromwellApiService extends HttpInstrumentation {
               case Success(WorkflowAbortFailureResponse(_, e: WorkflowNotFoundException)) => e.errorRequest(StatusCodes.NotFound)
               case Success(WorkflowAbortFailureResponse(_, e)) => e.errorRequest(StatusCodes.InternalServerError)
               case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
+              case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
               case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
             }
           }
@@ -205,6 +210,7 @@ trait CromwellApiService extends HttpInstrumentation {
                 onComplete(response) {
                   case Success(r: BuiltLabelsManagerResponse) => complete(r.response)
                   case Success(e: FailedLabelsManagerResponse) => e.reason.failRequest(StatusCodes.InternalServerError)
+                  case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
                   case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
 
                 }
@@ -233,6 +239,25 @@ trait CromwellApiService extends HttpInstrumentation {
         }
       }
     }
+  } ~
+  path("workflows" / Segment / Segment / "releaseHold") { (_, possibleWorkflowId) =>
+    post {
+      instrumentRequest {
+        val response = validateWorkflowId(possibleWorkflowId) flatMap { workflowId =>
+          workflowStoreActor.ask(WorkflowStoreActor.WorkflowOnHoldToSubmittedCommand(workflowId)).mapTo[WorkflowStoreEngineActor.WorkflowOnHoldToSubmittedResponse]
+        }
+        onComplete(response){
+          case Success(WorkflowStoreEngineActor.WorkflowOnHoldToSubmittedFailure(_, e: NotInOnHoldStateException)) => e.errorRequest(StatusCodes.Forbidden)
+          case Success(WorkflowStoreEngineActor.WorkflowOnHoldToSubmittedFailure(_, e)) => e.errorRequest(StatusCodes.InternalServerError)
+          case Success(r: WorkflowStoreEngineActor.WorkflowOnHoldToSubmittedSuccess) => completeResponse(StatusCodes.OK, toResponse(r.workflowId, WorkflowSubmitted), Seq.empty)
+          case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
+        }
+      }
+    }
+  }
+
+  private def toResponse(workflowId: WorkflowId, workflowState: WorkflowState): WorkflowSubmitResponse = {
+    WorkflowSubmitResponse(workflowId.toString, workflowState.toString)
   }
 
   private def submitRequest(formData: Multipart.FormData, isSingleSubmission: Boolean): Route = {
@@ -240,25 +265,28 @@ trait CromwellApiService extends HttpInstrumentation {
       bodyPart => bodyPart.toStrict(duration).map(strict => bodyPart.name -> strict.entity.data)
     }.runFold(Map.empty[String, ByteString])((map, tuple) => map + tuple)
 
-    def toResponse(workflowId: WorkflowId): WorkflowSubmitResponse = {
-      WorkflowSubmitResponse(workflowId.toString, WorkflowSubmitted.toString)
+    def getWorkflowState(workflowOnHold: Boolean): WorkflowState = {
+      if (workflowOnHold)
+        WorkflowOnHold
+      else WorkflowSubmitted
     }
 
-    def askSubmit(command: WorkflowStoreActor.WorkflowStoreActorSubmitCommand, warnings: Seq[String]): Route = {
-      // NOTE: Do not blindly coppy the akka-http -to- ask-actor pattern below without knowing the pros and cons.
+    def askSubmit(command: WorkflowStoreActor.WorkflowStoreActorSubmitCommand, warnings: Seq[String], workflowState: WorkflowState): Route = {
+      // NOTE: Do not blindly copy the akka-http -to- ask-actor pattern below without knowing the pros and cons.
       onComplete(workflowStoreActor.ask(command).mapTo[WorkflowStoreSubmitActor.WorkflowStoreSubmitActorResponse]) {
-        case Success(w) =>
+        case Success(w) =>{
           w match {
-            case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId) =>
-              completeResponse(StatusCodes.Created, toResponse(workflowId), warnings)
-            case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(workflowIds) =>
-              completeResponse(StatusCodes.Created, workflowIds.toList map toResponse, warnings)
+            case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId, _) =>
+              completeResponse(StatusCodes.Created, toResponse(workflowId, workflowState), warnings)
+            case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(workflowIds, _) =>
+              completeResponse(StatusCodes.Created, workflowIds.toList.map(toResponse(_, workflowState)), warnings)
             case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) =>
               throwable.failRequest(StatusCodes.BadRequest, warnings)
           }
+        }
         case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
-        case Failure(e) =>
-          e.failRequest(StatusCodes.InternalServerError, warnings)
+        case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
+        case Failure(e) => e.failRequest(StatusCodes.InternalServerError, warnings)
       }
     }
 
@@ -266,8 +294,8 @@ trait CromwellApiService extends HttpInstrumentation {
       case Success(data) =>
         PartialWorkflowSources.fromSubmitRoute(data, allowNoInputs = isSingleSubmission) match {
           case Success(workflowSourceFiles) if isSingleSubmission && workflowSourceFiles.size == 1 =>
-            val warnings = workflowSourceFiles.flatMap(_.warnings)
-            askSubmit(WorkflowStoreActor.SubmitWorkflow(workflowSourceFiles.head), warnings)
+              val warnings = workflowSourceFiles.flatMap(_.warnings)
+              askSubmit(WorkflowStoreActor.SubmitWorkflow(workflowSourceFiles.head), warnings, getWorkflowState(workflowSourceFiles.head.workflowOnHold))
           // Catches the case where someone has gone through the single submission endpoint w/ more than one workflow
           case Success(workflowSourceFiles) if isSingleSubmission =>
             val warnings = workflowSourceFiles.flatMap(_.warnings)
@@ -277,9 +305,10 @@ trait CromwellApiService extends HttpInstrumentation {
             val warnings = workflowSourceFiles.flatMap(_.warnings)
             askSubmit(
               WorkflowStoreActor.BatchSubmitWorkflows(NonEmptyList.fromListUnsafe(workflowSourceFiles.toList)),
-              warnings)
+              warnings, getWorkflowState(workflowSourceFiles.head.workflowOnHold))
           case Failure(t) => t.failRequest(StatusCodes.BadRequest)
         }
+      case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
       case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
     }
   }
@@ -306,6 +335,7 @@ trait CromwellApiService extends HttpInstrumentation {
       case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
       case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
       case Failure(e: InvalidWorkflowException) => e.failRequest(StatusCodes.BadRequest)
+      case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
       case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
     }
   }
@@ -321,6 +351,7 @@ trait CromwellApiService extends HttpInstrumentation {
         }
       case Success(w: WorkflowQueryFailure) => w.reason.failRequest(StatusCodes.BadRequest)
       case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
+      case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
       case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
     }
   }

@@ -29,6 +29,11 @@ case class WomOptionalType(memberType: WomType) extends WomType {
 
     // It's safe to box up values implicitly:
     case womValue: WomValue if baseMemberType.isCoerceableFrom(womValue.womType) => WomOptionalValue(womValue).coerceAndSetNestingLevel(this).get
+
+    case WomOptionalValue(WomNothingType, None) => WomOptionalValue(memberType, None)
+
+    case null => WomOptionalValue(memberType, None)
+
     case coerceable: Any if baseMemberType.coercionDefined(coerceable) => WomOptionalValue(baseMemberType.coerceRawValue(coerceable).get).coerceAndSetNestingLevel(this).get
   }
 

@@ -17,7 +17,7 @@ import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.Rate
-import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
+import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowHeartbeatConfig, WorkflowStoreActor}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{ExpressionsInInputs, GoodbyeWorld, ThreeStep}
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
@@ -52,12 +52,14 @@ object SingleWorkflowRunnerActorSpec {
                                       metadataOutputPath: Option[Path])(implicit materializer: ActorMaterializer)
     extends SingleWorkflowRunnerActor(source, metadataOutputPath, false, false) {
     override lazy val serviceRegistryActor = CromwellTestKitSpec.ServiceRegistryActorInstance
+    override private [workflow] def done() = context.stop(self)
   }
 }
 
 abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitWordSpec with Mockito {
+  private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(ConfigFactory.load())
   private val workflowStore =
-    system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore, dummyServiceRegistryActor, abortAllJobsOnTerminate = false))
+    system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore, dummyServiceRegistryActor, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
   private val serviceRegistry = TestProbe().ref
   private val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
   private val ioActor = system.actorOf(SimpleIoActor.props)
@@ -81,7 +83,8 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitWordSpec wit
       dockerHashActor = dockerHashActor,
       jobTokenDispenserActor = jobTokenDispenserActor,
       backendSingletonCollection = BackendSingletonCollection(Map.empty),
-      serverMode = false)
+      serverMode = false,
+      workflowHeartbeatConfig)
     system.actorOf(Props(new WorkflowManagerActor(params)), "WorkflowManagerActor")
   }
   

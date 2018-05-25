@@ -57,7 +57,7 @@ case class WorkflowStep(
   // hierarchy. There is always a workflow containing a workflow step so this is not an `Option`.
   private[cwl] var parentWorkflow: Workflow = _
 
-  lazy val allRequirements: List[Requirement] = requirements.toList.flatten ++ parentWorkflow.allRequirements
+  lazy val allRequirements = RequirementsAndHints(requirements.toList.flatten ++ parentWorkflow.allRequirements.list)
 
   lazy val womFqn: wom.graph.FullyQualifiedName = {
     implicit val parentName = parentWorkflow.explicitWorkflowName
@@ -79,9 +79,9 @@ case class WorkflowStep(
   }
 
   def typedOutputs: WomTypeMap = {
-    implicit val parentName = ParentName.empty
+    implicit val parentName = ParentName(id)
     // Find the type of the outputs of the run section
-    val runOutputTypes = run.fold(RunOutputsToTypeMap)
+    val runOutputTypes = run.fold(RunOutputsToTypeMap).apply(allRequirements.schemaDefRequirement)
       .map({
         case (runOutputId, womType) => FullyQualifiedName(runOutputId).id -> womType
       })
@@ -197,12 +197,18 @@ case class WorkflowStep(
 
     def typedRunInputs: Map[String, Option[MyriadInputType]] = run.fold(RunToInputTypeMap).apply(parentName)
 
+    def allIdentifiersRecursively(nodes: Set[GraphNode]): Set[WomIdentifier] = nodes.flatMap({
+      case w: WorkflowCallNode=> Set(w.identifier)
+      case c: CommandCallNode => Set(c.identifier)
+      case e: ExpressionCallNode => Set(e.identifier)
+      // When a node a call node is being scattered over, it is wrapped inside a scatter node. We still don't want to 
+      // duplicate it though so look inside scatter nodes to see if it's there.
+      case scatter: ScatterNode => allIdentifiersRecursively(scatter.innerGraph.nodes)
+      case _ => Set.empty[WomIdentifier]
+    })
+    
     // To avoid duplicating nodes, return immediately if we've already covered this node
-    val haveWeSeenThisStep: Boolean = knownNodes.collect {
-      case CommandCallNode(identifier, _, _, _) => identifier
-      case ExpressionCallNode(identifier, _, _, _) => identifier
-      case WorkflowCallNode(identifier, _, _, _) => identifier
-    }.contains(unqualifiedStepId)
+    val haveWeSeenThisStep: Boolean = allIdentifiersRecursively(knownNodes).contains(unqualifiedStepId)
 
     if (haveWeSeenThisStep) Right(knownNodes)
     else {
@@ -236,7 +242,7 @@ case class WorkflowStep(
                 case scatterNode: ScatterNode if scatterNode.innerGraph.calls.exists(_.localName == stepId) => scatterNode
               }.
                 toRight(NonEmptyList.one(s"stepId $stepId not found in known Nodes $set"))
-              output <- call.outputPorts.find(_.name == stepOutputId).
+              output <- call.outputPorts.find(_.internalName == stepOutputId).
                 toRight(NonEmptyList.one(s"step output id $stepOutputId not found in ${call.outputPorts}"))
             } yield output
           }
@@ -262,12 +268,12 @@ case class WorkflowStep(
 
           def fromStepOutput(stepId: String, stepOutputId: String, accumulatedNodes: Set[GraphNode]): Checked[(Map[String, OutputPort], Set[GraphNode])] = {
             // First check if we've already built the WOM node for this step, and if so return the associated output port
-            findThisInputInSet(accumulatedNodes, stepId, stepOutputId).map(outputPort => (Map(stepOutputId -> outputPort), accumulatedNodes))
+            findThisInputInSet(accumulatedNodes, stepId, stepOutputId).map(outputPort => (Map(s"$stepId/$stepOutputId" -> outputPort), accumulatedNodes))
               .orElse {
                 // Otherwise build the upstream nodes and look again in those newly created nodes
                 for {
                   newNodes <- buildUpstreamNodes(stepId, accumulatedNodes)
-                  sourceMappings <- findThisInputInSet(newNodes, stepId, stepOutputId).map(outputPort => Map(stepOutputId -> outputPort))
+                  sourceMappings <- findThisInputInSet(newNodes, stepId, stepOutputId).map(outputPort => Map(s"$stepId/$stepOutputId" -> outputPort))
                 } yield (sourceMappings, newNodes ++ accumulatedNodes)
               }
           }
@@ -279,7 +285,7 @@ case class WorkflowStep(
 
             val isThisStepScattered = isStepScattered(workflowStepInputId)
 
-            workflowStepInput.toMergeNode(sourceMappings, expressionLib, typeExpectedByRunInput, isThisStepScattered) match {
+            workflowStepInput.toMergeNode(sourceMappings, expressionLib, typeExpectedByRunInput, isThisStepScattered, allRequirements.schemaDefRequirement) match {
               // If the input needs a merge node, build it and add it to the input fold
               case Some(mergeNode) =>
                 mergeNode.toEither.map({ node =>
@@ -297,11 +303,9 @@ case class WorkflowStep(
            *
            * If we don't know about them, we find upstream nodes and build them (see "buildUpstreamNodes").
            */
-          val inputSources: List[String] = workflowStepInput.source.toList.flatMap(_.fold(StringOrStringArrayToStringList))
-
           val baseCase = (Map.empty[String, OutputPort], fold.generatedNodes).asRight[NonEmptyList[String]]
           val inputMappingsAndGraphNodes: Checked[(Map[String, OutputPort], Set[GraphNode])] =
-            inputSources.foldLeft(baseCase){
+            workflowStepInput.sources.foldLeft(baseCase) {
               case (Right((sourceMappings, graphNodes)), inputSource) =>
                 /*
                  * Parse the inputSource (what this input is pointing to)
@@ -395,7 +399,7 @@ case class WorkflowStep(
             val typeExpectedByRunInput: Option[cwl.MyriadInputType] = typedRunInputs.get(stepInput.parsedId).flatten
             val isThisStepScattered = isStepScattered(stepInput.parsedId)
 
-            stepInput.toExpressionNode(valueFrom, typeExpectedByRunInput, isThisStepScattered, sharedInputMap, updatedTypeMap, expressionLib).map(stepInput.parsedId -> _)
+            stepInput.toExpressionNode(valueFrom, typeExpectedByRunInput, isThisStepScattered, sharedInputMap, updatedTypeMap, expressionLib, allRequirements.schemaDefRequirement).map(stepInput.parsedId -> _)
         })
           .sequence[ErrorOr, (String, ExpressionNode)]
           .toEither

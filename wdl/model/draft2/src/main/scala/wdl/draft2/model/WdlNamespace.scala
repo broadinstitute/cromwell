@@ -3,9 +3,6 @@ package wdl.draft2.model
 import java.nio.file.{Path, Paths}
 
 import better.files._
-import cats.effect.IO
-import com.softwaremill.sttp._
-import com.softwaremill.sttp.asynchttpclient.cats.AsyncHttpClientCatsBackend
 import common.util.TryUtil
 import wdl.draft2.model.AstTools.{AstNodeName, EnhancedAstNode}
 import wdl.draft2.model.command.ParameterCommandPart
@@ -14,7 +11,6 @@ import wdl.draft2.model.types.WdlCallOutputsObjectType
 import wdl.draft2.model.exception._
 import wdl.draft2.model.expression.{NoFunctions, WdlStandardLibraryFunctionsType}
 import wdl.draft2.model.types.WdlNamespaceType
-import wdl.draft2.model.{FullyQualifiedName => _, LocallyQualifiedName => _, _}
 import wdl.draft2.parser.WdlParser
 import wdl.draft2.parser.WdlParser._
 import wom.core._
@@ -23,9 +19,6 @@ import wom.values.WomValue
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.concurrent.Await
-import scala.concurrent.duration._
-import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 
@@ -155,26 +148,26 @@ object WdlNamespace {
 
   val WorkflowResourceString = "string"
 
-  def loadUsingPath(wdlFile: Path, resource: Option[String], importResolver: Option[Seq[ImportResolver]]): Try[WdlNamespace] = {
+  def loadUsingPath(wdlFile: Path, resource: Option[String], importResolver: Option[Seq[Draft2ImportResolver]]): Try[WdlNamespace] = {
     load(readFile(wdlFile), resource.getOrElse(wdlFile.toString), importResolver.getOrElse(Seq(fileResolver)), None)
   }
 
-  def loadUsingSource(workflowSource: WorkflowSource, resource: Option[String], importResolver: Option[Seq[ImportResolver]]): Try[WdlNamespace] = {
+  def loadUsingSource(workflowSource: WorkflowSource, resource: Option[String], importResolver: Option[Seq[Draft2ImportResolver]]): Try[WdlNamespace] = {
     load(workflowSource, resource.getOrElse(WorkflowResourceString), importResolver.getOrElse(Seq(fileResolver)), None)
   }
 
-  private def load(workflowSource: WorkflowSource, resource: String, importResolver: Seq[ImportResolver], importedAs: Option[String], root: Boolean = true): Try[WdlNamespace] = Try {
+  private def load(workflowSource: WorkflowSource, resource: String, importResolver: Seq[Draft2ImportResolver], importedAs: Option[String], root: Boolean = true): Try[WdlNamespace] = Try {
     WdlNamespace(AstTools.getAst(workflowSource, resource), resource, workflowSource, importResolver, importedAs, root = root)
   }
 
-  def apply(ast: Ast, uri: String, source: WorkflowSource, importResolvers: Seq[ImportResolver], namespaceName: Option[String], root: Boolean = false): WdlNamespace = {
+  def apply(ast: Ast, uri: String, source: WorkflowSource, importResolvers: Seq[Draft2ImportResolver], namespaceName: Option[String], root: Boolean = false): WdlNamespace = {
 
     val imports = for {
       importAst <- Option(ast).map(_.getAttribute("imports")).toSeq
       importStatement <- importAst.astListAsVector.map(Import(_))
     } yield importStatement
 
-    def tryResolve(str: String, remainingResolvers: Seq[ImportResolver], errors: List[Throwable]): WorkflowSource = {
+    def tryResolve(str: String, remainingResolvers: Seq[Draft2ImportResolver], errors: List[Throwable]): WorkflowSource = {
       remainingResolvers match {
         case resolver :: tail =>
           Try(resolver(str)) match {
@@ -557,35 +550,10 @@ object WdlNamespace {
       throw new IllegalArgumentException(s"$str is not a valid import")
     }
   }
-
-  /**
-    * Given a string representing an http(s) url, retrieve the contents
-    */
-  def httpResolver(str: String): WorkflowSource =
-    httpResolverWithHeaders(Map.empty[String,String])(str)
-
-  /**
-    * Given a string representing an http(s) url, retrieve the contents
-    * using the supplied headers (which can be an empty map)
-    */
-  def httpResolverWithHeaders(headers: Map[String,String])(str: String): WorkflowSource = {
-
-    implicit val sttpBackend = AsyncHttpClientCatsBackend[IO]()
-
-    val responseIO : IO[Response[String]] =
-      sttp.get(uri"$str").headers(headers).send()
-
-    // temporary situation to get functionality working before
-    // starting in on async-ifying the entire WdlNamespace flow
-    Await.result(responseIO.unsafeToFuture, 15 seconds).body match {
-      case Left(ex)   => throw new IllegalArgumentException(ex)
-      case Right(wdl) => wdl
-    }
-  }
 }
 
 object WdlNamespaceWithWorkflow {
-  def load(workflowSource: WorkflowSource, importsResolvers: Seq[ImportResolver]): Try[WdlNamespaceWithWorkflow] = {
+  def load(workflowSource: WorkflowSource, importsResolvers: Seq[Draft2ImportResolver]): Try[WdlNamespaceWithWorkflow] = {
     from(WdlNamespace.loadUsingSource(workflowSource, None, Option(importsResolvers)))
   }
 
@@ -594,15 +562,15 @@ object WdlNamespaceWithWorkflow {
 
   @deprecated("To avoid unexpected default resolutions, I recommend using the load(String, Seq[ImportResolver] method of loading.", "23")
   def load(workflowSource: WorkflowSource, importsDirectory: File): Try[WdlNamespaceWithWorkflow] = {
-    val resolvers: Seq[ImportResolver] = Seq(WdlNamespace.directoryResolver(importsDirectory), WdlNamespace.fileResolver)
+    val resolvers: Seq[Draft2ImportResolver] = Seq(WdlNamespace.directoryResolver(importsDirectory), WdlNamespace.fileResolver)
     load(workflowSource, resolvers)
   }
 
   @deprecated("To avoid unexpected default resolutions, I recommend using the load(String, Seq[ImportResolver] method of loading.", "23")
-  def load(wdlFile: Path, importResolver: ImportResolver): Try[WdlNamespaceWithWorkflow] = from(WdlNamespace.loadUsingPath(wdlFile, None, Option(Seq(importResolver))))
+  def load(wdlFile: Path, importResolver: Draft2ImportResolver): Try[WdlNamespaceWithWorkflow] = from(WdlNamespace.loadUsingPath(wdlFile, None, Option(Seq(importResolver))))
 
   @deprecated("To avoid unexpected default resolutions, I recommend using the load(String, Seq[ImportResolver] method of loading.", "23")
-  def load(workflowSource: WorkflowSource, importResolver: ImportResolver): Try[WdlNamespaceWithWorkflow] = {
+  def load(workflowSource: WorkflowSource, importResolver: Draft2ImportResolver): Try[WdlNamespaceWithWorkflow] = {
     WdlNamespaceWithWorkflow.from(WdlNamespace.loadUsingSource(workflowSource, None, Option(Seq(importResolver))))
   }
 

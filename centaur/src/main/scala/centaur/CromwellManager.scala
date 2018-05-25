@@ -13,8 +13,9 @@ import scala.language.postfixOps
   */
 object CromwellManager {
   val ManagedCromwellPort = 8008
-  val timeout = 30 seconds
-  private val interval = 1 second
+  val timeout = 120 seconds
+  private val interval = 5 second
+  private val timeoutExitStatus = 66
   private var cromwellProcess: Option[Process] = None
   private var _ready: Boolean = false
   private var _isManaged: Boolean = false
@@ -66,7 +67,7 @@ object CromwellManager {
         println("Timeout waiting for cromwell server - failing test run")
         println(logFile.contentAsString)
         stopCromwell()
-        System.exit(1)
+        System.exit(timeoutExitStatus)
       }
     }
   }

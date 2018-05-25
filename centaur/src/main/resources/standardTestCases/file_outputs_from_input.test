@@ -2,7 +2,7 @@ name: test_file_outputs_from_input
 testFormat: workflowsuccess
 
 files {
-  wdl: file_outputs_from_input/file_outputs_from_input.wdl
+  workflow: file_outputs_from_input/file_outputs_from_input.wdl
 }
 
 metadata {

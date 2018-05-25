@@ -13,13 +13,14 @@ object AstToTaskDefinitionElement {
 
   def convert(a: Ast): ErrorOr[TaskDefinitionElement] = {
     val nameElementValidation: ErrorOr[String] = astNodeToString(a.getAttribute("name")).toValidated
-    val sectionsValidation: ErrorOr[Vector[TaskSectionElement]] = a.getAttributeAsVector[TaskSectionElement]("declarations").toValidated
+    val sectionsValidation: ErrorOr[Vector[TaskSectionElement]] = a.getAttributeAsVector[TaskSectionElement]("sections").toValidated
 
     (nameElementValidation, sectionsValidation) flatMapN combineElements
   }
 
   def combineElements(nameElement: String, bodyElements: Vector[TaskSectionElement]) = {
     val inputsSectionElement: ErrorOr[Option[InputsSectionElement]] = validateOneMax(bodyElements.filterByType[InputsSectionElement], "inputs")
+    val declarations: Vector[IntermediateValueDeclarationElement] = bodyElements.filterByType[IntermediateValueDeclarationElement]
     val outputsSectionElement: ErrorOr[Option[OutputsSectionElement]] = validateOneMax(bodyElements.filterByType[OutputsSectionElement], "outputs")
     val commandSectionElement: ErrorOr[CommandSectionElement] = validateExists(bodyElements.filterByType[CommandSectionElement], "command")
     val runtimeSectionElement: ErrorOr[Option[RuntimeAttributesSectionElement]] = validateOneMax(bodyElements.filterByType[RuntimeAttributesSectionElement], "runtime")
@@ -29,7 +30,7 @@ object AstToTaskDefinitionElement {
 
     (inputsSectionElement, outputsSectionElement, commandSectionElement, runtimeSectionElement, metaSectionElement, parameterMetaSectionElement) mapN {
       (inputs, outputs, command, runtime, meta, parameterMeta) =>
-      TaskDefinitionElement(nameElement, inputs, outputs, command, runtime, meta, parameterMeta)
+      TaskDefinitionElement(nameElement, inputs, declarations, outputs, command, runtime, meta, parameterMeta)
     }
   }
 

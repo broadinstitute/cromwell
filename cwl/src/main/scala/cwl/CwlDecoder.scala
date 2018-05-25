@@ -6,10 +6,8 @@ import better.files.{File => BFile}
 import cats.data.EitherT._
 import cats.data.NonEmptyList
 import cats.effect.IO
-import cats.instances.try_._
 import cats.syntax.either._
 import cats.{Applicative, Monad}
-import common.legacy.TwoElevenSupport._
 import common.validation.ErrorOr._
 import common.validation.Parse._
 import cwl.preprocessor.CwlPreProcessor
@@ -29,9 +27,9 @@ object CwlDecoder {
       }
 
     val cwlToolResult =
-      Try(%%("cwltool", "--quiet", "--print-pre", path.toString)).
-        tacticalToEither.
-        leftMap(t => NonEmptyList.one(s"running cwltool on file ${path.toString} failed with ${t.getMessage}"))
+      Try(%%("cwltool", "--quiet", "--print-pre", path.toString))
+        .toEither
+        .leftMap(t => NonEmptyList.one(s"running cwltool on file ${path.toString} failed with ${t.getMessage}"))
 
     fromEither[IO](cwlToolResult flatMap resultToEither)
   }
@@ -48,7 +46,7 @@ object CwlDecoder {
     }
   }
 
-  def parseJson(json: Json): Parse[Cwl] = fromEither[IO](CwlCodecs.decodeCwl(json))
+  def parseJson(json: Json, file: BFile): Parse[Cwl] = fromEither[IO](CwlCodecs.decodeCwl(json).leftMap(_.prepend(s"error when parsing file $file")))
 
   /**
     * Notice it gives you one instance of Cwl.  This has transformed all embedded files into scala object state
@@ -57,7 +55,7 @@ object CwlDecoder {
                     workflowRoot: Option[String] = None)(implicit processor: CwlPreProcessor = cwlPreProcessor): Parse[Cwl] =
     for {
       standaloneWorkflow <- processor.preProcessCwlFile(fileName, workflowRoot)
-      parsedCwl <- parseJson(standaloneWorkflow)
+      parsedCwl <- parseJson(standaloneWorkflow, fileName)
     } yield parsedCwl
 
   def decodeCwlString(cwl: String, zipOption: Option[BFile] = None, rootName: Option[String] = None): Parse[Cwl] = {

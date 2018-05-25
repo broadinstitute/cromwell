@@ -2,7 +2,7 @@ name: write_lines
 testFormat: workflowsuccess
 
 files {
-  wdl: write_lines/write_lines.wdl
+  workflow: write_lines/write_lines.wdl
 }
 
 metadata {

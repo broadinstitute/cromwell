@@ -8,7 +8,7 @@ backends: [Local, LocalNoDocker]
 tags: [localdockertest]
 
 files {
-  wdl: cwl_stdout_expression/cwl_stdout_expression.cwl
+  workflow: cwl_stdout_expression/cwl_stdout_expression.cwl
   inputs: cwl_stdout_expression/cwl_stdout_expression.json
 }
 

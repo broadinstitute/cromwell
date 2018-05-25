@@ -2,7 +2,7 @@ name: continue_on_return_code
 testFormat: workflowsuccess
 
 files {
-  wdl: continue_on_return_code/continue_on_return_code.wdl
+  workflow: continue_on_return_code/continue_on_return_code.wdl
 }
 
 metadata {

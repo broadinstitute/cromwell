@@ -2,7 +2,7 @@ name: failures.terminal_status
 testFormat: workflowfailure
 
 files {
-  wdl: failures/terminal_status/terminal_status.wdl
+  workflow: failures/terminal_status/terminal_status.wdl
 }
 
 metadata {

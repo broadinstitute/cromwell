@@ -5,7 +5,7 @@ workflowRoot: iwdr_input_string
 workflowTypeVersion: v1.0
 
 files {
-  wdl: InitialWorkDirRequirement/input_string.cwl
+  workflow: InitialWorkDirRequirement/input_string.cwl
 }
 
 metadata {

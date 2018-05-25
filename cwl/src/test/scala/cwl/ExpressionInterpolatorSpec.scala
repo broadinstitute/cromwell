@@ -7,6 +7,7 @@ import wom.callable.RuntimeEnvironment
 import wom.values._
 import common.validation.Validation._
 import cwl.ExpressionInterpolator.SubstitutionException
+import wom.expression.DefaultSizeIoFunctionSet
 
 class ExpressionInterpolatorSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
 
@@ -23,11 +24,11 @@ class ExpressionInterpolatorSpec extends FlatSpec with Matchers with TableDriven
       "cram" -> WomSingleFile("/path/to/my.cram"),
       "file1" -> WomSingleFile("/path/to/my.file.txt")
     )
-    ParameterContext(inputs = inputs, runtimeOption = Option(runtime))
+    ParameterContext(DefaultSizeIoFunctionSet, expressionLib, inputs = inputs, runtimeOption = Option(runtime))
   }
 
   private def evaluator(string: String): ErrorOr[WomValue] = {
-    ExpressionEvaluator.eval(string, parameterContext, expressionLib)
+    ExpressionEvaluator.eval(string, parameterContext)
   }
 
   private val validTests = Table(
@@ -62,7 +63,7 @@ class ExpressionInterpolatorSpec extends FlatSpec with Matchers with TableDriven
     ("a string containing a start prefix", """$("$(")""", WomString("$(")),
     ("a replacement returning a json object",
       "$({'output': (inputs.i1 == 'the-default' ? 1 : 2)})",
-      WomMap(Map(WomString("output") -> WomInteger(2))))
+      WomObject(Map("output" -> WomInteger(2))))
   )
 
   forAll(validTests) { (description, expression, expected) =>
@@ -101,9 +102,9 @@ class ExpressionInterpolatorSpec extends FlatSpec with Matchers with TableDriven
   private val semiSupportedTests = Table(
     ("description", "expression", "expected"),
     ("an array", """$(["hello", "world"])""", """["hello", "world"]"""),
-    ("a map", """$({"hello": "world"})""", """{"hello": "world"}"""),
-    ("an array of maps", """$([{"hello": "world"}])""", """[{"hello": "world"}]"""),
-    ("a map of arrays", """$({"hello": ["world"]})""", """{"hello": ["world"]}""")
+    ("a map", """$({"hello": "world"})""", """object {hello: "world"}"""),
+    ("an array of maps", """$([{"hello": "world"}])""", """[object {hello: "world"}]"""),
+    ("a map of arrays", """$({"hello": ["world"]})""", """object {hello: ["world"]}""")
   )
 
   forAll(semiSupportedTests) { (description, expression, expected) =>

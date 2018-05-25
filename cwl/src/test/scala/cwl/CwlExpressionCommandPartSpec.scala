@@ -6,7 +6,7 @@ import eu.timepit.refined._
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct
 import wom.callable.RuntimeEnvironment
-import wom.expression.PlaceholderIoFunctionSet
+import wom.expression.NoIoFunctionSet
 import wom.graph.LocalName
 import wom.values.WomString
 
@@ -22,8 +22,8 @@ class CwlExpressionCommandPartSpec extends FlatSpec with Matchers {
     // https://community.apigee.com/questions/33936/javascript-parseint-not-converting-to-int-value-ne.html
     val commandPart = CwlExpressionCommandPart(Coproduct[Expression](refineMV[MatchesECMAScriptExpression](
       "$(parseInt(inputs.myStringInt).toFixed())"
-    )))(Vector.empty)
-    val result = commandPart.instantiate(Map(LocalName("myStringInt") -> WomString("3")), PlaceholderIoFunctionSet, identity, emptyEnvironment).toTry.get.head.commandString
+    )))(false, Vector.empty)
+    val result = commandPart.instantiate(Map(LocalName("myStringInt") -> WomString("3")), NoIoFunctionSet, identity, emptyEnvironment).toTry.get.head.commandString
     result should be("'3'")
   }
 

@@ -11,9 +11,9 @@ trait CallCachingEntryComponent {
   class CallCachingEntries(tag: Tag) extends Table[CallCachingEntry](tag, "CALL_CACHING_ENTRY") {
     def callCachingEntryId = column[Int]("CALL_CACHING_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
-    def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID")
+    def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID", O.Length(255))
 
-    def callFullyQualifiedName = column[String]("CALL_FULLY_QUALIFIED_NAME")
+    def callFullyQualifiedName = column[String]("CALL_FULLY_QUALIFIED_NAME", O.Length(255))
 
     def jobIndex = column[Int]("JOB_INDEX")
 

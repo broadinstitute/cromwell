@@ -2,7 +2,7 @@ name: dont_cache_to_failed_jobs
 testFormat: runfailingtwiceexpectingnocallcaching
 
 files {
-  wdl: dont_cache_to_failed_jobs/dont_cache_to_failed_jobs.wdl
+  workflow: dont_cache_to_failed_jobs/dont_cache_to_failed_jobs.wdl
 }
 
 metadata {

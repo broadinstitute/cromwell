@@ -2,6 +2,6 @@ name: write_tsv
 testFormat: workflowsuccess
 
 files {
-  wdl: write_tsv/write_tsv.wdl
+  workflow: write_tsv/write_tsv.wdl
   metadata: write_tsv/write_tsv.metadata
 }

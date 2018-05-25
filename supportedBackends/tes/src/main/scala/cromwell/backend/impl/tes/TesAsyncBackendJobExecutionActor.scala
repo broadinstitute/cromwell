@@ -1,5 +1,6 @@
 package cromwell.backend.impl.tes
 
+import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
 
 import akka.http.scaladsl.Http
@@ -170,7 +171,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
             FailedOrError
 
           case s if s.contains("ERROR") =>
-            jobLogger.info(s"TES reported an error for Job ${handle.pendingJob.jobId}")
+            jobLogger.info(s"TES reported an error for Job ${handle.pendingJob.jobId}: '$s'")
             FailedOrError
 
           case _ => Running
@@ -188,7 +189,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     runStatus.isTerminal
   }
 
-  override def isSuccess(runStatus: TesRunStatus): Boolean = {
+  override def isDone(runStatus: TesRunStatus): Boolean = {
     runStatus match {
       case Complete => true
       case _ => false
@@ -208,7 +209,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       val absPath: Path = tesJobPaths.callExecutionRoot.resolve(path)
       absPath match {
         case _ if !absPath.exists && outputWomFiles.map(_.value).contains(path) =>
-          throw new RuntimeException("Could not process output, file not found: " +
+          throw new FileNotFoundException("Could not process output, file not found: " +
             s"${absPath.pathAsString}")
         case _ => absPath.pathAsString
       }

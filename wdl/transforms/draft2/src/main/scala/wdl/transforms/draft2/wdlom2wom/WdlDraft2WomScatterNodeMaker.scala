@@ -16,7 +16,8 @@ object WdlDraft2WomScatterNodeMaker extends WomScatterNodeMaker[Scatter] {
   override def toWomScatterNode(scatter: Scatter,
                                 localLookup: Map[String, GraphNodePort.OutputPort],
                                 outerLookup: Map[String, GraphNodePort.OutputPort],
-                                preserveIndexForOuterLookups: Boolean): ErrorOr[ScatterNodeWithNewNodes] = {
+                                preserveIndexForOuterLookups: Boolean,
+                                inASubworkflow: Boolean): ErrorOr[ScatterNodeWithNewNodes] = {
 
     /*
       * Why? Imagine that we're building three nested levels of a innerGraph.
@@ -51,7 +52,7 @@ object WdlDraft2WomScatterNodeMaker extends WomScatterNodeMaker[Scatter] {
       expressionNode <- scatterCollectionExpressionNode
       // Graph input node for the scatter variable in the inner graph. Note that the type is the array's member type
       womInnerGraphScatterVariableInput = ScatterVariableNode(WomIdentifier(scatter.item), expressionNode, itemType)
-      g <- (scatter: Scope).toWomGraph(Set(womInnerGraphScatterVariableInput), localLookup ++ possiblyNeededNestedOginPorts, preserveIndexForOuterLookups = false)
+      g <- (scatter: Scope).toWomGraph(Set(womInnerGraphScatterVariableInput), localLookup ++ possiblyNeededNestedOginPorts, preserveIndexForOuterLookups = false, inASubworkflow)
     } yield ScatterNode.scatterOverGraph(g, womInnerGraphScatterVariableInput)
 
   }

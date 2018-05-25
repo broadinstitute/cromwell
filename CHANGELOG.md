@@ -1,5 +1,128 @@
 # Cromwell Change Log
 
+## 32 Release Notes
+
+### Backends
+
+#### Pipelines API V2
+Initial support for Google [Pipelines API version 2](https://cloud.google.com/genomics/reference/rest/).
+Expect feature parity except for private dockerhub images which are not supported at the moment, but will be in the near future.
+Additionally, the "refresh token" authentication mode is **NOT** supported on PAPI V2.
+
+In addition, the following changes are to be expected:
+* Error messages for failed jobs might differ from V1
+* The Pipelines API log file content might differ from V1
+
+**Important (If you're running Cromwell with a Google backend, read this)**:
+The `actor-factory` value for the google backend (`cromwell.backend.impl.jes.JesBackendLifecycleActorFactory`) is being deprecated.
+Please update your configuration accordingly.
+
+| PAPI Version |                                 actor-factory                                |
+|--------------|:----------------------------------------------------------------------------:|
+|      V1      | cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory |
+|      V2      | cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory |
+
+If you don't update the `actor-factory` value, you'll get a deprecation warning in the logs, and Cromwell will default back to **PAPI V1**
+
+### Task Retries
+Cromwell now supports retrying failed tasks up to a specified count by declaring a value for the [maxRetries](RuntimeAttributes.md#maxRetries) key through the WDL runtime attributes.
+
+### Labels
+* Cromwell has removed most of the formatting restrictions from custom labels. Please check the [README](README.md#label-format) for more detailed documentation.
+* Custom labels won't be submitted to Google backend as they are now decoupled from Google's default labels.
+* Cromwell now publishes the labels as soon as the workflow is submitted (whether started or on hold). If the labels are invalid, the workflow will not be submitted and request will fail.
+
+### Scala 2.11 Removed
+From version 32 onwards we will no longer be publishing build artifacts compatible with Scala 2.11. 
+
+* If you don't import the classes into your own scala project then this should have no impact on you.
+* If you **are** importing the classes into your own scala project, make sure you are using Scala 2.12.
+
+### Input Validation
+Cromwell can now validate that your inputs files do not supply inputs with no impact on the workflow. Strict validation will be disabled by default in WDL draft 2 and CWL but enabled in WDL draft 3. See the 'Language Factory Config' below for details.
+
+### Language Factory Config
+All language factories can now be configured on a per-language-version basis. All languages and versions will support the following options:
+* `enabled`: Defaults to `true`. Set to `false` to disallow workflows of this language and version.
+* `strict-validation`: Defaults to `true` for WDL draft 3 and `false` for WDL draft 2 and CWL. Specifies whether workflows fail if the inputs JSON (or YAML) file contains values which the workflow did not ask for (and will therefore have no effect). Additional strict checks may be added in the future.
+
+### API
+
+* More accurately returns 503 instead of 500 when Cromwell can not respond in a timely manner
+* Cromwell now allows a user to submit a workflow but in a state where it will not automatically be picked up for execution. This new state is called 'On Hold'. To do this you need to set the parameter workflowOnHold to true while submitting the workflow.
+* API end point 'releaseHold' will allow the user to send a signal to Cromwell to allow a workflow to be startable, at which point it will be picked up by normal execution schemes.
+
+### GPU
+
+The PAPI backend now supports specifying GPU through WDL runtime attributes:
+
+```wdl
+runtime {
+    gpuType: "nvidia-tesla-k80"
+    gpuCount: 2
+    zones: ["us-central1-c"]
+}
+```
+
+The two types of GPU supported are `nvidia-tesla-k80` and `nvidia-tesla-p100`
+
+**Important**: Before adding a GPU, make sure it is available in the zone the job is running in: https://cloud.google.com/compute/docs/gpus/
+
+### Job Shell
+
+Cromwell now allows for system-wide or per-backend job shell configuration for running user commands rather than always
+using the default `/bin/bash`. To set the job shell on a system-wide basis use the configuration key `system.job-shell` or on a
+per-backend basis with `<config-key-for-backend>.job-shell`. For example:
+
+```
+# system-wide setting, all backends get this
+-Dsystem.job-shell=/bin/sh
+```
+
+```
+# override for just the Local backend
+-Dbackend.providers.Local.config.job-shell=/bin/sh
+```
+
+For the Config backend the value of the job shell will be available in the `${job_shell}` variable. See Cromwell's `reference.conf` for an example
+of how this is used for the default configuration of the `Local` backend.
+
+### Bug Fixes
+
+The imports zip no longer unpacks a single (arbitrary) internal directory if it finds one (or more). Instead, import statements should now be made relative to the base of the import zip root.
+
+#### Reverting Custom Labels
+
+Reverting to a prior custom label value now works.
+
+["Retrieves the current labels for a workflow"](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/#retrieves-the-current-labels-for-a-workflow)
+will return the most recently summarized custom label value.
+
+The above endpoint may still return the prior value for a short period of time after using
+["Updated labels for a workflow"](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/#update-labels-for-a-workflow)
+until the background metadata summary process completes.
+
+#### Deleting Duplicate Custom Label Rows
+
+If you never used the REST API to revert a custom label back to a prior value you will not be affected. This only applies to workflows previously updated using
+["Updated labels for a workflow"](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/#update-labels-for-a-workflow).
+
+The database table storing custom labels will delete duplicate rows for any workflow label key. For efficiency purposes
+the values are not regenerated automatically from the potentially large metadata table.
+
+In rare cases where one tried to revert to a prior custom label value you may continue to see different results
+depending on the REST API used. After the database update
+["Retrieves the current labels for a workflow"](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/#retrieves-the-current-labels-for-a-workflow)
+will return the most-recent-unique value while
+["Get workflow and call-level metadata for a specified workflow"](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/#get-workflow-and-call-level-metadata-for-a-specified-workflow)
+will return the up-to-date value. For example, if one previously updated a value from `"value-1"` > `"value-2"` >
+`"value-3"` > `"value-2"` then the former REST API will return `value-3` while the latter will return `value-2`.
+
+#### Workflow options `google_project` output in metadata
+
+Workflow metadata for jobs run on a Google Pipelines API backend will report the `google_project` specified via a
+[workflow options json](http://cromwell.readthedocs.io/en/develop/wf_options/Google/#google-pipelines-api-workflow-options).
+
 ## 31 Release Notes
 
 * **Cromwell server**  

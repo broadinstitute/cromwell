@@ -44,9 +44,9 @@ class CallCacheReadActor(cache: CallCache,
         }
       case call @ CallCacheEntryForCall(workflowId, jobKey) =>
         import cromwell.core.ExecutionIndex._
-        cache.cacheEntryExistsForCall(workflowId.toString, jobKey.call.fullyQualifiedName, jobKey.index.fromIndex) map {
-          case true => HasCallCacheEntry(call)
-          case false => NoCallCacheEntry(call)
+        cache.callCachingJoinForCall(workflowId.toString, jobKey.call.fullyQualifiedName, jobKey.index.fromIndex) map {
+          case Some(join) => join
+          case None => NoCallCacheEntry(call)
         }
     }
 
@@ -96,7 +96,6 @@ object CallCacheReadActor {
   final case class CacheLookupNextHit(hit: CallCachingEntryId) extends CallCacheReadActorResponse
   case object CacheLookupNoHit extends CallCacheReadActorResponse
 
-  final case class HasCallCacheEntry(call: CallCacheEntryForCall) extends CallCacheReadActorResponse
   final case class NoCallCacheEntry(call: CallCacheEntryForCall) extends CallCacheReadActorResponse
 
   // Failure Response

@@ -12,12 +12,14 @@ object Publishing {
     repoName at repoUrl
   }
 
-  private val artifactoryCredentials: Credentials = {
-    val username = sys.env.getOrElse("ARTIFACTORY_USERNAME", "")
-    val password = sys.env.getOrElse("ARTIFACTORY_PASSWORD", "")
-    Credentials("Artifactory Realm", "broadinstitute.jfrog.io", username, password)
+  private val artifactoryCredentials: Seq[Credentials] = {
+    val credentialsFile = file("src/bin/ci/resources/artifactory_credentials.properties").getAbsoluteFile
+    if (credentialsFile.exists)
+      List(Credentials(credentialsFile))
+    else
+      Nil
   }
 
   def publishingSettings: Seq[Setting[_]] =
-    Seq(publishTo := Option(artifactoryResolver(isSnapshot.value)), credentials += artifactoryCredentials)
+    Seq(publishTo := Option(artifactoryResolver(isSnapshot.value)), credentials ++= artifactoryCredentials)
 }

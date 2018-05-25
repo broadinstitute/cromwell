@@ -97,7 +97,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
           }.get.inputPorts.map(_.upstream).head
 
           compileUpstreamExpressionPort.name shouldBe s"file://$rootPath/1st-workflow.cwl#compile/src.merge"
-          compileUpstreamExpressionPort.graphNode.asInstanceOf[ExpressionNode].inputPorts.map(_.upstream.name).count(_ == "example_out") shouldBe 1
+          compileUpstreamExpressionPort.graphNode.asInstanceOf[ExpressionNode].inputPorts.map(_.upstream.internalName).count(_ == "example_out") shouldBe 1
 
           nodes.collect {
             case c: PortBasedGraphOutputNode => c

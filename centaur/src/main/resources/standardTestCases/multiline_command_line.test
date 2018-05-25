@@ -2,7 +2,7 @@ name: multiline_command_line
 testFormat: workflowsuccess
 
 files { 
-  wdl: multiline_command_line/multiline_command_line.wdl
+  workflow: multiline_command_line/multiline_command_line.wdl
 }
 
 metadata {

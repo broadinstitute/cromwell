@@ -27,7 +27,7 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
                        linkNb: Int = 1) = {
     val callDir = DefaultPathBuilder.createTempDirectory("SharedFileSystem")
     val orig = if (fileInCallDir) callDir.createChild("inputFile") else DefaultPathBuilder.createTempFile("inputFile")
-    val dest = if (fileInCallDir) orig else callDir./(orig.pathAsString.drop(1))
+    val dest = if (fileInCallDir) orig else callDir./(orig.parent.pathAsString.hashCode.toString())./(orig.name)
     orig.touch()
     if (fileAlreadyExists) {
       dest.parent.createPermissionedDirectories()
@@ -43,7 +43,7 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
     val result = sharedFS.localizeInputs(callDir, docker = docker)(inputs)
 
     result.isSuccess shouldBe true
-    result.get should contain theSameElementsAs localizedinputs
+    result.get.toList should contain theSameElementsAs localizedinputs
 
     dest.exists shouldBe true
     countLinks(dest) should be(linkNb)
@@ -76,7 +76,7 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
   it should "localize a file via symbolic link" in {
     localizationTest(softLinkLocalization, docker = false, symlink = true)
   }
-  
+
   it should "throw a fatal exception if localization fails" in {
     val callDir = DefaultPathBuilder.createTempDirectory("SharedFileSystem")
     val orig = DefaultPathBuilder.get("/made/up/origin")

@@ -3,10 +3,9 @@ package wom.graph
 import common.Checked
 import common.collections.EnhancedCollections._
 import common.validation.Checked._
-import common.validation.ErrorOr.ErrorOr
 import wom.graph.GraphNode.{GeneratedNodeAndNewNodes, GraphNodeWithInnerGraph}
 import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort, ScatterGathererPort}
-import wom.graph.ScatterNode.{ScatterCollectionFunctionBuilder, ScatterNodeWithNewNodes, ScatterProcessingFunction}
+import wom.graph.ScatterNode.{ScatterCollectionFunctionBuilder, ScatterProcessingFunction}
 import wom.graph.expression.ExpressionNode
 import wom.types.WomArrayType
 import wom.values.{WomArray, WomValue}
@@ -73,7 +72,6 @@ object ScatterNode {
     override val usedOuterGraphInputNodes: Set[OuterGraphInputNode] =
       (node.scatterCollectionExpressionNodes.flatMap(_.upstream).toSet.filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode]) ++
       (node.innerGraph.outerGraphInputNodes.map(_.linkToOuterGraphNode).filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode])
-    def nodes: Set[GraphNode] = newExpressions ++ newInputs ++ usedOuterGraphInputNodes ++ Set(node)
   }
 
   /**
@@ -102,7 +100,7 @@ object ScatterNode {
   class ScatterNodeBuilder {
     private val graphNodeSetter = new GraphNode.GraphNodeSetter[ScatterNode]()
     
-    def makeOutputPort(womType: WomArrayType, nodeToGather: PortBasedGraphOutputNode) = {
+    def makeOutputPort(womType: WomArrayType, nodeToGather: PortBasedGraphOutputNode): ScatterGathererPort = {
       ScatterGathererPort(womType, nodeToGather, graphNodeSetter.get)
     }
     

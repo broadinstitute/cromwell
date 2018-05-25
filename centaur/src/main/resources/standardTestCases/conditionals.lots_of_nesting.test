@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 tags: [ conditionals ]
 
 files {
-  wdl: conditionals_tests/lots_of_nesting/lots_of_nesting.wdl
+  workflow: conditionals_tests/lots_of_nesting/lots_of_nesting.wdl
     imports: [
       conditionals_tests/ifs_in_scatters/ifs_in_scatters.wdl
     ]

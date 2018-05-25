@@ -1,17 +1,18 @@
 package cwl
 
-import cwl.internal.{EcmaScriptEncoder, EcmaScriptUtil}
 import cwl.internal.EcmaScriptUtil.{ESArray, ESObject, ESPrimitive}
+import cwl.internal.{EcmaScriptEncoder, EcmaScriptUtil}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
+import wom.expression.DefaultSizeIoFunctionSet
 import wom.values.WomMaybePopulatedFile
 
 class CwlEcmaScriptEncoderSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
 
-  behavior of "CwlJsEncoder"
+  behavior of "EcmaScriptEncoder"
 
   it should "encode" in {
-    val encoder = new EcmaScriptEncoder
+    val encoder = new EcmaScriptEncoder(DefaultSizeIoFunctionSet)
     val file = WomMaybePopulatedFile("path/to/file.txt")
     val expected = Map(
       "class" -> ESPrimitive("File"),
@@ -20,11 +21,12 @@ class CwlEcmaScriptEncoderSpec extends FlatSpec with Matchers with TableDrivenPr
       "dirname" -> ESPrimitive("path/to"),
       "basename" -> ESPrimitive("file.txt"),
       "nameroot" -> ESPrimitive("file"),
-      "nameext" -> ESPrimitive(".txt")
+      "nameext" -> ESPrimitive(".txt"),
+      "size" -> ESPrimitive(Long.box(DefaultSizeIoFunctionSet.DefaultFileSize))
     )
     val result: EcmaScriptUtil.ECMAScriptVariable = encoder.encode(file)
     val resultMap = result.asInstanceOf[ESObject].fields
-    resultMap.filterKeys(_ != "secondaryFiles") should contain theSameElementsAs expected
+    resultMap.filterKeys(_ != "secondaryFiles").toList should contain theSameElementsAs expected
     resultMap("secondaryFiles") should be(a[ESArray])
     resultMap("secondaryFiles").asInstanceOf[ESArray].array should be(empty)
   }

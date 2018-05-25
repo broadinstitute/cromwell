@@ -8,9 +8,10 @@ import akka.pattern.GracefulStopSupport
 import akka.routing.RoundRobinPool
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
-import cromwell.core.actor.StreamActorHelper.ActorRestartException
-import cromwell.core.io.Throttle
 import cromwell.core._
+import cromwell.core.actor.StreamActorHelper.ActorRestartException
+import cromwell.core.filesystem.CromwellFileSystems
+import cromwell.core.io.Throttle
 import cromwell.docker.DockerHashActor
 import cromwell.docker.DockerHashActor.DockerHashContext
 import cromwell.docker.local.DockerCliFlow
@@ -25,7 +26,7 @@ import cromwell.engine.workflow.WorkflowManagerActor.AbortAllWorkflowsCommand
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor, CallCacheWriteActor}
 import cromwell.engine.workflow.lifecycle.finalization.CopyWorkflowLogsActor
 import cromwell.engine.workflow.tokens.{DynamicRateLimiter, JobExecutionTokenDispenserActor}
-import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowStore, WorkflowStoreActor}
+import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowHeartbeatConfig, WorkflowStore, WorkflowStoreActor}
 import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
 import cromwell.services.{EngineServicesStore, ServiceRegistryActor}
 import cromwell.subworkflowstore.{SqlSubWorkflowStore, SubWorkflowStoreActor}
@@ -53,10 +54,16 @@ import scala.util.{Failure, Success, Try}
   */
 abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean)(implicit materializer: ActorMaterializer) extends Actor with ActorLogging with GracefulShutdownHelper {
   import CromwellRootActor._
+  
+  // Make sure the filesystems are initialized at startup
+  val _ = CromwellFileSystems.instance
 
   private val logger = Logging(context.system, this)
   private val config = ConfigFactory.load()
   private implicit val system = context.system
+
+  private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(config)
+  logger.info("Workflow heartbeat configuration:\n{}", workflowHeartbeatConfig)
 
   val serverMode: Boolean
 
@@ -66,7 +73,12 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
 
   lazy val workflowStore: WorkflowStore = SqlWorkflowStore(EngineServicesStore.engineDatabaseInterface)
   lazy val workflowStoreActor =
-    context.actorOf(WorkflowStoreActor.props(workflowStore, serviceRegistryActor, abortJobsOnTerminate), "WorkflowStoreActor")
+    context.actorOf(WorkflowStoreActor.props(
+      workflowStoreDatabase = workflowStore,
+      serviceRegistryActor = serviceRegistryActor,
+      abortAllJobsOnTerminate = abortJobsOnTerminate,
+      workflowHeartbeatConfig = workflowHeartbeatConfig),
+      "WorkflowStoreActor")
 
   lazy val jobStore: JobStore = new SqlJobStore(EngineServicesStore.engineDatabaseInterface)
   lazy val jobStoreActor = context.actorOf(JobStoreActor.props(jobStore, serviceRegistryActor), "JobStoreActor")
@@ -127,13 +139,25 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
 
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
-      workflowStoreActor, ioActorProxy, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, callCacheWriteActor,
-      dockerHashActor, jobExecutionTokenDispenserActor, backendSingletonCollection, serverMode),
+      workflowStore = workflowStoreActor,
+      ioActor = ioActorProxy,
+      serviceRegistryActor = serviceRegistryActor,
+      workflowLogCopyRouter = workflowLogCopyRouter,
+      jobStoreActor = jobStoreActor,
+      subWorkflowStoreActor = subWorkflowStoreActor,
+      callCacheReadActor = callCacheReadActor,
+      callCacheWriteActor = callCacheWriteActor,
+      dockerHashActor = dockerHashActor,
+      jobTokenDispenserActor = jobExecutionTokenDispenserActor,
+      backendSingletonCollection = backendSingletonCollection,
+      serverMode = serverMode,
+      workflowHeartbeatConfig = workflowHeartbeatConfig),
     "WorkflowManagerActor")
 
   if (gracefulShutdown) {
     // If abortJobsOnTerminate is true, aborting all workflows will be handled by the graceful shutdown process
     CromwellShutdown.registerShutdownTasks(
+      cromwellId = workflowHeartbeatConfig.cromwellId,
       abortJobsOnTerminate,
       actorSystem = context.system,
       workflowManagerActor = workflowManagerActor,

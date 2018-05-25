@@ -4,7 +4,7 @@ backends: [Local]
 tags: [localdockertest]
 
 files {
-  wdl: non_root_specified_user/non_root_specified_user.wdl
+  workflow: non_root_specified_user/non_root_specified_user.wdl
 }
 
 metadata {

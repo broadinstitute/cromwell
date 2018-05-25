@@ -16,6 +16,7 @@ trait OutputParameter {
   def doc: Option[String :+: Array[String] :+: CNil]
   def outputBinding: Option[CommandOutputBinding]
   def `type`: Option[MyriadOutputType]
+  def cacheString: String = toString
 }
 
 object OutputParameter {
@@ -26,7 +27,7 @@ object OutputParameter {
   def format(formatOption: Option[StringOrExpression],
              parameterContext: ParameterContext,
              expressionLib: ExpressionLib): ErrorOr[Option[String]] = {
-    formatOption.traverse[ErrorOr, String] {
+    formatOption.traverse{
       format(_, parameterContext, expressionLib)
     }
   }
@@ -48,7 +49,7 @@ object OutputParameter {
       at {
         expression =>
           (parameterContext, expressionLib) =>
-            val result: ErrorOr[WomValue] = ExpressionEvaluator.eval(expression, parameterContext, expressionLib)
+            val result: ErrorOr[WomValue] = ExpressionEvaluator.eval(expression, parameterContext)
             result flatMap {
               case womString: WomString => womString.value.valid
               case other => s"Not a valid file format: $other".invalidNel

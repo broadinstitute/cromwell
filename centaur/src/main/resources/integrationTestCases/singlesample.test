@@ -2,7 +2,7 @@ name: singlesample
 testFormat: workflowsuccess
 
 files {
-  wdl: germline/single-sample-workflow/processing-for-variant-discovery-gatk4.wdl
+  workflow: germline/single-sample-workflow/processing-for-variant-discovery-gatk4.wdl
   inputs: germline/single-sample-workflow/processing-for-variant-discovery-gatk4.hg38.wgs.inputs.json
 }
 

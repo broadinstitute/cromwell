@@ -14,11 +14,11 @@ trait JobStoreSimpletonEntryComponent {
   class JobStoreSimpletonEntries(tag: Tag) extends Table[JobStoreSimpletonEntry](tag, "JOB_STORE_SIMPLETON_ENTRY") {
     def jobStoreSimpletonEntryId = column[Int]("JOB_STORE_SIMPLETON_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
-    def simpletonKey = column[String]("SIMPLETON_KEY")
+    def simpletonKey = column[String]("SIMPLETON_KEY", O.Length(255))
 
     def simpletonValue = column[Option[Clob]]("SIMPLETON_VALUE")
 
-    def wdlType = column[String]("WDL_TYPE")
+    def wdlType = column[String]("WDL_TYPE", O.Length(255))
 
     def jobStoreEntryId = column[Int]("JOB_STORE_ENTRY_ID")
 

@@ -34,7 +34,7 @@ import cromwell.webservice.EngineStatsActor
 import org.apache.commons.lang3.StringUtils
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
-import wom.graph.expression.TaskCallInputExpressionNode
+import wom.graph.expression.{ExposedExpressionNode, TaskCallInputExpressionNode}
 import wom.values._
 
 import scala.concurrent.duration._
@@ -54,7 +54,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
   private val backendFactories: Map[String, BackendLifecycleActorFactory] = {
     val factoriesValidation = workflowDescriptor.backendAssignments.values.toList
-      .traverse[ErrorOr, (String, BackendLifecycleActorFactory)] {
+      .traverse {
       backendName => CromwellBackends.backendLifecycleFactoryActorByName(backendName) map { backendName -> _ }
     }
 
@@ -67,7 +67,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     WorkflowExecutionPendingState,
     WorkflowExecutionActorData(workflowDescriptor, ioEc, new AsyncIo(params.ioActor, GcsBatchCommandBuilder))
   )
-  
+
   private def sendHeartBeat(): Unit = timers.startSingleTimer(ExecutionHeartBeatKey, ExecutionHeartBeat, ExecutionHeartBeatInterval)
 
   when(WorkflowExecutionPendingState) {
@@ -167,6 +167,9 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     //Success
     // Job
     case Event(r: JobSucceededResponse, stateData) =>
+      if (r.resultGenerationMode != RunOnBackend) {
+        workflowLogger.info(s"Job results retrieved (${r.resultGenerationMode}): '${r.jobKey.call.fullyQualifiedName}' (scatter index: ${r.jobKey.index}, attempt ${r.jobKey.attempt})")
+      }
       handleCallSuccessful(r.jobKey, r.jobOutputs, r.returnCode, stateData, Map.empty)
     // Sub Workflow
     case Event(SubWorkflowSucceededResponse(jobKey, descendantJobKeys, callOutputs), currentStateData) =>
@@ -180,10 +183,16 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       if(subworkflowOutputs.size == callOutputs.outputs.size) {
         handleCallSuccessful(jobKey, CallOutputs(subworkflowOutputs), None, currentStateData, descendantJobKeys)
       } else {
-        handleNonRetryableFailure(currentStateData, jobKey, new Exception(s"Subworkflow produced outputs: [${callOutputs.outputs.keys.mkString(", ")}], but we expected all of [${jobKey.node.subworkflowCallOutputPorts.map(_.name)}]"))
+        handleNonRetryableFailure(currentStateData, jobKey, new Exception(s"Subworkflow produced outputs: [${callOutputs.outputs.keys.mkString(", ")}], but we expected all of [${jobKey.node.subworkflowCallOutputPorts.map(_.internalName)}]"))
       }
     // Expression
     case Event(ExpressionEvaluationSucceededResponse(expressionKey, callOutputs), stateData) =>
+      expressionKey.node match {
+        case _: ExposedExpressionNode | _: ExpressionBasedGraphOutputNode =>
+          workflowLogger.debug(s"Expression evaluation succeeded: '${expressionKey.node.fullyQualifiedName}' (scatter index: ${expressionKey.index}, attempt: ${expressionKey.attempt})")
+        case _ => // No logging; anonymous node
+      }
+
       handleDeclarationEvaluationSuccessful(expressionKey, callOutputs, stateData)
 
     // Failure
@@ -305,12 +314,13 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
     val workflowOutputValuesValidation = workflowOutputNodes
       // Try to find a value for each port in the value store
-      .map(outputNode => 
+      .map(outputNode =>
       outputNode -> data.valueStore.get(outputNode.graphOutputPort, None)
     )
-      .toList.traverse[ErrorOr, (GraphOutputNode, WomValue)]({
+      .toList.traverse({
       case (name, Some(value)) => (name -> value).validNel
-      case (name, None) => s"Cannot find an output value for ${name.identifier.fullyQualifiedName.value}".invalidNel
+      case (name, None) =>
+        s"Cannot find an output value for ${name.identifier.fullyQualifiedName.value}".invalidNel
     })
       // Convert the list of tuples to a Map
       .map(_.toMap)
@@ -415,12 +425,12 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   private def startRunnableNodes(data: WorkflowExecutionActorData): WorkflowExecutionActorData = {
     import keys._
 
-    val DataStoreUpdate(runnableKeys, updatedData) = data.executionStoreUpdate
+    val DataStoreUpdate(runnableKeys, statusChanges, updatedData) = data.executionStoreUpdate
     val runnableCalls = runnableKeys.view
       .collect({ case k: BackendJobDescriptorKey => k })
       .groupBy(_.node)
       .map({
-        case (node, keys) => 
+        case (node, keys) =>
           val tag = node.fullyQualifiedName
           val shardCount = keys.map(_.index).distinct.size
           if (shardCount == 1) tag
@@ -429,11 +439,15 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     val mode = if (restarting) "Restarting" else "Starting"
     if (runnableCalls.nonEmpty) workflowLogger.info(s"$mode " + runnableCalls.mkString(", "))
 
-    val diffValidation = runnableKeys.traverse[ErrorOr, WorkflowExecutionDiff]({
+    statusChanges.collect({
+      case (jobKey, WaitingForQueueSpace) => pushWaitingForQueueSpaceCallMetadata(jobKey)
+    })
+
+    val diffValidation = runnableKeys.traverse({
       case key: BackendJobDescriptorKey => processRunnableJob(key, data)
       case key: SubWorkflowKey => processRunnableSubWorkflow(key, data)
       case key: ConditionalCollectorKey => key.processRunnable(data)
-      case key: ConditionalKey => key.processRunnable(data)
+      case key: ConditionalKey => key.processRunnable(data, workflowLogger)
       case key @ ExpressionKey(expr: TaskCallInputExpressionNode, _) => processRunnableTaskCallInputExpression(key, data, expr)
       case key: ExpressionKey => key.processRunnable(data.expressionLanguageFunctions, data.valueStore, self)
       case key: ScatterCollectorKey => key.processRunnable(data)
@@ -449,10 +463,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     )
   }
 
-   /*
-    * If this ExpressionKey has a TaskCallInputExpressionNode that feeds a task call input, use the backend IoFunctionSet
-    * instead of the engine's IoFunctionSet to properly handle `writeFile` or `readFile` invocations.
-    */
+  /*
+   * If this ExpressionKey has a TaskCallInputExpressionNode that feeds a task call input, use the backend IoFunctionSet
+   * instead of the engine's IoFunctionSet to properly handle `writeFile` or `readFile` invocations.
+   */
   private def processRunnableTaskCallInputExpression(key: ExpressionKey,
                                                      data: WorkflowExecutionActorData,
                                                      expressionNode: TaskCallInputExpressionNode): ErrorOr[WorkflowExecutionDiff] = {
@@ -541,7 +555,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       backendName,
       workflowDescriptor.callCachingMode,
       command
-     )
+    )
 
     val ejeaRef = context.actorOf(ejeaProps, ejeaName)
     context watch ejeaRef
@@ -574,7 +588,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         jobTokenDispenserActor = params.jobTokenDispenserActor,
         params.backendSingletonCollection,
         params.initializationData,
-        params.startState), s"SubWorkflowExecutionActor-${key.tag}"
+        params.startState), s"$workflowIdForLogging-SubWorkflowExecutionActor-${key.tag}"
     )
 
     context watch sweaRef

@@ -3,10 +3,10 @@ testFormat: workflowsuccess
 workflowType: CWL
 workflowTypeVersion: v1.0
 workflowRoot: cwl_stdout_expression
-backends: [Jes]
+backends: [Papi]
 
 files {
-  wdl: cwl_stdout_expression/cwl_stdout_expression.cwl
+  workflow: cwl_stdout_expression/cwl_stdout_expression.cwl
   inputs: cwl_stdout_expression/cwl_stdout_expression.json
 }
 

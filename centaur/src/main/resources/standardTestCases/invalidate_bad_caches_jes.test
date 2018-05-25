@@ -1,9 +1,9 @@
 name: invalidate_bad_caches_jes
 testFormat: workflowsuccess
-backends: [Jes]
+backends: [Papi]
 
 files {
-  wdl: invalidate_bad_caches/invalidate_bad_caches.wdl
+  workflow: invalidate_bad_caches/invalidate_bad_caches.wdl
   inputs: invalidate_bad_caches/jes.inputs
 }
 

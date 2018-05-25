@@ -11,11 +11,11 @@ trait DockerHashStoreEntryComponent {
   class DockerHashStoreEntries(tag: Tag) extends Table[DockerHashStoreEntry](tag, "DOCKER_HASH_STORE_ENTRY") {
     def dockerHashStoreEntryId = column[Int]("DOCKER_HASH_STORE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
-    def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID")
+    def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID", O.Length(255))
 
-    def dockerTag = column[String]("DOCKER_TAG")
+    def dockerTag = column[String]("DOCKER_TAG", O.Length(255))
 
-    def dockerHash = column[String]("DOCKER_HASH")
+    def dockerHash = column[String]("DOCKER_HASH", O.Length(255))
 
     override def * = (workflowExecutionUuid, dockerTag, dockerHash, dockerHashStoreEntryId.?) <> (DockerHashStoreEntry.tupled, DockerHashStoreEntry.unapply)
 

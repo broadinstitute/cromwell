@@ -1,7 +1,7 @@
 package wom.types
 
 import spray.json.{JsBoolean, JsString}
-import wom.values.{WomBoolean, WomValue}
+import wom.values.WomBoolean
 
 import scala.util.{Success, Try}
 

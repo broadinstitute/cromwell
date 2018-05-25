@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 
 
 files {
-  wdl: array_literal_locations/array_literal_locations.wdl
+  workflow: array_literal_locations/array_literal_locations.wdl
 }
 
 metadata {

@@ -216,7 +216,7 @@ class WomValueBuilderSpec extends FlatSpec with Matchers with Mockito {
       // The task output is used to tell us the type of output we're expecting:
       val outputPort = WomMocks.mockOutputPort(OutputDefinition(name, womValue.womType, IgnoredExpression))
       val taskOutputPorts = List(outputPort)
-      val rebuiltValues = WomValueBuilder.toWdlValues(taskOutputPorts, expectedSimpletons)
+      val rebuiltValues = WomValueBuilder.toWomValues(taskOutputPorts, expectedSimpletons)
       rebuiltValues.size should be(1)
       rebuiltValues(outputPort) should be(womValue)
     }
@@ -230,7 +230,7 @@ class WomValueBuilderSpec extends FlatSpec with Matchers with Mockito {
     val actualSimpletons = wdlValues.simplify
     assertSimpletonsEqual(allSimpletons, actualSimpletons)
 
-    val actual = WomValueBuilder.toWdlValues(wdlValues.keys.toSeq, actualSimpletons)
+    val actual = WomValueBuilder.toWomValues(wdlValues.keys.toSeq, actualSimpletons)
     actual shouldEqual wdlValues
   }
 
@@ -269,7 +269,7 @@ class WomValueBuilderSpec extends FlatSpec with Matchers with Mockito {
     // Reconstruct:
     val outputPort = WomMocks.mockOutputPort(OutputDefinition("map_in_object", initial.womType, IgnoredExpression))
     val taskOutputPorts = List(outputPort)
-    val rebuiltValues = WomValueBuilder.toWdlValues(taskOutputPorts, actualSimpletons)
+    val rebuiltValues = WomValueBuilder.toWomValues(taskOutputPorts, actualSimpletons)
 
     rebuiltValues.size should be(1)
     val rebuiltObject = rebuiltValues.head._2

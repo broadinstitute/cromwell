@@ -2,7 +2,7 @@ name: space
 testFormat: workflowsuccess
 
 files {
-  wdl: space/space.wdl
+  workflow: space/space.wdl
 }
 
 metadata {

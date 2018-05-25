@@ -59,7 +59,7 @@ class GraphSpec extends FlatSpec with Matchers {
     val psNodeBuilder = new CallNodeBuilder()
     
     val CallNodeAndNewNodes(psCall, psGraphInputs, _, _) = psNodeBuilder.build(WomIdentifier("ps"), taskDefinition_ps, InputDefinitionFold())
-    val ps_procsOutputPort = psCall.outputByName("procs").getOrElse(fail("Unexpectedly unable to find 'ps.procs' output"))
+    val ps_procsOutputPort = psCall.outputByName("ps.procs").getOrElse(fail("Unexpectedly unable to find 'ps.procs' output"))
     
     val cgrepNodeBuilder = new CallNodeBuilder()
     val cgrepInputDefinitionFold = InputDefinitionFold(
@@ -74,7 +74,7 @@ class GraphSpec extends FlatSpec with Matchers {
       Set(workflowInputNode)
     )
     val CallNodeAndNewNodes(cgrepCall, cgrepGraphInputs, _, _) = cgrepNodeBuilder.build(WomIdentifier("cgrep"), taskDefinition_cgrep, cgrepInputDefinitionFold)
-    val cgrep_countOutputPort = cgrepCall.outputByName("count").getOrElse(fail("Unexpectedly unable to find 'cgrep.count' output"))
+    val cgrep_countOutputPort = cgrepCall.outputByName("cgrep.count").getOrElse(fail("Unexpectedly unable to find 'cgrep.count' output"))
 
     val wcNodeBuilder = new CallNodeBuilder()
     val wcInputDefinitionFold = InputDefinitionFold(
@@ -88,7 +88,7 @@ class GraphSpec extends FlatSpec with Matchers {
     )
     
     val CallNodeAndNewNodes(wcCall, wcGraphInputs, _, _) = wcNodeBuilder.build(WomIdentifier("wc"), taskDefinition_wc, wcInputDefinitionFold)
-    val wc_countOutputPort = wcCall.outputByName("count").getOrElse(fail("Unexpectedly unable to find 'wc.count' output"))
+    val wc_countOutputPort = wcCall.outputByName("wc.count").getOrElse(fail("Unexpectedly unable to find 'wc.count' output"))
 
     val psProcsOutputNode = PortBasedGraphOutputNode(WomIdentifier("ps.procs"), WomSingleFileType, ps_procsOutputPort)
     val cgrepCountOutputNode = PortBasedGraphOutputNode(WomIdentifier("cgrep.count"), WomIntegerType, cgrep_countOutputPort)
@@ -129,9 +129,9 @@ class GraphSpec extends FlatSpec with Matchers {
     val CallNodeAndNewNodes(threeStepCall, threeStepInputs, _, _) = threeStepNodeBuilder.build(WomIdentifier("three_step"), threeStepWorkflow, inputDefinitionFold)
 
     // This is painful manually, but it's not up to WOM to decide which subworkflow outputs are forwarded through:
-    val psProcsOutputNode = PortBasedGraphOutputNode(WomIdentifier("three_step.ps.procs"), WomSingleFileType, threeStepCall.outputByName("ps.procs").getOrElse(fail("Subworkflow didn't expose the ps.procs output")))
-    val cgrepCountOutputNode = PortBasedGraphOutputNode(WomIdentifier("three_step.cgrep.count"), WomIntegerType, threeStepCall.outputByName("cgrep.count").getOrElse(fail("Subworkflow didn't expose the cgrep.count output")))
-    val wcCountOutputNode = PortBasedGraphOutputNode(WomIdentifier("three_step.wc.count"), WomIntegerType, threeStepCall.outputByName("wc.count").getOrElse(fail("Subworkflow didn't expose the wc.count output")))
+    val psProcsOutputNode = PortBasedGraphOutputNode(WomIdentifier("three_step.ps.procs"), WomSingleFileType, threeStepCall.outputByName("three_step.ps.procs").getOrElse(fail(s"Subworkflow didn't expose the ps.procs output in ${threeStepCall.outputPorts.map(_.name).mkString(", ")}")))
+    val cgrepCountOutputNode = PortBasedGraphOutputNode(WomIdentifier("three_step.cgrep.count"), WomIntegerType, threeStepCall.outputByName("three_step.cgrep.count").getOrElse(fail("Subworkflow didn't expose the cgrep.count output")))
+    val wcCountOutputNode = PortBasedGraphOutputNode(WomIdentifier("three_step.wc.count"), WomIntegerType, threeStepCall.outputByName("three_step.wc.count").getOrElse(fail("Subworkflow didn't expose the wc.count output")))
 
     val workflowGraph = Graph.validateAndConstruct(Set[GraphNode](threeStepCall, psProcsOutputNode, cgrepCountOutputNode, wcCountOutputNode).union(threeStepInputs.toSet[GraphNode])) match {
       case Valid(wg) => wg

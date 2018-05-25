@@ -5,6 +5,7 @@ import cromwell.backend._
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
 import cromwell.core.CallContext
+import cromwell.core.path.DefaultPathBuilder
 import wom.expression.IoFunctionSet
 import wom.graph.CommandCallNode
 
@@ -31,9 +32,12 @@ case class SparkBackendFactory(name: String, configurationDescriptor: BackendCon
     val jobPaths = JobPathsWithDocker(jobKey, workflowDescriptor, configurationDescriptor.backendConfig)
     val callContext = CallContext(
       jobPaths.callExecutionRoot,
-      jobPaths.standardPaths
+      jobPaths.standardPaths,
+      isDocker = true
     )
 
     new SharedFileSystemExpressionFunctions(SparkJobExecutionActor.DefaultPathBuilders, callContext, ioActorProxy, ec)
   }
+
+  override def pathBuilders(initializationDataOption: Option[BackendInitializationData]) = List(DefaultPathBuilder)
 }

@@ -22,7 +22,7 @@ class CromwellResponseFailedSpec extends TestKit(ActorSystem()) with AsyncFlatSp
   
   "CromwellAPIClient" should "try to fail the Future with a CromwellFailedResponseException if the HttpResponse is unsuccessful" in {
     val client = new CromwellClient(new URL("http://fakeurl"), "v1") {
-      override def executeRequest(request: HttpRequest): Future[HttpResponse] = Future.successful(
+      override def executeRequest(request: HttpRequest, headers: List[HttpHeader]): Future[HttpResponse] = Future.successful(
         new HttpResponse(StatusCodes.ServiceUnavailable, List.empty[HttpHeader], HttpEntity(ContentTypes.`application/json`,
           """{
             |  "status": "fail",

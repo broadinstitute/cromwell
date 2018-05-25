@@ -4,14 +4,13 @@ import common.validation.Validation._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.model.draft3.graph.expression.ValueEvaluator
+import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
-import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
+import wom.OptionalNotSuppliedException
 import wom.expression.IoFunctionSet
-import wom.values.WomValue
+import wom.values.{WomString, WomValue}
 
 import scala.util.Try
-
 
 object BinaryOperatorEvaluators {
   implicit val logicalOrEvaluator: ValueEvaluator[LogicalOr] = forOperation(_.or(_))
@@ -31,8 +30,19 @@ object BinaryOperatorEvaluators {
   private def forOperation[A <: BinaryOperation](op: (WomValue, WomValue) => Try[WomValue]) = new ValueEvaluator[A] {
     override def evaluateValue(a: A,
                                inputs: Map[String, WomValue],
-                               ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] =
-      (a.left.evaluateValue(inputs, ioFunctionSet),
-        a.right.evaluateValue(inputs, ioFunctionSet)) flatMapN { (left, right) => op(left, right).toErrorOr }
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[_ <: WomValue]] =
+      (a.left.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions),
+        a.right.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) flatMapN { (left, right) => {
+
+        val rawResult = op(left.value, right.value)
+
+        // Allow unsupplied optionals, but only if we're instantiating a command:
+        val handleOptionals = rawResult.recover {
+          case OptionalNotSuppliedException(_) if forCommandInstantiationOptions.isDefined => WomString("")
+        }
+
+        handleOptionals.toErrorOr map { newValue => EvaluatedValue(newValue, left.sideEffectFiles ++ right.sideEffectFiles) }
+      }}
   }
 }

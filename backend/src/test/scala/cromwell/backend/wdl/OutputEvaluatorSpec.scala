@@ -1,25 +1,32 @@
 package cromwell.backend.wdl
 
+import java.util.concurrent.Executors
+
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
+import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.wdl.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey}
 import cromwell.core.CallOutputs
 import cromwell.util.WomMocks
-import common.validation.ErrorOr.ErrorOr
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import wom.callable.Callable.{InputDefinition, OutputDefinition, RequiredInputDefinition}
-import wom.expression.{IoFunctionSet, NoIoFunctionSet, WomExpression}
+import wom.expression.{FileEvaluation, IoFunctionSet, NoIoFunctionSet, WomExpression}
 import wom.graph.WomIdentifier
 import wom.types.{WomIntegerType, WomType}
-import wom.values.{WomFile, WomInteger, WomValue}
+import wom.values.{WomInteger, WomValue}
 
-import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor}
 
 class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
   behavior of "OutputEvaluator"
+
+  val FutureTimeout = 20.seconds
+  final implicit val blockingEc: ExecutionContextExecutor = ExecutionContext.fromExecutor(
+    Executors.newCachedThreadPool()
+  )
   
   // Depends on an input
   def o1Expression = new WomExpression {
@@ -29,7 +36,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
       Validated.fromOption(inputValues.get("input"), NonEmptyList.one("Can't find a value for 'input'"))
     }
     override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = ???
-    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = ???
+    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = ???
   }
 
   // Depends on a previous output
@@ -40,7 +47,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
       Validated.fromOption(inputValues.get("o1"), NonEmptyList.one("Can't find a value for 'o1'"))
     }
     override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = ???
-    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = ???
+    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = ???
   }
 
   def invalidWomExpression1 = new WomExpression {
@@ -52,7 +59,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = {
       "Invalid expression 1".invalidNel
     }
-    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = {
+    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = {
       "Invalid expression 1".invalidNel
     }
   }
@@ -66,7 +73,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = {
       "Invalid expression 2".invalidNel
     }
-    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = {
+    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = {
       "Invalid expression 2".invalidNel
     }
   }
@@ -82,7 +89,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = {
       throw exception
     }
-    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] = {
+    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = {
       throw exception
     }
   }
@@ -101,7 +108,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     val key = BackendJobDescriptorKey(call, None, 1)
     val jobDescriptor = BackendJobDescriptor(null, key, null, mockInputs, null, null)
     
-    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet)(scala.concurrent.ExecutionContext.global), 2.seconds) match {
+    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet), FutureTimeout) match {
       case ValidJobOutputs(outputs) => outputs shouldBe CallOutputs(Map(
         jobDescriptor.taskCall.outputPorts.find(_.name == "o1").get -> WomInteger(5),
         jobDescriptor.taskCall.outputPorts.find(_.name == "o2").get -> WomInteger(5)
@@ -121,7 +128,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     val key = BackendJobDescriptorKey(call, None, 1)
     val jobDescriptor = BackendJobDescriptor(null, key, null, mockInputs, null, null)
 
-    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet)(scala.concurrent.ExecutionContext.global), 2.seconds) match {
+    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet), FutureTimeout) match {
       case InvalidJobOutputs(errors) => errors shouldBe NonEmptyList.of(
         "Bad output 'invalid1': Invalid expression 1", "Bad output 'invalid2': Invalid expression 2"
       )
@@ -139,7 +146,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     val key = BackendJobDescriptorKey(call, None, 1)
     val jobDescriptor = BackendJobDescriptor(null, key, null, mockInputs, null, null)
 
-    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet)(scala.concurrent.ExecutionContext.global), 2.seconds) match {
+    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet), FutureTimeout) match {
       case JobOutputsEvaluationException(e) => e shouldBe exception
       case _ => fail("Output evaluation should have failed")
     }

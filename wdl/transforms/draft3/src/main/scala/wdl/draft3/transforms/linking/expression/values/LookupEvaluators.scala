@@ -5,12 +5,11 @@ import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.model.draft3.graph.expression.ValueEvaluator
+import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
-import wdl.model.draft3.graph._
 import wom.expression.IoFunctionSet
-import wom.types.{WomCompositeType, WomOptionalType}
-import wom.values.{WomObject, WomOptionalValue, WomPair, WomValue}
+import wom.types._
+import wom.values._
 
 
 object LookupEvaluators {
@@ -18,10 +17,14 @@ object LookupEvaluators {
   implicit val identifierLookupEvaluator: ValueEvaluator[IdentifierLookup] = new ValueEvaluator[IdentifierLookup] {
     override def evaluateValue(a: IdentifierLookup,
                                inputs: Map[String, WomValue],
-                               ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
       inputs.get(a.identifier) match {
-        case Some(value) => value.validNel
-        case None => s"No suitable input for identifier lookup '${a.identifier}' amongst {${inputs.keys.mkString(", ")}}".invalidNel
+        case Some(value) =>
+          val mapped = forCommandInstantiationOptions.fold(value)(_.valueMapper(value))
+          EvaluatedValue(mapped, Seq.empty).validNel
+        case None =>
+          s"ValueEvaluator[IdentifierLookup]: No suitable input for '${a.identifier}' amongst {${inputs.keys.mkString(", ")}}".invalidNel
       }
     }
   }
@@ -29,15 +32,19 @@ object LookupEvaluators {
   implicit val expressionMemberAccessEvaluator: ValueEvaluator[ExpressionMemberAccess] = new ValueEvaluator[ExpressionMemberAccess] {
     override def evaluateValue(a: ExpressionMemberAccess,
                                inputs: Map[String, WomValue],
-                               ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
-      a.expression.evaluateValue(inputs, ioFunctionSet) flatMap { doLookup(_, a.memberAccessTail) }
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
+      a.expression.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions) flatMap { evaluated =>
+        doLookup(evaluated.value, a.memberAccessTail) map { EvaluatedValue(_, evaluated.sideEffectFiles) }
+      }
     }
   }
 
   implicit val identifierMemberAccessEvaluator: ValueEvaluator[IdentifierMemberAccess] = new ValueEvaluator[IdentifierMemberAccess] {
     override def evaluateValue(a: IdentifierMemberAccess,
                                inputs: Map[String, WomValue],
-                               ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
 
       // Do the first lookup and decide whether any more lookups are needed:
       val generatedValueAndLookups: ErrorOr[(WomValue, Seq[String])] = {
@@ -50,9 +57,35 @@ object LookupEvaluators {
       }
 
       generatedValueAndLookups flatMap { case (foundValue, lookups) => NonEmptyList.fromList(lookups.toList) match {
-        case Some(lookupNel) => doLookup(foundValue, lookupNel)
-        case None => foundValue.validNel
+        case Some(lookupNel) => doLookup(foundValue, lookupNel) map { EvaluatedValue(_, Seq.empty) }
+        case None => EvaluatedValue(foundValue, Seq.empty).validNel
       }}
+    }
+  }
+
+  implicit val indexAccessValueEvaluator: ValueEvaluator[IndexAccess] = (a, inputs, ioFunctionSet, forCommandInstantiationOptions) => {
+    (a.expressionElement.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions), a.index.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) flatMapN { (lhs, rhs) =>
+      val value: ErrorOr[WomValue] = (lhs.value, rhs.value) match {
+        case (array: WomArray, WomInteger(index)) =>
+          if (array.value.length > index)
+            array.value(index).validNel
+          else
+            s"Bad array access $a: Array size ${array.value.length} does not have an index value '$index'".invalidNel
+        case (WomObject(values, _), WomString(index)) =>
+          if(values.contains(index))
+            values(index).validNel
+          else
+            s"Bad Object access $a: Object with keys [${values.keySet.mkString(", ")}] does not have an index value [$index]".invalidNel
+        case (WomMap(mapType, values), index) =>
+          if(values.contains(index))
+            values(index).validNel
+          else
+            s"Bad Map access $a: This ${mapType.toDisplayString} does not have a ${index.womType.toDisplayString} index value [${index.toWomString}]".invalidNel
+        case (otherCollection, otherKey) =>
+          s"Bad index access $a: Cannot use '${otherKey.womType.toDisplayString}' to index '${otherCollection.womType.toDisplayString}'".invalidNel
+      }
+
+      value map { EvaluatedValue(_, lhs.sideEffectFiles ++ rhs.sideEffectFiles) }
     }
   }
 

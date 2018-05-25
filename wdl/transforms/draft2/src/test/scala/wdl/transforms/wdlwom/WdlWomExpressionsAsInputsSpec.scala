@@ -40,7 +40,7 @@ class WdlWomExpressionsAsInputsSpec extends FlatSpec with Matchers {
   it should "wire up input expressions for a WDL workflow" in {
 
     val namespace = WdlNamespace.loadUsingSource(Wdl, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
-    val workflowGraph = namespace.workflow.toWomWorkflowDefinition.map(_.graph) match {
+    val workflowGraph = namespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).map(_.graph) match {
       case Valid(g) => g
       case Invalid(errors) => fail(s"Unable to build wom graph from WDL: ${errors.toList.mkString("\n", "\n", "\n")}")
     }
@@ -61,7 +61,7 @@ class WdlWomExpressionsAsInputsSpec extends FlatSpec with Matchers {
     List("a", "b") foreach { x =>
       val connectedInputPort = inputExpression.inputMapping(s"$x.int_out")
       val upstream = connectedInputPort.upstream
-      upstream.name shouldBe "int_out"
+      upstream.name shouldBe s"$x.int_out"
       val upstreamTaskCallNode = upstream.graphNode.asInstanceOf[CommandCallNode]
       upstreamTaskCallNode.localName shouldBe x
       // Instance equality test

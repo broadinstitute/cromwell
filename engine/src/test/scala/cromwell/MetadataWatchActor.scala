@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorLogging, Props}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import MetadataWatchActor._
-import cromwell.services.keyvalue.KeyValueServiceActor.{KvPut, KvPutSuccess}
+import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.{MetadataEvent, MetadataJobKey, MetadataString, MetadataValue}
 
 import scala.concurrent.Promise
@@ -25,6 +25,7 @@ final case class MetadataWatchActor(promise: Promise[Unit], matchers: Matcher*) 
       }
     case PutMetadataAction(_) => // Superfluous message. Ignore
     // Because the MetadataWatchActor is sometimes used in place of the ServiceRegistryActor, this allows WFs to continue:
+    case kvGet: KvGet => sender ! KvKeyLookupFailed(kvGet)
     case kvPut: KvPut => sender ! KvPutSuccess(kvPut)
     case other => log.error(s"Invalid message to MetadataWatchActor: $other")
   }

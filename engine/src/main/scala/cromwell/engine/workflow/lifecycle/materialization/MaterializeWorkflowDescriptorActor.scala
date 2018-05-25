@@ -7,15 +7,12 @@ import cats.data.EitherT._
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import cats.effect.IO
-import cats.instances.vector._
 import cats.syntax.apply._
 import cats.syntax.either._
-import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import common.exception.{AggregatedMessageException, MessageAggregation}
-import common.validation.Checked._
 import common.validation.ErrorOr._
 import common.validation.Parse._
 import cromwell.backend.BackendWorkflowDescriptor
@@ -34,8 +31,8 @@ import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor._
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
-import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.services.metadata.MetadataService._
+import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import net.ceedubs.ficus.Ficus._
 import spray.json._
 import wom.expression.{NoIoFunctionSet, WomExpression}
@@ -209,7 +206,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   private def workflowOptionsAndPathBuilders(sourceFiles: WorkflowSourceFilesCollection): ErrorOr[(WorkflowOptions, Future[List[PathBuilder]])] = {
     val workflowOptionsValidation = validateWorkflowOptions(sourceFiles.workflowOptionsJson)
     workflowOptionsValidation map { workflowOptions =>
-      val pathBuilders = EngineFilesystems.pathBuildersForWorkflow(workflowOptions)(context.system, context.dispatcher)
+      val pathBuilders = EngineFilesystems.pathBuildersForWorkflow(workflowOptions)(context.system)
       (workflowOptions, pathBuilders)
     }
   }
@@ -220,23 +217,33 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       workflowOptions: WorkflowOptions,
                                       pathBuilders: List[PathBuilder],
                                       engineIoFunctions: EngineIoFunctions): Parse[EngineWorkflowDescriptor] = {
-    val namespaceValidation: Parse[ValidatedWomNamespace] = sourceFiles.workflowType match {
+    def chooseFactory(factories: List[LanguageFactory]): Option[LanguageFactory] = factories.find(_.looksParsable(sourceFiles.workflowSource))
+
+    val factory: ErrorOr[LanguageFactory] = sourceFiles.workflowType match {
       case Some(languageName) if CromwellLanguages.instance.languages.contains(languageName.toUpperCase) =>
         val language = CromwellLanguages.instance.languages(languageName.toUpperCase)
-        val factory: ErrorOr[LanguageFactory] = sourceFiles.workflowTypeVersion match {
+        sourceFiles.workflowTypeVersion match {
           case Some(v) if language.allVersions.contains(v) => language.allVersions(v).valid
           case Some(other) => s"Unknown version '$other' for workflow language '$languageName'".invalidNel
-          case _ => language.allVersions.head._2.valid
+          case _ => chooseFactory(language.allVersions.values.toList).getOrElse(language.default).valid
         }
-        errorOrParse(factory).flatMap(_.validateNamespace(sourceFiles, workflowOptions, importLocalFilesystem, workflowIdForLogging))
-      case Some(other) => fromEither[IO](s"Unknown workflow type: $other".invalidNelCheck[ValidatedWomNamespace])
-      case None => fromEither[IO]("Need a workflow type here !".invalidNelCheck[ValidatedWomNamespace])
+      case Some(other) => s"Unknown workflow type: $other".invalidNel[LanguageFactory]
+      case None =>
+        val allFactories = CromwellLanguages.instance.languages.values.flatMap(_.allVersions.values)
+        chooseFactory(allFactories.toList).getOrElse(CromwellLanguages.instance.default.default).validNel
     }
 
-    val labelsValidation: Parse[Labels] = fromEither[IO](validateLabels(sourceFiles.labelsJson).toEither)
+    factory foreach { validFactory =>
+      workflowLogger.info(s"Parsing workflow as ${validFactory.languageName} ${validFactory.languageVersionName}")
+      pushLanguageToMetadata(validFactory.languageName, validFactory.languageVersionName)
+    }
+
+    val namespaceValidation: Parse[ValidatedWomNamespace] =
+      errorOrParse(factory).flatMap(_.validateNamespace(sourceFiles, workflowOptions, importLocalFilesystem, workflowIdForLogging, engineIoFunctions))
+
+    val labels = convertJsonToLabels(sourceFiles.labelsJson)
 
     for {
-      labels <- labelsValidation
       _ <- publishLabelsToMetadata(id, labels)
 
       validatedNamespace <- namespaceValidation
@@ -250,6 +257,14 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     val wfInputsMetadataEvents = wfInputsMetadata(validatedNamespace.womValueInputs)
     val wfNameMetadataEvent = wfNameMetadata(validatedNamespace.executable.entryPoint.name)
     serviceRegistryActor ! PutMetadataAction(importsMetadata.toVector ++ wfInputsMetadataEvents :+ wfNameMetadataEvent)
+  }
+
+  private def pushLanguageToMetadata(languageName: String, languageVersion: String): Unit = {
+    val events = List (
+      MetadataEvent(MetadataKey(workflowIdForLogging, None, WorkflowMetadataKeys.LanguageName), MetadataValue(languageName)),
+      MetadataEvent(MetadataKey(workflowIdForLogging, None, WorkflowMetadataKeys.LanguageVersionName), MetadataValue(languageVersion))
+    )
+    serviceRegistryActor ! PutMetadataAction(events)
   }
 
   private def wfInputsMetadata(workflowInputs: Map[OutputPort, WomValue]): Iterable[MetadataEvent] = {
@@ -268,8 +283,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
   private def importedFilesMetadata(imported: Map[String, String]): Iterable[MetadataEvent] = {
     def metadataEventForImportedFile(uri: String, value: String): MetadataEvent = {
-      import MetadataKey._
       import WorkflowMetadataKeys._
+      import cromwell.core.simpleton.WomValueSimpleton._
       // This should only be called on namespaces that are known to have a defined `importUri` so the .get is safe.
       val escapedUri = uri.escapeMeta
       MetadataEvent(MetadataKey(
@@ -281,6 +296,15 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   private def wfNameMetadata(name: String): MetadataEvent = {
     // Workflow name:
     MetadataEvent(MetadataKey(workflowIdForLogging, None, WorkflowMetadataKeys.Name), MetadataValue(name))
+  }
+
+  private def convertJsonToLabels(json: String): Labels = {
+    json.parseJson match {
+      case JsObject(inputs) => Labels(inputs.toVector.collect({
+        case (key, JsString(value)) => Label(key, value)
+      }))
+      case _ => Labels(Vector.empty)
+    }
   }
 
   private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, labels: Labels): Parse[Unit] = {
@@ -361,24 +385,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
         // TODO WOM: need access to a "source string" for WomExpressions
         // TODO WOM: ErrorOrify this ?
         throw AggregatedMessageException(s"Dynamic backends are not currently supported! Cannot assign backend '$backendNameAsExp' for Call: $callName", errors.toList)
-    }
-  }
-
-  private def validateLabels(json: String): ErrorOr[Labels] = {
-
-    def toLabels(inputs: Map[String, JsValue]): ErrorOr[Labels] = {
-      val vectorOfValidatedLabel: Vector[ErrorOr[Label]] = inputs.toVector map {
-        case (key, JsString(s)) => Label.validateLabel(key, s)
-        case (key, other) => s"Invalid label $key: $other : Labels must be strings. ${Label.LabelExpectationsMessage}".invalidNel
-      }
-
-      vectorOfValidatedLabel.sequence[ErrorOr, Label] map { validatedVectorofLabel => Labels(validatedVectorofLabel) }
-    }
-
-    Try(json.parseJson) match {
-      case Success(JsObject(inputs)) => toLabels(inputs)
-      case Failure(reason: Throwable) => s"Workflow contains invalid labels JSON: ${reason.getMessage}".invalidNel
-      case _ => """Invalid workflow labels JSON. Expected a JsObject of "labelKey": "labelValue" values.""".invalidNel
     }
   }
 

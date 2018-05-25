@@ -85,11 +85,6 @@ paths:
           required: false
           type: file
           in: formData
-        - name: collectionName
-          description: Collection name for this workflow
-          required: false
-          type: string
-          in: formData
         - name: workflowInputs_2
           description: WDL Inputs JSON, 2
           required: false
@@ -114,6 +109,16 @@ paths:
           description: Workflow Options JSON
           required: false
           type: file
+          in: formData
+        - name: workflowOnHold
+          description: Put workflow on hold upon submission. By default, it is taken as false.
+          required: false
+          type: boolean
+          in: formData
+        - name: collectionName
+          description: Collection name for this workflow
+          required: false
+          type: string
           in: formData
         - name: labels
           description: Custom Labels JSON
@@ -157,6 +162,11 @@ paths:
           description: WDL Source
           required: true
           type: file
+          in: formData
+        - name: workflowOnHold
+          description: Put workflow on hold upon submission. By default, it is taken as false.
+          required: false
+          type: boolean
           in: formData
         - name: workflowInputs
           description: WDL Inputs JSON as an array
@@ -417,6 +427,40 @@ paths:
             - openid
             - email
             - profile
+  '/api/workflows/{version}/{id}/releaseHold':
+        post:
+          summary: Switch a workflow from 'On Hold' to 'Submitted' status
+          description: Request Cromwell to release the hold on a workflow. It will switch the status of a workflow from 'On Hold' to 'Submitted' so it can be picked for running. For instance this might be necessary in cases where you have submitted a workflow with workflowOnHold = true.
+          parameters:
+            - name: version
+              description: API Version
+              required: true
+              type: string
+              in: path
+              default: v1
+            - name: id
+              description: A workflow ID
+              required: true
+              type: string
+              in: path
+          tags:
+            - Workflows
+          responses:
+            '200':
+              description: Successful Request
+              schema:
+                $ref: '#/definitions/WorkflowStatusResponse'
+            '400':
+              description: Malformed Workflow ID
+            '403':
+              description: Malformed Request
+            '404':
+              description: Workflow ID Not Found
+            '500':
+              description: Internal Error
+          security:
+            - google_oauth:
+                - openid
   '/api/workflows/{version}/{id}/logs':
     get:
       summary: Query for the standard output and error of all calls in a workflow

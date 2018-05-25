@@ -6,7 +6,7 @@ import better.files.File.OpenOptions
 import com.aliyuncs.batchcompute.main.v20151111.BatchComputeClient
 import com.aliyuncs.exceptions.{ClientException, ServerException}
 import cromwell.backend._
-import cromwell.backend.async.{ExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.bcs.RunStatus.{Finished, TerminalRunStatus}
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path, PathFactory}
@@ -45,7 +45,11 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
   override lazy val commandDirectory: Path = BcsJobPaths.BcsCommandDirectory.resolve(bcsJobPaths.callExecutionRoot.pathWithoutScheme)
 
   private[bcs] lazy val userTag = runtimeAttributes.tag.getOrElse("cromwell")
-  private[bcs] lazy val jobName: String = s"${userTag}_${jobDescriptor.workflowDescriptor.id.shortString}_${jobDescriptor.taskCall.identifier.localName.value}"
+  private[bcs] lazy val jobName: String =
+    List(userTag, jobDescriptor.workflowDescriptor.id.shortString, jobDescriptor.taskCall.identifier.localName.value)
+      .mkString("_")
+      // Avoid "Name ... must only contain characters within [a-zA-Z0-9_-] and not start with [0-9]."
+      .replaceAll("[^a-zA-Z0-9_-]", "_")
 
   override lazy val jobTag: String = jobDescriptor.key.tag
 
@@ -118,7 +122,7 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
     import cats.syntax.validated._
     def evaluateFiles(output: OutputDefinition): List[WomFile] = {
       Try (
-        output.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, output.womType).map(_.toList)
+        output.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, output.womType).map(_.toList map { _.file })
       ).getOrElse(List.empty[WomFile].validNel)
         .getOrElse(List.empty)
     }
@@ -214,11 +218,22 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
         throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
     }
   }
-  override def isSuccess(runStatus: RunStatus): Boolean = {
+
+  override def handleExecutionFailure(runStatus: RunStatus,
+                                      returnCode: Option[Int]): Future[ExecutionHandle] = {
+    runStatus match {
+      case RunStatus.Failed(jobId, Some(errorMessage), _) =>
+        val exception = new Exception(s"Job id $jobId failed: '$errorMessage'")
+        Future.successful(FailedNonRetryableExecutionHandle(exception, returnCode))
+      case _ => super.handleExecutionFailure(runStatus, returnCode)
+    }
+  }
+
+  override def isDone(runStatus: RunStatus): Boolean = {
     runStatus match {
       case _: Finished =>
         runtimeAttributes.autoReleaseJob match {
-          case Some(release) if release =>
+          case Some(true) | None =>
             bcsClient.deleteJob(runStatus.jobId)
           case _ =>
         }

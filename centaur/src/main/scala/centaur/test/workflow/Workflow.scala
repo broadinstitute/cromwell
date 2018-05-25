@@ -22,7 +22,7 @@ final case class Workflow private(testName: String,
                                   directoryContentCounts: Option[DirectoryContentCountCheck],
                                   backends: BackendsRequirement) {
   def toWorkflowSubmission(refreshToken: Option[String]) = WorkflowSingleSubmission(
-    workflowSource = data.wdl,
+    workflowSource = data.workflowContent,
     workflowRoot = data.workflowRoot,
     workflowType = data.workflowType,
     workflowTypeVersion = data.workflowTypeVersion,

@@ -1,12 +1,12 @@
 name: custom_mount_point
 testFormat: workflowsuccess
-backends: [Jes]
+backends: [Papi]
 
 files {
-  wdl: custom_mount_point/custom_mount_point.wdl
+  workflow: custom_mount_point/custom_mount_point.wdl
 }
 
 metadata {
-  "calls.custom_mount_point.t.backend": "Jes"
+  "calls.custom_mount_point.t.backend": "Papi"
   "calls.custom_mount_point.t.backendStatus": "Success"
 }

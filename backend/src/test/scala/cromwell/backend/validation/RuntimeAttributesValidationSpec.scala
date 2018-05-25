@@ -276,14 +276,14 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
 
     "return failure when tries to validate a non-provided cpu entry" in {
       val cpuValue = None
-      val result = RuntimeAttributesValidation.validateMemory(cpuValue,
+      val result = RuntimeAttributesValidation.validateCpu(cpuValue,
         "Failed to get cpu mandatory key from runtime attributes".invalidNel)
       result match {
         case Valid(_) => fail("A failure was expected.")
         case Invalid(e) => assert(e.head == "Failed to get cpu mandatory key from runtime attributes")
       }
     }
-    
+
     "return default values as WdlValues when they can be coerced into expected WdlTypes" in {
       val optionalConfig = Option(TestConfig.allRuntimeAttrsConfig)
 
@@ -366,6 +366,16 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
            |""".stripMargin))
 
       ContinueOnReturnCodeValidation.configDefaultWdlValue(optinalBackendConfig).get shouldBe WomArray(WomArrayType(WomIntegerType), Array(WomInteger(0), WomInteger(1), WomInteger(2)))
+    }
+
+    "return failure when tries to validate an invalid maxRetries entry" in {
+      val maxRetries = Option(WomInteger(-1))
+      val result = RuntimeAttributesValidation.validateMaxRetries(maxRetries,
+        "Failed to get maxRetries key from runtime attributes".invalidNel)
+      result match {
+        case Valid(_) => fail("A failure was expected.")
+        case Invalid(e) => assert(e.head == "Expecting maxRetries runtime attribute value greater than or equal to 0")
+      }
     }
   }
 }

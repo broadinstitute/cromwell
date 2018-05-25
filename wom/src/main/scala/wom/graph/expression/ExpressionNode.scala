@@ -6,9 +6,7 @@ import cats.syntax.validated._
 import common.Checked
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.Validation._
-import shapeless.Coproduct
 import wom.expression.{IoFunctionSet, WomExpression}
-import wom.graph.CallNode.InputDefinitionPointer
 import wom.graph.GraphNodePort.{ConnectedInputPort, GraphNodeOutputPort, InputPort, OutputPort}
 import wom.graph.{GraphNode, GraphNodePort, GraphNodeWithSingleOutputPort, WomIdentifier}
 import wom.types.WomType
@@ -36,7 +34,6 @@ abstract class ExpressionNode(override val identifier: WomIdentifier,
   } yield coerced).leftMap(_.map(e => s"Evaluating ${womExpression.sourceString} failed: $e")).toEither
 
   override final def evaluate(outputPortLookup: OutputPort => ErrorOr[WomValue], ioFunctionSet: IoFunctionSet): Checked[Map[OutputPort, WomValue]] = {
-    import cats.syntax.either._
     import common.validation.ErrorOr._
     for {
       inputs <- inputMapping.traverseValues(inputPort => outputPortLookup(inputPort.upstream)).toEither

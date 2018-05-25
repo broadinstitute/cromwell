@@ -56,8 +56,16 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
     * Retrieves up to limit workflows which have not already been pulled into the engine and updates their state.
     * NOTE: Rows are returned with the query state, NOT the update state.
     */
-  def fetchStartableWorkflows(limit: Int, cromwellId: Option[String], heartbeatTtl: FiniteDuration)
+  def fetchStartableWorkflows(limit: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
                              (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]]
+
+  def writeWorkflowHeartbeats(workflowExecutionUuids: List[String])(implicit ec: ExecutionContext): Future[Int]
+
+  /**
+    * Clears out cromwellId and heartbeatTimestamp for all workflow store entries currently assigned
+    * the specified cromwellId.
+    */
+  def releaseWorkflowStoreEntries(cromwellId: String)(implicit ec: ExecutionContext): Future[Unit]
 
   /**
     * Deletes a workflow from the database, returning the number of rows affected.
@@ -65,4 +73,6 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
   def removeWorkflowStoreEntry(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Int]
   
   def stats(implicit ec: ExecutionContext): Future[Map[WorkflowStoreState, Int]]
+
+  def setOnHoldToSubmitted(workflowId: String)(implicit ec: ExecutionContext): Future[Unit]
 }

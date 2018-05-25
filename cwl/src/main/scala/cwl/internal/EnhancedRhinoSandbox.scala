@@ -74,6 +74,7 @@ class EnhancedRhinoSandbox(strict: Boolean = true, languageVersionOption: Option
   /**
     * Stricter context factory modified from RhinoSandboxImpl.assertContextFactory().
     *
+    * ContextFactory.initGlobal() is called within a static synchronized block.
     * The globalScope initialized via initSafeStandardObjects instead of initStandardObjects.
     *
     * The default implementation uses a SafeContext that allows non-strict JS/ES. We would ideally set
@@ -90,8 +91,9 @@ class EnhancedRhinoSandbox(strict: Boolean = true, languageVersionOption: Option
     PrivateField(sandboxImpl, "contextFactory") := _safeContext
     val _hasExplicitGlobal = ContextFactory.hasExplicitGlobal
     val _not = !_hasExplicitGlobal
+    // RhinoSandbox diff: the global does not like to be initialized twice. Synchronize initialization.
     val sandboxImpl_contextFactory = PrivateField(sandboxImpl, "contextFactory").as[SafeContext]
-    if (_not) ContextFactory.initGlobal(sandboxImpl_contextFactory)
+    if (_not) initGlobalSynchronized(sandboxImpl_contextFactory)
 
     val sandboxImpl_instructionLimit = PrivateField(sandboxImpl, "instructionLimit").as[Int]
     PrivateField(sandboxImpl_contextFactory, "maxInstructions") := sandboxImpl_instructionLimit
@@ -146,6 +148,19 @@ object EnhancedRhinoSandbox {
 
     def :=(value: Any): Unit = {
       field.set(obj, value)
+    }
+  }
+
+  /**
+    * Call ContextFactory.initGlobal in a static synchronized block.
+    *
+    * @see [[cwl.internal.EnhancedRhinoSandbox.assertContextFactory]]
+    */
+  private def initGlobalSynchronized(sandboxImpl_contextFactory: ContextFactory) = {
+    synchronized {
+      val _hasExplicitGlobal = ContextFactory.hasExplicitGlobal
+      val _not = !_hasExplicitGlobal
+      if (_not) ContextFactory.initGlobal(sandboxImpl_contextFactory)
     }
   }
 

@@ -2,11 +2,11 @@ package cromwell.backend.validation
 
 import cats.syntax.validated._
 import com.typesafe.config.Config
-import cromwell.backend.MemorySize
 import common.validation.ErrorOr._
 import wdl4s.parser.MemoryUnit
 import wom.RuntimeAttributesKeys
-import wom.types.{WomIntegerType, WomStringType}
+import wom.format.MemorySize
+import wom.types.{WomIntegerType, WomLongType, WomStringType}
 import wom.values.{WomInteger, WomLong, WomString, WomValue}
 
 import scala.util.{Failure, Success}
@@ -83,7 +83,7 @@ class MemoryValidation(attributeName: String = RuntimeAttributesKeys.MemoryKey) 
 
   override def key = attributeName
 
-  override def coercion = Seq(WomIntegerType, WomStringType)
+  override def coercion = Seq(WomIntegerType, WomLongType, WomStringType)
 
   override protected def validateValue: PartialFunction[WomValue, ErrorOr[MemorySize]] = {
     case WomLong(value) => MemoryValidation.validateMemoryLong(key, value)

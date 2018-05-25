@@ -4,7 +4,7 @@ workflowType: CWL
 workflowTypeVersion: v1.0
 
 files {
-  wdl: three_step/three_step.cwl
+  workflow: three_step/three_step.cwl
   inputs: three_step/inputs.json
 }
 

@@ -1,0 +1,30 @@
+name: draft3_optional_declarations
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+
+files {
+  workflow: wdl_draft3/optional_declarations/optional_declarations.wdl
+  inputs: wdl_draft3/optional_declarations/optional_declarations.inputs
+}
+
+metadata {
+  workflowName: optional_declarations
+  status: Succeeded
+
+  "outputs.optional_declarations.out_coerced_wf_string": "1"
+  "outputs.optional_declarations.out_wf_string": "2"
+  "outputs.optional_declarations.out_wf_int": 1
+  "outputs.optional_declarations.out_coerced_wf_int": 2
+
+  "outputs.optional_declarations.s1_out_coerced_string": "1"
+  "outputs.optional_declarations.s1_out_int": 1
+  "outputs.optional_declarations.s1_out_coerced_int": 2
+  "outputs.optional_declarations.s1_out_string": "2"
+
+  "outputs.optional_declarations.s2_out_coerced_string": null
+  "outputs.optional_declarations.s2_out_string": null
+  "outputs.optional_declarations.s2_out_coerced_int": null
+  "outputs.optional_declarations.s2_out_int": null
+}

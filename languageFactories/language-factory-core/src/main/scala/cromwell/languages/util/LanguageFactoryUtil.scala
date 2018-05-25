@@ -1,7 +1,7 @@
 package cromwell.languages.util
 
-import cats.data.NonEmptyList
 import cats.syntax.validated._
+import cats.data.NonEmptyList
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import cromwell.core.path.BetterFileMethods.OpenOptions
@@ -18,18 +18,19 @@ import scala.util.{Failure, Success, Try}
 
 object LanguageFactoryUtil {
 
-
+  /**
+    * Unzip the imports.zip and validate that it was good.
+    * @param zipContents the zip contents
+    * @param parentPath if specified, where to unzip to. Otherwise it'll end up somewhere random
+    * @return where the imports were unzipped to
+    */
   def validateImportsDirectory(zipContents: Array[Byte], parentPath: Option[Path] = None): ErrorOr[Path] = {
 
     def makeZipFile: Try[Path] = Try {
       DefaultPathBuilder.createTempFile("", ".zip", parentPath).writeByteArray(zipContents)(OpenOptions.default)
     }
 
-    def unZipFile(f: Path) = Try {
-      val unzippedFile = f.unzipTo(parentPath)
-      val unzippedFileContents = unzippedFile.list.toSeq.head
-      if (unzippedFileContents.isDirectory) unzippedFileContents else unzippedFile
-    }
+    def unZipFile(f: Path) = Try(f.unzipTo(parentPath))
 
     val importsFile = for {
       zipFile <- makeZipFile
@@ -60,7 +61,7 @@ object LanguageFactoryUtil {
    */
   private def validateExecutableInputs(inputs: ResolvedExecutableInputs, ioFunctions: IoFunctionSet): ErrorOr[Map[OutputPort, WomValue]] = {
     import common.validation.ErrorOr.MapTraversal
-    inputs.traverse[OutputPort, WomValue] {
+    inputs.traverse {
       case (key, value) => value.fold(ResolvedExecutableInputsPoly).apply(ioFunctions) map { key -> _ }
     }
   }

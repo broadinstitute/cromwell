@@ -13,6 +13,7 @@ import wom.types._
 object AstNodeToTypeElement {
   def convert(astNode: AstNode): ErrorOr[TypeElement] = astNode match {
     case a: Ast if a.getName == "OptionalType" => convert(a.getAttribute("innerType")) map OptionalTypeElement
+    case a: Ast if a.getName == "NonEmptyType" => convert(a.getAttribute("innerType")) map NonEmptyTypeElement
     case a: Ast if a.getName == "Type" => compoundType(a).toValidated
     case unknownAst: Ast => s"No rule available to create TypeElement from Ast: '${unknownAst.getName}'".invalidNel
     case t: Terminal if typeMap.contains(t.getSourceString) => PrimitiveTypeElement(typeMap(t.getSourceString)).validNel
@@ -33,7 +34,7 @@ object AstNodeToTypeElement {
     }
     case "Map" => typeAst.getAttributeAsVector[TypeElement]("subtype") flatMap {
       case two if two.size == 2 => MapTypeElement(two.head, two(1)).validNelCheck
-      case other => s"Pairs must have exactly two type parameters, but got ${other.size}".invalidNelCheck
+      case other => s"Maps must have exactly two type parameters, but got ${other.size}".invalidNelCheck
     }
     case unknown => s"No rule available to create TypeElement from compound type: $unknown".invalidNelCheck
   }

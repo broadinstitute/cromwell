@@ -75,43 +75,72 @@ object ExpressionElement {
   case object StderrElement extends FunctionCallElement
 
   // 1-param functions
-  final case class ReadLines(param: ExpressionElement) extends FunctionCallElement
-  final case class ReadTsv(param: ExpressionElement) extends FunctionCallElement
-  final case class ReadMap(param: ExpressionElement) extends FunctionCallElement
-  final case class ReadObject(param: ExpressionElement) extends FunctionCallElement
-  final case class ReadObjects(param: ExpressionElement) extends FunctionCallElement
-  final case class ReadJson(param: ExpressionElement) extends FunctionCallElement
-  final case class ReadInt(param: ExpressionElement) extends FunctionCallElement
-  final case class ReadString(param: ExpressionElement) extends FunctionCallElement
-  final case class ReadFloat(param: ExpressionElement) extends FunctionCallElement
-  final case class ReadBoolean(param: ExpressionElement) extends FunctionCallElement
-  final case class WriteLines(param: ExpressionElement) extends FunctionCallElement
-  final case class WriteTsv(param: ExpressionElement) extends FunctionCallElement
-  final case class WriteMap(param: ExpressionElement) extends FunctionCallElement
-  final case class WriteObject(param: ExpressionElement) extends FunctionCallElement
-  final case class WriteObjects(param: ExpressionElement) extends FunctionCallElement
-  final case class WriteJson(param: ExpressionElement) extends FunctionCallElement
-  final case class Range(param: ExpressionElement) extends FunctionCallElement
-  final case class Transpose(param: ExpressionElement) extends FunctionCallElement
-  final case class Length(param: ExpressionElement) extends FunctionCallElement
-  final case class Prefix(param: ExpressionElement) extends FunctionCallElement
-  final case class SelectFirst(param: ExpressionElement) extends FunctionCallElement
-  final case class SelectAll(param: ExpressionElement) extends FunctionCallElement
-  final case class Defined(param: ExpressionElement) extends FunctionCallElement
-  final case class Basename(param: ExpressionElement) extends FunctionCallElement
-  final case class Floor(param: ExpressionElement) extends FunctionCallElement
-  final case class Ceil(param: ExpressionElement) extends FunctionCallElement
-  final case class Round(param: ExpressionElement) extends FunctionCallElement
+  sealed trait OneParamFunctionCallElement extends FunctionCallElement { def param: ExpressionElement }
+  final case class ReadLines(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class ReadTsv(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class ReadMap(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class ReadObject(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class ReadObjects(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class ReadJson(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class ReadInt(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class ReadString(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class ReadFloat(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class ReadBoolean(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class WriteLines(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class WriteTsv(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class WriteMap(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class WriteObject(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class WriteObjects(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class WriteJson(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class Range(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class Transpose(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class Length(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class Flatten(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class SelectFirst(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class SelectAll(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class Defined(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class Floor(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class Ceil(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class Round(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class Glob(param: ExpressionElement) extends OneParamFunctionCallElement
 
   // 1- or 2-param functions:
-  final case class Size(file: ExpressionElement, unit: Option[ExpressionElement]) extends FunctionCallElement
+  sealed trait OneOrTwoParamFunctionCallElement extends FunctionCallElement {
+    def firstParam: ExpressionElement
+    def secondParam: Option[ExpressionElement]
+  }
+  final case class Size(file: ExpressionElement, unit: Option[ExpressionElement]) extends OneOrTwoParamFunctionCallElement {
+    override def firstParam: ExpressionElement = file
+    override def secondParam: Option[ExpressionElement] = unit
+  }
+  final case class Basename(param: ExpressionElement, suffixToRemove: Option[ExpressionElement]) extends OneOrTwoParamFunctionCallElement {
+    override def firstParam: ExpressionElement = param
+    override def secondParam: Option[ExpressionElement] = suffixToRemove
+  }
 
   // 2-param functions:
-  final case class Zip(array1: ExpressionElement, array2: ExpressionElement) extends FunctionCallElement
-  final case class Cross(array1: ExpressionElement, array2: ExpressionElement) extends FunctionCallElement
+  sealed trait TwoParamFunctionCallElement extends FunctionCallElement {
+    def arg1: ExpressionElement
+    def arg2: ExpressionElement
+  }
+  final case class Zip(arg1: ExpressionElement, arg2: ExpressionElement) extends TwoParamFunctionCallElement
+  final case class Cross(arg1: ExpressionElement, arg2: ExpressionElement) extends TwoParamFunctionCallElement
+  final case class Prefix(prefix: ExpressionElement, array: ExpressionElement) extends TwoParamFunctionCallElement {
+    override def arg1: ExpressionElement = prefix
+    override def arg2: ExpressionElement = array
+  }
 
   // 3-param functions:
-  final case class Sub(input: ExpressionElement, pattern: ExpressionElement, replace: ExpressionElement) extends FunctionCallElement
+  sealed trait ThreeParamFunctionCallElement extends FunctionCallElement {
+    def arg1: ExpressionElement
+    def arg2: ExpressionElement
+    def arg3: ExpressionElement
+  }
+  final case class Sub(input: ExpressionElement, pattern: ExpressionElement, replace: ExpressionElement) extends ThreeParamFunctionCallElement {
+    override def arg1: ExpressionElement = input
+    override def arg2: ExpressionElement = pattern
+    override def arg3: ExpressionElement = replace
+  }
 
   /**
     * A single identifier lookup expression, eg Int x = y
@@ -162,4 +191,11 @@ object ExpressionElement {
     * (1, 2).left
     */
   final case class ExpressionMemberAccess(expression: ExpressionElement, memberAccessTail: NonEmptyList[String]) extends ExpressionElement
+
+  /**
+    *
+    * @param expressionElement The element being accessed
+    * @param index The index expression
+    */
+  final case class IndexAccess(expressionElement: ExpressionElement, index: ExpressionElement) extends ExpressionElement
 }

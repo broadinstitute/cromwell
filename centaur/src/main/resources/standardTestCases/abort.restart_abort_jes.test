@@ -2,10 +2,10 @@ ignore: false
 name: abort.restart_abort_jes
 testFormat: ScheduledAbortWithRestart
 callMark: scheduled_abort.aborted
-backends: [Jes]
+backends: [Papi]
 
 files {
-  wdl: abort/scheduled_abort.wdl
+  workflow: abort/scheduled_abort.wdl
 }
 
 metadata {

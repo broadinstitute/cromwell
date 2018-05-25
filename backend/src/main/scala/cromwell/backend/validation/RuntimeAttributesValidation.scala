@@ -4,12 +4,13 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
 import com.typesafe.config.Config
-import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
+import cromwell.backend.RuntimeAttributeDefinition
 import common.validation.ErrorOr._
 import org.slf4j.Logger
 import wdl.draft2.model.expression.PureStandardLibraryFunctions
 import wdl.draft2.model.{NoLookup, WdlExpression}
 import wom.expression.{NoIoFunctionSet, WomExpression}
+import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
@@ -41,6 +42,10 @@ object RuntimeAttributesValidation {
 
   def validateCpu(cpu: Option[WomValue], onMissingKey: => ErrorOr[Int]): ErrorOr[Int] = {
     validateWithValidation(cpu, CpuValidation.instance, onMissingKey)
+  }
+
+  def validateMaxRetries(maxRetries: Option[WomValue], onMissingKey: => ErrorOr[Int]): ErrorOr[Int] = {
+    validateWithValidation(maxRetries, MaxRetriesValidation.instance, onMissingKey)
   }
 
   private def validateWithValidation[T](valueOption: Option[WomValue],
@@ -405,20 +410,20 @@ trait RuntimeAttributesValidation[ValidatedType] {
     * @return The new version of this validation.
     */
   final def configDefaultWomValue(optionalRuntimeConfig: Option[Config]): Option[WomValue] = {
-    optionalRuntimeConfig flatMap { config =>
-      val value = config.getValue(key).unwrapped()
-      coercion.collectFirst({
-        case womType if womType.coerceRawValue(value).isSuccess => {
-          womType.coerceRawValue(value).get
+    optionalRuntimeConfig collect {
+      case config if config.hasPath(key) =>
+        val value = config.getValue(key).unwrapped()
+        coercion collectFirst {
+          case womType if womType.coerceRawValue(value).isSuccess => womType.coerceRawValue(value).get
+        } getOrElse {
+          BadDefaultAttribute(WomString(value.toString))
         }
-      }) orElse Option(BadDefaultAttribute(WomString(value.toString)))
     }
   }
 
   final def configDefaultValue(optionalRuntimeConfig: Option[Config]): Option[String] = {
-    optionalRuntimeConfig match {
-      case Some(config) if config.hasPath(key) => Option(config.getValue(key).unwrapped().toString)
-      case _ => None
+    optionalRuntimeConfig collect {
+      case config if config.hasPath(key) => config.getValue(key).unwrapped().toString
     }
   }
 

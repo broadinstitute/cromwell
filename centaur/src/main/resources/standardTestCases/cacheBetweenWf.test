@@ -2,7 +2,7 @@ name: cacheBetweenWF
 testFormat: runtwiceexpectingcallcaching
 
 files {
-  wdl: cacheBetweenWF/cacheBetweenWF.wdl
+  workflow: cacheBetweenWF/cacheBetweenWF.wdl
 }
 
 metadata {

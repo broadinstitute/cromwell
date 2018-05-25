@@ -4,10 +4,10 @@ import Settings._
 // Libraries
 
 lazy val common = project
-  .withLibrarySettings("cromwell-common", commonDependencies, crossCompile = true)
+  .withLibrarySettings("cromwell-common", commonDependencies)
 
 lazy val wom = project
-  .withLibrarySettings("cromwell-wom", womDependencies, crossCompile = true)
+  .withLibrarySettings("cromwell-wom", womDependencies)
   .dependsOn(common)
 
 lazy val wdlRoot = Path("wdl")
@@ -15,42 +15,46 @@ lazy val wdlRoot = Path("wdl")
 lazy val wdlModelRoot = wdlRoot / "model"
 
 lazy val wdlSharedModel = (project in wdlModelRoot / "shared")
-  .withLibrarySettings("cromwell-wdl-model-core", wdlDependencies, crossCompile = true)
+  .withLibrarySettings("cromwell-wdl-model-core", wdlDependencies)
   .dependsOn(wom)
 
 lazy val wdlModelDraft2 = (project in wdlModelRoot / "draft2")
-  .withLibrarySettings("cromwell-wdl-model-draft2", wdlDependencies, crossCompile = true)
+  .withLibrarySettings("cromwell-wdl-model-draft2", wdlDependencies)
+  .dependsOn(wdlSharedTransforms)
   .dependsOn(wdlSharedModel)
+  .dependsOn(wom % "test->test")
 
 lazy val wdlModelDraft3 = (project in wdlModelRoot / "draft3")
-  .withLibrarySettings("cromwell-wdl-model-draft3", crossCompile = true)
+  .withLibrarySettings("cromwell-wdl-model-draft3")
   .dependsOn(wdlSharedModel)
 
 lazy val wdlTransformsRoot = wdlRoot / "transforms"
 
 lazy val wdlSharedTransforms = (project in wdlTransformsRoot / "shared")
-  .withLibrarySettings("cromwell-wdl-transforms-shared", wdlDependencies, crossCompile = true)
+  .withLibrarySettings("cromwell-wdl-transforms-shared", wdlDependencies)
   .dependsOn(wdlSharedModel)
   .dependsOn(wom)
 
 lazy val wdlTransformsDraft2 = (project in wdlTransformsRoot / "draft2")
-  .withLibrarySettings("cromwell-wdl-transforms-draft2", wdlDependencies, crossCompile = true)
+  .withLibrarySettings("cromwell-wdl-transforms-draft2", wdlDependencies)
   .dependsOn(wdlSharedTransforms)
   .dependsOn(wdlModelDraft2)
 
 lazy val wdlTransformsDraft3 = (project in wdlTransformsRoot / "draft3")
-  .withLibrarySettings("cromwell-wdl-transforms-draft3", wdlDependencies, crossCompile = true)
+  .withLibrarySettings("cromwell-wdl-transforms-draft3", wdlDependencies)
   .dependsOn(wdlSharedTransforms)
   .dependsOn(wdlModelDraft3)
+  .dependsOn(languageFactoryCore)
   .dependsOn(common % "test->test")
+  .dependsOn(wom % "test->test")
 
 lazy val cwl = project
-  .withLibrarySettings("cromwell-cwl", cwlDependencies, crossCompile = true)
+  .withLibrarySettings("cromwell-cwl", cwlDependencies)
   .dependsOn(wom)
   .dependsOn(wom % "test->test")
 
 lazy val cwlEncoder = project
-  .withLibrarySettings("cromwell-cwl-encoder", crossCompile = true)
+  .withLibrarySettings("cromwell-cwl-encoder")
   .dependsOn(cwl)
 
 lazy val core = project
@@ -111,6 +115,31 @@ lazy val backend = project
   .dependsOn(services)
   .dependsOn(core % "test->test")
 
+lazy val googlePipelinesCommon = (project in backendRoot / "google" / "pipelines" / "common")
+  .withLibrarySettings("cromwell-pipelines-common")
+  .dependsOn(backend)
+  .dependsOn(gcsFileSystem)
+  .dependsOn(backend % "test->test")
+  .dependsOn(gcsFileSystem % "test->test")
+  .dependsOn(services % "test->test")
+
+lazy val googlePipelinesV1Alpha2 = (project in backendRoot / "google" / "pipelines" / "v1alpha2")
+  .withLibrarySettings("cromwell-pipelines-v1-backend")
+  .dependsOn(googlePipelinesCommon)
+  .dependsOn(googlePipelinesCommon % "test->test")
+  .dependsOn(core % "test->test")
+
+lazy val googlePipelinesV2Alpha1 = (project in backendRoot / "google" / "pipelines" / "v2alpha1")
+  .withLibrarySettings("cromwell-pipelines-v2-backend")
+  .dependsOn(googlePipelinesCommon)
+  .dependsOn(googlePipelinesCommon % "test->test")
+  .dependsOn(core % "test->test")
+
+// Legacy, inherits all its code from googlePipelinesV1Alpha2
+lazy val jesBackend = (project in backendRoot / "jes")
+  .withLibrarySettings("cromwell-jes-backend")
+  .dependsOn(googlePipelinesV1Alpha2)
+
 lazy val sfsBackend = (project in backendRoot / "sfs")
   .withLibrarySettings("cromwell-sfs-backend")
   .dependsOn(backend)
@@ -127,14 +156,6 @@ lazy val sparkBackend = (project in backendRoot / "spark")
   .withLibrarySettings("cromwell-spark-backend", sparkBackendDependencies)
   .dependsOn(sfsBackend)
   .dependsOn(backend % "test->test")
-
-lazy val jesBackend = (project in backendRoot / "jes")
-  .withLibrarySettings("cromwell-jes-backend")
-  .dependsOn(backend)
-  .dependsOn(gcsFileSystem)
-  .dependsOn(backend % "test->test")
-  .dependsOn(gcsFileSystem % "test->test")
-  .dependsOn(services % "test->test")
 
 lazy val bcsBackend = (project in backendRoot / "bcs")
   .withLibrarySettings("cromwell-bcs-backend", bcsBackendDependencies)
@@ -170,9 +191,9 @@ lazy val centaurCwlRunner = project
 
 lazy val womtool = project
   .withExecutableSettings("womtool", womtoolDependencies)
-  .dependsOn(wdlTransformsDraft2)
-  .dependsOn(wdlTransformsDraft3)
-  .dependsOn(cwl)
+  .dependsOn(wdlDraft2LanguageFactory)
+  .dependsOn(wdlDraft3LanguageFactory)
+  .dependsOn(cwlV1_0LanguageFactory)
   .dependsOn(wom % "test->test")
 
 lazy val cromiam = (project in file("CromIAM")) // TODO: git mv CromIAM to a canonical lowercased name
@@ -183,11 +204,11 @@ lazy val cromiam = (project in file("CromIAM")) // TODO: git mv CromIAM to a can
 lazy val languageFactoryRoot = Path("languageFactories")
 
 lazy val languageFactoryCore = (project in languageFactoryRoot / "language-factory-core")
-  .withLibrarySettings("language-factory-core")
+  .withLibrarySettings("language-factory-core", languageFactoryDependencies)
   .dependsOn(core)
 
 lazy val wdlDraft2LanguageFactory = (project in languageFactoryRoot / "wdl-draft2")
-  .withLibrarySettings("wdl-draft2")
+  .withLibrarySettings("wdl-draft2", draft2LanguageFactoryDependencies)
   .dependsOn(languageFactoryCore)
   .dependsOn(wdlModelDraft2)
   .dependsOn(wdlTransformsDraft2)
@@ -206,6 +227,8 @@ lazy val cwlV1_0LanguageFactory = (project in languageFactoryRoot / "cwl-v1-0")
 lazy val server = project
   .withExecutableSettings("cromwell", serverDependencies)
   .dependsOn(engine)
+  .dependsOn(googlePipelinesV1Alpha2)
+  .dependsOn(googlePipelinesV2Alpha1)
   .dependsOn(jesBackend)
   .dependsOn(bcsBackend)
   .dependsOn(tesBackend)
@@ -235,6 +258,9 @@ lazy val root = (project in file("."))
   .aggregate(dockerHashing)
   .aggregate(engine)
   .aggregate(gcsFileSystem)
+  .aggregate(googlePipelinesCommon)
+  .aggregate(googlePipelinesV1Alpha2)
+  .aggregate(googlePipelinesV2Alpha1)
   .aggregate(jesBackend)
   .aggregate(languageFactoryCore)
   .aggregate(ossFileSystem)
@@ -253,5 +279,3 @@ lazy val root = (project in file("."))
   .aggregate(wdlTransformsDraft3)
   .aggregate(wom)
   .aggregate(womtool)
-  // TODO: See comment in plugins.sbt regarding SBT 1.x
-  .enablePlugins(CrossPerProjectPlugin)

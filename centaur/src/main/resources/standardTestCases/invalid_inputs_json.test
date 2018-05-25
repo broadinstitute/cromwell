@@ -2,7 +2,7 @@ name: invalid_inputs_json
 testFormat: submitfailure
 
 files {
-  wdl: invalid_inputs_json/invalid_inputs_json.wdl
+  workflow: invalid_inputs_json/invalid_inputs_json.wdl
   inputs: invalid_inputs_json/invalid_inputs_json.inputs
 }
 

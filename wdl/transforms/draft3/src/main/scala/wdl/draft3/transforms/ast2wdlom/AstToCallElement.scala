@@ -8,7 +8,7 @@ import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.ErrorOr.ErrorOr
 import wdl.draft3.parser.WdlParser.{Ast, AstNode}
-import wdl.model.draft3.elements.{CallBodyElement, CallElement, ExpressionElement}
+import wdl.model.draft3.elements.{CallBodyElement, CallElement}
 import wdl.draft3.transforms.ast2wdlom.EnhancedDraft3Ast._
 import wdl.model.draft3.elements.ExpressionElement.KvPair
 
@@ -22,7 +22,7 @@ object AstToCallElement {
       case None => None.validNel
     }
 
-    implicit val astNodeToCallBodyElement: CheckedAtoB[AstNode, Option[CallBodyElement]] = astNodeToAst andThen CheckedAtoB.fromErrorOr(AstToCallBodyElement.convert)
+    implicit val astNodeToCallBodyElement: CheckedAtoB[AstNode, CallBodyElement] = astNodeToAst andThen CheckedAtoB.fromCheck(AstToCallBodyElement.convert)
 
     val callBodyValidation: ErrorOr[Option[CallBodyElement]] = ast.getAttributeAsOptional[CallBodyElement]("body").toValidated
 
@@ -32,9 +32,8 @@ object AstToCallElement {
   }
 
   object AstToCallBodyElement {
-    def convert(a: Ast): ErrorOr[Option[CallBodyElement]] = {
-      val callBodyElement = a.getAttributeAsVector[KvPair]("inputs").toOption map CallBodyElement
-      callBodyElement.validNel
+    def convert(a: Ast): Checked[CallBodyElement] = {
+      a.getAttributeAsVector[KvPair]("inputs") map CallBodyElement
     }
   }
 }

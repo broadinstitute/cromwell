@@ -2,7 +2,7 @@ name: variable_scoping
 testFormat: workflowsuccess
 
 files {
-  wdl: variable_scoping/variable_scoping.wdl
+  workflow: variable_scoping/variable_scoping.wdl
 }
 
 metadata {

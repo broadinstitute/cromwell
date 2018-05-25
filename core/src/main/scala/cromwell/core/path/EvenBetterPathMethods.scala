@@ -1,9 +1,11 @@
 package cromwell.core.path
 
+import java.io.InputStream
 import java.nio.file.{FileAlreadyExistsException, Files}
 import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 
 import scala.collection.JavaConverters._
+import scala.io.Codec
 
 /**
   * Implements methods beyond those implemented in NioPathMethods and BetterFileMethods
@@ -20,6 +22,8 @@ trait EvenBetterPathMethods {
   final def plusExt(ext: String): Path = plusSuffix(s".$ext")
 
   final def swapExt(oldExt: String, newExt: String): Path = swapSuffix(s".$oldExt", s".$newExt")
+
+  final def nameWithoutExtensionNoIo: String = if (name contains ".") name.substring(0, name lastIndexOf ".") else name
 
   final def plusSuffix(suffix: String): Path = swapSuffix("", suffix)
 
@@ -80,4 +84,10 @@ trait EvenBetterPathMethods {
   final def untailed = UntailedWriter(this)
 
   final def tailed(tailedSize: Int) = TailedWriter(this, tailedSize)
+
+  def mediaInputStream: InputStream = newInputStream
+
+  def readContentAsString(implicit codec: Codec): String = contentAsString
+
+  def readAllLinesInFile(implicit codec: Codec): Traversable[String] = lines
 }

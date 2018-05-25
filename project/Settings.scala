@@ -10,7 +10,6 @@ import sbtassembly.AssemblyPlugin.autoImport._
 import sbtdocker.DockerPlugin
 import sbtdocker.DockerPlugin.autoImport._
 import sbtrelease.ReleasePlugin
-import scoverage.ScoverageKeys._
 
 object Settings {
 
@@ -41,6 +40,12 @@ object Settings {
     "-feature",
     "-explaintypes",
     "-Xmax-classfile-name", "200",
+
+    // the backend runs bytecode serialization, classfile writing and method-local
+    // optimizations (-opt:l:method) in parallel on N threads
+    "-Ybackend-parallelism", "3",
+    "-Ycache-plugin-class-loader:last-modified",
+    "-Ycache-macro-class-loader:last-modified",
     "-target:jvm-1.8",
     "-encoding", "UTF-8"
   )
@@ -72,12 +77,12 @@ object Settings {
     "-Ywarn-unused:implicits",
     "-Ywarn-unused:privates",
     "-Ywarn-unused:locals",
+    "-Ypartial-unification",
     "-Ywarn-unused:patvars"
   )
 
   val consoleHostileSettings = List(
-    // Commented until 04/01/18 00:00:00.000 to reduce burden of supporting 2.11
-    // "-Ywarn-unused:imports", // warns about every unused import on every command.
+    "-Ywarn-unused:imports", // warns about every unused import on every command.
     "-Xfatal-warnings"       // makes those warnings fatal.
   )
 
@@ -86,61 +91,25 @@ object Settings {
     test in assembly := {},
     assemblyMergeStrategy in assembly := customMergeStrategy.value,
     logLevel in assembly :=
-      sys.env.get("ASSEMBLY_LOG_LEVEL").flatMap(Level.apply).getOrElse((logLevel in assembly).value)
+      sys.env.get("CROMWELL_SBT_ASSEMBLY_LOG_LEVEL").flatMap(Level.apply).getOrElse((logLevel in assembly).value)
   )
 
-  val ScalaVersion211 = "2.11.11"
-  val ScalaVersion212 = "2.12.4"
-  val ScalaVersion = ScalaVersion212
+  val Scala2_12Version = "2.12.6"
+  val ScalaVersion = Scala2_12Version
   val sharedSettings = ReleasePlugin.projectSettings ++
     cromwellVersionWithGit ++ publishingSettings ++ List(
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,
     resolvers ++= commonResolvers,
     parallelExecution := false,
-    dependencyOverrides ++= cromwellDependencyOverrides.toSet, // TODO: Remove .toSet for SBT 1.x
-    scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 12)) =>
-        // The default scalacOptions includes console-hostile options.  These options are overridden specifically below
-        // for the `console` target.
-        baseSettings ++ warningSettings ++ consoleHostileSettings
-      case Some((2, 11)) =>
-        // Scala 2.11 takes a simplified set of options
-        baseSettings
-      case _ =>
-        throw new NotImplementedError(
-          s"Found unsupported Scala version '${scalaVersion.value}'." +
-            s" ${name.value} does not support versions of Scala other than 2.11 or 2.12.")
-    }),
+    dependencyOverrides ++= cromwellDependencyOverrides,
+    scalacOptions ++= baseSettings ++ warningSettings ++ consoleHostileSettings,
     // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874
     scalacOptions in(Compile, doc) ++= baseSettings ++ List("-no-link-warnings"),
     // No console-hostile options, otherwise the console is effectively unusable.
     // https://github.com/sbt/sbt/issues/1815
     scalacOptions in(Compile, console) --= consoleHostileSettings,
-    //
-    /*
-    Only enable coverage for 2.12.
-
-    NOTE: Like below, gave up coming with an SBT setting. Using an environment variable instead.
-
-    Once 2.11 is gone, instead of
-      `ENABLE_COVERAGE=true sbt +test coverageReport`
-    one can run
-      `sbt coverage test coverageReport`
-     */
-    coverageEnabled := (CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 12)) => sys.env.get("ENABLE_COVERAGE").exists(_.toBoolean)
-      case Some((2, 11)) => false
-      case _ =>
-        throw new NotImplementedError(
-          s"Found unsupported Scala version '${scalaVersion.value}'." +
-            s" ${name.value} does not support versions of Scala other than 2.11 or 2.12.")
-    }),
-    addCompilerPlugin("org.scalamacros" % "paradise" % paradiseV cross CrossVersion.full)
-  )
-
-  val crossVersionSettings = List(
-    crossScalaVersions := List(ScalaVersion212, ScalaVersion211)
+    addCompilerPlugin(paradisePlugin)
   )
 
   val dockerTags = settingKey[Seq[String]]("The tags for docker builds.")
@@ -156,11 +125,13 @@ object Settings {
       ArrayBuffer(broadinstitute/womtool:30, broadinstitute/womtool:30-c33be41-SNAP)
       ArrayBuffer(broadinstitute/cromwell:30, broadinstitute/cromwell:30-c33be41-SNAP)
 
-    `CROMWELL_DOCKER_TAGS=dev,develop sbt 'show docker::imageNames'` returns:
+    `CROMWELL_SBT_DOCKER_TAGS=dev,develop sbt 'show docker::imageNames'` returns:
       ArrayBuffer(broadinstitute/womtool:dev, broadinstitute/womtool:develop)
       ArrayBuffer(broadinstitute/cromwell:dev, broadinstitute/cromwell:develop)
     */
-    dockerTags := sys.env.getOrElse("CROMWELL_DOCKER_TAGS", s"$cromwellVersion,${version.value}").split(","),
+    dockerTags := sys.env
+      .getOrElse("CROMWELL_SBT_DOCKER_TAGS", s"$cromwellVersion,${version.value}")
+      .split(","),
     imageNames in docker := dockerTags.value map { tag =>
       ImageName(namespace = Option("broadinstitute"), repository = name.value, tag = Option(tag))
     },
@@ -195,7 +166,7 @@ object Settings {
   )
 
   val swaggerUiSettings = List(resourceGenerators in Compile += writeSwaggerUiVersionConf)
-  val backendSettings = List(addCompilerPlugin("org.spire-math" %% "kind-projector" % kindProjectorV))
+  val backendSettings = List(addCompilerPlugin(kindProjectorPlugin))
   val engineSettings = swaggerUiSettings
   val cromiamSettings = swaggerUiSettings
 
@@ -216,15 +187,13 @@ object Settings {
     def withLibrarySettings(libraryName: String,
                             dependencies: Seq[ModuleID] = List.empty,
                             customSettings: Seq[Setting[_]] = List.empty,
-                            integrationTests: Boolean = false,
-                            crossCompile: Boolean = false): Project = {
+                            integrationTests: Boolean = false): Project = {
 
       val builders: Seq[Project => Project] = List(
         addTestSettings,
         if (integrationTests) addIntegrationTestSettings else identity,
         _
           .disablePlugins(AssemblyPlugin)
-          .settings(if (crossCompile) crossVersionSettings else List.empty)
           .settings(resourceGenerators in Compile += writeProjectVersionConf)
           .settings(customSettings)
       )

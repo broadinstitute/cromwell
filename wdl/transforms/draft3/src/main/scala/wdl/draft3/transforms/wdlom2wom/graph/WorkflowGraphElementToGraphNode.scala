@@ -4,65 +4,67 @@ import cats.syntax.apply._
 import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, _}
 import wdl.model.draft3.graph.expression.WomTypeMaker.ops._
-import wdl.model.draft3.graph.expression.TypeEvaluator.ops._
 import wdl.model.draft3.graph.expression.WomExpressionMaker.ops._
 import wdl.draft3.transforms.linking.typemakers._
 import wdl.draft3.transforms.linking.expression._
-import wdl.draft3.transforms.linking.expression.types._
-import wdl.draft3.transforms.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition
-import wdl.draft3.transforms.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition.GraphLikeConvertInputs
-import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements._
 import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
-import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
+import wom.callable.Callable
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
-import wom.graph.expression.{AnonymousExpressionNode, ExposedExpressionNode, PlainAnonymousExpressionNode}
-import wom.types.{WomArrayType, WomType}
+import wom.graph.expression.ExposedExpressionNode
+import wom.types.WomType
+import wdl.draft3.transforms.wdlom2wdl.WdlWriter.ops._
+import wdl.draft3.transforms.wdlom2wdl.WdlWriterImpl._
 
 object WorkflowGraphElementToGraphNode {
   def convert(a: GraphNodeMakerInputs): ErrorOr[Set[GraphNode]] = a.node match {
-    case InputDeclarationElement(typeElement, name, None) =>
-      typeElement.determineWomType(a.availableTypeAliases) map { womType =>
-        Set(RequiredGraphInputNode(WomIdentifier(name), womType, s"${a.workflowName}.$name"))
-      }
+    case ie: InputDeclarationElement =>
+      val inputNodeMakerInputs = GraphInputNodeMakerInputs(ie, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName)
+      InputDeclarationElementToGraphNode.convert(inputNodeMakerInputs)
+
     case DeclarationElement(typeElement, name, Some(expr)) =>
       val womExprValidation: ErrorOr[WomExpression] = expr.makeWomExpression(a.availableTypeAliases, a.linkableValues)
       val womTypeValidation: ErrorOr[WomType] = typeElement.determineWomType(a.availableTypeAliases)
 
-      (womExprValidation, womTypeValidation) flatMapN { (womExpr, womType) =>
-        a.node match {
+      val result = (womExprValidation, womTypeValidation) flatMapN { (womExpr, womType) =>
+        val correctType: ErrorOr[Unit] = validateAssignmentType(womExpr, womType)
+
+        val graphNode: ErrorOr[Set[GraphNode]] = a.node match {
           case _: InputDeclarationElement =>
             Set[GraphNode](OptionalGraphInputNodeWithDefault.apply(WomIdentifier(name), womType, womExpr, name)).validNel
           case _: IntermediateValueDeclarationElement =>
             ExposedExpressionNode.fromInputMapping(WomIdentifier(name), womExpr, womType, a.linkablePorts) map { Set(_) }
           case _: OutputDeclarationElement =>
-            ExpressionBasedGraphOutputNode.fromInputMapping(WomIdentifier(s"${a.workflowName}.$name"), womExpr, womType, a.linkablePorts) map {Set(_)}
+            ExpressionBasedGraphOutputNode.fromInputMapping(WomIdentifier(name, s"${a.workflowName}.$name"), womExpr, womType, a.linkablePorts) map {Set(_)}
         }
+
+        (correctType, graphNode) mapN { (_, gn) => gn }
       }
+      result.contextualizeErrors(s"process declaration '${typeElement.toWdlV1} $name = ${expr.toWdlV1}'")
 
-    case ScatterElement(scatterExpression, scatterVariableName, graphElements) =>
-      val scatterWomExpression: WdlomWomExpression = WdlomWomExpression(scatterExpression, a.linkableValues)
-      val scatterExpressionNodeValidation: ErrorOr[AnonymousExpressionNode] = AnonymousExpressionNode.fromInputMapping(WomIdentifier(scatterVariableName), scatterWomExpression, a.linkablePorts, PlainAnonymousExpressionNode.apply)
+    case se: ScatterElement =>
+      val scatterMakerInputs = ScatterNodeMakerInputs(se, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter, a.callables)
+      ScatterElementToGraphNode.convert(scatterMakerInputs)
 
-      val scatterVariableTypeValidation: ErrorOr[WomType] = scatterExpression.evaluateType(a.linkableValues) flatMap {
-        case a: WomArrayType => a.memberType.validNel
-        case _ => "Invalid type for scatter variable: ".invalidNel
-      }
+    case ie: IfElement =>
+      val ifMakerInputs = ConditionalNodeMakerInputs(ie, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter, a.callables)
+      IfElementToGraphNode.convert(ifMakerInputs)
 
-      (scatterExpressionNodeValidation, scatterVariableTypeValidation) flatMapN { (expressionNode, scatterVariableType) =>
-        val womInnerGraphScatterVariableInput = ScatterVariableNode(WomIdentifier(scatterVariableName), expressionNode, scatterVariableType)
+    case ce: CallElement =>
+      val callNodeMakerInputs = CallNodeMakerInputs(ce, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter, a.callables)
+      CallElementToGraphNode.convert(callNodeMakerInputs)
+  }
 
-        val graphLikeConvertInputs = GraphLikeConvertInputs(graphElements.toSet, Set(womInnerGraphScatterVariableInput), a.availableTypeAliases, a.workflowName)
-        val innerGraph: ErrorOr[Graph] = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
-
-        innerGraph map { ig =>
-          val withOutputs = WomGraphMakerTools.addDefaultOutputs(ig)
-          val generatedAndNew = ScatterNode.scatterOverGraph(withOutputs, womInnerGraphScatterVariableInput)
-          generatedAndNew.nodes
-        }
-      }
+  def validateAssignmentType(womExpr: WomExpression, womType: WomType): ErrorOr[Unit] = {
+    // NB: WdlomWomExpressions don't actually use the inputTypes argument, they already know their type:
+    val exprType: ErrorOr[WomType] = womExpr.evaluateType(inputTypes = Map.empty)
+    val correctType: ErrorOr[Unit] = exprType.flatMap {
+      case goodType if womType.isCoerceableFrom(goodType) => ().validNel
+      case badType => s"Cannot coerce expression of type '${badType.toDisplayString}' to '${womType.toDisplayString}'".invalidNel
+    }
+    correctType
   }
 }
 
@@ -70,4 +72,6 @@ final case class GraphNodeMakerInputs(node: WorkflowGraphElement,
                                       linkableValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
                                       linkablePorts: Map[String, OutputPort],
                                       availableTypeAliases: Map[String, WomType],
-                                      workflowName: String)
+                                      workflowName: String,
+                                      insideAScatter: Boolean,
+                                      callables: Map[String, Callable])

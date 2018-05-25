@@ -2,17 +2,13 @@ package cwl
 
 import cats.instances.list._
 import cats.syntax.traverse._
-import common.validation.ErrorOr.ErrorOr
 import org.scalatest.{FlatSpec, Matchers, ParallelTestExecution}
+import shapeless.Coproduct
 import wom.callable.Callable.RequiredInputDefinition
 import wom.callable.RuntimeEnvironment
-import wom.expression.IoFunctionSet
+import wom.expression.NoIoFunctionSet
 import wom.types._
-import wom.values.{WomArray, WomBoolean, WomEvaluatedCallInputs, WomFloat, WomInteger, WomObject, WomSingleFile, WomString, WomValue}
-import shapeless.Coproduct
-
-import scala.concurrent.Future
-import scala.util.Try
+import wom.values.{WomArray, WomBoolean, WomEvaluatedCallInputs, WomInteger, WomObject, WomSingleFile, WomString, WomValue}
 
 class CommandLineToolSpec extends FlatSpec with Matchers with ParallelTestExecution {
 
@@ -33,16 +29,7 @@ class CommandLineToolSpec extends FlatSpec with Matchers with ParallelTestExecut
   
   val localNameValues = inputs.map({ case (k, v) => k.localName -> v })
   
-  val noIoFunctionSet = new IoFunctionSet {
-    override def stdout(params: Seq[Try[WomValue]]): Try[WomSingleFile] = ???
-    override def glob(pattern: String): Future[Seq[String]] = ???
-    override def stderr(params: Seq[Try[WomValue]]): Try[WomSingleFile] = ???
-    override def size(params: Seq[Try[WomValue]]): Future[WomFloat] = ???
-    override def readFile(path: String, maxBytes: Option[Int], failOnOverflow: Boolean): Future[String] = ???
-    override def writeFile(path: String, content: String): Future[WomSingleFile] = ???
-    override def copyFile(pathFrom: String, targetName: String) = ???
-    override def listAllFilesUnderDirectory(dirPath: String) = ???
-  }
+  val noIoFunctionSet = NoIoFunctionSet
   
   val runtimeEnv = RuntimeEnvironment("", "", 0, 0D, 0L, 0L)
   
@@ -55,10 +42,10 @@ class CommandLineToolSpec extends FlatSpec with Matchers with ParallelTestExecut
     }
 
     val template = clt
-      .buildCommandTemplate(Vector.empty)(inputs)
+      .buildCommandTemplate.run((RequirementsAndHints(List.empty), Vector.empty,inputs))
       .valueOr(errors => fail(errors.toList.mkString(", ")))
     template
-      .flatTraverse[ErrorOr, String](_.instantiate(localNameValues, noIoFunctionSet, identity[WomValue], runtimeEnv).map(_.map(_.commandString)))
+      .flatTraverse(_.instantiate(localNameValues, noIoFunctionSet, identity[WomValue], runtimeEnv).map(_.map(_.commandString)))
       .valueOr(errors => fail(errors.toList.mkString(", "))) shouldBe expectation
     
     cltFile.delete(true)

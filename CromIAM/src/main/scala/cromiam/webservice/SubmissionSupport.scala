@@ -30,8 +30,12 @@ trait SubmissionSupport extends RequestSupport {
     post {
       extractUserAndRequest { (user, request) =>
         log.info("Received submission request from user " + user.userId)
-        extractSubmission(user) { submission =>
-          complete { forwardSubmissionToCromwell(user, submission.collection, request.withEntity(submission.entity)) }
+        authorizeAsync(samClient.isSubmitWhitelisted(user)) {
+          extractSubmission(user) { submission =>
+            complete {
+              forwardSubmissionToCromwell(user, submission.collection, request.withEntity(submission.entity))
+            }
+          }
         }
       }
     }
@@ -74,6 +78,7 @@ object SubmissionSupport {
         WorkflowTypeVersionKey.?,
         WorkflowInputsKey.?,
         WorkflowOptionsKey.?,
+        WorkflowOnHoldKey.as[Boolean].?,
         WorkflowDependenciesKey.as[ByteString].?)) &
       extractLabels &
       extractInputAux
@@ -95,6 +100,7 @@ object SubmissionSupport {
                                       workflowTypeVersion: Option[String],
                                       workflowInputs: Option[String],
                                       workflowOptions: Option[String],
+                                      workflowOnHold: Option[Boolean],
                                       workflowDependencies: Option[ByteString],
                                       origLabels: Option[Map[String, JsValue]],
                                       workflowInputsAux: Map[String, String]) {
@@ -112,9 +118,9 @@ object SubmissionSupport {
       val inputsPart = workflowInputs map { i => Multipart.FormData.BodyPart(WorkflowInputsKey, HttpEntity(MediaTypes.`application/json`, i)) }
       val optionsPart = workflowOptions map { o => Multipart.FormData.BodyPart(WorkflowOptionsKey, HttpEntity(MediaTypes.`application/json`, o)) }
       val importsPart = workflowDependencies map { d => Multipart.FormData.BodyPart(WorkflowDependenciesKey, HttpEntity(MediaTypes.`application/octet-stream`, d)) }
+      val onHoldPart = workflowOnHold map { h => Multipart.FormData.BodyPart(WorkflowOnHoldKey, HttpEntity(h.toString)) }
       val labelsPart = Multipart.FormData.BodyPart(LabelsKey, HttpEntity(MediaTypes.`application/json`, labels))
-
-      val parts = List(Option(sourcePart), typePart, typeVersionPart, inputsPart, optionsPart, importsPart, Option(labelsPart)).flatten ++ auxParts
+      val parts = List(Option(sourcePart), typePart, typeVersionPart, inputsPart, optionsPart, importsPart, onHoldPart, Option(labelsPart)).flatten ++ auxParts
 
       Multipart.FormData(parts: _*).toEntity()
     }
@@ -133,4 +139,5 @@ object SubmissionSupport {
   val WorkflowInputsAuxPrefix = "workflowInputs_"
   val WorkflowOptionsKey = "workflowOptions"
   val WorkflowDependenciesKey = "workflowDependencies"
+  val WorkflowOnHoldKey = "workflowOnHold"
 }

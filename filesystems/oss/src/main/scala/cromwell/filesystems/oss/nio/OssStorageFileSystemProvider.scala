@@ -9,7 +9,7 @@ import java.nio.file.spi.FileSystemProvider
 import java.util
 
 import com.aliyun.oss.OSSClient
-import com.aliyun.oss.model.ListObjectsRequest
+import com.aliyun.oss.model.{GenericRequest, ListObjectsRequest}
 import com.google.common.collect.AbstractIterator
 
 import scala.collection.JavaConverters._
@@ -163,7 +163,11 @@ final case class OssStorageFileSystemProvider(config: OssStorageConfiguration) e
     }
 
     val exist = OssStorageRetry.from(
-      () => ossClient.doesObjectExist(ossPath.bucket, ossPath.key)
+      () => {
+        val request = new GenericRequest(ossPath.bucket, ossPath.key)
+        request.setLogEnabled(false)
+        ossClient.doesObjectExist(request)
+      }
     )
 
     if (!exist) {
@@ -233,7 +237,11 @@ final case class OssStorageFileSystemProvider(config: OssStorageConfiguration) e
     }
 
     val exist = OssStorageRetry.from(
-      () => ossClient.doesObjectExist(ossPath.bucket, ossPath.key)
+      () => {
+        val request = new GenericRequest(ossPath.bucket, ossPath.key)
+        request.setLogEnabled(false)
+        ossClient.doesObjectExist(request)
+      }
     )
 
     if (!exist) {
@@ -267,7 +275,11 @@ final case class OssStorageFileSystemProvider(config: OssStorageConfiguration) e
     }
 
     val exists = OssStorageRetry.from(
-      () => ossClient.doesObjectExist(ossPath.bucket, ossPath.key)
+      () => {
+        val request = new GenericRequest(ossPath.bucket, ossPath.key)
+        request.setLogEnabled(false)
+        ossClient.doesObjectExist(request)
+      }
     )
 
     if (!exists) {

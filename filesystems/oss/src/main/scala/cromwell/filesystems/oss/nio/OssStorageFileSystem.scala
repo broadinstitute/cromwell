@@ -6,7 +6,8 @@ import java.nio.file.attribute.UserPrincipalLookupService
 import java.util.Objects
 import java.{lang, util}
 
-import com.aliyun.oss.OSSClient
+import com.aliyun.oss.common.auth.DefaultCredentialProvider
+import com.aliyun.oss.{ClientConfiguration, OSSClient}
 
 import scala.collection.JavaConverters._
 
@@ -81,12 +82,14 @@ final case class OssStorageConfiguration(endpoint: String,
   }
 
   def newOssClient() = {
-    stsToken match {
+    val credentialsProvider = stsToken match {
       case Some(token: String) =>
-        new OSSClient(endpoint, accessId, accessKey, token)
+        new DefaultCredentialProvider(accessId, accessKey, token)
       case None =>
-        new OSSClient(endpoint, accessId, accessKey)
+        new DefaultCredentialProvider(accessId, accessKey)
     }
+    val clientConfiguration = new ClientConfiguration
+    new OSSClient(endpoint, credentialsProvider, clientConfiguration)
   }
 }
 

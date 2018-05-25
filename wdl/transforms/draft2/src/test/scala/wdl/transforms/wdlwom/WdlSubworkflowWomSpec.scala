@@ -2,7 +2,7 @@ package wdl.transforms.wdlwom
 
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.draft2.model.{ImportResolver, WdlNamespace, WdlNamespaceWithWorkflow}
+import wdl.draft2.model.{Draft2ImportResolver, WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.graph._
 import wom.graph.expression.ExpressionNode
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
@@ -47,14 +47,14 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
       """.stripMargin
 
 
-    def innerResolver: ImportResolver = _ => innerWdl
+    def innerResolver: Draft2ImportResolver = _ => innerWdl
 
     val namespace = WdlNamespace.loadUsingSource(
       workflowSource = outerWdl,
       resource = None,
       importResolver = Some(Seq(innerResolver))).get.asInstanceOf[WdlNamespaceWithWorkflow]
 
-    val outerWorkflowGraph = namespace.workflow.toWomWorkflowDefinition.map(_.graph)
+    val outerWorkflowGraph = namespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).map(_.graph)
 
     outerWorkflowGraph match {
       case Valid(g) => validateOuter(g)
@@ -138,14 +138,14 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
       """.stripMargin
 
 
-    def innerResolver: ImportResolver = _ => innerWdl
+    def innerResolver: Draft2ImportResolver = _ => innerWdl
 
     val namespace = WdlNamespace.loadUsingSource(
       workflowSource = outerWdl,
       resource = None,
       importResolver = Some(Seq(innerResolver))).get.asInstanceOf[WdlNamespaceWithWorkflow]
 
-    val outerWorkflowGraph = namespace.workflow.toWomWorkflowDefinition.map(_.graph)
+    val outerWorkflowGraph = namespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).map(_.graph)
 
     outerWorkflowGraph match {
       case Valid(g) => validateOuter(g)
@@ -200,14 +200,14 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    def innerResolver: ImportResolver = _ => innerWdl
+    def innerResolver: Draft2ImportResolver = _ => innerWdl
 
     val namespace = WdlNamespace.loadUsingSource(
       workflowSource = outerWdl,
       resource = None,
       importResolver = Some(Seq(innerResolver))).get.asInstanceOf[WdlNamespaceWithWorkflow]
 
-    val outerWorkflowGraph = namespace.workflow.toWomWorkflowDefinition.map(_.graph)
+    val outerWorkflowGraph = namespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).map(_.graph)
 
     outerWorkflowGraph match {
       case Valid(g) => validateOuter(g)

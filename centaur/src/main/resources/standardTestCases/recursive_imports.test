@@ -2,7 +2,7 @@ name: recursive_imports
 testFormat: workflowsuccess
 
 files {
-  wdl: recursive_imports/recursive_imports.wdl
+  workflow: recursive_imports/recursive_imports.wdl
   imports: [
     forkjoin/forkjoin.wdl,
     sub_workflow_hello_world/sub_workflow_hello_world.wdl,

@@ -3,7 +3,7 @@ package cromwell
 import akka.testkit.EventFilter
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.SampleWdl
-import wdl.draft2.model.ImportResolver
+import wdl.draft2.model.Draft2ImportResolver
 import wdl.draft2.model.WdlNamespaceWithWorkflow
 import wdl.draft2.model.expression.NoFunctions
 import wom.types._
@@ -11,7 +11,7 @@ import wom.values._
 
 class ArrayWorkflowSpec extends CromwellTestKitWordSpec {
   val tmpDir = DefaultPathBuilder.createTempDirectory("ArrayWorkflowSpec")
-  val ns = WdlNamespaceWithWorkflow.load(SampleWdl.ArrayLiteral(tmpDir).workflowSource(), Seq.empty[ImportResolver]).get
+  val ns = WdlNamespaceWithWorkflow.load(SampleWdl.ArrayLiteral(tmpDir).workflowSource(), Seq.empty[Draft2ImportResolver]).get
   val expectedArray = WomArray(
     WomArrayType(WomSingleFileType),
     Seq(WomSingleFile("f1"), WomSingleFile("f2"), WomSingleFile("f3"))

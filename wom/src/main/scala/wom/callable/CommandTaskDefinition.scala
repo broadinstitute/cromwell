@@ -36,7 +36,7 @@ object CommandTaskDefinition {
     val none: OutputEvaluationFunction = { case (_ ,_, _, _) => OptionT[Future, EvaluatedOutputs](Future.successful(None)) }
   }
 
-  private implicit val instantiatedCommandMonoid = cats.derive.monoid[InstantiatedCommand]
+  private implicit val instantiatedCommandMonoid = cats.derived.MkMonoid[InstantiatedCommand]
   object CommandTemplateBuilder {
     def fromValues(values: Seq[CommandPart]) = new CommandTemplateBuilder {
       override def build(inputs: WomEvaluatedCallInputs): ErrorOr[Seq[CommandPart]] = values.validNel
@@ -51,7 +51,7 @@ object CommandTaskDefinition {
   * Interface for a TaskDefinition.
   * There are 2 types of TaskDefinition:
   *   - CommandTaskDefinition
-  *   - ExpressionTaskDefinition (coming soon)
+  *   - ExpressionTaskDefinition
   */
 sealed trait TaskDefinition extends Callable {
   def runtimeAttributes: RuntimeAttributes
@@ -74,6 +74,7 @@ sealed trait TaskDefinition extends Callable {
   * Can be Callable only or CallableExecutable
   */
 sealed trait CommandTaskDefinition extends TaskDefinition {
+  def dockerOutputDirectory: Option[String]
   def stdoutOverride: Option[WomExpression]
   def stderrOverride: Option[WomExpression]
   def commandTemplateBuilder: WomEvaluatedCallInputs => ErrorOr[Seq[CommandPart]]
@@ -149,7 +150,8 @@ final case class CallableTaskDefinition(name: String,
                                         stderrOverride: Option[WomExpression] = None,
                                         additionalGlob: Option[WomGlobFile] = None,
                                         private [wom] val customizedOutputEvaluation: OutputEvaluationFunction = OutputEvaluationFunction.none,
-                                        homeOverride: Option[RuntimeEnvironment => String] = None
+                                        homeOverride: Option[RuntimeEnvironment => String] = None,
+                                        dockerOutputDirectory: Option[String] = None
                                        ) extends CommandTaskDefinition {
   def toExecutable: ErrorOr[ExecutableTaskDefinition] = TaskCall.graphFromDefinition(this) map { ExecutableTaskDefinition(this, _) }
 }
@@ -180,6 +182,7 @@ final case class ExecutableTaskDefinition private (callableTaskDefinition: Calla
   override private [wom]  def customizedOutputEvaluation = callableTaskDefinition.customizedOutputEvaluation
   override def toExecutable = this.validNel
   override def homeOverride = callableTaskDefinition.homeOverride
+  override def dockerOutputDirectory = callableTaskDefinition.dockerOutputDirectory
 }
 
 sealed trait ExpressionTaskDefinition extends TaskDefinition {

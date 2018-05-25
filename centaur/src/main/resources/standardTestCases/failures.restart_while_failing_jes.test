@@ -1,10 +1,10 @@
 name: failures.restart_while_failing_jes
 testFormat: WorkflowFailureRestartWithRecover
 callMark: restart_while_failing.B1
-backends: [Jes]
+backends: [Papi]
 
 files {
-  wdl: failures/restart_while_failing/restart_while_failing.wdl
+  workflow: failures/restart_while_failing/restart_while_failing.wdl
 }
 
 metadata {

@@ -59,7 +59,7 @@ trait CromIamApiService extends RequestSupport
 
   val workflowRoutes: Route = queryGetRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~
     workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ labelPatchRoute ~
-    callCacheDiffRoute ~ labelGetRoute
+    callCacheDiffRoute ~ labelGetRoute ~ releaseHoldRoute
 
 
   val allRoutes: Route = handleExceptions(CromIamExceptionHandler) { workflowRoutes ~ engineRoutes }
@@ -70,6 +70,17 @@ trait CromIamApiService extends RequestSupport
         logUserWorkflowAction(user, workflowId, Abort)
         complete {
           authorizeAbortThenForwardToCromwell(user, workflowId, req)
+        }
+      }
+    }
+  }
+
+  def releaseHoldRoute: Route =  path("api" / "workflows" / Segment / Segment / ReleaseHold) { (_, workflowId) =>
+    post {
+      extractUserAndRequest { (user, req) =>
+        logUserWorkflowAction(user, workflowId, ReleaseHold)
+        complete {
+          authorizeUpdateThenForwardToCromwell(user, workflowId, req)
         }
       }
     }
@@ -90,7 +101,7 @@ trait CromIamApiService extends RequestSupport
             logUserWorkflowAction(user, workflowId, Labels)
             validateLabels(Option(labels)) { _ => // Not using the labels, just using this to verify they didn't specify labels we don't want them to
               complete {
-                authorizeReadThenForwardToCromwell(user, List(workflowId), req)
+                authorizeUpdateThenForwardToCromwell(user, workflowId, req)
               }
             }
           }
@@ -157,8 +168,10 @@ trait CromIamApiService extends RequestSupport
       }
     }
 
+
     (for {
-      collections <- Future.sequence(workflowIds.map(id => cromwellClient.collectionForWorkflow(id, user))).map(_.distinct)
+      rootWorkflowIds <- Future.sequence(workflowIds.map(id => cromwellClient.getRootWorkflow(id, user)))
+      collections <- Future.sequence(rootWorkflowIds.map(id => cromwellClient.collectionForWorkflow(id, user))).map(_.distinct)
       _ <- collections traverse authForCollection
       resp <- cromwellClient.forwardToCromwell(request)
     } yield resp) recover {
@@ -169,6 +182,10 @@ trait CromIamApiService extends RequestSupport
 
   private def authorizeReadThenForwardToCromwell(user: User, workflowIds: List[String], request: HttpRequest): Future[HttpResponse] = {
     authorizeThenForwardToCromwell(user, workflowIds, "view", request)
+  }
+
+  private def authorizeUpdateThenForwardToCromwell(user: User, workflowId: String, request: HttpRequest): Future[HttpResponse] = {
+    authorizeThenForwardToCromwell(user, List(workflowId), "update", request)
   }
 
   private def authorizeAbortThenForwardToCromwell(user: User, workflowId: String, request: HttpRequest): Future[HttpResponse] = {
@@ -187,4 +204,5 @@ object CromIamApiService {
 
   val Abort = "abort"
   val Labels = "labels"
+  val ReleaseHold = "releaseHold"
 }

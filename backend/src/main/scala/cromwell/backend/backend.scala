@@ -1,15 +1,19 @@
 package cromwell.backend
 
 import _root_.wdl.draft2.model._
+import akka.actor.ActorSystem
 import com.typesafe.config.Config
+import common.validation.Validation._
 import cromwell.core.WorkflowOptions.WorkflowOption
 import cromwell.core.callcaching.MaybeCallCachingEligible
+import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.labels.Labels
+import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
 import cromwell.core.{CallKey, WorkflowId, WorkflowOptions}
 import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
 import wom.callable.ExecutableCallable
-import wom.graph.GraphNodePort.OutputPort
 import wom.graph.CommandCallNode
+import wom.graph.GraphNodePort.OutputPort
 import wom.values.{WomEvaluatedCallInputs, WomValue}
 
 import scala.util.Try
@@ -78,6 +82,31 @@ case class BackendConfigurationDescriptor(backendConfig: Config, globalConfig: C
       Option(backendConfig.getConfig("default-runtime-attributes"))
     else
       None
+  
+  // So it can be overridden in tests
+  private [backend] lazy val cromwellFileSystems = CromwellFileSystems.instance
+
+  private [backend] lazy val configuredPathBuilderFactories: Map[String, PathBuilderFactory] = {
+    cromwellFileSystems.factoriesFromConfig(backendConfig).unsafe("Failed to instantiate backend filesystem")
+  }
+
+  private lazy val configuredFactoriesWithDefault = if (configuredPathBuilderFactories.values.exists(_ == DefaultPathBuilderFactory)) {
+    configuredPathBuilderFactories
+  } else configuredPathBuilderFactories + DefaultPathBuilderFactory.tuple
+
+  /**
+    * Creates path builders using only the configured factories.
+    */
+  def pathBuilders(workflowOptions: WorkflowOptions)(implicit as: ActorSystem) = {
+    PathBuilderFactory.instantiatePathBuilders(configuredPathBuilderFactories.values.toList, workflowOptions)
+  }
+
+  /**
+    * Creates path builders using only the configured factories + the default factory
+    */
+  def pathBuildersWithDefault(workflowOptions: WorkflowOptions)(implicit as: ActorSystem) = {
+    PathBuilderFactory.instantiatePathBuilders(configuredFactoriesWithDefault.values.toList, workflowOptions)
+  }
 }
 
 final case class AttemptedLookupResult(name: String, value: Try[WomValue]) {

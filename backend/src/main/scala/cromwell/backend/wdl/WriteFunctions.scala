@@ -1,7 +1,5 @@
 package cromwell.backend.wdl
 
-import java.io.File
-
 import better.files.File.OpenOptions
 import cats.instances.future._
 import cats.syntax.functor._
@@ -13,15 +11,19 @@ import wom.values.WomSingleFile
 
 import scala.concurrent.Future
 
-
 trait WriteFunctions extends PathFactory with IoFunctionSet with AsyncIoFunctions {
 
+  /**
+    * True if the writeDirectory will be mounted onto a docker container
+    */
+  def isDocker: Boolean
+  
   /**
     * Directory that will be used to write files.
     */
   def writeDirectory: Path
 
-  private lazy val _writeDirectory = writeDirectory.createPermissionedDirectories()
+  private lazy val _writeDirectory = if (isDocker) writeDirectory.createPermissionedDirectories() else writeDirectory.createDirectories()
 
   override def writeFile(path: String, content: String): Future[WomSingleFile] = {
     val file = _writeDirectory / path
@@ -33,7 +35,7 @@ trait WriteFunctions extends PathFactory with IoFunctionSet with AsyncIoFunction
 
   private val relativeToLocal = System.getProperty("user.dir").ensureSlashed
 
-  def relativeToAbsolutePath(pathFrom: String): String = if (new File(pathFrom).isAbsolute) pathFrom else relativeToLocal + pathFrom
+  def relativeToAbsolutePath(pathFrom: String): String = if (buildPath(pathFrom).isAbsolute) pathFrom else relativeToLocal + pathFrom
 
   override def copyFile(pathFrom: String, targetName: String): Future[WomSingleFile] = {
     val source = buildPath(relativeToAbsolutePath(pathFrom))

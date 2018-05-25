@@ -1,5 +1,7 @@
 package cromwell.engine.io.gcs
 
+import java.io.FileNotFoundException
+
 import akka.actor.ActorRef
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback
@@ -7,6 +9,7 @@ import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpHeaders
 import com.google.api.client.util.ExponentialBackOff
 import com.google.cloud.storage.StorageException
+import cromwell.core.io.SingleFileIoCommand
 import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
 import cromwell.engine.io.IoActor.IoResult
 import cromwell.engine.io.gcs.GcsBatchCommandContext.BatchResponse
@@ -101,9 +104,13 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
     * On failure callback. Fail the promise with a StorageException
     */
   private def onFailureCallback(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders) = {
-    request.onFailure(googleJsonError, httpHeaders) match {
-      case Some(successValue) => handleSuccess(successValue)
-      case None => promise.tryFailure(new StorageException(googleJsonError))
+    (request.onFailure(googleJsonError, httpHeaders), request) match {
+      case (Some(successValue), _) => handleSuccess(successValue)
+      case (None, singleFile: SingleFileIoCommand[_]) if googleJsonError.getCode == 404 =>
+        // Make the message clearer if it's a file not found error
+        googleJsonError.setMessage(s"Object ${singleFile.file.pathAsString} does not exist")
+        promise.tryFailure(new FileNotFoundException(singleFile.file.pathAsString))
+      case (None, _) => promise.tryFailure(new StorageException(googleJsonError))
     }
     ()
   }

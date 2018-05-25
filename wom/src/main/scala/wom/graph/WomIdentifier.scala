@@ -33,4 +33,8 @@ case class WomIdentifier(localName: LocalName, fullyQualifiedName: FullyQualifie
   def combine(other: String): WomIdentifier = {
     WomIdentifier(localName.combineToLocalName(other), fullyQualifiedName.combine(other))
   }
+  def workflowLocalName: String = fullyQualifiedName.value.split("\\.") match {
+    case fqn if fqn.length > 1 => fqn.tail.mkString(".")
+    case lqn => lqn.head
+  }
 }

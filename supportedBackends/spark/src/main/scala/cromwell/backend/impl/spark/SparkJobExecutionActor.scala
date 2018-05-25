@@ -5,7 +5,7 @@ import java.nio.file.attribute.PosixFilePermission
 import akka.actor.{ActorRef, Props}
 import common.exception.MessageAggregation
 import common.validation.Validation._
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobSucceededResponse, RunOnBackend}
 import cromwell.backend._
 import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.backend.io.JobPathsWithDocker
@@ -132,7 +132,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   private def processSuccess(rc: Int) = {
     evaluateOutputs(callEngineFunction, outputMapper(jobPaths)) match {
-      case ValidJobOutputs(outputs) => JobSucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty, dockerImageUsed = None)
+      case ValidJobOutputs(outputs) => JobSucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty, dockerImageUsed = None, resultGenerationMode = RunOnBackend)
       case InvalidJobOutputs(evaluationErrors) =>
         val exception = new MessageAggregation {
           override def exceptionContext: String = "Failed post processing of outputs"

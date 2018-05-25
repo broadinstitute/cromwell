@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 
 
 files {
-  wdl: wdl_function_locations/wdl_function_locations.wdl
+  workflow: wdl_function_locations/wdl_function_locations.wdl
 }
 
 metadata {

@@ -59,6 +59,18 @@ object Validation {
       case Valid(options) => Success(options)
       case Invalid(err) => Failure(AggregatedMessageException(context, err.toList))
     }
+    
+    def unsafe(context: String): A = e.valueOr(errors => throw AggregatedMessageException(context, errors.toList))
+  }
+
+  implicit class ValidationChecked[A](val e: Checked[A]) extends AnyVal {
+    def unsafe(context: String): A = e.valueOr(errors => throw AggregatedMessageException(context, errors.toList))
+
+    def contextualizeErrors(s: String): Checked[A] = e.leftMap { errors =>
+      val total = errors.size
+      errors.zipWithIndex map { case (err, i) => s"Failed to $s (reason ${i + 1} of $total): $err" }
+    }
+
   }
 
   implicit class OptionValidation[A](val o: Option[A]) extends AnyVal {

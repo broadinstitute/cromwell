@@ -11,13 +11,12 @@ import cromwell.core.{SimpleIoActor, WorkflowId, WorkflowSourceFilesWithoutImpor
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
-import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.Rate
-import cromwell.engine.workflow.workflowstore.Submitted
+import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
+import cromwell.engine.workflow.workflowstore.{Submitted, WorkflowHeartbeatConfig}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld.Addressee
 import org.scalatest.BeforeAndAfter
-
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 
@@ -50,8 +49,9 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
     val promise = Promise[Unit]()
     val watchActor = system.actorOf(MetadataWatchActor.props(promise, matchers: _*), s"service-registry-$workflowId-${UUID.randomUUID()}")
     val supervisor = TestProbe()
+    val config = ConfigFactory.load()
     val workflowActor = TestFSMRef(
-      factory = new WorkflowActor(workflowId, Submitted, workflowSources, ConfigFactory.load(),
+      factory = new WorkflowActor(workflowId, Submitted, workflowSources, config,
         ioActor = system.actorOf(SimpleIoActor.props),
         serviceRegistryActor = watchActor,
         workflowLogCopyRouter = system.actorOf(Props.empty, s"workflow-copy-log-router-$workflowId-${UUID.randomUUID()}"),
@@ -62,7 +62,9 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
         dockerHashActor = system.actorOf(EmptyDockerHashActor.props),
         jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second))),
         backendSingletonCollection = BackendSingletonCollection(Map("Local" -> None)),
-        serverMode = true),
+        serverMode = true,
+        workflowStoreActor = system.actorOf(Props.empty),
+        workflowHeartbeatConfig = WorkflowHeartbeatConfig(config)),
       supervisor = supervisor.ref,
       name = s"workflow-actor-$workflowId"
     )

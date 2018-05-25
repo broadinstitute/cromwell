@@ -1,7 +1,8 @@
 package cromwell.engine
 
 import cats.data.NonEmptyList
-import cromwell.core.WorkflowSourceFilesCollection
+import com.typesafe.config.ConfigFactory
+import cromwell.core.{WorkflowOnHold, WorkflowSourceFilesCollection, WorkflowSubmitted}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{NewWorkflowsToStart, NoNewWorkflowsToStart}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
@@ -21,7 +22,10 @@ import scala.language.postfixOps
 
 class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with BeforeAndAfter with Mockito with Eventually {
   val helloWorldSourceFiles = HelloWorld.asWorkflowSources()
+  val helloWorldSourceFilesOnHold = HelloWorld.asWorkflowSources(workflowOnHold = true)
   val helloCwlWorldSourceFiles = HelloWorld.asWorkflowSources(workflowType = Option("CWL"), workflowTypeVersion = Option("v1.0"))
+  val cromwellId = "f00ba4"
+  val heartbeatTtl = 1 hour
 
   /**
     * Fold down a list of WorkflowToStart's, checking that their IDs are all unique
@@ -45,26 +49,37 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
     workflowSourceFiles.copyOptions(workflowSourceFiles.workflowOptionsJson.parseJson.prettyPrint)
   }
 
+  private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(ConfigFactory.load())
+
   "The WorkflowStoreActor" should {
     "return an ID for a submitted workflow" in {
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false))
+      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
       storeActor ! SubmitWorkflow(helloWorldSourceFiles)
       expectMsgType[WorkflowSubmittedToStore](10 seconds)
     }
 
+    "check if workflow state is 'On Hold' when workflowOnHold = true" in {
+      val store = new InMemoryWorkflowStore
+      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
+      storeActor ! SubmitWorkflow(helloWorldSourceFilesOnHold)
+      expectMsgPF(10 seconds) {
+        case submit: WorkflowSubmittedToStore => submit.state shouldBe WorkflowOnHold
+      }
+    }
+
     "return 3 IDs for a batch submission of 3" in {
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false))
+      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
       storeActor ! BatchSubmitWorkflows(NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles))
       expectMsgPF(10 seconds) {
-        case WorkflowsBatchSubmittedToStore(ids) => ids.toList.size shouldBe 3
+        case WorkflowsBatchSubmittedToStore(ids, WorkflowSubmitted) => ids.toList.size shouldBe 3
       }
     }
 
     "fetch exactly N workflows" in {
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false))
+      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
       storeActor ! BatchSubmitWorkflows(NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloCwlWorldSourceFiles))
       val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
 
@@ -107,7 +122,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
 
 
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false))
+      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
       val readMetadataActor = system.actorOf(ReadMetadataActor.props())
       storeActor ! BatchSubmitWorkflows(NonEmptyList.of(optionedSourceFiles))
       val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
@@ -150,7 +165,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
 
     "return only the remaining workflows if N is larger than size" in {
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false))
+      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
       storeActor ! BatchSubmitWorkflows(NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles))
       val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
 
@@ -170,7 +185,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
 
     "remain responsive if you ask to remove a workflow it doesn't have" in {
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false))
+      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
 
       storeActor ! FetchRunnableWorkflows(100)
       expectMsgPF(10 seconds) {

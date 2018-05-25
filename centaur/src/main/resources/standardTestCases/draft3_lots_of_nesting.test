@@ -1,0 +1,16 @@
+name: draft3_lots_of_nesting
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+
+files {
+  workflow: wdl_draft3/lots_of_nesting/lots_of_nesting.wdl
+}
+
+metadata {
+  workflowName: lots_of_nesting
+  status: Succeeded
+  "outputs.lots_of_nesting.s_out.0": "[[\"helloworld\",\"helloworld\"],[\"helloworld\",\"helloworld\"]]"
+  "outputs.lots_of_nesting.s_out.1": "[[\"helloworld\",\"helloworld\"],[\"helloworld\",\"helloworld\"]]"
+}

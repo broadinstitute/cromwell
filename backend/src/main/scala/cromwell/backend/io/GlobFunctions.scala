@@ -2,14 +2,13 @@ package cromwell.backend.io
 
 import cats.instances.list._
 import cats.syntax.traverse._
+import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.CallContext
-import common.validation.ErrorOr.ErrorOr
 import cromwell.core.io.AsyncIoFunctions
-import wom.values._
 import wom.expression.IoFunctionSet
 import wom.graph.CommandCallNode
-import wom.values.WomGlobFile
+import wom.values._
 
 import scala.concurrent.Future
 
@@ -20,7 +19,7 @@ trait GlobFunctions extends IoFunctionSet with AsyncIoFunctions {
   def findGlobOutputs(call: CommandCallNode, jobDescriptor: BackendJobDescriptor): ErrorOr[List[WomGlobFile]] = {
     def fromOutputs = call.callable.outputs.flatTraverse[ErrorOr, WomGlobFile] { outputDefinition =>
       outputDefinition.expression.evaluateFiles(jobDescriptor.localInputs, this, outputDefinition.womType) map {
-        _.toList.flatMap(_.flattenFiles) collect { case glob: WomGlobFile => glob }
+        _.toList.flatMap(_.file.flattenFiles) collect { case glob: WomGlobFile => glob }
       }
     }
     fromOutputs.map(_ ++ call.callable.additionalGlob)

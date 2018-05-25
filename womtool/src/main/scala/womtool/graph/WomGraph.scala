@@ -14,15 +14,16 @@ import cwl.CwlDecoder
 import cwl.preprocessor.CwlPreProcessor
 import spray.json.{JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsValue}
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
-import wdl.draft3.transforms.wdlom2wom.{FileElementAndImportResolvers, fileElementToWomBundle}
+import wdl.draft3.transforms.wdlom2wom.{FileElementToWomBundleInputs, fileElementToWomBundle}
 import wdl.draft3.transforms.ast2wdlom.astToFileElement
 import wdl.draft3.transforms.parsing.fileToAst
 import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomBundleMakers._
 import wom.callable.WorkflowDefinition
 import wom.executable.WomBundle
+import wom.expression.NoIoFunctionSet
 import wom.graph._
 import wom.transforms.WomBundleMaker.ops._
-import wom.types._
+import wom.types.{WomMaybePopulatedFileType, _}
 import womtool.graph.WomGraph._
 
 import scala.collection.JavaConverters._
@@ -32,7 +33,7 @@ class WomGraph(graphName: String, graph: Graph) {
   def indent(s: String) = s.lines.map(x => s"  $x").mkString(System.lineSeparator)
   def combine(ss: Iterable[String]) = ss.mkString(start="", sep=System.lineSeparator, end=System.lineSeparator)
   def indentAndCombine(ss: Iterable[String]) = combine(ss.map(indent))
-  implicit val monoid = cats.derive.monoid[NodesAndLinks]
+  implicit val monoid = cats.derived.MkMonoid[NodesAndLinks]
 
   val digraphDot: String = {
 
@@ -51,7 +52,7 @@ class WomGraph(graphName: String, graph: Graph) {
   private lazy val clusterCount: AtomicInteger = new AtomicInteger(0)
 
   private[graph] def listAllGraphNodes(graph: Graph): NodesAndLinks = {
-    graph.nodes foldMap nodesAndLinks
+    graph.nodes.toList foldMap nodesAndLinks
   }
 
   private def upstreamLinks(graphNode: GraphNode): Set[String] = graphNode match {
@@ -141,14 +142,17 @@ class WomGraph(graphName: String, graph: Graph) {
     innerGraph.withLinks(outputLinks)
   }
 
-  def internalSubworkflowNodesAndLinks(subworkflow: WorkflowCallNode): NodesAndLinks = listAllGraphNodes(subworkflow.callable.innerGraph) wrapNodes { n =>
-    s"""
-       |subgraph $nextCluster {
-       |  style=filled;
-       |  fillcolor=white;
-       |${indentAndCombine(n)}
-       |}
-       |""".stripMargin
+  def internalSubworkflowNodesAndLinks(subworkflow: WorkflowCallNode): NodesAndLinks = {
+
+    listAllGraphNodes(subworkflow.callable.innerGraph) wrapNodes { n =>
+      s"""
+         |subgraph $nextCluster {
+         |  style=filled;
+         |  fillcolor=white;
+         |${indentAndCombine(n)}
+         |}
+         |""".stripMargin
+    }
   }
 
   private def nextCluster: String = "cluster_" + clusterCount.getAndIncrement()
@@ -168,7 +172,7 @@ object WomGraph {
     val empty = NodesAndLinks(Set.empty, Set.empty)
   }
 
-  def fromFiles(mainFile: String, auxFiles: Seq[String]) = {
+  def fromFiles(mainFile: String) = {
     val graph = if (mainFile.toLowerCase().endsWith("wdl")) womExecutableFromWdl(mainFile) else womExecutableFromCwl(mainFile)
     new WomGraph("workflow", graph)
   }
@@ -178,16 +182,20 @@ object WomGraph {
   private def womExecutableFromWdl(filePath: String): Graph = {
     val workflowFileString = readFile(filePath)
 
-    val womBundle: Checked[WomBundle] = if (workflowFileString.trim.startsWith("version draft-3")) {
-      val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen astToFileElement.map(FileElementAndImportResolvers(_, List.empty)) andThen fileElementToWomBundle
+    val version1: Boolean = {
+      val firstLine = workflowFileString.trim
+      firstLine.startsWith("version draft-3") || firstLine.startsWith("version 1.0")
+    }
+    val womBundle: Checked[WomBundle] = if (version1) {
+      val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, "{}", List.empty, List.empty)) andThen fileElementToWomBundle
       converter.run(File(filePath))
     } else {
 
-      WdlNamespaceWithWorkflow.load(readFile(filePath), Seq(WdlNamespace.fileResolver _)).toChecked.flatMap(_.toWomBundle(List.empty))
+      WdlNamespaceWithWorkflow.load(readFile(filePath), Seq(WdlNamespace.fileResolver _)).toChecked.flatMap(_.toWomBundle)
     }
 
     womBundle match {
-      case Right(wom) if (wom.callables.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).size == 1 => (wom.callables.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).head.graph
+      case Right(wom) if (wom.allCallables.values.toSet.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).size == 1 => (wom.allCallables.values.toSet.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).head.graph
       case Right(_) => throw new Exception("Can only 'wom graph' a WDL with exactly one workflow")
       case Left(errors) =>
         val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())
@@ -203,7 +211,7 @@ object WomGraph {
         unsafeRunSync
       inputs = clt.requiredInputs
       fakedInputs = JsObject(inputs map { i => i._1 -> fakeInput(i._2) })
-      wom <- clt.womExecutable(AcceptAllRequirements, Option(fakedInputs.prettyPrint))
+      wom <- clt.womExecutable(AcceptAllRequirements, Option(fakedInputs.prettyPrint), NoIoFunctionSet, strictValidation = false)
     } yield wom) match {
       case Right(womExecutable) => womExecutable.graph
       case Left(e) => throw new Exception(s"Can't build WOM executable from CWL: ${e.toList.mkString("\n", "\n", "\n")}")
@@ -212,10 +220,11 @@ object WomGraph {
 
   def fakeInput(womType: WomType): JsValue = womType match {
     case WomStringType => JsString("hio")
-    case WomIntegerType | WomFloatType => JsNumber(25)
+    case WomIntegerType | WomFloatType | WomLongType => JsNumber(25)
     case WomUnlistedDirectoryType => JsString("gs://bucket/path")
     case WomSingleFileType => JsString("gs://bucket/path/file.txt")
     case WomBooleanType => JsBoolean(true)
+    case WomMaybePopulatedFileType => JsString("x")
     case _: WomOptionalType => JsNull
     case WomMapType(_, valueType) => JsObject(Map("0" -> fakeInput(valueType)))
     case WomArrayType(innerType) => JsArray(Vector(fakeInput(innerType)))

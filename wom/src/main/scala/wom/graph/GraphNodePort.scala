@@ -29,7 +29,12 @@ object GraphNodePort {
       * Alias for identifier.localName.asString
       */
     override def name = identifier.localName.value
-    // TODO: Might end up wanting a backwards link to the InputPorts that use this (eg def downstream: Set[InputPort])?
+
+    /**
+      * The name with which to refer to this port from within the same Node (as opposed to 'name' which is how it is
+      * referred to from the outside. Currently this is only different in WDL, so we can hard code this function:
+      */
+    def internalName = identifier.localName.value.split("\\.").last
   }
 
   /**
@@ -52,11 +57,8 @@ object GraphNodePort {
     }
   }
   case class GraphNodeOutputPort(override val identifier: WomIdentifier, womType: WomType, graphNode: GraphNode) extends OutputPort
-  object ExpressionBasedOutputPort {
-    def apply(localName: LocalName, womType: WomType, graphNode: GraphNode, expression: WomExpression): ExpressionBasedOutputPort = {
-      ExpressionBasedOutputPort(WomIdentifier(localName, graphNode.identifier.fullyQualifiedName.combine(localName.value)), womType, graphNode, expression)
-    }
-  }
+
+  object ExpressionBasedOutputPort
   case class ExpressionBasedOutputPort(override val identifier: WomIdentifier, womType: WomType, graphNode: GraphNode, expression: WomExpression) extends OutputPort
 
   /**
@@ -80,8 +82,7 @@ object GraphNodePort {
   /**
     * Represents an output port from a workflow call, based on the output that it exposes.
     */
-  final case class SubworkflowCallOutputPort(outputToExpose: GraphOutputNode, workflowCallNode: WorkflowCallNode) extends OutputPort {
-    override val identifier: WomIdentifier = outputToExpose.identifier
+  final case class SubworkflowCallOutputPort(identifier: WomIdentifier, outputToExpose: GraphOutputNode, workflowCallNode: WorkflowCallNode) extends OutputPort {
     override val womType: WomType = outputToExpose.womType
     override val graphNode: GraphNode = workflowCallNode
   }

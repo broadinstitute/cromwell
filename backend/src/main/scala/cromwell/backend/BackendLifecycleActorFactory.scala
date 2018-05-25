@@ -6,6 +6,7 @@ import cromwell.backend.io.WorkflowPathsWithDocker
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.CallOutputs
 import cromwell.core.path.Path
+import cromwell.core.path.PathFactory.PathBuilders
 import net.ceedubs.ficus.Ficus._
 import wom.expression.{IoFunctionSet, NoIoFunctionSet}
 import wom.graph.CommandCallNode
@@ -96,6 +97,8 @@ trait BackendLifecycleActorFactory {
                                   initializationData: Option[BackendInitializationData],
                                   ioActor: ActorRef,
                                   ec: ExecutionContext): IoFunctionSet = NoIoFunctionSet
+  
+  def pathBuilders(initializationDataOption: Option[BackendInitializationData]): PathBuilders = List.empty
 
   def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config, initializationData: Option[BackendInitializationData]): Path = {
     new WorkflowPathsWithDocker(workflowDescriptor, backendConfig).executionRoot
@@ -112,9 +115,18 @@ trait BackendLifecycleActorFactory {
     */
   def requestedKeyValueStoreKeys: Seq[String] = Seq.empty
 
+  /**
+    * A set of KV store keys that are requested and looked up on behalf of all backends before running each job.
+    */
+  def defaultKeyValueStoreKeys: Seq[String] = Seq(BackendLifecycleActorFactory.FailedRetryCountKey)
+
   /*
    * Returns credentials that can be used to authenticate to a docker registry server
    * in order to obtain a docker hash.
    */
   def dockerHashCredentials(initializationDataOption: Option[BackendInitializationData]): List[Any] = List.empty
+}
+
+object BackendLifecycleActorFactory {
+  val FailedRetryCountKey = "FailedRetryCount"
 }

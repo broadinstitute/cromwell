@@ -15,10 +15,10 @@ object JobInstrumentation {
   private val jobTimingKey = NonEmptyList.one("timing")
 
   private def backendJobExecutionResponsePaths(response: BackendJobExecutionResponse) = response match {
-    case _: JobSucceededResponse => jobTimingKey.concat(SuccessKey)
-    case _: JobAbortedResponse => jobTimingKey.concat(AbortedKey)
-    case _: JobFailedNonRetryableResponse => jobTimingKey.concat(FailureKey)
-    case _: JobFailedRetryableResponse => jobTimingKey.concat(RetryKey)
+    case _: JobSucceededResponse => jobTimingKey.concatNel(SuccessKey)
+    case _: JobAbortedResponse => jobTimingKey.concatNel(AbortedKey)
+    case _: JobFailedNonRetryableResponse => jobTimingKey.concatNel(FailureKey)
+    case _: JobFailedRetryableResponse => jobTimingKey.concatNel(RetryKey)
   }
 }
 

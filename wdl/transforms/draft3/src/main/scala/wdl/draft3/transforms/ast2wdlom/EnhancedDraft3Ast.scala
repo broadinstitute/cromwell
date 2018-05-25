@@ -1,21 +1,14 @@
 package wdl.draft3.transforms.ast2wdlom
 
-import cats.data.NonEmptyList
-import cats.instances.map
 import cats.instances.vector._
-import cats.syntax.apply._
 import cats.syntax.either._
-import cats.syntax.flatMap
 import cats.syntax.traverse._
-import cats.syntax.validated._
 import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.Checked._
-import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import wdl.draft3.parser.WdlParser.{Ast, AstList, AstNode}
 
-import scala.collection._
 import scala.collection.JavaConverters._
 
 object EnhancedDraft3Ast {
@@ -53,16 +46,20 @@ object EnhancedDraft3Ast {
         // This toValidated/toEither dance is necessary to
         // (1) collect all errors from the traverse as an ErrorOr, then
         // (2) convert back into a Checked for the flatMap
-        result <- asVector.traverse[ErrorOr, A](item => toA.run(item).toValidated).toEither
+        result <- asVector.traverse(item => toA.run(item).toValidated).toEither
       } yield result
     }
 
     /**
       * Gets an attribute on this Ast as an Optional Ast, returns an empty Option if the attribute is empty.
       */
-    def getAttributeAsOptional[A](attr: String)(implicit toA: CheckedAtoB[AstNode, Option[A]]): Checked[Option[A]] =  {
-      val attribute: Option[AstNode] = Option(ast.getAttribute(attr))
-      attribute.map(toA.run).getOrElse(Option.empty.validNelCheck)
+    def getAttributeAsOptional[A](attr: String)(implicit toA: CheckedAtoB[AstNode, A]): Checked[Option[A]] =  {
+      Option(ast.getAttribute(attr)) match {
+        case None => None.validNelCheck
+        case Some(attribute) => toA.run(attribute).map(Option.apply)
+      }
+
+
     }
   }
 }

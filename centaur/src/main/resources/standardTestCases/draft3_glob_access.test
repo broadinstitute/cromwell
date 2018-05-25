@@ -1,0 +1,15 @@
+name: draft3_glob_access
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+
+files {
+  workflow: wdl_draft3/draft3_glob_access/draft3_glob_access.wdl
+}
+
+metadata {
+  workflowName: draft3_glob_access
+  status: Succeeded
+  "outputs.draft3_glob_access.globArrayContent": "globArray"
+}

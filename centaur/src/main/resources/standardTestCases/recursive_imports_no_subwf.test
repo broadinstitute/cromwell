@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 tags: [subworkflow]
 
 files {
-  wdl: recursive_imports_no_subwf/recursive_imports_no_subwf.wdl
+  workflow: recursive_imports_no_subwf/recursive_imports_no_subwf.wdl
   imports: [
     recursive_imports_no_subwf/recimp_nosubwf_inner.wdl,
     recursive_imports_no_subwf/recimp_nosubwf_outer.wdl

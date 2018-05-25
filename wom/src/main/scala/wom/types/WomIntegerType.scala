@@ -1,6 +1,7 @@
 package wom.types
 
 import spray.json.{JsNumber, JsString}
+import wom.types.WomIntegerLike._
 import wom.values.{WomInteger, WomLong, WomString}
 
 import scala.util.{Success, Try}
@@ -12,10 +13,18 @@ case object WomIntegerType extends WomPrimitiveType {
     case i: Integer => WomInteger(i)
     case n: JsNumber if n.value.isValidInt => WomInteger(n.value.intValue())
     case i: WomInteger => i
-    case WomLong(i) if (i >= Int.MinValue && i <= Int.MaxValue) => WomInteger(i.toInt)
-    case WomLong(i) => throw new RuntimeException(s"Tried to convert a long value $i into an integer but it was outside the bounds of acceptable Integers, namely ${Int.MinValue} <-> ${Int.MaxValue}")
-    case s: WomString => WomInteger(s.value.toInt)
-    case s: String => WomInteger(s.toInt)
+    case WomLong(i) if i.inIntRange => WomInteger(i.toInt)
+    case WomLong(i) => throw new RuntimeException(
+      s"Tried to convert a Long value $i into an Int but it was outside the bounds of acceptable Ints, namely ${Int.MinValue} <-> ${Int.MaxValue}")
+    case s: WomString => {
+        WomInteger(s.value.toInt)
+    }
+    case s: String =>
+      val bigTry = Try(BigDecimal(s))
+      if (bigTry.isSuccess)
+        WomInteger(bigTry.get.intValue())
+      else
+        WomInteger(s.toInt)
     case s: JsString => WomInteger(s.value.toInt)
   }
 

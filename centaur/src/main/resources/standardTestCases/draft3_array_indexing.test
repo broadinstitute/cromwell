@@ -1,0 +1,19 @@
+name: draft3_array_indexing
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+
+files {
+  workflow: wdl_draft3/array_indexing/array_indexing.wdl
+}
+
+metadata {
+  workflowName: array_indexing
+  status: Succeeded
+  "outputs.array_indexing.array_deref": 25
+  "outputs.array_indexing.struct_deref": 55
+  "outputs.array_indexing.string_map_deref": 101
+  "outputs.array_indexing.int_map_deref": "int_value"
+
+}

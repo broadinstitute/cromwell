@@ -1,9 +1,9 @@
 name: fofn_caching
 testFormat: runtwiceexpectingcallcaching
-backends: [Jes-Caching-No-Copy]
+backends: [Papi-Caching-No-Copy]
 
 files {
-  wdl: fofn_caching/fofn_caching.wdl
+  workflow: fofn_caching/fofn_caching.wdl
 }
 
 metadata {

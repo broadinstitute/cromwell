@@ -1,4 +1,4 @@
-version draft-3
+version 1.0
 
 # This WDL contains expressions that won't be linkable, but it should be parseable and wdlom-able:
 workflow input_expressions {

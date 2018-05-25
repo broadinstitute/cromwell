@@ -53,26 +53,26 @@ private object IoInstrumentationImplicits {
         case _ => UnknownFileSystemPath
       }
 
-      path.concat(ioCommand.name)
+      path.concatNel(ioCommand.name)
     }
 
     /**
       * Returns a successful instrumentation path for this IoCommand
       */
-    def successPath: InstrumentationPath = ioCommand.toPath.concat(SuccessKey)
+    def successPath: InstrumentationPath = ioCommand.toPath.concatNel(SuccessKey)
 
     /**
       * Returns a failed instrumentation path for this IoCommand provided a throwable
       */
     def failedPath(failure: Throwable): InstrumentationPath = {
-      ioCommand.toPath.concat(FailureKey).withStatusCodeFailure(GoogleUtil.extractStatusCode(failure))
+      ioCommand.toPath.concatNel(FailureKey).withStatusCodeFailure(GoogleUtil.extractStatusCode(failure))
     }
 
     /**
       * Returns a retried instrumentation path for this IoCommand provided a throwable
       */
     def retriedPath(failure: Throwable): InstrumentationPath = {
-      ioCommand.toPath.concat(RetryKey).withStatusCodeFailure(GoogleUtil.extractStatusCode(failure))
+      ioCommand.toPath.concatNel(RetryKey).withStatusCodeFailure(GoogleUtil.extractStatusCode(failure))
     }
   }
 }

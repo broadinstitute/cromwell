@@ -2,7 +2,7 @@ name: mutect2
 testFormat: workflowsuccess
 
 files {
-  wdl: Somatic/Mutect2/Mutect2.wdl
+  workflow: Somatic/Mutect2/Mutect2.wdl
   inputs: Somatic/Mutect2/Mutect2.inputs
 }
 

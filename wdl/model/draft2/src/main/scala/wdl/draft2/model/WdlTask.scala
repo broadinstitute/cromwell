@@ -18,7 +18,7 @@ import scala.language.postfixOps
 
 object WdlTask {
   val Ws = Pattern.compile("[\\ \\t]+")
-  private implicit val instantiatedCommandMonoid = cats.derive.monoid[InstantiatedCommand]
+  private implicit val instantiatedCommandMonoid = cats.derived.MkMonoid[InstantiatedCommand]
 
   /** The function validateDeclaration() and the DeclarationAccumulator class are used
     * to accumulate errors and keep track of which Declarations/TaskOutputs have been examined.

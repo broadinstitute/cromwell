@@ -166,7 +166,6 @@ On the Local, SGE, and associated backends any GCS URI will be downloaded locall
 precedence over the `root` specified at `backend.providers.JES.config.root` in the configuration file. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
 workflows using the Google backend.
 
-
 #### Google Labels
 
 Every call run on the Pipelines API backend is given certain labels by default, so that Google resources can be queried by these labels later. The current default label set automatically applied is:

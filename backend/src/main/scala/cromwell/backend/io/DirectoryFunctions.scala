@@ -7,13 +7,15 @@ import common.util.StringUtil._
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend.BackendJobDescriptor
-import cromwell.backend.io.DirectoryFunctions._
+import cromwell.backend.io.DirectoryFunctions.listFiles
 import cromwell.core.path.{Path, PathFactory}
 import wom.expression.IoFunctionSet
+import wom.expression.IoFunctionSet.{IoDirectory, IoElement, IoFile}
 import wom.graph.CommandCallNode
 import wom.values.{WomFile, WomGlobFile, WomMaybeListedDirectory, WomMaybePopulatedFile, WomSingleFile, WomUnlistedDirectory}
 
 import scala.concurrent.Future
+import scala.util.Try
 
 trait DirectoryFunctions extends IoFunctionSet with PathFactory {
 
@@ -21,9 +23,28 @@ trait DirectoryFunctions extends IoFunctionSet with PathFactory {
                            jobDescriptor: BackendJobDescriptor): ErrorOr[List[WomUnlistedDirectory]] = {
     call.callable.outputs.flatTraverse[ErrorOr, WomUnlistedDirectory] { outputDefinition =>
       outputDefinition.expression.evaluateFiles(jobDescriptor.localInputs, this, outputDefinition.womType) map {
-        _.toList.flatMap(_.flattenFiles) collect { case unlistedDirectory: WomUnlistedDirectory => unlistedDirectory }
+        _.toList.flatMap(_.file.flattenFiles) collect { case unlistedDirectory: WomUnlistedDirectory => unlistedDirectory }
       }
     }
+  }
+
+  override def isDirectory(path: String) = Future.fromTry(Try(buildPath(path).isDirectory))
+
+  override def listDirectory(path: String)(visited: Vector[String] = Vector.empty): Future[Iterator[IoElement]] = {
+    Future.fromTry(Try {
+      val visitedPaths = visited.map(buildPath)
+      val cromwellPath = buildPath(path.ensureSlashed)
+
+      // To prevent infinite recursion through symbolic links make sure we don't visit the same directory twice
+      def hasBeenVisited(other: Path) = visitedPaths.exists(_.isSameFileAs(other))
+
+      cromwellPath.list.collect({
+        case directory if directory.isDirectory &&
+          !cromwellPath.isSamePathAs(directory) &&
+          !hasBeenVisited(directory) => IoDirectory(directory.pathAsString)
+        case file => IoFile(file.pathAsString)
+      })
+    })
   }
 
   override def listAllFilesUnderDirectory(dirPath: String): Future[Seq[String]] = {
@@ -41,25 +62,7 @@ trait DirectoryFunctions extends IoFunctionSet with PathFactory {
 }
 
 object DirectoryFunctions {
-  def listFiles(path: Path): ErrorOr[List[Path]] = {
-    def listPaths(path: Path, checkedPaths: Set[Path]): ErrorOr[Set[Path]] = {
-      val newCheckedPaths = checkedPaths ++ Set(path)
-      if (path.isDirectory) {
-        for {
-          pathListing <- validate(path.list.toSet)
-          uncheckedPaths = pathListing -- newCheckedPaths
-          pathsPerListing <-
-            uncheckedPaths.toList.traverse[ErrorOr, List[Path]](listPaths(_, newCheckedPaths).map(_.toList))
-        } yield checkedPaths ++ pathsPerListing.flatten.toSet
-      } else {
-        newCheckedPaths.valid
-      }
-    }
-
-    val allPaths = listPaths(path, Set.empty).map(_.toList)
-    val allFiles = allPaths.map(_.filterNot(_.isDirectory))
-    allFiles
-  }
+  def listFiles(path: Path): ErrorOr[List[Path]] = path.listRecursively.filterNot(_.isDirectory).toList.validNel
 
   def listWomSingleFiles(womFile: WomFile, pathFactory: PathFactory): ErrorOr[List[WomSingleFile]] = {
     def listWomSingleFiles(womFile: WomFile): ErrorOr[List[WomSingleFile]] = {

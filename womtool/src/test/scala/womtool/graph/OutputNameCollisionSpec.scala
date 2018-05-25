@@ -32,8 +32,8 @@ class OutputNameCollisionSpec extends WomDotGraphTest {
   val outputCollisionWdlGraph = {
     val namespace = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
 
-    namespace.toWomBundle(List.empty) match {
-      case Right(bundle) => (bundle.callables.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).head.graph
+    namespace.toWomBundle match {
+      case Right(bundle) => (bundle.allCallables.values.toSet.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).head.graph
       case Left(errors) => throw new Exception(errors.toList.mkString(", "))
     }
   }
@@ -47,9 +47,9 @@ class OutputNameCollisionSpec extends WomDotGraphTest {
       |  subgraph cluster_0 {
       |    style="filled,solid";
       |    fillcolor=white;
-      |    "NODE2" [shape=plaintext label="call tsk"]
-      |    "PORT0" [shape=hexagon label="Array[Array[File]] out"];
-      |    "PORT3" [shape=hexagon label="Array[File] reads_1"];
+      |    "NODE2" [shape=plaintext label="call wf.tsk (tsk)"]
+      |    "PORT0" [shape=hexagon label="Array[Array[File]] tsk.out"];
+      |    "PORT3" [shape=hexagon label="Array[File] tsk.reads_1"];
       |  }
       |  subgraph cluster_1 {
       |    style="filled,solid";

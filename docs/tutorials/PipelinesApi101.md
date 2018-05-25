@@ -78,7 +78,8 @@ workflow wf_hello {
 **Google Configuration File**
 
 Copy over the sample `google.conf` file utilizing <a href="https://developers.google.com/identity/protocols/application-default-credentials" target="_blank">Application Default credentials</a> to the same directory that contains your sample WDL, inputs and Cromwell jar.
-Replace `<google-project-id>` and `<google-bucket-name>`in the configuration file with the project id and bucket name.  
+Replace `<google-project-id>` and `<google-bucket-name>`in the configuration file with the project id and bucket name. Replace `<google-billing-project-id>` with the project id that has to be billed for the request (more information for Requester Pays can be found at:
+<a href="https://cloud.google.com/storage/docs/requester-pays" target="_blank">Requester Pays</a>)
 
 ***google.conf***
 ```
@@ -100,6 +101,7 @@ engine {
   filesystems {
     gcs {
       auth = "application-default"
+      project = "<google-billing-project-id>"
     }
   }
 }
@@ -112,7 +114,6 @@ backend {
       config {
         // Google project
         project = "<google-project-id>"
-        compute-service-account = "default"
 
         // Base bucket for workflow executions
         root = "gs://<google-bucket-name>/cromwell-execution"
@@ -133,12 +134,15 @@ backend {
           auth = "application-default"
           // Endpoint for APIs, no reason to change this unless directed by Google.
           endpoint-url = "https://genomics.googleapis.com/"
+          // This allows you to use an alternative service account to launch jobs, by default uses default service account
+          compute-service-account = "default"
         }
 
         filesystems {
           gcs {
             // A reference to a potentially different auth for manipulating files via engine functions.
             auth = "application-default"
+            project = "<google-billing-project-id>"
           }
         }
       }

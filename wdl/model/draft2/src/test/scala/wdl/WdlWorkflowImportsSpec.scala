@@ -234,7 +234,7 @@ class WdlWorkflowImportsSpec extends FlatSpec with Matchers {
   val wdlWithImports = imports + primaryWorkflow
 
   val namespace = {
-    val resolvers: Seq[ImportResolver] = Seq(WdlNamespace.directoryResolver(wdlDirectory), WdlNamespace.fileResolver)
+    val resolvers: Seq[Draft2ImportResolver] = Seq(WdlNamespace.directoryResolver(wdlDirectory), WdlNamespace.fileResolver)
     WdlNamespaceWithWorkflow.load(wdlWithImports, resolvers).get
   }
 

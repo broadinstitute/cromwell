@@ -23,7 +23,7 @@ object WdlDraft2WomGraphMaker extends WomGraphMaker[Scope] {
     * - Adds in any extras from 'includeGraphNode' which the call knows should also be in the Graph (eg the Scatter variable's InputGraphNode which this method doesn't know exists)
     * - Builds them all together into a Graph
     */
-  override def toWomGraph(scope: Scope, includeGraphNodes: Set[GraphNode], outerLookup: Map[String, OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[Graph] = {
+  override def toWomGraph(scope: Scope, includeGraphNodes: Set[GraphNode], outerLookup: Map[String, OutputPort], preserveIndexForOuterLookups: Boolean, inASubworkflow: Boolean): ErrorOr[Graph] = {
 
     final case class FoldState(nodes: Set[GraphNode], availableInputs: Map[String, GraphNodePort.OutputPort])
 
@@ -38,9 +38,9 @@ object WdlDraft2WomGraphMaker extends WomGraphMaker[Scope] {
       buildNode(goodAcc, node).leftMap(errors => errors.map(s"Unable to build WOM node for ${node.getClass.getSimpleName} '${node.womIdentifier.localName.value}': " + _))
     }
 
-    def foldInGeneratedNodeAndNewInputs(acc: FoldState, outputPortPrefix: String)(gnani: GeneratedNodeAndNewNodes): FoldState = {
+    def foldInGeneratedNodeAndNewInputs(acc: FoldState)(gnani: GeneratedNodeAndNewNodes): FoldState = {
       // The output ports from the new node
-      val newCallOutputPorts = (gnani.node.outputPorts map { p => s"$outputPortPrefix${p.name}" -> p }).toMap
+      val newCallOutputPorts = (gnani.node.outputPorts map { p => p.identifier.localName.value -> p }).toMap
       // The output ports from newly created GraphInputNodes:
       val newInputOutputPorts = (gnani.newInputs map { i => i.localName -> i.singleOutputPort }).toMap
       val usedOuterGraphInputNodes = gnani.usedOuterGraphInputNodes
@@ -65,8 +65,8 @@ object WdlDraft2WomGraphMaker extends WomGraphMaker[Scope] {
     def buildNode(acc: FoldState, node: WdlGraphNode): ErrorOr[FoldState] = node match {
 
       case wdlCall: WdlCall =>
-        wdlCall.toWomCallNode(acc.availableInputs, outerLookup, preserveIndexForOuterLookups) map { cnani: CallNodeAndNewNodes =>
-          foldInGeneratedNodeAndNewInputs(acc, cnani.node.localName + ".")(cnani)
+        wdlCall.toWomCallNode(acc.availableInputs, outerLookup, preserveIndexForOuterLookups, inASubworkflow) map { cnani: CallNodeAndNewNodes =>
+          foldInGeneratedNodeAndNewInputs(acc)(cnani)
         }
 
       case decl: DeclarationInterface => Declaration.buildWdlDeclarationNode(decl, acc.availableInputs, outerLookup, preserveIndexForOuterLookups) map { wdlDeclNode =>
@@ -87,9 +87,9 @@ object WdlDraft2WomGraphMaker extends WomGraphMaker[Scope] {
       }
 
       case scatter: Scatter =>
-        scatter.toWomScatterNode(acc.availableInputs, outerLookup, preserveIndexForOuterLookups) map { foldInGeneratedNodeAndNewInputs(acc, "")(_) }
+        scatter.toWomScatterNode(acc.availableInputs, outerLookup, preserveIndexForOuterLookups, inASubworkflow) map { foldInGeneratedNodeAndNewInputs(acc)(_) }
       case ifBlock: If =>
-        ifBlock.toWomConditionalNode(acc.availableInputs, outerLookup, preserveIndexForOuterLookups) map { foldInGeneratedNodeAndNewInputs(acc, "")(_) }
+        ifBlock.toWomConditionalNode(acc.availableInputs, outerLookup, preserveIndexForOuterLookups, inASubworkflow) map { foldInGeneratedNodeAndNewInputs(acc)(_) }
 
       case _ => s"Cannot process WdlGraphNodes of type ${node.getClass.getSimpleName} yet!".invalidNel
     }

@@ -3,7 +3,7 @@ name: single_to_array_coercion
 testFormat: workflowsuccess
 
 files {
-  wdl: single_to_array_coercion/single_to_array_coercion.wdl
+  workflow: single_to_array_coercion/single_to_array_coercion.wdl
 }
 
 metadata {

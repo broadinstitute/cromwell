@@ -5,7 +5,7 @@ import cwl.CwlDecoder.decodeCwlFile
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import shapeless.Coproduct
-import wom.expression.WomExpression
+import wom.expression.{NoIoFunctionSet, WomExpression}
 import wom.graph.Graph.ResolvedExecutableInput
 import wom.graph.GraphNodePort
 import wom.types.{WomArrayType, WomStringType}
@@ -15,8 +15,10 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
   behavior of "CWL Wom executable"
 
   var cwlFile: BFile = _
+  var inputTempFile: BFile = _
   
   override def beforeAll(): Unit = {
+    inputTempFile = BFile.newTemporaryFile()
     cwlFile = BFile.newTemporaryFile().write(
       """
         |cwlVersion: v1.0
@@ -60,6 +62,7 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
   
   override def afterAll(): Unit = {
     cwlFile.delete()
+    inputTempFile.delete()
     ()
   }
 
@@ -87,7 +90,7 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
   lazy val w10OutputPort = getOutputPort(10)
   
   def validate(inputFile: String): Map[GraphNodePort.OutputPort, ResolvedExecutableInput] = {
-    cwlWorkflow.womExecutable(AcceptAllRequirements, Option(inputFile)) match {
+    cwlWorkflow.womExecutable(AcceptAllRequirements, Option(inputFile), LocalIoFunctionSet, strictValidation = false) match {
       case Left(errors) => fail(s"Failed to build a wom executable: ${errors.toList.mkString(", ")}")
       case Right(executable) => executable.resolvedExecutableInputs
     }
@@ -95,10 +98,10 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
 
   it should "parse and validate a valid input file" in {
     val inputFile =
-      """
+      s"""
         w1:
           class: File
-          path: my_file.txt
+          path: ${inputTempFile.toString()}
           secondaryFiles:
             - class: File
               path: secondaryFile.txt
@@ -112,9 +115,6 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
           ["a", "b"],
           ["c", "d"]
         ]
-        w9: 
-          w9a:
-            w9aa: "hello"
         w10:
           class: Directory
           location: "directory_location"
@@ -124,18 +124,22 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
             - class: File
               location: "innerFile"
       """.stripMargin
+    // TODO: With record schema, re-add:
+    //        w9:
+    //          w9a:
+    //            w9aa: "hello"
 
     val validInputs = validate(inputFile).map {
       case (port, resolvedInput) => (port.name, resolvedInput)
     }
 
     // w0 has no input value in the input file, so it should fallback to the default value
-    // TODO WOM: when we have string value for wom expression, check that it's "hi !"
     validInputs(w0OutputPort.name).select[WomExpression].get.sourceString shouldBe "hi w0 !"
     validInputs(w1OutputPort.name) shouldBe
       Coproduct[ResolvedExecutableInput](WomMaybePopulatedFile(
-        valueOption = Option("my_file.txt"),
-        secondaryFiles = List(WomMaybePopulatedFile("secondaryFile.txt"))
+        valueOption = Option(inputTempFile.toString()),
+        secondaryFiles = List(WomMaybePopulatedFile("secondaryFile.txt")),
+        sizeOption = Option(0)
       ): WomValue)
     validInputs(w2OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomString("hello !"): WomValue)
     validInputs(w3OutputPort.name) shouldBe Coproduct[ResolvedExecutableInput](WomInteger(3): WomValue)
@@ -178,7 +182,7 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
         w2: hello !
       """.stripMargin
 
-    cwlWorkflow.womExecutable(AcceptAllRequirements, Option(inputFile)) match {
+    cwlWorkflow.womExecutable(AcceptAllRequirements, Option(inputFile), NoIoFunctionSet, strictValidation = false) match {
       case Right(booh) => fail(s"Expected failed validation but got valid input map: $booh")
       case Left(errors) => errors.toList.toSet shouldBe Set(
         "Required workflow input 'w1' not specified",

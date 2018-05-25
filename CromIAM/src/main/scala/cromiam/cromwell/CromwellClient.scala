@@ -13,7 +13,7 @@ import cromiam.auth.{Collection, User}
 import cromiam.cromwell.CromwellClient._
 import cromwell.api.{CromwellClient => CromwellApiClient}
 import cromiam.server.status.StatusCheckedSubsystem
-import cromwell.api.model.{WorkflowId, WorkflowLabels}
+import cromwell.api.model.{WorkflowId, WorkflowLabels, WorkflowMetadata}
 import spray.json._
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
@@ -33,21 +33,15 @@ class CromwellClient(scheme: String, interface: String, port: Int, log: LoggingA
 
   override val statusUri = uri"$cromwellUrl/engine/$cromwellApiVersion/status"
 
-  /**
-    FIXME:
+  val cromwellApiClient: CromwellApiClient = new CromwellApiClient(cromwellUrl, cromwellApiVersion)
 
-    Creating a new client here every time sucks but currently headers on the CromwellClient are per-client and
-    we need them to be per-request. A minor change to Cromwell, but beyond the skateboard we currently have
-  */
   def collectionForWorkflow(workflowId: String, user: User): Future[Collection] = {
     import CromwellClient.EnhancedWorkflowLabels
 
     log.info("Requesting collection for " + workflowId + " for user " + user.userId + " from metadata")
 
-    val client = new CromwellApiClient(cromwellUrl, cromwellApiVersion, Option(user.authorization.credentials))
-
     // Look up in Cromwell what the collection is for this workflow. If it doesn't exist, fail the Future
-    client.labels(WorkflowId.fromString(workflowId)) flatMap {
+    cromwellApiClient.labels(WorkflowId.fromString(workflowId), headers = List(user.authorization)) flatMap {
       _.caasCollection match {
         case Some(c) => Future.successful(c)
         case None => Future.failed(new IllegalArgumentException(s"Workflow $workflowId has no associated collection"))
@@ -56,13 +50,40 @@ class CromwellClient(scheme: String, interface: String, port: Int, log: LoggingA
   }
 
   def forwardToCromwell(httpRequest: HttpRequest): Future[HttpResponse] = {
-      val headers = httpRequest.headers.filterNot(header => header.name == TimeoutAccessHeader)
-      val cromwellRequest = httpRequest
-        .copy(uri = httpRequest.uri.withAuthority(interface, port).withScheme(scheme))
-        .withHeaders(headers)
-      Http().singleRequest(cromwellRequest)
+    val headers = httpRequest.headers.filterNot(header => header.name == TimeoutAccessHeader)
+    val cromwellRequest = httpRequest
+      .copy(uri = httpRequest.uri.withAuthority(interface, port).withScheme(scheme))
+      .withHeaders(headers)
+    Http().singleRequest(cromwellRequest)
   } recoverWith {
     case e => Future.failed(CromwellConnectionFailure(e))
+  }
+
+  /**
+    * Retrieve the root workflow ID for a workflow ID. This is used in case the user is inquiring about a subworkflow.
+    */
+  def getRootWorkflow(workflowId: String, user: User): Future[String] = {
+    def metadataToRootWorkflowId(metadata: WorkflowMetadata): String = {
+      import spray.json._
+      /*
+          Parse the JSON and then look for a top level field in the response object called rootWorkflowId, and return.
+          If for some reason there's not a root workflow ID (not a subworkflow and/or this is an old workflow), just
+          use the current workflow id.
+
+          This is all called from inside the context of a Future, so exceptions will be properly caught.
+      */
+      metadata.value.parseJson.asJsObject.fields.get("rootWorkflowId").map(_.convertTo[String]).getOrElse(workflowId)
+    }
+
+    log.info("Looking up root workflow ID for " + workflowId + "for user " + user.userId + " from metadata")
+
+    /*
+      Grab the metadata from Cromwell filtered down to the rootWorkflowId. Then transform the response to get just the
+      root workflow ID itself
+     */
+    cromwellApiClient.metadata(WorkflowId.fromString(workflowId),
+      args = Option(Map("includeKey" -> List("rootWorkflowId"))),
+      headers = List(user.authorization)).map(metadataToRootWorkflowId)
   }
 }
 
@@ -76,10 +97,12 @@ object CromwellClient {
   final case class CromwellConnectionFailure(f: Throwable) extends Exception(s"Unable to connect to Cromwell (${f.getMessage})", f)
 
   implicit class EnhancedWorkflowLabels(val wl: WorkflowLabels) extends AnyVal {
+
     import Collection.CollectionLabelName
     import Collection.collectionJsonReader
+
     def caasCollection: Option[Collection] = {
-      wl.labels.fields.get(CollectionLabelName) map { _.convertTo[Collection] }
+      wl.labels.fields.get(CollectionLabelName).map(_.convertTo[Collection])
     }
   }
 }

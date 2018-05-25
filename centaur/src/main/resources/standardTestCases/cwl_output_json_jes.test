@@ -1,9 +1,9 @@
 name: cwl_output_json_jes
 testFormat: workflowsuccess
-backends: [Jes]
+backends: [Papi]
 
 files {
-  wdl: cwl_output_json/cwl_output_json.cwl
+  workflow: cwl_output_json/cwl_output_json.cwl
   inputs: cwl_output_json/cwl_output_json.inputs
 }
 

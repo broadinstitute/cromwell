@@ -1,11 +1,12 @@
 package cwl.internal
 
 import common.validation.ErrorOr._
-import mouse.all._
+import common.validation.Validation._
 import org.mozilla.javascript._
 import wom.values._
 
 import scala.concurrent.duration._
+import scala.util.Try
 
 /**
   * This implementation depends on Mozilla Rhino.
@@ -15,8 +16,6 @@ import scala.concurrent.duration._
   */
 //noinspection VariablePatternShadow
 object EcmaScriptUtil {
-  val encoder = new EcmaScriptEncoder
-
   def writeValue(value: ECMAScriptVariable)(context: Context, scope: Scriptable): AnyRef =
     value match {
       case ESObject(fields) =>
@@ -74,7 +73,9 @@ object EcmaScriptUtil {
   sealed trait ECMAScriptVariable
 
   case class ESObject(fields: Map[String, ECMAScriptVariable]) extends ECMAScriptVariable
-  case class ESArray(array: Array[ECMAScriptVariable]) extends ECMAScriptVariable
+  case class ESArray(array: Array[ECMAScriptVariable]) extends ECMAScriptVariable {
+    override def toString: String = s"ESArray(${array.toList})"
+  }
   case class ESPrimitive(anyRef: AnyRef) extends ECMAScriptVariable
 
   /**
@@ -92,9 +93,9 @@ object EcmaScriptUtil {
   def evalStructish(expr: String,
                     rawValues: (String, WomValue),
                     mapValues: Map[String, Map[String, WomValue]] = Map.empty,
-                    encoder: EcmaScriptEncoder = new EcmaScriptEncoder,
+                    encoder: EcmaScriptEncoder,
                     decoder: CwlEcmaScriptDecoder = new CwlEcmaScriptDecoder): ErrorOr[WomValue] = {
-    evalRaw(expr) { (context, scope) =>
+    def evaluate = evalRaw(expr) { (context, scope) =>
 
       val (key, value) = rawValues
 
@@ -116,6 +117,11 @@ object EcmaScriptUtil {
           ScriptableObject.putProperty(scope, scopeId, newObj)
       }
 
-    } |> decoder.decode
+    }
+    
+    for {
+      evaluated <- Try(evaluate).toErrorOr
+      decoded <- decoder.decode(evaluated)
+    } yield decoded
   }
 }

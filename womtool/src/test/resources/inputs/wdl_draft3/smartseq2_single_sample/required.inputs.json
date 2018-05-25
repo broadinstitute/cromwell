@@ -1,0 +1,16 @@
+{
+  "SmartSeq2SingleCell.gtf_file": "File",
+  "SmartSeq2SingleCell.genome_ref_fasta": "File",
+  "SmartSeq2SingleCell.rrna_intervals": "File",
+  "SmartSeq2SingleCell.fastq2": "File",
+  "SmartSeq2SingleCell.hisat2_ref_index": "File",
+  "SmartSeq2SingleCell.hisat2_ref_trans_name": "String",
+  "SmartSeq2SingleCell.stranded": "String",
+  "SmartSeq2SingleCell.sample_name": "String",
+  "SmartSeq2SingleCell.output_name": "String",
+  "SmartSeq2SingleCell.fastq1": "File",
+  "SmartSeq2SingleCell.hisat2_ref_trans_index": "File",
+  "SmartSeq2SingleCell.hisat2_ref_name": "String",
+  "SmartSeq2SingleCell.rsem_ref_index": "File",
+  "SmartSeq2SingleCell.gene_ref_flat": "File"
+}

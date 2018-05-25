@@ -7,7 +7,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes}
 import akka.http.scaladsl.unmarshalling.Unmarshaller.UnsupportedContentTypeException
-import akka.stream.{ActorMaterializer, ActorMaterializerSettings, StreamTcpException}
+import akka.stream.{ActorMaterializer, ActorMaterializerSettings, BufferOverflowException, StreamTcpException}
 import centaur.test.metadata.WorkflowMetadata
 import centaur.test.workflow.Workflow
 import centaur.{CentaurConfig, CromwellManager}
@@ -18,7 +18,7 @@ import cromwell.api.model.{CromwellBackends, SubmittedWorkflow, WorkflowId, Work
 
 import scala.concurrent._
 import scala.concurrent.duration._
-import scala.util.Try
+import scala.util.{Failure, Try}
 import net.ceedubs.ficus.Ficus._
 
 object CentaurCromwellClient {
@@ -81,27 +81,30 @@ object CentaurCromwellClient {
     * will return a Failure, otherwise a Success
     */
   def awaitFutureCompletion[T](x: () => Future[T], timeout: FiniteDuration, attempt: Int = 1): Try[T] = {
+    def sleepAndRetry(throwable: Throwable): Try[T] = {
+      if (LogFailures) Console.err.println(s"Failed to execute request to Cromwell, retrying: ${throwable.getMessage}")
+      Thread.sleep(awaitSleep.toMillis)
+      awaitFutureCompletion(x, timeout, attempt + 1)
+    }
+
     // We can't recover the future itself with a "recoverWith retry pattern" because it'll timeout anyway from the Await.result
     // We want to keep timing out to catch cases where Cromwell becomes unresponsive
     Try(Await.result(x(), timeout)) recoverWith {
-      case e @ (_: TimeoutException |
-           _: StreamTcpException |
-           _: IOException |
-           _: UnsupportedContentTypeException) if attempt < awaitMaxAttempts =>
-        if (LogFailures) Console.err.println(s"Failed to execute request to Cromwell, retrying: ${e.getMessage}")
-        Thread.sleep(awaitSleep.toMillis)
-        awaitFutureCompletion(x, timeout, attempt + 1)
-      case unsuccessful: UnsuccessfulRequestException if unsuccessful.httpResponse.status == StatusCodes.NotFound && attempt < awaitMaxAttempts =>
-        if (LogFailures) Console.err.println(s"Failed to execute request to Cromwell, retrying: ${unsuccessful.getMessage}")
-        Thread.sleep(awaitSleep.toMillis)
-        awaitFutureCompletion(x, timeout, attempt + 1)
-      // see https://github.com/akka/akka-http/issues/768
+      case throwable if attempt >= awaitMaxAttempts => Failure(throwable)
+      case throwable@(_: TimeoutException |
+                      _: StreamTcpException |
+                      _: IOException |
+                      _: UnsupportedContentTypeException) =>
+        sleepAndRetry(throwable)
+      case unsuccessful: UnsuccessfulRequestException if unsuccessful.httpResponse.status == StatusCodes.NotFound =>
+        sleepAndRetry(unsuccessful)
       case unexpected: RuntimeException
-        if unexpected.getMessage.contains("The http server closed the connection unexpectedly") &&
-          attempt < awaitMaxAttempts =>
-        if (LogFailures) Console.err.println(s"Failed to execute request to Cromwell, retrying: ${unexpected.getMessage}")
-        Thread.sleep(awaitSleep.toMillis)
-        awaitFutureCompletion(x, timeout, attempt + 1)
+        if unexpected.getMessage.contains("The http server closed the connection unexpectedly") =>
+        // https://github.com/akka/akka-http/issues/768
+        sleepAndRetry(unexpected)
+      case exception@BufferOverflowException(message) if message.contains("Please retry the request later.") =>
+        // http://doc.akka.io/docs/akka-http/current/scala/http/client-side/pool-overflow.html
+        sleepAndRetry(exception)
     }
   }
 

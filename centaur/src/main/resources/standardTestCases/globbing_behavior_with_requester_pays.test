@@ -1,5 +1,6 @@
 name: globbing_behavior_with_requester_pays
 testFormat: workflowsuccess
+ignore: true
 backends: [Papiv2]
 workflowType: WDL
 workflowTypeVersion: 1.0

@@ -12,7 +12,7 @@ import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.helpers.NOPLogger
 import org.specs2.mock.Mockito
 import spray.json._
-import squants.information.Gigabytes
+import squants.information.{Gigabytes, Megabytes}
 import wom.types._
 import wom.values._
 
@@ -25,7 +25,7 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
   }
 
   val expectedDefaults = new PipelinesApiRuntimeAttributes(refineMV(1), None, Vector("us-central1-b", "us-central1-a"), 0, 10,
-    Gigabytes(2), Vector(PipelinesApiWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
+    Megabytes(2048), Vector(PipelinesApiWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
     ContinueOnReturnCodeSet(Set(0)), false)
 
   "JesRuntimeAttributes" should {

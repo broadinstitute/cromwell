@@ -14,6 +14,7 @@ import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2alpha1.api.{ActionBuilder, Delocalization, Localization}
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
+import cromwell.core.logging.JobLogger
 
 import scala.collection.JavaConverters._
 
@@ -38,7 +39,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       genomics.projects().operations().get(job.jobId).buildHttpRequest()
     }
 
-    override def runRequest(createPipelineParameters: CreatePipelineParameters) = {
+    override def runRequest(createPipelineParameters: CreatePipelineParameters, jobLogger: JobLogger) = {
       // Disks defined in the runtime attributes
       val disks = createPipelineParameters.toDisks
       // Mounts for disks defined in the runtime attributes
@@ -83,7 +84,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         .setDisks(disks.asJava)
         .setPreemptible(createPipelineParameters.preemptible)
         .setServiceAccount(serviceAccount)
-        .setMachineType(createPipelineParameters.runtimeAttributes.toMachineType)
+        .setMachineType(createPipelineParameters.runtimeAttributes.toMachineType(jobLogger))
         .setBootDiskSizeGb(adjustedBootDiskSize)
         .setLabels(createPipelineParameters.labels.asJavaMap)
         .setNetwork(network)

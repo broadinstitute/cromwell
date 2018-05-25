@@ -1,39 +1,46 @@
 package cromwell.backend.google.pipelines.v2alpha1
 
+import common.util.IntUtil._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
+import eu.timepit.refined.refineV
 import mouse.all._
-import squants.information.{Gigabytes, Information, Megabytes}
+import org.slf4j.Logger
+import squants.information.{Bytes, Gigabytes, Information, Megabytes}
 
 object MachineConstraints {
   implicit class EnhancedInformation(val information: Information) extends AnyVal {
     def asMultipleOf(factor: Information): Information = factor * (information / factor).ceil
+    def toMBString = information.toString(Megabytes)
   }
-  
+
   // https://cloud.google.com/compute/docs/instances/creating-instance-with-custom-machine-type
   // https://cloud.google.com/compute/docs/instances/creating-instance-with-custom-machine-type#specifications
   private val minMemoryPerCpu = Gigabytes(0.9)
   private val maxMemoryPerCpu = Gigabytes(6.5)
   private val memoryFactor = Megabytes(256)
 
-  private def validateCpu(cpu: Int) = cpu match {
-    case negative if negative < 1 => 1
+  private def validateCpu(cpu: Int Refined Positive) = cpu.value match {
+    // One CPU is cool
     case 1 => 1
     // odd is not allowed, round it up to the next even number
-    case odd if odd % 2 == 1 => odd + 1
-    // even is fine
+    case odd if odd.isOdd => odd + 1
     case even => even
   }
-  
+
   private def validateMemory(memory: Information) = memory.asMultipleOf(memoryFactor)
 
   // Assumes memory and cpu have been validated individually
   private def balanceMemoryAndCpu(memory: Information, cpu: Int) = {
     val memoryPerCpuRatio = memory / cpu.toDouble
-    
+
     lazy val adjustedMemory = (minMemoryPerCpu * cpu.toDouble) |> validateMemory
-    // Unfortunately we can't create refined value from non literals, that's why validateCpu takes an Int and not an Int Refined Positive
-    lazy val adjustedCpu = (memory / maxMemoryPerCpu).ceil.toInt |> validateCpu
+
+    lazy val adjustedCpu = refineV[Positive]((memory / maxMemoryPerCpu).ceil.toInt) match {
+      // If for some the above yields 0, keep the cpu value unchanged 
+      case Left(_) => cpu
+      case Right(adjusted) => validateCpu(adjusted)
+    }
 
     // If we're under the ratio, top up the memory. Because validMemory will only increase memory (if needed),
     // there's no risk that the call to validMemory will make the ratio invalid
@@ -47,8 +54,25 @@ object MachineConstraints {
     } else cpu -> memory
   }
   
-  def machineType(memory: Information, cpu: Int Refined Positive) = {
-    val (validCpu, validMemory) = balanceMemoryAndCpu(memory |> validateMemory, cpu.value |> validateCpu)
+  private def logAdjustment(originalCpu: Int, adjustedCpu: Int, originalMemory: Information, adjustedMemory: Information, logger: Logger) = {
+    implicit val memoryTolerance = Bytes(1)
+
+    def memoryAdjustmentLog = s"memory was adjusted from ${originalMemory.toMBString} to ${adjustedMemory.toMBString}"
+    def cpuAdjustmentLog = s"cpu was adjusted from $originalCpu to $adjustedCpu"
+    
+    val message = (originalCpu == adjustedCpu, originalMemory =~ adjustedMemory) match {
+      case (true, false) => Option(memoryAdjustmentLog)
+      case (false, true) => Option(cpuAdjustmentLog)
+      case (false, false) => Option(memoryAdjustmentLog + " and " + cpuAdjustmentLog)
+      case _ => None
+    }
+
+    message foreach { m => logger.info("To comply with GCE custom machine requirements, " + m) }
+  }
+
+  def machineType(memory: Information, cpu: Int Refined Positive, jobLogger: Logger) = {
+    val (validCpu, validMemory) = balanceMemoryAndCpu(memory |> validateMemory, cpu |> validateCpu)
+    logAdjustment(cpu.value, validCpu, memory, validMemory, jobLogger)
     s"custom-$validCpu-${validMemory.toMegabytes.intValue()}"
   }
 }

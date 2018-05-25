@@ -2,23 +2,22 @@ package cromwell.backend.impl.tes
 
 import cats.syntax.validated._
 import com.typesafe.config.Config
+import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation._
-import common.validation.ErrorOr.ErrorOr
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import squants.information.Information
 import wom.RuntimeAttributesKeys
-import wom.format.MemorySize
 import wom.values._
 
 case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
                                 dockerImage: String,
                                 dockerWorkingDir: Option[String],
                                 failOnStderr: Boolean,
-                                cpu: Option[Int],
-                                memory: Option[MemorySize],
-                                disk: Option[MemorySize])
+                                cpu: Option[Int Refined Positive],
+                                memory: Option[Information],
+                                disk: Option[Information])
 
 object TesRuntimeAttributes {
 
@@ -51,9 +50,9 @@ object TesRuntimeAttributes {
   def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, backendRuntimeConfig: Option[Config]): TesRuntimeAttributes = {
     val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
     val dockerWorkingDir: Option[String] = RuntimeAttributesValidation.extractOption(dockerWorkingDirValidation.key, validatedRuntimeAttributes)
-    val cpu: Option[Int] = RuntimeAttributesValidation.extractOption(cpuValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
-    val memory: Option[MemorySize] = RuntimeAttributesValidation.extractOption(memoryValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
-    val disk: Option[MemorySize] = RuntimeAttributesValidation.extractOption(diskSizeValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    val cpu: Option[Int Refined Positive] = RuntimeAttributesValidation.extractOption(cpuValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    val memory: Option[Information] = RuntimeAttributesValidation.extractOption(memoryValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    val disk: Option[Information] = RuntimeAttributesValidation.extractOption(diskSizeValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
     val failOnStderr: Boolean =
       RuntimeAttributesValidation.extract(failOnStderrValidation(backendRuntimeConfig), validatedRuntimeAttributes)
     val continueOnReturnCode: ContinueOnReturnCode =

@@ -1,6 +1,5 @@
 name: gpu_on_papi
 testFormat: workflowsuccess
-backends: [Papi]
 
 files {
   workflow: gpu_on_papi/gpu_on_papi.wdl

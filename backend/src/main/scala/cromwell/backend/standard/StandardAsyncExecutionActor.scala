@@ -335,6 +335,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |) $stdinRedirection > "$$$out" 2> "$$$err"
         |echo $$? > $rcTmpPath
         |(
+        |# add a .file in every empty directory to facilitate directory delocalization on the cloud
         |cd $cwd
         |find . -type d -empty -print | xargs -I % touch %/.file
         |)

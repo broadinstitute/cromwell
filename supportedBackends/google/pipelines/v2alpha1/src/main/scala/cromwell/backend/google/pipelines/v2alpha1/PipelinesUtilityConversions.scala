@@ -8,6 +8,7 @@ import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk
 import cromwell.backend.google.pipelines.common.{GpuResource, PipelinesApiRuntimeAttributes}
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
 import cromwell.core.ExecutionEvent
+import cromwell.core.logging.JobLogger
 import simulacrum.typeclass
 
 import scala.language.implicitConversions
@@ -33,7 +34,7 @@ import scala.language.implicitConversions
 }
 
 @typeclass trait AttributesConversion[A <: PipelinesApiRuntimeAttributes] {
-  def toMachineType(attributes: A) = MachineConstraints.machineType(attributes.memory, attributes.cpu)
+  def toMachineType(attributes: A, jobLogger: JobLogger) = MachineConstraints.machineType(attributes.memory, attributes.cpu, jobLogger)
 }
 
 @typeclass trait GpuResourceConversion[A <: GpuResource] {

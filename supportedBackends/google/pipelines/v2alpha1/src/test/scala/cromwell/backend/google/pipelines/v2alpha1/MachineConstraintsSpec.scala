@@ -1,11 +1,12 @@
 package cromwell.backend.google.pipelines.v2alpha1
 
 import eu.timepit.refined.numeric.Positive
+import eu.timepit.refined.refineMV
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpec, Matchers}
+import org.slf4j.helpers.NOPLogger
 import squants.information.{Gigabytes, Megabytes}
-import eu.timepit.refined.refineMV
 
 class MachineConstraintsSpec extends FlatSpec with Matchers {
   behavior of "MachineConstraints"
@@ -22,11 +23,14 @@ class MachineConstraintsSpec extends FlatSpec with Matchers {
       // Memory / cpu ratio must be > 0.9GB, increase memory
       (Gigabytes(1), refineMV[Positive](4), "custom-4-3840"),
       // Memory / cpu ratio must be < 6.5GB, increase CPU
-      (Gigabytes(13.65), refineMV[Positive](1), "custom-4-13824")
+      (Gigabytes(13.65), refineMV[Positive](1), "custom-4-13824"),
+      // Memory should be an int
+      (Megabytes(1520.96), refineMV[Positive](1), "custom-1-1536"),
+      (Megabytes(1024.0), refineMV[Positive](1), "custom-1-1024")
     )
 
     forAll(validTypes) { (memory, cpu, expected) =>
-      MachineConstraints.machineType(memory, cpu) shouldBe expected
+      MachineConstraints.machineType(memory, cpu, NOPLogger.NOP_LOGGER) shouldBe expected
     }
   }
 }

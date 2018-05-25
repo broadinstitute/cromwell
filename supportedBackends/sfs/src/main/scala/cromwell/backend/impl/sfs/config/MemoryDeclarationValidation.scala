@@ -49,7 +49,7 @@ class MemoryDeclarationValidation(declaration: Declaration, attributeName: Strin
                                  wdlExpression: WdlExpression): RuntimeAttributesValidation[_] = {
     val womValue = declaration.expression.get.evaluate(NoLookup, NoFunctions).get
     val amount: Double = defaultAmount(womValue)
-    val memorySize = Information(amount -> declarationMemoryUnit).get
+    val memorySize = declarationMemoryUnit.apply(amount)
     validation.withDefault(WomInteger(memorySize.toBytes.toInt))
   }
 

@@ -436,7 +436,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       _ <- uploadScriptFile
       jesParameters <- generateInputOutputParameters
       createParameters = createPipelineParameters(jesParameters)
-      runId <- runPipeline(workflowId, createParameters)
+      runId <- runPipeline(workflowId, createParameters, jobLogger)
     } yield runId
 
     runPipelineResponse map { runId =>

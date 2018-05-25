@@ -109,7 +109,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val requestFactory = new PipelinesApiRequestFactory {
       override def cancelRequest(job: StandardAsyncJob) = null
       override def getRequest(job: StandardAsyncJob) = null
-      override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters) = null
+      override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters, jobLogger: JobLogger) = null
     }
     PipelinesApiBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null, requestFactory)
   }
@@ -896,8 +896,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         "runtimeAttributes:disks" -> "local-disk 200 SSD",
         "runtimeAttributes:docker" -> "ubuntu:latest",
         "runtimeAttributes:failOnStderr" -> "false",
-        "runtimeAttributes:memory" -> "2 GB",
-        "runtimeAttributes:memoryMin" -> "2 GB",
+        "runtimeAttributes:memory" -> "2000.0 MB",
+        "runtimeAttributes:memoryMin" -> "2000.0 MB",
         "runtimeAttributes:noAddress" -> "false",
         "runtimeAttributes:preemptible" -> "0",
         "runtimeAttributes:zones" -> "us-central1-b,us-central1-a",

@@ -3,6 +3,7 @@ package cromwell.backend.validation
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import common.validation.ErrorOr._
+import squants.QuantityParseException
 import squants.information.{Bytes, Information}
 import wom.RuntimeAttributesKeys
 import wom.types.{WomIntegerType, WomLongType, WomStringType}
@@ -53,13 +54,12 @@ object MemoryValidation {
         memorySize.validNel
       case scala.util.Success(memorySize: Information) =>
         wrongAmountFormat.format(attributeName, memorySize.value).invalidNel
+      case scala.util.Failure(_: QuantityParseException) =>
+        wrongTypeFormat.format(attributeName, s"$value should be of the form 'X Unit' where X is a number, e.g. 8 GB").invalidNel
       case scala.util.Failure(throwable) =>
         wrongTypeFormat.format(attributeName, throwable.getMessage).invalidNel
     }
   }
-
-  private[validation] def validateMemoryInteger(attributeName: String, wdlInteger: WomInteger): ErrorOr[Information] =
-    validateMemoryInteger(attributeName, wdlInteger.value)
 
   private[validation] def validateMemoryInteger(attributeName: String, value: Int): ErrorOr[Information] = {
     if (value <= 0)

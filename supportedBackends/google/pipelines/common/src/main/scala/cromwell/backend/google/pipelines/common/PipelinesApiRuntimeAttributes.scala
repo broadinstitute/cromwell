@@ -60,7 +60,7 @@ object PipelinesApiRuntimeAttributes {
   val DisksKey = "disks"
   private val DisksDefaultValue = WomString(s"${PipelinesApiWorkingDisk.Name} 10 SSD")
 
-  private val MemoryDefaultValue = "2 GB"
+  private val MemoryDefaultValue = "2048 MB"
 
   private def cpuValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int Refined Positive] = CpuValidation.instance
     .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)

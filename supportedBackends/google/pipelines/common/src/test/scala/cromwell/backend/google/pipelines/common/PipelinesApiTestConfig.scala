@@ -35,7 +35,7 @@ object PipelinesApiTestConfig {
       |    failOnStderr: false
       |    continueOnReturnCode: 0
       |    docker: "ubuntu:latest"
-      |    memory: "2 GB"
+      |    memory: "2048 MB"
       |    bootDiskSizeGb: 10
       |    disks: "local-disk 10 SSD"
       |    noAddress: false

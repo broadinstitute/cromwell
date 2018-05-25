@@ -8,7 +8,6 @@ import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
 import com.google.api.gax.retrying.RetrySettings
 import com.google.cloud.NoCredentials
-import com.google.cloud.storage.contrib.nio.CloudStorageConfiguration
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse}
 import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomExecutableMakers._
 import wdl.transforms.draft2.wdlom2wom._

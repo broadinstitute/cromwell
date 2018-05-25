@@ -2,8 +2,8 @@ package cromwell.backend.google.pipelines.v2alpha1
 
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
 import cromwell.backend.google.pipelines.common._
-import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.{delocalizeFile, gsutil}
-import cromwell.backend.google.pipelines.v2alpha1.api.{ActionBuilder, ActionFlag}
+import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
+import cromwell.backend.google.pipelines.v2alpha1.api.ActionFlag
 import simulacrum.typeclass
 
 import scala.language.implicitConversions
@@ -26,9 +26,13 @@ trait PipelinesParameterConversions {
 
   implicit val directoryInputToParameter = new ToParameter[PipelinesApiDirectoryInput] {
     override def toActions(directoryInput: PipelinesApiDirectoryInput, mounts: List[Mount], projectId: String) = {
-      val mkdirAction = ActionBuilder
-        .cloudSdkAction
-      List(gsutil("-m", "rsync", "-r", directoryInput.cloudPath.pathAsString, directoryInput.containerPath.pathAsString)(mounts, description = Option("localizing")))
+      val mkdirAction = cloudSdkAction
+        .withCommand("mkdir", "-p", directoryInput.containerPath.pathAsString)
+        .withMounts(mounts)
+
+      val gsutilAction = gsutil("-m", "rsync", "-r", directoryInput.cloudPath.pathAsString, directoryInput.containerPath.pathAsString)(mounts, description = Option("localizing"))
+
+      List(mkdirAction, gsutilAction)
     }
   }
 

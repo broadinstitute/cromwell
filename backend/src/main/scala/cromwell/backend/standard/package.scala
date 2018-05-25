@@ -13,5 +13,6 @@ package object standard {
     }
   }
   
+  // This is used to represent an AdHocValue that might have been localized
   type StandardAdHocValue = AdHocValue :+: LocalizedAdHocValue :+: CNil
 }

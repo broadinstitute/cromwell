@@ -362,7 +362,15 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   lazy val runtimeEnvironment = {
     RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(standardParams.minimumRuntimeSettings) |> runtimeEnvironmentPathMapper
   }
-  
+
+  /**
+    * By default, ad hoc values get localized to the call directory.
+    * This way if running locally with docker they get mounted with the rest of the inputs in the container.
+    * The PAPI backend overrides this to a noop since the localization happens on the VM directly, so there's no need
+    * for this extra localization step.
+    * 
+    * Maybe this should be the other way around: the default implementation is noop and SFS / TES override it ?
+    */
   lazy val localizeAdHocValues: List[AdHocValue] => ErrorOr[List[StandardAdHocValue]] = { adHocValues => 
     import cats.instances.future._
 

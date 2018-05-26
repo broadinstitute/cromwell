@@ -19,6 +19,7 @@ class DirectoryFunctionsSpec extends FlatSpec with Matchers {
     override def pathFunctions = ???
     override def writeFile(path: String, content: String) = ???
     override implicit def ec = ???
+    override def createTemporaryDirectory(name: Option[String]) = ???
   }
 
   "listDirectory" should "exclude visited directories when listing" in {

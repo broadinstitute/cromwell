@@ -4,29 +4,35 @@ import cats.data.Validated.Valid
 import cats.syntax.either._
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
+import mouse.all._
 import shapeless.Poly1
 import wom.callable.Callable.InputDefinition.InputValueMapper
 import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OptionalInputDefinition}
 import wom.graph.GraphNodePort.OutputPort
-import wom.values.{WomOptionalValue, WomValue}
+import wom.values.{LazyWomFile, WomOptionalValue, WomValue}
 
 import scala.annotation.tailrec
 
 object InputPointerToWomValue extends Poly1 {
   type OutputPortLookup = OutputPort => ErrorOr[WomValue]
   // Function that can transform any of the coproduct types to an ErrorOr[WomValue]
-  type ToWdlValueFn = (Map[String, WomValue], IoFunctionSet, OutputPortLookup, InputDefinition) => ErrorOr[WomValue]
-
-  implicit def fromWomValue: Case.Aux[WomValue, ToWdlValueFn] = at[WomValue] {
-    womValue => (_: Map[String, WomValue], ioFunctions: IoFunctionSet, _: OutputPortLookup, inputDefinition: InputDefinition) =>
-      inputDefinition.valueMapper(ioFunctions)(womValue)
+  type ToWomValueFn = (Map[String, WomValue], IoFunctionSet, OutputPortLookup, InputDefinition) => ErrorOr[WomValue]
+  
+  def initializeLazyWomFile(ioFunctionSet: IoFunctionSet)(womValue: WomValue) = womValue match {
+    case womFile: LazyWomFile => womFile.initialize(ioFunctionSet)
+    case other => other
   }
 
-  implicit def fromOutputPort: Case.Aux[OutputPort, ToWdlValueFn] = at[OutputPort] {
+  implicit def fromWomValue: Case.Aux[WomValue, ToWomValueFn] = at[WomValue] {
+    womValue => (_: Map[String, WomValue], ioFunctions: IoFunctionSet, _: OutputPortLookup, inputDefinition: InputDefinition) =>
+      inputDefinition.valueMapper(ioFunctions)(womValue |> initializeLazyWomFile(ioFunctions))
+  }
+
+  implicit def fromOutputPort: Case.Aux[OutputPort, ToWomValueFn] = at[OutputPort] {
     port => (knownValues: Map[String, WomValue], ioFunctions: IoFunctionSet, outputPortLookup: OutputPortLookup, inputDefinition: InputDefinition) =>
       (outputPortLookup(port), inputDefinition) match {
         case (Valid(womValue), _) if isDefined(womValue) =>
-          inputDefinition.valueMapper(ioFunctions)(womValue)
+          inputDefinition.valueMapper(ioFunctions)(womValue |> initializeLazyWomFile(ioFunctions))
         case (_, InputDefinitionWithDefault(_, _, defaultExpression, valueMapper)) =>
           evaluateAndMap(defaultExpression, knownValues, valueMapper, ioFunctions)
         case (_, OptionalInputDefinition(_, optionalType, valueMapper)) => valueMapper(ioFunctions)(optionalType.none)
@@ -43,7 +49,7 @@ object InputPointerToWomValue extends Poly1 {
     }
   }
 
-  implicit def fromWomExpression: Case.Aux[WomExpression, ToWdlValueFn] = at[WomExpression] {
+  implicit def fromWomExpression: Case.Aux[WomExpression, ToWomValueFn] = at[WomExpression] {
     womExpression => (knownValues: Map[String, WomValue], ioFunctions: IoFunctionSet, _: OutputPortLookup, inputDefinition: InputDefinition) =>
       evaluateAndMap(womExpression, knownValues, inputDefinition.valueMapper, ioFunctions)
   }

@@ -12,6 +12,7 @@ object MachineConstraints {
   implicit class EnhancedInformation(val information: Information) extends AnyVal {
     def asMultipleOf(factor: Information): Information = factor * (information / factor).ceil
     def toMBString = information.toString(Megabytes)
+    def toMiBString = information.toString(Mebibytes)
   }
 
   // https://cloud.google.com/compute/docs/instances/creating-instance-with-custom-machine-type
@@ -55,12 +56,10 @@ object MachineConstraints {
   }
   
   private def logAdjustment(originalCpu: Int, adjustedCpu: Int, originalMemory: Information, adjustedMemory: Information, logger: Logger) = {
-    implicit val memoryTolerance = Bytes(1)
-
-    def memoryAdjustmentLog = s"memory was adjusted from ${originalMemory.toMBString} to ${adjustedMemory.toMBString}"
+    def memoryAdjustmentLog = s"memory was adjusted from ${originalMemory.toMBString} to ${adjustedMemory.toMiBString}"
     def cpuAdjustmentLog = s"cpu was adjusted from $originalCpu to $adjustedCpu"
     
-    val message = (originalCpu == adjustedCpu, originalMemory =~ adjustedMemory) match {
+    val message = (originalCpu == adjustedCpu, originalMemory.toMegabytes == adjustedMemory.toMebibytes) match {
       case (true, false) => Option(memoryAdjustmentLog)
       case (false, true) => Option(cpuAdjustmentLog)
       case (false, false) => Option(memoryAdjustmentLog + " and " + cpuAdjustmentLog)

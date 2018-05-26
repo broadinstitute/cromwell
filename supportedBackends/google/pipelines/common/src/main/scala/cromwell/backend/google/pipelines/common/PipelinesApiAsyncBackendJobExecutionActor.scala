@@ -5,6 +5,7 @@ import java.net.SocketTimeoutException
 import _root_.io.grpc.Status
 import akka.actor.ActorRef
 import cats.data.Validated.{Invalid, Valid}
+import cats.syntax.validated._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import common.util.StringUtil._
@@ -20,7 +21,7 @@ import cromwell.backend.google.pipelines.common.api.clients.{PipelinesApiAbortCl
 import cromwell.backend.google.pipelines.common.errors.FailedToDelocalizeFailure
 import cromwell.backend.google.pipelines.common.io.{PipelinesApiAttachedDisk, PipelinesApiWorkingDisk, _}
 import cromwell.backend.io.DirectoryFunctions
-import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.backend.standard.{StandardAdHocValue, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -31,7 +32,9 @@ import cromwell.google.pipelines.common.PreviousRetryReasons
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import org.slf4j.LoggerFactory
+import shapeless.Coproduct
 import wom.CommandSetupSideEffectFile
+import wom.callable.AdHocValue
 import wom.callable.Callable.OutputDefinition
 import wom.core.FullyQualifiedName
 import wom.expression.{FileEvaluation, NoIoFunctionSet}
@@ -107,7 +110,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   }
 
   protected lazy val cmdInput =
-    PipelinesApiFileInput(PipelinesApiJobPaths.JesExecParamName, pipelinesApiCallPaths.script.pathAsString, DefaultPathBuilder.get(pipelinesApiCallPaths.scriptFilename), workingDisk)
+    PipelinesApiFileInput(PipelinesApiJobPaths.JesExecParamName, pipelinesApiCallPaths.script, DefaultPathBuilder.get(pipelinesApiCallPaths.scriptFilename), workingDisk)
 
   protected lazy val dockerConfiguration = jesConfiguration.dockerCredentials
 
@@ -137,13 +140,13 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   /**
     * Takes two arrays of remote and local WOM File paths and generates the necessary JesInputs.
     */
-  private def jesInputsFromWomFiles(jesNamePrefix: String,
+  protected def jesInputsFromWomFiles(jesNamePrefix: String,
                                     remotePathArray: Seq[WomFile],
                                     localPathArray: Seq[WomFile],
-                                    jobDescriptor: BackendJobDescriptor): Iterable[PipelinesApiFileInput] = {
+                                    jobDescriptor: BackendJobDescriptor): Iterable[PipelinesApiInput] = {
     (remotePathArray zip localPathArray zipWithIndex) flatMap {
       case ((remotePath, localPath), index) =>
-        Seq(PipelinesApiFileInput(s"$jesNamePrefix-$index", remotePath.valueString, DefaultPathBuilder.get(localPath.valueString), workingDisk))
+        Seq(PipelinesApiFileInput(s"$jesNamePrefix-$index", getPath(remotePath.valueString).get, DefaultPathBuilder.get(localPath.valueString), workingDisk))
     }
   }
 
@@ -153,7 +156,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     * relativeLocalizationPath("foo/bar.txt") -> "foo/bar.txt"
     * relativeLocalizationPath("gs://some/bucket/foo.txt") -> "some/bucket/foo.txt"
     */
-  private def relativeLocalizationPath(file: WomFile): WomFile = {
+  protected def relativeLocalizationPath(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
         case Success(path) => path.pathWithoutScheme
@@ -162,7 +165,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     )
   }
 
-  private def fileName(file: WomFile): WomFile = {
+  protected def fileName(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
         case Success(path) => path.name
@@ -170,45 +173,44 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       }
     )
   }
+  
+  protected def callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.fullyQualifiedInputs mapValues {
+    womFile =>
+      val arrays: Seq[WomArray] = womFile collectAsSeq {
+        case womFile: WomFile =>
+          val files: List[WomSingleFile] = DirectoryFunctions
+            .listWomSingleFiles(womFile, pipelinesApiCallPaths.workflowPaths)
+            .toTry(s"Error getting single files for $womFile").get
+          WomArray(WomArrayType(WomSingleFileType), files)
+      }
 
-  private[pipelines] def generateJesInputs(jobDescriptor: BackendJobDescriptor): Set[PipelinesApiFileInput] = {
+      arrays.flatMap(_.value).collect {
+        case womFile: WomFile => womFile
+      }
+  } map identity // <-- unlazy the mapValues
+  
+  protected def localizationPath(f: CommandSetupSideEffectFile) = {
+    if (isAdHocFile(f.file))
+      f.relativeLocalPath.fold(ifEmpty = fileName(f.file))(WomFile(f.file.womFileType, _))
+    else
+      f.relativeLocalPath.fold(ifEmpty = relativeLocalizationPath(f.file))(WomFile(f.file.womFileType, _))
+  }
+
+  private[pipelines] def generateJesInputs(jobDescriptor: BackendJobDescriptor): Set[PipelinesApiInput] = {
     // We need to tell PAPI about files that were created as part of command instantiation (these need to be defined
     // as inputs that will be localized down to the VM). Make up 'names' for these files that are just the short
     // md5's of their paths.
     val writeFunctionFiles = instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f) } toMap
 
-    def localizationPath(f: CommandSetupSideEffectFile) = {
-      if (isAdHocFile(f.file))
-        f.relativeLocalPath.fold(ifEmpty = fileName(f.file))(WomFile(f.file.womFileType, _))
-      else
-        f.relativeLocalPath.fold(ifEmpty = relativeLocalizationPath(f.file))(WomFile(f.file.womFileType, _))
-    }
     val writeFunctionInputs = writeFunctionFiles flatMap {
       case (name, files) => jesInputsFromWomFiles(name, files.map(_.file), files.map(localizationPath), jobDescriptor)
     }
-
-    // Collect all WomFiles from inputs to the call.
-    val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.fullyQualifiedInputs mapValues {
-      womFile =>
-        val arrays: Seq[WomArray] = womFile collectAsSeq {
-          case womFile: WomFile =>
-            val files: List[WomSingleFile] = DirectoryFunctions
-              .listWomSingleFiles(womFile, pipelinesApiCallPaths.workflowPaths)
-              .toTry(s"Error getting single files for $womFile").get
-            WomArray(WomArrayType(WomSingleFileType), files)
-        }
-
-        arrays.flatMap(_.value).collect {
-          case womFile: WomFile => womFile
-        }
-    } map identity // <-- unlazy the mapValues
 
     val callInputInputs = callInputFiles flatMap {
       case (name, files) => jesInputsFromWomFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor)
     }
 
     (writeFunctionInputs ++ callInputInputs).toSet
-
   }
 
   /**
@@ -217,7 +219,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     *
     * @throws Exception if the `path` does not live in one of the supplied `disks`
     */
-  private def relativePathAndAttachedDisk(path: String, disks: Seq[PipelinesApiAttachedDisk]): (Path, PipelinesApiAttachedDisk) = {
+  protected def relativePathAndAttachedDisk(path: String, disks: Seq[PipelinesApiAttachedDisk]): (Path, PipelinesApiAttachedDisk) = {
     val absolutePath = DefaultPathBuilder.get(path) match {
       case p if !p.isAbsolute => PipelinesApiWorkingDisk.MountPoint.resolve(p)
       case p => p
@@ -234,11 +236,11 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     * If the desired reference name is too long, we don't want to break JES or risk collisions by arbitrary truncation. So,
     * just use a hash. We only do this when needed to give better traceability in the normal case.
     */
-  private def makeSafeJesReferenceName(referenceName: String) = {
+  protected def makeSafeJesReferenceName(referenceName: String) = {
     if (referenceName.length <= 127) referenceName else referenceName.md5Sum
   }
 
-  private[pipelines] def generateJesOutputs(jobDescriptor: BackendJobDescriptor): Set[PipelinesApiFileOutput] = {
+  protected [pipelines] def generateJesOutputs(jobDescriptor: BackendJobDescriptor): Set[PipelinesApiOutput] = {
     import cats.syntax.validated._
     def evaluateFiles(output: OutputDefinition): List[FileEvaluation] = {
       Try(
@@ -253,7 +255,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
     val womFileOutputs = jobDescriptor.taskCall.callable.outputs.flatMap(evaluateFiles) map relativeFileEvaluation
 
-    val outputs: Seq[PipelinesApiFileOutput] = womFileOutputs.distinct flatMap { case FileEvaluation(file, optional) =>
+    val outputs: Seq[PipelinesApiOutput] = womFileOutputs.distinct flatMap { case FileEvaluation(file, optional) =>
       file.flattenFiles flatMap {
         case unlistedDirectory: WomUnlistedDirectory => generateUnlistedDirectoryOutputs(unlistedDirectory, optional)
         case singleFile: WomSingleFile => generateJesSingleFileOutputs(singleFile, optional)
@@ -266,11 +268,11 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     outputs.toSet ++ additionalGlobOutput
   }
 
-  private def generateUnlistedDirectoryOutputs(womFile: WomUnlistedDirectory, optional: Boolean): List[PipelinesApiFileOutput] = {
+  protected def generateUnlistedDirectoryOutputs(womFile: WomUnlistedDirectory, optional: Boolean): List[PipelinesApiOutput] = {
     val directoryPath = womFile.value.ensureSlashed
     val directoryListFile = womFile.value.ensureUnslashed + ".list"
-    val gcsDirDestinationPath = callRootPath.resolve(directoryPath).pathAsString
-    val gcsListDestinationPath = callRootPath.resolve(directoryListFile).pathAsString
+    val gcsDirDestinationPath = callRootPath.resolve(directoryPath)
+    val gcsListDestinationPath = callRootPath.resolve(directoryListFile)
 
     val (_, directoryDisk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
 
@@ -295,19 +297,19 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     )
   }
 
-  private def generateJesSingleFileOutputs(womFile: WomSingleFile, optional: Boolean): List[PipelinesApiFileOutput] = {
-    val destination = callRootPath.resolve(womFile.value.stripPrefix("/")).pathAsString
+  protected def generateJesSingleFileOutputs(womFile: WomSingleFile, optional: Boolean): List[PipelinesApiFileOutput] = {
+    val destination = callRootPath.resolve(womFile.value.stripPrefix("/"))
     val (relpath, disk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
     val jesFileOutput = PipelinesApiFileOutput(makeSafeJesReferenceName(womFile.value), destination, relpath, disk, optional)
     List(jesFileOutput)
   }
 
-  private def generateJesGlobFileOutputs(womFile: WomGlobFile): List[PipelinesApiFileOutput] = {
+  protected def generateJesGlobFileOutputs(womFile: WomGlobFile): List[PipelinesApiOutput] = {
     val globName = GlobFunctions.globName(womFile.value)
     val globDirectory = globName + "/"
     val globListFile = globName + ".list"
-    val gcsGlobDirectoryDestinationPath = callRootPath.resolve(globDirectory).pathAsString
-    val gcsGlobListFileDestinationPath = callRootPath.resolve(globListFile).pathAsString
+    val gcsGlobDirectoryDestinationPath = callRootPath.resolve(globDirectory)
+    val gcsGlobListFileDestinationPath = callRootPath.resolve(globListFile)
 
     val (_, globDirectoryDisk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
 
@@ -326,13 +328,13 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   lazy val monitoringScript: Option[PipelinesApiFileInput] = {
     pipelinesApiCallPaths.workflowPaths.monitoringScriptPath map { path =>
-      PipelinesApiFileInput(s"$jesMonitoringParamName-in", path.pathAsString, localMonitoringScriptPath, workingDisk)
+      PipelinesApiFileInput(s"$jesMonitoringParamName-in", path, localMonitoringScriptPath, workingDisk)
     }
   }
 
   lazy val monitoringOutput: Option[PipelinesApiFileOutput] = monitoringScript map { _ =>
     PipelinesApiFileOutput(s"$jesMonitoringParamName-out",
-      pipelinesApiCallPaths.jesMonitoringLogPath.pathAsString, localMonitoringLogPath, workingDisk, optional = false)
+      pipelinesApiCallPaths.jesMonitoringLogPath, localMonitoringLogPath, workingDisk, optional = false)
   }
 
   override lazy val commandDirectory: Path = PipelinesApiWorkingDisk.MountPoint
@@ -408,7 +410,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     def evaluateRuntimeAttributes = Future.fromTry(Try(runtimeAttributes))
 
     def generateInputOutputParameters: Future[InputOutputParameters] = Future.fromTry(Try {
-      val rcFileOutput = PipelinesApiFileOutput(returnCodeFilename, returnCodeGcsPath.pathAsString, DefaultPathBuilder.get(returnCodeFilename), workingDisk, optional = false)
+      val rcFileOutput = PipelinesApiFileOutput(returnCodeFilename, returnCodeGcsPath, DefaultPathBuilder.get(returnCodeFilename), workingDisk, optional = false)
 
       InputOutputParameters(
         DetritusInputParameters(
@@ -434,7 +436,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       _ <- uploadScriptFile
       jesParameters <- generateInputOutputParameters
       createParameters = createPipelineParameters(jesParameters)
-      runId <- runPipeline(workflowId, createParameters)
+      runId <- runPipeline(workflowId, createParameters, jobLogger)
     } yield runId
 
     runPipelineResponse map { runId =>
@@ -474,10 +476,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     womFileToGcsPath(generateJesOutputs(jobDescriptor))(womFile)
   }
 
-  private[pipelines] def womFileToGcsPath(jesOutputs: Set[PipelinesApiFileOutput])(womFile: WomFile): WomFile = {
+  private[pipelines] def womFileToGcsPath(jesOutputs: Set[PipelinesApiOutput])(womFile: WomFile): WomFile = {
     womFile mapFile { path =>
       jesOutputs collectFirst {
-        case jesOutput if jesOutput.name == makeSafeJesReferenceName(path) => jesOutput.cloudPath
+        case jesOutput if jesOutput.name == makeSafeJesReferenceName(path) => jesOutput.cloudPath.pathAsString
       } getOrElse path
     }
   }
@@ -595,12 +597,12 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
     womFile.mapFile(value =>
-      getPath(value) match {
-        case Success(gcsPath: GcsPath) if isAdHocFile(womFile) => 
+      (getPath(value), asAdHocFile(womFile)) match {
+        case (Success(gcsPath: GcsPath), Some(adHocFile)) => 
           // Ad hoc files will be placed directly at the root ("/cromwell_root/ad_hoc_file.txt") unlike other input files
           // for which the full path is being propagated ("/cromwell_root/path/to/input_file.txt")
-          workingDisk.mountPoint.resolve(gcsPath.name).pathAsString
-        case Success(gcsPath: GcsPath) => 
+          workingDisk.mountPoint.resolve(adHocFile.alternativeName.getOrElse(gcsPath.name)).pathAsString
+        case (Success(gcsPath: GcsPath), _) => 
           workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString
         case _ => value
       }
@@ -615,4 +617,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       }
     )
   }
+  
+  override lazy val localizeAdHocValues: List[AdHocValue] => ErrorOr[List[StandardAdHocValue]] = _.map(Coproduct[StandardAdHocValue](_)).validNel
 }

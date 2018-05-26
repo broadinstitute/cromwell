@@ -17,6 +17,7 @@ import common.validation.Validation._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager._
 import cromwell.backend.google.pipelines.common.api.RunStatus
 import cromwell.backend.google.pipelines.common.api.RunStatus.{Initializing, Running, Success, UnsuccessfulRunStatus}
+import cromwell.backend.google.pipelines.v2alpha1.EventConversion.ops._
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2alpha1.api.Deserialization._
 import cromwell.backend.google.pipelines.v2alpha1.api.request.RequestHandler._

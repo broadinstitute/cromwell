@@ -9,6 +9,7 @@ import cromwell.backend.standard.StandardAsyncJob
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.WorkflowOptions
 import cromwell.core.filesystem.CromwellFileSystems
+import cromwell.core.logging.JobLogger
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -34,7 +35,7 @@ object PipelinesApiTestConfig {
       |    failOnStderr: false
       |    continueOnReturnCode: 0
       |    docker: "ubuntu:latest"
-      |    memory: "2 GB"
+      |    memory: "2048 MB"
       |    bootDiskSizeGb: 10
       |    disks: "local-disk 10 SSD"
       |    noAddress: false
@@ -104,7 +105,7 @@ object PipelinesApiTestConfig {
     override def build(httpRequestInitializer: HttpRequestInitializer) = new PipelinesApiRequestFactory {
       override def cancelRequest(job: StandardAsyncJob) = ???
       override def getRequest(job: StandardAsyncJob) = ???
-      override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters) = ???
+      override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters, jobLogger: JobLogger) = ???
     }
   }
   def pathBuilders()(implicit as: ActorSystem) = Await.result(JesBackendConfigurationDescriptor.pathBuilders(WorkflowOptions.empty), 5.seconds)

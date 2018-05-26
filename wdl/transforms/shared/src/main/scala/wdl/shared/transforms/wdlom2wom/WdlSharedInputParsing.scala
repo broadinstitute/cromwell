@@ -10,7 +10,7 @@ import wom.types.WomType
 import scala.util.Try
 
 object WdlSharedInputParsing {
-  private lazy val inputCoercionFunction: InputParsingFunction = inputString => {
+  private lazy val inputCoercionFunction: InputParsingFunction = (inputString, _) => {
     import common.validation.Checked._
     import common.validation.Validation._
     import spray.json._

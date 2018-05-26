@@ -58,6 +58,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
 
   var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor))
 
+  def gcsPath(str: String) = mockPathBuilder.build(str).getOrElse(fail(s"Invalid gcs path: $str"))
+
   import PipelinesApiTestConfig._
 
   implicit val Timeout: FiniteDuration = 25.seconds.dilated
@@ -107,7 +109,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val requestFactory = new PipelinesApiRequestFactory {
       override def cancelRequest(job: StandardAsyncJob) = null
       override def getRequest(job: StandardAsyncJob) = null
-      override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters) = null
+      override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters, jobLogger: JobLogger) = null
     }
     PipelinesApiBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null, requestFactory)
   }
@@ -492,21 +494,21 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         val jesInputs = testActorRef.underlyingActor.generateJesInputs(jobDescriptor)
         jesInputs should have size 8
         jesInputs should contain(PipelinesApiFileInput(
-          "stringToFileMap-0", "gs://path/to/stringTofile1", DefaultPathBuilder.get("path/to/stringTofile1"), workingDisk))
+          "stringToFileMap-0", gcsPath("gs://path/to/stringTofile1"), DefaultPathBuilder.get("path/to/stringTofile1"), workingDisk))
         jesInputs should contain(PipelinesApiFileInput(
-          "stringToFileMap-1", "gs://path/to/stringTofile2", DefaultPathBuilder.get("path/to/stringTofile2"), workingDisk))
+          "stringToFileMap-1", gcsPath("gs://path/to/stringTofile2"), DefaultPathBuilder.get("path/to/stringTofile2"), workingDisk))
         jesInputs should contain(PipelinesApiFileInput(
-          "fileToStringMap-0", "gs://path/to/fileToString1", DefaultPathBuilder.get("path/to/fileToString1"), workingDisk))
+          "fileToStringMap-0", gcsPath("gs://path/to/fileToString1"), DefaultPathBuilder.get("path/to/fileToString1"), workingDisk))
         jesInputs should contain(PipelinesApiFileInput(
-          "fileToStringMap-1", "gs://path/to/fileToString2", DefaultPathBuilder.get("path/to/fileToString2"), workingDisk))
+          "fileToStringMap-1", gcsPath("gs://path/to/fileToString2"), DefaultPathBuilder.get("path/to/fileToString2"), workingDisk))
         jesInputs should contain(PipelinesApiFileInput(
-          "fileToFileMap-0", "gs://path/to/fileToFile1Key", DefaultPathBuilder.get("path/to/fileToFile1Key"), workingDisk))
+          "fileToFileMap-0", gcsPath("gs://path/to/fileToFile1Key"), DefaultPathBuilder.get("path/to/fileToFile1Key"), workingDisk))
         jesInputs should contain(PipelinesApiFileInput(
-          "fileToFileMap-1", "gs://path/to/fileToFile1Value", DefaultPathBuilder.get("path/to/fileToFile1Value"), workingDisk))
+          "fileToFileMap-1", gcsPath("gs://path/to/fileToFile1Value"), DefaultPathBuilder.get("path/to/fileToFile1Value"), workingDisk))
         jesInputs should contain(PipelinesApiFileInput(
-          "fileToFileMap-2", "gs://path/to/fileToFile2Key", DefaultPathBuilder.get("path/to/fileToFile2Key"), workingDisk))
+          "fileToFileMap-2", gcsPath("gs://path/to/fileToFile2Key"), DefaultPathBuilder.get("path/to/fileToFile2Key"), workingDisk))
         jesInputs should contain(PipelinesApiFileInput(
-          "fileToFileMap-3", "gs://path/to/fileToFile2Value", DefaultPathBuilder.get("path/to/fileToFile2Value"), workingDisk))
+          "fileToFileMap-3", gcsPath("gs://path/to/fileToFile2Value"), DefaultPathBuilder.get("path/to/fileToFile2Value"), workingDisk))
 
       case Left(badness) => fail(badness.toList.mkString(", "))
     }
@@ -548,11 +550,11 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val workflowId = jesBackend.workflowId
     val jesInputs = jesBackend.generateJesInputs(jobDescriptor)
     jesInputs should have size 1
-    jesInputs should contain(PipelinesApiFileInput("in-0", "gs://blah/b/c.txt", DefaultPathBuilder.get("blah/b/c.txt"), workingDisk))
+    jesInputs should contain(PipelinesApiFileInput("in-0", gcsPath("gs://blah/b/c.txt"), DefaultPathBuilder.get("blah/b/c.txt"), workingDisk))
     val jesOutputs = jesBackend.generateJesOutputs(jobDescriptor)
     jesOutputs should have size 1
     jesOutputs should contain(PipelinesApiFileOutput("out",
-      s"gs://my-cromwell-workflows-bucket/file_passing/$workflowId/call-a/out", DefaultPathBuilder.get("out"), workingDisk, optional = true))
+      gcsPath(s"gs://my-cromwell-workflows-bucket/file_passing/$workflowId/call-a/out"), DefaultPathBuilder.get("out"), workingDisk, optional = true))
   }
 
   it should "generate correct JesInputs when a command line contains a write_lines call in it" taggedAs PostWomTest ignore {
@@ -572,7 +574,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val jesInputs = jesBackend.generateJesInputs(jobDescriptor)
     jesInputs should have size 1
     jesInputs should contain(PipelinesApiFileInput(
-      "c6fd5c91-0", "gs://some/path/file.txt", DefaultPathBuilder.get("some/path/file.txt"), workingDisk))
+      "c6fd5c91-0", gcsPath("gs://some/path/file.txt"), DefaultPathBuilder.get("some/path/file.txt"), workingDisk))
     val jesOutputs = jesBackend.generateJesOutputs(jobDescriptor)
     jesOutputs should have size 0
   }
@@ -606,8 +608,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
 
         val jesInputs = testActorRef.underlyingActor.generateJesInputs(jobDescriptor)
         jesInputs should have size 2
-        jesInputs should contain(PipelinesApiFileInput("fileArray-0", "gs://path/to/file1", DefaultPathBuilder.get("path/to/file1"), workingDisk))
-        jesInputs should contain(PipelinesApiFileInput("fileArray-1", "gs://path/to/file2", DefaultPathBuilder.get("path/to/file2"), workingDisk))
+        jesInputs should contain(PipelinesApiFileInput("fileArray-0", gcsPath("gs://path/to/file1"), DefaultPathBuilder.get("path/to/file1"), workingDisk))
+        jesInputs should contain(PipelinesApiFileInput("fileArray-1", gcsPath("gs://path/to/file2"), DefaultPathBuilder.get("path/to/file2"), workingDisk))
       case Left(badness) => fail(badness.toList.mkString(", "))
     }
   }
@@ -641,8 +643,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
 
         val jesInputs = testActorRef.underlyingActor.generateJesInputs(jobDescriptor)
         jesInputs should have size 2
-        jesInputs should contain(PipelinesApiFileInput("file1-0", "gs://path/to/file1", DefaultPathBuilder.get("path/to/file1"), workingDisk))
-        jesInputs should contain(PipelinesApiFileInput("file2-0", "gs://path/to/file2", DefaultPathBuilder.get("path/to/file2"), workingDisk))
+        jesInputs should contain(PipelinesApiFileInput("file1-0", gcsPath("gs://path/to/file1"), DefaultPathBuilder.get("path/to/file1"), workingDisk))
+        jesInputs should contain(PipelinesApiFileInput("file2-0", gcsPath("gs://path/to/file2"), DefaultPathBuilder.get("path/to/file2"), workingDisk))
 
       case Left(badness) => fail(badness.toList.mkString(", "))
     }
@@ -650,15 +652,15 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
 
   it should "convert local Paths back to corresponding GCS paths in JesOutputs" in {
     val jesOutputs = Set(
-      PipelinesApiFileOutput("/cromwell_root/path/to/file1", "gs://path/to/file1",
+      PipelinesApiFileOutput("/cromwell_root/path/to/file1", gcsPath("gs://path/to/file1"),
         DefaultPathBuilder.get("/cromwell_root/path/to/file1"), workingDisk, optional = true),
-      PipelinesApiFileOutput("/cromwell_root/path/to/file2", "gs://path/to/file2",
+      PipelinesApiFileOutput("/cromwell_root/path/to/file2", gcsPath("gs://path/to/file2"),
         DefaultPathBuilder.get("/cromwell_root/path/to/file2"), workingDisk, optional = true),
-      PipelinesApiFileOutput("/cromwell_root/path/to/file3", "gs://path/to/file3",
+      PipelinesApiFileOutput("/cromwell_root/path/to/file3", gcsPath("gs://path/to/file3"),
         DefaultPathBuilder.get("/cromwell_root/path/to/file3"), workingDisk, optional = true),
-      PipelinesApiFileOutput("/cromwell_root/path/to/file4", "gs://path/to/file4",
+      PipelinesApiFileOutput("/cromwell_root/path/to/file4", gcsPath("gs://path/to/file4"),
         DefaultPathBuilder.get("/cromwell_root/path/to/file4"), workingDisk, optional = true),
-      PipelinesApiFileOutput("/cromwell_root/path/to/file5", "gs://path/to/file5",
+      PipelinesApiFileOutput("/cromwell_root/path/to/file5", gcsPath("gs://path/to/file5"),
         DefaultPathBuilder.get("/cromwell_root/path/to/file5"), workingDisk, optional = true)
     )
     val outputValues = Seq(
@@ -689,7 +691,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     def wdlValueToGcsPath(jesOutputs: Set[PipelinesApiFileOutput])(womValue: WomValue): WomValue = {
-      WomFileMapper.mapWomFiles(testActorRef.underlyingActor.womFileToGcsPath(jesOutputs))(womValue).get
+      WomFileMapper.mapWomFiles(testActorRef.underlyingActor.womFileToGcsPath(jesOutputs.toSet))(womValue).get
     }
 
     val result = outputValues map wdlValueToGcsPath(jesOutputs)
@@ -723,7 +725,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     testActorRef.underlyingActor.monitoringScript shouldBe
-      Some(PipelinesApiFileInput("monitoring-in", "gs://path/to/script", DefaultPathBuilder.get("monitoring.sh"), workingDisk))
+      Some(PipelinesApiFileInput("monitoring-in", gcsPath("gs://path/to/script"), DefaultPathBuilder.get("monitoring.sh"), workingDisk))
   }
 
   it should "not create a JesFileInput for the monitoring script, when not specified" in {
@@ -894,8 +896,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         "runtimeAttributes:disks" -> "local-disk 200 SSD",
         "runtimeAttributes:docker" -> "ubuntu:latest",
         "runtimeAttributes:failOnStderr" -> "false",
-        "runtimeAttributes:memory" -> "2 GB",
-        "runtimeAttributes:memoryMin" -> "2 GB",
+        "runtimeAttributes:memory" -> "2048.0 MB",
+        "runtimeAttributes:memoryMin" -> "2048.0 MB",
         "runtimeAttributes:noAddress" -> "false",
         "runtimeAttributes:preemptible" -> "0",
         "runtimeAttributes:zones" -> "us-central1-b,us-central1-a",

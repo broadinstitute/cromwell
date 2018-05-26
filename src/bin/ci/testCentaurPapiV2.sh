@@ -39,7 +39,6 @@ centaur/test_cromwell.sh \
     -g \
     -e localdockertest \
     -e docker_hash_dockerhub_private \
-    -e gpu_on_papi \
     "${INTEGRATION_TESTS[@]}"
 
 cromwell::build::generate_code_coverage

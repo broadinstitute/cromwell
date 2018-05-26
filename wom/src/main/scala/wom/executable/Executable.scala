@@ -28,7 +28,7 @@ object Executable {
     * which 1) abstracts it away and 2) guarantees that the linking mechanism is the same regardless of the language.
     * At the same time each language can parse the input file however it wants.
    */
-  type InputParsingFunction = String => Checked[ParsedInputMap]
+  type InputParsingFunction = (String, IoFunctionSet) => Checked[ParsedInputMap]
   type ParsedInputMap = Map[String, DelayedCoercionFunction]
   type DelayedCoercionFunction = WomType => ErrorOr[WomValue]
   

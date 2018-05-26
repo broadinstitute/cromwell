@@ -3,10 +3,12 @@ package cromwell.backend.impl.tes
 import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.backend.{BackendConfigurationDescriptor, RuntimeAttributeDefinition, TestConfig}
 import cromwell.core.WorkflowOptions
+import eu.timepit.refined.numeric.Positive
+import eu.timepit.refined.refineMV
 import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.helpers.NOPLogger
 import spray.json._
-import wom.format.MemorySize
+import squants.information.Gigabytes
 import wom.types._
 import wom.values._
 
@@ -84,12 +86,12 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
     "validate a valid cpu entry" in assertSuccess(
       Map("docker" -> WomString("ubuntu:latest"), "cpu" -> WomInteger(2)),
-      expectedDefaultsPlusUbuntuDocker.copy(cpu = Option(2))
+      expectedDefaultsPlusUbuntuDocker.copy(cpu = Option(refineMV[Positive](2)))
     )
 
     "validate a valid cpu string entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "cpu" -> WomString("2"))
-      val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(cpu = Option(2))
+      val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(cpu = Option(refineMV[Positive](2)))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -100,7 +102,7 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
     "validate a valid memory entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "memory" -> WomString("1 GB"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(memory = Option(MemorySize.parse("1 GB").get))
+      val expectedRuntimeAttributes = expectedDefaults.copy(memory = Option(Gigabytes(1)))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -111,7 +113,7 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
     "validate a valid disk entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disk" -> WomString("1 GB"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(disk = Option(MemorySize.parse("1 GB").get))
+      val expectedRuntimeAttributes = expectedDefaults.copy(disk = Option(Gigabytes(1)))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 

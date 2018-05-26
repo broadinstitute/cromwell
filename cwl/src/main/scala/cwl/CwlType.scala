@@ -63,8 +63,9 @@ case class File private
         case (None, Some(content)) =>
           new WomMaybePopulatedFile(None, checksum, size, format, contents) with LazyWomFile {
             override def initialize(ioFunctionSet: IoFunctionSet) = {
-              val writtenFile = sync(ioFunctionSet.writeFile(content.hashCode.toString, content)).get
-              this.copy(valueOption = Option(writtenFile.value))
+              sync(ioFunctionSet.writeFile(content.hashCode.toString, content)).toErrorOr map { writtenFile =>
+                this.copy(valueOption = Option(writtenFile.value))
+              }
             }
           }.valid
         case (_, _) =>
@@ -247,8 +248,9 @@ case class Directory private
       } getOrElse {
         new WomMaybeListedDirectory(None, listingOption, basename) with LazyWomFile {
           override def initialize(ioFunctionSet: IoFunctionSet) = {
-            val value = ioFunctionSet.createTemporaryDirectory(basename) |> sync
-            this.copy(valueOption = Option(value.get))
+            sync(ioFunctionSet.createTemporaryDirectory(basename)).toErrorOr map { tempDir =>
+              this.copy(valueOption = Option(tempDir))
+            }
           }
         }.valid
       }

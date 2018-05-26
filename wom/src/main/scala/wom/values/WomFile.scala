@@ -3,6 +3,7 @@ package wom.values
 import java.io.FileNotFoundException
 import java.nio.file.NoSuchFileException
 
+import common.validation.ErrorOr.ErrorOr
 import wom.expression.IoFunctionSet
 import wom.types._
 
@@ -129,7 +130,7 @@ object WomFile {
   * The returned value should NOT be a LazyWomFile
   */
 trait LazyWomFile { this: WomFile =>
-  def initialize(ioFunctionSet: IoFunctionSet): WomFile
+  def initialize(ioFunctionSet: IoFunctionSet): ErrorOr[WomFile]
 }
 
 sealed trait WomPrimitiveFile extends WomFile with WomPrimitive

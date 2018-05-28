@@ -13,10 +13,10 @@ object CwlExecutableValidation {
 
   // Decodes the input file, and build the ParsedInputMap
   private val inputCoercionFunction: InputParsingFunction =
-    (inputFile, ioFunctionSet) => {
+    inputFile => {
       yaml.parser.parse(inputFile).flatMap(_.as[Map[String, Json]]) match {
         case Left(error) => error.getMessage.invalidNelCheck[ParsedInputMap]
-        case Right(inputValue) => inputValue.map({ case (key, value) => key -> value.foldWith(new CwlJsonToDelayedCoercionFunction(ioFunctionSet)) }).validNelCheck
+        case Right(inputValue) => inputValue.map({ case (key, value) => key -> value.foldWith(CwlJsonToDelayedCoercionFunction) }).validNelCheck
       }
     }
 

@@ -383,7 +383,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         asyncIo.copyAsync(file, jobPaths.callExecutionRoot / file.name) map { _ =>
           Coproduct[StandardAdHocValue](LocalizedAdHocValue(adHoc, jobPaths.callExecutionRoot / file.name))
         }
-      // If the file should be available as a different name that its own, copy it as that
+      // If the file should be available as a different name than its own, copy it as that
       case (adHoc @ AdHocValue(_, Some(alternateName), _), file) =>
         val finalPath = jobPaths.callExecutionRoot / alternateName
         // First check that it's not already there under execution root

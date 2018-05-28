@@ -12,13 +12,12 @@ import io.circe.generic.auto._
 import io.circe.refined._
 import io.circe.literal._
 import wom.executable.Executable.DelayedCoercionFunction
-import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values._
 
 // With recursive types we could let circe parse it for us, but until we figure that out just parse it as Json and
 // manually check for File / Directory structures
-private [cwl] class CwlJsonToDelayedCoercionFunction(ioFunctionSet: IoFunctionSet) extends Json.Folder[DelayedCoercionFunction] {
+private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[DelayedCoercionFunction] {
   import cwl.decoder._
   implicit val fileD = implicitly[Decoder[File]]
   implicit val directoryD = implicitly[Decoder[Directory]]

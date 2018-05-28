@@ -421,7 +421,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         StandardStream("stdout", _.output),
         StandardStream("stderr", _.error)
       ) map { s =>
-        PipelinesApiFileOutput(s.name, returnCodeGcsPath.sibling(s.filename).pathAsString, DefaultPathBuilder.get(s.filename), workingDisk, optional = false)
+        PipelinesApiFileOutput(s.name, returnCodeGcsPath.sibling(s.filename), DefaultPathBuilder.get(s.filename), workingDisk, optional = false)
       }
 
       InputOutputParameters(
@@ -630,5 +630,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     )
   }
   
+  // No need for Cromwell-performed localization in the PAPI backend, ad hoc values are localized directly from GCS to the VM by PAPI.
   override lazy val localizeAdHocValues: List[AdHocValue] => ErrorOr[List[StandardAdHocValue]] = _.map(Coproduct[StandardAdHocValue](_)).validNel
 }

@@ -1,7 +1,7 @@
 package cromwell.backend.impl.bcs
 
+import cromwell.backend.BackendJobDescriptorKey
 import cromwell.backend.io.JobPaths
-import cromwell.core.JobKey
 import cromwell.core.path.{DefaultPathBuilder, Path}
 
 object BcsJobPaths {
@@ -16,7 +16,7 @@ object BcsJobPaths {
 	val BcsStderrRedirectPath = "bcs-stderr"
 }
 
-final case class BcsJobPaths(workflowPaths: BcsWorkflowPaths, jobKey: JobKey) extends JobPaths {
+final case class BcsJobPaths(workflowPaths: BcsWorkflowPaths, jobKey: BackendJobDescriptorKey) extends JobPaths {
 
 	import BcsJobPaths._
 

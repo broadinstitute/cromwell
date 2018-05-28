@@ -1,7 +1,7 @@
 package cromwell.backend.google.pipelines.common
 
+import cromwell.backend.BackendJobDescriptorKey
 import cromwell.backend.io.JobPaths
-import cromwell.core.JobKey
 import cromwell.core.path.Path
 import cromwell.services.metadata.CallMetadataKeys
 
@@ -11,7 +11,7 @@ object PipelinesApiJobPaths {
   val JesExecParamName = "exec"
 }
 
-final case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWorkflowPaths, jobKey: JobKey) extends JobPaths {
+final case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWorkflowPaths, jobKey: BackendJobDescriptorKey) extends JobPaths {
 
   // `jesLogBasename` is a `def` rather than a `val` because it is referenced polymorphically from
   // the initialization code of the extended `JobPaths` trait, but this class will not have initialized its `val`s

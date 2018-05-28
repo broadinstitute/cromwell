@@ -157,7 +157,7 @@ case class CommandLineTool private(
 
         json.get(outputPort.internalName)
           .map(
-            _.foldWith(new CwlJsonToDelayedCoercionFunction(ioFunctionSet)).apply(outputPort.womType)
+            _.foldWith(CwlJsonToDelayedCoercionFunction).apply(outputPort.womType)
               .map({
                 case womFile: WomFile => womFile.mapFile(ioFunctionSet.pathFunctions.relativeToHostCallRoot)
                 case womValue => womValue

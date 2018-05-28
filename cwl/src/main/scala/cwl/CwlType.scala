@@ -1,6 +1,5 @@
 package cwl
 
-import better.files
 import cats.instances.list._
 import cats.instances.option._
 import cats.syntax.traverse._

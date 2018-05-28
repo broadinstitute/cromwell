@@ -13,7 +13,12 @@ class EngineIoFunctions(val pathBuilders: List[PathBuilder], override val asyncI
 
   // TODO: This is not suited for multi backend / multi filesystem use. Keep local for now to not break local CWL conf tests
   override def writeFile(path: String, content: String): Future[WomSingleFile] = Future.successful {
-    WomSingleFile(newTemporaryFile().write(content).pathAsString)
+    val cromwellPath = buildPath(path)
+    val string = if (cromwellPath.isAbsolute) 
+      cromwellPath.write(content).pathAsString
+    else 
+      (newTemporaryDirectory() / path).write(content).pathAsString
+    WomSingleFile(string)
   }
 
   override def copyFile(pathFrom: String, targetName: String): Future[WomSingleFile] =

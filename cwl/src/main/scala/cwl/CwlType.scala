@@ -56,14 +56,15 @@ case class File private
 
   lazy val asWomValue: ErrorOr[WomMaybePopulatedFile] = {
     errorOrSecondaryFiles flatMap { secondaryFiles =>
-      val valueOption = path.orElse(location).orElse(basename)
+      val valueOption = path.orElse(location).orElse(path)
       (valueOption, contents) match {
         case (None, None) =>
           "Cannot convert CWL File to WomValue without either a location, a path, a basename, or contents".invalidNel
         case (None, Some(content)) =>
           new WomMaybePopulatedFile(None, checksum, size, format, contents) with LazyWomFile {
             override def initialize(ioFunctionSet: IoFunctionSet) = {
-              sync(ioFunctionSet.writeFile(content.hashCode.toString, content)).toErrorOr map { writtenFile =>
+              val name = basename.getOrElse(content.hashCode.toString)
+              sync(ioFunctionSet.writeFile(name, content)).toErrorOr map { writtenFile =>
                 this.copy(valueOption = Option(writtenFile.value))
               }
             }

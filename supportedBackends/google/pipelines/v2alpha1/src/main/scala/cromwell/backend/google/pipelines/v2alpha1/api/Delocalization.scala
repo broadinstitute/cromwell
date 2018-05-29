@@ -39,8 +39,9 @@ trait Delocalization {
       s"mkdir -p $outputDirectory &&" +
       // Read the content of cwl.output.json - redirect stderr to /dev/null so it doesn't fail if there's no cwl.output.json
       s" cat ${containerCallRoot.ensureSlashed}cwl.output.json 2>/dev/null" +
-        // Pipe the result to jq. Parse the json and traverse it looking for "path" values
-      " | jq -r '.. | .path? // empty'" +
+        // Pipe the result to jq. Parse the json and traverse it looking for "path" or "location" values,
+        // stripping any fully qualified file:// URLs.
+      """ | jq -r '.. | .path? // .location? // empty | gsub("file://"; "")' """ +
       // Redirect the result to a file that can be used in the next action to delocalize the extracted files / directories
       s" > $outputFile"
     )
@@ -82,8 +83,7 @@ trait Delocalization {
     * It's used to copy stdout / stderr and the logs back to the execution directory
     */
   def deLocalizeActions(createPipelineParameters: CreatePipelineParameters,
-                        mounts: List[Mount],
-                        userActionNumber: Int): List[Action] = {
+                        mounts: List[Mount]): List[Action] = {
     val cloudCallRoot = createPipelineParameters.cloudCallRoot.pathAsString
     val callExecutionContainerRoot = createPipelineParameters.commandScriptContainerPath.parent
 

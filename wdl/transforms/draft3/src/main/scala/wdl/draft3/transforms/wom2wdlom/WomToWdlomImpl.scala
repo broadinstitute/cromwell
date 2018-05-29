@@ -1,5 +1,6 @@
 package wdl.draft3.transforms.wom2wdlom
 
+import cats.data.Validated.Valid
 import wdl.model.draft3.elements._
 import wom.executable.WomBundle
 import common.collections.EnhancedCollections.EnhancedTraversableLike
@@ -54,8 +55,8 @@ object WomToWdlomImpl {
       val workflows: Iterable[WorkflowDefinition] = a.allCallables.values.filterByType[WorkflowDefinition]
 
       FileElement(
-        Seq(),
-        Seq(),
+        Seq(), // TODO: imports
+        Seq(), // Structs do not exist in draft-2
         workflows.map(_.toWdlom).toSeq,
         tasks.map(_.toWdlom).toSeq
       )
@@ -105,7 +106,7 @@ object WomToWdlomImpl {
     new WomToWdlom[OutputDefinition, OutputDeclarationElement] {
       override def toWdlom(a: OutputDefinition): OutputDeclarationElement =
         // TODO: fix bogus name mangling (I think we have outputs that shouldn't exist)
-        OutputDeclarationElement(a.womType.toWdlom, a.name.replace('.', '_'), a.expression.toWdlom)
+        OutputDeclarationElement(a.womType.toWdlom, a.name, a.expression.toWdlom)
     }
 
   implicit val inputDefinitionToInputDeclarationElement: WomToWdlom[InputDefinition, InputDeclarationElement] =
@@ -124,7 +125,10 @@ object WomToWdlomImpl {
         val inputs = a.inputs.map(inputDefinitionToInputDeclarationElement.toWdlom)
         val outputs = a.outputs.map(outputDefinitionToOutputDeclarationElement.toWdlom)
 
-        val command = a.commandTemplateBuilder(Map()).getOrElse(???)
+        val command = a.commandTemplateBuilder(Map()) match {
+          case Valid(cmd) => cmd
+          case _ => ???
+        }
 
         val commandLine = CommandSectionLine(command map {
           case s: StringCommandPart =>
@@ -160,7 +164,10 @@ object WomToWdlomImpl {
     new WomToWdlom[WorkflowDefinition, WorkflowDefinitionElement] {
       override def toWdlom(a: WorkflowDefinition): WorkflowDefinitionElement = {
         val inputs = a.inputs.map(inputDefinitionToInputDeclarationElement.toWdlom)
-        val outputs = a.outputs.map(outputDefinitionToOutputDeclarationElement.toWdlom)
+        // This is a bit odd, so let's explain. "Real" outputs that are specified by the WDL's author
+        // cannot have periods in them - period. So any output (and all outputs) that have periods
+        // are artifacts of WOMification and should be dropped
+        val outputs = a.outputs.filter(!_.localName.value.contains(".")).map(outputDefinitionToOutputDeclarationElement.toWdlom)
 
         val expressions: Set[GraphNode] = a.graph.nodes.filterByType[ExposedExpressionNode]
         val scatters: Set[GraphNode] = a.graph.nodes.filterByType[ScatterNode]
@@ -197,7 +204,7 @@ object WomToWdlomImpl {
         case a: ConditionalNode =>
           IfElement(
             conditionExpression = a.conditionExpression.toWdlom,
-            graphElements = Seq() //a.innerGraph.nodes
+            graphElements = a.innerGraph.nodes.toList.map(graphNodeToWorkflowGraphElement.toWdlom)
           )
         case a: ExpressionNodeLike =>
           a.toWdlom

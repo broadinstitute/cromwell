@@ -8,8 +8,8 @@ import cats.instances.list._
 import cats.instances.option._
 import cats.syntax.apply._
 import cats.syntax.either._
-import cats.syntax.traverse._
 import cats.syntax.functor._
+import cats.syntax.traverse._
 import common.exception.MessageAggregation
 import common.util.StringUtil._
 import common.util.TryUtil
@@ -17,12 +17,12 @@ import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
-import cromwell.backend._
+import cromwell.backend.OutputEvaluator._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async._
+import cromwell.backend.standard.StandardAdHocValue._
 import cromwell.backend.validation._
-import cromwell.backend.OutputEvaluator._
-import cromwell.backend.{Command, OutputEvaluator}
+import cromwell.backend.{Command, OutputEvaluator, _}
 import cromwell.core.io.{AsyncIoActorClient, DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.path.Path
 import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent, StandardPaths}
@@ -35,13 +35,12 @@ import shapeless.Coproduct
 import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression, RuntimeEnvironment}
 import wom.expression.WomExpression
 import wom.graph.LocalName
+import wom.values.LazyWomFile._
 import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
-import StandardAdHocValue._
-import LazyWomFile._
 
-import scala.concurrent.duration._
 import scala.concurrent._
+import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 trait StandardAsyncExecutionActorParams extends StandardJobExecutionActorParams {
@@ -378,22 +377,15 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     import cats.instances.future._
 
     // Localize an adhoc file to the callExecutionRoot as needed
-    val localize: (AdHocValue, Path) => Future[StandardAdHocValue] = {
-      // If the original file is not already under callExecutionRoot, then copy it there
-      case (adHoc @ AdHocValue(_, None, _), file) if !file.isChildOf(jobPaths.callExecutionRoot) =>
-        asyncIo.copyAsync(file, jobPaths.callExecutionRoot / file.name) as {
-          Coproduct[StandardAdHocValue](LocalizedAdHocValue(adHoc, jobPaths.callExecutionRoot / file.name))
-        }
-      // If the file should be available as a different name than its own, copy it as that
-      case (adHoc @ AdHocValue(_, Some(alternateName), _), file) =>
-        val finalPath = jobPaths.callExecutionRoot / alternateName
-        // First check that it's not already there under execution root
-        asyncIo.existsAsync(finalPath) flatMap {
-          // If it's not then copy it
-          case false => asyncIo.copyAsync(file, finalPath).map(_ => Coproduct[StandardAdHocValue](LocalizedAdHocValue(adHoc, finalPath)))
-          case true => Future.successful(Coproduct[StandardAdHocValue](LocalizedAdHocValue(adHoc, finalPath)))
-        }
-      case (adHoc, path) => Future.successful(Coproduct[StandardAdHocValue](LocalizedAdHocValue(adHoc, path)))
+    val localize: (AdHocValue, Path) => Future[LocalizedAdHocValue] = { (adHocValue, file) =>
+      val actualName = adHocValue.alternativeName.getOrElse(file.name)
+      val finalPath = jobPaths.callExecutionRoot / actualName
+      // First check that it's not already there under execution root
+      asyncIo.existsAsync(finalPath) flatMap {
+        // If it's not then copy it
+        case false => asyncIo.copyAsync(file, finalPath) as { LocalizedAdHocValue(adHocValue, finalPath) }
+        case true => Future.successful(LocalizedAdHocValue(adHocValue, finalPath))
+      }
     }
     
     adHocValues.traverse[ErrorOr, (AdHocValue, Path)]({ adHocValue =>
@@ -401,10 +393,11 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       getPath(adHocValue.womValue.value).toErrorOr.map(adHocValue -> _)
     })
       // Localize the values if necessary
-      .map(_.traverse[Future, StandardAdHocValue](localize.tupled)).toEither
+      .map(_.traverse[Future, LocalizedAdHocValue](localize.tupled)).toEither
       // TODO: Asynchronify
       // This is obviously sad but turning it into a Future has earth-shattering consequences, so synchronizing it for now
       .flatMap(future => Try(Await.result(future, 1.hour)).toChecked)
+      .map(_.map(Coproduct[StandardAdHocValue](_)))
       .toValidated
   }
   

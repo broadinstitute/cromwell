@@ -17,7 +17,6 @@ import common.validation.Validation._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager._
 import cromwell.backend.google.pipelines.common.api.RunStatus
 import cromwell.backend.google.pipelines.common.api.RunStatus.{Initializing, Running, Success, UnsuccessfulRunStatus}
-import cromwell.backend.google.pipelines.v2alpha1.EventConversion.ops._
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2alpha1.api.Deserialization._
 import cromwell.backend.google.pipelines.v2alpha1.api.request.RequestHandler._
@@ -126,7 +125,7 @@ trait GetRequestHandler { this: RequestHandler =>
       metadata.get("createTime") map { time => ExecutionEvent("waiting for quota", OffsetDateTime.parse(time.toString)) }
     }
 
-    starterEvent.toList ++ events.map(_.toExecutionEvent)
+    starterEvent.toList ++ events.map(toExecutionEvent)
   }
 
   private def augmentedErrorMessage(events: List[Event], actions: List[Action], error: String): String = {

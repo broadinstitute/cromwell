@@ -1,8 +1,10 @@
 package cwl
 
 import common.validation.Validation._
+import eu.timepit.refined.refineMV
 import cwl.CwlDecoder.decodeCwlFile
 import cwl.TestSetup.rootPath
+import eu.timepit.refined.numeric.Positive
 import org.scalatest.{FlatSpec, Matchers}
 import wom.callable.Callable.InputDefinition
 import wom.callable.{CallableTaskDefinition, RuntimeEnvironment}
@@ -18,7 +20,7 @@ class DirectorySpec extends FlatSpec with Matchers {
     val cwl = decodeCwlFile(rootPath / "dir_example.cwl").value.unsafeRunSync.right.get
     val executable = cwl.womExecutable(AcceptAllRequirements, None, NoIoFunctionSet, strictValidation = false).right.get
     val call = executable.graph.calls.head
-    val runtimeEnvironment = RuntimeEnvironment("output/path", "temp/path", 1, 2e10, 100, 100)
+    val runtimeEnvironment = RuntimeEnvironment("output/path", "temp/path",refineMV[Positive](1), 2e10, 100, 100)
     val defaultCallInputs = executable.graph.nodes.collect({
       case oginwd: OptionalGraphInputNodeWithDefault =>
         val key: InputDefinition = call.inputDefinitionMappings.toMap.keys.find(

@@ -304,7 +304,8 @@ object Dependencies {
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "org.apache.commons" % "commons-text" % commonsTextV,
     "com.github.mpilquist" %% "simulacrum" % simulacrumV,
-    "commons-codec" % "commons-codec" % commonsCodecV
+    "commons-codec" % "commons-codec" % commonsCodecV,
+    "eu.timepit" %% "refined" % refinedV
   )
 
   val wdlDependencies = List(

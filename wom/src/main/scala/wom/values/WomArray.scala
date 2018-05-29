@@ -1,6 +1,8 @@
 package wom.values
 
 import cats.Applicative
+import cats.instances.list._
+import cats.syntax.traverse._
 import common.util.TryUtil
 import wom.TsvSerializable
 import wom.types._
@@ -8,8 +10,6 @@ import wom.values.WomArray.WomArrayLike
 
 import scala.language.{higherKinds, postfixOps}
 import scala.util.{Failure, Success, Try}
-import cats.syntax.traverse._
-import cats.instances.list._
 
 object WomArray {
   def empty = WomArray(WomMaybeEmptyArrayType.EmptyArrayType, List.empty)

@@ -13,10 +13,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   
   // The original implementation assumes the WomFiles are all WomMaybePopulatedFiles and wraps everything in a PipelinesApiFileInput
   // In v2 we can differentiate files from directories 
-  override protected def jesInputsFromWomFiles(jesNamePrefix: String,
-                                               remotePathArray: Seq[WomFile],
-                                               localPathArray: Seq[WomFile],
-                                               jobDescriptor: BackendJobDescriptor): Iterable[PipelinesApiInput] = {
+  override protected def pipelinesApiInputsFromWomFiles(jesNamePrefix: String,
+                                                        remotePathArray: Seq[WomFile],
+                                                        localPathArray: Seq[WomFile],
+                                                        jobDescriptor: BackendJobDescriptor): Iterable[PipelinesApiInput] = {
     (remotePathArray zip localPathArray zipWithIndex) flatMap {
       case ((remotePath: WomMaybeListedDirectory, localPath), index) =>
         maybeListedDirectoryToPipelinesParameters(jesNamePrefix, remotePath, index, localPath.valueString)
@@ -66,7 +66,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   
   private def maybePopulatedFileToPipelinesParameters(jesNamePrefix: String, maybePopulatedFile: WomMaybePopulatedFile, index: Int, localPath: String) = {
     val secondaryFiles = maybePopulatedFile.secondaryFiles.flatMap({ secondaryFile =>
-      jesInputsFromWomFiles(secondaryFile.valueString, List(secondaryFile), List(relativeLocalizationPath(secondaryFile)), jobDescriptor)
+      pipelinesApiInputsFromWomFiles(secondaryFile.valueString, List(secondaryFile), List(relativeLocalizationPath(secondaryFile)), jobDescriptor)
     })
 
     Seq(PipelinesApiFileInput(s"$jesNamePrefix-$index", getPath(maybePopulatedFile.valueString).get, DefaultPathBuilder.get(localPath), workingDisk)) ++ secondaryFiles
@@ -77,13 +77,13 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
     case WomMaybeListedDirectory(Some(path), _, _) =>
       List(PipelinesApiDirectoryInput(s"$jesNamePrefix-$index", getPath(path).get, DefaultPathBuilder.get(localPath), workingDisk))
 
-    // If there is a listing, recurse and call jesInputsFromWomFiles on all the listed files
+    // If there is a listing, recurse and call pipelinesApiInputsFromWomFiles on all the listed files
     case WomMaybeListedDirectory(_, Some(listing), _) if listing.nonEmpty =>
       listing.flatMap({
         case womFile: WomFile if isAdHocFile(womFile) =>
-          jesInputsFromWomFiles(makeSafeJesReferenceName(womFile.valueString), List(womFile), List(fileName(womFile)), jobDescriptor)
+          pipelinesApiInputsFromWomFiles(makeSafeJesReferenceName(womFile.valueString), List(womFile), List(fileName(womFile)), jobDescriptor)
         case womFile: WomFile =>
-          jesInputsFromWomFiles(makeSafeJesReferenceName(womFile.valueString), List(womFile), List(relativeLocalizationPath(womFile)), jobDescriptor)
+          pipelinesApiInputsFromWomFiles(makeSafeJesReferenceName(womFile.valueString), List(womFile), List(relativeLocalizationPath(womFile)), jobDescriptor)
       })
     case _ => List.empty
   }

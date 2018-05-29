@@ -140,10 +140,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   /**
     * Takes two arrays of remote and local WOM File paths and generates the necessary JesInputs.
     */
-  protected def jesInputsFromWomFiles(jesNamePrefix: String,
-                                    remotePathArray: Seq[WomFile],
-                                    localPathArray: Seq[WomFile],
-                                    jobDescriptor: BackendJobDescriptor): Iterable[PipelinesApiInput] = {
+  protected def pipelinesApiInputsFromWomFiles(jesNamePrefix: String,
+                                               remotePathArray: Seq[WomFile],
+                                               localPathArray: Seq[WomFile],
+                                               jobDescriptor: BackendJobDescriptor): Iterable[PipelinesApiInput] = {
     (remotePathArray zip localPathArray zipWithIndex) flatMap {
       case ((remotePath, localPath), index) =>
         Seq(PipelinesApiFileInput(s"$jesNamePrefix-$index", getPath(remotePath.valueString).get, DefaultPathBuilder.get(localPath.valueString), workingDisk))
@@ -173,9 +173,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       }
     )
   }
-  
-  protected def callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.fullyQualifiedInputs mapValues {
-    womFile =>
+
+  protected def callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.fullyQualifiedInputs map {
+    case (key, womFile) =>
       val arrays: Seq[WomArray] = womFile collectAsSeq {
         case womFile: WomFile =>
           val files: List[WomSingleFile] = DirectoryFunctions
@@ -184,16 +184,14 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           WomArray(WomArrayType(WomSingleFileType), files)
       }
 
-      arrays.flatMap(_.value).collect {
+      key -> arrays.flatMap(_.value).collect {
         case womFile: WomFile => womFile
       }
-  } map identity // <-- unlazy the mapValues
+  }
   
   protected def localizationPath(f: CommandSetupSideEffectFile) = {
-    if (isAdHocFile(f.file))
-      f.relativeLocalPath.fold(ifEmpty = fileName(f.file))(WomFile(f.file.womFileType, _))
-    else
-      f.relativeLocalPath.fold(ifEmpty = relativeLocalizationPath(f.file))(WomFile(f.file.womFileType, _))
+    val fileTransformer = if (isAdHocFile(f.file)) fileName _ else relativeLocalizationPath _
+    f.relativeLocalPath.fold(ifEmpty = fileTransformer(f.file))(WomFile(f.file.womFileType, _))
   }
 
   private[pipelines] def generateJesInputs(jobDescriptor: BackendJobDescriptor): Set[PipelinesApiInput] = {
@@ -203,11 +201,11 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     val writeFunctionFiles = instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f) } toMap
 
     val writeFunctionInputs = writeFunctionFiles flatMap {
-      case (name, files) => jesInputsFromWomFiles(name, files.map(_.file), files.map(localizationPath), jobDescriptor)
+      case (name, files) => pipelinesApiInputsFromWomFiles(name, files.map(_.file), files.map(localizationPath), jobDescriptor)
     }
 
     val callInputInputs = callInputFiles flatMap {
-      case (name, files) => jesInputsFromWomFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor)
+      case (name, files) => pipelinesApiInputsFromWomFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor)
     }
 
     (writeFunctionInputs ++ callInputInputs).toSet

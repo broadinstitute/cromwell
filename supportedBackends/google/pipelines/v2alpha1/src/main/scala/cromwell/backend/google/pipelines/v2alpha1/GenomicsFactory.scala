@@ -7,14 +7,12 @@ import com.google.api.services.genomics.v2alpha1.Genomics
 import com.google.api.services.genomics.v2alpha1.model._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterface, PipelinesApiRequestFactory}
-import cromwell.backend.google.pipelines.v2alpha1.AttributesConversion.ops._
-import cromwell.backend.google.pipelines.v2alpha1.CreatePipelineParametersConversion.ops._
-import cromwell.backend.google.pipelines.v2alpha1.GpuResourceConversion.ops._
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2alpha1.api.{ActionBuilder, Delocalization, Localization}
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.logging.JobLogger
+import mouse.all._
 
 import scala.collection.JavaConverters._
 
@@ -41,9 +39,9 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
 
     override def runRequest(createPipelineParameters: CreatePipelineParameters, jobLogger: JobLogger) = {
       // Disks defined in the runtime attributes
-      val disks = createPipelineParameters.toDisks
+      val disks = createPipelineParameters |> toDisks
       // Mounts for disks defined in the runtime attributes
-      val mounts = createPipelineParameters.toMounts
+      val mounts = createPipelineParameters |> toMounts
 
       val localization: List[Action] = localizeActions(createPipelineParameters, mounts)
       // localization.size + 1 because action indices are 1-based and the next action after localization will be the user's
@@ -72,7 +70,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         .setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
 
       val accelerators = createPipelineParameters.runtimeAttributes
-        .gpuResource.map(_.toAccelerator).toList.asJava
+        .gpuResource.map(toAccelerator).toList.asJava
       
       /*
        * Adjust for the additional docker images Cromwell uses for (de)localization
@@ -85,7 +83,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         .setDisks(disks.asJava)
         .setPreemptible(createPipelineParameters.preemptible)
         .setServiceAccount(serviceAccount)
-        .setMachineType(createPipelineParameters.runtimeAttributes.toMachineType(jobLogger))
+        .setMachineType(createPipelineParameters.runtimeAttributes |> toMachineType(jobLogger))
         .setBootDiskSizeGb(adjustedBootDiskSize)
         .setLabels(createPipelineParameters.labels.asJavaMap)
         .setNetwork(network)

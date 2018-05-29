@@ -64,7 +64,7 @@ class MemoryDeclarationValidation(declaration: Declaration, attributeName: Strin
 
   private lazy val declarationMemoryUnit: UnitOfMeasure[Information] = {
     val suffix = memoryUnitSuffix(declaration.unqualifiedName, attributeName, attributeNamePrefix)
-    val memoryUnitOption =  Information.units.find(_.symbol.toLowerCase == suffix.toLowerCase)
+    val memoryUnitOption = Information.units.find(_.symbol.toLowerCase == suffix.toLowerCase)
     memoryUnitOption match {
       case Some(memoryUnit) => memoryUnit
       case None => throw new IllegalArgumentException(s"MemoryUnit with suffix $suffix was not found.")

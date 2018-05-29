@@ -39,7 +39,7 @@ object RuntimeEnvironmentBuilder {
 
       val tempPathSize: Long = minimums.outputPathSize
 
-      RuntimeEnvironment(outputPath, tempPath, cores.value, memoryInMiB, outputPathSize, tempPathSize)
+      RuntimeEnvironment(outputPath, tempPath, cores, memoryInMiB, outputPathSize, tempPathSize)
   }
 
   /**

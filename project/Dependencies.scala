@@ -28,6 +28,7 @@ object Dependencies {
   private val googleApiClientV = "1.23.0"
   private val googleCloudComputeV = "0.26.0-alpha"
   private val googleCloudCoreV = "1.8.0"
+  private val googleCloudDatstoreV = "1.31.0"
   private val googleCloudNioV = "0.20.1-alpha"
   private val googleCredentialsV = "0.8.0"
   private val googleGenomicsServicesV2ApiV = "v2alpha1-rev9-1.23.0"
@@ -229,6 +230,7 @@ object Dependencies {
       exclude("com.google.cloud.datastore", "datastore-v1-protos")
       exclude("org.apache.httpcomponents", "httpclient"),
     "com.google.cloud" % "google-cloud-compute" % googleCloudComputeV,
+    "com.google.cloud" % "google-cloud-datastore" % googleCloudDatstoreV,
     "org.broadinstitute.dsde.workbench" %% "workbench-google" % workbenchGoogleV
       exclude("com.google.apis", "google-api-services-genomics"),
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV

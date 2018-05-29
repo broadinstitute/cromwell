@@ -4,6 +4,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.draft2.model.WdlExpression
 import wdl.draft2.model.expression.{NoFunctions, WdlStandardLibraryFunctions, WdlStandardLibraryFunctionsType}
+import wdl.shared.FileSizeLimitationConfig
 import wom.OptionalNotSuppliedException
 import wom.types._
 import wom.values._
@@ -56,7 +57,7 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
   class TestValueFunctions extends WdlStandardLibraryFunctions {
     override def globHelper(pattern: String): Seq[String] = throw new NotImplementedError()
 
-    override def readFile(path: String): String = throw new NotImplementedError()
+    override def readFile(path: String, sizeLimit: Int): String = throw new NotImplementedError()
 
     override def writeFile(path: String, content: String): Try[WomSingleFile] = Failure(new NotImplementedError())
 
@@ -85,6 +86,8 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
 
     def append(params: Seq[Try[WomValue]]): Try[WomValue] =
       Success(WomString(params.map(_.asInstanceOf[Try[WomString]].get.value).mkString))
+
+    override protected def fileSizeLimitationConfig: FileSizeLimitationConfig = ???
   }
 
   class TestTypeFunctions extends WdlStandardLibraryFunctionsType {

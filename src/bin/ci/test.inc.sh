@@ -15,9 +15,6 @@
 #   - CROMWELL_BUILD_*
 #     Variables for use in other scripts.
 #
-#   - CROMWELL_SECURE_*
-#     Should not be used/printed/echoed!
-#
 #   - crmdbg
 #     Quick debug scripts. Example: `crmdbg=y src/bin/ci/testCentaulLocal.sh`
 #
@@ -63,6 +60,13 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_BRANCH="${TRAVIS_BRANCH}"
     CROMWELL_BUILD_EVENT="${TRAVIS_EVENT_TYPE}"
     CROMWELL_BUILD_TAG="${TRAVIS_TAG}"
+    CROMWELL_BUILD_NUMBER="${TRAVIS_JOB_NUMBER}"
+
+    if [ "${TRAVIS}" = "true" ]; then
+        CROMWELL_BUILD_PROVIDER="travis"
+    else
+        CROMWELL_BUILD_PROVIDER="unknown"
+    fi
 
     # simplified from https://stackoverflow.com/a/18434831/3320205
     CROMWELL_BUILD_OS_DARWIN="darwin";
@@ -95,6 +99,8 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_BRANCH
     export CROMWELL_BUILD_EVENT
     export CROMWELL_BUILD_TAG
+    export CROMWELL_BUILD_NUMBER
+    export CROMWELL_BUILD_PROVIDER
     export CROMWELL_BUILD_OS
     export CROMWELL_BUILD_OS_DARWIN
     export CROMWELL_BUILD_OS_LINUX
@@ -111,13 +117,19 @@ cromwell::private::create_build_variables() {
 }
 
 cromwell::private::echo_build_variables() {
+    echo "CROMWELL_BUILD_IS_CI='${CROMWELL_BUILD_IS_CI}'"
+    echo "CROMWELL_BUILD_IS_CRON='${CROMWELL_BUILD_IS_CRON}'"
+    echo "CROMWELL_BUILD_IS_SECURE='${CROMWELL_BUILD_IS_SECURE}'"
     echo "CROMWELL_BUILD_TYPE='${CROMWELL_BUILD_TYPE}'"
     echo "CROMWELL_BUILD_BRANCH='${CROMWELL_BUILD_BRANCH}'"
     echo "CROMWELL_BUILD_EVENT='${CROMWELL_BUILD_EVENT}'"
     echo "CROMWELL_BUILD_TAG='${CROMWELL_BUILD_TAG}'"
+    echo "CROMWELL_BUILD_NUMBER='${CROMWELL_BUILD_NUMBER}'"
+    echo "CROMWELL_BUILD_PROVIDER='${CROMWELL_BUILD_PROVIDER}'"
+    echo "CROMWELL_BUILD_OS='${CROMWELL_BUILD_OS}'"
 }
 
-cromwell::private::verify_secure_variables() {
+cromwell::private::verify_is_secure() {
     if [ "${CROMWELL_BUILD_IS_SECURE}" = "false" ]; then
         echo "********************************************************"
         echo "********************************************************"
@@ -140,16 +152,6 @@ cromwell::private::verify_cron_build() {
         echo "***************************"
         echo "***************************"
         exit 0
-    fi
-}
-
-cromwell::private::setup_secure_variables() {
-    if cromwell::private::is_xtrace_enabled; then
-        cromwell::private::exec_silent_function cromwell::private::setup_secure_variables
-    else
-        CROMWELL_SECURE_DOCKER_USERNAME="${DOCKER_USERNAME}"
-        CROMWELL_SECURE_DOCKER_PASSWORD="${DOCKER_PASSWORD}"
-        CROMWELL_SECURE_VAULT_TOKEN="${JES_TOKEN}"
     fi
 }
 
@@ -236,14 +238,11 @@ cromwell::private::docker_login() {
         cromwell::private::exec_silent_function cromwell::private::docker_login
     else
         local dockerhub_auth_include
-        dockerhub_auth_include="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/dockerhub_auth.sh"
+        dockerhub_auth_include="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/dockerhub_auth.inc.sh"
         if [ -f "${dockerhub_auth_include}" ]; then
             # shellcheck source=/dev/null
             source "${dockerhub_auth_include}"
         fi
-        docker login \
-            --username "${CROMWELL_SECURE_DOCKER_USERNAME}" \
-            --password "${CROMWELL_SECURE_DOCKER_PASSWORD}"
     fi
 }
 
@@ -252,10 +251,13 @@ cromwell::private::vault_login() {
         cromwell::private::exec_silent_function cromwell::private::vault_login
     else
         # Login to vault to access secrets
+        local vault_token
+        vault_token="${JES_TOKEN}"
         docker run --rm \
             -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
             broadinstitute/dsde-toolbox \
-            vault auth "${CROMWELL_SECURE_VAULT_TOKEN}" < /dev/null > /dev/null && echo vault auth success
+            vault auth "${vault_token}" < /dev/null > /dev/null && echo vault auth success
+        unset vault_token
     fi
 }
 
@@ -281,15 +283,29 @@ cromwell::private::render_secure_resources() {
 
 cromwell::private::setup_secure_resources() {
     if [ "${CROMWELL_BUILD_IS_CI}" = "true" ]; then
-            cromwell::private::setup_secure_variables
-            # Ignore premature login errors that occur once dsde-toolbox is public and u/p are only in vault
-            cromwell::private::docker_login || true
             cromwell::private::vault_login
             cromwell::private::render_secure_resources
             cromwell::private::docker_login
     else
             cromwell::private::render_secure_resources
     fi
+}
+
+cromwell::private::find_cromwell_jar() {
+    CROMWELL_BUILD_JAR="$( \
+        find "${CROMWELL_BUILD_ROOT_DIRECTORY}/server/target/scala-2.12" -name "cromwell-*.jar" \
+        | head -n 1 \
+        2> /dev/null \
+        )"
+    export CROMWELL_BUILD_JAR
+}
+
+cromwell::private::exists_cromwell_jar() {
+    test -s "${CROMWELL_BUILD_JAR}"
+}
+
+cromwell::private::assemble_jars() {
+    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error sbt coverage assembly -error
 }
 
 cromwell::private::generate_code_coverage() {
@@ -299,11 +315,11 @@ cromwell::private::generate_code_coverage() {
 }
 
 cromwell::private::publish_artifacts_only() {
-    sbt "$@" +publish
+    sbt "$@" publish
 }
 
 cromwell::private::publish_artifacts_and_docker() {
-    sbt "$@" +publish dockerBuildAndPush
+    sbt "$@" publish dockerBuildAndPush
 }
 
 # Some CI environments want to know when new docker images are published. They do not currently poll dockerhub but do
@@ -449,6 +465,9 @@ cromwell::build::setup_common_environment() {
 }
 
 cromwell::build::setup_secure_resources() {
+    if [ "${CROMWELL_BUILD_IS_CI}" = "true" ]; then
+        cromwell::private::verify_is_secure
+    fi
     cromwell::private::setup_secure_resources
 }
 
@@ -471,22 +490,21 @@ cromwell::build::setup_conformance_environment() {
     fi
     cromwell::private::checkout_pinned_cwl
     cromwell::private::start_build_heartbeat
-    if [ "${CROMWELL_BUILD_IS_CI}" = "true" ]; then
-        cromwell::private::add_exit_function cromwell::private::cat_conformance_log
-    fi
+    cromwell::private::add_exit_function cromwell::private::cat_conformance_log
     cromwell::private::add_exit_function cromwell::private::kill_build_heartbeat
 }
 
 cromwell::build::assemble_jars() {
-    if [ "${CROMWELL_BUILD_IS_CI}" = "true" ]; then
-        CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error CROMWELL_SBT_COVERAGE=true sbt assembly -error
+    cromwell::private::find_cromwell_jar
+    if [ "${CROMWELL_BUILD_IS_CI}" = "true" ] || ! cromwell::private::exists_cromwell_jar; then
+        echo "Please wait, building jars…"
+        cromwell::private::assemble_jars
     fi
-    CROMWELL_BUILD_JAR="$( \
-        find "${CROMWELL_BUILD_ROOT_DIRECTORY}/server/target/scala-2.12" -name "cromwell-*.jar" \
-        | head -n 1 \
-        )"
-    [ -s "${CROMWELL_BUILD_JAR}" ] || exit 1
-    export CROMWELL_BUILD_JAR
+    cromwell::private::find_cromwell_jar
+    if ! cromwell::private::exists_cromwell_jar; then
+        echo "Error: find_cromwell_jar did not locate a cromwell jar even after assembly" >&2
+        exit 1
+    fi
 }
 
 cromwell::build::generate_code_coverage() {

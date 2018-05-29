@@ -166,20 +166,6 @@ On the Local, SGE, and associated backends any GCS URI will be downloaded locall
 precedence over the `root` specified at `backend.providers.JES.config.root` in the configuration file. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
 workflows using the Google backend.
 
-
-#### Requester Pays
-
-Cromwell supports [Requester Pays](https://cloud.google.com/storage/docs/requester-pays) feature for Cloud Storage. With Requester Pays enabled on your bucket,
-you can require requesters to include a billing project in their requests, thus billing the requester's project. If the bucket you are accessing has requester pays enabled,
-to access the file inside that bucket you need to mention the Google project id which can be billed for that request. The billing project information can be added in ways described below. Cromwell will
-look for this information in this order.
-1. It can be added as `'google_project':'project-id'` as part of workflow options during workflow submission
-2. It can be included inside configuration file as shown in [`Getting started on Google Pipelines API`](http://cromwell.readthedocs.io/en/develop/tutorials/PipelinesApi101/) where you need to replace the `<google-billing-project-id>` with the project id **(HIGHLY RECOMMENDED)**
-3. Cromwell will use the default project that has been configured with gcloud
-
-It is highly recommended to add the project id as part of configuration if you don't want to specify as part of workflow options each time you submit request.
-
-
 #### Google Labels
 
 Every call run on the Pipelines API backend is given certain labels by default, so that Google resources can be queried by these labels later. The current default label set automatically applied is:

@@ -22,15 +22,10 @@ Please update your configuration accordingly.
 |      V1      | cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory |
 |      V2      | cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory |
 
-If you don't update the `actor-factory` value, you'll get a deprecation warning in the logs, and Cromwell will default back to
-**PAPI V1**
+If you don't update the `actor-factory` value, you'll get a deprecation warning in the logs, and Cromwell will default back to **PAPI V1**
 
-**Requester Pays**
-
-Cromwell now supports [Requester Pays](https://cloud.google.com/storage/docs/requester-pays) feature for Cloud Storage. With Requester Pays enabled on your bucket,
-you can require requesters to include a billing project in their requests, thus billing the requester's project. More information about it and how to include billing project can be found [here](backends/Google#requester-pays).
-It is highly recommended to add the billing project id as part of google configuration as shown in [`Getting started on Google Pipelines API`](http://cromwell.readthedocs.io/en/develop/tutorials/PipelinesApi101/)
-by replacing the `<google-billing-project-id>` with the project id.
+### Task Retries
+Cromwell now supports retrying failed tasks up to a specified count by declaring a value for the [maxRetries](RuntimeAttributes.md#maxRetries) key through the WDL runtime attributes.
 
 ### Labels
 * Cromwell has removed most of the formatting restrictions from custom labels. Please check the [README](README.md#label-format) for more detailed documentation.

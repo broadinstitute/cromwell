@@ -1,4 +1,4 @@
-package cromwell.backend.wdl
+package cromwell.backend
 
 import better.files.File.OpenOptions
 import cats.instances.future._

@@ -291,6 +291,19 @@ runtime {
     zones: ["us-central1-c"]
 }
 
+## `maxRetries`
+
+Applicable for all backends in Cromwell. Takes an Int as a value that indicates the maximum number of times Cromwell should retry a failed task.
+
+*eg. With a value of 1, Cromwell will run the task, if the task fails for any reason, the task will be retried without any changes.*
+
+```
+runtime {
+  maxRetries: 1
+}
+```
+
+Defaults to 0.
 ## Backend Support
 
 [Backends](backends/Backends) only support certain attributes. See table below:
@@ -306,5 +319,7 @@ runtime {
 | [memory](#memory)                              |       |   x   |   x   |
 | [preemptible](#preemptible)                    |       |   x   |       |
 | [bootDiskSizeGb](#bootdisksizegb)              |       |   x   |       |
+| [maxRetries](#maxRetries)                      |   x   |   x   |   x   |
+
 
 [Shared Filesystem backend](backends/HPC#shared-filesystem) is fully configurable and thus these attributes do not apply universally.

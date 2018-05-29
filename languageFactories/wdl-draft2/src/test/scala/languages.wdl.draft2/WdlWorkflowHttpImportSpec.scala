@@ -1,5 +1,6 @@
 package wdl
 
+import languages.wdl.draft2.WdlDraft2LanguageFactory
 import org.mockserver.integration.ClientAndServer
 import org.mockserver.integration.ClientAndServer.startClientAndServer
 import org.mockserver.model.HttpRequest.request
@@ -32,7 +33,7 @@ class WdlWorkflowHttpImportSpec extends FlatSpec with BeforeAndAfterAll with Mat
        | }
      """.stripMargin
 
-  val httpResolver: Seq[Draft2ImportResolver] = Seq(WdlNamespace.httpResolver)
+  val httpResolver: Seq[Draft2ImportResolver] = Seq(WdlDraft2LanguageFactory.httpResolver)
 
   var mockServer: ClientAndServer = _
   var host: String = _
@@ -99,7 +100,7 @@ class WdlWorkflowHttpImportSpec extends FlatSpec with BeforeAndAfterAll with Mat
 
   it should "be able to supply a bearer token to a protected resource" in {
     val auth = Map("Authorization" -> "Bearer my-token-value")
-    val authHttpResolver : Seq[Draft2ImportResolver] = Seq(WdlNamespace.httpResolverWithHeaders(auth))
+    val authHttpResolver : Seq[Draft2ImportResolver] = Seq(WdlDraft2LanguageFactory.httpResolverWithHeaders(auth))
 
     val wf = tinyWorkflow( s"$host/protected.wdl")
     val ns = WdlNamespaceWithWorkflow.load(wf, authHttpResolver)

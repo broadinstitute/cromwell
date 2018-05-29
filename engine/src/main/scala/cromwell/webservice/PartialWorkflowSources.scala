@@ -176,20 +176,6 @@ object PartialWorkflowSources {
     def validateOptions(options: Option[WorkflowOptionsJson]): ErrorOr[WorkflowOptions] =
       WorkflowOptions.fromJsonString(options.getOrElse("{}")).toErrorOr leftMap { _ map { i => s"Invalid workflow options provided: $i" } }
 
-    def validateWorkflowType(partialSource: PartialWorkflowSources): ErrorOr[Option[WorkflowType]] = {
-      partialSource.workflowType match {
-        case Some(_) => partialSource.workflowType.validNel
-        case None => WorkflowOptions.defaultWorkflowType.validNel
-      }
-    }
-
-    def validateWorkflowTypeVersion(partialSource: PartialWorkflowSources): ErrorOr[Option[WorkflowTypeVersion]] = {
-      partialSource.workflowTypeVersion match {
-        case Some(src) => Option(src).validNel
-        case None => WorkflowOptions.defaultWorkflowTypeVersion.validNel
-      }
-    }
-
     def validateLabels(labels: WorkflowJson) : ErrorOr[WorkflowJson] = {
 
       def validateKeyValuePair(key: String, value: String): ErrorOr[Unit] = (Label.validateLabelKey(key), Label.validateLabelValue(value)).tupled.void
@@ -212,14 +198,14 @@ object PartialWorkflowSources {
     partialSources match {
       case Valid(partialSource) =>
         (validateInputs(partialSource),
-          validateOptions(partialSource.workflowOptions), validateWorkflowType(partialSource),
-          validateWorkflowTypeVersion(partialSource), validateLabels(partialSource.customLabels.getOrElse("{}"))) mapN {
-          case (wfInputs, wfOptions, workflowType, workflowTypeVersion, workflowLabels) =>
+          validateOptions(partialSource.workflowOptions),
+          validateLabels(partialSource.customLabels.getOrElse("{}"))) mapN {
+          case (wfInputs, wfOptions, workflowLabels) =>
             wfInputs.map(inputsJson => WorkflowSourceFilesCollection(
               workflowSource = partialSource.workflowSource,
               workflowRoot = partialSource.workflowRoot,
-              workflowType = workflowType,
-              workflowTypeVersion = workflowTypeVersion,
+              workflowType = partialSource.workflowType,
+              workflowTypeVersion = partialSource.workflowTypeVersion,
               inputsJson = inputsJson,
               workflowOptionsJson = wfOptions.asPrettyJson,
               labelsJson = workflowLabels,

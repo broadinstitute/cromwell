@@ -120,6 +120,25 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
     src.delete()
   }
 
+  it should "read the file if it's under the byte limit" in {
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
+
+    val src = DefaultPathBuilder.createTempFile()
+    src.write("hello")
+
+    val readCommand = DefaultIoContentAsStringCommand(src, IoReadOptions(Option(6), failOnOverflow = true))
+
+    testActor ! readCommand
+    expectMsgPF(5 seconds) {
+      case response: IoSuccess[_] =>
+        response.command.isInstanceOf[IoContentAsStringCommand] shouldBe true
+        response.result.asInstanceOf[String] shouldBe "hello"
+      case response: IoFailure[_] => fail("Expected an IoSuccess", response.failure)
+    }
+
+    src.delete()
+  }
+
   it should "fail if the file is larger than the read limit" in {
     val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
 
@@ -131,7 +150,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
     testActor ! readCommand
     expectMsgPF(5 seconds) {
       case _: IoSuccess[_] => fail("Command should have failed because the read limit was < file size and failOnOverflow was true")
-      case response: IoFailure[_] => response.failure.getMessage shouldBe s"java.io.IOException: File ${src.pathAsString} is larger than 2 Bytes"
+      case response: IoFailure[_] => response.failure.getMessage shouldBe s"java.io.IOException: File ${src.pathAsString} is larger than 2 Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits."
     }
 
     src.delete()

@@ -37,6 +37,7 @@ object ActionBuilder {
   def userAction(docker: String, scriptContainerPath: String, mounts: List[Mount]): Action = {
     new Action()
       .setImageUri(docker)
+      // TODO shouldn't this be using the job shell?
       .setCommands(List("/bin/bash", scriptContainerPath).asJava)
       .setMounts(mounts.asJava)
       .setEntrypoint("")
@@ -58,8 +59,9 @@ object ActionBuilder {
     // The command String runs in Bourne shell to get the conditional logic for optional outputs so shell metacharacters in filenames must be escaped.
     val List(containerPath, cloudPath) = List(fileOutput.containerPath.pathAsString, fileOutput.cloudPath) map ESCAPE_XSI.translate
 
-    val copy = s"gsutil -u $projectId cp $containerPath $cloudPath"
-    lazy val copyOnlyIfExists = s"if [[ -a $containerPath ]]; then $copy; fi"
+    // To re-enable requester pays, this need to be added back: -u $projectId
+    val copy = s"gsutil cp $containerPath $cloudPath"
+    lazy val copyOnlyIfExists = s"if [[ -e $containerPath ]]; then $copy; fi"
 
     cloudSdkAction
       .withCommand("/bin/sh", "-c", if (fileOutput.optional) copyOnlyIfExists else copy)

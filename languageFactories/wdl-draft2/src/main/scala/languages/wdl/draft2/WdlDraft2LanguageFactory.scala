@@ -13,7 +13,7 @@ import common.validation.ErrorOr.{ErrorOr, _}
 import common.validation.Parse.Parse
 import cromwell.core._
 import cromwell.languages.util.ImportResolver.ImportResolver
-import cromwell.languages.util.LanguageFactoryUtil
+import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import wdl.draft2.model.{Draft2ImportResolver, WdlNamespace, WdlNamespaceWithWorkflow}
 import wdl.shared.transforms.wdlom2wom.WdlSharedInputParsing
@@ -26,8 +26,12 @@ import wom.expression.IoFunctionSet
 import wom.transforms.WomExecutableMaker.ops._
 import wom.transforms.WomBundleMaker.ops._
 import wom.values.WomValue
+import languages.wdl.draft2.WdlDraft2LanguageFactory._
 
 class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends LanguageFactory {
+
+  override val languageName: String = "WDL"
+  override val languageVersionName: String = "draft-2"
 
   override def validateNamespace(source: WorkflowSourceFilesCollection,
                                     workflowOptions: WorkflowOptions,
@@ -49,9 +53,9 @@ class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends La
     }
 
     lazy val baseResolvers: List[String => WorkflowSource] = if (importLocalFilesystem) {
-      List(WdlNamespace.fileResolver, WdlNamespace.httpResolver)
+      List(WdlNamespace.fileResolver, httpResolver)
     } else {
-      List(WdlNamespace.httpResolver)
+      List(httpResolver)
     }
 
     import common.validation.Validation._
@@ -110,11 +114,6 @@ class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends La
   }
 
   override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver], languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
-    def resolverConverter(importResolver: ImportResolver): Draft2ImportResolver = str => importResolver.run(str) match {
-      case Right(imported) => imported
-      case Left(errors) => throw new RuntimeException(s"Bad import $str: ${errors.toList.mkString(System.lineSeparator)}")
-    }
-
     for {
       _ <- standardConfig.enabledCheck
       namespace <- WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toChecked
@@ -122,10 +121,22 @@ class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends La
     } yield womBundle
   }
 
-
   override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = for {
     _ <- standardConfig.enabledCheck
     executable <- WdlSharedInputParsing.buildWomExecutable(womBundle, Option(inputs), ioFunctions, standardConfig.strictValidation)
     validatedNamespace <- LanguageFactoryUtil.validateWomNamespace(executable)
   } yield validatedNamespace
+
+  // Commentary: we'll set this as the default in the reference.conf, so most people will get WDL draft 2 if nothing else looks parsable.
+  override def looksParsable(content: String): Boolean = false
+}
+
+object WdlDraft2LanguageFactory {
+  private def resolverConverter(importResolver: ImportResolver): Draft2ImportResolver = str => importResolver.run(str) match {
+    case Right(imported) => imported
+    case Left(errors) => throw new RuntimeException(s"Bad import $str: ${errors.toList.mkString(System.lineSeparator)}")
+  }
+
+  val httpResolver = resolverConverter(ImportResolver.httpResolver)
+  def httpResolverWithHeaders(headers: Map[String, String]) = resolverConverter(ImportResolver.httpResolverWithHeaders(headers))
 }

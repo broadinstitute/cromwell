@@ -14,6 +14,7 @@ import wdl.draft2.model.types.WdlExpressionType
 import wdl.draft2.model.{FullyQualifiedName => _}
 import wdl.draft2.parser.WdlParser
 import wdl.draft2.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
+import wdl.shared.FileSizeLimitationConfig
 import wom.core._
 import wom.expression._
 import wom.graph._
@@ -90,6 +91,7 @@ object WdlExpression {
     "read_lines",
     "read_map",
     "read_object",
+    "read_objects",
     "read_tsv",
     "read_json",
     "size"
@@ -218,7 +220,7 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope) ext
   override def inputs: Set[String] = wdlExpression.variableReferences(from) map { _.referencedVariableName } toSet
 
   override def evaluateValue(variableValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
-    lazy val wdlFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(ioFunctionSet)
+    lazy val wdlFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(ioFunctionSet, FileSizeLimitationConfig.fileSizeLimitationConfig)
     wdlExpression.evaluate(variableValues.apply, wdlFunctions).toErrorOr
   }
 
@@ -229,7 +231,8 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope) ext
 
   override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = {
     lazy val wdlFunctions = new WdlStandardLibraryFunctions {
-      override def readFile(path: String): String = Await.result(ioFunctionSet.readFile(path, None, failOnOverflow = false), Duration.Inf)
+
+      override def readFile(path: String, sizeLimit: Int): String = Await.result(ioFunctionSet.readFile(path, Option(sizeLimit), failOnOverflow = true), Duration.Inf)
 
       override def writeFile(path: String, content: String): Try[WomFile] = Try(Await.result(ioFunctionSet.writeFile(path, content), Duration.Inf))
 
@@ -240,6 +243,8 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope) ext
       override def globHelper(pattern: String): Seq[String] = Await.result(ioFunctionSet.glob(pattern), Duration.Inf)
 
       override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new Exception("You shouldn't call 'size' from a FileEvaluator"))
+
+      override protected val fileSizeLimitationConfig: FileSizeLimitationConfig = FileSizeLimitationConfig.fileSizeLimitationConfig
     }
     wdlExpression.evaluateFiles(inputTypes.apply, wdlFunctions, coerceTo).toErrorOr.map(_.toSet[WomFile] map FileEvaluation.requiredFile)
   }

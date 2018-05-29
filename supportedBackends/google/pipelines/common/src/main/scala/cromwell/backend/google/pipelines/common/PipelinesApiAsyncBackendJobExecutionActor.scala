@@ -27,6 +27,7 @@ import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
+import cromwell.google.pipelines.common.PreviousRetryReasons
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import org.slf4j.LoggerFactory
@@ -374,7 +375,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       dockerImage = jobDockerImage,
       cloudCallRoot = callRootPath,
       commandScriptContainerPath = cmdInput.containerPath,
-      logGcsPath = jesLogPath, 
+      logGcsPath = jesLogPath,
       inputOutputParameters,
       googleProject(jobDescriptor.workflowDescriptor),
       computeServiceAccount(jobDescriptor.workflowDescriptor),
@@ -409,13 +410,24 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     def generateInputOutputParameters: Future[InputOutputParameters] = Future.fromTry(Try {
       val rcFileOutput = PipelinesApiFileOutput(returnCodeFilename, returnCodeGcsPath.pathAsString, DefaultPathBuilder.get(returnCodeFilename), workingDisk, optional = false)
 
+      case class StandardStream(name: String, f: StandardPaths => Path) {
+        val filename = f(pipelinesApiCallPaths.standardPaths).name
+      }
+
+      val standardStreams = List(
+        StandardStream("stdout", _.output),
+        StandardStream("stderr", _.error)
+      ) map { s =>
+        PipelinesApiFileOutput(s.name, returnCodeGcsPath.sibling(s.filename).pathAsString, DefaultPathBuilder.get(s.filename), workingDisk, optional = false)
+      }
+
       InputOutputParameters(
         DetritusInputParameters(
           executionScriptInputParameter = cmdInput,
           monitoringScriptInputParameter = monitoringScript
         ),
         generateJesInputs(jobDescriptor).toList,
-        generateJesOutputs(jobDescriptor).toList,
+        generateJesOutputs(jobDescriptor).toList ++ standardStreams,
         DetritusOutputParameters(
           monitoringScriptOutputParameter = monitoringOutput,
           rcFileOutputParameter = rcFileOutput
@@ -481,7 +493,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
   }
 
-  override def isSuccess(runStatus: RunStatus): Boolean = {
+  override def isDone(runStatus: RunStatus): Boolean = {
     runStatus match {
       case _: RunStatus.Success => true
       case _: RunStatus.UnsuccessfulRunStatus => false
@@ -508,11 +520,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   private lazy val standardPaths = jobPaths.standardPaths
 
   override def handleExecutionFailure(runStatus: RunStatus,
-                                      handle: StandardAsyncPendingExecutionHandle,
                                       returnCode: Option[Int]): Future[ExecutionHandle] = {
     // Inner function: Handles a 'Failed' runStatus (or Preempted if preemptible was false)
     def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus,
-                              handle: StandardAsyncPendingExecutionHandle,
                               returnCode: Option[Int]): Future[ExecutionHandle] = {
       (runStatus.errorCode, runStatus.jesCode) match {
         case (Status.NOT_FOUND, Some(JesFailedToDelocalize)) => Future.successful(FailedNonRetryableExecutionHandle(FailedToDelocalizeFailure(runStatus.prettyPrintedError, jobTag, Option(standardPaths.error))))
@@ -525,7 +535,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     runStatus match {
       case preemptedStatus: RunStatus.Preempted if preemptible => handlePreemption(preemptedStatus, returnCode)
       case _: RunStatus.Cancelled => Future.successful(AbortedExecutionHandle)
-      case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus, handle, returnCode)
+      case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus, returnCode)
       case unknown => throw new RuntimeException(s"handleExecutionFailure not called with RunStatus.Failed or RunStatus.Preempted. Instead got $unknown")
     }
   }

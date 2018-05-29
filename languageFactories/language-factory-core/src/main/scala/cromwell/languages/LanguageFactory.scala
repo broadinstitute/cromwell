@@ -10,6 +10,9 @@ import wom.expression.IoFunctionSet
 
 trait LanguageFactory {
 
+  def languageName: String
+  def languageVersionName: String
+
   // Passed in by the constructor:
   def config: Map[String, Any]
 
@@ -30,5 +33,10 @@ trait LanguageFactory {
                         importLocalFilesystem: Boolean,
                         workflowIdForLogging: WorkflowId,
                         ioFunctions: IoFunctionSet): Parse[ValidatedWomNamespace]
-}
 
+  /**
+    * In case no version is specified: does this language factory feel like it might be suitable for this file?
+    * @param content The workflow description
+    */
+  def looksParsable(content: String): Boolean
+}

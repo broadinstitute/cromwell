@@ -31,4 +31,4 @@ github_private_deploy_key
 papi_application.inc.conf
 papi_refresh_token.txt
 artifactory_credentials.properties
-dockerhub_auth.sh
+dockerhub_auth.inc.sh

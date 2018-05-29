@@ -2,7 +2,7 @@ package cromwell.backend.standard
 
 import akka.actor.ActorRef
 import cromwell.backend.io.{DirectoryFunctions, GlobFunctions}
-import cromwell.backend.wdl.{ReadLikeFunctions, WriteFunctions}
+import cromwell.backend.{ReadLikeFunctions, WriteFunctions}
 import cromwell.core.CallContext
 import cromwell.core.io._
 import cromwell.core.path.PathFactory.PathBuilders

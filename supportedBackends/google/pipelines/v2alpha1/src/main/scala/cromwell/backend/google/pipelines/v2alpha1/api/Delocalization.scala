@@ -8,33 +8,28 @@ import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.C
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
 import cromwell.backend.google.pipelines.v2alpha1.api.Delocalization._
+import cromwell.core.path.Path
 
 import scala.collection.JavaConverters._
 
 object Delocalization {
   private val logsRoot = "/google/logs"
-  private val actionsLogRoot = logsRoot + "/action"
 }
 
 trait Delocalization {
-  private def actionLogRoot(number: Int) = s"$actionsLogRoot/$number"
 
-  private def stdout(number: Int) = s"${actionLogRoot(number)}/stdout"
-  private def stderr(number: Int) = s"${actionLogRoot(number)}/stderr"
   private def aggregatedLog = s"$logsRoot/output"
 
   private def delocalizeLogsAction(gcsLogPath: String, projectId: String) = {
-    gsutilAsText("-u", projectId, "-m", "cp", "-r", "/google/logs", gcsLogPath)(flags = List(ActionFlag.AlwaysRun))
+    // To re-enable requester pays, this need to be added back: "-u", projectId
+    gsutilAsText("-m", "cp", "-r", "/google/logs", gcsLogPath)(flags = List(ActionFlag.AlwaysRun))
   }
 
-  // The logs are now located in the pipelines-logs directory
-  // To keep the behavior similar to V1, we copy stdout/stderr from the user action to the call directory,
-  // along with the aggregated log file
-  private def copyLogsToLegacyPaths(stdoutPath: String, stderrPath: String, userActionNumber: Int, gcsLegacyLogPath: String, projectId: String) = List (
-    gsutilAsText("-u", projectId, "cp", stdout(userActionNumber), stdoutPath)(flags = List(ActionFlag.AlwaysRun)),
-    gsutilAsText("-u", projectId, "cp", stderr(userActionNumber), stderrPath)(flags = List(ActionFlag.AlwaysRun)),
-    gsutilAsText("-u", projectId, "cp", aggregatedLog, gcsLegacyLogPath)(flags = List(ActionFlag.AlwaysRun))
-  )
+  // Action logs are now located in the pipelines-logs directory. The aggregated log is copied from this pipelines-logs directory.
+  private def copyAggregatedLogToLegacyPath(callExecutionContainerRoot: Path, gcsLegacyLogPath: String, projectId: String): Action = {
+    // To re-enable requester pays, this needs to be added back: "-u", projectId
+    gsutilAsText("cp", aggregatedLog, gcsLegacyLogPath)(flags = List(ActionFlag.AlwaysRun))
+  }
 
   private def parseOutputJsonAction(containerCallRoot: String, outputDirectory: String, outputFile: String, mounts: List[Mount]): Action = {
     val commands = List(
@@ -89,34 +84,26 @@ trait Delocalization {
                         mounts: List[Mount],
                         userActionNumber: Int): List[Action] = {
     val cloudCallRoot = createPipelineParameters.cloudCallRoot.pathAsString
-    val callExecutionContainerRoot = createPipelineParameters.commandScriptContainerPath.parent.pathAsString
+    val callExecutionContainerRoot = createPipelineParameters.commandScriptContainerPath.parent
 
     val gcsLogDirectoryPath = createPipelineParameters.cloudCallRoot / "pipelines-logs"
     val gcsLegacyLogPath = createPipelineParameters.logGcsPath.pathAsString
 
-    val stdoutPath = createPipelineParameters.logGcsPath
-      .sibling(createPipelineParameters.logGcsPath.nameWithoutExtensionNoIo + "-stdout.log")
-      .pathAsString
-
-    val stderrPath = createPipelineParameters.logGcsPath
-      .sibling(createPipelineParameters.logGcsPath.nameWithoutExtensionNoIo + "-stderr.log")
-      .pathAsString
-    
     /*
      * CWL specific delocalization. For now this always runs, even for WDL jobs.
      * Ideally temporaryFofnForCwlOutputJson should be somewhere else than the execution directory (we could mount anther directory)
      * However because it runs after everything else there's no risk of polluting the task's results and the random ID ensures we don't override anything
      */
-    val temporaryFofnDirectoryForCwlOutputJson = callExecutionContainerRoot.ensureSlashed + UUID.randomUUID().toString.split("-")(0)
+    val temporaryFofnDirectoryForCwlOutputJson = callExecutionContainerRoot.pathAsString.ensureSlashed + UUID.randomUUID().toString.split("-")(0)
     val temporaryFofnForCwlOutputJson = temporaryFofnDirectoryForCwlOutputJson + "/cwl_output_json_references.txt"
-    val parseAction = parseOutputJsonAction(callExecutionContainerRoot, temporaryFofnDirectoryForCwlOutputJson, temporaryFofnForCwlOutputJson, mounts)
+    val parseAction = parseOutputJsonAction(callExecutionContainerRoot.pathAsString, temporaryFofnDirectoryForCwlOutputJson, temporaryFofnForCwlOutputJson, mounts)
     val delocalizeAction = delocalizeOutputJsonFilesAction(cloudCallRoot, temporaryFofnForCwlOutputJson, mounts)
 
     val projectId = createPipelineParameters.projectId
 
     createPipelineParameters.outputParameters.map(_.toAction(mounts, projectId)) ++
-      List(parseAction, delocalizeAction) ++
-      copyLogsToLegacyPaths(stdoutPath, stderrPath, userActionNumber, gcsLegacyLogPath, projectId) :+
+      List(parseAction, delocalizeAction) :+
+      copyAggregatedLogToLegacyPath(callExecutionContainerRoot, gcsLegacyLogPath, projectId) :+
       delocalizeLogsAction(gcsLogDirectoryPath.pathAsString, projectId)
   }
 }

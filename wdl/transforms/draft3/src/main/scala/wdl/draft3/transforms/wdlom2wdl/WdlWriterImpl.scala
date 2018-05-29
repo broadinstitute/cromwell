@@ -6,6 +6,7 @@ import wdl.model.draft3.elements.MetaValueElement._
 import wdl.model.draft3.elements._
 import wom.types._
 import WdlWriter._
+import common.collections.EnhancedCollections.EnhancedTraversableLike
 
 object WdlWriterImpl {
 
@@ -177,9 +178,24 @@ object WdlWriterImpl {
         case None => ""
       }
 
+      // Readability / cosmetic reordering
+      val inputDeclarationElements: List[InputDeclarationElement] = a.graphElements.toList.filterByType[InputDeclarationElement]
+      val intermediateValueDeclarationElements: List[IntermediateValueDeclarationElement] = a.graphElements.toList.filterByType[IntermediateValueDeclarationElement]
+      val ifElements: List[IfElement] = a.graphElements.toList.filterByType[IfElement]
+      val scatterElements: List[ScatterElement] = a.graphElements.toList.filterByType[ScatterElement]
+      val callElements: List[CallElement] = a.graphElements.toList.filterByType[CallElement]
+      val outputDeclarationElements: List[OutputDeclarationElement] = a.graphElements.toList.filterByType[OutputDeclarationElement]
+
+      val combined: List[WorkflowGraphElement] = inputDeclarationElements ++
+        intermediateValueDeclarationElements ++
+        ifElements ++
+        scatterElements ++
+        callElements ++
+        outputDeclarationElements
+
       s"""workflow ${a.name} {
          |${indent(inputs)}
-         |${indentAndCombine(a.graphElements.map(_.toWdlV1))}
+         |${indentAndCombine(combined.map(_.toWdlV1))}
          |${indent(outputs)}
          |}""".stripMargin
     }

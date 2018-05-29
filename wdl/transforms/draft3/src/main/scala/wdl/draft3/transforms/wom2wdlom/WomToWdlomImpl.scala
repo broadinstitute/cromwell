@@ -4,6 +4,7 @@ import wdl.model.draft3.elements._
 import wom.executable.WomBundle
 import common.collections.EnhancedCollections.EnhancedTraversableLike
 import wdl.draft2.model.command.{ParameterCommandPart, StringCommandPart}
+import wdl.draft2.parser.WdlParser.Terminal
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import shapeless.{Inl, Inr}
 import wdl.draft2.model.WdlWomExpression
@@ -120,7 +121,6 @@ object WomToWdlomImpl {
   implicit val callableTaskDefinitionToTaskDefinitionElement: WomToWdlom[CallableTaskDefinition, TaskDefinitionElement] =
     new WomToWdlom[CallableTaskDefinition, TaskDefinitionElement] {
       override def toWdlom(a: CallableTaskDefinition): TaskDefinitionElement = {
-        // TODO: why does _.toWdlom not work here?
         val inputs = a.inputs.map(inputDefinitionToInputDeclarationElement.toWdlom)
         val outputs = a.outputs.map(outputDefinitionToOutputDeclarationElement.toWdlom)
 
@@ -137,19 +137,20 @@ object WomToWdlomImpl {
               sepAttribute = p.attributes.get("sep")
             )
 
-            // TODO: it can't be anything but a Terminal, but this is not the best way to express that
-            import wdl.draft2.parser.WdlParser.Terminal
-            PlaceholderCommandPartElement(ExpressionLiteralElement(p.expression.ast.asInstanceOf[Terminal].getSourceString), attrs)
+            p.expression.ast match {
+              case t: Terminal => PlaceholderCommandPartElement(ExpressionLiteralElement(t.getSourceString), attrs)
+              case _ => throw UnrepresentableException
+            }
         })
 
         TaskDefinitionElement(
           a.name,
           if (inputs.nonEmpty) Some(InputsSectionElement(inputs)) else None,
-          Seq(), // TODO: maybe these don't exist in draft-2?
+          Seq(), // No such thing in draft-2
           if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
           CommandSectionElement(Seq(commandLine)),
           a.runtimeAttributes.toWdlom,
-          mapToMetaSectionElement.toWdlom(a.meta), // TODO: why do these require explicit notation?
+          mapToMetaSectionElement.toWdlom(a.meta),
           mapToParameterMetaSectionElement.toWdlom(a.parameterMeta)
         )
       }

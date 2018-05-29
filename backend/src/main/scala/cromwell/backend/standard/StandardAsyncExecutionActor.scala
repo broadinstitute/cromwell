@@ -9,6 +9,7 @@ import cats.instances.option._
 import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.traverse._
+import cats.syntax.functor._
 import common.exception.MessageAggregation
 import common.util.StringUtil._
 import common.util.TryUtil
@@ -380,7 +381,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     val localize: (AdHocValue, Path) => Future[StandardAdHocValue] = {
       // If the original file is not already under callExecutionRoot, then copy it there
       case (adHoc @ AdHocValue(_, None, _), file) if !file.isChildOf(jobPaths.callExecutionRoot) =>
-        asyncIo.copyAsync(file, jobPaths.callExecutionRoot / file.name) map { _ =>
+        asyncIo.copyAsync(file, jobPaths.callExecutionRoot / file.name) as {
           Coproduct[StandardAdHocValue](LocalizedAdHocValue(adHoc, jobPaths.callExecutionRoot / file.name))
         }
       // If the file should be available as a different name than its own, copy it as that

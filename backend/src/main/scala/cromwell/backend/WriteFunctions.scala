@@ -31,7 +31,7 @@ trait WriteFunctions extends PathFactory with IoFunctionSet with AsyncIoFunction
     val tempDirPath = _writeDirectory / name.getOrElse(UUID.randomUUID().toString)
     // This is evil, but has the added advantage to work both for cloud and local
     val tempDirHiddenFile = tempDirPath / ".file"
-    asyncIo.writeAsync(tempDirHiddenFile, "", OpenOptions.default).map(_ => tempDirPath.pathAsString)
+    asyncIo.writeAsync(tempDirHiddenFile, "", OpenOptions.default) as { tempDirPath.pathAsString }
   }
 
   override def writeFile(path: String, content: String): Future[WomSingleFile] = {

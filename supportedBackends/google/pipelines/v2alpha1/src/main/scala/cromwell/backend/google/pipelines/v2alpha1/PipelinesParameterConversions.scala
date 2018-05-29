@@ -26,7 +26,7 @@ trait PipelinesParameterConversions {
 
   implicit val directoryInputToParameter = new ToParameter[PipelinesApiDirectoryInput] {
     override def toActions(directoryInput: PipelinesApiDirectoryInput, mounts: List[Mount], projectId: String) = {
-      // rsync need the traget directory to exist already, so create it beforehand
+      // rsync need the target directory to exist already, so create it beforehand
       val mkdirAction = cloudSdkAction
         .withCommand("mkdir", "-p", directoryInput.containerPath.pathAsString)
         .withMounts(mounts)

@@ -184,7 +184,7 @@ object OutputManipulator extends Poly1 {
           o <- json.asObject
           l <- o.kleisli("location")
           s <- l.asString
-          c <- if (a.contains(Inl(CwlType.Directory))) s.ensureSlashed else s
+          c = if (a.contains(Inl(CwlType.Directory))) s.ensureSlashed else s
           p <- pathBuilder.build(c).toOption
         } yield p.exists).getOrElse(false)
         if (fileExists) json.mapObject(populateFileFields(pathBuilder, isInsideDirectory = false, schemaOption)) else Json.Null

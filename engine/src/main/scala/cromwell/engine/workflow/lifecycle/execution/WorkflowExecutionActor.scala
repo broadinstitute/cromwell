@@ -312,7 +312,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
     // Output ports for the workflow
     val workflowOutputNodes: Set[GraphOutputNode] = workflowDescriptor.callable.graph.outputNodes
-    
+
     val workflowOutputValuesValidation = workflowOutputNodes
       // Try to find a value for each port in the value store
       .map(outputNode =>

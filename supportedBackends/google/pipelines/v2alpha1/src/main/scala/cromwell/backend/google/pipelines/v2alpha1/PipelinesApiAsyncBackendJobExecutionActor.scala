@@ -30,12 +30,12 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   }
 
   // The original implementation recursively finds all non directory files, in V2 we can keep directory as is
-  override protected def callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.fullyQualifiedInputs mapValues {
-    womFile =>
-      womFile collectAsSeq {
+  override protected def callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.fullyQualifiedInputs map {
+    case (key, womFile) =>
+      key -> womFile.collectAsSeq({
         case womFile: WomFile => womFile
-      }
-  } map identity // <-- unlazy the mapValues
+      })
+  }
 
   // Simply create a PipelinesApiDirectoryOutput in v2 instead of globbing
   override protected def generateUnlistedDirectoryOutputs(unlistedDirectory: WomUnlistedDirectory, optional: Boolean): List[PipelinesApiOutput] = {

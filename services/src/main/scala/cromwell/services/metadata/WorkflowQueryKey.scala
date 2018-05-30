@@ -103,7 +103,10 @@ object WorkflowQueryKey {
     override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[List[String]] = {
       val values = valuesFromMap(grouped).toList
       val nels = values map { v =>
-        if (Try(WorkflowState.withName(v.toLowerCase.capitalize)).isSuccess) v.validNel[String] else v.invalidNel[String]
+        Try(WorkflowState.withName(v)) match {
+          case Success(workflowState) => workflowState.toString.validNel[String]
+          case _ => v.invalidNel[String]
+        }
       }
       sequenceListOfValidatedNels("Unrecognized status values", nels)
     }

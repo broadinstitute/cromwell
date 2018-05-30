@@ -119,7 +119,7 @@ object WdlWriterImpl {
     override def toWdlV1(a: CallBodyElement): String = {
       if (a.inputs.nonEmpty) {
         s"""input:
-           |${indent(indent(a.inputs.map(_.toWdlV1).mkString(", ")))}""".stripMargin
+           |${indent(indent(a.inputs.map(_.toWdlV1).mkString(",\n")))}""".stripMargin
       } else {
         ""
       }
@@ -179,12 +179,18 @@ object WdlWriterImpl {
       }
 
       // Readability / cosmetic reordering
-      val inputDeclarationElements: List[InputDeclarationElement] = a.graphElements.toList.filterByType[InputDeclarationElement]
-      val intermediateValueDeclarationElements: List[IntermediateValueDeclarationElement] = a.graphElements.toList.filterByType[IntermediateValueDeclarationElement]
-      val ifElements: List[IfElement] = a.graphElements.toList.filterByType[IfElement]
-      val scatterElements: List[ScatterElement] = a.graphElements.toList.filterByType[ScatterElement]
-      val callElements: List[CallElement] = a.graphElements.toList.filterByType[CallElement]
-      val outputDeclarationElements: List[OutputDeclarationElement] = a.graphElements.toList.filterByType[OutputDeclarationElement]
+      val inputDeclarationElements: List[InputDeclarationElement] =
+        a.graphElements.toList.filterByType[InputDeclarationElement]
+      val intermediateValueDeclarationElements: List[IntermediateValueDeclarationElement] =
+        a.graphElements.toList.filterByType[IntermediateValueDeclarationElement]
+      val ifElements: List[IfElement] =
+        a.graphElements.toList.filterByType[IfElement]
+      val scatterElements: List[ScatterElement] =
+        a.graphElements.toList.filterByType[ScatterElement]
+      val callElements: List[CallElement] =
+        a.graphElements.toList.filterByType[CallElement]
+      val outputDeclarationElements: List[OutputDeclarationElement] =
+        a.graphElements.toList.filterByType[OutputDeclarationElement]
 
       val combined: List[WorkflowGraphElement] = inputDeclarationElements ++
         intermediateValueDeclarationElements ++

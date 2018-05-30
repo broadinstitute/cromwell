@@ -13,7 +13,7 @@ import wom.values.{WomArray, WomValue}
 /**
   *
   * @param innerGraph Imagine that the contents of a WDL scatter block were a self-contained workflow. That's this Graph
-  * @param scatterVariableNodes inner graph nodes for each scatter collection expression being scattered over
+  * @param scatterVariableNodes Inner graph nodes for each scatter collection expression being scattered over. WDL uses exactly one, CWL >= 1.
   * @param outputMapping Output ports for the scatter node, which also link back to GraphOutputNodes of the inner graph.
   */
 final case class ScatterNode private(override val innerGraph: Graph,

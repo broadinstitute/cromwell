@@ -105,7 +105,6 @@ object WomToWdlomImpl {
   implicit val outputDefinitionToOutputDeclarationElement: WomToWdlom[OutputDefinition, OutputDeclarationElement] =
     new WomToWdlom[OutputDefinition, OutputDeclarationElement] {
       override def toWdlom(a: OutputDefinition): OutputDeclarationElement =
-        // TODO: fix bogus name mangling (I think we have outputs that shouldn't exist)
         OutputDeclarationElement(a.womType.toWdlom, a.name, a.expression.toWdlom)
     }
 
@@ -217,9 +216,12 @@ object WomToWdlomImpl {
           // implicit in WDL; they are necessary for execution, but do not sensibly belong in WDL source.
           val scatterGraph = a.innerGraph.calls ++ a.innerGraph.workflowCalls ++ a.innerGraph.conditionals ++ a.innerGraph.scatters
 
+          // Only CWL has multi-variable scatters
+          if (a.scatterVariableNodes.size != 1) throw UnrepresentableException // TODO: upgrade from exceptions to typed errors
+
           ScatterElement(
             scatterName = a.identifier.localName.value,
-            scatterExpression = a.scatterCollectionExpressionNodes.head.toWdlom, // TODO: can't just take the first node, probably
+            scatterExpression = a.scatterCollectionExpressionNodes.head.toWdlom,
             scatterVariableName = a.inputPorts.toList.head.name,
             graphElements = scatterGraph.toList.map(graphNodeToWorkflowGraphElement.toWdlom)
           )
@@ -271,7 +273,6 @@ object WomToWdlomImpl {
     override def toWdlom(a: WomPrimitiveType): PrimitiveTypeElement = PrimitiveTypeElement(a)
   }
 
-  // TODO: Possibly the wrong conversion
   implicit val expressionNodeToExpressionElement: WomToWdlom[ExpressionNode, ExpressionElement] = new WomToWdlom[ExpressionNode, ExpressionElement] {
     override def toWdlom(a: ExpressionNode): ExpressionElement = a.womExpression.toWdlom
   }

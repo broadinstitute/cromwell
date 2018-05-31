@@ -1,5 +1,11 @@
 # Cromwell Change Log
 
+## 33 Release Notes
+
+### Bug Fixes
+
+Workflows which are in 'On Hold' state can now be fetched using the query endpoint.
+
 ## 32 Release Notes
 
 ### Backends

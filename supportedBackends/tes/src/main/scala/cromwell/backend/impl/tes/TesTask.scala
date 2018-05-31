@@ -5,7 +5,6 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import wdl.draft2.model.FullyQualifiedName
-import wdl4s.parser.MemoryUnit
 import wom.InstantiatedCommand
 import wom.callable.Callable.OutputDefinition
 import wom.expression.NoIoFunctionSet
@@ -198,13 +197,13 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   private val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
     case Some(x) =>
-      Option(x.to(MemoryUnit.GB).amount)
+      Option(x.toGigabytes)
     case None =>
       None
   }
 
   val resources = Resources(
-    cpu_cores = runtimeAttributes.cpu,
+    cpu_cores = runtimeAttributes.cpu.map(_.value),
     ram_gb = ram,
     disk_gb = disk,
     preemptible = Option(false),

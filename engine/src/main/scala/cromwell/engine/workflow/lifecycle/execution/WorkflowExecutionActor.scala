@@ -280,6 +280,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     import cats.syntax.traverse._
     import cromwell.util.JsonFormatting.WomValueJsonFormatter._
     import spray.json._
+    import LazyWomFile._
 
     def handleSuccessfulWorkflowOutputs(outputs: Map[GraphOutputNode, WomValue]) = {
       val fullyQualifiedOutputs = outputs map {
@@ -318,7 +319,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       outputNode -> data.valueStore.get(outputNode.graphOutputPort, None)
     )
       .toList.traverse({
-      case (name, Some(value)) => (name -> value).validNel
+      case (name, Some(value)) => value.initialize(data.expressionLanguageFunctions).map(name -> _)
       case (name, None) =>
         s"Cannot find an output value for ${name.identifier.fullyQualifiedName.value}".invalidNel
     })

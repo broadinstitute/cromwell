@@ -3,6 +3,7 @@ package cwl
 import common.validation.Validation._
 import cwl.ExpressionEvaluator._
 import eu.timepit.refined._
+import eu.timepit.refined.numeric.Positive
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct
 import wom.callable.RuntimeEnvironment
@@ -14,7 +15,7 @@ class CwlExpressionCommandPartSpec extends FlatSpec with Matchers {
 
   behavior of "CwlExpressionCommandPart"
 
-  val emptyEnvironment = RuntimeEnvironment("","",1,1,1,1)
+  val emptyEnvironment = RuntimeEnvironment("","",refineMV[Positive](1),1,1,1)
 
   it should "instantiate" in {
     // NOTE: toFixed used to remove the fraction part of ECMAScript numbers

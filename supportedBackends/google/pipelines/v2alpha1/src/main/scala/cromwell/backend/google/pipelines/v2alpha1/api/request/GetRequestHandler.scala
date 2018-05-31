@@ -125,7 +125,7 @@ trait GetRequestHandler { this: RequestHandler =>
       metadata.get("createTime") map { time => ExecutionEvent("waiting for quota", OffsetDateTime.parse(time.toString)) }
     }
 
-    starterEvent.toList ++ events.map(_.toExecutionEvent)
+    starterEvent.toList ++ events.map(toExecutionEvent)
   }
 
   private def augmentedErrorMessage(events: List[Event], actions: List[Action], error: String): String = {

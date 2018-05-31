@@ -1,10 +1,10 @@
 package cromwell.backend.impl.sfs.config
 
 import cromwell.backend.validation._
+import squants.UnitOfMeasure
+import squants.information.{Bytes, Information}
 import wdl.draft2.model.expression.NoFunctions
 import wdl.draft2.model.{Declaration, NoLookup, WdlExpression}
-import wdl4s.parser.MemoryUnit
-import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
@@ -49,8 +49,8 @@ class MemoryDeclarationValidation(declaration: Declaration, attributeName: Strin
                                  wdlExpression: WdlExpression): RuntimeAttributesValidation[_] = {
     val womValue = declaration.expression.get.evaluate(NoLookup, NoFunctions).get
     val amount: Double = defaultAmount(womValue)
-    val memorySize = MemorySize(amount, declarationMemoryUnit)
-    validation.withDefault(WomInteger(memorySize.bytes.toInt))
+    val memorySize = declarationMemoryUnit.apply(amount)
+    validation.withDefault(WomInteger(memorySize.toBytes.toInt))
   }
 
   private def defaultAmount(womValue: WomValue): Double = {
@@ -62,9 +62,9 @@ class MemoryDeclarationValidation(declaration: Declaration, attributeName: Strin
     }
   }
 
-  private lazy val declarationMemoryUnit: MemoryUnit = {
+  private lazy val declarationMemoryUnit: UnitOfMeasure[Information] = {
     val suffix = memoryUnitSuffix(declaration.unqualifiedName, attributeName, attributeNamePrefix)
-    val memoryUnitOption = MemoryUnit.values.find(_.suffixes.map(_.toLowerCase).contains(suffix.toLowerCase))
+    val memoryUnitOption = Information.units.find(_.symbol.toLowerCase == suffix.toLowerCase)
     memoryUnitOption match {
       case Some(memoryUnit) => memoryUnit
       case None => throw new IllegalArgumentException(s"MemoryUnit with suffix $suffix was not found.")
@@ -82,10 +82,10 @@ class MemoryDeclarationValidation(declaration: Declaration, attributeName: Strin
       coerceMemorySize(declaration.womType)
   }
 
-  private def coerceMemorySize(womType: WomType)(value: MemorySize): WomValue = {
+  private def coerceMemorySize(womType: WomType)(value: Information): WomValue = {
     womType match {
-      case WomIntegerType => WomInteger(value.to(declarationMemoryUnit).amount.toInt)
-      case WomFloatType => WomFloat(value.to(declarationMemoryUnit).amount)
+      case WomIntegerType => WomInteger(value.to(declarationMemoryUnit).toInt)
+      case WomFloatType => WomFloat(value.to(declarationMemoryUnit))
       case WomOptionalType(optionalType) => coerceMemorySize(optionalType)(value)
       case other => throw new RuntimeException(s"Unsupported wdl type for memory: $other")
     }
@@ -98,16 +98,14 @@ object MemoryDeclarationValidation {
       case `attributeName` => true
       case prefixed if prefixed.startsWith(attributeNamePrefix) =>
         val suffix = memoryUnitSuffix(name, attributeName, attributeNamePrefix)
-        MemoryUnit.values exists {
-          _.suffixes.map(_.toLowerCase).contains(suffix)
-        }
+        Information.units.exists(_.symbol.toLowerCase == suffix.toLowerCase)
       case _ => false
     }
   }
 
   private def memoryUnitSuffix(name: String, attributeName: String, attributeNamePrefix: String) = {
     if (name == attributeName)
-      MemoryUnit.Bytes.suffixes.head
+      Bytes.symbol
     else
       name.substring(attributeNamePrefix.length)
   }

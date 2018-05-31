@@ -1,5 +1,8 @@
 package wom.callable
 
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Positive
+
 /**
   * Parameter documentation quoted from CWL Spec.
   *
@@ -12,7 +15,7 @@ package wom.callable
   */
 case class RuntimeEnvironment(outputPath: String,
                               tempPath: String,
-                              cores: Int,
+                              cores: Int Refined Positive,
                               ram: Double,
                               outputPathSize: Long,
                               tempPathSize: Long)

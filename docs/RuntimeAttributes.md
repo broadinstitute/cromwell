@@ -293,13 +293,14 @@ runtime {
 
 ## `maxRetries`
 
-Applicable for all backends in Cromwell. Takes an Int as a value that indicates the maximum number of times Cromwell should retry a failed task.
+This retry option is introduced to provide a strategy for tackling transient job failures. For example, if a task fails due to a timeout from accessing an external service, then this option helps re-run the failed the task without having to re-run the entire workflow. It takes an Int as a value that indicates the maximum number of times Cromwell should retry a failed task. This retry is applied towards jobs that fail while executing the task command. 
 
-*eg. With a value of 1, Cromwell will run the task, if the task fails for any reason, the task will be retried without any changes.*
+If using the Google backend, it's important to note that The `maxRetries` count is independent from the [preemptible](#preemptible) count. For example, the task below can be retried up to 6 times if it's preempted 3 times AND the command execution fails 3 times.
 
 ```
 runtime {
-  maxRetries: 1
+  preemptible: 3
+  maxRetries: 3
 }
 ```
 

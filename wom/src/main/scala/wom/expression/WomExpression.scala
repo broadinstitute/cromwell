@@ -118,6 +118,12 @@ trait IoFunctionSet {
   def writeFile(path: String, content: String): Future[WomSingleFile]
 
   /**
+    * Creates a temporary directory. This must be in a place accessible to the backend.
+    * In a world where then backend is not known at submission time this will not be sufficient.
+    */
+  def createTemporaryDirectory(name: Option[String]): Future[String]
+
+  /**
     * Copy pathFrom to targetName
     * @return destination as a WomSingleFile
     */

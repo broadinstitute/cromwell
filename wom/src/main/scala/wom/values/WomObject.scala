@@ -1,11 +1,15 @@
 package wom.values
 
+import cats.Applicative
+import cats.instances.list._
+import cats.syntax.traverse._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import wom.TsvSerializable
 import wom.types._
 import wom.util.FileUtil
 
+import scala.language.higherKinds
 import scala.util.{Failure, Success, Try}
 
 trait WomObjectLike extends WomValue {
@@ -22,6 +26,18 @@ trait WomObjectLike extends WomValue {
 
   override def collectAsSeq[T <: WomValue](filterFn: PartialFunction[WomValue, T]): Seq[T] = {
     values.values.toSeq flatMap { _.collectAsSeq(filterFn) }
+  }
+
+  def traverse[R <: WomValue, G[_]](f: WomValue => G[R])(implicit applicative: Applicative[G]): G[WomObjectLike] = {
+    if (values.isEmpty) applicative.pure(this)
+    else {
+      val traverseFunction: (String, WomValue) => G[(String, R)] = {
+        case (key, value) => applicative.map(f(value)) { key -> _ }
+      }
+      applicative.map(values.toList.traverse[G, (String, R)](traverseFunction.tupled)) { mapped =>
+        copyWith(mapped.toMap)
+      }
+    }
   }
 }
 

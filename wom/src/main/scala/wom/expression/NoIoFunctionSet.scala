@@ -26,6 +26,7 @@ class EmptyIoFunctionSet extends IoFunctionSet {
   override def pathFunctions = NoPathFunctionSet
   override def listDirectory(path: String)(visited: Vector[String] = Vector.empty) = throw new NotImplementedError("listDirectory is not available here")
   override def isDirectory(path: String) = throw new NotImplementedError("isDirectory is not available here")
+  override def createTemporaryDirectory(name: Option[String]) = throw new NotImplementedError("createTemporaryDirectory is not available here")
 }
 
 class EmptyPathFunctionSet extends PathFunctionSet {

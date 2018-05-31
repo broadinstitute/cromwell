@@ -9,11 +9,13 @@ import cromwell.backend.google.pipelines.common.GpuResource.GpuType.GpuType
 import cromwell.backend.google.pipelines.common.io.{PipelinesApiAttachedDisk, PipelinesApiWorkingDisk}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation.{BooleanRuntimeAttributesValidation, _}
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Positive
 import wom.RuntimeAttributesKeys
-import wom.format.MemorySize
 import wom.types._
 import wom.values._
 import net.ceedubs.ficus.Ficus._
+import squants.information.Information
 
 object GpuResource {
   val DefaultNvidiaDriverVersion = "390.46"
@@ -24,14 +26,14 @@ object GpuResource {
   }
 }
 
-final case class GpuResource(gpuType: GpuType, gpuCount: Int, nvidiaDriverVersion: String = GpuResource.DefaultNvidiaDriverVersion)
+final case class GpuResource(gpuType: GpuType, gpuCount: Int Refined Positive, nvidiaDriverVersion: String = GpuResource.DefaultNvidiaDriverVersion)
 
-final case class PipelinesApiRuntimeAttributes(cpu: Int,
+final case class PipelinesApiRuntimeAttributes(cpu: Int Refined Positive,
                                                gpuResource: Option[GpuResource],
                                                zones: Vector[String],
                                                preemptible: Int,
                                                bootDiskSize: Int,
-                                               memory: MemorySize,
+                                               memory: Information,
                                                disks: Seq[PipelinesApiAttachedDisk],
                                                dockerImage: String,
                                                failOnStderr: Boolean,
@@ -58,19 +60,19 @@ object PipelinesApiRuntimeAttributes {
   val DisksKey = "disks"
   private val DisksDefaultValue = WomString(s"${PipelinesApiWorkingDisk.Name} 10 SSD")
 
-  private val MemoryDefaultValue = "2 GB"
+  private val MemoryDefaultValue = "2048 MB"
 
-  private def cpuValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] = CpuValidation.instance
+  private def cpuValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int Refined Positive] = CpuValidation.instance
     .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
 
-  private def cpuMinValidation(runtimeConfig: Option[Config]):RuntimeAttributesValidation[Int] = CpuValidation.instanceMin
+  private def cpuMinValidation(runtimeConfig: Option[Config]):RuntimeAttributesValidation[Int Refined Positive] = CpuValidation.instanceMin
     .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
 
   private def gpuTypeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[GpuType] = GpuTypeValidation.optional
 
-  private def gpuValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Int] = GpuValidation.optional
+  private def gpuValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optional
 
-  private def gpuMinValidation(runtimeConfig: Option[Config]):OptionalRuntimeAttributesValidation[Int] = GpuValidation.optionalMin
+  private def gpuMinValidation(runtimeConfig: Option[Config]):OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optionalMin
 
   private def failOnStderrValidation(runtimeConfig: Option[Config]) = FailOnStderrValidation.default(runtimeConfig)
 
@@ -85,13 +87,13 @@ object PipelinesApiRuntimeAttributes {
   private def preemptibleValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] = preemptibleValidationInstance
     .withDefault(preemptibleValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse PreemptibleDefaultValue)
 
-  private def memoryValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[MemorySize] = {
+  private def memoryValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Information] = {
     MemoryValidation.withDefaultMemory(
       RuntimeAttributesKeys.MemoryKey,
       MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, runtimeConfig) getOrElse MemoryDefaultValue)
   }
 
-  private def memoryMinValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[MemorySize] = {
+  private def memoryMinValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Information] = {
     MemoryValidation.withDefaultMemory(
       RuntimeAttributesKeys.MemoryMinKey,
       MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryMinKey, runtimeConfig) getOrElse MemoryDefaultValue)
@@ -125,12 +127,12 @@ object PipelinesApiRuntimeAttributes {
   }
 
   def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, runtimeAttrsConfig: Option[Config]): PipelinesApiRuntimeAttributes = {
-    val cpu: Int = RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val cpu: Int Refined Positive = RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
 
     // GPU
     lazy val nvidiaDriverVersion = runtimeAttrsConfig.flatMap(_.as[Option[String]]("nvidia-driver-version")).getOrElse(GpuResource.DefaultNvidiaDriverVersion)
     val gpuType: Option[GpuType] = RuntimeAttributesValidation.extractOption(gpuTypeValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
-    val gpu: Option[Int] = RuntimeAttributesValidation.extractOption(gpuValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
+    val gpu: Option[Int Refined Positive] = RuntimeAttributesValidation.extractOption(gpuValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
     val gpuResource = (gpuType, gpu) match {
       case (Some(t), Some(g)) => Option(GpuResource(t, g, nvidiaDriverVersion))
       case (Some(_), None) => throw new RuntimeException(s"Please specify how many GPU should be attached to the instance.")
@@ -141,7 +143,7 @@ object PipelinesApiRuntimeAttributes {
     val zones: Vector[String] = RuntimeAttributesValidation.extract(ZonesValidation, validatedRuntimeAttributes)
     val preemptible: Int = RuntimeAttributesValidation.extract(preemptibleValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val bootDiskSize: Int = RuntimeAttributesValidation.extract(bootDiskSizeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val memory: MemorySize = RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val memory: Information = RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val disks: Seq[PipelinesApiAttachedDisk] = RuntimeAttributesValidation.extract(disksValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
     val failOnStderr: Boolean = RuntimeAttributesValidation.extract(failOnStderrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)

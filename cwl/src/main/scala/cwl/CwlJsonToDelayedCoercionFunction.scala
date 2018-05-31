@@ -62,25 +62,6 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
     case WomSingleFileType | WomMaybePopulatedFileType if value.toMap.get("class").flatMap(_.asString).contains("File") =>
       Json.fromJsonObject(value).as[File] match {
         case Left(errors) => errors.message.invalidNel
-
-        /*
-          From the CWL spec:
-          If no location or path is specified, a file object must specify contents with the UTF-8 text content of the file.
-          This is a "file literal". File literals do not correspond to external resources, but are created on disk with
-          contents with when needed for a executing a tool. Where appropriate, expressions can return file literals to
-          define new files on a runtime. The maximum size of contents is 64 kilobytes.
-
-
-          NOTE WELL:
-          This implementation is incompatible with cloud backends, as the file is local and thus inaccessible from
-          those environments.  Please see this issue:
-          https://github.com/broadinstitute/cromwell/issues/3581
-        */
-        case Right(file@File(_, None, None, _, _,_,_,_,Some(contents))) => {
-          val tempDir = better.files.File.newTemporaryDirectory()
-          val cwlFile: better.files.File = tempDir./(s"${contents.hashCode}").write(contents)
-          file.asWomValue.map(_.copy(valueOption = Option(cwlFile.path.toString)))
-        }
         case Right(file) => file.asWomValue
       }
     case WomMaybeListedDirectoryType | WomUnlistedDirectoryType if value.toMap.get("class").flatMap(_.asString).contains("Directory") =>

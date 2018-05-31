@@ -1,12 +1,14 @@
 package cwl
 
 import common.validation.ErrorOr._
+import eu.timepit.refined.refineMV
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import wom.callable.RuntimeEnvironment
 import wom.values._
 import common.validation.Validation._
 import cwl.ExpressionInterpolator.SubstitutionException
+import eu.timepit.refined.numeric.Positive
 import wom.expression.DefaultSizeIoFunctionSet
 
 class ExpressionInterpolatorSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
@@ -19,7 +21,7 @@ class ExpressionInterpolatorSpec extends FlatSpec with Matchers with TableDriven
   )
 
   private lazy val parameterContext = {
-    val runtime = RuntimeEnvironment("out", "tmp", 1, 2.0D, 100L, 200L)
+    val runtime = RuntimeEnvironment("out", "tmp", refineMV[Positive](1), 2.0D, 100L, 200L)
     val inputs = Map(
       "cram" -> WomSingleFile("/path/to/my.cram"),
       "file1" -> WomSingleFile("/path/to/my.file.txt")

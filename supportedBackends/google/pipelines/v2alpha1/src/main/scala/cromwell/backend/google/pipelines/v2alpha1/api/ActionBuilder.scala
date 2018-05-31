@@ -34,10 +34,10 @@ object ActionBuilder {
   def withImage(image: String) = new Action()
     .setImageUri(image)
 
-  def userAction(docker: String, scriptContainerPath: String, mounts: List[Mount]): Action = {
+  def userAction(docker: String, scriptContainerPath: String, mounts: List[Mount], jobShell: String): Action = {
     new Action()
       .setImageUri(docker)
-      // TODO shouldn't this be using the job shell?
+      // TODO this should use jobShell instead of "/bin/bash"
       .setCommands(List("/bin/bash", scriptContainerPath).asJava)
       .setMounts(mounts.asJava)
       .setEntrypoint("")
@@ -55,9 +55,9 @@ object ActionBuilder {
       .setLabels(description.map("description" -> _).toMap.asJava)
   }
 
-  def delocalize(fileOutput: PipelinesApiFileOutput, mounts: List[Mount], projectId: String) = {
+  def delocalizeFile(fileOutput: PipelinesApiFileOutput, mounts: List[Mount], projectId: String) = {
     // The command String runs in Bourne shell to get the conditional logic for optional outputs so shell metacharacters in filenames must be escaped.
-    val List(containerPath, cloudPath) = List(fileOutput.containerPath.pathAsString, fileOutput.cloudPath) map ESCAPE_XSI.translate
+    val List(containerPath, cloudPath) = List(fileOutput.containerPath.pathAsString, fileOutput.cloudPath.pathAsString) map ESCAPE_XSI.translate
 
     // To re-enable requester pays, this need to be added back: -u $projectId
     val copy = s"gsutil cp $containerPath $cloudPath"

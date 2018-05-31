@@ -1,6 +1,5 @@
 package cwl
 
-import better.files
 import cats.instances.list._
 import cats.instances.option._
 import cats.syntax.traverse._
@@ -32,16 +31,6 @@ object CwlType extends Enumeration {
   val String = Value("string")
   val File = Value("File")
   val Directory = Value("Directory")
-
-  // Callers expect the last component to match the basename if a basename is specified.
-  private [cwl] def tempFile(basename: Option[String], asDirectory: Boolean): files.File = {
-    lazy val dir = better.files.File.newTemporaryDirectory()
-    basename match {
-      case None if asDirectory => dir
-      case None => better.files.File.newTemporaryFile()
-      case Some(b) => dir.createChild(b, asDirectory = asDirectory)()
-    }
-  }
 }
 
 case class File private
@@ -67,10 +56,19 @@ case class File private
 
   lazy val asWomValue: ErrorOr[WomMaybePopulatedFile] = {
     errorOrSecondaryFiles flatMap { secondaryFiles =>
-      val valueOption = path.orElse(location).orElse(basename)
+      val valueOption = location.orElse(path)
       (valueOption, contents) match {
         case (None, None) =>
-          "Cannot convert CWL File to WomValue without either a location, a path, a basename, or contents".invalidNel
+          "Cannot convert CWL File to WomValue without either a location, a path, or contents".invalidNel
+        case (None, Some(content)) =>
+          new WomMaybePopulatedFile(None, checksum, size, format, contents) with LazyWomFile {
+            override def initialize(ioFunctionSet: IoFunctionSet) = {
+              val name = basename.getOrElse(content.hashCode.toString)
+              sync(ioFunctionSet.writeFile(name, content)).toErrorOr map { writtenFile =>
+                this.copy(valueOption = Option(writtenFile.value))
+              }
+            }
+          }.valid
         case (_, _) =>
           WomMaybePopulatedFile(valueOption, checksum, size, format, contents, secondaryFiles).valid
       }
@@ -88,18 +86,9 @@ object File {
              secondaryFiles: Option[Array[FileOrDirectory]] = None,
              format: Option[String] = None,
              contents: Option[String] = None): File = {
-
-    import CwlType._
-    val isLiteral = location.isEmpty && path.isEmpty && contents.isDefined
-    val safeLocation = if (isLiteral) {
-      val temporaryFile = tempFile(basename, asDirectory = false)
-      contents foreach { c => temporaryFile.write(c) }
-      Option(temporaryFile.pathAsString)
-    } else location
-
     new cwl.File(
       "File".narrow,
-      safeLocation,
+      location,
       path,
       basename,
       checksum,
@@ -244,7 +233,6 @@ case class Directory private
   basename: Option[String],
   listing: Option[Array[FileOrDirectory]]
 ) {
-
   lazy val errorOrListingOption: ErrorOr[Option[List[WomFile]]] = {
     val maybeErrorOrList: Option[ErrorOr[List[WomFile]]] =
       listing map {
@@ -256,10 +244,18 @@ case class Directory private
   }
 
   lazy val asWomValue: ErrorOr[WomFile] = {
-    import CwlType._
     errorOrListingOption flatMap { listingOption =>
-      val valueOption = path.orElse(location).orElse(Option(tempFile(basename, asDirectory = true).pathAsString))
-      WomMaybeListedDirectory(valueOption, listingOption, basename).valid
+      path.orElse(location) map { value =>
+        WomMaybeListedDirectory(Option(value), listingOption, basename).valid
+      } getOrElse {
+        new WomMaybeListedDirectory(None, listingOption, basename) with LazyWomFile {
+          override def initialize(ioFunctionSet: IoFunctionSet) = {
+            sync(ioFunctionSet.createTemporaryDirectory(basename)).toErrorOr map { tempDir =>
+              this.copy(valueOption = Option(tempDir))
+            }
+          }
+        }.valid
+      }
     }
   }
 }
@@ -272,7 +268,10 @@ object Directory {
            ): Directory =
     new cwl.Directory("Directory".narrow, location, path, basename, listing)
 
-  def basename(value: String): String = value.stripSuffix("/").substring(value.lastIndexOf('/') + 1)
+  def basename(value: String): String = {
+    val stripped = value.stripSuffix("/")
+    stripped.substring(stripped.lastIndexOf('/') + 1)
+  }
 }
 
 private[cwl] object CwlDirectoryOrFileAsWomSingleDirectoryOrFile extends Poly1 {

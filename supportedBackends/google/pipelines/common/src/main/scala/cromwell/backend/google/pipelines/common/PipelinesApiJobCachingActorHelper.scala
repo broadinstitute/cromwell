@@ -17,11 +17,11 @@ trait PipelinesApiJobCachingActorHelper extends StandardCachingActorHelper {
     backendInitializationDataAs[PipelinesApiBackendInitializationData]
   }
 
-  lazy val jesConfiguration: PipelinesApiConfiguration = initializationData.jesConfiguration
+  lazy val pipelinesConfiguration: PipelinesApiConfiguration = initializationData.jesConfiguration
 
   lazy val pipelinesApiCallPaths: PipelinesApiJobPaths = jobPaths.asInstanceOf[PipelinesApiJobPaths]
 
-  lazy val runtimeAttributes = PipelinesApiRuntimeAttributes(validatedRuntimeAttributes, jesConfiguration.runtimeConfig)
+  lazy val runtimeAttributes = PipelinesApiRuntimeAttributes(validatedRuntimeAttributes, pipelinesConfiguration.runtimeConfig)
 
   lazy val workingDisk: PipelinesApiAttachedDisk = runtimeAttributes.disks.find(_.name == PipelinesApiWorkingDisk.Name).get
 
@@ -33,7 +33,7 @@ trait PipelinesApiJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val maxPreemption: Int = runtimeAttributes.preemptible
   def preemptible: Boolean
 
-  lazy val jesAttributes: PipelinesApiAttributes = jesConfiguration.jesAttributes
+  lazy val jesAttributes: PipelinesApiAttributes = pipelinesConfiguration.jesAttributes
 
   lazy val defaultLabels: Labels = {
     val workflow = jobDescriptor.workflowDescriptor

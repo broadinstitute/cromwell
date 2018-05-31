@@ -7,8 +7,9 @@ import akka.event.LoggingReceive
 import cats.instances.list._
 import cats.instances.option._
 import cats.syntax.apply._
+import cats.syntax.either._
+import cats.syntax.functor._
 import cats.syntax.traverse._
-import cats.syntax.validated._
 import common.exception.MessageAggregation
 import common.util.StringUtil._
 import common.util.TryUtil
@@ -16,12 +17,12 @@ import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
-import cromwell.backend._
+import cromwell.backend.OutputEvaluator._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async._
+import cromwell.backend.standard.StandardAdHocValue._
 import cromwell.backend.validation._
-import cromwell.backend.OutputEvaluator._
-import cromwell.backend.{Command, OutputEvaluator}
+import cromwell.backend.{Command, OutputEvaluator, _}
 import cromwell.core.io.{AsyncIoActorClient, DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.path.Path
 import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent, StandardPaths}
@@ -30,13 +31,16 @@ import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
-import wom.callable.{AdHocValue, CommandTaskDefinition, RuntimeEnvironment}
+import shapeless.Coproduct
+import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression, RuntimeEnvironment}
 import wom.expression.WomExpression
 import wom.graph.LocalName
+import wom.values.LazyWomFile._
 import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 
-import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}
+import scala.concurrent._
+import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 trait StandardAsyncExecutionActorParams extends StandardJobExecutionActorParams {
@@ -117,16 +121,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       path = "temporary-directory",
       default = s"""mkdir -p "${runtimeEnvironment.tempPath}" && echo "${runtimeEnvironment.tempPath}""""
     )
-  /**
-    * Maps WomFile objects for use in the commandLinePreProcessor.
-    *
-    * By default just calls the pass through mapper mapCommandLineWomFile.
-    *
-    * Sometimes a preprocessor may need to localize the files, etc.
-    *
-    */
-  def preProcessWomFile(womFile: WomFile): WomFile = womFile
 
+  def preProcessWomFile(womFile: WomFile): WomFile = womFile
+  
   /** @see [[Command.instantiate]] */
   final lazy val commandLinePreProcessor: WomEvaluatedCallInputs => Try[WomEvaluatedCallInputs] = {
     inputs =>
@@ -340,6 +337,11 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |) $stdinRedirection > "$$$out" 2> "$$$err"
         |echo $$? > $rcTmpPath
         |(
+        |# add a .file in every empty directory to facilitate directory delocalization on the cloud
+        |cd $cwd
+        |find . -type d -empty -print | xargs -I % touch %/.file
+        |)
+        |(
         |cd $cwd
         |SCRIPT_EPILOGUE
         |${globScripts(globFiles)}
@@ -362,30 +364,52 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   lazy val runtimeEnvironment = {
     RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(standardParams.minimumRuntimeSettings) |> runtimeEnvironmentPathMapper
   }
-  
-  lazy val evaluatedAdHocFiles = {
-    val callable = jobDescriptor.taskCall.callable
-    
-    /*
-    NOTE: This method jumps through hoops to keep track of inputs and paths especially for ad hoc files.
 
-    If / when the [[WomFile.value]] is differentiated into cloud paths, VM paths & docker container paths then a lot of
-    this will need to be refactored.
-     */
+  /**
+    * By default, ad hoc values get localized to the call directory.
+    * This way if running locally with docker they get mounted with the rest of the inputs in the container.
+    * The PAPI backend overrides this to a noop since the localization happens on the VM directly, so there's no need
+    * for this extra localization step.
+    * 
+    * Maybe this should be the other way around: the default implementation is noop and SFS / TES override it ?
+    */
+  lazy val localizeAdHocValues: List[AdHocValue] => ErrorOr[List[StandardAdHocValue]] = { adHocValues => 
+    import cats.instances.future._
 
-    def validateAdHocFile(value: WomValue): ErrorOr[List[WomFile]] = value match {
-      case womFile: WomFile => List(womFile).valid
-      case womArray: WomArray => womArray.value.toList.traverse(validateAdHocFile).map(_.flatten)
-      case other =>
-        s"Ad-hoc file creation expression invalidly created a ${other.womType.toDisplayString} result.".invalidNel
-    }
-
-    def validateAdHocValue(value: AdHocValue): ErrorOr[List[(WomFile, Option[String])]] = {
-      value.womValue match {
-        case womFile: WomFile => List(womFile -> value.mutableInputOption).valid
-        case other => validateAdHocFile(other).map(_.map(_ -> None))
+    // Localize an adhoc file to the callExecutionRoot as needed
+    val localize: (AdHocValue, Path) => Future[LocalizedAdHocValue] = { (adHocValue, file) =>
+      val actualName = adHocValue.alternativeName.getOrElse(file.name)
+      val finalPath = jobPaths.callExecutionRoot / actualName
+      // First check that it's not already there under execution root
+      asyncIo.existsAsync(finalPath) flatMap {
+        // If it's not then copy it
+        case false => asyncIo.copyAsync(file, finalPath) as { LocalizedAdHocValue(adHocValue, finalPath) }
+        case true => Future.successful(LocalizedAdHocValue(adHocValue, finalPath))
       }
     }
+    
+    adHocValues.traverse[ErrorOr, (AdHocValue, Path)]({ adHocValue =>
+      // Build an actionable Path from the ad hoc file
+      getPath(adHocValue.womValue.value).toErrorOr.map(adHocValue -> _)
+    })
+      // Localize the values if necessary
+      .map(_.traverse[Future, LocalizedAdHocValue](localize.tupled)).toEither
+      // TODO: Asynchronify
+      // This is obviously sad but turning it into a Future has earth-shattering consequences, so synchronizing it for now
+      .flatMap(future => Try(Await.result(future, 1.hour)).toChecked)
+      .map(_.map(Coproduct[StandardAdHocValue](_)))
+      .toValidated
+  }
+  
+  def adHocValueToCommandSetupSideEffectFile(adHocValue: StandardAdHocValue) = adHocValue match {
+    case AsAdHocValue(AdHocValue(womValue, alternativeName, _)) =>
+      CommandSetupSideEffectFile(womValue, alternativeName)
+    case AsLocalizedAdHocValue(LocalizedAdHocValue(AdHocValue(womValue, alternativeName, _), _)) =>
+      CommandSetupSideEffectFile(womValue, alternativeName)
+  }
+
+  lazy val evaluatedAdHocFiles: ErrorOr[List[AdHocValue]] = {
+    val callable = jobDescriptor.taskCall.callable
 
     /*
       * Try to map the command line values.
@@ -398,34 +422,47 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     def tryCommandLineValueMapper(womValue: WomValue): WomValue = {
       Try(commandLineJobInputValueMapper(womValue)).getOrElse(womValue)
     }
-    
+
     val unmappedInputs: Map[String, WomValue] = jobDescriptor.evaluatedTaskInputs.map({
       case (inputDefinition, womValue) => inputDefinition.localName.value -> womValue
     })
     val mappedInputs: Map[String, WomValue] = unmappedInputs.mapValues(tryCommandLineValueMapper).map(identity)
-    callable.adHocFileCreation.toList.flatTraverse(
-      _.evaluate(unmappedInputs, mappedInputs, backendEngineFunctions).flatMap(validateAdHocValue)
-    )
+    
+    val evaluateAndInitialize = (containerizedInputExpression: ContainerizedInputExpression) => for {
+      evaluated <- containerizedInputExpression.evaluate(unmappedInputs, mappedInputs, backendEngineFunctions).toEither
+      initialized <- evaluated.traverse[ErrorOr, AdHocValue]({ adHocValue =>
+        adHocValue.womValue.initializeWomFile(backendEngineFunctions).map(i => adHocValue.copy(womValue = i))
+      }).toEither
+    } yield initialized
+
+    callable.adHocFileCreation.toList
+      .flatTraverse[ErrorOr, AdHocValue](evaluateAndInitialize.andThen(_.toValidated))
   }
+
+  lazy val localizedAdHocValues: ErrorOr[List[StandardAdHocValue]] = evaluatedAdHocFiles.toEither
+    .flatMap(localizeAdHocValues.andThen(_.toEither))
+    .toValidated
   
-  protected def isAdHocFile(womFile: WomFile) = evaluatedAdHocFiles map { _.exists({
-      case (file, _) => file.value == womFile.value
-    })
-  } getOrElse false
+  protected def asAdHocFile(womFile: WomFile) = evaluatedAdHocFiles map { _.find({
+    case AdHocValue(file, _, _) => file.value == womFile.value
+  })
+  } getOrElse None
+ 
+  protected def isAdHocFile(womFile: WomFile) = asAdHocFile(womFile).isDefined
 
   /** The instantiated command. */
   lazy val instantiatedCommand: InstantiatedCommand = {
     val callable = jobDescriptor.taskCall.callable
 
-    val adHocFileCreations: ErrorOr[List[(WomFile, Option[String])]] = evaluatedAdHocFiles
-
     // Replace input files with the ad hoc updated version
     def adHocFilePreProcessor(in: WomEvaluatedCallInputs): Try[WomEvaluatedCallInputs] = {
-      adHocFileCreations.toTry("Error evaluating ad hoc files") map { adHocFiles =>
+      localizedAdHocValues.toTry("Error evaluating ad hoc files") map { adHocFiles =>
         in map {
           case (inputDefinition, originalWomValue) =>
             inputDefinition -> adHocFiles.collectFirst({
-              case (mutatedWomValue, Some(inputName)) if inputName == inputDefinition.localName.value => mutatedWomValue
+              case AsAdHocValue(AdHocValue(originalWomFile, _, Some(inputName))) if inputName == inputDefinition.localName.value => originalWomFile
+              case AsLocalizedAdHocValue(LocalizedAdHocValue(AdHocValue(originalWomFile, _, Some(inputName)), localizedPath)) if inputName == inputDefinition.localName.value =>
+                originalWomFile.mapFile(_ => localizedPath.pathAsString)
             }).getOrElse(originalWomValue)
         }
       }
@@ -447,16 +484,12 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       runtimeEnvironment
     )
 
-    def adHocFileLocalization(womFile: WomFile): String = womFile.value.substring(womFile.value.lastIndexOf("/") + 1)
-
     def makeStringKeyedMap(list: List[(LocalName, WomValue)]): Map[String, WomValue] = list.toMap map { case (k, v) => k.value -> v }
 
     val command = instantiatedCommandValidation flatMap { instantiatedCommand =>
       val valueMappedPreprocessedInputs = instantiatedCommand.valueMappedPreprocessedInputs |> makeStringKeyedMap
 
-      val adHocFileCreationSideEffectFiles: ErrorOr[List[CommandSetupSideEffectFile]] = adHocFileCreations map { _ map {
-        case (womFile, _) => CommandSetupSideEffectFile(womFile, Option(adHocFileLocalization(womFile)))
-      }}
+      val adHocFileCreationSideEffectFiles: ErrorOr[List[CommandSetupSideEffectFile]] = localizedAdHocValues map { _.map(adHocValueToCommandSetupSideEffectFile) }
 
       def evaluateEnvironmentExpression(nameAndExpression: (String, WomExpression)): ErrorOr[(String, String)] = {
         val (name, expression) = nameAndExpression

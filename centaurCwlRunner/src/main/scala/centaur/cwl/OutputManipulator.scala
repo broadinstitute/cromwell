@@ -1,5 +1,6 @@
 package centaur.cwl
 
+import common.util.StringUtil._
 import cromwell.core.path.{Path, PathBuilder}
 import cwl.command.ParentName
 import cwl.ontology.Schema
@@ -183,7 +184,8 @@ object OutputManipulator extends Poly1 {
           o <- json.asObject
           l <- o.kleisli("location")
           s <- l.asString
-          p <- pathBuilder.build(s).toOption
+          c = if (a.contains(Inl(CwlType.Directory))) s.ensureSlashed else s
+          p <- pathBuilder.build(c).toOption
         } yield p.exists).getOrElse(false)
         if (fileExists) json.mapObject(populateFileFields(pathBuilder, isInsideDirectory = false, schemaOption)) else Json.Null
       case (JsNumber(metadata), Array(Inl(CwlType.Long))) => metadata.longValue.asJson

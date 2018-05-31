@@ -1,8 +1,12 @@
 package cromwell.backend.validation
 
-import cats.syntax.validated._
+import cats.data.NonEmptyList
+import cats.syntax.either._
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Positive
+import eu.timepit.refined.refineV
 import wom.RuntimeAttributesKeys._
 import wom.types.WomIntegerType
 import wom.values.{WomInteger, WomValue}
@@ -18,26 +22,25 @@ import wom.values.{WomInteger, WomValue}
   * reference.conf file, coerced into a WomValue.
   */
 object CpuValidation {
-  lazy val instance: RuntimeAttributesValidation[Int] = new CpuValidation(CpuKey)
-  lazy val optional: OptionalRuntimeAttributesValidation[Int] = instance.optional
-  lazy val instanceMin: RuntimeAttributesValidation[Int] = new CpuValidation(CpuMinKey)
-  lazy val optionalMin: OptionalRuntimeAttributesValidation[Int] = instanceMin.optional
-  lazy val instanceMax: RuntimeAttributesValidation[Int] = new CpuValidation(CpuMaxKey)
-  lazy val optionalMax: OptionalRuntimeAttributesValidation[Int] = instanceMax.optional
+  lazy val instance: RuntimeAttributesValidation[Int Refined Positive] = new CpuValidation(CpuKey)
+  lazy val optional: OptionalRuntimeAttributesValidation[Int Refined Positive] = instance.optional
+  lazy val instanceMin: RuntimeAttributesValidation[Int Refined Positive] = new CpuValidation(CpuMinKey)
+  lazy val optionalMin: OptionalRuntimeAttributesValidation[Int Refined Positive] = instanceMin.optional
+  lazy val instanceMax: RuntimeAttributesValidation[Int Refined Positive] = new CpuValidation(CpuMaxKey)
+  lazy val optionalMax: OptionalRuntimeAttributesValidation[Int Refined Positive] = instanceMax.optional
 
   lazy val defaultMin: WomValue = WomInteger(1)
   def configDefaultWomValue(config: Option[Config]): Option[WomValue] = instance.configDefaultWomValue(config)
 }
 
-class CpuValidation(attributeName: String) extends IntRuntimeAttributesValidation(attributeName) {
-  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Int]] = {
+class CpuValidation(attributeName: String) extends PositiveIntRuntimeAttributesValidation(attributeName) {
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Int Refined Positive]] = {
     case womValue if WomIntegerType.coerceRawValue(womValue).isSuccess =>
       WomIntegerType.coerceRawValue(womValue).get match {
         case WomInteger(value) =>
-          if (value.toInt <= 0)
-            s"Expecting $key runtime attribute value greater than 0".invalidNel
-          else
-            value.toInt.validNel
+          refineV[Positive](value.toInt)
+            .leftMap(_ => NonEmptyList.one(s"Expecting $key runtime attribute value greater than 0"))
+            .toValidated
       }
   }
 

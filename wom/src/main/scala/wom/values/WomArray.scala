@@ -1,16 +1,19 @@
 package wom.values
 
+import cats.Applicative
+import cats.instances.list._
+import cats.syntax.traverse._
 import common.util.TryUtil
 import wom.TsvSerializable
 import wom.types._
 import wom.values.WomArray.WomArrayLike
 
-import scala.language.postfixOps
+import scala.language.{higherKinds, postfixOps}
 import scala.util.{Failure, Success, Try}
 
 object WomArray {
   def empty = WomArray(WomMaybeEmptyArrayType.EmptyArrayType, List.empty)
-  
+
   def fromTsv(tsv: String): WomArray = {
     WomArray(WomArrayType(WomArrayType(WomStringType)), tsv.replaceAll("[\r\n]+$", "").split("[\n\r]+").toSeq map { line =>
       WomArray(WomArrayType(WomStringType), line.split("\t").toSeq.map(WomString))
@@ -59,7 +62,16 @@ sealed abstract case class WomArray(womType: WomArrayType, value: Seq[WomValue])
       case _ => this
     }
   }
-  
+
+  def traverse[R <: WomValue, G[_]](f: WomValue => G[R])(implicit applicative: Applicative[G]): G[WomArray] = {
+    if (value.isEmpty) applicative.pure(this)
+    else {
+      applicative.map(value.toList.traverse(f)) { mapped =>
+        WomArray(WomArrayType(mapped.head.womType), mapped)
+      }
+    }
+  }
+
   def size = value.size
 
   def tsvSerialize: Try[String] = {

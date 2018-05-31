@@ -92,7 +92,7 @@ object ExpressionEvaluator {
     Map(
       "outdir" -> WomString(runtime.outputPath),
       "tmpdir" -> WomString(runtime.tempPath),
-      "cores" -> WomInteger(runtime.cores),
+      "cores" -> WomInteger(runtime.cores.value),
       "ram" -> WomFloat(runtime.ram),
       "outdirSize" -> WomFloat(runtime.outputPathSize.toDouble),
       "tmpdirSize" -> WomFloat(runtime.tempPathSize.toDouble)

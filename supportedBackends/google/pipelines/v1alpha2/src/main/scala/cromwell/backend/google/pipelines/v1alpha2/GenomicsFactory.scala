@@ -5,14 +5,15 @@ import java.net.URL
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model._
-import cromwell.backend.google.pipelines.common.{PipelinesApiFileOutput, PipelinesApiInput}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterface, PipelinesApiRequestFactory}
+import cromwell.backend.google.pipelines.common.{PipelinesApiInput, PipelinesApiOutput}
 import cromwell.backend.google.pipelines.v1alpha2.PipelinesConversions._
 import cromwell.backend.google.pipelines.v1alpha2.ToParameter.ops._
 import cromwell.backend.google.pipelines.v1alpha2.api.{NonPreemptiblePipelineInfoBuilder, PreemptiblePipelineInfoBuilder}
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
+import cromwell.core.logging.JobLogger
 
 import scala.collection.JavaConverters._
 
@@ -27,7 +28,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         .setRootUrl(endpointUrl.toString)
         .build
 
-      override def runRequest(createPipelineParameters: CreatePipelineParameters) = {
+      override def runRequest(createPipelineParameters: CreatePipelineParameters, jobLogger: JobLogger) = {
         lazy val workflow = createPipelineParameters.jobDescriptor.workflowDescriptor
         val commandLine = s"/bin/bash ${createPipelineParameters.commandScriptContainerPath.pathAsString}"
         
@@ -35,14 +36,17 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         val pipelineInfo = pipelineInfoBuilder.build(commandLine, createPipelineParameters.runtimeAttributes, createPipelineParameters.dockerImage)
 
         val inputParameters: Map[String, PipelinesApiInput] = createPipelineParameters.inputParameters.map({ i => i.name -> i }).toMap
-        val outputParameters: Map[String, PipelinesApiFileOutput] = createPipelineParameters.outputParameters.map({ o => o.name -> o }).toMap
+        val outputParameters: Map[String, PipelinesApiOutput] = createPipelineParameters.outputParameters.map({ o => o.name -> o }).toMap
+
+        val literalInputPipelineParamters = createPipelineParameters.literalInputs.map(_.toGooglePipelineParameter)
+        val literalInputRunParameters = createPipelineParameters.literalInputs.map(l => l.name -> l.toGoogleRunParameter).toMap
 
         val pipeline = new Pipeline()
           .setProjectId(createPipelineParameters.projectId)
           .setDocker(pipelineInfo.docker)
           .setResources(pipelineInfo.resources)
           .setName(workflow.callable.name)
-          .setInputParameters(inputParameters.values.map(_.toGooglePipelineParameter).toVector.asJava)
+          .setInputParameters((inputParameters.values.map(_.toGooglePipelineParameter) ++ literalInputPipelineParamters).toVector.asJava)
           .setOutputParameters(outputParameters.values.map(_.toGooglePipelineParameter).toVector.asJava)
 
         // disks cannot have mount points at runtime, so set them null
@@ -61,7 +65,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
           ).asJava)
         val rpargs = new RunPipelineArgs().setProjectId(createPipelineParameters.projectId).setServiceAccount(svcAccount).setResources(runtimePipelineResources)
 
-        rpargs.setInputs(inputParameters.mapValues(_.toGoogleRunParameter).asJava)
+        rpargs.setInputs((inputParameters.mapValues(_.toGoogleRunParameter) ++ literalInputRunParameters).asJava)
         rpargs.setOutputs(outputParameters.mapValues(_.toGoogleRunParameter).asJava)
 
         rpargs.setLabels(createPipelineParameters.labels.asJavaMap)

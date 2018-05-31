@@ -54,7 +54,7 @@ class WdlDraft3LanguageFactory(override val config: Map[String, Any]) extends La
     for {
       _ <- standardConfig.enabledCheck
       executable <- womBundle.toWomExecutable(Option(inputsJson), ioFunctions, standardConfig.strictValidation)
-      validated <- LanguageFactoryUtil.validateWomNamespace(executable)
+      validated <- LanguageFactoryUtil.validateWomNamespace(executable, ioFunctions)
     } yield validated
   }
 

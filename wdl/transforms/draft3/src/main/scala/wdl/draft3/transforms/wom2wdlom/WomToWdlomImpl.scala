@@ -255,7 +255,7 @@ object WomToWdlomImpl {
         else
           ArrayTypeElement(womTypeToTypeElement.toWdlom(a.memberType))
       case _: WomCoproductType => throw UnrepresentableException
-      case _: WomFileType => PrimitiveTypeElement(WomSingleFileType) // TODO: questionable assumption
+      case _: WomFileType => PrimitiveTypeElement(WomSingleFileType)
       case a: WomMapType => MapTypeElement(womTypeToTypeElement.toWdlom(a.keyType), womTypeToTypeElement.toWdlom(a.valueType))
       case _: WomNothingType.type => throw UnrepresentableException
       case _: WomObjectType.type => ObjectTypeElement

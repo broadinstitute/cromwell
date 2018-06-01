@@ -164,10 +164,11 @@ object WomToWdlomImpl {
   implicit val workflowDefinitionToWorkflowDefinitionElement: WomToWdlom[WorkflowDefinition, WorkflowDefinitionElement] =
     new WomToWdlom[WorkflowDefinition, WorkflowDefinitionElement] {
       override def toWdlom(a: WorkflowDefinition): WorkflowDefinitionElement = {
-        val inputs = a.inputs.map(inputDefinitionToInputDeclarationElement.toWdlom)
-        // This is a bit odd, so let's explain. "Real" outputs that are specified by the WDL's author
-        // cannot have periods in them - period. So any output (and all outputs) that have periods
-        // are artifacts of WOMification and should be dropped
+        // This is a bit odd, so let's explain. "Real" inputs/outputs that are specified by the WDL's author
+        // cannot have periods in them - period. So any input/output that has a period in it
+        // is an artifact of WOMification and should be dropped
+        // TODO: a problem in e.g. hello.wdl; maybe the above is only true in 1.0?
+        val inputs = a.inputs.filter(!_.localName.value.contains(".")).map(inputDefinitionToInputDeclarationElement.toWdlom)
         val outputs = a.outputs.filter(!_.localName.value.contains(".")).map(outputDefinitionToOutputDeclarationElement.toWdlom)
 
         val expressions: Set[GraphNode] = a.graph.nodes.filterByType[ExposedExpressionNode]

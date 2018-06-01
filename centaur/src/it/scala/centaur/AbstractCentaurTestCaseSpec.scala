@@ -45,8 +45,6 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
 //        !testCase.workflow.data.workflowType.contains("CWL") &&
 //        !tags.map(_.name).contains("subworkflow")) {
     if (tags.map(_.name).contains("upgrade")) {
-
-      cromwell.languages.util.ImportResolver.localFileResolver
       val draft2Wdl = WdlNamespace.loadUsingSource(
         testCase.workflow.data.workflowContent,
         None,
